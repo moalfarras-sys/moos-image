@@ -109,10 +109,13 @@ Item {
     }
 
     function sessionIcon(actionId) {
+        // Every id maps to the glyph a user would guess it means. "logout" once
+        // wore the external-link box and "switch-user" the identity spark --
+        // both read as mystery buttons on the real 4K session.
         const icons = {
             "lock-screen": "moos-lock-symbolic",
-            "switch-user": "moos-identity-symbolic",
-            "logout": "moos-external-symbolic",
+            "switch-user": "moos-user-symbolic",
+            "logout": "moos-logout-symbolic",
             "suspend": "moos-moon-symbolic",
             "hibernate": "moos-moon-symbolic",
             "reboot": "moos-refresh-symbolic",
@@ -556,6 +559,8 @@ Item {
                         view.focusSearch();
                     }
                     PC3.ToolTip.text: text
+                    PC3.ToolTip.visible: hovered && text.length > 0
+                    PC3.ToolTip.delay: Kirigami.Units.toolTipDelay
                 }
 
                 Text {
@@ -893,6 +898,8 @@ Item {
                                 display: PC3.AbstractButton.IconOnly
                                 onClicked: view.menuEditor.runMenuEditor()
                                 PC3.ToolTip.text: text
+                                PC3.ToolTip.visible: hovered && text.length > 0
+                                PC3.ToolTip.delay: Kirigami.Units.toolTipDelay
                             }
 
                             PC3.ToolButton {
@@ -907,6 +914,8 @@ Item {
                                 display: PC3.AbstractButton.IconOnly
                                 onClicked: Plasmoid.configuration.compactTiles = !Plasmoid.configuration.compactTiles
                                 PC3.ToolTip.text: text
+                                PC3.ToolTip.visible: hovered && text.length > 0
+                                PC3.ToolTip.delay: Kirigami.Units.toolTipDelay
                             }
                         }
 
@@ -1311,6 +1320,8 @@ Item {
                 display: PC3.AbstractButton.IconOnly
                 onClicked: view.launcher.openDesktop("org.moos.themepicker.desktop")
                 PC3.ToolTip.text: text
+                PC3.ToolTip.visible: hovered && text.length > 0
+                PC3.ToolTip.delay: Kirigami.Units.toolTipDelay
             }
 
             Rectangle {
@@ -1342,6 +1353,8 @@ Item {
                     display: PC3.AbstractButton.IconOnly
                     onClicked: view.launcher.triggerEntry(view.sessionModel, index)
                     PC3.ToolTip.text: text
+                    PC3.ToolTip.visible: hovered && text.length > 0
+                    PC3.ToolTip.delay: Kirigami.Units.toolTipDelay
                 }
             }
         }
@@ -1527,6 +1540,8 @@ Item {
             display: PC3.AbstractButton.IconOnly
             onClicked: view.launcher.toggleFavorite(String(tile.model.favoriteId || ""))
             PC3.ToolTip.text: text
+            PC3.ToolTip.visible: hovered && text.length > 0
+            PC3.ToolTip.delay: Kirigami.Units.toolTipDelay
         }
 
         Row {
@@ -1548,6 +1563,8 @@ Item {
                 enabled: tile.index > 0
                 onClicked: view.launcher.moveFavorite(tile.index, tile.index - 1)
                 PC3.ToolTip.text: text
+                PC3.ToolTip.visible: hovered && text.length > 0
+                PC3.ToolTip.delay: Kirigami.Units.toolTipDelay
             }
             PC3.ToolButton {
                 width: view.targetSize
@@ -1557,6 +1574,8 @@ Item {
                 display: PC3.AbstractButton.IconOnly
                 onClicked: view.launcher.toggleFavorite(String(tile.model.favoriteId || ""))
                 PC3.ToolTip.text: text
+                PC3.ToolTip.visible: hovered && text.length > 0
+                PC3.ToolTip.delay: Kirigami.Units.toolTipDelay
             }
             PC3.ToolButton {
                 width: view.targetSize
@@ -1569,6 +1588,8 @@ Item {
                 enabled: tile.index < view.favoritesModel.count - 1
                 onClicked: view.launcher.moveFavorite(tile.index, tile.index + 1)
                 PC3.ToolTip.text: text
+                PC3.ToolTip.visible: hovered && text.length > 0
+                PC3.ToolTip.delay: Kirigami.Units.toolTipDelay
             }
         }
     }

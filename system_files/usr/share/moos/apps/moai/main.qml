@@ -6054,7 +6054,9 @@ Kirigami.ApplicationWindow {
                                 MoButton {
                                     Layout.fillWidth: true
                                     label: root.local("افتح المظهر والثيمات", "Open appearance and themes")
-                                    iconName: "moos-themes-symbolic"
+                                    // moos-ui-symbolic is the family's themes glyph; a
+                                    // "moos-themes-symbolic" never existed and drew blank.
+                                    iconName: "moos-ui-symbolic"
                                     primary: true
                                     onClicked: root.launch("moos://settings/themes", "MoOS themes")
                                 }

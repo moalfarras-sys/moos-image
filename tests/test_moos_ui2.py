@@ -798,8 +798,9 @@ class TestMoOSUI2(unittest.TestCase):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=28", apply,
-            "existing v27 users would exit before lock wallpaper reconciliation",
+            "THEME_REV=29", apply,
+            "existing v27/v28 users would exit before lock wallpaper reconciliation "
+            "and the v29 liquid-glass mark + plasmoid-shadow purge",
         )
         self.assertIn('[ "$lockscreen" = "$wallpaper_package" ]', apply)
         self.assertNotIn('case "$lockscreen" in *"$wallpaper_package"*', apply)

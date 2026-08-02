@@ -2421,8 +2421,13 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=28" in apply_theme_code,
-        "MoOS visual schema must migrate existing users to the themed lock screen")
+require("THEME_REV=29" in apply_theme_code,
+        "MoOS visual schema must migrate existing users to the liquid-glass marks "
+        "and the repaired launcher session strip")
+require("local_plasmoids=" in apply_theme_code
+        and "org.moos.brand" in apply_theme_code.split("local_plasmoids=")[1][:400],
+        "THEME_REV 29 must purge home shadows of the first-party MoOS plasmoids — "
+        "a ~/.local/share/plasma/plasmoids/org.moos.brand preview outranks /usr forever")
 require('[ "$lockscreen" = "$wallpaper_package" ]' in apply_theme_code,
         "THEME_REV 28 must read back the exact lock wallpaper package, not a prefix")
 require('[ "$lock_image" = "$wallpaper_package" ] || return 1' in code(read("system_files/usr/bin/moos-theme")),
@@ -5938,6 +5943,66 @@ require(_ui_migrate.index("XDG_DATA_HOME:-$HOME/.local/share}/applications")
         "the XDG data directories are created AFTER the --input-only early exit, so the "
         "one invocation that runs before KWin — the only one that can stop the session "
         "from starting a doomed sycoca — never creates them.")
+
+# ── A declared tooltip must actually appear ────────────────────────────────────────────
+# QtQuick Controls' attached ToolTip has no automatic hover behaviour: `ToolTip.text`
+# alone is a tooltip that never shows. Nine icon-only launcher buttons shipped exactly
+# that way, and the owner could not learn a session button's name by hovering it. Every
+# attached ToolTip.text therefore needs its ToolTip.visible in the same file, one for one.
+for _qml_file in shipped_qml:
+    _qml_code = code(_qml_file.read_text(encoding="utf-8"), "slash")
+    _tt_text = len(re.findall(r"\bToolTip\.text\s*:", _qml_code))
+    _tt_visible = len(re.findall(r"\bToolTip\.visible\s*:", _qml_code))
+    require(_tt_text == _tt_visible,
+            f"{_qml_file.relative_to(ROOT)} declares {_tt_text} attached ToolTip.text "
+            f"but {_tt_visible} ToolTip.visible — a ToolTip.text without its visible "
+            f"binding never appears, so the button stays nameless on hover")
+
+# ── Every icon name the QML asks for must exist in a shipped inventory ─────────────────
+# "moos-themes-symbolic" shipped on Mo AI's appearance button and drew nothing: no icon
+# by that name ever existed, and nothing resolves a QIcon name at build time. Collect
+# every moos-* name used on an icon-bearing line and resolve it the way the loader does:
+# the palette overlays (Nova stands for all 14 — build.sh proves identical inventories)
+# and the hicolor masters, SVG or raster.
+_icon_name_re = re.compile(r'"(moos-[a-z0-9-]+)"')
+_icon_line_re = re.compile(r"\b(icon\.name|iconName|icon\.source|source)\s*:")
+_icon_roots = (
+    ROOT / "system_files/usr/share/icons/MoOSUI2Nova/moos/actions/scalable",
+    ROOT / "system_files/usr/share/icons/MoOSUI2Nova/moos/apps/scalable",
+    ROOT / "system_files/usr/share/icons/hicolor/scalable/apps",
+    ROOT / "system_files/usr/share/icons/hicolor/scalable/actions",
+)
+_shipped_icon_names = {p.stem for d in _icon_roots if d.is_dir() for p in d.glob("*.svg")}
+_shipped_icon_names |= {
+    p.stem
+    for p in (ROOT / "system_files/usr/share/icons/hicolor").glob("*/apps/*.png")
+}
+require(len(_shipped_icon_names) > 60,
+        "the shipped icon inventory came back implausibly small — this gate would "
+        "reject every icon name instead of only the dead ones")
+for _qml_file in shipped_qml:
+    _qml_code = code(_qml_file.read_text(encoding="utf-8"), "slash")
+    for _line_no, _line in enumerate(_qml_code.splitlines(), start=1):
+        if not _icon_line_re.search(_line):
+            continue
+        for _name in _icon_name_re.findall(_line):
+            require(_name in _shipped_icon_names,
+                    f"{_qml_file.relative_to(ROOT)}:{_line_no} asks for icon "
+                    f"\"{_name}\", which no shipped MoOS icon inventory contains — "
+                    f"that button renders blank or falls back to a foreign theme")
+
+# ── The session strip wears the glyphs a user would guess ──────────────────────────────
+# "logout" once wore the external-link box and "switch-user" the identity spark; on the
+# real 4K session both read as mystery buttons. The proper glyphs exist in the family —
+# the launcher must keep using them.
+_launcher_view = read(
+    "system_files/usr/share/plasma/plasmoids/org.moos.brand/contents/ui/LauncherView.qml")
+require('"logout": "moos-logout-symbolic"' in _launcher_view,
+        "the launcher session strip no longer maps logout to moos-logout-symbolic — "
+        "the external-link box is not an exit sign")
+require('"switch-user": "moos-user-symbolic"' in _launcher_view,
+        "the launcher session strip no longer maps switch-user to moos-user-symbolic — "
+        "the identity spark does not read as a person")
 
 if errors:
     print("MoOS user-experience gate failed:", file=sys.stderr)

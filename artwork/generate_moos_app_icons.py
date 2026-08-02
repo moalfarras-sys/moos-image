@@ -237,9 +237,11 @@ def icon_svg(name: str, mark: dict[str, str]) -> str:
     """Premium 3D Liquid Glass plate + role-inked glyph.
 
     The premium liquid-glass material stack uses only white/black with opacity so
-    it survives every palette bake.  The plate has 7 glass layers for deep 3D
-    realism: top sheen, bottom depth, diagonal shimmer, radial caustic,
-    bottom-right rim light, floor glow, and a bright rim edge.
+    it survives every palette bake.  The plate has 9 glass layers for deep 3D
+    realism: top sheen, a crisp top edge light, a liquid horizon band, bottom
+    depth, diagonal shimmer, radial caustic, bottom-right rim light, floor glow,
+    and a bright rim edge.  The sheen is deliberately restrained so the palette
+    colour saturates the whole tile instead of frosting its upper third.
 
     Tile and glyph colours stay on KDE colour roles — never literal brand hex
     — so Dark / Light / Blue / Purple / Green / Orange (and every MoOS family
@@ -262,7 +264,7 @@ def icon_svg(name: str, mark: dict[str, str]) -> str:
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
   <!-- MoOS UI — Premium 3D Liquid Glass application mark: {name}.
-       Premium 3D liquid-glass plate with enhanced 7-layer glass material.
+       Premium 3D liquid-glass plate with enhanced 9-layer glass material.
        Every ink is a KDE colour role; MoOS bakes one copy of this file per
        palette icon theme (FollowsColorScheme=false).  Glass sheens are white/black
        opacity only — theme-safe material.  No clipPath: every fill is a rounded
@@ -272,20 +274,33 @@ def icon_svg(name: str, mark: dict[str, str]) -> str:
     <style id="current-color-scheme" type="text/css">
 {stylesheet}
     </style>
-    <linearGradient id="{gid}-sheen" x1="512" y1="72" x2="512" y2="680"
+    <linearGradient id="{gid}-sheen" x1="512" y1="72" x2="512" y2="560"
                     gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#ffffff" stop-opacity=".72"/>
-      <stop offset="0.15" stop-color="#ffffff" stop-opacity=".32"/>
-      <stop offset="0.35" stop-color="#ffffff" stop-opacity=".08"/>
-      <stop offset="0.55" stop-color="#ffffff" stop-opacity=".02"/>
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".38"/>
+      <stop offset="0.14" stop-color="#ffffff" stop-opacity=".20"/>
+      <stop offset="0.36" stop-color="#ffffff" stop-opacity=".07"/>
+      <stop offset="0.60" stop-color="#ffffff" stop-opacity=".02"/>
       <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
     </linearGradient>
-    <linearGradient id="{gid}-depth" x1="512" y1="320" x2="512" y2="952"
+    <linearGradient id="{gid}-topedge" x1="512" y1="60" x2="512" y2="168"
+                    gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".64"/>
+      <stop offset="0.55" stop-color="#ffffff" stop-opacity=".14"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="{gid}-liquid" x1="512" y1="316" x2="512" y2="512"
+                    gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="0.40" stop-color="#ffffff" stop-opacity=".09"/>
+      <stop offset="0.60" stop-color="#ffffff" stop-opacity=".09"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="{gid}-depth" x1="512" y1="300" x2="512" y2="952"
                     gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#000000" stop-opacity="0"/>
-      <stop offset="0.40" stop-color="#000000" stop-opacity=".04"/>
-      <stop offset="0.70" stop-color="#000000" stop-opacity=".12"/>
-      <stop offset="1" stop-color="#000000" stop-opacity=".38"/>
+      <stop offset="0.35" stop-color="#000000" stop-opacity=".06"/>
+      <stop offset="0.68" stop-color="#000000" stop-opacity=".16"/>
+      <stop offset="1" stop-color="#000000" stop-opacity=".46"/>
     </linearGradient>
     <linearGradient id="{gid}-shimmer" x1="140" y1="80" x2="880" y2="820"
                     gradientUnits="userSpaceOnUse">
@@ -304,10 +319,10 @@ def icon_svg(name: str, mark: dict[str, str]) -> str:
       <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
     </linearGradient>
     <radialGradient id="{gid}-caustic" gradientUnits="userSpaceOnUse"
-                    cx="280" cy="220" r="460">
-      <stop offset="0" stop-color="#ffffff" stop-opacity=".68"/>
-      <stop offset="0.25" stop-color="#ffffff" stop-opacity=".20"/>
-      <stop offset="0.55" stop-color="#ffffff" stop-opacity=".05"/>
+                    cx="280" cy="200" r="420">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".34"/>
+      <stop offset="0.30" stop-color="#ffffff" stop-opacity=".12"/>
+      <stop offset="0.60" stop-color="#ffffff" stop-opacity=".04"/>
       <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
     </radialGradient>
     <radialGradient id="{gid}-rimlight" gradientUnits="userSpaceOnUse"
@@ -340,11 +355,13 @@ def icon_svg(name: str, mark: dict[str, str]) -> str:
   <rect class="ColorScheme-{mark['tile']}" fill="currentColor" {TILE}/>
   <rect fill="url(#{gid}-depth)" {TILE}/>
   <rect fill="url(#{gid}-sheen)" {TILE}/>
+  <rect fill="url(#{gid}-liquid)" {TILE}/>
   <rect fill="url(#{gid}-shimmer)" {TILE}/>
   <rect fill="url(#{gid}-refract)" {TILE}/>
   <rect fill="url(#{gid}-caustic)" {TILE}/>
   <rect fill="url(#{gid}-rimlight)" {TILE}/>
   <rect fill="url(#{gid}-floor)" {TILE}/>
+  <rect fill="url(#{gid}-topedge)" {TILE}/>
   <rect fill="none" stroke="url(#{gid}-rim-hi)" stroke-width="18" {RIM}/>
   <rect class="ColorScheme-{mark['ink']}" fill="none" stroke="currentColor"
         stroke-opacity=".10" stroke-width="6" {RIM}/>

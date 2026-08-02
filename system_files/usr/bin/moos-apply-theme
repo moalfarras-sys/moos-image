@@ -44,7 +44,13 @@ set -uo pipefail
 #     wallpaper, so only fresh users received it. Re-apply once, then require an
 #     exact package match: NovaLight is not Nova merely because one name prefixes
 #     the other.
-THEME_REV=28
+# 29: the application marks gain the 9-layer liquid-glass plate (rebaked into all
+#     14 palette overlays) and the launcher's session strip gains working hover
+#     tooltips plus honest logout/switch-user glyphs. Existing sessions must drop
+#     home icon previews AND home shadows of the first-party MoOS plasmoids —
+#     a ~/.local/share/plasma/plasmoids/org.moos.brand left by a live preview
+#     outranks /usr forever and no earlier revision cleaned that class.
+THEME_REV=29
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"
@@ -756,6 +762,16 @@ if [ -d "$local_icons" ]; then
     rm -f "${local_icons}/hicolor/icon-theme.cache" \
           "${cache_dir}/icon-cache.kcache" 2>/dev/null || true
 fi
+
+# A home shadow of a FIRST-PARTY MoOS plasmoid is the same trap one directory
+# over: ~/.local/share/plasma/plasmoids/org.moos.* outranks /usr in the package
+# search path, so a live-preview copy keeps executing last month's launcher —
+# tooltips, glyphs and all — while every image gate stays green. Only the
+# MoOS-owned ids are dropped; third-party widgets the user installed stay put.
+local_plasmoids="${XDG_DATA_HOME:-$HOME/.local/share}/plasma/plasmoids"
+for moos_widget in org.moos.brand org.moos.heroclock org.moos.nova.clock; do
+    rm -rf "${local_plasmoids:?}/${moos_widget}" 2>/dev/null || true
+done
 
 # ksycoca — the menu/launcher/service database — is the SAME mtime trap one level
 # up: OSTree pins every /usr mtime to the epoch, so a .desktop that was renamed

@@ -4,7 +4,47 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-08-02, night — **the Tidal arc is retired everywhere**
+Last updated: 2026-08-02, night — **launcher polish round on branch
+`product/launcher-polish-2026-08-02`** (this entry; rebased onto the Tidal-arc
+retirement below, whose release `71d1b466` is already signed). The owner
+could not name the launcher's icon-only session buttons by hovering: all nine
+`PC3.ToolTip.text` declarations in `LauncherView.qml` lacked the
+`ToolTip.visible` binding QQC2 requires, so no tooltip ever appeared — fixed
+with `visible: hovered` + `Kirigami.Units.toolTipDelay` on all nine. Two glyphs
+lied: logout wore the external-link box and switch-user the identity spark;
+both now use the family's own `moos-logout-symbolic` / `moos-user-symbolic`.
+Mo AI's appearance page asked for `moos-themes-symbolic`, an icon that never
+existed (blank button) — now `moos-ui-symbolic`. Three new UX-gate contracts
+hold all of this (tooltip text↔visible parity per QML file; every `moos-*`
+icon name on an icon-bearing QML line must resolve in a shipped inventory —
+this contract is what found the dead Mo AI icon; the session-strip glyph map
+is pinned), each broken once and watched go red. The application marks gained
+a restrained 9-layer liquid-glass plate (crisp top edge, liquid horizon band,
+deeper bottom depth; sheen tamed so the palette colour saturates the whole
+tile) — regenerated masters/ladder plus all 14 palette overlay bakes;
+`tests/test_moos_app_icons.py` (contrast + pixel proofs) passes unchanged.
+THEME_REV=29 delivers it to existing sessions and additionally purges home
+shadows of the three first-party plasmoids (`org.moos.brand`,
+`org.moos.heroclock`, `org.moos.nova.clock`) — a preview-litter class no
+earlier revision cleaned. The same session's live audit found **background OS
+updates silently dead on every digest-pinned install** (uupd's `bootc
+upgrade` cannot advance the digest-pinned origin `moai-do update`
+deliberately writes; the maintainer desktop was exactly this) — new
+`/usr/libexec/moos-auto-update` + 04:30 Persistent timer, enabled for every
+edition by build.sh, resolves the official `:latest` to an exact digest
+nightly and stages it through the signature-enforcing transport, skipping
+cleanly when rpm-ostreed is busy; `tests/test_moos_auto_update.py` proves the
+argv boundary with command doubles and joins `just check` and the CI Repo
+gates. On the maintainer desktop, the stray local `crd-test`/`moplayer-dev`
+distrobox launcher entries were moved to
+`~/.local/state/moos/launcher-cleanup-20260802` (machine-local, never image
+content). `just check` passes end to end; the generic image built locally
+with every gate green before the rebase. A live home preview (plasmoid +
+NovaLight overlay) is installed on the maintainer session for owner
+verification and is exactly what the v29 purge removes after the signed image
+boots.
+
+Previous update: 2026-08-02, night — **the Tidal arc is retired everywhere**
 (owner verdict on the live system: the full-screen curve reads cheap and
 appears in every surface — it is gone, not tuned). Removed from: Logout (16
 packages), Splash (master + 16), Lock, the Login greeter scene, and the
