@@ -4,7 +4,82 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-08-01 — the Mo AI Workspace rebuild is merged on `main`,
+Last updated: 2026-08-02 — the complete `push-temp` line (86 commits: the
+remote security/lifecycle/accessibility audits, the Tidal portal restoration
+after the rejected glassmorphic pass, theme rev 28, bounded Mo AI service
+lifecycles and the CI gate sync) is fast-forwarded onto `main` as
+`563a9724552e6fb76371155e2828c4edadeb70fd` and pushed. The push was initially
+rejected because the stored OAuth token lacked the `workflow` scope (the
+commits change `build.yml`); the owner authorized a device-flow refresh —
+codes were delivered over the linked WhatsApp channel because Telegram is
+currently unconfigured (see below). The exact tree also composed locally on
+the Cloud host as `localhost/moos-cloud:latest` (`5ebbababbfcc…`) with every
+image gate green, before CI ran. GitHub Actions run `30748263893` is the
+release run for this head: **completed success** — all three editions built,
+pushed and cosign-signed, then verified again from the Cloud host against the
+OS-enforced `/etc/pki/containers/moos.pub`:
+`moos@sha256:968c8aa63f58…`, `moos-cloud@sha256:df0c922d71c5…`,
+`moos-nvidia@sha256:72264234f54b…`. The full 70-command check recipe was
+re-run on the merged head after the push: 70/70. The Cloud host staged
+`44.20260802.508` (`df0c922d…`) via `bootc upgrade` with the previous
+deployment retained for rollback.
+
+The reboot into `44.20260802.508` completed and `post-update-check.sh` now
+returns **49 passed / 0 failed** on the Cloud host. Getting there surfaced and
+fixed three more real defects: (1) the check itself hardcoded
+`moos-nvidia:latest` as the registry comparison, so every healthy Cloud or
+generic machine reported a false "reboot did not take" — it now derives the
+reference from the booted deployment; (2) the HOME shadows and the three
+self-described TEMPORARY unit drop-ins were moved to
+`~/.local/state/moos/post-update-backup-20260802-release` and the three
+affected services restarted onto image binaries; (3) the desktop wallpaper
+reverted to `MoOSUI2Graphite` across the reboot while the theme stayed
+`Scholar Light` — root cause still open (the steady-state marker deliberately
+does not reconcile a package-level wallpaper drift; a THEME_REV=29
+reconciliation that heals MoOSUI2-package drift while preserving deliberate
+custom image files is the planned fix). The live shell was reconciled through
+the Plasma scripting API and disk state confirmed.
+
+Live Cloud-host repairs on 2026-08-02, before the release landed:
+
+- **Theme drift healed.** The session's chosen look was `MoOS Scholar Light`
+  (`org.moos.ui2.study.light`) but the desktop wallpaper was
+  `MoOSUI2Graphite`: the shipped THEME_REV=27 marker short-circuited before
+  any wallpaper check, exactly the defect rev 28 fixes. Running the repo's
+  rev-28 `moos-apply-theme` on the live session migrated both desktop and
+  lock wallpapers to `MoOSUI2ScholarLight`; `post-update-check.sh` moved from
+  45/4 to 46/3.
+- **Unauthenticated `/audio` tailnet mounts retracted again.** The booted
+  main-line image still re-creates the legacy `tailscale serve /audio`
+  sibling mounts that `efaa3c98` (now on `main`) retires. Both mounts (443
+  and 8443 listeners) were retracted live; sound flows only through the
+  agent's authenticated one-use-ticket proxy. The next booted image stops
+  recreating them.
+- **Telegram channel is dead on the live gateway and the bot token is
+  unrecoverable.** `openclaw doctor --fix` (run by a prior session on
+  2026-08-01 01:11, per `~/.openclaw/logs/config-audit.jsonl`) reset
+  `channels.telegram` to scaffold defaults: token gone, `allowFrom` emptied,
+  `dmPolicy` back to `pairing`. No file on the host still contains the token.
+  The owner-only restriction (`allowFrom:[1142563280]`, `dmPolicy:allowlist`)
+  was restored on disk immediately; the owner was asked over WhatsApp to
+  re-enter the BotFather token (Mo AI Settings → Telegram). WhatsApp remains
+  linked and delivering (used for all owner notifications this session).
+  `moai-wake` handles the missing token quietly (no restart loop).
+- **moos-admind never existed in the tree.** The 2026-07-29 design was never
+  committed on any branch (`git log --all -- '**/moos-admind'` is empty); the
+  shipped answer to the same problem is OpenClaw's four permission levels,
+  the Gateway exec-approval queue and the audit ledger. Do not look for
+  `moosctl`.
+- **HOME shadows and temporary drop-ins are scheduled for post-boot removal,
+  not before.** `~/.local/bin/{moai-brain-mode,moai-code,moai-screenshot,`
+  `moai-openclaw-preflight}`, the `org.moos.moai.desktop` override, and the
+  self-described TEMPORARY drop-ins on `moai-gateway`, `moos-ensure-brain`
+  and `openclaw-gateway` all point at repo copies whose fixes are baked into
+  the new image. Removing them while the old image is still booted would
+  revert live fixes (main's preflight lacks `is-active --wait`); they must be
+  moved to a recoverable backup only after the new deployment boots.
+
+Previous update: 2026-08-01 — the Mo AI Workspace rebuild is merged on `main`,
 published and booted. GitHub Actions run `30704582346` built, pushed, cosign-
 signed and verified `moos`, `moos-cloud` and `moos-nvidia` from merge
 `77707fd1461774b931518df14a418e9286251ba4`. The maintainer machine is booted

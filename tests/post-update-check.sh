@@ -32,7 +32,14 @@ booted_digest="$(rpm-ostree status --json 2>/dev/null \
   | python3 -c 'import sys,json; d=json.load(sys.stdin); b=[x for x in d["deployments"] if x.get("booted")]; print(b[0].get("container-image-reference-digest","") if b else "")' 2>/dev/null)"
 [ -n "$booted_digest" ] || booted_digest="$(sudo -n bootc status --format json 2>/dev/null \
   | python3 -c 'import sys,json; print(json.load(sys.stdin)["status"]["booted"]["image"].get("imageDigest",""))' 2>/dev/null)"
-published_digest="$(skopeo inspect docker://ghcr.io/moalfarras-sys/moos-nvidia:latest 2>/dev/null \
+# Compare against the SAME image this machine actually tracks. This used to
+# hardcode moos-nvidia:latest (the maintainer's desktop), so on a Cloud or
+# generic install it compared the booted digest against a sibling edition and
+# reported a false "reboot did not take" on every healthy machine.
+booted_ref="$(rpm-ostree status --json 2>/dev/null \
+  | python3 -c 'import sys,json,re; d=json.load(sys.stdin); b=[x for x in d["deployments"] if x.get("booted")]; r=b[0].get("container-image-reference","") if b else ""; m=re.search(r"docker://\S+", r); print(m.group(0) if m else "")' 2>/dev/null)"
+[ -n "$booted_ref" ] || booted_ref="docker://ghcr.io/moalfarras-sys/moos-nvidia:latest"
+published_digest="$(skopeo inspect "$booted_ref" 2>/dev/null \
   | python3 -c 'import sys,json; print(json.load(sys.stdin)["Digest"])' 2>/dev/null)"
 
 if [ -n "$booted_digest" ] && [ "$booted_digest" = "$published_digest" ]; then
