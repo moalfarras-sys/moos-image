@@ -324,19 +324,44 @@ do_setup_waydroid() {
     if [ "$inited" = "0" ]; then
         echo "${D}ينزّل صورة Android الحرة (~1GB، أول مرة تأخذ دقائق) ويشغّل الحاوية. بلا Google Play.${N}"
         echo "${D}Downloads the free Android image (~1GB, first run takes minutes) and starts its container. No Google Play.${N}"
-        confirm || return 0
-        run_priv waydroid init -s VANILLA || { echo "${Y}تعذّر التهيئة | init failed${N}"; return 1; }
     else
         echo "${G}✓ Android مُهيّأ مسبقاً — سأشغّله فقط | already initialized — just starting it${N}"
     fi
+    # Starting an already-initialized container is still a state change. This action is reachable
+    # through the public moos: URL scheme, so confirmation must not exist only on first install.
+    confirm || return 0
+    if [ "$inited" = "0" ]; then
+        run_priv waydroid init -s VANILLA \
+            || { echo "${Y}تعذّر التهيئة | init failed${N}"; return 1; }
+    fi
 
-    run_priv systemctl enable --now waydroid-container.service || true
+    if ! run_priv systemctl enable --now waydroid-container.service \
+            || ! systemctl is-active --quiet waydroid-container.service; then
+        echo "${R}تعذّر تشغيل حاوية Android | Android container failed to start${N}" >&2
+        return 1
+    fi
     # Free VRAM before the Android UI (an EGL/GPU client) starts — same guard as
     # launch_app and moos-open's apps/run route. With the local brain holding ~6GB
     # of an 8GB card, eglMakeCurrent aborts instead of degrading; best-effort.
     command -v moos-gpu-headroom >/dev/null 2>&1 && moos-gpu-headroom 2>/dev/null || true
     waydroid session start >/dev/null 2>&1 &
-    sleep 2
+    local session_pid=$! session_ready=0 attempt
+    # The session becomes ready asynchronously. Bound the wait so a broken compositor/container
+    # never leaves the terminal hanging, and verify the state instead of sleeping then claiming it.
+    for attempt in $(seq 1 20); do
+        if waydroid status 2>/dev/null | grep -Eq 'Session:[[:space:]]+RUNNING'; then
+            session_ready=1
+            break
+        fi
+        sleep 1
+    done
+    if [ "$session_ready" -ne 1 ]; then
+        kill "$session_pid" >/dev/null 2>&1 || true
+        wait "$session_pid" 2>/dev/null || true
+        echo "${R}بدأت الحاوية لكن جلسة Android لم تصبح جاهزة خلال 20 ثانية.${N}" >&2
+        echo "${R}The container started, but the Android session was not ready within 20 seconds.${N}" >&2
+        return 1
+    fi
     waydroid show-full-ui >/dev/null 2>&1 &
     echo "${G}✓ Android جاهز | ready${N}"
     echo "${D}لتثبيت تطبيق APK | to install an APK:  ${C}waydroid app install <file.apk>${N}"

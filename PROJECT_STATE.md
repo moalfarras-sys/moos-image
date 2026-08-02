@@ -414,6 +414,18 @@ checks and CI; focused Mo AI tests and the complete repo check recipe pass.
 This Cloud host has no systemd user runtime, so installed-unit restart-rate and
 shutdown timing remain image/live evidence rather than claimed measurements.
 
+Mo AI Waydroid control audit: `setup-waydroid` confirmed only while downloading
+the first Android image. Once initialized, the public `moos:` route could start
+the persistent container and UI without a user decision. It also swallowed a
+failed `systemctl enable --now`, slept two seconds and printed “Android ready”
+without proving either container or session. The action now asks exactly once on
+every state-changing run, requires the container to be active, then waits up to
+20 seconds for `Session: RUNNING` before opening the UI or reporting readiness.
+A command-double behavior gate proves decline changes nothing, container failure
+is nonzero and never launches the UI, and the healthy path reaches every stage.
+No Android image or privileged service was started on this audit host; a real
+Waydroid/Wayland launch on the composed image remains open live evidence.
+
 Mo AI small-service lifecycle follow-up: the original gate covered only the
 heavy OpenClaw/AI containers. `moai-control` could still restart every five
 seconds forever, `moai-wake` had the same crash-loop shape, and the gateway's
