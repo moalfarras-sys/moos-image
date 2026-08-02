@@ -2010,6 +2010,17 @@ class TestMoOSUI2(unittest.TestCase):
                       "render below the icons")
         self.assertIn("DashboardBento", wrapper,
                       "the scene wallpaper no longer embeds the dashboard bento")
+        self.assertRegex(
+            wrapper,
+            r"(?s)Loader\s*\{\s*id:\s*bentoLoader.*?active:\s*bentoFrame\.dashboardRequested",
+            "ShowDashboard=false must unload the bento, not leave its timers and weather "
+            "requests alive behind visible=false",
+        )
+        self.assertNotRegex(
+            wrapper,
+            r"(?s)Item\s*\{\s*id:\s*bentoFrame.*?DashboardBento\s*\{\s*id:",
+            "the dashboard is still instantiated unconditionally inside its hidden frame",
+        )
         self.assertIn("root.configuration.Image", wrapper,
                       "the scene must read the Image config key moos-theme writes per half")
         # The scene layer owns motion too (the ambient wash), and it must obey the

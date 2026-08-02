@@ -485,6 +485,15 @@ fresh ticket is in flight, reopens it only for the new source, and checks both
 generation and `src` before and after the await.
 The controller test and repository security gate hold that lifecycle.
 
+MoOS Cloud dashboard lifecycle audit: `ShowDashboard=false` previously changed
+only `bentoFrame.visible`; `DashboardBento` was still constructed, immediately
+started geolocation, kept its clock/weather/retry timers, and retained every card
+behind the hidden frame. The scene now owns the bento through a conditional
+`Loader`: disabled or too-small surfaces instantiate no dashboard object at all.
+Source, experience and image-build gates hold that lifecycle boundary. This
+removes hidden dashboard work; it does not claim to explain the separate
+plasmashell frame-request behavior documented in the roadmap.
+
 Mo AI service lifecycle audit (`1cf194b3`, `017df8a6`): the ~386 MB OpenClaw
 Node gateway used `Restart=always` with a heavy preflight but no start limit, so
 a persistent binary/config failure could rebuild its stack every ten seconds

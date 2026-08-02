@@ -1922,6 +1922,9 @@ unset -v _weather_kind
 grep -q '"KPackageStructure": "Plasma/Wallpaper"' "${_scene_dir}/metadata.json"     || { echo "FATAL: org.moos.ui2.wallpaper is not a Plasma/Wallpaper package"; exit 1; }
 grep -q '^WallpaperItem' "${_scene_dir}/contents/ui/main.qml"     || { echo "FATAL: the scene wallpaper root is not a WallpaperItem"; exit 1; }
 grep -q 'DashboardBento' "${_scene_dir}/contents/ui/main.qml"     || { echo "FATAL: the scene wallpaper does not embed the dashboard bento"; exit 1; }
+grep -q 'active: bentoFrame.dashboardRequested' "${_scene_dir}/contents/ui/main.qml" || {
+    echo "FATAL: ShowDashboard=false does not unload DashboardBento — hidden weather timers"
+    echo "       and requests would keep running on MoOS Cloud"; exit 1; }
 grep -q 'name="Image"' "${_scene_dir}/contents/config/main.xml"     || { echo "FATAL: the scene wallpaper has no Image config entry — moos-theme cannot set the half"; exit 1; }
 if grep -q 'import org\.kde\.plasma\.plasmoid' "${_scene_dir}/contents/ui/DashboardBento.qml"; then
     echo "FATAL: DashboardBento must stay free of the Plasmoid/Wallpaper API — plain QtQuick+Kirigami is what the smoke below can actually load"

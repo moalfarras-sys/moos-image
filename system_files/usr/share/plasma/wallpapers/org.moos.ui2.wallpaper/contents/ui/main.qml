@@ -15,6 +15,8 @@
 //   the same values org.kde.image historically received. When it is empty
 //   (first boot, before any script ran), the scene follows the active palette:
 //   Graphite masters on the dark half, Tide masters on the light half.
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import org.kde.kirigami as Kirigami
 import org.kde.plasma.plasmoid
@@ -226,6 +228,19 @@ WallpaperItem {
         color: Kirigami.Theme.backgroundColor
     }
 
+    // A disabled dashboard must not merely become invisible. DashboardBento owns minute/weather
+    // timers and starts its first geolocation request on construction; keeping that object alive
+    // made ShowDashboard=false continue polling and retaining the complete card tree in Cloud.
+    // Loader.active is the lifecycle boundary: off (or too small to render) means no object, no
+    // timers, no network request and no hidden rendering state.
+    Component {
+        id: bentoComponent
+        DashboardBento {
+            resolvedMotionMode: root.resolvedMotionMode
+            themeLabel: root.themeLabel
+        }
+    }
+
     // Scale-to-fit frame. The bento has a FIXED design size (gridUnit*31 ×
     // gridUnit*12), and gridUnit tracks the user's font/DPI — so on a small
     // screen, a scaled desktop, or a large accessibility font, the fixed width
@@ -251,42 +266,38 @@ WallpaperItem {
         readonly property real roomHeight:
             root.height * 0.42 - anchors.topMargin
 
+        readonly property bool dashboardRequested:
+            root.configuration.ShowDashboard === undefined
+            || root.configuration.ShowDashboard
+        readonly property real bentoWidth:
+            bentoLoader.item ? bentoLoader.item.implicitWidth : 0
+        readonly property real bentoHeight:
+            bentoLoader.item ? bentoLoader.item.implicitHeight : 0
         readonly property real fit: Math.min(
             1.0,
-            bento.implicitWidth  > 0 ? roomWidth  / bento.implicitWidth  : 1.0,
-            bento.implicitHeight > 0 ? roomHeight / bento.implicitHeight : 1.0)
+            bentoWidth > 0 ? roomWidth / bentoWidth : 1.0,
+            bentoHeight > 0 ? roomHeight / bentoHeight : 1.0)
 
-        width: bento.implicitWidth * fit
-        height: bento.implicitHeight * fit
+        width: bentoWidth * fit
+        height: bentoHeight * fit
         // Below this the bento would scale so small it reads as clutter — a
         // phone-sized or heavily-squeezed desktop gets a clean wallpaper instead.
         //
-        // ShowDashboard is MERGED into this existing condition, not added as a
-        // second `visible:`. Declaring the property twice is not an override in
-        // QML, it is the error "Property value set multiple times" — and the whole
-        // wallpaper then fails to load, leaving a blank desktop. That failure also
-        // rasterises nothing, so it reads on a CPU graph exactly like a successful
-        // optimisation: measured 0% with the setting BOTH on and off before the
-        // journal was checked. `undefined` means the key is not registered, and
-        // must mean "show".
-        visible: (root.configuration.ShowDashboard === undefined
-                  || root.configuration.ShowDashboard)
-                 && root.width >= 820 && root.height >= 520 && fit >= 0.62
+        // Visibility follows Loader.active rather than repeating ShowDashboard.
+        // Declaring visible twice is a QML load error, and a failed wallpaper also
+        // rasterises nothing — the exact shape that once looked like a successful
+        // CPU optimisation until the journal was checked.
+        visible: bentoLoader.active && fit >= 0.62
 
-        DashboardBento {
-            id: bento
-            width: implicitWidth
-            height: implicitHeight
+        Loader {
+            id: bentoLoader
+            active: bentoFrame.dashboardRequested
+                    && root.width >= 820 && root.height >= 520
+            sourceComponent: bentoComponent
+            width: item ? item.implicitWidth : 0
+            height: item ? item.implicitHeight : 0
             transformOrigin: Item.TopLeft
             scale: bentoFrame.fit
-            // The bento used to INVENT its own motion gate and never see this
-            // plugin's configuration at all, so eight infinite card animations
-            // could not be stopped by anything a user could reach — `moos-theme
-            // motion still` stilled the wallpaper's two ambient washes and left
-            // the dashboard shimmering. The policy is resolved once, up here, and
-            // threaded down.
-            resolvedMotionMode: root.resolvedMotionMode
-            themeLabel: root.themeLabel
         }
     }
 }

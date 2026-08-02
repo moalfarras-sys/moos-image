@@ -1395,6 +1395,13 @@ require("WallpaperItem" in scene_main,
         "the scene's root must be a WallpaperItem — anything else does not render below the icons")
 require("DashboardBento" in scene_main,
         "the scene wallpaper no longer embeds the dashboard bento")
+require(re.search(r"Loader\s*\{\s*id:\s*bentoLoader.*?"
+                  r"active:\s*bentoFrame\.dashboardRequested", scene_main, re.S),
+        "ShowDashboard=false only hides the bento instead of unloading its timers, weather "
+        "requests and card tree — Cloud must have zero hidden dashboard work")
+require(not re.search(r"Item\s*\{\s*id:\s*bentoFrame.*?"
+                      r"DashboardBento\s*\{\s*id:", scene_main, re.S),
+        "the dashboard is still instantiated unconditionally inside its hidden frame")
 require('"Plasma/Wallpaper"' in read(f"{SCENE}/metadata.json"),
         "org.moos.ui2.wallpaper must be a Plasma/Wallpaper package")
 require('name="Image"' in read(f"{SCENE}/contents/config/main.xml"),
