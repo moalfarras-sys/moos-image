@@ -50,10 +50,26 @@ text now rewrites the whole tail, which needs no arrows. Two new contracts in
 broken-once. The shipped `wwwroot` bundle was rebuilt and its new assets
 force-added (the tracked-bundle gate caught the omission).
 
-Release state: `just check` green end to end; local image build, signed CI
-matrix and the cloud's recovery are the open steps. **The owner's server needs
-one power-cycle from the netcup panel** — its own shell cannot reboot it while
-PID 1 is blocked inside that write.
+**RELEASED AND PROVEN ON THE SERVER.** CI signed all three editions as
+`44.20260802.524` (verified by run conclusion and by moving digests — the first
+attempt's `gh run watch` exit code lied, and the run had in fact failed; see
+below). The Cloud host was power-cycled by the owner, upgraded to `.524`, and
+its live kargs repaired. Measured on the recovered machine: the last `console=`
+on `/proc/cmdline` is now **`console=tty0`**, `/proc/1/stack` is back in
+`ep_poll` (systemd's normal event loop, not `n_tty_write`), `systemctl
+is-system-running` returns **running**, zero failed units, `systemd-run`
+starts transient units at both system and user level — the owner's actual
+complaint — and the shipped `moos-cloud-console-order` ran on that boot and
+logged `safe ordering already: /dev/console is tty0`, i.e. the repair unit
+works and correctly no-ops. Memory 11 GiB available of 15, load 0.46. The
+desktop has `.524` staged.
+
+One process lesson from this round: **`gh run watch --exit-status` returned 0
+for a run whose three jobs all failed.** The failure was real — the previous
+commit shipped a `wwwroot` bundle built against stale `node_modules`, and the
+reproducible-build check rejected it (`npm ci` produces different bytes from
+the same source). Trust `gh run view --json conclusion`, and confirm a release
+by watching the registry digests move — not by an exit code.
 
 Previous update: 2026-08-03, round 3 — **the Arabic typing race, found by
 testing it live instead of reasoning about it.** The owner rejected the
