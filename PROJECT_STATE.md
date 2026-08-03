@@ -78,6 +78,51 @@ working; the branch's gates (`verify_user_experience` and
 `test_remote_clipboard_runtime` still require the `Shift+Insert` contract) are
 deliberately red and must be migrated in the same series.
 
+**RELEASED AND PROVEN ON BOTH MACHINES.** CI run `30845547536` built, pushed and
+cosign-signed all three editions as **`44.20260803.537`**, verified the way this
+file insists on — the registry digests all MOVED (`moos` 9f6ea0be→b6095d65,
+`moos-nvidia` c5ff7b41→b8f42111, `moos-cloud` f0378d35→40ea1874) and all three
+verify against the OS-enforced `/etc/pki/containers/moos.pub` — not by trusting
+an exit code. The first attempt failed in the **cosign step only**, with Rekor
+returning `404 getLogEntryByUuidNotFound` for `moos-cloud` and `moos-nvidia`: an
+external Sigstore flake, cured by `gh run rerun --failed`. That attempt is also
+what proved the build fix, because `moos-nvidia` reached the signing step at all
+— its "Build image (buildah)" was green for the first time since `.535`.
+
+The maintainer desktop has `.537` staged with `.535` retained for rollback.
+
+**MoOS Cloud is updated, rebooted and verified**, and getting there removed a
+blocker this project has carried for a week. `tailscale ping moos-cloud` reports
+the direct path, and that path names the VPS's **public IP** — Tailscale SSH only
+intercepts port 22 *on the tailnet*, so `ssh -i ~/.ssh/moos_cloud root@<public-ip>`
+reaches the host's real sshd and needs no interactive re-auth at all. Every
+previous session recorded Cloud as unreachable; it never was.
+
+Measured on the rebooted Cloud host at `.537`: `systemctl is-system-running` =
+**running**, **0 failed units**, PID 1 back in `ep_poll` (not `n_tty_write`, so
+the round-4 serial-console wedge has not returned) and the last `console=` on
+`/proc/cmdline` is still `console=tty0`, with `moos-cloud-console-order`
+correctly skipping on its marker. Mo PC Remote runs for BOTH accounts —
+`moalfarras` on 8765 and `momo` on 8766, reached through the two authenticated
+`tailscale serve` mounts — each answering `/api/status` 200 with
+`hostPowerAllowed:false` (the Cloud policy), and both now serve
+`index-BiUZ-spc.js`, byte-identical to the bundle this repo ships, which is the
+honest proof the new image is the one running. The legacy unauthenticated
+`/audio` sibling mounts stay retired.
+
+`moos-selfcheck` on that host went from **9 broken / 37 passed to 3 broken / 44
+passed**. Two real defects were fixed with their own shipped tools rather than by
+hand: `moos-one-store` retired a duplicate Bazaar launcher (two stores in the
+menu), and `moos-apply-theme` reconciled a session wearing the generic
+`MoOSUI2*` components under a `MoOSUI2Midnight` look-and-feel — the same drift
+class round 4 recorded, and it needs the account's real session environment
+(`WAYLAND_DISPLAY`, `XDG_SESSION_TYPE`) or every `plasma-apply-*` tool core-dumps.
+The 3 that remain are artefacts of a headless virtual session (no Plasma shell to
+inspect, Baloo suspended), not defects. One thing that looks broken and is not:
+`momo`'s `ydotoold-moremote.service` is inactive because
+`ExecCondition=/usr/libexec/moos-has-seat` exits 1 — that account has no seat, so
+the uinput fallback is correctly declined.
+
 Previous update: 2026-08-03, round 6 — **the remote's disconnect loop and the
 typing that was still bad, diagnosed on the live host and fixed at both ends.**
 The owner reported Mo PC Remote disconnecting repeatedly and typing still
