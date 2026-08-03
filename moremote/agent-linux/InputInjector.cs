@@ -362,6 +362,23 @@ public sealed class InputInjector : IDisposable
         // is delivered.
         lock (_pasteBuf)
         {
+            // A paste is not delivered when Shift+Insert is sent — it is delivered when the
+            // TARGET APPLICATION fetches the selection, which it does asynchronously, one
+            // compositor round trip later. So the gather being empty does NOT mean the last
+            // run has landed. A space typed right after an Arabic word takes the instant
+            // keysym path, reaches the application while it is still fetching, and lands
+            // BEFORE the word it was meant to follow. The owner's own report, typed through
+            // the remote, is the evidence: "بشكل صحيح" arrived as "بشكصحيح" — the space and
+            // the ل gone, the two words fused.
+            //
+            // Ordering can only be guaranteed by not mixing mechanisms. Once anything has
+            // gone out by clipboard, everything follows it by clipboard until the path has
+            // been quiet — one mechanism, one queue, one order.
+            if (_pending.Length == 0 && Environment.TickCount64 - _lastPasteAt < PasteStickyMs)
+            {
+                QueuePasteLocked(text);
+                return;
+            }
             if (_pending.Length > 0)
             {
                 _pending.Append(text);
@@ -401,6 +418,12 @@ public sealed class InputInjector : IDisposable
 
     /// <summary>Milliseconds of quiet before a gathered run is pasted.</summary>
     private const int PasteCoalesceMs = 140;
+    /// <summary>How long after a paste every further chunk keeps using the paste path.
+    /// Covers the application's asynchronous selection fetch, which is what a fast keysym
+    /// would otherwise overtake. Longer than a clipboard round trip, shorter than a pause
+    /// between sentences.</summary>
+    private const int PasteStickyMs = 600;
+    private long _lastPasteAt;
     /// <summary>Never gather more than this: a paste must stay responsive.</summary>
     private const int PasteCoalesceMax = 240;
     /// <summary>A re-arming gather never fires under continuous letters; nothing waits past this.
@@ -412,7 +435,12 @@ public sealed class InputInjector : IDisposable
 
     private void QueuePaste(string text)
     {
-        lock (_pasteBuf)
+        lock (_pasteBuf) { QueuePasteLocked(text); }
+    }
+
+    /// <summary>QueuePaste's body, for callers that already hold _pasteBuf.</summary>
+    private void QueuePasteLocked(string text)
+    {
         {
             if (_pending.Length == 0) _pendingSince = Environment.TickCount64;
             _pending.Append(text);
@@ -438,7 +466,11 @@ public sealed class InputInjector : IDisposable
         var run = _pending.ToString();
         _pending.Clear();
         _pasteTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+        _lastPasteAt = Environment.TickCount64;
         PasteText(run);
+        // Stamp again on the way out: the sticky window must start when the paste FINISHED,
+        // not when it began, or a slow clipboard round trip eats most of it.
+        _lastPasteAt = Environment.TickCount64;
     }
 
     /// <summary>Deliver anything still gathered — called before a key that acts on the text.</summary>
