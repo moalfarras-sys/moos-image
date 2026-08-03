@@ -72,8 +72,8 @@ assert.ok(coalesceMax && coalesceMaxMs,
   "can hold a growing buffer for as long as the user keeps typing, and a dropped socket loses it");
 assert.ok(Number(coalesceMax[1]) <= 240,
   `the client cap must not exceed the agent's PasteCoalesceMax, got ${coalesceMax[1]}`);
-assert.ok(Number(coalesceMaxMs[1]) >= Number(clipMs[1]) && Number(coalesceMaxMs[1]) <= 1000,
-  `the age cap must be at least one window and still imperceptible, got ${coalesceMaxMs[1]}ms`);
+assert.ok(Number(coalesceMaxMs[1]) >= Number(clipMs[1]) && Number(coalesceMaxMs[1]) <= 300,
+  `the age cap is what delivers under continuous typing — the debounce never fires there — so it must stay inside a quarter second, got ${coalesceMaxMs[1]}ms`);
 
 // Arrow keys move the caret VISUALLY in Qt's default LogicalMoveStyle, so inside an RTL run
 // ArrowLeft walks forward. The autocorrect middle-diff may only walk the caret when the text is

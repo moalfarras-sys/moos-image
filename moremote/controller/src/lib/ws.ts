@@ -10,8 +10,19 @@ const CLIPBOARD_FLUSH_MS = 220;
 const FAST_TEXT = /^[a-zA-Z0-9 ]*$/;
 /** Mirrors InputInjector.PasteCoalesceMax: never hold more than one gather's worth. */
 const TEXT_COALESCE_MAX = 240;
-/** A re-arming debounce never fires under continuous input; nothing waits past this. */
-const TEXT_COALESCE_MAX_MS = 700;
+/** A re-arming debounce never fires under continuous input; nothing waits past this.
+ *
+ * This is the bound that decides how long typing can appear to go NOWHERE. The
+ * debounce above re-arms on every keystroke, so at ordinary Arabic cadence
+ * (~200 ms between letters) it never fires at all and this cap is the only thing
+ * that delivers. At 700 ms that meant text surfacing in lumps two thirds of a
+ * second apart, which is what "the writing does not arrive" describes from the
+ * phone — it arrives, in a rhythm slow enough to read as a broken link.
+ *
+ * 250 ms keeps the per-word borrow the 220 ms window exists to protect (a real
+ * pause between words still flushes through the debounce first) while capping
+ * the worst case at a quarter second. */
+const TEXT_COALESCE_MAX_MS = 250;
 /** Words typed while the socket is down wait here for the reconnect; beyond this we are not
  *  "briefly offline", we are transcribing into a void, and silently replaying a screenful of
  *  stale text into whatever window has focus by then would be worse than dropping it. */
