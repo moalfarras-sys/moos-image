@@ -3513,19 +3513,31 @@ KARGS
     #
     # Probe the port instead. `stty -F /dev/ttyS0` returns "Input/output error"
     # on a dead UART and succeeds on a live one (both measured), so it is an
-    # exact test for "is there anything here to log in on". Restart=always is
-    # kept so a working console behaves exactly as before; the start limit is
-    # what turns an infinite loop into three attempts and a rest.
+    # exact test for "is there anything here to log in on".
+    #
+    # ExecCondition, NOT ExecStartPre, and the difference is the whole point.
+    # A failing ExecStartPre FAILS the unit: measured on the live VPS, that
+    # turned 426 respawns into 3 — and then left serial-getty@ttyS0 sitting in
+    # `failed` for ever, which is a red line in `systemctl --failed` and a
+    # permanent red line in post-update-check.sh on every cloud machine. Trading
+    # a loud loop for a permanent false alarm is not a fix. A failing
+    # ExecCondition SKIPS the unit instead: measured on the same host,
+    # `ActiveState=inactive Result=exec-condition NRestarts=0`, and zero failed
+    # units. A machine with no serial port simply has no serial login, silently
+    # and correctly. Restart=always is untouched, so a VPS whose console works
+    # behaves exactly as it always did. The start limit stays as a backstop for
+    # a UART that answers stty and then still refuses to carry a session.
     install -D -m0644 /dev/stdin \
         /usr/lib/systemd/system/serial-getty@ttyS0.service.d/50-moos-cloud-guard.conf <<'GETTYGUARD'
 # MoOS Cloud: do not respawn a login prompt onto a UART that is not there.
-# See build_files/build.sh (cloud edition, serial console section).
+# ExecCondition skips the unit (inactive) rather than failing it — see
+# build_files/build.sh, cloud edition, serial console section.
 [Unit]
 StartLimitIntervalSec=120
 StartLimitBurst=3
 
 [Service]
-ExecStartPre=/usr/bin/stty -F /dev/ttyS0
+ExecCondition=/usr/bin/stty -F /dev/ttyS0
 GETTYGUARD
     echo "=== cloud edition: serial console on ttyS0, splash kargs withdrawn ==="
 
