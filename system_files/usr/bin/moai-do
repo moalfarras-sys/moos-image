@@ -159,6 +159,7 @@ for deployment in json.load(sys.stdin).get("deployments", []):
     registry="ghcr.io/moalfarras-sys"
     case "$ref" in
         *"/moos-nvidia@"*|*"/moos-nvidia:"*) edition="moos-nvidia" ;;
+        *"/moos-cloud@"*|*"/moos-cloud:"*) edition="moos-cloud" ;;
         *"/moos@"*|*"/moos:"*) edition="moos" ;;
         *)
             echo "${R}تعذّر تحديد إصدار MoOS المشغّل بأمان.${N}" >&2
