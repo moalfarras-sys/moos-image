@@ -3339,6 +3339,65 @@ rm -f /tmp/moos-final-dracut.log /tmp/moos-final-initrd.txt \
 unset -v _final_lsrc
 
 # -----------------------------------------------------------------------------
+# (e0) The C++ toolchain is a BUILD tool, and it was shipping to every user
+# -----------------------------------------------------------------------------
+# Section (b) installs gcc-c++ to compile moos-qml-shell and removes it again
+# three lines later. That removal has never actually held: measured inside the
+# finished image, `g++ --version` answers, and rpm says gcc-c++ is installed as
+# a "Dependency". The reason is one package —
+#
+#     $ dnf5 repoquery --installed --whatrequires gcc-c++
+#     qt6-rpm-macros
+#
+# — which a later Qt install drags back in, and it requires the compiler. So the
+# earlier `dnf5 remove` succeeded and was then quietly undone by a dependency
+# nobody was watching. Measured cost of the leftovers on the generic image:
+# gcc, gcc-c++, cpp, binutils, glibc-devel, libstdc++-devel and kernel-headers
+# come to ~288 MiB, downloaded by every machine on every update, forever, to
+# build nothing.
+#
+# This runs LAST, after every dnf transaction in this file, because that is the
+# only place a removal cannot be undone by a later install. Removing
+# qt6-rpm-macros with it is what breaks the chain; it is a macro package used
+# when BUILDING rpms, and nothing on a running MoOS reads it.
+#
+# Not swept: python3-devel and friends, which real runtime code imports, and
+# anything akmods needs — the NVIDIA kmod is built in its own stage against the
+# akmods mount, never in this layer, so the driver is unaffected.
+_buildonly=(gcc-c++ gcc cpp qt6-rpm-macros libstdc++-devel glibc-devel kernel-headers)
+_swept=0
+for _pkg in "${_buildonly[@]}"; do
+    rpm -q "$_pkg" >/dev/null 2>&1 || continue
+    if dnf5 -y remove "$_pkg" >/dev/null 2>&1; then
+        _swept=$((_swept + 1))
+    else
+        echo "note: could not sweep build-only package ${_pkg} (something runtime needs it)"
+    fi
+done
+echo "=== build-only sweep: removed ${_swept} package(s) ==="
+
+# Gate it, because this has already been undone once by a dependency. A compiler
+# in a finished image is not a catastrophe, it is 288 MiB of dead weight and
+# extra attack surface — but the reason it is worth a gate is that the earlier
+# removal LOOKED like it worked for months.
+# NOT `command -v g++`. bash caches the location of every command it has run in a
+# hash table, and this script compiled moos-qml-shell with g++ a few hundred lines
+# up — so `command -v` kept answering with the cached path long after the file was
+# deleted, and this gate failed on an image the sweep had cleaned correctly. Ask
+# the filesystem and the rpm database, which have no memory of what we ran.
+hash -r 2>/dev/null || true
+if [ -x /usr/bin/g++ ] || [ -x /usr/bin/gcc ] || rpm -q gcc-c++ >/dev/null 2>&1; then
+    echo "GATE FAIL: the C++ toolchain is still in the finished image."
+    echo "           /usr/bin/g++: $([ -e /usr/bin/g++ ] && echo present || echo absent)"
+    echo "           /usr/bin/gcc: $([ -e /usr/bin/gcc ] && echo present || echo absent)"
+    echo "           rpm gcc-c++ : $(rpm -q gcc-c++ 2>&1 | head -1)"
+    echo "           pulled back in by:"
+    dnf5 repoquery --installed --whatrequires gcc-c++ 2>/dev/null | head -5
+    exit 1
+fi
+echo "=== no C++ compiler ships in this image ==="
+
+# -----------------------------------------------------------------------------
 # (e) Cleanup — required for `bootc container lint` to pass
 # -----------------------------------------------------------------------------
 # bootc images must not ship content in /var (it is machine-local state).

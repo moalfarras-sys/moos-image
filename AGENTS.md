@@ -228,6 +228,14 @@ passes in nine places and lies in the tenth. Capture first, match second:
 `out="$(readelf -sW file)"; case "$out" in *pattern*) ;; *) fail ;; esac`. Reproduce it
 in four lines: `set -o pipefail; seq 1 200000 | grep -q '^7$'; echo $?` prints 141.
 
+**`command -v <tool>` answers from bash's cache, not from the disk.** bash hashes the
+location of every command it runs, so after `build.sh` compiled with `g++` and then
+removed the compiler, `command -v g++` kept reporting the deleted path — and the gate
+that checks "no compiler ships" failed on an image that had been cleaned correctly. The
+sweep was right and the check was wrong, which is the same shape as the pipefail trap
+above. Ask the filesystem (`[ -x /usr/bin/g++ ]`) or the rpm database; neither remembers
+what this script ran. `hash -r` also clears it if you must keep `command -v`.
+
 **`pgrep -f <name>` matches your own shell.** `until ! pgrep -f bootc-image-builder; do sleep 30;
 done` never exits: the waiting shell's own command line contains the string, so pgrep finds
 itself and the loop waits forever on a process that already finished — or, worse, on one that
