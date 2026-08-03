@@ -38,10 +38,22 @@ condition into "all clear" — a gate that fails OPEN:
 
 Neither had fired yet. Both were one output-size change away from firing.
 
-The same round investigated **typing Arabic without the clipboard**, on the
-owner's instruction, and it is NOT merged — the work is on
-`fix/remote-typing-layout-switch`, honestly red. What was measured on the live
-session is worth keeping whatever happens to that branch:
+The same round **retired the clipboard typing path outright** and shipped its
+replacement. Arabic is typed the way a keyboard types it: select the keymap
+group that carries the characters, then press the positions. Nothing is
+borrowed, nothing is pasted, and every shift level is reachable — the Arabic
+comma, the question mark and the diacritics included — where keysym injection
+only ever reached level 1 of the active group. The user-facing clipboard feature
+(copy from the PC, paste to the PC, send an image) is untouched: it was never
+the problem, being used as a typing mechanism was.
+
+**Proven on the shipped path**, driving the real helper with the real batch
+shape: 12 of 12 realistic mixed sentences
+(`السلام عليكم Ahmed كيف الحال ok 123`) arrived **byte-identical across 48 group
+switches** — Arabic, Latin, a capital, digits and spaces. Harsher runs with a
+switch on every line measured 38/38.
+
+Three designs died to measurement first, and the sequence is the useful part:
 
 - **The mechanism works.** With `org.kde.KeyboardLayouts.setLayout` pointing at
   the `ara` group, injected evdev POSITIONS produce Arabic byte-for-byte
@@ -70,13 +82,26 @@ session is worth keeping whatever happens to that branch:
   it globally was refused: it is the same feedback the owner relies on for
   Alt+Shift at their desk. The answer is to switch rarely, not to silence it.
 
-The identified next step is to stop crossing channels: send the group change
-THROUGH the portal as injected Alt+Shift (the session already ships
-`grp:alt_shift_toggle`), so the switch travels in the same ordered stream as the
-keys. Until that lands, the clipboard typing path on `main` is untouched and
-working; the branch's gates (`verify_user_experience` and
-`test_remote_clipboard_runtime` still require the `Shift+Insert` contract) are
-deliberately red and must be migrated in the same series.
+**What ships** stops crossing channels altogether. xkb's own
+`grp:alt_shift_toggle` — which MoOS already ships and `moos-selfcheck` already
+gates — cycles the group in response to ORDINARY KEY EVENTS, so injecting
+Alt+Shift through the portal puts the group change in the SAME ordered stream as
+the letters; neither can overtake the other. Toggling is relative, so a
+swallowed chord would desync the tracked index and corrupt every later switch
+(`كيف الحال` arrived `;dt hgphg`); each chord is therefore followed by a bounded
+read of the group KWin actually has, which makes a lost toggle self-correcting
+and re-syncs the index from the compositor instead of from our own count. That
+read is safe where `setLayout` is not — it confirms state BEFORE any letter is
+sent rather than racing letters in flight. Fail closed throughout: a run whose
+group cannot be reached is dropped and reported, never typed on the other
+layout.
+
+Every clipboard-typing contract was MIGRATED at equal strictness, not deleted,
+and each was broken once and watched go red. Two gates turned out to be
+satisfiable by their own explanatory prose (they now strip comments), and two
+more were passing on a substring — `TryStrokesX` contains `TryStrokes` — and now
+pin exact declarations. That is the second and third time this round that a gate
+was found agreeing with the wrong thing.
 
 **RELEASED AND PROVEN ON BOTH MACHINES.** CI run `30845547536` built, pushed and
 cosign-signed all three editions as **`44.20260803.537`**, verified the way this
