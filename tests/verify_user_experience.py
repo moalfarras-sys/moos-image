@@ -1774,12 +1774,37 @@ require("CURSOR_HIDDEN" in portal,
 # silently doing nothing at all.
 text_keysym = read("moremote/agent-linux/TextKeysym.cs")
 input_injector = read("moremote/agent-linux/InputInjector.cs")
+ara_keymap = read("moremote/agent-linux/AraKeymap.cs")
+clipboard_bridge = read("moremote/agent-linux/ClipboardBridge.cs")
 remote_screen = read("moremote/controller/src/ui/RemoteScreen.tsx")
-require("ClipboardBridge.SetText" in input_injector and '"Shift", "Insert"' in input_injector,
-        "Arabic must be typed via a clipboard borrow pasted with Shift+Insert (Ctrl+V is not "
-        "paste in a terminal)")
-require("_borrowedClip" in input_injector,
-        "the clipboard borrow must be returned — typing must not silently eat the user's clipboard")
+# The clipboard borrow is RETIRED, and these contracts replace it at equal strictness.
+#
+# Borrowing the clipboard did carry any Unicode, but it raced on three fronts — one shared slot,
+# a copy that returns before the selection is servable, and an asynchronous fetch by the target
+# app — and every scrambling report in this project's history came from it. Arabic is now typed
+# the way a keyboard types it: select the group that carries the characters, then press the
+# positions. So typing must not touch the clipboard at all any more.
+# Comment-stripped, both of them: these gates say a NAME must be absent, and this file's own
+# history has a gate that a paragraph explaining the fix could satisfy — or, here, break.
+require("ClipboardBridge" not in code(input_injector, "slash"),
+        "typing must not touch the clipboard: the borrow raced on three fronts and produced "
+        "every Arabic scrambling report this project has recorded")
+require("SetTextConfirmed" not in code(clipboard_bridge, "slash"),
+        "the confirmed clipboard write existed only to serve typing; it must not linger as a "
+        "trap for the next reader who assumes typing still comes through here")
+require("AraKeymap.TryStrokes(" in code(input_injector, "slash")
+        and "public static bool TryStrokes(" in code(ara_keymap, "slash"),
+        "Arabic must be typed by pressing the positions that carry it on the Arabic group")
+require('{ layout = arabic ? "ara" : "home" }' in code(input_injector, "slash"),
+        "every typed run must name the keymap group it needs, as the FIRST element of its batch")
+require("_toggle_events" in code(portal) and "grp:alt_shift_toggle" in code(portal),
+        "the group change must ride the keymap's own Alt+Shift switch, so it travels in the SAME "
+        "ordered stream as the letters — an out-of-band setLayout overtakes keys in flight "
+        "(measured: 'مكتوب' arrived 'مكتوf')")
+require("def restore_layout():" in code(portal)
+        and code(portal).count("restore_layout()") >= 2,
+        "the borrowed keymap group must be handed back — borrowing the user's keyboard is no "
+        "more theirs to keep than borrowing their clipboard was")
 require("0x05c1" not in text_keysym,
         "legacy 0x05xx Arabic keysyms are measured NOT to work on KWin; do not reintroduce them")
 require("onCompositionStart" in remote_screen and "onCompositionEnd" in remote_screen
@@ -1789,13 +1814,16 @@ require('type = "keysyms"' in input_injector and 'elif t == "keysyms":' in porta
         "committed phone text must cross the helper pipe as one ordered keysym batch")
 remote_ws = read("moremote/controller/src/lib/ws.ts")
 gestures = read("moremote/controller/src/lib/gestures.ts")
-# Coalescing is adaptive, because the two typing paths cost wildly different amounts. Keysym text
-# must still go out within one 60 Hz frame — English typing does not get slower to serve Arabic —
-# while text needing a clipboard borrow batches into words rather than one round trip per letter.
+# Coalescing is adaptive, and it still is — only the reason changed. It used to amortise a
+# clipboard borrow; now it amortises a GROUP SWITCH, which KWin announces to plasmashell's OSD
+# service, which paints a layout pill across the middle of the screen. On a remote session that
+# pill is re-encoded into the video stream, so a switch per letter would strobe the picture.
+# Keysym-typable text must still go out within one 60 Hz frame: English never pays for Arabic.
 require("FAST_FLUSH_MS = 12" in remote_ws,
         "phone text the agent can type by keysym must still flush within one 60 Hz frame")
 require("CLIPBOARD_FLUSH_MS" in remote_ws and "FAST_TEXT" in remote_ws,
-        "text needing a clipboard borrow must batch into words, not one borrow per letter")
+        "text the agent must type on another keymap group has to batch into words, not one "
+        "group switch (and one OSD flash) per letter")
 require("Continue below and deliver this first meaningful delta" in gestures,
         "touch must deliver its first meaningful movement instead of feeling sticky")
 # The touch slop is a RANGE, not a literal. This assertion used to also require

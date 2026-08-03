@@ -282,10 +282,8 @@ public sealed class InputInjector : IDisposable
     /// </summary>
     public void Combo(IReadOnlyList<string> keys)
     {
-        // Same ordering rule as KeyTap. This used to exempt Shift+Insert, because typing itself
-        // was a paste and the exemption stopped it recursing into its own flush. Typing no longer
-        // touches the clipboard, so Shift+Insert is once again nothing but a shortcut the user
-        // pressed — and it must queue behind pending text like every other key.
+        // Same ordering rule as KeyTap — and with no exemption now. Shift+Insert used to be
+        // exempt because typing WAS a paste; it no longer is, so the combo is just a shortcut.
         FlushPendingText();
         var mods = new List<ushort>();
         var rest = new List<Stroke>();

@@ -192,34 +192,53 @@ Eq(true, devices[0].Current, "inventory marks the current device");
 Eq(true, restartedAuth.RevokeTrustedDevice(resumed, grant.DeviceId), "device can revoke itself");
 Eq(false, restartedAuth.ResumeTrustedDevice(grant.DeviceId, grant.DeviceToken, out _), "revoked device cannot resume");
 Directory.Delete(trustDir, true);
-// ── Clipboard typing: the copy must be CONFIRMED before the paste ───────────
-// Live-proven on the Cloud session (2026-08-03): wl-copy returns before the
-// selection is servable, so an immediate Shift+Insert pasted the previous
-// clipboard. Three Arabic words injected that way lost the first one entirely
-// (" في مشكلة "); with the read-back they arrived intact ("لسى في مشكلة ").
-// This asserts the SOURCE contract so the racy call can never come back.
+// ── Typing selects a keymap group; it does not borrow the clipboard ─────────
+// The borrow raced on three fronts — one shared slot, a wl-copy that returns
+// before the selection is servable, and an asynchronous fetch by the target
+// app — and produced every Arabic scrambling report this project recorded.
+// Arabic is now typed the way a keyboard types it: select the group that
+// carries the characters, then press the positions. These assert the SOURCE
+// contract so the racy mechanism can never come back.
 {
     var injector = File.ReadAllText(Path.Combine(RepoRoot(), "agent-linux/InputInjector.cs"));
     var bridge = File.ReadAllText(Path.Combine(RepoRoot(), "agent-linux/ClipboardBridge.cs"));
-    if (!injector.Contains("ClipboardBridge.SetTextConfirmed(text)"))
-        throw new Exception("clipboard typing must use the confirmed write");
-    if (injector.Contains("if (!ClipboardBridge.SetText(text))"))
-        throw new Exception("the unconfirmed SetText must not be used to type");
-    if (!bridge.Contains("GetText()") || !bridge.Contains("ConfirmAttempts"))
-        throw new Exception("SetTextConfirmed must read the clipboard back, bounded");
+    var araMap = File.ReadAllText(Path.Combine(RepoRoot(), "agent-linux/AraKeymap.cs"));
+    var portal = File.ReadAllText(Path.Combine(RepoRoot(), "agent-linux/mo-remote-portal.py"));
+    // Comment-stripped: these require a NAME to be absent, and the paragraph
+    // explaining why it is absent must not be able to break them.
+    static string Code(string t, string marker) => string.Join("\n",
+        t.Split('\n').Where(l => !l.TrimStart().StartsWith(marker)));
+
+    if (Code(injector, "//").Contains("ClipboardBridge"))
+        throw new Exception("typing must not touch the clipboard");
+    if (Code(bridge, "//").Contains("SetTextConfirmed"))
+        throw new Exception("the confirmed clipboard write existed only for typing; it must go");
+    if (!araMap.Contains("public static bool TryStrokes("))
+        throw new Exception("Arabic must be typed by pressing the positions that carry it");
     passed++;
 
-    // Ordering: nothing may overtake text already gathering for a paste — a
-    // space IS on the fast keysym path, which is how spaces landed one letter
-    // early inside Arabic ("لسى في" -> "لس ىف").
-    var typeText = injector[injector.IndexOf("public void TypeText")..];
-    typeText = typeText[..typeText.IndexOf("private const int BulkPasteThreshold")];
-    var guardAt = typeText.IndexOf("_pending.Length > 0");
-    var fastAt = typeText.IndexOf("TryDirectStrokes");
-    if (guardAt < 0 || fastAt < 0 || guardAt > fastAt)
-        throw new Exception("the pending-paste guard must precede the fast keysym path");
+    // The group change must ride the keymap's own Alt+Shift switch, so it
+    // travels in the SAME ordered stream as the letters. An out-of-band
+    // setLayout overtakes keys already in flight: measured end to end, 4 of 12
+    // words lost their tail to the German layout ("مكتوب" -> "مكتوf"). Neither
+    // setLayout's reply nor the layoutChanged signal is a barrier — both fire
+    // in ~0.15 ms and both mean ACCEPTED, not APPLIED.
+    if (!Code(portal, "#").Contains("_toggle_events")
+        || !Code(portal, "#").Contains("grp:alt_shift_toggle"))
+        throw new Exception("the group change must ride the in-stream Alt+Shift switch");
+    if (!Code(portal, "#").Contains("def restore_layout():"))
+        throw new Exception("the borrowed keymap group must be handed back");
     passed++;
 
+    // Fail closed: a run whose group cannot be reached is DROPPED, never typed.
+    // The other layout's reading of those positions is exactly the corruption
+    // this design exists to prevent.
+    if (!Code(portal, "#").Contains("dropped a typed run"))
+        throw new Exception("a run whose keymap group is unavailable must be dropped, not typed");
+    passed++;
+
+    // Ordering: nothing that moves the caret may be delivered while text is
+    // still gathering. This survives the mechanism change unchanged in meaning.
     foreach (var m in new[] { "public void KeyTap", "public void KeyDown", "public void Combo" })
     {
         var body = injector[injector.IndexOf(m)..];
@@ -243,8 +262,12 @@ Directory.Delete(trustDir, true);
     if (session.Contains("was abandoned; the viewer's link is saturated"))
         throw new Exception("the send-timeout 'carry on' claim must not return");
     passed++;
+    // The gather survives and so does its bound; only its PURPOSE changed. It no
+    // longer amortises a clipboard cycle but a GROUP SWITCH, which KWin announces
+    // to plasmashell's OSD service — a layout pill painted across the middle of
+    // the screen, and therefore into the video stream.
     if (injector.IndexOf("text.Length > 1 ||") < 0 ||
-        !injector.Contains("PasteMaxHoldMs = 700"))
+        !injector.Contains("TextMaxHoldMs = 700;"))
         throw new Exception("multi-character chunks must flush at once, bounded by the 700 ms age cap");
     passed++;
     if (!session.Contains("if (_watching) _lastInput = DateTimeOffset.UtcNow;"))
