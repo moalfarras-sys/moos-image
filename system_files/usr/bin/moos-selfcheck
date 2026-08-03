@@ -659,6 +659,18 @@ if [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/fontconfig/conf.d/99-moos-kawkab-test
 fi
 [ "$shadows" -eq 0 ] && ok "no user-level copy is shadowing a MoOS asset"
 
+# ── MoKernel: is the kernel running what MoOS declared? ──────────────────────
+# `mokernel` reads the RUNNING kernel, not the files MoOS shipped — which is the
+# only reading that has ever been trustworthy here (sch_fq: the .conf was right
+# and the kernel rejected the value on every boot for months).
+if command -v mokernel >/dev/null 2>&1; then
+    if mokernel --quiet 2>/dev/null; then
+        ok "MoKernel policy is live in the running kernel"
+    else
+        bad "MoKernel policy has drifted — run 'mokernel' to see which values"
+    fi
+fi
+
 # ── Is this machine still allowed to use its own CPU? ────────────────────────
 #
 # A MoOS desktop once ran thirteen consecutive boots at 53% of its clock — turbo

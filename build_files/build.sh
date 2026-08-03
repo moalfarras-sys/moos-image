@@ -2090,7 +2090,7 @@ chmod 0755 /usr/bin/moos-setup /usr/bin/moos-firstrun /usr/bin/moos-compat \
     /usr/bin/moos-apply-theme /usr/bin/moos-fix-boot-branding /usr/bin/moos-open /usr/bin/moos-install \
     /usr/bin/moai-config /usr/bin/moai-gateway /usr/bin/moai-control /usr/bin/moai-code \
     /usr/bin/moai-idle \
-    /usr/bin/moos-theme /usr/bin/moos-selfcheck \
+    /usr/bin/moos-theme /usr/bin/moos-selfcheck /usr/bin/mokernel \
     /usr/bin/moos-installer /usr/bin/moos-install-to-disk /usr/bin/moos-list-disks \
     /usr/libexec/moos-fstab-sanitize
 

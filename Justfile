@@ -34,6 +34,7 @@ check:
     python3 tests/test_moos_auto_update.py
     python3 tests/test_cloud_console_order.py
     python3 tests/test_theme_wallpaper_readback.py
+    python3 tests/test_mokernel.py
     python3 tests/test_moai_waydroid.py
     python3 tests/test_moai_app_launch.py
     python3 tests/test_moai_control.py

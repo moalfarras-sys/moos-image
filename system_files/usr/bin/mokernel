@@ -1,0 +1,136 @@
+#!/usr/bin/env bash
+# mokernel — what MoOS does to the Linux kernel, and whether it actually took.
+#
+# WHAT MOKERNEL IS, AND IS NOT
+#
+# MoKernel is NOT a fork of Linux and MoOS does not compile one. It is the
+# curated, versioned, *verified* layer MoOS puts on top of Fedora's signed
+# kernel: sysctl policy, module preloads, I/O scheduler rules, kernel command
+# line, and the hardware defaults moos-hardware-adapt applies per machine.
+#
+# Forking would cost MoOS the thing it cannot replace — Fedora's signed kernel
+# stream and its security updates — and would break the NVIDIA kmod signature
+# chain that this project has already had take a machine to a black screen.
+# The measurable wins are in configuration, and configuration is what this owns.
+#
+# WHY A COMMAND AND NOT JUST FILES
+#
+# Because a file is not a setting. This repository's history is a list of
+# settings that were shipped, gated green, and never reached the kernel:
+# `net.core.default_qdisc=fq` was REJECTED on every boot for months because
+# sch_fq is a module and nothing preloaded it, while the .conf file sat there
+# looking correct. A theme package that never applied. A karg order that
+# froze PID 1. The lesson each time was the same — read the running system,
+# not the file you wrote.
+#
+# So `mokernel` declares what MoOS intends, then reads what the kernel actually
+# has, and reports the difference. Every value below is measured on real MoOS
+# hardware; nothing here is aspirational.
+set -uo pipefail
+
+# Bumped when the declared policy changes. `mokernel status` prints it so a
+# support conversation can start from a number instead of a guess.
+MOKERNEL_REV=1
+
+C_OK=$'\033[32m'; C_BAD=$'\033[31m'; C_WARN=$'\033[33m'
+C_DIM=$'\033[2m'; C_B=$'\033[1m'; C_N=$'\033[0m'
+[ -t 1 ] || { C_OK=""; C_BAD=""; C_WARN=""; C_DIM=""; C_B=""; C_N=""; }
+
+pass=0; drift=0
+
+# THE DECLARED POLICY.
+#
+# One line per knob: sysctl|<name>|<expected>|<why it is not the default>
+# The `why` is not decoration — a knob nobody can justify is a knob that gets
+# reverted by the next person who reads it.
+POLICY="
+sysctl|vm.swappiness|150|zram is RAM, so paging to it is cheaper than dropping page cache; the stock 60 assumes a disk
+sysctl|vm.dirty_ratio|10|keep writeback continuous, so a large copy cannot stall the UI behind a wall of dirty pages
+sysctl|vm.dirty_background_ratio|5|start writing back early rather than in one burst
+sysctl|net.core.default_qdisc|fq|BBR needs pacing; without fq it degrades to something that is not BBR
+sysctl|net.ipv4.tcp_congestion_control|bbr|measured: the remote desktop stream is what this OS ships over a WAN
+sysctl|net.ipv4.tcp_notsent_lowat|131072|bounds head-of-line delay for the interactive stream
+sysctl|net.ipv4.tcp_mtu_probing|1|survive a path that black-holes big packets instead of stalling on it
+sysctl|net.core.netdev_max_backlog|4096|a 4K screen stream bursts; the stock 1000 drops it
+sysctl|fs.inotify.max_user_watches|524288|Baloo plus a code editor exhaust the stock 8192 on any real project
+sysctl|fs.inotify.max_user_instances|1024|same reason, per-process
+module|tcp_bbr|loaded|the congestion control above is a module, and an unloaded one is silently ignored
+module|sch_fq|loaded|the qdisc above is a module too — this exact omission made fq fail for months
+karg|preempt=full|present|desktop latency: preempt anywhere, not only at kernel boundaries
+karg|split_lock_detect=off|present|a split-lock trap freezes games and emulators mid-frame on Intel
+"
+
+value_of() {
+    case "$1" in
+        sysctl) sysctl -n "$2" 2>/dev/null ;;
+        module) lsmod 2>/dev/null | awk -v m="$2" '$1 == m {found=1} END {print (found ? "loaded" : "absent")}' ;;
+        karg)   case " $(tr '\0' ' ' < /proc/cmdline 2>/dev/null) " in *" $2 "*) echo present ;; *) echo absent ;; esac ;;
+    esac
+}
+
+print_status() {
+    printf '%s\n' "${C_B}MoKernel rev ${MOKERNEL_REV}${C_N} ${C_DIM}on Linux $(uname -r)${C_N}"
+    printf '%s\n' "${C_DIM}MoOS configures Fedora's signed kernel; it does not fork or rebuild it.${C_N}"
+    printf '\n'
+    local kind name want why have
+    while IFS='|' read -r kind name want why; do
+        [ -n "${kind:-}" ] || continue
+        have="$(value_of "$kind" "$name")"
+        if [ "$have" = "$want" ]; then
+            pass=$((pass + 1))
+            printf '  %s✓%s %-38s %s\n' "$C_OK" "$C_N" "$name" "$have"
+        else
+            drift=$((drift + 1))
+            printf '  %s✗%s %-38s %s (expected %s)\n' "$C_BAD" "$C_N" "$name" "${have:-unset}" "$want"
+            printf '      %s%s%s\n' "$C_DIM" "$why" "$C_N"
+        fi
+    done <<<"$POLICY"
+
+    # The per-machine half: what moos-hardware-adapt decided for THIS box.
+    printf '\n%sPer-machine (moos-hardware-adapt)%s\n' "$C_B" "$C_N"
+    if [ -r /etc/moos/hardware-adapt.state ]; then
+        printf '  %s·%s adapted: %s\n' "$C_DIM" "$C_N" "$(head -1 /etc/moos/hardware-adapt.state | cut -c1-72)"
+    else
+        printf '  %s!%s this machine has not been adapted yet\n' "$C_WARN" "$C_N"
+    fi
+    local cap max
+    cap="$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq 2>/dev/null)"
+    max="$(cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq 2>/dev/null)"
+    if [ -n "$cap" ] && [ -n "$max" ] && [ "$max" -gt 0 ] 2>/dev/null; then
+        if [ $((cap * 100 / max)) -lt 95 ]; then
+            printf '  %s✗%s CPU ceiling %s MHz of %s MHz (%s%%)\n' \
+                "$C_BAD" "$C_N" "$((cap / 1000))" "$((max / 1000))" "$((cap * 100 / max))"
+            drift=$((drift + 1))
+        else
+            printf '  %s✓%s CPU may use its full %s MHz\n' "$C_OK" "$C_N" "$((max / 1000))"
+            pass=$((pass + 1))
+        fi
+    fi
+    for disk in /sys/block/nvme*n1 /sys/block/sd?; do
+        [ -r "$disk/queue/scheduler" ] || continue
+        printf '  %s·%s %-12s I/O scheduler %s\n' "$C_DIM" "$C_N" \
+            "$(basename "$disk")" "$(sed -n 's/.*\[\([a-z-]*\)\].*/\1/p' "$disk/queue/scheduler")"
+    done
+
+    printf '\n'
+    if [ "$drift" -eq 0 ]; then
+        printf '%s✓ %d kernel settings live, 0 drifted%s\n' "$C_OK" "$pass" "$C_N"
+        return 0
+    fi
+    printf '%s✗ %d drifted%s, %d live\n' "$C_BAD" "$drift" "$C_N" "$pass"
+    printf '%sA drifted value means the kernel is NOT running what MoOS declared.%s\n' "$C_DIM" "$C_N"
+    return 1
+}
+
+case "${1:-status}" in
+    status|"") print_status ;;
+    --version|version) echo "MoKernel rev ${MOKERNEL_REV} on Linux $(uname -r)" ;;
+    --quiet|-q) print_status >/dev/null; [ "$drift" -eq 0 ] ;;
+    --help|-h)
+        printf 'mokernel [status|--version|--quiet]\n\n'
+        printf '  status     what MoOS declares for the kernel, and what the kernel has (default)\n'
+        printf '  --version  MoKernel revision and the Linux release it rides\n'
+        printf '  --quiet    exit 0 when nothing has drifted; print nothing\n'
+        ;;
+    *) echo "mokernel: unknown argument '$1' (try --help)" >&2; exit 2 ;;
+esac
