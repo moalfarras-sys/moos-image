@@ -4,7 +4,81 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-08-03, round 6 — **the remote's disconnect loop and the
+Last updated: 2026-08-03, round 7 — **the release was red, and the reason was
+the trap this file warned about two rounds ago.**
+
+`main` at `cb1807fa` did NOT build. CI is unambiguous: `moos` and `moos-cloud`
+passed the identical commit and **`moos-nvidia` failed inside `build.sh`** —
+
+```
+ldconfig -p | grep -q libGLESv2.so.2   ->  GATE FAIL: … no package provides it
+find /usr/lib64 -name libGLESv2.so.2   ->  (it IS on disk …)
+```
+
+The gate printed its own refutation and failed the build anyway. This is the
+`producer | grep -q` / `set -o pipefail` trap round 5 documented and left
+half-fixed: `grep -q` exits on its first match, the producer still has output to
+write, it dies of SIGPIPE (141), and pipefail hands the PIPELINE that 141 — so a
+MATCH is read as a MISS. Round 5 said "four more instances that work only by
+luck"; the luck ran out on one edition of one commit, because whether the
+producer has written enough to be killed is a race that depends on cache size
+and machine speed.
+
+**All ten instances in `build.sh` are now capture-first, match-second**, and the
+class was proven before and after rather than asserted: with a producer still
+writing, the old idiom returns `rc=141` and reports a present match as absent
+3/3, the captured form is correct 3/3. Two of the ten were far worse than the
+one that fired, because a match there means FAILURE, so a SIGPIPE turned the bad
+condition into "all clear" — a gate that fails OPEN:
+
+- `ldd /usr/lib/moplayer/moplayer | grep -q 'not found'` would have shipped a
+  MoPlayer with unresolved libraries, i.e. a window that never appears.
+- the login-defaults check for `wallpapers/Fedora` would have shipped a dangling
+  login wallpaper — an identity-contract surface.
+
+Neither had fired yet. Both were one output-size change away from firing.
+
+The same round investigated **typing Arabic without the clipboard**, on the
+owner's instruction, and it is NOT merged — the work is on
+`fix/remote-typing-layout-switch`, honestly red. What was measured on the live
+session is worth keeping whatever happens to that branch:
+
+- **The mechanism works.** With `org.kde.KeyboardLayouts.setLayout` pointing at
+  the `ara` group, injected evdev POSITIONS produce Arabic byte-for-byte
+  (`مرحبا` saved from a real editor), and every shift level is reachable —
+  unlike keysym injection, which only ever reaches level 1 of the active group.
+- **`AraKeymap.cs` is ground truth, not a transcription.** Every key of the
+  alphanumeric block was pressed at level 1 and level 2 with the group active,
+  one character per line into an editor; the saved file IS the table (48 level-1
+  cells, covering letters, hamza forms, diacritics, `،` and `؟`).
+- **Virtual-keyboard designs are impossible on this compositor.** KWin 6.7.3
+  advertises no `zwp_virtual_keyboard_manager_v1` (full global list checked), so
+  `wtype` and everything like it cannot work here. That closes a door earlier
+  notes left ajar by recording only that `wtype` was "not installed".
+- **There is no confirmation primitive for a layout switch.** `setLayout`'s own
+  reply and the `layoutChanged` signal both arrive in ~0.15 ms and both mean
+  ACCEPTED, not APPLIED: typing straight after either is still wrong (0/25 and
+  1/30 correct). `getLayout` reports the requested value before injected keys
+  see it.
+- **Awaiting the portal call is not a barrier either** — it proves
+  xdg-desktop-portal handled the call, not KWin, which the portal reaches over a
+  second connection asynchronously. End-to-end against the real helper, 4 of 12
+  words lost their tail to the German layout (`مكتوب` → `مكتوf`).
+- **Every switch paints an OSD.** KWin calls
+  `org.kde.osdService.kbdLayoutChanged` on plasmashell, which draws a layout pill
+  across the middle of the screen — re-encoded into the video stream. Disabling
+  it globally was refused: it is the same feedback the owner relies on for
+  Alt+Shift at their desk. The answer is to switch rarely, not to silence it.
+
+The identified next step is to stop crossing channels: send the group change
+THROUGH the portal as injected Alt+Shift (the session already ships
+`grp:alt_shift_toggle`), so the switch travels in the same ordered stream as the
+keys. Until that lands, the clipboard typing path on `main` is untouched and
+working; the branch's gates (`verify_user_experience` and
+`test_remote_clipboard_runtime` still require the `Shift+Insert` contract) are
+deliberately red and must be migrated in the same series.
+
+Previous update: 2026-08-03, round 6 — **the remote's disconnect loop and the
 typing that was still bad, diagnosed on the live host and fixed at both ends.**
 The owner reported Mo PC Remote disconnecting repeatedly and typing still
 arriving badly — and typed part of the report THROUGH the remote, garbled,

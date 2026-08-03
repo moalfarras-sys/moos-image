@@ -237,7 +237,8 @@ if [ "${MOOS_IMAGE_NAME:-moos}" = "moos-nvidia" ]; then
 
     # Prove the driver actually landed, rather than trusting the installer's exit code.
     rpm -q kmod-nvidia nvidia-driver >/dev/null || { echo "FATAL: NVIDIA packages are not installed."; exit 1; }
-    find "/usr/lib/modules/${kver_image}" -name 'nvidia*.ko*' | grep -q . \
+    _nvko="$(find "/usr/lib/modules/${kver_image}" -name 'nvidia*.ko*')"
+    [ -n "${_nvko}" ] \
         || { echo "FATAL: no nvidia kernel modules under /usr/lib/modules/${kver_image}."; exit 1; }
     grep -rq "force_drivers" /usr/lib/dracut/dracut.conf.d/99-nvidia.conf \
         || { echo "FATAL: 99-nvidia.conf does not force the driver into the initramfs (black screen at boot)."; exit 1; }
@@ -834,9 +835,11 @@ g++ -std=c++17 -O2 -I/tmp /ctx/moos-qml-shell.cpp -o /usr/bin/moos-qml-shell \
 # after `strip` reports "no canary" on a binary that is fully instrumented. Verify
 # first, shrink second. (The other two properties are structural and survive either
 # way; they are checked here too so all three read from one unstripped object.)
-readelf -hW /usr/bin/moos-qml-shell | grep -qE 'Type:[[:space:]]+DYN' \
+_elf_h="$(readelf -hW /usr/bin/moos-qml-shell)"
+_elf_d="$(readelf -dW /usr/bin/moos-qml-shell)"
+grep -qE 'Type:[[:space:]]+DYN' <<<"${_elf_h}" \
     || { echo "GATE FAIL: moos-qml-shell is not a PIE — its own text has no ASLR"; exit 1; }
-readelf -dW /usr/bin/moos-qml-shell | grep -q 'BIND_NOW' \
+grep -q 'BIND_NOW' <<<"${_elf_d}" \
     || { echo "GATE FAIL: moos-qml-shell has a writable PLT (no -z now / full RELRO)"; exit 1; }
 # NOT `readelf -sW … | grep -q …`. This file runs under `set -o pipefail`, and that
 # combination is a false-negative machine: `grep -q` exits the instant it matches, the
@@ -868,14 +871,17 @@ dnf5 -y remove gcc-c++ qt6-qtbase-devel kf6-kdbusaddons-devel kf6-kwindowsystem-
 # The single-instance guard is a LINK, and a link that silently did not happen leaves a shell that
 # still runs, still shows the app, and still opens a second copy on the next click — exactly the
 # bug this replaced, with a green build. So check the binary actually carries it.
-ldd /usr/bin/moos-qml-shell | grep -q libKF6DBusAddons \
+_shell_ldd="$(ldd /usr/bin/moos-qml-shell)"
+grep -q libKF6DBusAddons <<<"${_shell_ldd}" \
     || { echo "GATE FAIL: moos-qml-shell is not linked against KF6DBusAddons — it would open twice"; exit 1; }
 
 # The structural hardening survives stripping, so re-assert it on the SHIPPED file too —
 # the checks above ran before `strip`, and this proves nothing was lost between them.
-readelf -hW /usr/bin/moos-qml-shell | grep -qE 'Type:[[:space:]]+DYN' \
+_shipped_h="$(readelf -hW /usr/bin/moos-qml-shell)"
+_shipped_d="$(readelf -dW /usr/bin/moos-qml-shell)"
+grep -qE 'Type:[[:space:]]+DYN' <<<"${_shipped_h}" \
     || { echo "GATE FAIL: the shipped moos-qml-shell is not a PIE"; exit 1; }
-readelf -dW /usr/bin/moos-qml-shell | grep -q 'BIND_NOW' \
+grep -q 'BIND_NOW' <<<"${_shipped_d}" \
     || { echo "GATE FAIL: the shipped moos-qml-shell has a writable PLT"; exit 1; }
 
 # Gate it. A wrong app_id is invisible to every other check in this build: the app
@@ -1607,13 +1613,24 @@ done
 # will actually see on the user's machine, which is the only thing it was ever
 # meant to assert.
 ldconfig
+#
+# CAPTURE FIRST, MATCH SECOND — and this gate is why the rule is not optional.
+# `ldconfig -p | grep -q "${so}"` broke the moos-nvidia release of 2026-08-03 while
+# moos and moos-cloud passed the identical commit. `grep -q` exits on its first
+# match, ldconfig still has hundreds of lines to write, it dies of SIGPIPE (141),
+# and pipefail hands the PIPELINE that 141 — so the gate read a MATCH as a MISS.
+# Its own diagnostic said so out loud ("it IS on disk") and the build failed anyway.
+# Whether the producer has written enough to be killed is a race, which is why this
+# idiom passes for months and then fails one edition of one commit.
+_ldcache="$(ldconfig -p)"
+_libdirs="$(find /usr/lib64 /usr/lib -maxdepth 1 -name 'lib*.so.*' 2>/dev/null)"
 for so in libEGL.so.1 libGLESv2.so.2; do
-    if ! ldconfig -p | grep -q "${so}"; then
+    if ! grep -q "${so}" <<<"${_ldcache}"; then
         echo "GATE FAIL: MoPlayer needs ${so} and no package in this image provides it"
         # Say which of the two failures this is: a library that is genuinely absent
         # needs a package added, one that is on disk but unlinkable needs a path or
         # a conflicting provider chased down. They are not the same bug.
-        if find /usr/lib64 /usr/lib -maxdepth 1 -name "${so}" 2>/dev/null | grep -q .; then
+        if grep -q "/${so}\$" <<<"${_libdirs}"; then
             echo "           (it IS on disk — the linker cache does not know about it)"
         fi
         exit 1
@@ -1639,9 +1656,13 @@ test -x /usr/bin/moplayer \
 # Every shared library the bundle needs must resolve *inside the image*. This is
 # the check that catches "built against a library the final image does not have" —
 # which fails at run time, on the user's machine, as a window that never appears.
-if ldd /usr/lib/moplayer/moplayer | grep -q 'not found'; then
+# Captured, and for a sharper reason than the gates above: here a match means FAILURE,
+# so a SIGPIPE-induced 141 would report "no unresolved libraries" for a bundle that has
+# them — the gate would fail OPEN and ship a MoPlayer that never opens a window.
+_moplayer_ldd="$(ldd /usr/lib/moplayer/moplayer)"
+if grep -q 'not found' <<<"${_moplayer_ldd}"; then
     echo "GATE FAIL: MoPlayer has unresolved shared libraries:"
-    ldd /usr/lib/moplayer/moplayer | grep 'not found'
+    grep 'not found' <<<"${_moplayer_ldd}"
     exit 1
 fi
 
@@ -2630,8 +2651,8 @@ grep -q '^WallpaperPluginId=org\.moos\.' /usr/lib/plasmalogin/defaults.conf 2>/d
 # correct file. (It did, on the first CI run after this gate landed.) Same lesson
 # the repo's config()/code() helpers already encode: a gate must read the CONFIG,
 # never the paragraph above it.
-sed -e '/^[[:space:]]*#/d' /usr/lib/plasmalogin/defaults.conf \
-    | grep -q 'wallpapers/Fedora' && {
+_login_defaults="$(sed -e '/^[[:space:]]*#/d' /usr/lib/plasmalogin/defaults.conf)"
+grep -q 'wallpapers/Fedora' <<<"${_login_defaults}" && {
     echo "GATE FAIL: the login defaults still reference /usr/share/wallpapers/Fedora,"
     echo "           which this build deletes — the login layer would be dangling"
     exit 1
@@ -3955,8 +3976,8 @@ TRUSTED
         echo "           thread per core inside EVERY session, so two desktops on an"
         echo "           8-vCPU box means 16 threads fighting for 8 cores — measured at"
         echo "           165% CPU for one idle plasmashell."; _cloud_fail=1; }
-    grep -A2 '"ShowDashboard"' /usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/config/main.xml \
-        | grep -q '<default>false</default>' || {
+    _dash_cfg="$(grep -A2 '"ShowDashboard"' /usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/config/main.xml)"
+    grep -q '<default>false</default>' <<<"${_dash_cfg}" || {
         echo "GATE FAIL: the bento dashboard is still on by default in the cloud edition."
         echo "           Measured on a GPU-less server: visible 158% of a CPU core,"
         echo "           hidden 0% (A/B/A). That is 1.5 cores of an 8-core box spent"
