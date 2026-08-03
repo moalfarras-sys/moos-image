@@ -4,6 +4,58 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
+Last updated: 2026-08-03, round 8 — **the update button could never have
+updated anything, on any machine.**
+
+The background train was fixed two rounds ago and the *app* was left behind.
+`moos-update` — the window Mo Store's "system update" card opens, and the one a
+person opens to update MoOS — ran `pkexec bootc upgrade`. On the live Cloud host,
+two builds behind at the time, that command reports:
+
+```
+No changes in: ostree-image-signed:docker://…/moos-cloud@sha256:34b5…
+```
+
+and it reports that **forever**. `bootc upgrade` cannot advance a digest-pinned
+origin, and every MoOS install becomes digest-pinned the first time `moai-do
+update` or the nightly `moos-auto-update` stages anything — which is by design,
+because both escalate an immutable object across Polkit rather than a mutable
+tag. So "Install update" was a dead button on every machine, while the machine
+kept updating anyway at 04:30 and nobody could tell.
+
+The app now carries the same contract as the other two paths: resolve `:latest`
+unprivileged, accept only the three official editions (specific before generic,
+or a `moos-nvidia` desktop gets rebased onto an image with no driver in it),
+validate the digest SHAPE, and hand Polkit a reference the app CONSTRUCTED. It
+also says, the moment it opens, when an update is **already staged** — which
+nothing on the desktop did: the notifier and `bootc upgrade --check` both read
+the pinned origin and see "no changes", so a finished update sat on the disk
+with no way to learn it was there except rebooting.
+
+Proven, not asserted: the new gate
+(`test_updater_stages_an_exact_signed_digest_never_a_tag_upgrade`) **fails on the
+old file** — `['pkexec','bootc','upgrade']` — and passes on the new one; the
+updater's real functions were then run against the live registry on this machine
+and correctly answered `moos-cloud` / `already on the latest signed image`, and
+the app was launched on the live session without a traceback.
+
+The same round removed a **health check that lied**. `moos-selfcheck` reported
+"✗ plasma-ksystemstats is NOT running — every system monitor will draw an empty
+box" on a machine whose monitors were fine: the unit is D-Bus activated and exits
+when the desktop is covered, and one introspect call had it `active` in under a
+second. It now distinguishes running / idle-but-activatable / genuinely
+unavailable, and starts nothing itself (verified: still `inactive` after the
+check). The host went from "1 broken, 49 passed" to **50 passed**.
+
+What was audited and found intact, so nobody re-does it: OS image, system
+Flatpaks, user Flatpaks, distrobox and firmware metadata all update on their own
+timers (each one's last run confirmed in the journal); firmware APPLY stays
+manual on purpose (`moai-do update-firmware`) per the anti-brick contract in
+`moos-hardware-adapt`; and no driver is missing — `linux-firmware`, mesa
+DRI+Vulkan, `cups`/`ipp-usb`/`sane-backends`, `bluez`, `fwupd`, `thermald`,
+`rasdaemon` are all installed, the kernel log has zero firmware-load failures,
+and `fwupdmgr` reports no updatable devices.
+
 Last updated: 2026-08-03, round 7 — **the release was red, and the reason was
 the trap this file warned about two rounds ago.**
 

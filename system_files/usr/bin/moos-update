@@ -8,16 +8,39 @@ Three things were wrong with that, and only one of them was cosmetic:
     the window in the dock wore Konsole's icon and Konsole's name, beside a pinned "MoOS Updater"
     that never lit up. The owner reported it as "the app opens with two different icons". He was
     right: there were two, and neither of them was the updater.
-  * It could not show progress. `bootc upgrade` pulls layers for minutes; a numbered menu can only
+  * It could not show progress. An image update pulls layers for minutes; a numbered menu can only
     print at you. There was no way to see how far along it was, or whether it had hung.
   * Updating your operating system through an ASCII banner is not what MoOS is.
 
-The mechanism is unchanged, because the mechanism was never the problem: bootc, over polkit,
-staged atomically, applied on reboot, with the running system untouched until then. What changed
+The mechanism is unchanged, because the mechanism was never the problem: an atomic image update,
+staged over polkit, applied on reboot, with the running system untouched until then. What changed
 is that you can watch it happen.
+
+WHY IT NO LONGER RUNS `bootc upgrade` (2026-08-03)
+--------------------------------------------------
+It did, and on this OS that is a button that can never do anything.
+
+`moai-do update` deliberately stages an EXACT DIGEST: the tag resolve happens unprivileged and
+Polkit escalates only an immutable object, never a mutable tag. The nightly train
+(/usr/libexec/moos-auto-update) carries the same contract. The cost of that correct boundary is
+that every MoOS install ends up with a DIGEST-PINNED origin — and `bootc upgrade` cannot advance
+such an origin: the origin deliberately names the old object, so the check reports
+
+    No changes in: ostree-image-signed:docker://…/moos-cloud@sha256:34b5…
+
+forever, no matter how many newer images exist. Verified on the live Cloud machine while it was
+two builds behind. The background train was fixed in the commit that added moos-auto-update; this
+window — the one a person actually opens, and the one Mo Store's "system update" card opens — was
+left on the dead path, so "Install update" was a dead button on every machine.
+
+So the app now carries the SAME contract as the other two paths: resolve `:latest` unprivileged,
+accept only the three official editions, validate the digest SHAPE, and hand Polkit a reference
+this file CONSTRUCTED — never a string taken from the registry, the origin, or the user.
 """
 import json
 import os
+import re
+import shutil
 import subprocess
 import sys
 
@@ -39,7 +62,47 @@ def sh(*cmd, timeout=25):
         return 127, str(e)
 
 
-def current_system():
+# The official registry and the three official editions. This tuple IS the
+# security boundary of the update path: the reference handed to the privileged
+# rebase is assembled from a name in this list plus a digest that matched
+# DIGEST_SHAPE — nothing that came off the wire is ever passed through whole.
+OFFICIAL_REGISTRY = "ghcr.io/moalfarras-sys"
+DIGEST_SHAPE = re.compile(r"^sha256:[0-9a-f]{64}$")
+DIGEST_IN_REF = re.compile(r"sha256:[0-9a-f]{64}")
+
+
+def edition_of(ref):
+    """Which official MoOS edition this origin names, or None if it is not ours.
+
+    Order matters: "moos-nvidia" and "moos-cloud" both CONTAIN "moos", so the
+    specific editions have to be tested first or every machine would look like
+    the generic desktop and get rebased onto the wrong image.
+    """
+    for edition in ("moos-nvidia", "moos-cloud", "moos"):
+        if f"/{edition}@" in ref or f"/{edition}:" in ref:
+            return edition
+    return None
+
+
+def deployment_state():
+    """(booted deployment, staged deployment) as rpm-ostree reports them.
+
+    Both may be None: on a machine where rpm-ostreed is unreachable there is
+    nothing honest to say, and the UI says exactly that instead of guessing.
+    """
+    rc, out = sh("rpm-ostree", "status", "--json")
+    if rc != 0:
+        return None, None
+    try:
+        deployments = json.loads(out).get("deployments", [])
+    except ValueError:
+        return None, None
+    booted = next((d for d in deployments if d.get("booted")), None)
+    staged = next((d for d in deployments if d.get("staged")), None)
+    return booted, staged
+
+
+def current_system(booted=None):
     """What this machine is running, named the way the OS names itself."""
     pretty = "MoOS"
     try:
@@ -50,20 +113,10 @@ def current_system():
     except OSError:
         pass
 
-    build = ""
-    rc, out = sh("rpm-ostree", "status", "--json")
-    if rc == 0:
-        try:
-            # deployments[0] is the DEFAULT deployment — on this OS updates
-            # auto-stage, so whenever an update is pending that slot holds the
-            # staged build the machine is NOT yet running. "Current system"
-            # must mean the booted one.
-            deployments = json.loads(out)["deployments"]
-            booted = next((d for d in deployments if d.get("booted")), deployments[0])
-            build = booted.get("version", "") or ""
-        except (ValueError, KeyError, IndexError):
-            build = ""
-    return pretty, build
+    # The BOOTED deployment, never deployments[0]: on this OS updates auto-stage,
+    # so whenever one is pending that slot holds the build the machine is NOT yet
+    # running. "Current system" must mean the one under your hands.
+    return pretty, (booted or {}).get("version", "") or ""
 
 
 class Updater(MoOSApp):
@@ -72,7 +125,14 @@ class Updater(MoOSApp):
     SIZE = (760, 660)
 
     def build(self, page):
-        pretty, build = current_system()
+        booted, staged = deployment_state()
+        pretty, build = current_system(booted)
+        # The reference the Install button will hand to Polkit. It stays None
+        # until a check has resolved AND shape-validated a digest, which is why
+        # the button starts insensitive and a failed check never enables it.
+        self._target = None
+        self._edition = edition_of((booted or {}).get("container-image-reference", ""))
+        self._staged = staged
 
         page.append(self.title(local_text("محدّث MoOS", "MoOS Updater")))
         page.append(self.subtitle(local_text(
@@ -136,6 +196,19 @@ class Updater(MoOSApp):
         row.append(self.reboot_btn)
         page.append(row)
 
+        # An update the nightly train already staged is finished work waiting on a
+        # restart, and nothing else on this desktop says so: the notifier and the
+        # old `bootc upgrade --check` both read the pinned origin and report "no
+        # changes". Say it the moment the window opens, rather than making someone
+        # hunt for an update that is already sitting on the disk.
+        if staged:
+            self.status.add_css_class("success")
+            self.status.set_text(local_text(
+                "✓ تحديث جاهز بالفعل ({}) — أعد التشغيل لتطبيقه.",
+                "✓ An update is already staged ({}) — restart to apply it.",
+            ).format(staged.get("version", "") or "—"))
+            self.reboot_btn.set_visible(True)
+
     # -- log -------------------------------------------------------------------
 
     def say(self, text):
@@ -163,8 +236,8 @@ class Updater(MoOSApp):
 
     # -- privileged work, without freezing the window --------------------------
 
-    def run_async(self, cmd, on_done):
-        """pkexec, streamed onto the GLib loop.
+    def run_async(self, cmd, on_done, collect=None):
+        """A child process, streamed onto the GLib loop.
 
         A subprocess.run() here would block the main loop and the window would go grey and stop
         repainting for the entire pull — which is indistinguishable, to the person watching, from
@@ -189,6 +262,8 @@ class Updater(MoOSApp):
             line = proc.stdout.readline()
             if line:
                 self.say(line.rstrip("\n"))
+                if collect is not None:
+                    collect.append(line.strip())
                 return True
             # A child can close stdout before it exits. Never wait for that
             # process from GTK's callback; poll at a low duty cycle instead.
@@ -206,36 +281,109 @@ class Updater(MoOSApp):
 
     # -- actions ---------------------------------------------------------------
 
+    def fail(self, arabic, english):
+        self.busy(False)
+        self.status.add_css_class("error")
+        self.status.set_text(local_text(arabic, english))
+
     def on_check(self, _btn):
+        # Re-read the sysroot: the nightly train may have staged something since
+        # the window opened, and offering to download it again would be a lie.
+        booted, staged = deployment_state()
+        if booted is None:
+            self.fail("تعذّر قراءة حالة النظام — خدمة النشر لا تستجيب.",
+                      "Could not read the system state — rpm-ostree is not answering.")
+            return
+        if staged:
+            self.status.add_css_class("success")
+            self.status.set_text(local_text(
+                "✓ تحديث جاهز بالفعل ({}) — أعد التشغيل لتطبيقه.",
+                "✓ An update is already staged ({}) — restart to apply it.",
+            ).format(staged.get("version", "") or "—"))
+            self.reboot_btn.set_visible(True)
+            return
+
+        ref = booted.get("container-image-reference", "") or ""
+        edition = edition_of(ref)
+        if edition is None:
+            # Not a MoOS origin. Rewriting somebody else's install is not this
+            # app's business, and silently rebasing it onto MoOS would be worse.
+            self.fail(
+                "هذا النظام لا يأتي من سجلّ MoOS الرسمي، فلا يمكن تحديثه من هنا.",
+                "This system does not come from the official MoOS registry, "
+                "so it cannot be updated from here.",
+            )
+            return
+        if shutil.which("skopeo") is None:
+            self.fail("أداة قراءة السجلّ غير موجودة — تعذّر معرفة أحدث صورة.",
+                      "skopeo is missing — cannot ask the registry for the latest image.")
+            return
+
+        self._edition = edition
+        self._target = None
+        current = DIGEST_IN_REF.findall(ref)
+        current = current[-1] if current else ""
         self.busy(True, local_text("جارٍ الفحص…", "Checking…"))
-        self.say("$ bootc upgrade --check")
+        self.say(f"$ skopeo inspect docker://{OFFICIAL_REGISTRY}/{edition}:latest")
+
+        lines = []
 
         def done(rc):
             self.busy(False)
-            if rc == 0:
-                self.status.set_text(
-                    local_text(
-                        "راجع النتيجة أعلاه. إن توفّر تحديث، اضغط «تثبيت التحديث».",
-                        "Review the result above. If an update is available, "
-                        "press “Install update”.",
-                    ))
-                self.apply_btn.set_sensitive(True)
-            else:
-                self.status.add_css_class("error")
+            if rc != 0:
+                self.fail("تعذّر الوصول إلى السجلّ. تحقّق من الاتصال.",
+                          "Could not reach the registry. Is the network up?")
+                return
+            # skopeo can print a warning line before its answer, so take the last
+            # line that IS a digest rather than assuming the output is one line.
+            digests = [line for line in lines if DIGEST_SHAPE.match(line)]
+            latest = digests[-1] if digests else ""
+            if not DIGEST_SHAPE.match(latest):
+                # Anything that is not exactly a digest is refused rather than
+                # repaired: this string is one concatenation away from being a
+                # privileged argument.
+                self.fail("رفض ردّ غير صالح من السجلّ.",
+                          "Refused an invalid answer from the registry.")
+                return
+            if latest == current:
+                self.status.add_css_class("success")
                 self.status.set_text(local_text(
-                    "تعذّر الفحص. تحقّق من الاتصال.",
-                    "Check failed. Is the network up?",
+                    "✓ نظامك على أحدث صورة MoOS موقّعة.",
+                    "✓ You are on the latest signed MoOS image.",
                 ))
+                return
+            self._target = (
+                f"ostree-image-signed:docker://{OFFICIAL_REGISTRY}/{edition}@{latest}"
+            )
+            # The log pane is a transcript of the commands, not chrome: it already
+            # reads "$ skopeo inspect …", so the two digests stay in its language.
+            self.say(f"current: {current or '-'}")
+            self.say(f"new:     {latest}")
+            self.status.set_text(local_text(
+                "يتوفّر تحديث. اضغط «تثبيت التحديث».",
+                "An update is available. Press “Install update”.",
+            ))
+            self.apply_btn.set_sensitive(True)
 
-        self.run_async(["pkexec", "bootc", "upgrade", "--check"], done)
+        self.run_async(
+            ["skopeo", "inspect", "--format", "{{.Digest}}",
+             f"docker://{OFFICIAL_REGISTRY}/{self._edition}:latest"],
+            done,
+            collect=lines,
+        )
 
     def on_apply(self, _btn):
+        if not self._target:
+            # Nothing was resolved, so there is nothing to install. The button is
+            # insensitive until a check succeeds; this is the belt for that brace.
+            self.fail("افحص التحديثات أولاً.", "Check for updates first.")
+            return
         self.busy(True, local_text(
             "جارٍ تحضير التحديث… يمكنك متابعة عملك.",
             "Staging the update… you can keep working.",
         ))
         self.apply_btn.set_sensitive(False)
-        self.say("$ bootc upgrade")
+        self.say(f"$ rpm-ostree rebase {self._target}")
 
         def done(rc):
             self.busy(False)
@@ -254,10 +402,17 @@ class Updater(MoOSApp):
                 ))
                 self.apply_btn.set_sensitive(True)
 
-        self.run_async(["pkexec", "bootc", "upgrade"], done)
+        # Polkit escalates an IMMUTABLE object: the exact digest resolved above,
+        # inside a reference this file built from its own allowlist. The signature
+        # policy in /etc/containers/policy.json still verifies every pulled layer,
+        # and the previous deployment stays bootable for rollback.
+        self.run_async(["pkexec", "rpm-ostree", "rebase", self._target], done)
 
     def on_reboot(self, _btn):
         os.execvp("systemctl", ["systemctl", "reboot"])
 
 
-Updater().run()
+# Guarded like mo-pc-remote's: a gate that imports this file to exercise the
+# edition allowlist and the digest handling must not also open a window.
+if __name__ == "__main__":
+    Updater().run()

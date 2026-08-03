@@ -452,9 +452,26 @@ fi
 
 # ── The desktop ──────────────────────────────────────────────────────────────
 head_ "سطح المكتب | Desktop"
-systemctl --user is-active plasma-ksystemstats.service >/dev/null 2>&1 \
-    && ok "the sensor daemon is running (the rings have data)" \
-    || bad "plasma-ksystemstats is NOT running — every system monitor will draw an empty box"
+# plasma-ksystemstats is a D-BUS ACTIVATED service (BusName=org.kde.ksystemstats1,
+# SystemdService=plasma-ksystemstats.service), and it exits when its last subscriber
+# goes away — which happens every time the desktop is fully covered by windows. So
+# `is-active` alone reported "✗ broken, every system monitor will draw an empty box"
+# on a machine whose monitors were fine: measured on the Cloud host 2026-08-03, the
+# unit was inactive and a single introspect call had it Active in under a second,
+# exactly as the wallpaper's Sensors plugin does when the rings become visible.
+#
+# So ask the real question — CAN the sensors be served — in three honest states.
+# The failing branch still fires, and now it means something.
+if systemctl --user is-active plasma-ksystemstats.service >/dev/null 2>&1; then
+    ok "the sensor daemon is running (the rings have data)"
+elif command -v gdbus >/dev/null 2>&1 \
+    && timeout 5s gdbus call --session -d org.freedesktop.DBus -o /org/freedesktop/DBus \
+        -m org.freedesktop.DBus.ListActivatableNames 2>/dev/null \
+        | grep -q "org.kde.ksystemstats1"; then
+    ok "the sensor daemon is idle but starts on demand (the rings fill when shown)"
+else
+    bad "the sensor daemon is neither running nor startable — every system monitor will draw an empty box"
+fi
 
 appletsrc="${XDG_CONFIG_HOME:-$HOME/.config}/plasma-org.kde.plasma.desktop-appletsrc"
 

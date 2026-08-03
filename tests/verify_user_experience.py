@@ -4554,9 +4554,15 @@ require(len(re.findall(r'sensorId:\s*"', dashboard_ui)) >= 3,
 
 # Sensors are useless if nothing serves them. ksystemstats was NOT running on this
 # image and nothing started it, so every monitor widget drew an empty grey box.
+#
+# Measured again on the Cloud host 2026-08-03: on Plasma 6.7 the unit IS D-Bus
+# activated and one introspect call starts it in under a second. The explicit start
+# therefore stays as the belt (it costs nothing, and it means the rings are already
+# fed the first time the desktop paints) — but "it does not come up on demand" is no
+# longer true, and moos-selfcheck no longer calls an idle daemon a broken machine.
 require("systemctl --user start plasma-ksystemstats.service" in apply_theme_code,
-        "the sensor daemon must be started explicitly — it does not come up on demand, "
-        "and without it every system monitor silently draws nothing")
+        "the sensor daemon must be started explicitly so the rings are fed before the "
+        "first paint, rather than only when something subscribes")
 
 # ── The tray shows two things, not sixteen ────────────────────────────────────
 require('writeConfig("shownItems"' in apply_theme_code

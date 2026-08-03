@@ -105,8 +105,9 @@ result, captured = run_with_doubles(booted_ref=PINNED_NVIDIA, registry_digest=OL
 check(result.returncode == 0, "already-current run must exit 0")
 check(captured == "", f"already-current run must not rebase; got {captured!r}")
 
-# 3. Every official edition rides the train — including moos-cloud, which the
-#    interactive updater deliberately does not offer.
+# 3. Every official edition rides the train, and the same three-edition allowlist
+#    is what `moai-do update` and the updater window enforce (the specific
+#    editions are matched before the generic one in all three).
 for edition in ("moos", "moos-cloud", "moos-nvidia"):
     ref = f"ostree-image-signed:docker://ghcr.io/moalfarras-sys/{edition}@{OLD}"
     result, captured = run_with_doubles(booted_ref=ref, registry_digest=NEW)

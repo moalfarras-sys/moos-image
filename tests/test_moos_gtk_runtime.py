@@ -7,6 +7,7 @@ import ast
 import configparser
 import importlib.machinery
 import importlib.util
+import json
 import os
 from pathlib import Path
 import queue
@@ -83,18 +84,28 @@ def load_modules():
     sys.modules["moos_ui2"] = ui2
     ui2_spec.loader.exec_module(ui2)
 
-    loader = importlib.machinery.SourceFileLoader(
-        "mo_pc_remote_runtime_test", str(REMOTE_PATH)
-    )
-    remote_spec = importlib.util.spec_from_loader(loader.name, loader)
-    if remote_spec is None:
-        raise RuntimeError(f"cannot load {REMOTE_PATH}")
-    remote = importlib.util.module_from_spec(remote_spec)
-    loader.exec_module(remote)
-    return ui2, remote
+    def load_script(name, path):
+        """Import a shipped /usr/bin script as a module.
+
+        Both scripts guard their `App().run()` with `if __name__ == "__main__"`,
+        so importing them here exercises their real logic without opening a
+        window — which is the only way to test the update path for real instead
+        of grepping its source for the shape of a fix.
+        """
+        loader = importlib.machinery.SourceFileLoader(name, str(path))
+        spec = importlib.util.spec_from_loader(loader.name, loader)
+        if spec is None:
+            raise RuntimeError(f"cannot load {path}")
+        module = importlib.util.module_from_spec(spec)
+        loader.exec_module(module)
+        return module
+
+    remote = load_script("mo_pc_remote_runtime_test", REMOTE_PATH)
+    updater = load_script("moos_update_runtime_test", UPDATER_PATH)
+    return ui2, remote, updater
 
 
-UI2, REMOTE = load_modules()
+UI2, REMOTE, UPDATER = load_modules()
 
 
 def parse_hex(value):
@@ -200,6 +211,87 @@ class TestMoOSGtkRuntime(unittest.TestCase):
                         r"[A-Za-z]{3,}",
                         f"{path.name}:{node.lineno} concatenates two visible locales",
                     )
+
+    def test_updater_stages_an_exact_signed_digest_never_a_tag_upgrade(self):
+        """The window a person opens must be able to actually update the machine.
+
+        `bootc upgrade` cannot advance a digest-pinned origin — and every MoOS
+        install becomes digest-pinned the first time `moai-do update` or the
+        nightly train stages anything, because both escalate an immutable object
+        by design. The updater shipped on that dead path: "Install update" ran
+        `pkexec bootc upgrade`, which reported "No changes in: …@sha256:…" on a
+        machine that was two builds behind. Verified on the live Cloud host.
+        """
+        source = UPDATER_PATH.read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        argv = [
+            [element.value for element in node.elts
+             if isinstance(element, ast.Constant) and isinstance(element.value, str)]
+            for node in ast.walk(tree)
+            if isinstance(node, ast.List)
+        ]
+        self.assertFalse(
+            [words for words in argv if words[:2] == ["bootc", "upgrade"]
+             or words[:3] == ["pkexec", "bootc", "upgrade"]],
+            "the updater must never run `bootc upgrade`: it is a permanent no-op "
+            "on the digest-pinned origin every MoOS install ends up with",
+        )
+        self.assertIn(
+            ["pkexec", "rpm-ostree", "rebase"],
+            argv,
+            "the privileged step must be an exact-digest rebase",
+        )
+
+        # The allowlist is the security boundary: the specific editions have to
+        # win over the generic one, or a moos-nvidia desktop would be told it is
+        # plain `moos` and rebased onto an image with no driver in it.
+        for edition in ("moos", "moos-cloud", "moos-nvidia"):
+            for ref in (
+                f"ostree-image-signed:docker://ghcr.io/moalfarras-sys/{edition}"
+                f"@sha256:{'a' * 64}",
+                f"ostree-image-signed:docker://ghcr.io/moalfarras-sys/{edition}:latest",
+            ):
+                self.assertEqual(UPDATER.edition_of(ref), edition, ref)
+        self.assertIsNone(
+            UPDATER.edition_of(
+                f"ostree-image-signed:docker://ghcr.io/somebody-else/os@sha256:{'b' * 64}"
+            ),
+            "a foreign origin is not this app's to rewrite",
+        )
+
+        # Only a real digest may ever be concatenated into the privileged argument.
+        self.assertTrue(UPDATER.DIGEST_SHAPE.match(f"sha256:{'c' * 64}"))
+        for refused in ("latest", "latest-and-greatest", f"sha256:{'c' * 63}",
+                        f"sha256:{'C' * 64}", f" sha256:{'c' * 64}"):
+            self.assertIsNone(UPDATER.DIGEST_SHAPE.match(refused), refused)
+
+    def test_updater_reads_the_booted_deployment_not_the_default_one(self):
+        """On this OS updates auto-stage, so slot 0 is the build you are NOT running."""
+        status = json.dumps({
+            "deployments": [
+                {"staged": True, "booted": False, "version": "44.20260803.540",
+                 "container-image-reference":
+                     f"ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos@sha256:{'a' * 64}"},
+                {"staged": False, "booted": True, "version": "44.20260801.500",
+                 "container-image-reference":
+                     f"ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos@sha256:{'b' * 64}"},
+            ]
+        })
+        original = UPDATER.sh
+        try:
+            UPDATER.sh = lambda *cmd, **kwargs: (0, status)
+            booted, staged = UPDATER.deployment_state()
+            self.assertEqual(booted["version"], "44.20260801.500")
+            self.assertEqual(staged["version"], "44.20260803.540")
+            self.assertEqual(UPDATER.current_system(booted)[1], "44.20260801.500")
+
+            # rpm-ostreed unreachable: say so, never invent a version.
+            UPDATER.sh = lambda *cmd, **kwargs: (1, "not answering")
+            self.assertEqual(UPDATER.deployment_state(), (None, None))
+            UPDATER.sh = lambda *cmd, **kwargs: (0, "{not json")
+            self.assertEqual(UPDATER.deployment_state(), (None, None))
+        finally:
+            UPDATER.sh = original
 
     def test_updater_never_waits_for_bootc_on_gtk_callback(self):
         source = UPDATER_PATH.read_text(encoding="utf-8")
