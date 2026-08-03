@@ -39,42 +39,25 @@ public static class ClipboardBridge
     public static bool SetText(string text) =>
         Write("wl-copy", Encoding.UTF8.GetBytes(text));
 
-    /// <summary>
-    /// Set the clipboard AND wait until it actually serves that text.
-    ///
-    /// PROVEN LIVE on the MoOS Cloud session, 2026-08-03: `wl-copy` returns as soon as it has
-    /// forked the process that will SERVE the selection — not when the compositor is handing
-    /// that content to readers. A Shift+Insert fired immediately after therefore pasted the
-    /// PREVIOUS clipboard, or nothing at all. Injecting three Arabic words that way produced
-    /// " في مشكلة " — the first word simply gone. The same three words with the read-back
-    /// below produced "لسى في مشكلة ", intact, every time.
-    ///
-    /// This is the whole of "Arabic types scrambled and letters go missing": the paste raced
-    /// the copy. Reading it back is the only honest confirmation that the offer is live —
-    /// a fixed sleep is a guess that is either too short on a loaded box or wasted time on an
-    /// idle one. Bounded so a clipboard manager that rewrites the selection can never hang
-    /// typing — and when the budget runs out the caller SKIPS the paste. "Paste anyway" was
-    /// the old ending, and it typed the wrong thing: by then the selection is provably not
-    /// ours, so Shift+Insert delivered whatever was — the previous clipboard, or a manager's
-    /// rewrite — into the middle of the user's sentence. A dropped word the user retypes
-    /// beats a wrong word they never typed at all.
-    /// </summary>
-    public static bool SetTextConfirmed(string text)
-    {
-        if (!SetText(text)) return false;
-        var want = text;
-        for (int i = 0; i < ConfirmAttempts; i++)
-        {
-            var got = GetText();
-            if (got == want) return true;
-            Thread.Sleep(ConfirmPollMs);
-        }
-        Log.Warn("Clipboard never served the typed text within the budget; skipping the paste rather than delivering stale content.");
-        return false;
-    }
-
-    private const int ConfirmAttempts = 12;
-    private const int ConfirmPollMs = 25;
+    // SetTextConfirmed lived here, and it is deliberately gone.
+    //
+    // It existed for ONE caller: typing. Arabic used to be typed by borrowing this clipboard and
+    // pasting it with Shift+Insert, and `wl-copy` returns as soon as it has forked the process
+    // that will SERVE the selection — not when the compositor is handing that content to readers.
+    // The paste therefore raced the copy; measured live on 2026-08-03, three Arabic words injected
+    // that way produced " في مشكلة " with the first word simply gone. SetTextConfirmed read the
+    // clipboard back until it served what was set, which fixed that race and left three others:
+    // the application fetches the selection asynchronously (so a following keystroke could
+    // overtake a word), a clipboard manager can rewrite it, and the whole mechanism spends the
+    // user's own clipboard to type.
+    //
+    // Typing no longer touches the clipboard at all. It selects the keymap group that carries the
+    // characters and presses the keys — see InputInjector.Deliver and AraKeymap. So the confirmed
+    // write has no callers, and a read-back loop that exists for nobody is a trap for the next
+    // person who assumes typing still comes through here.
+    //
+    // The clipboard feature the USER asked for — copy from the PC, paste to the PC, send an image
+    // — is untouched below. It was never the problem; being used as a typing mechanism was.
 
     public static bool SetImagePng(byte[] data) =>
         Write("wl-copy", data, "--type", "image/png");

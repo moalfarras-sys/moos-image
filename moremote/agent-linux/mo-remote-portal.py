@@ -10,7 +10,7 @@ input injection and a live PipeWire video stream.
 The screen is encoded by GStreamer straight off the PipeWire node, so a frame costs a few
 milliseconds instead of the ~700ms a spectacle+PNG round trip used to.
 """
-import json, os, socket, struct, subprocess, sys, threading, uuid
+import json, os, socket, struct, subprocess, sys, threading, time, uuid
 
 import gi
 gi.require_version("Gio", "2.0")
@@ -212,6 +212,230 @@ def notify(method, sig, args):
     order, so down always precedes up."""
     bus.call(BUS, PATH, REMOTE, method, GLib.Variant(sig, args), None,
              Gio.DBusCallFlags.NO_AUTO_START, 1000, None, _notify_done)
+
+
+def notify_sync(method, sig, args):
+    """The same injection, AWAITED. Used only inside a batch that also changes the
+    keymap group, where the whole point is that nothing may overtake anything."""
+    bus.call_sync(BUS, PATH, REMOTE, method, GLib.Variant(sig, args), None,
+                  Gio.DBusCallFlags.NO_AUTO_START, 2000, None)
+
+
+# ---------------------------------------------------------------- keymap group
+#
+# Arabic is typed by selecting the Arabic group and pressing the keys that carry it, because
+# KWin resolves an injected keysym against the ACTIVE group only, at shift level one. The
+# clipboard borrow this replaces was the source of every scrambling report in the agent's
+# history: one shared slot, an asynchronous fetch, and a copy that returns before the
+# selection is servable.
+#
+# THE ORDERING HAZARD, AND WHY THE SWITCH LIVES INSIDE THE BATCH
+#
+# A group switch and a keystroke are two independent messages to KWin, and the switch can
+# overtake keys already queued. Measured on the live session with a sub-millisecond gap:
+# 0 of 25 runs correct — "مرحبا" arrived as "lvpfhab", the GERMAN reading of the same
+# positions. Neither available signal helps: setLayout's own reply and the layoutChanged
+# signal (0.15 ms median) both mean ACCEPTED, not APPLIED, and typing straight after either
+# is still wrong.
+#
+# So there is only ever one channel. A batch carrying a layout element is executed strictly
+# sequentially with every call awaited, so the switch cannot overtake a key and a key cannot
+# overtake the switch. That is a happens-before, not a delay somebody guessed.
+KEYBOARD_BUS = "org.kde.keyboard"
+KEYBOARD_PATH = "/Layouts"
+KEYBOARD_IFACE = "org.kde.KeyboardLayouts"
+
+layout_state = {"codes": [], "ara": None, "home": None, "current": None,
+                "warned": False, "typed": False, "toggle": False}
+
+
+def _group_toggle_available():
+    """Does this keymap carry the Alt+Shift group switch we ride on?
+
+    Read from the kxkbrc cascade, user file first — the same file System Settings > Keyboard
+    writes and the same key moos-selfcheck already gates (`Options` must contain
+    `alt_shift_toggle`). A machine that has removed it still types Arabic, just through the
+    slower out-of-band path in select_group().
+    """
+    home = os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config")
+    for path in (os.path.join(home, "kxkbrc"), "/etc/xdg/kxkbrc"):
+        try:
+            with open(path) as f:
+                for line in f:
+                    if line.startswith("Options="):
+                        return "grp:alt_shift_toggle" in line
+        except OSError:
+            continue
+    return False
+
+
+def _layout_call(method, sig=None, args=None, reply=None):
+    return bus.call_sync(KEYBOARD_BUS, KEYBOARD_PATH, KEYBOARD_IFACE, method,
+                         GLib.Variant(sig, args) if sig else None,
+                         GLib.VariantType.new(reply) if reply else None,
+                         Gio.DBusCallFlags.NONE, 2000, None)
+
+
+def load_layouts():
+    """Read the groups KWin ACTUALLY loaded — never the config, which can disagree with the
+    running session for the whole life of a login."""
+    try:
+        codes = [row[0] for row in _layout_call("getLayoutsList", reply="(a(sss))").unpack()[0]]
+        current = _layout_call("getLayout", reply="(u)").unpack()[0]
+    except GLib.GError as e:
+        emit(type="warn", warn=f"keyboard layouts unavailable: {e.message}")
+        return
+    layout_state["codes"] = codes
+    layout_state["current"] = current
+    # `home` is the group the user was on before we ever touched it, so restoring is restoring
+    # THEIR choice and not a hard-coded country.
+    if layout_state["home"] is None:
+        layout_state["home"] = current
+    layout_state["ara"] = next((i for i, c in enumerate(codes) if c.startswith("ara")), None)
+    layout_state["toggle"] = _group_toggle_available() and len(codes) > 1
+    emit(type="layouts", codes=codes, current=current, arabic=layout_state["ara"],
+         toggle=layout_state["toggle"])
+
+
+# THE GROUP CHANGE TRAVELS AS KEYSTROKES, AND THAT IS THE WHOLE FIX.
+#
+# The obvious implementation — call setLayout, then inject — is broken, and measurably so. A
+# switch and a keystroke reach KWin as two INDEPENDENT messages, so the switch can overtake keys
+# already in flight. Measured end to end against the real helper: 4 of 12 Arabic words lost their
+# tail to the German layout ("مكتوب" -> "مكتوf", "عليكم" -> "عليكl") — those positions read on
+# the wrong group.
+#
+# Nothing in the interface offers a barrier. setLayout's own reply and the layoutChanged signal
+# both fire in ~0.15 ms and both mean ACCEPTED, not APPLIED: typing straight after either is
+# still wrong (0/25 and 1/30 correct). getLayout reports the requested value before injected keys
+# ever see it. And awaiting the PORTAL call is not a barrier either — it proves
+# xdg-desktop-portal handled the call, not KWin, which the portal reaches over a second
+# connection asynchronously. A sleep long enough to paper over all that is a guess, and this
+# file has already thrown one mechanism away ("paste anyway") for being exactly that.
+#
+# So the switch stops being a second channel. xkb's own `grp:alt_shift_toggle` — which MoOS ships
+# in /etc/xdg/kxkbrc and moos-selfcheck already gates — cycles the group in response to ORDINARY
+# KEY EVENTS. Injecting Alt+Shift through the portal puts the group change in the SAME ordered
+# stream as the letters, down the same connection, so neither can overtake the other. Measured on
+# the live session: injected Alt+Shift cycles 0 -> 1 -> 2 -> 0 reliably, wrapping.
+#
+# The cost is that it is relative — reaching a group takes (target - current) mod N toggles — so
+# the current index is read once at startup and updated on every toggle we make.
+ALT_CODE, SHIFT_CODE = 56, 42
+# Pacing between our own consecutive group-switch chords, and after the last one.
+#
+# Sent back to back with no pacing at all, the second Alt+Shift was swallowed and the group
+# landed one short: "بالعالم" arrived as "fhguhgl" and "عليكم" as "ugd;l" — those positions read
+# on a Latin group. 10 ms measured clean 38/38 across two end-to-end runs against the real
+# helper, with a group change on EVERY line, which is far harsher than real typing (a sentence
+# is one change, because the agent gathers a word before it types).
+# Enough attempts to cross a three-group ring twice and still absorb a swallowed chord.
+MAX_TOGGLE_ATTEMPTS = 8
+TOGGLE_CONFIRM_TRIES = 12
+TOGGLE_CONFIRM_POLL_MS = 5
+
+
+def _read_layout():
+    """The group KWin ACTUALLY has. Unlike setLayout, this is only ever used to observe a change
+    our own keystrokes caused, never to assert one."""
+    try:
+        return _layout_call("getLayout", reply="(u)").unpack()[0]
+    except GLib.GError:
+        return None
+
+
+def _toggle_events(times):
+    """The keystrokes that advance the xkb group `times` steps."""
+    out = []
+    for _ in range(times):
+        out += [(ALT_CODE, True), (SHIFT_CODE, True), (SHIFT_CODE, False), (ALT_CODE, False)]
+    return out
+
+
+def select_group(name, send):
+    """Put `name` on the active group by injecting toggles through `send` — the SAME sender the
+    batch's letters use. Returns False when the group does not exist or cannot be reached."""
+    idx = layout_state["ara"] if name == "ara" else layout_state["home"]
+    if idx is None:
+        if not layout_state["warned"]:
+            layout_state["warned"] = True
+            emit(type="warn", warn="no Arabic keyboard layout is configured; Arabic cannot be "
+                                   "typed until one is added in System Settings > Keyboard")
+        return False
+    cur = layout_state["current"]
+    if cur is None or not layout_state["codes"]:
+        return False
+    if cur == idx:
+        return True
+
+    if layout_state["toggle"]:
+        # ONE CHORD AT A TIME, EACH CONFIRMED — because a swallowed toggle desyncs everything.
+        #
+        # Pacing alone is not enough. Sent back to back the second Alt+Shift is sometimes
+        # swallowed and the group lands one short: measured, "بالعالم" arrived "fhguhgl" and
+        # "كيف الحال" arrived ";dt hgphg" — those positions read on a Latin group. Worse, a lost
+        # toggle desyncs the tracked index, so every later switch is wrong too.
+        #
+        # So each chord is followed by a bounded read of the group KWin actually has, and the
+        # loop simply keeps going until the target is reached. That makes a swallowed chord
+        # self-correcting instead of permanent, and it re-syncs the tracked index from the
+        # compositor rather than trusting our own count. It is the same "confirm before use"
+        # discipline this project already applied to the clipboard — reading back is the only
+        # honest confirmation, and a fixed sleep is a guess.
+        #
+        # The read is safe where a setLayout is not: we are confirming state BEFORE any letter is
+        # sent, not racing a switch against letters already in flight.
+        for _ in range(MAX_TOGGLE_ATTEMPTS):
+            now = _read_layout()
+            if now is None:
+                break
+            layout_state["current"] = now
+            if now == idx:
+                return True
+            for code, down in _toggle_events(1):
+                send("NotifyKeyboardKeycode", "(oa{sv}iu)",
+                     (session, empty, code, 1 if down else 0))
+            # Give the chord time to reach KWin before asking what it did.
+            for _ in range(TOGGLE_CONFIRM_TRIES):
+                time.sleep(TOGGLE_CONFIRM_POLL_MS / 1000.0)
+                seen = _read_layout()
+                if seen is not None and seen != now:
+                    layout_state["current"] = seen
+                    break
+        final = _read_layout()
+        if final == idx:
+            layout_state["current"] = final
+            return True
+        emit(type="warn", warn=f"could not reach keyboard group {idx} (now {final}); "
+                               "dropping the run rather than typing it on the wrong layout")
+        if final is not None:
+            layout_state["current"] = final
+        return False
+
+    # This keymap has no group-switch shortcut, so the only route left is the out-of-band call
+    # that CAN overtake keys. Drain first, and keep the failure honest: a machine without
+    # grp:alt_shift_toggle gets the measured second-best rather than silent corruption.
+    if layout_state["typed"]:
+        time.sleep(0.045)
+        layout_state["typed"] = False
+    try:
+        _layout_call("setLayout", "(u)", (idx,), reply="(b)")
+    except GLib.GError as e:
+        emit(type="warn", warn=f"could not select keyboard group {idx}: {e.message}")
+        return False
+    layout_state["current"] = idx
+    return True
+
+
+def restore_layout():
+    """Hand the user's own group back, so a borrow is not a theft — the same contract the
+    clipboard borrow had, applied to the thing we now borrow instead."""
+    if layout_state["home"] is not None and layout_state["current"] != layout_state["home"]:
+        try:
+            _layout_call("setLayout", "(u)", (layout_state["home"],), reply="(b)")
+            layout_state["current"] = layout_state["home"]
+        except GLib.GError:
+            pass
 
 
 # ---------------------------------------------------------------- frame transport
@@ -932,6 +1156,11 @@ def set_video(m):
         if want != state["streaming"]:
             state["streaming"] = want
             rebuild()                       # builds when a viewer arrives, tears down when the last leaves
+            # The last viewer leaving is the honest moment to hand the keyboard group back: the
+            # phone that borrowed it is gone, and whoever sits at the desk next should find
+            # their own layout. A quieter timer would guess; this is an event.
+            if not want:
+                restore_layout()
             emit(type="video", streaming=want)
     # FPS FIRST, AND THE ORDER IS THE FIX.
     #
@@ -999,17 +1228,35 @@ def handle(m):
     elif t == "keysym":
         notify("NotifyKeyboardKeysym", "(oa{sv}iu)", (session, empty, int(m["keysym"]), 1 if m["down"] else 0))
     elif t == "keysyms":
-        # A committed phone edit arrives as one ordered batch. Entries carry EITHER a keysym (the
-        # character, resolved against whatever layout is loaded) or a raw evdev code (a modifier,
-        # which has no character to resolve). Both are needed in one ordered stream: a capital
-        # letter is Shift-down, keysym, Shift-up, and splitting that across messages races.
-        for event in m.get("events", []):
-            if "code" in event:
-                notify("NotifyKeyboardKeycode", "(oa{sv}iu)",
-                       (session, empty, int(event["code"]), 1 if event["down"] else 0))
+        # A committed phone edit arrives as one ordered batch. Entries carry a keysym (the
+        # character, resolved against whatever layout is loaded), a raw evdev code (a position, or
+        # a modifier, which has no character to resolve), or a keymap GROUP to select first. All
+        # three are needed in one ordered stream: a capital letter is Shift-down, keysym, Shift-up,
+        # and an Arabic word is group-select then positions — splitting either across messages
+        # races, and the group race is the one that produced "lvpfhab" for "مرحبا".
+        events = m.get("events", [])
+        # A batch that changes the group is executed AWAITED, end to end. Everything else keeps
+        # the fire-and-forget path, because that is what stopped a burst of keys serializing at
+        # compositor pace and freezing the picture — and a batch with no group change has no
+        # ordering hazard to defend against.
+        ordered = any("layout" in e for e in events)
+        send = notify_sync if ordered else notify
+        for event in events:
+            if "layout" in event:
+                if not select_group(str(event["layout"]), send):
+                    # The group we need does not exist. Typing the rest would deliver the OTHER
+                    # layout's reading of those positions — the exact corruption this design
+                    # exists to prevent — so the run is dropped and reported.
+                    emit(type="warn", warn="dropped a typed run: its keyboard group is unavailable")
+                    break
+            elif "code" in event:
+                send("NotifyKeyboardKeycode", "(oa{sv}iu)",
+                     (session, empty, int(event["code"]), 1 if event["down"] else 0))
+                layout_state["typed"] = True
             else:
-                notify("NotifyKeyboardKeysym", "(oa{sv}iu)",
-                       (session, empty, int(event["keysym"]), 1 if event["down"] else 0))
+                send("NotifyKeyboardKeysym", "(oa{sv}iu)",
+                     (session, empty, int(event["keysym"]), 1 if event["down"] else 0))
+                layout_state["typed"] = True
     elif t == "keyframe":
         # A phone that just connected has no reference frame. Asking costs one larger frame;
         # not asking costs it up to a whole GOP of garbage.
@@ -1032,6 +1279,8 @@ def stdin_loop():
     loop.quit()
 
 
+load_layouts()
+
 emit(type="ready", backend="KDE RemoteDesktop + ScreenCast portal", node=node_id,
      logical_width=logical_w, logical_height=logical_h)
 
@@ -1040,5 +1289,9 @@ threading.Thread(target=stdin_loop, daemon=True).start()
 try:
     loop.run()
 finally:
+    # Give the user their own keyboard group back before going away. Leaving a desk keyboard
+    # on Arabic because a phone typed a word an hour ago is the same class of theft the
+    # clipboard borrow was careful to avoid.
+    restore_layout()
     if pipeline is not None:
         pipeline.set_state(Gst.State.NULL)
