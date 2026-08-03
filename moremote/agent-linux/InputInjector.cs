@@ -282,9 +282,11 @@ public sealed class InputInjector : IDisposable
     /// </summary>
     public void Combo(IReadOnlyList<string> keys)
     {
-        // Same ordering rule as KeyTap — except for the paste combo itself, which IS
-        // the delivery mechanism and would recurse into its own flush.
-        if (!(keys.Count == 2 && keys[0] == "Shift" && keys[1] == "Insert")) FlushPendingText();
+        // Same ordering rule as KeyTap. This used to exempt Shift+Insert, because typing itself
+        // was a paste and the exemption stopped it recursing into its own flush. Typing no longer
+        // touches the clipboard, so Shift+Insert is once again nothing but a shortcut the user
+        // pressed — and it must queue behind pending text like every other key.
+        FlushPendingText();
         var mods = new List<ushort>();
         var rest = new List<Stroke>();
         foreach (var k in keys)
@@ -337,152 +339,125 @@ public sealed class InputInjector : IDisposable
     }
 
     /// <summary>
-    /// Types text, choosing between two paths because KWin's keysym injection only reaches the
-    /// FIRST shift level of the ACTIVE layout group. Measured against a live KWin 6.7 session on
-    /// the owner's `de,ara` keymap:
+    /// Types text by pressing the keys that carry it, on the keymap group that carries them.
+    ///
+    /// WHY THE CLIPBOARD IS GONE
+    ///
+    /// KWin resolves an injected keysym against the ACTIVE keymap group only, and only at shift
+    /// level one. Measured on a live KWin 6.7 session with the owner's `de,us,ara` keymap sitting
+    /// in the German group:
     ///   'a'  -> 'a'                              (level 1 of the active group: correct)
     ///   'Z'  -> 'z'                              (the shift level is never applied)
     ///   'م'  -> keycode 247, keyval 0x1008ffb5   (a keysym from an inactive group: garbage)
-    /// So the fast path is restricted to characters that are level 1 on any Latin layout, with
-    /// capitals produced by holding a real Shift keycode around the lowercase keysym. Everything
-    /// else — Arabic, punctuation that needs a shift level, emoji — goes through the clipboard,
-    /// which is layout-independent and carries any Unicode exactly.
+    /// So Arabic used to be typed by borrowing the clipboard and pasting it. That mechanism was
+    /// the source of every scrambling report this file has a comment about: the clipboard is ONE
+    /// shared slot, wl-copy returns before the selection is servable, and the application fetches
+    /// it asynchronously — three separate races around a resource that belongs to the user.
+    ///
+    /// The group is not fixed, though. org.kde.KeyboardLayouts.setLayout selects it, and with the
+    /// Arabic group active the Arabic letters ARE level one — on their own physical keys. So the
+    /// honest mechanism is the one a real keyboard uses: select the group, then press positions.
+    /// Nothing is borrowed, nothing is pasted, and any character the layout carries is reachable
+    /// at any shift level rather than only level one.
+    ///
+    /// WHAT MAKES THIS SAFE, HAVING MEASURED WHAT MAKES IT UNSAFE
+    ///
+    /// A layout switch and a keystroke travel to KWin as two independent messages, and the switch
+    /// can OVERTAKE keys already queued. Measured on the live session, switching and injecting with
+    /// a sub-millisecond gap: 0 of 25 runs correct — 'مرحبا' arrived as 'lvpfhab', which is the
+    /// GERMAN reading of those same positions. Neither available signal rescues it: setLayout's own
+    /// D-Bus reply and the layoutChanged signal (0.15 ms median) both report a switch that has been
+    /// ACCEPTED, not one that has been APPLIED, and typing straight after either is still wrong.
+    ///
+    /// The fix is to stop having two channels. A run is delivered as ONE ordered batch in which the
+    /// switch is an element like any other, and the helper executes that batch strictly
+    /// sequentially, awaiting each call before issuing the next (see mo-remote-portal.py). Ordering
+    /// then comes from the single stream rather than from a delay nobody can size honestly — the
+    /// same reasoning that killed "paste anyway" in ClipboardBridge.
     /// </summary>
     public void TypeText(string text)
     {
         if (string.IsNullOrEmpty(text)) return;
 
-        // Keysyms are typed one at a time, so a long run would crawl. Above a paragraph or so one
-        // clipboard paste is far quicker, and the user is pasting anyway.
-        // ORDER BEFORE SPEED. If a paste is still gathering, this text belongs
-        // BEHIND it — even when it could take the instant keysym path. A space
-        // IS on the fast path, so "لسى في" split into an Arabic chunk (buffered)
-        // and a space chunk (injected immediately) arrived with its spaces one
-        // letter early: "لس ىف". Whatever is gathering owns the order until it
-        // is delivered.
-        lock (_pasteBuf)
+        lock (_textBuf)
         {
-            // A paste is not delivered when Shift+Insert is sent — it is delivered when the
-            // TARGET APPLICATION fetches the selection, which it does asynchronously, one
-            // compositor round trip later. So the gather being empty does NOT mean the last
-            // run has landed. A space typed right after an Arabic word takes the instant
-            // keysym path, reaches the application while it is still fetching, and lands
-            // BEFORE the word it was meant to follow. The owner's own report, typed through
-            // the remote, is the evidence: "بشكل صحيح" arrived as "بشكصحيح" — the space and
-            // the ل gone, the two words fused.
-            //
-            // Ordering can only be guaranteed by not mixing mechanisms. Once anything has
-            // gone out by clipboard, everything follows it by clipboard until the path has
-            // been quiet — one mechanism, one queue, one order.
-            if (_pending.Length == 0 && Environment.TickCount64 - _lastPasteAt < PasteStickyMs)
-            {
-                QueuePasteLocked(text);
-                return;
-            }
             if (_pending.Length > 0)
             {
                 _pending.Append(text);
                 // A word joining the gather completes it — and the age cap means even a stream
                 // of single letters whose gaps never reach the window delivers within 700 ms.
-                if (text.Length > 1 || _pending.Length >= PasteCoalesceMax ||
-                    Environment.TickCount64 - _pendingSince >= PasteMaxHoldMs) { FlushPasteLocked(); }
-                else { _pasteTimer?.Change(PasteCoalesceMs, Timeout.Infinite); }
+                if (text.Length > 1 || _pending.Length >= TextCoalesceMax ||
+                    Environment.TickCount64 - _pendingSince >= TextMaxHoldMs) { FlushTextLocked(); }
+                else { _textTimer?.Change(TextCoalesceMs, Timeout.Infinite); }
                 return;
             }
+            QueueTextLocked(text);
         }
-
-        if (_portal.IsReady && text.Length <= BulkPasteThreshold && TryDirectStrokes(text, out var events)
-            && _portal.Send(new { type = "keysyms", events })) return;
-
-        QueuePaste(text);
     }
 
-    private const int BulkPasteThreshold = 64;
-
-    // ---------------------------------------------------------------- paste coalescing
+    // ---------------------------------------------------------------- text coalescing
     //
-    // Arabic (and every character with no level-1 Latin keysym) types by borrowing the clipboard,
-    // and the phone sends text as it is typed — so one Arabic word used to be one wl-copy +
-    // wl-paste + Shift+Insert cycle PER LETTER. Those cycles overlap at real typing speed: the
-    // clipboard is a single shared slot, so letter N+1 could replace the clipboard before letter N
-    // had been pasted. The visible result was exactly what the owner reported — Arabic arriving
-    // scrambled and with letters missing, while the session stuttered under the subprocess load.
-    //
-    // So chunks are gathered instead: the first chunk starts a short window, everything typed
-    // inside it is appended, and ONE paste delivers the whole run. A word becomes one clipboard
-    // cycle instead of six, ordering is guaranteed because there is only ever one paste in flight,
-    // and the cost is a bounded delay before the letters appear — far better than losing them.
-    private readonly object _pasteBuf = new();
+    // Gathering no longer exists to amortise a clipboard cycle — there isn't one. It exists
+    // because a GROUP SWITCH is the expensive act now: KWin announces every one of them to
+    // plasmashell's OSD service, which paints a layout pill in the middle of the screen. On a
+    // remote session that pill is re-encoded into the video stream, so a switch per letter would
+    // strobe the picture. Gathering a word means one switch for the word instead of six.
+    private readonly object _textBuf = new();
     private readonly System.Text.StringBuilder _pending = new();
-    private Timer? _pasteTimer;
+    private Timer? _textTimer;
 
-    /// <summary>Milliseconds of quiet before a gathered run is pasted.</summary>
-    private const int PasteCoalesceMs = 140;
-    /// <summary>How long after a paste every further chunk keeps using the paste path.
-    /// Covers the application's asynchronous selection fetch, which is what a fast keysym
-    /// would otherwise overtake. Longer than a clipboard round trip, shorter than a pause
-    /// between sentences.</summary>
-    private const int PasteStickyMs = 600;
-    private long _lastPasteAt;
-    /// <summary>Never gather more than this: a paste must stay responsive.</summary>
-    private const int PasteCoalesceMax = 240;
+    /// <summary>Milliseconds of quiet before a gathered run is typed.</summary>
+    private const int TextCoalesceMs = 140;
+    /// <summary>Never gather more than this: typing must stay responsive.</summary>
+    private const int TextCoalesceMax = 240;
     /// <summary>A re-arming gather never fires under continuous letters; nothing waits past this.
     /// Mirrors the client's own TEXT_COALESCE_MAX_MS — this was the half of the shipped
     /// "240 chars / 700 ms" bound that only existed on the client.</summary>
-    private const int PasteMaxHoldMs = 700;
+    private const int TextMaxHoldMs = 700;
     /// <summary>When the buffer last went empty→non-empty (Environment.TickCount64).</summary>
     private long _pendingSince;
 
-    private void QueuePaste(string text)
+    /// <summary>QueueText's body, for callers that already hold _textBuf.</summary>
+    private void QueueTextLocked(string text)
     {
-        lock (_pasteBuf) { QueuePasteLocked(text); }
+        if (_pending.Length == 0) _pendingSince = Environment.TickCount64;
+        _pending.Append(text);
+        // A multi-character chunk IS a gathered word: the phone already coalesced it (220 ms
+        // of quiet, or a whole committed autocorrect). Holding it ANOTHER 140 ms here merged
+        // nothing and put a fixed tax on every word — the window exists to merge
+        // letter-at-a-time arrivals, so only single letters wait for company.
+        if (text.Length > 1 || _pending.Length >= TextCoalesceMax ||
+            Environment.TickCount64 - _pendingSince >= TextMaxHoldMs) { FlushTextLocked(); return; }
+        _textTimer ??= new Timer(_ => FlushText(), null, Timeout.Infinite, Timeout.Infinite);
+        _textTimer.Change(TextCoalesceMs, Timeout.Infinite);
     }
 
-    /// <summary>QueuePaste's body, for callers that already hold _pasteBuf.</summary>
-    private void QueuePasteLocked(string text)
+    private void FlushText()
     {
-        {
-            if (_pending.Length == 0) _pendingSince = Environment.TickCount64;
-            _pending.Append(text);
-            // A multi-character chunk IS a gathered word: the phone already coalesced it (220 ms
-            // of quiet, or a whole committed autocorrect). Holding it ANOTHER 140 ms here merged
-            // nothing and put a fixed tax on every word of Arabic — the window exists to merge
-            // letter-at-a-time arrivals, so only single letters wait for company.
-            if (text.Length > 1 || _pending.Length >= PasteCoalesceMax ||
-                Environment.TickCount64 - _pendingSince >= PasteMaxHoldMs) { FlushPasteLocked(); return; }
-            _pasteTimer ??= new Timer(_ => FlushPaste(), null, Timeout.Infinite, Timeout.Infinite);
-            _pasteTimer.Change(PasteCoalesceMs, Timeout.Infinite);
-        }
+        lock (_textBuf) { FlushTextLocked(); }
     }
 
-    private void FlushPaste()
-    {
-        lock (_pasteBuf) { FlushPasteLocked(); }
-    }
-
-    private void FlushPasteLocked()
+    private void FlushTextLocked()
     {
         if (_pending.Length == 0) return;
         var run = _pending.ToString();
         _pending.Clear();
-        _pasteTimer?.Change(Timeout.Infinite, Timeout.Infinite);
-        _lastPasteAt = Environment.TickCount64;
-        PasteText(run);
-        // Stamp again on the way out: the sticky window must start when the paste FINISHED,
-        // not when it began, or a slow clipboard round trip eats most of it.
-        _lastPasteAt = Environment.TickCount64;
+        _textTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+        Deliver(run);
     }
 
     /// <summary>Deliver anything still gathered — called before a key that acts on the text.</summary>
-    public void FlushPendingText() => FlushPaste();
+    public void FlushPendingText() => FlushText();
 
     /// <summary>
-    /// Builds an ordered press/release batch, or fails if any character cannot be typed correctly
-    /// by keysym on an arbitrary Latin layout.
+    /// Appends an ordered press/release batch for text typed on a LATIN group, or fails if any
+    /// character is not level 1 there. Keysyms rather than positions: the user's Latin layout may
+    /// be any of them (this machine's is German QWERTZ), and a keysym lets the compositor find
+    /// the right key for the layout it actually has — which is exactly what the Arabic path
+    /// cannot do, and why that one names positions instead.
     /// </summary>
-    private static bool TryDirectStrokes(string text, out List<object> events)
+    private static bool TryDirectStrokes(string text, List<object> events)
     {
-        events = [];
         foreach (var rune in text.EnumerateRunes())
         {
             int c = rune.Value;
@@ -501,66 +476,137 @@ public sealed class InputInjector : IDisposable
                 events.Add(new { keysym = lower, down = false });
                 events.Add(new { code = (int)ShiftCode, down = false });
             }
-            else { events = []; return false; }
+            else return false;
         }
-        return events.Count > 0;
+        return true;
     }
 
     private const ushort ShiftCode = 42;
 
-    // ---------------------------------------------------------------- clipboard typing
-
-    private readonly object _clipGate = new();
-    private ClipContent? _borrowedClip;
-    private int _pasteGeneration;
+    // ---------------------------------------------------------------- layout-aware delivery
 
     /// <summary>
-    /// Types by borrowing the clipboard. Shift+Insert rather than Ctrl+V: Ctrl+V is not paste in a
-    /// terminal (Konsole needs Ctrl+Shift+V), which is why typing Arabic into a shell did nothing
-    /// at all. Shift+Insert is paste in Konsole, GTK, Qt and browsers alike.
+    /// Types a gathered run, splitting it where the required keymap group changes.
+    ///
+    /// A run is cut into maximal stretches that one group can type, and each stretch becomes a
+    /// batch whose FIRST element names the group it needs. Characters that both groups carry —
+    /// space, digits, Latin punctuation — deliberately do NOT decide a stretch: they join
+    /// whichever one is already open. Letting a full stop between two Arabic words claim the
+    /// Latin group would cost two switches, and every switch is an OSD pill painted across the
+    /// picture the remote user is watching.
     /// </summary>
-    private void PasteText(string text)
+    private void Deliver(string run)
     {
-        int gen = Interlocked.Increment(ref _pasteGeneration);
-        lock (_clipGate)
+        foreach (var (text, arabic) in SplitByGroup(run))
         {
-            // Snapshot once per burst. Re-reading between consecutive chunks would "save" the text
-            // we just pasted and hand the user that instead of what they had.
-            _borrowedClip ??= ClipboardBridge.GetContent();
+            var events = new List<object> { new { layout = arabic ? "ara" : "home" } };
+            bool built = arabic ? AraKeymap.TryStrokes(text, events)
+                                : TryDirectStrokes(text, events);
+            if (!built)
+            {
+                // Fail closed, exactly as the clipboard path learned to. A character with no key
+                // on either group (an emoji, a symbol from a third script) cannot be typed by a
+                // keyboard at all, and typing the REST of the run would silently reorder the
+                // user's sentence around the hole.
+                Log.Warn($"Typing skipped {text.Length} character(s) with no key on the available " +
+                         "layouts; nothing was typed for that run.");
+                continue;
+            }
+            if (!_portal.Send(new { type = "keysyms", events }))
+                FallbackType(text, arabic);
         }
-        // SetTextConfirmed, never SetText: wl-copy returns before the selection is
-        // servable, and the Shift+Insert below used to race it — live-proven to
-        // drop whole words (see ClipboardBridge.SetTextConfirmed).
-        if (!ClipboardBridge.SetTextConfirmed(text))
-        {
-            Log.Warn("Clipboard typing aborted: the clipboard never served the new text; nothing was pasted.");
-            // This generation invalidated the preceding return timer. Keep ownership of the
-            // original snapshot and schedule its return anyway; clearing it here would strand
-            // the last injected value if a previous chunk had already borrowed the clipboard.
-            ScheduleClipboardReturn(gen);
-            return;
-        }
-        Combo(["Shift", "Insert"]);
-        ScheduleClipboardReturn(gen);
     }
 
-    /// <summary>Hand the clipboard back once typing has settled, so a borrow is not a theft.</summary>
-    private void ScheduleClipboardReturn(int gen)
+    /// <summary>
+    /// Cuts a run into (text, needsArabicGroup) stretches. Characters either group can produce
+    /// extend the current stretch rather than starting a new one.
+    /// </summary>
+    internal static List<(string Text, bool Arabic)> SplitByGroup(string run)
     {
-        _ = Task.Delay(TimeSpan.FromMilliseconds(700)).ContinueWith(_ =>
+        var parts = new List<(string, bool)>();
+        var buf = new System.Text.StringBuilder();
+        bool? mode = null;
+        foreach (var rune in run.EnumerateRunes())
         {
-            // More text arrived; that paste now owns the borrow and will return it.
-            if (Volatile.Read(ref _pasteGeneration) != gen) return;
-            ClipContent? saved;
-            lock (_clipGate) { saved = _borrowedClip; _borrowedClip = null; }
-            if (saved is null) return;
-            try
+            bool? want = AraKeymap.NeedsArabicGroup(rune.Value) ? true
+                       : IsLatinTypable(rune.Value) ? false
+                       : (bool?)null;
+            // A character neither group claims (emoji) still has to break the stretch, so the
+            // undeliverable part is reported on its own instead of poisoning a good one.
+            if (want is null)
             {
-                if (saved.Kind == "text" && !string.IsNullOrEmpty(saved.Text)) ClipboardBridge.SetText(saved.Text);
-                else if (saved.Kind == "image" && saved.ImagePng is { Length: > 0 } png) ClipboardBridge.SetImagePng(png);
+                if (buf.Length > 0) { parts.Add((buf.ToString(), mode ?? false)); buf.Clear(); }
+                parts.Add((rune.ToString(), false));
+                mode = null;
+                continue;
             }
-            catch (Exception ex) { Log.Warn("Clipboard restore failed: " + ex.Message); }
-        });
+            if (mode is not null && want != mode && !Ambiguous(rune.Value))
+            {
+                parts.Add((buf.ToString(), mode.Value));
+                buf.Clear();
+                mode = want;
+            }
+            else if (mode is null) mode = want;
+            buf.Append(rune.ToString());
+        }
+        if (buf.Length > 0) parts.Add((buf.ToString(), mode ?? false));
+        return parts;
+    }
+
+    /// <summary>A character both groups can type, so it must not force a switch of its own.</summary>
+    private static bool Ambiguous(int c) =>
+        AraKeymap.Has(c) && IsLatinTypable(c) && c <= 0x7F;
+
+    private static bool IsLatinTypable(int c) =>
+        c is >= 'a' and <= 'z' or >= 'A' and <= 'Z' or >= '0' and <= '9' || c == ' ';
+
+    /// <summary>
+    /// The portal is down, so injection is uinput and there is no way to select a keymap group
+    /// from here — ydotoold speaks positions to the kernel, and the group lives in the
+    /// compositor. ASCII still types correctly on any Latin layout; Arabic cannot, and says so
+    /// rather than delivering the Latin reading of those positions (which is exactly the
+    /// 'lvpfhab' failure this design was built to prevent).
+    /// </summary>
+    private void FallbackType(string text, bool arabic)
+    {
+        if (arabic)
+        {
+            Log.Warn($"Cannot type {text.Length} Arabic character(s): the portal is unavailable and " +
+                     "the uinput fallback cannot select a keymap group.");
+            return;
+        }
+        foreach (var rune in text.EnumerateRunes())
+        {
+            int c = rune.Value;
+            if (c is >= 'A' and <= 'Z')
+            {
+                Set(ShiftCode, true);
+                TapAscii(c + ('a' - 'A'));
+                Set(ShiftCode, false);
+            }
+            else TapAscii(c);
+        }
+    }
+
+    private void TapAscii(int lower)
+    {
+        if (!AsciiCodes.TryGetValue(lower, out var code)) return;
+        Set(code, true); Thread.Sleep(4); Set(code, false);
+    }
+
+    /// <summary>US-positional ASCII, for the fallback only — the portal path never uses it.</summary>
+    private static readonly Dictionary<int, ushort> AsciiCodes = BuildAscii();
+
+    private static Dictionary<int, ushort> BuildAscii()
+    {
+        var m = new Dictionary<int, ushort> { [' '] = 57 };
+        const string row1 = "qwertyuiop", row2 = "asdfghjkl", row3 = "zxcvbnm";
+        for (int i = 0; i < row1.Length; i++) m[row1[i]] = (ushort)(16 + i);
+        for (int i = 0; i < row2.Length; i++) m[row2[i]] = (ushort)(30 + i);
+        for (int i = 0; i < row3.Length; i++) m[row3[i]] = (ushort)(44 + i);
+        m['1'] = 2; m['2'] = 3; m['3'] = 4; m['4'] = 5; m['5'] = 6;
+        m['6'] = 7; m['7'] = 8; m['8'] = 9; m['9'] = 10; m['0'] = 11;
+        return m;
     }
 
     // ---------------------------------------------------------------- shared
