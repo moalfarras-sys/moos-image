@@ -50,6 +50,23 @@ checks = {
     "no behavioural proof exercises a genuinely hung helper and an oversized result":
         '"sleep 20"' in tests and "clipboard timeout is real and bounded" in tests
         and "oversized clipboard output is rejected" in tests,
+    # 2026-08-03: "paste anyway" after a failed confirm delivered whatever the clipboard held —
+    # the previous clipboard, or a manager's rewrite — into the middle of the user's sentence.
+    # An unconfirmed copy now SKIPS its paste: a dropped word the user retypes beats a wrong
+    # word they never typed. Broken once by restoring `return true;` after the budget.
+    "an unconfirmed clipboard copy still pastes stale content":
+        "skipping the paste rather than delivering stale content" in linux
+        and "pasting anyway" not in linux,
+    # 2026-08-03, from the live agent log: at the owner's real typing cadence the phone's 220 ms
+    # window loses its race and text arrives letter-by-letter — and the agent then held EVERY
+    # chunk, even a client-coalesced whole word, for its own fixed 140 ms gather. A fixed tax on
+    # every word of Arabic. Multi-character chunks now flush at once (the gather exists to merge
+    # single letters), and the agent's gather carries the same 700 ms age cap as the client's,
+    # which was the half of the shipped "240 chars / 700 ms" bound that only existed client-side.
+    "the agent still taxes already-coalesced words with its own gather delay":
+        injector.count("text.Length > 1 ||") == 2
+        and "PasteMaxHoldMs = 700" in injector
+        and "_pendingSince" in injector,
 }
 
 failed = [message for message, ok in checks.items() if not ok]

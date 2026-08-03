@@ -12,6 +12,12 @@ const FAST_TEXT = /^[a-zA-Z0-9 ]*$/;
 const TEXT_COALESCE_MAX = 240;
 /** A re-arming debounce never fires under continuous input; nothing waits past this. */
 const TEXT_COALESCE_MAX_MS = 700;
+/** Words typed while the socket is down wait here for the reconnect; beyond this we are not
+ *  "briefly offline", we are transcribing into a void, and silently replaying a screenful of
+ *  stale text into whatever window has focus by then would be worse than dropping it. */
+const OFFLINE_TEXT_MAX = 960;
+/** How long a resume probe waits for proof of life before declaring the socket a zombie. */
+const PROBE_MS = 2000;
 
 interface Handlers {
   onOpen?: () => void;
@@ -44,8 +50,11 @@ export class RemoteConnection {
   private backoff = 500;
   private reconnectTimer: number | null = null;
   private pingTimer: number | null = null;
-  /** When a pong last arrived. The stall watchdog in startPing() is the only reader. */
-  private lastPongAt = 0;
+  /** When ANY message last arrived — frames included. The stall watchdog and probe() read it.
+   *  It was pong-only once, and that killed live sessions: under load the tiny JSON pong queues
+   *  behind megabytes of frames, so the one proof of life the watchdog accepted was exactly the
+   *  message congestion delays most. A socket delivering video is not stalled. */
+  private lastAliveAt = 0;
   private seq = 0;
   private mode = "trackpad";
   private display = 0;
@@ -84,6 +93,7 @@ export class RemoteConnection {
     };
 
     ws.onmessage = (ev) => {
+      this.lastAliveAt = performance.now();
       if (typeof ev.data === "string") {
         let m: any;
         try {
@@ -96,6 +106,10 @@ export class RemoteConnection {
             this.source = m.screen ?? this.source;
             this.display = m.monitor ?? 0;
             this.h.onHello?.(m as Hello);
+            // Words queued while the socket was down deliver now that the session is authed
+            // again — a moment late, in order, instead of silently gone (see flushText).
+            if (this.pendingText && !this.textTimer)
+              this.textTimer = window.setTimeout(() => this.flushText(), 80);
             break;
           case "status":
             this.h.onStatus?.(!!m.paused, m.active ?? 0);
@@ -115,7 +129,8 @@ export class RemoteConnection {
             this.h.onCodec?.(m.codec === "h264" ? "h264" : "jpeg");
             break;
           case "pong":
-            this.lastPongAt = performance.now();
+            // Aliveness is already stamped for every message at the top of onmessage; the pong's
+            // remaining job is the RTT sample.
             if (typeof m.t === "number") this.h.onPong?.(Math.max(0, performance.now() - m.t));
             break;
           case "inputState":
@@ -185,15 +200,37 @@ export class RemoteConnection {
 
   private startPing() {
     this.stopPing();
-    this.lastPongAt = performance.now();
+    this.lastAliveAt = performance.now();
     this.pingTimer = window.setInterval(() => {
       this.send({ type: "ping", t: performance.now() });
-      if (performance.now() - this.lastPongAt > RemoteConnection.STALL_MS && this.ws?.readyState === WebSocket.OPEN) {
+      if (performance.now() - this.lastAliveAt > RemoteConnection.STALL_MS && this.ws?.readyState === WebSocket.OPEN) {
         // Not closedByUs: this must reconnect, and it must be reported as a reconnect rather than a
         // deliberate exit, or the UI would show "signed out" for a network blip.
         try { this.ws.close(); } catch { /* the close handler does the rest */ }
       }
     }, 2000);
+  }
+
+  /**
+   * "We just came back — is this socket real?"
+   *
+   * iOS suspends a backgrounded PWA whole: timers, sockets, everything. The server usually aborts
+   * the connection while we are away, but the phone's own object still reads OPEN — a zombie. The
+   * old resume path optimistically wrote into it and then waited out the full stall watchdog
+   * before recovering, which read as "come back to the app, stare at a frozen desktop for ten
+   * seconds". One ping with a short deadline answers the question at machine speed: any message
+   * back (a pong, a frame, anything) proves life; silence closes the zombie so onclose can run
+   * the reconnect it already owns.
+   */
+  probe() {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || this.closedByUs) return;
+    const asked = performance.now();
+    this.send({ type: "ping", t: asked });
+    window.setTimeout(() => {
+      if (this.lastAliveAt < asked && this.ws?.readyState === WebSocket.OPEN && !this.closedByUs) {
+        try { this.ws.close(); } catch { /* the close handler does the rest */ }
+      }
+    }, PROBE_MS);
   }
   private stopPing() {
     if (this.pingTimer) window.clearInterval(this.pingTimer);
@@ -324,6 +361,11 @@ export class RemoteConnection {
   }
   text(value: string) {
     this.pendingText+=value;
+    // Offline, the buffer holds what the user keeps typing until the reconnect delivers it.
+    // Oldest first: the start of what they said beats the end of it, and past the cap the
+    // session is not "briefly down" any more.
+    if(!this.open && this.pendingText.length>OFFLINE_TEXT_MAX)
+      this.pendingText=this.pendingText.slice(0,OFFLINE_TEXT_MAX);
     if(this.textTimer)window.clearTimeout(this.textTimer);
     // How long to coalesce depends on how the agent will have to type this.
     //
@@ -349,7 +391,17 @@ export class RemoteConnection {
     if (Date.now() - this.textQueuedAt >= TEXT_COALESCE_MAX_MS) { this.flushText(); return; }
     this.textTimer=window.setTimeout(()=>this.flushText(),fast?FAST_FLUSH_MS:CLIPBOARD_FLUSH_MS);
   }
-  private flushText(){if(this.textTimer)window.clearTimeout(this.textTimer);this.textTimer=null;this.textQueuedAt=0;if(!this.pendingText)return;const value=this.pendingText;this.pendingText="";this.input({type:"text",value});}
+  private flushText(){
+    if(this.textTimer)window.clearTimeout(this.textTimer);
+    this.textTimer=null;
+    if(!this.pendingText)return;
+    // A dead socket used to swallow this silently: the buffer was cleared HERE and send()
+    // dropped the message, which is exactly how words vanished around every reconnect. Keep
+    // the buffer instead — the hello handler flushes it once the session is authed again.
+    if(!this.open)return;
+    this.textQueuedAt=0;
+    const value=this.pendingText;this.pendingText="";this.input({type:"text",value});
+  }
   /**
    * `width` is the real request — an absolute encode width in pixels. `scale` rides along because
    * an agent older than this build only understands the fraction, and being served a sensible

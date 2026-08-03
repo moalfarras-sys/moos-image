@@ -53,7 +53,11 @@ public static class ClipboardBridge
     /// the copy. Reading it back is the only honest confirmation that the offer is live —
     /// a fixed sleep is a guess that is either too short on a loaded box or wasted time on an
     /// idle one. Bounded so a clipboard manager that rewrites the selection can never hang
-    /// typing: after the budget the paste proceeds anyway, which is exactly today's behaviour.
+    /// typing — and when the budget runs out the caller SKIPS the paste. "Paste anyway" was
+    /// the old ending, and it typed the wrong thing: by then the selection is provably not
+    /// ours, so Shift+Insert delivered whatever was — the previous clipboard, or a manager's
+    /// rewrite — into the middle of the user's sentence. A dropped word the user retypes
+    /// beats a wrong word they never typed at all.
     /// </summary>
     public static bool SetTextConfirmed(string text)
     {
@@ -65,8 +69,8 @@ public static class ClipboardBridge
             if (got == want) return true;
             Thread.Sleep(ConfirmPollMs);
         }
-        Log.Warn("Clipboard did not confirm the typed text within the budget; pasting anyway.");
-        return true;
+        Log.Warn("Clipboard never served the typed text within the budget; skipping the paste rather than delivering stale content.");
+        return false;
     }
 
     private const int ConfirmAttempts = 12;

@@ -235,10 +235,14 @@ function SheetPanel({ label, onClose, children, role = "dialog", descriptionId,
   );
 }
 
-export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
+export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }: {
   token: string;
   hostPowerAllowed: boolean;
   onExit: () => void;
+  /** The access token aged out mid-session. Distinct from onExit on purpose: Sign out revokes
+   *  the trusted-device credential, and routing an EXPIRY through it destroyed the very
+   *  credential that exists to survive expiry — every 60 minutes, a PIN prompt. */
+  onAuthExpired: () => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cursorRef = useRef<HTMLDivElement>(null);
@@ -763,9 +767,14 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
         setCodec(codec);
       },
       onStopped: () => setStatus("stopped"),
-      onAuthFail: () => onExit(),
+      onAuthFail: () => onAuthExpired(),
       onClose: (willReconnect) => {
-        lastVal.current = ""; setMods(new Set());
+        // The typing diff base resyncs to what the FIELD still holds, not to "". Zeroing it
+        // while the field held a sentence made the first keystroke after every reconnect
+        // re-send the entire field — the same words typed twice on the desktop. What was in
+        // flight is not lost either: the connection keeps unsent text queued and delivers it
+        // after the reconnect's hello.
+        lastVal.current = inputRef.current?.value ?? ""; setMods(new Set());
         setStatus((s) => (s === "stopped" || s === "idle" ? s : "reconnecting"));
         if (willReconnect && connectionEstablishedRef.current && !disposed &&
             backgroundAlertsRef.current && !connectionAlertedRef.current) {
@@ -946,6 +955,11 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
       } else {
         conn.setWatching(true);
         conn.requestKeyframe();
+        // iOS suspends the PWA whole while it is away, and the server has usually aborted the
+        // socket by the time we return — but the phone's own object still reads OPEN. Probe it:
+        // proof of life within 2s or it is closed and the reconnect runs NOW, instead of the
+        // user staring at a frozen desktop for the full stall watchdog.
+        conn.probe();
         // The canvas still holds the last frame from before, and the first new one may be a moment
         // away; repaint so the letterboxing is right for whatever size we came back at.
         drawEpochRef.current++;
@@ -954,7 +968,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit }: {
     // iOS fires pagehide rather than visibilitychange when Safari is backgrounded from the app
     // switcher. Same intent, different name; both are wired, and both are removed.
     const onHide = () => connRef.current?.setWatching(false);
-    const onShow = () => { connRef.current?.setWatching(true); connRef.current?.requestKeyframe(); };
+    const onShow = () => { connRef.current?.setWatching(true); connRef.current?.requestKeyframe(); connRef.current?.probe(); };
     document.addEventListener("visibilitychange", onVis);
     window.addEventListener("pagehide", onHide);
     window.addEventListener("pageshow", onShow);

@@ -228,6 +228,28 @@ Directory.Delete(trustDir, true);
             throw new Exception(m + " must flush pending text so keys cannot reorder an edit");
         passed++;
     }
+
+    // ── Session lifetime honesty (2026-08-03, each broken once) ────────────
+    // 1. Cancelling WebSocket.SendAsync ABORTS the socket — there is no "drop
+    //    one frame and carry on". The old catch claimed to continue and the
+    //    session then died of the next send with nothing connecting the two.
+    // 2. A gathered word must never wait for the agent's own 140 ms window on
+    //    top of the client's — only single letters wait for company.
+    // 3. A viewer actively WATCHING (pings flowing, page visible) is not idle;
+    //    a pocketed phone reports watching=false and still times out.
+    var session = File.ReadAllText(Path.Combine(RepoRoot(), "agent/Web/StreamSession.cs"));
+    if (!session.Contains("_socket.Abort();"))
+        throw new Exception("a frame-send timeout must abort the socket honestly");
+    if (session.Contains("was abandoned; the viewer's link is saturated"))
+        throw new Exception("the send-timeout 'carry on' claim must not return");
+    passed++;
+    if (injector.IndexOf("text.Length > 1 ||") < 0 ||
+        !injector.Contains("PasteMaxHoldMs = 700"))
+        throw new Exception("multi-character chunks must flush at once, bounded by the 700 ms age cap");
+    passed++;
+    if (!session.Contains("if (_watching) _lastInput = DateTimeOffset.UtcNow;"))
+        throw new Exception("a watching viewer's pings must count against the idle timeout");
+    passed++;
 }
 
 static string RepoRoot()

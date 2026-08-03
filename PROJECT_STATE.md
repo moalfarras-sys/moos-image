@@ -4,7 +4,87 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-08-03, round 5 — **the deep hardware/kernel audit, and the
+Last updated: 2026-08-03, round 6 — **the remote's disconnect loop and the
+typing that was still bad, diagnosed on the live host and fixed at both ends.**
+The owner reported Mo PC Remote disconnecting repeatedly and typing still
+arriving badly — and typed part of the report THROUGH the remote, garbled,
+which was itself the evidence. Four parallel investigators over the live Cloud
+host (the agent's own log under `~/.local/share/MoRemotePersonal/`, the
+tailscaled journal, portal/PipeWire state) plus two source auditors converged
+on one connected chain; every link was then confirmed by reading the code
+before anything was changed:
+
+- **The stall watchdog accepted only PONGS as proof of life** (`ws.ts`):
+  under load the tiny JSON pong queues behind megabytes of frames, so the
+  watchdog killed sessions that were visibly streaming — every few seconds,
+  exactly under load. Any inbound message now counts, frames first of all.
+- **A mid-stream resolution renegotiation fed the old decoder a new stream.**
+  The width ladder's pipeline rebuild usually keeps the identical `avc1.…`
+  codec string (same profile/level), so nothing reopened the VideoDecoder;
+  phones that cannot follow an in-band dimension change errored, and the room
+  fell to full-picture JPEG (~79 Mbit/s class) — manufacturing the congestion
+  that fed the watchdog loop. The decoder now byte-compares the SPS on every
+  keyframe and reopens cleanly on change: zero frames lost, no fallback.
+- **The agent's 3-second frame-send bound CANCELLED `WebSocket.SendAsync`,
+  which ABORTS the socket**, while its log claimed to drop one frame and
+  carry on; the session then died of the next send with nothing connecting
+  the two. It now aborts explicitly and says so — a saturated link becomes
+  one clean reconnect instead of an unexplained death.
+- **Token expiry destroyed the credential that exists to survive it.** The
+  60-minute sliding TTL ends mid-session; "unauthorized" was routed through
+  exitToLogin, whose logout() also revokes the trusted-device credential —
+  so every hour: credential gone, PIN pad. Expiry now clears only the dead
+  access token and re-decides, resuming silently through the device
+  credential (`onAuthExpired`, distinct from Sign out by design).
+- **iOS resume wrote into a zombie.** After backgrounding, the server has
+  usually aborted the socket but the phone's object still reads OPEN; resume
+  waited out the full watchdog staring at a frozen desktop. `probe()` now
+  pings with a 2 s deadline on pageshow/visibilitychange and closes the
+  zombie at machine speed; any inbound message (a frame) is proof of life.
+- **Watching was idle.** The 20-minute idle timeout counted only injected
+  input, so an owner actively WATCHING a long build was cut — as a
+  deliberate exit the client does not reconnect from. Pings now count while
+  the viewer reports watching=true; a pocketed phone reports watching=false
+  (pagehide fires before iOS suspends) and still times out.
+- **Typing was still letter-at-a-time, and the agent taxed every chunk.**
+  The live agent log showed Arabic arriving overwhelmingly as length-1
+  messages: the shipped 220 ms client window loses to the owner's real
+  inter-letter cadence, and the agent then held EVERY chunk — even
+  client-coalesced whole words — for its own fixed +140 ms gather.
+  Multi-character chunks now flush instantly (the gather exists to merge
+  single letters), and the agent gained the 700 ms age cap that had only
+  ever existed client-side.
+- **Reconnects duplicated and lost text.** onClose zeroed the typing diff
+  base while the field kept its content, so the first keystroke after every
+  reconnect re-sent the whole field; and flushText emptied its buffer into a
+  dead socket, whose send() drops silently. The diff base now resyncs to the
+  field, and unsent text queues (960-char bound, oldest kept) and delivers
+  exactly once after the reconnect's hello.
+- **An unconfirmed clipboard write PASTED ANYWAY** after its 300 ms budget —
+  by then the selection is provably not ours, so Shift+Insert delivered the
+  previous clipboard or a manager's rewrite into the middle of the user's
+  sentence. It now skips the paste and logs why: a dropped word the user
+  retypes beats a wrong word they never typed.
+
+Every new contract was broken once and watched go red: three behavioural ws
+contracts and a stubbed-VideoDecoder renegotiation harness in the controller
+suite, the expiry-routing contract in auth-lifecycle, two new checks in
+`tests/test_remote_clipboard_runtime.py`, three source contracts in the C#
+suite. tsc, all 16 controller suites, npm audit (0 findings), a deterministic
+`npm ci` rebuild of the shipped wwwroot (new hashed asset force-added), and
+the complete 58-gate CI repo list pass locally. PWA BUILD v36. NOT verified
+here: the C# suite compiles/runs in CI's image build (no local dotnet), and
+the live phone experience on the new image is the owner's to confirm. Known
+and deliberately not fixed this round: after a reboot, tailscale serve
+proxies 8765 about a second before the agent listens — the client's existing
+backoff absorbs it. Context the investigation also surfaced: 20 reboots in
+2 days and two hard host crashes (journal truncated mid-write, Aug 2 22:05
+and Aug 3 02:08) explain much of the past week's "it keeps disconnecting",
+and the iPhone's tailnet path flapped between direct and DERP to-the-second
+with the drops — network weather the fixes above are built to survive, not
+erase.
+
+Previous update: 2026-08-03, round 5 — **the deep hardware/kernel audit, and the
 pipefail trap it uncovered.** Twenty agents measured the live desktop and Cloud
 host across kernel tuning, hardware enablement, app→hardware paths, boot cost
 and language choice; every candidate went through an independent refutation

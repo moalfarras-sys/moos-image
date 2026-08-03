@@ -104,6 +104,36 @@ function codecFromSps(b: Uint8Array): string | null {
 }
 
 /**
+ * The complete SPS payload, byte for byte — not just the three bytes the codec string uses.
+ *
+ * The codec string is profile+level and NOTHING else: a pipeline rebuilt at a new width emits an
+ * SPS with different picture dimensions but the identical "avc1.PPCCLL", so comparing codec
+ * strings says "same stream" about a stream the decoder cannot continue. The full SPS bytes are
+ * the encoder's own declaration of everything that matters; if any of it changed, the safe read
+ * of the situation is "new stream".
+ */
+function spsOf(b: Uint8Array): Uint8Array | null {
+  let start = -1;
+  for (let i = 0; i + 3 < b.length; i++) {
+    if (b[i] !== 0 || b[i + 1] !== 0) continue;
+    let at = -1;
+    if (b[i + 2] === 1) at = i + 3;
+    else if (b[i + 2] === 0 && b[i + 3] === 1) at = i + 4;
+    if (at < 0 || at >= b.length) continue;
+    if (start >= 0) return b.subarray(start, i);   // the SPS ran up to this next start code
+    if ((b[at] & 0x1f) === 7) start = at;
+    i = at;
+  }
+  return start >= 0 ? b.subarray(start) : null;
+}
+
+function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+
+/**
  * How many access units may be in flight inside the decoder before we stop feeding it.
  *
  * WHY A LIMIT EXISTS AT ALL, AND WHAT ITS ABSENCE LOOKED LIKE
@@ -129,6 +159,9 @@ export class H264Stream {
   private started = false;
   /** True while we are skipping deltas and waiting for an IDR to resynchronise from. */
   private resyncing = false;
+  /** The SPS this decoder was built for. A keyframe carrying a DIFFERENT one is a renegotiated
+   *  stream (the width ladder rebuilt the pipeline), not a decodable continuation. */
+  private lastSps: Uint8Array | null = null;
 
   constructor(
     private readonly onFrame: (f: VideoFrame) => void,
@@ -147,6 +180,24 @@ export class H264Stream {
       if (!codec) return;                     // a keyframe with no SPS is not a place to start
       if (!this.open(codec)) return;
       this.started = true;
+      this.lastSps = spsOf(b);
+    } else if (key) {
+      // A mid-session keyframe whose SPS changed is the encoder renegotiating — the width
+      // ladder rebuilt the pipeline at a new resolution. The codec STRING usually survives
+      // that (same profile, same level), so the old path fed the new stream to the old
+      // decoder, and on phones that cannot follow an in-band dimension change the decode
+      // error tore the whole room down to JPEG. Every renegotiation starts with exactly the
+      // keyframe a fresh decoder needs, so reopen on it: a clean handover, zero frames lost,
+      // no fallback.
+      const sps = spsOf(b);
+      if (sps && this.lastSps && !bytesEqual(sps, this.lastSps)) {
+        const codec = codecFromSps(b);
+        if (!codec) return;
+        this.reset();
+        if (!this.open(codec)) return;
+        this.started = true;
+      }
+      if (sps) this.lastSps = sps;
     }
 
     // Falling behind: throw away the past rather than display it late.
@@ -207,5 +258,6 @@ export class H264Stream {
     this.codec = "";
     this.started = false;
     this.resyncing = false;
+    this.lastSps = null;
   }
 }

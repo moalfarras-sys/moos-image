@@ -66,3 +66,26 @@ for (const contract of [
 }
 
 console.log("PASS: auth handoff, retry, HTTP status, and busy-state recovery are bounded");
+
+// ───────────────────────────────────────────────────────────────────────────────
+// Token EXPIRY is not a sign-out (added 2026-08-03, broken once against the old
+// routing). The agent's 60-minute sliding TTL ends mid-session; the old path sent
+// that through exitToLogin, whose logout() revokes the trusted-device credential
+// too — destroying, on every expiry, the credential that exists to survive expiry,
+// and putting the owner back at the PIN pad each hour. Expiry must re-decide
+// through the device credential and must never revoke anything.
+// ───────────────────────────────────────────────────────────────────────────────
+const remote = readFileSync(resolve(here, "../src/ui/RemoteScreen.tsx"), "utf8");
+assert.ok(remote.includes("onAuthFail: () => onAuthExpired()"),
+  "an unauthorized socket must route through the expiry path");
+assert.ok(!remote.includes("onAuthFail: () => onExit()"),
+  "an unauthorized socket must not be treated as a deliberate sign-out");
+const expiredBody = app.slice(app.indexOf("const authExpired"), app.indexOf("};", app.indexOf("const authExpired")));
+assert.ok(expiredBody.includes("tokenStore.clear()") && expiredBody.includes("decide()"),
+  "expiry drops the dead access token and re-decides through the device credential");
+assert.ok(!expiredBody.includes("logout("),
+  "expiry must never revoke the trusted-device credential");
+assert.ok(app.includes("onAuthExpired={authExpired}"),
+  "the remote screen must be handed the expiry route");
+
+console.log("PASS: token expiry resumes through the trusted device instead of revoking it");

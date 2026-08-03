@@ -365,7 +365,10 @@ public sealed class InputInjector : IDisposable
             if (_pending.Length > 0)
             {
                 _pending.Append(text);
-                if (_pending.Length >= PasteCoalesceMax) { FlushPasteLocked(); }
+                // A word joining the gather completes it — and the age cap means even a stream
+                // of single letters whose gaps never reach the window delivers within 700 ms.
+                if (text.Length > 1 || _pending.Length >= PasteCoalesceMax ||
+                    Environment.TickCount64 - _pendingSince >= PasteMaxHoldMs) { FlushPasteLocked(); }
                 else { _pasteTimer?.Change(PasteCoalesceMs, Timeout.Infinite); }
                 return;
             }
@@ -400,13 +403,25 @@ public sealed class InputInjector : IDisposable
     private const int PasteCoalesceMs = 140;
     /// <summary>Never gather more than this: a paste must stay responsive.</summary>
     private const int PasteCoalesceMax = 240;
+    /// <summary>A re-arming gather never fires under continuous letters; nothing waits past this.
+    /// Mirrors the client's own TEXT_COALESCE_MAX_MS — this was the half of the shipped
+    /// "240 chars / 700 ms" bound that only existed on the client.</summary>
+    private const int PasteMaxHoldMs = 700;
+    /// <summary>When the buffer last went empty→non-empty (Environment.TickCount64).</summary>
+    private long _pendingSince;
 
     private void QueuePaste(string text)
     {
         lock (_pasteBuf)
         {
+            if (_pending.Length == 0) _pendingSince = Environment.TickCount64;
             _pending.Append(text);
-            if (_pending.Length >= PasteCoalesceMax) { FlushPasteLocked(); return; }
+            // A multi-character chunk IS a gathered word: the phone already coalesced it (220 ms
+            // of quiet, or a whole committed autocorrect). Holding it ANOTHER 140 ms here merged
+            // nothing and put a fixed tax on every word of Arabic — the window exists to merge
+            // letter-at-a-time arrivals, so only single letters wait for company.
+            if (text.Length > 1 || _pending.Length >= PasteCoalesceMax ||
+                Environment.TickCount64 - _pendingSince >= PasteMaxHoldMs) { FlushPasteLocked(); return; }
             _pasteTimer ??= new Timer(_ => FlushPaste(), null, Timeout.Infinite, Timeout.Infinite);
             _pasteTimer.Change(PasteCoalesceMs, Timeout.Infinite);
         }
@@ -486,7 +501,7 @@ public sealed class InputInjector : IDisposable
         // drop whole words (see ClipboardBridge.SetTextConfirmed).
         if (!ClipboardBridge.SetTextConfirmed(text))
         {
-            Log.Warn("Clipboard typing aborted: wl-copy did not accept the text.");
+            Log.Warn("Clipboard typing aborted: the clipboard never served the new text; nothing was pasted.");
             // This generation invalidated the preceding return timer. Keep ownership of the
             // original snapshot and schedule its return anyway; clearing it here would strand
             // the last injected value if a previous chunk had already borrowed the clipboard.

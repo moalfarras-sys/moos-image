@@ -24,6 +24,9 @@ public sealed class StreamSession
     /// <summary>Encode width this viewer asked for in PIXELS; 0 = no opinion, use _scale.</summary>
     private int _width;
     private DateTimeOffset _lastInput = DateTimeOffset.UtcNow;
+    /// <summary>Whether this viewer says the page is visible. Watching-while-visible counts as
+    /// activity for the idle timeout; a backgrounded phone reports false and stops counting.</summary>
+    private bool _watching = true;
     private bool _screenOk = true;
     private long _lastFrameSent;
     private bool _loggedFirstInput;
@@ -360,6 +363,14 @@ public sealed class StreamSession
             switch (type)
             {
                 case "ping":
+                    // A viewer that is WATCHING is not idle. The pocket-forgotten phone this
+                    // timeout exists for reports watching=false the moment it is backgrounded
+                    // (pagehide fires before iOS suspends it), so its pings stop counting and the
+                    // timeout still bites. What this stops is the other case, seen by the owner:
+                    // twenty minutes into actively WATCHING a long build run, with no reason to
+                    // touch the screen, the session was declared idle and cut — with no reconnect,
+                    // because "idle" is a deliberate exit the client honours.
+                    if (_watching) _lastInput = DateTimeOffset.UtcNow;
                     await SendJson(new { type = "pong", t = GetNum(root, "t") }, ct);
                     return;
                 // "video" is what the PWA actually sends to declare its decoder, on connect and
@@ -399,9 +410,10 @@ public sealed class StreamSession
                     if (root.TryGetProperty("watching", out var wa) &&
                         (wa.ValueKind == JsonValueKind.True || wa.ValueKind == JsonValueKind.False))
                     {
-                        _svc.Capture.SessionWatching(_id, wa.GetBoolean());
+                        _watching = wa.GetBoolean();
+                        _svc.Capture.SessionWatching(_id, _watching);
                         // Coming back needs a reference frame, not the middle of a GOP.
-                        if (wa.GetBoolean()) _svc.Capture.RequestKeyframe();
+                        if (_watching) _svc.Capture.RequestKeyframe();
                     }
                     if (root.TryGetProperty("scale", out var sc) && sc.ValueKind == JsonValueKind.Number)
                         _scale = Math.Clamp(sc.GetDouble(), 0.3, 1.0);
@@ -463,10 +475,10 @@ public sealed class StreamSession
             // could. One feature killing another, and the resulting "idle timeout" is the least
             // informative possible explanation of what happened.
             //
-            // Only input-typed messages reach this line, which is the point: `ping` is deliberately NOT
-            // counted. ws.ts pings every 2s even in a throttled background tab, so counting those would
-            // make IdleTimeoutMinutes dead code and let a phone forgotten in a pocket stream the owner's
-            // desktop indefinitely.
+            // Only input-typed messages reach this line. Pings are counted separately, and only
+            // while the viewer reports watching=true (see the "ping" case): a backgrounded phone
+            // says watching=false before iOS suspends it, so a phone forgotten in a pocket still
+            // idles out, while an owner actively WATCHING — hands off the screen — does not.
             _lastInput = DateTimeOffset.UtcNow;
 
             if (_svc.State.IsPaused) return; // owner paused the session — ignore all input
@@ -723,9 +735,14 @@ public sealed class StreamSession
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
-            // The frame timed out, not the session. Say so once per occurrence and carry on — the next
-            // frame is newer anyway, and the keyframe request on the backlog drop repairs the reference.
-            Log.Warn("Frame send exceeded 3s and was abandoned; the viewer's link is saturated.");
+            // Cancelling a WebSocket send does not "drop the frame" — it ABORTS the socket. There
+            // is no carrying on, and the old text here that claimed to was a lie the session then
+            // died of: the next send threw into a broad catch and the log never connected the two.
+            // Finish the job honestly instead: a link that cannot move one frame in three seconds
+            // is dead or hopelessly saturated, and an explicit abort is what lets the phone's
+            // reconnect (which already owns backoff and recovery) run NOW.
+            Log.Warn($"Frame send exceeded 3s from {_remote}; the link is dead or saturated — closing so the client can reconnect.");
+            try { _socket.Abort(); } catch { /* already dead */ }
         }
         finally { _sendLock.Release(); }
     }

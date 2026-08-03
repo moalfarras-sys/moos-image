@@ -67,6 +67,18 @@ export default function App() {
     void decide();
   };
 
+  // The access token aged out mid-session (60-minute sliding TTL) and the agent said
+  // "unauthorized". This is NOT a sign-out: the old path routed it through exitToLogin, whose
+  // logout() revokes the trusted-device credential too — destroying, on every expiry, the very
+  // credential that exists to survive expiry, and putting the owner back at the PIN pad each
+  // hour. Drop only the dead access token and re-decide: the device credential mints a fresh
+  // session silently, and the PIN pad is the fallthrough, not the destination.
+  const authExpired = () => {
+    tokenStore.clear();
+    setView({ name: "loading" });
+    void decide();
+  };
+
   const exitToLogin = async () => {
     const token = view.name === "remote" ? view.token : tokenStore.get();
     setView({ name: "loading" });
@@ -98,6 +110,6 @@ export default function App() {
     case "login":
       return <LoginScreen onDone={enterRemote} lockoutSeconds={view.lockout} />;
     case "remote":
-      return <RemoteScreen token={view.token} hostPowerAllowed={view.hostPowerAllowed} onExit={exitToLogin} />;
+      return <RemoteScreen token={view.token} hostPowerAllowed={view.hostPowerAllowed} onExit={exitToLogin} onAuthExpired={authExpired} />;
   }
 }
