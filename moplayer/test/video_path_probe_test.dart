@@ -83,6 +83,39 @@ void main() {
       expect(unwritable.healthy, returnsNormally);
     });
 
+    test('browsing the library is not a driver crash', () {
+      // The regression this pins: the probe used to clear only after ten
+      // unbroken seconds of playback, so opening MoPlayer to look at something
+      // and closing it sooner counted as an unproven GPU start. Twice in a row
+      // tripped it, and the maintainer's RTX 2080 rendered video on the CPU
+      // from 2026-07-26 to 2026-08-03 without a single real driver crash.
+      //
+      // PlayerService now calls healthy() the moment real videoParams arrive —
+      // frame parameters mean the shared GL texture was created and a decoded
+      // frame came through it, which IS the window the driver takes the
+      // process in. One frame is the proof; ten seconds was a guess.
+      final p1 = probe();
+      p1.armed();
+      p1.healthy(); // first frame presented, well under ten seconds
+      expect(probe().failures, 0, reason: 'a proven start must leave nothing behind');
+
+      // And two such sessions in a row must still leave the GPU path armed.
+      final p2 = probe();
+      p2.armed();
+      p2.healthy();
+      expect(probe().isTripped, isFalse);
+      expect(probe().failures, 0);
+    });
+
+    test('two genuinely unproven starts still trip the guard', () {
+      // The other half of the contract: this guard exists because the GL path
+      // really did take the process down on an RTX 2080. Narrowing what counts
+      // as an attempt must not disarm it.
+      probe().armed();
+      probe().armed();
+      expect(probe().isTripped, isTrue);
+    });
+
     test('a corrupt probe counts as zero rather than stranding the user', () {
       File(path).writeAsStringSync('not a number');
       expect(probe().failures, 0);

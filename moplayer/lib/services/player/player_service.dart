@@ -92,6 +92,18 @@ class PlayerService {
       // frame silently defeats the anti-tearing limit above.
       _safeSizeSubscription = _player.stream.videoParams.listen((params) {
         if ((params.dw ?? 0) <= 0 || (params.dh ?? 0) <= 0) return;
+        // Real frame parameters mean mpv created the shared GL texture and
+        // handed Flutter a decoded frame through it — which IS the window the
+        // NVIDIA driver takes the process in. Surviving to here is the proof
+        // the probe exists to collect, so collect it NOW.
+        //
+        // It used to wait for ten unbroken seconds of playback instead, and
+        // that is why the maintainer's RTX 2080 spent from 2026-07-26 to
+        // 2026-08-03 rendering video on the CPU: open MoPlayer to look at
+        // something and close it inside ten seconds, twice, and the counter
+        // reaches its trip point having never once seen an actual failure.
+        // Browsing a library is not a driver crash.
+        _videoPathProbe.healthy();
         unawaited(
           Future<void>.delayed(const Duration(milliseconds: 60)).then((
             _,
