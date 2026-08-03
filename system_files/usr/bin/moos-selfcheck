@@ -659,6 +659,58 @@ if [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/fontconfig/conf.d/99-moos-kawkab-test
 fi
 [ "$shadows" -eq 0 ] && ok "no user-level copy is shadowing a MoOS asset"
 
+# ── Is this machine still allowed to use its own CPU? ────────────────────────
+#
+# A MoOS desktop once ran thirteen consecutive boots at 53% of its clock — turbo
+# off, ceiling pinned to 2.5 GHz of a 4.7 GHz part, measured 1.9x slower
+# single-thread — and NOTHING said so. Every check was green; the machine was
+# simply half as fast. moos-hardware-adapt cures it with `tuned-adm profile
+# balanced`, but only once per image digest, so one tap of Plasma's Power Save
+# tile puts it back and nothing announces it until the next update.
+#
+# This REPORTS, it does not repair. A laptop on Power Save is a correct choice
+# and must never be second-guessed; a desktop pinned at half speed is a defect
+# the owner cannot see. The battery is what tells those two apart.
+cpu_max_khz=""; cpu_cap_khz=""
+[ -r /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq ] \
+    && cpu_max_khz="$(cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq 2>/dev/null)"
+[ -r /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq ] \
+    && cpu_cap_khz="$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq 2>/dev/null)"
+sc_battery=0
+for _b in /sys/class/power_supply/BAT*; do [ -e "$_b" ] && sc_battery=1 && break; done
+
+if [ -n "$cpu_max_khz" ] && [ -n "$cpu_cap_khz" ] && [ "$cpu_max_khz" -gt 0 ] 2>/dev/null; then
+    # 5% of headroom is normal rounding; a real throttle is a third or more.
+    if [ $(( cpu_cap_khz * 100 / cpu_max_khz )) -lt 95 ]; then
+        _msg="CPU ceiling is $(( cpu_cap_khz / 1000 )) MHz of $(( cpu_max_khz / 1000 )) MHz available"
+        if [ "$sc_battery" = 1 ]; then
+            note "${_msg} — expected on battery/Power Save"
+        else
+            bad "${_msg} — this desktop is running at $(( cpu_cap_khz * 100 / cpu_max_khz ))% of its clock (tuned-adm profile balanced restores it)"
+        fi
+    else
+        ok "CPU may use its full $(( cpu_max_khz / 1000 )) MHz"
+    fi
+fi
+
+# Turbo is a separate switch from the ceiling: intel_pstate exposes an inverted
+# no_turbo, the generic cpufreq driver a positive boost. Read whichever exists.
+if [ -r /sys/devices/system/cpu/intel_pstate/no_turbo ]; then
+    if [ "$(cat /sys/devices/system/cpu/intel_pstate/no_turbo 2>/dev/null)" = 1 ]; then
+        if [ "$sc_battery" = 1 ]; then note "CPU turbo is disabled — expected on battery/Power Save"
+        else bad "CPU turbo is disabled on a desktop (tuned-adm profile balanced re-enables it)"; fi
+    else
+        ok "CPU turbo is available"
+    fi
+elif [ -r /sys/devices/system/cpu/cpufreq/boost ]; then
+    if [ "$(cat /sys/devices/system/cpu/cpufreq/boost 2>/dev/null)" = 0 ]; then
+        if [ "$sc_battery" = 1 ]; then note "CPU boost is disabled — expected on battery/Power Save"
+        else bad "CPU boost is disabled on a desktop (tuned-adm profile balanced re-enables it)"; fi
+    else
+        ok "CPU boost is available"
+    fi
+fi
+
 # ── Verdict ──────────────────────────────────────────────────────────────────
 printf '\n'
 if [ "$fail" -eq 0 ]; then

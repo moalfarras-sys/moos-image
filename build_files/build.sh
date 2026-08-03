@@ -804,10 +804,64 @@ _moc="$(command -v moc-qt6 2>/dev/null || true)"
 # /ctx is a READ-ONLY bind mount — write the generated meta-object to writable /tmp
 # and let g++ find it via -I/tmp (the .cpp's #include "moos-qml-shell.moc").
 "$_moc" /ctx/moos-qml-shell.cpp -o /tmp/moos-qml-shell.moc
-g++ -std=c++17 -fPIC -O2 -I/tmp /ctx/moos-qml-shell.cpp -o /usr/bin/moos-qml-shell \
+# HARDENING. This is the ONE binary MoOS compiles itself, and it was the only ELF in
+# the image built without any of it: no PIE (so no ASLR for the executable's own text),
+# no stack canary, no FORTIFY, and lazy binding with a writable PLT — while every Fedora
+# package around it carries the lot. It parses no untrusted input, which is why this is
+# hardening and not an incident, but "the distro hardens everything except the file we
+# wrote" is not a defensible line in an OS that lists security as a target.
+# -fPIE/-pie replaces the old -fPIC (which alone produces a position-independent OBJECT,
+# not a position-independent EXECUTABLE — the distinction is exactly what was missing).
+# -fstack-protector-ALL, not Fedora's usual -strong, and the reason is verifiability:
+# this source is pure Qt (QString/QGuiApplication, no local char arrays, no
+# address-taken locals), so -strong correctly decides there is nothing here worth
+# instrumenting and emits no canary at all — measured: the gate below went red on a
+# binary compiled WITH -strong, while the same flags on a source holding one
+# std::string produced the symbol. A protection that leaves no trace cannot be
+# gated, and an ungated flag is one edit away from silently disappearing. -all
+# instruments every frame, which costs a launcher that runs once per app launch
+# nothing measurable and makes the property something the build can PROVE.
+g++ -std=c++17 -O2 -I/tmp /ctx/moos-qml-shell.cpp -o /usr/bin/moos-qml-shell \
+    -fstack-protector-all -D_FORTIFY_SOURCE=3 -fPIE -pie \
+    -Wl,-z,relro,-z,now -Wall -Wextra \
     -I/usr/include/KF6/KDBusAddons -I/usr/include/KF6/KWindowSystem \
     -lKF6DBusAddons -lKF6WindowSystem \
     $(pkg-config --cflags --libs Qt6Gui Qt6Qml Qt6Core Qt6DBus)
+
+# Prove the hardening on the UNSTRIPPED binary, then strip. Order matters and it cost
+# a build to learn: the canary is observable through the `__stack_chk_fail` symbol, and
+# `strip` can take the only reference to it with the symbol table — so a gate placed
+# after `strip` reports "no canary" on a binary that is fully instrumented. Verify
+# first, shrink second. (The other two properties are structural and survive either
+# way; they are checked here too so all three read from one unstripped object.)
+readelf -hW /usr/bin/moos-qml-shell | grep -qE 'Type:[[:space:]]+DYN' \
+    || { echo "GATE FAIL: moos-qml-shell is not a PIE — its own text has no ASLR"; exit 1; }
+readelf -dW /usr/bin/moos-qml-shell | grep -q 'BIND_NOW' \
+    || { echo "GATE FAIL: moos-qml-shell has a writable PLT (no -z now / full RELRO)"; exit 1; }
+# NOT `readelf -sW … | grep -q …`. This file runs under `set -o pipefail`, and that
+# combination is a false-negative machine: `grep -q` exits the instant it matches, the
+# producer still has hundreds of symbols to write, it dies of SIGPIPE (141), and
+# pipefail hands the PIPELINE that 141 — so a symbol that IS present reports as absent.
+# It cost three builds here: the canary gate failed while `readelf -sW … | grep -i stack`
+# in the very same shell printed `UND __stack_chk_fail@GLIBC_2.4`. The two gates above
+# survive only because a file header and a dynamic section are small enough that readelf
+# finishes before grep leaves. Capture first, match second — no pipe, no race.
+_shell_syms="$(readelf -sW /usr/bin/moos-qml-shell)"
+case "$_shell_syms" in
+    *__stack_chk_fail*) ;;
+    *)
+        echo "GATE FAIL: moos-qml-shell has no stack canary (-fstack-protector-all lost)"
+        echo "--- diagnostics ---"
+        echo "file:    $(stat -c '%s bytes, mode %a' /usr/bin/moos-qml-shell 2>&1)"
+        echo "gcc:     $(g++ --version 2>&1 | head -1)"
+        echo "stack syms:"; printf '%s\n' "$_shell_syms" | grep -i stack | head -5 || true
+        exit 1
+        ;;
+esac
+unset _shell_syms
+echo "=== moos-qml-shell: PIE + full RELRO + stack canary verified before strip ==="
+
+strip /usr/bin/moos-qml-shell
 chmod 0755 /usr/bin/moos-qml-shell
 dnf5 -y remove gcc-c++ qt6-qtbase-devel kf6-kdbusaddons-devel kf6-kwindowsystem-devel
 
@@ -816,6 +870,13 @@ dnf5 -y remove gcc-c++ qt6-qtbase-devel kf6-kdbusaddons-devel kf6-kwindowsystem-
 # bug this replaced, with a green build. So check the binary actually carries it.
 ldd /usr/bin/moos-qml-shell | grep -q libKF6DBusAddons \
     || { echo "GATE FAIL: moos-qml-shell is not linked against KF6DBusAddons — it would open twice"; exit 1; }
+
+# The structural hardening survives stripping, so re-assert it on the SHIPPED file too —
+# the checks above ran before `strip`, and this proves nothing was lost between them.
+readelf -hW /usr/bin/moos-qml-shell | grep -qE 'Type:[[:space:]]+DYN' \
+    || { echo "GATE FAIL: the shipped moos-qml-shell is not a PIE"; exit 1; }
+readelf -dW /usr/bin/moos-qml-shell | grep -q 'BIND_NOW' \
+    || { echo "GATE FAIL: the shipped moos-qml-shell has a writable PLT"; exit 1; }
 
 # Gate it. A wrong app_id is invisible to every other check in this build: the app
 # launches, the QML loads, nothing errors — the icon is just silently the wrong one.
@@ -2468,10 +2529,21 @@ echo "MoOS: breeze components resolve from disk — the login screen wears the M
 # - fwupd: firmware SERVICE for LVFS; the service enables only fwupd-refresh.timer
 #   (metadata refresh), never auto-applies. tuned/tuned-ppd is the Fedora default
 #   power manager and is already in the KDE base (do not co-install TLP/ppd).
+# - lm_sensors: `sensors` itself. Without it a MoOS machine has NO way to read a
+#   fan speed or a board voltage from the command line — measured on the
+#   maintainer's desktop, which is an air-cooled tower: temperature came from
+#   the kernel's thermal zones, and fan RPM was simply unknowable. Anyone
+#   diagnosing "the fans are loud" or "it throttles under load" had no
+#   instrument at all. The package is ~1 MB and passive; it only reads.
+#   (Deliberately NOT paired with an it87/acpi_enforce_resources=lax override
+#   to bind the board's ITE Super-I/O chip: that overlaps an I/O window the
+#   firmware's own ACPI OpRegion uses, and racing the firmware for a fan
+#   controller is exactly the kind of change this file's anti-overheat contract
+#   refuses. `sensors` reports what the kernel already exposes safely.)
 # These are small and Fedora-packaged; a missing one must not fail the build
 # (the service degrades gracefully), so this install is best-effort.
-dnf5 -y install thermald fwupd || \
-    echo "note: thermald/fwupd install skipped (base may already provide them)"
+dnf5 -y install thermald fwupd lm_sensors || \
+    echo "note: thermald/fwupd/lm_sensors install skipped (base may already provide them)"
 
 # Machine-check reporting must work on both AMD and Intel without leaving a red
 # failed unit on every AMD machine. The Kinoite base enables the legacy
@@ -3425,6 +3497,36 @@ kargs = ["console=ttyS0,115200n8", "console=tty0", "video=Virtual-1:1920x1080@60
 KARGS
     systemctl enable serial-getty@ttyS0.service
     systemctl enable moos-cloud-console-order.service
+
+    # A serial console the provider does not wire up is not just useless, it is
+    # LOUD. On the live VPS agetty opened /dev/ttyS0, got nothing, exited 0, and
+    # Restart=always brought it straight back: NRestarts=426 in one boot, 2143
+    # journal lines, roughly 5.7 respawns a minute for the machine's whole
+    # uptime — the single largest journal producer on the host, forever.
+    #
+    # Two things make the obvious fixes wrong. Removing the `systemctl enable`
+    # above does NOT stop it: systemd-getty-generator re-instantiates the unit
+    # from our own console=ttyS0 karg. And Restart=on-failure does not stop it
+    # either — agetty exits 0 here, and on a VPS whose console DOES work agetty
+    # also exits 0 after every real login, so on-failure would quietly kill
+    # serial login on the machines the console exists for.
+    #
+    # Probe the port instead. `stty -F /dev/ttyS0` returns "Input/output error"
+    # on a dead UART and succeeds on a live one (both measured), so it is an
+    # exact test for "is there anything here to log in on". Restart=always is
+    # kept so a working console behaves exactly as before; the start limit is
+    # what turns an infinite loop into three attempts and a rest.
+    install -D -m0644 /dev/stdin \
+        /usr/lib/systemd/system/serial-getty@ttyS0.service.d/50-moos-cloud-guard.conf <<'GETTYGUARD'
+# MoOS Cloud: do not respawn a login prompt onto a UART that is not there.
+# See build_files/build.sh (cloud edition, serial console section).
+[Unit]
+StartLimitIntervalSec=120
+StartLimitBurst=3
+
+[Service]
+ExecStartPre=/usr/bin/stty -F /dev/ttyS0
+GETTYGUARD
     echo "=== cloud edition: serial console on ttyS0, splash kargs withdrawn ==="
 
     # --- 3. No GPU means no free effects ------------------------------------

@@ -31,7 +31,7 @@ set -uo pipefail
 # actually run again on machines that have already been stamped: booted_image() was
 # returning "" (see below), and section 3's balanced default had therefore never
 # re-asserted itself on a desktop that had drifted onto tuned's `powersave`.
-HW_REV=2
+HW_REV=3
 
 STATE="${MOOS_HW_STATE:-/etc/moos/hardware-adapt.state}"
 SYS="${MOOS_HW_SYSFS:-/sys}"
@@ -230,6 +230,46 @@ fi
 if systemctl list-unit-files fwupd-refresh.timer >/dev/null 2>&1; then
     do_run systemctl enable fwupd-refresh.timer
     log "fwupd-refresh.timer enabled (metadata only — updates are never auto-applied)"
+fi
+
+# ── 7. DDC/CI: do not spend six seconds asking a screen that cannot answer ───
+#
+# plasma-powerdevil was the slowest unit of the maintainer's login by a wide
+# margin — measured 6.575s, with the next unit at 3.266s — and all of it was
+# libddcutil walking the I2C buses looking for a monitor that speaks DDC/CI.
+# The screen on that desk is a Philips TV: `ddcutil detect --brief` answers
+# "Invalid display". So the session waited six seconds, every login, for a
+# conversation that was never going to happen.
+#
+# POWERDEVIL_NO_DDCUTIL is powerdevil's own switch (present in the shipped
+# libpowerdevilcore), so this is configuration, not a fork. It is NOT set
+# blindly: a machine whose monitor DOES speak DDC/CI must keep hardware
+# brightness control, which is a real feature. Probe once per HW_REV, and write
+# the drop-in only when the probe finds nothing — plug a DDC-capable monitor in
+# later and the next revision bump re-probes and removes it.
+#
+# Laptops are unaffected either way: their panel uses the kernel backlight, a
+# different powerdevil path entirely.
+_ddc_dropin=/etc/systemd/user/plasma-powerdevil.service.d/50-moos-ddc.conf
+if command -v ddcutil >/dev/null 2>&1; then
+    if timeout 30 ddcutil detect --brief 2>/dev/null | grep -qE '^Display [0-9]'; then
+        # A real DDC/CI display answered: make sure a stale opt-out is gone.
+        if [ -e "$_ddc_dropin" ]; then
+            do_run rm -f "$_ddc_dropin"
+            log "DDC/CI: a display answered — brightness control restored"
+        else
+            log "DDC/CI: a display answered — leaving powerdevil untouched"
+        fi
+    else
+        if [ "$DRYRUN" != "1" ]; then
+            mkdir -p "$(dirname "$_ddc_dropin")" 2>/dev/null || true
+            printf '# Written by moos-hardware-adapt: no DDC/CI display answered on this\n# machine, and probing for one cost 6.5s of every login. Reversible —\n# delete this file (or attach a DDC-capable monitor and bump HW_REV).\n[Service]\nEnvironment=POWERDEVIL_NO_DDCUTIL=1\n' \
+                > "$_ddc_dropin" 2>/dev/null || log "warn: could not write ${_ddc_dropin}"
+        fi
+        log "DDC/CI: no display answered — powerdevil will skip the probe (saves ~6s per login)"
+    fi
+else
+    log "DDC/CI: ddcutil not present — nothing to probe"
 fi
 
 # ── record state (idempotency) ───────────────────────────────────────────────

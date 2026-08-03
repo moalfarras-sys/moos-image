@@ -217,6 +217,17 @@ with the unhelpful `no FROM statement found`. This has already cost one red CI r
 above, and an NVIDIA image whose initramfs contained no NVIDIA, were both caught by a local
 build — one of them only because someone bothered to run it.
 
+**`producer | grep -q pattern` under `set -o pipefail` reports a match as a FAILURE.**
+`grep -q` exits the instant it matches; a producer with more to write then dies of
+SIGPIPE (141), and `pipefail` gives the pipeline that 141. So the pattern was found and
+the gate says it was not. This cost three image builds: a hardening gate insisted
+`__stack_chk_fail` was absent while `readelf -sW … | grep -i stack` in the same shell
+printed `UND __stack_chk_fail@GLIBC_2.4`. Small producers hide it — a file header
+finishes writing before grep leaves, a 281-symbol table does not — so the same idiom
+passes in nine places and lies in the tenth. Capture first, match second:
+`out="$(readelf -sW file)"; case "$out" in *pattern*) ;; *) fail ;; esac`. Reproduce it
+in four lines: `set -o pipefail; seq 1 200000 | grep -q '^7$'; echo $?` prints 141.
+
 **`pgrep -f <name>` matches your own shell.** `until ! pgrep -f bootc-image-builder; do sleep 30;
 done` never exits: the waiting shell's own command line contains the string, so pgrep finds
 itself and the loop waits forever on a process that already finished — or, worse, on one that

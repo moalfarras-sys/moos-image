@@ -4,7 +4,76 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-08-03, round 4 — **the serial console froze a live MoOS
+Last updated: 2026-08-03, round 5 — **the deep hardware/kernel audit, and the
+pipefail trap it uncovered.** Twenty agents measured the live desktop and Cloud
+host across kernel tuning, hardware enablement, app→hardware paths, boot cost
+and language choice; every candidate went through an independent refutation
+pass and eight survived. Implemented this round:
+
+- **Nothing watched the CPU's own speed.** This desktop once ran thirteen boots
+  at 53% of its clock (turbo off, 2.5 GHz of a 4.7 GHz part, measured 1.9×
+  slower single-thread); `moos-hardware-adapt` cures it with one
+  `tuned-adm profile balanced` **once per image digest**, so a single tap of
+  Plasma's Power Save tile re-enters it silently until the next update. Neither
+  `moos-selfcheck` nor `post-update-check.sh` contained a single match for
+  `cpufreq|no_turbo|scaling_max|tuned`. `moos-selfcheck` now reports the
+  ceiling-vs-capability ratio and the turbo/boost switch, and distinguishes a
+  laptop on battery (a correct choice, reported as a note) from a desktop
+  pinned at half speed (a defect). It reports, it never enforces — overriding a
+  user's Power Save is the bug this would be fixing. Live: `✓ CPU may use its
+  full 4700 MHz`.
+- **Every login paid 6.5 s to ask a TV about its brightness.**
+  `plasma-powerdevil` was the slowest unit of the session by 2× (6.575 s vs
+  3.266 s for the next), all of it libddcutil probing for DDC/CI; `ddcutil
+  detect` on this desk answers `Invalid display`. `moos-hardware-adapt` (HW_REV
+  3) now probes once per revision and writes
+  `POWERDEVIL_NO_DDCUTIL=1` — powerdevil's own switch, not a fork — **only**
+  when no display answers, and removes it again if one later does.
+- **The RTX 2080 was rendering video on the CPU.** MoPlayer's crash-probe latch
+  had been stuck at 2 since 2026-07-26 with nothing to re-arm it. Cleared on
+  the live machine; the code-side fix (arm the probe around texture creation
+  rather than process start) is written up but NOT done.
+- **The one binary MoOS compiles had no hardening at all** — no PIE, no canary,
+  no FORTIFY, lazy binding — alone in an image where every Fedora package
+  carries the lot. Now `-fstack-protector-all -D_FORTIFY_SOURCE=3 -fPIE -pie
+  -Wl,-z,relro,-z,now`, stripped (62 KB → 48 KB), with the properties read back
+  off the ELF **before** the strip. Verified in the built image: `Type: DYN`,
+  full RELRO.
+- **MoOS Cloud respawned agetty 426 times in one boot** (2143 journal lines,
+  ~5.7/min forever) on a UART the provider never wired. Neither obvious fix
+  works — `systemd-getty-generator` re-creates the unit from our own
+  `console=ttyS0` karg, and `Restart=on-failure` would silently kill serial
+  login on hosts where the console works, because agetty exits 0 there too. The
+  cloud edition now ships `ExecStartPre=/usr/bin/stty -F /dev/ttyS0` (measured:
+  `Input/output error` on a dead UART, success on a live one) plus a 3-in-120 s
+  start limit.
+- **`lm_sensors` was not installed**, so an air-cooled tower had no way to read
+  a fan speed. Added. The it87/`acpi_enforce_resources=lax` override that would
+  bind the board's Super-I/O was deliberately NOT taken: it overlaps an I/O
+  window the firmware's own ACPI OpRegion uses, and racing firmware for a fan
+  controller violates this file's anti-overheat contract.
+
+**The trap this round paid for** (now in `AGENTS.md`): `producer | grep -q p`
+under `set -o pipefail` reports a MATCH as a failure — `grep -q` exits on the
+first hit, the producer dies of SIGPIPE (141), and pipefail returns that 141.
+The hardening gate insisted `__stack_chk_fail` was absent while
+`readelf -sW … | grep -i stack` in the same shell printed
+`UND __stack_chk_fail@GLIBC_2.4`. It cost three builds, and it was only found
+because the gate was made to print its own evidence instead of being deleted.
+Small producers hide it; `build.sh` has four more instances of the idiom that
+work only by luck. Capture first, match second.
+
+Not implemented, and honestly listed: the image still ships a **full C/C++
+toolchain to every user (33 packages, 373 MiB)** while `build.sh`'s own comment
+claims it removes them — proven live by running `g++` inside the built image.
+Fixing it means moving the `moos-qml-shell` compile into its own Containerfile
+stage (the pattern already exists for moremote and moplayer) and needs all three
+editions rebuilt and booted. Firefox also decodes every video in software; the
+only measured cure needs `MOZ_DISABLE_RDD_SANDBOX=1`, which removes the sandbox
+from the process that parses untrusted media — not shipped by default, and not
+shipped quietly.
+
+Previous update: 2026-08-03, round 4 — **the serial console froze a live MoOS
 Cloud, and the karg order was ours.** The owner reported the VPS "went slow and
 stopped opening apps after the update". It was not the update and it was not
 load: load average was **0.02** while PID 1 sat blocked inside `write(2)` —
