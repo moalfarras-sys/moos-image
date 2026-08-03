@@ -268,6 +268,28 @@ if command -v ddcutil >/dev/null 2>&1; then
         fi
         log "DDC/CI: no display answered — powerdevil will skip the probe (saves ~6s per login)"
     fi
+
+    # A drop-in the user manager never re-reads is a drop-in that does nothing.
+    # Measured on the maintainer's desktop: this file was written at 04:07:06.03
+    # and plasma-powerdevil started at 04:07:10 — four seconds LATER — and still
+    # ran the probe, because with autologin the user manager had already scanned
+    # its unit directories before this service ran, and systemd caches that scan.
+    # `DropInPaths` listed only the image's own drop-in; after a single
+    # `daemon-reload` it listed this one too, and a restarted powerdevil came up
+    # in 0.305s against the 7.714s it had taken that same boot.
+    #
+    # So ask every running user manager to re-read. Best-effort by design: at
+    # boot there may be no session yet (then the next login reads it naturally),
+    # and this must never fail the adaptation. Deliberately a reload and NOT a
+    # restart of powerdevil — bouncing power management under someone who is
+    # working is not worth six seconds they have already paid this boot.
+    if command -v loginctl >/dev/null 2>&1 && [ "$DRYRUN" != "1" ]; then
+        for _uid in $(loginctl list-users --no-legend 2>/dev/null | awk '$1 >= 1000 {print $1}'); do
+            systemctl --user --machine="${_uid}@" daemon-reload >>"$LOG" 2>&1 \
+                && log "DDC/CI: asked uid ${_uid}'s user manager to re-read its units" \
+                || true
+        done
+    fi
 else
     log "DDC/CI: ddcutil not present — nothing to probe"
 fi
