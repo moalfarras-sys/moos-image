@@ -280,16 +280,29 @@ class TestMoOSGtkRuntime(unittest.TestCase):
         original = UPDATER.sh
         try:
             UPDATER.sh = lambda *cmd, **kwargs: (0, status)
-            booted, staged = UPDATER.deployment_state()
+            booted, staged, busy = UPDATER.deployment_state()
             self.assertEqual(booted["version"], "44.20260801.500")
             self.assertEqual(staged["version"], "44.20260803.540")
+            self.assertEqual(busy, "")
             self.assertEqual(UPDATER.current_system(booted)[1], "44.20260801.500")
+
+            # A transaction another writer owns — the nightly train, uupd, a
+            # terminal — must be reported as such, in either shape rpm-ostree
+            # uses for it, rather than raced into "Update failed".
+            for transaction, expected in (
+                ('"rebase moos-cloud"', "rebase moos-cloud"),
+                ('["rebase", "moos-cloud"]', "rebase moos-cloud"),
+                ("null", ""),
+            ):
+                payload = status[:-1] + f', "transaction": {transaction}}}'
+                UPDATER.sh = lambda *cmd, _p=payload, **kwargs: (0, _p)
+                self.assertEqual(UPDATER.deployment_state()[2], expected, transaction)
 
             # rpm-ostreed unreachable: say so, never invent a version.
             UPDATER.sh = lambda *cmd, **kwargs: (1, "not answering")
-            self.assertEqual(UPDATER.deployment_state(), (None, None))
+            self.assertEqual(UPDATER.deployment_state(), (None, None, ""))
             UPDATER.sh = lambda *cmd, **kwargs: (0, "{not json")
-            self.assertEqual(UPDATER.deployment_state(), (None, None))
+            self.assertEqual(UPDATER.deployment_state(), (None, None, ""))
         finally:
             UPDATER.sh = original
 

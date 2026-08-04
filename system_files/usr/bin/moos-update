@@ -85,21 +85,30 @@ def edition_of(ref):
 
 
 def deployment_state():
-    """(booted deployment, staged deployment) as rpm-ostree reports them.
+    """(booted, staged, busy) as rpm-ostree reports them, from ONE status call.
 
-    Both may be None: on a machine where rpm-ostreed is unreachable there is
-    nothing honest to say, and the UI says exactly that instead of guessing.
+    booted/staged may be None: on a machine where rpm-ostreed is unreachable
+    there is nothing honest to say, and the UI says exactly that instead of
+    guessing. `busy` names the transaction another writer already owns — the
+    nightly train, uupd, or a terminal — because "an update is being staged
+    right now" is a completely different thing to tell someone than "your
+    update failed", which is all a raced rebase could have said.
     """
     rc, out = sh("rpm-ostree", "status", "--json")
     if rc != 0:
-        return None, None
+        return None, None, ""
     try:
-        deployments = json.loads(out).get("deployments", [])
+        status = json.loads(out)
     except ValueError:
-        return None, None
+        return None, None, ""
+    deployments = status.get("deployments", [])
     booted = next((d for d in deployments if d.get("booted")), None)
     staged = next((d for d in deployments if d.get("staged")), None)
-    return booted, staged
+    # rpm-ostree reports the transaction as a string or as an argv list.
+    transaction = status.get("transaction")
+    if isinstance(transaction, (list, tuple)):
+        transaction = " ".join(str(word) for word in transaction)
+    return booted, staged, (transaction or "").strip()
 
 
 def current_system(booted=None):
@@ -125,7 +134,7 @@ class Updater(MoOSApp):
     SIZE = (760, 660)
 
     def build(self, page):
-        booted, staged = deployment_state()
+        booted, staged, _busy = deployment_state()
         pretty, build = current_system(booted)
         # The reference the Install button will hand to Polkit. It stays None
         # until a check has resolved AND shape-validated a digest, which is why
@@ -289,10 +298,21 @@ class Updater(MoOSApp):
     def on_check(self, _btn):
         # Re-read the sysroot: the nightly train may have staged something since
         # the window opened, and offering to download it again would be a lie.
-        booted, staged = deployment_state()
+        booted, staged, busy = deployment_state()
         if booted is None:
             self.fail("تعذّر قراءة حالة النظام — خدمة النشر لا تستجيب.",
                       "Could not read the system state — rpm-ostree is not answering.")
+            return
+        if busy:
+            # Another writer owns the sysroot right now. Racing it would fail,
+            # and "Update failed" is the wrong thing to tell someone whose
+            # update is at this moment being downloaded for them.
+            self.say(f"transaction in progress: {busy}")
+            self.status.set_text(local_text(
+                "هناك تحديث قيد التجهيز الآن. انتظر حتى ينتهي ثم افحص مرة أخرى.",
+                "An update is being staged right now. Wait for it to finish, "
+                "then check again.",
+            ))
             return
         if staged:
             self.status.add_css_class("success")

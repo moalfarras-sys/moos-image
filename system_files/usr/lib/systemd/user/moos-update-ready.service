@@ -1,0 +1,17 @@
+[Unit]
+Description=Tell this session when a MoOS update is staged and waiting for a restart
+Documentation=file:///usr/libexec/moos-update-ready
+# Only where there is a desktop to notify, and only on an ostree machine.
+PartOf=graphical-session.target
+ConditionPathIsDirectory=/ostree/deploy
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/moos-update-ready
+# The same background manners every other MoOS timer keeps: a message nobody
+# asked for right now must never be something the person at the keyboard can
+# FEEL. One rpm-ostree status call, at idle priority, and gone.
+Nice=19
+IOSchedulingClass=idle
+CPUSchedulingPolicy=idle
+TimeoutStartSec=120

@@ -153,6 +153,83 @@ check("systemctl enable moos-auto-update.timer" in BUILD_SH.read_text(encoding="
       "build.sh must bake the timer symlink into every edition")
 check(os.access(SCRIPT, os.X_OK), "the script must be executable")
 
+# 8. The staged update has to be ANNOUNCED. The train finishes at 04:30 and the
+#    new deployment then sits on the disk, complete, until someone happens to
+#    reboot — Plasma's notifier and `bootc upgrade --check` both read the
+#    digest-pinned booted origin and report "no changes", so neither says a word.
+NOTIFIER = ROOT / "system_files/usr/libexec/moos-update-ready"
+USER_UNITS = ROOT / "system_files/usr/lib/systemd/user"
+build_sh = BUILD_SH.read_text(encoding="utf-8")
+check(os.access(NOTIFIER, os.X_OK), "the notifier must be executable")
+check("systemctl --global enable moos-update-ready.timer" in build_sh,
+      "an announcement nobody enabled is not an announcement")
+notify_timer = (USER_UNITS / "moos-update-ready.timer").read_text(encoding="utf-8")
+check("OnStartupSec=5min" in notify_timer,
+      "the message must land after the session settles, not into the login storm")
+check("OnUnitActiveSec=6h" in notify_timer,
+      "a session left running across 04:30 must still learn about its update")
+
+
+def run_notifier(*, staged_version: str, already_told: str = "") -> tuple[str, str]:
+    """Run the notifier against doubles; return (notify-send argv, state file)."""
+    with tempfile.TemporaryDirectory() as tmp:
+        home = Path(tmp)
+        bindir = home / "bin"
+        bindir.mkdir()
+        sent = home / "sent.log"
+        state_dir = home / "state" / "moos"
+        state_dir.mkdir(parents=True)
+        if already_told:
+            (state_dir / "update-ready").write_text(already_told, encoding="utf-8")
+        staged = f'"staged": true, "version": "{staged_version}"' if staged_version \
+            else '"staged": false, "version": "44.1"'
+        (bindir / "rpm-ostree").write_text(
+            "#!/bin/sh\n"
+            f"""printf '%s\\n' '{{"deployments":[{{"booted":true,"staged":false,"version":"44.0"}},"""
+            f"""{{{staged}}}]}}'\n""",
+            encoding="utf-8",
+        )
+        (bindir / "notify-send").write_text(
+            f'#!/bin/sh\nprintf "%s\\n" "$@" > "{sent}"\n', encoding="utf-8")
+        for tool in ("rpm-ostree", "notify-send"):
+            (bindir / tool).chmod(0o755)
+        subprocess.run(
+            [BASH, str(NOTIFIER)],
+            env={
+                "PATH": f"{bindir}:/usr/bin:/bin",
+                "HOME": str(home),
+                "XDG_STATE_HOME": str(home / "state"),
+                "LANG": "en_US.UTF-8",
+            },
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        state_file = state_dir / "update-ready"
+        return (
+            sent.read_text(encoding="utf-8") if sent.exists() else "",
+            state_file.read_text(encoding="utf-8").strip() if state_file.exists() else "",
+        )
+
+
+if Path("/ostree/deploy").is_dir():
+    told, recorded = run_notifier(staged_version="44.20260804.9")
+    check("44.20260804.9" in told, f"a staged update must be announced; got {told!r}")
+    check(recorded == "44.20260804.9", "the announced version must be recorded")
+    check("--action" not in told,
+          "the notification must carry no restart button — a stray click must not "
+          "be able to take down a session that was in the middle of something")
+
+    # Told once, never again for the same version — and nothing at all when the
+    # machine has no staged update.
+    told, _ = run_notifier(staged_version="44.20260804.9", already_told="44.20260804.9")
+    check(told == "", f"the same version must not be announced twice; got {told!r}")
+    told, _ = run_notifier(staged_version="")
+    check(told == "", f"a machine with nothing staged must say nothing; got {told!r}")
+else:
+    print("note: /ostree/deploy is absent here, so the notifier's own guard "
+          "short-circuits; its wiring was still checked")
+
 if errors:
     print("MoOS auto-update test failed:", file=sys.stderr)
     for error in errors:

@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+# moos-update-ready — say, once, that a finished update is waiting for a restart.
+#
+# WHY THIS EXISTS
+#
+# MoOS updates itself at 04:30 and stages the result: the new deployment is fully
+# written to disk and applies at the next boot. Nothing on the desktop said so.
+# Plasma's own notifier and `bootc upgrade --check` both read the booted origin —
+# which is digest-pinned on every MoOS install, by design, because the update path
+# escalates an immutable object rather than a mutable tag — so both see "no
+# changes" and stay silent. The work was done, the machine was ready, and the only
+# way to find out was to open the updater window and look.
+#
+# So: one notification per staged version, from the session that can actually see
+# it. Not a nag — the state file means a version is announced once and never
+# again, and a machine with nothing staged says nothing at all.
+#
+# It deliberately carries NO action button. An "Restart now" affordance on a
+# desktop notification is one stray click away from taking down a session that
+# was in the middle of something, on a machine whose owner may not have been
+# looking. The message names the app that has the restart button instead.
+set -uo pipefail
+
+# Nothing to do off a MoOS/ostree machine, or where no one can be told.
+[ -d /ostree/deploy ] || exit 0
+command -v rpm-ostree  >/dev/null 2>&1 || exit 0
+command -v notify-send >/dev/null 2>&1 || exit 0
+command -v python3     >/dev/null 2>&1 || exit 0
+
+status="$(rpm-ostree status --json 2>/dev/null)" || exit 0
+
+# The STAGED deployment only. A pending update is the one rpm-ostree has written
+# and not yet booted; anything else is the system the person is already running.
+version="$(printf '%s' "$status" | python3 -c '
+import json, sys
+try:
+    deployments = json.load(sys.stdin).get("deployments", [])
+except ValueError:
+    raise SystemExit(0)
+for deployment in deployments:
+    if deployment.get("staged"):
+        print(deployment.get("version", "") or "")
+        break
+' 2>/dev/null)"
+[ -n "$version" ] || exit 0
+
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/moos"
+state="${state_dir}/update-ready"
+[ -r "$state" ] && [ "$(cat "$state" 2>/dev/null)" = "$version" ] && exit 0
+
+# Same locale rule as moos_ui2.session_language() — LC_ALL outranks LC_MESSAGES
+# outranks LANG — reimplemented here because that module imports Gtk and this
+# runs with no display of its own. Keep the two in step if either changes.
+language="${LC_ALL:-${LC_MESSAGES:-${LANG:-en}}}"
+language="${language%%.*}"
+language="${language%%@*}"
+language="${language%%_*}"
+case "$language" in
+    ar|fa|he|ur)
+        title="تحديث MoOS جاهز"
+        body="النسخة ${version} مُجهَّزة وتُطبَّق عند إعادة التشغيل. افتح «محدّث MoOS» لإعادة التشغيل الآن."
+        ;;
+    *)
+        title="MoOS update ready"
+        body="Version ${version} is staged and applies on restart. Open MoOS Updater to restart now."
+        ;;
+esac
+
+notify-send --app-name=MoOS --icon=moos-updater --urgency=normal \
+    "$title" "$body" || exit 0
+
+# Recorded only after the message actually went out, so a failed notification is
+# retried on the next run instead of being silently marked as delivered.
+mkdir -p "$state_dir" 2>/dev/null || exit 0
+printf '%s\n' "$version" > "$state" 2>/dev/null || true

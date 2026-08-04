@@ -1,0 +1,15 @@
+[Unit]
+Description=Check for a staged MoOS update to announce
+
+[Timer]
+# NOT at login. flatpak-user-update.service taught this image the cost of that
+# window: the first two minutes after login are when plasmashell is still
+# finishing its containments and the desktop is at its busiest. Five minutes in,
+# the session has settled and the message lands on a calm desktop.
+OnStartupSec=5min
+# The nightly train stages at 04:30. A session left running across it learns
+# about the update within six hours instead of at the next login.
+OnUnitActiveSec=6h
+
+[Install]
+WantedBy=timers.target

@@ -39,6 +39,19 @@ updater's real functions were then run against the live registry on this machine
 and correctly answered `moos-cloud` / `already on the latest signed image`, and
 the app was launched on the live session without a traceback.
 
+**The staged update is now announced.** `moos-update-ready` (user timer, 5 min
+after the session settles, then every 6 h) sends ONE notification per staged
+version and never repeats it — the first thing on this desktop that says an
+update is waiting. It carries no restart button on purpose: a stray click on a
+desktop notification must not be able to take down a session that was in the
+middle of something. Proven against the machine's own staged 44.20260803.541,
+and the gate catches a notifier that nags (verified by breaking it).
+
+The updater also **no longer races another writer**: `deployment_state()` returns
+the in-flight transaction from the same status call, so clicking Check while the
+nightly train is staging says "an update is being staged right now" instead of
+failing with "Update failed" at the rebase.
+
 The same round removed a **health check that lied**. `moos-selfcheck` reported
 "✗ plasma-ksystemstats is NOT running — every system monitor will draw an empty
 box" on a machine whose monitors were fine: the unit is D-Bus activated and exits

@@ -2470,6 +2470,14 @@ systemctl --global enable openclaw-idle.timer
 # why `-a` would eat the moplayer-dev distrobox, which is the machine's only compiler.
 systemctl --global enable moos-reclaim-disk.timer
 
+# The update the machine already finished. moos-auto-update stages at 04:30 and
+# the new deployment then sits on the disk, complete, until someone happens to
+# reboot: Plasma's notifier and `bootc upgrade --check` both read the booted
+# origin, which is digest-pinned on every MoOS install by design, so both report
+# "no changes" and say nothing. This timer is the only thing on the desktop that
+# tells the person their update is ready — once per staged version, never a nag.
+systemctl --global enable moos-update-ready.timer
+
 # An installed bootc system uses an OSTree/composefs overlay for /. Anaconda's
 # generated physical-root fstab entry makes systemd-remount-fs attempt an
 # impossible overlay reconfigure on every boot. Remove only that entry before
