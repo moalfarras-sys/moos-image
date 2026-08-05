@@ -1500,12 +1500,16 @@ systemctl --user start plasma-ksystemstats.service >>"$log" 2>&1 || true
 # earlier revisions, and right-aligned the icons (alignment=1, sortMode=1).
 
 
-# --- The system tray: two icons, not sixteen -----------------------------------
-# The tray was a wall of indicators — notifications, disc burner, printer, vault,
-# camera, clipboard, KDE Connect, the Xwayland video bridge, the portal's
-# remote-control icon — all of them permanently out, none of them ever looked at.
-# MoOS shows TWO: the keyboard layout and the volume. Everything else lives behind
-# the collapse arrow, one click away.
+# --- The system tray: everyday toggles up front, everything else auto -----------
+# The 07-24 tray design (shipped in layout.js): the everyday device toggles — Wi-Fi,
+# Bluetooth, volume and brightness — are pinned as always-shown, one click away in
+# the corner, an Apple-Control-Centre feel. Hiding them behind the arrow is the
+# single most common "where is my Bluetooth" friction. Notifications join them.
+# Everything else stays auto — shown only when it has something to say.
+#
+# The keyboard layout indicator is deliberately unlisted: with several layouts
+# configured it auto-shows on its own (measured: 3 layouts -> still in the tray),
+# so it needs no slot in shownItems.
 #
 # StatusNotifierItems are matched on their OWN Id, not on a plasmoid id, which is
 # why the video bridge survived the first attempt: it is not a plasmoid. Its Id is
@@ -1525,18 +1529,18 @@ if command -v gdbus >/dev/null 2>&1; then
         -m org.kde.PlasmaShell.evaluateScript '
             var HIDE = [
                 "org.kde.kdeconnect", "org.kde.plasma.vault", "org.kde.kscreen",
-                "org.kde.plasma.battery", "org.kde.plasma.bluetooth",
-                "org.kde.plasma.brightness", "org.kde.plasma.cameraindicator",
+                "org.kde.plasma.battery", "org.kde.plasma.cameraindicator",
                 "org.kde.plasma.clipboard", "org.kde.plasma.devicenotifier",
                 "org.kde.plasma.keyboardindicator", "org.kde.plasma.manage-inputmethod",
-                "org.kde.plasma.mediacontroller", "org.kde.plasma.networkmanagement",
-                "org.kde.plasma.notifications", "org.kde.plasma.printmanager",
+                "org.kde.plasma.mediacontroller", "org.kde.plasma.printmanager",
                 "org.kde.plasma.weather",
                 "xwaylandvideobridge",
                 "Xwayland Video Bridge", "Xwayland-Video-Bruecke",
                 "جسر فيديو ويلاند_اكس"
             ];
-            var SHOW = ["org.kde.plasma.keyboardlayout", "org.kde.plasma.volume"];
+            var SHOW = ["org.kde.plasma.networkmanagement", "org.kde.plasma.bluetooth",
+                        "org.kde.plasma.volume", "org.kde.plasma.brightness",
+                        "org.kde.plasma.notifications"];
             var ps = panels();
             for (var i = 0; i < ps.length; i++) {
                 var ws = ps[i].widgets();

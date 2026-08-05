@@ -4564,12 +4564,22 @@ require("systemctl --user start plasma-ksystemstats.service" in apply_theme_code
         "the sensor daemon must be started explicitly so the rings are fed before the "
         "first paint, rather than only when something subscribes")
 
-# ── The tray shows two things, not sixteen ────────────────────────────────────
-require('writeConfig("shownItems"' in apply_theme_code
-        and "org.kde.plasma.keyboardlayout" in apply_theme_code
-        and "org.kde.plasma.volume" in apply_theme_code,
-        "the tray must show exactly the keyboard layout and the volume; everything else "
-        "belongs behind the collapse arrow")
+# ── The tray keeps the everyday toggles one click away ────────────────────────
+# The 07-24 tray design (shipped in layout.js): Wi-Fi, Bluetooth, volume and
+# brightness are always-shown — hiding them is the single most common "where is my
+# Bluetooth" friction — and notifications stay reachable. Everything else auto.
+# moos-apply-theme must pin exactly this in the user's own config, or a theme
+# application hides the toggles again on an existing machine while every gate stays
+# green. Assert on the CODE (comments stripped), every toggle, so none can rot alone.
+_tray_toggles = ("org.kde.plasma.networkmanagement", "org.kde.plasma.bluetooth",
+                 "org.kde.plasma.volume", "org.kde.plasma.brightness",
+                 "org.kde.plasma.notifications")
+require('writeConfig("shownItems"' in apply_theme_code,
+        "moos-apply-theme must pin the tray's shownItems in the user's config")
+for _toggle in _tray_toggles:
+    require(_toggle in apply_theme_code,
+            f"the tray design keeps {_toggle} one click away — moos-apply-theme must "
+            f"ship it in the shownItems list or a theme application hides it again")
 # …and writing that config is not enough. Plasma 6.7's writeConfig+reloadConfig sets the
 # FILE but never rebuilds the running systray's shown/hidden model — verified on 6.7.2, where
 # the file said "2 shown" while the tray drew 8 across reboots, and the gate above stayed

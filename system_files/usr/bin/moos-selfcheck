@@ -634,10 +634,16 @@ grep -q "org.moos.nova.clock" "$appletsrc" 2>/dev/null \
     && ok "the MoOS clock is in the panel" \
     || bad "the panel has no clock"
 
-if grep -q "shownItems=org.kde.plasma.keyboardlayout,org.kde.plasma.volume" "$appletsrc" 2>/dev/null; then
-    ok "the tray shows two things: the layout and the volume"
+_tray_shown="$(sed -n 's/^shownItems=//p' "$appletsrc" 2>/dev/null | head -1)"
+_tray_missing=""
+for _t in org.kde.plasma.networkmanagement org.kde.plasma.bluetooth \
+          org.kde.plasma.volume org.kde.plasma.brightness org.kde.plasma.notifications; do
+    case ",${_tray_shown}," in *",$_t,"*) ;; *) _tray_missing="$_tray_missing $_t" ;; esac
+done
+if [ -z "$_tray_missing" ]; then
+    ok "the everyday toggles (Wi-Fi, Bluetooth, volume, brightness) are one click away in the tray"
 else
-    note "the tray's shown items are not the MoOS default (yours to change, so this is only a note)"
+    note "the tray is missing:${_tray_missing} (yours to change, so this is only a note)"
 fi
 
 # ── Nothing shadowing the image ──────────────────────────────────────────────
