@@ -777,106 +777,23 @@ esac
 # is the only supported route, so MoOS hosts the QML itself. See the long comment
 # in build_files/moos-qml-shell.cpp.
 #
-# The compiler and the Qt headers are BUILD-ONLY: installed, used, and removed
-# inside this same RUN, so none of it lands in the shipped image.
-#
-# qt6-qtdeclarative-devel is installed here and NOT removed. It is also installed
-# further down in section (c8) — but that is ~200 lines later, and this needs
-# Qt6Qml.pc NOW: without it pkg-config cannot resolve Qt6Qml and the compile dies
-# with "QGuiApplication: No such file or directory". It stays because it is what
-# provides /usr/bin/qml-qt6, which both the QML smoke-test gate and the launchers'
-# fallback path depend on. The later install is then a no-op.
-#
-# KF6DBusAddons + KF6WindowSystem are what make the shell single-instance (see the header of
-# moos-qml-shell.cpp). Their -devel packages are build-only like the rest; the RUNTIME libraries
-# they link against — libKF6DBusAddons.so.6, libKF6WindowSystem.so.6 — are already in the image
-# because Plasma itself depends on them, so this costs the image nothing. Neither ships a
-# pkg-config file (KDE distributes CMake configs), hence the explicit -I/-l.
-dnf5 -y install gcc-c++ qt6-qtbase-devel qt6-qtdeclarative-devel \
-                kf6-kdbusaddons-devel kf6-kwindowsystem-devel
-# moos-qml-shell now carries a Q_OBJECT (InstallerBridge — the installer's secure
-# recipe channel), so it must be moc'd: the .cpp ends with #include
-# "moos-qml-shell.moc", which moc generates next to the source. Locate moc across
-# the paths Fedora's qt6-qtbase-devel installs it under.
-_moc="$(command -v moc-qt6 2>/dev/null || true)"
-[ -z "$_moc" ] && [ -x /usr/lib64/qt6/libexec/moc ] && _moc=/usr/lib64/qt6/libexec/moc
-[ -z "$_moc" ] && _moc="$(command -v moc 2>/dev/null || true)"
-[ -n "$_moc" ] || { echo "FATAL: Qt6 moc not found — cannot build moos-qml-shell."; exit 1; }
-# /ctx is a READ-ONLY bind mount — write the generated meta-object to writable /tmp
-# and let g++ find it via -I/tmp (the .cpp's #include "moos-qml-shell.moc").
-"$_moc" /ctx/moos-qml-shell.cpp -o /tmp/moos-qml-shell.moc
-# HARDENING. This is the ONE binary MoOS compiles itself, and it was the only ELF in
-# the image built without any of it: no PIE (so no ASLR for the executable's own text),
-# no stack canary, no FORTIFY, and lazy binding with a writable PLT — while every Fedora
-# package around it carries the lot. It parses no untrusted input, which is why this is
-# hardening and not an incident, but "the distro hardens everything except the file we
-# wrote" is not a defensible line in an OS that lists security as a target.
-# -fPIE/-pie replaces the old -fPIC (which alone produces a position-independent OBJECT,
-# not a position-independent EXECUTABLE — the distinction is exactly what was missing).
-# -fstack-protector-ALL, not Fedora's usual -strong, and the reason is verifiability:
-# this source is pure Qt (QString/QGuiApplication, no local char arrays, no
-# address-taken locals), so -strong correctly decides there is nothing here worth
-# instrumenting and emits no canary at all — measured: the gate below went red on a
-# binary compiled WITH -strong, while the same flags on a source holding one
-# std::string produced the symbol. A protection that leaves no trace cannot be
-# gated, and an ungated flag is one edit away from silently disappearing. -all
-# instruments every frame, which costs a launcher that runs once per app launch
-# nothing measurable and makes the property something the build can PROVE.
-g++ -std=c++17 -O2 -I/tmp /ctx/moos-qml-shell.cpp -o /usr/bin/moos-qml-shell \
-    -fstack-protector-all -D_FORTIFY_SOURCE=3 -fPIE -pie \
-    -Wl,-z,relro,-z,now -Wall -Wextra \
-    -I/usr/include/KF6/KDBusAddons -I/usr/include/KF6/KWindowSystem \
-    -lKF6DBusAddons -lKF6WindowSystem \
-    $(pkg-config --cflags --libs Qt6Gui Qt6Qml Qt6Core Qt6DBus)
-
-# Prove the hardening on the UNSTRIPPED binary, then strip. Order matters and it cost
-# a build to learn: the canary is observable through the `__stack_chk_fail` symbol, and
-# `strip` can take the only reference to it with the symbol table — so a gate placed
-# after `strip` reports "no canary" on a binary that is fully instrumented. Verify
-# first, shrink second. (The other two properties are structural and survive either
-# way; they are checked here too so all three read from one unstripped object.)
-_elf_h="$(readelf -hW /usr/bin/moos-qml-shell)"
-_elf_d="$(readelf -dW /usr/bin/moos-qml-shell)"
-grep -qE 'Type:[[:space:]]+DYN' <<<"${_elf_h}" \
-    || { echo "GATE FAIL: moos-qml-shell is not a PIE — its own text has no ASLR"; exit 1; }
-grep -q 'BIND_NOW' <<<"${_elf_d}" \
-    || { echo "GATE FAIL: moos-qml-shell has a writable PLT (no -z now / full RELRO)"; exit 1; }
-# NOT `readelf -sW … | grep -q …`. This file runs under `set -o pipefail`, and that
-# combination is a false-negative machine: `grep -q` exits the instant it matches, the
-# producer still has hundreds of symbols to write, it dies of SIGPIPE (141), and
-# pipefail hands the PIPELINE that 141 — so a symbol that IS present reports as absent.
-# It cost three builds here: the canary gate failed while `readelf -sW … | grep -i stack`
-# in the very same shell printed `UND __stack_chk_fail@GLIBC_2.4`. The two gates above
-# survive only because a file header and a dynamic section are small enough that readelf
-# finishes before grep leaves. Capture first, match second — no pipe, no race.
-_shell_syms="$(readelf -sW /usr/bin/moos-qml-shell)"
-case "$_shell_syms" in
-    *__stack_chk_fail*) ;;
-    *)
-        echo "GATE FAIL: moos-qml-shell has no stack canary (-fstack-protector-all lost)"
-        echo "--- diagnostics ---"
-        echo "file:    $(stat -c '%s bytes, mode %a' /usr/bin/moos-qml-shell 2>&1)"
-        echo "gcc:     $(g++ --version 2>&1 | head -1)"
-        echo "stack syms:"; printf '%s\n' "$_shell_syms" | grep -i stack | head -5 || true
-        exit 1
-        ;;
-esac
-unset _shell_syms
-echo "=== moos-qml-shell: PIE + full RELRO + stack canary verified before strip ==="
-
-strip /usr/bin/moos-qml-shell
-chmod 0755 /usr/bin/moos-qml-shell
-dnf5 -y remove gcc-c++ qt6-qtbase-devel kf6-kdbusaddons-devel kf6-kwindowsystem-devel
-
-# The single-instance guard is a LINK, and a link that silently did not happen leaves a shell that
-# still runs, still shows the app, and still opens a second copy on the next click — exactly the
-# bug this replaced, with a green build. So check the binary actually carries it.
+# The binary is NOT compiled here. It is built in the Containerfile's
+# qmlshell-build stage (build_files/build_moos_qml_shell.sh), which installs the
+# toolchain, moc's and g++'s the source, proves PIE + full RELRO + stack canary on
+# the UNSTRIPPED binary, then strips it. The final image receives only the single
+# stripped binary via COPY --from — the compiler never enters the image at all.
+# That stage-built file is what is gated below: the single-instance guard is a
+# LINK, and a link that silently did not happen leaves a shell that still runs,
+# still shows the app, and still opens a second copy on the next click — exactly
+# the bug this replaced, with a green build. So check the shipped binary actually
+# carries it.
 _shell_ldd="$(ldd /usr/bin/moos-qml-shell)"
 grep -q libKF6DBusAddons <<<"${_shell_ldd}" \
     || { echo "GATE FAIL: moos-qml-shell is not linked against KF6DBusAddons — it would open twice"; exit 1; }
 
-# The structural hardening survives stripping, so re-assert it on the SHIPPED file too —
-# the checks above ran before `strip`, and this proves nothing was lost between them.
+# The structural hardening survives stripping, so re-assert it on the SHIPPED file
+# too — the stage proved it before `strip`, and this proves nothing was lost in the
+# COPY across stages.
 _shipped_h="$(readelf -hW /usr/bin/moos-qml-shell)"
 _shipped_d="$(readelf -dW /usr/bin/moos-qml-shell)"
 grep -qE 'Type:[[:space:]]+DYN' <<<"${_shipped_h}" \
@@ -1501,15 +1418,16 @@ grep -q '^Inherits=MoOS$' /usr/share/icons/default/index.theme \
 #                                     explicitly here; a reinstall is idempotent
 #                                     if the base already carries it. NVR verified
 #                                     2026-07-10 on packages.fedoraproject.org.
-# - qt6-qtdeclarative-devel (6.11.1-2.fc44) provides /usr/bin/qml-qt6 (symlink
-#                                     to /usr/lib64/qt6/bin/qml) — the QML
-#                                     runner for MoOS pure-QML "script apps"
-#                                     (moos-compat / Compatibility Hub v0). The
-#                                     base qt6-qtdeclarative package ships
-#                                     libraries only, NO binaries (verified
-#                                     2026-07-10 on packages.fedoraproject.org).
-#                                     Swapped for compiled Kirigami apps in a
-#                                     later phase.
+# qt6-qtdeclarative-devel is deliberately NOT installed. It used to be the
+# source of /usr/bin/qml-qt6, the runner for MoOS's pure-QML "script apps"
+# (moos-compat / Compatibility Hub v0) — all of which are now compiled
+# panels inside Mo AI, and the QML host itself is moos-qml-shell, built in its
+# own Containerfile stage (see build_moos_qml_shell.sh). Keeping this -devel
+# package would drag the whole C++ toolchain back into the image via its
+# dependency chain — qt6-qtdeclarative-devel → qt6-qtbase-devel →
+# qt6-rpm-macros → gcc-c++ — which is exactly what section (e0) exists to
+# sweep out. The base qt6-qtdeclarative package still ships the QML runtime
+# libraries every app loads; only the build-time runner and headers are gone.
 #
 # The cloud edition takes the same list MINUS the four that only mean something in
 # front of a screen — waydroid (an Android container needs a display and a GPU),
@@ -1537,7 +1455,6 @@ _core_power=(
     gh
     nodejs22
     nodejs22-npm
-    qt6-qtdeclarative-devel
 )
 if is_desktop; then
     _core_power+=(waydroid gamemode mangohud steam-devices)
@@ -2098,11 +2015,10 @@ flatpak config --set extra-languages 'ar;en;de' 2>/dev/null || \
 # and offers to run moos-setup in Konsole (kdialog + konsole are both in the
 # Kinoite base package set — workstation-ostree-config packages/kinoite.yaml,
 # verified 2026-07-10).
-# moos-compat launches the Compatibility Hub v0 (pure-QML script app in
-# /usr/share/moos/apps/compathub) via the qml-qt6 runner installed in (c7).
-# moos-hardware collects a read-only hardware snapshot to /tmp/moos-hw.json and
-# launches the Hardware Center v0 viewer (/usr/share/moos/apps/hardware) via the
-# same qml-qt6 runner.
+# moos-compat launches the Compatibility Hub and moos-hardware collects a
+# read-only hardware snapshot to /tmp/moos-hw.json then launches the Hardware
+# Center — both are now compiled panels inside Mo AI, so these commands are
+# thin wrappers around `moai --panel compat|device`.
 chmod 0755 /usr/bin/moplayer
 chmod 0755 /usr/bin/moos-setup /usr/bin/moos-firstrun /usr/bin/moos-compat \
     /usr/bin/moos-hardware /usr/bin/moos-device-plan /usr/bin/moai /usr/bin/moai-start /usr/bin/moai-do \
@@ -3360,27 +3276,31 @@ rm -f /tmp/moos-final-dracut.log /tmp/moos-final-initrd.txt \
 unset -v _final_lsrc
 
 # -----------------------------------------------------------------------------
-# (e0) The C++ toolchain is a BUILD tool, and it was shipping to every user
+# (e0) The C++ toolchain is a BUILD tool, and it must never ship
 # -----------------------------------------------------------------------------
-# Section (b) installs gcc-c++ to compile moos-qml-shell and removes it again
-# three lines later. That removal has never actually held: measured inside the
-# finished image, `g++ --version` answers, and rpm says gcc-c++ is installed as
-# a "Dependency". The reason is one package —
+# moos-qml-shell used to be compiled HERE: section (c4b) installed gcc-c++ and
+# removed it three lines later. That removal never actually held — measured
+# inside the finished image, `g++ --version` answered, and rpm said gcc-c++ is
+# installed as a "Dependency". The reason was one package —
 #
 #     $ dnf5 repoquery --installed --whatrequires gcc-c++
 #     qt6-rpm-macros
 #
-# — which a later Qt install drags back in, and it requires the compiler. So the
+# — which a later Qt install dragged back in, and it requires the compiler. So the
 # earlier `dnf5 remove` succeeded and was then quietly undone by a dependency
 # nobody was watching. Measured cost of the leftovers on the generic image:
 # gcc, gcc-c++, cpp, binutils, glibc-devel, libstdc++-devel and kernel-headers
 # come to ~288 MiB, downloaded by every machine on every update, forever, to
 # build nothing.
 #
-# This runs LAST, after every dnf transaction in this file, because that is the
-# only place a removal cannot be undone by a later install. Removing
-# qt6-rpm-macros with it is what breaks the chain; it is a macro package used
-# when BUILDING rpms, and nothing on a running MoOS reads it.
+# The compile now lives in the Containerfile's qmlshell-build stage
+# (build_files/build_moos_qml_shell.sh), so the toolchain should never enter the
+# image at all, and qt6-qtdeclarative-devel — the package that dragged the chain
+# back in — is no longer in `_core_power`. This sweep is therefore a FIREWALL,
+# not the primary removal: it runs LAST, after every dnf transaction in this
+# file, because that is the only place a removal cannot be undone by a later
+# install. Removing qt6-rpm-macros with it is what breaks the chain; it is a
+# macro package used when BUILDING rpms, and nothing on a running MoOS reads it.
 #
 # Not swept: python3-devel and friends, which real runtime code imports, and
 # anything akmods needs — the NVIDIA kmod is built in its own stage against the
@@ -3402,10 +3322,13 @@ echo "=== build-only sweep: removed ${_swept} package(s) ==="
 # extra attack surface — but the reason it is worth a gate is that the earlier
 # removal LOOKED like it worked for months.
 # NOT `command -v g++`. bash caches the location of every command it has run in a
-# hash table, and this script compiled moos-qml-shell with g++ a few hundred lines
-# up — so `command -v` kept answering with the cached path long after the file was
-# deleted, and this gate failed on an image the sweep had cleaned correctly. Ask
-# the filesystem and the rpm database, which have no memory of what we ran.
+# hash table, and this script used to compile moos-qml-shell with g++ a few
+# hundred lines up — so `command -v` kept answering with the cached path long
+# after the file was deleted, and this gate failed on an image the sweep had
+# cleaned correctly. Ask the filesystem and the rpm database, which have no
+# memory of what we ran. (The compile has since moved to the Containerfile
+# stage, so the cache trap is gone — but the habit of asking the disk, not the
+# shell, is the one that survives.)
 hash -r 2>/dev/null || true
 if [ -x /usr/bin/g++ ] || [ -x /usr/bin/gcc ] || rpm -q gcc-c++ >/dev/null 2>&1; then
     echo "GATE FAIL: the C++ toolchain is still in the finished image."
