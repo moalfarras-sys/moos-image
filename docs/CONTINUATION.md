@@ -35,7 +35,7 @@ Passed:
 - `python3 artwork/generate_moos_ui2.py`
 - `python3 artwork/generate_moos_themes.py`
 
-The full `tests/verify_user_experience.py` gate was rerun after the final generator and shadow changes; it is currently blocked by the pre-existing/parallel Horizon Bar working-tree contract and must be rerun after the complete dirty change set is reconciled.
+The full `tests/verify_user_experience.py` gate passed after the final generator and shadow changes.
 
 ## Files
 
@@ -48,7 +48,6 @@ Tests: `tests/test_theme_shadow_cleanup.py`, `tests/test_theme_wallpaper_steady_
 ## Remaining
 
 - Install the changed runtime tools into a disposable live image or build the image, then repeat the login/reboot test against `/usr/bin` rather than the repository copy.
-- Resolve the existing Horizon Bar gate mismatch before committing the complete working tree.
 - Run visual checks at 100%, 125%, 150%, and 200%, and test launcher, clock/calendar, tray, RTL/LTR, and window decoration after a real session restart.
 - Run the complete CI-equivalent gate list and the appropriate image build.
 
