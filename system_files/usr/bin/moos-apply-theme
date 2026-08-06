@@ -66,7 +66,16 @@ set -uo pipefail
 #     stayed green — the same trap rev 29 fixed for plasmoids. Tasks SVG
 #     hover/focus states are refined: subtle underline indicators replace the
 #     bordered rectangles that read as "boxes" on the panel.
-THEME_REV=31
+# 32: the last two boxes are gone from the shipped art — the frame Plasma's shell
+#     paints behind an OPEN panel applet (widgets/tabbar.svg `*-active-tab`, a
+#     0.84 slab with a 0.88 accent rim) and the flat tile every task state filled
+#     behind its icon. This rev exists for the SVG CACHE: Plasma serves
+#     ~/.cache/plasma_theme_<Theme>.kcache and ~/.cache/ksvg-elements, so new art
+#     under a frozen OSTree /usr does not reach the screen until those are
+#     purged, which only happens inside this once-per-revision migration. Without
+#     the bump an updated machine keeps rendering the boxes and every gate stays
+#     green — the exact class of trap rev 29 and 31 were written for.
+THEME_REV=32
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"
