@@ -3,28 +3,37 @@
 #
 # The dock is defined in /usr/share/moos/moos-bar.conf (override with
 # $MOOS_BAR_CONF). This tool is the only place that turns that definition into a
-# running dock: it splits the retired single panel into the two glass slabs (a
-# centered dock capsule and a corner system capsule), pins the tray's
-# always-shown toggles, migrates the launcher and clock, applies the geometry,
-# restarts the shell once per revision, and reads the result back from the live
-# desktop. moos-apply-theme calls it for the whole dock section; moos-selfcheck
-# calls its check; nothing else writes the bar.
+# running dock: it MERGES every bottom panel into one glass capsule, orders the
+# applets, pins the tray's always-shown toggles, migrates the launcher and clock,
+# applies the geometry, restarts the shell once per revision, and reads the
+# result back from the live desktop. moos-apply-theme calls it for the whole dock
+# section; moos-selfcheck calls its check; nothing else writes the bar.
+#
+# THE BAR IS ONE PANEL. Rev 30 split it into a centred dock capsule and a corner
+# system capsule so the task area could hold the true screen centre. On the real
+# machine that reads as two detached pieces of glass with a gap between them, and
+# the owner rejected it. Rev 33 merges them back and this tool is now the thing
+# that GUARANTEES one panel: it folds every extra bottom panel into the canonical
+# one on every run, so a stale profile, a half-applied migration or a user
+# experiment all converge on a single capsule.
 #
 # Design notes, so the shape of the code is not a mystery:
-#   * Plasma 6 scripting CANNOT create a panel (createPanel is gone), so the
-#     two-slab split is file surgery on the appletsrc (Plasma reads it at
-#     startup) followed by a plasmashell restart. The layout TEMPLATE cannot
-#     create two panels either — two-panel templates failed live with NO panel
-#     at all — so layout.js stays single-panel and the split runs on first
-#     login via moos-apply-theme.
+#   * Plasma 6 scripting cannot create or delete a panel, so panel-count surgery
+#     is file surgery on the appletsrc (Plasma reads it at startup) followed by a
+#     plasmashell restart. layout.js seeds ONE panel for new profiles; this tool
+#     repairs existing ones.
 #   * Panel geometry (floating / lengthMode / thickness) is persisted by Plasma
 #     into ~/.config/plasmashellrc, NOT the appletsrc, and only on its own
 #     flush. The reliable sequence is: write the appletsrc structure, restart,
 #     then apply geometry live through the scripting API and let Plasma persist.
+#     A removed panel leaves its [PlasmaViews][Panel N] group behind, so the
+#     merge deletes those too or the stale geometry is restored on the next flush.
 #   * gdbus unescapes its argument, so a literal backslash inside the JS becomes
 #     a real newline and truncates the script. No backslash escapes in the JS.
 #   * Add, never remove (dock rule): a MoOS app missing from the user's dock is
 #     put back; anything the user pinned or unpinned is left exactly as found.
+#     The one exception is a PANEL: an extra bottom panel is always absorbed,
+#     never left, because two capsules is the defect this file exists to prevent.
 set -uo pipefail
 
 CONF="${MOOS_BAR_CONF:-/usr/share/moos/moos-bar.conf}"
@@ -44,10 +53,9 @@ conf() {
 }
 
 BAR_HEIGHT="$(conf bar.height)"
-DOCK_LENGTH="$(conf dock.lengthMode)"
-DOCK_ALIGN="$(conf dock.alignment)"
-SYS_LENGTH="$(conf system.lengthMode)"
-SYS_ALIGN="$(conf system.alignment)"
+BAR_LENGTH="$(conf bar.lengthMode)"
+BAR_ALIGN="$(conf bar.alignment)"
+BAR_APPLETS="$(conf bar.applets)"
 TRAY_SHOWN="$(conf tray.shownItems)"
 BRAND_APPLET="$(conf brand.applet)"
 TASKS_APPLET="$(conf tasks.applet)"
@@ -72,6 +80,7 @@ fi
 
 log="${MOOS_BAR_LOG:-/dev/null}"
 applets_rc="${XDG_CONFIG_HOME:-$HOME/.config}/plasma-org.kde.plasma.desktop-appletsrc"
+shell_rc="${XDG_CONFIG_HOME:-$HOME/.config}/plasmashellrc"
 
 plasma_ready() {
     if command -v busctl >/dev/null 2>&1; then
@@ -105,26 +114,46 @@ shipped_launchers() {
     printf '%s\n' "$dock_shipped"
 }
 
-# --- The split ---------------------------------------------------------------
-# Moves the tray, separator and clock out of the dock containment into a new
-# bottom containment, leaving the dock as brand+tasks. Idempotent. Prints
-# "split", "no-change", "no-dock" or "no-config".
-split_appletsrc() {
+# --- The merge ---------------------------------------------------------------
+# Folds EVERY bottom panel into one containment and orders its applets the way
+# moos-bar.conf lists them. This is what guarantees a single capsule: it runs on
+# every apply, so one panel stays one panel and two become one. Idempotent —
+# running it again on a merged bar reports "no-change" and rewrites nothing.
+# Prints "merged", "reordered", "no-change", "no-dock" or "no-config".
+merge_appletsrc() {
     [ -r "$applets_rc" ] || { echo "no-config"; return; }
-    cp "$applets_rc" "${applets_rc}.pre-horizon-split" 2>/dev/null || true
-    python3 - "$applets_rc" "$BRAND_APPLET" "$TRAY_APPLET" "$CLOCK_APPLET" "$SEP_APPLET" <<'PY' 2>/dev/null
+    cp "$applets_rc" "${applets_rc}.pre-horizon-merge" 2>/dev/null || true
+    python3 - "$applets_rc" "$BRAND_APPLET" "$BAR_APPLETS" "$CONF" "$shell_rc" <<'PY' 2>/dev/null
 import io, re, sys
 
-path, brand, tray_pl, clock_pl, sep_pl = sys.argv[1:6]
+path, brand, applet_order, conf_path, shell_rc = sys.argv[1:6]
 
 with io.open(path, "r", encoding="utf-8") as f:
-    lines = f.read().splitlines(True)
+    original = f.read()
+lines = original.splitlines(True)
 
 def parts_of(line):
     m = re.match(r"^\[(.*)\]$", line.rstrip("\n"))
     return m.group(1).split("][") if m else None
 
-containment_of, plugin_of = {}, {}
+# Resolve the configured zone order (brand;tasks;...) into plugin ids, so the
+# merged panel is ordered by ROLE rather than by whichever panel happened to
+# hold each applet. A zone with no applet= line (the reserved smart slot) is
+# skipped rather than treated as an empty plugin that matches everything.
+zone_plugin, section = {}, None
+with io.open(conf_path, "r", encoding="utf-8") as f:
+    for line in f:
+        line = line.strip()
+        m = re.match(r"^\[(.+)\]$", line)
+        if m:
+            section = m.group(1)
+        elif section and line.startswith("applet=") and line[7:]:
+            zone_plugin[section] = line[7:]
+wanted = [zone_plugin[z] for z in applet_order.split(";")
+          if z and z in zone_plugin]
+
+# Map every applet to its containment and plugin.
+containment_of, plugin_of, top_keys = {}, {}, {}
 cur = None
 for i, line in enumerate(lines):
     parts = parts_of(line)
@@ -132,11 +161,19 @@ for i, line in enumerate(lines):
         continue
     if len(parts) == 2 and parts[0] == "Containments" and parts[1].isdigit():
         cur = parts[1]
+        keys = {}
+        for j in range(i + 1, len(lines)):
+            if parts_of(lines[j]) is not None:
+                break
+            if "=" in lines[j]:
+                k, v = lines[j].split("=", 1)
+                keys[k.strip()] = v.strip()
+        top_keys[cur] = keys
         continue
-    if len(parts) == 4 and parts[0] == "Containments" and parts[1] == cur \
-            and parts[2] == "Applets" and parts[3].isdigit():
+    if len(parts) == 4 and parts[0] == "Containments" and parts[2] == "Applets" \
+            and parts[1].isdigit() and parts[3].isdigit():
         aid = parts[3]
-        containment_of[aid] = cur
+        containment_of[aid] = parts[1]
         for j in range(i + 1, len(lines)):
             if parts_of(lines[j]) is not None:
                 break
@@ -144,68 +181,114 @@ for i, line in enumerate(lines):
                 plugin_of[aid] = lines[j].split("=", 1)[1].strip()
                 break
 
-dock = next((cid for aid, cid in containment_of.items()
-             if plugin_of.get(aid) == brand), None)
-if dock is None:
+# location 4 == bottom edge. A panel on another edge is the user's own and is
+# never touched; MoOS owns the bottom.
+bottom = [cid for cid, keys in top_keys.items()
+          if keys.get("plugin") == "org.kde.panel" and keys.get("location") == "4"]
+if not bottom:
     sys.stdout.write("no-dock\n")
     sys.exit(0)
 
-tray = clock = sep = None
-for aid, cid in containment_of.items():
-    if cid != dock:
-        continue
-    pl = plugin_of.get(aid, "")
-    if pl == tray_pl:
-        tray = aid
-    elif pl == clock_pl:
-        clock = aid
-    elif pl == sep_pl:
-        sep = aid
+# The canonical panel is the one already holding the MoOS launcher, so the
+# user's own dock survives and the stray capsule is the one absorbed.
+keep = next((containment_of[aid] for aid in containment_of
+             if plugin_of.get(aid) == brand and containment_of[aid] in bottom),
+            sorted(bottom, key=int)[0])
+absorb = [cid for cid in bottom if cid != keep]
 
-if tray is None and clock is None:
-    sys.stdout.write("no-change\n")
-    sys.exit(0)
+def order_of(cid):
+    for i, line in enumerate(lines):
+        if parts_of(line) == ["Containments", cid, "General"]:
+            for j in range(i + 1, len(lines)):
+                if parts_of(lines[j]) is not None:
+                    break
+                if lines[j].startswith("AppletOrder="):
+                    return [a for a in lines[j].split("=", 1)[1].strip().split(";") if a]
+    return []
 
-maxid = max(int(m.group(1)) for m in
-            re.finditer(r"\[(?:Containments|Applets)\]\[(\d+)\]", "".join(lines)))
-new = str(maxid + 1)
+merged_order = order_of(keep)
+for cid in absorb:
+    merged_order += [a for a in order_of(cid) if a not in merged_order]
+# Any applet living in one of these panels but missing from every AppletOrder
+# would silently vanish from the bar, so sweep them in as well.
+merged_order += sorted(
+    (aid for aid, cid in containment_of.items()
+     if cid in bottom and aid not in merged_order), key=int)
 
-moves = [a for a in (tray, sep, clock) if a is not None]
-for aid in moves:
-    old = "[Containments][" + dock + "][Applets][" + aid + "]"
-    nw = "[Containments][" + new + "][Applets][" + aid + "]"
-    lines = [line.replace(old, nw) if line.startswith(old) else line for line in lines]
-
-new_block = (
-    "[Containments][" + new + "]\n"
-    "activityId=\n"
-    "formfactor=2\n"
-    "immutability=1\n"
-    "lastScreen=0\n"
-    "location=4\n"
-    "plugin=org.kde.panel\n"
-    "wallpaperplugin=org.kde.image\n"
-    "\n"
-    "[Containments][" + new + "][General]\n"
-    "AppletOrder=" + ";".join(moves) + "\n"
+# Re-order by role: configured zones first in conf order, then anything the user
+# added, in the order it already had.
+ranked = sorted(
+    merged_order,
+    key=lambda aid: (wanted.index(plugin_of.get(aid, ""))
+                     if plugin_of.get(aid, "") in wanted else len(wanted),
+                     merged_order.index(aid)),
 )
-lines.append("\n" + new_block)
 
+# Re-home the absorbed applets, then drop the emptied containments entirely.
+for aid, cid in list(containment_of.items()):
+    if cid in absorb:
+        old = "[Containments][" + cid + "][Applets][" + aid + "]"
+        new = "[Containments][" + keep + "][Applets][" + aid + "]"
+        lines = [ln.replace(old, new) if ln.startswith(old) else ln for ln in lines]
+
+out, drop = [], False
+for line in lines:
+    parts = parts_of(line)
+    if parts is not None:
+        drop = (len(parts) >= 2 and parts[0] == "Containments" and parts[1] in absorb)
+    if not drop:
+        out.append(line)
+lines = out
+
+# Write the merged order back onto the surviving panel, creating its [General]
+# group if the panel never had one.
+wrote = False
 for i, line in enumerate(lines):
-    if parts_of(line) == ["Containments", dock, "General"]:
+    if parts_of(line) == ["Containments", keep, "General"]:
         for j in range(i + 1, len(lines)):
             if parts_of(lines[j]) is not None:
                 break
             if lines[j].startswith("AppletOrder="):
-                order = [a for a in lines[j].split("=", 1)[1].strip().split(";") if a]
-                order = [a for a in order if a not in moves]
-                lines[j] = "AppletOrder=" + ";".join(order) + "\n"
+                lines[j] = "AppletOrder=" + ";".join(ranked) + "\n"
+                wrote = True
                 break
+        if not wrote:
+            lines.insert(i + 1, "AppletOrder=" + ";".join(ranked) + "\n")
+            wrote = True
         break
+if not wrote:
+    lines.append("\n[Containments][" + keep + "][General]\n"
+                 "AppletOrder=" + ";".join(ranked) + "\n")
+
+merged = "".join(lines)
+if merged == original:
+    sys.stdout.write("no-change\n")
+    sys.exit(0)
 
 with io.open(path, "w", encoding="utf-8") as f:
-    f.write("".join(lines))
-sys.stdout.write("split\n")
+    f.write(merged)
+
+# Plasma keeps panel GEOMETRY in plasmashellrc, not here. A removed containment
+# leaves its [PlasmaViews][Panel N] group behind; left in place it is dead
+# config that reappears in every diff and confuses the next reader.
+if absorb:
+    try:
+        with io.open(shell_rc, "r", encoding="utf-8") as f:
+            view_lines = f.read().splitlines(True)
+        kept, skip = [], False
+        for line in view_lines:
+            m = re.match(r"^\[PlasmaViews\]\[Panel (\d+)\]", line.rstrip("\n"))
+            if m:
+                skip = m.group(1) in absorb
+            if not skip:
+                kept.append(line)
+        if len(kept) != len(view_lines):
+            with io.open(shell_rc, "w", encoding="utf-8") as f:
+                f.write("".join(kept))
+    except (IOError, OSError):
+        pass
+
+sys.stdout.write(("merged" if absorb else "reordered") + "\n")
 PY
 }
 
@@ -237,9 +320,10 @@ migrate_popup_geometry() {
 
 # --- The live pass -----------------------------------------------------------
 # After the restart, and on every retry, drive the running shell: geometry on
-# both slabs, brand + kickoff-favorites migration + launcher reconcile in the
-# dock slab, digitalclock->nova.clock + tray pin in the system slab. Prints
-# MOOS_BAR_OK=1 only when the dock and system slabs both answered.
+# the one capsule, brand + kickoff-favorites migration + launcher reconcile,
+# digitalclock->nova.clock and the tray pin — all on the SAME panel. Prints
+# MOOS_BAR_OK=1 only when exactly one bottom panel answered carrying the whole
+# bar; a second bottom panel reports bar=split and fails, so the merge retries.
 live_pass() {
     local shipped dock_shipped
     shipped="$(shipped_launchers)"
@@ -271,33 +355,29 @@ live_pass() {
             var DIGITAL_APPLET = "org.kde.plasma.digitalclock";
             var isMoOS = function (u) { return u.indexOf("applications:org.moos.") === 0; };
             var ps = panels();
-            var dock = null, sysp = null;
+            var dock = null, bottomCount = 0;
             for (var i = 0; i < ps.length; i++) {
                 if (ps[i].location != "bottom") { continue; }
+                bottomCount++;
                 var ws = ps[i].widgets();
-                var hasBrand = false, hasTray = false, hasClock = false;
                 for (var j = 0; j < ws.length; j++) {
-                    var t = String(ws[j].type);
-                    if (t == DOCK_APPLET) { hasBrand = true; }
-                    else if (t == TRAY_APPLET) { hasTray = true; }
-                    else if (t == CLOCK_APPLET) { hasClock = true; }
+                    if (String(ws[j].type) == DOCK_APPLET) { dock = ps[i]; }
                 }
-                if (hasBrand) { dock = ps[i]; }
-                if (hasTray && hasClock) { sysp = ps[i]; }
             }
-            var merged = (dock != null && sysp != null && dock === sysp);
-            // One merged panel is NOT the two-slab bar: brand+tasks and
-            // tray+clock must live on two SEPARATE bottom panels. Before
-            // the split file is picked up by a real shell restart, a single
-            // panel satisfies both branches and would report ok=ok while
-            // the user still has the old single bar.
+            if (dock == null && bottomCount == 1) {
+                for (var i2 = 0; i2 < ps.length; i2++) {
+                    if (ps[i2].location == "bottom") { dock = ps[i2]; }
+                }
+            }
+            // MoOS is ONE bottom capsule. More than one means the merge has not
+            // been picked up by a real restart yet, so this pass must NOT report
+            // success — otherwise the marker is written while the user is still
+            // looking at two detached slabs.
+            var split = (bottomCount > 1);
             var applied = 0;
             var report = [];
-            if (merged) {
-                report.push("dock=single");
-                report.push("sys=single");
-            }
-            if (dock != null && !merged) {
+            if (split) { report.push("bar=split;bottom=" + bottomCount); }
+            if (dock != null && !split) {
                 try { dock.floating = true; } catch (e) {}
                 try { dock.lengthMode = "fit"; } catch (e) {}
                 try { dock.alignment = "center"; } catch (e) {}
@@ -360,48 +440,43 @@ live_pass() {
                         }
                     } catch (e) {}
                 }
-                report.push("dock=ok");
-            } else if (!merged) {
-                report.push("dock=missing");
-            }
-            if (sysp != null && !merged) {
-                try { sysp.floating = true; } catch (e) {}
-                try { sysp.lengthMode = "fit"; } catch (e) {}
-                try { sysp.alignment = "right"; } catch (e) {}
-                try { sysp.height = HEIGHT; } catch (e) {}
-                var ws = sysp.widgets();
-                for (var q = 0; q < ws.length; q++) {
-                    if (String(ws[q].type) == DIGITAL_APPLET) {
+                // The system zone lives on this SAME capsule. Retiring Plasma
+                // digital clock for the MoOS one, and making sure the tray and
+                // clock exist at all, belong here rather than on a second panel.
+                var ws2 = dock.widgets();
+                for (var q = 0; q < ws2.length; q++) {
+                    if (String(ws2[q].type) == DIGITAL_APPLET) {
                         try {
-                            var idx = ws[q].index;
-                            ws[q].remove();
-                            var nc = sysp.addWidget(CLOCK_APPLET);
+                            var idx = ws2[q].index;
+                            ws2[q].remove();
+                            var nc = dock.addWidget(CLOCK_APPLET);
                             try { nc.index = idx; } catch (e) {}
                             applied++;
                         } catch (e) {}
                     }
                 }
                 var hasT = false, hasC = false;
-                for (var r = 0; r < ws.length; r++) {
-                    var tt = String(ws[r].type);
+                for (var r = 0; r < ws2.length; r++) {
+                    var tt = String(ws2[r].type);
                     if (tt == TRAY_APPLET) { hasT = true; }
                     else if (tt == CLOCK_APPLET) { hasC = true; }
                 }
-                if (!hasT) { try { sysp.addWidget(TRAY_APPLET); applied++; } catch (e) {} }
-                if (!hasC) { try { sysp.addWidget(CLOCK_APPLET); applied++; } catch (e) {} }
-                for (var s = 0; s < ws.length; s++) {
-                    if (String(ws[s].type) == TRAY_APPLET) {
+                if (!hasT) { try { dock.addWidget(TRAY_APPLET); applied++; } catch (e) {} }
+                if (!hasC) { try { dock.addWidget(CLOCK_APPLET); applied++; } catch (e) {} }
+                var ws3 = dock.widgets();
+                for (var s = 0; s < ws3.length; s++) {
+                    if (String(ws3[s].type) == TRAY_APPLET) {
                         try {
-                            ws[s].currentConfigGroup = ["General"];
-                            ws[s].writeConfig("shownItems", SHOWN.join(","));
-                            ws[s].writeConfig("hiddenItems", HIDE.join(","));
-                            ws[s].reloadConfig();
+                            ws3[s].currentConfigGroup = ["General"];
+                            ws3[s].writeConfig("shownItems", SHOWN.join(","));
+                            ws3[s].writeConfig("hiddenItems", HIDE.join(","));
+                            ws3[s].reloadConfig();
                         } catch (e) {}
                     }
                 }
-                report.push("sys=ok");
-            } else if (!merged) {
-                report.push("sys=missing");
+                report.push("bar=ok");
+            } else if (!split) {
+                report.push("bar=missing");
             }
             print("MOOS_BAR_REPORT=" + report.join(";") + ";changed=" + applied);
         ' 2>>"$log")" || out=""
@@ -409,7 +484,7 @@ live_pass() {
     local report
     report="$(printf '%s\n' "$out" | grep -oE 'MOOS_BAR_REPORT=[^)]*' | head -n1)"
     case "$report" in
-        *dock=ok*sys=ok*) echo "MOOS_BAR_OK=1;${report#MOOS_BAR_REPORT=}"; return 0 ;;
+        *bar=ok*) echo "MOOS_BAR_OK=1;${report#MOOS_BAR_REPORT=}"; return 0 ;;
         *) echo "MOOS_BAR_OK=0;${report:-no-report}"; return 1 ;;
     esac
 }
@@ -452,26 +527,26 @@ cmd_apply() {
     local marker="${state_dir}/moos-bar-applied.v${rev}"
     plasma_ready || { echo "moos-bar-apply: plasmashell not ready; skipping" >&2; return 0; }
     # The marker means "a restart already landed and the readback agreed". It
-    # is ONLY trusted when the live desktop actually shows the two slabs right
-    # now — a stale marker (written before a restart really took, or from an
-    # earlier revision) must never suppress the work, or the user keeps the
-    # old single bar while the apply reports done.
+    # is ONLY trusted when the live desktop actually shows ONE bottom capsule
+    # right now — a stale marker (written before a restart really took, or from
+    # an earlier revision, or from the rev-30 two-slab era) must never suppress
+    # the work, or the user keeps a split bar while the apply reports done.
     local ok
     if [ -e "$marker" ] && ok="$(live_pass)"; then
         echo "$ok"
         return 0
     fi
-    # Order matters: the shell currently running may still hold the PRE-split
-    # (single-panel) config in memory, and it FLUSHES that state back over the
+    # Order matters: the shell currently running still holds the PRE-merge
+    # (two-panel) config in memory, and it FLUSHES that state back over the
     # appletsrc the moment it exits. So the file surgery must run while the
-    # shell is DOWN — stop first, split, then start — or the split is silently
-    # reverted and the desktop shows the old bar PLUS the orphaned new panel.
+    # shell is DOWN — stop first, merge, then start — or the merge is silently
+    # reverted and the desktop keeps both capsules.
     stop_shell || { echo "moos-bar-apply: could not stop plasmashell" >&2; return 1; }
-    before="$(split_appletsrc)" || true
+    before="$(merge_appletsrc)" || true
     case "$before" in
-        split|no-change) : ;;
+        merged|reordered|no-change) : ;;
         no-dock) : ;;
-        no-config) echo "moos-bar-apply: no appletsrc to split" >&2 ;;
+        no-config) echo "moos-bar-apply: no appletsrc to merge" >&2 ;;
     esac
     migrate_popup_geometry >>"$log" 2>&1 || true
     start_shell
@@ -498,11 +573,11 @@ cmd_check() {
             var TRAY_APPLET = "'"$TRAY_APPLET"'";
             var CLOCK_APPLET = "'"$CLOCK_APPLET"'";
             var DOCK_APPLET = "'"$BRAND_APPLET"'";
-            var want = "'"$TRAY_SHOWN"'".split(",");
             var ps = panels();
-            var dock = null, sysp = null;
+            var bottom = 0, whole = 0, align = "", shown = "";
             for (var i = 0; i < ps.length; i++) {
                 if (ps[i].location != "bottom") { continue; }
+                bottom++;
                 var ws = ps[i].widgets();
                 var hasB = false, hasT = false, hasC = false;
                 for (var j = 0; j < ws.length; j++) {
@@ -511,37 +586,35 @@ cmd_check() {
                     else if (t == TRAY_APPLET) { hasT = true; }
                     else if (t == CLOCK_APPLET) { hasC = true; }
                 }
-                if (hasB) { dock = ps[i]; }
-                if (hasT && hasC) { sysp = ps[i]; }
-            }
-            var shown = "";
-            if (sysp != null) {
-                var ws = sysp.widgets();
-                for (var k = 0; k < ws.length; k++) {
-                    if (String(ws[k].type) == TRAY_APPLET) {
-                        ws[k].currentConfigGroup = ["General"];
-                        shown = String(ws[k].readConfig("shownItems", ""));
+                if (hasB && hasT && hasC) {
+                    whole++;
+                    align = String(ps[i].alignment);
+                    for (var k = 0; k < ws.length; k++) {
+                        if (String(ws[k].type) == TRAY_APPLET) {
+                            ws[k].currentConfigGroup = ["General"];
+                            shown = String(ws[k].readConfig("shownItems", ""));
+                        }
                     }
                 }
             }
-            print("dock=" + (dock != null ? "yes" : "no")
-                + ";sys=" + (sysp != null ? "yes" : "no")
-                + ";sysalign=" + (sysp != null ? String(sysp.alignment) : "")
-                + ";shown=" + shown);
+            print("bottom=" + bottom + ";whole=" + whole
+                + ";align=" + align + ";shown=" + shown);
         ' 2>/dev/null)" || out=""
     local report
-    report="$(printf '%s\n' "$out" | grep -oE 'dock=(yes|no);sys=(yes|no);sysalign=[a-z]+;shown=.*' | head -n1)"
+    report="$(printf '%s\n' "$out" | grep -oE 'bottom=[0-9]+;whole=[0-9]+;align=[a-z]*;shown=.*' | head -n1)"
     [ -n "$report" ] || { echo "bar: no live report"; return 1; }
-    local dockf sysf sysa shown shown_norm want_norm
-    dockf="$(printf '%s' "$report" | sed -n 's/.*dock=\(yes\|no\).*/\1/p')"
-    sysf="$(printf '%s' "$report" | sed -n 's/.*sys=\(yes\|no\).*/\1/p')"
-    sysa="$(printf '%s' "$report" | sed -n 's/.*sysalign=\([a-z]*\).*/\1/p')"
+    local bottom whole align shown shown_norm want_norm
+    bottom="$(printf '%s' "$report" | sed -n 's/.*bottom=\([0-9]*\).*/\1/p')"
+    whole="$(printf '%s' "$report" | sed -n 's/.*whole=\([0-9]*\).*/\1/p')"
+    align="$(printf '%s' "$report" | sed -n 's/.*align=\([a-z]*\).*/\1/p')"
     shown="$(printf '%s' "$report" | sed -n 's/.*shown=\(.*\)$/\1/p')"
     shown_norm="$(printf '%s' "$shown" | tr ',' '\n' | sed '/^[[:space:]]*$/d' | sort | tr '\n' ',')"
     want_norm="$(printf '%s' "$TRAY_SHOWN" | tr ',' '\n' | sed '/^[[:space:]]*$/d' | sort | tr '\n' ',')"
-    [ "$dockf" = "yes" ] || { echo "bar: dock slab missing"; failures=$((failures+1)); }
-    [ "$sysf" = "yes" ] || { echo "bar: system slab missing"; failures=$((failures+1)); }
-    [ "$sysa" = "$SYS_ALIGN" ] || { echo "bar: system slab alignment is '$sysa' (want $SYS_ALIGN)"; failures=$((failures+1)); }
+    # ONE bottom panel, and it carries the WHOLE bar. Two capsules is the exact
+    # regression this check exists to catch.
+    [ "$bottom" = "1" ] || { echo "bar: $bottom bottom panels — the bar must be ONE capsule"; failures=$((failures+1)); }
+    [ "$whole" = "1" ] || { echo "bar: no single panel holds launcher + tray + clock together"; failures=$((failures+1)); }
+    [ "$align" = "$BAR_ALIGN" ] || { echo "bar: alignment is '$align' (want $BAR_ALIGN)"; failures=$((failures+1)); }
     [ "$shown_norm" = "$want_norm" ] || {
         echo "bar: tray shownItems drift: live '$shown_norm' vs conf '$want_norm'"
         failures=$((failures+1))

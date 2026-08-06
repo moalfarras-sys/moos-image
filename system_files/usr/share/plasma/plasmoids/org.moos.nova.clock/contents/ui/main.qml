@@ -111,10 +111,13 @@ PlasmoidItem {
             color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
                            Kirigami.Theme.textColor.b, glass)
             border.width: 1
+            // Rim scale (THEME_REV 32): hover is carried by the glass above,
+            // so the edge stays a hint at every state instead of hardening into
+            // an outline the moment the pointer arrives.
             border.color: Qt.alpha(compact.containsMouse || root.expanded
                 ? Kirigami.Theme.highlightColor
                 : Kirigami.Theme.textColor,
-                compact.containsMouse || root.expanded ? 0.42 : 0.09)
+                compact.containsMouse || root.expanded ? 0.25 : 0.09)
             Behavior on color { ColorAnimation { duration: root.motionFast } }
             Behavior on border.color { ColorAnimation { duration: root.motionFast } }
 

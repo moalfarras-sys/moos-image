@@ -10,16 +10,18 @@
  *   broken; MoOS ships the PROVEN single-panel dock. Plasma 6 floats a bottom
  *   panel by default, which already gives a macOS-like dock feel.
  *
- * THE TWO-SLAB DESIGN IS NOT BUILT HERE. Since rev 30 the bar is two glass
- * slabs — a CENTERED dock capsule (brand + tasks, the true screen centre) and a
- * CORNER system capsule (tray + clock). A single panel cannot centre the task
- * area (Plasma has no flexible spacer; the system zone outweighs the brand
- * button by ~450 physical px, measured), and the two-panel TEMPLATE is the
- * thing that fails live — so the template keeps this single proven panel, and
- * moos-bar-apply splits it on first login (moos-apply-theme runs it, reading
- * /usr/share/moos/moos-bar.conf). The template is the seed; the split is the
- * proven appletsrc surgery + restart. Both are mirrors of the same conf and the
- * gate test_moos_bar_single_source.py pins them together.
+ * ONE PANEL IS THE DESIGN, NOT A LIMITATION. Rev 30 split the bar into a
+ * centred dock capsule and a corner system capsule so the task area could hold
+ * the true screen centre (Plasma has no flexible spacer applet, and the system
+ * zone outweighs the brand button by ~450 physical px, measured). Shipped, it
+ * read as two detached pieces of glass with a wide gap and the clock marooned
+ * in the corner; the owner rejected it. Rev 33 merges it back: this template
+ * seeds the one panel, and moos-bar-apply now MERGES any extra bottom panel
+ * into it on every apply. The task area sitting slightly off geometric centre
+ * is accepted; breaking the bar in half to fix it is not. Both files are
+ * mirrors of /usr/share/moos/moos-bar.conf and the gates
+ * tests/test_moos_bar_single_panel.py + verify_user_experience.py pin them
+ * together.
  *
  * Every call is a verified primitive the proven v8 dock used live: `new Panel`,
  * panel.height, panel.addWidget, widget.currentConfigGroup, widget.writeConfig.

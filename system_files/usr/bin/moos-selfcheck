@@ -528,9 +528,9 @@ if launcher_state="$(launcher_runtime_state)" && [ -n "$launcher_state" ]; then
     legacy_count="$(launcher_field legacy)"
     sized_count="$(launcher_field sized)"
     valid_count="$(launcher_field valid)"
-    # Since rev 30 the bar is two slabs: the centered dock capsule (brand +
-    # tasks) and the corner system capsule (tray + clock). The dock invariant
-    # is about the DOCK slab alone — exactly one, sized, no legacy Kickoff.
+    # Since rev 33 the bar is ONE centred capsule carrying launcher, tasks,
+    # tray and clock. This invariant is about the launcher alone — exactly one,
+    # sized, no legacy Kickoff; moos-bar-apply check owns the panel count.
     [ "$brand_count" = "1" ] \
         && [ "$legacy_count" = "0" ] \
         && [ "$sized_count" = "1" ] \
@@ -544,7 +544,7 @@ fi
 # The whole Horizon Bar is defined in /usr/share/moos/moos-bar.conf and verified
 # by the tool that owns it — this check must not restate the bar's values.
 if command -v moos-bar-apply >/dev/null 2>&1 && moos-bar-apply check >/dev/null 2>&1; then
-    ok "the Horizon Bar matches moos-bar.conf (dock capsule + system capsule)"
+    ok "the Horizon Bar matches moos-bar.conf (one centred capsule)"
 else
     bad "the Horizon Bar drifts from moos-bar.conf — run moos-apply-theme once"
 fi

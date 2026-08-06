@@ -338,9 +338,12 @@ Item {
                     width: parent.width
                     height: width
                     radius: view.radiusM
-                    color: Qt.alpha(Kirigami.Theme.highlightColor, 0.14)
+                    // Rim scale (THEME_REV 32): the plate is told by its fill;
+                    // the edge is a hint, not an outline. 0.54 drew a hard box
+                    // around the mark at rest, every time the launcher opened.
+                    color: Qt.alpha(Kirigami.Theme.highlightColor, 0.16)
                     border.width: 1
-                    border.color: Qt.alpha(Kirigami.Theme.highlightColor, 0.54)
+                    border.color: Qt.alpha(Kirigami.Theme.highlightColor, 0.24)
                 }
 
                 Image {

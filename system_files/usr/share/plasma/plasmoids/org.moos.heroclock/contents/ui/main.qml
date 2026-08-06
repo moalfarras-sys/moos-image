@@ -181,9 +181,12 @@ PlasmoidItem {
             Rectangle {
                 anchors.fill: parent
                 radius: Math.round(width * 0.30)
-                color: Qt.alpha(Kirigami.Theme.highlightColor, 0.10)
+                // Rim scale (THEME_REV 32): the emblem plate is told by its
+                // fill; the edge is a hint. At 0.44 it drew a hard outline
+                // around the mark on a surface that has no other borders.
+                color: Qt.alpha(Kirigami.Theme.highlightColor, 0.12)
                 border.width: 1
-                border.color: Qt.alpha(Kirigami.Theme.highlightColor, 0.44)
+                border.color: Qt.alpha(Kirigami.Theme.highlightColor, 0.22)
             }
 
             Image {

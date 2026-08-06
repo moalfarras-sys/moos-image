@@ -75,7 +75,15 @@ set -uo pipefail
 #     purged, which only happens inside this once-per-revision migration. Without
 #     the bump an updated machine keeps rendering the boxes and every gate stays
 #     green — the exact class of trap rev 29 and 31 were written for.
-THEME_REV=32
+# 33: the bar is ONE capsule again. Rev 30 split it into a centred dock capsule
+#     and a corner system capsule to win the true screen centre for the task
+#     area; on the real machine that ships as two detached pieces of glass with
+#     a wide gap and the clock marooned in the corner, and the owner rejected it
+#     on sight. moos-bar-apply no longer splits — it MERGES every bottom panel
+#     into one and orders the applets from moos-bar.conf. This rev is what makes
+#     an already-split desktop converge: the merge is file surgery on the
+#     appletsrc and only runs inside this once-per-revision migration.
+THEME_REV=33
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

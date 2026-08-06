@@ -13,6 +13,9 @@ Status is recorded against the current development branch. The theme system rema
 | Remove the bordered box behind an open panel applet (`*-active-tab`) | completed | `tests/test_moos_ui2.py::test_open_applet_slot_is_never_a_bordered_box`; live launcher screenshot on `MoOSUI2NovaLight` |
 | Stop every task state painting a flat tile slab | completed | `tests/test_moos_ui2.py::test_dock_task_states_never_paint_a_tile_box`; live dock read at 4K@225% |
 | Write down and gate the MoOS rim scale across native controls | completed | `tests/test_moos_ui2.py::test_native_controls_hint_an_edge_instead_of_drawing_a_box` |
+| Undo the two-slab bar: ONE centred capsule, merge not split | completed | `tests/test_moos_bar_single_panel.py` (8 cases incl. the exact 546 profile); live `PANELS=1` on Graphite/Amethyst/Aurora |
+| Make moos-bar-apply idempotent and the sole writer of bar structure | completed | second run reports `no-change`; `merge_appletsrc` cannot create a containment |
+| Apply the rim scale to the last always-on QML borders | completed | launcher plate, clock chip, hero clock emblem |
 | Live logout/login persistence | pending | requires a session restart or reboot |
 | 100/125/150/200% visual sweep | pending | not completed in this session |
 | Full image build and CI-equivalent container gates | pending | repository gates still need a complete run |

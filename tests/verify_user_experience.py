@@ -2449,7 +2449,7 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=32" in apply_theme_code,
+require("THEME_REV=33" in apply_theme_code,
         "MoOS visual schema must migrate existing users to the liquid-glass marks "
         "and the two-slab Horizon Bar (moos-bar-apply), while reconciling new shadows "
         "and purging the Plasma SVG cache that would otherwise keep serving old art")
@@ -2479,9 +2479,9 @@ require("qmlcache" in apply_theme_code,
         "mtimes mean a rebuilt plasmoid is invisible to qmlcache, and the old widget keeps "
         "running")
 
-# Existing users never re-run layout.js.  Their live panel becomes the new
-# two-slab architecture only through the revisioned migration — which since rev 30
-# lives in ONE owner, moos-bar-apply, driven by moos-bar.conf.  It must create the
+# Existing users never re-run layout.js.  Their live panel is repaired only
+# through the revisioned migration — which since rev 30 lives in ONE owner,
+# moos-bar-apply, driven by moos-bar.conf.  It must create the
 # MoOS brand BEFORE removing the old Kickoff: if the new package fails to add,
 # keeping Kickoff for one more login is preferable to removing the user's only
 # launcher.
@@ -2514,10 +2514,11 @@ require("migrate_popup_geometry" in bar_apply
 # evaluateScript returning over D-Bus proves only that the JavaScript finished;
 # its guarded applet operations may all have failed.  moos-bar-apply has a second
 # event-loop readback with a machine-readable sentinel: MOOS_BAR_OK=1 is printed
-# ONLY when the report carries BOTH dock=ok AND sys=ok, and the per-revision
-# marker is written only after that sentinel parses as OK — one transient
-# Plasma/package failure must never suppress every future retry.
-bar_ok_arm = '*dock=ok*sys=ok*) echo "MOOS_BAR_OK=1'
+# ONLY when the report carries bar=ok — which the live pass emits solely when
+# exactly ONE bottom panel answered — and the per-revision marker is written only
+# after that sentinel parses as OK, so one transient Plasma/package failure never
+# suppresses every future retry and a still-split bar never reports done.
+bar_ok_arm = '*bar=ok*) echo "MOOS_BAR_OK=1'
 live_pass_call = bar_apply.find('if ok="$(live_pass)"')
 marker_touch_pos = bar_apply.find('touch "$marker"', live_pass_call)
 marker_touch_count = bar_apply.count('touch "$marker"')
@@ -2527,21 +2528,21 @@ require(bar_ok_arm in bar_apply
         and live_pass_call >= 0 and marker_touch_pos > live_pass_call
         and marker_touch_count == 1,
         "moos-bar-apply must read the live panels back through its MOOS_BAR_OK=1 "
-        "sentinel (emitted ONLY in the dock=ok;sys=ok arm) and must not write the "
-        "permanent revision marker unless that readback produced OK=1")
+        "sentinel (emitted ONLY in the bar=ok arm, which requires exactly one "
+        "bottom panel) and must not write the permanent revision marker unless "
+        "that readback produced OK=1")
 
-# The migration is FILE surgery (the split) plus a shell restart, and the ORDER
-# is load-bearing: the shell currently running may still hold the PRE-split
-# single-panel config in memory and FLUSHES that state back over the appletsrc
-# the moment it exits — a split written while the shell is up is silently
-# reverted, and the desktop ends up with the old bar PLUS an orphaned second
-# panel (seen live, both drawn at once). So the split must run while the shell
-# is DOWN: stop_shell, THEN split_appletsrc, THEN start_shell. And the revision
+# The migration is FILE surgery (the merge) plus a shell restart, and the ORDER
+# is load-bearing: the shell currently running still holds the PRE-merge
+# two-panel config in memory and FLUSHES that state back over the appletsrc the
+# moment it exits — a merge written while the shell is up is silently reverted
+# and the desktop keeps both capsules. So the merge must run while the shell is
+# DOWN: stop_shell, THEN merge_appletsrc, THEN start_shell. And the revision
 # marker must only ever be trusted when the LIVE readback currently agrees — a
 # stale marker must not suppress the work. One flock owner per appletsrc mutation.
 apply_start = bar_apply.find("cmd_apply() {")
 stop_call = bar_apply.find("stop_shell", apply_start)
-split_call = bar_apply.find('before="$(split_appletsrc)"', apply_start)
+split_call = bar_apply.find('before="$(merge_appletsrc)"', apply_start)
 start_call = bar_apply.find("start_shell", split_call)
 require(apply_start >= 0
         and stop_call >= 0 and stop_call < split_call
@@ -2550,16 +2551,16 @@ require(apply_start >= 0
         and 'if [ -e "$marker" ] && ok="$(live_pass)"' in bar_apply
         and bar_apply.count('touch "$marker"') == 1
         and "moos-bar.lock" in bar_apply,
-        "moos-bar-apply must stop the shell, THEN split the appletsrc (a running "
-        "shell flushes the pre-split single-panel state back over the file on exit, "
-        "leaving the old bar plus an orphaned second panel), then start the shell, "
-        "and must trust the revision marker only when the live readback agrees")
+        "moos-bar-apply must stop the shell, THEN merge the appletsrc (a running "
+        "shell flushes the pre-merge two-panel state back over the file on exit, "
+        "leaving the split bar in place), then start the shell, and must trust the "
+        "revision marker only when the live readback agrees")
 
 # The live diagnostics must measure the same surface the migration owns.  A
 # user may intentionally place Kicker/KickerDash on a side or top panel; MoOS
 # manages bottom panels and replaces only the old default Kickoff there.  Since
-# rev 30 the DOCK capsule (brand + tasks) is one of two bottom slabs; the system
-# capsule (tray + clock) is verified by moos-bar-apply check, which must be part
+# rev 33 the bar is ONE capsule carrying launcher, tasks, tray and clock; that
+# single-panel invariant is verified by moos-bar-apply check, which must be part
 # of the same health verdict.
 post_update_check = code(read("tests/post-update-check.sh"))
 for runtime_check, check_name in (
@@ -2584,8 +2585,9 @@ for runtime_check, check_name in (
             and '[ "$valid_count" = "1" ]' in runtime_check
             and "moos-bar-apply check" in runtime_check,
             f"{check_name} must validate exactly one sized MoOS launcher slab and no old "
-            "Kickoff among the bottom panels, and hand the system capsule to "
-            "moos-bar-apply check, while ignoring intentional top/side Kicker launchers")
+            "Kickoff among the bottom panels, and hand the single-capsule invariant "
+            "to moos-bar-apply check, while ignoring intentional top/side Kicker "
+            "launchers")
 
 # A package staged under ~/.local/share outranks the new image forever.  Brand
 # and Hero Clock were both staged during live visual work, so they belong in the

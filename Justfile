@@ -94,6 +94,10 @@ check:
     python3 tests/test_moos_store_index.py
     python3 tests/test_moos_storectl.py
     python3 tests/test_moos_ui2.py
+    # The bar is ONE capsule: this runs the real merge surgery out of
+    # moos-bar-apply against appletsrc fixtures, so a change that can leave
+    # a second bottom panel fails here instead of on the owner's desktop.
+    python3 tests/test_moos_bar_single_panel.py
     # Tidal Horizon is one generated silhouette and one portal contract across
     # the wallpaper family, Splash, Login, Lock, Logout and first-party apps.
     python3 tests/test_tidal_horizon.py

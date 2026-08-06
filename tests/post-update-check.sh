@@ -509,8 +509,8 @@ if launcher_state="$(launcher_runtime_state)" && [ -n "$launcher_state" ]; then
     legacy_count="$(launcher_field legacy)"
     sized_count="$(launcher_field sized)"
     valid_count="$(launcher_field valid)"
-    # Two-slab bar since rev 30: the dock slab alone must be one, sized, no
-    # legacy Kickoff; the system slab is checked by moos-bar-apply check below.
+    # One-capsule bar since rev 33: the launcher must be one, sized, with no
+    # legacy Kickoff; the panel count is checked by moos-bar-apply check below.
     [ "$brand_count" = "1" ] \
         && [ "$legacy_count" = "0" ] \
         && [ "$sized_count" = "1" ] \
@@ -523,7 +523,7 @@ fi
 
 # The whole Horizon Bar is owned by moos-bar-apply against moos-bar.conf.
 if command -v moos-bar-apply >/dev/null 2>&1 && moos-bar-apply check >/dev/null 2>&1; then
-    ok "the Horizon Bar matches moos-bar.conf (dock capsule + system capsule)"
+    ok "the Horizon Bar matches moos-bar.conf (one centred capsule)"
 else
     bad "the Horizon Bar drifts from moos-bar.conf — run moos-apply-theme once"
 fi

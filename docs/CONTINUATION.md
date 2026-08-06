@@ -1,8 +1,71 @@
 # Theme System Continuation
 
-Date: 2026-08-06
+Date: 2026-08-07
 Branch: `feat/moos-horizon-bar`
 Rollback point: `backup/theme-system-2026-08-06` and `backup-theme-system-2026-08-06`
+
+## 2026-08-07 — the bar is ONE capsule again (THEME_REV 33)
+
+**What went wrong.** 44.20260806.546 shipped `moos-bar-apply`, which had never
+run on the owner's machine before (the booted image predated it and logged
+`moos-bar-apply missing — dock left as found`). On first login after that update
+it did what rev 30 designed it to do: it SPLIT the dock into two panels — a
+centred capsule holding the launcher and tasks, and a corner capsule holding the
+tray and clock. The owner had removed that layout before and rejected it on
+sight. The split was flagged as a likely visible change before shipping and was
+shipped anyway instead of being held back; that was the mistake.
+
+**The real cause, measured not guessed.** Two `org.kde.panel` containments at
+`location=4`: `[Containments][398]` with `icontasks` + `org.moos.brand`, and
+`[Containments][430]` with `marginsseparator` + `systemtray` +
+`org.moos.nova.clock`, each with its own `[PlasmaViews][Panel N]` geometry in
+`plasmashellrc`. Nothing to do with `tasks.svg` — the rev-32 drawing fixes were
+correct and are untouched.
+
+**The fix, at the source.**
+
+- `moos-bar.conf` defines ONE `[bar]`: `floating=true`, `lengthMode=fit`,
+  `alignment=center`, `applets=brand;tasks;separator;tray;clock`. `[dock]` and
+  `[system]` are gone. Plasma mirrors that single order for RTL, so Arabic gets
+  the MoOS button on the right and the clock on the left with no second
+  definition.
+- `moos-bar-apply` no longer splits. `merge_appletsrc()` folds EVERY bottom
+  panel into the one holding the launcher, re-homes the applets, re-orders them
+  by role from the conf, deletes the emptied containments, and strips their dead
+  `[PlasmaViews][Panel N]` groups so Plasma cannot flush the geometry back. It
+  runs on every apply, so one panel stays one and two become one. Idempotent: a
+  merged bar reports `no-change` and rewrites nothing.
+- The live readback now emits `bar=ok` only when exactly ONE bottom panel
+  answered; more than one reports `bar=split` and fails, so the revision marker
+  is never written while the user is still looking at two slabs.
+- `THEME_REV 32 -> 33`. The merge is file surgery on the appletsrc and only runs
+  inside the once-per-revision migration, so without the bump an already-split
+  desktop would never converge.
+- The task area now sits slightly off geometric centre because the system zone is
+  heavier. **That asymmetry is accepted.** Perfect centring is what motivated the
+  split; it is not worth breaking the object in half. If it is ever addressed it
+  must be inside ONE surface.
+
+**The gate that stops it coming back.** `tests/test_moos_bar_single_panel.py`
+extracts the real merge program out of the shipped script and runs it against
+appletsrc fixtures — including the exact two-panel profile 546 produced. It
+proves one bottom panel out, applets in conf order, nothing dropped, idempotent
+on a second run, a user's own top/side panel never absorbed, and that
+`moos-bar-apply` can no longer write a panel containment at all. Registered in
+`.github/workflows/build.yml` and the `Justfile`.
+
+**Also carried (rim scale, THEME_REV 32's rule, applied to the last QML).** The
+launcher's brand plate (0.54 -> 0.24), the clock chip's hover edge (0.42 ->
+0.25) and the hero clock's emblem plate (0.44 -> 0.22) were the last always-on
+accent outlines. Keyboard-focus rings keep their higher ceiling on purpose.
+
+**Live proof (4K@225%, RTL).** After the merge: `PANELS=1`, `bottom`,
+`align=center`, `len=fit`, `float=true`, `h=54`; `AppletOrder=424;400;401;402;421`
+on containment 398 and no containment 430. Verified as ONE capsule on
+`MoOSUI2` (dark), `MoOSUI2Amethyst` and `MoOSUI2Aurora` — `BOTTOM=1` on every
+one — then restored to `org.moos.ui2.nova.light`. 60/60 CI repo gates green.
+
+---
 
 ## Completed
 
