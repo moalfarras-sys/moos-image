@@ -1,5 +1,5 @@
 /* MoOS override of plasma-desktop's defaultPanel layout template — the premium
- * MoOS dock ("Nova").
+ * MoOS dock ("Horizon Bar").
  *
  * PROVEN-WORKING SINGLE PANEL (restored 2026-07-10 after v14 live test):
  *   The v8/v9.2/v11 single bottom panel rendered correctly in the live session
@@ -9,6 +9,17 @@
  *   unreliable in this layout-template context. A desktop with no panel is
  *   broken; MoOS ships the PROVEN single-panel dock. Plasma 6 floats a bottom
  *   panel by default, which already gives a macOS-like dock feel.
+ *
+ * THE TWO-SLAB DESIGN IS NOT BUILT HERE. Since rev 30 the bar is two glass
+ * slabs — a CENTERED dock capsule (brand + tasks, the true screen centre) and a
+ * CORNER system capsule (tray + clock). A single panel cannot centre the task
+ * area (Plasma has no flexible spacer; the system zone outweighs the brand
+ * button by ~450 physical px, measured), and the two-panel TEMPLATE is the
+ * thing that fails live — so the template keeps this single proven panel, and
+ * moos-bar-apply splits it on first login (moos-apply-theme runs it, reading
+ * /usr/share/moos/moos-bar.conf). The template is the seed; the split is the
+ * proven appletsrc surgery + restart. Both are mirrors of the same conf and the
+ * gate test_moos_bar_single_source.py pins them together.
  *
  * Every call is a verified primitive the proven v8 dock used live: `new Panel`,
  * panel.height, panel.addWidget, widget.currentConfigGroup, widget.writeConfig.
@@ -125,11 +136,14 @@ var systray = panel.addWidget("org.kde.plasma.systemtray");
 // MoOS keeps the everyday device toggles one click away in the status area
 // instead of buried behind the tray arrow — reaching Wi-Fi, Bluetooth, volume
 // and brightness is the whole point of a status tray, and hiding them is the
-// single most common "where is my Bluetooth" complaint. Everything else stays
-// auto (shown only when it has something to say). This is the Apple-style
-// "control centre in the corner" without a custom plasmoid.
+// single most common "where is my Bluetooth" complaint. The keyboard/language
+// indicator is pinned too: with several layouts configured it can drop out of
+// the tray entirely, so it belongs in the always-shown list. Everything else
+// stays auto (shown only when it has something to say). This is the Apple-style
+// "control centre in the corner" without a custom plasmoid. This list is a
+// mirror of moos-bar.conf [tray] shownItems; the gate keeps them equal.
 systray.currentConfigGroup = ["General"];
-systray.writeConfig("shownItems", "org.kde.plasma.networkmanagement,org.kde.plasma.bluetooth,org.kde.plasma.volume,org.kde.plasma.brightness,org.kde.plasma.notifications");
+systray.writeConfig("shownItems", "org.kde.plasma.networkmanagement,org.kde.plasma.bluetooth,org.kde.plasma.volume,org.kde.plasma.brightness,org.kde.plasma.notifications,org.kde.plasma.keyboardlayout");
 
 panel.addWidget("org.moos.nova.clock");
 

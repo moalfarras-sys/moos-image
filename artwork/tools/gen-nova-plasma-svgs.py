@@ -257,10 +257,10 @@ def tasks() -> str:
     # the way a dock should mark it: a whisper of a tile plus one confident Nova
     # accent underline. Hover is the only state that leans on a fill.
     states = {
-        "normal":    (None, 0.00, None, 0.0, None),
+        "normal":    (None, 0.00, None, 0.0, "accent"),
         "hover":     ("#FFFFFF", 0.09, None, 0.0, None),
         "focus":     ("#FFFFFF", 0.06, None, 0.0, "accent"),
-        "minimized": ("#FFFFFF", 0.04, None, 0.0, None),
+        "minimized": ("#FFFFFF", 0.04, None, 0.0, "accent"),
         "attention": (AMBER, 0.16, AMBER, 0.40, None),
     }
 
@@ -301,7 +301,8 @@ def tasks() -> str:
                 return 'fill="none"'
             return f'fill="{sc}" fill-opacity="{op}"'
 
-        # accent underline: 3px tall, sits on the bottom edge of the tile
+        # Running indicators belong only to task states. Plasma also requests
+        # hover for pinned launchers, so hover must remain visually neutral.
         ah = 3.0
         ay = y2 + r - ah  # bottom of the block minus bar height
 
@@ -312,7 +313,7 @@ def tasks() -> str:
             p.append(f'  <g id="{state}-{which}">')
             p.append(f'    <path d="{corner_fill(cx, cy, r, which)}" {paint(fa)}/>')
             p.append(f'    <path d="{corner_ring(cx, cy, r, which)}" {rim(sa)}/>')
-            if accent and which in ("bottomleft", "bottomright"):
+            if accent and state != "hover" and which in ("bottomleft", "bottomright"):
                 # rounded cap of the underline, tucked inside the tile corner
                 if which == "bottomleft":
                     cap = (f'M {cx+3},{ay} H {cx+r} V {ay+ah} H {cx+3} '
@@ -332,7 +333,7 @@ def tasks() -> str:
         p.append(f'  <g id="{state}-bottom">')
         p.append(f'    <rect x="{x1}" y="{y2}" width="{edge}" height="{r}" {paint(fa)}/>')
         p.append(f'    <rect x="{x1}" y="{y2+r-1}" width="{edge}" height="1" {rim(sa)}/>')
-        if accent:
+        if accent and state != "hover":
             p.append(f'    <rect x="{x1}" y="{ay}" width="{edge}" height="{ah}" '
                      f'fill="url(#nova-accent)"/>')
         p.append("  </g>")

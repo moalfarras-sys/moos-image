@@ -50,7 +50,23 @@ set -uo pipefail
 #     home icon previews AND home shadows of the first-party MoOS plasmoids —
 #     a ~/.local/share/plasma/plasmoids/org.moos.brand left by a live preview
 #     outranks /usr forever and no earlier revision cleaned that class.
-THEME_REV=29
+# 30: the Horizon Bar becomes TWO glass slabs. A single floating panel cannot
+#     centre the task area (Plasma has no flexible spacer and the system zone
+#     outweighs the brand button by ~450 physical px, measured), so the roles
+#     split into a CENTERED dock capsule (brand + tasks — the true screen centre
+#     at every task count) and a CORNER system capsule (tray + clock), and the
+#     keyboard/language indicator is pinned into the tray's always-shown list.
+#     All bar structure now lives in moos-bar-apply (single source:
+#     /usr/share/moos/moos-bar.conf), which does the split, the tray pin, one
+#     guarded plasmashell restart and a live readback of its own.
+# 31: the shadow cleanup loop now covers ALL 16 family desktop themes, not just
+#     the base MoOSUI2/MoOSUI2Light. A live preview of any family member
+#     (e.g. MoOSUI2Nova) left a shadow under ~/.local/share/plasma/desktoptheme/
+#     that outranked /usr and froze the user on a stale theme while every gate
+#     stayed green — the same trap rev 29 fixed for plasmoids. Tasks SVG
+#     hover/focus states are refined: subtle underline indicators replace the
+#     bordered rectangles that read as "boxes" on the panel.
+THEME_REV=31
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"
@@ -581,6 +597,48 @@ pin_sound_theme() {
 }
 pin_sound_theme
 
+# User-local Plasma data outranks /usr/share and can be created by a preview at
+# any time, including after THEME_REV was applied. Reconcile the complete set of
+# MoOS-owned packages on every invocation, before the marker fast path. Move
+# shadows to a dated quarantine so preview work remains recoverable while the
+# official image copy becomes authoritative again. The operation is idempotent:
+# an absent source is ignored and unrelated user packages are never inspected.
+quarantine_moos_data_shadows() {
+    local user_share="${XDG_DATA_HOME:-$HOME/.local/share}"
+    local system_share="${MOOS_SYSTEM_SHARE:-/usr/share}"
+    local stamp backup rel source target
+    stamp="$(date -u '+%Y%m%dT%H%M%SZ')"
+    backup="${user_share}/MoOS/theme-shadow-backups/${stamp}"
+
+    while IFS= read -r -d '' source; do
+        rel="${source#${user_share}/}"
+        target="${system_share}/${rel}"
+        [ -e "$target" ] || continue
+        mkdir -p "${backup}/$(dirname "$rel")" 2>/dev/null || continue
+        if mv -- "$source" "${backup}/${rel}" 2>/dev/null; then
+            echo "quarantined user shadow ${rel} in ${backup}" >>"$log" 2>/dev/null || true
+        fi
+    done < <(
+        for root in \
+            "${user_share}/plasma/plasmoids/org.moos."* \
+            "${user_share}/plasma/desktoptheme/MoOSUI2"* \
+            "${user_share}/plasma/look-and-feel/org.moos.ui2"* \
+            "${user_share}/aurorae/themes/MoOSUI2"* \
+            "${user_share}/color-schemes/MoOSUI2"* \
+            "${user_share}/konsole/MoOSUI2"* \
+            "${user_share}/wallpapers/MoOSUI2"* \
+            "${user_share}/icons/MoOSUI2"*; do
+            [ -e "$root" ] || continue
+            printf '%s\0' "$root"
+        done
+    )
+}
+
+# This must precede the marker exit below. A preview can create a new shadow
+# after a successful revision apply, and waiting for a revision bump leaves the
+# running desktop on the preview forever.
+quarantine_moos_data_shadows
+
 # Read the value the desktop scene is actually configured with (first desktop):
 # prefer the running shell, fall back to the persisted file. Empty = cannot tell.
 current_desktop_wallpaper_value() {
@@ -649,16 +707,26 @@ lnf_wallpaper_package() {
 # active theme's package is drift and heals; anything else (a custom image file
 # the user picked on purpose) is a durable choice and is never touched.
 reconcile_wallpaper_drift() {
-    local pkg current lock
+    local pkg current lock attempt
     pkg="$(lnf_wallpaper_package "$1")" || return 0
-    current="$(current_desktop_wallpaper_value)" || current=""
-    case "${current%/}" in
-        "$pkg"|"") ;;
-        /usr/share/wallpapers/MoOSUI2*)
-            echo "steady-state: desktop wallpaper '${current}' != '${pkg}' — healing" >>"$log" 2>/dev/null || true
-            apply_desktop_scene "$pkg" || true
-            ;;
-    esac
+    # A Global Theme rebuild can recreate containments after kdeglobals is
+    # written. Poll the live per-containment readback and repair only while the
+    # scene is not ready; this converges on the actual shell state and avoids a
+    # blind rewrite on every login.
+    for attempt in 1 2 3 4 5; do
+        if desktop_wallpapers_complete "$pkg"; then
+            break
+        fi
+        current="$(current_desktop_wallpaper_value)" || current=""
+        case "${current%/}" in
+            /usr/share/wallpapers/MoOSUI2*|"")
+                echo "wallpaper scene not ready (attempt ${attempt}/5): '${current:-unset}' != '${pkg}'" >>"$log" 2>/dev/null || true
+                apply_desktop_scene "$pkg" || true
+                ;;
+        esac
+        desktop_wallpapers_complete "$pkg" && break
+        sleep 1
+    done
     lock="$(current_lockscreen_wallpaper)" || lock=""
     case "${lock%/}" in
         "$pkg"|"") ;;
@@ -683,11 +751,13 @@ if [ -e "$marker" ]; then
     fi
     echo "=== moos-apply-theme $(date -u '+%FT%TZ') === SELF-HEAL: look-and-feel='${lnf:-unset}' decoration='${deco:-unset}'" >>"$log" 2>/dev/null || true
     # A SELF-HEAL inside the same THEME_REV used to leave the tray marker in
-    # place, which suppressed the one guarded plasmashell restart below — so the
+    # place, which suppressed the one guarded plasmashell restart — so the
     # tray/dock writes landed in the file while the running shell kept drawing
     # the old model until logout (the exact Plasma 6.7 reloadConfig() failure
     # this script documents). A repair that the user cannot see is not a repair:
-    # drop the marker so this heal may restart the shell once, like a fresh apply.
+    # drop the bar marker too so this heal may restart the shell once, like a
+    # fresh apply. (moos-tray-collapsed is the retired pre-split marker.)
+    rm -f "${state_dir}/moos-bar-applied.v${THEME_REV}" 2>/dev/null || true
     rm -f "${state_dir}/moos-tray-collapsed.v${THEME_REV}" 2>/dev/null || true
 else
     echo "=== moos-apply-theme $(date -u '+%FT%TZ') ===" >>"$log" 2>/dev/null || true
@@ -696,9 +766,11 @@ fi
 mkdir -p "$state_dir" 2>/dev/null || true
 rm -f "${state_dir}"/moos-theme-applied "${state_dir}"/moos-theme-applied.v* \
       "${state_dir}"/moos-ui2-theme-applied.v* 2>/dev/null || true
-# Drop tray-collapse markers from older revisions too, so a new THEME_REV restarts the
-# shell once to re-collapse the tray. Only the current v${THEME_REV} marker is kept below.
-find "${state_dir}" -maxdepth 1 -name 'moos-tray-collapsed.v*' ! -name "moos-tray-collapsed.v${THEME_REV}" -delete 2>/dev/null || true
+# Drop bar-apply markers from older revisions too, so a new THEME_REV restarts the
+# shell once to rebuild the two-slab bar. Only the current v${THEME_REV} marker is
+# kept below (and the retired tray marker is purged for good).
+find "${state_dir}" -maxdepth 1 \( -name 'moos-bar-applied.v*' -o -name 'moos-tray-collapsed.v*' \) \
+    ! -name "moos-bar-applied.v${THEME_REV}" -delete 2>/dev/null || true
 
 # Autostart can fire before the Plasma shell / session D-Bus is ready. Wait for
 # plasmashell so the apply tools actually take effect. Do NOT rely on `qdbus`:
@@ -1014,325 +1086,21 @@ PY
     fi
 fi
 
-# Float the dock for users who already exist.
-#
-# plasma/layout-templates/.../layout.js only ever runs when Plasma builds a
-# desktop for a user that has no panel yet, so on an upgrade the existing user
-# keeps the edge-to-edge dock the old template gave them. `floating` is a real
-# property on Plasma 6's scripting Panel object (probed live on this hardware:
-# `"floating" in panels()[0]` -> true), and setting it is what lifts the dock off
-# the screen edge so the Nova glass reads as a floating slab.
-#
-# Guarded on every side: only touches BOTTOM panels, never creates or removes
-# one, and a failure here is logged and ignored — a dock that is merely flush is
-# a cosmetic regression, whereas a script that throws mid-layout can leave the
-# session with no panel at all, which is a broken desktop.
-#
-# The same pass also applies the two dock-polish decisions the layout template
-# makes for NEW users, so an upgraded user and a fresh user end up with the same
-# dock: the clock puts its date beside the time instead of stacking it into two
-# cramped lines, and the show-desktop applet (which renders as an empty bordered
-# box at the end of the dock) is dropped.
-#
-# NOTE: escaping. gdbus unescapes its argument, so a literal \n inside the script
-# string becomes a real newline and truncates the JS string it sits in. Keep this
-# script free of backslash escapes.
-launcher_migration_ok=0
-launcher_changed=0
-launcher_force_restart=0
-if command -v gdbus >/dev/null 2>&1; then
-    if launcher_mutation_state="$(
-        gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
-        -m org.kde.PlasmaShell.evaluateScript '
-            var ps = panels();
-            var launcherChanged = 0;
-            for (var i = 0; i < ps.length; i++) {
-                var p = ps[i];
-                if (p.location != "bottom") { continue; }
-                try { if ("floating" in p) { p.floating = true; } } catch (e) {}
-                try { if ("lengthMode" in p) { p.lengthMode = "fit"; } } catch (e) {}
-                try { if ("alignment" in p) { p.alignment = "center"; } } catch (e) {}
-                /* Plasma panel height is a logical size and therefore scales at
-                   200%. Revision 21 gives the command dock enough presence for
-                   the wordmark and 32px application marks without becoming a
-                   taskbar slab. */
-                try { p.height = 54; } catch (e) {}
-                /* THEME_REV 21: org.moos.brand keeps its id and panel position,
-                   but is now the complete MoOS launcher. Keeping the id lets an
-                   upgraded shell replace the old glance in place. */
-                var hasBrand = false;
-                var brandWidget = null;
-                var wsScan = p.widgets();
-                for (var b = 0; b < wsScan.length; b++) {
-                    if (wsScan[b].type == "org.moos.brand") {
-                        hasBrand = true;
-                        brandWidget = wsScan[b];
-                    }
-                }
-                if (!hasBrand) {
-                    try {
-                        var brand = p.addWidget("org.moos.brand");
-                        try { brand.index = 0; } catch (e) {}
-                        brandWidget = brand;
-                        launcherChanged++;
-                    } catch (e) {}
-                }
-                var ws = p.widgets();
-                var kickoffWidget = null;
-                var hasClock = false;
-                for (var j = 0; j < ws.length; j++) {
-                    var w = ws[j];
-                    try {
-                        if (w.type == "org.kde.plasma.kickoff") {
-                            kickoffWidget = w;
-                        } else if (w.type == "org.kde.plasma.digitalclock") {
-                            var clockIndex = w.index;
-                            w.remove();
-                            var novaClock = p.addWidget("org.moos.nova.clock");
-                            try { novaClock.index = clockIndex; } catch (e) {}
-                            hasClock = true;
-                        } else if (w.type == "org.moos.nova.clock") {
-                            hasClock = true;
-                        } else if (w.type == "org.kde.plasma.showdesktop") {
-                            w.remove();
-                        }
-                    } catch (e) {}
-                }
-                /* PUT THE CLOCK BACK.
-                 *
-                 * Every earlier revision only ever REPLACED a clock: it turned
-                 * org.kde.plasma.digitalclock into the MoOS clock and moved on.
-                 * A profile whose dock carried no clock applet at all therefore
-                 * matched nothing and was left without one. That is exactly the
-                 * dock this shipped on: AppletOrder read 399;400;401;402 —
-                 * launcher, tasks, separator, tray, and then nothing at all.
-                 * layout.js does add the clock, but a layout template only ever
-                 * runs for a user who has NO panel yet, so it could never reach
-                 * a desktop that already existed.
-                 *
-                 * Guarded like everything else in this pass: a throw here would
-                 * leave the session mid-layout, and a dock without a clock is a
-                 * far smaller problem than a dock that failed to build. */
-                if (!hasClock) {
-                    try {
-                        p.addWidget("org.moos.nova.clock");
-                        launcherChanged++;
-                    } catch (e) {}
-                }
-                /* Remove the duplicate launcher only after the replacement is
-                   present. Reuse the exact per-applet Kickoff KAStats client, so
-                   every pin and its order survives the visual redesign. */
-                if (brandWidget != null) {
-                    try {
-                        brandWidget.currentConfigGroup = ["General"];
-                        if (kickoffWidget != null) {
-                            kickoffWidget.currentConfigGroup = ["General"];
-                            brandWidget.writeConfig("favoritesClient",
-                                "org.kde.plasma.kickoff.favorites.instance-" + kickoffWidget.id);
-                            var oldFavorites = String(kickoffWidget.readConfig("favorites", ""));
-                            if (oldFavorites.length > 0) {
-                                brandWidget.writeConfig("favoriteApps", oldFavorites);
-                            }
-                            brandWidget.writeConfig("favoritesSeeded", true);
-                        } else if (String(brandWidget.readConfig("favoritesClient", "")).length == 0) {
-                            brandWidget.writeConfig("favoritesClient", "org.moos.launcher.favorites");
-                            launcherChanged++;
-                        }
-                        brandWidget.reloadConfig();
-                        if (kickoffWidget != null) {
-                            kickoffWidget.remove();
-                            launcherChanged++;
-                        }
-                    } catch (e) {}
-                }
-            }
-            print("MOOS_LAUNCHER_CHANGED=" + launcherChanged);
-        ' 2>>"$log"
-    )"; then
-        printf '%s\n' "$launcher_mutation_state" >>"$log" 2>/dev/null || true
-        if printf '%s\n' "$launcher_mutation_state" \
-                | grep -qE 'MOOS_LAUNCHER_CHANGED=[1-9][0-9]*'; then
-            launcher_changed=1
-        fi
-        # evaluateScript can return success even when JavaScript caught an
-        # applet/config failure. Read the resulting shell state in a separate
-        # event-loop turn: only one Brand, no Kickoff, and a persisted
-        # favorites client on every managed bottom panel is a completed
-        # launcher migration. The version marker below is forbidden otherwise,
-        # so a transient shell/package failure retries next login.
-        launcher_migration_state="$(
-            gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
-                -m org.kde.PlasmaShell.evaluateScript '
-                    var ps = panels();
-                    var bottoms = 0, valid = 0, brands = 0;
-                    var legacy = 0, configured = 0, clocks = 0;
-                    for (var i = 0; i < ps.length; i++) {
-                        var p = ps[i];
-                        if (p.location != "bottom") { continue; }
-                        bottoms++;
-                        var panelBrands = 0, panelLegacy = 0, panelConfigured = 0;
-                        var panelClocks = 0;
-                        var ws = p.widgets();
-                        for (var j = 0; j < ws.length; j++) {
-                            var kind = String(ws[j].type);
-                            if (kind == "org.moos.brand") {
-                                panelBrands++;
-                                ws[j].currentConfigGroup = ["General"];
-                                if (String(ws[j].readConfig("favoritesClient", "")).length > 0) {
-                                    panelConfigured++;
-                                }
-                            } else if (kind == "org.kde.plasma.kickoff") {
-                                panelLegacy++;
-                            } else if (kind == "org.moos.nova.clock") {
-                                panelClocks++;
-                            }
-                        }
-                        brands += panelBrands;
-                        legacy += panelLegacy;
-                        configured += panelConfigured;
-                        clocks += panelClocks;
-                        /* The clock counts toward a VALID dock. Without it the
-                           marker is written on a clockless dock and the missing
-                           clock never gets a second chance; with it, a shell
-                           that refused the applet retries at the next login. */
-                        if (panelBrands == 1 && panelLegacy == 0 && panelConfigured == 1
-                                && panelClocks >= 1) {
-                            valid++;
-                        }
-                    }
-                    var ok = bottoms > 0 && valid == bottoms;
-                    print("MOOS_LAUNCHER_MIGRATION_OK=" + (ok ? "1" : "0")
-                        + ";bottom=" + bottoms + ";brand=" + brands
-                        + ";legacy=" + legacy + ";configured=" + configured
-                        + ";clock=" + clocks);
-                ' 2>>"$log"
-        )" || launcher_migration_state=""
-        printf '%s\n' "$launcher_migration_state" >>"$log" 2>/dev/null || true
-        if printf '%s\n' "$launcher_migration_state" \
-                | grep -q 'MOOS_LAUNCHER_MIGRATION_OK=1'; then
-            launcher_migration_ok=1
-            dock_applied=1
-            if [ "$launcher_changed" = "1" ]; then
-                launcher_force_restart=1
-            fi
-        else
-            echo "panel launcher migration did not pass runtime readback — will retry" >>"$log" 2>&1
-        fi
-    else
-        echo "panel polish migration skipped" >>"$log" 2>&1
-    fi
+# --- The dock and the system tray: one call, one source of truth ---------------
+# Everything structural about the bar is owned by moos-bar-apply, which reads
+# /usr/share/moos/moos-bar.conf — the single source of truth. It splits the
+# retired single panel into the two glass slabs (the centered dock capsule:
+# brand + tasks; the corner system capsule: tray + clock), pins the tray's
+# always-shown toggles (Wi-Fi, Bluetooth, volume, brightness, notifications and
+# the keyboard/language indicator), applies the geometry, restarts the shell once
+# per revision and reads the result back. Nothing in this script may restate a
+# bar value; tests pin the two files together.
+if command -v moos-bar-apply >/dev/null 2>&1; then
+    moos-bar-apply apply "$THEME_REV" >>"$log" 2>&1 \
+        || echo "moos-bar-apply reported an incomplete dock readback — will retry" >>"$log" 2>&1
+else
+    echo "moos-bar-apply missing — dock left as found" >>"$log" 2>&1
 fi
-
-# THEME_REV 21: the integrated launcher is deliberately richer than the old
-# glance. Popup geometry is shell-owned state (not an applet configuration key),
-# so Plasma's scripting writeConfig API cannot update it. Locate only the MoOS
-# brand applet's exact containment/applet pair and migrate its persisted size.
-# A later shell restart in this revision makes the new geometry live; no panel
-# structure, user launcher choice, or other applet is touched.
-# THEME_REV 26: the Command Canvas tightened to 44x32 grid units (792x576 at
-# the reference metrics); the same migration carries existing sessions there.
-applets_rc="${XDG_CONFIG_HOME:-$HOME/.config}/plasma-org.kde.plasma.desktop-appletsrc"
-if [[ -f "$applets_rc" ]] && command -v kwriteconfig6 >/dev/null 2>&1; then
-    while read -r containment_id applet_id; do
-        [[ "$containment_id" =~ ^[0-9]+$ && "$applet_id" =~ ^[0-9]+$ ]] || continue
-        kwriteconfig6 --file plasma-org.kde.plasma.desktop-appletsrc \
-            --group Containments --group "$containment_id" --group Applets \
-            --group "$applet_id" --group Configuration --key popupWidth 792
-        kwriteconfig6 --file plasma-org.kde.plasma.desktop-appletsrc \
-            --group Containments --group "$containment_id" --group Applets \
-            --group "$applet_id" --group Configuration --key popupHeight 576
-    done < <(
-        awk '
-            match($0, /^\[Containments\]\[([0-9]+)\]\[Applets\]\[([0-9]+)\]$/, m) {
-                containment=m[1]; applet=m[2]; next
-            }
-            $0 == "plugin=org.moos.brand" && containment != "" && applet != "" {
-                print containment, applet
-            }
-        ' "$applets_rc"
-    )
-fi
-
-# --- The dock: MoOS's own apps are actually IN it ------------------------------
-# THE BUG. layout.js pins Mo AI, MoPlayer and Mo PC Remote, and it is correct — but a
-# layout template only ever runs for a user who has NO panel yet. Every existing user
-# keeps the dock they were given the day their account was made, so the two apps MoOS
-# added since then simply never arrived. Verified on the maintainer's own desktop on
-# 2026-07-13, months of green gates later: his dock held moai, browser, dolphin,
-# systemsettings, konsole — no MoPlayer, no Mo PC Remote. He owns an operating system
-# whose flagship app is not in its own dock. (MoPlayer *looked* present in a screenshot
-# only because it happened to be running; a task is not a launcher.) This is the
-# shadowed-config family again: ship it right, and the user still does not get it.
-#
-# THE RULE THIS FOLLOWS. Add, never remove. A dock is the user's, not ours — so a MoOS
-# app that is missing gets put back, and everything else is left exactly as found:
-#   - an entry the user pinned themselves is kept, in their order, at the end;
-#   - a NON-MoOS default they deliberately unpinned (dolphin, konsole) stays unpinned —
-#     re-adding it would be us overruling a choice, and it would come back every upgrade;
-#   - a MoOS app is re-added at its shipped position, so an upgraded dock and a fresh
-#     one read the same left to right.
-# The one thing MoOS insists on is that its own apps are reachable. If the user unpins
-# MoPlayer, this puts it back once per THEME_REV — the honest cost of the guarantee, and
-# the alternative is the desktop we actually shipped.
-#
-# Only pin a .desktop that EXISTS: icontasks silently skips a launcher URL it cannot
-# resolve, so a stale entry does not fail loudly, it leaves an unexplained hole.
-dock_shipped=""
-for entry in \
-    "applications:org.moos.moai.desktop" \
-    "applications:org.moos.store.desktop" \
-    "preferred://browser" \
-    "applications:org.moos.moplayer.desktop" \
-    "applications:org.kde.dolphin.desktop" \
-    "applications:org.moos.remote.desktop" \
-; do
-    case "$entry" in
-        applications:*)
-            desktop_id="${entry#applications:}"
-            [ -e "/usr/share/applications/${desktop_id}" ] \
-                || [ -e "${XDG_DATA_HOME:-$HOME/.local/share}/applications/${desktop_id}" ] \
-                || continue
-            ;;
-    esac
-    dock_shipped="${dock_shipped}${dock_shipped:+, }\"${entry}\""
-done
-
-# The shipped list is the only part that varies, so splice it in by concatenating quoted
-# strings rather than switching the JS to a double-quoted heredoc: inside double quotes every
-# JS string would need a backslash, and gdbus UNESCAPES its argument — a stray backslash
-# escape does not error, it silently truncates the script at the first one.
-if command -v gdbus >/dev/null 2>&1 && [ -n "$dock_shipped" ]; then
-    gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
-        -m org.kde.PlasmaShell.evaluateScript '
-            var SHIPPED = ['"$dock_shipped"'];
-            var isMoOS = function (u) { return u.indexOf("applications:org.moos.") === 0; };
-            var ps = panels();
-            for (var i = 0; i < ps.length; i++) {
-                var ws = ps[i].widgets();
-                for (var j = 0; j < ws.length; j++) {
-                    if (ws[j].type != "org.kde.plasma.icontasks") { continue; }
-                    try {
-                        ws[j].currentConfigGroup = ["General"];
-                        var cur = String(ws[j].readConfig("launchers", ""))
-                                      .split(",").filter(function (s) { return s.length > 0; });
-                        var out = [];
-                        var push = function (u) { if (out.indexOf(u) < 0) { out.push(u); } };
-                        for (var k = 0; k < SHIPPED.length; k++) {
-                            var u = SHIPPED[k];
-                            if (isMoOS(u) || cur.indexOf(u) >= 0) { push(u); }
-                        }
-                        for (var m = 0; m < cur.length; m++) { push(cur[m]); }
-                        if (out.join(",") != cur.join(",")) {
-                            ws[j].writeConfig("launchers", out.join(","));
-                            ws[j].reloadConfig();
-                        }
-                    } catch (e) {}
-                }
-            }
-        ' >>"$log" 2>&1 && dock_applied=1 || echo "dock launcher migration skipped" >>"$log" 2>&1
-fi
-# Like the tray below, the write lands in the file but the running icontasks keeps drawing
-# its old model; the plasmashell restart at the end of this script is what makes it visible.
 
 # KSplash is user configuration, so a system default alone cannot override an
 # already-created user's previous Breeze/Fedora choice.  Write the two exact
@@ -1500,67 +1268,10 @@ systemctl --user start plasma-ksystemstats.service >>"$log" 2>&1 || true
 # earlier revisions, and right-aligned the icons (alignment=1, sortMode=1).
 
 
-# --- The system tray: everyday toggles up front, everything else auto -----------
-# The 07-24 tray design (shipped in layout.js): the everyday device toggles — Wi-Fi,
-# Bluetooth, volume and brightness — are pinned as always-shown, one click away in
-# the corner, an Apple-Control-Centre feel. Hiding them behind the arrow is the
-# single most common "where is my Bluetooth" friction. Notifications join them.
-# Everything else stays auto — shown only when it has something to say.
-#
-# The keyboard layout indicator is deliberately unlisted: with several layouts
-# configured it auto-shows on its own (measured: 3 layouts -> still in the tray),
-# so it needs no slot in shownItems.
-#
-# StatusNotifierItems are matched on their OWN Id, not on a plasmoid id, which is
-# why the video bridge survived the first attempt: it is not a plasmoid. Its Id is
-# also the app's *translated* name on some builds ("Xwayland-Video-Brücke" on a
-# German session, "جسر فيديو ويلاند_اكس" measured live on this Arabic one — the
-# OS's own first-class locale was the missing variant), so every variant is listed.
-#
-# The portal's item is the "your screen is being controlled remotely" indicator,
-# and it is deliberately NOT in the hide list. An earlier revision hid it on the
-# theory that hidden items still surface when they turn Active — measured false
-# on Plasma 6: a live remote-control session showed nothing anywhere on screen.
-# On an OS that ships Mo PC Remote, that indicator is the one at-a-glance signal
-# that someone is watching; unlisted, Plasma shows it by Status — invisible while
-# Passive, in the tray the moment a session is Active. That is the contract.
-if command -v gdbus >/dev/null 2>&1; then
-    gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
-        -m org.kde.PlasmaShell.evaluateScript '
-            var HIDE = [
-                "org.kde.kdeconnect", "org.kde.plasma.vault", "org.kde.kscreen",
-                "org.kde.plasma.battery", "org.kde.plasma.cameraindicator",
-                "org.kde.plasma.clipboard", "org.kde.plasma.devicenotifier",
-                "org.kde.plasma.keyboardindicator", "org.kde.plasma.manage-inputmethod",
-                "org.kde.plasma.mediacontroller", "org.kde.plasma.printmanager",
-                "org.kde.plasma.weather",
-                "xwaylandvideobridge",
-                "Xwayland Video Bridge", "Xwayland-Video-Bruecke",
-                "جسر فيديو ويلاند_اكس"
-            ];
-            var SHOW = ["org.kde.plasma.networkmanagement", "org.kde.plasma.bluetooth",
-                        "org.kde.plasma.volume", "org.kde.plasma.brightness",
-                        "org.kde.plasma.notifications"];
-            var ps = panels();
-            for (var i = 0; i < ps.length; i++) {
-                var ws = ps[i].widgets();
-                for (var j = 0; j < ws.length; j++) {
-                    if (ws[j].type != "org.kde.plasma.systemtray") { continue; }
-                    try {
-                        ws[j].currentConfigGroup = ["General"];
-                        ws[j].writeConfig("shownItems", SHOW.join(","));
-                        ws[j].writeConfig("hiddenItems", HIDE.join(","));
-                        ws[j].reloadConfig();
-                    } catch (e) {}
-                }
-            }
-        ' >>"$log" 2>&1 && tray_applied=1 || echo "system tray migration skipped" >>"$log" 2>&1
-fi
-# reloadConfig() above writes the FILE but does NOT rebuild the systray's shown/hidden
-# model in Plasma 6.7 — proven on 6.7.2: the file said "2 shown" while the tray kept
-# drawing 8 across reboots. The shell only re-reads it on a full restart, which happens
-# near the end of this script (once per THEME_REV, never on a steady-state login).
-
+# --- The system tray -----------------------------------------------------------
+# Pinned by moos-bar-apply above from moos-bar.conf: the everyday toggles
+# (Wi-Fi, Bluetooth, volume, brightness, notifications and the keyboard/language
+# indicator) live in the corner system capsule, always one click away.
 # --- Photos and video ---------------------------------------------------------
 # MoOS now ships gwenview and haruna and declares them in /etc/xdg/mimeapps.list.
 # That is only half the fix: ~/.config/mimeapps.list OUTRANKS /etc/xdg, and Plasma
@@ -1748,24 +1459,80 @@ for rel in \
     "plasma/look-and-feel/org.moos.ui.light" \
     "plasma/look-and-feel/org.moos.ui2" \
     "plasma/look-and-feel/org.moos.ui2.light" \
+    "plasma/look-and-feel/org.moos.ui2.nova" \
+    "plasma/look-and-feel/org.moos.ui2.nova.light" \
+    "plasma/look-and-feel/org.moos.ui2.amethyst" \
+    "plasma/look-and-feel/org.moos.ui2.amethyst.light" \
+    "plasma/look-and-feel/org.moos.ui2.midnight" \
+    "plasma/look-and-feel/org.moos.ui2.midnight.light" \
+    "plasma/look-and-feel/org.moos.ui2.aurora" \
+    "plasma/look-and-feel/org.moos.ui2.aurora.light" \
+    "plasma/look-and-feel/org.moos.ui2.gaming" \
+    "plasma/look-and-feel/org.moos.ui2.gaming.light" \
+    "plasma/look-and-feel/org.moos.ui2.dev" \
+    "plasma/look-and-feel/org.moos.ui2.dev.light" \
+    "plasma/look-and-feel/org.moos.ui2.study" \
+    "plasma/look-and-feel/org.moos.ui2.study.light" \
     "plasma/desktoptheme/Nova" \
     "plasma/desktoptheme/NovaLight" \
     "plasma/desktoptheme/MoOSUI" \
     "plasma/desktoptheme/MoOSUILight" \
     "plasma/desktoptheme/MoOSUI2" \
     "plasma/desktoptheme/MoOSUI2Light" \
+    "plasma/desktoptheme/MoOSUI2Nova" \
+    "plasma/desktoptheme/MoOSUI2NovaLight" \
+    "plasma/desktoptheme/MoOSUI2Amethyst" \
+    "plasma/desktoptheme/MoOSUI2AmethystLight" \
+    "plasma/desktoptheme/MoOSUI2Midnight" \
+    "plasma/desktoptheme/MoOSUI2Daylight" \
+    "plasma/desktoptheme/MoOSUI2Aurora" \
+    "plasma/desktoptheme/MoOSUI2AuroraLight" \
+    "plasma/desktoptheme/MoOSUI2Arena" \
+    "plasma/desktoptheme/MoOSUI2ArenaLight" \
+    "plasma/desktoptheme/MoOSUI2Forge" \
+    "plasma/desktoptheme/MoOSUI2ForgeLight" \
+    "plasma/desktoptheme/MoOSUI2Scholar" \
+    "plasma/desktoptheme/MoOSUI2ScholarLight" \
     "aurorae/themes/MoOSNova" \
     "aurorae/themes/MoOSNovaLight" \
     "aurorae/themes/MoOSUI" \
     "aurorae/themes/MoOSUILight" \
     "aurorae/themes/MoOSUI2" \
     "aurorae/themes/MoOSUI2Light" \
+    "aurorae/themes/MoOSUI2Nova" \
+    "aurorae/themes/MoOSUI2NovaLight" \
+    "aurorae/themes/MoOSUI2Amethyst" \
+    "aurorae/themes/MoOSUI2AmethystLight" \
+    "aurorae/themes/MoOSUI2Midnight" \
+    "aurorae/themes/MoOSUI2Daylight" \
+    "aurorae/themes/MoOSUI2Aurora" \
+    "aurorae/themes/MoOSUI2AuroraLight" \
+    "aurorae/themes/MoOSUI2Arena" \
+    "aurorae/themes/MoOSUI2ArenaLight" \
+    "aurorae/themes/MoOSUI2Forge" \
+    "aurorae/themes/MoOSUI2ForgeLight" \
+    "aurorae/themes/MoOSUI2Scholar" \
+    "aurorae/themes/MoOSUI2ScholarLight" \
     "color-schemes/NovaDark.colors" \
     "color-schemes/NovaLight.colors" \
     "color-schemes/MoOSUIDark.colors" \
     "color-schemes/MoOSUILight.colors" \
     "color-schemes/MoOSUI2Dark.colors" \
     "color-schemes/MoOSUI2Light.colors" \
+    "color-schemes/MoOSUI2Nova.colors" \
+    "color-schemes/MoOSUI2NovaLight.colors" \
+    "color-schemes/MoOSUI2Amethyst.colors" \
+    "color-schemes/MoOSUI2AmethystLight.colors" \
+    "color-schemes/MoOSUI2Midnight.colors" \
+    "color-schemes/MoOSUI2Daylight.colors" \
+    "color-schemes/MoOSUI2Aurora.colors" \
+    "color-schemes/MoOSUI2AuroraLight.colors" \
+    "color-schemes/MoOSUI2Arena.colors" \
+    "color-schemes/MoOSUI2ArenaLight.colors" \
+    "color-schemes/MoOSUI2Forge.colors" \
+    "color-schemes/MoOSUI2ForgeLight.colors" \
+    "color-schemes/MoOSUI2Scholar.colors" \
+    "color-schemes/MoOSUI2ScholarLight.colors" \
     "konsole/NovaDark.colorscheme" \
     "konsole/NovaLight.colorscheme" \
     "konsole/MoOSUIDark.colorscheme" \
@@ -1780,6 +1547,20 @@ for rel in \
     "konsole/MoOSUI2Light.profile" \
     "wallpapers/MoOSUI2Graphite" \
     "wallpapers/MoOSUI2Tide" \
+    "wallpapers/MoOSUI2Nova" \
+    "wallpapers/MoOSUI2NovaLight" \
+    "wallpapers/MoOSUI2Amethyst" \
+    "wallpapers/MoOSUI2AmethystLight" \
+    "wallpapers/MoOSUI2Midnight" \
+    "wallpapers/MoOSUI2Daylight" \
+    "wallpapers/MoOSUI2Aurora" \
+    "wallpapers/MoOSUI2AuroraLight" \
+    "wallpapers/MoOSUI2Arena" \
+    "wallpapers/MoOSUI2ArenaLight" \
+    "wallpapers/MoOSUI2Forge" \
+    "wallpapers/MoOSUI2ForgeLight" \
+    "wallpapers/MoOSUI2Scholar" \
+    "wallpapers/MoOSUI2ScholarLight" \
     "icons/Nova" \
     "icons/NovaLight" \
     "icons/MoOSUI2" \
@@ -1805,43 +1586,14 @@ for rel in \
     fi
 done
 
-# Make the collapsed tray actually take effect. Plasma 6.7's writeConfig+reloadConfig set
-# the config file but never rebuild the running systray's shown/hidden model, so the tray
-# keeps drawing every indicator until the shell is restarted (verified on 6.7.2: file said
-# "2 shown", tray drew 8, survived reboots). A full plasmashell restart re-reads the file we
-# just wrote. This whole apply body only runs on a REAL apply (marker missing after a
-# THEME_REV bump, or a self-heal), never on a steady-state login, so this is not a per-login
-# flicker; the per-revision marker also stops a repeated self-heal from thrashing the shell.
-#
-# The dock reconcile above needs exactly the same restart for exactly the same reason —
-# icontasks keeps drawing the launcher model it booted with — so one restart serves both.
-tray_marker="${state_dir}/moos-tray-collapsed.v${THEME_REV}"
-# A previous incomplete attempt may already have written the restart marker.
-# If this attempt really added Brand, handed off its favorites client, or
-# removed Kickoff, invalidate that stale marker so the running QML reconstructs
-# against the new persisted client. A no-change retry leaves it intact and does
-# not cause a per-login shell restart.
-if [ "${launcher_force_restart:-0}" = "1" ]; then
-    rm -f "$tray_marker" 2>/dev/null || true
-fi
-if { [ "${tray_applied:-0}" = "1" ] || [ "${dock_applied:-0}" = "1" ]; } && [ ! -e "$tray_marker" ]; then
-    if ! systemctl --user restart plasma-plasmashell.service >>"$log" 2>&1; then
-        kquitapp6 plasmashell >>"$log" 2>&1 || true
-        sleep 1
-        setsid kstart plasmashell >>"$log" 2>&1 &
-    fi
-    touch "$tray_marker" 2>/dev/null || true
-    applied=1
-    echo "restarted plasmashell so the collapsed tray and the dock's launchers take hold" >>"$log" 2>/dev/null || true
-fi
-
 # Only mark done after reading the complete result back from the running desktop.
 # A successful LNF command followed by a failed wallpaper/widget migration is
 # not success; leaving the marker absent makes the next login retry safely.
+# The bar carries its own readback and its own marker (moos-bar-apply), so it is
+# not part of this condition.
 lnf_after="$(current_lookandfeel)" || lnf_after=""
 deco_after="$(current_decoration)" || deco_after=""
 if [ "$applied" = "1" ] \
-        && [ "${launcher_migration_ok:-0}" = "1" ] \
         && [ "$lnf_after" = "$want_lnf" ] \
         && theme_complete "$lnf_after" "$deco_after" "$want_wallpaper_package"; then
     if touch "$marker" 2>/dev/null; then

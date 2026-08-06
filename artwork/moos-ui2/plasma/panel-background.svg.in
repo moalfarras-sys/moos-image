@@ -1,33 +1,29 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="176" height="76" viewBox="0 0 176 76">
-  <!-- MoOS UI Liquid Glass dock. Dark and Light share this exact geometry.
-       Tuned to the SAME glass system as the popup master (dialog-background):
-       balanced translucency + a crisp luminous top edge, so the always-on dock
-       and the popups that rise from it read as one material, not two. The dock
-       stays a touch more opaque than a transient popup on purpose — it is always
-       over live wallpaper and must keep tray-icon and clock contrast crisp.
+  <!-- MoOS UI Liquid Glass dock — frosted profile. Dark and Light share this
+       exact geometry; only the palette tokens diverge.
 
-       THE RIM IS ONE CONTINUOUS LIGHT, not four independent edges. It is lit
-       from above: full brightness along the top, fading as it turns each top
-       corner, dissolving to nothing part-way down the sides. Three earlier
-       defects are fixed here and each was visible on the maintainer's 4K dock:
+       THE DOCK IS FROSTED GLASS, not lit glass. The maintainer's 4K dock grew
+       a luminous top crest and a bright 1px rim (a lit-from-above "Horizon
+       Bar"); the owner asked for it gone: "زجاج ضبابي بدون ضلال ابيض و خطوط
+       بالاعلى" — frosted glass, no white glow, no lines on top, smooth
+       everywhere, no sharp edges. So the dock now carries NO light of its own:
+       no crest band, no luminous hairline, no accent rim. The only edge
+       cue left is a faint @RIM_OUTLINE@ hairline at the bottom that settles
+       the capsule against busy wallpaper.
 
-       1. A STRAY VERTICAL LINE fell from the top-left corner. The accent band
-          was written `V18H17V2A16 16 0 0 0 1 18Z` — the `V18` ran the pen from
-          (18,0) all the way down to (18,18) before doubling back, enclosing a
-          1x16 turquoise rectangle that has nothing to do with a corner radius.
-          Its inner arc was also off-centre (SVG solves it about (17,18), not
-          the corner's own centre (18,18)). A corner band is an ANNULUS: outer
-          arc, radial step, inner arc about the SAME centre, close. Nothing else.
-       2. THE RIM STOPPED DEAD where the corner met the side. The corners were
-          flat @RIM_LUM@/@RIM_ACCENT@ while `left` was a flat 0.18 and `right` a
-          flat 0.24 of a DIFFERENT colour — so the light visibly cut out at the
-          tile seam, and the two sides did not even match each other. Corners now
-          fade along the turn and the sides pick the light up at exactly the
-          value the corner hands over (see the junction arithmetic below).
-       3. The edge read as a printed neon outline because nothing lit the glass
-          behind it. A soft accent bleed now falls ~15px into the material, so
-          the rim reads as light ON glass rather than a line drawn over it.
+       WHY THIS READS AS FROSTED: the KWin blur effect (the family-wide frost
+       profile in generate_moos_ui2.py, BlurStrength 15 / NoiseStrength 3) is
+       what makes the glass look like glass. It can only show through if the
+       glass is translucent, so the @GLASS_P*@ stops stay well under the 0.93
+       ceiling test_glass_surfaces_keep_rounded_blur_masks enforces — the dock
+       sits at ~0.6 top / ~0.78 bottom (dark), letting the blurred wallpaper
+       read through while keeping tray/clock contrast legible.
+
+       Corner bands are plain annuli: outer arc, radial step, inner arc about
+       the corner's own centre. The soft vertical light from above is carried
+       entirely by the glass gradient (top stop more transparent than bottom) —
+       a smooth fall, never a line.
 
        Keep every piece FILL-ONLY — no outlined paths. An outline inflates the
        FrameSvg element bbox by half its width and the stretch factor magnifies
@@ -41,75 +37,19 @@
   <defs>
     <linearGradient id="ui2-panel-glass" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="60">
       <stop offset="0" stop-color="@PANEL_TOP@" stop-opacity="@GLASS_P0@"/>
-      <stop offset="0.18" stop-color="@PANEL_MID@" stop-opacity="@GLASS_P1@"/>
-      <stop offset="0.70" stop-color="@PANEL_BOTTOM@" stop-opacity="@GLASS_P2@"/>
+      <stop offset="0.35" stop-color="@PANEL_MID@" stop-opacity="@GLASS_P1@"/>
+      <stop offset="0.75" stop-color="@PANEL_BOTTOM@" stop-opacity="@GLASS_P2@"/>
       <stop offset="1" stop-color="@PANEL_BOTTOM@" stop-opacity="@GLASS_P3@"/>
-    </linearGradient>
-
-    <!-- Light bleeding down from the lit edge INTO the glass. Every stop is
-         <= 0.93 on purpose: test_glass_surfaces_keep_rounded_blur_masks reads
-         every stop-opacity in this file to hold the KWin frost ceiling, and a
-         decorative 1.0 here would read as opaque dock glass to that gate. The
-         element's own fill-opacity (@RIM_BLEED@) sets the real strength. -->
-    <linearGradient id="ui2-rim-bleed" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="15">
-      <stop offset="0" stop-color="@PRIMARY@" stop-opacity="0.9"/>
-      <stop offset="0.45" stop-color="@PRIMARY@" stop-opacity="0.28"/>
-      <stop offset="1" stop-color="@PRIMARY@" stop-opacity="0"/>
-    </linearGradient>
-
-    <!-- The turn. Full light where the corner meets the top edge, handing over
-         0.20 (luminous) / 0.12 (accent) of its own fill-opacity to the side
-         hairline below it — the side gradients start at those exact values, so
-         the seam between the corner tile and the side tile carries no step. -->
-    <linearGradient id="ui2-turn-lum-left" gradientUnits="userSpaceOnUse" x1="18" y1="0" x2="0" y2="18">
-      <stop offset="0" stop-color="@LUMINOUS@" stop-opacity="0.9"/>
-      <stop offset="0.5" stop-color="@LUMINOUS@" stop-opacity="0.52"/>
-      <stop offset="1" stop-color="@LUMINOUS@" stop-opacity="0.2"/>
-    </linearGradient>
-    <linearGradient id="ui2-turn-lum-right" gradientUnits="userSpaceOnUse" x1="42" y1="0" x2="60" y2="18">
-      <stop offset="0" stop-color="@LUMINOUS@" stop-opacity="0.9"/>
-      <stop offset="0.5" stop-color="@LUMINOUS@" stop-opacity="0.52"/>
-      <stop offset="1" stop-color="@LUMINOUS@" stop-opacity="0.2"/>
-    </linearGradient>
-    <linearGradient id="ui2-turn-acc-left" gradientUnits="userSpaceOnUse" x1="18" y1="0" x2="0" y2="18">
-      <stop offset="0" stop-color="@PRIMARY@" stop-opacity="0.9"/>
-      <stop offset="0.5" stop-color="@PRIMARY@" stop-opacity="0.46"/>
-      <stop offset="1" stop-color="@PRIMARY@" stop-opacity="0.12"/>
-    </linearGradient>
-    <linearGradient id="ui2-turn-acc-right" gradientUnits="userSpaceOnUse" x1="42" y1="0" x2="60" y2="18">
-      <stop offset="0" stop-color="@PRIMARY@" stop-opacity="0.9"/>
-      <stop offset="0.5" stop-color="@PRIMARY@" stop-opacity="0.46"/>
-      <stop offset="1" stop-color="@PRIMARY@" stop-opacity="0.12"/>
-    </linearGradient>
-
-    <!-- The sides. Same vertical run for left and right — the dock is lit from
-         above, so both flanks dissolve identically. `hint-stretch-borders` is
-         present, so these 24px-tall tiles are STRETCHED (not tiled) over the
-         panel's inner height and the fade spans the whole flank. -->
-    <linearGradient id="ui2-side-lum" gradientUnits="userSpaceOnUse" x1="0" y1="18" x2="0" y2="42">
-      <stop offset="0" stop-color="@LUMINOUS@" stop-opacity="0.2"/>
-      <stop offset="1" stop-color="@LUMINOUS@" stop-opacity="0"/>
-    </linearGradient>
-    <linearGradient id="ui2-side-acc" gradientUnits="userSpaceOnUse" x1="0" y1="18" x2="0" y2="42">
-      <stop offset="0" stop-color="@PRIMARY@" stop-opacity="0.12"/>
-      <stop offset="1" stop-color="@PRIMARY@" stop-opacity="0"/>
     </linearGradient>
   </defs>
 
-  <!-- Corner bands are annuli about the corner's own centre (18,18) / (42,18):
-       outer arc r=18, radial step, inner arc r=18-thickness, close.
-       bleed r18->3 (15 deep) · accent r18->16 (2px) · luminous r18->17 (1px). -->
+  <!-- Each corner is ONE glass annulus about its own centre (18,18) / (42,18):
+       outer arc r=18, radial step, inner arc r=18-thickness, close. -->
   <g id="topleft">
     <path d="M0 18A18 18 0 0 1 18 0V18Z" fill="url(#ui2-panel-glass)"/>
-    <path d="M0 18A18 18 0 0 1 18 0V15A3 3 0 0 0 15 18Z" fill="url(#ui2-rim-bleed)" fill-opacity="@RIM_BLEED@"/>
-    <path d="M0 18A18 18 0 0 1 18 0V2A16 16 0 0 0 2 18Z" fill="url(#ui2-turn-acc-left)" fill-opacity="@RIM_ACCENT@"/>
-    <path d="M0 18A18 18 0 0 1 18 0V1A17 17 0 0 0 1 18Z" fill="url(#ui2-turn-lum-left)" fill-opacity="@RIM_LUM@"/>
   </g>
   <g id="topright">
     <path d="M42 0A18 18 0 0 1 60 18H42Z" fill="url(#ui2-panel-glass)"/>
-    <path d="M42 0A18 18 0 0 1 60 18H45A3 3 0 0 0 42 15Z" fill="url(#ui2-rim-bleed)" fill-opacity="@RIM_BLEED@"/>
-    <path d="M42 0A18 18 0 0 1 60 18H58A16 16 0 0 0 42 2Z" fill="url(#ui2-turn-acc-right)" fill-opacity="@RIM_ACCENT@"/>
-    <path d="M42 0A18 18 0 0 1 60 18H59A17 17 0 0 0 42 1Z" fill="url(#ui2-turn-lum-right)" fill-opacity="@RIM_LUM@"/>
   </g>
   <g id="bottomleft">
     <path d="M18 60A18 18 0 0 1 0 42H18Z" fill="url(#ui2-panel-glass)"/>
@@ -119,10 +59,10 @@
     <path d="M60 42A18 18 0 0 1 42 60V42Z" fill="url(#ui2-panel-glass)"/>
     <path d="M60 42A18 18 0 0 1 42 60V59A17 17 0 0 0 59 42Z" fill="@OUTLINE@" fill-opacity="@RIM_OUTLINE@"/>
   </g>
-  <g id="top"><rect x="18" width="24" height="18" fill="url(#ui2-panel-glass)"/><rect x="18" width="24" height="15" fill="url(#ui2-rim-bleed)" fill-opacity="@RIM_BLEED@"/><rect x="18" width="24" height="2" fill="@PRIMARY@" fill-opacity="@RIM_ACCENT@"/><rect x="18" width="24" height="1" fill="@LUMINOUS@" fill-opacity="@RIM_LUM@"/></g>
+  <g id="top"><rect x="18" width="24" height="18" fill="url(#ui2-panel-glass)"/></g>
   <g id="bottom"><rect x="18" y="42" width="24" height="18" fill="url(#ui2-panel-glass)"/><rect x="18" y="59" width="24" height="1" fill="@OUTLINE@" fill-opacity="@RIM_OUTLINE@"/></g>
-  <g id="left"><rect y="18" width="18" height="24" fill="url(#ui2-panel-glass)"/><rect y="18" width="2" height="24" fill="url(#ui2-side-acc)" fill-opacity="@RIM_ACCENT@"/><rect y="18" width="1" height="24" fill="url(#ui2-side-lum)" fill-opacity="@RIM_LUM@"/></g>
-  <g id="right"><rect x="42" y="18" width="18" height="24" fill="url(#ui2-panel-glass)"/><rect x="58" y="18" width="2" height="24" fill="url(#ui2-side-acc)" fill-opacity="@RIM_ACCENT@"/><rect x="59" y="18" width="1" height="24" fill="url(#ui2-side-lum)" fill-opacity="@RIM_LUM@"/></g>
+  <g id="left"><rect y="18" width="18" height="24" fill="url(#ui2-panel-glass)"/></g>
+  <g id="right"><rect x="42" y="18" width="18" height="24" fill="url(#ui2-panel-glass)"/></g>
   <rect id="center" x="18" y="18" width="24" height="24" fill="url(#ui2-panel-glass)"/>
 
   <path id="mask-topleft" d="M88 18A18 18 0 0 1 106 0V18Z" fill="#000"/>

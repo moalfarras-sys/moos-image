@@ -524,23 +524,29 @@ launcher_field() {
 
 head_ "مشغّل MoOS | MoOS Launcher"
 if launcher_state="$(launcher_runtime_state)" && [ -n "$launcher_state" ]; then
-    bottom_count="$(launcher_field bottom)"
     brand_count="$(launcher_field brand)"
     legacy_count="$(launcher_field legacy)"
     sized_count="$(launcher_field sized)"
     valid_count="$(launcher_field valid)"
-    [ "$bottom_count" -gt 0 ] \
-        && ok "the running shell has ${bottom_count} managed bottom panel(s)" \
-        || bad "the running shell has no managed bottom panel"
-    [ "$bottom_count" -gt 0 ] \
-        && [ "$brand_count" = "$bottom_count" ] \
+    # Since rev 30 the bar is two slabs: the centered dock capsule (brand +
+    # tasks) and the corner system capsule (tray + clock). The dock invariant
+    # is about the DOCK slab alone — exactly one, sized, no legacy Kickoff.
+    [ "$brand_count" = "1" ] \
         && [ "$legacy_count" = "0" ] \
-        && [ "$sized_count" = "$brand_count" ] \
-        && [ "$valid_count" = "$bottom_count" ] \
-        && ok "every managed bottom panel has one sized MoOS launcher and no old Kickoff" \
-        || bad "launcher invariant failed: bottom=${bottom_count}, brand=${brand_count}, old-kickoff=${legacy_count}, sized=${sized_count}, valid=${valid_count}"
+        && [ "$sized_count" = "1" ] \
+        && [ "$valid_count" = "1" ] \
+        && ok "one sized MoOS launcher slab, no old Kickoff in the dock" \
+        || bad "launcher invariant failed: brand=${brand_count}, old-kickoff=${legacy_count}, sized=${sized_count}, valid=${valid_count}"
 else
     bad "could not inspect launcher instances in the running Plasma shell"
+fi
+
+# The whole Horizon Bar is defined in /usr/share/moos/moos-bar.conf and verified
+# by the tool that owns it — this check must not restate the bar's values.
+if command -v moos-bar-apply >/dev/null 2>&1 && moos-bar-apply check >/dev/null 2>&1; then
+    ok "the Horizon Bar matches moos-bar.conf (dock capsule + system capsule)"
+else
+    bad "the Horizon Bar drifts from moos-bar.conf — run moos-apply-theme once"
 fi
 
 # Milou's file/folder results come from Baloo.  Ask the effective per-user
@@ -637,11 +643,12 @@ grep -q "org.moos.nova.clock" "$appletsrc" 2>/dev/null \
 _tray_shown="$(sed -n 's/^shownItems=//p' "$appletsrc" 2>/dev/null | head -1)"
 _tray_missing=""
 for _t in org.kde.plasma.networkmanagement org.kde.plasma.bluetooth \
-          org.kde.plasma.volume org.kde.plasma.brightness org.kde.plasma.notifications; do
+          org.kde.plasma.volume org.kde.plasma.brightness org.kde.plasma.notifications \
+          org.kde.plasma.keyboardlayout; do
     case ",${_tray_shown}," in *",$_t,"*) ;; *) _tray_missing="$_tray_missing $_t" ;; esac
 done
 if [ -z "$_tray_missing" ]; then
-    ok "the everyday toggles (Wi-Fi, Bluetooth, volume, brightness) are one click away in the tray"
+    ok "the everyday toggles (Wi-Fi, Bluetooth, volume, brightness, language) are one click away in the tray"
 else
     note "the tray is missing:${_tray_missing} (yours to change, so this is only a note)"
 fi
@@ -676,6 +683,28 @@ for rel in plasma/plasmoids/org.moos.nova.clock \
         shadows=$((shadows+1))
     fi
 done
+shadow_paths=""
+# Preview tools can introduce a new first-party package after the hand-maintained
+# list above. Discover MoOS-owned paths from the effective data home and compare
+# them with /usr/share so diagnostics keep pace with the generated theme matrix.
+user_share="${XDG_DATA_HOME:-$HOME/.local/share}"
+if [ -d "$user_share" ]; then
+    while IFS= read -r -d '' user_path; do
+        rel="${user_path#${user_share}/}"
+        case "$rel" in
+            plasma/plasmoids/org.moos.*|plasma/desktoptheme/MoOSUI2*|\
+            plasma/look-and-feel/org.moos.ui2*|aurorae/themes/MoOSUI2*|\
+            color-schemes/MoOSUI2*|konsole/MoOSUI2*|wallpapers/MoOSUI2*|icons/MoOSUI2*)
+                if [ -e "/usr/share/$rel" ]; then
+                    case " $shadow_paths " in
+                        *" $rel "*) ;;
+                        *) bad "~/.local/share/${rel} shadows the image copy — later updates will never reach you"; shadows=$((shadows+1)); shadow_paths="${shadow_paths} ${rel}" ;;
+                    esac
+                fi
+                ;;
+        esac
+    done < <(find "$user_share" -mindepth 3 -maxdepth 5 \( -type d -o -type f \) -print0 2>/dev/null)
+fi
 if [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/fontconfig/conf.d/99-moos-kawkab-test.conf" ]; then
     bad "a user-level Kawkab fontconfig override is shadowing the image's font policy"
     shadows=$((shadows+1))

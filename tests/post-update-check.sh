@@ -505,23 +505,27 @@ launcher_field() {
 }
 
 if launcher_state="$(launcher_runtime_state)" && [ -n "$launcher_state" ]; then
-    bottom_count="$(launcher_field bottom)"
     brand_count="$(launcher_field brand)"
     legacy_count="$(launcher_field legacy)"
     sized_count="$(launcher_field sized)"
     valid_count="$(launcher_field valid)"
-    [ "$bottom_count" -gt 0 ] \
-        && ok "the running shell has ${bottom_count} managed bottom panel(s)" \
-        || bad "the running shell has no managed bottom panel"
-    [ "$bottom_count" -gt 0 ] \
-        && [ "$brand_count" = "$bottom_count" ] \
+    # Two-slab bar since rev 30: the dock slab alone must be one, sized, no
+    # legacy Kickoff; the system slab is checked by moos-bar-apply check below.
+    [ "$brand_count" = "1" ] \
         && [ "$legacy_count" = "0" ] \
-        && [ "$sized_count" = "$brand_count" ] \
-        && [ "$valid_count" = "$bottom_count" ] \
-        && ok "every managed bottom panel has one sized MoOS launcher and no old Kickoff" \
-        || bad "launcher invariant failed: bottom=${bottom_count}, brand=${brand_count}, old-kickoff=${legacy_count}, sized=${sized_count}, valid=${valid_count}"
+        && [ "$sized_count" = "1" ] \
+        && [ "$valid_count" = "1" ] \
+        && ok "one sized MoOS launcher slab, no old Kickoff in the dock" \
+        || bad "launcher invariant failed: brand=${brand_count}, old-kickoff=${legacy_count}, sized=${sized_count}, valid=${valid_count}"
 else
     bad "could not inspect launcher instances in the running Plasma shell"
+fi
+
+# The whole Horizon Bar is owned by moos-bar-apply against moos-bar.conf.
+if command -v moos-bar-apply >/dev/null 2>&1 && moos-bar-apply check >/dev/null 2>&1; then
+    ok "the Horizon Bar matches moos-bar.conf (dock capsule + system capsule)"
+else
+    bad "the Horizon Bar drifts from moos-bar.conf — run moos-apply-theme once"
 fi
 
 head_ "Launcher search covers visible HOME"

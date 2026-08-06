@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import html
 import pathlib
+import re
 import xml.etree.ElementTree as ET
 from collections.abc import Iterable, Mapping
 
@@ -634,6 +635,29 @@ def render_surface_suite(target: pathlib.Path, p: Mapping[str, str]) -> None:
     _write(widgets / "slider.svg", _slider(p))
     _write(widgets / "scrollbar.svg", _scrollbar(p))
     _write(widgets / "busywidget.svg", _busy(p))
+
+
+def refine_task_surface(path: pathlib.Path) -> None:
+    """Keep hover neutral while preserving task-state indicators.
+
+    Plasma requests the hover frame for pinned launchers as well as running
+    tasks. The running underline therefore belongs to normal, focus, and
+    minimized only; a hover underline falsely says that a closed launcher is
+    running. Keep the existing palette-specific geometry and remove only the
+    hover indicator from the shared generated output.
+    """
+    text = path.read_text(encoding="utf-8")
+    pattern = re.compile(r'(<g id="hover-bottom">)(.*?)(</g>)', re.DOTALL)
+
+    def without_indicator(match: re.Match[str]) -> str:
+        body = match.group(2)
+        elements = re.findall(r'<(?:rect|path)\b[^>]*/>', body)
+        return match.group(1) + (elements[0] if elements else "") + match.group(3)
+
+    refined, count = pattern.subn(without_indicator, text, count=1)
+    if count != 1:
+        raise SystemExit(f"{path}: missing hover task state")
+    _write(path, refined)
 
 
 def _svg_ids(path: pathlib.Path) -> set[str]:

@@ -2449,9 +2449,9 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=29" in apply_theme_code,
+require("THEME_REV=31" in apply_theme_code,
         "MoOS visual schema must migrate existing users to the liquid-glass marks "
-        "and the repaired launcher session strip")
+        "and the two-slab Horizon Bar (moos-bar-apply), while reconciling new shadows")
 require("local_plasmoids=" in apply_theme_code
         and "org.moos.brand" in apply_theme_code.split("local_plasmoids=")[1][:400],
         "THEME_REV 29 must purge home shadows of the first-party MoOS plasmoids — "
@@ -2479,113 +2479,87 @@ require("qmlcache" in apply_theme_code,
         "running")
 
 # Existing users never re-run layout.js.  Their live panel becomes the new
-# one-launcher architecture only through this revisioned migration.  Require
-# creation-before-removal: if the new package fails to add, keeping Kickoff for
-# one more login is preferable to removing the user's only launcher.
-brand_add_pos = apply_theme_code.find('addWidget("org.moos.brand")')
-kickoff_capture_pos = apply_theme_code.find('w.type == "org.kde.plasma.kickoff"')
-brand_guard_pos = apply_theme_code.find("if (brandWidget != null)", kickoff_capture_pos)
-brand_reload_pos = apply_theme_code.find("brandWidget.reloadConfig()", brand_guard_pos)
-kickoff_remove_pos = apply_theme_code.find("kickoffWidget.remove()", brand_guard_pos)
+# two-slab architecture only through the revisioned migration — which since rev 30
+# lives in ONE owner, moos-bar-apply, driven by moos-bar.conf.  It must create the
+# MoOS brand BEFORE removing the old Kickoff: if the new package fails to add,
+# keeping Kickoff for one more login is preferable to removing the user's only
+# launcher.
+bar_apply = code(read("system_files/usr/bin/moos-bar-apply"))
+bar_conf = read("system_files/usr/share/moos/moos-bar.conf")
+brand_add_pos = bar_apply.find("brandWidget = dock.addWidget(DOCK_APPLET)")
+kickoff_capture_pos = bar_apply.find('t == KICKOFF_APPLET')
+kickoff_guard_pos = bar_apply.find("if (brandWidget != null)", kickoff_capture_pos)
+kickoff_remove_pos = bar_apply.find("kickoffWidget.remove()", kickoff_guard_pos)
 require(brand_add_pos >= 0 and kickoff_capture_pos >= 0
-        and "brandWidget = wsScan[b]" in apply_theme_code
-        and "brandWidget = brand" in apply_theme_code
-        and brand_guard_pos >= 0 and brand_reload_pos >= 0 and kickoff_remove_pos >= 0
-        and apply_theme_code.count("kickoffWidget.remove()") == 1
-        and brand_add_pos < kickoff_capture_pos < brand_guard_pos
-        < brand_reload_pos < kickoff_remove_pos,
-        "THEME_REV 21 must ensure org.moos.brand exists before removing the old Kickoff "
-        "from an existing user's panel")
-require(re.search(r"--key\s+popupWidth\s+792\b", apply_theme_code) is not None
-        and re.search(r"--key\s+popupHeight\s+576\b", apply_theme_code) is not None,
-        "the existing org.moos.brand applet's shell-owned popup geometry must migrate to "
-        "792x576; QML implicitWidth/Height cannot override persisted appletsrc values")
+        and kickoff_guard_pos >= 0 and kickoff_remove_pos >= 0
+        and bar_apply.count("kickoffWidget.remove()") == 1
+        and brand_add_pos < kickoff_guard_pos < kickoff_remove_pos,
+        "THEME_REV 30 migration must ensure org.moos.brand exists before removing the "
+        "old Kickoff from an existing user's panel")
+
+# The brand's popup geometry is 792x576 — the single source is moos-bar.conf, and
+# moos-bar-apply must migrate it per existing applet instance (QML
+# implicitWidth/Height cannot override persisted appletsrc values).
+require("popupWidth=792" in bar_conf and "popupHeight=576" in bar_conf,
+        "moos-bar.conf must carry the launcher popup 792x576 — the applet's shell-owned "
+        "geometry, which QML minimums cannot override")
+require("migrate_popup_geometry" in bar_apply
+        and "--key popupWidth \"$POPUP_W\"" in bar_apply
+        and "--key popupHeight \"$POPUP_H\"" in bar_apply,
+        "moos-bar-apply must migrate the existing org.moos.brand applet's shell-owned "
+        "popup geometry to the moos-bar.conf values; QML implicitWidth/Height cannot "
+        "override persisted appletsrc values")
 
 # evaluateScript returning over D-Bus proves only that the JavaScript finished;
-# its guarded applet operations may all have failed.  Revision 21 therefore has
-# a second event-loop readback with a machine-readable sentinel.  The permanent
-# version marker is allowed only after that sentinel was parsed as OK=1, or one
-# transient Plasma/package failure would suppress every future retry.
-launcher_ok_init_pos = apply_theme_code.find("launcher_migration_ok=0")
-launcher_state_pos = apply_theme_code.find('launcher_migration_state="$(')
-launcher_sentinel_pos = apply_theme_code.find("MOOS_LAUNCHER_MIGRATION_OK=", launcher_state_pos)
-launcher_invariant_pos = apply_theme_code.find(
-    "panelBrands == 1 && panelLegacy == 0 && panelConfigured == 1",
-    launcher_state_pos,
-)
-launcher_parse_pos = apply_theme_code.find(
-    "grep -q 'MOOS_LAUNCHER_MIGRATION_OK=1'", launcher_sentinel_pos,
-)
-launcher_ok_set_pos = apply_theme_code.find("launcher_migration_ok=1", launcher_parse_pos)
-marker_launcher_guard_pos = apply_theme_code.find(
-    '[ "${launcher_migration_ok:-0}" = "1" ]', launcher_ok_set_pos,
-)
-version_marker_touch_pos = apply_theme_code.find('touch "$marker"', marker_launcher_guard_pos)
-require(launcher_ok_init_pos >= 0 and launcher_state_pos > launcher_ok_init_pos
-        and launcher_sentinel_pos > launcher_state_pos
-        and launcher_invariant_pos > launcher_state_pos
-        and launcher_parse_pos > launcher_sentinel_pos
-        and launcher_ok_set_pos > launcher_parse_pos
-        and marker_launcher_guard_pos > launcher_ok_set_pos
-        and version_marker_touch_pos > marker_launcher_guard_pos
-        and apply_theme_code.count('touch "$marker"') == 1,
-        "THEME_REV 21 must read the live panel back through its "
-        "MOOS_LAUNCHER_MIGRATION_OK sentinel and must not write the permanent "
-        "version marker unless that readback produced OK=1")
+# its guarded applet operations may all have failed.  moos-bar-apply has a second
+# event-loop readback with a machine-readable sentinel: MOOS_BAR_OK=1 is printed
+# ONLY when the report carries BOTH dock=ok AND sys=ok, and the per-revision
+# marker is written only after that sentinel parses as OK — one transient
+# Plasma/package failure must never suppress every future retry.
+bar_ok_arm = '*dock=ok*sys=ok*) echo "MOOS_BAR_OK=1'
+live_pass_call = bar_apply.find('if ok="$(live_pass)"')
+marker_touch_pos = bar_apply.find('touch "$marker"', live_pass_call)
+marker_touch_count = bar_apply.count('touch "$marker"')
+require(bar_ok_arm in bar_apply
+        and 'echo "MOOS_BAR_OK=0' in bar_apply
+        and "MOOS_BAR_REPORT=" in bar_apply
+        and live_pass_call >= 0 and marker_touch_pos > live_pass_call
+        and marker_touch_count == 1,
+        "moos-bar-apply must read the live panels back through its MOOS_BAR_OK=1 "
+        "sentinel (emitted ONLY in the dock=ok;sys=ok arm) and must not write the "
+        "permanent revision marker unless that readback produced OK=1")
 
-# A retry can begin with the revision's tray restart marker already present:
-# the first attempt may have restarted Plasma for an unrelated dock/tray write
-# while leaving the launcher migration incomplete.  Track actual launcher
-# mutations, and invalidate that stale restart marker only after a successful
-# live readback.  Conversely, an already-converged retry must not restart the
-# shell on every login.
-launcher_changed_init_pos = apply_theme_code.find("launcher_changed=0", launcher_ok_init_pos)
-launcher_force_init_pos = apply_theme_code.find(
-    "launcher_force_restart=0", launcher_changed_init_pos,
-)
-launcher_mutation_pos = apply_theme_code.find(
-    'launcher_mutation_state="$(' , launcher_force_init_pos,
-)
-launcher_changed_sentinel_pos = apply_theme_code.find(
-    "MOOS_LAUNCHER_CHANGED=", launcher_mutation_pos,
-)
-launcher_changed_parse_pos = apply_theme_code.find(
-    "MOOS_LAUNCHER_CHANGED=[1-9][0-9]*", launcher_changed_sentinel_pos,
-)
-launcher_changed_set_pos = apply_theme_code.find(
-    "launcher_changed=1", launcher_changed_parse_pos,
-)
-launcher_force_set_pos = apply_theme_code.find(
-    "launcher_force_restart=1", launcher_ok_set_pos,
-)
-tray_marker_pos = apply_theme_code.find('tray_marker="${state_dir}/', launcher_force_set_pos)
-launcher_force_guard_pos = apply_theme_code.find(
-    '[ "${launcher_force_restart:-0}" = "1" ]', tray_marker_pos,
-)
-tray_marker_remove_pos = apply_theme_code.find(
-    'rm -f "$tray_marker"', launcher_force_guard_pos,
-)
-tray_restart_pos = apply_theme_code.find(
-    '[ ! -e "$tray_marker" ]', tray_marker_remove_pos,
-)
-require(launcher_changed_init_pos > launcher_ok_init_pos
-        and launcher_force_init_pos > launcher_changed_init_pos
-        and launcher_mutation_pos > launcher_force_init_pos
-        and apply_theme_code.count("launcherChanged++") >= 3
-        and launcher_changed_sentinel_pos > launcher_mutation_pos
-        and launcher_changed_parse_pos > launcher_changed_sentinel_pos
-        and launcher_changed_set_pos > launcher_changed_parse_pos
-        and launcher_force_set_pos > launcher_ok_set_pos
-        and tray_marker_pos > launcher_force_set_pos
-        and launcher_force_guard_pos > tray_marker_pos
-        and tray_marker_remove_pos > launcher_force_guard_pos
-        and tray_restart_pos > tray_marker_remove_pos,
-        "launcher retries must force one Plasma restart after a real, verified Brand/client/"
-        "Kickoff mutation, while an already-converged retry must keep the restart marker")
+# The migration is FILE surgery (the split) plus a shell restart, and the ORDER
+# is load-bearing: the shell currently running may still hold the PRE-split
+# single-panel config in memory and FLUSHES that state back over the appletsrc
+# the moment it exits — a split written while the shell is up is silently
+# reverted, and the desktop ends up with the old bar PLUS an orphaned second
+# panel (seen live, both drawn at once). So the split must run while the shell
+# is DOWN: stop_shell, THEN split_appletsrc, THEN start_shell. And the revision
+# marker must only ever be trusted when the LIVE readback currently agrees — a
+# stale marker must not suppress the work. One flock owner per appletsrc mutation.
+apply_start = bar_apply.find("cmd_apply() {")
+stop_call = bar_apply.find("stop_shell", apply_start)
+split_call = bar_apply.find('before="$(split_appletsrc)"', apply_start)
+start_call = bar_apply.find("start_shell", split_call)
+require(apply_start >= 0
+        and stop_call >= 0 and stop_call < split_call
+        and start_call > split_call
+        and 'case "$before" in' in bar_apply
+        and 'if [ -e "$marker" ] && ok="$(live_pass)"' in bar_apply
+        and bar_apply.count('touch "$marker"') == 1
+        and "moos-bar.lock" in bar_apply,
+        "moos-bar-apply must stop the shell, THEN split the appletsrc (a running "
+        "shell flushes the pre-split single-panel state back over the file on exit, "
+        "leaving the old bar plus an orphaned second panel), then start the shell, "
+        "and must trust the revision marker only when the live readback agrees")
 
 # The live diagnostics must measure the same surface the migration owns.  A
 # user may intentionally place Kicker/KickerDash on a side or top panel; MoOS
-# manages bottom panels and replaces only the old default Kickoff there.
+# manages bottom panels and replaces only the old default Kickoff there.  Since
+# rev 30 the DOCK capsule (brand + tasks) is one of two bottom slabs; the system
+# capsule (tray + clock) is verified by moos-bar-apply check, which must be part
+# of the same health verdict.
 post_update_check = code(read("tests/post-update-check.sh"))
 for runtime_check, check_name in (
     (selfcheck, "moos-selfcheck"),
@@ -2603,18 +2577,20 @@ for runtime_check, check_name in (
             and 'currentConfigGroup = []' in launcher_check
             and "panelBrands == 1 && panelLegacy == 0 && panelSized == 1" in launcher_check
             and '";valid=" + valid' in launcher_check
-            and 'brand_count" = "$bottom_count' in runtime_check
-            and 'sized_count" = "$brand_count' in runtime_check
-            and 'valid_count" = "$bottom_count' in runtime_check,
-            f"{check_name} must validate one sized Brand and no old Kickoff per managed "
-            "bottom panel, while ignoring intentional top/side Kicker launchers")
+            and '[ "$brand_count" = "1" ]' in runtime_check
+            and '[ "$legacy_count" = "0" ]' in runtime_check
+            and '[ "$sized_count" = "1" ]' in runtime_check
+            and '[ "$valid_count" = "1" ]' in runtime_check
+            and "moos-bar-apply check" in runtime_check,
+            f"{check_name} must validate exactly one sized MoOS launcher slab and no old "
+            "Kickoff among the bottom panels, and hand the system capsule to "
+            "moos-bar-apply check, while ignoring intentional top/side Kicker launchers")
 
 # A package staged under ~/.local/share outranks the new image forever.  Brand
 # and Hero Clock were both staged during live visual work, so they belong in the
 # same MoOS-owned cleanup list as the other first-party plasmoids.
 shadow_cleanup_start = apply_theme_code.find('user_share="${XDG_DATA_HOME:-$HOME/.local/share}"')
-shadow_cleanup_end = apply_theme_code.find("tray_marker=", shadow_cleanup_start)
-shadow_cleanup = apply_theme_code[shadow_cleanup_start:shadow_cleanup_end]
+shadow_cleanup = apply_theme_code[shadow_cleanup_start:]
 for shadowed_plasmoid in ("org.moos.brand", "org.moos.heroclock"):
     require(f'"plasma/plasmoids/{shadowed_plasmoid}"' in shadow_cleanup,
             f"moos-apply-theme must remove a user-local {shadowed_plasmoid} copy that "
@@ -3692,22 +3668,34 @@ for dead_sddm in ("system_files/usr/share/sddm", "system_files/etc/sddm.conf.d")
 # `floating`, so every new user and the live ISO booted to the old full-width
 # bar while every gate stayed green. Seen live in QEMU, 2026-07-14.
 #
-# Two surfaces hand out this geometry — the template (users with no panel yet)
-# and moos-apply-theme's migration (users who already have one). Gate the
-# RELATIONSHIP: both must state all three decisions, or a fresh user and an
+# Since rev 30 the geometry is owned by ONE source — moos-bar.conf — and the two
+# consumers that hand it to users are moos-bar-apply (the live pass for upgraded
+# users) and layout.js (the template for users with no panel yet). Gate the
+# RELATIONSHIP: all three must state the same decisions, or a fresh user and an
 # upgraded user boot into two different docks.
 dock_surfaces = {
-    "dock template": code(read(
-        "system_files/usr/share/plasma/layout-templates/"
-        "org.kde.plasma.desktop.defaultPanel/contents/layout.js")),
-    "dock migration (moos-apply-theme)": code(read("system_files/usr/bin/moos-apply-theme")),
+    "moos-bar.conf": (
+        code(bar_conf),
+        (('lengthMode=fit', "hug the content (capsule, not bar)"),
+         ('alignment=center', "sit centered"),
+         ('floating=true', "float off the screen edge")),
+    ),
+    "dock template": (
+        code(read("system_files/usr/share/plasma/layout-templates/"
+                  "org.kde.plasma.desktop.defaultPanel/contents/layout.js")),
+        (('lengthMode = "fit"', "hug the content (capsule, not bar)"),
+         ('alignment = "center"', "sit centered"),
+         ('.floating = true', "float off the screen edge")),
+    ),
+    "dock migration (moos-bar-apply)": (
+        bar_apply,
+        (('dock.lengthMode = "fit"', "hug the content (capsule, not bar)"),
+         ('dock.alignment = "center"', "sit centered"),
+         ('dock.floating = true', "float off the screen edge")),
+    ),
 }
-for dock_surface, dock_code in dock_surfaces.items():
-    for needle, decision in (
-        ('lengthMode = "fit"', "hug the content (capsule, not bar)"),
-        ('alignment = "center"', "sit centered"),
-        (".floating = true", "float off the screen edge"),
-    ):
+for dock_surface, (dock_code, needles) in dock_surfaces.items():
+    for needle, decision in needles:
         require(needle in dock_code,
                 f"{dock_surface} no longer makes the dock {decision} — "
                 f"missing {needle!r}; fresh and upgraded users would get different docks")
@@ -4567,31 +4555,38 @@ require("systemctl --user start plasma-ksystemstats.service" in apply_theme_code
 # ── The tray keeps the everyday toggles one click away ────────────────────────
 # The 07-24 tray design (shipped in layout.js): Wi-Fi, Bluetooth, volume and
 # brightness are always-shown — hiding them is the single most common "where is my
-# Bluetooth" friction — and notifications stay reachable. Everything else auto.
-# moos-apply-theme must pin exactly this in the user's own config, or a theme
-# application hides the toggles again on an existing machine while every gate stays
-# green. Assert on the CODE (comments stripped), every toggle, so none can rot alone.
+# Bluetooth" friction — notifications stay reachable, and the keyboard/language
+# indicator is pinned too (with several layouts configured it can drop out of the
+# tray entirely). Everything else auto. Since rev 30 the list's single source is
+# moos-bar.conf [tray] shownItems, and moos-bar-apply pins it into the user's own
+# config on every apply, or a theme application hides the toggles again on an
+# existing machine while every gate stays green. Assert on the CODE (comments
+# stripped), every toggle, so none can rot alone.
 _tray_toggles = ("org.kde.plasma.networkmanagement", "org.kde.plasma.bluetooth",
                  "org.kde.plasma.volume", "org.kde.plasma.brightness",
-                 "org.kde.plasma.notifications")
-require('writeConfig("shownItems"' in apply_theme_code,
-        "moos-apply-theme must pin the tray's shownItems in the user's config")
+                 "org.kde.plasma.notifications", "org.kde.plasma.keyboardlayout")
+require("shownItems=" in code(bar_conf),
+        "moos-bar.conf must be the single source of the tray's shownItems list")
 for _toggle in _tray_toggles:
-    require(_toggle in apply_theme_code,
-            f"the tray design keeps {_toggle} one click away — moos-apply-theme must "
+    require(_toggle in code(bar_conf),
+            f"the tray design keeps {_toggle} one click away — moos-bar.conf must "
             f"ship it in the shownItems list or a theme application hides it again")
+require('writeConfig("shownItems", SHOWN.join(","))' in bar_apply,
+        "moos-bar-apply must pin the tray's shownItems from moos-bar.conf in the "
+        "user's config")
 # …and writing that config is not enough. Plasma 6.7's writeConfig+reloadConfig sets the
 # FILE but never rebuilds the running systray's shown/hidden model — verified on 6.7.2, where
 # the file said "2 shown" while the tray drew 8 across reboots, and the gate above stayed
 # green the whole time. The shell has to be restarted for the collapse to reach the user, and
 # it must be guarded by a per-revision marker so it fires once on a THEME_REV bump, not on
 # every login. Assert on the CODE (comments stripped), both halves, so neither can rot alone.
-require(("restart plasma-plasmashell.service" in apply_theme_code
-         or "kquitapp6 plasmashell" in apply_theme_code)
-        and "moos-tray-collapsed.v" in apply_theme_code,
-        "moos-apply-theme must RESTART plasmashell (guarded once per THEME_REV) after writing "
-        "the tray config — in Plasma 6.7 reloadConfig writes the file but the running shell "
-        "keeps drawing the full tray, so the collapse is invisible without a restart")
+require(("restart plasma-plasmashell.service" in bar_apply
+         or "kquitapp6 plasmashell" in bar_apply)
+        and "moos-bar-applied.v${rev}" in bar_apply,
+        "moos-bar-apply must RESTART plasmashell (guarded once per revision marker) after "
+        "writing the tray config — in Plasma 6.7 reloadConfig writes the file but the "
+        "running shell keeps drawing the full tray, so the collapse is invisible without "
+        "a restart")
 # THE CONTRACT FLIPPED HERE, DELIBERATELY (THEME_REV 24). This gate used to require
 # the portal's Id IN the hide list. The hide was built on the theory that hidden items
 # surface when they turn Active — measured false on Plasma 6: a live remote-control
@@ -4599,7 +4594,7 @@ require(("restart plasma-plasmashell.service" in apply_theme_code
 # collapse arrow. On an OS that ships Mo PC Remote, the portal item is the one
 # at-a-glance "your screen is being watched" signal. Unlisted, Plasma shows it by
 # Status: invisible while Passive, in the tray while a session is Active.
-require("xdg-desktop-portal-kde" not in apply_theme_code,
+require("xdg-desktop-portal-kde" not in bar_apply,
         "the portal's remote-control indicator must NOT be hidden — hidden SNIs do not "
         "surface when they turn Active (measured on Plasma 6), so hiding it blinds the "
         "user to an active remote-control session")
@@ -4608,7 +4603,7 @@ require("xdg-desktop-portal-kde" not in apply_theme_code,
 # OS's own first-class locale was the one missing.
 for bridge_id in ("xwaylandvideobridge", "Xwayland Video Bridge",
                   "Xwayland-Video-Bruecke", "جسر فيديو ويلاند_اكس"):
-    require(bridge_id in apply_theme_code,
+    require(bridge_id in bar_apply,
             f"the Xwayland bridge hide-list is missing the Id variant {bridge_id!r} — "
             f"SNIs match on their translated Id, so a missing locale variant pops the "
             f"icon into the curated tray for exactly that locale's users")
@@ -4663,19 +4658,24 @@ for launcher in ("moai-do", "moos-open"):
 # maintainer's own machine, months and many green gates later, the dock held moai, browser,
 # dolphin, systemsettings, konsole: no MoPlayer, no Mo PC Remote. Gating the template was
 # gating the file that does not decide (PROJECT_STATE.md, the shadowed-config trap). The
-# thing that decides for an EXISTING user is the reconcile in moos-apply-theme, so gate that.
-require('writeConfig("launchers"' in apply_theme_code
-        and "org.kde.plasma.icontasks" in apply_theme_code
-        and "applications:org.moos.moplayer.desktop" in apply_theme_code
-        and "applications:org.moos.remote.desktop" in apply_theme_code,
-        "moos-apply-theme must put MoOS's own apps back into an EXISTING user's dock — the "
-        "layout template only ever runs for a user who has no panel, so every upgraded user "
-        "keeps a dock with no MoPlayer and no Mo PC Remote in it")
+# thing that decides for an EXISTING user is the reconcile in moos-bar-apply, which only
+# ADDS missing MoOS apps from the defaultLaunchers seed in moos-bar.conf — so gate BOTH.
+require('writeConfig("launchers", out.join(","))' in bar_apply
+        and "org.kde.plasma.icontasks" in code(bar_conf)
+        and "applications:org.moos.moplayer.desktop" in code(bar_conf)
+        and "applications:org.moos.remote.desktop" in code(bar_conf)
+        and "conf tasks.defaultLaunchers" in bar_apply
+        and "SHIPPED" in bar_apply
+        and "isMoOS" in bar_apply,
+        "moos-bar-apply must put MoOS's own apps back into an EXISTING user's dock "
+        "from the moos-bar.conf defaultLaunchers seed — the layout template only ever "
+        "runs for a user who has no panel, so every upgraded user keeps a dock with no "
+        "MoPlayer and no Mo PC Remote in it")
 # The dock belongs to the user. The reconcile may ADD a missing MoOS app; it may not rewrite
 # the dock to the shipped list, or it would silently unpin whatever the user pinned and
 # re-pin whatever they deliberately removed — every single upgrade. That property lives in
 # one expression, so gate the expression.
-require("isMoOS(u) || cur.indexOf(u) >= 0" in apply_theme_code,
+require("isMoOS(u) || cur.indexOf(u) >= 0" in bar_apply,
         "the dock reconcile must add ONLY MoOS's own apps and otherwise keep the user's "
         "launchers as found — a non-MoOS default the user unpinned must stay unpinned")
 

@@ -220,16 +220,19 @@ def write(path: pathlib.Path, content: str) -> None:
 # Glass translucency, per half. Dark and Light are ONE material with two
 # profiles, not one dark-tuned value forced onto both: a light glass needs a
 # denser floor so dark tray icons / clock / text stay legible over wallpaper.
-# The DARK values are byte-identical to the shipped Liquid Glass — do not touch
-# them (that is the maintainer's proven dock). Only Light diverges.
+#
+# FROSTED PROFILE: the owner asked for frosted glass — "زجاج ضبابي بدون ضلال
+# ابيض و خطوط بالاعلى". The dock carries no light of its own any more (no
+# crest, no luminous rim — see panel-background.svg.in), and the @GLASS_P*@
+# stops dropped to ~0.6..0.78 (dark) / ~0.66..0.81 (light) so the KWin frost
+# (BlurStrength 15 / NoiseStrength 3) actually shows through. They stay well
+# under the 0.93 ceiling test_glass_surfaces_* enforces. @RIM_OUTLINE@ is the
+# only edge cue left — a faint bottom hairline that settles the capsule
+# against busy wallpaper.
 OPACITY = {
     "dark": {
-        "@GLASS_P0@": "0.78", "@GLASS_P1@": "0.83", "@GLASS_P2@": "0.90", "@GLASS_P3@": "0.93",
-        "@RIM_LUM@": "0.62", "@RIM_ACCENT@": "0.42", "@RIM_OUTLINE@": "0.28",
-        # The accent light that falls INTO the glass under the lit top edge.
-        # It is what stops the rim reading as a printed neon outline; keep it
-        # well under the rim itself or the dock glows instead of gleaming.
-        "@RIM_BLEED@": "0.20",
+        "@GLASS_P0@": "0.60", "@GLASS_P1@": "0.66", "@GLASS_P2@": "0.74", "@GLASS_P3@": "0.78",
+        "@RIM_OUTLINE@": "0.10",
         "@DLG_P0@": "0.78", "@DLG_P1@": "0.82", "@DLG_P2@": "0.88", "@DLG_P3@": "0.92",
         "@DLG_RIM_LUM@": "0.60", "@DLG_RIM_OUTLINE@": "0.24", "@DLG_RIM_ACCENT@": "0.34",
     },
@@ -237,11 +240,8 @@ OPACITY = {
         # Capped at 0.93 so the light dock stays denser than dark (legible dark
         # icons over wallpaper) yet never crosses the 0.93 ceiling above which
         # KWin's frost stops showing (enforced by test_glass_surfaces_*).
-        "@GLASS_P0@": "0.82", "@GLASS_P1@": "0.87", "@GLASS_P2@": "0.91", "@GLASS_P3@": "0.93",
-        "@RIM_LUM@": "0.46", "@RIM_ACCENT@": "0.14", "@RIM_OUTLINE@": "0.30",
-        # Light glass already carries its own luminance, so the bleed is halved:
-        # at the dark value it turns the porcelain dock's top edge minty.
-        "@RIM_BLEED@": "0.10",
+        "@GLASS_P0@": "0.66", "@GLASS_P1@": "0.71", "@GLASS_P2@": "0.77", "@GLASS_P3@": "0.81",
+        "@RIM_OUTLINE@": "0.14",
         "@DLG_P0@": "0.82", "@DLG_P1@": "0.85", "@DLG_P2@": "0.90", "@DLG_P3@": "0.92",
         "@DLG_RIM_LUM@": "0.44", "@DLG_RIM_OUTLINE@": "0.26", "@DLG_RIM_ACCENT@": "0.22",
     },
@@ -735,6 +735,7 @@ def generate_desktop_theme(variant: str, backup_root: pathlib.Path) -> None:
     render_panel(target / "widgets/panel-background.svg", variant)
     render_dialog(target / "dialogs/background.svg", variant)
     plasma_surfaces.render_surface_suite(target, variant_roles(variant))
+    plasma_surfaces.refine_task_surface(target / "widgets/tasks.svg")
 
 
 def generate_aurorae(variant: str, backup_root: pathlib.Path) -> None:

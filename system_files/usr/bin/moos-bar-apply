@@ -1,0 +1,572 @@
+#!/usr/bin/env bash
+# moos-bar-apply — the ONE writer and the ONE verifier of the MoOS Horizon Bar.
+#
+# The dock is defined in /usr/share/moos/moos-bar.conf (override with
+# $MOOS_BAR_CONF). This tool is the only place that turns that definition into a
+# running dock: it splits the retired single panel into the two glass slabs (a
+# centered dock capsule and a corner system capsule), pins the tray's
+# always-shown toggles, migrates the launcher and clock, applies the geometry,
+# restarts the shell once per revision, and reads the result back from the live
+# desktop. moos-apply-theme calls it for the whole dock section; moos-selfcheck
+# calls its check; nothing else writes the bar.
+#
+# Design notes, so the shape of the code is not a mystery:
+#   * Plasma 6 scripting CANNOT create a panel (createPanel is gone), so the
+#     two-slab split is file surgery on the appletsrc (Plasma reads it at
+#     startup) followed by a plasmashell restart. The layout TEMPLATE cannot
+#     create two panels either — two-panel templates failed live with NO panel
+#     at all — so layout.js stays single-panel and the split runs on first
+#     login via moos-apply-theme.
+#   * Panel geometry (floating / lengthMode / thickness) is persisted by Plasma
+#     into ~/.config/plasmashellrc, NOT the appletsrc, and only on its own
+#     flush. The reliable sequence is: write the appletsrc structure, restart,
+#     then apply geometry live through the scripting API and let Plasma persist.
+#   * gdbus unescapes its argument, so a literal backslash inside the JS becomes
+#     a real newline and truncates the script. No backslash escapes in the JS.
+#   * Add, never remove (dock rule): a MoOS app missing from the user's dock is
+#     put back; anything the user pinned or unpinned is left exactly as found.
+set -uo pipefail
+
+CONF="${MOOS_BAR_CONF:-/usr/share/moos/moos-bar.conf}"
+[ -r "$CONF" ] || { echo "moos-bar-apply: no bar definition at $CONF" >&2; exit 3; }
+
+conf() {
+    awk -F= -v k="$1" '
+        /^\[.*\]$/ { section = $0; sub(/^\[/, "", section); sub(/\]$/, "", section); next }
+        $1 == k || (section != "" && section "." $1 == k) {
+            sub(/^[^=]*=/, "")
+            sub(/^[ \t]*/, "")
+            sub(/[ \t]*$/, "")
+            print
+            exit
+        }
+    ' "$CONF"
+}
+
+BAR_HEIGHT="$(conf bar.height)"
+DOCK_LENGTH="$(conf dock.lengthMode)"
+DOCK_ALIGN="$(conf dock.alignment)"
+SYS_LENGTH="$(conf system.lengthMode)"
+SYS_ALIGN="$(conf system.alignment)"
+TRAY_SHOWN="$(conf tray.shownItems)"
+BRAND_APPLET="$(conf brand.applet)"
+TASKS_APPLET="$(conf tasks.applet)"
+TRAY_APPLET="$(conf tray.applet)"
+CLOCK_APPLET="$(conf clock.applet)"
+SEP_APPLET="$(conf separator.applet)"
+POPUP_W="$(conf brand.popupWidth)"
+POPUP_H="$(conf brand.popupHeight)"
+
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
+mkdir -p "$state_dir" 2>/dev/null || true
+
+# Plasma can fire the same autostart entry twice while session restore settles;
+# two concurrent splitters on the same appletsrc corrupt it. One owner at a time.
+if command -v flock >/dev/null 2>&1; then
+    lock_dir="${XDG_RUNTIME_DIR:-$state_dir}"
+    mkdir -p "$lock_dir" 2>/dev/null || true
+    if exec 9>"${lock_dir}/moos-bar.lock"; then
+        flock -n 9 || exit 0
+    fi
+fi
+
+log="${MOOS_BAR_LOG:-/dev/null}"
+applets_rc="${XDG_CONFIG_HOME:-$HOME/.config}/plasma-org.kde.plasma.desktop-appletsrc"
+
+plasma_ready() {
+    if command -v busctl >/dev/null 2>&1; then
+        busctl --user call org.kde.plasmashell /PlasmaShell \
+            org.freedesktop.DBus.Peer Ping >/dev/null 2>&1 && return 0
+    fi
+    if command -v gdbus >/dev/null 2>&1; then
+        gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
+            -m org.freedesktop.DBus.Peer.Ping >/dev/null 2>&1 && return 0
+    fi
+    return 1
+}
+
+# The shipped launcher list, with every .desktop that does not exist on this
+# machine filtered out (icontasks silently skips a launcher URL it cannot
+# resolve, so a stale entry leaves an unexplained hole instead of an error).
+shipped_launchers() {
+    local dock_shipped="" entry desktop_id
+    local IFS=','
+    for entry in $(conf tasks.defaultLaunchers); do
+        case "$entry" in
+            applications:*)
+                desktop_id="${entry#applications:}"
+                [ -e "/usr/share/applications/${desktop_id}" ] \
+                    || [ -e "${XDG_DATA_HOME:-$HOME/.local/share}/applications/${desktop_id}" ] \
+                    || continue
+                ;;
+        esac
+        dock_shipped="${dock_shipped}${dock_shipped:+, }\"${entry}\""
+    done
+    printf '%s\n' "$dock_shipped"
+}
+
+# --- The split ---------------------------------------------------------------
+# Moves the tray, separator and clock out of the dock containment into a new
+# bottom containment, leaving the dock as brand+tasks. Idempotent. Prints
+# "split", "no-change", "no-dock" or "no-config".
+split_appletsrc() {
+    [ -r "$applets_rc" ] || { echo "no-config"; return; }
+    cp "$applets_rc" "${applets_rc}.pre-horizon-split" 2>/dev/null || true
+    python3 - "$applets_rc" "$BRAND_APPLET" "$TRAY_APPLET" "$CLOCK_APPLET" "$SEP_APPLET" <<'PY' 2>/dev/null
+import io, re, sys
+
+path, brand, tray_pl, clock_pl, sep_pl = sys.argv[1:6]
+
+with io.open(path, "r", encoding="utf-8") as f:
+    lines = f.read().splitlines(True)
+
+def parts_of(line):
+    m = re.match(r"^\[(.*)\]$", line.rstrip("\n"))
+    return m.group(1).split("][") if m else None
+
+containment_of, plugin_of = {}, {}
+cur = None
+for i, line in enumerate(lines):
+    parts = parts_of(line)
+    if parts is None:
+        continue
+    if len(parts) == 2 and parts[0] == "Containments" and parts[1].isdigit():
+        cur = parts[1]
+        continue
+    if len(parts) == 4 and parts[0] == "Containments" and parts[1] == cur \
+            and parts[2] == "Applets" and parts[3].isdigit():
+        aid = parts[3]
+        containment_of[aid] = cur
+        for j in range(i + 1, len(lines)):
+            if parts_of(lines[j]) is not None:
+                break
+            if lines[j].startswith("plugin="):
+                plugin_of[aid] = lines[j].split("=", 1)[1].strip()
+                break
+
+dock = next((cid for aid, cid in containment_of.items()
+             if plugin_of.get(aid) == brand), None)
+if dock is None:
+    sys.stdout.write("no-dock\n")
+    sys.exit(0)
+
+tray = clock = sep = None
+for aid, cid in containment_of.items():
+    if cid != dock:
+        continue
+    pl = plugin_of.get(aid, "")
+    if pl == tray_pl:
+        tray = aid
+    elif pl == clock_pl:
+        clock = aid
+    elif pl == sep_pl:
+        sep = aid
+
+if tray is None and clock is None:
+    sys.stdout.write("no-change\n")
+    sys.exit(0)
+
+maxid = max(int(m.group(1)) for m in
+            re.finditer(r"\[(?:Containments|Applets)\]\[(\d+)\]", "".join(lines)))
+new = str(maxid + 1)
+
+moves = [a for a in (tray, sep, clock) if a is not None]
+for aid in moves:
+    old = "[Containments][" + dock + "][Applets][" + aid + "]"
+    nw = "[Containments][" + new + "][Applets][" + aid + "]"
+    lines = [line.replace(old, nw) if line.startswith(old) else line for line in lines]
+
+new_block = (
+    "[Containments][" + new + "]\n"
+    "activityId=\n"
+    "formfactor=2\n"
+    "immutability=1\n"
+    "lastScreen=0\n"
+    "location=4\n"
+    "plugin=org.kde.panel\n"
+    "wallpaperplugin=org.kde.image\n"
+    "\n"
+    "[Containments][" + new + "][General]\n"
+    "AppletOrder=" + ";".join(moves) + "\n"
+)
+lines.append("\n" + new_block)
+
+for i, line in enumerate(lines):
+    if parts_of(line) == ["Containments", dock, "General"]:
+        for j in range(i + 1, len(lines)):
+            if parts_of(lines[j]) is not None:
+                break
+            if lines[j].startswith("AppletOrder="):
+                order = [a for a in lines[j].split("=", 1)[1].strip().split(";") if a]
+                order = [a for a in order if a not in moves]
+                lines[j] = "AppletOrder=" + ";".join(order) + "\n"
+                break
+        break
+
+with io.open(path, "w", encoding="utf-8") as f:
+    f.write("".join(lines))
+sys.stdout.write("split\n")
+PY
+}
+
+# The brand's shell-owned popup geometry must be migrated per existing applet
+# instance: QML implicitWidth/Height cannot override a persisted appletsrc value.
+migrate_popup_geometry() {
+    command -v kwriteconfig6 >/dev/null 2>&1 || return 0
+    [ -r "$applets_rc" ] || return 0
+    local containment_id applet_id
+    while read -r containment_id applet_id; do
+        [[ "$containment_id" =~ ^[0-9]+$ && "$applet_id" =~ ^[0-9]+$ ]] || continue
+        kwriteconfig6 --file plasma-org.kde.plasma.desktop-appletsrc \
+            --group Containments --group "$containment_id" --group Applets \
+            --group "$applet_id" --group Configuration --key popupWidth "$POPUP_W"
+        kwriteconfig6 --file plasma-org.kde.plasma.desktop-appletsrc \
+            --group Containments --group "$containment_id" --group Applets \
+            --group "$applet_id" --group Configuration --key popupHeight "$POPUP_H"
+    done < <(
+        awk '
+            match($0, /^\[Containments\]\[([0-9]+)\]\[Applets\]\[([0-9]+)\]$/, m) {
+                containment=m[1]; applet=m[2]; next
+            }
+            $0 == "plugin='"$BRAND_APPLET"'" && containment != "" && applet != "" {
+                print containment, applet
+            }
+        ' "$applets_rc"
+    )
+}
+
+# --- The live pass -----------------------------------------------------------
+# After the restart, and on every retry, drive the running shell: geometry on
+# both slabs, brand + kickoff-favorites migration + launcher reconcile in the
+# dock slab, digitalclock->nova.clock + tray pin in the system slab. Prints
+# MOOS_BAR_OK=1 only when the dock and system slabs both answered.
+live_pass() {
+    local shipped dock_shipped
+    shipped="$(shipped_launchers)"
+    dock_shipped="${shipped:-}"
+    command -v gdbus >/dev/null 2>&1 || { echo "MOOS_BAR_OK=0;tool=no-gdbus"; return 1; }
+    command -v timeout >/dev/null 2>&1 || { echo "MOOS_BAR_OK=0;tool=no-timeout"; return 1; }
+    local out
+    out="$(timeout 12s gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
+        -m org.kde.PlasmaShell.evaluateScript '
+            var HEIGHT = Number("'"$BAR_HEIGHT"'");
+            var SHOWN = "'"$TRAY_SHOWN"'".split(",").filter(function (s) { return s.length > 0; });
+            var SHIPPED = ['"$dock_shipped"'];
+            var HIDE = [
+                "org.kde.kdeconnect", "org.kde.plasma.vault", "org.kde.kscreen",
+                "org.kde.plasma.battery", "org.kde.plasma.cameraindicator",
+                "org.kde.plasma.clipboard", "org.kde.plasma.devicenotifier",
+                "org.kde.plasma.keyboardindicator", "org.kde.plasma.manage-inputmethod",
+                "org.kde.plasma.mediacontroller", "org.kde.plasma.printmanager",
+                "org.kde.plasma.weather",
+                "xwaylandvideobridge",
+                "Xwayland Video Bridge", "Xwayland-Video-Bruecke",
+                "جسر فيديو ويلاند_اكس"
+            ];
+            var DOCK_APPLET = "'"$BRAND_APPLET"'";
+            var KICKOFF_APPLET = "org.kde.plasma.kickoff";
+            var TASKS_APPLET = "'"$TASKS_APPLET"'";
+            var TRAY_APPLET = "'"$TRAY_APPLET"'";
+            var CLOCK_APPLET = "'"$CLOCK_APPLET"'";
+            var DIGITAL_APPLET = "org.kde.plasma.digitalclock";
+            var isMoOS = function (u) { return u.indexOf("applications:org.moos.") === 0; };
+            var ps = panels();
+            var dock = null, sysp = null;
+            for (var i = 0; i < ps.length; i++) {
+                if (ps[i].location != "bottom") { continue; }
+                var ws = ps[i].widgets();
+                var hasBrand = false, hasTray = false, hasClock = false;
+                for (var j = 0; j < ws.length; j++) {
+                    var t = String(ws[j].type);
+                    if (t == DOCK_APPLET) { hasBrand = true; }
+                    else if (t == TRAY_APPLET) { hasTray = true; }
+                    else if (t == CLOCK_APPLET) { hasClock = true; }
+                }
+                if (hasBrand) { dock = ps[i]; }
+                if (hasTray && hasClock) { sysp = ps[i]; }
+            }
+            var merged = (dock != null && sysp != null && dock === sysp);
+            // One merged panel is NOT the two-slab bar: brand+tasks and
+            // tray+clock must live on two SEPARATE bottom panels. Before
+            // the split file is picked up by a real shell restart, a single
+            // panel satisfies both branches and would report ok=ok while
+            // the user still has the old single bar.
+            var applied = 0;
+            var report = [];
+            if (merged) {
+                report.push("dock=single");
+                report.push("sys=single");
+            }
+            if (dock != null && !merged) {
+                try { dock.floating = true; } catch (e) {}
+                try { dock.lengthMode = "fit"; } catch (e) {}
+                try { dock.alignment = "center"; } catch (e) {}
+                try { dock.height = HEIGHT; } catch (e) {}
+                var brandWidget = null;
+                var kickoffWidget = null;
+                var ws = dock.widgets();
+                for (var k = 0; k < ws.length; k++) {
+                    var t = String(ws[k].type);
+                    if (t == DOCK_APPLET) { brandWidget = ws[k]; }
+                    else if (t == KICKOFF_APPLET) { kickoffWidget = ws[k]; }
+                }
+                if (brandWidget == null) {
+                    try {
+                        brandWidget = dock.addWidget(DOCK_APPLET);
+                        try { brandWidget.index = 0; } catch (e) {}
+                        applied++;
+                    } catch (e) {}
+                }
+                for (var m = 0; m < ws.length; m++) {
+                    if (String(ws[m].type) != TASKS_APPLET) { continue; }
+                    try {
+                        ws[m].currentConfigGroup = ["General"];
+                        var cur = String(ws[m].readConfig("launchers", ""))
+                                      .split(",").filter(function (s) { return s.length > 0; });
+                        var out = [];
+                        var push = function (u) { if (out.indexOf(u) < 0) { out.push(u); } };
+                        for (var n = 0; n < SHIPPED.length; n++) {
+                            var u = SHIPPED[n];
+                            if (isMoOS(u) || cur.indexOf(u) >= 0) { push(u); }
+                        }
+                        for (var p = 0; p < cur.length; p++) { push(cur[p]); }
+                        if (out.join(",") != cur.join(",")) {
+                            ws[m].writeConfig("launchers", out.join(","));
+                            ws[m].reloadConfig();
+                            applied++;
+                        }
+                    } catch (e) {}
+                }
+                if (brandWidget != null) {
+                    try {
+                        brandWidget.currentConfigGroup = ["General"];
+                        if (kickoffWidget != null) {
+                            kickoffWidget.currentConfigGroup = ["General"];
+                            brandWidget.writeConfig("favoritesClient",
+                                "org.kde.plasma.kickoff.favorites.instance-" + kickoffWidget.id);
+                            var oldFavorites = String(kickoffWidget.readConfig("favorites", ""));
+                            if (oldFavorites.length > 0) {
+                                brandWidget.writeConfig("favoriteApps", oldFavorites);
+                            }
+                            brandWidget.writeConfig("favoritesSeeded", true);
+                        } else if (String(brandWidget.readConfig("favoritesClient", "")).length == 0) {
+                            brandWidget.writeConfig("favoritesClient", "org.moos.launcher.favorites");
+                            applied++;
+                        }
+                        brandWidget.reloadConfig();
+                        if (kickoffWidget != null) {
+                            kickoffWidget.remove();
+                            applied++;
+                        }
+                    } catch (e) {}
+                }
+                report.push("dock=ok");
+            } else if (!merged) {
+                report.push("dock=missing");
+            }
+            if (sysp != null && !merged) {
+                try { sysp.floating = true; } catch (e) {}
+                try { sysp.lengthMode = "fit"; } catch (e) {}
+                try { sysp.alignment = "right"; } catch (e) {}
+                try { sysp.height = HEIGHT; } catch (e) {}
+                var ws = sysp.widgets();
+                for (var q = 0; q < ws.length; q++) {
+                    if (String(ws[q].type) == DIGITAL_APPLET) {
+                        try {
+                            var idx = ws[q].index;
+                            ws[q].remove();
+                            var nc = sysp.addWidget(CLOCK_APPLET);
+                            try { nc.index = idx; } catch (e) {}
+                            applied++;
+                        } catch (e) {}
+                    }
+                }
+                var hasT = false, hasC = false;
+                for (var r = 0; r < ws.length; r++) {
+                    var tt = String(ws[r].type);
+                    if (tt == TRAY_APPLET) { hasT = true; }
+                    else if (tt == CLOCK_APPLET) { hasC = true; }
+                }
+                if (!hasT) { try { sysp.addWidget(TRAY_APPLET); applied++; } catch (e) {} }
+                if (!hasC) { try { sysp.addWidget(CLOCK_APPLET); applied++; } catch (e) {} }
+                for (var s = 0; s < ws.length; s++) {
+                    if (String(ws[s].type) == TRAY_APPLET) {
+                        try {
+                            ws[s].currentConfigGroup = ["General"];
+                            ws[s].writeConfig("shownItems", SHOWN.join(","));
+                            ws[s].writeConfig("hiddenItems", HIDE.join(","));
+                            ws[s].reloadConfig();
+                        } catch (e) {}
+                    }
+                }
+                report.push("sys=ok");
+            } else if (!merged) {
+                report.push("sys=missing");
+            }
+            print("MOOS_BAR_REPORT=" + report.join(";") + ";changed=" + applied);
+        ' 2>>"$log")" || out=""
+    printf '%s\n' "$out" >>"$log" 2>/dev/null || true
+    local report
+    report="$(printf '%s\n' "$out" | grep -oE 'MOOS_BAR_REPORT=[^)]*' | head -n1)"
+    case "$report" in
+        *dock=ok*sys=ok*) echo "MOOS_BAR_OK=1;${report#MOOS_BAR_REPORT=}"; return 0 ;;
+        *) echo "MOOS_BAR_OK=0;${report:-no-report}"; return 1 ;;
+    esac
+}
+
+stop_shell() {
+    if systemctl --user is-active plasma-plasmashell.service >/dev/null 2>&1; then
+        systemctl --user stop plasma-plasmashell.service >>"$log" 2>&1
+    else
+        # Session-launched shell, not a systemd unit (startplasma owns it):
+        # systemctl on the inactive unit is a silent no-op, so quit the shell
+        # ourselves and wait until it is really gone.
+        command -v kquitapp6 >/dev/null 2>&1 && kquitapp6 plasmashell >>"$log" 2>&1
+        for _ in $(seq 1 30); do
+            command -v pgrep >/dev/null 2>&1 || break
+            [ -z "$(pgrep -x plasmashell)" ] && break
+            sleep 1
+        done
+        if command -v pgrep >/dev/null 2>&1 && [ -n "$(pgrep -x plasmashell)" ]; then
+            kill "$(pgrep -x plasmashell | head -n1)" >>"$log" 2>&1 || true
+            sleep 2
+        fi
+    fi
+    pgrep -x plasmashell >/dev/null 2>&1 && return 1
+    return 0
+}
+
+start_shell() {
+    command -v kstart >/dev/null 2>&1 \
+        && setsid kstart plasmashell >>"$log" 2>&1 & disown
+    for _ in $(seq 1 60); do plasma_ready && break; sleep 1; done
+}
+
+restart_shell() {
+    stop_shell
+    start_shell
+}
+
+cmd_apply() {
+    local rev="${1:-0}"
+    local marker="${state_dir}/moos-bar-applied.v${rev}"
+    plasma_ready || { echo "moos-bar-apply: plasmashell not ready; skipping" >&2; return 0; }
+    # The marker means "a restart already landed and the readback agreed". It
+    # is ONLY trusted when the live desktop actually shows the two slabs right
+    # now — a stale marker (written before a restart really took, or from an
+    # earlier revision) must never suppress the work, or the user keeps the
+    # old single bar while the apply reports done.
+    local ok
+    if [ -e "$marker" ] && ok="$(live_pass)"; then
+        echo "$ok"
+        return 0
+    fi
+    # Order matters: the shell currently running may still hold the PRE-split
+    # (single-panel) config in memory, and it FLUSHES that state back over the
+    # appletsrc the moment it exits. So the file surgery must run while the
+    # shell is DOWN — stop first, split, then start — or the split is silently
+    # reverted and the desktop shows the old bar PLUS the orphaned new panel.
+    stop_shell || { echo "moos-bar-apply: could not stop plasmashell" >&2; return 1; }
+    before="$(split_appletsrc)" || true
+    case "$before" in
+        split|no-change) : ;;
+        no-dock) : ;;
+        no-config) echo "moos-bar-apply: no appletsrc to split" >&2 ;;
+    esac
+    migrate_popup_geometry >>"$log" 2>&1 || true
+    start_shell
+    if ok="$(live_pass)"; then
+        mkdir -p "$(dirname "$marker")" 2>/dev/null || true
+        touch "$marker" 2>/dev/null || true
+        echo "$ok"
+        return 0
+    fi
+    echo "moos-bar-apply: live readback failed: $ok" >&2
+    return 1
+}
+
+cmd_check() {
+    # Non-destructive: agree with the conf or fail (used by moos-selfcheck).
+    local failures=0
+    if ! plasma_ready; then
+        echo "bar: plasmashell not ready"
+        return 1
+    fi
+    local out
+    out="$(timeout 10s gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
+        -m org.kde.PlasmaShell.evaluateScript '
+            var TRAY_APPLET = "'"$TRAY_APPLET"'";
+            var CLOCK_APPLET = "'"$CLOCK_APPLET"'";
+            var DOCK_APPLET = "'"$BRAND_APPLET"'";
+            var want = "'"$TRAY_SHOWN"'".split(",");
+            var ps = panels();
+            var dock = null, sysp = null;
+            for (var i = 0; i < ps.length; i++) {
+                if (ps[i].location != "bottom") { continue; }
+                var ws = ps[i].widgets();
+                var hasB = false, hasT = false, hasC = false;
+                for (var j = 0; j < ws.length; j++) {
+                    var t = String(ws[j].type);
+                    if (t == DOCK_APPLET) { hasB = true; }
+                    else if (t == TRAY_APPLET) { hasT = true; }
+                    else if (t == CLOCK_APPLET) { hasC = true; }
+                }
+                if (hasB) { dock = ps[i]; }
+                if (hasT && hasC) { sysp = ps[i]; }
+            }
+            var shown = "";
+            if (sysp != null) {
+                var ws = sysp.widgets();
+                for (var k = 0; k < ws.length; k++) {
+                    if (String(ws[k].type) == TRAY_APPLET) {
+                        ws[k].currentConfigGroup = ["General"];
+                        shown = String(ws[k].readConfig("shownItems", ""));
+                    }
+                }
+            }
+            print("dock=" + (dock != null ? "yes" : "no")
+                + ";sys=" + (sysp != null ? "yes" : "no")
+                + ";sysalign=" + (sysp != null ? String(sysp.alignment) : "")
+                + ";shown=" + shown);
+        ' 2>/dev/null)" || out=""
+    local report
+    report="$(printf '%s\n' "$out" | grep -oE 'dock=(yes|no);sys=(yes|no);sysalign=[a-z]+;shown=.*' | head -n1)"
+    [ -n "$report" ] || { echo "bar: no live report"; return 1; }
+    local dockf sysf sysa shown shown_norm want_norm
+    dockf="$(printf '%s' "$report" | sed -n 's/.*dock=\(yes\|no\).*/\1/p')"
+    sysf="$(printf '%s' "$report" | sed -n 's/.*sys=\(yes\|no\).*/\1/p')"
+    sysa="$(printf '%s' "$report" | sed -n 's/.*sysalign=\([a-z]*\).*/\1/p')"
+    shown="$(printf '%s' "$report" | sed -n 's/.*shown=\(.*\)$/\1/p')"
+    shown_norm="$(printf '%s' "$shown" | tr ',' '\n' | sed '/^[[:space:]]*$/d' | sort | tr '\n' ',')"
+    want_norm="$(printf '%s' "$TRAY_SHOWN" | tr ',' '\n' | sed '/^[[:space:]]*$/d' | sort | tr '\n' ',')"
+    [ "$dockf" = "yes" ] || { echo "bar: dock slab missing"; failures=$((failures+1)); }
+    [ "$sysf" = "yes" ] || { echo "bar: system slab missing"; failures=$((failures+1)); }
+    [ "$sysa" = "$SYS_ALIGN" ] || { echo "bar: system slab alignment is '$sysa' (want $SYS_ALIGN)"; failures=$((failures+1)); }
+    [ "$shown_norm" = "$want_norm" ] || {
+        echo "bar: tray shownItems drift: live '$shown_norm' vs conf '$want_norm'"
+        failures=$((failures+1))
+    }
+    [ "$failures" = "0" ] && { echo "bar: ok"; return 0; }
+    return 1
+}
+
+cmd_get() {
+    local key="${1:-}"
+    local value
+    value="$(conf "$key")"
+    if [ -n "$value" ]; then
+        printf '%s\n' "$value"
+        return 0
+    fi
+    return 1
+}
+
+case "${1:-}" in
+    apply) cmd_apply "${2:-0}" ;;
+    check) cmd_check ;;
+    get) cmd_get "${2:-}" ;;
+    *)
+        echo "usage: moos-bar-apply {apply [rev]|check|get <section.key>}" >&2
+        exit 2
+        ;;
+esac

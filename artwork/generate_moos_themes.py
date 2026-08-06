@@ -37,6 +37,12 @@ _spec = importlib.util.spec_from_file_location("gen_ui2", ART / "generate_moos_u
 gen = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(gen)
 
+_surface_spec = importlib.util.spec_from_file_location(
+    "gen_moos_plasma_surfaces", ART / "generate_moos_plasma_surfaces.py"
+)
+plasma_surfaces = importlib.util.module_from_spec(_surface_spec)
+_surface_spec.loader.exec_module(plasma_surfaces)
+
 _symbol_spec = importlib.util.spec_from_file_location(
     "gen_moos_symbols", ART / "generate_moos_symbolic_icons.py"
 )
@@ -358,6 +364,7 @@ def build_desktoptheme(key: str, meta: dict) -> None:
         _register_palette(key)
         gen.render_panel(dst / "widgets/panel-background.svg", key, light=True)
         gen.render_dialog(dst / "dialogs/background.svg", key, light=True)
+    plasma_surfaces.refine_task_surface(dst / "widgets/tasks.svg")
     # fresh metadata + plasmarc + colors
     write(dst / "metadata.json", json.dumps({
         "KPlugin": {
