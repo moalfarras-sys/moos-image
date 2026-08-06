@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="128" height="208" viewBox="0 0 128 208">
-  <!-- MoOS active tabs in all four tab-bar orientations. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="256" viewBox="0 0 128 256">
+  <!-- MoOS active tab and open-applet slot: borderless accent glass, capsule radius, never a bordered box. -->
   <style id="current-color-scheme" type="text/css">
     .ColorScheme-Background { color: #150C22; }
     .ColorScheme-Highlight { color: #FF2D95; }
@@ -8,57 +8,57 @@
     .ColorScheme-ButtonBackground { color: #2A1845; }
     .ColorScheme-ButtonText { color: #F5E9FF; }
   </style>
-  <g id="north-active-tab-topleft"><path d="M0 9A9 9 0 0 1 9 0V9H0Z" fill="#2A1845" fill-opacity="0.840"/><path d="M0 9A9 9 0 0 1 9 0V1A8 8 0 0 0 1 9Z" fill="#FF2D95" fill-opacity="0.880"/></g>
-  <g id="north-active-tab-topright"><path d="M33 0A9 9 0 0 1 42 9H33Z" fill="#2A1845" fill-opacity="0.840"/><path d="M33 0A9 9 0 0 1 42 9H41A8 8 0 0 0 33 1Z" fill="#FF2D95" fill-opacity="0.880"/></g>
-  <g id="north-active-tab-bottomleft"><path d="M0 33A9 9 0 0 0 9 42V33Z" fill="#2A1845" fill-opacity="0.840"/><path d="M0 33A9 9 0 0 0 9 42V41A8 8 0 0 1 1 33Z" fill="#FF2D95" fill-opacity="0.546"/></g>
-  <g id="north-active-tab-bottomright"><path d="M42 33A9 9 0 0 1 33 42V33Z" fill="#2A1845" fill-opacity="0.840"/><path d="M42 33A9 9 0 0 1 33 42V41A8 8 0 0 0 41 33Z" fill="#FF2D95" fill-opacity="0.546"/></g>
-  <g id="north-active-tab-top"><rect x="9" y="0" width="24" height="9" fill="#2A1845" fill-opacity="0.840"/><rect x="9" y="0" width="24" height="1" fill="#FF2D95" fill-opacity="0.880"/></g>
-  <g id="north-active-tab-bottom"><rect x="9" y="33" width="24" height="9" fill="#2A1845" fill-opacity="0.840"/><rect x="9" y="41" width="24" height="1" fill="#FF2D95" fill-opacity="0.546"/></g>
-  <g id="north-active-tab-left"><rect x="0" y="9" width="9" height="24" fill="#2A1845" fill-opacity="0.840"/><rect x="0" y="9" width="1" height="24" fill="#FF2D95" fill-opacity="0.686"/></g>
-  <g id="north-active-tab-right"><rect x="33" y="9" width="9" height="24" fill="#2A1845" fill-opacity="0.840"/><rect x="41" y="9" width="1" height="24" fill="#FF2D95" fill-opacity="0.686"/></g>
-  <rect id="north-active-tab-center" x="9" y="9" width="24" height="24" fill="#2A1845" fill-opacity="0.840"/>
-  <rect id="north-active-tab-hint-top-margin" x="47" y="0" width="3" height="7" fill="none"/>
-  <rect id="north-active-tab-hint-bottom-margin" x="47" y="9" width="3" height="7" fill="none"/>
-  <rect id="north-active-tab-hint-left-margin" x="52" y="0" width="7" height="3" fill="none"/>
-  <rect id="north-active-tab-hint-right-margin" x="52" y="5" width="7" height="3" fill="none"/>
-  <g id="east-active-tab-topleft"><path d="M0 61A9 9 0 0 1 9 52V61H0Z" fill="#2A1845" fill-opacity="0.840"/><path d="M0 61A9 9 0 0 1 9 52V53A8 8 0 0 0 1 61Z" fill="#FF2D95" fill-opacity="0.880"/></g>
-  <g id="east-active-tab-topright"><path d="M33 52A9 9 0 0 1 42 61H33Z" fill="#2A1845" fill-opacity="0.840"/><path d="M33 52A9 9 0 0 1 42 61H41A8 8 0 0 0 33 53Z" fill="#FF2D95" fill-opacity="0.880"/></g>
-  <g id="east-active-tab-bottomleft"><path d="M0 85A9 9 0 0 0 9 94V85Z" fill="#2A1845" fill-opacity="0.840"/><path d="M0 85A9 9 0 0 0 9 94V93A8 8 0 0 1 1 85Z" fill="#FF2D95" fill-opacity="0.546"/></g>
-  <g id="east-active-tab-bottomright"><path d="M42 85A9 9 0 0 1 33 94V85Z" fill="#2A1845" fill-opacity="0.840"/><path d="M42 85A9 9 0 0 1 33 94V93A8 8 0 0 0 41 85Z" fill="#FF2D95" fill-opacity="0.546"/></g>
-  <g id="east-active-tab-top"><rect x="9" y="52" width="24" height="9" fill="#2A1845" fill-opacity="0.840"/><rect x="9" y="52" width="24" height="1" fill="#FF2D95" fill-opacity="0.880"/></g>
-  <g id="east-active-tab-bottom"><rect x="9" y="85" width="24" height="9" fill="#2A1845" fill-opacity="0.840"/><rect x="9" y="93" width="24" height="1" fill="#FF2D95" fill-opacity="0.546"/></g>
-  <g id="east-active-tab-left"><rect x="0" y="61" width="9" height="24" fill="#2A1845" fill-opacity="0.840"/><rect x="0" y="61" width="1" height="24" fill="#FF2D95" fill-opacity="0.686"/></g>
-  <g id="east-active-tab-right"><rect x="33" y="61" width="9" height="24" fill="#2A1845" fill-opacity="0.840"/><rect x="41" y="61" width="1" height="24" fill="#FF2D95" fill-opacity="0.686"/></g>
-  <rect id="east-active-tab-center" x="9" y="61" width="24" height="24" fill="#2A1845" fill-opacity="0.840"/>
-  <rect id="east-active-tab-hint-top-margin" x="47" y="52" width="3" height="7" fill="none"/>
-  <rect id="east-active-tab-hint-bottom-margin" x="47" y="61" width="3" height="7" fill="none"/>
-  <rect id="east-active-tab-hint-left-margin" x="52" y="52" width="7" height="3" fill="none"/>
-  <rect id="east-active-tab-hint-right-margin" x="52" y="57" width="7" height="3" fill="none"/>
-  <g id="south-active-tab-topleft"><path d="M0 113A9 9 0 0 1 9 104V113H0Z" fill="#2A1845" fill-opacity="0.840"/><path d="M0 113A9 9 0 0 1 9 104V105A8 8 0 0 0 1 113Z" fill="#FF2D95" fill-opacity="0.880"/></g>
-  <g id="south-active-tab-topright"><path d="M33 104A9 9 0 0 1 42 113H33Z" fill="#2A1845" fill-opacity="0.840"/><path d="M33 104A9 9 0 0 1 42 113H41A8 8 0 0 0 33 105Z" fill="#FF2D95" fill-opacity="0.880"/></g>
-  <g id="south-active-tab-bottomleft"><path d="M0 137A9 9 0 0 0 9 146V137Z" fill="#2A1845" fill-opacity="0.840"/><path d="M0 137A9 9 0 0 0 9 146V145A8 8 0 0 1 1 137Z" fill="#FF2D95" fill-opacity="0.546"/></g>
-  <g id="south-active-tab-bottomright"><path d="M42 137A9 9 0 0 1 33 146V137Z" fill="#2A1845" fill-opacity="0.840"/><path d="M42 137A9 9 0 0 1 33 146V145A8 8 0 0 0 41 137Z" fill="#FF2D95" fill-opacity="0.546"/></g>
-  <g id="south-active-tab-top"><rect x="9" y="104" width="24" height="9" fill="#2A1845" fill-opacity="0.840"/><rect x="9" y="104" width="24" height="1" fill="#FF2D95" fill-opacity="0.880"/></g>
-  <g id="south-active-tab-bottom"><rect x="9" y="137" width="24" height="9" fill="#2A1845" fill-opacity="0.840"/><rect x="9" y="145" width="24" height="1" fill="#FF2D95" fill-opacity="0.546"/></g>
-  <g id="south-active-tab-left"><rect x="0" y="113" width="9" height="24" fill="#2A1845" fill-opacity="0.840"/><rect x="0" y="113" width="1" height="24" fill="#FF2D95" fill-opacity="0.686"/></g>
-  <g id="south-active-tab-right"><rect x="33" y="113" width="9" height="24" fill="#2A1845" fill-opacity="0.840"/><rect x="41" y="113" width="1" height="24" fill="#FF2D95" fill-opacity="0.686"/></g>
-  <rect id="south-active-tab-center" x="9" y="113" width="24" height="24" fill="#2A1845" fill-opacity="0.840"/>
-  <rect id="south-active-tab-hint-top-margin" x="47" y="104" width="3" height="7" fill="none"/>
-  <rect id="south-active-tab-hint-bottom-margin" x="47" y="113" width="3" height="7" fill="none"/>
-  <rect id="south-active-tab-hint-left-margin" x="52" y="104" width="7" height="3" fill="none"/>
-  <rect id="south-active-tab-hint-right-margin" x="52" y="109" width="7" height="3" fill="none"/>
-  <g id="west-active-tab-topleft"><path d="M0 165A9 9 0 0 1 9 156V165H0Z" fill="#2A1845" fill-opacity="0.840"/><path d="M0 165A9 9 0 0 1 9 156V157A8 8 0 0 0 1 165Z" fill="#FF2D95" fill-opacity="0.880"/></g>
-  <g id="west-active-tab-topright"><path d="M33 156A9 9 0 0 1 42 165H33Z" fill="#2A1845" fill-opacity="0.840"/><path d="M33 156A9 9 0 0 1 42 165H41A8 8 0 0 0 33 157Z" fill="#FF2D95" fill-opacity="0.880"/></g>
-  <g id="west-active-tab-bottomleft"><path d="M0 189A9 9 0 0 0 9 198V189Z" fill="#2A1845" fill-opacity="0.840"/><path d="M0 189A9 9 0 0 0 9 198V197A8 8 0 0 1 1 189Z" fill="#FF2D95" fill-opacity="0.546"/></g>
-  <g id="west-active-tab-bottomright"><path d="M42 189A9 9 0 0 1 33 198V189Z" fill="#2A1845" fill-opacity="0.840"/><path d="M42 189A9 9 0 0 1 33 198V197A8 8 0 0 0 41 189Z" fill="#FF2D95" fill-opacity="0.546"/></g>
-  <g id="west-active-tab-top"><rect x="9" y="156" width="24" height="9" fill="#2A1845" fill-opacity="0.840"/><rect x="9" y="156" width="24" height="1" fill="#FF2D95" fill-opacity="0.880"/></g>
-  <g id="west-active-tab-bottom"><rect x="9" y="189" width="24" height="9" fill="#2A1845" fill-opacity="0.840"/><rect x="9" y="197" width="24" height="1" fill="#FF2D95" fill-opacity="0.546"/></g>
-  <g id="west-active-tab-left"><rect x="0" y="165" width="9" height="24" fill="#2A1845" fill-opacity="0.840"/><rect x="0" y="165" width="1" height="24" fill="#FF2D95" fill-opacity="0.686"/></g>
-  <g id="west-active-tab-right"><rect x="33" y="165" width="9" height="24" fill="#2A1845" fill-opacity="0.840"/><rect x="41" y="165" width="1" height="24" fill="#FF2D95" fill-opacity="0.686"/></g>
-  <rect id="west-active-tab-center" x="9" y="165" width="24" height="24" fill="#2A1845" fill-opacity="0.840"/>
-  <rect id="west-active-tab-hint-top-margin" x="47" y="156" width="3" height="7" fill="none"/>
-  <rect id="west-active-tab-hint-bottom-margin" x="47" y="165" width="3" height="7" fill="none"/>
-  <rect id="west-active-tab-hint-left-margin" x="52" y="156" width="7" height="3" fill="none"/>
-  <rect id="west-active-tab-hint-right-margin" x="52" y="161" width="7" height="3" fill="none"/>
+  <g id="north-active-tab-topleft"><path d="M0 20A20 20 0 0 1 20 0V20H0Z" fill="#FF2D95" fill-opacity="0.120"/><path d="M0 20A20 20 0 0 1 20 0V1A19 19 0 0 0 1 20Z" fill="#FF2D95" fill-opacity="0.000"/></g>
+  <g id="north-active-tab-topright"><path d="M36 0A20 20 0 0 1 56 20H36Z" fill="#FF2D95" fill-opacity="0.120"/><path d="M36 0A20 20 0 0 1 56 20H55A19 19 0 0 0 36 1Z" fill="#FF2D95" fill-opacity="0.000"/></g>
+  <g id="north-active-tab-bottomleft"><path d="M0 36A20 20 0 0 0 20 56V36Z" fill="#FF2D95" fill-opacity="0.120"/><path d="M0 36A20 20 0 0 0 20 56V55A19 19 0 0 1 1 36Z" fill="#FF2D95" fill-opacity="0.000"/></g>
+  <g id="north-active-tab-bottomright"><path d="M56 36A20 20 0 0 1 36 56V36Z" fill="#FF2D95" fill-opacity="0.120"/><path d="M56 36A20 20 0 0 1 36 56V55A19 19 0 0 0 55 36Z" fill="#FF2D95" fill-opacity="0.000"/></g>
+  <g id="north-active-tab-top"><rect x="20" y="0" width="16" height="20" fill="#FF2D95" fill-opacity="0.120"/><rect x="20" y="0" width="16" height="1" fill="#FF2D95" fill-opacity="0.000"/></g>
+  <g id="north-active-tab-bottom"><rect x="20" y="36" width="16" height="20" fill="#FF2D95" fill-opacity="0.120"/><rect x="20" y="55" width="16" height="1" fill="#FF2D95" fill-opacity="0.000"/></g>
+  <g id="north-active-tab-left"><rect x="0" y="20" width="20" height="16" fill="#FF2D95" fill-opacity="0.120"/><rect x="0" y="20" width="1" height="16" fill="#FF2D95" fill-opacity="0.000"/></g>
+  <g id="north-active-tab-right"><rect x="36" y="20" width="20" height="16" fill="#FF2D95" fill-opacity="0.120"/><rect x="55" y="20" width="1" height="16" fill="#FF2D95" fill-opacity="0.000"/></g>
+  <rect id="north-active-tab-center" x="20" y="20" width="16" height="16" fill="#FF2D95" fill-opacity="0.120"/>
+  <rect id="north-active-tab-hint-top-margin" x="61" y="0" width="3" height="18" fill="none"/>
+  <rect id="north-active-tab-hint-bottom-margin" x="61" y="20" width="3" height="18" fill="none"/>
+  <rect id="north-active-tab-hint-left-margin" x="66" y="0" width="18" height="3" fill="none"/>
+  <rect id="north-active-tab-hint-right-margin" x="66" y="5" width="18" height="3" fill="none"/>
+  <g id="east-active-tab-topleft"><path d="M0 84A20 20 0 0 1 20 64V84H0Z" fill="#FF2D95" fill-opacity="0.120"/><path d="M0 84A20 20 0 0 1 20 64V65A19 19 0 0 0 1 84Z" fill="#FF2D95" fill-opacity="0.000"/></g>
+  <g id="east-active-tab-topright"><path d="M36 64A20 20 0 0 1 56 84H36Z" fill="#FF2D95" fill-opacity="0.120"/><path d="M36 64A20 20 0 0 1 56 84H55A19 19 0 0 0 36 65Z" fill="#FF2D95" fill-opacity="0.000"/></g>
+  <g id="east-active-tab-bottomleft"><path d="M0 100A20 20 0 0 0 20 120V100Z" fill="#FF2D95" fill-opacity="0.120"/><path d="M0 100A20 20 0 0 0 20 120V119A19 19 0 0 1 1 100Z" fill="#FF2D95" fill-opacity="0.000"/></g>
+  <g id="east-active-tab-bottomright"><path d="M56 100A20 20 0 0 1 36 120V100Z" fill="#FF2D95" fill-opacity="0.120"/><path d="M56 100A20 20 0 0 1 36 120V119A19 19 0 0 0 55 100Z" fill="#FF2D95" fill-opacity="0.000"/></g>
+  <g id="east-active-tab-top"><rect x="20" y="64" width="16" height="20" fill="#FF2D95" fill-opacity="0.120"/><rect x="20" y="64" width="16" height="1" fill="#FF2D95" fill-opacity="0.000"/></g>
+  <g id="east-active-tab-bottom"><rect x="20" y="100" width="16" height="20" fill="#FF2D95" fill-opacity="0.120"/><rect x="20" y="119" width="16" height="1" fill="#FF2D95" fill-opacity="0.000"/></g>
+  <g id="east-active-tab-left"><rect x="0" y="84" width="20" height="16" fill="#FF2D95" fill-opacity="0.120"/><rect x="0" y="84" width="1" height="16" fill="#FF2D95" fill-opacity="0.000"/></g>
+  <g id="east-active-tab-right"><rect x="36" y="84" width="20" height="16" fill="#FF2D95" fill-opacity="0.120"/><rect x="55" y="84" width="1" height="16" fill="#FF2D95" fill-opacity="0.000"/></g>
+  <rect id="east-active-tab-center" x="20" y="84" width="16" height="16" fill="#FF2D95" fill-opacity="0.120"/>
+  <rect id="east-active-tab-hint-top-margin" x="61" y="64" width="3" height="18" fill="none"/>
+  <rect id="east-active-tab-hint-bottom-margin" x="61" y="84" width="3" height="18" fill="none"/>
+  <rect id="east-active-tab-hint-left-margin" x="66" y="64" width="18" height="3" fill="none"/>
+  <rect id="east-active-tab-hint-right-margin" x="66" y="69" width="18" height="3" fill="none"/>
+  <g id="south-active-tab-topleft"><path d="M0 148A20 20 0 0 1 20 128V148H0Z" fill="#FF2D95" fill-opacity="0.120"/><path d="M0 148A20 20 0 0 1 20 128V129A19 19 0 0 0 1 148Z" fill="#FF2D95" fill-opacity="0.000"/></g>
+  <g id="south-active-tab-topright"><path d="M36 128A20 20 0 0 1 56 148H36Z" fill="#FF2D95" fill-opacity="0.120"/><path d="M36 128A20 20 0 0 1 56 148H55A19 19 0 0 0 36 129Z" fill="#FF2D95" fill-opacity="0.000"/></g>
+  <g id="south-active-tab-bottomleft"><path d="M0 164A20 20 0 0 0 20 184V164Z" fill="#FF2D95" fill-opacity="0.120"/><path d="M0 164A20 20 0 0 0 20 184V183A19 19 0 0 1 1 164Z" fill="#FF2D95" fill-opacity="0.000"/></g>
+  <g id="south-active-tab-bottomright"><path d="M56 164A20 20 0 0 1 36 184V164Z" fill="#FF2D95" fill-opacity="0.120"/><path d="M56 164A20 20 0 0 1 36 184V183A19 19 0 0 0 55 164Z" fill="#FF2D95" fill-opacity="0.000"/></g>
+  <g id="south-active-tab-top"><rect x="20" y="128" width="16" height="20" fill="#FF2D95" fill-opacity="0.120"/><rect x="20" y="128" width="16" height="1" fill="#FF2D95" fill-opacity="0.000"/></g>
+  <g id="south-active-tab-bottom"><rect x="20" y="164" width="16" height="20" fill="#FF2D95" fill-opacity="0.120"/><rect x="20" y="183" width="16" height="1" fill="#FF2D95" fill-opacity="0.000"/></g>
+  <g id="south-active-tab-left"><rect x="0" y="148" width="20" height="16" fill="#FF2D95" fill-opacity="0.120"/><rect x="0" y="148" width="1" height="16" fill="#FF2D95" fill-opacity="0.000"/></g>
+  <g id="south-active-tab-right"><rect x="36" y="148" width="20" height="16" fill="#FF2D95" fill-opacity="0.120"/><rect x="55" y="148" width="1" height="16" fill="#FF2D95" fill-opacity="0.000"/></g>
+  <rect id="south-active-tab-center" x="20" y="148" width="16" height="16" fill="#FF2D95" fill-opacity="0.120"/>
+  <rect id="south-active-tab-hint-top-margin" x="61" y="128" width="3" height="18" fill="none"/>
+  <rect id="south-active-tab-hint-bottom-margin" x="61" y="148" width="3" height="18" fill="none"/>
+  <rect id="south-active-tab-hint-left-margin" x="66" y="128" width="18" height="3" fill="none"/>
+  <rect id="south-active-tab-hint-right-margin" x="66" y="133" width="18" height="3" fill="none"/>
+  <g id="west-active-tab-topleft"><path d="M0 212A20 20 0 0 1 20 192V212H0Z" fill="#FF2D95" fill-opacity="0.120"/><path d="M0 212A20 20 0 0 1 20 192V193A19 19 0 0 0 1 212Z" fill="#FF2D95" fill-opacity="0.000"/></g>
+  <g id="west-active-tab-topright"><path d="M36 192A20 20 0 0 1 56 212H36Z" fill="#FF2D95" fill-opacity="0.120"/><path d="M36 192A20 20 0 0 1 56 212H55A19 19 0 0 0 36 193Z" fill="#FF2D95" fill-opacity="0.000"/></g>
+  <g id="west-active-tab-bottomleft"><path d="M0 228A20 20 0 0 0 20 248V228Z" fill="#FF2D95" fill-opacity="0.120"/><path d="M0 228A20 20 0 0 0 20 248V247A19 19 0 0 1 1 228Z" fill="#FF2D95" fill-opacity="0.000"/></g>
+  <g id="west-active-tab-bottomright"><path d="M56 228A20 20 0 0 1 36 248V228Z" fill="#FF2D95" fill-opacity="0.120"/><path d="M56 228A20 20 0 0 1 36 248V247A19 19 0 0 0 55 228Z" fill="#FF2D95" fill-opacity="0.000"/></g>
+  <g id="west-active-tab-top"><rect x="20" y="192" width="16" height="20" fill="#FF2D95" fill-opacity="0.120"/><rect x="20" y="192" width="16" height="1" fill="#FF2D95" fill-opacity="0.000"/></g>
+  <g id="west-active-tab-bottom"><rect x="20" y="228" width="16" height="20" fill="#FF2D95" fill-opacity="0.120"/><rect x="20" y="247" width="16" height="1" fill="#FF2D95" fill-opacity="0.000"/></g>
+  <g id="west-active-tab-left"><rect x="0" y="212" width="20" height="16" fill="#FF2D95" fill-opacity="0.120"/><rect x="0" y="212" width="1" height="16" fill="#FF2D95" fill-opacity="0.000"/></g>
+  <g id="west-active-tab-right"><rect x="36" y="212" width="20" height="16" fill="#FF2D95" fill-opacity="0.120"/><rect x="55" y="212" width="1" height="16" fill="#FF2D95" fill-opacity="0.000"/></g>
+  <rect id="west-active-tab-center" x="20" y="212" width="16" height="16" fill="#FF2D95" fill-opacity="0.120"/>
+  <rect id="west-active-tab-hint-top-margin" x="61" y="192" width="3" height="18" fill="none"/>
+  <rect id="west-active-tab-hint-bottom-margin" x="61" y="212" width="3" height="18" fill="none"/>
+  <rect id="west-active-tab-hint-left-margin" x="66" y="192" width="18" height="3" fill="none"/>
+  <rect id="west-active-tab-hint-right-margin" x="66" y="197" width="18" height="3" fill="none"/>
   <rect id="hint-tile-center" x="104" y="0" width="4" height="4" fill="none"/>
 </svg>

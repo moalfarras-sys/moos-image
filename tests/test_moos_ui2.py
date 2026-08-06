@@ -1392,6 +1392,167 @@ class TestMoOSUI2(unittest.TestCase):
                             "draws it on pinned launchers as well",
                         )
 
+    def test_open_applet_slot_is_never_a_bordered_box(self) -> None:
+        """`widgets/tabbar.svg` must not draw a framed rectangle on the dock.
+
+        Plasma's shell (`CompactApplet.qml`) paints `<edge>-active-tab` behind a
+        PANEL APPLET for as long as its popup is open, choosing the prefix from
+        the panel edge — a bottom dock asks for `south-active-tab`. The same
+        four prefixes are the active tab of a PlasmaComponents TabBar, so there
+        is exactly one piece of art for both roles.
+
+        It shipped as a near-opaque slab (0.84) ringed by a 0.88 accent rim, so
+        opening the MoOS launcher wrapped the button in a hard bordered
+        rectangle standing on the dock glass. Hold the replacement: a rim that
+        cannot be seen, a tint that stays glass, and a corner radius large
+        enough that the frame reads as a capsule at dock height.
+        """
+        # `desktoptheme/Nova` is retired UI1 geometry kept for rollback; it
+        # carries no metadata.json, so Plasma never lists or applies it. The
+        # design system owns the MoOSUI2 family.
+        tabbars = sorted((SHARE / "plasma/desktoptheme").glob("MoOSUI2*/widgets/tabbar.svg"))
+        self.assertGreaterEqual(len(tabbars), 16, "the theme family shrank")
+        for tabbar in tabbars:
+            theme = tabbar.parents[1].name
+            svg = ET.fromstring(tabbar.read_text(encoding="utf-8"))
+            painted = 0
+            positions = re.compile(
+                r"^(north|east|south|west)-active-tab-(topleft|top|topright|"
+                r"left|center|right|bottomleft|bottom|bottomright)$")
+            for element in svg.iter():
+                identifier = element.attrib.get("id", "")
+                if not positions.match(identifier):
+                    continue  # margin hints carry no paint
+                # _frame() lays the tile down first and the border strip — the
+                # 1 px sliver, or the inset arc in a corner — second.
+                cells = list(element) if len(element) else [element]
+                for index, cell in enumerate(cells):
+                    opacity = float(cell.attrib.get("fill-opacity", "1"))
+                    with self.subTest(theme=theme, id=identifier, cell=index):
+                        if index:
+                            self.assertLessEqual(
+                                opacity, 0.02,
+                                "the open-applet slot has grown a border again",
+                            )
+                        else:
+                            self.assertLessEqual(
+                                opacity, 0.22,
+                                "the open-applet slot is a slab, not glass",
+                            )
+                    painted += index == 0 and opacity > 0
+            self.assertTrue(painted, f"{theme}/tabbar.svg paints nothing at all")
+
+            radii = {
+                float(match)
+                for match in re.findall(r"A(\d+(?:\.\d+)?) ", tabbar.read_text(
+                    encoding="utf-8"))
+            }
+            self.assertTrue(
+                radii and min(radii) >= 18,
+                f"{theme}/tabbar.svg corners are too square for a dock slot",
+            )
+
+    def test_native_controls_hint_an_edge_instead_of_drawing_a_box(self) -> None:
+        """Hold the MoOS rim scale across every generated interaction surface.
+
+        An interaction state is told by its fill; the rim is a hint of an edge.
+        The family shipped accent rims up to 0.94 (the pager's active desktop)
+        and 0.88 (the open-applet slot), which stop reading as glass and start
+        reading as a rectangle drawn on top of the surface. Keyboard focus is
+        the one exception and keeps its own, higher ceiling — it has to be
+        unmistakable, and it is the only rim a keyboard user can navigate by.
+
+        Floating glass (tooltip, popup background, dock) is NOT covered here:
+        its rim is the only thing separating the surface from live wallpaper.
+        """
+        interaction = ("button.svg", "lineedit.svg", "listitem.svg",
+                       "menubaritem.svg", "pager.svg", "tabbar.svg",
+                       "viewitem.svg")
+        themes = sorted((SHARE / "plasma/desktoptheme").glob("MoOSUI2*"))
+        self.assertGreaterEqual(len(themes), 16, "the theme family shrank")
+        for theme in themes:
+            for filename in interaction:
+                svg = ET.fromstring(
+                    (theme / "widgets" / filename).read_text(encoding="utf-8"))
+                cell = re.compile(
+                    r"^(.+)-(topleft|top|topright|left|center|"
+                    r"right|bottomleft|bottom|bottomright)$")
+                for element in svg.iter():
+                    identifier = element.attrib.get("id", "")
+                    # Only a frame cell carries a rim: a <g> whose second child
+                    # is the edge _frame() lays over the tile. Margin hints, the
+                    # button's soft drop shadow and the gradients that build it
+                    # paint no edge at all.
+                    if not element.tag.endswith("g") or len(element) < 2:
+                        continue
+                    if not cell.match(identifier):
+                        continue
+                    ceiling = 0.60 if "focus" in identifier else 0.42
+                    for rim in list(element)[1:]:
+                        with self.subTest(theme=theme.name, id=identifier):
+                            self.assertLessEqual(
+                                float(rim.attrib.get("fill-opacity", "1")),
+                                ceiling,
+                                f"{filename} draws a box instead of hinting "
+                                f"an edge",
+                            )
+
+    def test_dock_task_states_never_paint_a_tile_box(self) -> None:
+        """No task state may fill a flat slab behind the icon.
+
+        Every state used to paint the TEXT colour at ~0.10 across all nine
+        cells plus a 1 px accent hairline along its top edge. On a light family
+        member the text colour is near-black, so the active app sat inside a
+        grey rectangle with a lit edge. Running state is carried by the bottom
+        indicator (and, for focus/attention, by light rising from it), which
+        fades out before it reaches an edge and so has no outline to read as a
+        border. `hover` is the one state that may still fill, because it is the
+        only feedback a pointer gets — and it must tint, never darken.
+        """
+        tasks_files = sorted((SHARE / "plasma/desktoptheme")
+                             .glob("MoOSUI2*/widgets/tasks.svg"))
+        self.assertGreaterEqual(len(tasks_files), 16, "the theme family shrank")
+        for tasks in tasks_files:
+            theme = tasks.parents[1].name
+            text = tasks.read_text(encoding="utf-8")
+            ink = re.search(
+                r'\.ColorScheme-Text\s*\{\s*color:\s*(#[0-9A-Fa-f]{6})', text
+            ).group(1)
+            svg = ET.fromstring(text)
+            cell = re.compile(
+                r"^(normal|hover|focus|minimized|attention)-(topleft|top|"
+                r"topright|left|center|right|bottomleft|bottom|bottomright)$")
+            for element in svg.iter():
+                match = cell.match(element.attrib.get("id", ""))
+                if match is None:
+                    continue
+                identifier, state = match.group(0), match.group(1)
+                # The indicator bar (rounded, `rx`) and the light it throws
+                # (a gradient `url(...)` fill) are the running state itself.
+                # Everything else in the nine cells is tile surface, and tile
+                # surface is what drew the box.
+                for child in (list(element) or [element]):
+                    if (child.attrib.get("fill", "").startswith("url(")
+                            or "rx" in child.attrib):
+                        continue
+                    opacity = float(child.attrib.get("fill-opacity", "1"))
+                    with self.subTest(theme=theme, id=identifier):
+                        if state == "hover":
+                            self.assertLessEqual(
+                                opacity, 0.12,
+                                "the hover tile is a slab again",
+                            )
+                            self.assertNotEqual(
+                                child.attrib.get("fill", "").upper(), ink.upper(),
+                                "hover must tint with the accent, not darken "
+                                "with the text colour — that is the grey box",
+                            )
+                        else:
+                            self.assertEqual(
+                                opacity, 0.0,
+                                f"{state} paints a tile box behind the icon",
+                            )
+
     def test_every_theme_keeps_one_safe_kwin_frost_profile(self) -> None:
         """Applying a family member must not silently weaken or overdrive blur."""
         shipped_kwin = load_kconfig(ROOT / "system_files/etc/xdg/kwinrc")

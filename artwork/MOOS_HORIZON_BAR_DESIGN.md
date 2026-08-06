@@ -77,6 +77,34 @@ pressed (was 0.30). Motion stays behind the existing `root.motionMedium` seam.
   the system plasmoid on this machine — the system copy wins; QML changes are only
   visible after an image rebuild.)
 
+## The open-applet slot (2026-08-06)
+
+When a panel applet's popup is open, Plasma's shell paints a frame behind it —
+`CompactApplet.qml`'s `expandedItem`, a `KSvg.FrameSvgItem` on `widgets/tabbar`
+whose prefix comes from the panel edge. A bottom dock asks for
+`south-active-tab`. This is not the applet's own art and no applet can opt out of
+it, so it is the THEME's job to make it belong to the bar.
+
+It shipped as `raised` @ 0.84 with a `primary` @ 0.88 rim on all four edges at
+radius 9 — a near-opaque slab with a bright border, drawn the full height of the
+dock behind the button. Opening the MoOS launcher put a bordered rectangle on the
+dock glass, which is what the owner reported as "المربع الي بالبار".
+
+The bar's answer is a **lit slot**: the applet's slice of the dock glows, it does
+not get boxed.
+
+| property | value | why |
+|---|---|---|
+| fill | `primary` @ 0.12 | accent tint says "this is what's open"; still glass |
+| rim | none (0.0) | a border is what made it read as a rectangle |
+| radius | 20 of a 56 px block | ~40% of the block, so it reads as a capsule at dock height |
+
+The same four prefixes are a PlasmaComponents `TabBar`'s active tab, so the change
+also turns MoOS tab bars into a soft segmented control. One piece of art, two
+roles, both improved. Held by
+`tests/test_moos_ui2.py::test_open_applet_slot_is_never_a_bordered_box` across all
+sixteen packages.
+
 ## Deliberately not done (v1)
 
 - **No height change.** 54 logical is proven; the capsule reads 47 logical already.

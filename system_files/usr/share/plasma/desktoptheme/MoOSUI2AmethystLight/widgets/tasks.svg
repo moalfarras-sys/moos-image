@@ -16,6 +16,16 @@
        had no mark at all. It now carries the turquoise bar, `minimized` carries
        a quieter one, and the active window carries the full Nova gradient.
 
+       NO TILE CARRIES A BOX. Every state used to paint a flat slab of the TEXT
+       colour plus a 1 px accent hairline across its top edge. On a light family
+       member that slab is near-black at 10%, so the active app sat inside a
+       grey rectangle with a hard lit edge — the "cheap square" complaint. Only
+       `hover` still fills, and it fills with the LUMINOUS accent (never the
+       highlight colour, which would claim a pinned launcher is running).
+       `focus` and `attention` are now expressed by light rising from their own
+       indicator, which fades out before it reaches an edge and therefore has no
+       outline to read as a border.
+
        The 3px transparent pad at the top and bottom of every block is why the
        tiles stop colliding with the dock's lit rim: a full-bleed tile met the
        turquoise top edge and notched it once per icon.
@@ -40,6 +50,13 @@
       <stop offset="0" stop-color="#7C3AED" stop-opacity="0.9"/>
       <stop offset="1" stop-color="#7C3AED" stop-opacity="0"/>
     </linearGradient>
+    <!-- Same lift for a window asking for attention, in the warning hue, bound
+         to the attention block's bottom band. -->
+    <linearGradient id="nova-alert" gradientUnits="userSpaceOnUse"
+                    x1="0" y1="157" x2="0" y2="148">
+      <stop offset="0" stop-color="#7B520F" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#7B520F" stop-opacity="0"/>
+    </linearGradient>
   </defs>
   <!-- normal: tile 0 · hairline 0 · bar 0.85 -->
   <g id="normal-topleft"><path d="M0 12A9 9 0 0 1 9 3V12Z" fill="#17302E" fill-opacity="0.000"/></g>
@@ -56,31 +73,31 @@
   <rect id="normal-hint-left-margin" x="41" y="0" width="3" height="3" fill="none" opacity="0"/>
   <rect id="normal-hint-right-margin" x="41" y="6" width="3" height="3" fill="none" opacity="0"/>
   <rect id="normal-hint-stretch-borders" x="36" y="12" width="4" height="4" fill="none" opacity="0"/>
-  <!-- hover: tile 0.10 · hairline 0.10 · bar 0.55 -->
-  <g id="hover-topleft"><path d="M0 44A9 9 0 0 1 9 35V44Z" fill="#17302E" fill-opacity="0.100"/><path d="M0 44A9 9 0 0 1 9 35V36A8 8 0 0 0 1 44Z" fill="#8B3FD4" fill-opacity="0.100"/></g>
-  <g id="hover-top"><rect x="9" y="35" width="14" height="9" fill="#17302E" fill-opacity="0.100"/><rect x="9" y="35" width="14" height="1" fill="#8B3FD4" fill-opacity="0.100"/></g>
-  <g id="hover-topright"><path d="M23 35A9 9 0 0 1 32 44H23Z" fill="#17302E" fill-opacity="0.100"/><path d="M23 35A9 9 0 0 1 32 44H31A8 8 0 0 0 23 36Z" fill="#8B3FD4" fill-opacity="0.100"/></g>
-  <rect id="hover-left" x="0" y="44" width="9" height="8" fill="#17302E" fill-opacity="0.100"/>
-  <rect id="hover-center" x="9" y="44" width="14" height="8" fill="#17302E" fill-opacity="0.100"/>
-  <rect id="hover-right" x="23" y="44" width="9" height="8" fill="#17302E" fill-opacity="0.100"/>
-  <g id="hover-bottomleft"><path d="M0 52A9 9 0 0 0 9 61V52Z" fill="#17302E" fill-opacity="0.100"/></g>
-  <g id="hover-bottom"><rect x="9" y="52" width="14" height="9" fill="#17302E" fill-opacity="0.100"/></g>
-  <g id="hover-bottomright"><path d="M32 52A9 9 0 0 1 23 61V52Z" fill="#17302E" fill-opacity="0.100"/></g>
+  <!-- hover: luminous tile 0.09 · no hairline · no bar -->
+  <g id="hover-topleft"><path d="M0 44A9 9 0 0 1 9 35V44Z" fill="#8B3FD4" fill-opacity="0.090"/></g>
+  <g id="hover-top"><rect x="9" y="35" width="14" height="9" fill="#8B3FD4" fill-opacity="0.090"/></g>
+  <g id="hover-topright"><path d="M23 35A9 9 0 0 1 32 44H23Z" fill="#8B3FD4" fill-opacity="0.090"/></g>
+  <rect id="hover-left" x="0" y="44" width="9" height="8" fill="#8B3FD4" fill-opacity="0.090"/>
+  <rect id="hover-center" x="9" y="44" width="14" height="8" fill="#8B3FD4" fill-opacity="0.090"/>
+  <rect id="hover-right" x="23" y="44" width="9" height="8" fill="#8B3FD4" fill-opacity="0.090"/>
+  <g id="hover-bottomleft"><path d="M0 52A9 9 0 0 0 9 61V52Z" fill="#8B3FD4" fill-opacity="0.090"/></g>
+  <g id="hover-bottom"><rect x="9" y="52" width="14" height="9" fill="#8B3FD4" fill-opacity="0.090"/></g>
+  <g id="hover-bottomright"><path d="M32 52A9 9 0 0 1 23 61V52Z" fill="#8B3FD4" fill-opacity="0.090"/></g>
   <rect id="hover-hint-top-margin" x="36" y="32" width="3" height="3" fill="none" opacity="0"/>
   <rect id="hover-hint-bottom-margin" x="36" y="38" width="3" height="3" fill="none" opacity="0"/>
   <rect id="hover-hint-left-margin" x="41" y="32" width="3" height="3" fill="none" opacity="0"/>
   <rect id="hover-hint-right-margin" x="41" y="38" width="3" height="3" fill="none" opacity="0"/>
   <rect id="hover-hint-stretch-borders" x="36" y="44" width="4" height="4" fill="none" opacity="0"/>
-  <!-- focus: tile 0.10 · hairline 0.12 · bar 0.95 -->
-  <g id="focus-topleft"><path d="M0 76A9 9 0 0 1 9 67V76Z" fill="#17302E" fill-opacity="0.100"/><path d="M0 76A9 9 0 0 1 9 67V68A8 8 0 0 0 1 76Z" fill="#8B3FD4" fill-opacity="0.120"/></g>
-  <g id="focus-top"><rect x="9" y="67" width="14" height="9" fill="#17302E" fill-opacity="0.100"/><rect x="9" y="67" width="14" height="1" fill="#8B3FD4" fill-opacity="0.120"/></g>
-  <g id="focus-topright"><path d="M23 67A9 9 0 0 1 32 76H23Z" fill="#17302E" fill-opacity="0.100"/><path d="M23 67A9 9 0 0 1 32 76H31A8 8 0 0 0 23 68Z" fill="#8B3FD4" fill-opacity="0.120"/></g>
-  <rect id="focus-left" x="0" y="76" width="9" height="8" fill="#17302E" fill-opacity="0.100"/>
-  <rect id="focus-center" x="9" y="76" width="14" height="8" fill="#17302E" fill-opacity="0.100"/>
-  <rect id="focus-right" x="23" y="76" width="9" height="8" fill="#17302E" fill-opacity="0.100"/>
-  <g id="focus-bottomleft"><path d="M0 84A9 9 0 0 0 9 93V84Z" fill="#17302E" fill-opacity="0.100"/></g>
-  <g id="focus-bottom"><rect x="9" y="84" width="14" height="9" fill="#17302E" fill-opacity="0.100"/><rect x="9" y="84" width="14" height="9" fill="url(#nova-lift)" fill-opacity="0.180"/><rect x="9" y="89" width="14" height="3" rx="1.5" fill="url(#nova-accent)" fill-opacity="0.950"/></g>
-  <g id="focus-bottomright"><path d="M32 84A9 9 0 0 1 23 93V84Z" fill="#17302E" fill-opacity="0.100"/></g>
+  <!-- focus: tile 0 · hairline 0 · lift 0.30 · bar 0.95 -->
+  <g id="focus-topleft"><path d="M0 76A9 9 0 0 1 9 67V76Z" fill="#17302E" fill-opacity="0.000"/></g>
+  <g id="focus-top"><rect x="9" y="67" width="14" height="9" fill="#17302E" fill-opacity="0.000"/></g>
+  <g id="focus-topright"><path d="M23 67A9 9 0 0 1 32 76H23Z" fill="#17302E" fill-opacity="0.000"/></g>
+  <rect id="focus-left" x="0" y="76" width="9" height="8" fill="#17302E" fill-opacity="0.000"/>
+  <rect id="focus-center" x="9" y="76" width="14" height="8" fill="#17302E" fill-opacity="0.000"/>
+  <rect id="focus-right" x="23" y="76" width="9" height="8" fill="#17302E" fill-opacity="0.000"/>
+  <g id="focus-bottomleft"><path d="M0 84A9 9 0 0 0 9 93V84Z" fill="#17302E" fill-opacity="0.000"/></g>
+  <g id="focus-bottom"><rect x="9" y="84" width="14" height="9" fill="url(#nova-lift)" fill-opacity="0.300"/><rect x="9" y="89" width="14" height="3" rx="1.5" fill="url(#nova-accent)" fill-opacity="0.950"/></g>
+  <g id="focus-bottomright"><path d="M32 84A9 9 0 0 1 23 93V84Z" fill="#17302E" fill-opacity="0.000"/></g>
   <rect id="focus-hint-top-margin" x="36" y="64" width="3" height="3" fill="none" opacity="0"/>
   <rect id="focus-hint-bottom-margin" x="36" y="70" width="3" height="3" fill="none" opacity="0"/>
   <rect id="focus-hint-left-margin" x="41" y="64" width="3" height="3" fill="none" opacity="0"/>
@@ -101,16 +118,16 @@
   <rect id="minimized-hint-left-margin" x="41" y="96" width="3" height="3" fill="none" opacity="0"/>
   <rect id="minimized-hint-right-margin" x="41" y="102" width="3" height="3" fill="none" opacity="0"/>
   <rect id="minimized-hint-stretch-borders" x="36" y="108" width="4" height="4" fill="none" opacity="0"/>
-  <!-- attention: tile 0.12 · hairline 0.22 · bar 0.85 -->
-  <g id="attention-topleft"><path d="M0 140A9 9 0 0 1 9 131V140Z" fill="#17302E" fill-opacity="0.120"/><path d="M0 140A9 9 0 0 1 9 131V132A8 8 0 0 0 1 140Z" fill="#8B3FD4" fill-opacity="0.220"/></g>
-  <g id="attention-top"><rect x="9" y="131" width="14" height="9" fill="#17302E" fill-opacity="0.120"/><rect x="9" y="131" width="14" height="1" fill="#8B3FD4" fill-opacity="0.220"/></g>
-  <g id="attention-topright"><path d="M23 131A9 9 0 0 1 32 140H23Z" fill="#17302E" fill-opacity="0.120"/><path d="M23 131A9 9 0 0 1 32 140H31A8 8 0 0 0 23 132Z" fill="#8B3FD4" fill-opacity="0.220"/></g>
-  <rect id="attention-left" x="0" y="140" width="9" height="8" fill="#17302E" fill-opacity="0.120"/>
-  <rect id="attention-center" x="9" y="140" width="14" height="8" fill="#17302E" fill-opacity="0.120"/>
-  <rect id="attention-right" x="23" y="140" width="9" height="8" fill="#17302E" fill-opacity="0.120"/>
-  <g id="attention-bottomleft"><path d="M0 148A9 9 0 0 0 9 157V148Z" fill="#17302E" fill-opacity="0.120"/></g>
-  <g id="attention-bottom"><rect x="9" y="148" width="14" height="9" fill="#17302E" fill-opacity="0.120"/><rect x="9" y="153" width="14" height="3" rx="1.5" fill="#7B520F" fill-opacity="0.850"/></g>
-  <g id="attention-bottomright"><path d="M32 148A9 9 0 0 1 23 157V148Z" fill="#17302E" fill-opacity="0.120"/></g>
+  <!-- attention: tile 0 · hairline 0 · alert lift 0.34 · bar 0.85 -->
+  <g id="attention-topleft"><path d="M0 140A9 9 0 0 1 9 131V140Z" fill="#17302E" fill-opacity="0.000"/></g>
+  <g id="attention-top"><rect x="9" y="131" width="14" height="9" fill="#17302E" fill-opacity="0.000"/></g>
+  <g id="attention-topright"><path d="M23 131A9 9 0 0 1 32 140H23Z" fill="#17302E" fill-opacity="0.000"/></g>
+  <rect id="attention-left" x="0" y="140" width="9" height="8" fill="#17302E" fill-opacity="0.000"/>
+  <rect id="attention-center" x="9" y="140" width="14" height="8" fill="#17302E" fill-opacity="0.000"/>
+  <rect id="attention-right" x="23" y="140" width="9" height="8" fill="#17302E" fill-opacity="0.000"/>
+  <g id="attention-bottomleft"><path d="M0 148A9 9 0 0 0 9 157V148Z" fill="#17302E" fill-opacity="0.000"/></g>
+  <g id="attention-bottom"><rect x="9" y="148" width="14" height="9" fill="url(#nova-alert)" fill-opacity="0.340"/><rect x="9" y="153" width="14" height="3" rx="1.5" fill="#7B520F" fill-opacity="0.850"/></g>
+  <g id="attention-bottomright"><path d="M32 148A9 9 0 0 1 23 157V148Z" fill="#17302E" fill-opacity="0.000"/></g>
   <rect id="attention-hint-top-margin" x="36" y="128" width="3" height="3" fill="none" opacity="0"/>
   <rect id="attention-hint-bottom-margin" x="36" y="134" width="3" height="3" fill="none" opacity="0"/>
   <rect id="attention-hint-left-margin" x="41" y="128" width="3" height="3" fill="none" opacity="0"/>

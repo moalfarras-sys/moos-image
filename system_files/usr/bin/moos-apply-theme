@@ -238,8 +238,8 @@ apply_desktop_scene() {
     result="$(timeout 8s gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
         -m org.kde.PlasmaShell.evaluateScript '
             var IMAGE = "'"$image"'";
-            var incomplete = false;
             var ds = desktops();
+            var incomplete = (ds.length === 0);
             for (var i = 0; i < ds.length; i++) {
                 var d = ds[i];
                 try {

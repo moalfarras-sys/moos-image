@@ -89,9 +89,19 @@ These were planted by a live preview session (Aug 6). `moos-apply-theme` already
 
 The apply log shows repeated `steady-state: desktop wallpaper ... != ... — healing` entries across multiple logins when the user was on NovaLight but the wallpaper showed Graphite. The wallpaper reconciler is working correctly but the fact it fires repeatedly suggests a race between Plasma's own wallpaper persistence and the reconciler.
 
-#### Medium: Tasks SVG Hover/Focus Borders
+#### RESOLVED 2026-08-06 — The box behind an open panel applet
 
-The `tasks.svg` contains `normal`, `hover`, `focus`, `minimized`, and `attention` states. Each state has the standard 9-patch border elements. The hover and focus states have visible borders that could appear as "boxes" around task buttons — this is the SVG providing the frame art for each state.
+Opening the MoOS launcher wrapped the dock button in a hard bordered rectangle. The art was **not** the launcher's: Plasma's shell paints `widgets/tabbar.svg` behind any panel applet while its popup is open (`CompactApplet.qml`, the `expandedItem` FrameSvgItem), picking the prefix from the panel edge — a bottom dock asks for `south-active-tab`. MoOS shipped that prefix as `raised` @ 0.84 with a `primary` @ 0.88 rim on all four edges.
+
+All four `*-active-tab` prefixes are now `primary` @ 0.12 with **no rim**, at radius 20 of a 56 px block, so the frame reads as a capsule-shaped lit slot at any dock height. The same four prefixes are a PlasmaComponents TabBar's active tab, which becomes a modern soft segmented-control fill.
+
+#### RESOLVED 2026-08-06 — Tasks SVG hover/focus tiles
+
+Every state filled the **text** colour at ~0.10 across all nine cells plus a 1 px accent hairline along its top edge. On a light family member the text colour is near-black, so the active app sat inside a grey rectangle with a lit edge (seen live on `MoOSUI2NovaLight`).
+
+No task state paints a flat tile any more. Running state is carried by the bottom indicator alone; `focus` and `attention` rise from their own bar through the `nova-lift` / `nova-alert` gradients, and `hover` — the one state that still fills — tints with `luminous` @ 0.09 instead of darkening.
+
+Three gates hold this for all 16 packages: `test_open_applet_slot_is_never_a_bordered_box`, `test_dock_task_states_never_paint_a_tile_box`, and `test_native_controls_hint_an_edge_instead_of_drawing_a_box` (the MoOS rim scale — resting ≤ 0.22, hover ≤ 0.25, selected/pressed ≤ 0.40, keyboard focus 0.40–0.60; floating glass exempt).
 
 #### Low: QML Warnings from Upstream
 

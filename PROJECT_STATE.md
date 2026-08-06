@@ -2222,6 +2222,52 @@ to multi-layer Liquid Glass. Design system remains **MoOS UI — Liquid Glass**.
 
 ## Active visual work: the MoOS theme FAMILY (UI2 engine)
 
+> **Update 2026-08-06 — the box in the bar, and the rim scale that let it exist.**
+> The owner reported "المربع الي بالبار الي يطلع": opening the MoOS launcher wrapped the
+> dock button in a hard bordered rectangle. It was NOT the launcher's own art. Plasma's
+> shell (`/usr/share/plasma/shells/org.kde.plasma.desktop/contents/applet/CompactApplet.qml`,
+> the `expandedItem` FrameSvgItem) paints `widgets/tabbar.svg` behind ANY panel applet for
+> as long as its popup is open, choosing the prefix from the panel edge — a bottom dock asks
+> for `south-active-tab`. MoOS shipped that prefix as `raised` @ 0.84 ringed by `primary` @
+> 0.88 on all four edges at radius 9: a near-opaque slab with a bright accent border, drawn
+> full applet height behind the button. Confirmed by reading the shell QML and by the
+> owner's own screenshot, whose popup text (`جلسة محلية موثوقة`) exists only in
+> `org.moos.brand/contents/ui/LauncherView.qml:1305` — so the launcher popup was open.
+>
+> - **The open-applet slot is now a lit slot, not a box** (`generate_moos_plasma_surfaces.py`):
+>   all four `*-active-tab` prefixes are `primary` @ 0.12 with **no rim at all**, at radius
+>   20 of a 56 px block so the frame reads as a capsule at any dock height. The same four
+>   prefixes are a PlasmaComponents TabBar's active tab, which becomes a soft segmented-
+>   control fill — one piece of art, both roles improved.
+> - **No task tile paints a slab any more** (`MoOSUI2/widgets/tasks.svg`, the authored
+>   master all 16 recolour from). Every state used to fill the TEXT colour at ~0.10 across
+>   all nine cells plus a 1 px accent hairline along its top edge; on a light family member
+>   the text colour is near-black, so the ACTIVE app sat in a grey rectangle with a lit
+>   edge — visible in the live 4K light session before the change. Running state is now
+>   carried by the bottom indicator alone: `focus` and `attention` rise from their own bar
+>   through `nova-lift` / the new `nova-alert` gradient (0.30 / 0.34), `hover` is the one
+>   state that still fills and it TINTS with `luminous` @ 0.09 instead of darkening.
+> - **The rim scale is written down and gated.** An interaction state is told by its fill;
+>   the rim only hints an edge. Resting ≤ 0.22, hover ≤ 0.25, selected/pressed ≤ 0.40,
+>   keyboard focus 0.40–0.60 (it must stay unmistakable). The pager's active desktop was
+>   `luminous` @ 0.94 and its hover 0.64; menubaritem pressed was 0.64 — all brought in.
+>   Floating glass (tooltip, popup background, dock capsule) is deliberately EXEMPT: there
+>   the rim is the only thing separating the surface from live wallpaper.
+> - **Three new gates in `tests/test_moos_ui2.py`** hold it for all 16:
+>   `test_open_applet_slot_is_never_a_bordered_box`,
+>   `test_dock_task_states_never_paint_a_tile_box`,
+>   `test_native_controls_hint_an_edge_instead_of_drawing_a_box`. They read the GENERATED
+>   packages, not the generator, so a hand-edit cannot slip past either.
+> - **Verified live** on the 4K@225% session (`MoOSUI2NovaLight`) via the home-override
+>   preview: launcher opened over D-Bus, screenshot read — soft borderless capsule behind
+>   the button, active app carries a bar with no grey rectangle, pinned launchers carry
+>   nothing. The override was removed again before commit. 59/59 CI repo gates green.
+> - **Not changed, on purpose:** `desktoptheme/Nova` is retired UI1 geometry with no
+>   metadata.json (Plasma never lists it), so the new gates scope to `MoOSUI2*`. The clock
+>   chip's 1 px border and its two-dash "Tidal Cut" signal are deliberate identity, not
+>   drift. The live dock is still ONE panel containment while `moos-bar.conf` defines two
+>   slabs — rewriting a locked, in-use panel layout mid-session was out of scope here.
+
 > **Update 2026-07-30 (ship-readiness milestone) — the adversarially-verified desktop audit
 > and its fixes.** Full handoff with root causes, measurements, rejected approaches, design
 > decisions and the deferred-work plan: **`docs/SESSION_HANDOFF_2026-07-29.md`** (13 commits,

@@ -290,15 +290,22 @@ def _multi_frame(
     *,
     comment: str,
     radius: int = 9,
+    inner: int = 24,
+    pitch: int = 52,
 ) -> str:
+    if radius * 2 + inner > pitch:
+        raise SystemExit(
+            "_multi_frame blocks would overlap: raise pitch above "
+            f"{radius * 2 + inner}"
+        )
     body: list[str] = []
     for index, (prefix, fill, opacity, rim, rim_opacity) in enumerate(states):
         body.extend(_frame(
-            prefix, x=0, y=index * 52, fill=fill, fill_opacity=opacity,
-            rim=rim, rim_opacity=rim_opacity, radius=radius,
+            prefix, x=0, y=index * pitch, fill=fill, fill_opacity=opacity,
+            rim=rim, rim_opacity=rim_opacity, radius=radius, inner=inner,
         ))
     body.append(f'  <rect id="hint-tile-center" x="104" y="0" width="4" height="4" fill="none"/>')
-    return _document(body, p, 128, len(states) * 52, comment=comment)
+    return _document(body, p, 128, len(states) * pitch, comment=comment)
 
 
 def _state_frames(
@@ -348,13 +355,13 @@ def _button(p: Mapping[str, str]) -> str:
     # "toolbutton-hover" margins the flat button's padding — those fill their
     # rect and never overhang.
     states = [
-        ("normal", p["raised"], 0.82, p["outline"], 0.30, 8),
-        ("hover", p["raised"], 0.96, p["luminous"], 0.42, 0.001),
-        ("focus", p["surface"], 0.01, p["luminous"], 0.94, 2),
-        ("pressed", p["card"], 0.98, p["primary"], 0.76, 8),
-        ("toolbutton-hover", p["raised"], 0.58, p["luminous"], 0.30, 4),
-        ("toolbutton-focus", p["surface"], 0.01, p["luminous"], 0.92, 2),
-        ("toolbutton-pressed", p["primary"], 0.16, p["primary"], 0.72, 4),
+        ("normal", p["raised"], 0.82, p["outline"], 0.12, 8),
+        ("hover", p["raised"], 0.96, p["luminous"], 0.20, 0.001),
+        ("focus", p["surface"], 0.01, p["luminous"], 0.40, 2),
+        ("pressed", p["card"], 0.98, p["primary"], 0.40, 8),
+        ("toolbutton-hover", p["raised"], 0.58, p["luminous"], 0.15, 4),
+        ("toolbutton-focus", p["surface"], 0.01, p["luminous"], 0.40, 2),
+        ("toolbutton-pressed", p["primary"], 0.16, p["primary"], 0.40, 4),
     ]
     body = _soft_shadow_frame(p, x=64, y=0, radius=10)
     for index, (prefix, fill, opacity, rim, rim_opacity, hint_margin) in enumerate(states):
@@ -387,10 +394,10 @@ def _lineedit(p: Mapping[str, str]) -> str:
     return _state_frames(
         p,
         [
-            ("base", p["surface"], 0.90, p["outline"], 0.38),
-            ("hover", p["surface"], 0.96, p["luminous"], 0.34),
-            ("focus", p["surface"], 1.00, p["primary"], 0.88),
-            ("focusframe", p["surface"], 0.01, p["luminous"], 0.98),
+            ("base", p["surface"], 0.90, p["outline"], 0.20),
+            ("hover", p["surface"], 0.96, p["luminous"], 0.25),
+            ("focus", p["surface"], 1.00, p["primary"], 0.60),
+            ("focusframe", p["surface"], 0.01, p["luminous"], 0.60),
         ],
         radius=10,
         comment="MoOS native text fields with a calm resting edge and an unmistakable keyboard-focus rim.",
@@ -402,9 +409,9 @@ def _listitem(p: Mapping[str, str]) -> str:
         p,
         [
             ("normal", p["surface"], 0.01, p["outline"], 0.01),
-            ("hover", p["raised"], 0.54, p["luminous"], 0.24),
-            ("pressed", p["primary"], 0.15, p["primary"], 0.60),
-            ("section", p["surface"], 0.30, p["outline"], 0.12),
+            ("hover", p["raised"], 0.54, p["luminous"], 0.10),
+            ("pressed", p["primary"], 0.15, p["primary"], 0.35),
+            ("section", p["surface"], 0.30, p["outline"], 0.10),
         ],
         radius=9,
         comment="MoOS native list rows: borderless at rest, quiet prelight, semantic pressed selection.",
@@ -421,9 +428,9 @@ def _viewitem(p: Mapping[str, str]) -> str:
         p,
         [
             ("normal", p["surface"], 0.01, p["outline"], 0.01),
-            ("hover", p["raised"], 0.50, p["luminous"], 0.22),
-            ("selected", p["primary"], 0.16, p["primary"], 0.58),
-            ("selected+hover", p["primary"], 0.24, p["luminous"], 0.72),
+            ("hover", p["raised"], 0.50, p["luminous"], 0.10),
+            ("selected", p["primary"], 0.16, p["primary"], 0.35),
+            ("selected+hover", p["primary"], 0.24, p["luminous"], 0.40),
         ],
         radius=9,
         comment="MoOS native view items with low-noise hover and a palette-owned selected state.",
@@ -609,23 +616,44 @@ def render_surface_suite(target: pathlib.Path, p: Mapping[str, str]) -> None:
     _write(widgets / "lineedit.svg", _lineedit(p))
     _write(widgets / "listitem.svg", _listitem(p))
     _write(widgets / "viewitem.svg", _viewitem(p))
+    # THE MoOS RIM SCALE. An interaction state is told by its FILL; the rim is
+    # only ever a hint of an edge. A rim drawn in an accent colour above ~0.40
+    # stops reading as glass and starts reading as a drawn-on rectangle — the
+    # "cheap box" the whole family was swept for. Structural rims on FLOATING
+    # glass (tooltip, popup, dock) are exempt: there the edge is the only thing
+    # separating the surface from live wallpaper.
+    #   resting  <= 0.22 · hover <= 0.25 · selected/pressed <= 0.40
+    #   keyboard focus 0.40..0.60 — it must stay unmistakable for accessibility
     _write(widgets / "menubaritem.svg", _multi_frame(p, [
         ("normal", p["surface"], 0.01, p["outline"], 0.01),
-        ("hover", p["raised"], 0.54, p["luminous"], 0.28),
-        ("pressed", p["primary"], 0.16, p["primary"], 0.64),
+        ("hover", p["raised"], 0.54, p["luminous"], 0.20),
+        ("pressed", p["primary"], 0.16, p["primary"], 0.35),
     ], comment="MoOS menu item interaction states."))
     _write(widgets / "pager.svg", _multi_frame(p, [
-        ("normal", p["surface"], 0.36, p["outline"], 0.32),
-        ("hover", p["raised"], 0.78, p["luminous"], 0.64),
-        ("active", p["primary"], 0.34, p["luminous"], 0.94),
+        ("normal", p["surface"], 0.36, p["outline"], 0.18),
+        ("hover", p["raised"], 0.78, p["luminous"], 0.25),
+        ("active", p["primary"], 0.34, p["luminous"], 0.40),
     ], comment="MoOS virtual desktop pager states."))
     _write(widgets / "toolbar.svg", _multi_frame(p, [
         ("", p["surface"], 0.62, p["outline"], 0.24),
     ], comment="MoOS translucent toolbar frame."))
+    # Plasma reuses these four prefixes for TWO surfaces: the active tab of a
+    # PlasmaComponents TabBar, and — via the shell's CompactApplet — the frame
+    # painted behind a PANEL APPLET while its popup is open, picked by panel
+    # edge (a bottom dock asks for "south-active-tab").  The old art was a
+    # near-opaque slab with a 0.88 accent rim on all four edges, so opening the
+    # MoOS launcher wrapped the button in a hard bordered rectangle sitting on
+    # the dock glass — the "square in the bar" the owner asked us to remove.
+    #
+    # MoOS UI answers with a lit slot instead of a box: no rim at all, a low
+    # accent tint, and a radius large enough (20 of a 56 px block) that the
+    # frame reads as a capsule rather than a rectangle at every dock height.
     _write(widgets / "tabbar.svg", _multi_frame(p, [
-        (f"{direction}-active-tab", p["raised"], 0.84, p["primary"], 0.88)
+        (f"{direction}-active-tab", p["primary"], 0.12, p["primary"], 0.0)
         for direction in ("north", "east", "south", "west")
-    ], comment="MoOS active tabs in all four tab-bar orientations."))
+    ], comment=("MoOS active tab and open-applet slot: borderless accent glass, "
+                "capsule radius, never a bordered box."),
+        radius=20, inner=16, pitch=64))
     _write(widgets / "arrows.svg", _arrows(p))
     _write(widgets / "actionbutton.svg", _action_button(p))
     radio, checks = _selection_controls(p)
