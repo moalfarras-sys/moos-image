@@ -4,7 +4,7 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-08-03, round 8 — **the update button could never have
+Last updated: 2026-08-07, unified design audit slice — **the update button could never have
 updated anything, on any machine.**
 
 The background train was fixed two rounds ago and the *app* was left behind.

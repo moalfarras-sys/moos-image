@@ -34,6 +34,23 @@ QtObject {
     readonly property int motionGeometry: 220
     readonly property int motionPage: 320
 
+    // Shared surface, state and layout rails. Components may add geometry
+    // specific to their content, but identity values belong here.
+    readonly property real glassRestingOpacity: 0.22
+    readonly property real glassHoverOpacity: 0.25
+    readonly property real glassSelectedOpacity: 0.40
+    readonly property real glassBorderOpacity: 0.34
+    readonly property int borderHairline: 1
+    readonly property int panelHeight: 54
+    readonly property int dialogWidth: 792
+    readonly property int dialogHeight: 576
+    readonly property int iconSmall: 16
+    readonly property int iconControl: 20
+    readonly property int iconLarge: 24
+    readonly property int shadowBlur: 15
+    readonly property real disabledOpacity: 0.48
+    readonly property real hoverScale: 1.02
+
     // Map legacy point choices onto the reviewed first-party type ramp while
     // preserving the user's system font scale. This also establishes 11 px as
     // the minimum functional text size.

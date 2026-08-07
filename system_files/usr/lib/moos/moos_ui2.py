@@ -42,7 +42,7 @@ UI2_LIGHT = {
     "canvas": "#D8EBE7", "surface": "#C9E2DD", "card": "#E1F0EC",
     "raised": "#B8D8D2", "primary": "#006D67", "secondary": "#1D6278", "luminous": "#0B6965",
     "positive": "#086B4B", "warning": "#7B520F", "negative": "#A52F3F",
-    "text": "#17302E", "muted": "#466360", "outline": "#527F79",
+    "text": "#17302E", "muted": "#3D5854", "outline": "#527F79",
     "on_accent": "#E8F1EF", "on_negative": "#D8EBE7",
     "shadow": "rgba(23, 48, 46, 0.16)",
 }

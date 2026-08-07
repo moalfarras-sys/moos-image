@@ -88,9 +88,15 @@ WallpaperItem {
     // So the veil and the signature use the MoOS UI2 tokens of the wallpaper this
     // scene actually resolved (artwork/MOOS_UI2_DESIGN.md), keyed off the same
     // test resolveImage() already uses to choose the frame. Graphite Dark by
-    // default; Tidal Light only when a Tide package is configured, so the light
-    // branch of resolveImage() cannot strand dark ink on a light horizon either.
-    readonly property bool lightScene: root.sceneImage.indexOf("MoOSUI2Tide") >= 0
+    // default; the light branch follows every configured Light/Tide/Daylight
+    // package, so it cannot strand dark ink on a light horizon.
+    // Keep the palette variant derived from the same package path as the image.
+    // Family light profiles must not inherit Graphite ink merely because they
+    // are not named Tide.
+    readonly property bool lightScene:
+        /\/MoOSUI2[^/]*Light\//.test(root.sceneImage)
+        || root.sceneImage.indexOf("/MoOSUI2Tide/") >= 0
+        || root.sceneImage.indexOf("/MoOSUI2Daylight/") >= 0
     readonly property color canvas: root.lightScene ? "#D8EBE7" : "#14191C"
     readonly property color ink: root.lightScene ? "#17302E" : "#E8F1EF"
     readonly property color accent: root.lightScene ? "#006D67" : "#4ED7C8"

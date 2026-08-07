@@ -484,6 +484,9 @@ live_pass() {
                         } catch (e) {}
                     }
                 }
+                // Removal/addition above mutates the live containment. Read it
+                // back before deciding whether the required applets exist.
+                ws2 = dock.widgets();
                 var hasT = false, hasC = false;
                 for (var r = 0; r < ws2.length; r++) {
                     var tt = String(ws2[r].type);
@@ -617,7 +620,8 @@ cmd_check() {
             var CLOCK_APPLET = "'"$CLOCK_APPLET"'";
             var DOCK_APPLET = "'"$BRAND_APPLET"'";
             var ps = panels();
-            var bottom = 0, whole = 0, align = "", shown = "";
+             var bottom = 0, whole = 0, align = "", shown = "";
+             var launcherCount = 0, trayCount = 0, clockCount = 0;
             for (var i = 0; i < ps.length; i++) {
                 if (ps[i].location != "bottom") { continue; }
                 bottom++;
@@ -625,9 +629,9 @@ cmd_check() {
                 var hasB = false, hasT = false, hasC = false;
                 for (var j = 0; j < ws.length; j++) {
                     var t = String(ws[j].type);
-                    if (t == DOCK_APPLET) { hasB = true; }
-                    else if (t == TRAY_APPLET) { hasT = true; }
-                    else if (t == CLOCK_APPLET) { hasC = true; }
+                     if (t == DOCK_APPLET) { hasB = true; launcherCount++; }
+                     else if (t == TRAY_APPLET) { hasT = true; trayCount++; }
+                     else if (t == CLOCK_APPLET) { hasC = true; clockCount++; }
                 }
                 if (hasB && hasT && hasC) {
                     whole++;
@@ -640,23 +644,31 @@ cmd_check() {
                     }
                 }
             }
-            print("bottom=" + bottom + ";whole=" + whole
-                + ";align=" + align + ";shown=" + shown);
+             print("bottom=" + bottom + ";whole=" + whole
+                 + ";align=" + align + ";shown=" + shown
+                 + ";launcher=" + launcherCount + ";tray=" + trayCount
+                 + ";clock=" + clockCount);
         ' 2>/dev/null)" || out=""
     local report
     report="$(printf '%s\n' "$out" | grep -oE 'bottom=[0-9]+;whole=[0-9]+;align=[a-z]*;shown=.*' | head -n1)"
     [ -n "$report" ] || { echo "bar: no live report"; return 1; }
-    local bottom whole align shown shown_norm want_norm
+    local bottom whole align shown shown_norm want_norm launcher tray clock
     bottom="$(printf '%s' "$report" | sed -n 's/.*bottom=\([0-9]*\).*/\1/p')"
     whole="$(printf '%s' "$report" | sed -n 's/.*whole=\([0-9]*\).*/\1/p')"
     align="$(printf '%s' "$report" | sed -n 's/.*align=\([a-z]*\).*/\1/p')"
-    shown="$(printf '%s' "$report" | sed -n 's/.*shown=\(.*\)$/\1/p')"
+    shown="$(printf '%s' "$report" | sed -n 's/.*shown=\([^;]*\).*/\1/p')"
+    launcher="$(printf '%s' "$report" | sed -n 's/.*;launcher=\([0-9]*\).*/\1/p')"
+    tray="$(printf '%s' "$report" | sed -n 's/.*;tray=\([0-9]*\).*/\1/p')"
+    clock="$(printf '%s' "$report" | sed -n 's/.*;clock=\([0-9]*\).*/\1/p')"
     shown_norm="$(printf '%s' "$shown" | tr ',' '\n' | sed '/^[[:space:]]*$/d' | sort | tr '\n' ',')"
     want_norm="$(printf '%s' "$TRAY_SHOWN" | tr ',' '\n' | sed '/^[[:space:]]*$/d' | sort | tr '\n' ',')"
     # ONE bottom panel, and it carries the WHOLE bar. Two capsules is the exact
     # regression this check exists to catch.
     [ "$bottom" = "1" ] || { echo "bar: $bottom bottom panels — the bar must be ONE capsule"; failures=$((failures+1)); }
     [ "$whole" = "1" ] || { echo "bar: no single panel holds launcher + tray + clock together"; failures=$((failures+1)); }
+    [ "$launcher" = "1" ] || { echo "bar: launcher count is '$launcher' (want 1)"; failures=$((failures+1)); }
+    [ "$tray" = "1" ] || { echo "bar: tray count is '$tray' (want 1)"; failures=$((failures+1)); }
+    [ "$clock" = "1" ] || { echo "bar: clock count is '$clock' (want 1)"; failures=$((failures+1)); }
     [ "$align" = "$BAR_ALIGN" ] || { echo "bar: alignment is '$align' (want $BAR_ALIGN)"; failures=$((failures+1)); }
     [ "$shown_norm" = "$want_norm" ] || {
         echo "bar: tray shownItems drift: live '$shown_norm' vs conf '$want_norm'"
