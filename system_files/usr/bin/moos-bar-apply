@@ -57,6 +57,7 @@ BAR_LENGTH="$(conf bar.lengthMode)"
 BAR_ALIGN="$(conf bar.alignment)"
 BAR_APPLETS="$(conf bar.applets)"
 TRAY_SHOWN="$(conf tray.shownItems)"
+TRAY_EXTRA="$(conf tray.extraItems)"
 BRAND_APPLET="$(conf brand.applet)"
 TASKS_APPLET="$(conf tasks.applet)"
 TRAY_APPLET="$(conf tray.applet)"
@@ -335,6 +336,7 @@ live_pass() {
         -m org.kde.PlasmaShell.evaluateScript '
             var HEIGHT = Number("'"$BAR_HEIGHT"'");
             var SHOWN = "'"$TRAY_SHOWN"'".split(",").filter(function (s) { return s.length > 0; });
+            var EXTRA = "'"$TRAY_EXTRA"'".split(",").filter(function (s) { return s.length > 0; });
             var SHIPPED = ['"$dock_shipped"'];
             var HIDE = [
                 "org.kde.kdeconnect", "org.kde.plasma.vault", "org.kde.kscreen",
@@ -470,6 +472,20 @@ live_pass() {
                             ws3[s].currentConfigGroup = ["General"];
                             ws3[s].writeConfig("shownItems", SHOWN.join(","));
                             ws3[s].writeConfig("hiddenItems", HIDE.join(","));
+                            // extraItems is the tray'"'"'s list of items it KNOWS about.
+                            // MoOS-owned items must be in it or the tray never
+                            // instantiates them; they must NOT be in shownItems
+                            // or they are forced permanently visible, which
+                            // defeats an item whose whole design is to appear
+                            // only when it has something to say. Merge, never
+                            // replace: the rest of that list is Plasma'"'"'s own.
+                            var known = String(ws3[s].readConfig("extraItems", ""))
+                                            .split(",").filter(function (e) { return e.length > 0; });
+                            var grew = false;
+                            for (var x = 0; x < EXTRA.length; x++) {
+                                if (known.indexOf(EXTRA[x]) < 0) { known.push(EXTRA[x]); grew = true; }
+                            }
+                            if (grew) { ws3[s].writeConfig("extraItems", known.join(",")); applied++; }
                             ws3[s].reloadConfig();
                         } catch (e) {}
                     }

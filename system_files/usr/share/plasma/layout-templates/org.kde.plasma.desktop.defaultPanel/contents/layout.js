@@ -145,7 +145,12 @@ var systray = panel.addWidget("org.kde.plasma.systemtray");
 // "control centre in the corner" without a custom plasmoid. This list is a
 // mirror of moos-bar.conf [tray] shownItems; the gate keeps them equal.
 systray.currentConfigGroup = ["General"];
-systray.writeConfig("shownItems", "org.kde.plasma.networkmanagement,org.kde.plasma.bluetooth,org.kde.plasma.volume,org.kde.plasma.brightness,org.kde.plasma.notifications,org.kde.plasma.keyboardlayout");
+systray.writeConfig("shownItems", "org.kde.plasma.networkmanagement,org.kde.plasma.volume,org.kde.plasma.notifications,org.kde.plasma.keyboardlayout");
+// extraItems = items the tray KNOWS about; each one's own Active/Passive status
+// then decides whether it is out or behind the arrow. The context island must be
+// here and must NOT be in shownItems: forcing it visible would make permanent
+// the one thing it exists to avoid.
+systray.writeConfig("extraItems", "org.moos.island");
 
 panel.addWidget("org.moos.nova.clock");
 

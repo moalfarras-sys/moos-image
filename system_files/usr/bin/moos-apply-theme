@@ -88,7 +88,14 @@ set -uo pipefail
 #     / balanced / essential, and writes the matching KWin + Kirigami profile.
 #     Until now every MoOS install ran the profile tuned on a discrete-GPU 4K
 #     desktop, including cloud hosts with no render node at all.
-THEME_REV=34
+# 35: the tray gets shorter and the context island arrives. shownItems drops from
+#     six forced icons to four (bluetooth and brightness move to auto, where they
+#     surface only when they have something to say); org.moos.island joins
+#     extraItems — KNOWN to the tray but never forced — so Plasma's own
+#     ActiveStatus/PassiveStatus decides, and the island appears only while a
+#     player is actually playing. Verified live against a real MPRIS2 service on
+#     the session bus: one mark appears, and disappears with the player.
+THEME_REV=35
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

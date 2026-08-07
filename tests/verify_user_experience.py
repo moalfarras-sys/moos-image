@@ -2449,7 +2449,7 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=34" in apply_theme_code,
+require("THEME_REV=35" in apply_theme_code,
         "MoOS visual schema must migrate existing users to the liquid-glass marks "
         "and the two-slab Horizon Bar (moos-bar-apply), while reconciling new shadows "
         "and purging the Plasma SVG cache that would otherwise keep serving old art")
@@ -4555,25 +4555,47 @@ require("systemctl --user start plasma-ksystemstats.service" in apply_theme_code
         "the sensor daemon must be started explicitly so the rings are fed before the "
         "first paint, rather than only when something subscribes")
 
-# ── The tray keeps the everyday toggles one click away ────────────────────────
-# The 07-24 tray design (shipped in layout.js): Wi-Fi, Bluetooth, volume and
-# brightness are always-shown — hiding them is the single most common "where is my
-# Bluetooth" friction — notifications stay reachable, and the keyboard/language
-# indicator is pinned too (with several layouts configured it can drop out of the
-# tray entirely). Everything else auto. Since rev 30 the list's single source is
-# moos-bar.conf [tray] shownItems, and moos-bar-apply pins it into the user's own
-# config on every apply, or a theme application hides the toggles again on an
-# existing machine while every gate stays green. Assert on the CODE (comments
-# stripped), every toggle, so none can rot alone.
-_tray_toggles = ("org.kde.plasma.networkmanagement", "org.kde.plasma.bluetooth",
-                 "org.kde.plasma.volume", "org.kde.plasma.brightness",
-                 "org.kde.plasma.notifications", "org.kde.plasma.keyboardlayout")
-require("shownItems=" in code(bar_conf),
+# ── The tray shows what a person reaches for, and nothing else ───────────────
+# Rev 29 forced six icons visible. The owner asked for fewer, so rev 35 pins four
+# — network, volume, notifications and the keyboard/language indicator (with
+# several layouts configured it can drop out of the tray entirely, and switching
+# Arabic/English is constant on this desk). Bluetooth and brightness move to
+# AUTO: still one click away behind the arrow, and out on their own when they
+# have something to say. The list's single source is moos-bar.conf [tray]
+# shownItems and moos-bar-apply pins it on every apply, or a theme application
+# rewrites the tray on an existing machine while every gate stays green.
+_tray_shown = ("org.kde.plasma.networkmanagement", "org.kde.plasma.volume",
+               "org.kde.plasma.notifications", "org.kde.plasma.keyboardlayout")
+_bar_conf_code = code(bar_conf)
+_shown_line = next((l for l in _bar_conf_code.splitlines()
+                    if l.startswith("shownItems=")), "")
+require(_shown_line,
         "moos-bar.conf must be the single source of the tray's shownItems list")
-for _toggle in _tray_toggles:
-    require(_toggle in code(bar_conf),
+for _toggle in _tray_shown:
+    require(_toggle in _shown_line,
             f"the tray design keeps {_toggle} one click away — moos-bar.conf must "
             f"ship it in the shownItems list or a theme application hides it again")
+
+# THE INVARIANT THAT MAKES THE CONTEXT ISLAND WORK. shownItems means FORCED
+# visible, whatever an item's own status says. The island's entire design is to
+# appear only while the machine has something to say, using Plasma's own
+# ActiveStatus/PassiveStatus — so listing it under shownItems makes it permanent
+# and defeats it. It was listed there once during development and the tray kept
+# a dead mark after the player exited; that is the regression this refuses.
+require("org.moos.island" not in _shown_line,
+        "org.moos.island must NEVER be in shownItems — that forces it visible "
+        "and defeats an item whose whole purpose is to appear only when it has "
+        "something to say. It belongs in extraItems.")
+_extra_line = next((l for l in _bar_conf_code.splitlines()
+                    if l.startswith("extraItems=")), "")
+require("org.moos.island" in _extra_line,
+        "moos-bar.conf must list org.moos.island in the tray's extraItems, or "
+        "the tray never instantiates it and the island can never appear")
+require('conf tray.extraItems' in bar_apply
+        and 'readConfig("extraItems"' in bar_apply
+        and 'writeConfig("extraItems"' in bar_apply,
+        "moos-bar-apply must MERGE the MoOS tray items into the user's existing "
+        "extraItems (never replace it — the rest of that list is Plasma's own)")
 require('writeConfig("shownItems", SHOWN.join(","))' in bar_apply,
         "moos-bar-apply must pin the tray's shownItems from moos-bar.conf in the "
         "user's config")

@@ -1,0 +1,28 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "Moalfarras"
+            }
+        ],
+        "Category": "System Information",
+        "Description": "What this machine is doing right now — and nothing at all when it is doing none of it.",
+        "Description[ar]": "ما الذي يفعله هذا الجهاز الآن — ولا شيء إطلاقاً عندما لا يفعل شيئاً.",
+        "EnabledByDefault": true,
+        "Icon": "moos-logo",
+        "Id": "org.moos.island",
+        "License": "GPL-3.0-or-later",
+        "Name": "MoOS Context Island",
+        "Name[ar]": "جزيرة MoOS السياقية",
+        "Version": "1.0.0"
+    },
+    "X-Plasma-API": "declarativeappletscript",
+    "X-Plasma-API-Minimum-Version": "6.0",
+    "X-Plasma-MainScript": "ui/main.qml",
+    "X-Plasma-NotificationArea": "true",
+    "X-Plasma-NotificationAreaCategory": "ApplicationStatus",
+    "X-Plasma-Provides": [
+        "org.moos.island"
+    ]
+}
