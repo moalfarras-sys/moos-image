@@ -205,6 +205,23 @@ done
 # every revision MUST equal the commit you pushed
 ```
 
+**3. GHCR rate-limits you, and it looks like a permissions error.** Every push
+to `main` builds AND pushes three images. Do that six times in an afternoon and
+the registry answers:
+
+```
+denied: permission_denied ... HTTP status code 403 "Forbidden"
+  "You have exceeded a secondary rate limit."
+```
+
+It reads like a broken token. It is not — it is throttling, and it hits ONE
+edition while the other two finish, leaving exactly the split state above. The
+only fix is to wait and re-run the losing job.
+
+So: **batch your work into one push.** A commit is cheap; a push costs three
+image builds and three registry uploads. Committing five times and pushing once
+is the same history and a fifth of the load.
+
 To repair just the edition that lost, rather than rebuilding all three:
 
 ```bash
