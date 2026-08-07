@@ -22,7 +22,7 @@ QQC2.AbstractButton {
     property color textColor: Kirigami.Theme.textColor
     property color mutedTextColor: Kirigami.Theme.disabledTextColor
     property color accentForegroundColor: Kirigami.Theme.highlightedTextColor
-    property color outlineColor: Qt.rgba(textColor.r, textColor.g, textColor.b, 0.18)
+    property color outlineColor: Qt.alpha(textColor, tokens.glassBorderOpacity)
     property real cornerRadius: tokens.radiusControl
     property int fontPixelSize: tokens.typeSecondary
     property int iconPixelSize: tokens.typeBody
@@ -38,8 +38,8 @@ QQC2.AbstractButton {
                                             : destructive ? dangerColor
                                             : textColor
     readonly property real stateLayerOpacity: !enabled ? 0
-                                             : down ? 0.14
-                                             : hovered ? 0.075
+                                              : down ? tokens.glassSelectedOpacity
+                                              : hovered ? tokens.glassHoverOpacity
                                              : 0
 
     text: label
@@ -55,7 +55,7 @@ QQC2.AbstractButton {
     rightPadding: tokens.space3
     topPadding: tokens.space2
     bottomPadding: tokens.space2
-    opacity: enabled ? 1 : 0.72
+    opacity: enabled ? 1 : tokens.disabledOpacity
     scale: enabled && down ? 0.97 : 1
 
     Behavior on scale {

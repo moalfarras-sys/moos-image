@@ -684,6 +684,16 @@ class TestMoOSUI2(unittest.TestCase):
                 metadata = load_json(package / "metadata.json")
                 self.assertEqual(metadata["KPlugin"]["Id"], package_id)
 
+    def test_greeter_palette_follows_every_light_wallpaper_variant(self) -> None:
+        source = qml_code(
+            (SHARE / "plasma/wallpapers/org.moos.ui2.greeter/contents/ui/main.qml")
+            .read_text(encoding="utf-8")
+        )
+        self.assertIn("/\\/MoOSUI2[^/]*Light\\//", source)
+        self.assertIn('root.sceneImage.indexOf("/MoOSUI2Tide/")', source)
+        self.assertIn('root.sceneImage.indexOf("/MoOSUI2Daylight/")', source)
+        self.assertNotIn('root.sceneImage.indexOf("MoOSUI2Tide") >= 0', source)
+
     def test_logout_actions_expose_complete_accessibility_state(self) -> None:
         """The out-of-process session greeter must not depend on implicit roles."""
         button_path = (

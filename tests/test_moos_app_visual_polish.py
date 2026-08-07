@@ -348,6 +348,10 @@ class SharedQmlDesignSystemTests(unittest.TestCase):
             "typeDisplay": 32,
             "motionFast": 120, "motionPress": 160,
             "motionGeometry": 220, "motionPage": 320,
+            "panelHeight": 54, "dialogWidth": 792,
+            "dialogHeight": 576, "iconSmall": 16,
+            "iconControl": 20, "iconLarge": 24,
+            "shadowBlur": 15,
         }
         for role, value in expected.items():
             with self.subTest(role=role):
@@ -399,10 +403,20 @@ class SharedQmlDesignSystemTests(unittest.TestCase):
             self.assertIn(token, button)
         self.assertNotIn("primary || destructive", button)
         self.assertNotIn("MouseArea", button)
+        self.assertIn("tokens.glassHoverOpacity", button)
+        self.assertIn("tokens.glassSelectedOpacity", button)
+        self.assertIn("tokens.disabledOpacity", button)
 
         tokens_qml = (UI / "Tokens.qml").read_text(encoding="utf-8")
         self.assertIn("readonly property int targetCompact: 40", tokens_qml)
         self.assertIn("readonly property int targetControl: 44", tokens_qml)
+
+    def test_shared_surface_primitives_use_the_core(self) -> None:
+        for component in ("MoSurface", "MoGlass", "MoCard", "MoIconButton", "MoSeparator"):
+            source = (UI / f"{component}.qml").read_text(encoding="utf-8")
+            with self.subTest(component=component):
+                self.assertIn("Tokens { id: tokens }", source)
+        self.assertIn("tokens.radiusCard", (UI / "MoSurface.qml").read_text(encoding="utf-8"))
 
         # The icon themes bake per-palette inks (FollowsColorScheme=false);
         # Buttons get their exact disabled/destructive/primary foregrounds
