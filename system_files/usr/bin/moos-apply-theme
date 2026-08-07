@@ -129,7 +129,16 @@ set -uo pipefail
 #     code, absent to the eye. It is 0.24 now and measures 21.5. The launcher's
 #     tile cards go 0.05 -> 0.11 and their hover 0.14 -> 0.24 for the same
 #     reason. Nothing visual ships from here without that measurement.
-THEME_REV=39
+# 40: the desk is handed back to its owner. Both containments on this machine
+#     carried immutability=1 — Plasma's "Widgets are locked" — with nothing in
+#     this repo setting it. That does not merely stop a drag: it removes Add
+#     Widgets, Configure and every applet's own settings from the context menus,
+#     so the desktop goes read-only with nothing on screen saying why. It had
+#     been in force through every session, which is why "I do not know where to
+#     manage the widgets" was the correct complaint and no colour was ever going
+#     to answer it. moos-bar-apply now returns every containment to 0 on each
+#     apply.
+THEME_REV=40
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

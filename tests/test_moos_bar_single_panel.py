@@ -45,9 +45,9 @@ def merge_program() -> str:
 
 
 def panel(cid: str, applets: dict[str, str], *, location: str = "4",
-          order: list[str] | None = None) -> str:
+          order: list[str] | None = None, immutability: str = "0") -> str:
     out = [f"[Containments][{cid}]", "activityId=", "formfactor=2",
-           "immutability=1", "lastScreen=0", f"location={location}",
+           f"immutability={immutability}", "lastScreen=0", f"location={location}",
            "plugin=org.kde.panel", "wallpaperplugin=org.kde.image", ""]
     out += [f"[Containments][{cid}][General]",
             "AppletOrder=" + ";".join(order if order is not None else applets), ""]
@@ -156,6 +156,29 @@ class SinglePanelMerge(unittest.TestCase):
         self.assertEqual(self.bottom_panels(merged), ["20"],
                          "the panel holding the MoOS launcher is the one that survives")
         self.assertEqual(self.order_of(merged, "20"), ["22", "21", "11", "31"])
+
+    def test_a_locked_desktop_is_handed_back_to_its_owner(self) -> None:
+        """immutability=1 is Plasma's "Widgets are locked".
+
+        It does not merely stop a drag: it removes Add Widgets, Configure and
+        every applet's own settings from the context menus, so the desk goes
+        read-only with nothing on screen explaining why. Found live on this
+        machine on BOTH the panel and the folder containment, with nothing in
+        this repo setting it — a stray lock from an earlier session that had
+        been in force ever since. MoOS does not ship a desktop its owner cannot
+        arrange.
+        """
+        src = "\n".join((
+            panel("398", {"400": "org.kde.plasma.icontasks", "424": BRAND},
+                  order=["424", "400"], immutability="1"),
+            panel("417", {}, location="0", immutability="1"),
+        ))
+        _, out, _ = self.run_merge(src)
+        self.assertNotIn("immutability=1", out,
+                         "every containment must come back mutable")
+        self.assertEqual(out.count("immutability=0"), 2,
+                         "the folder containment counts too — a locked desktop "
+                         "is exactly where 'I cannot add widgets' comes from")
 
     def test_a_users_own_top_or_side_panel_is_never_absorbed(self) -> None:
         src = "\n".join((

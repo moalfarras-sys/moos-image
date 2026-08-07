@@ -261,6 +261,33 @@ if not wrote:
     lines.append("\n[Containments][" + keep + "][General]\n"
                  "AppletOrder=" + ";".join(ranked) + "\n")
 
+# MoOS NEVER SHIPS A DESKTOP ITS OWNER CANNOT ARRANGE.
+#
+# immutability=1 is Plasma's "Widgets are locked". It does not merely stop a
+# drag: it removes Add Widgets, Configure, and every applet's own settings from
+# the context menus, so the desk becomes read-only with no visible explanation
+# and nothing telling the owner why. Found live on this machine on both the
+# panel AND the folder containment, with nothing in this repo setting it — a
+# stray lock from an earlier session that had been silently in force ever since,
+# which is exactly why "I don't know where to manage the widgets" was the right
+# complaint and a colour was never going to answer it.
+#
+# So every containment is returned to 0 on each apply. This is a REPAIR, not a
+# policy: a user who locks their own widgets afterwards keeps that lock until
+# the next MoOS revision touches the bar, and locking is one click away in the
+# same menu this restores.
+unlocked = 0
+in_containment = False
+for i, line in enumerate(lines):
+    parts = parts_of(line)
+    if parts is not None:
+        in_containment = (len(parts) == 2 and parts[0] == "Containments"
+                          and parts[1].isdigit())
+        continue
+    if in_containment and line.startswith("immutability=") and line.strip() != "immutability=0":
+        lines[i] = "immutability=0\n"
+        unlocked += 1
+
 merged = "".join(lines)
 if merged == original:
     sys.stdout.write("no-change\n")
