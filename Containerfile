@@ -127,6 +127,26 @@ RUN test -x /out/moplayer \
     || { echo "GATE FAIL: the MoPlayer bundle is incomplete"; exit 1; }
 
 # -----------------------------------------------------------------------------
+# Build moos-qml-shell — the ONE C++ binary MoOS compiles itself (the QML host
+# that gives every pure-QML app a real Wayland app_id; see build_moos_qml_shell.sh).
+# Compiling it HERE, in a throwaway stage, is what keeps the C++ toolchain out of
+# the shipped image: it used to be compiled inside build.sh, and the compiler
+# kept leaking back in via qt6-qtdeclarative-devel → qt6-qtbase-devel →
+# qt6-rpm-macros → gcc-c++. The final image receives ONLY the single stripped
+# binary via the COPY --from below — never the compiler that built it.
+#
+# Built FROM the same base (not a bare fedora image) so the linked Qt6/KF6
+# sonames are exactly the versions the shipped image carries — the same reason
+# moplayer-build uses Fedora 44 rather than some other distro's libs.
+# -----------------------------------------------------------------------------
+FROM base AS qmlshell-build
+COPY --from=ctx /moos-qml-shell.cpp /src/moos-qml-shell.cpp
+COPY --from=ctx /build_moos_qml_shell.sh /src/build_moos_qml_shell.sh
+RUN dnf5 -y install gcc-c++ qt6-qtbase-devel qt6-qtdeclarative-devel \
+        kf6-kdbusaddons-devel kf6-kwindowsystem-devel \
+    && bash /src/build_moos_qml_shell.sh /src/moos-qml-shell.cpp /out/moos-qml-shell
+
+# -----------------------------------------------------------------------------
 # Main image — the shared base pinned at the top of this file.
 # -----------------------------------------------------------------------------
 FROM base
@@ -159,6 +179,11 @@ COPY moremote/Logo.png /usr/share/icons/hicolor/512x512/apps/moos-pc-remote.png
 # a Flutter binary swept into that loop breaks it. /usr/bin/moplayer (from
 # system_files) is the launcher that runs this bundle from the right cwd.
 COPY --from=moplayer-build /out/ /usr/lib/moplayer/
+
+# The QML host that gives MoOS's apps their real app_id — the single stripped
+# binary from the qmlshell-build stage. Must land BEFORE build.sh runs, which
+# gates the SHIPPED binary (ldd + structural hardening).
+COPY --from=qmlshell-build /out/moos-qml-shell /usr/bin/moos-qml-shell
 
 # Run the build script:
 #   - /ctx is the bind-mounted build_files stage (see above)

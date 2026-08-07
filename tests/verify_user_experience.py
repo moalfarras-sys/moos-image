@@ -4383,8 +4383,21 @@ require(re.search(r"<family>JetBrains Mono</family>\s*<accept>", fontconf) is no
 # could not match Mo AI's window to org.moos.moai.desktop and drew the generic green
 # Qt diamond in the taskbar instead of the Mo AI orb. Nothing errors when this breaks;
 # the app just wears somebody else's icon.
-require("-o /usr/bin/moos-qml-shell" in build_code,
-        "the image must build the QML host that sets the app_id")
+#
+# The QML host is compiled in the Containerfile's qmlshell-build stage (not build.sh)
+# so the C++ toolchain never enters the shipped image — see
+# build_files/build_moos_qml_shell.sh and section (e0) of build.sh. The gate checks
+# the Containerfile wires the stage in and the final image receives the binary.
+shell_build_script = code(read("build_files/build_moos_qml_shell.sh"))
+require("qmlshell-build" in containerfile
+        and "COPY --from=qmlshell-build /out/moos-qml-shell /usr/bin/moos-qml-shell" in containerfile,
+        "the image must build the QML host that sets the app_id in the qmlshell-build "
+        "Containerfile stage and COPY the stripped binary into the final image — "
+        "compiling it in build.sh puts the C++ toolchain back in the image")
+require("g++ -std=c++17" in shell_build_script
+        and "-o \"$_out\"" in shell_build_script,
+        "the qml-shell build script must actually compile the host with g++ and emit "
+        "the binary the Containerfile copies into the image")
 for launcher, app_id in (
     ("system_files/usr/bin/moai", "org.moos.moai"),
     ("system_files/usr/bin/moos-welcome", "org.moos.welcome"),
@@ -4421,9 +4434,26 @@ require("KDBusService::activateRequested" in shell_src
         and "KWindowSystem::activateWindow" in shell_src,
         "a second launch must RAISE the running window: uniqueness alone turns the second click "
         "into nothing happening, which reads as an app that failed to start")
-require("-lKF6DBusAddons" in build_code and "libKF6DBusAddons" in build_code,
-        "build.sh must LINK the guard and then verify the link — a silently unlinked binary still "
-        "runs, still shows the app, and still opens twice")
+require("-lKF6DBusAddons" in shell_build_script and "libKF6DBusAddons" in build_code,
+        "the qml-shell build script must LINK the guard and build.sh must verify the link on the "
+        "shipped binary — a silently unlinked binary still runs, still shows the app, and still "
+        "opens twice")
+
+# …and the compiler must never come BACK into build.sh. The stage above exists so
+# the C++ toolchain lives only in a throwaway Containerfile layer; build.sh running
+# `dnf5 -y install gcc-c++` would be the old (c4b) leak returning, and writing the
+# binary straight to /usr/bin would be the old compile-during-build returning. Both
+# regressed once already (section (e0) of build.sh is the story). These two are
+# negative by design: a comment explaining the firewall must not satisfy them.
+require("dnf5 -y install gcc-c++" not in build_code,
+        "build.sh must never INSTALL gcc-c++: the compiler belongs only in the "
+        "Containerfile qmlshell-build stage, and installing it in build.sh puts the "
+        "toolchain back into the finished image (the (c4b) leak, again)")
+require("-o /usr/bin/moos-qml-shell" not in build_code,
+        "build.sh must never COMPILE the qml host: writing the binary straight into "
+        "/usr/bin from build.sh means the build container's compiler state leaks into "
+        "the shipped image — the binary must come only from the qmlshell-build stage "
+        "via COPY --from")
 
 # ── A desktop that can show you a picture ─────────────────────────────────────
 #

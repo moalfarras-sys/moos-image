@@ -352,15 +352,19 @@ because the gate was made to print its own evidence instead of being deleted.
 Small producers hide it; `build.sh` has four more instances of the idiom that
 work only by luck. Capture first, match second.
 
-Not implemented, and honestly listed: the image still ships a **full C/C++
-toolchain to every user (33 packages, 373 MiB)** while `build.sh`'s own comment
-claims it removes them — proven live by running `g++` inside the built image.
-Fixing it means moving the `moos-qml-shell` compile into its own Containerfile
-stage (the pattern already exists for moremote and moplayer) and needs all three
-editions rebuilt and booted. Firefox also decodes every video in software; the
-only measured cure needs `MOZ_DISABLE_RDD_SANDBOX=1`, which removes the sandbox
-from the process that parses untrusted media — not shipped by default, and not
-shipped quietly.
+The **C/C++ toolchain (33 packages, 373 MiB) no longer ships** — implemented
+2026-08-05 by moving the `moos-qml-shell` compile into its own Containerfile
+stage (`qmlshell-build`, `FROM base` so the linked Qt6/KF6 sonames are exactly
+the shipped ones — the same pattern moremote and moplayer use), so `gcc-c++` is
+installed only inside a throwaway stage and never reaches the image. The old
+in-`build.sh` install/remove (`dnf5 -y remove gcc-c++ …`) was why the toolchain
+kept coming back; `build.sh` now only verifies the shipped binary (ldd for
+`libKF6DBusAddons`, readelf PIE + `BIND_NOW`, `test -x`) and the (e0) sweep is a
+firewall. Still open: rebuild all three editions and boot them to prove the
+sweep reports zero removals and every app's QML still loads. Firefox also
+decodes every video in software; the only measured cure needs
+`MOZ_DISABLE_RDD_SANDBOX=1`, which removes the sandbox from the process that
+parses untrusted media — not shipped by default, and not shipped quietly.
 
 Previous update: 2026-08-03, round 4 — **the serial console froze a live MoOS
 Cloud, and the karg order was ours.** The owner reported the VPS "went slow and
