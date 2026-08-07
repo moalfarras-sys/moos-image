@@ -2449,7 +2449,7 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=43" in apply_theme_code,
+require("THEME_REV=44" in apply_theme_code,
         "MoOS visual schema must migrate existing users to the liquid-glass marks "
         "and the two-slab Horizon Bar (moos-bar-apply), while reconciling new shadows "
         "and purging the Plasma SVG cache that would otherwise keep serving old art")
@@ -2664,37 +2664,22 @@ require("desktop_wallpapers_complete()" in apply_theme_code
         and "grep -m1 '^Image='" not in apply_theme_code,
         "theme completion must verify the wallpaper on every desktop containment; "
         "the first Image= line is not authoritative on multiple monitors/Activities")
-# The scene replaces the desktop-widget *bento* era: the repair points every
-# containment at org.moos.ui2.wallpaper, hands it the half's package, and clears
-# the retired applets that would otherwise still draw over the icons. The MoOS
-# Hero Clock is a deliberate exception (THEME_REV 43): one branded desktop
-# applet, seeded once, never the old dashboard/deskclock that fought the icons.
+# The scene replaces the desktop-widget era: the repair points every containment
+# at org.moos.ui2.wallpaper, hands it the half's package, and clears the retired
+# applets that would otherwise still draw over the icons. addWidget placement is
+# FORBIDDEN — any coordinate is a collision with some icon layout somewhere.
+# THEME_REV 43 briefly seeded heroclock; rev 44 removes it and restores the ban.
 require("apply_desktop_scene" in apply_theme_code
         and 'd.wallpaperPlugin = "org.moos.ui2.wallpaper"' in apply_theme_code
         and 'writeConfig("Image", IMAGE)' in apply_theme_code
-        and 'ws[j].remove()' in apply_theme_code,
+        and 'ws[j].remove()' in apply_theme_code
+        and 'ws[j].type == "org.moos.heroclock"' in apply_theme_code,
         "theme repair must point every desktop containment at the MoOS scene wallpaper "
-        "and remove the retired dashboard applets")
-require("seed_heroclock_once" in apply_theme_code
-        and 'addWidget("org.moos.heroclock")' in apply_theme_code
-        and "moos-heroclock-seeded.v1" in apply_theme_code
-        and "hero-already" in apply_theme_code
-        and "d.locked = false" in apply_theme_code,
-        "THEME_REV 43 must seed org.moos.heroclock once (add-once marker), unlock "
-        "desktop.locked before createApplet, and skip when already present")
-require('addWidget("org.moos.ui2.dashboard")' not in apply_theme_code
-        and 'addWidget("org.moos.nova.deskclock")' not in apply_theme_code,
-        "the retired bento/deskclock must never be placed as desktop widgets again — "
-        "they always collide with Folder View icons; only heroclock is seeded")
-# Exactly one addWidget call site, and it must name heroclock.
-_add_widget_hits = [
-    line for line in apply_theme_code.splitlines()
-    if "addWidget(" in line and not line.lstrip().startswith("#")
-]
-require(len(_add_widget_hits) == 1
-        and 'addWidget("org.moos.heroclock")' in _add_widget_hits[0],
-        "moos-apply-theme may place exactly one desktop widget (heroclock); "
-        f"found {len(_add_widget_hits)}: {_add_widget_hits!r}")
+        "and remove the retired dashboard applets (including the rejected heroclock seed)")
+require("d.addWidget(" not in apply_theme_code
+        and "seed_heroclock_once" not in apply_theme_code,
+        "moos-apply-theme must not place desktop widgets — the bento lives inside the "
+        "wallpaper, and the auto-seeded heroclock was rejected on sight")
 require("flock -n 9" in apply_theme_code,
         "two overlapping autostart instances must not race while replacing the same widget")
 require('theme_complete "$lnf_after" "$deco_after" "$want_wallpaper_package"'

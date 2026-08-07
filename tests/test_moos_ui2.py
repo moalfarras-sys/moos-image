@@ -799,8 +799,8 @@ class TestMoOSUI2(unittest.TestCase):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=43", apply,
-            "existing pre-v43 users would exit before post-marker shadow quarantine, "
+            "THEME_REV=44", apply,
+            "existing pre-v44 users would exit before post-marker shadow quarantine, "
             "the Horizon Bar/theme migration, and the SVG cache purge that is the "
             "only way new Plasma Style art reaches a frozen /usr",
         )

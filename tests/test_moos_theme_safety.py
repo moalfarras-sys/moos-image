@@ -514,22 +514,13 @@ target_lnf "$1" "$2"
         # now lives inside the wallpaper scene.
         self.assertIn('"org.moos.nova.deskclock"', text)
         self.assertIn('"org.moos.ui2.dashboard"', text)
+        self.assertIn('"org.moos.heroclock"', text)
         self.assertIn('d.wallpaperPlugin = "org.moos.ui2.wallpaper"', text)
-        # Hero Clock is the one allowed desktop applet (THEME_REV 43). The retired
-        # bento/deskclock must still never be placed — they fight Folder View icons.
-        self.assertIn("seed_heroclock_once", text)
-        self.assertIn('addWidget("org.moos.heroclock")', text)
-        self.assertIn("moos-heroclock-seeded.v1", text)
-        self.assertNotIn('addWidget("org.moos.ui2.dashboard")', text)
-        self.assertNotIn('addWidget("org.moos.nova.deskclock")', text)
-        add_hits = [
-            line for line in text.splitlines()
-            if "addWidget(" in line and not line.lstrip().startswith("#")
-        ]
-        self.assertEqual(
-            len(add_hits), 1,
-            f"exactly one addWidget site (heroclock); found {add_hits!r}",
-        )
+        # addWidget placement is FORBIDDEN: as a desktop applet the bento always drew
+        # over the Folder View icons — every coordinate collides with some icon layout.
+        # THEME_REV 43's heroclock seed was rejected on sight; rev 44 removes it.
+        self.assertNotIn("d.addWidget(", text)
+        self.assertNotIn("seed_heroclock_once", text)
         # The icons grow from the RIGHT, opposite the bento's top-left corner of the scene.
         self.assertIn('d.writeConfig("alignment", "1")', text)
 

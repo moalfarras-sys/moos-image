@@ -1,8 +1,17 @@
 # Theme System Continuation
 
 Date: 2026-08-07
-Branch: `feat/launcher-hero-cards`
-Rollback point: `backup/theme-system-2026-08-06` and `backup-theme-system-2026-08-06`
+Branch: `fix/remove-heroclock-seed`
+
+## 2026-08-07 — Hero Clock auto-seed rejected (THEME_REV 44)
+
+The owner rejected the auto-placed `org.moos.heroclock` on sight. Removed from
+the live desk immediately. THEME_REV 44 clears any remaining instance via
+`apply_desktop_scene` (same retire path as deskclock/dashboard) and deletes
+`seed_heroclock_once` — no `addWidget` on the desktop again. The plasmoid
+package remains installable from the widget browser.
+
+---
 
 ## 2026-08-07 — launcher hero cards + heroclock seed (THEME_REV 43)
 

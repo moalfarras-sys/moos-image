@@ -154,11 +154,11 @@ set -uo pipefail
 #     0.025 / featured highlight 0.105 — again the invisible band. Resting fill
 #     is textColour 0.11 (same measured AppTile contract); hover/press use the
 #     accent; rim stays ≤0.22 at rest. SettingCard raised from 0.045 to 0.11.
-#     Also: once the session plasmashell is the one under
-#     plasma-plasmashell.service AND desktop.locked is false, createApplet
-#     works — so this revision seeds org.moos.heroclock once (add-once marker
-#     moos-heroclock-seeded.v1; a user removal is never undone by a later heal).
-THEME_REV=43
+#     Also unlocked desktop.locked so createApplet works on a session shell.
+# 44: the auto-placed Hero Clock is gone. Rev 43 seeded org.moos.heroclock on
+#     the desk; the owner rejected it on sight. Remove every instance and never
+#     seed again — the plasmoid stays installable from the widget browser.
+THEME_REV=44
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"
@@ -347,7 +347,8 @@ apply_desktop_scene() {
                     var ws = d.widgets();
                     for (var j = 0; j < ws.length; j++) {
                         if (ws[j].type == "org.moos.ui2.dashboard"
-                                || ws[j].type == "org.moos.nova.deskclock") {
+                                || ws[j].type == "org.moos.nova.deskclock"
+                                || ws[j].type == "org.moos.heroclock") {
                             ws[j].remove();
                         }
                     }
@@ -360,60 +361,6 @@ apply_desktop_scene() {
             print(incomplete ? "scene-incomplete" : "scene-ready");
         ' 2>>"$log")" || return 1
     case "$result" in *scene-ready*) return 0 ;; *) return 1 ;; esac
-}
-
-# Place org.moos.heroclock on the first desktop once. Add-once semantics: a
-# dedicated state marker records that MoOS offered the widget; a later removal
-# by the user is respected forever (THEME_REV alone would re-seed on self-heal).
-seed_heroclock_once() {
-    local seed_marker="${state_dir}/moos-heroclock-seeded.v1" result
-    [ -e "$seed_marker" ] && return 0
-    command -v gdbus >/dev/null 2>&1 || return 1
-    command -v timeout >/dev/null 2>&1 || return 1
-    result="$(timeout 8s gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
-        -m org.kde.PlasmaShell.evaluateScript '
-            var ds = desktops();
-            if (ds.length < 1) { print("hero-no-desktop"); }
-            else {
-                var i, j, d, ws, found = false, w, s;
-                for (i = 0; i < ds.length; i++) {
-                    try { ds[i].locked = false; } catch (e0) {}
-                    ws = ds[i].widgets();
-                    for (j = 0; j < ws.length; j++) {
-                        if (ws[j].type == "org.moos.heroclock") { found = true; }
-                    }
-                }
-                if (found) { print("hero-already"); }
-                else {
-                    d = ds[0];
-                    try { d.locked = false; } catch (e1) {}
-                    w = d.addWidget("org.moos.heroclock");
-                    s = String(w);
-                    if (s.indexOf("Error:") === 0 || !w || !w.type) {
-                        print("hero-fail");
-                    } else {
-                        try {
-                            // Logical pixels: ~17×8 grid units on the reference
-                            // HiDPI session; sits clear of the top-left icon
-                            // column and the dock.
-                            w.geometry = {x: 72, y: 64, width: 420, height: 200};
-                        } catch (e2) {}
-                        print("hero-added");
-                    }
-                }
-            }
-        ' 2>>"$log")" || return 1
-    case "$result" in
-        *hero-already*|*hero-added*)
-            touch "$seed_marker" 2>/dev/null || true
-            echo "heroclock seed: ${result}" >>"$log" 2>/dev/null || true
-            return 0
-            ;;
-        *)
-            echo "heroclock seed incomplete: ${result}" >>"$log" 2>/dev/null || true
-            return 1
-            ;;
-    esac
 }
 
 current_lockscreen_wallpaper() {
@@ -441,6 +388,7 @@ current_scene_state() {
                     for (var j = 0; j < ws.length; j++) {
                         if (ws[j].type == "org.moos.nova.deskclock") { stale++; }
                         if (ws[j].type == "org.moos.ui2.dashboard") { stale++; }
+                        if (ws[j].type == "org.moos.heroclock") { stale++; }
                     }
                     if (stale > 0
                             || ds[i].wallpaperPlugin != "org.moos.ui2.wallpaper") {
@@ -1434,13 +1382,10 @@ systemctl --user start plasma-ksystemstats.service >>"$log" 2>&1 || true
 #
 # apply_desktop_scene() above already did the whole job for this run: it set
 # every desktop containment's wallpaper plugin + image, removed any stale
-# org.moos.ui2.dashboard / org.moos.nova.deskclock applets left behind by
-# earlier revisions, and right-aligned the icons (alignment=1, sortMode=1).
-#
-# THEME_REV 43: offer the MoOS Hero Clock on the desk once. The wallpaper bento
-# stays below the icons; this is a real desktop applet the owner can move or
-# remove. seed_heroclock_once() refuses to re-add after its own marker exists.
-seed_heroclock_once >>"$log" 2>&1 || true
+# org.moos.ui2.dashboard / org.moos.nova.deskclock / org.moos.heroclock applets
+# left behind by earlier revisions, and right-aligned the icons
+# (alignment=1, sortMode=1). THEME_REV 43's auto-seed of heroclock was rejected
+# on sight; rev 44 clears it and does not place it again.
 
 
 # --- The system tray -----------------------------------------------------------

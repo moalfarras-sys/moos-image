@@ -106,9 +106,9 @@ Ranked by pixels-owned, i.e. by how much a change can possibly show:
    resting fills match the AppTile contract** (rev 43, measured Δ luminance 25–31).
    Search field already carried a resting plate; leave it unless a future scan
    fails §0.
-2. **The desktop** — `org.moos.heroclock` is seeded once on THEME_REV 43 (add-once
-   marker `moos-heroclock-seeded.v1`). The wallpaper bento stays below the icons.
-   See §3.1 for what actually blocked createApplet.
+2. **The desktop** — bare wallpaper again. THEME_REV 43's auto-seeded
+   `org.moos.heroclock` was rejected on sight and removed in rev 44. The
+   wallpaper bento stays below the icons. See §3.1 for createApplet unlock.
 3. **Lock / login / logout screens** — full-screen, opaque, still the next large
    surface that has not been reworked in this train.
 4. **Mo AI / Mo Store / MoPlayer** app windows — own their pixels.
@@ -140,8 +140,9 @@ org.moos.heroclock            →  Error: Could not create the widget!   (was)
 Restoring `systemctl --user start plasma-plasmashell.service` alone was not
 enough; createApplet still failed until `locked` was cleared. After unlock on
 the unit-managed shell, systemmonitor, minimizeall, brand, and heroclock all
-created and removed cleanly. `apply_desktop_scene` and `seed_heroclock_once`
-now set `d.locked = false` before touching applets.
+created and removed cleanly. `apply_desktop_scene` unlocks `d.locked` before
+touching applets. THEME_REV 43 briefly seeded heroclock; the owner rejected it
+and rev 44 removes every instance and forbids `addWidget` again.
 
 Ruled out earlier (still true, do not re-check):
 - kiosk lockdown — no `[KDE Action Restrictions]`
@@ -193,7 +194,8 @@ checks.
 ## 5. The next session, in order
 
 1. ~~Reboot / session shell + createApplet~~ — done; see §3.1.
-2. ~~Ship `org.moos.heroclock` once~~ — done (THEME_REV 43, `moos-heroclock-seeded.v1`).
+2. ~~Ship `org.moos.heroclock` once~~ — tried in THEME_REV 43; **rejected on
+   sight** and removed in rev 44. Do not auto-place it again.
 3. ~~Launcher hero cards~~ — done (CommandCard / SettingCard, measured ≥15).
 4. **Lock / login / logout** — still the largest untouched opaque surfaces.
 5. Panel clock popup Liquid Glass; only then revisit dock-icon motion (large).
