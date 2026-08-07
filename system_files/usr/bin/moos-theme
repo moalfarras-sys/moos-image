@@ -7,6 +7,7 @@
 #   moos-theme toggle     the other UI2 variant
 #   moos-theme auto       follow sunrise/sunset, between the two UI2 themes
 #   moos-theme motion     show/set the wallpaper motion policy
+#   moos-theme perf       show/pin the hardware motion tier (moos-visual-tier)
 #
 # WHY A SCRIPT AND NOT JUST SYSTEM SETTINGS
 #
@@ -67,6 +68,8 @@ moos-theme — بدّل مظهر MoOS بين الفاتح والداكن | switc
   moos-theme auto       تلقائي | follow sunrise/sunset (Graphite/Tidal)
   moos-theme motion [still|gentle|alive]
                          حركة الخلفية | show/set wallpaper motion
+  moos-theme perf [auto|flagship|balanced|essential]
+                         طبقة الأداء | motion sized to this machine's hardware
 
 Every family has a matched light + dark sibling; `toggle` flips the current one.
 EOF
@@ -1111,6 +1114,22 @@ case "$command_name" in
             set_motion_mode "$2"
         else
             echo "moos-theme: motion accepts at most one value (still, gentle, or alive)" >&2
+            exit 2
+        fi
+        ;;
+    perf)
+        # One owner: moos-visual-tier holds the probe, the tier table and the
+        # profile. This is the discoverable name for it, not a second copy.
+        command -v moos-visual-tier >/dev/null 2>&1 || {
+            echo "moos-theme: moos-visual-tier is not installed" >&2
+            exit 3
+        }
+        if [ "$#" -eq 1 ]; then
+            moos-visual-tier
+        elif [ "$#" -eq 2 ]; then
+            moos-visual-tier --set "$2" --apply
+        else
+            echo "moos-theme: perf accepts at most one value (auto, flagship, balanced, or essential)" >&2
             exit 2
         fi
         ;;

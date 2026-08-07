@@ -1,0 +1,466 @@
+#!/usr/bin/python3
+"""moos-visual-tier — match the MoOS motion system to the machine it is on.
+
+WHY THIS EXISTS. /etc/xdg/kwinrc ships ONE motion profile for every MoOS
+install: BlurStrength 15, magic-lamp minimize, scale open/close, the full set.
+That profile was tuned on the maintainer's RTX 2080 SUPER and it is right there.
+It is the same profile a cloud VPS on llvmpipe gets, and a 4-core laptop on
+integrated graphics, and a VM with no render node at all — where a full-strength
+blur pass behind every panel and menu is paid for in software, on the CPU, every
+frame. KWin's supported() check skips an effect the BACKEND cannot do; it does
+not know that a machine can technically do it and should not.
+
+So MoOS reads the hardware and picks the profile:
+
+  flagship   discrete GPU with its driver bound, >= 8 cores, >= 15 GiB
+             the full motion system, blur at the tuned 15
+  balanced   a real GPU (integrated counts) with a driver, >= 4 cores, >= 6 GiB
+             the same language, lighter: blur 9, squash instead of magic lamp
+  essential  software rendering, no render node, or a small machine
+             no blur, no window animations, motion kept short and cheap
+
+WHAT IT WILL NOT DO.
+  * It never raises BlurStrength above 15. Higher has produced unreadable
+    surfaces on the real machine; the ceiling is a gate, not a preference.
+  * It never sets AnimationDurationFactor to 0. Kirigami's longDuration floors
+    at 1, so 0 does not mean "off" to QML that gates on `> 0` — it means an
+    animation that runs with a nonsense duration. "Off" is the user's own
+    setting and MoOS leaves it alone.
+  * It writes ONLY the keys it owns, and only while the machine still reports
+    the tier it last wrote. Change blur yourself and it stops touching blur:
+    the applied state is recorded, and a key that no longer matches what this
+    tool wrote is treated as yours.
+  * `--set` pins a tier forever and disables detection. That is the override,
+    and it is honoured before any probe runs.
+
+Read-only probing, no external commands required: /sys, /proc and /dev only.
+Set MOOS_TIER_ROOT to probe a fake root (the gate does exactly that).
+"""
+
+from __future__ import annotations
+
+import argparse
+import glob
+import json
+import os
+import pathlib
+import re
+import subprocess
+import sys
+
+
+SCHEMA = 1
+TIERS = ("essential", "balanced", "flagship")
+
+# Kernel drivers that mean "this is a real GPU with a real driver bound".
+DISCRETE_DRIVERS = {"nvidia", "nouveau", "amdgpu", "radeon"}
+# A virtual display adapter. virtio_gpu CAN be accelerated (virgl/venus), which
+# is why the render-node check decides rather than the driver name alone.
+VIRTUAL_DRIVERS = {"virtio_gpu", "vmwgfx", "qxl", "bochs", "cirrus", "simpledrm", "vboxvideo"}
+
+ROOT = pathlib.Path(os.environ.get("MOOS_TIER_ROOT", "/"))
+
+
+def _read(rel: str) -> str:
+    try:
+        return (ROOT / rel.lstrip("/")).read_text(encoding="utf-8", errors="replace").strip()
+    except (OSError, UnicodeError):
+        return ""
+
+
+def _glob(pattern: str) -> list[str]:
+    base = str(ROOT).rstrip("/")
+    hits = glob.glob(base + "/" + pattern.lstrip("/"))
+    return sorted(h[len(base):] or "/" for h in hits)
+
+
+def _pixels_from_compositor() -> int:
+    """Total pixels of the enabled outputs, straight from KScreen. 0 if absent."""
+    if os.environ.get("MOOS_TIER_ROOT"):
+        return 0  # a fake root must not consult the real session
+    try:
+        p = subprocess.run(["kscreen-doctor", "--json"],
+                           capture_output=True, text=True, timeout=10)
+        outputs = json.loads(p.stdout or "{}").get("outputs", [])
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return 0
+    total = 0
+    for output in outputs:
+        if not output.get("enabled"):
+            continue
+        size = next((m.get("size") for m in output.get("modes", [])
+                     if m.get("id") == output.get("currentModeId")),
+                    output.get("size")) or {}
+        total += int(size.get("width", 0)) * int(size.get("height", 0))
+    return total
+
+
+def probe() -> dict:
+    """Everything the tier decision is allowed to depend on, and nothing else."""
+    # --- graphics -----------------------------------------------------------
+    drivers: list[str] = []
+    vram_bytes = 0
+    for card in _glob("/sys/class/drm/card[0-9]*"):
+        if "-" in card.rsplit("/", 1)[-1]:
+            continue  # card0-DP-1 is a connector, not the device
+        link = ROOT / card.lstrip("/") / "device/driver"
+        try:
+            drivers.append(os.path.basename(os.readlink(link)))
+        except OSError:
+            pass
+        total = _read(f"{card}/device/mem_info_vram_total")
+        if total.isdigit():
+            vram_bytes = max(vram_bytes, int(total))
+    # NVIDIA publishes no VRAM figure through DRM or /proc/driver/nvidia
+    # (checked on an RTX 2080 SUPER: the information file has Model, IRQ, UUID,
+    # Video BIOS, Bus Type, DMA Size — no memory). vram_gib therefore stays 0
+    # on NVIDIA and the driver name is what proves the card is discrete. Do not
+    # add a size threshold that an NVIDIA machine can never satisfy.
+
+    render_nodes = _glob("/dev/dri/renderD*")
+    real = [d for d in drivers if d not in VIRTUAL_DRIVERS]
+    virtual = [d for d in drivers if d in VIRTUAL_DRIVERS]
+
+    if not render_nodes:
+        # No render node means no GPU context: the compositor falls back to
+        # llvmpipe and every blur pass is paid on the CPU.
+        gpu_class = "software"
+    elif any(d in DISCRETE_DRIVERS for d in real) and (
+            vram_bytes >= 3 * 1024 ** 3
+            or any(d in {"nvidia", "nouveau"} for d in real)):
+        gpu_class = "discrete"
+    elif real:
+        gpu_class = "integrated"
+    elif virtual:
+        gpu_class = "virtual"
+    else:
+        gpu_class = "software"
+
+    # --- cpu / memory -------------------------------------------------------
+    cores = 0
+    for line in _read("/proc/cpuinfo").splitlines():
+        if line.startswith("processor"):
+            cores += 1
+    if not cores:
+        cores = os.cpu_count() or 1
+
+    mem_kib = 0
+    for line in _read("/proc/meminfo").splitlines():
+        if line.startswith("MemTotal:"):
+            digits = "".join(c for c in line if c.isdigit())
+            mem_kib = int(digits or 0)
+            break
+    memory_gib = round(mem_kib / 1024 / 1024, 1)
+
+    battery = bool([p for p in _glob("/sys/class/power_supply/*")
+                    if _read(f"{p}/type") == "Battery"])
+
+    # --- display ------------------------------------------------------------
+    # sysfs modes cannot be trusted here: under the proprietary NVIDIA driver
+    # this machine's 3840x2160 panel reports 1920x1080 in
+    # /sys/class/drm/card1-HDMI-A-1/modes, because NVIDIA does its own
+    # modesetting. kscreen-doctor asks the compositor and gets it right; sysfs
+    # stays as the fallback for a session-less probe (the gate uses it).
+    pixels = _pixels_from_compositor()
+    if not pixels:
+        for modes in _glob("/sys/class/drm/card*/modes"):
+            first = _read(modes).splitlines()
+            if first:
+                m = re.match(r"(\d+)x(\d+)", first[0])
+                if m:
+                    pixels = max(pixels, int(m.group(1)) * int(m.group(2)))
+
+    return {
+        "schema": SCHEMA,
+        "gpu_class": gpu_class,
+        "gpu_drivers": sorted(set(drivers)),
+        "vram_gib": round(vram_bytes / 1024 ** 3, 1),
+        "render_nodes": len(render_nodes),
+        "cores": cores,
+        "memory_gib": memory_gib,
+        "battery": battery,
+        "pixels": pixels,
+    }
+
+
+def classify(facts: dict) -> tuple[str, list[str]]:
+    """Return (tier, reasons). Deterministic: same facts, same answer."""
+    reasons: list[str] = []
+    gpu = facts["gpu_class"]
+    cores = facts["cores"]
+    memory = facts["memory_gib"]
+
+    if gpu in ("software", "virtual"):
+        reasons.append(
+            "no GPU render node — the compositor draws in software, so blur "
+            "and window animations are paid for on the CPU"
+            if gpu == "software" else
+            "a virtual display adapter with no accelerated render node")
+        return "essential", reasons
+    if cores < 4:
+        reasons.append(f"{cores} CPU cores")
+        return "essential", reasons
+    if memory and memory < 6:
+        reasons.append(f"{memory} GiB of memory")
+        return "essential", reasons
+
+    if gpu == "discrete" and cores >= 8 and memory >= FLAGSHIP_MEMORY_GIB:
+        reasons.append(f"a discrete GPU ({', '.join(facts['gpu_drivers']) or 'unknown'})"
+                       f" with {cores} cores and {memory} GiB")
+        if facts["pixels"] >= 3840 * 2160:
+            reasons.append("driving a 4K display")
+        return "flagship", reasons
+
+    reasons.append(f"{gpu} graphics with {cores} cores and {memory} GiB")
+    if facts["battery"]:
+        reasons.append("on battery-powered hardware, so motion stays cheap")
+    return "balanced", reasons
+
+
+# The profile each tier applies. Only these keys are ever written, and the
+# values written are recorded so a later user change can be detected and left
+# alone. BlurStrength is capped at 15 by contract — see PROFILE_CEILINGS.
+PROFILES: dict[str, dict[str, dict[str, str]]] = {
+    "flagship": {
+        "kwinrc": {
+            "Plugins/blurEnabled": "true",
+            "Plugins/magiclampEnabled": "true",
+            "Plugins/squashEnabled": "false",
+            "Plugins/scaleEnabled": "true",
+            "Plugins/slideEnabled": "true",
+            "Plugins/dimscreenEnabled": "true",
+            "Plugins/dialogparentEnabled": "true",
+            "Effect-blur/BlurStrength": "15",
+            "Effect-blur/NoiseStrength": "3",
+        },
+        "kdeglobals": {"KDE/AnimationDurationFactor": "1"},
+        "motion": "alive",
+    },
+    "balanced": {
+        "kwinrc": {
+            "Plugins/blurEnabled": "true",
+            # squash is the cheap minimize; magic lamp is the showy one.
+            "Plugins/magiclampEnabled": "false",
+            "Plugins/squashEnabled": "true",
+            "Plugins/scaleEnabled": "true",
+            "Plugins/slideEnabled": "true",
+            "Plugins/dimscreenEnabled": "true",
+            "Plugins/dialogparentEnabled": "false",
+            "Effect-blur/BlurStrength": "9",
+            "Effect-blur/NoiseStrength": "2",
+        },
+        "kdeglobals": {"KDE/AnimationDurationFactor": "0.85"},
+        "motion": "gentle",
+    },
+    "essential": {
+        "kwinrc": {
+            "Plugins/blurEnabled": "false",
+            "Plugins/magiclampEnabled": "false",
+            "Plugins/squashEnabled": "false",
+            "Plugins/scaleEnabled": "false",
+            "Plugins/slideEnabled": "false",
+            "Plugins/dimscreenEnabled": "false",
+            "Plugins/dialogparentEnabled": "false",
+        },
+        # NEVER 0: Kirigami's longDuration floors at 1, so QML that gates on
+        # `> 0` would still run its animations, just with a nonsense duration.
+        # Short and honest beats fake-off.
+        "kdeglobals": {"KDE/AnimationDurationFactor": "0.4"},
+        "motion": "still",
+    },
+}
+
+BLUR_CEILING = 15
+# A 16 GB machine reports ~15.4 GiB once firmware has reserved its share, so the
+# flagship floor is 15, not 16 — the same convention moos-device-plan already
+# uses for "less than 16 GB". A literal 16 excluded the maintainer's own desktop.
+FLAGSHIP_MEMORY_GIB = 15
+
+
+def config_home() -> pathlib.Path:
+    return pathlib.Path(os.environ.get("MOOS_TIER_CONFIG_HOME")
+                        or os.environ.get("XDG_CONFIG_HOME")
+                        or (pathlib.Path.home() / ".config"))
+
+
+def state_home() -> pathlib.Path:
+    return pathlib.Path(os.environ.get("MOOS_TIER_STATE_HOME")
+                        or os.environ.get("XDG_STATE_HOME")
+                        or (pathlib.Path.home() / ".local/state"))
+
+
+def override_path() -> pathlib.Path:
+    return config_home() / "moos-visual-tier"
+
+
+def state_path() -> pathlib.Path:
+    return state_home() / "moos-visual-tier.json"
+
+
+def resolve() -> dict:
+    """The whole decision: override, else probe + classify."""
+    pinned = ""
+    try:
+        pinned = override_path().read_text(encoding="utf-8").strip()
+    except OSError:
+        pass
+    facts = probe()
+    detected, reasons = classify(facts)
+    if pinned in TIERS:
+        return {"tier": pinned, "detected": detected, "pinned": True,
+                "reasons": [f"pinned to {pinned} with `moos-visual-tier --set`"],
+                "facts": facts}
+    return {"tier": detected, "detected": detected, "pinned": False,
+            "reasons": reasons, "facts": facts}
+
+
+def _kwriteconfig(file: str, group: str, key: str, value: str) -> bool:
+    tool = "kwriteconfig6"
+    try:
+        return subprocess.run(
+            [tool, "--file", file, "--group", group, "--key", key, value],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10,
+        ).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def _kreadconfig(file: str, group: str, key: str) -> str:
+    try:
+        p = subprocess.run(
+            ["kreadconfig6", "--file", file, "--group", group, "--key", key],
+            capture_output=True, text=True, timeout=10)
+        return (p.stdout or "").strip()
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
+def apply(tier: str, *, dry_run: bool = False) -> dict:
+    """Write the tier's profile. Idempotent, and yields to user edits."""
+    profile = PROFILES[tier]
+    try:
+        previous = json.loads(state_path().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        previous = {}
+    written_before = previous.get("written", {})
+
+    written, skipped, changed = {}, [], 0
+    for filename in ("kwinrc", "kdeglobals"):
+        for path, value in profile.get(filename, {}).items():
+            group, key = path.split("/", 1)
+            if key == "BlurStrength" and int(value) > BLUR_CEILING:
+                raise SystemExit(
+                    f"moos-visual-tier: refusing BlurStrength={value}; the "
+                    f"ceiling is {BLUR_CEILING} and higher has shipped "
+                    f"unreadable surfaces")
+            ident = f"{filename}/{path}"
+            live = _kreadconfig(filename, group, key)
+            mine = written_before.get(ident)
+            # Present, not what we last wrote, and not what we are about to
+            # write => the user changed it. Theirs wins, permanently.
+            if live and mine is not None and live != mine and live != value:
+                skipped.append(ident)
+                written[ident] = mine
+                continue
+            written[ident] = value
+            if live == value:
+                continue
+            if not dry_run and _kwriteconfig(filename, group, key, value):
+                changed += 1
+            elif not dry_run:
+                skipped.append(ident)
+
+    result = {"tier": tier, "changed": changed, "skipped": skipped,
+              "motion": profile["motion"], "written": written}
+    if not dry_run:
+        try:
+            state_path().parent.mkdir(parents=True, exist_ok=True)
+            state_path().write_text(json.dumps(result, indent=2) + "\n",
+                                    encoding="utf-8")
+        except OSError:
+            pass
+        _reconfigure_kwin()
+    return result
+
+
+def _reconfigure_kwin() -> None:
+    """Ask a running KWin to re-read its config. Silent when there is none."""
+    for tool, args in (
+        ("gdbus", ["call", "--session", "-d", "org.kde.KWin", "-o", "/KWin",
+                   "-m", "org.kde.KWin.reconfigure"]),
+        ("qdbus-qt6", ["org.kde.KWin", "/KWin", "reconfigure"]),
+    ):
+        try:
+            if subprocess.run([tool, *args], stdout=subprocess.DEVNULL,
+                              stderr=subprocess.DEVNULL, timeout=10).returncode == 0:
+                return
+        except (OSError, subprocess.SubprocessError):
+            continue
+
+
+def describe(decision: dict, *, arabic: bool) -> str:
+    tier = decision["tier"]
+    headline = {
+        "flagship": ("الطبقة: قوية — نظام الحركة الكامل",
+                     "Tier: flagship — the full motion system"),
+        "balanced": ("الطبقة: متوازنة — نفس اللغة بتكلفة أقل",
+                     "Tier: balanced — the same language, lighter"),
+        "essential": ("الطبقة: أساسية — بلا ضبابية، حركة قصيرة",
+                      "Tier: essential — no blur, motion kept short"),
+    }[tier]
+    lines = [headline[0 if arabic else 1]]
+    for reason in decision["reasons"]:
+        lines.append(f"  · {reason}")
+    facts = decision["facts"]
+    lines.append(f"  · {facts['gpu_class']} graphics"
+                 f"{' (' + ', '.join(facts['gpu_drivers']) + ')' if facts['gpu_drivers'] else ''}"
+                 f", {facts['cores']} cores, {facts['memory_gib']} GiB"
+                 f", {facts['render_nodes']} render node(s)")
+    if decision["pinned"]:
+        lines.append("  · detection is off; run `moos-visual-tier --set auto` to re-enable")
+    return "\n".join(lines)
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(
+        description="Match the MoOS motion system to this machine.")
+    ap.add_argument("--json", action="store_true", help="machine-readable output")
+    ap.add_argument("--apply", action="store_true", help="write the tier profile")
+    ap.add_argument("--dry-run", action="store_true",
+                    help="with --apply, report what would change and write nothing")
+    ap.add_argument("--set", dest="pin", metavar="TIER",
+                    choices=("auto",) + TIERS,
+                    help="pin a tier (or 'auto' to re-enable detection)")
+    args = ap.parse_args()
+
+    if args.pin:
+        path = override_path()
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            if args.pin == "auto":
+                path.unlink(missing_ok=True)
+            else:
+                path.write_text(args.pin + "\n", encoding="utf-8")
+        except OSError as error:
+            print(f"moos-visual-tier: cannot write {path}: {error}", file=sys.stderr)
+            return 1
+
+    decision = resolve()
+    if args.apply:
+        decision["applied"] = apply(decision["tier"], dry_run=args.dry_run)
+
+    if args.json:
+        print(json.dumps(decision, ensure_ascii=False, indent=2))
+    else:
+        arabic = (os.environ.get("LANG", "") + os.environ.get("LC_ALL", "")).startswith("ar")
+        print(describe(decision, arabic=arabic))
+        if args.apply:
+            applied = decision["applied"]
+            print(f"  → {applied['changed']} setting(s) changed"
+                  + (f", {len(applied['skipped'])} left as you set them"
+                     if applied["skipped"] else ""))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

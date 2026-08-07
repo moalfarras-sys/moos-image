@@ -98,6 +98,10 @@ check:
     # moos-bar-apply against appletsrc fixtures, so a change that can leave
     # a second bottom panel fails here instead of on the owner's desktop.
     python3 tests/test_moos_bar_single_panel.py
+    # Motion is sized to the machine: this runs the real hardware probe
+    # against fake /sys+/proc+/dev trees, so a classification change that
+    # would hand a software renderer a full blur pass fails here.
+    python3 tests/test_moos_visual_tier.py
     # Tidal Horizon is one generated silhouette and one portal contract across
     # the wallpaper family, Splash, Login, Lock, Logout and first-party apps.
     python3 tests/test_tidal_horizon.py

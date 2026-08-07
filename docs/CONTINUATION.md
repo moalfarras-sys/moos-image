@@ -65,6 +65,65 @@ on containment 398 and no containment 430. Verified as ONE capsule on
 `MoOSUI2` (dark), `MoOSUI2Amethyst` and `MoOSUI2Aurora` — `BOTTOM=1` on every
 one — then restored to `org.moos.ui2.nova.light`. 60/60 CI repo gates green.
 
+## 2026-08-07 — motion sized to the machine (THEME_REV 34)
+
+`/etc/xdg/kwinrc` shipped ONE motion profile for every MoOS install —
+`BlurStrength=15`, magic-lamp minimize, scale open/close, the full set. It was
+tuned on the maintainer's RTX 2080 SUPER and it is right there. It was also what
+a `moos-cloud` VPS got, and a 4-core laptop on integrated graphics, and any VM
+with no render node — where each blur pass behind every panel and menu is CPU
+work, every frame. KWin's `supported()` check asks what the BACKEND can do, not
+what this machine should do.
+
+**`moos-visual-tier`** (new) reads the hardware and picks the profile.
+
+Probe — read-only, `/sys` + `/proc` + `/dev` only, no external command required:
+render nodes (`/dev/dri/renderD*`), the kernel driver bound to each DRM card,
+AMD VRAM from `mem_info_vram_total`, cores from `/proc/cpuinfo`, `MemTotal`,
+battery presence, and the panel size. Two real bugs the live probe caught and
+that are now encoded in the gate:
+
+- sysfs `modes` **lies under the proprietary NVIDIA driver** — this machine's
+  3840×2160 panel reports `1920x1080` in `/sys/class/drm/card1-HDMI-A-1/modes`,
+  because NVIDIA does its own modesetting. `kscreen-doctor --json` is asked
+  first; sysfs is the fallback for a session-less probe.
+- NVIDIA publishes **no VRAM figure** anywhere (checked: the
+  `/proc/driver/nvidia/gpus/*/information` file has Model, IRQ, UUID, Video
+  BIOS, Bus Type, DMA Size — no memory). The driver name proves the card is
+  discrete; a size threshold there would never be satisfied on NVIDIA.
+- A "16 GB" machine reports **15.4 GiB** once firmware has taken its share, so
+  the flagship floor is 15 — the convention `moos-device-plan` already uses. A
+  literal 16 classified the maintainer's own desktop as `balanced`.
+
+| tier | when | profile |
+|---|---|---|
+| `flagship` | discrete GPU with driver bound, ≥8 cores, ≥15 GiB | blur 15/noise 3, magic lamp, scale, slide, dim+dialogparent, animation factor 1.0 |
+| `balanced` | any real GPU with a driver, ≥4 cores, ≥6 GiB | blur 9/noise 2, squash instead of magic lamp, no dialogparent, factor 0.85 |
+| `essential` | software rendering, no render node, virtual adapter, <4 cores or <6 GiB | blur OFF, window animations off, factor 0.4 |
+
+`AnimationDurationFactor` is the unifying knob: KWin reads it, and so does
+Kirigami — so one tier decision scales the compositor's effects AND every
+MoOS plasmoid and app animation together. At `essential` it is 0.4, never 0:
+Kirigami's `longDuration` floors at 1, so 0 does not read as "off" to QML that
+gates on `> 0`, it reads as an animation with a nonsense duration. "Off" stays
+the user's own setting.
+
+**It is a default, not a policy.** It writes only the keys it owns, records
+exactly what it wrote, and if a key later differs from both what it wrote and
+what it would write, that key is yours and it stops touching it. `moos-theme
+perf <auto|flagship|balanced|essential>` pins a tier and turns detection off.
+
+**Gate:** `tests/test_moos_visual_tier.py` (21 cases) builds fake `/sys`,
+`/proc` and `/dev` trees and runs the REAL probe against them — the maintainer's
+desktop, a VPS with no render node, a virtio adapter with and without a render
+node, an AMD APU vs a discrete Radeon, a connector directory that must never be
+read as a device — plus the blur ceiling, the never-zero animation factor, the
+exclusive minimize slot, idempotency, and "a setting the user changed is left
+alone". Registered in CI and the `Justfile`.
+
+**Live:** this desktop classifies `flagship` (discrete nvidia, 16 cores,
+15.4 GiB, 4K); applying changed 1 setting and a second run changed 0.
+
 ---
 
 ## Completed

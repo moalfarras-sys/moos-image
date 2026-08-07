@@ -83,7 +83,12 @@ set -uo pipefail
 #     into one and orders the applets from moos-bar.conf. This rev is what makes
 #     an already-split desktop converge: the merge is file surgery on the
 #     appletsrc and only runs inside this once-per-revision migration.
-THEME_REV=33
+# 34: motion is sized to the machine. moos-visual-tier probes the render node,
+#     GPU driver, cores, memory and panel size, classifies the host as flagship
+#     / balanced / essential, and writes the matching KWin + Kirigami profile.
+#     Until now every MoOS install ran the profile tuned on a discrete-GPU 4K
+#     desktop, including cloud hosts with no render node at all.
+THEME_REV=34
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"
@@ -1105,18 +1110,36 @@ fi
 
 # --- The dock and the system tray: one call, one source of truth ---------------
 # Everything structural about the bar is owned by moos-bar-apply, which reads
-# /usr/share/moos/moos-bar.conf — the single source of truth. It splits the
-# retired single panel into the two glass slabs (the centered dock capsule:
-# brand + tasks; the corner system capsule: tray + clock), pins the tray's
-# always-shown toggles (Wi-Fi, Bluetooth, volume, brightness, notifications and
-# the keyboard/language indicator), applies the geometry, restarts the shell once
-# per revision and reads the result back. Nothing in this script may restate a
-# bar value; tests pin the two files together.
+# /usr/share/moos/moos-bar.conf — the single source of truth. It MERGES every
+# bottom panel into one glass capsule (launcher, tasks, separator, tray, clock),
+# pins the tray's always-shown toggles (Wi-Fi, Bluetooth, volume, brightness,
+# notifications and the keyboard/language indicator), applies the geometry,
+# restarts the shell once per revision and reads the result back. Nothing in this
+# script may restate a bar value; tests pin the two files together.
 if command -v moos-bar-apply >/dev/null 2>&1; then
     moos-bar-apply apply "$THEME_REV" >>"$log" 2>&1 \
         || echo "moos-bar-apply reported an incomplete dock readback — will retry" >>"$log" 2>&1
 else
     echo "moos-bar-apply missing — dock left as found" >>"$log" 2>&1
+fi
+
+# --- Motion sized to the machine ----------------------------------------------
+# /etc/xdg/kwinrc ships ONE profile for every install — blur 15, magic lamp, the
+# full set — tuned on a discrete-GPU desktop. The same profile reaches a cloud
+# VPS drawing in software, where every blur pass behind every panel and menu is
+# CPU work per frame, and KWin cannot tell the difference: its supported() check
+# asks what the backend CAN do, not what this machine SHOULD do.
+#
+# moos-visual-tier reads the hardware (render node, GPU driver, cores, memory,
+# panel size) and writes the profile that fits: flagship keeps the tuned full
+# system, balanced trades magic lamp for squash and blur 15 for 9, essential
+# turns blur and window animations off and keeps motion short. It writes only
+# the keys it owns, records them, and stops touching any key the user has since
+# changed — so this is a default, not a policy. `moos-visual-tier --set <tier>`
+# pins it and turns detection off.
+if command -v moos-visual-tier >/dev/null 2>&1; then
+    moos-visual-tier --apply >>"$log" 2>&1 \
+        || echo "moos-visual-tier could not size the motion profile" >>"$log" 2>&1
 fi
 
 # KSplash is user configuration, so a system default alone cannot override an

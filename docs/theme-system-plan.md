@@ -16,6 +16,8 @@ Status is recorded against the current development branch. The theme system rema
 | Undo the two-slab bar: ONE centred capsule, merge not split | completed | `tests/test_moos_bar_single_panel.py` (8 cases incl. the exact 546 profile); live `PANELS=1` on Graphite/Amethyst/Aurora |
 | Make moos-bar-apply idempotent and the sole writer of bar structure | completed | second run reports `no-change`; `merge_appletsrc` cannot create a containment |
 | Apply the rim scale to the last always-on QML borders | completed | launcher plate, clock chip, hero clock emblem |
+| Size the motion system to the host's GPU/CPU/RAM instead of one fixed profile | completed | `tests/test_moos_visual_tier.py` (21 cases, real probe vs fake /sys); live tier `flagship` |
+| Make the tier a default the user can override and pin | completed | `moos-theme perf`; a user-changed key is never taken back; second apply changes 0 |
 | Live logout/login persistence | pending | requires a session restart or reboot |
 | 100/125/150/200% visual sweep | pending | not completed in this session |
 | Full image build and CI-equivalent container gates | pending | repository gates still need a complete run |
