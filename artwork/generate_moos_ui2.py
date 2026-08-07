@@ -222,16 +222,28 @@ def write(path: pathlib.Path, content: str) -> None:
 # denser floor so dark tray icons / clock / text stay legible over wallpaper.
 #
 # FROSTED PROFILE: the owner asked for frosted glass — "زجاج ضبابي بدون ضلال
-# ابيض و خطوط بالاعلى". The dock carries no light of its own any more (no
-# crest, no luminous rim — see panel-background.svg.in), and the @GLASS_P*@
-# stops dropped to ~0.6..0.78 (dark) / ~0.66..0.81 (light) so the KWin frost
-# (BlurStrength 15 / NoiseStrength 3) actually shows through. They stay well
-# under the 0.93 ceiling test_glass_surfaces_* enforces. @RIM_OUTLINE@ is the
-# only edge cue left — a faint bottom hairline that settles the capsule
-# against busy wallpaper.
+# ابيض و خطوط بالاعلى". The dock carries no light of its own (no crest, no
+# luminous rim — see panel-background.svg.in) and that stays true. @RIM_OUTLINE@
+# is the only edge cue, a faint bottom hairline that settles the capsule against
+# busy wallpaper.
+#
+# DEPTH, added 2026-08-07. The stops used to span 0.60..0.78 (dark) and
+# 0.66..0.81 (light) — a 0.15 range, which is not a material, it is a wash. The
+# light dock in particular read as flat paint: measured on the shipped
+# NovaLight panel the ramp travelled #C2DAE6 -> #AECDD8, barely 20 RGB steps,
+# under an almost constant alpha. Glass does not look like that.
+#
+# The range is now DOUBLED (0.50..0.86 dark, 0.58..0.88 light) and the win is
+# in both directions at once: the top is MORE transparent than before, so more
+# of the KWin frost actually shows through where the eye looks first, and the
+# bottom is denser, so tray icons and the clock sit on something solid. Same
+# average density, twice the depth, and the owner's "no light of its own" holds
+# because a gradient is a material, not a line.
+#
+# Every stop stays under the 0.93 ceiling test_glass_surfaces_* enforces.
 OPACITY = {
     "dark": {
-        "@GLASS_P0@": "0.60", "@GLASS_P1@": "0.66", "@GLASS_P2@": "0.74", "@GLASS_P3@": "0.78",
+        "@GLASS_P0@": "0.50", "@GLASS_P1@": "0.62", "@GLASS_P2@": "0.76", "@GLASS_P3@": "0.86",
         "@RIM_OUTLINE@": "0.10",
         "@DLG_P0@": "0.78", "@DLG_P1@": "0.82", "@DLG_P2@": "0.88", "@DLG_P3@": "0.92",
         "@DLG_RIM_LUM@": "0.60", "@DLG_RIM_OUTLINE@": "0.24", "@DLG_RIM_ACCENT@": "0.34",
@@ -240,7 +252,7 @@ OPACITY = {
         # Capped at 0.93 so the light dock stays denser than dark (legible dark
         # icons over wallpaper) yet never crosses the 0.93 ceiling above which
         # KWin's frost stops showing (enforced by test_glass_surfaces_*).
-        "@GLASS_P0@": "0.66", "@GLASS_P1@": "0.71", "@GLASS_P2@": "0.77", "@GLASS_P3@": "0.81",
+        "@GLASS_P0@": "0.58", "@GLASS_P1@": "0.68", "@GLASS_P2@": "0.80", "@GLASS_P3@": "0.88",
         "@RIM_OUTLINE@": "0.14",
         "@DLG_P0@": "0.82", "@DLG_P1@": "0.85", "@DLG_P2@": "0.90", "@DLG_P3@": "0.92",
         "@DLG_RIM_LUM@": "0.44", "@DLG_RIM_OUTLINE@": "0.26", "@DLG_RIM_ACCENT@": "0.22",

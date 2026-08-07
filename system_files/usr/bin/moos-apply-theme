@@ -101,7 +101,15 @@ set -uo pipefail
 #     exists because the change is shipped QML: OSTree pins /usr mtimes, Qt's
 #     qmlcache is keyed on mtime, and without the bump plasmashell keeps
 #     executing the compiled OLD widget after the upgrade.
-THEME_REV=36
+# 37: the dock becomes a material and the home button becomes a button. The
+#     glass ramp spanned 0.15 of alpha — measured on the shipped NovaLight panel
+#     it travelled #C2DAE6 -> #AECDD8 under an almost constant alpha, which is a
+#     wash, not glass. The range is doubled (0.50..0.86 dark, 0.58..0.88 light):
+#     more frost shows at the top, the bottom carries the icons. And the MoOS
+#     button was literally color "transparent" at rest — the one control wearing
+#     the system's name was invisible until the pointer found it; it now rests at
+#     highlight 0.10.
+THEME_REV=37
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

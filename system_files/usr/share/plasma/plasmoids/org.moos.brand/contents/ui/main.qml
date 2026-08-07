@@ -363,9 +363,17 @@ PlasmoidItem {
             height: parent.height - Kirigami.Units.smallSpacing
             radius: Math.min(width, height) / 2
             
-            // Very subtle and professional hover state
-            color: compact.pressed ? Qt.alpha(Kirigami.Theme.highlightColor, 0.25) : 
-                   (compact.containsMouse || root.expanded ? Qt.alpha(Kirigami.Theme.highlightColor, 0.1) : "transparent")
+            // THE HOME BUTTON HAS TO EXIST WHEN YOU ARE NOT TOUCHING IT.
+            // This was "transparent" at rest, so the one button that carries the
+            // system's name was invisible until the pointer found it — the
+            // MoOS mark floated on bare glass with nothing saying it was a
+            // control. A resting pill at 0.10 is enough to read as a button and
+            // still quiet enough not to compete with the app icons beside it.
+            color: compact.pressed
+                ? Qt.alpha(Kirigami.Theme.highlightColor, 0.28)
+                : (compact.containsMouse || root.expanded
+                    ? Qt.alpha(Kirigami.Theme.highlightColor, 0.20)
+                    : Qt.alpha(Kirigami.Theme.highlightColor, 0.10))
             
             Behavior on color { ColorAnimation { duration: root.motionFast } }
             
