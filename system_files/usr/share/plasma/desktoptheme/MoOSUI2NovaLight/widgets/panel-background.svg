@@ -36,10 +36,10 @@
   </style>
   <defs>
     <linearGradient id="ui2-panel-glass" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="60">
-      <stop offset="0" stop-color="#C2DAE6" stop-opacity="0.58"/>
+      <stop offset="0" stop-color="#CEE1EE" stop-opacity="0.58"/>
       <stop offset="0.35" stop-color="#B9D4E0" stop-opacity="0.68"/>
-      <stop offset="0.75" stop-color="#AECDD8" stop-opacity="0.80"/>
-      <stop offset="1" stop-color="#AECDD8" stop-opacity="0.88"/>
+      <stop offset="0.75" stop-color="#A1C4CF" stop-opacity="0.80"/>
+      <stop offset="1" stop-color="#A1C4CF" stop-opacity="0.88"/>
     </linearGradient>
   </defs>
 

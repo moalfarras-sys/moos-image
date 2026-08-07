@@ -109,7 +109,19 @@ set -uo pipefail
 #     button was literally color "transparent" at rest — the one control wearing
 #     the system's name was invisible until the pointer found it; it now rests at
 #     highlight 0.10.
-THEME_REV=37
+# 38: the launcher grid becomes a grid of CARDS, and the light dock keeps its
+#     depth through the family wash. App tiles were "transparent" until hovered
+#     — the same defect the home button had — so the grid read as loose icons
+#     floating in an empty pane. They now rest on the TEXT colour at 0.05, which
+#     is the one value that lifts a card off its surface on a light theme AND a
+#     dark one, and they lift 2 px on hover. Grid icons 44 -> 52.
+#
+#     The light panel ramp was being flattened by the family wash: mixing the
+#     three panel roles 55% toward a near-white tint pulled top, middle and
+#     bottom toward the same colour, so the base's 34 luminance steps collapsed
+#     to 13 and the dock rendered as flat paint. The wash now moves WHERE the
+#     dock sits without changing HOW FAR it travels.
+THEME_REV=38
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

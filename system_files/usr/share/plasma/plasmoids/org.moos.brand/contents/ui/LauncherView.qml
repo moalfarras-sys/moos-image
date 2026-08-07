@@ -1533,18 +1533,42 @@ Item {
             NumberAnimation { duration: view.motionFast; easing.type: Easing.OutCubic }
         }
 
+        // EVERY TILE IS A CARD, INCLUDING AT REST.
+        //
+        // This was "transparent" until hovered, which is why the grid read as
+        // loose icons floating in an empty pane rather than a designed surface:
+        // nothing under them said where one app ended and the next began, and a
+        // half-full page looked like a bug. It is the same defect the home
+        // button had.
+        //
+        // The resting fill is the TEXT colour at 0.05, not the accent. That is
+        // deliberate and it is what makes one value work for all sixteen
+        // themes: text is dark on a light theme and light on a dark one, so the
+        // same alpha lifts the card off its surface in both directions without
+        // tinting the whole grid blue. The accent is kept for the states that
+        // mean something — hover and press — so it still reads as interaction
+        // rather than decoration.
         background: Rectangle {
             radius: view.radiusM
             color: tile.down
-                ? Qt.alpha(Kirigami.Theme.highlightColor, 0.15)
+                ? Qt.alpha(Kirigami.Theme.highlightColor, 0.22)
                 : tile.hovered || tile.activeFocus
-                    ? Qt.alpha(Kirigami.Theme.highlightColor, 0.085)
-                    : "transparent"
-            border.width: tile.activeFocus ? 2 : tile.hovered ? 1 : 0
-            border.color: Qt.alpha(Kirigami.Theme.highlightColor,
-                tile.activeFocus ? 0.82 : 0.34)
+                    ? Qt.alpha(Kirigami.Theme.highlightColor, 0.14)
+                    : Qt.alpha(Kirigami.Theme.textColor, 0.05)
+            // Rim scale (THEME_REV 32): keyboard focus is the one state allowed
+            // a real edge, because it is the only one a keyboard user can see.
+            border.width: tile.activeFocus ? 2 : 0
+            border.color: Qt.alpha(Kirigami.Theme.highlightColor, 0.82)
             Behavior on color { ColorAnimation { duration: view.motionFast } }
-            Behavior on border.color { ColorAnimation { duration: view.motionFast } }
+
+            // The lift. A card that only changes colour on hover feels painted;
+            // one that rises feels like an object. Transform only — no shadow
+            // layer, no shader, nothing per-frame once settled.
+            transform: Translate { y: tile.hovered && view.motionFast > 0 ? -2 : 0
+                Behavior on y {
+                    NumberAnimation { duration: view.motionFast; easing.type: Easing.OutCubic }
+                }
+            }
         }
 
         contentItem: ColumnLayout {
@@ -1555,7 +1579,7 @@ Item {
                 Layout.alignment: Qt.AlignHCenter
                 Layout.preferredWidth: Plasmoid.configuration.compactTiles
                     ? Kirigami.Units.iconSizes.medium
-                    : 44
+                    : 52
                 Layout.preferredHeight: width
                 source: tile.model.decoration || "moos-cube-symbolic"
                 animated: false

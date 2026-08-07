@@ -94,6 +94,21 @@ def _hex(t: tuple[int, int, int]) -> str:
     return "#%02X%02X%02X" % t
 
 
+def _offset_hex(base: str, sample: str, origin: str) -> str:
+    """base + (sample - origin), per channel, clamped.
+
+    Used to re-apply a ramp's own travel around a colour that has been shifted
+    somewhere else — the family wash moves WHERE the dock sits without being
+    allowed to change HOW FAR it travels.
+    """
+    def ch(h, i):
+        return int(h[1 + 2 * i:3 + 2 * i], 16)
+    out = "#"
+    for i in range(3):
+        out += f"{max(0, min(255, ch(base, i) + ch(sample, i) - ch(origin, i))):02X}"
+    return out
+
+
 def _mix_hex(a: str, b: str, t: float) -> str:
     return _hex(_lerp(_rgbtuple(a), _rgbtuple(b), t))
 
@@ -146,6 +161,25 @@ def light_roles(base_key: str) -> dict[str, str]:
     roles = dict(LIGHT_BASE)
     for r in ("canvas", "surface", "card", "raised", "panel_top", "panel_mid", "panel_bottom"):
         roles[r] = _mix_hex(LIGHT_BASE[r], wash, 0.55)
+
+    # THE FAMILY HUE TINTS THE DOCK; IT MUST NOT FLATTEN IT.
+    #
+    # The wash above is nearly white, so mixing the three panel roles 55% toward
+    # it pulls top, middle and bottom toward the SAME colour — it does not just
+    # tint the ramp, it collapses it. Measured on the shipped NovaLight dock:
+    # the base light panel travels 34 luminance steps from top to bottom, and
+    # after the wash only 13 survived. On screen that rendered as 12 steps
+    # across 117 physical pixels, which is not a gradient anyone can see. The
+    # light dock looked like flat paint next to the dark one (~32 steps) for
+    # exactly this reason, through every light family member.
+    #
+    # So: keep the washed MIDDLE — that is where the family's hue lives — and
+    # rebuild the top and bottom by re-applying the base's own per-channel
+    # travel around it. The family keeps its colour, the dock keeps its depth,
+    # and no palette has to be hand-tuned sixteen times.
+    washed_mid = roles["panel_mid"]
+    for role in ("panel_top", "panel_bottom"):
+        roles[role] = _offset_hex(washed_mid, LIGHT_BASE[role], LIGHT_BASE["panel_mid"])
     roles["primary"] = acc["primary"]
     roles["secondary"] = acc["secondary"]
     roles["luminous"] = acc["luminous"]
