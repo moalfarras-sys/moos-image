@@ -799,8 +799,8 @@ class TestMoOSUI2(unittest.TestCase):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=42", apply,
-            "existing pre-v42 users would exit before post-marker shadow quarantine, "
+            "THEME_REV=43", apply,
+            "existing pre-v43 users would exit before post-marker shadow quarantine, "
             "the Horizon Bar/theme migration, and the SVG cache purge that is the "
             "only way new Plasma Style art reaches a frozen /usr",
         )
@@ -1168,6 +1168,19 @@ class TestMoOSUI2(unittest.TestCase):
             launcher.count("CommandCard {"), 3,
             "the Command Canvas must keep exactly three hero destinations",
         )
+        # THEME_REV 43: hero cards must carry at REST (docs/MOOS_DESIGN_PLAN.md §0).
+        # Resting textColour 0.11 is the measured AppTile contract; 0.025/0.105
+        # was the invisible band that made these cards look flat.
+        command_card = launcher.split("component CommandCard:", 1)[1].split(
+            "component SettingCard:", 1
+        )[0]
+        self.assertIn("Qt.alpha(Kirigami.Theme.textColor, 0.11)", command_card)
+        self.assertNotIn("0.025", command_card)
+        self.assertNotIn("0.105", command_card)
+        self.assertIn("Qt.alpha(Kirigami.Theme.highlightColor, 0.24)", command_card)
+        setting_card = launcher.split("component SettingCard:", 1)[1]
+        self.assertIn("Qt.alpha(Kirigami.Theme.textColor, 0.11)", setting_card)
+        self.assertNotIn("0.045", setting_card)
         for destination in (
             "org.moos.moai.desktop",
             "org.moos.store.desktop",

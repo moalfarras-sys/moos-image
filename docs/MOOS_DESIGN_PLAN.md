@@ -102,12 +102,15 @@ only thing separating the surface from live wallpaper. Gated by
 Ranked by pixels-owned, i.e. by how much a change can possibly show:
 
 1. **The launcher popup** (792×576, opaque) — owns every pixel. Tiles are cards
-   now; the sidebar, search field and the two hero cards are still flat and are
-   the next obvious win.
-2. **The desktop** — currently **bare wallpaper**, no widgets at all. Biggest
-   untapped surface on the whole system. Blocked, see §3.1.
-3. **Lock / login / logout screens** — full-screen, opaque, and untouched this
-   session.
+   (rev 38); sidebar selected state is visible (rev 42); **CommandCard / SettingCard
+   resting fills match the AppTile contract** (rev 43, measured Δ luminance 25–31).
+   Search field already carried a resting plate; leave it unless a future scan
+   fails §0.
+2. **The desktop** — `org.moos.heroclock` is seeded once on THEME_REV 43 (add-once
+   marker `moos-heroclock-seeded.v1`). The wallpaper bento stays below the icons.
+   See §3.1 for what actually blocked createApplet.
+3. **Lock / login / logout screens** — full-screen, opaque, still the next large
+   surface that has not been reworked in this train.
 4. **Mo AI / Mo Store / MoPlayer** app windows — own their pixels.
 5. **The dock** — at its ceiling (§1.1). Stop here.
 
@@ -115,35 +118,36 @@ Ranked by pixels-owned, i.e. by how much a change can possibly show:
 
 ## 3. Open bugs, with everything known
 
-### 3.1 The desktop refuses every widget — UNSOLVED, highest value
+### 3.1 The desktop refused every widget — SOLVED (2026-08-07)
 
 ```
-org.kde.plasma.systemmonitor  →  Error: Could not create the widget!
-org.kde.plasma.minimizeall    →  Error: Could not create the widget!
-org.moos.heroclock            →  Error: Could not create the widget!
+org.kde.plasma.systemmonitor  →  Error: Could not create the widget!   (was)
+org.kde.plasma.minimizeall    →  Error: Could not create the widget!   (was)
+org.moos.heroclock            →  Error: Could not create the widget!   (was)
 ```
 
-This is why the owner said "I don't know where to manage the widgets". It is
-**not** MoOS-specific — stock KDE applets fail identically on the same
-containment, while the **panel accepts widgets fine**.
+**Two separate defects stacked**, and fixing only the first was not enough:
 
-Ruled out already, do not re-check:
-- `immutability` — both containments confirmed `0` in the file, shell restarted
-- kiosk lockdown — `/etc/kderc` is Fedora stock, no `[KDE Action Restrictions]`
-  anywhere
+1. **`immutability=1` in appletsrc** (THEME_REV 40) — Plasma's "Widgets are
+   locked". Removes Add Widgets / Configure from the menus. Repaired by
+   `moos-bar-apply` writing `immutability=0` on every containment.
+2. **`desktop.locked === true` in the scripting API**, even when the file already
+   said `immutability=0`. `Containment::createApplet` still failed for stock and
+   MoOS applets alike until `d.locked = false` on a **session-managed**
+   plasmashell (`plasma-plasmashell.service` active, MainPID = plasmashell).
+
+**The hand-launched-shell hypothesis was tested and REFUTED as the sole cause.**
+Restoring `systemctl --user start plasma-plasmashell.service` alone was not
+enough; createApplet still failed until `locked` was cleared. After unlock on
+the unit-managed shell, systemmonitor, minimizeall, brand, and heroclock all
+created and removed cleanly. `apply_desktop_scene` and `seed_heroclock_once`
+now set `d.locked = false` before touching applets.
+
+Ruled out earlier (still true, do not re-check):
+- kiosk lockdown — no `[KDE Action Restrictions]`
 - `containmentlayoutmanager` — installed
-- MoOS package validity — all four render fine under `plasmawindowed`
-- (`org.kde.plasma.analogclock` is **not installed** on Fedora; an early test
-  used it and produced a false conclusion. Use systemmonitor/minimizeall.)
-
-**Untested and most likely:** every test ran against a plasmashell launched by
-hand (`setsid plasmashell`) rather than by the session. **Test this first after
-a clean reboot** — if it works there, the bug is in the manual-launch
-environment, not MoOS.
-
-If it reproduces on a clean session: instrument `plasmashell` with
-`QT_LOGGING_RULES='kde.*=true;org.kde.plasma.*=true'` and trace
-`Containment::createApplet`.
+- MoOS package validity — packages load under `plasmawindowed`
+- (`org.kde.plasma.analogclock` is **not installed**; use systemmonitor/minimizeall.)
 
 ### 3.2 The context island is invisible in practice
 
@@ -156,7 +160,8 @@ reported `count=1`).
 
 ### 3.3 Never developed
 
-- **The clock widget** — 4 changed lines all session, all border alpha.
+- **The panel clock popup** (`org.moos.nova.clock`) — still a bare calendar; only
+  rim-alpha work so far. Distinct from the desktop Hero Clock.
 - **Dock icon hover motion** — unreachable; `icontasks`' `Task.qml` is compiled
   into `org.kde.plasma.taskmanager.so`. Needs a MoOS task manager (large).
 - **100–200% scale sweep** — everything is verified at 4K@225% only.
@@ -187,14 +192,11 @@ checks.
 
 ## 5. The next session, in order
 
-1. **Reboot first**, then retry §3.1 on a session-launched shell. That one
-   answer unblocks the largest surface on the system.
-2. If widgets can be placed: ship `org.moos.heroclock` on the default desktop
-   via `layout.js` (new profiles) + a once-per-rev migration (existing users,
-   add-once semantics so a removal is respected).
-3. Launcher, second pass: sidebar, search field and the two hero cards still
-   read flat. Same rule as §0 — measure before shipping.
-4. Lock / login / logout — untouched, full-screen, opaque.
-5. Only then revisit motion.
+1. ~~Reboot / session shell + createApplet~~ — done; see §3.1.
+2. ~~Ship `org.moos.heroclock` once~~ — done (THEME_REV 43, `moos-heroclock-seeded.v1`).
+3. ~~Launcher hero cards~~ — done (CommandCard / SettingCard, measured ≥15).
+4. **Lock / login / logout** — still the largest untouched opaque surfaces.
+5. Panel clock popup Liquid Glass; only then revisit dock-icon motion (large).
+6. Scale sweep at 100 / 125 / 150 / 200%.
 
 **Every step: change → apply live → screenshot → measure ≥15 → then commit.**

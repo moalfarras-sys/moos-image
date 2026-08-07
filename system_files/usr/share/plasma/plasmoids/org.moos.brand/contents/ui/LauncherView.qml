@@ -1926,20 +1926,36 @@ Item {
             }
         }
 
+        // AMPLITUDE (docs/MOOS_DESIGN_PLAN.md §0). Resting fill was 0.025 /
+        // featured 0.105 — both inside the 0.05–0.12 band that renders as 5–11
+        // luminance steps. Same contract as AppTile: textColour 0.11 at rest so
+        // one value works across all 16 themes; accent only on interaction.
         background: Rectangle {
             radius: view.radiusL
-            color: Qt.alpha(command.featured || command.hovered
-                ? Kirigami.Theme.highlightColor
-                : Kirigami.Theme.textColor,
-                command.down ? 0.16
-                    : (command.featured ? 0.105 : (command.hovered ? 0.075 : 0.025)))
+            color: command.down
+                ? Qt.alpha(Kirigami.Theme.highlightColor, 0.34)
+                : command.hovered || command.activeFocus
+                    ? Qt.alpha(Kirigami.Theme.highlightColor, 0.24)
+                    : Qt.alpha(Kirigami.Theme.textColor, 0.11)
+            // Rim scale (THEME_REV 32): resting ≤0.22; keyboard focus is the
+            // only state allowed a stronger edge.
             border.width: command.activeFocus ? 2 : 1
-            border.color: Qt.alpha(command.featured || command.activeFocus
-                ? Kirigami.Theme.highlightColor
-                : Kirigami.Theme.textColor,
-                command.activeFocus ? 0.82 : command.featured ? 0.34 : 0.09)
+            border.color: Qt.alpha(
+                command.activeFocus ? Kirigami.Theme.highlightColor
+                                    : Kirigami.Theme.textColor,
+                command.activeFocus ? 0.52 : 0.18)
             Behavior on color { ColorAnimation { duration: view.motionFast } }
             Behavior on border.color { ColorAnimation { duration: view.motionFast } }
+
+            transform: Translate {
+                y: command.hovered && view.motionFast > 0 ? -2 : 0
+                Behavior on y {
+                    NumberAnimation {
+                        duration: view.motionFast
+                        easing.type: Easing.OutCubic
+                    }
+                }
+            }
 
             Rectangle {
                 anchors {
@@ -1947,11 +1963,11 @@ Item {
                     bottom: parent.bottom
                     leftMargin: view.radiusL
                 }
-                width: command.featured ? 42 : 18
+                width: command.featured || command.hovered ? 42 : 18
                 height: 2
                 radius: 1
                 color: Kirigami.Theme.highlightColor
-                opacity: command.featured || command.hovered ? 0.94 : 0.34
+                opacity: command.featured || command.hovered ? 0.94 : 0.55
                 Behavior on width {
                     NumberAnimation {
                         duration: view.motionMedium
@@ -1969,7 +1985,7 @@ Item {
                 Layout.preferredHeight: 38
                 radius: view.radiusM
                 color: Qt.alpha(Kirigami.Theme.highlightColor,
-                    command.featured ? 0.18 : 0.10)
+                    command.featured ? 0.22 : 0.14)
 
                 Kirigami.Icon {
                     anchors.centerIn: parent
@@ -2022,9 +2038,10 @@ Item {
         Layout.fillWidth: true
         Layout.preferredHeight: 104
         radius: view.radiusM
-        color: Qt.alpha(Kirigami.Theme.textColor, 0.045)
+        // Same resting amplitude as AppTile / CommandCard — 0.045 was invisible.
+        color: Qt.alpha(Kirigami.Theme.textColor, 0.11)
         border.width: 1
-        border.color: Qt.alpha(Kirigami.Theme.textColor, 0.10)
+        border.color: Qt.alpha(Kirigami.Theme.textColor, 0.18)
 
         ColumnLayout {
             anchors.fill: parent

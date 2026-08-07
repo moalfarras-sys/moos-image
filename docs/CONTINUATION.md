@@ -1,8 +1,39 @@
 # Theme System Continuation
 
 Date: 2026-08-07
-Branch: `feat/moos-horizon-bar`
+Branch: `feat/launcher-hero-cards`
 Rollback point: `backup/theme-system-2026-08-06` and `backup-theme-system-2026-08-06`
+
+## 2026-08-07 — launcher hero cards + heroclock seed (THEME_REV 43)
+
+**CommandCard was invisible at rest.** Resting fill sat at textColour 0.025 /
+featured highlight 0.105 — the same 0.05–0.12 band `docs/MOOS_DESIGN_PLAN.md`
+§0 measured as 5–11 luminance steps. Raised to the AppTile contract: textColour
+0.11 at rest, highlight 0.24 / 0.34 on hover / press, rim ≤0.22 at rest, hover
+lift −2 px. SettingCard 0.045 → 0.11. Live plasmawindowed full representation
+(`moos-ci-full-representation`) on 4K@225%: card/page edge Δ luminance **25–31**
+(gate ≥15). Evidence: `docs/evidence/launcher-hero-cards-rev43.png`.
+
+**§3.1 createApplet — solved, and the first hypothesis was incomplete.**
+
+- `plasma-plasmashell.service` had been **inactive**; plasmashell was an orphan
+  under `systemd --user`. Restored the unit (MainPID = plasmashell).
+- Session shell alone was **not** enough: createApplet still failed while
+  `desktop.locked === true` even with appletsrc `immutability=0`. Clearing
+  `d.locked = false` made systemmonitor, minimizeall, brand and heroclock all
+  create. `apply_desktop_scene` and `seed_heroclock_once` now unlock first.
+
+**heroclock on the desk, once.** `seed_heroclock_once` adds
+`org.moos.heroclock` on the first desktop if absent, writes
+`~/.local/state/moos-heroclock-seeded.v1`, and never re-adds after that marker
+exists (user removal survives self-heal). Live-proven: `hero-added` then
+`hero-already`. Gates updated: exactly one `addWidget` site, and it must name
+heroclock — the retired bento/deskclock stay forbidden.
+
+**Not done this round:** lock / login / logout Liquid Glass; panel clock popup;
+100–200% scale sweep; dock (still at ceiling).
+
+---
 
 ## 2026-08-07 — the bar is ONE capsule again (THEME_REV 33)
 

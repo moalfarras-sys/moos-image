@@ -515,9 +515,21 @@ target_lnf "$1" "$2"
         self.assertIn('"org.moos.nova.deskclock"', text)
         self.assertIn('"org.moos.ui2.dashboard"', text)
         self.assertIn('d.wallpaperPlugin = "org.moos.ui2.wallpaper"', text)
-        # addWidget placement is FORBIDDEN: as a desktop applet the bento always drew
-        # over the Folder View icons — every coordinate collides with some icon layout.
-        self.assertNotIn("d.addWidget(", text)
+        # Hero Clock is the one allowed desktop applet (THEME_REV 43). The retired
+        # bento/deskclock must still never be placed — they fight Folder View icons.
+        self.assertIn("seed_heroclock_once", text)
+        self.assertIn('addWidget("org.moos.heroclock")', text)
+        self.assertIn("moos-heroclock-seeded.v1", text)
+        self.assertNotIn('addWidget("org.moos.ui2.dashboard")', text)
+        self.assertNotIn('addWidget("org.moos.nova.deskclock")', text)
+        add_hits = [
+            line for line in text.splitlines()
+            if "addWidget(" in line and not line.lstrip().startswith("#")
+        ]
+        self.assertEqual(
+            len(add_hits), 1,
+            f"exactly one addWidget site (heroclock); found {add_hits!r}",
+        )
         # The icons grow from the RIGHT, opposite the bento's top-left corner of the scene.
         self.assertIn('d.writeConfig("alignment", "1")', text)
 
@@ -1010,9 +1022,13 @@ class SteadyStateWallpaperReconcileTests(unittest.TestCase):
     def test_only_moos_packages_are_healed(self) -> None:
         text = self.APPLY.read_text(encoding="utf-8")
         body = text.split("reconcile_wallpaper_drift() {", 1)[1].split("\n}", 1)[0]
-        self.assertEqual(body.count("/usr/share/wallpapers/MoOSUI2*)"), 2,
-                         "desktop AND lock heal must key on the MoOSUI2 package "
-                         "prefix — a custom image path must never match")
+        # Desktop heal keys on MoOSUI2* OR empty (unread); lock heal keys on
+        # MoOSUI2* alone. A custom image path must match neither arm.
+        self.assertIn('/usr/share/wallpapers/MoOSUI2*|"")', body,
+                      "desktop heal must key on the MoOSUI2 package prefix "
+                      "(plus empty = unread), never a custom image path")
+        self.assertIn("/usr/share/wallpapers/MoOSUI2*)", body,
+                      "lock heal must key on the MoOSUI2 package prefix")
         self.assertIn('"$pkg"|"") ;;', body,
                       "a matching package and an unreadable value must both be "
                       "left alone")
