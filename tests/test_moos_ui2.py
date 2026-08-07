@@ -1414,7 +1414,6 @@ class TestMoOSUI2(unittest.TestCase):
         plasmoids = sorted((SHARE / "plasma/plasmoids").glob("org.moos.*"))
         self.assertGreaterEqual(len(plasmoids), 4, "the MoOS widget set shrank")
 
-        icon_roots = [SHARE / "icons", pathlib.Path("/usr/share/icons")]
         for package in plasmoids:
             meta = json.loads((package / "metadata.json").read_text(encoding="utf-8"))
             plugin = meta["KPlugin"]
@@ -1426,18 +1425,28 @@ class TestMoOSUI2(unittest.TestCase):
                         f"{field} is what the widget browser shows; without it "
                         f"this widget is harder to find than a stock KDE one")
 
-                # The icon is a THEME NAME, not a path, and it may legitimately
-                # be a png in hicolor rather than a scalable svg — check every
-                # extension, or the check reports defects that are not there.
+                # Only a MoOS-OWNED icon can be checked here. The icon is a
+                # theme NAME, and a stock freedesktop/Breeze name like
+                # "preferences-system-time" resolves from the icon themes
+                # Plasma installs — which a CI runner does not have. The first
+                # version of this check globbed /usr/share/icons unconditionally
+                # and so passed on a desktop and failed the build on the runner:
+                # a gate that depends on its environment tests the environment,
+                # not the repository.
+                #
+                # It may also legitimately be a png in hicolor rather than a
+                # scalable svg, so every extension is checked or the gate
+                # reports defects that are not there.
                 icon = plugin["Icon"]
-                found = any(
-                    any(root.glob(f"**/{icon}.{ext}"))
-                    for root in icon_roots if root.is_dir()
-                    for ext in ("svg", "png", "svgz"))
-                self.assertTrue(
-                    found,
-                    f"Icon '{icon}' resolves to nothing, so the widget browser "
-                    f"draws a blank tile for it")
+                if icon.startswith("moos"):
+                    found = any(
+                        any((SHARE / "icons").glob(f"**/{icon}.{ext}"))
+                        for ext in ("svg", "png", "svgz"))
+                    self.assertTrue(
+                        found,
+                        f"Icon '{icon}' is MoOS-owned but this repository ships "
+                        f"nothing by that name, so the widget browser draws a "
+                        f"blank tile for it")
 
     def test_open_applet_slot_is_never_a_bordered_box(self) -> None:
         """`widgets/tabbar.svg` must not draw a framed rectangle on the dock.
