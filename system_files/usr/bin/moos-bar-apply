@@ -84,13 +84,10 @@ applets_rc="${XDG_CONFIG_HOME:-$HOME/.config}/plasma-org.kde.plasma.desktop-appl
 shell_rc="${XDG_CONFIG_HOME:-$HOME/.config}/plasmashellrc"
 
 plasma_ready() {
-    if command -v busctl >/dev/null 2>&1; then
-        busctl --user call org.kde.plasmashell /PlasmaShell \
-            org.freedesktop.DBus.Peer Ping >/dev/null 2>&1 && return 0
-    fi
     if command -v gdbus >/dev/null 2>&1; then
         gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
-            -m org.freedesktop.DBus.Peer.Ping >/dev/null 2>&1 && return 0
+            -m org.kde.PlasmaShell.evaluateScript 'print("moos-ready")' \
+            >/dev/null 2>&1 && return 0
     fi
     return 1
 }
@@ -281,7 +278,7 @@ in_containment = False
 for i, line in enumerate(lines):
     parts = parts_of(line)
     if parts is not None:
-        in_containment = (len(parts) == 2 and parts[0] == "Containments"
+        in_containment = (len(parts) >= 2 and parts[0] == "Containments"
                           and parts[1].isdigit())
         continue
     if in_containment and line.startswith("immutability=") and line.strip() != "immutability=0":
@@ -382,8 +379,18 @@ live_pass() {
             var TRAY_APPLET = "'"$TRAY_APPLET"'";
             var CLOCK_APPLET = "'"$CLOCK_APPLET"'";
             var DIGITAL_APPLET = "org.kde.plasma.digitalclock";
-            var isMoOS = function (u) { return u.indexOf("applications:org.moos.") === 0; };
-            var ps = panels();
+             var isMoOS = function (u) { return u.indexOf("applications:org.moos.") === 0; };
+             // Plasma keeps the desktop's runtime lock separate from
+             // appletsrc's immutability key. A stale runtime lock makes
+             // createApplet fail even when the saved config says mutable.
+             var ds = desktops();
+             for (var d = 0; d < ds.length; d++) {
+                 try { ds[d].locked = false; } catch (e) {}
+             }
+             var ps = panels();
+             for (var p0 = 0; p0 < ps.length; p0++) {
+                 try { ps[p0].locked = false; } catch (e0) {}
+             }
             var dock = null, bottomCount = 0;
             for (var i = 0; i < ps.length; i++) {
                 if (ps[i].location != "bottom") { continue; }
@@ -558,9 +565,16 @@ stop_shell() {
 }
 
 start_shell() {
-    command -v kstart >/dev/null 2>&1 \
-        && setsid kstart plasmashell >>"$log" 2>&1 & disown
+    systemctl --user start plasma-plasmashell.service >>"$log" 2>&1 || return 1
+    for _ in $(seq 1 30); do
+        systemctl --user is-active --quiet plasma-plasmashell.service && break
+        sleep 1
+    done
     for _ in $(seq 1 60); do plasma_ready && break; sleep 1; done
+    # D-Bus becomes available before Plasma has restored containment state.
+    # Give the managed shell time to finish loading before the live readback
+    # changes runtime locks or applets.
+    sleep 8
 }
 
 restart_shell() {
@@ -596,12 +610,15 @@ cmd_apply() {
     esac
     migrate_popup_geometry >>"$log" 2>&1 || true
     start_shell
-    if ok="$(live_pass)"; then
-        mkdir -p "$(dirname "$marker")" 2>/dev/null || true
-        touch "$marker" 2>/dev/null || true
-        echo "$ok"
-        return 0
-    fi
+    for _ in $(seq 1 12); do
+        if ok="$(live_pass)"; then
+            mkdir -p "$(dirname "$marker")" 2>/dev/null || true
+            touch "$marker" 2>/dev/null || true
+            echo "$ok"
+            return 0
+        fi
+        sleep 2
+    done
     echo "moos-bar-apply: live readback failed: $ok" >&2
     return 1
 }
