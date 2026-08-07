@@ -5,6 +5,8 @@ the thing neither of them is: a map of *which files can hurt you*, and an honest
 list of *what is still not done and how to do it*.
 
 Read `AGENTS.md` first. It is short and it is binding. Then read this.
+For **visual** work read `docs/MOOS_DESIGN_PLAN.md` before either — it
+carries the measured design findings and the ordered plan.
 
 ---
 

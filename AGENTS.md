@@ -67,6 +67,12 @@ boot. Read this before changing anything.
 
 ## Where the rest of the knowledge is
 
+- **`docs/MOOS_DESIGN_PLAN.md`** — READ THIS FIRST for any visual work. The
+  measured reason a whole session of changes was invisible, the ≥15 luminance
+  rule that prevents it, which surfaces can and cannot carry a visible change,
+  the open bugs with everything already ruled out, and the ordered plan. Evidence
+  screenshots in `docs/evidence/`.
+
 - **`docs/AGENT_GUIDE.md`** — the map this file is not: which files can break
   boot vs only the desktop, the five desktop mechanisms that have each cost a
   session (plasmashell overwriting your config edits, the tray's three lists,
