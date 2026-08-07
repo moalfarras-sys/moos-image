@@ -65,6 +65,18 @@ boot. Read this before changing anything.
 > case where **the gate was green while the thing was broken**. This file is the rules;
 > `PROJECT_STATE.md` is the terrain.
 
+## Where the rest of the knowledge is
+
+- **`docs/AGENT_GUIDE.md`** — the map this file is not: which files can break
+  boot vs only the desktop, the five desktop mechanisms that have each cost a
+  session (plasmashell overwriting your config edits, the tray's three lists,
+  why a disappearing applet must be a tray item, why OSTree's frozen mtimes make
+  `THEME_REV` mandatory, and the motion gate that floors at 1), how a change
+  reaches all three editions, how to actually see the desktop, and an honest
+  backlog of what is NOT done with instructions for doing it.
+- **`PROJECT_STATE.md`** — the terrain and the history of what bit us.
+- **`docs/CONTINUATION.md`** — what the last session did and left.
+
 ## The one fact that changes how you work
 
 **The maintainer's daily-driver PC runs this image.** `main` is built by CI, published to

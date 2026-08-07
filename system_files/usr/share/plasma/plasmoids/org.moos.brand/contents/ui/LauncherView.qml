@@ -60,6 +60,21 @@ Item {
     Layout.minimumWidth: implicitWidth
     Layout.minimumHeight: implicitHeight
 
+    // entranceReady drives both the panel's own fade+scale and the staggered
+    // tile reveal below. It is reset when the launcher closes so the entrance
+    // plays on EVERY open — bound once at construction it fires a single time
+    // per session and the motion is effectively invisible.
+    Connections {
+        target: view.launcher
+        function onExpandedChanged() {
+            if (view.launcher.expanded) {
+                Qt.callLater(() => view.entranceReady = true);
+            } else {
+                view.entranceReady = false;
+            }
+        }
+    }
+
     Component.onCompleted: {
         Qt.callLater(() => view.entranceReady = true);
         // A build-only proof that plasmawindowed constructed this component,
@@ -1467,6 +1482,41 @@ Item {
         required property var model
         required property var sourceModel
         property bool favoriteSurface: false
+
+        // The staggered reveal. Each tile arrives a beat after the one before
+        // it, so the grid assembles instead of appearing — the difference
+        // between a menu and a surface that was built for you.
+        //
+        // Cost is deliberately near zero: opacity and y only, no shaders and no
+        // per-frame work once settled. The delay is CAPPED at 11 steps so a
+        // large catalogue cannot turn the entrance into a queue, and the whole
+        // thing collapses to an instant 1.0 when motion is off — the gate is
+        // named in full rather than through view.motionMedium so it is legible
+        // to the reader and to verify_user_experience.
+        readonly property int revealDelay:
+            Kirigami.Units.longDuration > 1 ? Math.min(tile.index, 11) * 24 : 0
+        opacity: view.entranceReady ? 1 : 0
+        transform: Translate {
+            y: view.entranceReady ? 0 : 6
+            Behavior on y {
+                SequentialAnimation {
+                    PauseAnimation { duration: tile.revealDelay }
+                    NumberAnimation {
+                        duration: view.motionMedium
+                        easing.type: Easing.OutCubic
+                    }
+                }
+            }
+        }
+        Behavior on opacity {
+            SequentialAnimation {
+                PauseAnimation { duration: tile.revealDelay }
+                NumberAnimation {
+                    duration: view.motionMedium
+                    easing.type: Easing.OutCubic
+                }
+            }
+        }
 
         enabled: model.disabled !== true
         hoverEnabled: true
