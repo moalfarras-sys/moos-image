@@ -369,11 +369,17 @@ PlasmoidItem {
             // MoOS mark floated on bare glass with nothing saying it was a
             // control. A resting pill at 0.10 is enough to read as a button and
             // still quiet enough not to compete with the app icons beside it.
+            // AMPLITUDE, measured. At 0.10 this pill rendered as a SEVEN
+            // luminance-step difference against the dock glass — measured on a
+            // horizontal scan through the button: 145, 146, 145, 152. The eye
+            // needs roughly fifteen to register "that changed", so the button
+            // was technically present and perceptually absent. 0.24 puts it
+            // over the line while still reading as glass rather than a slab.
             color: compact.pressed
-                ? Qt.alpha(Kirigami.Theme.highlightColor, 0.28)
+                ? Qt.alpha(Kirigami.Theme.highlightColor, 0.42)
                 : (compact.containsMouse || root.expanded
-                    ? Qt.alpha(Kirigami.Theme.highlightColor, 0.20)
-                    : Qt.alpha(Kirigami.Theme.highlightColor, 0.10))
+                    ? Qt.alpha(Kirigami.Theme.highlightColor, 0.34)
+                    : Qt.alpha(Kirigami.Theme.highlightColor, 0.24))
             
             Behavior on color { ColorAnimation { duration: root.motionFast } }
             

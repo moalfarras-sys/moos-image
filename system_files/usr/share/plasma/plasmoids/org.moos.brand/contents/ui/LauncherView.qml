@@ -1551,10 +1551,10 @@ Item {
         background: Rectangle {
             radius: view.radiusM
             color: tile.down
-                ? Qt.alpha(Kirigami.Theme.highlightColor, 0.22)
+                ? Qt.alpha(Kirigami.Theme.highlightColor, 0.34)
                 : tile.hovered || tile.activeFocus
-                    ? Qt.alpha(Kirigami.Theme.highlightColor, 0.14)
-                    : Qt.alpha(Kirigami.Theme.textColor, 0.05)
+                    ? Qt.alpha(Kirigami.Theme.highlightColor, 0.24)
+                    : Qt.alpha(Kirigami.Theme.textColor, 0.11)
             // Rim scale (THEME_REV 32): keyboard focus is the one state allowed
             // a real edge, because it is the only one a keyboard user can see.
             border.width: tile.activeFocus ? 2 : 0

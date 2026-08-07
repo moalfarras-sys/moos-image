@@ -121,7 +121,15 @@ set -uo pipefail
 #     bottom toward the same colour, so the base's 34 luminance steps collapsed
 #     to 13 and the dock rendered as flat paint. The wash now moves WHERE the
 #     dock sits without changing HOW FAR it travels.
-THEME_REV=38
+# 39: AMPLITUDE. Revs 32-38 were all correct and all invisible, and the reason
+#     was one habit: every value was chosen in the 0.05..0.12 band, which over
+#     pale glass renders as 5-11 luminance steps. A person needs roughly 15 to
+#     register that anything changed. Measured on the running dock, the home
+#     button's resting pill was ELEVEN steps against bare glass — present in the
+#     code, absent to the eye. It is 0.24 now and measures 21.5. The launcher's
+#     tile cards go 0.05 -> 0.11 and their hover 0.14 -> 0.24 for the same
+#     reason. Nothing visual ships from here without that measurement.
+THEME_REV=39
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"
