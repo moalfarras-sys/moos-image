@@ -245,6 +245,25 @@ class SingleSourceAgreement(unittest.TestCase):
         self.assertNotIn("sys=ok", apply,
                          "the two-slab readback must be gone")
 
+    def test_live_bar_pass_unlocks_runtime_desktop(self) -> None:
+        apply = BAR_APPLY.read_text(encoding="utf-8")
+        self.assertIn("ds[d].locked = false", apply,
+                      "the live shell must clear Plasma's runtime desktop lock")
+        self.assertIn("appletsrc's immutability key", apply.lower(),
+                      "the runtime lock and saved applet lock must stay distinct")
+        self.assertIn("len(parts) >= 2", apply,
+                      "applet sections must be repaired along with containments")
+        self.assertIn("systemctl --user start plasma-plasmashell.service", apply,
+                      "bar restart must remain managed by the user systemd unit")
+        self.assertNotIn("setsid kstart plasmashell", apply,
+                         "bar restart must not create an orphan plasmashell")
+        self.assertIn("org.kde.PlasmaShell.evaluateScript", apply,
+                      "readiness must wait for Plasma scripting, not only D-Bus ping")
+        self.assertIn("sleep 8", apply,
+                      "readback must allow Plasma containment restore to finish")
+        self.assertIn("for _ in $(seq 1 12)", apply,
+                      "transient Plasma scripting startup must be retried")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
