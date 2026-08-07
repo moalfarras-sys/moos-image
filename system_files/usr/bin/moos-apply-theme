@@ -145,7 +145,12 @@ set -uo pipefail
 #     missing them fails nothing and warns nobody; it just makes a MoOS widget
 #     harder to find than a stock KDE one, in MoOS's own browser. Gated now for
 #     every org.moos.* widget, icon resolution included.
-THEME_REV=41
+# 42: the launcher sidebar tells you which page you are on. The SELECTED nav row
+#     sat at highlight 0.11 and hover at 0.065 — both inside the 0.05..0.12 band
+#     that renders as 5-11 luminance steps, under the ~15 a person needs, so the
+#     sidebar looked identical on every page. Selected is 0.26 now, hover 0.14.
+#     Rows correctly stay transparent at REST; a sidebar is a list, not a grid.
+THEME_REV=42
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

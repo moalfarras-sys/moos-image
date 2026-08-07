@@ -1429,10 +1429,16 @@ Item {
 
         background: Rectangle {
             radius: view.radiusM
+            // AMPLITUDE (see docs/MOOS_DESIGN_PLAN.md §0). The SELECTED page sat
+            // at 0.11 and hover at 0.065 — both inside the 0.05-0.12 band that
+            // renders as 5-11 luminance steps, under the ~15 a person needs. The
+            // sidebar could not tell you which page you were on. Rows correctly
+            // stay transparent at REST; it is the selected state that has to
+            // carry, so it does.
             color: view.launcher.activePage === nav.page && !view.searching
-                ? Qt.alpha(Kirigami.Theme.highlightColor, 0.11)
+                ? Qt.alpha(Kirigami.Theme.highlightColor, 0.26)
                 : Qt.alpha(Kirigami.Theme.textColor,
-                    nav.hovered || nav.activeFocus ? 0.065 : 0.0)
+                    nav.hovered || nav.activeFocus ? 0.14 : 0.0)
             border.width: nav.activeFocus ? 2 : 0
             border.color: Qt.alpha(Kirigami.Theme.highlightColor, 0.78)
             Behavior on color { ColorAnimation { duration: view.motionFast } }
