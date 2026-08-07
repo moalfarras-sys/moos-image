@@ -177,10 +177,41 @@ skopeo inspect docker://ghcr.io/moalfarras-sys/moos-nvidia:latest \
 # the revision MUST be the commit you pushed, or the registry is serving a rebuild
 ```
 
-**A push to `main` does not always create a workflow run.** It has silently
+### Two ways delivery fails silently — check for both
+
+**1. A push to `main` does not always create a workflow run.** It has silently
 failed to trigger; if no run appears within a few minutes,
 `gh workflow run "Build MoOS image" --ref main` produces one, and the
 `concurrency` group makes that safe.
+
+**2. One edition can be left behind.** The three editions build as independent
+matrix jobs, so a run whose overall conclusion is `cancelled` or `failure` may
+still have SIGNED two of them. `moos-nvidia` is the one that fails: it layers
+the NVIDIA driver, and the GitHub runner is disk-constrained — it has been
+killed mid-`buildah` with every repo gate already green. The result is the
+dangerous state: `moos` and `moos-cloud` publishing the new commit while
+`moos-nvidia` still serves the previous one, which is the edition the
+maintainer's own machine tracks.
+
+**Never read the run's top-level conclusion alone.** Check per-edition, at the
+registry, which is the only thing users pull from:
+
+```bash
+for i in moos moos-nvidia moos-cloud; do
+  printf '%-12s ' "$i"
+  skopeo inspect docker://ghcr.io/moalfarras-sys/$i:latest \
+    | jq -r '"\(.Labels["org.opencontainers.image.version"])  rev=\(.Labels["org.opencontainers.image.revision"][0:8])"'
+done
+# every revision MUST equal the commit you pushed
+```
+
+To repair just the edition that lost, rather than rebuilding all three:
+
+```bash
+gh run view <run-id> --json jobs \
+  --jq '.jobs[] | select(.conclusion!="success") | "\(.databaseId) \(.name)"'
+gh run rerun --job <job-id>
+```
 
 Before promising "it will apply after reboot", read it out of the deployment the
 machine will actually boot:
