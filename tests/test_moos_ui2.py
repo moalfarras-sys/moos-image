@@ -16,6 +16,7 @@ import json
 import math
 import os
 from pathlib import Path
+import pathlib
 import re
 import struct
 import subprocess
@@ -798,8 +799,8 @@ class TestMoOSUI2(unittest.TestCase):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=40", apply,
-            "existing pre-v40 users would exit before post-marker shadow quarantine, "
+            "THEME_REV=41", apply,
+            "existing pre-v41 users would exit before post-marker shadow quarantine, "
             "the Horizon Bar/theme migration, and the SVG cache purge that is the "
             "only way new Plasma Style art reaches a frozen /usr",
         )
@@ -1392,6 +1393,51 @@ class TestMoOSUI2(unittest.TestCase):
                             "hover must not claim an app is running — Plasma "
                             "draws it on pinned launchers as well",
                         )
+
+    def test_every_moos_widget_can_be_found_and_added(self) -> None:
+        """A widget nobody can find is a widget that does not exist.
+
+        The owner's report was "I don't know where to manage the widgets,
+        change them, or add others". The first cause was a locked desktop (rev
+        40). The second is here: org.moos.nova.clock shipped with NO Category
+        at all — the only applet on the whole system without one — so it fell
+        outside every filter in Plasma's widget browser, and with no
+        Description[ar] it also described itself in English to an Arabic
+        session.
+
+        Every field below is one the widget EXPLORER renders. Missing any of
+        them does not fail a build or log a warning; it just makes a MoOS
+        widget harder to find than a stock KDE one, in MoOS's own browser.
+        """
+        import json
+
+        plasmoids = sorted((SHARE / "plasma/plasmoids").glob("org.moos.*"))
+        self.assertGreaterEqual(len(plasmoids), 4, "the MoOS widget set shrank")
+
+        icon_roots = [SHARE / "icons", pathlib.Path("/usr/share/icons")]
+        for package in plasmoids:
+            meta = json.loads((package / "metadata.json").read_text(encoding="utf-8"))
+            plugin = meta["KPlugin"]
+            with self.subTest(widget=plugin.get("Id", package.name)):
+                for field in ("Id", "Name", "Name[ar]", "Description",
+                              "Description[ar]", "Icon", "Category"):
+                    self.assertTrue(
+                        plugin.get(field),
+                        f"{field} is what the widget browser shows; without it "
+                        f"this widget is harder to find than a stock KDE one")
+
+                # The icon is a THEME NAME, not a path, and it may legitimately
+                # be a png in hicolor rather than a scalable svg — check every
+                # extension, or the check reports defects that are not there.
+                icon = plugin["Icon"]
+                found = any(
+                    any(root.glob(f"**/{icon}.{ext}"))
+                    for root in icon_roots if root.is_dir()
+                    for ext in ("svg", "png", "svgz"))
+                self.assertTrue(
+                    found,
+                    f"Icon '{icon}' resolves to nothing, so the widget browser "
+                    f"draws a blank tile for it")
 
     def test_open_applet_slot_is_never_a_bordered_box(self) -> None:
         """`widgets/tabbar.svg` must not draw a framed rectangle on the dock.

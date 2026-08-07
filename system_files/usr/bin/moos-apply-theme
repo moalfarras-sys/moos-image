@@ -138,7 +138,14 @@ set -uo pipefail
 #     manage the widgets" was the correct complaint and no colour was ever going
 #     to answer it. moos-bar-apply now returns every containment to 0 on each
 #     apply.
-THEME_REV=40
+# 41: the MoOS clock becomes findable. It shipped with no Category at all — the
+#     only applet on the system without one — so it fell outside every filter in
+#     Plasma's widget browser, and with no Description[ar] it described itself in
+#     English to an Arabic session. Both are fields the EXPLORER renders, and
+#     missing them fails nothing and warns nobody; it just makes a MoOS widget
+#     harder to find than a stock KDE one, in MoOS's own browser. Gated now for
+#     every org.moos.* widget, icon resolution included.
+THEME_REV=41
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

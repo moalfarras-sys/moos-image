@@ -1,12 +1,14 @@
 {
     "KPackageStructure": "Plasma/Applet",
     "KPlugin": {
+        "Category": "Date and Time",
+        "Description": "Compact, scale-safe MoOS time and date",
+        "Description[ar]": "ساعة MoOS للبار: الوقت والتاريخ في شريحة واحدة هادئة، وتقويم بنقرة.",
+        "Icon": "preferences-system-time",
         "Id": "org.moos.nova.clock",
         "Name": "MoOS Clock",
-        "Description": "Compact, scale-safe MoOS time and date",
-        "Icon": "preferences-system-time",
-        "Version": "1.0",
-        "Name[ar]": "ساعة MoOS"
+        "Name[ar]": "ساعة MoOS",
+        "Version": "1.0"
     },
     "X-Plasma-API-Minimum-Version": "6.0",
     "X-Plasma-Provides": [
