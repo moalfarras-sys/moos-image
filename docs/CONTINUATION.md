@@ -3,6 +3,35 @@
 Date: 2026-08-08
 Branch: `feature/unified-moos-experience-2026-08-08`
 
+## 2026-08-08 — post-boot live QA follow-up (THEME_REV 47)
+
+The first unified release was merged as `b514372b`, published for all three
+editions as signed `44.20260808.567` images, used to build the signed-image-pinned
+offline ISO, booted in UEFI from both the installed disk artifact and the live
+ISO, then staged and booted on the owner's NVIDIA machine. The exact booted
+digest was `sha256:261c21f30ceb03a90c7c4927cc175584a2f012e377cc381e763ee7c04060ab01`;
+`tests/post-update-check.sh` reported **49 passed, 0 failed**.
+
+That real post-boot review caught one issue the image gate did not: while an
+application delegate is detached, `DelegateModel` temporarily exposes
+`index=-1`. The launcher's capped stagger used the index directly and therefore
+fed `-24ms` to `PauseAnimation`, repeating a warning whenever its model changed.
+The delay now clamps both bounds, the source gate holds the exact expression,
+and `THEME_REV=47` guarantees existing immutable-image users discard the old QML
+cache. Four live open/close cycles on the real 4K RTL shell produced zero
+negative-duration or launcher warnings. The same review removed two
+user-installed, erroring desktop applets which duplicated the native Horizon
+controls; their packages are recoverable from Trash and the previous layout is
+backed up under `~/.local/state/moos-ui-audit/`.
+
+The complete `just check` and a second local `just build` pass. The corrected
+bootable image is
+`e1ef941cce6048cebde68cadff11383438683a20e5d676bebca516e3c980defe`;
+its final 122 MiB initramfs, real launcher/scene QML hosts, image-experience,
+store, identity-firewall and bootc gates all passed. Signed follow-up
+publication, an ISO pinned to that follow-up, and the second post-reboot check
+remain release gates at this commit.
+
 ## 2026-08-08 — one design core, one transactional theme owner
 
 The complete ownership map and before/after findings are in
@@ -26,13 +55,9 @@ The complete ownership map and before/after findings are in
   pulses. On the real 4K desktop, Gentle/Still measured 0.70% plasmashell CPU
   and Alive 2.85% over a 40-second sample including a pulse.
 
-`just check` and the complete local `just build` both pass. The local bootable
-image is `c28eca8f24f00267d282ae37ba7ef80c4791a464dbdded0b94c24b8d1ec25e04`
-(`44.20260808.1`), after the concrete initramfs, QML, image-experience, store,
-identity-firewall and bootc gates. The next release steps are deliberately not
-claimed here: publish and verify all signed editions, build and exercise the
-signed offline/online ISO, stage the exact signed desktop digest, reboot, and
-run `tests/post-update-check.sh` on the booted image.
+`just check` and the complete local `just build` both passed for this original
+slice. Its subsequent signed release and post-boot result are recorded in the
+follow-up section above; the older local image ID is intentionally superseded.
 
 ---
 
