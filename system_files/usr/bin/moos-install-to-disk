@@ -20,9 +20,11 @@
 #                                 no-network|no-space|disk-io|seed-failed|generic
 #
 # ENGINE: prepares the target's standard GPT/Btrfs layout, then runs `bootc install
-# to-filesystem` against it.  A temporary sibling Btrfs subvolume is TMPDIR for
-# bootc's containers/image proxy.  This is load-bearing: the live root has only a
-# ~1.2-GiB writable overlay, while importing MoOS needs multi-GiB temporary blobs.
+# to-filesystem` against it.  A temporary sibling Btrfs subvolume backs BOTH
+# TMPDIR and /var/tmp for bootc's containers/image proxy.  This is load-bearing:
+# bootc explicitly mirrors /var/tmp into its private mount namespace, so TMPDIR
+# alone is insufficient.  The live root has only a ~1.2-GiB writable overlay,
+# while importing MoOS needs multi-GiB temporary blobs.
 # The staging subvolume uses the target disk, is deleted after the copy, and never
 # consumes RAM-overlay space. Uses the LOCAL copy if the ISO embedded it (offline)
 # else pulls it (online). After install it re-arms SIGNED day-2 verification (origin
@@ -237,11 +239,22 @@ TARGET_STAGE=/run/moos-install-stage
 TARGET_TOP=/run/moos-install-btrfs
 ESP_PART=""
 ROOT_PART=""
+VAR_TMP_BOUND=0
+
+unbind_stage_tmp() {
+    # Only remove the top bind mount that THIS helper installed.  /var/tmp may
+    # already be a separate LiveOS mount underneath it and must remain intact.
+    if [ "$VAR_TMP_BOUND" = "1" ]; then
+        umount /var/tmp >>"$LOG" 2>&1 || umount -l /var/tmp >>"$LOG" 2>&1 || true
+        VAR_TMP_BOUND=0
+    fi
+}
 
 cleanup_target() {
     # These are fixed /run paths owned by this helper; never recurse over a
     # caller-controlled path.  The ESP is below TARGET_ROOT, so -R detaches it
     # before the root subvolume.
+    unbind_stage_tmp
     mountpoint -q "$TARGET_STAGE" 2>/dev/null && umount "$TARGET_STAGE" >>"$LOG" 2>&1 || true
     mountpoint -q "$TARGET_ROOT" 2>/dev/null && umount -R "$TARGET_ROOT" >>"$LOG" 2>&1 || true
     if mountpoint -q "$TARGET_TOP" 2>/dev/null; then
@@ -250,6 +263,18 @@ cleanup_target() {
         umount "$TARGET_TOP" >>"$LOG" 2>&1 || true
     fi
     rmdir "$TARGET_STAGE" "$TARGET_ROOT" "$TARGET_TOP" 2>/dev/null || true
+}
+
+bind_stage_tmp() {
+    # cap-tempfile respects TMPDIR, but bootc additionally calls
+    # ensure_mirrored_host_mount("/var/tmp") before creating its image proxy.
+    # Overlay the LiveOS path with the target-backed sibling for the duration of
+    # bootc only; cleanup_target always peels this exact top mount back off.
+    mount --bind "$TARGET_STAGE" /var/tmp >>"$LOG" 2>&1 || return 1
+    VAR_TMP_BOUND=1
+    chmod 1777 /var/tmp 2>/dev/null || true
+    echo "staging: /var/tmp bind-backed by $TARGET_STAGE" >>"$LOG"
+    return 0
 }
 
 prepare_target() {
@@ -299,7 +324,7 @@ EOF
     chmod 0700 "$TARGET_STAGE" 2>/dev/null || true
     mkdir -p "$TARGET_ROOT/boot/efi"
     mount "$ESP_PART" "$TARGET_ROOT/boot/efi" >>"$LOG" 2>&1 || return 1
-    echo "staging: TMPDIR=$TARGET_STAGE on target-backed Btrfs (LiveOS /var/tmp is not used)" >>"$LOG"
+    echo "staging: TMPDIR=$TARGET_STAGE on target-backed Btrfs" >>"$LOG"
     return 0
 }
 
@@ -324,11 +349,12 @@ trap 'stop_ticker; cleanup_target; wipe_recipe' EXIT
 phase partition; prog 4; raise 18
 
 run_install() {
-    # The filesystem and ESP are already mounted.  TMPDIR is a disposable Btrfs
-    # sibling on the target, so containers/image can materialize large local-store
-    # blobs without touching the LiveOS overlay. --generic-image installs portable
-    # BIOS+UEFI bootloader state; the installed origin remains the registry ref for
-    # day-2 updates and is rewritten to the signed transport in seed_target.
+    # The filesystem and ESP are already mounted. TMPDIR and /var/tmp both resolve
+    # to a disposable Btrfs sibling on the target, so containers/image can
+    # materialize large local-store blobs without touching the LiveOS overlay.
+    # --generic-image installs portable BIOS+UEFI bootloader state; the installed
+    # origin remains the registry ref for day-2 updates and is rewritten to the
+    # signed transport in seed_target.
     TMPDIR="$TARGET_STAGE" bootc install to-filesystem \
         --source-imgref "$SRC" \
         --target-transport registry --target-imgref "$TARGET_IMGREF" \
@@ -363,8 +389,15 @@ for _try in 1 2 3; do
         cleanup_target
         break
     fi
+    if ! bind_stage_tmp; then
+        rc=1
+        echo "target staging bind failed on attempt $_try" >>"$LOG"
+        cleanup_target
+        break
+    fi
     _before="$(wc -l < "$LOG" 2>/dev/null || echo 0)"
     attempt_install; rc=$?
+    unbind_stage_tmp
     cleanup_target
     [ "$rc" -eq 0 ] && break
     _attempt_log="$(tail -n +"$(( _before + 1 ))" "$LOG" 2>/dev/null)"

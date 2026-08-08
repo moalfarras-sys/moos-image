@@ -5372,9 +5372,11 @@ require("/usr/lib/systemd/systemd-update-done --root=" in _i2d
         "ldconfig performs a long cold rebuild before the first password greeter")
 require('bootc install to-filesystem' in _i2d
         and 'bootc install to-disk' not in _i2d
-        and 'TMPDIR="$TARGET_STAGE"' in _i2d,
-        "the live installer must import through a target-backed TMPDIR; bootc to-disk "
-        "materializes local-store blobs in the ~1.2-GiB LiveOS /var/tmp and fails late")
+        and 'TMPDIR="$TARGET_STAGE"' in _i2d
+        and 'mount --bind "$TARGET_STAGE" /var/tmp' in _i2d
+        and 'unbind_stage_tmp' in _i2d,
+        "the live installer must bind both TMPDIR and /var/tmp to target-backed storage; "
+        "bootc explicitly mirrors /var/tmp and otherwise fills the ~1.2-GiB LiveOS overlay")
 require('btrfs subvolume create "$TARGET_TOP/root"' in _i2d
         and 'btrfs subvolume create "$TARGET_TOP/bootc-stage"' in _i2d
         and 'btrfs subvolume set-default "$root_id"' in _i2d
