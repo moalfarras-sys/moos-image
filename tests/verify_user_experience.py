@@ -5569,6 +5569,13 @@ require(
     "the ISO gate must resolve the embedded image through an additional read-only store "
     "with a separate empty runtime graphroot, matching the live boot topology",
 )
+require(
+    'mountpoint -q "${store}/overlay"' in _isoyml
+    and 'umount -R "${store}/overlay"' in _isoyml
+    and "offline image store remained mounted after runtime lookup" in _isoyml,
+    "the ISO embed must tear down containers/storage's private bind mount before "
+    "squashing or deleting the extracted rootfs",
+)
 
 # First-party QML no longer manufactures private base64 SVG libraries at
 # runtime. Every control glyph resolves through the owned symbolic icon theme

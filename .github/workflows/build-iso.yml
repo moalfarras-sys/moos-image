@@ -203,6 +203,20 @@ jobs:
                podman image exists "${offline_ref}"
           echo "OFFLINE EMBED OK: ${IMAGE_REF} is stored as ${offline_ref} in the live ISO"
 
+          # Rootful containers/storage makes its overlay home a PRIVATE bind
+          # mount while opening an AdditionalImageStore.  That is correct in the
+          # live session, but the short-lived build-time lookup can leave the
+          # bind mount attached after podman exits.  Detach it before squashing;
+          # otherwise the rootfs cannot be deleted and, more importantly, the
+          # build would be packaging a live mount rather than only its files.
+          if mountpoint -q "${store}/overlay"; then
+            sudo umount -R "${store}/overlay"
+          fi
+          if mountpoint -q "${store}/overlay"; then
+            echo "FATAL: offline image store remained mounted after runtime lookup" >&2
+            exit 1
+          fi
+
           # Free the runner's rootful store now (Titanoboa and the copy are done with
           # it) so the re-squash and ISO write have headroom on the ~25GB runner.
           sudo podman system reset -f 2>/dev/null || true
