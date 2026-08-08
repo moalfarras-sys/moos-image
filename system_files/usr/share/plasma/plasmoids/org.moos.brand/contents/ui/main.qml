@@ -32,6 +32,7 @@ import org.kde.plasma.core as PlasmaCore
 import org.kde.plasma.private.kicker as Kicker
 import org.kde.milou as Milou
 import org.kde.kirigami as Kirigami
+import org.moos.ui as MoUI
 
 PlasmoidItem {
     id: root
@@ -48,11 +49,16 @@ PlasmoidItem {
         ? fullRepresentation : compactRepresentation
 
     readonly property bool rtl: Qt.locale().textDirection === Qt.RightToLeft
+    readonly property var design: MoUI.Tokens
     readonly property string uiFontFamily: Qt.application.font.family
-    readonly property int motionFast: Kirigami.Units.longDuration > 1
-        ? Kirigami.Units.shortDuration : 0
-    readonly property int motionMedium: Kirigami.Units.longDuration > 1
-        ? Math.round(Kirigami.Units.longDuration * 1.35) : 0
+    readonly property int motionFast: design.duration(
+        Kirigami.Units.longDuration > 1, design.motionFast)
+    readonly property int motionMedium: design.duration(
+        Kirigami.Units.longDuration > 1, design.motionGeometry)
+    readonly property int motionEmphasis: design.duration(
+        Kirigami.Units.longDuration > 1, design.motionEmphasis)
+    readonly property int motionPortal: design.duration(
+        Kirigami.Units.longDuration > 1, design.motionPortal)
     readonly property var shippedFavorites: [
         "org.moos.moai.desktop",
         "org.moos.store.desktop",
@@ -394,7 +400,14 @@ PlasmoidItem {
             
             SequentialAnimation {
                 id: clickWave
-                NumberAnimation { target: clickPulse; property: "opacity"; from: 0.5; to: 0.0; duration: 600; easing.type: Easing.OutCubic }
+                NumberAnimation {
+                    target: clickPulse
+                    property: "opacity"
+                    from: 0.5
+                    to: 0.0
+                    duration: root.motionPortal
+                    easing.type: design.easeStandard
+                }
             }
         }
         
@@ -436,17 +449,16 @@ PlasmoidItem {
                     scale: compact.pressed ? 0.85 : (compact.containsMouse ? 1.08 : 1.0)
                     Behavior on scale { NumberAnimation { duration: root.motionMedium; easing.type: compact.pressed ? Easing.OutQuad : Easing.OutBack } }
                     
-                    // The "Car Wheel" Spin (Fast 720 rotation, smooth stop)
-                    ParallelAnimation {
+                    // A restrained directional settle: enough response to feel
+                    // physical, never a novelty spin beside working app icons.
+                    NumberAnimation {
                         id: logoFlourish
-                        NumberAnimation {
-                            target: compactLogo
-                            property: "rotation"
-                            from: root.rtl ? 720 : -720
-                            to: 0
-                            duration: 1000
-                            easing.type: Easing.OutQuart
-                        }
+                        target: compactLogo
+                        property: "rotation"
+                        from: root.rtl ? 12 : -12
+                        to: 0
+                        duration: root.motionEmphasis
+                        easing.type: design.easeEmphasis
                     }
                 }
             }

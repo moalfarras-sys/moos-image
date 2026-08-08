@@ -13,6 +13,7 @@ Item {
     // owns the only accent this card has: the sheen sweep.
     required property bool accentMotion
     property int entranceDelay: 0
+    property bool integrated: false
     // Active MoOS look, e.g. "MIDNIGHT GLASS"; empty falls back to the half.
     property string themeLabel: ""
 
@@ -41,6 +42,7 @@ Item {
         motionEnabled: clockCard.motionEnabled
         accentMotion: clockCard.accentMotion
         entranceDelay: clockCard.entranceDelay
+        integrated: clockCard.integrated
 
         ColumnLayout {
             anchors.fill: parent

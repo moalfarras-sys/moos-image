@@ -1106,8 +1106,8 @@ def make_tidal_horizon(key: str, light: bool):
 
     p = _roles(key)
     source = ART / "moos-ui2/wallpapers" / (
-        "moos-ui-tidal-horizon-master-v1.png" if light
-        else "moos-ui-graphite-horizon-master-v1.png"
+        "moos-ui-tidal-horizon-master-v2.png" if light
+        else "moos-ui-graphite-horizon-master-v2.png"
     )
     if not source.is_file():
         raise SystemExit(f"missing Tidal Horizon master: {source}")

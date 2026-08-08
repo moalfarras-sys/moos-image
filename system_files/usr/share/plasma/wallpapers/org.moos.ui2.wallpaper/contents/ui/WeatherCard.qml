@@ -16,16 +16,19 @@ Item {
     required property string kind
     required property string condition
     required property bool motionEnabled
-    // MotionMode 2 ("alive"). Only the card shell's sheen sweep uses it; the
-    // condition motion in WeatherScene belongs to the calm default level.
+    // MotionMode 2 ("alive"). Gentle keeps one infrequent artwork drift; the
+    // condition-specific rain/snow/fog/storm bursts belong to alive so the
+    // calm default never turns the 4K wallpaper into a permanent repaint loop.
     required property bool accentMotion
     property int entranceDelay: 0
+    property bool integrated: false
 
     GlassCard {
         anchors.fill: parent
         motionEnabled: weatherCard.motionEnabled
         accentMotion: weatherCard.accentMotion
         entranceDelay: weatherCard.entranceDelay
+        integrated: weatherCard.integrated
 
         RowLayout {
             anchors.fill: parent
@@ -179,6 +182,7 @@ Item {
                 opacity: weatherCard.weatherReady ? 1 : 0
                 kind: weatherCard.kind
                 motionEnabled: weatherCard.motionEnabled
+                accentMotion: weatherCard.accentMotion
 
                 // A one-shot value transition — the kind Plasma's animation-speed
                 // slider is meant to own. It could not, because 420 was a literal

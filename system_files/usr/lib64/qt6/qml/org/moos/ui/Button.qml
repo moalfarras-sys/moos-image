@@ -3,9 +3,7 @@ import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 
-// Accessible, palette-owned action control shared by first-party QML apps.
-// AbstractButton provides pointer, keyboard, checked and accessibility
-// semantics; this file owns only MoOS's shape, rhythm and interaction states.
+// Accessible semantic action control shared by every first-party QML surface.
 QQC2.AbstractButton {
     id: control
 
@@ -22,25 +20,20 @@ QQC2.AbstractButton {
     property color textColor: Kirigami.Theme.textColor
     property color mutedTextColor: Kirigami.Theme.disabledTextColor
     property color accentForegroundColor: Kirigami.Theme.highlightedTextColor
-    property color outlineColor: Qt.alpha(textColor, tokens.glassBorderOpacity)
-    property real cornerRadius: tokens.radiusControl
-    property int fontPixelSize: tokens.typeSecondary
-    property int iconPixelSize: tokens.typeBody
+    property color outlineColor: Qt.alpha(textColor, Tokens.glassBorderOpacity)
+    property real cornerRadius: Tokens.radiusControl
+    property int fontPixelSize: Tokens.typeSecondary
+    property int iconPixelSize: Tokens.iconControl
 
     readonly property color actionColor: destructive ? dangerColor : accentColor
-    // `negativeTextColor` is an ink role, not a guaranteed fill/ink pair.
-    // Destructive actions therefore stay on the current surface with negative
-    // ink + outline. Only highlightColor uses highlightedTextColor as its
-    // theme-defined paired foreground.
     readonly property color restingColor: primary ? accentColor : surfaceColor
     readonly property color foregroundColor: !enabled ? mutedTextColor
                                             : primary ? accentForegroundColor
                                             : destructive ? dangerColor
                                             : textColor
     readonly property real stateLayerOpacity: !enabled ? 0
-                                              : down ? tokens.glassSelectedOpacity
-                                              : hovered ? tokens.glassHoverOpacity
-                                             : 0
+                                              : down ? Tokens.surfacePressedOpacity
+                                              : hovered ? Tokens.surfaceHoverOpacity : 0
 
     text: label
     hoverEnabled: true
@@ -48,36 +41,39 @@ QQC2.AbstractButton {
     Accessible.role: Accessible.Button
     Accessible.name: label
 
-    implicitHeight: compact ? tokens.targetCompact : tokens.targetControl
-    implicitWidth: Math.max(tokens.targetControl,
-        contentRow.implicitWidth + tokens.space5)
-    leftPadding: tokens.space3
-    rightPadding: tokens.space3
-    topPadding: tokens.space2
-    bottomPadding: tokens.space2
-    opacity: enabled ? 1 : tokens.disabledOpacity
-    scale: enabled && down ? 0.97 : 1
+    implicitHeight: compact ? Tokens.targetCompact : Tokens.targetControl
+    implicitWidth: Math.max(Tokens.targetControl,
+        contentRow.implicitWidth + Tokens.space5)
+    leftPadding: Tokens.space3
+    rightPadding: Tokens.space3
+    topPadding: Tokens.space2
+    bottomPadding: Tokens.space2
+    opacity: enabled ? 1 : Tokens.disabledOpacity
+    scale: enabled && down ? Tokens.pressScale : 1
 
     Behavior on scale {
         NumberAnimation {
-            duration: control.motionEnabled ? tokens.motionFast : 0
-            easing.type: Easing.OutCubic
+            duration: Tokens.duration(control.motionEnabled, Tokens.motionFast)
+            easing.type: Tokens.easeStandard
         }
     }
 
     background: Rectangle {
         radius: control.cornerRadius
         color: control.enabled ? control.restingColor : control.surfaceColor
-        border.width: control.primary ? 0 : 1
+        border.width: control.primary ? 0 : Tokens.borderHairline
         border.color: !control.enabled ? control.outlineColor
                     : control.destructive ? Qt.alpha(control.dangerColor,
-                        control.hovered || control.activeFocus ? 0.82 : 0.52)
-                    : control.hovered ? Qt.alpha(control.actionColor, 0.58)
-                    : control.outlineColor
+                        control.hovered || control.activeFocus
+                            ? Tokens.destructiveHoverBorderOpacity
+                            : Tokens.destructiveBorderOpacity)
+                    : control.hovered ? Qt.alpha(control.actionColor,
+                        Tokens.focusOpacity) : control.outlineColor
 
         Behavior on border.color {
             ColorAnimation {
-                duration: control.motionEnabled ? tokens.motionFast : 0
+                duration: Tokens.duration(control.motionEnabled,
+                                          Tokens.motionFast)
             }
         }
 
@@ -85,13 +81,15 @@ QQC2.AbstractButton {
             anchors.fill: parent
             radius: parent.radius
             color: control.primary
-                ? Qt.alpha(control.accentForegroundColor, control.stateLayerOpacity)
+                ? Qt.alpha(control.accentForegroundColor,
+                           control.stateLayerOpacity)
                 : Qt.alpha(control.actionColor, control.stateLayerOpacity)
             opacity: control.enabled ? 1 : 0
 
             Behavior on color {
                 ColorAnimation {
-                    duration: control.motionEnabled ? tokens.motionFast : 0
+                    duration: Tokens.duration(control.motionEnabled,
+                                              Tokens.motionFast)
                 }
             }
         }
@@ -99,7 +97,7 @@ QQC2.AbstractButton {
 
     contentItem: RowLayout {
         id: contentRow
-        spacing: tokens.space2
+        spacing: Tokens.space2
 
         SymbolIcon {
             visible: control.iconName !== ""
@@ -126,6 +124,4 @@ QQC2.AbstractButton {
         accentColor: control.actionColor
         controlRadius: control.cornerRadius
     }
-
-    Tokens { id: tokens }
 }

@@ -146,11 +146,13 @@ var systray = panel.addWidget("org.kde.plasma.systemtray");
 // mirror of moos-bar.conf [tray] shownItems; the gate keeps them equal.
 systray.currentConfigGroup = ["General"];
 systray.writeConfig("shownItems", "org.kde.plasma.networkmanagement,org.kde.plasma.volume,org.kde.plasma.notifications,org.kde.plasma.keyboardlayout");
-// extraItems = items the tray KNOWS about; each one's own Active/Passive status
-// then decides whether it is out or behind the arrow. The context island must be
-// here and must NOT be in shownItems: forcing it visible would make permanent
-// the one thing it exists to avoid.
-systray.writeConfig("extraItems", "org.moos.island");
+// extraItems is the tray's LOAD list, not merely optional third-party additions.
+// A shownItems id without a loaded inner applet draws nothing; in particular the
+// notification applet must exist to own org.freedesktop.Notifications. Bluetooth
+// and brightness are loaded but not forced visible, so their Active/Passive
+// status still decides whether they consume bar space. The island follows the
+// same rule and must never enter shownItems.
+systray.writeConfig("extraItems", "org.moos.island,org.kde.plasma.networkmanagement,org.kde.plasma.volume,org.kde.plasma.notifications,org.kde.plasma.keyboardlayout,org.kde.plasma.bluetooth,org.kde.plasma.brightness");
 
 panel.addWidget("org.moos.nova.clock");
 

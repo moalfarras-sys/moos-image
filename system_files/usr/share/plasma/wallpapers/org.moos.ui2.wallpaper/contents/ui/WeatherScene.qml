@@ -9,6 +9,7 @@ Item {
 
     required property string kind
     required property bool motionEnabled
+    required property bool accentMotion
 
     clip: true
 
@@ -59,33 +60,55 @@ Item {
             asynchronous: true
         }
 
-        // The art's slow bob. It drifted down and straight back up with no gap at
-        // all — a 100% duty cycle, running on the DEFAULT desktop, and an infinite
-        // QML animation repaints the whole window for as long as it runs (about
-        // 11% of a CPU core whatever the item's size). Every looping animation in
-        // this package now rests; here the rest reads as a hover at each end of
-        // the drift, which is what a floating object actually does, and it halves
-        // the cost of the calm default level.
-        SequentialAnimation {
+        // A finite pulse fired by a sparse timer, not an always-running animation.
+        // On this 4K/HDR desktop the old endless bob held plasmashell at 10.25%
+        // even in Gentle and 11.3% in Alive; Still immediately fell to 0.87%.
+        // PauseAnimation inside an infinite group did not make the render driver
+        // idle enough. This pulse occupies 1.8 s of a 60 s Gentle cadence (3%)
+        // and 1.8 s of a 45 s Alive cadence (4%); the timer costs no frame.
+        Timer {
+            id: floatCadence
+            interval: scene.accentMotion ? 45000 : 60000
+            repeat: true
+            triggeredOnStart: true
             running: scene.motionEnabled && scene.visible
-            loops: Animation.Infinite
+            onTriggered: floatPulse.restart()
+            onRunningChanged: {
+                if (!running) {
+                    floatPulse.stop()
+                    floatShift.y = 0
+                }
+            }
+        }
+
+        SequentialAnimation {
+            id: floatPulse
+            PropertyAction {
+                target: floatShift
+                property: "y"
+                value: 0
+            }
             NumberAnimation {
                 target: floatShift
                 property: "y"
-                from: -2.5
                 to: 2.5
-                duration: 3100
+                duration: 500
                 easing.type: Easing.InOutSine
             }
-            PauseAnimation { duration: 2600 }
             NumberAnimation {
                 target: floatShift
                 property: "y"
                 to: -2.5
-                duration: 3100
+                duration: 800
                 easing.type: Easing.InOutSine
             }
-            PauseAnimation { duration: 2600 }
+            NumberAnimation {
+                target: floatShift
+                property: "y"
+                to: 0
+                duration: 500
+                easing.type: Easing.InOutSine
+            }
         }
     }
 
@@ -106,9 +129,25 @@ Item {
             opacity: 0
             rotation: 8
 
+            Timer {
+                id: rainCadence
+                interval: 20000
+                repeat: true
+                triggeredOnStart: true
+                running: scene.motionEnabled && scene.visible
+                    && scene.accentMotion && scene.kind === "rain"
+                onTriggered: rainBurst.restart()
+                onRunningChanged: {
+                    if (!running) {
+                        rainBurst.stop()
+                        rainDrop.y = scene.height * 0.58
+                        rainDrop.opacity = 0
+                    }
+                }
+            }
+
             SequentialAnimation {
-                running: scene.motionEnabled && scene.kind === "rain"
-                loops: Animation.Infinite
+                id: rainBurst
                 PauseAnimation { duration: rainDrop.index * 180 }
                 ParallelAnimation {
                     NumberAnimation {
@@ -134,7 +173,6 @@ Item {
                         }
                     }
                 }
-                PauseAnimation { duration: 900 - rainDrop.index * 180 }
             }
         }
     }
@@ -154,9 +192,26 @@ Item {
             opacity: 0
             transform: Translate { id: snowSway }
 
+            Timer {
+                id: snowCadence
+                interval: 24000
+                repeat: true
+                triggeredOnStart: true
+                running: scene.motionEnabled && scene.visible
+                    && scene.accentMotion && scene.kind === "snow"
+                onTriggered: snowBurst.restart()
+                onRunningChanged: {
+                    if (!running) {
+                        snowBurst.stop()
+                        snowFlake.y = scene.height * 0.56
+                        snowFlake.opacity = 0
+                        snowSway.x = 0
+                    }
+                }
+            }
+
             SequentialAnimation {
-                running: scene.motionEnabled && scene.kind === "snow"
-                loops: Animation.Infinite
+                id: snowBurst
                 PauseAnimation { duration: snowFlake.index * 260 }
                 ParallelAnimation {
                     NumberAnimation {
@@ -199,7 +254,6 @@ Item {
                         }
                     }
                 }
-                PauseAnimation { duration: 1560 - snowFlake.index * 260 }
             }
         }
     }
@@ -217,28 +271,48 @@ Item {
             y: scene.height * (0.58 + index * 0.08)
             color: Kirigami.Theme.disabledTextColor
             opacity: 0.38
+            transform: Translate { id: fogShift }
 
-            // Fog is the only condition whose ribbons never stopped drifting —
-            // the two sweeps ran back to back, so the loop was at a 100% duty
-            // cycle and the whole wallpaper repainted for as long as the forecast
-            // said fog. Fog settles; a pause at each end of the drift is truer to
-            // it than a permanent slide, and it is what keeps this level calm.
-            SequentialAnimation on x {
-                running: scene.motionEnabled && scene.kind === "fog"
-                loops: Animation.Infinite
+            Timer {
+                id: fogCadence
+                interval: 30000
+                repeat: true
+                triggeredOnStart: true
+                running: scene.motionEnabled && scene.visible
+                    && scene.accentMotion && scene.kind === "fog"
+                onTriggered: fogBurst.restart()
+                onRunningChanged: {
+                    if (!running) {
+                        fogBurst.stop()
+                        fogShift.x = 0
+                    }
+                }
+            }
+
+            SequentialAnimation {
+                id: fogBurst
                 PauseAnimation { duration: fogRibbon.index * 420 }
                 NumberAnimation {
-                    to: scene.width * 0.29
-                    duration: 2600
+                    target: fogShift
+                    property: "x"
+                    to: scene.width * 0.06
+                    duration: 1200
                     easing.type: Easing.InOutSine
                 }
-                PauseAnimation { duration: 2400 }
                 NumberAnimation {
-                    to: scene.width * 0.18
-                    duration: 2600
+                    target: fogShift
+                    property: "x"
+                    to: -scene.width * 0.05
+                    duration: 1200
                     easing.type: Easing.InOutSine
                 }
-                PauseAnimation { duration: 2400 }
+                NumberAnimation {
+                    target: fogShift
+                    property: "x"
+                    to: 0
+                    duration: 1200
+                    easing.type: Easing.InOutSine
+                }
             }
         }
     }
@@ -253,14 +327,36 @@ Item {
         color: Kirigami.Theme.neutralTextColor
         opacity: 0
 
-        SequentialAnimation on opacity {
-            running: scene.motionEnabled && stormFlash.visible
-            loops: Animation.Infinite
-            PauseAnimation { duration: 3900 }
-            NumberAnimation { to: 0.16; duration: 70 }
-            NumberAnimation { to: 0.02; duration: 100 }
-            NumberAnimation { to: 0.12; duration: 60 }
-            NumberAnimation { to: 0; duration: 360 }
+        Timer {
+            id: stormCadence
+            interval: 30000
+            repeat: true
+            triggeredOnStart: true
+            running: scene.motionEnabled && scene.visible
+                && scene.accentMotion && stormFlash.visible
+            onTriggered: stormBurst.restart()
+            onRunningChanged: {
+                if (!running) {
+                    stormBurst.stop()
+                    stormFlash.opacity = 0
+                }
+            }
+        }
+
+        SequentialAnimation {
+            id: stormBurst
+            NumberAnimation {
+                target: stormFlash; property: "opacity"; to: 0.16; duration: 70
+            }
+            NumberAnimation {
+                target: stormFlash; property: "opacity"; to: 0.02; duration: 100
+            }
+            NumberAnimation {
+                target: stormFlash; property: "opacity"; to: 0.12; duration: 60
+            }
+            NumberAnimation {
+                target: stormFlash; property: "opacity"; to: 0; duration: 360
+            }
         }
     }
 }

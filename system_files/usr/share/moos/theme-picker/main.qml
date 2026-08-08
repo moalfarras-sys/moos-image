@@ -15,8 +15,10 @@ import QtQuick
 import QtQuick.Window
 import QtQuick.Layouts
 import QtQuick.Controls as QQC2
+import QtQuick.Dialogs
 import org.kde.kirigami as Kirigami
 import org.kde.plasma.plasma5support as P5Support
+import org.moos.ui as MoUI
 
 Kirigami.ApplicationWindow {
     id: root
@@ -34,6 +36,7 @@ Kirigami.ApplicationWindow {
     LayoutMirroring.childrenInherit: true
 
     readonly property color accent: Kirigami.Theme.highlightColor
+    readonly property var design: MoUI.Tokens
     readonly property bool lightSurface:
         Kirigami.Theme.backgroundColor.hslLightness > 0.55
     readonly property bool rtl: Qt.application.layoutDirection === Qt.RightToLeft
@@ -42,19 +45,9 @@ Kirigami.ApplicationWindow {
         return root.rtl ? ar : en;
     }
 
-    // The same focus ring as the four MoOS apps, for the same reason: a control the
-    // keyboard can reach must SHOW it has been reached (WCAG 2.4.7). Drawn outside the
-    // shape so it never covers content, following the parent's own radius where one
-    // exists; QQC2 controls have none, so the ring stays a soft rectangle there.
-    component FocusRing: Rectangle {
-        anchors.fill: parent
-        anchors.margins: -3
-        radius: (parent && parent.radius !== undefined ? parent.radius : 0) + 3
-        color: "transparent"
-        border.width: 2
-        border.color: root.accent
-        visible: parent ? parent.activeFocus : false
-        z: 99
+    // Keep one keyboard-focus language across every MoOS surface.
+    component FocusRing: MoUI.FocusRing {
+        accentColor: root.accent
     }
     readonly property string currentQuery:
         "kreadconfig6 --file kdeglobals --group KDE --key LookAndFeelPackage"
@@ -107,6 +100,17 @@ Kirigami.ApplicationWindow {
             if (connectedSources.indexOf(cmd) < 0)
                 connectSource(cmd)
         }
+    }
+
+    FileDialog {
+        id: wallpaperDialog
+        title: root.local("اختر صورة لمساحة العمل", "Choose a desktop canvas image")
+        fileMode: FileDialog.OpenFile
+        nameFilters: [
+            root.local("الصور (*.png *.jpg *.jpeg *.webp *.avif)",
+                       "Images (*.png *.jpg *.jpeg *.webp *.avif)")
+        ]
+        onAccepted: root.applyCustomWallpaper(selectedFile)
     }
 
     P5Support.DataSource {
@@ -293,6 +297,7 @@ Kirigami.ApplicationWindow {
 
             const wasLate = operationTimedOut;
             const wasUndo = pendingVerb === "undo";
+            const wasWallpaper = pendingVerb === "wallpaper";
             clearOperationState();
             operationFailed = false;
             operationMessage = wasLate
@@ -303,9 +308,13 @@ Kirigami.ApplicationWindow {
                     ? local(
                         "تم التراجع والتحقق من الثيم",
                         "Undo complete and verified")
-                    : local(
+                    : (wasWallpaper
+                        ? local(
+                            "تم تحديث مساحة العمل والتحقق منها",
+                            "Desktop canvas updated and verified")
+                        : local(
                         "تم تطبيق الثيم والتحقق منه",
-                        "Theme applied and verified"));
+                        "Theme applied and verified")));
         }
     }
 
@@ -390,6 +399,34 @@ Kirigami.ApplicationWindow {
     }
     function undo() {
         beginThemeOperation("moos-theme undo", "", "undo");
+    }
+    function applyCustomWallpaper(fileUrl) {
+        const raw = String(fileUrl || "");
+        if (!raw.startsWith("file:///")) {
+            failOperation(local(
+                "يجب اختيار صورة محلية",
+                "Choose a local image"));
+            return;
+        }
+        const encoded = encodeURIComponent(raw).replace(
+            /[!'()*]/g,
+            c => "%" + c.charCodeAt(0).toString(16).toUpperCase());
+        if (!/^[A-Za-z0-9_.~%-]+$/.test(encoded)) {
+            failOperation(local(
+                "تعذّر ترميز مسار الصورة بأمان",
+                "Could not encode the image path safely"));
+            return;
+        }
+        beginThemeOperation(
+            "moos-theme wallpaper-token " + encoded,
+            currentLnf,
+            "wallpaper");
+    }
+    function resetWallpaper() {
+        beginThemeOperation(
+            "moos-theme wallpaper-reset",
+            currentLnf,
+            "wallpaper");
     }
     // Put the three motion highlights back under the live value. A checkable
     // QQC2.Button writes its OWN `checked` on the press, before onClicked runs,
@@ -495,7 +532,7 @@ Kirigami.ApplicationWindow {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
-                height: 1
+                height: root.fs(1)
                 color: Qt.rgba(root.accent.r, root.accent.g, root.accent.b, 0.22)
             }
         }
@@ -522,7 +559,9 @@ Kirigami.ApplicationWindow {
                                 "بانتظار اكتمال العملية…",
                                 "Waiting for completion…")
                             : root.currentActiveName())
-                    opacity: 0.7; font.pointSize: Kirigami.Theme.smallFont.pointSize; elide: Text.ElideRight
+                    opacity: root.design.mutedOpacity
+                    font.pointSize: Kirigami.Theme.smallFont.pointSize
+                    elide: Text.ElideRight
                 }
             }
             QQC2.Button {
@@ -555,46 +594,114 @@ Kirigami.ApplicationWindow {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
-                height: 1
+                height: root.fs(1)
                 color: Qt.rgba(root.accent.r, root.accent.g,
                                root.accent.b, 0.34)
             }
         }
-        contentItem: RowLayout {
-            spacing: Kirigami.Units.largeSpacing
+        contentItem: ColumnLayout {
+            spacing: Kirigami.Units.smallSpacing
 
-            Kirigami.Icon {
-                source: "moos-orbit-symbolic"
-                implicitWidth: Kirigami.Units.iconSizes.medium
-                implicitHeight: implicitWidth
-                color: root.accent
-            }
-            ColumnLayout {
-                spacing: 0
+            RowLayout {
                 Layout.fillWidth: true
-                QQC2.Label {
-                    text: root.local("حركة الخلفية", "Wallpaper motion")
-                    font.weight: Font.DemiBold
-                    elide: Text.ElideRight
+                spacing: Kirigami.Units.largeSpacing
+
+                Kirigami.Icon {
+                    source: "moos-image-symbolic"
+                    implicitWidth: Kirigami.Units.iconSizes.medium
+                    implicitHeight: implicitWidth
+                    color: root.accent
                 }
-                QQC2.Label {
-                    text: root.local(
-                        "اختر مستوى الهدوء والحيوية",
-                        "Choose the energy level")
-                    opacity: 0.66
-                    font.pointSize: Kirigami.Theme.smallFont.pointSize
-                    elide: Text.ElideRight
+                ColumnLayout {
+                    spacing: 0
+                    Layout.fillWidth: true
+                    QQC2.Label {
+                        text: root.local("مساحة العمل", "Desktop canvas")
+                        font.weight: Font.DemiBold
+                        elide: Text.ElideRight
+                    }
+                    QQC2.Label {
+                        text: root.local(
+                            "صورة الثيم أو صورة تختارها",
+                            "Curated or your own local image")
+                        opacity: root.design.mutedOpacity
+                        font.pointSize: Kirigami.Theme.smallFont.pointSize
+                        elide: Text.ElideRight
+                    }
+                }
+
+                QQC2.Button {
+                    id: chooseWallpaper
+                    text: root.local("صورة", "Image")
+                    icon.name: "moos-image-symbolic"
+                    enabled: !root.operationPending
+                    onClicked: wallpaperDialog.open()
+                    activeFocusOnTab: true
+                    Accessible.name: root.local(
+                        "اختر صورة مخصّصة لمساحة العمل",
+                        "Choose a custom desktop canvas image")
+                    FocusRing { }
+                    Keys.onReturnPressed: if (enabled) wallpaperDialog.open()
+                    Keys.onSpacePressed: if (enabled) wallpaperDialog.open()
+                }
+                QQC2.Button {
+                    id: resetWallpaper
+                    text: root.local("الأصلية", "Curated")
+                    icon.name: "moos-refresh-symbolic"
+                    enabled: !root.operationPending
+                    onClicked: root.resetWallpaper()
+                    activeFocusOnTab: true
+                    Accessible.name: root.local(
+                        "استعد خلفية الثيم المختارة",
+                        "Restore the selected theme wallpaper")
+                    FocusRing { }
+                    Keys.onReturnPressed: if (enabled) root.resetWallpaper()
+                    Keys.onSpacePressed: if (enabled) root.resetWallpaper()
                 }
             }
 
-            // The three are checkable because that is the only strong
+            Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: root.fs(1)
+                color: Qt.rgba(root.accent.r, root.accent.g, root.accent.b, 0.22)
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Kirigami.Units.largeSpacing
+
+                Kirigami.Icon {
+                    source: "moos-orbit-symbolic"
+                    implicitWidth: Kirigami.Units.iconSizes.medium
+                    implicitHeight: implicitWidth
+                    color: root.accent
+                }
+                ColumnLayout {
+                    spacing: 0
+                    Layout.fillWidth: true
+                    QQC2.Label {
+                        text: root.local("حركة الخلفية", "Wallpaper motion")
+                        font.weight: Font.DemiBold
+                        elide: Text.ElideRight
+                    }
+                    QQC2.Label {
+                        text: root.local(
+                            "اختر مستوى الهدوء والحيوية",
+                            "Choose the energy level")
+                        opacity: root.design.mutedOpacity
+                        font.pointSize: Kirigami.Theme.smallFont.pointSize
+                        elide: Text.ElideRight
+                    }
+                }
+
+                // The three are checkable because that is the only strong
             // "this one is on" the desktop style draws (org.kde.desktop's
             // Button hands `checkable && checked` to the QStyle; `highlighted`
             // there is only a focus ring). What they must NOT do is light
             // themselves — see restoreMotionHighlights(), which every click
             // goes through.
-            QQC2.Button {
-                id: motionStill
+                QQC2.Button {
+                    id: motionStill
                 text: root.local("ساكن", "Still")
                 checkable: true
                 checked: root.currentMotion === "still"
@@ -605,9 +712,9 @@ Kirigami.ApplicationWindow {
                 FocusRing { }
                 Keys.onReturnPressed: if (motionStill.enabled) root.setMotion("still")
                 Keys.onSpacePressed: if (motionStill.enabled) root.setMotion("still")
-            }
-            QQC2.Button {
-                id: motionGentle
+                }
+                QQC2.Button {
+                    id: motionGentle
                 text: root.local("هادئ", "Gentle")
                 checkable: true
                 checked: root.currentMotion === "gentle"
@@ -618,9 +725,9 @@ Kirigami.ApplicationWindow {
                 FocusRing { }
                 Keys.onReturnPressed: if (motionGentle.enabled) root.setMotion("gentle")
                 Keys.onSpacePressed: if (motionGentle.enabled) root.setMotion("gentle")
-            }
-            QQC2.Button {
-                id: motionAlive
+                }
+                QQC2.Button {
+                    id: motionAlive
                 text: root.local("حيّ", "Alive")
                 checkable: true
                 checked: root.currentMotion === "alive"
@@ -631,6 +738,7 @@ Kirigami.ApplicationWindow {
                 FocusRing { }
                 Keys.onReturnPressed: if (motionAlive.enabled) root.setMotion("alive")
                 Keys.onSpacePressed: if (motionAlive.enabled) root.setMotion("alive")
+                }
             }
         }
     }
@@ -756,17 +864,20 @@ Kirigami.ApplicationWindow {
                         grid.currentIndex = themeCard.index
                         grid.positionViewAtIndex(themeCard.index, GridView.Contain)
                     }
-                    FocusRing { radius: Kirigami.Units.gridUnit * 0.6 + 3 }
-                    scale: down ? 0.98 : (hovered ? 1.02 : 1.0)
+                    FocusRing { controlRadius: root.design.radiusCard }
+                    scale: down ? root.design.pressScale
+                                : (hovered ? root.design.hoverScale : 1.0)
                     Behavior on scale {
                         NumberAnimation {
-                            duration: Kirigami.Units.longDuration > 1 ? 120 : 0
-                            easing.type: Easing.OutCubic
+                            duration: root.design.duration(
+                                Kirigami.Units.longDuration > 1,
+                                root.design.motionFast)
+                            easing.type: root.design.easeStandard
                         }
                     }
 
                     background: Rectangle {
-                        radius: Kirigami.Units.gridUnit * 0.6
+                        radius: root.design.radiusCard
                         color: "transparent"
                         gradient: Gradient {
                             GradientStop {
@@ -786,13 +897,17 @@ Kirigami.ApplicationWindow {
                                     root.lightSurface ? 0.88 : 0.74)
                             }
                         }
-                        border.width: themeCard.isActive ? 2 : (cardButton.hovered ? 1.5 : 1)
+                        border.width: themeCard.isActive
+                            ? root.design.focusWidth
+                            : root.design.borderHairline
                         border.color: themeCard.isActive || cardButton.hovered
                             ? root.accent
                             : Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.14)
                         Behavior on border.color {
                             ColorAnimation {
-                                duration: Kirigami.Units.longDuration > 1 ? 120 : 0
+                                duration: root.design.duration(
+                                    Kirigami.Units.longDuration > 1,
+                                    root.design.motionFast)
                             }
                         }
                         Rectangle {
@@ -801,7 +916,7 @@ Kirigami.ApplicationWindow {
                             anchors.top: parent.top
                             anchors.leftMargin: parent.radius
                             anchors.rightMargin: parent.radius
-                            height: 1
+                            height: root.fs(1)
                             color: Qt.rgba(
                                 Kirigami.Theme.highlightedTextColor.r,
                                 Kirigami.Theme.highlightedTextColor.g,
@@ -863,7 +978,7 @@ Kirigami.ApplicationWindow {
                                     ? "moos-sun-symbolic"
                                     : "moos-moon-symbolic"
                                 implicitWidth: Kirigami.Units.iconSizes.small; implicitHeight: implicitWidth
-                                opacity: 0.7
+                                opacity: root.design.mutedOpacity
                             }
                         }
                     }

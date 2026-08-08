@@ -25,13 +25,16 @@ Item {
     readonly property real clampedValue: Math.max(0, Math.min(100, value))
     property real displayedValue: present ? clampedValue : 0
 
-    // The count-up is a one-shot value transition, so it follows Plasma's
-    // animation-speed slider like every other one-shot in the package. Only
-    // Kirigami.Units.* tracks that slider; 700 was a literal and ignored it.
+    // The sensor refreshes every five seconds. Keep its interpolation far shorter
+    // than that cadence: at the old 1.5 s sample / ~0.7 s animation pair, three
+    // rings kept the 4K wallpaper repainting almost half of every second and held
+    // plasmashell around 9% even after every endless animation had been removed.
+    // shortDuration still follows Plasma's animation-speed slider and leaves the
+    // card visually alive without turning telemetry into ambient animation.
     Behavior on displayedValue {
         enabled: ring.motionEnabled
         NumberAnimation {
-            duration: Math.round(Kirigami.Units.veryLongDuration * 1.75)
+            duration: Kirigami.Units.shortDuration
             easing.type: Easing.OutCubic
         }
     }

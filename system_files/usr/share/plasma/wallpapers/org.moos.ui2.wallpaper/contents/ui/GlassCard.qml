@@ -4,6 +4,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import org.kde.kirigami as Kirigami
+import org.moos.ui as MoUI
 
 Item {
     id: card
@@ -12,7 +13,12 @@ Item {
     // MotionMode 2 ("alive"). Read together with motionEnabled, never alone.
     required property bool accentMotion
     property int entranceDelay: 0
+    // A dashboard section can borrow one shared outer glass shell. In that
+    // mode this component contributes only spacing/content; it must not paint a
+    // second card or run a second entrance over the shared Horizon Hub.
+    property bool integrated: false
     default property alias contentData: contentLayer.data
+    readonly property var design: MoUI.Tokens
 
     // Plasma's animation-speed slider (System Settings → General Behaviour)
     // scales Kirigami.Units.*Duration and NOTHING else. Every millisecond in this
@@ -51,14 +57,15 @@ Item {
         return Qt.rgba(shade.r, shade.g, shade.b, lightSurface ? 0.05 : 0.09)
     }
 
-    opacity: motionEnabled ? 0 : 1
+    opacity: integrated ? 1 : (motionEnabled ? 0 : 1)
     transform: Translate {
         id: entranceShift
-        y: card.motionEnabled ? Kirigami.Units.largeSpacing : 0
+        y: card.motionEnabled && !card.integrated
+            ? Kirigami.Units.largeSpacing : 0
     }
 
     Component.onCompleted: Qt.callLater(function() {
-        if (card.motionEnabled) {
+        if (card.motionEnabled && !card.integrated) {
             entrance.restart()
         } else {
             card.opacity = 1
@@ -100,11 +107,12 @@ Item {
     }
 
     Rectangle {
+        visible: !card.integrated
         x: Kirigami.Units.smallSpacing
         y: Kirigami.Units.largeSpacing
         width: parent.width - Kirigami.Units.smallSpacing * 2
         height: parent.height - Kirigami.Units.largeSpacing
-        radius: Math.round(Kirigami.Units.gridUnit * 1.35)
+        radius: card.design.radiusPanel
         color: {
             const shade = Qt.darker(Kirigami.Theme.backgroundColor, 1.45)
             return Qt.rgba(shade.r, shade.g, shade.b,
@@ -115,18 +123,25 @@ Item {
     Rectangle {
         id: shell
         anchors.fill: parent
-        anchors.leftMargin: 1
-        anchors.rightMargin: 1
-        anchors.topMargin: 1
-        anchors.bottomMargin: Math.max(2, Kirigami.Units.smallSpacing / 2)
-        radius: Math.round(Kirigami.Units.gridUnit * 1.35)
-        border.width: 1
+        anchors.leftMargin: card.integrated ? 0 : card.design.borderHairline
+        anchors.rightMargin: card.integrated ? 0 : card.design.borderHairline
+        anchors.topMargin: card.integrated ? 0 : card.design.borderHairline
+        anchors.bottomMargin: card.integrated ? 0
+            : Math.max(2, Kirigami.Units.smallSpacing / 2)
+        radius: card.integrated ? 0 : card.design.radiusPanel
+        border.width: card.integrated ? 0 : card.design.borderHairline
         border.color: card.edgeColor
         clip: true
 
         gradient: Gradient {
-            GradientStop { position: 0.0; color: card.upperSurface }
-            GradientStop { position: 1.0; color: card.lowerSurface }
+            GradientStop {
+                position: 0.0
+                color: card.integrated ? "transparent" : card.upperSurface
+            }
+            GradientStop {
+                position: 1.0
+                color: card.integrated ? "transparent" : card.lowerSurface
+            }
         }
 
         // Micro-shadow: a soft inset shade under the top edge, for depth.
@@ -146,6 +161,7 @@ Item {
         // first few pixels of the height and everything below it is transparent.
         Rectangle {
             id: topShade
+            visible: !card.integrated
             anchors.fill: parent
             anchors.margins: 1
             radius: parent.radius - 1
@@ -162,6 +178,7 @@ Item {
 
         // Inner glow: faint highlight-coloured rim inside the card
         Rectangle {
+            visible: !card.integrated
             anchors.fill: parent
             anchors.margins: 1
             radius: parent.radius - 1
@@ -174,12 +191,13 @@ Item {
         }
 
         Rectangle {
+            visible: !card.integrated
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
             anchors.leftMargin: Math.round(Kirigami.Units.gridUnit * 1.25)
             anchors.rightMargin: Math.round(Kirigami.Units.gridUnit * 1.25)
-            height: 1
+            height: card.design.borderHairline
             color: Qt.rgba(Kirigami.Theme.highlightedTextColor.r,
                            Kirigami.Theme.highlightedTextColor.g,
                            Kirigami.Theme.highlightedTextColor.b,
@@ -187,12 +205,13 @@ Item {
         }
 
         Rectangle {
+            visible: !card.integrated
             anchors.right: parent.right
             anchors.top: parent.top
             anchors.bottom: parent.bottom
             anchors.topMargin: Math.round(Kirigami.Units.gridUnit * 1.2)
             anchors.bottomMargin: Math.round(Kirigami.Units.gridUnit * 1.2)
-            width: 1
+            width: card.design.borderHairline
             color: card.edgeColor
         }
 
@@ -210,7 +229,7 @@ Item {
         // cannot leave a mark — and it costs nothing to paint.
         Rectangle {
             id: sheen
-            visible: card.motionEnabled && card.accentMotion
+            visible: !card.integrated && card.motionEnabled && card.accentMotion
             width: Math.max(Kirigami.Units.gridUnit * 3, shell.width * 0.2)
             height: shell.height * 1.7
             y: -shell.height * 0.35
@@ -228,33 +247,44 @@ Item {
                 GradientStop { position: 1.0; color: "transparent" }
             }
 
-            SequentialAnimation on x {
-                running: card.motionEnabled && card.accentMotion && card.visible
-                loops: Animation.Infinite
-                PropertyAction { value: -sheen.width * 1.5 }
-                // Offset by entranceDelay so cards don't all shimmer in lockstep
-                PauseAnimation { duration: 2600 + card.entranceDelay * 3 }
+            Timer {
+                id: sheenCadence
+                interval: 30000 + card.entranceDelay * 3
+                repeat: true
+                triggeredOnStart: false
+                running: card.motionEnabled && card.accentMotion && sheen.visible
+                onTriggered: sheenSweep.restart()
+                onRunningChanged: {
+                    if (!running) {
+                        sheenSweep.stop()
+                        sheen.x = -sheen.width * 1.5
+                    }
+                }
+            }
+
+            SequentialAnimation {
+                id: sheenSweep
+                PropertyAction {
+                    target: sheen
+                    property: "x"
+                    value: -sheen.width * 1.5
+                }
                 NumberAnimation {
+                    target: sheen
+                    property: "x"
                     to: shell.width + sheen.width
                     duration: 5200
                     easing.type: Easing.InOutSine
                 }
-                // EVERY looping animation in this package rests, `alive` included.
-                // An infinite QML animation pins the render loop at the full frame
-                // rate and repaints the whole window for as long as it runs —
-                // about 11% of a CPU core whatever the item's size — so a sweep
-                // that ran 14 s out of every 21 s was a 65% duty cycle on three
-                // cards at once. 5.2 s of sweep in a 30 s cycle is ~17%, arrives
-                // often enough to be noticed, and is still a slow glass highlight
-                // rather than a strobe.
-                PauseAnimation { duration: 22000 }
             }
         }
 
         Item {
             id: contentLayer
             anchors.fill: parent
-            anchors.margins: Math.round(Kirigami.Units.gridUnit * 1.05)
+            anchors.margins: card.integrated
+                ? Math.round(Kirigami.Units.gridUnit * 0.55)
+                : Math.round(Kirigami.Units.gridUnit * 1.05)
         }
     }
 }

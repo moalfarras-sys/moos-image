@@ -66,6 +66,10 @@ moos-theme — بدّل مظهر MoOS بين الفاتح والداكن | switc
   moos-theme toggle     بدّل   | flip the current family light <-> dark
   moos-theme undo       تراجع  | revert to the previously applied theme
   moos-theme auto       تلقائي | follow sunrise/sunset (Graphite/Tidal)
+  moos-theme wallpaper-token <encoded-local-image>
+                         خلفية مخصّصة | set a custom local desktop image safely
+  moos-theme wallpaper-reset
+                         استعادة | restore the active profile's desktop canvas
   moos-theme motion [still|gentle|alive]
                          حركة الخلفية | show/set wallpaper motion
   moos-theme perf [auto|flagship|balanced|essential]
@@ -79,23 +83,395 @@ current() {
     kreadconfig6 --file kdeglobals --group KDE --key LookAndFeelPackage 2>/dev/null
 }
 
+theme_state_root() {
+    printf '%s\n' "${XDG_STATE_HOME:-$HOME/.local/state}/moos/theme"
+}
+
+snapshot_config_file() {
+    local snapshot="$1" name="$2" source="$3"
+    mkdir -p "$snapshot/files" || return 1
+    if [ -f "$source" ]; then
+        cp -p -- "$source" "$snapshot/files/$name" || return 1
+    else
+        : > "$snapshot/files/$name.missing" || return 1
+    fi
+}
+
+restore_config_file() {
+    local snapshot="$1" name="$2" target="$3"
+    if [ -f "$snapshot/files/$name.missing" ]; then
+        rm -f -- "$target"
+        return
+    fi
+    [ -f "$snapshot/files/$name" ] || return 1
+    mkdir -p "$(dirname "$target")" || return 1
+    cp -p -- "$snapshot/files/$name" "$target"
+}
+
+# The live scene is state too. Capture it as URI-encoded JSON so no wallpaper
+# path can become shell or Plasma JavaScript. encodeURIComponent deliberately
+# leaves five punctuation characters alone, so encode those as a second pass
+# and accept only the resulting inert alphabet at the shell boundary.
+capture_desktop_scene() {
+    command -v gdbus >/dev/null 2>&1 || return 1
+    command -v timeout >/dev/null 2>&1 || return 1
+
+    local result token
+    result="$(timeout 8s gdbus call --session -d org.kde.plasmashell \
+        -o /PlasmaShell -m org.kde.PlasmaShell.evaluateScript '
+            var state = [];
+            var ds = desktops();
+            for (var i = 0; i < ds.length; i++) {
+                var d = ds[i];
+                var row = { plugin: String(d.wallpaperPlugin || "") };
+                try {
+                    d.currentConfigGroup = ["Wallpaper", row.plugin, "General"];
+                    row.image = String(d.readConfig("Image", ""));
+                    row.motion = String(d.readConfig("MotionMode", "1"));
+                    row.ambient = String(d.readConfig("AmbientMotion", "true"));
+                } catch (e) {
+                    row.image = ""; row.motion = "1"; row.ambient = "true";
+                }
+                state.push(row);
+            }
+            // Plasma QJSEngine treats \x27 inside a RegExp character class
+            // as the literal digits 2 and 7 on this image.  That corrupted
+            // every %2F URI and made exact rollback impossible.  Keep the
+            // apostrophe outside the RegExp and encode it by character code.
+            var encoded = encodeURIComponent(JSON.stringify(state)).replace(
+                /[!()*]/g,
+                function(c) { return "%" + c.charCodeAt(0).toString(16).toUpperCase(); })
+                .split(String.fromCharCode(39)).join("%27");
+            print("moos-scene-state:" + encoded);
+        ' 2>/dev/null)" || return 1
+    if [[ "$result" =~ moos-scene-state:([A-Za-z0-9_.~%-]+) ]]; then
+        token="${BASH_REMATCH[1]}"
+    else
+        return 1
+    fi
+    [ -n "$token" ] || return 1
+    printf '%s\n' "$token"
+}
+
+restore_desktop_scene() {
+    local encoded="$1" result
+    [[ "$encoded" =~ ^[A-Za-z0-9_.~%-]+$ ]] || return 1
+    result="$(timeout 8s gdbus call --session -d org.kde.plasmashell \
+        -o /PlasmaShell -m org.kde.PlasmaShell.evaluateScript '
+            var encoded = "'"$encoded"'";
+            var saved = JSON.parse(decodeURIComponent(encoded));
+            var ds = desktops();
+            if (saved.length != ds.length) {
+                print("moos-scene-restore:count-mismatch");
+            } else {
+                var failed = false;
+                for (var i = 0; i < ds.length; i++) {
+                    try {
+                        var row = saved[i];
+                        ds[i].wallpaperPlugin = row.plugin;
+                        ds[i].currentConfigGroup = ["Wallpaper", row.plugin, "General"];
+                        ds[i].writeConfig("Image", row.image);
+                        ds[i].writeConfig("MotionMode", row.motion);
+                        ds[i].writeConfig("AmbientMotion", row.ambient);
+                        ds[i].reloadConfig();
+                    } catch (e) { failed = true; }
+                }
+                print(failed ? "moos-scene-restore:failed"
+                             : "moos-scene-restore:ready");
+            }
+        ' 2>/dev/null)" || return 1
+    case "$result" in *moos-scene-restore:ready*) return 0 ;; *) return 1 ;; esac
+}
+
+snapshot_gsettings() {
+    local snapshot="$1" key="$2"
+    if command -v gsettings >/dev/null 2>&1; then
+        gsettings get org.gnome.desktop.interface "$key" \
+            >"$snapshot/gsettings-$key" 2>/dev/null || return 1
+    else
+        : >"$snapshot/gsettings-$key.missing" || return 1
+    fi
+}
+
+restore_gsettings() {
+    local snapshot="$1" key="$2" value
+    [ -f "$snapshot/gsettings-$key.missing" ] && return 0
+    [ -f "$snapshot/gsettings-$key" ] || return 1
+    value="$(cat "$snapshot/gsettings-$key")"
+    gsettings set org.gnome.desktop.interface "$key" "$value" >/dev/null 2>&1
+}
+
+snapshot_theme_state() {
+    local root snapshot config scene key
+    root="$(theme_state_root)"
+    mkdir -p "$root" || return 1
+    snapshot="$(mktemp -d "$root/transaction.XXXXXX")" || return 1
+    config="${XDG_CONFIG_HOME:-$HOME/.config}"
+
+    printf '%s\n' "$(current)" >"$snapshot/current-lnf" || return 1
+    scene="$(capture_desktop_scene)" || {
+        echo "moos-theme: could not snapshot the live desktop scene" >&2
+        return 1
+    }
+    printf '%s\n' "$scene" >"$snapshot/desktop-scene" || return 1
+
+    snapshot_config_file "$snapshot" kdeglobals "$config/kdeglobals" || return 1
+    snapshot_config_file "$snapshot" plasmarc "$config/plasmarc" || return 1
+    snapshot_config_file "$snapshot" kwinrc "$config/kwinrc" || return 1
+    snapshot_config_file "$snapshot" ksplashrc "$config/ksplashrc" || return 1
+    snapshot_config_file "$snapshot" kcminputrc "$config/kcminputrc" || return 1
+    snapshot_config_file "$snapshot" kscreenlockerrc "$config/kscreenlockerrc" || return 1
+    snapshot_config_file "$snapshot" konsolerc "$config/konsolerc" || return 1
+    snapshot_config_file "$snapshot" gtk3-settings "$config/gtk-3.0/settings.ini" || return 1
+    snapshot_config_file "$snapshot" gtk4-settings "$config/gtk-4.0/settings.ini" || return 1
+    snapshot_config_file "$snapshot" gtk4-css "$config/gtk-4.0/gtk.css" || return 1
+    snapshot_config_file "$snapshot" gtk4-moos-css "$config/gtk-4.0/moos-ui2.css" || return 1
+    snapshot_config_file "$snapshot" xsettingsd "$config/xsettingsd/xsettingsd.conf" || return 1
+
+    for key in color-scheme gtk-theme icon-theme cursor-theme font-name monospace-font-name; do
+        snapshot_gsettings "$snapshot" "$key" || return 1
+    done
+    if command -v gsettings >/dev/null 2>&1; then
+        gsettings get org.gnome.desktop.sound theme-name \
+            >"$snapshot/gsettings-sound-theme" 2>/dev/null || return 1
+    fi
+    printf '%s\n' "$snapshot"
+}
+
+restore_theme_state() {
+    local snapshot="$1" config lnf scheme icons cursor key scene restore_failed=0
+    [ -d "$snapshot" ] || return 1
+    config="${XDG_CONFIG_HOME:-$HOME/.config}"
+    lnf="$(cat "$snapshot/current-lnf" 2>/dev/null)"
+
+    # First return live LookAndFeelManager to the captured package. Its writes
+    # are then replaced by the exact files below, so user choices not modelled
+    # by a profile survive the rollback byte for byte.
+    if [ -n "$lnf" ] && [ -d "/usr/share/plasma/look-and-feel/$lnf" ]; then
+        plasma-apply-lookandfeel -a "$lnf" >/dev/null 2>&1 || restore_failed=1
+    fi
+
+    restore_config_file "$snapshot" kdeglobals "$config/kdeglobals" || restore_failed=1
+    restore_config_file "$snapshot" plasmarc "$config/plasmarc" || restore_failed=1
+    restore_config_file "$snapshot" kwinrc "$config/kwinrc" || restore_failed=1
+    restore_config_file "$snapshot" ksplashrc "$config/ksplashrc" || restore_failed=1
+    restore_config_file "$snapshot" kcminputrc "$config/kcminputrc" || restore_failed=1
+    restore_config_file "$snapshot" kscreenlockerrc "$config/kscreenlockerrc" || restore_failed=1
+    restore_config_file "$snapshot" konsolerc "$config/konsolerc" || restore_failed=1
+    restore_config_file "$snapshot" gtk3-settings "$config/gtk-3.0/settings.ini" || restore_failed=1
+    restore_config_file "$snapshot" gtk4-settings "$config/gtk-4.0/settings.ini" || restore_failed=1
+    restore_config_file "$snapshot" gtk4-css "$config/gtk-4.0/gtk.css" || restore_failed=1
+    restore_config_file "$snapshot" gtk4-moos-css "$config/gtk-4.0/moos-ui2.css" || restore_failed=1
+    restore_config_file "$snapshot" xsettingsd "$config/xsettingsd/xsettingsd.conf" || restore_failed=1
+
+    for key in color-scheme gtk-theme icon-theme cursor-theme font-name monospace-font-name; do
+        restore_gsettings "$snapshot" "$key" || restore_failed=1
+    done
+    if [ -f "$snapshot/gsettings-sound-theme" ]; then
+        gsettings set org.gnome.desktop.sound theme-name \
+            "$(cat "$snapshot/gsettings-sound-theme")" >/dev/null 2>&1 \
+            || restore_failed=1
+    fi
+    scene="$(cat "$snapshot/desktop-scene" 2>/dev/null)"
+    restore_desktop_scene "$scene" || restore_failed=1
+
+    scheme="$(kreadconfig6 --file kdeglobals --group General --key ColorScheme 2>/dev/null)"
+    icons="$(kreadconfig6 --file kdeglobals --group Icons --key Theme 2>/dev/null)"
+    cursor="$(kreadconfig6 --file kcminputrc --group Mouse --key cursorTheme 2>/dev/null)"
+    [ -n "$scheme" ] && plasma-apply-colorscheme "$scheme" >/dev/null 2>&1 || true
+    if [ -n "$icons" ] && [ -x /usr/libexec/plasma-changeicons ]; then
+        run_with_timeout /usr/libexec/plasma-changeicons "$icons" >/dev/null 2>&1 || true
+    fi
+    if [ -n "$cursor" ] && command -v plasma-apply-cursortheme >/dev/null 2>&1; then
+        plasma-apply-cursortheme "$cursor" >/dev/null 2>&1 || true
+    fi
+    run_with_timeout gdbus call --session -d org.kde.KWin -o /KWin \
+        -m org.kde.KWin.reconfigure >/dev/null 2>&1 || true
+    pkill -HUP -x xsettingsd 2>/dev/null || true
+
+    [ "$restore_failed" -eq 0 ]
+}
+
+snapshot_state_complete() {
+    local snapshot="$1" actual_scene key actual expected
+    [ "$(current)" = "$(cat "$snapshot/current-lnf" 2>/dev/null)" ] || return 1
+    actual_scene="$(capture_desktop_scene)" || return 1
+    [ "$actual_scene" = "$(cat "$snapshot/desktop-scene" 2>/dev/null)" ] || return 1
+    for key in color-scheme gtk-theme icon-theme cursor-theme font-name monospace-font-name; do
+        [ -f "$snapshot/gsettings-$key.missing" ] && continue
+        actual="$(gsettings get org.gnome.desktop.interface "$key" 2>/dev/null)" || return 1
+        expected="$(cat "$snapshot/gsettings-$key" 2>/dev/null)"
+        [ "$actual" = "$expected" ] || return 1
+    done
+    if [ -f "$snapshot/gsettings-sound-theme" ]; then
+        actual="$(gsettings get org.gnome.desktop.sound theme-name 2>/dev/null)" \
+            || return 1
+        expected="$(cat "$snapshot/gsettings-sound-theme" 2>/dev/null)"
+        [ "$actual" = "$expected" ] || return 1
+    fi
+    return 0
+}
+
+capture_wallpaper_identity() {
+    command -v gdbus >/dev/null 2>&1 || return 1
+    command -v timeout >/dev/null 2>&1 || return 1
+
+    local result token
+    result="$(timeout 8s gdbus call --session -d org.kde.plasmashell \
+        -o /PlasmaShell -m org.kde.PlasmaShell.evaluateScript '
+            var ds = desktops();
+            var common = "";
+            var valid = ds.length > 0;
+            for (var i = 0; i < ds.length; i++) {
+                try {
+                    if (ds[i].wallpaperPlugin != "org.moos.ui2.wallpaper") {
+                        valid = false;
+                        continue;
+                    }
+                    ds[i].currentConfigGroup =
+                        ["Wallpaper", "org.moos.ui2.wallpaper", "General"];
+                    var image = String(ds[i].readConfig("Image", ""));
+                    if (!image || (common && image != common)) {
+                        valid = false;
+                    } else {
+                        common = image;
+                    }
+                } catch (e) { valid = false; }
+            }
+            if (!valid || !common) {
+                print("moos-wallpaper-state:error");
+            } else {
+                var mode = common.indexOf("/usr/share/wallpapers/MoOSUI2") === 0
+                    ? "profile" : "custom";
+                var encoded = encodeURIComponent(common).replace(
+                    /[!()*]/g,
+                    function(c) { return "%" + c.charCodeAt(0).toString(16).toUpperCase(); })
+                    .split(String.fromCharCode(39)).join("%27");
+                print("moos-wallpaper-state:" + mode + ":" + encoded);
+            }
+        ' 2>/dev/null)" || return 1
+    if [[ "$result" =~ moos-wallpaper-state:(profile|custom):([A-Za-z0-9_.~%-]+) ]]; then
+        token="${BASH_REMATCH[2]}"
+        printf '%s\t%s\n' "${BASH_REMATCH[1]}" "$token"
+        return 0
+    fi
+    return 1
+}
+
+theme_state_field() {
+    local key="$1" state
+    state="$(theme_state_root)/theme-state.json"
+    [ -r "$state" ] || return 1
+    sed -n 's/^[[:space:]]*"'"$key"'": "\([^"]*\)".*/\1/p' "$state" \
+        | head -n1
+}
+
+encode_profile_wallpaper() {
+    local value="$1"
+    [[ "$value" =~ ^/usr/share/wallpapers/MoOSUI2[A-Za-z0-9._/-]+$ ]] || return 1
+    value="${value//%/%25}"
+    printf '%s\n' "${value//\//%2F}"
+}
+
+# Resolve the desktop wallpaper from one policy. A profile transaction always
+# selects the profile's curated package. Login/automatic reconciliation uses
+# the central state and preserves a custom image across theme and day/night
+# changes. The lock screen remains the profile package in both cases.
+load_wallpaper_expectation() {
+    local policy="${1:-state}" mode token
+    desktop_wallpaper_mode=profile
+    desktop_wallpaper_token="$(encode_profile_wallpaper "$wallpaper_package")" || return 1
+    if [ "$policy" = state ]; then
+        mode="$(theme_state_field wallpaperMode 2>/dev/null || true)"
+        token="$(theme_state_field wallpaperEncoded 2>/dev/null || true)"
+        if [ "$mode" = custom ] && [[ "$token" =~ ^[A-Za-z0-9_.~%-]+$ ]]; then
+            desktop_wallpaper_mode=custom
+            desktop_wallpaper_token="$token"
+        fi
+    fi
+}
+
+write_theme_state() {
+    local status="$1" active="$2" previous="$3" root temporary now identity
+    local wallpaper_mode=unknown wallpaper_token=""
+    root="$(theme_state_root)"
+    mkdir -p "$root" || return 1
+    temporary="$(mktemp "$root/.theme-state.XXXXXX")" || return 1
+    now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    identity="$(capture_wallpaper_identity 2>/dev/null || true)"
+    if [ "$status" = committed ] && [ -z "$identity" ]; then
+        rm -f -- "$temporary"
+        echo "moos-theme: refusing to commit theme state without an exact wallpaper identity" >&2
+        return 1
+    fi
+    if [ -n "$identity" ]; then
+        IFS=$'\t' read -r wallpaper_mode wallpaper_token <<<"$identity"
+    fi
+    case "$wallpaper_mode" in profile|custom|unknown) ;; *) wallpaper_mode=unknown ;; esac
+    [[ "$wallpaper_token" =~ ^[A-Za-z0-9_.~%-]*$ ]] || wallpaper_token=""
+    printf '{\n  "schema": 2,\n  "status": "%s",\n  "active": "%s",\n  "previous": "%s",\n  "wallpaperMode": "%s",\n  "wallpaperEncoded": "%s",\n  "updated": "%s"\n}\n' \
+        "$status" "$active" "$previous" "$wallpaper_mode" \
+        "$wallpaper_token" "$now" >"$temporary" || return 1
+    mv -f -- "$temporary" "$root/theme-state.json"
+}
+
+commit_theme_snapshot() {
+    local snapshot="$1" active="$2" previous="$3" root undo retired
+    root="$(theme_state_root)"
+    undo="$root/undo"
+    retired="$root/undo.retired.$$"
+    if [ -e "$undo" ]; then
+        mv -- "$undo" "$retired" || return 1
+    fi
+    if ! mv -- "$snapshot" "$undo"; then
+        [ -e "$retired" ] && mv -- "$retired" "$undo"
+        return 1
+    fi
+    printf '%s\n' "$previous" >"${XDG_STATE_HOME:-$HOME/.local/state}/moos/theme-previous"
+    if ! write_theme_state committed "$active" "$previous"; then
+        mv -- "$undo" "$snapshot" 2>/dev/null || true
+        [ ! -e "$retired" ] || mv -- "$retired" "$undo" 2>/dev/null || true
+        return 1
+    fi
+    [ ! -e "$retired" ] || find "$retired" -depth -delete 2>/dev/null || true
+}
+
 # The dashboard bento is part of the WALLPAPER now (org.moos.ui2.wallpaper
 # paints image + bento as one layer BELOW the Folder View icons), so a theme
 # switch has no widget to add or remove — it points every desktop containment
 # at the scene plugin and hands it the half's wallpaper package. The plugin
 # resolves the right master (Tide -> images/, Graphite -> images_dark/). Any
 # stale dashboard/deskclock applets from the widget era are removed in passing.
-apply_desktop_scene() {
+apply_desktop_scene_token() {
+    local encoded="$1" result status
+    [[ "$encoded" =~ ^[A-Za-z0-9_.~%-]+$ ]] || return 2
     command -v gdbus >/dev/null 2>&1 || return 1
     command -v timeout >/dev/null 2>&1 || return 1
-
-    local image="$1" result status
     result="$(timeout 8s gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
         -m org.kde.PlasmaShell.evaluateScript '
-            var IMAGE = "'"$image"'";
+            var IMAGE = decodeURIComponent("'"$encoded"'");
+            // QJSEngine on Plasma 6 rejects the otherwise-standard escaped
+            // slash RegExp used here as an "invalid flag s". Validate as data
+            // with string operations instead: no regex parser and no code path.
+            var profilePrefix = "/usr/share/wallpapers/MoOSUI2";
+            var isProfile = IMAGE.indexOf(profilePrefix) === 0
+                && IMAGE.indexOf("..") < 0
+                && IMAGE.indexOf(String.fromCharCode(92)) < 0;
+            var lower = IMAGE.toLowerCase();
+            var dot = lower.lastIndexOf(".");
+            var suffix = dot >= 0 ? lower.slice(dot) : "";
+            var imageSuffixes = [".jpg", ".jpeg", ".png", ".webp", ".avif"];
+            var isLocalRoot = IMAGE.indexOf("file:///") === 0
+                || IMAGE.charAt(0) === "/";
+            var isLocalImage = isLocalRoot && imageSuffixes.indexOf(suffix) >= 0;
+            if (!isProfile && !isLocalImage) {
+                print("scene-invalid-image");
+                IMAGE = "";
+            }
             var incomplete = false;
             var ds = desktops();
             for (var i = 0; i < ds.length; i++) {
+                if (!IMAGE) { incomplete = true; continue; }
                 var d = ds[i];
                 try {
                     d.currentConfigGroup = ["General"];
@@ -104,7 +480,8 @@ apply_desktop_scene() {
                     var ws = d.widgets();
                     for (var j = 0; j < ws.length; j++) {
                         if (ws[j].type == "org.moos.ui2.dashboard"
-                                || ws[j].type == "org.moos.nova.deskclock") {
+                                || ws[j].type == "org.moos.nova.deskclock"
+                                || ws[j].type == "org.moos.heroclock") {
                             ws[j].remove();
                         }
                     }
@@ -128,171 +505,50 @@ apply_desktop_scene() {
     case "$result" in *scene-ready*) return 0 ;; *) return 1 ;; esac
 }
 
+apply_desktop_scene() {
+    local encoded
+    encoded="$(encode_profile_wallpaper "$1")" || return 2
+    apply_desktop_scene_token "$encoded"
+}
+
 load_profile() {
-    local lnf="$1" konsole_profile_path
-    case "$lnf" in
-        "$LIGHT_LNF")
-            scheme=MoOSUI2Light
-            style=MoOSUI2Light
-            konsole_profile=MoOSUI2Light.profile
-            icons=MoOSUI2Light
-            adw_css=/usr/share/moos/gtk/moos-ui2-light.css
-            cursor=MoOSDark
-            deco=__aurorae__svg__MoOSUI2Light
-            wallpaper_package=/usr/share/wallpapers/MoOSUI2Tide
-            wallpaper=${wallpaper_package}/contents/images/3840x2160.jpg
-            prefer_dark=false
-            label="MoOS: فاتح | light"
-            ;;
-        "$DARK_LNF")
-            scheme=MoOSUI2Dark
-            style=MoOSUI2
-            konsole_profile=MoOSUI2.profile
-            icons=MoOSUI2
-            adw_css=/usr/share/moos/gtk/moos-ui2-dark.css
-            cursor=MoOS
-            deco=__aurorae__svg__MoOSUI2
-            wallpaper_package=/usr/share/wallpapers/MoOSUI2Graphite
-            wallpaper=${wallpaper_package}/contents/images_dark/3840x2160.jpg
-            prefer_dark=true
-            label="MoOS: داكن | dark"
-            ;;
-        "$NOVA_LNF")
-            scheme=MoOSUI2Nova; style=MoOSUI2Nova
-            konsole_profile=MoOSUI2Nova.profile
-            icons=$style; adw_css=/usr/share/moos/gtk/moos-ui2-nova.css; cursor=MoOS
-            deco=__aurorae__svg__MoOSUI2Nova
-            wallpaper_package=/usr/share/wallpapers/MoOSUI2Nova
-            wallpaper=${wallpaper_package}/contents/images_dark/3840x2160.jpg
-            prefer_dark=true; label="MoOS: Nova"
-            ;;
-        "$AMETHYST_LNF")
-            scheme=MoOSUI2Amethyst; style=MoOSUI2Amethyst
-            konsole_profile=MoOSUI2Amethyst.profile
-            icons=$style; adw_css=/usr/share/moos/gtk/moos-ui2-amethyst.css; cursor=MoOS
-            deco=__aurorae__svg__MoOSUI2Amethyst
-            wallpaper_package=/usr/share/wallpapers/MoOSUI2Amethyst
-            wallpaper=${wallpaper_package}/contents/images_dark/3840x2160.jpg
-            prefer_dark=true; label="MoOS: Amethyst"
-            ;;
-        "$MIDNIGHT_LNF")
-            scheme=MoOSUI2Midnight; style=MoOSUI2Midnight
-            konsole_profile=MoOSUI2Midnight.profile
-            icons=$style; adw_css=/usr/share/moos/gtk/moos-ui2-midnight.css; cursor=MoOS
-            deco=__aurorae__svg__MoOSUI2Midnight
-            wallpaper_package=/usr/share/wallpapers/MoOSUI2Midnight
-            wallpaper=${wallpaper_package}/contents/images_dark/3840x2160.jpg
-            prefer_dark=true; label="MoOS: Midnight"
-            ;;
-        "$AURORA_LNF")
-            scheme=MoOSUI2Aurora; style=MoOSUI2Aurora
-            konsole_profile=MoOSUI2Aurora.profile
-            icons=$style; adw_css=/usr/share/moos/gtk/moos-ui2-aurora.css; cursor=MoOS
-            deco=__aurorae__svg__MoOSUI2Aurora
-            wallpaper_package=/usr/share/wallpapers/MoOSUI2Aurora
-            wallpaper=${wallpaper_package}/contents/images_dark/3840x2160.jpg
-            prefer_dark=true; label="MoOS: Aurora"
-            ;;
-        "$NOVA_LIGHT_LNF")
-            scheme=MoOSUI2NovaLight; style=MoOSUI2NovaLight
-            konsole_profile=MoOSUI2NovaLight.profile
-            icons=$style; adw_css=/usr/share/moos/gtk/moos-ui2-nova-light.css; cursor=MoOSDark
-            deco=__aurorae__svg__MoOSUI2NovaLight
-            wallpaper_package=/usr/share/wallpapers/MoOSUI2NovaLight
-            wallpaper=${wallpaper_package}/contents/images/3840x2160.jpg
-            prefer_dark=false; label="MoOS: Nova فاتح | light"
-            ;;
-        "$AMETHYST_LIGHT_LNF")
-            scheme=MoOSUI2AmethystLight; style=MoOSUI2AmethystLight
-            konsole_profile=MoOSUI2AmethystLight.profile
-            icons=$style; adw_css=/usr/share/moos/gtk/moos-ui2-amethyst-light.css; cursor=MoOSDark
-            deco=__aurorae__svg__MoOSUI2AmethystLight
-            wallpaper_package=/usr/share/wallpapers/MoOSUI2AmethystLight
-            wallpaper=${wallpaper_package}/contents/images/3840x2160.jpg
-            prefer_dark=false; label="MoOS: Amethyst فاتح | light"
-            ;;
-        "$AURORA_LIGHT_LNF")
-            scheme=MoOSUI2AuroraLight; style=MoOSUI2AuroraLight
-            konsole_profile=MoOSUI2AuroraLight.profile
-            icons=$style; adw_css=/usr/share/moos/gtk/moos-ui2-aurora-light.css; cursor=MoOSDark
-            deco=__aurorae__svg__MoOSUI2AuroraLight
-            wallpaper_package=/usr/share/wallpapers/MoOSUI2AuroraLight
-            wallpaper=${wallpaper_package}/contents/images/3840x2160.jpg
-            prefer_dark=false; label="MoOS: Aurora فاتح | light"
-            ;;
-        "$DAYLIGHT_LNF")
-            scheme=MoOSUI2Daylight; style=MoOSUI2Daylight
-            konsole_profile=MoOSUI2Daylight.profile
-            icons=$style; adw_css=/usr/share/moos/gtk/moos-ui2-daylight.css; cursor=MoOSDark
-            deco=__aurorae__svg__MoOSUI2Daylight
-            wallpaper_package=/usr/share/wallpapers/MoOSUI2Daylight
-            wallpaper=${wallpaper_package}/contents/images/3840x2160.jpg
-            prefer_dark=false; label="MoOS: Daylight فاتح | light"
-            ;;
-        "$GAMING_LNF")
-            scheme=MoOSUI2Arena; style=MoOSUI2Arena
-            konsole_profile=MoOSUI2Arena.profile
-            icons=$style; adw_css=/usr/share/moos/gtk/moos-ui2-gaming.css; cursor=MoOS
-            deco=__aurorae__svg__MoOSUI2Arena
-            wallpaper_package=/usr/share/wallpapers/MoOSUI2Arena
-            wallpaper=${wallpaper_package}/contents/images_dark/3840x2160.jpg
-            prefer_dark=true; label="MoOS: Arena (ألعاب | gaming)"
-            ;;
-        "$DEV_LNF")
-            scheme=MoOSUI2Forge; style=MoOSUI2Forge
-            konsole_profile=MoOSUI2Forge.profile
-            icons=$style; adw_css=/usr/share/moos/gtk/moos-ui2-dev.css; cursor=MoOS
-            deco=__aurorae__svg__MoOSUI2Forge
-            wallpaper_package=/usr/share/wallpapers/MoOSUI2Forge
-            wallpaper=${wallpaper_package}/contents/images_dark/3840x2160.jpg
-            prefer_dark=true; label="MoOS: Forge (تطوير | dev)"
-            ;;
-        "$STUDY_LNF")
-            scheme=MoOSUI2Scholar; style=MoOSUI2Scholar
-            konsole_profile=MoOSUI2Scholar.profile
-            icons=$style; adw_css=/usr/share/moos/gtk/moos-ui2-study.css; cursor=MoOS
-            deco=__aurorae__svg__MoOSUI2Scholar
-            wallpaper_package=/usr/share/wallpapers/MoOSUI2Scholar
-            wallpaper=${wallpaper_package}/contents/images_dark/3840x2160.jpg
-            prefer_dark=true; label="MoOS: Scholar (دراسة | study)"
-            ;;
-        "$GAMING_LIGHT_LNF")
-            scheme=MoOSUI2ArenaLight; style=MoOSUI2ArenaLight
-            konsole_profile=MoOSUI2ArenaLight.profile
-            icons=$style; adw_css=/usr/share/moos/gtk/moos-ui2-gaming-light.css; cursor=MoOSDark
-            deco=__aurorae__svg__MoOSUI2ArenaLight
-            wallpaper_package=/usr/share/wallpapers/MoOSUI2ArenaLight
-            wallpaper=${wallpaper_package}/contents/images/3840x2160.jpg
-            prefer_dark=false; label="MoOS: Arena فاتح | light"
-            ;;
-        "$DEV_LIGHT_LNF")
-            scheme=MoOSUI2ForgeLight; style=MoOSUI2ForgeLight
-            konsole_profile=MoOSUI2ForgeLight.profile
-            icons=$style; adw_css=/usr/share/moos/gtk/moos-ui2-dev-light.css; cursor=MoOSDark
-            deco=__aurorae__svg__MoOSUI2ForgeLight
-            wallpaper_package=/usr/share/wallpapers/MoOSUI2ForgeLight
-            wallpaper=${wallpaper_package}/contents/images/3840x2160.jpg
-            prefer_dark=false; label="MoOS: Forge فاتح | light"
-            ;;
-        "$STUDY_LIGHT_LNF")
-            scheme=MoOSUI2ScholarLight; style=MoOSUI2ScholarLight
-            konsole_profile=MoOSUI2ScholarLight.profile
-            icons=$style; adw_css=/usr/share/moos/gtk/moos-ui2-study-light.css; cursor=MoOSDark
-            deco=__aurorae__svg__MoOSUI2ScholarLight
-            wallpaper_package=/usr/share/wallpapers/MoOSUI2ScholarLight
-            wallpaper=${wallpaper_package}/contents/images/3840x2160.jpg
-            prefer_dark=false; label="MoOS: Scholar فاتح | light"
-            ;;
-        *)
-            echo "moos-theme: unknown MoOS look-and-feel: $lnf" >&2
-            return 2
-            ;;
+    local lnf="$1" database row profile_id gtk_css decoration wallpaper_name
+    local wallpaper_branch mode display_name family accent surface_treatment
+    local profile_qt_widget_style profile_gtk_theme
+    local konsole_profile_path
+    database="${MOOS_THEME_PROFILE_DB:-/usr/share/moos/theme-profiles.tsv}"
+    [ -r "$database" ] || {
+        echo "moos-theme: theme profile database is missing: $database" >&2
+        return 1
+    }
+
+    row="$(awk -F '\t' -v wanted="$lnf" '$1 == wanted { print; exit }' "$database")"
+    [ -n "$row" ] || {
+        echo "moos-theme: unknown MoOS look-and-feel: $lnf" >&2
+        return 2
+    }
+    IFS=$'\t' read -r profile_id scheme style konsole_profile icons gtk_css cursor \
+        decoration wallpaper_name wallpaper_branch mode display_name family accent \
+        surface_treatment profile_qt_widget_style profile_gtk_theme <<<"$row"
+    [ "$profile_id" = "$lnf" ] || return 1
+    [ -n "$profile_qt_widget_style" ] && [ -n "$profile_gtk_theme" ] || return 1
+
+    qt_widget_style="$profile_qt_widget_style"
+    gtk_theme="$profile_gtk_theme"
+
+    adw_css="/usr/share/moos/gtk/$gtk_css"
+    deco="__aurorae__svg__${decoration}"
+    wallpaper_package="/usr/share/wallpapers/${wallpaper_name}"
+    wallpaper="${wallpaper_package}/contents/${wallpaper_branch}/3840x2160.jpg"
+    case "$mode" in
+        dark) prefer_dark=true ;;
+        light) prefer_dark=false ;;
+        *) echo "moos-theme: profile $lnf has invalid mode $mode" >&2; return 1 ;;
     esac
+    label="MoOS: ${display_name}"
 
     # Konsole's D-Bus setProfile method takes the user-visible [General] Name,
-    # not the profile filename. Read the shipped profile instead of duplicating
-    # 16 names here: profile metadata was renamed to "MoOS UI …" while this
-    # switcher kept the old names, so every running terminal ignored retinting.
+    # not the profile filename. Derive it from the same profile selected above.
     konsole_profile_path="/usr/share/konsole/$konsole_profile"
     if [ ! -r "$konsole_profile_path" ]; then
         echo "moos-theme: missing Konsole profile: $konsole_profile_path" >&2
@@ -332,14 +588,19 @@ run_with_timeout() {
 # Deliberately do not write kdeglobals here: that is the file watched by the path
 # unit, and touching it would turn a one-shot reconciliation into a feedback loop.
 apply_supplements() {
+    local wallpaper_policy="${1:-state}"
     local ini xs v svc n scene_status supplement_failed=0
+    load_wallpaper_expectation "$wallpaper_policy" || return 1
 
     # The desktop scene: the MoOS wallpaper plugin (image + dashboard bento,
     # below the icons) on every desktop containment. KDE's wallpaper-image CLI
     # helper is deliberately NOT used — it would flip the containments back to
     # org.kde.image and the bento would vanish. Idempotent, so it is safe on
     # every switch AND on the sunrise/sunset sync path.
-    if [ -f "$wallpaper" ]; then
+    if [ "$desktop_wallpaper_mode" = custom ]; then
+        apply_desktop_scene_token "$desktop_wallpaper_token"
+        scene_status=$?
+    elif [ -f "$wallpaper" ]; then
         apply_desktop_scene "$wallpaper_package"
         scene_status=$?
         # A 2 means plasmashell did not ANSWER inside 8 seconds — not that the
@@ -351,13 +612,13 @@ apply_supplements() {
         # the verdict to the reconciler: the cascade this apply writes fires the
         # path watch, and reconcile() re-runs this pass plus its settle watchdog
         # once the desktop has stopped moving.
-        if [ "$scene_status" -eq 2 ]; then
+    else
+        scene_status=1
+    fi
+    if [ "$scene_status" -eq 2 ]; then
             echo "moos-theme: Plasma did not confirm the desktop scene within 8s;" \
                  "the theme is applied and the scene will be reconciled" >&2
-        elif [ "$scene_status" -ne 0 ]; then
-            supplement_failed=1
-        fi
-    else
+    elif [ "$scene_status" -ne 0 ]; then
         supplement_failed=1
     fi
 
@@ -397,7 +658,8 @@ apply_supplements() {
         # A missing file is CREATED, not skipped: a fresh user whose gtkconfig
         # has not materialised these yet used to keep an empty GTK theme name,
         # which means Adwaita — the exact failure AGENTS.md documents. And the
-        # stylesheet NAME is pinned when absent (Breeze: Plasma's gtkconfig
+        # stylesheet NAME is pinned when absent (the profile's GTK engine:
+        # Plasma's gtkconfig
         # feeds the active KDE palette into that stylesheet; only the name was
         # ever missing).
         for ini in "${XDG_CONFIG_HOME:-$HOME/.config}/gtk-3.0/settings.ini" \
@@ -409,11 +671,10 @@ apply_supplements() {
             kwriteconfig6 --file "$ini" --group Settings \
                 --key gtk-application-prefer-dark-theme "$prefer_dark" \
                 || supplement_failed=1
-            if [ -z "$(kreadconfig6 --file "$ini" --group Settings \
-                        --key gtk-theme-name 2>/dev/null)" ]; then
-                kwriteconfig6 --file "$ini" --group Settings \
-                    --key gtk-theme-name Breeze || supplement_failed=1
-            fi
+            kwriteconfig6 --file "$ini" --group Settings \
+                --key gtk-theme-name "$gtk_theme" || supplement_failed=1
+            kwriteconfig6 --file "$ini" --group Settings \
+                --key gtk-sound-theme-name moos || supplement_failed=1
         done
     else
         supplement_failed=1
@@ -428,10 +689,12 @@ apply_supplements() {
     # (`@import 'colors.css';`) before this script ever runs — verified live
     # on the 2026-07-14 ISO, where a replace-with-marker approach simply never
     # installed anything. So MoOS keeps its palette in its own file,
-    # moos-ui2.css, and only APPENDS one import line to gtk.css. Appended
-    # after gtkconfig's import, its @define-color values win. UI1 sets
-    # adw_css empty: the file and the import line are then removed, and stock
-    # Adwaita returns, because UI1's palette never included libadwaita.
+    # moos-ui2.css, and only adds one import line to gtk.css. gtkconfig may put
+    # its colors.css import before OR after ours on a later login. That is safe
+    # by construction: colors.css owns suffixed Breeze variables
+    # (`*_breeze`), while this file owns libadwaita's unsuffixed roles
+    # (`accent_bg_color`, `window_bg_color`, ...). The two namespaces were
+    # verified disjoint in the live GTK4 engine on 2026-08-08.
     css_dir="${XDG_CONFIG_HOME:-$HOME/.config}/gtk-4.0"
     css_ours="$css_dir/moos-ui2.css"
     css_gtk="$css_dir/gtk.css"
@@ -453,6 +716,8 @@ apply_supplements() {
         gsettings set org.gnome.desktop.interface color-scheme \
             "$([ "$prefer_dark" = true ] && echo prefer-dark || echo prefer-light)" \
             2>/dev/null || supplement_failed=1
+        gsettings set org.gnome.desktop.interface gtk-theme "$gtk_theme" \
+            2>/dev/null || supplement_failed=1
         gsettings set org.gnome.desktop.interface icon-theme "$icons" \
             2>/dev/null || supplement_failed=1
         gsettings set org.gnome.desktop.interface cursor-theme "$cursor" \
@@ -460,6 +725,8 @@ apply_supplements() {
         gsettings set org.gnome.desktop.interface font-name 'IBM Plex Sans 10' \
             2>/dev/null || supplement_failed=1
         gsettings set org.gnome.desktop.interface monospace-font-name 'JetBrains Mono 10' \
+            2>/dev/null || supplement_failed=1
+        gsettings set org.gnome.desktop.sound theme-name moos \
             2>/dev/null || supplement_failed=1
     else
         supplement_failed=1
@@ -482,13 +749,27 @@ apply_supplements() {
         else
             echo "Net/PreferDarkTheme ${v}" >>"$xs" || supplement_failed=1
         fi
+        if grep -q '^Net/ThemeName ' "$xs" 2>/dev/null; then
+            sed -i "s|^Net/ThemeName .*|Net/ThemeName \"${gtk_theme}\"|" "$xs" \
+                || supplement_failed=1
+        else
+            printf 'Net/ThemeName "%s"\n' "$gtk_theme" >>"$xs" \
+                || supplement_failed=1
+        fi
+        if grep -q '^Net/SoundThemeName ' "$xs" 2>/dev/null; then
+            sed -i 's|^Net/SoundThemeName .*|Net/SoundThemeName "moos"|' "$xs" \
+                || supplement_failed=1
+        else
+            echo 'Net/SoundThemeName "moos"' >>"$xs" || supplement_failed=1
+        fi
         pkill -HUP -x xsettingsd 2>/dev/null || true
     fi
 
     # NOTE on libadwaita (the moos-ui2.css swap above): GTK reads gtk.css once
-    # at startup, so a RUNNING Flatpak flips light/dark live (gsettings) but
-    # keeps the previous half's @define-color palette until it is relaunched.
-    # That is a GTK limitation, not a MoOS bug — do not re-diagnose it.
+    # at startup.  Some running clients observe the GSettings colour-scheme
+    # signal but keep the previous half's @define-color palette; sandboxed
+    # clients may retain both until they are relaunched.  A newly launched
+    # client always reads the committed engine, scheme and palette together.
     [ "$supplement_failed" -eq 0 ]
 }
 
@@ -518,6 +799,34 @@ auto_wallpapers_complete() {
     [ "$desktops" = "$matching" ]
 }
 
+custom_wallpapers_complete() {
+    local encoded="$1" result desktops matching
+    [[ "$encoded" =~ ^[A-Za-z0-9_.~%-]+$ ]] || return 1
+    command -v gdbus >/dev/null 2>&1 || return 1
+    command -v timeout >/dev/null 2>&1 || return 1
+    result="$(timeout 4s gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
+        -m org.kde.PlasmaShell.evaluateScript '
+            var expected = decodeURIComponent("'"$encoded"'");
+            var ds = desktops();
+            var matching = 0;
+            for (var i = 0; i < ds.length; i++) {
+                ds[i].currentConfigGroup =
+                    ["Wallpaper", "org.moos.ui2.wallpaper", "General"];
+                var image = String(ds[i].readConfig("Image", ""));
+                if (ds[i].wallpaperPlugin == "org.moos.ui2.wallpaper"
+                        && image == expected) { matching++; }
+            }
+            print("desktops=" + ds.length + ";matching=" + matching);
+        ' 2>/dev/null)" || return 1
+    result="$(printf '%s\n' "$result" \
+        | grep -oE 'desktops=[1-9][0-9]*;matching=[0-9]+' | head -n1)"
+    [ -n "$result" ] || return 1
+    desktops="${result#desktops=}"
+    desktops="${desktops%%;*}"
+    matching="${result##*matching=}"
+    [ "$desktops" = "$matching" ]
+}
+
 # Compare two font descriptions the way a font engine reads them, not the way a
 # string comparison does. Plasma's own gtkconfig rewrites the GSettings font keys
 # from the KDE font description a moment after this script sets them, and it
@@ -535,11 +844,17 @@ same_font() {
 }
 
 automatic_supplements_complete() {
-    local expected_color lock_plugin lock_image konsole_actual gtk_actual ini xs
+    local wallpaper_policy="${1:-state}"
+    local expected_color lock_plugin lock_image konsole_actual gtk_actual gtk_theme_actual sound_actual ini xs
     local icon_actual cursor_actual font_actual monospace_actual
 
     [ "$(current)" = "$lnf" ] || return 1
-    auto_wallpapers_complete "$wallpaper_package" || return 1
+    load_wallpaper_expectation "$wallpaper_policy" || return 1
+    if [ "$desktop_wallpaper_mode" = custom ]; then
+        custom_wallpapers_complete "$desktop_wallpaper_token" || return 1
+    else
+        auto_wallpapers_complete "$wallpaper_package" || return 1
+    fi
 
     lock_plugin="$(kreadconfig6 --file kscreenlockerrc --group Greeter \
         --key WallpaperPlugin 2>/dev/null)"
@@ -557,6 +872,12 @@ automatic_supplements_complete() {
     gtk_actual="$(gsettings get org.gnome.desktop.interface color-scheme 2>/dev/null \
         | tr -d "'[:space:]")"
     [ "$gtk_actual" = "$expected_color" ] || return 1
+    gtk_theme_actual="$(gsettings get org.gnome.desktop.interface gtk-theme 2>/dev/null \
+        | sed -e "s/^'//" -e "s/'$//")"
+    [ "$gtk_theme_actual" = "$gtk_theme" ] || return 1
+    sound_actual="$(gsettings get org.gnome.desktop.sound theme-name 2>/dev/null \
+        | sed -e "s/^'//" -e "s/'$//")"
+    [ "$sound_actual" = moos ] || return 1
     icon_actual="$(gsettings get org.gnome.desktop.interface icon-theme 2>/dev/null \
         | sed -e "s/^'//" -e "s/'$//")"
     cursor_actual="$(gsettings get org.gnome.desktop.interface cursor-theme 2>/dev/null \
@@ -576,6 +897,10 @@ automatic_supplements_complete() {
         [ "$(kreadconfig6 --file "$ini" --group Settings \
             --key gtk-application-prefer-dark-theme 2>/dev/null)" = "$prefer_dark" ] \
             || return 1
+        [ "$(kreadconfig6 --file "$ini" --group Settings \
+            --key gtk-theme-name 2>/dev/null)" = "$gtk_theme" ] || return 1
+        [ "$(kreadconfig6 --file "$ini" --group Settings \
+            --key gtk-sound-theme-name 2>/dev/null)" = moos ] || return 1
     done
 
     xs="${XDG_CONFIG_HOME:-$HOME/.config}/xsettingsd/xsettingsd.conf"
@@ -585,12 +910,66 @@ automatic_supplements_complete() {
         else
             grep -q '^Net/PreferDarkTheme 0$' "$xs" || return 1
         fi
+        grep -Fqx "Net/ThemeName \"$gtk_theme\"" "$xs" || return 1
+        grep -q '^Net/SoundThemeName "moos"$' "$xs" || return 1
     fi
     return 0
 }
 
+# Manual theme changes are committed only after every owner reports the target
+# state. This is intentionally stricter than the automatic supplement check:
+# the manual transaction also owns Plasma style, KWin decoration, splash and
+# pointer selection, so all of those must read back before the previous snapshot
+# is replaced.
+full_theme_complete() {
+    local wallpaper_policy="${1:-state}"
+    local config ini
+    automatic_supplements_complete "$wallpaper_policy" || return 1
+    [ "$(kreadconfig6 --file kdeglobals --group General --key ColorScheme 2>/dev/null)" \
+        = "$scheme" ] || return 1
+    [ "$(kreadconfig6 --file kdeglobals --group KDE --key widgetStyle 2>/dev/null)" \
+        = "$qt_widget_style" ] || return 1
+    [ "$(kreadconfig6 --file plasmarc --group Theme --key name 2>/dev/null)" \
+        = "$style" ] || return 1
+    [ "$(kreadconfig6 --file kdeglobals --group Icons --key Theme 2>/dev/null)" \
+        = "$icons" ] || return 1
+    [ "$(kreadconfig6 --file kdeglobals --group Sounds --key Theme 2>/dev/null)" \
+        = moos ] || return 1
+    [ "$(kreadconfig6 --file kwinrc --group org.kde.kdecoration2 \
+        --key library 2>/dev/null)" = org.kde.kwin.aurorae.v2 ] || return 1
+    [ "$(kreadconfig6 --file kwinrc --group org.kde.kdecoration2 \
+        --key theme 2>/dev/null)" = "$deco" ] || return 1
+    [ "$(kreadconfig6 --file kwinrc --group org.kde.kdecoration2 \
+        --key ButtonsOnLeft 2>/dev/null)" = XIA ] || return 1
+    [ "$(kreadconfig6 --file ksplashrc --group KSplash --key Theme 2>/dev/null)" \
+        = "$lnf" ] || return 1
+    [ "$(kreadconfig6 --file ksplashrc --group KSplash --key Engine 2>/dev/null)" \
+        = KSplashQML ] || return 1
+    [ "$(kreadconfig6 --file kcminputrc --group Mouse --key cursorTheme 2>/dev/null)" \
+        = "$cursor" ] || return 1
+
+    config="${XDG_CONFIG_HOME:-$HOME/.config}"
+    [ -f "$config/gtk-4.0/moos-ui2.css" ] || return 1
+    cmp -s -- "$adw_css" "$config/gtk-4.0/moos-ui2.css" || return 1
+    grep -q "@import 'moos-ui2.css';" "$config/gtk-4.0/gtk.css" || return 1
+    for ini in "$config/gtk-3.0/settings.ini" "$config/gtk-4.0/settings.ini"; do
+        [ "$(kreadconfig6 --file "$ini" --group Settings \
+            --key gtk-theme-name 2>/dev/null)" = "$gtk_theme" ] || return 1
+    done
+    return 0
+}
+
+verify_theme_with_retries() {
+    local attempt
+    for attempt in 1 2 3; do
+        full_theme_complete profile && return 0
+        [ "$attempt" -eq 3 ] || sleep "$attempt"
+    done
+    return 1
+}
+
 apply() {
-    local lnf="$1" scheme style konsole_profile konsole_profile_name prefer_dark icons adw_css cursor deco wallpaper wallpaper_package label write_failed
+    local lnf="$1" scheme style konsole_profile konsole_profile_name prefer_dark icons adw_css cursor deco wallpaper wallpaper_package label qt_widget_style gtk_theme write_failed
     load_profile "$lnf" || return
 
     plasma-apply-lookandfeel -a "$lnf" >/dev/null 2>&1 \
@@ -629,9 +1008,11 @@ apply() {
     if command -v kwriteconfig6 >/dev/null 2>&1; then
         write_failed=0
         kwriteconfig6 --file kdeglobals --group KDE --key LookAndFeelPackage "$lnf" || write_failed=1
+        kwriteconfig6 --file kdeglobals --group KDE --key widgetStyle "$qt_widget_style" || write_failed=1
         kwriteconfig6 --file kdeglobals --group General --key ColorScheme "$scheme" || write_failed=1
         kwriteconfig6 --file plasmarc --group Theme --key name "$style" || write_failed=1
         kwriteconfig6 --file kdeglobals --group Icons --key Theme "$icons" || write_failed=1
+        kwriteconfig6 --file kdeglobals --group Sounds --key Theme moos || write_failed=1
         kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key library org.kde.kwin.aurorae.v2 || write_failed=1
         kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key theme "$deco" || write_failed=1
         kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key ButtonsOnLeft XIA || write_failed=1
@@ -647,7 +1028,7 @@ apply() {
         return 1
     fi
 
-    if ! apply_supplements; then
+    if ! apply_supplements profile; then
         echo "moos-theme: $lnf applied, but one or more full-theme supplements failed" >&2
         return 1
     fi
@@ -658,11 +1039,16 @@ apply() {
         run_with_timeout gdbus call --session -d org.kde.KWin -o /KWin \
             -m org.kde.KWin.reconfigure >/dev/null 2>&1 || true
 
+    if ! verify_theme_with_retries; then
+        echo "moos-theme: $lnf did not pass full live-state verification" >&2
+        return 1
+    fi
+
     echo "$label"
 }
 
 sync_auto() {
-    local automatic lnf automatic_after lnf_after scheme style konsole_profile konsole_profile_name prefer_dark icons adw_css cursor deco wallpaper wallpaper_package label
+    local automatic lnf automatic_after lnf_after scheme style konsole_profile konsole_profile_name prefer_dark icons adw_css cursor deco wallpaper wallpaper_package label qt_widget_style gtk_theme
 
     command -v kreadconfig6 >/dev/null 2>&1 || return 1
     automatic="$(kreadconfig6 --file kdeglobals --group KDE \
@@ -690,6 +1076,8 @@ sync_auto() {
     # by itself; the scene apply below is idempotent, so sunrise/sunset only
     # moves the variant supplements (wallpaper image, Konsole, GTK, lock).
     if apply_supplements && automatic_supplements_complete; then
+        write_theme_state committed "$lnf" \
+            "$(theme_state_field active 2>/dev/null || true)" || true
         echo "MoOS automatic theme supplements synced for ${lnf}"
         return 0
     fi
@@ -735,16 +1123,22 @@ settle_desktop_scene() {
     local i
     command -v gdbus >/dev/null 2>&1 || return 0
     command -v sleep >/dev/null 2>&1 || return 0
+    load_wallpaper_expectation state || return 1
     for i in 1 2 3 4 5 6; do
         sleep 2
         [ "$(current)" = "$lnf" ] || return 0
-        auto_wallpapers_complete "$wallpaper_package" && continue
-        apply_desktop_scene "$wallpaper_package" || true
+        if [ "$desktop_wallpaper_mode" = custom ]; then
+            custom_wallpapers_complete "$desktop_wallpaper_token" && continue
+            apply_desktop_scene_token "$desktop_wallpaper_token" || true
+        else
+            auto_wallpapers_complete "$wallpaper_package" && continue
+            apply_desktop_scene "$wallpaper_package" || true
+        fi
     done
 }
 
 reconcile() {
-    local automatic lnf scheme style konsole_profile konsole_profile_name prefer_dark icons adw_css cursor deco wallpaper wallpaper_package label
+    local automatic lnf scheme style konsole_profile konsole_profile_name prefer_dark icons adw_css cursor deco wallpaper wallpaper_package label qt_widget_style gtk_theme
     local last_file last_lnf theme_changed
 
     command -v kreadconfig6 >/dev/null 2>&1 || return 0
@@ -788,12 +1182,18 @@ reconcile() {
     # not re-arm on us. But on a REAL change still run the watchdog: the scene may
     # look whole NOW yet be torn down by a containment rebuild a beat later.
     if automatic_supplements_complete; then
-        [ "$theme_changed" = 1 ] && settle_desktop_scene
+        if [ "$theme_changed" = 1 ]; then
+            settle_desktop_scene
+            write_theme_state committed "$lnf" \
+                "$(theme_state_field active 2>/dev/null || true)" || true
+        fi
         return 0
     fi
 
     if apply_supplements; then
         settle_desktop_scene
+        write_theme_state committed "$lnf" \
+            "$(theme_state_field active 2>/dev/null || true)" || true
         echo "MoOS supplements reconciled for ${lnf}"
         return 0
     fi
@@ -828,6 +1228,13 @@ pin_switch_targets() {
     command -v kwriteconfig6 >/dev/null 2>&1 || return 0
     kwriteconfig6 --file kdeglobals --group KDE --key DefaultLightLookAndFeel "$LIGHT_LNF"
     kwriteconfig6 --file kdeglobals --group KDE --key DefaultDarkLookAndFeel "$DARK_LNF"
+}
+
+guard_theme_defaults() {
+    command -v kwriteconfig6 >/dev/null 2>&1 || return 1
+    pin_switch_targets || return 1
+    kwriteconfig6 --file kdeglobals --group Sounds --key Theme moos || return 1
+    kwriteconfig6 --file kdeglobals --group Sounds --key Enable true || return 1
 }
 
 # Read the effective motion policy from every live MoOS wallpaper containment.
@@ -912,7 +1319,7 @@ query_motion_mode() {
 # single evaluateScript transaction. Values interpolated into JavaScript come
 # only from the fixed case table below; arbitrary shell input never reaches it.
 set_motion_mode() {
-    local requested="$1" value ambient result token actual
+    local requested="$1" value ambient result token actual before
     case "$requested" in
         still)  value=0; ambient=false ;;
         gentle) value=1; ambient=true ;;
@@ -927,6 +1334,10 @@ set_motion_mode() {
         || { echo "moos-theme: gdbus is required to set wallpaper motion" >&2; return 1; }
     command -v timeout >/dev/null 2>&1 \
         || { echo "moos-theme: timeout is required to set wallpaper motion" >&2; return 1; }
+    before="$(capture_desktop_scene)" || {
+        echo "moos-theme: could not snapshot wallpaper motion before changing it" >&2
+        return 1
+    }
 
     result="$(timeout 8s gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
         -m org.kde.PlasmaShell.evaluateScript '
@@ -957,29 +1368,39 @@ set_motion_mode() {
             } else {
                 print("moos-motion-set:" + changed);
             }
-        ' 2>&1)" \
-        || { echo "moos-theme: could not set wallpaper motion through Plasma" >&2; return 1; }
+        ' 2>&1)" || {
+        restore_desktop_scene "$before" >/dev/null 2>&1 || true
+        echo "moos-theme: could not set wallpaper motion through Plasma" >&2
+        return 1
+    }
 
     token="$(printf '%s\n' "$result" \
         | grep -oE 'moos-motion-(set:[1-9][0-9]*|error:[a-z-]+)' | head -n1)"
     case "$token" in
         moos-motion-set:*) ;;
         moos-motion-error:no-scenes)
+            restore_desktop_scene "$before" >/dev/null 2>&1 || true
             echo "moos-theme: no live MoOS wallpaper desktop scenes were found" >&2
             return 1
             ;;
         moos-motion-error:write-failed)
+            restore_desktop_scene "$before" >/dev/null 2>&1 || true
             echo "moos-theme: wallpaper motion was not written to every desktop scene" >&2
             return 1
             ;;
         *)
+            restore_desktop_scene "$before" >/dev/null 2>&1 || true
             echo "moos-theme: Plasma did not confirm the wallpaper motion change" >&2
             return 1
             ;;
     esac
 
-    actual="$(query_motion_mode)" || return 1
+    actual="$(query_motion_mode)" || {
+        restore_desktop_scene "$before" >/dev/null 2>&1 || true
+        return 1
+    }
     if [ "$actual" != "$requested" ]; then
+        restore_desktop_scene "$before" >/dev/null 2>&1 || true
         echo "moos-theme: wallpaper motion verification failed ($actual != $requested)" >&2
         return 1
     fi
@@ -987,10 +1408,23 @@ set_motion_mode() {
 }
 
 acquire_theme_lock() {
+    local lock_dir lock_path held_path expected_path
     command -v flock >/dev/null 2>&1 || return 0
-    local lock_dir="${XDG_RUNTIME_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}}"
+    # A tightly scoped helper may already own this exact lock and invoke
+    # moos-theme for the appearance part of a larger transaction. Fast Remote
+    # does this so its transient KWin override and wallpaper-motion change
+    # cannot interleave with a theme apply. The flag alone is not authority:
+    # fd 9 must be inherited and must already refer to a lockable open file.
+    lock_dir="${XDG_RUNTIME_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}}"
+    lock_path="${lock_dir}/moos-theme.lock"
+    if [ "${MOOS_THEME_LOCK_HELD:-0}" = 1 ]; then
+        held_path="$(readlink -f "/proc/$$/fd/9" 2>/dev/null)" || return 1
+        expected_path="$(readlink -f "$lock_path" 2>/dev/null)" || return 1
+        [ "$held_path" = "$expected_path" ] && flock -n 9
+        return
+    fi
     mkdir -p "$lock_dir" 2>/dev/null || return 1
-    exec 9>"${lock_dir}/moos-theme.lock" || return 1
+    exec 9>"$lock_path" || return 1
     flock -w 30 9
 }
 
@@ -1018,7 +1452,7 @@ acquire_theme_lock() {
 command_name="${1:-status}"
 needs_theme_lock=0
 case "$command_name" in
-    dark|light|nova|amethyst|midnight|aurora|nova-light|amethyst-light|aurora-light|daylight|gaming|dev|study|gaming-light|dev-light|study-light|toggle|auto|sync-auto|reconcile|reconcile-service|undo|apply-lnf)
+    dark|light|nova|amethyst|midnight|aurora|nova-light|amethyst-light|aurora-light|daylight|gaming|dev|study|gaming-light|dev-light|study-light|toggle|auto|sync-auto|reconcile|reconcile-service|guard|undo|apply-lnf|wallpaper-token|wallpaper-reset)
         needs_theme_lock=1
         ;;
     motion)
@@ -1035,44 +1469,214 @@ fi
 # specific look) but do NOT change the auto sun/moon targets, which stay
 # Graphite/Tidal. apply() writes the whole cascade, so the switch is instant.
 apply_manual() {
-    kwriteconfig6 --file kdeglobals --group KDE --key AutomaticLookAndFeel false 2>/dev/null || true
-    local target="$1" prev sd
-    prev="$(current 2>/dev/null)"
+    local target="$1" prev snapshot active
+    snapshot="$(snapshot_theme_state)" || {
+        echo "moos-theme: could not create a pre-change theme snapshot" >&2
+        return 1
+    }
+    prev="$(cat "$snapshot/current-lnf" 2>/dev/null)"
+    pin_switch_targets || {
+        echo "moos-theme: could not pin the MoOS automatic theme targets" >&2
+        restore_theme_state "$snapshot" >/dev/null 2>&1 || true
+        find "$snapshot" -depth -delete 2>/dev/null || true
+        return 1
+    }
+    kwriteconfig6 --file kdeglobals --group KDE --key AutomaticLookAndFeel false \
+        2>/dev/null || {
+            echo "moos-theme: could not disable automatic switching for a manual pick" >&2
+            restore_theme_state "$snapshot" >/dev/null 2>&1 || true
+            find "$snapshot" -depth -delete 2>/dev/null || true
+            return 1
+        }
     if apply "$target"; then
-        # Record where we came from so `moos-theme undo` can return there. Only a
-        # real, installed MoOS look is worth remembering as a revert point.
-        if [ -n "$prev" ] && [ "$prev" != "$target" ] \
-           && [ -d "/usr/share/plasma/look-and-feel/$prev" ]; then
-            sd="${XDG_STATE_HOME:-$HOME/.local/state}/moos"
-            mkdir -p "$sd" 2>/dev/null \
-                && printf '%s\n' "$prev" > "$sd/theme-previous" 2>/dev/null || true
+        active="$(current 2>/dev/null)"
+        if commit_theme_snapshot "$snapshot" "$active" "$prev"; then
+            return 0
         fi
-        return 0
+        echo "moos-theme: applied $target but could not commit its undo snapshot" >&2
     fi
-    # A clean apply failed. Never strand the user on a half-applied look: roll the
-    # whole theme back to where they were. (A missing-package apply fails BEFORE any
-    # write, so this only re-applies a look that was already working a moment ago.)
-    if [ -n "$prev" ] && [ "$prev" != "$target" ] \
-       && [ -d "/usr/share/plasma/look-and-feel/$prev" ]; then
-        echo "moos-theme: '$target' did not apply cleanly — reverting to $prev" >&2
-        apply "$prev" >/dev/null 2>&1 || true
+
+    # Reapply is not rollback: it loses custom wallpaper/motion and every user
+    # value outside the profile. Restore the captured files, GSettings and each
+    # live containment, then prove that snapshot is what the desktop reports.
+    echo "moos-theme: '$target' did not commit cleanly — restoring the exact snapshot" >&2
+    if restore_theme_state "$snapshot" && snapshot_state_complete "$snapshot"; then
+        active="$(current 2>/dev/null)"
+        write_theme_state rolled-back "$active" "$target" || true
+        find "$snapshot" -depth -delete 2>/dev/null || true
+    else
+        active="$(current 2>/dev/null)"
+        write_theme_state rollback-failed "$active" "$target" || true
+        echo "moos-theme: exact rollback verification failed; snapshot retained at $snapshot" >&2
     fi
     return 1
 }
 
+verify_lnf_state() {
+    local target="$1" lnf scheme style konsole_profile konsole_profile_name
+    local prefer_dark icons adw_css cursor deco wallpaper wallpaper_package label
+    local qt_widget_style gtk_theme
+    case "$target" in org.moos.ui2|org.moos.ui2.*) ;; *) return 2 ;; esac
+    lnf="$target"
+    load_profile "$lnf" || return 1
+    full_theme_complete state
+}
+
+apply_wallpaper_transaction() {
+    local mode="$1" requested_token="${2:-}" snapshot active previous encoded verified=0
+    local lnf scheme style konsole_profile konsole_profile_name prefer_dark icons
+    local adw_css cursor deco wallpaper wallpaper_package label actual
+    local qt_widget_style gtk_theme
+
+    active="$(current 2>/dev/null)"
+    case "$active" in org.moos.ui2|org.moos.ui2.*) ;; *)
+        echo "moos-theme: a MoOS look must be active before changing its desktop canvas" >&2
+        return 1
+        ;;
+    esac
+    lnf="$active"
+    load_profile "$lnf" || return 1
+    case "$mode" in
+        profile)
+            encoded="$(encode_profile_wallpaper "$wallpaper_package")" || return 1
+            ;;
+        custom)
+            encoded="$requested_token"
+            [[ "$encoded" =~ ^[A-Za-z0-9_.~%-]+$ ]] || {
+                echo "moos-theme: custom wallpaper token is invalid" >&2
+                return 2
+            }
+            ;;
+        *) return 2 ;;
+    esac
+
+    snapshot="$(snapshot_theme_state)" || {
+        echo "moos-theme: could not snapshot the desktop before changing its canvas" >&2
+        return 1
+    }
+    previous="$(cat "$snapshot/current-lnf" 2>/dev/null)"
+    if apply_desktop_scene_token "$encoded"; then
+        if [ "$mode" = custom ]; then
+            custom_wallpapers_complete "$encoded" && verified=1
+        else
+            auto_wallpapers_complete "$wallpaper_package" && verified=1
+        fi
+        if [ "$verified" -eq 1 ] \
+                && commit_theme_snapshot "$snapshot" "$active" "$previous"; then
+            if [ "$mode" = custom ]; then
+                printf '%s\n' "MoOS: custom desktop canvas applied"
+            else
+                printf '%s\n' "MoOS: restored the ${label#MoOS: } desktop canvas"
+            fi
+            return 0
+        fi
+    fi
+
+    echo "moos-theme: wallpaper change did not verify — restoring the exact snapshot" >&2
+    if restore_theme_state "$snapshot" && snapshot_state_complete "$snapshot"; then
+        actual="$(current 2>/dev/null)"
+        write_theme_state rolled-back "$actual" "$active" || true
+        find "$snapshot" -depth -delete 2>/dev/null || true
+    else
+        actual="$(current 2>/dev/null)"
+        write_theme_state rollback-failed "$actual" "$active" || true
+        echo "moos-theme: wallpaper rollback verification failed; snapshot retained at $snapshot" >&2
+    fi
+    return 1
+}
+
+undo_theme_transaction() {
+    local root undo current_snapshot active_before target retired active_after
+    root="$(theme_state_root)"
+    undo="$root/undo"
+    [ -d "$undo" ] || {
+        echo "moos-theme: no exact previous theme snapshot is available" >&2
+        return 1
+    }
+    current_snapshot="$(snapshot_theme_state)" || {
+        echo "moos-theme: could not snapshot the current theme before undo" >&2
+        return 1
+    }
+    active_before="$(cat "$current_snapshot/current-lnf" 2>/dev/null)"
+    target="$(cat "$undo/current-lnf" 2>/dev/null)"
+
+    if restore_theme_state "$undo" && snapshot_state_complete "$undo"; then
+        retired="$root/undo.applied.$$"
+        mv -- "$undo" "$retired" || return 1
+        if ! mv -- "$current_snapshot" "$undo"; then
+            mv -- "$retired" "$undo" 2>/dev/null || true
+            restore_theme_state "$current_snapshot" >/dev/null 2>&1 || true
+            return 1
+        fi
+        find "$retired" -depth -delete 2>/dev/null || true
+        active_after="$(current 2>/dev/null)"
+        printf '%s\n' "$active_before" \
+            >"${XDG_STATE_HOME:-$HOME/.local/state}/moos/theme-previous"
+        write_theme_state committed "$active_after" "$active_before" || return 1
+        printf 'MoOS: restored exact previous theme state (%s)\n' "$target"
+        return 0
+    fi
+
+    echo "moos-theme: undo failed verification — restoring the state from before undo" >&2
+    restore_theme_state "$current_snapshot" >/dev/null 2>&1 || true
+    active_after="$(current 2>/dev/null)"
+    write_theme_state rollback-failed "$active_after" "$target" || true
+    return 1
+}
+
+enable_auto_transaction() {
+    local snapshot previous active
+    snapshot="$(snapshot_theme_state)" || {
+        echo "moos-theme: could not snapshot the theme before enabling automatic mode" >&2
+        return 1
+    }
+    previous="$(cat "$snapshot/current-lnf" 2>/dev/null)"
+    if ! pin_switch_targets; then
+        restore_theme_state "$snapshot" >/dev/null 2>&1 || true
+        return 1
+    fi
+
+    case "$(current)" in
+        "$DARK_LNF"|"$LIGHT_LNF") ;;
+        *)
+            if ! apply "$DARK_LNF"; then
+                restore_theme_state "$snapshot" >/dev/null 2>&1 || true
+                write_theme_state rolled-back "$(current 2>/dev/null)" auto || true
+                return 1
+            fi
+            ;;
+    esac
+    if ! kwriteconfig6 --file kdeglobals --group KDE \
+            --key AutomaticLookAndFeel true; then
+        restore_theme_state "$snapshot" >/dev/null 2>&1 || true
+        write_theme_state rolled-back "$(current 2>/dev/null)" auto || true
+        return 1
+    fi
+    if ! sync_auto; then
+        restore_theme_state "$snapshot" >/dev/null 2>&1 || true
+        write_theme_state rolled-back "$(current 2>/dev/null)" auto || true
+        return 1
+    fi
+    active="$(current 2>/dev/null)"
+    if ! commit_theme_snapshot "$snapshot" "$active" "$previous"; then
+        restore_theme_state "$snapshot" >/dev/null 2>&1 || true
+        return 1
+    fi
+    echo "MoOS: تلقائي | auto (Tidal by day, Graphite by night)"
+}
+
 case "$command_name" in
     dark)
-        pin_switch_targets
         apply_manual "$DARK_LNF"
         ;;
     light)
-        pin_switch_targets
         apply_manual "$LIGHT_LNF"
         ;;
     apply-lnf)
         # Apply by look-and-feel ID directly (the GUI picker's entry point). The
         # installed package IS the source of truth — no friendly-name table. Goes
         # through apply_manual, so it gets undo/save-previous + revert-on-failure.
+        [ "$#" -eq 2 ] || { echo "moos-theme: apply-lnf requires one theme id" >&2; exit 2; }
         target="$2"
         case "$target" in
             org.moos.ui2|org.moos.ui2.*) ;;
@@ -1080,18 +1684,26 @@ case "$command_name" in
         esac
         [ -d "/usr/share/plasma/look-and-feel/$target" ] \
             || { echo "moos-theme: look '$target' is not installed" >&2; exit 1; }
-        pin_switch_targets
         apply_manual "$target"
         ;;
+    verify-lnf)
+        [ "$#" -eq 2 ] || { echo "moos-theme: verify-lnf requires one theme id" >&2; exit 2; }
+        verify_lnf_state "$2"
+        ;;
+    wallpaper-token)
+        [ "$#" -eq 2 ] || { echo "moos-theme: wallpaper-token requires one encoded local image" >&2; exit 2; }
+        apply_wallpaper_transaction custom "$2"
+        ;;
+    wallpaper-reset)
+        [ "$#" -eq 1 ] || { echo "moos-theme: wallpaper-reset accepts no value" >&2; exit 2; }
+        apply_wallpaper_transaction profile
+        ;;
+    guard)
+        [ "$#" -eq 1 ] || { echo "moos-theme: guard accepts no value" >&2; exit 2; }
+        guard_theme_defaults
+        ;;
     undo)
-        sd="${XDG_STATE_HOME:-$HOME/.local/state}/moos"
-        prev="$(cat "$sd/theme-previous" 2>/dev/null)"
-        if [ -z "$prev" ] || [ ! -d "/usr/share/plasma/look-and-feel/$prev" ]; then
-            echo "moos-theme: no previous theme recorded to undo to" >&2
-            exit 1
-        fi
-        pin_switch_targets
-        apply_manual "$prev"
+        undo_theme_transaction
         ;;
     nova)           apply_manual "$NOVA_LNF" ;;
     amethyst)       apply_manual "$AMETHYST_LNF" ;;
@@ -1152,8 +1764,6 @@ EOF
         # look-and-feel id follows the same rule — the light sibling is the dark
         # id + ".light" — so one string op toggles any family (base, Nova,
         # Amethyst, Midnight/Daylight, Aurora).
-        pin_switch_targets
-        kwriteconfig6 --file kdeglobals --group KDE --key AutomaticLookAndFeel false 2>/dev/null || true
         cur="$(current)"
         case "$cur" in
             *.light)                 target="${cur%.light}" ;;
@@ -1162,12 +1772,11 @@ EOF
                                      target="${cur}.light" ;;
             *)                       target="$LIGHT_LNF" ;;
         esac
-        apply "$target"
+        apply_manual "$target"
         ;;
     auto)
         command -v systemctl >/dev/null 2>&1 && \
             systemctl --user start moos-theme-sync.path >/dev/null 2>&1 || true
-        pin_switch_targets
         # Arming the switch is not the same as arriving. Plasma only fires it at the next
         # sunrise or sunset, and sync_auto deliberately refuses to touch a look that is not
         # already a UI2 half. So on a UI1 desktop this command pinned the targets, printed
@@ -1178,10 +1787,6 @@ EOF
         # target_lnf() already uses): the user keeps the brightness they are looking at, and
         # Plasma's switch corrects the half at the next transition — which is the whole of
         # what `auto` promises.
-        case "$(current)" in
-            "$DARK_LNF"|"$LIGHT_LNF") ;;
-            *)                apply "$DARK_LNF" ;;
-        esac
         # ARM LAST, and never before that apply. `plasma-apply-lookandfeel` clears
         # AutomaticLookAndFeel — applying a Global Theme by hand is Plasma's own signal that
         # the user has taken manual control. Arming first therefore armed nothing: the
@@ -1190,14 +1795,11 @@ EOF
         # desktop that had just been told to follow the sun). It is also why `dark`, `light`
         # and `toggle` set it false explicitly — they are agreeing with what apply does
         # anyway. Order is the whole fix.
-        kwriteconfig6 --file kdeglobals --group KDE --key AutomaticLookAndFeel true \
-            || { echo "moos-theme: could not enable automatic switching" >&2; exit 1; }
-        sync_auto || exit 1
-        echo "MoOS: تلقائي | auto (Tidal by day, Graphite by night)"
+        enable_auto_transaction
         ;;
     sync-auto)
         # Internal entry point kept for compatibility. It is intentionally
-        # harmless when automatic switching is off or UI1 rollback is active.
+        # harmless when automatic switching is off or a non-MoOS look is active.
         sync_auto
         ;;
     reconcile)

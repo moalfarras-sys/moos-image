@@ -1,7 +1,7 @@
 import QtQuick
 import org.kde.kirigami as Kirigami
 
-// The single keyboard-focus treatment for hand-drawn MoOS controls.
+// One keyboard-focus treatment for all hand-drawn MoOS controls.
 Rectangle {
     id: ring
 
@@ -10,11 +10,11 @@ Rectangle {
                                  ? parent["radius"] : 0
 
     anchors.fill: parent
-    anchors.margins: -3
-    radius: controlRadius + 3
+    anchors.margins: -Tokens.focusGap
+    radius: controlRadius + Tokens.focusGap
     color: "transparent"
-    border.width: 2
-    border.color: accentColor
+    border.width: Tokens.focusWidth
+    border.color: Qt.alpha(accentColor, Tokens.focusOpacity)
     visible: parent ? parent.activeFocus : false
     z: 99
     Accessible.ignored: true

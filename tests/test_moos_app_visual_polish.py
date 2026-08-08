@@ -12,7 +12,7 @@ import configparser
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 QML = ROOT / "system_files/usr/share/moos/apps/moai/main.qml"
 APPS = ROOT / "system_files/usr/share/moos/apps"
-UI = APPS / "ui"
+UI = ROOT / "system_files/usr/lib64/qt6/qml/org/moos/ui"
 COLOR_SCHEMES = ROOT / "system_files/usr/share/color-schemes"
 
 
@@ -63,7 +63,7 @@ class MoAIVisualPolishTests(unittest.TestCase):
         )
 
         button = re.search(
-            r"component\s+MoButton\s*:\s*MoOSUi\.Button\s*\{(.*?)"
+            r"component\s+MoButton\s*:\s*MoUI\.Button\s*\{(.*?)"
             r"component\s+ActionArea",
             self.code,
             re.S,
@@ -239,7 +239,7 @@ class FirstPartyKeyboardViewportTests(unittest.TestCase):
     def test_shared_helper_keeps_focus_visible_and_page_scroll_bounded(self) -> None:
         helper = (UI / "KeyboardViewport.js").read_text(encoding="utf-8")
         for token in (
-            "function revealFocus(item)",
+            "function revealFocus(item, requestedPadding)",
             "item.mapToItem(flick.contentItem, 0, 0)",
             "flick.contentHeight > flick.height",
             "flick.contentWidth > flick.width",
@@ -267,11 +267,11 @@ class FirstPartyKeyboardViewportTests(unittest.TestCase):
             source = (APPS / app / "main.qml").read_text(encoding="utf-8")
             with self.subTest(app=app):
                 self.assertIn(
-                    'import "../ui/KeyboardViewport.js" as KeyboardViewport',
+                    "import org.moos.ui as MoUI",
                     source,
                 )
                 self.assertIn(
-                    "onActiveFocusItemChanged: KeyboardViewport.revealFocus(win.activeFocusItem)",
+                    "onActiveFocusItemChanged: MoUI.KeyboardViewport.revealFocus(win.activeFocusItem)",
                     source,
                 )
                 # The algorithm belongs to the shared design-system helper; no application
@@ -281,7 +281,7 @@ class FirstPartyKeyboardViewportTests(unittest.TestCase):
                 for pane in panes:
                     self.assertIn(f"id: {pane}", source)
                     self.assertIn(
-                        f"Keys.onPressed: (event) => KeyboardViewport.pageScrollKeys({pane}, event)",
+                        f"Keys.onPressed: (event) => MoUI.KeyboardViewport.pageScrollKeys({pane}, event)",
                         source,
                     )
 
@@ -363,10 +363,10 @@ class SharedQmlDesignSystemTests(unittest.TestCase):
         for app in ("welcome", "installer", "store", "moai"):
             source = (APPS / app / "main.qml").read_text(encoding="utf-8")
             with self.subTest(app=app):
-                self.assertIn('import "../ui" as MoOSUi', source)
-                self.assertIn("MoOSUi.Tokens { id: design }", source)
+                self.assertIn("import org.moos.ui as MoUI", source)
+                self.assertIn("readonly property var design: MoUI.Tokens", source)
                 self.assertIn("function typePx(px)", source)
-                self.assertIn("component FocusRing: MoOSUi.FocusRing", source)
+                self.assertIn("component FocusRing: MoUI.FocusRing", source)
                 self.assertGreaterEqual(source.count("design.space"), 4)
                 self.assertGreaterEqual(source.count("design.radius"), 3)
 
@@ -397,26 +397,26 @@ class SharedQmlDesignSystemTests(unittest.TestCase):
             "foregroundColor: !enabled ? mutedTextColor",
             ": primary ? accentForegroundColor",
             ": destructive ? dangerColor",
-            "border.width: control.primary ? 0 : 1",
-            "implicitHeight: compact ? tokens.targetCompact : tokens.targetControl",
+            "border.width: control.primary ? 0 : Tokens.borderHairline",
+            "implicitHeight: compact ? Tokens.targetCompact : Tokens.targetControl",
         ):
             self.assertIn(token, button)
         self.assertNotIn("primary || destructive", button)
         self.assertNotIn("MouseArea", button)
-        self.assertIn("tokens.glassHoverOpacity", button)
-        self.assertIn("tokens.glassSelectedOpacity", button)
-        self.assertIn("tokens.disabledOpacity", button)
+        self.assertIn("Tokens.surfaceHoverOpacity", button)
+        self.assertIn("Tokens.surfacePressedOpacity", button)
+        self.assertIn("Tokens.disabledOpacity", button)
 
         tokens_qml = (UI / "Tokens.qml").read_text(encoding="utf-8")
         self.assertIn("readonly property int targetCompact: 40", tokens_qml)
         self.assertIn("readonly property int targetControl: 44", tokens_qml)
 
     def test_shared_surface_primitives_use_the_core(self) -> None:
-        for component in ("MoSurface", "MoGlass", "MoCard", "MoIconButton", "MoSeparator"):
+        for component in ("Surface", "GlassSurface", "Card", "IconButton", "Separator"):
             source = (UI / f"{component}.qml").read_text(encoding="utf-8")
             with self.subTest(component=component):
-                self.assertIn("Tokens { id: tokens }", source)
-        self.assertIn("tokens.radiusCard", (UI / "MoSurface.qml").read_text(encoding="utf-8"))
+                self.assertIn("Tokens.", source)
+        self.assertIn("Tokens.radiusCard", (UI / "Surface.qml").read_text(encoding="utf-8"))
 
         # The icon themes bake per-palette inks (FollowsColorScheme=false);
         # Buttons get their exact disabled/destructive/primary foregrounds
@@ -427,9 +427,9 @@ class SharedQmlDesignSystemTests(unittest.TestCase):
         self.assertIn("color: foreground", symbol_icon)
 
         for app, component in (
-            ("welcome", "DeviceSettingsButton: MoOSUi.Button"),
-            ("store", "ActionButton: MoOSUi.Button"),
-            ("moai", "MoButton: MoOSUi.Button"),
+            ("welcome", "DeviceSettingsButton: MoUI.Button"),
+            ("store", "ActionButton: MoUI.Button"),
+            ("moai", "MoButton: MoUI.Button"),
         ):
             with self.subTest(app=app):
                 source = (APPS / app / "main.qml").read_text(encoding="utf-8")

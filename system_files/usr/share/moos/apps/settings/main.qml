@@ -11,17 +11,18 @@ import QtQuick
 import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
-import "../ui" as MoOSUi
-import "../ui/SymbolCatalog.js" as MoOSSymbols
+import org.moos.ui as MoUI
 
 QQC2.ApplicationWindow {
     id: win
 
     visible: true
-    width: Math.min(1360, Screen.desktopAvailableWidth * 0.94)
-    height: Math.min(860, Screen.desktopAvailableHeight * 0.94)
-    minimumWidth: Math.min(1040, Screen.desktopAvailableWidth * 0.94)
-    minimumHeight: Math.min(680, Screen.desktopAvailableHeight * 0.94)
+    width: Math.min(design.commandCenterWidth, Screen.desktopAvailableWidth * 0.94)
+    height: Math.min(design.commandCenterHeight, Screen.desktopAvailableHeight * 0.94)
+    minimumWidth: Math.min(design.commandCenterMinimumWidth,
+                           Screen.desktopAvailableWidth * 0.94)
+    minimumHeight: Math.min(design.commandCenterMinimumHeight,
+                            Screen.desktopAvailableHeight * 0.94)
     title: win.local("مركز قيادة MoOS", "MoOS Command Center")
     color: canvas
 
@@ -36,7 +37,7 @@ QQC2.ApplicationWindow {
     function typePx(size) { return design.typeSize(size, fontScale) }
     function local(ar, en) { return rtl ? ar : en }
 
-    MoOSUi.Tokens { id: design }
+    readonly property var design: MoUI.Tokens
 
     readonly property color canvas: Kirigami.Theme.backgroundColor
     readonly property color surface: Kirigami.Theme.alternateBackgroundColor
@@ -426,7 +427,7 @@ QQC2.ApplicationWindow {
         onTriggered: win.loadStatus()
     }
 
-    component FocusRing: MoOSUi.FocusRing {
+    component FocusRing: MoUI.FocusRing {
         accentColor: win.accent
     }
 
@@ -452,7 +453,7 @@ QQC2.ApplicationWindow {
         }
     }
 
-    component StatusCapsule: Rectangle {
+    component StatusCapsule: MoUI.Surface {
         id: capsule
         required property string glyph
         required property string label
@@ -463,8 +464,10 @@ QQC2.ApplicationWindow {
         implicitHeight: win.fs(54)
         implicitWidth: capsuleRow.implicitWidth + design.space5 * 2
         radius: design.radiusCard
-        color: Qt.rgba(win.textColor.r, win.textColor.g, win.textColor.b, 0.065)
-        border.width: 1
+        surfaceColor: Qt.rgba(win.textColor.r, win.textColor.g,
+                              win.textColor.b, 0.065)
+        inkColor: win.textColor
+        accentColor: statusColor
         border.color: Qt.rgba(statusColor.r, statusColor.g, statusColor.b, active ? 0.34 : 0.14)
 
         RowLayout {
@@ -477,15 +480,15 @@ QQC2.ApplicationWindow {
             Rectangle {
                 Layout.preferredWidth: win.fs(30)
                 Layout.preferredHeight: win.fs(30)
-                radius: 10
+                radius: design.radiusSmall
                 color: Qt.rgba(capsule.statusColor.r, capsule.statusColor.g,
                                capsule.statusColor.b, capsule.active ? 0.18 : 0.08)
 
-                MoOSUi.SymbolIcon {
+                MoUI.SymbolIcon {
                     anchors.centerIn: parent
                     width: 17
                     height: 17
-                    symbol: MoOSSymbols.resolve(capsule.glyph)
+                    symbol: MoUI.SymbolCatalog.resolve(capsule.glyph)
                     foreground: capsule.active ? capsule.statusColor : win.mutedColor
                 }
             }
@@ -552,16 +555,16 @@ QQC2.ApplicationWindow {
             Rectangle {
                 Layout.preferredWidth: win.fs(34)
                 Layout.preferredHeight: win.fs(34)
-                radius: 11
+                radius: design.radiusControl
                 color: navControl.selected
                        ? win.accent
                        : Qt.rgba(win.textColor.r, win.textColor.g, win.textColor.b, 0.06)
 
-                MoOSUi.SymbolIcon {
+                MoUI.SymbolIcon {
                     anchors.centerIn: parent
                     width: 18
                     height: 18
-                    symbol: MoOSSymbols.resolve(navControl.sectionData.glyph)
+                    symbol: MoUI.SymbolCatalog.resolve(navControl.sectionData.glyph)
                     foreground: navControl.selected ? win.accentText : win.textColor
                 }
             }
@@ -580,7 +583,7 @@ QQC2.ApplicationWindow {
                 visible: navControl.selected
                 Layout.preferredWidth: win.fs(5)
                 Layout.preferredHeight: win.fs(18)
-                radius: 3
+                radius: width / 2
                 color: win.accent
             }
         }
@@ -592,7 +595,7 @@ QQC2.ApplicationWindow {
         }
     }
 
-    component MetricTile: Rectangle {
+    component MetricTile: MoUI.Surface {
         id: metric
         required property string glyph
         required property string label
@@ -602,8 +605,9 @@ QQC2.ApplicationWindow {
 
         implicitHeight: win.fs(112)
         radius: design.radiusCard
-        color: win.surface
-        border.width: 1
+        surfaceColor: win.surface
+        inkColor: win.textColor
+        accentColor: tone
         border.color: win.faintOutline
 
         ColumnLayout {
@@ -615,10 +619,10 @@ QQC2.ApplicationWindow {
                 Layout.fillWidth: true
                 spacing: design.space2
 
-                MoOSUi.SymbolIcon {
+                MoUI.SymbolIcon {
                     Layout.preferredWidth: win.fs(18)
                     Layout.preferredHeight: win.fs(18)
-                    symbol: MoOSSymbols.resolve(metric.glyph)
+                    symbol: MoUI.SymbolCatalog.resolve(metric.glyph)
                     foreground: metric.tone
                 }
                 Text {
@@ -646,7 +650,7 @@ QQC2.ApplicationWindow {
                 visible: metric.progress >= 0
                 Layout.fillWidth: true
                 Layout.preferredHeight: win.fs(4)
-                radius: 2
+                radius: height / 2
                 color: Qt.rgba(win.textColor.r, win.textColor.g, win.textColor.b, 0.08)
 
                 Rectangle {
@@ -705,7 +709,7 @@ QQC2.ApplicationWindow {
                 anchors.verticalCenter: parent.verticalCenter
                 width: commandControl.hovered ? 4 : 0
                 height: 38
-                radius: 2
+                radius: width / 2
                 color: win.accent
 
                 Behavior on width {
@@ -737,11 +741,11 @@ QQC2.ApplicationWindow {
                 color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b,
                                commandControl.hovered ? 0.19 : 0.11)
 
-                MoOSUi.SymbolIcon {
+                MoUI.SymbolIcon {
                     anchors.centerIn: parent
                     width: 24
                     height: 24
-                    symbol: MoOSSymbols.resolve(commandControl.commandData.glyph)
+                    symbol: MoUI.SymbolCatalog.resolve(commandControl.commandData.glyph)
                     foreground: win.accent
                 }
             }
@@ -769,7 +773,7 @@ QQC2.ApplicationWindow {
                         visible: Boolean(commandControl.commandData.tagAr)
                         implicitWidth: commandTag.implicitWidth + design.space3
                         implicitHeight: win.fs(24)
-                        radius: 12
+                        radius: height / 2
                         color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.14)
 
                         Text {
@@ -798,16 +802,16 @@ QQC2.ApplicationWindow {
             Rectangle {
                 Layout.preferredWidth: win.fs(36)
                 Layout.preferredHeight: win.fs(36)
-                radius: 18
+                radius: width / 2
                 color: commandControl.hovered
                        ? Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.16)
                        : "transparent"
 
-                MoOSUi.SymbolIcon {
+                MoUI.SymbolIcon {
                     anchors.centerIn: parent
                     width: 17
                     height: 17
-                    symbol: MoOSSymbols.resolve("arrow")
+                    symbol: MoUI.SymbolCatalog.resolve("arrow")
                     foreground: commandControl.hovered ? win.accent : win.mutedColor
                 }
             }
@@ -837,12 +841,13 @@ QQC2.ApplicationWindow {
         anchors.margins: design.space5
         spacing: design.space5
 
-        Rectangle {
-            Layout.preferredWidth: win.fs(252)
+        MoUI.GlassSurface {
+            Layout.preferredWidth: win.fs(design.commandCenterSidebarWidth)
             Layout.fillHeight: true
-            radius: design.radiusPanel
-            color: win.surface
-            border.width: 1
+            surfaceColor: win.surface
+            inkColor: win.textColor
+            accentColor: win.accent
+            floating: true
             border.color: win.faintOutline
 
             ColumnLayout {
@@ -861,11 +866,11 @@ QQC2.ApplicationWindow {
                         radius: design.radiusCard
                         color: win.accent
 
-                        MoOSUi.SymbolIcon {
+                        MoUI.SymbolIcon {
                             anchors.centerIn: parent
                             width: 26
                             height: 26
-                            symbol: MoOSSymbols.resolve("orbit")
+                            symbol: MoUI.SymbolCatalog.resolve("orbit")
                             foreground: win.accentText
                         }
                     }
@@ -915,10 +920,10 @@ QQC2.ApplicationWindow {
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: design.space2
-                            MoOSUi.SymbolIcon {
+                            MoUI.SymbolIcon {
                                 Layout.preferredWidth: win.fs(18)
                                 Layout.preferredHeight: win.fs(18)
-                                symbol: MoOSSymbols.resolve(
+                                symbol: MoUI.SymbolCatalog.resolve(
                                     win.status.deployment.signed ? "shield" : "warning"
                                 )
                                 foreground: win.status.deployment.signed
@@ -949,7 +954,7 @@ QQC2.ApplicationWindow {
                         Rectangle {
                             Layout.fillWidth: true
                             Layout.preferredHeight: win.fs(3)
-                            radius: 2
+                            radius: height / 2
                             color: Qt.rgba(win.textColor.r, win.textColor.g, win.textColor.b, 0.08)
                             Rectangle {
                                 width: parent.width
@@ -963,10 +968,10 @@ QQC2.ApplicationWindow {
                     }
                 }
 
-                MoOSUi.Button {
+                MoUI.Button {
                     Layout.fillWidth: true
                     label: win.local("كل إعدادات النظام", "All system settings")
-                    iconName: MoOSSymbols.resolve("external")
+                    iconName: MoUI.SymbolCatalog.resolve("external")
                     surfaceColor: win.raised
                     accentColor: win.accent
                     textColor: win.textColor
@@ -1041,7 +1046,7 @@ QQC2.ApplicationWindow {
                         border.color: searchField.activeFocus ? win.accent : win.outline
                     }
 
-                    MoOSUi.SymbolIcon {
+                    MoUI.SymbolIcon {
                         anchors.verticalCenter: parent.verticalCenter
                         anchors.left: win.rtl ? undefined : parent.left
                         anchors.leftMargin: design.space4
@@ -1049,7 +1054,7 @@ QQC2.ApplicationWindow {
                         anchors.rightMargin: design.space4
                         width: 18
                         height: 18
-                        symbol: MoOSSymbols.resolve("search")
+                        symbol: MoUI.SymbolCatalog.resolve("search")
                         foreground: searchField.activeFocus ? win.accent : win.mutedColor
                     }
 
@@ -1077,14 +1082,16 @@ QQC2.ApplicationWindow {
                     width: contentFlick.width - (contentFlick.contentHeight > contentFlick.height ? 12 : 0)
                     spacing: design.space4
 
-                    Rectangle {
+                    MoUI.GlassSurface {
                         id: hero
                         visible: win.activeSection === "home" && win.searchQuery === ""
                         width: parent.width
-                        height: visible ? 312 : 0
-                        radius: 30
-                        color: win.raisedStrong
-                        border.width: 1
+                        height: visible ? win.fs(design.commandCenterHeroHeight) : 0
+                        radius: design.radiusDialog
+                        surfaceColor: win.raisedStrong
+                        inkColor: win.textColor
+                        accentColor: win.accent
+                        floating: true
                         border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.28)
                         clip: true
 
@@ -1101,7 +1108,7 @@ QQC2.ApplicationWindow {
                                 Rectangle {
                                     implicitWidth: heroEyebrow.implicitWidth + design.space4
                                     implicitHeight: win.fs(28)
-                                    radius: 14
+                                    radius: height / 2
                                     color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.14)
                                     Text {
                                         id: heroEyebrow
@@ -1153,9 +1160,9 @@ QQC2.ApplicationWindow {
 
                                 RowLayout {
                                     spacing: design.space3
-                                    MoOSUi.Button {
+                                    MoUI.Button {
                                         label: win.local("تحديث MoOS", "Update MoOS")
-                                        iconName: MoOSSymbols.resolve("safe-update")
+                                        iconName: MoUI.SymbolCatalog.resolve("safe-update")
                                         primary: true
                                         surfaceColor: win.surface
                                         accentColor: win.accent
@@ -1164,9 +1171,9 @@ QQC2.ApplicationWindow {
                                         fontPixelSize: win.typePx(design.typeSecondary)
                                         onClicked: win.openRoute("moos://settings/update")
                                     }
-                                    MoOSUi.Button {
+                                    MoUI.Button {
                                         label: win.local("تفاصيل الجهاز", "Device details")
-                                        iconName: MoOSSymbols.resolve("external")
+                                        iconName: MoUI.SymbolCatalog.resolve("external")
                                         surfaceColor: win.surface
                                         accentColor: win.accent
                                         textColor: win.textColor
@@ -1222,11 +1229,11 @@ QQC2.ApplicationWindow {
                                         radius: width / 2
                                         color: win.accent
 
-                                        MoOSUi.SymbolIcon {
+                                        MoUI.SymbolIcon {
                                             anchors.centerIn: parent
                                             width: parent.width * 0.47
                                             height: width
-                                            symbol: MoOSSymbols.resolve("system")
+                                            symbol: MoUI.SymbolCatalog.resolve("system")
                                             foreground: win.accentText
                                         }
                                     }
@@ -1257,7 +1264,7 @@ QQC2.ApplicationWindow {
                                     anchors.bottomMargin: design.space3
                                     implicitWidth: orbitLabel.implicitWidth + design.space4
                                     implicitHeight: win.fs(30)
-                                    radius: 15
+                                    radius: height / 2
                                     color: win.surface
                                     border.width: 1
                                     border.color: win.outline
@@ -1436,11 +1443,11 @@ QQC2.ApplicationWindow {
                                         }
                                         contentItem: ColumnLayout {
                                             spacing: design.space2
-                                            MoOSUi.SymbolIcon {
+                                            MoUI.SymbolIcon {
                                                 Layout.alignment: Qt.AlignHCenter
                                                 Layout.preferredWidth: win.fs(24)
                                                 Layout.preferredHeight: win.fs(24)
-                                                symbol: MoOSSymbols.resolve(laneButton.modelData.glyph)
+                                                symbol: MoUI.SymbolCatalog.resolve(laneButton.modelData.glyph)
                                                 foreground: laneButton.hovered
                                                             ? win.accent : win.textColor
                                             }
@@ -1472,12 +1479,14 @@ QQC2.ApplicationWindow {
                         height: visible ? implicitHeight : win.fs(0)
                         spacing: design.space3
 
-                        Rectangle {
+                        MoUI.GlassSurface {
                             Layout.fillWidth: true
                             Layout.preferredHeight: win.fs(132)
                             radius: design.radiusPanel
-                            color: win.raised
-                            border.width: 1
+                            surfaceColor: win.raised
+                            inkColor: win.textColor
+                            accentColor: win.accent
+                            floating: true
                             border.color: win.outline
 
                             RowLayout {
@@ -1488,17 +1497,17 @@ QQC2.ApplicationWindow {
                                 Rectangle {
                                     Layout.preferredWidth: win.fs(72)
                                     Layout.preferredHeight: win.fs(72)
-                                    radius: 24
+                                    radius: design.radiusPanel
                                     color: Qt.rgba(win.accent.r, win.accent.g,
                                                    win.accent.b, 0.15)
                                     border.width: 1
                                     border.color: Qt.rgba(win.accent.r, win.accent.g,
                                                          win.accent.b, 0.28)
-                                    MoOSUi.SymbolIcon {
+                                    MoUI.SymbolIcon {
                                         anchors.centerIn: parent
                                         width: 34
                                         height: 34
-                                        symbol: MoOSSymbols.resolve(
+                                        symbol: MoUI.SymbolCatalog.resolve(
                                             win.searchQuery !== ""
                                             ? "search" : win.activeSectionData.glyph
                                         )
@@ -1560,11 +1569,11 @@ QQC2.ApplicationWindow {
                                 anchors.centerIn: parent
                                 width: Math.min(parent.width - design.space6 * 2, 460)
                                 spacing: design.space3
-                                MoOSUi.SymbolIcon {
+                                MoUI.SymbolIcon {
                                     Layout.alignment: Qt.AlignHCenter
                                     Layout.preferredWidth: win.fs(38)
                                     Layout.preferredHeight: win.fs(38)
-                                    symbol: MoOSSymbols.resolve("search")
+                                    symbol: MoUI.SymbolCatalog.resolve("search")
                                     foreground: win.mutedColor
                                 }
                                 Text {

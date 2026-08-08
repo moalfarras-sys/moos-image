@@ -2449,7 +2449,7 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=44" in apply_theme_code,
+require("THEME_REV=46" in apply_theme_code,
         "MoOS visual schema must migrate existing users to the liquid-glass marks "
         "and the two-slab Horizon Bar (moos-bar-apply), while reconciling new shadows "
         "and purging the Plasma SVG cache that would otherwise keep serving old art")
@@ -2457,9 +2457,8 @@ require("local_plasmoids=" in apply_theme_code
         and "org.moos.brand" in apply_theme_code.split("local_plasmoids=")[1][:400],
         "THEME_REV 29 must purge home shadows of the first-party MoOS plasmoids — "
         "a ~/.local/share/plasma/plasmoids/org.moos.brand preview outranks /usr forever")
-require('[ "$lockscreen" = "$wallpaper_package" ]' in apply_theme_code,
-        "THEME_REV 28 must read back the exact lock wallpaper package, not a prefix")
-require('[ "$lock_image" = "$wallpaper_package" ] || return 1' in code(read("system_files/usr/bin/moos-theme")),
+theme_owner_code = code(read("system_files/usr/bin/moos-theme"))
+require('[ "$lock_image" = "$wallpaper_package" ] || return 1' in theme_owner_code,
         "manual/automatic theme switching must reject a light/dark lock wallpaper mismatch")
 require(
     "local_icons=" in apply_theme_code
@@ -2642,26 +2641,21 @@ require(
 # an apply-once marker must never outrank what the desktop is ACTUALLY wearing — a
 # script that trusts its own marker on a desktop that has silently reverted is the thing
 # that keeps it reverted.
-require("pin_lookandfeel_switch_targets()" in apply_theme_code,
-        "moos-apply-theme must point Plasma's day/night switch at MoOS themes, "
-        "never leave it aimed at a package that is not installed")
+require('moos-theme guard' in apply_theme_code
+        and "guard_theme_defaults()" in theme_owner_code,
+        "the revision migrator must delegate the day/night and sound guards to "
+        "the single transactional theme owner")
 require("current_lookandfeel()" in apply_theme_code and "SELF-HEAL" in apply_theme_code,
         "moos-apply-theme must re-apply when the desktop is no longer wearing MoOS")
-require(all(token in apply_theme_code for token in (
-            "current_scheme()", "current_style()", "current_icons()",
-            "current_scene_state()", "theme_complete()")),
-        "the apply-once marker must be backed by runtime readback of the full theme and "
-        "the exact per-containment desktop-SCENE state, not only LNF + decoration")
-require("scene-each" in apply_theme_code
-        and "desktops=[1-9][0-9]*;state=" in apply_theme_code,
-        "the desktop scene must be validated once per containment; a global count of one "
-        "breaks every multi-monitor or multi-Activity desktop")
-require("timeout 4s gdbus call" in apply_theme_code,
-        "runtime scene readback must time out instead of hanging login on an "
-        "unresponsive plasmashell")
-require("desktop_wallpapers_complete()" in apply_theme_code
-        and "matching == desktops" in apply_theme_code
-        and "grep -m1 '^Image='" not in apply_theme_code,
+require('moos-theme verify-lnf "$lnf"' in apply_theme_code
+        and 'moos-theme verify-lnf "$lnf_after"' in apply_theme_code
+        and "verify_lnf_state()" in theme_owner_code
+        and "full_theme_complete state" in theme_owner_code,
+        "the marker must be backed by the central owner's full runtime readback, "
+        "not a second profile table in the revision migrator")
+require("auto_wallpapers_complete()" in theme_owner_code
+        and '[ "$desktops" = "$matching" ]' in theme_owner_code
+        and "grep -m1 '^Image='" not in theme_owner_code,
         "theme completion must verify the wallpaper on every desktop containment; "
         "the first Image= line is not authoritative on multiple monitors/Activities")
 # The scene replaces the desktop-widget era: the repair points every containment
@@ -2669,21 +2663,20 @@ require("desktop_wallpapers_complete()" in apply_theme_code
 # applets that would otherwise still draw over the icons. addWidget placement is
 # FORBIDDEN — any coordinate is a collision with some icon layout somewhere.
 # THEME_REV 43 briefly seeded heroclock; rev 44 removes it and restores the ban.
-require("apply_desktop_scene" in apply_theme_code
-        and 'd.wallpaperPlugin = "org.moos.ui2.wallpaper"' in apply_theme_code
-        and 'writeConfig("Image", IMAGE)' in apply_theme_code
-        and 'ws[j].remove()' in apply_theme_code
-        and 'ws[j].type == "org.moos.heroclock"' in apply_theme_code,
+require("apply_desktop_scene_token" in theme_owner_code
+        and 'd.wallpaperPlugin = "org.moos.ui2.wallpaper"' in theme_owner_code
+        and 'writeConfig("Image", IMAGE)' in theme_owner_code
+        and 'ws[j].remove()' in theme_owner_code
+        and 'ws[j].type == "org.moos.heroclock"' in theme_owner_code,
         "theme repair must point every desktop containment at the MoOS scene wallpaper "
         "and remove the retired dashboard applets (including the rejected heroclock seed)")
-require("d.addWidget(" not in apply_theme_code
+require("d.addWidget(" not in theme_owner_code
         and "seed_heroclock_once" not in apply_theme_code,
         "moos-apply-theme must not place desktop widgets — the bento lives inside the "
         "wallpaper, and the auto-seeded heroclock was rejected on sight")
 require("flock -n 9" in apply_theme_code,
         "two overlapping autostart instances must not race while replacing the same widget")
-require('theme_complete "$lnf_after" "$deco_after" "$want_wallpaper_package"'
-        in apply_theme_code
+require('moos-theme verify-lnf "$lnf_after"' in apply_theme_code
         and 'rm -f "$marker"' in apply_theme_code,
         "a partial theme apply must leave its marker absent so the next login retries")
 
@@ -2781,11 +2774,15 @@ for package in FAMILY_LNF:
             f"its colour scheme {family_scheme or 'missing'}",
         )
 
+theme_profiles = json.loads(read("artwork/moos-design/theme-profiles.json"))["profiles"]
 require(
-    apply_theme_code.count('expected_icons="$expected_style"') == 5
-    and apply_theme_code.count('want_icons="$want_style"') == 5,
-    "moos-apply-theme must validate and pin every non-base family member's "
-    "palette-specific icon overlay instead of collapsing them to MoOSUI2 dark/light",
+    len(theme_profiles) == 16
+    and all(profile["icons"] == profile["style"] for profile in theme_profiles)
+    and "MOOS_THEME_PROFILE_DB" in theme_owner_code
+    and "want_icons=" not in apply_theme_code
+    and "expected_icons=" not in apply_theme_code,
+    "the generated profile database must own every palette-specific icon overlay; "
+    "the revision migrator must not regain a second family table",
 )
 
 FAMILY_PROFILES = ["MoOSUI2.profile", "MoOSUI2Amethyst.profile", "MoOSUI2AmethystLight.profile",
@@ -2882,7 +2879,8 @@ for half, wallpaper in (("org.moos.ui2", "MoOSUI2Graphite"),
 
 # moos-apply-theme repairs the look the user is ON, not the one MoOS prefers. Dragging a
 # user who chose Light back to Dark on every login is not protection, it is the bug.
-require("target_lnf()" in apply_theme_code and "theme_intact()" in apply_theme_code,
+require("target_lnf()" in apply_theme_code
+        and 'moos-theme verify-lnf "$lnf"' in apply_theme_code,
         "the self-heal must accept EITHER MoOS look and repair to the one the user chose")
 
 ui_migrate = read("system_files/usr/bin/moos-ui-migrate")
@@ -2976,27 +2974,36 @@ require("[kwinrc][org.kde.kdecoration2]" in lnf_defaults
         and "theme=__aurorae__svg__MoOSUI2" in lnf_defaults,
         "org.moos.ui2's defaults must declare the window decoration, or Breeze's entry "
         "in ~/.config/kdedefaults/kwinrc permanently shadows /etc/xdg/kwinrc")
-require('--group org.kde.kdecoration2 --key theme "$want_deco"' in apply_theme,
-        "the theme migration must pin the MoOS decoration into an existing user's own "
-        "kwinrc; a system default cannot reach past kdedefaults")
+require('--group org.kde.kdecoration2 --key theme "$deco"' in theme_switch
+        and 'moos-theme apply-lnf "$want_lnf"' in apply_theme,
+        "the transactional theme owner must pin the MoOS decoration into the user's "
+        "kwinrc, and the login migration must delegate to that owner")
 
 # Same trap, third instance: [Sounds] is not in the entry set LookAndFeelManager applies,
 # so a user carrying Theme=freedesktop from the defaults they were created under keeps it,
 # and the MoOS sound theme ships without ever playing.
-require("--group Sounds --key Theme moos" in apply_theme,
-        "the theme migration must pin the Nova sound theme into an existing user's own "
+require("--group Sounds --key Theme moos" in theme_switch,
+        "the theme owner must pin the MoOS sound theme into an existing user's own "
         "kdeglobals; Plasma never writes [Sounds] when applying a Global Theme")
 
 # GTK apps are the last non-Qt surface, and the one place where MoOS was generating the
 # right answer and throwing it away. Plasma's gtkconfig module regenerates
-# ~/.config/gtk-3.0/colors.css from the active KDE scheme — those colours ARE Nova's — but
+# ~/.config/gtk-3.0/colors.css from the active KDE scheme — those colours ARE MoOS's — but
 # it never sets gtk-theme-name. Empty means GTK uses built-in Adwaita, which does not read
 # a single one of the borders_breeze / content_view_bg_breeze variables that file defines.
 # Only the Breeze GTK stylesheet does (965 references). Naming it is what connects the two.
-require("--key gtk-theme-name Breeze" in apply_theme,
-        "GTK apps must name the Breeze stylesheet, or the Nova palette Plasma generates "
-        "into colors.css is read by nothing")
-require("--key gtk-sound-theme-name moos" in apply_theme,
+require('"qtWidgetStyle": "Breeze"' in
+        read("artwork/moos-design/theme-profiles.json")
+        and '"gtkTheme": "Breeze"' in
+        read("artwork/moos-design/theme-profiles.json")
+        and '--key widgetStyle "$qt_widget_style"' in theme_switch
+        and '--key gtk-theme-name "$gtk_theme"' in theme_switch
+        and 'gsettings set org.gnome.desktop.interface gtk-theme "$gtk_theme"'
+            in theme_switch,
+        "Qt and GTK apps must resolve their declared technical engines from the "
+        "central profile, or the MoOS palette Plasma generates into colors.css "
+        "is read by nothing")
+require("--key gtk-sound-theme-name moos" in theme_switch,
         "GTK's sound theme must be pinned too; gtkconfig syncs icons and cursors from "
         "kdeglobals but never [Sounds]")
 
@@ -3270,24 +3277,32 @@ require("Layout.minimumWidth: implicitWidth" in launcher_view_qml
         and "MOOS_LAUNCHER_FULL_READY size=" in launcher_view_qml,
         "the full launcher must enforce and report its unclipped 792x576 representation to "
         "the plasmawindowed smoke")
-# Commercial shell language: a 20px outer rhythm, 40px affordances, functional
+# Commercial shell language: the generated spacing rhythm, 40px affordances, functional
 # text no smaller than 11px, and four columns that still ride the type ramp.
 # An early four-column launcher was rejected because it drove labels down to
 # 7–10px; the current one is only acceptable because every pixelSize below
 # stays on the 11+ type tokens — that pairing is what this gate holds, and
 # densifying past four columns remains out.
+_design_tokens = json.loads(read("artwork/moos-design/tokens.json"))
 _launcher_tokens = {
-    "space1": 4, "space2": 8, "space3": 12, "space4": 16, "space5": 20,
-    "space6": 24,
-    "radiusS": 8, "radiusM": 12, "radiusL": 16, "radiusXL": 24,
-    "targetSize": 40, "typeCaption": 11, "typeSecondary": 13,
-    "typeBody": 14, "typeEmphasis": 15, "typeSubheading": 18, "typeTitle": 20,
+    "space1": "design.space1", "space2": "design.space2",
+    "space3": "design.space3", "space4": "design.space4",
+    "space5": "design.space5", "space6": "design.space5",
+    "radiusS": "design.radiusSmall", "radiusM": "design.radiusControl",
+    "radiusL": "design.radiusCard", "radiusXL": "design.radiusPanel",
+    "targetSize": "design.targetCompact", "typeCaption": "design.typeCaption",
+    "typeSecondary": "design.typeSecondary", "typeBody": "design.typeBody",
+    "typeEmphasis": "design.typeLabel", "typeSubheading": "design.typeTitle",
+    "typeTitle": "design.typeTitle",
 }
-require(all(f"readonly property int {name}: {value}" in launcher_view_qml
-            for name, value in _launcher_tokens.items())
+require(_design_tokens["spacing"]["space1"] == 4
+        and _design_tokens["radius"]["radiusControl"] == 12
+        and _design_tokens["target"]["targetCompact"] == 40
+        and _design_tokens["type"]["typeCaption"] == 11
+        and all(f"readonly property int {name}: {source}" in launcher_view_qml
+                for name, source in _launcher_tokens.items())
         and "anchors.margins: view.space5" in launcher_view_qml,
-        "the launcher must use the unified 4px spacing, 8/12/16/24 radii, "
-        "40px target and 11/13/14/15/18/20 type tokens")
+        "the launcher must consume the generated MoOS spacing, radii, target and type tokens")
 require("Press Meta to open" not in launcher_view_qml
         and "يفتح بزر Meta" not in launcher_view_qml
         and launcher_view_qml.count(
@@ -3464,7 +3479,7 @@ _unlock = _lock_main[_unlock_start:_unlock_end]
 require(_unlock_start >= 0 and _unlock_end > _unlock_start
         and "color: sessionManager.accentA" in _unlock
         and "color: Kirigami.Theme.highlightedTextColor" in _unlock
-        and "scale: loginButton.down ? 0.94 : 1.0" in _unlock
+        and "scale: loginButton.down ? sessionManager.design.pressScale : 1.0" in _unlock
         and "gradient: Gradient" not in _unlock
         and re.search(r'color\s*:\s*["\']white["\']|'
                       r'Qt\.rgba\(\s*1\s*,\s*1\s*,\s*1\s*,', _unlock) is None,
@@ -3502,7 +3517,9 @@ require(re.search(r"if\s*\(stage\s*===\s*2\)\s*\{.*?"
         and _splash.count("id: revealAnimation") == 1
         and "progressMotion" not in _splash
         and re.search(r"Behavior on width\s*\{\s*NumberAnimation\s*\{\s*"
-                      r"duration:\s*root\.motionEnabled\s*\?\s*260\s*:\s*0",
+                      r"duration:\s*root\.design\.duration\(\s*"
+                      r"root\.motionEnabled\s*,\s*"
+                      r"root\.design\.motionEmphasis\s*\)",
                       _splash) is not None
         and "opacity: root.stage >= 5 ? 0 : 1" in _splash
         and "TidalHorizon" not in _splash
@@ -3547,8 +3564,10 @@ require(_logout_code.count("cancelRequested()") == 3
 require("try {" in layout,
         "the floating setter must be guarded -- a throw in the layout template "
         "leaves the session with NO panel")
-require("want_wallpaper_package=/usr/share/wallpapers/MoOSUI2Graphite" in apply_theme
-        and "contents/images_dark/3840x2160.jpg" in apply_theme,
+theme_runtime_db = read("system_files/usr/share/moos/theme-profiles.tsv")
+require("org.moos.ui2\tMoOSUI2Dark\tMoOSUI2\t" in theme_runtime_db
+        and "\tMoOSUI2Graphite\timages_dark\tdark\t" in theme_runtime_db
+        and 'moos-theme apply-lnf "$want_lnf"' in apply_theme,
         "Existing users must migrate to the MoOS UI2 Graphite dark wallpaper")
 
 lock_config = read("system_files/etc/xdg/kscreenlockerrc")
@@ -3668,6 +3687,21 @@ for dead_sddm in ("system_files/usr/share/sddm", "system_files/etc/sddm.conf.d")
             f"dead SDDM login stack is back in the tree: {dead_sddm} — "
             "plasmalogin is the display manager; nothing reads SDDM files")
 
+# Git/OSTree already provide exact rollback. Keeping metadata-less UI1 art,
+# backup generator copies or a hand-rendered test image in the shipping source
+# tree creates additional design owners that no runtime selector consumes.
+for dead_visual in (
+    "system_files/usr/share/plasma/desktoptheme/Nova",
+    "artwork/tools/gen-nova-plasma-svgs.py",
+    "artwork/tools/gen-nova-aurorae.py",
+    "artwork/generate_moos_app_icons.py.bak",
+    "artwork/generate_moos_symbolic_icons.py.bak",
+    "artwork/master_icons/test.png",
+):
+    require(not (ROOT / dead_visual).exists(),
+            f"retired visual source returned: {dead_visual} — the generated "
+            "MoOSUI2 family and current generators are the only owners")
+
 # The dock is a floating CAPSULE — centered, hugging its content — not an
 # edge-to-edge bar. The installed flagship machine runs that geometry (the
 # shipped proof ui2-dark-real-desktop.jpg), but the layout template only set
@@ -3727,13 +3761,14 @@ for adw_variant, adw_css_rel in (("dark", "system_files/usr/share/moos/gtk/moos-
                 f"{adw_variant}.{token} ({expected_hex}) — libadwaita apps would "
                 "drift from the desktop palette")
 adw_switcher = code(read("system_files/usr/bin/moos-theme"))
+adw_runtime_db = code(read("system_files/usr/share/moos/theme-profiles.tsv"))
 for adw_needle in ("moos-ui2-dark.css", "moos-ui2-light.css",
                    # gtk.css belongs to Plasma's gtkconfig (it writes the
-                   # colors.css import at login, before moos-theme runs) —
-                   # MoOS only APPENDS this one import line. Verified live
-                   # 2026-07-14: a replace-the-file approach never installed.
+                   # suffixed Breeze colors.css roles at login). MoOS owns a
+                   # disjoint set of unsuffixed libadwaita roles and adds only
+                   # this import; replacing gtk.css lost to gtkconfig live.
                    "@import 'moos-ui2.css';"):
-    require(adw_needle in adw_switcher,
+    require(adw_needle in (adw_switcher + adw_runtime_db),
             f"moos-theme no longer wires libadwaita css ({adw_needle} missing) — "
             "Flathub apps would fall back to stock Adwaita")
 require("xdg-config/gtk-4.0:ro" in read("system_files/usr/share/moos/gtk/overrides/global"),
@@ -3796,7 +3831,7 @@ require(checked_variants >= 8,
 cursor_switcher = code(read("system_files/usr/bin/moos-theme"))
 cursor_build = code(read("build_files/build.sh"))
 for cursor_name in ui2_cursors.values():
-    require(f"cursor={cursor_name}" in cursor_switcher,
+    require(f"\t{cursor_name}\t" in theme_runtime_db,
             f"moos-theme never selects {cursor_name} — the LNF defaults and the "
             "switcher would fight over the pointer")
     require(f"/usr/share/icons/{cursor_name}" in cursor_build,
@@ -4206,7 +4241,7 @@ require("AUTH SAFETY CONTRACT" in mainblock,
         "MoOS MainBlock.qml lost its AUTH SAFETY CONTRACT banner — either it "
         "reverted to stock Breeze or someone rewrote it without the guardrails")
 require("Layout.preferredWidth: loginButton.Layout.preferredHeight * 1.28" in mainblock
-        and "radius: height * 0.30" in mainblock
+        and "radius: sessionManager.design.radiusCard" in mainblock
         and "width: parent.width * 0.30" in mainblock
         and "width: parent.width * 0.42" in mainblock,
         "the lock-screen Unlock action must be the compact Tidal Portal key; a "
@@ -4290,8 +4325,9 @@ login_clock = read(
 require("TidalHorizon {" not in login_wallpaper,
         "the login scene must not draw the retired arc")
 require("The Tidal Portal key" in login_action
-        and "radius: height * 0.30" in login_action
-        and "IBM Plex Sans Arabic" in login_action,
+        and "radius: design.radiusPanel" in login_action
+        and "font.family: design.interfaceFamily" in login_action
+        and "import org.moos.ui as MoUI" in login_action,
         "the compiled plasma-login controls must use the shared MoOS portal-key "
         "geometry and typography instead of generic circular Breeze actions")
 require("trackSeconds: false" in login_clock
@@ -4485,7 +4521,8 @@ for asset in (
     "system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/config/main.xml",
 ):
     require((ROOT / asset).is_file(), f"the MoOS scene wallpaper package is missing {asset}")
-require("apply_desktop_scene" in apply_theme_code,
+require("apply_desktop_scene_token" in theme_owner_code
+        and 'moos-theme apply-lnf "$want_lnf"' in apply_theme_code,
         "an installed desktop must receive the MoOS scene through the per-containment repair")
 # The dashboard used to be SKIPPED on the live ISO because, as a widget, it landed
 # on the "Install MoOS" icon. Inside the wallpaper it renders BELOW the icons, so
@@ -4624,6 +4661,11 @@ _extra_line = next((l for l in _bar_conf_code.splitlines()
 require("org.moos.island" in _extra_line,
         "moos-bar.conf must list org.moos.island in the tray's extraItems, or "
         "the tray never instantiates it and the island can never appear")
+for _inner in (*_tray_shown, "org.kde.plasma.bluetooth",
+               "org.kde.plasma.brightness"):
+    require(_inner in _extra_line,
+            f"{_inner} must be in extraItems: shownItems controls visibility but "
+            "does not instantiate a system-tray inner applet")
 require('conf tray.extraItems' in bar_apply
         and 'readConfig("extraItems"' in bar_apply
         and 'writeConfig("extraItems"' in bar_apply,
@@ -4632,6 +4674,9 @@ require('conf tray.extraItems' in bar_apply
 require('writeConfig("shownItems", SHOWN.join(","))' in bar_apply,
         "moos-bar-apply must pin the tray's shownItems from moos-bar.conf in the "
         "user's config")
+require("org.freedesktop.Notifications.GetServerInformation" in bar_apply,
+        "the live bar check must prove Plasma owns the notification protocol; "
+        "configured ids with no inner applets are not a working tray")
 # …and writing that config is not enough. Plasma 6.7's writeConfig+reloadConfig sets the
 # FILE but never rebuilds the running systray's shown/hidden model — verified on 6.7.2, where
 # the file said "2 shown" while the tray drew 8 across reboots, and the gate above stayed
@@ -5262,14 +5307,47 @@ require("set_layout de" not in _fr,
         "Fast Remote off must not restore a hard-coded 'de' layout")
 require("prevlayout" in _fr and "set_layout_idx" in _fr,
         "Fast Remote must save the active layout on and restore it on off")
+require("uint32 ([0-9]+)" in _fr and 'case "$result" in *"(true,"*' in _fr,
+        "Fast Remote must parse the value after D-Bus uint32 (not the 32 in its "
+        "type name) and verify that KWin accepted the restored layout")
 _fr_on = _fr.split("fast_on() {", 1)[1].split("\n}", 1)[0]
 _fr_off = _fr.split("fast_off() {", 1)[1].split("\n}", 1)[0]
 require('[ -f "$STATE" ]' in _fr_on
-        and _fr_on.index('[ -f "$STATE" ]') < _fr_on.index("set_effect Plugins"),
+        and _fr_on.index('[ -f "$STATE" ]') < _fr_on.index("snapshot_appearance"),
         "Fast Remote ON must be idempotent before it overwrites the saved brain/layout")
 require('[ ! -f "$STATE" ]' in _fr_off
-        and _fr_off.index('[ ! -f "$STATE" ]') < _fr_off.index("set_effect Plugins"),
+        and _fr_off.index('[ ! -f "$STATE" ]') < _fr_off.index("restore_appearance"),
         "Fast Remote OFF must be a no-op when no ON snapshot exists")
+require("acquire_theme_lock" in _fr
+        and "MOOS_THEME_LOCK_HELD=1" in _fr
+        and '"$THEME_HELPER" motion still' in _fr,
+        "Fast Remote appearance changes must share moos-theme's lock and route "
+        "wallpaper motion through the transactional owner")
+require("org.kde.image" not in _fr and "wallpaperPlugin" not in _fr,
+        "Fast Remote must not replace the MoOS scene plugin with a competing "
+        "wallpaper owner")
+require("snapshot_config kdeglobals KDE AnimationDurationFactor" in _fr
+        and "restore_config kdeglobals KDE AnimationDurationFactor" in _fr,
+        "Fast Remote must snapshot and exactly restore AnimationDurationFactor "
+        "in kdeglobals (the former code wrote the wrong kwinrc file)")
+require('printf \'%s\\n\' applying >"${STATE}.new"' in _fr
+        and 'mv -f -- "${STATE}.new" "$STATE"' in _fr,
+        "Fast Remote must commit a recovery marker before its first mutation")
+require('clear_transaction_snapshot' in _fr
+        and _fr_off.index('rm -f -- "$STATE"') < _fr_off.index("clear_transaction_snapshot"),
+        "Fast Remote must retain its exact snapshots until every OFF restore succeeds")
+
+# The context island is resident in plasmashell. Media state may produce a
+# finite acknowledgement, but it must not keep the 4K compositor repainting
+# forever while a track plays.
+_island = code(read(
+    "system_files/usr/share/plasma/plasmoids/org.moos.island/contents/ui/main.qml"
+), "slash")
+require("Animation.Infinite" not in _island
+        and "interval: 15000" in _island
+        and "onTriggered: mediaPulse.restart()" in _island,
+        "the resident media island must use sparse finite pulses, not a "
+        "continuous animation loop")
 
 # #19 Every Windows/foreign type runforeign claims must have a default handler.
 _mime = read("system_files/etc/xdg/mimeapps.list")
@@ -5492,8 +5570,8 @@ for _glyph_qml in (
             f"{_glyph_qml} must not use browser-only TextEncoder in QML")
     require("Qt.btoa" not in _glyph_text and "data:image/svg+xml" not in _glyph_text,
             f"{_glyph_qml} must not rebuild first-party glyphs as data-URL SVGs")
-    require('import "../ui" as MoOSUi' in _glyph_text
-            and "component Glyph: MoOSUi.SymbolIcon" in _glyph_text,
+    require("import org.moos.ui as MoUI" in _glyph_text
+            and "component Glyph: MoUI.SymbolIcon" in _glyph_text,
             f"{_glyph_qml} must consume the shared MoOS symbolic icon layer")
 
 # ── No MoOS surface may animate forever without a guard ──────────────────────
@@ -5743,6 +5821,41 @@ require("cosign verify --key cosign.pub" in _byml,
 # for HOURS — ran six unguarded infinite animations at a measured 4% of a core, and
 # the power screen ran three, because neither shells/ nor look-and-feel/ was ever
 # scanned here.
+_WALLPAPER_UI = ROOT / (
+    "system_files/usr/share/plasma/wallpapers/"
+    "org.moos.ui2.wallpaper/contents/ui"
+)
+for _qml in sorted(_WALLPAPER_UI.glob("*.qml")):
+    require("Animation.Infinite" not in code(
+                _qml.read_text(encoding="utf-8", errors="replace"),
+                style="slash"),
+            f"{_qml.relative_to(ROOT)} has an endless animation on the 4K "
+            "wallpaper. The measured fix uses sparse Timer-triggered finite "
+            "bursts; an infinite group held plasmashell at 10.25% in Gentle.")
+_weather_scene = read(
+    "system_files/usr/share/plasma/wallpapers/"
+    "org.moos.ui2.wallpaper/contents/ui/WeatherScene.qml"
+)
+require("interval: scene.accentMotion ? 45000 : 60000" in _weather_scene
+        and "scene.motionEnabled && scene.visible" in _weather_scene
+        and "&& scene.accentMotion && scene.kind" in _weather_scene,
+        "the wallpaper weather motion must retain its sparse Gentle/Alive "
+        "cadence and keep condition bursts out of the calm default level")
+_system_card = read(
+    "system_files/usr/share/plasma/wallpapers/"
+    "org.moos.ui2.wallpaper/contents/ui/SystemCard.qml"
+)
+_metric_ring = read(
+    "system_files/usr/share/plasma/wallpapers/"
+    "org.moos.ui2.wallpaper/contents/ui/MetricRing.qml"
+)
+require(_system_card.count("updateRateLimit: 5000") == 3
+        and "interval: 30000" in _system_card
+        and "duration: Kirigami.Units.shortDuration" in _metric_ring,
+        "dashboard telemetry must remain a sparse five-second sample with a "
+        "short transition; the former 1.5 s / 0.7 s pair repainted the 4K "
+        "wallpaper almost continuously")
+
 _MOTION_ROOTS = ("system_files/usr/share/plasma/plasmoids",
                  "system_files/usr/share/plasma/wallpapers",
                  "system_files/usr/share/plasma/shells",

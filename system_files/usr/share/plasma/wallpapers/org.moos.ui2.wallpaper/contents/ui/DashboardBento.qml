@@ -11,12 +11,16 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
+import org.moos.ui as MoUI
 
 Item {
     id: root
 
-    implicitWidth: Math.round(Kirigami.Units.gridUnit * 31)
-    implicitHeight: Math.round(Kirigami.Units.gridUnit * 12)
+    readonly property var design: MoUI.Tokens
+    implicitWidth: Math.round(Kirigami.Units.gridUnit
+                              * design.desktopHubColumns)
+    implicitHeight: Math.round(Kirigami.Units.gridUnit
+                               * design.desktopHubRows)
 
     property date now: new Date()
     property real latitude: NaN
@@ -268,28 +272,45 @@ Item {
         onTriggered: isNaN(root.latitude) ? root.locate() : root.refreshForecast()
     }
 
-    RowLayout {
+    // Horizon Hub: time, weather and system health are one desktop instrument,
+    // not three unrelated floating cards. One glass shell owns depth, entrance
+    // and sheen; the sections below contribute content and quiet dividers only.
+    GlassCard {
         anchors.fill: parent
-        spacing: Math.round(Kirigami.Units.gridUnit * 0.65)
+        motionEnabled: root.motionEnabled
+        accentMotion: root.accentMotion
+        entranceDelay: 0
 
-        ClockCard {
-            Layout.preferredWidth: Math.round(Kirigami.Units.gridUnit * 12.45)
-            Layout.fillHeight: true
-            now: root.now
-            motionEnabled: root.motionEnabled
-            accentMotion: root.accentMotion
-            entranceDelay: 0
-            themeLabel: root.themeLabel
-        }
+        RowLayout {
+            anchors.fill: parent
+            spacing: 0
 
-        ColumnLayout {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            spacing: Math.round(Kirigami.Units.gridUnit * 0.65)
+            ClockCard {
+                Layout.preferredWidth: Math.round(Kirigami.Units.gridUnit
+                    * root.design.desktopHubClockColumns)
+                Layout.fillHeight: true
+                now: root.now
+                motionEnabled: root.motionEnabled
+                accentMotion: root.accentMotion
+                integrated: true
+                themeLabel: root.themeLabel
+            }
+
+            Rectangle {
+                Layout.preferredWidth: root.design.borderHairline
+                Layout.fillHeight: true
+                Layout.topMargin: root.design.space3
+                Layout.bottomMargin: root.design.space3
+                color: Qt.rgba(Kirigami.Theme.highlightColor.r,
+                               Kirigami.Theme.highlightColor.g,
+                               Kirigami.Theme.highlightColor.b,
+                               root.design.glassBorderOpacity)
+            }
 
             WeatherCard {
-                Layout.fillWidth: true
-                Layout.preferredHeight: Math.round(Kirigami.Units.gridUnit * 7.05)
+                Layout.preferredWidth: Math.round(Kirigami.Units.gridUnit
+                    * root.design.desktopHubWeatherColumns)
+                Layout.fillHeight: true
                 weatherReady: root.weatherReady
                 city: root.city
                 temperature: root.weatherReady ? root.forecastData.temperature : 0
@@ -305,7 +326,18 @@ Item {
                         : ""
                 motionEnabled: root.motionEnabled
                 accentMotion: root.accentMotion
-                entranceDelay: 70
+                integrated: true
+            }
+
+            Rectangle {
+                Layout.preferredWidth: root.design.borderHairline
+                Layout.fillHeight: true
+                Layout.topMargin: root.design.space3
+                Layout.bottomMargin: root.design.space3
+                color: Qt.rgba(Kirigami.Theme.highlightColor.r,
+                               Kirigami.Theme.highlightColor.g,
+                               Kirigami.Theme.highlightColor.b,
+                               root.design.glassBorderOpacity)
             }
 
             SystemCard {
@@ -313,7 +345,7 @@ Item {
                 Layout.fillHeight: true
                 motionEnabled: root.motionEnabled
                 accentMotion: root.accentMotion
-                entranceDelay: 140
+                integrated: true
             }
         }
     }

@@ -509,13 +509,11 @@ live_pass() {
                             ws3[s].currentConfigGroup = ["General"];
                             ws3[s].writeConfig("shownItems", SHOWN.join(","));
                             ws3[s].writeConfig("hiddenItems", HIDE.join(","));
-                            // extraItems is the tray'"'"'s list of items it KNOWS about.
-                            // MoOS-owned items must be in it or the tray never
-                            // instantiates them; they must NOT be in shownItems
-                            // or they are forced permanently visible, which
-                            // defeats an item whose whole design is to appear
-                            // only when it has something to say. Merge, never
-                            // replace: the rest of that list is Plasma'"'"'s own.
+                            // extraItems is the tray'"'"'s LOAD list. shownItems only
+                            // controls visibility; it cannot instantiate an inner
+                            // applet. The notification id once existed only in
+                            // shownItems, leaving its protocol unowned. Merge every
+                            // configured inner applet, never replace user additions.
                             var known = String(ws3[s].readConfig("extraItems", ""))
                                             .split(",").filter(function (e) { return e.length > 0; });
                             var grew = false;
@@ -637,7 +635,7 @@ cmd_check() {
             var CLOCK_APPLET = "'"$CLOCK_APPLET"'";
             var DOCK_APPLET = "'"$BRAND_APPLET"'";
             var ps = panels();
-             var bottom = 0, whole = 0, align = "", shown = "";
+             var bottom = 0, whole = 0, align = "", shown = "", extra = "";
              var launcherCount = 0, trayCount = 0, clockCount = 0;
             for (var i = 0; i < ps.length; i++) {
                 if (ps[i].location != "bottom") { continue; }
@@ -657,23 +655,25 @@ cmd_check() {
                         if (String(ws[k].type) == TRAY_APPLET) {
                             ws[k].currentConfigGroup = ["General"];
                             shown = String(ws[k].readConfig("shownItems", ""));
+                            extra = String(ws[k].readConfig("extraItems", ""));
                         }
                     }
                 }
             }
              print("bottom=" + bottom + ";whole=" + whole
-                 + ";align=" + align + ";shown=" + shown
+                 + ";align=" + align + ";shown=" + shown + ";extra=" + extra
                  + ";launcher=" + launcherCount + ";tray=" + trayCount
                  + ";clock=" + clockCount);
         ' 2>/dev/null)" || out=""
     local report
     report="$(printf '%s\n' "$out" | grep -oE 'bottom=[0-9]+;whole=[0-9]+;align=[a-z]*;shown=.*' | head -n1)"
     [ -n "$report" ] || { echo "bar: no live report"; return 1; }
-    local bottom whole align shown shown_norm want_norm launcher tray clock
+    local bottom whole align shown extra shown_norm want_norm launcher tray clock item
     bottom="$(printf '%s' "$report" | sed -n 's/.*bottom=\([0-9]*\).*/\1/p')"
     whole="$(printf '%s' "$report" | sed -n 's/.*whole=\([0-9]*\).*/\1/p')"
     align="$(printf '%s' "$report" | sed -n 's/.*align=\([a-z]*\).*/\1/p')"
     shown="$(printf '%s' "$report" | sed -n 's/.*shown=\([^;]*\).*/\1/p')"
+    extra="$(printf '%s' "$report" | sed -n 's/.*extra=\([^;]*\).*/\1/p')"
     launcher="$(printf '%s' "$report" | sed -n 's/.*;launcher=\([0-9]*\).*/\1/p')"
     tray="$(printf '%s' "$report" | sed -n 's/.*;tray=\([0-9]*\).*/\1/p')"
     clock="$(printf '%s' "$report" | sed -n 's/.*;clock=\([0-9]*\).*/\1/p')"
@@ -691,6 +691,23 @@ cmd_check() {
         echo "bar: tray shownItems drift: live '$shown_norm' vs conf '$want_norm'"
         failures=$((failures+1))
     }
+    while IFS= read -r item; do
+        [ -n "$item" ] || continue
+        case ",$extra," in
+            *",$item,"*) : ;;
+            *) echo "bar: tray inner applet '$item' is not loaded via extraItems"
+               failures=$((failures+1)) ;;
+        esac
+    done < <(printf '%s' "$TRAY_EXTRA" | tr ',' '\n')
+    # Static config used to pass while notification calls waited for D-Bus
+    # activation to time out. A healthy tray must own the protocol now.
+    if ! timeout 3s gdbus call --session -d org.freedesktop.Notifications \
+        -o /org/freedesktop/Notifications \
+        -m org.freedesktop.Notifications.GetServerInformation \
+        >/dev/null 2>&1; then
+        echo "bar: notification protocol has no live owner"
+        failures=$((failures+1))
+    fi
     [ "$failures" = "0" ] && { echo "bar: ok"; return 0; }
     return 1
 }

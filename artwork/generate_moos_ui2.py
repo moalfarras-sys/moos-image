@@ -799,8 +799,8 @@ def generate_wallpaper(variant: str) -> None:
     light = variant == "light"
     package = "MoOSUI2Tide" if light else "MoOSUI2Graphite"
     source = ART / "wallpapers" / (
-        "moos-ui-tidal-horizon-master-v1.png" if light else
-        "moos-ui-graphite-horizon-master-v1.png"
+        "moos-ui-tidal-horizon-master-v2.png" if light else
+        "moos-ui-graphite-horizon-master-v2.png"
     )
     target = SHARE / f"wallpapers/{package}"
     if target.exists():
@@ -839,8 +839,8 @@ def preflight() -> None:
         if not source.exists():
             raise SystemExit(f"missing canonical UI2 source: {source}")
     for master in (
-        ART / "wallpapers/moos-ui-graphite-horizon-master-v1.png",
-        ART / "wallpapers/moos-ui-tidal-horizon-master-v1.png",
+        ART / "wallpapers/moos-ui-graphite-horizon-master-v2.png",
+        ART / "wallpapers/moos-ui-tidal-horizon-master-v2.png",
         ART / "plasma/dialog-background.svg.in",
         ART / "plasma/panel-background.svg.in",
     ):
@@ -863,8 +863,8 @@ def generate_previews(variant: str) -> None:
     light = variant == "light"
     package = "org.moos.ui2.light" if light else "org.moos.ui2"
     source = ART / "wallpapers" / (
-        "moos-ui-tidal-horizon-master-v1.png" if light else
-        "moos-ui-graphite-horizon-master-v1.png"
+        "moos-ui-tidal-horizon-master-v2.png" if light else
+        "moos-ui-graphite-horizon-master-v2.png"
     )
     target = SHARE / f"plasma/look-and-feel/{package}/contents/previews"
     scale_crop(source, target / "preview.png", 600, 337)

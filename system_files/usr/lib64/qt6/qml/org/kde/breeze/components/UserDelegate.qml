@@ -39,6 +39,7 @@ import QtQuick.Window
 
 import org.kde.plasma.components as PlasmaComponents3
 import org.kde.kirigami as Kirigami
+import org.moos.ui as MoUI
 
 Item {
     id: wrapper
@@ -47,6 +48,7 @@ Item {
     // See https://bugs.kde.org/show_bug.cgi?id=398317
     readonly property bool softwareRendering: GraphicsInfo.api === GraphicsInfo.Software
     readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
+    readonly property var design: MoUI.Tokens
 
     property bool isCurrent: true
 
@@ -63,11 +65,12 @@ Item {
 
     property real faceSize: Kirigami.Units.gridUnit * 7
 
-    opacity: isCurrent ? 1.0 : 0.75
+    opacity: isCurrent ? 1.0 : design.mutedOpacity
 
     Behavior on opacity {
         OpacityAnimator {
-            duration: wrapper.motionEnabled ? Kirigami.Units.longDuration : 0
+            duration: design.duration(wrapper.motionEnabled,
+                                      design.motionGeometry)
         }
     }
 
@@ -82,11 +85,14 @@ Item {
         color: wrapper.softwareRendering
              ? Kirigami.Theme.backgroundColor
              : Kirigami.Theme.highlightColor
-        opacity: wrapper.softwareRendering ? 0.6 : (wrapper.isCurrent ? 0.22 : 0.12)
+        opacity: wrapper.softwareRendering ? design.mutedOpacity
+                 : (wrapper.isCurrent ? design.glassRestingOpacity
+                                      : design.surfaceRestingOpacity)
         Behavior on opacity {
             NumberAnimation {
-                duration: wrapper.motionEnabled ? Kirigami.Units.longDuration : 0
-                easing.type: Easing.InOutQuad
+                duration: design.duration(wrapper.motionEnabled,
+                                          design.motionGeometry)
+                easing.type: design.easeStandard
             }
         }
     }
@@ -99,7 +105,8 @@ Item {
         Behavior on width {
             PropertyAnimation {
                 from: wrapper.faceSize
-                duration: wrapper.motionEnabled ? Kirigami.Units.longDuration : 0
+                duration: design.duration(wrapper.motionEnabled,
+                                          design.motionGeometry)
             }
         }
         width: wrapper.isCurrent ? wrapper.faceSize : wrapper.faceSize - Kirigami.Units.gridUnit
@@ -136,7 +143,7 @@ Item {
             // text silently falls back to Noto — a second Arabic face on the same
             // screen as the Plex date. Plex Arabic carries a full Latin set. And
             // font.families does not exist on Qt 6.11.1 here — see Logout.qml.
-            font.family: "IBM Plex Sans Arabic"
+            font.family: design.interfaceFamily
             font.pixelSize: imageSource.width * 0.42
             font.weight: Font.Medium
             renderType: Text.NativeRendering
@@ -188,11 +195,11 @@ Item {
             rightMargin: -Kirigami.Units.smallSpacing
             bottomMargin: -Kirigami.Units.smallSpacing
         }
-        width: Kirigami.Units.gridUnit * 2
+        width: design.targetControl
         height: width
         radius: width / 2
         color: Kirigami.Theme.backgroundColor
-        border.width: 1
+        border.width: design.borderHairline
         border.color: Kirigami.Theme.highlightColor
         visible: wrapper.isCurrent
 
@@ -214,7 +221,7 @@ Item {
         anchors.horizontalCenter: parent.horizontalCenter
 
         // Make it bigger than other fonts to match the scale of the avatar better
-        font.family: "IBM Plex Sans Arabic"
+        font.family: design.interfaceFamily
         font.pointSize: wrapper.fontSize + 4
 
         width: wrapper.constrainText ? parent.width : undefined

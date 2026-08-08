@@ -388,8 +388,8 @@ class TestMoOSUI2(unittest.TestCase):
             # preflight() runs before any rename. Raster validity is irrelevant
             # here because the injected fifth backup failure happens first.
             for master in (
-                art / "wallpapers/moos-ui-graphite-horizon-master-v1.png",
-                art / "wallpapers/moos-ui-tidal-horizon-master-v1.png",
+                art / "wallpapers/moos-ui-graphite-horizon-master-v2.png",
+                art / "wallpapers/moos-ui-tidal-horizon-master-v2.png",
             ):
                 master.parent.mkdir(parents=True, exist_ok=True)
                 master.write_bytes(b"fixture-png")
@@ -775,11 +775,14 @@ class TestMoOSUI2(unittest.TestCase):
                     "readonly property bool motionEnabled: Kirigami.Units.longDuration > 1",
                     source,
                 )
-                durations = re.findall(r"duration:\s*([^\n}]+)", source)
-                self.assertEqual(len(durations), expected_durations)
-                for duration in durations:
-                    self.assertIn(f"{owner}.motionEnabled ?", duration)
-                    self.assertRegex(duration, r":\s*0\s*$")
+                self.assertEqual(source.count("duration:"), expected_durations)
+                guarded = re.findall(
+                    rf"duration:\s*design\.duration\(\s*"
+                    rf"{re.escape(owner)}\.motionEnabled\s*,\s*"
+                    r"design\.motion(?:Press|Fast|Geometry|Emphasis|Portal)\s*\)",
+                    source,
+                )
+                self.assertEqual(len(guarded), expected_durations)
 
     def test_lock_authentication_reduced_motion_is_a_true_static_state(self) -> None:
         lock_root = (
@@ -795,11 +798,15 @@ class TestMoOSUI2(unittest.TestCase):
                     "readonly property bool motionEnabled: Kirigami.Units.longDuration > 1",
                     source,
                 )
-                durations = re.findall(r"duration:\s*([^\n;}]+)", source)
-                self.assertEqual(len(durations), expected_durations)
-                for duration in durations:
-                    self.assertIn(f"{owner}.motionEnabled ?", duration)
-                    self.assertRegex(duration, r":\s*0\s*$")
+                self.assertEqual(source.count("duration:"), expected_durations)
+                guarded = re.findall(
+                    rf"duration:\s*{re.escape(owner)}\.design\.duration\(\s*"
+                    rf"{re.escape(owner)}\.motionEnabled\s*,\s*"
+                    rf"{re.escape(owner)}\.design\.motion"
+                    r"(?:Press|Fast|Geometry|Emphasis|Portal)\s*\)",
+                    source,
+                )
+                self.assertEqual(len(guarded), expected_durations)
         main_block = qml_code((lock_root / "MainBlock.qml").read_text(encoding="utf-8"))
         repeated = main_block[main_block.index("function onNotificationRepeated"):
                               main_block.index("}", main_block.index("function onNotificationRepeated")) + 1]
@@ -809,19 +816,18 @@ class TestMoOSUI2(unittest.TestCase):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=44", apply,
-            "existing pre-v44 users would exit before post-marker shadow quarantine, "
+            "THEME_REV=46", apply,
+            "existing pre-v46 users would exit before post-marker shadow quarantine, "
             "the Horizon Bar/theme migration, and the SVG cache purge that is the "
             "only way new Plasma Style art reaches a frozen /usr",
         )
-        self.assertIn('[ "$lockscreen" = "$wallpaper_package" ]', apply)
-        self.assertNotIn('case "$lockscreen" in *"$wallpaper_package"*', apply)
         self.assertIn('[ "$lock_image" = "$wallpaper_package" ] || return 1', switch)
-        for source, package_var in ((apply, "want_wallpaper_package"),
-                                    (switch, "wallpaper_package")):
-            self.assertIn("--file kscreenlockerrc --group Greeter", source)
-            self.assertIn("--key WallpaperPlugin org.kde.image", source)
-            self.assertIn(f'--key Image "${package_var}"', source)
+        self.assertIn('moos-theme apply-lnf "$want_lnf"', apply)
+        self.assertIn('moos-theme verify-lnf "$lnf_after"', apply)
+        self.assertNotIn('case "$lockscreen" in *"$wallpaper_package"*', switch)
+        self.assertIn("--file kscreenlockerrc --group Greeter", switch)
+        self.assertIn("--key WallpaperPlugin org.kde.image", switch)
+        self.assertIn('--key Image "$wallpaper_package"', switch)
 
     def test_session_controls_use_only_wcag_paired_foregrounds(self) -> None:
         """Security/session glyphs must sit on a scheme-paired flat colour.
@@ -842,7 +848,7 @@ class TestMoOSUI2(unittest.TestCase):
         self.assertIn("color: sessionManager.accentA", unlock)
         self.assertIn("color: Kirigami.Theme.highlightedTextColor", unlock)
         self.assertIn(
-            "scale: loginButton.down ? 0.94 : 1.0",
+            "scale: loginButton.down ? sessionManager.design.pressScale : 1.0",
             unlock,
             "contrast-safe flat fill must still acknowledge a press",
         )
@@ -1000,7 +1006,8 @@ class TestMoOSUI2(unittest.TestCase):
         self.assertRegex(
             splash,
             r"Behavior on width\s*\{\s*NumberAnimation\s*\{\s*"
-            r"duration:\s*root\.motionEnabled\s*\?\s*260\s*:\s*0",
+            r"duration:\s*root\.design\.duration\(\s*root\.motionEnabled\s*,\s*"
+            r"root\.design\.motionEmphasis\s*\)",
             "stage progress must use one short reduced-motion-aware interpolation",
         )
         self.assertIn("opacity: root.stage >= 5 ? 0 : 1", splash)
@@ -1091,20 +1098,37 @@ class TestMoOSUI2(unittest.TestCase):
             SHARE / "plasma/plasmoids/org.moos.brand/contents/ui/main.qml"
         ).read_text(encoding="utf-8"))
 
-        for token, value in (
-            ("space1", 4), ("space2", 8), ("space3", 12),
-            ("space4", 16), ("space5", 20), ("space6", 24),
-            ("radiusS", 8), ("radiusM", 12),
-            ("radiusL", 16), ("radiusXL", 24),
-            ("targetSize", 40), ("typeCaption", 11),
-            ("typeSecondary", 13), ("typeBody", 14),
-            ("typeEmphasis", 15), ("typeSubheading", 18),
-            ("typeTitle", 20),
+        design = load_json(ROOT / "artwork/moos-design/tokens.json")
+        self.assertEqual(
+            [design["spacing"][name] for name in
+             ("space1", "space2", "space3", "space4", "space5")],
+            [4, 8, 12, 16, 24],
+        )
+        self.assertEqual(
+            [design["radius"][name] for name in
+             ("radiusSmall", "radiusControl", "radiusCard", "radiusPanel")],
+            [8, 12, 16, 24],
+        )
+        for token, source in (
+            ("space1", "design.space1"), ("space2", "design.space2"),
+            ("space3", "design.space3"), ("space4", "design.space4"),
+            ("space5", "design.space5"), ("space6", "design.space5"),
+            ("radiusS", "design.radiusSmall"),
+            ("radiusM", "design.radiusControl"),
+            ("radiusL", "design.radiusCard"),
+            ("radiusXL", "design.radiusPanel"),
+            ("targetSize", "design.targetCompact"),
+            ("typeCaption", "design.typeCaption"),
+            ("typeSecondary", "design.typeSecondary"),
+            ("typeBody", "design.typeBody"),
+            ("typeEmphasis", "design.typeLabel"),
+            ("typeSubheading", "design.typeTitle"),
+            ("typeTitle", "design.typeTitle"),
         ):
             self.assertIn(
-                f"readonly property int {token}: {value}",
+                f"readonly property int {token}: {source}",
                 launcher,
-                f"launcher lost the unified MoOS {token} token",
+                f"launcher bypasses the global MoOS {token} token",
             )
         self.assertIn(
             "readonly property string uiFontFamily: Qt.application.font.family",
@@ -1164,8 +1188,8 @@ class TestMoOSUI2(unittest.TestCase):
             SHARE / "plasma/plasmoids/org.moos.heroclock/contents/ui/main.qml"
         ).read_text(encoding="utf-8"))
 
-        self.assertIn("implicitWidth: Kirigami.Units.gridUnit * 44", launcher)
-        self.assertIn("implicitHeight: Kirigami.Units.gridUnit * 32", launcher)
+        self.assertIn("implicitWidth: design.dialogWidth", launcher)
+        self.assertIn("implicitHeight: design.dialogHeight", launcher)
         self.assertIn("LOCAL · PRIVATE", launcher)
         self.assertIn("import QtQuick.Shapes", launcher)
         self.assertIn("ShapePath {", launcher)
@@ -1199,7 +1223,12 @@ class TestMoOSUI2(unittest.TestCase):
         ):
             self.assertIn(destination, launcher + dock)
         self.assertIn('text: root.rtl ? "مساحة الأوامر" : "COMMAND"', dock)
-        self.assertIn("readonly property int motionMedium: Kirigami.Units.longDuration > 1", launcher)
+        self.assertIn("readonly property int motionMedium: design.duration(", launcher)
+        self.assertIn("design.motionGeometry", launcher)
+        self.assertIn("duration: root.motionPortal", dock)
+        self.assertIn("duration: root.motionEmphasis", dock)
+        self.assertNotIn("root.rtl ? 720 : -720", dock)
+        self.assertNotIn("duration: 1000", dock)
         quiet_edge = launcher_raw.split(
             "// ── Quiet session edge:", 1
         )[1].split("// ── Reusable pieces", 1)[0]
@@ -1486,9 +1515,10 @@ class TestMoOSUI2(unittest.TestCase):
         cannot be seen, a tint that stays glass, and a corner radius large
         enough that the frame reads as a capsule at dock height.
         """
-        # `desktoptheme/Nova` is retired UI1 geometry kept for rollback; it
-        # carries no metadata.json, so Plasma never lists or applies it. The
-        # design system owns the MoOSUI2 family.
+        # UI1's metadata-less `desktoptheme/Nova` is deliberately absent. Git
+        # history and OSTree provide rollback; dead runtime art must not become
+        # a second visual source beside the generated MoOSUI2 family.
+        self.assertFalse((SHARE / "plasma/desktoptheme/Nova").exists())
         tabbars = sorted((SHARE / "plasma/desktoptheme").glob("MoOSUI2*/widgets/tabbar.svg"))
         self.assertGreaterEqual(len(tabbars), 16, "the theme family shrank")
         for tabbar in tabbars:
@@ -2184,8 +2214,18 @@ class TestMoOSUI2(unittest.TestCase):
                       "motion guard must honour Plasma's disabled-animation duration")
         self.assertNotIn("Kirigami.Units.longDuration > 0", main,
                          "`> 0` never fires: Kirigami floors longDuration at 1")
-        self.assertRegex(main, r"gridUnit\s*\*\s*31\b")
-        self.assertRegex(main, r"gridUnit\s*\*\s*12\b")
+        self.assertIn("import org.moos.ui as MoUI", main)
+        self.assertIn("design.desktopHubColumns", main)
+        self.assertIn("design.desktopHubRows", main)
+        self.assertIn("Horizon Hub", main)
+        self.assertEqual(
+            len(re.findall(r"integrated:\s*true", main)),
+            3,
+            "time, weather and system health must borrow one shared glass shell",
+        )
+        glass_card = qml_by_path[DASHBOARD / "contents/ui/GlassCard.qml"]
+        self.assertIn("property bool integrated: false", glass_card)
+        self.assertIn("!card.integrated", glass_card)
 
         animation_type = re.compile(
             r"\b(?:Sequential|Parallel|Number|Pause|Property|Color|Rotation|"

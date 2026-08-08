@@ -1,25 +1,35 @@
 #!/usr/bin/env python3
-"""The login reconciler must verify all containments before declaring stability."""
+"""Login reconciliation must preserve central custom wallpaper state."""
 
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
-source = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
-start = source.index("reconcile_wallpaper_drift() {")
-end = source.index("\n}\n", start) + 3
-function = source[start:end]
+owner = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
+migrator = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
 
 for required in (
-    "desktop_wallpapers_complete \"$pkg\"",
-    "for attempt in 1 2 3 4 5",
-    "apply_desktop_scene \"$pkg\"",
-    "sleep 1",
+    "load_wallpaper_expectation state",
+    "custom_wallpapers_complete",
+    "apply_desktop_scene_token",
+    "settle_desktop_scene",
+    "wallpaperMode",
+    "wallpaperEncoded",
 ):
-    if required not in function:
-        raise SystemExit(f"wallpaper steady-state reconciler missing {required!r}")
+    if required not in owner:
+        raise SystemExit(f"central wallpaper reconciler missing {required!r}")
 
-if "current_desktop_wallpaper_value" not in function:
-    raise SystemExit("wallpaper reconciler lost its live readback")
+for retired_duplicate in (
+    "reconcile_wallpaper_drift",
+    "lnf_wallpaper_package",
+    "current_desktop_wallpaper_value",
+    "apply_desktop_scene()",
+):
+    if retired_duplicate in migrator:
+        raise SystemExit(
+            f"revision migrator regained wallpaper ownership: {retired_duplicate}"
+        )
 
-print("OK: wallpaper reconciliation verifies every containment and retries only until ready")
+if 'moos-theme verify-lnf "$lnf"' not in migrator:
+    raise SystemExit("login fast path no longer delegates full state verification")
+
+print("OK: login reconciliation preserves custom state through the one theme owner")

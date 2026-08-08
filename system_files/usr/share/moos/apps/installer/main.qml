@@ -33,9 +33,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
-import "../ui" as MoOSUi
-import "../ui/SymbolCatalog.js" as MoOSSymbols
-import "../ui/KeyboardViewport.js" as KeyboardViewport
+import org.moos.ui as MoUI
 
 ApplicationWindow {
     id: win
@@ -58,7 +56,7 @@ ApplicationWindow {
 
     // ── semantic palette (KDE colour scheme owns every structural colour) ──────
     // The same focus ring as Mo Store and Welcome. One focus treatment across MoOS, not three.
-    component FocusRing: MoOSUi.FocusRing {
+    component FocusRing: MoUI.FocusRing {
         accentColor: win.accent
     }
 
@@ -66,7 +64,7 @@ ApplicationWindow {
     // pages all clip overflowing content; previously Tab could focus an off-screen control and
     // Page Up/Down did nothing. Resolve every Flickable/ListView ancestor so this also covers
     // delegates instantiated below the fold and remains correct when the layout is nested.
-    onActiveFocusItemChanged: KeyboardViewport.revealFocus(win.activeFocusItem)
+    onActiveFocusItemChanged: MoUI.KeyboardViewport.revealFocus(win.activeFocusItem)
 
     // TYPE SCALES WITH THE USER'S FONT SIZE, and until now it did not.
     //
@@ -87,7 +85,7 @@ ApplicationWindow {
                                       ? Qt.application.font.pointSize / 10 : 1
     function fs(px) { return Math.round(px * win.fontScale) }
     function typePx(px) { return design.typeSize(px, win.fontScale) }
-    MoOSUi.Tokens { id: design }
+    readonly property var design: MoUI.Tokens
 
     // The UI face is the SYSTEM face, not a string repeated in this file.
     //
@@ -545,9 +543,9 @@ ApplicationWindow {
         "download": "install", "disk": "storage"
     })
     function glyphIcon(name) {
-        return MoOSSymbols.resolve(win.glyphAliases[name] || name || "spark")
+        return MoUI.SymbolCatalog.resolve(win.glyphAliases[name] || name || "spark")
     }
-    component Glyph: MoOSUi.SymbolIcon {
+    component Glyph: MoUI.SymbolIcon {
         property string name: "spark"
         property color tint: win.txt
         symbol: win.glyphIcon(name)
@@ -1017,7 +1015,7 @@ ApplicationWindow {
                         clip: true
                         boundsBehavior: Flickable.StopAtBounds
                         ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
-                        Keys.onPressed: (event) => KeyboardViewport.pageScrollKeys(diskFlick, event)
+                        Keys.onPressed: (event) => MoUI.KeyboardViewport.pageScrollKeys(diskFlick, event)
 
                         ColumnLayout {
                             id: diskCol
@@ -1365,7 +1363,7 @@ ApplicationWindow {
                     clip: true
                     boundsBehavior: Flickable.StopAtBounds
                     ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
-                    Keys.onPressed: (event) => KeyboardViewport.pageScrollKeys(accountFlick, event)
+                    Keys.onPressed: (event) => MoUI.KeyboardViewport.pageScrollKeys(accountFlick, event)
 
                     ColumnLayout {
                         id: acctCol
@@ -1645,7 +1643,7 @@ ApplicationWindow {
                             model: win.zonesFiltered()
                             currentIndex: -1
                             ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
-                            Keys.onPressed: (event) => KeyboardViewport.pageScrollKeys(zoneList, event)
+                            Keys.onPressed: (event) => MoUI.KeyboardViewport.pageScrollKeys(zoneList, event)
 
                             // Scroll the pick into view, or the promise above is a lie: sorted
                             // alphabetically this list parks on "Africa › Abidjan", so the page

@@ -161,7 +161,7 @@ case "${cat}/${tgt}" in
     settings/display)           gui systemsettings kcm_kscreen ;;
     settings/night-light)       gui systemsettings kcm_nightlight ;;
     settings/fonts)             gui systemsettings kcm_fonts ;;
-    settings/wallpaper)         gui systemsettings kcm_wallpaper ;;
+    settings/wallpaper)         gui moos-theme-picker ;;
     settings/accessibility)     gui systemsettings kcm_access ;;
     settings/network)           gui systemsettings kcm_networkmanagement ;;
     settings/hotspot)           gui systemsettings kcm_mobile_hotspot ;;

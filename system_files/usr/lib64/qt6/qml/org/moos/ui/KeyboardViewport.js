@@ -1,15 +1,10 @@
 .pragma library
 
 // Shared keyboard/viewport contract for first-party MoOS QML applications.
-// A focused control must never remain clipped outside one of its Flickable ancestors, and
-// Page Up/Down must move by a predictable viewport-sized step without overshooting its bounds.
-
-function revealFocus(item) {
+function revealFocus(item, requestedPadding) {
     if (!item) return
-    var pad = 12
+    var pad = requestedPadding === undefined ? 12 : requestedPadding
     for (var flick = item.parent; flick; flick = flick.parent) {
-        // Flickable and its subclasses expose this exact seam. Checking properties keeps the
-        // helper usable with GridView/ListView without importing or guessing a concrete type.
         if (flick.contentItem === undefined || flick.contentY === undefined
                 || flick.flicking === undefined) continue
         var pos = item.mapToItem(flick.contentItem, 0, 0)
@@ -34,8 +29,6 @@ function revealFocus(item) {
 
 function pageScrollKeys(flick, event) {
     if (event.key !== Qt.Key_PageDown && event.key !== Qt.Key_PageUp) {
-        // Keys.onPressed sits before an item's own key handler. Explicitly pass arrows and
-        // activation onward so GridView/ListView navigation is never swallowed by this helper.
         event.accepted = false
         return
     }

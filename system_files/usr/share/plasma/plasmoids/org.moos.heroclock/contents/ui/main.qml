@@ -19,6 +19,7 @@ import QtQuick.Layouts
 import org.kde.plasma.plasmoid
 import org.kde.plasma.core as PlasmaCore
 import org.kde.kirigami as Kirigami
+import org.moos.ui as MoUI
 
 PlasmoidItem {
     id: root
@@ -30,9 +31,10 @@ PlasmoidItem {
     preferredRepresentation: fullRepresentation
 
     property date now: new Date()
+    readonly property var design: MoUI.Tokens
     readonly property var displayLocale: rtl ? Qt.locale("ar") : Qt.locale()
-    readonly property int motionMedium: Kirigami.Units.longDuration > 1
-        ? Math.round(Kirigami.Units.longDuration * 1.35) : 0
+    readonly property int motionMedium: design.duration(
+        Kirigami.Units.longDuration > 1, design.motionGeometry)
 
     function local(arabic, english) {
         return root.rtl ? arabic : english;
@@ -114,9 +116,9 @@ PlasmoidItem {
         Rectangle {
             id: card
             anchors.fill: parent
-            radius: Kirigami.Units.gridUnit * 1.05
+            radius: root.design.radiusCard
             color: Qt.alpha(Kirigami.Theme.backgroundColor, 0.72)
-            border.width: 1
+            border.width: root.design.borderHairline
             border.color: Qt.alpha(Kirigami.Theme.textColor, 0.16)
         }
 
@@ -185,7 +187,7 @@ PlasmoidItem {
                 // fill; the edge is a hint. At 0.44 it drew a hard outline
                 // around the mark on a surface that has no other borders.
                 color: Qt.alpha(Kirigami.Theme.highlightColor, 0.12)
-                border.width: 1
+                border.width: root.design.borderHairline
                 border.color: Qt.alpha(Kirigami.Theme.highlightColor, 0.22)
             }
 
