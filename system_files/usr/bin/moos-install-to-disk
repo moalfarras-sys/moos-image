@@ -19,10 +19,14 @@
 #                                 not-root|not-live|no-node|live-node|no-image|
 #                                 no-network|no-space|disk-io|seed-failed|generic
 #
-# ENGINE: `bootc install to-disk` run inside the image via podman (the container IS
-# the image). Uses the LOCAL copy if the ISO embedded it (offline) else pulls it
-# (online). After install it re-arms SIGNED day-2 verification (origin rewrite), so
-# every future `bootc upgrade` verifies the cosign signature.
+# ENGINE: prepares the target's standard GPT/Btrfs layout, then runs `bootc install
+# to-filesystem` against it.  A temporary sibling Btrfs subvolume is TMPDIR for
+# bootc's containers/image proxy.  This is load-bearing: the live root has only a
+# ~1.2-GiB writable overlay, while importing MoOS needs multi-GiB temporary blobs.
+# The staging subvolume uses the target disk, is deleted after the copy, and never
+# consumes RAM-overlay space. Uses the LOCAL copy if the ISO embedded it (offline)
+# else pulls it (online). After install it re-arms SIGNED day-2 verification (origin
+# rewrite), so every future `bootc upgrade` verifies the cosign signature.
 #
 # SAFETY: refuses to run outside a live boot, refuses the live medium (and refuses a
 # removable target if it cannot determine the live medium), refuses a non-block dev.
@@ -154,9 +158,9 @@ if [ -z "$LIVE" ]; then
 fi
 
 # One install at a time. A re-fired begin (the QML Retry, an impatient double-tap,
-# or a drive-by moos://installer/begin) must never start a SECOND
-# `bootc install --wipe` on the same disk while the first is still partitioning or
-# copying. Hold an exclusive lock for the whole destructive run.
+# or a drive-by moos://installer/begin) must never start a SECOND target preparation
+# on the same disk while the first is still partitioning or copying. Hold an
+# exclusive lock for the whole destructive run.
 exec 9>/run/moos-install.lock 2>/dev/null || true
 if command -v flock >/dev/null 2>&1; then
     flock -n 9 || fail "busy"
@@ -170,8 +174,9 @@ phase partition; prog 2
 # Choose the install SOURCE: the LOCAL image if the ISO embedded it (offline,
 # instant) else the registry (needs a working network). We run `bootc install`
 # DIRECTLY below — NOT `podman run <image> bootc install`, which first unpacks the
-# whole image into the live env's RAM-backed writable layer (overlayfs=1) and dies
-# "no space left on device". Direct bootc streams straight to the target's repo.
+# whole image into the live env's tiny writable layer. bootc's own image proxy also
+# materializes blobs in TMPDIR, so run_install points that at a disposable subvolume
+# on the target rather than the ~1.2-GiB LiveOS overlay.
 SRC="docker://${TARGET_IMGREF}"
 if command -v podman >/dev/null 2>&1 && podman image exists "$TARGET_IMGREF" >>"$LOG" 2>&1; then
     SRC="containers-storage:${TARGET_IMGREF}"
@@ -221,6 +226,83 @@ free_target() {
     return 1   # still mounted after ~10s
 }
 
+# bootc's containers/image proxy writes each local-store blob to TMPDIR before
+# importing it.  The live root's writable overlay is only ~1.2 GiB (measured on the
+# release ISO), so /var/tmp fails late in the copy even though the target has tens
+# of GiB free.  Prepare the normal bootc disk layout ourselves and give the proxy a
+# temporary Btrfs sibling subvolume on the TARGET disk.  The installed root is a
+# separate sibling and therefore remains empty for `bootc install to-filesystem`.
+TARGET_ROOT=/run/moos-install-root
+TARGET_STAGE=/run/moos-install-stage
+TARGET_TOP=/run/moos-install-btrfs
+ESP_PART=""
+ROOT_PART=""
+
+cleanup_target() {
+    # These are fixed /run paths owned by this helper; never recurse over a
+    # caller-controlled path.  The ESP is below TARGET_ROOT, so -R detaches it
+    # before the root subvolume.
+    mountpoint -q "$TARGET_STAGE" 2>/dev/null && umount "$TARGET_STAGE" >>"$LOG" 2>&1 || true
+    mountpoint -q "$TARGET_ROOT" 2>/dev/null && umount -R "$TARGET_ROOT" >>"$LOG" 2>&1 || true
+    if mountpoint -q "$TARGET_TOP" 2>/dev/null; then
+        [ -d "$TARGET_TOP/bootc-stage" ] \
+            && btrfs subvolume delete "$TARGET_TOP/bootc-stage" >>"$LOG" 2>&1 || true
+        umount "$TARGET_TOP" >>"$LOG" 2>&1 || true
+    fi
+    rmdir "$TARGET_STAGE" "$TARGET_ROOT" "$TARGET_TOP" 2>/dev/null || true
+}
+
+prepare_target() {
+    local i root_id
+    cleanup_target
+
+    # Match bootc's proven generic layout: BIOS boot + ESP + a Linux x86-64
+    # root partition. sfdisk takes the already validated whole-disk NODE only.
+    wipefs -a "$NODE" >>"$LOG" 2>&1 || return 1
+    sfdisk --wipe always --wipe-partitions always "$NODE" >>"$LOG" 2>&1 <<'EOF'
+label: gpt
+start=1MiB, size=1MiB, type=21686148-6449-6E6F-744E-656564454649, name="BIOS boot"
+size=512MiB, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B, name="EFI System"
+type=4F68BCE3-E8CD-4DB1-96E7-FBCAF984B709, name="Linux root (x86-64)"
+EOF
+    partprobe "$NODE" >>"$LOG" 2>&1 || true
+    udevadm settle 2>>"$LOG" || true
+
+    # NVMe/MMC partitions carry a p separator; resolve by PARTN instead of
+    # manufacturing /dev names from the disk string.
+    for i in $(seq 1 30); do
+        ESP_PART="$(lsblk -nrpo NAME,PARTN "$NODE" 2>/dev/null | awk '$2==2{print $1; exit}')"
+        ROOT_PART="$(lsblk -nrpo NAME,PARTN "$NODE" 2>/dev/null | awk '$2==3{print $1; exit}')"
+        [ -b "$ESP_PART" ] && [ -b "$ROOT_PART" ] && break
+        sleep 0.2
+    done
+    [ -b "$ESP_PART" ] && [ -b "$ROOT_PART" ] || {
+        echo "partition: target children did not appear for $NODE" >>"$LOG"
+        return 1
+    }
+
+    phase format; raise 34
+    mkfs.fat -F32 -n EFI-SYSTEM "$ESP_PART" >>"$LOG" 2>&1 || return 1
+    mkfs.btrfs -f -L root "$ROOT_PART" >>"$LOG" 2>&1 || return 1
+
+    mkdir -p "$TARGET_ROOT" "$TARGET_STAGE" "$TARGET_TOP"
+    mount -o subvolid=5 "$ROOT_PART" "$TARGET_TOP" >>"$LOG" 2>&1 || return 1
+    btrfs subvolume create "$TARGET_TOP/root" >>"$LOG" 2>&1 || return 1
+    btrfs subvolume create "$TARGET_TOP/bootc-stage" >>"$LOG" 2>&1 || return 1
+    root_id="$(btrfs subvolume show "$TARGET_TOP/root" 2>/dev/null \
+        | sed -n 's/^[[:space:]]*Subvolume ID:[[:space:]]*//p' | head -1)"
+    [ -n "$root_id" ] || { echo "partition: could not resolve root subvolume id" >>"$LOG"; return 1; }
+    btrfs subvolume set-default "$root_id" "$TARGET_TOP" >>"$LOG" 2>&1 || return 1
+
+    mount -o subvol=root "$ROOT_PART" "$TARGET_ROOT" >>"$LOG" 2>&1 || return 1
+    mount -o subvol=bootc-stage "$ROOT_PART" "$TARGET_STAGE" >>"$LOG" 2>&1 || return 1
+    chmod 0700 "$TARGET_STAGE" 2>/dev/null || true
+    mkdir -p "$TARGET_ROOT/boot/efi"
+    mount "$ESP_PART" "$TARGET_ROOT/boot/efi" >>"$LOG" 2>&1 || return 1
+    echo "staging: TMPDIR=$TARGET_STAGE on target-backed Btrfs (LiveOS /var/tmp is not used)" >>"$LOG"
+    return 0
+}
+
 # ── progress ticker: crawls toward a moving ceiling so the bar lives during the
 #    long, quiet copy phase. Honest: never passes the ceiling. ─────────────────
 CEILF="$(mktemp)"; PCTF="$(mktemp)"
@@ -237,23 +319,22 @@ ticker() {
 raise() { echo "$1" > "$CEILF"; }
 ticker & TICK=$!
 stop_ticker() { [ -n "${TICK:-}" ] && kill "$TICK" 2>/dev/null; wait "$TICK" 2>/dev/null; rm -f "$CEILF" "$PCTF"; TICK=""; }
-trap 'stop_ticker; wipe_recipe' EXIT
+trap 'stop_ticker; cleanup_target; wipe_recipe' EXIT
 
 phase partition; prog 4; raise 18
 
 run_install() {
-    # Direct bootc (root, from the live env). --source-imgref lets bootc fetch the
-    # image itself (registry or local containers-storage) and write it straight to
-    # the target disk's ostree repo — no full unpack into live RAM. --generic-image
-    # marks it a portable install (not tied to this machine's firmware). The
-    # INSTALLED system keeps a registry target ref so day-2 `bootc upgrade` works.
-    bootc install to-disk \
+    # The filesystem and ESP are already mounted.  TMPDIR is a disposable Btrfs
+    # sibling on the target, so containers/image can materialize large local-store
+    # blobs without touching the LiveOS overlay. --generic-image installs portable
+    # BIOS+UEFI bootloader state; the installed origin remains the registry ref for
+    # day-2 updates and is rewritten to the signed transport in seed_target.
+    TMPDIR="$TARGET_STAGE" bootc install to-filesystem \
         --source-imgref "$SRC" \
         --target-transport registry --target-imgref "$TARGET_IMGREF" \
         --skip-fetch-check \
-        --wipe --filesystem btrfs \
         --generic-image \
-        "$NODE" 2>&1
+        "$TARGET_ROOT" 2>&1
 }
 
 attempt_install() {
@@ -275,11 +356,23 @@ attempt_install() {
 rc=1
 for _try in 1 2 3; do
     free_target || echo "free_target: $NODE still busy before attempt $_try" >>"$LOG"
+    phase partition; raise 22
+    if ! prepare_target; then
+        rc=1
+        echo "target preparation failed on attempt $_try" >>"$LOG"
+        cleanup_target
+        break
+    fi
     _before="$(wc -l < "$LOG" 2>/dev/null || echo 0)"
     attempt_install; rc=$?
+    cleanup_target
     [ "$rc" -eq 0 ] && break
-    if tail -n +"$(( _before + 1 ))" "$LOG" 2>/dev/null \
-         | grep -qiE 'is mounted|resource busy|is in use|already in use'; then
+    _attempt_log="$(tail -n +"$(( _before + 1 ))" "$LOG" 2>/dev/null)"
+    _attempt_log="${_attempt_log,,}"
+    if case "$_attempt_log" in
+         *"is mounted"*|*"resource busy"*|*"is in use"*|*"already in use"*) true ;;
+         *) false ;;
+       esac; then
         echo "install attempt $_try lost the umount race — freeing and retrying" >>"$LOG"
         sleep 2; continue
     fi

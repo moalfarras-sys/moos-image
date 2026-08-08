@@ -4862,8 +4862,8 @@ require(ui2_gate.returncode == 0,
 # where the self-healing rebind below actually lives.
 # What is actually required is the OUTCOME — the install ends up on a signed origin —
 # and there are two legitimate ways to reach it. `moos-install-to-disk` uses the second
-# one: it runs `bootc install to-disk` plainly and then rewrites the deployment origin
-# to `ostree-image-signed:docker://…`, matching what the Anaconda %post does. Gating on
+# one: it runs `bootc install to-filesystem` plainly and then rewrites the deployment
+# origin to `ostree-image-signed:docker://…`, matching what the Anaconda %post does. Gating on
 # the flag alone called that file broken when it is correct. Assert the outcome, and
 # accept either proof.
 _SWITCH = re.compile(r"bootc\s+(?:switch|install)\b([^\n;|&]*)")
@@ -5370,6 +5370,24 @@ require("/usr/lib/systemd/systemd-update-done --root=" in _i2d
         and '.updated' in _i2d,
         "the installer must mark the deployed /etc caches current; otherwise "
         "ldconfig performs a long cold rebuild before the first password greeter")
+require('bootc install to-filesystem' in _i2d
+        and 'bootc install to-disk' not in _i2d
+        and 'TMPDIR="$TARGET_STAGE"' in _i2d,
+        "the live installer must import through a target-backed TMPDIR; bootc to-disk "
+        "materializes local-store blobs in the ~1.2-GiB LiveOS /var/tmp and fails late")
+require('btrfs subvolume create "$TARGET_TOP/root"' in _i2d
+        and 'btrfs subvolume create "$TARGET_TOP/bootc-stage"' in _i2d
+        and 'btrfs subvolume set-default "$root_id"' in _i2d
+        and 'btrfs subvolume delete "$TARGET_TOP/bootc-stage"' in _i2d,
+        "offline install staging must be a disposable sibling subvolume: the deployed "
+        "root stays empty for bootc and all staging space is reclaimed after the copy")
+for _part_guid in (
+    "21686148-6449-6E6F-744E-656564454649",  # BIOS boot
+    "C12A7328-F81F-11D2-BA4B-00A0C93EC93B",  # EFI System
+    "4F68BCE3-E8CD-4DB1-96E7-FBCAF984B709",  # Linux root x86-64
+):
+    require(_part_guid in _i2d,
+            f"the external bootc filesystem layout is missing partition type {_part_guid}")
 _iqml = read("system_files/usr/share/moos/apps/installer/main.qml")
 require("acctPass.length >= 8" in _iqml,
         "the account page must require a password")
