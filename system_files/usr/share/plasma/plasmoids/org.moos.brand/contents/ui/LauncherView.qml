@@ -1543,8 +1543,14 @@ Item {
         // thing collapses to an instant 1.0 when motion is off — the gate is
         // named in full rather than through view.motionMedium so it is legible
         // to the reader and to verify_user_experience.
+        // DelegateModel sets index to -1 briefly while a tile is being
+        // detached. Clamp BOTH bounds: capping only the upper end turns that
+        // teardown state into a negative PauseAnimation duration and floods
+        // the live shell journal every time the launcher model changes.
         readonly property int revealDelay:
-            Kirigami.Units.longDuration > 1 ? Math.min(tile.index, 11) * 24 : 0
+            Kirigami.Units.longDuration > 1
+                ? Math.max(0, Math.min(tile.index, 11)) * 24
+                : 0
         opacity: view.entranceReady ? 1 : 0
         transform: Translate {
             y: view.entranceReady ? 0 : 6

@@ -816,8 +816,8 @@ class TestMoOSUI2(unittest.TestCase):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=46", apply,
-            "existing pre-v46 users would exit before post-marker shadow quarantine, "
+            "THEME_REV=47", apply,
+            "existing pre-v47 users would exit before post-marker shadow quarantine, "
             "the Horizon Bar/theme migration, and the SVG cache purge that is the "
             "only way new Plasma Style art reaches a frozen /usr",
         )
@@ -1225,6 +1225,13 @@ class TestMoOSUI2(unittest.TestCase):
         self.assertIn('text: root.rtl ? "مساحة الأوامر" : "COMMAND"', dock)
         self.assertIn("readonly property int motionMedium: design.duration(", launcher)
         self.assertIn("design.motionGeometry", launcher)
+        self.assertIn(
+            "Math.max(0, Math.min(tile.index, 11)) * 24",
+            launcher,
+            "DelegateModel index=-1 teardown must never create a negative "
+            "PauseAnimation duration",
+        )
+        self.assertNotIn("Math.min(tile.index, 11) * 24 : 0", launcher)
         self.assertIn("duration: root.motionPortal", dock)
         self.assertIn("duration: root.motionEmphasis", dock)
         self.assertNotIn("root.rtl ? 720 : -720", dock)

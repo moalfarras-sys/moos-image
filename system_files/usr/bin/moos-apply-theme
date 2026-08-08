@@ -171,7 +171,11 @@ set -uo pipefail
 #     measured 10.25–11.3% permanent 4K repaint tax. Existing sessions must drop
 #     qmlcache and reload the wallpaper package to receive both the visual and
 #     performance architecture.
-THEME_REV=46
+# 47: DelegateModel temporarily gives a launcher tile index=-1 while detaching
+#     it. The staggered entrance delay now clamps both bounds, preventing a
+#     negative PauseAnimation and the repeated live-shell warnings it caused.
+#     Reload the launcher QML for existing immutable-image users.
+THEME_REV=47
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

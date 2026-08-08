@@ -72,13 +72,18 @@ MoOS Design Core sources
   exercise exposed and fixed a parser that read the `32` in D-Bus's `uint32`
   type name instead of the returned layout value.
 
-The release status is intentionally separate. Focused gates, live proof,
-`just check`, and the complete local `just build` are green. The bootable local
-image is `c28eca8f24f00267d282ae37ba7ef80c4791a464dbdded0b94c24b8d1ec25e04`
-(version `44.20260808.1`); its final initramfs, QML scene/launcher, image
-experience, store, identity-firewall and bootc checks passed. This document
-still does not call the branch released until the signed three-edition images,
-signed ISO and post-reboot checks pass.
+The initial unified branch was subsequently released as signed
+`44.20260808.567` images, its exact NVIDIA digest was booted on the owner
+machine, and the post-update suite passed 49/49. UEFI disk and offline-live ISO
+boots also passed. Post-boot journal inspection then exposed a negative
+launcher stagger delay during `DelegateModel index=-1` teardown; THEME_REV 47
+clamps it to zero and is held by a regression gate. Four real 4K RTL launcher
+open/close cycles now produce zero related warnings. Focused gates, `just
+check`, and the corrected complete local `just build` are green; the corrected
+local image is
+`e1ef941cce6048cebde68cadff11383438683a20e5d676bebca516e3c980defe`.
+Signed publication and boot proof of this corrective follow-up remain separate
+release gates at the time of this audit update.
 
 ## Baseline actually inspected
 

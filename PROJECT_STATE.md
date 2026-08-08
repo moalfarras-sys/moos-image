@@ -6,6 +6,19 @@ are traps that have already cost this project a day.
 
 Last updated: 2026-08-08, Unified MoOS Experience implementation branch.
 
+The first signed unified deployment (`44.20260808.567`) has now booted on the
+owner machine and passed `tests/post-update-check.sh` 49/49. Its UEFI disk image
+and signed-image-pinned offline ISO both booted in virtual hardware. The real
+post-boot journal caught a launcher teardown edge the gates missed:
+`DelegateModel` temporarily reports `index=-1`, which made the staggered
+`PauseAnimation` negative. THEME_REV 47 clamps both ends and adds the missing
+regression. Four live 4K RTL open/close cycles are warning-free, and the second
+complete local image
+`e1ef941cce6048cebde68cadff11383438683a20e5d676bebca516e3c980defe`
+passes all image gates. Its signed follow-up publication and second boot proof
+remain pending at this commit; do not confuse the first successful release with
+proof of the corrective follow-up.
+
 The interface now has the ownership chain the project previously described but
 did not actually possess:
 
@@ -58,16 +71,15 @@ finite 1.4-second pulse every 15 seconds while media is playing.
 Dead top-level `desktoptheme/Nova`, orphan generators, tracked `.bak` files and
 the test icon were removed and are absence-gated. Load-bearing historical ids
 such as `org.moos.ui2.nova` and `org.moos.nova.clock` remain deliberately. The
-branch now has focused source gates, live proof, a complete green `just check`,
-and a complete green local `just build`. The resulting bootable image is
-`localhost/moos:latest`
-(`c28eca8f24f00267d282ae37ba7ef80c4791a464dbdded0b94c24b8d1ec25e04`,
-version `44.20260808.1`): the final dracut inspection found the OSTree root and
-MoOS Plymouth assets, every shipped QML app and the launcher/scene loaded in
-their real image runtime, and the image-experience, store, identity and bootc
-gates passed. Signed three-edition publication, signed offline/online ISO proof
-and the post-reboot check are the remaining release steps and must not be
-claimed complete until their actual jobs pass.
+branch has focused source gates, live proof, a complete green `just check`, and
+two complete green local image builds. The current corrected
+`localhost/moos:latest` is
+`e1ef941cce6048cebde68cadff11383438683a20e5d676bebca516e3c980defe`:
+the final dracut inspection found the OSTree root and MoOS Plymouth assets,
+every shipped QML app and the launcher/scene loaded in their real image runtime,
+and the image-experience, store, identity and bootc gates passed. The initial
+signed release and its post-reboot proof are complete; the THEME_REV 47
+follow-up still requires its own signed publication and boot proof.
 
 Last updated: 2026-08-07, unified design audit slice — **the update button could never have
 updated anything, on any machine.**
