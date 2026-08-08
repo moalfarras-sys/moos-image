@@ -21,6 +21,7 @@ import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 
 import org.kde.kirigami as Kirigami
+import org.moos.ui as MoUI
 
 QQC2.AbstractButton {
     id: control
@@ -37,6 +38,7 @@ QQC2.AbstractButton {
 
     readonly property bool lit: hovered || visualFocus || down
     readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
+    readonly property var design: MoUI.Tokens
     // accentA is the live theme highlight (or the negative colour for destructive
     // actions); accentB is a second hue derived from it for the decorative rim.
     // It must never sit underneath the glyph: unlike accentA, it has no paired
@@ -84,11 +86,11 @@ QQC2.AbstractButton {
     implicitWidth: keyWidth
     implicitHeight: keyHeight
     padding: 0
-    scale: down ? 0.97 : (lit ? 1.02 : 1.0)
+    scale: down ? design.pressScale : (lit ? design.hoverScale : 1.0)
     Behavior on scale {
         NumberAnimation {
-            duration: control.motionEnabled ? Kirigami.Units.shortDuration : 0
-            easing.type: Easing.OutCubic
+            duration: design.duration(control.motionEnabled, design.motionFast)
+            easing.type: design.easeStandard
         }
     }
 
@@ -118,13 +120,17 @@ QQC2.AbstractButton {
         Rectangle {
             id: disc
             anchors.fill: parent
-            radius: Kirigami.Units.gridUnit * (control.subtle ? 1.0 : 1.4)
+            radius: control.subtle ? design.radiusControl : design.radiusPanel
             color: control.filled
                 ? control.accentA
                 : Qt.rgba(control.ink.r, control.ink.g, control.ink.b,
-                          control.subtle ? (control.lit ? 0.10 : 0.05)
-                                         : (control.lit ? 0.16 : 0.09))
-            border.width: control.visualFocus ? 2 : 1
+                          control.subtle
+                          ? (control.lit ? design.surfaceRestingOpacity
+                                         : design.surfaceRestingOpacity / 2)
+                          : (control.lit ? design.surfaceHoverOpacity
+                                         : design.surfaceRestingOpacity))
+            border.width: control.visualFocus
+                          ? design.focusWidth : design.borderHairline
             border.color: control.filled
                 ? control.accentB
                 : (control.lit ? Qt.rgba(control.accentA.r, control.accentA.g, control.accentA.b, 0.8)
@@ -201,7 +207,7 @@ QQC2.AbstractButton {
                         : (control.subtle ? Qt.rgba(control.ink.r, control.ink.g, control.ink.b, 0.85)
                                           : control.ink)
                     // Plex carries both scripts so focus never swaps typefaces.
-                    font.family: "IBM Plex Sans Arabic"
+                    font.family: design.interfaceFamily
                     font.weight: control.subtle ? Font.Normal : Font.DemiBold
                     font.pointSize: Kirigami.Theme.defaultFont.pointSize
                 }

@@ -10,6 +10,7 @@ import org.kde.plasma.plasmoid
 import org.kde.plasma.components as PC3
 import org.kde.plasma.extras as PlasmaExtras
 import org.kde.kirigami as Kirigami
+import org.moos.ui as MoUI
 
 Item {
     id: view
@@ -29,31 +30,35 @@ Item {
     property date now: new Date()
     property bool entranceReady: false
 
-    // Tidal Horizon shell tokens. QML uses logical pixels, so these values
-    // retain the same optical rhythm at 100–275% display scale.
+    // Semantic aliases keep this large shell surface readable while their
+    // values come from the one generated MoOS Design Core.
+    readonly property var design: MoUI.Tokens
     readonly property string uiFontFamily: Qt.application.font.family
-    readonly property int space1: 4
-    readonly property int space2: 8
-    readonly property int space3: 12
-    readonly property int space4: 16
-    readonly property int space5: 20
-    readonly property int space6: 24
-    readonly property int radiusS: 8
-    readonly property int radiusM: 12
-    readonly property int radiusL: 16
-    readonly property int radiusXL: 24
-    readonly property int targetSize: 40
-    readonly property int typeCaption: 11
-    readonly property int typeSecondary: 13
-    readonly property int typeBody: 14
-    readonly property int typeEmphasis: 15
-    readonly property int typeSubheading: 18
-    readonly property int typeTitle: 20
-    readonly property int motionFast: Kirigami.Units.longDuration > 1 ? 120 : 0
-    readonly property int motionMedium: Kirigami.Units.longDuration > 1 ? 240 : 0
+    readonly property int space1: design.space1
+    readonly property int space2: design.space2
+    readonly property int space3: design.space3
+    readonly property int space4: design.space4
+    readonly property int space5: design.space5
+    readonly property int space6: design.space5
+    readonly property int radiusS: design.radiusSmall
+    readonly property int radiusM: design.radiusControl
+    readonly property int radiusL: design.radiusCard
+    readonly property int radiusXL: design.radiusPanel
+    readonly property int targetSize: design.targetCompact
+    readonly property int typeCaption: design.typeCaption
+    readonly property int typeSecondary: design.typeSecondary
+    readonly property int typeBody: design.typeBody
+    readonly property int typeEmphasis: design.typeLabel
+    readonly property int typeSubheading: design.typeTitle
+    readonly property int typeTitle: design.typeTitle
+    readonly property int motionFast: design.duration(
+        Kirigami.Units.longDuration > 1, design.motionFast)
+    readonly property int motionMedium: design.duration(
+        Kirigami.Units.longDuration > 1, design.motionGeometry)
+    readonly property bool lightSurface: design.isLight(Kirigami.Theme.backgroundColor)
 
-    implicitWidth: Kirigami.Units.gridUnit * 44
-    implicitHeight: Kirigami.Units.gridUnit * 32
+    implicitWidth: design.dialogWidth
+    implicitHeight: design.dialogHeight
     // The Command Canvas deliberately owns more breathing room than a menu.
     // At the reference 225% scale this remains inside a 4K work area while
     // preserving real 40 px targets and the calm four-column app rhythm.
@@ -230,7 +235,7 @@ Item {
         containsMode: Shape.FillContains
 
         ShapePath {
-            strokeWidth: 1
+            strokeWidth: design.borderHairline
             strokeColor: Qt.alpha(Kirigami.Theme.textColor, 0.16)
             fillColor: Qt.alpha(Kirigami.Theme.backgroundColor, 0.86)
             joinStyle: ShapePath.RoundJoin
@@ -266,6 +271,45 @@ Item {
             PathQuad {
                 x: view.radiusXL; y: 0
                 controlX: 0; controlY: 0
+            }
+        }
+    }
+
+    // A still, low-amplitude horizon held inside the material. It connects the
+    // Command Canvas to the generated wallpaper family without adding a timer,
+    // shader or second shell. The outer Plasma dialog remains the only blur and
+    // shadow owner.
+    Rectangle {
+        anchors {
+            left: parent.left
+            right: parent.right
+            bottom: parent.bottom
+            leftMargin: view.radiusXL
+            rightMargin: view.radiusXL
+            bottomMargin: view.space3
+        }
+        height: Math.round(view.height * 0.16)
+        radius: height / 2
+        opacity: view.lightSurface ? 0.72 : 1.0
+        gradient: Gradient {
+            orientation: Gradient.Horizontal
+            GradientStop {
+                position: 0.0
+                color: Qt.alpha(Kirigami.Theme.highlightColor, 0.0)
+            }
+            GradientStop {
+                position: 0.46
+                color: Qt.alpha(Kirigami.Theme.highlightColor,
+                    view.lightSurface ? 0.055 : 0.085)
+            }
+            GradientStop {
+                position: 0.72
+                color: Qt.alpha(Kirigami.Theme.textColor,
+                    view.lightSurface ? 0.025 : 0.035)
+            }
+            GradientStop {
+                position: 1.0
+                color: Qt.alpha(Kirigami.Theme.highlightColor, 0.0)
             }
         }
     }

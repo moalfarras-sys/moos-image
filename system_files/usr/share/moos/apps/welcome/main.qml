@@ -31,9 +31,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
-import "../ui" as MoOSUi
-import "../ui/SymbolCatalog.js" as MoOSSymbols
-import "../ui/KeyboardViewport.js" as KeyboardViewport
+import org.moos.ui as MoUI
 
 ApplicationWindow {
     id: win
@@ -84,7 +82,7 @@ ApplicationWindow {
     // Same focus ring as Mo Store, for the same reason: a control the keyboard can reach must
     // show that it has been reached (WCAG 2.4.7). Drawn outside the shape so it never covers
     // content, inheriting the parent's radius so a pill stays a pill.
-    component FocusRing: MoOSUi.FocusRing {
+    component FocusRing: MoUI.FocusRing {
         accentColor: win.accent
     }
 
@@ -93,7 +91,7 @@ ApplicationWindow {
     // onto a perfectly focused card below the fold while the viewport stayed still. Walk every
     // Flickable ancestor because a future control may be nested in both a horizontal and a
     // vertical pane. This is the same contract as Mo Store, not a wizard-only approximation.
-    onActiveFocusItemChanged: KeyboardViewport.revealFocus(win.activeFocusItem)
+    onActiveFocusItemChanged: MoUI.KeyboardViewport.revealFocus(win.activeFocusItem)
 
     // TYPE SCALES WITH THE USER'S FONT SIZE, and until now it did not.
     //
@@ -114,7 +112,7 @@ ApplicationWindow {
                                       ? Qt.application.font.pointSize / 10 : 1
     function fs(px) { return Math.round(px * win.fontScale) }
     function typePx(px) { return design.typeSize(px, win.fontScale) }
-    MoOSUi.Tokens { id: design }
+    readonly property var design: MoUI.Tokens
 
     // The UI face is the SYSTEM face, not a string repeated in this file.
     //
@@ -571,9 +569,9 @@ ApplicationWindow {
         "download": "install", "disk": "storage"
     })
     function glyphIcon(name) {
-        return MoOSSymbols.resolve(win.glyphAliases[name] || name || "spark")
+        return MoUI.SymbolCatalog.resolve(win.glyphAliases[name] || name || "spark")
     }
-    component Glyph: MoOSUi.SymbolIcon {
+    component Glyph: MoUI.SymbolIcon {
         property string name: "spark"
         property color tint: win.txt
         symbol: win.glyphIcon(name)
@@ -583,7 +581,7 @@ ApplicationWindow {
     // A pairing-guide action always carries its complete literal moos:// URL.
     // tests/verify_user_experience.py compares every one against moos-open, so a
     // renamed KCM route cannot leave a button that looks alive and does nothing.
-    component DeviceSettingsButton: MoOSUi.Button {
+    component DeviceSettingsButton: MoUI.Button {
         id: deviceButton
         required property string url
         property string glyphName: "gear"
@@ -1526,7 +1524,7 @@ ApplicationWindow {
                         clip: true
                         boundsBehavior: Flickable.StopAtBounds
                         ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
-                        Keys.onPressed: (event) => KeyboardViewport.pageScrollKeys(appsFlick, event)
+                        Keys.onPressed: (event) => MoUI.KeyboardViewport.pageScrollKeys(appsFlick, event)
 
                         GridLayout {
                             id: appsGrid
@@ -1726,7 +1724,7 @@ ApplicationWindow {
                         clip: true
                         boundsBehavior: Flickable.StopAtBounds
                         ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
-                        Keys.onPressed: (event) => KeyboardViewport.pageScrollKeys(installFlick, event)
+                        Keys.onPressed: (event) => MoUI.KeyboardViewport.pageScrollKeys(installFlick, event)
 
                         ColumnLayout {
                             id: installCol

@@ -20,7 +20,9 @@ from typing import Iterable
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "system_files/usr/share/icons/hicolor/scalable/actions"
 MANIFEST = ROOT / "artwork/moos_symbolic_manifest.js"
-RUNTIME_MANIFEST = ROOT / "system_files/usr/share/moos/apps/ui/SymbolCatalog.js"
+RUNTIME_MANIFEST = (
+    ROOT / "system_files/usr/lib64/qt6/qml/org/moos/ui/SymbolCatalog.js"
+)
 MAP = ROOT / "artwork/MOOS_UI_SYMBOL_MAP.md"
 
 TEXT = "text"

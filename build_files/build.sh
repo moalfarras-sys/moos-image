@@ -1059,9 +1059,9 @@ recolor_moos_app_dir() {
     done
 }
 
-# "MoOSUI2" / "MoOSUI2Light" = the UI2 icon themes, teal folders over the same
-# proven copy-index-then-symlink route. Nova/NovaLight stay installed untouched:
-# they are what UI1 (the documented rollback) selects.
+# "MoOSUI2" / "MoOSUI2Light" = the broad UI2 icon themes, teal folders over
+# the proven copy-index-then-symlink route. The other fourteen profile overlays
+# are generated in-tree; no UI1 icon/theme generation is a rollback owner.
 rm -rf /usr/share/icons/MoOSUI2
 mkdir -p /usr/share/icons/MoOSUI2
 cp /usr/share/icons/Colloid-Teal-Dark/index.theme /usr/share/icons/MoOSUI2/index.theme

@@ -58,21 +58,6 @@ def bash_executable() -> str:
 BASH = bash_executable()
 
 
-def bash_executable() -> str:
-    """Use real Git Bash on Windows instead of the WSL app-execution alias."""
-    override = os.environ.get("MOOS_TEST_BASH")
-    if override:
-        return override
-    if os.name == "nt":
-        candidate = Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "Git/bin/bash.exe"
-        if candidate.is_file():
-            return str(candidate)
-    return shutil.which("bash") or "bash"
-
-
-BASH = bash_executable()
-
-
 def function(text: str, name: str) -> str:
     match = re.search(rf"(?ms)^{re.escape(name)}\(\) \{{.*?^\}}$", text)
     if not match:
@@ -81,12 +66,50 @@ def function(text: str, name: str) -> str:
 
 
 class TestMoOSThemeSafety(unittest.TestCase):
+    def test_manual_theme_switch_is_snapshot_verified_and_exactly_reversible(self) -> None:
+        switch = SWITCH.read_text(encoding="utf-8")
+        apply = function(switch, "apply")
+        manual = function(switch, "apply_manual")
+        snapshot = function(switch, "snapshot_theme_state")
+        restore = function(switch, "restore_theme_state")
+        commit = function(switch, "commit_theme_snapshot")
+        undo = function(switch, "undo_theme_transaction")
+
+        self.assertLess(manual.index("snapshot_theme_state"), manual.index("pin_switch_targets"))
+        self.assertLess(manual.index("snapshot_theme_state"), manual.index('apply "$target"'))
+        self.assertIn("verify_theme_with_retries", apply)
+        self.assertIn("commit_theme_snapshot", manual)
+        self.assertIn("restore_theme_state", manual)
+        self.assertIn("snapshot_state_complete", manual)
+        self.assertIn("theme-state.json", switch)
+        self.assertIn('write_theme_state rolled-back', manual)
+        self.assertIn('write_theme_state rollback-failed', manual)
+
+        for owned in (
+            "kdeglobals", "plasmarc", "kwinrc", "ksplashrc", "kcminputrc",
+            "kscreenlockerrc", "konsolerc", "gtk3-settings", "gtk4-settings",
+            "gtk4-css", "gtk4-moos-css", "xsettingsd",
+        ):
+            with self.subTest(snapshot_file=owned):
+                self.assertIn(f'snapshot_config_file "$snapshot" {owned}', snapshot)
+                self.assertIn(f'restore_config_file "$snapshot" {owned}', restore)
+        self.assertIn("capture_desktop_scene", snapshot)
+        self.assertIn("restore_desktop_scene", restore)
+        self.assertIn('snapshot_gsettings "$snapshot" "$key"', snapshot)
+
+        self.assertIn('mv -- "$snapshot" "$undo"', commit)
+        self.assertIn("snapshot_theme_state", undo)
+        self.assertIn('restore_theme_state "$undo"', undo)
+        self.assertIn('mv -- "$current_snapshot" "$undo"', undo)
+
     def test_runtime_supplements_follow_konsole_profiles_and_gsettings(self) -> None:
         """A renamed Konsole profile and GTK identity must follow every theme live."""
         switch = SWITCH.read_text(encoding="utf-8")
         loader = function(switch, "load_profile")
         supplements = function(switch, "apply_supplements")
         complete = function(switch, "automatic_supplements_complete")
+        full = function(switch, "full_theme_complete")
+        apply = function(switch, "apply")
         profile_root = ROOT / "system_files/usr/share/konsole"
 
         # Run the real profile selector for every installed MoOS look, but point
@@ -103,9 +126,11 @@ class TestMoOSThemeSafety(unittest.TestCase):
 set -euo pipefail
 {constant_block}
 {loader_in_tree}
+export MOOS_THEME_PROFILE_DB={shlex.quote(str(ROOT / 'system_files/usr/share/moos/theme-profiles.tsv'))}
 load_profile "$1"
-printf '%s\\t%s\\t%s\\t%s\\n' \
-    "$konsole_profile" "$konsole_profile_name" "$style" "$icons"
+printf '%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n' \
+    "$konsole_profile" "$konsole_profile_name" "$style" "$icons" \
+    "$qt_widget_style" "$gtk_theme"
 """
         lnfs = re.findall(r'^[A-Z_]+_LNF="([^"]+)"', constant_block, re.M)
         self.assertEqual(len(lnfs), 16, "the gate must exercise all MoOS looks")
@@ -118,8 +143,9 @@ printf '%s\\t%s\\t%s\\t%s\\n' \
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                 ).stdout.rstrip("\n").split("\t")
-                self.assertEqual(len(selected), 4)
-                profile_file, selected_name, selected_style, selected_icons = selected
+                self.assertEqual(len(selected), 6)
+                (profile_file, selected_name, selected_style, selected_icons,
+                 qt_widget_style, gtk_theme) = selected
                 parser = configparser.ConfigParser(interpolation=None)
                 parser.optionxform = str
                 self.assertTrue(
@@ -137,6 +163,8 @@ printf '%s\\t%s\\t%s\\t%s\\n' \
                     f"{lnf}: moos-theme must apply the palette-specific symbolic "
                     "overlay named after its Plasma style",
                 )
+                self.assertEqual(qt_widget_style, "Breeze")
+                self.assertEqual(gtk_theme, "Breeze")
 
         self.assertEqual(
             len(re.findall(r"(?m)^\s*konsole_profile_name=", loader)),
@@ -149,6 +177,7 @@ printf '%s\\t%s\\t%s\\t%s\\n' \
         # light/dark bit leaves apps on stale icons, cursor and fonts.
         expected_sets = {
             "color-scheme": '"$([ "$prefer_dark" = true ] && echo prefer-dark || echo prefer-light)"',
+            "gtk-theme": '"$gtk_theme"',
             "icon-theme": '"$icons"',
             "cursor-theme": '"$cursor"',
             "font-name": "'IBM Plex Sans 10'",
@@ -166,6 +195,11 @@ printf '%s\\t%s\\t%s\\t%s\\n' \
                     complete,
                     rf"gsettings get org\.gnome\.desktop\.interface {re.escape(key)}",
                 )
+        self.assertIn('--key widgetStyle "$qt_widget_style"', apply)
+        self.assertIn('--key widgetStyle 2>/dev/null)', full)
+        self.assertIn('= "$qt_widget_style" ] || return 1', full)
+        self.assertIn('--key gtk-theme-name "$gtk_theme"', supplements)
+        self.assertIn('= "$gtk_theme" ] || return 1', complete)
         # Plasma's gtkconfig rewrites these GSettings font keys from the KDE font
         # description and renders them DOUBLE-SPACED — measured live on this
         # image: 'IBM Plex Sans  10', 'JetBrains Mono  10'. An exact string
@@ -512,17 +546,20 @@ target_lnf "$1" "$2"
         # …but the widget-era dashboards must still be REMOVABLE, or a user who has
         # one keeps it forever, drawing on top of the icons, on a desktop whose bento
         # now lives inside the wallpaper scene.
-        self.assertIn('"org.moos.nova.deskclock"', text)
-        self.assertIn('"org.moos.ui2.dashboard"', text)
-        self.assertIn('"org.moos.heroclock"', text)
-        self.assertIn('d.wallpaperPlugin = "org.moos.ui2.wallpaper"', text)
+        self.assertIn('"plasma/plasmoids/org.moos.nova.deskclock"', text)
+        self.assertIn('"plasma/plasmoids/org.moos.ui2.dashboard"', text)
+        switch = SWITCH.read_text(encoding="utf-8")
+        self.assertIn('"org.moos.nova.deskclock"', switch)
+        self.assertIn('"org.moos.ui2.dashboard"', switch)
+        self.assertIn('"org.moos.heroclock"', switch)
+        self.assertIn('d.wallpaperPlugin = "org.moos.ui2.wallpaper"', switch)
         # addWidget placement is FORBIDDEN: as a desktop applet the bento always drew
         # over the Folder View icons — every coordinate collides with some icon layout.
         # THEME_REV 43's heroclock seed was rejected on sight; rev 44 removes it.
         self.assertNotIn("d.addWidget(", text)
         self.assertNotIn("seed_heroclock_once", text)
         # The icons grow from the RIGHT, opposite the bento's top-left corner of the scene.
-        self.assertIn('d.writeConfig("alignment", "1")', text)
+        self.assertIn('d.writeConfig("alignment", "1")', switch)
 
     def test_automatic_switch_has_bounded_non_recursive_supplement_sync(self) -> None:
         switch = SWITCH.read_text(encoding="utf-8")
@@ -575,7 +612,9 @@ target_lnf "$1" "$2"
         # The branch ends at a ';;' on its own line at the case-arm indent; the ';;' inside
         # the bootstrap's own case statement are deeper and inline, so they do not match.
         auto_branch = switch.split("\n    auto)")[1].split("\n        ;;")[0]
-        self.assertIn('apply "$DARK_LNF"', auto_branch)
+        auto_transaction = function(switch, "enable_auto_transaction")
+        self.assertIn("enable_auto_transaction", auto_branch)
+        self.assertIn('apply "$DARK_LNF"', auto_transaction)
 
         # …and it must arm the switch AFTER that bootstrap, never before. plasma-apply-
         # lookandfeel CLEARS AutomaticLookAndFeel — applying a Global Theme by hand is
@@ -584,8 +623,8 @@ target_lnf "$1" "$2"
         # while printing success. Measured exactly that way on the maintainer's machine.
         # Ordering is invisible to a "does the file contain X" gate, so assert the order.
         self.assertLess(
-            auto_branch.index('apply "$DARK_LNF"'),
-            auto_branch.index("AutomaticLookAndFeel true"),
+            auto_transaction.index('apply "$DARK_LNF"'),
+            auto_transaction.index("AutomaticLookAndFeel true"),
             "moos-theme auto arms the day/night switch before its bootstrap apply, "
             "which clears it — the switch ends up off",
         )
@@ -635,7 +674,11 @@ target_lnf "$1" "$2"
         self.assertIn("systemctl --user start moos-theme-sync.path", auto_case)
         self.assertIn("sync_auto", auto_case)
         self.assertIn("moos-theme.lock", switch)
-        self.assertIn("moos-theme.lock", APPLY.read_text(encoding="utf-8"))
+        apply_migrator = APPLY.read_text(encoding="utf-8")
+        self.assertIn("moos-apply-theme.lock", apply_migrator)
+        self.assertIn('moos-theme apply-lnf "$want_lnf"', apply_migrator)
+        self.assertNotIn("plasma-apply-lookandfeel -a \"$want_lnf\"", apply_migrator)
+        self.assertNotIn("pin_gtk()", apply_migrator)
         # A theme write that fails must be reported, and a plasmashell that is
         # merely SLOW must not be read as "the theme did not apply": a supplement
         # failure propagates to apply_manual, which REVERTS the look the user just
@@ -647,7 +690,11 @@ target_lnf "$1" "$2"
             "a failing kwriteconfig6 must be reported, not swallowed — the "
             "desktop is left half-switched while moos-theme prints success",
         )
-        scene = function(switch, "apply_desktop_scene")
+        scene = function(switch, "apply_desktop_scene_token")
+        self.assertIn('var profilePrefix = "/usr/share/wallpapers/MoOSUI2"', scene)
+        self.assertIn('IMAGE.indexOf("file:///") === 0', scene)
+        self.assertIn('imageSuffixes.indexOf(suffix) >= 0', scene)
+        self.assertNotIn("var isProfile = /", scene)
         self.assertIn(
             '[ "$status" -eq 124 ] && return 2', scene,
             "an 8s plasmashell timeout is not a failed apply",
@@ -735,7 +782,7 @@ esac
         self.assertIn('[ "$actual" != "$requested" ]', mutation)
         self.assertRegex(
             switch,
-            r"(?m)^\s*dark\|.*\|apply-lnf\)\s*$",
+            r"(?m)^\s*dark\|.*\|apply-lnf\|wallpaper-token\|wallpaper-reset\)\s*$",
             "every command that MUTATES the desktop must enter the transaction lock",
         )
         self.assertIn(
@@ -806,6 +853,43 @@ esac
         self.assertIn("activeMotion !== pendingExpectedMotion", motion_readback)
         self.assertIn("clearOperationState()", motion_readback)
 
+    def test_custom_wallpaper_is_encoded_transactional_and_owned_once(self) -> None:
+        switch = SWITCH.read_text(encoding="utf-8")
+        migrator = APPLY.read_text(encoding="utf-8")
+        picker = (
+            ROOT / "system_files/usr/share/moos/theme-picker/main.qml"
+        ).read_text(encoding="utf-8")
+
+        for token in (
+            "capture_wallpaper_identity()",
+            '"schema": 2',
+            '"wallpaperMode": "%s"',
+            '"wallpaperEncoded": "%s"',
+            "apply_wallpaper_transaction()",
+            "custom_wallpapers_complete()",
+            "wallpaper-token)",
+            "wallpaper-reset)",
+            '[[ "$encoded" =~ ^[A-Za-z0-9_.~%-]+$ ]]',
+            "decodeURIComponent",
+            'restore_theme_state "$snapshot"',
+            'snapshot_state_complete "$snapshot"',
+        ):
+            with self.subTest(owner_contract=token):
+                self.assertIn(token, switch)
+
+        self.assertIn("import QtQuick.Dialogs", picker)
+        self.assertIn("FileDialog {", picker)
+        self.assertIn("encodeURIComponent(raw)", picker)
+        self.assertIn('"moos-theme wallpaper-token " + encoded', picker)
+        self.assertIn('"moos-theme wallpaper-reset"', picker)
+        self.assertIn('/^[A-Za-z0-9_.~%-]+$/.test(encoded)', picker)
+
+        for retired in (
+            "apply_desktop_scene()", "reconcile_wallpaper_drift()",
+            "lnf_wallpaper_package()", "current_desktop_wallpaper_value()",
+        ):
+            self.assertNotIn(retired, migrator)
+
     @unittest.skipIf(os.name == "nt", "motion CLI harness requires POSIX executable shims")
     def test_wallpaper_motion_cli_maps_and_validates_exact_values(self) -> None:
         import tempfile
@@ -829,13 +913,28 @@ if [[ "${MOOS_MOTION_TEST_FAIL:-}" == "mixed" ]]; then
     printf "%s\n" "(true, 'moos-motion-error:mixed\\n')"
     exit 0
 fi
-if [[ "$*" == *'writeConfig("MotionMode", TARGET)'* ]]; then
+if [[ "$*" == *'var state = [];'* ]]; then
+    mode="$(sed -n '1p' "$MOOS_MOTION_TEST_STATE")"
+    printf "%s\n" "(true, 'moos-scene-state:mode${mode}\\n')"
+elif [[ "$*" == *'var encoded = "mode'* ]]; then
+    if [[ "$*" == *'var encoded = "mode0"'* ]]; then mode=0
+    elif [[ "$*" == *'var encoded = "mode1"'* ]]; then mode=1
+    elif [[ "$*" == *'var encoded = "mode2"'* ]]; then mode=2
+    else exit 8
+    fi
+    printf '%s\n' "$mode" >"$MOOS_MOTION_TEST_STATE"
+    printf "%s\n" "(true, 'moos-scene-restore:ready\\n')"
+elif [[ "$*" == *'writeConfig("MotionMode", TARGET)'* ]]; then
     if [[ "$*" == *'var TARGET = 0;'* ]]; then mode=0
     elif [[ "$*" == *'var TARGET = 1;'* ]]; then mode=1
     elif [[ "$*" == *'var TARGET = 2;'* ]]; then mode=2
     else exit 9
     fi
     printf '%s\n' "$mode" >"$MOOS_MOTION_TEST_STATE"
+    if [[ "${MOOS_MOTION_TEST_FAIL:-}" == "write" ]]; then
+        printf "%s\n" "(true, 'moos-motion-error:write-failed\\n')"
+        exit 0
+    fi
     printf "%s\n" "(true, 'moos-motion-set:2\\n')"
 else
     mode="$(sed -n '1p' "$MOOS_MOTION_TEST_STATE")"
@@ -899,6 +998,22 @@ fi
             self.assertEqual(invalid.returncode, 2)
             self.assertIn("expected still, gentle, or alive", invalid.stderr)
 
+            state.write_text("1\n", encoding="utf-8")
+            failed_write = subprocess.run(
+                [BASH, str(SWITCH), "motion", "still"],
+                env=env | {"MOOS_MOTION_TEST_FAIL": "write"},
+                check=False,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            self.assertNotEqual(failed_write.returncode, 0)
+            self.assertEqual(
+                state.read_text(encoding="utf-8"),
+                "1\n",
+                "a torn multi-desktop motion write must restore its snapshot",
+            )
+
             mixed_env = env | {"MOOS_MOTION_TEST_FAIL": "mixed"}
             mixed = subprocess.run(
                 [BASH, str(SWITCH), "motion"],
@@ -913,9 +1028,10 @@ fi
             self.assertIn("inconsistent motion modes", mixed.stderr)
             self.assertEqual(
                 len(lock_log.read_text(encoding="utf-8").splitlines()),
-                4,
-                "the four motion WRITES above (still, gentle, alive and the "
-                "rejected 'cinematic') must each hold the transaction lock, and "
+                5,
+                "the five motion WRITES above (still, gentle, alive, the "
+                "rejected 'cinematic', and the forced torn write) must each hold "
+                "the transaction lock, and "
                 "the four READS must take nothing at all — a read-only query "
                 "behind the exclusive write lock is what made opening the Theme "
                 "Picker block on, and block, a real theme transition",
@@ -990,74 +1106,3 @@ fi
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
-
-
-class SteadyStateWallpaperReconcileTests(unittest.TestCase):
-    """The steady-state guard: a green marker must not keep a drifted wallpaper.
-
-    Plasma flushes its in-memory config on shutdown, so a lost race can put
-    ANOTHER MoOS package back on a themed desktop (seen live 2026-08-02: a
-    Scholar-Light session rebooted into a Graphite desktop wallpaper with every
-    marker green). moos-apply-theme now reconciles package-level drift on every
-    login while never touching a custom image file the user picked on purpose.
-    """
-
-    APPLY = ROOT / "system_files/usr/bin/moos-apply-theme"
-
-    def test_marker_exit_reconciles_first(self) -> None:
-        text = self.APPLY.read_text(encoding="utf-8")
-        self.assertIn('reconcile_wallpaper_drift "$lnf"\n        exit 0', text,
-                      "the theme_intact early exit must reconcile wallpaper "
-                      "drift before trusting the marker")
-
-    def test_only_moos_packages_are_healed(self) -> None:
-        text = self.APPLY.read_text(encoding="utf-8")
-        body = text.split("reconcile_wallpaper_drift() {", 1)[1].split("\n}", 1)[0]
-        # Desktop heal keys on MoOSUI2* OR empty (unread); lock heal keys on
-        # MoOSUI2* alone. A custom image path must match neither arm.
-        self.assertIn('/usr/share/wallpapers/MoOSUI2*|"")', body,
-                      "desktop heal must key on the MoOSUI2 package prefix "
-                      "(plus empty = unread), never a custom image path")
-        self.assertIn("/usr/share/wallpapers/MoOSUI2*)", body,
-                      "lock heal must key on the MoOSUI2 package prefix")
-        self.assertIn('"$pkg"|"") ;;', body,
-                      "a matching package and an unreadable value must both be "
-                      "left alone")
-
-    def test_family_mapping_matches_the_shipped_packages(self) -> None:
-        """Run the real lnf_wallpaper_package for all 16 looks."""
-        text = self.APPLY.read_text(encoding="utf-8")
-        fn = "lnf_wallpaper_package() {" + text.split(
-            "lnf_wallpaper_package() {", 1)[1].split("\n}\n", 1)[0] + "\n}"
-        expected = {
-            "org.moos.ui2": "MoOSUI2Graphite",
-            "org.moos.ui2.light": "MoOSUI2Tide",
-            "org.moos.ui2.nova": "MoOSUI2Nova",
-            "org.moos.ui2.nova.light": "MoOSUI2NovaLight",
-            "org.moos.ui2.amethyst": "MoOSUI2Amethyst",
-            "org.moos.ui2.amethyst.light": "MoOSUI2AmethystLight",
-            "org.moos.ui2.midnight": "MoOSUI2Midnight",
-            "org.moos.ui2.midnight.light": "MoOSUI2MidnightLight",
-            "org.moos.ui2.aurora": "MoOSUI2Aurora",
-            "org.moos.ui2.aurora.light": "MoOSUI2AuroraLight",
-            "org.moos.ui2.daylight": "MoOSUI2Daylight",
-            "org.moos.ui2.gaming": "MoOSUI2Arena",
-            "org.moos.ui2.gaming.light": "MoOSUI2ArenaLight",
-            "org.moos.ui2.dev": "MoOSUI2Forge",
-            "org.moos.ui2.dev.light": "MoOSUI2ForgeLight",
-            "org.moos.ui2.study": "MoOSUI2Scholar",
-            "org.moos.ui2.study.light": "MoOSUI2ScholarLight",
-        }
-        for lnf, package in expected.items():
-            with self.subTest(lnf=lnf):
-                out = subprocess.run(
-                    ["bash", "-c", fn + f'\nlnf_wallpaper_package "{lnf}"'],
-                    capture_output=True, text=True)
-                self.assertEqual(out.returncode, 0, out.stderr)
-                self.assertEqual(out.stdout.strip(),
-                                 f"/usr/share/wallpapers/{package}")
-        out = subprocess.run(
-            ["bash", "-c", fn + '\nlnf_wallpaper_package "org.kde.breeze"'],
-            capture_output=True, text=True)
-        self.assertNotEqual(out.returncode, 0,
-                            "a non-MoOS look must never map to a package")

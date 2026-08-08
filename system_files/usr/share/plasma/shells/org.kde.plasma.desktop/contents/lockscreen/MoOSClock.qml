@@ -11,6 +11,7 @@
 import QtQuick
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
+import org.moos.ui as MoUI
 
 Item {
     id: clock
@@ -29,6 +30,7 @@ Item {
     // reason. Getting this wrong is invisible: the animation simply keeps
     // running and nobody is told.
     readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
+    readonly property var design: MoUI.Tokens
 
     // ── One date, in the session's own language ─────────────────────────────
     // This screen used to print the date TWICE: a hardcoded Qt.locale("ar")
@@ -101,7 +103,7 @@ Item {
                 id: hours
                 text: Qt.formatTime(timeSource.now, "HH")
                 color: Kirigami.Theme.textColor
-                font.family: "IBM Plex Sans Arabic"
+                font.family: clock.design.interfaceFamily
                 font.pointSize: Math.round(Kirigami.Theme.defaultFont.pointSize * 11)
                 font.weight: Font.ExtraLight
                 font.letterSpacing: -2
@@ -111,11 +113,11 @@ Item {
                 id: colon
                 text: ":"
                 color: Kirigami.Theme.highlightColor
-                font.family: "IBM Plex Sans Arabic"
+                font.family: clock.design.interfaceFamily
                 font.pointSize: hours.font.pointSize
                 font.weight: Font.ExtraLight
                 renderType: Text.CurveRendering
-                opacity: 0.9
+                opacity: 1 - clock.design.surfaceRestingOpacity
 
                 // The separator used to flicker on a four-second cycle keyed to
                 // NOTHING — a seconds-modulo toggle that dropped it to 30% for
@@ -136,15 +138,15 @@ Item {
                         property: "opacity"
                         from: 0.9
                         to: 0.32
-                        duration: 170
+                        duration: clock.design.motionPress
                         easing.type: Easing.InQuad
                     }
                     NumberAnimation {
                         target: colon
                         property: "opacity"
                         to: 0.9
-                        duration: 250
-                        easing.type: Easing.OutCubic
+                        duration: clock.design.motionEmphasis
+                        easing.type: clock.design.easeStandard
                     }
                 }
             }
@@ -152,7 +154,7 @@ Item {
                 id: minutes
                 text: Qt.formatTime(timeSource.now, "mm")
                 color: Kirigami.Theme.textColor
-                font.family: "IBM Plex Sans Arabic"
+                font.family: clock.design.interfaceFamily
                 font.pointSize: hours.font.pointSize
                 font.weight: Font.ExtraLight
                 font.letterSpacing: -2
@@ -177,7 +179,7 @@ Item {
             Layout.preferredHeight: 2
             radius: 1
             color: Kirigami.Theme.highlightColor
-            opacity: 0.9
+            opacity: 1 - clock.design.surfaceRestingOpacity
         }
 
         // ── The date: once, in the session's language, in Latin digits ──
@@ -186,11 +188,11 @@ Item {
             text: clock.latinNumerals(clock.sessionLocale.toString(
                       timeSource.now, clock.sessionLocale.dateFormat(Locale.LongFormat)))
             color: Kirigami.Theme.textColor
-            opacity: 0.85
+            opacity: clock.design.mutedOpacity
             // Plex Arabic carries Latin as well as Arabic, so ONE family draws
             // this line whichever script the session speaks — the date never
             // changes weight or width when the locale does.
-            font.family: "IBM Plex Sans Arabic"
+            font.family: clock.design.interfaceFamily
             font.pointSize: Math.round(Kirigami.Theme.defaultFont.pointSize * 1.4)
             font.weight: Font.Light
             renderType: Text.QtRendering

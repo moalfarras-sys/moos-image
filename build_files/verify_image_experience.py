@@ -801,6 +801,9 @@ for removed in (
     # collision). It lives inside org.moos.ui2.wallpaper now — a reintroduced
     # applet package would put the collision back.
     "/usr/share/plasma/plasmoids/org.moos.ui2.dashboard",
+    # Metadata-less UI1 style. Git/OSTree is the rollback; carrying this in the
+    # runtime tree creates a second visual source nothing can legitimately select.
+    "/usr/share/plasma/desktoptheme/Nova",
     # Orphan of the deleted UI1 generation — it polluted the wallpaper picker.
     "/usr/share/wallpapers/MoOSUIAtmosphere",
 ):

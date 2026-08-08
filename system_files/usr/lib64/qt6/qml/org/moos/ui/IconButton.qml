@@ -7,8 +7,6 @@ Button {
     iconName: symbol
     compact: true
     Accessible.name: accessibleLabel.length > 0 ? accessibleLabel : symbol
-    implicitWidth: tokens.targetControl
-    implicitHeight: tokens.targetControl
-
-    Tokens { id: tokens }
+    implicitWidth: Tokens.targetControl
+    implicitHeight: Tokens.targetControl
 }

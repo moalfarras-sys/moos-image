@@ -41,11 +41,13 @@
 import QtQuick
 import org.kde.plasma.components as PlasmaComponents3
 import org.kde.kirigami as Kirigami
+import org.moos.ui as MoUI
 
 PlasmaComponents3.AbstractButton {
     id: root
     readonly property bool softwareRendering: GraphicsInfo.api === GraphicsInfo.Software
     readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
+    readonly property var design: MoUI.Tokens
 
     // MoOS: the greeter hands us a full-colour icon name. Map it to the symbolic
     // glyph so isMask can paint it in the brand colour. Names already ending in
@@ -87,15 +89,15 @@ PlasmaComponents3.AbstractButton {
     // text silently falls back to Noto — a second Arabic face on the same
     // screen as the Plex date. Plex Arabic carries a full Latin set. And
     // font.families does not exist on Qt 6.11.1 here — see Logout.qml.
-    font.family: "IBM Plex Sans Arabic"
+    font.family: design.interfaceFamily
     font.pointSize: Kirigami.Theme.defaultFont.pointSize + 1
     font.underline: root.activeFocus
 
     // MoOS token: medium glyph inside the same portal key used by Logout, so
     // the lock's session buttons and the power dock are
     // the same control at the same size.
-    icon.width: Kirigami.Units.iconSizes.medium
-    icon.height: Kirigami.Units.iconSizes.medium
+    icon.width: design.iconHero
+    icon.height: design.iconHero
 
     hoverEnabled: true
 
@@ -127,17 +129,18 @@ PlasmaComponents3.AbstractButton {
     opacity: root.lit ? 1 : 0.85
     Behavior on opacity {
         PropertyAnimation { // OpacityAnimator makes it turn black at random intervals
-            duration: root.motionEnabled ? Kirigami.Units.longDuration : 0
-            easing.type: Easing.InOutQuad
+            duration: design.duration(root.motionEnabled, design.motionGeometry)
+            easing.type: design.easeStandard
         }
     }
 
     // MoOS: the same answer-the-pointer lift the logout screen's buttons have.
-    scale: root.down ? 0.98 : (root.hovered ? 1.03 : 1.0)
+    scale: root.down ? design.pressScale
+                     : (root.hovered ? design.hoverScale : 1.0)
     Behavior on scale {
         NumberAnimation {
-            duration: root.motionEnabled ? Kirigami.Units.shortDuration : 0
-            easing.type: Easing.OutCubic
+            duration: design.duration(root.motionEnabled, design.motionFast)
+            easing.type: design.easeStandard
         }
     }
 
@@ -160,7 +163,7 @@ PlasmaComponents3.AbstractButton {
         // explicitly set size to keep it from expanding or shrinking
         width: implicitWidth
         height: implicitHeight
-        radius: height * 0.30
+        radius: design.radiusPanel
         // MoOS glass: the brand tint, warmed by the pointer. Software rendering
         // keeps upstream's opaque fallback — a tint over an unblurred surface
         // reads as dirt, and that path exists for machines with no GPU at all.
@@ -176,12 +179,14 @@ PlasmaComponents3.AbstractButton {
             if (root.softwareRendering) {
                 return root.lit ? 0.8 : 0.6
             }
-            return root.lit ? 0.16 : 0.08
+            return root.lit ? design.surfaceHoverOpacity
+                            : design.surfaceRestingOpacity
         }
         Behavior on opacity {
             PropertyAnimation { // OpacityAnimator makes it turn black at random intervals
-                duration: root.motionEnabled ? Kirigami.Units.longDuration : 0
-                easing.type: Easing.InOutQuad
+                duration: design.duration(root.motionEnabled,
+                                          design.motionGeometry)
+                easing.type: design.easeStandard
             }
         }
         // MoOS: a hairline that catches the light, the same one the dock, the
@@ -191,13 +196,14 @@ PlasmaComponents3.AbstractButton {
             radius: parent.radius
             color: "transparent"
             visible: !root.softwareRendering
-            border.width: 1
+            border.width: design.borderHairline
             // Accent border when lit (hover/focus), hairline ink when idle —
             // matching the logout orb's border exactly.
             border.color: root.lit
                 ? (root.destructive ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.highlightColor)
                 : Kirigami.Theme.textColor
-            opacity: root.lit ? 0.8 : 0.16
+            opacity: root.lit ? design.focusOpacity
+                              : design.surfaceRestingOpacity
         }
         Rectangle {
             anchors.horizontalCenter: parent.horizontalCenter
@@ -227,12 +233,13 @@ PlasmaComponents3.AbstractButton {
             anchors.fill: parent
             radius: parent.radius
             color: Kirigami.Theme.textColor
-            opacity: 0.15
+            opacity: design.surfaceRestingOpacity
             scale: root.down ? 1 : 0
             Behavior on scale {
                 PropertyAnimation {
-                    duration: root.motionEnabled ? Kirigami.Units.shortDuration : 0
-                    easing.type: Easing.InOutQuart
+                    duration: design.duration(root.motionEnabled,
+                                              design.motionFast)
+                    easing.type: design.easeEmphasis
                 }
             }
         }
@@ -259,7 +266,7 @@ PlasmaComponents3.AbstractButton {
             text: root.Kirigami.MnemonicData.richTextLabel
             style: root.softwareRendering ? Text.Outline : Text.Normal
             styleColor: Kirigami.Theme.backgroundColor // Unused without outline
-            font.family: "IBM Plex Sans Arabic"
+            font.family: design.interfaceFamily
             font.weight: Font.DemiBold
             color: root.destructive ? Kirigami.Theme.negativeTextColor
                                     : Kirigami.Theme.textColor

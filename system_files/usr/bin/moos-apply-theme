@@ -158,7 +158,20 @@ set -uo pipefail
 # 44: the auto-placed Hero Clock is gone. Rev 43 seeded org.moos.heroclock on
 #     the desk; the owner rejected it on sight. Remove every instance and never
 #     seed again — the plasmoid stays installable from the widget browser.
-THEME_REV=44
+# 45: one generated Design Core and one transactional theme owner replace the
+#     application-local token copies and the migrator's second 16-theme table.
+#     QML cache eviction is required for the global MoUI imports, launcher and
+#     picker updates to reach existing OSTree users. The picker also gains a
+#     safe custom-image canvas flow whose encoded state survives login repair.
+# 46: the unified experience reaches every effective shell/session consumer:
+#     Horizon Hub, launcher, Control Center, login/lock/power/splash and the
+#     sixteen generated profiles all consume org.moos.ui. Qt/GTK engine choices
+#     are now profile data and verified live. The wallpaper no longer owns any
+#     infinite animation; sparse finite weather/health pulses replace the
+#     measured 10.25–11.3% permanent 4K repaint tax. Existing sessions must drop
+#     qmlcache and reload the wallpaper package to receive both the visual and
+#     performance architecture.
+THEME_REV=46
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"
@@ -169,7 +182,7 @@ marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"
 if command -v flock >/dev/null 2>&1; then
     lock_dir="${XDG_RUNTIME_DIR:-$state_dir}"
     mkdir -p "$lock_dir" 2>/dev/null || true
-    if exec 9>"${lock_dir}/moos-theme.lock"; then
+    if exec 9>"${lock_dir}/moos-apply-theme.lock"; then
         flock -n 9 || exit 0
     fi
 fi
@@ -179,27 +192,6 @@ fi
 # gets dragged back to Dark on every login has not been protected, they have been
 # overruled.
 DARK_LNF="org.moos.ui2"
-LIGHT_LNF="org.moos.ui2.light"
-DARK_DECO="__aurorae__svg__MoOSUI2"
-LIGHT_DECO="__aurorae__svg__MoOSUI2Light"
-# The extended MoOS theme family (same UI2 engine, own palettes). A member the
-# user picked is a durable choice — the login repair PRESERVES it, it does not
-# drag it back to Dark. Their assets are derived from the LNF suffix (nova ->
-# MoOSUI2Nova), so one branch covers all four.
-NOVA_LNF="org.moos.ui2.nova"
-AMETHYST_LNF="org.moos.ui2.amethyst"
-MIDNIGHT_LNF="org.moos.ui2.midnight"
-AURORA_LNF="org.moos.ui2.aurora"
-NOVA_LIGHT_LNF="org.moos.ui2.nova.light"
-AMETHYST_LIGHT_LNF="org.moos.ui2.amethyst.light"
-AURORA_LIGHT_LNF="org.moos.ui2.aurora.light"
-DAYLIGHT_LNF="org.moos.ui2.midnight.light"
-GAMING_LNF="org.moos.ui2.gaming"
-DEV_LNF="org.moos.ui2.dev"
-STUDY_LNF="org.moos.ui2.study"
-GAMING_LIGHT_LNF="org.moos.ui2.gaming.light"
-DEV_LIGHT_LNF="org.moos.ui2.dev.light"
-STUDY_LIGHT_LNF="org.moos.ui2.study.light"
 
 # UI1 remains installed as an explicit rollback. It counts as intact after the
 # UI2 migration marker exists, so `moos-theme ui1-dark|ui1-light` is a durable
@@ -216,359 +208,6 @@ current_lookandfeel() {
     kreadconfig6 --file kdeglobals --group KDE --key LookAndFeelPackage 2>/dev/null
 }
 
-# The decoration is checked separately because it can be wrong on its own: it lives in a
-# different file, and ~/.config/kdedefaults/kwinrc can hold Breeze's while the Global
-# Theme still reads org.moos.nova. A "Nova" desktop wearing Breeze title bars is exactly
-# the state every install shipped in, and it must count as drift.
-current_decoration() {
-    command -v kreadconfig6 >/dev/null 2>&1 || return 1
-    kreadconfig6 --file kwinrc --group org.kde.kdecoration2 --key theme 2>/dev/null
-}
-
-current_scheme() {
-    command -v kreadconfig6 >/dev/null 2>&1 || return 1
-    kreadconfig6 --file kdeglobals --group General --key ColorScheme 2>/dev/null
-}
-
-current_style() {
-    command -v kreadconfig6 >/dev/null 2>&1 || return 1
-    kreadconfig6 --file plasmarc --group Theme --key name 2>/dev/null
-}
-
-current_icons() {
-    command -v kreadconfig6 >/dev/null 2>&1 || return 1
-    kreadconfig6 --file kdeglobals --group Icons --key Theme 2>/dev/null
-}
-
-# The desktop wallpaper is the MoOS SCENE plugin (org.moos.ui2.wallpaper):
-# wallpaper image + the Tidal Glass dashboard, painted as one layer BELOW the
-# Folder View icons. "Complete" means every desktop containment runs the scene
-# plugin AND its Image config points at the expected wallpaper package.
-desktop_wallpapers_complete() {
-    local expected="$1" result desktops matching config
-    if command -v gdbus >/dev/null 2>&1 && command -v timeout >/dev/null 2>&1; then
-        result="$(timeout 4s gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
-            -m org.kde.PlasmaShell.evaluateScript '
-                var expected = "'"$expected"'";
-                var ds = desktops();
-                var matching = 0;
-                for (var i = 0; i < ds.length; i++) {
-                    ds[i].currentConfigGroup = ["Wallpaper", "org.moos.ui2.wallpaper", "General"];
-                    var image = String(ds[i].readConfig("Image", ""));
-                    if (ds[i].wallpaperPlugin == "org.moos.ui2.wallpaper"
-                            && image.indexOf(expected) >= 0) { matching++; }
-                }
-                print("desktops=" + ds.length + ";matching=" + matching);
-            ' 2>/dev/null)" || result=""
-        result="$(printf '%s\n' "$result" \
-            | grep -oE 'desktops=[1-9][0-9]*;matching=[0-9]+' | head -n1)"
-        if [ -n "$result" ]; then
-            desktops="${result#desktops=}"
-            desktops="${desktops%%;*}"
-            matching="${result##*matching=}"
-            [ "$desktops" = "$matching" ]
-            return
-        fi
-    fi
-
-    config="${XDG_CONFIG_HOME:-$HOME/.config}/plasma-org.kde.plasma.desktop-appletsrc"
-    [ -r "$config" ] || return 1
-    awk -v expected="$expected" '
-        /^\[Containments\]\[[^]]+\]\[Wallpaper\]\[org\.moos\.ui2\.wallpaper\]\[General\]$/ {
-            section = $0
-            sub(/^\[Containments\]\[/, "", section)
-            split(section, parts, "\\]\\[")
-            containment = parts[1]
-            mode = "wallpaper"
-            next
-        }
-        /^\[Containments\]\[[^]]+\]$/ {
-            section = $0
-            sub(/^\[Containments\]\[/, "", section)
-            sub(/\]$/, "", section)
-            containment = section
-            mode = "containment"
-            next
-        }
-        /^\[/ { mode = ""; next }
-        mode == "containment" && /^plugin=/ {
-            rootPlugin[containment] = substr($0, 8)
-            next
-        }
-        mode == "containment" && /^wallpaperplugin=/ {
-            wallPlugin[containment] = substr($0, 17)
-            next
-        }
-        mode == "wallpaper" && /^Image=/ {
-            image[containment] = substr($0, 7)
-            next
-        }
-        END {
-            desktops = 0
-            matching = 0
-            for (id in rootPlugin) {
-                if (rootPlugin[id] == "org.kde.panel") { continue }
-                desktops++
-                if (wallPlugin[id] == "org.moos.ui2.wallpaper" \
-                        && index(image[id], expected) > 0) { matching++ }
-            }
-            exit !(desktops > 0 && matching == desktops)
-        }
-    ' "$config" 2>/dev/null
-}
-
-# Point every desktop containment at the MoOS scene: the wallpaper plugin that
-# carries the dashboard bento below the icons. Also removes the RETIRED desktop
-# applets (the bento used to be org.moos.ui2.dashboard, and before that
-# org.moos.nova.deskclock — as widgets they always sat ON TOP of the icons) and
-# keeps the Folder View icons right-aligned, opposite the bento. Idempotent,
-# one D-Bus turn, safe on the live ISO — the scene cannot cover anything.
-apply_desktop_scene() {
-    local image="$1" result
-    command -v gdbus >/dev/null 2>&1 || return 1
-    command -v timeout >/dev/null 2>&1 || return 1
-    result="$(timeout 8s gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
-        -m org.kde.PlasmaShell.evaluateScript '
-            var IMAGE = "'"$image"'";
-            var ds = desktops();
-            var incomplete = (ds.length === 0);
-            for (var i = 0; i < ds.length; i++) {
-                var d = ds[i];
-                try {
-                    // Scripting exposes "locked" separately from the appletsrc
-                    // immutability key. A desk can read immutability=0 in the
-                    // file and still refuse createApplet while locked=true —
-                    // measured live: stock systemmonitor and MoOS heroclock
-                    // both failed until locked was cleared on a session shell.
-                    try { d.locked = false; } catch (lockErr) {}
-                    d.currentConfigGroup = ["General"];
-                    d.writeConfig("alignment", "1");
-                    d.writeConfig("sortMode", "1");
-                    var ws = d.widgets();
-                    for (var j = 0; j < ws.length; j++) {
-                        if (ws[j].type == "org.moos.ui2.dashboard"
-                                || ws[j].type == "org.moos.nova.deskclock"
-                                || ws[j].type == "org.moos.heroclock") {
-                            ws[j].remove();
-                        }
-                    }
-                    d.wallpaperPlugin = "org.moos.ui2.wallpaper";
-                    d.currentConfigGroup = ["Wallpaper", "org.moos.ui2.wallpaper", "General"];
-                    d.writeConfig("Image", IMAGE);
-                    d.reloadConfig();
-                } catch (e) { incomplete = true; }
-            }
-            print(incomplete ? "scene-incomplete" : "scene-ready");
-        ' 2>>"$log")" || return 1
-    case "$result" in *scene-ready*) return 0 ;; *) return 1 ;; esac
-}
-
-current_lockscreen_wallpaper() {
-    command -v kreadconfig6 >/dev/null 2>&1 || return 1
-    kreadconfig6 --file kscreenlockerrc --group Greeter --group Wallpaper \
-        --group org.kde.image --group General --key Image 2>/dev/null
-}
-
-# Prefer the running containments, then fall back to Plasma's persisted source
-# of truth when autostart arrives before the shell's scripting endpoint. The
-# invariant is PER CONTAINMENT: every desktop runs the MoOS scene wallpaper
-# (which carries the bento BELOW the icons) and carries ZERO of the retired
-# desktop-applet generations. A global check is wrong as soon as a second
-# monitor or Activity adds another legitimate desktop containment.
-current_scene_state() {
-    local result config
-    if command -v gdbus >/dev/null 2>&1 && command -v timeout >/dev/null 2>&1; then
-        result="$(timeout 4s gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
-            -m org.kde.PlasmaShell.evaluateScript '
-                var ds = desktops();
-                var sceneEach = ds.length > 0;
-                for (var i = 0; i < ds.length; i++) {
-                    var stale = 0;
-                    var ws = ds[i].widgets();
-                    for (var j = 0; j < ws.length; j++) {
-                        if (ws[j].type == "org.moos.nova.deskclock") { stale++; }
-                        if (ws[j].type == "org.moos.ui2.dashboard") { stale++; }
-                        if (ws[j].type == "org.moos.heroclock") { stale++; }
-                    }
-                    if (stale > 0
-                            || ds[i].wallpaperPlugin != "org.moos.ui2.wallpaper") {
-                        sceneEach = false;
-                    }
-                }
-                var state = sceneEach ? "scene-each" : "mixed";
-                print("desktops=" + ds.length + ";state=" + state);
-            ' 2>/dev/null)" || result=""
-        # A responsive shell can still answer before it has created any desktop
-        # containments. Never accept that transient empty result as real state;
-        # let the persisted parser below decide instead.
-        result="$(printf '%s\n' "$result" \
-            | grep -oE 'desktops=[1-9][0-9]*;state=(scene-each|mixed)' \
-            | head -n1)"
-        if [ -n "$result" ]; then
-            printf '%s\n' "${result##*state=}"
-            return 0
-        fi
-    fi
-
-    config="${XDG_CONFIG_HOME:-$HOME/.config}/plasma-org.kde.plasma.desktop-appletsrc"
-    [ -r "$config" ] || return 1
-    # Parse only direct applets of top-level desktop containments. Nested tray
-    # applets and panels also carry plugin= keys and must not enter this count.
-    # The parser intentionally returns failure when no persisted desktop exists:
-    # "zero desktops" is startup uncertainty, never a valid completed theme.
-    awk '
-        /^\[Containments\]\[[^]]+\]\[Applets\]\[[^]]+\]$/ {
-            section = $0
-            sub(/^\[Containments\]\[/, "", section)
-            split(section, parts, "\\]\\[")
-            containment = parts[1]
-            mode = "applet"
-            next
-        }
-        /^\[Containments\]\[[^]]+\]$/ {
-            section = $0
-            sub(/^\[Containments\]\[/, "", section)
-            sub(/\]$/, "", section)
-            containment = section
-            mode = "containment"
-            next
-        }
-        /^\[/ { mode = ""; next }
-        mode == "containment" && /^plugin=/ {
-            plugin = substr($0, 8)
-            rootPlugin[containment] = plugin
-            next
-        }
-        mode == "containment" && /^wallpaperplugin=/ {
-            wallPlugin[containment] = substr($0, 17)
-            next
-        }
-        mode == "applet" && /^plugin=org\.moos\.nova\.deskclock$/ {
-            stale[containment]++
-            next
-        }
-        mode == "applet" && /^plugin=org\.moos\.ui2\.dashboard$/ {
-            stale[containment]++
-            next
-        }
-        END {
-            desktops = 0
-            sceneEach = 1
-            for (id in rootPlugin) {
-                if (rootPlugin[id] == "org.kde.panel") { continue }
-                desktops++
-                if ((stale[id] + 0) != 0) { sceneEach = 0 }
-                if (wallPlugin[id] != "org.moos.ui2.wallpaper") { sceneEach = 0 }
-            }
-            if (desktops == 0) { exit 2 }
-            if (sceneEach) { print "scene-each" }
-            else { print "mixed" }
-        }
-    ' "$config" 2>/dev/null
-}
-
-# The marker means "this revision was applied once". It does NOT mean the desktop still
-# LOOKS like MoOS, and those two came apart the moment Plasma started rewriting
-# LookAndFeelPackage behind our back (see defuse_automatic_lookandfeel below). An
-# apply-once marker on a desktop that has silently reverted to Breeze is precisely the
-# thing that keeps it Breeze: the repair exists, and its own marker disables it.
-#
-# So the marker is honoured only while the look is intact. If it is not, this run repairs
-# it however many times it has run before — that is the whole point.
-# Which MoOS look is the user wearing, if any? "Intact" means the look-and-feel is
-# one of ours AND the decoration is the one that belongs to it. A Nova Light
-# desktop wearing the dark decoration is drift just as much as a Breeze one is.
-theme_intact() {
-    local lnf="$1" deco="$2" scheme style icons cursor scene
-    local expected_deco expected_scheme expected_style expected_icons expected_cursor expected_scene
-    scheme="$(current_scheme)" || return 1
-    style="$(current_style)" || return 1
-    icons="$(current_icons)" || return 1
-    scene="$(current_scene_state)" || return 1
-
-    case "$lnf" in
-        "$DARK_LNF")
-            expected_deco="$DARK_DECO"; expected_scheme=MoOSUI2Dark
-            expected_style=MoOSUI2; expected_icons=MoOSUI2
-            expected_cursor=MoOS
-            expected_scene=scene-each
-            ;;
-        "$LIGHT_LNF")
-            expected_deco="$LIGHT_DECO"; expected_scheme=MoOSUI2Light
-            expected_style=MoOSUI2Light; expected_icons=MoOSUI2Light
-            expected_cursor=MoOSDark
-            expected_scene=scene-each
-            ;;
-        "$NOVA_LNF"|"$AMETHYST_LNF"|"$MIDNIGHT_LNF"|"$AURORA_LNF")
-            local fam="${lnf##*.}"; local Fam="${fam^}"   # nova -> Nova
-            expected_deco="__aurorae__svg__MoOSUI2${Fam}"
-            expected_scheme="MoOSUI2${Fam}"; expected_style="MoOSUI2${Fam}"
-            expected_icons="$expected_style"; expected_cursor=MoOS
-            expected_scene=scene-each
-            ;;
-        "$NOVA_LIGHT_LNF"|"$AMETHYST_LIGHT_LNF"|"$AURORA_LIGHT_LNF")
-            local fam="${lnf%.light}"; fam="${fam##*.}"; local Fam="${fam^}"
-            expected_deco="__aurorae__svg__MoOSUI2${Fam}Light"
-            expected_scheme="MoOSUI2${Fam}Light"; expected_style="MoOSUI2${Fam}Light"
-            expected_icons="$expected_style"; expected_cursor=MoOSDark
-            expected_scene=scene-each
-            ;;
-        "$DAYLIGHT_LNF")
-            expected_deco=__aurorae__svg__MoOSUI2Daylight
-            expected_scheme=MoOSUI2Daylight; expected_style=MoOSUI2Daylight
-            expected_icons="$expected_style"; expected_cursor=MoOSDark
-            expected_scene=scene-each
-            ;;
-        "$GAMING_LNF"|"$DEV_LNF"|"$STUDY_LNF")
-            case "$lnf" in
-                "$GAMING_LNF") local Fam=Arena ;;
-                "$DEV_LNF") local Fam=Forge ;;
-                *) local Fam=Scholar ;;
-            esac
-            expected_deco="__aurorae__svg__MoOSUI2${Fam}"
-            expected_scheme="MoOSUI2${Fam}"; expected_style="MoOSUI2${Fam}"
-            expected_icons="$expected_style"; expected_cursor=MoOS
-            expected_scene=scene-each
-            ;;
-        "$GAMING_LIGHT_LNF"|"$DEV_LIGHT_LNF"|"$STUDY_LIGHT_LNF")
-            case "$lnf" in
-                "$GAMING_LIGHT_LNF") local Fam=ArenaLight ;;
-                "$DEV_LIGHT_LNF") local Fam=ForgeLight ;;
-                *) local Fam=ScholarLight ;;
-            esac
-            expected_deco="__aurorae__svg__MoOSUI2${Fam}"
-            expected_scheme="MoOSUI2${Fam}"; expected_style="MoOSUI2${Fam}"
-            expected_icons="$expected_style"; expected_cursor=MoOSDark
-            expected_scene=scene-each
-            ;;
-        *) return 1 ;;
-    esac
-
-    # The cursor is part of the look (a white pointer on Tidal Light's mint is
-    # unreadable), and cursor drift used to be invisible to this readback — the
-    # marker stayed green while the pointer stayed wrong. An EMPTY value is not
-    # drift (a fresh user may simply not have the key yet; the LNF defaults
-    # cover them); only a conflicting explicit value is.
-    cursor="$(kreadconfig6 --file kcminputrc --group Mouse --key cursorTheme 2>/dev/null)" || cursor=""
-
-    [ "$deco" = "$expected_deco" ] \
-        && [ "$scheme" = "$expected_scheme" ] \
-        && [ "$style" = "$expected_style" ] \
-        && [ "$icons" = "$expected_icons" ] \
-        && { [ -z "$cursor" ] || [ "$cursor" = "$expected_cursor" ]; } \
-        && [ "$scene" = "$expected_scene" ]
-}
-
-# Completion is stricter than steady-state integrity: a user may deliberately
-# replace their wallpaper later, but the first revision apply may only mark
-# itself done after both desktop and lock-screen received the requested package.
-theme_complete() {
-    local lnf="$1" deco="$2" wallpaper_package="$3" lockscreen
-    theme_intact "$lnf" "$deco" || return 1
-    desktop_wallpapers_complete "$wallpaper_package" || return 1
-    lockscreen="$(current_lockscreen_wallpaper)" || return 1
-    [ "$lockscreen" = "$wallpaper_package" ]
-}
 
 # Which one should a repair restore? Whichever the user last chose. Only when the
 # desktop has drifted to something that is not MoOS at all do we impose the
@@ -613,89 +252,13 @@ target_lnf() {
     esac
 }
 
-# Disarm Plasma's day/night Look-and-Feel switch BEFORE applying anything — otherwise it
-# is free to undo this run's work at the next sunrise.
-#
-# The switch keeps its two targets in [KDE] Default{Light,Dark}LookAndFeel and resolves
-# them BY NAME when it fires. If the named package is not installed, Plasma does not fall
-# back to the configured LookAndFeelPackage — it falls back to BREEZE, and it persists
-# that choice into the user's kdeglobals, which outranks /etc/xdg for good.
-#
-# This is not hypothetical, it is the bug this revision exists for. Users created under
-# Fedora's kde-settings carried AutomaticLookAndFeel=true with
-# DefaultLightLookAndFeel=org.fedoraproject.fedora.desktop. MoOS then removed Fedora's
-# look-and-feel packages (a machine called MoOS should not offer another distribution's
-# themes). The system default still said org.moos.nova and the image still shipped it —
-# but on the first boot after that upgrade the switch resolved a package that no longer
-# existed, and the desktop came up Breeze Dark.
-#
-# MoOS now ships a matched light/dark pair, so the switch gets POINTED AT THEM instead
-# of being deleted. Whichever way it fires, it lands on MoOS.
-#
-# AutomaticLookAndFeel itself is left exactly as the user set it. Arming it is the
-# user's call (`moos-theme auto`); all this guarantees is that if it IS armed, it
-# cannot reach a non-MoOS theme.
-#
-# IT MUST RUN ABOVE THE MARKER GATE, AND IT DID NOT. Its own comment claimed it "runs
-# before anything else applies"; the call sat ~70 lines BELOW the `exit 0` that fires
-# whenever the marker exists and the look is intact — i.e. on every ordinary login. So
-# on the maintainer's own machine the switch kept a target written back when UI1 WAS the
-# light theme: DefaultLightLookAndFeel=org.moos.ui.light, with the switch armed. At
-# sunrise Plasma resolved the light half by name, and the desktop was pulled to UI1 —
-# nobody chose that. Worse, the pull is self-ratifying: target_lnf() reads UI1 + a
-# completed marker as "an explicit rollback", so every later repair preserved it, and
-# the wallpaper and dashboard (which a Plasma theme switch does not carry) stayed UI2 —
-# a UI2 desktop wearing a UI1 face. An intact look TODAY says nothing about where the
-# switch will land TOMORROW, which is exactly why this cannot live behind that gate.
-# It is idempotent and costs two kreadconfig6 calls; there is no reason to guard it.
-pin_lookandfeel_switch_targets() {
-    command -v kreadconfig6 >/dev/null 2>&1 || return 0
-    command -v kwriteconfig6 >/dev/null 2>&1 || return 0
-
-    local want key val
-    for key in DefaultLightLookAndFeel DefaultDarkLookAndFeel; do
-        if [ "$key" = "DefaultLightLookAndFeel" ]; then want="$LIGHT_LNF"; else want="$DARK_LNF"; fi
-
-        # Never point the switch at a package that is not on disk — that is the
-        # exact failure that put every MoOS desktop into Breeze Dark.
-        if [ ! -d "/usr/share/plasma/look-and-feel/$want" ]; then
-            val="$(kreadconfig6 --file kdeglobals --group KDE --key "$key" 2>/dev/null)"
-            [ -n "$val" ] && kwriteconfig6 --file kdeglobals --group KDE --key "$key" --delete 2>/dev/null \
-                && echo "dropped ${key}=${val}: ${want} is not installed" >>"$log" 2>/dev/null
-            continue
-        fi
-
-        val="$(kreadconfig6 --file kdeglobals --group KDE --key "$key" 2>/dev/null)"
-        [ "$val" = "$want" ] && continue
-        kwriteconfig6 --file kdeglobals --group KDE --key "$key" "$want" 2>/dev/null \
-            && echo "pinned ${key}=${want} (was '${val:-unset}')" >>"$log" 2>/dev/null
-    done
-    return 0
-}
-pin_lookandfeel_switch_targets
-
-# The event sounds, the same trap and the same gate. [Sounds] is NOT in the entry set
-# LookAndFeelManager applies, so it writes nothing to kdedefaults — and the user's own
-# kdeglobals, carrying Theme=freedesktop from the Breeze/Fedora defaults they were created
-# under, outranks both the theme's declaration and /etc/xdg/kdeglobals.
-#
-# This reconcile existed, and the comment beside it said the MoOS sound theme "has shipped
-# since day one and has never once played". It still had not: the write lived ~400 lines
-# below the marker gate, so it only ran on a real apply, and the drift it repairs happens
-# AFTER one (Plasma's own Sound settings rewrite the key). The proof is a failed unit on
-# this machine every boot: plasma-startupsound exits 1 with canberra "File or data not
-# found" — it is looking up desktop-login in `freedesktop`, which has no such sound, while
-# /usr/share/sounds/moos/stereo/desktop-login.oga sits there unplayed.
-#
-# Two idempotent kwriteconfig calls. Nothing about them needs a heavy re-apply to be
-# allowed to run, so they no longer live behind one.
-pin_sound_theme() {
-    command -v kwriteconfig6 >/dev/null 2>&1 || return 0
-    kwriteconfig6 --file kdeglobals --group Sounds --key Theme moos 2>/dev/null || return 0
-    kwriteconfig6 --file kdeglobals --group Sounds --key Enable true 2>/dev/null || return 0
-    return 0
-}
-pin_sound_theme
+# Keep the automatic light/dark targets and the event-sound selector safe on
+# every login, including the marker fast path. The writes belong to the
+# transactional appearance owner; this revision migrator only requests its
+# fixed guard operation.
+if command -v moos-theme >/dev/null 2>&1; then
+    moos-theme guard >>"$log" 2>&1 || true
+fi
 
 # User-local Plasma data outranks /usr/share and can be created by a preview at
 # any time, including after THEME_REV was applied. Reconcile the complete set of
@@ -739,117 +302,20 @@ quarantine_moos_data_shadows() {
 # running desktop on the preview forever.
 quarantine_moos_data_shadows
 
-# Read the value the desktop scene is actually configured with (first desktop):
-# prefer the running shell, fall back to the persisted file. Empty = cannot tell.
-current_desktop_wallpaper_value() {
-    local result config
-    if command -v gdbus >/dev/null 2>&1 && command -v timeout >/dev/null 2>&1; then
-        result="$(timeout 4s gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
-            -m org.kde.PlasmaShell.evaluateScript '
-                var ds = desktops();
-                if (ds.length > 0) {
-                    ds[0].currentConfigGroup = ["Wallpaper", "org.moos.ui2.wallpaper", "General"];
-                    print("WPV:" + ds[0].readConfig("Image", ""));
-                }
-            ' 2>/dev/null)" || result=""
-        # gdbus prints a D-Bus tuple and quotes strings with SINGLE quotes:
-        #     ('WPV:/usr/share/wallpapers/MoOSUI2Arena',)
-        # Excluding only `"` therefore captured the trailing `',)` as part of the
-        # path, so the readback could never equal the package it had just written.
-        # Measured on the Cloud host: every login logged
-        #   steady-state: desktop wallpaper '…/MoOSUI2Arena',)' != '…/MoOSUI2Arena' — healing
-        # and re-applied a scene that was already correct — a reconcile that can
-        # never converge, forever, on a value that was never drifted.
-        result="$(printf '%s\n' "$result" | grep -oE "WPV:[^'\"]*" | head -n1)"
-        if [ -n "$result" ]; then
-            printf '%s\n' "${result#WPV:}"
-            return 0
-        fi
-    fi
-    config="${XDG_CONFIG_HOME:-$HOME/.config}/plasma-org.kde.plasma.desktop-appletsrc"
-    [ -r "$config" ] || return 1
-    awk -F= '
-        /^\[Containments\]\[[^]]+\]\[Wallpaper\]\[org\.moos\.ui2\.wallpaper\]\[General\]$/ { hit = 1; next }
-        /^\[/ { hit = 0 }
-        hit && $1 == "Image" { print $2; exit }
-    ' "$config"
-}
-
-# Which wallpaper package belongs to a MoOS look. Mirrors the main apply table;
-# returns 1 for a non-MoOS look (never guess).
-lnf_wallpaper_package() {
-    local rest="${1#org.moos.ui2}" fam light=""
-    rest="${rest#.}"
-    case "$rest" in *.light) light="Light"; rest="${rest%.light}" ;; esac
-    case "$rest" in
-        "")        [ -n "$light" ] || { echo /usr/share/wallpapers/MoOSUI2Graphite; return 0; } ;;
-        light)     echo /usr/share/wallpapers/MoOSUI2Tide; return 0 ;;
-        nova)      fam=Nova ;;
-        amethyst)  fam=Amethyst ;;
-        midnight)  fam=Midnight ;;
-        aurora)    fam=Aurora ;;
-        daylight)  echo /usr/share/wallpapers/MoOSUI2Daylight; return 0 ;;
-        gaming)    fam=Arena ;;
-        dev)       fam=Forge ;;
-        study)     fam=Scholar ;;
-        *)         return 1 ;;
-    esac
-    [ -n "$fam" ] || return 1
-    echo "/usr/share/wallpapers/MoOSUI2${fam}${light}"
-}
-
-# STEADY-STATE wallpaper reconcile — runs on EVERY login, even when the marker
-# says this revision already applied. Plasma flushes its in-memory config on
-# shutdown, and one lost race (or a second compositor for the same account) can
-# quietly put ANOTHER MoOS package back on a themed desktop; seen live on the
-# Cloud host, where a Scholar-Light session woke up wearing Graphite again after
-# a reboot despite a green marker. The rule: a MoOSUI2 *package* that is not the
-# active theme's package is drift and heals; anything else (a custom image file
-# the user picked on purpose) is a durable choice and is never touched.
-reconcile_wallpaper_drift() {
-    local pkg current lock attempt
-    pkg="$(lnf_wallpaper_package "$1")" || return 0
-    # A Global Theme rebuild can recreate containments after kdeglobals is
-    # written. Poll the live per-containment readback and repair only while the
-    # scene is not ready; this converges on the actual shell state and avoids a
-    # blind rewrite on every login.
-    for attempt in 1 2 3 4 5; do
-        if desktop_wallpapers_complete "$pkg"; then
-            break
-        fi
-        current="$(current_desktop_wallpaper_value)" || current=""
-        case "${current%/}" in
-            /usr/share/wallpapers/MoOSUI2*|"")
-                echo "wallpaper scene not ready (attempt ${attempt}/5): '${current:-unset}' != '${pkg}'" >>"$log" 2>/dev/null || true
-                apply_desktop_scene "$pkg" || true
-                ;;
-        esac
-        desktop_wallpapers_complete "$pkg" && break
-        sleep 1
-    done
-    lock="$(current_lockscreen_wallpaper)" || lock=""
-    case "${lock%/}" in
-        "$pkg"|"") ;;
-        /usr/share/wallpapers/MoOSUI2*)
-            echo "steady-state: lock wallpaper '${lock}' != '${pkg}' — healing" >>"$log" 2>/dev/null || true
-            command -v kwriteconfig6 >/dev/null 2>&1 && kwriteconfig6 --file kscreenlockerrc \
-                --group Greeter --group Wallpaper --group org.kde.image --group General \
-                --key Image "$pkg" 2>/dev/null || true
-            ;;
-    esac
-    return 0
-}
 
 migration_completed=false
 if [ -e "$marker" ]; then
     migration_completed=true
     lnf="$(current_lookandfeel)" || exit 0   # cannot tell → trust the marker, as before
-    deco="$(current_decoration)" || exit 0
-    if theme_intact "$lnf" "$deco"; then
-        reconcile_wallpaper_drift "$lnf"
+    # moos-theme is the only appearance owner. Its read-only verifier resolves
+    # the active profile from the generated database, includes GTK/KWin/Konsole
+    # and respects the central custom-wallpaper state. The revision migrator
+    # owns cache/layout migrations only; it must not keep a second theme table.
+    if command -v moos-theme >/dev/null 2>&1 \
+            && moos-theme verify-lnf "$lnf" >>"$log" 2>&1; then
         exit 0
     fi
-    echo "=== moos-apply-theme $(date -u '+%FT%TZ') === SELF-HEAL: look-and-feel='${lnf:-unset}' decoration='${deco:-unset}'" >>"$log" 2>/dev/null || true
+    echo "=== moos-apply-theme $(date -u '+%FT%TZ') === SELF-HEAL: look-and-feel='${lnf:-unset}'" >>"$log" 2>/dev/null || true
     # A SELF-HEAL inside the same THEME_REV used to leave the tray marker in
     # place, which suppressed the one guarded plasmashell restart — so the
     # tray/dock writes landed in the file while the running shell kept drawing
@@ -978,164 +444,25 @@ applied=0
 # verdict — see target_lnf().
 want_lnf="$(target_lnf "$(current_lookandfeel)" "$migration_completed")"
 case "$want_lnf" in
-    "$LIGHT_LNF")
-        want_scheme=MoOSUI2Light
-        want_style=MoOSUI2Light
-        want_deco="$LIGHT_DECO"
-        want_icons=MoOSUI2Light
-        want_konsole=MoOSUI2Light.profile
-        want_wallpaper_package=/usr/share/wallpapers/MoOSUI2Tide
-        # The scene plugin resolves the master itself, but the migration gate
-        # (verify_user_experience.py) greps this file for the exact wallpaper paths
-        # as proof the dark/light masters are wired — keep them literal here.
-        want_wallpaper=${want_wallpaper_package}/contents/images/3840x2160.jpg
-        want_gtk_dark=false
-        want_cursor=MoOSDark
-        ;;
-    "$DARK_LNF")
-        want_scheme=MoOSUI2Dark
-        want_style=MoOSUI2
-        want_deco="$DARK_DECO"
-        want_icons=MoOSUI2
-        want_konsole=MoOSUI2.profile
-        want_wallpaper_package=/usr/share/wallpapers/MoOSUI2Graphite
-        want_wallpaper=${want_wallpaper_package}/contents/images_dark/3840x2160.jpg
-        want_gtk_dark=true
-        want_cursor=MoOS
-        ;;
-    "$NOVA_LNF"|"$AMETHYST_LNF"|"$MIDNIGHT_LNF"|"$AURORA_LNF")
-        # One branch, four looks: the assets follow the LNF suffix. All members
-        # are dark-canvas, while their symbolic overlay carries this palette's
-        # own ink/accent/status roles and inherits the broad dark vocabulary.
-        want_fam="${want_lnf##*.}"; want_Fam="${want_fam^}"   # nova -> Nova
-        want_scheme="MoOSUI2${want_Fam}"
-        want_style="MoOSUI2${want_Fam}"
-        want_deco="__aurorae__svg__MoOSUI2${want_Fam}"
-        want_icons="$want_style"
-        want_konsole="MoOSUI2${want_Fam}.profile"
-        want_wallpaper_package="/usr/share/wallpapers/MoOSUI2${want_Fam}"
-        want_wallpaper="${want_wallpaper_package}/contents/images_dark/3840x2160.jpg"
-        want_gtk_dark=true
-        want_cursor=MoOS
-        ;;
-    "$NOVA_LIGHT_LNF"|"$AMETHYST_LIGHT_LNF"|"$AURORA_LIGHT_LNF")
-        # Light siblings of the accent families: light canvas, dark cursor and
-        # their own palette-matched symbolic overlay on the broad light icons.
-        want_fam="${want_lnf%.light}"; want_fam="${want_fam##*.}"; want_Fam="${want_fam^}Light"
-        want_scheme="MoOSUI2${want_Fam}"
-        want_style="MoOSUI2${want_Fam}"
-        want_deco="__aurorae__svg__MoOSUI2${want_Fam}"
-        want_icons="$want_style"
-        want_konsole="MoOSUI2${want_Fam}.profile"
-        want_wallpaper_package="/usr/share/wallpapers/MoOSUI2${want_Fam}"
-        want_wallpaper="${want_wallpaper_package}/contents/images/3840x2160.jpg"
-        want_gtk_dark=false
-        want_cursor=MoOSDark
-        ;;
-    "$DAYLIGHT_LNF")
-        # Midnight's light sibling is named "Daylight" (not MidnightLight).
-        want_scheme=MoOSUI2Daylight
-        want_style=MoOSUI2Daylight
-        want_deco=__aurorae__svg__MoOSUI2Daylight
-        want_icons="$want_style"
-        want_konsole=MoOSUI2Daylight.profile
-        want_wallpaper_package=/usr/share/wallpapers/MoOSUI2Daylight
-        want_wallpaper=${want_wallpaper_package}/contents/images/3840x2160.jpg
-        want_gtk_dark=false
-        want_cursor=MoOSDark
-        ;;
-    "$GAMING_LNF"|"$DEV_LNF"|"$STUDY_LNF")
-        # Purpose-built dark editions: gaming->Arena, dev->Forge, study->Scholar.
-        case "$want_lnf" in
-            "$GAMING_LNF") want_Fam=Arena ;;
-            "$DEV_LNF") want_Fam=Forge ;;
-            *) want_Fam=Scholar ;;
-        esac
-        want_scheme="MoOSUI2${want_Fam}"
-        want_style="MoOSUI2${want_Fam}"
-        want_deco="__aurorae__svg__MoOSUI2${want_Fam}"
-        want_icons="$want_style"
-        want_konsole="MoOSUI2${want_Fam}.profile"
-        want_wallpaper_package="/usr/share/wallpapers/MoOSUI2${want_Fam}"
-        want_wallpaper="${want_wallpaper_package}/contents/images_dark/3840x2160.jpg"
-        want_gtk_dark=true
-        want_cursor=MoOS
-        ;;
-    "$GAMING_LIGHT_LNF"|"$DEV_LIGHT_LNF"|"$STUDY_LIGHT_LNF")
-        case "$want_lnf" in
-            "$GAMING_LIGHT_LNF") want_Fam=ArenaLight ;;
-            "$DEV_LIGHT_LNF") want_Fam=ForgeLight ;;
-            *) want_Fam=ScholarLight ;;
-        esac
-        want_scheme="MoOSUI2${want_Fam}"
-        want_style="MoOSUI2${want_Fam}"
-        want_deco="__aurorae__svg__MoOSUI2${want_Fam}"
-        want_icons="$want_style"
-        want_konsole="MoOSUI2${want_Fam}.profile"
-        want_wallpaper_package="/usr/share/wallpapers/MoOSUI2${want_Fam}"
-        want_wallpaper="${want_wallpaper_package}/contents/images/3840x2160.jpg"
-        want_gtk_dark=false
-        want_cursor=MoOSDark
-        ;;
+    org.moos.ui2|org.moos.ui2.*) ;;
     *)
         echo "cannot resolve a MoOS theme target from '${want_lnf:-unset}'" >>"$log" 2>/dev/null || true
         exit 0
         ;;
 esac
-echo "repairing to ${want_lnf} (${want_scheme})" >>"$log" 2>/dev/null || true
+echo "repairing the generated profile ${want_lnf}" >>"$log" 2>/dev/null || true
 
-# The whole Global Theme (colors, wallpaper, splash, cursor). Do NOT reset the
-# panel layout — the MoOS dock is provided by the defaultPanel template.
-if command -v plasma-apply-lookandfeel >/dev/null 2>&1; then
-    if plasma-apply-lookandfeel -a "$want_lnf" >>"$log" 2>&1; then
-        applied=1
-    fi
-fi
-
-# The desktop scene: our wallpaper plugin (image + dashboard bento, below the
-# icons) on every desktop containment. plasma-apply-wallpaperimage is NOT used —
-# it would flip the containments back onto org.kde.image and the bento would
-# vanish. The LNF defaults deliberately carry no [Wallpaper] section for the
-# same reason (see artwork/generate_moos_ui2.py).
-if apply_desktop_scene "$want_wallpaper_package"; then
+# One owner applies the appearance. moos-apply-theme still owns revisioned cache,
+# shell-layout and user-shadow migrations, but it must never restate the Plasma,
+# KWin, GTK, Konsole, lock-screen or wallpaper cascade. moos-theme snapshots the
+# live pre-repair state, applies the profile, reads every layer back and restores
+# the snapshot on any failure.
+if command -v moos-theme >/dev/null 2>&1 \
+        && moos-theme apply-lnf "$want_lnf" >>"$log" 2>&1; then
     applied=1
-    echo "desktop scene applied: org.moos.ui2.wallpaper ← ${want_wallpaper_package}" >>"$log" 2>&1
 else
-    echo "desktop scene apply failed or shell not ready" >>"$log" 2>&1
+    echo "the transactional theme owner could not repair ${want_lnf}" >>"$log" 2>&1
 fi
-command -v plasma-apply-colorscheme >/dev/null 2>&1 && \
-    plasma-apply-colorscheme "$want_scheme" >>"$log" 2>&1 || true
-
-# The cursor, directly. plasma-apply-lookandfeel is SUPPOSED to carry the LNF's
-# cursorTheme default, but LookAndFeelManager has historically skipped KCMs —
-# the exact reason the colour scheme is re-applied above. moos-theme applies the
-# cursor explicitly on every manual switch; the login repair used to rely on the
-# LNF alone, so cursor drift (a white pointer on Tidal Light) survived every
-# self-heal. Mirror moos-theme here.
-if command -v plasma-apply-cursortheme >/dev/null 2>&1; then
-    plasma-apply-cursortheme "$want_cursor" >>"$log" 2>&1 || true
-fi
-command -v kwriteconfig6 >/dev/null 2>&1 && \
-    kwriteconfig6 --file kcminputrc --group Mouse --key cursorTheme "$want_cursor" 2>/dev/null || true
-
-# Pin the values Plasma actually reads in the user's own configuration. Theme
-# packages and /etc/xdg are defaults only; both lose to stale ~/.config and
-# ~/.config/kdedefaults entries on an upgraded desktop.
-if command -v kwriteconfig6 >/dev/null 2>&1; then
-    kwriteconfig6 --file kdeglobals --group KDE --key LookAndFeelPackage "$want_lnf"
-    kwriteconfig6 --file kdeglobals --group General --key ColorScheme "$want_scheme"
-    kwriteconfig6 --file plasmarc --group Theme --key name "$want_style"
-    kwriteconfig6 --file kscreenlockerrc --group Greeter --key WallpaperPlugin org.kde.image
-    # No greeter Theme key: the MoOS lock screen is a SHELL-package override that
-    # every session draws; kscreenlocker does not read the look-and-feel here.
-    kwriteconfig6 --file kscreenlockerrc --group Greeter --group Wallpaper \
-        --group org.kde.image --group General --key Image "$want_wallpaper_package"
-fi
-
-# Konsole's colour scheme is NOT a KDE colour scheme and follows nothing. Without
-# this, a Nova Light desktop keeps a black terminal.
-command -v kwriteconfig6 >/dev/null 2>&1 && \
-    kwriteconfig6 --file konsolerc --group "Desktop Entry" --key DefaultProfile "$want_konsole"
 
 # A terminal with no chrome — and the ONLY way to ship it.
 #
@@ -1220,146 +547,10 @@ if command -v moos-visual-tier >/dev/null 2>&1; then
         || echo "moos-visual-tier could not size the motion profile" >>"$log" 2>&1
 fi
 
-# KSplash is user configuration, so a system default alone cannot override an
-# already-created user's previous Breeze/Fedora choice.  Write the two exact
-# Plasma 6 keys explicitly during this versioned migration.
-if command -v kwriteconfig6 >/dev/null 2>&1; then
-    kwriteconfig6 --file ksplashrc --group KSplash --key Theme "$want_lnf"
-    kwriteconfig6 --file ksplashrc --group KSplash --key Engine KSplashQML
-fi
+# Appearance ownership stops at moos-theme. The revision migrator intentionally
+# performs no second KSplash/KWin/icon/GTK cascade here: doing so after the
+# verified transaction could tear it and would make rollback incomplete.
 
-# The window decoration, for the same reason — and this one is worse than KSplash,
-# because MoOS's system default could never have won on its own.
-#
-# XDG_CONFIG_DIRS is "~/.config/kdedefaults:/etc/xdg:…". LookAndFeelManager writes the
-# applied Global Theme's defaults into kdedefaults/, which therefore OUTRANKS the
-# /etc/xdg/kwinrc this image ships. A user created under Breeze got
-# kdedefaults/kwinrc = org.kde.breeze on day one, and because Nova's own defaults file
-# never declared a decoration, applying Nova did not overwrite it. MoOS's Aurorae
-# decoration has been shadowed on every install since — Breeze's X / v / ^ glyphs on
-# every window, with the /etc/xdg gate green the whole time.
-#
-# Nova's defaults now declares it (so a fresh apply writes kdedefaults correctly), but
-# an existing user needs the value put somewhere that beats kdedefaults outright.
-# ~/.config/kwinrc — the user's own config, XDG_CONFIG_HOME — does exactly that.
-#
-# ButtonsOnLeft mirrors /etc/xdg/kwinrc: X=Close I=Minimize A=Maximize.
-if command -v kwriteconfig6 >/dev/null 2>&1; then
-    kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key library org.kde.kwin.aurorae.v2
-    kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key theme "$want_deco"
-    kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key ButtonsOnLeft XIA
-    # The icon theme is not colour-scheme aware: Nova's symbolics are drawn light
-    # for a dark panel and disappear on porcelain. The light look needs NovaLight.
-    kwriteconfig6 --file kdeglobals --group Icons --key Theme "$want_icons"
-    # A raw kdeglobals write is SILENT: running apps only drop their icon caches
-    # when the icons KCM's helper broadcasts the KIconLoader change signal. Without
-    # it the new family arrives at the next login, which reads as "didn't work".
-    # plasma-changeicons writes the same key AND emits the signal.
-    if [ -x /usr/libexec/plasma-changeicons ]; then
-        /usr/libexec/plasma-changeicons "$want_icons" >>"$log" 2>&1 || true
-    fi
-    echo "pinned the ${want_deco} decoration and the ${want_icons} icons into the user's config" >>"$log" 2>/dev/null || true
-    # KWin only re-reads kwinrc when told to. Without this the decoration changes on the
-    # next login instead of now, which reads as "the fix did not work".
-    if command -v gdbus >/dev/null 2>&1; then
-        gdbus call --session -d org.kde.KWin -o /KWin -m org.kde.KWin.reconfigure \
-            >>"$log" 2>&1 || echo "kwin reconfigure skipped" >>"$log" 2>&1
-    fi
-
-fi
-
-# GTK apps — Firefox and every other non-Qt window on the system.
-#
-# Plasma's gtkconfig kded module already does the hard half of this correctly: on every
-# theme change it regenerates ~/.config/gtk-3.0/colors.css from the ACTIVE KDE colour
-# scheme, so those 84 colours are Nova's navy, and it syncs the Nova icon and MoOS
-# cursor into the GTK settings. What it never sets is gtk-theme-name, which on this system
-# is the empty string.
-#
-# Empty means GTK falls back to its built-in Adwaita — and Adwaita has never heard of the
-# variables in colors.css. They are named borders_breeze, content_view_bg_breeze, …
-# because they exist for the Breeze GTK theme, whose stylesheet references them 965 times.
-# So the bridge that carries Nova's colours into GTK has been running, correctly, into a
-# theme that ignores every one of them. Naming the theme is the entire fix: Breeze's GTK
-# stylesheet is KDE's (which MoOS keeps, like the widget style), and it is what the
-# generated Nova palette is written for. Geometry from Breeze, colour from Nova — exactly
-# the deal the Nova Plasma style already makes.
-#
-# The sound theme has to be written here too: the module syncs icons and cursors from
-# kdeglobals but NOT [Sounds], so GTK keeps freedesktop while Plasma plays moos.
-#
-# Verified to survive: gtkconfig rewrites these files on every theme change and preserves
-# both keys — it only ever fills in the ones it owns.
-# settings.ini is the WEAKEST of the three places GTK looks, and writing only it changes
-# nothing. Probed live on this hardware, with settings.ini already saying Breeze:
-#
-#   GDK_BACKEND=wayland → gtk-theme-name = 'Adwaita'   (from GSettings)
-#   GDK_BACKEND=x11     → gtk-theme-name = ''          (from xsettingsd, which is running)
-#
-# Wayland apps read GSettings; X11/XWayland apps read the XSETTINGS daemon; settings.ini is
-# only the fallback when neither answers. gtkconfig keeps all three in sync and fills in
-# what it owns — Net/IconThemeName "Nova", Gtk/CursorThemeName "MoOS", the Plex font —
-# and leaves exactly the two keys below unset. So all three have to be written, or the
-# desktop keeps rendering GTK apps in Adwaita grey while insisting the theme is Breeze.
-pin_gtk() {
-    local ini
-    if command -v kwriteconfig6 >/dev/null 2>&1; then
-        for ini in "${XDG_CONFIG_HOME:-$HOME/.config}/gtk-3.0/settings.ini" \
-                   "${XDG_CONFIG_HOME:-$HOME/.config}/gtk-4.0/settings.ini"; do
-            [ -f "$ini" ] || continue
-            kwriteconfig6 --file "$ini" --group Settings --key gtk-theme-name Breeze
-            kwriteconfig6 --file "$ini" --group Settings --key gtk-sound-theme-name moos
-            # gtkconfig regenerates the GTK palette from the active KDE scheme but
-            # never touches this key — so on a Nova Light desktop Firefox stayed
-            # dark, because nothing had told GTK the desktop was light.
-            kwriteconfig6 --file "$ini" --group Settings \
-                --key gtk-application-prefer-dark-theme "$want_gtk_dark"
-        done
-    fi
-
-    # GTK2 is not KConfig — plain `key="value"` lines, no group header.
-    local rc="$HOME/.gtkrc-2.0"
-    if [ -f "$rc" ]; then
-        sed -i -e 's/^gtk-theme-name=.*/gtk-theme-name="Breeze"/' \
-               -e 's/^gtk-sound-theme-name=.*/gtk-sound-theme-name="moos"/' "$rc" 2>/dev/null || true
-        grep -q '^gtk-theme-name=' "$rc" 2>/dev/null || echo 'gtk-theme-name="Breeze"' >>"$rc"
-        grep -q '^gtk-sound-theme-name=' "$rc" 2>/dev/null || echo 'gtk-sound-theme-name="moos"' >>"$rc"
-    fi
-
-    # Wayland GTK apps. Takes effect immediately — GSettings notifies live.
-    if command -v gsettings >/dev/null 2>&1; then
-        gsettings set org.gnome.desktop.interface gtk-theme Breeze 2>/dev/null || true
-        gsettings set org.gnome.desktop.sound theme-name moos 2>/dev/null || true
-        # The freedesktop "which side of the day are we on" setting. GTK4/libadwaita
-        # apps read ONLY this; they ignore gtk-theme-name entirely.
-        gsettings set org.gnome.desktop.interface color-scheme \
-            "$([ "$want_gtk_dark" = true ] && echo prefer-dark || echo prefer-light)" 2>/dev/null || true
-        # Icon / cursor / font identity for GTK+libadwaita+Flatpak, pushed
-        # DETERMINISTICALLY here instead of leaning on the race-prone kde-gtk-config
-        # kded module (which this script's own comments document as failing under
-        # the Flatpak sandbox). Values mirror kdeglobals + each L&F defaults exactly.
-        gsettings set org.gnome.desktop.interface icon-theme \
-            "$([ "$want_gtk_dark" = true ] && echo MoOSUI2 || echo MoOSUI2Light)" 2>/dev/null || true
-        gsettings set org.gnome.desktop.interface cursor-theme \
-            "$([ "$want_gtk_dark" = true ] && echo MoOS || echo MoOSDark)" 2>/dev/null || true
-        gsettings set org.gnome.desktop.interface font-name 'IBM Plex Sans 10' 2>/dev/null || true
-        gsettings set org.gnome.desktop.interface monospace-font-name 'JetBrains Mono 10' 2>/dev/null || true
-    fi
-
-    # X11 / XWayland GTK apps. xsettingsd re-reads its config on SIGHUP and pushes the new
-    # values to every running client, so this does not wait for a re-login either.
-    local xs="${XDG_CONFIG_HOME:-$HOME/.config}/xsettingsd/xsettingsd.conf"
-    if [ -f "$xs" ]; then
-        sed -i -e 's|^Net/ThemeName .*|Net/ThemeName "Breeze"|' \
-               -e 's|^Net/SoundThemeName .*|Net/SoundThemeName "moos"|' "$xs" 2>/dev/null || true
-        grep -q '^Net/ThemeName ' "$xs" 2>/dev/null || echo 'Net/ThemeName "Breeze"' >>"$xs"
-        grep -q '^Net/SoundThemeName ' "$xs" 2>/dev/null || echo 'Net/SoundThemeName "moos"' >>"$xs"
-        pkill -HUP -x xsettingsd 2>/dev/null || true
-    fi
-
-    echo "pinned the GTK theme (Breeze stylesheet, Nova palette) and sound theme in all three sources" >>"$log" 2>/dev/null || true
-}
-pin_gtk
 
 # --- The sensor daemon the monitors cannot live without ------------------------
 # Every system-monitor widget in Plasma reads from ksystemstats, and on this image
@@ -1380,12 +571,9 @@ systemctl --user start plasma-ksystemstats.service >>"$log" 2>&1 || true
 # so there is nothing to place, nothing to collide, and the live ISO gets its
 # dashboard back — the "Install MoOS" icon simply draws over wallpaper.
 #
-# apply_desktop_scene() above already did the whole job for this run: it set
-# every desktop containment's wallpaper plugin + image, removed any stale
-# org.moos.ui2.dashboard / org.moos.nova.deskclock / org.moos.heroclock applets
-# left behind by earlier revisions, and right-aligned the icons
-# (alignment=1, sortMode=1). THEME_REV 43's auto-seed of heroclock was rejected
-# on sight; rev 44 clears it and does not place it again.
+# moos-theme already reconciled every desktop containment through the one
+# transactional scene owner. THEME_REV 43's auto-seed of heroclock was rejected
+# on sight; this migrator clears its old cache/shadows and never places it again.
 
 
 # --- The system tray -----------------------------------------------------------
@@ -1712,10 +900,9 @@ done
 # The bar carries its own readback and its own marker (moos-bar-apply), so it is
 # not part of this condition.
 lnf_after="$(current_lookandfeel)" || lnf_after=""
-deco_after="$(current_decoration)" || deco_after=""
 if [ "$applied" = "1" ] \
         && [ "$lnf_after" = "$want_lnf" ] \
-        && theme_complete "$lnf_after" "$deco_after" "$want_wallpaper_package"; then
+        && moos-theme verify-lnf "$lnf_after" >>"$log" 2>&1; then
     if touch "$marker" 2>/dev/null; then
         echo "applied OK" >>"$log" 2>/dev/null || true
     else

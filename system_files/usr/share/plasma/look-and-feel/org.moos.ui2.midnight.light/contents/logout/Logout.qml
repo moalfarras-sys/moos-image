@@ -24,6 +24,7 @@ import Qt5Compat.GraphicalEffects
 import org.kde.coreaddons as KCoreAddons
 import org.kde.kirigami as Kirigami
 import org.kde.plasma.private.sessions
+import org.moos.ui as MoUI
 
 Item {
     id: root
@@ -73,6 +74,7 @@ Item {
     // ══════════════════════════════════════════════════════════════════════
     readonly property color accent: Kirigami.Theme.highlightColor
     readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
+    readonly property var design: MoUI.Tokens
     // accentB — the two-tone partner (accentA hue-rotated +0.09 in HSL), same
     // derivation as the portal rim. The horizon rides accentA/accentB so its
     // hue is 100% theme-derived — no hardcoded base colour anywhere.
@@ -254,7 +256,7 @@ Item {
             }
         }
         OpacityAnimator { id: backdropFade; target: wallpaper; from: 0; to: 1.0
-            duration: 420; easing.type: Easing.OutCubic }
+            duration: root.design.motionPortal; easing.type: root.design.easeStandard }
     }
     // Legibility scrim — the theme's own canvas, heavier at the top and foot so
     // the island stays readable over any wallpaper. Calculated transparency,
@@ -307,9 +309,9 @@ Item {
         ParallelAnimation {
             id: sheetEnter
             NumberAnimation { target: sheet; property: "opacity"; from: 0; to: 1
-                duration: 420; easing.type: Easing.OutCubic }
+                duration: root.design.motionPortal; easing.type: root.design.easeStandard }
             NumberAnimation { target: sheetRise; property: "y"; from: Kirigami.Units.gridUnit * 2; to: 0
-                duration: 420; easing.type: Easing.OutCubic }
+                duration: root.design.motionPortal; easing.type: root.design.easeStandard }
         }
 
         // Depth halo — a still, cheap stand-in for a drop shadow: two nested
@@ -337,11 +339,11 @@ Item {
         Rectangle {
             id: island
             anchors.fill: parent
-            radius: Kirigami.Units.gridUnit * 2
+            radius: root.design.radiusDialog
             color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
                            Kirigami.Theme.backgroundColor.g,
                            Kirigami.Theme.backgroundColor.b, 0.58)
-            border.width: 1
+            border.width: root.design.borderHairline
             border.color: Qt.rgba(Kirigami.Theme.textColor.r,
                                   Kirigami.Theme.textColor.g,
                                   Kirigami.Theme.textColor.b, 0.14)
@@ -414,20 +416,20 @@ Item {
                     QQC2.Label {
                         text: root.nowTime.split(":")[0]
                         color: Kirigami.Theme.textColor
-                        font.family: "IBM Plex Sans Arabic"; font.weight: Font.ExtraLight
+                        font.family: root.design.interfaceFamily; font.weight: Font.ExtraLight
                         font.pointSize: Kirigami.Theme.defaultFont.pointSize + 26
                         font.letterSpacing: -2
                     }
                     QQC2.Label {
                         text: ":"
                         color: root.accent
-                        font.family: "IBM Plex Sans Arabic"; font.weight: Font.ExtraLight
+                        font.family: root.design.interfaceFamily; font.weight: Font.ExtraLight
                         font.pointSize: Kirigami.Theme.defaultFont.pointSize + 26
                     }
                     QQC2.Label {
                         text: root.nowTime.split(":")[1]
                         color: Kirigami.Theme.textColor
-                        font.family: "IBM Plex Sans Arabic"; font.weight: Font.ExtraLight
+                        font.family: root.design.interfaceFamily; font.weight: Font.ExtraLight
                         font.pointSize: Kirigami.Theme.defaultFont.pointSize + 26
                         font.letterSpacing: -2
                     }
@@ -437,8 +439,8 @@ Item {
                 Layout.alignment: Qt.AlignHCenter
                 text: root.nowDate
                 color: Kirigami.Theme.textColor
-                opacity: 0.62
-                font.family: "IBM Plex Sans Arabic"
+                opacity: root.design.mutedOpacity
+                font.family: root.design.interfaceFamily
                 font.pointSize: Kirigami.Theme.smallFont.pointSize + 1
             }
 
@@ -460,7 +462,7 @@ Item {
                 // display size, softened only by the clock's larger presence.
                 color: Kirigami.Theme.textColor
                 elide: Text.ElideRight
-                font.family: "IBM Plex Sans Arabic"
+                font.family: root.design.interfaceFamily
                 font.weight: Font.DemiBold
                 font.pointSize: Kirigami.Theme.defaultFont.pointSize + 7
             }
@@ -475,20 +477,20 @@ Item {
                     Layout.preferredHeight: Kirigami.Units.gridUnit * 1.6
                     radius: width / 2
                     color: Qt.rgba(root.accent.r, root.accent.g, root.accent.b, 0.16)
-                    border.width: 1
+                    border.width: root.design.borderHairline
                     border.color: Qt.rgba(root.accent.r, root.accent.g, root.accent.b, 0.55)
                     QQC2.Label {
                         anchors.centerIn: parent
                         text: currentUser.fullName.length > 0 ? currentUser.fullName.charAt(0).toUpperCase() : ""
                         color: Kirigami.Theme.textColor
-                        font.family: "IBM Plex Sans Arabic"; font.weight: Font.DemiBold
+                        font.family: root.design.interfaceFamily; font.weight: Font.DemiBold
                         font.pointSize: Kirigami.Theme.smallFont.pointSize
                     }
                 }
                 QQC2.Label {
                     text: currentUser.fullName
                     color: Kirigami.Theme.textColor
-                    font.family: "IBM Plex Sans Arabic"; font.weight: Font.DemiBold
+                    font.family: root.design.interfaceFamily; font.weight: Font.DemiBold
                     font.pointSize: Kirigami.Theme.smallFont.pointSize + 1
                 }
             }
@@ -542,7 +544,8 @@ Item {
                                 // animate continuously through the whole 30s even with
                                 // AnimationDurationFactor=0.
                                 Behavior on sweepAngle { NumberAnimation {
-                                    duration: Kirigami.Units.longDuration > 1 ? 850 : 0
+                                    duration: root.motionEnabled
+                                              ? root.design.motionPortal * 2 : 0
                                     easing.type: Easing.Linear } }
                             }
                         }
@@ -551,7 +554,7 @@ Item {
                         anchors.centerIn: parent
                         text: root.remainingTime
                         color: Kirigami.Theme.textColor
-                        font.family: "IBM Plex Sans Arabic"; font.weight: Font.DemiBold
+                        font.family: root.design.interfaceFamily; font.weight: Font.DemiBold
                         font.pointSize: Kirigami.Theme.defaultFont.pointSize + 3
                     }
                 }
@@ -560,8 +563,8 @@ Item {
                     text: root.bilingual("سيُنفَّذ الإجراء تلقائيًا", "The action will run automatically")
                     wrapMode: Text.WordWrap
                     color: Kirigami.Theme.textColor
-                    opacity: 0.75
-                    font.family: "IBM Plex Sans Arabic"
+                    opacity: root.design.mutedOpacity
+                    font.family: root.design.interfaceFamily
                     font.pointSize: Kirigami.Theme.smallFont.pointSize + 1
                 }
             }
@@ -575,7 +578,7 @@ Item {
                     ? root.bilingual("يوجد مستخدم آخر مسجّل الدخول وقد يفقد عمله", "Another user is signed in and may lose work")
                     : root.bilingual("يوجد %1 مستخدمين آخرين مسجّلي الدخول".arg(otherSessionsModel.count), "%1 other users are signed in".arg(otherSessionsModel.count))
                 color: Kirigami.Theme.neutralTextColor
-                wrapMode: Text.WordWrap; font.family: "IBM Plex Sans Arabic"
+                wrapMode: Text.WordWrap; font.family: root.design.interfaceFamily
                 font.pointSize: Kirigami.Theme.smallFont.pointSize
             }
             QQC2.Label {
@@ -585,7 +588,7 @@ Item {
                 visible: softwareUpdatePending
                 text: root.bilingual("تحديثات النظام جاهزة للتثبيت", "System updates are ready to install")
                 color: Kirigami.Theme.positiveTextColor
-                wrapMode: Text.WordWrap; font.family: "IBM Plex Sans Arabic"
+                wrapMode: Text.WordWrap; font.family: root.design.interfaceFamily
                 font.weight: Font.DemiBold; font.pointSize: Kirigami.Theme.smallFont.pointSize
             }
 
@@ -697,7 +700,7 @@ Item {
                 text: root.armedButton ? root.armedButton.description : ""
                 color: root.armedButton ? root.armedButton.accentA : Kirigami.Theme.textColor
                 opacity: root.armedButton ? 1.0 : 0
-                font.family: "IBM Plex Sans Arabic"; font.weight: Font.DemiBold
+                font.family: root.design.interfaceFamily; font.weight: Font.DemiBold
                 font.pointSize: Kirigami.Theme.smallFont.pointSize + 1
             }
 

@@ -39,12 +39,14 @@ import QtQuick.Layouts
 import org.kde.plasma.clock as PlasmaClock
 import org.kde.plasma.components as PlasmaComponents3
 import org.kde.kirigami as Kirigami
+import org.moos.ui as MoUI
 
 ColumnLayout {
     id: root
 
     readonly property bool softwareRendering: GraphicsInfo.api === GraphicsInfo.Software
     readonly property var sessionLocale: Qt.locale()
+    readonly property var design: MoUI.Tokens
 
     function latinNumerals(s) {
         return String(s)
@@ -78,7 +80,7 @@ ColumnLayout {
             style: root.softwareRendering ? Text.Outline : Text.Normal
             styleColor: root.softwareRendering ? Kirigami.Theme.backgroundColor : "transparent"
             color: Kirigami.Theme.textColor
-            font.family: "IBM Plex Sans Arabic"
+            font.family: design.interfaceFamily
             font.pointSize: Math.round(Kirigami.Theme.defaultFont.pointSize * 7.4)
             font.weight: Font.ExtraLight
             renderType: Text.CurveRendering
@@ -90,11 +92,11 @@ ColumnLayout {
             style: root.softwareRendering ? Text.Outline : Text.Normal
             styleColor: root.softwareRendering ? Kirigami.Theme.backgroundColor : "transparent"
             color: Kirigami.Theme.highlightColor
-            font.family: "IBM Plex Sans Arabic"
+            font.family: design.interfaceFamily
             font.pointSize: hours.font.pointSize
             font.weight: Font.ExtraLight
             renderType: Text.CurveRendering
-            opacity: 0.92
+            opacity: 1 - design.surfaceRestingOpacity
         }
         PlasmaComponents3.Label {
             id: minutes
@@ -103,7 +105,7 @@ ColumnLayout {
             style: root.softwareRendering ? Text.Outline : Text.Normal
             styleColor: root.softwareRendering ? Kirigami.Theme.backgroundColor : "transparent"
             color: Kirigami.Theme.textColor
-            font.family: "IBM Plex Sans Arabic"
+            font.family: design.interfaceFamily
             font.pointSize: hours.font.pointSize
             font.weight: Font.ExtraLight
             renderType: Text.CurveRendering
@@ -117,7 +119,7 @@ ColumnLayout {
         Layout.preferredHeight: Math.round(Kirigami.Units.smallSpacing * 0.6)
         radius: height
         color: Kirigami.Theme.highlightColor
-        opacity: 0.9
+        opacity: 1 - design.surfaceRestingOpacity
     }
 
     PlasmaComponents3.Label {
@@ -130,8 +132,8 @@ ColumnLayout {
         style: root.softwareRendering ? Text.Outline : Text.Normal
         styleColor: root.softwareRendering ? Kirigami.Theme.backgroundColor : "transparent"
         color: Kirigami.Theme.textColor
-        opacity: 0.92
-        font.family: "IBM Plex Sans Arabic"
+        opacity: 1 - design.surfaceRestingOpacity
+        font.family: design.interfaceFamily
         font.pointSize: Math.round(Kirigami.Theme.defaultFont.pointSize * 1.5)
         font.weight: Font.Normal
         horizontalAlignment: Text.AlignHCenter

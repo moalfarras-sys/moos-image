@@ -1,7 +1,40 @@
-# Theme System Continuation
+# Unified Experience Continuation
 
-Date: 2026-08-07
-Branch: `fix/remove-heroclock-seed`
+Date: 2026-08-08
+Branch: `feature/unified-moos-experience-2026-08-08`
+
+## 2026-08-08 — one design core, one transactional theme owner
+
+The complete ownership map and before/after findings are in
+`docs/UNIFIED_DESIGN_AUDIT.md`. The short handoff is:
+
+- `artwork/moos-design/tokens.json` and `theme-profiles.json` are the two source
+  files; generators produce the installed `org.moos.ui` module and the
+  sixteen-profile runtime database.
+- `moos-theme` is the sole appearance transaction and exact rollback owner.
+  Picker, Control Center, login migration and Fast Remote no longer compete
+  with it or replace the MoOS wallpaper scene.
+- Launcher, Horizon Hub, bar, first-party apps, session surfaces and all profile
+  outputs consume the same component/token language. Dead UI1 art, orphan
+  generators, tracked backup copies and the test image are removed and
+  absence-gated.
+- Live proof covered dark/light Qt and GTK, Arabic RTL, English LTR, output
+  scales 100/125/150/200% with the owner setting restored to 225%, the real
+  notification protocol, lock/logout/splash/login sources, exact Fast Remote
+  round-trip and the redesigned desktop/launcher/settings surfaces.
+- Wallpaper animation was changed from endless repaint loops to sparse finite
+  pulses. On the real 4K desktop, Gentle/Still measured 0.70% plasmashell CPU
+  and Alive 2.85% over a 40-second sample including a pulse.
+
+`just check` and the complete local `just build` both pass. The local bootable
+image is `c28eca8f24f00267d282ae37ba7ef80c4791a464dbdded0b94c24b8d1ec25e04`
+(`44.20260808.1`), after the concrete initramfs, QML, image-experience, store,
+identity-firewall and bootc gates. The next release steps are deliberately not
+claimed here: publish and verify all signed editions, build and exercise the
+signed offline/online ISO, stage the exact signed desktop digest, reboot, and
+run `tests/post-update-check.sh` on the booted image.
+
+---
 
 ## 2026-08-07 — Hero Clock auto-seed rejected (THEME_REV 44)
 
@@ -203,7 +236,7 @@ The full `tests/verify_user_experience.py` gate passed after the final generator
 
 Theme runtime: `system_files/usr/bin/moos-apply-theme`, `system_files/usr/bin/moos-selfcheck`.
 
-Generators: `artwork/generate_moos_plasma_surfaces.py`, `artwork/generate_moos_ui2.py`, `artwork/generate_moos_themes.py`, `artwork/tools/gen-nova-plasma-svgs.py`.
+Current generators: `artwork/generate_moos_plasma_surfaces.py`, `artwork/generate_moos_ui2.py`, `artwork/generate_moos_themes.py`, and `artwork/generate_moos_design_core.py`. The UI1 Nova generator named in older handoff text was retired.
 
 Tests: `tests/test_theme_shadow_cleanup.py`, `tests/test_theme_wallpaper_steady_state.py`, `tests/test_theme_wallpaper_readback.py`, `tests/test_moos_ui2.py`, `tests/verify_user_experience.py`.
 

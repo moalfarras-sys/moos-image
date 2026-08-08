@@ -34,10 +34,12 @@ check:
     python3 tests/test_moos_auto_update.py
     python3 tests/test_cloud_console_order.py
     python3 tests/test_theme_wallpaper_readback.py
+    python3 tests/test_theme_wallpaper_steady_state.py
     python3 tests/test_mokernel.py
     python3 tests/test_moai_waydroid.py
     python3 tests/test_moai_app_launch.py
     python3 tests/test_moai_control.py
+    python3 tests/test_moos_fast_remote.py
     python3 tests/test_moai_workspace.py
     python3 tests/test_moai_hybrid.py
     python3 tests/test_moos_open_qdbus.py
@@ -93,6 +95,9 @@ check:
     python3 tests/test_remote_trusted_devices.py
     python3 tests/test_moos_store_index.py
     python3 tests/test_moos_storectl.py
+    # One globally importable MoUI module must own identity metrics and shared
+    # controls; an app-local copy cannot silently grow back.
+    python3 tests/test_moos_design_core.py
     python3 tests/test_moos_ui2.py
     # The bar is ONE capsule: this runs the real merge surgery out of
     # moos-bar-apply against appletsrc fixtures, so a change that can leave

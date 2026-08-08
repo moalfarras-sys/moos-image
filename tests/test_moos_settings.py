@@ -54,16 +54,15 @@ class MoOSSettingsTests(unittest.TestCase):
     def test_qml_is_one_localised_accessible_motion_safe_product(self) -> None:
         qml = APP.read_text(encoding="utf-8")
         for contract in (
-            'import "../ui" as MoOSUi',
-            'import "../ui/SymbolCatalog.js" as MoOSSymbols',
+            "import org.moos.ui as MoUI",
             "Kirigami.Theme.highlightColor",
             "LayoutMirroring.enabled: rtl",
             "readonly property bool motionEnabled: Kirigami.Units.longDuration > 1",
             "implicitHeight: win.fs(48)",
             "implicitHeight: win.fs(88)",
             "Accessible.role: Accessible.Button",
-            "MoOSUi.FocusRing",
-            "MoOSUi.Button",
+            "MoUI.FocusRing",
+            "MoUI.Button",
             'property string searchQuery: ""',
             "visibleCommands",
             "status.deployment.signed",
@@ -73,7 +72,7 @@ class MoOSSettingsTests(unittest.TestCase):
         ):
             self.assertIn(contract, qml)
         self.assertGreaterEqual(qml.count("Accessible.role: Accessible.Button"), 3)
-        self.assertGreaterEqual(qml.count("MoOSSymbols.resolve("), 12)
+        self.assertGreaterEqual(qml.count("MoUI.SymbolCatalog.resolve("), 12)
         # The Tidal arc is retired (owner verdict 2026-08-02): the hero field
         # must stay a calm themed surface with no full-screen curve.
         self.assertNotIn("TidalHorizon", qml)
@@ -106,6 +105,7 @@ class MoOSSettingsTests(unittest.TestCase):
 
         for route, executable, target in (
             ("settings/themes", "moos-theme-picker", ""),
+            ("settings/wallpaper", "moos-theme-picker", ""),
             ("settings/display", "systemsettings", "kcm_kscreen"),
             ("settings/network", "systemsettings", "kcm_networkmanagement"),
             ("settings/audio", "systemsettings", "kcm_pulseaudio"),

@@ -34,6 +34,7 @@ import org.kde.kscreenlocker as ScreenLocker
 
 import org.kde.plasma.private.sessions
 import org.kde.breeze.components
+import org.moos.ui as MoUI
 
 Item {
     id: lockScreenUi
@@ -54,6 +55,7 @@ Item {
     // nothing is reported, because a busy rasteriser is not an error.
     readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
     readonly property bool rtl: Qt.locale().textDirection === Qt.RightToLeft
+    readonly property var design: MoUI.Tokens
 
     // ── Two-tone MoOS accent ──────────────────────────────────────────────
     // accentA is the live theme highlight; accentB is a second hue derived
@@ -265,7 +267,8 @@ Item {
             property: "opacity"
             from: 0
             to: 1
-            duration: lockScreenUi.motionEnabled ? Kirigami.Units.veryLongDuration * 2 : 0
+            duration: lockScreenUi.design.duration(lockScreenUi.motionEnabled,
+                                                   lockScreenUi.design.motionPortal)
         }
         NumberAnimation {
             id: riseAnimation
@@ -273,8 +276,9 @@ Item {
             property: "y"
             from: -Kirigami.Units.gridUnit * 1.2
             to: 0
-            duration: lockScreenUi.motionEnabled ? Kirigami.Units.veryLongDuration * 2 : 0
-            easing.type: Easing.OutCubic
+            duration: lockScreenUi.design.duration(lockScreenUi.motionEnabled,
+                                                   lockScreenUi.design.motionPortal)
+            easing.type: lockScreenUi.design.easeStandard
         }
 
         Component.onCompleted: {
@@ -307,13 +311,16 @@ Item {
             gradient: Gradient {
                 GradientStop { position: 0.0; color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
                                                              Kirigami.Theme.backgroundColor.g,
-                                                             Kirigami.Theme.backgroundColor.b, 0.52) }
+                                                             Kirigami.Theme.backgroundColor.b,
+                                                             lockScreenUi.design.sessionScrimTopOpacity) }
                 GradientStop { position: 0.45; color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
                                                              Kirigami.Theme.backgroundColor.g,
-                                                             Kirigami.Theme.backgroundColor.b, 0.30) }
+                                                             Kirigami.Theme.backgroundColor.b,
+                                                             lockScreenUi.design.sessionScrimMidOpacity) }
                 GradientStop { position: 1.0; color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
                                                              Kirigami.Theme.backgroundColor.g,
-                                                             Kirigami.Theme.backgroundColor.b, 0.60) }
+                                                             Kirigami.Theme.backgroundColor.b,
+                                                             lockScreenUi.design.sessionScrimBottomOpacity) }
             }
         }
 
@@ -371,8 +378,8 @@ Item {
                 Layout.alignment: Qt.AlignHCenter
                 text: "MoOS"
                 color: Kirigami.Theme.textColor
-                opacity: 0.85
-                font.family: "IBM Plex Sans Arabic"
+                opacity: lockScreenUi.design.mutedOpacity
+                font.family: lockScreenUi.design.interfaceFamily
                 font.pointSize: Kirigami.Theme.defaultFont.pointSize + 2
                 font.weight: Font.DemiBold
                 font.letterSpacing: 2
@@ -394,7 +401,7 @@ Item {
         // A still mineral-glass plate gives the security boundary an authored
         // home inside the large portal. It remains purely visual; MainBlock and
         // every authentication wire stay outside and untouched.
-        Rectangle {
+        MoUI.GlassSurface {
             id: authCard
             anchors.horizontalCenter: parent.horizontalCenter
             y: mainStack.y + mainStack.height * 0.5 - height * 0.5
@@ -402,33 +409,35 @@ Item {
                             Kirigami.Units.gridUnit * 25)
             height: Math.min(parent.height - Kirigami.Units.gridUnit * 6,
                              Kirigami.Units.gridUnit * 35)
-            radius: Kirigami.Units.gridUnit * 2
+            radius: lockScreenUi.design.radiusDialog
             // The lock island wears the SAME material as the power doorway's
             // Glass Island: the Complementary surface set, so the card is a
             // deliberate dark glass slab on light palettes too — one session
             // language across lock and power.
             Kirigami.Theme.inherit: false
             Kirigami.Theme.colorSet: Kirigami.Theme.Complementary
-            color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
-                           Kirigami.Theme.backgroundColor.g,
-                           Kirigami.Theme.backgroundColor.b, 0.58)
-            border.width: 1
+            surfaceColor: Kirigami.Theme.backgroundColor
+            fillOpacity: lockScreenUi.design.sessionGlassOpacity
+            inkColor: Kirigami.Theme.textColor
+            accentColor: lockScreenUi.accentA
             border.color: Qt.rgba(Kirigami.Theme.textColor.r,
                                   Kirigami.Theme.textColor.g,
                                   Kirigami.Theme.textColor.b, 0.16)
             visible: opacity > 0
             opacity: lockScreenRoot.uiVisible ? 1 : 0
-            scale: lockScreenRoot.uiVisible ? 1 : 0.96
+            scale: lockScreenRoot.uiVisible ? 1 : lockScreenUi.design.pressScale
             Behavior on opacity {
                 NumberAnimation {
-                    duration: lockScreenUi.motionEnabled ? Kirigami.Units.longDuration : 0
-                    easing.type: Easing.OutCubic
+                    duration: lockScreenUi.design.duration(
+                        lockScreenUi.motionEnabled, lockScreenUi.design.motionGeometry)
+                    easing.type: lockScreenUi.design.easeStandard
                 }
             }
             Behavior on scale {
                 NumberAnimation {
-                    duration: lockScreenUi.motionEnabled ? Kirigami.Units.longDuration : 0
-                    easing.type: Easing.OutCubic
+                    duration: lockScreenUi.design.duration(
+                        lockScreenUi.motionEnabled, lockScreenUi.design.motionGeometry)
+                    easing.type: lockScreenUi.design.easeStandard
                 }
             }
 
@@ -536,16 +545,17 @@ Item {
             anchors.fill: clock
             source: clock
             visible: !lockScreenUi.softwareRendering && config.alwaysShowClock
-            radius: 12
+            radius: lockScreenUi.design.shadowBlur
             verticalOffset: 1.0
-            samples: 25
+            samples: lockScreenUi.design.shadowBlur * 2 + 1
             spread: 0.15
             color: Qt.rgba(0, 0, 0, 0.55)
             opacity: lockScreenRoot.uiVisible ? 0 : 1
             Behavior on opacity {
                 OpacityAnimator {
-                    duration: lockScreenUi.motionEnabled ? Kirigami.Units.veryLongDuration * 2 : 0
-                    easing.type: Easing.InOutQuad
+                    duration: lockScreenUi.design.duration(
+                        lockScreenUi.motionEnabled, lockScreenUi.design.motionPortal)
+                    easing.type: lockScreenUi.design.easeStandard
                 }
             }
         }

@@ -24,6 +24,7 @@ import org.kde.plasma.plasmoid
 import org.kde.plasma.core as PlasmaCore
 import org.kde.plasma.workspace.calendar as PlasmaCalendar
 import org.kde.kirigami as Kirigami
+import org.moos.ui as MoUI
 
 PlasmoidItem {
     id: root
@@ -33,9 +34,12 @@ PlasmoidItem {
 
     property date now: new Date()
     readonly property bool rtl: Qt.locale().textDirection === Qt.RightToLeft
+    readonly property var design: MoUI.Tokens
     readonly property var displayLocale: rtl ? Qt.locale("ar") : Qt.locale()
-    readonly property int motionFast: Kirigami.Units.longDuration > 1 ? 140 : 0
-    readonly property int motionMedium: Kirigami.Units.longDuration > 1 ? 240 : 0
+    readonly property int motionFast: design.duration(
+        Kirigami.Units.longDuration > 1, design.motionFast)
+    readonly property int motionMedium: design.duration(
+        Kirigami.Units.longDuration > 1, design.motionGeometry)
 
     // Same helper as the lock clock (MoOSClock.qml): day and month names stay
     // the locale's own, only the DIGITS fold to Latin — one number system on
@@ -110,7 +114,7 @@ PlasmoidItem {
                                         : (root.expanded ? 0.10 : 0.05)
             color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
                            Kirigami.Theme.textColor.b, glass)
-            border.width: 1
+            border.width: root.design.borderHairline
             // Rim scale (THEME_REV 32): hover is carried by the glass above,
             // so the edge stays a hint at every state instead of hardening into
             // an outline the moment the pointer arrives.
@@ -254,7 +258,7 @@ PlasmoidItem {
                 // the number system is one decision, applied everywhere.
                 text: root.latinNumerals(root.displayLocale.toString(root.now, "ddd d MMM"))
                 color: Kirigami.Theme.textColor
-                opacity: 0.66
+                opacity: root.design.mutedOpacity
                 font.family: root.rtl ? "IBM Plex Sans Arabic" : "IBM Plex Sans"
                 font.pixelSize: Math.max(9, Kirigami.Units.gridUnit * 0.58)
                 font.weight: Font.Medium

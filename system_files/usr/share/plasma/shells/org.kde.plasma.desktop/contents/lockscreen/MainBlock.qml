@@ -39,6 +39,7 @@ import org.kde.kirigami as Kirigami
 import org.kde.kscreenlocker as ScreenLocker
 
 import org.kde.breeze.components
+import org.moos.ui as MoUI
 
 SessionManagementScreen {
     id: sessionManager
@@ -54,6 +55,7 @@ SessionManagementScreen {
     property bool lockScreenUiVisible: false
     property alias showPassword: passwordBox.showPassword
     readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
+    readonly property var design: MoUI.Tokens
 
     // ── Two-tone MoOS accent (visual only) ──────────────────────────────────
     // A second hue derived from the live theme highlight, so the unlock button
@@ -157,8 +159,9 @@ SessionManagementScreen {
                       Kirigami.Theme.negativeTextColor.b, 0.16)
             : Qt.rgba(Kirigami.Theme.backgroundColor.r,
                       Kirigami.Theme.backgroundColor.g,
-                      Kirigami.Theme.backgroundColor.b, 0.55)
-        border.width: 1
+                      Kirigami.Theme.backgroundColor.b,
+                      sessionManager.design.sessionGlassOpacity)
+        border.width: sessionManager.design.borderHairline
         border.color: sessionManager.noticeIsAlert
             ? Qt.rgba(Kirigami.Theme.negativeTextColor.r,
                       Kirigami.Theme.negativeTextColor.g,
@@ -167,8 +170,15 @@ SessionManagementScreen {
                       Kirigami.Theme.textColor.g,
                       Kirigami.Theme.textColor.b, 0.20)
 
-        Behavior on opacity { NumberAnimation { duration: sessionManager.motionEnabled ? Kirigami.Units.longDuration : 0; easing.type: Easing.OutCubic } }
-        Behavior on color { ColorAnimation { duration: sessionManager.motionEnabled ? Kirigami.Units.longDuration : 0 } }
+        Behavior on opacity { NumberAnimation {
+            duration: sessionManager.design.duration(sessionManager.motionEnabled,
+                                                     sessionManager.design.motionGeometry)
+            easing.type: sessionManager.design.easeStandard
+        } }
+        Behavior on color { ColorAnimation {
+            duration: sessionManager.design.duration(sessionManager.motionEnabled,
+                                                     sessionManager.design.motionGeometry)
+        } }
 
         PlasmaComponents3.Label {
             id: noticeLabel
@@ -183,7 +193,7 @@ SessionManagementScreen {
             // text silently falls back to Noto — a second Arabic face on the same
             // screen as the Plex date. Plex Arabic carries a full Latin set. And
             // font.families does not exist on Qt 6.11.1 here — see Logout.qml.
-            font.family: "IBM Plex Sans Arabic"
+            font.family: sessionManager.design.interfaceFamily
             font.pointSize: Kirigami.Theme.defaultFont.pointSize
             font.weight: Font.Medium
             color: sessionManager.noticeIsAlert ? Kirigami.Theme.negativeTextColor
@@ -202,13 +212,15 @@ SessionManagementScreen {
             NumberAnimation {
                 target: noticePill; property: "scale"
                 from: 1.0; to: 1.06
-                duration: sessionManager.motionEnabled ? Kirigami.Units.longDuration : 0
+                duration: sessionManager.design.duration(
+                    sessionManager.motionEnabled, sessionManager.design.motionGeometry)
                 easing.type: Easing.OutQuad
             }
             NumberAnimation {
                 target: noticePill; property: "scale"
                 from: 1.06; to: 1.0
-                duration: sessionManager.motionEnabled ? Kirigami.Units.longDuration : 0
+                duration: sessionManager.design.duration(
+                    sessionManager.motionEnabled, sessionManager.design.motionGeometry)
                 easing.type: Easing.InQuad
             }
         }
@@ -243,8 +255,13 @@ SessionManagementScreen {
                 radius: height / 2
                 color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
                                Kirigami.Theme.backgroundColor.g,
-                               Kirigami.Theme.backgroundColor.b, passwordBox.activeFocus ? 0.62 : 0.48)
-                border.width: passwordBox.activeFocus ? 1.5 : 1
+                               Kirigami.Theme.backgroundColor.b,
+                               passwordBox.activeFocus
+                               ? sessionManager.design.mutedOpacity
+                               : sessionManager.design.disabledOpacity)
+                border.width: passwordBox.activeFocus
+                              ? sessionManager.design.focusWidth
+                              : sessionManager.design.borderHairline
                 border.color: passwordBox.activeFocus
                     ? Qt.rgba(Kirigami.Theme.highlightColor.r,
                               Kirigami.Theme.highlightColor.g,
@@ -252,7 +269,10 @@ SessionManagementScreen {
                     : Qt.rgba(Kirigami.Theme.textColor.r,
                               Kirigami.Theme.textColor.g,
                               Kirigami.Theme.textColor.b, 0.18)
-                Behavior on border.color { ColorAnimation { duration: sessionManager.motionEnabled ? Kirigami.Units.longDuration : 0 } }
+                Behavior on border.color { ColorAnimation {
+                    duration: sessionManager.design.duration(
+                        sessionManager.motionEnabled, sessionManager.design.motionGeometry)
+                } }
                 // soft accent glow when focused
                 Rectangle {
                     anchors.centerIn: parent
@@ -265,7 +285,10 @@ SessionManagementScreen {
                     border.color: Qt.rgba(Kirigami.Theme.highlightColor.r,
                                           Kirigami.Theme.highlightColor.g,
                                           Kirigami.Theme.highlightColor.b, passwordBox.activeFocus ? 0.14 : 0.0)
-                    Behavior on border.color { ColorAnimation { duration: sessionManager.motionEnabled ? Kirigami.Units.longDuration : 0 } }
+                    Behavior on border.color { ColorAnimation {
+                        duration: sessionManager.design.duration(
+                            sessionManager.motionEnabled, sessionManager.design.motionGeometry)
+                    } }
                 }
             }
 
@@ -328,11 +351,12 @@ SessionManagementScreen {
             onClicked: sessionManager.startLogin()
             Keys.onEnterPressed: clicked()
             Keys.onReturnPressed: clicked()
-            scale: loginButton.down ? 0.94 : 1.0
+            scale: loginButton.down ? sessionManager.design.pressScale : 1.0
             Behavior on scale {
                 NumberAnimation {
-                    duration: sessionManager.motionEnabled ? Kirigami.Units.shortDuration : 0
-                    easing.type: Easing.OutCubic
+                    duration: sessionManager.design.duration(
+                        sessionManager.motionEnabled, sessionManager.design.motionFast)
+                    easing.type: sessionManager.design.easeStandard
                 }
             }
 
@@ -346,14 +370,19 @@ SessionManagementScreen {
             // accentB remains in the decorative focus rim, where it cannot
             // compromise glyph contrast.
             background: Rectangle {
-                radius: height * 0.30
+                radius: sessionManager.design.radiusCard
                 color: sessionManager.accentA
-                border.width: loginButton.activeFocus ? 2 : 1
+                border.width: loginButton.activeFocus
+                              ? sessionManager.design.focusWidth
+                              : sessionManager.design.borderHairline
                 border.color: Qt.rgba(sessionManager.accentB.r,
                                       sessionManager.accentB.g,
                                       sessionManager.accentB.b,
                                       loginButton.activeFocus ? 0.90 : 0.48)
-                Behavior on border.color { ColorAnimation { duration: sessionManager.motionEnabled ? Kirigami.Units.shortDuration : 0 } }
+                Behavior on border.color { ColorAnimation {
+                    duration: sessionManager.design.duration(
+                        sessionManager.motionEnabled, sessionManager.design.motionFast)
+                } }
 
                 // Crest cut + quiet lower horizon: the same two marks used by
                 // Login, Logout and every session action key.
@@ -382,8 +411,8 @@ SessionManagementScreen {
                 source: loginButton.icon.name
                 isMask: true
                 color: Kirigami.Theme.highlightedTextColor
-                implicitWidth: Kirigami.Units.iconSizes.smallMedium
-                implicitHeight: Kirigami.Units.iconSizes.smallMedium
+                implicitWidth: sessionManager.design.iconControl
+                implicitHeight: sessionManager.design.iconControl
             }
         }
     }
@@ -405,7 +434,7 @@ SessionManagementScreen {
         // secondary text, and in the same family as everything else on this
         // cluster. `kind`, `visible`, `text` and the Connections below are
         // untouched — this is typography, nothing more.
-        font.family: "IBM Plex Sans Arabic"
+        font.family: sessionManager.design.interfaceFamily
         font.pointSize: Kirigami.Theme.defaultFont.pointSize - 1
         color: Kirigami.Theme.disabledTextColor
 

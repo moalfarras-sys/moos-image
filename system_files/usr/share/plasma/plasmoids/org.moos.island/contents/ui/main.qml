@@ -46,15 +46,17 @@ import org.kde.plasma.components as PlasmaComponents
 import org.kde.plasma.extras as PlasmaExtras
 import org.kde.kirigami as Kirigami
 import org.kde.plasma.private.mpris as Mpris
+import org.moos.ui as MoUI
 
 PlasmoidItem {
     id: root
 
     readonly property bool rtl: Qt.locale().textDirection === Qt.RightToLeft
-    readonly property int motionFast: Kirigami.Units.longDuration > 1
-        ? Kirigami.Units.shortDuration : 0
-    readonly property int motionMedium: Kirigami.Units.longDuration > 1
-        ? Kirigami.Units.longDuration : 0
+    readonly property var design: MoUI.Tokens
+    readonly property int motionFast: design.duration(
+        Kirigami.Units.longDuration > 1, design.motionFast)
+    readonly property int motionMedium: design.duration(
+        Kirigami.Units.longDuration > 1, design.motionGeometry)
 
     function local(arabic, english) { return root.rtl ? arabic : english; }
 
@@ -121,17 +123,28 @@ PlasmoidItem {
                 NumberAnimation { duration: root.motionFast; easing.type: Easing.OutBack }
             }
 
-            // The one piece of life: it breathes only while something is
-            // actually playing, and only when motion is on at all. The gate is
-            // named in full here rather than through root.motionMedium — an
-            // endless loop must show its own guard, to the reader and to
-            // verify_user_experience, which refuses an alias it cannot follow.
-            SequentialAnimation on opacity {
+            // A sparse acknowledgement, not a permanent compositor workload:
+            // while media plays the mark breathes once every 15 seconds. The
+            // finite pulse keeps the bar completely idle between beats.
+            Timer {
+                interval: 15000
+                repeat: true
                 running: root.playing && Kirigami.Units.longDuration > 1
-                loops: Animation.Infinite
+                onTriggered: mediaPulse.restart()
+            }
+            SequentialAnimation {
+                id: mediaPulse
                 alwaysRunToEnd: true
-                NumberAnimation { from: 1.0; to: 0.5; duration: 1500; easing.type: Easing.InOutSine }
-                NumberAnimation { from: 0.5; to: 1.0; duration: 1500; easing.type: Easing.InOutSine }
+                NumberAnimation {
+                    target: glyph; property: "opacity"
+                    from: 1.0; to: 0.58; duration: 700
+                    easing.type: Easing.InOutSine
+                }
+                NumberAnimation {
+                    target: glyph; property: "opacity"
+                    from: 0.58; to: 1.0; duration: 700
+                    easing.type: Easing.InOutSine
+                }
             }
         }
     }
@@ -155,7 +168,7 @@ PlasmoidItem {
                 Rectangle {
                     Layout.preferredWidth: Kirigami.Units.gridUnit * 5
                     Layout.preferredHeight: Layout.preferredWidth
-                    radius: Kirigami.Units.gridUnit * 0.7
+                    radius: root.design.radiusControl
                     color: Qt.alpha(Kirigami.Theme.highlightColor, 0.12)
                     clip: true
 
@@ -192,7 +205,7 @@ PlasmoidItem {
                     PlasmaComponents.Label {
                         text: root.artist
                         visible: text.length > 0
-                        opacity: 0.7
+                        opacity: root.design.mutedOpacity
                         elide: Text.ElideRight
                         maximumLineCount: 1
                         Layout.fillWidth: true

@@ -523,9 +523,9 @@ fi
 
 # The whole Horizon Bar is owned by moos-bar-apply against moos-bar.conf.
 if command -v moos-bar-apply >/dev/null 2>&1 && moos-bar-apply check >/dev/null 2>&1; then
-    ok "the Horizon Bar matches moos-bar.conf (one centred capsule)"
+    ok "the Horizon Bar matches moos-bar.conf and owns live notifications"
 else
-    bad "the Horizon Bar drifts from moos-bar.conf — run moos-apply-theme once"
+    bad "the Horizon Bar or notification protocol drifts from moos-bar.conf — run moos-apply-theme once"
 fi
 
 head_ "Launcher search covers visible HOME"

@@ -12,6 +12,7 @@
 
 import QtQuick
 import org.kde.kirigami as Kirigami
+import org.moos.ui as MoUI
 
 Rectangle {
     id: root
@@ -25,6 +26,7 @@ Rectangle {
     readonly property color accentB: Kirigami.Theme.linkColor
     readonly property color ink: Kirigami.Theme.textColor
     readonly property color muted: Kirigami.Theme.disabledTextColor
+    readonly property var design: MoUI.Tokens
     readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
     readonly property bool rtl: Qt.locale().textDirection === Qt.RightToLeft
     readonly property real progress: Math.max(0.08, Math.min(1, stage / 5))
@@ -137,7 +139,7 @@ Rectangle {
                 text: "MoOS"
                 textFormat: Text.PlainText
                 color: root.ink
-                font.family: "IBM Plex Sans Arabic"
+                font.family: root.design.interfaceFamily
                 font.pixelSize: Math.max(20, Math.round(root.logoSize * 0.19))
                 font.weight: Font.DemiBold
                 font.letterSpacing: 1.8
@@ -152,8 +154,8 @@ Rectangle {
                     : "Preparing your space"
                 textFormat: Text.PlainText
                 color: root.ink
-                opacity: 0.72
-                font.family: "IBM Plex Sans Arabic"
+                opacity: root.design.mutedOpacity
+                font.family: root.design.interfaceFamily
                 font.pixelSize: Math.max(12, Math.round(root.logoSize * 0.105))
                 font.weight: Font.Normal
                 renderType: Text.QtRendering
@@ -169,14 +171,15 @@ Rectangle {
             width: Math.max(220, Math.min(360, parent.width * 0.24))
             height: 4
             radius: height / 2
-            color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.15)
+            color: Qt.alpha(root.ink, root.design.surfaceRestingOpacity)
             clip: true
             opacity: root.stage >= 5 ? 0 : 1
 
             Behavior on opacity {
                 NumberAnimation {
-                    duration: root.motionEnabled ? Kirigami.Units.shortDuration : 0
-                    easing.type: Easing.OutCubic
+                    duration: root.design.duration(root.motionEnabled,
+                                                   root.design.motionFast)
+                    easing.type: root.design.easeStandard
                 }
             }
 
@@ -192,8 +195,9 @@ Rectangle {
                 }
                 Behavior on width {
                     NumberAnimation {
-                        duration: root.motionEnabled ? 260 : 0
-                        easing.type: Easing.OutCubic
+                        duration: root.design.duration(root.motionEnabled,
+                                                       root.design.motionEmphasis)
+                        easing.type: root.design.easeStandard
                     }
                 }
             }
@@ -208,16 +212,16 @@ Rectangle {
             target: content
             from: 0
             to: 1
-            duration: 460
-            easing.type: Easing.OutCubic
+            duration: root.design.motionPortal
+            easing.type: root.design.easeStandard
         }
         NumberAnimation {
             target: contentShift
             property: "y"
             from: Kirigami.Units.gridUnit * 0.8
             to: 0
-            duration: 460
-            easing.type: Easing.OutCubic
+            duration: root.design.motionPortal
+            easing.type: root.design.easeStandard
         }
     }
 }

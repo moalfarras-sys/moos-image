@@ -17,9 +17,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
-import "../ui" as MoOSUi
-import "../ui/SymbolCatalog.js" as MoOSSymbols
-import "../ui/KeyboardViewport.js" as KeyboardViewport
+import org.moos.ui as MoUI
 
 ApplicationWindow {
     id: win
@@ -58,7 +56,7 @@ ApplicationWindow {
     function fs(px) { return Math.round(px * win.fontScale) }
     function typePx(px) { return design.typeSize(px, win.fontScale) }
     function local(ar, en) { return win.rtl ? ar : en }
-    MoOSUi.Tokens { id: design }
+    readonly property var design: MoUI.Tokens
 
     // The UI face is the SYSTEM face, not a string repeated in this file.
     //
@@ -990,9 +988,9 @@ ApplicationWindow {
         "download": "install", "disk": "storage"
     })
     function glyphIcon(name) {
-        return MoOSSymbols.resolve(win.glyphAliases[name] || name || "spark")
+        return MoUI.SymbolCatalog.resolve(win.glyphAliases[name] || name || "spark")
     }
-    component Glyph: MoOSUi.SymbolIcon {
+    component Glyph: MoUI.SymbolIcon {
         property string name: "spark"
         property color tint: win.txt
         symbol: win.glyphIcon(name)
@@ -1018,7 +1016,7 @@ ApplicationWindow {
     // control's own border, and it follows the parent's own radius so a pill stays a pill and a
     // card stays a card. No animation: a focus ring must appear the instant focus lands, and
     // Liquid Glass surfaces already gate their motion on `motionEnabled`.
-    component FocusRing: MoOSUi.FocusRing {
+    component FocusRing: MoUI.FocusRing {
         accentColor: win.accent
     }
 
@@ -1030,9 +1028,9 @@ ApplicationWindow {
     //      Flickable ancestors clip it (the app grid, the chip row, the detail sheet);
     //   2. PageDown/PageUp move each content pane via pageScrollKeys(), reached by key
     //      bubbling from any focused item inside the pane.
-    onActiveFocusItemChanged: KeyboardViewport.revealFocus(win.activeFocusItem)
+    onActiveFocusItemChanged: MoUI.KeyboardViewport.revealFocus(win.activeFocusItem)
 
-    component ActionButton: MoOSUi.Button {
+    component ActionButton: MoUI.Button {
         id: action
         property string glyphName: ""
         property var triggered
@@ -1601,7 +1599,7 @@ ApplicationWindow {
                     contentHeight: discoverBody.implicitHeight + 48
                     clip: true
                     boundsBehavior: Flickable.StopAtBounds
-                    Keys.onPressed: (event) => KeyboardViewport.pageScrollKeys(discoverFlick, event)
+                    Keys.onPressed: (event) => MoUI.KeyboardViewport.pageScrollKeys(discoverFlick, event)
                     ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
                     ColumnLayout {
                         id: discoverBody
@@ -2100,7 +2098,7 @@ ApplicationWindow {
                             var last = categoryRepeater.itemAt(categoryRepeater.count - 1)
                             if (last) last.forceActiveFocus(Qt.BacktabFocusReason)
                         }
-                        Keys.onPressed: (event) => KeyboardViewport.pageScrollKeys(appGrid, event)
+                        Keys.onPressed: (event) => MoUI.KeyboardViewport.pageScrollKeys(appGrid, event)
                         ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
                         delegate: Item {
                             id: gridCell
@@ -2161,7 +2159,7 @@ ApplicationWindow {
                     contentWidth: width
                     contentHeight: categoryBody.implicitHeight + 44
                     clip: true
-                    Keys.onPressed: (event) => KeyboardViewport.pageScrollKeys(categoriesFlick, event)
+                    Keys.onPressed: (event) => MoUI.KeyboardViewport.pageScrollKeys(categoriesFlick, event)
                     ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
                     ColumnLayout {
                         id: categoryBody
@@ -2281,7 +2279,7 @@ ApplicationWindow {
                     contentWidth: width
                     contentHeight: updateBody.implicitHeight + 50
                     clip: true
-                    Keys.onPressed: (event) => KeyboardViewport.pageScrollKeys(updatesFlick, event)
+                    Keys.onPressed: (event) => MoUI.KeyboardViewport.pageScrollKeys(updatesFlick, event)
                     ColumnLayout {
                         id: updateBody
                         x: 26
@@ -2551,7 +2549,7 @@ ApplicationWindow {
                     contentWidth: width
                     contentHeight: sourceBody.implicitHeight + 50
                     clip: true
-                    Keys.onPressed: (event) => KeyboardViewport.pageScrollKeys(sourcesFlick, event)
+                    Keys.onPressed: (event) => MoUI.KeyboardViewport.pageScrollKeys(sourcesFlick, event)
                     ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
                     ColumnLayout {
                         id: sourceBody
@@ -2949,7 +2947,7 @@ ApplicationWindow {
             contentWidth: width
             contentHeight: detailBody.implicitHeight
             clip: true
-            Keys.onPressed: (event) => KeyboardViewport.pageScrollKeys(detailFlick, event)
+            Keys.onPressed: (event) => MoUI.KeyboardViewport.pageScrollKeys(detailFlick, event)
             ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
             ColumnLayout {
                 id: detailBody

@@ -18,6 +18,7 @@ Item {
     // the level worth having: the beacon's ripple and the rings' halo.
     required property bool accentMotion
     property int entranceDelay: 0
+    property bool integrated: false
 
     readonly property real cpuValue: safeValue(cpuSensor.value)
     readonly property real memoryValue: safeValue(memorySensor.value)
@@ -54,19 +55,19 @@ Item {
     Sensors.Sensor {
         id: cpuSensor
         sensorId: "cpu/all/usage"
-        updateRateLimit: 1500
+        updateRateLimit: 5000
     }
 
     Sensors.Sensor {
         id: memorySensor
         sensorId: "memory/physical/usedPercent"
-        updateRateLimit: 1500
+        updateRateLimit: 5000
     }
 
     Sensors.Sensor {
         id: diskSensor
         sensorId: "disk/all/usedPercent"
-        updateRateLimit: 1500
+        updateRateLimit: 5000
     }
 
     GlassCard {
@@ -74,6 +75,7 @@ Item {
         motionEnabled: systemCard.motionEnabled
         accentMotion: systemCard.accentMotion
         entranceDelay: systemCard.entranceDelay
+        integrated: systemCard.integrated
 
         RowLayout {
             anchors.fill: parent
@@ -124,43 +126,50 @@ Item {
                             visible: systemCard.motionEnabled && systemCard.accentMotion
                             opacity: 0
 
-                            SequentialAnimation {
-                                running: systemCard.motionEnabled && systemCard.accentMotion
-                                loops: Animation.Infinite
-                                ParallelAnimation {
-                                    NumberAnimation {
-                                        target: beaconRipple
-                                        property: "scale"
-                                        from: 1
-                                        to: 2.6
-                                        duration: 1400
-                                        easing.type: Easing.OutCubic
-                                    }
-                                    SequentialAnimation {
-                                        NumberAnimation {
-                                            target: beaconRipple
-                                            property: "opacity"
-                                            from: 0
-                                            to: 0.55
-                                            duration: 260
-                                        }
-                                        NumberAnimation {
-                                            target: beaconRipple
-                                            property: "opacity"
-                                            to: 0
-                                            duration: 1140
-                                            easing.type: Easing.InQuad
-                                        }
+                            Timer {
+                                id: beaconCadence
+                                interval: 30000
+                                repeat: true
+                                triggeredOnStart: true
+                                running: systemCard.motionEnabled
+                                    && systemCard.accentMotion
+                                    && beaconRipple.visible
+                                onTriggered: beaconPulse.restart()
+                                onRunningChanged: {
+                                    if (!running) {
+                                        beaconPulse.stop()
+                                        beaconRipple.scale = 1
+                                        beaconRipple.opacity = 0
                                     }
                                 }
-                                // EVERY looping animation in this package rests,
-                                // `alive` included: an infinite QML animation pins
-                                // the render loop at the full frame rate and repaints
-                                // the whole window for as long as it runs, about 11%
-                                // of a CPU core whatever the item's size. 1.4 s of
-                                // ripple in a 6 s cycle is a ~23% duty cycle and
-                                // reads as a heartbeat rather than a strobe.
-                                PauseAnimation { duration: 4600 }
+                            }
+
+                            ParallelAnimation {
+                                id: beaconPulse
+                                NumberAnimation {
+                                    target: beaconRipple
+                                    property: "scale"
+                                    from: 1
+                                    to: 2.6
+                                    duration: 900
+                                    easing.type: Easing.OutCubic
+                                }
+                                SequentialAnimation {
+                                    NumberAnimation {
+                                        target: beaconRipple
+                                        property: "opacity"
+                                        from: 0
+                                        to: 0.55
+                                        duration: 180
+                                    }
+                                    NumberAnimation {
+                                        target: beaconRipple
+                                        property: "opacity"
+                                        to: 0
+                                        duration: 720
+                                        easing.type: Easing.InQuad
+                                    }
+                                }
                             }
                         }
                     }

@@ -136,28 +136,26 @@ zero when `Kirigami.Units.longDuration <= 1`.
 ## Wallpaper contract
 
 Every variant uses the same 16:9 Tidal Horizon composition and exports
-3840×2160, 3440×1440 and 2560×1600. Two low mineral-glass membranes converge at
-one precise concave cut while the upper 44% stays calm for work and desktop
-information. Palette switching changes light, not geometry. There is no text,
-logo, UI mock-up, fake window, pure white, pure black, copied OS motif or visible
-banding.
+3840×2160, 3440×1440 and 2560×1600. Broad interlocking liquid-glass planes flow
+from the lower corners toward one calm horizon; the upper field stays quiet for
+work, icons and desktop information. Palette switching changes light and
+material exposure, not geometry. There is no text, logo, UI mock-up, fake
+window, copied OS motif or visible banding.
 
-Final light generation prompt (`mode=generate`):
+Final dark generation prompt (`mode=generate`):
 
-> Create an original premium operating-system wallpaper called Tidal Horizon:
-> two low sculpted translucent sea-glass membranes approach a precise central
-> concave cut, airy alabaster and mineral turquoise daylight, restrained
-> teal/plum edge light, tactile micro-texture, broad calm upper negative space,
-> cinematic but minimal. Exact 16:9 edge-to-edge composition; no text, logo,
-> objects, UI, watermark, copied interface, pure white, neon or cheap gradient.
+> Create a premium 16:9 Tidal Horizon wallpaper from broad sculpted layers of
+> liquid glass and translucent mineral surfaces flowing from the lower corners
+> into a calm horizon. Use deep graphite atmosphere, controlled #55E6D2 edge
+> light and tiny violet spectral glints. Preserve generous upper negative space;
+> no text, logo, objects, UI, watermark, neon, particles or central clutter.
 
-Final dark sibling prompt (`mode=edit`, using the accepted light master):
+Final light sibling prompt (`mode=edit`, using the accepted dark master):
 
-> Preserve the exact composition, membrane silhouette and central concave cut.
-> Convert only its material and lighting into smoked graphite sea glass with a
-> controlled luminous teal edge and deep mineral atmosphere. Keep the same
-> camera, crop, negative space and micro-texture; add no objects, text, logo,
-> UI, watermark, neon or new geometry.
+> Preserve the exact composition, camera, horizon and ribbon geometry. Convert
+> only illumination and material exposure into luminous pearl atmosphere and
+> pale frosted sea glass with restrained teal edges. Add or remove no shapes;
+> no text, logo, objects, UI, watermark or blown highlights.
 
 The built-in image generator is used for the raster masters. Generated output is
 inspected, cropped to 16:9 without stretching, then exported deterministically by
@@ -165,12 +163,12 @@ inspected, cropped to 16:9 without stretching, then exported deterministically b
 under `$CODEX_HOME`.
 
 The accepted lossless masters are
-`moos-ui-tidal-horizon-master-v1.png` and
-`moos-ui-graphite-horizon-master-v1.png`, both 1672×941. The family generator
+`moos-ui-tidal-horizon-master-v2.png` and
+`moos-ui-graphite-horizon-master-v2.png`, both 1672×941. The family generator
 maps their luminance and edge mask to all 16 semantic palettes, so every picker
 preview and runtime crop keeps the same geometry. Lanczos scale-and-crop creates
 deterministic 4:4:4 runtime JPEGs. The family proof sheet is
-[`moos-ui2/previews/tidal-horizon-family-v1.jpg`](moos-ui2/previews/tidal-horizon-family-v1.jpg).
+[`moos-ui2/previews/tidal-horizon-family-v2.jpg`](moos-ui2/previews/tidal-horizon-family-v2.jpg).
 
 ## Desktop dashboard contract
 

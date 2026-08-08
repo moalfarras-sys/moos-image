@@ -31,7 +31,7 @@ import QtQuick.Dialogs
 import QtQuick.Shapes
 import QtQuick.Effects
 import org.kde.kirigami as Kirigami
-import "../ui" as MoOSUi
+import org.moos.ui as MoUI
 
 Kirigami.ApplicationWindow {
     id: root
@@ -92,7 +92,7 @@ Kirigami.ApplicationWindow {
     readonly property color accentText:   Kirigami.Theme.highlightedTextColor
 
     // Same focus ring as Mo Store, Welcome and the Installer. One focus treatment across MoOS.
-    component FocusRing: MoOSUi.FocusRing {
+    component FocusRing: MoUI.FocusRing {
         accentColor: root.novaBlue
     }
     // Mo AI is theme-adaptive (its palette comes from the active KDE scheme), so
@@ -123,7 +123,7 @@ Kirigami.ApplicationWindow {
                                       ? Qt.application.font.pointSize / 10 : 1
     function fs(px) { return Math.round(px * root.fontScale) }
     function typePx(px) { return design.typeSize(px, root.fontScale) }
-    MoOSUi.Tokens { id: design }
+    readonly property var design: MoUI.Tokens
 
     readonly property string uiFont: Qt.application.font.family
 
@@ -1482,7 +1482,7 @@ Kirigami.ApplicationWindow {
     }
 
     // The one button style in the app.
-    component MoButton: MoOSUi.Button {
+    component MoButton: MoUI.Button {
         id: btn
         property bool danger: false
         property bool enabled_: true

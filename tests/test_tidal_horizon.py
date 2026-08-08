@@ -16,8 +16,8 @@ ROOT = Path(__file__).resolve().parents[1]
 ART = ROOT / "artwork"
 SHARE = ROOT / "system_files/usr/share"
 MASTERS = {
-    False: ART / "moos-ui2/wallpapers/moos-ui-graphite-horizon-master-v1.png",
-    True: ART / "moos-ui2/wallpapers/moos-ui-tidal-horizon-master-v1.png",
+    False: ART / "moos-ui2/wallpapers/moos-ui-graphite-horizon-master-v2.png",
+    True: ART / "moos-ui2/wallpapers/moos-ui-tidal-horizon-master-v2.png",
 }
 
 
@@ -51,8 +51,8 @@ class TidalHorizonContractTests(unittest.TestCase):
 
     def test_base_generator_no_longer_selects_retired_flow_masters(self) -> None:
         text = (ART / "generate_moos_ui2.py").read_text(encoding="utf-8")
-        self.assertIn("moos-ui-tidal-horizon-master-v1.png", text)
-        self.assertIn("moos-ui-graphite-horizon-master-v1.png", text)
+        self.assertIn("moos-ui-tidal-horizon-master-v2.png", text)
+        self.assertIn("moos-ui-graphite-horizon-master-v2.png", text)
         self.assertNotIn("moos-ui-tidal-flow-master-v3.png", text)
         self.assertNotIn("moos-ui-graphite-flow-master-v4.png", text)
 

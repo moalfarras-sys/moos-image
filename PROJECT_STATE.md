@@ -4,6 +4,71 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
+Last updated: 2026-08-08, Unified MoOS Experience implementation branch.
+
+The interface now has the ownership chain the project previously described but
+did not actually possess:
+
+```
+artwork/moos-design/tokens.json + theme-profiles.json
+    -> generated org.moos.ui Design Core + generated 16-profile database
+    -> moos-theme (one transactional appearance owner + exact readback/undo)
+    -> shell, session surfaces, Qt/GTK, Konsole and first-party applications
+```
+
+The application-local QML component fork is gone. Launcher, Horizon Hub,
+Control Center, Theme Picker, first-party apps, lock, login, splash and power
+now consume the installed `org.moos.ui` module. `moos-apply-theme` is a revision
+migrator/delegator, not a second theme engine. Theme state schema 2 records the
+verified profile and exact encoded profile/custom wallpaper identity; all 16
+profiles come from one generated manifest and explicitly own the internal Qt and
+GTK engine selection as well as palette, icon, cursor, decoration, wallpaper,
+Konsole and session state.
+
+The visual change was exercised on the running 4K/HDR/NVIDIA desktop, not only
+offscreen: Graphite and Tidal, Qt and GTK, Arabic RTL and English LTR, and real
+output scales 100/125/150/200% (then restored to 225%). Source session previews
+also loaded the real lock, logout, splash and plasmalogin component trees. The
+notification service was found absent because the tray never instantiated the
+notification applet; the tray inventory is now complete and a real D-Bus
+notification was displayed.
+
+Performance was fixed from measurement. The wallpaper's endless weather group
+and 1.5-second telemetry interpolation kept `plasmashell` at 10.25% in Gentle
+and 11.3% in Alive on the real 4K screen. The package now forbids every
+`Animation.Infinite`, uses sparse finite pulses and five-second health samples:
+Gentle/Still measured 0.70%; Alive measured 2.85% across a 40-second window that
+included its pulse. A fresh shell settled around 513 MiB RSS versus 741 MiB
+before reload. KWin's separate ~11.7% static-desktop baseline remained with
+MoOS motion off and became worse, not better, when blur was temporarily
+disabled; it is the OpenGL/EGL NVIDIA 4K/HDR compositor baseline, not a hidden
+MoOS animation.
+
+Fast Remote now participates in that architecture instead of installing a
+second wallpaper owner. It holds the shared theme lock, asks `moos-theme` for a
+temporary Still scene, snapshots the exact KWin and `kdeglobals` values
+(including absence), and writes its recovery marker before mutation. A live
+ON/OFF round-trip preserved `org.moos.ui2.wallpaper` and restored Alive, the
+original effect values, the selected local engine and keyboard layout. The
+round-trip caught an older D-Bus parser reading the `32` in `uint32` instead of
+layout index `0`; the parser and acceptance readback are now gated. The
+resident media island's only continuous animation was also replaced by a
+finite 1.4-second pulse every 15 seconds while media is playing.
+
+Dead top-level `desktoptheme/Nova`, orphan generators, tracked `.bak` files and
+the test icon were removed and are absence-gated. Load-bearing historical ids
+such as `org.moos.ui2.nova` and `org.moos.nova.clock` remain deliberately. The
+branch now has focused source gates, live proof, a complete green `just check`,
+and a complete green local `just build`. The resulting bootable image is
+`localhost/moos:latest`
+(`c28eca8f24f00267d282ae37ba7ef80c4791a464dbdded0b94c24b8d1ec25e04`,
+version `44.20260808.1`): the final dracut inspection found the OSTree root and
+MoOS Plymouth assets, every shipped QML app and the launcher/scene loaded in
+their real image runtime, and the image-experience, store, identity and bootc
+gates passed. Signed three-edition publication, signed offline/online ISO proof
+and the post-reboot check are the remaining release steps and must not be
+claimed complete until their actual jobs pass.
+
 Last updated: 2026-08-07, unified design audit slice — **the update button could never have
 updated anything, on any machine.**
 

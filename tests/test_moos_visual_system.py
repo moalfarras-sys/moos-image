@@ -328,17 +328,23 @@ class MoOSVisualSystemTests(unittest.TestCase):
 
         kwinrc = (ROOT / "system_files/etc/xdg/kwinrc").read_text(encoding="utf-8")
         self.assertIn("library=org.kde.kwin.aurorae.v2", kwinrc)
-        for script_name in ("moos-theme", "moos-apply-theme"):
-            script = (ROOT / "system_files/usr/bin" / script_name).read_text(
-                encoding="utf-8"
-            )
-            self.assertIn("org.kde.kwin.aurorae.v2", script)
+        theme_owner = (ROOT / "system_files/usr/bin/moos-theme").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("org.kde.kwin.aurorae.v2", theme_owner)
+        migrator = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("moos-theme verify-lnf", migrator)
+        self.assertNotIn("org.kde.kwin.aurorae.v2", migrator,
+                         "the revision migrator must not regain a second KWin "
+                         "theme table; moos-theme is the sole appearance owner")
 
     def test_generated_wallpaper_pair_is_project_bound(self) -> None:
         masters = ROOT / "artwork/moos-ui2/wallpapers"
         expected = {
-            "moos-ui-graphite-horizon-master-v1.png",
-            "moos-ui-tidal-horizon-master-v1.png",
+            "moos-ui-graphite-horizon-master-v2.png",
+            "moos-ui-tidal-horizon-master-v2.png",
         }
         self.assertTrue(expected <= {path.name for path in masters.glob("*.png")})
         generator = (ROOT / "artwork/generate_moos_ui2.py").read_text(
@@ -378,28 +384,33 @@ class MoOSVisualSystemTests(unittest.TestCase):
         self.assertTrue((package / "contents/ui/config.qml").is_file(),
                         "the MoOS scene must ship contents/ui/config.qml — that path "
                         "is the KPackage Plasma/Wallpaper config contract")
-        # Every infinite animation in the package must REST. An unguarded infinite
-        # QML animation pins the render loop at the full frame rate and repaints
-        # the whole window for as long as it runs — about 11% of a CPU core
-        # regardless of the item's size — so a loop with no PauseAnimation is a
-        # permanent tax even at the calm default level.
-        # Read the loop's ACTUAL block by matching its braces, not a fixed number of
-        # characters. A 1400-character window silently passed for as long as every
-        # loop happened to be short, then failed on a correct animation whose rest
-        # simply sat further down than the window reached — a magic number gating a
-        # relationship. The block is what the rule is about, so measure the block.
+        # The wallpaper is a 4K full-screen repaint boundary. Pauses INSIDE an
+        # infinite QML group looked like a duty cycle but measured at 10.25% CPU in
+        # Gentle and 11.3% in Alive; Still was 0.87%. Every decorative movement is
+        # therefore a finite burst fired by a sparse Timer. Do not reintroduce an
+        # always-running animation anywhere in this package.
         for _qml in sorted((package / "contents/ui").glob("*.qml")):
             _t = _qml.read_text(encoding="utf-8")
-            for _loop in re.finditer(r"loops:\s*Animation\.Infinite", _t):
-                _open = _t.rfind("{", 0, _loop.start())
-                _depth, _i = 1, _open + 1
-                while _i < len(_t) and _depth:
-                    _depth += (_t[_i] == "{") - (_t[_i] == "}")
-                    _i += 1
-                _body = _t[_open:_i]
-                self.assertIn("PauseAnimation", _body,
-                              f"{_qml.name} has an infinite animation with no rest — "
-                              "every loop in this package must have a duty cycle")
+            self.assertNotIn(
+                "Animation.Infinite",
+                _t,
+                f"{_qml.name} has a permanent animation on the 4K wallpaper",
+            )
+        weather_scene = (
+            package / "contents/ui/WeatherScene.qml"
+        ).read_text(encoding="utf-8")
+        self.assertIn("interval: scene.accentMotion ? 45000 : 60000", weather_scene)
+        self.assertIn("scene.motionEnabled && scene.visible", weather_scene)
+        self.assertIn("&& scene.accentMotion && scene.kind", weather_scene)
+        system_card = (
+            package / "contents/ui/SystemCard.qml"
+        ).read_text(encoding="utf-8")
+        self.assertEqual(system_card.count("updateRateLimit: 5000"), 3)
+        self.assertIn("interval: 30000", system_card)
+        metric_ring = (
+            package / "contents/ui/MetricRing.qml"
+        ).read_text(encoding="utf-8")
+        self.assertIn("duration: Kirigami.Units.shortDuration", metric_ring)
 
     def test_panel_clock_localizes_compact_date_in_rtl(self) -> None:
         qml = (
@@ -505,7 +516,7 @@ class MoOSVisualSystemTests(unittest.TestCase):
             SHARE / "moos/apps/welcome/main.qml"
         ).read_text(encoding="utf-8")
         shared_button = (
-            SHARE / "moos/apps/ui/Button.qml"
+            ROOT / "system_files/usr/lib64/qt6/qml/org/moos/ui/Button.qml"
         ).read_text(encoding="utf-8")
 
         actions = (
@@ -532,7 +543,7 @@ class MoOSVisualSystemTests(unittest.TestCase):
         # Device settings actions migrated from hand-built rectangles to the
         # shared AbstractButton. Qt supplies Return/Space and AT press handling;
         # the shared primitive supplies the focus/name/role contract once.
-        self.assertIn("component DeviceSettingsButton: MoOSUi.Button", welcome)
+        self.assertIn("component DeviceSettingsButton: MoUI.Button", welcome)
         device = qml_object_block(welcome, "id: deviceButton")
         self.assertIn("onClicked: deviceButton.activate()", device)
         for contract in (

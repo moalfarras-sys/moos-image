@@ -594,17 +594,13 @@ class MoOSSymbolicIconTests(unittest.TestCase):
                 self.assertNotIn("data:image/svg+xml", source)
                 self.assertNotIn("readonly property var glyphs:", source)
                 self.assertEqual(
-                    source.count("component Glyph: MoOSUi.SymbolIcon"),
+                    source.count("component Glyph: MoUI.SymbolIcon"),
                     1,
                     f"{app} must consume the shared icon-theme layer",
                 )
                 self.assertIn("symbol: win.glyphIcon(name)", source)
-                self.assertIn('import "../ui" as MoOSUi', source)
-                self.assertIn(
-                    'import "../ui/SymbolCatalog.js" as MoOSSymbols',
-                    source,
-                )
-                self.assertIn("MoOSSymbols.resolve(", source)
+                self.assertIn("import org.moos.ui as MoUI", source)
+                self.assertIn("MoUI.SymbolCatalog.resolve(", source)
                 for old, canonical in aliases.items():
                     self.assertIn(f'"{old}": "{canonical}"', source)
 
@@ -637,7 +633,7 @@ class MoOSSymbolicIconTests(unittest.TestCase):
         self.assertNotIn('"utilities-terminal"', moai)
 
         shared_symbol = (
-            ROOT / "system_files/usr/share/moos/apps/ui/SymbolIcon.qml"
+            ROOT / "system_files/usr/lib64/qt6/qml/org/moos/ui/SymbolIcon.qml"
         ).read_text(encoding="utf-8")
         self.assertIn("Accessible.ignored: true", shared_symbol)
         self.assertIn("Kirigami.Icon", shared_symbol)

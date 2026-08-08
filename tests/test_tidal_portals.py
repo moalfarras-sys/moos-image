@@ -77,8 +77,13 @@ class TidalPortalContractTests(unittest.TestCase):
         self.assertEqual(splash.count("id: revealAnimation"), 1)
         self.assertNotIn("Animation.Infinite", splash)
         self.assertNotIn("progressMotion", splash)
-        self.assertIn("duration: 460", splash)
-        self.assertIn("duration: root.motionEnabled ? 260 : 0", splash)
+        self.assertIn("import org.moos.ui as MoUI", splash)
+        self.assertEqual(splash.count("duration: root.design.motionPortal"), 2)
+        self.assertIn(
+            "duration: root.design.duration(root.motionEnabled,\n"
+            "                                                       root.design.motionEmphasis)",
+            splash,
+        )
         self.assertIn("contentShift.y = 0", splash)
 
     def test_logout_is_a_framed_compact_command_island(self) -> None:
@@ -97,7 +102,8 @@ class TidalPortalContractTests(unittest.TestCase):
         self.assertIn("Kirigami.Units.gridUnit * 26", logout)
         self.assertIn("column.implicitWidth + Kirigami.Units.gridUnit * 4", logout)
         self.assertIn("id: island", logout)
-        self.assertIn("radius: Kirigami.Units.gridUnit * 2", logout)
+        self.assertIn("import org.moos.ui as MoUI", logout)
+        self.assertIn("radius: root.design.radiusDialog", logout)
         self.assertIn("Qt.rgba(0, 0, 0, 0.04)", logout)
         # The countdown is a still Shape ring driven by remainingTime — the
         # naked hairline track must not return.
@@ -128,9 +134,10 @@ class TidalPortalContractTests(unittest.TestCase):
 
         for forbidden in ("Timer {", "Animation.Infinite", "ShaderEffect"):
             self.assertNotIn(forbidden, login)
-        self.assertIn("radius: height * 0.30", action)
+        self.assertIn("import org.moos.ui as MoUI", action)
+        self.assertIn("radius: design.radiusPanel", action)
         self.assertNotIn("radius: width / 2", action)
-        self.assertIn("IBM Plex Sans Arabic", action)
+        self.assertIn("font.family: design.interfaceFamily", action)
         self.assertIn("trackSeconds: false", clock)
         self.assertIn("Locale.LongFormat", clock)
         self.assertIn("sessionLocale.dateFormat(Locale.LongFormat)", clock)
@@ -150,7 +157,7 @@ class TidalPortalContractTests(unittest.TestCase):
             "Layout.preferredWidth: loginButton.Layout.preferredHeight * 1.28",
             main_block,
         )
-        self.assertIn("radius: height * 0.30", main_block)
+        self.assertIn("radius: sessionManager.design.radiusCard", main_block)
         self.assertIn("width: parent.width * 0.30", main_block)
         self.assertIn("width: parent.width * 0.42", main_block)
 
