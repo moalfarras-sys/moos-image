@@ -118,14 +118,15 @@ jobs:
 
       # ── OFFLINE-INSTALL EMBED (the fix for "the ISO would not install on disk") ──
       # Titanoboa builds a live ISO whose squashfs is the image's rootfs MINUS
-      # sysroot/ostree — so the live session ships an EMPTY /var/lib/containers/
-      # storage. But BOTH install paths need the MoOS image THERE to install
-      # offline: moos-install-to-disk gates on `podman image exists` -> installs
-      # `containers-storage:<ref>`, and the Anaconda kickstart uses
-      # `ostreecontainer --transport=containers-storage`. Titanoboa's action exposes
-      # no embed input, so we do it here: extract the squashfs, copy the image into
-      # its containers-storage, re-squash, and splice it back into the ISO while
-      # PRESERVING the (hybrid UEFI+BIOS) boot layout via `xorriso ... replay`.
+      # sysroot/ostree. The live boot then mounts a volatile /var OVER the squashfs,
+      # so an image embedded under /var/lib/containers/storage is invisible at
+      # runtime even though a build-time `podman --root` check on that directory
+      # passes. containers/storage already declares /usr/lib/containers/storage as
+      # an AdditionalImageStore: it stays visible through the immutable live root
+      # while /var remains the empty writable primary store. Both install paths can
+      # therefore use `containers-storage:<ref>` offline. Titanoboa exposes no embed
+      # input, so extract the squashfs, copy the image into that read-only store,
+      # re-squash, and splice it back while preserving the boot layout.
       - name: Embed MoOS image into the live ISO for offline install
         id: embed
         env:
@@ -137,7 +138,7 @@ jobs:
           sudo apt-get install -y -qq xorriso squashfs-tools skopeo
           work="${GITHUB_WORKSPACE}/iso-embed"
           rootfs="${work}/rootfs"
-          store="${rootfs}/var/lib/containers/storage"
+          store="${rootfs}/usr/lib/containers/storage"
           # runroot MUST be <50 chars — podman rejects a long runroot (its lock/socket
           # paths). The long GITHUB_WORKSPACE path tripped this; use a short /run dir.
           runroot="/run/mre"
@@ -150,6 +151,13 @@ jobs:
           sudo unsquashfs -d "${rootfs}" "${work}/squashfs.img"
           sudo rm -f "${work}/squashfs.img"          # free ~3.5GB — done with it
           sudo mkdir -p "${store}"
+          # This declaration is the runtime bridge. If the base ever removes it,
+          # embedding under /usr would be just as dead as the old /var location.
+          sudo grep -Fq '"/usr/lib/containers/storage"' \
+               "${rootfs}/usr/share/containers/storage.conf" || {
+            echo "FATAL: live containers/storage config no longer declares the immutable additional image store" >&2
+            exit 1
+          }
           echo "disk after unsquash:"; df -h / | tail -1
 
           # 2) copy the pinned source into the live rootfs's OWN containers-storage
@@ -170,11 +178,29 @@ jobs:
                "containers-storage:${IMAGE_REF}" \
                "containers-storage:[overlay@${store}+${runroot}]${offline_ref}"
 
-          # 3) GATE (fail-loud): the image MUST now be present in that store, or the
-          #    offline install would silently fall back to a network pull — exactly
-          #    the bug this step fixes. A wrong embed fails the BUILD, never ships.
-          sudo podman --root "${store}" --runroot "${runroot}" \
-               --storage-driver overlay image exists "${offline_ref}"
+          # 3) GATE (fail-loud) the RUNTIME topology, not the directory in isolation.
+          # The old gate pointed podman's primary --root straight at the embedded
+          # /var store and passed, while the real live boot mounted an empty /var on
+          # top of it. Give podman a separate EMPTY writable graphroot and expose the
+          # embedded /usr store only through AdditionalImageStores — exactly what the
+          # live system's shipped storage.conf does. If that lookup fails, the ISO
+          # would fall through to a network pull and is not releasable.
+          runtime_root="${work}/runtime-empty-store"
+          runtime_runroot="/run/mre-live"
+          runtime_conf="${work}/runtime-storage.conf"
+          sudo rm -rf "${runtime_root}" "${runtime_runroot}"
+          sudo mkdir -p "${runtime_root}" "${runtime_runroot}"
+          sudo tee "${runtime_conf}" >/dev/null <<EOF
+          [storage]
+          driver = "overlay"
+          runroot = "${runtime_runroot}"
+          graphroot = "${runtime_root}"
+
+          [storage.options]
+          additionalimagestores = ["${store}"]
+          EOF
+          sudo env CONTAINERS_STORAGE_CONF="${runtime_conf}" \
+               podman image exists "${offline_ref}"
           echo "OFFLINE EMBED OK: ${IMAGE_REF} is stored as ${offline_ref} in the live ISO"
 
           # Free the runner's rootful store now (Titanoboa and the copy are done with
@@ -188,7 +214,7 @@ jobs:
           # ~5x faster and still small. The live boot decompresses zstd either way.
           sudo mksquashfs "${rootfs}" "${work}/squashfs-new.img" \
                -noappend -all-root -comp zstd -Xcompression-level 6
-          sudo rm -rf "${rootfs}" "${runroot}"
+          sudo rm -rf "${rootfs}" "${runroot}" "${runtime_root}" "${runtime_runroot}"
           echo "disk after re-squash:"; df -h / | tail -1
 
           # 5) splice the new squashfs back in, preserving the hybrid UEFI+BIOS boot.

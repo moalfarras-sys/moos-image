@@ -5555,6 +5555,20 @@ require(
     and 'image exists "${offline_ref}"' in _isoyml,
     "digest-pinned ISO builds must alias the source to the exact tagged ref the offline installer requests",
 )
+require(
+    'store="${rootfs}/usr/lib/containers/storage"' in _isoyml
+    and 'store="${rootfs}/var/lib/containers/storage"' not in _isoyml
+    and '"/usr/lib/containers/storage"' in _isoyml,
+    "the offline image must live in containers/storage's immutable AdditionalImageStore; "
+    "the live boot overlays /var and hides squashfs content placed there",
+)
+require(
+    'runtime-empty-store' in _isoyml
+    and 'additionalimagestores = ["${store}"]' in _isoyml
+    and 'CONTAINERS_STORAGE_CONF="${runtime_conf}"' in _isoyml,
+    "the ISO gate must resolve the embedded image through an additional read-only store "
+    "with a separate empty runtime graphroot, matching the live boot topology",
+)
 
 # First-party QML no longer manufactures private base64 SVG libraries at
 # runtime. Every control glyph resolves through the owned symbolic icon theme
