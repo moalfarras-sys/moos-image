@@ -1,26 +1,40 @@
 # Unified Experience Continuation
 
 Date: 2026-08-09
-Branch: `fix/firstboot-accounts-cache`
+Branch: `main`
 
-## 2026-08-09 — `.572` boots; first-greeter AccountsService race fixed
+## 2026-08-09 — signed `.573` closes offline install, boot and login
 
-The signed `.572` ISO installed completely with `-nic none`; after power-off the
-same target disk, with no ISO attached and no GRUB input, displayed `Booting
-'MoOS (ostree:0)'` and reached the MoOS Plasma Login Manager. This closes the
-`.571` subvolume redirect failure itself.
+The official `.573` pipeline built and signed generic, NVIDIA and cloud images.
+Its generic offline ISO installed completely with `-nic none`; the disk picker
+showed only the 69 GB target, the embedded image completed, and the installer
+reported “MoOS is installed”. After power-off, the same target disk—with no ISO
+attached—automatically passed GRUB and displayed the MoOS Plymouth animation.
+No manual GRUB command or display-manager restart was used.
 
-The mandatory login proof found the next real issue instead of stopping at the
-wallpaper: the first greeter had no user controls. TTY login proved the seeded
-`moos` account and password were valid. Journals showed `moos-firstboot` created
-UID 1000 and plasmalogin started in the same second; restarting only plasmalogin
-made the user appear immediately. The user model had raced AccountsService.
+The firstboot journal proves the bounded AccountsService `CacheUser` call
+returned `/org/freedesktop/Accounts/User1000` before the real display manager
+started. On the first greeter, normal input exposed the `moos` account; the
+seeded password authenticated and the installed system reached Welcome, the
+cardless Horizon desktop and the launcher. This is the complete signed release
+proof the `.570` and `.571` failures required.
 
-`moos-firstboot` now invokes AccountsService `CacheUser` as root, retries only
-the D-Bus acknowledgement for two bounded seconds, verifies the canonical user
-object path, and refuses to stamp completion if the account is not published.
-The next signed ISO must show the password greeter on its first disk-only boot
-without the diagnostic restart used to prove the cause.
+The earlier `.572` “AccountsService race” attribution is disproved. Plasma Login
+Manager 6.7.4 intentionally fades its interface after ten idle seconds:
+`GreeterState.qml` sets `greeterTimeoutTimer.interval` to 10000 and `Main.qml`
+binds the stack opacity to that state. The wallpaper-only captures were made at
+12 and 24 seconds. Returning to VT1 and pressing a normal key restored the user
+card immediately without restarting anything. Keep the explicit `CacheUser`
+verification as defence in depth, but wake this intentional timeout before
+classifying a future greeter screenshot as an account-publication failure.
+
+Release identifiers:
+
+- source revision: `f0739d9036f178ff2a3db904100b1c1d31356358`
+- generic signed digest: `sha256:775bfc01c0ae7282fd43907b2949cbe8656757b288a7bb736d7636dbad7252d4`
+- NVIDIA signed digest: `sha256:d8c4b13b535472856a8096c03d787791d8af9d2969359d6e7f5c5db3ab37f1de`
+- cloud signed digest: `sha256:945d9390b9a612db8f305e8775285f5e053a050f7266b20e53e6324e6676ebfb`
+- downloaded ISO SHA-256: `50ac438aad17d9867e8901f2ad764e36f6944f7a9f98093a5986856fd240f138`
 
 ## 2026-08-09 — installer success was not boot success; EFI redirect fixed
 

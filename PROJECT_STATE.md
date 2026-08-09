@@ -4,7 +4,7 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-08-09, visual finish + offline-install/boot correction branch.
+Last updated: 2026-08-09, signed `.573` visual finish and offline-install closure.
 
 The current working branch continues the Unified MoOS Experience without
 replacing its architecture. THEME_REV 48 makes the Horizon Hub cardless and
@@ -54,16 +54,33 @@ the installed disk reached the MoOS login greeter. Release closure still require
 the same proof from a newly signed ISO so the generated redirect, not a manual
 GRUB command, is what performed the boot.
 
-Signed ISO `.572` closed that bootloader defect: it installed with no NIC, its
-disk booted `MoOS (ostree:0)` automatically with the ISO removed, and reached the
-real Plasma Login Manager. That complete gate then found a first-greeter race:
-`moos-firstboot` created the account and plasmalogin started in the same second,
-before AccountsService had published the new user, so the first greeter showed
-only its wallpaper. The account and password were valid in a TTY and restarting
-plasmalogin immediately showed the user. Firstboot now calls AccountsService's
-idempotent `CacheUser` method and verifies the returned user object before the
-display manager may start. Release closure therefore requires one more signed
-ISO round proving the account is visible without a manual service restart.
+Signed `.573` closes the complete offline release gate. All three official
+images built and were signed. The generic ISO installed with no NIC from its
+embedded image, exposed only the target disk, reported success, and powered
+off. With that ISO removed, the same target disk automatically booted MoOS with
+no GRUB input and no service restart. Firstboot's AccountsService `CacheUser`
+call returned `/org/freedesktop/Accounts/User1000`; the first greeter displayed
+the `moos` account, its password authenticated, and the installed session reached
+Welcome, the cardless Horizon desktop and the production launcher.
+
+This final run also corrects the earlier `.572` diagnosis. Plasma Login Manager
+6.7.4 intentionally fades the greeter stack to zero opacity after 10000 ms of
+idle time (`GreeterState.qml` owns the timer and `Main.qml` binds stack opacity
+to it). Screenshots taken after 12 seconds therefore contained only wallpaper;
+ordinary input restored the account card immediately, without restarting the
+display manager. The claimed AccountsService race was not demonstrated.
+Firstboot's explicit, verified `CacheUser` remains harmless synchronization and
+defence in depth, but must not be cited as the cause of the now-understood idle
+screen. Wake the greeter before judging future visual evidence.
+
+Official `.573` generic image digest is
+`sha256:775bfc01c0ae7282fd43907b2949cbe8656757b288a7bb736d7636dbad7252d4`;
+NVIDIA is
+`sha256:d8c4b13b535472856a8096c03d787791d8af9d2969359d6e7f5c5db3ab37f1de`;
+cloud is
+`sha256:945d9390b9a612db8f305e8775285f5e053a050f7266b20e53e6324e6676ebfb`.
+The downloaded ISO SHA-256 is
+`50ac438aad17d9867e8901f2ad764e36f6944f7a9f98093a5986856fd240f138`.
 
 The previous `.567` deployment facts below remain valid historical proof.
 
