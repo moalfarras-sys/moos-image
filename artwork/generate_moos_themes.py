@@ -199,6 +199,33 @@ def light_roles(base_key: str) -> dict[str, str]:
     return roles
 
 
+# The glass GRAIN each mood asks for, in KWin's NoiseStrength units.
+#
+# Every one of the sixteen profiles shipped the same NoiseStrength=3 and the
+# same widget metrics, so "MoOS Arena" for gaming and "MoOS Scholar" for study
+# were the identical interface in a different hue — the families were a palette
+# list, not personalities. `mood` was already carried per theme and already
+# shaped the WALLPAPER; the surfaces it sits on ignored it completely.
+#
+# Grain is the right axis to vary because it is the one glass property that
+# changes how a surface FEELS without touching legibility or cost: BlurStrength
+# stays pinned at the documented ceiling of 15 for every profile (higher values
+# have shipped unreadable surfaces on the real machine), and noise is a shader
+# constant, not another pass.
+#
+#   minimal  1  OLED and focus families: the deepest, cleanest glass, so black
+#               stays black and the panel edge disappears into the screen.
+#   calm     5  warm families: a soft matte that takes the glare off a bright
+#               accent and reads like frosted rather than polished glass.
+#   cosmic   3  the reference finish the whole system was tuned against.
+MOOD_NOISE = {"minimal": 1, "calm": 5, "cosmic": 3}
+
+
+def noise_for(meta: dict) -> int:
+    """NoiseStrength for a profile, from the mood it already declares."""
+    return MOOD_NOISE.get(meta.get("mood", "cosmic"), gen.KWIN_NOISE_STRENGTH)
+
+
 # key -> display/id/style/wallpaper metadata. Each family ships a DARK identity
 # and a matching LIGHT sibling; moos-theme toggles between them by appending
 # ".light" to the look-and-feel id.
@@ -548,7 +575,7 @@ blurEnabled=true
 
 [kwinrc][Effect-blur]
 BlurStrength={gen.KWIN_BLUR_STRENGTH}
-NoiseStrength={gen.KWIN_NOISE_STRENGTH}
+NoiseStrength={noise_for(meta)}
 
 [kcminputrc][Mouse]
 cursorTheme={cursor}
