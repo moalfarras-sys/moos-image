@@ -272,81 +272,75 @@ Item {
         onTriggered: isNaN(root.latitude) ? root.locate() : root.refreshForecast()
     }
 
-    // Horizon Hub: time, weather and system health are one desktop instrument,
-    // not three unrelated floating cards. One glass shell owns depth, entrance
-    // and sheen; the sections below contribute content and quiet dividers only.
-    GlassCard {
+    // Horizon Hub: time, weather and system health float directly in the
+    // wallpaper composition. There is deliberately no outer card, border,
+    // shadow, scrim or blur layer here: the wallpaper remains visible through
+    // the complete instrument. The two hairline dividers are the only material
+    // marks outside the content and keep the three readings legible on both
+    // bright and dark parts of the wallpaper.
+    RowLayout {
         anchors.fill: parent
-        motionEnabled: root.motionEnabled
-        accentMotion: root.accentMotion
-        entranceDelay: 0
+        spacing: 0
 
-        RowLayout {
-            anchors.fill: parent
-            spacing: 0
+        ClockCard {
+            Layout.preferredWidth: Math.round(Kirigami.Units.gridUnit
+                * root.design.desktopHubClockColumns)
+            Layout.fillHeight: true
+            now: root.now
+            motionEnabled: root.motionEnabled
+            accentMotion: root.accentMotion
+            integrated: true
+            themeLabel: root.themeLabel
+        }
 
-            ClockCard {
-                Layout.preferredWidth: Math.round(Kirigami.Units.gridUnit
-                    * root.design.desktopHubClockColumns)
-                Layout.fillHeight: true
-                now: root.now
-                motionEnabled: root.motionEnabled
-                accentMotion: root.accentMotion
-                integrated: true
-                themeLabel: root.themeLabel
-            }
+        Rectangle {
+            Layout.preferredWidth: root.design.borderHairline
+            Layout.fillHeight: true
+            Layout.topMargin: root.design.space3
+            Layout.bottomMargin: root.design.space3
+            color: Qt.rgba(Kirigami.Theme.textColor.r,
+                           Kirigami.Theme.textColor.g,
+                           Kirigami.Theme.textColor.b, 0.22)
+        }
 
-            Rectangle {
-                Layout.preferredWidth: root.design.borderHairline
-                Layout.fillHeight: true
-                Layout.topMargin: root.design.space3
-                Layout.bottomMargin: root.design.space3
-                color: Qt.rgba(Kirigami.Theme.highlightColor.r,
-                               Kirigami.Theme.highlightColor.g,
-                               Kirigami.Theme.highlightColor.b,
-                               root.design.glassBorderOpacity)
-            }
+        WeatherCard {
+            Layout.preferredWidth: Math.round(Kirigami.Units.gridUnit
+                * root.design.desktopHubWeatherColumns)
+            Layout.fillHeight: true
+            weatherReady: root.weatherReady
+            city: root.city
+            temperature: root.weatherReady ? root.forecastData.temperature : 0
+            feelsLike: root.weatherReady ? root.forecastData.feelsLike : 0
+            high: root.weatherReady ? root.forecastData.high : 0
+            low: root.weatherReady ? root.forecastData.low : 0
+            kind: root.weatherReady
+                    ? root.weatherKind(root.forecastData.code,
+                                       root.forecastData.daylight)
+                    : "cloudy"
+            condition: root.weatherReady
+                    ? root.conditionNameArabic(root.forecastData.code)
+                    : ""
+            motionEnabled: root.motionEnabled
+            accentMotion: root.accentMotion
+            integrated: true
+        }
 
-            WeatherCard {
-                Layout.preferredWidth: Math.round(Kirigami.Units.gridUnit
-                    * root.design.desktopHubWeatherColumns)
-                Layout.fillHeight: true
-                weatherReady: root.weatherReady
-                city: root.city
-                temperature: root.weatherReady ? root.forecastData.temperature : 0
-                feelsLike: root.weatherReady ? root.forecastData.feelsLike : 0
-                high: root.weatherReady ? root.forecastData.high : 0
-                low: root.weatherReady ? root.forecastData.low : 0
-                kind: root.weatherReady
-                        ? root.weatherKind(root.forecastData.code,
-                                           root.forecastData.daylight)
-                        : "cloudy"
-                condition: root.weatherReady
-                        ? root.conditionNameArabic(root.forecastData.code)
-                        : ""
-                motionEnabled: root.motionEnabled
-                accentMotion: root.accentMotion
-                integrated: true
-            }
+        Rectangle {
+            Layout.preferredWidth: root.design.borderHairline
+            Layout.fillHeight: true
+            Layout.topMargin: root.design.space3
+            Layout.bottomMargin: root.design.space3
+            color: Qt.rgba(Kirigami.Theme.textColor.r,
+                           Kirigami.Theme.textColor.g,
+                           Kirigami.Theme.textColor.b, 0.22)
+        }
 
-            Rectangle {
-                Layout.preferredWidth: root.design.borderHairline
-                Layout.fillHeight: true
-                Layout.topMargin: root.design.space3
-                Layout.bottomMargin: root.design.space3
-                color: Qt.rgba(Kirigami.Theme.highlightColor.r,
-                               Kirigami.Theme.highlightColor.g,
-                               Kirigami.Theme.highlightColor.b,
-                               root.design.glassBorderOpacity)
-            }
-
-            SystemCard {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                motionEnabled: root.motionEnabled
-                accentMotion: root.accentMotion
-                integrated: true
-            }
+        SystemCard {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            motionEnabled: root.motionEnabled
+            accentMotion: root.accentMotion
+            integrated: true
         }
     }
 }

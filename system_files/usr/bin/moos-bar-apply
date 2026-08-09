@@ -59,6 +59,7 @@ BAR_APPLETS="$(conf bar.applets)"
 TRAY_SHOWN="$(conf tray.shownItems)"
 TRAY_EXTRA="$(conf tray.extraItems)"
 BRAND_APPLET="$(conf brand.applet)"
+ISLAND_APPLET="$(conf island.applet)"
 TASKS_APPLET="$(conf tasks.applet)"
 TRAY_APPLET="$(conf tray.applet)"
 CLOCK_APPLET="$(conf clock.applet)"
@@ -212,6 +213,30 @@ for cid in absorb:
 merged_order += sorted(
     (aid for aid, cid in containment_of.items()
      if cid in bottom and aid not in merged_order), key=int)
+
+# The media island used to exist only as a nested system-tray applet. Plasma's
+# live scripting Applet.index getter returns -1 on this release, so adding it
+# after startup cannot reliably place it after the launcher. Create the direct
+# applet section while plasmashell is stopped instead; the role sort below then
+# writes the exact brand -> island -> tasks order before the shell reads it.
+island_plugin = zone_plugin.get("island", "")
+if island_plugin and not any(
+        plugin_of.get(aid) == island_plugin and containment_of.get(aid) in bottom
+        for aid in plugin_of):
+    used_ids = {
+        int(part)
+        for line in lines
+        for parts in [parts_of(line)]
+        if parts is not None
+        for part in parts
+        if part.isdigit()
+    }
+    island_id = str(max(used_ids, default=0) + 1)
+    lines.append("\n[Containments][" + keep + "][Applets][" + island_id + "]\n"
+                 "plugin=" + island_plugin + "\n")
+    containment_of[island_id] = keep
+    plugin_of[island_id] = island_plugin
+    merged_order.append(island_id)
 
 # Re-order by role: configured zones first in conf order, then anything the user
 # added, in the order it already had.
@@ -374,14 +399,15 @@ live_pass() {
                 "جسر فيديو ويلاند_اكس"
             ];
             var DOCK_APPLET = "'"$BRAND_APPLET"'";
+            var ISLAND_APPLET = "'"$ISLAND_APPLET"'";
             var KICKOFF_APPLET = "org.kde.plasma.kickoff";
             var TASKS_APPLET = "'"$TASKS_APPLET"'";
             var TRAY_APPLET = "'"$TRAY_APPLET"'";
             var CLOCK_APPLET = "'"$CLOCK_APPLET"'";
             var DIGITAL_APPLET = "org.kde.plasma.digitalclock";
              var isMoOS = function (u) { return u.indexOf("applications:org.moos.") === 0; };
-             // Plasma keeps the desktop's runtime lock separate from
-             // appletsrc's immutability key. A stale runtime lock makes
+             // Plasma keeps the desktop runtime lock separate from the
+             // appletsrc immutability key. A stale runtime lock makes
              // createApplet fail even when the saved config says mutable.
              var ds = desktops();
              for (var d = 0; d < ds.length; d++) {
@@ -430,6 +456,23 @@ live_pass() {
                     try {
                         brandWidget = dock.addWidget(DOCK_APPLET);
                         try { brandWidget.index = 0; } catch (e) {}
+                        applied++;
+                    } catch (e) {}
+                }
+                // The island is a direct adaptive zone after the launcher. A
+                // stale profile may have no direct instance (the old design
+                // loaded it inside the tray), so add exactly one and place it
+                // immediately after the brand without disturbing user pins.
+                var islandWidget = null;
+                var islandScan = dock.widgets();
+                for (var ii = 0; ii < islandScan.length; ii++) {
+                    if (String(islandScan[ii].type) != ISLAND_APPLET) { continue; }
+                    if (islandWidget == null) { islandWidget = islandScan[ii]; }
+                    else { try { islandScan[ii].remove(); applied++; } catch (e) {} }
+                }
+                if (islandWidget == null) {
+                    try {
+                        islandWidget = dock.addWidget(ISLAND_APPLET);
                         applied++;
                     } catch (e) {}
                 }
@@ -494,38 +537,81 @@ live_pass() {
                 // Removal/addition above mutates the live containment. Read it
                 // back before deciding whether the required applets exist.
                 ws2 = dock.widgets();
-                var hasT = false, hasC = false;
+                var hasI = false, hasTasks = false, hasT = false, hasC = false;
                 for (var r = 0; r < ws2.length; r++) {
                     var tt = String(ws2[r].type);
-                    if (tt == TRAY_APPLET) { hasT = true; }
+                    if (tt == ISLAND_APPLET) { hasI = true; }
+                    else if (tt == TASKS_APPLET) { hasTasks = true; }
+                    else if (tt == TRAY_APPLET) { hasT = true; }
                     else if (tt == CLOCK_APPLET) { hasC = true; }
                 }
+                if (!hasI) { try { dock.addWidget(ISLAND_APPLET); applied++; } catch (e) {} }
+                if (!hasTasks) { try { dock.addWidget(TASKS_APPLET); applied++; } catch (e) {} }
                 if (!hasT) { try { dock.addWidget(TRAY_APPLET); applied++; } catch (e) {} }
                 if (!hasC) { try { dock.addWidget(CLOCK_APPLET); applied++; } catch (e) {} }
                 var ws3 = dock.widgets();
+                var directBrand = 0, directIsland = 0, directTasks = 0;
+                var directTray = 0, directClock = 0;
+                var directTypesById = {};
                 for (var s = 0; s < ws3.length; s++) {
+                    var directType = String(ws3[s].type);
+                    directTypesById[String(ws3[s].id)] = directType;
+                    if (directType == DOCK_APPLET) {
+                        directBrand++;
+                    } else if (directType == ISLAND_APPLET) {
+                        directIsland++;
+                    }
+                    else if (directType == TASKS_APPLET) { directTasks++; }
+                    else if (directType == TRAY_APPLET) { directTray++; }
+                    else if (directType == CLOCK_APPLET) { directClock++; }
                     if (String(ws3[s].type) == TRAY_APPLET) {
                         try {
                             ws3[s].currentConfigGroup = ["General"];
                             ws3[s].writeConfig("shownItems", SHOWN.join(","));
                             ws3[s].writeConfig("hiddenItems", HIDE.join(","));
-                            // extraItems is the tray'"'"'s LOAD list. shownItems only
+                            // extraItems is the tray LOAD list. shownItems only
                             // controls visibility; it cannot instantiate an inner
                             // applet. The notification id once existed only in
                             // shownItems, leaving its protocol unowned. Merge every
                             // configured inner applet, never replace user additions.
-                            var known = String(ws3[s].readConfig("extraItems", ""))
+                            var oldKnown = String(ws3[s].readConfig("extraItems", ""))
                                             .split(",").filter(function (e) { return e.length > 0; });
-                            var grew = false;
+                            // Remove the retired inner-tray island while keeping
+                            // every unrelated user addition. Then merge the
+                            // canonical load list.
+                            var known = oldKnown.filter(function (e) { return e != ISLAND_APPLET; });
+                            var changed = known.length != oldKnown.length;
                             for (var x = 0; x < EXTRA.length; x++) {
-                                if (known.indexOf(EXTRA[x]) < 0) { known.push(EXTRA[x]); grew = true; }
+                                if (known.indexOf(EXTRA[x]) < 0) { known.push(EXTRA[x]); changed = true; }
                             }
-                            if (grew) { ws3[s].writeConfig("extraItems", known.join(",")); applied++; }
+                            if (changed) { ws3[s].writeConfig("extraItems", known.join(",")); applied++; }
                             ws3[s].reloadConfig();
                         } catch (e) {}
                     }
                 }
-                report.push("bar=ok");
+                // Plasma 6 reports every panel widget index as -1 and widgets
+                // stays in creation order. AppletOrder is the saved visual
+                // order, so use it to prove launcher then island adjacency.
+                var directVisualTypes = [];
+                try {
+                    dock.currentConfigGroup = ["General"];
+                    var directAppletOrder = String(dock.readConfig("AppletOrder", ""))
+                        .split(";").filter(function (e) { return e.length > 0; });
+                    directVisualTypes = directAppletOrder.map(function (id) {
+                        return directTypesById[id] || "";
+                    });
+                } catch (e) {}
+                var directBrandPosition = directVisualTypes.indexOf(DOCK_APPLET);
+                var directIslandPosition = directVisualTypes.indexOf(ISLAND_APPLET);
+                if (directBrand == 1 && directIsland == 1 && directTasks == 1
+                        && directTray == 1 && directClock == 1
+                        && directIslandPosition == directBrandPosition + 1) {
+                    report.push("bar=ok");
+                } else {
+                    report.push("bar=incomplete;brand=" + directBrand
+                        + ";island=" + directIsland + ";tasks=" + directTasks
+                        + ";tray=" + directTray + ";clock=" + directClock);
+                }
             } else if (!split) {
                 report.push("bar=missing");
             }
@@ -634,21 +720,40 @@ cmd_check() {
             var TRAY_APPLET = "'"$TRAY_APPLET"'";
             var CLOCK_APPLET = "'"$CLOCK_APPLET"'";
             var DOCK_APPLET = "'"$BRAND_APPLET"'";
+            var ISLAND_APPLET = "'"$ISLAND_APPLET"'";
             var ps = panels();
              var bottom = 0, whole = 0, align = "", shown = "", extra = "";
-             var launcherCount = 0, trayCount = 0, clockCount = 0;
+             var launcherCount = 0, islandCount = 0, trayCount = 0, clockCount = 0;
             for (var i = 0; i < ps.length; i++) {
                 if (ps[i].location != "bottom") { continue; }
                 bottom++;
                 var ws = ps[i].widgets();
-                var hasB = false, hasT = false, hasC = false;
+                var hasB = false, hasI = false, hasT = false, hasC = false;
+                var typesById = {};
                 for (var j = 0; j < ws.length; j++) {
                     var t = String(ws[j].type);
-                     if (t == DOCK_APPLET) { hasB = true; launcherCount++; }
+                    typesById[String(ws[j].id)] = t;
+                     if (t == DOCK_APPLET) {
+                         hasB = true; launcherCount++;
+                     } else if (t == ISLAND_APPLET) {
+                         hasI = true; islandCount++;
+                     }
                      else if (t == TRAY_APPLET) { hasT = true; trayCount++; }
                      else if (t == CLOCK_APPLET) { hasC = true; clockCount++; }
                 }
-                if (hasB && hasT && hasC) {
+                var visualTypes = [];
+                try {
+                    ps[i].currentConfigGroup = ["General"];
+                    var appletOrder = String(ps[i].readConfig("AppletOrder", ""))
+                        .split(";").filter(function (e) { return e.length > 0; });
+                    visualTypes = appletOrder.map(function (id) {
+                        return typesById[id] || "";
+                    });
+                } catch (e) {}
+                var brandPosition = visualTypes.indexOf(DOCK_APPLET);
+                var islandPosition = visualTypes.indexOf(ISLAND_APPLET);
+                if (hasB && hasI && hasT && hasC
+                        && islandPosition == brandPosition + 1) {
                     whole++;
                     align = String(ps[i].alignment);
                     for (var k = 0; k < ws.length; k++) {
@@ -662,19 +767,21 @@ cmd_check() {
             }
              print("bottom=" + bottom + ";whole=" + whole
                  + ";align=" + align + ";shown=" + shown + ";extra=" + extra
-                 + ";launcher=" + launcherCount + ";tray=" + trayCount
+                 + ";launcher=" + launcherCount + ";island=" + islandCount
+                 + ";tray=" + trayCount
                  + ";clock=" + clockCount);
         ' 2>/dev/null)" || out=""
     local report
     report="$(printf '%s\n' "$out" | grep -oE 'bottom=[0-9]+;whole=[0-9]+;align=[a-z]*;shown=.*' | head -n1)"
     [ -n "$report" ] || { echo "bar: no live report"; return 1; }
-    local bottom whole align shown extra shown_norm want_norm launcher tray clock item
+    local bottom whole align shown extra shown_norm want_norm launcher island tray clock item
     bottom="$(printf '%s' "$report" | sed -n 's/.*bottom=\([0-9]*\).*/\1/p')"
     whole="$(printf '%s' "$report" | sed -n 's/.*whole=\([0-9]*\).*/\1/p')"
     align="$(printf '%s' "$report" | sed -n 's/.*align=\([a-z]*\).*/\1/p')"
     shown="$(printf '%s' "$report" | sed -n 's/.*shown=\([^;]*\).*/\1/p')"
     extra="$(printf '%s' "$report" | sed -n 's/.*extra=\([^;]*\).*/\1/p')"
     launcher="$(printf '%s' "$report" | sed -n 's/.*;launcher=\([0-9]*\).*/\1/p')"
+    island="$(printf '%s' "$report" | sed -n 's/.*;island=\([0-9]*\).*/\1/p')"
     tray="$(printf '%s' "$report" | sed -n 's/.*;tray=\([0-9]*\).*/\1/p')"
     clock="$(printf '%s' "$report" | sed -n 's/.*;clock=\([0-9]*\).*/\1/p')"
     shown_norm="$(printf '%s' "$shown" | tr ',' '\n' | sed '/^[[:space:]]*$/d' | sort | tr '\n' ',')"
@@ -682,8 +789,9 @@ cmd_check() {
     # ONE bottom panel, and it carries the WHOLE bar. Two capsules is the exact
     # regression this check exists to catch.
     [ "$bottom" = "1" ] || { echo "bar: $bottom bottom panels — the bar must be ONE capsule"; failures=$((failures+1)); }
-    [ "$whole" = "1" ] || { echo "bar: no single panel holds launcher + tray + clock together"; failures=$((failures+1)); }
+    [ "$whole" = "1" ] || { echo "bar: no single panel holds launcher + island + tray + clock together"; failures=$((failures+1)); }
     [ "$launcher" = "1" ] || { echo "bar: launcher count is '$launcher' (want 1)"; failures=$((failures+1)); }
+    [ "$island" = "1" ] || { echo "bar: direct media island count is '$island' (want 1)"; failures=$((failures+1)); }
     [ "$tray" = "1" ] || { echo "bar: tray count is '$tray' (want 1)"; failures=$((failures+1)); }
     [ "$clock" = "1" ] || { echo "bar: clock count is '$clock' (want 1)"; failures=$((failures+1)); }
     [ "$align" = "$BAR_ALIGN" ] || { echo "bar: alignment is '$align' (want $BAR_ALIGN)"; failures=$((failures+1)); }
@@ -699,6 +807,12 @@ cmd_check() {
                failures=$((failures+1)) ;;
         esac
     done < <(printf '%s' "$TRAY_EXTRA" | tr ',' '\n')
+    case ",$extra," in
+        *",$ISLAND_APPLET,"*)
+            echo "bar: retired tray copy of '$ISLAND_APPLET' is still loaded"
+            failures=$((failures+1))
+            ;;
+    esac
     # Static config used to pass while notification calls waited for D-Bus
     # activation to time out. A healthy tray must own the protocol now.
     if ! timeout 3s gdbus call --session -d org.freedesktop.Notifications \

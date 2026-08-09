@@ -32,6 +32,7 @@ LAYOUT = (ROOT / "system_files/usr/share/plasma/layout-templates"
           / "org.kde.plasma.desktop.defaultPanel/contents/layout.js")
 
 BRAND = "org.moos.brand"
+ISLAND = "org.moos.island"
 
 
 def merge_program() -> str:
@@ -100,8 +101,9 @@ class SinglePanelMerge(unittest.TestCase):
     def test_the_rev30_two_slab_profile_becomes_one_capsule(self) -> None:
         """The exact shape the owner was left with after 44.20260806.546."""
         src = "\n".join((
-            panel("398", {"400": "org.kde.plasma.icontasks", "424": BRAND},
-                  order=["424", "400"]),
+            panel("398", {"400": "org.kde.plasma.icontasks", "424": BRAND,
+                          "425": ISLAND},
+                  order=["424", "400", "425"]),
             panel("417", {}, location="0"),
             panel("430", {"401": "org.kde.plasma.marginsseparator",
                           "402": "org.kde.plasma.systemtray",
@@ -118,9 +120,9 @@ class SinglePanelMerge(unittest.TestCase):
         self.assertNotIn("[Containments][430]", merged,
                          "the absorbed panel must be gone, not emptied")
         self.assertEqual(self.order_of(merged, "398"),
-                         ["424", "400", "401", "402", "421"],
+                         ["424", "425", "400", "401", "402", "421"],
                          "applets must land in moos-bar.conf order: "
-                         "brand, tasks, separator, tray, clock")
+                         "brand, island, tasks, separator, tray, clock")
         for aid in ("401", "402", "421"):
             self.assertIn(f"[Containments][398][Applets][{aid}]", merged,
                           f"applet {aid} must be re-homed, never dropped")
@@ -138,6 +140,10 @@ class SinglePanelMerge(unittest.TestCase):
                   order=["402", "421"]),
         ))
         _, once, _ = self.run_merge(src)
+        self.assertIn(
+            f"plugin={ISLAND}", once,
+            "the stopped-shell merge must create the direct island for stale profiles",
+        )
         verdict, twice, _ = self.run_merge(once)
         self.assertEqual(verdict, "no-change",
                          "a merged bar must be left alone, not rewritten every login")
@@ -155,7 +161,7 @@ class SinglePanelMerge(unittest.TestCase):
         self.assertEqual(verdict, "merged")
         self.assertEqual(self.bottom_panels(merged), ["20"],
                          "the panel holding the MoOS launcher is the one that survives")
-        self.assertEqual(self.order_of(merged, "20"), ["22", "21", "11", "31"])
+        self.assertEqual(self.order_of(merged, "20"), ["22", "32", "21", "11", "31"])
 
     def test_a_locked_desktop_is_handed_back_to_its_owner(self) -> None:
         """immutability=1 is Plasma's "Widgets are locked".
@@ -191,7 +197,8 @@ class SinglePanelMerge(unittest.TestCase):
         self.assertIn("[Containments][500]", merged,
                       "MoOS owns the bottom edge only; a top panel is the user's")
         self.assertNotIn("[Containments][398][Applets][501]", merged)
-        self.assertEqual(verdict, "no-change")
+        self.assertEqual(verdict, "reordered",
+                         "adding the required direct island may repair the MoOS panel")
 
     def test_an_applet_missing_from_every_appletorder_still_survives(self) -> None:
         """A widget absent from AppletOrder is drawn but unlisted; dropping it
@@ -218,7 +225,7 @@ class SingleSourceAgreement(unittest.TestCase):
                              f"{retired} is the retired two-slab definition")
         for key in ("lengthMode=fit", "alignment=center", "floating=true"):
             self.assertIn(key, conf, "the capsule geometry lives in the conf")
-        self.assertIn("applets=brand;tasks;separator;tray;clock", conf,
+        self.assertIn("applets=brand;island;tasks;separator;tray;clock", conf,
                       "one order, mirrored by Plasma for RTL")
 
     def test_the_seed_template_creates_exactly_one_panel(self) -> None:
@@ -226,7 +233,8 @@ class SingleSourceAgreement(unittest.TestCase):
         code = re.sub(r"/\*.*?\*/", "", layout, flags=re.S)
         self.assertEqual(len(re.findall(r"\bnew Panel\b", code)), 1,
                          "a new profile must be seeded with ONE panel")
-        for applet in ("org.moos.brand", "org.kde.plasma.icontasks",
+        for applet in ("org.moos.brand", "org.moos.island",
+                       "org.kde.plasma.icontasks",
                        "org.kde.plasma.marginsseparator",
                        "org.kde.plasma.systemtray", "org.moos.nova.clock"):
             self.assertIn(applet, layout,
@@ -249,7 +257,7 @@ class SingleSourceAgreement(unittest.TestCase):
         apply = BAR_APPLY.read_text(encoding="utf-8")
         self.assertIn("ds[d].locked = false", apply,
                       "the live shell must clear Plasma's runtime desktop lock")
-        self.assertIn("appletsrc's immutability key", apply.lower(),
+        self.assertIn("appletsrc immutability key", apply.lower(),
                       "the runtime lock and saved applet lock must stay distinct")
         self.assertIn("len(parts) >= 2", apply,
                       "applet sections must be repaired along with containments")
@@ -263,6 +271,27 @@ class SingleSourceAgreement(unittest.TestCase):
                       "readback must allow Plasma containment restore to finish")
         self.assertIn("for _ in $(seq 1 12)", apply,
                       "transient Plasma scripting startup must be retried")
+        self.assertIn("dock.addWidget(ISLAND_APPLET)", apply,
+                      "existing profiles must receive the direct adaptive island")
+        self.assertIn("island_plugin = zone_plugin.get(\"island\"", apply,
+                      "the stopped-shell merge must create the direct island")
+        self.assertIn('dock.readConfig("AppletOrder", "")', apply,
+                      "live order checks must read Plasma's saved visual order")
+        self.assertIn('ps[i].readConfig("AppletOrder", "")', apply,
+                      "the non-destructive check must read the visual order")
+        self.assertIn("directIslandPosition == directBrandPosition + 1", apply,
+                      "live success must prove the island follows the launcher")
+        self.assertIn("e != ISLAND_APPLET", apply,
+                      "the retired tray copy must be removed during migration")
+        live_script = apply.split(
+            "-m org.kde.PlasmaShell.evaluateScript '", 1
+        )[1].split("' 2>>", 1)[0]
+        js_comments = "\n".join(re.findall(r"//[^\n]*", live_script))
+        self.assertNotIn(
+            "'", js_comments,
+            "an apostrophe in the shell-single-quoted live JavaScript splits "
+            "evaluateScript into multiple D-Bus parameters",
+        )
 
 
 if __name__ == "__main__":

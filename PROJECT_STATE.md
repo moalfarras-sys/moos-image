@@ -4,7 +4,44 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-08-08, Unified MoOS Experience implementation branch.
+Last updated: 2026-08-09, visual finish + offline-install correction branch.
+
+The current working branch continues the Unified MoOS Experience without
+replacing its architecture. THEME_REV 48 makes the Horizon Hub cardless and
+centred in the upper/middle wallpaper composition, replaces the launcher's
+split neon/wireframe popup rim with a continuous neutral Liquid Glass rim, and
+turns the existing `org.moos.island` + Plasma `Mpris2Model` implementation into
+a direct adaptive zone immediately after the launcher in the one-capsule bar.
+The island is one transparent pixel at idle and exposes art/source/title,
+capability-aware transport controls, timeline/seek and volume/mute in compact
+and expanded modes. It has no permanent decorative animation; its only polling
+timer sleeps unless playing progress is visible.
+
+This was inspected on the running 3840x2160 Wayland/HDR desktop in dark and
+light, Arabic RTL and English LTR. The 100/125/150/200% offscreen runtime matrix
+passed 8/8 for Hub, launcher and island. Chrome's real MPRIS Media Session
+successfully accepted play/pause; the island follows the capabilities Chrome
+advertises. Stable 4K PNG evidence is in `docs/evidence/` under
+`horizon-hub-cardless-*`, `launcher-neutral-rim-*` and
+`media-island-expanded-browser-*`.
+
+The complete local image is
+`3c881239d49a90adffd1a56b81333387072241d36a88007e353f94e4a4a1d91f`
+(`sha256:c50b9b8cd1f2e1268d6ae189849c2ba37b9d0600950081868c3a4cd001a8d1e7`,
+10,774,099,532 bytes). `just check`, all real QML hosts, the 122 MiB final
+initramfs proof, image-experience, store, identity firewall and bootc lint pass.
+
+The no-network `.570` ISO run is negative but valuable evidence. Local image
+copy (261 layers / 10.8 GiB), deployment and GRUB all completed, then bootc's
+built-in finalizer remounted the Btrfs superblock read-only while its image proxy
+still used the target-backed sibling `bootc-stage`; the installer correctly
+failed at 86% with EROFS. The source now uses `--skip-finalize`, removes staging,
+seeds the target, then performs trim, sync, freeze/thaw, read-only flush and
+clean unmount. Gates and a full compose pass. Do not claim the fix complete
+until a newly signed ISO performs a full offline install and the resulting disk
+boots without the ISO.
+
+The previous `.567` deployment facts below remain valid historical proof.
 
 The first signed unified deployment (`44.20260808.567`) has now booted on the
 owner machine and passed `tests/post-update-check.sh` 49/49. Its UEFI disk image

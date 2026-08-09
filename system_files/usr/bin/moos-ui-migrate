@@ -2,11 +2,11 @@
 # Scoped, once-per-revision UI migration for immutable MoOS images.
 set -uo pipefail
 
-# Revision 10: every MoOS palette gained the complete interaction/blur SVG
-# suite, rebuilt Aurorae frames and buttons, and a low-duty living wallpaper.
-# OSTree keeps their mtimes stable, so existing users must drop Plasma's
-# rendered-SVG/QML caches once to see the updated surfaces.
-MOOS_THEME_REV=10
+# Revision 11: the popup FrameSvg now uses one continuous neutral rim instead
+# of split accent/luminous bands whose 9-patch joins showed as clipped launcher
+# corners. OSTree keeps its mtime stable, so existing users must drop Plasma's
+# rendered-SVG/QML caches once to see the corrected frame.
+MOOS_THEME_REV=11
 MOAI_UI_REV=3
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/moos"
 cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}"

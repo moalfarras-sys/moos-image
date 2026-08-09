@@ -1,7 +1,80 @@
 # Unified Experience Continuation
 
-Date: 2026-08-08
-Branch: `feature/unified-moos-experience-2026-08-08`
+Date: 2026-08-09
+Branch: `fix/iso-offline-additional-store`
+
+## 2026-08-09 — shell finish pass + adaptive MPRIS island (THEME_REV 48)
+
+This pass continues the shipped unified architecture; it does not introduce a
+second shell, wallpaper, launcher or media stack.
+
+- The Horizon Hub no longer owns an outer GlassCard. Clock, weather and
+  telemetry float directly over `org.moos.ui2.wallpaper`, centred horizontally
+  around the upper/middle composition and still below desktop icons. Only the
+  internal content separators remain.
+- The existing `org.moos.brand` launcher keeps its model, KRunner routes and
+  transitions, but retires the split cyan/green wireframe and clipped corner
+  strokes. All sixteen generated Plasma themes now use one continuous neutral
+  dialog rim from the shared SVG master.
+- The single-capsule bar now orders `brand;island;tasks;separator;tray;clock`.
+  `org.moos.island` is a direct adaptive panel zone, not a duplicate tray item.
+  `moos-bar-apply` migrates existing profiles, removes the retired tray copy,
+  and proves the direct island immediately follows the launcher by reading the
+  real `AppletOrder`.
+- The existing Plasma `Mpris2Model` island is now a complete capability-aware
+  media controller: active-player selection, art/application fallback, title +
+  source, play/pause, previous/next, progress/seek and volume/mute, with compact
+  and hover-expanded representations. It is one transparent pixel when idle.
+  Its position timer sleeps unless playing progress is actually visible; the
+  old decorative 15-second pulse is gone.
+
+Live proof used the running Wayland desktop at native 3840x2160, HDR/WCG and
+225% owner scale. Dark + Light, Arabic RTL + English LTR and isolated QML loads
+at 100/125/150/200% all passed (8/8 for launcher, island and Hub). Chrome's real
+MPRIS service successfully toggled browser play/pause; controls follow exposed
+capabilities, while Chrome's current session advertised seek/volume but ignored
+their D-Bus property writes, so those two browser operations are not claimed.
+Evidence is committed under `docs/evidence/`:
+
+- `horizon-hub-cardless-dark-4k.png`
+- `horizon-hub-cardless-light-4k.png`
+- `launcher-neutral-rim-dark-4k.png`
+- `media-island-expanded-browser-4k.png`
+
+Twelve-second live samples (background workload was noisy, so they are raw
+observations rather than a claimed ratio) measured paused/idle at 1.832%
+plasmashell + 1.915% KWin and playing/compact at 0.915% + 0.998%. The NVIDIA
+sample reported 0% GPU, 17.62 W and 1656 MiB. No infinite or permanent
+decorative island animation remains.
+
+`just check` passed, followed by a complete local `just build`. The resulting
+`localhost/moos:latest` is
+`3c881239d49a90adffd1a56b81333387072241d36a88007e353f94e4a4a1d91f`
+(manifest digest
+`sha256:c50b9b8cd1f2e1268d6ae189849c2ba37b9d0600950081868c3a4cd001a8d1e7`,
+10,774,099,532 bytes). Its 122 MiB initramfs, real launcher/island/scene hosts,
+image-experience, store, identity firewall and bootc lint all passed.
+
+## 2026-08-09 — offline installer finalization fault found, source fix gated
+
+Signed ISO `44.20260808.570` was booted in UEFI QEMU with no NIC and driven
+through the real installer. It copied all 261 layers / 10.8 GiB from the local
+containers-storage source, deployed the image in 85 seconds and installed GRUB,
+then failed at 86% during bootc filesystem finalization with
+`Read-only file system (os error 30)`. This is important negative proof: the
+offline source and large target-backed staging fixes work, but success must not
+be claimed for `.570`.
+
+The cause is the built-in bootc finalizer remounting the shared Btrfs
+superblock read-only while the image proxy still owns the sibling
+`bootc-stage`. `moos-install-to-disk` now requests `--skip-finalize`, removes
+the staging sibling, seeds the target, then performs trim, sync, writable
+freeze/thaw, read-only writeback flush and clean unmount itself. Any failure is
+reported as disk I/O and partial success is refused. A source gate pins both
+the operations and their order. This correction passed `bash -n`, the complete
+test suite and the complete local image build; it still requires a fresh signed
+ISO, a second no-network install and boot of that exact installed disk before
+the installer item can be closed.
 
 ## 2026-08-08 — post-boot live QA follow-up (THEME_REV 47)
 

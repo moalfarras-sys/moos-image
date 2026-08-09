@@ -175,7 +175,12 @@ set -uo pipefail
 #     it. The staggered entrance delay now clamps both bounds, preventing a
 #     negative PauseAnimation and the repeated live-shell warnings it caused.
 #     Reload the launcher QML for existing immutable-image users.
-THEME_REV=47
+# 48: Horizon Hub drops its outer glass card and moves to the upper/middle
+#     centre; the launcher retires clipped wireframe corners; org.moos.island
+#     moves from a square tray cell into the direct adaptive MPRIS zone after
+#     the launcher. Existing users must purge QML caches, remove a stale
+#     user-level island package, migrate the panel and restart plasmashell once.
+THEME_REV=48
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"
@@ -337,8 +342,9 @@ mkdir -p "$state_dir" 2>/dev/null || true
 rm -f "${state_dir}"/moos-theme-applied "${state_dir}"/moos-theme-applied.v* \
       "${state_dir}"/moos-ui2-theme-applied.v* 2>/dev/null || true
 # Drop bar-apply markers from older revisions too, so a new THEME_REV restarts the
-# shell once to rebuild the two-slab bar. Only the current v${THEME_REV} marker is
-# kept below (and the retired tray marker is purged for good).
+# shell once to rebuild the current single-capsule bar. Only the current
+# v${THEME_REV} marker is kept below (and the retired tray marker is purged for
+# good).
 find "${state_dir}" -maxdepth 1 \( -name 'moos-bar-applied.v*' -o -name 'moos-tray-collapsed.v*' \) \
     ! -name "moos-bar-applied.v${THEME_REV}" -delete 2>/dev/null || true
 
@@ -419,7 +425,8 @@ fi
 # tooltips, glyphs and all — while every image gate stays green. Only the
 # MoOS-owned ids are dropped; third-party widgets the user installed stay put.
 local_plasmoids="${XDG_DATA_HOME:-$HOME/.local/share}/plasma/plasmoids"
-for moos_widget in org.moos.brand org.moos.heroclock org.moos.nova.clock; do
+for moos_widget in org.moos.brand org.moos.heroclock org.moos.nova.clock \
+                   org.moos.island; do
     rm -rf "${local_plasmoids:?}/${moos_widget}" 2>/dev/null || true
 done
 
@@ -520,7 +527,8 @@ fi
 # --- The dock and the system tray: one call, one source of truth ---------------
 # Everything structural about the bar is owned by moos-bar-apply, which reads
 # /usr/share/moos/moos-bar.conf — the single source of truth. It MERGES every
-# bottom panel into one glass capsule (launcher, tasks, separator, tray, clock),
+# bottom panel into one glass capsule (launcher, adaptive island, tasks,
+# separator, tray, clock),
 # pins the tray's always-shown toggles (Wi-Fi, Bluetooth, volume, brightness,
 # notifications and the keyboard/language indicator), applies the geometry,
 # restarts the shell once per revision and reads the result back. Nothing in this
@@ -764,6 +772,7 @@ for rel in \
     "plasma/plasmoids/org.moos.brand" \
     "plasma/plasmoids/org.moos.heroclock" \
     "plasma/plasmoids/org.moos.nova.clock" \
+    "plasma/plasmoids/org.moos.island" \
     "plasma/wallpapers/org.moos.ui2.wallpaper" \
     "plasma/look-and-feel/org.moos.nova" \
     "plasma/look-and-feel/org.moos.nova.light" \
