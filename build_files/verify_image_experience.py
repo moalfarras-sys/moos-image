@@ -448,6 +448,30 @@ for device_route, settings_app, kcm_id in (
         require(Path(f"/usr/share/applications/{kcm_id}.desktop").is_file(),
                 f"{kcm_id} is not installed — the Welcome's {device_route} "
                 "button would fail")
+# The four routes above are only the Welcome's device buttons. The MoOS Command
+# Center added ~23 more settings/* destinations, and nothing proved THOSE
+# resolve — a single Plasma module rename would land as a polished dead tile
+# with every gate still green. Parse the router itself so the covered set can
+# never drift from the shipped one again.
+_kcm_routes = re.findall(
+    r"(?m)^\s{4}settings/([a-z0-9-]+)\)\s+gui\s+(systemsettings|kinfocenter)"
+    r"\s+(kcm_[A-Za-z0-9_-]+)\s*;;",
+    router_code,
+)
+require(len(_kcm_routes) >= 25,
+        "the settings route parser found almost nothing — moos-open's shape "
+        f"changed and this gate stopped guarding anything (got {len(_kcm_routes)})")
+for _route, _host, _kcm in _kcm_routes:
+    # systemsettings resolves a KCM by its .desktop; kinfocenter modules ship
+    # their metadata inside the plugin binary and have no .desktop at all.
+    _desktop = Path(f"/usr/share/applications/{_kcm}.desktop")
+    _plugins = list(Path("/usr").glob(
+        f"lib*/qt6/plugins/plasma/kcms/kinfocenter/{_kcm}.so"
+    )) + list(Path("/usr").glob(f"lib*/qt6/plugins/plasma/kcms/{_kcm}.so"))
+    require(_desktop.is_file() or any(p.is_file() for p in _plugins),
+            f"moos://settings/{_route} opens {_host}'s {_kcm}, which is not "
+            "installed — the Command Center tile would look alive and do nothing")
+
 bluetooth_unit = Path("/usr/lib/systemd/system/bluetooth.service")
 bluetooth_links = (
     Path("/etc/systemd/system/bluetooth.target.wants/bluetooth.service"),
@@ -1056,6 +1080,24 @@ if liveinst.is_file():
     require("Exec=moos-installer" in _li,
             "'Install MoOS' does not launch moos-installer — it would open the confusing Anaconda screen")
     require("Name=Install MoOS" in _li, "the installer launcher is not named 'Install MoOS'")
+    # The anaconda-live RPM overwrites this file AFTER `COPY system_files/ /`,
+    # so only build.sh's rewrite reaches it — and nothing used to prove the
+    # rewrite landed. It shipped Icon=moos-logo (a 256 px mark) while the
+    # installed app used the 1024 px + SVG moos-installer: two identities for
+    # one program, on the first screen a new user ever sees.
+    require("Icon=moos-installer" in _li,
+            "the live 'Install MoOS' launcher does not use the moos-installer "
+            "icon — it would differ from org.moos.installer.desktop and lose "
+            "the scalable/1024 px asset")
+    require("TryExec=moos-installer" in _li,
+            "the live installer launcher has no TryExec — a shell without the "
+            "binary would still advertise it")
+    require("Keywords=" in _li,
+            "the live installer launcher is unsearchable (no Keywords)")
+    for _stale in ("Icon=moos-logo", "Icon=org.fedoraproject",
+                   "Name=Install to Hard Drive"):
+        require(_stale not in _li,
+                f"the live installer launcher still carries '{_stale}'")
 
 # Anti-footgun contract on the destructive helper: it MUST refuse to run outside a
 # live boot and MUST refuse the live boot medium itself, or a stray invocation
