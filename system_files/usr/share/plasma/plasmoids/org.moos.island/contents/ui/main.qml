@@ -214,30 +214,39 @@ PlasmoidItem {
     // Width carries the layout, opacity carries the ink slightly faster so the
     // icons are legible before they finish arriving, and visible follows the
     // width so a closed control costs no layout space at rest.
-    component RevealSlot: Item {
-        id: slot
-        property bool revealed: false
-        default property alias content: slotHolder.data
-        readonly property real openWidth:
-            root.design.panelHeight - root.design.space1 * 2
+    // ONE control, designed — not a bare Plasma ToolButton dropped into glass.
+    //
+    // The transport used PC3.ToolButton with display:IconOnly, which inherits
+    // the panel's own metrics: the icons came out around 28 px beside 14 px
+    // type, sat on no surface at all, and each carried the widget style's
+    // generic hover. Against a Liquid Glass capsule that reads as leftover
+    // system parts, not as part of the product. This gives every control the
+    // same geometry (a 30 px circular target with a 16 px glyph), the same
+    // resting transparency, and the same glass fill on hover/press, so the
+    // whole cluster keeps one rhythm and one language.
+    //
+    // The reveal is folded in here rather than wrapped around it: width and
+    // ink travel on the capsule's own clock and easing, so the capsule and its
+    // controls are a single movement, and a hidden control costs no layout
+    // space at rest. Anchored to the edge the capsule grows from (RTL-aware)
+    // so the glyph slides out of the rim instead of being squeezed.
+    component MediaControl: Item {
+        id: control
+        property alias iconName: controlIcon.source
+        property bool revealed: true
+        property bool controlEnabled: true
+        property string label: ""
+        signal activated
 
-        Layout.preferredWidth: slot.revealed ? slot.openWidth : 0
-        Layout.preferredHeight: slot.openWidth
+        readonly property real slotSize: 30
+
+        Layout.preferredWidth: control.revealed ? control.slotSize : 0
+        Layout.preferredHeight: control.slotSize
         Layout.alignment: Qt.AlignVCenter
         clip: true
-        opacity: slot.revealed ? 1 : 0
+        opacity: control.revealed ? (control.controlEnabled ? 1 : 0.35) : 0
         visible: Layout.preferredWidth > 0.5
-
-        Item {
-            id: slotHolder
-            width: slot.openWidth
-            height: parent.height
-            anchors.verticalCenter: parent.verticalCenter
-            // Anchor to the edge the capsule grows from so the icon slides out
-            // of the rim rather than being squeezed from both sides.
-            anchors.right: root.rtl ? undefined : parent.right
-            anchors.left: root.rtl ? parent.left : undefined
-        }
+        enabled: control.controlEnabled
 
         Behavior on Layout.preferredWidth {
             NumberAnimation {
@@ -250,6 +259,54 @@ PlasmoidItem {
                 duration: root.motionFast
                 easing.type: Easing.OutCubic
             }
+        }
+
+        Item {
+            width: control.slotSize
+            height: control.slotSize
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.right: root.rtl ? undefined : parent.right
+            anchors.left: root.rtl ? parent.left : undefined
+
+            Rectangle {
+                id: controlPlate
+                anchors.fill: parent
+                radius: width / 2
+                color: Qt.alpha(Kirigami.Theme.textColor,
+                                controlTap.pressed ? 0.18
+                                    : (controlHover.hovered ? 0.10 : 0.0))
+                Behavior on color {
+                    ColorAnimation { duration: root.motionFast }
+                }
+            }
+
+            Kirigami.Icon {
+                id: controlIcon
+                anchors.centerIn: parent
+                width: 16
+                height: 16
+                color: Kirigami.Theme.textColor
+                scale: controlTap.pressed ? 0.86 : 1.0
+                Behavior on scale {
+                    NumberAnimation {
+                        duration: root.motionFast
+                        easing.type: Easing.OutQuad
+                    }
+                }
+            }
+
+            HoverHandler {
+                id: controlHover
+                cursorShape: Qt.PointingHandCursor
+            }
+            TapHandler {
+                id: controlTap
+                onTapped: control.activated()
+            }
+
+            Accessible.role: Accessible.Button
+            Accessible.name: control.label
+            Accessible.onPressAction: control.activated()
         }
     }
 
@@ -381,14 +438,31 @@ PlasmoidItem {
 
             RowLayout {
                 anchors.fill: parent
-                anchors.leftMargin: root.design.space1
+                // A pill's rim curves INWARD, so a flat margin lets the corner
+                // eat whatever sits at the ends: the cover art was tangent to
+                // the curve on one side and the caption was clipped by it on
+                // the other. Inset the ends by the same amount the widest
+                // child needs to clear that curve, and keep the inner rhythm
+                // tight so the cluster reads as one control, not four.
+                anchors.leftMargin: root.design.space2
                 anchors.rightMargin: root.design.space2
-                spacing: root.design.space2
+                spacing: root.design.space1
                 layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
                 Rectangle {
-                    Layout.preferredWidth: 38
-                    Layout.preferredHeight: 38
+                    // DERIVED, never a literal. A hardcoded 38 was the same
+                    // height the capsule had left over, so the artwork had no
+                    // breathing room at all and any inset — including one I
+                    // added here — pushed it and the caption straight through
+                    // the pill's bottom curve. Sizing from the shell keeps a
+                    // real margin at every panel height the bar can take.
+                    readonly property int artSize:
+                        Math.round(compactShell.height * 0.7)
+                    Layout.preferredWidth: artSize
+                    Layout.preferredHeight: artSize
+                    // Without this the artwork stretched to the capsule's full
+                    // height and sat off-centre against the type beside it.
+                    Layout.alignment: Qt.AlignVCenter
                     radius: root.design.radiusControl
                     color: Qt.alpha(Kirigami.Theme.highlightColor, 0.16)
 
@@ -433,6 +507,14 @@ PlasmoidItem {
                     id: compactText
                     Layout.fillWidth: true
                     Layout.minimumWidth: 92
+                    // Centre the two lines as a BLOCK. Filling the capsule's
+                    // full height pushed the caption onto the pill's bottom
+                    // curve, which clipped it — the source name was cut in
+                    // half on the live panel.
+                    Layout.alignment: Qt.AlignVCenter
+                    Layout.fillHeight: false
+                    Layout.leftMargin: root.design.space1
+                    Layout.rightMargin: root.design.space1
                     spacing: 0
 
                     // A track change used to be a hard text swap: one frame the
@@ -504,58 +586,46 @@ PlasmoidItem {
                     }
                 }
 
-                RevealSlot {
+                MediaControl {
                     revealed: compactHover.hovered && root.canGoPrevious
-                    PC3.ToolButton {
-                        anchors.fill: parent
-                        enabled: root.canGoPrevious
-                        icon.name: root.rtl ? "media-skip-forward-symbolic"
-                                            : "media-skip-backward-symbolic"
-                        display: PC3.AbstractButton.IconOnly
-                        Accessible.name: root.local("السابق", "Previous")
-                        onClicked: root.player.Previous()
-                    }
+                    controlEnabled: root.canGoPrevious
+                    iconName: root.rtl ? "media-skip-forward-symbolic"
+                                       : "media-skip-backward-symbolic"
+                    label: root.local("السابق", "Previous")
+                    onActivated: root.player.Previous()
                 }
 
-                PC3.ToolButton {
-                    enabled: root.playing ? root.canPause
-                                          : (root.canPlay || root.canControl)
-                    icon.name: root.playing ? "media-playback-pause-symbolic"
-                                            : "media-playback-start-symbolic"
-                    display: PC3.AbstractButton.IconOnly
-                    Accessible.name: root.playing
-                        ? root.local("إيقاف مؤقت", "Pause")
-                        : root.local("تشغيل", "Play")
-                    onClicked: root.togglePlaying()
+                // Play/pause is the one control that never hides: it is why the
+                // capsule is reachable at all without opening anything.
+                MediaControl {
+                    controlEnabled: root.playing
+                        ? root.canPause : (root.canPlay || root.canControl)
+                    iconName: root.playing ? "media-playback-pause-symbolic"
+                                           : "media-playback-start-symbolic"
+                    label: root.playing ? root.local("إيقاف مؤقت", "Pause")
+                                        : root.local("تشغيل", "Play")
+                    onActivated: root.togglePlaying()
                 }
 
-                RevealSlot {
+                MediaControl {
                     revealed: compactHover.hovered && root.canGoNext
-                    PC3.ToolButton {
-                        anchors.fill: parent
-                        enabled: root.canGoNext
-                        icon.name: root.rtl ? "media-skip-backward-symbolic"
-                                            : "media-skip-forward-symbolic"
-                        display: PC3.AbstractButton.IconOnly
-                        Accessible.name: root.local("التالي", "Next")
-                        onClicked: root.player.Next()
-                    }
+                    controlEnabled: root.canGoNext
+                    iconName: root.rtl ? "media-skip-backward-symbolic"
+                                       : "media-skip-forward-symbolic"
+                    label: root.local("التالي", "Next")
+                    onActivated: root.player.Next()
                 }
 
-                RevealSlot {
+                MediaControl {
                     revealed: compactHover.hovered && root.hasVolume
-                    PC3.ToolButton {
-                        anchors.fill: parent
-                        enabled: root.hasVolume
-                        icon.name: root.volume <= 0.01
-                            ? "audio-volume-muted-symbolic"
-                            : "audio-volume-high-symbolic"
-                        display: PC3.AbstractButton.IconOnly
-                        Accessible.name: root.volume <= 0.01
-                            ? root.local("إلغاء الكتم", "Unmute")
-                            : root.local("كتم", "Mute")
-                        onClicked: root.toggleMuted()
-                    }
+                    controlEnabled: root.hasVolume
+                    iconName: root.volume <= 0.01
+                        ? "audio-volume-muted-symbolic"
+                        : "audio-volume-high-symbolic"
+                    label: root.volume <= 0.01
+                        ? root.local("إلغاء الكتم", "Unmute")
+                        : root.local("كتم", "Mute")
+                    onActivated: root.toggleMuted()
                 }
             }
 
