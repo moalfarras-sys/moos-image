@@ -14,6 +14,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Window
 import QtCore
 import org.kde.plasma.plasmoid
 import org.kde.plasma.core as PlasmaCore
@@ -189,6 +190,18 @@ PlasmoidItem {
     property real lastAudibleVolume: 0.65
     property bool compactHovered: false
 
+    // Decode rasters for the DEVICE, not for logical pixels. A sourceSize is a
+    // hard cap on the decoded image, so a fixed number silently under-samples
+    // every HiDPI screen: on the reference 4K panel Qt reports
+    // devicePixelRatio 3, where the 38 px avatar needs 114 real pixels and the
+    // 104 px expanded cover needs 312 — the old fixed 96 and 256 are why album
+    // art looked soft there while the text beside it stayed sharp. One owner
+    // for the arithmetic so no surface can drift back to a magic number.
+    readonly property real pixelRatio: Math.max(1, Screen.devicePixelRatio)
+    function decodePx(logical) {
+        return Math.ceil(Math.max(1, logical) * root.pixelRatio);
+    }
+
     // Paused media remains useful. Stopped media gets a short release grace so
     // player hand-offs do not make the bar snap or flash at track boundaries.
     readonly property bool mediaPresent: root.hasPlayer
@@ -325,18 +338,29 @@ PlasmoidItem {
                 Rectangle {
                     Layout.preferredWidth: 38
                     Layout.preferredHeight: 38
-                    radius: 19
+                    radius: root.design.radiusControl
                     color: Qt.alpha(Kirigami.Theme.highlightColor, 0.16)
-                    clip: true
 
-                    Image {
+                    // NOT Rectangle{radius}+clip: Qt clips a child to the
+                    // item's BOUNDING BOX, never to its rounded corners, so an
+                    // Image inside a rounded frame renders as a hard square
+                    // that pokes out of every corner. It was invisible while
+                    // the art was soft and became obvious the moment the
+                    // decode was fixed. ShadowedImage rounds the texture
+                    // itself with distance fields — the same primitive
+                    // Kirigami's own cards use — so there is no mask layer and
+                    // no MultiEffect in plasmashell's always-on budget.
+                    // radiusControl, not a circle: the expanded cover is a
+                    // rounded square, so the artwork no longer changes shape
+                    // when the capsule opens.
+                    Kirigami.ShadowedImage {
                         id: compactArt
                         anchors.fill: parent
+                        radius: parent.radius
                         source: root.artworkSource
                         fillMode: Image.PreserveAspectCrop
                         asynchronous: true
-                        cache: true
-                        sourceSize.width: 96
+                        sourceSize.width: root.decodePx(width)
                         visible: root.artworkSource.length > 0
                                  && status === Image.Ready
                         onStatusChanged: if (status === Image.Error
@@ -464,16 +488,16 @@ PlasmoidItem {
                     Layout.preferredHeight: 104
                     radius: root.design.radiusCard
                     color: Qt.alpha(Kirigami.Theme.highlightColor, 0.14)
-                    clip: true
 
-                    Image {
+                    // Same rounded-texture reason as the compact cover above.
+                    Kirigami.ShadowedImage {
                         id: expandedArt
                         anchors.fill: parent
+                        radius: parent.radius
                         source: root.artworkSource
                         fillMode: Image.PreserveAspectCrop
                         asynchronous: true
-                        cache: true
-                        sourceSize.width: 256
+                        sourceSize.width: root.decodePx(width)
                         visible: root.artworkSource.length > 0
                                  && status === Image.Ready
                         onStatusChanged: if (status === Image.Error
