@@ -117,7 +117,11 @@ PlasmoidItem {
             id: card
             anchors.fill: parent
             radius: root.design.radiusCard
-            color: Qt.alpha(Kirigami.Theme.backgroundColor, 0.72)
+            // Same capsule class as the media island, so the same derived
+            // density: the two sit side by side on the bar and must never
+            // disagree about how solid MoOS glass is.
+            color: Qt.alpha(Kirigami.Theme.backgroundColor,
+                            root.design.glassDensity(Kirigami.Theme.backgroundColor))
             border.width: root.design.borderHairline
             border.color: Qt.alpha(Kirigami.Theme.textColor, 0.16)
         }

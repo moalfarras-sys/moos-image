@@ -1935,6 +1935,64 @@ class TestMoOSUI2(unittest.TestCase):
             msg="crop-to-fill changed a square artwork element's proportions",
         )
 
+    def test_glass_density_is_derived_and_differentiates_the_families(self) -> None:
+        """Glass density must come from the palette, not from literals.
+
+        Every shell surface hardcoded its own alpha, so the one property that
+        makes a family FEEL different could never vary — which is why sixteen
+        profiles were sixteen hues of one interface. An earlier attempt to vary
+        KWin's blur noise instead was measured on the live session and moved
+        exactly zero pixels: KWin governs what shows THROUGH a translucent
+        window, never an alpha we paint ourselves.
+
+        Executed against the SHIPPED colour schemes, so a palette change that
+        collapses the families back into one finish fails here.
+        """
+        tokens = (ROOT / "system_files/usr/lib64/qt6/qml/org/moos/ui/Tokens.qml"
+                  ).read_text(encoding="utf-8")
+        self.assertIn("function glassDensity(background)", tokens)
+
+        for name, path in (
+            ("island", SHARE / "plasma/plasmoids/org.moos.island/contents/ui/main.qml"),
+            ("hero clock", SHARE / "plasma/plasmoids/org.moos.heroclock/contents/ui/main.qml"),
+        ):
+            qml = qml_code(path.read_text(encoding="utf-8"))
+            self.assertIn(
+                "design.glassDensity(Kirigami.Theme.backgroundColor)", qml,
+                f"the {name} capsule still hardcodes its glass alpha")
+
+        def lightness(rgb: tuple[int, int, int]) -> float:
+            hi, lo = max(rgb) / 255, min(rgb) / 255
+            return (hi + lo) / 2
+
+        def density(value: float) -> float:
+            if value <= 0.10:
+                return 0.86
+            if value > 0.55:
+                return 0.80
+            return 0.72
+
+        picked: dict[float, list[str]] = {}
+        schemes = sorted((SHARE / "color-schemes").glob("MoOSUI2*.colors"))
+        self.assertGreaterEqual(len(schemes), 16, "expected the shipped palettes")
+        for scheme in schemes:
+            match = re.search(
+                r"\[Colors:Window\][^\[]*?BackgroundNormal=(\d+),(\d+),(\d+)",
+                scheme.read_text(encoding="utf-8", errors="ignore"), re.S)
+            if not match:
+                continue
+            value = density(lightness(tuple(int(x) for x in match.groups())))
+            picked.setdefault(value, []).append(scheme.stem)
+
+        self.assertGreaterEqual(
+            len(picked), 3,
+            "the shipped palettes no longer select distinct glass densities: "
+            f"{ {k: len(v) for k, v in picked.items()} }")
+        self.assertIn("MoOSUI2Midnight", picked.get(0.86, []),
+                      "the true-black profile must get the densest slab")
+        self.assertIn("MoOSUI2Dark", picked.get(0.72, []),
+                      "the default profile must keep the tuned reference finish")
+
     def test_every_moos_mark_decodes_at_its_device_size(self) -> None:
         """A literal sourceSize is a decode CAP, and it softened the hero mark.
 

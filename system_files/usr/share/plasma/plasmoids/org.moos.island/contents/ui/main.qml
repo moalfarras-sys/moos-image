@@ -425,9 +425,11 @@ PlasmoidItem {
             anchors.topMargin: root.design.space1
             anchors.bottomMargin: root.design.space1
             radius: height / 2
+            // Density from the family's own palette, not a literal: a
+            // true-black OLED profile wants a denser slab than the reference
+            // dark, and a light profile wants less body. See MoUI.Tokens.
             color: Qt.alpha(Kirigami.Theme.backgroundColor,
-                            root.design.isLight(Kirigami.Theme.backgroundColor)
-                                ? 0.84 : 0.72)
+                            root.design.glassDensity(Kirigami.Theme.backgroundColor))
             border.width: root.design.borderHairline
             border.color: Qt.alpha(Kirigami.Theme.textColor,
                                    compactHover.hovered ? 0.22 : 0.13)
