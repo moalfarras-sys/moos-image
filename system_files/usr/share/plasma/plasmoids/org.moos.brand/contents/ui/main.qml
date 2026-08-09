@@ -529,19 +529,30 @@ PlasmoidItem {
                 Image {
                     id: compactLogo
                     anchors.fill: parent
-                    // The VECTOR master, not the raster. Both ship side by side
-                    // in /usr/share/moos, and nothing was reading the SVG: the
-                    // one button carrying the system's name was drawn from a
-                    // PNG rasterised once at 256 px, then resampled to whatever
-                    // the panel height happened to be. Qt rasterises an SVG
-                    // straight to sourceSize, so the mark is now generated at
-                    // the exact device pixels it occupies — sharp at any panel
-                    // height and any screen scale, on the same single decode.
-                    source: "file:///usr/share/moos/moos-logo.svg"
+                    // The RASTER, deliberately — measured, not assumed. The
+                    // vector beside it (/usr/share/moos/moos-logo.svg) looks
+                    // like the obvious upgrade and is not one: it is a VTracer
+                    // machine trace whose 1002 paths Qt rejects one by one
+                    // ("qt.svg: Invalid path data; path truncated" repeatedly
+                    // on load), and it is the posterised LIGHT trace, while
+                    // every shipped moos-logo.png is rendered from the 2756-
+                    // path high-detail master. Switching gained scalability and
+                    // lost the shading. Revisit only when a real vector master
+                    // replaces the trace and loads without qt.svg warnings.
+                    source: "file:///usr/share/moos/moos-logo.png"
                     fillMode: Image.PreserveAspectFit
                     asynchronous: true
                     smooth: true
+                    // Decode at the device size: Qt does NOT scale a raster's
+                    // sourceSize by devicePixelRatio (it does that only for
+                    // scalable sources), so a literal here under-samples HiDPI.
                     sourceSize: Qt.size(root.decodePx(width), root.decodePx(height))
+                    // The press (0.85), hover (1.08) and the activation
+                    // rotation all resample this texture at sizes it was not
+                    // rasterised for, and bilinear alone re-aliases the swirl
+                    // on every frame. mipmap is the same flag this artwork
+                    // already carries on the splash and the greeter wallpaper.
+                    mipmap: true
                     
                     // Premium, snappy physical press scale
                     scale: compact.pressed ? 0.85 : (compact.containsMouse ? 1.08 : 1.0)

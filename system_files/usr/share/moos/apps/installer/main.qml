@@ -679,8 +679,21 @@ ApplicationWindow {
                         Image {
                             anchors.centerIn: parent
                             source: "file:///usr/share/moos/moos-logo.png"
-                            sourceSize.width: 104; sourceSize.height: 104
+                            // The largest MoOS mark in the product, on the
+                            // first screen a new owner ever sees. A literal
+                            // sourceSize is a decode CAP, so 104 decoded a
+                            // 104 px bitmap and Qt then stretched it across
+                            // 234 physical pixels on a 4K/225% panel — the
+                            // mark arrived soft exactly where it has to look
+                            // its best. Derive the decode from the real device
+                            // pixels; on a 1x display this is byte-identical
+                            // to the old literal.
                             width: 104; height: 104
+                            sourceSize: Qt.size(
+                                Math.round(width * Screen.devicePixelRatio),
+                                Math.round(height * Screen.devicePixelRatio))
+                            smooth: true
+                            mipmap: true
                         }
                     }
 

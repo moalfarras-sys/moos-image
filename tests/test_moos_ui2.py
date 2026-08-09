@@ -1935,6 +1935,49 @@ class TestMoOSUI2(unittest.TestCase):
             msg="crop-to-fill changed a square artwork element's proportions",
         )
 
+    def test_every_moos_mark_decodes_at_its_device_size(self) -> None:
+        """A literal sourceSize is a decode CAP, and it softened the hero mark.
+
+        The installer's welcome step and the first-run Welcome both draw the
+        largest MoOS mark in the product at 104 logical px, and both pinned
+        sourceSize to the literal 104. On the reference 4K panel that decodes
+        104 pixels and stretches them across 234, so the first screen a new
+        owner ever sees carried a visibly soft mark. The launcher button had
+        the mirror problem: a 256 px decode minified into ~61 px through a
+        2x2 bilinear tap, re-aliasing on every hover/press/rotation frame.
+        Qt scales sourceSize by devicePixelRatio ONLY for scalable sources, so
+        every raster has to do the multiply itself.
+        """
+        surfaces = (
+            ("installer", SHARE / "moos/apps/installer/main.qml"),
+            ("welcome", SHARE / "moos/apps/welcome/main.qml"),
+        )
+        for name, path in surfaces:
+            qml = path.read_text(encoding="utf-8")
+            self.assertNotIn(
+                "sourceSize.width: 104", qml,
+                f"the {name} hero mark is capped at a literal decode size")
+            self.assertRegex(
+                qml,
+                r"sourceSize:\s*Qt\.size\(\s*\n?\s*Math\.round\(width \* Screen\.devicePixelRatio\)",
+                f"the {name} hero mark must decode at its physical size")
+
+        brand = qml_code((
+            SHARE / "plasma/plasmoids/org.moos.brand/contents/ui/main.qml"
+        ).read_text(encoding="utf-8"))
+        logo = brand.split("id: compactLogo", 1)[1].split("\n                }", 1)[0]
+        self.assertIn("root.decodePx(width)", logo,
+                      "the launcher mark must decode at its device size")
+        self.assertIn("mipmap: true", logo,
+                      "the launcher mark is scaled and rotated every frame; "
+                      "without mipmapping it re-aliases on each one")
+        # The shipped SVG is a VTracer machine trace whose paths Qt rejects
+        # ("Invalid path data; path truncated"), and it is the posterised light
+        # trace while the PNGs come from the 2756-path high-detail master.
+        # Switching to it looks like an upgrade and loses the shading.
+        self.assertNotIn("moos-logo.svg", logo,
+                         "the launcher mark must not use the truncated trace")
+
     def test_theme_picker_is_glass_polished_and_hidpi_bounded(self) -> None:
         picker = (SHARE / "moos/theme-picker/main.qml").read_text(encoding="utf-8")
         self.assertIn("Screen.desktopAvailableWidth", picker)
