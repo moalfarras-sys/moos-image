@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# thermald's own first act on a desktop is to print "Non mobile platform,
+# exiting.." and quit with status 1; the stock Fedora unit then restart-loops
+# five times and leaves a red failed system unit on EVERY MoOS desktop boot.
+# This ExecCondition mirrors the daemon's own supported-platform judgment so
+# unsupported machines SKIP the unit cleanly while Intel laptops keep the
+# thermal management they actually benefit from.
+set -u
+
+# Overridable inputs so the repo gates can execute every branch of this
+# judgment instead of trusting a string grep.
+chassis_file="${MOOS_DMI_CHASSIS:-/sys/class/dmi/id/chassis_type}"
+cpuinfo_file="${MOOS_CPUINFO:-/proc/cpuinfo}"
+
+# SMBIOS chassis types thermald considers mobile: Portable(8), Laptop(9),
+# Notebook(10), Hand Held(11), Sub Notebook(14), Tablet(30), Convertible(31),
+# Detachable(32).
+chassis="$(cat "$chassis_file" 2>/dev/null || echo 0)"
+case "$chassis" in
+    8|9|10|11|14|30|31|32) ;;
+    *) exit 1 ;;
+esac
+
+# thermald manages Intel RAPL/P-state thermals only.
+vendor="$(awk -F': *' '/^vendor_id/{print $2; exit}' "$cpuinfo_file" 2>/dev/null)"
+[ "${vendor:-}" = "GenuineIntel" ] || exit 1
+
+exit 0

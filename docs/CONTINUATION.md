@@ -60,6 +60,16 @@ snapshot sync. Proven live (grid shows one Chrome; the alias row left the
 kactivities DB) and pinned by
 `test_launcher_orbit_never_shows_one_application_twice`.
 
+The `.574` boot also carried a red failed system unit on every desktop boot:
+thermald prints "Non mobile platform, exiting.." and exits 1 by design on
+non-mobile chassis, and the stock unit restart-loops that refusal into
+`failed`. The image now ships `thermald.service.d/moos-skip-unsupported.conf`
+with `ExecCondition=/usr/libexec/moos-thermald-supported` — the daemon's own
+chassis/vendor judgment, with gate-overridable inputs — so unsupported
+machines skip the unit cleanly while Intel laptops keep thermal management.
+The user-experience gate executes all three branches (Intel desktop skips,
+Intel laptop runs, AMD laptop skips).
+
 Live second-session evidence (3840×2160, 225%, Arabic RTL, `.574` host with
 branch overrides):
 `~/.cache/moos-claude-bar-healed.png`, `~/.cache/moos-claude-v50-meta.png`,

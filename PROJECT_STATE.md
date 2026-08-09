@@ -44,6 +44,12 @@ press in the compact capsule so a dialog dismissed by the press is not
 re-opened by its own release. It has no permanent decorative animation; its
 only polling timer sleeps unless playing progress is visible.
 
+Boot hygiene: thermald exits 1 by design on non-mobile chassis, which the
+stock unit turned into a red failed system unit on every desktop boot. The
+image gates it with `ExecCondition=/usr/libexec/moos-thermald-supported`
+(chassis + CPU-vendor judgment, inputs overridable for the gates), so
+unsupported machines skip the unit cleanly and Intel laptops keep it.
+
 This was inspected on the running 3840x2160 Wayland/HDR desktop in dark and
 light, Arabic RTL and English LTR. The launcher was exercised on the actual
 output at 100/125/150/200%, with 225% restored afterward. Meta, KRunner search,

@@ -4,10 +4,12 @@
 from pathlib import Path
 import ast
 import json
+import os
 import re
 import shlex
 import subprocess
 import sys
+import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -111,6 +113,38 @@ for _desktop_path in sorted(
             _payload_command.is_file(),
             f"{_desktop_path.name} routes Exec={_command} to no shipped executable",
         )
+
+# thermald refuses non-mobile platforms by design and exits 1; without a
+# condition the stock unit restart-loops into a red failed unit on every MoOS
+# desktop boot. The judgment ships as an executable condition — so execute it.
+_thermald_dropin = read(
+    "system_files/usr/lib/systemd/system/thermald.service.d/"
+    "moos-skip-unsupported.conf")
+require("ExecCondition=/usr/libexec/moos-thermald-supported" in _thermald_dropin,
+        "the thermald drop-in must gate the unit on the shipped condition")
+_thermald_script = ROOT / "system_files/usr/libexec/moos-thermald-supported"
+require(os.access(_thermald_script, os.X_OK),
+        "moos-thermald-supported must be executable")
+with tempfile.TemporaryDirectory() as _tmp:
+    _chassis = Path(_tmp) / "chassis_type"
+    _cpuinfo = Path(_tmp) / "cpuinfo"
+    _cases = (
+        ("3", "vendor_id\t: GenuineIntel\n", 1, "an Intel desktop must skip"),
+        ("9", "vendor_id\t: GenuineIntel\n", 0, "an Intel laptop must run"),
+        ("9", "vendor_id\t: AuthenticAMD\n", 1, "an AMD laptop must skip"),
+    )
+    for _chassis_value, _cpu_text, _expected, _why in _cases:
+        _chassis.write_text(_chassis_value + "\n", encoding="utf-8")
+        _cpuinfo.write_text(_cpu_text, encoding="utf-8")
+        _result = subprocess.run(
+            ["bash", str(_thermald_script)],
+            env={**os.environ, "MOOS_DMI_CHASSIS": str(_chassis),
+                 "MOOS_CPUINFO": str(_cpuinfo)},
+            capture_output=True,
+        )
+        require(_result.returncode == _expected,
+                f"moos-thermald-supported: {_why} "
+                f"(got {_result.returncode}, wanted {_expected})")
 
 # The server must only join a real Plasma workspace. default.target caused
 # root, SDDM, and the desktop user to race for port 8765 on real hardware.
