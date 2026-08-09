@@ -5323,6 +5323,13 @@ require("sddm" not in _fb.lower(),
 require("autologin" not in _fb.lower() and "plasmalogin.conf.d" not in _fb,
         "installed MoOS must always show the password greeter; moos-firstboot "
         "must not create an automatic-sign-in configuration")
+require("org.freedesktop.Accounts" in _fb
+        and "CacheUser" in _fb
+        and "/org/freedesktop/Accounts/User" in _fb
+        and "AccountsService did not publish" in _fb,
+        "moos-firstboot must synchronously publish the freshly created account "
+        "to AccountsService before plasmalogin starts; otherwise the first greeter "
+        "can cache an empty user model and show only its wallpaper")
 _fb_unit = code(read("system_files/usr/lib/systemd/system/moos-firstboot.service"), "hash")
 require("sddm" not in _fb_unit.lower(),
         "moos-firstboot.service still orders against retired SDDM")

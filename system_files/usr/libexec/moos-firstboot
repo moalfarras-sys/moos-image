@@ -103,6 +103,31 @@ if ! printf '%s:%s\n' "$USERNAME" "$PASSWORD_HASH" | chpasswd -e; then
 fi
 passwd -u "$USERNAME" >/dev/null 2>&1 || true
 
+# Plasma Login Manager asks AccountsService for its user model.  On a freshly
+# installed machine the daemon can be activated before useradd writes the first
+# interactive account; plasmalogin then starts in the same second, receives the
+# still-empty cached model, and displays only its wallpaper until the login
+# manager is restarted.  Publish the new account synchronously before systemd is
+# allowed to start display-manager.service.  CacheUser is idempotent and returns
+# the canonical object path, so verify that result rather than adding a timing
+# sleep.  A blank first greeter is not a successful first boot: fail and retry on
+# the next boot if AccountsService cannot acknowledge the user.
+account_object=""
+for _attempt in $(seq 1 20); do
+    account_object="$(busctl call org.freedesktop.Accounts \
+        /org/freedesktop/Accounts org.freedesktop.Accounts \
+        CacheUser s "$USERNAME" 2>/dev/null)" && break
+    sleep 0.1
+done
+case "$account_object" in
+    *"/org/freedesktop/Accounts/User"*)
+        log "AccountsService cached '${USERNAME}' (${account_object})" ;;
+    *)
+        log "AccountsService did not publish '${USERNAME}' — NOT stamping; next boot will retry"
+        exit 1
+        ;;
+esac
+
 # ── locale / timezone / keyboard ──────────────────────────────────────────────
 [ -n "$LOCALE" ]   && printf 'LANG=%s\n' "$LOCALE" > /etc/locale.conf
 [ -n "$KEYMAP" ]   && printf 'KEYMAP=%s\n' "$KEYMAP" > /etc/vconsole.conf
