@@ -44,6 +44,22 @@ press in the compact capsule so a dialog dismissed by the press is not
 re-opened by its own release. It has no permanent decorative animation; its
 only polling timer sleeps unless playing progress is visible.
 
+First-run hardware: `moos-device-plan` already read the machine, but nothing
+surfaced it on the one screen every new machine shows. `moos-firstrun` now
+runs that probe in the background (atomic `.partial` + `mv`) and `moos-welcome`
+passes `--device-plan=` on its own argument, so the Welcome can draw a device
+card — but ONLY for an important action carrying a real URL (today: an NVIDIA
+GPU running without the NVIDIA image, offering the one-command atomic switch).
+A healthy machine sees no card at all, and the poll gives up after 15 tries so
+the first-run screen never carries a permanent timer.
+
+Identity gating: `verify_identity.py` used to pin the installer icon to the
+literal `moos-logo`. It now asserts the CONTRACT — a MoOS-owned icon name that
+actually resolves to a file in the image — which is strictly stricter, because
+the old string compare never touched the filesystem and would pass a launcher
+pointing at a missing icon. **CI's buildah step truncates its output, so an
+image-build failure can show no error at all; build locally to see it.**
+
 Boot hygiene: thermald exits 1 by design on non-mobile chassis, which the
 stock unit turned into a red failed system unit on every desktop boot. The
 image gates it with `ExecCondition=/usr/libexec/moos-thermald-supported`

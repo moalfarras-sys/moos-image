@@ -3,6 +3,55 @@
 Date: 2026-08-09
 Branch: `main`
 
+## 2026-08-09 — installer identity, the first-run hardware card, and a CI trap
+
+The `.576` image build failed three times in a row with the buildah step
+producing **no error line at all** in the workflow log — it simply stopped
+mid-`build.sh` and jumped to cleanup. Two diagnoses drawn from that log were
+wrong. The decisive evidence: the SUCCESSFUL `.575` log stops at the identical
+line (`++ ldconfig -p`) and then completes, so "all three editions died at the
+same command" was a phantom produced by output truncation, not a real signal.
+A local `podman build` at the same commit printed the truth in full:
+
+```text
+IDENTITY FATAL: installer icon is not moos-logo
+```
+
+**Never re-run a silent buildah failure twice — build locally instead.** This
+is now recorded in the agent memory alongside the rule that `verify_identity.py`
+hardcodes user-facing identity strings, so renaming any branded asset requires
+updating that gate in the same commit.
+
+`verify_identity.py` pinned the installer `Icon` to the literal `moos-logo`,
+which blocked the move to `moos-installer`. The gate is now generalised to its
+real contract and is **strictly stricter** than the string it replaced: the
+icon must be a MoOS-owned name (an upstream Fedora/Anaconda icon still fails)
+AND must resolve to a file shipped in the image. The old rule compared a string
+and never touched the filesystem, so a launcher pointing at a missing icon
+passed while rendering a generic placeholder — the exact identity leak the gate
+exists to catch. Proved on six cases: three upstream names rejected, a
+`moos-*` name with no file rejected (the old rule accepted it), `moos-logo`
+still accepted (no regression), `moos-installer` accepted.
+
+The first-run hardware surface also lands here. `moos-device-plan` already read
+the GPU, its bound driver, firmware and memory, and on an NVIDIA GPU running
+without the NVIDIA image emitted an important action with a one-command atomic
+switch — but nothing showed it on the one screen every new machine displays, so
+a user who installed the generic edition on NVIDIA hardware was never told the
+system knew. `moos-firstrun` now runs the probe in the **background** and
+writes it atomically (`.partial` + `mv`); running it inline would hold a
+brand-new system's first screen for tens of seconds, and a half-written file
+would make the Welcome parse garbage. `moos-welcome` passes `--device-plan=`
+on its own argument — `--cache` is the store's job directory, and filing
+hardware state there would have been a lie. The Welcome draws its device card
+**only** for an important action carrying a real URL, and its poll gives up
+after 15 tries so a first-run screen never carries a permanent timer.
+
+Verified: `just check` green; a complete local image build green, and the built
+image carries `Icon=moos-installer`, `TryExec` and `Keywords` with the 1024 px
+and scalable assets present. The card was rendered live in both states — shown
+with the NVIDIA action, and completely absent on a healthy plan.
+
 ## 2026-08-09 — rev-49 adversarial hardening pass (second session, same branch)
 
 The signed `.574` deployment rebooted at 12:44 and reproduced the exact defect
