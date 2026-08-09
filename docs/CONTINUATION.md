@@ -1,7 +1,26 @@
 # Unified Experience Continuation
 
 Date: 2026-08-09
-Branch: `fix/installer-subvolume-grub`
+Branch: `fix/firstboot-accounts-cache`
+
+## 2026-08-09 — `.572` boots; first-greeter AccountsService race fixed
+
+The signed `.572` ISO installed completely with `-nic none`; after power-off the
+same target disk, with no ISO attached and no GRUB input, displayed `Booting
+'MoOS (ostree:0)'` and reached the MoOS Plasma Login Manager. This closes the
+`.571` subvolume redirect failure itself.
+
+The mandatory login proof found the next real issue instead of stopping at the
+wallpaper: the first greeter had no user controls. TTY login proved the seeded
+`moos` account and password were valid. Journals showed `moos-firstboot` created
+UID 1000 and plasmalogin started in the same second; restarting only plasmalogin
+made the user appear immediately. The user model had raced AccountsService.
+
+`moos-firstboot` now invokes AccountsService `CacheUser` as root, retries only
+the D-Bus acknowledgement for two bounded seconds, verifies the canonical user
+object path, and refuses to stamp completion if the account is not published.
+The next signed ISO must show the password greeter on its first disk-only boot
+without the diagnostic restart used to prove the cause.
 
 ## 2026-08-09 — installer success was not boot success; EFI redirect fixed
 

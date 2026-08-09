@@ -54,6 +54,17 @@ the installed disk reached the MoOS login greeter. Release closure still require
 the same proof from a newly signed ISO so the generated redirect, not a manual
 GRUB command, is what performed the boot.
 
+Signed ISO `.572` closed that bootloader defect: it installed with no NIC, its
+disk booted `MoOS (ostree:0)` automatically with the ISO removed, and reached the
+real Plasma Login Manager. That complete gate then found a first-greeter race:
+`moos-firstboot` created the account and plasmalogin started in the same second,
+before AccountsService had published the new user, so the first greeter showed
+only its wallpaper. The account and password were valid in a TTY and restarting
+plasmalogin immediately showed the user. Firstboot now calls AccountsService's
+idempotent `CacheUser` method and verifies the returned user object before the
+display manager may start. Release closure therefore requires one more signed
+ISO round proving the account is visible without a manual service restart.
+
 The previous `.567` deployment facts below remain valid historical proof.
 
 The first signed unified deployment (`44.20260808.567`) has now booted on the
