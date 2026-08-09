@@ -48,6 +48,13 @@ PlasmoidItem {
     preferredRepresentation: root.smokeFullRepresentation
         ? fullRepresentation : compactRepresentation
 
+    // Keyboard, Meta and AT-SPI reach expansion through Plasmoid.activated();
+    // this PlasmoidItem property is the single owner of that route. It must
+    // live HERE: the Plasmoid attached object is the Plasma::Applet, which has
+    // no such property, so assigning it there is a silent no-op that leaves
+    // the route governed by an undeclared default.
+    activationTogglesExpanded: true
+
     readonly property bool rtl: Qt.locale().textDirection === Qt.RightToLeft
     readonly property var design: MoUI.Tokens
     readonly property string uiFontFamily: Qt.application.font.family
@@ -161,6 +168,42 @@ PlasmoidItem {
             }
         }
         root.favoriteSearchIds = ids;
+        root.pruneFavoriteAliasDuplicates();
+    }
+
+    // A preferred:// favourite is an alias that resolves to a concrete desktop
+    // file at display time. Once the user pins that same application directly,
+    // the orbit grid shows the identical app twice (observed live: the shipped
+    // preferred://browser next to a pinned com.google.Chrome.desktop). Keep the
+    // user's concrete pin — it states their intent and survives a later default
+    // change — and retire only the now-redundant alias. Distinct targets are
+    // never touched, so pinning a second browser still shows both. Convergent:
+    // each removal re-enters through the snapshot sync until no alias shares a
+    // target with a concrete pin.
+    function pruneFavoriteAliasDuplicates() {
+        if (favoriteObjects.count !== root.favoriteModel.count) {
+            return;
+        }
+        const concreteTargets = [];
+        const aliases = [];
+        for (let i = 0; i < favoriteObjects.count; ++i) {
+            const object = favoriteObjects.objectAt(i) as FavoriteSnapshot;
+            if (!object || !object.favoriteId) {
+                continue;
+            }
+            const target = String(object.url || "");
+            if (object.favoriteId.indexOf("preferred://") === 0) {
+                aliases.push({ id: object.favoriteId, target: target });
+            } else if (target.length > 0) {
+                concreteTargets.push(target);
+            }
+        }
+        for (let i = 0; i < aliases.length; ++i) {
+            if (aliases[i].target.length > 0
+                    && concreteTargets.indexOf(aliases[i].target) >= 0) {
+                root.favoriteModel.removeFavorite(aliases[i].id);
+            }
+        }
     }
 
     readonly property Kicker.RootModel appRootModel: Kicker.RootModel {
@@ -210,6 +253,10 @@ PlasmoidItem {
 
     component FavoriteSnapshot: QtObject {
         required property string favoriteId
+        // Kicker's AbstractModel resolves this role to the entry's desktop
+        // file even for preferred:// aliases, which is exactly the identity
+        // pruneFavoriteAliasDuplicates needs to detect a doubled application.
+        required property var url
     }
 
     Instantiator {
@@ -340,16 +387,27 @@ PlasmoidItem {
         Accessible.checked: root.expanded
         Accessible.onPressAction: compact.activate()
 
-        function activate() {
+        function playActivationFeedback() {
             clickWave.restart();
             logoFlourish.restart();
-            root.expanded = !root.expanded;
+        }
+
+        // One toggle owner PER input route, matching Plasma 6.7's installed
+        // DefaultCompactRepresentation.qml exactly. This custom MouseArea owns
+        // pointer clicks; CompactApplet does not add a second pointer handler.
+        // Keyboard, Meta and accessibility emit Plasmoid.activated(), whose
+        // expansion is owned by the root PlasmoidItem's
+        // activationTogglesExpanded property. Never emit that signal from
+        // onClicked and never assign expanded from activate: either mistake
+        // makes one input route toggle twice.
+        function activate() {
+            compact.playActivationFeedback();
+            Plasmoid.activated();
         }
 
         onPressed: compact.wasExpanded = root.expanded
         onClicked: mouse => {
-            clickWave.restart();
-            logoFlourish.restart();
+            compact.playActivationFeedback();
             if (mouse.button === Qt.MiddleButton) {
                 root.activePage = 1;
             }
@@ -527,7 +585,4 @@ PlasmoidItem {
         }
     ]
 
-    Component.onCompleted: {
-        Plasmoid.activationTogglesExpanded = true;
-    }
 }

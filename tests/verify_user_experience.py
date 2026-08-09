@@ -5,6 +5,7 @@ from pathlib import Path
 import ast
 import json
 import re
+import shlex
 import subprocess
 import sys
 
@@ -67,6 +68,49 @@ for path in (ROOT / "system_files/usr/share/applications").glob("*.desktop"):
         launchers.append(path.name)
 require(launchers == ["org.moos.remote.desktop"],
         f"Mo Remote must have exactly one launcher; found {launchers}")
+
+# Every first-party launcher action must terminate at a shipped executable. A
+# pretty tile with a dead Exec line is the exact kind of defect that passes QML
+# smoke while making the shell feel unfinished. External commands are explicit
+# and tiny; every MoOS-owned command must exist in this image payload.
+_desktop_external_commands = {"konsole"}
+for _desktop_path in sorted(
+        (ROOT / "system_files/usr/share/applications").glob("org.moos*.desktop")):
+    for _line in _desktop_path.read_text(encoding="utf-8").splitlines():
+        if not _line.startswith("Exec="):
+            continue
+        try:
+            _argv = shlex.split(_line.removeprefix("Exec="))
+        except ValueError as _error:
+            require(False, f"{_desktop_path.name} has an invalid Exec line: {_error}")
+            continue
+        require(bool(_argv), f"{_desktop_path.name} has an empty Exec line")
+        if not _argv:
+            continue
+        _command = _argv[0]
+        if _command in _desktop_external_commands:
+            # The external command is a WRAPPER, not the payload: the MoOS
+            # command it hosts follows -e and must itself ship in this image.
+            # Skipping the whole line let a wrapped launcher rot silently.
+            require("-e" in _argv,
+                    f"{_desktop_path.name} uses {_command} without -e")
+            if "-e" not in _argv:
+                continue
+            _wrapped = _argv[_argv.index("-e") + 1:]
+            require(bool(_wrapped),
+                    f"{_desktop_path.name} wraps {_command} -e around nothing")
+            if not _wrapped:
+                continue
+            _command = _wrapped[0]
+        _payload_command = (
+            ROOT / "system_files" / _command.removeprefix("/")
+            if _command.startswith("/usr/")
+            else ROOT / "system_files/usr/bin" / _command
+        )
+        require(
+            _payload_command.is_file(),
+            f"{_desktop_path.name} routes Exec={_command} to no shipped executable",
+        )
 
 # The server must only join a real Plasma workspace. default.target caused
 # root, SDDM, and the desktop user to race for port 8765 on real hardware.
@@ -2459,9 +2503,10 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=48" in apply_theme_code,
+require("THEME_REV=49" in apply_theme_code,
         "MoOS visual schema must migrate existing users to the cardless centred "
-        "Horizon Hub and direct adaptive media island (moos-bar-apply), while "
+        "Horizon Hub, single-owner launcher activation and recoverable direct "
+        "adaptive media island (moos-bar-apply), while "
         "reconciling new shadows "
         "and purging the Plasma SVG cache that would otherwise keep serving old art")
 require("local_plasmoids=" in apply_theme_code
@@ -2530,17 +2575,18 @@ require("migrate_popup_geometry" in bar_apply
 # suppresses every future retry and a still-split bar never reports done.
 bar_ok_arm = '*bar=ok*) echo "MOOS_BAR_OK=1'
 live_pass_call = bar_apply.find('if ok="$(live_pass)"')
-marker_touch_pos = bar_apply.find('touch "$marker"', live_pass_call)
-marker_touch_count = bar_apply.count('touch "$marker"')
+marker_write = 'printf \'%s\\n\' "$generation" > "$marker"'
+marker_write_pos = bar_apply.find(marker_write, live_pass_call)
+marker_write_count = bar_apply.count(marker_write)
 require(bar_ok_arm in bar_apply
         and 'echo "MOOS_BAR_OK=0' in bar_apply
         and "MOOS_BAR_REPORT=" in bar_apply
-        and live_pass_call >= 0 and marker_touch_pos > live_pass_call
-        and marker_touch_count == 1,
+        and live_pass_call >= 0 and marker_write_pos > live_pass_call
+        and marker_write_count == 1,
         "moos-bar-apply must read the live panels back through its MOOS_BAR_OK=1 "
         "sentinel (emitted ONLY in the bar=ok arm, which requires exactly one "
-        "bottom panel) and must not write the permanent revision marker unless "
-        "that readback produced OK=1")
+        "bottom panel) and must not write the permanent payload-fingerprint "
+        "marker unless that readback produced OK=1")
 
 # The migration is FILE surgery (the merge) plus a shell restart, and the ORDER
 # is load-bearing: the shell currently running still holds the PRE-merge
@@ -2558,13 +2604,17 @@ require(apply_start >= 0
         and stop_call >= 0 and stop_call < split_call
         and start_call > split_call
         and 'case "$before" in' in bar_apply
-        and 'if [ -e "$marker" ] && ok="$(live_pass)"' in bar_apply
-        and bar_apply.count('touch "$marker"') == 1
+        and 'if [ -r "$marker" ]' in bar_apply
+        and '[ "$(head -n 1 "$marker")" = "$generation" ]' in bar_apply
+        and '&& shell_applet_health' in bar_apply
+        and '&& ok="$(live_pass)"' in bar_apply
+        and bar_apply.count(marker_write) == 1
         and "moos-bar.lock" in bar_apply,
         "moos-bar-apply must stop the shell, THEN merge the appletsrc (a running "
         "shell flushes the pre-merge two-panel state back over the file on exit, "
         "leaving the split bar in place), then start the shell, and must trust the "
-        "revision marker only when the live readback agrees")
+        "payload marker only when its generation, current-shell QML health and "
+        "live readback all agree")
 
 # The live diagnostics must measure the same surface the migration owns.  A
 # user may intentionally place Kicker/KickerDash on a side or top panel; MoOS
@@ -5396,7 +5446,8 @@ require("Animation.Infinite" not in _island
         and "interval: 15000" not in _island,
         "the resident media island must not run decorative permanent pulses")
 require("running: root.playing && root.hasTimeline" in _island
-        and "(root.expanded || compactHover.hovered)" in _island,
+        and "(root.expanded || root.compactHovered)" in _island
+        and "onHoveredChanged: root.compactHovered = hovered" in _island,
         "the one-second MPRIS position refresh must sleep unless moving progress "
         "is actually visible")
 require("implicitWidth: root.active" in _island
@@ -5404,6 +5455,19 @@ require("implicitWidth: root.active" in _island
         and "opacity: root.active ? 1 : 0" in _island,
         "the direct island must be one transparent pixel at idle and expand "
         "adaptively for media/hover state")
+require("function resolvedArtworkSource()" in _island
+        and "StandardPaths.RuntimeLocation" in _island
+        and 'raw.indexOf("file:///tmp/.")' in _island
+        and 'runtime + "/.flatpak/" + match[1] + "/tmp/"' in _island
+        and _island.count("source: root.artworkSource") == 2,
+        "the island must translate Flatpak browser Media Session artwork from "
+        "its private /tmp namespace for both compact and expanded modes")
+require("root.seekTo(root.position + seekSlider.stepSize)" in _island
+        and "root.seekTo(root.position - seekSlider.stepSize)" in _island
+        and "root.setVolume(root.bounded(root.volume + 0.05, 0, 1))" in _island
+        and "root.setVolume(root.bounded(root.volume - 0.05, 0, 1))" in _island,
+        "the island sliders must commit AT-SPI increase/decrease actions to "
+        "MPRIS, clamped to the slider's own 0..1 range")
 _island_meta = json.loads(read(
     "system_files/usr/share/plasma/plasmoids/org.moos.island/metadata.json"
 ))

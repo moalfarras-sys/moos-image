@@ -14,6 +14,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
+import QtCore
 import org.kde.plasma.plasmoid
 import org.kde.plasma.core as PlasmaCore
 import org.kde.plasma.components as PC3
@@ -62,6 +63,29 @@ PlasmoidItem {
         const advertised = String(root.player.iconName || "");
         if (advertised.length > 0) { return advertised; }
         return "applications-multimedia-symbolic";
+    }
+    function resolvedArtworkSource() {
+        const raw = root.artUrl;
+        if (raw.indexOf("file:///tmp/.") !== 0) { return raw; }
+
+        // Flatpak gives each app a private /tmp, but MPRIS publishes the URL as
+        // if it were the host's /tmp. The same-user file is actually visible to
+        // plasmashell below RuntimeLocation/.flatpak/<app-id>/tmp. Chromium's
+        // Media Session uses .<reverse-dns-app-id>.<random-token> basenames, so
+        // derive the namespace from that safe basename instead of maintaining
+        // a second player/browser registry. Never carry a slash from MPRIS into
+        // the translated path.
+        const basename = raw.substring(raw.lastIndexOf("/") + 1);
+        const match = basename.match(
+            /^\.([A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+){1,})\.[A-Za-z0-9_-]+$/);
+        if (!match) { return raw; }
+        const runtimeUrl = String(StandardPaths.writableLocation(
+            StandardPaths.RuntimeLocation));
+        if (runtimeUrl.length < 1) { return raw; }
+        const runtime = runtimeUrl.indexOf("file:") === 0
+            ? runtimeUrl : "file://" + runtimeUrl;
+        return runtime + "/.flatpak/" + match[1] + "/tmp/"
+            + basename;
     }
     function formatTime(microseconds) {
         const total = Math.max(0, Math.floor(Number(microseconds || 0) / 1000000));
@@ -115,6 +139,17 @@ PlasmoidItem {
         ? String(root.player.album || "") : ""
     readonly property string artUrl: root.hasPlayer
         ? String(root.player.artUrl || "") : ""
+    // Host-installed Chromium-family browsers publish the SAME dot-prefixed
+    // /tmp basenames as their Flatpak builds, but for them the raw URL is the
+    // readable one and the translated .flatpak path does not exist. QML cannot
+    // stat a path, so the bridge is probe-driven: try the translation first
+    // (the live-proven Flatpak path); when that image errors, fall back to the
+    // raw MPRIS URL for this artwork. New artwork re-arms the bridge, so a
+    // Flatpak player after a native one still gets the translated path.
+    property bool artworkBridgeFailed: false
+    onArtUrlChanged: root.artworkBridgeFailed = false
+    readonly property string artworkSource: root.artworkBridgeFailed
+        ? root.artUrl : root.resolvedArtworkSource()
     readonly property string identity: root.hasPlayer
         ? String(root.player.identity || "") : ""
     readonly property string desktopEntry: root.hasPlayer
@@ -152,6 +187,7 @@ PlasmoidItem {
     readonly property bool hasVolume: root.hasPlayer
         && isFinite(root.volume) && root.volume >= 0
     property real lastAudibleVolume: 0.65
+    property bool compactHovered: false
 
     // Paused media remains useful. Stopped media gets a short release grace so
     // player hand-offs do not make the bar snap or flash at track boundaries.
@@ -184,7 +220,7 @@ PlasmoidItem {
         interval: 1000
         repeat: true
         running: root.playing && root.hasTimeline
-                 && (root.expanded || compactHover.hovered)
+                 && (root.expanded || root.compactHovered)
         onTriggered: if (root.player) { root.player.updatePosition(); }
     }
 
@@ -230,7 +266,10 @@ PlasmoidItem {
             }
         }
 
-        HoverHandler { id: compactHover }
+        HoverHandler {
+            id: compactHover
+            onHoveredChanged: root.compactHovered = hovered
+        }
 
         Rectangle {
             id: compactShell
@@ -254,11 +293,16 @@ PlasmoidItem {
                 anchors.fill: parent
                 acceptedButtons: Qt.LeftButton | Qt.MiddleButton
                 cursorShape: Qt.PointingHandCursor
+                // Same press-time capture as the launcher's compact button: if
+                // the expanded dialog dismissed itself on this press, release
+                // must not read the post-dismiss state and re-open it.
+                property bool wasExpanded: false
+                onPressed: wasExpanded = root.expanded
                 onClicked: mouse => {
                     if (mouse.button === Qt.MiddleButton) {
                         root.togglePlaying();
                     } else {
-                        root.expanded = !root.expanded;
+                        root.expanded = !wasExpanded;
                     }
                 }
                 onWheel: wheel => {
@@ -288,12 +332,17 @@ PlasmoidItem {
                     Image {
                         id: compactArt
                         anchors.fill: parent
-                        source: root.artUrl
+                        source: root.artworkSource
                         fillMode: Image.PreserveAspectCrop
                         asynchronous: true
                         cache: true
                         sourceSize.width: 96
-                        visible: root.artUrl.length > 0 && status === Image.Ready
+                        visible: root.artworkSource.length > 0
+                                 && status === Image.Ready
+                        onStatusChanged: if (status === Image.Error
+                                && root.artworkSource !== root.artUrl) {
+                            root.artworkBridgeFailed = true;
+                        }
                     }
                     Kirigami.Icon {
                         anchors.centerIn: parent
@@ -420,12 +469,17 @@ PlasmoidItem {
                     Image {
                         id: expandedArt
                         anchors.fill: parent
-                        source: root.artUrl
+                        source: root.artworkSource
                         fillMode: Image.PreserveAspectCrop
                         asynchronous: true
                         cache: true
                         sourceSize.width: 256
-                        visible: root.artUrl.length > 0 && status === Image.Ready
+                        visible: root.artworkSource.length > 0
+                                 && status === Image.Ready
+                        onStatusChanged: if (status === Image.Error
+                                && root.artworkSource !== root.artUrl) {
+                            root.artworkBridgeFailed = true;
+                        }
                     }
                     Kirigami.Icon {
                         anchors.centerIn: parent
@@ -498,6 +552,10 @@ PlasmoidItem {
                     enabled: root.canSeek
                     stepSize: 5000000
                     Accessible.name: root.local("موضع التشغيل", "Playback position")
+                    Accessible.onIncreaseAction:
+                        root.seekTo(root.position + seekSlider.stepSize)
+                    Accessible.onDecreaseAction:
+                        root.seekTo(root.position - seekSlider.stepSize)
                     onMoved: seekCommit.restart()
                     onPressedChanged: if (!pressed) { root.seekTo(value); }
 
@@ -583,6 +641,14 @@ PlasmoidItem {
                     to: 1
                     value: root.bounded(root.volume, 0, 1)
                     Accessible.name: root.local("مستوى الصوت", "Volume")
+                    // Clamp to the slider's own 0..1 range: root.volume is the
+                    // raw player value and setVolume's 1.5 headroom exists for
+                    // mute-restore, so unclamped +0.05 steps could push a
+                    // player to 150% while this slider reads 100%.
+                    Accessible.onIncreaseAction:
+                        root.setVolume(root.bounded(root.volume + 0.05, 0, 1))
+                    Accessible.onDecreaseAction:
+                        root.setVolume(root.bounded(root.volume - 0.05, 0, 1))
                     onMoved: volumeCommit.restart()
                     onPressedChanged: if (!pressed) { root.setVolume(value); }
 

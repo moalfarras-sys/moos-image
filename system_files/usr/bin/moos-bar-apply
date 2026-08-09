@@ -93,6 +93,65 @@ plasma_ready() {
     return 1
 }
 
+# A numeric THEME_REV is necessary for user-visible migrations, but it is not a
+# sufficient cache key. Developer previews and rebased deployments can already
+# have the same vNN marker in persistent /var/home when the immutable /usr
+# payload changes underneath it. That exact state left brand + island as two
+# Plasma error icons after an update: the marker saw the right widget ids and
+# suppressed the one recovery restart that made both packages load.
+bar_payload_generation() {
+    local payload="" file sum
+    # Overridable root so the repo gates can execute this function against the
+    # source tree and prove the digest diverges when any payload file changes.
+    local plasmoids="${MOOS_PLASMOID_ROOT:-/usr/share/plasma/plasmoids}"
+    command -v sha256sum >/dev/null 2>&1 || { printf '%s\n' "rev-${1:-0}"; return; }
+    for file in \
+        "${BASH_SOURCE[0]}" \
+        "$CONF" \
+        "${plasmoids}/${BRAND_APPLET}/metadata.json" \
+        "${plasmoids}/${BRAND_APPLET}/contents/ui/main.qml" \
+        "${plasmoids}/${BRAND_APPLET}/contents/ui/LauncherView.qml" \
+        "${plasmoids}/${ISLAND_APPLET}/metadata.json" \
+        "${plasmoids}/${ISLAND_APPLET}/contents/ui/main.qml" \
+        "${plasmoids}/${CLOCK_APPLET}/metadata.json" \
+        "${plasmoids}/${CLOCK_APPLET}/contents/ui/main.qml"; do
+        [ -r "$file" ] || continue
+        sum="$(sha256sum "$file" 2>/dev/null)" || continue
+        payload="${payload}${sum%% *}"
+    done
+    [ -n "$payload" ] || payload="rev-${1:-0}"
+    printf '%s' "$payload" | sha256sum | awk '{print $1}'
+}
+
+# Widget ids and plugin types remain present when Plasma substituted its red
+# error representation for a QML package. Read the journal for the CURRENT
+# plasmashell PID: an error from a previous process must not poison a repaired
+# session, while an Invalid-empty-URL failure in this process must never be
+# allowed to satisfy the marker fast path.
+shell_applet_health() {
+    command -v systemctl >/dev/null 2>&1 || return 0
+    command -v journalctl >/dev/null 2>&1 || return 0
+    local pid journal
+    pid="$(systemctl --user show plasma-plasmashell.service \
+        --property MainPID --value 2>/dev/null)" || return 0
+    case "$pid" in ''|0|*[!0-9]*) return 0 ;; esac
+    journal="$(journalctl --user -b "_PID=$pid" -o cat --no-pager 2>/dev/null)" \
+        || return 0
+    # All three first-party bar zones: launcher, media island AND the clock.
+    # The clock is the same pure-QML package class; omitting it re-opens the
+    # exact masked-error-icon state this function exists to close.
+    case "$journal" in
+        *"error when loading applet \"$BRAND_APPLET\""*|\
+        *"error when loading applet \"$ISLAND_APPLET\""*|\
+        *"error when loading applet \"$CLOCK_APPLET\""*)
+            printf '%s\n' "moos-bar-apply: current plasmashell PID $pid has a first-party applet load failure" \
+                >>"$log" 2>/dev/null || true
+            return 1
+            ;;
+    esac
+    return 0
+}
+
 # The shipped launcher list, with every .desktop that does not exist on this
 # machine filtered out (icontasks silently skips a launcher URL it cannot
 # resolve, so a stale entry leaves an unexplained hole instead of an error).
@@ -237,6 +296,54 @@ if island_plugin and not any(
     containment_of[island_id] = keep
     plugin_of[island_id] = island_plugin
     merged_order.append(island_id)
+
+# Retire the old system-tray child itself, not merely its extraItems load-list
+# entry. Plasma preserves nested applet sections after extraItems stops naming
+# them; the dead org.moos.island root then survives every reboot and can be
+# resurrected by a later tray/profile migration. Drop only nested roots whose
+# own plugin is the island, including their Configuration subsections. Direct
+# panel applets (four-part paths) and every unrelated tray child are untouched.
+retired_inner_roots = []
+if island_plugin:
+    for i, line in enumerate(lines):
+        parts = parts_of(line)
+        direct_tray_child = (
+            parts is not None and len(parts) == 6
+            and parts[0] == "Containments" and parts[2] == "Applets"
+            and parts[4] == "Applets"
+            and parts[1].isdigit() and parts[3].isdigit()
+            and parts[5].isdigit()
+        )
+        configuration_tray_child = (
+            parts is not None and len(parts) == 7
+            and parts[0] == "Containments" and parts[2] == "Applets"
+            and parts[4] == "Configuration" and parts[5] == "Applets"
+            and parts[1].isdigit() and parts[3].isdigit()
+            and parts[6].isdigit()
+        )
+        if not (direct_tray_child or configuration_tray_child):
+            continue
+        nested_plugin = ""
+        for j in range(i + 1, len(lines)):
+            if parts_of(lines[j]) is not None:
+                break
+            if lines[j].startswith("plugin="):
+                nested_plugin = lines[j].split("=", 1)[1].strip()
+                break
+        if nested_plugin == island_plugin:
+            retired_inner_roots.append(parts)
+
+if retired_inner_roots:
+    kept, drop_inner = [], False
+    for line in lines:
+        parts = parts_of(line)
+        if parts is not None:
+            drop_inner = any(
+                parts[:len(root)] == root for root in retired_inner_roots
+            )
+        if not drop_inner:
+            kept.append(line)
+    lines = kept
 
 # Re-order by role: configured zones first in conf order, then anything the user
 # added, in the order it already had.
@@ -669,6 +776,8 @@ restart_shell() {
 cmd_apply() {
     local rev="${1:-0}"
     local marker="${state_dir}/moos-bar-applied.v${rev}"
+    local generation
+    generation="$(bar_payload_generation "$rev")"
     plasma_ready || { echo "moos-bar-apply: plasmashell not ready; skipping" >&2; return 0; }
     # The marker means "a restart already landed and the readback agreed". It
     # is ONLY trusted when the live desktop actually shows ONE bottom capsule
@@ -676,7 +785,10 @@ cmd_apply() {
     # an earlier revision, or from the rev-30 two-slab era) must never suppress
     # the work, or the user keeps a split bar while the apply reports done.
     local ok
-    if [ -e "$marker" ] && ok="$(live_pass)"; then
+    if [ -r "$marker" ] \
+            && [ "$(head -n 1 "$marker")" = "$generation" ] \
+            && shell_applet_health \
+            && ok="$(live_pass)"; then
         echo "$ok"
         return 0
     fi
@@ -694,10 +806,27 @@ cmd_apply() {
     esac
     migrate_popup_geometry >>"$log" 2>&1 || true
     start_shell
+    local health_restarts=0
     for _ in $(seq 1 12); do
-        if ok="$(live_pass)"; then
+        if ! shell_applet_health; then
+            if [ "$health_restarts" = "0" ]; then
+                health_restarts=1
+                restart_shell || {
+                    echo "moos-bar-apply: applet recovery restart failed" >&2
+                    return 1
+                }
+                continue
+            fi
+            # The journal is append-only per PID: once the restarted shell has
+            # logged a first-party load failure this verdict can never clear
+            # within this loop, so waiting the remaining iterations only delays
+            # the truthful failure by ~20s and then mislabels it as a readback
+            # problem.
+            echo "moos-bar-apply: first-party applet still failing after the recovery restart (see $log)" >&2
+            return 1
+        elif ok="$(live_pass)"; then
             mkdir -p "$(dirname "$marker")" 2>/dev/null || true
-            touch "$marker" 2>/dev/null || true
+            printf '%s\n' "$generation" > "$marker" 2>/dev/null || true
             echo "$ok"
             return 0
         fi
@@ -712,6 +841,10 @@ cmd_check() {
     local failures=0
     if ! plasma_ready; then
         echo "bar: plasmashell not ready"
+        return 1
+    fi
+    if ! shell_applet_health; then
+        echo "bar: a first-party bar applet (launcher, island or clock) failed to load in the current plasmashell"
         return 1
     fi
     local out

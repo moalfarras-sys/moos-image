@@ -816,8 +816,8 @@ class TestMoOSUI2(unittest.TestCase):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=48", apply,
-            "existing pre-v48 users would exit before post-marker shadow quarantine, "
+            "THEME_REV=49", apply,
+            "existing pre-v49 users would exit before post-marker shadow quarantine, "
             "the Horizon Bar/theme migration, and the SVG cache purge that is the "
             "only way new Plasma Style art reaches a frozen /usr",
         )
@@ -1174,6 +1174,158 @@ class TestMoOSUI2(unittest.TestCase):
             dock,
             "the dock launcher caption must never shrink below 11px",
         )
+
+    def test_launcher_has_exactly_one_expanded_state_owner(self) -> None:
+        """A pointer click must not be toggled by QML and Plasma in turn.
+
+        The custom MouseArea owns pointer expansion, exactly like Plasma's
+        DefaultCompactRepresentation. Keyboard/Meta/accessibility use the
+        applet activation signal. Neither route may invoke the other or one
+        physical action toggles twice.
+        """
+        source = qml_code((
+            SHARE / "plasma/plasmoids/org.moos.brand/contents/ui/main.qml"
+        ).read_text(encoding="utf-8"))
+        compact = source.split("compactRepresentation: MouseArea {", 1)[1].split(
+            "fullRepresentation:", 1
+        )[0]
+
+        # The property lives on the root PlasmoidItem. The Plasmoid attached
+        # object is the Plasma::Applet, where the same assignment is a silent
+        # no-op that leaves keyboard/Meta expansion on an undeclared default.
+        self.assertIn("activationTogglesExpanded: true", source)
+        self.assertNotIn("Plasmoid.activationTogglesExpanded", source)
+        activate = compact.split("function activate() {", 1)[1].split("}", 1)[0]
+        pointer = compact.split("onClicked: mouse => {", 1)[1].split(
+            "Keys.onReturnPressed", 1
+        )[0]
+        self.assertIn("Plasmoid.activated()", activate)
+        self.assertNotIn("root.expanded", activate)
+        self.assertIn("onPressed: compact.wasExpanded = root.expanded", compact)
+        self.assertEqual(pointer.count("root.expanded = !compact.wasExpanded"), 1)
+        self.assertNotIn("Plasmoid.activated()", pointer)
+        self.assertIn("Keys.onReturnPressed", compact)
+        self.assertIn("Keys.onSpacePressed", compact)
+        self.assertIn("Accessible.onPressAction", compact)
+
+    def test_launcher_orbit_never_shows_one_application_twice(self) -> None:
+        """A preferred:// alias must retire once its target is pinned directly.
+
+        preferred://browser resolves to a concrete desktop file at display
+        time, so a user who pins that same browser sees the identical app on
+        two orbit tiles (observed live: the shipped alias next to a pinned
+        com.google.Chrome.desktop). The launcher keeps the user's concrete
+        pin — it states intent and survives a later default-browser change —
+        and removes only the redundant alias. Aliases whose target is not
+        pinned, and concrete pins themselves, must never be touched.
+        """
+        source = qml_code((
+            SHARE / "plasma/plasmoids/org.moos.brand/contents/ui/main.qml"
+        ).read_text(encoding="utf-8"))
+
+        snapshot = source.split("component FavoriteSnapshot: QtObject {", 1)[1]
+        snapshot = snapshot.split("}", 1)[0]
+        self.assertIn("required property string favoriteId", snapshot)
+        self.assertIn("required property var url", snapshot)
+
+        sync = source.split("function syncFavoriteSearchIds() {", 1)[1]
+        sync = sync.split("\n    }", 1)[0]
+        self.assertIn("root.pruneFavoriteAliasDuplicates()", sync)
+
+        prune = source.split(
+            "function pruneFavoriteAliasDuplicates() {", 1
+        )[1].split("\n    }", 1)[0]
+        self.assertIn(
+            "if (favoriteObjects.count !== root.favoriteModel.count)", prune,
+            "pruning from a partial snapshot could retire a live alias",
+        )
+        self.assertIn('indexOf("preferred://") === 0', prune)
+        self.assertIn(
+            "concreteTargets.indexOf(aliases[i].target) >= 0", prune,
+            "an alias may only retire when a concrete pin shares its target",
+        )
+        self.assertEqual(
+            prune.count("removeFavorite"), 1,
+            "the prune pass may remove aliases, never concrete pins",
+        )
+        self.assertIn("removeFavorite(aliases[i].id)", prune)
+
+    def test_media_island_bridges_flatpak_private_artwork(self) -> None:
+        """Browser MPRIS art must resolve outside Flatpak's private /tmp.
+
+        Chrome and other Flatpak players publish file:///tmp/.<app-id>.<token>
+        on the session bus. The same-user file actually lives below the
+        runtime directory's .flatpak/<app-id>/tmp tree, so plasmashell cannot
+        render it until the island translates that namespace. The app id must
+        be derived from the safe basename, never from another player registry.
+        """
+        island = qml_code((
+            SHARE / "plasma/plasmoids/org.moos.island/contents/ui/main.qml"
+        ).read_text(encoding="utf-8"))
+
+        self.assertIn("import QtCore", island)
+        self.assertIn("function resolvedArtworkSource()", island)
+        self.assertRegex(
+            island,
+            r"StandardPaths\.writableLocation\(\s*"
+            r"StandardPaths\.RuntimeLocation\s*\)",
+        )
+        self.assertIn('raw.indexOf("file:///tmp/.")', island)
+        self.assertIn('runtime + "/.flatpak/" + match[1] + "/tmp/"', island)
+        self.assertIn("property bool compactHovered: false", island)
+        self.assertIn("(root.expanded || root.compactHovered)", island)
+        self.assertNotIn("(root.expanded || compactHover.hovered)", island)
+        self.assertIn(
+            "Accessible.onIncreaseAction:\n"
+            "                        root.seekTo(root.position + seekSlider.stepSize)",
+            island,
+        )
+        # AT-SPI volume steps must stay inside the slider's declared 0..1
+        # range: root.volume is the raw player value and setVolume's 1.5
+        # headroom exists for mute-restore, so an unclamped +0.05 walk could
+        # push a player to 150% while the slider reads 100%.
+        self.assertIn(
+            "Accessible.onIncreaseAction:\n"
+            "                        root.setVolume("
+            "root.bounded(root.volume + 0.05, 0, 1))",
+            island,
+        )
+        self.assertIn(
+            "Accessible.onDecreaseAction:\n"
+            "                        root.setVolume("
+            "root.bounded(root.volume - 0.05, 0, 1))",
+            island,
+        )
+        self.assertEqual(island.count("source: root.artworkSource"), 2)
+        # Native (non-Flatpak) Chromium-family players publish the same
+        # dot-prefixed /tmp basenames, but for them the raw URL is the readable
+        # one. A failed probe of the translated path must fall back to the raw
+        # MPRIS URL, and new artwork must re-arm the bridge.
+        self.assertIn("property bool artworkBridgeFailed: false", island)
+        self.assertIn(
+            "onArtUrlChanged: root.artworkBridgeFailed = false", island)
+        self.assertIn(
+            "readonly property string artworkSource: root.artworkBridgeFailed\n"
+            "        ? root.artUrl : root.resolvedArtworkSource()",
+            island,
+        )
+        self.assertEqual(
+            island.count("root.artworkBridgeFailed = true"), 2,
+            "both compact and expanded artwork probes must arm the fallback",
+        )
+        # The compact capsule uses the launcher's press-time capture: a dialog
+        # dismissed by this press must not be re-opened by its own release.
+        self.assertIn("onPressed: wasExpanded = root.expanded", island)
+        self.assertIn("root.expanded = !wasExpanded;", island)
+        self.assertNotIn("root.expanded = !root.expanded", island)
+        for hardcoded_flatpak in (
+            "com.google.Chrome", "org.chromium.Chromium", "org.mozilla.firefox"
+        ):
+            self.assertNotIn(
+                hardcoded_flatpak,
+                island,
+                "artwork bridging must not become a second browser registry",
+            )
 
     def test_tidal_command_canvas_is_a_product_surface_not_a_menu(self) -> None:
         """Hold the premium shell composition and its zero-idle contract."""

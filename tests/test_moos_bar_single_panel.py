@@ -150,6 +150,38 @@ class SinglePanelMerge(unittest.TestCase):
         self.assertEqual(once, twice)
         self.assertEqual(len(self.bottom_panels(twice)), 1)
 
+    def test_retired_inner_tray_island_config_is_removed(self) -> None:
+        """The direct island must not leave a dead second applet in the tray.
+
+        Removing org.moos.island from extraItems stops it loading, but Plasma
+        keeps the old nested applet section forever.  It then looks like two
+        owners to diagnostics and can reappear after tray/profile migration.
+        Delete only that nested root and preserve every unrelated tray applet.
+        """
+        src = panel(
+            "398",
+            {"400": "org.kde.plasma.icontasks", "402": "org.kde.plasma.systemtray",
+             "424": BRAND, "425": ISLAND},
+            order=["424", "425", "400", "402"],
+        )
+        src += (
+            "\n[Containments][398][Applets][402][Applets][619]\n"
+            f"plugin={ISLAND}\n\n"
+            "[Containments][398][Applets][402][Applets][619]"
+            "[Configuration][General]\nlegacy=true\n\n"
+            "[Containments][398][Applets][402][Applets][620]\n"
+            "plugin=org.kde.plasma.notifications\n"
+        )
+
+        verdict, merged, _ = self.run_merge(src)
+        self.assertEqual(verdict, "reordered")
+        self.assertEqual(merged.count(f"plugin={ISLAND}"), 1,
+                         "only the direct media island may remain")
+        self.assertNotIn("[Applets][619]", merged)
+        self.assertIn("[Applets][620]", merged,
+                      "unrelated user/system tray children must survive")
+        self.assertIn("plugin=org.kde.plasma.notifications", merged)
+
     def test_three_stray_panels_all_collapse_into_the_launcher_s_panel(self) -> None:
         src = "\n".join((
             panel("10", {"11": "org.kde.plasma.systemtray"}, order=["11"]),
@@ -271,6 +303,27 @@ class SingleSourceAgreement(unittest.TestCase):
                       "readback must allow Plasma containment restore to finish")
         self.assertIn("for _ in $(seq 1 12)", apply,
                       "transient Plasma scripting startup must be retried")
+        self.assertIn("bar_payload_generation", apply,
+                      "a revision marker must be tied to the QML/bar payload, not "
+                      "only a human revision integer that can already exist")
+        self.assertIn('printf \'%s\\n\' "$generation" > "$marker"', apply,
+                      "the successful marker must record the payload generation")
+        self.assertIn('"$(head -n 1 "$marker")" = "$generation"', apply,
+                      "an empty/stale marker must force the recovery restart")
+        self.assertIn("shell_applet_health", apply,
+                      "widget counts cannot distinguish a loaded applet from "
+                      "Plasma's Invalid-empty-URL error representation")
+        health = apply.split("shell_applet_health() {", 1)[1].split("\n}", 1)[0]
+        self.assertIn("plasma-plasmashell.service", health)
+        self.assertIn("_PID=$pid", health)
+        self.assertIn("$BRAND_APPLET", health)
+        self.assertIn("$ISLAND_APPLET", health)
+        marker_fast_path = apply.split("cmd_apply() {", 1)[1].split(
+            "stop_shell", 1
+        )[0]
+        self.assertIn("shell_applet_health", marker_fast_path,
+                      "a marker must never suppress recovery while the current "
+                      "plasmashell logged a first-party applet load failure")
         self.assertIn("dock.addWidget(ISLAND_APPLET)", apply,
                       "existing profiles must receive the direct adaptive island")
         self.assertIn("island_plugin = zone_plugin.get(\"island\"", apply,
@@ -292,6 +345,97 @@ class SingleSourceAgreement(unittest.TestCase):
             "an apostrophe in the shell-single-quoted live JavaScript splits "
             "evaluateScript into multiple D-Bus parameters",
         )
+
+
+def conf_value(section: str, key: str) -> str:
+    current = None
+    for line in BAR_CONF.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if re.match(r"^\[(.+)\]$", line):
+            current = line[1:-1]
+        elif current == section and line.startswith(key + "="):
+            return line.split("=", 1)[1]
+    return ""
+
+
+def fingerprint_function() -> str:
+    """bar_payload_generation() out of the shipped script, verbatim."""
+    text = BAR_APPLY.read_text(encoding="utf-8")
+    body = text.split("bar_payload_generation() {", 1)[1]
+    return "bar_payload_generation() {" + body.split("\n}\n", 1)[0] + "\n}\n"
+
+
+class PayloadFingerprint(unittest.TestCase):
+    """The marker is a payload digest, not a revision string — executed.
+
+    Rev 48's marker only proved a revision number had been applied once, so a
+    deployment that changed the immutable payload underneath the same number
+    kept a broken bar behind the fast path. A string grep cannot prove the fix:
+    this runs the shipped function and asserts its defining property — the
+    digest moves when ANY first-party bar package changes, including the clock,
+    whose omission was the exact residual hole found in review.
+    """
+
+    def run_generation(self, plasmoid_root: Path) -> str:
+        clock = conf_value("clock", "applet")
+        assert clock, "moos-bar.conf must name the clock applet"
+        script = (
+            fingerprint_function()
+            + f'CONF="{BAR_CONF}"\n'
+            + f'BRAND_APPLET="{BRAND}"\n'
+            + f'ISLAND_APPLET="{ISLAND}"\n'
+            + f'CLOCK_APPLET="{clock}"\n'
+            + f'MOOS_PLASMOID_ROOT="{plasmoid_root}"\n'
+            + "bar_payload_generation 49\n"
+        )
+        proc = subprocess.run(
+            ["bash", "-"], input=script, capture_output=True, text=True,
+            check=True,
+        )
+        return proc.stdout.strip()
+
+    def test_generation_digests_every_first_party_bar_package(self) -> None:
+        import shutil
+
+        clock = conf_value("clock", "applet")
+        source = ROOT / "system_files/usr/share/plasma/plasmoids"
+        with tempfile.TemporaryDirectory() as tmp:
+            plasmoids = Path(tmp) / "plasmoids"
+            for package in (BRAND, ISLAND, clock):
+                shutil.copytree(source / package, plasmoids / package)
+
+            baseline = self.run_generation(plasmoids)
+            self.assertRegex(
+                baseline, r"^[0-9a-f]{64}$",
+                "the marker content must be a payload digest, not rev-N",
+            )
+            self.assertEqual(
+                baseline, self.run_generation(plasmoids),
+                "the digest must be deterministic for an unchanged payload",
+            )
+
+            for package in (BRAND, ISLAND, clock):
+                target = plasmoids / package / "contents/ui/main.qml"
+                original = target.read_text(encoding="utf-8")
+                target.write_text(original + "\n// payload drift\n",
+                                  encoding="utf-8")
+                changed = self.run_generation(plasmoids)
+                target.write_text(original, encoding="utf-8")
+                self.assertNotEqual(
+                    baseline, changed,
+                    f"a {package} payload change must move the digest, or an "
+                    "update leaves its error icon behind the marker fast path",
+                )
+
+    def test_shell_health_watches_all_three_bar_applets(self) -> None:
+        apply = BAR_APPLY.read_text(encoding="utf-8")
+        health = apply.split("shell_applet_health() {", 1)[1].split("\n}\n", 1)[0]
+        for var in ("BRAND_APPLET", "ISLAND_APPLET", "CLOCK_APPLET"):
+            self.assertIn(
+                f'*"error when loading applet \\"${var}\\""*', health,
+                f"shell_applet_health must veto the marker fast path when "
+                f"{var} fails to load",
+            )
 
 
 if __name__ == "__main__":
