@@ -42,7 +42,7 @@ blurEnabled=true
 
 [kwinrc][Effect-blur]
 BlurStrength=15
-NoiseStrength=1
+NoiseStrength=3
 
 [kcminputrc][Mouse]
 cursorTheme=MoOSDark

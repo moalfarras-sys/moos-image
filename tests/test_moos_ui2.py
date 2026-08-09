@@ -10,7 +10,6 @@ copy without touching the working tree.
 
 from __future__ import annotations
 
-import ast
 import configparser
 import hashlib
 import json
@@ -1855,83 +1854,35 @@ class TestMoOSUI2(unittest.TestCase):
                             )
 
     def test_every_theme_keeps_one_safe_kwin_frost_profile(self) -> None:
-        """Applying a family member must not silently weaken or overdrive blur.
-
-        BLUR is the safety property and it is absolute: 15 for every profile,
-        because higher values have shipped unreadable surfaces on the real
-        machine. That has not changed.
-
-        GRAIN is no longer shared. This gate used to require every profile to
-        carry the same NoiseStrength as the system default, which is what kept
-        all sixteen families identical apart from hue — the deliberate
-        "one shared frost" decision. That decision is now replaced by a
-        narrower one: grain is a per-mood finish, and each profile must carry
-        EXACTLY the value its own declared mood maps to. That is stricter than
-        the old rule, not looser: before, any profile whose grain happened to
-        equal 3 passed; now a profile that drifts to a value its mood does not
-        declare fails, and so does a mood table that grows an unsafe value.
-        """
+        """Applying a family member must not silently weaken or overdrive blur."""
         shipped_kwin = load_kconfig(ROOT / "system_files/etc/xdg/kwinrc")
         expected_strength = shipped_kwin["Effect-blur"]["BlurStrength"]
+        expected_noise = shipped_kwin["Effect-blur"]["NoiseStrength"]
         self.assertEqual(
             expected_strength, "15",
             "KWin's supported blur range tops out at 15; the shipped profile drifted",
         )
-        self.assertEqual(shipped_kwin["Effect-blur"]["NoiseStrength"], "3",
-                         "the system default grain is the cosmic reference finish")
-
-        # Read the mapping and the theme table from the generator itself, so
-        # this can never assert a hand-copied expectation that has drifted.
-        generator = (ROOT / "artwork/generate_moos_themes.py").read_text(
-            encoding="utf-8")
-        mood_noise = ast.literal_eval(
-            generator.split("MOOD_NOISE = ", 1)[1].split("\n", 1)[0])
-        self.assertTrue(mood_noise, "the mood->grain table vanished")
-        for mood, value in mood_noise.items():
-            self.assertTrue(
-                isinstance(value, int) and 0 <= value <= 10,
-                f"mood {mood!r} maps to an out-of-range grain {value!r}")
-        # Parse each dict(...) entry as a unit: lnf and mood appear in either
-        # order across the table, so a single ordered regex silently missed two
-        # profiles and would have let them drift unchecked.
-        moods: dict[str, str] = {}
-        table = generator.split("THEMES = {", 1)[1].split("\n}\n", 1)[0]
-        for entry in table.split("dict(")[1:]:
-            lnf = re.search(r'lnf="(org\.moos\.ui2[^"]*)"', entry)
-            mood = re.search(r'mood="([a-z]+)"', entry)
-            if lnf and mood:
-                moods[lnf.group(1)] = mood.group(1)
-        # The Graphite/Tidal base pair is emitted by generate_moos_ui2.py, not
-        # by this table, and carries the reference finish the rest are tuned
-        # against — so it is the cosmic default rather than an unchecked hole.
-        self.assertGreaterEqual(len(moods), 14,
-                                "could not read the family profiles' moods")
-        moods.setdefault("org.moos.ui2", "cosmic")
-        moods.setdefault("org.moos.ui2.light", "cosmic")
+        self.assertEqual(expected_noise, "3")
 
         defaults_files = sorted(
             (SHARE / "plasma/look-and-feel").glob("org.moos.ui2*/contents/defaults")
         )
         self.assertEqual(
             len(defaults_files), 16,
-            "the complete eight-pair MoOS UI family must ship together",
+            "the complete eight-pair MoOS UI family must share one frost profile",
         )
         for defaults_path in defaults_files:
             defaults = load_kconfig(defaults_path)
-            package = defaults_path.parent.parent.name
-            with self.subTest(look_and_feel=package):
+            with self.subTest(look_and_feel=defaults_path.parent.parent.name):
                 self.assertEqual(
                     defaults["kwinrc][Effect-blur"]["BlurStrength"],
                     expected_strength,
                     "applying this theme weakens or overdrives the shared KWin frost",
                 )
-                self.assertIn(package, moods,
-                              "this package declares no mood in the generator")
                 self.assertEqual(
                     defaults["kwinrc][Effect-blur"]["NoiseStrength"],
-                    str(mood_noise[moods[package]]),
-                    f"{package} declares mood {moods[package]!r} but ships a "
-                    "grain that mood does not map to",
+                    expected_noise,
+                    "applying this theme changes the shared frost grain",
                 )
 
     def test_family_wallpaper_exports_crop_without_distortion(self) -> None:
@@ -1983,45 +1934,6 @@ class TestMoOSUI2(unittest.TestCase):
             delta=0.08,
             msg="crop-to-fill changed a square artwork element's proportions",
         )
-
-    def test_families_differ_in_finish_not_only_in_hue(self) -> None:
-        """Sixteen profiles that differ only in colour are a palette list.
-
-        Every profile shipped the identical NoiseStrength, so "MoOS Arena" for
-        gaming and "MoOS Scholar" for study were the same interface in another
-        hue. `mood` was already declared per theme and already shaped the
-        wallpaper; the glass it sits on ignored it. Grain is the axis that can
-        carry that personality without touching legibility — and BlurStrength
-        stays pinned at the documented ceiling for every one of them, because
-        higher values have shipped unreadable surfaces on the real machine.
-        """
-        defaults = sorted(
-            (SHARE / "plasma/look-and-feel").glob("org.moos.ui2*/contents/defaults")
-        )
-        self.assertGreaterEqual(len(defaults), 16,
-                                "expected the sixteen generated profiles")
-
-        blur: set[str] = set()
-        noise: set[str] = set()
-        for path in defaults:
-            text = path.read_text(encoding="utf-8")
-            section = text.split("[kwinrc][Effect-blur]", 1)
-            self.assertEqual(len(section), 2,
-                             f"{path.parts[-3]} has no blur section")
-            body = section[1]
-            for line in body.splitlines():
-                if line.startswith("BlurStrength="):
-                    blur.add(line.split("=", 1)[1].strip())
-                elif line.startswith("NoiseStrength="):
-                    noise.add(line.split("=", 1)[1].strip())
-
-        self.assertEqual(blur, {"15"},
-                         "BlurStrength is a hard ceiling for every profile; "
-                         f"found {sorted(blur)}")
-        self.assertGreaterEqual(
-            len(noise), 3,
-            "the families must differ in finish, not only in hue — every "
-            f"profile still ships the same grain {sorted(noise)}")
 
     def test_every_moos_mark_decodes_at_its_device_size(self) -> None:
         """A literal sourceSize is a decode CAP, and it softened the hero mark.
