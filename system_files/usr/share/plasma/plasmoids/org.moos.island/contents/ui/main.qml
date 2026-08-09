@@ -236,9 +236,15 @@ PlasmoidItem {
         property bool revealed: true
         property bool controlEnabled: true
         property string label: ""
+        // The one action the surface exists for gets a filled plate and more
+        // room; everything else stays a ghost. The expanded popup used to give
+        // play/pause, previous and next the same bare glyph at the same
+        // weight, so nothing said which one was the point.
+        property bool primary: false
+        property real slotSize: control.primary ? 52 : 30
         signal activated
 
-        readonly property real slotSize: 30
+        readonly property real glyphSize: Math.round(control.slotSize * 0.5)
 
         Layout.preferredWidth: control.revealed ? control.slotSize : 0
         Layout.preferredHeight: control.slotSize
@@ -272,9 +278,13 @@ PlasmoidItem {
                 id: controlPlate
                 anchors.fill: parent
                 radius: width / 2
-                color: Qt.alpha(Kirigami.Theme.textColor,
-                                controlTap.pressed ? 0.18
-                                    : (controlHover.hovered ? 0.10 : 0.0))
+                color: control.primary
+                    ? Qt.alpha(Kirigami.Theme.highlightColor,
+                               controlTap.pressed ? 1.0
+                                   : (controlHover.hovered ? 0.92 : 0.82))
+                    : Qt.alpha(Kirigami.Theme.textColor,
+                               controlTap.pressed ? 0.18
+                                   : (controlHover.hovered ? 0.10 : 0.0))
                 Behavior on color {
                     ColorAnimation { duration: root.motionFast }
                 }
@@ -283,9 +293,10 @@ PlasmoidItem {
             Kirigami.Icon {
                 id: controlIcon
                 anchors.centerIn: parent
-                width: 16
-                height: 16
-                color: Kirigami.Theme.textColor
+                width: control.glyphSize
+                height: control.glyphSize
+                color: control.primary ? Kirigami.Theme.highlightedTextColor
+                                       : Kirigami.Theme.textColor
                 scale: controlTap.pressed ? 0.86 : 1.0
                 Behavior on scale {
                     NumberAnimation {
@@ -374,6 +385,22 @@ PlasmoidItem {
         visible: opacity > 0
         clip: true
 
+        // Arrive, do not blink into place. The capsule only ever faded, so
+        // media starting felt like a redraw rather than something appearing on
+        // the bar. A short settle from slightly under full size gives it a
+        // physical entrance without a novelty bounce beside working app icons,
+        // and it scales about the capsule's own centre so the neighbours never
+        // move. Both ends of the scale are gated by motionEnabled, so with
+        // animations off the capsule simply is there.
+        transformOrigin: Item.Center
+        scale: root.active ? 1.0 : (root.motionEnabled ? 0.88 : 1.0)
+        Behavior on scale {
+            NumberAnimation {
+                duration: root.motionGeometry
+                easing.type: root.design.easeEmphasis
+            }
+        }
+
         Behavior on implicitWidth {
             NumberAnimation {
                 duration: root.motionGeometry
@@ -436,16 +463,29 @@ PlasmoidItem {
                 Accessible.description: root.displaySource
             }
 
-            RowLayout {
+            // A COLUMN, not two anchored siblings. The content row and the
+            // timeline used to be anchored children of the same shell, and
+            // anchors do not reserve anything from each other — so the
+            // hairline drew straight across the source caption and no amount
+            // of bottomMargin on the row fixed it, because the row's children
+            // still sized themselves against the full shell. A column cannot
+            // overlap: the lane takes its height first and the row gets what
+            // is genuinely left.
+            ColumnLayout {
                 anchors.fill: parent
                 // A pill's rim curves INWARD, so a flat margin lets the corner
                 // eat whatever sits at the ends: the cover art was tangent to
                 // the curve on one side and the caption was clipped by it on
-                // the other. Inset the ends by the same amount the widest
-                // child needs to clear that curve, and keep the inner rhythm
-                // tight so the cluster reads as one control, not four.
+                // the other.
                 anchors.leftMargin: root.design.space2
                 anchors.rightMargin: root.design.space2
+                anchors.topMargin: 2
+                anchors.bottomMargin: 2
+                spacing: 1
+
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
                 spacing: root.design.space1
                 layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
@@ -563,14 +603,26 @@ PlasmoidItem {
                         }
                     }
 
+                    // FIXED line boxes, not the font's own. An Arabic-capable UI
+                    // font carries a tall ascent/descent, so two natural line
+                    // boxes came to roughly 41 px inside a 46 px capsule that
+                    // also has to hold the timeline lane — the caption was
+                    // pushed onto the pill's curve and the progress hairline
+                    // drew straight through it. Pinning both lines makes the
+                    // block 32 px whatever script it renders, so the capsule
+                    // holds title, source and timeline at its real height and
+                    // stays correct if the bar is ever made shorter.
                     PC3.Label {
                         Layout.fillWidth: true
                         text: root.displayTrack
                         color: Kirigami.Theme.textColor
                         font.pixelSize: root.design.typeSecondary
                         font.weight: Font.DemiBold
+                        lineHeightMode: Text.FixedHeight
+                        lineHeight: 17
                         elide: Text.ElideRight
                         maximumLineCount: 1
+                        verticalAlignment: Text.AlignVCenter
                         horizontalAlignment: root.rtl ? Text.AlignRight
                                                       : Text.AlignLeft
                     }
@@ -579,8 +631,11 @@ PlasmoidItem {
                         text: root.displaySource
                         color: Kirigami.Theme.disabledTextColor
                         font.pixelSize: root.design.typeCaption
+                        lineHeightMode: Text.FixedHeight
+                        lineHeight: 15
                         elide: Text.ElideRight
                         maximumLineCount: 1
+                        verticalAlignment: Text.AlignVCenter
                         horizontalAlignment: root.rtl ? Text.AlignRight
                                                       : Text.AlignLeft
                     }
@@ -629,15 +684,47 @@ PlasmoidItem {
                 }
             }
 
-            Rectangle {
-                anchors.left: parent.left
-                anchors.bottom: parent.bottom
-                width: parent.width * root.progress
-                height: 2
-                radius: 1
+            // The progress hairline had two defects, and both were visible.
+            // It was anchored to the pill's BOTTOM EDGE, but that edge is a
+            // curve, so a flat bar ran straight past it at each end and read
+            // as a stray line under the capsule instead of part of it. And it
+            // was anchored to parent.LEFT in every language, so in Arabic —
+            // where the whole capsule is mirrored — it grew away from the
+            // start of the track and appeared to drain as the media played.
+            // Inset by the corner radius so it lives in the capsule's straight
+            // middle, give it a track so the remaining time is legible too,
+            // mirror the fill for RTL, and let it travel instead of jumping
+            // between the one-second position samples.
+            Item {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 3
+                Layout.leftMargin: compactShell.radius * 0.35
+                Layout.rightMargin: compactShell.radius * 0.35
                 visible: root.hasTimeline
-                color: Kirigami.Theme.highlightColor
-                opacity: 0.9
+
+                Rectangle {
+                    anchors.fill: parent
+                    radius: height / 2
+                    color: Qt.alpha(Kirigami.Theme.textColor, 0.14)
+                }
+                Rectangle {
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    anchors.left: root.rtl ? undefined : parent.left
+                    anchors.right: root.rtl ? parent.right : undefined
+                    width: parent.width * root.progress
+                    radius: height / 2
+                    color: Kirigami.Theme.highlightColor
+                    // A settle, not a crawl: position only arrives while the
+                    // capsule is hovered or open, so this never runs at rest.
+                    Behavior on width {
+                        NumberAnimation {
+                            duration: root.motionFast
+                            easing.type: Easing.OutCubic
+                        }
+                    }
+                }
+            }
             }
         }
     }
@@ -785,55 +872,61 @@ PlasmoidItem {
                 }
             }
 
+            // The same control language as the capsule, one step up in size,
+            // with the primary action finally reading as primary.
             RowLayout {
                 Layout.alignment: Qt.AlignHCenter
-                spacing: root.design.space3
+                spacing: root.design.space4
 
-                PC3.ToolButton {
-                    enabled: root.canGoPrevious
-                    icon.name: root.rtl ? "media-skip-forward-symbolic"
-                                        : "media-skip-backward-symbolic"
-                    display: PC3.AbstractButton.IconOnly
-                    Accessible.name: root.local("السابق", "Previous")
-                    onClicked: root.player.Previous()
+                MediaControl {
+                    slotSize: 40
+                    controlEnabled: root.canGoPrevious
+                    iconName: root.rtl ? "media-skip-forward-symbolic"
+                                       : "media-skip-backward-symbolic"
+                    label: root.local("السابق", "Previous")
+                    onActivated: root.player.Previous()
                 }
-                PC3.ToolButton {
-                    Layout.preferredWidth: 52
-                    Layout.preferredHeight: 52
-                    enabled: root.playing ? root.canPause
-                                          : (root.canPlay || root.canControl)
-                    icon.name: root.playing ? "media-playback-pause-symbolic"
-                                            : "media-playback-start-symbolic"
-                    display: PC3.AbstractButton.IconOnly
-                    Accessible.name: root.playing
-                        ? root.local("إيقاف مؤقت", "Pause")
-                        : root.local("تشغيل", "Play")
-                    onClicked: root.togglePlaying()
+                MediaControl {
+                    primary: true
+                    controlEnabled: root.playing
+                        ? root.canPause : (root.canPlay || root.canControl)
+                    iconName: root.playing ? "media-playback-pause-symbolic"
+                                           : "media-playback-start-symbolic"
+                    label: root.playing ? root.local("إيقاف مؤقت", "Pause")
+                                        : root.local("تشغيل", "Play")
+                    onActivated: root.togglePlaying()
                 }
-                PC3.ToolButton {
-                    enabled: root.canGoNext
-                    icon.name: root.rtl ? "media-skip-backward-symbolic"
-                                        : "media-skip-forward-symbolic"
-                    display: PC3.AbstractButton.IconOnly
-                    Accessible.name: root.local("التالي", "Next")
-                    onClicked: root.player.Next()
+                MediaControl {
+                    slotSize: 40
+                    controlEnabled: root.canGoNext
+                    iconName: root.rtl ? "media-skip-backward-symbolic"
+                                       : "media-skip-forward-symbolic"
+                    label: root.local("التالي", "Next")
+                    onActivated: root.player.Next()
                 }
             }
 
+            // Volume is SECONDARY. It used to run the popup's full width with
+            // the same weight as the seek bar, so the surface read as two equal
+            // timelines; inset and shortened, the seek bar keeps the hierarchy.
             RowLayout {
                 Layout.fillWidth: true
+                Layout.leftMargin: root.design.space5
+                Layout.rightMargin: root.design.space5
+                Layout.topMargin: root.design.space1
                 visible: root.hasVolume
                 spacing: root.design.space2
 
-                PC3.ToolButton {
-                    icon.name: root.volume <= 0.01
+                MediaControl {
+                    slotSize: 28
+                    controlEnabled: root.hasVolume
+                    iconName: root.volume <= 0.01
                         ? "audio-volume-muted-symbolic"
                         : "audio-volume-high-symbolic"
-                    display: PC3.AbstractButton.IconOnly
-                    Accessible.name: root.volume <= 0.01
+                    label: root.volume <= 0.01
                         ? root.local("إلغاء الكتم", "Unmute")
                         : root.local("كتم", "Mute")
-                    onClicked: root.toggleMuted()
+                    onActivated: root.toggleMuted()
                 }
                 PC3.Slider {
                     id: volumeSlider
