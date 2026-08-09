@@ -26,9 +26,14 @@
 # alone is insufficient.  The live root has only a ~1.2-GiB writable overlay,
 # while importing MoOS needs multi-GiB temporary blobs.
 # The staging subvolume uses the target disk, is deleted after the copy, and never
-# consumes RAM-overlay space. Uses the LOCAL copy if the ISO embedded it (offline)
-# else pulls it (online). After install it re-arms SIGNED day-2 verification (origin
-# rewrite), so every future `bootc upgrade` verifies the cosign signature.
+# consumes RAM-overlay space. bootc's built-in finalizer cannot be used with that
+# sibling: it remounts the whole Btrfs filesystem read-only while the image proxy
+# still owns temporary files on bootc-stage, so a completed copy fails at 86% with
+# EROFS. We therefore use --skip-finalize, remove the sibling, seed the target, then
+# perform bootc's fstrim/freeze/read-only-flush contract ourselves on the now-sole
+# Btrfs mount. Uses the LOCAL copy if the ISO embedded it (offline) else pulls it
+# (online). After install it re-arms SIGNED day-2 verification (origin rewrite), so
+# every future `bootc upgrade` verifies the cosign signature.
 #
 # SAFETY: refuses to run outside a live boot, refuses the live medium (and refuses a
 # removable target if it cannot determine the live medium), refuses a non-block dev.
@@ -359,6 +364,7 @@ run_install() {
         --source-imgref "$SRC" \
         --target-transport registry --target-imgref "$TARGET_IMGREF" \
         --skip-fetch-check \
+        --skip-finalize \
         --generic-image \
         "$TARGET_ROOT" 2>&1
 }
@@ -470,6 +476,59 @@ seed_target() {
     [ -n "$etc" ]
 }
 
+# ── Deferred target finalization ──────────────────────────────────────────────
+# bootc normally trims, freezes, and remounts the target read-only, but it cannot
+# do that while its image proxy owns a writable
+# sibling on the same Btrfs superblock. Run the same safety contract only after
+# cleanup_target removed that sibling and seed_target wrote the account recipe.
+finalize_target_filesystem() {
+    local part mnt=/run/moos-finalize-root thawed=0
+    part="$(lsblk -nrpo NAME,FSTYPE "$NODE" 2>/dev/null | awk '$2=="btrfs"{print $1; exit}')"
+    [ -n "$part" ] || { echo "finalize: no btrfs partition found" >>"$LOG"; return 1; }
+
+    mkdir -p "$mnt"
+    mountpoint -q "$mnt" 2>/dev/null && umount "$mnt" >>"$LOG" 2>&1 || true
+    mount -o subvolid=5 "$part" "$mnt" 2>>"$LOG" \
+        || { echo "finalize: top-level mount failed" >>"$LOG"; return 1; }
+
+    # cleanup_target normally deleted this already. Check again from a fresh
+    # top-level mount so a quiet cleanup failure cannot ship 10+ GiB of scratch
+    # data or leave the target in a state we never finalized.
+    if [ -d "$mnt/bootc-stage" ]; then
+        btrfs subvolume delete "$mnt/bootc-stage" >>"$LOG" 2>&1 \
+            || { echo "finalize: could not delete bootc-stage" >>"$LOG"; umount "$mnt" 2>>"$LOG" || true; return 1; }
+    fi
+    [ ! -d "$mnt/bootc-stage" ] \
+        || { echo "finalize: bootc-stage still exists" >>"$LOG"; umount "$mnt" 2>>"$LOG" || true; return 1; }
+
+    fstrim --quiet-unsupported -v "$mnt" >>"$LOG" 2>&1 \
+        || { echo "finalize: fstrim failed" >>"$LOG"; umount "$mnt" 2>>"$LOG" || true; return 1; }
+    sync -f "$mnt" >>"$LOG" 2>&1 \
+        || { echo "finalize: sync failed" >>"$LOG"; umount "$mnt" 2>>"$LOG" || true; return 1; }
+
+    # Freeze while writable (Btrfs rejects bootc's freeze-after-read-only order),
+    # thaw immediately, then remount read-only to surface background writeback
+    # errors. The installed kernel still receives bootc's normal `rw` karg.
+    fsfreeze -f "$mnt" >>"$LOG" 2>&1 \
+        || { echo "finalize: fsfreeze failed" >>"$LOG"; umount "$mnt" 2>>"$LOG" || true; return 1; }
+    if fsfreeze -u "$mnt" >>"$LOG" 2>&1; then
+        thawed=1
+    else
+        # One retry is defensive: never attempt a remount/unmount while frozen.
+        fsfreeze -u "$mnt" >>"$LOG" 2>&1 && thawed=1 || true
+    fi
+    [ "$thawed" = "1" ] \
+        || { echo "finalize: could not thaw filesystem" >>"$LOG"; return 1; }
+    mount -o remount,ro "$mnt" >>"$LOG" 2>&1 \
+        || { echo "finalize: read-only flush failed" >>"$LOG"; umount "$mnt" 2>>"$LOG" || true; return 1; }
+    umount "$mnt" >>"$LOG" 2>&1 \
+        || { echo "finalize: final unmount failed" >>"$LOG"; return 1; }
+    rmdir "$mnt" 2>/dev/null || true
+    echo "finalize: target trimmed, journal-flushed, and cleanly unmounted" >>"$LOG"
+    return 0
+}
+
+# The actual UEFI registration follows the deferred filesystem finalizer.
 # ── UEFI boot entry ───────────────────────────────────────────────────────────
 # `bootc install --generic-image` deliberately does NOT write a UEFI NVRAM boot
 # entry (a generic image is meant to be portable/re-imaged). On a real machine that
@@ -517,6 +576,8 @@ if [ "$rc" -eq 0 ]; then
     phase finalize; raise 99
     seed_target || { echo "target seeding failed; refusing to report an unusable install" >>"$LOG"; fail "seed-failed"; }
     register_uefi_boot || echo "uefi: boot entry NOT registered — user may need to pick the disk in the firmware menu (check log)" >>"$LOG"
+    finalize_target_filesystem \
+        || { echo "target filesystem finalization failed; refusing to report a partial install" >>"$LOG"; fail "disk-io"; }
     prog 100
     emit "DONE"
     exit 0
