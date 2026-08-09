@@ -46,16 +46,23 @@ fi
 # org.qt-project.qml-qt6, so Plasma cannot match this window to
 # org.moos.welcome.desktop and shows the generic green Qt icon. The shell sets the
 # real app_id. (Same fix as /usr/bin/moai — see build_files/moos-qml-shell.cpp.)
+# --cache is the STORE's job directory. The hardware plan moos-firstrun writes
+# in the background gets a path of its own rather than being filed under a name
+# that does not describe it — and pure QML has no HOME, so every path it reads
+# has to arrive as an argument.
+DEVICE_PLAN="${XDG_CACHE_HOME:-$HOME/.cache}/moos/device-plan.json"
+
 if [ -x /usr/bin/moos-qml-shell ]; then
     exec /usr/bin/moos-qml-shell \
         --app-id org.moos.welcome --icon moos-welcome --qml "$QML" \
-        -- --cache="$CACHEDIR" --live="$LIVE"
+        -- --cache="$CACHEDIR" --live="$LIVE" --device-plan="$DEVICE_PLAN"
 fi
 
 # Fallback: wrong icon beats no window.
 for runner in qml-qt6 /usr/lib64/qt6/bin/qml qml6 qml; do
     if command -v "$runner" >/dev/null 2>&1 || [ -x "$runner" ]; then
-        exec "$runner" "$QML" -- --cache="$CACHEDIR" --live="$LIVE"
+        exec "$runner" "$QML" -- --cache="$CACHEDIR" --live="$LIVE" \
+            --device-plan="$DEVICE_PLAN"
     fi
 done
 echo "MoOS Welcome: no Qt6 QML runtime found (install qt6-qtdeclarative-devel). | لا يوجد محرّك QML." >&2

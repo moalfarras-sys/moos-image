@@ -40,6 +40,27 @@ plasma_ready() {
 }
 for _ in $(seq 1 40); do plasma_ready && break; sleep 1; done
 
+# Read the machine WHILE the Welcome opens, never before it. moos-device-plan
+# shells out to lspci/fwupdmgr/flatpak and takes tens of seconds; running it
+# inline would hold the first screen of a brand-new system hostage to a
+# hardware probe. The Welcome polls for this file and shows its "we read your
+# device" card only if an important, one-action gap is found (today: an NVIDIA
+# GPU running without the NVIDIA image). Written atomically so the Welcome can
+# never parse half a document, and entirely best-effort: every failure here
+# just means the card does not appear.
+if command -v moos-device-plan >/dev/null 2>&1; then
+    (
+        _cache="${XDG_CACHE_HOME:-$HOME/.cache}/moos"
+        mkdir -p "$_cache" 2>/dev/null || exit 0
+        _tmp="${_cache}/device-plan.json.partial.$$"
+        if timeout 120 moos-device-plan --compact >"$_tmp" 2>/dev/null \
+                && [ -s "$_tmp" ]; then
+            mv -f "$_tmp" "${_cache}/device-plan.json" 2>/dev/null || true
+        fi
+        rm -f "$_tmp" 2>/dev/null || true
+    ) &
+fi
+
 # Preferred: the premium Welcome. moos-welcome has its own QML-runtime fallback
 # chain and logs; if it can't launch it exits non-zero and we fall back below.
 if command -v moos-welcome >/dev/null 2>&1; then
