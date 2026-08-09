@@ -1,7 +1,30 @@
 # Unified Experience Continuation
 
 Date: 2026-08-09
-Branch: `fix/iso-offline-additional-store`
+Branch: `fix/installer-subvolume-grub`
+
+## 2026-08-09 — installer success was not boot success; EFI redirect fixed
+
+Signed ISO `44.20260809.571` completed the real no-NIC install and displayed
+“MoOS is installed”, proving the deferred Btrfs finalizer fixed `.570`'s 86%
+EROFS failure. The mandatory next step — booting that exact target with the ISO
+removed — exposed a second fault: GRUB reached its prompt but had no MoOS menu.
+
+The installer deliberately deploys into a Btrfs `root` subvolume so its large
+offline image proxy can use and then delete a sibling `bootc-stage`. GRUB starts
+from tree ID 5 and the stock EFI redirect therefore looked for `/boot/grub2` in
+the wrong tree. Manual diagnosis on the installed disk proved the complete
+contract: `blscfg` needs `/root/boot/loader/entries`, while config, kernel and
+initrd resolution need `btrfs_relative_path=y` + `btrfs_subvol=/root`. With all
+parts set, the real `MoOS (ostree:0)` entry loaded and the disk reached the MoOS
+login greeter.
+
+`moos-install-to-disk` now installs that Btrfs-aware redirect atomically after
+bootc and refuses to report success if the ESP cannot be patched, synced and
+unmounted. `verify_user_experience.py` pins every required GRUB variable and the
+fail-closed call. The release gate is intentionally unchanged: build a newly
+signed ISO, install with no NIC, remove the ISO, and prove the generated target
+boots without manual GRUB input.
 
 ## 2026-08-09 — shell finish pass + adaptive MPRIS island (THEME_REV 48)
 

@@ -4,7 +4,7 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-08-09, visual finish + offline-install correction branch.
+Last updated: 2026-08-09, visual finish + offline-install/boot correction branch.
 
 The current working branch continues the Unified MoOS Experience without
 replacing its architecture. THEME_REV 48 makes the Horizon Hub cardless and
@@ -40,6 +40,19 @@ seeds the target, then performs trim, sync, freeze/thaw, read-only flush and
 clean unmount. Gates and a full compose pass. Do not claim the fix complete
 until a newly signed ISO performs a full offline install and the resulting disk
 boots without the ISO.
+
+That exact rule caught a second defect in signed ISO `.571`: the corrected
+finalizer completed and the real installer displayed “MoOS is installed”, but
+the same disk with the ISO removed stopped at `grub>`. The target-backed staging
+layout deploys MoOS into the Btrfs `root` subvolume; the stock EFI redirect starts
+at tree ID 5, so it could not find `/boot/grub2`, the BLS entry, kernel or initrd.
+The installer now rewrites only that small external redirect after bootc has laid
+down the signed shim/GRUB payload: it selects the `root` subvolume for runtime
+paths while retaining the tree-ID-5 BLS path. This is mandatory and fail-closed.
+The exact commands were proved against `.571`: the MoOS BLS entry appeared and
+the installed disk reached the MoOS login greeter. Release closure still requires
+the same proof from a newly signed ISO so the generated redirect, not a manual
+GRUB command, is what performed the boot.
 
 The previous `.567` deployment facts below remain valid historical proof.
 
