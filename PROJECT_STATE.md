@@ -67,6 +67,34 @@ press in the compact capsule so a dialog dismissed by the press is not
 re-opened by its own release. It has no permanent decorative animation; its
 only polling timer sleeps unless playing progress is visible.
 
+Shell finish: the bar capsules no longer hardcode their own glass alpha.
+`MoUI.Tokens.glassDensity()` derives it from the palette — 0.86 for the
+true-black families, 0.80 for the light ones, 0.72 (the tuned reference) for
+the rest including the default — so a family's finish follows its own colours
+with no new channel to plumb. This replaced an attempt to vary KWin's
+`NoiseStrength` per family, which was **measured inert**: 1 vs 5 and even 0 vs
+30 moved 0.000 mean per-channel on the panel, because KWin blur governs what
+shows THROUGH a translucent window and has no say over an alpha QML paints
+itself. Do not reach for a KWin blur key to change how a MoOS surface feels.
+
+Media island: one `MediaControl` component owns every transport control in both
+representations (same geometry, resting transparency, glass fill, press-scale),
+with the expanded play/pause a filled primary and prev/next ghosts. The compact
+capsule is a ColumnLayout, not anchored siblings — the timeline lane and the
+content row cannot overlap by construction, which three rounds of margin
+tuning failed to achieve. The progress hairline is RTL-mirrored (it used to
+appear to drain in Arabic) and inset from the pill's curve. Text lines carry
+fixed line boxes because an Arabic-capable font's natural boxes overflow the
+capsule.
+
+Raster decode: `sourceSize` is a CAP and Qt scales it by devicePixelRatio only
+for SCALABLE sources. Every MoOS mark now derives its decode from
+`Screen.devicePixelRatio`; the installer and Welcome heroes were stretching 104
+decoded pixels across 234 on the reference panel. The shipped
+`/usr/share/moos/moos-logo.svg` is NOT a usable substitute — Qt prints
+`Invalid path data; path truncated` for it and it is the posterised trace,
+while the PNGs come from the 2756-path master.
+
 First-run hardware: `moos-device-plan` already read the machine, but nothing
 surfaced it on the one screen every new machine shows. `moos-firstrun` now
 runs that probe in the background (atomic `.partial` + `mv`) and `moos-welcome`

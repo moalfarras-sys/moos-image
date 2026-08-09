@@ -3,6 +3,86 @@
 Date: 2026-08-09
 Branch: `main`
 
+## 2026-08-09 — the visual pass: what the owner could actually see
+
+The owner said the island, its buttons and its expansion were unpolished and
+that nothing had visibly changed. He was right; the earlier work in this
+session was correctness (decode size, rounded clipping, activation ownership)
+and correctness is invisible when the design is the problem. This section is
+the design pass, and every item below was found by looking at pixels on the
+live 4K/225% RTL panel, not by reading the diff.
+
+**The transport was never designed.** It was `PC3.ToolButton` with
+`display:IconOnly`, so it inherited the panel's metrics: ~28 px glyphs beside
+13 px type, on no surface, each carrying the widget style's generic hover. One
+`MediaControl` component now gives every control the same geometry, resting
+transparency, glass fill and press-scale, in both representations. In the
+expanded popup play/pause is a filled primary circle and previous/next are
+ghosts one size down — before, all three were the same weight, so nothing said
+which one the surface exists for. The volume row is inset and short instead of
+running the popup's full width like a second timeline.
+
+**The capsule was clipping its own content, and the first fix made it worse.**
+The cover was a hardcoded 38 px inside a 46 px shell, so adding a 4 px inset
+pushed the artwork and the caption through the pill's bottom curve — "Chrome"
+was cut in half. The size is now derived from the shell height. Three attempts
+with margins failed because the diagnosis was wrong each time: the content row
+and the timeline were anchored SIBLINGS, and anchors reserve nothing from each
+other. Restructured into a ColumnLayout, where overlap is structurally
+impossible rather than tuned away.
+
+**Two real defects in the progress hairline.** It was anchored to the pill's
+bottom EDGE — a curve — so a flat bar ran past it at both ends and read as a
+stray line under the capsule. And it was anchored to `parent.left` in every
+language, so in Arabic it grew away from the start of the track and appeared to
+DRAIN as media played. It now has its own lane inset from the corner radius,
+on a track, mirrored for RTL.
+
+**Fixed line boxes.** An Arabic-capable UI font has a tall ascent/descent, so
+two natural lines came to ~41 px in a 46 px capsule that also needs the
+timeline lane. Both lines are pinned, making the block 32 px in any script.
+
+**Marks decode at device size.** `sourceSize` is a CAP, and Qt multiplies it by
+devicePixelRatio only for SCALABLE sources. The installer and Welcome heroes
+pinned the literal 104 for a mark drawn at 104 logical px, so on the reference
+panel 104 pixels were stretched across 234 — the largest MoOS mark in the
+product, soft, on the first screen a new owner sees. The launcher button had
+the mirror problem: a 256 px decode minified into ~61 px through a 2x2 bilinear
+tap, re-aliasing on every hover/press/rotation frame; it now decodes at its
+device size with `mipmap`.
+
+**The vector swap was reverted, measured.** Moving the launcher mark to
+`/usr/share/moos/moos-logo.svg` looked obvious — it ships beside the PNG and
+nothing read it. Loading it in a real Qt engine prints
+`qt.svg: Invalid path data; path truncated` repeatedly: it is a VTracer machine
+trace, and the POSTERISED light one (1002 paths) while every PNG is rendered
+from the 2756-path high-detail master. Revisit only when a real vector master
+loads without qt.svg warnings.
+
+**Glass density now comes from the palette.** Every surface hardcoded its own
+alpha, so the one property that makes a family FEEL different could never vary
+— the real reason sixteen profiles were sixteen hues of one interface.
+`MoUI.Tokens.glassDensity()` derives it from the background: 0.86 for the
+true-black families (Midnight, Arena, Scholar), 0.80 for the light ones, and
+0.72 — the tuned reference — for the rest, including the default. Thresholds
+were set from the shipped palettes, not guessed.
+
+**And a change that was reverted because it did nothing.** Varying KWin's
+`NoiseStrength` per family passed its gate and moved zero pixels: measured on
+the live session, noise 1 vs 5 gave a mean per-channel difference of 0.000 on
+the panel, and so did the extremes 0 vs 30. KWin blur governs what shows
+THROUGH a translucent window; it has no say over an alpha we paint ourselves in
+QML. Shipping it would have been a promise of personality with nothing behind
+it. The finding is what led to `glassDensity`.
+
+**Deliberately NOT done, with the reason:** the login greeter is still pinned to
+Graphite for all sixteen profiles (`/usr/lib/plasmalogin/defaults.conf`), so a
+user living on a light family still passes through a dark teal screen at every
+login. Fixing it needs a privileged write into `/etc/plasmalogin.conf.d/`,
+which is a polkit-backed security surface — not something to add at the end of
+a long session under a "no problems" requirement. It is the highest-value
+remaining visual item.
+
 ## 2026-08-09 — signed `.577` on all three editions + a live ISO on the desktop
 
 `main` at `c6b71924` built and signed as `44.20260809.577`:
