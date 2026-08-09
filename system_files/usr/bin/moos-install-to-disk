@@ -476,6 +476,75 @@ seed_target() {
     [ -n "$etc" ]
 }
 
+# `bootc install to-filesystem --generic-image` writes the boot payload below the
+# mounted target.  Our target is the `root` Btrfs subvolume (the disposable image
+# proxy must live in a sibling), while GRUB starts from Btrfs tree ID 5 and does
+# not automatically follow that default subvolume.  The stock EFI redirect then
+# looks for /boot/grub2 at tree ID 5, drops to a `grub>` prompt, and the installer
+# has already reported success.  Keep the stock signed shim/GRUB binaries, but
+# teach their tiny external redirect which subvolume contains MoOS.  `blscfg`
+# intentionally needs the tree-ID-5 path; kernel/initrd resolution needs the
+# Btrfs-relative path.  Both halves are required and were verified by booting the
+# installed disk with the ISO removed.
+repair_subvolume_bootloader() {
+    local esp mnt=/run/moos-esp cfg _rc
+    esp="$(lsblk -nrpo NAME,FSTYPE "$NODE" 2>/dev/null | awk '$2=="vfat"{print $1; exit}')"
+    [ -n "$esp" ] || { echo "bootloader: no ESP (vfat) on $NODE" >>"$LOG"; return 1; }
+
+    mkdir -p "$mnt"
+    mountpoint -q "$mnt" 2>/dev/null && umount "$mnt" >>"$LOG" 2>&1 || true
+    mount "$esp" "$mnt" 2>>"$LOG" \
+        || { echo "bootloader: could not mount target ESP" >>"$LOG"; return 1; }
+    cfg="$mnt/EFI/fedora/grub.cfg"
+    if [ ! -f "$cfg" ]; then
+        echo "bootloader: missing EFI GRUB redirect ($cfg)" >>"$LOG"
+        umount "$mnt" 2>>"$LOG" || true
+        return 1
+    fi
+
+    python3 - "$cfg" <<'PY' >>"$LOG" 2>&1
+from pathlib import Path
+import os
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text(encoding="utf-8")
+marker = "if [ -d ($prefix)/grub2 ]; then"
+if marker not in text:
+    raise SystemExit("stock EFI GRUB redirect marker not found")
+
+redirect = """# MoOS Btrfs subvolume redirect (installed by moos-install-to-disk).
+set root=($prefix)
+set btrfs_relative_path=y
+set btrfs_subvol=/root
+set blsdir=/root/boot/loader/entries
+set prefix=($prefix)/boot/grub2
+configfile $prefix/grub.cfg
+boot
+"""
+updated = text[:text.index(marker)] + redirect
+tmp = path.with_name(path.name + ".moos-new")
+tmp.write_text(updated, encoding="utf-8")
+os.replace(tmp, path)
+PY
+    _rc=$?
+    if [ "$_rc" -ne 0 ] \
+        || ! grep -Fq 'set btrfs_relative_path=y' "$cfg" \
+        || ! grep -Fq 'set btrfs_subvol=/root' "$cfg" \
+        || ! grep -Fq 'set blsdir=/root/boot/loader/entries' "$cfg"; then
+        echo "bootloader: failed to install the Btrfs subvolume redirect" >>"$LOG"
+        umount "$mnt" 2>>"$LOG" || true
+        return 1
+    fi
+    sync -f "$cfg" >>"$LOG" 2>&1 \
+        || { echo "bootloader: EFI redirect sync failed" >>"$LOG"; umount "$mnt" 2>>"$LOG" || true; return 1; }
+    umount "$mnt" 2>>"$LOG" \
+        || { echo "bootloader: target ESP would not unmount" >>"$LOG"; return 1; }
+    rmdir "$mnt" 2>/dev/null || true
+    echo "bootloader: installed Btrfs-aware EFI redirect" >>"$LOG"
+    return 0
+}
+
 # ── Deferred target finalization ──────────────────────────────────────────────
 # bootc normally trims, freezes, and remounts the target read-only, but it cannot
 # do that while its image proxy owns a writable
@@ -575,6 +644,8 @@ register_uefi_boot() {
 if [ "$rc" -eq 0 ]; then
     phase finalize; raise 99
     seed_target || { echo "target seeding failed; refusing to report an unusable install" >>"$LOG"; fail "seed-failed"; }
+    repair_subvolume_bootloader \
+        || { echo "target bootloader redirect repair failed; refusing to report an unbootable install" >>"$LOG"; fail "disk-io"; }
     register_uefi_boot || echo "uefi: boot entry NOT registered — user may need to pick the disk in the firmware menu (check log)" >>"$LOG"
     finalize_target_filesystem \
         || { echo "target filesystem finalization failed; refusing to report a partial install" >>"$LOG"; fail "disk-io"; }
