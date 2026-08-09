@@ -1103,6 +1103,76 @@ fi
         self.assertIn('target="${cur%.light}"', switch)
         self.assertIn('target="${cur}.light"', switch)
 
+    def test_sunrise_keeps_the_user_in_their_own_family(self) -> None:
+        """Automatic light/dark must not deport the user to Graphite.
+
+        Every family ships a matched light sibling, but both switch targets
+        were pinned to the Graphite pair, and sync_auto only recognised those
+        same two ids. So a user on Arena, Scholar, Nova, Amethyst, Midnight,
+        Aurora or Forge who enabled `moos-theme auto` was moved out of their
+        family at the next sunrise — and all eight light siblings that were
+        built and shipped could never be selected by it.
+
+        Executed, not grepped: the selection is run for every installed family
+        and for the names that must fall back, because the Breeze hazard here
+        is permanent (Plasma writes an unresolvable name into the user's own
+        kdeglobals).
+        """
+        switch = SWITCH.read_text(encoding="utf-8")
+        pin = function(switch, "pin_switch_targets")
+        self.assertIn('pin_switch_targets "$target"', switch,
+                      "apply must pin for the theme being applied")
+        self.assertIn("org.moos.ui2|org.moos.ui2.*", switch,
+                      "sync_auto must recognise every UI2 family, not two ids")
+
+        harness = (
+            'DARK_LNF="org.moos.ui2"\n'
+            'LIGHT_LNF="org.moos.ui2.light"\n'
+            'current() { printf "%s\\n" "$MOOS_FAKE_CURRENT"; }\n'
+            'kwriteconfig6() {\n'
+            '  case "$3$4$5$6" in\n'
+            '    *DefaultDarkLookAndFeel*) printf "dark=%s\\n" "${@: -1}" ;;\n'
+            '    *DefaultLightLookAndFeel*) printf "light=%s\\n" "${@: -1}" ;;\n'
+            '  esac\n'
+            '}\n'
+            'command() { return 0; }\n'
+            + pin + '\npin_switch_targets "$1"\n'
+        )
+        lnf_root = Path("/usr/share/plasma/look-and-feel")
+        families = sorted(
+            p.name for p in lnf_root.glob("org.moos.ui2*")
+            if p.is_dir() and not p.name.endswith(".light")
+        ) if lnf_root.is_dir() else []
+        if not families:
+            self.skipTest("needs the installed look-and-feel packages")
+        self.assertGreaterEqual(len(families), 8,
+                                "expected the eight shipped UI2 families")
+
+        def pinned(theme: str) -> dict[str, str]:
+            out = subprocess.run(["bash", "-s", theme], input=harness,
+                                 capture_output=True, text=True, check=True)
+            return dict(line.split("=", 1)
+                        for line in out.stdout.strip().splitlines() if "=" in line)
+
+        for family in families:
+            if not (lnf_root / f"{family}.light").is_dir():
+                continue
+            for member in (family, f"{family}.light"):
+                got = pinned(member)
+                self.assertEqual(got.get("dark"), family,
+                                 f"{member} must keep its own dark half")
+                self.assertEqual(got.get("light"), f"{family}.light",
+                                 f"{member} must keep its own light half")
+
+        # A name that cannot resolve must land on Graphite, never on Breeze.
+        for foreign in ("org.moos.ui", "org.kde.breeze.desktop",
+                        "org.moos.ui2.does-not-exist", ""):
+            got = pinned(foreign)
+            self.assertEqual(got.get("dark"), "org.moos.ui2",
+                             f"{foreign!r} must fall back to the Graphite pair")
+            self.assertEqual(got.get("light"), "org.moos.ui2.light",
+                             f"{foreign!r} must fall back to the Graphite pair")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

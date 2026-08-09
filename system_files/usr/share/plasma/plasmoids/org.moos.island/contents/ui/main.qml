@@ -202,6 +202,57 @@ PlasmoidItem {
         return Math.ceil(Math.max(1, logical) * root.pixelRatio);
     }
 
+    // A control that OPENS with the capsule instead of appearing inside it.
+    //
+    // These were plain `visible: hovered` buttons. visible flips at frame 0
+    // while the capsule is still widening over motionGeometry, so all three
+    // icons took their full layout width instantly, crushed the title beside
+    // them, and then the text sprang back as the space caught up — the capsule
+    // moved smoothly and its contents jumped. Giving the slot the SAME clock
+    // and easing as the capsule's own implicitWidth makes the two read as one
+    // movement: the capsule opens and the controls travel out of its edge.
+    // Width carries the layout, opacity carries the ink slightly faster so the
+    // icons are legible before they finish arriving, and visible follows the
+    // width so a closed control costs no layout space at rest.
+    component RevealSlot: Item {
+        id: slot
+        property bool revealed: false
+        default property alias content: slotHolder.data
+        readonly property real openWidth:
+            root.design.panelHeight - root.design.space1 * 2
+
+        Layout.preferredWidth: slot.revealed ? slot.openWidth : 0
+        Layout.preferredHeight: slot.openWidth
+        Layout.alignment: Qt.AlignVCenter
+        clip: true
+        opacity: slot.revealed ? 1 : 0
+        visible: Layout.preferredWidth > 0.5
+
+        Item {
+            id: slotHolder
+            width: slot.openWidth
+            height: parent.height
+            anchors.verticalCenter: parent.verticalCenter
+            // Anchor to the edge the capsule grows from so the icon slides out
+            // of the rim rather than being squeezed from both sides.
+            anchors.right: root.rtl ? undefined : parent.right
+            anchors.left: root.rtl ? parent.left : undefined
+        }
+
+        Behavior on Layout.preferredWidth {
+            NumberAnimation {
+                duration: root.motionGeometry
+                easing.type: root.design.easeEmphasis
+            }
+        }
+        Behavior on opacity {
+            NumberAnimation {
+                duration: root.motionFast
+                easing.type: Easing.OutCubic
+            }
+        }
+    }
+
     // Paused media remains useful. Stopped media gets a short release grace so
     // player hand-offs do not make the bar snap or flash at track boundaries.
     readonly property bool mediaPresent: root.hasPlayer
@@ -379,9 +430,56 @@ PlasmoidItem {
                 }
 
                 ColumnLayout {
+                    id: compactText
                     Layout.fillWidth: true
                     Layout.minimumWidth: 92
                     spacing: 0
+
+                    // A track change used to be a hard text swap: one frame the
+                    // old title, the next the new one, with no relationship
+                    // between them. On a surface whose whole job is to show
+                    // what is playing, that is the moment the user actually
+                    // looks at — so it is the moment worth animating. The block
+                    // dips and lifts as the text is replaced, which reads as
+                    // the capsule turning over rather than glitching. It is a
+                    // one-shot triggered by real MPRIS data, never a loop, and
+                    // it collapses to nothing when the user has motion off
+                    // because motionFast is already gated on longDuration > 1.
+                    opacity: 1
+                    Connections {
+                        target: root
+                        function onDisplayTrackChanged() { trackTurn.restart(); }
+                    }
+                    SequentialAnimation {
+                        id: trackTurn
+                        running: false
+                        ParallelAnimation {
+                            NumberAnimation {
+                                target: compactText; property: "opacity"
+                                to: 0.15; duration: Math.round(root.motionFast / 2)
+                                easing.type: Easing.OutCubic
+                            }
+                            NumberAnimation {
+                                target: compactText; property: "y"
+                                to: compactText.y + 3
+                                duration: Math.round(root.motionFast / 2)
+                                easing.type: Easing.OutCubic
+                            }
+                        }
+                        ParallelAnimation {
+                            NumberAnimation {
+                                target: compactText; property: "opacity"
+                                to: 1; duration: root.motionFast
+                                easing.type: Easing.OutCubic
+                            }
+                            NumberAnimation {
+                                target: compactText; property: "y"
+                                to: compactText.y
+                                duration: root.motionFast
+                                easing.type: root.design.easeEmphasis
+                            }
+                        }
+                    }
 
                     PC3.Label {
                         Layout.fillWidth: true
@@ -406,14 +504,17 @@ PlasmoidItem {
                     }
                 }
 
-                PC3.ToolButton {
-                    visible: compactHover.hovered && root.canGoPrevious
-                    enabled: root.canGoPrevious
-                    icon.name: root.rtl ? "media-skip-forward-symbolic"
-                                        : "media-skip-backward-symbolic"
-                    display: PC3.AbstractButton.IconOnly
-                    Accessible.name: root.local("السابق", "Previous")
-                    onClicked: root.player.Previous()
+                RevealSlot {
+                    revealed: compactHover.hovered && root.canGoPrevious
+                    PC3.ToolButton {
+                        anchors.fill: parent
+                        enabled: root.canGoPrevious
+                        icon.name: root.rtl ? "media-skip-forward-symbolic"
+                                            : "media-skip-backward-symbolic"
+                        display: PC3.AbstractButton.IconOnly
+                        Accessible.name: root.local("السابق", "Previous")
+                        onClicked: root.player.Previous()
+                    }
                 }
 
                 PC3.ToolButton {
@@ -428,27 +529,33 @@ PlasmoidItem {
                     onClicked: root.togglePlaying()
                 }
 
-                PC3.ToolButton {
-                    visible: compactHover.hovered && root.canGoNext
-                    enabled: root.canGoNext
-                    icon.name: root.rtl ? "media-skip-backward-symbolic"
-                                        : "media-skip-forward-symbolic"
-                    display: PC3.AbstractButton.IconOnly
-                    Accessible.name: root.local("التالي", "Next")
-                    onClicked: root.player.Next()
+                RevealSlot {
+                    revealed: compactHover.hovered && root.canGoNext
+                    PC3.ToolButton {
+                        anchors.fill: parent
+                        enabled: root.canGoNext
+                        icon.name: root.rtl ? "media-skip-backward-symbolic"
+                                            : "media-skip-forward-symbolic"
+                        display: PC3.AbstractButton.IconOnly
+                        Accessible.name: root.local("التالي", "Next")
+                        onClicked: root.player.Next()
+                    }
                 }
 
-                PC3.ToolButton {
-                    visible: compactHover.hovered && root.hasVolume
-                    enabled: root.hasVolume
-                    icon.name: root.volume <= 0.01
-                        ? "audio-volume-muted-symbolic"
-                        : "audio-volume-high-symbolic"
-                    display: PC3.AbstractButton.IconOnly
-                    Accessible.name: root.volume <= 0.01
-                        ? root.local("إلغاء الكتم", "Unmute")
-                        : root.local("كتم", "Mute")
-                    onClicked: root.toggleMuted()
+                RevealSlot {
+                    revealed: compactHover.hovered && root.hasVolume
+                    PC3.ToolButton {
+                        anchors.fill: parent
+                        enabled: root.hasVolume
+                        icon.name: root.volume <= 0.01
+                            ? "audio-volume-muted-symbolic"
+                            : "audio-volume-high-symbolic"
+                        display: PC3.AbstractButton.IconOnly
+                        Accessible.name: root.volume <= 0.01
+                            ? root.local("إلغاء الكتم", "Unmute")
+                            : root.local("كتم", "Mute")
+                        onClicked: root.toggleMuted()
+                    }
                 }
             }
 

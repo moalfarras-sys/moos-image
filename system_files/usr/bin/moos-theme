@@ -1056,8 +1056,12 @@ sync_auto() {
     [ "$automatic" = true ] || return 0
 
     lnf="$(current)"
+    # Any installed UI2 family, not only Graphite. The old two-id gate made
+    # sunrise/sunset a no-op for the other seven families, which is what let
+    # the hardcoded pin above go unnoticed. UI1 (org.moos.ui, no "2") is still
+    # excluded: it is reachable only through the explicit rollback commands.
     case "$lnf" in
-        "$DARK_LNF"|"$LIGHT_LNF") ;;
+        org.moos.ui2|org.moos.ui2.*) ;;
         *) return 0 ;;
     esac
 
@@ -1224,10 +1228,36 @@ reconcile_service() {
 # cannot resolve sends it to Breeze — permanently, in the user's own kdeglobals.
 # UI1 remains installed and is reachable only through the explicit rollback
 # commands; `auto` always returns to the current UI2 family.
+#
+# The pair must follow the user's FAMILY, not always Graphite. Every family
+# ships a matched light sibling (`<id>` + `<id>.light`, sixteen packages for
+# eight families), but both targets were hardcoded to the Graphite pair — so a
+# user living on Arena, Scholar, Nova, Amethyst, Midnight, Aurora or Forge who
+# turned on `moos-theme auto` was yanked out of their family at the next
+# sunrise and left in Graphite. Every one of those light siblings was built,
+# shipped, and unreachable.
+#
+# The Breeze hazard above is why the family is adopted only when BOTH halves
+# are present on disk: an unresolvable name is not ignored by Plasma, it is
+# written into the user's own kdeglobals permanently. Anything unrecognised
+# still falls back to the Graphite pair.
 pin_switch_targets() {
     command -v kwriteconfig6 >/dev/null 2>&1 || return 0
-    kwriteconfig6 --file kdeglobals --group KDE --key DefaultLightLookAndFeel "$LIGHT_LNF"
-    kwriteconfig6 --file kdeglobals --group KDE --key DefaultDarkLookAndFeel "$DARK_LNF"
+    local wanted="${1:-}" dark="$DARK_LNF" light="$LIGHT_LNF" base=""
+    [ -n "$wanted" ] || wanted="$(current)"
+    case "$wanted" in
+        "$DARK_LNF"|"$LIGHT_LNF") base="$DARK_LNF" ;;
+        org.moos.ui2.*.light)     base="${wanted%.light}" ;;
+        org.moos.ui2.*)           base="$wanted" ;;
+    esac
+    if [ -n "$base" ] \
+            && [ -d "/usr/share/plasma/look-and-feel/$base" ] \
+            && [ -d "/usr/share/plasma/look-and-feel/${base}.light" ]; then
+        dark="$base"
+        light="${base}.light"
+    fi
+    kwriteconfig6 --file kdeglobals --group KDE --key DefaultLightLookAndFeel "$light"
+    kwriteconfig6 --file kdeglobals --group KDE --key DefaultDarkLookAndFeel "$dark"
 }
 
 guard_theme_defaults() {
@@ -1475,7 +1505,8 @@ apply_manual() {
         return 1
     }
     prev="$(cat "$snapshot/current-lnf" 2>/dev/null)"
-    pin_switch_targets || {
+    # Pin for the theme being APPLIED, not the one being left behind.
+    pin_switch_targets "$target" || {
         echo "moos-theme: could not pin the MoOS automatic theme targets" >&2
         restore_theme_state "$snapshot" >/dev/null 2>&1 || true
         find "$snapshot" -depth -delete 2>/dev/null || true
