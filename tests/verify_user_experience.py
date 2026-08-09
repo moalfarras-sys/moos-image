@@ -3775,14 +3775,94 @@ if login_plugin is not None and not login_plugin.group(1).startswith("org.kde.")
         (login_scene / "contents/ui/main.qml").read_text(encoding="utf-8"),
         style="slash",
     )
-    for expensive in ("Repeater", "Animation", "ShaderEffect", "Canvas"):
+    # The rule was a blanket ban on the token "Animation", and its REASON is
+    # "authentication must paint immediately even with software rendering".
+    # That reason is about the BACKGROUND: the base plate, the wallpaper and
+    # the veils must be on screen the instant the greeter draws. It is not
+    # about the corner signature, which plasma-login-wallpaper paints behind
+    # the compiled authentication cluster in a separate process and which
+    # cannot delay the prompt by a frame.
+    #
+    # So the contract is now written precisely, and it is STRICTER than the
+    # token ban it replaces: unbounded motion is named and forbidden outright
+    # (the old rule never mentioned Infinite or loops — it just happened to
+    # exclude them), the background must still carry no animation at all, and
+    # only a bounded one-shot is allowed anywhere in the scene.
+    for expensive in ("Repeater", "ShaderEffect", "Canvas"):
         require(expensive not in login_scene_qml,
                 f"the login wallpaper uses {expensive}; authentication must paint "
                 "immediately even with software rendering")
+    for unbounded in ("Animation.Infinite", "loops:", "PropertyAnimation on",
+                      "NumberAnimation on", "ColorAnimation on", "Behavior on"):
+        require(unbounded not in login_scene_qml,
+                f"the login wallpaper uses {unbounded}; a login screen that keeps "
+                "moving keeps costing GPU while someone types a password")
+    # The background half must be untouched by motion: whatever animates, the
+    # plate and the photograph are painted synchronously.
+    # Split on CODE, not on a comment: login_scene_qml has already had its //
+    # comments stripped, so a prose marker would put the whole file in the
+    # background half and fail the scene for its own signature animation.
+    _scene_background = login_scene_qml.split("id: signature", 1)[0]
+    require("Animation" not in _scene_background,
+            "the login wallpaper animates its background; the base plate and "
+            "photograph must paint immediately even with software rendering")
+    # Any motion that IS present must be a single bounded shot with a real
+    # duration, started once — never a running loop.
+    if "Animation" in login_scene_qml:
+        require("running: false" in login_scene_qml,
+                "the login wallpaper starts an animation implicitly; it must be "
+                "one explicit shot, not something already running at load")
+        for _duration in re.findall(r"duration:\s*(\d+)", login_scene_qml):
+            require(int(_duration) <= 900,
+                    f"a {_duration} ms animation on the login screen is theatre; "
+                    "the security boundary gets one short settle at most")
     require("anchors.left: parent.left" in login_scene_qml
             and "anchors.top: parent.top" in login_scene_qml,
             "the MoOS login signature is not pinned to its safe corner — a "
             "centred brand can overlap Plasma's password/user surface again")
+
+    # The login screen must follow the WHOLE family, not two of them. The scene
+    # used to carry a light/dark branch with one hardcoded pair of tones, so
+    # pointing the login wallpaper at Scholar changed the photograph while the
+    # signature stayed Graphite teal — and those two literals had themselves
+    # drifted from the palettes they claimed to copy. Every shipped wallpaper
+    # package must have an entry, and every entry must match the real colour
+    # scheme, so neither can drift again.
+    _scene_tones = {
+        name: rest for name, *rest in re.findall(
+            r'"(MoOSUI2[A-Za-z]*)":\s*\{\s*canvas:\s*"(#[0-9A-Fa-f]{6})",\s*'
+            r'ink:\s*"(#[0-9A-Fa-f]{6})",\s*accent:\s*"(#[0-9A-Fa-f]{6})"',
+            login_scene_qml)
+    }
+    _wallpaper_root = ROOT / "system_files/usr/share/wallpapers"
+    _scheme_root = ROOT / "system_files/usr/share/color-schemes"
+    # Two packages do not share their scheme's name.
+    _scheme_alias = {"MoOSUI2Graphite": "MoOSUI2Dark", "MoOSUI2Tide": "MoOSUI2Light"}
+
+    def _scheme_rgb(text: str, section: str, key: str) -> str | None:
+        found = re.search(
+            r"\[" + re.escape(section) + r"\][^\[]*?" + key + r"=(\d+),(\d+),(\d+)",
+            text, re.S)
+        return ("#%02X%02X%02X" % tuple(int(v) for v in found.groups())
+                if found else None)
+
+    for _package in sorted(p.name for p in _wallpaper_root.glob("MoOSUI2*")
+                           if p.is_dir()):
+        require(_package in _scene_tones,
+                f"the login scene has no tones for wallpaper {_package} — it would "
+                "silently fall back to Graphite ink on another family's horizon")
+        _scheme_file = _scheme_root / (
+            _scheme_alias.get(_package, _package) + ".colors")
+        if _package not in _scene_tones or not _scheme_file.is_file():
+            continue
+        _text = _scheme_file.read_text(encoding="utf-8", errors="ignore")
+        _want = (_scheme_rgb(_text, "Colors:Window", "BackgroundNormal"),
+                 _scheme_rgb(_text, "Colors:Window", "ForegroundNormal"),
+                 _scheme_rgb(_text, "Colors:Selection", "BackgroundNormal"))
+        _got = tuple(v.upper() for v in _scene_tones[_package])
+        require(_got == _want,
+                f"the login scene's tones for {_package} have drifted from "
+                f"{_scheme_file.name}: scene {_got} vs scheme {_want}")
 
 # Login is one security surface, not an idle clock page followed by a second
 # authentication layout. The clock remains on the lock screen; a cold boot

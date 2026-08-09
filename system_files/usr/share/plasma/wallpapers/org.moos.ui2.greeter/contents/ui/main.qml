@@ -93,13 +93,57 @@ WallpaperItem {
     // Keep the palette variant derived from the same package path as the image.
     // Family light profiles must not inherit Graphite ink merely because they
     // are not named Tide.
+    // EVERY family, not two of them.
+    //
+    // This was a light/dark branch carrying ONE hardcoded pair of tones, so the
+    // scene only ever wore Graphite's ink and Graphite's accent. Point the login
+    // wallpaper at Scholar or Arena and the photograph changed while the
+    // signature stayed teal — the login screen followed the theme system in name
+    // only. The literals had also drifted from the palettes they claimed to
+    // copy: #14191C against Graphite's real #1D2529.
+    //
+    // The tones below are the SHIPPED colour schemes verbatim — Window
+    // BackgroundNormal, Window ForegroundNormal, Selection BackgroundNormal. A
+    // gate compares every entry against the real .colors file and fails a
+    // wallpaper package that has no entry, so this cannot drift again and a new
+    // family cannot silently fall back to Graphite.
+    //
+    // Keyed by WALLPAPER package, because that is what the login config names,
+    // and two of them do not share their scheme's name: the Graphite wallpaper
+    // carries MoOSUI2Dark and Tide carries MoOSUI2Light.
+    readonly property var sceneTones: ({
+        "MoOSUI2Graphite":      { canvas: "#1D2529", ink: "#E8F1EF", accent: "#4ED7C8" },
+        "MoOSUI2Tide":          { canvas: "#C9E2DD", ink: "#17302E", accent: "#006D67" },
+        "MoOSUI2Nova":          { canvas: "#111A2E", ink: "#EAF2FF", accent: "#6366F1" },
+        "MoOSUI2NovaLight":     { canvas: "#C6DCE9", ink: "#17302E", accent: "#0E63C4" },
+        "MoOSUI2Amethyst":      { canvas: "#201829", ink: "#F1E9F5", accent: "#C084FC" },
+        "MoOSUI2AmethystLight": { canvas: "#D5D9EE", ink: "#17302E", accent: "#7C3AED" },
+        "MoOSUI2Midnight":      { canvas: "#0A0A0C", ink: "#F5F7FA", accent: "#22D3EE" },
+        "MoOSUI2Daylight":      { canvas: "#C5DAEC", ink: "#17302E", accent: "#0284C7" },
+        "MoOSUI2Aurora":        { canvas: "#172236", ink: "#ECF2FB", accent: "#3B82F6" },
+        "MoOSUI2AuroraLight":   { canvas: "#C2E4E1", ink: "#17302E", accent: "#0F766E" },
+        "MoOSUI2Arena":         { canvas: "#150C22", ink: "#F5E9FF", accent: "#FF2D95" },
+        "MoOSUI2ArenaLight":    { canvas: "#DDD0E9", ink: "#17302E", accent: "#C81D7A" },
+        "MoOSUI2Forge":         { canvas: "#131A22", ink: "#E6EDF3", accent: "#3FB950" },
+        "MoOSUI2ForgeLight":    { canvas: "#C4DED1", ink: "#17302E", accent: "#1A7F37" },
+        "MoOSUI2Scholar":       { canvas: "#201A11", ink: "#F3EADB", accent: "#E0A458" },
+        "MoOSUI2ScholarLight":  { canvas: "#DBD8CA", ink: "#17302E", accent: "#B45309" }
+    })
+
+    readonly property string sceneFamily: {
+        const found = /\/wallpapers\/(MoOSUI2[A-Za-z]*)\//.exec(root.sceneImage)
+        return found ? found[1] : "MoOSUI2Graphite"
+    }
+    readonly property var tones:
+        root.sceneTones[root.sceneFamily] || root.sceneTones["MoOSUI2Graphite"]
+
     readonly property bool lightScene:
         /\/MoOSUI2[^/]*Light\//.test(root.sceneImage)
         || root.sceneImage.indexOf("/MoOSUI2Tide/") >= 0
         || root.sceneImage.indexOf("/MoOSUI2Daylight/") >= 0
-    readonly property color canvas: root.lightScene ? "#D8EBE7" : "#14191C"
-    readonly property color ink: root.lightScene ? "#17302E" : "#E8F1EF"
-    readonly property color accent: root.lightScene ? "#006D67" : "#4ED7C8"
+    readonly property color canvas: root.tones.canvas
+    readonly property color ink: root.tones.ink
+    readonly property color accent: root.tones.accent
 
     // ── Base plate + wallpaper (both paint immediately) ─────────────────────
     Rectangle {
@@ -139,7 +183,46 @@ WallpaperItem {
     }
 
     // ── MoOS signature — quiet, top-left (gate: brand stays in its corner) ──
+    //
+    // The signature arrives; the security surface does not wait for it.
+    //
+    // This scene was fully static because "authentication must paint
+    // immediately even with software rendering" — a real constraint, and it
+    // still holds for everything above: the base plate, the wallpaper and both
+    // veils are painted synchronously and are never animated. But this Row is
+    // the one element that is neither the background nor the password card: it
+    // is drawn by plasma-login-wallpaper BEHIND the greeter's compiled
+    // authentication cluster, in a separate process, so a bounded fade here
+    // cannot delay the prompt by a frame.
+    //
+    // Bounded is the whole contract: ONE shot on load, ~520 ms, opacity and a
+    // few pixels of travel, then it is over and the scene is static again for
+    // the rest of the session. No loop, no Animation.Infinite, no shader, no
+    // Canvas — a login screen that keeps moving is a login screen that keeps
+    // costing GPU while someone types a password.
     Row {
+        id: signature
+        opacity: 0
+        Component.onCompleted: signatureEntrance.start()
+        SequentialAnimation {
+            id: signatureEntrance
+            running: false
+            PauseAnimation { duration: 140 }
+            ParallelAnimation {
+                NumberAnimation {
+                    target: signature; property: "opacity"
+                    from: 0; to: 1
+                    duration: 520; easing.type: Easing.OutCubic
+                }
+                NumberAnimation {
+                    target: signature; property: "anchors.topMargin"
+                    from: signature.anchors.topMargin + 14
+                    to: signature.anchors.topMargin
+                    duration: 520; easing.type: Easing.OutCubic
+                }
+            }
+        }
+
         anchors.left: parent.left
         anchors.top: parent.top
         anchors.leftMargin: Math.max(Kirigami.Units.gridUnit * 2,

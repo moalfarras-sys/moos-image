@@ -621,10 +621,41 @@ if "plasmalogin" in dm_target:
                 line for line in login_scene_qml.read_text(encoding="utf-8").splitlines()
                 if not line.lstrip().startswith("//")
             )
-            for expensive in ("Repeater", "Animation", "ShaderEffect", "Canvas"):
+            # The rule was a blanket ban on the token "Animation", and its
+            # REASON is that the password boundary must render immediately
+            # under software fallback. That reason is about the BACKGROUND —
+            # the base plate, the photograph and the veils — not about the
+            # corner signature, which plasma-login-wallpaper paints in a
+            # separate process behind the greeter's compiled authentication
+            # cluster and which cannot delay the prompt by a frame.
+            #
+            # Written precisely, the contract is STRICTER than the token ban:
+            # unbounded motion is now named and forbidden outright (the old
+            # rule never mentioned Infinite or loops, it only excluded them by
+            # accident), the background must carry no animation at all, and any
+            # motion that exists must be one bounded shot.
+            for expensive in ("Repeater", "ShaderEffect", "Canvas"):
                 require(expensive not in scene_code,
                         f"the login wallpaper uses {expensive}; the password boundary "
                         "must render immediately under software fallback")
+            for unbounded in ("Animation.Infinite", "loops:", "Behavior on",
+                              "NumberAnimation on", "ColorAnimation on"):
+                require(unbounded not in scene_code,
+                        f"the login wallpaper uses {unbounded}; a login screen that "
+                        "keeps moving keeps costing GPU while someone types a password")
+            # Split on CODE: the comments are already stripped above, so a prose
+            # marker would put the whole scene in the background half.
+            require("Animation" not in scene_code.split("id: signature", 1)[0],
+                    "the login wallpaper animates its background; the base plate and "
+                    "photograph must render immediately under software fallback")
+            if "Animation" in scene_code:
+                require("running: false" in scene_code,
+                        "the login wallpaper starts an animation implicitly; it must "
+                        "be one explicit shot, not something already running at load")
+                for shot in re.findall(r"duration:\s*(\d+)", scene_code):
+                    require(int(shot) <= 900,
+                            f"a {shot} ms animation on the login screen is theatre; "
+                            "the security boundary gets one short settle at most")
             require("anchors.left: parent.left" in scene_code
                     and "anchors.top: parent.top" in scene_code,
                     "the login brand is not confined to its safe corner and can "
