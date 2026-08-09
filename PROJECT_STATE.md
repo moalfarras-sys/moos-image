@@ -4,9 +4,32 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-08-09, signed `.573` closure plus THEME_REV 49 live-shell
-recovery, media-island follow-up, and the same-day adversarial hardening pass
-(26-agent review; seven confirmed defects fixed, orbit alias dedup added).
+Last updated: 2026-08-09, signed **`44.20260809.577`** on all three editions
+(main `c6b71924`), a live offline ISO delivered to the owner desktop, plus
+THEME_REV 49 live-shell recovery, the media-island follow-up, and the same-day
+adversarial hardening pass (26-agent review; seven confirmed defects fixed,
+orbit alias dedup added).
+
+Release `.577` signed digests:
+
+- generic: `sha256:c7682907ef8042d96b12c8b2e86f4e0eefae3036780829157dc7aadb75e43100`
+- NVIDIA: `sha256:60ecfa2717f670fd1db51c86725efbc42595af3c4038ad61b936cc8a8ecd7f06`
+- cloud: `sha256:840940b996e60a7ea44a750cd9026194da766b77baf2a28104b71f8aa6cecc69`
+
+The live ISO built from the signed generic image is
+`MoOS-Live-c6b71924.iso`, 5,164,040,192 bytes, SHA-256
+`671973a043c989e47aa21419d79549f055d392fc05fc7b92e8a2cea2c250380f`, delivered
+to `~/سطح المكتب/MoOS-ISO/` with a `BUILD-INFO.txt` and a verified checksum
+file. `file` reports `ISO 9660 … 'MoOS-Live' (bootable)` and `sha256sum -c`
+passes. **It has NOT yet performed an install** — the release rule stands: a
+newly signed ISO must complete a no-NIC install and the resulting disk must
+boot with the ISO removed before this is called a closed release.
+
+The NVIDIA edition failed its first CI attempt on this commit while generic and
+cloud succeeded. A complete local `just build-nvidia` passed (exit 0), which is
+what justified re-running that one job — it then succeeded. Treat a lone
+NVIDIA-edition failure as runner resource pressure ONLY after a local build
+proves the source; never re-run a silent buildah failure on faith.
 
 The current working branch continues the Unified MoOS Experience without
 replacing its architecture. THEME_REV 48 made the Horizon Hub cardless and

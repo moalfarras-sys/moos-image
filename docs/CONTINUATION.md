@@ -3,6 +3,46 @@
 Date: 2026-08-09
 Branch: `main`
 
+## 2026-08-09 — signed `.577` on all three editions + a live ISO on the desktop
+
+`main` at `c6b71924` built and signed as `44.20260809.577`:
+
+- generic: `sha256:c7682907ef8042d96b12c8b2e86f4e0eefae3036780829157dc7aadb75e43100`
+- NVIDIA: `sha256:60ecfa2717f670fd1db51c86725efbc42595af3c4038ad61b936cc8a8ecd7f06`
+- cloud: `sha256:840940b996e60a7ea44a750cd9026194da766b77baf2a28104b71f8aa6cecc69`
+
+The NVIDIA edition failed its first attempt on this commit while generic and
+cloud both succeeded — and the buildah step again produced no error. A full
+local `just build-nvidia` passed (exit 0). THAT is what justified re-running
+the single failed job, which then succeeded. The rule to carry forward: a lone
+NVIDIA-edition CI failure may be runner resource pressure, but only a local
+build proves the source; never re-run a silent buildah failure on faith.
+
+The live offline ISO was then built from the signed generic image
+(`build-iso.yml` run 31321225767) and delivered to `~/سطح المكتب/MoOS-ISO/`:
+
+- `MoOS-Live-c6b71924.iso`, 5,164,040,192 bytes
+- SHA-256 `671973a043c989e47aa21419d79549f055d392fc05fc7b92e8a2cea2c250380f`
+- `file` reports `ISO 9660 … 'MoOS-Live' (bootable)`; `sha256sum -c` passes
+- `BUILD-INFO.txt` alongside it records the source commit, the CI run, what the
+  ISO is, how MoOS handles hardware after first login, and the verify/write
+  commands
+
+Two delivery traps worth keeping: `/tmp` on this machine is a 7.8 GB **tmpfs**,
+so `mktemp -d` staging of a multi-GB artifact dies with "disk quota exceeded"
+mid-extract — stage under `~/.cache` on `/var`. And the desktop Plasma actually
+renders is `~/سطح المكتب` (the XDG one), not the English `~/Desktop` the older
+docs used.
+
+**The ISO has not performed an install yet.** The standing release rule is
+unchanged and unmet: a newly signed ISO must complete a no-NIC install and the
+resulting disk must boot with the ISO removed before this is a closed release.
+
+The owner machine has `.577` staged (NVIDIA edition) with `.575` and `.574`
+still bootable, and the developer plasmoid overrides in `$HOME` were removed,
+so the post-reboot shell must load the launcher and island from `/usr` alone.
+`~/.cache/moos-post-reboot-check.sh` verifies exactly that.
+
 ## 2026-08-09 — installer identity, the first-run hardware card, and a CI trap
 
 The `.576` image build failed three times in a row with the buildah step
