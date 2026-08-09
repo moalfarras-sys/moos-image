@@ -180,7 +180,14 @@ set -uo pipefail
 #     moves from a square tray cell into the direct adaptive MPRIS zone after
 #     the launcher. Existing users must purge QML caches, remove a stale
 #     user-level island package, migrate the panel and restart plasmashell once.
-THEME_REV=48
+# 49: the launcher gives each input route exactly one expanded-state owner
+#     (custom pointer handling, Plasma activation for keyboard/accessibility),
+#     and the bar marker becomes a payload fingerprint with current-shell QML
+#     health verification. Existing panels also remove the retired island child
+#     from either historical system-tray nesting shape while preserving every
+#     unrelated tray item. Re-run once so an update cannot leave first-party
+#     applets stuck as Plasma error icons behind an already-existing marker.
+THEME_REV=49
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

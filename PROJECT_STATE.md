@@ -4,26 +4,64 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-08-09, signed `.573` visual finish and offline-install closure.
+Last updated: 2026-08-09, signed `.573` closure plus THEME_REV 49 live-shell
+recovery, media-island follow-up, and the same-day adversarial hardening pass
+(26-agent review; seven confirmed defects fixed, orbit alias dedup added).
 
 The current working branch continues the Unified MoOS Experience without
-replacing its architecture. THEME_REV 48 makes the Horizon Hub cardless and
-centred in the upper/middle wallpaper composition, replaces the launcher's
+replacing its architecture. THEME_REV 48 made the Horizon Hub cardless and
+centred in the upper/middle wallpaper composition, replaced the launcher's
 split neon/wireframe popup rim with a continuous neutral Liquid Glass rim, and
-turns the existing `org.moos.island` + Plasma `Mpris2Model` implementation into
+turned the existing `org.moos.island` + Plasma `Mpris2Model` implementation into
 a direct adaptive zone immediately after the launcher in the one-capsule bar.
-The island is one transparent pixel at idle and exposes art/source/title,
+THEME_REV 49 closes defects found only after the signed update reached a
+persistent user profile: launcher pointer activation and Plasma
+keyboard/accessibility activation now have exactly one expanded-state owner
+(`activationTogglesExpanded` declared on the root PlasmoidItem — assigning it
+through the Plasmoid attached object is a silent no-op on Plasma::Applet); the
+bar's revision marker is a fingerprint of the actual payload of ALL THREE
+first-party bar packages (launcher, island and `org.moos.nova.clock`), with an
+overridable root so the gates execute the function; the marker is trusted only
+when the current plasmashell journal is clean for those three applets and the
+live panel readback agrees; a health failure that survives the one bounded
+recovery restart fails fast instead of idling in the readback loop; and both
+historical system-tray nesting shapes are scrubbed of the retired second
+island without touching unrelated tray children. The launcher's orbit grid
+also retires a `preferred://` favourite alias exactly when the user pins the
+same resolved application, so one app can never occupy two tiles while user
+pins and distinct targets are never touched.
+
+The island remains one transparent pixel at idle and exposes art/source/title,
 capability-aware transport controls, timeline/seek and volume/mute in compact
-and expanded modes. It has no permanent decorative animation; its only polling
-timer sleeps unless playing progress is visible.
+and expanded modes. Rev 49 additionally resolves Flatpak Media Session artwork
+from the app's private runtime `/tmp` — as a probe: if the translated path
+errors (host-installed Chromium-family browsers publish the same dot-prefixed
+basenames but their raw `/tmp` URL is the readable one), the image falls back
+to the raw MPRIS URL and re-arms per artwork change — fixes a live
+compact-hover reference error, commits seek/volume changes from AT-SPI slider
+actions clamped to the slider's own 0..1 range, and captures expanded state on
+press in the compact capsule so a dialog dismissed by the press is not
+re-opened by its own release. It has no permanent decorative animation; its
+only polling timer sleeps unless playing progress is visible.
+
+Boot hygiene: thermald exits 1 by design on non-mobile chassis, which the
+stock unit turned into a red failed system unit on every desktop boot. The
+image gates it with `ExecCondition=/usr/libexec/moos-thermald-supported`
+(chassis + CPU-vendor judgment, inputs overridable for the gates), so
+unsupported machines skip the unit cleanly and Intel laptops keep it.
 
 This was inspected on the running 3840x2160 Wayland/HDR desktop in dark and
-light, Arabic RTL and English LTR. The 100/125/150/200% offscreen runtime matrix
-passed 8/8 for Hub, launcher and island. Chrome's real MPRIS Media Session
-successfully accepted play/pause; the island follows the capabilities Chrome
-advertises. Stable 4K PNG evidence is in `docs/evidence/` under
-`horizon-hub-cardless-*`, `launcher-neutral-rim-*` and
-`media-island-expanded-browser-*`.
+light, Arabic RTL and English LTR. The launcher was exercised on the actual
+output at 100/125/150/200%, with 225% restored afterward. Meta, KRunner search,
+Escape, and the accessibility press action toggle the production launcher.
+Chrome Flatpak's real MPRIS Media Session displayed its private artwork and
+accepted play/pause plus a five-second AT-SPI seek. Haruna proved active-player
+handoff, previous, seek, volume, mute/unmute, and automatic return to Chrome;
+after both players stopped the direct island disappeared and the bar remained
+one capsule. Chrome advertises volume but ignores even direct MPRIS volume
+writes, so browser volume is not falsely claimed. Stable rev-48 4K evidence is
+in `docs/evidence/`; the rev-49 live captures are listed in
+`docs/CONTINUATION.md`.
 
 The complete local image is
 `3c881239d49a90adffd1a56b81333387072241d36a88007e353f94e4a4a1d91f`

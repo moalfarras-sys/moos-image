@@ -3,6 +3,154 @@
 Date: 2026-08-09
 Branch: `main`
 
+## 2026-08-09 — rev-49 adversarial hardening pass (second session, same branch)
+
+The signed `.574` deployment rebooted at 12:44 and reproduced the exact defect
+class rev 49 targets on a machine that did not yet carry rev 49: the new
+plasmashell logged `Invalid empty URL` for `org.moos.brand` and
+`org.moos.island`, the installed (rev-48) `moos-bar-apply check` had no
+current-shell health boundary, and the user saw two Plasma error tiles instead
+of the launcher. Running THIS branch's `moos-bar-apply apply 49` performed the
+one bounded recovery restart and healed the live bar; the same plasmashell PID
+then survived a second apply (fast path, no restart), `check` printed
+`bar: ok`, and pointer click/click, Meta and Escape all toggled the production
+launcher on the real panel (driven by a closed-loop ydotool+KWin-cursorPos
+harness, since one large relative move rides pointer acceleration into the
+screen-corner clamp and misses every target).
+
+A 26-agent adversarial review of the rev-49 diff (4 reviewers, every finding
+independently re-verified against the running system) confirmed seven real
+defects, all fixed here and all covered by executable or pinned gates:
+
+- the payload fingerprint and the journal health gate omitted
+  `org.moos.nova.clock`, the third first-party bar package — the masked
+  error-icon state rev 49 exists to close stayed open for the clock. Both now
+  cover all three zones, the fingerprint root is overridable
+  (`MOOS_PLASMOID_ROOT`) and `tests/test_moos_bar_single_panel.py` now RUNS
+  `bar_payload_generation`, asserting a 64-hex digest that moves when any of
+  the three packages changes;
+- after its one recovery restart, a persistent health failure idled ~20 s in
+  the readback loop and was mislabelled a readback failure; it now fails fast
+  with the truthful message;
+- `Plasmoid.activationTogglesExpanded = true` was assigned on the Plasma::Applet
+  attached object, which has no such property — a silent no-op. The property
+  is now declared on the root PlasmoidItem, where it actually owns the
+  keyboard/Meta/AT-SPI expansion route;
+- the island's Flatpak artwork translation unconditionally rewrote every
+  matching `/tmp` URL, permanently suppressing artwork for host-installed
+  Chromium-family browsers whose raw URL was already readable. The bridge is
+  now probe-driven: translation first, raw-URL fallback armed by Image.Error,
+  re-armed per artwork change;
+- the island's compact click toggled `expanded` from post-dismiss state (the
+  exact press-capture race rev 49 fixed in the launcher); it now captures on
+  press like the launcher;
+- AT-SPI volume increase could walk the player to 150% while the slider read
+  100%; both accessible actions now clamp to the slider's 0..1 range;
+- the desktop-file Exec gate skipped everything wrapped in `konsole -e`, so a
+  wrapped MoOS launcher could rot silently; the gate now unwraps and validates
+  the hosted command.
+
+Separately, the live orbit grid showed the same application twice: the shipped
+`preferred://browser` alias resolves to the concrete browser the user had also
+pinned (`com.google.Chrome.desktop`). `org.moos.brand` now snapshots the
+Kicker `url` role per favourite and retires a `preferred://` alias exactly when
+a concrete pin shares its resolved target — user pins are never touched,
+distinct targets always coexist, and the prune converges through the existing
+snapshot sync. Proven live (grid shows one Chrome; the alias row left the
+kactivities DB) and pinned by
+`test_launcher_orbit_never_shows_one_application_twice`.
+
+The `.574` boot also carried a red failed system unit on every desktop boot:
+thermald prints "Non mobile platform, exiting.." and exits 1 by design on
+non-mobile chassis, and the stock unit restart-loops that refusal into
+`failed`. The image now ships `thermald.service.d/moos-skip-unsupported.conf`
+with `ExecCondition=/usr/libexec/moos-thermald-supported` — the daemon's own
+chassis/vendor judgment, with gate-overridable inputs — so unsupported
+machines skip the unit cleanly while Intel laptops keep thermal management.
+The user-experience gate executes all three branches (Intel desktop skips,
+Intel laptop runs, AMD laptop skips).
+
+Live second-session evidence (3840×2160, 225%, Arabic RTL, `.574` host with
+branch overrides):
+`~/.cache/moos-claude-bar-healed.png`, `~/.cache/moos-claude-v50-meta.png`,
+`~/.cache/moos-claude-v50-click-open.png`,
+`~/.cache/moos-claude-v50-click-closed.png`,
+`~/.cache/moos-claude-dedup-test.png`. Focused gates after the fixes:
+37/37 UI2, 13/13 one-panel (two new fingerprint tests), user-experience gate
+passed.
+
+## 2026-08-09 — live update recovery + real browser/Haruna island proof (THEME_REV 49)
+
+This is a correction and verification layer on the rev-48 shell finish, not a
+new launcher, bar, wallpaper or media architecture.
+
+The signed update initially left `org.moos.brand` and `org.moos.island` present
+in the panel configuration but rendered as Plasma error icons. The old marker
+proved only that the ids existed and therefore suppressed the restart that
+healed both QML packages. `moos-bar-apply` now fingerprints its real launcher,
+island, configuration and apply payload; accepts that marker only when the
+current plasmashell PID has no first-party load failure and the live one-panel
+readback agrees; and performs one bounded recovery restart if the new shell
+still reports a load failure. Its `check` command uses the same current-process
+health boundary. The migration also deletes the retired nested island applet
+from both Plasma tray storage shapes while preserving every unrelated tray
+child. A second apply kept the same plasmashell PID, proving the healthy fast
+path does not restart the shell gratuitously.
+
+Launcher activation now matches Plasma 6.7's installed compact-representation
+ownership: the custom MouseArea owns pointer expansion once, while Meta,
+Return/Space and AT-SPI emit `Plasmoid.activated()` and let Plasma own that
+route. The live Meta and AT-SPI press paths both opened and closed the production
+launcher. Search used the existing KRunner query (`firefox`); the first Escape
+cleared the query and the second closed the launcher.
+
+The existing Plasma `Mpris2Model` island was tested against two real players:
+
+- Chrome Flatpak exposed `org.mpris.MediaPlayer2.chromium.instance2` through a
+  real Media Session. Its art URL was `file:///tmp/.com.google.Chrome.*`, while
+  the same-user file lived below
+  `$XDG_RUNTIME_DIR/.flatpak/com.google.Chrome/tmp`. The island now derives that
+  safe reverse-DNS namespace generically and renders the artwork in compact and
+  expanded modes without a browser registry. Play, pause and an AT-SPI
+  five-second seek changed the real MPRIS state. Chrome ignored volume writes
+  even through direct D-Bus, so browser volume remains capability-dependent and
+  is not claimed.
+- Haruna then became active automatically. AT-SPI volume changed 0.75 → 0.70,
+  mute/unmute restored 0.70, and previous moved 6.83 s → 0.96 s. Closing Haruna
+  handed the island back to paused Chrome; stopping all media collapsed it to
+  its one-transparent-pixel idle representation with no second bar surface.
+
+The same run caught and fixed a real QML `compactHover is not defined` error,
+and added explicit AT-SPI increase/decrease actions for seek and volume sliders.
+The one-second position timer still runs only while media is playing and the
+timeline is visible. No decorative permanent animation was added.
+
+Native live evidence (3840×2160 Wayland, HDR/WCG) is retained locally:
+
+- `~/.cache/moos-launcher-v49-meta-toggle-open.png`
+- `~/.cache/moos-launcher-v49-forge-light-new-process.png`
+- `~/.cache/moos-launcher-v49-live-rtl-scale{100,125,150,200}.png`
+- `~/.cache/moos-island-v49-chrome-expanded-artwork.png`
+- `~/.cache/moos-island-v49-active-player-haruna.png`
+- `~/.cache/moos-island-v49-switch-back-to-chrome.png`
+- `~/.cache/moos-island-v49-all-media-stopped-idle-v2.png`
+
+The real output was restored to Forge dark, Arabic RTL and 225%. `moos-bar-apply
+check` reports `bar: ok`; no MPRIS test service remains; and all temporary media
+fixtures were moved to Trash. A 30-second desktop-only sample at Alive measured
+plasmashell 0.866% CPU / 494 MiB RSS. Switching the same scene temporarily to
+Still measured 0.300%; Alive and all user services were restored. KWin stayed
+13.3–18.3% across Still, Alive, stopped Mo Remote and stopped KRDP, so that
+session's separate NVIDIA 4K/HDR compositor baseline is reported rather than
+misattributed to a MoOS repaint loop. The earlier clean rev-48 samples remain
+the comparable island idle/playing pair.
+
+`just check` passes in full, including the user-experience, QML/UI2, one-panel,
+theme, identity, motion, symbolic-icon, device and remote gates. The focused
+rev-49 results are 36/36 UI2 and 11/11 one-panel tests. The local image build and
+its final digest are the remaining handoff step for this section; do not infer a
+new image from the live source preview alone.
+
 ## 2026-08-09 — signed `.573` closes offline install, boot and login
 
 The official `.573` pipeline built and signed generic, NVIDIA and cloud images.
