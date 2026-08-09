@@ -223,6 +223,48 @@ ApplicationWindow {
     property bool loaded: false
     property string loadError: ""
 
+    // ── what this machine needs (filled from a cache, never computed here) ────
+    //
+    // MoOS already knows the machine: moos-device-plan reads the GPU, its bound
+    // driver, firmware and memory, and on an NVIDIA GPU running without the
+    // NVIDIA image it emits an "important" action with a one-command atomic
+    // switch. Nothing surfaced that on the one screen every new machine shows,
+    // so a user who installed the generic edition on an NVIDIA laptop was never
+    // told — the system knew and stayed quiet.
+    //
+    // The plan is NOT computed here: it shells out to lspci/fwupdmgr/flatpak and
+    // takes tens of seconds, which would freeze this window. moos-firstrun
+    // writes it to a cache in the background and this polls for it, so a slow
+    // or missing probe degrades to "no card" instead of a stalled Welcome.
+    property var deviceActions: []
+    readonly property var deviceFix: {
+        for (var i = 0; i < win.deviceActions.length; i++) {
+            var a = win.deviceActions[i]
+            if (a && a.severity === "important" && a.url && String(a.url).length > 0)
+                return a
+        }
+        return null
+    }
+
+    function loadDevicePlan() {
+        // The launcher passes this path (pure QML has no HOME), the same way it
+        // passes the install job's. Without it there is nothing to read and the
+        // card simply never appears.
+        if (win.devicePlanPath.length < 1) return false
+        try {
+            var req = new XMLHttpRequest()
+            req.open("GET", "file://" + win.devicePlanPath
+                     + "?v=" + Date.now(), false)
+            req.send()
+            if (!req.responseText || req.responseText.length < 1) return false
+            var doc = JSON.parse(req.responseText)
+            win.deviceActions = doc.actions || []
+            return true
+        } catch (e) {
+            return false
+        }
+    }
+
     // ── the look (step 1) ──────────────────────────────────────────────────────
     // "dark" = Graphite, "light" = Tidal. Seeded from the palette the window
     // actually opened with — the wizard can be reopened from the menu on a
@@ -362,6 +404,10 @@ ApplicationWindow {
     // The launcher passes the fixed cache root because pure QML has no HOME.
     readonly property string cacheDir: win.argValue("--cache=")
     readonly property string jobPath: win.cacheDir + "/job.json"
+    // The hardware plan lives outside the store cache and arrives on its own
+    // argument; empty means "this launcher does not provide one", which the
+    // device card treats as "nothing to show".
+    readonly property string devicePlanPath: win.argValue("--device-plan=")
 
     // Live session (booted from the USB, not yet installed): the launcher passes
     // --live=1. Drives the "Install MoOS on this computer" call-to-action on the
@@ -604,7 +650,25 @@ ApplicationWindow {
     }
 
     // ── catalog load ───────────────────────────────────────────────────────────
-    Component.onCompleted: loadCatalog()
+    Component.onCompleted: {
+        loadCatalog()
+        if (!loadDevicePlan()) devicePlanWait.start()
+    }
+
+    // The probe runs in the background from moos-firstrun. Poll briefly, then
+    // stop for good: an absent plan is a normal state (probe still running,
+    // cache unwritable, or a machine with nothing to report) and must never
+    // become a permanent timer on the user's first-run screen.
+    Timer {
+        id: devicePlanWait
+        interval: 2000
+        repeat: true
+        property int tries: 0
+        onTriggered: {
+            tries += 1
+            if (win.loadDevicePlan() || tries >= 15) stop()
+        }
+    }
 
     function loadCatalog() {
         try {
@@ -1899,6 +1963,119 @@ ApplicationWindow {
                         font.family: win.uiFont; font.pixelSize: win.typePx(15)
                         lineHeight: 1.35
                     }
+
+                    // ── "MoOS read your machine" ──────────────────────────────
+                    // Only ever drawn when the device plan found an IMPORTANT
+                    // gap that MoOS can actually close with one action (today:
+                    // an NVIDIA GPU running without the NVIDIA image). No gap,
+                    // no card — this screen must not grow a permanent banner
+                    // that says nothing.
+                    Item {
+                        Layout.preferredHeight: win.fs(24)
+                        visible: win.deviceFix !== null
+                    }
+                    Rectangle {
+                        id: deviceCard
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: deviceCardRow.implicitHeight + win.fs(28)
+                        visible: win.deviceFix !== null
+                        radius: design.radiusCard
+                        color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.72)
+                        border.width: 1
+                        border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.45)
+
+                        RowLayout {
+                            id: deviceCardRow
+                            anchors.fill: parent
+                            anchors.leftMargin: win.fs(16)
+                            anchors.rightMargin: win.fs(16)
+                            spacing: design.space3
+
+                            Rectangle {
+                                Layout.preferredWidth: win.fs(44)
+                                Layout.preferredHeight: win.fs(44)
+                                Layout.alignment: Qt.AlignVCenter
+                                radius: design.radiusControl
+                                color: Qt.rgba(win.accent.r, win.accent.g,
+                                               win.accent.b, 0.16)
+                                Glyph {
+                                    anchors.centerIn: parent
+                                    name: "spark"; tint: win.accent
+                                    width: 22; height: 22
+                                }
+                            }
+
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                Layout.alignment: Qt.AlignVCenter
+                                spacing: 2
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: win.rtl ? "قرأنا جهازك" : "We read your device"
+                                    color: win.txt
+                                    font.family: win.uiFont
+                                    font.pixelSize: win.typePx(15)
+                                    font.weight: Font.DemiBold
+                                    elide: Text.ElideRight
+                                }
+                                Text {
+                                    Layout.fillWidth: true
+                                    // The plan's own bilingual title, so this
+                                    // card never invents a second vocabulary for
+                                    // hardware MoOS already describes elsewhere.
+                                    text: win.deviceFix
+                                          ? String(win.deviceFix.title) : ""
+                                    color: win.txt2
+                                    font.family: win.uiFont
+                                    font.pixelSize: win.typePx(12)
+                                    wrapMode: Text.WordWrap
+                                }
+                            }
+
+                            Rectangle {
+                                Layout.preferredHeight: win.fs(40)
+                                Layout.alignment: Qt.AlignVCenter
+                                implicitWidth: deviceFixRow.implicitWidth + win.fs(34)
+                                radius: height / 2
+                                color: deviceFixHover.hovered
+                                       ? Qt.lighter(win.accent, 1.08) : win.accent
+                                Behavior on color {
+                                    ColorAnimation {
+                                        duration: win.motionEnabled ? design.motionFast : 0
+                                    }
+                                }
+                                HoverHandler { id: deviceFixHover }
+                                TapHandler {
+                                    onTapped: if (win.deviceFix)
+                                        Qt.openUrlExternally(String(win.deviceFix.url))
+                                }
+                                activeFocusOnTab: true
+                                Accessible.role: Accessible.Button
+                                Accessible.name: win.deviceFix
+                                    ? String(win.deviceFix.title) : ""
+                                Accessible.description: win.deviceFix
+                                    ? String(win.deviceFix.detail || "") : ""
+                                Keys.onReturnPressed: if (win.deviceFix)
+                                    Qt.openUrlExternally(String(win.deviceFix.url))
+                                Keys.onSpacePressed: if (win.deviceFix)
+                                    Qt.openUrlExternally(String(win.deviceFix.url))
+                                FocusRing { }
+                                RowLayout {
+                                    id: deviceFixRow
+                                    anchors.centerIn: parent
+                                    spacing: design.space2
+                                    Text {
+                                        text: win.rtl ? "جهّزه الآن" : "Set it up"
+                                        color: win.accentText
+                                        font.family: win.uiFont
+                                        font.pixelSize: win.typePx(14)
+                                        font.weight: Font.DemiBold
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     Item { Layout.preferredHeight: win.fs(32) }
 
                     RowLayout {

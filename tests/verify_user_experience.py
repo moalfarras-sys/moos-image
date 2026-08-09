@@ -414,6 +414,33 @@ welcome_palette_code = code(welcome_qml, "slash")
 store_qml = read("system_files/usr/share/moos/apps/store/main.qml")
 store_palette_code = code(store_qml, "slash")
 
+# MoOS already reads the machine, but nothing surfaced it on the one screen a
+# new machine always shows: a user who installed the generic edition on an
+# NVIDIA laptop was never told the system knew. The Welcome now carries a
+# device card — and it must stay a CONDITIONAL card, never a permanent banner,
+# and must never block the first screen on a probe that takes tens of seconds.
+_firstrun = read("system_files/usr/bin/moos-firstrun")
+_welcome_launcher = read("system_files/usr/bin/moos-welcome")
+require("--device-plan=" in _welcome_launcher,
+        "moos-welcome must pass the device-plan path (pure QML has no HOME)")
+require('win.argValue("--device-plan=")' in welcome_palette_code,
+        "the Welcome must read the device plan from its own argument, not the "
+        "store cache directory it is also given")
+require("moos-device-plan --compact" in _firstrun,
+        "moos-firstrun must run the hardware probe")
+require("device-plan.json.partial" in _firstrun,
+        "the device plan must be written atomically, or the Welcome can parse "
+        "half a document")
+require('a.severity === "important"' in welcome_palette_code
+        and "a.url" in welcome_palette_code,
+        "the device card must appear only for an important action that has a "
+        "real URL to act on")
+require("visible: win.deviceFix !== null" in welcome_palette_code,
+        "the device card must be hidden when there is nothing to fix")
+require("tries >= 15" in welcome_palette_code,
+        "the device-plan poll must give up — a first-run screen must not carry "
+        "a permanent timer")
+
 # Mo Store must make a whole filtered section installable with one reviewed
 # selection, and must SHOW the resolved source for every app. Both drive the
 # unified index/transaction plumbing rather than a second storefront.

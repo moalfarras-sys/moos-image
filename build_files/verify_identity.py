@@ -72,7 +72,29 @@ def main() -> None:
 
     installer = desktop("/usr/share/applications/liveinst.desktop")
     require(installer.get("Name") == "Install MoOS", "installer name is not MoOS")
-    require(installer.get("Icon") == "moos-logo", "installer icon is not moos-logo")
+    # The contract is "the first screen of a new machine carries MoOS identity",
+    # not one hardcoded basename. Pinning a single name blocked moving to
+    # moos-installer — MoOS-owned exactly like the mark, but shipped 16→1024 px
+    # plus SVG and already used by org.moos.installer.desktop, so the live-USB
+    # launcher and the installed app finally agree. Both halves below are
+    # STRICTER than the string they replace: an upstream/Fedora icon still
+    # fails, AND the name must now actually resolve to a file in this image —
+    # a typo used to pass and leave the live launcher on a generic placeholder,
+    # which is precisely the identity leak this gate exists to catch.
+    installer_icon = installer.get("Icon", "")
+    require(installer_icon.startswith("moos-"),
+            f"installer icon {installer_icon!r} is not a MoOS-owned icon name")
+    icon_files = [
+        path
+        for root, pattern in (
+            ("usr/share/icons", f"**/{installer_icon}.png"),
+            ("usr/share/icons", f"**/{installer_icon}.svg"),
+            ("usr/share/pixmaps", f"{installer_icon}.*"),
+        )
+        for path in (ROOT / root).glob(pattern)
+    ]
+    require(bool(icon_files),
+            f"installer icon {installer_icon!r} resolves to no file in this image")
 
     # "hardware" and "compathub" are gone on purpose: the Hardware Centre and the
     # Compatibility Hub are panels inside Mo AI now, reached by `moai --panel …`.
