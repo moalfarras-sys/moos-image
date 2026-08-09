@@ -95,6 +95,12 @@ try {
     launcher.writeConfig("popupHeight", 576);
 } catch (e) { /* the bar survives launcherless */ }
 
+/* The existing org.moos.island is the bar's adaptive MPRIS zone. It is direct,
+ * immediately after the launcher, so it can grow from one transparent idle
+ * pixel into artwork, title/source and transport controls. The applet itself
+ * keeps Plasma's Mpris2Model architecture and hides again when media stops. */
+try { panel.addWidget("org.moos.island"); } catch (e) { /* media is optional */ }
+
 /* Icons-Only Task Manager — Mo AI pinned FIRST, then browser, files, Mo PC
  * Remote, System Settings and the terminal.
  *
@@ -150,9 +156,9 @@ systray.writeConfig("shownItems", "org.kde.plasma.networkmanagement,org.kde.plas
 // A shownItems id without a loaded inner applet draws nothing; in particular the
 // notification applet must exist to own org.freedesktop.Notifications. Bluetooth
 // and brightness are loaded but not forced visible, so their Active/Passive
-// status still decides whether they consume bar space. The island follows the
-// same rule and must never enter shownItems.
-systray.writeConfig("extraItems", "org.moos.island,org.kde.plasma.networkmanagement,org.kde.plasma.volume,org.kde.plasma.notifications,org.kde.plasma.keyboardlayout,org.kde.plasma.bluetooth,org.kde.plasma.brightness");
+// status still decides whether they consume bar space. The media island is a
+// direct panel zone and must not be duplicated inside this list.
+systray.writeConfig("extraItems", "org.kde.plasma.networkmanagement,org.kde.plasma.volume,org.kde.plasma.notifications,org.kde.plasma.keyboardlayout,org.kde.plasma.bluetooth,org.kde.plasma.brightness");
 
 panel.addWidget("org.moos.nova.clock");
 

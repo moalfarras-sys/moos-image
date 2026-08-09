@@ -5,7 +5,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls as QQC2
 import QtQuick.Layouts
-import QtQuick.Shapes
 import org.kde.plasma.plasmoid
 import org.kde.plasma.components as PC3
 import org.kde.plasma.extras as PlasmaExtras
@@ -227,52 +226,19 @@ Item {
         }
     }
 
-    // One material layer, one KWin shadow. The stepped top-right and bottom-left
-    // shelves are the Tidal Cut silhouette: recognizable before any copy or
-    // icon is read, and still entirely semantic-theme driven.
-    Shape {
+    // One calm material layer. KWin owns blur and shadow; this item supplies a
+    // clean, continuous silhouette with no clipped shelves, wireframe corners or
+    // competing outline segments. Semantic colours keep the same MoOS identity
+    // in every light/dark family without turning the launcher into neon chrome.
+    Rectangle {
         anchors.fill: parent
-        containsMode: Shape.FillContains
-
-        ShapePath {
-            strokeWidth: design.borderHairline
-            strokeColor: Qt.alpha(Kirigami.Theme.textColor, 0.16)
-            fillColor: Qt.alpha(Kirigami.Theme.backgroundColor, 0.86)
-            joinStyle: ShapePath.RoundJoin
-            capStyle: ShapePath.RoundCap
-            startX: view.radiusXL
-            startY: 0
-            PathLine { x: view.width - 172; y: 0 }
-            PathQuad {
-                x: view.width - 148; y: view.space6
-                controlX: view.width - 154; controlY: 0
-            }
-            PathLine { x: view.width - view.radiusXL; y: view.space6 }
-            PathQuad {
-                x: view.width; y: view.space6 + view.radiusXL
-                controlX: view.width; controlY: view.space6
-            }
-            PathLine { x: view.width; y: view.height - view.radiusXL }
-            PathQuad {
-                x: view.width - view.radiusXL; y: view.height
-                controlX: view.width; controlY: view.height
-            }
-            PathLine { x: 116; y: view.height }
-            PathQuad {
-                x: 92; y: view.height - view.space6
-                controlX: 98; controlY: view.height
-            }
-            PathLine { x: view.radiusXL; y: view.height - view.space6 }
-            PathQuad {
-                x: 0; y: view.height - view.space6 - view.radiusXL
-                controlX: 0; controlY: view.height - view.space6
-            }
-            PathLine { x: 0; y: view.radiusXL }
-            PathQuad {
-                x: view.radiusXL; y: 0
-                controlX: 0; controlY: 0
-            }
-        }
+        radius: view.radiusXL
+        color: Qt.alpha(Kirigami.Theme.backgroundColor,
+                        view.lightSurface ? 0.92 : 0.86)
+        border.width: design.borderHairline
+        border.color: Qt.alpha(Kirigami.Theme.textColor,
+                               view.lightSurface ? 0.13 : 0.16)
+        antialiasing: true
     }
 
     // A still, low-amplitude horizon held inside the material. It connects the
@@ -312,48 +278,6 @@ Item {
                 color: Qt.alpha(Kirigami.Theme.highlightColor, 0.0)
             }
         }
-    }
-
-    // The Tidal Cut signature: a horizon that deliberately stops short, then
-    // resumes as a bright marker. No Canvas/shader and no perpetual motion.
-    Row {
-        anchors {
-            top: parent.top
-            left: parent.left
-            leftMargin: view.radiusXL
-            topMargin: 1
-        }
-        height: 2
-        spacing: view.space2
-
-        Rectangle {
-            width: Math.round(view.width * 0.23)
-            height: 2
-            radius: 1
-            color: Kirigami.Theme.highlightColor
-            opacity: 0.92
-        }
-        Rectangle {
-            width: view.space2
-            height: 2
-            radius: 1
-            color: Kirigami.Theme.highlightColor
-            opacity: 0.38
-        }
-    }
-
-    Rectangle {
-        anchors {
-            right: parent.right
-            top: parent.top
-            rightMargin: view.radiusXL
-            topMargin: view.space6 + 2
-        }
-        width: 2
-        height: view.space6
-        radius: 1
-        color: Kirigami.Theme.highlightColor
-        opacity: 0.64
     }
 
     ColumnLayout {
@@ -501,42 +425,11 @@ Item {
                 searchInput.activeFocus ? 0.96 : 0.78)
             border.width: 1
             border.color: searchInput.activeFocus
-                ? Qt.alpha(Kirigami.Theme.highlightColor, 0.82)
+                ? Qt.alpha(Kirigami.Theme.textColor, 0.28)
                 : Qt.alpha(Kirigami.Theme.textColor, 0.16)
 
             Behavior on color { ColorAnimation { duration: view.motionFast } }
             Behavior on border.color { ColorAnimation { duration: view.motionFast } }
-
-            Row {
-                anchors {
-                    left: parent.left
-                    bottom: parent.bottom
-                    leftMargin: view.radiusL
-                }
-                height: 2
-                spacing: view.space1
-
-                Rectangle {
-                    width: searchInput.activeFocus ? 72 : 36
-                    height: 2
-                    radius: 1
-                    color: Kirigami.Theme.highlightColor
-                    opacity: 0.92
-                    Behavior on width {
-                        NumberAnimation {
-                            duration: view.motionMedium
-                            easing.type: Easing.OutCubic
-                        }
-                    }
-                }
-                Rectangle {
-                    width: view.space2
-                    height: 2
-                    radius: 1
-                    color: Kirigami.Theme.highlightColor
-                    opacity: 0.32
-                }
-            }
 
             RowLayout {
                 anchors.fill: parent

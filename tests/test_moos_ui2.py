@@ -816,8 +816,8 @@ class TestMoOSUI2(unittest.TestCase):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=47", apply,
-            "existing pre-v47 users would exit before post-marker shadow quarantine, "
+            "THEME_REV=48", apply,
+            "existing pre-v48 users would exit before post-marker shadow quarantine, "
             "the Horizon Bar/theme migration, and the SVG cache purge that is the "
             "only way new Plasma Style art reaches a frozen /usr",
         )
@@ -1176,7 +1176,7 @@ class TestMoOSUI2(unittest.TestCase):
         )
 
     def test_tidal_command_canvas_is_a_product_surface_not_a_menu(self) -> None:
-        """Hold the distinctive shell composition and its zero-idle contract."""
+        """Hold the premium shell composition and its zero-idle contract."""
         launcher_raw = (
             SHARE / "plasma/plasmoids/org.moos.brand/contents/ui/LauncherView.qml"
         ).read_text(encoding="utf-8")
@@ -1191,11 +1191,32 @@ class TestMoOSUI2(unittest.TestCase):
         self.assertIn("implicitWidth: design.dialogWidth", launcher)
         self.assertIn("implicitHeight: design.dialogHeight", launcher)
         self.assertIn("LOCAL · PRIVATE", launcher)
-        self.assertIn("import QtQuick.Shapes", launcher)
-        self.assertIn("ShapePath {", launcher)
-        self.assertGreaterEqual(
-            launcher.count("PathQuad {"), 4,
-            "the Tidal Cut silhouette collapsed back into a generic rectangle",
+        self.assertNotIn("import QtQuick.Shapes", launcher)
+        for unfinished_wireframe in ("ShapePath {", "PathQuad {", "PathLine {"):
+            self.assertNotIn(
+                unfinished_wireframe,
+                launcher,
+                "the launcher must not restore clipped wireframe corners",
+            )
+        self.assertRegex(
+            launcher,
+            r"Rectangle\s*\{\s*anchors\.fill:\s*parent\s*"
+            r"radius:\s*view\.radiusXL",
+            "the launcher must own one continuous rounded material silhouette",
+        )
+        self.assertIn("border.width: design.borderHairline", launcher)
+        command_field = launcher_raw.split(
+            "// ── The command field", 1
+        )[1].split("RowLayout {", 1)[0]
+        self.assertNotIn(
+            "Kirigami.Theme.highlightColor",
+            command_field,
+            "the search field must not restore a full neon focus outline",
+        )
+        self.assertNotIn(
+            "Row {",
+            command_field,
+            "the search field must not restore detached underline segments",
         )
         self.assertIn("component CommandCard:", launcher)
         self.assertEqual(
@@ -1286,6 +1307,17 @@ class TestMoOSUI2(unittest.TestCase):
         self.assertTrue(required_masks <= set(re.findall(
             r'\bid="([^"]+)"', dialog_template
         )), "the popup master must ship a complete rounded blur mask")
+        painted_frame = dialog_template.split("</defs>", 1)[1].split(
+            "<!-- Rounded KWin blur mask", 1
+        )[0]
+        self.assertNotIn(
+            "@PRIMARY@", painted_frame,
+            "popup rims must not restore the split accent band",
+        )
+        self.assertNotIn(
+            "@LUMINOUS@", painted_frame,
+            "popup rims must remain one neutral continuous edge",
+        )
 
         # Panel glass opacity is now tokenised in the master (@GLASS_P*@) so Dark
         # and Light are ONE source with two per-half profiles. Assert the master
@@ -1331,7 +1363,7 @@ class TestMoOSUI2(unittest.TestCase):
             encoding="utf-8"
         )
         self.assertIn(
-            "MOOS_THEME_REV=10", migration,
+            "MOOS_THEME_REV=11", migration,
             "changed FrameSvgs need a new migration revision for existing users",
         )
         for stale_cache in (
@@ -2228,7 +2260,13 @@ class TestMoOSUI2(unittest.TestCase):
         self.assertEqual(
             len(re.findall(r"integrated:\s*true", main)),
             3,
-            "time, weather and system health must borrow one shared glass shell",
+            "time, weather and system health must suppress their individual cards",
+        )
+        self.assertNotIn(
+            "GlassCard {",
+            main,
+            "Horizon Hub content must float directly over the wallpaper, with no "
+            "outer card, border, shadow or glass rectangle",
         )
         glass_card = qml_by_path[DASHBOARD / "contents/ui/GlassCard.qml"]
         self.assertIn("property bool integrated: false", glass_card)
@@ -2280,6 +2318,20 @@ class TestMoOSUI2(unittest.TestCase):
                       "render below the icons")
         self.assertIn("DashboardBento", wrapper,
                       "the scene wallpaper no longer embeds the dashboard bento")
+        self.assertIn(
+            "anchors.horizontalCenter: parent.horizontalCenter",
+            wrapper,
+            "the complete Horizon Hub must be centred horizontally",
+        )
+        bento_frame = wrapper.split("id: bentoFrame", 1)[1].split(
+            "Loader {", 1
+        )[0]
+        self.assertNotIn(
+            "anchors.left:",
+            bento_frame,
+            "the Horizon Hub must not regress to a top-left anchored frame",
+        )
+        self.assertIn("parent.height * 0.16", bento_frame)
         self.assertRegex(
             wrapper,
             r"(?s)Loader\s*\{\s*id:\s*bentoLoader.*?active:\s*bentoFrame\.dashboardRequested",

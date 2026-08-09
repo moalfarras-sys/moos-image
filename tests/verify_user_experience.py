@@ -1410,6 +1410,16 @@ require(re.search(r"Loader\s*\{\s*id:\s*bentoLoader.*?"
 require(not re.search(r"Item\s*\{\s*id:\s*bentoFrame.*?"
                       r"DashboardBento\s*\{\s*id:", scene_main, re.S),
         "the dashboard is still instantiated unconditionally inside its hidden frame")
+require("GlassCard {" not in dashboard_code,
+        "Horizon Hub must float directly over the wallpaper: the outer GlassCard "
+        "rectangle, border and shadow are explicitly retired")
+require("anchors.horizontalCenter: parent.horizontalCenter" in scene_main
+        and "parent.height * 0.16" in scene_main,
+        "the complete Horizon Hub must be horizontally centred and balanced in "
+        "the upper/middle desktop composition")
+_bento_frame_code = scene_main.split("id: bentoFrame", 1)[1].split("Loader {", 1)[0]
+require("anchors.left:" not in _bento_frame_code,
+        "Horizon Hub regressed to a top-left anchored frame")
 require('"Plasma/Wallpaper"' in read(f"{SCENE}/metadata.json"),
         "org.moos.ui2.wallpaper must be a Plasma/Wallpaper package")
 require('name="Image"' in read(f"{SCENE}/contents/config/main.xml"),
@@ -2449,9 +2459,10 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=47" in apply_theme_code,
-        "MoOS visual schema must migrate existing users to the liquid-glass marks "
-        "and the two-slab Horizon Bar (moos-bar-apply), while reconciling new shadows "
+require("THEME_REV=48" in apply_theme_code,
+        "MoOS visual schema must migrate existing users to the cardless centred "
+        "Horizon Hub and direct adaptive media island (moos-bar-apply), while "
+        "reconciling new shadows "
         "and purging the Plasma SVG cache that would otherwise keep serving old art")
 require("local_plasmoids=" in apply_theme_code
         and "org.moos.brand" in apply_theme_code.split("local_plasmoids=")[1][:400],
@@ -2884,7 +2895,7 @@ require("target_lnf()" in apply_theme_code
         "the self-heal must accept EITHER MoOS look and repair to the one the user chose")
 
 ui_migrate = read("system_files/usr/bin/moos-ui-migrate")
-require("MOOS_THEME_REV=10" in ui_migrate and "MOAI_UI_REV=3" in ui_migrate,
+require("MOOS_THEME_REV=11" in ui_migrate and "MOAI_UI_REV=3" in ui_migrate,
         "UI cache and Mo AI migrations must be explicitly revisioned")
 require('rm -rf "$HOME/.cache"' not in ui_migrate,
         "UI migration must never erase the whole user cache")
@@ -3136,6 +3147,11 @@ layout_code = code(re.sub(r"/\*.*?\*/", "", layout, flags=re.DOTALL), "slash")
 panel_applets = re.findall(r'addWidget\(\s*"([^"]+)"\s*\)', layout_code)
 require(panel_applets.count("org.moos.brand") == 1,
         "the default panel must add org.moos.brand exactly once")
+require(panel_applets.count("org.moos.island") == 1
+        and panel_applets.index("org.moos.island")
+            == panel_applets.index("org.moos.brand") + 1,
+        "the default panel must add the existing org.moos.island exactly once, "
+        "immediately after the MoOS launcher")
 legacy_panel_launchers = {
     "org.kde.plasma.kickoff", "org.kde.plasma.kicker", "org.kde.plasma.kickerdash",
 }.intersection(panel_applets)
@@ -4568,6 +4584,10 @@ require("moos-scene-smoke.qml" in build_script_code
         and "DashboardBento.qml" in build_script_code,
         "the image build must load the scene bento through a real QML host; "
         "a package that only exists on disk is not a package that loads")
+require("/usr/bin/plasmawindowed org.moos.island" in normalized_build_script
+        and '_island_smoke_rc" -ne 124' in build_script_code,
+        "the image build must load org.moos.island through Plasma's real applet "
+        "host and require it to stay resident")
 require("dbus-run-session -- /usr/bin/moos-qml-shell --app-id org.moos.scene-smoke" in
         normalized_build_script,
         "the headless scene smoke needs a session bus; without one even KDE's stock "
@@ -4646,21 +4666,22 @@ for _toggle in _tray_shown:
             f"the tray design keeps {_toggle} one click away — moos-bar.conf must "
             f"ship it in the shownItems list or a theme application hides it again")
 
-# THE INVARIANT THAT MAKES THE CONTEXT ISLAND WORK. shownItems means FORCED
-# visible, whatever an item's own status says. The island's entire design is to
-# appear only while the machine has something to say, using Plasma's own
-# ActiveStatus/PassiveStatus — so listing it under shownItems makes it permanent
-# and defeats it. It was listed there once during development and the tray kept
-# a dead mark after the player exited; that is the regression this refuses.
+# The media island is a DIRECT adaptive panel zone after the launcher. It must
+# never also be loaded inside the tray: that would create a second media mark,
+# clip the title/controls into a square cell and split one MPRIS state across two
+# representations.
 require("org.moos.island" not in _shown_line,
-        "org.moos.island must NEVER be in shownItems — that forces it visible "
-        "and defeats an item whose whole purpose is to appear only when it has "
-        "something to say. It belongs in extraItems.")
+        "org.moos.island must never be forced into the tray's shownItems")
 _extra_line = next((l for l in _bar_conf_code.splitlines()
                     if l.startswith("extraItems=")), "")
-require("org.moos.island" in _extra_line,
-        "moos-bar.conf must list org.moos.island in the tray's extraItems, or "
-        "the tray never instantiates it and the island can never appear")
+require("org.moos.island" not in _extra_line,
+        "org.moos.island is a direct panel zone and must not be duplicated in "
+        "the tray's extraItems")
+_bar_applets_line = next((l for l in _bar_conf_code.splitlines()
+                          if l.startswith("applets=")), "")
+require(_bar_applets_line == "applets=brand;island;tasks;separator;tray;clock",
+        "the single-capsule order must be launcher, adaptive island, tasks, "
+        "separator, tray and clock")
 for _inner in (*_tray_shown, "org.kde.plasma.bluetooth",
                "org.kde.plasma.brightness"):
     require(_inner in _extra_line,
@@ -4671,6 +4692,16 @@ require('conf tray.extraItems' in bar_apply
         and 'writeConfig("extraItems"' in bar_apply,
         "moos-bar-apply must MERGE the MoOS tray items into the user's existing "
         "extraItems (never replace it — the rest of that list is Plasma's own)")
+require('ISLAND_APPLET="$(conf island.applet)"' in bar_apply
+        and "dock.addWidget(ISLAND_APPLET)" in bar_apply
+        and 'island_plugin = zone_plugin.get("island"' in bar_apply
+        and 'dock.readConfig("AppletOrder", "")' in bar_apply
+        and 'ps[i].readConfig("AppletOrder", "")' in bar_apply
+        and "directIslandPosition == directBrandPosition + 1" in bar_apply
+        and "e != ISLAND_APPLET" in bar_apply,
+        "moos-bar-apply must create exactly one direct island while Plasma is "
+        "stopped, prove it follows the launcher, "
+        "and remove the retired inner-tray copy on existing profiles")
 require('writeConfig("shownItems", SHOWN.join(","))' in bar_apply,
         "moos-bar-apply must pin the tray's shownItems from moos-bar.conf in the "
         "user's config")
@@ -4862,8 +4893,8 @@ require(ui2_gate.returncode == 0,
 # where the self-healing rebind below actually lives.
 # What is actually required is the OUTCOME — the install ends up on a signed origin —
 # and there are two legitimate ways to reach it. `moos-install-to-disk` uses the second
-# one: it runs `bootc install to-disk` plainly and then rewrites the deployment origin
-# to `ostree-image-signed:docker://…`, matching what the Anaconda %post does. Gating on
+# one: it runs `bootc install to-filesystem` plainly and then rewrites the deployment
+# origin to `ostree-image-signed:docker://…`, matching what the Anaconda %post does. Gating on
 # the flag alone called that file broken when it is correct. Assert the outcome, and
 # accept either proof.
 _SWITCH = re.compile(r"bootc\s+(?:switch|install)\b([^\n;|&]*)")
@@ -5337,17 +5368,40 @@ require('clear_transaction_snapshot' in _fr
         and _fr_off.index('rm -f -- "$STATE"') < _fr_off.index("clear_transaction_snapshot"),
         "Fast Remote must retain its exact snapshots until every OFF restore succeeds")
 
-# The context island is resident in plasmashell. Media state may produce a
-# finite acknowledgement, but it must not keep the 4K compositor repainting
-# forever while a track plays.
+# The media island extends Plasma's MPRIS architecture; it must expose a complete
+# capability-aware controller without a second media registry or decorative
+# repaint loop. Position polling is allowed only while progress is moving AND
+# visible (expanded or hovered).
 _island = code(read(
     "system_files/usr/share/plasma/plasmoids/org.moos.island/contents/ui/main.qml"
 ), "slash")
+for _mpris_contract in (
+    "Mpris.Mpris2Model", "players.currentPlayer", "canControl", "canGoPrevious",
+    "canGoNext", "canPlay", "canPause", "canSeek", "player.position",
+    "player.length", "player.volume", "player.identity", "player.artUrl",
+    "resolvedPlayerIcon", 'return "chrome"', 'return "firefox"',
+    "compactRepresentation", "fullRepresentation",
+):
+    require(_mpris_contract in _island,
+            f"the adaptive media island is missing MPRIS contract {_mpris_contract!r}")
 require("Animation.Infinite" not in _island
-        and "interval: 15000" in _island
-        and "onTriggered: mediaPulse.restart()" in _island,
-        "the resident media island must use sparse finite pulses, not a "
-        "continuous animation loop")
+        and "mediaPulse" not in _island
+        and "interval: 15000" not in _island,
+        "the resident media island must not run decorative permanent pulses")
+require("running: root.playing && root.hasTimeline" in _island
+        and "(root.expanded || compactHover.hovered)" in _island,
+        "the one-second MPRIS position refresh must sleep unless moving progress "
+        "is actually visible")
+require("implicitWidth: root.active" in _island
+        and "? Math.round(baseWidth + (compactHover.hovered ? 68 : 0)) : 1" in _island
+        and "opacity: root.active ? 1 : 0" in _island,
+        "the direct island must be one transparent pixel at idle and expand "
+        "adaptively for media/hover state")
+_island_meta = json.loads(read(
+    "system_files/usr/share/plasma/plasmoids/org.moos.island/metadata.json"
+))
+require("X-Plasma-NotificationArea" not in _island_meta,
+        "the direct panel media island must not also register as a tray item")
 
 # #19 Every Windows/foreign type runforeign claims must have a default handler.
 _mime = read("system_files/etc/xdg/mimeapps.list")
@@ -5370,6 +5424,43 @@ require("/usr/lib/systemd/systemd-update-done --root=" in _i2d
         and '.updated' in _i2d,
         "the installer must mark the deployed /etc caches current; otherwise "
         "ldconfig performs a long cold rebuild before the first password greeter")
+require('bootc install to-filesystem' in _i2d
+        and 'bootc install to-disk' not in _i2d
+        and 'TMPDIR="$TARGET_STAGE"' in _i2d
+        and 'mount --bind "$TARGET_STAGE" /var/tmp' in _i2d
+        and 'unbind_stage_tmp' in _i2d,
+        "the live installer must bind both TMPDIR and /var/tmp to target-backed storage; "
+        "bootc explicitly mirrors /var/tmp and otherwise fills the ~1.2-GiB LiveOS overlay")
+require('btrfs subvolume create "$TARGET_TOP/root"' in _i2d
+        and 'btrfs subvolume create "$TARGET_TOP/bootc-stage"' in _i2d
+        and 'btrfs subvolume set-default "$root_id"' in _i2d
+        and 'btrfs subvolume delete "$TARGET_TOP/bootc-stage"' in _i2d,
+        "offline install staging must be a disposable sibling subvolume: the deployed "
+        "root stays empty for bootc and all staging space is reclaimed after the copy")
+require('--skip-finalize' in _i2d
+        and 'finalize_target_filesystem' in _i2d
+        and 'mount -o subvolid=5 "$part" "$mnt"' in _i2d
+        and 'fstrim --quiet-unsupported -v "$mnt"' in _i2d
+        and 'fsfreeze -f "$mnt"' in _i2d
+        and 'fsfreeze -u "$mnt"' in _i2d
+        and 'mount -o remount,ro "$mnt"' in _i2d,
+        "bootc must defer filesystem finalization until the target-backed staging "
+        "sibling is gone; its built-in Btrfs remount makes the live image proxy EROFS "
+        "after a complete 10.8-GiB copy")
+_stage_delete = _i2d.rfind('btrfs subvolume delete "$mnt/bootc-stage"')
+_target_trim = _i2d.rfind('fstrim --quiet-unsupported -v "$mnt"')
+_target_freeze = _i2d.rfind('fsfreeze -f "$mnt"')
+_target_ro = _i2d.rfind('mount -o remount,ro "$mnt"')
+require(-1 < _stage_delete < _target_trim < _target_freeze < _target_ro,
+        "the custom Btrfs finalizer must delete scratch data, trim, freeze/thaw, "
+        "then perform the read-only writeback check in that order")
+for _part_guid in (
+    "21686148-6449-6E6F-744E-656564454649",  # BIOS boot
+    "C12A7328-F81F-11D2-BA4B-00A0C93EC93B",  # EFI System
+    "4F68BCE3-E8CD-4DB1-96E7-FBCAF984B709",  # Linux root x86-64
+):
+    require(_part_guid in _i2d,
+            f"the external bootc filesystem layout is missing partition type {_part_guid}")
 _iqml = read("system_files/usr/share/moos/apps/installer/main.qml")
 require("acctPass.length >= 8" in _iqml,
         "the account page must require a password")
@@ -5554,6 +5645,27 @@ require(
     and ']${offline_ref}"' in _isoyml
     and 'image exists "${offline_ref}"' in _isoyml,
     "digest-pinned ISO builds must alias the source to the exact tagged ref the offline installer requests",
+)
+require(
+    'store="${rootfs}/usr/lib/containers/storage"' in _isoyml
+    and 'store="${rootfs}/var/lib/containers/storage"' not in _isoyml
+    and '"/usr/lib/containers/storage"' in _isoyml,
+    "the offline image must live in containers/storage's immutable AdditionalImageStore; "
+    "the live boot overlays /var and hides squashfs content placed there",
+)
+require(
+    'runtime-empty-store' in _isoyml
+    and 'additionalimagestores = ["${store}"]' in _isoyml
+    and 'CONTAINERS_STORAGE_CONF="${runtime_conf}"' in _isoyml,
+    "the ISO gate must resolve the embedded image through an additional read-only store "
+    "with a separate empty runtime graphroot, matching the live boot topology",
+)
+require(
+    'mountpoint -q "${store}/overlay"' in _isoyml
+    and 'umount -R "${store}/overlay"' in _isoyml
+    and "offline image store remained mounted after runtime lookup" in _isoyml,
+    "the ISO embed must tear down containers/storage's private bind mount before "
+    "squashing or deleting the extracted rootfs",
 )
 
 # First-party QML no longer manufactures private base64 SVG libraries at

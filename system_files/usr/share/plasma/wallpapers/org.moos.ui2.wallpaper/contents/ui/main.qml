@@ -241,30 +241,23 @@ WallpaperItem {
         }
     }
 
-    // Scale-to-fit frame. The bento has a FIXED design size (gridUnit*31 ×
-    // gridUnit*12), and gridUnit tracks the user's font/DPI — so on a small
-    // screen, a scaled desktop, or a large accessibility font, the fixed width
-    // can exceed the space left after the margins and the bento would clip off
-    // the right/bottom edge. This frame measures the room actually available and
-    // scales the whole bento down (never up past 1.0) to fit, keeping its aspect
-    // and every card readable. transformOrigin top-left so it shrinks toward the
-    // corner it is anchored to, not toward its centre.
+    // Scale-to-fit frame. The Hub has a fixed, DPI-aware design size and is
+    // centred as one desktop instrument in the upper/middle composition. On a
+    // small screen or large accessibility scale it shrinks symmetrically toward
+    // its centre, never clipping either edge and never drifting into a corner.
     Item {
         id: bentoFrame
         z: 1
         anchors.top: parent.top
-        anchors.left: parent.left
-        anchors.topMargin: Math.max(36, Math.round(parent.height * 0.05))
-        anchors.leftMargin: Math.max(44, Math.round(parent.width * 0.032))
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.topMargin: Math.max(72, Math.round(parent.height * 0.16))
 
-        // The room the bento may occupy: everything from its top-left corner to
-        // a comfortable inset from the opposite edges, capped so it never spans
-        // more than ~68% of the screen width (it is a corner accent, not a bar).
+        readonly property real safeMargin:
+            Math.max(36, Math.round(root.width * 0.035))
         readonly property real roomWidth:
-            Math.min(root.width * 0.68,
-                     root.width - anchors.leftMargin - Math.max(44, Math.round(root.width * 0.032)))
+            Math.min(root.width * 0.86, root.width - safeMargin * 2)
         readonly property real roomHeight:
-            root.height * 0.42 - anchors.topMargin
+            root.height * 0.58 - anchors.topMargin
 
         readonly property bool dashboardRequested:
             root.configuration.ShowDashboard === undefined
@@ -291,12 +284,13 @@ WallpaperItem {
 
         Loader {
             id: bentoLoader
+            anchors.horizontalCenter: parent.horizontalCenter
             active: bentoFrame.dashboardRequested
                     && root.width >= 820 && root.height >= 520
             sourceComponent: bentoComponent
             width: item ? item.implicitWidth : 0
             height: item ? item.implicitHeight : 0
-            transformOrigin: Item.TopLeft
+            transformOrigin: Item.Top
             scale: bentoFrame.fit
         }
     }

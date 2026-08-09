@@ -1,48 +1,22 @@
-// MoOS Context Island — the bar's answer to "what is this machine doing?"
+// MoOS Media Island — one adaptive MPRIS surface in the Horizon Bar.
 //
-// moos-bar.conf reserved a [smart] slot for this from the start and it was never
-// built. This is it: the tray shows a mark only while something is happening,
-// and the whole card is one click away.
+// This is a direct panel zone immediately after the MoOS launcher, not a second
+// media service and not a tray icon. Plasma's Mpris2Model remains the single
+// source of truth and chooses the active player, including browsers that expose
+// MPRIS through Media Session. The applet is one pixel and transparent at idle,
+// expands when a real player appears, and offers the same player in a compact
+// bar surface and a detailed popup.
 //
-// TWO THINGS WERE LEARNED THE HARD WAY BUILDING THIS, both measured live:
-//
-//  1. It cannot be a plain panel applet that collapses to zero width. Plasma
-//     does not instantiate a representation for a zero-width applet, and the
-//     width was computed from that representation's own content — so the
-//     content that would give it width never existed and it stayed zero
-//     forever. The compact representation's Component.onCompleted never fired
-//     once. Plasma already ships the mechanism for "appear when you have
-//     something to say": X-Plasma-NotificationArea + Plasmoid.status, which is
-//     what org.kde.kdeconnect and org.kde.plasma.vault use on disk today.
-//     ActiveStatus puts the item in the tray's visible row; PassiveStatus tucks
-//     it behind the arrow. Reusing the shell's own mechanism also means the
-//     island obeys the user's tray settings like every other item.
-//
-//  2. A tray cell is SQUARE. The first tray version drew a wide chip with title
-//     and artist and rendered blank: the row overflowed the cell and was
-//     clipped, leaving a gap in the tray with nothing in it. So the tray mark is
-//     an icon — the shape a tray is for — and the title, artist and transport
-//     live in the popup, where there is room for them.
-//
-// THE SIGNAL IS REAL. org.kde.plasma.private.mpris is the same Mpris2Model
-// Plasma's own media applet uses; title, artist and transport come from the
-// player over MPRIS2, event-driven, no polling and no timers. A player that is
-// stopped, or that has published no title, is not a state worth a mark — there
-// is deliberately no placeholder, because a mark that cannot be trusted is
-// worse than an empty tray.
-//
-// Motion budget: opacity only, and only while something is actually playing.
-// It sits behind the Kirigami seam the rest of MoOS uses (longDuration > 1), so
-// "animations off" is honoured — and since THEME_REV 34 that duration is scaled
-// by moos-visual-tier, so the island's motion tracks the machine's capability
-// without knowing anything about the hardware.
+// Motion is contextual only: geometry follows media/hover state and the progress
+// timer runs only while media is playing and somebody can see the position. No
+// decorative timer or permanent compositor repaint loop is allowed here.
 pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
 import org.kde.plasma.plasmoid
 import org.kde.plasma.core as PlasmaCore
-import org.kde.plasma.components as PlasmaComponents
+import org.kde.plasma.components as PC3
 import org.kde.plasma.extras as PlasmaExtras
 import org.kde.kirigami as Kirigami
 import org.kde.plasma.private.mpris as Mpris
@@ -51,191 +25,581 @@ import org.moos.ui as MoUI
 PlasmoidItem {
     id: root
 
-    readonly property bool rtl: Qt.locale().textDirection === Qt.RightToLeft
     readonly property var design: MoUI.Tokens
+    readonly property bool rtl: Qt.locale().textDirection === Qt.RightToLeft
+    readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
     readonly property int motionFast: design.duration(
-        Kirigami.Units.longDuration > 1, design.motionFast)
-    readonly property int motionMedium: design.duration(
-        Kirigami.Units.longDuration > 1, design.motionGeometry)
+        root.motionEnabled, design.motionFast)
+    readonly property int motionGeometry: design.duration(
+        root.motionEnabled, design.motionGeometry)
 
     function local(arabic, english) { return root.rtl ? arabic : english; }
+    function bounded(value, low, high) {
+        return Math.max(low, Math.min(high, value));
+    }
+    function twoDigits(value) {
+        return value < 10 ? "0" + value : String(value);
+    }
+    function resolvedPlayerIcon() {
+        if (!root.hasPlayer) { return "applications-multimedia-symbolic"; }
+        if (root.desktopEntry.length > 0) { return root.desktopEntry; }
 
-    // ---- the source --------------------------------------------------------
-
-    Mpris.Mpris2Model { id: players }
-
-    readonly property var player: players.currentPlayer
-    readonly property string track: root.player ? String(root.player.track || "") : ""
-    readonly property string artist: root.player ? String(root.player.artist || "") : ""
-    readonly property string artUrl: root.player ? String(root.player.artUrl || "") : ""
-    readonly property bool playing: root.player !== null
-        && root.player.playbackStatus === Mpris.PlaybackStatus.Playing
-    readonly property bool paused: root.player !== null
-        && root.player.playbackStatus === Mpris.PlaybackStatus.Paused
-
-    readonly property bool active: root.track.length > 0
-        && (root.playing || root.paused)
-
-    // THE MECHANISM. Active = in the tray's visible row. Passive = behind the
-    // arrow, costing nothing and bothering no one.
-    Plasmoid.status: root.active
-        ? PlasmaCore.Types.ActiveStatus
-        : PlasmaCore.Types.PassiveStatus
-
-    toolTipMainText: root.track
-    toolTipSubText: root.artist
-
-    // ---- the tray mark -----------------------------------------------------
-    compactRepresentation: MouseArea {
-        id: mark
-
-        hoverEnabled: true
-        cursorShape: Qt.PointingHandCursor
-        acceptedButtons: Qt.LeftButton | Qt.MiddleButton
-        Accessible.name: root.track
-        Accessible.description: root.artist
-        Accessible.role: Accessible.Button
-
-        // Left opens the card; middle skips, the way every media tray does.
-        onClicked: mouse => {
-            if (mouse.button === Qt.MiddleButton) {
-                if (root.player) { root.player.Next(); }
-            } else {
-                root.expanded = !root.expanded;
-            }
+        // Browsers commonly publish Identity but omit DesktopEntry, while a
+        // Flatpak artUrl can point into its private /tmp namespace. Resolve
+        // only known identities to existing theme icons; never invent another
+        // player registry or use the title as an executable/application id.
+        const source = root.identity.toLowerCase();
+        if (source.indexOf("chromium") >= 0) { return "chromium"; }
+        if (source.indexOf("chrome") >= 0) { return "chrome"; }
+        if (source.indexOf("firefox") >= 0) { return "firefox"; }
+        if (source.indexOf("spotify") >= 0) { return "spotify"; }
+        if (source.indexOf("vlc") >= 0) { return "vlc"; }
+        if (source.indexOf("mpv") >= 0) { return "mpv"; }
+        if (source.indexOf("moplayer") >= 0
+                || source.indexOf("mo player") >= 0) {
+            return "org.moos.moplayer";
         }
-        onWheel: wheel => {
-            if (!root.player) { return; }
-            if (wheel.angleDelta.y > 0) { root.player.Next(); }
-            else { root.player.Previous(); }
+        const advertised = String(root.player.iconName || "");
+        if (advertised.length > 0) { return advertised; }
+        return "applications-multimedia-symbolic";
+    }
+    function formatTime(microseconds) {
+        const total = Math.max(0, Math.floor(Number(microseconds || 0) / 1000000));
+        const hours = Math.floor(total / 3600);
+        const minutes = Math.floor((total % 3600) / 60);
+        const seconds = total % 60;
+        if (hours > 0) {
+            return hours + ":" + root.twoDigits(minutes)
+                + ":" + root.twoDigits(seconds);
         }
-
-        Kirigami.Icon {
-            id: glyph
-            anchors.centerIn: parent
-            width: Math.round(Math.min(mark.width, mark.height) * 0.82)
-            height: width
-            source: root.playing ? "media-playback-start-symbolic"
-                                 : "media-playback-pause-symbolic"
-            color: Kirigami.Theme.highlightColor
-            scale: mark.containsMouse ? 1.12 : 1.0
-            Behavior on scale {
-                NumberAnimation { duration: root.motionFast; easing.type: Easing.OutBack }
-            }
-
-            // A sparse acknowledgement, not a permanent compositor workload:
-            // while media plays the mark breathes once every 15 seconds. The
-            // finite pulse keeps the bar completely idle between beats.
-            Timer {
-                interval: 15000
-                repeat: true
-                running: root.playing && Kirigami.Units.longDuration > 1
-                onTriggered: mediaPulse.restart()
-            }
-            SequentialAnimation {
-                id: mediaPulse
-                alwaysRunToEnd: true
-                NumberAnimation {
-                    target: glyph; property: "opacity"
-                    from: 1.0; to: 0.58; duration: 700
-                    easing.type: Easing.InOutSine
-                }
-                NumberAnimation {
-                    target: glyph; property: "opacity"
-                    from: 0.58; to: 1.0; duration: 700
-                    easing.type: Easing.InOutSine
-                }
-            }
+        return minutes + ":" + root.twoDigits(seconds);
+    }
+    function togglePlaying() {
+        if (!root.player) { return; }
+        if (root.playing && root.canPause) { root.player.Pause(); }
+        else if (root.canPlay) { root.player.Play(); }
+        else if (root.canControl) { root.player.PlayPause(); }
+    }
+    function seekTo(value) {
+        if (root.player && root.canSeek) {
+            root.player.position = Math.round(root.bounded(value, 0, root.length));
+        }
+    }
+    function setVolume(value) {
+        if (root.player && root.hasVolume) {
+            root.player.volume = root.bounded(value, 0, 1.5);
+        }
+    }
+    function toggleMuted() {
+        if (!root.hasVolume) { return; }
+        if (root.volume > 0.01) {
+            root.lastAudibleVolume = root.volume;
+            root.setVolume(0);
+        } else {
+            root.setVolume(Math.max(0.35, root.lastAudibleVolume));
         }
     }
 
-    // ---- the card ----------------------------------------------------------
-    fullRepresentation: Item {
-        Layout.preferredWidth: Kirigami.Units.gridUnit * 18
-        Layout.preferredHeight: Kirigami.Units.gridUnit * 9
-        Layout.minimumWidth: Kirigami.Units.gridUnit * 14
-        Layout.minimumHeight: Kirigami.Units.gridUnit * 8
+    // Mpris2Model deliberately owns active-player selection. Building another
+    // registry here would disagree with Plasma and break browser Media Session.
+    Mpris.Mpris2Model { id: players }
 
-        ColumnLayout {
+    readonly property var player: players.currentPlayer
+    readonly property bool hasPlayer: root.player !== null
+                                      && root.player !== undefined
+    readonly property string track: root.hasPlayer
+        ? String(root.player.track || "") : ""
+    readonly property string artist: root.hasPlayer
+        ? String(root.player.artist || "") : ""
+    readonly property string album: root.hasPlayer
+        ? String(root.player.album || "") : ""
+    readonly property string artUrl: root.hasPlayer
+        ? String(root.player.artUrl || "") : ""
+    readonly property string identity: root.hasPlayer
+        ? String(root.player.identity || "") : ""
+    readonly property string desktopEntry: root.hasPlayer
+        ? String(root.player.desktopEntry || "") : ""
+    readonly property string playerIcon: root.resolvedPlayerIcon()
+    readonly property string displayTrack: root.track.length > 0
+        ? root.track : root.local("وسائط قيد التشغيل", "Media playback")
+    readonly property string displaySource: root.identity.length > 0
+        ? root.identity : (root.artist.length > 0 ? root.artist
+            : (root.desktopEntry.length > 0 ? root.desktopEntry
+                : root.local("الوسائط", "Media")))
+
+    readonly property int playbackStatus: root.hasPlayer
+        ? root.player.playbackStatus : Mpris.PlaybackStatus.Stopped
+    readonly property bool playing:
+        root.playbackStatus === Mpris.PlaybackStatus.Playing
+    readonly property bool paused:
+        root.playbackStatus === Mpris.PlaybackStatus.Paused
+    readonly property bool canControl: root.hasPlayer && root.player.canControl
+    readonly property bool canPlay: root.hasPlayer && root.player.canPlay
+    readonly property bool canPause: root.hasPlayer && root.player.canPause
+    readonly property bool canGoPrevious:
+        root.hasPlayer && root.player.canGoPrevious
+    readonly property bool canGoNext: root.hasPlayer && root.player.canGoNext
+    readonly property bool canSeek: root.hasPlayer && root.player.canSeek
+    readonly property real length: root.hasPlayer
+        ? Math.max(0, Number(root.player.length || 0)) : 0
+    readonly property real position: root.hasPlayer
+        ? root.bounded(Number(root.player.position || 0), 0, root.length) : 0
+    readonly property bool hasTimeline: root.length > 0
+    readonly property real progress: root.hasTimeline
+        ? root.bounded(root.position / root.length, 0, 1) : 0
+    readonly property real volume: root.hasPlayer
+        ? Number(root.player.volume) : -1
+    readonly property bool hasVolume: root.hasPlayer
+        && isFinite(root.volume) && root.volume >= 0
+    property real lastAudibleVolume: 0.65
+
+    // Paused media remains useful. Stopped media gets a short release grace so
+    // player hand-offs do not make the bar snap or flash at track boundaries.
+    readonly property bool mediaPresent: root.hasPlayer
+        && root.playbackStatus > Mpris.PlaybackStatus.Stopped
+        && (root.track.length > 0 || root.identity.length > 0)
+    readonly property bool active: root.mediaPresent || releaseGrace.running
+
+    onMediaPresentChanged: {
+        if (root.mediaPresent) { releaseGrace.stop(); }
+        else { releaseGrace.restart(); }
+    }
+    onVolumeChanged: {
+        if (root.volume > 0.01) { root.lastAudibleVolume = root.volume; }
+    }
+    onExpandedChanged: {
+        if (root.expanded && root.player) { root.player.updatePosition(); }
+    }
+
+    Timer {
+        id: releaseGrace
+        interval: 1600
+        repeat: false
+    }
+
+    // Some players publish position only on request. Wake once per second only
+    // while progress is both moving and visible (popup open or capsule hovered).
+    Timer {
+        id: positionSync
+        interval: 1000
+        repeat: true
+        running: root.playing && root.hasTimeline
+                 && (root.expanded || compactHover.hovered)
+        onTriggered: if (root.player) { root.player.updatePosition(); }
+    }
+
+    Plasmoid.status: root.active
+        ? PlasmaCore.Types.ActiveStatus
+        : PlasmaCore.Types.PassiveStatus
+    Plasmoid.icon: root.playerIcon
+    toolTipMainText: root.active ? root.displayTrack
+                                 : root.local("لا توجد وسائط", "No active media")
+    toolTipSubText: root.active ? root.displaySource : ""
+    toolTipTextFormat: Text.PlainText
+
+    switchWidth: Kirigami.Units.gridUnit * 16
+    switchHeight: Kirigami.Units.gridUnit * 11
+
+    compactRepresentation: Item {
+        id: compact
+
+        readonly property real baseWidth: 218 + root.bounded(
+            root.displayTrack.length * 1.65, 24, 88)
+        implicitWidth: root.active
+            ? Math.round(baseWidth + (compactHover.hovered ? 68 : 0)) : 1
+        implicitHeight: root.design.panelHeight
+        Layout.preferredWidth: implicitWidth
+        Layout.minimumWidth: root.active ? 242 : 1
+        Layout.maximumWidth: 374
+        Layout.fillHeight: true
+        opacity: root.active ? 1 : 0
+        enabled: root.active
+        visible: opacity > 0
+        clip: true
+
+        Behavior on implicitWidth {
+            NumberAnimation {
+                duration: root.motionGeometry
+                easing.type: root.design.easeEmphasis
+            }
+        }
+        Behavior on opacity {
+            NumberAnimation {
+                duration: root.motionFast
+                easing.type: Easing.OutCubic
+            }
+        }
+
+        HoverHandler { id: compactHover }
+
+        Rectangle {
+            id: compactShell
             anchors.fill: parent
-            anchors.margins: Kirigami.Units.largeSpacing
-            spacing: Kirigami.Units.largeSpacing
+            anchors.topMargin: root.design.space1
+            anchors.bottomMargin: root.design.space1
+            radius: height / 2
+            color: Qt.alpha(Kirigami.Theme.backgroundColor,
+                            root.design.isLight(Kirigami.Theme.backgroundColor)
+                                ? 0.84 : 0.72)
+            border.width: root.design.borderHairline
+            border.color: Qt.alpha(Kirigami.Theme.textColor,
+                                   compactHover.hovered ? 0.22 : 0.13)
+            antialiasing: true
+
+            Behavior on border.color {
+                ColorAnimation { duration: root.motionFast }
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                acceptedButtons: Qt.LeftButton | Qt.MiddleButton
+                cursorShape: Qt.PointingHandCursor
+                onClicked: mouse => {
+                    if (mouse.button === Qt.MiddleButton) {
+                        root.togglePlaying();
+                    } else {
+                        root.expanded = !root.expanded;
+                    }
+                }
+                onWheel: wheel => {
+                    if (!root.player || !root.hasVolume) { return; }
+                    root.player.changeVolume(wheel.angleDelta.y > 0 ? 0.05 : -0.05,
+                                             true);
+                }
+                Accessible.role: Accessible.Button
+                Accessible.name: root.displayTrack
+                Accessible.description: root.displaySource
+            }
 
             RowLayout {
-                spacing: Kirigami.Units.largeSpacing
-                Layout.fillWidth: true
+                anchors.fill: parent
+                anchors.leftMargin: root.design.space1
+                anchors.rightMargin: root.design.space2
+                spacing: root.design.space2
+                layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
                 Rectangle {
-                    Layout.preferredWidth: Kirigami.Units.gridUnit * 5
-                    Layout.preferredHeight: Layout.preferredWidth
-                    radius: root.design.radiusControl
-                    color: Qt.alpha(Kirigami.Theme.highlightColor, 0.12)
+                    Layout.preferredWidth: 38
+                    Layout.preferredHeight: 38
+                    radius: 19
+                    color: Qt.alpha(Kirigami.Theme.highlightColor, 0.16)
                     clip: true
 
                     Image {
+                        id: compactArt
                         anchors.fill: parent
                         source: root.artUrl
-                        visible: root.artUrl.length > 0 && status === Image.Ready
                         fillMode: Image.PreserveAspectCrop
                         asynchronous: true
-                        sourceSize.width: 256
+                        cache: true
+                        sourceSize.width: 96
+                        visible: root.artUrl.length > 0 && status === Image.Ready
                     }
                     Kirigami.Icon {
                         anchors.centerIn: parent
-                        width: parent.width * 0.5
-                        height: width
-                        source: "media-playback-start-symbolic"
+                        width: 22
+                        height: 22
+                        source: root.playerIcon
                         color: Kirigami.Theme.highlightColor
-                        visible: root.artUrl.length === 0
+                        visible: !compactArt.visible
                     }
                 }
 
                 ColumnLayout {
                     Layout.fillWidth: true
-                    spacing: Kirigami.Units.smallSpacing
+                    Layout.minimumWidth: 92
+                    spacing: 0
 
-                    PlasmaExtras.Heading {
-                        text: root.track
-                        level: 4
-                        elide: Text.ElideRight
-                        maximumLineCount: 2
-                        wrapMode: Text.Wrap
+                    PC3.Label {
                         Layout.fillWidth: true
-                    }
-                    PlasmaComponents.Label {
-                        text: root.artist
-                        visible: text.length > 0
-                        opacity: root.design.mutedOpacity
+                        text: root.displayTrack
+                        color: Kirigami.Theme.textColor
+                        font.pixelSize: root.design.typeSecondary
+                        font.weight: Font.DemiBold
                         elide: Text.ElideRight
                         maximumLineCount: 1
+                        horizontalAlignment: root.rtl ? Text.AlignRight
+                                                      : Text.AlignLeft
+                    }
+                    PC3.Label {
                         Layout.fillWidth: true
+                        text: root.displaySource
+                        color: Kirigami.Theme.disabledTextColor
+                        font.pixelSize: root.design.typeCaption
+                        elide: Text.ElideRight
+                        maximumLineCount: 1
+                        horizontalAlignment: root.rtl ? Text.AlignRight
+                                                      : Text.AlignLeft
+                    }
+                }
+
+                PC3.ToolButton {
+                    visible: compactHover.hovered && root.canGoPrevious
+                    enabled: root.canGoPrevious
+                    icon.name: root.rtl ? "media-skip-forward-symbolic"
+                                        : "media-skip-backward-symbolic"
+                    display: PC3.AbstractButton.IconOnly
+                    Accessible.name: root.local("السابق", "Previous")
+                    onClicked: root.player.Previous()
+                }
+
+                PC3.ToolButton {
+                    enabled: root.playing ? root.canPause
+                                          : (root.canPlay || root.canControl)
+                    icon.name: root.playing ? "media-playback-pause-symbolic"
+                                            : "media-playback-start-symbolic"
+                    display: PC3.AbstractButton.IconOnly
+                    Accessible.name: root.playing
+                        ? root.local("إيقاف مؤقت", "Pause")
+                        : root.local("تشغيل", "Play")
+                    onClicked: root.togglePlaying()
+                }
+
+                PC3.ToolButton {
+                    visible: compactHover.hovered && root.canGoNext
+                    enabled: root.canGoNext
+                    icon.name: root.rtl ? "media-skip-backward-symbolic"
+                                        : "media-skip-forward-symbolic"
+                    display: PC3.AbstractButton.IconOnly
+                    Accessible.name: root.local("التالي", "Next")
+                    onClicked: root.player.Next()
+                }
+
+                PC3.ToolButton {
+                    visible: compactHover.hovered && root.hasVolume
+                    enabled: root.hasVolume
+                    icon.name: root.volume <= 0.01
+                        ? "audio-volume-muted-symbolic"
+                        : "audio-volume-high-symbolic"
+                    display: PC3.AbstractButton.IconOnly
+                    Accessible.name: root.volume <= 0.01
+                        ? root.local("إلغاء الكتم", "Unmute")
+                        : root.local("كتم", "Mute")
+                    onClicked: root.toggleMuted()
+                }
+            }
+
+            Rectangle {
+                anchors.left: parent.left
+                anchors.bottom: parent.bottom
+                width: parent.width * root.progress
+                height: 2
+                radius: 1
+                visible: root.hasTimeline
+                color: Kirigami.Theme.highlightColor
+                opacity: 0.9
+            }
+        }
+    }
+
+    fullRepresentation: Item {
+        id: expanded
+
+        Layout.preferredWidth: Kirigami.Units.gridUnit * 21
+        Layout.preferredHeight: Kirigami.Units.gridUnit * 17
+        Layout.minimumWidth: Kirigami.Units.gridUnit * 18
+        Layout.minimumHeight: Kirigami.Units.gridUnit * 15
+
+        ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: root.design.space5
+            spacing: root.design.space4
+            layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: root.design.space4
+
+                Rectangle {
+                    Layout.preferredWidth: 104
+                    Layout.preferredHeight: 104
+                    radius: root.design.radiusCard
+                    color: Qt.alpha(Kirigami.Theme.highlightColor, 0.14)
+                    clip: true
+
+                    Image {
+                        id: expandedArt
+                        anchors.fill: parent
+                        source: root.artUrl
+                        fillMode: Image.PreserveAspectCrop
+                        asynchronous: true
+                        cache: true
+                        sourceSize.width: 256
+                        visible: root.artUrl.length > 0 && status === Image.Ready
+                    }
+                    Kirigami.Icon {
+                        anchors.centerIn: parent
+                        width: 46
+                        height: 46
+                        source: root.playerIcon
+                        color: Kirigami.Theme.highlightColor
+                        visible: !expandedArt.visible
+                    }
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: root.design.space1
+
+                    Rectangle {
+                        Layout.preferredWidth: Math.min(184,
+                            sourceLabel.implicitWidth + root.design.space3)
+                        Layout.preferredHeight: 24
+                        radius: 12
+                        color: Qt.alpha(Kirigami.Theme.highlightColor, 0.14)
+
+                        PC3.Label {
+                            id: sourceLabel
+                            anchors.centerIn: parent
+                            width: Math.min(168, implicitWidth)
+                            text: root.displaySource
+                            color: Kirigami.Theme.highlightColor
+                            font.pixelSize: root.design.typeCaption
+                            font.weight: Font.DemiBold
+                            elide: Text.ElideRight
+                            maximumLineCount: 1
+                        }
+                    }
+                    PlasmaExtras.Heading {
+                        Layout.fillWidth: true
+                        text: root.displayTrack
+                        level: 3
+                        maximumLineCount: 2
+                        wrapMode: Text.Wrap
+                        elide: Text.ElideRight
+                        horizontalAlignment: root.rtl ? Text.AlignRight
+                                                      : Text.AlignLeft
+                    }
+                    PC3.Label {
+                        Layout.fillWidth: true
+                        text: [root.artist, root.album].filter(
+                            value => value.length > 0).join(" · ")
+                        visible: text.length > 0
+                        color: Kirigami.Theme.disabledTextColor
+                        maximumLineCount: 1
+                        elide: Text.ElideRight
+                        horizontalAlignment: root.rtl ? Text.AlignRight
+                                                      : Text.AlignLeft
+                    }
+                }
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                visible: root.hasTimeline
+                spacing: root.design.space1
+
+                PC3.Slider {
+                    id: seekSlider
+                    Layout.fillWidth: true
+                    from: 0
+                    to: Math.max(1, root.length)
+                    value: root.position
+                    enabled: root.canSeek
+                    stepSize: 5000000
+                    Accessible.name: root.local("موضع التشغيل", "Playback position")
+                    onMoved: seekCommit.restart()
+                    onPressedChanged: if (!pressed) { root.seekTo(value); }
+
+                    Timer {
+                        id: seekCommit
+                        interval: 90
+                        repeat: false
+                        onTriggered: root.seekTo(seekSlider.value)
+                    }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    PC3.Label {
+                        text: root.formatTime(seekSlider.value)
+                        color: Kirigami.Theme.disabledTextColor
+                        font.pixelSize: root.design.typeCaption
+                        font.features: ({ "tnum": 1 })
+                    }
+                    Item { Layout.fillWidth: true }
+                    PC3.Label {
+                        text: root.formatTime(root.length)
+                        color: Kirigami.Theme.disabledTextColor
+                        font.pixelSize: root.design.typeCaption
+                        font.features: ({ "tnum": 1 })
                     }
                 }
             }
 
             RowLayout {
                 Layout.alignment: Qt.AlignHCenter
-                spacing: Kirigami.Units.largeSpacing
+                spacing: root.design.space3
 
-                PlasmaComponents.ToolButton {
-                    icon.name: "media-skip-backward-symbolic"
-                    display: PlasmaComponents.AbstractButton.IconOnly
+                PC3.ToolButton {
+                    enabled: root.canGoPrevious
+                    icon.name: root.rtl ? "media-skip-forward-symbolic"
+                                        : "media-skip-backward-symbolic"
+                    display: PC3.AbstractButton.IconOnly
                     Accessible.name: root.local("السابق", "Previous")
-                    onClicked: if (root.player) { root.player.Previous(); }
+                    onClicked: root.player.Previous()
                 }
-                PlasmaComponents.ToolButton {
+                PC3.ToolButton {
+                    Layout.preferredWidth: 52
+                    Layout.preferredHeight: 52
+                    enabled: root.playing ? root.canPause
+                                          : (root.canPlay || root.canControl)
                     icon.name: root.playing ? "media-playback-pause-symbolic"
                                             : "media-playback-start-symbolic"
-                    display: PlasmaComponents.AbstractButton.IconOnly
-                    Accessible.name: root.playing ? root.local("إيقاف مؤقت", "Pause")
-                                                  : root.local("تشغيل", "Play")
-                    onClicked: if (root.player) { root.player.PlayPause(); }
+                    display: PC3.AbstractButton.IconOnly
+                    Accessible.name: root.playing
+                        ? root.local("إيقاف مؤقت", "Pause")
+                        : root.local("تشغيل", "Play")
+                    onClicked: root.togglePlaying()
                 }
-                PlasmaComponents.ToolButton {
-                    icon.name: "media-skip-forward-symbolic"
-                    display: PlasmaComponents.AbstractButton.IconOnly
+                PC3.ToolButton {
+                    enabled: root.canGoNext
+                    icon.name: root.rtl ? "media-skip-backward-symbolic"
+                                        : "media-skip-forward-symbolic"
+                    display: PC3.AbstractButton.IconOnly
                     Accessible.name: root.local("التالي", "Next")
-                    onClicked: if (root.player) { root.player.Next(); }
+                    onClicked: root.player.Next()
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                visible: root.hasVolume
+                spacing: root.design.space2
+
+                PC3.ToolButton {
+                    icon.name: root.volume <= 0.01
+                        ? "audio-volume-muted-symbolic"
+                        : "audio-volume-high-symbolic"
+                    display: PC3.AbstractButton.IconOnly
+                    Accessible.name: root.volume <= 0.01
+                        ? root.local("إلغاء الكتم", "Unmute")
+                        : root.local("كتم", "Mute")
+                    onClicked: root.toggleMuted()
+                }
+                PC3.Slider {
+                    id: volumeSlider
+                    Layout.fillWidth: true
+                    from: 0
+                    to: 1
+                    value: root.bounded(root.volume, 0, 1)
+                    Accessible.name: root.local("مستوى الصوت", "Volume")
+                    onMoved: volumeCommit.restart()
+                    onPressedChanged: if (!pressed) { root.setVolume(value); }
+
+                    Timer {
+                        id: volumeCommit
+                        interval: 60
+                        repeat: false
+                        onTriggered: root.setVolume(volumeSlider.value)
+                    }
+                }
+                PC3.Label {
+                    Layout.preferredWidth: 42
+                    horizontalAlignment: Text.AlignRight
+                    text: Math.round(root.bounded(volumeSlider.value, 0, 1) * 100)
+                          + "%"
+                    font.pixelSize: root.design.typeCaption
+                    font.features: ({ "tnum": 1 })
                 }
             }
         }

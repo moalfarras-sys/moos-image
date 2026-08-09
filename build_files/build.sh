@@ -1910,6 +1910,39 @@ unset -v _launcher_smoke_log _launcher_smoke_home _launcher_smoke_runtime \
     _launcher_smoke_config _launcher_smoke_rc _launcher_cleanup_attempt \
     _launcher_cleanup_ok
 
+# org.moos.island is a direct panel applet with both compact and full
+# representations. A text gate cannot prove those attached Plasmoid properties
+# instantiate; host the installed package exactly as Plasma does and reject the
+# same live diagnostics as the launcher. A healthy island stays resident to the
+# timeout even with no MPRIS player (its idle state is intentionally hidden).
+_island_smoke_log="$(mktemp /tmp/moos-island-smoke.XXXXXX.log)"
+_island_smoke_home="$(mktemp -d /tmp/moos-island-home.XXXXXX)"
+_island_smoke_runtime="$(mktemp -d /tmp/moos-island-runtime.XXXXXX)"
+chmod 0700 "$_island_smoke_runtime"
+set +e
+HOME="$_island_smoke_home" XDG_RUNTIME_DIR="$_island_smoke_runtime" \
+    QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software \
+    QT_FORCE_STDERR_LOGGING=1 QML_DISABLE_DISK_CACHE=1 \
+    timeout --kill-after=6s 8 dbus-run-session -- \
+        /usr/bin/plasmawindowed org.moos.island \
+        >"$_island_smoke_log" 2>&1
+_island_smoke_rc=$?
+set -e
+if [ "$_island_smoke_rc" -ne 124 ]; then
+    echo "FATAL: org.moos.island did not stay loaded in Plasma's applet host (exit=$_island_smoke_rc)"
+    cat "$_island_smoke_log"
+    exit 1
+fi
+if grep -qiE 'QQmlApplicationEngine failed|component is not ready|error loading qml file|error loading applet|invalid empty url|compactRepresentationExpander .* is not an Item|type .* unavailable|module .* is not installed|referenceerror|typeerror|cannot assign to|unable to assign|binding loop|is not a type|non-existent attached object|cannot override final property|qml (image|pixmap): cannot open' \
+        "$_island_smoke_log"; then
+    echo "FATAL: org.moos.island stayed open but reported a live QML/model error"
+    cat "$_island_smoke_log"
+    exit 1
+fi
+rm -rf -- "$_island_smoke_log" "$_island_smoke_home" "$_island_smoke_runtime"
+unset -v _island_smoke_log _island_smoke_home _island_smoke_runtime \
+    _island_smoke_rc
+
 # The desktop scene (org.moos.ui2.wallpaper) is not covered by the pure-QML app
 # loop above: its root is a WallpaperItem, which only exists inside plasmashell's
 # wallpaper loader, so the PACKAGE cannot be launched headless. What CAN be
