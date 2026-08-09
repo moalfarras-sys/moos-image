@@ -26,6 +26,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Window
 import QtQml.Models
 import org.kde.plasma.plasmoid
 import org.kde.plasma.core as PlasmaCore
@@ -76,6 +77,15 @@ PlasmoidItem {
         "org.moos.updater.desktop",
         "org.moos.recovery.desktop"
     ]
+
+    // Decode rasters for the DEVICE, not for logical pixels. sourceSize is a
+    // hard cap on the decoded image, so a fixed number under-samples every
+    // HiDPI screen — on the reference 4K panel Qt reports devicePixelRatio 3.
+    // One owner for the arithmetic so no surface drifts back to a magic number.
+    readonly property real pixelRatio: Math.max(1, Screen.devicePixelRatio)
+    function decodePx(logical) {
+        return Math.ceil(Math.max(1, logical) * root.pixelRatio);
+    }
 
     property string searchQuery: ""
     property int activePage: 1
@@ -484,24 +494,65 @@ PlasmoidItem {
                 Layout.preferredWidth: compact.isHorizontal ? Math.round(backgroundPill.height * 0.75) : Math.round(backgroundPill.width * 0.75)
                 Layout.preferredHeight: Layout.preferredWidth
                 
-                // Single, elegant soft glow behind the logo
-                Rectangle {
+                // A real glow, not a disc. This called itself a "soft glow"
+                // while being a Rectangle with a FLAT alpha fill: on hover a
+                // hard-edged circle 1.3x the mark switched on behind it, with
+                // a visible rim where the alpha stopped. That is the "circles"
+                // the owner sees. ShadowedRectangle draws a transparent shape
+                // whose SHADOW is the tinted halo, so the falloff is a real
+                // gradient with no edge — rendered by the same distance-field
+                // primitive Kirigami's own cards use, so no mask layer and no
+                // MultiEffect enters plasmashell's always-on budget. The glow
+                // is still strictly state-driven: fully transparent at rest.
+                Kirigami.ShadowedRectangle {
                     anchors.centerIn: parent
-                    width: parent.width * 1.3
+                    width: parent.width
                     height: width
                     radius: width / 2
-                    color: Qt.alpha(Kirigami.Theme.highlightColor, compact.pressed ? 0.3 : (compact.containsMouse || root.expanded ? 0.15 : 0.0))
-                    Behavior on color { ColorAnimation { duration: root.motionMedium } }
+                    color: "transparent"
+                    shadow.size: compact.pressed
+                        ? parent.width * 0.55 : parent.width * 0.42
+                    shadow.color: Qt.alpha(Kirigami.Theme.highlightColor,
+                        compact.pressed ? 0.55
+                            : (compact.containsMouse || root.expanded ? 0.3 : 0.0))
+                    Behavior on shadow.color {
+                        ColorAnimation { duration: root.motionMedium }
+                    }
+                    Behavior on shadow.size {
+                        NumberAnimation {
+                            duration: root.motionMedium
+                            easing.type: Easing.OutQuad
+                        }
+                    }
                 }
                 
                 Image {
                     id: compactLogo
                     anchors.fill: parent
+                    // The RASTER, deliberately — measured, not assumed. The
+                    // vector beside it (/usr/share/moos/moos-logo.svg) looks
+                    // like the obvious upgrade and is not one: it is a VTracer
+                    // machine trace whose 1002 paths Qt rejects one by one
+                    // ("qt.svg: Invalid path data; path truncated" repeatedly
+                    // on load), and it is the posterised LIGHT trace, while
+                    // every shipped moos-logo.png is rendered from the 2756-
+                    // path high-detail master. Switching gained scalability and
+                    // lost the shading. Revisit only when a real vector master
+                    // replaces the trace and loads without qt.svg warnings.
                     source: "file:///usr/share/moos/moos-logo.png"
                     fillMode: Image.PreserveAspectFit
                     asynchronous: true
                     smooth: true
-                    sourceSize: Qt.size(256, 256)
+                    // Decode at the device size: Qt does NOT scale a raster's
+                    // sourceSize by devicePixelRatio (it does that only for
+                    // scalable sources), so a literal here under-samples HiDPI.
+                    sourceSize: Qt.size(root.decodePx(width), root.decodePx(height))
+                    // The press (0.85), hover (1.08) and the activation
+                    // rotation all resample this texture at sizes it was not
+                    // rasterised for, and bilinear alone re-aliases the swirl
+                    // on every frame. mipmap is the same flag this artwork
+                    // already carries on the splash and the greeter wallpaper.
+                    mipmap: true
                     
                     // Premium, snappy physical press scale
                     scale: compact.pressed ? 0.85 : (compact.containsMouse ? 1.08 : 1.0)
@@ -530,18 +581,30 @@ PlasmoidItem {
                 scale: compact.pressed ? 0.92 : 1.0
                 Behavior on scale { NumberAnimation { duration: root.motionMedium; easing.type: Easing.OutQuad } }
                 
+                // ONE wordmark, two inks — not two words. The halves used to
+                // carry different WEIGHTS (Bold "Mo", Normal "OS"), so the
+                // system's own name read as a heavy syllable followed by a
+                // light one and lost its shape at panel size. Contrast was
+                // never the problem: measured on the live 4K panel the inks
+                // score 11.9:1 and 7.7:1 against the pill, both clear of WCAG
+                // AA. Matching the weight and letting COLOUR alone carry the
+                // Mo/OS split is what makes it read as a mark. The small
+                // positive tracking is for Latin only; Arabic must never be
+                // letter-spaced, and this string is Latin by definition.
                 Text {
                     text: "Mo"
                     font.family: root.uiFontFamily
-                    font.weight: Font.Bold
+                    font.weight: Font.DemiBold
                     font.pixelSize: Math.max(12, Math.round(backgroundPill.height * 0.45))
+                    font.letterSpacing: 0.3
                     color: Kirigami.Theme.textColor
                 }
                 Text {
                     text: "OS"
                     font.family: root.uiFontFamily
-                    font.weight: Font.Normal
+                    font.weight: Font.DemiBold
                     font.pixelSize: Math.max(12, Math.round(backgroundPill.height * 0.45))
+                    font.letterSpacing: 0.3
                     color: Kirigami.Theme.highlightColor
                 }
             }

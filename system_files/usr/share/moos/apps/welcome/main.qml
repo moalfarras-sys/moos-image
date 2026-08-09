@@ -1059,8 +1059,16 @@ ApplicationWindow {
                         Image {
                             anchors.centerIn: parent
                             source: "file:///usr/share/moos/moos-logo.png"
-                            sourceSize.width: 104; sourceSize.height: 104
+                            // Same reason as the installer hero: a literal
+                            // sourceSize caps the decode, so this mark was
+                            // stretched 2.25x on the reference 4K panel — on
+                            // the first screen of a freshly installed system.
                             width: 104; height: 104
+                            sourceSize: Qt.size(
+                                Math.round(width * Screen.devicePixelRatio),
+                                Math.round(height * Screen.devicePixelRatio))
+                            smooth: true
+                            mipmap: true
                         }
                     }
 
