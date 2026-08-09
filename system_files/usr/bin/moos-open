@@ -124,8 +124,6 @@ case "${cat}/${tgt}" in
     app/setup)     term moos-setup ;;
     do/smart-setup) confirm "تشغيل الإعداد الذكي وتطبيق التوصيات؟ | Run smart setup and apply its recommendations?" \
                           && term moos-setup --smart ;;
-    do/setup-gaming) confirm "تجهيز النظام للألعاب وتثبيت التوصيات؟ | Prepare the system for gaming and install recommendations?" \
-                          && term moos-setup --gaming ;;
     app/compat)    gui moai --device ;;
     app/hardware)  gui moai --device ;;
     # GTK apps, not terminal programs. Launching them with `term` opened a Konsole
@@ -304,7 +302,13 @@ case "${cat}/${tgt}" in
                           && { qdbus_run org.kde.Shutdown /Shutdown logout 2>/dev/null || true; } ;;
     session/power) confirm "إيقاف تشغيل الجهاز الآن؟ | Shut the computer down now?" \
                           && { systemctl poweroff 2>/dev/null || loginctl poweroff 2>/dev/null || qdbus_run org.kde.Shutdown /Shutdown logoutAndShutdown 2>/dev/null || true; } ;;
-    do/update|do/fix-audio|do/check-drivers|do/optimize|do/hw-report|do/diagnose-services|do/inspect-boot|do/install-nvidia|do/update-firmware|do/setup-waydroid|do/setup-windows|do/install-codex|do/install-claude|do/install-opencode|do/install-openclaw|do/setup-brain|do/remote-anywhere|do/rollback|do/net-doctor|do/gpu-report)
+    # Every action here is dispatched BY NAME to moai-do, which owns the
+    # explanation, the confirmation and the journal audit trail. setup-gaming
+    # belongs in this list, not in a shortcut of its own: Mo AI renders the
+    # button as "moai-do setup-gaming", so a shortcut straight to moos-setup
+    # --gaming made the label name a command that never ran and left the action
+    # missing from `journalctl -t moai-do`.
+    do/update|do/fix-audio|do/check-drivers|do/optimize|do/hw-report|do/diagnose-services|do/inspect-boot|do/install-nvidia|do/update-firmware|do/setup-waydroid|do/setup-gaming|do/setup-windows|do/install-codex|do/install-claude|do/install-opencode|do/install-openclaw|do/setup-brain|do/remote-anywhere|do/rollback|do/net-doctor|do/gpu-report)
                    term moai-do "$tgt" ;;
     *)
         notify "أمر MoOS غير معروف | unknown MoOS action: ${path}"

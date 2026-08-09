@@ -617,10 +617,19 @@ KSEOF
 # Drive" icon into "Install MoOS" with the MoOS logo. liveinst.desktop's stock
 # Icon=org.fedoraproject.AnacondaInstaller resolves to the Fedora "f" in the
 # active Nova->Colloid->Papirus theme; we repoint it to Icon=moos-logo — a name
-# that exists ONLY as the MoOS mark (hicolor 48/64/128/256 + /usr/share/pixmaps)
-# and that no upstream theme overrides, so it ALWAYS resolves to MoOS. We also
-# strip every localized Name/GenericName/Comment so no locale (e.g. ar) still
-# reads "التثبيت على القرص الصلب".
+# that no upstream theme can override, so it ALWAYS resolves to MoOS. That icon
+# is `moos-installer`: MoOS-exclusive exactly like the brand mark, but shipped
+# 16→1024 px plus a scalable SVG (the mark stops at 256), and it is the same
+# icon org.moos.installer.desktop uses — so the live-USB launcher and the
+# installed app finally show ONE identity instead of two. We also strip every
+# localized Name/GenericName/Comment so no locale (e.g. ar) still reads
+# "التثبيت على القرص الصلب".
+#
+# THIS IS THE ONLY CODE THAT REACHES THIS FILE. `COPY system_files/ /` runs
+# BEFORE build.sh, and the anaconda-live RPM installed below owns
+# /usr/share/applications/liveinst.desktop — so it overwrites any repo copy.
+# A `system_files/usr/share/applications/liveinst.desktop` therefore ships
+# NOTHING; one existed and silently lost every key it declared. Edit here.
 _liveinst=/usr/share/applications/liveinst.desktop
 if [ -f "$_liveinst" ]; then
     # Repoint the "Install MoOS" icon at the BEAUTIFUL MoOS QML installer
@@ -641,13 +650,22 @@ if [ -f "$_liveinst" ]; then
         -e 's|^Comment=.*|Comment=Install MoOS to your disk|' \
         -e '/^Comment\[/d' \
         -e 's|^Exec=.*|Exec=moos-installer|' \
-        -e 's|^TryExec=.*|TryExec=moos-installer|' \
-        -e 's|^Icon=.*|Icon=moos-logo|' \
+        -e '/^TryExec=/d' \
+        -e '/^Keywords/d' \
+        -e 's|^Icon=.*|Icon=moos-installer|' \
         -e 's|^StartupWMClass=.*|StartupWMClass=org.moos.installer|' \
         -e 's|^Categories=.*|Categories=System;|' \
         "$_liveinst"
     # Arabic display name right after the (now single) Name line.
     sed -i '/^Name=Install MoOS$/a Name[ar]=تثبيت MoOS' "$_liveinst"
+    # Keys upstream does not have at all: a substitution can only rewrite a line
+    # that already exists, so TryExec and Keywords must be APPENDED. Deleting
+    # them above first keeps this idempotent if anaconda ever adds them.
+    printf '%s\n' \
+        'TryExec=moos-installer' \
+        'Keywords=install;installer;setup;moos;' \
+        'Keywords[ar]=تثبيت;مثبت;نظام;' \
+        >> "$_liveinst"
 fi
 unset -v _liveinst
 
