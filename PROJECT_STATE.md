@@ -4,15 +4,50 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-08-11, signed **`44.20260811.585`** on all three editions
-(main `d22e513a`), deployed and verified on this 4K NVIDIA development host.
-This is the unified motion, 4K boot-art, system-sound and first-party-tool
-polish release described below. The host is booted from the signature-enforced
-exact NVIDIA digest, the previous `.580` deployment remains available for
-rollback, both system and user failed-unit sets are empty, the Wayland session
-is active, and `moos-bar-apply check` returns `bar: ok`.
+Last updated: 2026-08-11, signed **`44.20260811.586`** on all three editions
+(main `e5043ba3`), deployed and verified on this 4K NVIDIA development host.
+This is the localized-lock follow-up to the unified motion, 4K boot-art,
+system-sound and first-party-tool polish release described below. The host is
+booted from the signature-enforced exact NVIDIA digest, the previous `.585`
+deployment remains available for rollback, both system and user failed-unit
+sets are empty, the Wayland session is active at 3840x2160/225% with HDR/WCG,
+and the installed adaptive ActionButton and lock MediaControls sources match
+the repository byte-for-byte with no temporary overlay.
 
-Release `.585` signed digests:
+Release `.586` signed digests:
+
+- generic: `sha256:c4b09338be12a0029d0c226c796f8a8de2297580781004871383168b2ea3e595`
+- NVIDIA: `sha256:8c8dd12095b882a5df718801c9c5bdeb2f990673d37c2e16f57a25ebb9de808a`
+- cloud: `sha256:f14d73740ae720c85e70a11628d379c5cf012f8e6d43f2aeeeb408c02840b501`
+
+The actual `.586` lock/auth surface was photographed in German at 4K/225%:
+`Benutzer wechseln` is complete, password entry is immediate and the source
+fork preserves Plasma's MPRIS transport. Launcher, power picker, Welcome,
+Theme Picker, Settings, Store, Mo AI, Updater and Recovery all opened after
+the reboot; eight installed event sounds played through Canberra and MoPlayer
+reported `Playing` through its real MPRIS bus name. A clean plasmashell restart
+emitted no QML error or binding loop. Stable boot time was 35.823 s total /
+10.948 s to graphical.target versus 42.195 s / 16.620 s on the first `.585`
+boot whose one-time hardware adaptation was still cold.
+
+The post-boot live self-check exposed diagnostic drift, not theme drift:
+`moos-theme` correctly pins the selected family's guarded dark/light pair, but
+both live verifiers still expected Graphite/Tidal for every non-base family.
+They now derive Nova/Nova Light (and every other family pair) exactly as the
+switcher does, while still requiring both packages to resolve on disk. The
+development user's keyboard override also now preserves German and Arabic
+while restoring the image's US layout (`de,us,ara`); the next session reads it
+live from KWin. A regression test pins both verifiers to the family-pair rule.
+The complete generic compose from this diagnostic follow-up passed every app
+and QML smoke, the 122 MiB initramfs proof, image-experience, store, identity
+and foreign-identity firewall gates, and `bootc container lint` (9 checks, the
+four documented warnings only). It produced local image
+`611c5468822c1de8f6862955797d8c16a9fc9ba56ee1d28dae2881e7e8789bf7`
+with manifest digest
+`sha256:cbaa34261c7b0088379fffebc63515a718351107dbccdc506a39c581d879c987`
+and size 10,776,140,710 bytes.
+
+Release `.585` signed digests (previous):
 
 - generic: `sha256:b13e181d910b5b064e752b3fd1f1f19d1d574b74017067c622f7f18cb71cf473`
 - NVIDIA: `sha256:aca2e27dfe5277ae7401b1c05683a06fdb5fe84abd9d2ca0f93792853bdfc7c2`
@@ -156,8 +191,9 @@ and `bootc container lint` (9 checks, the four documented warnings only).
 Podman produced `localhost/moos:latest` as
 `7814033a0c4a221a9ab4a1597779dc3dd1411df06bd92cfaef69ac5adf6fdf55`
 (`sha256:c9c01440d5c768940ebf593e8cac14e94115bc0841441772bd1a0317dfc907f8`,
-10,776,140,710 bytes). It is still not called shipped until a new signed image
-has been deployed and the same screen has been checked without an overlay.
+10,776,140,710 bytes). CI signed the follow-up as `.586` on all three editions;
+the exact NVIDIA digest was deployed, and the same German lock surface passed
+at 4K/225% from `/usr` with no bind mount.
 
 Previous release `.577` (main `c6b71924`) shipped THEME_REV 49 live-shell
 recovery, the media-island follow-up, the adversarial hardening pass, and the

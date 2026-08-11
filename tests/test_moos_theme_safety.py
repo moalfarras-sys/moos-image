@@ -1125,6 +1125,16 @@ fi
         self.assertIn("org.moos.ui2|org.moos.ui2.*", switch,
                       "sync_auto must recognise every UI2 family, not two ids")
 
+        # The two live diagnostics must verify the same guarded pair that the
+        # switcher writes.  They previously kept expecting Graphite/Tidal and
+        # declared a healthy Nova (or any other family) broken after reboot.
+        selfcheck = (ROOT / "system_files/usr/bin/moos-selfcheck").read_text(encoding="utf-8")
+        post_update = (ROOT / "tests/post-update-check.sh").read_text(encoding="utf-8")
+        self.assertIn('pair_dark="org.moos.ui2.${family}"', selfcheck)
+        self.assertIn('pair_light="${pair_dark}.light"', selfcheck)
+        self.assertIn('pair_dark="org.moos.ui2.${theme_family}"', post_update)
+        self.assertIn('pair_light="${pair_dark}.light"', post_update)
+
         harness = (
             'DARK_LNF="org.moos.ui2"\n'
             'LIGHT_LNF="org.moos.ui2.light"\n'

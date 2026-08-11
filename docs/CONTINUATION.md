@@ -1,7 +1,54 @@
 # Unified Experience Continuation
 
 Date: 2026-08-11
-Branch: `polish/unified-motion-sound-2026-08-11`
+Branch: `main`
+
+## 2026-08-11 — signed `.586` boot proof and family-pair diagnostic repair
+
+PR #37 merged as `e5043ba3`. CI run 31510278348 built and signed generic,
+NVIDIA and cloud as `44.20260811.586`. The development host updated through
+`moai-do update` and rebooted into the exact signature-enforced NVIDIA digest
+`sha256:8c8dd12095b882a5df718801c9c5bdeb2f990673d37c2e16f57a25ebb9de808a`;
+`.585` remains the rollback deployment. The installed lock ActionButton and
+MediaControls sources compare equal to the repository and no temporary mount
+is present.
+
+The real German lock/auth screen at 3840x2160/225% now renders the complete
+`Benutzer wechseln` label. Login interaction remained immediate. Launcher,
+power, Welcome, Theme Picker, Settings, Store, Mo AI, Updater and Recovery all
+opened; MoPlayer registered the real `org.mpris.MediaPlayer2.moplayer` name and
+reported `Playing`; eight representative sounds returned success through
+Canberra/PipeWire. System and user failed-unit sets are empty. A clean
+plasmashell restart produced no QML error or binding loop. Boot completed in
+35.823 s total and graphical.target in 10.948 s, improving on the cold first
+`.585` boot (42.195 s / 16.620 s).
+
+Running `moos-selfcheck` then found a real verifier bug: `moos-theme` has
+correctly pinned each selected family's matched dark/light pair since the
+family-preserving sunrise fix, while `moos-selfcheck` and
+`post-update-check.sh` still called every non-Graphite pair broken. Both now
+derive `org.moos.ui2.<family>` + `.light` and still require the two installed
+packages. The development user's stale `de,ara` override was expanded to the
+image contract `de,us,ara` without dropping German or Arabic; KWin will load
+the corrected list on the next session. A regression test binds both live
+verifiers to the switcher's family rule.
+
+`just check` and the complete generic compose pass from the diagnostic repair
+tree. Every QML/app smoke, the 122 MiB initramfs proof, image-experience,
+store, identity, foreign-identity firewall and `bootc container lint` passed;
+the lint result remains 9 checks plus the four documented warnings. The local
+image is
+`611c5468822c1de8f6862955797d8c16a9fc9ba56ee1d28dae2881e7e8789bf7`,
+manifest
+`sha256:cbaa34261c7b0088379fffebc63515a718351107dbccdc506a39c581d879c987`,
+10,776,140,710 bytes.
+
+Final safe cleanup removed only dangling Podman images, stopped build
+containers, old journals, rpm-ostree metadata and thumbnails. Available space
+rose from 82 GiB immediately after the signed update to 94 GiB; combined with
+the earlier cleanup, it rose from 78 GiB before this phase to 94 GiB. The audit
+evidence, current local image/build cache, user data and `.585` rollback were
+retained.
 
 ## 2026-08-11 — signed `.585` boot proof and the localized lock follow-up
 
