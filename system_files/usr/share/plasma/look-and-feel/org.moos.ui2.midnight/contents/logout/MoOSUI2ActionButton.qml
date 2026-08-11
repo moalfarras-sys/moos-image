@@ -31,6 +31,10 @@ QQC2.AbstractButton {
     property bool emphasized: false
     property bool destructive: false
     property bool armed: false   // a sensitive action awaiting its confirm tap
+    // Visual order only. Logout.qml assigns this once so the existing controls
+    // arrive as a short wave after their parent island, without changing focus,
+    // capability checks or any power-session signal.
+    property int revealOrder: 0
     // The way OUT is not an action. `subtle` renders the same tile one step
     // down the hierarchy — a quieter fill and a lighter caption — so the dock
     // reads first and Cancel second. Only Cancel sets it.
@@ -86,7 +90,35 @@ QQC2.AbstractButton {
     implicitWidth: keyWidth
     implicitHeight: keyHeight
     padding: 0
+    opacity: control.motionEnabled ? 0 : 1
     scale: down ? design.pressScale : (lit ? design.hoverScale : 1.0)
+    transform: Translate {
+        id: revealShift
+        y: control.motionEnabled ? control.design.space3 : 0
+    }
+
+    Component.onCompleted: {
+        if (control.motionEnabled) { revealAnimation.start(); }
+    }
+    SequentialAnimation {
+        id: revealAnimation
+        PauseAnimation { duration: 70 + control.revealOrder * 34 }
+        ParallelAnimation {
+            NumberAnimation {
+                target: control; property: "opacity"; from: 0; to: 1
+                duration: control.design.duration(
+                    control.motionEnabled, control.design.motionGeometry)
+                easing.type: control.design.easeStandard
+            }
+            NumberAnimation {
+                target: revealShift; property: "y"
+                from: control.design.space3; to: 0
+                duration: control.design.duration(
+                    control.motionEnabled, control.design.motionGeometry)
+                easing.type: control.design.easeEmphasis
+            }
+        }
+    }
     Behavior on scale {
         NumberAnimation {
             duration: design.duration(control.motionEnabled, design.motionFast)

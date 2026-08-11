@@ -245,25 +245,26 @@ PlasmoidItem {
         signal activated
 
         readonly property real glyphSize: Math.round(control.slotSize * 0.5)
+        // One progress value owns layout, ink and travel. The old version
+        // animated width and opacity independently, so the glyph appeared at
+        // the edge before the slot was wide enough to hold it. That looked like
+        // three separate buttons popping into a bar that happened to resize.
+        // This is one reveal: the slot opens while its key travels out of the
+        // capsule edge and settles at full opacity.
+        property real revealProgress: control.revealed ? 1 : 0
 
-        Layout.preferredWidth: control.revealed ? control.slotSize : 0
+        Layout.preferredWidth: control.slotSize * control.revealProgress
         Layout.preferredHeight: control.slotSize
         Layout.alignment: Qt.AlignVCenter
         clip: true
-        opacity: control.revealed ? (control.controlEnabled ? 1 : 0.35) : 0
+        opacity: control.revealProgress * (control.controlEnabled ? 1 : 0.35)
         visible: Layout.preferredWidth > 0.5
         enabled: control.controlEnabled
 
-        Behavior on Layout.preferredWidth {
+        Behavior on revealProgress {
             NumberAnimation {
                 duration: root.motionGeometry
                 easing.type: root.design.easeEmphasis
-            }
-        }
-        Behavior on opacity {
-            NumberAnimation {
-                duration: root.motionFast
-                easing.type: Easing.OutCubic
             }
         }
 
@@ -273,6 +274,12 @@ PlasmoidItem {
             anchors.verticalCenter: parent.verticalCenter
             anchors.right: root.rtl ? undefined : parent.right
             anchors.left: root.rtl ? parent.left : undefined
+            opacity: 0.25 + control.revealProgress * 0.75
+            scale: 0.90 + control.revealProgress * 0.10
+            transform: Translate {
+                x: (root.rtl ? -1 : 1)
+                   * (1 - control.revealProgress) * root.design.space2
+            }
 
             Rectangle {
                 id: controlPlate
@@ -373,12 +380,25 @@ PlasmoidItem {
 
         readonly property real baseWidth: 218 + root.bounded(
             root.displayTrack.length * 1.65, 24, 88)
+        // Reserve exactly the space the player's real capabilities need. A
+        // fixed 68 px hover allowance was too small for Previous + Next +
+        // Volume (90 px before spacing), so the title compressed first and the
+        // bar caught up afterwards. Capability-sized geometry keeps the text
+        // stable and makes the extension feel intentional.
+        readonly property int revealedControlCount:
+            (root.canGoPrevious ? 1 : 0)
+            + (root.canGoNext ? 1 : 0)
+            + (root.hasVolume ? 1 : 0)
+        readonly property real hoverExtra: revealedControlCount > 0
+            ? revealedControlCount * 30
+              + Math.max(0, revealedControlCount - 1) * root.design.space1
+            : 0
         implicitWidth: root.active
-            ? Math.round(baseWidth + (compactHover.hovered ? 68 : 0)) : 1
+            ? Math.round(baseWidth + (compactHover.hovered ? hoverExtra : 0)) : 1
         implicitHeight: root.design.panelHeight
         Layout.preferredWidth: implicitWidth
         Layout.minimumWidth: root.active ? 242 : 1
-        Layout.maximumWidth: 374
+        Layout.maximumWidth: 420
         Layout.fillHeight: true
         opacity: root.active ? 1 : 0
         enabled: root.active
@@ -429,7 +449,8 @@ PlasmoidItem {
             // true-black OLED profile wants a denser slab than the reference
             // dark, and a light profile wants less body. See MoUI.Tokens.
             color: Qt.alpha(Kirigami.Theme.backgroundColor,
-                            root.design.glassDensity(Kirigami.Theme.backgroundColor))
+                            root.design.glassDensity(Kirigami.Theme.backgroundColor)
+                            + (compactHover.hovered ? 0.05 : 0))
             border.width: root.design.borderHairline
             border.color: Qt.alpha(Kirigami.Theme.textColor,
                                    compactHover.hovered ? 0.22 : 0.13)
@@ -437,6 +458,33 @@ PlasmoidItem {
 
             Behavior on border.color {
                 ColorAnimation { duration: root.motionFast }
+            }
+            Behavior on color {
+                ColorAnimation { duration: root.motionFast }
+            }
+
+            // A restrained Tidal crest gives the eye a reason for the capsule
+            // to widen. It grows with the same geometry clock as the shell and
+            // then stays still; no ambient sweep or permanent repaint.
+            Rectangle {
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.top: parent.top
+                anchors.topMargin: -height / 2
+                width: compactHover.hovered ? parent.width * 0.34
+                                            : parent.width * 0.16
+                height: 2
+                radius: 1
+                color: Kirigami.Theme.highlightColor
+                opacity: compactHover.hovered ? 0.78 : 0.34
+                Behavior on width {
+                    NumberAnimation {
+                        duration: root.motionGeometry
+                        easing.type: root.design.easeEmphasis
+                    }
+                }
+                Behavior on opacity {
+                    NumberAnimation { duration: root.motionFast }
+                }
             }
 
             MouseArea {
@@ -558,50 +606,43 @@ PlasmoidItem {
                     Layout.leftMargin: root.design.space1
                     Layout.rightMargin: root.design.space1
                     spacing: 0
+                    transform: Translate { id: trackShift }
 
                     // A track change used to be a hard text swap: one frame the
                     // old title, the next the new one, with no relationship
                     // between them. On a surface whose whole job is to show
                     // what is playing, that is the moment the user actually
                     // looks at — so it is the moment worth animating. The block
-                    // dips and lifts as the text is replaced, which reads as
-                    // the capsule turning over rather than glitching. It is a
+                    // rises a few pixels as the text is replaced, which reads
+                    // as a deliberate update rather than a layout glitch. It is a
                     // one-shot triggered by real MPRIS data, never a loop, and
                     // it collapses to nothing when the user has motion off
                     // because motionFast is already gated on longDuration > 1.
                     opacity: 1
                     Connections {
                         target: root
-                        function onDisplayTrackChanged() { trackTurn.restart(); }
-                    }
-                    SequentialAnimation {
-                        id: trackTurn
-                        running: false
-                        ParallelAnimation {
-                            NumberAnimation {
-                                target: compactText; property: "opacity"
-                                to: 0.15; duration: Math.round(root.motionFast / 2)
-                                easing.type: Easing.OutCubic
-                            }
-                            NumberAnimation {
-                                target: compactText; property: "y"
-                                to: compactText.y + 3
-                                duration: Math.round(root.motionFast / 2)
-                                easing.type: Easing.OutCubic
+                        function onDisplayTrackChanged() {
+                            if (root.motionEnabled) {
+                                trackTurn.restart();
+                            } else {
+                                compactText.opacity = 1;
+                                trackShift.y = 0;
                             }
                         }
-                        ParallelAnimation {
-                            NumberAnimation {
-                                target: compactText; property: "opacity"
-                                to: 1; duration: root.motionFast
-                                easing.type: Easing.OutCubic
-                            }
-                            NumberAnimation {
-                                target: compactText; property: "y"
-                                to: compactText.y
-                                duration: root.motionFast
-                                easing.type: root.design.easeEmphasis
-                            }
+                    }
+                    ParallelAnimation {
+                        id: trackTurn
+                        running: false
+                        NumberAnimation {
+                            target: compactText; property: "opacity"
+                            from: 0.20; to: 1; duration: root.motionGeometry
+                            easing.type: Easing.OutCubic
+                        }
+                        NumberAnimation {
+                            target: trackShift; property: "y"
+                            from: root.design.space1; to: 0
+                            duration: root.motionGeometry
+                            easing.type: root.design.easeEmphasis
                         }
                     }
 
@@ -738,6 +779,40 @@ PlasmoidItem {
         Layout.preferredHeight: Kirigami.Units.gridUnit * 17
         Layout.minimumWidth: Kirigami.Units.gridUnit * 18
         Layout.minimumHeight: Kirigami.Units.gridUnit * 15
+        opacity: root.motionEnabled ? 0 : 1
+        scale: root.motionEnabled ? 0.96 : 1
+        transformOrigin: Item.Top
+
+        function revealPopup() {
+            if (!root.motionEnabled) {
+                expandedEntrance.stop();
+                expanded.opacity = 1;
+                expanded.scale = 1;
+            } else if (root.expanded) {
+                expanded.opacity = 0;
+                expanded.scale = 0.96;
+                expandedEntrance.restart();
+            }
+        }
+        Component.onCompleted: revealPopup()
+        Connections {
+            target: root
+            function onExpandedChanged() {
+                if (root.expanded) { expanded.revealPopup(); }
+            }
+            function onMotionEnabledChanged() { expanded.revealPopup(); }
+        }
+        ParallelAnimation {
+            id: expandedEntrance
+            NumberAnimation {
+                target: expanded; property: "opacity"; from: 0; to: 1
+                duration: root.motionGeometry; easing.type: Easing.OutCubic
+            }
+            NumberAnimation {
+                target: expanded; property: "scale"; from: 0.96; to: 1
+                duration: root.motionGeometry; easing.type: root.design.easeEmphasis
+            }
+        }
 
         ColumnLayout {
             anchors.fill: parent

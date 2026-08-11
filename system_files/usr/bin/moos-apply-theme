@@ -187,7 +187,7 @@ set -uo pipefail
 #     from either historical system-tray nesting shape while preserving every
 #     unrelated tray item. Re-run once so an update cannot leave first-party
 #     applets stuck as Plasma error icons behind an already-existing marker.
-THEME_REV=49
+THEME_REV=50
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

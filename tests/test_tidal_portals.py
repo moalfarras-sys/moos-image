@@ -78,7 +78,9 @@ class TidalPortalContractTests(unittest.TestCase):
         self.assertNotIn("Animation.Infinite", splash)
         self.assertNotIn("progressMotion", splash)
         self.assertIn("import org.moos.ui as MoUI", splash)
-        self.assertEqual(splash.count("duration: root.design.motionPortal"), 2)
+        self.assertEqual(splash.count("duration: root.design.motionPortal"), 3)
+        self.assertIn("target: brandStage", splash)
+        self.assertIn("brandStage.scale = 1", splash)
         self.assertIn(
             "duration: root.design.duration(root.motionEnabled,\n"
             "                                                       root.design.motionEmphasis)",

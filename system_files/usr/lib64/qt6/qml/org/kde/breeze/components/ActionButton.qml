@@ -209,25 +209,39 @@ PlasmaComponents3.AbstractButton {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: parent.top
             anchors.topMargin: -height / 2
-            width: parent.width * 0.28
+            width: parent.width * (root.lit ? 0.40 : 0.28)
             height: root.activeFocus ? 3 : 2
             radius: height / 2
             color: root.destructive
                 ? Kirigami.Theme.negativeTextColor
                 : Kirigami.Theme.highlightColor
             opacity: root.lit ? 0.96 : 0.62
+            Behavior on width {
+                NumberAnimation {
+                    duration: design.duration(root.motionEnabled,
+                                              design.motionGeometry)
+                    easing.type: design.easeEmphasis
+                }
+            }
         }
         Rectangle {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.bottom: parent.bottom
             anchors.bottomMargin: Math.max(4, parent.height * 0.10)
-            width: parent.width * 0.42
+            width: parent.width * (root.lit ? 0.58 : 0.42)
             height: 1
             radius: height / 2
             color: root.destructive
                 ? Kirigami.Theme.negativeTextColor
                 : Kirigami.Theme.highlightColor
             opacity: root.lit ? 0.55 : 0.22
+            Behavior on width {
+                NumberAnimation {
+                    duration: design.duration(root.motionEnabled,
+                                              design.motionGeometry)
+                    easing.type: design.easeEmphasis
+                }
+            }
         }
         Rectangle {
             anchors.fill: parent

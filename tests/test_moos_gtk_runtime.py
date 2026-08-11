@@ -212,6 +212,19 @@ class TestMoOSGtkRuntime(unittest.TestCase):
                         f"{path.name}:{node.lineno} concatenates two visible locales",
                     )
 
+    def test_update_and_recovery_keep_technical_output_collapsed_at_rest(self):
+        """Administrative transcripts must not dominate an otherwise idle screen."""
+        for path in (UPDATER_PATH, RECOVERY_PATH):
+            source = path.read_text(encoding="utf-8")
+            with self.subTest(path=path.name):
+                self.assertIn("Gtk.Expander(", source)
+                self.assertIn('add_css_class("ui2-log-frame")', source)
+                self.assertNotIn(
+                    "Gtk.ScrolledWindow(hexpand=True, vexpand=True)", source,
+                    "an empty technical transcript must not consume the page's "
+                    "entire flexible height",
+                )
+
     def test_updater_stages_an_exact_signed_digest_never_a_tag_upgrade(self):
         """The window a person opens must be able to actually update the machine.
 

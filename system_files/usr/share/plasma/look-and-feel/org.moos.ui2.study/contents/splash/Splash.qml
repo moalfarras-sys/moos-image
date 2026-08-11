@@ -30,8 +30,11 @@ Rectangle {
     readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
     readonly property bool rtl: Qt.locale().textDirection === Qt.RightToLeft
     readonly property real progress: Math.max(0.08, Math.min(1, stage / 5))
-    readonly property int logoSize: Math.max(92, Math.min(146,
-        Math.round(Math.min(width, height) * 0.14)))
+    // The former 146 logical-pixel ceiling left the mark visually undersized
+    // on a 4K doorway. It is still bounded for small screens, but now holds the
+    // centre with enough physical detail at fractional scale.
+    readonly property int logoSize: Math.max(104, Math.min(196,
+        Math.round(Math.min(width, height) * 0.16)))
 
     property int stage
 
@@ -41,6 +44,7 @@ Rectangle {
         revealAnimation.stop();
         content.opacity = 1;
         contentShift.y = 0;
+        brandStage.scale = 1;
     }
 
     onMotionEnabledChanged: {
@@ -101,6 +105,8 @@ Rectangle {
             height: width
             anchors.horizontalCenter: parent.horizontalCenter
             y: parent.height * 0.34 - height / 2
+            transformOrigin: Item.Center
+            scale: root.motionEnabled ? 0.88 : 1
 
             Rectangle {
                 anchors.centerIn: parent
@@ -168,7 +174,10 @@ Rectangle {
             id: progressTrack
             anchors.horizontalCenter: parent.horizontalCenter
             y: parent.height * 0.72 - height / 2
-            width: Math.max(220, Math.min(360, parent.width * 0.24))
+            // A 4K doorway needs a deliberate horizon, not a short loading
+            // dash. The bounds stay compact on laptops and gain presence on
+            // wide screens without becoming a full-width progress bar.
+            width: Math.max(240, Math.min(480, parent.width * 0.28))
             height: 4
             radius: height / 2
             color: Qt.alpha(root.ink, root.design.surfaceRestingOpacity)
@@ -222,6 +231,14 @@ Rectangle {
             to: 0
             duration: root.design.motionPortal
             easing.type: root.design.easeStandard
+        }
+        NumberAnimation {
+            target: brandStage
+            property: "scale"
+            from: 0.88
+            to: 1
+            duration: root.design.motionPortal
+            easing.type: root.design.easeEmphasis
         }
     }
 }

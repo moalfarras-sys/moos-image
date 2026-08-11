@@ -131,7 +131,10 @@ def current_system(booted=None):
 class Updater(MoOSApp):
     APP_ID = "org.moos.updater"      # == org.moos.updater.desktop — see MoOSApp's docstring
     TITLE = local_text("محدّث MoOS", "MoOS Updater")
-    SIZE = (760, 660)
+    # The content is intentionally compact; a tall default left an admin-tool
+    # sized void below the actions even after the technical log became an
+    # on-demand detail. The scroller still takes over when details are opened.
+    SIZE = (760, 380)
 
     def build(self, page):
         booted, staged, _busy = deployment_state()
@@ -151,19 +154,40 @@ class Updater(MoOSApp):
             "Your running system stays untouched until then.",
         )))
 
+        hero = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=16)
+        icon_plate = Gtk.Box(halign=Gtk.Align.CENTER, valign=Gtk.Align.CENTER)
+        icon_plate.add_css_class("ui2-icon-plate")
+        icon = Gtk.Image.new_from_icon_name("moos-safe-update-symbolic")
+        icon.set_pixel_size(34)
+        icon_plate.append(icon)
+        hero.append(icon_plate)
+
+        identity = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3,
+                           hexpand=True, valign=Gtk.Align.CENTER)
+        identity_label = Gtk.Label(
+            label=local_text("النظام الحالي", "Current system"),
+            xalign=logical_start(),
+        )
+        identity_label.add_css_class("ui2-kicker")
         version = Gtk.Label(xalign=logical_start(), wrap=True)
         version.set_markup(
-            f"<b>{GLib.markup_escape_text(pretty)}</b>\n"
-            f"<span alpha='65%'>{GLib.markup_escape_text(build or '—')}</span>")
-        page.append(self.card(
-            Gtk.Label(
-                label=local_text("النظام الحالي", "Current system"),
-                xalign=logical_start(),
-            ),
-            version,
-        ))
+            f"<b>{GLib.markup_escape_text(pretty)}</b>  "
+            f"<span alpha='70%'>{GLib.markup_escape_text(build or '—')}</span>")
+        version.add_css_class("ui2-value")
+        identity.append(identity_label)
+        identity.append(version)
+        hero.append(identity)
+
+        trust = Gtk.Label(
+            label=local_text("صورة موقّعة  ·  ذرّي", "SIGNED IMAGE  ·  ATOMIC")
+        )
+        trust.add_css_class("ui2-badge")
+        trust.set_valign(Gtk.Align.CENTER)
+        hero.append(trust)
+        page.append(self.card(hero, spacing=0))
 
         self.status = Gtk.Label(xalign=logical_start(), wrap=True)
+        self.status.add_css_class("ui2-status")
         self.status.set_text(local_text(
             "اضغط «فحص التحديثات» للبدء.",
             "Press “Check for updates” to begin.",
@@ -174,11 +198,18 @@ class Updater(MoOSApp):
 
         self.log = Gtk.TextView(editable=False, monospace=True)
         self.log.add_css_class("ui2-log")
-        log_scroll = Gtk.ScrolledWindow(hexpand=True, vexpand=True)
-        log_scroll.set_min_content_height(220)
+        log_scroll = Gtk.ScrolledWindow(hexpand=True)
+        log_scroll.add_css_class("ui2-log-frame")
+        log_scroll.set_min_content_height(140)
         log_scroll.set_child(self.log)
 
-        page.append(self.card(self.status, self.progress, log_scroll))
+        self.details = Gtk.Expander(
+            label=local_text("التفاصيل التقنية", "Technical details")
+        )
+        self.details.add_css_class("ui2-details")
+        self.details.set_child(log_scroll)
+
+        page.append(self.card(self.status, self.progress, self.details))
 
         self.check_btn = Gtk.Button(
             label=local_text("فحص التحديثات", "Check for updates")

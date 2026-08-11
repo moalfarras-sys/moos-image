@@ -7,7 +7,7 @@ a Nova desktop theme). All of that was superseded — SDDM was replaced by
 plasma-login-manager, and the whole look became the MoOSUI2 family. The old gate
 validated a design that no longer exists, so it was rewritten (not deleted) into
 this: a lean check of the images the CURRENT engine actually ships and that no
-other gate deep-inspects — the sixteen theme wallpapers, the four boot-splash
+other gate deep-inspects — the sixteen theme wallpapers, the seven boot-splash
 sprites, and the logo master. Identity/experience/theme correctness live in the
 active build gates (verify_identity, verify_image_experience,
 verify_user_experience, verify_no_foreign_identity, test_moos_theme_safety);
@@ -87,11 +87,25 @@ def verify_wallpapers() -> None:
 # ── the boot-splash sprites (Plymouth Script theme) ──────────────────────────
 def verify_boot_sprites() -> None:
     theme = SHARE / "plymouth" / "themes" / "moos"
-    # each is transparent art the script moves; keep them small so the initramfs
-    # stays light (the whole reason the theme is sprites, not baked frames).
-    for name in ("logo.png", "ring.png", "head.png", "glow.png"):
+    # Each is transparent art the script moves. The hero sources are deliberately
+    # large enough to DOWNSAMPLE on a 4K frame, but compression keeps the whole
+    # family below one MiB — still dramatically lighter than baked frames.
+    expected = {
+        "logo.png": (1024, 1024),
+        "ring.png": (1440, 1440),
+        "ring2.png": (1440, 1440),
+        "head.png": (320, 320),
+        "glow.png": (1024, 1024),
+        "particle.png": (96, 96),
+        "pulse.png": (1024, 1024),
+    }
+    for name, size in expected.items():
         check_image(theme / name, modes=("RGBA",), alpha=True, max_bytes=600 * 1024)
-    check_image(theme / "logo.png", size=(512, 512), modes=("RGBA",), alpha=True)
+        check_image(theme / name, size=size, modes=("RGBA",), alpha=True)
+    require(
+        sum((theme / name).stat().st_size for name in expected) < 1024 * 1024,
+        "the seven Plymouth sprites exceed the one-MiB initramfs budget",
+    )
 
 
 # ── the logo master ──────────────────────────────────────────────────────────

@@ -110,10 +110,7 @@ def deployments():
 class Recovery(MoOSApp):
     APP_ID = "org.moos.recovery"     # == org.moos.recovery.desktop — see MoOSApp's docstring
     TITLE = local_text("استرداد MoOS", "MoOS Recovery")
-    # Taller than the updater's (760, 660), not shorter: this page carries a two-line
-    # bilingual subtitle, three cards and a log, and at 580 the one button the screen
-    # exists for sat below the fold on the reference 4K/225% machine.
-    SIZE = (760, 700)
+    SIZE = (760, 590)
 
     def build(self, page):
         booted, target, queued = deployments()
@@ -133,15 +130,42 @@ class Recovery(MoOSApp):
             "Your files and settings are not touched.",
         )))
 
+        hero = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=16)
+        icon_plate = Gtk.Box(halign=Gtk.Align.CENTER, valign=Gtk.Align.CENTER)
+        icon_plate.add_css_class("ui2-icon-plate")
+        icon = Gtk.Image.new_from_icon_name("moos-repair-symbolic")
+        icon.set_pixel_size(34)
+        icon_plate.append(icon)
+        hero.append(icon_plate)
+        hero_copy = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3,
+                            hexpand=True, valign=Gtk.Align.CENTER)
+        hero_kicker = Gtk.Label(
+            label=local_text("مسار عودة آمن", "Safe return path"),
+            xalign=logical_start(),
+        )
+        hero_kicker.add_css_class("ui2-kicker")
+        hero_value = Gtk.Label(
+            label=local_text(
+                "غيّر قرار الإقلاع، وليس ملفاتك",
+                "Change the boot choice, never your files",
+            ),
+            xalign=logical_start(),
+            wrap=True,
+        )
+        hero_value.add_css_class("ui2-value")
+        hero_copy.append(hero_kicker)
+        hero_copy.append(hero_value)
+        hero.append(hero_copy)
+        page.append(self.card(hero, spacing=0))
+
         now = Gtk.Label(xalign=logical_start(), wrap=True)
         now.set_markup(f"<b>{GLib.markup_escape_text(booted or '—')}</b>")
-        page.append(self.card(
-            Gtk.Label(
-                label=local_text("تعمل الآن على", "You are running"),
-                xalign=logical_start(),
-            ),
-            now,
-        ))
+        now.add_css_class("ui2-value")
+        current_heading = Gtk.Label(
+            label=local_text("تعمل الآن على", "You are running"),
+            xalign=logical_start(),
+        )
+        current_heading.add_css_class("ui2-kicker")
 
         back = Gtk.Label(xalign=logical_start(), wrap=True)
         if target:
@@ -170,12 +194,19 @@ class Recovery(MoOSApp):
             ),
             xalign=logical_start(),
         )
+        self.target_heading.add_css_class("ui2-kicker")
         self.target_version = back
-        page.append(self.card(
-            self.target_heading,
-            back))
+        back.add_css_class("ui2-value")
+        version_path = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=7)
+        version_path.append(current_heading)
+        version_path.append(now)
+        version_path.append(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL))
+        version_path.append(self.target_heading)
+        version_path.append(back)
+        page.append(self.card(version_path, spacing=0))
 
         self.status = Gtk.Label(xalign=logical_start(), wrap=True)
+        self.status.add_css_class("ui2-status")
         self.status.set_text(
             local_text(
                 "الرجوع مُجهَّز بالفعل. أعد التشغيل لتطبيقه، أو ألغِه "
@@ -192,17 +223,19 @@ class Recovery(MoOSApp):
 
         self.log = Gtk.TextView(editable=False, monospace=True)
         self.log.add_css_class("ui2-log")
-        log_scroll = Gtk.ScrolledWindow(hexpand=True, vexpand=True)
-        # The log is the page's one flexible row: its MINIMUM decides whether the button
-        # row clears the window's bottom edge, because everything else on the page is
-        # fixed-height text. It has to stay low enough that the sum of minimums fits
-        # inside SIZE even when a bigger system font makes every card taller.
+        log_scroll = Gtk.ScrolledWindow(hexpand=True)
+        log_scroll.add_css_class("ui2-log-frame")
         log_scroll.set_min_content_height(120)
         log_scroll.set_child(self.log)
 
         self.spinner = Gtk.Spinner()
         self.spinner.set_visible(False)
-        page.append(self.card(self.status, self.spinner, log_scroll))
+        self.details = Gtk.Expander(
+            label=local_text("التفاصيل التقنية", "Technical details")
+        )
+        self.details.add_css_class("ui2-details")
+        self.details.set_child(log_scroll)
+        page.append(self.card(self.status, self.spinner, self.details))
 
         # Same command either way (rpm-ostree/bootc rollback toggles the default entry), so
         # the LABEL must say which of the two things it is about to do.

@@ -2564,7 +2564,7 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=49" in apply_theme_code,
+require("THEME_REV=50" in apply_theme_code,
         "MoOS visual schema must migrate existing users to the cardless centred "
         "Horizon Hub, single-owner launcher activation and recoverable direct "
         "adaptive media island (moos-bar-apply), while "
@@ -4950,6 +4950,11 @@ require("Layout.minimumWidth:" in panel_clock and "Layout.preferredWidth:" in pa
 require(re.search(r"layoutDirection\s*:\s*root\.rtl\s*\?", panel_clock) is None,
         "the panel clock must inherit plasmashell RTL exactly once; forcing RTL on "
         "its RowLayouts reverses the already-mirrored order a second time")
+require("function revealPopup()" in panel_clock
+        and "function onExpandedChanged()" in panel_clock
+        and "popupEntrance.restart()" in panel_clock,
+        "the calendar entrance must replay on every open, not only when Plasma first "
+        "constructs and may cache the full representation")
 
 for label, qml_path in (
     ("org.moos.nova.clock",
@@ -5592,10 +5597,16 @@ require("running: root.playing && root.hasTimeline" in _island
         "the one-second MPRIS position refresh must sleep unless moving progress "
         "is actually visible")
 require("implicitWidth: root.active" in _island
-        and "? Math.round(baseWidth + (compactHover.hovered ? 68 : 0)) : 1" in _island
+        and "compactHover.hovered ? hoverExtra : 0" in _island
+        and "revealedControlCount" in _island
         and "opacity: root.active ? 1 : 0" in _island,
-        "the direct island must be one transparent pixel at idle and expand "
-        "adaptively for media/hover state")
+        "the direct island must be one transparent pixel at idle and expand by "
+        "the active player's real Previous/Next/Volume capability count")
+require("function revealPopup()" in _island
+        and "function onExpandedChanged()" in _island
+        and "expandedEntrance.restart()" in _island,
+        "the media popup entrance must replay on every open even when Plasma caches "
+        "the full representation")
 require("function resolvedArtworkSource()" in _island
         and "StandardPaths.RuntimeLocation" in _island
         and 'raw.indexOf("file:///tmp/.")' in _island

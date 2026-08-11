@@ -9,5 +9,9 @@
       <label>The wallpaper behind the login scene: a plain image file or a MoOS wallpaper package directory (the same values org.kde.image accepts).</label>
       <default></default>
     </entry>
+    <entry name="AmbientMotion" type="Bool">
+      <label>Allow the finite MoOS signature entrance when system animations are enabled.</label>
+      <default>true</default>
+    </entry>
   </group>
 </kcfg>
