@@ -4,17 +4,32 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-08-09, signed **`44.20260809.577`** on all three editions
-(main `c6b71924`), a live offline ISO delivered to the owner desktop, plus
-THEME_REV 49 live-shell recovery, the media-island follow-up, and the same-day
-adversarial hardening pass (26-agent review; seven confirmed defects fixed,
-orbit alias dedup added).
+Last updated: 2026-08-11, signed **`44.20260811.583`** on all three editions
+(main `f4cd224e`), deployed and verified on the live cloud host. This release
+carries two fixes both root-caused ON that host: `moos-bar-apply`'s shell
+probes were unscoped `pgrep`, so on a multi-user machine another session's
+plasmashell made every headless login "fail" its stop and bail one line before
+`start_shell` — every remote screen streamed black with zero failed units
+(single-user desktops cannot reproduce it; that is how it shipped). Probes are
+now user-scoped, the unit stop is unconditional (is-active calls an ACTIVATING
+unit a failure), and a failed stop restores the shell before bailing. Second:
+Mo PC Remote's controller bar moves to the TOP edge on hover+fine-pointer
+devices — bottom-centre belongs to the remote's own dock, and the bottom
+hover-summon strip meant reaching for that dock summoned the bar under the
+click. Verified end-to-end on the deployed `:8444` screen: bar at top over the
+live stream, dock clickable, phones unchanged at the bottom. After the `.583`
+reboot all three cloud sessions started their shell exactly once, `bar=ok`,
+v49 markers written; the temporary per-user shell-guard timers were removed.
 
-Release `.577` signed digests:
+Release `.583` signed digests:
 
-- generic: `sha256:c7682907ef8042d96b12c8b2e86f4e0eefae3036780829157dc7aadb75e43100`
-- NVIDIA: `sha256:60ecfa2717f670fd1db51c86725efbc42595af3c4038ad61b936cc8a8ecd7f06`
-- cloud: `sha256:840940b996e60a7ea44a750cd9026194da766b77baf2a28104b71f8aa6cecc69`
+- generic: `sha256:f757cb378931a52cd539506ed6dc80620f5c1c479a7e7acec85e499ecfcd1714`
+- NVIDIA: `sha256:a0b22ac0a4087597c415e3c1c74aff10281f9e47df66aec09c57bea774cc6794`
+- cloud: `sha256:ee9a189d47bd2f3455f300f507dc0528bcee99c7180e6b3dc02588d94f63c782`
+
+Previous release `.577` (main `c6b71924`) shipped THEME_REV 49 live-shell
+recovery, the media-island follow-up, the adversarial hardening pass, and the
+live offline ISO `MoOS-Live-c6b71924.iso` delivered to the owner desktop.
 
 The live ISO built from the signed generic image is
 `MoOS-Live-c6b71924.iso`, 5,164,040,192 bytes, SHA-256
