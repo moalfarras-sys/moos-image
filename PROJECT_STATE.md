@@ -4,9 +4,22 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-08-11, signed **`44.20260811.583`** on all three editions
-(main `f4cd224e`), deployed and verified on the live cloud host. This release
-carries two fixes both root-caused ON that host: `moos-bar-apply`'s shell
+Last updated: 2026-08-11, signed **`44.20260811.585`** on all three editions
+(main `d22e513a`), deployed and verified on this 4K NVIDIA development host.
+This is the unified motion, 4K boot-art, system-sound and first-party-tool
+polish release described below. The host is booted from the signature-enforced
+exact NVIDIA digest, the previous `.580` deployment remains available for
+rollback, both system and user failed-unit sets are empty, the Wayland session
+is active, and `moos-bar-apply check` returns `bar: ok`.
+
+Release `.585` signed digests:
+
+- generic: `sha256:b13e181d910b5b064e752b3fd1f1f19d1d574b74017067c622f7f18cb71cf473`
+- NVIDIA: `sha256:aca2e27dfe5277ae7401b1c05683a06fdb5fe84abd9d2ca0f93792853bdfc7c2`
+- cloud: `sha256:4726a0371fe87e1d32500f389d0ed13ff6f96d4b80984b562f8500c028d19565`
+
+The previous `.583` release carried two fixes both root-caused ON the cloud
+host: `moos-bar-apply`'s shell
 probes were unscoped `pgrep`, so on a multi-user machine another session's
 plasmashell made every headless login "fail" its stop and bail one line before
 `start_shell` — every remote screen streamed black with zero failed units
@@ -21,14 +34,14 @@ live stream, dock clickable, phones unchanged at the bottom. After the `.583`
 reboot all three cloud sessions started their shell exactly once, `bar=ok`,
 v49 markers written; the temporary per-user shell-guard timers were removed.
 
-Release `.583` signed digests:
+Release `.583` signed digests (previous):
 
 - generic: `sha256:f757cb378931a52cd539506ed6dc80620f5c1c479a7e7acec85e499ecfcd1714`
 - NVIDIA: `sha256:a0b22ac0a4087597c415e3c1c74aff10281f9e47df66aec09c57bea774cc6794`
 - cloud: `sha256:ee9a189d47bd2f3455f300f507dc0528bcee99c7180e6b3dc02588d94f63c782`
 
-Working tree, 2026-08-11 — **Unified motion + sound polish, THEME_REV 50**
-(`polish/unified-motion-sound-2026-08-11`, not published or deployed yet): the
+Shipped in `.585`, 2026-08-11 — **Unified motion + sound polish, THEME_REV 50**:
+the
 existing Horizon Bar media island now sizes its hover extension from
 the active player's real Previous/Next/Volume capability count instead of a
 fixed 68 px, and one reveal progress owns control width, travel and opacity.
@@ -114,8 +127,37 @@ its checks with warnings only, and Podman emitted `localhost/moos:latest` as
 (`sha256:6610911fa0fc3fdd9ef679f969fecfd0edacecebded06c20e95bf9dc9b9fafae`,
 10,776,138,154 bytes). The MoPlayer SDK still keeps the normal signed mirror
 path first and retries the official signed origin only when that build-only
-transaction fails. A real boot remains open; do not call the motion shipped
-until the signed image is published and viewed through boot.
+transaction fails.
+
+A real signed-image boot is now complete. The actual 3840x2160/225% desktop,
+Horizon Hub, launcher, first-party applications, lock screen and power picker
+were captured after reboot. All eight representative sound classes played
+through the installed Canberra/KDE event path. MoPlayer played real media and
+registered MPRIS; the island followed it. A clean plasmashell restart produced
+no QML error or binding-loop output. The only reproduced shell warning was an
+upstream tray-item lifetime race when Chrome withdrew a status item; it did not
+recur after the clean restart and is not claimed as a MoOS regression.
+
+The signed boot exposed one language/scale defect the source previews did not:
+at 3840x2160/225% in German, the shared fixed-width Login/Lock action key
+elided `Benutzer wechseln`, and the stopped-media fallback elided its final
+word. The follow-up keeps Plasma's authentication and MPRIS architecture: the
+existing action background now grows from translated `implicitContentWidth`
+between a compact 6.6-grid-unit minimum and a bounded 9-unit ceiling, while a
+small lockscreen `MediaControls.qml` fork keeps real track titles at the
+original primary size and renders only the fallback status at the secondary
+MoOS type size. Both changes were bind-mounted for visual proof on the real
+lock screen, where the full German strings rendered with no QML error; those
+temporary mounts were then removed. Tests pin the adaptive sizing, preserved
+MPRIS actions and differentiated title/status typography. The complete local
+generic compose from this follow-up passed: every QML/app smoke, the 122 MiB
+initramfs proof, image-experience, store, identity and foreign-identity gates,
+and `bootc container lint` (9 checks, the four documented warnings only).
+Podman produced `localhost/moos:latest` as
+`7814033a0c4a221a9ab4a1597779dc3dd1411df06bd92cfaef69ac5adf6fdf55`
+(`sha256:c9c01440d5c768940ebf593e8cac14e94115bc0841441772bd1a0317dfc907f8`,
+10,776,140,710 bytes). It is still not called shipped until a new signed image
+has been deployed and the same screen has been checked without an overlay.
 
 Previous release `.577` (main `c6b71924`) shipped THEME_REV 49 live-shell
 recovery, the media-island follow-up, the adversarial hardening pass, and the

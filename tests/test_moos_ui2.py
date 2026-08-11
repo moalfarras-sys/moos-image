@@ -749,6 +749,17 @@ class TestMoOSUI2(unittest.TestCase):
             self.assertIn(contract, action)
         self.assertNotIn("Accessible.name: root.text", action)
 
+        # Action names come from Plasma's active locale.  A fixed 6.2-unit
+        # label visibly elided German "Benutzer wechseln" on the real lock
+        # screen at 3840x2160 / 225%.  Keep the compact minimum, but require
+        # the portal to grow from the translated content up to a safe ceiling.
+        for contract in (
+            "root.implicitContentWidth + Kirigami.Units.gridUnit * 1.2",
+            "Math.min(Kirigami.Units.gridUnit * 9",
+            "width: Math.min(implicitWidth, Kirigami.Units.gridUnit * 8.2)",
+        ):
+            self.assertIn(contract, action)
+
         user = qml_code((components / "UserDelegate.qml").read_text(encoding="utf-8"))
         for contract in (
             "Accessible.role: Accessible.Button",
@@ -762,6 +773,21 @@ class TestMoOSUI2(unittest.TestCase):
         ):
             self.assertIn(contract, user)
         self.assertNotIn("function accessiblePressAction", user)
+
+    def test_lock_media_status_is_language_safe_without_shrinking_titles(self) -> None:
+        media = qml_code(
+            (
+                ROOT
+                / "system_files/usr/share/plasma/shells/org.kde.plasma.desktop"
+                / "contents/lockscreen/MediaControls.qml"
+            ).read_text(encoding="utf-8")
+        )
+        self.assertIn("model.track.length > 0", media)
+        self.assertIn("Kirigami.Theme.defaultFont.pointSize + 1", media)
+        self.assertIn("Kirigami.Theme.smallFont.pointSize + 1", media)
+        self.assertIn("font.family: root.design.interfaceFamily", media)
+        self.assertIn("Mpris.MultiplexerModel", media)
+        self.assertIn("model.container.PlayPause()", media)
 
     def test_login_greeter_reduced_motion_is_a_true_static_state(self) -> None:
         components = ROOT / "system_files/usr/lib64/qt6/qml/org/kde/breeze/components"

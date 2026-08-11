@@ -3,6 +3,44 @@
 Date: 2026-08-11
 Branch: `polish/unified-motion-sound-2026-08-11`
 
+## 2026-08-11 — signed `.585` boot proof and the localized lock follow-up
+
+PR #36 merged as `d22e513a`. CI built and signed all three editions as
+`44.20260811.585`; the generic, NVIDIA and cloud jobs completed successfully.
+The canonical `moai-do update` path staged the exact signed NVIDIA digest
+`sha256:aca2e27dfe5277ae7401b1c05683a06fdb5fe84abd9d2ca0f93792853bdfc7c2`,
+and this development machine rebooted into it. The previous `.580` deployment
+remains intact for rollback.
+
+Post-reboot proof was gathered from the real 3840x2160 Wayland session at its
+normal 225% scale: Horizon Hub, launcher, Settings, Store, Mo AI, Theme Picker,
+Updater, Recovery, Welcome, lock/auth and the logout/power picker all rendered.
+MoPlayer played media and exposed MPRIS to the island. Eight representative
+installed MoOS sounds played through Canberra. System and user failed-unit
+sets were empty, `moos-bar-apply check` returned `bar: ok`, Nova and the MoOS
+sound theme read back as active, and a clean plasmashell restart emitted no QML
+error or binding loop.
+
+That real boot found one reproducible defect: German `Benutzer wechseln` and
+the stopped-media sentence were clipped on Lock at 225%. The existing shared
+ActionButton now grows from translated content within a bounded compact range,
+instead of fixing every language to 6.6 grid units. Plasma's proven lockscreen
+MPRIS component is retained as a narrow MoOS source fork: real track titles
+keep the primary size, while only the localized fallback status uses the
+secondary size. Live bind-mount proof on the actual lock screen showed the
+complete German labels with no QML error, after which both temporary mounts
+were removed. A source gate now covers adaptive translated width, the two type
+roles and every required MPRIS transport action.
+
+The complete local generic compose from this exact follow-up passed. Its QML
+and application smokes, final 122 MiB initramfs inspection, image-experience,
+store, identity, foreign-identity firewall and `bootc container lint` all
+completed successfully. Podman emitted image
+`7814033a0c4a221a9ab4a1597779dc3dd1411df06bd92cfaef69ac5adf6fdf55`
+with manifest digest
+`sha256:c9c01440d5c768940ebf593e8cac14e94115bc0841441772bd1a0317dfc907f8`.
+A second signed-image/reboot check remains required before it is shipped.
+
 ## 2026-08-11 — unified motion, 4K boot art, and the full MoOS sound family
 
 This pass polishes the system that already exists. It does not add a new shell,
