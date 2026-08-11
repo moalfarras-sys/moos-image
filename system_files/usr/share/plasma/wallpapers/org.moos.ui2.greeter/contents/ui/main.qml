@@ -15,10 +15,11 @@
 // the binary — a plain `strings` finds no "breeze" in it at all, because Qt stores
 // QStringLiteral as UTF-16, and reading that as "the module is unused" is wrong.
 //
-// Gate contract (build_files/verify_image_experience.py): NO "Repeater",
-// "Animation", "ShaderEffect" or "Canvas" tokens, and the brand MUST stay anchored
-// to the top-left corner so it can never overlap the centred password surface.
-// This scene is fully static — the calmest possible way to honour that.
+// Gate contract (build_files/verify_image_experience.py): no repeaters, shaders,
+// canvases or permanent motion, and the brand MUST stay anchored to the top-left
+// corner so it can never overlap the centred password surface. Only that quiet
+// signature receives one reduced-motion-aware entrance; the authentication scene
+// paints immediately and remains static.
 pragma ComponentBehavior: Bound
 
 import QtQuick
@@ -144,6 +145,9 @@ WallpaperItem {
     readonly property color canvas: root.tones.canvas
     readonly property color ink: root.tones.ink
     readonly property color accent: root.tones.accent
+    readonly property bool motionEnabled:
+        root.configuration.AmbientMotion
+        && Kirigami.Units.longDuration > 1
 
     // ── Base plate + wallpaper (both paint immediately) ─────────────────────
     Rectangle {
@@ -203,22 +207,43 @@ WallpaperItem {
     Row {
         id: signature
         opacity: 0
-        Component.onCompleted: signatureEntrance.start()
+        scale: root.motionEnabled ? 0.96 : 1
+        transformOrigin: Item.TopLeft
+        transform: Translate {
+            id: signatureShift
+            y: root.motionEnabled ? 14 : 0
+        }
+        Component.onCompleted: {
+            if (root.motionEnabled) {
+                signatureEntrance.start();
+            } else {
+                signature.opacity = 1;
+                signature.scale = 1;
+                signatureShift.y = 0;
+            }
+        }
         SequentialAnimation {
             id: signatureEntrance
             running: false
-            PauseAnimation { duration: 140 }
+            PauseAnimation { duration: Math.round(Kirigami.Units.shortDuration) }
             ParallelAnimation {
                 NumberAnimation {
                     target: signature; property: "opacity"
                     from: 0; to: 1
-                    duration: 520; easing.type: Easing.OutCubic
+                    duration: Math.round(Kirigami.Units.longDuration * 2.6)
+                    easing.type: Easing.OutCubic
                 }
                 NumberAnimation {
-                    target: signature; property: "anchors.topMargin"
-                    from: signature.anchors.topMargin + 14
-                    to: signature.anchors.topMargin
-                    duration: 520; easing.type: Easing.OutCubic
+                    target: signatureShift; property: "y"
+                    from: 14; to: 0
+                    duration: Math.round(Kirigami.Units.longDuration * 2.6)
+                    easing.type: Easing.OutCubic
+                }
+                NumberAnimation {
+                    target: signature; property: "scale"
+                    from: 0.96; to: 1
+                    duration: Math.round(Kirigami.Units.longDuration * 2.6)
+                    easing.type: Easing.OutBack
                 }
             }
         }

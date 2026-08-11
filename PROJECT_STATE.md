@@ -27,6 +27,61 @@ Release `.583` signed digests:
 - NVIDIA: `sha256:a0b22ac0a4087597c415e3c1c74aff10281f9e47df66aec09c57bea774cc6794`
 - cloud: `sha256:ee9a189d47bd2f3455f300f507dc0528bcee99c7180e6b3dc02588d94f63c782`
 
+Working tree, 2026-08-11 — **Unified motion + sound polish, THEME_REV 50**
+(`polish/unified-motion-sound-2026-08-11`, not published or deployed yet): the
+existing Horizon Bar media island now sizes its hover extension from
+the active player's real Previous/Next/Volume capability count instead of a
+fixed 68 px, and one reveal progress owns control width, travel and opacity.
+The self-referential track-title `y` animation is replaced by a layout-neutral
+Translate entrance, the capsule gains a finite Tidal crest response, and both
+media and calendar popups receive short reduced-motion-aware entrances. There
+is still one bar capsule and the island still collapses to one transparent pixel
+at idle; no new shell owner, timer or media registry was introduced.
+
+The existing session surfaces receive one coherent entrance pass without
+touching authentication or power signals: the logout island settles from
+0.965 scale, its existing action tiles reveal in a bounded visual sequence, the
+shared Login/Lock action key widens its crest/horizon on hover/focus, the login
+signature's former anchor animation is now a reduced-motion-aware Translate,
+and ksplash's existing brand grows to a 4K-appropriate bounded size with a
+single scale settle. Source-tree QML was loaded by the real
+`ksmserver-logout-greeter`, `kscreenlocker_greet --testing`, and
+`plasmawindowed` at 3840×2160; the lock/password/PAM composition loaded and
+rendered without QML errors. Temporary XDG overlays were removed afterward.
+
+Plymouth keeps the same MoOS mark/orbit composition but its hero sources are
+now 1024 px (logo/glow/pulse) and 1440 px (rings), so a 4K frame downsamples
+instead of doubling 720 px art. The logo, field and one entrance wave now settle
+and stop resampling; only the energy head/particles remain as the loading
+signal. The generated seven-sprite payload is still only ~913 KiB. This is
+source/preview and composed-image evidence, not a boot proof: a real boot
+remains required before claiming the new Plymouth motion shipped.
+
+The four-file sound sample is now a 27-event original MoOS family: login/logout,
+message, dialog severity, device/service arrival and removal, battery, power,
+completion/outcome, volume/button micro-feedback and trash. Every file is
+synthesized at 48 kHz stereo from the same glass-chime vocabulary, contains no
+recorded/third-party sample, and was decoded by `ffprobe`; a new gate pins the
+semantic inventory and Ogg headers. Cloud keeps the same pixels and sound
+assets but all new QML motion collapses through `longDuration > 1`, matching its
+existing `AnimationDurationFactor=0` policy.
+
+`just check` passes with the new sound/Plymouth gates wired into the default
+recipe. The runtime motion test skips on this host because the standalone Qt
+`qml` executable is absent, but the edited island/logout/lock sources were
+loaded by Plasma's real hosts and the comment-stripped reduced-motion contract
+passes. A full local generic `just build` then completed from this exact tree:
+MoPlayer and Mo Remote built, every shipped QML app, the launcher, island and
+desktop scene loaded offscreen, the final 122 MiB initramfs contained the MoOS
+Plymouth script and its new sprites, and the image-experience, store, identity
+and foreign-identity firewall gates all passed. `bootc container lint` passed
+its checks with warnings only, and Podman emitted `localhost/moos:latest` as
+`eee86c4f62577c1cbfffb6d95fe2fa627deb443aa8997827ab19ee5ca8f65577`
+(10,776,133,031 bytes). The MoPlayer SDK still keeps the normal signed mirror
+path first and retries the official signed origin only when that build-only
+transaction fails. A real boot remains open; do not call the motion shipped
+until the signed image is published and viewed through boot.
+
 Previous release `.577` (main `c6b71924`) shipped THEME_REV 49 live-shell
 recovery, the media-island follow-up, the adversarial hardening pass, and the
 live offline ISO `MoOS-Live-c6b71924.iso` delivered to the owner desktop.

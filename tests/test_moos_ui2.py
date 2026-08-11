@@ -766,7 +766,7 @@ class TestMoOSUI2(unittest.TestCase):
     def test_login_greeter_reduced_motion_is_a_true_static_state(self) -> None:
         components = ROOT / "system_files/usr/lib64/qt6/qml/org/kde/breeze/components"
         for filename, owner, expected_durations in (
-            ("ActionButton.qml", "root", 4),
+            ("ActionButton.qml", "root", 6),
             ("UserDelegate.qml", "wrapper", 3),
         ):
             with self.subTest(filename=filename):
@@ -816,8 +816,10 @@ class TestMoOSUI2(unittest.TestCase):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=49", apply,
-            "existing pre-v49 users would exit before post-marker shadow quarantine, "
+            "THEME_REV=50", apply,
+            "existing pre-v50 users would exit before the unified motion, sound, "
+            "and high-resolution doorway assets are reapplied; "
+            "pre-v49 users would also miss post-marker shadow quarantine, "
             "the Horizon Bar/theme migration, and the SVG cache purge that is the "
             "only way new Plasma Style art reaches a frozen /usr",
         )

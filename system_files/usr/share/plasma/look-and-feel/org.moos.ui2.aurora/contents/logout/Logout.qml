@@ -298,12 +298,15 @@ Item {
                          column.implicitHeight + Kirigami.Units.gridUnit * 3.6)
 
         opacity: root.motionEnabled ? 0 : 1
+        scale: root.motionEnabled ? 0.965 : 1
+        transformOrigin: Item.Center
         transform: Translate { id: sheetRise; y: Kirigami.Units.gridUnit * 2 }
         Component.onCompleted: {
             if (root.motionEnabled) {
                 sheetEnter.start();
             } else {
                 sheetRise.y = 0;
+                sheet.scale = 1;
             }
         }
         ParallelAnimation {
@@ -312,6 +315,8 @@ Item {
                 duration: root.design.motionPortal; easing.type: root.design.easeStandard }
             NumberAnimation { target: sheetRise; property: "y"; from: Kirigami.Units.gridUnit * 2; to: 0
                 duration: root.design.motionPortal; easing.type: root.design.easeStandard }
+            NumberAnimation { target: sheet; property: "scale"; from: 0.965; to: 1
+                duration: root.design.motionPortal; easing.type: root.design.easeEmphasis }
         }
 
         // Depth halo — a still, cheap stand-in for a drop shadow: two nested
@@ -610,6 +615,7 @@ Item {
 
                 MoOSUI2ActionButton {
                     id: suspendButton
+                    revealOrder: 0
                     iconName: "system-suspend-symbolic"
                     text: root.shortLabel("تعليق", "Sleep")
                     description: root.bilingual("إبقاء الجلسة", "Keep session")
@@ -619,6 +625,7 @@ Item {
                 }
                 MoOSUI2ActionButton {
                     id: hibernateButton
+                    revealOrder: 1
                     iconName: "system-suspend-hibernate-symbolic"
                     text: root.shortLabel("إسبات", "Hibernate")
                     description: root.bilingual("حفظ الجلسة", "Save session")
@@ -628,6 +635,7 @@ Item {
                 }
                 MoOSUI2ActionButton {
                     id: rebootButton
+                    revealOrder: 2
                     iconName: softwareUpdatePending ? "system-reboot-update-symbolic" : "system-reboot-symbolic"
                     text: softwareUpdatePending ? root.shortLabel("تحديث وإعادة", "Update & Restart") : root.shortLabel("إعادة التشغيل", "Restart")
                     description: armed ? root.bilingual("اضغط مجددًا لإعادة التشغيل", "Tap again to restart")
@@ -639,6 +647,7 @@ Item {
                 }
                 MoOSUI2ActionButton {
                     id: rebootWithoutUpdatesButton
+                    revealOrder: 3
                     iconName: "system-reboot-symbolic"
                     text: root.shortLabel("إعادة الآن", "Restart now")
                     description: armed ? root.bilingual("اضغط مجددًا لإعادة التشغيل", "Tap again to restart") : root.bilingual("بدون تحديث", "Without updating")
@@ -648,6 +657,7 @@ Item {
                 }
                 MoOSUI2ActionButton {
                     id: shutdownButton
+                    revealOrder: 4
                     iconName: softwareUpdatePending ? "system-shutdown-update-symbolic" : "system-shutdown-symbolic"
                     text: softwareUpdatePending ? root.shortLabel("تحديث وإيقاف", "Update & Shut Down") : root.shortLabel("إيقاف التشغيل", "Shut Down")
                     description: armed ? root.bilingual("اضغط مجددًا للإيقاف", "Tap again to power off")
@@ -660,6 +670,7 @@ Item {
                 }
                 MoOSUI2ActionButton {
                     id: shutdownWithoutUpdatesButton
+                    revealOrder: 5
                     iconName: "system-shutdown-symbolic"
                     text: root.shortLabel("إيقاف الآن", "Shut down now")
                     description: armed ? root.bilingual("اضغط مجددًا للإيقاف", "Tap again to power off") : root.bilingual("بدون تحديث", "Without updating")
@@ -670,6 +681,7 @@ Item {
                 }
                 MoOSUI2ActionButton {
                     id: logoutButton
+                    revealOrder: 6
                     iconName: "system-log-out-symbolic"
                     text: root.shortLabel("تسجيل الخروج", "Log Out")
                     description: root.bilingual("إنهاء الجلسة", "End session")
@@ -679,6 +691,7 @@ Item {
                 }
                 MoOSUI2ActionButton {
                     id: lockButton
+                    revealOrder: 7
                     iconName: "system-lock-screen-symbolic"
                     text: root.shortLabel("قفل الشاشة", "Lock Screen")
                     description: root.bilingual("العودة لاحقًا", "Return later")
@@ -713,6 +726,7 @@ Item {
             }
             MoOSUI2ActionButton {
                 id: cancelButton
+                revealOrder: 8
                 iconName: "cancel-operation-symbolic"
                 text: root.shortLabel("إلغاء — العودة إلى سطح المكتب", "Cancel — back to desktop")
                 description: root.bilingual("العودة إلى سطح المكتب", "Back to desktop")

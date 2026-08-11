@@ -79,6 +79,9 @@ check:
     python3 tests/test_remote_clipboard_runtime.py
     python3 tests/test_wayland_display_resolver.py
     python3 tests/test_boot_branding_tool.py
+    # Plymouth's 4K hero assets must downsample, and its logo/field must stop
+    # resampling after the bounded entrance.
+    python3 tests/test_boot_splash_polish.py
     # Phone alerts are explicit, generic and event-driven: never mirror desktop content or poll idle.
     python3 tests/test_remote_background_alerts.py
     # Input must not block the socket that carries the pings the quality ladder measures.
@@ -88,6 +91,9 @@ check:
     python3 tests/test_remote_h264_fallback.py
     # Desktop sound must be enabled everywhere AND bind loopback (the service has no auth).
     python3 tests/test_desktop_sound_reachable.py
+    # The visible system sound identity is a complete original MoOS family,
+    # not four files that fall back to another theme for most events.
+    python3 tests/test_moos_sound_theme.py
     python3 tests/test_remote_audio_is_authenticated.py
     # Linux exposes Remote through the authenticated Tailscale HTTPS proxy only; no raw Wi-Fi or
     # public-interface listener may survive beside it.

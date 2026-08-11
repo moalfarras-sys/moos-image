@@ -82,7 +82,7 @@ libplasma 6.7.2. Top-level panel/dialog/tooltip masks remain on the verified
 fallback path until this low-risk state batch passes live Plasma testing; this
 prevents an untested mask from clipping a whole popup or panel.
 
-The four optional sound-theme events use the separate synthesizer and
+The MoOS sound family uses the separate synthesizer and
 PySoundFile 0.14.0 only at generation time:
 
 ```powershell
@@ -92,7 +92,11 @@ python artwork/generate_nova_sounds.py
 
 Runtime outputs follow the freedesktop Sound Theme and Sound Naming
 specifications: Vorbis I in lowercase `.oga` files, 48 kHz stereo, under
-`/usr/share/sounds/moos/stereo/`.
+`/usr/share/sounds/moos/stereo/`. The family covers session arrival/departure,
+messages, information/question/warning/error states, device and power changes,
+battery alerts, completion outcomes, volume/button micro-feedback and trash.
+Every event is synthesized from the same glass-chime vocabulary; no recorded or
+third-party sample is included.
 
 All art in this generator is original MoOS artwork, © Moalfarras. Wallpaper
 package metadata licenses the wallpaper outputs under CC-BY-SA-4.0.

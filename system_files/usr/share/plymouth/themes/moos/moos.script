@@ -1,16 +1,16 @@
 // MoOS premium boot splash — Plymouth Script module (v2).
 //
-// A flat graphite field. The CRISP MoOS mark reveals with a confident zoom, then
-// breathes while a dual-ring orbital system spins around it: two rings at
-// different speeds and tilt angles create parallax depth (the 3D illusion),
-// small energy particles trace elliptical orbits at staggered phases, and a
-// radial pulse wave ripples outward every few seconds. The energy head still
-// orbits as the loading loop — the signature motion of MoOS.
+// A flat graphite field. The CRISP MoOS mark reveals once with a confident
+// settle, while a dual-ring orbital field and small energy particles establish
+// depth. One radial wave seals the entrance. After that, the mark stays at its
+// exact native scale and only the energy head continues around the ring as the
+// loading signal — premium motion without continually resampling the logo.
 //
 // Driven entirely by moving small sprites from the refresh callback — NOT
-// hundreds of pre-baked frames — so the theme is ~1 MB and adds almost nothing
-// to the initramfs or boot time. Everything scales to screen height, so it is
-// crisp at 1080p and 4K. If any sprite fails to load, Plymouth falls back to
+// hundreds of pre-baked frames. The logo and rings are authored large enough
+// that a 4K frame downsamples them; only the sub-second entrance creates scaled
+// images, after which the renderer moves cached sprites. If any sprite fails to
+// load, Plymouth falls back to
 // its text splash and the machine still boots — that is the safe fallback.
 //
 // Assets: logo.png, ring.png, ring2.png, head.png, glow.png, particle.png,
@@ -140,26 +140,32 @@ p3_sprite.SetOpacity(0);
 // ── animation state ──────────────────────────────────────────────────────────
 frame = 0;
 logo_settled = 0;
+field_settled = 0;
+pulse_done = 0;
 
-INTRO_SEC  = 2.4;     // reveal length
-SWEEP_SEC  = 1.9;     // the head's one-time sweep around the ring
-LOOP_SEC   = 2.2;     // seconds per orbit during the loading loop
-PULSE_SEC  = 3.8;     // seconds between pulse waves
-BREATH_SEC = 4.0;     // logo breathing cycle
+SWEEP_SEC  = 1.35;    // the head's one-time sweep around the ring
+LOOP_SEC   = 2.8;     // seconds per orbit during the loading loop
 
 fun refresh() {
     frame++;
     t = frame / 50.0;
-    p = clamp01(t / INTRO_SEC);
 
-    // ── ring tracks fade in ──────────────────────────────────────────────
-    ring_sprite.SetOpacity(clamp01(t / 0.4) * 0.9);
-    // Inner ring fades in slightly later for staggered reveal
-    ring2_sprite.SetOpacity(clamp01((t - 0.2) / 0.5) * 0.65);
+    // ── the orbital field fades in once, then becomes cached geometry ────
+    if (field_settled == 0) {
+        ring_sprite.SetOpacity(clamp01(t / 0.4) * 0.9);
+        ring2_sprite.SetOpacity(clamp01((t - 0.2) / 0.5) * 0.65);
+        glow_sprite.SetOpacity(0.12 + 0.10 * easeout(clamp01(t / 0.9)));
+        if (t >= 0.9) {
+            ring_sprite.SetOpacity(0.9);
+            ring2_sprite.SetOpacity(0.65);
+            glow_sprite.SetOpacity(0.22);
+            field_settled = 1;
+        }
+    }
 
-    // ── the mark rises: fade + scale from 0.5s to ~1.6s ─────────────────
+    // ── the mark arrives once, then remains pixel-stable ────────────────
     if (logo_settled == 0) {
-        lt = clamp01((t - 0.4) / 1.1);
+        lt = clamp01((t - 0.12) / 0.78);
         le = easeout(lt);
         if (lt >= 1) {
             logo_sprite.SetImage(logo_full);
@@ -168,23 +174,13 @@ fun refresh() {
             logo_sprite.SetOpacity(1);
             logo_settled = 1;
         } else {
-            ls = logo_size * (0.62 + 0.38 * le);
+            ls = logo_size * (0.78 + 0.22 * le);
             logo_sprite.SetImage(logo_image.Scale(ls, ls));
             logo_sprite.SetX(cx - ls / 2);
             logo_sprite.SetY(cy - ls / 2);
             logo_sprite.SetOpacity(le);
         }
-    } else {
-        // Logo breathing — subtle 2% scale pulse
-        breath = 0.5 + 0.5 * Math.Sin(t * 2 * PI / BREATH_SEC);
-        lb = logo_size * (1.0 + 0.02 * breath);
-        logo_sprite.SetImage(logo_image.Scale(lb, lb));
-        logo_sprite.SetX(cx - lb / 2);
-        logo_sprite.SetY(cy - lb / 2);
     }
-
-    // ── ambient glow breathes ────────────────────────────────────────────
-    glow_sprite.SetOpacity(0.16 + 0.12 * (0.5 + 0.5 * Math.Sin(t * 1.5)));
 
     // ── energy head: one eased sweep, then steady orbit ──────────────────
     if (t < SWEEP_SEC) {
@@ -242,12 +238,10 @@ fun refresh() {
     p3_depth = 0.5 + 0.5 * Math.Sin(p3_rad);
     p3_sprite.SetOpacity(clamp01(t / 1.8) * (0.15 + 0.40 * p3_depth));
 
-    // ── pulse wave (radial shockwave every PULSE_SEC seconds) ────────────
-    // The pulse expands from small to large and fades out over ~1.2 seconds
-    pulse_phase = Math.Int(t / PULSE_SEC);
-    pulse_local = t - pulse_phase * PULSE_SEC;
-    if (pulse_local < 1.2 && t > 1.5) {
-        pulse_t = pulse_local / 1.2;
+    // ── one pulse wave seals the entrance; it never loops ────────────────
+    pulse_local = t - 0.72;
+    if (pulse_local >= 0 && pulse_local < 1.0) {
+        pulse_t = pulse_local / 1.0;
         pulse_scale = 0.3 + 0.7 * easeout(pulse_t);
         ps = pulse_size * pulse_scale;
         pulse_sprite.SetImage(pulse_image.Scale(ps, ps));
@@ -260,8 +254,9 @@ fun refresh() {
             pulse_op = 1.0 - (pulse_t - 0.15) / 0.85;
         }
         pulse_sprite.SetOpacity(clamp01(pulse_op) * 0.35);
-    } else {
+    } else if (t >= 1.72 && pulse_done == 0) {
         pulse_sprite.SetOpacity(0);
+        pulse_done = 1;
     }
 }
 Plymouth.SetRefreshFunction(refresh);

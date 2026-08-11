@@ -97,10 +97,22 @@ RUN dotnet publish agent-linux/MoRemoteLinux.csproj -c Release -r linux-x64 \
 # one already in the image, and nothing from this stage but the bundle ships.
 FROM registry.fedoraproject.org/fedora:44 AS moplayer-build
 ARG FLUTTER_VERSION=3.44.8
-RUN dnf -y install --setopt=install_weak_deps=False \
-        clang cmake ninja-build pkgconf-pkg-config \
+RUN packages="clang cmake ninja-build pkgconf-pkg-config \
         gtk3-devel mpv-libs-devel \
-        xz zip unzip git curl file which findutils \
+        xz zip unzip git curl file which findutils" \
+    && if ! dnf -y install --setopt=install_weak_deps=False ${packages}; then \
+        # During a repository compose, a mirror can briefly publish the new
+        # repomd.xml while its referenced zchunk files are still absent. Keep
+        # the signed mirror path as the first choice, then retry this build-only
+        # SDK stage against the official signed origin instead of failing on a
+        # stale mirror snapshot. Nothing from the repo configuration ships.
+        dnf clean all \
+        && dnf -y --disablerepo=updates \
+            --repofrompath=updates-direct,https://dl.fedoraproject.org/pub/fedora/linux/updates/44/Everything/x86_64/ \
+            --setopt=updates-direct.gpgcheck=1 \
+            --setopt=updates-direct.gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-fedora-44-x86_64 \
+            install --setopt=install_weak_deps=False ${packages}; \
+    fi \
     && dnf clean all
 RUN curl -fL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 30 \
         -o /tmp/flutter.tar.xz \

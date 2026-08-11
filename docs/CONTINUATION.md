@@ -1,7 +1,68 @@
 # Unified Experience Continuation
 
-Date: 2026-08-09
-Branch: `main`
+Date: 2026-08-11
+Branch: `polish/unified-motion-sound-2026-08-11`
+
+## 2026-08-11 — unified motion, 4K boot art, and the full MoOS sound family
+
+This pass polishes the system that already exists. It does not add a new shell,
+greeter, theme engine or media service. The live 3840×2160 Nova desktop was
+inspected first, including the real one-capsule bar, launcher, Haruna MPRIS
+island, lock screen and power picker. The visible gaps were geometry timing in
+the island, small/quiet doorway entrances, Plymouth resampling at 4K, and a
+sound theme that implemented only four names.
+
+The island's hover width is now derived from the current player's available
+Previous/Next/Volume controls. Each control has one `revealProgress` that opens
+its layout slot while moving and fading the key from the capsule edge, so text
+no longer compresses ahead of the bar. Track changes use a Translate one-shot
+instead of animating a layout-owned `y`, and the shell gets a restrained finite
+crest response. Media and clock popups settle from 0.96/0.97 scale. All of this
+uses the existing duration gate and adds no idle timer.
+
+The logout sheet adds a subtle scale settle and its existing action controls
+arrive in a bounded sequence; the public API, confirm tap, focus grid and power
+signals are unchanged. The shared Breeze action key used by Login/Lock widens
+its two horizon cuts on hover/focus. The login wallpaper moves only its corner
+signature with a reduced-motion-aware Translate (no authentication delay), and
+ksplash enlarges the existing mark and progress horizon for 4K while keeping one
+finite reveal. `generate_login_scene.py` synchronized the reviewed splash and
+logout bytes across all 16 palettes.
+
+Plymouth's composition is unchanged, but the raster contract now matches the
+screen: 1024 px logo/glow/pulse and 1440 px rings. The logo is dynamically
+scaled only during its 0.78 s entrance, then switches to one cached full-size
+sprite; ring/glow opacity and the one pulse also settle once. The loading head
+continues to orbit. Generated payload: ~913 KiB. A real boot is still required.
+
+`generate_nova_sounds.py` now synthesizes 27 semantic event names from the same
+glass-chime vocabulary (session, messages, dialogs, devices, battery/power,
+completion, direct manipulation, trash). All outputs decode as Vorbis I,
+48 kHz stereo. No sample or external recording was introduced. Dedicated tests
+pin both the sound inventory and 4K Plymouth dimensions/bounded resampling.
+
+Source-tree visual proof completed with temporary XDG overlays:
+
+- real `ksmserver-logout-greeter --windowed` rendered the Nova picker;
+- real `kscreenlocker_greet --testing` rendered idle and awake lock states,
+  including the password/PAM composition and shared action buttons;
+- real `plasmawindowed` loaded the edited island and active Haruna MPRIS state.
+
+No QML load errors were emitted. All overlays were deleted after capture.
+`just check` passes with the new gates wired into its default recipe.
+
+A full generic compose against the freshly pulled base now passes from this
+exact tree. MoPlayer and Mo Remote built; all shipped QML apps plus the launcher,
+island and desktop scene loaded in the image; the final 122 MiB initramfs
+contains the MoOS Plymouth script and all new sprites; and the image-experience,
+store, identity and foreign-identity firewall gates passed. `bootc container
+lint` completed its checks with warnings only. Podman produced
+`localhost/moos:latest` as
+`eee86c4f62577c1cbfffb6d95fe2fa627deb443aa8997827ab19ee5ca8f65577`
+(10,776,133,031 bytes). The Containerfile keeps the normal signed mirror path
+first and retries the official signed origin only if that build-only transaction
+fails. A booted-image/VM view of the Plymouth entrance is still required before
+this can be called shipped.
 
 ## 2026-08-09 — the visual pass: what the owner could actually see
 

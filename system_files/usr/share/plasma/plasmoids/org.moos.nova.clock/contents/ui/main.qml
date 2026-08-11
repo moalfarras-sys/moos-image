@@ -34,12 +34,13 @@ PlasmoidItem {
 
     property date now: new Date()
     readonly property bool rtl: Qt.locale().textDirection === Qt.RightToLeft
+    readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
     readonly property var design: MoUI.Tokens
     readonly property var displayLocale: rtl ? Qt.locale("ar") : Qt.locale()
     readonly property int motionFast: design.duration(
-        Kirigami.Units.longDuration > 1, design.motionFast)
+        root.motionEnabled, design.motionFast)
     readonly property int motionMedium: design.duration(
-        Kirigami.Units.longDuration > 1, design.motionGeometry)
+        root.motionEnabled, design.motionGeometry)
 
     // Same helper as the lock clock (MoOSClock.qml): day and month names stay
     // the locale's own, only the DIGITS fold to Latin — one number system on
@@ -106,6 +107,8 @@ PlasmoidItem {
             anchors.topMargin: Kirigami.Units.smallSpacing
             anchors.bottomMargin: Kirigami.Units.smallSpacing
             radius: Math.round(height * 0.32)
+            transformOrigin: Item.Center
+            scale: compact.containsMouse ? 1.012 : 1.0
 
             // The glass is an ALPHA on the colour, never `opacity`. Item opacity
             // multiplies onto children, so a 0.05 chip took the lit hairline
@@ -124,6 +127,12 @@ PlasmoidItem {
                 compact.containsMouse || root.expanded ? 0.25 : 0.09)
             Behavior on color { ColorAnimation { duration: root.motionFast } }
             Behavior on border.color { ColorAnimation { duration: root.motionFast } }
+            Behavior on scale {
+                NumberAnimation {
+                    duration: root.motionFast
+                    easing.type: root.design.easeStandard
+                }
+            }
 
             // Tidal Cut: the top horizon is deliberately broken into a signal
             // and a marker, matching the Command Canvas and its dock island.
@@ -270,8 +279,43 @@ PlasmoidItem {
     // large light-weight time, a bilingual Arabic/English date and one restrained
     // turquoise tick, above the month calendar — not a bare MonthView.
     fullRepresentation: Item {
+        id: calendarPopup
         implicitWidth: Kirigami.Units.gridUnit * 22
         implicitHeight: Kirigami.Units.gridUnit * 24
+        opacity: root.motionEnabled ? 0 : 1
+        scale: root.motionEnabled ? 0.97 : 1
+        transformOrigin: Item.Top
+
+        function revealPopup() {
+            if (!root.motionEnabled) {
+                popupEntrance.stop();
+                calendarPopup.opacity = 1;
+                calendarPopup.scale = 1;
+            } else if (root.expanded) {
+                calendarPopup.opacity = 0;
+                calendarPopup.scale = 0.97;
+                popupEntrance.restart();
+            }
+        }
+        Component.onCompleted: revealPopup()
+        Connections {
+            target: root
+            function onExpandedChanged() {
+                if (root.expanded) { calendarPopup.revealPopup(); }
+            }
+            function onMotionEnabledChanged() { calendarPopup.revealPopup(); }
+        }
+        ParallelAnimation {
+            id: popupEntrance
+            NumberAnimation {
+                target: calendarPopup; property: "opacity"; from: 0; to: 1
+                duration: root.motionMedium; easing.type: Easing.OutCubic
+            }
+            NumberAnimation {
+                target: calendarPopup; property: "scale"; from: 0.97; to: 1
+                duration: root.motionMedium; easing.type: root.design.easeEmphasis
+            }
+        }
 
         ColumnLayout {
             anchors.fill: parent

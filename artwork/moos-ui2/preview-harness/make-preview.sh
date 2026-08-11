@@ -12,7 +12,9 @@
 # The stub only exists in a TEMP COPY — shipped QML is never modified.
 set -euo pipefail
 PKG="$1"; SDTYPE="$2"; OUT="$3"; HOLD="${4:-3}"; SCHEME="${5:-MoOSUI2Dark}"; RTL="${6:-ltr}"
-WORK="$(mktemp -d /var/home/moalfarras/.cache/moos-preview.XXXXXX)"
+PREVIEW_CACHE="${XDG_CACHE_HOME:-${HOME}/.cache}"
+mkdir -p "$PREVIEW_CACHE"
+WORK="$(mktemp -d "${PREVIEW_CACHE}/moos-preview.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
 
 cp -r "$PKG/contents/logout" "$WORK/logout"
@@ -70,9 +72,27 @@ printf '[General]\nColorScheme=%s\n' "$SCHEME" > "$WORK/config/kdeglobals"
 export XDG_CONFIG_HOME="$WORK/config"
 export QT_QPA_PLATFORMTHEME=kde
 export QT_QPA_PLATFORM=wayland
-qml-qt6 runner.qml &
+QML_RUNTIME="${QML_RUNTIME:-}"
+if [ -z "$QML_RUNTIME" ]; then
+  for candidate in qml-qt6 qml6 qml; do
+    if command -v "$candidate" >/dev/null 2>&1; then
+      QML_RUNTIME="$(command -v "$candidate")"
+      break
+    fi
+  done
+fi
+[ -n "$QML_RUNTIME" ] || {
+  echo "capture FAILED: no Qt 6 QML runtime is installed" >&2
+  exit 1
+}
+"$QML_RUNTIME" runner.qml &
 QPID=$!
 sleep "$HOLD"
+kill -0 "$QPID" 2>/dev/null || {
+  wait "$QPID" 2>/dev/null || true
+  echo "capture FAILED: the QML preview exited before capture" >&2
+  exit 1
+}
 spectacle -b -f -n -o "$OUT" 2>/dev/null || grim "$OUT" 2>/dev/null || true
 sleep 1
 kill "$QPID" 2>/dev/null || true
