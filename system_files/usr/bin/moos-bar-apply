@@ -734,24 +734,41 @@ live_pass() {
 }
 
 stop_shell() {
-    if systemctl --user is-active plasma-plasmashell.service >/dev/null 2>&1; then
-        systemctl --user stop plasma-plasmashell.service >>"$log" 2>&1
-    else
-        # Session-launched shell, not a systemd unit (startplasma owns it):
-        # systemctl on the inactive unit is a silent no-op, so quit the shell
-        # ourselves and wait until it is really gone.
+    # `stop` FIRST and unconditionally. The old shape gated this on is-active,
+    # and is-active reports an ACTIVATING unit as a failure — which is exactly
+    # the state a login-time caller finds, because apply-theme's autostart runs
+    # while plasma-plasmashell.service is still coming up. That shunted a
+    # merely-starting shell into the kquitapp branch below, where it raced
+    # systemd finishing the start, and the last-line pgrep then found the shell
+    # alive and reported "could not stop" — AFTER the unit stop had, on other
+    # timings, already landed. `stop` has no such trap: it is a clean no-op on
+    # an inactive unit, it cancels the start job of an activating one, and it
+    # blocks until the unit is really down.
+    systemctl --user stop plasma-plasmashell.service >>"$log" 2>&1 || true
+    # Session-launched shell, not a systemd unit (startplasma owns it): the
+    # unit stop above touched nothing, so quit the process ourselves and wait
+    # until it is really gone.
+    #
+    # -u "$(id -u)" on EVERY probe, and it is not hygiene — it was the cloud
+    # outage. Unscoped, pgrep sees every session's plasmashell, and on a
+    # multi-user host (three concurrent screens on moos-cloud) another user's
+    # shell is ALWAYS running: this function then waited 30 s staring at a
+    # foreign pid, sent it a kill that EPERM'd, and reported "could not stop"
+    # — after the caller's own unit stop had already landed. The caller bailed
+    # and every headless session was left shell-less on every single login.
+    # A single-user desktop can never reproduce this, which is how it shipped.
+    if command -v pgrep >/dev/null 2>&1 && [ -n "$(pgrep -x -u "$(id -u)" plasmashell)" ]; then
         command -v kquitapp6 >/dev/null 2>&1 && kquitapp6 plasmashell >>"$log" 2>&1
         for _ in $(seq 1 30); do
-            command -v pgrep >/dev/null 2>&1 || break
-            [ -z "$(pgrep -x plasmashell)" ] && break
+            [ -z "$(pgrep -x -u "$(id -u)" plasmashell)" ] && break
             sleep 1
         done
-        if command -v pgrep >/dev/null 2>&1 && [ -n "$(pgrep -x plasmashell)" ]; then
-            kill "$(pgrep -x plasmashell | head -n1)" >>"$log" 2>&1 || true
+        if [ -n "$(pgrep -x -u "$(id -u)" plasmashell)" ]; then
+            kill "$(pgrep -x -u "$(id -u)" plasmashell | head -n1)" >>"$log" 2>&1 || true
             sleep 2
         fi
     fi
-    pgrep -x plasmashell >/dev/null 2>&1 && return 1
+    pgrep -x -u "$(id -u)" plasmashell >/dev/null 2>&1 && return 1
     return 0
 }
 
@@ -797,7 +814,16 @@ cmd_apply() {
     # appletsrc the moment it exits. So the file surgery must run while the
     # shell is DOWN — stop first, merge, then start — or the merge is silently
     # reverted and the desktop keeps both capsules.
-    stop_shell || { echo "moos-bar-apply: could not stop plasmashell" >&2; return 1; }
+    # If the stop goes sideways, the desktop must still END with a shell. The
+    # 2026-08-11 cloud incident was this bail-out firing after the unit stop had
+    # in fact landed: every headless session was left shell-less — a black
+    # stream, with nothing failed anywhere for a gate to see. Whatever
+    # half-state the stop reached, put the shell back before giving up.
+    stop_shell || {
+        echo "moos-bar-apply: could not stop plasmashell" >&2
+        start_shell
+        return 1
+    }
     before="$(merge_appletsrc)" || true
     case "$before" in
         merged|reordered|no-change) : ;;
