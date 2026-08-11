@@ -158,7 +158,16 @@ PlasmaComponents3.AbstractButton {
     background: Rectangle {
         // The Tidal Portal key: a wide, calm threshold instead of a generic
         // circular icon button.
-        implicitWidth: Kirigami.Units.gridUnit * 6.6
+        // Keep the compact MoOS portal on short labels, but let translated
+        // action names breathe.  A fixed 6.6-grid-unit key visibly truncated
+        // German "Benutzer wechseln" on the real 4K lock screen at 225%.
+        // `implicitContentWidth` is independent of the background, so this is
+        // one-way sizing (no binding loop), and the 9-unit ceiling keeps a
+        // single long translation from distorting the session layout.
+        implicitWidth: Math.max(
+            Kirigami.Units.gridUnit * 6.6,
+            Math.min(Kirigami.Units.gridUnit * 9,
+                     root.implicitContentWidth + Kirigami.Units.gridUnit * 1.2))
         implicitHeight: Kirigami.Units.gridUnit * 4.8
         // explicitly set size to keep it from expanding or shrinking
         width: implicitWidth
@@ -276,7 +285,11 @@ PlasmaComponents3.AbstractButton {
         }
         PlasmaComponents3.Label {
             anchors.horizontalCenter: parent.horizontalCenter
-            width: Math.min(implicitWidth, Kirigami.Units.gridUnit * 6.2)
+            // Session actions are localized by Plasma.  Size from the real
+            // label up to a generous language-safe ceiling; the surrounding
+            // portal follows this content width above.  Elision remains only
+            // as a last resort for genuinely exceptional translations.
+            width: Math.min(implicitWidth, Kirigami.Units.gridUnit * 8.2)
             text: root.Kirigami.MnemonicData.richTextLabel
             style: root.softwareRendering ? Text.Outline : Text.Normal
             styleColor: Kirigami.Theme.backgroundColor // Unused without outline
