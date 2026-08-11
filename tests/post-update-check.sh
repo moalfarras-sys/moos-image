@@ -104,9 +104,9 @@ case "$theme_lnf" in
             org.moos.ui2.dev*) theme_family=dev; Name=Forge ;;
             *) theme_family=study; Name=Scholar ;;
         esac
-        # Automatic mode deliberately remains the conservative Graphite/Tidal
-        # pair; selecting a family member manually must not rewrite that safety pair.
-        pair_dark=org.moos.ui2; pair_light=org.moos.ui2.light
+        # Keep this live verifier aligned with moos-theme's guarded family pair.
+        # The switcher adopts a family only when both halves resolve on disk.
+        pair_dark="org.moos.ui2.${theme_family}"; pair_light="${pair_dark}.light"
         if [[ "$theme_lnf" == *.light ]]; then
             [ "$theme_family" = midnight ] && Name=Daylight || Name="${Name}Light"
             theme_name="UI2 ${Name} Light"
@@ -149,14 +149,14 @@ if [ -n "$theme_family" ]; then
     default_dark="$(kreadconfig6 --file kdeglobals --group KDE --key DefaultDarkLookAndFeel 2>/dev/null)"
     default_light="$(kreadconfig6 --file kdeglobals --group KDE --key DefaultLightLookAndFeel 2>/dev/null)"
     [ "$default_dark" = "$pair_dark" ] \
-        && ok "automatic dark target is the UI2 Graphite half" \
+        && ok "automatic dark target matches ${theme_family}" \
         || bad "dark target is '${default_dark:-unset}', expected ${pair_dark}"
     [ "$default_light" = "$pair_light" ] \
-        && ok "automatic light target is the UI2 Tidal half" \
+        && ok "automatic light target matches ${theme_family}" \
         || bad "light target is '${default_light:-unset}', expected ${pair_light}"
     if [ -d "/usr/share/plasma/look-and-feel/$pair_dark" ] && \
        [ -d "/usr/share/plasma/look-and-feel/$pair_light" ]; then
-        ok "UI2 Graphite/Tidal automatic pair is installed"
+        ok "matched UI2 automatic pair is installed: ${pair_dark} + ${pair_light}"
     else
         bad "the UI2 automatic dark/light pair is incomplete"
     fi

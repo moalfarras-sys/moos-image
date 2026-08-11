@@ -107,9 +107,11 @@ case "$lnf" in
             org.moos.ui2.dev*) family=dev; Name=Forge ;;
             *) family=study; Name=Scholar ;;
         esac
-        # Automatic mode deliberately remains the conservative Graphite/Tidal
-        # pair; selecting a family member manually must not rewrite that safety pair.
-        pair_dark=org.moos.ui2; pair_light=org.moos.ui2.light
+        # The switch targets follow the selected family.  moos-theme only pins
+        # this pair after proving both halves exist, so accepting Graphite here
+        # would make the live diagnostic disagree with the transaction that
+        # actually owns these values (and report every non-base family broken).
+        pair_dark="org.moos.ui2.${family}"; pair_light="${pair_dark}.light"
         if [[ "$lnf" == *.light ]]; then
             [ "$family" = midnight ] && Name=Daylight || Name="${Name}Light"
             mode="MoOS ${Name} Light"
@@ -141,13 +143,13 @@ default_light="$(kreadconfig6 --file kdeglobals --group KDE --key DefaultLightLo
 if [ -n "$pair_dark" ]; then
     [ "$default_dark" = "$pair_dark" ] \
         && ok "automatic dark target is MoOS: ${default_dark}" \
-        || bad "dark target is '${default_dark:-unset}', expected the MoOS safety target ${pair_dark}"
+        || bad "dark target is '${default_dark:-unset}', expected the matched MoOS target ${pair_dark}"
     [ "$default_light" = "$pair_light" ] \
         && ok "automatic light target is MoOS: ${default_light}" \
-        || bad "light target is '${default_light:-unset}', expected the MoOS safety target ${pair_light}"
+        || bad "light target is '${default_light:-unset}', expected the matched MoOS target ${pair_light}"
     if [ -d "/usr/share/plasma/look-and-feel/$pair_dark" ] && \
        [ -d "/usr/share/plasma/look-and-feel/$pair_light" ]; then
-        ok "MoOS Graphite/Tidal automatic pair is installed"
+        ok "matched MoOS automatic pair is installed: ${pair_dark} + ${pair_light}"
     else
         bad "the MoOS automatic dark/light pair is incomplete under /usr/share/plasma/look-and-feel"
     fi
