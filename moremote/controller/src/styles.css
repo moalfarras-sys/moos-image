@@ -939,6 +939,31 @@ button {
 }
 
 /*
+ * POINTER MACHINES: the bar lives at the TOP of the window — for the reason the .show-tab
+ * handle already left bottom-centre (see its note): the remote MoOS dock is bottom-centred
+ * (measured location=4, alignment=1), and on a computer the bottom strip is ALSO the
+ * hover-summon gesture, so reaching for the remote's dock made the controller bar rise
+ * exactly under the pointer and take the click. The top edge is the one horizontal strip a
+ * default MoOS desktop keeps empty, and "reach for the top" is the same trained gesture as
+ * a menubar or a browser hover-toolbar. Phones keep the bar at the bottom, in thumb reach.
+ *
+ * hover+fine, not a width breakpoint: the collision is created by the POINTER (hover-summon
+ * at an edge), not by screen size — a wide touch tablet has no hover and keeps thumb reach.
+ * The short-landscape rail below intentionally still wins when both media queries match.
+ */
+@media (hover: hover) and (pointer: fine) {
+  .toolbar {
+    bottom: auto;
+    top: calc(var(--safe-top) + 14px);
+  }
+  .fade-toolbar {
+    transform: translateX(-50%) translateY(-12px);
+  }
+  /* .show-tab moves up with the bar too — but its override lives BELOW the base
+     .show-tab rules (same specificity, so source order decides), not here. */
+}
+
+/*
  * A short landscape screen is where the horizontal bar does the most damage: it is 83px of a
  * 390px viewport — 21% of the screen — drawn at exactly the same size it uses in portrait, where
  * it costs 10% and sits in black. Here it covers the dock and the bottom of the picture.
@@ -1064,6 +1089,7 @@ button {
   height: 44px;
   border-radius: 14px;
   background: var(--glass-bar);
+  -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
   border: 1px solid var(--border);
   display: flex;
@@ -1078,6 +1104,20 @@ button {
   /* A chevron pointing UP: the toolbar it summons rises from the bottom of the screen, so the
      arrow says where the thing comes from rather than where the handle sits. */
   transform: rotate(180deg);
+}
+/* On pointer machines the bar (and so the handle) lives at the TOP — see the toolbar's
+   pointer-machine block for the full reasoning. Top-RIGHT corner, same corner logic as the
+   base note above, one edge up. Must come after the base rules: same specificity, so source
+   order is what makes this win. */
+@media (hover: hover) and (pointer: fine) {
+  .show-tab {
+    bottom: auto;
+    top: calc(var(--safe-top) + 10px);
+  }
+  .show-tab svg {
+    /* The bar now drops from the top, so the chevron points down — where it comes from. */
+    transform: none;
+  }
 }
 
 /* ---- view + clipboard sheets ---- */

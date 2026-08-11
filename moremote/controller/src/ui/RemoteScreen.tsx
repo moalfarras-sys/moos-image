@@ -1033,8 +1033,9 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
   }, [mode, token]);
 
   /**
-   * On a computer, reach for the toolbar the way you reach for a dock: put the pointer at the
-   * bottom edge.
+   * On a computer, reach for the toolbar the way you reach for a menubar: put the pointer at
+   * the top edge. (The bottom edge belongs to the REMOTE desktop's own dock — see styles.css,
+   * the pointer-machine media block — so both the bar and its summon strip moved up there.)
    *
    * The bar hides itself after a few seconds — correctly, because on a phone it sits over the part
    * of the desktop you are trying to touch. But the way BACK is a 44px handle at the side of the
@@ -1052,9 +1053,14 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
   useEffect(() => {
     if (mode !== "desktop") return;
     const EDGE = 76;
+    // On pointer machines the bar itself sits at the TOP (styles.css) — the remote's own
+    // dock owns the bottom edge — so the summon strip must live on the same edge the bar
+    // appears on, or the gesture opens a door on the opposite wall. Capability, not mode:
+    // a phone forced into desktop mode still has its bar (and thumb) at the bottom.
+    const topBar = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
     let armed = true;
     const onMove = (e: PointerEvent) => {
-      const near = e.clientY > window.innerHeight - EDGE;
+      const near = topBar ? e.clientY < EDGE : e.clientY > window.innerHeight - EDGE;
       // Re-arm only after the pointer has LEFT the strip, so sitting still down there does not
       // restart the hide timer on every jitter — and so the bar can still time out while the
       // pointer rests over the dock the user is actually aiming at.
