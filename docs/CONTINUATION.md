@@ -51,15 +51,47 @@ Source-tree visual proof completed with temporary XDG overlays:
 No QML load errors were emitted. All overlays were deleted after capture.
 `just check` passes with the new gates wired into its default recipe.
 
-A full generic compose against the freshly pulled base now passes from this
-exact tree. MoPlayer and Mo Remote built; all shipped QML apps plus the launcher,
-island and desktop scene loaded in the image; the final 122 MiB initramfs
-contains the MoOS Plymouth script and all new sprites; and the image-experience,
-store, identity and foreign-identity firewall gates passed. `bootc container
-lint` completed its checks with warnings only. Podman produced
-`localhost/moos:latest` as
-`eee86c4f62577c1cbfffb6d95fe2fa627deb443aa8997827ab19ee5ca8f65577`
-(10,776,133,031 bytes). The Containerfile keeps the normal signed mirror path
+The follow-up live audit found one concrete runtime defect outside the initial
+motion patch: Theme Picker called a missing `root.fs()` helper at four
+layout-owned separators. That was not a cosmetic log warning; its grid also
+failed to keep the current family visible at 225%. The helper is now part of
+the root contract, layout separators scale through it, decorative one-device-
+pixel lines stay crisp, and current-family changes centre the selected tile.
+Nova dark English/LTR and Nova light Arabic/RTL both loaded in the real QML
+host with no TypeError afterward.
+
+Updater and Recovery retained their existing GTK, rpm-ostree and polkit paths,
+but stopped presenting an empty log as the main object. Both now use the shared
+UI2 icon plate/kicker/value/status vocabulary and expose technical output only
+through a collapsed details expander. Updater's default height fell from 660
+to 380 logical pixels; Recovery's fell from 700 to 590 while keeping the
+current/target deployment relationship visible. A runtime source gate rejects
+a return to an always-expanding empty log.
+
+Live evidence was captured at the output's native 3840x2160 resolution for the
+island's compact/hover/expanded states, launcher at 100/125/150/200%, Nova
+dark/light, English LTR and Arabic RTL, lock idle/auth, power picker and session
+splash. The output was restored to 225%, all temporary XDG/look-and-feel
+overlays were removed and the production bar read back `bar: ok`. A direct
+installed-vs-branch shell A/B (21 `top` samples after a fresh restart) moved
+plasmashell from 1.762% CPU / 467.0 MiB RSS to 1.571% / 453.1 MiB. KWin was
+transient during the first sample set, so no KWin improvement is inferred.
+
+Safe host cleanup recovered about 18 GB: one unused 13.44 GB root Podman image,
+two abandoned build-storage trees, stale editor caches, thumbnails and
+reclaimable metadata. User applications/data, audit evidence, the current local
+image, live build caches and all rpm-ostree deployments remain intact.
+
+A final generic compose against the freshly pulled base passes from this exact
+follow-up tree. MoPlayer and Mo Remote built; all shipped QML apps plus the
+launcher, island and desktop scene loaded in the image; the final 122 MiB
+initramfs contains the MoOS Plymouth script and all new sprites; and the
+image-experience, store, identity and foreign-identity firewall gates passed.
+`bootc container lint` completed 9 checks with its four known warnings only.
+Podman produced `localhost/moos:latest` as
+`211bba002efa519c45e2da28619138e1ba0765f4b4b06e0dad6496de4cb667f3`
+(`sha256:6610911fa0fc3fdd9ef679f969fecfd0edacecebded06c20e95bf9dc9b9fafae`,
+10,776,138,154 bytes). The Containerfile keeps the normal signed mirror path
 first and retries the official signed origin only if that build-only transaction
 fails. A booted-image/VM view of the Plymouth entrance is still required before
 this can be called shipped.

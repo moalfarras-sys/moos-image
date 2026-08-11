@@ -40,10 +40,34 @@ Kirigami.ApplicationWindow {
     readonly property bool lightSurface:
         Kirigami.Theme.backgroundColor.hslLightness > 0.55
     readonly property bool rtl: Qt.application.layoutDirection === Qt.RightToLeft
+    readonly property real fontScale: Math.max(
+        0.75, Qt.application.font.pointSize / 10.0)
 
     function local(ar, en) {
         return root.rtl ? ar : en;
     }
+    function fs(px) {
+        return Math.max(1, Math.round(px * root.fontScale));
+    }
+
+    // Open on the look the desktop is actually wearing. At high scale the
+    // grid shows only three rows; Nova and several later families then landed
+    // as a clipped sliver below the fold, even though the header said they
+    // were active. Keep the data-driven order, but centre the read-back item
+    // after startup and after every verified switch so selection and viewport
+    // tell the same story.
+    function revealCurrentTheme() {
+        if (!root.currentLnf || themesModel.count < 1)
+            return;
+        for (let i = 0; i < themesModel.count; ++i) {
+            if (themesModel.get(i).lnf !== root.currentLnf)
+                continue;
+            grid.currentIndex = i;
+            grid.positionViewAtIndex(i, GridView.Center);
+            return;
+        }
+    }
+    onCurrentLnfChanged: Qt.callLater(root.revealCurrentTheme)
 
     // Keep one keyboard-focus language across every MoOS surface.
     component FocusRing: MoUI.FocusRing {
@@ -532,7 +556,7 @@ Kirigami.ApplicationWindow {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
-                height: root.fs(1)
+                height: 1
                 color: Qt.rgba(root.accent.r, root.accent.g, root.accent.b, 0.22)
             }
         }
@@ -594,7 +618,7 @@ Kirigami.ApplicationWindow {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
-                height: root.fs(1)
+                height: 1
                 color: Qt.rgba(root.accent.r, root.accent.g,
                                root.accent.b, 0.34)
             }
@@ -916,7 +940,7 @@ Kirigami.ApplicationWindow {
                             anchors.top: parent.top
                             anchors.leftMargin: parent.radius
                             anchors.rightMargin: parent.radius
-                            height: root.fs(1)
+                            height: 1
                             color: Qt.rgba(
                                 Kirigami.Theme.highlightedTextColor.r,
                                 Kirigami.Theme.highlightedTextColor.g,

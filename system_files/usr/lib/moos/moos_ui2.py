@@ -357,6 +357,41 @@ window.moos-ui2 .ui2-card {{
   padding: 14px;
   box-shadow: 0 10px 28px {p['shadow']};
 }}
+window.moos-ui2 .ui2-icon-plate {{
+  background-color: @ui2_primary;
+  color: @ui2_on_accent;
+  border: 1px solid @ui2_outline;
+  border-radius: 16px;
+  padding: 12px;
+}}
+window.moos-ui2 .ui2-icon-plate image {{ color: @ui2_on_accent; }}
+window.moos-ui2 .ui2-kicker {{
+  color: @ui2_muted;
+  font-size: 0.86em;
+}}
+window.moos-ui2 .ui2-value {{
+  color: @ui2_text;
+  font-size: 1.28em;
+  font-weight: 700;
+}}
+window.moos-ui2 .ui2-badge {{
+  background-color: @ui2_surface;
+  color: @ui2_positive;
+  border: 1px solid @ui2_outline;
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 0.84em;
+}}
+window.moos-ui2 .ui2-status {{
+  color: @ui2_text;
+  font-weight: 600;
+}}
+window.moos-ui2 .ui2-details {{ color: @ui2_muted; }}
+window.moos-ui2 .ui2-log-frame {{
+  background-color: @ui2_surface;
+  border: 1px solid @ui2_outline;
+  border-radius: 12px;
+}}
 window.moos-ui2 button {{
   background-color: @ui2_raised;
   color: @ui2_text;

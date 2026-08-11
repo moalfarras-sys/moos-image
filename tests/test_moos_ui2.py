@@ -2040,6 +2040,18 @@ class TestMoOSUI2(unittest.TestCase):
 
     def test_theme_picker_is_glass_polished_and_hidpi_bounded(self) -> None:
         picker = (SHARE / "moos/theme-picker/main.qml").read_text(encoding="utf-8")
+        self.assertIn("function fs(px)", picker)
+        self.assertIn("Qt.application.font.pointSize / 10.0", picker)
+        self.assertIn(
+            "implicitHeight: root.fs(1)", picker,
+            "layout-owned separators must follow the user's font scale",
+        )
+        self.assertIn("function revealCurrentTheme()", picker)
+        self.assertIn("grid.positionViewAtIndex(i, GridView.Center)", picker)
+        self.assertIn(
+            "onCurrentLnfChanged: Qt.callLater(root.revealCurrentTheme)", picker,
+            "the active family must not open as a clipped sliver below the fold",
+        )
         self.assertIn("Screen.desktopAvailableWidth", picker)
         self.assertIn("Screen.desktopAvailableHeight", picker)
         self.assertRegex(
