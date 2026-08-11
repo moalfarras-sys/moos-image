@@ -5,7 +5,10 @@ import { VitePWA } from "vite-plugin-pwa";
 // Dev: the agent runs on :8765. We proxy /api and /ws to it so the controller can
 // be developed on :5173 while talking to the real backend.
 // Build: output straight into the agent's wwwroot so it's served from one origin.
-const AGENT = "http://localhost:8765";
+// MO_AGENT lets a dev session aim the proxy at any live agent (e.g. a cloud screen over
+// its Tailscale HTTPS name) instead of a local one — the UI can then be tested against a
+// real stream without deploying. Dev-only: the built app always talks to its own origin.
+const AGENT = process.env.MO_AGENT || "http://localhost:8765";
 
 export default defineConfig({
   base: "/",
@@ -85,8 +88,11 @@ export default defineConfig({
     host: true,
     port: 5173,
     proxy: {
-      "/api": { target: AGENT, changeOrigin: true },
-      "/ws": { target: AGENT, ws: true, changeOrigin: true },
+      // headers.Origin: changeOrigin rewrites Host but NOT Origin, and the agent's
+      // cross-origin check (rightly) 403s a WebSocket that claims to come from
+      // localhost:5173 — so a remote MO_AGENT stream never starts in dev without this.
+      "/api": { target: AGENT, changeOrigin: true, headers: { Origin: AGENT } },
+      "/ws": { target: AGENT, ws: true, changeOrigin: true, headers: { Origin: AGENT } },
     },
   },
 });
