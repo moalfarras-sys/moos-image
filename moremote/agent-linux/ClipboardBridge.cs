@@ -39,28 +39,53 @@ public static class ClipboardBridge
     public static bool SetText(string text) =>
         Write("wl-copy", Encoding.UTF8.GetBytes(text));
 
-    // SetTextConfirmed lived here, and it is deliberately gone.
-    //
-    // It existed for ONE caller: typing. Arabic used to be typed by borrowing this clipboard and
-    // pasting it with Shift+Insert, and `wl-copy` returns as soon as it has forked the process
-    // that will SERVE the selection — not when the compositor is handing that content to readers.
-    // The paste therefore raced the copy; measured live on 2026-08-03, three Arabic words injected
-    // that way produced " في مشكلة " with the first word simply gone. SetTextConfirmed read the
-    // clipboard back until it served what was set, which fixed that race and left three others:
-    // the application fetches the selection asynchronously (so a following keystroke could
-    // overtake a word), a clipboard manager can rewrite it, and the whole mechanism spends the
-    // user's own clipboard to type.
-    //
-    // Typing no longer touches the clipboard at all. It selects the keymap group that carries the
-    // characters and presses the keys — see InputInjector.Deliver and AraKeymap. So the confirmed
-    // write has no callers, and a read-back loop that exists for nobody is a trap for the next
-    // person who assumes typing still comes through here.
-    //
-    // The clipboard feature the USER asked for — copy from the PC, paste to the PC, send an image
-    // — is untouched below. It was never the problem; being used as a typing mechanism was.
+    /// <summary>
+    /// Publish user-requested clipboard text and do not acknowledge the HTTP request until the
+    /// exact UTF-8 bytes can be read back from Wayland. `wl-copy` exits after forking its provider,
+    /// before that provider necessarily owns a servable selection; an immediate remote Ctrl+V can
+    /// otherwise paste the previous value or nothing. The explicit clipboard feature uses this
+    /// before it sends Paste. InputInjector uses it only as a bounded compatibility path for text
+    /// no installed keymap can represent; ordinary ASCII, Arabic and US-symbol typing stays on
+    /// real key events and never spends the clipboard.
+    /// </summary>
+    public static bool SetTextConfirmed(string text)
+    {
+        var expected = Encoding.UTF8.GetBytes(text);
+        if (expected.Length == 0) return SetText(text);
+        return WriteAndConfirm(
+            () => SetText(text),
+            () => RunRead("wl-paste", "--no-newline"),
+            expected);
+    }
 
     public static bool SetImagePng(byte[] data) =>
         Write("wl-copy", data, "--type", "image/png");
+
+    /// <summary>Image counterpart of SetTextConfirmed; used before sending Paste to the PC.</summary>
+    public static bool SetImagePngConfirmed(byte[] data)
+    {
+        if (data.Length == 0) return false;
+        return WriteAndConfirm(
+            () => SetImagePng(data),
+            () => RunRead("wl-paste", "--type", "image/png"),
+            data);
+    }
+
+    internal static bool WriteAndConfirm(
+        Func<bool> write, Func<byte[]> read, byte[] expected,
+        int attempts = 12, int pollMs = 25)
+    {
+        if (attempts <= 0) throw new ArgumentOutOfRangeException(nameof(attempts));
+        if (pollMs < 0) throw new ArgumentOutOfRangeException(nameof(pollMs));
+        if (!write()) return false;
+        for (var i = 0; i < attempts; i++)
+        {
+            if (read().AsSpan().SequenceEqual(expected)) return true;
+            if (i + 1 < attempts && pollMs > 0) Thread.Sleep(pollMs);
+        }
+        Log.Warn("Clipboard provider did not serve the exact requested payload within the confirmation budget.");
+        return false;
+    }
 
     private static byte[] RunRead(string file, params string[] args) =>
         RunReadCommand(file, args, CommandTimeout, MaxClipboardBytes);

@@ -119,13 +119,14 @@ def main() -> int:
         errors.append("InputLoop is defined but never started, so the queue fills and input stops\n"
                       "        arriving entirely once it is full.")
 
-    # --- 4. a full queue must never drop an event ------------------------------------------------
-    if "_inputQueue.Writer.TryWrite" in code:
-        m = re.search(r"if\s*\(!\s*_inputQueue\.Writer\.TryWrite[\s\S]{0,400}?\n\s*\}", code)
-        if not m or "ExecuteInput" not in m.group(0):
-            errors.append("the enqueue site does not fall back to running inline when the queue is full.\n"
-                          "        Dropping input is not a safe failure: a dropped mouse-up is a button\n"
-                          "        left held down on the remote desktop.")
+    # --- 4. a full queue must preserve ordering without dropping or a second injector ------------
+    if not handle or "_inputQueue.Writer.WriteAsync" not in handle:
+        errors.append("the enqueue site does not apply ordered backpressure with WriteAsync.\n"
+                      "        A full FIFO cannot drop an event, and executing the newest event inline\n"
+                      "        lets it overtake 1024 older inputs (mouse-up before mouse-down).")
+    if handle and re.search(r"TryWrite[\s\S]{0,500}?ExecuteInput", handle):
+        errors.append("a full queue still executes the newest event inline. That creates a second\n"
+                      "        injector and reverses the FIFO order it claims to protect.")
 
     if errors:
         print("GATE FAIL: input injection would block the socket, or lose/reorder events.\n")
@@ -134,7 +135,7 @@ def main() -> int:
         return 1
 
     print("OK: input is handed to a bounded single-reader FIFO, drained by InputLoop, "
-          "with an inline fallback so no event can be dropped")
+          "with ordered backpressure so no event can be dropped or overtake another")
     return 0
 
 

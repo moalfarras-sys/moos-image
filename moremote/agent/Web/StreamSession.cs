@@ -37,7 +37,7 @@ public sealed class StreamSession
     // H.264, when the client says it can decode it. The id is what lets the capture know this
     // session is gone — a phone that closed must not keep the whole room on JPEG forever.
     private readonly Guid _id = Guid.NewGuid();
-    private readonly System.Collections.Concurrent.ConcurrentQueue<byte[]> _encoded = new();
+    private readonly H264RecoveryQueue _encoded = new(maxDepth: 12);
 
     /// <summary>
     /// Raised by the encoder the instant an access unit exists, waited on by the send loop.
@@ -73,9 +73,10 @@ public sealed class StreamSession
     /// was shifting types the wrong thing. One consumer, one FIFO, no reordering possible.
     ///
     /// 1024 is a "something is badly wrong" bound rather than a policy: a human generates input at
-    /// tens per second and a mouse at a few hundred, so a second of the worst case does not reach a
-    /// tenth of it. The enqueue site falls back to running inline when it is full, so the depth can
-    /// never cost an event — only, in an impossible case, the benefit.
+    /// tens per second and pointer motion is coalesced client-side. At the bound the socket reader
+    /// applies backpressure through WriteAsync. It must never run the new event inline: doing so lets
+    /// it overtake all 1024 older FIFO entries and execute concurrently with the single consumer — a
+    /// mouse-up can arrive before its mouse-down and leave the button stuck.
     /// </summary>
     private readonly System.Threading.Channels.Channel<(JsonElement Root, string Type)> _inputQueue =
         System.Threading.Channels.Channel.CreateBounded<(JsonElement, string)>(
@@ -145,7 +146,7 @@ public sealed class StreamSession
         // right: not a hole in the middle of a stream, but a clean restart of it.
         using var h264 = _svc.Capture.SubscribeH264(au =>
         {
-            _encoded.Enqueue(au);
+            var queued = _encoded.Enqueue(au);
             // 12, not 90. The cap is a LATENCY budget, not a memory one, and 90 frames at 30fps is
             // three entire seconds of the past waiting its turn to be drawn. Long before the cap was
             // reached the session was unusable: the picture lags the input by seconds, so every click
@@ -157,17 +158,19 @@ public sealed class StreamSession
             // what a person reads as lag. Dropping the whole queue rather than the oldest frame is
             // still correct and not negotiable — a P-frame is a diff against its predecessor, so a
             // hole corrupts everything after it until the keyframe this asks for.
-            if (_encoded.Count > 12)
+            if (queued == H264EnqueueResult.NeedKeyframe)
             {
-                while (_encoded.TryDequeue(out _)) { }
                 _svc.Capture.RequestKeyframe();
-                Log.Warn("Viewer fell behind; dropped the H.264 backlog and asked for a keyframe.");
+                Log.Warn("Viewer fell behind; dropped the H.264 backlog and will discard deltas until a keyframe.");
             }
             // Wake the send loop now rather than at its next tick. Release throws once the semaphore
             // is already at its bound, which simply means "the loop has not consumed the last signal
             // yet" — there is nothing to do about that and nothing wrong with it.
-            try { _frameReady.Release(); } catch (SemaphoreFullException) { }
-            catch (ObjectDisposedException) { }
+            if (queued is H264EnqueueResult.Queued or H264EnqueueResult.Recovered)
+            {
+                try { _frameReady.Release(); } catch (SemaphoreFullException) { }
+                catch (ObjectDisposedException) { }
+            }
         });
 
         var (sw, sh) = _svc.Capture.ScreenSize;
@@ -251,7 +254,7 @@ public sealed class StreamSession
                 if (codec != _sentCodec)
                 {
                     _sentCodec = codec;
-                    while (_encoded.TryDequeue(out _)) { }   // whatever is queued is the old codec
+                    _encoded.Clear();                         // whatever is queued is the old codec
                     await SendJson(new { type = "codec", codec }, ct);
                 }
 
@@ -510,8 +513,8 @@ public sealed class StreamSession
             //
             // Injecting input is not instantaneous and never can be: a click has to be a press, a
             // pause, and a release, or applications do not see a click at all (InputInjector sleeps
-            // 25ms between them); a double-click is 25+40+25; and typing anything the keysym path
-            // cannot reach borrows the clipboard, which means spawning wl-copy and waiting for it.
+            // 25ms between them); a double-click is 25+40+25; and an exact Unicode compatibility
+            // run may publish and confirm one clipboard value before a synchronous Shift+Insert.
             //
             // All of that used to run ON THIS THREAD, which is the one reading the socket. So while
             // an input was being injected, nothing else could be read — including the pings. Measured
@@ -540,13 +543,10 @@ public sealed class StreamSession
             // disposed the moment this method returns, and a JsonElement read after that is undefined.
             // Clone detaches it onto its own buffer, which is documented as safe to store beyond the
             // document's lifetime.
-            if (!_inputQueue.Writer.TryWrite((root.Clone(), type)))
-            {
-                // The queue is 1024 deep and human input does not fill it, so this is the "something
-                // is very wrong" path. Run it inline rather than drop it: a dropped mouse-up is a
-                // button stuck down on the desktop, which is far worse than a hitch.
-                await ExecuteInput(root, type, ct);
-            }
+            // Wait at the impossible 1024-event bound rather than dropping OR executing inline.
+            // Inline reverses ordering and introduces a second injector; dropping can lose the
+            // release that prevents a stuck key/button. Backpressure is the only safe third choice.
+            await _inputQueue.Writer.WriteAsync((root.Clone(), type), ct);
         }
     }
 

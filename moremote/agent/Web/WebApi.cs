@@ -177,7 +177,7 @@ public static class WebApi
         {
             if (!IsAuthed(ctx, svc)) return Results.Json(new { error = "unauthorized" }, statusCode: 401);
             var req = await ReadJson<ClipboardReq>(ctx);
-            return ClipboardBridge.SetText(req?.text ?? "")
+            return ClipboardBridge.SetTextConfirmed(req?.text ?? "")
                 ? Results.Json(new { ok = true })
                 : Results.Json(new { error = "clipboard_unavailable" }, statusCode: 503);
         });
@@ -197,7 +197,7 @@ public static class WebApi
                 return Results.Json(new { error = "bad_size" }, statusCode: 413);
             }
             if (image.Length == 0) return Results.Json(new { error = "bad_size" }, statusCode: 400);
-            return ClipboardBridge.SetImagePng(image)
+            return ClipboardBridge.SetImagePngConfirmed(image)
                 ? Results.Json(new { ok = true })
                 : Results.Json(new { error = "clipboard_unavailable" }, statusCode: 503);
         });

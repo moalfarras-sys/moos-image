@@ -12,13 +12,13 @@ const styles = readFileSync(resolve(here, "../src/styles.css"), "utf8");
 assert.ok(icons.includes('aria-hidden="true" focusable="false"'),
   "decorative glyphs must not duplicate the adjacent accessible button/status text");
 
-for (const name of ["IconFile", "IconFolder", "IconArrowUp", "IconRotate", "IconLock", "IconPlug", "IconClose", "IconPause", "IconBackspace", "IconEnter"]) {
+for (const name of ["IconFile", "IconFolder", "IconArrowUp", "IconRotate", "IconLock", "IconPlug", "IconClose", "IconPause", "IconBackspace", "IconEnter", "IconDesktop", "IconConnection"]) {
   assert.ok(icons.includes(`export const ${name}`), `Tidal Cut set misses ${name}`);
 }
 for (const cheap of ['>🔌<', '"📁"', '"📄"', '>⬆ Up<', '>↻ Sideways<', '>🔒 Upright<', '>×</button>', '>⏸ ', '>⌫</button>', '>↵</button>']) {
   assert.ok(!remote.includes(cheap) && !app.includes(cheap), `visible UI retains text glyph ${cheap}`);
 }
-for (const contract of ["<IconFolder />", "<IconFile />", "<IconArrowUp />", "<IconRotate />", "<IconLock />", "<IconClose />", "<IconPause className=\"\" />", "<IconBackspace />", "<IconEnter />"]) {
+for (const contract of ["<IconFolder />", "<IconFile />", "<IconArrowUp />", "<IconRotate />", "<IconLock />", "<IconClose />", "<IconPause />", "<IconConnection />", "<IconDesktop />", "<IconBackspace />", "<IconEnter />"]) {
   assert.ok(remote.includes(contract), `Remote surface does not use ${contract}`);
 }
 assert.ok(app.includes('<IconPlug className="error-glyph" />'));

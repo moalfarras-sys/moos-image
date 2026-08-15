@@ -35,9 +35,10 @@ checks = {
         and "public static bool SetText" in linux,
     "Windows clipboard writes still cannot report timeout or failure":
         "public static bool SetText" in windows and "return t.Join(5000) && result" in windows,
-    "the phone API still claims clipboard success after the platform rejected it":
+    "the phone API still claims clipboard success before Wayland serves the exact payload":
         api.count('error = "clipboard_unavailable"') == 2
-        and "ClipboardBridge.SetText" in api and "ClipboardBridge.SetImagePng" in api,
+        and "ClipboardBridge.SetTextConfirmed" in api
+        and "ClipboardBridge.SetImagePngConfirmed" in api,
     # ---------------------------------------------------------------- typing no longer lives here
     #
     # These four contracts used to pin the clipboard BORROW that typed Arabic. That mechanism is
@@ -48,11 +49,16 @@ checks = {
     # InputInjector.Deliver. Each contract below is the SAME guarantee, re-expressed against the
     # mechanism that replaced it, so nothing is weakened by the migration.
 
-    # WAS: the confirmed clipboard write. NOW: typing must not touch the clipboard at all, and the
-    # confirmed write must not linger as a trap for whoever assumes it still does.
-    "typing still reaches for the clipboard":
-        "ClipboardBridge" not in code(injector)
-        and "SetTextConfirmed" not in code(linux),
+    # Arabic/ASCII stay on real keymaps. A codepoint no installed layout can produce must not vanish:
+    # it uses exact read-back plus one sync Shift+Insert batch. The FIFO prevents later input from
+    # overtaking it and the clipboard is intentionally not restored on a timer (the target may fetch
+    # asynchronously). This is the compatibility path until libei/libeis TEXT is available.
+    "unsupported Unicode can still be silently dropped or pasted out of order":
+        "ClipboardBridge.SetTextConfirmed(text)" in code(injector)
+        and "sync = true" in code(injector)
+        and "Thread.Sleep(60)" in code(injector)
+        and "SetTextConfirmed" in code(linux)
+        and "SetImagePngConfirmed" in code(linux),
 
     # WAS: read the clipboard back before pasting. NOW: the group change must ride the keymap's own
     # Alt+Shift switch so it travels in the SAME ordered stream as the letters. An out-of-band

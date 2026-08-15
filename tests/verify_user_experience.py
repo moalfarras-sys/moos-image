@@ -1871,6 +1871,10 @@ require("CaptureFallback" in capture,
 # The portal helper is what actually produces frames and injects input.
 portal = read("moremote/agent-linux/mo-remote-portal.py")
 require("pipewiresrc" in portal, "Remote capture must run on PipeWire")
+require('node_props.get("pipewire-serial", node_id)' in portal
+        and "path={pipewire_target}" in portal,
+        "PipeWire capture must target the portal's stable object serial when available; "
+        "a node id can be reused after suspend, hot-plug or a mode switch and leave a black stream")
 require("NotifyPointerMotionAbsolute" in portal,
         "The pointer must be positioned absolutely, so a tap lands where it was tapped")
 require("CURSOR_HIDDEN" in portal,
@@ -1883,30 +1887,31 @@ require("CURSOR_HIDDEN" in portal,
 # against a live KWin 6.7 session on a `de,ara` keymap and it is false: KWin resolves a keysym
 # against the ACTIVE group only, so 'م' arrived as keycode 247 / keyval 0x1008ffb5 — a key that
 # types nothing — while the D-Bus call reported success. Capitals failed the same way ('Z' typed
-# 'z'), because the shift level is never applied. So Arabic is typed by borrowing the clipboard,
-# which is layout-independent and carries any Unicode exactly, and this gate pins THAT — including
-# the paste shortcut, because Ctrl+V is not paste in a terminal and Arabic into Konsole was
-# silently doing nothing at all.
+# 'z'), because the shift level is never applied. Arabic is now typed on its real keymap group;
+# explicit user-requested clipboard transfer remains a separate, byte-confirmed feature.
 text_keysym = read("moremote/agent-linux/TextKeysym.cs")
 input_injector = read("moremote/agent-linux/InputInjector.cs")
 ara_keymap = read("moremote/agent-linux/AraKeymap.cs")
 clipboard_bridge = read("moremote/agent-linux/ClipboardBridge.cs")
 remote_screen = read("moremote/controller/src/ui/RemoteScreen.tsx")
-# The clipboard borrow is RETIRED, and these contracts replace it at equal strictness.
+# The broad clipboard borrow is retired. Real keymap events remain the normal path. A character no
+# installed group can produce uses one bounded compatibility paste until libei/libeis TEXT exists.
 #
 # Borrowing the clipboard did carry any Unicode, but it raced on three fronts — one shared slot,
 # a copy that returns before the selection is servable, and an asynchronous fetch by the target
 # app — and every scrambling report in this project's history came from it. Arabic is now typed
 # the way a keyboard types it: select the group that carries the characters, then press the
-# positions. So typing must not touch the clipboard at all any more.
-# Comment-stripped, both of them: these gates say a NAME must be absent, and this file's own
-# history has a gate that a paragraph explaining the fix could satisfy — or, here, break.
-require("ClipboardBridge" not in code(input_injector, "slash"),
-        "typing must not touch the clipboard: the borrow raced on three fronts and produced "
-        "every Arabic scrambling report this project has recorded")
-require("SetTextConfirmed" not in code(clipboard_bridge, "slash"),
-        "the confirmed clipboard write existed only to serve typing; it must not linger as a "
-        "trap for the next reader who assumes typing still comes through here")
+# positions. Unsupported Unicode must never be dropped, so its fallback must confirm exact bytes
+# and use one synchronous paste batch which the single-reader input FIFO cannot overtake.
+require("ClipboardBridge.SetTextConfirmed(text)" in code(input_injector, "slash")
+        and "sync = true" in code(input_injector, "slash")
+        and "Thread.Sleep(60)" in code(input_injector, "slash"),
+        "characters absent from installed keymaps must use an exact ordered Unicode fallback, "
+        "never disappear or race a later edit")
+require("SetTextConfirmed" in code(clipboard_bridge, "slash")
+        and "SetImagePngConfirmed" in code(clipboard_bridge, "slash"),
+        "explicit clipboard text/image writes must be read back exactly before the browser is "
+        "allowed to send Paste; keyboard typing itself must stay off the clipboard")
 require("AraKeymap.TryStrokes(" in code(input_injector, "slash")
         and "public static bool TryStrokes(" in code(ara_keymap, "slash"),
         "Arabic must be typed by pressing the positions that carry it on the Arabic group")
@@ -1936,7 +1941,7 @@ gestures = read("moremote/controller/src/lib/gestures.ts")
 # Keysym-typable text must still go out within one 60 Hz frame: English never pays for Arabic.
 require("FAST_FLUSH_MS = 12" in remote_ws,
         "phone text the agent can type by keysym must still flush within one 60 Hz frame")
-require("CLIPBOARD_FLUSH_MS" in remote_ws and "FAST_TEXT" in remote_ws,
+require("COMPLEX_TEXT_FLUSH_MS" in remote_ws and "FAST_TEXT" in remote_ws,
         "text the agent must type on another keymap group has to batch into words, not one "
         "group switch (and one OSD flash) per letter")
 require("Continue below and deliver this first meaningful delta" in gestures,
@@ -1963,6 +1968,52 @@ require("mo-remote-input-portal.py" not in build,
         "build.sh still references the removed input-only helper")
 require("pipewire-gstreamer" in build,
         "build.sh must guarantee the capture pipeline's GStreamer/PipeWire packages")
+
+# The identity scrub has to run after EVERY rpm transaction, including Cloud's
+# edition-specific install. The 2026-08-15 base proved why: `dnf5 remove cpp`
+# re-materialised an owned legacy GDM logo after section (z2) had replaced it,
+# and the finished-byte firewall correctly failed Cloud and NVIDIA. Gate code
+# line ordering rather than one remembered command: the old assertion named the
+# cpp removal and therefore missed the later `dnf5 install openssh-server`.
+_identity_build_code = code(build).replace("\\\n", " ")
+_rpm_transactions = [
+    _match.start()
+    for _match in re.finditer(
+        r"\bdnf5\b[^\n]*\b(?:install|remove)\b", _identity_build_code
+    )
+]
+_final_logo_marker = '_final_logo_src=/usr/share/pixmaps/moos-logo.png'
+_identity_firewall_marker = "python3 /ctx/verify_no_foreign_identity.py"
+_finished_marker = 'echo "MoOS build.sh finished OK"'
+_final_logo_seals = [
+    _match.start() for _match in re.finditer(re.escape(_final_logo_marker), _identity_build_code)
+]
+_identity_firewalls = [
+    _match.start()
+    for _match in re.finditer(re.escape(_identity_firewall_marker), _identity_build_code)
+]
+_finished_markers = [
+    _match.start() for _match in re.finditer(re.escape(_finished_marker), _identity_build_code)
+]
+require(bool(_rpm_transactions), "build.sh must contain the rpm transactions this ordering gate covers")
+require(len(_final_logo_seals) == 1 and len(_identity_firewalls) == 1
+        and len(_finished_markers) == 1,
+        "build.sh must have exactly one final logo seal, identity firewall and success marker")
+if (_rpm_transactions and len(_final_logo_seals) == 1
+        and len(_identity_firewalls) == 1 and len(_finished_markers) == 1):
+    require(max(_rpm_transactions) < _final_logo_seals[0] < _identity_firewalls[0]
+            < _finished_markers[0],
+            "the final legacy-logo seal and finished-byte identity firewall must run after "
+            "every rpm transaction (including Cloud z9)")
+    _post_firewall_code = _identity_build_code[
+        _identity_firewalls[0] + len(_identity_firewall_marker):_finished_markers[0]
+    ].strip()
+    require(not _post_firewall_code,
+            "nothing may mutate the image after the finished-byte identity firewall")
+require('rm -f "$_dst"' in build and 'install -m 0644 "$_final_logo_src" "$_dst"' in build
+        and 'cmp -s "$_final_logo_src" "$_dst"' in build,
+        "the final legacy-logo seal must unlink aliases, copy the canonical MoOS mark and "
+        "verify the bytes — copying through an upstream symlink is not safe")
 
 # JPEG has no temporal compression: every frame is a whole picture, so merely LOOKING at a desktop
 # costs as much as scrubbing through it. Measured on real hardware at 1080p — 79 Mbit/s against
@@ -4779,6 +4830,20 @@ require("/usr/bin/plasmawindowed org.moos.island" in normalized_build_script
         and '_island_smoke_rc" -ne 124' in build_script_code,
         "the image build must load org.moos.island through Plasma's real applet "
         "host and require it to stay resident")
+_island_smoke_start = build_script_code.find('_island_smoke_log="$(mktemp')
+_island_smoke_end = build_script_code.find("_scene_dir=", _island_smoke_start)
+require(0 <= _island_smoke_start < _island_smoke_end,
+        "the island smoke must remain a distinct, gateable build.sh block")
+if 0 <= _island_smoke_start < _island_smoke_end:
+    _island_smoke_block = build_script_code[_island_smoke_start:_island_smoke_end]
+    require("_island_cleanup_ok=0" in _island_smoke_block
+            and "for _island_cleanup_attempt in 1 2 3 4 5 6 7 8 9 10" in
+            _island_smoke_block
+            and "_island_cleanup_ok=1" in _island_smoke_block
+            and 'if [ "$_island_cleanup_ok" -ne 1 ]' in _island_smoke_block
+            and "sleep 0.2" in _island_smoke_block,
+            "the island smoke must use bounded verified cleanup retries; plasmawindowed can "
+            "still release its isolated config just after timeout kills the session bus")
 require("dbus-run-session -- /usr/bin/moos-qml-shell --app-id org.moos.scene-smoke" in
         normalized_build_script,
         "the headless scene smoke needs a session bus; without one even KDE's stock "

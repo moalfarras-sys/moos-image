@@ -1979,9 +1979,28 @@ if grep -qiE 'QQmlApplicationEngine failed|component is not ready|error loading 
     cat "$_island_smoke_log"
     exit 1
 fi
-rm -rf -- "$_island_smoke_log" "$_island_smoke_home" "$_island_smoke_runtime"
+_island_cleanup_ok=0
+for _island_cleanup_attempt in 1 2 3 4 5 6 7 8 9 10; do
+    if rm -rf -- \
+            "$_island_smoke_log" \
+            "$_island_smoke_home" \
+            "$_island_smoke_runtime" 2>/dev/null; then
+        sleep 0.2
+        if [ ! -e "$_island_smoke_log" ] \
+                && [ ! -e "$_island_smoke_home" ] \
+                && [ ! -e "$_island_smoke_runtime" ]; then
+            _island_cleanup_ok=1
+            break
+        fi
+    fi
+    sleep 0.2
+done
+if [ "$_island_cleanup_ok" -ne 1 ]; then
+    echo "FATAL: org.moos.island smoke passed, but its isolated temporary state stayed active"
+    exit 1
+fi
 unset -v _island_smoke_log _island_smoke_home _island_smoke_runtime \
-    _island_smoke_rc
+    _island_smoke_rc _island_cleanup_attempt _island_cleanup_ok
 
 # The desktop scene (org.moos.ui2.wallpaper) is not covered by the pure-QML app
 # loop above: its root is a WallpaperItem, which only exists inside plasmashell's
@@ -3466,16 +3485,6 @@ python3 /ctx/verify_image_experience.py
 # missing glyph fallback, dead launcher argument, or public URL install path.
 python3 /ctx/verify_store_catalog.py
 
-# ── The identity firewall — the catch-all, on the finished bytes ──────────────
-#
-# verify_identity.py and verify_image_experience.py check the surfaces we KNOW
-# about. This one sweeps the whole image by pattern for another OS's logo, name
-# or theme, on the real bytes that ship. It is what catches a base-image update
-# that adds a Fedora asset under a name our scrub never listed, and an agent who
-# removed a scrub step without understanding what it protected. It runs LAST, so
-# nothing added after the rebrand can slip a foreign identity past it.
-python3 /ctx/verify_no_foreign_identity.py
-
 # -----------------------------------------------------------------------------
 # (z9) The cloud edition — what a server needs that a desktop does not
 # -----------------------------------------------------------------------------
@@ -4114,5 +4123,48 @@ if [ -n "${stray_pycache}" ]; then
     echo "${stray_pycache}"
     exit 1
 fi
+
+# -----------------------------------------------------------------------------
+# (z9b) FINAL legacy-logo seal — AFTER every edition-specific rpm transaction
+# -----------------------------------------------------------------------------
+# Section (z2) scrubs every inherited logo after the common install
+# transactions, but the build-only sweep and Cloud's openssh-server install are
+# later rpm transactions. On the 2026-08-15 base, removing cpp re-materialised
+# fedora-gdm-logo.png from its owning package after (z2) had replaced it. CI
+# recorded the order unambiguously: the MoOS copy at 18:12:33, `dnf5 remove cpp`
+# at 18:16:31, then the finished-byte identity firewall found different bytes at
+# 18:16:41. The seal therefore belongs here, after z9 for every edition.
+#
+# Do not move or weaken the firewall to accommodate this. Re-seal the three
+# legacy hard-coded pixmap names from the EXACT canonical file the firewall
+# compares them with. Unlink first: an upstream release may turn one into a
+# symlink, and copying through it could overwrite its target while leaving the
+# foreign-named link in place.
+_final_logo_src=/usr/share/pixmaps/moos-logo.png
+if [ -f "$_final_logo_src" ]; then
+    for _px in fedora-logo.png fedora-logo-small.png fedora-gdm-logo.png; do
+        _dst="/usr/share/pixmaps/$_px"
+        if [ -e "$_dst" ] || [ -L "$_dst" ]; then
+            rm -f "$_dst"
+            install -m 0644 "$_final_logo_src" "$_dst"
+            cmp -s "$_final_logo_src" "$_dst" || {
+                echo "FATAL: final MoOS identity seal did not hold for $_dst"
+                exit 1
+            }
+        fi
+    done
+fi
+unset -v _final_logo_src _px _dst
+
+# ── The identity firewall — the catch-all, on the finished bytes ──────────────
+#
+# verify_identity.py and verify_image_experience.py check the surfaces we KNOW
+# about. This one sweeps the whole image by pattern for another OS's logo, name
+# or theme, on the real bytes that ship. It is what catches a base-image update
+# that adds a foreign asset under a name our scrub never listed, and an agent who
+# removed a scrub step without understanding what it protected. It runs after
+# z9 and every rpm transaction, so Cloud is inspected just like both desktop
+# editions and nothing can mutate the image after this finished-byte check.
+python3 /ctx/verify_no_foreign_identity.py
 
 echo "MoOS build.sh finished OK"

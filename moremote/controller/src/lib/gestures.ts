@@ -1,5 +1,5 @@
 import type { GestureMode } from "../types";
-import { rotateDelta } from "./coordinates";
+import { rotateDelta } from "./coordinates.ts";
 
 export interface GestureCallbacks {
   click: (button: "left" | "right", nx: number, ny: number) => void;
@@ -383,8 +383,10 @@ export class GestureController {
         this.lastTapAt = 0;
         break;
       case "down": {
-        // A plain tap. But two taps in a row are a DOUBLE-CLICK, and sending two independent
-        // clicks does not reliably produce one.
+        // A plain tap. Two taps in a row are a DOUBLE-CLICK, but the FIRST tap was already sent
+        // immediately so ordinary taps never pay a 300ms recognition delay. The second tap must
+        // therefore add exactly ONE click — not call the agent's dblclick verb, which itself
+        // injects two presses and turns the pair into a triple-click.
         //
         // Every tap is an absolute warp to wherever the finger was, and one CSS pixel of screen is
         // 2.5-4.4 logical desktop pixels once the picture is fitted to a phone. So three pixels of
@@ -392,15 +394,15 @@ export class GestureController {
         // ~5px radius Qt and GTK both require before they will call it a double-click. Double-tap
         // to open a folder therefore worked only by luck, which reads as "the app is buggy".
         //
-        // The agent has always had a `dblclick` verb that presses twice with a controlled 40ms gap
-        // at ONE point (InputInjector.DoubleClick), and nothing in this client had ever called it.
-        // Recognise the double-tap here and use it.
+        // Force that second click to the FIRST tap's point. The browser's two touch points can
+        // wobble several logical desktop pixels apart after fitting a 4K desktop to a phone; using
+        // one point gives Qt/GTK the same-position pair they require without adding a third press.
         const quick = now() - p.st < 500;
         if (quick) {
           const near = dist(p.sx, p.sy, this.lastTapCX, this.lastTapCY) < DOUBLE_TAP_PX;
           if (now() - this.lastTapAt < DOUBLE_TAP_MS && near) {
             // The FIRST tap's point: it is the one the user aimed, before any wobble.
-            this.cb.dblclick(this.lastTapNx, this.lastTapNy);
+            this.cb.click("left", this.lastTapNx, this.lastTapNy);
             this.cb.haptic?.();
             this.lastTapAt = 0;           // a triple tap is not two double-clicks
           } else {

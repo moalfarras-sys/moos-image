@@ -28,11 +28,15 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 US = ROOT / "moremote/agent-linux/UsKeymap.cs"
 INJECTOR = ROOT / "moremote/agent-linux/InputInjector.cs"
+PORTAL = ROOT / "moremote/agent-linux/mo-remote-portal.py"
+BRIDGE = ROOT / "moremote/agent-linux/PortalBridge.cs"
 
 
 def main() -> int:
     us = US.read_text(encoding="utf-8")
     inj = INJECTOR.read_text(encoding="utf-8")
+    portal = PORTAL.read_text(encoding="utf-8")
+    bridge = BRIDGE.read_text(encoding="utf-8")
     errors: list[str] = []
 
     # ---- rebuild the table the way the C# does, from the same literals -------------------
@@ -78,6 +82,17 @@ def main() -> int:
     if 'events.Add(new { layout = "us" })' not in inj:
         errors.append("the US fallback does not select the `us` group; positions are only "
                       "deterministic once the group is known.")
+    # Group resolution is deliberately generic: a requested name is matched against KWin's live
+    # layout ring. Pin the behaviour, not the old three-way expression — the latter became stale
+    # as soon as more than `home`, `ara` and `us` were valid names.
+    if ("def _group_index(name):" not in portal
+            or "startswith(name)" not in portal
+            or "idx = _group_index(name)" not in portal):
+        errors.append("the helper does not resolve the requested `us` group against KWin's live "
+                      "layout ring; treating it as `home` mangles @#:/ on German and other layouts.")
+    if '_portal.HasLayout("us")' not in inj or 'case "layouts":' not in bridge:
+        errors.append("the agent does not verify that KWin actually loaded `us` before sending "
+                      "US physical positions; a missing group must use exact Unicode paste.")
     # It must come after the keysym attempt, or ordinary Latin text stops using the user's own
     # layout and pays a group switch per run for no reason.
     direct_at = inj.find("TryDirectStrokes(text, events)")

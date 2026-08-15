@@ -19,7 +19,7 @@ class FakeDecoder {
   decoded: { type: string }[] = [];
   closed = false;
   decodeQueueSize = 0;
-  constructor(public opts: { output: unknown; error: unknown }) { FakeDecoder.instances.push(this); }
+  constructor(public opts: { output: (frame: {close: () => void}) => void; error: (error: Error) => void }) { FakeDecoder.instances.push(this); }
   configure(c: { codec: string }) { this.configured = c; }
   decode(chunk: { type: string }) { this.decoded.push(chunk); }
   close() { this.closed = true; }
@@ -60,3 +60,35 @@ assert.equal(FakeDecoder.instances.length, 2, "an unchanged SPS must not rebuild
 assert.deepEqual(failures, [], "a clean renegotiation must never reach the JPEG fallback");
 
 console.log("PASS: a renegotiated stream reopens the decoder instead of failing to JPEG");
+
+// A decoder backlog is state INSIDE VideoDecoder. Asking for an IDR while keeping that decoder
+// alive puts the IDR behind the stale pictures and still makes the viewer watch the past catch up.
+// Recovery must close it immediately, drop deltas, and seed a fresh generation from one IDR.
+FakeDecoder.instances.length = 0;
+const recovered: {close: () => void}[] = [];
+let keyframeRequests = 0;
+const lagging = new H264Stream((frame) => recovered.push(frame as unknown as {close: () => void}),
+  (why: string) => failures.push(why), () => keyframeRequests++);
+
+lagging.push(au(sps(0x31), idr));
+const stale = FakeDecoder.instances[0];
+stale.decodeQueueSize = 9;
+lagging.push(au(delta));
+assert.equal(stale.closed, true, "a backlogged decoder must be closed, not left to catch up");
+assert.equal(keyframeRequests, 1, "dropping a delta backlog must request one recovery IDR");
+lagging.push(au(delta));
+assert.equal(FakeDecoder.instances.length, 1, "deltas before the IDR must not reopen a decoder");
+lagging.push(au(sps(0x31), idr));
+assert.equal(FakeDecoder.instances.length, 2, "the recovery IDR must seed a fresh decoder");
+assert.deepEqual(FakeDecoder.instances[1].decoded.map((c) => c.type), ["key"],
+  "only the recovery IDR may enter the fresh decoder");
+
+// WebCodecs may deliver callbacks already queued by close(). They belong to the retired generation:
+// an old error cannot reset decoder #2, and an old output must be closed rather than painted.
+let orphanClosed = false;
+stale.opts.output({close: () => { orphanClosed = true; }});
+stale.opts.error(new Error("late stale decoder error"));
+assert.equal(orphanClosed, true, "a frame emitted by a retired decoder must be released");
+assert.equal(FakeDecoder.instances[1].closed, false, "a retired decoder error must not close the replacement");
+
+console.log("PASS: decode backlog recovery discards stale generations and restarts on one IDR");

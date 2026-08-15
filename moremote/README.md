@@ -36,7 +36,8 @@ A **private**, local-only remote control for your own Windows PC, driven from yo
 - **Display controls** — Fit-to-screen / Original 100% / Zoom in-out / Fullscreen, with accurate touch coordinates at any zoom.
 - **Full keyboard** — opens the native iPhone keyboard; types Arabic + English + symbols straight into Windows. Shortcut bar: Ctrl / Alt / Shift / Win, Ctrl+C / Ctrl+V / Ctrl+A, Alt+Tab, Esc, Tab, arrows, Home/End/Del, plus Ctrl+Alt+Del (safe).
 - **Clipboard sync** (button-only, never automatic) — *Get PC Clipboard* pulls the PC's text to the phone; *Set PC Clipboard* pushes the phone's text to the PC.
-- **Auto-hiding floating toolbar** — Keys · Clipboard · Mouse mode · View · Fullscreen · More; fades after a few seconds, tap to reveal.
+- **Non-overlapping adaptive controls** — a thumb dock below the picture on phones and a right rail on landscape/desktop. Every control lives outside the encoded desktop, so the MoOS Horizon Bar remains visible and clickable.
+- **Text and image clipboard** (explicit, never background polling) — set only, or send and paste after exact read-back. Desktop Ctrl/Cmd+V transfers the browser's text or image first, then pastes remotely; a failed transfer never pastes stale PC content.
 - **Security** — first-run PIN (Argon2id-hashed), short-lived session tokens, 5-attempts → 5-minute lockout, **idle-timeout disconnect**, DPAPI-encrypted local config.
 - **Tailscale-only** — accepts connections only from `100.64.0.0/10` + loopback. Never exposed to the internet.
 - **Anti-stealth, by design** — a persistent red banner + tray indicator whenever a session is active, with instant Pause / Stop.
@@ -64,9 +65,9 @@ Everything is local. The only network in play is your private Tailscale tailnet.
 ## Requirements
 
 - **Windows 10 or 11** (x64).
-- **Linux (MoOS/Fedora Kinoite, KDE Wayland)** is supported by the native Linux agent in
-  `agent-linux/`. It uses Spectacle for consent-aware screen capture, wl-clipboard, and
-  ydotool for input injection.
+- **Linux / MoOS (KDE Wayland)** is supported by the native Linux agent in `agent-linux/`. It uses
+  one restored XDG RemoteDesktop + ScreenCast portal session, a persistent PipeWire stream,
+  hardware H.264 when available, explicit `wl-clipboard`, and portal input injection.
 - **[Tailscale](https://tailscale.com/download)** on the PC and the phone (same account).
 - To **build** from source: [.NET SDK 10+](https://dotnet.microsoft.com/download) and [Node.js 18+](https://nodejs.org).
   *(The built app is self-contained — the .NET runtime is bundled, so running it needs no install.)*
@@ -178,11 +179,11 @@ A small ring shows the current pointer position. The PC's resolution is **never*
 
 **View** button: **Fit** (whole screen) / **100%** (original size, pan around) / Zoom in-out / quality **Auto / Low / Balanced / High** (Auto adapts to your network) / **Monitor** picker (multi-display).
 
-**Toolbar** (auto-hides; tap the chevron to reveal): **Keys · Clipboard · Mouse mode · View · Fullscreen · More**. *More* has Ctrl+Alt+Del, Copy, Paste, Refresh stream, Fullscreen, Disconnect, and a **Power** section (Lock / Sleep / Sign out / Restart / Shut down). *View* has a **Monitor** picker when the PC has more than one display.
+**Controls** (auto-hide; tap **Controls** to reveal): **Type · Clipboard · Mouse mode · Display · Zoom · Sound · Fullscreen · More**. On a phone they occupy a reserved bottom dock; in landscape and desktop browsers they occupy a reserved right rail. They never sit on top of the remote picture. *More* has Ctrl+Alt+Del, Copy, Paste, Refresh stream, Disconnect, and a **Power** section. *Display* has a monitor picker when the PC has more than one display.
 
-**Keyboard:** tap **Keys** to open the native iPhone keyboard and type Arabic/English straight into Windows. The shortcut row has sticky **Ctrl / Alt / Shift / Win**, one-tap **Ctrl+C / Ctrl+V / Ctrl+A / Alt+Tab**, and Esc, Tab, arrows, Home, End, Del.
+**Keyboard:** tap **Type** to open the native phone keyboard. MoOS types ASCII and Arabic through real keyboard groups, and uses a confirmed exact-text compatibility path for German characters, accents, emoji and composed Unicode that the installed input protocol cannot represent. The shortcut row has sticky **Ctrl / Alt / Shift / Win**, one-tap **Ctrl+C / Ctrl+V / Ctrl+A / Alt+Tab**, and Esc, Tab, arrows, Home, End, Del.
 
-**Clipboard sync** (tap **Clipboard**): *Get PC Clipboard* fetches the PC's text to the phone (then **Copy**); type/paste into the box and *Set PC Clipboard* pushes it to the PC (then paste with Ctrl+V). Nothing is synced automatically — only on a button press.
+**Clipboard**: **Get from PC** fetches text or a PNG preview. For outgoing text use **Set only** or **Send & Paste**; for a photo use **Set image only** or **Photo & Paste**. On a desktop browser Ctrl/Cmd+V over the remote picture transfers local text or the first image and waits for the PC to serve the exact payload before sending Paste. Nothing is synchronized automatically.
 
 > **About Ctrl+Alt+Del:** Windows blocks software from injecting the real Secure Attention Sequence (a security feature). The button sends **Ctrl+Shift+Esc** (Task Manager) as the safe equivalent.
 

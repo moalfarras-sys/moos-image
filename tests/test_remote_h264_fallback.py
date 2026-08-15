@@ -69,10 +69,21 @@ def main() -> int:
         errors.append("could not locate the mid-stream H.264 failure handler to check its blacklist key.")
     else:
         body = block.group(0)
-        if "get_factory()" not in body:
-            errors.append("the mid-stream H.264 failure handler does not read get_factory() — "
-                          "blacklisting by msg.src.get_name() records the instance name 'enc', so the "
-                          "failing encoder is never sin-binned.")
+        # The lookup may live in a small helper so ERROR classification can be tested without a
+        # live Gst element. Either way, the value used by this handler must originate at
+        # get_factory().get_name(), never the instance name (`enc`).
+        factory_lookup = "get_factory()" in body or (
+            "factory = element_factory_name(msg.src)" in code
+            and re.search(
+                r"def\s+element_factory_name\([^)]*\):.*?get_factory\(\).*?get_name\(\)",
+                code,
+                re.S,
+            ) is not None
+        )
+        if not factory_lookup:
+            errors.append("the mid-stream H.264 failure handler does not derive its key from "
+                          "get_factory().get_name() — blacklisting by msg.src.get_name() records "
+                          "the instance name 'enc', so the failing encoder is never sin-binned.")
         if re.search(r"_h264_blacklist\[[^\]]*factory[^\]]*\]\s*=", body) is None and \
            "_h264_blacklist[factory]" not in body:
             errors.append("the mid-stream handler does not write _h264_blacklist[factory] = <ts>.")

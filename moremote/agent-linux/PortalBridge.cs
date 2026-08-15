@@ -24,17 +24,17 @@ public sealed class PortalBridge : IDisposable
     private volatile bool _ready;
     private volatile bool _disposed;
     private volatile string _lastError = "";
+    private readonly HashSet<string> _layouts = new(StringComparer.OrdinalIgnoreCase);
 
     private byte[]? _frame;
     private long _version;
-    private long _readyTicks;
-    private long _framesReceived;
+    private long _lastFrameTicks;
     private int _generation;
     private volatile bool _streaming;      // a viewer is connected and wants frames
     private int _streamingGeneration = -1; // which helper `_streaming` was pushed to
     private string _codec = "jpeg";        // what a fresh helper starts on
     private int _codecGeneration = -1;     // which helper `_codec` was pushed to
-    private long _streamingTicks;          // when we last asked for frames — the clock Stalled reads
+    private const int FrameStarvationMs = 5000;
 
     /// <summary>
     /// Bumped every time a new helper takes over. The helper starts from its own default encoder
@@ -50,15 +50,17 @@ public sealed class PortalBridge : IDisposable
     public int VideoHeight { get; private set; }
 
     /// <summary>
-    /// True only when the helper was ASKED to stream and its video pipeline never delivered a
-    /// single frame, i.e. it is genuinely broken. Two things that are not a stall: a long gap
-    /// between frames (PipeWire is damage-driven, so a desktop nobody is changing correctly
-    /// produces nothing at all), and an idle helper (it holds no pipeline until a viewer arrives —
-    /// judging that as "stalled" would send every first frame down the spectacle fallback).
+    /// True when a viewer is waiting and the helper has delivered no frame for five seconds — both
+    /// before the first frame and after a previously healthy pipeline goes quiet. The helper sets
+    /// pipewiresrc keepalive-time=1000, so an unchanged desktop still repeats its last frame once a
+    /// second; five missed keepalives are a dead source/encoder/appsink chain, not an idle desktop.
+    /// The helper owns the matching fatal watchdog and exits to recreate the portal session; this
+    /// property keeps the capture side from continuing to describe the stale frame as healthy while
+    /// that recovery is being observed.
     /// </summary>
     public bool Stalled =>
-        _ready && _streaming && Interlocked.Read(ref _framesReceived) == 0 &&
-        Environment.TickCount64 - Interlocked.Read(ref _streamingTicks) > 5000;
+        _ready && _streaming &&
+        Environment.TickCount64 - Interlocked.Read(ref _lastFrameTicks) >= FrameStarvationMs;
 
     /// <summary>
     /// Somebody is watching. The helper comes up idle and holds no encode pipeline until this says
@@ -73,8 +75,7 @@ public sealed class PortalBridge : IDisposable
             if (on == _streaming && _streamingGeneration == Generation) return;
             _streaming = on;
             _streamingGeneration = Generation;
-            Interlocked.Exchange(ref _framesReceived, 0);
-            Interlocked.Exchange(ref _streamingTicks, Environment.TickCount64);
+            Interlocked.Exchange(ref _lastFrameTicks, Environment.TickCount64);
             if (!on) _frame = null;   // never hand a new viewer the last frame of the previous one
         }
         Send(new { type = "video", streaming = on });
@@ -213,6 +214,7 @@ public sealed class PortalBridge : IDisposable
 
         using var proc = Process.Start(psi) ?? throw new IOException("could not start python3");
         int generation = Interlocked.Increment(ref _generation);
+        lock (_gate) _layouts.Clear();
         _proc = proc;
         _stdin = proc.StandardInput;
         _stdin.AutoFlush = true;
@@ -279,9 +281,7 @@ public sealed class PortalBridge : IDisposable
             case "ready":
                 LogicalWidth = GetInt(root, "logical_width", LogicalWidth);
                 LogicalHeight = GetInt(root, "logical_height", LogicalHeight);
-                Interlocked.Exchange(ref _framesReceived, 0);
-                Interlocked.Exchange(ref _readyTicks, Environment.TickCount64);
-                Interlocked.Exchange(ref _streamingTicks, Environment.TickCount64);
+                Interlocked.Exchange(ref _lastFrameTicks, Environment.TickCount64);
                 _ready = true;
                 _lastError = "";
                 Log.Info($"Portal ready: {root.GetProperty("backend").GetString()} " +
@@ -302,6 +302,17 @@ public sealed class PortalBridge : IDisposable
                 {
                     _codecGeneration = Generation;
                     Send(new { type = "video", codec = _codec });
+                }
+                break;
+            case "layouts":
+                lock (_gate)
+                {
+                    _layouts.Clear();
+                    if (root.TryGetProperty("codes", out var codes) && codes.ValueKind == JsonValueKind.Array)
+                        foreach (var code in codes.EnumerateArray())
+                            if (code.ValueKind == JsonValueKind.String &&
+                                code.GetString() is { Length: > 0 } value)
+                                _layouts.Add(value);
                 }
                 break;
             case "video":
@@ -328,6 +339,10 @@ public sealed class PortalBridge : IDisposable
                 break;
             case "error":
                 _lastError = root.TryGetProperty("error", out var e) ? e.GetString() ?? "" : "";
+                // A fatal helper event is immediately followed by process exit. Mark it unavailable
+                // before that exit is reaped so nobody can observe a known-dead pipeline as healthy.
+                if (root.TryGetProperty("fatal", out var fatal) && fatal.ValueKind == JsonValueKind.True)
+                    _ready = false;
                 Log.Warn("Portal error: " + _lastError);
                 break;
             case "warn":
@@ -338,6 +353,14 @@ public sealed class PortalBridge : IDisposable
 
     private static int GetInt(JsonElement e, string name, int fallback) =>
         e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetInt32() : fallback;
+
+    /// <summary>The groups KWin reported as loaded for this exact portal generation.</summary>
+    public bool HasLayout(string code)
+    {
+        lock (_gate)
+            return _layouts.Any(value => value.Equals(code, StringComparison.OrdinalIgnoreCase)
+                || value.StartsWith(code + "(", StringComparison.OrdinalIgnoreCase));
+    }
 
     /// <summary>What the helper's encoder is producing right now: "jpeg" or "h264".</summary>
     public string Codec { get; private set; } = "jpeg";
@@ -376,7 +399,7 @@ public sealed class PortalBridge : IDisposable
                         _version++;
                     }
                 }
-                Interlocked.Increment(ref _framesReceived);
+                Interlocked.Exchange(ref _lastFrameTicks, Environment.TickCount64);
             }
         }
         catch (Exception ex)

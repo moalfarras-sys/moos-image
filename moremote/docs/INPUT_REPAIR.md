@@ -7,27 +7,30 @@ timestamp, mode, normalized coordinates (when applicable), viewport/DPR/orientat
 content rectangle, video source dimensions, and display id. The server rejects stale, duplicate,
 non-finite, out-of-range, wrong-display, or geometry-less packets.
 
-On KDE Wayland the server keeps one Unix datagram connection to the persistent system
-`ydotoold` service and sends Linux `input_event` records directly. It does not spawn `ydotool`
-for pointer movement. `ydotoold` alone owns the persistent uinput device. The web server remains
-an unprivileged user process. On disconnect, all tracked buttons and keys are released.
+On KDE Wayland the server uses the restored XDG RemoteDesktop portal session for pointer and
+keyboard injection. The portal helper owns ordering and switches named keyboard groups through the
+same event stream as the keys they qualify. ASCII and Arabic use real key positions. Unsupported
+Unicode is grouped safely, written and read back exactly through Wayland, then pasted by one
+synchronous shortcut; it is never silently replaced or dropped. The web server remains an
+unprivileged user process. On disconnect, all tracked buttons and keys are released.
 
 Direct mode maps the phone point within the actual rendered content rectangle to normalized
 coordinates, then into KWin's logical virtual desktop geometry. Trackpad mode sends real relative
 deltas and never warps to a synthetic absolute cursor. Obsolete browser move events are coalesced
 by animation-frame scheduling; reliable button/key release messages are not coalesced.
 
-KWin's ydotool device is configured with the flat acceleration profile. Absolute targeting avoids
-ydotool's `INT32_MIN` reset (which visibly triggered the top-left Overview corner): the backend
-calibrates with bounded relative motion to the bottom-right and then uses tracked relative deltas.
+Absolute targeting is sent through the RemoteDesktop portal in KWin's logical virtual-desktop
+geometry. Relative Trackpad deltas remain relative and are never converted through an artificial
+absolute cursor calibration.
 
 ## Services
 
-- `ydotool.service` (system): persistent minimal uinput helper, socket `/tmp/.ydotool_socket`,
-  mode 0660, owner `mo:mo`.
 - `mo-remote-personal.service` (user): unprivileged ASP.NET server after the graphical session,
   restart-on-failure, correct Wayland/DBus/runtime environment, and a sleep/idle inhibitor.
-- No SDDM/autologin change is required or installed.
+- `mo-remote-portal.py`: one restored RemoteDesktop + ScreenCast session, PipeWire video and
+  ordered input. A one-second source keepalive plus a five-second progress watchdog restarts a
+  starved portal instead of advertising a frozen picture as healthy.
+- No login-manager or autologin change is required or installed.
 
 ## Install and operations
 
@@ -56,7 +59,8 @@ cd .. && dotnet run --project tests/VisualInputTest/VisualInputTest.csproj -c Re
 - WebSocket origins whose host differs from the requested server host are rejected.
 - Sequence/timestamp checks reduce replay and duplicate-event risk.
 - No shell is used for input; numeric events are encoded into fixed binary records.
-- `/dev/uinput` and the helper socket are not world writable. The full server is never root.
+- The portal session grants only the selected screen and pointer/keyboard devices. The full server
+  is never root.
 - Clipboard content, tokens, PINs, and typed text are not logged.
 
 ## Rollback
@@ -78,14 +82,15 @@ Stop the service, extract that archive into a separate directory, review it, the
 - Touch: tap targets directly and one-finger swipes scroll.
 - Keys opens the phone keyboard. Shortcut buttons provide modifiers, clipboard shortcuts,
   arrows, Escape, Tab, and desktop shortcuts.
-- Clipboard is explicit in both directions; there is no background clipboard polling.
+- Clipboard is explicit in both directions; text and PNG can be set or sent-and-pasted, and there
+  is no background clipboard polling.
 
 ## Known limitation
 
 KDE Wayland does not expose the greeter/locked desktop to this user-session capture process.
-Remote control begins after the owner logs into Plasma. Spectacle-per-frame capture is slower than
-a PipeWire persistent stream and is the remaining video-performance limitation; it does not block
-the independent input receive path.
+Remote control begins after the owner logs into Plasma. The active video path is already a
+persistent PipeWire H.264 stream; the next architectural step is per-viewer WebRTC transport and
+quality layers, not a return to screenshot-per-frame capture. See `MOOS_REMOTE_ARCHITECTURE.md`.
 
 ## Verification result (2026-07-11)
 
