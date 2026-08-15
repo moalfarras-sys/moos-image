@@ -1557,8 +1557,30 @@ ldconfig
 # Its own diagnostic said so out loud ("it IS on disk") and the build failed anyway.
 # Whether the producer has written enough to be killed is a race, which is why this
 # idiom passes for months and then fails one edition of one commit.
+# AND DO NOT LET `set -x` ECHO WHAT WE JUST CAPTURED.
+#
+# This file runs under `set -euxo pipefail`, so an assignment is traced WITH ITS VALUE. The value
+# here is the entire linker cache — measured on this machine, 112,516 bytes — which bash writes to
+# stderr as ONE line. The largest line the CI log has ever carried is 6,340 bytes, so that single
+# trace line is eighteen times bigger than anything the log service has been asked to ingest.
+#
+# Three consecutive image builds died at exactly this point (runs 31868982000, 31893949134 and
+# 31897887537, all 2026-08-15). The complete 8,286-line job log's last line is `++ ldconfig -p` —
+# the trace of the capture below — and after it nothing at all: no error, no diagnostic, no further
+# step, then the job fails minutes later. The same tree builds locally to a complete 10.8 GB image
+# twice over, because a local build writes its log to an ordinary file with no such limit. That is
+# what rules the code out and points at the log path.
+#
+# `set +x` around the two captures costs nothing and hides no decision — the gate's own failure
+# messages below are what diagnose a missing library.
+#
+# HONESTLY LABELLED: the cut-off point, the value's size and the log's previous maximum are all
+# measured; that they are CAUSE and effect is inference. If a build still dies here, suspect the
+# runner next, not the trace.
+set +x
 _ldcache="$(ldconfig -p)"
 _libdirs="$(find /usr/lib64 /usr/lib -maxdepth 1 -name 'lib*.so.*' 2>/dev/null)"
+set -x
 for so in libEGL.so.1 libGLESv2.so.2; do
     if ! grep -q "${so}" <<<"${_ldcache}"; then
         echo "GATE FAIL: MoPlayer needs ${so} and no package in this image provides it"
