@@ -91,6 +91,7 @@ check:
     python3 tests/test_remote_h264_fallback.py
     python3 tests/test_remote_h264_single_slice.py
     python3 tests/test_remote_toolbar_edge.py
+    python3 tests/test_remote_input_mode.py
     # Desktop sound must be enabled everywhere AND bind loopback (the service has no auth).
     python3 tests/test_desktop_sound_reachable.py
     # The visible system sound identity is a complete original MoOS family,

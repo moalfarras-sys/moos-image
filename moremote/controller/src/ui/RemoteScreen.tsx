@@ -123,7 +123,33 @@ function defaultMode(): GestureMode {
       (navigator.maxTouchPoints ?? 0) > 0 ||
       "ontouchstart" in window ||
       (window.matchMedia?.("(any-pointer: coarse)").matches ?? false);
-    return touch ? "touch" : "desktop";
+
+    // A MACHINE WITH A TOUCHSCREEN **AND** A MOUSE IS A COMPUTER, AND MUST GET THE COMPUTER PATH.
+    //
+    // The note above used to end "A touchscreen laptop therefore starts in touch mode... the safer
+    // way to be wrong". It is not the safer way to be wrong, and the owner reported exactly what it
+    // costs, on a computer browser: the keyboard and the mouse "do not really work".
+    //
+    // Touch mode is not a cosmetic preference. DesktopInput — the REAL mouse and keyboard path — is
+    // constructed always but ATTACHED only in "desktop" mode, because its window-level keydown
+    // listener would otherwise steal every keystroke from the phone's hidden-textarea path. So a
+    // touchscreen laptop got no real mouse buttons, no wheel, no physical key codes, no pointer
+    // lock and no keyboard lock; click-and-drag became a scroll instead of a selection — which
+    // reads as the REMOTE being broken, exactly as the note above predicted, on the machine class
+    // the note then chose to be wrong about. Windows laptops with touchscreens are ordinary, and
+    // two Windows machines are enrolled on this tailnet.
+    //
+    // `any-pointer: fine` is the honest question — is a fine pointer AVAILABLE — and it is the same
+    // fix and the same reasoning as POINTER_BAR_QUERY in types.ts, which was the toolbar half of
+    // this identical misdiagnosis.
+    //
+    // THE HEADLESS-BROWSER HOLE THE NOTE ABOVE WARNS ABOUT STAYS CLOSED. That hole was
+    // `(pointer: fine) && !(any-pointer: coarse)`, which REQUIRED positive evidence of a mouse and
+    // so failed on a browser that answers nothing. Here the mouse test only ever RESCUES a device
+    // that already looked like touch, so a browser answering false to everything still has `touch`
+    // false and still lands on desktop, byte for byte as before.
+    const mouse = window.matchMedia?.("(any-pointer: fine)").matches ?? false;
+    return touch && !mouse ? "touch" : "desktop";
   } catch {
     return "desktop";
   }
@@ -1893,13 +1919,21 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
       return;
     }
     if (el.requestFullscreen) {
+      // ASK FOR THE KEYBOARD FIRST, THEN GO FULLSCREEN.
+      //
+      // Chrome's guidance for this exact pairing is to call lock() BEFORE entering fullscreen, to
+      // avoid multiple user messages: since Chrome 131 both Keyboard Lock and Pointer Lock are
+      // permission-gated, so locking after the transition prompts the user a second time, on a
+      // screen that has just changed size under them. Requesting first collapses that into one.
+      // The keys are only actually captured while fullscreen is active, which is why this still
+      // lives in the fullscreen path and not at startup.
+      //
+      // Best-effort and Chromium-only: without it Esc, Tab, Ctrl+W and F11 stay the browser's and
+      // everything else on the keyboard still reaches the desktop. Nobody is ever trapped — the
+      // spec requires an escape hatch, and in Chrome that is a two-second Esc hold.
+      desktopRef.current?.requestKeyboardLock();
       el.requestFullscreen()
         .then(() => {
-          // Esc, Tab, Ctrl+W and F11 are the browser's until Keyboard Lock is granted, and it is
-          // only ever granted in fullscreen — which is why this call lives here and not at startup.
-          // Chromium-only and best-effort: without it those four keys stay local, and everything
-          // else on the keyboard still reaches the desktop.
-          desktopRef.current?.requestKeyboardLock();
           // Deliberately NOT locking the phone to landscape here. It used to call
           // screen.orientation.lock("landscape"), so tapping Fullscreen spun the phone sideways on
           // its own — the "الشاشة عم تعمل عرضي على الجوال" the owner reported, and the opposite of
