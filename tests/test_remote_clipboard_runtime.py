@@ -73,9 +73,18 @@ checks = {
     # WAS: an unconfirmed copy must SKIP its paste. NOW: a run whose group cannot be reached must
     # be dropped, not typed — the other layout's reading of those positions is exactly the
     # corruption this design exists to prevent. Fail closed, same as before.
+    # The guarantee is FAIL CLOSED, checked as behaviour rather than as one sentence. It used to
+    # require the literal "no Arabic keyboard layout is configured" — a proxy that stopped being
+    # true when select_group learned to resolve groups other than Arabic, so a machine missing a
+    # `us` group was told to install an ARABIC keyboard and this assertion fired on the fix.
+    # What must hold: the resolver can fail, a failure RETURNS FALSE (so Deliver drops the run
+    # instead of typing it against whatever group is live), and the warning names the group.
     "a run whose keymap group is unavailable is still typed anyway":
         "dropped a typed run" in code(portal)
-        and "no Arabic keyboard layout is configured" in code(portal),
+        and "def _group_index(name):" in code(portal)
+        and "if idx is None:" in code(portal)
+        and "keyboard layout is configured" in code(portal)
+        and 'layout_state["warned"]' in code(portal),
 
     # WAS: the clipboard borrow must be returned. NOW: the borrowed GROUP must be handed back —
     # leaving a desk keyboard on Arabic because a phone typed a word is the same theft.

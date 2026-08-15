@@ -234,6 +234,7 @@ jobs:
           python3 tests/test_remote_toolbar_edge.py
           python3 tests/test_remote_input_mode.py
           python3 tests/test_remote_us_keymap.py
+          python3 tests/test_remote_group_resolution.py
           python3 tests/test_remote_keycode_flush.py
           python3 tests/test_arabic_terminal_font.py
           python3 tests/test_boot_branding_tool.py
