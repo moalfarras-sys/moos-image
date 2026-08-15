@@ -11,6 +11,7 @@ import {
 } from "../lib/api";
 import { pickStartPreset, readDeviceHints, describeHints, encodeWidth } from "../lib/quality";
 import { h264Failures, noteH264Failure, H264_MAX_FAILURES } from "../lib/h264state.ts";
+import { diffToOps } from "../lib/typing.ts";
 import { remoteAlertPermission, requestRemoteAlertPermission, showRemoteAlert } from "../lib/notifications";
 import { QUALITY_PRESETS, AUTO_MAX_PRESET, POINTER_BAR_QUERY, BUILD, MODE_LABEL, MODE_HINT, type GestureMode, type ViewMode, type MonitorInfo } from "../types";
 import {
@@ -829,7 +830,9 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
         // re-send the entire field — the same words typed twice on the desktop. What was in
         // flight is not lost either: the connection keeps unsent text queued and delivers it
         // after the reconnect's hello.
-        lastVal.current = inputRef.current?.value ?? ""; setMods(new Set());
+        // A reconnect resets the typing baseline; the composition latch has to go with it, or a
+        // socket that dropped mid-composition leaves the phone unable to type at all.
+        lastVal.current = inputRef.current?.value ?? ""; composingRef.current = false; setMods(new Set());
         setStatus((s) => (s === "stopped" || s === "idle" ? s : "reconnecting"));
         if (willReconnect && connectionEstablishedRef.current && !disposed &&
             backgroundAlertsRef.current && !connectionAlertedRef.current) {
@@ -1555,12 +1558,17 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
     enterTyping();          // before setKbOpen, so nothing has moved the view yet
     setKbOpen(true);
     const el = inputRef.current;
-    if (el) { el.value = ""; lastVal.current = ""; el.focus(); }
+    if (el) { el.value = ""; lastVal.current = ""; composingRef.current = false; el.focus(); }
   };
   const closeKeyboard = () => {
     const el = inputRef.current;
     if (el) el.value = "";
     lastVal.current = "";
+    // Nothing outside onCompositionEnd used to clear this, and a phone that dismisses its own
+    // keyboard mid-word never sends one. While the latch is stuck true, onInput returns early and
+    // EVERY keystroke is discarded silently: the field fills up and not one character reaches the
+    // desktop. That is the shape of "typing from the phone just stopped working".
+    composingRef.current = false;
     setMods(new Set());
     setKbOpen(false);
     el?.blur();
@@ -1601,7 +1609,10 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
     inputBurstAtRef.current = Date.now();
     // Arabic keyboards and other IMEs revise a word while it is being composed. Streaming those
     // intermediate values duplicates letters and Backspaces remotely; send only the commit.
-    if (composingRef.current) return;
+    // Gate on the BROWSER's own flag as well as ours. beforeinput/input/compositionend ordering is
+    // documented as inconsistent between Chrome and Safari, and our latch can be left set by a
+    // path that never sees a compositionend — see emitOps and the resets below.
+    if (composingRef.current || (window.event as any)?.isComposing) return;
     if (v.length > last.length && v.startsWith(last)) {
       const added = v.slice(last.length);
       if (mods.size > 0) { for (const ch of added) c.combo([...mods, ch]); setMods(new Set()); el.value = ""; lastVal.current = ""; return; }
@@ -1640,18 +1651,33 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
     lastVal.current = v;
     // Resync while the line is still short: the worst replace burst above is
     // bounded by this cap, and Backspace-on-empty is handled in onKeyDown.
-    if (v.length > 48) { el.value = ""; lastVal.current = ""; }
+    if (v.length > 48) { el.value = ""; lastVal.current = ""; composingRef.current = false; }
   };
   const onCompositionStart = () => {
     composingRef.current = true;
     compositionStartRef.current = inputRef.current?.value ?? "";
   };
-  const onCompositionEnd = (e: React.CompositionEvent<HTMLInputElement>) => {
+  /** Emit a diff as keystrokes, in order. One place, so both callers behave identically. */
+  const emitOps = (before: string, after: string) => {
+    const c = connRef.current;
+    if (!c) return;
+    for (const op of diffToOps(before, after)) {
+      if (op.t === "text") c.text(op.v);
+      else for (let i = 0; i < op.n; i++) c.keyTap(op.k);
+    }
+  };
+  const onCompositionEnd = (_e: React.CompositionEvent<HTMLInputElement>) => {
     composingRef.current = false;
     const after = inputRef.current?.value ?? "";
     const before = compositionStartRef.current;
-    const committed = after.startsWith(before) ? after.slice(before.length) : e.data;
-    if (committed) connRef.current?.text(committed);
+    // WAS: `after.startsWith(before) ? after.slice(before.length) : e.data`, which is correct only
+    // for a composition that purely APPENDS. An iPhone Arabic keyboard breaks that twice a
+    // sentence: a suggestion that REWRITES the stem took the `e.data` branch and sent the whole
+    // composed word with no Backspaces for what it replaced ("السلام" in the field, "سلاالسلام" on
+    // the desktop, and every later keystroke diffed against a baseline that no longer described
+    // the remote); and backspacing through a marked word made `e.data` empty, so nothing was sent
+    // at all and the word stayed on the desktop after it was gone from the phone.
+    emitOps(before, after);
     lastVal.current = after;
   };
   const onInputKeyDown = (e: React.KeyboardEvent) => {

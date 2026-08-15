@@ -8,7 +8,7 @@
     "dev": "vite",
     "build": "vite build",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types tests/coordinates.test.ts && node --experimental-strip-types tests/ui2-theme.test.ts && node --experimental-strip-types tests/quality.test.ts && node --experimental-strip-types tests/h264-giveup.test.ts && node --experimental-strip-types tests/accessibility.test.ts && node --experimental-strip-types tests/auth-lifecycle.test.ts && node --experimental-strip-types tests/upload-resume.test.ts && node --experimental-strip-types tests/notifications.test.ts && node --experimental-transform-types tests/ws-lifecycle.test.ts && node --experimental-transform-types tests/decode-renegotiate.test.ts && node --experimental-strip-types tests/icon-system.test.ts && node --experimental-strip-types tests/audio-lifecycle.test.ts",
+    "test": "node --experimental-strip-types tests/coordinates.test.ts && node --experimental-strip-types tests/ui2-theme.test.ts && node --experimental-strip-types tests/quality.test.ts && node --experimental-strip-types tests/h264-giveup.test.ts && node --experimental-strip-types tests/typing.test.ts && node --experimental-strip-types tests/accessibility.test.ts && node --experimental-strip-types tests/auth-lifecycle.test.ts && node --experimental-strip-types tests/upload-resume.test.ts && node --experimental-strip-types tests/notifications.test.ts && node --experimental-transform-types tests/ws-lifecycle.test.ts && node --experimental-transform-types tests/decode-renegotiate.test.ts && node --experimental-strip-types tests/icon-system.test.ts && node --experimental-strip-types tests/audio-lifecycle.test.ts",
     "preview": "vite preview",
     "gen-icons": "node scripts/gen-icons.mjs"
   },
