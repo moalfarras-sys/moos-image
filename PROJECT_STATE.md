@@ -161,7 +161,7 @@ FAILURE indistinguishable from a request for full size. Every 1920 above is that
 branch. The 12% dead band could not damp it because 1440 and 1920 are 33% apart.
 
 It also explains why the room never held H.264: each rebuild emits a new SPS, so
-the client's decoder is town down and rebuilt on every one, and a decode error
+the client's decoder is torn down and rebuilt on every one, and a decode error
 anywhere in that churn votes the whole room to JPEG. The log shows it without a
 single exception — h264 at connect, jpeg 1–23 s later, on **every** session; 36
 codec changes across 15 sessions in one day. JPEG at 1080p then saturated the
