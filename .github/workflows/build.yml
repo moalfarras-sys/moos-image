@@ -197,6 +197,36 @@ jobs:
           # it may return only in a separate workflow with its own runner budget.
           python3 tests/test_release_workflow_safety.py
           python3 tests/test_docs_privacy.py
+          # THE REST OF `just check`, because a gate CI does not run is a gate that
+          # stops the maintainer and nobody else.
+          #
+          # These fourteen ran in the Justfile only. `just build` and `just build-cloud`
+          # both depend on `check`, so any one of them failing halts an image build on
+          # the maintainer's machine while every CI run stays green — the exact shape of
+          # trap this repo keeps finding. It is not hypothetical: on 2026-08-15
+          # test_moos_fast_remote asserted a "deliberately absent" kwinrc key while
+          # setting only XDG_CONFIG_HOME, so KConfig's cascade answered from the HOST's
+          # /etc/xdg/kwinrc (which ships contrastEnabled=false) and the build stopped.
+          # CI could not have caught it, because CI was not running the file.
+          python3 tests/test_moos_fast_remote.py
+          python3 tests/test_remote_h264_single_slice.py
+          python3 tests/test_remote_toolbar_edge.py
+          python3 tests/test_remote_input_mode.py
+          python3 tests/test_remote_us_keymap.py
+          python3 tests/test_remote_keycode_flush.py
+          python3 tests/test_arabic_terminal_font.py
+          python3 tests/test_boot_branding_tool.py
+          python3 tests/test_boot_splash_polish.py
+          python3 tests/test_moai_app_launch.py
+          python3 tests/test_moai_credential_store.py
+          python3 tests/test_moai_waydroid.py
+          python3 tests/test_moos_sound_theme.py
+          python3 tests/test_remote_background_alerts.py
+          python3 tests/test_remote_clipboard_runtime.py
+          python3 tests/test_remote_linux_network_boundary.py
+          python3 tests/test_remote_start_lifecycle.py
+          python3 tests/test_remote_trusted_devices.py
+          python3 tests/test_wayland_display_resolver.py
           # These three were in the Justfile only, so they could not fail a build. The cloud edition
           # is one of the three images this matrix publishes; its two gates belong here.
           python3 tests/test_moos_cloud_audio.py

@@ -103,10 +103,32 @@ esac
 """,
         )
 
+        # XDG_CONFIG_DIRS, and without it this test's answer depended on the
+        # machine it ran on.
+        #
+        # KConfig CASCADES: kreadconfig6 resolves a key through XDG_CONFIG_HOME
+        # and then through every directory in XDG_CONFIG_DIRS, which defaults to
+        # /etc/xdg. Setting XDG_CONFIG_HOME alone therefore isolates only half of
+        # the lookup, and the host's own /etc/xdg/kwinrc still answered.
+        #
+        # That is not hypothetical. The MoOS image installed on the cloud server
+        # ships `contrastEnabled=false` in /etc/xdg/kwinrc, so the key this test
+        # calls "deliberately absent" resolved to `false` through the cascade.
+        # snapshot_config then correctly recorded a PRESENT key, no `.missing`
+        # marker was written, and the assertion below failed — on a machine where
+        # nothing was broken. `just build` and `just build-cloud` run this in
+        # their `check` step, so the whole image build stopped, while CI stayed
+        # green because CI's gate list does not include this file.
+        #
+        # An empty directory pins the cascade to exactly what this test writes.
+        self.xdg_dirs = self.root / "xdg"
+        self.xdg_dirs.mkdir()
+
         self.env = {
             **os.environ,
             "HOME": str(self.root / "home"),
             "XDG_CONFIG_HOME": str(self.config),
+            "XDG_CONFIG_DIRS": str(self.xdg_dirs),
             "XDG_RUNTIME_DIR": str(self.runtime),
             "PATH": str(self.bin) + os.pathsep + os.environ.get("PATH", ""),
             "MOOS_THEME_HELPER": str(self.theme),

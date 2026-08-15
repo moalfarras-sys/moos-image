@@ -47,6 +47,237 @@ with manifest digest
 `sha256:cbaa34261c7b0088379fffebc63515a718351107dbccdc506a39c581d879c987`
 and size 10,776,140,710 bytes.
 
+## 2026-08-15 — the Cloud was paying for blur it could not draw
+
+Found on the live MoOS Cloud server while chasing "the remote is slow and the
+picture is not clear", and both halves were real.
+
+**`moos-visual-tier` had never once fired on the machine it was written for.**
+The probe answered `integrated graphics with 8 cores and 15.6 GiB` → tier
+`balanced` → `BlurStrength 9`, `blurEnabled=true`, on a box whose OpenGL
+renderer is `llvmpipe (LLVM 22.1.8, 256 bits)`. Two spellings did it:
+
+    /sys/class/drm/card0 -> bochs-drm     VIRTUAL_DRIVERS held "bochs", not "bochs-drm"
+    /sys/class/drm/card1 -> faux_driver   vgem — absent from the table entirely
+
+so both counted as *real GPUs*, and `/dev/dri/renderD128` — published by vgem,
+which **`moos-cloud-desktop` loads on purpose** so KWin's virtual backend will
+offer OpenGL — supplied the render node that made the answer look sound. The
+cloud edition manufactured the evidence that defeated its own probe. Every blur
+pass behind every panel and menu was software work on the CPU, per frame, for
+**three** concurrent Plasma sessions, on the one machine whose whole job is to
+be encoded and streamed.
+
+`test_a_vps_with_no_render_node_is_essential` was green throughout. It builds a
+VPS with **no** render node — the right answer about the wrong machine. This is
+trap six of the documented set: the gate that models an idealised box instead of
+the shipped one. It is now joined by `test_the_real_moos_cloud_vps_is_essential`,
+built from the live `bochs-drm` + `faux_driver` + renderD128 facts, plus a
+suffix-matching gate and one asserting vgem never demotes real hardware
+(a discrete card beside vgem is still `flagship`).
+
+Fixed by `_driver_key()`, which strips the `-drm`/`_drm` suffix so one spelling
+covers both forms, and by adding `vgem`, `vkms` and `faux_driver` to
+`VIRTUAL_DRIVERS`. The patched probe on the real box now answers `essential`.
+Applied live to all three accounts (`moalfarras`, `momo`, `dahab`): 6 settings
+changed each, `[Plugins] blurEnabled=false` confirmed via `kreadconfig6`.
+
+**A live trap worth knowing: `org.kde.KWin.reconfigure` does NOT unload a
+disabled effect.** All three sessions still answered `isEffectLoaded blur` →
+`true` after a successful reconfigure; only an explicit
+`org.kde.kwin.Effects.unloadEffect blur` took it out, after which all three
+answer `false`. Login is unaffected (the effect list is read fresh), but any
+mid-session apply needs the unload.
+
+**Mo PC Remote opened soft on every desktop browser.** `pickStartPreset` reads
+Network Information, which is Chromium-only, so desktop Firefox and every Safari
+reported no `effectiveType` and fell through to Balanced — **1366px of a 1920px
+cloud desktop, upscaled again to fill the monitor**. It did not self-correct:
+the RTT ladder climbs only on four consecutive samples under 90 ms, and a
+Tailscale DERP relay jitters 33–93 ms on its own, so the session could sit at
+1366 for its whole life. Now a display ≥1400 physical px on a ≥4-core machine
+opens at Sharp — the shape of a desktop, not a bandwidth guess. Phones are
+untouched (an iPhone reports ~1179 and still opens Balanced), Data Saver still
+outranks it, and being wrong costs ~4 s (drop needs two samples and a 6 s
+cooldown) against the ~30 s or forever it cost before. The controller bundle was
+rebuilt and force-added — `index-BCWrSgdS.js` — per the `git add -f` trap that
+`test_shipped_bundle_is_tracked.py` exists to catch.
+
+**Measured on this hardware, and it settles the resolution question.** x264enc
+`veryfast zerolatency`, the encoder this GPU-less box actually selects
+(openh264enc is 1.7× slower here, so the existing order is correct):
+
+    1920x1080  desktop-like content   36.7 fps      snow (worst case)  22.9 fps
+    2560x1440  desktop-like content   19.4 fps      snow (worst case)  11.5 fps
+
+with the box otherwise idle and **one** stream running. So raising the virtual
+output above `--width 1920 --height 1080` would not make the picture clearer, it
+would drop the frame rate below 30 before a second viewer even connected. 1920
+is the correct ceiling on this machine, and the sharpness win has to come from
+*sending* all 1920 — which is exactly what the preset fix does.
+
+**`moos-auto-update` failed every night on a machine where nothing was wrong.**
+Found in the same sweep, and it is the reason `systemctl --failed` was not empty
+on the Cloud host. The unit read only the **booted** deployment and compared the
+registry against that. rpm-ostree stages an update and applies it on the next
+reboot, so an un-rebooted server sits with `staged` carrying the newest digest
+and `booted` still carrying the old one — the normal state of a server between
+the nightly run and the next restart. The comparison therefore read "an update
+is available" for ever, aimed the rebase at a ref that was already staged, and
+rpm-ostree refused:
+
+    Aug 14  staged sha256:b0f47edc…  "Changes queued for next boot"
+    Aug 15  error: Old and new refs are equal: …moos-cloud@sha256:b0f47edc…
+            moos-auto-update.service: Failed with result 'exit-code'
+
+The update was ready and waiting the whole time. The cost is the signal: a unit
+that is red every morning is indistinguishable from one that is red for a real
+reason, and this repo's self-check leans on `systemctl --failed` meaning
+something. The status parse now reads the staged ref too, and "already staged"
+exits 0 with an honest log line instead of 1. A newer image published *after*
+staging still restages, which the new gate pins alongside it. Verified against
+the live machine's real `rpm-ostree status --json`: tonight's run goes from
+`exit 1 FAILED` to `exit 0, already staged`.
+
+Not changed, deliberately: the Mo AI orb's idle breath holds ~12.7% of a core
+under llvmpipe. Its loops are correctly guarded by
+`motionEnabled: Kirigami.Units.longDuration > 1`, and `essential` writes
+`AnimationDurationFactor 0.4` on purpose ("short and honest beats fake-off"), so
+this is design, not a defect. The shipped levers are `moos-fast-remote on` and
+`moos-theme motion still`; choosing between them is the owner's call.
+
+## 2026-08-15 (second round) — the screen cut out, and the tier's motion was a label
+
+**"فصلة بشاشة" was self-inflicted, and the agent's own log named the cause.**
+One viewer, three minutes, the encode width the client asked for:
+
+    1100 -> 1920 -> 1690 -> 1920 -> 1616 -> 1194 -> 1788 -> 1920 -> 1440 -> 1920
+    -> 1378 -> 1920 -> 1904 -> 1920 -> 1436 -> 1100 -> 1704 -> 1920 ...
+
+Every arrow is a full GStreamer teardown and rebuild. `displayWidthPx()` returns
+0 when the picture cannot be measured (no canvas, no layout, mid-relayout), and
+`pushSettings` answered that with the preset CEILING — making a measurement
+FAILURE indistinguishable from a request for full size. Every 1920 above is that
+branch. The 12% dead band could not damp it because 1440 and 1920 are 33% apart.
+
+It also explains why the room never held H.264: each rebuild emits a new SPS, so
+the client's decoder is torn down and rebuilt on every one, and a decode error
+anywhere in that churn votes the whole room to JPEG. The log shows it without a
+single exception — h264 at connect, jpeg 1–23 s later, on **every** session; 36
+codec changes across 15 sessions in one day. JPEG at 1080p then saturated the
+link into `Frame send exceeded 3s … closing so the client can reconnect`. The
+disconnect was caused entirely by our own churn. Fixed by `encodeWidth()`, a
+pure function pinned by a gate: when we cannot measure, HOLD the last width.
+
+**The visual tier declared a motion policy it never applied.** Every profile has
+carried a `motion` value since the file was written, `--json` reported it and
+the summary printed "motion kept short" — but nothing anywhere set it, and
+`moos-theme perf` only delegates back to the tier. Measured here: tier
+`essential` (profile "still") with all three desktops on `gentle` — a moving
+wallpaper drawn by llvmpipe on the machine whose whole purpose is to be
+streamed. Capture is damage-driven, so an animated background is the one thing
+that guarantees the encoder is never idle. `apply()` now sets it through
+`moos-theme` (which owns the lock; `perf` holds none and `moos-apply-theme`
+holds a different one, so there is no deadlock) under the same ownership rule as
+every other key — a policy the user changed is never taken back. All three
+accounts are on `still` now.
+
+**A host config file could stop the image build, and CI could not see it.**
+`just build` depends on `check`, and `test_moos_fast_remote` failed on this
+machine: it set `XDG_CONFIG_HOME` but not `XDG_CONFIG_DIRS`, so KConfig's
+cascade answered from the host's `/etc/xdg/kwinrc` — which in the installed
+image ships `contrastEnabled=false`. The key the test called "deliberately
+absent" resolved to `false`, so no `.missing` marker was written and the
+assertion failed on a machine where nothing was wrong. The test is hermetic now.
+It reached main because it ran in the Justfile only; **fourteen** tests were in
+that position, able to stop the maintainer's build while CI stayed green. All
+fourteen are in the Repo gates now (60 → 75 checks), so `just check` and CI are
+the same set again.
+
+**Per-user health, all three accounts.** `moos-selfcheck`: `moalfarras` 7 broken
+→ 0, `momo` and `dahab` 1 broken → 0. momo/dahab were a duplicate Bazaar
+launcher, retired with the shipped `moos-one-store`. moalfarras had a split
+theme — the targets said Midnight while the applied Plasma bits were base
+MoOSUI2 — repaired by re-applying, and Midnight restored. Its last two
+"failures" were a stale installed binary: the repo's `moos-selfcheck` (fixed in
+b3b240fb) reports **49 passed, 0 broken** against the same live session.
+
+## 2026-08-15 (third round) — the encoder's slices, and a query that asked the wrong thing
+
+**x264 was emitting 8 slices per frame.** `tune=zerolatency` turns on x264's SLICED THREADS, one
+slice per thread, so on this 8-core box every access unit carried 8. Parsed out of the shipping
+encoder's own output at the live 1836x1032:
+
+    sliced-threads=true   AUs=200  P-slices=1568  IDR-slices=32  -> 8.0 slices/frame
+    sliced-threads=false  AUs=200  P-slices=196   IDR-slices=4   -> 1.0 slices/frame
+
+Multi-slice H.264 is legal and Chrome decodes it; it is also the commonest thing an iOS WebCodecs
+decoder refuses. The room held H.264 for 14–15 s and fell to JPEG **every** time — the periodic IDR
+interval at this desktop's real damage-driven frame rate, and the IDR is the access unit carrying
+8 IDR slices. Everything else was healthy: all SPS byte-identical, IDR only 2.0× a P-frame, and
+**zero** backlog drops in the agent's log. Measured, 1836x1032, 300 frames:
+
+    sliced-threads=true              8.15s  ->  36.8 fps   8 slices, 0 frames of delay
+    sliced-threads=false threads=1  13.87s  ->  21.6 fps   1 slice,  0 frames  (too slow)
+    sliced-threads=false threads=2   7.40s  ->  40.5 fps   1 slice,  1 frame   <- shipped
+
+One slice is 10% **faster** than what shipped. `threads` is now a latency budget, not a core count.
+
+**AND THE SLICE HYPOTHESIS WAS THEN DISPROVED, ON THIS MACHINE, BY MEASUREMENT.** The fixed helper
+was installed live and all three agents restarted onto it. The flap continued unchanged, with the
+same ~15 s H.264 lifetime. Multi-slice was not the cause. The change stays because it is strictly
+more compatible and measurably faster, but it is not the fix and must not be described as one.
+
+**What the same log then proved instead.** The jpeg→h264 gaps are exactly the client's retry
+backoff, `15000 * 2^n`:
+
+    08:58:46 jpeg -> 08:59:01 h264   15s   (n=0)
+    08:59:15 jpeg -> 08:59:45 h264   30s   (n=1)
+    09:00:00 jpeg -> 09:01:00 h264   60s   (n=2)
+                                  -> then STOPS, budget spent
+
+So the three-strikes rule works perfectly **within one page load** — the room settles on JPEG and
+stays there. What defeats it is that the session ends and reconnects every one to two minutes
+(09:02:56, 09:04:04, 09:04:41 in that window), and each reconnect handed out a fresh budget. That
+is precisely the defect the `sessionStorage` seeding fixes, so the evidence now points at that fix
+rather than at the encoder. It cannot be confirmed from here yet: the controller is a PWA and its
+service worker only checks for a new build **hourly**, so a browser with a warm cache is still
+running the old bundle. A hard reload (or reopening the installed app) is what makes it arrive.
+
+Still open: why the H.264 decoder dies after ~15 s at all, and why sessions end every one to two
+minutes (`SendJson failed: The operation was canceled` — the client going away). Neither is
+diagnosable from this side; both need the browser console.
+
+**The toolbar sat on the remote's dock because the media query asked about the PRIMARY pointer.**
+`@media (hover: hover) and (pointer: fine)` is false on a Windows touchscreen laptop even with a
+mouse and trackpad attached, so the rule that moves the bar to the top never applied and it stayed
+on the bottom edge — over the bottom-centred Horizon Bar (`location=4`, verified on the live
+accounts), on the same edge that is also the hover-summon strip. RemoteScreen documents the
+identical trap one screen away for gesture mode ("A touchscreen laptop therefore starts in touch
+mode"), and a browser that answers no pointer query at all — headless Firefox — got a phone layout
+in a 1280x860 window. Now `(any-hover: hover) and (any-pointer: fine)`, plus a viewport clause for
+the browser that answers nothing. CSS and JS read one exported `POINTER_BAR_QUERY`; a mismatch
+would put the summon strip on the opposite wall from the bar, so a gate asserts the stylesheet
+carries it verbatim in both blocks and that the short-landscape rail is still declared after it
+(media queries add no specificity — only source order was keeping that true).
+
+Both new gates were verified to FAIL when their change is reverted, and to pass when restored.
+
+**Applied live via `bootc usr-overlay`.** The fixed helper and the rebuilt bundle
+(`index-aEk1klfa.js`) are installed under `/usr/lib/mo-remote/` on a **transient** overlay and all
+three agents restarted onto them. This is deliberately temporary: `bootc usr-overlay` discards
+everything on `/usr` at reboot, and it touches neither the ostree origin, the signature policy, nor
+rollback. **It disappears on the next boot** — the permanent path is the signed image.
+
+**Documented temporary measure, with its removal condition.** The installed
+`/usr/bin/moos-visual-tier` on the Cloud host is still the old binary, so the
+next login would re-detect `balanced` and switch blur back on. All three
+accounts are therefore pinned with `moos-visual-tier --set essential`, which the
+tool honours before any probe runs — verified by pinning through the *installed*
+binary, so it survives a login. **Once an image carrying this commit is
+deployed, remove the pin** with `moos-visual-tier --set auto` per account, so
+detection owns the answer again and a future hardware change is followed.
+
 Release `.585` signed digests (previous):
 
 - generic: `sha256:b13e181d910b5b064e752b3fd1f1f19d1d574b74017067c622f7f18cb71cf473`

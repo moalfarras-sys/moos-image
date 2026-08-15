@@ -131,3 +131,38 @@ export const QUALITY_PRESETS: QualityPreset[] = [
  * pick the last step by hand.
  */
 export const AUTO_MAX_PRESET = 2;
+
+/**
+ * When the controller's toolbar belongs at the TOP of the window instead of the bottom.
+ *
+ * The bottom edge is not ours. The remote MoOS desktop keeps its Horizon Bar bottom-centred
+ * (`moos-bar.conf`: `location=bottom`, `alignment=center`; verified as `location=4` on the live
+ * cloud accounts), so a controller bar sitting there covers the dock the user is reaching for —
+ * and on a pointer machine the bottom strip is also the hover-summon gesture, so reaching for the
+ * dock made our bar rise under the pointer and take the click.
+ *
+ * WHY NOT `(hover: hover) and (pointer: fine)`, WHICH IS WHAT THIS USED TO BE
+ *
+ * Those two test the PRIMARY pointer, and on a Windows touchscreen laptop the primary pointer is
+ * the touchscreen even when a mouse and trackpad are attached. So `pointer: fine` is FALSE on a
+ * very ordinary computer, the rule never applied, and the bar stayed at the bottom on top of the
+ * dock — which is exactly the reported symptom. This file already documents the same class of
+ * trap for gesture mode ("A touchscreen laptop therefore starts in touch mode"), and a browser
+ * that declines to answer pointer queries at all — headless Firefox does — fell into the same
+ * hole and got a phone layout on a 1280x860 window.
+ *
+ * `any-*` asks the honest question: is a fine, hovering pointer AVAILABLE on this machine. The
+ * viewport clause then covers the browser that answers nothing: a window at least 900px wide in
+ * landscape is not a phone, and there the picture fills enough of the frame that a bottom bar
+ * lands on the dock rather than in the letterbox (in portrait on a phone the letterbox is 74% of
+ * the screen, so the bar sits in black and collides with nothing — which is why phones keep it
+ * in thumb reach). A phone in landscape is under 900px and is caught by the short-landscape rail
+ * rule, which is declared after this one and deliberately still wins.
+ *
+ * CSS AND JS MUST USE THIS EXACT STRING. styles.css positions the bar and RemoteScreen decides
+ * which edge summons it; if they disagree the gesture opens a door on the opposite wall. That is
+ * why this is one exported constant and why test_remote_toolbar_edge.py asserts the stylesheet
+ * contains it verbatim.
+ */
+export const POINTER_BAR_QUERY =
+  "(any-hover: hover) and (any-pointer: fine), (min-width: 900px) and (orientation: landscape)";

@@ -263,11 +263,34 @@ public sealed class InputInjector : IDisposable
     /// </summary>
     public void KeyCode(string code, bool down)
     {
+        // FLUSH FIRST, and its absence is why typing from a COMPUTER browser came out scrambled.
+        //
+        // Every other input entry point already does this — KeyTap, KeyDown, Click, DoubleClick,
+        // MouseButton — and KeyTap's own comment says exactly why: "letting a key overtake a
+        // pending paste would reorder the edit". KeyCode was the one that did not, and KeyCode is
+        // precisely the path a desktop browser uses: DesktopInput routes anything whose character
+        // matches the US position by POSITION (decideKey -> "physical"), which includes Space,
+        // Enter and every digit.
+        //
+        // Arabic does not match a US position, so it goes the other way, as `text`, and the agent
+        // gathers that into a batch it types by keymap group. So the two halves of one Arabic
+        // sentence travelled two different mechanisms — and the physical half, not flushing, jumped
+        // the queue. The owner reported it from the machine it happens on, in the mangled Arabic it
+        // produces: spaces landing inside words, letters arriving after the space that should have
+        // followed them.
+        //
+        // Only on the DOWN edge. A release cannot reorder an edit — the press that owns it already
+        // flushed — and flushing on every key-up would defeat the gathering that makes Arabic typing
+        // one batch instead of one round trip per letter. This mirrors KeyDown/KeyUp exactly.
+        if (down) FlushPendingText();
         if (PhysicalCodes.TryGetValue(code, out var c)) Set(c, down);
     }
 
     public void KeyTapCode(string code)
     {
+        // Same reason as KeyCode above: a tap is a press, and a press must not overtake text that
+        // is still gathering.
+        FlushPendingText();
         if (!PhysicalCodes.TryGetValue(code, out var c)) return;
         Set(c, true);
         Thread.Sleep(12);
@@ -500,6 +523,25 @@ public sealed class InputInjector : IDisposable
             var events = new List<object> { new { layout = arabic ? "ara" : "home" } };
             bool built = arabic ? AraKeymap.TryStrokes(text, events)
                                 : TryDirectStrokes(text, events);
+            // SYMBOLS: fall to the US GROUP rather than dropping the run.
+            //
+            // TryDirectStrokes injects keysyms, which KWin resolves at shift level ONE only, so it
+            // covers a-z, 0-9, space and A-Z (uppercase being the one level-two case that is the
+            // same on every Latin layout) and nothing else. Every symbol is level two or higher and
+            // its position is not layout-invariant — `@` is Shift+2 on US and AltGr+Q on German — so
+            // a run containing one returned false and Deliver dropped the WHOLE run with a warning.
+            // From the user's side: paste a URL, a password or an email address into the remote and
+            // the symbols are missing, or the line never arrives at all.
+            //
+            // Selecting a known group makes positions deterministic, which is the trick AraKeymap
+            // already proved for a much harder script. Only reached when the fast path fails, so
+            // ordinary Latin text still types by keysym on the user's own layout and pays nothing.
+            if (!built && !arabic && UsKeymap.Covers(text))
+            {
+                events.Clear();
+                events.Add(new { layout = "us" });
+                built = UsKeymap.TryStrokes(text, events);
+            }
             if (!built)
             {
                 // Fail closed, exactly as the clipboard path learned to. A character with no key

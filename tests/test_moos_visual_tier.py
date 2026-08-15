@@ -121,6 +121,53 @@ class Classification(unittest.TestCase):
                          "cores and RAM must never buy motion a software "
                          "renderer has to pay for per frame")
 
+    def test_the_real_moos_cloud_vps_is_essential(self) -> None:
+        """The cloud box as it ACTUALLY is, which is not what the test above modelled.
+
+        `test_a_vps_with_no_render_node_is_essential` builds a VPS with no
+        render node and passes. The real MoOS Cloud server has one, because
+        moos-cloud-desktop loads vgem on purpose so KWin's virtual backend will
+        offer OpenGL. Read off the live machine:
+
+            /sys/class/drm/card0 -> bochs-drm      (QEMU emulated VGA, no 3D)
+            /sys/class/drm/card1 -> faux_driver    (vgem, renders nothing)
+            /dev/dri/renderD128                    (published by vgem)
+            glxinfo: llvmpipe (LLVM 22.1.8, 256 bits)
+
+        Neither name was matched — `bochs` is not `bochs-drm`, and faux_driver
+        was absent — so both counted as real GPUs and the probe answered
+        "integrated graphics with 8 cores and 15.6 GiB" -> balanced -> blur on
+        at strength 9, in software, for three concurrent Plasma sessions.
+
+        The green gate above is why that survived: it asserted the right answer
+        about the wrong machine.
+        """
+        tier, facts = self.tier_of(lambda m: m
+                                   .gpu("card0", "bochs-drm")
+                                   .gpu("card1", "faux_driver").render_node()
+                                   .cpu(8).memory(15.6).display(1920, 1080))
+        self.assertEqual(facts["gpu_class"], "virtual",
+                         "a render node published by vgem is not a GPU")
+        self.assertEqual(tier, "essential",
+                         "llvmpipe must not be asked to pay for blur")
+
+    def test_a_drm_suffixed_driver_is_matched_like_its_bare_name(self) -> None:
+        """The suffix is the whole bug: `bochs-drm` must resolve to `bochs`."""
+        module = load_module(Path(tempfile.gettempdir()))
+        for raw, bare in (("bochs-drm", "bochs"), ("bochs", "bochs"),
+                          ("nvidia", "nvidia"), ("virtio_gpu", "virtio_gpu")):
+            with self.subTest(driver=raw):
+                self.assertEqual(module._driver_key(raw), bare)
+
+    def test_a_real_gpu_beside_vgem_is_still_a_real_gpu(self) -> None:
+        """vgem is loadable anywhere; it must never demote real hardware."""
+        tier, facts = self.tier_of(lambda m: m
+                                   .gpu("card1", "nvidia")
+                                   .gpu("card2", "faux_driver").render_node()
+                                   .cpu(16).memory(15.4).display(3840, 2160))
+        self.assertEqual(facts["gpu_class"], "discrete")
+        self.assertEqual(tier, "flagship")
+
     def test_a_virtual_adapter_without_acceleration_is_essential(self) -> None:
         tier, facts = self.tier_of(lambda m: m
                                    .gpu("card0", "virtio_gpu").cpu(8).memory(16))
@@ -263,6 +310,57 @@ class ApplyIsHonest(unittest.TestCase):
             result = module.apply(tier)
             result["_wrote"] = wrote
             return result
+
+    def run_apply_motion(self, tier: str, state: dict | None, live_motion: str) -> dict:
+        """apply() with the motion helpers stubbed, so the real desktop is never driven."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            os.environ["MOOS_TIER_STATE_HOME"] = str(root / "state")
+            os.environ["MOOS_TIER_CONFIG_HOME"] = str(root / "config")
+            module = load_module(root)
+            if state is not None:
+                path = module.state_path()
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(json.dumps(state), encoding="utf-8")
+            asked: list[str] = []
+            module._kreadconfig = lambda f, g, k: ""
+            module._kwriteconfig = lambda f, g, k, v: True
+            module._reconfigure_kwin = lambda: None
+            module._current_motion = lambda: live_motion
+            def fake_apply_motion(policy: str) -> bool:
+                asked.append(policy)
+                return True
+            module._apply_motion = fake_apply_motion
+            result = module.apply(tier)
+            result["_asked"] = asked
+            return result
+
+    def test_the_tier_actually_sets_the_motion_it_declares(self) -> None:
+        """The profile has always DECLARED motion; nothing ever applied it.
+
+        Measured on the MoOS Cloud server: tier `essential` (profile "still")
+        with all three desktops running `gentle` — a moving wallpaper drawn in
+        software, on the machine whose whole purpose is to be streamed. The
+        capture is damage-driven, so an animated background is the one thing
+        guaranteed to stop the encoder ever being idle.
+        """
+        result = self.run_apply_motion("essential", None, "gentle")
+        self.assertEqual(result["_asked"], ["still"],
+                         "an essential machine must be asked for still motion")
+        self.assertEqual(result["motion_written"], "still")
+
+    def test_motion_already_correct_is_not_rewritten(self) -> None:
+        result = self.run_apply_motion("essential", None, "still")
+        self.assertEqual(result["_asked"], [], "nothing to do must do nothing")
+
+    def test_a_motion_the_user_chose_is_left_alone(self) -> None:
+        """Same ownership rule as every other key: theirs wins, permanently."""
+        state = {"tier": "essential", "written": {}, "motion_written": "still"}
+        result = self.run_apply_motion("essential", state, "alive")
+        self.assertEqual(result["_asked"], [],
+                         "a motion policy the user changed must never be taken back")
+        self.assertIn("motion", result["skipped"])
+        self.assertEqual(result["motion_written"], "still")
 
     def test_a_fresh_machine_gets_the_whole_profile(self) -> None:
         result = self.run_apply("flagship", None, {})

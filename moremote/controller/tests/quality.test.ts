@@ -1,8 +1,34 @@
 import assert from "node:assert/strict";
 import {
-  pickStartPreset, describeHints,
+  pickStartPreset, describeHints, encodeWidth,
   PRESET_DATA_SAVER, PRESET_BALANCED, PRESET_SHARP,
 } from "../src/lib/quality.ts";
+
+// ── A failed measurement must not become a request for full size ─────────────────────────
+// Every distinct encode width costs the helper a full GStreamer teardown and rebuild, which the
+// viewer sees as the screen cutting out. `shown === 0` means "cannot measure right now", and
+// answering it with the ceiling made the request ping-pong. Measured on the live cloud server,
+// one viewer, three minutes, from the agent's own log:
+//
+//   1100 -> 1920 -> 1690 -> 1920 -> 1616 -> 1194 -> 1788 -> 1920 -> 1440 -> 1920 -> 1378 -> 1920
+//
+// Every 1920 in that sequence is the unmeasurable branch, and the 12% dead band could not damp it
+// because 1440 and 1920 are 33% apart.
+assert.equal(encodeWidth(1440, 1920, 1440), 1440, "a good measurement is used as-is");
+assert.equal(encodeWidth(0, 1920, 1440), 1440,
+  "an unmeasurable moment must HOLD the last width, not jump to the ceiling");
+assert.equal(encodeWidth(0, 1920, 0), 1920,
+  "a viewer that has never measured still opens at the ceiling, not at a floor");
+
+// A deliberate preset DROP must still take effect immediately, even while unmeasurable —
+// otherwise a struggling link could not be relieved until the next successful layout.
+assert.equal(encodeWidth(0, 1024, 1920), 1024,
+  "the held width is still clamped to the current ceiling");
+
+// The 720 floor survives: below it, text on a 1080p desktop is unreadable on any phone.
+assert.equal(encodeWidth(320, 1920, 1440), 720, "the 720 floor still applies to a real measurement");
+// ...but the floor is a floor, not a target: it must never raise a held width.
+assert.equal(encodeWidth(2400, 1920, 1920), 1920, "a measurement above the ceiling is clamped");
 
 // The opening rung, which the RTT ladder cannot supply because a ladder is a correction and
 // not an opening move. Every case here is a real device shape, not an abstract branch.
@@ -59,12 +85,49 @@ assert.equal(
   PRESET_BALANCED,
   "4g at 2 Mbit/s must not open at Sharp — effectiveType is a bucket, not a measurement");
 
-// ── A browser that reports nothing keeps the old, safe behaviour ─────────────────────────
-// Desktop Safari and Firefox expose no Network Information at all. Silence must not be read
-// as either fast or slow, or the majority of desktops get a guess instead of a default.
+// ── A browser that reports NOTHING AT ALL keeps the old, safe behaviour ──────────────────
+// Silence with no display measurement either must not be read as fast or slow. This is the
+// floor case, and it stays exactly as it was.
 assert.equal(pickStartPreset({}), PRESET_BALANCED,
   "no signals at all must fall back to Balanced, exactly as before this existed");
 assert.equal(pickStartPreset(), PRESET_BALANCED, "no argument at all must be safe too");
+
+// ── A COMPUTER whose browser hides the link must still open sharp ────────────────────────
+// Network Information is Chromium-only, so desktop Firefox and every Safari report no
+// effectiveType. They used to fall through to Balanced — 1366px of a 1920px cloud desktop,
+// upscaled again to fill a big monitor — and the RTT ladder could not reliably rescue them:
+// it climbs only on four consecutive samples under 90ms, and a Tailscale DERP relay jitters
+// 33..93ms by itself. That is the "الصورة مو واضحة" case, and it could last the whole session.
+//
+// The screen width is the evidence. A 1400px+ physical display on a 4-core machine is a
+// desktop or a laptop, which is on wifi or ethernet.
+assert.equal(
+  pickStartPreset({ hardwareConcurrency: 8, displayWidthPx: 2560 }),
+  PRESET_SHARP,
+  "desktop Firefox on a 1440p monitor must open at Sharp, not climb for 30s or never");
+assert.equal(
+  pickStartPreset({ hardwareConcurrency: 10, displayWidthPx: 3840 }),
+  PRESET_SHARP,
+  "desktop Safari on a 4K monitor must open at Sharp");
+
+// ...but the same silence on a PHONE-shaped device must not. iOS Safari reports no
+// effectiveType either, and an iPhone 15 Pro is 393 CSS px x 3 = 1179 physical.
+assert.equal(
+  pickStartPreset({ hardwareConcurrency: 6, displayWidthPx: 1179 }),
+  PRESET_BALANCED,
+  "a phone whose browser hides the link must NOT be promoted on screen width alone");
+
+// A weak machine stays out of it whatever its monitor says: this is a decode limit.
+assert.equal(
+  pickStartPreset({ hardwareConcurrency: 2, displayWidthPx: 2560 }),
+  PRESET_DATA_SAVER,
+  "a two-core machine on a big monitor is still a decode problem");
+
+// Data Saver still outranks the new branch, exactly as it outranks the fast-link one.
+assert.equal(
+  pickStartPreset({ saveData: true, hardwareConcurrency: 8, displayWidthPx: 2560 }),
+  PRESET_DATA_SAVER,
+  "Data Saver must win over the wide-display promotion too");
 
 // A 4g device that reports no downlink and no memory is still allowed to open Sharp: absent
 // fields are unknown, not bad, and effectiveType 4g is the browser's own verdict on the link.

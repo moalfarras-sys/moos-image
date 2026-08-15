@@ -9,9 +9,10 @@ import {
   listTrustedDevices, revokeTrustedDevice,
   type ClipResult, type FileListing, type FileEntry, type PowerAction, type TrustedDeviceInfo,
 } from "../lib/api";
-import { pickStartPreset, readDeviceHints, describeHints } from "../lib/quality";
+import { pickStartPreset, readDeviceHints, describeHints, encodeWidth } from "../lib/quality";
+import { h264Failures, noteH264Failure, H264_MAX_FAILURES } from "../lib/h264state.ts";
 import { remoteAlertPermission, requestRemoteAlertPermission, showRemoteAlert } from "../lib/notifications";
-import { QUALITY_PRESETS, AUTO_MAX_PRESET, BUILD, MODE_LABEL, MODE_HINT, type GestureMode, type ViewMode, type MonitorInfo } from "../types";
+import { QUALITY_PRESETS, AUTO_MAX_PRESET, POINTER_BAR_QUERY, BUILD, MODE_LABEL, MODE_HINT, type GestureMode, type ViewMode, type MonitorInfo } from "../types";
 import {
   IconAltTab, IconActual, IconArrowUp, IconBackspace, IconChevronDown, IconClipboard, IconClose,
   IconCopy, IconEnter, IconEsc, IconFile, IconFit, IconFolder, IconFullscreen, IconKeyboard,
@@ -122,7 +123,33 @@ function defaultMode(): GestureMode {
       (navigator.maxTouchPoints ?? 0) > 0 ||
       "ontouchstart" in window ||
       (window.matchMedia?.("(any-pointer: coarse)").matches ?? false);
-    return touch ? "touch" : "desktop";
+
+    // A MACHINE WITH A TOUCHSCREEN **AND** A MOUSE IS A COMPUTER, AND MUST GET THE COMPUTER PATH.
+    //
+    // The note above used to end "A touchscreen laptop therefore starts in touch mode... the safer
+    // way to be wrong". It is not the safer way to be wrong, and the owner reported exactly what it
+    // costs, on a computer browser: the keyboard and the mouse "do not really work".
+    //
+    // Touch mode is not a cosmetic preference. DesktopInput — the REAL mouse and keyboard path — is
+    // constructed always but ATTACHED only in "desktop" mode, because its window-level keydown
+    // listener would otherwise steal every keystroke from the phone's hidden-textarea path. So a
+    // touchscreen laptop got no real mouse buttons, no wheel, no physical key codes, no pointer
+    // lock and no keyboard lock; click-and-drag became a scroll instead of a selection — which
+    // reads as the REMOTE being broken, exactly as the note above predicted, on the machine class
+    // the note then chose to be wrong about. Windows laptops with touchscreens are ordinary, and
+    // two Windows machines are enrolled on this tailnet.
+    //
+    // `any-pointer: fine` is the honest question — is a fine pointer AVAILABLE — and it is the same
+    // fix and the same reasoning as POINTER_BAR_QUERY in types.ts, which was the toolbar half of
+    // this identical misdiagnosis.
+    //
+    // THE HEADLESS-BROWSER HOLE THE NOTE ABOVE WARNS ABOUT STAYS CLOSED. That hole was
+    // `(pointer: fine) && !(any-pointer: coarse)`, which REQUIRED positive evidence of a mouse and
+    // so failed on a browser that answers nothing. Here the mouse test only ever RESCUES a device
+    // that already looked like touch, so a browser answering false to everything still has `touch`
+    // false and still lands on desktop, byte for byte as before.
+    const mouse = window.matchMedia?.("(any-pointer: fine)").matches ?? false;
+    return touch && !mouse ? "touch" : "desktop";
   } catch {
     return "desktop";
   }
@@ -264,8 +291,35 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
   // render and must never route a frame to the decoder we have just left.
   const codecRef = useRef<"jpeg" | "h264">("jpeg");
   const h264Ref = useRef<H264Stream | null>(null);
-  /** How many times we have re-offered H.264 after a decode failure, and the pending re-offer. */
-  const h264RetriesRef = useRef(0);
+  /**
+   * How many times we have re-offered H.264 after a decode failure, and the pending re-offer.
+   *
+   * SEEDED FROM sessionStorage, BECAUSE A RECONNECT USED TO HAND OUT A FRESH BUDGET.
+   *
+   * The three-strikes rule below is correct and was defeated by the connection lifecycle. This is a
+   * plain `useRef`, so it resets whenever the component remounts — and the log from the live cloud
+   * server shows sessions ending and reconnecting every one to two minutes. Each reconnect started
+   * the count at zero, so "give up after three" never arrived; the room re-entered the flap for as
+   * long as anyone was watching:
+   *
+   *     06:06:38 h264 -> 06:06:52 jpeg     06:09:52 h264 -> 06:10:07 jpeg
+   *     06:07:07 h264 -> 06:07:21 jpeg     06:10:51 h264 -> 06:11:05 jpeg
+   *     06:08:35 h264 -> 06:08:52 jpeg     06:12:23 h264 -> 06:12:37 jpeg
+   *
+   * Fourteen to fifteen seconds every time — the periodic IDR interval at this desktop's real
+   * damage-driven frame rate. EVERY arrow is a full GStreamer teardown and rebuild, which is what
+   * the person watching experiences as the screen cutting out. The stream itself is not the
+   * problem: captured from the shipping encoder settings, all SPS are byte-identical and an IDR is
+   * only 2.0x the size of a P-frame, so there is no renegotiation and no bandwidth spike to blame.
+   * The decode fails inside the browser, and this client cannot see why.
+   *
+   * So this does not pretend to fix H.264. It stops the DAMAGE: a browser that has already proven
+   * three times that it cannot hold the stream settles on a picture that works instead of tearing
+   * the pipeline down every fifteen seconds forever. sessionStorage is the right scope — per tab,
+   * cleared when the tab closes — so a genuinely transient failure costs one tab and nothing more,
+   * and a new tab is always allowed to try again from scratch.
+   */
+  const h264RetriesRef = useRef(h264Failures());
   const h264RetryTimer = useRef<number | null>(null);
   const view = useRef({ zoom: 1, panX: 0, panY: 0 });
   const fpsCount = useRef(0);
@@ -728,9 +782,10 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
       // Backed off and bounded: the first retry is generous enough that a device in real trouble has
       // stopped being in trouble, each subsequent one waits longer, and after three we accept that
       // this browser genuinely cannot decode H.264 and stop asking. A retry costs one keyframe.
-      if (h264RetriesRef.current < 3) {
+      if (h264RetriesRef.current < H264_MAX_FAILURES) {
         const wait = 15000 * Math.pow(2, h264RetriesRef.current);
-        h264RetriesRef.current++;
+        // ONE shared fact, so the connect-time declaration in ws.ts cannot out-vote this.
+        h264RetriesRef.current = noteH264Failure();
         if (h264RetryTimer.current) window.clearTimeout(h264RetryTimer.current);
         h264RetryTimer.current = window.setTimeout(() => {
           if (disposed || !canDecodeH264()) return;
@@ -1057,7 +1112,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
     // dock owns the bottom edge — so the summon strip must live on the same edge the bar
     // appears on, or the gesture opens a door on the opposite wall. Capability, not mode:
     // a phone forced into desktop mode still has its bar (and thumb) at the bottom.
-    const topBar = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+    const topBar = window.matchMedia(POINTER_BAR_QUERY).matches;
     let armed = true;
     const onMove = (e: PointerEvent) => {
       const near = topBar ? e.clientY < EDGE : e.clientY > window.innerHeight - EDGE;
@@ -1331,11 +1386,15 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
     const zoomed = view.current.zoom > 1.05;
     const ceiling = viewModeRef.current === "actual" || zoomed ? 2560 : Math.min(p.width, 2560);
     const shown = displayWidthPx();
-    // A zero means we could not measure yet (no canvas, no size): fall back to the preset rather
-    // than to a floor, or the first seconds of every session would be a deliberately small picture.
+    // A zero means we could not measure right now (no canvas, no size, a frame mid-relayout). That
+    // is NOT a request for full size — treating it as one made the encode width ping-pong between
+    // the fitted size and the ceiling, and every leg of that is a pipeline rebuild the viewer sees
+    // as the screen cutting out. See encodeWidth() for the measured sequence and why it also cost
+    // the room H.264 on every single session.
+    //
     // The floor is 720: below that, text on a 1080p desktop is unreadable on ANY
     // phone, and the encode cost of 720 vs 480 is noise even on llvmpipe.
-    const width = shown > 0 ? Math.max(720, Math.min(ceiling, shown)) : ceiling;
+    const width = encodeWidth(shown, ceiling, lastPushedWidth.current);
     lastPushedWidth.current = width;
     connRef.current?.settings(p.quality, p.fps, width, Math.min(1, width / 2560));
   };
@@ -1860,13 +1919,21 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
       return;
     }
     if (el.requestFullscreen) {
+      // ASK FOR THE KEYBOARD FIRST, THEN GO FULLSCREEN.
+      //
+      // Chrome's guidance for this exact pairing is to call lock() BEFORE entering fullscreen, to
+      // avoid multiple user messages: since Chrome 131 both Keyboard Lock and Pointer Lock are
+      // permission-gated, so locking after the transition prompts the user a second time, on a
+      // screen that has just changed size under them. Requesting first collapses that into one.
+      // The keys are only actually captured while fullscreen is active, which is why this still
+      // lives in the fullscreen path and not at startup.
+      //
+      // Best-effort and Chromium-only: without it Esc, Tab, Ctrl+W and F11 stay the browser's and
+      // everything else on the keyboard still reaches the desktop. Nobody is ever trapped — the
+      // spec requires an escape hatch, and in Chrome that is a two-second Esc hold.
+      desktopRef.current?.requestKeyboardLock();
       el.requestFullscreen()
         .then(() => {
-          // Esc, Tab, Ctrl+W and F11 are the browser's until Keyboard Lock is granted, and it is
-          // only ever granted in fullscreen — which is why this call lives here and not at startup.
-          // Chromium-only and best-effort: without it those four keys stay local, and everything
-          // else on the keyboard still reaches the desktop.
-          desktopRef.current?.requestKeyboardLock();
           // Deliberately NOT locking the phone to landscape here. It used to call
           // screen.orientation.lock("landscape"), so tapping Fullscreen spun the phone sideways on
           // its own — the "الشاشة عم تعمل عرضي على الجوال" the owner reported, and the opposite of

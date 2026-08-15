@@ -56,7 +56,38 @@ TIERS = ("essential", "balanced", "flagship")
 DISCRETE_DRIVERS = {"nvidia", "nouveau", "amdgpu", "radeon"}
 # A virtual display adapter. virtio_gpu CAN be accelerated (virgl/venus), which
 # is why the render-node check decides rather than the driver name alone.
-VIRTUAL_DRIVERS = {"virtio_gpu", "vmwgfx", "qxl", "bochs", "cirrus", "simpledrm", "vboxvideo"}
+#
+# vgem and vkms are not adapters at all. They are kernel stubs that publish a
+# render node while rendering NOTHING, and MoOS loads vgem ON PURPOSE:
+# moos-cloud-desktop does it so KWin's virtual backend will offer OpenGL at all.
+# So the cloud edition manufactures the very evidence this probe reads as "GPU".
+# On current kernels their driver link resolves to the faux bus rather than to
+# the module name, which is why `faux_driver` is spelled out here too.
+VIRTUAL_DRIVERS = {"virtio_gpu", "vmwgfx", "qxl", "bochs", "cirrus", "simpledrm",
+                   "vboxvideo", "vgem", "vkms", "faux_driver"}
+
+
+def _driver_key(name: str) -> str:
+    """The name to match against the tables above.
+
+    `device/driver` points at the DRIVER, and a driver's name is not always its
+    module's name: QEMU's emulated VGA binds as `bochs-drm`, not `bochs`. A
+    plain membership test therefore missed it — and missing it was not cosmetic.
+    Measured on the MoOS Cloud VPS, whose drivers are exactly `bochs-drm` and
+    `faux_driver` (vgem):
+
+        gpu_class "integrated"  ->  tier "balanced"  ->  BlurStrength 9, blur ON
+
+    on a machine whose OpenGL renderer is `llvmpipe (LLVM 22.1.8, 256 bits)`.
+    Every blur pass behind every panel and menu was software work on the CPU,
+    for THREE concurrent Plasma sessions, on the one machine whose whole job is
+    to be encoded and streamed. Stripping the DRM suffix lets one spelling cover
+    both forms.
+    """
+    for suffix in ("-drm", "_drm"):
+        if name.endswith(suffix):
+            return name[: -len(suffix)]
+    return name
 
 ROOT = pathlib.Path(os.environ.get("MOOS_TIER_ROOT", "/"))
 
@@ -118,16 +149,16 @@ def probe() -> dict:
     # add a size threshold that an NVIDIA machine can never satisfy.
 
     render_nodes = _glob("/dev/dri/renderD*")
-    real = [d for d in drivers if d not in VIRTUAL_DRIVERS]
-    virtual = [d for d in drivers if d in VIRTUAL_DRIVERS]
+    real = [d for d in drivers if _driver_key(d) not in VIRTUAL_DRIVERS]
+    virtual = [d for d in drivers if _driver_key(d) in VIRTUAL_DRIVERS]
 
     if not render_nodes:
         # No render node means no GPU context: the compositor falls back to
         # llvmpipe and every blur pass is paid on the CPU.
         gpu_class = "software"
-    elif any(d in DISCRETE_DRIVERS for d in real) and (
+    elif any(_driver_key(d) in DISCRETE_DRIVERS for d in real) and (
             vram_bytes >= 3 * 1024 ** 3
-            or any(d in {"nvidia", "nouveau"} for d in real)):
+            or any(_driver_key(d) in {"nvidia", "nouveau"} for d in real)):
         gpu_class = "discrete"
     elif real:
         gpu_class = "integrated"
@@ -325,6 +356,41 @@ def _kwriteconfig(file: str, group: str, key: str, value: str) -> bool:
         return False
 
 
+def _current_motion() -> str:
+    """The live wallpaper motion policy, or "" if it cannot be read.
+
+    A read, so it takes no theme lock — `moos-theme motion` with no value is
+    explicitly documented as the query form that must never acquire one.
+    """
+    if os.environ.get("MOOS_TIER_ROOT"):
+        return ""          # a fake root must never consult the real session
+    try:
+        p = subprocess.run(["moos-theme", "motion"], capture_output=True,
+                           text=True, timeout=30)
+        return p.stdout.strip() if p.returncode == 0 else ""
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
+def _apply_motion(policy: str) -> bool:
+    """Set the wallpaper motion policy through the tool that owns it.
+
+    Deliberately a subprocess to moos-theme rather than a second implementation:
+    motion drives the containments through plasmashell and is guarded by
+    moos-theme's own lock, and this file's contract is that moos-visual-tier
+    holds the probe and the tier table while moos-theme owns the desktop.
+    """
+    if os.environ.get("MOOS_TIER_ROOT"):
+        return False       # a fake root must never drive the real desktop
+    try:
+        return subprocess.run(
+            ["moos-theme", "motion", policy],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=60,
+        ).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
 def _kreadconfig(file: str, group: str, key: str) -> str:
     try:
         p = subprocess.run(
@@ -370,8 +436,46 @@ def apply(tier: str, *, dry_run: bool = False) -> dict:
             elif not dry_run:
                 skipped.append(ident)
 
+    # MOTION IS PART OF THE PROFILE, AND IT WAS THE ONE PART NEVER APPLIED.
+    #
+    # Every tier has declared a `motion` since this file was written, `--json`
+    # reported it, and the summary line printed "motion kept short" — but nothing
+    # anywhere ever set it. `moos-theme perf` only delegates back here, and
+    # apply() wrote kwinrc and kdeglobals and stopped. So the value was a label.
+    #
+    # Measured on the MoOS Cloud server: tier `essential`, whose profile says
+    # "still", with all three desktops actually running `gentle`. A MOVING
+    # wallpaper, drawn by llvmpipe because the box has no GPU, on the machine
+    # whose entire purpose is to be captured and streamed. The stream is
+    # damage-driven — "a still desktop costs nothing at all" is the architecture
+    # doc's own claim — and an animated wallpaper damages the whole screen
+    # continuously, so the encoder never once gets to be idle. It is the single
+    # most expensive thing that can be true about a remote desktop's background.
+    #
+    # Applied with the SAME ownership discipline as every key above: if the live
+    # policy is not what this tool last wrote, the user changed it and theirs
+    # wins permanently. moos-theme owns the transaction and its lock; `perf` does
+    # not hold that lock, and moos-apply-theme holds a different one, so calling
+    # it here cannot deadlock.
+    motion = profile["motion"]
+    motion_written = previous.get("motion_written")
+    if not dry_run:
+        live_motion = _current_motion()
+        user_changed = (motion_written is not None and live_motion
+                        and live_motion != motion_written and live_motion != motion)
+        if user_changed:
+            skipped.append("motion")
+            motion = motion_written
+        elif live_motion and live_motion != motion:
+            if _apply_motion(motion):
+                changed += 1
+            else:
+                skipped.append("motion")
+                motion = live_motion
+
     result = {"tier": tier, "changed": changed, "skipped": skipped,
-              "motion": profile["motion"], "written": written}
+              "motion": profile["motion"], "motion_written": motion,
+              "written": written}
     if not dry_run:
         try:
             state_path().parent.mkdir(parents=True, exist_ok=True)

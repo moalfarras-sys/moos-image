@@ -86,10 +86,71 @@ export function pickStartPreset(hints: DeviceHints = {}): number {
   const fastLink = effectiveType === "4g" && (downlink === undefined || downlink >= 5);
   if (fastLink && capableDevice && !narrowDisplay) return PRESET_SHARP;
 
-  // 6. Anything else — including a browser that reports nothing at all, which is every desktop
-  //    Safari and Firefox — keeps the old behaviour. Balanced is the safe opening move and the
-  //    ladder takes it from there.
+  // 6. A browser that reports NO link class at all. Network Information is Chromium-only, so
+  //    this is every desktop Firefox and every Safari — and it used to fall straight through to
+  //    Balanced. On a phone that is right. On a computer it is a picture that is permanently
+  //    soft, for two compounding reasons:
+  //
+  //      * Balanced is 1366px. The MoOS Cloud desktop being streamed is 1920 wide and the
+  //        monitor showing it is usually wider still, so the viewer watches a 1366px source
+  //        downscaled from 1920 and then upscaled again to fill the window. Detail is thrown
+  //        away before the encoder ever sees it, and no bitrate puts it back.
+  //
+  //      * It does not correct itself. The ladder climbs only after four agreeing samples
+  //        under 90ms at 2s each plus a 20s cooldown — and a Tailscale DERP relay jitters
+  //        33..93ms on its own (the ladder's own comment says so). On the exact link this
+  //        product is built for, `lat < 90` may never hold four times running, so the session
+  //        can sit at 1366 for its whole life.
+  //
+  //    A wide display on a capable device is not a bandwidth guess: it is the SHAPE of a
+  //    desktop or laptop, and those are on wifi or ethernet, not a metered cellular plan. The
+  //    asymmetry settles it — being wrong here costs ~4s of a too-sharp picture, because
+  //    dropping needs only two agreeing samples and a 6s cooldown; being wrong the old way
+  //    cost ~30 seconds, or the entire session.
+  //
+  //    displayWidthPx is the physical width of the SCREEN (screen.width x devicePixelRatio),
+  //    so a phone stays out of this: an iPhone reports ~1179 and lands on Balanced as before.
+  const wideDisplay = typeof displayWidthPx === "number" && displayWidthPx >= 1400;
+  if (effectiveType === undefined && capableDevice && wideDisplay) return PRESET_SHARP;
+
+  // 7. Anything else keeps the old behaviour. Balanced is the safe opening move and the ladder
+  //    takes it from there.
   return PRESET_BALANCED;
+}
+
+/**
+ * The encode width to ask the helper for, given what we can measure RIGHT NOW.
+ *
+ * WHY A FAILED MEASUREMENT MUST NOT BECOME A REQUEST
+ *
+ * `shown` is 0 whenever the picture cannot be measured — no canvas, no layout, a hidden tab, a
+ * frame between teardown and rebuild. The old rule was "0 means fall back to the preset ceiling",
+ * which sounds harmless and is not: it makes a MEASUREMENT FAILURE indistinguishable from a
+ * deliberate request for full size, and every distinct width costs the helper a complete GStreamer
+ * teardown and rebuild (~200ms of no picture, then a fresh IDR).
+ *
+ * Measured on the MoOS Cloud server, one viewer, three minutes, from the agent's own log:
+ *
+ *     1100 -> 1920 -> 1690 -> 1920 -> 1616 -> 1194 -> 1788 -> 1920 -> 1440 -> 1920
+ *     -> 1378 -> 1920 -> 1904 -> 1920 -> 1436 -> 1100 -> 1704 -> 1920 ...
+ *
+ * Every jump back to exactly 1920 is this branch firing, and every arrow is a rebuild the person
+ * watching sees as the screen cutting out. The 12% dead band cannot damp it, because 1440 and 1920
+ * are 33% apart — the guard is doing its job on a request that should never have been made.
+ *
+ * It also explains why the room never held H.264. Each rebuild emits a new SPS, so the client's
+ * decoder is torn down and rebuilt on every one; a decode error anywhere in that churn votes the
+ * whole room down to JPEG, which is what the log shows on EVERY session: h264 at connect, jpeg
+ * 1-23 seconds later, without exception.
+ *
+ * So: when we cannot measure, do not change the request. Keep the last width we asked for, still
+ * clamped to the current ceiling so a deliberate preset DROP is honoured immediately. Only a
+ * viewer that has never once measured falls back to the ceiling, which is the original intent —
+ * the first seconds must not be a deliberately small picture.
+ */
+export function encodeWidth(shown: number, ceiling: number, lastPushed: number): number {
+  if (shown > 0) return Math.max(720, Math.min(ceiling, shown));
+  return lastPushed > 0 ? Math.min(ceiling, lastPushed) : ceiling;
 }
 
 /** Read what this browser will tell us. Every field is optional by design. */
