@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -233,4 +234,26 @@ esac
 
 
 if __name__ == "__main__":
+    # THIS TEST DRIVES THE REAL KConfig BINARIES, AND CI DOES NOT HAVE THEM.
+    #
+    # Everything else the script talks to is stubbed above — moos-theme, the engine helper, gdbus,
+    # systemctl — but kreadconfig6/kwriteconfig6 are deliberately NOT, because the behaviour under
+    # test is KConfig's own: the cascade through XDG_CONFIG_DIRS, `--default` on an absent key, and
+    # `--delete`. A stub would be a second implementation of the thing being verified, and would
+    # pass while the real one broke.
+    #
+    # The cost is that the test cannot run where KDE Frameworks is absent. That is `ubuntu-latest`:
+    # the runner has no kwriteconfig6 at all, and adding this file to the CI gate list turned every
+    # image build red with `FileNotFoundError: 'kwriteconfig6'` — three failed builds before the
+    # cause was clear. KF6 is not in noble's archive either, so installing it is not a one-line fix.
+    #
+    # So it skips where it cannot run, and it says so LOUDLY rather than printing a reassuring OK.
+    # It is still a real gate everywhere it matters: `just check` runs on MoOS machines, where the
+    # binaries exist and the assertions all execute. Green here without the notice below means it
+    # ran for real.
+    if shutil.which("kwriteconfig6") is None or shutil.which("kreadconfig6") is None:
+        print("SKIPPED: moos-fast-remote's transaction test needs the real kreadconfig6/"
+              "kwriteconfig6 (KDE Frameworks), which this machine does not have. NOTHING WAS "
+              "VERIFIED HERE — run `just check` on a MoOS machine to actually exercise it.")
+        raise SystemExit(0)
     unittest.main(verbosity=2)
