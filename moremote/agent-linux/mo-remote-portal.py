@@ -245,8 +245,10 @@ KEYBOARD_BUS = "org.kde.keyboard"
 KEYBOARD_PATH = "/Layouts"
 KEYBOARD_IFACE = "org.kde.KeyboardLayouts"
 
+# `warned` is a SET of group names, not a bool: one missing layout used to mute the warning for
+# every other one, so a machine lacking both `ara` and `us` reported only whichever failed first.
 layout_state = {"codes": [], "ara": None, "home": None, "current": None,
-                "warned": False, "typed": False, "toggle": False}
+                "warned": set(), "typed": False, "toggle": False}
 
 
 def _group_toggle_available():
@@ -352,15 +354,50 @@ def _toggle_events(times):
     return out
 
 
+def _group_index(name):
+    """Which xkb group `name` means, or None if this machine has no such layout.
+
+    THIS USED TO BE `layout_state["ara"] if name == "ara" else layout_state["home"]`, WHICH
+    ALIASED EVERY OTHER NAME TO THE USER'S OWN LAYOUT.
+
+    Harmless while `ara` and `home` were the only names anyone asked for. It stopped being harmless
+    the moment UsKeymap started asking for `us` to type symbols: the request resolved to `home`,
+    the batch typed US POSITIONS on the GERMAN group, and the user got German faces. Measured live
+    on this machine with the exact positions UsKeymap emits for `@ / - ;`, group 0 (de) active:
+
+        expected  @ / - ;
+        got       " - ss oe        (quotedbl, minus, ssharp, odiaeresis)
+
+    and on the real `us` group the same positions produced `@/-;` correctly. Nothing failed: no
+    warning, no dropped run, no log line. The text simply arrived wrong, which is the worst shape
+    a bug can have.
+
+    A position is only deterministic once the group is known — that is the premise of BOTH keymap
+    tables — so a name that silently resolves to a different group defeats the mechanism it serves.
+
+    `home` and `ara` keep their cached answers (resolved once at startup); anything else is looked
+    up by prefix in the live ring, exactly the way `ara` itself is found.
+    """
+    if name == "home":
+        return layout_state["home"]
+    if name == "ara":
+        return layout_state["ara"]
+    codes = layout_state["codes"]
+    return next((i for i, c in enumerate(codes) if c.startswith(name)), None)
+
+
 def select_group(name, send):
     """Put `name` on the active group by injecting toggles through `send` — the SAME sender the
     batch's letters use. Returns False when the group does not exist or cannot be reached."""
-    idx = layout_state["ara"] if name == "ara" else layout_state["home"]
+    idx = _group_index(name)
     if idx is None:
-        if not layout_state["warned"]:
-            layout_state["warned"] = True
-            emit(type="warn", warn="no Arabic keyboard layout is configured; Arabic cannot be "
-                                   "typed until one is added in System Settings > Keyboard")
+        # Name the group that is actually missing. This hard-coded the Arabic message for EVERY
+        # failure, so a machine without a `us` group told its owner to install an Arabic keyboard.
+        if name not in layout_state["warned"]:
+            layout_state["warned"].add(name)
+            emit(type="warn", warn=f"no '{name}' keyboard layout is configured; text needing it "
+                                   f"cannot be typed until one is added in "
+                                   f"System Settings > Keyboard")
         return False
     cur = layout_state["current"]
     if cur is None or not layout_state["codes"]:

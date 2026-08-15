@@ -93,6 +93,7 @@ check:
     python3 tests/test_remote_toolbar_edge.py
     python3 tests/test_remote_input_mode.py
     python3 tests/test_remote_us_keymap.py
+    python3 tests/test_remote_group_resolution.py
     python3 tests/test_remote_keycode_flush.py
     # Desktop sound must be enabled everywhere AND bind loopback (the service has no auth).
     python3 tests/test_desktop_sound_reachable.py
