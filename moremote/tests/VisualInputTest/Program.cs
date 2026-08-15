@@ -1,8 +1,10 @@
 using MoRemote;
 
-Environment.SetEnvironmentVariable("YDOTOOL_SOCKET","/tmp/.ydotool_socket");
-using var capture=new ScreenCapture();
-using var input=new InputInjector(capture);
+using var portal=new PortalBridge();
+using var capture=new ScreenCapture(portal);
+using var input=new InputInjector(portal,capture);
+var readyUntil=DateTime.UtcNow.AddSeconds(10);
+while(!input.IsReady&&DateTime.UtcNow<readyUntil)Thread.Sleep(100);
 if(!input.IsReady)throw new Exception(input.LastError);
 void Pause(int ms=180)=>Thread.Sleep(ms);
 if(args.Contains("--launcher")){input.KeyTap("Meta");Thread.Sleep(5000);input.KeyTap("Escape");Console.WriteLine("LAUNCHER_TEST=PASS");return;}
@@ -24,13 +26,16 @@ if(args.Contains("--drag")){input.MouseMove(.5,.075);input.MouseButtonCurrent("l
 if(args.Contains("--unicode")){input.KeyTap("Meta");Pause(500);input.TypeText("kwrite");Pause(400);input.KeyTap("Enter");Thread.Sleep(2500);input.Combo(["Control","N"]);Pause(400);input.TypeText("مرحباً Grüße English");Thread.Sleep(2500);Console.WriteLine("UNICODE_TYPING_TEST=PASS");return;}
 if(args.Contains("--unicode-file")){
  const string path="/tmp/moremote-unicode-input.txt";
+const string expected="مرحبا بالعالم — Grüße € 👩🏽‍💻 1️⃣ English @#:/?_−";
  File.Delete(path);
- using var terminal=System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("konsole",$"--separate -e sh -c \"cat > {path}\"") { UseShellExecute=false });
+ var start=new System.Diagnostics.ProcessStartInfo("/usr/bin/moai-open") { UseShellExecute=false };
+ foreach(var arg in new[]{"konsole","-e","sh","-c",$"cat > {path}"})start.ArgumentList.Add(arg);
+ using var terminal=System.Diagnostics.Process.Start(start);
  Thread.Sleep(2200);
- input.TypeText("مرحباً Grüße English");
+ input.TypeText(expected);
  input.Combo(["Control","D"]);Thread.Sleep(1200);
  var actual=File.Exists(path)?File.ReadAllText(path):"";
- if(actual!="مرحباً Grüße English")throw new Exception($"Unicode input mismatch: '{actual}'");
+ if(actual!=expected)throw new Exception($"Unicode input mismatch: expected '{expected}', got '{actual}'");
  Console.WriteLine("UNICODE_FILE_TEST=PASS");return;
 }
 

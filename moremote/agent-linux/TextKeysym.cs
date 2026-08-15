@@ -8,7 +8,8 @@ namespace MoRemote;
 /// keysym against the active group only, so on a `de,ara` keymap sitting in the German group an
 /// Arabic keysym (legacy 0x05xx or the 0x01000000+Unicode form alike) resolves to no real key.
 /// Measured: 'م' arrived as keycode 247 / keyval 0x1008ffb5 — a key that types nothing. Arabic is
-/// typed through the clipboard instead; see InputInjector.PasteText.
+/// typed on its real keymap group; characters no installed group carries use the explicitly
+/// ordered, byte-confirmed fallback in InputInjector.
 /// </summary>
 public static class TextKeysym
 {

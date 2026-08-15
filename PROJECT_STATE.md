@@ -4,15 +4,11 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-08-11, signed **`44.20260811.586`** on all three editions
-(main `e5043ba3`), deployed and verified on this 4K NVIDIA development host.
-This is the localized-lock follow-up to the unified motion, 4K boot-art,
-system-sound and first-party-tool polish release described below. The host is
-booted from the signature-enforced exact NVIDIA digest, the previous `.585`
-deployment remains available for rollback, both system and user failed-unit
-sets are empty, the Wayland session is active at 3840x2160/225% with HDR/WCG,
-and the installed adaptive ActionButton and lock MediaControls sources match
-the repository byte-for-byte with no temporary overlay.
+Last updated: 2026-08-15. The development host is booted from signed
+**`44.20260814.590`** (`moos-nvidia@sha256:04de88e6…`) and keeps signed `.588`
+as its rollback deployment. The integrated Mo PC Remote repair below is source
+and live-development tested but **not yet shipped**; do not describe it as part
+of `.590` until the three image jobs sign a newer release and it is boot-proven.
 
 Release `.586` signed digests:
 
@@ -46,6 +42,90 @@ four documented warnings only). It produced local image
 with manifest digest
 `sha256:cbaa34261c7b0088379fffebc63515a718351107dbccdc506a39c581d879c987`
 and size 10,776,140,710 bytes.
+
+## 2026-08-15 — integrated Mo PC Remote repair (signed release pending)
+
+This round began from the owner's report, not a failing compiler: the screen
+froze or went black, mobile typing changed or lost characters, the desktop
+browser lost real mouse/keyboard behaviour, and controller chrome covered the
+remote system bar. Controller tests, TypeScript, Linux builds and existing repo
+gates were green before the repair; the missing layer was behavioural and live
+acceptance.
+
+**Video recovery is now explicit at both ends.** A browser decode queue over
+eight retires the old `VideoDecoder`, creates a new generation and accepts only
+the next IDR; outputs or errors from the retired generation cannot reset the
+replacement. A server queue overflow drops every reference-broken delta until
+an IDR arrives. PipeWire emits a one-second keepalive and a moving five-second
+progress clock; starvation after the first frame is now as fatal as starvation
+at startup. Only an error from a known H.264 encoder enters encoder fallback;
+an error from `pipewiresrc`, scaling or an unknown element restarts the portal
+session instead of rebuilding the same broken source forever.
+
+**Input has one order and complete compatibility.** A full 1024-event input
+queue applies `WriteAsync` backpressure instead of injecting the newest event
+inline ahead of older input. A double tap now totals two clicks, not the first
+tap plus a two-click command. ASCII and Arabic stay on real keymaps; printable
+US symbols select the actual live `us` group, and no named group aliases to the
+user's German group. Unsupported text is classified without breaking grapheme
+clusters; if any grapheme needs the compatibility path, the complete gathered
+browser commit is written and read back exactly through Wayland, then delivered
+by one ordered Shift+Insert. This avoids racing multiple clipboard owners
+against an application's asynchronous Paste request. The live RemoteDesktop
+test wrote and read back exactly twice in succession:
+
+    مرحبا بالعالم — Grüße € 👩🏽‍💻 1️⃣ English @#:/?_−
+
+The phone's hidden input now sends normal `input` and `compositionend` through
+the same tested diff engine. Arabic IME suggestions that replace a stem emit
+the required Backspaces, shrinking a marked word cannot disappear silently,
+and opening, closing, reconnecting or resyncing clears a stale composition
+latch instead of leaving the phone apparently typing into nowhere.
+
+Explicit text and PNG clipboard writes now acknowledge only after byte-exact
+read-back. The phone offers Set only / Send & Paste and Set image only / Photo &
+Paste; desktop Ctrl/Cmd+V transfers local text or the first image before sending
+the remote paste shortcut. A failed transfer sends no shortcut, so stale PC
+content cannot be pasted. The full controller path was exercised against a real
+LibreOffice Writer document: the uploaded PNG and the served Wayland clipboard
+both hashed `64c40a8d18f1fe99a93afe78ccb7382b6196eed6eac14a9dfa973a29c0a556fa`,
+the ordered Paste reached Writer, and the image was visibly embedded in page 1.
+
+**The controller no longer covers the desktop.** `.remote-stage` and `.toolbar`
+are sibling grid tracks. A portrait phone reserves a safe-area bottom dock;
+phone landscape and desktop reserve a right rail. Hiding the controls does not
+change that geometry. Headless Chrome measurements against the full running
+agent found zero overlap and a 44×44 minimum target at 390×844, 844×390 and
+1440×900. The actual H.264/NVENC session survived 30 seconds of alternating
+those three viewports: 30/30 non-empty canvas samples, minimum lit-pixel ratio
+0.9985, one portal start, no JPEG fallback, warning, error or reconnect.
+
+The architecture and release contract are now in
+`moremote/docs/MOOS_REMOTE_ARCHITECTURE.md`. The deliberate next major step is
+per-viewer WebRTC media/layers plus measured goodput and decoder-headroom
+adaptation; the repaired H.264-over-WebSocket path remains the shipping path in
+this round.
+
+All three complete local image composes from this exact tree passed their QML,
+boot/initramfs, store, image-experience and final foreign-identity firewall
+gates, followed by `bootc container lint` (9 checks and the four documented
+warnings):
+
+- generic: image `89a9dc168f2af99905b82cf60d3e843eb184d755d6325d2c8efcbb813b71667f`,
+  manifest `sha256:00d0cd0f66212993687ccb3a40de3b72baef8fab7051e7183bea9bc1d8e3b0b4`,
+  10,782,506,431 bytes;
+- NVIDIA: image `159283783e8af79b755ec9aad40d649bc6d4e3396a96b31f59470bbe477bb2b7`,
+  manifest `sha256:6344da6cb3116d05498f4055ca3996e693591fabd7f5e0461a347efb9010bb99`,
+  13,021,358,029 bytes, with driver `610.57.04` matching kernel
+  `7.1.8-200.fc44.x86_64` and seven NVIDIA modules proven in its 217 MiB
+  initramfs;
+- Cloud: image `259f1aef1fa43e90a3103a34b60b0961d20b73a5fb48a247b56e709fe52d48a5`,
+  manifest `sha256:08709251a19e1921e889361e837fe1de8224c03856b4fcfa52d44c512c2c0bdb`,
+  10,758,480,330 bytes. Its server gates ran before the final logo seal and
+  identity firewall, proving the firewall inspected the finished Cloud bytes.
+
+Signed CI publication and post-reboot proof remain open at the time this entry
+was written.
 
 ## 2026-08-15 — the Cloud was paying for blur it could not draw
 

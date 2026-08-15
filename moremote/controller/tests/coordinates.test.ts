@@ -28,23 +28,20 @@ assert.match(gestures, /case "scroll":/,
   "onUp must be able to rescue a short, small gesture as a tap — otherwise a wobbled tap sends nothing");
 assert.match(gestures, /TAP_RESCUE_MS/);
 assert.match(gestures, /Continue below and deliver this first meaningful delta/);
-// Text coalescing is adaptive: keysym-typable text flushes within one 60 Hz frame, while text the
-// agent must type by borrowing the clipboard batches into WORDS.
+// Text coalescing is adaptive: keysym-typable text flushes within one 60 Hz frame, while text that
+// needs a keymap switch or exact-Unicode compatibility path batches into committed WORDS.
 //
 // The upper bound used to be 80 ms, chosen to keep the delay imperceptible. Measured live on
 // 2026-08-03 that bound was the bug: the gap between two letters of ordinary typing is longer
-// than 80 ms, so every letter still paid for its own clipboard borrow — and a borrow is not
-// cheap, because the agent must set the selection AND read it back before pasting (wl-copy
-// returns before the compositor will serve the new content; an unconfirmed paste dropped whole
-// words). The window must therefore be longer than an inter-letter gap and shorter than a pause
-// between words, so a WORD travels as one borrow. Imperceptibility was the wrong target for a
-// path whose failure mode is losing the text.
+// than 80 ms, so every letter still paid for its own group transition. The window must be longer
+// than an inter-letter gap and shorter than a pause between words, so a WORD travels as one
+// ordered operation. Imperceptibility was the wrong target for a path whose failure is lost text.
 const fastMs = ws.match(/FAST_FLUSH_MS = (\d+)/);
-const clipMs = ws.match(/CLIPBOARD_FLUSH_MS = (\d+)/);
-assert.ok(fastMs && clipMs, "ws.ts must define both coalescing windows");
+const complexMs = ws.match(/COMPLEX_TEXT_FLUSH_MS = (\d+)/);
+assert.ok(fastMs && complexMs, "ws.ts must define both coalescing windows");
 assert.ok(Number(fastMs[1]) <= 16, `keysym flush must stay within one 60Hz frame, got ${fastMs[1]}ms`);
-assert.ok(Number(clipMs[1]) >= 150 && Number(clipMs[1]) <= 320,
-  `clipboard flush must batch a word, not a letter, got ${clipMs[1]}ms`);
+assert.ok(Number(complexMs[1]) >= 150 && Number(complexMs[1]) <= 320,
+  `complex text flush must batch a word, not a letter, got ${complexMs[1]}ms`);
 // The client's fast-path test must match the agent's, or text routes down the wrong path.
 assert.match(ws, /FAST_TEXT = \/\^\[a-zA-Z0-9 \]\*\$\//);
 
@@ -72,7 +69,7 @@ assert.ok(coalesceMax && coalesceMaxMs,
   "can hold a growing buffer for as long as the user keeps typing, and a dropped socket loses it");
 assert.ok(Number(coalesceMax[1]) <= 240,
   `the client cap must not exceed the agent's PasteCoalesceMax, got ${coalesceMax[1]}`);
-assert.ok(Number(coalesceMaxMs[1]) >= Number(clipMs[1]) && Number(coalesceMaxMs[1]) <= 300,
+assert.ok(Number(coalesceMaxMs[1]) >= Number(complexMs[1]) && Number(coalesceMaxMs[1]) <= 300,
   `the age cap is what delivers under continuous typing — the debounce never fires there — so it must stay inside a quarter second, got ${coalesceMaxMs[1]}ms`);
 
 // Arrow keys move the caret VISUALLY in Qt's default LogicalMoveStyle, so inside an RTL run

@@ -518,8 +518,32 @@ public sealed class InputInjector : IDisposable
     /// </summary>
     private void Deliver(string run)
     {
-        foreach (var (text, arabic) in SplitByGroup(run))
+        var planned = TextRunPlanner.Split(run);
+        // A target application is allowed to request clipboard bytes after it handles Paste.
+        // Publishing a second Unicode segment first can therefore replace the selection observed
+        // by the first one (measured live as `Grüße` becoming `Gr€e`). If any grapheme needs the
+        // compatibility path, preserve the browser's whole committed run with one clipboard owner
+        // and one ordered Paste. Native-only commits still use real Arabic/Latin key events.
+        if (TextRunPlanner.RequiresAtomicPaste(planned))
         {
+            PasteUnicodeFallback(run);
+            return;
+        }
+
+        // Build every native batch before emitting the first one. A missing keyboard group must
+        // move the COMPLETE commit to the exact path; discovering that only after typing a prefix
+        // would duplicate/reorder text around the later Paste.
+        var batches = new List<(string Text, bool Arabic, List<object> Events)>();
+        foreach (var (text, arabic, _) in planned)
+        {
+            // A positional table is deterministic only when its named group ACTUALLY exists.
+            // The old helper treated every name except `ara` as `home`; on a German desktop an
+            // allegedly-US `@#:/` arrived as `"§Ö-`. Missing groups take the exact-text path.
+            if (arabic && !_portal.HasLayout("ara"))
+            {
+                PasteUnicodeFallback(run);
+                return;
+            }
             var events = new List<object> { new { layout = arabic ? "ara" : "home" } };
             bool built = arabic ? AraKeymap.TryStrokes(text, events)
                                 : TryDirectStrokes(text, events);
@@ -536,7 +560,7 @@ public sealed class InputInjector : IDisposable
             // Selecting a known group makes positions deterministic, which is the trick AraKeymap
             // already proved for a much harder script. Only reached when the fast path fails, so
             // ordinary Latin text still types by keysym on the user's own layout and pays nothing.
-            if (!built && !arabic && UsKeymap.Covers(text))
+            if (!built && !arabic && UsKeymap.Covers(text) && _portal.HasLayout("us"))
             {
                 events.Clear();
                 events.Add(new { layout = "us" });
@@ -544,16 +568,16 @@ public sealed class InputInjector : IDisposable
             }
             if (!built)
             {
-                // Fail closed, exactly as the clipboard path learned to. A character with no key
-                // on either group (an emoji, a symbol from a third script) cannot be typed by a
-                // keyboard at all, and typing the REST of the run would silently reorder the
-                // user's sentence around the hole.
-                Log.Warn($"Typing skipped {text.Length} character(s) with no key on the available " +
-                         "layouts; nothing was typed for that run.");
-                continue;
+                // Never silently omit text a known layout could not build. Preserve the exact
+                // committed UTF-8 as one transaction, before any prefix has been emitted.
+                PasteUnicodeFallback(run);
+                return;
             }
-            if (!_portal.Send(new { type = "keysyms", events }))
-                FallbackType(text, arabic);
+            batches.Add((text, arabic, events));
+        }
+        foreach (var (text, arabic, events) in batches)
+        {
+            if (!_portal.Send(new { type = "keysyms", events })) FallbackType(text, arabic);
         }
     }
 
@@ -561,44 +585,46 @@ public sealed class InputInjector : IDisposable
     /// Cuts a run into (text, needsArabicGroup) stretches. Characters either group can produce
     /// extend the current stretch rather than starting a new one.
     /// </summary>
-    internal static List<(string Text, bool Arabic)> SplitByGroup(string run)
+    /// <summary>
+    /// Exact Unicode escape hatch for text which no installed keyboard group can produce.
+    ///
+    /// libei 1.6 has native TEXT/UTF-8 events, but MoOS 44 currently ships libei/libeis 1.5 and
+    /// KWin therefore cannot advertise that capability. Silently dropping ä, é, € or an emoji is
+    /// not acceptable. Until the compositor stack carries TEXT, publish this committed input to
+    /// Wayland's clipboard, read the exact bytes back, then inject Shift+Insert as one synchronous
+    /// batch. The single-reader input FIFO plus sync:true keeps later keys from overtaking it.
+    /// The clipboard intentionally remains this text: restoring it on a timer would race the target
+    /// application's asynchronous request for the selection.
+    /// </summary>
+    private void PasteUnicodeFallback(string text)
     {
-        var parts = new List<(string, bool)>();
-        var buf = new System.Text.StringBuilder();
-        bool? mode = null;
-        foreach (var rune in run.EnumerateRunes())
+        if (string.IsNullOrEmpty(text)) return;
+        if (!ClipboardBridge.SetTextConfirmed(text))
         {
-            bool? want = AraKeymap.NeedsArabicGroup(rune.Value) ? true
-                       : IsLatinTypable(rune.Value) ? false
-                       : (bool?)null;
-            // A character neither group claims (emoji) still has to break the stretch, so the
-            // undeliverable part is reported on its own instead of poisoning a good one.
-            if (want is null)
-            {
-                if (buf.Length > 0) { parts.Add((buf.ToString(), mode ?? false)); buf.Clear(); }
-                parts.Add((rune.ToString(), false));
-                mode = null;
-                continue;
-            }
-            if (mode is not null && want != mode && !Ambiguous(rune.Value))
-            {
-                parts.Add((buf.ToString(), mode.Value));
-                buf.Clear();
-                mode = want;
-            }
-            else if (mode is null) mode = want;
-            buf.Append(rune.ToString());
+            Log.Warn($"Could not publish {text.Length} Unicode character(s) exactly; skipped the " +
+                     "paste rather than inserting stale or changed clipboard data.");
+            return;
         }
-        if (buf.Length > 0) parts.Add((buf.ToString(), mode ?? false));
-        return parts;
+        object[] events =
+        [
+            new { code = (int)ShiftCode, down = true },
+            new { code = 110, down = true },
+            new { code = 110, down = false },
+            new { code = (int)ShiftCode, down = false },
+        ];
+        // Portal call completion means KWin accepted the preceding keymap batch, not that the
+        // focused application has dispatched every key from it. Give that rare compatibility path
+        // one measured dispatch window before the paste shortcut; without it the first Unicode run
+        // after Arabic was lost in a real Konsole round-trip test while all later runs survived.
+        Thread.Sleep(45);
+        if (!_portal.Send(new { type = "keysyms", sync = true, events }))
+        {
+            Set(ShiftCode, true); Set(110, true); Set(110, false); Set(ShiftCode, false);
+        }
+        // The selection remains ours; this delay only prevents a later edit from being handled
+        // before the target dispatches the paste event itself.
+        Thread.Sleep(60);
     }
-
-    /// <summary>A character both groups can type, so it must not force a switch of its own.</summary>
-    private static bool Ambiguous(int c) =>
-        AraKeymap.Has(c) && IsLatinTypable(c) && c <= 0x7F;
-
-    private static bool IsLatinTypable(int c) =>
-        c is >= 'a' and <= 'z' or >= 'A' and <= 'Z' or >= '0' and <= '9' || c == ' ';
 
     /// <summary>
     /// The portal is down, so injection is uinput and there is no way to select a keymap group

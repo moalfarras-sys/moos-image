@@ -156,6 +156,10 @@ const MAX_DECODE_QUEUE = 8;
 export class H264Stream {
   private dec: VideoDecoder | null = null;
   private codec = "";
+  /** Invalidates callbacks from a decoder we have already retired. WebCodecs is allowed to
+   *  deliver queued output/error callbacks after close(), and an old error must never reset the
+   *  fresh decoder that replaced it. */
+  private generation = 0;
   private started = false;
   /** True while we are skipping deltas and waiting for an IDR to resynchronise from. */
   private resyncing = false;
@@ -173,6 +177,20 @@ export class H264Stream {
   push(buf: ArrayBuffer) {
     const b = new Uint8Array(buf);
     const key = isKeyframe(b);
+
+    // Falling behind means the decoder itself owns a queue of OLD pictures. Merely refusing to
+    // call decode() again does not empty that queue: the requested IDR would sit behind it and the
+    // viewer would still watch the past catch up. Retire the decoder now, before examining this
+    // access unit. A keyframe already in hand can seed the replacement immediately; otherwise skip
+    // deltas and ask for one.
+    if (this.started && !this.resyncing && (this.dec?.decodeQueueSize ?? 0) > MAX_DECODE_QUEUE) {
+      this.retireDecoder();
+      if (!key) {
+        this.resyncing = true;
+        this.onNeedKeyframe();
+        return;
+      }
+    }
 
     if (!this.started) {
       if (!key) return;                       // still waiting for something to start FROM
@@ -207,10 +225,6 @@ export class H264Stream {
     // stream rather than a hole in the middle of it — and asks for that keyframe rather than waiting
     // up to a full GOP for the scheduled one. Exactly the same trade the agent makes when ITS queue
     // overruns (see StreamSession's backlog drop); this is the client-side half of it.
-    if (!this.resyncing && (this.dec?.decodeQueueSize ?? 0) > MAX_DECODE_QUEUE) {
-      this.resyncing = true;
-      this.onNeedKeyframe();
-    }
     if (this.resyncing) {
       if (!key) return;                       // still catching up; this frame is already history
       this.resyncing = false;
@@ -234,12 +248,20 @@ export class H264Stream {
     if (this.dec && this.codec === codec) return true;
     this.reset();
     try {
+      const generation = ++this.generation;
       const dec = new VideoDecoder({
-        output: (f) => this.onFrame(f),
+        output: (f) => {
+          if (generation !== this.generation) { f.close(); return; }
+          this.onFrame(f);
+        },
         // A decoder that errors is not a decoder that recovers: it is closed, and the next
         // keyframe has to build a new one. Telling the caller lets it fall back to JPEG rather
         // than sit in front of a frozen picture wondering.
-        error: (e) => { this.reset(); this.onFail(String(e)); },
+        error: (e) => {
+          if (generation !== this.generation) return;
+          this.reset();
+          this.onFail(String(e));
+        },
       });
       dec.configure({ codec, optimizeForLatency: true });
       this.dec = dec;
@@ -253,11 +275,18 @@ export class H264Stream {
 
   /** Forget everything and wait for the next keyframe. */
   reset() {
-    try { this.dec?.close(); } catch { /* already closed */ }
+    this.retireDecoder();
+    this.resyncing = false;
+  }
+
+  /** Close only the codec state. Recovery deliberately keeps its `resyncing` decision. */
+  private retireDecoder() {
+    const old = this.dec;
+    this.generation++;
     this.dec = null;
     this.codec = "";
     this.started = false;
-    this.resyncing = false;
     this.lastSps = null;
+    try { old?.close(); } catch { /* already closed */ }
   }
 }

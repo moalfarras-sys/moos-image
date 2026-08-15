@@ -235,3 +235,15 @@ export const IconPlug = (p: P) => (
     <path d="M12 16v5M8.5 21h7" />
   </S>
 );
+export const IconDesktop = (p: P) => (
+  <S {...p}>
+    <rect x="2.5" y="3.5" width="19" height="13" rx="2.5" />
+    <path d="M8 20.5h8M12 16.5v4" />
+  </S>
+);
+export const IconConnection = (p: P) => (
+  <S {...p}>
+    <path d="M5 16.5a9.8 9.8 0 0 1 14 0M8 13a5.7 5.7 0 0 1 8 0M11 9.7a1.45 1.45 0 1 1 2 0" />
+    <path d="M4 5.5h4M6 3.5v4M16 5.5h4M18 3.5v4" opacity=".72" />
+  </S>
+);

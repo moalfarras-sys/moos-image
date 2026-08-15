@@ -1,7 +1,53 @@
 # Unified Experience Continuation
 
-Date: 2026-08-11
-Branch: `main`
+Date: 2026-08-15
+Branch: `fix/moremote-integrated-control-20260815`
+
+## 2026-08-15 — Mo PC Remote integrated control, signed release pending
+
+The working tree intentionally contains the coordinated Remote and build/CI
+round. Do not reset it. It is rebased on main `a090a952`, including both the
+live-layout resolver and the iPhone IME/composition repair. The controller is
+PWA v37 and its generated bundle must be rebuilt and force-added after any
+source edit.
+
+Completed and behaviour-gated: decoder generation retirement on backlog,
+drop-until-IDR server recovery, PipeWire keepalive/starvation restart, correct
+GStreamer error ownership, ordered input backpressure, exact two-click double
+tap, named US/Arabic groups, exact Unicode compatibility runs, confirmed text
+and PNG clipboard writes, and non-overlapping phone/desktop controller chrome.
+The hidden phone field also shares one tested diff engine for normal input and
+composition commits, so Arabic suggestion rewrites, shrink/backspace, a
+cancelled composition and reconnect cannot duplicate text or latch typing off.
+The real portal round trip preserved Arabic, German, emoji, English and symbols
+exactly twice in succession, including an emoji keycap grapheme. A full
+H.264/NVENC development session produced 30 non-empty samples
+across portrait, landscape and desktop viewports without portal rebuild, JPEG,
+warning, error or reconnect. Visual measurements were zero overlap and 44px
+minimum targets in all three layouts. The complete Photo & Paste path was also
+run through the controller into a real LibreOffice Writer page: upload and
+Wayland read-back SHA-256 matched and the image appeared in the document.
+
+Build safety fixes in the same tree make island-home deletion bounded and
+verified, reseal the final logo after all Cloud package transactions, run the
+foreign-identity firewall on final bytes, and raise the measured image job
+ceiling to 180 minutes. The firewall was not weakened.
+
+Controller, .NET and repo gates all pass. Three complete local composes from
+this exact tree also pass, including each finished-image identity firewall and
+`bootc container lint`:
+
+- generic `89a9dc168f2a…`, manifest `sha256:00d0cd0f6621…`, 10,782,506,431 B;
+- NVIDIA `159283783e8a…`, manifest `sha256:6344da6cb311…`, 13,021,358,029 B;
+  its 217 MiB initramfs contains seven NVIDIA modules for the exact 7.1.8
+  kernel;
+- Cloud `259f1aef1fa4…`, manifest `sha256:08709251a19e…`, 10,758,480,330 B;
+  its final seal and firewall ran after every Cloud package/configuration step.
+
+Next, in order: review/stage/commit/push and open a draft PR; follow all CI jobs
+through signed publication; update the exact target systems and reboot the
+development host last. Do not call this shipped before the post-boot deployment
+digest, failed-unit sets and rollback deployment are recorded.
 
 ## 2026-08-11 — signed `.586` boot proof and family-pair diagnostic repair
 

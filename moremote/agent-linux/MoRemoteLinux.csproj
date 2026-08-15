@@ -21,6 +21,7 @@
     <Compile Include="../agent/Core/UploadSessionStore.cs" Link="Core/UploadSessionStore.cs" />
     <Compile Include="../agent/Core/FileService.cs" Link="Core/FileService.cs" />
     <Compile Include="../agent/Core/InputSequenceGuard.cs" Link="Core/InputSequenceGuard.cs" />
+    <Compile Include="../agent/Core/H264RecoveryQueue.cs" Link="Core/H264RecoveryQueue.cs" />
     <Compile Include="../agent/Core/NetworkGuard.cs" Link="Core/NetworkGuard.cs" />
     <Compile Include="../agent/Core/Security.cs" Link="Core/Security.cs" />
     <Compile Include="../agent/Core/SessionState.cs" Link="Core/SessionState.cs" />

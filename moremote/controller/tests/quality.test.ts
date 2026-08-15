@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
+import {dirname, resolve} from "node:path";
+import {fileURLToPath} from "node:url";
 import {
   pickStartPreset, describeHints, encodeWidth,
   PRESET_DATA_SAVER, PRESET_BALANCED, PRESET_SHARP,
@@ -155,3 +158,14 @@ assert.match(describeHints({ saveData: true, effectiveType: "4g", downlink: 12,
   "the About line must name every signal that was actually available");
 
 console.log("PASS: opening-quality choice (device + link aware)");
+
+// The live RTT ladder has a second cap in RemoteScreen. A wide monitor used to bypass it and let
+// RTT promote the stream to Ultra, even though RTT says nothing about the available bandwidth.
+const here = dirname(fileURLToPath(import.meta.url));
+const remote = readFileSync(resolve(here, "../src/ui/RemoteScreen.tsx"), "utf8");
+assert.match(remote, /const autoMaxPreset = \(\) => AUTO_MAX_PRESET;/,
+  "the RTT ladder must always stop at Sharp; Ultra is a manual bandwidth decision");
+assert.ok(!/autoMaxPreset\s*=\s*\(\)\s*=>[^;]*displayWidthPx/.test(remote),
+  "display size must not bypass the automatic Sharp ceiling");
+
+console.log("PASS: Auto quality cannot promote a wide display to Ultra from RTT");

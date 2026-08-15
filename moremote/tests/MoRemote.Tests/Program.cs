@@ -24,6 +24,21 @@ Throws(()=>CoordinateMapper.NormalizedToDesktop(.5,.5,new(0,0,0,10)),"empty geom
 Eq((0,785),CoordinateMapper.NormalizedToDesktop(-5,9,normal),"out-of-range clamp");
 var guard=new InputSequenceGuard();Eq(true,guard.Accept(1,1000,1000,out _),"sequence first");Eq(false,guard.Accept(1,1001,1001,out _),"sequence duplicate");Eq(false,guard.Accept(0,1002,1002,out _),"sequence reordered");Eq(true,new InputSequenceGuard().Accept(1,0,40000,out _),"a large now-vs-timestamp gap is deliberately ACCEPTED: freshness is sequence-only, not wall-clock (see InputSequenceGuard)");
 
+// Overflow recovery may never expose a delta after its reference frames were discarded.
+byte[] Delta(byte marker) => [0, 0, 0, 1, 0x41, marker];
+byte[] Idr(byte marker) => [0, 0, 0, 1, 0x67, 0x64, 0, 0x28, 0, 0, 0, 1, 0x65, marker];
+var h264Queue = new H264RecoveryQueue(maxDepth: 2);
+Eq(H264EnqueueResult.Queued, h264Queue.Enqueue(Delta(1)), "h264 queue accepts first delta");
+Eq(H264EnqueueResult.Queued, h264Queue.Enqueue(Delta(2)), "h264 queue accepts within budget");
+Eq(H264EnqueueResult.NeedKeyframe, h264Queue.Enqueue(Delta(3)), "h264 overflow asks for IDR");
+Eq(0, h264Queue.Count, "h264 overflow discards the complete broken reference chain");
+Eq(H264EnqueueResult.DroppedWhileWaiting, h264Queue.Enqueue(Delta(4)), "h264 recovery drops deltas before IDR");
+var recoveryIdr = Idr(5);
+Eq(H264EnqueueResult.Recovered, h264Queue.Enqueue(recoveryIdr), "h264 IDR restarts the queue");
+Eq(true, h264Queue.TryDequeue(out var recoveredAu), "h264 recovery exposes the IDR");
+Eq(true, ReferenceEquals(recoveryIdr, recoveredAu), "h264 recovery exposes only the IDR it received");
+Eq(false, h264Queue.TryDequeue(out _), "no broken delta follows the recovery IDR");
+
 var unicode="مرحباً Grüße English";Eq(unicode,System.Text.Encoding.UTF8.GetString(System.Text.Encoding.UTF8.GetBytes(unicode)),"clipboard unicode");
 var clipboardClock = System.Diagnostics.Stopwatch.StartNew();
 var timedOutClipboard = ClipboardBridge.RunReadCommand(
@@ -43,6 +58,19 @@ Eq(false, ClipboardBridge.WriteCommand(
 Eq(true, ClipboardBridge.WriteCommand(
     "/bin/sh", ["-c", "cat >/dev/null"], "مرحباً"u8.ToArray(), TimeSpan.FromSeconds(1)),
     "clipboard write reports a completed Unicode payload");
+var expectedClipboard = "مرحباً Grüße € 😀"u8.ToArray();
+var confirmationReads = new Queue<byte[]>(["old"u8.ToArray(), expectedClipboard]);
+Eq(true, ClipboardBridge.WriteAndConfirm(
+    () => true, () => confirmationReads.Dequeue(), expectedClipboard, attempts: 2, pollMs: 0),
+    "clipboard publication waits for the exact UTF-8 payload instead of acknowledging stale data");
+Eq(false, ClipboardBridge.WriteAndConfirm(
+    () => false, () => throw new Exception("a rejected write must not be read"), expectedClipboard,
+    attempts: 1, pollMs: 0),
+    "clipboard confirmation fails honestly when the provider rejects the write");
+Eq(false, ClipboardBridge.WriteAndConfirm(
+    () => true, () => "same length, wrong bytes"u8.ToArray(), expectedClipboard,
+    attempts: 2, pollMs: 0),
+    "clipboard confirmation never accepts a changed or truncated payload");
 // ASCII is the only thing the keysym path is allowed to carry: KWin resolves a keysym against the
 // ACTIVE keymap group only, so on a `de,ara` keymap in the German group an Arabic keysym — legacy
 // 0x05xx or 0x01000000+Unicode alike — resolves to no real key. Measured on a live KWin 6.7
@@ -192,13 +220,7 @@ Eq(true, devices[0].Current, "inventory marks the current device");
 Eq(true, restartedAuth.RevokeTrustedDevice(resumed, grant.DeviceId), "device can revoke itself");
 Eq(false, restartedAuth.ResumeTrustedDevice(grant.DeviceId, grant.DeviceToken, out _), "revoked device cannot resume");
 Directory.Delete(trustDir, true);
-// ── Typing selects a keymap group; it does not borrow the clipboard ─────────
-// The borrow raced on three fronts — one shared slot, a wl-copy that returns
-// before the selection is servable, and an asynchronous fetch by the target
-// app — and produced every Arabic scrambling report this project recorded.
-// Arabic is now typed the way a keyboard types it: select the group that
-// carries the characters, then press the positions. These assert the SOURCE
-// contract so the racy mechanism can never come back.
+// ── Typing prefers real keymaps; unsupported Unicode has an ordered fallback ───────
 {
     var injector = File.ReadAllText(Path.Combine(RepoRoot(), "agent-linux/InputInjector.cs"));
     var bridge = File.ReadAllText(Path.Combine(RepoRoot(), "agent-linux/ClipboardBridge.cs"));
@@ -209,13 +231,29 @@ Directory.Delete(trustDir, true);
     static string Code(string t, string marker) => string.Join("\n",
         t.Split('\n').Where(l => !l.TrimStart().StartsWith(marker)));
 
-    if (Code(injector, "//").Contains("ClipboardBridge"))
-        throw new Exception("typing must not touch the clipboard");
-    if (Code(bridge, "//").Contains("SetTextConfirmed"))
-        throw new Exception("the confirmed clipboard write existed only for typing; it must go");
+    if (!Code(injector, "//").Contains("ClipboardBridge.SetTextConfirmed(text)")
+        || !Code(injector, "//").Contains("sync = true"))
+        throw new Exception("unsupported Unicode must use one exact, ordered paste transaction");
+    if (!Code(bridge, "//").Contains("SetTextConfirmed"))
+        throw new Exception("explicit clipboard writes must be confirmed before the UI sends Paste");
     if (!araMap.Contains("public static bool TryStrokes("))
         throw new Exception("Arabic must be typed by pressing the positions that carry it");
     passed++;
+
+    var unicodeRuns = TextRunPlanner.Split("Hello 👩🏽‍💻 Grüße");
+    Eq(true, unicodeRuns.Any(p => p.UnicodePaste && p.Text == "👩🏽‍💻"),
+        "emoji ZWJ/skin-tone sequence remains one Unicode paste transaction");
+    Eq(true, unicodeRuns.Any(p => p.UnicodePaste && p.Text == "üß"),
+        "adjacent characters absent from the known groups are not silently dropped");
+    Eq(true, TextRunPlanner.RequiresAtomicPaste(unicodeRuns),
+        "one unsupported grapheme makes the complete browser commit one atomic paste");
+    Eq(false, TextRunPlanner.RequiresAtomicPaste(TextRunPlanner.Split("English عربي 123")),
+        "fully mapped text keeps the native Latin and Arabic key paths");
+    var keycapRuns = TextRunPlanner.Split("A1️⃣B");
+    Eq(true, keycapRuns.Any(p => p.UnicodePaste && p.Text == "1️⃣"),
+        "a keycap emoji stays one grapheme and never splits across keyboard and paste paths");
+    Eq(true, TextRunPlanner.RequiresAtomicPaste(keycapRuns),
+        "a keycap uses one clipboard owner for its complete committed run");
 
     // The group change must ride the keymap's own Alt+Shift switch, so it
     // travels in the SAME ordered stream as the letters. An out-of-band

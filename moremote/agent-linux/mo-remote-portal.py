@@ -160,6 +160,16 @@ if not streams:
 node_id, node_props = streams[0]
 node_id = int(node_id)
 
+# ScreenCast v6 gives us a stable PipeWire object serial in addition to the
+# transient node id. A node id may be reused after suspend/resume, a monitor
+# hot-plug or a mode switch; reconnecting pipewiresrc to that stale number can
+# therefore produce a healthy-looking pipeline whose frames belong to nothing
+# (the controller sees a black/frozen desktop). `pipewiresrc path=` maps to
+# PW_KEY_TARGET_OBJECT, which the portal specification says must use the serial
+# when it is available. Old portal backends do not publish the property, so the
+# node id remains the compatibility fallback.
+pipewire_target = int(node_props.get("pipewire-serial", node_id))
+
 # The portal validates absolute pointer coordinates against the *logical* desktop size it
 # advertises here (e.g. 1396x785 on a 3840x2160 screen at 2.75x scale) — NOT against the
 # pixel size of the video stream. Anything else comes back as "Invalid position".
@@ -247,7 +257,7 @@ KEYBOARD_IFACE = "org.kde.KeyboardLayouts"
 
 # `warned` is a SET of group names, not a bool: one missing layout used to mute the warning for
 # every other one, so a machine lacking both `ara` and `us` reported only whichever failed first.
-layout_state = {"codes": [], "ara": None, "home": None, "current": None,
+layout_state = {"codes": [], "ara": None, "us": None, "home": None, "current": None,
                 "warned": set(), "typed": False, "toggle": False}
 
 
@@ -294,9 +304,10 @@ def load_layouts():
     if layout_state["home"] is None:
         layout_state["home"] = current
     layout_state["ara"] = next((i for i, c in enumerate(codes) if c.startswith("ara")), None)
+    layout_state["us"] = next((i for i, c in enumerate(codes) if c == "us" or c.startswith("us(")), None)
     layout_state["toggle"] = _group_toggle_available() and len(codes) > 1
     emit(type="layouts", codes=codes, current=current, arabic=layout_state["ara"],
-         toggle=layout_state["toggle"])
+         us=layout_state["us"], toggle=layout_state["toggle"])
 
 
 # THE GROUP CHANGE TRAVELS AS KEYSTROKES, AND THAT IS THE WHOLE FIX.
@@ -485,12 +496,14 @@ frames_alive = True
 def send_frame(data):
     global frames_alive
     if not frames_alive:
-        return
+        return False
     with frames_lock:
         try:
             frames.sendall(struct.pack("<I", len(data)) + data)
+            return True
         except OSError:
             frames_alive = False  # agent went away; the pipeline is torn down with us
+            return False
 
 
 # ---------------------------------------------------------------- gstreamer
@@ -533,6 +546,51 @@ state = {"sw": 0, "sh": 0, "scale": 1.0, "width": 0, "quality": 70, "fps": 30, "
          "codec": "jpeg", "want": "jpeg", "streaming": False}
 pipeline = None
 enc = rate = None
+
+# pipewiresrc repeats its last buffer at this interval even when the desktop has no damage. That
+# changes what "no frames" means: a static desktop is healthy and still advances this clock, while
+# five missed keepalives means the source/encoder/appsink chain has stopped making progress.
+FRAME_KEEPALIVE_MS = 1000
+FRAME_STARVATION_MS = 5000
+FRAME_HEALTH_CHECK_MS = 1000
+
+
+class PipelineHealth:
+    """Small, dependency-free progress clock so starvation policy is behaviour-tested in isolation."""
+
+    def __init__(self, timeout_ms):
+        self.timeout_ms = int(timeout_ms)
+        self.last_progress_ms = None
+        self.seen_frame = False
+
+    def start(self, now_ms):
+        # A newly PLAYING pipeline also owes us its first frame. Starting from now gives it the same
+        # five-keepalive budget as a pipeline which had already produced frames and then stopped.
+        self.last_progress_ms = int(now_ms)
+        self.seen_frame = False
+
+    def stop(self):
+        self.last_progress_ms = None
+        self.seen_frame = False
+
+    def note_frame(self, now_ms):
+        if self.last_progress_ms is not None:
+            self.last_progress_ms = int(now_ms)
+            self.seen_frame = True
+
+    def stalled(self, now_ms):
+        return (self.last_progress_ms is not None
+                and int(now_ms) - self.last_progress_ms >= self.timeout_ms)
+
+    def age_ms(self, now_ms):
+        return 0 if self.last_progress_ms is None else max(0, int(now_ms) - self.last_progress_ms)
+
+
+video_health = PipelineHealth(FRAME_STARVATION_MS)
+
+
+def monotonic_ms():
+    return GLib.get_monotonic_time() // 1000
 
 
 # ---------------------------------------------------------------- codec selection
@@ -599,6 +657,22 @@ H264_ENCODERS = [
     ("openh264enc", "bitrate={bps} max-bitrate={maxbps} gop-size={gop} complexity=low "
                     "rate-control=bitrate usage-type=screen"),
 ]
+H264_ENCODER_FACTORIES = frozenset(name for name, _props in H264_ENCODERS)
+
+
+def is_h264_encoder_factory(factory):
+    """Only a failure raised by an encoder we selected is eligible for codec fallback."""
+    return factory in H264_ENCODER_FACTORIES
+
+
+def element_factory_name(element):
+    """Factory name from a Gst message source, or empty when the source is a bin/pipeline."""
+    try:
+        feature = element.get_factory() if element is not None else None
+        return feature.get_name() if feature is not None else ""
+    except Exception:
+        return ""
+
 # Elements that were present and then failed to start -> when they failed.
 #
 # A SET WAS THE WRONG SHAPE, AND MO AI IS THE REASON.
@@ -842,7 +916,10 @@ def on_sample(sink):
     ok, info = buf.map(Gst.MapFlags.READ)
     if ok:
         try:
-            send_frame(info.data)
+            # Health means a frame made it through the ENTIRE pipeline and into the agent socket,
+            # not merely that pipewiresrc produced a buffer upstream of a wedged encoder/appsink.
+            if send_frame(info.data):
+                video_health.note_frame(monotonic_ms())
         finally:
             buf.unmap(info)
     return Gst.FlowReturn.OK
@@ -857,21 +934,17 @@ def on_bus(_b, msg):
         # the LLM on this machine can grow into the VRAM the encode session was holding. Losing the
         # hardware encoder should cost the user some bandwidth, not their remote desktop. Blacklist
         # it, rebuild on the next one down, and keep the session alive.
-        if state["codec"] == "h264":
+        factory = element_factory_name(msg.src)
+        if state["codec"] == "h264" and is_h264_encoder_factory(factory):
             # msg.src.get_name() is the element INSTANCE name — every H.264 pipeline builds the
             # encoder as `name=enc`, so it is always "enc". The blacklist is keyed by FACTORY name
             # (nvh264enc/vah264enc/x264enc/openh264enc), so read the factory; otherwise the failing
             # encoder is never sin-binned and the next rebuild re-selects the same one.
-            factory = ""
-            if msg.src is not None:
-                feature = msg.src.get_factory()
-                if feature is not None:
-                    factory = feature.get_name()
-            emit(type="warn", warn=f"h264 encoder failed mid-stream ({err.message}); falling back")
-            if factory:
-                # _h264_blacklist is a dict {factory: monotonic_ms}; the old `.add()` was a leftover
-                # from when it was a set and would have raised AttributeError had the match fired.
-                _h264_blacklist[factory] = GLib.get_monotonic_time() // 1000
+            emit(type="warn", warn=f"h264 encoder {factory} failed mid-stream "
+                                   f"({err.message}); falling back")
+            # _h264_blacklist is a dict {factory: monotonic_ms}; the old `.add()` was a leftover
+            # from when it was a set and would have raised AttributeError had the match fired.
+            _h264_blacklist[factory] = monotonic_ms()
             # pick_h264() returns (name, props) on success and (None, None) when nothing is left —
             # BOTH are non-empty tuples, so `not pick_h264()` is ALWAYS False and this latch never
             # fired. Test the element, so once no encoder remains we settle on JPEG instead of
@@ -881,7 +954,11 @@ def on_bus(_b, msg):
             state["out"] = (0, 0)          # force a real rebuild rather than a no-op
             GLib.idle_add(rebuild)
             return True
-        die(EXIT_LOST, f"gstreamer: {err.message} ({dbg or ''})")
+        # An error from pipewiresrc, videoscale, videoconvert, appsink, the pipeline itself, or an
+        # unknown element is NOT evidence that another encoder can help. Rebuilding the same broken
+        # source around another encoder loops forever with a black frame. Exit instead: PortalBridge
+        # respawns us, which recreates the RemoteDesktop/ScreenCast session and obtains a fresh node.
+        die(EXIT_LOST, f"gstreamer {factory or 'pipeline'}: {err.message} ({dbg or ''})")
     elif msg.type == Gst.MessageType.EOS:
         die(EXIT_LOST, "gstreamer: stream ended")
     return True
@@ -893,6 +970,7 @@ def teardown():
     The portal SESSION stays open, so resuming costs a pipeline build (~200ms) and never re-prompts
     the user for permission."""
     global pipeline, enc, rate
+    video_health.stop()
     if pipeline is None:
         return False
     pipeline.set_state(Gst.State.NULL)
@@ -975,6 +1053,7 @@ def _rebuild_now():
     if pipeline is not None:
         pipeline.set_state(Gst.State.NULL)
         pipeline = None
+        video_health.stop()
     try:
         return build(w, h)
     except Exception as e:
@@ -990,7 +1069,8 @@ def build(w, h):
     # then shrinking costs more than the encode itself.
     caps = f"! video/x-raw,width={w},height={h} " if w else ""
     head = (
-        f"pipewiresrc fd={open_pipewire_fd()} path={node_id} do-timestamp=true keepalive-time=1000 "
+        f"pipewiresrc fd={open_pipewire_fd()} path={pipewire_target} do-timestamp=true "
+        f"keepalive-time={FRAME_KEEPALIVE_MS} "
         # THE QUEUE IS NOT DECORATION — IT IS WHAT KEEPS A SLOW ENCODER OFF THE COMPOSITOR'S THREAD.
         #
         # Without it this whole chain — scale, colour convert, encode, and the socket write in
@@ -1086,10 +1166,21 @@ def build(w, h):
     # blacklist that element and come back through here with the next one; JPEG is the floor.
     pipeline.set_state(Gst.State.PLAYING)
     ok, _st, _pending = pipeline.get_state(4 * Gst.SECOND)
-    if ok == Gst.StateChangeReturn.FAILURE:
+    if ok not in (Gst.StateChangeReturn.SUCCESS, Gst.StateChangeReturn.NO_PREROLL):
+        # get_state() only says the PIPELINE did not become usable. It does not say the encoder was
+        # at fault. Pull the ERROR which caused the failed transition while this callback still owns
+        # the main context: a pipewiresrc error left in the queue is otherwise dispatched later and,
+        # historically, the codec branch below condemned every encoder before that happened.
+        startup_msg = bus_.timed_pop_filtered(0, Gst.MessageType.ERROR)
+        startup_factory = element_factory_name(startup_msg.src) if startup_msg is not None else ""
+        if startup_msg is not None:
+            startup_error, startup_debug = startup_msg.parse_error()
+            startup_reason = f"{startup_error.message} ({startup_debug or ''})"
+        else:
+            startup_reason = f"state transition returned {ok}"
         pipeline.set_state(Gst.State.NULL)
         pipeline = None
-        if codec == "h264":
+        if codec == "h264" and is_h264_encoder_factory(startup_factory):
             emit(type="warn", warn=f"{elem} would not start; falling back")
             # Defence in depth for the same mistake: only condemn an element that failed with real
             # dimensions. The selection above should already never hand us an encoder at w == 0, and
@@ -1104,15 +1195,33 @@ def build(w, h):
                 if pick_h264()[0] is None:
                     state["want"] = "jpeg"
             return build(w, h)
-        die(EXIT_LOST, "the JPEG pipeline would not start")
+        # Unknown is deliberately fatal too. Only a positive encoder factory identity licenses a
+        # codec fallback; guessing here recreates the same black-but-'healthy' loop this guard fixes.
+        die(EXIT_LOST, f"gstreamer {startup_factory or 'pipeline'} would not start: "
+                       f"{startup_reason}")
 
     state["codec"] = codec
     state["out"] = (w, h)
+    # Start only after PLAYING was proven. The synchronous get_state above may legitimately spend
+    # four seconds auditioning an encoder; counting that setup time as starvation would condemn a
+    # pipeline at the instant it became healthy.
+    video_health.start(monotonic_ms())
     if w:
         emit(type="video", codec=codec, encoder=(elem or "jpegenc"),
              width=w, height=h, source_width=state["sw"], source_height=state["sh"],
-             logical_width=logical_w, logical_height=logical_h, node=node_id)
+             logical_width=logical_w, logical_height=logical_h, node=node_id,
+             pipewire_serial=pipewire_target)
     return False  # one-shot idle
+
+
+def check_video_health():
+    """Retire a PLAYING pipeline which stopped delivering its one-second keepalive frames."""
+    if state["streaming"] and pipeline is not None and video_health.stalled(monotonic_ms()):
+        age = video_health.age_ms(monotonic_ms())
+        phase = "after frames had started" if video_health.seen_frame else "before its first frame"
+        die(EXIT_LOST, f"video pipeline starved {phase}: no delivered frame for {age} ms; "
+                       "restarting the portal session")
+    return True
 
 
 _last_keyframe = 0
@@ -1303,11 +1412,12 @@ def handle(m):
         # and an Arabic word is group-select then positions — splitting either across messages
         # races, and the group race is the one that produced "lvpfhab" for "مرحبا".
         events = m.get("events", [])
-        # A batch that changes the group is executed AWAITED, end to end. Everything else keeps
-        # the fire-and-forget path, because that is what stopped a burst of keys serializing at
-        # compositor pace and freezing the picture — and a batch with no group change has no
-        # ordering hazard to defend against.
-        ordered = any("layout" in e for e in events)
+        # A batch that changes the group is executed AWAITED, end to end. A caller may also request
+        # that guarantee explicitly with sync:true — the Unicode paste fallback uses it when its
+        # synthetic sequence must not be overtaken by a later input batch. Everything else keeps the
+        # fire-and-forget path, because serializing ordinary typing at compositor pace freezes the
+        # picture for no ordering benefit.
+        ordered = bool(m.get("sync")) or any("layout" in e for e in events)
         send = notify_sync if ordered else notify
         for event in events:
             if "layout" in event:
@@ -1353,6 +1463,7 @@ emit(type="ready", backend="KDE RemoteDesktop + ScreenCast portal", node=node_id
      logical_width=logical_w, logical_height=logical_h)
 
 loop = GLib.MainLoop()
+GLib.timeout_add(FRAME_HEALTH_CHECK_MS, check_video_health)
 threading.Thread(target=stdin_loop, daemon=True).start()
 try:
     loop.run()

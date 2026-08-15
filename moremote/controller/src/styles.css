@@ -32,6 +32,7 @@
   --shadow: 0 16px 40px rgba(4, 10, 12, 0.48);
   --shadow-sm: 0 6px 18px rgba(4, 10, 12, 0.36);
   --shadow-up: 0 -10px 30px rgba(4, 10, 12, 0.42);
+  --chrome-size: 78px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
@@ -94,6 +95,7 @@ html,
 body,
 #root {
   height: 100%;
+  min-height: 100%;
   margin: 0;
 }
 
@@ -282,8 +284,29 @@ button {
 .remote {
   position: fixed;
   inset: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) calc(var(--chrome-size) + var(--safe-bottom));
+  grid-template-areas: "stage" "controls";
+  padding: var(--safe-top) var(--safe-right) 0 var(--safe-left);
   background: var(--screen);
   overflow: hidden;
+}
+.remote-stage {
+  grid-area: stage;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--accent) 11%, transparent), transparent 58%),
+    #090d0f;
+  border-radius: 0 0 14px 14px;
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--text) 10%, transparent);
 }
 /* In "Mouse + Keys" mode the remote cursor is drawn on the canvas at the position we last SENT, so the
    browser's own pointer sitting on top of it means two cursors chasing each other a frame apart — and
@@ -306,7 +329,8 @@ button {
 
 .topbar {
   position: absolute;
-  top: calc(var(--safe-top) + 8px);
+  /* .remote already reserves the safe-area inset before the stage begins. */
+  top: 8px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -321,6 +345,9 @@ button {
   font-size: 12.5px;
   color: var(--muted);
   z-index: 20;
+  min-width: 44px;
+  min-height: 44px;
+  justify-content: center;
   transition: opacity 0.3s, transform 0.3s;
 }
 /* Collapsed: a single dot, nothing else. Expanded only when it has something to say.
@@ -332,7 +359,7 @@ button {
 }
 .topbar.mini {
   gap: 0;
-  padding: 7px;
+  padding: 0;
 }
 .topbar.gone {
   opacity: 0;
@@ -369,40 +396,58 @@ button {
   outline-offset: 3px;
 }
 
-/* floating toolbar */
+/*
+ * Adaptive control chrome. It is a sibling of .remote-stage, never a child drawn over it.
+ * This is the Horizon Bar guarantee: every controller hit target lives in a reserved grid track,
+ * so no viewport, pointer capability or hide animation can put it over the remote dock.
+ */
 .toolbar {
-  position: absolute;
-  left: 50%;
-  bottom: calc(var(--safe-bottom) + 14px);
-  transform: translateX(-50%);
+  grid-area: controls;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px;
+  gap: 7px;
+  padding: 7px 8px calc(7px + var(--safe-bottom));
   background: var(--glass-bar);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
-  border: 1px solid var(--border-strong);
-  border-radius: 20px;
-  box-shadow: var(--shadow);
+  border-top: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-up);
   z-index: 30;
-  max-width: calc(100vw - 20px);
-  /*
-   * WRAP, because the bar could otherwise clip its own last button off the screen.
-   * Seven buttons at min-width 47px, six 6px gaps and 8px padding each side is 381px that cannot
-   * shrink, inside .remote{overflow:hidden}. At 375px (iPhone SE/mini) part of "More" is cut off;
-   * at 360px — the commonest Android width — half of it is; at 320px it is gone. "More" is the
-   * only route to Files, Ctrl+Alt+Del, Disconnect and every Power action, so losing it is not
-   * cosmetic. Wrapping costs height, which in portrait is free: it sits in 312px of black.
-   */
-  flex-wrap: wrap;
-  justify-content: center;
-  transition: opacity 0.3s, transform 0.3s;
+  transition: opacity 0.24s ease, transform 0.24s cubic-bezier(.2,.8,.2,1);
+}
+.toolbar-primary {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.toolbar-primary::-webkit-scrollbar { display: none; }
+.toolbar-settings {
+  flex: 0 0 auto;
+  position: relative;
+}
+.toolbar-settings::before {
+  content: "";
+  position: absolute;
+  inset-block: 7px;
+  inset-inline-start: -7px;
+  width: 1px;
+  background: var(--border);
 }
 .tbtn {
-  min-width: 44px;
-  height: 51px;
-  padding: 0 7px;
+  flex: 0 0 auto;
+  min-width: 54px;
+  min-height: 54px;
+  padding: 4px 8px;
   border-radius: 14px;
   display: flex;
   flex-direction: column;
@@ -414,7 +459,11 @@ button {
   transition: background 0.15s, transform 0.08s;
 }
 .tbtn span {
-  font-size: 10px;
+  max-width: 68px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10.5px;
   color: var(--muted);
   font-weight: 600;
   letter-spacing: 0.2px;
@@ -493,8 +542,8 @@ button {
   position: absolute;
   top: 10px;
   right: max(14px, var(--safe-right));
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
   border-radius: 50%;
@@ -540,6 +589,7 @@ button {
   border: 1px solid var(--border);
   font-size: 11.5px;
   color: var(--muted);
+  min-height: 52px;
   transition: transform 0.08s, background 0.15s;
 }
 .cell svg {
@@ -598,6 +648,7 @@ button {
      360px up, which is every phone in current use. Quality's five segments fall to a balanced 3+2
      at the same value instead of leaving one button by itself. */
   min-width: 84px;
+  min-height: 44px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -716,8 +767,8 @@ button {
 }
 .kkey {
   flex: 0 0 auto;
-  min-width: 42px;
-  height: 36px;
+  min-width: 44px;
+  height: 44px;
   padding: 0 9px;
   border-radius: 9px;
   background: var(--surface-2);
@@ -825,6 +876,78 @@ button {
   height: 44px;
   opacity: 0.9;
 }
+
+/* Session state is one quiet glass island, with the same hierarchy for opening, recovery and lock. */
+.session-state {
+  position: absolute;
+  inset: 0;
+  z-index: 18;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: clamp(22px, 6vw, 48px);
+  color: var(--text);
+  text-align: center;
+  background:
+    radial-gradient(circle at 50% 46%, color-mix(in srgb, var(--accent) 13%, transparent), transparent 38%),
+    rgba(7, 11, 13, 0.78);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  animation: state-arrive 0.34s cubic-bezier(.2,.8,.2,1) both;
+}
+.session-state.quiet { background: rgba(7, 11, 13, 0.58); }
+.state-copy {
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+  max-width: 430px;
+}
+.state-copy b { font-size: clamp(18px, 4vw, 25px); font-weight: 720; letter-spacing: -.02em; }
+.state-copy span { color: var(--muted); font-size: 14px; line-height: 1.5; text-wrap: balance; }
+.state-icon,
+.state-orbit {
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  border-radius: 21px;
+  color: var(--luminous);
+  background: color-mix(in srgb, var(--text) 11%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text) 22%, transparent);
+  box-shadow: 0 16px 44px color-mix(in srgb, var(--accent) 13%, transparent);
+}
+.state-icon svg,
+.state-orbit svg { width: 30px; height: 30px; }
+.state-orbit { position: relative; }
+.state-orbit::before,
+.state-orbit::after {
+  content: "";
+  position: absolute;
+  inset: -9px;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 28px;
+  animation: connection-orbit 1.9s ease-out infinite;
+}
+.state-orbit::after { animation-delay: .75s; }
+.state-progress {
+  width: min(220px, 54vw);
+  height: 4px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+}
+.state-progress i {
+  display: block;
+  width: 46%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent-grad);
+  animation: connection-progress 1.25s ease-in-out infinite alternate;
+}
+.state-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+.state-actions .btn { min-width: 124px; min-height: 48px; }
 .spinner {
   width: 38px;
   height: 38px;
@@ -932,35 +1055,56 @@ button {
     transform: translateX(-7px);
   }
 }
+@keyframes state-arrive {
+  from { opacity: 0; transform: scale(.985); }
+}
+@keyframes connection-orbit {
+  0% { opacity: .75; transform: scale(.82); }
+  75%, 100% { opacity: 0; transform: scale(1.28); }
+}
+@keyframes connection-progress {
+  from { transform: translateX(-70%); }
+  to { transform: translateX(185%); }
+}
 .fade-toolbar {
   opacity: 0;
-  transform: translateX(-50%) translateY(12px);
+  transform: translateY(10px);
   pointer-events: none;
 }
 
 /*
- * POINTER MACHINES: the bar lives at the TOP of the window — for the reason the .show-tab
- * handle already left bottom-centre (see its note): the remote MoOS dock is bottom-centred
- * (measured location=4, alignment=1), and on a computer the bottom strip is ALSO the
- * hover-summon gesture, so reaching for the remote's dock made the controller bar rise
- * exactly under the pointer and take the click. The top edge is the one horizontal strip a
- * default MoOS desktop keeps empty, and "reach for the top" is the same trained gesture as
- * a menubar or a browser hover-toolbar. Phones keep the bar at the bottom, in thumb reach.
+ * POINTER MACHINES: reserve a real rail outside the picture. The remote MoOS Horizon Bar is
+ * bottom-centred; moving our toolbar to the top merely traded one covered remote surface for
+ * another. A sibling grid track makes overlap impossible and keeps stream geometry stable while
+ * the controls fade. Phones keep a bottom dock in thumb reach, also outside the picture.
  *
  * hover+fine, not a width breakpoint: the collision is created by the POINTER (hover-summon
  * at an edge), not by screen size — a wide touch tablet has no hover and keeps thumb reach.
  * The short-landscape rail below intentionally still wins when both media queries match.
  */
 @media (any-hover: hover) and (any-pointer: fine), (min-width: 900px) and (orientation: landscape) {
+  .remote {
+    grid-template-columns: minmax(0, 1fr) var(--chrome-size);
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-areas: "stage controls";
+    padding-bottom: var(--safe-bottom);
+  }
+  .remote-stage { border-radius: 0 14px 14px 0; }
   .toolbar {
-    bottom: auto;
-    top: calc(var(--safe-top) + 14px);
+    flex-direction: column;
+    padding: 8px;
+    border-top: 0;
+    border-left: 1px solid var(--border-strong);
+    box-shadow: -10px 0 30px rgba(4, 10, 12, 0.32);
   }
+  .toolbar-primary { width: 100%; flex-direction: column; overflow-x: hidden; overflow-y: auto; }
+  .toolbar-settings { width: 100%; margin-top: auto; }
+  .toolbar-settings::before { inset: -7px 7px auto; width: auto; height: 1px; }
+  .tbtn { width: 100%; min-width: 0; }
   .fade-toolbar {
-    transform: translateX(-50%) translateY(-12px);
+    transform: translateX(12px);
   }
-  /* .show-tab moves up with the bar too — but its override lives BELOW the base
-     .show-tab rules (same specificity, so source order decides), not here. */
+  /* The handle moves into the same reserved rail below; source order keeps both in sync. */
 }
 
 /*
@@ -973,28 +1117,36 @@ button {
  * default 51px a seven-button rail is 409px and does not fit a 390px screen.
  */
 @media (orientation: landscape) and (max-height: 520px) {
+  .remote {
+    --chrome-size: 70px;
+    grid-template-columns: minmax(0, 1fr) var(--chrome-size);
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-areas: "stage controls";
+    padding-bottom: var(--safe-bottom);
+  }
+  .remote-stage { border-radius: 0 12px 12px 0; }
   .toolbar {
-    left: auto;
-    right: calc(var(--safe-right) + 6px);
-    bottom: auto;
-    top: 50%;
-    transform: translateY(-50%);
     flex-direction: column;
-    max-width: none;
     gap: 4px;
     padding: 6px;
+    border-top: 0;
+    border-left: 1px solid var(--border-strong);
   }
+  .toolbar-primary { width: 100%; flex-direction: column; overflow-x: hidden; overflow-y: auto; }
+  .toolbar-settings { width: 100%; margin-top: auto; }
+  .toolbar-settings::before { inset: -5px 6px auto; width: auto; height: 1px; }
   .toolbar .tbtn {
-    height: 44px;
-    min-width: 44px;
-    padding: 0 4px;
+    width: 100%;
+    min-width: 0;
+    min-height: 48px;
+    padding: 3px 2px;
   }
   .toolbar .tbtn span {
     font-size: 8.5px;
   }
   /* Without this the hide animation inherits translateX(-50%) and yanks the rail off-centre. */
   .fade-toolbar {
-    transform: translateY(-50%) translateX(14px);
+    transform: translateX(12px);
   }
 }
 
@@ -1048,46 +1200,19 @@ button {
 }
 .remote-cursor svg { display: block; }
 
-/* ---- reveal-toolbar handle ---- */
-/*
- * SIDE, NOT BOTTOM-CENTRE — and the reason is geometry, not taste.
- *
- * This sat at bottom-centre, which is where every desktop in the world puts its dock or taskbar.
- * Measured on this host: the MoOS dock is location=4 (bottom), alignment=1 (centred), 54px thick —
- * so the one control that brings the toolbar back was parked exactly on top of the one strip of
- * the remote desktop the user most wants to tap. That is the reported "the bar is being covered".
- *
- * And in landscape there is no black down there to hide in. With a 16:9 source in an 844x390
- * viewport the fit is HEIGHT-constrained: dispH = 390, oy = 0, and the letterbox is a 75px column
- * on each SIDE. So the picture's own spare space is at the left and right, which is exactly where
- * this now lives. Portrait is the opposite (312px of black below the picture), which is why the
- * bug was invisible on the orientation it was designed in.
- *
- * 44px square because that is the minimum touch target; the old 50x30 was under it.
- *
- * THEN THE PICTURE LEARNED TO TURN, AND MID-RIGHT STOPPED BEING BLACK.
- *
- * The reasoning above is sound and its conclusion had one orientation too few. With Fill screen on,
- * a phone held upright shows a TURNED desktop, and that fit is width-constrained: measured at
- * 390x844, the picture is 390x694 and the letterbox is a ~75px band at the TOP AND BOTTOM. Mid-right
- * is inside the picture again — the exact fault the note above describes, one layout later.
- *
- * The corner is the only place that is spare in all three layouts at once:
- *   landscape        letterbox is a column at each side   -> bottom-right is in the right column
- *   turned portrait  letterbox is a band top and bottom   -> bottom-right is in the bottom band
- *   upright portrait letterbox is most of the screen      -> bottom-right is black
- * and it is not bottom-CENTRE, so the dock this note was written about is still untouched.
- */
+/* Reveal remains inside the reserved chrome track, so even its 48px target cannot cover MoOS. */
 .show-tab {
-  position: absolute;
-  left: auto;
-  right: calc(var(--safe-right) + 8px);
-  top: auto;
-  bottom: calc(var(--safe-bottom) + 10px);
-  transform: none;
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
+  grid-area: controls;
+  position: relative;
+  align-self: center;
+  justify-self: end;
+  width: auto;
+  min-width: 48px;
+  height: 48px;
+  margin: 0 10px var(--safe-bottom) 0;
+  padding: 0 12px;
+  gap: 6px;
+  border-radius: 15px;
   background: var(--glass-bar);
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
@@ -1099,25 +1224,43 @@ button {
   color: var(--muted);
 }
 .show-tab svg {
-  width: 20px;
-  height: 20px;
-  /* A chevron pointing UP: the toolbar it summons rises from the bottom of the screen, so the
-     arrow says where the thing comes from rather than where the handle sits. */
+  width: 18px;
+  height: 18px;
   transform: rotate(180deg);
 }
-/* On pointer machines the bar (and so the handle) lives at the TOP — see the toolbar's
-   pointer-machine block for the full reasoning. Top-RIGHT corner, same corner logic as the
-   base note above, one edge up. Must come after the base rules: same specificity, so source
-   order is what makes this win. */
+.show-tab span { font-size: 11px; font-weight: 700; color: var(--muted); }
+/* Must stay a second verbatim POINTER_BAR_QUERY block: CSS and JS share this capability branch. */
 @media (any-hover: hover) and (any-pointer: fine), (min-width: 900px) and (orientation: landscape) {
   .show-tab {
-    bottom: auto;
-    top: calc(var(--safe-top) + 10px);
+    align-self: end;
+    justify-self: center;
+    width: 52px;
+    min-width: 52px;
+    height: auto;
+    min-height: 52px;
+    margin: 0 0 8px;
+    padding: 8px 3px;
+    flex-direction: column;
   }
   .show-tab svg {
-    /* The bar now drops from the top, so the chevron points down — where it comes from. */
-    transform: none;
+    transform: rotate(90deg);
   }
+  .show-tab span { font-size: 8.5px; }
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  .show-tab {
+    align-self: end;
+    justify-self: center;
+    width: 50px;
+    min-width: 50px;
+    height: auto;
+    min-height: 50px;
+    margin: 0 0 6px;
+    padding: 7px 2px;
+    flex-direction: column;
+  }
+  .show-tab svg { transform: rotate(90deg); }
+  .show-tab span { font-size: 8px; }
 }
 
 /* ---- view + clipboard sheets ---- */
@@ -1132,6 +1275,35 @@ button {
   grid-template-columns: 2fr 1fr;
   gap: 10px;
   margin-bottom: 6px;
+}
+.clipboard-actions {
+  display: grid;
+  grid-template-columns: minmax(0, .82fr) minmax(0, 1.18fr);
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.clipboard-actions .cell { margin-top: 0; min-width: 0; }
+.transfer-status {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 8px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  color: var(--muted);
+  background: var(--active-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 36%, var(--border));
+  font-size: 13px;
+}
+.transfer-status i {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--accent) 24%, transparent);
+  border-top-color: var(--accent);
+  animation: spin .8s linear infinite;
 }
 .cell.wide {
   flex-direction: row;
@@ -1382,7 +1554,7 @@ button {
 }
 .device-revoke {
   min-width: 76px;
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 12px;
   border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--border));
   border-radius: 12px;
@@ -1398,27 +1570,36 @@ button {
 .switch {
   position: relative;
   flex: 0 0 auto;
-  width: 50px;
-  height: 30px;
+  width: 52px;
+  height: 44px;
   border-radius: 999px;
-  border: 1px solid var(--border-strong);
-  background: var(--raised);
+  border: 0;
+  background: transparent;
   cursor: pointer;
   transition: background 0.18s ease, border-color 0.18s ease;
   -webkit-tap-highlight-color: transparent;
 }
+.switch::before {
+  content: "";
+  position: absolute;
+  inset: 7px 1px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--raised);
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
 .switch::after {
   content: "";
   position: absolute;
-  top: 3px;
-  left: 3px;
+  top: 10px;
+  left: 4px;
   width: 22px;
   height: 22px;
   border-radius: 50%;
   background: var(--muted);
   transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.18s ease;
 }
-.switch[aria-checked="true"] { background: var(--accent); border-color: var(--accent); }
+.switch[aria-checked="true"]::before { background: var(--accent); border-color: var(--accent); }
 .switch[aria-checked="true"]::after { transform: translateX(20px); background: var(--on-accent); }
 .switch:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
 

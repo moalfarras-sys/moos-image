@@ -16,7 +16,7 @@ import { remoteAlertPermission, requestRemoteAlertPermission, showRemoteAlert } 
 import { QUALITY_PRESETS, AUTO_MAX_PRESET, POINTER_BAR_QUERY, BUILD, MODE_LABEL, MODE_HINT, type GestureMode, type ViewMode, type MonitorInfo } from "../types";
 import {
   IconAltTab, IconActual, IconArrowUp, IconBackspace, IconChevronDown, IconClipboard, IconClose,
-  IconCopy, IconEnter, IconEsc, IconFile, IconFit, IconFolder, IconFullscreen, IconKeyboard,
+  IconConnection, IconCopy, IconDesktop, IconEnter, IconEsc, IconFile, IconFit, IconFolder, IconFullscreen, IconKeyboard,
   IconLock, IconMore, IconMouse, IconPaste, IconPause, IconPower, IconRefresh, IconRotate, IconSend, IconSettings, IconShield,
   IconSpeaker, IconSpeakerOff, IconTrackpad, IconUpload,
   IconWindows, IconZoomIn, IconZoomOut,
@@ -460,7 +460,9 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
   const [selMonitor, setSelMonitor] = useState(0);
   const [pcClip, setPcClip] = useState<ClipResult>({ kind: "empty" });
   const [sendText, setSendText] = useState("");
+  const [clipboardBusy, setClipboardBusy] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+  const imagePasteRef = useRef(false);
   const [fileList, setFileList] = useState<FileListing | null>(null);
   const [fileBusy, setFileBusy] = useState(false);
   const [uploadProgress, setUploadProgress] = useState("");
@@ -1045,10 +1047,9 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
    * clipboard, and only then is Ctrl+V pressed over there. The result is what the user expected the
    * first time: the thing they copied here appears in the window they are looking at.
    *
-   * The fallback is what makes it safe to intercept a key at all. A browser may decline to fire
-   * `paste` — nothing on the clipboard, an image rather than text, a policy that requires a user
-   * gesture the page did not get. If nothing has arrived within PASTE_WAIT_MS the chord is forwarded
-   * exactly as it always was, so the worst case is the previous behaviour rather than a dead key.
+   * Images use the same ordered path as text: upload image/* first, then emit the remote Paste.
+   * If the browser exposes no clipboard payload at all, the bounded fallback still forwards the
+   * chord. If a payload IS exposed but its transfer fails, we do not paste stale remote content.
    */
   const PASTE_WAIT_MS = 140;
   const pasteIntentAt = useRef(0);
@@ -1070,19 +1071,24 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
       // Only when the viewer actually asked for a paste on the REMOTE. A paste into the app's own
       // "Send text" box, or into the PIN field, is that field's business and must not be hijacked.
       if (!pasteIntentAt.current || performance.now() - pasteIntentAt.current > 1500) return;
+      const items = Array.from(e.clipboardData?.items ?? []);
+      const image = items.find((item) => item.kind === "file" && item.type.startsWith("image/"))?.getAsFile();
       const text = e.clipboardData?.getData("text") ?? "";
-      if (!text) return;                          // let the fallback forward the chord
+      if (!image && !text) return;                // let the fallback forward the chord
       e.preventDefault();
       pasteIntentAt.current = 0;
       if (pasteTimer.current) { window.clearTimeout(pasteTimer.current); pasteTimer.current = null; }
+      setClipboardBusy(image ? "Sending image…" : "Sending text…");
       try {
-        await setClipboard(token, text);
+        if (image) await setClipboardImage(token, image);
+        else await setClipboard(token, text);
+        // Ordering is load-bearing: Paste before the await used the previous PC clipboard.
         connRef.current?.combo(["Control", "V"]);
+        showToast(image ? "Image pasted on PC" : "Text pasted on PC");
       } catch {
-        // The clipboard endpoint refused. Pressing Ctrl+V anyway is strictly better than nothing:
-        // whatever is on the remote's own clipboard is at least something the user can see and undo.
-        connRef.current?.combo(["Control", "V"]);
-        showToast("Couldn't send the clipboard to the PC");
+        showToast(image ? "Couldn't send the image — nothing pasted" : "Couldn't send the text — nothing pasted");
+      } finally {
+        setClipboardBusy("");
       }
     };
     window.addEventListener("paste", onPaste);
@@ -1091,19 +1097,16 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
   }, [mode, token]);
 
   /**
-   * On a computer, reach for the toolbar the way you reach for a menubar: put the pointer at
-   * the top edge. (The bottom edge belongs to the REMOTE desktop's own dock — see styles.css,
-   * the pointer-machine media block — so both the bar and its summon strip moved up there.)
+   * On a computer, reach for the controls at the outer rail. The bottom edge belongs to the
+   * REMOTE desktop's own Horizon Bar, so the controller reserves a separate rail and never
+   * places a hit target over the streamed desktop.
    *
-   * The bar hides itself after a few seconds — correctly, because on a phone it sits over the part
-   * of the desktop you are trying to touch. But the way BACK is a 44px handle at the side of the
-   * screen, and a handle is a touch affordance: on a phone it is a thumb's width away from wherever
-   * the thumb already is, and on a computer it is a deliberate trip across the window with a mouse,
-   * to hit a target smaller than most buttons, every single time you want Files or the keyboard.
+   * The rail hides itself after a few seconds so the controller becomes visually quiet while its
+   * reserved track keeps the desktop geometry stable. The way back is a labelled 48px control in
+   * that same track: near a thumb on a phone, and easy to acquire with a mouse or keyboard.
    *
-   * A mouse has something a finger does not: it can hover. So in desktop mode the bottom strip of
-   * the window summons the bar, which is the gesture every dock and every full-screen video player
-   * already trained everyone to make. The handle stays for anyone who wants it.
+   * A mouse has something a finger does not: it can hover. So in desktop mode the outer strip of
+   * the window summons the rail. The handle stays for keyboard and switch users.
    *
    * Deliberately not wired in the touch modes: there is no hover there, and a pointermove from a
    * finger already means something else entirely.
@@ -1111,14 +1114,13 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
   useEffect(() => {
     if (mode !== "desktop") return;
     const EDGE = 76;
-    // On pointer machines the bar itself sits at the TOP (styles.css) — the remote's own
-    // dock owns the bottom edge — so the summon strip must live on the same edge the bar
-    // appears on, or the gesture opens a door on the opposite wall. Capability, not mode:
-    // a phone forced into desktop mode still has its bar (and thumb) at the bottom.
-    const topBar = window.matchMedia(POINTER_BAR_QUERY).matches;
+    // POINTER_BAR_QUERY is shared with CSS: when it selects the reserved rail, JS must reveal
+    // that same edge. Short phone landscape uses the same rail even without a fine pointer.
+    const railBar = window.matchMedia(POINTER_BAR_QUERY).matches
+      || window.matchMedia("(orientation: landscape) and (max-height: 520px)").matches;
     let armed = true;
     const onMove = (e: PointerEvent) => {
-      const near = topBar ? e.clientY < EDGE : e.clientY > window.innerHeight - EDGE;
+      const near = railBar ? e.clientX > window.innerWidth - EDGE : e.clientY > window.innerHeight - EDGE;
       // Re-arm only after the pointer has LEFT the strip, so sitting still down there does not
       // restart the hide timer on every jitter — and so the bar can still time out while the
       // pointer rests over the dock the user is actually aiming at.
@@ -1331,7 +1333,8 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
    *
    * So ask for what is on screen. The preset stays in charge of BANDWIDTH — it owns quality (bits
    * per pixel) and fps, and its width remains the ceiling — but it can no longer demand more pixels
-   * than exist, and see autoMaxPreset() for how a genuinely large display is allowed past 1920.
+   * than exist. Going past 1920 remains the explicit Ultra choice; display size and RTT never make
+   * that bandwidth decision on the user's behalf.
    *
    * Zoom is included deliberately: pinching in to read something asks the encoder for the detail
    * that makes it readable, which is the one moment resolution is worth spending on.
@@ -1364,16 +1367,14 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
   };
 
   /**
-   * How far the automatic ladder may climb, given what this viewer can actually show.
+   * How far the automatic ladder may climb.
    *
-   * AUTO_MAX_PRESET stops at 1920 because RTT is not bandwidth and Ultra's 2560 is a real cost to
-   * impose on a link that merely pings well. That reasoning holds for a phone and inverts for a big
-   * monitor: there, 1920 is not caution, it is a picture that is permanently soft on a machine whose
-   * owner is sitting in front of a screen that can show more. The bitrate is derived from the actual
-   * size now (bits-per-pixel x w x h x fps in the helper), so asking for the pixels the display has
-   * is an honest request rather than an open-ended one.
+   * AUTO_MAX_PRESET is Sharp on every viewer. RTT measures round-trip delay, not available
+   * bandwidth; a 4K display does not turn a low-latency 5 Mbit/s link into an Ultra-capable one.
+   * Ultra remains available as an explicit choice, where its bitrate is a decision rather than a
+   * guess made by the control loop.
    */
-  const autoMaxPreset = () => (displayWidthPx() > 1920 ? QUALITY_PRESETS.length - 1 : AUTO_MAX_PRESET);
+  const autoMaxPreset = () => AUTO_MAX_PRESET;
 
   /** The last width we asked for, and when — the dead band and the floor that protect the helper. */
   const lastPushedWidth = useRef(0);
@@ -1701,25 +1702,35 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
       showToast(r.kind === "image" ? "Got PC image" : r.kind === "text" ? "Got PC text" : "PC clipboard is empty");
     } catch { showToast("Failed to read PC clipboard"); }
   };
-  const sendToPc = async () => {
+  const sendToPc = async (paste = false) => {
     if (!sendText) return;
-    try { await setClipboard(token, sendText); showToast("Text sent to PC"); }
-    catch { showToast("Failed to set PC clipboard"); }
+    setClipboardBusy(paste ? "Sending and pasting text…" : "Setting PC clipboard…");
+    try {
+      await setClipboard(token, sendText);
+      if (paste) connRef.current?.combo(["Control", "V"]);
+      showToast(paste ? "Text pasted on PC" : "PC clipboard updated");
+    } catch { showToast(paste ? "Text wasn't sent — nothing pasted" : "Failed to set PC clipboard"); }
+    finally { setClipboardBusy(""); }
   };
   const copyToPhone = async () => {
     if (pcClip.kind !== "text" || !pcClip.text) return;
     if (await copyTextToClipboard(pcClip.text)) showToast("Copied on phone");
     else showToast("Long-press the text to copy");
   };
-  const uploadImage = async (blob: Blob) => {
+  const uploadImage = async (blob: Blob, paste = false) => {
     if (!blob) return;
     if (blob.size > 24_000_000) { showToast("Image too large (max ~24MB)"); return; }
-    try { await setClipboardImage(token, blob); showToast("Image sent to PC — press Paste"); }
-    catch { showToast("Failed to send image"); }
+    setClipboardBusy(paste ? "Sending and pasting image…" : "Setting PC image…");
+    try {
+      await setClipboardImage(token, blob);
+      if (paste) connRef.current?.combo(["Control", "V"]);
+      showToast(paste ? "Image pasted on PC" : "PC clipboard image updated");
+    } catch { showToast(paste ? "Image wasn't sent — nothing pasted" : "Failed to set PC image"); }
+    finally { setClipboardBusy(""); }
   };
   const onPickPhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
-    if (f) uploadImage(f);
+    if (f) void uploadImage(f, imagePasteRef.current);
     e.target.value = "";
   };
   const onPasteBox = async (e: React.ClipboardEvent<HTMLDivElement>) => {
@@ -1730,12 +1741,19 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
       for (const it of items) {
         if (it.type.startsWith("image/")) {
           const f = it.getAsFile();
-          if (f) { e.preventDefault(); await uploadImage(f); handled = true; }
+          if (f) { e.preventDefault(); await uploadImage(f, true); handled = true; break; }
         }
       }
       if (!handled) {
         const text = e.clipboardData.getData("text");
-        if (text) { e.preventDefault(); await setClipboard(token, text); showToast("Text sent to PC"); handled = true; }
+        if (text) {
+          e.preventDefault();
+          setClipboardBusy("Sending and pasting text…");
+          try { await setClipboard(token, text); connRef.current?.combo(["Control", "V"]); showToast("Text pasted on PC"); }
+          catch { showToast("Text wasn't sent — nothing pasted"); }
+          finally { setClipboardBusy(""); }
+          handled = true;
+        }
       }
     }
     // Fallback: iOS often inserts the image into the box without exposing it above.
@@ -1746,12 +1764,18 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
     if (!box) return;
     const img = box.querySelector("img");
     if (img?.src) {
-      try { const blob = await (await fetch(img.src)).blob(); if (blob.type.startsWith("image/")) await uploadImage(blob); } catch { /* */ }
+      try { const blob = await (await fetch(img.src)).blob(); if (blob.type.startsWith("image/")) await uploadImage(blob, true); } catch { /* */ }
       box.innerHTML = "";
       return;
     }
     const txt = box.innerText.trim();
-    if (txt) { try { await setClipboard(token, txt); showToast("Text sent to PC"); } catch { /* */ } box.innerHTML = ""; }
+    if (txt) {
+      setClipboardBusy("Sending and pasting text…");
+      try { await setClipboard(token, txt); connRef.current?.combo(["Control", "V"]); showToast("Text pasted on PC"); }
+      catch { showToast("Text wasn't sent — nothing pasted"); }
+      finally { setClipboardBusy(""); }
+      box.innerHTML = "";
+    }
   };
   const onPasteBoxInput = (e: React.FormEvent<HTMLDivElement>) => {
     const box = e.currentTarget;
@@ -2038,7 +2062,8 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
     idle: { cls: "bad", text: "Idle timeout" },
   }[status];
 
-  const overlay = status === "stopped" || status === "idle";
+  const terminalOverlay = status === "stopped" || status === "idle";
+  const waitingOverlay = status === "connecting" || status === "reconnecting";
 
   // Healthy means: there is nothing to tell the user. The bar collapses to a dot, and hides with
   // the toolbar. Tapping it opens the numbers (fps / latency / mode) for anyone who wants them;
@@ -2050,14 +2075,15 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
     // No onPointerDown={bumpToolbar} here, and its absence is the feature.
     //
     // It used to be on this div, which covers the whole remote screen, so EVERY touch anywhere on the
-    // desktop re-armed the 4.5s timer and brought the seven-button bar back over the bottom of the
+    // desktop re-armed the timer and brought the controls back over the bottom of the
     // picture. The one thing guaranteed to keep it on screen was using the remote desktop — and the
     // bottom of a desktop is where the dock and the taskbar live, so the controls sat on top of
     // exactly what the user was reaching for. That is the "something is always covering it" complaint.
     //
-    // The bar now hides on its timer and is summoned deliberately, by the .show-tab handle below —
-    // 50x30px instead of the full bar, and rendered only while the bar is hidden.
+    // The chrome now owns a separate grid track, keeps the stage geometry stable, and is summoned
+    // deliberately by the safe 48px .show-tab handle rendered only while the controls are hidden.
     <div className={"remote" + (mode === "desktop" ? " mouse-mode" : "")}>
+      <main className="remote-stage" aria-label="Remote MoOS desktop">
       <canvas ref={canvasRef} className="screen-canvas" />
       {/* The server's sound, on this same origin. Never `autoPlay` — the browser would refuse it
           without a gesture and the refusal is indistinguishable from the stream being broken. */}
@@ -2109,15 +2135,29 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
         )}
       </button>
 
-      {overlay && (
-        <div className="center-msg">
-          <IconPower className="" />
-          <div>
-            <b style={{ color: "var(--text)", fontSize: 17 }}>
-              {status === "idle" ? "Disconnected — idle timeout" : "Session ended on the PC"}
-            </b>
+      {waitingOverlay && (
+        <div className="session-state waiting" role="status" aria-live="polite">
+          <div className="state-orbit" aria-hidden="true"><IconConnection /></div>
+          <div className="state-copy">
+            <b>{status === "connecting" ? "Opening your MoOS desktop" : "Restoring the connection"}</b>
+            <span>{status === "connecting"
+              ? "Preparing a clear, responsive picture…"
+              : "Your controls are safe. The picture will continue automatically."}</span>
           </div>
-          <div style={{ display: "flex", gap: 12 }}>
+          <div className="state-progress" aria-hidden="true"><i /></div>
+        </div>
+      )}
+
+      {terminalOverlay && (
+        <div className="session-state recovery" role="alert">
+          <div className="state-icon"><IconPower /></div>
+          <div className="state-copy">
+            <b>{status === "idle" ? "Session paused after being idle" : "Session ended on the PC"}</b>
+            <span>{status === "idle"
+              ? "Reconnect when you are ready. Nothing will be typed until the desktop returns."
+              : "Start a fresh session or sign out from this device."}</span>
+          </div>
+          <div className="state-actions">
             <button className="btn" onClick={reconnect}>Reconnect</button>
             <button className="btn ghost" onClick={onExit}>Sign out</button>
           </div>
@@ -2125,25 +2165,25 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
       )}
 
       {status === "paused" && (
-        <div className="center-msg" style={{ background: "rgba(5,7,13,0.5)" }}>
-          <IconPause className="" />
-          <b style={{ color: "var(--text)", fontSize: 16 }}>Paused on the PC</b>
-          <div>Resume from the PC tray or banner.</div>
+        <div className="session-state quiet" role="status">
+          <div className="state-icon"><IconPause /></div>
+          <div className="state-copy"><b>Paused on the PC</b><span>Resume from the PC tray or banner.</span></div>
         </div>
       )}
 
       {!screenOk && status === "live" && (
-        <div className="center-msg" style={{ background: "rgba(5,7,13,0.62)" }}>
-          <IconLock className="" />
-          <div>
-            <b style={{ color: "var(--text)", fontSize: 16 }}>PC is locked</b>
-            <div style={{ marginTop: 6, maxWidth: 300 }}>
-              Windows hides the lock screen from every app. Unlock the PC once, then on the PC
-              tray icon turn on <b>“Never lock — stay reachable”</b> so it stays reachable from now on.
-            </div>
+        <div className="session-state recovery" role="status">
+          <div className="state-icon"><IconLock /></div>
+          <div className="state-copy">
+            <b>MoOS is not sharing the screen</b>
+            <span>
+              Unlock the computer or wake its display, then reconnect. To keep it reachable, enable
+              <b> “Never lock — stay reachable”</b> from Mo PC Remote on the computer.
+            </span>
           </div>
         </div>
       )}
+      </main>
 
       {/* keyboard bar: a shortcuts row + a visible input (so typing AND Backspace work). */}
       <div className={"kbbar" + (kbOpen ? " open" : "")} ref={kbbarRef}>
@@ -2198,36 +2238,38 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
 
       {/* small affordance: when keyboard closed, the toolbar "Keys" button opens it */}
 
-      {/* floating toolbar */}
+      {/* Reserved controller chrome: a sibling grid track, never an overlay on streamed pixels. */}
       {!kbOpen && (
         <div className={"toolbar" + (toolbar || sheet ? "" : " fade-toolbar")}>
-          <button className="tbtn" onClick={openKeyboard}><IconKeyboard /><span>Keys</span></button>
-          <button className="tbtn" onClick={() => { setSheet("clip"); getPcClip(); }}><IconClipboard /><span>Clip</span></button>
-          <button className="tbtn" onClick={cycleMode}>
-            {mode === "trackpad" ? <IconTrackpad /> : <IconMouse />}<span>{MODE_LABEL[mode]}</span>
-          </button>
-          <button className="tbtn" onClick={() => setSheet("view")}>
-            {viewMode === "fit" ? <IconFit /> : <IconActual />}<span>View</span>
-          </button>
-          <button
-            className="tbtn"
-            onClick={() => {
-              const c = canvasRef.current;
-              if (!c) return;
-              const r = c.getBoundingClientRect();
-              zoomToggleAt(r.left + r.width / 2, r.top + r.height / 2);
-              bumpToolbar();
-            }}
-            aria-label="Zoom in on the centre, or back to fit"
-          >
-            <IconActual /><span>Zoom</span>
-          </button>
-          <button className={"tbtn" + (sound === "on" ? " on" : "")} onClick={toggleSound}>
-            {sound === "on" ? <IconSpeaker /> : <IconSpeakerOff />}
-            <span>{sound === "connecting" ? "…" : "Sound"}</span>
-          </button>
-          <button className="tbtn" onClick={fullscreen}><IconFullscreen /><span>Full</span></button>
-          <button className="tbtn accent" onClick={() => setSheet("more")}><IconSettings /><span>Settings</span></button>
+          <div className="toolbar-primary" role="toolbar" aria-label="Remote controls">
+            <button className="tbtn" onClick={openKeyboard}><IconKeyboard /><span>Type</span></button>
+            <button className="tbtn" onClick={() => { setSheet("clip"); getPcClip(); }}><IconClipboard /><span>Clipboard</span></button>
+            <button className="tbtn" onClick={cycleMode}>
+              {mode === "trackpad" ? <IconTrackpad /> : mode === "desktop" ? <IconDesktop /> : <IconMouse />}<span>{MODE_LABEL[mode]}</span>
+            </button>
+            <button className="tbtn" onClick={() => setSheet("view")}>
+              {viewMode === "fit" ? <IconFit /> : <IconActual />}<span>Display</span>
+            </button>
+            <button
+              className="tbtn"
+              onClick={() => {
+                const c = canvasRef.current;
+                if (!c) return;
+                const r = c.getBoundingClientRect();
+                zoomToggleAt(r.left + r.width / 2, r.top + r.height / 2);
+                bumpToolbar();
+              }}
+              aria-label="Zoom in on the centre, or back to fit"
+            >
+              <IconActual /><span>Zoom</span>
+            </button>
+            <button className={"tbtn" + (sound === "on" ? " on" : "")} onClick={toggleSound}>
+              {sound === "on" ? <IconSpeaker /> : <IconSpeakerOff />}
+              <span>{sound === "connecting" ? "Starting" : "Sound"}</span>
+            </button>
+            <button className="tbtn" onClick={fullscreen}><IconFullscreen /><span>Fullscreen</span></button>
+          </div>
+          <button className="tbtn toolbar-settings accent" onClick={() => setSheet("more")}><IconSettings /><span>More</span></button>
         </div>
       )}
 
@@ -2523,24 +2565,41 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
 
           <div className="row-label">Phone → PC · text</div>
           <textarea className="clip-area" value={sendText} onChange={(e) => setSendText(e.target.value)} placeholder="Type or paste text…" />
-          <button className="cell wide" onClick={sendToPc}><IconSend /> Set PC text</button>
+          <div className="clipboard-actions">
+            <button className="cell wide" disabled={!sendText || !!clipboardBusy} onClick={() => void sendToPc(false)}>
+              <IconClipboard /> Set only
+            </button>
+            <button className="cell wide primary" disabled={!sendText || !!clipboardBusy} onClick={() => void sendToPc(true)}>
+              <IconSend /> Send &amp; Paste
+            </button>
+          </div>
 
           <div className="row-label">Phone → PC · image</div>
-          <button className="cell wide primary" onClick={() => fileRef.current?.click()}><IconClipboard /> Send a photo / screenshot</button>
+          <div className="clipboard-actions">
+            <button className="cell wide" disabled={!!clipboardBusy} onClick={() => { imagePasteRef.current = false; fileRef.current?.click(); }}>
+              <IconClipboard /> Set image only
+            </button>
+            <button className="cell wide primary" disabled={!!clipboardBusy} onClick={() => { imagePasteRef.current = true; fileRef.current?.click(); }}>
+              <IconSend /> Photo &amp; Paste
+            </button>
+          </div>
           <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPickPhoto} />
+          {clipboardBusy && <div className="transfer-status" role="status" aria-live="polite"><i />{clipboardBusy}</div>}
           <div
             className="paste-box"
             contentEditable
             suppressContentEditableWarning
             onPaste={onPasteBox}
             onInput={onPasteBoxInput}
-            data-ph="…or long-press here → Paste a copied image"
+            data-ph="…or long-press here → Paste, then send & paste on the PC"
           />
         </SheetPanel>
       )}
 
-      {!toolbar && !kbOpen && !sheet && !overlay && (
-        <button className="show-tab" onClick={bumpToolbar}><IconChevronDown /></button>
+      {!toolbar && !kbOpen && !sheet && !terminalOverlay && (
+        <button className="show-tab" onClick={bumpToolbar} aria-label="Show remote controls">
+          <IconChevronDown /><span>Controls</span>
+        </button>
       )}
 
       {toast && <div className="toast" role="status" aria-live="polite">{toast}</div>}

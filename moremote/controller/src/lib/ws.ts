@@ -5,8 +5,8 @@ import { canDecodeH264 } from "./decode.ts";
 
 /** One 60 Hz frame: text the agent types by keysym must not wait longer than this. */
 const FAST_FLUSH_MS = 12;
-/** Text that needs a clipboard borrow batches into words instead of one round trip per letter. */
-const CLIPBOARD_FLUSH_MS = 220;
+/** Text that needs a group switch or exact-Unicode fallback batches into committed words. */
+const COMPLEX_TEXT_FLUSH_MS = 220;
 /** Exactly what the agent can type by keysym — see InputInjector.TryDirectStrokes. */
 const FAST_TEXT = /^[a-zA-Z0-9 ]*$/;
 /** Mirrors InputInjector.PasteCoalesceMax: never hold more than one gather's worth. */
@@ -390,15 +390,12 @@ export class RemoteConnection {
     if(this.textTimer)window.clearTimeout(this.textTimer);
     // How long to coalesce depends on how the agent will have to type this.
     //
-    // Text it can inject by keysym goes out within one 60 Hz frame, exactly as before — English
-    // typing must not get slower to serve Arabic. Anything else (Arabic, punctuation needing a
-    // shift level) is typed by briefly borrowing the clipboard, and that borrow is expensive: the
-    // agent must set the selection AND read it back before pasting, because wl-copy returns before
-    // the compositor will serve the new content (live-proven on 2026-08-03 — an unconfirmed paste
-    // dropped whole words). 45 ms was shorter than the gap between two letters of ordinary typing,
-    // so every letter still paid for its own borrow. 220 ms is longer than that gap and shorter
-    // than a pause between words, so a WORD becomes one borrow — which is the difference between
-    // Arabic that arrives and Arabic that arrives in pieces.
+    // Text it can inject by keysym goes out within one 60 Hz frame — English must not get slower
+    // to serve Arabic. Complex committed text is slower for honest reasons: Arabic selects and
+    // confirms its real keymap group; symbols use the known US group; a character no installed
+    // group carries takes the exact UTF-8 compatibility path. A 220 ms window is longer than an
+    // ordinary inter-letter gap and shorter than a pause between words, so the client sends one
+    // committed word rather than making the agent switch mechanisms for every letter.
     //
     // The test mirrors the agent's own fast-path rule (InputInjector.TryDirectStrokes).
     const fast = FAST_TEXT.test(this.pendingText);
@@ -410,7 +407,7 @@ export class RemoteConnection {
     if (this.pendingText.length >= TEXT_COALESCE_MAX) { this.flushText(); return; }
     if (!this.textQueuedAt) this.textQueuedAt = Date.now();
     if (Date.now() - this.textQueuedAt >= TEXT_COALESCE_MAX_MS) { this.flushText(); return; }
-    this.textTimer=window.setTimeout(()=>this.flushText(),fast?FAST_FLUSH_MS:CLIPBOARD_FLUSH_MS);
+    this.textTimer=window.setTimeout(()=>this.flushText(),fast?FAST_FLUSH_MS:COMPLEX_TEXT_FLUSH_MS);
   }
   private flushText(){
     if(this.textTimer)window.clearTimeout(this.textTimer);
