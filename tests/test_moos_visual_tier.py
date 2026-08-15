@@ -121,6 +121,53 @@ class Classification(unittest.TestCase):
                          "cores and RAM must never buy motion a software "
                          "renderer has to pay for per frame")
 
+    def test_the_real_moos_cloud_vps_is_essential(self) -> None:
+        """The cloud box as it ACTUALLY is, which is not what the test above modelled.
+
+        `test_a_vps_with_no_render_node_is_essential` builds a VPS with no
+        render node and passes. The real MoOS Cloud server has one, because
+        moos-cloud-desktop loads vgem on purpose so KWin's virtual backend will
+        offer OpenGL. Read off the live machine:
+
+            /sys/class/drm/card0 -> bochs-drm      (QEMU emulated VGA, no 3D)
+            /sys/class/drm/card1 -> faux_driver    (vgem, renders nothing)
+            /dev/dri/renderD128                    (published by vgem)
+            glxinfo: llvmpipe (LLVM 22.1.8, 256 bits)
+
+        Neither name was matched — `bochs` is not `bochs-drm`, and faux_driver
+        was absent — so both counted as real GPUs and the probe answered
+        "integrated graphics with 8 cores and 15.6 GiB" -> balanced -> blur on
+        at strength 9, in software, for three concurrent Plasma sessions.
+
+        The green gate above is why that survived: it asserted the right answer
+        about the wrong machine.
+        """
+        tier, facts = self.tier_of(lambda m: m
+                                   .gpu("card0", "bochs-drm")
+                                   .gpu("card1", "faux_driver").render_node()
+                                   .cpu(8).memory(15.6).display(1920, 1080))
+        self.assertEqual(facts["gpu_class"], "virtual",
+                         "a render node published by vgem is not a GPU")
+        self.assertEqual(tier, "essential",
+                         "llvmpipe must not be asked to pay for blur")
+
+    def test_a_drm_suffixed_driver_is_matched_like_its_bare_name(self) -> None:
+        """The suffix is the whole bug: `bochs-drm` must resolve to `bochs`."""
+        module = load_module(Path(tempfile.gettempdir()))
+        for raw, bare in (("bochs-drm", "bochs"), ("bochs", "bochs"),
+                          ("nvidia", "nvidia"), ("virtio_gpu", "virtio_gpu")):
+            with self.subTest(driver=raw):
+                self.assertEqual(module._driver_key(raw), bare)
+
+    def test_a_real_gpu_beside_vgem_is_still_a_real_gpu(self) -> None:
+        """vgem is loadable anywhere; it must never demote real hardware."""
+        tier, facts = self.tier_of(lambda m: m
+                                   .gpu("card1", "nvidia")
+                                   .gpu("card2", "faux_driver").render_node()
+                                   .cpu(16).memory(15.4).display(3840, 2160))
+        self.assertEqual(facts["gpu_class"], "discrete")
+        self.assertEqual(tier, "flagship")
+
     def test_a_virtual_adapter_without_acceleration_is_essential(self) -> None:
         tier, facts = self.tier_of(lambda m: m
                                    .gpu("card0", "virtio_gpu").cpu(8).memory(16))

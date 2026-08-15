@@ -56,7 +56,38 @@ TIERS = ("essential", "balanced", "flagship")
 DISCRETE_DRIVERS = {"nvidia", "nouveau", "amdgpu", "radeon"}
 # A virtual display adapter. virtio_gpu CAN be accelerated (virgl/venus), which
 # is why the render-node check decides rather than the driver name alone.
-VIRTUAL_DRIVERS = {"virtio_gpu", "vmwgfx", "qxl", "bochs", "cirrus", "simpledrm", "vboxvideo"}
+#
+# vgem and vkms are not adapters at all. They are kernel stubs that publish a
+# render node while rendering NOTHING, and MoOS loads vgem ON PURPOSE:
+# moos-cloud-desktop does it so KWin's virtual backend will offer OpenGL at all.
+# So the cloud edition manufactures the very evidence this probe reads as "GPU".
+# On current kernels their driver link resolves to the faux bus rather than to
+# the module name, which is why `faux_driver` is spelled out here too.
+VIRTUAL_DRIVERS = {"virtio_gpu", "vmwgfx", "qxl", "bochs", "cirrus", "simpledrm",
+                   "vboxvideo", "vgem", "vkms", "faux_driver"}
+
+
+def _driver_key(name: str) -> str:
+    """The name to match against the tables above.
+
+    `device/driver` points at the DRIVER, and a driver's name is not always its
+    module's name: QEMU's emulated VGA binds as `bochs-drm`, not `bochs`. A
+    plain membership test therefore missed it — and missing it was not cosmetic.
+    Measured on the MoOS Cloud VPS, whose drivers are exactly `bochs-drm` and
+    `faux_driver` (vgem):
+
+        gpu_class "integrated"  ->  tier "balanced"  ->  BlurStrength 9, blur ON
+
+    on a machine whose OpenGL renderer is `llvmpipe (LLVM 22.1.8, 256 bits)`.
+    Every blur pass behind every panel and menu was software work on the CPU,
+    for THREE concurrent Plasma sessions, on the one machine whose whole job is
+    to be encoded and streamed. Stripping the DRM suffix lets one spelling cover
+    both forms.
+    """
+    for suffix in ("-drm", "_drm"):
+        if name.endswith(suffix):
+            return name[: -len(suffix)]
+    return name
 
 ROOT = pathlib.Path(os.environ.get("MOOS_TIER_ROOT", "/"))
 
@@ -118,16 +149,16 @@ def probe() -> dict:
     # add a size threshold that an NVIDIA machine can never satisfy.
 
     render_nodes = _glob("/dev/dri/renderD*")
-    real = [d for d in drivers if d not in VIRTUAL_DRIVERS]
-    virtual = [d for d in drivers if d in VIRTUAL_DRIVERS]
+    real = [d for d in drivers if _driver_key(d) not in VIRTUAL_DRIVERS]
+    virtual = [d for d in drivers if _driver_key(d) in VIRTUAL_DRIVERS]
 
     if not render_nodes:
         # No render node means no GPU context: the compositor falls back to
         # llvmpipe and every blur pass is paid on the CPU.
         gpu_class = "software"
-    elif any(d in DISCRETE_DRIVERS for d in real) and (
+    elif any(_driver_key(d) in DISCRETE_DRIVERS for d in real) and (
             vram_bytes >= 3 * 1024 ** 3
-            or any(d in {"nvidia", "nouveau"} for d in real)):
+            or any(_driver_key(d) in {"nvidia", "nouveau"} for d in real)):
         gpu_class = "discrete"
     elif real:
         gpu_class = "integrated"

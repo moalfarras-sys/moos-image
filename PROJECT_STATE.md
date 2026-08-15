@@ -47,6 +47,82 @@ with manifest digest
 `sha256:cbaa34261c7b0088379fffebc63515a718351107dbccdc506a39c581d879c987`
 and size 10,776,140,710 bytes.
 
+## 2026-08-15 — the Cloud was paying for blur it could not draw
+
+Found on the live MoOS Cloud server while chasing "the remote is slow and the
+picture is not clear", and both halves were real.
+
+**`moos-visual-tier` had never once fired on the machine it was written for.**
+The probe answered `integrated graphics with 8 cores and 15.6 GiB` → tier
+`balanced` → `BlurStrength 9`, `blurEnabled=true`, on a box whose OpenGL
+renderer is `llvmpipe (LLVM 22.1.8, 256 bits)`. Two spellings did it:
+
+    /sys/class/drm/card0 -> bochs-drm     VIRTUAL_DRIVERS held "bochs", not "bochs-drm"
+    /sys/class/drm/card1 -> faux_driver   vgem — absent from the table entirely
+
+so both counted as *real GPUs*, and `/dev/dri/renderD128` — published by vgem,
+which **`moos-cloud-desktop` loads on purpose** so KWin's virtual backend will
+offer OpenGL — supplied the render node that made the answer look sound. The
+cloud edition manufactured the evidence that defeated its own probe. Every blur
+pass behind every panel and menu was software work on the CPU, per frame, for
+**three** concurrent Plasma sessions, on the one machine whose whole job is to
+be encoded and streamed.
+
+`test_a_vps_with_no_render_node_is_essential` was green throughout. It builds a
+VPS with **no** render node — the right answer about the wrong machine. This is
+trap six of the documented set: the gate that models an idealised box instead of
+the shipped one. It is now joined by `test_the_real_moos_cloud_vps_is_essential`,
+built from the live `bochs-drm` + `faux_driver` + renderD128 facts, plus a
+suffix-matching gate and one asserting vgem never demotes real hardware
+(a discrete card beside vgem is still `flagship`).
+
+Fixed by `_driver_key()`, which strips the `-drm`/`_drm` suffix so one spelling
+covers both forms, and by adding `vgem`, `vkms` and `faux_driver` to
+`VIRTUAL_DRIVERS`. The patched probe on the real box now answers `essential`.
+Applied live to all three accounts (`moalfarras`, `momo`, `dahab`): 6 settings
+changed each, `[Plugins] blurEnabled=false` confirmed via `kreadconfig6`.
+
+**A live trap worth knowing: `org.kde.KWin.reconfigure` does NOT unload a
+disabled effect.** All three sessions still answered `isEffectLoaded blur` →
+`true` after a successful reconfigure; only an explicit
+`org.kde.kwin.Effects.unloadEffect blur` took it out, after which all three
+answer `false`. Login is unaffected (the effect list is read fresh), but any
+mid-session apply needs the unload.
+
+**Mo PC Remote opened soft on every desktop browser.** `pickStartPreset` reads
+Network Information, which is Chromium-only, so desktop Firefox and every Safari
+reported no `effectiveType` and fell through to Balanced — **1366px of a 1920px
+cloud desktop, upscaled again to fill the monitor**. It did not self-correct:
+the RTT ladder climbs only on four consecutive samples under 90 ms, and a
+Tailscale DERP relay jitters 33–93 ms on its own, so the session could sit at
+1366 for its whole life. Now a display ≥1400 physical px on a ≥4-core machine
+opens at Sharp — the shape of a desktop, not a bandwidth guess. Phones are
+untouched (an iPhone reports ~1179 and still opens Balanced), Data Saver still
+outranks it, and being wrong costs ~4 s (drop needs two samples and a 6 s
+cooldown) against the ~30 s or forever it cost before. The controller bundle was
+rebuilt and force-added — `index-BCWrSgdS.js` — per the `git add -f` trap that
+`test_shipped_bundle_is_tracked.py` exists to catch.
+
+**Measured on this hardware, and it settles the resolution question.** x264enc
+`veryfast zerolatency`, the encoder this GPU-less box actually selects
+(openh264enc is 1.7× slower here, so the existing order is correct):
+
+    1920x1080  desktop-like content   36.7 fps      snow (worst case)  22.9 fps
+    2560x1440  desktop-like content   19.4 fps      snow (worst case)  11.5 fps
+
+with the box otherwise idle and **one** stream running. So raising the virtual
+output above `--width 1920 --height 1080` would not make the picture clearer, it
+would drop the frame rate below 30 before a second viewer even connected. 1920
+is the correct ceiling on this machine, and the sharpness win has to come from
+*sending* all 1920 — which is exactly what the preset fix does.
+
+Not changed, deliberately: the Mo AI orb's idle breath holds ~12.7% of a core
+under llvmpipe. Its loops are correctly guarded by
+`motionEnabled: Kirigami.Units.longDuration > 1`, and `essential` writes
+`AnimationDurationFactor 0.4` on purpose ("short and honest beats fake-off"), so
+this is design, not a defect. The shipped levers are `moos-fast-remote on` and
+`moos-theme motion still`; choosing between them is the owner's call.
+
 Release `.585` signed digests (previous):
 
 - generic: `sha256:b13e181d910b5b064e752b3fd1f1f19d1d574b74017067c622f7f18cb71cf473`

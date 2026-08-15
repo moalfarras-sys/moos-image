@@ -59,12 +59,49 @@ assert.equal(
   PRESET_BALANCED,
   "4g at 2 Mbit/s must not open at Sharp — effectiveType is a bucket, not a measurement");
 
-// ── A browser that reports nothing keeps the old, safe behaviour ─────────────────────────
-// Desktop Safari and Firefox expose no Network Information at all. Silence must not be read
-// as either fast or slow, or the majority of desktops get a guess instead of a default.
+// ── A browser that reports NOTHING AT ALL keeps the old, safe behaviour ──────────────────
+// Silence with no display measurement either must not be read as fast or slow. This is the
+// floor case, and it stays exactly as it was.
 assert.equal(pickStartPreset({}), PRESET_BALANCED,
   "no signals at all must fall back to Balanced, exactly as before this existed");
 assert.equal(pickStartPreset(), PRESET_BALANCED, "no argument at all must be safe too");
+
+// ── A COMPUTER whose browser hides the link must still open sharp ────────────────────────
+// Network Information is Chromium-only, so desktop Firefox and every Safari report no
+// effectiveType. They used to fall through to Balanced — 1366px of a 1920px cloud desktop,
+// upscaled again to fill a big monitor — and the RTT ladder could not reliably rescue them:
+// it climbs only on four consecutive samples under 90ms, and a Tailscale DERP relay jitters
+// 33..93ms by itself. That is the "الصورة مو واضحة" case, and it could last the whole session.
+//
+// The screen width is the evidence. A 1400px+ physical display on a 4-core machine is a
+// desktop or a laptop, which is on wifi or ethernet.
+assert.equal(
+  pickStartPreset({ hardwareConcurrency: 8, displayWidthPx: 2560 }),
+  PRESET_SHARP,
+  "desktop Firefox on a 1440p monitor must open at Sharp, not climb for 30s or never");
+assert.equal(
+  pickStartPreset({ hardwareConcurrency: 10, displayWidthPx: 3840 }),
+  PRESET_SHARP,
+  "desktop Safari on a 4K monitor must open at Sharp");
+
+// ...but the same silence on a PHONE-shaped device must not. iOS Safari reports no
+// effectiveType either, and an iPhone 15 Pro is 393 CSS px x 3 = 1179 physical.
+assert.equal(
+  pickStartPreset({ hardwareConcurrency: 6, displayWidthPx: 1179 }),
+  PRESET_BALANCED,
+  "a phone whose browser hides the link must NOT be promoted on screen width alone");
+
+// A weak machine stays out of it whatever its monitor says: this is a decode limit.
+assert.equal(
+  pickStartPreset({ hardwareConcurrency: 2, displayWidthPx: 2560 }),
+  PRESET_DATA_SAVER,
+  "a two-core machine on a big monitor is still a decode problem");
+
+// Data Saver still outranks the new branch, exactly as it outranks the fast-link one.
+assert.equal(
+  pickStartPreset({ saveData: true, hardwareConcurrency: 8, displayWidthPx: 2560 }),
+  PRESET_DATA_SAVER,
+  "Data Saver must win over the wide-display promotion too");
 
 // A 4g device that reports no downlink and no memory is still allowed to open Sharp: absent
 // fields are unknown, not bad, and effectiveType 4g is the browser's own verdict on the link.

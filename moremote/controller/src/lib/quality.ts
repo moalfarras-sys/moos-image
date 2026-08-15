@@ -86,9 +86,35 @@ export function pickStartPreset(hints: DeviceHints = {}): number {
   const fastLink = effectiveType === "4g" && (downlink === undefined || downlink >= 5);
   if (fastLink && capableDevice && !narrowDisplay) return PRESET_SHARP;
 
-  // 6. Anything else — including a browser that reports nothing at all, which is every desktop
-  //    Safari and Firefox — keeps the old behaviour. Balanced is the safe opening move and the
-  //    ladder takes it from there.
+  // 6. A browser that reports NO link class at all. Network Information is Chromium-only, so
+  //    this is every desktop Firefox and every Safari — and it used to fall straight through to
+  //    Balanced. On a phone that is right. On a computer it is a picture that is permanently
+  //    soft, for two compounding reasons:
+  //
+  //      * Balanced is 1366px. The MoOS Cloud desktop being streamed is 1920 wide and the
+  //        monitor showing it is usually wider still, so the viewer watches a 1366px source
+  //        downscaled from 1920 and then upscaled again to fill the window. Detail is thrown
+  //        away before the encoder ever sees it, and no bitrate puts it back.
+  //
+  //      * It does not correct itself. The ladder climbs only after four agreeing samples
+  //        under 90ms at 2s each plus a 20s cooldown — and a Tailscale DERP relay jitters
+  //        33..93ms on its own (the ladder's own comment says so). On the exact link this
+  //        product is built for, `lat < 90` may never hold four times running, so the session
+  //        can sit at 1366 for its whole life.
+  //
+  //    A wide display on a capable device is not a bandwidth guess: it is the SHAPE of a
+  //    desktop or laptop, and those are on wifi or ethernet, not a metered cellular plan. The
+  //    asymmetry settles it — being wrong here costs ~4s of a too-sharp picture, because
+  //    dropping needs only two agreeing samples and a 6s cooldown; being wrong the old way
+  //    cost ~30 seconds, or the entire session.
+  //
+  //    displayWidthPx is the physical width of the SCREEN (screen.width x devicePixelRatio),
+  //    so a phone stays out of this: an iPhone reports ~1179 and lands on Balanced as before.
+  const wideDisplay = typeof displayWidthPx === "number" && displayWidthPx >= 1400;
+  if (effectiveType === undefined && capableDevice && wideDisplay) return PRESET_SHARP;
+
+  // 7. Anything else keeps the old behaviour. Balanced is the safe opening move and the ladder
+  //    takes it from there.
   return PRESET_BALANCED;
 }
 
