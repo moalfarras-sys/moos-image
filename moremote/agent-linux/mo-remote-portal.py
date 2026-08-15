@@ -521,7 +521,38 @@ H264_ENCODERS = [
     ("nvh264enc",   "bitrate={kbps} gop-size={gop} bframes=0 zerolatency=true rc-mode=cbr"),
     ("vah264enc",   "bitrate={kbps} key-int-max={gop} rate-control=cbr"),
     ("vah264lpenc", "bitrate={kbps} key-int-max={gop} rate-control=cbr"),
-    ("x264enc",     "bitrate={kbps} key-int-max={gop} tune=zerolatency speed-preset=veryfast"),
+    # ONE SLICE PER FRAME, and it is both the compatible choice and the fast one.
+    #
+    # `tune=zerolatency` turns on x264's SLICED THREADS, which splits every frame into one slice per
+    # thread so a slice can leave the encoder before the frame is finished. On this 8-core box that
+    # is 8 slices in every access unit — measured by parsing the shipping encoder's own output:
+    #
+    #     sliced-threads=true   AUs=200  P-slices=1568  IDR-slices=32  -> 8.0 slices/frame
+    #     sliced-threads=false  AUs=200  P-slices=196   IDR-slices=4   -> 1.0 slices/frame
+    #
+    # Multi-slice H.264 is legal and Chrome eats it. It is the single most common thing an iOS
+    # WebCodecs VideoDecoder refuses, and iOS is not a hypothetical client here: the only online
+    # peer on this tailnet is an iPhone. The symptom matched exactly — the room held H.264 for
+    # 14-15 seconds and then fell to JPEG, every time, which is the periodic IDR interval at this
+    # desktop's real damage-driven frame rate, and the IDR is the access unit carrying 8 IDR slices.
+    # The stream was otherwise healthy (all SPS byte-identical, IDR only 2.0x a P-frame) and the
+    # agent logged zero backlog drops, so the failure was inside the decoder and nowhere else.
+    #
+    # `threads=2` is what makes this free. Without sliced threads x264 falls back to FRAME threading,
+    # which delays output by (threads - 1) frames — the very latency zerolatency exists to avoid — so
+    # the thread count is now a latency budget rather than left at "as many as you have". Measured on
+    # this machine at the live 1836x1032, 300 frames of desktop-like content:
+    #
+    #     sliced-threads=true             8.15s  ->  36.8 fps   8 slices, 0 frames of delay
+    #     sliced-threads=false threads=1 13.87s  ->  21.6 fps   1 slice,  0 frames  (too slow)
+    #     sliced-threads=false threads=2  7.40s  ->  40.5 fps   1 slice,  1 frame   <- this
+    #
+    # So one slice per frame is 10% FASTER than what shipped, and costs a single frame (~33ms at
+    # 30fps) of pipeline delay — against the ~200ms teardown-and-rebuild that a codec fallback costs
+    # every fifteen seconds. Do not raise `threads` without re-reading that middle column: every
+    # extra thread is another frame of latency the person feels on every mouse move.
+    ("x264enc",     "bitrate={kbps} key-int-max={gop} tune=zerolatency speed-preset=veryfast "
+                    "sliced-threads=false threads=2"),
     # usage-type=screen tells openh264 the content is a desktop, not camera footage. It changes how the
     # rate controller spends its budget: a desktop is large flat areas and thin high-contrast text, and
     # the screen profile stops it smoothing that text away to hold a frame rate nothing is asking for.

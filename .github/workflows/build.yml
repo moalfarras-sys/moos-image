@@ -209,6 +209,7 @@ jobs:
           # /etc/xdg/kwinrc (which ships contrastEnabled=false) and the build stopped.
           # CI could not have caught it, because CI was not running the file.
           python3 tests/test_moos_fast_remote.py
+          python3 tests/test_remote_h264_single_slice.py
           python3 tests/test_arabic_terminal_font.py
           python3 tests/test_boot_branding_tool.py
           python3 tests/test_boot_splash_polish.py
