@@ -264,8 +264,37 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
   // render and must never route a frame to the decoder we have just left.
   const codecRef = useRef<"jpeg" | "h264">("jpeg");
   const h264Ref = useRef<H264Stream | null>(null);
-  /** How many times we have re-offered H.264 after a decode failure, and the pending re-offer. */
-  const h264RetriesRef = useRef(0);
+  /**
+   * How many times we have re-offered H.264 after a decode failure, and the pending re-offer.
+   *
+   * SEEDED FROM sessionStorage, BECAUSE A RECONNECT USED TO HAND OUT A FRESH BUDGET.
+   *
+   * The three-strikes rule below is correct and was defeated by the connection lifecycle. This is a
+   * plain `useRef`, so it resets whenever the component remounts — and the log from the live cloud
+   * server shows sessions ending and reconnecting every one to two minutes. Each reconnect started
+   * the count at zero, so "give up after three" never arrived; the room re-entered the flap for as
+   * long as anyone was watching:
+   *
+   *     06:06:38 h264 -> 06:06:52 jpeg     06:09:52 h264 -> 06:10:07 jpeg
+   *     06:07:07 h264 -> 06:07:21 jpeg     06:10:51 h264 -> 06:11:05 jpeg
+   *     06:08:35 h264 -> 06:08:52 jpeg     06:12:23 h264 -> 06:12:37 jpeg
+   *
+   * Fourteen to fifteen seconds every time — the periodic IDR interval at this desktop's real
+   * damage-driven frame rate. EVERY arrow is a full GStreamer teardown and rebuild, which is what
+   * the person watching experiences as the screen cutting out. The stream itself is not the
+   * problem: captured from the shipping encoder settings, all SPS are byte-identical and an IDR is
+   * only 2.0x the size of a P-frame, so there is no renegotiation and no bandwidth spike to blame.
+   * The decode fails inside the browser, and this client cannot see why.
+   *
+   * So this does not pretend to fix H.264. It stops the DAMAGE: a browser that has already proven
+   * three times that it cannot hold the stream settles on a picture that works instead of tearing
+   * the pipeline down every fifteen seconds forever. sessionStorage is the right scope — per tab,
+   * cleared when the tab closes — so a genuinely transient failure costs one tab and nothing more,
+   * and a new tab is always allowed to try again from scratch.
+   */
+  const h264RetriesRef = useRef(((): number => {
+    try { return Number(sessionStorage.getItem("h264Retries")) || 0; } catch { return 0; }
+  })());
   const h264RetryTimer = useRef<number | null>(null);
   const view = useRef({ zoom: 1, panX: 0, panY: 0 });
   const fpsCount = useRef(0);
@@ -731,6 +760,9 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
       if (h264RetriesRef.current < 3) {
         const wait = 15000 * Math.pow(2, h264RetriesRef.current);
         h264RetriesRef.current++;
+        // Remember it across reconnects, or the count restarts at zero every time the socket comes
+        // back and "stop asking after three" never happens. See the note on h264RetriesRef.
+        try { sessionStorage.setItem("h264Retries", String(h264RetriesRef.current)); } catch { /* private mode */ }
         if (h264RetryTimer.current) window.clearTimeout(h264RetryTimer.current);
         h264RetryTimer.current = window.setTimeout(() => {
           if (disposed || !canDecodeH264()) return;
