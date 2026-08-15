@@ -356,6 +356,41 @@ def _kwriteconfig(file: str, group: str, key: str, value: str) -> bool:
         return False
 
 
+def _current_motion() -> str:
+    """The live wallpaper motion policy, or "" if it cannot be read.
+
+    A read, so it takes no theme lock — `moos-theme motion` with no value is
+    explicitly documented as the query form that must never acquire one.
+    """
+    if os.environ.get("MOOS_TIER_ROOT"):
+        return ""          # a fake root must never consult the real session
+    try:
+        p = subprocess.run(["moos-theme", "motion"], capture_output=True,
+                           text=True, timeout=30)
+        return p.stdout.strip() if p.returncode == 0 else ""
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
+def _apply_motion(policy: str) -> bool:
+    """Set the wallpaper motion policy through the tool that owns it.
+
+    Deliberately a subprocess to moos-theme rather than a second implementation:
+    motion drives the containments through plasmashell and is guarded by
+    moos-theme's own lock, and this file's contract is that moos-visual-tier
+    holds the probe and the tier table while moos-theme owns the desktop.
+    """
+    if os.environ.get("MOOS_TIER_ROOT"):
+        return False       # a fake root must never drive the real desktop
+    try:
+        return subprocess.run(
+            ["moos-theme", "motion", policy],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=60,
+        ).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
 def _kreadconfig(file: str, group: str, key: str) -> str:
     try:
         p = subprocess.run(
@@ -401,8 +436,46 @@ def apply(tier: str, *, dry_run: bool = False) -> dict:
             elif not dry_run:
                 skipped.append(ident)
 
+    # MOTION IS PART OF THE PROFILE, AND IT WAS THE ONE PART NEVER APPLIED.
+    #
+    # Every tier has declared a `motion` since this file was written, `--json`
+    # reported it, and the summary line printed "motion kept short" — but nothing
+    # anywhere ever set it. `moos-theme perf` only delegates back here, and
+    # apply() wrote kwinrc and kdeglobals and stopped. So the value was a label.
+    #
+    # Measured on the MoOS Cloud server: tier `essential`, whose profile says
+    # "still", with all three desktops actually running `gentle`. A MOVING
+    # wallpaper, drawn by llvmpipe because the box has no GPU, on the machine
+    # whose entire purpose is to be captured and streamed. The stream is
+    # damage-driven — "a still desktop costs nothing at all" is the architecture
+    # doc's own claim — and an animated wallpaper damages the whole screen
+    # continuously, so the encoder never once gets to be idle. It is the single
+    # most expensive thing that can be true about a remote desktop's background.
+    #
+    # Applied with the SAME ownership discipline as every key above: if the live
+    # policy is not what this tool last wrote, the user changed it and theirs
+    # wins permanently. moos-theme owns the transaction and its lock; `perf` does
+    # not hold that lock, and moos-apply-theme holds a different one, so calling
+    # it here cannot deadlock.
+    motion = profile["motion"]
+    motion_written = previous.get("motion_written")
+    if not dry_run:
+        live_motion = _current_motion()
+        user_changed = (motion_written is not None and live_motion
+                        and live_motion != motion_written and live_motion != motion)
+        if user_changed:
+            skipped.append("motion")
+            motion = motion_written
+        elif live_motion and live_motion != motion:
+            if _apply_motion(motion):
+                changed += 1
+            else:
+                skipped.append("motion")
+                motion = live_motion
+
     result = {"tier": tier, "changed": changed, "skipped": skipped,
-              "motion": profile["motion"], "written": written}
+              "motion": profile["motion"], "motion_written": motion,
+              "written": written}
     if not dry_run:
         try:
             state_path().parent.mkdir(parents=True, exist_ok=True)

@@ -311,6 +311,57 @@ class ApplyIsHonest(unittest.TestCase):
             result["_wrote"] = wrote
             return result
 
+    def run_apply_motion(self, tier: str, state: dict | None, live_motion: str) -> dict:
+        """apply() with the motion helpers stubbed, so the real desktop is never driven."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            os.environ["MOOS_TIER_STATE_HOME"] = str(root / "state")
+            os.environ["MOOS_TIER_CONFIG_HOME"] = str(root / "config")
+            module = load_module(root)
+            if state is not None:
+                path = module.state_path()
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(json.dumps(state), encoding="utf-8")
+            asked: list[str] = []
+            module._kreadconfig = lambda f, g, k: ""
+            module._kwriteconfig = lambda f, g, k, v: True
+            module._reconfigure_kwin = lambda: None
+            module._current_motion = lambda: live_motion
+            def fake_apply_motion(policy: str) -> bool:
+                asked.append(policy)
+                return True
+            module._apply_motion = fake_apply_motion
+            result = module.apply(tier)
+            result["_asked"] = asked
+            return result
+
+    def test_the_tier_actually_sets_the_motion_it_declares(self) -> None:
+        """The profile has always DECLARED motion; nothing ever applied it.
+
+        Measured on the MoOS Cloud server: tier `essential` (profile "still")
+        with all three desktops running `gentle` — a moving wallpaper drawn in
+        software, on the machine whose whole purpose is to be streamed. The
+        capture is damage-driven, so an animated background is the one thing
+        guaranteed to stop the encoder ever being idle.
+        """
+        result = self.run_apply_motion("essential", None, "gentle")
+        self.assertEqual(result["_asked"], ["still"],
+                         "an essential machine must be asked for still motion")
+        self.assertEqual(result["motion_written"], "still")
+
+    def test_motion_already_correct_is_not_rewritten(self) -> None:
+        result = self.run_apply_motion("essential", None, "still")
+        self.assertEqual(result["_asked"], [], "nothing to do must do nothing")
+
+    def test_a_motion_the_user_chose_is_left_alone(self) -> None:
+        """Same ownership rule as every other key: theirs wins, permanently."""
+        state = {"tier": "essential", "written": {}, "motion_written": "still"}
+        result = self.run_apply_motion("essential", state, "alive")
+        self.assertEqual(result["_asked"], [],
+                         "a motion policy the user changed must never be taken back")
+        self.assertIn("motion", result["skipped"])
+        self.assertEqual(result["motion_written"], "still")
+
     def test_a_fresh_machine_gets_the_whole_profile(self) -> None:
         result = self.run_apply("flagship", None, {})
         self.assertGreater(result["changed"], 0)

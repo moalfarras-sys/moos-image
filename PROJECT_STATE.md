@@ -146,6 +146,62 @@ under llvmpipe. Its loops are correctly guarded by
 this is design, not a defect. The shipped levers are `moos-fast-remote on` and
 `moos-theme motion still`; choosing between them is the owner's call.
 
+## 2026-08-15 (second round) — the screen cut out, and the tier's motion was a label
+
+**"فصلة بشاشة" was self-inflicted, and the agent's own log named the cause.**
+One viewer, three minutes, the encode width the client asked for:
+
+    1100 -> 1920 -> 1690 -> 1920 -> 1616 -> 1194 -> 1788 -> 1920 -> 1440 -> 1920
+    -> 1378 -> 1920 -> 1904 -> 1920 -> 1436 -> 1100 -> 1704 -> 1920 ...
+
+Every arrow is a full GStreamer teardown and rebuild. `displayWidthPx()` returns
+0 when the picture cannot be measured (no canvas, no layout, mid-relayout), and
+`pushSettings` answered that with the preset CEILING — making a measurement
+FAILURE indistinguishable from a request for full size. Every 1920 above is that
+branch. The 12% dead band could not damp it because 1440 and 1920 are 33% apart.
+
+It also explains why the room never held H.264: each rebuild emits a new SPS, so
+the client's decoder is town down and rebuilt on every one, and a decode error
+anywhere in that churn votes the whole room to JPEG. The log shows it without a
+single exception — h264 at connect, jpeg 1–23 s later, on **every** session; 36
+codec changes across 15 sessions in one day. JPEG at 1080p then saturated the
+link into `Frame send exceeded 3s … closing so the client can reconnect`. The
+disconnect was caused entirely by our own churn. Fixed by `encodeWidth()`, a
+pure function pinned by a gate: when we cannot measure, HOLD the last width.
+
+**The visual tier declared a motion policy it never applied.** Every profile has
+carried a `motion` value since the file was written, `--json` reported it and
+the summary printed "motion kept short" — but nothing anywhere set it, and
+`moos-theme perf` only delegates back to the tier. Measured here: tier
+`essential` (profile "still") with all three desktops on `gentle` — a moving
+wallpaper drawn by llvmpipe on the machine whose whole purpose is to be
+streamed. Capture is damage-driven, so an animated background is the one thing
+that guarantees the encoder is never idle. `apply()` now sets it through
+`moos-theme` (which owns the lock; `perf` holds none and `moos-apply-theme`
+holds a different one, so there is no deadlock) under the same ownership rule as
+every other key — a policy the user changed is never taken back. All three
+accounts are on `still` now.
+
+**A host config file could stop the image build, and CI could not see it.**
+`just build` depends on `check`, and `test_moos_fast_remote` failed on this
+machine: it set `XDG_CONFIG_HOME` but not `XDG_CONFIG_DIRS`, so KConfig's
+cascade answered from the host's `/etc/xdg/kwinrc` — which in the installed
+image ships `contrastEnabled=false`. The key the test called "deliberately
+absent" resolved to `false`, so no `.missing` marker was written and the
+assertion failed on a machine where nothing was wrong. The test is hermetic now.
+It reached main because it ran in the Justfile only; **fourteen** tests were in
+that position, able to stop the maintainer's build while CI stayed green. All
+fourteen are in the Repo gates now (60 → 75 checks), so `just check` and CI are
+the same set again.
+
+**Per-user health, all three accounts.** `moos-selfcheck`: `moalfarras` 7 broken
+→ 0, `momo` and `dahab` 1 broken → 0. momo/dahab were a duplicate Bazaar
+launcher, retired with the shipped `moos-one-store`. moalfarras had a split
+theme — the targets said Midnight while the applied Plasma bits were base
+MoOSUI2 — repaired by re-applying, and Midnight restored. Its last two
+"failures" were a stale installed binary: the repo's `moos-selfcheck` (fixed in
+b3b240fb) reports **49 passed, 0 broken** against the same live session.
+
 **Documented temporary measure, with its removal condition.** The installed
 `/usr/bin/moos-visual-tier` on the Cloud host is still the old binary, so the
 next login would re-detect `balanced` and switch blur back on. All three
