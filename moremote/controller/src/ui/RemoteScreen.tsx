@@ -9,7 +9,7 @@ import {
   listTrustedDevices, revokeTrustedDevice,
   type ClipResult, type FileListing, type FileEntry, type PowerAction, type TrustedDeviceInfo,
 } from "../lib/api";
-import { pickStartPreset, readDeviceHints, describeHints } from "../lib/quality";
+import { pickStartPreset, readDeviceHints, describeHints, encodeWidth } from "../lib/quality";
 import { remoteAlertPermission, requestRemoteAlertPermission, showRemoteAlert } from "../lib/notifications";
 import { QUALITY_PRESETS, AUTO_MAX_PRESET, BUILD, MODE_LABEL, MODE_HINT, type GestureMode, type ViewMode, type MonitorInfo } from "../types";
 import {
@@ -1331,11 +1331,15 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
     const zoomed = view.current.zoom > 1.05;
     const ceiling = viewModeRef.current === "actual" || zoomed ? 2560 : Math.min(p.width, 2560);
     const shown = displayWidthPx();
-    // A zero means we could not measure yet (no canvas, no size): fall back to the preset rather
-    // than to a floor, or the first seconds of every session would be a deliberately small picture.
+    // A zero means we could not measure right now (no canvas, no size, a frame mid-relayout). That
+    // is NOT a request for full size — treating it as one made the encode width ping-pong between
+    // the fitted size and the ceiling, and every leg of that is a pipeline rebuild the viewer sees
+    // as the screen cutting out. See encodeWidth() for the measured sequence and why it also cost
+    // the room H.264 on every single session.
+    //
     // The floor is 720: below that, text on a 1080p desktop is unreadable on ANY
     // phone, and the encode cost of 720 vs 480 is noise even on llvmpipe.
-    const width = shown > 0 ? Math.max(720, Math.min(ceiling, shown)) : ceiling;
+    const width = encodeWidth(shown, ceiling, lastPushedWidth.current);
     lastPushedWidth.current = width;
     connRef.current?.settings(p.quality, p.fps, width, Math.min(1, width / 2560));
   };

@@ -118,6 +118,41 @@ export function pickStartPreset(hints: DeviceHints = {}): number {
   return PRESET_BALANCED;
 }
 
+/**
+ * The encode width to ask the helper for, given what we can measure RIGHT NOW.
+ *
+ * WHY A FAILED MEASUREMENT MUST NOT BECOME A REQUEST
+ *
+ * `shown` is 0 whenever the picture cannot be measured — no canvas, no layout, a hidden tab, a
+ * frame between teardown and rebuild. The old rule was "0 means fall back to the preset ceiling",
+ * which sounds harmless and is not: it makes a MEASUREMENT FAILURE indistinguishable from a
+ * deliberate request for full size, and every distinct width costs the helper a complete GStreamer
+ * teardown and rebuild (~200ms of no picture, then a fresh IDR).
+ *
+ * Measured on the MoOS Cloud server, one viewer, three minutes, from the agent's own log:
+ *
+ *     1100 -> 1920 -> 1690 -> 1920 -> 1616 -> 1194 -> 1788 -> 1920 -> 1440 -> 1920
+ *     -> 1378 -> 1920 -> 1904 -> 1920 -> 1436 -> 1100 -> 1704 -> 1920 ...
+ *
+ * Every jump back to exactly 1920 is this branch firing, and every arrow is a rebuild the person
+ * watching sees as the screen cutting out. The 12% dead band cannot damp it, because 1440 and 1920
+ * are 33% apart — the guard is doing its job on a request that should never have been made.
+ *
+ * It also explains why the room never held H.264. Each rebuild emits a new SPS, so the client's
+ * decoder is torn down and rebuilt on every one; a decode error anywhere in that churn votes the
+ * whole room down to JPEG, which is what the log shows on EVERY session: h264 at connect, jpeg
+ * 1-23 seconds later, without exception.
+ *
+ * So: when we cannot measure, do not change the request. Keep the last width we asked for, still
+ * clamped to the current ceiling so a deliberate preset DROP is honoured immediately. Only a
+ * viewer that has never once measured falls back to the ceiling, which is the original intent —
+ * the first seconds must not be a deliberately small picture.
+ */
+export function encodeWidth(shown: number, ceiling: number, lastPushed: number): number {
+  if (shown > 0) return Math.max(720, Math.min(ceiling, shown));
+  return lastPushed > 0 ? Math.min(ceiling, lastPushed) : ceiling;
+}
+
 /** Read what this browser will tell us. Every field is optional by design. */
 export function readDeviceHints(displayWidthPx?: number): DeviceHints {
   const nav = navigator as Navigator & {

@@ -1,8 +1,34 @@
 import assert from "node:assert/strict";
 import {
-  pickStartPreset, describeHints,
+  pickStartPreset, describeHints, encodeWidth,
   PRESET_DATA_SAVER, PRESET_BALANCED, PRESET_SHARP,
 } from "../src/lib/quality.ts";
+
+// ── A failed measurement must not become a request for full size ─────────────────────────
+// Every distinct encode width costs the helper a full GStreamer teardown and rebuild, which the
+// viewer sees as the screen cutting out. `shown === 0` means "cannot measure right now", and
+// answering it with the ceiling made the request ping-pong. Measured on the live cloud server,
+// one viewer, three minutes, from the agent's own log:
+//
+//   1100 -> 1920 -> 1690 -> 1920 -> 1616 -> 1194 -> 1788 -> 1920 -> 1440 -> 1920 -> 1378 -> 1920
+//
+// Every 1920 in that sequence is the unmeasurable branch, and the 12% dead band could not damp it
+// because 1440 and 1920 are 33% apart.
+assert.equal(encodeWidth(1440, 1920, 1440), 1440, "a good measurement is used as-is");
+assert.equal(encodeWidth(0, 1920, 1440), 1440,
+  "an unmeasurable moment must HOLD the last width, not jump to the ceiling");
+assert.equal(encodeWidth(0, 1920, 0), 1920,
+  "a viewer that has never measured still opens at the ceiling, not at a floor");
+
+// A deliberate preset DROP must still take effect immediately, even while unmeasurable —
+// otherwise a struggling link could not be relieved until the next successful layout.
+assert.equal(encodeWidth(0, 1024, 1920), 1024,
+  "the held width is still clamped to the current ceiling");
+
+// The 720 floor survives: below it, text on a 1080p desktop is unreadable on any phone.
+assert.equal(encodeWidth(320, 1920, 1440), 720, "the 720 floor still applies to a real measurement");
+// ...but the floor is a floor, not a target: it must never raise a held width.
+assert.equal(encodeWidth(2400, 1920, 1920), 1920, "a measurement above the ceiling is clamped");
 
 // The opening rung, which the RTT ladder cannot supply because a ladder is a correction and
 // not an opening move. Every case here is a real device shape, not an abstract branch.
