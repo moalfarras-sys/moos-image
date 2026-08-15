@@ -202,6 +202,73 @@ MoOSUI2 — repaired by re-applying, and Midnight restored. Its last two
 "failures" were a stale installed binary: the repo's `moos-selfcheck` (fixed in
 b3b240fb) reports **49 passed, 0 broken** against the same live session.
 
+## 2026-08-15 (third round) — the encoder's slices, and a query that asked the wrong thing
+
+**x264 was emitting 8 slices per frame.** `tune=zerolatency` turns on x264's SLICED THREADS, one
+slice per thread, so on this 8-core box every access unit carried 8. Parsed out of the shipping
+encoder's own output at the live 1836x1032:
+
+    sliced-threads=true   AUs=200  P-slices=1568  IDR-slices=32  -> 8.0 slices/frame
+    sliced-threads=false  AUs=200  P-slices=196   IDR-slices=4   -> 1.0 slices/frame
+
+Multi-slice H.264 is legal and Chrome decodes it; it is also the commonest thing an iOS WebCodecs
+decoder refuses. The room held H.264 for 14–15 s and fell to JPEG **every** time — the periodic IDR
+interval at this desktop's real damage-driven frame rate, and the IDR is the access unit carrying
+8 IDR slices. Everything else was healthy: all SPS byte-identical, IDR only 2.0× a P-frame, and
+**zero** backlog drops in the agent's log. Measured, 1836x1032, 300 frames:
+
+    sliced-threads=true              8.15s  ->  36.8 fps   8 slices, 0 frames of delay
+    sliced-threads=false threads=1  13.87s  ->  21.6 fps   1 slice,  0 frames  (too slow)
+    sliced-threads=false threads=2   7.40s  ->  40.5 fps   1 slice,  1 frame   <- shipped
+
+One slice is 10% **faster** than what shipped. `threads` is now a latency budget, not a core count.
+
+**AND THE SLICE HYPOTHESIS WAS THEN DISPROVED, ON THIS MACHINE, BY MEASUREMENT.** The fixed helper
+was installed live and all three agents restarted onto it. The flap continued unchanged, with the
+same ~15 s H.264 lifetime. Multi-slice was not the cause. The change stays because it is strictly
+more compatible and measurably faster, but it is not the fix and must not be described as one.
+
+**What the same log then proved instead.** The jpeg→h264 gaps are exactly the client's retry
+backoff, `15000 * 2^n`:
+
+    08:58:46 jpeg -> 08:59:01 h264   15s   (n=0)
+    08:59:15 jpeg -> 08:59:45 h264   30s   (n=1)
+    09:00:00 jpeg -> 09:01:00 h264   60s   (n=2)
+                                  -> then STOPS, budget spent
+
+So the three-strikes rule works perfectly **within one page load** — the room settles on JPEG and
+stays there. What defeats it is that the session ends and reconnects every one to two minutes
+(09:02:56, 09:04:04, 09:04:41 in that window), and each reconnect handed out a fresh budget. That
+is precisely the defect the `sessionStorage` seeding fixes, so the evidence now points at that fix
+rather than at the encoder. It cannot be confirmed from here yet: the controller is a PWA and its
+service worker only checks for a new build **hourly**, so a browser with a warm cache is still
+running the old bundle. A hard reload (or reopening the installed app) is what makes it arrive.
+
+Still open: why the H.264 decoder dies after ~15 s at all, and why sessions end every one to two
+minutes (`SendJson failed: The operation was canceled` — the client going away). Neither is
+diagnosable from this side; both need the browser console.
+
+**The toolbar sat on the remote's dock because the media query asked about the PRIMARY pointer.**
+`@media (hover: hover) and (pointer: fine)` is false on a Windows touchscreen laptop even with a
+mouse and trackpad attached, so the rule that moves the bar to the top never applied and it stayed
+on the bottom edge — over the bottom-centred Horizon Bar (`location=4`, verified on the live
+accounts), on the same edge that is also the hover-summon strip. RemoteScreen documents the
+identical trap one screen away for gesture mode ("A touchscreen laptop therefore starts in touch
+mode"), and a browser that answers no pointer query at all — headless Firefox — got a phone layout
+in a 1280x860 window. Now `(any-hover: hover) and (any-pointer: fine)`, plus a viewport clause for
+the browser that answers nothing. CSS and JS read one exported `POINTER_BAR_QUERY`; a mismatch
+would put the summon strip on the opposite wall from the bar, so a gate asserts the stylesheet
+carries it verbatim in both blocks and that the short-landscape rail is still declared after it
+(media queries add no specificity — only source order was keeping that true).
+
+Both new gates were verified to FAIL when their change is reverted, and to pass when restored.
+
+**Applied live via `bootc usr-overlay`.** The fixed helper and the rebuilt bundle
+(`index-aEk1klfa.js`) are installed under `/usr/lib/mo-remote/` on a **transient** overlay and all
+three agents restarted onto them. This is deliberately temporary: `bootc usr-overlay` discards
+everything on `/usr` at reboot, and it touches neither the ostree origin, the signature policy, nor
+rollback. **It disappears on the next boot** — the permanent path is the signed image.
+
 **Documented temporary measure, with its removal condition.** The installed
 `/usr/bin/moos-visual-tier` on the Cloud host is still the old binary, so the
 next login would re-detect `balanced` and switch blur back on. All three
