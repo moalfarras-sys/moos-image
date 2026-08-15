@@ -269,6 +269,45 @@ three agents restarted onto them. This is deliberately temporary: `bootc usr-ove
 everything on `/usr` at reboot, and it touches neither the ostree origin, the signature policy, nor
 rollback. **It disappears on the next boot** — the permanent path is the signed image.
 
+## 2026-08-15 (fourth round) — typing from a computer, and the input path nobody flushed
+
+**A physical key could overtake text that was still gathering.** The agent gathers text before
+typing it, which is load-bearing: Arabic cannot be typed by keysym on a Latin group, so it goes by
+keymap group as one ordered batch. Every input path that can move the caret therefore delivers the
+batch first — `KeyTap`, `KeyDown`, `Click`, `DoubleClick`, `ClickCurrent`, `MouseButton`,
+`MouseButtonCurrent`. **`KeyCode` did not**, and `KeyCode` is exactly the path a COMPUTER browser
+uses: `DesktopInput` routes any key whose character matches its US position by POSITION
+(`decideKey → "physical"`), which includes Space, Enter, Tab and every digit, while Arabic letters
+go the other way as `text`. So one Arabic sentence typed from a desktop travelled two mechanisms at
+once and the physical half jumped the queue — spaces landing inside words, letters arriving after
+the space that should have followed them. The owner reported it *in* the mangled Arabic it
+produces. Nothing is visible from the server: every keystroke arrives, is accepted, is injected.
+Flushed on the DOWN edge only — a release cannot reorder an edit, and flushing on every release
+would defeat the gathering; the asymmetry is now gated.
+
+**Every symbol was dropped, along with the rest of its run.** `TryDirectStrokes` injects keysyms,
+and KWin resolves an injected keysym against the active group at **shift level one only** — the
+same fact that forced `AraKeymap` to exist. So it covered a-z, 0-9, space and A-Z (uppercase being
+the one level-two case identical on every Latin layout) and nothing else. Every symbol is level two
+or higher and its position is *not* layout-invariant (`@` is Shift+2 on US, AltGr+Q on German), so
+any run containing one returned false and `Deliver` dropped the **whole run**. From the user's
+side: paste a URL, a password or an email address and the symbols are missing, or the line never
+arrives — reported as symbols not surviving a copy and paste. `UsKeymap.cs` fixes it the way
+`AraKeymap` already proved: select a known group and send POSITIONS, which reach every level. `us`
+is in the session's layout list here (`de, us, ara`), and it is only reached when the keysym path
+fails, so ordinary Latin text still types on the user's own layout and pays no group switch.
+
+Both are in the compiled agent, so unlike the earlier rounds they could not be hot-patched onto the
+overlay — they needed the image. Verified with `dotnet build`: 0 warnings, 0 errors. Two new gates
+(`test_remote_keycode_flush`, `test_remote_us_keymap`), both verified to fail when reverted.
+
+**Also this round:** a computer with a touchscreen was getting no real mouse or keyboard at all —
+`defaultMode()` classified it as touch on the strength of `maxTouchPoints > 0` alone, and
+`DesktopInput` is only ATTACHED in desktop mode, so there were no mouse buttons, no wheel, no key
+codes, no pointer lock and no keyboard lock. Now `touch && !mouse`, using `any-pointer: fine` — the
+same misdiagnosis, and the same fix, as the toolbar edge. Keyboard Lock is also requested *before*
+`requestFullscreen()` now, per Chrome's guidance for the permission-gated pair.
+
 **Documented temporary measure, with its removal condition.** The installed
 `/usr/bin/moos-visual-tier` on the Cloud host is still the old binary, so the
 next login would re-detect `balanced` and switch blur back on. All three
