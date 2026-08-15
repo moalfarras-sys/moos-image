@@ -951,7 +951,7 @@ button {
  * at an edge), not by screen size — a wide touch tablet has no hover and keeps thumb reach.
  * The short-landscape rail below intentionally still wins when both media queries match.
  */
-@media (hover: hover) and (pointer: fine) {
+@media (any-hover: hover) and (any-pointer: fine), (min-width: 900px) and (orientation: landscape) {
   .toolbar {
     bottom: auto;
     top: calc(var(--safe-top) + 14px);
@@ -1109,7 +1109,7 @@ button {
    pointer-machine block for the full reasoning. Top-RIGHT corner, same corner logic as the
    base note above, one edge up. Must come after the base rules: same specificity, so source
    order is what makes this win. */
-@media (hover: hover) and (pointer: fine) {
+@media (any-hover: hover) and (any-pointer: fine), (min-width: 900px) and (orientation: landscape) {
   .show-tab {
     bottom: auto;
     top: calc(var(--safe-top) + 10px);

@@ -11,7 +11,7 @@ import {
 } from "../lib/api";
 import { pickStartPreset, readDeviceHints, describeHints, encodeWidth } from "../lib/quality";
 import { remoteAlertPermission, requestRemoteAlertPermission, showRemoteAlert } from "../lib/notifications";
-import { QUALITY_PRESETS, AUTO_MAX_PRESET, BUILD, MODE_LABEL, MODE_HINT, type GestureMode, type ViewMode, type MonitorInfo } from "../types";
+import { QUALITY_PRESETS, AUTO_MAX_PRESET, POINTER_BAR_QUERY, BUILD, MODE_LABEL, MODE_HINT, type GestureMode, type ViewMode, type MonitorInfo } from "../types";
 import {
   IconAltTab, IconActual, IconArrowUp, IconBackspace, IconChevronDown, IconClipboard, IconClose,
   IconCopy, IconEnter, IconEsc, IconFile, IconFit, IconFolder, IconFullscreen, IconKeyboard,
@@ -1089,7 +1089,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
     // dock owns the bottom edge — so the summon strip must live on the same edge the bar
     // appears on, or the gesture opens a door on the opposite wall. Capability, not mode:
     // a phone forced into desktop mode still has its bar (and thumb) at the bottom.
-    const topBar = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+    const topBar = window.matchMedia(POINTER_BAR_QUERY).matches;
     let armed = true;
     const onMove = (e: PointerEvent) => {
       const near = topBar ? e.clientY < EDGE : e.clientY > window.innerHeight - EDGE;
