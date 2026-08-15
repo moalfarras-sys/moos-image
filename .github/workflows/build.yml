@@ -46,10 +46,31 @@ jobs:
   build-push-sign:
     name: Build, push and sign (${{ matrix.image_name }})
     runs-on: ubuntu-latest
-    # A buildah layer build + push + sign is well under an hour; cap it so a
-    # wedged dnf5/registry step fails instead of holding a runner for 6h — and
-    # this job runs three times over the matrix, so the default would be 18h.
-    timeout-minutes: 60
+    # A wedged dnf5/registry step must fail rather than hold a runner for 6h, and
+    # this job runs three times over the matrix, so the default would be 18h. The
+    # cap is what stops that; its VALUE is only ever a measurement.
+    #
+    # 60 was that measurement while the whole job took 16-20 minutes (run
+    # 31676341524, 2026-08-13). It stopped being one on 2026-08-15, when the same
+    # job began running out of an hour inside `Build image (buildah)` alone:
+    #
+    #   31676341524  2026-08-13  success    16-20 min per job
+    #   31868982000  2026-08-15  failure    ~54 min, cut off mid-step (scheduled)
+    #   31894890009  2026-08-15  cancelled  buildah alone 16:16:23 -> 17:12:56
+    #
+    # The middle entry is the load-bearing one: it ran BEFORE any of the work of
+    # that day was merged, so the slowdown is upstream of this repository — a
+    # larger base image, a slower registry, slower Fedora mirrors — and not
+    # something a commit here caused. In the last run the repo gates finished in
+    # 27 seconds and every stage up to build.sh completed; the job simply ran out
+    # of clock while still making progress.
+    #
+    # So this is raised to fit the build that now exists, not to paper over a
+    # hang: 120 still fails a genuinely wedged job in a bounded time, and a run
+    # needing materially more than the ~65 minutes this one was heading for is a
+    # real regression worth failing on. THE CAUSE OF THE SLOWDOWN IS NOT KNOWN,
+    # and is worth finding; this only stops it from blocking every release.
+    timeout-minutes: 120
     strategy:
       # Build both variants to completion independently: an nvidia base-image
       # failure must not kill the main image build (and vice versa).
