@@ -116,12 +116,44 @@ would drop the frame rate below 30 before a second viewer even connected. 1920
 is the correct ceiling on this machine, and the sharpness win has to come from
 *sending* all 1920 — which is exactly what the preset fix does.
 
+**`moos-auto-update` failed every night on a machine where nothing was wrong.**
+Found in the same sweep, and it is the reason `systemctl --failed` was not empty
+on the Cloud host. The unit read only the **booted** deployment and compared the
+registry against that. rpm-ostree stages an update and applies it on the next
+reboot, so an un-rebooted server sits with `staged` carrying the newest digest
+and `booted` still carrying the old one — the normal state of a server between
+the nightly run and the next restart. The comparison therefore read "an update
+is available" for ever, aimed the rebase at a ref that was already staged, and
+rpm-ostree refused:
+
+    Aug 14  staged sha256:b0f47edc…  "Changes queued for next boot"
+    Aug 15  error: Old and new refs are equal: …moos-cloud@sha256:b0f47edc…
+            moos-auto-update.service: Failed with result 'exit-code'
+
+The update was ready and waiting the whole time. The cost is the signal: a unit
+that is red every morning is indistinguishable from one that is red for a real
+reason, and this repo's self-check leans on `systemctl --failed` meaning
+something. The status parse now reads the staged ref too, and "already staged"
+exits 0 with an honest log line instead of 1. A newer image published *after*
+staging still restages, which the new gate pins alongside it. Verified against
+the live machine's real `rpm-ostree status --json`: tonight's run goes from
+`exit 1 FAILED` to `exit 0, already staged`.
+
 Not changed, deliberately: the Mo AI orb's idle breath holds ~12.7% of a core
 under llvmpipe. Its loops are correctly guarded by
 `motionEnabled: Kirigami.Units.longDuration > 1`, and `essential` writes
 `AnimationDurationFactor 0.4` on purpose ("short and honest beats fake-off"), so
 this is design, not a defect. The shipped levers are `moos-fast-remote on` and
 `moos-theme motion still`; choosing between them is the owner's call.
+
+**Documented temporary measure, with its removal condition.** The installed
+`/usr/bin/moos-visual-tier` on the Cloud host is still the old binary, so the
+next login would re-detect `balanced` and switch blur back on. All three
+accounts are therefore pinned with `moos-visual-tier --set essential`, which the
+tool honours before any probe runs — verified by pinning through the *installed*
+binary, so it survives a login. **Once an image carrying this commit is
+deployed, remove the pin** with `moos-visual-tier --set auto` per account, so
+detection owns the answer again and a future hardware change is followed.
 
 Release `.585` signed digests (previous):
 

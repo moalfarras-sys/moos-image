@@ -40,14 +40,25 @@ def run_with_doubles(
     booted_ref: str,
     registry_digest: str,
     transaction: str = "",
+    staged_ref: str = "",
 ) -> tuple[subprocess.CompletedProcess, str]:
-    """Run the script against doubles; return (result, captured rebase argv)."""
+    """Run the script against doubles; return (result, captured rebase argv).
+
+    `staged_ref` models the state every un-rebooted server is in between the
+    nightly run and the next restart: rpm-ostree lists the queued deployment
+    FIRST, with "staged":true, while "booted" still names the older image.
+    """
     with tempfile.TemporaryDirectory() as tmp:
         bindir = Path(tmp)
         log = bindir / "rebase.log"
         transaction_json = f'"{transaction}"' if transaction else "null"
+        staged_json = (
+            f'{{"booted":false,"staged":true,'
+            f'"container-image-reference":"{staged_ref}"}},'
+        ) if staged_ref else ""
         status = (
-            f'{{"transaction":{transaction_json},"deployments":[{{"booted":true,'
+            f'{{"transaction":{transaction_json},"deployments":[{staged_json}'
+            f'{{"booted":true,'
             f'"container-image-reference":"{booted_ref}"}}]}}'
         )
         # One double answers `status --json` AND records any `rebase` argv —
@@ -229,6 +240,40 @@ if Path("/ostree/deploy").is_dir():
 else:
     print("note: /ostree/deploy is absent here, so the notifier's own guard "
           "short-circuits; its wiring was still checked")
+
+# An update that is ALREADY STAGED and merely waiting for a reboot is success.
+#
+# This is the state of every server between the nightly run and the next
+# restart, and reading only the booted deployment made it look like an update
+# was still due. The rebase was then aimed at a ref that was already staged and
+# rpm-ostree refused — "error: Old and new refs are equal" — so the unit exited
+# 1 and sat in `systemctl --failed` every morning until somebody rebooted.
+# Observed on the MoOS Cloud server: staged 2026-08-14, failed 2026-08-15.
+STAGED_CLOUD = f"ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos-cloud@{NEW}"
+BOOTED_CLOUD = f"ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos-cloud@{OLD}"
+result, captured = run_with_doubles(
+    booted_ref=BOOTED_CLOUD, staged_ref=STAGED_CLOUD, registry_digest=NEW)
+check(result.returncode == 0,
+      "a machine with the latest image already staged must SUCCEED, not fail "
+      f"nightly until it is rebooted; got rc={result.returncode} {result.stderr}")
+check(captured == "",
+      "nothing may be rebased when that exact digest is already staged — that "
+      f"is what rpm-ostree rejects as 'Old and new refs are equal'; got {captured!r}")
+check("already staged" in result.stdout or "already staged" in result.stderr,
+      f"the run must say the update is staged and waiting; got {result.stdout!r}")
+
+# ...but a staged deployment that is NOT the latest must still not block the
+# train: a newer image published after staging has to be picked up.
+NEWEST = "sha256:" + "e" * 64
+result, captured = run_with_doubles(
+    booted_ref=BOOTED_CLOUD, staged_ref=STAGED_CLOUD, registry_digest=NEWEST)
+check(result.returncode == 0, f"restaging onto a newer digest failed: {result.stderr}")
+check(
+    captured == (
+        "rebase\n"
+        f"ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos-cloud@{NEWEST}\n"
+    ),
+    f"a newer image than the staged one must still be staged; got {captured!r}")
 
 if errors:
     print("MoOS auto-update test failed:", file=sys.stderr)

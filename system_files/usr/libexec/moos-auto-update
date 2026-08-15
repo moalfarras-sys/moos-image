@@ -41,13 +41,42 @@ if [ -n "$busy" ]; then
     exit 0
 fi
 
-ref="$(python3 -c '
+# The BOOTED ref names the edition. The STAGED one, if there is any, is what an
+# earlier run of this unit has already queued.
+#
+# WHY BOTH, AND WHAT READING ONLY THE BOOTED ONE COST
+#
+# rpm-ostree stages an update and applies it on the next reboot, so a machine
+# that has not been rebooted sits with `staged` carrying the newest digest while
+# `booted` still carries the old one. That is not an edge case: it is the NORMAL
+# state of a server between the nightly run and the next restart.
+#
+# Comparing the registry against the booted digest alone reads that state as "an
+# update is available" for ever. The rebase below is then asked to move to a ref
+# that is already staged, and rpm-ostree refuses outright:
+#
+#     error: Old and new refs are equal: ostree-image-signed:docker://...
+#
+# so the unit exits 1 and lands in `systemctl --failed` again every night until
+# somebody reboots. Measured on the MoOS Cloud server: staged 2026-08-14, then
+# failed 2026-08-15 with exactly that error. Nothing was actually broken — the
+# update was ready and waiting — but a unit that is red every morning is
+# indistinguishable from one that is red for a real reason, and this repo's
+# self-check leans on `systemctl --failed` meaning something.
+refs="$(python3 -c '
 import json, sys
+booted = staged = ""
 for deployment in json.load(sys.stdin).get("deployments", []):
+    image = deployment.get("container-image-reference", "") or ""
     if deployment.get("booted"):
-        print(deployment.get("container-image-reference", ""))
-        break
+        booted = image
+    elif deployment.get("staged"):
+        staged = image
+print(booted)
+print(staged)
 ' <<<"$status")"
+ref="$(printf '%s\n' "$refs" | sed -n 1p)"
+staged_ref="$(printf '%s\n' "$refs" | sed -n 2p)"
 
 registry="ghcr.io/moalfarras-sys"
 case "$ref" in
@@ -72,6 +101,15 @@ fi
 current="$(printf '%s' "$ref" | grep -Eo 'sha256:[0-9a-f]{64}' | tail -n 1 || true)"
 if [ "$latest" = "$current" ]; then
     log "already on the latest signed image (${current})"
+    exit 0
+fi
+
+# Already staged and simply waiting for a reboot is SUCCESS, not a retry. See the
+# note above the status parse: without this the unit fails every night, for as
+# long as the machine stays up, on an install where nothing is wrong at all.
+staged_digest="$(printf '%s' "$staged_ref" | grep -Eo 'sha256:[0-9a-f]{64}' | tail -n 1 || true)"
+if [ -n "$staged_digest" ] && [ "$latest" = "$staged_digest" ]; then
+    log "latest signed image (${latest}) is already staged; applies on the next reboot"
     exit 0
 fi
 
