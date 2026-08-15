@@ -10,6 +10,7 @@ import {
   type ClipResult, type FileListing, type FileEntry, type PowerAction, type TrustedDeviceInfo,
 } from "../lib/api";
 import { pickStartPreset, readDeviceHints, describeHints, encodeWidth } from "../lib/quality";
+import { h264Failures, noteH264Failure, H264_MAX_FAILURES } from "../lib/h264state.ts";
 import { remoteAlertPermission, requestRemoteAlertPermission, showRemoteAlert } from "../lib/notifications";
 import { QUALITY_PRESETS, AUTO_MAX_PRESET, POINTER_BAR_QUERY, BUILD, MODE_LABEL, MODE_HINT, type GestureMode, type ViewMode, type MonitorInfo } from "../types";
 import {
@@ -292,9 +293,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
    * cleared when the tab closes — so a genuinely transient failure costs one tab and nothing more,
    * and a new tab is always allowed to try again from scratch.
    */
-  const h264RetriesRef = useRef(((): number => {
-    try { return Number(sessionStorage.getItem("h264Retries")) || 0; } catch { return 0; }
-  })());
+  const h264RetriesRef = useRef(h264Failures());
   const h264RetryTimer = useRef<number | null>(null);
   const view = useRef({ zoom: 1, panX: 0, panY: 0 });
   const fpsCount = useRef(0);
@@ -757,12 +756,10 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
       // Backed off and bounded: the first retry is generous enough that a device in real trouble has
       // stopped being in trouble, each subsequent one waits longer, and after three we accept that
       // this browser genuinely cannot decode H.264 and stop asking. A retry costs one keyframe.
-      if (h264RetriesRef.current < 3) {
+      if (h264RetriesRef.current < H264_MAX_FAILURES) {
         const wait = 15000 * Math.pow(2, h264RetriesRef.current);
-        h264RetriesRef.current++;
-        // Remember it across reconnects, or the count restarts at zero every time the socket comes
-        // back and "stop asking after three" never happens. See the note on h264RetriesRef.
-        try { sessionStorage.setItem("h264Retries", String(h264RetriesRef.current)); } catch { /* private mode */ }
+        // ONE shared fact, so the connect-time declaration in ws.ts cannot out-vote this.
+        h264RetriesRef.current = noteH264Failure();
         if (h264RetryTimer.current) window.clearTimeout(h264RetryTimer.current);
         h264RetryTimer.current = window.setTimeout(() => {
           if (disposed || !canDecodeH264()) return;

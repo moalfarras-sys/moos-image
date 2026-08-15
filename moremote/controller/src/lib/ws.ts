@@ -1,5 +1,6 @@
 import type { Hello, MouseButton } from "../types";
 
+import { h264GivenUp } from "./h264state.ts";
 import { canDecodeH264 } from "./decode.ts";
 
 /** One 60 Hz frame: text the agent types by keysym must not wait longer than this. */
@@ -98,7 +99,16 @@ export class RemoteConnection {
     // Tell the agent what this browser can actually decode, before it picks an encoder. We never
     // let it guess: WebCodecs is absent outside a secure context, so a phone on the old plain-http
     // LAN address answers false here and correctly keeps the JPEG stream it can read.
-    ws.send(JSON.stringify({ type: "video", h264: canDecodeH264() }));
+    //
+    // AND IT MUST RESPECT A DECISION THIS TAB HAS ALREADY MADE. canDecodeH264() only answers "is
+    // WebCodecs available in principle" — it knows nothing about the three decode failures that
+    // may have just happened. This path was unbounded while the RETRY path was bounded to three,
+    // so every reconnect handed the room a clean slate and the cycle started again. Measured on
+    // the cloud server: the three-strikes rule stopped the retries correctly, and then a session
+    // END/START one second apart re-offered H.264 immediately. Sessions there reconnect every one
+    // to two minutes, and every codec change is a pipeline rebuild the user sees as the screen
+    // cutting out — so this is the difference between "settles down" and "never stops".
+    ws.send(JSON.stringify({ type: "video", h264: canDecodeH264() && !h264GivenUp() }));
       this.h.onOpen?.();
       this.startPing();
     };
