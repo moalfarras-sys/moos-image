@@ -68,6 +68,13 @@ class TestFontConfigRuleInstalled(unittest.TestCase):
     def test_arabic_family_is_resolvable(self) -> None:
         if shutil.which("fc-list") is None:
             self.skipTest("fc-list not available")
+        # Kawkab Mono is shipped BY THE IMAGE, so this can only be true on a machine that has the
+        # image — the same condition its two siblings above already guard on, and for the same
+        # reason. Without it, adding this file to the CI gate list turned every build red on
+        # `'Kawkab Mono' not found in 'DejaVu Sans Mono\nDejaVu Sans\n...'`: the runner has neither
+        # the font nor the rule, and never claimed to.
+        if not Path(FONTCONF_RULE).exists():
+            self.skipTest("fontconfig rule not on this system (off-image host)")
         out = subprocess.run(
             ["fc-list", f":lang=ar", "family"],
             check=True,
