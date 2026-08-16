@@ -43,6 +43,52 @@ with manifest digest
 `sha256:cbaa34261c7b0088379fffebc63515a718351107dbccdc506a39c581d879c987`
 and size 10,776,140,710 bytes.
 
+## 2026-08-16 (second round) — the wake receiver was blind, and WhatsApp was hiding it
+
+**Turning off an unused channel took the phone agent offline, and the reason is three
+components deep.** `openclaw-idle` refuses to sleep the gateway while a WhatsApp channel is
+enabled — *"a linked/enabled WhatsApp channel must keep its WebSocket receiver alive"*. That
+made an enabled WhatsApp the de-facto pin holding the gateway awake. Disable it, as an owner
+who only wants Telegram reasonably would, and the stack correctly falls back to its designed
+on-demand posture: the gateway sleeps and `moai-wake` long-polls Telegram to wake it.
+
+Except `moai-wake` could not reach Telegram at all. Measured on the development host:
+
+```text
+getaddrinfo("api.telegram.org") -> 149.154.166.110 AND 2001:67c:4e8:f004::9
+host has NO IPv6 default route  -> urlopen took v6 first, [Errno 101] instantly
+curl -4 149.154.166.110         -> no answer, 8 s timeout
+curl -4 149.154.167.220 / .99   -> HTTP 302 in ~0.10 s
+```
+
+Both halves of the default resolution were unusable while Telegram was perfectly reachable on
+other addresses in its own range. OpenClaw's own client already retries an alternative API IP
+and therefore never noticed; `moai-wake` was a bare `urlopen` with no such path and logged
+`Network is unreachable` / `read operation timed out` on a loop. **The gateway was asleep and
+the only thing that could wake it was blind — Telegram messages were being dropped in silence
+while `systemctl` reported every unit healthy.** WhatsApp had masked this for months by never
+letting the sleep happen.
+
+`moai-wake` now restricts resolution to IPv4 and, on a *connection* failure only, retries
+known `api.telegram.org` addresses with the socket pinned while TLS SNI and the Host header
+still carry the real name, so certificate validation is unchanged. The winner is cached and
+tried first, so the steady state is one attempt and a healthy network never consults the list.
+`149.154.175.50` is deliberately excluded: it sits in Telegram's range but answers
+`SSL: WRONG_VERSION_NUMBER`. **HTTP errors are re-raised before the connection handler** —
+`HTTPError` subclasses `OSError`, and the first draft swallowed a 409 and retried it across
+every address; the new gate caught that in review, not in production.
+
+`tests/test_moai_wake_telegram_reachability.py` is offline by construction (stubs, no
+credentials) and covers IPv4-only resolution, failover past a blocked address, 409
+propagation, and raising rather than returning `None` when everything is down. It was
+confirmed to fail against the pre-fix script.
+
+**Live state on the development host:** the gateway is pinned awake with `openclaw-idle`
+masked — a documented temporary workaround, removable with
+`systemctl --user unmask openclaw-idle.service && systemctl --user start openclaw-idle.timer`
+once a signed image carries this fix. Until then the on-demand path is still the old blind one
+on disk.
+
 ## 2026-08-16 — the Mo AI link that was never connected (fix live-proven, not yet signed)
 
 **The phone gateway had been running without its Mo AI wiring since at least 8 August, and

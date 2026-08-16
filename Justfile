@@ -169,6 +169,9 @@ check:
     # ExecStartPre=moai-openclaw-preflight — the entire Mo AI link — silently never runs while
     # the gateway still answers. The retirement only matched the EARLY installer's strings.
     python3 tests/test_openclaw_modern_unit_retire.py
+    # The wake receiver is the only way back from an idle gateway. IPv4-only resolution and a
+    # pinned-IP fallback keep it alive on a network that blocks Telegram's default address.
+    python3 tests/test_moai_wake_telegram_reachability.py
     # Runs the motion gate in a REAL QML engine instead of grepping for it. Skips
     # cleanly where there is no Qt (the CI runner); the string half of the same
     # contract is in verify_user_experience.py and runs everywhere.

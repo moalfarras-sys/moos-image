@@ -299,6 +299,12 @@ jobs:
           # the maintainer's own machine. This asserts both generations retire and that hand-written
           # or symlinked units are still never touched.
           python3 tests/test_openclaw_modern_unit_retire.py
+          # moai-wake is the ONLY thing that can wake a sleeping gateway, so if it cannot reach
+          # Telegram the phone agent is silently dead while every surface reports healthy. On a
+          # host with no IPv6 route it died instantly on the AAAA record ([Errno 101]) and the
+          # default A record timed out, though .167.220/.99 answered in 0.10s. An enabled
+          # WhatsApp channel pins the gateway awake, which masked this for months.
+          python3 tests/test_moai_wake_telegram_reachability.py
           python3 tests/test_mo_remote_codec_resend.py
           # The H.264->JPEG fallback latch was dead code: `if not pick_h264()` tests a 2-tuple that is
           # always truthy, and the mid-stream blacklist keyed the instance name 'enc' and called
