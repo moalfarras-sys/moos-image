@@ -257,6 +257,16 @@ lint:
 # The variable is written into .claude/settings.local.json, which .gitignore keeps out
 # of every commit — it is also where your API keys go. Existing keys are MERGED, never
 # overwritten. Restart your Claude Code session afterwards so it re-reads the config.
+#
+# AND ALSO INTO YOUR SHELL PROFILE, WHICH IS THE HALF THAT ACTUALLY WORKS.
+#
+# settings.local.json alone was not enough, measured: with MOOS_CHROME present in that
+# file AND visible to every command Claude Code ran, the chrome-devtools server still
+# died with "Browser was not found at the configured executablePath
+# (/opt/google/chrome/chrome)" — the unsubstituted default. `.mcp.json` expansion reads
+# the environment the CLI was LAUNCHED with, and the settings `env` block is applied
+# after that, so a variable that lives only in settings never reaches the server's argv.
+# The profile export is what puts it in the environment before the CLI starts.
 mcp-setup:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -285,7 +295,37 @@ mcp-setup:
     PY
 
     echo
-    echo "Done. Restart your Claude Code session, then run /mcp — all four should be connected."
+    # The half that actually reaches .mcp.json's ${MOOS_CHROME} expansion. Idempotent:
+    # the marker's line is rewritten in place rather than appended again on every run.
+    PROFILE="${HOME}/.bashrc"
+    MARK="# MoOS: browser for the chrome-devtools MCP server (just mcp-setup)"
+    LINE="export MOOS_CHROME=\"${HOME}/.cache/moos-mcp/chrome\""
+    python3 - "$PROFILE" "$MARK" "$LINE" <<'PY'
+    import pathlib, sys
+    p, mark, line = pathlib.Path(sys.argv[1]), sys.argv[2], sys.argv[3]
+    lines = p.read_text().splitlines() if p.is_file() else []
+    if mark in lines:
+        i = lines.index(mark)
+        # Replace the export that follows the marker, wherever it drifted to.
+        j = i + 1
+        while j < len(lines) and not lines[j].startswith("export MOOS_CHROME="):
+            j += 1
+        if j < len(lines):
+            lines[j] = line
+        else:
+            lines.insert(i + 1, line)
+        print(f"==> refreshed MOOS_CHROME in {p}")
+    else:
+        lines += ["", mark, line]
+        print(f"==> appended MOOS_CHROME to {p}")
+    p.write_text("\n".join(lines) + "\n")
+    PY
+
+    echo
+    echo "Done. Open a NEW terminal so the profile export is in the environment, THEN restart"
+    echo "Claude Code and run /mcp — all four should be connected. Restarting the session alone"
+    echo "is not enough: .mcp.json expands \${MOOS_CHROME} from the environment the CLI was"
+    echo "launched with, not from settings.local.json."
     echo "Image generation additionally needs GEMINI_API_KEY in .claude/settings.local.json;"
     echo "see docs/MCP.md for where to get one. Everything else works with no key."
 

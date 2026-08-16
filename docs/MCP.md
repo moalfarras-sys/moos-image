@@ -116,9 +116,30 @@ Keys go in `.claude/settings.local.json`, which `.gitignore` keeps out of every 
 }
 ```
 
-A shell `export` in your profile works identically and is what CI-like environments should use.
 A missing variable is **not** fatal: Claude Code warns, the server still starts, and only the
 call that needs the key fails.
+
+### `MOOS_CHROME` is the exception: it must be a real shell export
+
+**`settings.local.json` alone does not work for it, and this was measured.** With `MOOS_CHROME`
+set in that file *and* visible to every command Claude Code ran, `chrome-devtools` still died on
+the first navigate with:
+
+```
+Browser was not found at the configured executablePath (/opt/google/chrome/chrome)
+```
+
+— the unsubstituted default. `.mcp.json` expands `${VAR}` from the environment the CLI was
+**launched with**, and the settings `env` block is applied after that, so a variable that lives
+only in settings never reaches the server's argv.
+
+`just mcp-setup` therefore writes **both**: the settings entry (for anything that reads it later)
+and an `export` in `~/.bashrc` (the half that actually works). It is idempotent — running it twice
+rewrites the line rather than appending a second one. **Open a new terminal before restarting
+Claude Code**, or the export is not in the environment yet.
+
+The same applies to any credential you want an MCP server's `env` block to expand: put it in your
+profile, not only in `settings.local.json`.
 
 ---
 
