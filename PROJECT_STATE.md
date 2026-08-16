@@ -4,7 +4,7 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-08-15. The development host is booted from signed
+Last updated: 2026-08-16. The development host is booted from signed
 **`44.20260814.590`** (`moos-nvidia@sha256:04de88e6…`) and keeps signed `.588`
 as its rollback deployment. The integrated Mo PC Remote repair below is source
 and live-development tested but **not yet shipped**; do not describe it as part
@@ -43,6 +43,48 @@ with manifest digest
 `sha256:cbaa34261c7b0088379fffebc63515a718351107dbccdc506a39c581d879c987`
 and size 10,776,140,710 bytes.
 
+## 2026-08-16 — the Mo AI link that was never connected (fix live-proven, not yet signed)
+
+**The phone gateway had been running without its Mo AI wiring since at least 8 August, and
+every surface said it was fine.** `systemctl --user status openclaw-gateway` reported
+`active (running)`, the gateway answered `HTTP 200` on `127.0.0.1:18789`, Telegram and
+WhatsApp were attached, and every repo gate was green. What was actually loaded was
+`~/.config/systemd/user/openclaw-gateway.service` — a unit written by `openclaw service
+install`, not by this image. That path outranks `/usr/lib/systemd/user` in systemd's search
+order, so the shipped unit never applied and with it neither did
+`ExecStartPre=/usr/libexec/moai-openclaw-preflight`, which *is* the Mo AI link: it starts the
+speech engine and resolves and starts the selected Ollama/brain engine. Also lost were
+`OLLAMA_API_KEY=ollama-local` and `ConditionUser=!@system`, the guard that keeps a root
+session off uid 1000's ports. The sixth entry for the trap list: green, answering, and
+half-connected.
+
+**`retire_legacy_gateway_unit()` exists precisely to remove that file, and it had been a
+no-op for two generations.** It required *all three* strings from the early installer's unit
+— `Description=OpenClaw Gateway (local agent, Telegram channel)`, `Requires=ollama.service`,
+`ExecStart=%h/.local/bin/openclaw gateway`. The current installer
+(`OPENCLAW_SERVICE_VERSION=2026.7.1-2`) shares none of them: it renames Description, drops the
+`Requires`, and invokes node by absolute path with `--port 18789`. `all()` was therefore
+False on every login, `moai-agent-api`'s `ExecStartPre` migration did nothing, and the stray
+unit survived every boot and every image update. The retirement now matches *either*
+generation, the modern one keyed on `OPENCLAW_SERVICE_MARKER=openclaw` +
+`OPENCLAW_SERVICE_KIND=gateway` — the installer's own declaration of authorship, which cannot
+collide with a hand-written unit. Symlinks and customised units are still never touched.
+
+**Live proof on the development host.** After the fixed bootstrap ran, the stray unit moved to
+`~/.local/state/moos/migrations/openclaw-gateway.service.legacy.1` (byte-identical to the
+original; that is the rollback), `FragmentPath` became
+`/usr/lib/systemd/user/openclaw-gateway.service`, and the restart recorded
+`ExecStartPre=/usr/libexec/moai-openclaw-preflight (code=exited, status=0/SUCCESS)` — its
+first successful run on this machine. The gateway then reported
+`agent model: ollama/qwen3:8b` and `http server listening (7 plugins: memory-core, ollama,
+openai, phone-control, talk-voice, telegram, whatsapp)`. All Mo AI units active, zero failed
+units, `8080`/`8077` answering and `8079` correctly refusing with 403.
+
+`tests/test_openclaw_modern_unit_retire.py` drives the real function against both installer
+generations and the three must-not-touch cases; it was confirmed to FAIL against the pre-fix
+code before being wired into `build.yml` and `just check`. **This is source- and live-tested
+but not yet in a signed image** — do not describe it as shipped until the three image jobs
+sign a newer release.
 ## 2026-08-16 — the agent had no eyes, and no shared contract
 
 Not a bug in the image; a gap in how this repo is worked on. Every agent that opens
