@@ -127,6 +127,75 @@ warnings):
 Signed CI publication and post-reboot proof remain open at the time this entry
 was written.
 
+## 2026-08-16 — the phone was offered a profile no phone can decode
+
+**Mo PC Remote shipped High 4:4:4 Predictive H.264, and every previous test was run in
+the one client that decodes it.**
+
+`videoconvert` in `build()`'s pipeline head carried no format caps, so the pixel format was
+decided by negotiation. `pipewiresrc` hands KDE's screencast over as BGRx — 4:4:4 — and
+`x264enc` takes Y444 rather than pay for a conversion. Measured on the shipping pipeline:
+
+    no format caps                     profile_idc=244  High 4:4:4 Predictive  avc1.f4001f
+    ! video/x-raw,format={I420,NV12}   profile_idc=100  High                   avc1.64001f
+
+and confirmed against the live agent, which made a real browser call
+`VideoDecoder.configure({codec: "avc1.f40020"})` — `f4` is 244.
+
+**profile_idc 244 is not a profile any hardware H.264 decoder implements.** iOS
+VideoToolbox, Android MediaCodec and essentially every phone, tablet and TV do
+Baseline/Main/High (66/77/100) and stop. 4:4:4 is a professional-capture profile.
+
+**This is trap seven, and it is the most expensive shape yet: the reproduction environment
+was wrong.** Desktop Chrome decodes 4:4:4 in software without complaint. Driven headless
+against the live server from this machine: **1761 chunks in, 1761 frames out, six
+keyframes, zero decoder errors.** Every session that reproduced "the remote" in a desktop
+browser watched a working picture and concluded the stream was healthy. Only the phone —
+the actual client, and the only online peer on the maintainer's tailnet — hands the
+bitstream to silicon that refuses it. The gate was not green while the thing was broken
+this time; the *test client* was healthy while the real one was not.
+
+The phone's behaviour was then exactly what it was designed to do about a decode failure.
+Read off `~/.local/share/MoRemotePersonal/log.txt` while the maintainer was connected:
+
+    06:25:31 h264 -> 06:25:45 jpeg   (14s)
+    06:26:15 h264 -> 06:26:29 jpeg   (14s)
+    06:27:29 h264 -> 06:27:43 jpeg   (14s, budget spent)
+
+Three strikes at 15/30/60 s, exactly as `h264state.ts` specifies. JPEG at 1080p then
+saturates the link — the slowness — and the teardown/rebuild around each fallback is the
+screen cutting out.
+
+Fixed by one caps filter upstream of the encoder, `! video/x-raw,format=(string){ I420,
+NV12 }`. A list, not `format=I420`, so `nvh264enc`/`vah264enc` can still take NV12 and pay
+no conversion; both members are 4:2:0. Gated by `tests/test_remote_h264_chroma.py` — static
+half always runs, runtime half encodes and reads `profile_idc` out of the SPS and skips
+where GStreamer is absent (the CI runner). Verified to FAIL on the unfixed file.
+
+**`test_remote_h264_single_slice.py` was necessary and not sufficient, and its docstring
+now says so.** It named this same 14-15 s fallback as its symptom and fixed a real defect
+(8 slices per access unit, verified live at 1.0 slices/frame today). The fallback continued
+unchanged. A symptom matching a cause is not proof it is the only cause, and that file's
+confidence is why nobody looked further for a day.
+
+**Ruled out along the way, with measurements, so nobody re-runs them:**
+
+- *Blur on the Cloud* — fixed and live. `moos-visual-tier` now answers `essential` with
+  reason "a virtual display adapter with no accelerated render node", `blurEnabled=false`.
+- *Multi-slice H.264* — fixed and live, 1 slice per IDR and per P frame.
+- *The installed portal being stale* — it is byte-identical to `origin/main`.
+- *`source 0x0`* — **not a fault.** `build()` is called once before the source has
+  negotiated a size, and again at teardown; both log it. It appears 425 times in the log
+  and means nothing. Do not chase it again.
+- *IDR interval collapse* — a synthetic-source artifact, not a real defect. With
+  `tune=zerolatency` x264 has no lookahead and scenecut fires on a full-screen static
+  `videotestsrc pattern=smpte`, collapsing the period to `min-keyint`. It does **not**
+  happen on the real desktop stream: measured live, six keyframes ~13 s apart, which is
+  the configured ten seconds at the real damage-driven frame rate. No change was made.
+
+Not verified: that the phone now holds H.264. That needs this image built, deployed and a
+connection from the iPhone. Everything above is measured; that one is not.
+
 ## 2026-08-15 — the Cloud was paying for blur it could not draw
 
 Found on the live MoOS Cloud server while chasing "the remote is slow and the

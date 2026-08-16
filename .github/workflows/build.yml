@@ -238,6 +238,12 @@ jobs:
           # CI could not have caught it, because CI was not running the file.
           python3 tests/test_moos_fast_remote.py
           python3 tests/test_remote_h264_single_slice.py
+          # The second, independent reason iOS refused the H.264 stream: the pipeline had no
+          # format caps, so the encoder took pipewiresrc's BGRx as 4:4:4 and shipped High 4:4:4
+          # Predictive (profile_idc 244) — a profile no phone implements in hardware. Its static
+          # half needs nothing installed; the runtime half skips where GStreamer is absent, which
+          # is the case on this runner.
+          python3 tests/test_remote_h264_chroma.py
           python3 tests/test_remote_toolbar_edge.py
           python3 tests/test_remote_input_mode.py
           python3 tests/test_remote_us_keymap.py
