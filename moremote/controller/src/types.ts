@@ -120,6 +120,35 @@ export const QUALITY_PRESETS: QualityPreset[] = [
 ];
 
 /**
+ * How much of the phone's real pixel density the picture is allowed to use.
+ *
+ * This was the bare literal `2.5`, repeated in five places with no comment, and it was costing
+ * exactly the sharpness the owner reported as "دقة سيئة". Measured against the live agent from a
+ * device-emulated iPhone (DPR 3, 390x844 CSS):
+ *
+ *     cap 2.5   canvas backing store 975x1915   encoded stream 974x548
+ *     screen                                    1170 real device pixels wide
+ *
+ * So the whole chain — canvas, encode request, and the picture drawn into it — ran at 83% of the
+ * device's linear resolution, and the browser upscaled the last 20% back for display. On a screen
+ * already showing a 1920-wide desktop squeezed into 974 pixels, that second loss is the one that
+ * takes text from "small" to "smeared".
+ *
+ * 3 rather than "uncapped": the cap exists to stop a phone from asking the encoder for pixels it
+ * cannot pay for, and a GPU-less VPS is the machine that pays. What makes 3 affordable is measured
+ * on the machine that actually encodes — MoOS Cloud, llvmpipe, 8 vCPU, three live Plasma sessions,
+ * 300 frames of 1080p through the shipped x264 settings:
+ *
+ *     974x548    (cap 2.5)   533,752 px/frame   2.67 s   137% CPU   -> 112 fps of headroom
+ *     1170x658   (cap 3)     769,860 px/frame   3.37 s   135% CPU   ->  89 fps of headroom
+ *
+ * +44% pixels for +26% encode time, still about three times the 30fps the presets ask for. A
+ * device reporting DPR 4 would be a different measurement, and this cap is what stops it from
+ * being taken on trust.
+ */
+export const MAX_DPR = 3;
+
+/**
  * How far the automatic ladder may climb on its own.
  *
  * Auto steps on ROUND-TRIP TIME, and RTT is not bandwidth. A link can be 20ms away and still only
