@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+
+  "enabledMcpjsonServers": [
+    "sequential-thinking",
+    "context7",
+    "chrome-devtools",
+    "image-gen"
+  ],
+
+  "permissions": {
+    "allow": [
+      "mcp__sequential-thinking",
+      "mcp__context7",
+      "mcp__chrome-devtools",
+      "mcp__image-gen",
+
+      "Bash(just:*)",
+      "Bash(bash -n:*)",
+      "Bash(python3 tests/:*)",
+      "Bash(python3 build_files/:*)",
+      "Bash(python3 artwork/:*)",
+      "Bash(python3 -m json.tool:*)",
+
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git branch:*)",
+      "Bash(git ls-files:*)",
+      "Bash(git check-ignore:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(git blame:*)",
+      "Bash(git describe:*)",
+      "Bash(git remote -v)",
+      "Bash(git fetch:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git switch:*)",
+      "Bash(git checkout -b:*)",
+      "Bash(git stash:*)",
+      "Bash(git push:*)",
+      "Bash(gh:*)",
+
+      "Bash(podman:*)",
+      "Bash(npm:*)",
+      "Bash(npx:*)",
+      "Bash(node:*)",
+      "Bash(flutter:*)",
+      "Bash(dart:*)",
+      "Bash(dotnet:*)",
+
+      "Bash(rg:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(wc:*)",
+      "Bash(file:*)",
+      "Bash(stat:*)",
+      "Bash(diff:*)",
+      "Bash(du:*)",
+      "Bash(df:*)",
+      "Bash(free:*)",
+      "Bash(realpath:*)",
+      "Bash(sha256sum:*)",
+      "Bash(jq:*)",
+      "Bash(identify:*)",
+      "Bash(magick identify:*)",
+
+      "Bash(flatpak-spawn --host sudo -n rsync:*)",
+      "Bash(flatpak-spawn --host sudo -n install:*)",
+      "Bash(flatpak-spawn --host sudo -n systemctl:*)",
+      "Bash(flatpak-spawn --host curl:*)",
+      "Bash(flatpak-spawn --host podman:*)",
+      "Bash(flatpak-spawn --host systemctl status:*)",
+      "Bash(flatpak-spawn --host systemctl list-units:*)",
+      "Bash(flatpak-spawn --host systemctl is-active:*)",
+      "Bash(flatpak-spawn --host journalctl:*)",
+      "Bash(flatpak-spawn --host rpm-ostree status:*)",
+      "Bash(flatpak-spawn --host bootc status:*)",
+      "Bash(flatpak-spawn --host free:*)",
+      "Bash(flatpak-spawn --host df:*)",
+      "Bash(flatpak-spawn --host ps:*)",
+      "Bash(flatpak-spawn --host nvidia-smi:*)",
+      "Bash(flatpak-spawn --host kreadconfig6:*)",
+      "Bash(flatpak-spawn --host qdbus:*)"
+    ],
+
+    "ask": [
+      "Edit(build_files/verify_*.py)",
+      "Edit(.github/workflows/**)",
+      "Edit(.mcp.json)",
+      "Bash(git reset --hard:*)",
+      "Bash(git clean -fd:*)",
+      "Bash(git clean -fdx:*)",
+      "Bash(git rebase:*)",
+      "Bash(git merge:*)",
+      "Bash(flatpak-spawn --host sudo -n rm:*)"
+    ],
+
+    "deny": [
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git push --delete:*)",
+      "Bash(git branch -D main)",
+
+      "Bash(flatpak-spawn --host sudo -n rpm-ostree:*)",
+      "Bash(flatpak-spawn --host sudo -n bootc:*)",
+      "Bash(flatpak-spawn --host sudo -n reboot:*)",
+      "Bash(flatpak-spawn --host sudo -n shutdown:*)",
+      "Bash(flatpak-spawn --host sudo -n systemctl reboot:*)",
+      "Bash(flatpak-spawn --host sudo -n systemctl poweroff:*)",
+      "Bash(flatpak-spawn --host reboot:*)",
+      "Bash(flatpak-spawn --host shutdown:*)",
+      "Bash(moai-do update:*)",
+
+      "Bash(rm -rf /*)",
+      "Bash(sudo rm:*)",
+      "Bash(mkfs*)",
+      "Bash(dd if=*of=/dev/*)",
+      "Bash(chmod -R 777:*)",
+
+      "Read(./cosign.key)",
+      "Read(**/.credentials.json)",
+      "Read(**/.env)",
+      "Read(**/*.pem)",
+      "Read(**/id_rsa*)",
+      "Read(**/id_ed25519*)"
+    ]
+  }
+}

@@ -21,10 +21,19 @@ __pycache__/
 Thumbs.db
 
 # Local agent settings (Claude Code) — machine-local, never shipped.
-# EXCEPTION: .claude/skills/ is committed — it is a symlink into skills/, so the
-# mandatory moos-engineering skill is auto-discovered by Claude Code sessions.
+# TWO EXCEPTIONS, both of which every agent needs:
+#   .claude/skills/         — a symlink into skills/, so the mandatory
+#                             moos-engineering skill is auto-discovered.
+#   .claude/settings.json   — the SHARED agent contract: which MCP servers from
+#                             .mcp.json are pre-approved, which commands run
+#                             without a prompt, and which are denied outright.
+#                             It is the "any agent can work here and cannot wreck
+#                             the machine" file (docs/MCP.md).
+# .claude/settings.local.json stays ignored — that is where per-machine values
+# like MOOS_CHROME and API keys live, and it must never be committed.
 .claude/*
 !.claude/skills/
+!.claude/settings.json
 
 # Local editor workspace settings — machine-local, never shipped
 .vscode/
