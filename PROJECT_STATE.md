@@ -43,6 +43,62 @@ with manifest digest
 `sha256:cbaa34261c7b0088379fffebc63515a718351107dbccdc506a39c581d879c987`
 and size 10,776,140,710 bytes.
 
+## 2026-08-16 — the agent had no eyes, and no shared contract
+
+Not a bug in the image; a gap in how this repo is worked on. Every agent that opens
+MoOS starts from the same two disadvantages, and both are fixable in configuration.
+
+**It cannot see.** The single most expensive failure mode documented in this file is a
+change that is reasoned about rather than looked at — six traps where the gate was
+green while the thing was broken, and one whole session of visual work that turned out
+to be invisible. `moremote/controller` is a real React 19 + Vite 8 PWA, the one MoOS
+surface a browser can render, and nothing in the toolchain could open it.
+
+**It has no shared limits.** `.claude/settings.json` was untracked (`.gitignore` had
+`.claude/*` with only a `skills/` exception), so the seven permissions on this machine
+existed nowhere else. Every other agent re-approved every command from scratch, and
+nothing anywhere said "do not force-push over main" or "do not run `rpm-ostree` on the
+maintainer's daily driver".
+
+Both are now committed configuration:
+
+- **`.mcp.json`** — four MCP servers, each verified over stdio/HTTP on this box before
+  being written down: `sequential-thinking` (structured reasoning), `context7`
+  (version-current docs for Qt 6/QML, Plasma 6, Flutter, React, bootc, cosign),
+  `chrome-devtools` (headless Chrome — screenshots, accessibility snapshots, phone
+  emulation, performance traces, Lighthouse) and `image-gen` (Gemini/OpenAI image
+  generation, output deliberately outside the repo). Deliberately small: every server's
+  tools are spent from the agent's context budget. GitHub, Playwright, Figma and the
+  filesystem/git/memory reference servers were considered and rejected — reasons in
+  `docs/MCP.md` so nobody re-adds them.
+- **`.claude/settings.json`** — now tracked. Pre-approves those four servers, allows the
+  repo's own gates, builds, git, `gh`, podman, node, Flutter and read-only host
+  inspection without prompting, sends gate files and history-rewriting git commands to
+  `ask`, and **denies** force-push, host `rpm-ostree`/`bootc`/reboot, and reads of
+  `cosign.key` and other secret shapes.
+- **`tests/test_mcp_config.py`** — the gate, wired into `just check` and CI's Repo gates.
+  Because both files are committed, three things could otherwise go wrong quietly: a
+  pasted API key becomes public on push; a server added to one file but not the other
+  reaches the next agent as a tool that merely looks broken; and a deny rule deleted to
+  unblock one command is a one-line diff nobody notices. It pins the load-bearing deny
+  rules by exact string.
+
+Two facts found by testing rather than assumption, both recorded in `Justfile`'s
+`mcp-setup` recipe: the sequential-thinking package is
+`@modelcontextprotocol/server-sequential-thinking` (its own README's install line is
+wrong), and `chrome-devtools-mcp` finds Chrome **only** at `/opt/google/chrome/chrome` —
+it reads neither `PATH` nor `CHROME_PATH`, both tried. Inside the VS Code flatpak this
+repo is edited from, `/opt` belongs to the freedesktop SDK runtime, so `just mcp-setup`
+fetches a Chrome for Testing, pins a stable symlink at `~/.cache/moos-mcp/chrome`
+(the Puppeteer cache path is version-pinned and would rot on the next update) and writes
+`MOOS_CHROME` into the gitignored `.claude/settings.local.json`.
+
+Verified: all four servers returned `initialize` + `tools/list` over the real protocol,
+`chrome-devtools` navigated and returned a real screenshot (29 tools), `context7`
+answered 200 with and without a key, `image-gen` starts cleanly with no key and fails
+only on use. `claude mcp list` parses all four. Not verified: image generation itself —
+that needs a `GEMINI_API_KEY`, which is the one thing this repo cannot supply for you.
+
 ## 2026-08-15 — integrated Mo PC Remote repair (signed release pending)
 
 This round began from the owner's report, not a failing compiler: the screen

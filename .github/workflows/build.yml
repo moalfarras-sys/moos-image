@@ -362,6 +362,12 @@ jobs:
           python3 tests/test_moos_motion_gate.py
           python3 tests/test_fwupd_refresh_policy.py
           python3 artwork/verify_visuals.py
+          # .mcp.json and .claude/settings.json are the agent contract, and they are
+          # COMMITTED. A pasted API key in either one is public the moment it is pushed;
+          # a server added to one file but not the other reaches the next agent as a tool
+          # that appears broken; and the deny list is the only thing standing between an
+          # automated session and a force-push over main. Pure stdlib, reads two files.
+          python3 tests/test_mcp_config.py
           # The store-chain gate also runs inside the image build (build.sh), where
           # it reads the finished /usr. It supports MOOS_TEST_ROOT, so run it here
           # too: a catalogue/recipe/route drift should cost 3 seconds, not a

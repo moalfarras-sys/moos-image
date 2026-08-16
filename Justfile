@@ -168,6 +168,10 @@ check:
     python3 tests/test_mo_remote_codec_resend.py
     python3 tests/test_remote_h264_fallback.py
     python3 artwork/verify_visuals.py
+    # The agent contract: .mcp.json and .claude/settings.json are committed, so a
+    # pasted API key, an unapproved server, or a quietly deleted deny rule all reach
+    # the next agent — and the first of those reaches the public internet.
+    python3 tests/test_mcp_config.py
     # Same gate build.sh runs against the finished image, pointed at the tree that
     # is about to become it. Keeping it here means a drifted catalogue recipe or a
     # dead store route fails in seconds instead of at the end of an image build.
@@ -224,6 +228,57 @@ build-cloud: check
 # runs it as the final build stage; this is for ad-hoc re-checks)
 lint:
     podman run --rm {{ image_name }}:latest bootc container lint
+
+# One-time per-machine setup for the shared MCP servers (docs/MCP.md).
+#
+# Three of the four servers in .mcp.json need nothing. The fourth, chrome-devtools,
+# needs an actual Chrome binary, and that is the one thing that is not portable:
+# `chrome-devtools-mcp` looks for a SYSTEM Chrome at /opt/google/chrome/chrome and
+# nowhere else. It does not read PATH, and it does not read CHROME_PATH — both were
+# tested. Inside the VS Code flatpak this repo is edited from, /opt belongs to the
+# freedesktop SDK runtime and no Chrome is there, so the server starts and then fails
+# on the first navigate with "Could not find Google Chrome executable".
+#
+# So: fetch a Chrome for Testing via Puppeteer (it lands in ~/.cache/puppeteer under a
+# VERSION-pinned path, which would rot the moment it updates), pin a stable symlink at
+# ~/.cache/moos-mcp/chrome, and point MOOS_CHROME at the symlink. .mcp.json reads
+# ${MOOS_CHROME:-/opt/google/chrome/chrome}, so a machine with a normal system Chrome
+# needs none of this and this recipe is harmless there.
+#
+# The variable is written into .claude/settings.local.json, which .gitignore keeps out
+# of every commit — it is also where your API keys go. Existing keys are MERGED, never
+# overwritten. Restart your Claude Code session afterwards so it re-reads the config.
+mcp-setup:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    command -v npx >/dev/null || { echo "mcp-setup: needs Node.js (npx) on PATH" >&2; exit 1; }
+
+    echo "==> fetching Chrome for Testing (~150 MB, cached after the first run)"
+    npx -y puppeteer@latest browsers install chrome
+
+    BIN="$(find "${HOME}/.cache/puppeteer/chrome" -type f -name chrome -perm -u+x 2>/dev/null \
+           | sort -V | tail -1)"
+    [ -n "$BIN" ] || { echo "mcp-setup: puppeteer reported success but no chrome binary landed" >&2; exit 1; }
+    "$BIN" --version >/dev/null || { echo "mcp-setup: $BIN will not run here" >&2; exit 1; }
+
+    mkdir -p "${HOME}/.cache/moos-mcp"
+    ln -sfn "$BIN" "${HOME}/.cache/moos-mcp/chrome"
+    echo "==> MOOS_CHROME -> ${HOME}/.cache/moos-mcp/chrome ($("$BIN" --version))"
+
+    mkdir -p .claude
+    python3 - "${HOME}/.cache/moos-mcp/chrome" <<'PY'
+    import json, pathlib, sys
+    path = pathlib.Path(".claude/settings.local.json")
+    data = json.loads(path.read_text()) if path.is_file() else {}
+    data.setdefault("env", {})["MOOS_CHROME"] = sys.argv[1]
+    path.write_text(json.dumps(data, indent=2) + "\n")
+    print(f"==> wrote MOOS_CHROME into {path} (gitignored)")
+    PY
+
+    echo
+    echo "Done. Restart your Claude Code session, then run /mcp — all four should be connected."
+    echo "Image generation additionally needs GEMINI_API_KEY in .claude/settings.local.json;"
+    echo "see docs/MCP.md for where to get one. Everything else works with no key."
 
 # Remove locally built MoOS images
 clean:
