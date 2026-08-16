@@ -285,6 +285,14 @@ jobs:
           # the broken 3.51.2, which silently dropped WhatsApp replies. The shipped systemd
           # override must keep pinning a SQLite-safe Node on the gateway's PATH.
           python3 tests/test_openclaw_nodejs_sqlite.py
+          # `openclaw service install` drops a unit in ~/.config/systemd/user, which outranks the
+          # image's forever — so ExecStartPre=moai-openclaw-preflight (the whole Mo AI link: speech
+          # engine, Ollama/brain start, OLLAMA_API_KEY, ConditionUser=!@system) never runs while the
+          # gateway still answers. retire_legacy_gateway_unit() only knew the EARLY installer's three
+          # strings, so the current unit (OPENCLAW_SERVICE_VERSION=2026.7.1-2) survived every boot on
+          # the maintainer's own machine. This asserts both generations retire and that hand-written
+          # or symlinked units are still never touched.
+          python3 tests/test_openclaw_modern_unit_retire.py
           python3 tests/test_mo_remote_codec_resend.py
           # The H.264->JPEG fallback latch was dead code: `if not pick_h264()` tests a 2-tuple that is
           # always truthy, and the mid-stream blacklist keyed the instance name 'enc' and called

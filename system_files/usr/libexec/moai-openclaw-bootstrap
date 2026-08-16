@@ -289,12 +289,31 @@ def ensure_podman_docker_shim() -> None:
 
 
 def retire_legacy_gateway_unit() -> bool:
-    """Move only MoOS's exact obsolete user unit so the signed /usr unit wins.
+    """Move only an installer-generated user unit so the signed /usr unit wins.
 
-    Early OpenClaw installers wrote a complete unit into ~/.config/systemd/user.
-    That path outranks every future image forever; the legacy copy hard-required
-    Ollama and used Restart=on-failure, so a clean WhatsApp config reload left
-    both phone channels offline. Never touch a symlink or a customised unit.
+    Any OpenClaw `service install` writes a complete unit into
+    ~/.config/systemd/user. That path outranks every future image forever, so
+    the shipped unit's ExecStartPre=/usr/libexec/moai-openclaw-preflight never
+    runs and the whole Mo AI wiring (speech engine, the selected Ollama/brain
+    engine, OLLAMA_API_KEY, ConditionUser=!@system) is silently skipped while
+    the gateway still answers on its own port — green and half-connected.
+
+    Two generations of that file exist, and BOTH must be recognised:
+
+      * the early unit, which hard-required Ollama and used
+        Restart=on-failure, so a clean WhatsApp config reload left both phone
+        channels offline; and
+      * the current installer's unit (seen as OPENCLAW_SERVICE_VERSION
+        2026.7.1-2), which shares none of the early unit's three strings — it
+        renames Description, drops Requires=ollama.service, and calls node with
+        an absolute path plus `--port`. Matching only the early strings meant
+        `all()` was False and the stray unit survived every boot and every
+        image update on the maintainer's own machine.
+
+    The modern unit is identified by the marker the installer writes to
+    recognise its own services (OPENCLAW_SERVICE_MARKER / _KIND). That is the
+    installer declaring authorship, so it cannot match a unit a human wrote by
+    hand. Never touch a symlink or a customised unit.
     """
     if (
         not SYSTEM_GATEWAY_UNIT.is_file()
@@ -303,12 +322,22 @@ def retire_legacy_gateway_unit() -> bool:
     ):
         return False
     text = LEGACY_GATEWAY_UNIT.read_text(encoding="utf-8")
-    fingerprints = (
-        "Description=OpenClaw Gateway (local agent, Telegram channel)",
-        "Requires=ollama.service",
-        "ExecStart=%h/.local/bin/openclaw gateway",
+    generations = (
+        # Early MoOS-era OpenClaw installer.
+        (
+            "Description=OpenClaw Gateway (local agent, Telegram channel)",
+            "Requires=ollama.service",
+            "ExecStart=%h/.local/bin/openclaw gateway",
+        ),
+        # Current installer: its own self-identifying service markers.
+        (
+            "Environment=OPENCLAW_SERVICE_MARKER=openclaw",
+            "Environment=OPENCLAW_SERVICE_KIND=gateway",
+        ),
     )
-    if not all(value in text for value in fingerprints):
+    if not any(
+        all(value in text for value in fingerprints) for fingerprints in generations
+    ):
         return False
 
     MIGRATION_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
