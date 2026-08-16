@@ -1126,6 +1126,35 @@ def build(w, h):
         gop = max(15, state["fps"] * 10)
         _bps = h264_bitrate_bps(w, h)
         tail = (
+            # PIN THE CHROMA TO 4:2:0, AND THE REASON IS THE ONLY REASON H.264 EVER WORKED HERE.
+            #
+            # `videoconvert` upstream has no format caps, so the format was decided by negotiation
+            # with whatever encoder got picked. pipewiresrc hands KDE's screencast over as BGRx —
+            # 4:4:4 — and x264enc happily accepts Y444 rather than convert, so the stream that left
+            # this machine was High 4:4:4 Predictive. Read off the live encoder and off the client's
+            # own VideoDecoder.configure():
+            #
+            #     no format caps      profile_idc=244  High 4:4:4 Predictive  avc1.f4001f
+            #     format={I420,NV12}  profile_idc=100  High                   avc1.64001f
+            #
+            # profile_idc 244 is not a profile any HARDWARE H.264 decoder implements. iOS
+            # VideoToolbox, Android MediaCodec and essentially every phone and TV do Baseline/Main/
+            # High (66/77/100) and nothing above it. Desktop Chrome hid this completely, because it
+            # falls back to a software decoder and decodes 4:4:4 without complaint — measured here,
+            # 1761 frames, zero errors — which is why every previous session that tested on a
+            # desktop browser concluded the stream was fine. On the phone the picture held only
+            # until the decoder actually had to run, then failed, and the client did exactly what
+            # it was designed to do: three strikes at 15/30/60s and settle on JPEG. JPEG at 1080p
+            # then saturates the link, which is the slowness, and the teardown/rebuild churn around
+            # it is the screen cutting out.
+            #
+            # A LIST, not `format=I420`: NV12 is what the hardware encoders (nvh264enc, vah264enc)
+            # want, and both members are 4:2:0, so negotiation still picks the cheapest conversion
+            # for whichever encoder pick_h264() landed on — it just can no longer pick 4:4:4.
+            # Nothing here is a quality loss worth having: at these bitrates 4:2:0 is what every
+            # video call on earth uses, and 4:4:4 was costing chroma bandwidth on a desktop stream
+            # that no decoder on the far end could use.
+            "! video/x-raw,format=(string){ I420, NV12 } "
             # ONE value, computed for the size this pipeline is actually building, then expressed in
             # whichever unit the chosen encoder wants. Calling the budget three times invited the three
             # to disagree; and it must be told w/h explicitly, since state["out"] is not set yet here.

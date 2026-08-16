@@ -82,6 +82,11 @@ boot. Read this before changing anything.
   backlog of what is NOT done with instructions for doing it.
 - **`PROJECT_STATE.md`** — the terrain and the history of what bit us.
 - **`docs/CONTINUATION.md`** — what the last session did and left.
+- **`docs/MCP.md`** — the four MCP servers every agent here gets (structured
+  reasoning, version-current library docs, a real headless Chrome for the Mo Remote
+  PWA and SVG review, and image generation), what each is *for*, which credentials
+  are needed, and the one command that sets them up: `just mcp-setup`. It also lists
+  the servers that were considered and **rejected**, so nobody re-adds them.
 
 ## The one fact that changes how you work
 
@@ -125,6 +130,13 @@ These are not conventions, they are gates. The image build fails if you break th
   Hunspell inputs explicitly and fails unless both `en_US.bdic` and an Arabic `.bdic` exist.
 - **Remote control must ship the PipeWire path.** If `mo-remote-portal.py` is missing or is not
   the PipeWire one, the build fails — the old screenshot-per-frame path was ~1 fps.
+- **The agent contract must not leak a key or lose a guard rail.** `.mcp.json` and
+  `.claude/settings.json` are committed so every agent inherits the same tools and the same
+  limits. `tests/test_mcp_config.py` fails the build if a credential is written as a literal
+  instead of `${VAR}`, if a server is listed in one file but not the other, or if one of the
+  pinned `deny` rules — force-push, host `rpm-ostree`/`bootc`, reading `cosign.key` — has been
+  removed. Your own keys go in `.claude/settings.local.json`, which is gitignored. See
+  `docs/MCP.md`.
 
 ## A green build proves nothing about what the user sees
 

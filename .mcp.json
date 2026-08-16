@@ -1,0 +1,85 @@
+{
+  "$comment": [
+    "MoOS shared MCP servers — see docs/MCP.md for what each one is for, which",
+    "credentials it needs, and how to set it up. Guarded by tests/test_mcp_config.py.",
+    "",
+    "RULES FOR THIS FILE:",
+    "  1. Never hardcode a credential here. This file is committed. Credentials come",
+    "     from the environment as ${VAR}; a missing var is a warning, not a crash.",
+    "  2. Every server added here must also be listed in .claude/settings.json under",
+    "     enabledMcpjsonServers and permissions.allow, or every agent gets an approval",
+    "     prompt on first use. The gate enforces this.",
+    "  3. Keep the set SMALL. Every server's tools consume the agent's context budget."
+  ],
+
+  "mcpServers": {
+    "sequential-thinking": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"],
+      "$comment": "Structured multi-step reasoning with revision and branching. No credentials."
+    },
+
+    "context7": {
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${CONTEXT7_API_KEY:-}"
+      },
+      "$comment": [
+        "Version-current documentation for the libraries this repo actually builds on:",
+        "Qt 6 / QML, KDE Plasma 6, Flutter/Dart, React 19, Vite, bootc, cosign, GitHub Actions.",
+        "Works anonymously; CONTEXT7_API_KEY only raises the rate limit."
+      ]
+    },
+
+    "chrome-devtools": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y", "chrome-devtools-mcp@latest",
+        "--headless",
+        "--isolated",
+        "--viewport", "1280x800",
+        "--screenshotFormat", "jpeg",
+        "--screenshotMaxWidth", "1440",
+        "--no-usage-statistics",
+        "--no-performance-crux",
+        "--executablePath", "${MOOS_CHROME:-/opt/google/chrome/chrome}"
+      ],
+      "$comment": [
+        "A real Chrome the agent can drive, screenshot and profile. The reason it earns",
+        "its place here: moremote/controller is a real React 19 + Vite PWA, and the Mo",
+        "Remote surface is the one part of MoOS a browser can actually render. Also renders",
+        "artwork/*.svg contact sheets so a visual change can be SEEN, not inferred.",
+        "",
+        "Needs a Chrome binary. Run `just mcp-setup` once — it installs one and points",
+        "MOOS_CHROME at it. Without that, the default path is where a system-wide Chrome",
+        "lives on Linux; the server still starts and reports a clear error if it is absent.",
+        "Usage statistics and CrUX URL reporting are both off: MoOS pages are not public."
+      ]
+    },
+
+    "image-gen": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "mcp-image"],
+      "env": {
+        "GEMINI_API_KEY": "${GEMINI_API_KEY:-}",
+        "OPENAI_API_KEY": "${OPENAI_API_KEY:-}",
+        "IMAGE_PROVIDER": "${MOOS_IMAGE_PROVIDER:-gemini}",
+        "IMAGE_OUTPUT_DIR": "${MOOS_IMAGE_OUT:-/tmp/moos-generated-images}"
+      },
+      "$comment": [
+        "Text-to-image and image-to-image editing (Gemini 'Nano Banana' by default,",
+        "OpenAI gpt-image with MOOS_IMAGE_PROVIDER=openai). For wallpapers, boot art,",
+        "hero plates and icon studies.",
+        "",
+        "Output goes to a SCRATCH directory on purpose, NOT into the repo. A generated",
+        "image is a draft; it enters system_files/ only after a human has looked at it",
+        "and artwork/verify_visuals.py passes on it. Set MOOS_IMAGE_OUT to change.",
+        "Needs GEMINI_API_KEY — the server starts without one and fails only on use."
+      ]
+    }
+  }
+}

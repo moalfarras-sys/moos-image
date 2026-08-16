@@ -23,6 +23,21 @@ of a P-frame (so no bandwidth spike), and zero backlog drops in the agent's log.
 fallback costs a full GStreamer teardown and rebuild, which the person watching
 experiences as the screen cutting out, every fifteen seconds, for as long as they watch.
 
+CORRECTION, 2026-08-16: THIS WAS NECESSARY AND IT WAS NOT SUFFICIENT.
+
+The paragraph above reads as a solved case, and the fix it describes is real and shipped —
+verified live at 1.0 slices per frame. The 14-second fallback carried on unchanged anyway.
+A second, independent property of the same stream could also make iOS refuse it: the
+pipeline had no format caps, so the encoder took pipewiresrc's BGRx as 4:4:4 and shipped
+High 4:4:4 Predictive, profile_idc 244, which no phone decodes in hardware. That is gated
+separately in test_remote_h264_chroma.py.
+
+Two lessons worth more than either fix. First, a symptom matching a cause is not proof it
+is the only cause — this file's confidence was the reason nobody looked further for a day.
+Second, everything in the paragraph above was measured in a DESKTOP browser, which decodes
+both defects in software without complaint. Neither could be reproduced where it was being
+tested.
+
 AND WHY `threads` IS PINNED TOO
 
 Without sliced threads x264 falls back to FRAME threading, which delays output by

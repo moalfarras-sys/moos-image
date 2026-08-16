@@ -85,6 +85,61 @@ generations and the three must-not-touch cases; it was confirmed to FAIL against
 code before being wired into `build.yml` and `just check`. **This is source- and live-tested
 but not yet in a signed image** — do not describe it as shipped until the three image jobs
 sign a newer release.
+## 2026-08-16 — the agent had no eyes, and no shared contract
+
+Not a bug in the image; a gap in how this repo is worked on. Every agent that opens
+MoOS starts from the same two disadvantages, and both are fixable in configuration.
+
+**It cannot see.** The single most expensive failure mode documented in this file is a
+change that is reasoned about rather than looked at — six traps where the gate was
+green while the thing was broken, and one whole session of visual work that turned out
+to be invisible. `moremote/controller` is a real React 19 + Vite 8 PWA, the one MoOS
+surface a browser can render, and nothing in the toolchain could open it.
+
+**It has no shared limits.** `.claude/settings.json` was untracked (`.gitignore` had
+`.claude/*` with only a `skills/` exception), so the seven permissions on this machine
+existed nowhere else. Every other agent re-approved every command from scratch, and
+nothing anywhere said "do not force-push over main" or "do not run `rpm-ostree` on the
+maintainer's daily driver".
+
+Both are now committed configuration:
+
+- **`.mcp.json`** — four MCP servers, each verified over stdio/HTTP on this box before
+  being written down: `sequential-thinking` (structured reasoning), `context7`
+  (version-current docs for Qt 6/QML, Plasma 6, Flutter, React, bootc, cosign),
+  `chrome-devtools` (headless Chrome — screenshots, accessibility snapshots, phone
+  emulation, performance traces, Lighthouse) and `image-gen` (Gemini/OpenAI image
+  generation, output deliberately outside the repo). Deliberately small: every server's
+  tools are spent from the agent's context budget. GitHub, Playwright, Figma and the
+  filesystem/git/memory reference servers were considered and rejected — reasons in
+  `docs/MCP.md` so nobody re-adds them.
+- **`.claude/settings.json`** — now tracked. Pre-approves those four servers, allows the
+  repo's own gates, builds, git, `gh`, podman, node, Flutter and read-only host
+  inspection without prompting, sends gate files and history-rewriting git commands to
+  `ask`, and **denies** force-push, host `rpm-ostree`/`bootc`/reboot, and reads of
+  `cosign.key` and other secret shapes.
+- **`tests/test_mcp_config.py`** — the gate, wired into `just check` and CI's Repo gates.
+  Because both files are committed, three things could otherwise go wrong quietly: a
+  pasted API key becomes public on push; a server added to one file but not the other
+  reaches the next agent as a tool that merely looks broken; and a deny rule deleted to
+  unblock one command is a one-line diff nobody notices. It pins the load-bearing deny
+  rules by exact string.
+
+Two facts found by testing rather than assumption, both recorded in `Justfile`'s
+`mcp-setup` recipe: the sequential-thinking package is
+`@modelcontextprotocol/server-sequential-thinking` (its own README's install line is
+wrong), and `chrome-devtools-mcp` finds Chrome **only** at `/opt/google/chrome/chrome` —
+it reads neither `PATH` nor `CHROME_PATH`, both tried. Inside the VS Code flatpak this
+repo is edited from, `/opt` belongs to the freedesktop SDK runtime, so `just mcp-setup`
+fetches a Chrome for Testing, pins a stable symlink at `~/.cache/moos-mcp/chrome`
+(the Puppeteer cache path is version-pinned and would rot on the next update) and writes
+`MOOS_CHROME` into the gitignored `.claude/settings.local.json`.
+
+Verified: all four servers returned `initialize` + `tools/list` over the real protocol,
+`chrome-devtools` navigated and returned a real screenshot (29 tools), `context7`
+answered 200 with and without a key, `image-gen` starts cleanly with no key and fails
+only on use. `claude mcp list` parses all four. Not verified: image generation itself —
+that needs a `GEMINI_API_KEY`, which is the one thing this repo cannot supply for you.
 
 ## 2026-08-15 — integrated Mo PC Remote repair (signed release pending)
 
@@ -169,6 +224,75 @@ warnings):
 
 Signed CI publication and post-reboot proof remain open at the time this entry
 was written.
+
+## 2026-08-16 — the phone was offered a profile no phone can decode
+
+**Mo PC Remote shipped High 4:4:4 Predictive H.264, and every previous test was run in
+the one client that decodes it.**
+
+`videoconvert` in `build()`'s pipeline head carried no format caps, so the pixel format was
+decided by negotiation. `pipewiresrc` hands KDE's screencast over as BGRx — 4:4:4 — and
+`x264enc` takes Y444 rather than pay for a conversion. Measured on the shipping pipeline:
+
+    no format caps                     profile_idc=244  High 4:4:4 Predictive  avc1.f4001f
+    ! video/x-raw,format={I420,NV12}   profile_idc=100  High                   avc1.64001f
+
+and confirmed against the live agent, which made a real browser call
+`VideoDecoder.configure({codec: "avc1.f40020"})` — `f4` is 244.
+
+**profile_idc 244 is not a profile any hardware H.264 decoder implements.** iOS
+VideoToolbox, Android MediaCodec and essentially every phone, tablet and TV do
+Baseline/Main/High (66/77/100) and stop. 4:4:4 is a professional-capture profile.
+
+**This is trap seven, and it is the most expensive shape yet: the reproduction environment
+was wrong.** Desktop Chrome decodes 4:4:4 in software without complaint. Driven headless
+against the live server from this machine: **1761 chunks in, 1761 frames out, six
+keyframes, zero decoder errors.** Every session that reproduced "the remote" in a desktop
+browser watched a working picture and concluded the stream was healthy. Only the phone —
+the actual client, and the only online peer on the maintainer's tailnet — hands the
+bitstream to silicon that refuses it. The gate was not green while the thing was broken
+this time; the *test client* was healthy while the real one was not.
+
+The phone's behaviour was then exactly what it was designed to do about a decode failure.
+Read off `~/.local/share/MoRemotePersonal/log.txt` while the maintainer was connected:
+
+    06:25:31 h264 -> 06:25:45 jpeg   (14s)
+    06:26:15 h264 -> 06:26:29 jpeg   (14s)
+    06:27:29 h264 -> 06:27:43 jpeg   (14s, budget spent)
+
+Three strikes at 15/30/60 s, exactly as `h264state.ts` specifies. JPEG at 1080p then
+saturates the link — the slowness — and the teardown/rebuild around each fallback is the
+screen cutting out.
+
+Fixed by one caps filter upstream of the encoder, `! video/x-raw,format=(string){ I420,
+NV12 }`. A list, not `format=I420`, so `nvh264enc`/`vah264enc` can still take NV12 and pay
+no conversion; both members are 4:2:0. Gated by `tests/test_remote_h264_chroma.py` — static
+half always runs, runtime half encodes and reads `profile_idc` out of the SPS and skips
+where GStreamer is absent (the CI runner). Verified to FAIL on the unfixed file.
+
+**`test_remote_h264_single_slice.py` was necessary and not sufficient, and its docstring
+now says so.** It named this same 14-15 s fallback as its symptom and fixed a real defect
+(8 slices per access unit, verified live at 1.0 slices/frame today). The fallback continued
+unchanged. A symptom matching a cause is not proof it is the only cause, and that file's
+confidence is why nobody looked further for a day.
+
+**Ruled out along the way, with measurements, so nobody re-runs them:**
+
+- *Blur on the Cloud* — fixed and live. `moos-visual-tier` now answers `essential` with
+  reason "a virtual display adapter with no accelerated render node", `blurEnabled=false`.
+- *Multi-slice H.264* — fixed and live, 1 slice per IDR and per P frame.
+- *The installed portal being stale* — it is byte-identical to `origin/main`.
+- *`source 0x0`* — **not a fault.** `build()` is called once before the source has
+  negotiated a size, and again at teardown; both log it. It appears 425 times in the log
+  and means nothing. Do not chase it again.
+- *IDR interval collapse* — a synthetic-source artifact, not a real defect. With
+  `tune=zerolatency` x264 has no lookahead and scenecut fires on a full-screen static
+  `videotestsrc pattern=smpte`, collapsing the period to `min-keyint`. It does **not**
+  happen on the real desktop stream: measured live, six keyframes ~13 s apart, which is
+  the configured ten seconds at the real damage-driven frame rate. No change was made.
+
+Not verified: that the phone now holds H.264. That needs this image built, deployed and a
+connection from the iPhone. Everything above is measured; that one is not.
 
 ## 2026-08-15 — the Cloud was paying for blur it could not draw
 
