@@ -13,7 +13,7 @@ import { pickStartPreset, readDeviceHints, describeHints, encodeWidth } from "..
 import { h264Failures, noteH264Failure, H264_MAX_FAILURES } from "../lib/h264state.ts";
 import { diffToOps } from "../lib/typing.ts";
 import { remoteAlertPermission, requestRemoteAlertPermission, showRemoteAlert } from "../lib/notifications";
-import { QUALITY_PRESETS, AUTO_MAX_PRESET, POINTER_BAR_QUERY, BUILD, MODE_LABEL, MODE_HINT, type GestureMode, type ViewMode, type MonitorInfo } from "../types";
+import { QUALITY_PRESETS, AUTO_MAX_PRESET, MAX_DPR, POINTER_BAR_QUERY, BUILD, MODE_LABEL, MODE_HINT, type GestureMode, type ViewMode, type MonitorInfo } from "../types";
 import {
   IconAltTab, IconActual, IconArrowUp, IconBackspace, IconChevronDown, IconClipboard, IconClose,
   IconConnection, IconCopy, IconDesktop, IconEnter, IconEsc, IconFile, IconFit, IconFolder, IconFullscreen, IconKeyboard,
@@ -576,7 +576,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
     // The source's dimensions AS THEY APPEAR ON SCREEN. Everything downstream — fitting, panning,
     // clamping, hit-testing — then works in screen space and never has to branch on the rotation.
     const sw = rot ? ih : iw, sh = rot ? iw : ih;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+    const dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
     const base = viewModeRef.current === "actual" ? 1 / dpr : Math.min(cssW / sw, cssH / sh);
     const z = view.current.zoom;
     const dispW = sw * base * z, dispH = sh * base * z;
@@ -662,7 +662,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
     let raf = 0, disposed = false;
 
     const resize = () => {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+      const dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
       canvas.width = Math.round(canvas.clientWidth * dpr);
       canvas.height = Math.round(canvas.clientHeight * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -703,7 +703,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
         // at zoom 1.5 a phone is still DOWNSCALING by 24% with smoothing switched off. Nearest
         // neighbour on downscaled text drops whole stems and shimmers every frame, which is why
         // pinching in to read something made it worse rather than better.
-        const smoothDpr = Math.min(window.devicePixelRatio || 1, 2.5);
+        const smoothDpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
         // The screen extent of the SOURCE'S WIDTH — which is the box's height once the picture is
         // turned. Comparing the wrong one against the source width would report a 2x downscale as a
         // 2x upscale on a rotated phone and switch smoothing exactly backwards.
@@ -1225,7 +1225,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
       //
       // So: resize only when the pixel size genuinely changed, and invalidate unconditionally, since
       // even a pure CSS height change means the letterboxing has to be recomputed.
-      const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+      const dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
       const w = Math.round(canvas.clientWidth * dpr);
       const h = Math.round(canvas.clientHeight * dpr);
       if (w > 0 && h > 0 && (canvas.width !== w || canvas.height !== h)) {
@@ -1342,7 +1342,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
   const displayWidthPx = () => {
     const c = canvasRef.current;
     if (!c) return 0;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+    const dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
     const l = computeLayout();
     // Before the first frame there is no layout; fit the known desktop size into the canvas the same
     // way, so the very first settings push is already the right size instead of a guess to be undone.
