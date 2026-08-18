@@ -67,3 +67,74 @@ failed = [message for message, ok in checks.items() if not ok]
 if failed:
     raise SystemExit("Mo AI service lifecycle gate failed:\n- " + "\n- ".join(failed))
 print("Mo AI service lifecycle gate passed")
+
+
+# ── The services must actually BOOT ──────────────────────────────────────────
+# .609 shipped moai-agent-api with a NameError in main(): py_compile is happy
+# with an undefined name, every unit test stubbed the handlers, and no gate
+# ever executed the entry point — so the service crash-looped on the real
+# machine while all gates were green. Boot each Python daemon for real, ask it
+# one real HTTP question, and only then call it alive.
+import json
+import os
+import socket
+import subprocess
+import sys
+import tempfile
+import time
+import urllib.request
+
+
+def _free_port() -> int:
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
+def _boot_and_ask(script: str, env_port: str, path: str, headers: dict) -> None:
+    port = _free_port()
+    with tempfile.TemporaryDirectory() as home:
+        env = dict(os.environ)
+        env.update({
+            "HOME": home,
+            "XDG_CONFIG_HOME": os.path.join(home, ".config"),
+            "XDG_DATA_HOME": os.path.join(home, ".local/share"),
+            env_port: str(port),
+            # Keep the boot hermetic: no unit probing, no engine helper.
+            "MOAI_LOCAL_ENGINE_HELPER": "/nonexistent",
+        })
+        proc = subprocess.Popen(
+            [sys.executable, str(ROOT / "system_files/usr/bin" / script)],
+            env=env, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+        try:
+            deadline = time.monotonic() + 15
+            last_error = None
+            while time.monotonic() < deadline:
+                if proc.poll() is not None:
+                    raise AssertionError(
+                        f"{script} exited at startup (rc={proc.returncode}):\n"
+                        + (proc.stderr.read() or "")[-800:])
+                try:
+                    req = urllib.request.Request(
+                        f"http://127.0.0.1:{port}{path}", headers=headers)
+                    with urllib.request.urlopen(req, timeout=3) as r:
+                        body = r.read(2048)
+                        json.loads(body)
+                        return
+                except Exception as exc:  # noqa: BLE001 - retry until deadline
+                    last_error = exc
+                    time.sleep(0.3)
+            raise AssertionError(f"{script} never answered {path}: {last_error}")
+        finally:
+            proc.terminate()
+            try:
+                proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+
+
+_boot_and_ask("moai-agent-api", "MOAI_AGENT_PORT", "/", {"X-Moai-Agent": "1"})
+_boot_and_ask("moai-control", "MOAI_CONTROL_PORT", "/providers",
+              {"X-Moai-Control": "1"})
+_boot_and_ask("moai-gateway", "MOAI_GATEWAY_PORT", "/healthz", {})
+print("Mo AI daemons boot and answer for real")
