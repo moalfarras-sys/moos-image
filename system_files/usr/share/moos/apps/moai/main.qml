@@ -182,7 +182,14 @@ Kirigami.ApplicationWindow {
         return value === "rtl" || value === "ltr" ? value : ""
     }
     readonly property string layoutDirectionOverride: root.argLayoutDirection()
-    readonly property bool moaiRtl: layoutDirectionOverride === "rtl"
+    // The owner's language, decoupled from the session locale: this desktop
+    // runs a German locale, so the app rendered ENGLISH for an Arabic-speaking
+    // owner. "" = follow the system; "ar"/"en" = the saved choice from
+    // Settings → Appearance (ui.language via moai-agent-api).
+    property string langOverride: ""
+    readonly property bool moaiRtl: langOverride === "ar" ? true
+        : langOverride === "en" ? false
+        : layoutDirectionOverride === "rtl"
         || (layoutDirectionOverride === ""
             && Qt.application.layoutDirection === Qt.RightToLeft)
     readonly property int gatewayPort: root.argPort("--gateway-port", 8080)
@@ -579,6 +586,10 @@ Kirigami.ApplicationWindow {
         chatModel.append({ role: "assistant", text: greetingText })
         refreshScan()
         loadModels()
+        // The saved UI language must apply from the first frame it can:
+        // cfgLoad carries ui.language and every root.local() binding tracks
+        // moaiRtl, so the whole surface re-renders when this lands.
+        root.cfgLoad()
         // Open straight onto a panel. This is how the old centres survive as
         // commands: moos-hardware runs `moai --panel device`, moos-compat runs
         // `moai --panel compat`. `--device` is kept as an alias.
@@ -1214,6 +1225,14 @@ Kirigami.ApplicationWindow {
             try {
                 const m = JSON.parse(xhr.responseText)
                 root.localModels = m.local || []
+                // The raw list showed five tags where three are the SAME
+                // weights under different names. Rows the control API marks
+                // "technical" (aliases kept for compatibility) render under a
+                // collapsed heading instead of posing as extra brains.
+                root.localModelsMain = root.localModels.filter(
+                    function (mm) { return mm.role !== "technical" })
+                root.localModelsTech = root.localModels.filter(
+                    function (mm) { return mm.role === "technical" })
                 root.cloudModels = m.cloud || []
                 root.modelsError = m.cloud_error || ""
                 root.defaultRoute = m.default || ""
@@ -5016,7 +5035,7 @@ Kirigami.ApplicationWindow {
                             }
 
                             Repeater {
-                                model: root.localModels
+                                model: root.localModelsMain
                                 delegate: Rectangle {
                                     id: locRow
                                     required property var modelData
@@ -5053,11 +5072,25 @@ Kirigami.ApplicationWindow {
                                             spacing: 0
                                             Text {
                                                 Layout.fillWidth: true
-                                                text: locRow.modelData.label
+                                                // Friendly role title from the control
+                                                // API; the raw tag stays as the small
+                                                // technical line below.
+                                                text: locRow.modelData.title
+                                                    ? root.localLegacy(locRow.modelData.title)
+                                                    : locRow.modelData.label
                                                 color: root.textHi
                                                 font.family: root.uiFont
                                                 font.pixelSize: root.typePx(12)
                                                 font.weight: locRow.on_ ? Font.DemiBold : Font.Normal
+                                                elide: Text.ElideRight
+                                            }
+                                            Text {
+                                                visible: !!locRow.modelData.title
+                                                Layout.fillWidth: true
+                                                text: locRow.modelData.label
+                                                color: root.textMute
+                                                font.family: "JetBrains Mono"
+                                                font.pixelSize: root.typePx(8)
                                                 elide: Text.ElideRight
                                             }
                                             Text {
@@ -5132,6 +5165,58 @@ Kirigami.ApplicationWindow {
                                         // Not pickRoute: an un-pulled brain must be
                                         // fetched before it can answer anything.
                                         onTriggered: root.pickOrPull(locRow.modelData)
+                                    }
+                                }
+                            }
+
+                            Text {
+                                visible: root.localModelsTech.length > 0
+                                Layout.topMargin: 4
+                                text: root.local("أسماء تقنية — نفس العقول أعلاه",
+                                                 "Technical names — the same brains as above")
+                                color: root.textMute
+                                font.family: root.uiFont
+                                font.pixelSize: root.typePx(9)
+                            }
+                            Repeater {
+                                model: root.localModelsTech
+                                delegate: Rectangle {
+                                    id: techRow
+                                    required property var modelData
+                                    readonly property bool on_: root.route === techRow.modelData.id
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: root.fs(26)
+                                    radius: design.radiusSmall
+                                    color: techRow.on_
+                                         ? Qt.rgba(root.okColor.r, root.okColor.g, root.okColor.b, 0.10)
+                                         : "transparent"
+                                    RowLayout {
+                                        anchors.fill: parent
+                                        anchors.leftMargin: 10
+                                        anchors.rightMargin: 10
+                                        Text {
+                                            Layout.fillWidth: true
+                                            text: techRow.modelData.label + "  ·  "
+                                                + root.localLegacy(techRow.modelData.title || "")
+                                            color: root.textMute
+                                            font.family: root.uiFont
+                                            font.pixelSize: root.typePx(9)
+                                            elide: Text.ElideRight
+                                        }
+                                        Text {
+                                            visible: techRow.on_
+                                            text: "✓"
+                                            color: root.okColor
+                                            font.pixelSize: root.typePx(11)
+                                        }
+                                    }
+                                    ActionArea {
+                                        anchors.fill: parent
+                                        actionName: techRow.modelData.label
+                                        checkable: true
+                                        checked: techRow.on_
+                                        focusRadius: root.fs(7)
+                                        onTriggered: root.pickOrPull(techRow.modelData)
                                     }
                                 }
                             }
@@ -6024,7 +6109,58 @@ Kirigami.ApplicationWindow {
                                 Layout.fillWidth: true
                                 spacing: design.space2
 
-                                SectionTitle { text: root.local("مظهر Mo AI", "Mo AI appearance") }
+                                SectionTitle { text: root.local("لغة Mo AI", "Mo AI language") }
+                                SectionNote {
+                                    Layout.fillWidth: true
+                                    text: root.local(
+                                        "لغة هذا التطبيق فقط — النظام يتبع إعدادات MoOS.",
+                                        "This app's language only — the system follows MoOS settings.")
+                                }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: design.space2
+                                    Repeater {
+                                        model: [
+                                            { id: "auto", ar: "تلقائي", en: "Automatic" },
+                                            { id: "ar",   ar: "العربية", en: "العربية" },
+                                            { id: "en",   ar: "English", en: "English" }
+                                        ]
+                                        delegate: Rectangle {
+                                            required property var modelData
+                                            readonly property bool on_:
+                                                (root.langOverride === "" ? "auto" : root.langOverride)
+                                                    === modelData.id
+                                            Layout.fillWidth: true
+                                            Layout.preferredHeight: root.fs(44)
+                                            radius: design.radiusControl
+                                            color: on_ ? Qt.rgba(root.novaBlue.r, root.novaBlue.g,
+                                                                 root.novaBlue.b, 0.16) : "transparent"
+                                            border.width: 1
+                                            border.color: on_ ? root.novaBlue : root.hairline
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: root.local(modelData.ar, modelData.en)
+                                                color: on_ ? root.novaBlue : root.textHi
+                                                font.family: root.uiFont
+                                                font.pixelSize: root.typePx(12)
+                                                font.weight: on_ ? Font.DemiBold : Font.Normal
+                                            }
+                                            ActionArea {
+                                                anchors.fill: parent
+                                                actionName: root.local(modelData.ar, modelData.en)
+                                                checkable: true
+                                                checked: parent.on_
+                                                focusRadius: root.fs(11)
+                                                onTriggered: root.cfgSaveUiLanguage(modelData.id)
+                                            }
+                                        }
+                                    }
+                                }
+
+                                SectionTitle {
+                                    Layout.topMargin: 8
+                                    text: root.local("مظهر Mo AI", "Mo AI appearance")
+                                }
                                 SectionNote {
                                     Layout.fillWidth: true
                                     text: root.local(
@@ -6067,54 +6203,107 @@ Kirigami.ApplicationWindow {
                                 }
 
                                 Repeater {
-                                    model: root.localModels
+                                    model: root.localModelsMain
                                     delegate: Rectangle {
+                                        id: cfgBrainRow
                                         required property var modelData
+                                        readonly property bool isDefault:
+                                            modelData.id === root.defaultRoute
                                         Layout.fillWidth: true
-                                        Layout.preferredHeight: root.fs(52)
+                                        Layout.preferredHeight: root.fs(56)
                                         radius: design.radiusControl
                                         color: "transparent"
                                         border.width: 1
-                                        border.color: root.hairline
+                                        border.color: isDefault ? root.okColor : root.hairline
                                         RowLayout {
                                             anchors.fill: parent
                                             anchors.margins: 10
                                             spacing: design.space2
                                             ColumnLayout {
+                                                Layout.fillWidth: true
                                                 spacing: 1
-                                                Text {
-                                                    text: modelData.label || modelData.id
-                                                    color: root.textHi
-                                                    font.family: root.uiFont
-                                                    font.pixelSize: root.typePx(12)
-                                                    font.weight: Font.DemiBold
+                                                RowLayout {
+                                                    spacing: design.space2
+                                                    Text {
+                                                        text: cfgBrainRow.modelData.title
+                                                            ? root.localLegacy(cfgBrainRow.modelData.title)
+                                                            : (cfgBrainRow.modelData.label || cfgBrainRow.modelData.id)
+                                                        color: root.textHi
+                                                        font.family: root.uiFont
+                                                        font.pixelSize: root.typePx(12)
+                                                        font.weight: Font.DemiBold
+                                                        elide: Text.ElideRight
+                                                    }
+                                                    StatusPill {
+                                                        visible: cfgBrainRow.isDefault
+                                                        good: true
+                                                        goodText: root.local("الافتراضي", "Default")
+                                                        badText: ""
+                                                    }
                                                 }
                                                 Text {
-                                                    text: modelData.pulled
-                                                        ? (root.local("محمّل", "Downloaded")
-                                                           + (modelData.size_gb ? " · " + modelData.size_gb + " GB" : ""))
-                                                        : root.local(
-                                                            "غير محمّل — اضغط للتنزيل",
-                                                            "Not downloaded — tap to get")
+                                                    Layout.fillWidth: true
+                                                    text: cfgBrainRow.modelData.label
+                                                        + "  ·  "
+                                                        + (cfgBrainRow.modelData.pulled
+                                                            ? (root.local("محمّل", "Downloaded")
+                                                               + (cfgBrainRow.modelData.size_gb
+                                                                  ? " · " + cfgBrainRow.modelData.size_gb + " GB" : ""))
+                                                            : root.local(
+                                                                "غير محمّل — اضغط للتنزيل",
+                                                                "Not downloaded — tap to get"))
                                                     color: root.textMute
                                                     font.family: root.uiFont
                                                     font.pixelSize: root.typePx(10)
+                                                    elide: Text.ElideRight
                                                 }
                                             }
-                                            Item { Layout.fillWidth: true }
                                             MoButton {
-                                                label: modelData.pulled
-                                                    ? root.local("استخدم", "Use")
+                                                // A pulled brain becomes the DEFAULT for
+                                                // desktop AND phone (the old "Use" only set
+                                                // this window's session and read as if it
+                                                // persisted). An un-pulled one downloads.
+                                                visible: !cfgBrainRow.isDefault
+                                                label: cfgBrainRow.modelData.pulled
+                                                    ? root.local("اجعله الافتراضي", "Make default")
                                                     : root.local("نزّل", "Get")
-                                                onClicked: root.pickOrPull(modelData)
+                                                onClicked: cfgBrainRow.modelData.pulled
+                                                    ? root.cfgSetDefaultBrain(cfgBrainRow.modelData)
+                                                    : root.pickOrPull(cfgBrainRow.modelData)
                                             }
                                             MoButton {
-                                                visible: !!modelData.pulled
+                                                // Aliases share their weights with a row
+                                                // above: deleting frees ~nothing and breaks
+                                                // the compatibility names, so no button.
+                                                visible: !!cfgBrainRow.modelData.pulled
+                                                         && !cfgBrainRow.modelData.alias_of
+                                                         && !cfgBrainRow.isDefault
                                                 label: root.local("حذف", "Delete")
                                                 danger: true
-                                                onClicked: root.deleteModel(modelData.id)
+                                                onClicked: root.deleteModel(cfgBrainRow.modelData.id)
                                             }
                                         }
+                                    }
+                                }
+
+                                SectionNote {
+                                    visible: root.localModelsTech.length > 0
+                                    Layout.fillWidth: true
+                                    text: root.local(
+                                        "أسماء تقنية — نفس العقول أعلاه بأوزان مشتركة، تبقى للتوافق ولا يوفر حذفها مساحة.",
+                                        "Technical names — the same brains as above with shared weights; kept for compatibility, deleting them frees almost nothing.")
+                                }
+                                Repeater {
+                                    model: root.localModelsTech
+                                    delegate: Text {
+                                        required property var modelData
+                                        Layout.fillWidth: true
+                                        text: "•  " + modelData.label + "  —  "
+                                            + root.localLegacy(modelData.title || "")
+                                        color: root.textMute
+                                        font.family: root.uiFont
+                                        font.pixelSize: root.typePx(10)
+                                        elide: Text.ElideRight
                                     }
                                 }
 
@@ -6302,6 +6491,8 @@ Kirigami.ApplicationWindow {
                 root.cfgProviderNames = c.providers.map(function (p) { return p.name })
                 root.cfgHasKey = c.cloud.has_key
                 root.cfgHasToken = c.telegram.has_token
+                root.langOverride = (c.ui && c.ui.language && c.ui.language !== "auto")
+                    ? c.ui.language : ""
                 root.cfgTier = (c.permissions && c.permissions.tier) || ""
                 root.cfgProject = (c.permissions && c.permissions.project) || ""
                 root.cfgLoaded = true
@@ -6313,6 +6504,52 @@ Kirigami.ApplicationWindow {
             }
         }
         xhr.send()
+    }
+
+    // Make a pulled local brain the DEFAULT everywhere (desktop chat seeding,
+    // phone channels): writes mode=local + the model through moai-agent-api,
+    // which sets OpenClaw's primary; the merged read in moai-control then
+    // reports it as the default the picker seeds from.
+    function cfgSetDefaultBrain(entry) {
+        const bare = entry.id.indexOf("local:") === 0 ? entry.id.substring(6) : entry.id
+        root.cfgSaving = true
+        const xhr = new XMLHttpRequest()
+        xhr.open("POST", root.agentApi + "/api/config")
+        xhr.setRequestHeader("X-Moai-Agent", "1")
+        xhr.setRequestHeader("Content-Type", "application/json")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE) return
+            root.cfgSaving = false
+            let r = {}
+            try { r = JSON.parse(xhr.responseText) } catch (e) { }
+            if (xhr.status !== 200 || r.error) {
+                root.cfgError = r.error || root.local("تعذّر تعيين الافتراضي",
+                                                     "Could not set the default")
+                return
+            }
+            root.cfgError = ""
+            root.route = entry.id            // this window follows immediately
+            root.loadModels()                // the Default badge moves for real
+            root.cfgLoad()                   // the mode cards follow too
+            toast.show(root.local("صار الافتراضي: ", "Default is now: ")
+                       + (entry.title ? root.localLegacy(entry.title) : entry.label))
+        }
+        xhr.send(JSON.stringify({ mode: "local", local_model: bare }))
+    }
+
+    // Language-only save: applies to the UI immediately, persists in state.
+    function cfgSaveUiLanguage(lang) {
+        root.langOverride = lang === "auto" ? "" : lang
+        const xhr = new XMLHttpRequest()
+        xhr.open("POST", root.agentApi + "/api/config")
+        xhr.setRequestHeader("X-Moai-Agent", "1")
+        xhr.setRequestHeader("Content-Type", "application/json")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE) return
+            if (xhr.status !== 200)
+                root.cfgError = root.local("تعذّر حفظ اللغة", "Could not save the language")
+        }
+        xhr.send(JSON.stringify({ ui: { language: lang } }))
     }
 
     // Tier-only save for the host-control switch: nothing else rides along.
@@ -6385,6 +6622,8 @@ Kirigami.ApplicationWindow {
     // (each human's sessions and their Telegram bot token) and must never be
     // answered by another account's service.
     readonly property string agentApi: "http://127.0.0.1:" + root.agentPort
+    property var  localModelsMain: []
+    property var  localModelsTech: []
     property var  agentSessions: []
     property string agentSearch: ""
     property bool agentShowArchived: false
