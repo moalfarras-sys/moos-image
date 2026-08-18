@@ -123,6 +123,21 @@ mode set to Smart Hybrid, after which the installed app answered end to end
 (`X-MoAI-Route: local · fast-private-default` for simple turns, cloud escalation
 configured for hard ones).
 
+**The adversarial pass (#55, same day):** an 8-agent refutation round against the merged
+redesign — one agent per claim, one running mutation tests against the gates — found and
+fixed: 'Check now' rendering a `summary` key `/diagnose` never returns (the diagnosis was
+invisible; it now renders verdict + issues, live-proven), fill-if-absent policy carry
+that left a stale deny list active after brain switches (now overwrite semantics, stale
+case pinned), hybrid→cloud forwarding the literal token `hybrid` as a model id, silent
+cloud-model substitution in `openclaw_model`, dropped mid-stream SSE error events,
+the callerless `POST /api/send` (deleted, stays-deleted test), task-runner sessions
+leaking into the drawer, the drive-by-reachable `moos://ai/config` third config surface
+(closed), and moai-control reading only legacy config.json while the Brain tab writes
+openclaw.json (it now merges the OpenClaw settings on every read, same rule as the
+gateway). Mutation testing also proved two gates blind: extractRuns alternation ORDER is
+now pinned (reordering silently re-created the firmware→full-update chip with every gate
+green), and the diagnose-repairs assertion follows the launch() wrapper.
+
 Verification: every CI repo gate green (`verify_user_experience`, all `test_moai_*`,
 including updated `test_moai_control` — substitution asserted to never touch systemd and
 the no-model case asserted honest — and `test_moai_hybrid`, which now pins the 8-tab
