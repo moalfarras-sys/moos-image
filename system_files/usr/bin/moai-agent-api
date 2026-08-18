@@ -770,6 +770,7 @@ def read_config() -> dict:
             "keep_alive": _keep_alive(engine),
             "engine_configured": bool(engine.get("configured")),
         },
+        "ui": {"language": st.get("ui_language", "auto")},
         "permissions": {
             # Safe default when nothing is set yet: sandboxed, no host reach.
             "tier": _actual_tier(c),
@@ -969,6 +970,15 @@ def write_config(body: dict) -> dict:
             restart.add("openclaw-gateway.service")
 
         # ── permissions ──
+        ui = body.get("ui") or {}
+        if not isinstance(ui, dict):
+            raise ValueError("إعداد الواجهة غير صالح")
+        if "language" in ui:
+            language = str(ui["language"])
+            if language not in ("auto", "ar", "en"):
+                raise ValueError("اللغة يجب أن تكون auto أو ar أو en")
+            st["ui_language"] = language
+
         permissions = body.get("permissions") or {}
         if not isinstance(permissions, dict):
             raise ValueError("إعداد الصلاحيات غير صالح")

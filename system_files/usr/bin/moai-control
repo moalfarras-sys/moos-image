@@ -264,6 +264,7 @@ def load_merged() -> dict:
             merged["mode"] = "cloud"
         elif primary.startswith("ollama/"):
             merged["mode"] = "local"
+            merged["local_model"] = primary.removeprefix("ollama/")
     except Exception:
         pass
     return merged
@@ -773,6 +774,47 @@ _models_cache = {"data": None, "ts": 0.0, "sig": None}
 #
 # `id` is the shared comparison key. The RamaLama adapter adds its required
 # `ollama://` transport; the Ollama adapter sends the same id as JSON.
+# Every known tag's human meaning. "title" is an "ar | en" pair the UI splits;
+# "role" groups the picker (fast/smart/vision get top billing, "technical"
+# rows are collapsed as alternate names); "alias_of" marks rows that are the
+# SAME weights as another row (created by setup-brain's Modelfiles) — deleting
+# them frees almost nothing because Ollama shares the underlying blobs.
+KNOWN_BRAINS = {
+    "qwen2.5:7b-instruct": {
+        "role": "fast",
+        "title": "السريع — يجيب فورًا بلا تفكير مخفي | Fast — answers instantly, no hidden thinking"},
+    "moai-brain": {
+        "role": "smart",
+        "title": "عقل MoOS الذكي — مضبوط للأدوات والعربية | MoOS smart brain — tuned for tools and Arabic"},
+    "qwen3-vl:4b": {
+        "role": "vision",
+        "title": "الرؤية — يفهم الصور ولقطات الشاشة | Vision — understands images and screenshots"},
+    "qwen3:4b": {
+        "role": "light",
+        "title": "التوازن — ذكي وخفيف | Balanced — smart and light"},
+    "qwen3:1.7b": {
+        "role": "light",
+        "title": "الأخف — لأي جهاز | Lightest — for any device"},
+    "qwen3:8b": {
+        "role": "technical", "alias_of": "moai-brain:latest",
+        "title": "الأصل التقني لعقل MoOS (نفس الأوزان) | technical base of the MoOS brain (same weights)"},
+    "default": {
+        "role": "technical", "alias_of": "moai-brain:latest",
+        "title": "اسم تقني قديم لنفس العقل — يلزم للتوافق | legacy technical name for the same brain — kept for compatibility"},
+}
+
+
+def curate(row):
+    """Attach role/title/alias_of to a local-models row by model identity."""
+    name = row.get("label") or ""
+    for known_id, meta in KNOWN_BRAINS.items():
+        if same_model(name, known_id):
+            row.update(meta)
+            return row
+    row.setdefault("role", "other")
+    return row
+
+
 RECOMMENDED_LOCAL = [
     {"id": "qwen3:1.7b", "size_gb": 1.4,
      "note": "الأخف — يعمل على أي جهاز حتى بلا كرت شاشة | lightest — runs anywhere, even CPU-only"},
@@ -1062,7 +1104,7 @@ def local_models():
         out.append({"id": "local:" + name, "label": name,
                     "pulled": False, "serving": False,
                     "size_gb": rec["size_gb"], "note": rec["note"]})
-    return out
+    return [curate(r) for r in out]
 
 
 def cloud_models(cfg):
@@ -1148,11 +1190,15 @@ def models() -> dict:
         # The default must name a model that can actually answer. The configured
         # route once pointed at a tag that was never downloaded (serving=True,
         # pulled=False); the app seeded the chat with it and the FIRST message
-        # of every session failed. Prefer the pulled serving row, then any
-        # pulled row, and only then the bare "local" token.
+        # of every session failed. Prefer the user's saved choice (OpenClaw's
+        # ollama/<model> primary via load_merged), then the pulled serving row,
+        # then any pulled row, and only then the bare "local" token.
+        chosen = str(cfg.get("local_model") or "")
         default = next(
-            (m["id"] for m in local if m["serving"] and m.get("pulled")),
-            next((m["id"] for m in local if m.get("pulled")), "local"))
+            (m["id"] for m in local
+             if chosen and same_model(m["label"], chosen) and m.get("pulled")),
+            next((m["id"] for m in local if m["serving"] and m.get("pulled")),
+                 next((m["id"] for m in local if m.get("pulled")), "local")))
 
     out = {"local": local, "cloud": cloud, "cloud_error": cloud_error,
            "default": default, "mode": mode}
