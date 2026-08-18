@@ -278,6 +278,12 @@ def openclaw_model(client, brain, model, cfg):
         # serves any pulled tag — vision included — and the chip honestly
         # shows "Direct fallback" instead of a dead error.
         return ""
+    if brain == "cloud" and requested:
+        # Same honesty for the cloud: an uncatalogued explicit pick must not
+        # silently answer with OpenClaw's primary while the chip shows the
+        # requested model. The DIRECT cloud path serves the exact pick with
+        # the configured key.
+        return ""
     primary = str(client.get("primary") or "")
     if primary.startswith(provider + "/"):
         return primary
@@ -636,9 +642,10 @@ def ensure_local(want: str) -> "tuple[str, str]":
                     break
             if not target:
                 # Never start a multi-gigabyte download from a chat message.
-                return ("النموذج «%s» غير محمّل على هذا الجهاز.\n"
-                        "The local model \"%s\" is not downloaded. Pull it first:\n"
-                        "    ramalama pull %s" % (want, want, want)), ""
+                return ("النموذج «%s» غير محمّل على هذا الجهاز — نزّله من قائمة "
+                        "العقل في المحادثة.\n"
+                        "The local model \"%s\" is not downloaded. Get it from "
+                        "the brain menu in the chat." % (want, want)), ""
 
         # Do not start something that cannot succeed: no disk for the download, or no
         # network to download from. Both used to fail deep inside RamaLama and surface
@@ -676,10 +683,10 @@ def ensure_local(want: str) -> "tuple[str, str]":
                 next_check = time.monotonic() + 6.0
             time.sleep(1.5)
         return ("العقل المحلي لم يجب خلال %d ثانية — أول تشغيل يحمّل النموذج (~2.5GB) "
-                "ويكمل في الخلفية.\n"
+                "ويكمل في الخلفية؛ اسأل مجدداً بعد قليل.\n"
                 "The local brain did not answer within %ds. The first start downloads "
-                "the model (~2.5 GB) and keeps going in the background — watch it with "
-                "`moai-start logs`, then ask again."
+                "the model (~2.5 GB) and keeps going in the background — ask again "
+                "in a few minutes."
                 % (int(LOCAL_TIMEOUT), int(LOCAL_TIMEOUT))), ""
 
 
@@ -1033,16 +1040,22 @@ class Handler(BaseHTTPRequestHandler):
             self.moai_route = brain
             self.moai_route_reason = reason
             req = dict(req)
+            # resolve() only fills the cloud model for brain == "cloud", so a
+            # hybrid request reaches here with model == "" — and _to_cloud
+            # would then forward the LITERAL routing token from req["model"]
+            # ("hybrid") as the upstream model id. Fill it from the config for
+            # every cloud leg of the hybrid split.
+            cloud_model = model or str(cfg.get("cloud_model") or "")
             if brain == "local":
                 error, local_model = ensure_local(model)
                 if error and may_fallback:
                     self.moai_route = "cloud"
                     self.moai_route_reason = "local-unavailable"
-                    if wants_agent and self._to_agent(req, "cloud", model, cfg):
+                    if wants_agent and self._to_agent(req, "cloud", cloud_model, cfg):
                         return
                     req.pop("moai", None)
                     raw = json.dumps(req).encode("utf-8")
-                    return self._to_cloud(req, raw, model, cfg)
+                    return self._to_cloud(req, raw, cloud_model, cfg)
                 if error:
                     return self._err(503, error)
                 if wants_agent and self._to_agent(req, "local", local_model, cfg,
@@ -1050,11 +1063,11 @@ class Handler(BaseHTTPRequestHandler):
                     return
                 req.pop("moai", None)
                 return self._to_local(req, local_model, prepared=True)
-            if wants_agent and self._to_agent(req, "cloud", model, cfg):
+            if wants_agent and self._to_agent(req, "cloud", cloud_model, cfg):
                 return
             req.pop("moai", None)
             raw = json.dumps(req).encode("utf-8")
-            return self._to_cloud(req, raw, model, cfg)
+            return self._to_cloud(req, raw, cloud_model, cfg)
         if wants_agent and self._to_agent(req, brain, model, cfg):
             return
         req = dict(req)
@@ -1187,6 +1200,19 @@ class Handler(BaseHTTPRequestHandler):
                 out = dict(req)
                 if model:
                     out["model"] = model
+                else:
+                    # The request's own model field may still hold a routing
+                    # token; an upstream provider has no model named "hybrid".
+                    current = str(out.get("model") or "").strip().lower()
+                    if current in ("", "default", "hybrid") \
+                            or current.startswith(("local", "cloud", "hybrid")):
+                        configured = str(cfg.get("cloud_model") or "").strip()
+                        if not configured:
+                            return self._err(503,
+                                "لم يُحدَّد نموذج سحابي — اختره في إعدادات Mo AI ← العقل.\n"
+                                "No cloud model is configured — pick one in "
+                                "Mo AI Settings → Brain.")
+                        out["model"] = configured
                 streaming = bool(out.get("stream"))
                 body = json.dumps(out).encode("utf-8")
 

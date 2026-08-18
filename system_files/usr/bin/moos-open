@@ -136,7 +136,10 @@ case "${cat}/${tgt}" in
     app/store)     gui moos-store ;;
     app/settings)  gui moos-settings ;;
     brain/start)   term moai-start ;;
-    ai/config)     gui moai-config ;;
+    # ai/config was removed with the one-chat redesign: it opened moai-config,
+    # a THIRD brain-configuration surface (beside the in-chat picker and the
+    # Settings Brain tab) — and because moos: is a public URL scheme, any web
+    # page could pop it. moai-config itself remains a terminal tool.
 
     # ── Connected devices: these are the real Plasma 6 KCM module ids. The
     # Welcome's pairing guide opens the exact settings page it describes; none

@@ -1104,9 +1104,10 @@ require("moos-selfcheck" in control,
 require("function diagnoseSystem" in moai_qml and 'controlApi + "/diagnose"' in moai_qml,
         "Mo AI must call /diagnose from its System-health panel")
 require("صحة النظام" in moai_qml
-        and 'Qt.openUrlExternally("moos://do/" + modelData.id)' in moai_qml,
+        and 'root.launch(\n                                                "moos://do/" + modelData.id' in moai_qml,
         "Mo AI's Diagnose panel must offer repairs as moos://do/<id> (moai-do confirm + Polkit), "
-        "never a free-form command — the whole safety contract")
+        "never a free-form command — the whole safety contract. launch() wraps "
+        "Qt.openUrlExternally and adds the action toast every other button has.")
 
 # A LIST NOBODY RENDERS IS A FEATURE NOBODY HAS. defaultRepairs describes itself as "always
 # shown, and the fallback before a diagnose run has returned", but it was declared and never
@@ -5254,7 +5255,16 @@ require(_re_match is not None,
         "Mo AI's extractRuns() Run-button regex could not be found — if it was renamed or "
         "restructured, update this gate so it keeps comparing the prompt to the buttons")
 if _re_match:
-    _button_actions = set(_re_match.group(1).split("|"))
+    _alternation = _re_match.group(1).split("|")
+    # Ordering is LOAD-BEARING: JS regex alternation is first-match, so if
+    # "update" precedes "update-firmware" the boundary after the group matches
+    # at the hyphen and a firmware recommendation renders a chip that stages a
+    # FULL system update (verified empirically before the fix). Set-membership
+    # checks below cannot see order, so pin it here.
+    require(_alternation.index("update-firmware") < _alternation.index("update"),
+            "extractRuns() must match update-firmware BEFORE update — reversed, a "
+            "firmware suggestion becomes a full-system-update Run chip")
+    _button_actions = set(_alternation)
     _moai_do_text = read("system_files/usr/bin/moai-do")
     _router_text = read("system_files/usr/bin/moos-open")
 
