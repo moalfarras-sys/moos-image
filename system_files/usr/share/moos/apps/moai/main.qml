@@ -5885,8 +5885,8 @@ Kirigami.ApplicationWindow {
                                     visible: root.cfgTab === "permissions"
                                     Layout.fillWidth: true
                                     text: root.local(
-                                        "نموذج 4B ضعيف أمام حقن التعليمات — صفحة خبيثة تقدر تعطيه أوامر باعتبارها محتوى. فعّله مع العقل السحابي فقط.",
-                                        "A 4B model is vulnerable to prompt injection from malicious pages. Enable this with the cloud brain only.")
+                                        "نموذج صغير ضعيف أمام حقن التعليمات، والبحث المحلي يتطلب تسجيل دخول Ollama — بدون حساب تفشل الأداة ويعلق العقل المحلي عليها. فعّله مع العقل السحابي فقط.",
+                                        "A small model is vulnerable to prompt injection, and local search needs an Ollama account sign-in — without one the tool always fails and the local brain can loop on it. Enable this with the cloud brain only.")
                                 }
                             }
 

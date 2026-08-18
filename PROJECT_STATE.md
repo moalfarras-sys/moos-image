@@ -107,6 +107,22 @@ with no local model at all gets an honest error naming the brain menu.
   `layoutDirection` under window-level `LayoutMirroring` mirrors twice) and now mirror
   correctly.
 
+**Two more live root causes surfaced while proving the fix on the machine** (both now
+covered): (1) OpenClaw 2026.7 enforces its provider catalog as a model ALLOWLIST — an
+explicitly picked pulled tag that is not in `openclaw.json`'s ollama catalog comes back
+`HTTP 400 "Model 'ollama/qwen2.5:7b-instruct' is not allowed for agent 'main'"`, which
+the chat rendered as the same generic apology. The gateway's `openclaw_model` now
+matches the catalog by model identity (`default` vs `default:latest`) and sends an
+uncatalogued tag down the DIRECT path (any pulled model, vision included, chip honestly
+reads "Direct fallback") instead of forwarding a guaranteed rejection. (2) The
+Permissions "Internet" switch was on while Ollama web search had no account sign-in —
+the tool ALWAYS failed and the 7B local brain looped on it eight times per question
+until the turn ended empty ("No response from OpenClaw"). The permissions note now
+states the sign-in requirement; on the live machine the switch was turned off and the
+mode set to Smart Hybrid, after which the installed app answered end to end
+(`X-MoAI-Route: local · fast-private-default` for simple turns, cloud escalation
+configured for hard ones).
+
 Verification: every CI repo gate green (`verify_user_experience`, all `test_moai_*`,
 including updated `test_moai_control` — substitution asserted to never touch systemd and
 the no-model case asserted honest — and `test_moai_hybrid`, which now pins the 8-tab

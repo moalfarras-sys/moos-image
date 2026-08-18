@@ -262,14 +262,22 @@ def openclaw_model(client, brain, model, cfg):
         requested = str(cfg.get("cloud_model") or "").strip()
     if requested and requested in catalog:
         return provider + "/" + requested
-    # Ollama is discovered dynamically by OpenClaw (`/api/show` supplies the
-    # real input/tool/thinking capabilities). Mo AI's picker may therefore name
-    # a pulled model that isn't in the small persisted bootstrap catalog. The
-    # following ensure_local() call proves the tag exists before any request is
-    # forwarded; cloud ids stay catalog-only because their inventory/auth is a
-    # different trust boundary.
-    if brain == "local" and requested and node.get("baseUrl"):
-        return provider + "/" + requested
+    if brain == "local" and requested:
+        # Catalog ids and Ollama tags disagree about ":latest" ("default" vs
+        # "default:latest" name the same weights). Match by identity and return
+        # the id OpenClaw actually has, or its 400 says the model "is not
+        # allowed for agent 'main'".
+        for catalog_id in catalog:
+            if same_model(catalog_id, requested):
+                return provider + "/" + catalog_id
+        # A pulled tag OpenClaw's catalog does not know is REFUSED by the
+        # gateway allowlist (measured live: explicit qwen2.5:7b-instruct →
+        # HTTP 400 "not allowed for agent 'main'" and the chat showed only
+        # "I couldn't generate a reply"). Never forward a guaranteed
+        # rejection: returning "" sends this turn down the DIRECT path, which
+        # serves any pulled tag — vision included — and the chip honestly
+        # shows "Direct fallback" instead of a dead error.
+        return ""
     primary = str(client.get("primary") or "")
     if primary.startswith(provider + "/"):
         return primary

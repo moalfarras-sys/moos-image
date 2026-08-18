@@ -68,8 +68,18 @@ def main() -> None:
     assert gateway["openclaw_model"](client, "cloud", "hard", {}) == "cloud/hard"
     assert gateway["openclaw_model"](client, "local", "", {}) == "ollama/local-default"
     client["providers"]["ollama"]["baseUrl"] = "http://127.0.0.1:11434/v1"
+    # OpenClaw's gateway enforces the provider catalog as a model ALLOWLIST
+    # (measured live 2026-08-18: an uncatalogued pulled tag came back HTTP 400
+    # "Model 'ollama/qwen2.5:7b-instruct' is not allowed for agent 'main'" and
+    # the desktop chat showed only a generic apology). An uncatalogued local
+    # model must therefore return "" — the caller then takes the DIRECT path,
+    # which serves any pulled tag, vision included — never a guaranteed 400.
     assert gateway["openclaw_model"](
-        client, "local", "qwen3-vl:4b", {}) == "ollama/qwen3-vl:4b"
+        client, "local", "qwen3-vl:4b", {}) == ""
+    # Catalog ids and Ollama tags disagree about ":latest"; match by identity
+    # and forward the id OpenClaw actually knows.
+    assert gateway["openclaw_model"](
+        client, "local", "local-default:latest", {}) == "ollama/local-default"
     assert gateway["openclaw_model"](
         client, "local", "bad\nheader", {}) == ""
 
