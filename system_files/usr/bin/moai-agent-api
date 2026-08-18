@@ -1042,6 +1042,24 @@ def write_config(body: dict) -> dict:
                     set(policy.get("deny", [])) | {"group:web", "browser"})
             restart.add("openclaw-gateway.service")
 
+        # ── The tool policy must FOLLOW the brain ────────────────────────────
+        # deny lists live under tools.byProvider.<primary>. Every policy write
+        # above targets the CURRENT primary — but a later mode/model switch in
+        # the same or a following save re-points the primary and would leave
+        # the policy behind on the old provider key, silently re-enabling web
+        # (and dropping the tier's deny list) for the new brain. Measured live:
+        # web was denied under ollama/qwen2.5:7b-instruct, the mode switched to
+        # hybrid, and moai/hybrid ran with the web tool back on. Carry the old
+        # primary's policy over whenever the primary changes and the new one
+        # has no explicit policy of its own.
+        new_primary = _primary(c)
+        if (original_primary and new_primary and new_primary != original_primary):
+            by_provider = c.setdefault("tools", {}).setdefault("byProvider", {})
+            if original_primary in by_provider and new_primary not in by_provider:
+                by_provider[new_primary] = copy.deepcopy(
+                    by_provider[original_primary])
+                restart.add("openclaw-gateway.service")
+
         # ── power: stage the selected fixed Quadlet, never a hard-coded rival ──
         power = body.get("power") or {}
         if not isinstance(power, dict):
