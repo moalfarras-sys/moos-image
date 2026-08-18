@@ -2531,8 +2531,11 @@ class H(BaseHTTPRequestHandler):
 
 
 def main():
-    if not UI.exists():
-        sys.exit(f"واجهة غير موجودة: {UI}")
+    # (The old guard here checked that the browser console's HTML file existed.
+    # The console is deleted — this API serves JSON only — and the leftover
+    # check took the whole service down on .609: py_compile cannot see a
+    # NameError and no gate executed main(). test_moai_service_lifecycle now
+    # boots the real script and asks it a real request.)
     srv = ThreadingHTTPServer(("127.0.0.1", PORT), H)
     print(f"moai-agent-api → http://127.0.0.1:{PORT}/", flush=True)
     srv.serve_forever()
