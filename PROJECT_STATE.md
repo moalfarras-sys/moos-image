@@ -43,6 +43,80 @@ with manifest digest
 `sha256:cbaa34261c7b0088379fffebc63515a718351107dbccdc506a39c581d879c987`
 and size 10,776,140,710 bytes.
 
+## 2026-08-18 — Mo AI became ONE chat (source-proven, not yet signed)
+
+**The owner's audit request found the app split against itself, and the flagship path
+broken.** Using the installed app as a normal user: the FIRST message ever sent came back
+"I couldn't generate a reply — please try again" while the orb said Online. The cause
+chain: `moai-control /models` marked the *configured* local model as `serving:true` even
+though it was **not on disk** (`qwen2.5:7b-instruct`, deleted at some point), the QML
+seeded the conversation route from exactly that flag, and `moai-gateway`'s `ensure_local`
+refused the missing tag with an error the chat swallowed into a generic apology. Three
+layers now defend this independently: the control API's `default` prefers a *pulled*
+model, the QML refuses to seed a route onto `pulled:false`, and the gateway substitutes a
+deterministic installed tag (configured default → moai-brain → default alias → first on
+disk) instead of failing — a chat message still never starts a download, and a machine
+with no local model at all gets an honest error naming the brain menu.
+
+**The duplication the owner called out was real, and it is gone:**
+
+- **Three chat surfaces → one.** The Agent panel's conversations tab (its own session
+  list, its own `/api/send` composer — synchronous, no streaming, no model choice, errors
+  injected as fake assistant bubbles) is deleted; the hidden browser console
+  (`moai-agent-api` GET `/` served `console.html`, a third full chat+settings page
+  reachable only by knowing the port) is deleted and the API now answers JSON at `/`.
+  Conversations live ONLY in the Chat panel: its history drawer lists the same OpenClaw
+  sessions with real relative times (the rows used to say the static jargon "Unified
+  OpenClaw session"), and the current row carries Pin / Rename / Archive. A gate now
+  asserts `/api/send` never returns to the QML and `agentOpenPrimary(` stays.
+- **Two update buttons → one.** The Device panel's Maintenance flow had "Update"
+  (`moos://do/update` → held Konsole) one row from "Updater" (`moos://app/updater` → the
+  MoOS updater GUI), same icon on both. One button remains, labeled Update, opening the
+  GUI; the terminal flow stays reachable through chat Run chips. The `extractRuns` regex
+  was also reordered — alternation put `update` before `update-firmware`, so a firmware
+  suggestion rendered a chip that staged a FULL system update (verified empirically).
+  `moai-do install <flatpak-id>` now really becomes an Install chip (validated
+  reverse-DNS, via `moos://apps/install/`), which the system prompt had promised for
+  months while the regex could never match it.
+- **Four brain-choice homes → two honest ones.** The picker chip in the composer (per
+  app-session choice; its "applies to this conversation only" note lied and now doesn't)
+  and ONE Settings tab, "Brain" — mode cards + cloud provider/key (shown only when the
+  mode can use the cloud) + the local model list. The old Models / Providers / Privacy
+  trio configured the same thing in three tabs — and the "Privacy" tab controlled no
+  privacy. Settings went 12 tabs → 8; old `--settings` names remap (`models`,
+  `providers`, `privacy` → `brain`; `projects` → `permissions`; `terminal` → the
+  Workbench terminal). The Qt Quick trap that hid the duplication: `visible:` on a
+  `Repeater` does NOT hide already-instantiated delegates — the mode cards leaked into
+  the Providers tab and the tier cards into Projects, visually confirmed pre-fix.
+- **Dev panel + Agent panel → one Workbench.** Projects · Tasks · Terminal · Coding
+  agents as tabs of the `agent` panel (id kept for every shim; `--panel dev` and
+  `--workspace conversations` route sensibly). The rail is 6 entries.
+- **Honesty fixes:** System health moved from Settings→OpenClaw to the Device panel it
+  diagnoses (its "update" repair was labeled "Fix"; now "Update"); the toast says
+  Failed on failures instead of framing errors under a "Working…" headline, and renders
+  above dialog scrims (z 400 > 250/300); the Settings "Linked" pill is set by a
+  successful `/api/config` load, not by the absence of an error string; Save is disabled
+  until a load succeeded (a blind save used to clear the Telegram allow-list back to
+  pairing mode); the host-control switch saves ONLY the tier (it used to commit the
+  whole form including half-typed secrets from other tabs) and remembers whether it
+  left "full"; `moai-agent-api` reports an unmatched permissions config as `custom`
+  instead of dressing it as the safest tier; chat errors surface the gateway's real
+  message; the reasoning-model help no longer asserts "this GPU-less server" on every
+  machine; starters/askAbout/toasts speak the session language instead of hardcoded
+  Arabic or bilingual dumps; the RTL hero cards were the one LTR island (manual
+  `layoutDirection` under window-level `LayoutMirroring` mirrors twice) and now mirror
+  correctly.
+
+Verification: every CI repo gate green (`verify_user_experience`, all `test_moai_*`,
+including updated `test_moai_control` — substitution asserted to never touch systemd and
+the no-model case asserted honest — and `test_moai_hybrid`, which now pins the 8-tab
+model and the `--settings` remap); the QML probe loads the file in a real engine; the
+source app was driven LIVE on the 4K session — the unified conversation open was proven
+by loading the real 330-message Telegram `main` session into the chat panel, and Brain
+settings, Workbench (via `--panel dev`), Device health, drawer actions, picker note and
+full RTL were each screenshotted (`/var/tmp/moai-new-*.png`). NOT yet in any signed
+image; the owner's installed app keeps the old behaviour until the next release.
+
 ## 2026-08-16 — the Mo AI link that was never connected (fix live-proven, not yet signed)
 
 **The phone gateway had been running without its Mo AI wiring since at least 8 August, and

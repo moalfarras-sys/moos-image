@@ -127,10 +127,19 @@ def main() -> None:
     assert 'Text.MarkdownText' in qml and 'body.copy()' in qml
     assert 'msg.role.indexOf("tool-") === 0' in qml
     assert 'msg.role === "tool-error" ? root.badColor' in qml
-    for section in ("models", "providers", "openclaw", "telegram", "whatsapp",
-                    "voice", "permissions", "memory", "projects", "terminal",
-                    "privacy", "appearance"):
+    # Eight tabs: the brain decision (mode + provider + key + local models) has
+    # ONE home. The retired Models/Providers/Privacy trio and the door-only
+    # Projects/Terminal tabs must not come back, and their old deep-link names
+    # must keep landing somewhere sensible.
+    for section in ("brain", "openclaw", "telegram", "whatsapp",
+                    "voice", "permissions", "memory", "appearance"):
         assert f'{{ id: "{section}"' in qml, f"missing settings section: {section}"
+    for retired in ("models", "providers", "privacy", "projects", "terminal"):
+        assert f'cfgTab === "{retired}"' not in qml, (
+            f"retired settings tab returned: {retired}")
+    assert 'models: "brain"' in qml and 'privacy: "brain"' in qml \
+        and 'projects: "permissions"' in qml, \
+        "old --settings section names must be remapped, not dropped"
     assert '{ id: "hybrid", ar: "هجين ذكي", en: "Smart hybrid"' in qml
     assert 'visible: root.cfgTab === "health"' not in qml
     assert 'root.launch("moos://settings/themes", "MoOS themes")' in qml
