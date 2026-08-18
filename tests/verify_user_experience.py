@@ -2526,10 +2526,21 @@ require("property bool agentStatusLoaded" in moai_qml
         and "readonly property bool agentMachineConfigured" in moai_qml
         and "readonly property bool agentReady" in moai_qml
         and "moos://do/install-openclaw" in moai_qml
-        and "moos://do/setup-brain" in moai_qml
-        and "enabled: root.agentReady && !root.agentBusy" in moai_qml,
-        "the Agent panel must read real installation/configuration status, offer "
-        "working setup actions for missing pieces, and disable chat until ready")
+        and "moos://do/setup-brain" in moai_qml,
+        "the Workbench must read real installation/configuration status and "
+        "offer working setup actions for missing pieces")
+# ONE chat. The agent panel used to carry a second composer POSTing to the
+# agent API's /api/send while the chat panel streamed through the gateway —
+# two chat surfaces over one session store, which the owner rightly called
+# out. The Workbench must never grow a composer again: conversations open in
+# the chat panel (agentOpenPrimary) and every message goes through the one
+# streaming pipeline.
+require("/api/send" not in moai_qml,
+        "the QML must not POST /api/send — that was the second chat composer; "
+        "all messages go through the gateway's streaming pipeline")
+require("agentOpenPrimary(" in moai_qml,
+        "agent sessions must open inside the chat panel (agentOpenPrimary), "
+        "not in a second thread viewer")
 openclaw_bootstrap = code(
     read("system_files/usr/libexec/moai-openclaw-bootstrap"))
 require('"type": "cli"' in openclaw_bootstrap
@@ -3096,12 +3107,10 @@ require(ui_migrate.count("secret-tool lookup service org.moos.MoAI account cloud
         "wallet removal must preserve only Mo AI's already-unlocked legacy key")
 require("secret-tool store" not in ui_migrate and "secret-tool clear" not in ui_migrate,
         "UI migration must never write or delete Secret Service items")
-for agent_surface in (
-    read("system_files/usr/share/moos/apps/moai/main.qml"),
-    read("system_files/usr/share/moos/apps/moai-agent/console.html"),
-):
-    require("1142563280" not in agent_surface,
-            "a maintainer Telegram id must never ship as user-facing placeholder data")
+# (The moai-agent browser console was removed with the one-chat redesign; the
+# QML app is the only desktop surface left to check for leaked personal data.)
+require("1142563280" not in read("system_files/usr/share/moos/apps/moai/main.qml"),
+        "a maintainer Telegram id must never ship as user-facing placeholder data")
 
 # Windows must wear the MoOS decoration, not Breeze. Breeze here means Breeze's
 # X / v / ^ title-bar glyphs on every window — the loudest remaining "this is

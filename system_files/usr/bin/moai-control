@@ -1094,7 +1094,14 @@ def models() -> dict:
     elif mode == "cloud":
         default = "cloud:" + configured if configured else "cloud"
     else:
-        default = next((m["id"] for m in local if m["serving"]), "local")
+        # The default must name a model that can actually answer. The configured
+        # route once pointed at a tag that was never downloaded (serving=True,
+        # pulled=False); the app seeded the chat with it and the FIRST message
+        # of every session failed. Prefer the pulled serving row, then any
+        # pulled row, and only then the bare "local" token.
+        default = next(
+            (m["id"] for m in local if m["serving"] and m.get("pulled")),
+            next((m["id"] for m in local if m.get("pulled")), "local"))
 
     out = {"local": local, "cloud": cloud, "cloud_error": cloud_error,
            "default": default, "mode": mode}

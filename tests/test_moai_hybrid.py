@@ -68,8 +68,18 @@ def main() -> None:
     assert gateway["openclaw_model"](client, "cloud", "hard", {}) == "cloud/hard"
     assert gateway["openclaw_model"](client, "local", "", {}) == "ollama/local-default"
     client["providers"]["ollama"]["baseUrl"] = "http://127.0.0.1:11434/v1"
+    # OpenClaw's gateway enforces the provider catalog as a model ALLOWLIST
+    # (measured live 2026-08-18: an uncatalogued pulled tag came back HTTP 400
+    # "Model 'ollama/qwen2.5:7b-instruct' is not allowed for agent 'main'" and
+    # the desktop chat showed only a generic apology). An uncatalogued local
+    # model must therefore return "" — the caller then takes the DIRECT path,
+    # which serves any pulled tag, vision included — never a guaranteed 400.
     assert gateway["openclaw_model"](
-        client, "local", "qwen3-vl:4b", {}) == "ollama/qwen3-vl:4b"
+        client, "local", "qwen3-vl:4b", {}) == ""
+    # Catalog ids and Ollama tags disagree about ":latest"; match by identity
+    # and forward the id OpenClaw actually knows.
+    assert gateway["openclaw_model"](
+        client, "local", "local-default:latest", {}) == "ollama/local-default"
     assert gateway["openclaw_model"](
         client, "local", "bad\nheader", {}) == ""
 
@@ -127,10 +137,19 @@ def main() -> None:
     assert 'Text.MarkdownText' in qml and 'body.copy()' in qml
     assert 'msg.role.indexOf("tool-") === 0' in qml
     assert 'msg.role === "tool-error" ? root.badColor' in qml
-    for section in ("models", "providers", "openclaw", "telegram", "whatsapp",
-                    "voice", "permissions", "memory", "projects", "terminal",
-                    "privacy", "appearance"):
+    # Eight tabs: the brain decision (mode + provider + key + local models) has
+    # ONE home. The retired Models/Providers/Privacy trio and the door-only
+    # Projects/Terminal tabs must not come back, and their old deep-link names
+    # must keep landing somewhere sensible.
+    for section in ("brain", "openclaw", "telegram", "whatsapp",
+                    "voice", "permissions", "memory", "appearance"):
         assert f'{{ id: "{section}"' in qml, f"missing settings section: {section}"
+    for retired in ("models", "providers", "privacy", "projects", "terminal"):
+        assert f'cfgTab === "{retired}"' not in qml, (
+            f"retired settings tab returned: {retired}")
+    assert 'models: "brain"' in qml and 'privacy: "brain"' in qml \
+        and 'projects: "permissions"' in qml, \
+        "old --settings section names must be remapped, not dropped"
     assert '{ id: "hybrid", ar: "هجين ذكي", en: "Smart hybrid"' in qml
     assert 'visible: root.cfgTab === "health"' not in qml
     assert 'root.launch("moos://settings/themes", "MoOS themes")' in qml

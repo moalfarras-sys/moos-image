@@ -61,10 +61,6 @@ ENGINE_HELPER = Path(os.environ.get(
     "MOAI_LOCAL_ENGINE_HELPER", "/usr/libexec/moai-local-engine"))
 TRANSCRIBE = Path("/usr/bin/moai-transcribe")
 PW_RECORD = Path("/usr/bin/pw-record")
-# Shipped by the image: the UI lives under /usr/share, not beside the script.
-# A dev checkout can override it for iteration without touching /usr.
-UI = Path(os.environ.get("MOAI_AGENT_UI",
-                         "/usr/share/moos/apps/moai-agent/console.html"))
 PORT = int(os.environ.get("MOAI_AGENT_PORT", "8077"))
 # This endpoint can write credentials and agent permissions.  It is loopback-only,
 # but loopback alone is not a browser security boundary: any web page can submit a
@@ -693,7 +689,10 @@ def _actual_tier(cfg: dict) -> str:
             and bool(approvals.get("enabled")) == tier["approvals"]
         ):
             return name
-    return "read"
+    # A hand-edited or drifted config matches no tier. Never dress it up as
+    # "read" — that showed the SAFEST label for configs that could still reach
+    # the host. The UI shows "custom" and offers the four tiers to normalise.
+    return "custom"
 
 
 def _keep_alive(engine: dict) -> str:
@@ -1042,6 +1041,24 @@ def write_config(body: dict) -> dict:
                 policy["deny"] = sorted(
                     set(policy.get("deny", [])) | {"group:web", "browser"})
             restart.add("openclaw-gateway.service")
+
+        # ── The tool policy must FOLLOW the brain ────────────────────────────
+        # deny lists live under tools.byProvider.<primary>. Every policy write
+        # above targets the CURRENT primary — but a later mode/model switch in
+        # the same or a following save re-points the primary and would leave
+        # the policy behind on the old provider key, silently re-enabling web
+        # (and dropping the tier's deny list) for the new brain. Measured live:
+        # web was denied under ollama/qwen2.5:7b-instruct, the mode switched to
+        # hybrid, and moai/hybrid ran with the web tool back on. Carry the old
+        # primary's policy over whenever the primary changes and the new one
+        # has no explicit policy of its own.
+        new_primary = _primary(c)
+        if (original_primary and new_primary and new_primary != original_primary):
+            by_provider = c.setdefault("tools", {}).setdefault("byProvider", {})
+            if original_primary in by_provider and new_primary not in by_provider:
+                by_provider[new_primary] = copy.deepcopy(
+                    by_provider[original_primary])
+                restart.add("openclaw-gateway.service")
 
         # ── power: stage the selected fixed Quadlet, never a hard-coded rival ──
         power = body.get("power") or {}
@@ -2402,7 +2419,11 @@ class H(BaseHTTPRequestHandler):
         q = urllib.parse.parse_qs(u.query)
         try:
             if u.path in ("/", "/index.html"):
-                return self._send(UI.read_bytes(), ctype="text/html")
+                # The browser console that used to live here was a THIRD chat
+                # surface (beside the app's chat and the phone channels) with
+                # its own half-connected settings. One chat: the QML app is the
+                # desktop client, and this backend is an API only.
+                return self._send({"app": "moai-agent-api", "ok": True})
             if u.path == "/api/status":
                 return self._send(status())
             if u.path == "/api/capabilities":

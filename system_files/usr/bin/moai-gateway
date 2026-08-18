@@ -262,14 +262,22 @@ def openclaw_model(client, brain, model, cfg):
         requested = str(cfg.get("cloud_model") or "").strip()
     if requested and requested in catalog:
         return provider + "/" + requested
-    # Ollama is discovered dynamically by OpenClaw (`/api/show` supplies the
-    # real input/tool/thinking capabilities). Mo AI's picker may therefore name
-    # a pulled model that isn't in the small persisted bootstrap catalog. The
-    # following ensure_local() call proves the tag exists before any request is
-    # forwarded; cloud ids stay catalog-only because their inventory/auth is a
-    # different trust boundary.
-    if brain == "local" and requested and node.get("baseUrl"):
-        return provider + "/" + requested
+    if brain == "local" and requested:
+        # Catalog ids and Ollama tags disagree about ":latest" ("default" vs
+        # "default:latest" name the same weights). Match by identity and return
+        # the id OpenClaw actually has, or its 400 says the model "is not
+        # allowed for agent 'main'".
+        for catalog_id in catalog:
+            if same_model(catalog_id, requested):
+                return provider + "/" + catalog_id
+        # A pulled tag OpenClaw's catalog does not know is REFUSED by the
+        # gateway allowlist (measured live: explicit qwen2.5:7b-instruct →
+        # HTTP 400 "not allowed for agent 'main'" and the chat showed only
+        # "I couldn't generate a reply"). Never forward a guaranteed
+        # rejection: returning "" sends this turn down the DIRECT path, which
+        # serves any pulled tag — vision included — and the chip honestly
+        # shows "Direct fallback" instead of a dead error.
+        return ""
     primary = str(client.get("primary") or "")
     if primary.startswith(provider + "/"):
         return primary
@@ -548,12 +556,18 @@ def systemctl(verb):
 _local_lock = threading.Lock()
 
 
-def ensure_local(want: str) -> str:
+def ensure_local(want: str) -> "tuple[str, str]":
     """Bring the local brain up, serving `want` ("" = whatever it already serves).
 
-    Returns "" on success, or a message meant for the user. Serialised: two chats
-    that both wake the brain must not race two `systemctl start`s at it, and the
-    second one should wait for the first rather than start a parallel download.
+    Returns ("", model_to_use) on success, or (message-for-the-user, "").
+    model_to_use is normally `want` — but when the requested tag (or the
+    configured default) is NOT on disk and another model is, the installed one
+    is substituted instead of failing. The shipped default once named a model
+    that had been deleted, and the FIRST message of every fresh chat died with
+    a 503 while the status orb said Online. Only a machine with no local model
+    at all still errors. Serialised: two chats that both wake the brain must
+    not race two `systemctl start`s at it, and the second one should wait for
+    the first rather than start a parallel download.
     """
     with _local_lock:
         if LOCAL_BACKEND == "ollama":
@@ -566,23 +580,34 @@ def ensure_local(want: str) -> str:
                 error = systemctl("start")
                 if error:
                     return ("تعذّر تشغيل العقل المحلي | could not start the local brain\n"
-                            + error)
+                            + error, "")
                 deadline = time.monotonic() + LOCAL_TIMEOUT
                 while time.monotonic() < deadline and not local_online():
                     reason = local_failure_reason()
                     if reason:
-                        return reason
+                        return reason, ""
                     time.sleep(1.0)
                 if not local_online():
-                    return ("العقل المحلي لم يبدأ | the local model server did not start")
+                    return ("العقل المحلي لم يبدأ | the local model server did not start"), ""
 
             installed = pulled_models()
             if target and not any(same_model(target, name) for name in installed):
-                return ("النموذج «%s» غير محمّل على هذا الجهاز.\n"
-                        "نزّله من Mo AI ← الإعدادات ← النماذج.\n"
-                        "The local model \"%s\" is not downloaded. Download it from "
-                        "Mo AI → Settings → Models." % (target, target))
-            return ""
+                # Deterministic substitution order: the configured default,
+                # MoOS's own tuned brain, the setup-brain alias, then whatever
+                # is first on disk. A chat message still never starts a
+                # download — substitution only ever names an installed tag.
+                for candidate in (short_model(DEFAULT_LOCAL_MODEL),
+                                  "moai-brain:latest", "default:latest"):
+                    for name in installed:
+                        if candidate and same_model(candidate, name):
+                            return "", short_model(name)
+                if installed:
+                    return "", short_model(installed[0])
+                return ("لا يوجد أي نموذج محلي منزّل على هذا الجهاز.\n"
+                        "نزّل عقلاً من قائمة العقل في المحادثة (زر «محلي»).\n"
+                        "No local model is downloaded on this device. Get one "
+                        "from the brain menu in the chat (the Local button)."), ""
+            return "", target
 
         current = env_model()
         switching = bool(want) and short_model(want) != short_model(current)
@@ -600,7 +625,7 @@ def ensure_local(want: str) -> str:
         stale_port = env_port() != LOCAL_PORT
 
         if not switching and not stale_port and local_online():
-            return ""
+            return "", short_model(want) or short_model(current)
 
         target = current
         if switching:
@@ -613,14 +638,14 @@ def ensure_local(want: str) -> str:
                 # Never start a multi-gigabyte download from a chat message.
                 return ("النموذج «%s» غير محمّل على هذا الجهاز.\n"
                         "The local model \"%s\" is not downloaded. Pull it first:\n"
-                        "    ramalama pull %s" % (want, want, want))
+                        "    ramalama pull %s" % (want, want, want)), ""
 
         # Do not start something that cannot succeed: no disk for the download, or no
         # network to download from. Both used to fail deep inside RamaLama and surface
         # as "the model is downloading in the background", which was a lie.
         blocked = preflight_local(target)
         if blocked:
-            return blocked
+            return blocked, ""
 
         if switching or stale_port:
             # A running brain on the wrong port has to be restarted, not started:
@@ -632,13 +657,13 @@ def ensure_local(want: str) -> str:
             error = systemctl("start")
         if error:
             return ("تعذّر تشغيل العقل المحلي | could not start the local brain\n"
-                    + error)
+                    + error), ""
 
         deadline = time.monotonic() + LOCAL_TIMEOUT
         next_check = time.monotonic() + 6.0
         while time.monotonic() < deadline:
             if local_online():
-                return ""
+                return "", short_model(target or current)
             # The unit dying is not the same as the unit being slow, and only one of the
             # two is worth waiting out. Ask the service; if it is DOWN, say what killed it
             # (GPU memory, disk, network) instead of waiting the full timeout and blaming a
@@ -647,7 +672,7 @@ def ensure_local(want: str) -> str:
             if time.monotonic() >= next_check:
                 reason = local_failure_reason()
                 if reason:
-                    return reason
+                    return reason, ""
                 next_check = time.monotonic() + 6.0
             time.sleep(1.5)
         return ("العقل المحلي لم يجب خلال %d ثانية — أول تشغيل يحمّل النموذج (~2.5GB) "
@@ -655,7 +680,7 @@ def ensure_local(want: str) -> str:
                 "The local brain did not answer within %ds. The first start downloads "
                 "the model (~2.5 GB) and keeps going in the background — watch it with "
                 "`moai-start logs`, then ask again."
-                % (int(LOCAL_TIMEOUT), int(LOCAL_TIMEOUT)))
+                % (int(LOCAL_TIMEOUT), int(LOCAL_TIMEOUT))), ""
 
 
 # ── Routing ──────────────────────────────────────────────────────────────────
@@ -1009,7 +1034,7 @@ class Handler(BaseHTTPRequestHandler):
             self.moai_route_reason = reason
             req = dict(req)
             if brain == "local":
-                error = ensure_local(model)
+                error, local_model = ensure_local(model)
                 if error and may_fallback:
                     self.moai_route = "cloud"
                     self.moai_route_reason = "local-unavailable"
@@ -1020,11 +1045,11 @@ class Handler(BaseHTTPRequestHandler):
                     return self._to_cloud(req, raw, model, cfg)
                 if error:
                     return self._err(503, error)
-                if wants_agent and self._to_agent(req, "local", model, cfg,
+                if wants_agent and self._to_agent(req, "local", local_model, cfg,
                                                   local_prepared=True):
                     return
                 req.pop("moai", None)
-                return self._to_local(req, model, prepared=True)
+                return self._to_local(req, local_model, prepared=True)
             if wants_agent and self._to_agent(req, "cloud", model, cfg):
                 return
             req.pop("moai", None)
@@ -1050,15 +1075,18 @@ class Handler(BaseHTTPRequestHandler):
         if not client or not os.path.isfile(OPENCLAW_BIN):
             self.moai_agent = "direct-fallback"
             return False
+        # The local brain must be resolved BEFORE the OpenClaw mapping so a
+        # substituted (installed) tag — not the missing requested one — is what
+        # OpenClaw is asked to serve.
+        if brain == "local" and not local_prepared:
+            error, model = ensure_local(model)
+            if error:
+                self._err(503, error)
+                return True
         selected = openclaw_model(client, brain, model, cfg)
         if not selected:
             self.moai_agent = "direct-fallback"
             return False
-        if brain == "local" and not local_prepared:
-            error = ensure_local(model)
-            if error:
-                self._err(503, error)
-                return True
         error = ensure_openclaw_gateway()
         if error:
             self.moai_agent = "direct-fallback"
@@ -1105,9 +1133,10 @@ class Handler(BaseHTTPRequestHandler):
         return True
 
     def _to_local(self, req, model, prepared=False):
-        error = None if prepared else ensure_local(model)
-        if error:
-            return self._err(503, error)
+        if not prepared:
+            error, model = ensure_local(model)
+            if error:
+                return self._err(503, error)
         # A real local chat just happened: refresh the idle clock so moai-idle keeps
         # the brain loaded while it is in use and only unloads it once you stop.
         mark_activity()

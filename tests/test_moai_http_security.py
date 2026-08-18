@@ -441,11 +441,17 @@ class GatewaySecurityTests(unittest.TestCase):
 
 
 class AgentClientHeaderTests(unittest.TestCase):
-    def test_console_fetch_wrapper_always_adds_agent_header(self):
-        source = CONSOLE.read_text(encoding="utf-8")
-        self.assertEqual(source.count("fetch("), 1, "all console fetches must use api()")
-        self.assertIn("headers.set('X-Moai-Agent', '1')", source)
-        self.assertIn("fetch(p, {...o, headers})", source)
+    def test_browser_console_stays_removed(self):
+        # The hidden browser console was a THIRD chat surface over the same
+        # backend, with its own half-connected settings. It was removed when
+        # the product went one-chat; the API must never serve HTML again, and
+        # the page must not quietly return to the image.
+        self.assertFalse(
+            CONSOLE.exists(),
+            "the moai-agent browser console must stay deleted — one chat")
+        api_source = AGENT_API.read_text(encoding="utf-8")
+        self.assertNotIn("text/html", api_source,
+                         "moai-agent-api is an API, not a web page server")
 
     def test_every_qml_agent_api_request_adds_agent_header(self):
         lines = MOAI_QML.read_text(encoding="utf-8").splitlines()

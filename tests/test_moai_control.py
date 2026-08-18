@@ -229,17 +229,33 @@ class OllamaAdapterTests(unittest.TestCase):
             scope["pulled_models"] = lambda: ["default:latest", "qwen3:4b"]
             scope["systemctl"] = lambda _verb: self.fail("Ollama model switch restarted a unit")
             scope["set_env_model"] = lambda _model: self.fail("Ollama rewrote moai.env")
-            self.assertEqual(gateway["ensure_local"]("qwen3:4b"), "")
+            self.assertEqual(gateway["ensure_local"]("qwen3:4b"), ("", "qwen3:4b"))
 
-    def test_gateway_refuses_missing_model_without_downloading(self):
+    def test_gateway_substitutes_installed_model_without_downloading(self):
+        # The shipped default once named a model that was never on disk; every
+        # first message then died with a 503 while the orb said Online. A
+        # missing tag now answers with an installed one — still WITHOUT ever
+        # starting a download from a chat message.
         with tempfile.TemporaryDirectory() as home:
             gateway = load_script(GATEWAY, home, "moai-brain.service")
             scope = gateway["ensure_local"].__globals__
             scope["local_online"] = lambda *args, **kwargs: True
             scope["pulled_models"] = lambda: ["default:latest"]
-            message = gateway["ensure_local"]("qwen3:4b")
-            self.assertIn("not downloaded", message)
-            self.assertIn("Settings", message)
+            scope["systemctl"] = lambda _verb: self.fail(
+                "substitution must not touch systemd")
+            error, model = gateway["ensure_local"]("qwen3:4b")
+            self.assertEqual(error, "")
+            self.assertEqual(model, "default:latest")
+
+    def test_gateway_errors_honestly_when_no_local_model_exists(self):
+        with tempfile.TemporaryDirectory() as home:
+            gateway = load_script(GATEWAY, home, "moai-brain.service")
+            scope = gateway["ensure_local"].__globals__
+            scope["local_online"] = lambda *args, **kwargs: True
+            scope["pulled_models"] = lambda: []
+            error, model = gateway["ensure_local"]("qwen3:4b")
+            self.assertIn("No local model is downloaded", error)
+            self.assertEqual(model, "")
 
 
 class RuntimeRelationshipTests(unittest.TestCase):

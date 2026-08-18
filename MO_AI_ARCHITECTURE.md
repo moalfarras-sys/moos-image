@@ -1,6 +1,36 @@
 # Mo AI Workspace — architecture and execution ledger
 
-Last updated: 2026-08-01
+Last updated: 2026-08-18
+
+## 2026-08-18 consolidation — ONE chat (supersedes parts of the IA below)
+
+The owner's audit found the shipped app split against itself; this pass merged
+it. The target-IA tree below predates the change; where they disagree, this
+section wins:
+
+- **One conversation surface.** The Agent panel's conversations tab and its
+  `/api/send` composer are deleted; the hidden `console.html` browser chat is
+  deleted (`moai-agent-api` serves JSON at `/`). All conversations — desktop,
+  Telegram, WhatsApp — open in the Chat panel via `agentOpenPrimary`; the
+  history drawer carries search/pin/rename/archive and real timestamps. A gate
+  (`verify_user_experience.py`) rejects any return of `/api/send` to the QML.
+- **The Workbench.** Panels went 7 → 6: `agent` hosts Projects · Tasks ·
+  Terminal · Coding agents (the old standalone `dev` panel is its fourth tab;
+  `--panel dev` and `--workspace conversations` remap).
+- **Settings 12 → 8 tabs.** One "Brain" tab owns mode + cloud provider/key +
+  local models (the Models/Providers/Privacy trio is gone; old `--settings`
+  names remap). Projects folded into Permissions; the Terminal tab opens the
+  Workbench terminal. System health moved to the Device panel.
+- **The first-message failure class is closed three ways**: moai-control's
+  `/models` default must be pulled, the QML never seeds an unpulled route, and
+  moai-gateway substitutes an installed tag (never downloading from a chat)
+  with an honest error only when no local model exists at all.
+- Honesty batch: measured "Linked" pill, load-guarded Save, tier-only host
+  toggle commit, `custom` tier reported instead of a false "read", failure
+  toasts say Failed above dialog scrims, chat errors carry the gateway's
+  message, session-language starters/askAbout, RTL hero-card double-mirroring
+  fixed, `extractRuns` longest-first (`update-firmware` no longer triggers a
+  full-update chip) plus real `install <id>` chips.
 
 This is the durable implementation map for rebuilding the existing Mo AI. It is
 deliberately a ledger, not a promise: checked items exist and have passed the

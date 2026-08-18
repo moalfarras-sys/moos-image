@@ -409,6 +409,42 @@ def main() -> None:
     assert "no local model advertises image input" in qml
     assert 'root.agentApi + "/api/channels"' in qml
     assert '"Not linked — pairing opens a QR code"' in qml
+    # ── The tool policy must FOLLOW the brain ────────────────────────────────
+    # deny lists live under tools.byProvider.<primary>. Switching the primary
+    # (mode/model save) used to leave the policy behind on the OLD provider
+    # key: measured live, web was denied under ollama/qwen2.5:7b-instruct, the
+    # mode switched to hybrid, and moai/hybrid ran with the web tool back on.
+    # write_config must carry the old primary's policy to the new primary.
+    saved = {}
+    # runpy.run_path returns a COPY of the module namespace; stubs must go into
+    # the function's live __globals__ or they never apply.
+    scope = module["write_config"].__globals__
+    originals = {name: scope[name] for name in (
+        "load_cfg", "load_state", "save_state", "save_cfg", "command_ok",
+        "selected_engine", "unit_active")}
+    scope["load_cfg"] = lambda: {
+        "agents": {"defaults": {"model": {"primary": "ollama/a"}}},
+        "models": {"providers": {"ollama": {
+            "baseUrl": "http://127.0.0.1:11434",
+            "apiKey": "ollama-local", "api": "ollama",
+            "models": [{"id": "a"}, {"id": "b"}]}}},
+        "tools": {"byProvider": {"ollama/a": {"deny": ["browser", "group:web"]}}},
+    }
+    scope["load_state"] = lambda: {}
+    scope["save_state"] = lambda st: None
+    scope["save_cfg"] = lambda cfg, **kw: saved.update(cfg)
+    scope["command_ok"] = lambda *a, **kw: True
+    scope["selected_engine"] = lambda: {"configured": False, "unit": ""}
+    scope["unit_active"] = lambda unit: False
+    try:
+        module["write_config"]({"mode": "local", "local_model": "b"})
+    finally:
+        scope.update(originals)
+    carried = saved.get("tools", {}).get("byProvider", {}).get("ollama/b", {})
+    assert carried.get("deny") == ["browser", "group:web"], (
+        "switching the primary brain must carry the deny policy with it, "
+        f"got: {carried!r}")
+
     print("Mo AI workspace metadata tests passed")
 
 
