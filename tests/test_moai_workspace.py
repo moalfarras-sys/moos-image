@@ -445,6 +445,41 @@ def main() -> None:
         "switching the primary brain must carry the deny policy with it, "
         f"got: {carried!r}")
 
+    # The harder case that actually drifted live: the NEW primary already has
+    # a STALE policy from an earlier period. Fill-if-absent left it in place
+    # and the web tool came back on after a mode switch; the carry must
+    # OVERWRITE with the old primary's policy.
+    saved.clear()
+    stale_scope = module["write_config"].__globals__
+    stale_originals = {name: stale_scope[name] for name in (
+        "load_cfg", "load_state", "save_state", "save_cfg", "command_ok",
+        "selected_engine", "unit_active")}
+    stale_scope["load_cfg"] = lambda: {
+        "agents": {"defaults": {"model": {"primary": "ollama/a"}}},
+        "models": {"providers": {"ollama": {
+            "baseUrl": "http://127.0.0.1:11434",
+            "apiKey": "ollama-local", "api": "ollama",
+            "models": [{"id": "a"}, {"id": "b"}]}}},
+        "tools": {"byProvider": {
+            "ollama/a": {"deny": ["browser", "group:web"]},
+            "ollama/b": {"deny": []},
+        }},
+    }
+    stale_scope["load_state"] = lambda: {}
+    stale_scope["save_state"] = lambda st: None
+    stale_scope["save_cfg"] = lambda cfg, **kw: saved.update(cfg)
+    stale_scope["command_ok"] = lambda *a, **kw: True
+    stale_scope["selected_engine"] = lambda: {"configured": False, "unit": ""}
+    stale_scope["unit_active"] = lambda unit: False
+    try:
+        module["write_config"]({"mode": "local", "local_model": "b"})
+    finally:
+        stale_scope.update(stale_originals)
+    carried = saved.get("tools", {}).get("byProvider", {}).get("ollama/b", {})
+    assert carried.get("deny") == ["browser", "group:web"], (
+        "a STALE policy on the new primary must be overwritten, not kept: "
+        f"got: {carried!r}")
+
     print("Mo AI workspace metadata tests passed")
 
 

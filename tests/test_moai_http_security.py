@@ -117,9 +117,6 @@ class AgentApiSecurityTests(unittest.TestCase):
         scope["write_config"] = (
             lambda body: self.calls.append(("write_config", body)) or {"ok": True}
         )
-        scope["send"] = (
-            lambda key, text: self.calls.append(("send", key, text)) or {"reply": "safe"}
-        )
 
     def tearDown(self):
         self.home.cleanup()
@@ -138,7 +135,7 @@ class AgentApiSecurityTests(unittest.TestCase):
                     self.assertEqual(status, 403)
                     self.assertNotIn("access-control-allow-origin", headers)
 
-            for path in ("/api/config", "/api/send"):
+            for path in ("/api/config",):
                 with self.subTest(path=path):
                     status, headers, _ = request(
                         port,
@@ -441,6 +438,17 @@ class GatewaySecurityTests(unittest.TestCase):
 
 
 class AgentClientHeaderTests(unittest.TestCase):
+    def test_second_composer_endpoint_stays_removed(self):
+        # POST /api/send was the second chat composer's server half: a
+        # synchronous, non-streaming `openclaw agent -m` runner with no
+        # remaining callers once the one-chat redesign landed. Like the
+        # browser console, it must not quietly return.
+        api_source = AGENT_API.read_text(encoding="utf-8")
+        self.assertNotIn("/api/send", api_source,
+                         "the second composer endpoint must stay deleted — one chat")
+        self.assertNotIn("def send(", api_source,
+                         "the synchronous agent-turn runner must stay deleted")
+
     def test_browser_console_stays_removed(self):
         # The hidden browser console was a THIRD chat surface over the same
         # backend, with its own half-connected settings. It was removed when

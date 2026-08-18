@@ -221,19 +221,70 @@ _cloud_cache = {"ready": False, "ts": 0.0}
 CLOUD_TTL = 6.0
 
 
+OPENCLAW_CONFIG = os.path.expanduser("~/.openclaw/openclaw.json")
+
+
+def load_merged() -> dict:
+    """Merge the shared OpenClaw settings over the legacy config fallback.
+
+    Same rule as moai-gateway's load_product_cfg: the Settings Brain tab and
+    the phone channels own ONE OpenClaw configuration, so every read surface
+    here (mode, cloud provider, model default) must see it — the legacy
+    ~/.config/moai/config.json remains fallback-only, never a second truth.
+    The merged dict may carry "cloud_key" IN MEMORY for liveness checks; it is
+    never written back to disk.
+    """
+    merged = dict(load())
+    try:
+        with open(OPENCLAW_CONFIG, encoding="utf-8") as handle:
+            oc = json.load(handle)
+        providers = ((oc.get("models") or {}).get("providers") or {})
+        cloud = providers.get("cloud") or {}
+        defaults = (oc.get("agents") or {}).get("defaults") or {}
+        primary = str(((defaults.get("model") or {}).get("primary") or ""))
+        base = str(cloud.get("baseUrl") or "").rstrip("/")
+        key = str(cloud.get("apiKey") or "")
+        model = primary.removeprefix("cloud/") if primary.startswith("cloud/") else ""
+        if not model:
+            catalog = cloud.get("models") or []
+            if isinstance(catalog, list) and catalog and isinstance(catalog[0], dict):
+                model = str(catalog[0].get("id") or "")
+        api = str(cloud.get("api") or "").lower()
+        if base:
+            merged["cloud_base"] = base
+        if key:
+            merged["cloud_key"] = key
+        if model:
+            merged["cloud_model"] = model
+        if api:
+            merged["cloud_wire"] = "anthropic" if api.startswith("anthropic") else "openai"
+        if primary == "moai/hybrid":
+            merged["mode"] = "hybrid"
+        elif primary.startswith("cloud/"):
+            merged["mode"] = "cloud"
+        elif primary.startswith("ollama/"):
+            merged["mode"] = "local"
+    except Exception:
+        pass
+    return merged
+
+
 def cloud_ready() -> bool:
     """A cloud brain is configured: a base URL and a key in private storage.
 
     Deliberately NOT a live call to the provider. The old probe made a real
     network round trip to /v1/models with a 1-second timeout, every 4 seconds,
     from a poll loop — most providers do not answer that fast, so a perfectly
-    good cloud brain reported itself offline. "Test connection" in Settings is
-    the honest liveness check, and it is the one that sends a real request.
+    good cloud brain reported itself offline. The honest liveness proof is a
+    real chat request (or /models via the brain picker's Refresh, which does
+    ask the provider); this flag only says "configured".
     """
     with _cloud_lock:
         if time.monotonic() - _cloud_cache["ts"] < CLOUD_TTL:
             return _cloud_cache["ready"]
-    ready = bool((load().get("cloud_base") or "").strip()) and bool(get_secret())
+    merged = load_merged()
+    ready = bool((merged.get("cloud_base") or "").strip()) \
+        and bool(merged.get("cloud_key") or get_secret())
     with _cloud_lock:
         _cloud_cache["ready"] = ready
         _cloud_cache["ts"] = time.monotonic()
@@ -242,7 +293,7 @@ def cloud_ready() -> bool:
 
 def brain_online() -> bool:
     """Can the DEFAULT brain answer right now?"""
-    mode = load().get("mode")
+    mode = load_merged().get("mode")
     if mode == "cloud":
         return cloud_ready()
     if mode == "hybrid":
@@ -1019,7 +1070,7 @@ def cloud_models(cfg):
     base = (cfg.get("cloud_base") or "").strip().rstrip("/")
     wire = (cfg.get("cloud_wire") or "openai").lower()
     configured = (cfg.get("cloud_model") or "").strip()
-    key = get_secret()
+    key = (cfg.get("cloud_key") or "").strip() or get_secret()
     if not base or not key:
         return [], "لا يوجد مزوّد أو مفتاح | no provider or API key configured"
     if not VERSIONED.search(base):
@@ -1069,7 +1120,7 @@ def cloud_models(cfg):
 
 
 def models() -> dict:
-    cfg = load()
+    cfg = load_merged()
     mode = cfg.get("mode") if cfg.get("mode") in ("local", "cloud", "hybrid") else "local"
     configured = (cfg.get("cloud_model") or "").strip()
 
@@ -1425,13 +1476,13 @@ class H(BaseHTTPRequestHandler):
         if route == "/providers":
             self._send(200, {"providers": PROVIDERS})
         elif route == "/config":
-            c = load()
+            c = load_merged()
             self._send(200, {
                 "mode": c.get("mode", "local"),
                 "cloud_base": c.get("cloud_base", ""),
                 "cloud_model": c.get("cloud_model", ""),
                 "cloud_wire": c.get("cloud_wire", "openai"),
-                "has_key": bool(get_secret()),
+                "has_key": bool(c.get("cloud_key") or get_secret()),
             })
         elif route == "/status":
             self._send(200, {"online": brain_online()})

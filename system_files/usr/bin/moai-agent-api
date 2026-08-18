@@ -14,7 +14,6 @@ has_key/has_token فقط، ولا يعيد القيمة نفسها ولو للو
     POST /api/config           كتابة الإعداد + إعادة تشغيل ما يلزم فقط
     GET  /api/sessions         قائمة المحادثات
     GET  /api/session?id=…     رسائل محادثة
-    POST /api/send             إرسال رسالة والحصول على الرد
 """
 from __future__ import annotations
 
@@ -891,7 +890,11 @@ def write_config(body: dict) -> dict:
             st["mode"] = mode  # migration breadcrumb; reads use primary only.
             if original_primary and original_primary != new_primary:
                 policies = c.setdefault("tools", {}).setdefault("byProvider", {})
-                if new_primary not in policies and original_primary in policies:
+                # OVERWRITE, not fill-if-absent: a stale policy left on the new
+                # primary from an earlier period silently re-enabled the web
+                # tool after a mode switch (measured live 2026-08-18). The
+                # app's own writes are authoritative for the keys it manages.
+                if original_primary in policies:
                     policies[new_primary] = copy.deepcopy(policies[original_primary])
             restart.add("openclaw-gateway.service")
 
@@ -1041,24 +1044,6 @@ def write_config(body: dict) -> dict:
                 policy["deny"] = sorted(
                     set(policy.get("deny", [])) | {"group:web", "browser"})
             restart.add("openclaw-gateway.service")
-
-        # ── The tool policy must FOLLOW the brain ────────────────────────────
-        # deny lists live under tools.byProvider.<primary>. Every policy write
-        # above targets the CURRENT primary — but a later mode/model switch in
-        # the same or a following save re-points the primary and would leave
-        # the policy behind on the old provider key, silently re-enabling web
-        # (and dropping the tier's deny list) for the new brain. Measured live:
-        # web was denied under ollama/qwen2.5:7b-instruct, the mode switched to
-        # hybrid, and moai/hybrid ran with the web tool back on. Carry the old
-        # primary's policy over whenever the primary changes and the new one
-        # has no explicit policy of its own.
-        new_primary = _primary(c)
-        if (original_primary and new_primary and new_primary != original_primary):
-            by_provider = c.setdefault("tools", {}).setdefault("byProvider", {})
-            if original_primary in by_provider and new_primary not in by_provider:
-                by_provider[new_primary] = copy.deepcopy(
-                    by_provider[original_primary])
-                restart.add("openclaw-gateway.service")
 
         # ── power: stage the selected fixed Quadlet, never a hard-coded rival ──
         power = body.get("power") or {}
@@ -2176,6 +2161,11 @@ def list_sessions(search: str = "", include_archived: bool = False) -> list[dict
         sid = meta.get("sessionId")
         if not sid:
             continue
+        # Task runs write sessions keyed moai-task-<uuid>; they are process
+        # transcripts owned by the Tasks tab, not conversations — listing them
+        # put raw machine keys between the user's real chats.
+        if key.split(":")[-1].startswith("moai-task-"):
+            continue
         f = SESSIONS / f"{sid}.jsonl"
         if not f.exists():
             continue
@@ -2332,17 +2322,6 @@ def read_session(sid: str) -> list[dict]:
                 msgs.append({"role": "tool", "text": f"{mark} {name}\n{text}",
                              "ts": timestamp, "status": state})
     return msgs[-400:]
-
-
-def send(key: str, text: str) -> dict:
-    key = re.sub(r"[^A-Za-z0-9_-]", "", key or "console")[:48] or "console"
-    if not text.strip():
-        return {"error": "رسالة فارغة"}
-    p = subprocess.run([BIN, "agent", "--session-key", key, "-m", text],
-                       capture_output=True, text=True, timeout=600, env=ENV)
-    out = "\n".join(l for l in (p.stdout or "").splitlines()
-                    if l.strip() and not l.startswith("["))
-    return {"reply": out.strip() or (p.stderr or "").strip()[:400] or "لا رد"}
 
 
 # ── http ────────────────────────────────────────────────────────────────
@@ -2511,8 +2490,6 @@ class H(BaseHTTPRequestHandler):
         try:
             if u.path == "/api/config":
                 return self._send(write_config(body))
-            if u.path == "/api/send":
-                return self._send(send(body.get("key", "console"), body.get("text", "")))
             if u.path == "/api/session/update":
                 return self._send(update_session(body))
             if u.path == "/api/project/upsert":

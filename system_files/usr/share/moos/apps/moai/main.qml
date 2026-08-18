@@ -779,7 +779,8 @@ Kirigami.ApplicationWindow {
         c += "• Mo PC Remote: " + (r.active ? "running" : "stopped") + "\n"
         const a = s.agents || {}
         c += "• Coding agents installed: codex=" + (a.codex ? "yes" : "no")
-           + ", claude=" + (a.claude ? "yes" : "no") + "\n"
+           + ", claude=" + (a.claude ? "yes" : "no")
+           + ", opencode=" + (a.opencode ? "yes" : "no") + "\n"
         const acts = p.actions || []
         if (acts.length) {
             c += "• Repairs available right now (each maps to an allowed action):\n"
@@ -1019,6 +1020,7 @@ Kirigami.ApplicationWindow {
 
         let acc = ""
         let sawData = false
+        let streamError = ""
         // How much the model spent thinking on its second channel. Only used to
         // explain an empty answer — see the reasoning_content note below.
         let reasonedChars = 0
@@ -1051,6 +1053,13 @@ Kirigami.ApplicationWindow {
                         continue
                     try {
                         const j = JSON.parse(payload)
+                        // The gateway can emit an error EVENT mid-stream (e.g.
+                        // "upstream stream ended early"). Dropping it rendered
+                        // a truncated reply as a clean success.
+                        if (j.error) {
+                            streamError = String(j.error.message || j.error)
+                            continue
+                        }
                         const ch = j.choices && j.choices[0]
                         const delta = ch
                             ? (ch.delta ? ch.delta.content
@@ -1098,11 +1107,26 @@ Kirigami.ApplicationWindow {
                     ? root.local("رد مباشر احتياطي", "Direct fallback") : ""
 
             if (sawData && acc.trim() !== "") {
-                chatModel.set(idx, { role: "assistant", text: acc })
+                if (streamError !== "") {
+                    // Partial answer + explicit upstream error: keep the text
+                    // but say it was cut short instead of celebrating it.
+                    chatModel.set(idx, { role: "assistant", text: acc + "\n\n"
+                        + root.local("⚠ انقطع الرد قبل اكتماله: ", "⚠ The reply was cut short: ")
+                        + streamError })
+                    root.flashMood("warning")
+                } else {
+                    chatModel.set(idx, { role: "assistant", text: acc })
+                    root.flashMood("success")
+                }
                 root.history.push({ role: "assistant", content: acc })
                 root.trimHistory()
                 root.pendingRuns = root.extractRuns(acc)
-                root.flashMood("success")
+                return
+            }
+            if (streamError !== "") {
+                chatModel.set(idx, { role: "assistant",
+                    text: root.local("تعذّر الرد: ", "No reply: ") + streamError })
+                root.flashMood("error")
                 return
             }
             // No stream (older server or an error) — try a whole-response parse.
@@ -1296,6 +1320,11 @@ Kirigami.ApplicationWindow {
                                                        "Could not delete the model")
                 return
             }
+            // If the active route named the deleted weights, clear it so
+            // loadModels() re-seeds onto a model that still exists — the
+            // next message must not chase a tag that just left the disk.
+            if (root.route === id || root.route === "local:" + bare)
+                root.route = ""
             root.loadModels()          // the row must disappear now
         }
         xhr.send(JSON.stringify({ model: bare }))
@@ -1323,8 +1352,10 @@ Kirigami.ApplicationWindow {
         { id: "rollback",          label: root.local("الرجوع لنسخة سابقة", "Roll back"), read: false },
         { id: "update",            label: root.local("تحديث MoOS", "Update MoOS"), read: false }
     ]
+    property string diagError: ""
     function diagnoseSystem() {
         root.diagLoading = true
+        root.diagError = ""
         const xhr = new XMLHttpRequest()
         xhr.open("GET", controlApi + "/diagnose")
         xhr.setRequestHeader("X-Moai-Control", "1")
@@ -1332,11 +1363,30 @@ Kirigami.ApplicationWindow {
             if (xhr.readyState !== XMLHttpRequest.DONE)
                 return
             root.diagLoading = false
-            let res = {}
-            try { res = JSON.parse(xhr.responseText) } catch (e) { res = {} }
-            root.diagResult = res
+            // "Check now" visibly doing nothing on failure is indistinguishable
+            // from "healthy" — say which it was.
+            if (xhr.status !== 200) {
+                root.diagResult = {}
+                root.diagError = root.local("تعذّر تشغيل الفحص — الخدمة لا تستجيب.",
+                                            "Could not run the check — the service is not responding.")
+                return
+            }
+            try { root.diagResult = JSON.parse(xhr.responseText) }
+            catch (e) {
+                root.diagResult = {}
+                root.diagError = root.local("رد الفحص غير مفهوم.", "Unreadable check response.")
+            }
         }
         xhr.send()
+    }
+
+    // Arabic needs real number agreement; "3 مشكلة" reads machine-made.
+    function issueCountText(n) {
+        if (!root.moaiRtl) return n === 1 ? "1 issue" : n + " issues"
+        if (n === 1) return "مشكلة واحدة"
+        if (n === 2) return "مشكلتان"
+        if (n >= 3 && n <= 10) return n + " مشاكل"
+        return n + " مشكلة"
     }
 
     Timer {
@@ -1994,8 +2044,7 @@ Kirigami.ApplicationWindow {
                                         ? root.local("جارٍ الفحص…", "Scanning…")
                                         : root.healthy
                                         ? root.local("لا مشاكل", "No problems")
-                                        : root.local(root.problemCount + " مشكلة",
-                                                     root.problemCount + " issue(s)")
+                                        : root.issueCountText(root.problemCount)
                                     case "apps":   return root.local("ابحث وثبّت أي تطبيق",
                                                                      "Search and install anything")
                                     case "compat": return root.local(
@@ -2206,8 +2255,8 @@ Kirigami.ApplicationWindow {
                                                 spacing: design.space1
                                                 MoButton {
                                                     label: sessRow.modelData.pinned
-                                                        ? root.local("فكّ", "Unpin")
-                                                        : root.local("ثبّت", "Pin")
+                                                        ? root.local("إلغاء التثبيت", "Unpin")
+                                                        : root.local("تثبيت", "Pin")
                                                     onClicked: root.agentUpdateSession(
                                                         sessRow.modelData.id,
                                                         { pinned: !sessRow.modelData.pinned })
@@ -2215,7 +2264,7 @@ Kirigami.ApplicationWindow {
                                                 MoButton {
                                                     label: sessRow.renaming
                                                         ? root.local("إلغاء", "Cancel")
-                                                        : root.local("سمِّ", "Rename")
+                                                        : root.local("تسمية", "Rename")
                                                     onClicked: {
                                                         sessRow.renaming = !sessRow.renaming
                                                         if (sessRow.renaming) {
@@ -2226,8 +2275,8 @@ Kirigami.ApplicationWindow {
                                                 }
                                                 MoButton {
                                                     label: sessRow.modelData.archived
-                                                        ? root.local("استرجع", "Unarchive")
-                                                        : root.local("أرشف", "Archive")
+                                                        ? root.local("استرجاع", "Unarchive")
+                                                        : root.local("أرشفة", "Archive")
                                                     onClicked: root.agentUpdateSession(
                                                         sessRow.modelData.id,
                                                         { archived: !sessRow.modelData.archived })
@@ -2253,13 +2302,16 @@ Kirigami.ApplicationWindow {
                                 Text {
                                     visible: root.agentSessions.length === 0
                                     Layout.fillWidth: true
-                                    text: root.agentStatusLoaded
-                                        ? root.local("لا توجد محادثات", "No conversations")
-                                        : root.local("جارٍ تحميل السجل…", "Loading history…")
+                                    text: root.agentAnyError !== ""
+                                        ? root.agentAnyError
+                                        : root.agentStatusLoaded
+                                            ? root.local("لا توجد محادثات", "No conversations")
+                                            : root.local("جارٍ تحميل السجل…", "Loading history…")
                                     horizontalAlignment: Text.AlignHCenter
-                                    color: root.textMute
+                                    color: root.agentAnyError !== "" ? root.badColor : root.textMute
                                     font.family: root.uiFont
                                     font.pixelSize: root.typePx(9)
+                                    wrapMode: Text.Wrap
                                 }
                             }
                         }
@@ -2692,7 +2744,10 @@ Kirigami.ApplicationWindow {
                                                       "Set up the cloud brain")
                                     iconName: "moos-settings-symbolic"
                                     primary: true
-                                    onClicked: { root.settingsOpen = true }
+                                    onClicked: {
+                                        root.cfgTab = "brain"
+                                        root.settingsOpen = true
+                                    }
                                 }
                             }
                         }
@@ -3243,14 +3298,44 @@ Kirigami.ApplicationWindow {
                                     "Native read-only MoOS diagnostics and fixed repair actions; every repair asks first.")
                             }
                             Text {
-                                visible: !root.diagLoading
-                                         && root.diagResult.summary !== undefined
+                                visible: root.diagError !== ""
                                 Layout.fillWidth: true
-                                text: root.diagResult.summary || ""
-                                color: root.textHi
+                                text: root.diagError
+                                color: root.badColor
                                 font.family: root.uiFont
                                 font.pixelSize: root.typePx(11)
                                 wrapMode: Text.Wrap
+                            }
+                            // The verdict of the last run — /diagnose returns
+                            // {healthy, ok, fail, issues, fixes}; the old code
+                            // rendered a `summary` key that never existed, so
+                            // "Check now" visibly did nothing at all.
+                            Text {
+                                visible: !root.diagLoading
+                                         && root.diagResult.healthy !== undefined
+                                Layout.fillWidth: true
+                                text: root.diagResult.healthy
+                                    ? root.local("النظام سليم — " + (root.diagResult.ok || 0) + " فحصاً ناجحاً.",
+                                                 "System healthy — " + (root.diagResult.ok || 0) + " checks passed.")
+                                    : root.local("وُجدت " + root.issueCountText(root.diagResult.fail || 0) + ":",
+                                                 root.issueCountText(root.diagResult.fail || 0) + " found:")
+                                color: root.diagResult.healthy ? root.okColor : root.warnColor
+                                font.family: root.uiFont
+                                font.pixelSize: root.typePx(12)
+                                font.weight: Font.DemiBold
+                                wrapMode: Text.Wrap
+                            }
+                            Repeater {
+                                model: root.diagResult.issues || []
+                                delegate: Text {
+                                    required property string modelData
+                                    Layout.fillWidth: true
+                                    text: "•  " + root.bidiFix(modelData)
+                                    color: root.textLo
+                                    font.family: root.uiFont
+                                    font.pixelSize: root.typePx(11)
+                                    wrapMode: Text.Wrap
+                                }
                             }
                             Repeater {
                                 model: (root.diagResult.fixes && root.diagResult.fixes.length)
@@ -3268,7 +3353,8 @@ Kirigami.ApplicationWindow {
                                         anchors.margins: root.fs(9)
                                         Text {
                                             Layout.fillWidth: true
-                                            text: modelData.title || modelData.label || modelData.id
+                                            text: root.localLegacy(
+                                                modelData.title || modelData.label || modelData.id)
                                             color: root.textHi
                                             elide: Text.ElideRight
                                             font.family: root.uiFont
@@ -3280,7 +3366,10 @@ Kirigami.ApplicationWindow {
                                                 : modelData.id === "update"
                                                     ? root.local("حدّث", "Update")
                                                     : root.local("أصلح", "Fix")
-                                            onClicked: Qt.openUrlExternally("moos://do/" + modelData.id)
+                                            onClicked: root.launch(
+                                                "moos://do/" + modelData.id,
+                                                root.localLegacy(modelData.title
+                                                    || modelData.label || modelData.id))
                                         }
                                     }
                                 }
@@ -3853,11 +3942,11 @@ Kirigami.ApplicationWindow {
                         }
                     }
 
-                    // ══ AGENT — the OpenClaw agent, same brain, same sessions ══
-                    // Loads on first open, not at startup: polling the console
-                    // before the user asks would wake services for nothing.
+                    // ══ WORKBENCH — projects, tasks, terminal, coding agents ══
+                    // Loads on first open, not at startup: polling the agent
+                    // API before the user asks would wake services for nothing.
                     // Reads and writes through moai-agent-api on 8077. Pure QML
-                    // cannot touch ~/.openclaw directly, so the console is the seam.
+                    // cannot touch ~/.openclaw directly, so that API is the seam.
                     ColumnLayout {
                         spacing: 10
 
@@ -3884,9 +3973,7 @@ Kirigami.ApplicationWindow {
                             // already re-polls while the panel is open.
                             StatusPill {
                                 good: root.agentReady
-                                goodText: root.agentBusy
-                                    ? root.local("يفكّر…", "Thinking")
-                                    : root.local("جاهز عند الطلب", "Ready on demand")
+                                goodText: root.local("جاهز عند الطلب", "Ready on demand")
                                 badText: !root.agentStatusLoaded
                                     ? root.local("جارٍ الفحص…", "Checking")
                                     : !root.agentInstalled
@@ -3947,7 +4034,7 @@ Kirigami.ApplicationWindow {
                                     label: root.agentSetupLabel
                                     onClicked: root.launch(root.agentSetupAction,
                                                            root.agentInstalled
-                                                               ? "Agent setup"
+                                                               ? root.local("تجهيز الوكيل", "Agent setup")
                                                                : "OpenClaw")
                                 }
                             }
@@ -5463,8 +5550,8 @@ Kirigami.ApplicationWindow {
                                     visible: root.cfgTab === "telegram"
                                     Layout.fillWidth: true
                                     text: root.local(
-                                        "بوت تليجرام — تكلّمه من جوالك وترى المحادثة في لوحة «الوكيل».",
-                                        "Telegram bot — chat from your phone and see it in the Agent panel.")
+                                        "بوت تليجرام — تكلّمه من جوالك وتكمل نفس المحادثة في تبويب «المحادثة».",
+                                        "Telegram bot — chat from your phone and continue the same conversation in the Chat tab.")
                                 }
                                 SectionNote {
                                     visible: root.cfgTab === "telegram"
@@ -5732,9 +5819,13 @@ Kirigami.ApplicationWindow {
                                                     ? root.local(
                                                         "مُفعّل — يصل للكاميرا والترمنال وتحديث النظام من تليجرام",
                                                         "Enabled — Telegram can reach the camera, terminal and system actions")
-                                                    : root.local(
-                                                        "معزول — يردّ فقط، لا يتحكّم بشيء",
-                                                        "Sandboxed — replies only; no device control")
+                                                    : root.cfgTier === "custom"
+                                                        ? root.local(
+                                                            "إعداد مخصّص على القرص — اختر مستوى أدناه ليُعرف حده الحقيقي",
+                                                            "Custom on-disk configuration — pick a tier below to normalise it")
+                                                        : root.local(
+                                                            "معزول — يردّ فقط، لا يتحكّم بشيء",
+                                                            "Sandboxed — replies only; no device control")
                                                 color: root.textMute
                                                 font.family: root.uiFont
                                                 font.pixelSize: root.typePx(10)
@@ -6001,7 +6092,7 @@ Kirigami.ApplicationWindow {
                                                 Text {
                                                     text: modelData.pulled
                                                         ? (root.local("محمّل", "Downloaded")
-                                                           + (modelData.size ? " · " + modelData.size : ""))
+                                                           + (modelData.size_gb ? " · " + modelData.size_gb + " GB" : ""))
                                                         : root.local(
                                                             "غير محمّل — اضغط للتنزيل",
                                                             "Not downloaded — tap to get")
@@ -6058,7 +6149,7 @@ Kirigami.ApplicationWindow {
                         Layout.fillWidth: true
                         Layout.preferredHeight: root.fs(44)
                         radius: design.radiusControl
-                        opacity: root.cfgSaving ? 0.6 : 1
+                        opacity: (root.cfgSaving || !root.cfgLoaded) ? 0.45 : 1
                         gradient: Gradient {
                             orientation: Gradient.Horizontal
                             GradientStop { position: 0.0; color: root.novaBlue }
@@ -6117,8 +6208,10 @@ Kirigami.ApplicationWindow {
                             tgSwitch.checked = c.telegram.enabled
                             allowField.text  = (c.telegram.allow || []).join(", ")
                             ttsSwitch.checked = c.voice.tts_enabled
-                            ttsAutoBox.currentIndex = ["inbound", "always", "off"].indexOf(c.voice.tts_auto)
-                            keepBox.currentIndex = ["5m", "15m", "60m", "-1"].indexOf(c.power.keep_alive)
+                            ttsAutoBox.currentIndex = Math.max(0,
+                                ["inbound", "always", "off"].indexOf(c.voice.tts_auto))
+                            keepBox.currentIndex = Math.max(1,
+                                ["5m", "15m", "60m", "-1"].indexOf(c.power.keep_alive))
                             webSwitch.checked = c.permissions.web
                         })
                     }
@@ -6214,6 +6307,7 @@ Kirigami.ApplicationWindow {
                 root.cfgLoaded = true
                 if (done) done(c)
             } catch (e) {
+                root.cfgLoaded = false
                 root.cfgError = root.local("رد غير مفهوم من لوحة التحكم",
                                            "Unrecognised control response")
             }
@@ -6292,8 +6386,6 @@ Kirigami.ApplicationWindow {
     // answered by another account's service.
     readonly property string agentApi: "http://127.0.0.1:" + root.agentPort
     property var  agentSessions: []
-    property string agentCurrent: ""
-    property string agentCurrentLabel: ""
     property string agentSearch: ""
     property bool agentShowArchived: false
     property string agentWorkspaceTab: "projects"
@@ -6313,7 +6405,6 @@ Kirigami.ApplicationWindow {
     property string agentTerminalCurrent: ""
     property string agentTerminalOutput: ""
     property int agentTerminalOffset: 0
-    property bool agentBusy: false
     property string agentError: ""
     property string agentStatusError: ""
     property bool agentStatusLoaded: false
@@ -6421,8 +6512,6 @@ Kirigami.ApplicationWindow {
         }
         root.stopGenerating()
         root.panel = "chat"
-        root.agentCurrent = String(id)
-        root.agentCurrentLabel = String(label || "")
         const xhr = new XMLHttpRequest()
         xhr.open("GET", root.agentApi + "/api/session?id=" + encodeURIComponent(id))
         xhr.setRequestHeader("X-Moai-Agent", "1")
@@ -6484,12 +6573,6 @@ Kirigami.ApplicationWindow {
             if (xhr.readyState !== XMLHttpRequest.DONE) return
             if (xhr.status === 200) {
                 root.agentError = ""
-                if (payload.title !== undefined)
-                    root.agentCurrentLabel = String(payload.title).trim()
-                if (payload.archived === true && !root.agentShowArchived) {
-                    root.agentCurrent = ""
-                    root.agentCurrentLabel = ""
-                }
                 root.agentLoadSessions()
             } else {
                 try { root.agentError = JSON.parse(xhr.responseText).error }
