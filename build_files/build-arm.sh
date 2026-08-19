@@ -153,8 +153,12 @@ systemctl set-default graphical.target
 # Defence in depth around the public cloud VM. SSH is the only service exposed
 # by the image. KRDP remains reachable through an SSH tunnel to localhost; this
 # image never opens 3389 on the host firewall.
-firewall-offline-cmd --set-default-zone=public
-firewall-offline-cmd --zone=public --add-service=ssh
+if [ "$(firewall-offline-cmd --get-default-zone)" != "public" ]; then
+    firewall-offline-cmd --set-default-zone=public
+fi
+if ! firewall-offline-cmd --zone=public --query-service=ssh >/dev/null; then
+    firewall-offline-cmd --zone=public --add-service=ssh
+fi
 firewall-offline-cmd --zone=public --remove-service=rdp 2>/dev/null || true
 
 # SSH: keys only. Oracle injects the instance's public key through cloud-init,

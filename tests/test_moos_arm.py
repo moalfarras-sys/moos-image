@@ -181,6 +181,15 @@ class ArmEditionTests(unittest.TestCase):
                       "the disk job's separate root container store")
 
     # ── security posture ────────────────────────────────────────────────────
+    def test_firewall_setup_is_idempotent_and_keeps_rdp_closed(self) -> None:
+        text = code(read(BUILD))
+        self.assertIn("--get-default-zone", text,
+                      "firewall-offline-cmd returns a non-zero ALREADY_SET code")
+        self.assertIn("--query-service=ssh", text,
+                      "adding an already-enabled service can abort a rebuild")
+        self.assertIn("--remove-service=rdp", text,
+                      "KRDP must stay behind the documented SSH tunnel")
+
     def test_no_remote_desktop_credential_is_baked_into_the_image(self) -> None:
         # krdp must be installed but NOT enabled, and no password set at build
         # time: a service on 3389 with an image-wide credential is a backdoor
