@@ -112,6 +112,15 @@ class ArmEditionTests(unittest.TestCase):
                       "pristine final overlay, package transaction order can silently "
                       "replace the MoOS session, greeter, or theme")
 
+    def test_the_curated_desktop_uses_fedora_44_package_names(self) -> None:
+        text = code(read(BUILD))
+        for current in ("kwin-libs", "plasma-breeze"):
+            self.assertIn(current, text, f"the ARM build is missing Fedora 44's {current}")
+        for retired in ("kwin-wayland-libs", "\n    breeze "):
+            self.assertNotIn(retired, text,
+                             f"{retired.strip()} is not a Fedora 44 package; the native "
+                             "build would fail before creating the image")
+
     # ── the ARM-specific things that x86 gets wrong ─────────────────────────
     def test_the_serial_console_is_the_arm_uart(self) -> None:
         text = code(read(BUILD))

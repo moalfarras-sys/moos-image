@@ -65,14 +65,14 @@ echo "=== MoOS ARM build: edition=${MOOS_EDITION} arch=$(uname -m) ==="
 echo "=== (1) Plasma Wayland ==="
 _PLASMA=(
     plasma-workspace plasma-workspace-wayland plasma-desktop
-    kwin kwin-wayland kwin-wayland-libs
+    kwin kwin-wayland kwin-libs
     systemsettings kscreen kscreenlocker
     plasma-nm plasma-pa plasma-systemmonitor
     xdg-desktop-portal-kde xdg-desktop-portal
     qt6-qtwayland qt6-qtsvg qt6-qtdeclarative qt6-qtmultimedia qt6-qtimageformats
     kf6-kirigami kf6-kirigami-addons kf6-qqc2-desktop-style
     dolphin konsole ark kate
-    breeze breeze-icon-theme
+    plasma-breeze breeze-icon-theme
     pipewire pipewire-pulseaudio wireplumber
     NetworkManager NetworkManager-wifi
     plymouth plymouth-plugin-script plymouth-plugin-two-step plymouth-system-theme
