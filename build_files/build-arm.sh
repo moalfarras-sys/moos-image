@@ -546,6 +546,84 @@ for _release in /etc/fedora-release /etc/redhat-release /etc/system-release; do
     printf 'MoOS\n' > "$_release"
 done
 
+# Plasma packages re-ship fedora-logos after the first COPY of system_files.
+# The overlay restores MoOS files that exist in the tree, but fedora-logos
+# still owns extra sizes and SVG names that system_files never overrode.
+# The x86 image closes that in build.sh section (z2). Without the same seal
+# here, verify_identity.py fails on fedora-logo-icon.png remaining Fedora art —
+# proven on the native aarch64 runner, 2026-08-19.
+_moos_src=/usr/share/moos/moos-logo.png
+[ -f "$_moos_src" ] || _moos_src=/usr/share/pixmaps/moos-logo.png
+[ -f "$_moos_src" ] || {
+    echo "FATAL: the canonical MoOS logo is missing; identity cannot be sealed"
+    exit 1
+}
+_names="fedora-logo-icon fedora-logo fedora-logo-small fedora-gdm-logo \
+        start-here-fedora org.fedoraproject.AnacondaInstaller \
+        org.fedoraproject.fedora redhat redhat-logo red-hat anaconda"
+_all_pred=()
+for _name in $_names; do
+    _all_pred+=(-o -name "${_name}.svg" -o -name "${_name}.svgz" \
+                -o -name "${_name}.png" -o -name "${_name}.xpm")
+done
+find /usr/share/icons \( -type f -o -type l \) \( "${_all_pred[@]:1}" \) -print0 2>/dev/null \
+    | while IFS= read -r -d '' _f; do
+        case "$_f" in
+            *.svg|*.svgz) rm -f "$_f" ;;
+            *.png|*.xpm)
+                _dir="$(dirname "$_f")"
+                _sized="$_dir/moos-logo.png"
+                [ -f "$_sized" ] || _sized="$_moos_src"
+                rm -f "$_f"
+                cp -f "$_sized" "$_f"
+                ;;
+        esac
+    done || true
+for _px in fedora-logo.png fedora-logo-small.png fedora-gdm-logo.png; do
+    [ -f "/usr/share/pixmaps/$_px" ] && cp -f "$_moos_src" "/usr/share/pixmaps/$_px" || true
+done
+for _themedir in /usr/share/icons/*/; do
+    [ -f "${_themedir}index.theme" ] && {
+        gtk-update-icon-cache -f "$_themedir" 2>/dev/null \
+            || gtk4-update-icon-cache -f "$_themedir" 2>/dev/null \
+            || true
+    }
+done
+unset -v _moos_src _names _all_pred _f _dir _sized _name _px _themedir
+
+# plasma-welcome is not in the ARM package list, but identity gates still
+# require the silent no-op stub so a leftover KDE first-run job cannot toast.
+# Match build.sh: cat + chmod, not `install /dev/stdin` (install may seek).
+cat > /usr/bin/plasma-welcome <<'PWBIN'
+#!/bin/sh
+# MoOS ARM: the upstream Plasma welcome is replaced by moos-firstrun/moos-welcome.
+# This no-op exists so any first-run launch of "plasma-welcome" succeeds silently.
+exit 0
+PWBIN
+chmod 0755 /usr/bin/plasma-welcome
+mkdir -p /etc/xdg/autostart /usr/share/applications
+cat > /usr/share/applications/org.kde.plasma-welcome.desktop <<'PWAPP'
+[Desktop Entry]
+Type=Application
+Name=Plasma Welcome (disabled by MoOS)
+Comment=Replaced by the MoOS Welcome (moos-firstrun)
+Exec=/bin/true
+Icon=moos-logo
+Terminal=false
+NoDisplay=true
+Hidden=true
+OnlyShowIn=KDE;
+PWAPP
+cat > /etc/xdg/autostart/org.kde.plasma-welcome.desktop <<'PWEOF'
+[Desktop Entry]
+Type=Application
+Name=Plasma Welcome (disabled by MoOS)
+Exec=/bin/true
+Hidden=true
+NoDisplay=true
+X-KDE-autostart-condition=
+PWEOF
+
 # Wayland is the only MoOS session. A package dependency must not quietly add a
 # selectable X11 session after the curated list deliberately excluded it.
 mapfile -t _x11_sessions < <(

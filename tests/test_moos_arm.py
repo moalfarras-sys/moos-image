@@ -167,6 +167,13 @@ class ArmEditionTests(unittest.TestCase):
         self.assertIn("MOOS_IDENTITY_PROFILE=arm-cloud", build,
                       "the shared identity gate otherwise demands the Live installer "
                       "and two intentionally omitted x86 binaries")
+        self.assertIn("fedora-logo-icon", build,
+                      "Plasma re-ships fedora-logos; ARM must scrub those names the "
+                      "same way build.sh (z2) does or identity gates fail on the "
+                      "real image")
+        self.assertIn("usr/bin/plasma-welcome", build,
+                      "the identity gate requires the silent plasma-welcome no-op "
+                      "stub even though ARM never installs the upstream binary")
         self.assertIn("python3 /ctx/verify_arm_image.py", build)
         self.assertNotIn("python3 /ctx/verify_image_experience.py", build,
                          "the x86 finished-image gate requires hardware/gaming services "
