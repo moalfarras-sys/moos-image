@@ -51,7 +51,7 @@ def main() -> None:
             f"X11 sessions reached the Wayland-only image: {x11_sessions}")
 
     for package in (
-        "plasma-workspace-wayland",
+        "plasma-workspace",
         "plasma-login-manager",
         "kwin-libs",
         "plasma-breeze",
@@ -66,6 +66,19 @@ def main() -> None:
             check=False,
         )
         require(result.returncode == 0, f"required aarch64 package is absent: {package}")
+
+    # Fedora 44 folded plasma-workspace-wayland into plasma-workspace. The
+    # binary is the proof the session can actually start on Wayland.
+    require((ROOT / "usr/bin/startplasma-wayland").is_file(),
+            "startplasma-wayland is missing — the ARM image cannot start Plasma")
+    x11_pkg = subprocess.run(
+        ["rpm", "-q", "plasma-workspace-x11"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    require(x11_pkg.returncode != 0,
+            "plasma-workspace-x11 reached the Wayland-only ARM image")
 
     require((ROOT / "usr/lib/systemd/system/plasmalogin.service").is_file(),
             "Plasma Login Manager service is missing")

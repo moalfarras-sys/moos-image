@@ -64,7 +64,10 @@ echo "=== MoOS ARM build: edition=${MOOS_EDITION} arch=$(uname -m) ==="
 # from dragging in a recommends closure twice its size.
 echo "=== (1) Plasma Wayland ==="
 _PLASMA=(
-    plasma-workspace plasma-workspace-wayland plasma-desktop
+    # Fedora 44 merged plasma-workspace-wayland into plasma-workspace
+    # (changelog 2025-06-25). rpm -q plasma-workspace-wayland is therefore
+    # empty even when Wayland is present; startplasma-wayland ships here.
+    plasma-workspace plasma-desktop
     kwin kwin-wayland kwin-libs
     systemsettings kscreen kscreenlocker
     plasma-nm plasma-pa plasma-systemmonitor

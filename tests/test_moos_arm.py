@@ -115,9 +115,9 @@ class ArmEditionTests(unittest.TestCase):
 
     def test_the_curated_desktop_uses_fedora_44_package_names(self) -> None:
         text = code(read(BUILD))
-        for current in ("kwin-libs", "plasma-breeze"):
+        for current in ("kwin-libs", "plasma-breeze", "plasma-workspace"):
             self.assertIn(current, text, f"the ARM build is missing Fedora 44's {current}")
-        for retired in ("kwin-wayland-libs", "\n    breeze "):
+        for retired in ("kwin-wayland-libs", "\n    breeze ", "plasma-workspace-wayland"):
             self.assertNotIn(retired, text,
                              f"{retired.strip()} is not a Fedora 44 package; the native "
                              "build would fail before creating the image")
@@ -184,6 +184,8 @@ class ArmEditionTests(unittest.TestCase):
             "console=ttyAMA0,115200n8",
             "--query-service=rdp",
             "usr/share/xsessions",
+            "startplasma-wayland",
+            "plasma-workspace-x11",
         ):
             self.assertIn(contract, verifier,
                           f"the finished ARM image gate does not verify {contract}")
