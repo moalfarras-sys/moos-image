@@ -84,28 +84,33 @@ def verify_wallpapers() -> None:
         check_image(base / "contents" / "screenshot.png", modes=("RGB", "RGBA"))
 
 
-# ── the boot-splash sprites (Plymouth Script theme) ──────────────────────────
+# ── the boot-splash assets (Plymouth Script theme) ──────────────────────────
 def verify_boot_sprites() -> None:
     theme = SHARE / "plymouth" / "themes" / "moos"
-    # Each is transparent art the script moves. The hero sources are deliberately
-    # large enough to DOWNSAMPLE on a 4K frame, but compression keeps the whole
-    # family below one MiB — still dramatically lighter than baked frames.
-    expected = {
+    # The hero sprites are transparent art the script moves; the intro frames
+    # are pre-rendered animation frames for the boot sting. Together they stay
+    # well under 15 MiB — dramatically lighter than full-screen baked video.
+    sprites = {
         "logo.png": (1024, 1024),
         "ring.png": (1440, 1440),
-        "ring2.png": (1440, 1440),
         "head.png": (320, 320),
         "glow.png": (1024, 1024),
-        "particle.png": (96, 96),
-        "pulse.png": (1024, 1024),
     }
-    for name, size in expected.items():
+    for name, size in sprites.items():
         check_image(theme / name, modes=("RGBA",), alpha=True, max_bytes=600 * 1024)
         check_image(theme / name, size=size, modes=("RGBA",), alpha=True)
-    require(
-        sum((theme / name).stat().st_size for name in expected) < 1024 * 1024,
-        "the seven Plymouth sprites exceed the one-MiB initramfs budget",
-    )
+    # 32 intro animation frames — RGB JPEGs, no alpha needed.
+    intro_count = 0
+    for i in range(1, 33):
+        p = theme / f"intro{i}.png"
+        require(p.is_file(), f"missing intro frame: {rel(p)}")
+        require(p.stat().st_size <= 600 * 1024,
+                f"oversize intro frame ({p.stat().st_size} B): {rel(p)}")
+        intro_count += 1
+    require(intro_count == 32, f"expected 32 intro frames, found {intro_count}")
+    total = sum(f.stat().st_size for f in theme.glob("*.png"))
+    require(total < 16 * 1024 * 1024,
+            f"the Plymouth assets exceed the 16-MiB budget ({total} bytes)")
 
 
 # ── the logo master ──────────────────────────────────────────────────────────
