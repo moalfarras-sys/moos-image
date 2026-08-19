@@ -627,6 +627,34 @@ NoDisplay=true
 X-KDE-autostart-condition=
 PWEOF
 
+# Fedora's Global Themes and wallpapers arrive with plasma-desktop on the
+# bootc base. x86 closes this in build.sh (z2a). Left in place they appear
+# in the Appearance picker as "Fedora" — proven on the native aarch64
+# runner after identity and ARM gates already passed, 2026-08-19.
+_kde_profile=/usr/share/kde-settings/kde-profile/default/xdg
+if [ -f "${_kde_profile}/kdeglobals" ]; then
+    sed -i 's|^LookAndFeelPackage=.*|LookAndFeelPackage=org.moos.ui2|' "${_kde_profile}/kdeglobals"
+fi
+if [ -f "${_kde_profile}/kscreenlockerrc" ]; then
+    sed -i 's|/usr/share/backgrounds/fedora-workstation.*|/usr/share/wallpapers/MoOSUI2Graphite|' \
+        "${_kde_profile}/kscreenlockerrc"
+    sed -i 's|/usr/share/wallpapers/Fedora.*|/usr/share/wallpapers/MoOSUI2Graphite|' \
+        "${_kde_profile}/kscreenlockerrc"
+fi
+rm -rf /usr/share/plasma/look-and-feel/org.fedoraproject.fedora.desktop \
+       /usr/share/plasma/look-and-feel/org.fedoraproject.fedoradark.desktop \
+       /usr/share/plasma/look-and-feel/org.fedoraproject.fedoralight.desktop \
+       /usr/share/wallpapers/Fedora \
+       /usr/share/backgrounds/fedora-workstation
+if grep -rqE "org\.fedoraproject\.fedora|backgrounds/fedora-workstation|wallpapers/Fedora" \
+        /etc/xdg /usr/share/kde-settings /usr/share/plasma 2>/dev/null; then
+    echo "FATAL: a config still points at a Fedora theme/wallpaper that was removed:"
+    grep -rlE "org\.fedoraproject\.fedora|backgrounds/fedora-workstation|wallpapers/Fedora" \
+        /etc/xdg /usr/share/kde-settings /usr/share/plasma 2>/dev/null | sed 's/^/       /'
+    exit 1
+fi
+unset -v _kde_profile
+
 # Wayland is the only MoOS session. A package dependency must not quietly add a
 # selectable X11 session after the curated list deliberately excluded it.
 mapfile -t _x11_sessions < <(

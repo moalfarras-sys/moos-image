@@ -174,6 +174,9 @@ class ArmEditionTests(unittest.TestCase):
         self.assertIn("usr/bin/plasma-welcome", build,
                       "the identity gate requires the silent plasma-welcome no-op "
                       "stub even though ARM never installs the upstream binary")
+        self.assertIn("org.fedoraproject.fedora.desktop", build,
+                      "plasma-desktop ships Fedora Global Themes; ARM must delete "
+                      "them the same way build.sh (z2a) does")
         self.assertIn("python3 /ctx/verify_arm_image.py", build)
         self.assertNotIn("python3 /ctx/verify_image_experience.py", build,
                          "the x86 finished-image gate requires hardware/gaming services "
