@@ -24,6 +24,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CONTAINERFILE = ROOT / "Containerfile.arm"
 BUILD = ROOT / "build_files/build-arm.sh"
+ARM_VERIFY = ROOT / "build_files/verify_arm_image.py"
 WORKFLOW = ROOT / ".github/workflows/build-arm.yml"
 DOCS = ROOT / "docs/MOOS_ARM_ORACLE.md"
 
@@ -76,7 +77,7 @@ def build_only(text: str) -> str:
 
 class ArmEditionTests(unittest.TestCase):
     def test_the_pieces_exist(self) -> None:
-        for p in (CONTAINERFILE, BUILD, WORKFLOW, DOCS):
+        for p in (CONTAINERFILE, BUILD, ARM_VERIFY, WORKFLOW, DOCS):
             self.assertTrue(p.is_file(), f"{p.relative_to(ROOT)} is missing")
 
     # ── the base ────────────────────────────────────────────────────────────
@@ -159,6 +160,26 @@ class ArmEditionTests(unittest.TestCase):
             "python3 tests/test_boot_splash_polish.py",
         ):
             self.assertIn(gate, text, f"the ARM workflow never runs {gate}")
+
+    def test_finished_image_gates_match_the_cloud_arm_payload(self) -> None:
+        build = code(read(BUILD))
+        verifier = read(ARM_VERIFY)
+        self.assertIn("MOOS_IDENTITY_PROFILE=arm-cloud", build,
+                      "the shared identity gate otherwise demands the Live installer "
+                      "and two intentionally omitted x86 binaries")
+        self.assertIn("python3 /ctx/verify_arm_image.py", build)
+        self.assertNotIn("python3 /ctx/verify_image_experience.py", build,
+                         "the x86 finished-image gate requires hardware/gaming services "
+                         "that the lightweight cloud edition intentionally omits")
+        for contract in (
+            "platform.machine() == \"aarch64\"",
+            "cloud-init-network.service",
+            "console=ttyAMA0,115200n8",
+            "--query-service=rdp",
+            "usr/share/xsessions",
+        ):
+            self.assertIn(contract, verifier,
+                          f"the finished ARM image gate does not verify {contract}")
 
     def test_every_published_arm_image_is_signed_and_verified(self) -> None:
         text = read(WORKFLOW)

@@ -589,10 +589,13 @@ else
 fi
 
 # The ARM edition does not get a reduced identity standard. These are the same
-# finished-image gates the x86 editions run, after every package and overwrite.
+# identity and foreign-brand gates the x86 editions run, plus ARM-specific
+# finished-image checks. The profile only removes requirements for the Live
+# installer and the two intentionally omitted x86 binaries; it does not weaken
+# the shared session, application, logo or theme identity checks.
 echo "=== (9b) finished-image identity gates ==="
-python3 /ctx/verify_identity.py
-python3 /ctx/verify_image_experience.py
+MOOS_IDENTITY_PROFILE=arm-cloud python3 /ctx/verify_identity.py
+python3 /ctx/verify_arm_image.py
 python3 /ctx/verify_no_foreign_identity.py
 
 # -----------------------------------------------------------------------------
