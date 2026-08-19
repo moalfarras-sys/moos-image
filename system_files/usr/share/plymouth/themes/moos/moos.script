@@ -1,38 +1,53 @@
-// MoOS premium boot splash — Plymouth Script module (v2).
+// MoOS boot splash — Plymouth Script module (v4, "the render").
 //
-// A flat graphite field. The CRISP MoOS mark reveals once with a confident
-// settle, while a dual-ring orbital field and small energy particles establish
-// depth. One radial wave seals the entrance. After that, the mark stays at its
-// exact native scale and only the energy head continues around the ring as the
-// loading signal — premium motion without continually resampling the logo.
+// WHAT IS ON SCREEN
+//   The owner's rendered MoOS logo sting, played as the boot intro: a plasma
+//   ring ignites, the mark's arcs tear out of it and rotate into place, the
+//   solid mark lands on its reflective floor, and the MoOS wordmark fades up.
+//   Then it comes to rest and stays there until the desktop takes over.
 //
-// Driven entirely by moving small sprites from the refresh callback — NOT
-// hundreds of pre-baked frames. The logo and rings are authored large enough
-// that a 4K frame downsamples them; only the sub-second entrance creates scaled
-// images, after which the renderer moves cached sprites. If any sprite fails to
-// load, Plymouth falls back to
-// its text splash and the machine still boots — that is the safe fallback.
+// WHY A FRAME SEQUENCE AND NOT SPRITES
+//   The previous version synthesised a reveal by moving sprites — a dim mark,
+//   six angular wedges lit in turn, orbiting particles. It was cheap and it
+//   looked synthesised, because the sting has 3D rotation, plasma and a floor
+//   reflection in it and none of those can be faked by translating images. The
+//   sequence is 36 frames cut from the render by artwork/build_boot_frames.py.
 //
-// Assets: logo.png, ring.png, ring2.png, head.png, glow.png, particle.png,
-//         pulse.png — all seven produced by artwork/generate_boot_splash.py.
-//         (This line used to also name artwork/generate_new_assets.py, a file
-//         that has never existed in this repo. A theme that names a generator
-//         nobody can run is how the sprites drift out of the design system.)
+// WHAT THAT COSTS, AND THE THREE THINGS THAT KEEP IT CHEAP
+//   * SIZE. The frames are stored at 640x415 — about 8 MB, ~36 MB once Plymouth
+//     decodes them. That is the whole budget, and it is a budget: every frame
+//     lives in the initramfs and is decoded on every boot. Raising the stored
+//     width raises both, quadratically.
+//   * SCALING. Frames are scaled to the screen ONLY when the displayed frame
+//     changes — 25 times a second, not 50 — and only one scaled copy exists at a
+//     time. Pre-scaling all 36 would cost ~190 MB at 1080p, which is why it is
+//     not done.
+//   * SHARPNESS. The source render is 1024x576, so the sequence is an upscale at
+//     boot size and there is no way around that — it is the master. What IS
+//     avoidable is throwing resolution away before shipping, so the frames are
+//     stored at the render's own crop width rather than downscaled first.
+//     An earlier cut crossfaded the last frame into a high-resolution still
+//     rebuilt from a separate reference render; the owner rejected it — the two
+//     renders do not match closely enough for the swap to be invisible, and a
+//     splash that visibly changes its own artwork at the end is worse than a
+//     soft one. The sequence now simply holds its last frame.
+//
+// SAFETY
+//   If any image fails to load, Plymouth falls back to its text splash and the
+//   machine still boots. Nothing here can block a boot: Plymouth drives this
+//   script, not the other way round.
+//
+// The handoff is not this file's job alone — plymouth-quit runs with
+// --retain-splash (plymouth-quit.service.d/10-moos-retain-splash.conf) so the
+// last frame drawn here stays on screen until KWin paints. quit_callback below
+// makes that retained frame the composed still rather than whatever the
+// animation happened to be showing.
 
-// ── graphite ground — the SAME canvas the desktop opens on ───────────────────
-//
-// This used to be Nova's deep navy (#070B16 -> #04060A). Plymouth is system-wide
-// and cannot follow a per-user Global Theme, so it has to be pinned by hand — and
-// it was the one surface left behind by the UI2 rollout. Measured on the machine:
-// the splash painted navy, the UI2 desktop painted graphite #14191C and the Arena
-// splash painted #0B0714, so EVERY boot showed a visible hue break at the handoff.
-//
-// The ground is now exactly the UI2 canvas token #14191C, flat: top and bottom are
-// the same colour on purpose. A gradient here cannot line up with a wallpaper it
-// knows nothing about, and any mismatch at the seam is precisely the break this is
-// fixing. Flat graphite means splash -> first desktop frame is one continuous
-// colour. #14191C is also neither pure black nor pure white, as the design contract
-// requires of every runtime surface.
+// ── the ground — the SAME canvas the desktop opens on ────────────────────────
+// Flat, top and bottom identical. The render's own near-black background was
+// keyed to transparency when the frames were cut, precisely so the splash could
+// sit on this colour: #14191C is the UI2 canvas token the MoOS desktop opens on,
+// so splash -> first desktop frame is one continuous colour with no hue flip.
 Window.SetBackgroundTopColor(0.078, 0.098, 0.110);      // #14191C — UI2 canvas
 Window.SetBackgroundBottomColor(0.078, 0.098, 0.110);   // #14191C — flat, no seam
 
@@ -41,242 +56,205 @@ sh = Window.GetHeight(0);
 cx = sw / 2;
 cy = sh / 2;
 
+PI = 3.14159265;
+
 fun fmin(a, b) { if (a < b) return a; return b; }
 fun fmax(a, b) { if (a > b) return a; return b; }
 fun clamp01(v) { return fmax(0, fmin(1, v)); }
-fun easeout(t) { u = 1 - t; return 1 - u * u * u; }
-fun easeinout(t) {
-    if (t < 0.5) return 2 * t * t;
-    u = -2 * t + 2;
-    return 1 - u * u / 2;
-}
 
-PI = 3.14159265;
+// ── the sequence ─────────────────────────────────────────────────────────────
+INTRO_COUNT  = 32;
+INTRO_HOLD   = 2;        // refreshes per frame; Plymouth refreshes at 50 Hz -> 25 fps
+INTRO_ASPECT = 1.5396;   // MUST equal the frame aspect build_boot_frames.py reports
+CUE_DELAY    = 190;      // refreshes before the slow-boot cue appears (~3.8 s)
 
-// ── sizes, all relative to screen height (crisp at any resolution) ───────────
-logo_size  = sh * 0.26;
-ring_size  = sh * 0.62;
-ring2_size = sh * 0.52;    // inner ring — slightly smaller for depth
-glow_size  = sh * 0.44;
-head_size  = sh * 0.10;
-pulse_size = sh * 0.50;
-part_size  = sh * 0.035;   // small energy particles
+// The stage rectangle. Bounded by WIDTH as well as height: on a 5:4 or 4:3
+// panel a height-derived width overflows the screen and the composition gets
+// cropped at the sides.
+stage_w = fmin(sw * 0.88, sh * 0.86 * INTRO_ASPECT);
+stage_h = stage_w / INTRO_ASPECT;
+stage_x = cx - stage_w / 2;
+stage_y = cy - stage_h / 2;
 
-ring_radius  = ring_size * 0.44;   // matches ring.png geometry (6% margins)
-ring2_radius = ring2_size * 0.44;
+// The sequence, loaded by literal filename.
+//
+// The obvious version of this is a loop building "intro" + i + ".png". It is not
+// used, because Plymouth's script language has no string formatting and its
+// number-to-string conversion is not specified to produce "1" rather than
+// "1.000000" — and if it produces the latter, every Image() here silently
+// resolves to a file that does not exist, every load fails, and Plymouth drops
+// the whole theme to its TEXT console. That is precisely the failure this splash
+// exists to prevent, and it would only ever show up on someone's machine.
+//
+// Indexing the hash with a number afterwards is safe whichever way the
+// conversion goes, because the same conversion is applied on both the store and
+// the lookup. It is only the FILENAME that must be exact.
+frames[1] = Image("intro1.png");
+frames[2] = Image("intro2.png");
+frames[3] = Image("intro3.png");
+frames[4] = Image("intro4.png");
+frames[5] = Image("intro5.png");
+frames[6] = Image("intro6.png");
+frames[7] = Image("intro7.png");
+frames[8] = Image("intro8.png");
+frames[9] = Image("intro9.png");
+frames[10] = Image("intro10.png");
+frames[11] = Image("intro11.png");
+frames[12] = Image("intro12.png");
+frames[13] = Image("intro13.png");
+frames[14] = Image("intro14.png");
+frames[15] = Image("intro15.png");
+frames[16] = Image("intro16.png");
+frames[17] = Image("intro17.png");
+frames[18] = Image("intro18.png");
+frames[19] = Image("intro19.png");
+frames[20] = Image("intro20.png");
+frames[21] = Image("intro21.png");
+frames[22] = Image("intro22.png");
+frames[23] = Image("intro23.png");
+frames[24] = Image("intro24.png");
+frames[25] = Image("intro25.png");
+frames[26] = Image("intro26.png");
+frames[27] = Image("intro27.png");
+frames[28] = Image("intro28.png");
+frames[29] = Image("intro29.png");
+frames[30] = Image("intro30.png");
+frames[31] = Image("intro31.png");
+frames[32] = Image("intro32.png");
 
-// ── sprites ──────────────────────────────────────────────────────────────────
-logo_image  = Image("logo.png");
-ring_image  = Image("ring.png");
-ring2_image = Image("ring2.png");
-head_image  = Image("head.png");
-glow_image  = Image("glow.png");
-pulse_image = Image("pulse.png");
-part_image  = Image("particle.png");
+// ── the slow-boot cue ────────────────────────────────────────────────────────
+// A fast boot is over before any of this appears. It exists so that a boot that
+// genuinely takes a while — a first boot, an fsck, a cloud instance — does not
+// present a still image that reads as a hang.
+glow_size   = sh * 1.05;
+ring_size   = sh * 1.02;
+head_size   = sh * 0.075;
+ring_radius = ring_size * 0.44;
 
-logo_full    = logo_image.Scale(logo_size, logo_size);
-ring_scaled  = ring_image.Scale(ring_size, ring_size);
-ring2_scaled = ring2_image.Scale(ring2_size, ring2_size);
-glow_scaled  = glow_image.Scale(glow_size, glow_size);
-head_scaled  = head_image.Scale(head_size, head_size);
-pulse_scaled = pulse_image.Scale(pulse_size, pulse_size);
-
-// Three particle sprites for elliptical orbits
-part_scaled = part_image.Scale(part_size, part_size);
-part_s2     = part_image.Scale(part_size * 0.7, part_size * 0.7);
-part_s3     = part_image.Scale(part_size * 0.55, part_size * 0.55);
-
-// ── ambient glow (base layer) ────────────────────────────────────────────────
-glow_sprite = Sprite(glow_scaled);
+glow_sprite = Sprite(Image("glow.png").Scale(glow_size, glow_size));
 glow_sprite.SetX(cx - glow_size / 2);
 glow_sprite.SetY(cy - glow_size / 2);
 glow_sprite.SetZ(1);
-glow_sprite.SetOpacity(0.18);
+glow_sprite.SetOpacity(0);
 
-// ── primary ring (outer orbit track) ─────────────────────────────────────────
-ring_sprite = Sprite(ring_scaled);
+ring_sprite = Sprite(Image("ring.png").Scale(ring_size, ring_size));
 ring_sprite.SetX(cx - ring_size / 2);
 ring_sprite.SetY(cy - ring_size / 2);
 ring_sprite.SetZ(2);
 ring_sprite.SetOpacity(0);
 
-// ── secondary ring (inner, counter-rotating for 3D parallax) ─────────────────
-ring2_sprite = Sprite(ring2_scaled);
-ring2_sprite.SetX(cx - ring2_size / 2);
-ring2_sprite.SetY(cy - ring2_size / 2);
-ring2_sprite.SetZ(3);
-ring2_sprite.SetOpacity(0);
-
-// ── pulse wave ───────────────────────────────────────────────────────────────
-pulse_sprite = Sprite(pulse_scaled);
-pulse_sprite.SetX(cx - pulse_size / 2);
-pulse_sprite.SetY(cy - pulse_size / 2);
-pulse_sprite.SetZ(4);
-pulse_sprite.SetOpacity(0);
-
-// ── logo ─────────────────────────────────────────────────────────────────────
-logo_sprite = Sprite();
-logo_sprite.SetZ(5);
-logo_sprite.SetOpacity(0);
-
-// ── energy head (orbits the primary ring) ────────────────────────────────────
-head_sprite = Sprite(head_scaled);
-head_sprite.SetZ(8);
+head_image  = Image("head.png").Scale(head_size, head_size);
+head_sprite = Sprite(head_image);
+head_sprite.SetZ(3);
 head_sprite.SetOpacity(0);
 
-// ── orbital particles (3 at staggered phases on elliptical orbits) ───────────
-p1_sprite = Sprite(part_scaled);
-p1_sprite.SetZ(7);
-p1_sprite.SetOpacity(0);
+// ── the stage ────────────────────────────────────────────────────────────────
+intro_sprite = Sprite();
+intro_sprite.SetX(stage_x);
+intro_sprite.SetY(stage_y);
+intro_sprite.SetZ(5);
+intro_sprite.SetOpacity(1);
 
-p2_sprite = Sprite(part_s2);
-p2_sprite.SetZ(6);
-p2_sprite.SetOpacity(0);
+mode = Plymouth.GetMode();
+// On shutdown or reboot nobody wants a title sequence — they want the machine to
+// look calm while it stops. Go straight to the still.
+calm = 0;
+if (mode == "shutdown" || mode == "reboot") { calm = 1; }
 
-p3_sprite = Sprite(part_s3);
-p3_sprite.SetZ(7);
-p3_sprite.SetOpacity(0);
+tick = 0;
+held = 0;        // refreshes the current intro frame has been on screen
+shown = 0;       // which intro frame is currently on the sprite
+rested = 0;      // set once the crossfade has finished
 
-// ── animation state ──────────────────────────────────────────────────────────
-frame = 0;
-logo_settled = 0;
-field_settled = 0;
-pulse_done = 0;
-
-SWEEP_SEC  = 1.35;    // the head's one-time sweep around the ring
-LOOP_SEC   = 2.8;     // seconds per orbit during the loading loop
+if (calm == 1) {
+    // Shutdown and reboot get the resting frame straight away — nobody wants a
+    // title sequence while the machine stops.
+    intro_sprite.SetImage(frames[INTRO_COUNT].Scale(stage_w, stage_h));
+    shown = INTRO_COUNT;
+    rested = 1;
+} else {
+    // Draw frame 1 immediately, so Plymouth's very first painted frame already
+    // has MoOS on it rather than an empty ground.
+    intro_sprite.SetImage(frames[1].Scale(stage_w, stage_h));
+    shown = 1;
+}
 
 fun refresh() {
-    frame++;
-    t = frame / 50.0;
+    tick++;
 
-    // ── the orbital field fades in once, then becomes cached geometry ────
-    if (field_settled == 0) {
-        ring_sprite.SetOpacity(clamp01(t / 0.4) * 0.9);
-        ring2_sprite.SetOpacity(clamp01((t - 0.2) / 0.5) * 0.65);
-        glow_sprite.SetOpacity(0.12 + 0.10 * easeout(clamp01(t / 0.9)));
-        if (t >= 0.9) {
-            ring_sprite.SetOpacity(0.9);
-            ring2_sprite.SetOpacity(0.65);
-            glow_sprite.SetOpacity(0.22);
-            field_settled = 1;
+    if (rested == 0) {
+        // Advance by counting, not by dividing tick. Integer division would need
+        // a rounding builtin whose presence varies between Plymouth's script
+        // plugin versions, and a splash that fails to parse falls back to the
+        // text console — the exact thing this theme exists to prevent.
+        held++;
+        if (held >= INTRO_HOLD) {
+            held = 0;
+            if (shown < INTRO_COUNT) {
+                shown++;
+                // Scale here and only here: once per displayed frame, and the
+                // old scaled copy is released as the new one replaces it.
+                intro_sprite.SetImage(frames[shown].Scale(stage_w, stage_h));
+            }
         }
+
+        // The sequence ends on its own last frame and simply stays there.
+        if (shown >= INTRO_COUNT) { rested = 1; }
     }
 
-    // ── the mark arrives once, then remains pixel-stable ────────────────
-    if (logo_settled == 0) {
-        lt = clamp01((t - 0.12) / 0.78);
-        le = easeout(lt);
-        if (lt >= 1) {
-            logo_sprite.SetImage(logo_full);
-            logo_sprite.SetX(cx - logo_size / 2);
-            logo_sprite.SetY(cy - logo_size / 2);
-            logo_sprite.SetOpacity(1);
-            logo_settled = 1;
-        } else {
-            ls = logo_size * (0.78 + 0.22 * le);
-            logo_sprite.SetImage(logo_image.Scale(ls, ls));
-            logo_sprite.SetX(cx - ls / 2);
-            logo_sprite.SetY(cy - ls / 2);
-            logo_sprite.SetOpacity(le);
-        }
-    }
-
-    // ── energy head: one eased sweep, then steady orbit ──────────────────
-    if (t < SWEEP_SEC) {
-        ang = 360 * easeout(t / SWEEP_SEC);
-    } else {
-        ang = 360 * ((t - SWEEP_SEC) / LOOP_SEC);
-    }
-    rad = ang * PI / 180 - PI / 2;
-    hx = cx + ring_radius * Math.Cos(rad);
-    hy = cy + ring_radius * Math.Sin(rad);
-    head_sprite.SetX(hx - head_size / 2);
-    head_sprite.SetY(hy - head_size / 2);
-    head_sprite.SetOpacity(clamp01(t / 0.25));
-
-    // ── elliptical particle orbits (3D depth illusion) ────────────────────
-    // Each particle orbits on an ellipse with different eccentricity and phase
-    // to create the illusion of a 3D planetary system.
-
-    // Particle 1: wide ellipse, fast
-    p1_ang = t * 0.9 + 0.0;     // phase offset 0
-    p1_rx = ring_radius * 1.05;  // slightly outside main ring
-    p1_ry = ring_radius * 0.55;  // compressed Y = tilted orbit
-    p1_rad = p1_ang * 2 * PI;
-    p1x = cx + p1_rx * Math.Cos(p1_rad);
-    p1y = cy + p1_ry * Math.Sin(p1_rad);
-    p1_sprite.SetX(p1x - part_size / 2);
-    p1_sprite.SetY(p1y - part_size / 2);
-    // Depth-based opacity: brighter when "in front" (positive Sin)
-    p1_depth = 0.5 + 0.5 * Math.Sin(p1_rad);
-    p1_sprite.SetOpacity(clamp01(t / 1.2) * (0.25 + 0.55 * p1_depth));
-
-    // Particle 2: medium ellipse, slower, offset phase
-    p2_ang = t * 0.65 + 2.1;
-    p2_rx = ring2_radius * 0.95;
-    p2_ry = ring2_radius * 0.45;
-    p2_rad = p2_ang * 2 * PI;
-    p2x = cx + p2_rx * Math.Cos(p2_rad);
-    p2y = cy + p2_ry * Math.Sin(p2_rad);
-    p2_s = part_size * 0.7;
-    p2_sprite.SetX(p2x - p2_s / 2);
-    p2_sprite.SetY(p2y - p2_s / 2);
-    p2_depth = 0.5 + 0.5 * Math.Sin(p2_rad);
-    p2_sprite.SetOpacity(clamp01(t / 1.5) * (0.18 + 0.45 * p2_depth));
-
-    // Particle 3: tight ellipse, medium speed, another phase
-    p3_ang = t * 0.78 + 4.2;
-    p3_rx = ring2_radius * 0.75;
-    p3_ry = ring2_radius * 0.62;
-    p3_rad = p3_ang * 2 * PI;
-    p3x = cx + p3_rx * Math.Cos(p3_rad);
-    p3y = cy + p3_ry * Math.Sin(p3_rad);
-    p3_s = part_size * 0.55;
-    p3_sprite.SetX(p3x - p3_s / 2);
-    p3_sprite.SetY(p3y - p3_s / 2);
-    p3_depth = 0.5 + 0.5 * Math.Sin(p3_rad);
-    p3_sprite.SetOpacity(clamp01(t / 1.8) * (0.15 + 0.40 * p3_depth));
-
-    // ── one pulse wave seals the entrance; it never loops ────────────────
-    pulse_local = t - 0.72;
-    if (pulse_local >= 0 && pulse_local < 1.0) {
-        pulse_t = pulse_local / 1.0;
-        pulse_scale = 0.3 + 0.7 * easeout(pulse_t);
-        ps = pulse_size * pulse_scale;
-        pulse_sprite.SetImage(pulse_image.Scale(ps, ps));
-        pulse_sprite.SetX(cx - ps / 2);
-        pulse_sprite.SetY(cy - ps / 2);
-        // Fade in quickly, fade out slowly
-        if (pulse_t < 0.15) {
-            pulse_op = pulse_t / 0.15;
-        } else {
-            pulse_op = 1.0 - (pulse_t - 0.15) / 0.85;
-        }
-        pulse_sprite.SetOpacity(clamp01(pulse_op) * 0.35);
-    } else if (t >= 1.72 && pulse_done == 0) {
-        pulse_sprite.SetOpacity(0);
-        pulse_done = 1;
+    // ── the slow-boot cue ────────────────────────────────────────────────
+    if (tick > CUE_DELAY) {
+        t = (tick - CUE_DELAY) / 50.0;
+        // A slow, shallow breath under the mark, and a faint head running the
+        // ring. Both fade IN over a second so their arrival is not a blink.
+        into = clamp01(t / 1.0);
+        glow_sprite.SetOpacity(into * (0.16 + 0.05 * Math.Sin(t * 2 * PI / 4.5)));
+        ring_sprite.SetOpacity(into * 0.35);
+        ang = t * 130;                       // degrees; one lap every ~2.8 s
+        rad = ang * PI / 180 - PI / 2;
+        head_sprite.SetX(cx + ring_radius * Math.Cos(rad) - head_size / 2);
+        head_sprite.SetY(cy + ring_radius * Math.Sin(rad) - head_size / 2);
+        head_sprite.SetOpacity(into * 0.85);
     }
 }
 Plymouth.SetRefreshFunction(refresh);
 
+// ── the handoff frame ────────────────────────────────────────────────────────
+//
+// plymouth-quit runs `plymouth quit --retain-splash`, which leaves the LAST
+// FRAME DRAWN standing on screen until KWin's first modeset paints over it.
+// Whatever this function puts there is therefore the image the user looks at for
+// the whole login-manager / Wayland / DRM bring-up — several seconds on a cold
+// boot. Without it that image is an arbitrary mid-animation frame with a plasma
+// burst or a comet frozen in place, which reads as a hang.
+//
+// So compose it deliberately: jump to the sequence's LAST frame — the mark at
+// rest with its wordmark — and hide everything that moves, so nothing looks
+// frozen because nothing was moving. If quit arrives before the sequence has
+// finished, this is also what cuts it short, which is the right behaviour: the
+// splash must never be the thing being waited for.
+fun quit_callback() {
+    intro_sprite.SetImage(frames[INTRO_COUNT].Scale(stage_w, stage_h));
+    intro_sprite.SetOpacity(1);
+    ring_sprite.SetOpacity(0);
+    head_sprite.SetOpacity(0);
+    glow_sprite.SetOpacity(0);
+}
+Plymouth.SetQuitFunction(quit_callback);
+
 // ── boot messages (fsck etc.), shown quietly below the mark ──────────────────
 //
-// The three Image.Text tints below were Nova's blue-greys, chosen to sit on the
-// old navy ground. Left as they were they would read cold and slightly blue on
-// graphite — the same hue break the ground fix above removes, just smaller. They
-// are now the exact UI2 tokens: muted #9CAFAC for status text, text #E8F1EF for
-// the passphrase prompt, primary #4ED7C8 for the bullets. Plymouth takes floats,
-// so each channel is the byte/255 rounded to three places, which round-trips back
-// to the same byte.
+// The three Image.Text tints are the exact UI2 tokens: muted #9CAFAC for status
+// text, text #E8F1EF for the passphrase prompt, primary #4ED7C8 for the bullets.
+// Plymouth takes floats, so each channel is the byte/255 rounded to three
+// places, which round-trips back to the same byte.
 message_sprite = Sprite();
 message_sprite.SetZ(20);
 fun message_callback(text) {
     img = Image.Text(text, 0.612, 0.686, 0.675);   // muted #9CAFAC
     message_sprite.SetImage(img);
     message_sprite.SetX(cx - img.GetWidth() / 2);
-    message_sprite.SetY(sh * 0.86);
+    message_sprite.SetY(sh * 0.90);
     message_sprite.SetOpacity(1);
 }
 fun hide_message() { message_sprite.SetOpacity(0); }
@@ -292,16 +270,16 @@ fun display_password(prompt, bullets) {
     pimg = Image.Text(prompt, 0.910, 0.945, 0.937);   // text #E8F1EF
     prompt_sprite.SetImage(pimg);
     prompt_sprite.SetX(cx - pimg.GetWidth() / 2);
-    prompt_sprite.SetY(sh * 0.72);
+    prompt_sprite.SetY(sh * 0.80);
     prompt_sprite.SetOpacity(1);
     dots = "";
-    i = 0;
-    while (i < bullets) { dots = dots + "•"; i++; }
+    n = 0;
+    while (n < bullets) { dots = dots + "*"; n++; }
     if (dots == "") { dots = " "; }
     bimg = Image.Text(dots, 0.306, 0.843, 0.784);   // primary #4ED7C8
     bullets_sprite.SetImage(bimg);
     bullets_sprite.SetX(cx - bimg.GetWidth() / 2);
-    bullets_sprite.SetY(sh * 0.77);
+    bullets_sprite.SetY(sh * 0.85);
     bullets_sprite.SetOpacity(1);
 }
 fun clear_password() {
@@ -311,7 +289,7 @@ fun clear_password() {
 Plymouth.SetDisplayPasswordFunction(display_password);
 
 // On a normal display (no prompt/message), clear both overlays — the mark and
-// its orbit are all that should remain.
+// its wordmark are all that should remain.
 fun display_normal() {
     hide_message();
     clear_password();

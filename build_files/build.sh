@@ -314,12 +314,33 @@ plymouth-set-default-theme moos
 # used to check what the plugin LOADS. So GATE that the script and its seven sprites
 # actually landed in the image.
 _MOOS=/usr/share/plymouth/themes/moos
-for _f in moos.script logo.png ring.png ring2.png head.png glow.png particle.png pulse.png; do
+test -f "${_MOOS}/moos.script" || {
+    echo "GATE FAIL: moos theme has no moos.script — the Script splash would abort to text"
+    exit 1
+}
+# Derive the asset list FROM THE SCRIPT rather than repeating it here. The old
+# version named eight sprites by hand and went stale the moment the theme
+# changed shape: it still demanded ring2/particle/pulse, which the frame-sequence
+# theme does not have, while checking nothing about the 36 intro frames that it
+# does. Whatever moos.script actually calls Image() on is exactly what has to be
+# on disk — no more, no less — so ask the script.
+_missing=0
+for _f in $(grep -oE 'Image\("[^"]+"\)' "${_MOOS}/moos.script"             | sed 's/^Image("//; s/")$//' | sort -u); do
     test -f "${_MOOS}/${_f}" || {
-        echo "GATE FAIL: moos theme is missing ${_f} — the Script splash would abort to text"
-        exit 1
+        echo "GATE FAIL: moos.script loads ${_f}, which is not in the theme — the Script splash would abort to text"
+        _missing=1
     }
 done
+[ "${_missing}" -eq 0 ] || exit 1
+# And the reverse direction: INTRO_COUNT is what the script iterates to, so if it
+# disagrees with the frames on disk either the tail of the animation never plays
+# or the script loads a file that is not there.
+_declared="$(grep -oE '^INTRO_COUNT[[:space:]]*=[[:space:]]*[0-9]+' "${_MOOS}/moos.script"              | grep -oE '[0-9]+$')"
+_ondisk="$(ls -1 "${_MOOS}"/intro*.png 2>/dev/null | wc -l)"
+[ -n "${_declared}" ] && [ "${_declared}" = "${_ondisk}" ] || {
+    echo "GATE FAIL: moos.script declares INTRO_COUNT=${_declared:-<unset>} but ${_ondisk} intro frames are installed"
+    exit 1
+}
 echo "=== plymouth: moos Script theme present ==="
 ls -1 "${_MOOS}" | grep -vE 'README' | sed 's/^/    /'
 

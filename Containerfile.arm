@@ -1,0 +1,91 @@
+# =============================================================================
+# MoOS ARM — the aarch64 bootc image (moos-arm)
+# =============================================================================
+#
+# WHY A SECOND CONTAINERFILE
+#   The x86_64 image builds FROM ghcr.io/ublue-os/kinoite-main:44. That tag is
+#   published for amd64 only — it has no arm64 manifest at all — so no build
+#   flag can make the main Containerfile produce an ARM image. This one starts
+#   from Fedora's own bootc base, which does ship aarch64, and brings up Plasma
+#   itself.
+#
+#   The MoOS identity is NOT duplicated. system_files/ is copied verbatim from
+#   the same tree the x86 editions use: the UI2 look-and-feel, every QML surface,
+#   the icon and theme trees, the Plymouth boot animation, the service units, Mo
+#   AI. That tree contains no compiled binaries, so it is the same bytes on both
+#   architectures and the two editions cannot drift apart in how they look.
+#
+# WHAT THIS IS FOR
+#   * Oracle Cloud, Ampere A1 (VM.Standard.A1.Flex) — the Always Free aarch64
+#     shape: 4 OCPU and 24 GB at no cost. See docs/MOOS_ARM_ORACLE.md.
+#   * UTM on Apple silicon (hardware virtualisation) and on iPhone/iPad.
+#   * Any aarch64 UEFI machine.
+#
+# BUILD
+#   Natively on an arm64 machine or runner:
+#       podman build -f Containerfile.arm -t moos-arm:latest .
+#   Under emulation from x86 (slow — hours, not minutes):
+#       podman build --platform linux/arm64 -f Containerfile.arm -t moos-arm .
+#   CI does the former: .github/workflows/build-arm.yml runs on ubuntu-24.04-arm.
+#
+# THEN, to get something Oracle can import:
+#       bootc-image-builder --type qcow2   (see the workflow; it is arm64-native)
+# =============================================================================
+
+FROM quay.io/fedora/fedora-bootc:44 AS base
+
+# -----------------------------------------------------------------------------
+# ctx: build scripts are bind-mounted, never copied, so they do not ship.
+# -----------------------------------------------------------------------------
+FROM scratch AS ctx
+COPY build_files /
+
+# -----------------------------------------------------------------------------
+# moos-qml-shell — the one C++ binary MoOS compiles itself: the QML host that
+# gives every pure-QML MoOS app a real Wayland app_id.
+#
+# Compiled in a throwaway stage FROM the same base, exactly as the x86 build
+# does, and for the same two reasons: the final image receives only the stripped
+# binary and never the compiler, and the Qt6/KF6 sonames it links against are
+# the ones the shipped image actually carries.
+#
+# The source has no architecture-specific code and no -march flags, so this is a
+# straight native aarch64 compile.
+# -----------------------------------------------------------------------------
+FROM base AS qmlshell-build
+COPY --from=ctx /moos-qml-shell.cpp /src/moos-qml-shell.cpp
+COPY --from=ctx /build_moos_qml_shell.sh /src/build_moos_qml_shell.sh
+RUN dnf5 -y install gcc-c++ qt6-qtbase-devel qt6-qtdeclarative-devel \
+        kf6-kdbusaddons-devel kf6-kwindowsystem-devel \
+    && bash /src/build_moos_qml_shell.sh /src/moos-qml-shell.cpp /out/moos-qml-shell
+
+# -----------------------------------------------------------------------------
+# The image
+# -----------------------------------------------------------------------------
+FROM base
+
+ARG IMAGE_NAME=moos-arm
+
+LABEL org.opencontainers.image.title="MoOS ARM" \
+      org.opencontainers.image.description="MoOS for aarch64 — the MoOS UI Liquid Glass desktop on Oracle Cloud Ampere, UTM and any ARM64 UEFI machine" \
+      org.opencontainers.image.vendor="Moalfarras" \
+      org.opencontainers.image.source="https://github.com/moalfarras-sys/moos-image"
+
+# The complete MoOS identity, byte-identical to the x86 editions.
+COPY system_files/ /
+COPY --from=qmlshell-build /out/moos-qml-shell /usr/bin/moos-qml-shell
+
+RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=cache,dst=/var/cache \
+    --mount=type=cache,dst=/var/log \
+    --mount=type=tmpfs,dst=/tmp \
+    MOOS_IMAGE_NAME="${IMAGE_NAME}" bash /ctx/build-arm.sh
+
+# The result must be a well-formed, deployable bootc container: clean /var, a
+# valid ostree layout, a kernel present. Cheap insurance before anything is
+# pushed or written to a disk image.
+RUN bootc container lint
+
+LABEL org.opencontainers.image.documentation="https://github.com/moalfarras-sys/moos-image/blob/main/docs/MOOS_ARM_ORACLE.md" \
+      io.artifacthub.package.readme-url="https://raw.githubusercontent.com/moalfarras-sys/moos-image/main/docs/MOOS_ARM_ORACLE.md" \
+      io.artifacthub.package.logo-url="https://raw.githubusercontent.com/moalfarras-sys/moos-image/main/system_files/usr/share/pixmaps/moos-logo.png"

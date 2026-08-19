@@ -1294,25 +1294,39 @@ require("plymouth-plugin-script" in build_sh,
         "build.sh must install plymouth-plugin-script — the moos boot theme is a Script theme")
 require("plymouth-set-default-theme moos" in build_sh,
         "build.sh must select the moos boot theme")
-require("for _f in moos.script logo.png ring.png ring2.png head.png glow.png particle.png pulse.png" in build_sh,
-        "build.sh must PROVE the script + ALL SEVEN sprites landed — a missing ScriptFile or "
-        "sprite silently drops the boot to the text splash, with every other gate green")
-for _asset in ("moos.script", "logo.png", "ring.png", "ring2.png", "head.png", "glow.png",
-               "particle.png", "pulse.png"):
-    require((theme_dir / _asset).is_file(),
-            f"the moos Script theme must ship {_asset} — the splash aborts to text without it")
+# The check must be DERIVED, not enumerated. This used to name seven sprites by
+# hand, in three places, and every one of them went stale when the theme became
+# a frame sequence: they demanded ring2/particle/pulse (gone) and said nothing
+# about the 36 intro frames (the entire animation). Ask the script what it loads.
+require("grep -oE 'Image" in build_sh and 'moos.script"' in build_sh,
+        "build.sh must derive the theme's asset list FROM moos.script and prove each one "
+        "landed — a missing ScriptFile or image silently drops the boot to the text splash, "
+        "with every other gate green")
+require("INTRO_COUNT" in build_sh,
+        "build.sh must cross-check INTRO_COUNT against the installed intro frames")
 _moos_cfg = (theme_dir / "moos.plymouth").read_text(encoding="utf-8")
 require("ModuleName=script" in _moos_cfg,
         "moos.plymouth must select the script module")
 require("ScriptFile=/usr/share/plymouth/themes/moos/moos.script" in _moos_cfg,
         "moos.plymouth must point ScriptFile at moos.script")
 _moos_script = (theme_dir / "moos.script").read_text(encoding="utf-8")
-for _spr in ('Image("logo.png")', 'Image("ring.png")', 'Image("ring2.png")', 'Image("head.png")',
-             'Image("glow.png")', 'Image("particle.png")', 'Image("pulse.png")'):
-    require(_spr in _moos_script,
-            f"moos.script must load {_spr} — a typo'd or missing load aborts the whole theme")
+import re as _re
+_loads = sorted(set(_re.findall(r'Image\("([^"]+)"\)', _moos_script)))
+require(bool(_loads), "moos.script loads no images at all")
+for _asset in _loads:
+    require((theme_dir / _asset).is_file(),
+            f"moos.script loads {_asset}, which the theme does not ship — the splash aborts to text")
 require("Plymouth.SetRefreshFunction" in _moos_script,
-        "moos.script must drive the reveal + loading orbit from a refresh function")
+        "moos.script must drive the sequence from a refresh function")
+require("Plymouth.SetQuitFunction" in _moos_script,
+        "moos.script must compose the frame `plymouth quit --retain-splash` leaves on screen; "
+        "without it the user stares at a frozen mid-animation frame for the whole "
+        "login-manager bring-up, which reads as a hang")
+_declared = _re.search(r"^INTRO_COUNT\s*=\s*(\d+)\s*;", _moos_script, _re.MULTILINE)
+require(_declared is not None, "moos.script must declare INTRO_COUNT")
+require(int(_declared.group(1)) == len(list(theme_dir.glob("intro*.png"))),
+        "INTRO_COUNT and the installed intro frames disagree — either the tail of the "
+        "animation never plays, or the script loads a file that is not there")
 
 # ── plymouth.use-simpledrm must stay opt-out-able ───────────────────────────
 # The karg was proven in a VM, promoted to every machine, and on the owner's NVIDIA box it
