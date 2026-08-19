@@ -45,7 +45,7 @@ concurrency:
 jobs:
   build-push-sign:
     name: Build, push and sign (${{ matrix.image_name }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner || 'ubuntu-latest' }}
     # A wedged dnf5/registry step must fail rather than hold a runner for 6h, and
     # this job runs three times over the matrix, so the default would be 18h. The
     # cap is what stops that; its VALUE is only ever a measurement.
@@ -101,6 +101,10 @@ jobs:
             nvidia: "true"
           - image_name: moos-cloud
             nvidia: "false"
+          - image_name: moos-arm
+            nvidia: "false"
+            runner: ubuntu-24.04-arm
+            containerfile: ./Containerfile.arm
     permissions:
       contents: read      # checkout
       packages: write     # push to GHCR
@@ -157,6 +161,7 @@ jobs:
       # that nothing force-rotates the user's phone (the imperative lock AND the PWA
       # manifest, in the config and in the SHIPPED bundle).
       - name: Controller tests (TypeScript)
+        if: matrix.image_name != 'moos-arm'
         working-directory: moremote/controller
         run: |
           node --experimental-strip-types tests/coordinates.test.ts
@@ -177,6 +182,7 @@ jobs:
       # builds on the same tree produce byte-identical files, which is what makes a diff a
       # real signal here rather than noise.
       - name: Controller bundle is built from the committed source
+        if: matrix.image_name != 'moos-arm'
         run: |
           cd moremote/controller
           npm ci --no-audit --no-fund
@@ -416,6 +422,11 @@ jobs:
             echo "image=scratch" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          # ARM has no NVIDIA driver — skip akmods resolution.
+          if [ "${{ matrix.image_name }}" = "moos-arm" ]; then
+            echo "image=scratch" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           KERNEL=$(skopeo inspect "docker://${BASE_IMAGE}" | jq -er '.Labels["ostree.linux"]')
           AKMODS="ghcr.io/ublue-os/akmods-nvidia-open:main-44-${KERNEL}"
           echo "base kernel: ${KERNEL}"
@@ -431,7 +442,7 @@ jobs:
         id: build
         uses: redhat-actions/buildah-build@v2
         with:
-          containerfiles: ./Containerfile
+          containerfiles: ${{ matrix.containerfile || './Containerfile' }}
           image: ${{ matrix.image_name }}
           tags: latest ${{ steps.meta.outputs.date_tag }}
           # Give OUR image a version that actually changes every build. The base

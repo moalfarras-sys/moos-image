@@ -143,8 +143,8 @@ logo_settled = 0;
 field_settled = 0;
 pulse_done = 0;
 
-SWEEP_SEC  = 1.35;    // the head's one-time sweep around the ring
-LOOP_SEC   = 2.8;     // seconds per orbit during the loading loop
+SWEEP_SEC  = 0.9;     // the head's one-time sweep around the ring (was 1.35)
+LOOP_SEC   = 2.4;     // seconds per orbit during the loading loop (was 2.8)
 
 fun refresh() {
     frame++;
@@ -152,10 +152,10 @@ fun refresh() {
 
     // ── the orbital field fades in once, then becomes cached geometry ────
     if (field_settled == 0) {
-        ring_sprite.SetOpacity(clamp01(t / 0.4) * 0.9);
-        ring2_sprite.SetOpacity(clamp01((t - 0.2) / 0.5) * 0.65);
-        glow_sprite.SetOpacity(0.12 + 0.10 * easeout(clamp01(t / 0.9)));
-        if (t >= 0.9) {
+        ring_sprite.SetOpacity(clamp01(t / 0.25) * 0.9);        // was 0.4
+        ring2_sprite.SetOpacity(clamp01((t - 0.1) / 0.35) * 0.65); // was 0.2/0.5
+        glow_sprite.SetOpacity(0.12 + 0.10 * easeout(clamp01(t / 0.6))); // was 0.9
+        if (t >= 0.6) {                                          // was 0.9
             ring_sprite.SetOpacity(0.9);
             ring2_sprite.SetOpacity(0.65);
             glow_sprite.SetOpacity(0.22);
@@ -165,7 +165,7 @@ fun refresh() {
 
     // ── the mark arrives once, then remains pixel-stable ────────────────
     if (logo_settled == 0) {
-        lt = clamp01((t - 0.12) / 0.78);
+        lt = clamp01((t - 0.06) / 0.50);  // was 0.12/0.78 — logo appears faster
         le = easeout(lt);
         if (lt >= 1) {
             logo_sprite.SetImage(logo_full);
@@ -193,7 +193,7 @@ fun refresh() {
     hy = cy + ring_radius * Math.Sin(rad);
     head_sprite.SetX(hx - head_size / 2);
     head_sprite.SetY(hy - head_size / 2);
-    head_sprite.SetOpacity(clamp01(t / 0.25));
+    head_sprite.SetOpacity(clamp01(t / 0.15));  // was 0.25 — head appears faster
 
     // ── elliptical particle orbits (3D depth illusion) ────────────────────
     // Each particle orbits on an ellipse with different eccentricity and phase
@@ -210,7 +210,7 @@ fun refresh() {
     p1_sprite.SetY(p1y - part_size / 2);
     // Depth-based opacity: brighter when "in front" (positive Sin)
     p1_depth = 0.5 + 0.5 * Math.Sin(p1_rad);
-    p1_sprite.SetOpacity(clamp01(t / 1.2) * (0.25 + 0.55 * p1_depth));
+    p1_sprite.SetOpacity(clamp01(t / 0.8) * (0.25 + 0.55 * p1_depth));  // was 1.2
 
     // Particle 2: medium ellipse, slower, offset phase
     p2_ang = t * 0.65 + 2.1;
@@ -223,7 +223,7 @@ fun refresh() {
     p2_sprite.SetX(p2x - p2_s / 2);
     p2_sprite.SetY(p2y - p2_s / 2);
     p2_depth = 0.5 + 0.5 * Math.Sin(p2_rad);
-    p2_sprite.SetOpacity(clamp01(t / 1.5) * (0.18 + 0.45 * p2_depth));
+    p2_sprite.SetOpacity(clamp01(t / 1.0) * (0.18 + 0.45 * p2_depth));  // was 1.5
 
     // Particle 3: tight ellipse, medium speed, another phase
     p3_ang = t * 0.78 + 4.2;
@@ -236,10 +236,10 @@ fun refresh() {
     p3_sprite.SetX(p3x - p3_s / 2);
     p3_sprite.SetY(p3y - p3_s / 2);
     p3_depth = 0.5 + 0.5 * Math.Sin(p3_rad);
-    p3_sprite.SetOpacity(clamp01(t / 1.8) * (0.15 + 0.40 * p3_depth));
+    p3_sprite.SetOpacity(clamp01(t / 1.2) * (0.15 + 0.40 * p3_depth));  // was 1.8
 
     // ── one pulse wave seals the entrance; it never loops ────────────────
-    pulse_local = t - 0.72;
+    pulse_local = t - 0.50;   // was 0.72 — pulse starts earlier
     if (pulse_local >= 0 && pulse_local < 1.0) {
         pulse_t = pulse_local / 1.0;
         pulse_scale = 0.3 + 0.7 * easeout(pulse_t);
@@ -254,7 +254,7 @@ fun refresh() {
             pulse_op = 1.0 - (pulse_t - 0.15) / 0.85;
         }
         pulse_sprite.SetOpacity(clamp01(pulse_op) * 0.35);
-    } else if (t >= 1.72 && pulse_done == 0) {
+    } else if (t >= 1.50 && pulse_done == 0) {  // was 1.72
         pulse_sprite.SetOpacity(0);
         pulse_done = 1;
     }

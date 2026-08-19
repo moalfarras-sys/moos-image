@@ -1,0 +1,62 @@
+# =============================================================================
+# MoOS ARM Containerfile — builds the MoOS bootc/OCI image for aarch64
+# =============================================================================
+# ADR-020: ARM edition for Oracle Cloud Ampere A1 (Always Free) and UTM.
+#
+# Base: quay.io/fedora/fedora-bootc:44 (aarch64) — NOT kinoite-main (x86 only).
+# This is a bare Fedora bootc image; Plasma and all desktop packages are layered
+# explicitly via build_arm.sh.
+#
+# Build with:
+#   podman build --platform linux/arm64 -f Containerfile.arm -t moos-arm:latest .
+#
+# Output: ghcr.io/moalfarras-sys/moos-arm
+# =============================================================================
+
+# Scratch stages — ARM has no NVIDIA, no MoPlayer, no Mo Remote binaries.
+FROM scratch AS akmods
+FROM scratch AS moremote-build
+FROM scratch AS moplayer-build
+
+# Build moos-qml-shell natively on aarch64 — the ONE C++ binary MoOS compiles.
+FROM quay.io/fedora/fedora-bootc:44 AS qmlshell-build
+COPY build_files/moos-qml-shell.cpp /src/moos-qml-shell.cpp
+COPY build_files/build_moos_qml_shell.sh /src/build_moos_qml_shell.sh
+RUN dnf5 -y install gcc-c++ qt6-qtbase-devel qt6-qtdeclarative-devel \
+        kf6-kdbusaddons-devel kf6-kwindowsystem-devel \
+    && bash /src/build_moos_qml_shell.sh /src/moos-qml-shell.cpp /out/moos-qml-shell
+
+# Build scripts stage for bind-mounting.
+FROM scratch AS ctx
+COPY build_files /
+
+# ── Main image ───────────────────────────────────────────────────────────────
+FROM quay.io/fedora/fedora-bootc:44
+
+ARG IMAGE_NAME=moos-arm
+
+LABEL org.opencontainers.image.title="MoOS ARM" \
+      org.opencontainers.image.description="MoOS ARM — atomic desktop for Oracle Cloud Ampere A1 and UTM" \
+      org.opencontainers.image.vendor="Moalfarras" \
+      org.opencontainers.image.source="https://github.com/moalfarras-sys/moos-image"
+
+# System files — MoOS identity, themes, apps, services.
+COPY system_files/ /
+# Re-apply identity AFTER packages (RPM scriptlets may overwrite).
+COPY system_files/ /
+# Native aarch64 QML shell binary.
+COPY --from=qmlshell-build /out/moos-qml-shell /usr/bin/moos-qml-shell
+
+# Run the ARM build script via bind-mounted /ctx.
+RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=cache,dst=/var/cache \
+    --mount=type=cache,dst=/var/log \
+    --mount=type=tmpfs,dst=/tmp \
+    MOOS_IMAGE_NAME="${IMAGE_NAME}" bash /ctx/build_arm.sh
+
+# Final gate — validate bootc container.
+RUN bootc container lint
+
+LABEL org.opencontainers.image.documentation="https://github.com/moalfarras-sys/moos-image#readme" \
+      io.artifacthub.package.readme-url="https://raw.githubusercontent.com/moalfarras-sys/moos-image/main/README.md" \
+      io.artifacthub.package.logo-url="https://raw.githubusercontent.com/moalfarras-sys/moos-image/main/system_files/usr/share/pixmaps/moos-logo.png"
