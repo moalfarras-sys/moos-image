@@ -254,7 +254,16 @@ jobs:
           # by installed MoOS systems. Use the exact digest produced by the build,
           # never a mutable tag that another run could replace underneath us.
           cosign verify --key cosign.pub "${src}"
-          sudo podman --authfile="${REGISTRY_AUTH_FILE}" pull "${src}"
+          # Podman 5.8 rejects `podman --authfile FILE pull` as an unknown
+          # global flag (proven 2026-08-19, ubuntu-24.04-arm). The flag belongs
+          # on the subcommand. sudo pull is required so --local BIB sees the
+          # image in the root store that the privileged builder mounts.
+          AUTH="${REGISTRY_AUTH_FILE:-$HOME/.config/containers/auth.json}"
+          if [ -f "$AUTH" ]; then
+            sudo podman pull --authfile="$AUTH" "${src}"
+          else
+            sudo podman pull "${src}"
+          fi
 
           # The imported boot volume on Oracle is 50 GB by default and cloud-init
           # grows the root into it on first boot, so the image itself only has to

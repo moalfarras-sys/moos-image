@@ -209,9 +209,12 @@ class ArmEditionTests(unittest.TestCase):
                       "a disk artifact must not be built from an unsigned moved tag")
         self.assertIn("needs.build.outputs.digest", text,
                       "the disk job must consume the immutable digest emitted by its build")
-        self.assertRegex(text, r'podman\s+--authfile="\$\{REGISTRY_AUTH_FILE\}"\s+pull\s+"\$\{src\}"',
+        self.assertRegex(text, r'podman\s+pull\s+--authfile="\$AUTH"\s+"\$\{src\}"',
                       "--local only works after the exact GHCR reference is present in "
                       "the disk job's separate root container store")
+        self.assertNotRegex(text, r'podman\s+--authfile=',
+                            "Podman 5.8 rejects --authfile as a global flag; it belongs "
+                            "on the pull subcommand")
 
     # ── security posture ────────────────────────────────────────────────────
     def test_firewall_setup_is_idempotent_and_keeps_rdp_closed(self) -> None:
