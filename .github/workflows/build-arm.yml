@@ -40,6 +40,14 @@ on:
       - "build_files/build-arm.sh"
       - "system_files/**"
       - ".github/workflows/build-arm.yml"
+  pull_request:
+    paths:
+      - "Containerfile.arm"
+      - "build_files/build-arm.sh"
+      - "system_files/usr/share/plymouth/themes/moos/**"
+      - "tests/test_moos_arm.py"
+      - "tests/test_boot_splash_polish.py"
+      - ".github/workflows/build-arm.yml"
 
 env:
   IMAGE_NAME: moos-arm
@@ -53,16 +61,24 @@ jobs:
   build:
     name: Build moos-arm (native aarch64)
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 120
+    timeout-minutes: 240
     permissions:
       contents: read
       packages: write
       id-token: write
     outputs:
       tag: ${{ steps.meta.outputs.tag }}
+      destination: ${{ steps.push.outputs.destination }}
+      digest: ${{ steps.push.outputs.digest }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: ARM and boot-splash source gates
+        run: |
+          bash -n build_files/build-arm.sh
+          python3 tests/test_moos_arm.py
+          python3 tests/test_boot_splash_polish.py
 
       # The ARM runner ships the same pre-baked toolchains as the x86 one and
       # the same ~14 GB of free space. A Plasma image plus a build cache does
@@ -100,8 +116,11 @@ jobs:
       - name: Build the image
         run: |
           podman build \
+            --pull=always \
             -f Containerfile.arm \
             --build-arg IMAGE_NAME=${{ env.IMAGE_NAME }} \
+            --label org.opencontainers.image.version=44.${{ steps.meta.outputs.tag }}.${{ github.run_number }} \
+            --label org.opencontainers.image.revision=${{ github.sha }} \
             -t ${{ env.IMAGE_NAME }}:latest \
             -t ${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tag }} \
             .
@@ -139,6 +158,7 @@ jobs:
           '
 
       - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
         uses: redhat-actions/podman-login@v1
         with:
           registry: ${{ env.REGISTRY }}
@@ -146,11 +166,45 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push
+        if: github.event_name != 'pull_request'
+        id: push
         run: |
+          set -euo pipefail
           dest=${{ env.REGISTRY }}/${{ steps.meta.outputs.owner }}/${{ env.IMAGE_NAME }}
-          podman push ${{ env.IMAGE_NAME }}:latest  "${dest}:latest"
+          podman push --digestfile /tmp/moos-arm.digest \
+            ${{ env.IMAGE_NAME }}:latest "${dest}:latest"
           podman push ${{ env.IMAGE_NAME }}:latest  "${dest}:${{ steps.meta.outputs.tag }}"
-          echo "pushed ${dest}:latest and :${{ steps.meta.outputs.tag }}"
+          digest="$(cat /tmp/moos-arm.digest)"
+          echo "destination=${dest}" >> "$GITHUB_OUTPUT"
+          echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+          echo "pushed ${dest}@${digest}"
+
+      - name: Install cosign
+        if: github.event_name != 'pull_request'
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign the ARM image by digest
+        if: github.event_name != 'pull_request'
+        env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
+        run: |
+          cosign sign -y --key env://COSIGN_PRIVATE_KEY \
+            "${{ steps.push.outputs.destination }}@${{ steps.push.outputs.digest }}"
+
+      - name: Verify the signature against MoOS's installed key
+        if: github.event_name != 'pull_request'
+        run: |
+          set -euo pipefail
+          ref="${{ steps.push.outputs.destination }}@${{ steps.push.outputs.digest }}"
+          for attempt in 1 2 3 4 5 6; do
+            if cosign verify --key cosign.pub "$ref"; then
+              echo "signature verified on attempt ${attempt}"
+              exit 0
+            fi
+            sleep "$(( attempt * 10 ))"
+          done
+          echo "FATAL: the ARM image signature never became verifiable" >&2
+          exit 1
 
   disk:
     name: Build the qcow2 (Oracle / UTM)
@@ -180,12 +234,27 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq podman zstd
 
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Log in to GHCR
+        uses: redhat-actions/podman-login@v1
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build the disk image
         run: |
           set -euo pipefail
-          owner="${GITHUB_REPOSITORY_OWNER,,}"
-          src="ghcr.io/${owner}/${{ env.IMAGE_NAME }}:latest"
+          src="${{ needs.build.outputs.destination }}@${{ needs.build.outputs.digest }}"
           mkdir -p output config
+
+          # A downloadable disk must never bypass the signature policy enforced
+          # by installed MoOS systems. Use the exact digest produced by the build,
+          # never a mutable tag that another run could replace underneath us.
+          cosign verify --key cosign.pub "${src}"
+          sudo podman --authfile="${REGISTRY_AUTH_FILE}" pull "${src}"
 
           # The imported boot volume on Oracle is 50 GB by default and cloud-init
           # grows the root into it on first boot, so the image itself only has to
@@ -199,29 +268,24 @@ jobs:
           # bootc-image-builder is itself published for arm64, so this runs
           # natively: no emulation, and the disk it writes really is an ARM
           # deployment rather than an x86 one with an ARM label.
-          sudo podman run --rm -it --privileged --pull=newer \
+          sudo podman run --rm --privileged --pull=newer \
             --security-opt label=type:unconfined_t \
             -v "$(pwd)/output":/output \
             -v "$(pwd)/config/config.toml":/config.toml:ro \
             -v /var/lib/containers/storage:/var/lib/containers/storage \
             quay.io/centos-bootc/bootc-image-builder:latest \
             --type qcow2 \
+            --rootfs btrfs \
+            --config /config.toml \
             --target-arch arm64 \
             --local \
-            "${src}" || \
-          sudo podman run --rm -it --privileged --pull=newer \
-            --security-opt label=type:unconfined_t \
-            -v "$(pwd)/output":/output \
-            -v "$(pwd)/config/config.toml":/config.toml:ro \
-            -v /var/lib/containers/storage:/var/lib/containers/storage \
-            quay.io/centos-bootc/bootc-image-builder:latest \
-            --type qcow2 --target-arch arm64 "${src}"
+            "${src}"
 
       - name: Compress and report
         id: pack
         run: |
           set -euo pipefail
-          qcow="$(sudo find output -name '*.qcow2' | head -1)"
+          qcow="$(sudo find output -name '*.qcow2' -print -quit)"
           [ -n "$qcow" ] || { echo "FATAL: no qcow2 was produced"; exit 1; }
           sudo chown "$USER" "$qcow"
           name="moos-arm-$(date -u +%Y%m%d).qcow2"

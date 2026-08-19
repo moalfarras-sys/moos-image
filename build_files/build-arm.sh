@@ -68,7 +68,6 @@ _PLASMA=(
     kwin kwin-wayland kwin-wayland-libs
     systemsettings kscreen kscreenlocker
     plasma-nm plasma-pa plasma-systemmonitor
-    plasma-workspace-x11
     xdg-desktop-portal-kde xdg-desktop-portal
     qt6-qtwayland qt6-qtsvg qt6-qtdeclarative qt6-qtmultimedia qt6-qtimageformats
     kf6-kirigami kf6-kirigami-addons kf6-qqc2-desktop-style
@@ -79,7 +78,10 @@ _PLASMA=(
     plymouth plymouth-plugin-script plymouth-plugin-two-step plymouth-system-theme
     dracut-network
     python3 python3-gobject
-    fontconfig
+    fontconfig gtk4 libadwaita
+    mesa-dri-drivers mesa-libEGL mesa-libgbm
+    openssh-server cloud-init cloud-utils-growpart
+    firewalld flatpak openssl sudo
 )
 dnf5 -y install --setopt=install_weak_deps=False "${_PLASMA[@]}"
 
@@ -125,15 +127,35 @@ fi
 # every user of this image. `moos-arm-remote` (section 6) turns it on with a
 # password the owner chooses, once, over SSH.
 echo "=== (3) remote access ==="
-dnf5 -y install --setopt=install_weak_deps=False openssh-server || {
-    echo "FATAL: openssh-server is unavailable — the instance would be unreachable"; exit 1
-}
 if ! dnf5 -y install --setopt=install_weak_deps=False krdp; then
     echo "WARNING: krdp is not in this Fedora's repos — the ARM edition will ship"
     echo "         with SSH only and no graphical remote. moos-arm-remote will say so."
     touch /usr/lib/moos/no-krdp
 fi
-systemctl enable sshd.service
+
+# Package payloads are allowed to overwrite vendor defaults during installation.
+# The MoOS overlay is the final authority, so restore it only after the LAST dnf
+# transaction. Without this, transaction order decides whether the session,
+# greeter and theme are MoOS or Fedora — and a green source-tree gate cannot see
+# that difference.
+test -d /moos-overlay/usr/share || {
+    echo "FATAL: the pristine system_files overlay is not mounted at /moos-overlay"
+    exit 1
+}
+cp -a /moos-overlay/. /
+
+systemctl enable NetworkManager.service sshd.service firewalld.service
+# Fedora 44's documented PLM switch uses --force because the graphical-login
+# alias may still point at a display manager inherited from a package preset.
+systemctl enable --force plasmalogin.service
+systemctl set-default graphical.target
+
+# Defence in depth around the public cloud VM. SSH is the only service exposed
+# by the image. KRDP remains reachable through an SSH tunnel to localhost; this
+# image never opens 3389 on the host firewall.
+firewall-offline-cmd --set-default-zone=public
+firewall-offline-cmd --zone=public --add-service=ssh
+firewall-offline-cmd --zone=public --remove-service=rdp 2>/dev/null || true
 
 # SSH: keys only. Oracle injects the instance's public key through cloud-init,
 # so password authentication buys nothing and costs a brute-force surface on a
@@ -180,8 +202,6 @@ PLY
 # (5) Oracle Cloud Infrastructure
 # -----------------------------------------------------------------------------
 echo "=== (5) Oracle Cloud (Ampere A1) ==="
-dnf5 -y install --setopt=install_weak_deps=False cloud-init cloud-utils-growpart
-
 # The datasource list is pinned rather than left to detection. Left to detect,
 # cloud-init probes every datasource in turn and each miss costs seconds on a
 # boot the owner asked to be fast; worse, on a first boot with no network yet it
@@ -205,12 +225,18 @@ resize_rootfs: true
 # The default user. Oracle's own images use `opc`; MoOS uses `moos` so the same
 # name works on OCI, on UTM and on bare metal, and so that documentation does not
 # have to fork per platform.
+#
+# There is deliberately no NOPASSWD sudo rule. Membership in wheel uses Fedora's
+# normal password-authenticated sudo policy. Oracle launch user-data sets a
+# unique management password; the SSH key remains the only network login method
+# because sshd disables password authentication above. Do not pre-expire the
+# password: with both password and keyboard-interactive SSH disabled, forcing a
+# password change during the key login can lock the account out before sudo works.
 system_info:
   default_user:
     name: moos
     gecos: MoOS
     groups: [wheel, video, audio, input, render]
-    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
     shell: /bin/bash
 CLOUDCFG
 systemctl enable cloud-init.service cloud-init-local.service \
@@ -266,48 +292,175 @@ DRACUT
 # -----------------------------------------------------------------------------
 install -D -m0755 /dev/stdin /usr/bin/moos-arm-remote <<'REMOTE'
 #!/usr/bin/env bash
-# moos-arm-remote — enable the MoOS desktop's RDP server on this instance.
+# moos-arm-remote — create the headless Wayland desktop and enable KRDP.
 #
-# Deliberately NOT done at build time. Enabling a remote-desktop service with a
-# credential baked into the image would mean every machine ever booted from it
-# shares one password on a public IP. The owner sets it here, once, on their own
-# instance.
+# Usage:
+#   sudo moos-arm-remote on [user]
+#   sudo moos-arm-remote off [user]
+#   sudo moos-arm-remote status [user]
+#
+# KRDP authenticates through PAM with this account's own password. No second
+# credential is baked into the image, passed on a command line, or stored in a
+# generated unit. The host firewall keeps 3389 closed; reach it through SSH:
+#   ssh -N -L 3389:127.0.0.1:3389 moos@<public-ip>
 set -euo pipefail
+
+action="${1:-on}"
+target="${2:-${SUDO_USER:-moos}}"
 
 if [ -f /usr/lib/moos/no-krdp ]; then
     echo "This image was built without krdp, so there is no graphical remote."
     echo "SSH still works. Rebuild once krdp is available in Fedora aarch64."
     exit 1
 fi
-if [ "$(id -u)" -eq 0 ]; then
-    echo "Run this as your own user, not root — the RDP server runs in your"
-    echo "desktop session and needs your session bus."
+[ "$(id -u)" -eq 0 ] || {
+    echo "Run with sudo: sudo moos-arm-remote ${action} ${target}" >&2
     exit 1
+}
+id "$target" >/dev/null 2>&1 || {
+    echo "No such account: ${target}" >&2
+    exit 1
+}
+uid="$(id -u "$target")"
+home="$(getent passwd "$target" | cut -d: -f6)"
+[ -n "$home" ] || { echo "Could not resolve ${target}'s home directory" >&2; exit 1; }
+
+run_user() {
+    runuser -u "$target" -- env \
+        "HOME=${home}" \
+        "XDG_RUNTIME_DIR=/run/user/${uid}" \
+        "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${uid}/bus" \
+        "$@"
+}
+
+status() {
+    run_user systemctl --user --no-pager status \
+        moos-arm-desktop.service app-org.kde.krdpserver.service
+}
+
+case "$action" in
+    status)
+        status
+        exit
+        ;;
+    off)
+        run_user systemctl --user disable --now app-org.kde.krdpserver.service \
+            moos-arm-desktop.service 2>/dev/null || true
+        echo "MoOS ARM remote desktop disabled for ${target}."
+        exit
+        ;;
+    on) ;;
+    *)
+        echo "Usage: sudo moos-arm-remote <on|off|status> [user]" >&2
+        exit 2
+        ;;
+esac
+
+# PAM must have a real password to authenticate an RDP login and to preserve the
+# project's password-required privilege boundary. The Oracle deployment user-data
+# creates a unique management password; a locked image-default account is refused.
+password_state="$(passwd -S "$target" 2>/dev/null | awk '{print $2}')"
+case "$password_state" in
+    P|PS) ;;
+    *)
+        echo "The ${target} account has no usable password." >&2
+        echo "Recreate the instance with the documented management-password cloud-init user-data." >&2
+        exit 1
+        ;;
+esac
+
+loginctl enable-linger "$target"
+systemctl start "user@${uid}.service"
+for _ in $(seq 1 30); do
+    [ -S "/run/user/${uid}/bus" ] && break
+    sleep 1
+done
+[ -S "/run/user/${uid}/bus" ] || {
+    echo "The systemd user bus for ${target} did not start." >&2
+    exit 1
+}
+
+# KWin's virtual backend needs a DRM allocation device before it offers an
+# OpenGL compositor. KRDP cannot capture a QPainter session, so this is a hard
+# requirement rather than a cosmetic acceleration.
+modprobe vgem
+install -D -m0644 /dev/stdin /etc/modules-load.d/moos-arm-vgem.conf <<'MODLOAD'
+vgem
+MODLOAD
+install -D -m0644 /dev/stdin /etc/udev/rules.d/61-moos-arm-vgem.rules <<'UDEV'
+SUBSYSTEM=="drm", KERNEL=="card*", DEVPATH=="/devices/faux/vgem/drm/card*", GROUP="render", MODE="0660"
+UDEV
+udevadm control --reload-rules
+udevadm trigger --subsystem-match=drm --action=change
+
+kwin_drop="${home}/.config/systemd/user/plasma-kwin_wayland.service.d"
+install -d -o "$target" -g "$target" -m0755 "$kwin_drop"
+install -D -o "$target" -g "$target" -m0644 /dev/stdin \
+    "${kwin_drop}/20-moos-arm-virtual-output.conf" <<'KWIN'
+[Service]
+Environment=LIBGL_ALWAYS_SOFTWARE=1
+ExecStart=
+ExecStart=/usr/bin/kwin_wayland_wrapper --virtual --width 1920 --height 1080
+KWIN
+
+desktop_unit="${home}/.config/systemd/user/moos-arm-desktop.service"
+install -D -o "$target" -g "$target" -m0644 /dev/stdin "$desktop_unit" <<'DESKTOP'
+[Unit]
+Description=MoOS ARM headless Plasma Wayland desktop
+Wants=dbus.socket
+After=dbus.socket
+
+[Service]
+Type=simple
+Environment=LIBGL_ALWAYS_SOFTWARE=1
+ExecStart=/usr/bin/startplasma-wayland
+ExecStopPost=/usr/bin/systemctl --user unset-environment DISPLAY WAYLAND_DISPLAY XAUTHORITY
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+DESKTOP
+
+run_user systemctl --user daemon-reload
+run_user systemctl --user enable --now moos-arm-desktop.service
+for _ in $(seq 1 90); do
+    run_user systemctl --user is-active --quiet plasma-workspace.target && break
+    sleep 1
+done
+run_user systemctl --user is-active --quiet plasma-workspace.target || {
+    echo "Plasma did not reach plasma-workspace.target for ${target}." >&2
+    status || true
+    exit 1
+}
+
+# This is KDE's documented headless KRDP setup: authorize the server in the
+# portal store, generate per-instance TLS material, use the system account via
+# PAM, then start the user service. No password appears in argv or a config file.
+run_user flatpak permission-set kde-authorized remote-desktop org.kde.krdpserver yes
+cert_dir="${home}/.local/share/krdpserver"
+install -d -o "$target" -g "$target" -m0700 "$cert_dir"
+if [ ! -s "${cert_dir}/krdp.crt" ] || [ ! -s "${cert_dir}/krdp.key" ]; then
+    run_user openssl req -nodes -new -x509 \
+        -keyout "${cert_dir}/krdp.key" \
+        -out "${cert_dir}/krdp.crt" \
+        -days 397 -batch
 fi
-
-echo "MoOS remote desktop (RDP, port 3389)"
-echo
-read -r -s -p "Choose a password for remote sign-in: " p1; echo
-read -r -s -p "Repeat it: " p2; echo
-[ -n "$p1" ] || { echo "Empty password refused."; exit 1; }
-[ "$p1" = "$p2" ] || { echo "They do not match."; exit 1; }
-
-kwriteconfig6 --file krdprc --group General --key Autostart true
-kwriteconfig6 --file krdprc --group General --key Users "$USER"
-# krdp stores the credential in the session wallet, not in a file.
-printf '%s' "$p1" | krdpserver --set-password "$USER" 2>/dev/null \
-    || echo "note: set the password in System Settings > Remote Desktop if this failed"
-systemctl --user enable --now app-org.kde.krdpserver.service 2>/dev/null || true
+run_user kwriteconfig6 --file krdpserverrc --group General \
+    --key Certificate "${cert_dir}/krdp.crt"
+run_user kwriteconfig6 --file krdpserverrc --group General \
+    --key CertificateKey "${cert_dir}/krdp.key"
+run_user kwriteconfig6 --file krdpserverrc --group General \
+    --key SystemUserEnabled true
+run_user kwriteconfig6 --file krdpserverrc --group General \
+    --key LockOnDisconnect true
+run_user systemctl --user enable --now app-org.kde.krdpserver.service
 
 echo
-echo "Enabled. Two more things have to happen OUTSIDE this machine:"
-echo "  1. Oracle blocks everything but SSH by default. In the OCI console open"
-echo "     TCP 3389 in the subnet's security list (or a network security group)."
-echo "  2. Connect with any RDP client to  <this instance's public IP>:3389"
-echo "     as user '$USER'."
-echo
-echo "Safer alternative, if you would rather not expose 3389 at all:"
-echo "  ssh -L 3389:localhost:3389 $USER@<public-ip>   then connect to localhost:3389"
+echo "MoOS ARM remote desktop is running for ${target}."
+echo "Keep port 3389 closed. From your PC run:"
+echo "  ssh -N -L 3389:127.0.0.1:3389 ${target}@<public-ip>"
+echo "Then connect the RDP client to localhost:3389 with ${target}'s system password."
 REMOTE
 
 # -----------------------------------------------------------------------------
@@ -335,6 +488,26 @@ test -f /usr/lib/systemd/system/dbus-broker.service.d/moos-start-timeout.conf ||
     echo "FATAL: the dbus-broker start-timeout drop-in did not arrive from system_files"; exit 1
 }
 
+# The x86 editions compile MoPlayer's Flutter bundle and Mo PC Remote's .NET
+# agent in architecture-specific build stages. Those binaries do not exist in
+# this deliberately lightweight ARM image. Do not leave launchers that open a
+# control panel for a missing backend or a player wrapper with no bundle.
+rm -f \
+    /usr/bin/moplayer \
+    /usr/bin/mo-pc-remote \
+    /usr/share/applications/org.moos.moplayer.desktop \
+    /usr/share/applications/org.moos.remote.desktop \
+    /usr/share/metainfo/org.moos.moplayer.metainfo.xml
+install -D -m0644 /dev/stdin /usr/share/doc/moos-arm/OMITTED.md <<'OMITTED'
+# Intentionally omitted from MoOS ARM
+
+- MoPlayer: its vendored Flutter Linux bundle is currently built only for x86_64.
+- Mo PC Remote: its self-contained .NET agent is currently built only for x86_64.
+
+The ARM cloud path uses KDE KRDP over an SSH tunnel (`moos-arm-remote`) instead.
+No non-working launcher is shown for either omitted binary.
+OMITTED
+
 # -----------------------------------------------------------------------------
 # (8) Identity
 # -----------------------------------------------------------------------------
@@ -347,19 +520,39 @@ printf '%s\n' "aarch64" > /usr/lib/moos/arch
 # A MoOS that introduces itself as Fedora is not MoOS.
 cat > /usr/lib/os-release <<'OSREL'
 NAME="MoOS"
-PRETTY_NAME="MoOS (ARM)"
+PRETTY_NAME="MoOS"
 ID=moos
 ID_LIKE="fedora"
 VERSION="44"
 VERSION_ID="44"
 ANSI_COLOR="0;38;2;78;215;200"
 LOGO=moos-logo
-HOME_URL="https://github.com/moalfarras-sys/moos-image"
+HOME_URL="https://www.moalfarras.space"
+DOCUMENTATION_URL="https://github.com/moalfarras-sys/moos-image"
+SUPPORT_URL="https://github.com/moalfarras-sys/moos-image/issues"
 BUG_REPORT_URL="https://github.com/moalfarras-sys/moos-image/issues"
-VARIANT="ARM"
-VARIANT_ID=arm
+DEFAULT_HOSTNAME="moos"
+CPE_NAME="cpe:/o:moos:moos:44"
+VARIANT="MoOS"
+VARIANT_ID=moos
 OSREL
 ln -sf ../usr/lib/os-release /etc/os-release
+for _release in /etc/fedora-release /etc/redhat-release /etc/system-release; do
+    rm -f "$_release"
+    printf 'MoOS\n' > "$_release"
+done
+
+# Wayland is the only MoOS session. A package dependency must not quietly add a
+# selectable X11 session after the curated list deliberately excluded it.
+mapfile -t _x11_sessions < <(
+    find /usr/share/xsessions -maxdepth 1 -type f -name '*.desktop' -print 2>/dev/null
+)
+if [ "${#_x11_sessions[@]}" -gt 0 ]; then
+    echo "FATAL: an X11 desktop session reached the ARM image" >&2
+    printf '  %s\n' "${_x11_sessions[@]}" >&2
+    exit 1
+fi
+unset -v _x11_sessions
 
 # -----------------------------------------------------------------------------
 # (9) Rebuild the initramfs so the splash and the virtio drivers are in it
@@ -390,6 +583,13 @@ if [ -s /tmp/moos-arm-initrd.txt ]; then
 else
     echo "WARNING: lsinitrd produced nothing; the splash could not be verified here"
 fi
+
+# The ARM edition does not get a reduced identity standard. These are the same
+# finished-image gates the x86 editions run, after every package and overwrite.
+echo "=== (9b) finished-image identity gates ==="
+python3 /ctx/verify_identity.py
+python3 /ctx/verify_image_experience.py
+python3 /ctx/verify_no_foreign_identity.py
 
 # -----------------------------------------------------------------------------
 # (10) Clean up so `bootc container lint` passes

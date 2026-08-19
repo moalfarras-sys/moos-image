@@ -101,6 +101,17 @@ class ArmEditionTests(unittest.TestCase):
         self.assertFalse((ROOT / "system_files_arm").exists(),
                          "a forked identity tree exists; the editions will drift")
 
+    def test_the_shared_overlay_wins_after_package_transactions(self) -> None:
+        containerfile = read(CONTAINERFILE)
+        build = read(BUILD)
+        self.assertIn("FROM scratch AS system-files", containerfile)
+        self.assertIn("from=system-files", containerfile)
+        self.assertIn("target=/moos-overlay", containerfile)
+        self.assertIn("cp -a /moos-overlay/. /", build,
+                      "RPMs are installed after the first COPY system_files; without a "
+                      "pristine final overlay, package transaction order can silently "
+                      "replace the MoOS session, greeter, or theme")
+
     # ── the ARM-specific things that x86 gets wrong ─────────────────────────
     def test_the_serial_console_is_the_arm_uart(self) -> None:
         text = code(read(BUILD))
@@ -127,12 +138,38 @@ class ArmEditionTests(unittest.TestCase):
                       "on x86 exceeds the job timeout")
         self.assertIn("arm64", text, "the workflow must verify the image architecture")
 
+    def test_the_new_workflow_can_prove_a_feature_branch(self) -> None:
+        text = read(WORKFLOW)
+        self.assertIn("pull_request:", text,
+                      "a workflow file added only on a feature branch cannot be manually "
+                      "dispatched until it reaches the default branch; a pull-request "
+                      "trigger is the safe first real build")
+        for gate in (
+            "bash -n build_files/build-arm.sh",
+            "python3 tests/test_moos_arm.py",
+            "python3 tests/test_boot_splash_polish.py",
+        ):
+            self.assertIn(gate, text, f"the ARM workflow never runs {gate}")
+
+    def test_every_published_arm_image_is_signed_and_verified(self) -> None:
+        text = read(WORKFLOW)
+        self.assertIn("cosign sign", text)
+        self.assertIn("cosign verify --key cosign.pub", text)
+        self.assertIn("SIGNING_SECRET", text)
+
     def test_the_disk_image_targets_arm(self) -> None:
         text = read(WORKFLOW)
         self.assertIn("--target-arch arm64", text,
                       "bootc-image-builder must be told to produce an arm64 disk")
         self.assertIn("--type qcow2", text,
                       "Oracle imports QCOW2; the workflow must produce one")
+        self.assertIn('cosign verify --key cosign.pub "${src}"', text,
+                      "a disk artifact must not be built from an unsigned moved tag")
+        self.assertIn("needs.build.outputs.digest", text,
+                      "the disk job must consume the immutable digest emitted by its build")
+        self.assertRegex(text, r'podman\s+--authfile="\$\{REGISTRY_AUTH_FILE\}"\s+pull\s+"\$\{src\}"',
+                      "--local only works after the exact GHCR reference is present in "
+                      "the disk job's separate root container store")
 
     # ── security posture ────────────────────────────────────────────────────
     def test_no_remote_desktop_credential_is_baked_into_the_image(self) -> None:
@@ -152,11 +189,52 @@ class ArmEditionTests(unittest.TestCase):
                       "there must be a helper that turns the remote on with a password "
                       "the owner chooses on their own instance")
 
+    def test_privilege_escalation_always_requires_a_password(self) -> None:
+        text = code(read(BUILD))
+        self.assertNotIn("NOPASSWD", text,
+                         "MoOS never ships passwordless sudo or polkit; the cloud account "
+                         "must receive a unique password through launch user-data")
+        self.assertIn("groups: [wheel", text,
+                      "the cloud account needs Fedora's normal password-authenticated "
+                      "wheel policy")
+
+    def test_krdp_uses_pam_not_a_password_in_argv_or_a_fake_cli(self) -> None:
+        text = code(read(BUILD))
+        self.assertIn("--key SystemUserEnabled true", text,
+                      "headless KRDP must authenticate with the system account through PAM")
+        self.assertIn("--file krdpserverrc", text,
+                      "KRDP's real KConfig file is krdpserverrc")
+        self.assertNotIn("--set-password", text,
+                         "krdpserver has no --set-password option")
+        self.assertNotRegex(text, r"krdpserver\s+[^\n]*\s-[up]\s",
+                            "an RDP password must not be exposed in the process argv")
+        self.assertIn("flatpak permission-set kde-authorized remote-desktop "
+                      "org.kde.krdpserver yes", text,
+                      "the headless session has nobody who can click the portal prompt")
+
     def test_ssh_is_keys_only(self) -> None:
         text = read(BUILD)
         self.assertIn("PasswordAuthentication no", text,
                       "the instance has a public IP; password SSH is only an attack surface")
         self.assertIn("PermitRootLogin no", text)
+
+    def test_arm_is_wayland_only(self) -> None:
+        text = code(read(BUILD))
+        self.assertNotIn("plasma-workspace-x11", text)
+        self.assertNotIn("--xwayland", text)
+        self.assertIn("/usr/share/xsessions", text,
+                      "the finished image must fail if a dependency adds an X11 session")
+
+    def test_unsupported_x86_apps_are_not_left_as_dead_launchers(self) -> None:
+        text = code(read(BUILD))
+        self.assertIn("rm -f", text)
+        remove_block = text.split("rm -f", 1)[1].split("install -D", 1)[0]
+        for path in (
+            "/usr/share/applications/org.moos.moplayer.desktop",
+            "/usr/share/applications/org.moos.remote.desktop",
+        ):
+            self.assertIn(path, remove_block,
+                          f"{path} would open a missing architecture-specific backend")
 
     # ── the things that make a cloud image boot at all ──────────────────────
     def test_cloud_init_is_present_and_pinned(self) -> None:
@@ -202,6 +280,14 @@ class ArmEditionTests(unittest.TestCase):
             ("moos-arm-remote", "how the desktop is reached"),
         ):
             self.assertIn(topic, text, f"the guide must cover {topic} — {why}")
+
+        self.assertIn("2 OCPU", text,
+                      "the guide still claims Oracle's retired 4-OCPU free allowance")
+        self.assertIn("12 GB", text,
+                      "the current Always Free Ampere memory allowance is 12 GB")
+        self.assertIn("20 GB", text,
+                      "Object Storage/custom-image bytes are only free inside the "
+                      "tenancy's 20 GB allowance")
 
 
 if __name__ == "__main__":

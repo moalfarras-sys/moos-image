@@ -43,7 +43,7 @@ reason.
 
 **Frames are scaled once per displayed frame, never at load time.** Pre-scaling
 the sequence would cost `frames × screen × 4` bytes inside the initramfs — around
-190 MB at 1080p — on machines that may have 1 GB. `refresh()` scales only when
+219 MiB at 1080p — on machines that may have 1 GB. `refresh()` scales only when
 the displayed frame changes, and only one scaled copy exists at a time.
 
 **The stored frame size is a memory budget, not a quality knob.** Every frame is

@@ -1297,7 +1297,7 @@ require("plymouth-set-default-theme moos" in build_sh,
 # The check must be DERIVED, not enumerated. This used to name seven sprites by
 # hand, in three places, and every one of them went stale when the theme became
 # a frame sequence: they demanded ring2/particle/pulse (gone) and said nothing
-# about the 36 intro frames (the entire animation). Ask the script what it loads.
+# about the 32 intro frames (the entire animation). Ask the script what it loads.
 require("grep -oE 'Image" in build_sh and 'moos.script"' in build_sh,
         "build.sh must derive the theme's asset list FROM moos.script and prove each one "
         "landed — a missing ScriptFile or image silently drops the boot to the text splash, "
@@ -4398,14 +4398,17 @@ require(f"Window.SetBackgroundBottomColor({_ground})" in moos_script_src,
         f"the boot splash's bottom background is not the UI2 canvas #{_canvas} — the ground "
         f"must be FLAT, or the splash-to-desktop seam shows")
 
-# The splash is LOGO-HERO: the crisp mark is centred and the cyan-violet energy
-# head ORBITS a ring as the loading indicator. Gate that the script actually
-# centres the logo and drives the head around the ring at ring_radius, so a future
-# edit cannot bury the mark or freeze the loader.
-require("logo_sprite.SetX(cx" in moos_script_src and "logo_sprite.SetY(cy" in moos_script_src,
-        "the boot mark must be centred as the hero")
-require("head_sprite.SetX(hx" in moos_script_src and "ring_radius" in moos_script_src,
-        "the boot loading head must orbit the ring (ring_radius) as the loading indicator")
+# The splash is LOGO-HERO: the rendered stage is centred and the slow-boot cue
+# orbits that same centre. Gate the relationships, not retired sprite variable
+# names from the synthetic reveal that preceded the frame sequence.
+require("stage_x = cx - stage_w / 2" in moos_script_src
+        and "stage_y = cy - stage_h / 2" in moos_script_src
+        and "intro_sprite.SetX(stage_x)" in moos_script_src
+        and "intro_sprite.SetY(stage_y)" in moos_script_src,
+        "the rendered boot stage must be centred as the hero")
+require("head_sprite.SetX(cx + ring_radius * Math.Cos(rad)" in moos_script_src
+        and "head_sprite.SetY(cy + ring_radius * Math.Sin(rad)" in moos_script_src,
+        "the slow-boot loading head must orbit the ring around the hero")
 # Scale to screen height, so it is crisp at 1080p and 4K without stretching.
 require("Window.GetHeight(0)" in moos_script_src,
         "the boot splash must size itself from the screen height (crisp at 1080p and 4K)")

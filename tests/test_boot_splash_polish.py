@@ -97,7 +97,7 @@ class BootSplashTests(unittest.TestCase):
 
     def test_frames_are_not_prescaled_into_memory(self) -> None:
         # Pre-scaling the whole sequence at load time costs frames x screen x 4
-        # bytes inside the initramfs — ~190 MB at 1080p for 36 frames, on
+        # bytes inside the initramfs — ~219 MiB at 1080p for 32 frames, on
         # machines that may have 1 GB.
         setup = script_text().split("fun refresh()", 1)[0]
         self.assertNotRegex(setup, r"frames\[\s*i\s*\]\s*=\s*Image\([^)]*\)\.Scale",

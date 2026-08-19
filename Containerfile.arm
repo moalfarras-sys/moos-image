@@ -17,7 +17,8 @@
 #
 # WHAT THIS IS FOR
 #   * Oracle Cloud, Ampere A1 (VM.Standard.A1.Flex) — the Always Free aarch64
-#     shape: 4 OCPU and 24 GB at no cost. See docs/MOOS_ARM_ORACLE.md.
+#     allowance currently totals 2 OCPU and 12 GB. See
+#     docs/MOOS_ARM_ORACLE.md for the storage-cost boundary.
 #   * UTM on Apple silicon (hardware virtualisation) and on iPhone/iPad.
 #   * Any aarch64 UEFI machine.
 #
@@ -39,6 +40,14 @@ FROM quay.io/fedora/fedora-bootc:44 AS base
 # -----------------------------------------------------------------------------
 FROM scratch AS ctx
 COPY build_files /
+
+# Keep a pristine copy of the shared MoOS filesystem overlay. Fedora packages
+# are installed during build-arm.sh and may replace session/default files that
+# were copied earlier. Re-applying this mounted snapshot after the last package
+# transaction makes the final bytes MoOS-owned instead of depending on RPM
+# transaction order.
+FROM scratch AS system-files
+COPY system_files /
 
 # -----------------------------------------------------------------------------
 # moos-qml-shell — the one C++ binary MoOS compiles itself: the QML host that
@@ -76,6 +85,7 @@ COPY system_files/ /
 COPY --from=qmlshell-build /out/moos-qml-shell /usr/bin/moos-qml-shell
 
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=bind,from=system-files,source=/,target=/moos-overlay \
     --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=tmpfs,dst=/tmp \

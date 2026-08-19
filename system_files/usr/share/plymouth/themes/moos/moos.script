@@ -11,16 +11,15 @@
 //   six angular wedges lit in turn, orbiting particles. It was cheap and it
 //   looked synthesised, because the sting has 3D rotation, plasma and a floor
 //   reflection in it and none of those can be faked by translating images. The
-//   sequence is 36 frames cut from the render by artwork/build_boot_frames.py.
+//   sequence is 32 frames cut from the render by artwork/build_boot_frames.py.
 //
 // WHAT THAT COSTS, AND THE THREE THINGS THAT KEEP IT CHEAP
-//   * SIZE. The frames are stored at 640x415 — about 8 MB, ~36 MB once Plymouth
-//     decodes them. That is the whole budget, and it is a budget: every frame
-//     lives in the initramfs and is decoded on every boot. Raising the stored
-//     width raises both, quadratically.
+//   * SIZE. The frames keep the render's original 856x556 crop — 11.27 MiB on
+//     disk and 58.1 MiB once Plymouth decodes all 32. That is the whole budget:
+//     every frame lives in the initramfs and is decoded on every boot.
 //   * SCALING. Frames are scaled to the screen ONLY when the displayed frame
 //     changes — 25 times a second, not 50 — and only one scaled copy exists at a
-//     time. Pre-scaling all 36 would cost ~190 MB at 1080p, which is why it is
+//     time. Pre-scaling all 32 would cost ~219 MiB at 1080p, which is why it is
 //     not done.
 //   * SHARPNESS. The source render is 1024x576, so the sequence is an upscale at
 //     boot size and there is no way around that — it is the master. What IS

@@ -9,7 +9,7 @@ It targets three things:
 
 | Target | Shape | Notes |
 |---|---|---|
-| **Oracle Cloud** | `VM.Standard.A1.Flex` (Ampere) | Always Free: 4 OCPU + 24 GB RAM + 200 GB storage |
+| **Oracle Cloud** | `VM.Standard.A1.Flex` (Ampere) | Current Always Free ceiling: 2 OCPU + 12 GB RAM + 200 GB block storage |
 | **UTM on Apple silicon** | Virtualize | Near-native speed |
 | **UTM on iPhone / iPad** | Emulate (UTM SE) | Works, but see [the honest note](#utm-on-iphone) |
 
@@ -42,9 +42,18 @@ take.
 
 ### 2.1 Before you start
 
-You need an OCI account with the **Always Free** tier. Everything below stays
-inside it: the A1 shape, 200 GB of block volume, and the Object Storage used
-during import are all free-tier resources.
+You need an OCI account with the **Always Free** tier. The A1 allocation is
+currently **2 OCPU + 12 GB RAM total per tenancy**, and Always Free includes
+200 GB of block volumes.
+
+Object/custom-image storage is not an unlimited free resource. OCI includes
+**20 GB combined Object Storage** in the Always Free allowance, and Oracle
+documents custom-image storage as billable storage usage. The compressed
+artifact does not count after decompression/import; the uploaded QCOW2 object
+and the retained custom image do. Before launch, check **Billing & Cost
+Management → Cost Analysis** and create a zero/low budget alert. Delete the
+temporary bucket object after a successful import. Do not claim a `$0` result
+until Cost Analysis confirms the tenancy remains inside its allowances.
 
 ### 2.2 Upload the image to Object Storage
 
@@ -77,13 +86,29 @@ If Oracle did not detect it, add it there by hand.
 
 - **Image**: *Change image* → **My images** → your `moos-arm` image
 - **Shape**: *Change shape* → **Ampere** → `VM.Standard.A1.Flex`
-  - **4 OCPUs, 24 GB memory** — this is the entire Always Free ARM allowance in
-    one instance
+  - **2 OCPUs, 12 GB memory** — this is the current full Always Free ARM
+    allowance in one instance
 - **Networking**: assign a public IPv4 address
 - **SSH keys**: upload your public key. Oracle hands it to cloud-init, which
   installs it for the **`moos`** user.
+- **Management password**: add cloud-init user-data that assigns `moos` a
+  unique strong password. SSH password authentication remains disabled; this
+  password is for authenticated `sudo` and KRDP only. MoOS does not ship
+  `NOPASSWD` sudo. Change it later with `passwd` if needed.
 - **Boot volume**: 50 GB is fine (free tier gives 200 GB total). cloud-init grows
   the root filesystem into whatever you give it on first boot.
+
+The deployment automation generates the password hash and user-data without
+committing either one. For a manual launch, use this shape and replace
+`<SHA-512-HASH>` with a fresh `openssl passwd -6` result:
+
+```yaml
+#cloud-config
+chpasswd:
+  expire: false
+  users:
+    - {name: moos, password: "<SHA-512-HASH>", type: hash}
+```
 
 Then:
 
@@ -103,7 +128,7 @@ What works:
   separate pools.
 - **Retry on a schedule.** Capacity frees up continuously; the same request that
   failed at noon often succeeds at 03:00 local.
-- **Ask for less.** 1 OCPU / 6 GB is often available when 4/24 is not, and you
+- **Ask for less.** 1 OCPU / 6 GB is often available when 2/12 is not, and you
   can resize the instance upward later without rebuilding it.
 - **Region matters.** Your home region is fixed once chosen, so if you have not
   created the tenancy yet, a less busy region is worth picking deliberately.
@@ -119,14 +144,15 @@ An Ampere instance has no monitor, so the desktop needs a remote. MoOS ARM ships
 KDE's own RDP server (KRDP), which drives the **real Plasma Wayland session** —
 not a second X11 session the way `xrdp` would.
 
-It is installed but **switched off, with no password**. A remote-desktop service
-with a credential baked into the image would mean every machine ever booted from
-that image shares one password on a public IP. So you set it, once, on your own
-instance:
+It is installed but **switched off**. A remote-desktop service with a credential
+baked into the image would mean every machine ever booted from that image shares
+one password on a public IP. KRDP therefore uses the instance's own PAM account
+password, and the setup creates a software-rendered headless Plasma Wayland
+session only after you opt in:
 
 ```bash
 ssh moos@<public-ip>
-moos-arm-remote        # asks for a password, enables the service
+sudo moos-arm-remote on moos
 ```
 
 Then choose one of:
@@ -137,10 +163,11 @@ Then choose one of:
 ssh -L 3389:localhost:3389 moos@<public-ip>
 ```
 
-Connect your RDP client to `localhost:3389`. Port 3389 stays closed to the
-internet.
+Connect your RDP client to `localhost:3389` as `moos`, using the unique system
+password from instance creation. Port 3389 stays
+closed in both OCI and firewalld.
 
-**B. Open the port**
+**B. Open the port (not recommended)**
 
 In the OCI console: **Networking → VCN → Security Lists** → add an ingress rule
 for **TCP 3389**. Prefer restricting the source to your own IP rather than
@@ -173,9 +200,11 @@ The same `.qcow2` file, no conversion.
    the virtio drivers in its initramfs).
 5. Boot. The MoOS animation plays, then the login screen.
 
-Because there is no cloud metadata, cloud-init falls through to `None` and no SSH
-key is installed — log in at the graphical greeter instead. If you want SSH in a
-UTM guest, attach a `NoCloud` seed ISO; the datasource list already accepts it.
+Because there is no Oracle metadata, the QCOW2 alone has no safe per-device
+password or SSH key. Attach a `NoCloud` seed ISO that creates the `moos` account
+with your own password/key before expecting graphical login. A repository-known
+default password is deliberately not shipped. The datasource list already
+accepts NoCloud.
 
 ### UTM on iPhone
 
