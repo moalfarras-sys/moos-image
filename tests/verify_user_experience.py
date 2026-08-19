@@ -1294,25 +1294,39 @@ require("plymouth-plugin-script" in build_sh,
         "build.sh must install plymouth-plugin-script — the moos boot theme is a Script theme")
 require("plymouth-set-default-theme moos" in build_sh,
         "build.sh must select the moos boot theme")
-require("for _f in moos.script logo.png ring.png ring2.png head.png glow.png particle.png pulse.png" in build_sh,
-        "build.sh must PROVE the script + ALL SEVEN sprites landed — a missing ScriptFile or "
-        "sprite silently drops the boot to the text splash, with every other gate green")
-for _asset in ("moos.script", "logo.png", "ring.png", "ring2.png", "head.png", "glow.png",
-               "particle.png", "pulse.png"):
-    require((theme_dir / _asset).is_file(),
-            f"the moos Script theme must ship {_asset} — the splash aborts to text without it")
+# The check must be DERIVED, not enumerated. This used to name seven sprites by
+# hand, in three places, and every one of them went stale when the theme became
+# a frame sequence: they demanded ring2/particle/pulse (gone) and said nothing
+# about the 32 intro frames (the entire animation). Ask the script what it loads.
+require("grep -oE 'Image" in build_sh and 'moos.script"' in build_sh,
+        "build.sh must derive the theme's asset list FROM moos.script and prove each one "
+        "landed — a missing ScriptFile or image silently drops the boot to the text splash, "
+        "with every other gate green")
+require("INTRO_COUNT" in build_sh,
+        "build.sh must cross-check INTRO_COUNT against the installed intro frames")
 _moos_cfg = (theme_dir / "moos.plymouth").read_text(encoding="utf-8")
 require("ModuleName=script" in _moos_cfg,
         "moos.plymouth must select the script module")
 require("ScriptFile=/usr/share/plymouth/themes/moos/moos.script" in _moos_cfg,
         "moos.plymouth must point ScriptFile at moos.script")
 _moos_script = (theme_dir / "moos.script").read_text(encoding="utf-8")
-for _spr in ('Image("logo.png")', 'Image("ring.png")', 'Image("ring2.png")', 'Image("head.png")',
-             'Image("glow.png")', 'Image("particle.png")', 'Image("pulse.png")'):
-    require(_spr in _moos_script,
-            f"moos.script must load {_spr} — a typo'd or missing load aborts the whole theme")
+import re as _re
+_loads = sorted(set(_re.findall(r'Image\("([^"]+)"\)', _moos_script)))
+require(bool(_loads), "moos.script loads no images at all")
+for _asset in _loads:
+    require((theme_dir / _asset).is_file(),
+            f"moos.script loads {_asset}, which the theme does not ship — the splash aborts to text")
 require("Plymouth.SetRefreshFunction" in _moos_script,
-        "moos.script must drive the reveal + loading orbit from a refresh function")
+        "moos.script must drive the sequence from a refresh function")
+require("Plymouth.SetQuitFunction" in _moos_script,
+        "moos.script must compose the frame `plymouth quit --retain-splash` leaves on screen; "
+        "without it the user stares at a frozen mid-animation frame for the whole "
+        "login-manager bring-up, which reads as a hang")
+_declared = _re.search(r"^INTRO_COUNT\s*=\s*(\d+)\s*;", _moos_script, _re.MULTILINE)
+require(_declared is not None, "moos.script must declare INTRO_COUNT")
+require(int(_declared.group(1)) == len(list(theme_dir.glob("intro*.png"))),
+        "INTRO_COUNT and the installed intro frames disagree — either the tail of the "
+        "animation never plays, or the script loads a file that is not there")
 
 # ── plymouth.use-simpledrm must stay opt-out-able ───────────────────────────
 # The karg was proven in a VM, promoted to every machine, and on the owner's NVIDIA box it
@@ -4384,14 +4398,17 @@ require(f"Window.SetBackgroundBottomColor({_ground})" in moos_script_src,
         f"the boot splash's bottom background is not the UI2 canvas #{_canvas} — the ground "
         f"must be FLAT, or the splash-to-desktop seam shows")
 
-# The splash is LOGO-HERO: the crisp mark is centred and the cyan-violet energy
-# head ORBITS a ring as the loading indicator. Gate that the script actually
-# centres the logo and drives the head around the ring at ring_radius, so a future
-# edit cannot bury the mark or freeze the loader.
-require("logo_sprite.SetX(cx" in moos_script_src and "logo_sprite.SetY(cy" in moos_script_src,
-        "the boot mark must be centred as the hero")
-require("head_sprite.SetX(hx" in moos_script_src and "ring_radius" in moos_script_src,
-        "the boot loading head must orbit the ring (ring_radius) as the loading indicator")
+# The splash is LOGO-HERO: the rendered stage is centred and the slow-boot cue
+# orbits that same centre. Gate the relationships, not retired sprite variable
+# names from the synthetic reveal that preceded the frame sequence.
+require("stage_x = cx - stage_w / 2" in moos_script_src
+        and "stage_y = cy - stage_h / 2" in moos_script_src
+        and "intro_sprite.SetX(stage_x)" in moos_script_src
+        and "intro_sprite.SetY(stage_y)" in moos_script_src,
+        "the rendered boot stage must be centred as the hero")
+require("head_sprite.SetX(cx + ring_radius * Math.Cos(rad)" in moos_script_src
+        and "head_sprite.SetY(cy + ring_radius * Math.Sin(rad)" in moos_script_src,
+        "the slow-boot loading head must orbit the ring around the hero")
 # Scale to screen height, so it is crisp at 1080p and 4K without stretching.
 require("Window.GetHeight(0)" in moos_script_src,
         "the boot splash must size itself from the screen height (crisp at 1080p and 4K)")

@@ -1,0 +1,337 @@
+# build-arm.yml — the MoOS aarch64 edition, and the disk image Oracle can import.
+#
+# WHY THIS IS A SEPARATE WORKFLOW FROM build.yml
+#   build.yml's matrix (moos, moos-nvidia, moos-cloud) all build from
+#   ghcr.io/ublue-os/kinoite-main:44, which is published for amd64 only. ARM is
+#   not a fourth row of that matrix; it is a different base, a different
+#   Containerfile and a different runner architecture.
+#
+# WHY NATIVE ARM RUNNERS AND NOT QEMU EMULATION
+#   Emulating an aarch64 desktop build on an x86 runner is hours of wall clock
+#   and routinely exceeds the job timeout. `ubuntu-24.04-arm` is a real ARM
+#   runner and is free for public repositories, so the build is native and takes
+#   about as long as the x86 one.
+#
+# WHAT COMES OUT
+#   1. ghcr.io/<owner>/moos-arm:latest         — the bootc image (for `bootc
+#                                                switch` / day-2 updates)
+#   2. moos-arm-<date>.qcow2.zst artifact      — what you upload to Oracle, and
+#                                                what UTM opens directly
+#
+#   The qcow2 is compressed with zstd because Oracle's import reads from Object
+#   Storage and the raw file is several GB; the download and the upload are both
+#   the owner's time. Decompress before importing — OCI does not read .zst.
+#
+# See docs/MOOS_ARM_ORACLE.md for what to do with the artifact.
+
+name: Build MoOS ARM (aarch64)
+
+on:
+  workflow_dispatch:
+    inputs:
+      make_disk:
+        description: "Also build the qcow2 disk image for Oracle / UTM"
+        type: boolean
+        default: true
+  push:
+    branches: [main]
+    paths:
+      - "Containerfile.arm"
+      - "build_files/build-arm.sh"
+      - "system_files/**"
+      - ".github/workflows/build-arm.yml"
+  pull_request:
+    paths:
+      - "Containerfile.arm"
+      - "build_files/build-arm.sh"
+      - "system_files/usr/share/plymouth/themes/moos/**"
+      - "tests/test_moos_arm.py"
+      - "tests/test_boot_splash_polish.py"
+      - ".github/workflows/build-arm.yml"
+
+env:
+  IMAGE_NAME: moos-arm
+  REGISTRY: ghcr.io
+
+concurrency:
+  group: build-arm-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build moos-arm (native aarch64)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 240
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      destination: ${{ steps.push.outputs.destination }}
+      digest: ${{ steps.push.outputs.digest }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: ARM and boot-splash source gates
+        run: |
+          bash -n build_files/build-arm.sh
+          python3 tests/test_moos_arm.py
+          python3 tests/test_boot_splash_polish.py
+
+      # The ARM runner ships the same pre-baked toolchains as the x86 one and
+      # the same ~14 GB of free space. A Plasma image plus a build cache does
+      # not fit in that, and dnf5 fails late and confusingly when it runs out.
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          docker-images: true
+          swap-storage: false
+
+      - name: Install podman and buildah
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq podman buildah
+
+      - name: Confirm the runner really is aarch64
+        run: |
+          # A silently-emulated build would produce an image whose compiled
+          # moos-qml-shell is the wrong architecture, and nothing downstream
+          # would notice until it failed to exec on the owner's instance.
+          arch="$(uname -m)"
+          echo "runner architecture: ${arch}"
+          [ "${arch}" = "aarch64" ] || { echo "FATAL: expected aarch64"; exit 1; }
+
+      - name: Metadata
+        id: meta
+        run: |
+          echo "tag=$(date -u +%Y%m%d)" >> "$GITHUB_OUTPUT"
+          echo "owner=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Build the image
+        run: |
+          podman build \
+            --pull=always \
+            -f Containerfile.arm \
+            --build-arg IMAGE_NAME=${{ env.IMAGE_NAME }} \
+            --label org.opencontainers.image.version=44.${{ steps.meta.outputs.tag }}.${{ github.run_number }} \
+            --label org.opencontainers.image.revision=${{ github.sha }} \
+            -t ${{ env.IMAGE_NAME }}:latest \
+            -t ${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tag }} \
+            .
+
+      # Prove the thing that the Containerfile cannot: that the image really is
+      # ARM, that the compiled binary in it is ARM, and that the boot animation
+      # survived into the deployed initramfs. These are the failures that only
+      # show up after the owner has spent an hour uploading a disk to Oracle.
+      - name: Verify the built image
+        run: |
+          set -euo pipefail
+          img=${{ env.IMAGE_NAME }}:latest
+          arch="$(podman inspect --format '{{.Architecture}}' "$img")"
+          echo "image architecture: ${arch}"
+          [ "${arch}" = "arm64" ] || { echo "FATAL: image is ${arch}, not arm64"; exit 1; }
+
+          ctr="$(podman create "$img" true)"
+          trap 'podman rm -f "$ctr" >/dev/null 2>&1 || true' EXIT
+          podman cp "$ctr":/usr/bin/moos-qml-shell /tmp/qmlshell
+          file /tmp/qmlshell | tee /tmp/qmlshell.txt
+          grep -q 'ARM aarch64' /tmp/qmlshell.txt || {
+            echo "FATAL: moos-qml-shell in the image is not an aarch64 binary"; exit 1; }
+
+          # The splash: the frames, the script, and the console karg that makes
+          # Oracle's serial console work on ARM rather than on x86's ttyS0.
+          podman run --rm "$img" bash -c '
+            set -e
+            n=$(ls -1 /usr/share/plymouth/themes/moos/intro*.png | wc -l)
+            echo "intro frames installed: $n"
+            [ "$n" -ge 8 ] || { echo "FATAL: the boot animation frames are missing"; exit 1; }
+            grep -qx "Theme=moos" /etc/plymouth/plymouthd.conf
+            grep -q "ttyAMA0" /usr/lib/bootc/kargs.d/50-moos-arm-console.toml
+            grep -q "^ID=moos" /usr/lib/os-release
+            echo "image identity and splash OK"
+          '
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: redhat-actions/podman-login@v1
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push
+        if: github.event_name != 'pull_request'
+        id: push
+        run: |
+          set -euo pipefail
+          dest=${{ env.REGISTRY }}/${{ steps.meta.outputs.owner }}/${{ env.IMAGE_NAME }}
+          podman push --digestfile /tmp/moos-arm.digest \
+            ${{ env.IMAGE_NAME }}:latest "${dest}:latest"
+          podman push ${{ env.IMAGE_NAME }}:latest  "${dest}:${{ steps.meta.outputs.tag }}"
+          digest="$(cat /tmp/moos-arm.digest)"
+          echo "destination=${dest}" >> "$GITHUB_OUTPUT"
+          echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+          echo "pushed ${dest}@${digest}"
+
+      - name: Install cosign
+        if: github.event_name != 'pull_request'
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign the ARM image by digest
+        if: github.event_name != 'pull_request'
+        env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
+        run: |
+          cosign sign -y --key env://COSIGN_PRIVATE_KEY \
+            "${{ steps.push.outputs.destination }}@${{ steps.push.outputs.digest }}"
+
+      - name: Verify the signature against MoOS's installed key
+        if: github.event_name != 'pull_request'
+        run: |
+          set -euo pipefail
+          ref="${{ steps.push.outputs.destination }}@${{ steps.push.outputs.digest }}"
+          for attempt in 1 2 3 4 5 6; do
+            if cosign verify --key cosign.pub "$ref"; then
+              echo "signature verified on attempt ${attempt}"
+              exit 0
+            fi
+            sleep "$(( attempt * 10 ))"
+          done
+          echo "FATAL: the ARM image signature never became verifiable" >&2
+          exit 1
+
+  disk:
+    name: Build the qcow2 (Oracle / UTM)
+    needs: build
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.make_disk }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          docker-images: true
+          swap-storage: false
+
+      - name: Install podman
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq podman zstd
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Log in to GHCR
+        uses: redhat-actions/podman-login@v1
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build the disk image
+        run: |
+          set -euo pipefail
+          src="${{ needs.build.outputs.destination }}@${{ needs.build.outputs.digest }}"
+          mkdir -p output config
+
+          # A downloadable disk must never bypass the signature policy enforced
+          # by installed MoOS systems. Use the exact digest produced by the build,
+          # never a mutable tag that another run could replace underneath us.
+          cosign verify --key cosign.pub "${src}"
+          # Podman 5.8 rejects `podman --authfile FILE pull` as an unknown
+          # global flag (proven 2026-08-19, ubuntu-24.04-arm). The flag belongs
+          # on the subcommand. sudo pull is required so --local BIB sees the
+          # image in the root store that the privileged builder mounts.
+          AUTH="${REGISTRY_AUTH_FILE:-$HOME/.config/containers/auth.json}"
+          if [ -f "$AUTH" ]; then
+            sudo podman pull --authfile="$AUTH" "${src}"
+          else
+            sudo podman pull "${src}"
+          fi
+
+          # The imported boot volume on Oracle is 50 GB by default and cloud-init
+          # grows the root into it on first boot, so the image itself only has to
+          # be big enough to hold the deployment. 12 GB keeps the upload short.
+          cat > config/config.toml <<'TOML'
+          [[customizations.filesystem]]
+          mountpoint = "/"
+          minsize = "12 GiB"
+          TOML
+
+          # bootc-image-builder is itself published for arm64, so this runs
+          # natively: no emulation, and the disk it writes really is an ARM
+          # deployment rather than an x86 one with an ARM label.
+          sudo podman run --rm --privileged --pull=newer \
+            --security-opt label=type:unconfined_t \
+            -v "$(pwd)/output":/output \
+            -v "$(pwd)/config/config.toml":/config.toml:ro \
+            -v /var/lib/containers/storage:/var/lib/containers/storage \
+            quay.io/centos-bootc/bootc-image-builder:latest \
+            --type qcow2 \
+            --rootfs btrfs \
+            --config /config.toml \
+            --target-arch arm64 \
+            --local \
+            "${src}"
+
+      - name: Compress and report
+        id: pack
+        run: |
+          set -euo pipefail
+          qcow="$(sudo find output -name '*.qcow2' -print -quit)"
+          [ -n "$qcow" ] || { echo "FATAL: no qcow2 was produced"; exit 1; }
+          sudo chown "$USER" "$qcow"
+          name="moos-arm-$(date -u +%Y%m%d).qcow2"
+          mv "$qcow" "$name"
+          echo "raw size: $(du -h "$name" | cut -f1)"
+          zstd -19 -T0 --long=27 "$name" -o "${name}.zst"
+          echo "compressed: $(du -h "${name}.zst" | cut -f1)"
+          echo "artifact=${name}.zst" >> "$GITHUB_OUTPUT"
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: moos-arm-qcow2
+          path: ${{ steps.pack.outputs.artifact }}
+          retention-days: 14
+
+      - name: What to do with it
+        run: |
+          cat <<'EOF'
+          ────────────────────────────────────────────────────────────────
+          Download the artifact, then:
+
+            zstd -d moos-arm-*.qcow2.zst
+
+          UTM (Apple silicon / iPhone):
+            new VM -> Virtualize (or Emulate on iPhone) -> Linux -> ARM64,
+            import this qcow2 as the boot drive, UEFI on.
+
+          Oracle Cloud:
+            upload the .qcow2 to an Object Storage bucket, then
+            Compute -> Custom Images -> Import image
+              Operating system : Linux
+              Image type       : QCOW2
+              Launch mode      : PARAVIRTUALIZED
+            Launch it on VM.Standard.A1.Flex (Always Free).
+
+          Full instructions, including the Ampere capacity problem and how to
+          reach the desktop: docs/MOOS_ARM_ORACLE.md
+          ────────────────────────────────────────────────────────────────
+          EOF
