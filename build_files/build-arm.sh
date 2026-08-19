@@ -243,7 +243,7 @@ system_info:
     groups: [wheel, video, audio, input, render]
     shell: /bin/bash
 CLOUDCFG
-systemctl enable cloud-init.service cloud-init-local.service \
+systemctl enable cloud-init-network.service cloud-init-local.service \
     cloud-config.service cloud-final.service
 
 # The serial console. THIS IS THE ARM DIFFERENCE that most cloud images get

@@ -258,6 +258,10 @@ class ArmEditionTests(unittest.TestCase):
     def test_cloud_init_is_present_and_pinned(self) -> None:
         text = read(BUILD)
         self.assertIn("cloud-init", text, "Oracle delivers the SSH key via cloud-init")
+        self.assertIn("cloud-init-network.service", text,
+                      "cloud-init 26 renamed its network stage from cloud-init.service")
+        self.assertNotRegex(code(text), r"\bcloud-init\.service\b",
+                            "Fedora 44 no longer ships the old cloud-init.service unit")
         self.assertIn("datasource_list", text,
                       "the datasource list must be pinned; probing costs seconds per boot "
                       "and can settle on None before the network is up, which locks the "
