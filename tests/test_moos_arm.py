@@ -27,8 +27,6 @@ BUILD = ROOT / "build_files/build-arm.sh"
 ARM_VERIFY = ROOT / "build_files/verify_arm_image.py"
 WORKFLOW = ROOT / ".github/workflows/build-arm.yml"
 DOCS = ROOT / "docs/MOOS_ARM_ORACLE.md"
-GROW_SERVICE = ROOT / "system_files/usr/lib/systemd/system/moos-cloud-grow-root.service"
-GROW_TIMER = ROOT / "system_files/usr/lib/systemd/system/moos-cloud-grow-root.timer"
 RUNTIME_GATE = ROOT / "tests/verify_arm_runtime.sh"
 BOOT_GATE = ROOT / "tests/boot_arm_qcow2.sh"
 
@@ -83,7 +81,7 @@ class ArmEditionTests(unittest.TestCase):
     def test_the_pieces_exist(self) -> None:
         for p in (
             CONTAINERFILE, BUILD, ARM_VERIFY, WORKFLOW, DOCS,
-            GROW_SERVICE, GROW_TIMER, RUNTIME_GATE, BOOT_GATE,
+            RUNTIME_GATE, BOOT_GATE,
         ):
             self.assertTrue(p.is_file(), f"{p.relative_to(ROOT)} is missing")
 
@@ -456,7 +454,7 @@ class ArmEditionTests(unittest.TestCase):
                       "and can settle on None before the network is up, which locks the "
                       "owner out of their own instance")
         self.assertIn("Oracle", text, "the OCI datasource must be first")
-        self.assertIn("moos-cloud-grow-root.timer", text,
+        self.assertIn("bootc-generic-growpart.service", text,
                       "Oracle attaches a boot volume larger than the image; bootc needs "
                       "a grow path that targets /sysroot rather than composefs at /")
         self.assertIn("resize_rootfs: false", text,
@@ -471,25 +469,29 @@ class ArmEditionTests(unittest.TestCase):
         self.assertIn("moos-cloud-account-ready.service", text,
                       "the greeter must wait until AccountsService publishes the cloud user")
 
-    def test_cloud_growth_is_retrying_and_off_the_desktop_critical_path(self) -> None:
+    def test_bootc_is_the_only_cloud_disk_growth_authority(self) -> None:
         build = read(BUILD)
-        service = read(GROW_SERVICE)
-        timer = read(GROW_TIMER)
+        verifier = read(ARM_VERIFY)
         runtime = read(RUNTIME_GATE)
         boot_gate = read(BOOT_GATE)
 
-        self.assertIn("systemctl enable moos-cloud-grow-root.timer", build)
-        self.assertIn("systemctl disable moos-cloud-grow-root.service", build)
-        self.assertNotIn("WantedBy=multi-user.target", service)
-        self.assertNotIn("Before=cloud-init", service)
-        self.assertIn("TimeoutStartSec=5min", service)
-        self.assertIn("Restart=on-failure", service)
-        self.assertIn("OnBootSec=15s", timer)
-        self.assertIn("WantedBy=timers.target", timer)
+        self.assertIn("systemctl enable bootc-generic-growpart.service", build)
+        self.assertNotIn("systemctl enable moos-cloud-grow-root", build)
+        self.assertIn('mode: "off"', build)
+        self.assertNotRegex(build, r"(?m)^\s*mode:\s+off\s*$")
+        for retired in (
+            ROOT / "system_files/usr/libexec/moos-cloud-grow-root",
+            ROOT / "system_files/usr/lib/systemd/system/moos-cloud-grow-root.service",
+            ROOT / "system_files/usr/lib/systemd/system/moos-cloud-grow-root.timer",
+        ):
+            self.assertFalse(retired.exists(), f"duplicate grow authority remains: {retired}")
+        self.assertIn("yaml.safe_load", verifier)
+        self.assertIn('type(grow_mode) is str and grow_mode == "off"', verifier)
         self.assertIn("growth_deadline", runtime)
-        self.assertIn("cloud_grow=success", runtime)
+        self.assertIn("bootc-generic-growpart.service", runtime)
+        self.assertIn("cloud_grow=bootc-success", runtime)
         self.assertIn("runtime-${phase}-diagnostics.txt", boot_gate)
-        self.assertIn("journalctl --no-pager -u moos-cloud-grow-root.service", boot_gate)
+        self.assertIn("journalctl --no-pager -u bootc-generic-growpart.service", boot_gate)
 
     def test_arm_has_exactly_one_os_image_update_authority(self) -> None:
         text = read(BUILD)

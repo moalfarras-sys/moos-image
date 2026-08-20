@@ -11,8 +11,15 @@ expected="${1:-}"
 
 [ "$(uname -m)" = "aarch64" ]
 grep -qx 'ID=moos' /etc/os-release
-cloud_status="$(cloud-init status --wait --long)"
+set +e
+cloud_status="$(cloud-init status --wait --long 2>&1)"
+cloud_status_rc=$?
+set -e
 printf '%s\n' "$cloud_status"
+[ "$cloud_status_rc" -eq 0 ] || {
+    echo "ARM RUNTIME FATAL: cloud-init reported a degraded/error state (rc=$cloud_status_rc)" >&2
+    exit 1
+}
 grep -qx 'status: done' <<<"$cloud_status"
 grep -qx 'extended_status: done' <<<"$cloud_status"
 [ "$(systemctl is-active graphical.target)" = "active" ]
@@ -21,26 +28,27 @@ account_path="$(busctl call org.freedesktop.Accounts /org/freedesktop/Accounts \
     org.freedesktop.Accounts FindUserByName s moos)"
 [[ "$account_path" == *"/org/freedesktop/Accounts/User"* ]]
 
-# Disk growth is deliberately asynchronous: an imported volume already has
-# enough room to provision the account and greeter, and partition notification
-# can be slow under ARM TCG/provider storage. Wait for the retrying background
-# authority before measuring the physical partition, without putting it back on
-# graphical.target's critical path.
+# Fedora bootc is the single physical disk-growth authority. Its stock service
+# is Type=simple in the Fedora 44 image, so local-fs.target may continue while
+# the helper is still running. Wait for that one owner before measuring the
+# partition; never race it with a second growpart implementation.
 growth_deadline=$((SECONDS + 360))
 while [ "$SECONDS" -lt "$growth_deadline" ]; do
-    growth_active="$(systemctl is-active moos-cloud-grow-root.service 2>/dev/null || true)"
-    growth_result="$(systemctl show -p Result --value moos-cloud-grow-root.service 2>/dev/null || true)"
+    growth_active="$(systemctl is-active bootc-generic-growpart.service 2>/dev/null || true)"
+    growth_result="$(systemctl show -p Result --value bootc-generic-growpart.service 2>/dev/null || true)"
+    growth_status="$(systemctl show -p ExecMainStatus --value bootc-generic-growpart.service 2>/dev/null || true)"
     if [ "$growth_active" = "inactive" ] && [ "$growth_result" = "success" ]; then
         break
     fi
     sleep 3
 done
 [ "${growth_active:-}" = "inactive" ] && [ "${growth_result:-}" = "success" ] || {
-    systemctl status --no-pager --full moos-cloud-grow-root.service >&2 || true
-    journalctl --no-pager -u moos-cloud-grow-root.service -n 100 >&2 || true
+    systemctl status --no-pager --full bootc-generic-growpart.service >&2 || true
+    journalctl --no-pager -u bootc-generic-growpart.service -n 100 >&2 || true
     echo "ARM RUNTIME FATAL: physical sysroot growth did not complete" >&2
     exit 1
 }
+[ "${growth_status:-}" = "0" ]
 failed="$(systemctl --failed --no-legend --plain)"
 [ -z "$failed" ] || { printf 'failed units:\n%s\n' "$failed" >&2; exit 1; }
 getent hosts ghcr.io >/dev/null
@@ -90,7 +98,7 @@ printf 'cloud_init=done\n'
 printf 'graphical=%s\n' "$(systemctl is-active graphical.target)"
 printf 'display_manager=%s\n' "$(systemctl is-active display-manager.service)"
 printf 'accounts_user=published\n'
-printf 'cloud_grow=success\n'
+printf 'cloud_grow=bootc-success\n'
 printf 'failed_units=0\n'
 printf 'disk_bytes=%s\n' "$disk_size"
 printf 'partition_bytes=%s\n' "$partition_size"

@@ -10,6 +10,8 @@ import platform
 import subprocess
 from pathlib import Path
 
+import yaml
+
 
 ROOT = Path("/")
 
@@ -131,24 +133,27 @@ def main() -> None:
             "Oracle is not the first pinned cloud-init datasource")
     require("name: moos" in cloud_cfg and "groups: [wheel]" in cloud_cfg,
             "cloud-init does not create the password-authenticated moos account")
-    require("mode: off" in cloud_cfg and "resize_rootfs: false" in cloud_cfg,
-            "stock cloud-init resizing is enabled even though bootc exposes composefs at /")
-    grow_helper = read("/usr/libexec/moos-cloud-grow-root")
-    for proof in ("findmnt -nro SOURCE /sysroot", "growpart", "btrfs filesystem resize max /sysroot"):
-        require(proof in grow_helper, f"physical cloud-volume growth lacks: {proof}")
-    require((ROOT / "usr/lib/systemd/system/moos-cloud-grow-root.service").is_file(),
-            "the bootc-aware cloud grow service is missing")
-    require((ROOT / "usr/lib/systemd/system/moos-cloud-grow-root.timer").is_file(),
-            "the background cloud grow timer is missing")
-    require(enabled("moos-cloud-grow-root.timer", timer_targets),
-            "the background cloud grow timer is not enabled")
-    require(not enabled("moos-cloud-grow-root.service", service_targets),
-            "cloud growth is enabled on multi-user.target and blocks first boot")
-    grow_unit = read("/usr/lib/systemd/system/moos-cloud-grow-root.service")
-    require("Restart=on-failure" in grow_unit and "TimeoutStartSec=5min" in grow_unit,
-            "cloud growth lacks bounded retry policy for slow provider disks")
-    require("Before=cloud-init" not in grow_unit,
-            "cloud growth still serializes account/network provisioning")
+    parsed_cloud_cfg = yaml.safe_load(cloud_cfg)
+    grow_mode = parsed_cloud_cfg.get("growpart", {}).get("mode")
+    require(type(grow_mode) is str and grow_mode == "off",
+            "cloud-init growpart mode must be the string 'off', not YAML Boolean false")
+    require(parsed_cloud_cfg.get("resize_rootfs") is False,
+            "cloud-init resize_rootfs must be disabled for composefs /")
+    grow_unit_path = ROOT / "usr/lib/systemd/system/bootc-generic-growpart.service"
+    require(grow_unit_path.is_file(), "Fedora bootc's physical root grow service is missing")
+    local_fs_targets = (
+        "etc/systemd/system/local-fs.target.wants",
+        "usr/lib/systemd/system/local-fs.target.wants",
+    )
+    require(enabled("bootc-generic-growpart.service", local_fs_targets),
+            "the single bootc physical root grow authority is not enabled")
+    for retired in (
+        "usr/libexec/moos-cloud-grow-root",
+        "usr/lib/systemd/system/moos-cloud-grow-root.service",
+        "usr/lib/systemd/system/moos-cloud-grow-root.timer",
+    ):
+        require(not (ROOT / retired).exists(),
+                f"duplicate MoOS disk-growth authority still ships: {retired}")
     require("preserve_hostname: true" in cloud_cfg,
             "cloud-init would call hostnamectl before D-Bus and degrade first boot")
     hostname_helper = read("/usr/libexec/moos-cloud-hostname")

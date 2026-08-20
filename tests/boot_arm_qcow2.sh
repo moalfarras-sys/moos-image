@@ -182,7 +182,7 @@ run_runtime_gate() {
         return 0
     fi
     cat "$output" >&2
-    "${ssh_base[@]}" 'systemctl status --no-pager --full moos-cloud-grow-root.service; journalctl --no-pager -u moos-cloud-grow-root.service -n 150; findmnt /sysroot; lsblk -o NAME,TYPE,PKNAME,PARTN,SIZE,FSTYPE,MOUNTPOINTS; systemctl --failed --no-pager --plain' \
+    "${ssh_base[@]}" 'cloud-init status --long; systemctl status --no-pager --full bootc-generic-growpart.service; journalctl --no-pager -u bootc-generic-growpart.service -n 150; findmnt /sysroot; lsblk -o NAME,TYPE,PKNAME,PARTN,SIZE,FSTYPE,MOUNTPOINTS; btrfs filesystem usage -b /sysroot; systemctl --failed --no-pager --plain' \
         >"$diagnostics" 2>&1 || true
     cat "$diagnostics" >&2
     echo "ARM BOOT FATAL: ${phase}-boot runtime gate failed" >&2

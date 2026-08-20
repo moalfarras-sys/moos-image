@@ -241,10 +241,12 @@ preserve_hostname: true
 # default on the Always Free tier, against a ~10 GB image). Without growpart the
 # machine boots with the image's original small root and fills up.
 # The stock modules see composefs at `/` on bootc and therefore try to resize
-# `/dev/composefs`, leaving the real boot volume untouched.  MoOS grows the
-# physical btrfs mount at `/sysroot` with moos-cloud-grow-root instead.
+# `/dev/composefs`. Fedora bootc already owns the correct physical-/sysroot
+# implementation in bootc-generic-growpart; do not add a second growpart writer.
 growpart:
-  mode: off
+  # YAML 1.1 treats an unquoted `off` as Boolean false. cloud-init 26 warns
+  # that the Boolean form is deprecated, so keep the required string type.
+  mode: "off"
 resize_rootfs: false
 # The default user. Oracle's own images use `opc`; MoOS uses `moos` so the same
 # name works on OCI, on UTM and on bare metal, and so that documentation does not
@@ -269,12 +271,14 @@ system_info:
 CLOUDCFG
 systemctl enable cloud-init-network.service cloud-init-local.service \
     cloud-config.service cloud-final.service
-# Growing an imported cloud disk is not a prerequisite for account/network or
-# the greeter. A direct multi-user enable put growpart on the critical path and
-# a 30-second timeout left the first real ARM QCOW2 with a failed unit. Start the
-# retrying oneshot from a timer after boot instead.
-systemctl disable moos-cloud-grow-root.service 2>/dev/null || true
-systemctl enable moos-cloud-grow-root.timer
+# One disk-growth authority only. The first boot proof caught the custom MoOS
+# helper racing Fedora bootc's already-enabled growpart service against the same
+# mounted root partition; the duplicate timed out and left the release red.
+test -f /usr/lib/systemd/system/bootc-generic-growpart.service || {
+    echo "FATAL: Fedora bootc's physical root grow service is missing"
+    exit 1
+}
+systemctl enable bootc-generic-growpart.service
 systemctl enable moos-cloud-hostname.service
 systemctl enable moos-cloud-account-ready.service
 
