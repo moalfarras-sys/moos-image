@@ -209,7 +209,7 @@ jobs:
   disk:
     name: Build the qcow2 (Oracle / UTM)
     needs: build
-    if: ${{ github.event_name == 'workflow_dispatch' && (inputs.make_disk == 'true' || inputs.make_disk == true) }}
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 90
     permissions:
