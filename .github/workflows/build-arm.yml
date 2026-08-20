@@ -302,7 +302,7 @@ jobs:
             -v "$(pwd)/output":/output \
             -v "$(pwd)/config/config.toml":/config.toml:ro \
             -v /var/lib/containers/storage:/var/lib/containers/storage \
-            quay.io/centos-bootc/bootc-image-builder:latest \
+            quay.io/centos-bootc/bootc-image-builder@sha256:2b52843ea2bfda73b0a08d97e76b734393b1d3a804681b9fabb26723bd3a2f0b \
             --type qcow2 \
             --rootfs btrfs \
             --config /config.toml \

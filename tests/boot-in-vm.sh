@@ -35,7 +35,7 @@ sudo podman run --rm --privileged --security-opt label=type:unconfined_t \
     -v "${WORK}":/output \
     -v /var/lib/containers/storage:/var/lib/containers/storage \
     -v "${HERE}/../bib/config.toml":/config.toml:ro \
-    quay.io/centos-bootc/bootc-image-builder:latest \
+    quay.io/centos-bootc/bootc-image-builder@sha256:2b52843ea2bfda73b0a08d97e76b734393b1d3a804681b9fabb26723bd3a2f0b \
     --type qcow2 --local "${IMAGE}"
 sudo chown -R "$(id -u):$(id -g)" "${WORK}"
 

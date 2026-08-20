@@ -10,6 +10,8 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "build.yml"
 DISK_WORKFLOW = ROOT / ".github" / "workflows" / "build-disk.yml"
 ISO_WORKFLOW = ROOT / ".github" / "workflows" / "build-iso.yml"
+ARM_WORKFLOW = ROOT / ".github" / "workflows" / "build-arm.yml"
+BOOT_VM = ROOT / "tests" / "boot-in-vm.sh"
 
 
 class ReleaseWorkflowSafetyTests(unittest.TestCase):
@@ -77,6 +79,24 @@ class ReleaseWorkflowSafetyTests(unittest.TestCase):
         self.assertIn('IMAGE_REF: ${{ steps.pin.outputs.image_ref }}', iso)
         self.assertIn('podman pull "${{ steps.pin.outputs.image_ref }}"', disk)
         self.assertIn('"${{ steps.pin.outputs.image_ref }}"', disk)
+
+    def test_disk_builder_is_one_immutable_multiarch_object(self) -> None:
+        expected = (
+            "quay.io/centos-bootc/bootc-image-builder@sha256:"
+            "2b52843ea2bfda73b0a08d97e76b734393b1d3a804681b9fabb26723bd3a2f0b"
+        )
+        for name, path in (
+            ("x86 release disk", DISK_WORKFLOW),
+            ("ARM release disk", ARM_WORKFLOW),
+            ("developer VM smoke", BOOT_VM),
+        ):
+            text = path.read_text(encoding="utf-8")
+            self.assertIn(expected, text, f"{name} drifted from the audited builder")
+            self.assertNotIn(
+                "quay.io/centos-bootc/bootc-image-builder:latest",
+                text,
+                f"{name} executes a mutable disk builder",
+            )
 
     def test_final_iso_must_boot_before_it_can_be_uploaded(self) -> None:
         iso = ISO_WORKFLOW.read_text(encoding="utf-8")
