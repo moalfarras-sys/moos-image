@@ -2750,7 +2750,8 @@ to multi-layer Liquid Glass. Design system remains **MoOS UI — Liquid Glass**.
 > (`artwork/moos-ui2/live-tests/daylight-store-256.png`,
 > `amethyst-store-256.png`); family sheet
 > `artwork/moos-ui2/previews/moos-app-icons.png` + palette matrix
-> `moos-app-icons-palettes.png`. `artwork/generate_3d_squircle.py` is retired.
+> `moos-app-icons-palettes.png`. The retired one-off generator was removed after
+> an inbound-reference audit; Git history remains the archive.
 > Release still needs commit/push, signed image, and THEME_REV=27's home purge
 > on reboot so `/usr` wins over any leftover preview.
 
