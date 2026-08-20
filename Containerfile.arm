@@ -90,9 +90,14 @@ RUN dnf -y install --setopt=install_weak_deps=False \
 RUN git clone --depth 1 --branch "${FLUTTER_VERSION}" \
         https://github.com/flutter/flutter.git /opt/flutter
 ENV PATH="/opt/flutter/bin:${PATH}"
+# Flutter's universal cache contains a Gradle-wrapper tarball stamped with
+# Google-internal uid/gid values.  A rootless Podman user namespace cannot
+# chown to those unmapped IDs, even though Linux desktop never uses Gradle.
+# GNU tar honours this for Flutter's own extraction subprocesses.
+ENV TAR_OPTIONS="--no-same-owner"
 RUN git config --global --add safe.directory /opt/flutter \
     && flutter config --no-analytics --enable-linux-desktop >/dev/null \
-    && flutter precache --linux \
+    && flutter precache --linux --no-universal \
     && flutter --version
 WORKDIR /src
 COPY moplayer/ ./

@@ -440,6 +440,8 @@ class ArmEditionTests(unittest.TestCase):
             "flutter analyze --no-fatal-infos",
             "flutter test",
             "flutter build linux --release",
+            'ENV TAR_OPTIONS="--no-same-owner"',
+            "flutter precache --linux --no-universal",
             "build/linux/arm64/release/bundle",
             "COPY --from=moremote-build /out/ /usr/lib/mo-remote/",
             "COPY --from=moplayer-build /out/ /usr/lib/moplayer/",
