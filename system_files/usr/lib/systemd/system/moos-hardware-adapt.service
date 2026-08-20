@@ -3,9 +3,10 @@ Description=MoOS hardware adaptation (safe, idempotent, re-runnable)
 Documentation=https://github.com/moalfarras-sys/moos-image
 # Only on a real installed MoOS deployment — never in a build container.
 ConditionPathExists=/run/ostree-booted
-# After the basic system is up so sysfs/DMI, tuned and fwupd units are available,
-# but it does not gate the desktop: it runs quietly in the multi-user chain.
-After=local-fs.target systemd-sysctl.service
+# Hardware probing and live zram reconfiguration are explicitly post-desktop.
+# graphical.target does not want this service; the timer starts it independently,
+# so a slow DDC probe can never hold the login/desktop critical path.
+After=graphical.target local-fs.target systemd-sysctl.service
 Wants=local-fs.target
 
 [Service]
@@ -15,6 +16,3 @@ ExecStart=/usr/libexec/moos-hardware-adapt
 # The script is idempotent and best-effort; a failure must never block boot.
 SuccessExitStatus=0
 TimeoutStartSec=90s
-
-[Install]
-WantedBy=multi-user.target

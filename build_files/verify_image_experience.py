@@ -208,17 +208,22 @@ if iso_yaml.is_file():
         require(karg in iso_text,
                 f"the live ISO kargs lack '{karg}' — the live boot is noisier than an installed MoOS")
 
-# Hardware adaptation service must be ENABLED (its multi-user.target.wants symlink
-# present), not merely shipped — a first-boot adapter that is never wanted never
-# runs. `systemctl enable` in the build lands the symlink under /etc; check both
-# /etc and /usr so the gate is robust to how the image records enablement.
-hw_wants = [
+# Hardware adaptation is timer-activated AFTER the desktop. Directly enabling its
+# oneshot in multi-user.target would put the potentially 30-second DDC probe and
+# live zram re-tier on the login critical path.
+hw_timer_wants = [
+    Path("/etc/systemd/system/graphical.target.wants/moos-hardware-adapt.timer"),
+    Path("/usr/lib/systemd/system/graphical.target.wants/moos-hardware-adapt.timer"),
+]
+require(any(p.exists() or p.is_symlink() for p in hw_timer_wants),
+        "moos-hardware-adapt.timer is not enabled — hardware adaptation would never run")
+hw_legacy_wants = [
     Path("/etc/systemd/system/multi-user.target.wants/moos-hardware-adapt.service"),
     Path("/usr/lib/systemd/system/multi-user.target.wants/moos-hardware-adapt.service"),
 ]
-require(any(p.exists() or p.is_symlink() for p in hw_wants),
-        "moos-hardware-adapt.service is not enabled (no multi-user.target.wants symlink) — "
-        "the hardware adaptation would never run")
+require(not any(p.exists() or p.is_symlink() for p in hw_legacy_wants),
+        "moos-hardware-adapt.service is directly enabled in multi-user.target — "
+        "hardware probing would delay the login critical path")
 
 # Machine-check logging has one cross-vendor owner. mcelog exits failed on AMD
 # CPUs, while Fedora's rasdaemon consumes the kernel RAS/EDAC trace events on

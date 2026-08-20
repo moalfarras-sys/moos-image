@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<zone target="ACCEPT">
+  <short>MoOS Private Network</short>
+  <description>The authenticated private tailnet used by Mo PC Remote and owner-managed development services.</description>
+  <interface name="tailscale0"/>
+</zone>

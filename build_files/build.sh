@@ -1499,6 +1499,14 @@ if is_desktop; then
     _core_power+=(waydroid gamemode mangohud steam-devices)
 fi
 dnf5 -y install "${_core_power[@]}"
+if is_desktop; then
+    # The package preset enables the container immediately, but Android is an
+    # opt-in compatibility layer with a multi-gigabyte first setup. Keep its
+    # system container off until the confirmed setup-waydroid action enables it.
+    systemctl disable waydroid-container.service
+    systemctl is-enabled waydroid-container.service >/dev/null 2>&1 && {
+        echo "GATE FAIL: Waydroid starts at boot before the owner opts in"; exit 1; }
+fi
 
 # Photos and video. MoOS shipped NEITHER — there was no image viewer in the
 # image at all, and no default for image/*. Double-clicking a photo therefore
@@ -2626,7 +2634,36 @@ rpm -q microcode_ctl >/dev/null 2>&1 || rpm -q amd-ucode-firmware >/dev/null 2>&
 
 chmod 0755 /usr/libexec/moos-hardware-adapt
 chmod 0755 /usr/libexec/moos-wait-drm
-systemctl enable moos-hardware-adapt.service
+# A slow first-run DDC probe or zram re-tier must never hold graphical.target.
+# Remove the legacy direct enablement on upgraded images and let the post-desktop
+# timer own activation.
+systemctl disable moos-hardware-adapt.service 2>/dev/null || true
+systemctl enable moos-hardware-adapt.timer
+
+# A desktop does not need every high TCP/UDP port exposed to whichever network
+# it joins. Keep only discovery and KDE Connect on the ordinary interface; Mo PC
+# Remote and developer services use the authenticated tailnet, which is pinned
+# to trusted before the default changes. Existing owner-created zones are
+# preserved by the runtime migration helper.
+if is_desktop; then
+    [ -f /etc/firewalld/firewalld.conf ] || {
+        echo "GATE FAIL: firewalld.conf is missing; MoOS cannot set its desktop policy"
+        exit 1
+    }
+    if grep -q '^DefaultZone=' /etc/firewalld/firewalld.conf; then
+        sed -i 's/^DefaultZone=.*/DefaultZone=moos-desktop/' /etc/firewalld/firewalld.conf
+    else
+        printf 'DefaultZone=moos-desktop\n' >> /etc/firewalld/firewalld.conf
+    fi
+    systemctl enable moos-firewall-migrate.service
+    grep -q 'interface name="tailscale0"' /etc/firewalld/zones/trusted.xml || {
+        echo "GATE FAIL: the private tailnet is not pinned to trusted"; exit 1; }
+    grep -q 'service name="kdeconnect"' /usr/lib/firewalld/zones/moos-desktop.xml || {
+        echo "GATE FAIL: MoOS desktop firewall lost phone integration"; exit 1; }
+    if grep -q '1025-65535' /usr/lib/firewalld/zones/moos-desktop.xml; then
+        echo "GATE FAIL: MoOS desktop firewall exposes every high port"; exit 1
+    fi
+fi
 
 # Plasma Login Manager reads the monolithic /etc/plasmalogin.conf AFTER its vendor
 # layers, so any ACTIVE key there outranks everything MoOS ships and can mask the

@@ -224,6 +224,8 @@ jobs:
           # already built. Keep heavyweight SBOM generation off the release-critical workflow;
           # it may return only in a separate workflow with its own runner budget.
           python3 tests/test_release_workflow_safety.py
+          python3 tests/test_firewall_migration.py
+          python3 tests/test_hardware_adapt_lifecycle.py
           python3 tests/test_moos_verify_origin.py
           python3 tests/test_theme_shadow_cleanup.py
           python3 tests/test_docs_privacy.py
