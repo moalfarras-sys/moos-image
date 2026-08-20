@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using MoRemote;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 
 Log.Init();
 
@@ -85,7 +86,46 @@ app.UseWebSockets(new WebSocketOptions {
     KeepAliveTimeout  = TimeSpan.FromSeconds(20),
 }); app.UseDefaultFiles(); app.UseStaticFiles(); WebApi.Map(app,svc); app.MapFallbackToFile("index.html");
 Log.Info($"Linux server listening on loopback: http://127.0.0.1:{config.Port} (publish with Tailscale Serve)");
-await app.RunAsync();
+await app.StartAsync();
+
+// Publish the endpoint only after Kestrel has bound it.  The native MoOS panel
+// consumes this small runtime fact instead of guessing the default port or
+// independently re-parsing settings.json.  It lives in XDG_RUNTIME_DIR, so a
+// stale endpoint cannot survive a reboot; the finally block also removes it on
+// a clean stop.  Isolated test/cloud instances deliberately do not overwrite
+// the desktop instance's well-known endpoint.
+string? endpointPath = null;
+try
+{
+    var runtimeDir = Environment.GetEnvironmentVariable("XDG_RUNTIME_DIR");
+    if (string.IsNullOrEmpty(isolatedDataDir)
+        && !string.IsNullOrEmpty(runtimeDir)
+        && Path.IsPathFullyQualified(runtimeDir))
+    {
+        var endpointDir = Path.Combine(runtimeDir, "mo-remote");
+        Directory.CreateDirectory(endpointDir);
+        endpointPath = Path.Combine(endpointDir, "endpoint.json");
+        var endpointTmp = endpointPath + $".{Environment.ProcessId}.tmp";
+        File.WriteAllText(endpointTmp, JsonSerializer.Serialize(new
+        {
+            schema = 1,
+            pid = Environment.ProcessId,
+            port = config.Port,
+        }));
+        if (OperatingSystem.IsLinux())
+            File.SetUnixFileMode(endpointTmp, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+        File.Move(endpointTmp, endpointPath, true);
+    }
+    await app.WaitForShutdownAsync();
+}
+finally
+{
+    if (endpointPath is not null)
+    {
+        try { File.Delete(endpointPath); }
+        catch (IOException ex) { Log.Warn("Could not remove the runtime endpoint: " + ex.Message); }
+    }
+}
 // The entry point returns int now (--set-pin above needs a distinct exit code for "that PIN is too
 // short" so a script can tell it from success), so every path has to produce one.
 return 0;

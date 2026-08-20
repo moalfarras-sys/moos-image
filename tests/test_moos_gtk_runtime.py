@@ -170,6 +170,34 @@ class FakeProvider:
 class TestMoOSGtkRuntime(unittest.TestCase):
     maxDiff = None
 
+    def test_remote_panel_uses_the_agent_runtime_port_authority(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            endpoint = root / "runtime" / "mo-remote" / "endpoint.json"
+            endpoint.parent.mkdir(parents=True)
+            endpoint.write_text(json.dumps({
+                "schema": 1,
+                "pid": os.getpid(),
+                "port": 19443,
+            }), encoding="utf-8")
+            settings = root / "data" / "MoRemotePersonal" / "settings.json"
+            settings.parent.mkdir(parents=True)
+            settings.write_text('{"port": 18765}', encoding="utf-8")
+            env = {
+                "HOME": str(root / "home"),
+                "XDG_RUNTIME_DIR": str(root / "runtime"),
+                "XDG_DATA_HOME": str(root / "data"),
+            }
+            self.assertEqual(REMOTE.configured_port(env), 19443)
+            endpoint.write_text(json.dumps({
+                "schema": 1,
+                "pid": -1,
+                "port": 19443,
+            }), encoding="utf-8")
+            self.assertEqual(REMOTE.configured_port(env), 18765)
+            settings.write_text('{"port": true}', encoding="utf-8")
+            self.assertEqual(REMOTE.configured_port(env), 8765)
+
     def test_session_locale_is_single_language_and_logical_start(self):
         cases = (
             ({"LANG": "ar_SA.UTF-8"}, "ar", True, "عربي", 1.0),
