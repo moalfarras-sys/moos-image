@@ -13,11 +13,10 @@
 #
 #   That could have been done by teaching build.sh a fourth edition. It is not,
 #   deliberately. build.sh is ~4 000 lines that assume the Kinoite base is
-#   already there and assume x86: an NVIDIA akmods stage, i686 multilib, a
-#   gaming host stack, and two prebuilt binaries (Mo Remote linux-x64, MoPlayer's
-#   Flutter bundle) that do not exist for aarch64. Threading a new guard through
-#   all of that would put the owner's daily-driver image one editing mistake away
-#   from breaking, to serve a second architecture that cannot share most of it.
+#   already there and assume x86: an NVIDIA akmods stage, i686 multilib, and a
+#   gaming host stack. Threading a new guard through all of that would put the
+#   owner's daily-driver image one editing mistake away from breaking. The two
+#   first-party compiled apps instead have native arm64 stages in Containerfile.arm.
 #   So the ARM edition is isolated: nothing here can regress the x86 build.
 #
 #   WHAT IS SHARED IS THE PART THAT MATTERS. system_files/ — the entire MoOS
@@ -81,7 +80,7 @@ _PLASMA=(
     plymouth plymouth-plugin-script plymouth-plugin-two-step plymouth-system-theme
     dracut-network
     python3 python3-gobject
-    fontconfig gtk4 libadwaita
+    fontconfig gtk3 gtk4 libadwaita mpv-libs
     mesa-dri-drivers mesa-libEGL mesa-libgbm
     openssh-server cloud-init cloud-utils-growpart
     firewalld flatpak openssl sudo
@@ -89,8 +88,19 @@ _PLASMA=(
     # fedora-bootc supplies rpm-ostree today, but both tools are explicit product
     # dependencies rather than accidental base-image contents.
     rpm-ostree skopeo
+    # Native Mo PC Remote runtime. Encoders are capability-probed and JPEG is
+    # the real fallback when a virtual GPU exposes no hardware codec.
+    ydotool wl-clipboard spectacle python3-websockets poppler-utils qrencode
+    gstreamer1 gstreamer1-plugins-base gstreamer1-plugins-good
+    gstreamer1-plugins-bad-free pipewire-gstreamer
 )
 dnf5 -y install --setopt=install_weak_deps=False "${_PLASMA[@]}"
+
+# Prefer a portable software H.264 encoder when Fedora's Cisco repository has
+# one for aarch64. The helper auditions PLAYING state and automatically falls
+# back to JPEG when the factory is absent or unusable on the VM.
+dnf5 -y install --allowerasing openh264 gstreamer1-plugin-openh264 \
+    || echo "ARM NOTE: OpenH264 unavailable; Mo PC Remote will capability-fallback to JPEG"
 
 # Fonts: MoOS's UI is IBM Plex, and its Arabic surfaces are first-class (the
 # owner's own locale). A desktop that falls back to a substitute face for Arabic
@@ -532,25 +542,14 @@ test -f /usr/lib/systemd/system/dbus-broker.service.d/moos-start-timeout.conf ||
     echo "FATAL: the dbus-broker start-timeout drop-in did not arrive from system_files"; exit 1
 }
 
-# MoPlayer and Mo PC Remote still need native ARM build stages. Until those are
-# present, remove the complete user-visible payload rather than leave a launcher
-# that opens a missing architecture-specific backend. The ARM verifier guards
-# this temporary omission so it cannot silently drift into dead UI.
-rm -f \
-    /usr/bin/moplayer \
+# Both first-party apps arrive from native aarch64 build stages. Remote remains
+# opt-in exactly like x86: the panel starts its service explicitly, so a fresh
+# cloud/UTM desktop pays zero idle daemon cost.
+chmod 0755 /usr/lib/mo-remote/MoRemotePersonal \
+    /usr/lib/mo-remote/mo-remote-portal.py \
     /usr/bin/mo-pc-remote \
-    /usr/share/applications/org.moos.moplayer.desktop \
-    /usr/share/applications/org.moos.remote.desktop \
-    /usr/share/metainfo/org.moos.moplayer.metainfo.xml
-install -D -m0644 /dev/stdin /usr/share/doc/moos-arm/OMITTED.md <<'OMITTED'
-# Intentionally omitted from MoOS ARM
-
-- MoPlayer: its vendored Flutter Linux bundle is currently built only for x86_64.
-- Mo PC Remote: its self-contained .NET agent is currently built only for x86_64.
-
-The ARM cloud path uses KDE KRDP over an SSH tunnel (`moos-arm-remote`) instead.
-No non-working launcher is shown for either omitted binary.
-OMITTED
+    /usr/bin/moplayer
+systemctl --global disable mo-remote-personal.service 2>/dev/null || true
 
 # -----------------------------------------------------------------------------
 # (8) Identity

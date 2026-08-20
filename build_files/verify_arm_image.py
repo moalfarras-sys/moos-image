@@ -63,6 +63,10 @@ def main() -> None:
         "krdp",
         "rpm-ostree",
         "skopeo",
+        "mpv-libs",
+        "ydotool",
+        "gstreamer1",
+        "gstreamer1-plugins-good",
     ):
         result = subprocess.run(
             ["rpm", "-q", package],
@@ -140,13 +144,42 @@ def main() -> None:
     require(parsed_cloud_cfg.get("resize_rootfs") is False,
             "cloud-init resize_rootfs must be disabled for composefs /")
     grow_unit_path = ROOT / "usr/lib/systemd/system/bootc-generic-growpart.service"
+    grow_helper_path = ROOT / "usr/libexec/bootc-generic-growpart"
     require(grow_unit_path.is_file(), "Fedora bootc's physical root grow service is missing")
-    local_fs_targets = (
-        "etc/systemd/system/local-fs.target.wants",
-        "usr/lib/systemd/system/local-fs.target.wants",
+    require(grow_helper_path.is_file() and os.access(grow_helper_path, os.X_OK),
+            "Fedora bootc's physical root grow helper is missing or not executable")
+    grow_unit = grow_unit_path.read_text(encoding="utf-8", errors="replace")
+    for contract in (
+        "ConditionVirtualization=vm",
+        "ConditionPathIsMountPoint=/sysroot",
+        "ConditionPathExists=/usr/bin/growpart",
+        "Before=basic.target",
+        "ExecStart=/usr/libexec/bootc-generic-growpart",
+    ):
+        require(contract in grow_unit, f"bootc grow unit lacks contract: {contract}")
+    grow_helper = grow_helper_path.read_text(encoding="utf-8", errors="replace")
+    for contract in (
+        "findmnt -vno SOURCE /sysroot",
+        "/usr/bin/growpart",
+        "^NOCHANGE: ",
+        "mount -o remount,rw /sysroot",
+        "/usr/lib/systemd/systemd-growfs /sysroot",
+    ):
+        require(contract in grow_helper, f"bootc grow helper lacks contract: {contract}")
+    grow_links = (
+        ROOT / "etc/systemd/system/local-fs.target.wants/bootc-generic-growpart.service",
+        ROOT / "usr/lib/systemd/system/local-fs.target.wants/bootc-generic-growpart.service",
     )
-    require(enabled("bootc-generic-growpart.service", local_fs_targets),
-            "the single bootc physical root grow authority is not enabled")
+    linked = False
+    for candidate in grow_links:
+        if candidate.is_symlink():
+            try:
+                linked = candidate.resolve(strict=True) == grow_unit_path.resolve(strict=True)
+            except OSError:
+                linked = False
+            if linked:
+                break
+    require(linked, "the bootc physical root grow enable link is missing or dangling")
     for retired in (
         "usr/libexec/moos-cloud-grow-root",
         "usr/lib/systemd/system/moos-cloud-grow-root.service",
@@ -240,18 +273,39 @@ def main() -> None:
     require((ROOT / "etc/pki/containers/moos.pub").is_file(),
             "the ARM image lacks the container signing public key")
 
-    for absent in (
+    # First-party parity is native, not a launcher-only promise. Both ELF entry
+    # points must identify as AArch64 and every route must land on a real bundle.
+    for binary in (
+        ROOT / "usr/lib/moplayer/moplayer",
+        ROOT / "usr/lib/mo-remote/MoRemotePersonal",
+    ):
+        require(binary.is_file() and os.access(binary, os.X_OK),
+                f"native ARM first-party binary is missing: {binary}")
+        header = binary.read_bytes()[:20]
+        require(header[:4] == b"\x7fELF" and int.from_bytes(header[18:20], "little") == 183,
+                f"first-party binary is not AArch64 ELF: {binary}")
+        linked = subprocess.run(
+            ["ldd", str(binary)], text=True, capture_output=True, check=False,
+        )
+        linkage = linked.stdout + linked.stderr
+        require(linked.returncode == 0 and "not found" not in linkage,
+                f"first-party ARM binary has unresolved runtime linkage: {binary}\n{linkage}")
+    for payload in (
         "usr/bin/moplayer",
         "usr/bin/mo-pc-remote",
         "usr/share/applications/org.moos.moplayer.desktop",
         "usr/share/applications/org.moos.remote.desktop",
+        "usr/lib/moplayer/data/icudtl.dat",
+        "usr/lib/mo-remote/mo-remote-portal.py",
     ):
-        require(not (ROOT / absent).exists(),
-                f"x86-only payload survived in the ARM image: /{absent}")
-    require((ROOT / "usr/share/doc/moos-arm/OMITTED.md").is_file(),
-            "the ARM edition does not document its intentional x86-only omissions")
+        require((ROOT / payload).is_file(), f"ARM first-party payload is missing: /{payload}")
+    portal = read("/usr/lib/mo-remote/mo-remote-portal.py")
+    for contract in ("pipewiresrc", "H264_ENCODERS", '"codec": "jpeg"'):
+        require(contract in portal, f"ARM Remote lacks capability fallback contract: {contract}")
+    require(not (ROOT / "usr/share/doc/moos-arm/OMITTED.md").exists(),
+            "the retired ARM first-party omission marker still ships")
 
-    print("ARM IMAGE OK: aarch64, Wayland, Oracle boot, SSH and firewall gates passed")
+    print("ARM IMAGE OK: aarch64, first-party apps, Wayland, Oracle boot, SSH and firewall gates passed")
 
 
 if __name__ == "__main__":

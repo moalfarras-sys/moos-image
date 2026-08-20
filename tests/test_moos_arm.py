@@ -430,16 +430,30 @@ class ArmEditionTests(unittest.TestCase):
         self.assertIn("/usr/share/xsessions", text,
                       "the finished image must fail if a dependency adds an X11 session")
 
-    def test_unsupported_x86_apps_are_not_left_as_dead_launchers(self) -> None:
-        text = code(read(BUILD))
-        self.assertIn("rm -f", text)
-        remove_block = text.split("rm -f", 1)[1].split("install -D", 1)[0]
-        for path in (
-            "/usr/share/applications/org.moos.moplayer.desktop",
-            "/usr/share/applications/org.moos.remote.desktop",
+    def test_first_party_apps_build_natively_for_arm64(self) -> None:
+        container = read(CONTAINERFILE)
+        build = read(BUILD)
+        verifier = read(ARM_VERIFY)
+        for contract in (
+            "dotnet publish agent-linux/MoRemoteLinux.csproj",
+            "-r linux-arm64",
+            "flutter build linux --release",
+            "build/linux/arm64/release/bundle",
+            "COPY --from=moremote-build /out/ /usr/lib/mo-remote/",
+            "COPY --from=moplayer-build /out/ /usr/lib/moplayer/",
         ):
-            self.assertIn(path, remove_block,
-                          f"{path} would open a missing architecture-specific backend")
+            self.assertIn(contract, container)
+        self.assertNotIn("Intentionally omitted from MoOS ARM", build)
+        self.assertIn("/usr/lib/mo-remote/MoRemotePersonal", build)
+        self.assertIn("/usr/bin/moplayer", build)
+        self.assertIn("int.from_bytes(header[18:20]", verifier)
+        self.assertIn("H264_ENCODERS", verifier)
+        self.assertIn('"codec": "jpeg"', verifier)
+        runtime = read(RUNTIME_GATE)
+        self.assertIn("/usr/lib/moplayer/moplayer", runtime)
+        self.assertIn("/usr/lib/mo-remote/MoRemotePersonal", runtime)
+        self.assertIn("first_party_arch=aarch64", runtime)
+        self.assertIn("first_party_linkage=resolved", runtime)
 
     # ── the things that make a cloud image boot at all ──────────────────────
     def test_cloud_init_is_present_and_pinned(self) -> None:
@@ -487,6 +501,14 @@ class ArmEditionTests(unittest.TestCase):
             self.assertFalse(retired.exists(), f"duplicate grow authority remains: {retired}")
         self.assertIn("yaml.safe_load", verifier)
         self.assertIn('type(grow_mode) is str and grow_mode == "off"', verifier)
+        for contract in (
+            "ConditionVirtualization=vm",
+            "ConditionPathExists=/usr/bin/growpart",
+            "findmnt -vno SOURCE /sysroot",
+            "/usr/lib/systemd/systemd-growfs /sysroot",
+            "candidate.resolve(strict=True)",
+        ):
+            self.assertIn(contract, verifier)
         self.assertIn("growth_deadline", runtime)
         self.assertIn("bootc-generic-growpart.service", runtime)
         self.assertIn("cloud_grow=bootc-success", runtime)

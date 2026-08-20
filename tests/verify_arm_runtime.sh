@@ -72,6 +72,29 @@ assert len(entry) == 1 and entry[0]['type'] == 'sigstoreSigned'
 assert entry[0]['keyPath'] == '/etc/pki/containers/moos.pub'
 PY
 
+# Prove the downloadable disk retained the native first-party bundles and all
+# of their dynamic linkage. Launching GUI windows belongs to the provisioned
+# desktop session; this gate runs over SSH at the greeter, so it verifies the
+# executable/runtime boundary without faking a second compositor.
+for app in /usr/lib/moplayer/moplayer /usr/lib/mo-remote/MoRemotePersonal; do
+    [ -x "$app" ]
+    python3 - "$app" <<'PY'
+import pathlib
+import sys
+
+header = pathlib.Path(sys.argv[1]).read_bytes()[:20]
+assert header[:4] == b"\x7fELF"
+assert int.from_bytes(header[18:20], "little") == 183
+PY
+    linkage="$(ldd "$app")"
+    if grep -q 'not found' <<<"$linkage"; then
+        printf 'unresolved linkage for %s:\n%s\n' "$app" "$linkage" >&2
+        exit 1
+    fi
+done
+test -f /usr/share/applications/org.moos.moplayer.desktop
+test -f /usr/share/applications/org.moos.remote.desktop
+
 sysroot="$(findmnt -nro SOURCE /sysroot)"
 device="${sysroot%%\[*}"
 parent="$(lsblk -dnro PKNAME "$device" | tr -d '[:space:]')"
@@ -98,6 +121,8 @@ printf 'cloud_init=done\n'
 printf 'graphical=%s\n' "$(systemctl is-active graphical.target)"
 printf 'display_manager=%s\n' "$(systemctl is-active display-manager.service)"
 printf 'accounts_user=published\n'
+printf 'first_party_arch=aarch64\n'
+printf 'first_party_linkage=resolved\n'
 printf 'cloud_grow=bootc-success\n'
 printf 'failed_units=0\n'
 printf 'disk_bytes=%s\n' "$disk_size"
