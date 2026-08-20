@@ -1,3 +1,5 @@
+name: Build MoOS ARM (aarch64)
+
 # build-arm.yml — the MoOS aarch64 edition, and the disk image Oracle can import.
 #
 # WHY THIS IS A SEPARATE WORKFLOW FROM build.yml
@@ -23,8 +25,6 @@
 #   the owner's time. Decompress before importing — OCI does not read .zst.
 #
 # See docs/MOOS_ARM_ORACLE.md for what to do with the artifact.
-
-name: Build MoOS ARM (aarch64)
 
 on:
   workflow_dispatch:
