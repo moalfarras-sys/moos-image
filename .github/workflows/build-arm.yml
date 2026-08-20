@@ -47,7 +47,6 @@ on:
       - "system_files/usr/share/plymouth/themes/moos/**"
       - "tests/test_moos_arm.py"
       - "tests/test_boot_splash_polish.py"
-      - ".github/workflows/build-arm.yml"
 
 env:
   IMAGE_NAME: moos-arm
