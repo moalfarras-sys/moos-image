@@ -31,6 +31,7 @@ on:
     inputs:
       make_disk:
         description: "Also build the qcow2 disk image for Oracle / UTM"
+        required: false
         type: boolean
         default: true
   push:
