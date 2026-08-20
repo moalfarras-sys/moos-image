@@ -5243,9 +5243,12 @@ require("ostree-unverified-registry:" in _origin_fix,
 _origin_unit = read("system_files/usr/lib/systemd/system/moos-verify-origin.service")
 require("ExecStart=/usr/libexec/moos-verify-origin" in _origin_unit,
         "moos-verify-origin.service does not run /usr/libexec/moos-verify-origin.")
-require("WantedBy=multi-user.target" in _origin_unit,
-        "moos-verify-origin.service is not wanted by any target, so it never runs and a "
-        "converted server keeps taking unverified updates.")
+require("WantedBy=multi-user.target" not in _origin_unit,
+        "moos-verify-origin.service blocks the boot path again; it must be timer-driven.")
+_origin_timer = read("system_files/usr/lib/systemd/system/moos-verify-origin.timer")
+require("Unit=moos-verify-origin.service" in _origin_timer and
+        "WantedBy=timers.target" in _origin_timer,
+        "moos-verify-origin.timer no longer schedules the signed-origin audit.")
 
 
 # ── Every action Mo AI PROMISES gets a Run button ─────────────────────────────

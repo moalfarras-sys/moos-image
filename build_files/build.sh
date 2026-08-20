@@ -2780,13 +2780,13 @@ systemctl enable moos-firstboot.service
 # ships in every edition rather than only in the cloud one — an unverified origin is
 # not a cloud-specific failure, it is just where this one came from.
 chmod 0755 /usr/libexec/moos-verify-origin
-systemctl enable moos-verify-origin.service
+systemctl enable moos-verify-origin.timer
 [ -x /usr/libexec/moos-verify-origin ] || {
     echo "GATE FAIL: /usr/libexec/moos-verify-origin is missing or not executable —"
     echo "           a converted server would keep taking unverified updates forever."
     exit 1; }
-systemctl is-enabled moos-verify-origin.service >/dev/null 2>&1 || {
-    echo "GATE FAIL: moos-verify-origin.service is not enabled — it would never run."
+systemctl is-enabled moos-verify-origin.timer >/dev/null 2>&1 || {
+    echo "GATE FAIL: moos-verify-origin.timer is not enabled — it would never run."
     exit 1; }
 
 # -----------------------------------------------------------------------------

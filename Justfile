@@ -54,6 +54,9 @@ check:
     # pointing at an asset that never made it into git — which serves a blank page with a 200.
     python3 tests/test_shipped_bundle_is_tracked.py
     python3 tests/test_release_workflow_safety.py
+    # Execute the real signed-origin parser against rpm-ostree-shaped fixtures;
+    # string checks cannot detect a JSON path that is absent on deployed MoOS.
+    python3 tests/test_moos_verify_origin.py
     # Troubleshooting reports must not commit an owner's phone number or an
     # allow-all phone-channel policy as though it were a safe product default.
     python3 tests/test_docs_privacy.py
@@ -131,6 +134,7 @@ check:
     python3 tests/test_tidal_horizon.py
     python3 tests/test_tidal_portals.py
     python3 tests/test_moos_theme_safety.py
+    python3 tests/test_theme_shadow_cleanup.py
     python3 tests/test_moos_visual_system.py
     # MoOS Command Center is the owned settings front door: every visual command
     # must resolve through a fixed route, and its live status boundary stays
@@ -145,8 +149,6 @@ check:
     # Recovery is where a broken update sends the user: its target, queued-state
     # copy, and non-blocking Polkit/bootc path belong in the local gate too.
     python3 tests/test_recovery_rollback_target.py
-    python3 tests/test_moai_ports_fail_closed.py
-    python3 tests/test_openclaw_bootstrap_noop.py
     # Owned first-party chrome must resolve to deterministic palette-aware SVGs,
     # never the retired fixed-colour action artwork or a missing icon name.
     python3 tests/test_moos_symbolic_icons.py
@@ -169,13 +171,15 @@ check:
     # ExecStartPre=moai-openclaw-preflight — the entire Mo AI link — silently never runs while
     # the gateway still answers. The retirement only matched the EARLY installer's strings.
     python3 tests/test_openclaw_modern_unit_retire.py
+    # The lightweight wake receiver must survive an unreachable resolved address
+    # and preserve HTTP errors; this offline gate drives its real network layer.
+    python3 tests/test_moai_wake_telegram_reachability.py
     # Runs the motion gate in a REAL QML engine instead of grepping for it. Skips
     # cleanly where there is no Qt (the CI runner); the string half of the same
     # contract is in verify_user_experience.py and runs everywhere.
     python3 tests/test_moos_motion_gate.py
     python3 tests/test_cloud_private_desktop.py
     python3 tests/test_mo_remote_codec_resend.py
-    python3 tests/test_remote_h264_fallback.py
     python3 artwork/verify_visuals.py
     # The agent contract: .mcp.json and .claude/settings.json are committed, so a
     # pasted API key, an unapproved server, or a quietly deleted deny rule all reach

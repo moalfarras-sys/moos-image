@@ -224,6 +224,8 @@ jobs:
           # already built. Keep heavyweight SBOM generation off the release-critical workflow;
           # it may return only in a separate workflow with its own runner budget.
           python3 tests/test_release_workflow_safety.py
+          python3 tests/test_moos_verify_origin.py
+          python3 tests/test_theme_shadow_cleanup.py
           python3 tests/test_docs_privacy.py
           # THE REST OF `just check`, because a gate CI does not run is a gate that
           # stops the maintainer and nobody else.
@@ -299,6 +301,9 @@ jobs:
           # the maintainer's own machine. This asserts both generations retire and that hand-written
           # or symlinked units are still never touched.
           python3 tests/test_openclaw_modern_unit_retire.py
+          # moai-wake is the only process that can wake a sleeping local agent.
+          # Drive its real failover logic offline so an active-but-deaf service cannot ship.
+          python3 tests/test_moai_wake_telegram_reachability.py
           python3 tests/test_mo_remote_codec_resend.py
           # The H.264->JPEG fallback latch was dead code: `if not pick_h264()` tests a 2-tuple that is
           # always truthy, and the mid-stream blacklist keyed the instance name 'enc' and called

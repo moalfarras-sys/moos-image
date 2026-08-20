@@ -10,13 +10,15 @@ Documentation=file:///usr/libexec/moos-verify-origin
 # way is running unverified right now. A fix that only lands in the converter
 # repairs future installs and abandons the existing ones.
 #
-# The check is a file read. On an install that is already correct — every ISO
-# install, and every conversion after the converter's own fix — it costs one
-# `bootc status` and exits.
+# The check is a local rpm-ostree status read plus one origin-file read. It is
+# started by a timer, so even a legacy origin that needs the network can never
+# hold graphical.target or the login screen.
 ConditionPathExists=/usr/bin/bootc
 ConditionPathIsDirectory=/ostree/deploy
 
-# The rebind pulls from the registry, so it needs a resolver and a route.
+# Only the repair branch pulls from the registry, so it needs a route. Because
+# the timer starts this unit independently, this ordering does not put the
+# network target on the desktop's critical path.
 Wants=network-online.target
 After=network-online.target
 
@@ -32,6 +34,3 @@ RemainAfterExit=no
 # The script's own retry loop is ~90s at worst; give it room without letting a
 # hung registry hold the boot transaction open indefinitely.
 TimeoutStartSec=300
-
-[Install]
-WantedBy=multi-user.target
