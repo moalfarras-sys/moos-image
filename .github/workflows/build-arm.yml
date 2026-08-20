@@ -56,7 +56,9 @@ env:
 
 concurrency:
   group: build-arm-${{ github.ref }}
-  cancel-in-progress: true
+  # Never kill a main release while it may be moving date/latest after the
+  # boot proof. Main runs queue; disposable branch/PR candidates still cancel.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   build:
@@ -177,16 +179,9 @@ jobs:
         run: |
           set -euo pipefail
           dest=${{ env.REGISTRY }}/${{ steps.meta.outputs.owner }}/${{ env.IMAGE_NAME }}
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            publish_tag="candidate-${{ github.run_id }}-${GITHUB_SHA:0:12}"
-          else
-            publish_tag=latest
-          fi
+          publish_tag="candidate-${{ github.run_id }}-${GITHUB_SHA:0:12}"
           podman push --digestfile /tmp/moos-arm.digest \
             ${{ env.IMAGE_NAME }}:latest "${dest}:${publish_tag}"
-          if [ "$publish_tag" = latest ]; then
-            podman push ${{ env.IMAGE_NAME }}:latest "${dest}:${{ steps.meta.outputs.tag }}"
-          fi
           digest="$(cat /tmp/moos-arm.digest)"
           echo "destination=${dest}" >> "$GITHUB_OUTPUT"
           echo "digest=${digest}" >> "$GITHUB_OUTPUT"
@@ -387,3 +382,64 @@ jobs:
           reach the desktop: docs/MOOS_ARM_ORACLE.md
           ────────────────────────────────────────────────────────────────
           EOF
+
+  # Production follows moos-arm:latest. Promotion is deliberately a separate
+  # job after disk: a signed container is necessary but not sufficient when
+  # the downloadable QCOW2 can still fail EFI, initramfs, graphical login,
+  # reboot or shutdown. Any disk-gate failure leaves production untouched.
+  promote:
+    name: Promote boot-proven ARM image
+    needs: [build, disk]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.build.result == 'success' && needs.disk.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout the installed verification key
+        uses: actions/checkout@v4
+
+      - name: Install promotion tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq skopeo
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Log in to GHCR
+        uses: redhat-actions/podman-login@v1
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Publish the dated reference first and latest last. Recheck the tag after
+      # signature verification as well as before it so a concurrent mutation
+      # cannot silently satisfy one half of the postcondition.
+      - name: Promote the verified ARM digest to production tags
+        env:
+          DESTINATION: ${{ needs.build.outputs.destination }}
+          DIGEST: ${{ needs.build.outputs.digest }}
+          DATE_TAG: ${{ needs.build.outputs.tag }}
+        run: |
+          set -euo pipefail
+          source_ref="docker://${DESTINATION}@${DIGEST}"
+          cosign verify --key cosign.pub "${DESTINATION}@${DIGEST}" >/dev/null
+          for tag in "$DATE_TAG" latest; do
+            target_ref="${DESTINATION}:${tag}"
+            skopeo copy --preserve-digests "$source_ref" "docker://${target_ref}"
+            resolved="$(skopeo inspect --format '{{.Digest}}' "docker://${target_ref}")"
+            if [ "$resolved" != "$DIGEST" ]; then
+              echo "FATAL: ${target_ref} resolved to ${resolved}, expected ${DIGEST}" >&2
+              exit 1
+            fi
+            cosign verify --key cosign.pub "$target_ref" >/dev/null
+            resolved="$(skopeo inspect --format '{{.Digest}}' "docker://${target_ref}")"
+            if [ "$resolved" != "$DIGEST" ]; then
+              echo "FATAL: ${target_ref} moved during signature verification" >&2
+              exit 1
+            fi
+            echo "promoted boot-proven ${target_ref} -> ${DIGEST}"
+          done

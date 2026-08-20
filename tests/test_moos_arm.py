@@ -214,8 +214,37 @@ class ArmEditionTests(unittest.TestCase):
         self.assertIn("needs.build.result == 'success'", disk_header)
         self.assertIn('publish_tag="candidate-${{ github.run_id }}-', text,
                       "manual branch proof must not overwrite ARM latest")
-        self.assertIn('if [ "$publish_tag" = latest ]', text,
-                      "date/latest publication must remain main-push only")
+        self.assertNotIn('publish_tag=latest', text,
+                         "the initial ARM push must always remain a candidate")
+
+        push = text.index("- name: Push")
+        sign = text.index("- name: Sign the ARM image by digest")
+        verify = text.index("- name: Verify the signature against MoOS's installed key")
+        promote = text.index("- name: Promote the verified ARM digest to production tags")
+        self.assertLess(push, sign)
+        self.assertLess(sign, verify)
+        self.assertLess(verify, promote)
+        self.assertLess(text.index("\n  disk:\n"), promote)
+        promotion = text[promote:]
+        self.assertIn('for tag in "$DATE_TAG" latest', promotion)
+        self.assertIn("skopeo copy --preserve-digests", promotion)
+        self.assertIn('if [ "$resolved" != "$DIGEST" ]', promotion)
+        self.assertIn('cosign verify --key cosign.pub "$target_ref"', promotion)
+
+        promote_job = text.split("\n  promote:\n", 1)
+        self.assertEqual(len(promote_job), 2, "ARM workflow lost its promotion job")
+        promote_header = promote_job[1].split("\n    steps:\n", 1)[0]
+        self.assertIn("needs: [build, disk]", promote_header)
+        self.assertIn("github.event_name == 'push'", promote_header)
+        self.assertIn("github.ref == 'refs/heads/main'", promote_header)
+        self.assertIn("needs.build.result == 'success'", promote_header)
+        self.assertIn("needs.disk.result == 'success'", promote_header)
+        self.assertIn(
+            "cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}", text
+        )
+        before_promote = text.split("\n  promote:\n", 1)[0]
+        self.assertNotIn("skopeo copy --preserve-digests", before_promote)
+        self.assertEqual(text.count("skopeo copy --preserve-digests"), 1)
 
     def test_workflow_has_no_unindented_shell_payload(self) -> None:
         # A heredoc body at column zero ends YAML's `run: |` scalar. GitHub then
