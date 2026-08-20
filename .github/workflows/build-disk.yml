@@ -131,13 +131,24 @@ jobs:
 
       - name: Boot the qcow2 in QEMU UEFI — real boot test (the v-boot regression gate)
         run: |
-          set -uo pipefail
+          set -euo pipefail
           sudo apt-get install -y -qq qemu-system-x86 ovmf >/dev/null
           QCOW=$(sudo find output -name '*.qcow2' | head -1)
           [ -n "$QCOW" ] || { echo "FATAL: no qcow2"; exit 1; }
-          # Make the boot observable: add a serial console and drop quiet/rhgb on
-          # the installed BLS entries (via the nbd mapping used above).
-          sudo qemu-nbd --connect=/dev/nbd0 -f qcow2 "$QCOW"; sleep 3
+          sudo qemu-img check "$QCOW"
+          pristine_sha="$(sudo sha256sum "$QCOW" | awk '{print $1}')"
+          printf '%s\n' "$pristine_sha" > /tmp/moos-qcow.pristine.sha256
+
+          # The downloadable artifact must remain byte-for-byte identical to the
+          # branded image BIB produced. Make an external overlay for serial-only
+          # observability; modifying the original used to remove quiet/rhgb from
+          # the very qcow2 uploaded to users.
+          TEST_QCOW=/tmp/moos-disk-serial-test.qcow2
+          sudo qemu-img create -q -f qcow2 -F qcow2 \
+            -b "$(realpath "$QCOW")" "$TEST_QCOW"
+          cleanup() { sudo qemu-nbd --disconnect /dev/nbd0 >/dev/null 2>&1 || true; }
+          trap cleanup EXIT
+          sudo qemu-nbd --connect=/dev/nbd0 -f qcow2 "$TEST_QCOW"; sleep 3
           sudo partprobe /dev/nbd0 2>/dev/null || true
           MNT=$(mktemp -d)
           for P in $(lsblk -rno NAME /dev/nbd0 | tail -n +2); do
@@ -156,9 +167,9 @@ jobs:
           OVMF_CODE=$(find /usr/share -name 'OVMF_CODE*.fd' 2>/dev/null | sort | head -1)
           OVMF_VARS=$(find /usr/share -name 'OVMF_VARS*.fd' 2>/dev/null | sort | head -1)
           if [ -z "$OVMF_CODE" ] || [ -z "$OVMF_VARS" ]; then
-            echo "WARN: OVMF firmware not present on this runner — cannot run the QEMU UEFI boot test here."
-            echo "  (The initramfs SIZE guard + the deployed-disk ostree-prepare-root static proof above still gate the image; the fix is also proven booting on the real hardware.)"
-            find /usr -iname '*OVMF*' 2>/dev/null | head; exit 0
+            echo "FATAL: OVMF firmware is absent; this candidate cannot pass its UEFI boot gate."
+            find /usr -iname '*OVMF*' 2>/dev/null | head
+            exit 1
           fi
           cp "$OVMF_VARS" /tmp/vars.fd
           echo "OVMF: $OVMF_CODE ; boot (TCG, no KVM on GH runners — allow time)…"
@@ -168,7 +179,7 @@ jobs:
             -machine q35 -cpu Haswell -m 4096 -smp 2 \
             -drive if=pflash,format=raw,readonly=on,file="$OVMF_CODE" \
             -drive if=pflash,format=raw,file=/tmp/vars.fd \
-            -drive file="$QCOW",format=qcow2,if=virtio \
+            -drive file="$TEST_QCOW",format=qcow2,if=virtio \
             -device virtio-gpu-pci -nic none \
             -serial file:/tmp/serial.log -display none -no-reboot 2>/tmp/qemu.err || true
           echo "=== serial console (tail) ==="; tail -80 /tmp/serial.log 2>/dev/null || true
@@ -193,13 +204,26 @@ jobs:
           fi
           # Positive gate: reached a systemd target => GRUB+kernel+initramfs+ostree
           # +root+systemd all worked (the exact chain that failed on real hardware).
-          if grep -qiE "Reached target (Graphical|Multi-User|Login Prompts|Basic System)|Startup finished|Started .*Display Manager|Welcome to MoOS|plasma-login-manager|plasmalogin" /tmp/serial.plain.log; then
-            echo "PASS: MoOS booted in QEMU UEFI to a systemd target with no emergency/panic."
+          if grep -qiE "Reached target Graphical|Started .*Display Manager|plasma-login-manager|plasmalogin" /tmp/serial.plain.log; then
+            echo "PASS: MoOS booted in QEMU UEFI through the graphical/login path with no emergency/panic."
           else
-            echo "FATAL: boot did not reach a systemd target within the timeout."; tail -120 /tmp/serial.plain.log; exit 1
+            echo "FATAL: boot did not reach the graphical/login path within the timeout."; tail -120 /tmp/serial.plain.log; exit 1
           fi
 
+          final_sha="$(sudo sha256sum "$QCOW" | awk '{print $1}')"
+          [ "$final_sha" = "$pristine_sha" ] || {
+            echo "FATAL: the publishable qcow2 changed during its boot proof"; exit 1; }
+          echo "PASS: publishable qcow2 stayed byte-for-byte pristine; serial changes lived only in the overlay."
+
       - name: Upload qcow2
+        run: |
+          set -euo pipefail
+          QCOW=$(sudo find output -name '*.qcow2' | head -1)
+          expected="$(cat /tmp/moos-qcow.pristine.sha256)"
+          actual="$(sudo sha256sum "$QCOW" | awk '{print $1}')"
+          [ "$actual" = "$expected" ] || { echo "FATAL: qcow2 changed before upload"; exit 1; }
+
+      - name: Publish the pristine qcow2
         uses: actions/upload-artifact@v4
         with:
           name: moos-disk-qcow2

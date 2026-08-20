@@ -8,6 +8,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "build.yml"
+DISK_WORKFLOW = ROOT / ".github" / "workflows" / "build-disk.yml"
 
 
 class ReleaseWorkflowSafetyTests(unittest.TestCase):
@@ -36,6 +37,27 @@ class ReleaseWorkflowSafetyTests(unittest.TestCase):
         self.assertLessEqual(minutes, 240, "a release must still fail instead of holding a runner for 6h")
         for evidence in ("31897887537", "COMMIT moos:latest", "Copying blob"):
             self.assertIn(evidence, text, "the timeout must stay tied to the measured CI failure")
+
+    def test_disk_boot_proof_never_mutates_the_published_qcow(self) -> None:
+        text = DISK_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("moos-disk-serial-test.qcow2", text)
+        self.assertRegex(text, r"qemu-img create[^\n]*-q -f qcow2")
+        self.assertIn('-b "$(realpath "$QCOW")" "$TEST_QCOW"', text)
+        self.assertIn('qemu-nbd --connect=/dev/nbd0 -f qcow2 "$TEST_QCOW"', text)
+        self.assertIn('-drive file="$TEST_QCOW",format=qcow2,if=virtio', text)
+        self.assertIn("moos-qcow.pristine.sha256", text)
+        self.assertNotIn('qemu-nbd --connect=/dev/nbd0 -f qcow2 "$QCOW"; sleep 3\n          MNT=', text)
+
+    def test_disk_gate_requires_firmware_and_the_graphical_path(self) -> None:
+        text = DISK_WORKFLOW.read_text(encoding="utf-8")
+        missing_firmware = text.split('if [ -z "$OVMF_CODE" ]', 1)[1].split(
+            "          fi\n", 1
+        )[0]
+        self.assertIn("exit 1", missing_firmware)
+        positive = text.split("# Positive gate:", 1)[1]
+        self.assertNotIn("Basic System", positive)
+        self.assertNotIn("Multi-User", positive)
+        self.assertRegex(positive, r"Graphical|Display Manager|plasma-login-manager|plasmalogin")
 
 
 if __name__ == "__main__":
