@@ -328,7 +328,8 @@ if [ -e "$marker" ]; then
     # and respects the central custom-wallpaper state. The revision migrator
     # owns cache/layout migrations only; it must not keep a second theme table.
     if command -v moos-theme >/dev/null 2>&1 \
-            && moos-theme verify-lnf "$lnf" >>"$log" 2>&1; then
+            && moos-theme verify-lnf "$lnf" >>"$log" 2>&1 \
+            && moos-theme settle-lnf "$lnf" >>"$log" 2>&1; then
         exit 0
     fi
     echo "=== moos-apply-theme $(date -u '+%FT%TZ') === SELF-HEAL: look-and-feel='${lnf:-unset}'" >>"$log" 2>/dev/null || true

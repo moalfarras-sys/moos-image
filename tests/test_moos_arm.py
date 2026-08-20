@@ -160,6 +160,69 @@ class ArmEditionTests(unittest.TestCase):
             "python3 tests/test_boot_splash_polish.py",
         ):
             self.assertIn(gate, text, f"the ARM workflow never runs {gate}")
+        pull_request_paths = text.split("  pull_request:\n", 1)[1].split(
+            "\nenv:\n", 1
+        )[0]
+        self.assertIn(
+            '"system_files/**"',
+            pull_request_paths,
+            "ARM consumes the complete shared system overlay, so a pull request "
+            "that changes it must prove the ARM image before merge",
+        )
+        self.assertIn(
+            '".github/workflows/build-arm.yml"',
+            pull_request_paths,
+            "a pull request that repairs the ARM workflow must trigger that workflow",
+        )
+
+    def test_only_main_can_publish_arm_latest_or_a_disk(self) -> None:
+        text = read(WORKFLOW)
+        publish_if = (
+            "if: github.event_name != 'pull_request' && "
+            "github.ref == 'refs/heads/main'"
+        )
+        for step_name in (
+            "Log in to GHCR",
+            "Push",
+            "Install cosign",
+            "Sign the ARM image by digest",
+            "Verify the signature against MoOS's installed key",
+        ):
+            match = re.search(
+                rf"^\s+- name: {re.escape(step_name)}\n(?P<body>.*?)(?=^\s+- name:|^\s{{2}}\w|\Z)",
+                text,
+                re.MULTILINE | re.DOTALL,
+            )
+            self.assertIsNotNone(match, f"ARM workflow lost the {step_name!r} step")
+            self.assertIn(
+                publish_if,
+                match.group("body"),
+                f"{step_name} can publish from a feature branch and replace main's latest",
+            )
+
+        disk_job = text.split("\n  disk:\n", 1)
+        self.assertEqual(len(disk_job), 2, "ARM workflow lost its disk job")
+        disk_header = disk_job[1].split("\n    runs-on:", 1)[0]
+        self.assertIn("github.ref == 'refs/heads/main'", disk_header)
+        self.assertIn("needs.build.result == 'success'", disk_header)
+
+    def test_workflow_has_no_unindented_shell_payload(self) -> None:
+        # A heredoc body at column zero ends YAML's `run: |` scalar. GitHub then
+        # creates a failed workflow run with zero jobs and no log, which is the
+        # exact failure this caught on 2026-08-20. Top-level YAML content is a
+        # mapping key; bare shell/TOML payload can never be valid there.
+        offenders = []
+        for lineno, line in enumerate(read(WORKFLOW).splitlines(), start=1):
+            if not line or line[0].isspace() or line.startswith("#"):
+                continue
+            if re.match(r"^[A-Za-z_][A-Za-z0-9_-]*:", line):
+                continue
+            offenders.append((lineno, line))
+        self.assertEqual(
+            offenders,
+            [],
+            f"unindented shell payload makes build-arm.yml invalid YAML: {offenders}",
+        )
 
     def test_finished_image_gates_match_the_cloud_arm_payload(self) -> None:
         build = code(read(BUILD))
