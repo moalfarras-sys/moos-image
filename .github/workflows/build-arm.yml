@@ -296,9 +296,9 @@ jobs:
           set -euo pipefail
           qcow="$(sudo find output -name '*.qcow2' -print -quit)"
           [ -n "$qcow" ] || { echo "FATAL: no qcow2 was produced"; exit 1; }
-          sudo chown "$USER" "$qcow"
           name="moos-arm-$(date -u +%Y%m%d).qcow2"
-          mv "$qcow" "$name"
+          sudo mv "$qcow" "$name"
+          sudo chown "$USER" "$name"
           echo "raw size: $(du -h "$name" | cut -f1)"
           zstd -19 -T0 --long=27 "$name" -o "${name}.zst"
           echo "compressed: $(du -h "${name}.zst" | cut -f1)"
