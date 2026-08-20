@@ -1482,7 +1482,7 @@ acquire_theme_lock() {
 command_name="${1:-status}"
 needs_theme_lock=0
 case "$command_name" in
-    dark|light|nova|amethyst|midnight|aurora|nova-light|amethyst-light|aurora-light|daylight|gaming|dev|study|gaming-light|dev-light|study-light|toggle|auto|sync-auto|reconcile|reconcile-service|guard|undo|apply-lnf|wallpaper-token|wallpaper-reset)
+    dark|light|nova|amethyst|midnight|aurora|nova-light|amethyst-light|aurora-light|daylight|gaming|dev|study|gaming-light|dev-light|study-light|toggle|auto|sync-auto|reconcile|reconcile-service|settle-lnf|guard|undo|apply-lnf|wallpaper-token|wallpaper-reset)
         needs_theme_lock=1
         ;;
     motion)
@@ -1550,6 +1550,26 @@ verify_lnf_state() {
     case "$target" in org.moos.ui2|org.moos.ui2.*) ;; *) return 2 ;; esac
     lnf="$target"
     load_profile "$lnf" || return 1
+    full_theme_complete state
+}
+
+# Login has a race that an instant readback cannot close.  The XDG autostart
+# starts as soon as plasmashell owns its D-Bus name, while Plasma's fallback
+# session restore is still loading the desktop containment.  At that instant a
+# complete Nova scene can verify green and then be replaced a few seconds later
+# by Graphite from the saved appletsrc.  Keep the central owner on watch through
+# the same bounded containment-settle window used after a real theme change,
+# then verify the complete state again.  This is intentionally a private helper
+# for moos-apply-theme, not a second login-time theme implementation.
+settle_lnf_state() {
+    local target="$1" lnf scheme style konsole_profile konsole_profile_name
+    local prefer_dark icons adw_css cursor deco wallpaper wallpaper_package label
+    local qt_widget_style gtk_theme
+    case "$target" in org.moos.ui2|org.moos.ui2.*) ;; *) return 2 ;; esac
+    [ "$(current)" = "$target" ] || return 1
+    lnf="$target"
+    load_profile "$lnf" || return 1
+    settle_desktop_scene || return 1
     full_theme_complete state
 }
 
@@ -1720,6 +1740,10 @@ case "$command_name" in
     verify-lnf)
         [ "$#" -eq 2 ] || { echo "moos-theme: verify-lnf requires one theme id" >&2; exit 2; }
         verify_lnf_state "$2"
+        ;;
+    settle-lnf)
+        [ "$#" -eq 2 ] || { echo "moos-theme: settle-lnf requires one theme id" >&2; exit 2; }
+        settle_lnf_state "$2"
         ;;
     wallpaper-token)
         [ "$#" -eq 2 ] || { echo "moos-theme: wallpaper-token requires one encoded local image" >&2; exit 2; }

@@ -28,11 +28,6 @@ name: Build MoOS ARM (aarch64)
 
 on:
   workflow_dispatch:
-    inputs:
-      make_disk:
-        description: "Also build the qcow2 disk image for Oracle / UTM ('true' or 'false')"
-        required: false
-        default: "true"
   push:
     branches: [main]
     paths:
@@ -44,9 +39,10 @@ on:
     paths:
       - "Containerfile.arm"
       - "build_files/build-arm.sh"
-      - "system_files/usr/share/plymouth/themes/moos/**"
+      - "system_files/**"
       - "tests/test_moos_arm.py"
       - "tests/test_boot_splash_polish.py"
+      - ".github/workflows/build-arm.yml"
 
 env:
   IMAGE_NAME: moos-arm
@@ -157,7 +153,7 @@ jobs:
           '
 
       - name: Log in to GHCR
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         uses: redhat-actions/podman-login@v1
         with:
           registry: ${{ env.REGISTRY }}
@@ -165,7 +161,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         id: push
         run: |
           set -euo pipefail
@@ -179,11 +175,11 @@ jobs:
           echo "pushed ${dest}@${digest}"
 
       - name: Install cosign
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         uses: sigstore/cosign-installer@v3
 
       - name: Sign the ARM image by digest
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         env:
           COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
         run: |
@@ -191,7 +187,7 @@ jobs:
             "${{ steps.push.outputs.destination }}@${{ steps.push.outputs.digest }}"
 
       - name: Verify the signature against MoOS's installed key
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         run: |
           set -euo pipefail
           ref="${{ steps.push.outputs.destination }}@${{ steps.push.outputs.digest }}"
@@ -208,7 +204,7 @@ jobs:
   disk:
     name: Build the qcow2 (Oracle / UTM)
     needs: build
-    if: ${{ !cancelled() && needs.build.result == 'success' }}
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && needs.build.result == 'success'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 90
     permissions:
@@ -259,9 +255,9 @@ jobs:
           # image in the root store that the privileged builder mounts.
           sudo mkdir -p /etc/containers
           cat <<'EOF' | sudo tee /etc/containers/containers.conf
-[engine]
-lock_type = "file"
-EOF
+          [engine]
+          lock_type = "file"
+          EOF
           AUTH="${REGISTRY_AUTH_FILE:-$HOME/.config/containers/auth.json}"
           if [ -f "$AUTH" ]; then
             sudo podman pull --authfile="$AUTH" "${src}"

@@ -4,11 +4,14 @@
 what exists, what is load-bearing, and which of the "obvious" things to do next
 are traps that have already cost this project a day.
 
-Last updated: 2026-08-16. The development host is booted from signed
-**`44.20260814.590`** (`moos-nvidia@sha256:04de88e6…`) and keeps signed `.588`
-as its rollback deployment. The integrated Mo PC Remote repair below is source
-and live-development tested but **not yet shipped**; do not describe it as part
-of `.590` until the three image jobs sign a newer release and it is boot-proven.
+Last updated: 2026-08-20. The development host is booted from signed
+**`44.20260820.617`**
+(`moos-nvidia@sha256:1d9dd510f92fa906aa3a48eba0f83584417cbfb39c540db3352611cba722d1a5`)
+and keeps signed `.612` as its rollback deployment. The registry is newer:
+signed NVIDIA `.624` at main `c89e6f11`, so the host is healthy but not yet at
+the current release. The ARM workflow and login wallpaper-settle repairs below
+are on `fix/arm-release-workflow-20260820`; do not describe them as shipped
+until main CI signs them and both the target image and a real boot are proven.
 
 Release `.586` signed digests:
 
@@ -42,6 +45,45 @@ four documented warnings only). It produced local image
 with manifest digest
 `sha256:cbaa34261c7b0088379fffebc63515a718351107dbccdc506a39c581d879c987`
 and size 10,776,140,710 bytes.
+
+## 2026-08-20 — ARM publishing guard and login wallpaper steady state
+
+The latest main ARM workflow did not fail inside the image: GitHub rejected the
+workflow before creating a job because the body of a shell heredoc was
+unindented YAML. The previous successful `moos-arm:latest` is also not a main
+release; manual dispatch from feature commit `658964e6` published `.18` and
+overwrote the stable tag. Publishing, signing and Oracle disk generation are
+now restricted to non-PR runs on `main`; pull requests still build the complete
+ARM image, and their path filter covers the shared `system_files/**` overlay and
+the workflow itself. Regression tests pin both the main-only release policy and
+valid indentation. The existing ARM image contains the full Plasma Wayland,
+KWin, KRDP and cloud-init stack, but still intentionally omits the x86-only
+MoPlayer and Mo PC Remote binaries. A newly signed artifact still needs a real
+AArch64 boot and visual login/desktop proof before Oracle support is closed.
+
+The live host exposed a separate login race. Nova was selected, but Plasma
+restored a saved Graphite containment just after the autostart fast path read
+Nova once and exited. `moos-apply-theme` now accepts that fast path only after a
+bounded steady-state settle through the locked theme engine, followed by a full
+live verification. The new regression test fails against the old single-read
+implementation. Applying Nova on the real 3840×2160 session now leaves the
+Nova wallpaper active; the screenshot is visually coherent, `moos-selfcheck`
+passes all 50 functional checks (with the expected automatic-tray user note),
+and the post-update check passes 49/49.
+
+Mo PC Remote was not stopped during this audit: its user service and the
+PipeWire portal are active without restart, the loopback application returns
+HTTP 200, Tailscale exposes only the tailnet HTTPS proxy, and the installed
+binary matches the repository. Both system and user failed-unit sets are empty.
+The complete generic compose from the same tree passes: all application/QML
+smokes, the 134 MiB initramfs proof, experience/store/identity/firewall gates
+and `bootc container lint` (9 checks and the four documented warnings). It
+produced local image
+`35e0dfb3bbd1579651b1aeaec4d218262b9eb610a4df07bfff3d62548cb5da80`,
+manifest `sha256:f29d11d352f3cd29d5161c73dac74ff200b687e4631cd4b6c51a9be549967d2b`,
+10,806,916,074 bytes. The image's two theme scripts are byte-identical to the
+working tree. The remaining release gates are signed CI publication, ARM disk
+boot, then NVIDIA update/reboot and post-boot visual/service proof.
 
 ## 2026-08-18 — Mo AI became ONE chat (source-proven, not yet signed)
 

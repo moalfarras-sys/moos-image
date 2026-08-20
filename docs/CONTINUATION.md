@@ -1,7 +1,45 @@
 # Unified Experience Continuation
 
-Date: 2026-08-15
-Branch: `fix/moremote-integrated-control-20260815`
+Date: 2026-08-20
+Branch: `fix/arm-release-workflow-20260820`
+
+## 2026-08-20 — ARM release workflow and desktop steady-state repair
+
+Do not reset the untracked `MoOS-ARM.utm*` bundle or the three untracked UTM
+generator/setup scripts; they predate this repair and belong to the owner.
+
+The host audit starts from signed NVIDIA `.617`, with signed `.612` retained as
+rollback. The current registry release is `.624` at main `c89e6f11`; update and
+reboot are deliberately last. System/user failed units are empty. Mo PC Remote
+is active and stable, its PipeWire portal is running, loopback returns HTTP 200,
+Tailscale exposes only tailnet HTTPS, and installed source matches the repo.
+
+The failed main ARM run never created a job: an unindented `[engine]` heredoc
+made `build-arm.yml` invalid YAML. In addition, the existing `.18` stable ARM
+tag came from feature commit `658964e6`, because manual branch dispatches were
+allowed to publish. The workflow now builds PRs but publishes/signs/generates
+the Oracle disk only on main; PR paths cover all shared `system_files/**` and
+the workflow file. `test_moos_arm.py` pins the release policy and guards against
+unindented shell payloads. `actionlint` and all 25 ARM tests pass. The next main
+run must publish a newly signed image and disk, followed by real AArch64 boot
+and visual proof. Until that happens, Oracle/ARM is not boot-proven.
+
+The live Nova wallpaper failure was a Plasma session-restore race, not missing
+artwork. The login fast path saw Nova once just after plasmashell appeared and
+exited; Plasma then restored the saved Graphite containment. The fast path now
+calls a private locked `settle-lnf` command that reuses the bounded six-sample
+desktop settle and finishes with full live verification. A regression test
+fails against the old single-read path. Nova now remains active on the real 4K
+desktop; the screenshot was inspected, `moos-selfcheck` passes 50/50 (plus the
+expected tray user note), and `post-update-check.sh` passes 49/49.
+
+`just check` passes in full, MCP setup completed with the four approved servers
+and its credential/deny-rule gate passes. The fresh generic `just build` also
+passes every QML/app smoke, the 134 MiB initramfs proof, the experience/store/
+identity/firewall gates and `bootc container lint` (9 checks, four documented
+warnings). Local image `35e0dfb3bbd1…`, manifest `sha256:f29d11d352f3…`, size
+10,806,916,074 bytes; the two repaired theme scripts in it match source hashes.
+Do not call the repair shipped until signed CI and the later boot gates complete.
 
 ## 2026-08-15 — Mo PC Remote integrated control, signed release pending
 

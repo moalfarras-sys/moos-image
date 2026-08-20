@@ -20,9 +20,11 @@ It targets three things:
 The image is built on **native ARM runners** — emulating an aarch64 desktop build
 on x86 takes hours and usually blows the job timeout.
 
-1. Push this branch to GitHub.
-2. Actions → **Build MoOS ARM (aarch64)** → *Run workflow* → leave
-   **Also build the qcow2 disk image** ticked.
+1. Merge the reviewed ARM changes to `main` (a pull request still builds and
+   verifies the container, but cannot publish over the stable update channel).
+2. The `main` push builds, signs and publishes the image and then creates the
+   QCOW2 automatically. To repeat it manually, Actions → **Build MoOS ARM
+   (aarch64)** → *Run workflow* and select `main`.
 3. When it finishes, download the `moos-arm-qcow2` artifact and unpack it:
 
 ```bash
