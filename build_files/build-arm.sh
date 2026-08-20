@@ -304,6 +304,9 @@ systemctl enable serial-getty@ttyAMA0.service
 install -D -m0644 /dev/stdin /usr/lib/dracut/dracut.conf.d/50-moos-arm.conf <<'DRACUT'
 hostonly="no"
 hostonly_cmdline="no"
+# Image composition has no syslog socket. Console/file output remains captured by
+# CI, so do not ask dracut to emit a misleading "No /dev/log" error.
+sysloglvl="0"
 add_drivers+=" virtio_blk virtio_net virtio_pci virtio_scsi virtio_gpu virtio_console "
 DRACUT
 
@@ -724,9 +727,16 @@ PYSEC
 echo "=== (9) initramfs ==="
 kver="$(rpm -q --qf '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-core | tail -1)"
 [ -n "${kver}" ] || { echo "FATAL: no kernel-core in the image"; exit 1; }
+# bootc keeps /root as a symlink to mutable /var/roothome, while an image build
+# deliberately leaves /var empty. dracut resolves that root home while composing
+# its passwd payload; with a dangling target it logs a false-success ERROR for
+# `/root`. Materialize it only for the compose, then restore the clean /var
+# contract before bootc lint.
+install -d -m0700 /var/roothome
 dracut --no-hostonly --force --reproducible \
     --add "ostree plymouth" \
     "/usr/lib/modules/${kver}/initramfs.img" "${kver}" 2>&1 | tail -20
+rmdir /var/roothome
 
 # GATE: the splash has to actually be inside the initramfs. Everything else can
 # be green while it is not, and the failure is only visible on a boot.
@@ -749,12 +759,32 @@ grep -q 'ostree-prepare-root' /tmp/moos-arm-initrd.txt || {
     echo "FATAL: the ARM initramfs lacks ostree-prepare-root — deployed root cannot mount"
     exit 1
 }
-for _driver in virtio_blk virtio_net virtio_gpu virtio_console; do
-    grep -q "${_driver}" /tmp/moos-arm-initrd.txt || {
-        echo "FATAL: the ARM initramfs lacks ${_driver} — portable VM boot is not proven"
+# Fedora's aarch64 kernel deliberately compiles the root-disk, PCI transport and
+# console virtio drivers into vmlinux. A built-in has no .ko to put in initramfs,
+# so testing only the archive invents a failure on the exact kernel that boots.
+# Prove every required driver through modinfo; loadable drivers must additionally
+# be present in the initramfs inventory.
+for _driver in virtio_blk virtio_pci virtio_scsi virtio_net virtio_gpu virtio_console; do
+    _driver_file="$(modinfo -k "${kver}" -F filename "${_driver}" 2>/dev/null)" || {
+        echo "FATAL: the ARM kernel does not provide ${_driver}"
         exit 1
     }
+    if [ "${_driver_file}" = "(builtin)" ]; then
+        grep -qE "/${_driver}\\.ko$" "/usr/lib/modules/${kver}/modules.builtin" || {
+            echo "FATAL: modinfo claims ${_driver} is built-in but modules.builtin disagrees"
+            exit 1
+        }
+        echo "       ${_driver}: built into the ARM kernel"
+    else
+        _driver_basename="${_driver_file##*/}"
+        grep -qF "${_driver_basename}" /tmp/moos-arm-initrd.txt || {
+            echo "FATAL: the ARM initramfs lacks ${_driver} (${_driver_basename})"
+            exit 1
+        }
+        echo "       ${_driver}: ${_driver_basename} in initramfs"
+    fi
 done
+unset -v _driver _driver_file _driver_basename
 echo "=== initramfs carries OSTree, virtio and the MoOS splash ==="
 
 # The ARM edition does not get a reduced identity standard. These are the same

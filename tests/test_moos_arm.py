@@ -316,6 +316,12 @@ class ArmEditionTests(unittest.TestCase):
                          "an unreadable ARM initramfs must fail, not warn and publish")
         for payload in ("ostree-prepare-root", "virtio_blk", "virtio_net", "virtio_gpu"):
             self.assertIn(payload, build)
+        self.assertIn('modinfo -k "${kver}" -F filename', build,
+                      "the driver gate must distinguish kernel built-ins from loadable modules")
+        self.assertIn('modules.builtin', build,
+                      "built-in ARM virtio drivers are valid only when the kernel inventory proves them")
+        self.assertIn('_driver_basename', build,
+                      "loadable virtio drivers must still be proven inside the initramfs archive")
         self.assertIn("rm -f /usr/lib/bootc/kargs.d/30-moos-latency.toml", build)
 
     # ── security posture ────────────────────────────────────────────────────
@@ -432,8 +438,11 @@ class ArmEditionTests(unittest.TestCase):
                       "an image built on one machine and booted on another must carry "
                       "every driver it could need; a hostonly initramfs is how a cloud "
                       "image lands in dracut's emergency shell with no root device")
-        for drv in ("virtio_blk", "virtio_net"):
+        for drv in ("virtio_blk", "virtio_pci", "virtio_scsi", "virtio_net",
+                    "virtio_gpu", "virtio_console"):
             self.assertIn(drv, text, f"{drv} must be in the initramfs for a cloud/VM boot")
+        self.assertIn('sysloglvl="0"', text,
+                      "image composition must not request a missing syslog socket")
 
     def test_the_boot_animation_is_gated_here_too(self) -> None:
         text = read(BUILD)
