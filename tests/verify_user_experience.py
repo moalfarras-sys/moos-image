@@ -795,26 +795,8 @@ require('heroOrb.pulse()' in moai_qml_code,
         "launch() must pulse the hero orb by id (heroOrb.pulse()), the in-scope way to fire "
         "the launch feedback")
 
-# Saving Mo AI's mode must always answer the HTTP request. A prior bind-race fix
-# accidentally indented self._send() under the "gateway already active" branch,
-# so the first save that had to start the gateway succeeded server-side but left
-# the UI waiting forever.
-_moai_control_for_save = code(read("system_files/usr/bin/moai-control"), "hash")
-_gateway_start = re.search(
-    r"if not user_unit_active\(GATEWAY_UNIT\):\s+"
-    r"sysctl\(\"enable\", \"--now\", GATEWAY_UNIT\)\s+"
-    r"else:\s+sysctl\(\"enable\", GATEWAY_UNIT\)\s+"
-    r"self\._send\(200, \{\"ok\": True, \"mode\": mode\}\)",
-    _moai_control_for_save,
-)
-require(_gateway_start is not None,
-        "Mo AI config save must answer after either starting or reusing the gateway; "
-        "self._send() cannot be conditional on the gateway already being active")
-
-# Whitespace-sensitive Python can satisfy the sequence above while placing the
-# whole sequence in H's class body. That imports as far as the class definition,
-# then crashes immediately because neither `self` nor `mode` exists there. Check
-# the syntax tree: the gateway activation and response must belong to do_POST.
+# Keep request code inside the handler methods. A past indentation regression
+# put live request statements in H's class body and crashed the service at import.
 _control_tree = ast.parse(read("system_files/usr/bin/moai-control"))
 _control_imports = {
     alias.name
@@ -835,14 +817,6 @@ if _handler:
     require(not any(isinstance(n, (ast.If, ast.Expr)) for n in _handler.body),
             "moai-control H class body must contain only definitions/assignments; request code "
             "at class scope crashes the service during startup")
-if _post:
-    _post_calls = [n for n in ast.walk(_post) if isinstance(n, ast.Call)]
-    require(any(isinstance(n.func, ast.Attribute)
-                and isinstance(n.func.value, ast.Name)
-                and n.func.value.id == "self" and n.func.attr == "_send"
-                and n.lineno > 1235 for n in _post_calls),
-            "Mo AI config save response must execute inside H.do_POST")
-
 # ── The camera the user actually gets must run on THIS desktop ────────────────
 #
 # "Install a camera" resolved, on Flathub's top hit, to io.github.cosmic_utils.camera:
@@ -1834,9 +1808,13 @@ require("content_block_delta" in gateway,
 require("max_tokens" in gateway,
         "Anthropic requires max_tokens; the gateway must supply one")
 
-# Presets describe providers. A preset must never carry a credential.
-require('"key"' not in control_py.split("PROVIDERS = [")[1].split("]")[0],
-        "a provider preset must never contain an API key")
+# One provider catalog, owned by the OpenClaw configuration API.
+agent_api_py = read("system_files/usr/bin/moai-agent-api")
+require("PROVIDERS = [" in agent_api_py and "PROVIDERS = [" not in control_py,
+        "moai-agent-api must be the one provider-catalog authority")
+require('route == "/config"' not in control_py
+        and 'route == "/providers"' not in control_py,
+        "moai-control must not retain a second configuration API")
 require("moai-credential-store" in gateway,
         "the gateway must read the key from Mo AI's private XDG store, not config.json")
 
@@ -2326,6 +2304,11 @@ require(not (ROOT / "system_files/usr/lib/systemd/user/moai-cloud.service").exis
         "moai-cloud.service was the opt-in cloud proxy; moai-gateway.service replaces it")
 require("moai-cloud" not in code(read("system_files/usr/bin/moai-config")),
         "moai-config must not still enable/disable the retired moai-cloud.service")
+_moai_config_tool = read("system_files/usr/bin/moai-config")
+require('"/api/config"' in _moai_config_tool
+        and "config.json" not in _moai_config_tool
+        and "openclaw.json" not in _moai_config_tool,
+        "moai-config must be a client of moai-agent-api, never another config writer")
 
 # ── The local brain must not hold VRAM while idle ─────────────────────────────
 #

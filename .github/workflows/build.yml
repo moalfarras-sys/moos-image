@@ -205,6 +205,7 @@ jobs:
           python3 tests/test_theme_wallpaper_steady_state.py
           python3 tests/test_mokernel.py
           python3 tests/test_moai_control.py
+          python3 tests/test_moai_config.py
           python3 tests/test_moai_workspace.py
           python3 tests/test_moai_hybrid.py
           # moos-open's session/logout and session/power hardcoded `qdbus6`, absent on Plasma 6

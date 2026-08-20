@@ -285,7 +285,7 @@ class ControlApiSecurityTests(unittest.TestCase):
 
         self.assertEqual(self.calls, [])
 
-    def test_same_origin_request_works_and_options_never_grants_cors(self):
+    def test_retired_config_routes_are_gone_and_options_never_grants_cors(self):
         with running(self.handler) as port:
             origin = f"http://127.0.0.1:{port}"
             headers = {
@@ -293,12 +293,17 @@ class ControlApiSecurityTests(unittest.TestCase):
                 "Content-Type": "application/json; charset=utf-8",
                 "Origin": origin,
             }
-            status, response_headers, payload = request(
-                port, "POST", "/config", {"mode": "local"}, headers
-            )
-            self.assertEqual(status, 200)
-            self.assertEqual(json.loads(payload), {"ok": True, "mode": "local"})
+            status, response_headers, _ = request(
+                port, "POST", "/config", {"mode": "local"}, headers)
+            self.assertEqual(status, 404)
             self.assertNotIn("access-control-allow-origin", response_headers)
+
+            status, _, _ = request(
+                port, "GET", "/config", headers={"X-Moai-Control": "1"})
+            self.assertEqual(status, 404)
+            status, _, _ = request(
+                port, "GET", "/providers", headers={"X-Moai-Control": "1"})
+            self.assertEqual(status, 404)
 
             status, response_headers, _ = request(
                 port,
@@ -315,21 +320,7 @@ class ControlApiSecurityTests(unittest.TestCase):
                 any(name.startswith("access-control-") for name in response_headers)
             )
 
-        self.assertEqual(
-            self.calls,
-            [
-                (
-                    "save",
-                    {
-                        "mode": "local",
-                        "cloud_base": "",
-                        "cloud_model": "",
-                        "cloud_wire": "openai",
-                    },
-                ),
-                ("sysctl", ("enable", "moai-gateway.service")),
-            ],
-        )
+        self.assertEqual(self.calls, [])
 
 
 class GatewaySecurityTests(unittest.TestCase):

@@ -1,90 +1,174 @@
-#!/usr/bin/env bash
-# moai-config — choose Mo AI's DEFAULT brain and (optionally) configure a cloud
-# provider. The terminal twin of Mo AI's Settings sheet.
-#
-# Writes non-secret provider settings to ~/.config/moai/config.json (chmod 600).
-# The API key is stored only in Mo AI's private XDG data file (0700 directory,
-# 0600 file), entered by the USER in a kdialog password field, and read only by
-# moai-gateway — never by the pure-QML app or config.json.
-#
-# `mode` is only the DEFAULT now. moai-gateway is a single always-on front door on
-# 8080 and routes each REQUEST: Mo AI's chat picker chooses local or cloud per
-# conversation, and only a request that names no brain falls back to what is set
-# here. So nothing is enabled or disabled below — the days of stopping one brain
-# to start the other are over; that is what made this a global setting in the
-# first place.
-set -uo pipefail
+#!/usr/bin/python3
+"""Terminal twin of Mo AI Settings, backed by the one OpenClaw authority."""
 
-cfg_dir="${XDG_CONFIG_HOME:-$HOME/.config}/moai"
-cfg="${cfg_dir}/config.json"
-credential_store="${MOAI_CREDENTIAL_STORE:-/usr/libexec/moai-credential-store}"
-mkdir -p "$cfg_dir" 2>/dev/null || true
+from __future__ import annotations
 
-command -v kdialog >/dev/null 2>&1 || { echo "kdialog required"; exit 1; }
+import json
+import os
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.request
 
-mode=$(kdialog --title "Mo AI — العقل | Brain" \
-    --menu "اختر عقل Mo AI | Choose Mo AI's brain:" \
-        local "محلي وخاص (RamaLama) | Local & private" \
-        cloud "سحابي (مفتاحك الخاص) | Cloud (your own API key)" 2>/dev/null) || exit 0
 
-# MERGE, never overwrite. Choosing "local" used to write {"cloud_base": "",
-# "cloud_model": ""} over the file and throw the user's provider away — which was
-# survivable only while local and cloud were mutually exclusive. They are not any
-# more: a default of local and a working cloud provider is now an ordinary state,
-# and picking a default must not delete the other brain.
-write_cfg() {  # write_cfg <mode> [base] [model]
-    MOAI_MODE="$1" MOAI_BASE="${2-}" MOAI_MODEL="${3-}" python3 - "$cfg" <<'PY'
-import json, os, sys
-p = sys.argv[1]
-try:
-    with open(p, encoding="utf-8") as f:
-        cur = json.load(f)
-except Exception:
-    cur = {}
-cur.pop("cloud_key", None)          # the key lives in private XDG data, nowhere else
-cur["mode"] = os.environ.get("MOAI_MODE") or "local"
-for field, var in (("cloud_base", "MOAI_BASE"), ("cloud_model", "MOAI_MODEL")):
-    value = os.environ.get(var) or ""
-    if value:
-        cur[field] = value
-    cur.setdefault(field, "")
-cur.setdefault("cloud_wire", "openai")
-with open(p, "w", encoding="utf-8") as f:
-    json.dump(cur, f, ensure_ascii=False, indent=2)
-PY
-    chmod 600 "$cfg" 2>/dev/null || true
-}
+API = os.environ.get("MOAI_AGENT_API_URL", "http://127.0.0.1:8077").rstrip("/")
+HEADERS = {"X-Moai-Agent": "1"}
 
-# The front door must be up whichever brain is the default — it is the only thing
-# on 8080 and the only thing Mo AI talks to.
-systemctl --user enable --now moai-gateway.service 2>/dev/null || true
 
-if [ "$mode" = "cloud" ]; then
-    base=$(kdialog --title "Mo AI — Cloud" \
-        --inputbox $'عنوان الخدمة (OpenAI-compatible) | API base URL:\nمثال | e.g.  https://openrouter.ai/api/v1' \
-        "https://openrouter.ai/api/v1" 2>/dev/null) || exit 0
-    model=$(kdialog --title "Mo AI — Cloud" \
-        --inputbox $'اسم النموذج | Model name:\nمثال | e.g.  anthropic/claude-sonnet-5  ·  openai/gpt-4o-mini' \
-        "anthropic/claude-sonnet-5" 2>/dev/null) || exit 0
-    key=$(kdialog --title "Mo AI — Cloud" \
-        --password $'مفتاح الـ API الخاص بك (يُحفظ محلياً فقط) | Your API key (stored locally only):' 2>/dev/null) || exit 0
-    if [ -z "$key" ]; then
-        kdialog --sorry "لم تُدخل مفتاحاً — بقي العقل محلياً. | No key entered — staying local." || true
-        write_cfg local
-        exit 0
-    fi
-    if [ ! -x "$credential_store" ] || ! \
-        printf '%s' "$key" | "$credential_store" set; then
-        kdialog --error $'تعذر حفظ المفتاح في مخزن Mo AI الخاص.\nThe key could not be saved in Mo AI private storage.' || true
-        exit 1
-    fi
-    key=""
-    write_cfg cloud "$base" "$model"
-    kdialog --title "Mo AI" --msgbox $'العقل السحابي هو الافتراضي ✓ (بإمكانك اختيار العقل لكل محادثة من داخل Mo AI)\nCloud is now the default brain ✓ (pick a brain per conversation inside Mo AI)' || true
-else
-    # Keep the cloud provider on file. It is the DEFAULT that changed, not the
-    # user's account — and the chat picker can still route a message to it.
-    write_cfg local
-    kdialog --title "Mo AI" --msgbox $'العقل المحلي هو الافتراضي ✓ (بإمكانك اختيار العقل لكل محادثة من داخل Mo AI)\nLocal is now the default brain ✓ (pick a brain per conversation inside Mo AI)' || true
-fi
-exit 0
+def dialog(*args: str) -> str | None:
+    try:
+        result = subprocess.run(
+            ["kdialog", *args], text=True, capture_output=True, timeout=600,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return result.stdout.rstrip("\n") if result.returncode == 0 else None
+
+
+def notice(kind: str, message: str) -> None:
+    subprocess.run(
+        ["kdialog", f"--{kind}", message], check=False,
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+
+
+def request(method: str, path: str, body: dict | None = None) -> dict:
+    payload = None if body is None else json.dumps(body).encode("utf-8")
+    headers = dict(HEADERS)
+    if payload is not None:
+        headers["Content-Type"] = "application/json"
+    req = urllib.request.Request(API + path, data=payload, headers=headers, method=method)
+    try:
+        with urllib.request.urlopen(req, timeout=60) as response:
+            value = json.load(response)
+    except urllib.error.HTTPError as error:
+        try:
+            detail = json.load(error).get("error")
+        except Exception:
+            detail = None
+        raise RuntimeError(detail or f"Mo AI API returned HTTP {error.code}") from error
+    except (OSError, ValueError) as error:
+        raise RuntimeError(f"Mo AI API is unavailable: {error}") from error
+    if not isinstance(value, dict):
+        raise RuntimeError("Mo AI API returned an invalid response")
+    if value.get("error"):
+        raise RuntimeError(str(value["error"]))
+    return value
+
+
+def current_config() -> dict:
+    subprocess.run(
+        ["systemctl", "--user", "start", "moai-agent-api.service"], check=False,
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+    last_error: Exception | None = None
+    for _ in range(30):
+        try:
+            return request("GET", "/api/config")
+        except RuntimeError as error:
+            last_error = error
+            time.sleep(0.2)
+    raise RuntimeError(str(last_error or "Mo AI API did not start"))
+
+
+def choose_cloud(config: dict) -> dict | None:
+    providers = config.get("providers") or []
+    if not isinstance(providers, list) or not providers:
+        raise RuntimeError("Mo AI returned no cloud-provider catalog")
+    menu: list[str] = []
+    by_id: dict[str, dict] = {}
+    for item in providers:
+        if not isinstance(item, dict) or not item.get("id"):
+            continue
+        provider_id = str(item["id"])
+        by_id[provider_id] = item
+        menu.extend((provider_id, str(item.get("name") or provider_id)))
+    provider_id = dialog(
+        "--title", "Mo AI — Cloud", "--menu",
+        "اختر المزوّد | Choose provider:", *menu,
+    )
+    if provider_id is None:
+        return None
+    provider = by_id.get(provider_id)
+    if provider is None:
+        raise RuntimeError("Unknown provider selection")
+    current = config.get("cloud") or {}
+    base_default = str(current.get("base") or provider.get("base") or "")
+    model_default = str(current.get("model") or provider.get("model") or "")
+    base = dialog(
+        "--title", "Mo AI — Cloud", "--inputbox",
+        "عنوان الخدمة | API base URL:", base_default,
+    )
+    if base is None:
+        return None
+    model = dialog(
+        "--title", "Mo AI — Cloud", "--inputbox",
+        "اسم النموذج | Model name:", model_default,
+    )
+    if model is None:
+        return None
+    key = dialog(
+        "--title", "Mo AI — Cloud", "--password",
+        "مفتاح API (اتركه فارغًا للاحتفاظ بالمفتاح الحالي) | "
+        "API key (leave blank to keep the current key):",
+    )
+    if key is None:
+        return None
+    if not key and not bool(current.get("has_key")):
+        raise RuntimeError("No API key is configured")
+    cloud = {"provider": provider_id, "base": base, "model": model}
+    if key:
+        cloud["key"] = key
+    return {"mode": "cloud", "cloud": cloud}
+
+
+def main() -> int:
+    if not shutil_which("kdialog"):
+        print("kdialog required", file=sys.stderr)
+        return 1
+    try:
+        config = current_config()
+        mode = dialog(
+            "--title", "Mo AI — العقل | Brain", "--menu",
+            "اختر عقل Mo AI | Choose Mo AI's brain:",
+            "local", "محلي وخاص | Local & private",
+            "cloud", "سحابي | Cloud",
+            "hybrid", "هجين | Hybrid",
+        )
+        if mode is None:
+            return 0
+        if mode == "cloud":
+            body = choose_cloud(config)
+            if body is None:
+                return 0
+        elif mode == "local":
+            brain = config.get("brain") or {}
+            body = {
+                "mode": "local",
+                "local_model": brain.get("local_model", "ollama/default"),
+            }
+        else:
+            body = {"mode": "hybrid"}
+        request("POST", "/api/config", body)
+        notice("msgbox", "تم حفظ إعداد Mo AI ✓ | Mo AI setting saved ✓")
+        return 0
+    except RuntimeError as error:
+        notice(
+            "error",
+            f"تعذر حفظ إعداد Mo AI.\nMo AI setting was not saved.\n\n{error}",
+        )
+        return 1
+
+
+def shutil_which(name: str) -> str | None:
+    """Small PATH lookup without importing a module solely for one call."""
+    for directory in os.environ.get("PATH", "").split(os.pathsep):
+        candidate = os.path.join(directory, name)
+        if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+            return candidate
+    return None
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -2,22 +2,17 @@
 # moai-control — localhost state + control API for Mo AI.
 #
 # Mo AI is a pure-QML app: it has no Process API, cannot exec, and cannot write
-# files. This small always-on user service is its ONLY way to learn about the
-# machine and change its own config. It is deliberately not a general-purpose
-# bridge — it exposes a fixed set of read-only reads plus one config write. Any
+# files. This small always-on user service exposes runtime/model/search status.
+# OpenClaw configuration belongs exclusively to moai-agent-api; this service is
+# deliberately not a general-purpose bridge. Any
 # action that CHANGES the system goes through moos-open -> moai-do instead, so
 # it keeps its confirmation + Polkit prompt.
 #
-# The API KEY is only ever RECEIVED (POST) and stored in Mo AI's private XDG data
-# file; GET never returns it (only has_key). Stdlib only.
-#
-#   GET  /config   brain config (mode, base, model, has_key)
 #   GET  /status   {"online": bool}  — can the DEFAULT brain answer right now
 #   GET  /quick    CHEAP poll: brains + remote + agents. Safe every few seconds.
 #   GET  /models   the REAL models this machine can route to (see below)
 #   GET  /scan     full snapshot incl. the cached device plan.
 #   GET  /search?q=…  Flathub app search (this is Mo AI's App Centre).
-#   POST /config   set the DEFAULT mode/base/model/key.
 import json, os, re, shutil, subprocess, sys, tempfile, threading, time
 import urllib.error, urllib.parse, urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -71,46 +66,6 @@ REMOTE_UNIT = "mo-remote-personal.service"
 # See moai-gateway: Python's default "Python-urllib/3.x" User-Agent is answered
 # with 403 (Cloudflare "error code: 1010") by a large share of AI providers.
 USER_AGENT = "MoOS-MoAI/1.0 (+https://github.com/moalfarras-sys/moos-image)"
-
-# ── Cloud brains Mo AI can use ───────────────────────────────────────────────
-#
-# `wire` is the protocol the provider actually speaks — "openai" for the
-# chat/completions dialect (OpenAI, OpenRouter, Gemini's OpenAI-compatible
-# endpoint, and any private gateway), "anthropic" for Claude's native
-# /v1/messages, which moai-gateway translates.
-#
-# `model` is a CHEAP default on purpose. The point of the cloud brain is to
-# answer questions about a desktop, not to be the largest model available, and
-# the user pays for every token.
-#
-# No API keys here, ever. A key lives in Mo AI's private XDG data store and
-# nowhere else — not in this file, not in config.json, and not in the repository.
-PROVIDERS = [
-    {"id": "moagent", "name": "Mo Agent (خاص | private)",
-     "base": "https://api.synterolink.com/v1", "wire": "openai",
-     "model": "gpt-5.4-mini",
-     "hint": "وكيلك الخاص | your own agent endpoint"},
-    {"id": "openai", "name": "OpenAI",
-     "base": "https://api.openai.com/v1", "wire": "openai",
-     "model": "gpt-5.4-mini",
-     "hint": "platform.openai.com/api-keys"},
-    {"id": "anthropic", "name": "Claude (Anthropic)",
-     "base": "https://api.anthropic.com/v1", "wire": "anthropic",
-     "model": "claude-haiku-4-5-20251001",
-     "hint": "console.anthropic.com — Haiku هو الأرخص"},
-    {"id": "gemini", "name": "Google Gemini",
-     "base": "https://generativelanguage.googleapis.com/v1beta/openai",
-     "wire": "openai", "model": "gemini-2.0-flash",
-     "hint": "aistudio.google.com/apikey — Flash هو الأرخص"},
-    {"id": "openrouter", "name": "OpenRouter (كل النماذج | every model)",
-     "base": "https://openrouter.ai/api/v1", "wire": "openai",
-     "model": "google/gemini-2.0-flash-001",
-     "hint": "openrouter.ai/keys — مفتاح واحد لكل المزوّدين"},
-    {"id": "custom", "name": "أخرى | Other (OpenAI-compatible)",
-     "base": "", "wire": "openai", "model": "",
-     "hint": "أي خادم يتكلم /v1/chat/completions"},
-]
-
 
 def load() -> dict:
     """Load the Mo AI settings configuration, under a file lock."""
@@ -1519,18 +1474,7 @@ class H(BaseHTTPRequestHandler):
             return
         path = urllib.parse.urlparse(self.path)
         route = path.path
-        if route == "/providers":
-            self._send(200, {"providers": PROVIDERS})
-        elif route == "/config":
-            c = load_merged()
-            self._send(200, {
-                "mode": c.get("mode", "local"),
-                "cloud_base": c.get("cloud_base", ""),
-                "cloud_model": c.get("cloud_model", ""),
-                "cloud_wire": c.get("cloud_wire", "openai"),
-                "has_key": bool(c.get("cloud_key") or get_secret()),
-            })
-        elif route == "/status":
+        if route == "/status":
             self._send(200, {"online": brain_online()})
         elif route == "/quick":
             self._send(200, quick())
@@ -1603,44 +1547,7 @@ class H(BaseHTTPRequestHandler):
         if route == "/delete":
             return self._send(200, delete_model(data.get("model") or ""))
 
-        if route != "/config":
-            return self._send(404, {"error": "not found"})
-        requested_mode = data.get("mode")
-        mode = requested_mode if requested_mode in ("local", "cloud", "hybrid") else "local"
-        key = data.get("cloud_key") or ""
-        if key and not store_secret(key):
-            return self._send(503, {"error": "Mo AI private storage is unavailable"})
-        # One read-modify-write transaction: ThreadingHTTPServer may receive two
-        # settings saves together, and neither may overwrite fields from a
-        # newer request using a stale snapshot.
-        with CONFIG_LOCK:
-            cur = load()
-            out = {
-                "mode": mode,
-                "cloud_base": data.get("cloud_base", cur.get("cloud_base", "")),
-                "cloud_model": data.get("cloud_model", cur.get("cloud_model", "")),
-                "cloud_wire": data.get("cloud_wire", cur.get("cloud_wire", "openai")),
-            }
-            save(out)
-
-        # This used to `systemctl disable --now` one brain and `enable --now` the
-        # other, because both listened on 8080. They no longer do: the gateway owns
-        # 8080 and routes each REQUEST, so `mode` is now only the DEFAULT for a
-        # request that does not name a brain. Nothing is bounced, nothing is torn
-        # down mid-conversation, and the local brain is left exactly as the user
-        # left it — the gateway starts it on demand if a request routes to it.
-        with _models_lock:                 # the provider may have changed
-            _models_cache["data"] = None
-        with _cloud_lock:
-            _cloud_cache["ts"] = 0.0
-        # `enable` (no --now) is enough: the unit is already WantedBy=default.target,
-        # so starting it here too just races the boot activation for the port. Only
-        # start it if it is not already running, to avoid a double-bind at boot.
-        if not user_unit_active(GATEWAY_UNIT):
-            sysctl("enable", "--now", GATEWAY_UNIT)
-        else:
-            sysctl("enable", GATEWAY_UNIT)
-        self._send(200, {"ok": True, "mode": mode})
+        return self._send(404, {"error": "not found"})
 
     def do_OPTIONS(self):
         # No CORS grant: foreign browser pages cannot obtain permission for the
