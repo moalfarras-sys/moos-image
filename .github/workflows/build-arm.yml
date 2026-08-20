@@ -258,6 +258,11 @@ jobs:
           # global flag (proven 2026-08-19, ubuntu-24.04-arm). The flag belongs
           # on the subcommand. sudo pull is required so --local BIB sees the
           # image in the root store that the privileged builder mounts.
+          sudo mkdir -p /etc/containers
+          cat <<'EOF' | sudo tee /etc/containers/containers.conf
+[engine]
+lock_type = "file"
+EOF
           AUTH="${REGISTRY_AUTH_FILE:-$HOME/.config/containers/auth.json}"
           if [ -f "$AUTH" ]; then
             sudo podman pull --authfile="$AUTH" "${src}"
