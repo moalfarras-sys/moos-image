@@ -12,7 +12,7 @@
 # manual update, while Flatpaks kept flowing and the timer stayed green.
 #
 # This is the missing train. Same contract as the manual path — resolve the
-# official `:latest`, refuse anything but the three official editions, validate
+# official `:latest`, refuse anything but the four official editions, validate
 # the digest shape, rebase to the EXACT signed object — run nightly as root by
 # systemd (no Polkit: the service already is the privilege boundary, and the
 # rebase target is constructed here from an allowlist, never taken as input).
@@ -82,6 +82,7 @@ registry="ghcr.io/moalfarras-sys"
 case "$ref" in
     *"/moos-nvidia@"*|*"/moos-nvidia:"*) edition="moos-nvidia" ;;
     *"/moos-cloud@"*|*"/moos-cloud:"*)   edition="moos-cloud" ;;
+    *"/moos-arm@"*|*"/moos-arm:"*)       edition="moos-arm" ;;
     *"/moos@"*|*"/moos:"*)               edition="moos" ;;
     *)
         # A foreign or unrecognized origin is not ours to rewrite. Verified

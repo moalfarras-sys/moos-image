@@ -1,10 +1,10 @@
-﻿# =============================================================================
-# MoOS ARM ÔÇö the aarch64 bootc image (moos-arm)
+# =============================================================================
+# MoOS ARM — the aarch64 bootc image (moos-arm)
 # =============================================================================
 #
 # WHY A SECOND CONTAINERFILE
 #   The x86_64 image builds FROM ghcr.io/ublue-os/kinoite-main:44. That tag is
-#   published for amd64 only ÔÇö it has no arm64 manifest at all ÔÇö so no build
+#   published for amd64 only — it has no arm64 manifest at all — so no build
 #   flag can make the main Containerfile produce an ARM image. This one starts
 #   from Fedora's own bootc base, which does ship aarch64, and brings up Plasma
 #   itself.
@@ -16,7 +16,7 @@
 #   architectures and the two editions cannot drift apart in how they look.
 #
 # WHAT THIS IS FOR
-#   * Oracle Cloud, Ampere A1 (VM.Standard.A1.Flex) ÔÇö the Always Free aarch64
+#   * Oracle Cloud, Ampere A1 (VM.Standard.A1.Flex) — the Always Free aarch64
 #     allowance currently totals 2 OCPU and 12 GB. See
 #     docs/MOOS_ARM_ORACLE.md for the storage-cost boundary.
 #   * UTM on Apple silicon (hardware virtualisation) and on iPhone/iPad.
@@ -25,7 +25,7 @@
 # BUILD
 #   Natively on an arm64 machine or runner:
 #       podman build -f Containerfile.arm -t moos-arm:latest .
-#   Under emulation from x86 (slow ÔÇö hours, not minutes):
+#   Under emulation from x86 (slow — hours, not minutes):
 #       podman build --platform linux/arm64 -f Containerfile.arm -t moos-arm .
 #   CI does the former: .github/workflows/build-arm.yml runs on ubuntu-24.04-arm.
 #
@@ -50,7 +50,7 @@ FROM scratch AS system-files
 COPY system_files /
 
 # -----------------------------------------------------------------------------
-# moos-qml-shell ÔÇö the one C++ binary MoOS compiles itself: the QML host that
+# moos-qml-shell — the one C++ binary MoOS compiles itself: the QML host that
 # gives every pure-QML MoOS app a real Wayland app_id.
 #
 # Compiled in a throwaway stage FROM the same base, exactly as the x86 build
@@ -76,7 +76,7 @@ FROM base
 ARG IMAGE_NAME=moos-arm
 
 LABEL org.opencontainers.image.title="MoOS ARM" \
-      org.opencontainers.image.description="MoOS for aarch64 ÔÇö the MoOS UI Liquid Glass desktop on Oracle Cloud Ampere, UTM and any ARM64 UEFI machine" \
+      org.opencontainers.image.description="MoOS for aarch64 — the MoOS UI Liquid Glass desktop on Oracle Cloud Ampere, UTM and any ARM64 UEFI machine" \
       org.opencontainers.image.vendor="Moalfarras" \
       org.opencontainers.image.source="https://github.com/moalfarras-sys/moos-image"
 

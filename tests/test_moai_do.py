@@ -186,6 +186,8 @@ check(result.returncode == 2, "moai-do install with no id must exit 2")
 # The updater must turn the mutable official `:latest` tag into an exact digest before
 # privilege escalation. Run it against command doubles: nothing here reaches rpm-ostreed,
 # the registry or Polkit, but the captured pkexec argv proves the security boundary.
+check('*"/moos-arm@"*|*"/moos-arm:"*' in do_text,
+      "moai-do update does not recognize the official ARM edition")
 with tempfile.TemporaryDirectory() as tmp:
     bindir = Path(tmp)
     log = bindir / "pkexec.log"

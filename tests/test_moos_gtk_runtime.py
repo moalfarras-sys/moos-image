@@ -258,7 +258,7 @@ class TestMoOSGtkRuntime(unittest.TestCase):
         # The allowlist is the security boundary: the specific editions have to
         # win over the generic one, or a moos-nvidia desktop would be told it is
         # plain `moos` and rebased onto an image with no driver in it.
-        for edition in ("moos", "moos-cloud", "moos-nvidia"):
+        for edition in ("moos", "moos-cloud", "moos-nvidia", "moos-arm"):
             for ref in (
                 f"ostree-image-signed:docker://ghcr.io/moalfarras-sys/{edition}"
                 f"@sha256:{'a' * 64}",

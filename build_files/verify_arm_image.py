@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import configparser
+import json
 import os
 import platform
 import subprocess
@@ -167,6 +168,17 @@ def main() -> None:
     require(ssh_service.returncode == 0, "the host firewall does not allow SSH")
     require(rdp_service.returncode != 0,
             "RDP is exposed by the host firewall instead of staying behind SSH")
+
+    policy = json.loads(read("/etc/containers/policy.json"))
+    entries = policy.get("transports", {}).get("docker", {}).get(
+        "ghcr.io/moalfarras-sys", []
+    )
+    require(len(entries) == 1 and entries[0].get("type") == "sigstoreSigned",
+            "the ARM image does not enforce signatures for the MoOS registry")
+    require(entries[0].get("keyPath") == "/etc/pki/containers/moos.pub",
+            "the ARM signature policy does not use the shipped MoOS public key")
+    require((ROOT / "etc/pki/containers/moos.pub").is_file(),
+            "the ARM image lacks the container signing public key")
 
     for absent in (
         "usr/bin/moplayer",

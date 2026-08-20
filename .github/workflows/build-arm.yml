@@ -32,13 +32,19 @@ on:
     branches: [main]
     paths:
       - "Containerfile.arm"
-      - "build_files/build-arm.sh"
+      - "build_files/**"
+      - "cosign.pub"
+      - "moplayer/**"
+      - "moremote/**"
       - "system_files/**"
       - ".github/workflows/build-arm.yml"
   pull_request:
     paths:
       - "Containerfile.arm"
-      - "build_files/build-arm.sh"
+      - "build_files/**"
+      - "cosign.pub"
+      - "moplayer/**"
+      - "moremote/**"
       - "system_files/**"
       - "tests/test_moos_arm.py"
       - "tests/test_boot_splash_polish.py"

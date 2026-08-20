@@ -34,7 +34,7 @@ window — the one a person actually opens, and the one Mo Store's "system updat
 left on the dead path, so "Install update" was a dead button on every machine.
 
 So the app now carries the SAME contract as the other two paths: resolve `:latest` unprivileged,
-accept only the three official editions, validate the digest SHAPE, and hand Polkit a reference
+accept only the four official editions, validate the digest SHAPE, and hand Polkit a reference
 this file CONSTRUCTED — never a string taken from the registry, the origin, or the user.
 """
 import json
@@ -62,7 +62,7 @@ def sh(*cmd, timeout=25):
         return 127, str(e)
 
 
-# The official registry and the three official editions. This tuple IS the
+# The official registry and the four official editions. This tuple IS the
 # security boundary of the update path: the reference handed to the privileged
 # rebase is assembled from a name in this list plus a digest that matched
 # DIGEST_SHAPE — nothing that came off the wire is ever passed through whole.
@@ -78,7 +78,7 @@ def edition_of(ref):
     specific editions have to be tested first or every machine would look like
     the generic desktop and get rebased onto the wrong image.
     """
-    for edition in ("moos-nvidia", "moos-cloud", "moos"):
+    for edition in ("moos-nvidia", "moos-cloud", "moos-arm", "moos"):
         if f"/{edition}@" in ref or f"/{edition}:" in ref:
             return edition
     return None

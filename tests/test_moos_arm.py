@@ -169,6 +169,10 @@ class ArmEditionTests(unittest.TestCase):
             "ARM consumes the complete shared system overlay, so a pull request "
             "that changes it must prove the ARM image before merge",
         )
+        self.assertIn('"build_files/**"', pull_request_paths,
+                      "Containerfile.arm copies all build_files, so every change is an ARM input")
+        self.assertIn('"cosign.pub"', pull_request_paths,
+                      "changing the key enforced by ARM must trigger an ARM build")
         self.assertIn(
             '".github/workflows/build-arm.yml"',
             pull_request_paths,
@@ -279,6 +283,21 @@ class ArmEditionTests(unittest.TestCase):
                             "Podman 5.8 rejects --authfile as a global flag; it belongs "
                             "on the pull subcommand")
 
+    def test_arm_enforces_the_same_signed_registry_policy(self) -> None:
+        build = read(BUILD)
+        verifier = read(ARM_VERIFY)
+        for proof in (
+            "sigstoreSigned",
+            "/etc/pki/containers/moos.pub",
+            "ghcr.io/moalfarras-sys",
+        ):
+            self.assertIn(proof, build)
+            self.assertIn(proof, verifier)
+        self.assertNotIn("lsinitrd produced nothing", build,
+                         "an unreadable ARM initramfs must fail, not warn and publish")
+        for payload in ("ostree-prepare-root", "virtio_blk", "virtio_net", "virtio_gpu"):
+            self.assertIn(payload, build)
+
     # ── security posture ────────────────────────────────────────────────────
     def test_firewall_setup_is_idempotent_and_keeps_rdp_closed(self) -> None:
         text = code(read(BUILD))
@@ -305,6 +324,12 @@ class ArmEditionTests(unittest.TestCase):
         self.assertIn("moos-arm-remote", read(BUILD),
                       "there must be a helper that turns the remote on with a password "
                       "the owner chooses on their own instance")
+
+    def test_krdp_is_a_required_build_contract(self) -> None:
+        text = read(BUILD)
+        self.assertNotIn("no-krdp", text)
+        self.assertNotIn("SSH only and no graphical remote", text)
+        self.assertRegex(text, r"dnf5[^\n]*install[^\n]*krdp")
 
     def test_privilege_escalation_always_requires_a_password(self) -> None:
         text = code(read(BUILD))

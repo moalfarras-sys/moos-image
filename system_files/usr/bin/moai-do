@@ -134,7 +134,7 @@ launch_app() {
 # through the signature-enforcing rpm-ostree transport. A digest-pinned installation
 # cannot advance with `bootc upgrade`: its origin deliberately names the old immutable
 # object. We therefore discover `:latest` without privilege, reject every repository
-# except MoOS's two official editions, validate the digest shape, and pass only the
+# except MoOS's four official editions, validate the digest shape, and pass only the
 # constructed exact reference across Polkit.
 # -----------------------------------------------------------------------------
 do_update() {
@@ -160,6 +160,7 @@ for deployment in json.load(sys.stdin).get("deployments", []):
     case "$ref" in
         *"/moos-nvidia@"*|*"/moos-nvidia:"*) edition="moos-nvidia" ;;
         *"/moos-cloud@"*|*"/moos-cloud:"*) edition="moos-cloud" ;;
+        *"/moos-arm@"*|*"/moos-arm:"*) edition="moos-arm" ;;
         *"/moos@"*|*"/moos:"*) edition="moos" ;;
         *)
             echo "${R}تعذّر تحديد إصدار MoOS المشغّل بأمان.${N}" >&2

@@ -130,11 +130,11 @@ fi
 # every user of this image. `moos-arm-remote` (section 6) turns it on with a
 # password the owner chooses, once, over SSH.
 echo "=== (3) remote access ==="
-if ! dnf5 -y install --setopt=install_weak_deps=False krdp; then
-    echo "WARNING: krdp is not in this Fedora's repos — the ARM edition will ship"
-    echo "         with SSH only and no graphical remote. moos-arm-remote will say so."
-    touch /usr/lib/moos/no-krdp
-fi
+dnf5 -y install --setopt=install_weak_deps=False krdp || {
+    echo "FATAL: krdp is unavailable — an Oracle desktop with no graphical access"
+    echo "       is not a releasable MoOS ARM image."
+    exit 1
+}
 
 # Package payloads are allowed to overwrite vendor defaults during installation.
 # The MoOS overlay is the final authority, so restore it only after the LAST dnf
@@ -315,11 +315,6 @@ set -euo pipefail
 action="${1:-on}"
 target="${2:-${SUDO_USER:-moos}}"
 
-if [ -f /usr/lib/moos/no-krdp ]; then
-    echo "This image was built without krdp, so there is no graphical remote."
-    echo "SSH still works. Rebuild once krdp is available in Fedora aarch64."
-    exit 1
-fi
 [ "$(id -u)" -eq 0 ] || {
     echo "Run with sudo: sudo moos-arm-remote ${action} ${target}" >&2
     exit 1
@@ -495,10 +490,10 @@ test -f /usr/lib/systemd/system/dbus-broker.service.d/moos-start-timeout.conf ||
     echo "FATAL: the dbus-broker start-timeout drop-in did not arrive from system_files"; exit 1
 }
 
-# The x86 editions compile MoPlayer's Flutter bundle and Mo PC Remote's .NET
-# agent in architecture-specific build stages. Those binaries do not exist in
-# this deliberately lightweight ARM image. Do not leave launchers that open a
-# control panel for a missing backend or a player wrapper with no bundle.
+# MoPlayer and Mo PC Remote still need native ARM build stages. Until those are
+# present, remove the complete user-visible payload rather than leave a launcher
+# that opens a missing architecture-specific backend. The ARM verifier guards
+# this temporary omission so it cannot silently drift into dead UI.
 rm -f \
     /usr/bin/moplayer \
     /usr/bin/mo-pc-remote \
@@ -668,6 +663,43 @@ fi
 unset -v _x11_sessions
 
 # -----------------------------------------------------------------------------
+# (8b) Container policy — every day-2 ARM update must verify its signature
+# -----------------------------------------------------------------------------
+grep -q "use-sigstore-attachments" /etc/containers/registries.d/moalfarras-sys.yaml \
+    || { echo "FATAL: ARM lacks the sigstore attachment registry mapping"; exit 1; }
+[ -s /etc/pki/containers/moos.pub ] \
+    || { echo "FATAL: ARM lacks the MoOS container signing public key"; exit 1; }
+[ -f /etc/containers/policy.json ] \
+    || { echo "FATAL: ARM lacks /etc/containers/policy.json"; exit 1; }
+python3 - <<'PYSEC'
+import json
+
+path = "/etc/containers/policy.json"
+with open(path, encoding="utf-8") as source:
+    policy = json.load(source)
+policy.setdefault("transports", {}).setdefault("docker", {})[
+    "ghcr.io/moalfarras-sys"
+] = [{
+    "type": "sigstoreSigned",
+    "keyPath": "/etc/pki/containers/moos.pub",
+    "signedIdentity": {"type": "matchRepository"},
+}]
+with open(path, "w", encoding="utf-8") as target:
+    json.dump(policy, target, indent=4)
+PYSEC
+python3 - <<'PYSEC'
+import json
+
+entry = json.load(open("/etc/containers/policy.json", encoding="utf-8"))[
+    "transports"
+]["docker"]["ghcr.io/moalfarras-sys"]
+if len(entry) != 1 or entry[0].get("type") != "sigstoreSigned":
+    raise SystemExit("FATAL: ARM registry policy does not require sigstoreSigned")
+if entry[0].get("keyPath") != "/etc/pki/containers/moos.pub":
+    raise SystemExit("FATAL: ARM registry policy does not use the MoOS public key")
+PYSEC
+
+# -----------------------------------------------------------------------------
 # (9) Rebuild the initramfs so the splash and the virtio drivers are in it
 # -----------------------------------------------------------------------------
 echo "=== (9) initramfs ==="
@@ -679,23 +711,32 @@ dracut --no-hostonly --force --reproducible \
 
 # GATE: the splash has to actually be inside the initramfs. Everything else can
 # be green while it is not, and the failure is only visible on a boot.
-lsinitrd "/usr/lib/modules/${kver}/initramfs.img" > /tmp/moos-arm-initrd.txt 2>/dev/null || true
-if [ -s /tmp/moos-arm-initrd.txt ]; then
-    for _need in 'plymouth/themes/moos/moos.script' 'plymouth/themes/moos/intro1.png' \
-                 'plymouth/themes/moos/moos.plymouth'; do
-        grep -q "${_need}" /tmp/moos-arm-initrd.txt || {
-            echo "FATAL: the initramfs lacks ${_need} — the boot animation would not render"
-            exit 1
-        }
-    done
-    grep -qE 'plymouth/(script\.so|script)' /tmp/moos-arm-initrd.txt || {
-        echo "FATAL: the initramfs lacks Plymouth's script plugin — the theme cannot render"
+lsinitrd "/usr/lib/modules/${kver}/initramfs.img" > /tmp/moos-arm-initrd.txt 2>/dev/null \
+    || { echo "FATAL: lsinitrd could not inspect the deployed ARM initramfs"; exit 1; }
+[ -s /tmp/moos-arm-initrd.txt ] \
+    || { echo "FATAL: lsinitrd produced no ARM initramfs inventory"; exit 1; }
+for _need in 'plymouth/themes/moos/moos.script' 'plymouth/themes/moos/intro1.png' \
+             'plymouth/themes/moos/moos.plymouth'; do
+    grep -q "${_need}" /tmp/moos-arm-initrd.txt || {
+        echo "FATAL: the initramfs lacks ${_need} — the boot animation would not render"
         exit 1
     }
-    echo "=== initramfs carries the MoOS splash ==="
-else
-    echo "WARNING: lsinitrd produced nothing; the splash could not be verified here"
-fi
+done
+grep -qE 'plymouth/(script\.so|script)' /tmp/moos-arm-initrd.txt || {
+    echo "FATAL: the initramfs lacks Plymouth's script plugin — the theme cannot render"
+    exit 1
+}
+grep -q 'ostree-prepare-root' /tmp/moos-arm-initrd.txt || {
+    echo "FATAL: the ARM initramfs lacks ostree-prepare-root — deployed root cannot mount"
+    exit 1
+}
+for _driver in virtio_blk virtio_net virtio_gpu virtio_console; do
+    grep -q "${_driver}" /tmp/moos-arm-initrd.txt || {
+        echo "FATAL: the ARM initramfs lacks ${_driver} — portable VM boot is not proven"
+        exit 1
+    }
+done
+echo "=== initramfs carries OSTree, virtio and the MoOS splash ==="
 
 # The ARM edition does not get a reduced identity standard. These are the same
 # identity and foreign-brand gates the x86 editions run, plus ARM-specific
