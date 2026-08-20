@@ -15,6 +15,7 @@ WORKFLOW = ROOT / ".github" / "workflows" / "build.yml"
 DISK_WORKFLOW = ROOT / ".github" / "workflows" / "build-disk.yml"
 ISO_WORKFLOW = ROOT / ".github" / "workflows" / "build-iso.yml"
 ARM_WORKFLOW = ROOT / ".github" / "workflows" / "build-arm.yml"
+PROMOTE_WORKFLOW = ROOT / ".github" / "workflows" / "promote-x86.yml"
 BOOT_VM = ROOT / "tests" / "boot-in-vm.sh"
 X86_BOOT = ROOT / "tests" / "boot_x86_qcow2.sh"
 
@@ -25,6 +26,9 @@ def workflow_run_script(text: str, step_name: str) -> str:
     remainder = remainder.split("        run: |\n", 1)[1]
     lines: list[str] = []
     for line in remainder.splitlines():
+        if not line:
+            lines.append("")
+            continue
         if not line.startswith("          "):
             break
         lines.append(line[10:])
@@ -90,34 +94,76 @@ class ReleaseWorkflowSafetyTests(unittest.TestCase):
         self.assertIn("tags: ${{ steps.meta.outputs.build_tag }}", text)
         self.assertNotIn("tags: latest", text)
 
-    def test_production_tags_move_only_after_digest_signature_verification(self) -> None:
-        text = WORKFLOW.read_text(encoding="utf-8")
-        push = text.index("- name: Push to GHCR")
-        sign = text.index("- name: Sign image with cosign")
-        verify = text.index("- name: Verify signature against the OS-enforced public key")
-        promote = text.index("- name: Promote verified digest to production tags")
+    def test_production_tags_require_exact_build_disk_and_iso_proof(self) -> None:
+        build = WORKFLOW.read_text(encoding="utf-8")
+        promote = PROMOTE_WORKFLOW.read_text(encoding="utf-8")
+        push = build.index("- name: Push to GHCR")
+        sign = build.index("- name: Sign image with cosign")
+        verify = build.index("- name: Verify signature against the OS-enforced public key")
+        record = build.index("- name: Record the signed candidate identity")
+        upload = build.index("- name: Upload the signed candidate identity")
         self.assertLess(push, sign)
         self.assertLess(sign, verify)
-        self.assertLess(verify, promote)
-        promotion = text[promote:].split("      - name:", 1)[0]
-        self.assertIn("if: github.ref == 'refs/heads/main'", promotion)
-        self.assertIn('for tag in "$DATE_TAG" latest', promotion)
-        self.assertIn("skopeo copy --preserve-digests", promotion)
-        self.assertIn('if [ "$resolved" != "$DIGEST" ]', promotion)
-        self.assertIn('cosign verify --key cosign.pub "$target_ref"', promotion)
-        self.assertEqual(text.count("uses: redhat-actions/push-to-registry@v2"), 1)
-        self.assertEqual(text.count("skopeo copy --preserve-digests"), 1)
+        self.assertLess(verify, record)
+        self.assertLess(record, upload)
+        self.assertIn("moos-candidate-proof-${{ matrix.image_name }}", build)
+        self.assertNotIn("skopeo copy --preserve-digests", build)
+        self.assertEqual(build.count("uses: redhat-actions/push-to-registry@v2"), 1)
 
-        script = workflow_run_script(text, "Promote verified digest to production tags")
+        required_order = (
+            "Prove the candidate is the exact tree on main",
+            "Validate the three workflow runs",
+            "Download immutable candidate and boot evidence",
+            "Validate candidate manifests and artifact runtime proof",
+            "Verify every digest before any production mutation",
+            "Promote the boot-proven release",
+        )
+        positions = [promote.index(f"- name: {name}") for name in required_order]
+        self.assertEqual(positions, sorted(positions))
+        for proof in (
+            "if: github.ref == 'refs/heads/main'",
+            "cancel-in-progress: false",
+            'git rev-parse "${REVISION}^{tree}"',
+            ".github/workflows/build.yml",
+            ".github/workflows/build-disk.yml",
+            ".github/workflows/build-iso.yml",
+            ".run_attempt == 1",
+            "moos-x86-qcow2-boot-proof",
+            "moos-live-iso-boot-proof",
+            'candidate-${BUILD_RUN_ID}-${REVISION:0:12}',
+            'origin=ostree-image-signed:docker://${generic_ref}',
+            'offline-digest=${generic_ref##*@}',
+            "skopeo copy --preserve-digests",
+            'promote_tag "$ref" "$DATE_TAG"',
+            'promote_tag "$ref" latest',
+            'cosign verify --key cosign.pub "$target_ref"',
+        ):
+            self.assertIn(proof, promote, f"x86 promotion lost proof: {proof}")
+        self.assertEqual(promote.count("skopeo copy --preserve-digests"), 1)
+
+        script = workflow_run_script(promote, "Promote the boot-proven release")
         with tempfile.TemporaryDirectory() as temp:
             temp_path = Path(temp)
             log = temp_path / "calls.log"
             for name, body in (
                 (
+                    "git",
+                    """#!/bin/sh
+if [ "$1" = fetch ]; then exit 0; fi
+if [ "$1" = rev-parse ]; then printf '%s\\n' fixed-tree; exit 0; fi
+exit 1
+""",
+                ),
+                (
                     "skopeo",
                     """#!/bin/sh
 printf 'skopeo %s\\n' "$*" >> "$LOG_FILE"
-if [ "$1" = inspect ]; then printf '%s\\n' "$ACTUAL_DIGEST"; fi
+if [ "$1" = inspect ]; then
+    case "$*" in
+        *moos-nvidia:20260820*) printf '%s\\n' "${NVIDIA_DATE_DIGEST:-$ACTUAL_DIGEST}" ;;
+        *) printf '%s\\n' "$ACTUAL_DIGEST" ;;
+    esac
+fi
 """,
                 ),
                 (
@@ -135,12 +181,12 @@ printf 'cosign %s\\n' "$*" >> "$LOG_FILE"
             env.update(
                 PATH=str(temp_path),
                 LOG_FILE=str(log),
-                EXPECTED_DIGEST=digest,
                 ACTUAL_DIGEST=digest,
-                IMAGE_REGISTRY="ghcr.io/example",
-                IMAGE_NAME="moos",
-                DIGEST=digest,
+                MOOS_REF=f"ghcr.io/example/moos@{digest}",
+                NVIDIA_REF=f"ghcr.io/example/moos-nvidia@{digest}",
+                CLOUD_REF=f"ghcr.io/example/moos-cloud@{digest}",
                 DATE_TAG="20260820",
+                REVISION="c" * 40,
             )
             subprocess.run(
                 ["/usr/bin/bash", "-eu", "-o", "pipefail", "-c", script],
@@ -148,23 +194,23 @@ printf 'cosign %s\\n' "$*" >> "$LOG_FILE"
                 env=env,
             )
             calls = log.read_text(encoding="utf-8").splitlines()
-            source = f"docker://ghcr.io/example/moos@{digest}"
-            self.assertEqual(
-                calls,
-                [
-                    f"skopeo copy --preserve-digests {source} docker://ghcr.io/example/moos:20260820",
-                    "skopeo inspect --format {{.Digest}} docker://ghcr.io/example/moos:20260820",
-                    "cosign verify --key cosign.pub ghcr.io/example/moos:20260820",
-                    "skopeo inspect --format {{.Digest}} docker://ghcr.io/example/moos:20260820",
-                    f"skopeo copy --preserve-digests {source} docker://ghcr.io/example/moos:latest",
-                    "skopeo inspect --format {{.Digest}} docker://ghcr.io/example/moos:latest",
-                    "cosign verify --key cosign.pub ghcr.io/example/moos:latest",
-                    "skopeo inspect --format {{.Digest}} docker://ghcr.io/example/moos:latest",
-                ],
-            )
+            expected_calls: list[str] = []
+            for tag in ("20260820", "latest"):
+                for image in ("moos", "moos-nvidia", "moos-cloud"):
+                    source = f"docker://ghcr.io/example/{image}@{digest}"
+                    target = f"ghcr.io/example/{image}:{tag}"
+                    expected_calls.extend(
+                        (
+                            f"skopeo copy --preserve-digests {source} docker://{target}",
+                            f"skopeo inspect --format {{{{.Digest}}}} docker://{target}",
+                            f"cosign verify --key cosign.pub {target}",
+                            f"skopeo inspect --format {{{{.Digest}}}} docker://{target}",
+                        )
+                    )
+            self.assertEqual(calls, expected_calls)
 
             log.unlink()
-            env["ACTUAL_DIGEST"] = "sha256:" + "b" * 64
+            env["NVIDIA_DATE_DIGEST"] = "sha256:" + "b" * 64
             failed = subprocess.run(
                 ["/usr/bin/bash", "-eu", "-o", "pipefail", "-c", script],
                 check=False,
@@ -177,10 +223,127 @@ printf 'cosign %s\\n' "$*" >> "$LOG_FILE"
             self.assertEqual(
                 failed_calls,
                 [
-                    f"skopeo copy --preserve-digests {source} docker://ghcr.io/example/moos:20260820",
+                    f"skopeo copy --preserve-digests docker://ghcr.io/example/moos@{digest} docker://ghcr.io/example/moos:20260820",
                     "skopeo inspect --format {{.Digest}} docker://ghcr.io/example/moos:20260820",
+                    "cosign verify --key cosign.pub ghcr.io/example/moos:20260820",
+                    "skopeo inspect --format {{.Digest}} docker://ghcr.io/example/moos:20260820",
+                    f"skopeo copy --preserve-digests docker://ghcr.io/example/moos-nvidia@{digest} docker://ghcr.io/example/moos-nvidia:20260820",
+                    "skopeo inspect --format {{.Digest}} docker://ghcr.io/example/moos-nvidia:20260820",
                 ],
             )
+            self.assertFalse(any(":latest" in call for call in failed_calls))
+
+    def test_promotion_rejects_reruns_and_mismatched_runtime_evidence(self) -> None:
+        promote = PROMOTE_WORKFLOW.read_text(encoding="utf-8")
+        revision = "c" * 40
+        with tempfile.TemporaryDirectory() as temp:
+            temp_path = Path(temp)
+            gh = temp_path / "gh"
+            gh.write_text(
+                """#!/bin/sh
+case "$*" in
+  *actions/runs/11) path=.github/workflows/build.yml ;;
+  *actions/runs/12) path=.github/workflows/build-disk.yml ;;
+  *actions/runs/13) path=.github/workflows/build-iso.yml ;;
+  *) exit 2 ;;
+esac
+printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","path":"%s","run_attempt":%s}\\n' "$REVISION" "$path" "$ATTEMPT"
+""",
+                encoding="utf-8",
+            )
+            gh.chmod(0o755)
+            env = os.environ.copy()
+            env.update(
+                PATH=f"{temp_path}:/usr/bin",
+                GITHUB_REPOSITORY="example/moos-image",
+                REVISION=revision,
+                BUILD_RUN_ID="11",
+                DISK_RUN_ID="12",
+                ISO_RUN_ID="13",
+                ATTEMPT="1",
+            )
+            run_validator = workflow_run_script(promote, "Validate the three workflow runs")
+            subprocess.run(
+                ["/usr/bin/bash", "-eu", "-o", "pipefail", "-c", run_validator],
+                check=True,
+                env=env,
+            )
+            env["ATTEMPT"] = "2"
+            rerun = subprocess.run(
+                ["/usr/bin/bash", "-eu", "-o", "pipefail", "-c", run_validator],
+                check=False,
+                env=env,
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotEqual(rerun.returncode, 0)
+
+            proof = temp_path / "proof"
+            digest = "sha256:" + "a" * 64
+            for image in ("moos", "moos-nvidia", "moos-cloud"):
+                directory = proof / "build" / image
+                directory.mkdir(parents=True)
+                (directory / "candidate.txt").write_text(
+                    f"repository=ghcr.io/example/{image}\n"
+                    f"digest={digest}\n"
+                    f"revision={revision}\n"
+                    "date-tag=20260820\n"
+                    f"candidate-tag=candidate-11-{revision[:12]}\n"
+                    "signature=verified\n",
+                    encoding="utf-8",
+                )
+            generic = f"ghcr.io/example/moos@{digest}"
+            (proof / "disk").mkdir()
+            (proof / "iso").mkdir()
+            (proof / "disk" / "manifest.txt").write_text(
+                f"image={generic}\n", encoding="utf-8"
+            )
+            (proof / "disk" / "runtime-first-boot.txt").write_text(
+                f"origin=ostree-image-signed:docker://{generic}\n", encoding="utf-8"
+            )
+            (proof / "disk" / "runtime-second-boot.txt").write_text(
+                f"origin=ostree-image-signed:docker://{generic}\nshutdown=clean\n",
+                encoding="utf-8",
+            )
+            (proof / "iso" / "manifest.txt").write_text(
+                f"image={generic}\n", encoding="utf-8"
+            )
+            iso_runtime = proof / "iso" / "runtime.txt"
+            iso_runtime.write_text(
+                f"offline-digest={digest}\nboot=live\nshutdown=clean\n",
+                encoding="utf-8",
+            )
+            output = temp_path / "github-output"
+            env.update(
+                GITHUB_REPOSITORY_OWNER="Example",
+                GITHUB_OUTPUT=str(output),
+                ATTEMPT="1",
+            )
+            evidence_validator = workflow_run_script(
+                promote, "Validate candidate manifests and artifact runtime proof"
+            )
+            subprocess.run(
+                ["/usr/bin/bash", "-eu", "-o", "pipefail", "-c", evidence_validator],
+                check=True,
+                cwd=temp_path,
+                env=env,
+            )
+            outputs = output.read_text(encoding="utf-8")
+            self.assertIn(f"moos_ref={generic}\n", outputs)
+
+            iso_runtime.write_text(
+                "offline-digest=sha256:" + "b" * 64 + "\nboot=live\nshutdown=clean\n",
+                encoding="utf-8",
+            )
+            mismatch = subprocess.run(
+                ["/usr/bin/bash", "-eu", "-o", "pipefail", "-c", evidence_validator],
+                check=False,
+                cwd=temp_path,
+                env=env,
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotEqual(mismatch.returncode, 0)
 
     def test_release_timeout_covers_measured_final_commit_io_but_stays_bounded(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")

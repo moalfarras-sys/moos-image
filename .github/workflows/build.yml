@@ -19,11 +19,10 @@
 #   ghcr.io/<owner>/moos         (base: ghcr.io/ublue-os/kinoite-main:44)
 #   ghcr.io/<owner>/moos-nvidia  (same kinoite-main base + layered NVIDIA open driver)
 #   ghcr.io/<owner>/moos-cloud   (same image tree + cloud policy)
-# Every build is pushed first under one run/SHA-bound candidate tag. Only main,
-# and only after the digest is signed and verified, may promote that digest to
-# the date tag and finally latest. Testing a branch therefore cannot
-# accidentally replace the image installed machines follow, and a failed
-# signature can never leave latest pointing at an unverified image.
+# Every build is pushed only under one run/SHA-bound candidate tag. This
+# workflow never moves production tags: the separate promote-x86 workflow does
+# that only after the same generic digest has passed both final QCOW2 and ISO
+# boot gates and the revision is the exact tree merged to main.
 # Both variants build from the same Containerfile and its one pinned base. The
 # build argument selects only an exact NVIDIA akmods stage, never another base.
 # =============================================================================
@@ -526,36 +525,32 @@ jobs:
           echo "::error::signature never became verifiable for ${IMAGE_NAME}@${DIGEST}"
           exit 1
 
-      # latest is the update channel installed machines follow. Never let the
-      # initial push move it: publish a candidate, sign and verify its immutable
-      # digest above, then promote the date tag and latest (latest last) from
-      # that exact object. A failed build/signature therefore leaves production
-      # tags on their previous known-good digest.
-      - name: Promote verified digest to production tags
-        if: github.ref == 'refs/heads/main'
+      # The promotion workflow consumes these manifests from this exact run.
+      # Job status alone cannot prove which digest each matrix row produced.
+      - name: Record the signed candidate identity
+        id: candidate
         env:
           IMAGE_REGISTRY: ${{ steps.meta.outputs.registry }}
           IMAGE_NAME: ${{ matrix.image_name }}
           DIGEST: ${{ steps.push.outputs.digest }}
           DATE_TAG: ${{ steps.meta.outputs.date_tag }}
+          BUILD_TAG: ${{ steps.meta.outputs.build_tag }}
         run: |
-          source_ref="docker://${IMAGE_REGISTRY}/${IMAGE_NAME}@${DIGEST}"
-          for tag in "$DATE_TAG" latest; do
-            target_ref="${IMAGE_REGISTRY}/${IMAGE_NAME}:${tag}"
-            skopeo copy --preserve-digests "$source_ref" "docker://${target_ref}"
-            resolved="$(skopeo inspect --format '{{.Digest}}' "docker://${target_ref}")"
-            if [ "$resolved" != "$DIGEST" ]; then
-              echo "::error::${target_ref} resolved to ${resolved}, expected ${DIGEST}"
-              exit 1
-            fi
-            cosign verify --key cosign.pub "$target_ref" >/dev/null
-            resolved="$(skopeo inspect --format '{{.Digest}}' "docker://${target_ref}")"
-            if [ "$resolved" != "$DIGEST" ]; then
-              echo "::error::${target_ref} moved during signature verification"
-              exit 1
-            fi
-            echo "promoted verified ${target_ref} -> ${DIGEST}"
-          done
+          set -euo pipefail
+          proof="${RUNNER_TEMP}/candidate-proof"
+          mkdir -p "$proof"
+          printf 'repository=%s\ndigest=%s\nrevision=%s\ndate-tag=%s\ncandidate-tag=%s\nsignature=verified\n' \
+            "${IMAGE_REGISTRY}/${IMAGE_NAME}" "$DIGEST" "$GITHUB_SHA" \
+            "$DATE_TAG" "$BUILD_TAG" > "$proof/candidate.txt"
+          cat "$proof/candidate.txt"
+
+      - name: Upload the signed candidate identity
+        uses: actions/upload-artifact@v4
+        with:
+          name: moos-candidate-proof-${{ matrix.image_name }}
+          path: ${{ runner.temp }}/candidate-proof/candidate.txt
+          if-no-files-found: error
+          retention-days: 14
 
       # Do not generate an SBOM in this release-critical matrix. Syft unpacked each
       # multi-GB image after buildah had consumed the runner's disk and the runner was

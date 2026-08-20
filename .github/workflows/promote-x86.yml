@@ -1,0 +1,214 @@
+# Promote one already-built and artifact-tested x86 MoOS release.
+#
+# This workflow intentionally does no build work. It consumes immutable proof
+# from three earlier runs of the exact same revision:
+#   build.yml      -> signed moos/moos-nvidia/moos-cloud candidate digests
+#   build-disk.yml -> sealed QCOW2, UEFI boot, reboot, clean poweroff
+#   build-iso.yml  -> final byte-identical ISO, live desktop, offline image
+# Production tags remain on the previous release unless every proof matches.
+name: Promote boot-proven MoOS x86 release
+
+on:
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: "40-character candidate revision whose tree is now main"
+        required: true
+      build_run_id:
+        description: "Successful Build MoOS image workflow_dispatch run"
+        required: true
+      disk_run_id:
+        description: "Successful exact-digest QCOW2 workflow run"
+        required: true
+      iso_run_id:
+        description: "Successful exact-digest ISO workflow run"
+        required: true
+
+concurrency:
+  group: promote-moos-x86-production
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    name: Verify proofs and move production tags
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      actions: read
+      contents: read
+      packages: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REVISION: ${{ inputs.revision }}
+      BUILD_RUN_ID: ${{ inputs.build_run_id }}
+      DISK_RUN_ID: ${{ inputs.disk_run_id }}
+      ISO_RUN_ID: ${{ inputs.iso_run_id }}
+    steps:
+      - name: Checkout the candidate tree and verification key
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.revision }}
+          fetch-depth: 0
+
+      - name: Prove the candidate is the exact tree on main
+        run: |
+          set -euo pipefail
+          [[ "$REVISION" =~ ^[0-9a-f]{40}$ ]] \
+            || { echo "FATAL: revision must be a full lowercase commit SHA" >&2; exit 1; }
+          for run_id in "$BUILD_RUN_ID" "$DISK_RUN_ID" "$ISO_RUN_ID"; do
+            [[ "$run_id" =~ ^[1-9][0-9]*$ ]] \
+              || { echo "FATAL: invalid workflow run id: ${run_id}" >&2; exit 1; }
+          done
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          [ "$(git rev-parse HEAD)" = "$REVISION" ]
+          git merge-base --is-ancestor "$REVISION" origin/main
+          [ "$(git rev-parse "${REVISION}^{tree}")" = "$(git rev-parse 'origin/main^{tree}')" ] \
+            || { echo "FATAL: main no longer has the candidate's exact source tree" >&2; exit 1; }
+
+      - name: Validate the three workflow runs
+        run: |
+          set -euo pipefail
+          check_run() {
+            local run_id="$1" expected_path="$2"
+            local run
+            run="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}")"
+            jq -e \
+              --arg revision "$REVISION" \
+              --arg path "$expected_path" \
+              '.conclusion == "success" and .event == "workflow_dispatch" and
+               .head_sha == $revision and .path == $path and .run_attempt == 1' <<<"$run" >/dev/null \
+              || { echo "FATAL: run ${run_id} is not the successful ${expected_path} proof for ${REVISION}" >&2; exit 1; }
+          }
+          check_run "$BUILD_RUN_ID" .github/workflows/build.yml
+          check_run "$DISK_RUN_ID" .github/workflows/build-disk.yml
+          check_run "$ISO_RUN_ID" .github/workflows/build-iso.yml
+
+      - name: Download immutable candidate and boot evidence
+        run: |
+          set -euo pipefail
+          mkdir -p proof/build proof/disk proof/iso
+          for image in moos moos-nvidia moos-cloud; do
+            gh run download "$BUILD_RUN_ID" \
+              --repo "$GITHUB_REPOSITORY" \
+              --name "moos-candidate-proof-${image}" \
+              --dir "proof/build/${image}"
+          done
+          gh run download "$DISK_RUN_ID" --repo "$GITHUB_REPOSITORY" \
+            --name moos-x86-qcow2-boot-proof --dir proof/disk
+          gh run download "$ISO_RUN_ID" --repo "$GITHUB_REPOSITORY" \
+            --name moos-live-iso-boot-proof --dir proof/iso
+
+      - name: Validate candidate manifests and artifact runtime proof
+        id: release
+        run: |
+          set -euo pipefail
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          date_tag=""
+          for image in moos moos-nvidia moos-cloud; do
+            manifest="proof/build/${image}/candidate.txt"
+            [ -f "$manifest" ] || { echo "FATAL: missing ${image} candidate proof" >&2; exit 1; }
+            repository="$(sed -n 's/^repository=//p' "$manifest")"
+            digest="$(sed -n 's/^digest=//p' "$manifest")"
+            revision="$(sed -n 's/^revision=//p' "$manifest")"
+            candidate="$(sed -n 's/^candidate-tag=//p' "$manifest")"
+            candidate_date="$(sed -n 's/^date-tag=//p' "$manifest")"
+            [ "$repository" = "ghcr.io/${owner}/${image}" ]
+            [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+            [ "$revision" = "$REVISION" ]
+            [ "$candidate" = "candidate-${BUILD_RUN_ID}-${REVISION:0:12}" ]
+            [ "$(grep -cx 'signature=verified' "$manifest")" -eq 1 ]
+            [[ "$candidate_date" =~ ^[0-9]{8}$ ]]
+            if [ -z "$date_tag" ]; then date_tag="$candidate_date"; fi
+            [ "$candidate_date" = "$date_tag" ]
+            case "$image" in
+              moos) output_name=moos_ref ;;
+              moos-nvidia) output_name=nvidia_ref ;;
+              moos-cloud) output_name=cloud_ref ;;
+            esac
+            printf '%s=%s@%s\n' "$output_name" "$repository" "$digest" >> "$GITHUB_OUTPUT"
+          done
+          echo "date_tag=${date_tag}" >> "$GITHUB_OUTPUT"
+
+          generic_ref="$(sed -n 's/^repository=//p' proof/build/moos/candidate.txt)@$(sed -n 's/^digest=//p' proof/build/moos/candidate.txt)"
+          grep -Fx "image=${generic_ref}" proof/disk/manifest.txt
+          grep -Fx "origin=ostree-image-signed:docker://${generic_ref}" proof/disk/runtime-first-boot.txt
+          grep -Fx "origin=ostree-image-signed:docker://${generic_ref}" proof/disk/runtime-second-boot.txt
+          grep -Fx 'shutdown=clean' proof/disk/runtime-second-boot.txt
+          grep -Fx "image=${generic_ref}" proof/iso/manifest.txt
+          grep -Fx "offline-digest=${generic_ref##*@}" proof/iso/runtime.txt
+          grep -Fx 'boot=live' proof/iso/runtime.txt
+          grep -Fx 'shutdown=clean' proof/iso/runtime.txt
+
+      - name: Install promotion tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq skopeo
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Log in to GHCR
+        uses: redhat-actions/podman-login@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify every digest before any production mutation
+        env:
+          MOOS_REF: ${{ steps.release.outputs.moos_ref }}
+          NVIDIA_REF: ${{ steps.release.outputs.nvidia_ref }}
+          CLOUD_REF: ${{ steps.release.outputs.cloud_ref }}
+        run: |
+          set -euo pipefail
+          for ref in "$MOOS_REF" "$NVIDIA_REF" "$CLOUD_REF"; do
+            cosign verify --key cosign.pub "$ref" >/dev/null
+            image_revision="$(skopeo inspect --format '{{index .Labels "org.opencontainers.image.revision"}}' "docker://${ref}")"
+            [ "$image_revision" = "$REVISION" ] \
+              || { echo "FATAL: ${ref} carries revision ${image_revision}" >&2; exit 1; }
+          done
+
+      # Complete one repository at a time, dated tag first and latest last. The
+      # digest is checked both before and after tag-based signature verification.
+      - name: Promote the boot-proven release
+        env:
+          MOOS_REF: ${{ steps.release.outputs.moos_ref }}
+          NVIDIA_REF: ${{ steps.release.outputs.nvidia_ref }}
+          CLOUD_REF: ${{ steps.release.outputs.cloud_ref }}
+          DATE_TAG: ${{ steps.release.outputs.date_tag }}
+        run: |
+          set -euo pipefail
+          # Evidence validation and package installation take time. Re-read main
+          # at the mutation boundary so a newer merge cannot race the earlier
+          # tree check and accidentally receive this older release.
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          [ "$(git rev-parse "${REVISION}^{tree}")" = "$(git rev-parse 'origin/main^{tree}')" ] \
+            || { echo "FATAL: main changed after release validation" >&2; exit 1; }
+
+          promote_tag() {
+            local ref="$1" tag="$2"
+            repository="${ref%@*}"
+            digest="${ref##*@}"
+            source_ref="docker://${ref}"
+            target_ref="${repository}:${tag}"
+            skopeo copy --preserve-digests "$source_ref" "docker://${target_ref}"
+            resolved="$(skopeo inspect --format '{{.Digest}}' "docker://${target_ref}")"
+            [ "$resolved" = "$digest" ] \
+              || { echo "FATAL: ${target_ref} resolved to ${resolved}, expected ${digest}" >&2; exit 1; }
+            cosign verify --key cosign.pub "$target_ref" >/dev/null
+            resolved="$(skopeo inspect --format '{{.Digest}}' "docker://${target_ref}")"
+            [ "$resolved" = "$digest" ] \
+              || { echo "FATAL: ${target_ref} moved during verification" >&2; exit 1; }
+            echo "promoted boot-proven ${target_ref} -> ${digest}"
+          }
+
+          # Stage and verify the dated release for every edition before the
+          # update channel moves at all. A failure here leaves all latest tags
+          # on the prior release.
+          for ref in "$MOOS_REF" "$NVIDIA_REF" "$CLOUD_REF"; do
+            promote_tag "$ref" "$DATE_TAG"
+          done
+          for ref in "$MOOS_REF" "$NVIDIA_REF" "$CLOUD_REF"; do
+            promote_tag "$ref" latest
+          done
