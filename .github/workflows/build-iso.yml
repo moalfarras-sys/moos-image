@@ -180,7 +180,7 @@ jobs:
           #    overlay representation change ("Destination specifies a digest").
           #    The image itself carries the canonical install ref, so read it from
           #    the extracted rootfs and use that tagged ref as the local alias.
-          offline_ref="$(sudo tr -d '\r\n' < "${rootfs}/usr/lib/moos/install-imageref")"
+          offline_ref="$(sudo cat "${rootfs}/usr/lib/moos/install-imageref" | tr -d '\r\n')"
           case "${offline_ref}" in
             ghcr.io/moalfarras-sys/moos:latest|ghcr.io/moalfarras-sys/moos-nvidia:latest) ;;
             *) echo "FATAL: unsafe or missing install-imageref: ${offline_ref}" >&2; exit 1 ;;
@@ -254,6 +254,27 @@ jobs:
           sudo rm -f "${work}/squashfs-new.img"
           ls -lh "${out}"
           echo "iso=${out}" >> "$GITHUB_OUTPUT"
+
+      - name: Install final-ISO UEFI boot dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq qemu-system-x86 ovmf socat jq imagemagick
+
+      - name: Boot and prove the exact final live ISO
+        env:
+          FINAL_ISO: ${{ steps.embed.outputs.iso }}
+          EXPECTED_IMAGE: ${{ steps.pin.outputs.image_ref }}
+          EVIDENCE_DIR: ${{ runner.temp }}/iso-boot-proof
+        run: tests/boot_live_iso.sh "$FINAL_ISO" "$EXPECTED_IMAGE" "$EVIDENCE_DIR"
+
+      - name: Upload final-ISO boot evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: moos-live-iso-boot-proof
+          path: ${{ runner.temp }}/iso-boot-proof
+          if-no-files-found: warn
+          retention-days: 14
 
       # NOTE: artifacts are a temporary distribution channel (short retention,
       # slow downloads). Cloudflare R2 upload replaces this step later.

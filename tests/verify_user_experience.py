@@ -5974,7 +5974,8 @@ _isoyml = read(".github/workflows/build-iso.yml")
 require("containers-storage:[overlay@" in _isoyml and "image exists" in _isoyml,
         "build-iso.yml must embed the MoOS image into the live ISO's containers-storage and verify it")
 require(
-    'offline_ref="$(sudo tr -d' in _isoyml
+    'offline_ref="$(sudo cat ' in _isoyml
+    and "| tr -d" in _isoyml
     and '${rootfs}/usr/lib/moos/install-imageref' in _isoyml
     and ']${offline_ref}"' in _isoyml
     and 'image exists "${offline_ref}"' in _isoyml,

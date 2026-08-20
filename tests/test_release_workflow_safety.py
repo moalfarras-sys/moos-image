@@ -78,6 +78,29 @@ class ReleaseWorkflowSafetyTests(unittest.TestCase):
         self.assertIn('podman pull "${{ steps.pin.outputs.image_ref }}"', disk)
         self.assertIn('"${{ steps.pin.outputs.image_ref }}"', disk)
 
+    def test_final_iso_must_boot_before_it_can_be_uploaded(self) -> None:
+        iso = ISO_WORKFLOW.read_text(encoding="utf-8")
+        script = (ROOT / "tests" / "boot_live_iso.sh").read_text(encoding="utf-8")
+        boot = 'tests/boot_live_iso.sh "$FINAL_ISO" "$EXPECTED_IMAGE" "$EVIDENCE_DIR"'
+        self.assertIn(boot, iso)
+        self.assertIn("FINAL_ISO: ${{ steps.embed.outputs.iso }}", iso)
+        self.assertLess(iso.index(boot), iso.index("Upload ISO as workflow artifact"))
+        boot_step = iso.split("- name: Boot and prove the exact final live ISO", 1)[1].split(
+            "      - name:", 1
+        )[0]
+        self.assertNotIn("continue-on-error", boot_step)
+        for proof in (
+            "rd.live.image",
+            "graphical.target",
+            "display-manager.service",
+            "plasmashell",
+            'podman image exists "$offline_ref"',
+            "guest-shutdown",
+            "screendump",
+        ):
+            self.assertIn(proof, script, f"final ISO gate lost runtime proof: {proof}")
+        self.assertIn('after_sha', script)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -143,10 +143,12 @@ grep -E '^(NAME|PRETTY_NAME|ID|VERSION_ID|LOGO|HOME_URL|DOCUMENTATION_URL|SUPPOR
 # The COPR is enabled only for this install and disabled right after, so the
 # shipped image does not carry an active third-party repo.
 dnf5 -y copr enable ublue-os/packages
-dnf5 -y install uupd skopeo
+dnf5 -y install uupd skopeo qemu-guest-agent
 dnf5 -y copr disable ublue-os/packages
 [ -x /usr/bin/skopeo ] \
     || { echo "GATE FAIL: signed image updater requires /usr/bin/skopeo"; exit 1; }
+[ -x /usr/bin/qemu-ga ] \
+    || { echo "GATE FAIL: release artifact boot proof requires qemu-guest-agent"; exit 1; }
 
 # -----------------------------------------------------------------------------
 # (b1) Resolve the base's kernel ambiguity — drop INCOMPLETE kernels, keep one
@@ -2214,6 +2216,7 @@ systemctl enable uupd.timer
 [ -x /usr/libexec/moos-image-update ] \
     || { echo "GATE FAIL: the MoOS image-update authority is not executable"; exit 1; }
 systemctl enable moos-auto-update.timer
+systemctl enable qemu-guest-agent.service
 
 # ONE UPDATER, NOT TWO.
 #
