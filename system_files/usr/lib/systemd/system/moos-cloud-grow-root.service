@@ -1,0 +1,15 @@
+[Unit]
+Description=Grow the MoOS cloud boot volume through the physical sysroot
+Documentation=file:///usr/libexec/moos-cloud-grow-root
+ConditionPathExists=/run/ostree-booted
+ConditionPathIsMountPoint=/sysroot
+After=local-fs.target
+Before=cloud-init-local.service cloud-init-network.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/moos-cloud-grow-root
+TimeoutStartSec=30s
+
+[Install]
+WantedBy=multi-user.target

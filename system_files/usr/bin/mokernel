@@ -30,7 +30,7 @@ set -uo pipefail
 
 # Bumped when the declared policy changes. `mokernel status` prints it so a
 # support conversation can start from a number instead of a guess.
-MOKERNEL_REV=1
+MOKERNEL_REV=2
 
 C_OK=$'\033[32m'; C_BAD=$'\033[31m'; C_WARN=$'\033[33m'
 C_DIM=$'\033[2m'; C_B=$'\033[1m'; C_N=$'\033[0m'
@@ -43,7 +43,7 @@ pass=0; drift=0
 # One line per knob: sysctl|<name>|<expected>|<why it is not the default>
 # The `why` is not decoration — a knob nobody can justify is a knob that gets
 # reverted by the next person who reads it.
-POLICY="
+POLICY_COMMON="
 sysctl|vm.swappiness|150|zram is RAM, so paging to it is cheaper than dropping page cache; the stock 60 assumes a disk
 sysctl|vm.dirty_ratio|10|keep writeback continuous, so a large copy cannot stall the UI behind a wall of dirty pages
 sysctl|vm.dirty_background_ratio|5|start writing back early rather than in one burst
@@ -56,9 +56,15 @@ sysctl|fs.inotify.max_user_watches|524288|Baloo plus a code editor exhaust the s
 sysctl|fs.inotify.max_user_instances|1024|same reason, per-process
 module|tcp_bbr|loaded|the congestion control above is a module, and an unloaded one is silently ignored
 module|sch_fq|loaded|the qdisc above is a module too — this exact omission made fq fail for months
+"
+X86_POLICY="
 karg|preempt=full|present|desktop latency: preempt anywhere, not only at kernel boundaries
 karg|split_lock_detect=off|present|a split-lock trap freezes games and emulators mid-frame on Intel
 "
+POLICY="$POLICY_COMMON"
+if [ "$(uname -m)" = "x86_64" ]; then
+    POLICY="${POLICY}${X86_POLICY}"
+fi
 
 value_of() {
     case "$1" in

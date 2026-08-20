@@ -114,10 +114,36 @@ def main() -> None:
     cloud_cfg = read("/etc/cloud/cloud.cfg.d/10-moos-arm.cfg")
     require("datasource_list: [ Oracle, ConfigDrive, NoCloud, None ]" in cloud_cfg,
             "Oracle is not the first pinned cloud-init datasource")
-    require("name: moos" in cloud_cfg and "groups: [wheel" in cloud_cfg,
+    require("name: moos" in cloud_cfg and "groups: [wheel]" in cloud_cfg,
             "cloud-init does not create the password-authenticated moos account")
-    require("growpart:" in cloud_cfg and "resize_rootfs: true" in cloud_cfg,
-            "the imported Oracle boot volume would not grow")
+    require("mode: off" in cloud_cfg and "resize_rootfs: false" in cloud_cfg,
+            "stock cloud-init resizing is enabled even though bootc exposes composefs at /")
+    grow_helper = read("/usr/libexec/moos-cloud-grow-root")
+    for proof in ("findmnt -nro SOURCE /sysroot", "growpart", "btrfs filesystem resize max /sysroot"):
+        require(proof in grow_helper, f"physical cloud-volume growth lacks: {proof}")
+    require((ROOT / "usr/lib/systemd/system/moos-cloud-grow-root.service").is_file(),
+            "the bootc-aware cloud grow service is missing")
+    require(enabled("moos-cloud-grow-root.service", service_targets),
+            "the bootc-aware cloud grow service is not enabled")
+    require("preserve_hostname: true" in cloud_cfg,
+            "cloud-init would call hostnamectl before D-Bus and degrade first boot")
+    hostname_helper = read("/usr/libexec/moos-cloud-hostname")
+    require("instance-data.json" in hostname_helper and "hostnamectl set-hostname" in hostname_helper,
+            "the post-D-Bus provider hostname authority is incomplete")
+    require(enabled("moos-cloud-hostname.service", service_targets),
+            "the post-D-Bus provider hostname authority is not enabled")
+    account_helper = read("/usr/libexec/moos-cloud-account-ready")
+    require("CacheUser" in account_helper and "id \"$target\"" in account_helper,
+            "the cloud greeter does not publish the provisioned user")
+    graphical_targets = (
+        "etc/systemd/system/graphical.target.wants",
+        "usr/lib/systemd/system/graphical.target.wants",
+    )
+    require(enabled("moos-cloud-account-ready.service", graphical_targets),
+            "the cloud account-ready gate is not enabled for graphical boot")
+    account_unit = read("/usr/lib/systemd/system/moos-cloud-account-ready.service")
+    require("Before=display-manager.service plasmalogin.service" in account_unit,
+            "the cloud account gate does not hold the greeter until its user exists")
 
     ssh_cfg = read("/etc/ssh/sshd_config.d/10-moos-arm.conf")
     for directive in (
@@ -144,6 +170,11 @@ def main() -> None:
         require(driver in dracut, f"the portable initramfs lacks {driver}")
     require('hostonly="no"' in dracut,
             "the cloud initramfs is host-bound instead of portable")
+    require(not (ROOT / "usr/lib/bootc/kargs.d/30-moos-latency.toml").exists(),
+            "x86 gaming latency kargs leaked into the ARM image")
+    mokernel = read("/usr/bin/mokernel")
+    require('if [ "$(uname -m)" = "x86_64" ]' in mokernel,
+            "MoKernel does not scope x86-only kernel policy by architecture")
 
     firewall = subprocess.run(
         ["firewall-offline-cmd", "--get-default-zone"],

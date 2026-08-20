@@ -156,8 +156,11 @@ class ArmEditionTests(unittest.TestCase):
                       "trigger is the safe first real build")
         for gate in (
             "bash -n build_files/build-arm.sh",
+            "bash -n build_files/seal_arm_qcow2.sh",
+            "bash -n tests/boot_arm_qcow2.sh",
             "python3 tests/test_moos_arm.py",
             "python3 tests/test_boot_splash_polish.py",
+            "python3 tests/test_seal_arm_deployment.py",
         ):
             self.assertIn(gate, text, f"the ARM workflow never runs {gate}")
         pull_request_paths = text.split("  pull_request:\n", 1)[1].split(
@@ -179,12 +182,9 @@ class ArmEditionTests(unittest.TestCase):
             "a pull request that repairs the ARM workflow must trigger that workflow",
         )
 
-    def test_only_main_can_publish_arm_latest_or_a_disk(self) -> None:
+    def test_only_main_or_an_explicit_dispatch_can_publish_and_boot_a_disk(self) -> None:
         text = read(WORKFLOW)
-        publish_if = (
-            "if: github.event_name != 'pull_request' && "
-            "github.ref == 'refs/heads/main'"
-        )
+        publish_if = "github.event_name == 'workflow_dispatch'"
         for step_name in (
             "Log in to GHCR",
             "Push",
@@ -201,14 +201,21 @@ class ArmEditionTests(unittest.TestCase):
             self.assertIn(
                 publish_if,
                 match.group("body"),
-                f"{step_name} can publish from a feature branch and replace main's latest",
+                f"{step_name} cannot build a manually requested signed candidate",
             )
+            self.assertIn("github.event_name == 'push'", match.group("body"))
+            self.assertIn("github.ref == 'refs/heads/main'", match.group("body"))
 
         disk_job = text.split("\n  disk:\n", 1)
         self.assertEqual(len(disk_job), 2, "ARM workflow lost its disk job")
         disk_header = disk_job[1].split("\n    runs-on:", 1)[0]
         self.assertIn("github.ref == 'refs/heads/main'", disk_header)
+        self.assertIn("github.event_name == 'workflow_dispatch'", disk_header)
         self.assertIn("needs.build.result == 'success'", disk_header)
+        self.assertIn('publish_tag="candidate-${{ github.run_id }}-', text,
+                      "manual branch proof must not overwrite ARM latest")
+        self.assertIn('if [ "$publish_tag" = latest ]', text,
+                      "date/latest publication must remain main-push only")
 
     def test_workflow_has_no_unindented_shell_payload(self) -> None:
         # A heredoc body at column zero ends YAML's `run: |` scalar. GitHub then
@@ -282,6 +289,18 @@ class ArmEditionTests(unittest.TestCase):
         self.assertNotRegex(text, r'podman\s+--authfile=',
                             "Podman 5.8 rejects --authfile as a global flag; it belongs "
                             "on the pull subcommand")
+        for proof in (
+            "seal_arm_qcow2.sh",
+            "boot_arm_qcow2.sh",
+            "moos-arm-boot-proof",
+            "sha256sum \"$MOOS_ARM_QCOW\"",
+        ):
+            self.assertIn(proof, text, f"the final ARM disk path lacks {proof}")
+        self.assertLess(
+            text.index("Boot the final QCOW2 through UEFI"),
+            text.index("Compress and report"),
+            "the workflow uploads/compresses the disk before proving it boots",
+        )
 
     def test_arm_enforces_the_same_signed_registry_policy(self) -> None:
         build = read(BUILD)
@@ -297,6 +316,7 @@ class ArmEditionTests(unittest.TestCase):
                          "an unreadable ARM initramfs must fail, not warn and publish")
         for payload in ("ostree-prepare-root", "virtio_blk", "virtio_net", "virtio_gpu"):
             self.assertIn(payload, build)
+        self.assertIn("rm -f /usr/lib/bootc/kargs.d/30-moos-latency.toml", build)
 
     # ── security posture ────────────────────────────────────────────────────
     def test_firewall_setup_is_idempotent_and_keeps_rdp_closed(self) -> None:
@@ -391,9 +411,20 @@ class ArmEditionTests(unittest.TestCase):
                       "and can settle on None before the network is up, which locks the "
                       "owner out of their own instance")
         self.assertIn("Oracle", text, "the OCI datasource must be first")
-        self.assertIn("growpart", text,
-                      "Oracle attaches a boot volume larger than the image; without "
-                      "growpart the root filesystem stays at the image's size")
+        self.assertIn("moos-cloud-grow-root.service", text,
+                      "Oracle attaches a boot volume larger than the image; bootc needs "
+                      "a grow path that targets /sysroot rather than composefs at /")
+        self.assertIn("resize_rootfs: false", text,
+                      "cloud-init must not try to resize the composefs root")
+        self.assertIn("groups: [wheel]", text,
+                      "minimal ARM images do not guarantee legacy device groups; naming "
+                      "them makes cloud-init abort before installing the SSH key")
+        self.assertIn("preserve_hostname: true", text,
+                      "the local cloud-init stage has no D-Bus for hostnamectl")
+        self.assertIn("moos-cloud-hostname.service", text,
+                      "provider hostnames still need one post-D-Bus authority")
+        self.assertIn("moos-cloud-account-ready.service", text,
+                      "the greeter must wait until AccountsService publishes the cloud user")
 
     def test_the_initramfs_is_not_hostonly(self) -> None:
         text = read(BUILD)

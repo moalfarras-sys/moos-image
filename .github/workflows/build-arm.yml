@@ -78,8 +78,12 @@ jobs:
       - name: ARM and boot-splash source gates
         run: |
           bash -n build_files/build-arm.sh
+          bash -n build_files/seal_arm_qcow2.sh
+          bash -n tests/boot_arm_qcow2.sh
+          bash -n tests/verify_arm_runtime.sh
           python3 tests/test_moos_arm.py
           python3 tests/test_boot_splash_polish.py
+          python3 tests/test_seal_arm_deployment.py
 
       # The ARM runner ships the same pre-baked toolchains as the x86 one and
       # the same ~14 GB of free space. A Plasma image plus a build cache does
@@ -159,7 +163,7 @@ jobs:
           '
 
       - name: Log in to GHCR
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
         uses: redhat-actions/podman-login@v1
         with:
           registry: ${{ env.REGISTRY }}
@@ -167,25 +171,32 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
         id: push
         run: |
           set -euo pipefail
           dest=${{ env.REGISTRY }}/${{ steps.meta.outputs.owner }}/${{ env.IMAGE_NAME }}
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            publish_tag="candidate-${{ github.run_id }}-${GITHUB_SHA:0:12}"
+          else
+            publish_tag=latest
+          fi
           podman push --digestfile /tmp/moos-arm.digest \
-            ${{ env.IMAGE_NAME }}:latest "${dest}:latest"
-          podman push ${{ env.IMAGE_NAME }}:latest  "${dest}:${{ steps.meta.outputs.tag }}"
+            ${{ env.IMAGE_NAME }}:latest "${dest}:${publish_tag}"
+          if [ "$publish_tag" = latest ]; then
+            podman push ${{ env.IMAGE_NAME }}:latest "${dest}:${{ steps.meta.outputs.tag }}"
+          fi
           digest="$(cat /tmp/moos-arm.digest)"
           echo "destination=${dest}" >> "$GITHUB_OUTPUT"
           echo "digest=${digest}" >> "$GITHUB_OUTPUT"
-          echo "pushed ${dest}@${digest}"
+          echo "pushed ${dest}:${publish_tag}@${digest}"
 
       - name: Install cosign
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
         uses: sigstore/cosign-installer@v3
 
       - name: Sign the ARM image by digest
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
         env:
           COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
         run: |
@@ -193,7 +204,7 @@ jobs:
             "${{ steps.push.outputs.destination }}@${{ steps.push.outputs.digest }}"
 
       - name: Verify the signature against MoOS's installed key
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
         run: |
           set -euo pipefail
           ref="${{ steps.push.outputs.destination }}@${{ steps.push.outputs.digest }}"
@@ -210,7 +221,7 @@ jobs:
   disk:
     name: Build the qcow2 (Oracle / UTM)
     needs: build
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && needs.build.result == 'success'
+    if: (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')) && needs.build.result == 'success'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 90
     permissions:
@@ -233,7 +244,10 @@ jobs:
       - name: Install podman
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq podman zstd
+          sudo apt-get install -y -qq \
+            podman zstd qemu-utils btrfs-progs \
+            qemu-system-arm qemu-efi-aarch64 cloud-image-utils \
+            openssh-client socat imagemagick
 
       - name: Install cosign
         uses: sigstore/cosign-installer@v3
@@ -296,12 +310,43 @@ jobs:
             --local \
             "${src}"
 
-      - name: Compress and report
-        id: pack
+      - name: Seal the exact signed deployment
         run: |
           set -euo pipefail
           qcow="$(sudo find output -name '*.qcow2' -print -quit)"
           [ -n "$qcow" ] || { echo "FATAL: no qcow2 was produced"; exit 1; }
+          expected="${{ needs.build.outputs.destination }}@${{ needs.build.outputs.digest }}"
+          sudo build_files/seal_arm_qcow2.sh "$qcow" "$expected"
+          sudo chown "$USER:$USER" "$qcow"
+          echo "MOOS_ARM_QCOW=$(readlink -f "$qcow")" >> "$GITHUB_ENV"
+
+      - name: Boot the final QCOW2 through UEFI
+        run: |
+          set -euo pipefail
+          expected="${{ needs.build.outputs.destination }}@${{ needs.build.outputs.digest }}"
+          before="$(sha256sum "$MOOS_ARM_QCOW" | awk '{print $1}')"
+          tests/boot_arm_qcow2.sh "$MOOS_ARM_QCOW" "$expected" arm-boot-proof
+          after="$(sha256sum "$MOOS_ARM_QCOW" | awk '{print $1}')"
+          [ "$before" = "$after" ] || {
+            echo "FATAL: the boot gate modified the release QCOW2" >&2
+            exit 1
+          }
+
+      - name: Upload ARM boot proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: moos-arm-boot-proof
+          path: arm-boot-proof/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Compress and report
+        id: pack
+        run: |
+          set -euo pipefail
+          qcow="$MOOS_ARM_QCOW"
+          [ -f "$qcow" ] || { echo "FATAL: sealed qcow2 disappeared"; exit 1; }
           name="moos-arm-$(date -u +%Y%m%d).qcow2"
           sudo mv "$qcow" "$name"
           sudo chown "$USER" "$name"

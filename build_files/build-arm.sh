@@ -221,14 +221,20 @@ echo "=== (5) Oracle Cloud (Ampere A1) ==="
 #                 booting instead of hanging on a datasource that is not coming.
 install -D -m0644 /dev/stdin /etc/cloud/cloud.cfg.d/10-moos-arm.cfg <<'CLOUDCFG'
 datasource_list: [ Oracle, ConfigDrive, NoCloud, None ]
+# The local cloud-init stage runs before the system D-Bus. Its stock hostname
+# module calls hostnamectl there and permanently marks first boot degraded.
+# Preserve during cloud-init; moos-cloud-hostname applies the validated provider
+# name after metadata and D-Bus are both ready.
+preserve_hostname: true
 # Oracle attaches a boot volume that is larger than the imported image (50 GB by
 # default on the Always Free tier, against a ~10 GB image). Without growpart the
 # machine boots with the image's original small root and fills up.
+# The stock modules see composefs at `/` on bootc and therefore try to resize
+# `/dev/composefs`, leaving the real boot volume untouched.  MoOS grows the
+# physical btrfs mount at `/sysroot` with moos-cloud-grow-root instead.
 growpart:
-  mode: auto
-  devices: ['/']
-  ignore_growroot_disabled: false
-resize_rootfs: true
+  mode: off
+resize_rootfs: false
 # The default user. Oracle's own images use `opc`; MoOS uses `moos` so the same
 # name works on OCI, on UTM and on bare metal, and so that documentation does not
 # have to fork per platform.
@@ -243,11 +249,18 @@ system_info:
   default_user:
     name: moos
     gecos: MoOS
-    groups: [wheel, video, audio, input, render]
+    # Only wheel is a persistent privilege group.  Desktop device access is
+    # granted per active seat through logind/uaccess.  Some minimal ARM images
+    # do not create the legacy audio/video/input/render groups, and naming them
+    # here makes cloud-init abort before it can install the SSH key.
+    groups: [wheel]
     shell: /bin/bash
 CLOUDCFG
 systemctl enable cloud-init-network.service cloud-init-local.service \
     cloud-config.service cloud-final.service
+systemctl enable moos-cloud-grow-root.service
+systemctl enable moos-cloud-hostname.service
+systemctl enable moos-cloud-account-ready.service
 
 # The serial console. THIS IS THE ARM DIFFERENCE that most cloud images get
 # wrong: on x86 the provider's console is ttyS0, and on Ampere/aarch64 it is
@@ -482,6 +495,12 @@ fi
 # systemd-udev-settle is deprecated upstream ("depending on it is a bug") and
 # serialises the whole udev coldplug behind the slowest device.
 systemctl mask systemd-udev-settle.service 2>/dev/null || true
+
+# The shared x86 desktop policy contains game-specific preemption and Intel
+# split-lock arguments. They have no measured ARM benefit, and one names an
+# x86-only mechanism, so the architecture layer must not carry them into an
+# Ampere/UTM kernel command line. mokernel also declares them only on x86_64.
+rm -f /usr/lib/bootc/kargs.d/30-moos-latency.toml
 
 # dbus-broker's default 90 s start timeout is the root of the slow-boot network
 # cascade documented for the x86 editions; system_files ships the drop-in that

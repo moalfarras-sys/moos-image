@@ -48,14 +48,21 @@ cli_text = CLI.read_text(encoding="utf-8")
 check(CLI.stat().st_mode & 0o111 != 0, "mokernel must be executable")
 
 # ── Parse the declared policy out of the shipped script ───────────────────────
-policy_block = re.search(r'^POLICY="\n(.*?)^"', cli_text, re.MULTILINE | re.DOTALL)
-check(policy_block is not None, "mokernel no longer contains a POLICY block")
+policy_blocks = re.findall(
+    r'^(?:POLICY_COMMON|X86_POLICY)="\n(.*?)^"',
+    cli_text,
+    re.MULTILINE | re.DOTALL,
+)
+check(len(policy_blocks) == 2,
+      "mokernel must have one common policy and one architecture-scoped x86 policy")
+check('if [ "$(uname -m)" = "x86_64" ]' in cli_text,
+      "the x86-only MoKernel policy is no longer architecture-scoped")
 
 declared_sysctl: dict[str, str] = {}
 declared_modules: set[str] = set()
 declared_kargs: set[str] = set()
-if policy_block:
-    for line in policy_block.group(1).splitlines():
+if policy_blocks:
+    for line in "\n".join(policy_blocks).splitlines():
         line = line.strip()
         if not line:
             continue
