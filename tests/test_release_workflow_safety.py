@@ -9,6 +9,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "build.yml"
 DISK_WORKFLOW = ROOT / ".github" / "workflows" / "build-disk.yml"
+ISO_WORKFLOW = ROOT / ".github" / "workflows" / "build-iso.yml"
 
 
 class ReleaseWorkflowSafetyTests(unittest.TestCase):
@@ -58,6 +59,24 @@ class ReleaseWorkflowSafetyTests(unittest.TestCase):
         self.assertNotIn("Basic System", positive)
         self.assertNotIn("Multi-User", positive)
         self.assertRegex(positive, r"Graphical|Display Manager|plasma-login-manager|plasmalogin")
+
+    def test_iso_builder_is_immutable_and_both_artifacts_use_verified_digests(self) -> None:
+        iso = ISO_WORKFLOW.read_text(encoding="utf-8")
+        disk = DISK_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn(
+            "uses: ublue-os/titanoboa@5c457c3d0518bd17e754be0fd98a60d29d26abb4",
+            iso,
+        )
+        self.assertNotIn("ublue-os/titanoboa@main", iso)
+        for name, text in (("ISO", iso), ("disk", disk)):
+            self.assertIn('docker-manifest-digest', text, name)
+            self.assertIn('cosign verify --key cosign.pub "${pinned_ref}"', text, name)
+            self.assertIn("steps.pin.outputs.image_ref", text, name)
+            self.assertRegex(text, r"sha256:\[0-9a-f\]\{64\}")
+        self.assertIn("image-ref: ${{ steps.pin.outputs.image_ref }}", iso)
+        self.assertIn('IMAGE_REF: ${{ steps.pin.outputs.image_ref }}', iso)
+        self.assertIn('podman pull "${{ steps.pin.outputs.image_ref }}"', disk)
+        self.assertIn('"${{ steps.pin.outputs.image_ref }}"', disk)
 
 
 if __name__ == "__main__":

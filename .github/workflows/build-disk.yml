@@ -49,9 +49,11 @@ jobs:
           docker-images: true
 
       - name: Resolve image ref
-        id: ref
+        id: requested
+        env:
+          INPUT_REF: ${{ inputs['image-ref'] }}
         run: |
-          REF="${{ github.event.inputs.image-ref }}"
+          REF="${INPUT_REF}"
           [ -n "$REF" ] || REF="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/moos:latest"
           echo "image_ref=$REF" >> "$GITHUB_OUTPUT"
           echo "Building disk from: $REF"
@@ -64,13 +66,30 @@ jobs:
       - name: Install cosign
         uses: sigstore/cosign-installer@v3
 
-      - name: Verify the image signature before building a disk from it
+      - name: Verify and pin the exact image digest
+        id: pin
         env:
-          IMAGE_REF: ${{ steps.ref.outputs.image_ref }}
-        run: cosign verify --key cosign.pub "${IMAGE_REF}"
+          REQUESTED_REF: ${{ steps.requested.outputs.image_ref }}
+        run: |
+          set -euo pipefail
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          if [[ ! "${REQUESTED_REF}" =~ ^ghcr\.io/${owner}/(moos|moos-nvidia)(:[A-Za-z0-9._-]+|@sha256:[0-9a-f]{64})$ ]]; then
+            echo "FATAL: disk source is not an official desktop MoOS reference: ${REQUESTED_REF}" >&2
+            exit 1
+          fi
+          verified_json="$(cosign verify --key cosign.pub --output json "${REQUESTED_REF}")"
+          digest="$(jq -er '.[0].critical.image["docker-manifest-digest"]' <<<"${verified_json}")"
+          [[ "${digest}" =~ ^sha256:[0-9a-f]{64}$ ]] \
+            || { echo "FATAL: cosign returned an invalid digest" >&2; exit 1; }
+          repository="${REQUESTED_REF%%@*}"
+          [ "${repository}" != "${REQUESTED_REF}" ] || repository="${REQUESTED_REF%:*}"
+          pinned_ref="${repository}@${digest}"
+          cosign verify --key cosign.pub "${pinned_ref}" >/dev/null
+          echo "image_ref=${pinned_ref}" >> "$GITHUB_OUTPUT"
+          echo "Pinned signed disk source: ${pinned_ref}"
 
       - name: Pull the MoOS image (public — no auth)
-        run: sudo podman pull "${{ steps.ref.outputs.image_ref }}"
+        run: sudo podman pull "${{ steps.pin.outputs.image_ref }}"
 
       - name: Build qcow2 with bootc-image-builder
         run: |
@@ -94,7 +113,7 @@ jobs:
             --rootfs btrfs \
             --config /config.toml \
             --local \
-            "${{ steps.ref.outputs.image_ref }}"
+            "${{ steps.pin.outputs.image_ref }}"
           echo "=== output tree ==="; sudo find output -maxdepth 3 -type f -printf '%p (%s bytes)\n'
 
       - name: Verify the deployed disk's initramfs has ostree-prepare-root
