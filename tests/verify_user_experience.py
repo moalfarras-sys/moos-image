@@ -5649,6 +5649,12 @@ require(re.search(r"90-moos-hardware\.conf.*?sysctl --system", _hw, re.DOTALL) i
 
 # #8 Fast Remote must restore the CAPTURED layout on off, not a hard-coded country.
 _fr = code(read("system_files/usr/bin/moos-fast-remote"), "hash")
+require("XDG_STATE_HOME" in _fr and "XDG_RUNTIME_DIR" not in _fr.split("STATE=", 1)[0],
+        "Fast Remote changes persistent KConfig, so its recovery journal must survive reboot")
+_fr_recover = read("system_files/etc/xdg/autostart/org.moos.fastremote-recover.desktop")
+require("Exec=/usr/bin/moos-fast-remote recover" in _fr_recover
+        and "X-KDE-autostart-phase=2" in _fr_recover,
+        "a crash/reboot during Fast Remote must restore the exact prior appearance at login")
 require("set_layout de" not in _fr,
         "Fast Remote off must not restore a hard-coded 'de' layout")
 require("prevlayout" in _fr and "set_layout_idx" in _fr,

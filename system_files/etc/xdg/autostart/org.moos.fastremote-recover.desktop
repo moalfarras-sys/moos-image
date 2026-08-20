@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Restore MoOS appearance after Fast Remote
+Name[ar]=استعادة مظهر MoOS بعد الوضع البعيد السريع
+Exec=/usr/bin/moos-fast-remote recover
+NoDisplay=true
+OnlyShowIn=KDE;
+X-KDE-autostart-phase=2
