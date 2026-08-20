@@ -6183,6 +6183,9 @@ _FLUTTER_TO_DART = {
     "3.44.8": (3, 12, 2),
 }
 _containerfile = read("Containerfile")
+require("flutter analyze --no-fatal-infos" in _containerfile
+        and "flutter test" in _containerfile,
+        "the release image must run MoPlayer analysis and tests before building the bundle")
 _flutter_pin = re.search(r"ARG FLUTTER_VERSION=([0-9.]+)", _containerfile)
 require(_flutter_pin is not None,
         "the Containerfile must pin FLUTTER_VERSION — an unpinned SDK builds a "
@@ -6210,6 +6213,9 @@ if _flutter_pin:
 # (The theme-safety and UI2 gates already run transitively via this file's own
 # subprocess invocations above, so they are wired — no separate build.yml entry.)
 _byml = read(".github/workflows/build.yml")
+require("npm test" in _byml
+        and "tests/bundle-freshness.test.ts" in _byml,
+        "build.yml must run the complete Mo PC Remote controller suite and the shipped-bundle gate")
 require("cosign verify --key cosign.pub" in _byml,
         "build.yml must verify the signature against the OS-enforced public key")
 

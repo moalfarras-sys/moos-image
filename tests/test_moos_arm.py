@@ -437,6 +437,8 @@ class ArmEditionTests(unittest.TestCase):
         for contract in (
             "dotnet publish agent-linux/MoRemoteLinux.csproj",
             "-r linux-arm64",
+            "flutter analyze --no-fatal-infos",
+            "flutter test",
             "flutter build linux --release",
             "build/linux/arm64/release/bundle",
             "COPY --from=moremote-build /out/ /usr/lib/mo-remote/",
