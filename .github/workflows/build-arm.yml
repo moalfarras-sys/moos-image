@@ -79,6 +79,7 @@ jobs:
         run: |
           bash -n build_files/build-arm.sh
           bash -n build_files/seal_arm_qcow2.sh
+          bash -n build_files/seal_release_qcow2.sh
           bash -n tests/boot_arm_qcow2.sh
           bash -n tests/verify_arm_runtime.sh
           python3 tests/test_moos_arm.py

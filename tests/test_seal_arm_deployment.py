@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regression fixtures for the final ARM deployment seal."""
+"""Regression fixtures for the shared ARM/x86 release deployment seal."""
 
 from __future__ import annotations
 
@@ -14,7 +14,14 @@ DIGEST = "sha256:" + "a" * 64
 IMAGE = "ghcr.io/moalfarras-sys/moos-arm@" + DIGEST
 
 
-def fixture(origin_reference: str) -> tuple[tempfile.TemporaryDirectory[str], Path, Path, Path, Path]:
+def fixture(
+    origin_reference: str,
+    *,
+    options: str = (
+        "root=UUID=x rhgb quiet splash preempt=full split_lock_detect=off "
+        "console=ttyAMA0,115200n8 console=tty0 console=ttyS0"
+    ),
+) -> tuple[tempfile.TemporaryDirectory[str], Path, Path, Path, Path]:
     temporary = tempfile.TemporaryDirectory(prefix="moos-arm-seal-")
     base = Path(temporary.name)
     root = base / "root"
@@ -29,16 +36,26 @@ def fixture(origin_reference: str) -> tuple[tempfile.TemporaryDirectory[str], Pa
     )
     entry.write_text(
         "title MoOS\n"
-        "options root=UUID=x rhgb quiet splash preempt=full split_lock_detect=off "
-        "console=ttyAMA0,115200n8 console=tty0 console=ttyS0\n",
+        f"options {options}\n",
         encoding="utf-8",
     )
     return temporary, root, boot, origin, entry
 
 
-def run(root: Path, boot: Path, image: str = IMAGE) -> subprocess.CompletedProcess[str]:
+def run(
+    root: Path,
+    boot: Path,
+    image: str = IMAGE,
+    arch: str = "arm64",
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        [str(SCRIPT), "--root", str(root), "--boot", str(boot), "--expected-image", image],
+        [
+            str(SCRIPT),
+            "--root", str(root),
+            "--boot", str(boot),
+            "--expected-image", image,
+            "--target-arch", arch,
+        ],
         capture_output=True,
         text=True,
     )
@@ -68,7 +85,29 @@ def main() -> int:
     with temporary:
         assert run(root, boot, "ghcr.io/moalfarras-sys/moos-arm:latest").returncode != 0
 
-    print("OK: the ARM disk seal pins the signed origin, removes foreign kargs, and rejects foreign/mutable refs")
+    x86_image = "ghcr.io/moalfarras-sys/moos@" + DIGEST
+    temporary, root, boot, origin, entry = fixture(
+        "ostree-unverified-registry:" + x86_image,
+        options="root=UUID=x rhgb quiet splash preempt=full split_lock_detect=off console=ttyS0",
+    )
+    with temporary:
+        result = run(root, boot, x86_image, "x86_64")
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "container-image-reference=ostree-image-signed:docker://" + x86_image in origin.read_text()
+        options = entry.read_text(encoding="utf-8")
+        assert "console=ttyS0" not in options
+        assert "preempt=full" in options
+        assert "split_lock_detect=off" in options
+        assert run(root, boot, x86_image, "x86_64").returncode == 0
+
+    temporary, root, boot, _, _ = fixture(
+        "ostree-unverified-registry:ghcr.io/moalfarras-sys/moos-arm@" + DIGEST,
+        options="root=UUID=x rhgb quiet splash",
+    )
+    with temporary:
+        assert run(root, boot, x86_image, "x86_64").returncode != 0
+
+    print("OK: the shared disk seal pins signed ARM/x86 origins, removes builder kargs, and rejects foreign/mutable refs")
     return 0
 
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Seal a mounted ARM disk deployment before it becomes a release artifact.
+"""Seal a mounted MoOS disk deployment before it becomes a release artifact.
 
 bootc-image-builder installs from its local container store, which leaves the
 deployment origin on an unverified transport even when CI verified and signed
@@ -18,9 +18,14 @@ import tempfile
 from pathlib import Path
 
 
-OFFICIAL_IMAGE = re.compile(
-    r"^ghcr\.io/moalfarras-sys/moos-arm@sha256:[0-9a-f]{64}$"
-)
+OFFICIAL_IMAGES = {
+    "arm64": re.compile(
+        r"^ghcr\.io/moalfarras-sys/moos-arm@sha256:[0-9a-f]{64}$"
+    ),
+    "x86_64": re.compile(
+        r"^ghcr\.io/moalfarras-sys/(?:moos|moos-nvidia)@sha256:[0-9a-f]{64}$"
+    ),
+}
 ORIGIN_KEY = "container-image-reference="
 UNVERIFIED_PREFIXES = (
     "ostree-unverified-registry:",
@@ -31,7 +36,7 @@ FOREIGN_KARGS = {"preempt=full", "split_lock_detect=off"}
 
 
 def fail(message: str) -> None:
-    raise SystemExit(f"ARM DISK FATAL: {message}")
+    raise SystemExit(f"MOOS DISK FATAL: {message}")
 
 
 def atomic_write(path: Path, text: str) -> None:
@@ -78,7 +83,7 @@ def seal_origin(root: Path, expected_image: str) -> Path:
     return origin
 
 
-def seal_bls(boot: Path) -> list[Path]:
+def seal_bls(boot: Path, target_arch: str) -> list[Path]:
     entries = sorted(set(boot.glob("loader*/entries/*.conf")))
     if not entries:
         fail("no deployed BLS entries found")
@@ -89,21 +94,28 @@ def seal_bls(boot: Path) -> list[Path]:
             fail(f"{entry} has {len(option_indexes)} options lines")
         index = option_indexes[0]
         options = lines[index].split()[1:]
-        options = [
-            item for item in options
-            if not item.startswith("console=ttyS0") and item not in FOREIGN_KARGS
-        ]
-        for required in (
-            "console=ttyAMA0,115200n8",
-            "console=tty0",
-            "rhgb",
-            "quiet",
-            "splash",
-        ):
+        options = [item for item in options if not item.startswith("console=ttyS0")]
+        if target_arch == "arm64":
+            # These two latency flags are x86 policy and must not leak into an
+            # ARM disk just because its shared image tree contains the source.
+            options = [item for item in options if item not in FOREIGN_KARGS]
+            required_options = (
+                "console=ttyAMA0,115200n8",
+                "console=tty0",
+                "rhgb",
+                "quiet",
+                "splash",
+            )
+        else:
+            # x86 desktop images keep their measured MoKernel policy. BIB may
+            # inject a serial console for its own builder diagnostics; remove
+            # that release-only leak while preserving the branded splash.
+            required_options = ("rhgb", "quiet", "splash")
+        for required in required_options:
             if options.count(required) != 1:
                 fail(f"{entry} must contain exactly one {required}")
         consoles = [item for item in options if item.startswith("console=")]
-        if consoles[-1] != "console=tty0":
+        if target_arch == "arm64" and consoles[-1] != "console=tty0":
             fail(f"{entry} does not keep the graphical console primary: {consoles}")
         lines[index] = "options " + " ".join(options)
         atomic_write(entry, "\n".join(lines) + "\n")
@@ -115,14 +127,18 @@ def main() -> int:
     parser.add_argument("--root", required=True, type=Path)
     parser.add_argument("--boot", required=True, type=Path)
     parser.add_argument("--expected-image", required=True)
+    parser.add_argument("--target-arch", choices=sorted(OFFICIAL_IMAGES), default="arm64")
     args = parser.parse_args()
-    if not OFFICIAL_IMAGE.fullmatch(args.expected_image):
+    if not OFFICIAL_IMAGES[args.target_arch].fullmatch(args.expected_image):
         fail(f"refusing non-official or non-digest image: {args.expected_image}")
     if not args.root.is_dir() or not args.boot.is_dir():
         fail("root and boot must be mounted directories")
     origin = seal_origin(args.root, args.expected_image)
-    entries = seal_bls(args.boot)
-    print(f"ARM DISK SEALED: {origin}; {len(entries)} BLS entr{'y' if len(entries) == 1 else 'ies'}")
+    entries = seal_bls(args.boot, args.target_arch)
+    print(
+        f"MOOS DISK SEALED ({args.target_arch}): {origin}; "
+        f"{len(entries)} BLS entr{'y' if len(entries) == 1 else 'ies'}"
+    )
     return 0
 
 

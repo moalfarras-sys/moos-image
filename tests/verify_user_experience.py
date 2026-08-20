@@ -4661,12 +4661,15 @@ require('src.suffix == ".svg"' in family_lnf
 # log. systemd colours individual words, so grepping the raw stream previously
 # reported failure after the disk had visibly reached Basic System and login.
 disk_workflow = read(".github/workflows/build-disk.yml")
+disk_boot_gate = read("tests/boot_x86_qcow2.sh")
 require(
-    "serial.plain.log" in disk_workflow
-    and "ansi = re.compile" in disk_workflow
-    and disk_workflow.count("/tmp/serial.plain.log") >= 3,
-    "the qcow2 boot gate must strip ANSI once and use the normalised serial log "
-    "for both failure and success decisions",
+    "serial.plain.log" in disk_boot_gate
+    and "ansi = re.compile" in disk_boot_gate
+    and 'grep -Eqi "$fatal" "$evidence/serial.plain.log"' in disk_boot_gate
+    and "guest-sync-delimited" in disk_boot_gate
+    and "runtime-first-boot.txt" in disk_boot_gate,
+    "the qcow2 boot gate must normalise its diagnostic serial log and prove "
+    "positive runtime state through a synchronised guest channel",
 )
 require(
     "sddm-greeter" not in code(disk_workflow),

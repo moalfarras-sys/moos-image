@@ -3,6 +3,7 @@
 
 from pathlib import Path
 import re
+import stat
 import unittest
 
 
@@ -12,9 +13,23 @@ DISK_WORKFLOW = ROOT / ".github" / "workflows" / "build-disk.yml"
 ISO_WORKFLOW = ROOT / ".github" / "workflows" / "build-iso.yml"
 ARM_WORKFLOW = ROOT / ".github" / "workflows" / "build-arm.yml"
 BOOT_VM = ROOT / "tests" / "boot-in-vm.sh"
+X86_BOOT = ROOT / "tests" / "boot_x86_qcow2.sh"
 
 
 class ReleaseWorkflowSafetyTests(unittest.TestCase):
+    def test_release_helpers_are_executable(self) -> None:
+        for path in (
+            ROOT / "build_files" / "seal_arm_qcow2.sh",
+            ROOT / "build_files" / "seal_release_qcow2.sh",
+            ROOT / "build_files" / "seal_x86_qcow2.sh",
+            ROOT / "tests" / "boot_live_iso.sh",
+            X86_BOOT,
+        ):
+            self.assertTrue(
+                path.stat().st_mode & stat.S_IXUSR,
+                f"release workflow invokes a non-executable helper: {path}",
+            )
+
     def test_heavy_sbom_scan_stays_out_of_image_release_jobs(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
         forbidden = ("anchore/sbom-action", "syft scan", "cosign attest")
@@ -43,24 +58,45 @@ class ReleaseWorkflowSafetyTests(unittest.TestCase):
 
     def test_disk_boot_proof_never_mutates_the_published_qcow(self) -> None:
         text = DISK_WORKFLOW.read_text(encoding="utf-8")
-        self.assertIn("moos-disk-serial-test.qcow2", text)
-        self.assertRegex(text, r"qemu-img create[^\n]*-q -f qcow2")
-        self.assertIn('-b "$(realpath "$QCOW")" "$TEST_QCOW"', text)
-        self.assertIn('qemu-nbd --connect=/dev/nbd0 -f qcow2 "$TEST_QCOW"', text)
-        self.assertIn('-drive file="$TEST_QCOW",format=qcow2,if=virtio', text)
-        self.assertIn("moos-qcow.pristine.sha256", text)
-        self.assertNotIn('qemu-nbd --connect=/dev/nbd0 -f qcow2 "$QCOW"; sleep 3\n          MNT=', text)
+        script = X86_BOOT.read_text(encoding="utf-8")
+        self.assertIn("CI verification fixture, not an end-user login image", text)
+        self.assertIn("name: moos-ci-verified-disk-qcow2", text)
+        seal = 'sudo build_files/seal_x86_qcow2.sh "$qcow" "$expected"'
+        boot = 'tests/boot_x86_qcow2.sh "$MOOS_X86_QCOW" "$EXPECTED_IMAGE" "$EVIDENCE_DIR"'
+        self.assertIn(seal, text)
+        self.assertIn(boot, text)
+        self.assertLess(text.index(seal), text.index(boot))
+        self.assertLess(text.index(boot), text.index("Publish the pristine qcow2"))
+        self.assertIn('qemu-img create -q -f qcow2 -F qcow2 -b "$qcow"', script)
+        self.assertIn('file=$work/overlay.qcow2', script)
+        self.assertIn('after_sha=', script)
+        self.assertNotIn("moos-disk-serial-test.qcow2", text)
+        self.assertNotIn("sed -i -E 's/\\bquiet", text)
 
     def test_disk_gate_requires_firmware_and_the_graphical_path(self) -> None:
         text = DISK_WORKFLOW.read_text(encoding="utf-8")
-        missing_firmware = text.split('if [ -z "$OVMF_CODE" ]', 1)[1].split(
-            "          fi\n", 1
+        script = X86_BOOT.read_text(encoding="utf-8")
+        for proof in (
+            "no matching OVMF CODE/VARS",
+            "/run/ostree-booted",
+            "rd.live.image",
+            "plasmalogin.service",
+            "pgrep -u plasmalogin -x kwin_wayland",
+            "/dev/dri/card*",
+            "container-image-reference-digest",
+            "guest-sync-delimited",
+            'send_shutdown("reboot")',
+            'send_shutdown("powerdown")',
+            "graphical-first-boot.ppm",
+            "graphical-second-boot.ppm",
+            "after_sha=",
+        ):
+            self.assertIn(proof, script, f"x86 QCOW2 gate lost proof: {proof}")
+        self.assertNotIn("-no-reboot", script)
+        evidence = text.split("- name: Upload x86 QCOW2 boot evidence", 1)[1].split(
+            "      - name:", 1
         )[0]
-        self.assertIn("exit 1", missing_firmware)
-        positive = text.split("# Positive gate:", 1)[1]
-        self.assertNotIn("Basic System", positive)
-        self.assertNotIn("Multi-User", positive)
-        self.assertRegex(positive, r"Graphical|Display Manager|plasma-login-manager|plasmalogin")
+        self.assertIn("if: always()", evidence)
 
     def test_iso_builder_is_immutable_and_both_artifacts_use_verified_digests(self) -> None:
         iso = ISO_WORKFLOW.read_text(encoding="utf-8")
