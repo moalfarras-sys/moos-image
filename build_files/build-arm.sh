@@ -85,6 +85,10 @@ _PLASMA=(
     mesa-dri-drivers mesa-libEGL mesa-libgbm
     openssh-server cloud-init cloud-utils-growpart
     firewalld flatpak openssl sudo
+    # Day-2 updates resolve a mutable release tag to an exact signed digest.
+    # fedora-bootc supplies rpm-ostree today, but both tools are explicit product
+    # dependencies rather than accidental base-image contents.
+    rpm-ostree skopeo
 )
 dnf5 -y install --setopt=install_weak_deps=False "${_PLASMA[@]}"
 
@@ -148,6 +152,7 @@ test -d /moos-overlay/usr/share || {
 cp -a /moos-overlay/. /
 
 systemctl enable NetworkManager.service sshd.service firewalld.service
+systemctl enable moos-auto-update.timer
 # Fedora 44's documented PLM switch uses --force because the graphical-login
 # alias may still point at a display manager inherited from a package preset.
 systemctl enable --force plasmalogin.service

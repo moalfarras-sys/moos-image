@@ -263,6 +263,9 @@ class ArmEditionTests(unittest.TestCase):
             "usr/share/xsessions",
             "startplasma-wayland",
             "plasma-workspace-x11",
+            "usr/libexec/moos-image-update",
+            "moos-auto-update.timer",
+            '"skopeo"',
         ):
             self.assertIn(contract, verifier,
                           f"the finished ARM image gate does not verify {contract}")

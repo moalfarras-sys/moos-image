@@ -137,14 +137,16 @@ osrel_set BUG_REPORT_URL    '"https://github.com/moalfarras-sys/moos-image/issue
 grep -E '^(NAME|PRETTY_NAME|ID|VERSION_ID|LOGO|HOME_URL|DOCUMENTATION_URL|SUPPORT_URL|BUG_REPORT_URL)=' /usr/lib/os-release
 
 # -----------------------------------------------------------------------------
-# (b) uupd — Universal Blue background updater (bootc + Flatpak + distrobox)
+# (b) Application updater plus the registry client used by MoOS image updates
 # -----------------------------------------------------------------------------
 # uupd ships from the ublue-os/packages COPR (https://github.com/ublue-os/uupd).
 # The COPR is enabled only for this install and disabled right after, so the
 # shipped image does not carry an active third-party repo.
 dnf5 -y copr enable ublue-os/packages
-dnf5 -y install uupd
+dnf5 -y install uupd skopeo
 dnf5 -y copr disable ublue-os/packages
+[ -x /usr/bin/skopeo ] \
+    || { echo "GATE FAIL: signed image updater requires /usr/bin/skopeo"; exit 1; }
 
 # -----------------------------------------------------------------------------
 # (b1) Resolve the base's kernel ambiguity — drop INCOMPLETE kernels, keep one
@@ -2200,16 +2202,17 @@ getent group plugdev >/dev/null || groupadd -r plugdev
 # -----------------------------------------------------------------------------
 # (d) Enable services
 # -----------------------------------------------------------------------------
-# uupd runs from a systemd timer; enabling it here bakes the symlink into the
-# image so every deployment gets background updates by default.
+# uupd runs from a systemd timer and owns application updates only (Flatpak and
+# distrobox). Its system-image module is disabled in /etc/uupd/config.json.
 systemctl enable uupd.timer
 
-# uupd's `bootc upgrade` is a permanent no-op on a digest-pinned origin, and
-# `moai-do update` deliberately pins (exact-object privilege escalation) — so
-# every machine that ever updated manually fell OFF the background train while
-# the uupd timer stayed green. moos-auto-update is the missing OS leg: nightly
-# resolve of the official :latest to an exact digest, staged through the same
-# signature-enforcing transport. See /usr/libexec/moos-auto-update.
+# moos-image-update is the single authority for the immutable OS image. The
+# compatible moos-auto-update unit name remains so existing deployment enable
+# symlinks keep working, but its ExecStart delegates directly to that backend.
+# It resolves official :latest, verifies an exact digest after authentication,
+# and rebases only through the signature-enforcing transport.
+[ -x /usr/libexec/moos-image-update ] \
+    || { echo "GATE FAIL: the MoOS image-update authority is not executable"; exit 1; }
 systemctl enable moos-auto-update.timer
 
 # ONE UPDATER, NOT TWO.
@@ -2219,22 +2222,12 @@ systemctl enable moos-auto-update.timer
 # OSTree sysroot. Measured on the maintainer's machine, both were enabled+active,
 # and `rpm-ostree upgrade` reported "note: automatic updates (stage) are enabled".
 #
-# That is not merely redundant, it defeats a deliberate policy. uupd is MoOS's
-# updater and it is CONDITIONAL: /etc/uupd/config.json refuses to update below
-# 20% battery, above 50% CPU, above 90% memory, or while the network is busy
-# (>700 kB/s), and uupd.service.d/moos-idle.conf keeps it off the login path.
-# The whole intent is that "an update nobody asked for right now must never be".
-# rpm-ostreed-automatic honours none of that: it fires 1h after boot and then
-# daily, whatever the user is doing — on battery, mid-game, on metered data.
+# That is not merely redundant: it creates a second deployment writer outside
+# MoOS's signed exact-digest policy. rpm-ostreed-automatic fires independently
+# and can contend with the MoOS backend for the same OSTree transaction lock.
 #
-# They also contend for the same rpm-ostree transaction lock, so when both fire
-# one of them simply fails, and it stages deployments outside the path
-# `moai-do update` and MoOS Recovery are built around.
-#
-# uupd covers everything it did: its config has "system": {"disable": false} and
-# its log shows it resolving ghcr.io/<owner>/moos-nvidia through the rpm-ostree
-# driver, alongside flatpak and distrobox. So disable the redundant one and leave
-# exactly one updater in charge.
+# uupd's system module is also disabled, so only moos-image-update can stage an
+# OS deployment. uupd remains enabled for its non-OS application modules.
 systemctl disable rpm-ostreed-automatic.timer 2>/dev/null || true
 # bootc-fetch-apply-updates is the third one, off in the base image today. Assert
 # it stays off rather than trusting that, for the same reason.

@@ -1,0 +1,423 @@
+#!/usr/bin/python3
+"""One authority for resolving and staging immutable MoOS image updates.
+
+All callers use this boundary:
+  * ``resolve`` is unprivileged and returns validated state.
+  * ``stage`` accepts only the expected digest and derives the signed target
+    from the booted edition after revalidating live rpm-ostree state.
+  * ``auto`` performs the same flow for the system timer without rebooting.
+
+The registry may supply only a sha256 digest. Repository, edition, transport
+and signature enforcement are constructed here from fixed product policy.
+"""
+
+from __future__ import annotations
+
+import argparse
+from contextlib import contextmanager
+import fcntl
+import json
+import os
+import re
+import subprocess
+import sys
+import time
+from typing import Any
+
+
+REGISTRY = "ghcr.io/moalfarras-sys"
+EDITIONS = ("moos-nvidia", "moos-cloud", "moos-arm", "moos")
+RPM_OSTREE = "/usr/bin/rpm-ostree"
+SKOPEO = "/usr/bin/skopeo"
+DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
+DIGEST_IN_REF_RE = re.compile(r"sha256:[0-9a-f]{64}")
+SIGNED_PREFIX = f"ostree-image-signed:docker://{REGISTRY}/"
+ORIGIN_RE = re.compile(
+    rf"^{re.escape(SIGNED_PREFIX)}"
+    rf"({'|'.join(re.escape(item) for item in EDITIONS)})"
+    r"(?:@sha256:[0-9a-f]{64}|:[A-Za-z0-9][A-Za-z0-9._-]*)$"
+)
+BATTERY_MIN_PERCENT = 20
+CPU_MAX_PERCENT = 50
+MEMORY_MAX_PERCENT = 90
+NETWORK_MAX_BYTES_PER_SECOND = 700_000
+
+
+class UpdateError(RuntimeError):
+    def __init__(
+        self,
+        message: str,
+        *,
+        code: int = 1,
+        security: bool = False,
+        transient: bool = False,
+    ):
+        super().__init__(message)
+        self.code = code
+        self.security = security
+        self.transient = transient
+
+
+def run(*argv: str, timeout: int = 60) -> str:
+    try:
+        result = subprocess.run(
+            argv,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError) as error:
+        raise UpdateError(f"could not run {argv[0]}: {error}", code=3) from error
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "").strip()
+        suffix = f": {detail}" if detail else ""
+        raise UpdateError(f"{argv[0]} exited {result.returncode}{suffix}", code=3)
+    return result.stdout or ""
+
+
+def official_edition(reference: str) -> str | None:
+    """Return the exact signed MoOS repository named by an origin."""
+    match = ORIGIN_RE.fullmatch(reference)
+    return match.group(1) if match else None
+
+
+def digest_in(reference: str) -> str:
+    matches = DIGEST_IN_REF_RE.findall(reference or "")
+    return matches[-1] if matches else ""
+
+
+def read_deployments() -> dict[str, Any]:
+    if not os.access(RPM_OSTREE, os.X_OK):
+        raise UpdateError(f"required tool is missing: {RPM_OSTREE}", code=3)
+    raw = run(RPM_OSTREE, "status", "--json", timeout=30)
+    try:
+        status = json.loads(raw)
+    except (TypeError, ValueError) as error:
+        raise UpdateError("rpm-ostree returned invalid JSON", code=3) from error
+    if not isinstance(status, dict):
+        raise UpdateError("rpm-ostree returned a non-object status", code=3)
+
+    deployments = status.get("deployments")
+    if not isinstance(deployments, list):
+        raise UpdateError("rpm-ostree status has no deployment list", code=3)
+    booted = next(
+        (item for item in deployments if isinstance(item, dict) and item.get("booted")),
+        None,
+    )
+    staged = next(
+        (item for item in deployments if isinstance(item, dict) and item.get("staged")),
+        None,
+    )
+    if booted is None:
+        raise UpdateError("rpm-ostree reports no booted deployment", code=3)
+
+    transaction = status.get("transaction")
+    if isinstance(transaction, (list, tuple)):
+        transaction = " ".join(str(word) for word in transaction)
+    elif not isinstance(transaction, str):
+        transaction = ""
+    return {"booted": booted, "staged": staged, "busy": transaction.strip()}
+
+
+def registry_digest(edition: str) -> str:
+    if not os.access(SKOPEO, os.X_OK):
+        raise UpdateError(f"required tool is missing: {SKOPEO}", code=3)
+    try:
+        output = run(
+            SKOPEO,
+            "inspect",
+            "--format",
+            "{{.Digest}}",
+            f"docker://{REGISTRY}/{edition}:latest",
+            timeout=120,
+        )
+        # splitlines removes only the record separator emitted by skopeo. Do
+        # not strip spaces from a security token: a padded/malformed digest
+        # must be rejected, not normalized into something trusted.
+        latest = output.splitlines()[-1]
+    except UpdateError as error:
+        raise UpdateError(
+            f"registry lookup failed: {error}", code=4, transient=True
+        ) from error
+    except IndexError as error:
+        raise UpdateError("registry returned an empty digest", code=4) from error
+    if DIGEST_RE.fullmatch(latest) is None:
+        raise UpdateError(
+            f"registry returned an invalid digest: {latest!r}",
+            code=5,
+            security=True,
+        )
+    return latest
+
+
+def resolve() -> dict[str, Any]:
+    state = read_deployments()
+    booted = state["booted"]
+    staged = state["staged"]
+    reference = str(booted.get("container-image-reference", "") or "")
+    edition = official_edition(reference)
+    if edition is None:
+        raise UpdateError(
+            "the booted deployment is not a signed official MoOS origin",
+            code=2,
+            security=True,
+        )
+
+    result: dict[str, Any] = {
+        "schema": 1,
+        "state": "busy" if state["busy"] else "unknown",
+        "edition": edition,
+        "booted_version": str(booted.get("version", "") or ""),
+        "staged_version": str((staged or {}).get("version", "") or ""),
+        "current_digest": digest_in(reference),
+        "staged_digest": "",
+        "latest_digest": "",
+        "busy": state["busy"],
+    }
+    if state["busy"]:
+        return result
+
+    staged_reference = str((staged or {}).get("container-image-reference", "") or "")
+    if official_edition(staged_reference) == edition:
+        result["staged_digest"] = digest_in(staged_reference)
+
+    latest = registry_digest(edition)
+    result["latest_digest"] = latest
+    if latest == result["current_digest"]:
+        result["state"] = "current"
+    elif latest == result["staged_digest"]:
+        result["state"] = "staged"
+    else:
+        result["state"] = "available"
+    return result
+
+
+@contextmanager
+def deployment_lock():
+    """Serialize root-owned deployment writers without a test-only backdoor."""
+    if os.geteuid() != 0:
+        # Non-root callers still meet rpm-ostree's own Polkit boundary. The
+        # production system service and pkexec path are root and always lock.
+        yield
+        return
+    with open("/run/lock/moos-image-update.lock", "a+", encoding="utf-8") as lock:
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        yield
+
+
+def stage(expected_digest: str) -> str:
+    if os.geteuid() != 0:
+        raise UpdateError("stage requires administrator authentication", code=77)
+    if DIGEST_RE.fullmatch(expected_digest) is None:
+        raise UpdateError("refused an invalid expected digest", code=5, security=True)
+    with deployment_lock():
+        return _stage_locked(expected_digest)
+
+
+def _stage_locked(expected_digest: str) -> str:
+    state = read_deployments()
+    if state["busy"]:
+        raise UpdateError(f"rpm-ostree is busy: {state['busy']}", code=75)
+
+    booted_reference = str(
+        state["booted"].get("container-image-reference", "") or ""
+    )
+    booted_edition = official_edition(booted_reference)
+    if booted_edition is None:
+        raise UpdateError(
+            "refused to update a different or untrusted edition",
+            code=5,
+            security=True,
+        )
+    if digest_in(booted_reference) == expected_digest:
+        return "already-current"
+
+    staged_reference = str(
+        (state["staged"] or {}).get("container-image-reference", "") or ""
+    )
+    if (
+        official_edition(staged_reference) == booted_edition
+        and digest_in(staged_reference) == expected_digest
+    ):
+        return "already-staged"
+
+    # Re-resolve after privilege escalation. A mutable tag can move between the
+    # user's check and confirmation; stage only the digest the user actually saw.
+    latest = registry_digest(booted_edition)
+    if latest != expected_digest:
+        raise UpdateError(
+            "the release candidate changed after confirmation; check again",
+            code=76,
+            security=True,
+        )
+    target = f"{SIGNED_PREFIX}{booted_edition}@{expected_digest}"
+    run(RPM_OSTREE, "rebase", target, timeout=1800)
+    return "staged"
+
+
+def print_result(result: dict[str, Any], output_format: str) -> None:
+    if output_format == "pipe":
+        keys = ("state", "edition", "current_digest", "latest_digest")
+        print("|".join(str(result.get(key, "")) for key in keys))
+    else:
+        print(json.dumps(result, separators=(",", ":"), sort_keys=True))
+
+
+def _read_activity() -> tuple[int, int, int] | None:
+    """Return total CPU ticks, idle ticks, and non-loopback network bytes."""
+    try:
+        with open("/proc/stat", encoding="utf-8") as stream:
+            fields = stream.readline().split()
+        if not fields or fields[0] != "cpu":
+            return None
+        ticks = [int(value) for value in fields[1:]]
+        total = sum(ticks)
+        idle = ticks[3] + (ticks[4] if len(ticks) > 4 else 0)
+        network_bytes = 0
+        with open("/proc/net/dev", encoding="utf-8") as stream:
+            for line in stream:
+                if ":" not in line:
+                    continue
+                interface, counters = line.split(":", 1)
+                if interface.strip() == "lo":
+                    continue
+                values = counters.split()
+                if len(values) >= 9:
+                    network_bytes += int(values[0]) + int(values[8])
+        return total, idle, network_bytes
+    except (OSError, ValueError, IndexError):
+        return None
+
+
+def _memory_used_percent() -> float | None:
+    try:
+        values: dict[str, int] = {}
+        with open("/proc/meminfo", encoding="utf-8") as stream:
+            for line in stream:
+                key, value = line.split(":", 1)
+                if key in ("MemTotal", "MemAvailable"):
+                    values[key] = int(value.split()[0])
+        total = values["MemTotal"]
+        return 100.0 * (total - values["MemAvailable"]) / total if total else None
+    except (OSError, ValueError, KeyError, IndexError):
+        return None
+
+
+def _low_discharging_battery() -> int | None:
+    root = "/sys/class/power_supply"
+    try:
+        entries = os.scandir(root)
+    except OSError:
+        return None
+    with entries:
+        for entry in entries:
+            try:
+                with open(f"{entry.path}/type", encoding="utf-8") as stream:
+                    supply_type = stream.read().strip()
+                if supply_type != "Battery":
+                    continue
+                with open(f"{entry.path}/status", encoding="utf-8") as stream:
+                    status = stream.read().strip().lower()
+                with open(f"{entry.path}/capacity", encoding="utf-8") as stream:
+                    capacity = int(stream.read().strip())
+            except (OSError, ValueError):
+                continue
+            if status == "discharging" and capacity < BATTERY_MIN_PERCENT:
+                return capacity
+    return None
+
+
+def auto_deferral_reason() -> str:
+    """Protect an interactive session from an unrequested background pull."""
+    capacity = _low_discharging_battery()
+    if capacity is not None:
+        return f"battery-low:{capacity}%"
+    memory = _memory_used_percent()
+    if memory is not None and memory > MEMORY_MAX_PERCENT:
+        return f"memory-busy:{memory:.0f}%"
+
+    first = _read_activity()
+    if first is None:
+        return ""
+    started = time.monotonic()
+    time.sleep(1.0)
+    second = _read_activity()
+    elapsed = time.monotonic() - started
+    if second is None or elapsed <= 0:
+        return ""
+    total_delta = second[0] - first[0]
+    idle_delta = second[1] - first[1]
+    if total_delta > 0:
+        cpu = 100.0 * (total_delta - idle_delta) / total_delta
+        if cpu > CPU_MAX_PERCENT:
+            return f"cpu-busy:{cpu:.0f}%"
+    network_rate = max(0, second[2] - first[2]) / elapsed
+    if network_rate > NETWORK_MAX_BYTES_PER_SECOND:
+        return f"network-busy:{network_rate:.0f}B/s"
+    return ""
+
+
+def automatic() -> int:
+    deferred = auto_deferral_reason()
+    if deferred:
+        print(f"moos-image-update: deferred ({deferred})")
+        return 0
+    try:
+        result = resolve()
+    except UpdateError as error:
+        print(f"moos-image-update: {error}", file=sys.stderr)
+        # A malformed registry answer is a release/security failure. Missing
+        # network/tools or a foreign origin is retried by the next timer without
+        # polluting systemctl --failed on an otherwise healthy machine.
+        return 0 if error.transient or error.code == 2 else error.code
+
+    state = result["state"]
+    if state == "busy":
+        print(f"moos-image-update: rpm-ostree is busy ({result['busy']}); skipping")
+        return 0
+    if state == "current":
+        print(f"moos-image-update: already current ({result['current_digest']})")
+        return 0
+    if state == "staged":
+        print(f"moos-image-update: latest image already staged ({result['latest_digest']})")
+        return 0
+
+    print(
+        f"moos-image-update: staging {result['edition']} {result['latest_digest']} "
+        f"(booted: {result['current_digest'] or 'unknown'})"
+    )
+    try:
+        outcome = stage(result["latest_digest"])
+    except UpdateError as error:
+        print(f"moos-image-update: {error}", file=sys.stderr)
+        return error.code
+    print(f"moos-image-update: {outcome}; applies on next reboot")
+    return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    resolve_parser = subparsers.add_parser("resolve")
+    resolve_parser.add_argument("--format", choices=("json", "pipe"), default="json")
+    stage_parser = subparsers.add_parser("stage")
+    stage_parser.add_argument("--expected-digest", required=True)
+    subparsers.add_parser("auto")
+    args = parser.parse_args()
+
+    try:
+        if args.command == "resolve":
+            print_result(resolve(), args.format)
+            return 0
+        if args.command == "stage":
+            print(stage(args.expected_digest))
+            return 0
+        return automatic()
+    except UpdateError as error:
+        print(f"moos-image-update: {error}", file=sys.stderr)
+        return error.code
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

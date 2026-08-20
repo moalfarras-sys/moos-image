@@ -249,34 +249,15 @@ class TestMoOSGtkRuntime(unittest.TestCase):
             "the updater must never run `bootc upgrade`: it is a permanent no-op "
             "on the digest-pinned origin every MoOS install ends up with",
         )
+        self.assertEqual(UPDATER.UPDATE_BACKEND, "/usr/libexec/moos-image-update")
         self.assertIn(
-            ["pkexec", "rpm-ostree", "rebase"],
+            ["pkexec", "stage", "--expected-digest"],
             argv,
-            "the privileged step must be an exact-digest rebase",
+            "the window must delegate privilege to the fixed backend with a digest only",
         )
-
-        # The allowlist is the security boundary: the specific editions have to
-        # win over the generic one, or a moos-nvidia desktop would be told it is
-        # plain `moos` and rebased onto an image with no driver in it.
-        for edition in ("moos", "moos-cloud", "moos-nvidia", "moos-arm"):
-            for ref in (
-                f"ostree-image-signed:docker://ghcr.io/moalfarras-sys/{edition}"
-                f"@sha256:{'a' * 64}",
-                f"ostree-image-signed:docker://ghcr.io/moalfarras-sys/{edition}:latest",
-            ):
-                self.assertEqual(UPDATER.edition_of(ref), edition, ref)
-        self.assertIsNone(
-            UPDATER.edition_of(
-                f"ostree-image-signed:docker://ghcr.io/somebody-else/os@sha256:{'b' * 64}"
-            ),
-            "a foreign origin is not this app's to rewrite",
-        )
-
-        # Only a real digest may ever be concatenated into the privileged argument.
-        self.assertTrue(UPDATER.DIGEST_SHAPE.match(f"sha256:{'c' * 64}"))
-        for refused in ("latest", "latest-and-greatest", f"sha256:{'c' * 63}",
-                        f"sha256:{'C' * 64}", f" sha256:{'c' * 64}"):
-            self.assertIsNone(UPDATER.DIGEST_SHAPE.match(refused), refused)
+        self.assertNotIn('\"rpm-ostree\", \"rebase\"', source)
+        self.assertNotIn('\"skopeo\"', source)
+        self.assertIn('payload.get("latest_digest")', source)
 
     def test_updater_reads_the_booted_deployment_not_the_default_one(self):
         """On this OS updates auto-stage, so slot 0 is the build you are NOT running."""

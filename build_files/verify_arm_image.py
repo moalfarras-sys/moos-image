@@ -59,6 +59,8 @@ def main() -> None:
         "cloud-init",
         "cloud-utils-growpart",
         "krdp",
+        "rpm-ostree",
+        "skopeo",
     ):
         result = subprocess.run(
             ["rpm", "-q", package],
@@ -98,6 +100,16 @@ def main() -> None:
     )
     for unit in ("NetworkManager.service", "sshd.service", "firewalld.service"):
         require(enabled(unit, service_targets), f"{unit} is not enabled")
+
+    timer_targets = (
+        "etc/systemd/system/timers.target.wants",
+        "usr/lib/systemd/system/timers.target.wants",
+    )
+    update_backend = ROOT / "usr/libexec/moos-image-update"
+    require(update_backend.is_file() and os.access(update_backend, os.X_OK),
+            "the single signed image-update backend is missing or not executable")
+    require(enabled("moos-auto-update.timer", timer_targets),
+            "automatic signed day-2 image updates are not enabled")
 
     cloud_units = (
         "cloud-init-local.service",

@@ -2,8 +2,9 @@
 Description=Nightly MoOS signed-image update
 
 [Timer]
-# After uupd's 04:00 window so the two never contend for rpm-ostreed; the
-# script additionally skips when a transaction is already in progress.
+# Application updates run earlier; this timer owns only the OS image. The
+# backend additionally skips active transactions and defers under battery,
+# CPU, memory, or network pressure.
 # Persistent=true catches machines that were off at 04:30 — combined with the
 # service's idle scheduling, a morning boot stages quietly in the background.
 OnCalendar=04:30
