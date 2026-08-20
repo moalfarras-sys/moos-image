@@ -1,0 +1,14 @@
+[Unit]
+Description=Grow the MoOS cloud boot volume after startup
+Documentation=file:///usr/libexec/moos-cloud-grow-root
+ConditionPathExists=/run/ostree-booted
+ConditionPathIsMountPoint=/sysroot
+After=local-fs.target
+
+[Timer]
+OnBootSec=15s
+AccuracySec=5s
+Unit=moos-cloud-grow-root.service
+
+[Install]
+WantedBy=timers.target

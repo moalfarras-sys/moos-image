@@ -20,6 +20,27 @@ grep -qx 'extended_status: done' <<<"$cloud_status"
 account_path="$(busctl call org.freedesktop.Accounts /org/freedesktop/Accounts \
     org.freedesktop.Accounts FindUserByName s moos)"
 [[ "$account_path" == *"/org/freedesktop/Accounts/User"* ]]
+
+# Disk growth is deliberately asynchronous: an imported volume already has
+# enough room to provision the account and greeter, and partition notification
+# can be slow under ARM TCG/provider storage. Wait for the retrying background
+# authority before measuring the physical partition, without putting it back on
+# graphical.target's critical path.
+growth_deadline=$((SECONDS + 360))
+while [ "$SECONDS" -lt "$growth_deadline" ]; do
+    growth_active="$(systemctl is-active moos-cloud-grow-root.service 2>/dev/null || true)"
+    growth_result="$(systemctl show -p Result --value moos-cloud-grow-root.service 2>/dev/null || true)"
+    if [ "$growth_active" = "inactive" ] && [ "$growth_result" = "success" ]; then
+        break
+    fi
+    sleep 3
+done
+[ "${growth_active:-}" = "inactive" ] && [ "${growth_result:-}" = "success" ] || {
+    systemctl status --no-pager --full moos-cloud-grow-root.service >&2 || true
+    journalctl --no-pager -u moos-cloud-grow-root.service -n 100 >&2 || true
+    echo "ARM RUNTIME FATAL: physical sysroot growth did not complete" >&2
+    exit 1
+}
 failed="$(systemctl --failed --no-legend --plain)"
 [ -z "$failed" ] || { printf 'failed units:\n%s\n' "$failed" >&2; exit 1; }
 getent hosts ghcr.io >/dev/null
@@ -69,6 +90,7 @@ printf 'cloud_init=done\n'
 printf 'graphical=%s\n' "$(systemctl is-active graphical.target)"
 printf 'display_manager=%s\n' "$(systemctl is-active display-manager.service)"
 printf 'accounts_user=published\n'
+printf 'cloud_grow=success\n'
 printf 'failed_units=0\n'
 printf 'disk_bytes=%s\n' "$disk_size"
 printf 'partition_bytes=%s\n' "$partition_size"

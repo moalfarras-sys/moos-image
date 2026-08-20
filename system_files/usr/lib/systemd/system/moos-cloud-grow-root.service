@@ -4,12 +4,16 @@ Documentation=file:///usr/libexec/moos-cloud-grow-root
 ConditionPathExists=/run/ostree-booted
 ConditionPathIsMountPoint=/sysroot
 After=local-fs.target
-Before=cloud-init-local.service cloud-init-network.service
+StartLimitIntervalSec=0
 
 [Service]
 Type=oneshot
 ExecStart=/usr/libexec/moos-cloud-grow-root
-TimeoutStartSec=30s
-
-[Install]
-WantedBy=multi-user.target
+# Partition-table notification can take longer than 30 seconds under ARM TCG
+# and on slow cloud storage. Growth is idempotent and the original image has
+# enough free space to reach the desktop, so it must not serialize cloud-init or
+# graphical.target. The timer starts it in the background and systemd retries a
+# transient provider/kernel failure until the physical sysroot has caught up.
+TimeoutStartSec=5min
+Restart=on-failure
+RestartSec=30s

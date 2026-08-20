@@ -27,6 +27,10 @@ BUILD = ROOT / "build_files/build-arm.sh"
 ARM_VERIFY = ROOT / "build_files/verify_arm_image.py"
 WORKFLOW = ROOT / ".github/workflows/build-arm.yml"
 DOCS = ROOT / "docs/MOOS_ARM_ORACLE.md"
+GROW_SERVICE = ROOT / "system_files/usr/lib/systemd/system/moos-cloud-grow-root.service"
+GROW_TIMER = ROOT / "system_files/usr/lib/systemd/system/moos-cloud-grow-root.timer"
+RUNTIME_GATE = ROOT / "tests/verify_arm_runtime.sh"
+BOOT_GATE = ROOT / "tests/boot_arm_qcow2.sh"
 
 
 def read(p: Path) -> str:
@@ -77,7 +81,10 @@ def build_only(text: str) -> str:
 
 class ArmEditionTests(unittest.TestCase):
     def test_the_pieces_exist(self) -> None:
-        for p in (CONTAINERFILE, BUILD, ARM_VERIFY, WORKFLOW, DOCS):
+        for p in (
+            CONTAINERFILE, BUILD, ARM_VERIFY, WORKFLOW, DOCS,
+            GROW_SERVICE, GROW_TIMER, RUNTIME_GATE, BOOT_GATE,
+        ):
             self.assertTrue(p.is_file(), f"{p.relative_to(ROOT)} is missing")
 
     # ── the base ────────────────────────────────────────────────────────────
@@ -449,7 +456,7 @@ class ArmEditionTests(unittest.TestCase):
                       "and can settle on None before the network is up, which locks the "
                       "owner out of their own instance")
         self.assertIn("Oracle", text, "the OCI datasource must be first")
-        self.assertIn("moos-cloud-grow-root.service", text,
+        self.assertIn("moos-cloud-grow-root.timer", text,
                       "Oracle attaches a boot volume larger than the image; bootc needs "
                       "a grow path that targets /sysroot rather than composefs at /")
         self.assertIn("resize_rootfs: false", text,
@@ -463,6 +470,35 @@ class ArmEditionTests(unittest.TestCase):
                       "provider hostnames still need one post-D-Bus authority")
         self.assertIn("moos-cloud-account-ready.service", text,
                       "the greeter must wait until AccountsService publishes the cloud user")
+
+    def test_cloud_growth_is_retrying_and_off_the_desktop_critical_path(self) -> None:
+        build = read(BUILD)
+        service = read(GROW_SERVICE)
+        timer = read(GROW_TIMER)
+        runtime = read(RUNTIME_GATE)
+        boot_gate = read(BOOT_GATE)
+
+        self.assertIn("systemctl enable moos-cloud-grow-root.timer", build)
+        self.assertIn("systemctl disable moos-cloud-grow-root.service", build)
+        self.assertNotIn("WantedBy=multi-user.target", service)
+        self.assertNotIn("Before=cloud-init", service)
+        self.assertIn("TimeoutStartSec=5min", service)
+        self.assertIn("Restart=on-failure", service)
+        self.assertIn("OnBootSec=15s", timer)
+        self.assertIn("WantedBy=timers.target", timer)
+        self.assertIn("growth_deadline", runtime)
+        self.assertIn("cloud_grow=success", runtime)
+        self.assertIn("runtime-${phase}-diagnostics.txt", boot_gate)
+        self.assertIn("journalctl --no-pager -u moos-cloud-grow-root.service", boot_gate)
+
+    def test_arm_has_exactly_one_os_image_update_authority(self) -> None:
+        text = read(BUILD)
+        self.assertIn("systemctl enable moos-auto-update.timer", text)
+        for rival in ("rpm-ostreed-automatic.timer", "bootc-fetch-apply-updates.timer"):
+            self.assertIn(
+                f"systemctl disable {rival}", text,
+                f"{rival} would bypass the signed exact-digest ARM update backend",
+            )
 
     def test_the_initramfs_is_not_hostonly(self) -> None:
         text = read(BUILD)

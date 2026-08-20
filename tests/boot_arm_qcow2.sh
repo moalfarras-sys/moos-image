@@ -127,7 +127,7 @@ PY
 if [ -r /dev/kvm ] && [ -w /dev/kvm ]; then
     accelerator=( -accel kvm -cpu host )
 else
-    accelerator=( -accel tcg,thread=multi -cpu cortex-a72 )
+    accelerator=( -accel "tcg,thread=multi" -cpu cortex-a72 )
 fi
 
 qemu-system-aarch64 \
@@ -173,8 +173,24 @@ wait_for_ssh() {
 }
 
 wait_for_ssh
-runtime="$("${ssh_base[@]}" bash -s -- "$expected_image" < "$runtime_gate")"
-printf '%s\n' "$runtime" | tee "$evidence/runtime-first-boot.txt"
+run_runtime_gate() {
+    local phase="$1"
+    local output="$evidence/runtime-${phase}-boot.txt"
+    local diagnostics="$evidence/runtime-${phase}-diagnostics.txt"
+    if "${ssh_base[@]}" bash -s -- "$expected_image" < "$runtime_gate" >"$output" 2>&1; then
+        cat "$output"
+        return 0
+    fi
+    cat "$output" >&2
+    "${ssh_base[@]}" 'systemctl status --no-pager --full moos-cloud-grow-root.service; journalctl --no-pager -u moos-cloud-grow-root.service -n 150; findmnt /sysroot; lsblk -o NAME,TYPE,PKNAME,PARTN,SIZE,FSTYPE,MOUNTPOINTS; systemctl --failed --no-pager --plain' \
+        >"$diagnostics" 2>&1 || true
+    cat "$diagnostics" >&2
+    echo "ARM BOOT FATAL: ${phase}-boot runtime gate failed" >&2
+    return 1
+}
+
+run_runtime_gate first
+runtime="$(cat "$evidence/runtime-first-boot.txt")"
 first_boot_id="$(printf '%s\n' "$runtime" | sed -n 's/^boot_id=//p')"
 [ -n "$first_boot_id" ] || { echo "ARM BOOT FATAL: first boot ID was not captured" >&2; exit 1; }
 
@@ -193,8 +209,8 @@ for _ in $(seq 1 90); do
 done
 [ "$went_down" -eq 1 ] || { echo "ARM BOOT FATAL: guest did not leave SSH for reboot" >&2; exit 1; }
 wait_for_ssh
-runtime="$("${ssh_base[@]}" bash -s -- "$expected_image" < "$runtime_gate")"
-printf '%s\n' "$runtime" | tee "$evidence/runtime-second-boot.txt"
+run_runtime_gate second
+runtime="$(cat "$evidence/runtime-second-boot.txt")"
 second_boot_id="$(printf '%s\n' "$runtime" | sed -n 's/^boot_id=//p')"
 [ -n "$second_boot_id" ] && [ "$second_boot_id" != "$first_boot_id" ] || {
     echo "ARM BOOT FATAL: reboot returned the original boot ID" >&2

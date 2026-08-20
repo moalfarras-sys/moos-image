@@ -110,6 +110,9 @@ def main() -> None:
             "the single signed image-update backend is missing or not executable")
     require(enabled("moos-auto-update.timer", timer_targets),
             "automatic signed day-2 image updates are not enabled")
+    for rival in ("rpm-ostreed-automatic.timer", "bootc-fetch-apply-updates.timer"):
+        require(not enabled(rival, timer_targets),
+                f"duplicate OS deployment writer is enabled: {rival}")
 
     cloud_units = (
         "cloud-init-local.service",
@@ -135,8 +138,17 @@ def main() -> None:
         require(proof in grow_helper, f"physical cloud-volume growth lacks: {proof}")
     require((ROOT / "usr/lib/systemd/system/moos-cloud-grow-root.service").is_file(),
             "the bootc-aware cloud grow service is missing")
-    require(enabled("moos-cloud-grow-root.service", service_targets),
-            "the bootc-aware cloud grow service is not enabled")
+    require((ROOT / "usr/lib/systemd/system/moos-cloud-grow-root.timer").is_file(),
+            "the background cloud grow timer is missing")
+    require(enabled("moos-cloud-grow-root.timer", timer_targets),
+            "the background cloud grow timer is not enabled")
+    require(not enabled("moos-cloud-grow-root.service", service_targets),
+            "cloud growth is enabled on multi-user.target and blocks first boot")
+    grow_unit = read("/usr/lib/systemd/system/moos-cloud-grow-root.service")
+    require("Restart=on-failure" in grow_unit and "TimeoutStartSec=5min" in grow_unit,
+            "cloud growth lacks bounded retry policy for slow provider disks")
+    require("Before=cloud-init" not in grow_unit,
+            "cloud growth still serializes account/network provisioning")
     require("preserve_hostname: true" in cloud_cfg,
             "cloud-init would call hostnamectl before D-Bus and degrade first boot")
     hostname_helper = read("/usr/libexec/moos-cloud-hostname")

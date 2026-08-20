@@ -153,6 +153,12 @@ cp -a /moos-overlay/. /
 
 systemctl enable NetworkManager.service sshd.service firewalld.service
 systemctl enable moos-auto-update.timer
+# moos-image-update is the only OS deployment writer. The Fedora bootc base
+# enables its own mutable-tag fetch timer, so disable both upstream rivals on
+# ARM just as the shared x86 build does. Serial boot proof caught this timer
+# active in the finished ARM disk even though the source gates were green.
+systemctl disable rpm-ostreed-automatic.timer 2>/dev/null || true
+systemctl disable bootc-fetch-apply-updates.timer 2>/dev/null || true
 # Fedora 44's documented PLM switch uses --force because the graphical-login
 # alias may still point at a display manager inherited from a package preset.
 systemctl enable --force plasmalogin.service
@@ -263,7 +269,12 @@ system_info:
 CLOUDCFG
 systemctl enable cloud-init-network.service cloud-init-local.service \
     cloud-config.service cloud-final.service
-systemctl enable moos-cloud-grow-root.service
+# Growing an imported cloud disk is not a prerequisite for account/network or
+# the greeter. A direct multi-user enable put growpart on the critical path and
+# a 30-second timeout left the first real ARM QCOW2 with a failed unit. Start the
+# retrying oneshot from a timer after boot instead.
+systemctl disable moos-cloud-grow-root.service 2>/dev/null || true
+systemctl enable moos-cloud-grow-root.timer
 systemctl enable moos-cloud-hostname.service
 systemctl enable moos-cloud-account-ready.service
 
