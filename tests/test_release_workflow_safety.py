@@ -2,8 +2,11 @@
 """Hold release-critical CI invariants that have failed in production."""
 
 from pathlib import Path
+import os
 import re
 import stat
+import subprocess
+import tempfile
 import unittest
 
 
@@ -14,6 +17,18 @@ ISO_WORKFLOW = ROOT / ".github" / "workflows" / "build-iso.yml"
 ARM_WORKFLOW = ROOT / ".github" / "workflows" / "build-arm.yml"
 BOOT_VM = ROOT / "tests" / "boot-in-vm.sh"
 X86_BOOT = ROOT / "tests" / "boot_x86_qcow2.sh"
+
+
+def workflow_run_script(text: str, step_name: str) -> str:
+    """Return one workflow step's literal run script without parsing YAML."""
+    remainder = text.split(f"- name: {step_name}", 1)[1]
+    remainder = remainder.split("        run: |\n", 1)[1]
+    lines: list[str] = []
+    for line in remainder.splitlines():
+        if not line.startswith("          "):
+            break
+        lines.append(line[10:])
+    return "\n".join(lines) + "\n"
 
 
 class ReleaseWorkflowSafetyTests(unittest.TestCase):
@@ -45,6 +60,127 @@ class ReleaseWorkflowSafetyTests(unittest.TestCase):
         self.assertLess(sign, verify)
         self.assertIn("cosign sign -y --key env://COSIGN_PRIVATE_KEY", text)
         self.assertIn("cosign verify --key cosign.pub", text)
+
+    def test_every_build_is_a_run_and_revision_bound_candidate(self) -> None:
+        text = WORKFLOW.read_text(encoding="utf-8")
+        script = workflow_run_script(text, "Resolve registry and tags")
+        for ref in ("refs/heads/main", "refs/heads/feature", "refs/tags/v1"):
+            with self.subTest(ref=ref), tempfile.NamedTemporaryFile() as output:
+                env = os.environ.copy()
+                env.update(
+                    GITHUB_OUTPUT=output.name,
+                    GITHUB_REF=ref,
+                    GITHUB_REPOSITORY_OWNER="MoAlfarras-Sys",
+                    GITHUB_RUN_ID="12345",
+                    GITHUB_SHA="abcdef0123456789abcdef0123456789abcdef01",
+                )
+                subprocess.run(
+                    ["bash", "-eu", "-o", "pipefail", "-c", script],
+                    check=True,
+                    env=env,
+                )
+                output.seek(0)
+                values = dict(
+                    line.decode().rstrip("\n").split("=", 1) for line in output
+                )
+                self.assertEqual(values["registry"], "ghcr.io/moalfarras-sys")
+                self.assertEqual(
+                    values["build_tag"], "candidate-12345-abcdef012345"
+                )
+        self.assertIn("tags: ${{ steps.meta.outputs.build_tag }}", text)
+        self.assertNotIn("tags: latest", text)
+
+    def test_production_tags_move_only_after_digest_signature_verification(self) -> None:
+        text = WORKFLOW.read_text(encoding="utf-8")
+        push = text.index("- name: Push to GHCR")
+        sign = text.index("- name: Sign image with cosign")
+        verify = text.index("- name: Verify signature against the OS-enforced public key")
+        promote = text.index("- name: Promote verified digest to production tags")
+        self.assertLess(push, sign)
+        self.assertLess(sign, verify)
+        self.assertLess(verify, promote)
+        promotion = text[promote:].split("      - name:", 1)[0]
+        self.assertIn("if: github.ref == 'refs/heads/main'", promotion)
+        self.assertIn('for tag in "$DATE_TAG" latest', promotion)
+        self.assertIn("skopeo copy --preserve-digests", promotion)
+        self.assertIn('if [ "$resolved" != "$DIGEST" ]', promotion)
+        self.assertIn('cosign verify --key cosign.pub "$target_ref"', promotion)
+        self.assertEqual(text.count("uses: redhat-actions/push-to-registry@v2"), 1)
+        self.assertEqual(text.count("skopeo copy --preserve-digests"), 1)
+
+        script = workflow_run_script(text, "Promote verified digest to production tags")
+        with tempfile.TemporaryDirectory() as temp:
+            temp_path = Path(temp)
+            log = temp_path / "calls.log"
+            for name, body in (
+                (
+                    "skopeo",
+                    """#!/bin/sh
+printf 'skopeo %s\\n' "$*" >> "$LOG_FILE"
+if [ "$1" = inspect ]; then printf '%s\\n' "$ACTUAL_DIGEST"; fi
+""",
+                ),
+                (
+                    "cosign",
+                    """#!/bin/sh
+printf 'cosign %s\\n' "$*" >> "$LOG_FILE"
+""",
+                ),
+            ):
+                helper = temp_path / name
+                helper.write_text(body, encoding="utf-8")
+                helper.chmod(0o755)
+            digest = "sha256:" + "a" * 64
+            env = os.environ.copy()
+            env.update(
+                PATH=str(temp_path),
+                LOG_FILE=str(log),
+                EXPECTED_DIGEST=digest,
+                ACTUAL_DIGEST=digest,
+                IMAGE_REGISTRY="ghcr.io/example",
+                IMAGE_NAME="moos",
+                DIGEST=digest,
+                DATE_TAG="20260820",
+            )
+            subprocess.run(
+                ["/usr/bin/bash", "-eu", "-o", "pipefail", "-c", script],
+                check=True,
+                env=env,
+            )
+            calls = log.read_text(encoding="utf-8").splitlines()
+            source = f"docker://ghcr.io/example/moos@{digest}"
+            self.assertEqual(
+                calls,
+                [
+                    f"skopeo copy --preserve-digests {source} docker://ghcr.io/example/moos:20260820",
+                    "skopeo inspect --format {{.Digest}} docker://ghcr.io/example/moos:20260820",
+                    "cosign verify --key cosign.pub ghcr.io/example/moos:20260820",
+                    "skopeo inspect --format {{.Digest}} docker://ghcr.io/example/moos:20260820",
+                    f"skopeo copy --preserve-digests {source} docker://ghcr.io/example/moos:latest",
+                    "skopeo inspect --format {{.Digest}} docker://ghcr.io/example/moos:latest",
+                    "cosign verify --key cosign.pub ghcr.io/example/moos:latest",
+                    "skopeo inspect --format {{.Digest}} docker://ghcr.io/example/moos:latest",
+                ],
+            )
+
+            log.unlink()
+            env["ACTUAL_DIGEST"] = "sha256:" + "b" * 64
+            failed = subprocess.run(
+                ["/usr/bin/bash", "-eu", "-o", "pipefail", "-c", script],
+                check=False,
+                env=env,
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotEqual(failed.returncode, 0)
+            failed_calls = log.read_text(encoding="utf-8").splitlines()
+            self.assertEqual(
+                failed_calls,
+                [
+                    f"skopeo copy --preserve-digests {source} docker://ghcr.io/example/moos:20260820",
+                    "skopeo inspect --format {{.Digest}} docker://ghcr.io/example/moos:20260820",
+                ],
+            )
 
     def test_release_timeout_covers_measured_final_commit_io_but_stays_bounded(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")

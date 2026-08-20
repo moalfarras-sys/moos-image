@@ -15,9 +15,15 @@
 #   3. First successful push creates the GHCR packages; set their visibility to
 #      Public (GitHub UI -> Packages -> moos / moos-nvidia -> Package settings).
 #
-# Output (one per matrix variant, each tagged latest + YYYYMMDD, signed):
+# Output (one per matrix variant, signed by digest):
 #   ghcr.io/<owner>/moos         (base: ghcr.io/ublue-os/kinoite-main:44)
 #   ghcr.io/<owner>/moos-nvidia  (same kinoite-main base + layered NVIDIA open driver)
+#   ghcr.io/<owner>/moos-cloud   (same image tree + cloud policy)
+# Every build is pushed first under one run/SHA-bound candidate tag. Only main,
+# and only after the digest is signed and verified, may promote that digest to
+# the date tag and finally latest. Testing a branch therefore cannot
+# accidentally replace the image installed machines follow, and a failed
+# signature can never leave latest pointing at an unverified image.
 # Both variants build from the same Containerfile and its one pinned base. The
 # build argument selects only an exact NVIDIA akmods stage, never another base.
 # =============================================================================
@@ -401,7 +407,9 @@ jobs:
         id: meta
         run: |
           echo "registry=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
-          echo "date_tag=$(date +%Y%m%d)" >> "$GITHUB_OUTPUT"
+          date_tag="$(date -u +%Y%m%d)"
+          echo "date_tag=${date_tag}" >> "$GITHUB_OUTPUT"
+          echo "build_tag=candidate-${GITHUB_RUN_ID}-${GITHUB_SHA:0:12}" >> "$GITHUB_OUTPUT"
 
       # The NVIDIA kmod is compiled against ONE exact kernel. Pin the akmods image to the
       # kernel the base image actually ships (its `ostree.linux` label) rather than to the
@@ -440,7 +448,7 @@ jobs:
         with:
           containerfiles: ./Containerfile
           image: ${{ matrix.image_name }}
-          tags: latest ${{ steps.meta.outputs.date_tag }}
+          tags: ${{ steps.meta.outputs.build_tag }}
           # Give OUR image a version that actually changes every build. The base
           # (kinoite) version label is inherited and only bumps when the base
           # rebuilds, so `bootc status` would otherwise show the same number
@@ -477,8 +485,8 @@ jobs:
 
       # Sign by digest (not tag) so the signature stays valid even if tags
       # move. Verification (same key for both variants):
-      #   cosign verify --key cosign.pub ghcr.io/<owner>/moos:latest
-      #   cosign verify --key cosign.pub ghcr.io/<owner>/moos-nvidia:latest
+      #   cosign verify --key cosign.pub ghcr.io/<owner>/moos@sha256:<digest>
+      #   cosign verify --key cosign.pub ghcr.io/<owner>/moos-nvidia@sha256:<digest>
       - name: Sign image with cosign
         env:
           COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
@@ -517,6 +525,37 @@ jobs:
           done
           echo "::error::signature never became verifiable for ${IMAGE_NAME}@${DIGEST}"
           exit 1
+
+      # latest is the update channel installed machines follow. Never let the
+      # initial push move it: publish a candidate, sign and verify its immutable
+      # digest above, then promote the date tag and latest (latest last) from
+      # that exact object. A failed build/signature therefore leaves production
+      # tags on their previous known-good digest.
+      - name: Promote verified digest to production tags
+        if: github.ref == 'refs/heads/main'
+        env:
+          IMAGE_REGISTRY: ${{ steps.meta.outputs.registry }}
+          IMAGE_NAME: ${{ matrix.image_name }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+          DATE_TAG: ${{ steps.meta.outputs.date_tag }}
+        run: |
+          source_ref="docker://${IMAGE_REGISTRY}/${IMAGE_NAME}@${DIGEST}"
+          for tag in "$DATE_TAG" latest; do
+            target_ref="${IMAGE_REGISTRY}/${IMAGE_NAME}:${tag}"
+            skopeo copy --preserve-digests "$source_ref" "docker://${target_ref}"
+            resolved="$(skopeo inspect --format '{{.Digest}}' "docker://${target_ref}")"
+            if [ "$resolved" != "$DIGEST" ]; then
+              echo "::error::${target_ref} resolved to ${resolved}, expected ${DIGEST}"
+              exit 1
+            fi
+            cosign verify --key cosign.pub "$target_ref" >/dev/null
+            resolved="$(skopeo inspect --format '{{.Digest}}' "docker://${target_ref}")"
+            if [ "$resolved" != "$DIGEST" ]; then
+              echo "::error::${target_ref} moved during signature verification"
+              exit 1
+            fi
+            echo "promoted verified ${target_ref} -> ${DIGEST}"
+          done
 
       # Do not generate an SBOM in this release-critical matrix. Syft unpacked each
       # multi-GB image after buildah had consumed the runner's disk and the runner was
