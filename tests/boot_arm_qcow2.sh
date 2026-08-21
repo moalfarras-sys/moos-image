@@ -151,7 +151,7 @@ ssh_base=(
     -o ConnectTimeout=5 -o ServerAliveInterval=5
     moos@127.0.0.1
 )
-fatal_serial_pattern='Kernel panic|Entering emergency mode|You are in emergency mode|dracut.*emergency|Dependency failed for .*sysroot'
+fatal_serial_pattern='Kernel panic|Entering emergency mode|You are in emergency mode|dracut.*emergency|Dependency failed for .*sysroot|Started emergency\.service|Reached target emergency\.target'
 wait_for_ssh() {
     deadline=$((SECONDS + 900))
     while [ "$SECONDS" -lt "$deadline" ]; do

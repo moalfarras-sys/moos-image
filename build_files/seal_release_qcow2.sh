@@ -60,10 +60,21 @@ trap cleanup EXIT INT TERM
 
 qemu-nbd --connect="$nbd" "$qcow"
 connected=1
-udevadm settle
 efi="${nbd}p1"
 boot="${nbd}p2"
 root="${nbd}p3"
+# udevadm settle alone does NOT prove the partition scan produced device
+# nodes: on a runner still digesting the disk-builder's I/O, settle can
+# return while the partition probe is still pending, and the 2026-08-21
+# release proof failed exactly here on a disk whose GPT provably contained
+# all three partitions. Ask the kernel for the nodes, then wait for them.
+udevadm trigger --settle "$nbd" 2>/dev/null || udevadm trigger "$nbd" 2>/dev/null || true
+for _ in $(seq 1 30); do
+    [ -b "$efi" ] && [ -b "$boot" ] && [ -b "$root" ] && break
+    udevadm settle 2>/dev/null || true
+    partprobe "$nbd" >/dev/null 2>&1 || blockdev --rereadpt "$nbd" >/dev/null 2>&1 || true
+    sleep 1
+done
 for partition in "$efi" "$boot" "$root"; do
     [ -b "$partition" ] || {
         echo "MOOS DISK FATAL: expected partition is missing: $partition" >&2
