@@ -184,6 +184,10 @@ check:
     python3 tests/test_moos_motion_gate.py
     python3 tests/test_cloud_private_desktop.py
     python3 tests/test_mo_remote_codec_resend.py
+    # The UTM bundle must carry a NoCloud seed (the ARM image has no other
+    # user-provisioning path) and generate a per-bundle one-time password —
+    # never a shared static one inside the image.
+    python3 tests/test_utm_bundle.py
     python3 artwork/verify_visuals.py
     # The agent contract: .mcp.json and .claude/settings.json are committed, so a
     # pasted API key, an unapproved server, or a quietly deleted deny rule all reach

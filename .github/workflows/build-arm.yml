@@ -47,6 +47,8 @@ on:
       - "moremote/**"
       - "system_files/**"
       - "tests/test_moos_arm.py"
+      - "tests/test_utm_bundle.py"
+      - "artwork/generate_utm_bundle.py"
       - "tests/test_boot_splash_polish.py"
       - ".github/workflows/build-arm.yml"
 
@@ -87,6 +89,7 @@ jobs:
           python3 tests/test_moos_arm.py
           python3 tests/test_boot_splash_polish.py
           python3 tests/test_seal_arm_deployment.py
+          python3 tests/test_utm_bundle.py
 
       # The ARM runner ships the same pre-baked toolchains as the x86 one and
       # the same ~14 GB of free space. A Plasma image plus a build cache does
