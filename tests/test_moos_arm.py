@@ -519,6 +519,29 @@ class ArmEditionTests(unittest.TestCase):
         self.assertIn("runtime-${phase}-diagnostics.txt", boot_gate)
         self.assertIn("journalctl --no-pager -u bootc-generic-growpart.service", boot_gate)
 
+    def test_the_runtime_gate_needs_no_root(self) -> None:
+        # The boot gate pipes verify_arm_runtime.sh over SSH as the provisioned
+        # user, whose sudoers entry allows ONLY reboot/poweroff. The 2026-08-20
+        # release run booted a perfect disk and then died at
+        # "blockdev: cannot open /dev/vda: Permission denied". Every fact this
+        # gate needs must therefore come from unprivileged sources (sysfs via
+        # lsblk, ioctls on mounted paths via btrfs) — never root-only
+        # block-device tools.
+        runtime = read(RUNTIME_GATE)
+        runtime_code = code(runtime)
+        for forbidden in ("blockdev", "sfdisk", "sgdisk", "partx", "fdisk", "wipefs"):
+            self.assertNotRegex(
+                runtime_code, rf"\b{forbidden}\b",
+                f"the runtime gate runs as the provisioned SSH user; "
+                f"'{forbidden}' needs root and will fail the release boot proof",
+            )
+        for required in (
+            'disk_size="$(lsblk -bdnro SIZE "$disk")"',
+            'partition_size="$(lsblk -bdnro SIZE "$device")"',
+        ):
+            self.assertIn(required, runtime,
+                          "disk/partition sizes must be read through lsblk/sysfs")
+
     def test_arm_has_exactly_one_os_image_update_authority(self) -> None:
         text = read(BUILD)
         self.assertIn("systemctl enable moos-auto-update.timer", text)

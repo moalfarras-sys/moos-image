@@ -99,15 +99,19 @@ sysroot="$(findmnt -nro SOURCE /sysroot)"
 device="${sysroot%%\[*}"
 parent="$(lsblk -dnro PKNAME "$device" | tr -d '[:space:]')"
 [ -n "$parent" ]
+# Read sizes through lsblk (sysfs), not blockdev: this gate runs as the
+# provisioned user over SSH and blockdev needs root for /dev/vdX.
+# Proven by the 2026-08-20 run: the disk booted perfectly and the gate died
+# at exactly this line with "blockdev: cannot open /dev/vda: Permission denied".
 disk="/dev/$parent"
-disk_size="$(blockdev --getsize64 "$disk")"
+disk_size="$(lsblk -bdnro SIZE "$disk")"
 partition_total=0
 while read -r child_size; do
     partition_total=$((partition_total + child_size))
 done < <(lsblk -bnro SIZE "$disk" | tail -n +2)
 tail_bytes=$((disk_size - partition_total))
 [ "$tail_bytes" -ge 0 ] && [ "$tail_bytes" -lt 67108864 ]
-partition_size="$(blockdev --getsize64 "$device")"
+partition_size="$(lsblk -bdnro SIZE "$device")"
 btrfs_usage="$(btrfs filesystem usage -b /sysroot)"
 btrfs_size="$(awk '/Device size:/ {print $3; exit}' <<<"$btrfs_usage")"
 [ -n "$btrfs_size" ]

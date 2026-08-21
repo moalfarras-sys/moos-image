@@ -31,12 +31,15 @@ set -uo pipefail
 
 # Revision 4 replaces the image-digest stamp with a hardware-policy signature and
 # stops overriding the power profile selected by the owner/desktop environment.
-HW_REV=4
+HW_REV=5
 
-STATE="${MOOS_HW_STATE:-/etc/moos/hardware-adapt.state}"
+ROOT="${MOOS_HW_ROOT:-}"
+STATE="${MOOS_HW_STATE:-${ROOT}/etc/moos/hardware-adapt.state}"
 SYS="${MOOS_HW_SYSFS:-/sys}"
+PROC="${MOOS_HW_PROCFS:-/proc}"
 DRYRUN="${MOOS_HW_DRYRUN:-0}"
-LOG="${MOOS_HW_LOG:-/run/moos-hardware-adapt.log}"
+LOG="${MOOS_HW_LOG:-${ROOT}/run/moos-hardware-adapt.log}"
+FAILURES=0
 
 log() {
     echo "moos-hardware-adapt: $*"
@@ -45,7 +48,20 @@ log() {
     [ -d "$(dirname "$LOG")" ] && [ -w "$(dirname "$LOG")" ] || return 0
     printf '%s %s\n' "$(date -u '+%FT%TZ' 2>/dev/null || echo now)" "$*" >>"$LOG" 2>/dev/null || true
 }
-do_run() { if [ "$DRYRUN" = "1" ]; then log "DRYRUN: $*"; else "$@" >>"$LOG" 2>&1 || log "warn: '$*' failed (non-fatal)"; fi; }
+mutation_failed() {
+    FAILURES=$((FAILURES + 1))
+    log "warn: $*"
+    return 1
+}
+do_run() {
+    if [ "$DRYRUN" = "1" ]; then
+        log "DRYRUN: $*"
+    elif "$@" >>"$LOG" 2>&1; then
+        return 0
+    else
+        mutation_failed "'$*' failed; policy will be retried"
+    fi
+}
 
 # ── deployed edition ───────────────────────────────────────────────────────────
 booted_image() {
@@ -63,8 +79,8 @@ except Exception: print("")' 2>/dev/null || echo ""
 }
 
 # ── detections (read-only) ───────────────────────────────────────────────────
-cpu_vendor="$(grep -m1 '^vendor_id' /proc/cpuinfo 2>/dev/null | awk '{print $3}')"
-mem_kb="$(grep -m1 '^MemTotal:' /proc/meminfo 2>/dev/null | awk '{print $2}')"
+cpu_vendor="$(grep -m1 '^vendor_id' "$PROC/cpuinfo" 2>/dev/null | awk '{print $3}')"
+mem_kb="$(grep -m1 '^MemTotal:' "$PROC/meminfo" 2>/dev/null | awk '{print $2}')"
 mem_kb="${mem_kb:-0}"
 # MemTotal is always a little below the physical RAM (firmware/kernel reserve), so a
 # plain floor reads 8 GiB as 7 and 32 as 31, dropping the machine into the wrong zram
@@ -116,8 +132,9 @@ log "cpu=${cpu_vendor:-?} ram=${mem_gib}GiB chassis=${chassis} battery=${have_ba
 #       amd-pstate + firmware passive throttling, which is always on. ──────────
 if [ "$cpu_vendor" = "GenuineIntel" ]; then
     if systemctl list-unit-files thermald.service >/dev/null 2>&1; then
-        do_run systemctl enable --now thermald.service
-        log "Intel CPU: thermald enabled"
+        if do_run systemctl enable --now thermald.service; then
+            log "Intel CPU: thermald enabled"
+        fi
     else
         log "Intel CPU: thermald not installed (skipping)"
     fi
@@ -141,37 +158,53 @@ fi
 # Requires=). Verified in QEMU: the storm reproduces with the old sequence and
 # does not with this one.
 if [ "$mem_gib" -gt 0 ]; then
-    zconf="/etc/systemd/zram-generator.conf"
+    zconf="${ROOT}/etc/systemd/zram-generator.conf"
+    sysconf="${ROOT}/etc/sysctl.d/90-moos-hardware.conf"
     if [ "$mem_gib" -lt 8 ]; then zsize="ram"          # low RAM: compression buys real headroom
     elif [ "$mem_gib" -lt 32 ]; then zsize="min(ram, 8192)"
     else zsize="min(ram / 2, 16384)"; fi
     zwant="$(printf '# Written by moos-hardware-adapt (RAM tier: %sGiB). Reversible.\n[zram0]\nzram-size = %s\ncompression-algorithm = zstd\n' \
         "$mem_gib" "$zsize")"
+    minfree=$(( mem_kb / 100 ))
+    syswant="$(printf '# Written by moos-hardware-adapt. Reversible.\nvm.min_free_kbytes = %s\n' "$minfree")"
     if [ "$DRYRUN" = "1" ]; then
         log "DRYRUN would write ${zconf}: zram-size=${zsize}"
-    elif [ -r "$zconf" ] && [ "$(cat "$zconf" 2>/dev/null)" = "$zwant" ]; then
-        log "zram already sized for ${mem_gib}GiB (${zsize}) — leaving the running swap alone"
     else
-        mkdir -p /etc/systemd 2>/dev/null || true
-        printf '%s\n' "$zwant" > "$zconf" 2>/dev/null && log "zram sized for ${mem_gib}GiB: ${zsize}" \
-            || log "warn: could not write ${zconf}"
-        # vm.min_free_kbytes ~1% of RAM (Bazzite pattern) — keeps a reclaim buffer.
-        minfree=$(( mem_kb / 100 ))
-        printf '# Written by moos-hardware-adapt. Reversible.\nvm.min_free_kbytes = %s\n' "$minfree" \
-            > /etc/sysctl.d/90-moos-hardware.conf 2>/dev/null || true
-        # Apply it THIS boot. This service runs After=systemd-sysctl.service, which
-        # already applied the earlier config and will NOT re-read the new file until
-        # next boot; `systemctl daemon-reload` only reloads UNIT files, not sysctls.
-        do_run sysctl --system
-        do_run systemctl stop dev-zram0.swap systemd-zram-setup@zram0.service
-        do_run systemctl daemon-reload
-        do_run systemctl reset-failed dev-zram0.swap systemd-zram-setup@zram0.service
-        do_run systemctl start dev-zram0.swap
-        # Say out loud whether swap actually came back — a silent OFF swap is the bug.
-        if [ "$(systemctl is-active dev-zram0.swap 2>/dev/null)" = "active" ]; then
-            log "zram swap re-activated cleanly"
-        else
-            log "warn: dev-zram0.swap is $(systemctl is-active dev-zram0.swap 2>/dev/null || echo unknown) after re-size"
+        zram_changed=0
+        sysctl_changed=0
+        if [ ! -r "$zconf" ] || [ "$(cat "$zconf" 2>/dev/null)" != "$zwant" ]; then
+            mkdir -p "$(dirname "$zconf")" 2>/dev/null || true
+            if printf '%s\n' "$zwant" > "$zconf" 2>/dev/null; then
+                zram_changed=1
+                log "zram sized for ${mem_gib}GiB: ${zsize}"
+            else
+                mutation_failed "could not write ${zconf}" || true
+            fi
+        fi
+        if [ ! -r "$sysconf" ] || [ "$(cat "$sysconf" 2>/dev/null)" != "$syswant" ]; then
+            mkdir -p "$(dirname "$sysconf")" 2>/dev/null || true
+            if printf '%s\n' "$syswant" > "$sysconf" 2>/dev/null; then
+                sysctl_changed=1
+            else
+                mutation_failed "could not write ${sysconf}" || true
+            fi
+        fi
+        if [ "$sysctl_changed" = 1 ]; then
+            # systemd-sysctl already ran this boot; apply the new file now.
+            do_run sysctl --system || true
+        fi
+        if [ "$zram_changed" = 1 ]; then
+            do_run systemctl stop dev-zram0.swap systemd-zram-setup@zram0.service || true
+            do_run systemctl daemon-reload || true
+            do_run systemctl reset-failed dev-zram0.swap systemd-zram-setup@zram0.service || true
+            do_run systemctl start dev-zram0.swap || true
+            if [ "$(systemctl is-active dev-zram0.swap 2>/dev/null)" = "active" ]; then
+                log "zram swap re-activated cleanly"
+            else
+                mutation_failed "dev-zram0.swap is $(systemctl is-active dev-zram0.swap 2>/dev/null || echo unknown) after re-size" || true
+            fi
+        elif [ "$sysctl_changed" = 0 ]; then
+            log "zram and reclaim reserve already match ${mem_gib}GiB — leaving swap untouched"
         fi
     fi
 fi
@@ -186,10 +219,11 @@ log "power profile left to tuned-ppd and the desktop environment"
 # ── 4. NVIDIA GPU on the BASE edition → SURFACE a rebase suggestion (never
 #       install drivers at runtime on an atomic system). Written where Mo AI /
 #       the welcome can read it. ─────────────────────────────────────────────
-notice_dir="/run/moos"
+notice_dir="${ROOT}/run/moos"
 mkdir -p "$notice_dir" 2>/dev/null || true
 if [ "$has_nvidia" = 1 ] && [ "$is_nvidia_edition" = 0 ]; then
-    printf 'nvidia-rebase\n' > "${notice_dir}/hardware-notice" 2>/dev/null || true
+    printf 'nvidia-rebase\n' > "${notice_dir}/hardware-notice" 2>/dev/null \
+        || mutation_failed "could not write NVIDIA hardware notice" || true
     log "NVIDIA GPU on the base edition — suggest rebasing to moos-nvidia (advice only, no runtime driver install)"
 else
     rm -f "${notice_dir}/hardware-notice" 2>/dev/null || true
@@ -198,14 +232,19 @@ fi
 # ── 5. Intel GPU → a harmless per-session renderer hint (Bazzite pattern) so
 #       GTK apps use the GL renderer, which is smoother on Intel. Env drop-in,
 #       trivially reversible, affects rendering only. ────────────────────────
+_intel_dropin="${ROOT}/etc/environment.d/90-moos-intel-gpu.conf"
 if [ "$has_intel_gpu" = 1 ]; then
     if [ "$DRYRUN" = "1" ]; then
         log "DRYRUN would set GSK_RENDERER=gl for Intel GPU"
     else
-        mkdir -p /etc/environment.d 2>/dev/null || true
+        mkdir -p "$(dirname "$_intel_dropin")" 2>/dev/null || true
         printf '# Written by moos-hardware-adapt (Intel GPU). Reversible.\nGSK_RENDERER=gl\n' \
-            > /etc/environment.d/90-moos-intel-gpu.conf 2>/dev/null && log "Intel GPU: GSK_RENDERER=gl" || true
+            > "$_intel_dropin" 2>/dev/null && log "Intel GPU: GSK_RENDERER=gl" \
+            || mutation_failed "could not write ${_intel_dropin}" || true
     fi
+elif [ -e "$_intel_dropin" ]; then
+    do_run rm -f "$_intel_dropin" || true
+    log "non-Intel GPU: removed stale Intel renderer policy"
 fi
 
 # ── 6. Firmware: refresh LVFS METADATA only (never apply). Surfacing the count
@@ -233,9 +272,10 @@ fi
 #
 # Laptops are unaffected either way: their panel uses the kernel backlight, a
 # different powerdevil path entirely.
-_ddc_dropin=/etc/systemd/user/plasma-powerdevil.service.d/50-moos-ddc.conf
+_ddc_dropin="${ROOT}/etc/systemd/user/plasma-powerdevil.service.d/50-moos-ddc.conf"
 if command -v ddcutil >/dev/null 2>&1; then
-    if timeout 30 ddcutil detect --brief 2>/dev/null | grep -qE '^Display [0-9]'; then
+    _ddc_result="$(timeout 30 ddcutil detect --brief 2>/dev/null || true)"
+    if grep -qE '^Display [0-9]' <<<"$_ddc_result"; then
         # A real DDC/CI display answered: make sure a stale opt-out is gone.
         if [ -e "$_ddc_dropin" ]; then
             do_run rm -f "$_ddc_dropin"
@@ -247,7 +287,8 @@ if command -v ddcutil >/dev/null 2>&1; then
         if [ "$DRYRUN" != "1" ]; then
             mkdir -p "$(dirname "$_ddc_dropin")" 2>/dev/null || true
             printf '# Written by moos-hardware-adapt: no DDC/CI display answered on this\n# machine, and probing for one cost 6.5s of every login. Reversible —\n# delete this file (or attach a DDC-capable monitor and bump HW_REV).\n[Service]\nEnvironment=POWERDEVIL_NO_DDCUTIL=1\n' \
-                > "$_ddc_dropin" 2>/dev/null || log "warn: could not write ${_ddc_dropin}"
+                > "$_ddc_dropin" 2>/dev/null \
+                || mutation_failed "could not write ${_ddc_dropin}" || true
         fi
         log "DDC/CI: no display answered — powerdevil will skip the probe (saves ~6s per login)"
     fi
@@ -278,9 +319,14 @@ else
 fi
 
 # ── record state (idempotency) ───────────────────────────────────────────────
-if [ "$DRYRUN" != "1" ]; then
+if [ "$DRYRUN" != "1" ] && [ "$FAILURES" -eq 0 ]; then
     mkdir -p "$(dirname "$STATE")" 2>/dev/null || true
-    printf '%s\n' "$want_stamp" > "$STATE" 2>/dev/null || log "warn: could not write state ${STATE}"
+    printf '%s\n' "$want_stamp" > "$STATE" 2>/dev/null \
+        || mutation_failed "could not write state ${STATE}" || true
+fi
+if [ "$FAILURES" -ne 0 ]; then
+    log "hardware adaptation incomplete (${FAILURES} failed mutation(s)); no success stamp written"
+    exit 1
 fi
 log "hardware adaptation complete"
 exit 0
