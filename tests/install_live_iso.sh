@@ -405,36 +405,101 @@ pgrep -u "$uid" -x plasmashell
 runuser -u moosci -- env XDG_RUNTIME_DIR="/run/user/${uid}" \
     DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${uid}/bus" \
     systemctl --user is-active plasma-workspace.target
-printf 'login=plasma-login-manager\ndesktop=usable\nkwin=active\nplasmashell=active\n'
+user_failed="$(runuser -u moosci -- env XDG_RUNTIME_DIR="/run/user/${uid}" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${uid}/bus" \
+    systemctl --user --failed --no-legend --plain)"
+[ -z "$user_failed" ]
+printf 'login=plasma-login-manager\ndesktop=usable\nkwin=active\nplasmashell=active\nuser-failed-units=0\n'
 '''
 desktop_out = gate_until(desktop, [], 900, "PLM login did not reach the desktop")
 (evidence / "desktop-session.txt").write_text(desktop_out)
 
-apps = r'''
+open_app = r'''
 set -euo pipefail
+label="$1"
+shift
 uid="$(id -u moosci)"
 runtime="/run/user/${uid}"
 as_user() {
     runuser -u moosci -- env HOME=/var/home/moosci XDG_RUNTIME_DIR="$runtime" \
         DBUS_SESSION_BUS_ADDRESS="unix:path=${runtime}/bus" "$@"
 }
-as_user moai-open dolphin
-as_user moai-open moos-settings
-for _ in $(seq 1 60); do
-    if pgrep -u "$uid" -x dolphin >/dev/null \
-        && pgrep -u "$uid" -af '[m]oos-qml-shell --app-id org.moos.settings' >/dev/null; then
-        printf 'dolphin=opened\nmoos-settings=opened\n'
+opened="$(as_user moai-open "$@")"
+unit="$(sed -n 's/.*unit \([^)]*\)).*/\1/p' <<<"$opened")"
+[ -n "$unit" ]
+for _ in $(seq 1 90); do
+    if as_user systemctl --user is-active --quiet "$unit"; then
+        printf '%s=%s\nunit=%s\n' "$label" opened "$unit"
         exit 0
     fi
     sleep 1
 done
 exit 1
 '''
-apps_out = gate_until(apps, [], 180, "installed first-party app smoke failed")
-(evidence / "app-smoke.txt").write_text(apps_out)
-time.sleep(4)
-hmp([f"screendump {evidence / 'installed-desktop-apps.ppm'}"])
-hmp(["sendkey alt-f4", "sendkey alt-f4"])
+
+close_app = r'''
+set -euo pipefail
+unit="$1"
+uid="$(id -u moosci)"
+runtime="/run/user/${uid}"
+for _ in $(seq 1 45); do
+    if ! runuser -u moosci -- env HOME=/var/home/moosci XDG_RUNTIME_DIR="$runtime" \
+        DBUS_SESSION_BUS_ADDRESS="unix:path=${runtime}/bus" \
+        systemctl --user is-active --quiet "$unit"; then
+        exit 0
+    fi
+    sleep 1
+done
+exit 1
+'''
+
+app_specs = (
+    ("dolphin", "dolphin"),
+    ("konsole", "konsole"),
+    ("moos-settings", "moos-settings"),
+    ("mo-ai", "moai"),
+    ("mo-store", "moos-store"),
+    ("updater", "moos-update"),
+    ("recovery", "moos-rollback"),
+    ("themes", "moos-theme-picker"),
+    ("moplayer", "moplayer"),
+    ("mo-pc-remote", "mo-pc-remote"),
+)
+app_proof = []
+for label, executable in app_specs:
+    first = gate_until(open_app, [label, executable], 150, f"{label} did not open")
+    unit = next((line.removeprefix("unit=") for line in first.splitlines()
+                 if line.startswith("unit=")), "")
+    if not unit:
+        raise SystemExit(f"ISO INSTALL FATAL: {label} returned no runtime unit")
+    time.sleep(2)
+    hmp([f"screendump {evidence / ('installed-app-' + label + '.ppm')}"])
+    hmp(["sendkey alt-f4"])
+    gate_until(close_app, [unit], 60, f"{label} did not close")
+
+    second = gate_until(open_app, [label, executable], 150, f"{label} did not reopen")
+    second_unit = next((line.removeprefix("unit=") for line in second.splitlines()
+                        if line.startswith("unit=")), "")
+    if not second_unit or second_unit == unit:
+        raise SystemExit(f"ISO INSTALL FATAL: {label} reopen did not create a new unit")
+    app_proof.append(f"{label}=opened-closed-reopened")
+    if label == app_specs[-1][0]:
+        time.sleep(2)
+        hmp([f"screendump {evidence / 'installed-desktop-apps.ppm'}"])
+    hmp(["sendkey alt-f4"])
+    gate_until(close_app, [second_unit], 60, f"reopened {label} did not close")
+
+user_health = r'''
+set -euo pipefail
+uid="$(id -u moosci)"
+runtime="/run/user/${uid}"
+failed="$(runuser -u moosci -- env XDG_RUNTIME_DIR="$runtime" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=${runtime}/bus" \
+    systemctl --user --failed --no-legend --plain)"
+[ -z "$failed" ]
+'''
+gate_until(user_health, [], 60, "first-party app smoke left failed user units")
+(evidence / "app-smoke.txt").write_text("\n".join(app_proof) + "\n")
 
 code, boot_id, error = exec_wait("cat /proc/sys/kernel/random/boot_id")
 if code != 0:

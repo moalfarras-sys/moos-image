@@ -142,7 +142,8 @@ class ReleaseWorkflowSafetyTests(unittest.TestCase):
             'offline-digest=${generic_ref##*@}',
             "source=embedded-offline",
             "login=plasma-login-manager",
-            "dolphin=opened",
+            "for app in dolphin konsole moos-settings mo-ai mo-store updater recovery themes moplayer mo-pc-remote; do",
+            'grep -Fx "${app}=opened-closed-reopened"',
             "second-boot=healthy",
             "skopeo copy --preserve-digests",
             'promote_tag "$ref" "$DATE_TAG"',
@@ -403,7 +404,17 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
                 "login=plasma-login-manager\ndesktop=usable\n", encoding="utf-8"
             )
             (iso_install / "app-smoke.txt").write_text(
-                "dolphin=opened\nmoos-settings=opened\n", encoding="utf-8"
+                "dolphin=opened-closed-reopened\n"
+                "konsole=opened-closed-reopened\n"
+                "moos-settings=opened-closed-reopened\n"
+                "mo-ai=opened-closed-reopened\n"
+                "mo-store=opened-closed-reopened\n"
+                "updater=opened-closed-reopened\n"
+                "recovery=opened-closed-reopened\n"
+                "themes=opened-closed-reopened\n"
+                "moplayer=opened-closed-reopened\n"
+                "mo-pc-remote=opened-closed-reopened\n",
+                encoding="utf-8",
             )
             (iso_install / "installed-second-boot.txt").write_text(
                 f"origin={generic}\nreboot=clean\nsecond-boot=healthy\npoweroff=clean\n",
@@ -448,7 +459,7 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
                 encoding="utf-8",
             )
             (iso_install / "app-smoke.txt").write_text(
-                "dolphin=opened\n", encoding="utf-8"
+                "dolphin=opened-closed-reopened\n", encoding="utf-8"
             )
             missing_app = subprocess.run(
                 ["/usr/bin/bash", "-eu", "-o", "pipefail", "-c", evidence_validator],
@@ -461,7 +472,17 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
             self.assertNotEqual(missing_app.returncode, 0)
 
             (iso_install / "app-smoke.txt").write_text(
-                "dolphin=opened\nmoos-settings=opened\n", encoding="utf-8"
+                "dolphin=opened-closed-reopened\n"
+                "konsole=opened-closed-reopened\n"
+                "moos-settings=opened-closed-reopened\n"
+                "mo-ai=opened-closed-reopened\n"
+                "mo-store=opened-closed-reopened\n"
+                "updater=opened-closed-reopened\n"
+                "recovery=opened-closed-reopened\n"
+                "themes=opened-closed-reopened\n"
+                "moplayer=opened-closed-reopened\n"
+                "mo-pc-remote=opened-closed-reopened\n",
+                encoding="utf-8",
             )
             nvidia_first = proof / "disk" / "moos-nvidia" / "runtime-first-boot.txt"
             nvidia_first.write_text(

@@ -181,8 +181,9 @@ jobs:
           grep -Fx "origin=${generic_ref}" proof/iso-install/installed-first-boot.txt
           grep -Fx 'login=plasma-login-manager' proof/iso-install/desktop-session.txt
           grep -Fx 'desktop=usable' proof/iso-install/desktop-session.txt
-          grep -Fx 'dolphin=opened' proof/iso-install/app-smoke.txt
-          grep -Fx 'moos-settings=opened' proof/iso-install/app-smoke.txt
+          for app in dolphin konsole moos-settings mo-ai mo-store updater recovery themes moplayer mo-pc-remote; do
+            grep -Fx "${app}=opened-closed-reopened" proof/iso-install/app-smoke.txt
+          done
           grep -Fx "origin=${generic_ref}" proof/iso-install/installed-second-boot.txt
           grep -Fx 'reboot=clean' proof/iso-install/installed-second-boot.txt
           grep -Fx 'second-boot=healthy' proof/iso-install/installed-second-boot.txt
