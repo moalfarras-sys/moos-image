@@ -397,6 +397,12 @@ class ArmEditionTests(unittest.TestCase):
         self.assertIn("MOOS_ARM_VISUAL_HOLD", boot_gate)
         self.assertIn("secrets.token_urlsafe", boot_gate,
                       "visual QA must not use a shared guest password")
+        self.assertIn("plain_text_passwd", boot_gate,
+                      "cloud-init must unlock the visual account in the same user record")
+        self.assertNotIn("chpasswd:", boot_gate,
+                         "a later chpasswd module makes cloud-init 26 report degraded")
+        self.assertIn("ARM VISUAL FAILED", boot_gate,
+                      "a failed visible VM must stay open for diagnosis")
         self.assertIn('"${qemu_display[@]}"', boot_gate)
         self.assertIn("touch '$continue_file'", boot_gate)
         self.assertIn("-display none", boot_gate,

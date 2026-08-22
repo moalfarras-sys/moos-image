@@ -108,9 +108,16 @@ ssh-keygen -q -t ed25519 -N '' -f "$work/id_ed25519"
 public_key="$(cat "$work/id_ed25519.pub")"
 lock_password=true
 visual_password=""
+visual_password_field=""
 if [ "$display_backend" != none ]; then
     visual_password="$(python3 -c 'import secrets; print(secrets.token_urlsafe(15))')"
     lock_password=false
+    # Put the password in the users record that unlocks the account. A separate
+    # chpasswd module runs later, so cloud-init 26 reports the earlier
+    # lock_passwd:false record as degraded even when chpasswd eventually fixes
+    # it. The visual gate must not invent a warning the release image does not
+    # have. URL-safe output has no YAML metacharacters.
+    visual_password_field="    plain_text_passwd: ${visual_password}"
 fi
 cat > "$work/user-data" <<EOF
 #cloud-config
@@ -120,6 +127,7 @@ users:
     groups: [wheel]
     shell: /bin/bash
     lock_passwd: ${lock_password}
+${visual_password_field}
     ssh_authorized_keys:
       - ${public_key}
 disable_root: true
@@ -133,14 +141,6 @@ write_files:
 final_message: MOOS_ARM_CLOUD_INIT_COMPLETE
 EOF
 if [ -n "$visual_password" ]; then
-    cat >> "$work/user-data" <<EOF
-chpasswd:
-  expire: false
-  users:
-    - name: moos
-      password: ${visual_password}
-      type: text
-EOF
     printf '%s\n' \
         "ARM VISUAL LOGIN: user=moos password=${visual_password}" \
         "ARM VISUAL NOTE: credential exists only in this disposable proof overlay"
@@ -239,7 +239,20 @@ run_runtime_gate() {
     return 1
 }
 
-run_runtime_gate first
+if ! run_runtime_gate first; then
+    if [ "$visual_hold" = 1 ]; then
+        continue_file="$evidence/continue"
+        printf '%s\n' \
+            "ARM VISUAL FAILED: the GTK window is intentionally left open for diagnosis." \
+            "Inspect the screen/journal, then run: touch '$continue_file'"
+        while [ ! -e "$continue_file" ]; do
+            kill -0 "$qemu_pid" 2>/dev/null || break
+            sleep 1
+        done
+        [ ! -e "$continue_file" ] || unlink "$continue_file"
+    fi
+    exit 1
+fi
 runtime="$(cat "$evidence/runtime-first-boot.txt")"
 first_boot_id="$(printf '%s\n' "$runtime" | sed -n 's/^boot_id=//p')"
 [ -n "$first_boot_id" ] || { echo "ARM BOOT FATAL: first boot ID was not captured" >&2; exit 1; }
