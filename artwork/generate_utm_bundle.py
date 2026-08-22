@@ -59,13 +59,14 @@ def sha256_file(path: pathlib.Path) -> str:
 
 def seed_user_data(ssh_key: str | None) -> str:
     # The public release bundle must not contain a credential shared by every
-    # downloader. cloud-init's RANDOM type generates the bootstrap password
-    # inside each VM and writes it to /dev/console. Do not expire it here:
-    # plasma-login-manager 6.7 cannot complete its three-prompt expired-token
-    # PAM conversation, so expire:true deadlocks the graphical first login.
-    # SSH password authentication remains disabled and KRDP is off by default;
-    # the credential is usable only at the local UTM console until the owner
-    # changes it from the desktop.
+    # downloader. Do not use cloud-init's chpasswd type=RANDOM here. Its
+    # implementation writes the result directly to /dev/console, which MoOS
+    # intentionally keeps on tty0 so graphical boot remains visible; UTM's
+    # built-in Terminal is ttyAMA0 and would never show that credential.
+    # Instead a final-stage helper generates the password inside this VM,
+    # feeds it to chpasswd over stdin, and writes it once to the ARM serial
+    # console. The public seed contains generator code, never a credential.
+    # SSH password authentication remains disabled and KRDP is off by default.
     lines = [
         "#cloud-config",
         "users:",
@@ -81,16 +82,37 @@ def seed_user_data(ssh_key: str | None) -> str:
             f"      - {ssh_key}",
         ]
     lines += [
-        "chpasswd:",
-        "  expire: false",
-        "  users:",
-        "    - name: moos",
-        "      type: RANDOM",
-        # The generated password is local-console bootstrap only. SSH stays
-        # key-only, so the public bundle never exposes password login remotely.
+        "write_files:",
+        "  - path: /run/moos-utm-firstboot-password.py",
+        "    owner: root:root",
+        "    permissions: '0700'",
+        "    content: |",
+        "      #!/usr/bin/python3",
+        "      import secrets",
+        "      import string",
+        "      import subprocess",
+        "      chars = [secrets.choice(string.ascii_uppercase),",
+        "               secrets.choice(string.ascii_lowercase),",
+        "               secrets.choice(string.digits)]",
+        "      alphabet = string.ascii_letters + string.digits",
+        "      chars.extend(secrets.choice(alphabet) for _ in range(17))",
+        "      secrets.SystemRandom().shuffle(chars)",
+        "      password = ''.join(chars)",
+        "      subprocess.run(['chpasswd'], input=f'moos:{password}\\n',",
+        "                     text=True, check=True)",
+        "      message = ('\\nMOOS_ARM_FIRST_BOOT_PASSWORD_BEGIN\\n'",
+        "                 f'user=moos\\npassword={password}\\n'",
+        "                 'MOOS_ARM_FIRST_BOOT_PASSWORD_END\\n')",
+        "      with open('/dev/ttyAMA0', 'w', encoding='utf-8') as serial:",
+        "          serial.write(message)",
+        "          serial.flush()",
+        "      password = ''",
+        "runcmd:",
+        "  - [/usr/bin/python3, /run/moos-utm-firstboot-password.py]",
+        "  - [rm, -f, /run/moos-utm-firstboot-password.py]",
         "ssh_pwauth: false",
         "disable_root: true",
-        "final_message: MOOS_ARM_FIRST_BOOT_READY — read the VM-unique moos password above in the UTM Terminal view",
+        "final_message: MOOS_ARM_FIRST_BOOT_READY — use the VM-unique moos password printed between the markers in UTM Terminal",
     ]
     return "\n".join(lines) + "\n"
 
@@ -407,7 +429,7 @@ def main() -> int:
                 "path": "Data/seed.iso",
                 "sha256": sha256_file(seed),
                 "volume": SEED_VOLUME,
-                "credential": "generated-in-guest-console",
+                "credential": "generated-in-guest-ttyAMA0",
                 "ssh_password_authentication": False,
                 "password_expired_at_greeter": False,
             },

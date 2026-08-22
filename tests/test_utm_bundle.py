@@ -33,9 +33,12 @@ script = GENERATOR.read_text(encoding="utf-8")
 assert "secrets.token_urlsafe" not in script
 assert not re.search(r"passwd:\s*[\"']?[A-Za-z0-9]{6,}", script), \
     "a literal password must never appear in the generator"
-assert "type: RANDOM" in script
+assert "MOOS_ARM_FIRST_BOOT_PASSWORD_BEGIN" in script
+assert "/dev/ttyAMA0" in script
+assert "secrets.choice" in script
+assert "subprocess.run(['chpasswd']" in script
+assert "type: RANDOM" not in script
 assert "password: RANDOM" not in script
-assert "expire: false" in script
 assert "expire: true" not in script
 assert "ssh_pwauth: false" in script, \
     "the public bundle password must be console-only; SSH remains key-only"
@@ -155,9 +158,11 @@ with tempfile.TemporaryDirectory(prefix="moos-utm-gate-") as tmp:
     # The fake seed is the user-data payload. It must ask the guest to generate
     # a password, never contain one produced by the public release job.
     seed_payload = (skeleton / "Data/seed.iso").read_text(encoding="utf-8")
-    assert "type: RANDOM" in seed_payload
+    assert "MOOS_ARM_FIRST_BOOT_PASSWORD_BEGIN" in seed_payload
+    assert "/dev/ttyAMA0" in seed_payload
+    assert "secrets.choice" in seed_payload
+    assert "type: RANDOM" not in seed_payload
     assert "password: RANDOM" not in seed_payload
-    assert "expire: false" in seed_payload
     assert "expire: true" not in seed_payload
     assert "ssh_pwauth: false" in seed_payload
     assert f"instance-id: moos-arm-utm-{config['Information']['UUID'].lower()}" in seed_payload
@@ -197,7 +202,7 @@ with tempfile.TemporaryDirectory(prefix="moos-utm-gate-") as tmp:
         "bytes": qcow.stat().st_size,
     }
     assert manifest["seed"]["volume"] == "cidata"
-    assert manifest["seed"]["credential"] == "generated-in-guest-console"
+    assert manifest["seed"]["credential"] == "generated-in-guest-ttyAMA0"
     assert manifest["seed"]["ssh_password_authentication"] is False
     assert manifest["seed"]["password_expired_at_greeter"] is False
     assert manifest["icon"]["path"] == "Data/moos-icon.png"
