@@ -49,15 +49,19 @@ def run(
     boot: Path,
     image: str = IMAGE,
     arch: str = "arm64",
+    ci_runtime_proof: bool = False,
 ) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        [
+    command = [
             str(SCRIPT),
             "--root", str(root),
             "--boot", str(boot),
             "--expected-image", image,
             "--target-arch", arch,
-        ],
+        ]
+    if ci_runtime_proof:
+        command.append("--enable-ci-runtime-proof")
+    return subprocess.run(
+        command,
         capture_output=True,
         text=True,
     )
@@ -97,6 +101,7 @@ def main() -> int:
         ),
     )
     with temporary:
+        origin.with_suffix("").mkdir()
         result = run(root, boot, x86_image, "x86_64")
         assert result.returncode == 0, result.stdout + result.stderr
         assert "container-image-reference=ostree-image-signed:docker://" + x86_image in origin.read_text()
@@ -105,6 +110,37 @@ def main() -> int:
         assert "preempt=full" in options
         assert "split_lock_detect=off" in options
         assert run(root, boot, x86_image, "x86_64").returncode == 0
+
+    temporary, root, boot, origin, entry = fixture(
+        "ostree-unverified-registry:" + x86_image,
+        options=(
+            "root=UUID=x ostree=/ostree/boot.0/default/"
+            + "9" * 64
+            + "/0 rhgb quiet splash console=ttyS0"
+        ),
+    )
+    with temporary:
+        deployment = origin.with_suffix("")
+        deployment.mkdir()
+        result = run(root, boot, x86_image, "x86_64", True)
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert entry.read_text().count("moos.ci-runtime-proof=1") == 1
+        proof_link = (
+            deployment / "etc/systemd/system/multi-user.target.wants/"
+            "moos-ci-runtime-proof.service"
+        )
+        assert proof_link.is_symlink()
+        assert proof_link.readlink() == Path(
+            "/usr/lib/systemd/system/moos-ci-runtime-proof.service"
+        )
+        assert run(root, boot, x86_image, "x86_64", True).returncode == 0
+
+    temporary, root, boot, origin, _ = fixture(
+        "ostree-unverified-registry:" + IMAGE
+    )
+    with temporary:
+        origin.with_suffix("").mkdir()
+        assert run(root, boot, IMAGE, "arm64", True).returncode != 0
 
     cloud_image = "ghcr.io/moalfarras-sys/moos-cloud@" + DIGEST
     temporary, root, boot, origin, _ = fixture(

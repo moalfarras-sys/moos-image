@@ -520,7 +520,10 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
         script = X86_BOOT.read_text(encoding="utf-8")
         self.assertIn("CI verification fixture, not an end-user login image", text)
         self.assertIn("name: moos-ci-verified-disk-qcow2", text)
-        seal = 'sudo build_files/seal_x86_qcow2.sh "$qcow" "$expected"'
+        seal = (
+            'sudo build_files/seal_x86_qcow2.sh \\\n'
+            '            "$qcow" "$expected" --enable-ci-runtime-proof'
+        )
         boot = (
             'tests/boot_x86_qcow2.sh \\\n'
             '            "$MOOS_X86_QCOW" "$EXPECTED_IMAGE" "$EVIDENCE_DIR" "$MOOS_X86_SSH_KEY"'
@@ -638,8 +641,8 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
         config = (ROOT / "bib/config.toml").read_text(encoding="utf-8")
         script = X86_BOOT.read_text(encoding="utf-8")
         self.assertIn('__MOOS_CI_SSH_PUBLIC_KEY__', config)
-        self.assertIn('enabled = ["sshd", "moos-ci-runtime-proof.service"]', config)
-        self.assertIn('"moos-ci-runtime-proof.service"', config)
+        self.assertNotIn("customizations.services", config)
+        self.assertIn("--enable-ci-runtime-proof", workflow)
         self.assertNotIn("customizations.firewall", config)
         self.assertIn("ssh-keygen -q -t ed25519", workflow)
         self.assertIn("moos-ci-runtime-key", workflow)
@@ -659,7 +662,10 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
         ).read_text(encoding="utf-8")
         self.assertIn("10.0.2.2/32", proof_helper)
         self.assertIn("moos-ci-runtime-proof", proof_helper)
+        self.assertIn("moos.ci-runtime-proof=1", proof_helper)
+        self.assertIn("systemctl --no-block start firewalld.service sshd.service", proof_helper)
         self.assertIn("systemd-detect-virt", proof_helper)
+        self.assertIn("ConditionKernelCommandLine=moos.ci-runtime-proof=1", proof_unit)
         self.assertIn("ConditionPathExists=/home/mo/.ssh/authorized_keys", proof_unit)
         for target in ("multi-user.target.wants", "graphical.target.wants"):
             self.assertFalse(

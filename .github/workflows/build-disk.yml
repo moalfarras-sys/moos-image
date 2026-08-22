@@ -165,7 +165,8 @@ jobs:
           qcow="$(sudo find output -name '*.qcow2' -print -quit)"
           [ -n "$qcow" ] || { echo "FATAL: no qcow2 was produced" >&2; exit 1; }
           expected="${{ steps.pin.outputs.image_ref }}"
-          sudo build_files/seal_x86_qcow2.sh "$qcow" "$expected"
+          sudo build_files/seal_x86_qcow2.sh \
+            "$qcow" "$expected" --enable-ci-runtime-proof
           sudo chown "$USER:$USER" "$qcow"
           echo "MOOS_X86_QCOW=$(readlink -f "$qcow")" >> "$GITHUB_ENV"
 

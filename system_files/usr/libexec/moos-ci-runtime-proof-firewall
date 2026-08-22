@@ -1,13 +1,29 @@
 #!/usr/bin/env bash
 # This helper is inert in every normal MoOS install: the unit is disabled in
-# the OCI image and bootc-image-builder enables it only in its disposable CI
-# disk. Even if enabled accidentally, both the CI key marker and virtualization
-# are required before one source-scoped SSH rule can be added.
+# the OCI image and the release-disk sealer enables it only on its disposable
+# CI disk. Even if enabled accidentally, the kernel marker, CI key marker and
+# virtualization are all required before one source-scoped SSH rule is added.
 set -euo pipefail
 
 key_file=/home/mo/.ssh/authorized_keys
+grep -qw 'moos.ci-runtime-proof=1' /proc/cmdline
 grep -Fq 'moos-ci-runtime-proof' "$key_file"
 [ "$(systemd-detect-virt 2>/dev/null || true)" != none ]
+
+# Do not make either daemon a unit dependency: systemd starts dependencies even
+# when a ConditionKernelCommandLine fails.  Starting them here keeps SSH inert
+# on every ordinary MoOS boot.
+systemctl --no-block start firewalld.service sshd.service
+ready=0
+for _ in $(seq 1 120); do
+    if systemctl is-active --quiet firewalld.service \
+        && systemctl is-active --quiet sshd.service; then
+        ready=1
+        break
+    fi
+    sleep 1
+done
+[ "$ready" -eq 1 ]
 
 iface="$(ip -4 route show default | awk 'NR == 1 {for (i=1; i<=NF; i++) if ($i == "dev") {print $(i+1); exit}}')"
 [ -n "$iface" ]

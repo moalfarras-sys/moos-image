@@ -3,8 +3,8 @@
 # builder-injected serial arguments that would leak into the released UX.
 set -euo pipefail
 
-if [ "$#" -ne 3 ]; then
-    echo "usage: $0 TARGET_ARCH IMAGE.qcow2 ghcr.io/moalfarras-sys/EDITION@sha256:..." >&2
+if [ "$#" -lt 3 ] || [ "$#" -gt 4 ]; then
+    echo "usage: $0 TARGET_ARCH IMAGE.qcow2 ghcr.io/moalfarras-sys/EDITION@sha256:... [--enable-ci-runtime-proof]" >&2
     exit 2
 fi
 if [ "$(id -u)" -ne 0 ]; then
@@ -15,8 +15,19 @@ fi
 target_arch="$1"
 qcow="$(readlink -f "$2")"
 expected_image="$3"
+ci_runtime_proof="${4:-}"
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 case "$target_arch" in arm64|x86_64) ;; *) echo "MOOS DISK FATAL: invalid target architecture" >&2; exit 2 ;; esac
+case "$ci_runtime_proof" in
+    "") ;;
+    --enable-ci-runtime-proof)
+        [ "$target_arch" = x86_64 ] || {
+            echo "MOOS DISK FATAL: the CI runtime proof channel is x86-only" >&2
+            exit 2
+        }
+        ;;
+    *) echo "MOOS DISK FATAL: invalid option: $ci_runtime_proof" >&2; exit 2 ;;
+esac
 [ -f "$qcow" ] || { echo "MOOS DISK FATAL: missing QCOW2: $qcow" >&2; exit 1; }
 for tool in qemu-img qemu-nbd lsblk blkid mount umount udevadm python3; do
     command -v "$tool" >/dev/null 2>&1 || {
@@ -97,11 +108,14 @@ done
 
 mount -o subvol=root "$root" "$mount_root"
 mount "$boot" "$mount_boot"
-python3 "$script_dir/seal_arm_deployment.py" \
-    --root "$mount_root" \
-    --boot "$mount_boot" \
-    --target-arch "$target_arch" \
+seal_args=(
+    --root "$mount_root"
+    --boot "$mount_boot"
+    --target-arch "$target_arch"
     --expected-image "$expected_image"
+)
+[ -z "$ci_runtime_proof" ] || seal_args+=("$ci_runtime_proof")
+python3 "$script_dir/seal_arm_deployment.py" "${seal_args[@]}"
 sync -f "$mount_root"
 sync -f "$mount_boot"
 umount "$mount_boot"

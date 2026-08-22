@@ -36,6 +36,9 @@ FOREIGN_KARGS = {"preempt=full", "split_lock_detect=off"}
 OSTREE_KARG = re.compile(
     r"^ostree=/ostree/boot\.[01]/[^/\s]+/[0-9a-f]{64}/[0-9]+$"
 )
+CI_RUNTIME_KARG = "moos.ci-runtime-proof=1"
+CI_RUNTIME_UNIT = "moos-ci-runtime-proof.service"
+CI_RUNTIME_UNIT_TARGET = "/usr/lib/systemd/system/" + CI_RUNTIME_UNIT
 
 
 def fail(message: str) -> None:
@@ -86,7 +89,9 @@ def seal_origin(root: Path, expected_image: str) -> Path:
     return origin
 
 
-def seal_bls(boot: Path, target_arch: str) -> list[Path]:
+def seal_bls(
+    boot: Path, target_arch: str, enable_ci_runtime_proof: bool = False
+) -> list[Path]:
     entries = sorted(set(boot.glob("loader*/entries/*.conf")))
     if not entries:
         fail("no deployed BLS entries found")
@@ -117,15 +122,36 @@ def seal_bls(boot: Path, target_arch: str) -> list[Path]:
             # inject a serial console for its own builder diagnostics; remove
             # that release-only leak while preserving the branded splash.
             required_options = ("rhgb", "quiet", "splash")
+            if enable_ci_runtime_proof and CI_RUNTIME_KARG not in options:
+                options.append(CI_RUNTIME_KARG)
         for required in required_options:
             if options.count(required) != 1:
                 fail(f"{entry} must contain exactly one {required}")
         consoles = [item for item in options if item.startswith("console=")]
         if target_arch == "arm64" and consoles[-1] != "console=tty0":
             fail(f"{entry} does not keep the graphical console primary: {consoles}")
+        if enable_ci_runtime_proof and options.count(CI_RUNTIME_KARG) != 1:
+            fail(f"{entry} must contain exactly one {CI_RUNTIME_KARG}")
         lines[index] = "options " + " ".join(options)
         atomic_write(entry, "\n".join(lines) + "\n")
     return entries
+
+
+def enable_ci_runtime_proof(origin: Path) -> Path:
+    deployment = origin.with_suffix("")
+    if not deployment.is_dir():
+        fail(f"deployed root is missing beside {origin}")
+    wants = deployment / "etc/systemd/system/multi-user.target.wants"
+    wants.mkdir(parents=True, exist_ok=True)
+    link = wants / CI_RUNTIME_UNIT
+    if link.is_symlink():
+        if os.readlink(link) != CI_RUNTIME_UNIT_TARGET:
+            fail(f"refusing unexpected CI proof unit target: {os.readlink(link)}")
+    elif link.exists():
+        fail(f"refusing non-symlink CI proof unit enablement: {link}")
+    else:
+        os.symlink(CI_RUNTIME_UNIT_TARGET, link)
+    return link
 
 
 def main() -> int:
@@ -134,16 +160,21 @@ def main() -> int:
     parser.add_argument("--boot", required=True, type=Path)
     parser.add_argument("--expected-image", required=True)
     parser.add_argument("--target-arch", choices=sorted(OFFICIAL_IMAGES), default="arm64")
+    parser.add_argument("--enable-ci-runtime-proof", action="store_true")
     args = parser.parse_args()
     if not OFFICIAL_IMAGES[args.target_arch].fullmatch(args.expected_image):
         fail(f"refusing non-official or non-digest image: {args.expected_image}")
     if not args.root.is_dir() or not args.boot.is_dir():
         fail("root and boot must be mounted directories")
+    if args.enable_ci_runtime_proof and args.target_arch != "x86_64":
+        fail("the CI runtime proof channel is x86-only")
     origin = seal_origin(args.root, args.expected_image)
-    entries = seal_bls(args.boot, args.target_arch)
+    entries = seal_bls(args.boot, args.target_arch, args.enable_ci_runtime_proof)
+    proof_link = enable_ci_runtime_proof(origin) if args.enable_ci_runtime_proof else None
     print(
         f"MOOS DISK SEALED ({args.target_arch}): {origin}; "
         f"{len(entries)} BLS entr{'y' if len(entries) == 1 else 'ies'}"
+        + (f"; CI proof={proof_link}" if proof_link else "")
     )
     return 0
 
