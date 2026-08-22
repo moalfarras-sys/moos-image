@@ -638,16 +638,34 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
         config = (ROOT / "bib/config.toml").read_text(encoding="utf-8")
         script = X86_BOOT.read_text(encoding="utf-8")
         self.assertIn('__MOOS_CI_SSH_PUBLIC_KEY__', config)
-        self.assertIn('enabled = ["sshd"]', config)
-        self.assertIn('enabled = ["ssh"]', config)
+        self.assertIn('enabled = ["sshd", "moos-ci-runtime-proof.service"]', config)
+        self.assertIn('"moos-ci-runtime-proof.service"', config)
+        self.assertNotIn("customizations.firewall", config)
         self.assertIn("ssh-keygen -q -t ed25519", workflow)
         self.assertIn("moos-ci-runtime-key", workflow)
         self.assertIn("rm -f --", workflow)
         self.assertIn("MOOS_X86_SSH_KEY", workflow)
+        self.assertIn('grep -Fq "blueprint validation failed"', workflow)
         self.assertIn("StrictHostKeyChecking=no", script)
         self.assertIn("UserKnownHostsFile=/dev/null", script)
         self.assertNotIn("/proc/1/root", script)
         self.assertNotIn("guest-exec-status", script)
+
+        proof_helper = (
+            ROOT / "system_files/usr/libexec/moos-ci-runtime-proof-firewall"
+        ).read_text(encoding="utf-8")
+        proof_unit = (
+            ROOT / "system_files/usr/lib/systemd/system/moos-ci-runtime-proof.service"
+        ).read_text(encoding="utf-8")
+        self.assertIn("10.0.2.2/32", proof_helper)
+        self.assertIn("moos-ci-runtime-proof", proof_helper)
+        self.assertIn("systemd-detect-virt", proof_helper)
+        self.assertIn("ConditionPathExists=/home/mo/.ssh/authorized_keys", proof_unit)
+        for target in ("multi-user.target.wants", "graphical.target.wants"):
+            self.assertFalse(
+                (ROOT / "system_files/etc/systemd/system" / target /
+                 "moos-ci-runtime-proof.service").exists()
+            )
 
     def test_live_iso_waits_for_desktop_after_early_qga_start(self) -> None:
         script = (ROOT / "tests" / "boot_live_iso.sh").read_text(encoding="utf-8")

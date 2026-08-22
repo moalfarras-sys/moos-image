@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# This helper is inert in every normal MoOS install: the unit is disabled in
+# the OCI image and bootc-image-builder enables it only in its disposable CI
+# disk. Even if enabled accidentally, both the CI key marker and virtualization
+# are required before one source-scoped SSH rule can be added.
+set -euo pipefail
+
+key_file=/home/mo/.ssh/authorized_keys
+grep -Fq 'moos-ci-runtime-proof' "$key_file"
+[ "$(systemd-detect-virt 2>/dev/null || true)" != none ]
+
+iface="$(ip -4 route show default | awk 'NR == 1 {for (i=1; i<=NF; i++) if ($i == "dev") {print $(i+1); exit}}')"
+[ -n "$iface" ]
+zone="$(firewall-cmd --get-zone-of-interface="$iface" 2>/dev/null || true)"
+[ -n "$zone" ] || zone="$(firewall-cmd --get-default-zone)"
+[ -n "$zone" ]
+
+firewall-cmd --zone="$zone" --add-rich-rule=\
+'rule family="ipv4" source address="10.0.2.2/32" service name="ssh" accept'

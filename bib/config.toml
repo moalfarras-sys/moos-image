@@ -19,7 +19,4 @@ groups = ["wheel"]
 # gate observes the real installed userspace instead of qemu-guest-agent's
 # restricted mount namespace.  CI discards the private key after the proof.
 [customizations.services]
-enabled = ["sshd"]
-
-[customizations.firewall.services]
-enabled = ["ssh"]
+enabled = ["sshd", "moos-ci-runtime-proof.service"]

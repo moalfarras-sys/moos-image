@@ -150,7 +150,11 @@ jobs:
             --rootfs btrfs \
             --config /config.toml \
             --local \
-            "${{ steps.pin.outputs.image_ref }}"
+            "${{ steps.pin.outputs.image_ref }}" 2>&1 | tee /tmp/moos-bib-build.log
+          if grep -Fq "blueprint validation failed" /tmp/moos-bib-build.log; then
+            echo "FATAL: bootc-image-builder ignored an unsupported customization" >&2
+            exit 1
+          fi
           echo "=== output tree ==="; sudo find output -maxdepth 3 -type f -printf '%p (%s bytes)\n'
 
       - name: Seal the exact signed x86 deployment
