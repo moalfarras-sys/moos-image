@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 # Boot the final ARM QCOW2 users download, provision it without a shared
 # password, inspect the running system, reboot it, and power it off cleanly.
+#
+# CI remains headless by default. Developers can see and use the same proof VM:
+#   MOOS_ARM_DISPLAY=gtk MOOS_ARM_VISUAL_HOLD=1 \
+#     tests/boot_arm_qcow2.sh IMAGE.qcow2 IMAGE@sha256:... EVIDENCE_DIR
+# The visual login password is random, exists only in the disposable overlay,
+# and is printed once. Touch EVIDENCE_DIR/continue after interactive QA to let
+# the normal reboot/second-boot/poweroff proof resume.
 set -euo pipefail
 
 if [ "$#" -lt 2 ] || [ "$#" -gt 3 ]; then
@@ -13,6 +20,30 @@ expected_image="$2"
 evidence="$(readlink -m "${3:-arm-boot-proof}")"
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 runtime_gate="$script_dir/verify_arm_runtime.sh"
+display_backend="${MOOS_ARM_DISPLAY:-none}"
+visual_hold="${MOOS_ARM_VISUAL_HOLD:-0}"
+case "$display_backend" in
+    none) qemu_display=( -display none ) ;;
+    gtk)
+        [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ] || {
+            echo "ARM BOOT FATAL: GTK visual mode needs a graphical host session" >&2
+            exit 1
+        }
+        qemu_display=( -display "gtk,gl=off,zoom-to-fit=on,show-tabs=off" )
+        ;;
+    *)
+        echo "ARM BOOT FATAL: MOOS_ARM_DISPLAY must be 'none' or 'gtk'" >&2
+        exit 2
+        ;;
+esac
+case "$visual_hold" in
+    0|1) ;;
+    *) echo "ARM BOOT FATAL: MOOS_ARM_VISUAL_HOLD must be 0 or 1" >&2; exit 2 ;;
+esac
+[ "$display_backend" != none ] || [ "$visual_hold" = 0 ] || {
+    echo "ARM BOOT FATAL: visual hold requires MOOS_ARM_DISPLAY=gtk" >&2
+    exit 2
+}
 [[ "$expected_image" =~ ^ghcr\.io/moalfarras-sys/moos-arm@sha256:[0-9a-f]{64}$ ]] || {
     echo "ARM BOOT FATAL: expected image is not the official digest reference" >&2
     exit 1
@@ -75,6 +106,12 @@ qemu-img resize -q "$work/overlay.qcow2" "$((base_size + 1073741824))"
 
 ssh-keygen -q -t ed25519 -N '' -f "$work/id_ed25519"
 public_key="$(cat "$work/id_ed25519.pub")"
+lock_password=true
+visual_password=""
+if [ "$display_backend" != none ]; then
+    visual_password="$(python3 -c 'import secrets; print(secrets.token_urlsafe(15))')"
+    lock_password=false
+fi
 cat > "$work/user-data" <<EOF
 #cloud-config
 users:
@@ -82,7 +119,7 @@ users:
     gecos: MoOS ARM release gate
     groups: [wheel]
     shell: /bin/bash
-    lock_passwd: true
+    lock_passwd: ${lock_password}
     ssh_authorized_keys:
       - ${public_key}
 disable_root: true
@@ -95,6 +132,19 @@ write_files:
       moos ALL=(root) NOPASSWD: /usr/bin/systemctl reboot, /usr/bin/systemctl poweroff
 final_message: MOOS_ARM_CLOUD_INIT_COMPLETE
 EOF
+if [ -n "$visual_password" ]; then
+    cat >> "$work/user-data" <<EOF
+chpasswd:
+  expire: false
+  users:
+    - name: moos
+      password: ${visual_password}
+      type: text
+EOF
+    printf '%s\n' \
+        "ARM VISUAL LOGIN: user=moos password=${visual_password}" \
+        "ARM VISUAL NOTE: credential exists only in this disposable proof overlay"
+fi
 cat > "$work/meta-data" <<EOF
 instance-id: moos-arm-release-${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}
 local-hostname: moos-arm-release
@@ -141,7 +191,7 @@ qemu-system-aarch64 \
     -device virtio-net-pci,netdev=net0 \
     -serial "file:$serial" \
     -monitor "unix:$monitor,server=on,wait=off" \
-    -display none >"$qemu_log" 2>&1 &
+    "${qemu_display[@]}" >"$qemu_log" 2>&1 &
 qemu_pid=$!
 
 ssh_base=(
@@ -200,6 +250,21 @@ printf 'screendump %s\n' "$screenshot" | socat - UNIX-CONNECT:"$monitor" >/dev/n
 [ -s "$screenshot" ] || { echo "ARM BOOT FATAL: graphical screendump is empty" >&2; exit 1; }
 convert "$screenshot" "$evidence/graphical.png"
 [ -s "$evidence/graphical.png" ] || { echo "ARM BOOT FATAL: graphical PNG evidence is empty" >&2; exit 1; }
+
+if [ "$visual_hold" = 1 ]; then
+    continue_file="$evidence/continue"
+    printf '%s\n' \
+        "ARM VISUAL READY: MoOS reached its runtime gate and the GTK window will stay open." \
+        "Use the desktop, then run: touch '$continue_file'"
+    while [ ! -e "$continue_file" ]; do
+        kill -0 "$qemu_pid" 2>/dev/null || {
+            echo "ARM BOOT FATAL: visible QEMU exited during interactive QA" >&2
+            exit 1
+        }
+        sleep 1
+    done
+    unlink "$continue_file"
+fi
 
 "${ssh_base[@]}" sudo -n /usr/bin/systemctl reboot >/dev/null 2>&1 || true
 went_down=0

@@ -360,6 +360,18 @@ class ArmEditionTests(unittest.TestCase):
             "the workflow uploads/compresses the disk before proving it boots",
         )
 
+    def test_arm_boot_proof_has_an_explicit_visual_development_mode(self) -> None:
+        boot_gate = code(read(BOOT_GATE))
+        self.assertIn("MOOS_ARM_DISPLAY", boot_gate)
+        self.assertIn("gtk,gl=off", boot_gate)
+        self.assertIn("MOOS_ARM_VISUAL_HOLD", boot_gate)
+        self.assertIn("secrets.token_urlsafe", boot_gate,
+                      "visual QA must not use a shared guest password")
+        self.assertIn('"${qemu_display[@]}"', boot_gate)
+        self.assertIn("touch '$continue_file'", boot_gate)
+        self.assertIn("-display none", boot_gate,
+                      "CI must retain its deterministic headless mode")
+
     def test_arm_enforces_the_same_signed_registry_policy(self) -> None:
         build = read(BUILD)
         verifier = read(ARM_VERIFY)
