@@ -23,7 +23,7 @@ OFFICIAL_IMAGES = {
         r"^ghcr\.io/moalfarras-sys/moos-arm@sha256:[0-9a-f]{64}$"
     ),
     "x86_64": re.compile(
-        r"^ghcr\.io/moalfarras-sys/(?:moos|moos-nvidia)@sha256:[0-9a-f]{64}$"
+        r"^ghcr\.io/moalfarras-sys/(?:moos|moos-nvidia|moos-cloud)@sha256:[0-9a-f]{64}$"
     ),
 }
 ORIGIN_KEY = "container-image-reference="

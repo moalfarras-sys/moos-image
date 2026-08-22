@@ -100,6 +100,16 @@ def main() -> int:
         assert "split_lock_detect=off" in options
         assert run(root, boot, x86_image, "x86_64").returncode == 0
 
+    cloud_image = "ghcr.io/moalfarras-sys/moos-cloud@" + DIGEST
+    temporary, root, boot, origin, _ = fixture(
+        "ostree-unverified-registry:" + cloud_image,
+        options="root=UUID=x rhgb quiet splash console=ttyS0",
+    )
+    with temporary:
+        result = run(root, boot, cloud_image, "x86_64")
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "container-image-reference=ostree-image-signed:docker://" + cloud_image in origin.read_text()
+
     temporary, root, boot, _, _ = fixture(
         "ostree-unverified-registry:ghcr.io/moalfarras-sys/moos-arm@" + DIGEST,
         options="root=UUID=x rhgb quiet splash",
