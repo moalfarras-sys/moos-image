@@ -227,7 +227,8 @@ printf '{"liveNode":"/dev/sr0","disks":[{"node":"/dev/vda","isLive":false}]}\n' 
 chown liveuser:liveuser "$cache/disks.json"
 offline_ref="$(tr -d '\r\n' < /usr/lib/moos/install-imageref)"
 podman image exists "$offline_ref"
-[ "$(podman image inspect --format '{{.Digest}}' "$offline_ref")" = "${expected##*@}" ]
+source_digest="$(tr -d '\r\n' < /usr/lib/moos/install-source-digest)"
+[ "$source_digest" = "${expected##*@}" ]
 nmcli networking off
 systemctl stop NetworkManager.service
 ! ip route show default | grep -q .

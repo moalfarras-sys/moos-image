@@ -163,12 +163,12 @@ pgrep -u liveuser -x plasmashell
 test -x /usr/bin/moos-installer
 offline_ref="$(tr -d '\r\n' < /usr/lib/moos/install-imageref)"
 podman image exists "$offline_ref"
-actual_digest="$(podman image inspect --format '{{.Digest}}' "$offline_ref")"
-[ "$actual_digest" = "${expected##*@}" ]
+source_digest="$(tr -d '\r\n' < /usr/lib/moos/install-source-digest)"
+[ "$source_digest" = "${expected##*@}" ]
 failed="$(systemctl --failed --no-legend --plain)"
 [ -z "$failed" ]
 printf 'boot=live\nidentity=%s\narch=%s\ngraphical=active\ndisplay-manager=active\nnetwork=active\nuser=liveuser\nkwin=active\nplasmashell=active\ninstaller=present\noffline-ref=%s\noffline-digest=%s\nfailed-units=0\n' \
-    "$PRETTY_NAME" "$(uname -m)" "$offline_ref" "$actual_digest"
+    "$PRETTY_NAME" "$(uname -m)" "$offline_ref" "$source_digest"
 '''
 started = request({
     "execute": "guest-exec",

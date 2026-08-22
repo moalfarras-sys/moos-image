@@ -14,6 +14,7 @@ required_script = (
     'file=$iso,media=cdrom,format=raw,readonly=on',
     "systemctl stop NetworkManager.service",
     "source: local containers-storage (offline)",
+    "install-source-digest",
     "/usr/bin/moos-install-to-disk",
     "start_qemu installed -boot order=c",
     "! grep -qw rd.live.image /proc/cmdline",

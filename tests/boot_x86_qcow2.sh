@@ -11,7 +11,7 @@ fi
 qcow="$(realpath "$1")"
 expected_ref="$2"
 evidence="$(realpath -m "${3:-x86-qcow2-boot-proof}")"
-[[ "$expected_ref" =~ ^ghcr\.io/moalfarras-sys/(moos|moos-nvidia)@sha256:[0-9a-f]{64}$ ]] || {
+[[ "$expected_ref" =~ ^ghcr\.io/moalfarras-sys/(moos|moos-nvidia|moos-cloud)@sha256:[0-9a-f]{64}$ ]] || {
     echo "X86 QCOW2 FATAL: expected image is not an exact official desktop digest" >&2
     exit 2
 }
@@ -272,25 +272,30 @@ def screendump(path):
 runtime_gate = r'''
 set -euo pipefail
 expected="$1"
+gate_fail() { printf 'runtime-gate=%s\n' "$1" >&2; return 1; }
 . /etc/os-release
-[ "${ID:-}" = moos ]
-[ "${NAME:-}" = MoOS ]
-[ "$(uname -m)" = x86_64 ]
-[ -e /run/ostree-booted ]
-! grep -qw rd.live.image /proc/cmdline
-[ -e /etc/moos-firstboot-done ]
-systemctl is-active graphical.target display-manager.service plasmalogin.service NetworkManager.service qemu-guest-agent.service
-[ "$(systemctl show display-manager.service -p Id --value)" = plasmalogin.service ]
-getent passwd mo
+[ "${ID:-}" = moos ] || gate_fail identity-id
+[ "${NAME:-}" = MoOS ] || gate_fail identity-name
+[ "$(uname -m)" = x86_64 ] || gate_fail architecture
+[ -e /run/ostree-booted ] || gate_fail ostree-booted
+grep -qw rd.live.image /proc/cmdline && gate_fail unexpected-live-boot
+[ -e /etc/moos-firstboot-done ] || gate_fail firstboot-stamp
+systemctl is-active --quiet graphical.target display-manager.service plasmalogin.service NetworkManager.service qemu-guest-agent.service \
+    || gate_fail required-system-service
+[ "$(systemctl show display-manager.service -p Id --value)" = plasmalogin.service ] \
+    || gate_fail display-manager-identity
+getent passwd mo >/dev/null || gate_fail provisioned-user
 account_path="$(busctl call org.freedesktop.Accounts /org/freedesktop/Accounts \
     org.freedesktop.Accounts FindUserByName s mo)"
-[[ "$account_path" == *"/org/freedesktop/Accounts/User"* ]]
-compgen -G '/dev/dri/card*' >/dev/null
-pgrep -u plasmalogin -x kwin_wayland >/dev/null
-ip -4 -o addr show scope global | grep -q .
-ip -4 route show default | grep -q '^default '
+[[ "$account_path" == *"/org/freedesktop/Accounts/User"* ]] || gate_fail accounts-service-user
+compgen -G '/dev/dri/card*' >/dev/null || gate_fail drm-device
+pgrep -u plasmalogin -x kwin_wayland >/dev/null || gate_fail greeter-kwin
+ipv4="$(ip -4 -o addr show scope global)"
+[ -n "$ipv4" ] || gate_fail network-address
+routes="$(ip -4 route show default)"
+[[ "$routes" == default\ * ]] || gate_fail network-default-route
 for helper in moos-settings moos-update moos-rollback moos-store moai moplayer mo-pc-remote; do
-    command -v "$helper" >/dev/null
+    command -v "$helper" >/dev/null || gate_fail "missing-command-${helper}"
 done
 mapfile -t deployment < <(rpm-ostree status --json | python3 -c '
 import json, sys
@@ -302,8 +307,8 @@ for deployment in json.load(sys.stdin).get("deployments", []):
 ')
 origin="${deployment[0]:-}"
 origin_digest="${deployment[1]:-}"
-[ "$origin" = "ostree-image-signed:docker://${expected}" ]
-[ "$origin_digest" = "${expected##*@}" ]
+[ "$origin" = "ostree-image-signed:docker://${expected}" ] || gate_fail signed-origin
+[ "$origin_digest" = "${expected##*@}" ] || gate_fail origin-digest
 python3 - <<'INNER'
 import json
 with open('/etc/containers/policy.json', encoding='utf-8') as source:

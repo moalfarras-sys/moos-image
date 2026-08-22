@@ -221,6 +221,17 @@ jobs:
           EOF
           sudo env CONTAINERS_STORAGE_CONF="${runtime_conf}" \
                podman image exists "${offline_ref}"
+          source_digest="${IMAGE_REF##*@}"
+          [[ "${source_digest}" =~ ^sha256:[0-9a-f]{64}$ ]] || {
+            echo "FATAL: exact signed source digest was lost during embed" >&2
+            exit 1
+          }
+          # containers-storage may rewrite compressed layers and therefore its
+          # LOCAL manifest digest. Preserve the already cosign-verified registry
+          # source digest separately; comparing it with a rewritten local digest
+          # is not a valid provenance check.
+          printf '%s\n' "${source_digest}" | sudo tee \
+               "${rootfs}/usr/lib/moos/install-source-digest" >/dev/null
           echo "OFFLINE EMBED OK: ${IMAGE_REF} is stored as ${offline_ref} in the live ISO"
 
           # Rootful containers/storage makes its overlay home a PRIVATE bind

@@ -610,11 +610,17 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
             "display-manager.service",
             "plasmashell",
             'podman image exists "$offline_ref"',
+            "install-source-digest",
             "guest-shutdown",
             "screendump",
         ):
             self.assertIn(proof, script, f"final ISO gate lost runtime proof: {proof}")
         self.assertIn('after_sha', script)
+
+    def test_cloud_disk_uses_the_shared_x86_boot_proof(self) -> None:
+        script = X86_BOOT.read_text(encoding="utf-8")
+        self.assertIn("moos|moos-nvidia|moos-cloud", script)
+        self.assertIn("runtime-gate=%s", script)
 
     def test_live_iso_waits_for_desktop_after_early_qga_start(self) -> None:
         script = (ROOT / "tests" / "boot_live_iso.sh").read_text(encoding="utf-8")
