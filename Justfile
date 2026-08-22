@@ -49,6 +49,7 @@ check:
     python3 tests/test_moai_credential_store.py
     python3 tests/test_moos_cloud_audio.py
     python3 tests/test_fwupd_refresh_policy.py
+    python3 tests/test_flatpak_user_update.py
     python3 tests/test_exec_bits.py
     # CI never runs `npm run build`; the image ships the COMMITTED controller bundle, and
     # moremote/.gitignore hides the very directory it lives in. This catches an index.html
