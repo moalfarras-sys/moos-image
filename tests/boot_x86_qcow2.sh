@@ -196,13 +196,13 @@ def guest_exec(script, args=(), timeout=180):
     started = request({
         "execute": "guest-exec",
         "arguments": {
-            # The virtio port can start QGA before switch-root.  Enter PID 1's
-            # namespaces so /run, the system bus and mount state are always the
-            # installed userspace rather than QGA's stale initramfs view.
-            "path": "/usr/bin/nsenter",
+            # The virtio port can start QGA before switch-root.  Execute below
+            # PID 1's root so /run, the system bus and mount state are always
+            # the installed userspace rather than QGA's stale initramfs view.
+            # chroot needs no CAP_SYS_ADMIN (qemu-ga deliberately cannot setns).
+            "path": "/usr/bin/chroot",
             "arg": [
-                "--target", "1", "--mount", "--uts", "--ipc", "--net", "--pid",
-                "--", "/usr/bin/bash", "-lc", script, "--", *args,
+                "/proc/1/root", "/usr/bin/bash", "-lc", script, "--", *args,
             ],
             "capture-output": True,
         },
@@ -215,6 +215,10 @@ def guest_exec(script, args=(), timeout=180):
             stdout = base64.b64decode(status.get("out-data", "")).decode(errors="replace")
             stderr = base64.b64decode(status.get("err-data", "")).decode(errors="replace")
             if status.get("exitcode") != 0:
+                if "chroot:" in stderr and "Operation not permitted" in stderr:
+                    raise SystemExit(
+                        "X86 QCOW2 FATAL: qemu-ga cannot enter PID 1's root: " + stderr.strip()
+                    )
                 raise RuntimeError(
                     f"runtime gate exited {status.get('exitcode')}: {stderr or stdout}"
                 )
