@@ -209,7 +209,7 @@ if [ "$METHOD" = reinstall-bootc ]; then
     # inspecting the shipped binary: the only flags in it are --help, --cleanup
     # and podman plumbing). So a conversion down THIS path lands on
     # `ostree-unverified-registry:` and takes unverified updates for the life of
-    # the install — the exact failure FIXES_2026-07-16b.md documents for
+    # the install — the exact signed-origin failure preserved in git history for
     # `bootc switch`, arriving from a direction no gate was watching.
     #
     # It is not fixed here because it CANNOT be fixed here. The image repairs

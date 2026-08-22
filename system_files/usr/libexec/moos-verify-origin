@@ -11,7 +11,7 @@
 #   container-image-reference=ostree-unverified-registry:ghcr.io/…     ← NOT
 #
 # `bootc switch` was already caught writing the unverified form (see
-# FIXES_2026-07-16b.md — `moai-do install-nvidia` silently turned a machine that
+# Git history from 2026-07-16 records how `moai-do install-nvidia` silently turned a machine that
 # enforced signatures into one that verified nothing, for the rest of the
 # install's life, because the origin persists). That path now passes
 # --enforce-container-sigpolicy and a gate holds it there.

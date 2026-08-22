@@ -10,7 +10,7 @@ widgets. Its former UI1 packages and generators are no longer runtime owners;
 rollback is provided by Git/OSTree and the transactional theme engine.
 
 Do not use this file as a regeneration guide. Current commands and owners are
-listed in `artwork/README.md` and `docs/UNIFIED_DESIGN_AUDIT.md`.
+listed in `artwork/README.md`.
 
 ## Direction
 

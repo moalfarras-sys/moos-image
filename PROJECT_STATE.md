@@ -3232,7 +3232,7 @@ to multi-layer Liquid Glass. Design system remains **MoOS UI — Liquid Glass**.
 > diagnostic evidence only: signed CI publication, signed staging and
 > post-reboot proof remain mandatory and must not be claimed until recorded.
 
-> **Session H — the first-boot session (2026-07-17, full writeup in `docs/FIXES_2026-07-17b.md`).**
+> **Session H — the first-boot session (2026-07-17, writeup in git history, 2026-07-17).**
 > ISO `44.20260717.190` was walked end-to-end in QEMU (all green: splash+ring, DE live
 > keyboard, 9-page installer, moving progress bar, offline install, target first boot on
 > Vienna time) and the walkthrough caught two shipped bugs no gate had seen: (1) the zram
@@ -3245,7 +3245,7 @@ to multi-layer Liquid Glass. Design system remains **MoOS UI — Liquid Glass**.
 > gates broken-once and watched go red. Forensics trick that cracked it: power the VM off,
 > guestfish the journal out of the target disk, read it with `journalctl --directory`.
 
-> **Session G — the polish session (2026-07-17, full writeup in `docs/FIXES_2026-07-17.md`).**
+> **Session G — the polish session (2026-07-17, writeup in git history, 2026-07-17).**
 > Wallpapers v2: the four family themes now carry LIT-SILK art (crest-lit bands, aurora
 > veil, screen-blended neon edges — make_wallpaper rewritten; Canva retried, account AI
 > quota still hard-blocked). A new pre-baked `ring.png` comet-ring sprite orbits the emblem
@@ -3258,7 +3258,7 @@ to multi-layer Liquid Glass. Design system remains **MoOS UI — Liquid Glass**.
 > breathes; panel clock glints on hover. Gates extended (heroclock completeness + the
 > always-on shader ban loop), both watched go red.
 
-> **Session F — the brand session (2026-07-16, full writeup in `docs/FIXES_2026-07-16c.md`).**
+> **Session F — the brand session (2026-07-16, writeup in git history, 2026-07-16).**
 > The owner's vector logo landed (`artwork/logo/`) and the animated MoOS brand now lives on
 > every doorway surface: the login scene is `org.moos.ui2.greeter` (a Plasma/Wallpaper package
 > the greeter's wallpaper process loads — the greeter QML itself is compiled into the binary),
@@ -3382,7 +3382,7 @@ to multi-layer Liquid Glass. Design system remains **MoOS UI — Liquid Glass**.
 
 > **Update 2026-07-30 (ship-readiness milestone) — the adversarially-verified desktop audit
 > and its fixes.** Full handoff with root causes, measurements, rejected approaches, design
-> decisions and the deferred-work plan: **`docs/SESSION_HANDOFF_2026-07-29.md`** (13 commits,
+> decisions and the deferred-work plan: the 2026-07-29 session handoff (13 commits, git history;
 > `0124a6d..24a2126`+docs). At handoff the dev machine still BOOTS 44.20260729.452
 > (digest ff45fe58…) — every fix below lands at the next update+reboot; the milestone CI is
 > run 30497407799. A 16-agent audit swept every desktop surface (windows, session screens,
@@ -3449,7 +3449,7 @@ to multi-layer Liquid Glass. Design system remains **MoOS UI — Liquid Glass**.
 >   live dark-variant path).
 >
 > **Update 2026-07-16 (session C) — read this before touching themes, the keyboard, or Mo Remote.**
-> Full writeup in `docs/FIXES_2026-07-16.md`. Four things landed and are on `main`:
+> Full writeup in git history (2026-07-16). Four things landed and are on `main`:
 >
 > 1. **Theme FAMILY.** MoOS is no longer "ONE look" — it is a **family** on the single UI2
 >    engine. Graphite (dark) + Tidal (light) stay the base; four palette-driven members were

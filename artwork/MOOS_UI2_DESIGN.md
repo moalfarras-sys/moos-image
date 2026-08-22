@@ -429,7 +429,7 @@ is a place where the desktop is UI2 and the thing sitting on it is not.
 ## Decisions 2026-07-30 — material, maximized bar, typography, motion cost
 
 Recorded during the ship-readiness milestone; full evidence in
-`docs/SESSION_HANDOFF_2026-07-29.md` (§2 rejected approaches, §3 decisions).
+the 2026-07-29 session notes in git history (rejected approaches, decisions).
 
 - **Material hierarchy.** PERSISTENT surfaces (window frames/titlebars) are
   SOLID; Liquid Glass belongs to TRANSIENT shell surfaces (dock, popups,

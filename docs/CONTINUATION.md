@@ -743,7 +743,7 @@ remain release gates at this commit.
 ## 2026-08-08 — one design core, one transactional theme owner
 
 The complete ownership map and before/after findings are in
-`docs/UNIFIED_DESIGN_AUDIT.md`. The short handoff is:
+the 2026-08-09 unified design audit (git history). The short handoff is:
 
 - `artwork/moos-design/tokens.json` and `theme-profiles.json` are the two source
   files; generators produce the installed `org.moos.ui` module and the
