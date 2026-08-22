@@ -76,6 +76,21 @@ def main() -> None:
         )
         require(result.returncode == 0, f"required aarch64 package is absent: {package}")
 
+    # Real-root udevd is ordered after systemd-hwdb-update. The RPM-generated
+    # database under /etc forced a 14 MB rebuild on every clean deployment and,
+    # under the release gate's TCG boot, /boot and /boot/efi timed out before
+    # their UUID links were recreated. The immutable compiled database belongs
+    # in /usr; /etc remains available only for later machine-local overrides.
+    usr_hwdb = ROOT / "usr/lib/udev/hwdb.bin"
+    etc_hwdb = ROOT / "etc/udev/hwdb.bin"
+    require(usr_hwdb.is_file() and usr_hwdb.stat().st_size > 1_000_000,
+            "immutable compiled hardware database is missing from /usr")
+    require(not etc_hwdb.exists(),
+            "package-generated /etc hardware database would block udevd at boot")
+    etc_hwdb_sources = ROOT / "etc/udev/hwdb.d"
+    require(not etc_hwdb_sources.exists() or not any(etc_hwdb_sources.iterdir()),
+            "image-owned hwdb overrides under /etc would force a boot-time rebuild")
+
     # Fedora 44 folded plasma-workspace-wayland into plasma-workspace. The
     # binary is the proof the session can actually start on Wayland.
     require((ROOT / "usr/bin/startplasma-wayland").is_file(),

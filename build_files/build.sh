@@ -3495,6 +3495,14 @@ if [ -x /usr/bin/g++ ] || [ -x /usr/bin/gcc ] || rpm -q gcc-c++ >/dev/null 2>&1;
 fi
 echo "=== no C++ compiler ships in this image ==="
 
+# Package transactions generate /etc/udev/hwdb.bin, but a bootc image's
+# authoritative hardware database is immutable content. Leaving that package
+# artifact in /etc makes systemd-hwdb-update block real-root udevd on every
+# deployment; ARM/TCG proved the delay can expire the /boot device units.
+# Run after the final dnf transaction so no package can put the mutable copy
+# back. The finished-image gate below proves this remains true.
+bash /ctx/compile_system_hwdb.sh
+
 # -----------------------------------------------------------------------------
 # (e) Cleanup — required for `bootc container lint` to pass
 # -----------------------------------------------------------------------------

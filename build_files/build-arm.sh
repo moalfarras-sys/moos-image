@@ -744,6 +744,13 @@ PYSEC
 # (9) Rebuild the initramfs so the splash and the virtio drivers are in it
 # -----------------------------------------------------------------------------
 echo "=== (9) initramfs ==="
+# Fedora's package transaction writes the compiled hwdb into /etc. On a fresh
+# bootc deployment /etc is newer than the image and systemd rebuilds that 14 MB
+# database before it starts real-root udevd. The ARM release proof measured the
+# consequence under TCG: /boot, /boot/efi and ttyAMA0 device units expired while
+# udevd was still blocked. Compile the immutable database into /usr once here;
+# local administrator overrides still re-enable the upstream update service.
+bash /ctx/compile_system_hwdb.sh
 kver="$(rpm -q --qf '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-core | tail -1)"
 [ -n "${kver}" ] || { echo "FATAL: no kernel-core in the image"; exit 1; }
 # bootc keeps /root as a symlink to mutable /var/roothome, while an image build

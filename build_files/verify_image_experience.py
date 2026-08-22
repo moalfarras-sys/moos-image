@@ -46,6 +46,20 @@ def require(ok: bool, message: str) -> None:
         errors.append(message)
 
 
+# A clean immutable image must not rebuild the 14 MB hardware database before
+# real-root udevd can recreate device links. This gate intentionally reads the
+# finished image: source wiring alone did not catch the ARM /boot timeout.
+_usr_hwdb = Path("/usr/lib/udev/hwdb.bin")
+_etc_hwdb = Path("/etc/udev/hwdb.bin")
+require(_usr_hwdb.is_file() and _usr_hwdb.stat().st_size > 1_000_000,
+        "immutable compiled hardware database is missing from /usr")
+require(not _etc_hwdb.exists(),
+        "package-generated /etc hardware database would block udevd at boot")
+_etc_hwdb_sources = Path("/etc/udev/hwdb.d")
+require(not _etc_hwdb_sources.exists() or not any(_etc_hwdb_sources.iterdir()),
+        "image-owned hwdb overrides under /etc would force a boot-time rebuild")
+
+
 # The pointer must READ against the canvas it is drawn on, measured from pixels.
 #
 # `tests/verify_user_experience.py` already requires the two UI2 halves to name

@@ -24,7 +24,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CONTAINERFILE = ROOT / "Containerfile.arm"
 BUILD = ROOT / "build_files/build-arm.sh"
+X86_BUILD = ROOT / "build_files/build.sh"
 ARM_VERIFY = ROOT / "build_files/verify_arm_image.py"
+IMAGE_VERIFY = ROOT / "build_files/verify_image_experience.py"
+HWDB_COMPILE = ROOT / "build_files/compile_system_hwdb.sh"
 WORKFLOW = ROOT / ".github/workflows/build-arm.yml"
 DOCS = ROOT / "docs/MOOS_ARM_ORACLE.md"
 RUNTIME_GATE = ROOT / "tests/verify_arm_runtime.sh"
@@ -80,7 +83,8 @@ def build_only(text: str) -> str:
 class ArmEditionTests(unittest.TestCase):
     def test_the_pieces_exist(self) -> None:
         for p in (
-            CONTAINERFILE, BUILD, ARM_VERIFY, WORKFLOW, DOCS,
+            CONTAINERFILE, BUILD, X86_BUILD, ARM_VERIFY, IMAGE_VERIFY,
+            HWDB_COMPILE, WORKFLOW, DOCS,
             RUNTIME_GATE, BOOT_GATE,
         ):
             self.assertTrue(p.is_file(), f"{p.relative_to(ROOT)} is missing")
@@ -117,6 +121,23 @@ class ArmEditionTests(unittest.TestCase):
                       "RPMs are installed after the first COPY system_files; without a "
                       "pristine final overlay, package transaction order can silently "
                       "replace the MoOS session, greeter, or theme")
+
+    def test_clean_boot_does_not_rebuild_hwdb_before_udevd(self) -> None:
+        helper = code(read(HWDB_COMPILE))
+        self.assertIn("systemd-hwdb --usr update", helper)
+        self.assertIn("rm -f /etc/udev/hwdb.bin", helper)
+        self.assertIn("systemd-hwdb query", helper,
+                      "the compiled hwdb must be queried, not trusted by file size")
+        for build in (BUILD, X86_BUILD):
+            self.assertIn(
+                "bash /ctx/compile_system_hwdb.sh",
+                code(read(build)),
+                f"{build.name} does not move the compiled hardware database into /usr",
+            )
+        for gate in (ARM_VERIFY, IMAGE_VERIFY):
+            gate_text = code(read(gate))
+            self.assertIn("usr/lib/udev/hwdb.bin", gate_text)
+            self.assertIn("etc/udev/hwdb.bin", gate_text)
 
     def test_the_curated_desktop_uses_fedora_44_package_names(self) -> None:
         text = code(read(BUILD))
