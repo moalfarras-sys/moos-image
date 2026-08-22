@@ -625,7 +625,10 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
     def test_live_iso_waits_for_desktop_after_early_qga_start(self) -> None:
         script = (ROOT / "tests" / "boot_live_iso.sh").read_text(encoding="utf-8")
         self.assertIn("for _ in $(seq 1 120)", script)
+        self.assertIn("stable_samples=$((stable_samples + 1))", script)
+        self.assertIn('[ "$stable_samples" -ge 6 ]', script)
         self.assertIn("desktop_ready=1", script)
+        self.assertIn("live-runtime-gate=%s", script)
         self.assertIn("deadline = time.monotonic() + 720", script)
         self.assertLess(script.index("desktop_ready=0"), script.index("[ \"$desktop_ready\" -eq 1 ]"))
 

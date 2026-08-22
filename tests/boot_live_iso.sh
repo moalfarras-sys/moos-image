@@ -146,27 +146,35 @@ grep -qw rd.live.image /proc/cmdline
 # Wait for the real live desktop instead of turning that expected ordering into
 # a false release failure. The assertions below are intentionally unchanged.
 desktop_ready=0
+stable_samples=0
 for _ in $(seq 1 120); do
     if systemctl is-active --quiet graphical.target display-manager.service NetworkManager.service \
         && pgrep -u liveuser -x kwin_wayland >/dev/null \
         && pgrep -u liveuser -x plasmashell >/dev/null; then
-        desktop_ready=1
-        break
+        stable_samples=$((stable_samples + 1))
+        if [ "$stable_samples" -ge 6 ]; then
+            desktop_ready=1
+            break
+        fi
+    else
+        stable_samples=0
     fi
     sleep 5
 done
-[ "$desktop_ready" -eq 1 ]
-systemctl is-active graphical.target display-manager.service NetworkManager.service
-getent passwd liveuser
-pgrep -u liveuser -x kwin_wayland
-pgrep -u liveuser -x plasmashell
-test -x /usr/bin/moos-installer
+gate_fail() { printf 'live-runtime-gate=%s\n' "$1" >&2; return 1; }
+[ "$desktop_ready" -eq 1 ] || gate_fail stable-desktop
+systemctl is-active --quiet graphical.target display-manager.service NetworkManager.service \
+    || gate_fail required-system-service
+getent passwd liveuser >/dev/null || gate_fail live-user
+pgrep -u liveuser -x kwin_wayland >/dev/null || gate_fail live-kwin
+pgrep -u liveuser -x plasmashell >/dev/null || gate_fail live-plasmashell
+test -x /usr/bin/moos-installer || gate_fail installer-launcher
 offline_ref="$(tr -d '\r\n' < /usr/lib/moos/install-imageref)"
-podman image exists "$offline_ref"
+podman image exists "$offline_ref" || gate_fail offline-image-store
 source_digest="$(tr -d '\r\n' < /usr/lib/moos/install-source-digest)"
-[ "$source_digest" = "${expected##*@}" ]
+[ "$source_digest" = "${expected##*@}" ] || gate_fail offline-source-digest
 failed="$(systemctl --failed --no-legend --plain)"
-[ -z "$failed" ]
+[ -z "$failed" ] || { printf 'failed units:\n%s\n' "$failed" >&2; gate_fail failed-system-unit; }
 printf 'boot=live\nidentity=%s\narch=%s\ngraphical=active\ndisplay-manager=active\nnetwork=active\nuser=liveuser\nkwin=active\nplasmashell=active\ninstaller=present\noffline-ref=%s\noffline-digest=%s\nfailed-units=0\n' \
     "$PRETTY_NAME" "$(uname -m)" "$offline_ref" "$source_digest"
 '''
