@@ -4,7 +4,8 @@
 # from three earlier runs of the exact same revision:
 #   build.yml      -> signed moos/moos-nvidia/moos-cloud candidate digests
 #   build-disk.yml -> sealed QCOW2, UEFI boot, reboot, clean poweroff
-#   build-iso.yml  -> final byte-identical ISO, live desktop, offline image
+#   build-iso.yml  -> final byte-identical ISO, LiveOS, offline install, login,
+#                     app smoke, reboot and clean poweroff
 # Production tags remain on the previous release unless every proof matches.
 name: Promote boot-proven MoOS x86 release
 
@@ -87,7 +88,7 @@ jobs:
       - name: Download immutable candidate and boot evidence
         run: |
           set -euo pipefail
-          mkdir -p proof/build proof/disk proof/iso
+          mkdir -p proof/build proof/disk proof/iso proof/iso-install
           for image in moos moos-nvidia moos-cloud; do
             gh run download "$BUILD_RUN_ID" \
               --repo "$GITHUB_REPOSITORY" \
@@ -98,6 +99,8 @@ jobs:
             --name moos-x86-qcow2-boot-proof --dir proof/disk
           gh run download "$ISO_RUN_ID" --repo "$GITHUB_REPOSITORY" \
             --name moos-live-iso-boot-proof --dir proof/iso
+          gh run download "$ISO_RUN_ID" --repo "$GITHUB_REPOSITORY" \
+            --name moos-iso-install-proof --dir proof/iso-install
 
       - name: Validate candidate manifests and artifact runtime proof
         id: release
@@ -139,6 +142,28 @@ jobs:
           grep -Fx "offline-digest=${generic_ref##*@}" proof/iso/runtime.txt
           grep -Fx 'boot=live' proof/iso/runtime.txt
           grep -Fx 'shutdown=clean' proof/iso/runtime.txt
+
+          # A live desktop is not an installer proof. Require the same ISO run
+          # to have consumed its embedded image with networking disabled, booted
+          # the target with the CD detached, logged in through PLM, opened real
+          # applications, rebooted to a new kernel boot and powered off cleanly.
+          grep -Fx "image=${generic_ref}" proof/iso-install/manifest.txt
+          grep -Fx 'install=done' proof/iso-install/install.status
+          grep -Fx 'source=embedded-offline' proof/iso-install/install.status
+          grep -Fx 'network=disabled' proof/iso-install/install.status
+          grep -Fx 'DONE' proof/iso-install/installer-status.raw
+          grep -Fq 'source: local containers-storage (offline)' proof/iso-install/installer.log
+          grep -Fx "origin=${generic_ref}" proof/iso-install/installed-first-boot.txt
+          grep -Fx 'login=plasma-login-manager' proof/iso-install/desktop-session.txt
+          grep -Fx 'desktop=usable' proof/iso-install/desktop-session.txt
+          grep -Fx 'dolphin=opened' proof/iso-install/app-smoke.txt
+          grep -Fx 'moos-settings=opened' proof/iso-install/app-smoke.txt
+          grep -Fx "origin=${generic_ref}" proof/iso-install/installed-second-boot.txt
+          grep -Fx 'reboot=clean' proof/iso-install/installed-second-boot.txt
+          grep -Fx 'second-boot=healthy' proof/iso-install/installed-second-boot.txt
+          grep -Fx 'poweroff=clean' proof/iso-install/installed-second-boot.txt
+          test -s proof/iso-install/installed-login.png
+          test -s proof/iso-install/installed-desktop-apps.png
 
       - name: Install promotion tools
         run: |

@@ -42,6 +42,7 @@ class ReleaseWorkflowSafetyTests(unittest.TestCase):
             ROOT / "build_files" / "seal_release_qcow2.sh",
             ROOT / "build_files" / "seal_x86_qcow2.sh",
             ROOT / "tests" / "boot_live_iso.sh",
+            ROOT / "tests" / "install_live_iso.sh",
             X86_BOOT,
         ):
             self.assertTrue(
@@ -130,9 +131,14 @@ class ReleaseWorkflowSafetyTests(unittest.TestCase):
             ".run_attempt == 1",
             "moos-x86-qcow2-boot-proof",
             "moos-live-iso-boot-proof",
+            "moos-iso-install-proof",
             'candidate-${BUILD_RUN_ID}-${REVISION:0:12}',
             'origin=ostree-image-signed:docker://${generic_ref}',
             'offline-digest=${generic_ref##*@}',
+            "source=embedded-offline",
+            "login=plasma-login-manager",
+            "dolphin=opened",
+            "second-boot=healthy",
             "skopeo copy --preserve-digests",
             'promote_tag "$ref" "$DATE_TAG"',
             'promote_tag "$ref" latest',
@@ -295,6 +301,7 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
             generic = f"ghcr.io/example/moos@{digest}"
             (proof / "disk").mkdir()
             (proof / "iso").mkdir()
+            (proof / "iso-install").mkdir()
             (proof / "disk" / "manifest.txt").write_text(
                 f"image={generic}\n", encoding="utf-8"
             )
@@ -313,6 +320,35 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
                 f"offline-digest={digest}\nboot=live\nshutdown=clean\n",
                 encoding="utf-8",
             )
+            iso_install = proof / "iso-install"
+            (iso_install / "manifest.txt").write_text(
+                f"image={generic}\n", encoding="utf-8"
+            )
+            (iso_install / "install.status").write_text(
+                "install=done\nsource=embedded-offline\nnetwork=disabled\n",
+                encoding="utf-8",
+            )
+            (iso_install / "installer-status.raw").write_text(
+                "PROGRESS 100\nDONE\n", encoding="utf-8"
+            )
+            (iso_install / "installer.log").write_text(
+                "source: local containers-storage (offline)\n", encoding="utf-8"
+            )
+            (iso_install / "installed-first-boot.txt").write_text(
+                f"origin={generic}\n", encoding="utf-8"
+            )
+            (iso_install / "desktop-session.txt").write_text(
+                "login=plasma-login-manager\ndesktop=usable\n", encoding="utf-8"
+            )
+            (iso_install / "app-smoke.txt").write_text(
+                "dolphin=opened\nmoos-settings=opened\n", encoding="utf-8"
+            )
+            (iso_install / "installed-second-boot.txt").write_text(
+                f"origin={generic}\nreboot=clean\nsecond-boot=healthy\npoweroff=clean\n",
+                encoding="utf-8",
+            )
+            (iso_install / "installed-login.png").write_bytes(b"not-empty")
+            (iso_install / "installed-desktop-apps.png").write_bytes(b"not-empty")
             output = temp_path / "github-output"
             env.update(
                 GITHUB_REPOSITORY_OWNER="Example",
@@ -344,6 +380,23 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
                 text=True,
             )
             self.assertNotEqual(mismatch.returncode, 0)
+
+            iso_runtime.write_text(
+                f"offline-digest={digest}\nboot=live\nshutdown=clean\n",
+                encoding="utf-8",
+            )
+            (iso_install / "app-smoke.txt").write_text(
+                "dolphin=opened\n", encoding="utf-8"
+            )
+            missing_app = subprocess.run(
+                ["/usr/bin/bash", "-eu", "-o", "pipefail", "-c", evidence_validator],
+                check=False,
+                cwd=temp_path,
+                env=env,
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotEqual(missing_app.returncode, 0)
 
     def test_release_timeout_covers_measured_final_commit_io_but_stays_bounded(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
