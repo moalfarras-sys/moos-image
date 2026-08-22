@@ -50,6 +50,12 @@ class ReleaseWorkflowSafetyTests(unittest.TestCase):
                 f"release workflow invokes a non-executable helper: {path}",
             )
 
+    def test_disk_proofs_for_different_editions_do_not_cancel_each_other(self) -> None:
+        text = DISK_WORKFLOW.read_text(encoding="utf-8")
+        concurrency = text.split("concurrency:", 1)[1].split("\njobs:", 1)[0]
+        self.assertIn("inputs['image-ref']", concurrency)
+        self.assertIn("cancel-in-progress: true", concurrency)
+
     def test_heavy_sbom_scan_stays_out_of_image_release_jobs(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
         forbidden = ("anchore/sbom-action", "syft scan", "cosign attest")

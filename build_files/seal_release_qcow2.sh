@@ -60,9 +60,6 @@ trap cleanup EXIT INT TERM
 
 qemu-nbd --connect="$nbd" "$qcow"
 connected=1
-efi="${nbd}p1"
-boot="${nbd}p2"
-root="${nbd}p3"
 # udevadm settle alone does NOT prove the partition scan produced device
 # nodes: on a runner still digesting the disk-builder's I/O, settle can
 # return while the partition probe is still pending, and the 2026-08-21
@@ -70,26 +67,33 @@ root="${nbd}p3"
 # all three partitions. Ask the kernel for the nodes, then wait for them.
 udevadm trigger --settle "$nbd" 2>/dev/null || udevadm trigger "$nbd" 2>/dev/null || true
 for _ in $(seq 1 30); do
-    [ -b "$efi" ] && [ -b "$boot" ] && [ -b "$root" ] && break
+    partition_count="$(lsblk -rpn -o TYPE "$nbd" 2>/dev/null | grep -c '^part$' || true)"
+    [ "$partition_count" -ge 3 ] && break
     udevadm settle 2>/dev/null || true
     partprobe "$nbd" >/dev/null 2>&1 || blockdev --rereadpt "$nbd" >/dev/null 2>&1 || true
     sleep 1
 done
+[ "$partition_count" -ge 3 ] || {
+    echo "MOOS DISK FATAL: partition scan found only $partition_count partitions on $nbd" >&2
+    exit 1
+}
+udevadm settle 2>/dev/null || true
+layout_json="$(lsblk --json --paths --output NAME,TYPE,FSTYPE "$nbd")"
+roles_output="$(printf '%s\n' "$layout_json" | python3 "$script_dir/resolve_release_partitions.py" --nbd "$nbd")" || exit 1
+mapfile -t release_partitions <<< "$roles_output"
+[ "${#release_partitions[@]}" -eq 3 ] || {
+    echo "MOOS DISK FATAL: partition resolver returned an invalid result" >&2
+    exit 1
+}
+efi="${release_partitions[0]}"
+boot="${release_partitions[1]}"
+root="${release_partitions[2]}"
 for partition in "$efi" "$boot" "$root"; do
     [ -b "$partition" ] || {
-        echo "MOOS DISK FATAL: expected partition is missing: $partition" >&2
+        echo "MOOS DISK FATAL: resolved partition is missing: $partition" >&2
         exit 1
     }
 done
-[ "$(blkid -o value -s TYPE "$efi")" = "vfat" ] || {
-    echo "MOOS DISK FATAL: partition 1 is not the EFI filesystem" >&2; exit 1;
-}
-[ "$(blkid -o value -s TYPE "$boot")" = "ext4" ] || {
-    echo "MOOS DISK FATAL: partition 2 is not the boot filesystem" >&2; exit 1;
-}
-[ "$(blkid -o value -s TYPE "$root")" = "btrfs" ] || {
-    echo "MOOS DISK FATAL: partition 3 is not the btrfs sysroot" >&2; exit 1;
-}
 
 mount -o subvol=root "$root" "$mount_root"
 mount "$boot" "$mount_boot"

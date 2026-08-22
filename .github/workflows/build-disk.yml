@@ -31,7 +31,9 @@ permissions:
 # bootc-image-builder jobs sharing /var/lib/containers/storage is asking for a
 # corrupt build.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # Each edition has independent storage on its hosted runner. Keep duplicate
+  # proofs for the same ref serialized without cancelling the other editions.
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs['image-ref'] || 'scheduled-generic' }}
   cancel-in-progress: true
 
 jobs:
@@ -52,6 +54,7 @@ jobs:
           bash -n build_files/seal_release_qcow2.sh
           bash -n tests/boot_x86_qcow2.sh
           python3 tests/test_release_workflow_safety.py
+          python3 tests/test_release_partition_roles.py
           python3 tests/test_seal_arm_deployment.py
 
       - name: Free disk space
