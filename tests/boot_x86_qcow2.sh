@@ -1,22 +1,30 @@
 #!/usr/bin/env bash
 # Boot the exact x86 QCOW2 release through UEFI on a disposable overlay, prove
-# the installed MoOS runtime through QGA, reboot it, and power it off cleanly.
+# the installed MoOS runtime through ephemeral-key SSH, reboot it through QGA,
+# and power it off cleanly. QGA is intentionally not a runtime authority: its
+# service mount namespace may not expose the booted OSTree userspace.
 set -euo pipefail
 
-if [ "$#" -lt 2 ] || [ "$#" -gt 3 ]; then
-    echo "usage: $0 IMAGE.qcow2 ghcr.io/moalfarras-sys/<edition>@sha256:... [EVIDENCE_DIR]" >&2
+if [ "$#" -lt 3 ] || [ "$#" -gt 4 ]; then
+    echo "usage: $0 IMAGE.qcow2 ghcr.io/moalfarras-sys/<edition>@sha256:... EVIDENCE_DIR [SSH_PRIVATE_KEY]" >&2
     exit 2
 fi
 
 qcow="$(realpath "$1")"
 expected_ref="$2"
 evidence="$(realpath -m "${3:-x86-qcow2-boot-proof}")"
+ssh_key="$(realpath "${4:-${MOOS_X86_SSH_KEY:-}}" 2>/dev/null || true)"
 [[ "$expected_ref" =~ ^ghcr\.io/moalfarras-sys/(moos|moos-nvidia|moos-cloud)@sha256:[0-9a-f]{64}$ ]] || {
     echo "X86 QCOW2 FATAL: expected image is not an exact official desktop digest" >&2
     exit 2
 }
 [ -f "$qcow" ] || { echo "X86 QCOW2 FATAL: missing QCOW2: $qcow" >&2; exit 2; }
-for tool in qemu-img qemu-system-x86_64 sha256sum python3; do
+[ -f "$ssh_key" ] || { echo "X86 QCOW2 FATAL: missing CI SSH private key" >&2; exit 2; }
+[ "$(stat -c '%a' "$ssh_key")" = 600 ] || {
+    echo "X86 QCOW2 FATAL: CI SSH private key must have mode 0600" >&2
+    exit 2
+}
+for tool in qemu-img qemu-system-x86_64 sha256sum python3 ssh; do
     command -v "$tool" >/dev/null || {
         echo "X86 QCOW2 FATAL: required host tool is missing: $tool" >&2
         exit 2
@@ -78,6 +86,16 @@ printf 'qcow2=%s\nsha256=%s\nimage=%s\novmf=%s\n' \
 qemu-img create -q -f qcow2 -F qcow2 -b "$qcow" "$work/overlay.qcow2"
 cp "$ovmf_vars" "$work/vars.fd"
 
+# Reserve a loopback port only long enough to choose it. Each Actions job has a
+# dedicated runner; QEMU's bind below is therefore the sole subsequent owner.
+ssh_port="$(python3 - <<'PY'
+import socket
+with socket.socket() as sock:
+    sock.bind(("127.0.0.1", 0))
+    print(sock.getsockname()[1])
+PY
+)"
+
 qga="$work/qga.sock"
 monitor="$work/monitor.sock"
 qemu-system-x86_64 \
@@ -86,7 +104,8 @@ qemu-system-x86_64 \
     -drive "if=pflash,format=raw,file=$work/vars.fd" \
     -drive "file=$work/overlay.qcow2,format=qcow2,if=virtio,cache=unsafe" \
     -device virtio-gpu-pci \
-    -netdev user,id=n0 -device virtio-net-pci,netdev=n0 \
+    -netdev "user,id=n0,hostfwd=tcp:127.0.0.1:${ssh_port}-:22" \
+    -device virtio-net-pci,netdev=n0 \
     -device virtio-serial-pci \
     -chardev "socket,path=$qga,server=on,wait=off,id=qga0" \
     -device virtserialport,chardev=qga0,name=org.qemu.guest_agent.0 \
@@ -95,17 +114,19 @@ qemu-system-x86_64 \
     -display none >"$evidence/qemu.log" 2>&1 &
 qemu_pid=$!
 
-python3 - "$qga" "$monitor" "$qemu_pid" "$expected_ref" "$evidence" <<'PY'
-import base64
+python3 - "$qga" "$monitor" "$qemu_pid" "$expected_ref" "$evidence" \
+    "$ssh_key" "$ssh_port" <<'PY'
 import json
 import os
 from pathlib import Path
 import socket
+import subprocess
 import sys
 import time
 
 qga, monitor = sys.argv[1], sys.argv[2]
 qemu_pid, expected, evidence = int(sys.argv[3]), sys.argv[4], Path(sys.argv[5])
+ssh_key, ssh_port = sys.argv[6], sys.argv[7]
 sync_serial = 0
 
 
@@ -187,34 +208,39 @@ def assert_qga_contract():
         for item in info.get("supported_commands", [])
         if isinstance(item, dict)
     }
-    for required in ("guest-exec", "guest-exec-status", "guest-shutdown"):
+    for required in ("guest-shutdown",):
         if commands.get(required) is not True:
             raise RuntimeError(f"QGA command is unavailable: {required}")
 
 
-def guest_exec(script, args=(), timeout=180):
-    started = request({
-        "execute": "guest-exec",
-        "arguments": {
-            "path": "/usr/bin/bash",
-            "arg": ["-lc", script, "--", *args],
-            "capture-output": True,
-        },
-    })
-    pid = started["pid"]
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        status = request({"execute": "guest-exec-status", "arguments": {"pid": pid}})
-        if status.get("exited"):
-            stdout = base64.b64decode(status.get("out-data", "")).decode(errors="replace")
-            stderr = base64.b64decode(status.get("err-data", "")).decode(errors="replace")
-            if status.get("exitcode") != 0:
-                raise RuntimeError(
-                    f"runtime gate exited {status.get('exitcode')}: {stderr or stdout}"
-                )
-            return stdout, stderr
-        time.sleep(2)
-    raise RuntimeError("guest command timed out")
+def ssh_exec(script, args=(), timeout=180):
+    command = [
+        "ssh",
+        "-i", ssh_key,
+        "-p", ssh_port,
+        "-o", "BatchMode=yes",
+        "-o", "IdentitiesOnly=yes",
+        "-o", "StrictHostKeyChecking=no",
+        "-o", "UserKnownHostsFile=/dev/null",
+        "-o", "LogLevel=ERROR",
+        "-o", "ConnectTimeout=10",
+        "mo@127.0.0.1",
+        "/usr/bin/bash", "-s", "--", *args,
+    ]
+    completed = subprocess.run(
+        command,
+        input=script,
+        text=True,
+        capture_output=True,
+        timeout=timeout,
+        check=False,
+    )
+    if completed.returncode != 0:
+        raise RuntimeError(
+            f"SSH runtime gate exited {completed.returncode}: "
+            f"{completed.stderr or completed.stdout}"
+        )
+    return completed.stdout, completed.stderr
 
 
 def boot_id_of(output):
@@ -226,19 +252,19 @@ def boot_id_of(output):
 
 def wait_for_runtime(script, previous_id="", timeout=900):
     deadline = time.monotonic() + timeout
-    last_error = "QGA has not answered"
+    last_error = "the installed guest has not accepted the ephemeral SSH key"
     while time.monotonic() < deadline:
         if not qemu_alive():
             raise SystemExit("X86 QCOW2 FATAL: QEMU exited before the runtime gate passed")
         try:
             request({"execute": "guest-ping"})
             assert_qga_contract()
-            stdout, stderr = guest_exec(script, (expected,))
+            stdout, stderr = ssh_exec(script, (expected,))
             boot_id = boot_id_of(stdout)
             if boot_id and boot_id != previous_id:
                 return stdout, stderr, boot_id
             last_error = "guest still reports the previous boot ID"
-        except (OSError, ValueError, RuntimeError, KeyError) as error:
+        except (OSError, ValueError, RuntimeError, KeyError, subprocess.TimeoutExpired) as error:
             last_error = str(error)
         time.sleep(5)
     raise SystemExit(f"X86 QCOW2 FATAL: runtime did not become ready: {last_error}")
@@ -272,64 +298,42 @@ def screendump(path):
 runtime_gate = r'''
 set -euo pipefail
 expected="$1"
-hostroot=/proc/1/root
-system_bus="unix:path=${hostroot}/run/dbus/system_bus_socket"
-bus_data() {
-    python3 -c 'import json,sys
-value=json.load(sys.stdin).get("data", "")
-print(value[0] if isinstance(value, list) and value else value)'
-}
-manager_property() {
-    busctl --json=short --address="$system_bus" get-property \
-        org.freedesktop.systemd1 /org/freedesktop/systemd1 \
-        org.freedesktop.systemd1.Manager "$1" | bus_data
-}
-unit_property() {
-    local unit="$1" property="$2" path
-    path="$(busctl --json=short --address="$system_bus" call \
-        org.freedesktop.systemd1 /org/freedesktop/systemd1 \
-        org.freedesktop.systemd1.Manager GetUnit s "$unit" | bus_data)" || return 1
-    busctl --json=short --address="$system_bus" get-property \
-        org.freedesktop.systemd1 "$path" org.freedesktop.systemd1.Unit "$property" | bus_data
-}
 deployed_origin() {
     local origins=()
     shopt -s nullglob
-    origins=("$hostroot"/ostree/deploy/*/deploy/*.origin)
+    origins=(/ostree/deploy/*/deploy/*.origin)
     shopt -u nullglob
     [ "${#origins[@]}" -eq 1 ] || return 1
     sed -n 's/^container-image-reference=//p' "${origins[0]}"
 }
 gate_fail() {
     printf 'runtime-gate=%s\n' "$1" >&2
-    # QGA can answer before the installed userspace is ready.  Preserve a small
-    # snapshot from the *last* retry so a timed-out release proof distinguishes
-    # an early/initramfs answer from a fully booted system with a bad contract.
-    printf 'system-state=%s\n' "$(manager_property SystemState 2>/dev/null || true)" >&2
+    # Preserve a bounded snapshot from the last retry. Unlike QGA command execution,
+    # SSH executes inside the actual booted userspace and its mount namespace.
+    printf 'system-state=%s\n' "$(systemctl is-system-running 2>/dev/null || true)" >&2
     printf 'root-mount=%s\n' "$(findmnt -n -o SOURCE,FSTYPE / 2>/dev/null || true)" >&2
     printf 'booted-origin=%s\n' "$(deployed_origin 2>/dev/null || true)" >&2
     return 1
 }
-[ -S "$hostroot/run/dbus/system_bus_socket" ] || gate_fail system-bus
-. "$hostroot/etc/os-release"
+. /etc/os-release
 [ "${ID:-}" = moos ] || gate_fail identity-id
 [ "${NAME:-}" = MoOS ] || gate_fail identity-name
 [ "$(uname -m)" = x86_64 ] || gate_fail architecture
-[ -e "$hostroot/run/ostree-booted" ] || gate_fail ostree-booted
+[ -e /run/ostree-booted ] || gate_fail ostree-booted
 grep -qw rd.live.image /proc/cmdline && gate_fail unexpected-live-boot
-[ -e "$hostroot/etc/moos-firstboot-done" ] || gate_fail firstboot-stamp
+[ -e /etc/moos-firstboot-done ] || gate_fail firstboot-stamp
 for unit in graphical.target display-manager.service plasmalogin.service NetworkManager.service; do
-    [ "$(unit_property "$unit" ActiveState 2>/dev/null || true)" = active ] \
+    [ "$(systemctl show -p ActiveState --value "$unit" 2>/dev/null || true)" = active ] \
         || gate_fail "required-system-service-${unit}"
 done
-[ "$(unit_property display-manager.service Id 2>/dev/null || true)" = plasmalogin.service ] \
+[ "$(systemctl show -p Id --value display-manager.service 2>/dev/null || true)" = plasmalogin.service ] \
     || gate_fail display-manager-identity
-grep -q '^mo:' "$hostroot/etc/passwd" || gate_fail provisioned-user
-account_path="$(busctl --address="$system_bus" call org.freedesktop.Accounts \
+grep -q '^mo:' /etc/passwd || gate_fail provisioned-user
+account_path="$(busctl call org.freedesktop.Accounts \
     /org/freedesktop/Accounts org.freedesktop.Accounts FindUserByName s mo)"
 [[ "$account_path" == *"/org/freedesktop/Accounts/User"* ]] || gate_fail accounts-service-user
-compgen -G "$hostroot/dev/dri/card*" >/dev/null || gate_fail drm-device
-login_uid="$(awk -F: '$1 == "plasmalogin" {print $3}' "$hostroot/etc/passwd")"
+compgen -G "/dev/dri/card*" >/dev/null || gate_fail drm-device
+login_uid="$(awk -F: '$1 == "plasmalogin" {print $3}' /etc/passwd)"
 [ -n "$login_uid" ] || gate_fail greeter-user
 pgrep -u "$login_uid" -x kwin_wayland >/dev/null || gate_fail greeter-kwin
 ipv4="$(ip -4 -o addr show scope global)"
@@ -337,13 +341,13 @@ ipv4="$(ip -4 -o addr show scope global)"
 routes="$(ip -4 route show default)"
 [[ "$routes" == default\ * ]] || gate_fail network-default-route
 for helper in moos-settings moos-update moos-rollback moos-store moai moplayer mo-pc-remote; do
-    [ -x "$hostroot/usr/bin/$helper" ] || gate_fail "missing-command-${helper}"
+    [ -x "/usr/bin/$helper" ] || gate_fail "missing-command-${helper}"
 done
 origin="$(deployed_origin || true)"
 origin_digest="${origin##*@}"
 [ "$origin" = "ostree-image-signed:docker://${expected}" ] || gate_fail signed-origin
 [ "$origin_digest" = "${expected##*@}" ] || gate_fail origin-digest
-python3 - "$hostroot/etc/containers/policy.json" <<'INNER'
+python3 - /etc/containers/policy.json <<'INNER'
 import json
 import sys
 with open(sys.argv[1], encoding='utf-8') as source:
@@ -353,8 +357,8 @@ assert len(entry) == 1 and entry[0]['type'] == 'sigstoreSigned'
 assert entry[0]['keyPath'] == '/etc/pki/containers/moos.pub'
 assert entry[0]['signedIdentity'] == {'type': 'matchRepository'}
 INNER
-[ "$(manager_property NFailedUnits 2>/dev/null || true)" = 0 ] || gate_fail failed-system-unit
-printf 'boot_id=%s\nidentity=%s\narch=%s\norigin=%s\norigin-digest=%s\ngraphical=active\ndisplay-manager=plasmalogin\ngreeter-kwin=active\ndrm=present\nnetwork=active\nqga=active\nfirst-party-commands=7\nfailed-units=0\n' \
+[ "$(systemctl show -p NFailedUnits --value 2>/dev/null || true)" = 0 ] || gate_fail failed-system-unit
+printf 'boot_id=%s\nidentity=%s\narch=%s\norigin=%s\norigin-digest=%s\ngraphical=active\ndisplay-manager=plasmalogin\ngreeter-kwin=active\ndrm=present\nnetwork=active\nssh=ephemeral-key\nqga=responsive\nfirst-party-commands=7\nfailed-units=0\n' \
     "$(cat /proc/sys/kernel/random/boot_id)" "$PRETTY_NAME" "$(uname -m)" "$origin" "$origin_digest"
 '''
 

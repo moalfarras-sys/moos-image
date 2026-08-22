@@ -521,7 +521,10 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
         self.assertIn("CI verification fixture, not an end-user login image", text)
         self.assertIn("name: moos-ci-verified-disk-qcow2", text)
         seal = 'sudo build_files/seal_x86_qcow2.sh "$qcow" "$expected"'
-        boot = 'tests/boot_x86_qcow2.sh "$MOOS_X86_QCOW" "$EXPECTED_IMAGE" "$EVIDENCE_DIR"'
+        boot = (
+            'tests/boot_x86_qcow2.sh \\\n'
+            '            "$MOOS_X86_QCOW" "$EXPECTED_IMAGE" "$EVIDENCE_DIR" "$MOOS_X86_SSH_KEY"'
+        )
         self.assertIn(seal, text)
         self.assertIn(boot, text)
         self.assertLess(text.index(seal), text.index(boot))
@@ -544,6 +547,10 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
             "/dev/dri/card*",
             "origin-digest",
             "guest-sync-delimited",
+            "hostfwd=tcp:127.0.0.1:",
+            '"BatchMode=yes"',
+            '"IdentitiesOnly=yes"',
+            "ssh=ephemeral-key",
             'send_shutdown("reboot")',
             'send_shutdown("powerdown")',
             "graphical-first-boot.ppm",
@@ -552,6 +559,7 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
         ):
             self.assertIn(proof, script, f"x86 QCOW2 gate lost proof: {proof}")
         self.assertNotIn("-no-reboot", script)
+        self.assertNotIn("guest-exec", script)
         evidence = text.split("- name: Upload x86 QCOW2 boot evidence", 1)[1].split(
             "      - name:", 1
         )[0]
@@ -624,10 +632,22 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
         self.assertIn("system-state=%s", script)
         self.assertIn("root-mount=%s", script)
         self.assertIn("booted-origin=", script)
-        self.assertIn("hostroot=/proc/1/root", script)
-        self.assertIn('busctl --json=short --address="$system_bus"', script)
-        self.assertIn('[ -e "$hostroot/run/ostree-booted" ]', script)
-        self.assertIn("manager_property NFailedUnits", script)
+
+    def test_disk_runtime_proof_uses_only_ephemeral_ssh_credentials(self) -> None:
+        workflow = DISK_WORKFLOW.read_text(encoding="utf-8")
+        config = (ROOT / "bib/config.toml").read_text(encoding="utf-8")
+        script = X86_BOOT.read_text(encoding="utf-8")
+        self.assertIn('__MOOS_CI_SSH_PUBLIC_KEY__', config)
+        self.assertIn('enabled = ["sshd"]', config)
+        self.assertIn('enabled = ["ssh"]', config)
+        self.assertIn("ssh-keygen -q -t ed25519", workflow)
+        self.assertIn("moos-ci-runtime-key", workflow)
+        self.assertIn("rm -f --", workflow)
+        self.assertIn("MOOS_X86_SSH_KEY", workflow)
+        self.assertIn("StrictHostKeyChecking=no", script)
+        self.assertIn("UserKnownHostsFile=/dev/null", script)
+        self.assertNotIn("/proc/1/root", script)
+        self.assertNotIn("guest-exec-status", script)
 
     def test_live_iso_waits_for_desktop_after_early_qga_start(self) -> None:
         script = (ROOT / "tests" / "boot_live_iso.sh").read_text(encoding="utf-8")

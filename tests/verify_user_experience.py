@@ -5832,11 +5832,14 @@ require(_m is not None and int(_m.group(1)) >= 150,
 # The published qcow2 is a downloadable disk, so it must never contain a
 # repository-known credential. CI substitutes a random value in a private temp file.
 _bib = read("bib/config.toml")
-require("__MOOS_CI_RANDOM_PASSWORD__" in _bib and "moostest2026" not in _bib,
-        "bib/config.toml must contain only the CI-random password placeholder")
+require("__MOOS_CI_RANDOM_PASSWORD__" in _bib
+        and "__MOOS_CI_SSH_PUBLIC_KEY__" in _bib
+        and "moostest2026" not in _bib,
+        "bib/config.toml must contain only CI-random credential placeholders")
 require("openssl rand -hex" in disk_workflow
+        and "ssh-keygen -q -t ed25519" in disk_workflow
         and "/tmp/moos-bib-config.toml:/config.toml:ro" in disk_workflow,
-        "build-disk.yml must inject a fresh private password before publishing qcow2")
+        "build-disk.yml must inject fresh disposable credentials before publishing qcow2")
 
 # Welcome is the one live-session landing surface, hands off to the unique
 # installer without leaving two wizard windows stacked, and returns once on the

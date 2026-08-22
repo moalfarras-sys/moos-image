@@ -11,4 +11,15 @@
 [[customizations.user]]
 name = "mo"
 password = "__MOOS_CI_RANDOM_PASSWORD__"
+key = "__MOOS_CI_SSH_PUBLIC_KEY__"
 groups = ["wheel"]
+
+# This is a CI verification fixture, not the networking policy shipped by the
+# MoOS OCI image.  SSH is enabled only on the disposable disk so the release
+# gate observes the real installed userspace instead of qemu-guest-agent's
+# restricted mount namespace.  CI discards the private key after the proof.
+[customizations.services]
+enabled = ["sshd"]
+
+[customizations.firewall.services]
+enabled = ["ssh"]

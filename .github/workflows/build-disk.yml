@@ -108,14 +108,36 @@ jobs:
 
       - name: Build qcow2 with bootc-image-builder
         run: |
+          set -euo pipefail
           mkdir -p output
-          # Never publish a disk artifact with a repository-known password.
-          # The random CI-only credential is intentionally not printed or saved.
+          # Never publish a disk artifact with a repository-known credential.
+          # SSH is a CI-only observation channel; its private key is destroyed
+          # after the two-boot proof and is never uploaded.
           TEST_PASSWORD="$(openssl rand -hex 20)"
-          sed "s/__MOOS_CI_RANDOM_PASSWORD__/${TEST_PASSWORD}/" \
-            bib/config.toml > /tmp/moos-bib-config.toml
+          ssh-keygen -q -t ed25519 -N '' -C moos-ci-runtime-proof \
+            -f "${RUNNER_TEMP}/moos-ci-runtime-key"
+          TEST_SSH_PUBLIC_KEY="$(<"${RUNNER_TEMP}/moos-ci-runtime-key.pub")"
+          export TEST_PASSWORD TEST_SSH_PUBLIC_KEY
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          source = Path("bib/config.toml").read_text(encoding="utf-8")
+          replacements = {
+              "__MOOS_CI_RANDOM_PASSWORD__": os.environ["TEST_PASSWORD"],
+              "__MOOS_CI_SSH_PUBLIC_KEY__": os.environ["TEST_SSH_PUBLIC_KEY"],
+          }
+          for marker, value in replacements.items():
+              if source.count(marker) != 1:
+                  raise SystemExit(f"FATAL: expected exactly one {marker} placeholder")
+              source = source.replace(marker, value)
+          Path("/tmp/moos-bib-config.toml").write_text(source, encoding="utf-8")
+          PY
           unset TEST_PASSWORD
+          unset TEST_SSH_PUBLIC_KEY
           chmod 0600 /tmp/moos-bib-config.toml
+          chmod 0600 "${RUNNER_TEMP}/moos-ci-runtime-key"
+          echo "MOOS_X86_SSH_KEY=${RUNNER_TEMP}/moos-ci-runtime-key" >> "$GITHUB_ENV"
           # --rootfs btrfs matches the real-hardware Anaconda install (and the
           # 00-moos.toml default), so this qcow2 boots the SAME on-disk layout.
           sudo podman run --rm --privileged \
@@ -181,9 +203,11 @@ jobs:
           EVIDENCE_DIR: ${{ runner.temp }}/x86-qcow2-boot-proof
         run: |
           set -euo pipefail
+          trap 'rm -f -- "$MOOS_X86_SSH_KEY" "$MOOS_X86_SSH_KEY.pub"' EXIT
           sudo apt-get install -y -qq qemu-system-x86 ovmf imagemagick >/dev/null
           before="$(sha256sum "$MOOS_X86_QCOW" | awk '{print $1}')"
-          tests/boot_x86_qcow2.sh "$MOOS_X86_QCOW" "$EXPECTED_IMAGE" "$EVIDENCE_DIR"
+          tests/boot_x86_qcow2.sh \
+            "$MOOS_X86_QCOW" "$EXPECTED_IMAGE" "$EVIDENCE_DIR" "$MOOS_X86_SSH_KEY"
           after="$(sha256sum "$MOOS_X86_QCOW" | awk '{print $1}')"
           [ "$before" = "$after" ] || {
             echo "FATAL: the boot gate modified the sealed release QCOW2" >&2
