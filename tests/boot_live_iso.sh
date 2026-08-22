@@ -147,8 +147,19 @@ grep -qw rd.live.image /proc/cmdline
 # a false release failure. The assertions below are intentionally unchanged.
 desktop_ready=0
 stable_samples=0
+theme_rev="$(sed -n 's/^THEME_REV=//p' /usr/bin/moos-apply-theme | head -n1)"
+[[ "$theme_rev" =~ ^[0-9]+$ ]] || {
+    printf 'live-runtime-gate=theme-revision\n' >&2
+    exit 1
+}
+theme_marker="/home/liveuser/.local/state/moos-ui2-theme-applied.v${theme_rev}"
 for _ in $(seq 1 120); do
-    if systemctl is-active --quiet graphical.target display-manager.service NetworkManager.service \
+    # The first-login theme migration deliberately restarts plasmashell once.
+    # Sampling before its revision marker exists can observe a healthy initial
+    # shell, then race that intentional restart and report live-plasmashell.
+    # Require the authoritative migration marker before stability begins.
+    if [ -e "$theme_marker" ] \
+        && systemctl is-active --quiet graphical.target display-manager.service NetworkManager.service \
         && pgrep -u liveuser -x kwin_wayland >/dev/null \
         && pgrep -u liveuser -x plasmashell >/dev/null; then
         stable_samples=$((stable_samples + 1))
@@ -166,6 +177,7 @@ gate_fail() { printf 'live-runtime-gate=%s\n' "$1" >&2; return 1; }
 systemctl is-active --quiet graphical.target display-manager.service NetworkManager.service \
     || gate_fail required-system-service
 getent passwd liveuser >/dev/null || gate_fail live-user
+[ -e "$theme_marker" ] || gate_fail theme-marker
 pgrep -u liveuser -x kwin_wayland >/dev/null || gate_fail live-kwin
 pgrep -u liveuser -x plasmashell >/dev/null || gate_fail live-plasmashell
 test -x /usr/bin/moos-installer || gate_fail installer-launcher
