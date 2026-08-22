@@ -1,9 +1,9 @@
 # Promote one already-built and artifact-tested x86 MoOS release.
 #
 # This workflow intentionally does no build work. It consumes immutable proof
-# from three earlier runs of the exact same revision:
+# from five earlier runs of the exact same revision:
 #   build.yml      -> signed moos/moos-nvidia/moos-cloud candidate digests
-#   build-disk.yml -> sealed QCOW2, UEFI boot, reboot, clean poweroff
+#   build-disk.yml -> one sealed QCOW2 boot proof for EACH x86 edition
 #   build-iso.yml  -> final byte-identical ISO, LiveOS, offline install, login,
 #                     app smoke, reboot and clean poweroff
 # Production tags remain on the previous release unless every proof matches.
@@ -19,7 +19,13 @@ on:
         description: "Successful Build MoOS image workflow_dispatch run"
         required: true
       disk_run_id:
-        description: "Successful exact-digest QCOW2 workflow run"
+        description: "Successful exact-digest generic MoOS QCOW2 workflow run"
+        required: true
+      nvidia_disk_run_id:
+        description: "Successful exact-digest NVIDIA QCOW2 workflow run"
+        required: true
+      cloud_disk_run_id:
+        description: "Successful exact-digest cloud QCOW2 workflow run"
         required: true
       iso_run_id:
         description: "Successful exact-digest ISO workflow run"
@@ -44,6 +50,8 @@ jobs:
       REVISION: ${{ inputs.revision }}
       BUILD_RUN_ID: ${{ inputs.build_run_id }}
       DISK_RUN_ID: ${{ inputs.disk_run_id }}
+      NVIDIA_DISK_RUN_ID: ${{ inputs.nvidia_disk_run_id }}
+      CLOUD_DISK_RUN_ID: ${{ inputs.cloud_disk_run_id }}
       ISO_RUN_ID: ${{ inputs.iso_run_id }}
     steps:
       - name: Checkout the candidate tree and verification key
@@ -57,7 +65,7 @@ jobs:
           set -euo pipefail
           [[ "$REVISION" =~ ^[0-9a-f]{40}$ ]] \
             || { echo "FATAL: revision must be a full lowercase commit SHA" >&2; exit 1; }
-          for run_id in "$BUILD_RUN_ID" "$DISK_RUN_ID" "$ISO_RUN_ID"; do
+          for run_id in "$BUILD_RUN_ID" "$DISK_RUN_ID" "$NVIDIA_DISK_RUN_ID" "$CLOUD_DISK_RUN_ID" "$ISO_RUN_ID"; do
             [[ "$run_id" =~ ^[1-9][0-9]*$ ]] \
               || { echo "FATAL: invalid workflow run id: ${run_id}" >&2; exit 1; }
           done
@@ -67,7 +75,7 @@ jobs:
           [ "$(git rev-parse "${REVISION}^{tree}")" = "$(git rev-parse 'origin/main^{tree}')" ] \
             || { echo "FATAL: main no longer has the candidate's exact source tree" >&2; exit 1; }
 
-      - name: Validate the three workflow runs
+      - name: Validate all workflow runs
         run: |
           set -euo pipefail
           check_run() {
@@ -83,12 +91,15 @@ jobs:
           }
           check_run "$BUILD_RUN_ID" .github/workflows/build.yml
           check_run "$DISK_RUN_ID" .github/workflows/build-disk.yml
+          check_run "$NVIDIA_DISK_RUN_ID" .github/workflows/build-disk.yml
+          check_run "$CLOUD_DISK_RUN_ID" .github/workflows/build-disk.yml
           check_run "$ISO_RUN_ID" .github/workflows/build-iso.yml
 
       - name: Download immutable candidate and boot evidence
         run: |
           set -euo pipefail
-          mkdir -p proof/build proof/disk proof/iso proof/iso-install
+          mkdir -p proof/build proof/disk/moos proof/disk/moos-nvidia \
+            proof/disk/moos-cloud proof/iso proof/iso-install
           for image in moos moos-nvidia moos-cloud; do
             gh run download "$BUILD_RUN_ID" \
               --repo "$GITHUB_REPOSITORY" \
@@ -96,7 +107,11 @@ jobs:
               --dir "proof/build/${image}"
           done
           gh run download "$DISK_RUN_ID" --repo "$GITHUB_REPOSITORY" \
-            --name moos-x86-qcow2-boot-proof --dir proof/disk
+            --name moos-x86-qcow2-boot-proof --dir proof/disk/moos
+          gh run download "$NVIDIA_DISK_RUN_ID" --repo "$GITHUB_REPOSITORY" \
+            --name moos-x86-qcow2-boot-proof --dir proof/disk/moos-nvidia
+          gh run download "$CLOUD_DISK_RUN_ID" --repo "$GITHUB_REPOSITORY" \
+            --name moos-x86-qcow2-boot-proof --dir proof/disk/moos-cloud
           gh run download "$ISO_RUN_ID" --repo "$GITHUB_REPOSITORY" \
             --name moos-live-iso-boot-proof --dir proof/iso
           gh run download "$ISO_RUN_ID" --repo "$GITHUB_REPOSITORY" \
@@ -133,11 +148,21 @@ jobs:
           done
           echo "date_tag=${date_tag}" >> "$GITHUB_OUTPUT"
 
+          prove_disk() {
+            local image="$1" ref="$2" directory="proof/disk/$1"
+            grep -Fx "image=${ref}" "$directory/manifest.txt"
+            grep -Fx "origin=ostree-image-signed:docker://${ref}" "$directory/runtime-first-boot.txt"
+            grep -Fx "origin=ostree-image-signed:docker://${ref}" "$directory/runtime-second-boot.txt"
+            grep -Fx 'shutdown=clean' "$directory/runtime-second-boot.txt"
+            test -s "$directory/graphical-first-boot.png"
+            test -s "$directory/graphical-second-boot.png"
+          }
           generic_ref="$(sed -n 's/^repository=//p' proof/build/moos/candidate.txt)@$(sed -n 's/^digest=//p' proof/build/moos/candidate.txt)"
-          grep -Fx "image=${generic_ref}" proof/disk/manifest.txt
-          grep -Fx "origin=ostree-image-signed:docker://${generic_ref}" proof/disk/runtime-first-boot.txt
-          grep -Fx "origin=ostree-image-signed:docker://${generic_ref}" proof/disk/runtime-second-boot.txt
-          grep -Fx 'shutdown=clean' proof/disk/runtime-second-boot.txt
+          nvidia_ref="$(sed -n 's/^repository=//p' proof/build/moos-nvidia/candidate.txt)@$(sed -n 's/^digest=//p' proof/build/moos-nvidia/candidate.txt)"
+          cloud_ref="$(sed -n 's/^repository=//p' proof/build/moos-cloud/candidate.txt)@$(sed -n 's/^digest=//p' proof/build/moos-cloud/candidate.txt)"
+          prove_disk moos "$generic_ref"
+          prove_disk moos-nvidia "$nvidia_ref"
+          prove_disk moos-cloud "$cloud_ref"
           grep -Fx "image=${generic_ref}" proof/iso/manifest.txt
           grep -Fx "offline-digest=${generic_ref##*@}" proof/iso/runtime.txt
           grep -Fx 'boot=live' proof/iso/runtime.txt
@@ -203,7 +228,7 @@ jobs:
           CLOUD_REF: ${{ steps.release.outputs.cloud_ref }}
           DATE_TAG: ${{ steps.release.outputs.date_tag }}
         run: |
-          set -euo pipefail
+          set -Eeuo pipefail
           # Evidence validation and package installation take time. Re-read main
           # at the mutation boundary so a newer merge cannot race the earlier
           # tree check and accidentally receive this older release.
@@ -228,12 +253,58 @@ jobs:
             echo "promoted boot-proven ${target_ref} -> ${digest}"
           }
 
+          # OCI registries do not provide a multi-repository tag transaction.
+          # Snapshot and verify the three existing channels before mutation,
+          # then restore all three if any latest copy/verification fails. This
+          # prevents a partial moos/moos-nvidia/moos-cloud generation from being
+          # left behind after a mid-loop registry failure.
+          previous_latest="$RUNNER_TEMP/moos-previous-latest"
+          : > "$previous_latest"
+          for ref in "$MOOS_REF" "$NVIDIA_REF" "$CLOUD_REF"; do
+            repository="${ref%@*}"
+            target_ref="${repository}:latest"
+            old_digest="$(skopeo inspect --format '{{.Digest}}' "docker://${target_ref}")"
+            [[ "$old_digest" =~ ^sha256:[0-9a-f]{64}$ ]] \
+              || { echo "FATAL: cannot snapshot ${target_ref}" >&2; exit 1; }
+            cosign verify --key cosign.pub "$target_ref" >/dev/null
+            [ "$(skopeo inspect --format '{{.Digest}}' "docker://${target_ref}")" = "$old_digest" ] \
+              || { echo "FATAL: ${target_ref} moved while snapshotting" >&2; exit 1; }
+            printf '%s %s\n' "$repository" "$old_digest" >> "$previous_latest"
+          done
+
+          latest_started=0
+          rollback_latest() {
+            local original_status=$?
+            trap - ERR
+            if [ "$latest_started" -eq 1 ]; then
+              set +e
+              rollback_failed=0
+              while read -r repository old_digest; do
+                skopeo copy --preserve-digests \
+                  "docker://${repository}@${old_digest}" "docker://${repository}:latest" \
+                  || rollback_failed=1
+                restored="$(skopeo inspect --format '{{.Digest}}' "docker://${repository}:latest" 2>/dev/null)"
+                [ "$restored" = "$old_digest" ] || rollback_failed=1
+              done < "$previous_latest"
+              if [ "$rollback_failed" -ne 0 ]; then
+                echo "FATAL: production promotion failed and latest rollback was incomplete" >&2
+              else
+                echo "production latest tags restored after failed promotion" >&2
+              fi
+            fi
+            exit "$original_status"
+          }
+          trap rollback_latest ERR
+
           # Stage and verify the dated release for every edition before the
           # update channel moves at all. A failure here leaves all latest tags
           # on the prior release.
           for ref in "$MOOS_REF" "$NVIDIA_REF" "$CLOUD_REF"; do
             promote_tag "$ref" "$DATE_TAG"
           done
+          latest_started=1
           for ref in "$MOOS_REF" "$NVIDIA_REF" "$CLOUD_REF"; do
             promote_tag "$ref" latest
           done
+          latest_started=0
+          trap - ERR

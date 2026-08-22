@@ -18,7 +18,7 @@ on:
   workflow_dispatch:
     inputs:
       image-ref:
-        description: "Image ref (empty = ghcr.io/<owner>/moos:latest — the generic edition; matches the resolver below)"
+        description: "Exact signed moos, moos-nvidia or moos-cloud ref (empty = generic latest for scheduled smoke only)"
         required: false
         default: ""
   schedule:
@@ -85,8 +85,8 @@ jobs:
         run: |
           set -euo pipefail
           owner="${GITHUB_REPOSITORY_OWNER,,}"
-          if [[ ! "${REQUESTED_REF}" =~ ^ghcr\.io/${owner}/(moos|moos-nvidia)(:[A-Za-z0-9._-]+|@sha256:[0-9a-f]{64})$ ]]; then
-            echo "FATAL: disk source is not an official desktop MoOS reference: ${REQUESTED_REF}" >&2
+          if [[ ! "${REQUESTED_REF}" =~ ^ghcr\.io/${owner}/(moos|moos-nvidia|moos-cloud)(:[A-Za-z0-9._-]+|@sha256:[0-9a-f]{64})$ ]]; then
+            echo "FATAL: disk source is not an official MoOS x86 reference: ${REQUESTED_REF}" >&2
             exit 1
           fi
           verified_json="$(cosign verify --key cosign.pub --output json "${REQUESTED_REF}")"
@@ -193,7 +193,7 @@ jobs:
         with:
           name: moos-x86-qcow2-boot-proof
           path: ${{ runner.temp }}/x86-qcow2-boot-proof
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 14
 
       - name: Upload qcow2

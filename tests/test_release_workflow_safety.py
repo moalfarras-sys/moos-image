@@ -113,7 +113,7 @@ class ReleaseWorkflowSafetyTests(unittest.TestCase):
 
         required_order = (
             "Prove the candidate is the exact tree on main",
-            "Validate the three workflow runs",
+            "Validate all workflow runs",
             "Download immutable candidate and boot evidence",
             "Validate candidate manifests and artifact runtime proof",
             "Verify every digest before any production mutation",
@@ -130,10 +130,15 @@ class ReleaseWorkflowSafetyTests(unittest.TestCase):
             ".github/workflows/build-iso.yml",
             ".run_attempt == 1",
             "moos-x86-qcow2-boot-proof",
+            "NVIDIA_DISK_RUN_ID",
+            "CLOUD_DISK_RUN_ID",
+            'prove_disk moos "$generic_ref"',
+            'prove_disk moos-nvidia "$nvidia_ref"',
+            'prove_disk moos-cloud "$cloud_ref"',
             "moos-live-iso-boot-proof",
             "moos-iso-install-proof",
             'candidate-${BUILD_RUN_ID}-${REVISION:0:12}',
-            'origin=ostree-image-signed:docker://${generic_ref}',
+            'origin=ostree-image-signed:docker://${ref}',
             'offline-digest=${generic_ref##*@}',
             "source=embedded-offline",
             "login=plasma-login-manager",
@@ -143,9 +148,12 @@ class ReleaseWorkflowSafetyTests(unittest.TestCase):
             'promote_tag "$ref" "$DATE_TAG"',
             'promote_tag "$ref" latest',
             'cosign verify --key cosign.pub "$target_ref"',
+            'previous_latest="$RUNNER_TEMP/moos-previous-latest"',
+            "trap rollback_latest ERR",
+            "production latest tags restored after failed promotion",
         ):
             self.assertIn(proof, promote, f"x86 promotion lost proof: {proof}")
-        self.assertEqual(promote.count("skopeo copy --preserve-digests"), 1)
+        self.assertEqual(promote.count("skopeo copy --preserve-digests"), 2)
 
         script = workflow_run_script(promote, "Promote the boot-proven release")
         with tempfile.TemporaryDirectory() as temp:
@@ -164,11 +172,32 @@ exit 1
                     "skopeo",
                     """#!/bin/sh
 printf 'skopeo %s\\n' "$*" >> "$LOG_FILE"
-if [ "$1" = inspect ]; then
-    case "$*" in
-        *moos-nvidia:20260820*) printf '%s\\n' "${NVIDIA_DATE_DIGEST:-$ACTUAL_DIGEST}" ;;
-        *) printf '%s\\n' "$ACTUAL_DIGEST" ;;
-    esac
+last=""
+for arg in "$@"; do last="$arg"; done
+if [ "$1" = copy ]; then
+    source_ref="${3#docker://}"
+    target_ref="${4#docker://}"
+    digest="${source_ref##*@}"
+    if [ "${FAIL_NVIDIA_LATEST:-0}" = 1 ] && \
+       [ "$target_ref" = ghcr.io/example/moos-nvidia:latest ] && \
+       [ "$digest" = "$ACTUAL_DIGEST" ]; then
+        exit 9
+    fi
+    key=$(printf '%s' "$target_ref" | tr '/:' '__')
+    printf '%s\\n' "$digest" > "$STATE_DIR/$key"
+elif [ "$1" = inspect ]; then
+    target_ref="${last#docker://}"
+    key=$(printf '%s' "$target_ref" | tr '/:' '__')
+    if [ "$target_ref" = ghcr.io/example/moos-nvidia:20260820 ] && \
+         [ -n "${NVIDIA_DATE_DIGEST:-}" ]; then
+        printf '%s\\n' "$NVIDIA_DATE_DIGEST"
+    elif [ -f "$STATE_DIR/$key" ]; then
+        cat "$STATE_DIR/$key"
+    elif [ "${target_ref##*:}" = latest ]; then
+        printf '%s\\n' "$OLD_DIGEST"
+    else
+        printf '%s\\n' "$ACTUAL_DIGEST"
+    fi
 fi
 """,
                 ),
@@ -183,11 +212,17 @@ printf 'cosign %s\\n' "$*" >> "$LOG_FILE"
                 helper.write_text(body, encoding="utf-8")
                 helper.chmod(0o755)
             digest = "sha256:" + "a" * 64
+            old_digest = "sha256:" + "c" * 64
+            state_dir = temp_path / "state"
+            state_dir.mkdir()
             env = os.environ.copy()
             env.update(
-                PATH=str(temp_path),
+                PATH=f"{temp_path}:/usr/bin",
                 LOG_FILE=str(log),
+                RUNNER_TEMP=str(temp_path),
+                STATE_DIR=str(state_dir),
                 ACTUAL_DIGEST=digest,
+                OLD_DIGEST=old_digest,
                 MOOS_REF=f"ghcr.io/example/moos@{digest}",
                 NVIDIA_REF=f"ghcr.io/example/moos-nvidia@{digest}",
                 CLOUD_REF=f"ghcr.io/example/moos-cloud@{digest}",
@@ -200,22 +235,27 @@ printf 'cosign %s\\n' "$*" >> "$LOG_FILE"
                 env=env,
             )
             calls = log.read_text(encoding="utf-8").splitlines()
-            expected_calls: list[str] = []
+            first_dated = next(
+                i for i, call in enumerate(calls)
+                if call.startswith("skopeo copy ") and ":20260820" in call
+            )
+            for image in ("moos", "moos-nvidia", "moos-cloud"):
+                latest = f"ghcr.io/example/{image}:latest"
+                snapshot = f"skopeo inspect --format {{{{.Digest}}}} docker://{latest}"
+                self.assertIn(snapshot, calls[:first_dated])
+                self.assertIn(f"cosign verify --key cosign.pub {latest}", calls[:first_dated])
             for tag in ("20260820", "latest"):
                 for image in ("moos", "moos-nvidia", "moos-cloud"):
                     source = f"docker://ghcr.io/example/{image}@{digest}"
                     target = f"ghcr.io/example/{image}:{tag}"
-                    expected_calls.extend(
-                        (
-                            f"skopeo copy --preserve-digests {source} docker://{target}",
-                            f"skopeo inspect --format {{{{.Digest}}}} docker://{target}",
-                            f"cosign verify --key cosign.pub {target}",
-                            f"skopeo inspect --format {{{{.Digest}}}} docker://{target}",
-                        )
+                    self.assertIn(
+                        f"skopeo copy --preserve-digests {source} docker://{target}",
+                        calls,
                     )
-            self.assertEqual(calls, expected_calls)
 
             log.unlink()
+            for state in state_dir.iterdir():
+                state.unlink()
             env["NVIDIA_DATE_DIGEST"] = "sha256:" + "b" * 64
             failed = subprocess.run(
                 ["/usr/bin/bash", "-eu", "-o", "pipefail", "-c", script],
@@ -226,18 +266,32 @@ printf 'cosign %s\\n' "$*" >> "$LOG_FILE"
             )
             self.assertNotEqual(failed.returncode, 0)
             failed_calls = log.read_text(encoding="utf-8").splitlines()
-            self.assertEqual(
-                failed_calls,
-                [
-                    f"skopeo copy --preserve-digests docker://ghcr.io/example/moos@{digest} docker://ghcr.io/example/moos:20260820",
-                    "skopeo inspect --format {{.Digest}} docker://ghcr.io/example/moos:20260820",
-                    "cosign verify --key cosign.pub ghcr.io/example/moos:20260820",
-                    "skopeo inspect --format {{.Digest}} docker://ghcr.io/example/moos:20260820",
-                    f"skopeo copy --preserve-digests docker://ghcr.io/example/moos-nvidia@{digest} docker://ghcr.io/example/moos-nvidia:20260820",
-                    "skopeo inspect --format {{.Digest}} docker://ghcr.io/example/moos-nvidia:20260820",
-                ],
+            self.assertTrue(any("moos-nvidia:20260820" in call for call in failed_calls))
+            self.assertFalse(any(" copy " in f" {call} " and ":latest" in call for call in failed_calls))
+
+            log.unlink()
+            for state in state_dir.iterdir():
+                state.unlink()
+            env.pop("NVIDIA_DATE_DIGEST")
+            env["FAIL_NVIDIA_LATEST"] = "1"
+            mid_latest = subprocess.run(
+                ["/usr/bin/bash", "-eu", "-o", "pipefail", "-c", script],
+                check=False,
+                env=env,
+                capture_output=True,
+                text=True,
             )
-            self.assertFalse(any(":latest" in call for call in failed_calls))
+            self.assertNotEqual(mid_latest.returncode, 0)
+            rollback_calls = log.read_text(encoding="utf-8").splitlines()
+            for image in ("moos", "moos-nvidia", "moos-cloud"):
+                restore = (
+                    f"skopeo copy --preserve-digests "
+                    f"docker://ghcr.io/example/{image}@{old_digest} "
+                    f"docker://ghcr.io/example/{image}:latest"
+                )
+                self.assertIn(restore, rollback_calls)
+                key = f"ghcr.io_example_{image}_latest"
+                self.assertEqual((state_dir / key).read_text().strip(), old_digest)
 
     def test_promotion_rejects_reruns_and_mismatched_runtime_evidence(self) -> None:
         promote = PROMOTE_WORKFLOW.read_text(encoding="utf-8")
@@ -249,8 +303,8 @@ printf 'cosign %s\\n' "$*" >> "$LOG_FILE"
                 """#!/bin/sh
 case "$*" in
   *actions/runs/11) path=.github/workflows/build.yml ;;
-  *actions/runs/12) path=.github/workflows/build-disk.yml ;;
-  *actions/runs/13) path=.github/workflows/build-iso.yml ;;
+  *actions/runs/12|*actions/runs/13|*actions/runs/14) path=.github/workflows/build-disk.yml ;;
+  *actions/runs/15) path=.github/workflows/build-iso.yml ;;
   *) exit 2 ;;
 esac
 printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","path":"%s","run_attempt":%s}\\n' "$REVISION" "$path" "$ATTEMPT"
@@ -265,10 +319,12 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
                 REVISION=revision,
                 BUILD_RUN_ID="11",
                 DISK_RUN_ID="12",
-                ISO_RUN_ID="13",
+                NVIDIA_DISK_RUN_ID="13",
+                CLOUD_DISK_RUN_ID="14",
+                ISO_RUN_ID="15",
                 ATTEMPT="1",
             )
-            run_validator = workflow_run_script(promote, "Validate the three workflow runs")
+            run_validator = workflow_run_script(promote, "Validate all workflow runs")
             subprocess.run(
                 ["/usr/bin/bash", "-eu", "-o", "pipefail", "-c", run_validator],
                 check=True,
@@ -302,16 +358,22 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
             (proof / "disk").mkdir()
             (proof / "iso").mkdir()
             (proof / "iso-install").mkdir()
-            (proof / "disk" / "manifest.txt").write_text(
-                f"image={generic}\n", encoding="utf-8"
-            )
-            (proof / "disk" / "runtime-first-boot.txt").write_text(
-                f"origin=ostree-image-signed:docker://{generic}\n", encoding="utf-8"
-            )
-            (proof / "disk" / "runtime-second-boot.txt").write_text(
-                f"origin=ostree-image-signed:docker://{generic}\nshutdown=clean\n",
-                encoding="utf-8",
-            )
+            for image in ("moos", "moos-nvidia", "moos-cloud"):
+                disk = proof / "disk" / image
+                disk.mkdir()
+                ref = f"ghcr.io/example/{image}@{digest}"
+                (disk / "manifest.txt").write_text(
+                    f"image={ref}\n", encoding="utf-8"
+                )
+                (disk / "runtime-first-boot.txt").write_text(
+                    f"origin=ostree-image-signed:docker://{ref}\n", encoding="utf-8"
+                )
+                (disk / "runtime-second-boot.txt").write_text(
+                    f"origin=ostree-image-signed:docker://{ref}\nshutdown=clean\n",
+                    encoding="utf-8",
+                )
+                (disk / "graphical-first-boot.png").write_bytes(b"not-empty")
+                (disk / "graphical-second-boot.png").write_bytes(b"not-empty")
             (proof / "iso" / "manifest.txt").write_text(
                 f"image={generic}\n", encoding="utf-8"
             )
@@ -397,6 +459,24 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
                 text=True,
             )
             self.assertNotEqual(missing_app.returncode, 0)
+
+            (iso_install / "app-smoke.txt").write_text(
+                "dolphin=opened\nmoos-settings=opened\n", encoding="utf-8"
+            )
+            nvidia_first = proof / "disk" / "moos-nvidia" / "runtime-first-boot.txt"
+            nvidia_first.write_text(
+                f"origin=ostree-image-signed:docker://{generic}\n",
+                encoding="utf-8",
+            )
+            wrong_edition = subprocess.run(
+                ["/usr/bin/bash", "-eu", "-o", "pipefail", "-c", evidence_validator],
+                check=False,
+                cwd=temp_path,
+                env=env,
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotEqual(wrong_edition.returncode, 0)
 
     def test_release_timeout_covers_measured_final_commit_io_but_stays_bounded(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
