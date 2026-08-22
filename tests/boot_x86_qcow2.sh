@@ -196,8 +196,14 @@ def guest_exec(script, args=(), timeout=180):
     started = request({
         "execute": "guest-exec",
         "arguments": {
-            "path": "/usr/bin/bash",
-            "arg": ["-lc", script, "--", *args],
+            # The virtio port can start QGA before switch-root.  Enter PID 1's
+            # namespaces so /run, the system bus and mount state are always the
+            # installed userspace rather than QGA's stale initramfs view.
+            "path": "/usr/bin/nsenter",
+            "arg": [
+                "--target", "1", "--mount", "--uts", "--ipc", "--net", "--pid",
+                "--", "/usr/bin/bash", "-lc", script, "--", *args,
+            ],
             "capture-output": True,
         },
     })
