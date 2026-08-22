@@ -33,6 +33,9 @@ UNVERIFIED_PREFIXES = (
 )
 SIGNED_PREFIX = "ostree-image-signed:docker://"
 FOREIGN_KARGS = {"preempt=full", "split_lock_detect=off"}
+OSTREE_KARG = re.compile(
+    r"^ostree=/ostree/boot\.[01]/[^/\s]+/[0-9a-f]{64}/[0-9]+$"
+)
 
 
 def fail(message: str) -> None:
@@ -94,6 +97,9 @@ def seal_bls(boot: Path, target_arch: str) -> list[Path]:
             fail(f"{entry} has {len(option_indexes)} options lines")
         index = option_indexes[0]
         options = lines[index].split()[1:]
+        ostree_options = [item for item in options if item.startswith("ostree=")]
+        if len(ostree_options) != 1 or not OSTREE_KARG.fullmatch(ostree_options[0]):
+            fail(f"{entry} does not select exactly one valid OSTree deployment")
         options = [item for item in options if not item.startswith("console=ttyS0")]
         if target_arch == "arm64":
             # These two latency flags are x86 policy and must not leak into an

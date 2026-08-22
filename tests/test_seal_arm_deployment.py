@@ -18,7 +18,9 @@ def fixture(
     origin_reference: str,
     *,
     options: str = (
-        "root=UUID=x rhgb quiet splash preempt=full split_lock_detect=off "
+        "root=UUID=x ostree=/ostree/boot.1/default/"
+        + "c" * 64
+        + "/0 rhgb quiet splash preempt=full split_lock_detect=off "
         "console=ttyAMA0,115200n8 console=tty0 console=ttyS0"
     ),
 ) -> tuple[tempfile.TemporaryDirectory[str], Path, Path, Path, Path]:
@@ -88,7 +90,11 @@ def main() -> int:
     x86_image = "ghcr.io/moalfarras-sys/moos@" + DIGEST
     temporary, root, boot, origin, entry = fixture(
         "ostree-unverified-registry:" + x86_image,
-        options="root=UUID=x rhgb quiet splash preempt=full split_lock_detect=off console=ttyS0",
+        options=(
+            "root=UUID=x ostree=/ostree/boot.0/default/"
+            + "d" * 64
+            + "/0 rhgb quiet splash preempt=full split_lock_detect=off console=ttyS0"
+        ),
     )
     with temporary:
         result = run(root, boot, x86_image, "x86_64")
@@ -103,7 +109,11 @@ def main() -> int:
     cloud_image = "ghcr.io/moalfarras-sys/moos-cloud@" + DIGEST
     temporary, root, boot, origin, _ = fixture(
         "ostree-unverified-registry:" + cloud_image,
-        options="root=UUID=x rhgb quiet splash console=ttyS0",
+        options=(
+            "root=UUID=x ostree=/ostree/boot.0/default/"
+            + "e" * 64
+            + "/0 rhgb quiet splash console=ttyS0"
+        ),
     )
     with temporary:
         result = run(root, boot, cloud_image, "x86_64")
@@ -112,6 +122,17 @@ def main() -> int:
 
     temporary, root, boot, _, _ = fixture(
         "ostree-unverified-registry:ghcr.io/moalfarras-sys/moos-arm@" + DIGEST,
+        options=(
+            "root=UUID=x ostree=/ostree/boot.0/default/"
+            + "f" * 64
+            + "/0 rhgb quiet splash"
+        ),
+    )
+    with temporary:
+        assert run(root, boot, x86_image, "x86_64").returncode != 0
+
+    temporary, root, boot, _, _ = fixture(
+        "ostree-unverified-registry:" + x86_image,
         options="root=UUID=x rhgb quiet splash",
     )
     with temporary:
