@@ -279,7 +279,7 @@ gate_fail() {
     # an early/initramfs answer from a fully booted system with a bad contract.
     printf 'system-state=%s\n' "$(systemctl is-system-running 2>/dev/null || true)" >&2
     printf 'root-mount=%s\n' "$(findmnt -n -o SOURCE,FSTYPE / 2>/dev/null || true)" >&2
-    rpm-ostree status --json 2>/dev/null | python3 -c '
+    timeout 10 rpm-ostree status --json 2>/dev/null | python3 -c '
 import json, sys
 try:
     deployments = json.load(sys.stdin).get("deployments", [])

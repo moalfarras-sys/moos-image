@@ -624,6 +624,7 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
         self.assertIn("system-state=%s", script)
         self.assertIn("root-mount=%s", script)
         self.assertIn("booted-origin=", script)
+        self.assertIn("timeout 10 rpm-ostree status --json", script)
 
     def test_live_iso_waits_for_desktop_after_early_qga_start(self) -> None:
         script = (ROOT / "tests" / "boot_live_iso.sh").read_text(encoding="utf-8")
