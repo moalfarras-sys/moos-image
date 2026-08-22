@@ -635,6 +635,19 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
         self.assertIn("deadline = time.monotonic() + 720", script)
         self.assertLess(script.index("desktop_ready=0"), script.index("[ \"$desktop_ready\" -eq 1 ]"))
 
+    def test_installed_only_services_do_not_fail_the_live_iso(self) -> None:
+        units = (
+            ROOT / "system_files/usr/lib/systemd/system/moos-firewall-migrate.service",
+            ROOT / "system_files/usr/lib/systemd/system/bootloader-update.service.d/50-moos-installed-only.conf",
+            ROOT / "system_files/usr/lib/systemd/system/tuned.service.d/50-moos-installed-only.conf",
+        )
+        for unit in units:
+            self.assertIn(
+                "ConditionPathExists=/run/ostree-booted",
+                unit.read_text(encoding="utf-8"),
+                f"{unit.name} must stay out of the disposable LiveOS session",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

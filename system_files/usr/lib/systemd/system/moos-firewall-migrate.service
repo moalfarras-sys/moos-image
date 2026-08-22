@@ -1,6 +1,7 @@
 [Unit]
 Description=Migrate the inherited desktop firewall to the least-exposed MoOS policy
 Documentation=file:///usr/libexec/moos-firewall-migrate
+ConditionPathExists=/run/ostree-booted
 Requires=firewalld.service
 After=firewalld.service
 Before=network-pre.target
