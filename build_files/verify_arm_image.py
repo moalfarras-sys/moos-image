@@ -67,6 +67,14 @@ def main() -> None:
         "ydotool",
         "gstreamer1",
         "gstreamer1-plugins-good",
+        "ramalama",
+        "plasma-discover",
+        "plasma-discover-flatpak",
+        "plasma-discover-kns",
+        "kinfocenter",
+        "bluedevil",
+        "plasma-print-manager",
+        "flatpak-kcm",
     ):
         result = subprocess.run(
             ["rpm", "-q", package],
@@ -75,6 +83,48 @@ def main() -> None:
             check=False,
         )
         require(result.returncode == 0, f"required aarch64 package is absent: {package}")
+
+    for executable in ("ramalama", "plasma-discover", "kinfocenter"):
+        path = ROOT / "usr/bin" / executable
+        require(path.is_file() and os.access(path, os.X_OK),
+                f"ARM control surface backend is not executable: {path}")
+
+    # The frontend is architecture-independent and always calls these loopback
+    # authorities. An installed unit is not enough: the failed ARM release had
+    # every Mo AI unit present but disabled, so the window opened with no live
+    # backend. Read the finished image's enable links, not the build script.
+    user_default_targets = (
+        "etc/systemd/user/default.target.wants",
+        "usr/lib/systemd/user/default.target.wants",
+    )
+    user_timer_targets = (
+        "etc/systemd/user/timers.target.wants",
+        "usr/lib/systemd/user/timers.target.wants",
+    )
+    user_plasma_targets = (
+        "etc/systemd/user/plasma-workspace.target.wants",
+        "usr/lib/systemd/user/plasma-workspace.target.wants",
+    )
+    for unit in (
+        "moai-gateway.service",
+        "moai-control.service",
+        "moai-agent-api.service",
+        "moai-wake.service",
+        "moos-cloud-audio.service",
+    ):
+        require(enabled(unit, user_default_targets),
+                f"first-party ARM user authority is disabled: {unit}")
+    for unit in (
+        "moai-idle.timer",
+        "openclaw-idle.timer",
+        "moos-ensure-brain.timer",
+        "moos-update-ready.timer",
+        "moos-reclaim-disk.timer",
+    ):
+        require(enabled(unit, user_timer_targets),
+                f"first-party ARM user timer is disabled: {unit}")
+    require(enabled("moos-theme-sync.path", user_plasma_targets),
+            "ARM theme state does not have its live synchronization authority")
 
     # Real-root udevd is ordered after systemd-hwdb-update. The RPM-generated
     # database under /etc forced a 14 MB rebuild on every clean deployment and,

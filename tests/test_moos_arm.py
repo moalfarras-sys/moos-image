@@ -141,12 +141,42 @@ class ArmEditionTests(unittest.TestCase):
 
     def test_the_curated_desktop_uses_fedora_44_package_names(self) -> None:
         text = code(read(BUILD))
-        for current in ("kwin-libs", "plasma-breeze", "plasma-workspace"):
+        for current in (
+            "kwin-libs", "plasma-breeze", "plasma-workspace",
+            "ramalama", "plasma-discover", "kinfocenter", "bluedevil",
+            "plasma-print-manager", "flatpak-kcm",
+        ):
             self.assertIn(current, text, f"the ARM build is missing Fedora 44's {current}")
         for retired in ("kwin-wayland-libs", "\n    breeze ", "plasma-workspace-wayland"):
             self.assertNotIn(retired, text,
                              f"{retired.strip()} is not a Fedora 44 package; the native "
                              "build would fail before creating the image")
+
+    def test_arm_first_party_surfaces_have_live_backends(self) -> None:
+        build = code(read(BUILD))
+        verifier = code(read(ARM_VERIFY))
+        for unit in (
+            "moai-gateway.service",
+            "moai-control.service",
+            "moai-agent-api.service",
+            "moai-wake.service",
+            "moos-cloud-audio.service",
+            "moai-idle.timer",
+            "openclaw-idle.timer",
+            "moos-ensure-brain.timer",
+            "moos-update-ready.timer",
+            "moos-reclaim-disk.timer",
+            "moos-theme-sync.path",
+        ):
+            self.assertIn(unit, build, f"ARM never enables the shared authority {unit}")
+            self.assertIn(unit, verifier,
+                          f"the finished ARM image never proves {unit} is enabled")
+        for backend in (
+            '"ramalama"', '"plasma-discover"', '"kinfocenter"',
+            '"bluedevil"', '"plasma-print-manager"', '"flatpak-kcm"',
+        ):
+            self.assertIn(backend, verifier,
+                          f"finished ARM image does not prove route backend {backend}")
 
     # ── the ARM-specific things that x86 gets wrong ─────────────────────────
     def test_the_serial_console_is_the_arm_uart(self) -> None:

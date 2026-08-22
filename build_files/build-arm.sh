@@ -70,6 +70,10 @@ _PLASMA=(
     kwin kwin-wayland kwin-libs
     systemsettings kscreen kscreenlocker
     plasma-nm plasma-pa plasma-systemmonitor
+    # MoOS routes to these backends from Store and Command Center. Shipping the
+    # QML cards without their executables/KCMs creates polished dead buttons.
+    plasma-discover plasma-discover-flatpak plasma-discover-kns
+    kinfocenter bluedevil plasma-print-manager flatpak-kcm
     xdg-desktop-portal-kde xdg-desktop-portal
     qt6-qtwayland qt6-qtsvg qt6-qtdeclarative qt6-qtmultimedia qt6-qtimageformats
     kf6-kirigami kf6-kirigami-addons kf6-qqc2-desktop-style
@@ -84,6 +88,9 @@ _PLASMA=(
     mesa-dri-drivers mesa-libEGL mesa-libgbm
     openssh-server cloud-init cloud-utils-growpart
     firewalld flatpak openssl sudo
+    # Same local-brain engine as x86. The model remains an explicit download;
+    # only the small routing/control services start with the user session.
+    ramalama
     # Day-2 updates resolve a mutable release tag to an exact signed digest.
     # fedora-bootc supplies rpm-ostree today, but both tools are explicit product
     # dependencies rather than accidental base-image contents.
@@ -160,6 +167,31 @@ test -d /moos-overlay/usr/share || {
     exit 1
 }
 cp -a /moos-overlay/. /
+
+# Mo AI is one system on every architecture. Its pure-QML frontend always talks
+# to these loopback authorities, so leaving them disabled makes the ARM window
+# open while every live status/settings request is dead. The local model service
+# itself stays on-demand and no model is downloaded in the image.
+for unit in \
+    moai-gateway.service moai-control.service moai-agent-api.service \
+    moai-wake.service moai-idle.timer openclaw-idle.timer \
+    moos-ensure-brain.timer moos-theme-sync.path \
+    moos-cloud-audio.service moos-update-ready.timer moos-reclaim-disk.timer; do
+    test -f "/usr/lib/systemd/user/${unit}" || {
+        echo "FATAL: shared user authority is missing: ${unit}"
+        exit 1
+    }
+done
+systemd-analyze verify \
+    /usr/lib/systemd/user/moai-gateway.service \
+    /usr/lib/systemd/user/moai-control.service \
+    /usr/lib/systemd/user/moai-agent-api.service \
+    /usr/lib/systemd/user/moai-wake.service
+systemctl --global enable \
+    moai-gateway.service moai-control.service moai-agent-api.service \
+    moai-wake.service moai-idle.timer openclaw-idle.timer \
+    moos-ensure-brain.timer moos-theme-sync.path \
+    moos-cloud-audio.service moos-update-ready.timer moos-reclaim-disk.timer
 
 systemctl enable NetworkManager.service sshd.service firewalld.service
 systemctl enable moos-auto-update.timer
