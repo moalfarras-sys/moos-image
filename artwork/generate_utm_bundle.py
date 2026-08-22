@@ -11,7 +11,9 @@ seed drive, and the seed is generated per bundle with a random one-time
 password (or an SSH key), never a shared static one.
 
 Usage:
-  ./generate_utm_bundle.py [--qcow2 PATH] [--output DIR] [--ssh-key PATH]
+  ./generate_utm_bundle.py [--output DIR]
+  ./generate_utm_bundle.py --qcow2 PATH --expected-qcow2-sha256 SHA256 \
+      --source-image-ref IMAGE@sha256:DIGEST [--output DIR] [--ssh-key PATH]
 
 Without --qcow2 the bundle is a skeleton: config.plist, README and an empty
 Data/ the downloaded release qcow2 goes into. With --qcow2 the image is
@@ -23,8 +25,11 @@ the exact command to finish them, and the script says so.
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import pathlib
 import plistlib
+import re
 import secrets
 import shutil
 import subprocess
@@ -34,6 +39,17 @@ import zipfile
 BUNDLE_NAME = "MoOS-ARM.utm"
 SEED_VOLUME = "cidata"
 README_NAME = "README-FIRST.txt"
+OFFICIAL_IMAGE_RE = re.compile(
+    r"^ghcr\.io/moalfarras-sys/moos-arm@sha256:[0-9a-f]{64}$"
+)
+
+
+def sha256_file(path: pathlib.Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def seed_user_data(ssh_key: str | None, password: str) -> str:
@@ -61,7 +77,9 @@ def seed_user_data(ssh_key: str | None, password: str) -> str:
         "    - name: moos",
         f"      password: {password}",
         "      type: text",
-        "ssh_pwauth: true",
+        # The generated password is for the local UTM console only. SSH stays
+        # key-only so a public release bundle never exposes a password login.
+        "ssh_pwauth: false",
     ]
     return "\n".join(lines) + "\n"
 
@@ -129,6 +147,7 @@ def build_seed_iso(data_dir: pathlib.Path, user_data: str, meta_data: str) -> pa
                 ["cloud-localds", str(seed), str(tmp_user), str(tmp_meta)],
                 check=True, capture_output=True,
             )
+            seed.chmod(0o600)
             return seed
         except subprocess.CalledProcessError:
             pass
@@ -149,6 +168,7 @@ def build_seed_iso(data_dir: pathlib.Path, user_data: str, meta_data: str) -> pa
             try:
                 subprocess.run(cmd, check=True, capture_output=True)
                 shutil.rmtree(tmp, ignore_errors=True)
+                seed.chmod(0o600)
                 return seed
             except subprocess.CalledProcessError:
                 continue
@@ -164,6 +184,10 @@ def main() -> int:
                         help="bundle directory (default: repo root)")
     parser.add_argument("--ssh-key", type=pathlib.Path, default=None,
                         help="public key to install instead of password-only login")
+    parser.add_argument("--expected-qcow2-sha256", default=None,
+                        help="required SHA-256 of --qcow2; binds the bundle to boot proof")
+    parser.add_argument("--source-image-ref", default=None,
+                        help="required signed ghcr.io/.../moos-arm@sha256:... source")
     args = parser.parse_args()
 
     if args.ssh_key is not None and not args.ssh_key.is_file():
@@ -172,8 +196,31 @@ def main() -> int:
     if args.qcow2 is not None and not args.qcow2.is_file():
         print(f"error: qcow2 not found: {args.qcow2}", file=sys.stderr)
         return 1
+    if args.qcow2 is not None:
+        if not re.fullmatch(r"[0-9a-f]{64}", args.expected_qcow2_sha256 or ""):
+            print("error: --qcow2 requires --expected-qcow2-sha256 (64 lowercase hex)",
+                  file=sys.stderr)
+            return 1
+        if not OFFICIAL_IMAGE_RE.fullmatch(args.source_image_ref or ""):
+            print("error: --qcow2 requires the exact official --source-image-ref",
+                  file=sys.stderr)
+            return 1
+        source_sha = sha256_file(args.qcow2)
+        if source_sha != args.expected_qcow2_sha256:
+            print(
+                f"error: qcow2 SHA-256 is {source_sha}, expected "
+                f"{args.expected_qcow2_sha256}",
+                file=sys.stderr,
+            )
+            return 1
+    elif args.expected_qcow2_sha256 is not None or args.source_image_ref is not None:
+        print("error: digest/source arguments require --qcow2", file=sys.stderr)
+        return 1
 
     bundle = args.output
+    if bundle.exists() and any(bundle.iterdir()):
+        print(f"error: output bundle is not empty: {bundle}", file=sys.stderr)
+        return 1
     data_dir = bundle / "Data"
     data_dir.mkdir(parents=True, exist_ok=True)
 
@@ -193,9 +240,20 @@ def main() -> int:
     if seed is None:
         (data_dir / "user-data").write_text(user_data, encoding="utf-8")
         (data_dir / "meta-data").write_text(meta_data, encoding="utf-8")
+        (data_dir / "user-data").chmod(0o600)
+        (data_dir / "meta-data").chmod(0o600)
 
     if args.qcow2 is not None:
-        shutil.copy2(args.qcow2, data_dir / "moos-arm.qcow2")
+        bundled_qcow = data_dir / "moos-arm.qcow2"
+        shutil.copy2(args.qcow2, bundled_qcow)
+        copied_sha = sha256_file(bundled_qcow)
+        if copied_sha != args.expected_qcow2_sha256:
+            print(
+                f"error: copied qcow2 SHA-256 is {copied_sha}, expected "
+                f"{args.expected_qcow2_sha256}",
+                file=sys.stderr,
+            )
+            return 1
 
     finish_lines = []
     if seed is None:
@@ -240,19 +298,55 @@ def main() -> int:
         "performance is bounded by the device and the framework, not by MoOS.",
         "",
     ] + finish_lines + [""]) + "\n"
-    (bundle / README_NAME).write_text(readme, encoding="utf-8")
+    readme_path = bundle / README_NAME
+    readme_path.write_text(readme, encoding="utf-8")
+    readme_path.chmod(0o600)
+
+    if args.qcow2 is not None and seed is not None:
+        config_path = bundle / "config.plist"
+        manifest = {
+            "schema": 1,
+            "product": "MoOS ARM",
+            "architecture": "aarch64",
+            "source_image": args.source_image_ref,
+            "disk": {
+                "path": "Data/moos-arm.qcow2",
+                "sha256": args.expected_qcow2_sha256,
+                "bytes": (data_dir / "moos-arm.qcow2").stat().st_size,
+            },
+            "seed": {
+                "path": "Data/seed.iso",
+                "sha256": sha256_file(seed),
+                "volume": SEED_VOLUME,
+            },
+            "config": {
+                "path": "config.plist",
+                "sha256": sha256_file(config_path),
+            },
+        }
+        (bundle / "manifest.json").write_text(
+            json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
 
     zip_path = bundle.with_suffix(".utm.zip")
-    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+    with zipfile.ZipFile(
+        zip_path,
+        "w",
+        compression=zipfile.ZIP_DEFLATED,
+        compresslevel=1,
+        allowZip64=True,
+    ) as zf:
         for path in bundle.rglob("*"):
-            zf.write(path, path.relative_to(bundle.parent))
+            if path.is_file():
+                zf.write(path, path.relative_to(bundle.parent))
 
     print(f"Generated {bundle}")
     print(f"Packed {zip_path} ({zip_path.stat().st_size} bytes)")
     if seed is None or args.qcow2 is None:
         print("INCOMPLETE bundle — follow README-FIRST.txt before importing.", file=sys.stderr)
         return 2
-    print(f"One-time password (also in {README_NAME}): {one_time_password}")
+    print(f"First-boot console credential is stored only in {README_NAME}")
     return 0
 
 

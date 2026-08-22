@@ -356,8 +356,8 @@ class ArmEditionTests(unittest.TestCase):
             self.assertIn(proof, text, f"the final ARM disk path lacks {proof}")
         self.assertLess(
             text.index("Boot the final QCOW2 through UEFI"),
-            text.index("Compress and report"),
-            "the workflow uploads/compresses the disk before proving it boots",
+            text.index("Package the boot-proven ARM releases"),
+            "the workflow packages the disk before proving it boots",
         )
 
     def test_arm_boot_proof_has_an_explicit_visual_development_mode(self) -> None:

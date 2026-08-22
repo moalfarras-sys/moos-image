@@ -17,8 +17,8 @@ name: Build MoOS ARM (aarch64)
 # WHAT COMES OUT
 #   1. ghcr.io/<owner>/moos-arm:latest         — the bootc image (for `bootc
 #                                                switch` / day-2 updates)
-#   2. moos-arm-<date>.qcow2.zst artifact      — what you upload to Oracle, and
-#                                                what UTM opens directly
+#   2. moos-arm-<version>.qcow2.zst artifact   — exact boot-proven Oracle disk
+#   3. MoOS-ARM.utm.zip artifact               — same disk, ready to import
 #
 #   The qcow2 is compressed with zstd because Oracle's import reads from Object
 #   Storage and the raw file is several GB; the download and the upload are both
@@ -37,6 +37,12 @@ on:
       - "moplayer/**"
       - "moremote/**"
       - "system_files/**"
+      - "tests/boot_arm_qcow2.sh"
+      - "tests/verify_arm_runtime.sh"
+      - "tests/test_moos_arm.py"
+      - "tests/test_utm_bundle.py"
+      - "artwork/generate_utm_bundle.py"
+      - "tests/test_boot_splash_polish.py"
       - ".github/workflows/build-arm.yml"
   pull_request:
     paths:
@@ -49,6 +55,8 @@ on:
       - "tests/test_moos_arm.py"
       - "tests/test_utm_bundle.py"
       - "artwork/generate_utm_bundle.py"
+      - "tests/boot_arm_qcow2.sh"
+      - "tests/verify_arm_runtime.sh"
       - "tests/test_boot_splash_polish.py"
       - ".github/workflows/build-arm.yml"
 
@@ -222,7 +230,7 @@ jobs:
     needs: build
     if: (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')) && needs.build.result == 'success'
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 90
+    timeout-minutes: 120
     permissions:
       contents: read
       packages: read
@@ -330,6 +338,7 @@ jobs:
             echo "FATAL: the boot gate modified the release QCOW2" >&2
             exit 1
           }
+          echo "MOOS_ARM_PROVEN_SHA256=${before}" >> "$GITHUB_ENV"
 
       - name: Upload ARM boot proof
         if: always()
@@ -340,25 +349,135 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-      - name: Compress and report
+      - name: Package the boot-proven ARM releases
         id: pack
+        env:
+          SOURCE_IMAGE: ${{ needs.build.outputs.destination }}@${{ needs.build.outputs.digest }}
+          RELEASE_VERSION: 44.${{ needs.build.outputs.tag }}.${{ github.run_number }}
         run: |
           set -euo pipefail
           qcow="$MOOS_ARM_QCOW"
           [ -f "$qcow" ] || { echo "FATAL: sealed qcow2 disappeared"; exit 1; }
-          name="moos-arm-$(date -u +%Y%m%d).qcow2"
-          sudo mv "$qcow" "$name"
-          sudo chown "$USER" "$name"
-          echo "raw size: $(du -h "$name" | cut -f1)"
-          zstd -19 -T0 --long=27 "$name" -o "${name}.zst"
-          echo "compressed: $(du -h "${name}.zst" | cut -f1)"
-          echo "artifact=${name}.zst" >> "$GITHUB_OUTPUT"
+          actual="$(sha256sum "$qcow" | awk '{print $1}')"
+          [ "$actual" = "$MOOS_ARM_PROVEN_SHA256" ] || {
+            echo "FATAL: package input is not the boot-proven QCOW2" >&2
+            exit 1
+          }
 
-      - name: Upload
+          work="$RUNNER_TEMP/moos-arm-release"
+          raw_name="moos-arm-${RELEASE_VERSION}.qcow2"
+          mkdir -p "$work" release/qcow2 release/utm
+          sudo mv "$qcow" "$work/$raw_name"
+          sudo chown "$USER:$USER" "$work/$raw_name"
+
+          python3 artwork/generate_utm_bundle.py \
+            --qcow2 "$work/$raw_name" \
+            --expected-qcow2-sha256 "$MOOS_ARM_PROVEN_SHA256" \
+            --source-image-ref "$SOURCE_IMAGE" \
+            --output "$work/MoOS-ARM.utm" \
+            | tee "$work/utm-generation.log"
+          if grep -F "$SOURCE_IMAGE" "$work/utm-generation.log" >/dev/null; then
+            echo "FATAL: generator logged release internals unexpectedly" >&2
+            exit 1
+          fi
+
+          python3 - "$work/MoOS-ARM.utm.zip" "$MOOS_ARM_PROVEN_SHA256" "$SOURCE_IMAGE" <<'PY'
+          import json
+          import plistlib
+          import sys
+          import zipfile
+
+          archive_path, expected_sha, source_image = sys.argv[1:]
+          required = {
+              "MoOS-ARM.utm/config.plist",
+              "MoOS-ARM.utm/README-FIRST.txt",
+              "MoOS-ARM.utm/manifest.json",
+              "MoOS-ARM.utm/Data/moos-arm.qcow2",
+              "MoOS-ARM.utm/Data/seed.iso",
+          }
+          with zipfile.ZipFile(archive_path) as archive:
+              if set(archive.namelist()) != required:
+                  raise SystemExit("FATAL: UTM zip inventory is incomplete or stale")
+              config = plistlib.loads(archive.read("MoOS-ARM.utm/config.plist"))
+              drives = [entry["ImageName"] for entry in config["Drives"]]
+              if drives != ["moos-arm.qcow2", "seed.iso"]:
+                  raise SystemExit("FATAL: UTM boot and seed drives are not authoritative")
+              manifest = json.loads(archive.read("MoOS-ARM.utm/manifest.json"))
+              if manifest["disk"]["sha256"] != expected_sha:
+                  raise SystemExit("FATAL: UTM manifest is not bound to boot proof")
+              if manifest["source_image"] != source_image:
+                  raise SystemExit("FATAL: UTM manifest has the wrong signed source")
+              bad = archive.testzip()
+              if bad is not None:
+                  raise SystemExit(f"FATAL: corrupt UTM zip member: {bad}")
+          PY
+
+          zstd -19 -T0 --long=27 "$work/$raw_name" \
+            -o "release/qcow2/${raw_name}.zst"
+          cp "$work/MoOS-ARM.utm.zip" release/utm/MoOS-ARM.utm.zip
+
+          python3 - \
+            "$RELEASE_VERSION" "$GITHUB_SHA" "$GITHUB_RUN_ID" \
+            "$SOURCE_IMAGE" "$MOOS_ARM_PROVEN_SHA256" \
+            "release/qcow2/${raw_name}.zst" \
+            "release/utm/MoOS-ARM.utm.zip" \
+            "$work/release-manifest.json" <<'PY'
+          import hashlib
+          import json
+          import pathlib
+          import sys
+
+          version, revision, run_id, source_image, raw_sha, zst_arg, utm_arg, out_arg = sys.argv[1:]
+
+          def record(path_arg):
+              path = pathlib.Path(path_arg)
+              digest = hashlib.sha256()
+              with path.open("rb") as handle:
+                  for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                      digest.update(chunk)
+              return {"name": path.name, "sha256": digest.hexdigest(), "bytes": path.stat().st_size}
+
+          document = {
+              "schema": 1,
+              "product": "MoOS ARM",
+              "version": version,
+              "revision": revision,
+              "workflow_run_id": int(run_id),
+              "source_image": source_image,
+              "boot_proven_raw_qcow2_sha256": raw_sha,
+              "qcow2_zst": record(zst_arg),
+              "utm_bundle": record(utm_arg),
+          }
+          pathlib.Path(out_arg).write_text(
+              json.dumps(document, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+          for target in qcow2 utm; do
+            cp "$work/release-manifest.json" "release/$target/manifest.json"
+            (
+              cd "release/$target"
+              sha256sum -- * > SHA256SUMS
+              sha256sum -c SHA256SUMS
+            )
+          done
+          echo "raw sha256: $MOOS_ARM_PROVEN_SHA256"
+          echo "qcow2: $(du -h "release/qcow2/${raw_name}.zst" | cut -f1)"
+          echo "UTM: $(du -h release/utm/MoOS-ARM.utm.zip | cut -f1)"
+
+      - name: Upload boot-proven ARM QCOW2
         uses: actions/upload-artifact@v4
         with:
           name: moos-arm-qcow2
-          path: ${{ steps.pack.outputs.artifact }}
+          path: release/qcow2/
+          retention-days: 14
+
+      - name: Upload ready-to-import UTM bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: moos-arm-utm
+          path: release/utm/
           retention-days: 14
 
       - name: What to do with it
@@ -370,8 +489,9 @@ jobs:
             zstd -d moos-arm-*.qcow2.zst
 
           UTM (Apple silicon / iPhone):
-            new VM -> Virtualize (or Emulate on iPhone) -> Linux -> ARM64,
-            import this qcow2 as the boot drive, UEFI on.
+            download moos-arm-utm and import MoOS-ARM.utm.zip directly.
+            The bundled README contains its random, console-only first-login
+            credential. Change it immediately when prompted.
 
           Oracle Cloud:
             upload the .qcow2 to an Object Storage bucket, then
