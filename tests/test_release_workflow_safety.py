@@ -621,6 +621,9 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
         script = X86_BOOT.read_text(encoding="utf-8")
         self.assertIn("moos|moos-nvidia|moos-cloud", script)
         self.assertIn("runtime-gate=%s", script)
+        self.assertIn("system-state=%s", script)
+        self.assertIn("root-mount=%s", script)
+        self.assertIn("booted-origin=", script)
 
     def test_live_iso_waits_for_desktop_after_early_qga_start(self) -> None:
         script = (ROOT / "tests" / "boot_live_iso.sh").read_text(encoding="utf-8")

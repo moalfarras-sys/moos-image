@@ -272,7 +272,24 @@ def screendump(path):
 runtime_gate = r'''
 set -euo pipefail
 expected="$1"
-gate_fail() { printf 'runtime-gate=%s\n' "$1" >&2; return 1; }
+gate_fail() {
+    printf 'runtime-gate=%s\n' "$1" >&2
+    # QGA can answer before the installed userspace is ready.  Preserve a small
+    # snapshot from the *last* retry so a timed-out release proof distinguishes
+    # an early/initramfs answer from a fully booted system with a bad contract.
+    printf 'system-state=%s\n' "$(systemctl is-system-running 2>/dev/null || true)" >&2
+    printf 'root-mount=%s\n' "$(findmnt -n -o SOURCE,FSTYPE / 2>/dev/null || true)" >&2
+    rpm-ostree status --json 2>/dev/null | python3 -c '
+import json, sys
+try:
+    deployments = json.load(sys.stdin).get("deployments", [])
+except Exception:
+    deployments = []
+booted = next((item for item in deployments if item.get("booted")), {})
+print("booted-origin=" + booted.get("container-image-reference", ""), file=sys.stderr)
+' || true
+    return 1
+}
 . /etc/os-release
 [ "${ID:-}" = moos ] || gate_fail identity-id
 [ "${NAME:-}" = MoOS ] || gate_fail identity-name
