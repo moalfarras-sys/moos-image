@@ -354,12 +354,25 @@ QQC2.ApplicationWindow {
 
     readonly property string statusUrl: argValue("--status=")
 
-    function argValue(prefix) {
-        var args = Qt.application.arguments
+    function argValue(prefix, suppliedArguments) {
+        var args = suppliedArguments || Qt.application.arguments
         for (var i = 0; i < args.length; ++i)
             if (args[i].indexOf(prefix) === 0)
                 return args[i].substring(prefix.length)
         return ""
+    }
+
+    // moos-qml-shell keeps one Command Center process. A second launcher
+    // action must navigate that live window, not read the first process's
+    // immutable Qt.application.arguments and reopen the old page.
+    function activateRequested(arguments) {
+        var requestedSection = argValue("--section=", arguments)
+        for (var i = 0; i < sections.length; ++i) {
+            if (sections[i].id === requestedSection) {
+                selectSection(requestedSection)
+                return
+            }
+        }
     }
 
     function openRoute(route) {
@@ -411,13 +424,7 @@ QQC2.ApplicationWindow {
     }
 
     Component.onCompleted: {
-        var requestedSection = argValue("--section=")
-        for (var i = 0; i < sections.length; ++i) {
-            if (sections[i].id === requestedSection) {
-                activeSection = requestedSection
-                break
-            }
-        }
+        activateRequested(Qt.application.arguments)
         loadStatus()
     }
     Timer {

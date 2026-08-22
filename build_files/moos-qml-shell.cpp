@@ -328,12 +328,27 @@ int main(int argc, char *argv[])
     // Somebody launched us again — show them the window they already have. Without this the
     // second launch is silently swallowed and the app looks like it failed to start.
     QObject::connect(&service, &KDBusService::activateRequested, &app,
-                     [&engine](const QStringList &, const QString &) {
+                     [&engine](const QStringList &arguments, const QString &) {
         const QList<QObject *> roots = engine.rootObjects();
         if (roots.isEmpty()) {
             return;
         }
-        if (auto *window = qobject_cast<QWindow *>(roots.first())) {
+        QObject *root = roots.first();
+
+        // Uniqueness is not enough: a launcher action carries state. For
+        // example, `moai --panel device` and `moos-settings
+        // --section=appearance` must update the already-running window rather
+        // than merely raise whichever page happened to be open. Qt's static
+        // application.arguments still describes the FIRST process, so hand the
+        // forwarded argv to an optional QML convention before activation.
+        // Apps without an activateRequested(arguments) function still receive
+        // the normal raise behaviour.
+        QMetaObject::invokeMethod(
+            root,
+            "activateRequested",
+            Q_ARG(QVariant, QVariant::fromValue(arguments)));
+
+        if (auto *window = qobject_cast<QWindow *>(root)) {
             window->show();
             window->raise();
             // Spends the XDG activation token KDBusService just installed. requestActivate()

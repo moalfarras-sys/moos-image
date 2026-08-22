@@ -4749,6 +4749,16 @@ require("KDBusService::activateRequested" in shell_src
         and "KWindowSystem::activateWindow" in shell_src,
         "a second launch must RAISE the running window: uniqueness alone turns the second click "
         "into nothing happening, which reads as an app that failed to start")
+require("QMetaObject::invokeMethod" in shell_src
+        and '"activateRequested"' in shell_src
+        and "QVariant::fromValue(arguments)" in shell_src,
+        "a second launch must forward its argv into the running QML object; raising the "
+        "window alone leaves Mo AI panels and Command Center sections on stale state")
+for _qml_app in ("moai", "settings"):
+    _qml_activation = code(read(
+        f"system_files/usr/share/moos/apps/{_qml_app}/main.qml"), "slash")
+    require("function activateRequested(" in _qml_activation,
+            f"{_qml_app} cannot consume navigation from a second unique-instance launch")
 require("-lKF6DBusAddons" in shell_build_script and "libKF6DBusAddons" in build_code,
         "the qml-shell build script must LINK the guard and build.sh must verify the link on the "
         "shipped binary — a silently unlinked binary still runs, still shows the app, and still "

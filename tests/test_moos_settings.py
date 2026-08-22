@@ -68,7 +68,8 @@ class MoOSSettingsTests(unittest.TestCase):
             "status.deployment.signed",
             "status.network.connected",
             "status.bluetooth.powered",
-            'argValue("--section=")',
+            'argValue("--section=", arguments)',
+            "function activateRequested(arguments)",
         ):
             self.assertIn(contract, qml)
         self.assertGreaterEqual(qml.count("Accessible.role: Accessible.Button"), 3)
