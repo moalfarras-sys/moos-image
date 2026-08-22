@@ -395,14 +395,22 @@ jobs:
               "MoOS-ARM.utm/manifest.json",
               "MoOS-ARM.utm/Data/moos-arm.qcow2",
               "MoOS-ARM.utm/Data/seed.iso",
+              "MoOS-ARM.utm/Data/moos-icon.png",
           }
           with zipfile.ZipFile(archive_path) as archive:
               if set(archive.namelist()) != required:
                   raise SystemExit("FATAL: UTM zip inventory is incomplete or stale")
               config = plistlib.loads(archive.read("MoOS-ARM.utm/config.plist"))
-              drives = [entry["ImageName"] for entry in config["Drives"]]
+              if config.get("Backend") != "QEMU" or config.get("ConfigurationVersion") != 4:
+                  raise SystemExit("FATAL: UTM config is not the current QEMU schema")
+              drives = [entry["ImageName"] for entry in config["Drive"]]
               if drives != ["moos-arm.qcow2", "seed.iso"]:
                   raise SystemExit("FATAL: UTM boot and seed drives are not authoritative")
+              if config["System"].get("MemorySize") != 4096:
+                  raise SystemExit("FATAL: UTM memory profile is not the boot-proven minimum")
+              if (config["Information"].get("Icon") != "moos-icon.png"
+                      or config["Information"].get("IconCustom") is not True):
+                  raise SystemExit("FATAL: UTM bundle does not carry MoOS identity")
               manifest = json.loads(archive.read("MoOS-ARM.utm/manifest.json"))
               if manifest["disk"]["sha256"] != expected_sha:
                   raise SystemExit("FATAL: UTM manifest is not bound to boot proof")

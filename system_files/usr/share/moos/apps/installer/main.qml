@@ -1430,6 +1430,7 @@ ApplicationWindow {
                                 clip: true; selectByMouse: true
                                 text: "moos"
                                 maximumLength: 32
+                                Accessible.name: win.tr("اسم المستخدم", "Username")
                                 onTextChanged: win.acctUser = text.toLowerCase()
                             }
                             Text {
@@ -1476,6 +1477,7 @@ ApplicationWindow {
                                 font.family: win.uiFont; font.pixelSize: win.typePx(15)
                                 clip: true; selectByMouse: true
                                 maximumLength: 64
+                                Accessible.name: win.tr("الاسم الكامل (اختياري)", "Full name (optional)")
                                 onTextChanged: win.acctFull = text
                             }
                         }
@@ -1501,6 +1503,7 @@ ApplicationWindow {
                                     verticalAlignment: TextInput.AlignVCenter
                                     color: win.txt; font.family: win.uiFont; font.pixelSize: win.typePx(15)
                                     echoMode: TextInput.Password; clip: true; selectByMouse: true
+                                    Accessible.name: win.tr("كلمة السر", "Password")
                                     onTextChanged: win.acctPass = text
                                 }
                                 Text {
@@ -1529,6 +1532,7 @@ ApplicationWindow {
                                     verticalAlignment: TextInput.AlignVCenter
                                     color: win.txt; font.family: win.uiFont; font.pixelSize: win.typePx(15)
                                     echoMode: TextInput.Password; clip: true; selectByMouse: true
+                                    Accessible.name: win.tr("أعد كلمة السر", "Repeat password")
                                     onTextChanged: win.acctPass2 = text
                                 }
                                 Text {

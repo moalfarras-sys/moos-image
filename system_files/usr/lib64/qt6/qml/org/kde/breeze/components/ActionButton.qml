@@ -39,6 +39,7 @@
 // the compiled greeter, the lock screen and the logout screen all keep working.
 
 import QtQuick
+import QtQuick.Window
 import org.kde.plasma.components as PlasmaComponents3
 import org.kde.kirigami as Kirigami
 import org.moos.ui as MoUI
@@ -48,6 +49,11 @@ PlasmaComponents3.AbstractButton {
     readonly property bool softwareRendering: GraphicsInfo.api === GraphicsInfo.Software
     readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
     readonly property var design: MoUI.Tokens
+    // Firmware and software-rendered ARM guests can enter the greeter at
+    // 640x480. Preserve every power action by compacting only below 720 logical
+    // pixels; normal desktop and high-DPI geometry stays byte-for-byte full size.
+    readonly property real compactScale: Math.min(
+        1.0, Math.max(0.60, (Screen.height - 320) / 400))
 
     // MoOS: the greeter hands us a full-colour icon name. Map it to the symbolic
     // glyph so isMask can paint it in the brand colour. Names already ending in
@@ -96,8 +102,8 @@ PlasmaComponents3.AbstractButton {
     // MoOS token: medium glyph inside the same portal key used by Logout, so
     // the lock's session buttons and the power dock are
     // the same control at the same size.
-    icon.width: design.iconHero
-    icon.height: design.iconHero
+    icon.width: Math.round(design.iconHero * compactScale)
+    icon.height: Math.round(design.iconHero * compactScale)
 
     hoverEnabled: true
 
@@ -114,7 +120,8 @@ PlasmaComponents3.AbstractButton {
     Accessible.onPressAction: root.animateClick()
 
     // Expand clickable area, keep background centered
-    leftInset: Math.max(Kirigami.Units.largeSpacing * 4, (implicitContentWidth - implicitBackgroundWidth) / 2)
+    leftInset: Math.max(Kirigami.Units.largeSpacing * 4 * compactScale,
+                        (implicitContentWidth - implicitBackgroundWidth) / 2)
     rightInset: leftInset
 
     padding: Kirigami.Units.smallSpacing
@@ -165,10 +172,10 @@ PlasmaComponents3.AbstractButton {
         // one-way sizing (no binding loop), and the 9-unit ceiling keeps a
         // single long translation from distorting the session layout.
         implicitWidth: Math.max(
-            Kirigami.Units.gridUnit * 6.6,
+            Kirigami.Units.gridUnit * 6.6 * Math.max(0.82, root.compactScale),
             Math.min(Kirigami.Units.gridUnit * 9,
                      root.implicitContentWidth + Kirigami.Units.gridUnit * 1.2))
-        implicitHeight: Kirigami.Units.gridUnit * 4.8
+        implicitHeight: Kirigami.Units.gridUnit * 4.8 * root.compactScale
         // explicitly set size to keep it from expanding or shrinking
         width: implicitWidth
         height: implicitHeight

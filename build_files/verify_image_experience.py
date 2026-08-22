@@ -756,13 +756,13 @@ if "plasmalogin" in dm_target:
                     "rejects that by failing the entire component with no error "
                     "message — the login screen would draw no avatar/button at all.")
 
-    # Login and lock are not two copies of the same state machine. The lock
-    # screen owns the clock; a cold boot owns authentication. Keeping the login
-    # clock enabled adds an idle layout before the password layout and competes
-    # with the wallpaper's brand in the same top-centre region.
-    require(re.search(r"^ShowClock=false", login_conf, re.MULTILINE),
-            "Plasma Login Manager must present the password surface directly; "
-            "its idle clock page is a second login layout and can overlap branding")
+    # Plasma Login Manager always times the password form out after ten idle
+    # seconds. Disabling its clock does not disable that timer: it produces a
+    # wallpaper-only screen that looks like a dead greeter. The shipped Clock.qml
+    # is MoOS's own face, so the correct idle surface is branded and useful.
+    require(re.search(r"^ShowClock=true", login_conf, re.MULTILINE),
+            "Plasma Login Manager must retain the MoOS clock after its 10-second "
+            "idle timeout; ShowClock=false leaves an apparently broken blank greeter")
     # The greeter account is a system account nobody logs into, so its Plasma config is
     # image state. Left unprovisioned it carried a LIGHT palette under a DARK wallpaper on
     # the flagship machine, and the stock chrome (PlasmaExtras.PasswordField, the breeze

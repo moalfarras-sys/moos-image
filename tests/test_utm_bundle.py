@@ -10,6 +10,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import uuid
 import zipfile
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -27,18 +28,26 @@ def sha256(path: pathlib.Path) -> str:
 
 script = GENERATOR.read_text(encoding="utf-8")
 
-# Static security and UTM contract.
-assert "secrets.token_urlsafe" in script
+# Static security and UTM contract. The artifact is public: a password created
+# by the CI generator would be shared by every installation of that release.
+assert "secrets.token_urlsafe" not in script
 assert not re.search(r"passwd:\s*[\"']?[A-Za-z0-9]{6,}", script), \
     "a literal password must never appear in the generator"
-assert "type: text" in script
-assert "expire: true" in script
+assert "type: RANDOM" in script
+assert "password: RANDOM" not in script
+assert "expire: false" in script
+assert "expire: true" not in script
 assert "ssh_pwauth: false" in script, \
     "the public bundle password must be console-only; SSH remains key-only"
 assert '"ImageName": "seed.iso"' in script
 assert '"ImageName": "moos-arm.qcow2"' in script
 assert '"Architecture": "aarch64"' in script
 assert '"ConfigurationVersion": 4' in script
+assert '"Backend": "QEMU"' in script
+assert '"MemorySize": 4096' in script
+assert '"UEFIBoot": True' in script
+assert '"Mode": "Terminal"' in script
+assert '"IconCustom": True' in script
 assert "--expected-qcow2-sha256" in script
 assert "--source-image-ref" in script
 assert "manifest.json" in script
@@ -50,7 +59,8 @@ with tempfile.TemporaryDirectory(prefix="moos-utm-gate-") as tmp:
     fake_bin.mkdir()
     fake_cloud_localds = fake_bin / "cloud-localds"
     fake_cloud_localds.write_text(
-        "#!/bin/sh\nexec /bin/cp -- \"$2\" \"$1\"\n",
+        "#!/bin/sh\n"
+        "{ /bin/cat -- \"$2\"; /bin/echo ---META---; /bin/cat -- \"$3\"; } > \"$1\"\n",
         encoding="utf-8",
     )
     fake_cloud_localds.chmod(0o755)
@@ -65,11 +75,92 @@ with tempfile.TemporaryDirectory(prefix="moos-utm-gate-") as tmp:
     )
     assert result.returncode == 2, result.stderr
     config = plistlib.loads((skeleton / "config.plist").read_bytes())
-    assert [drive["ImageName"] for drive in config["Drives"]] == [
+    assert set(config) == {
+        "Backend", "ConfigurationVersion", "Information", "System", "QEMU",
+        "Input", "Sharing", "Display", "Drive", "Network", "Serial", "Sound",
+    }
+    assert config["Backend"] == "QEMU"
+    assert config["ConfigurationVersion"] == 4
+    assert config["System"] == {
+        "Architecture": "aarch64",
+        "Target": "virt",
+        "CPU": "default",
+        "CPUFlagsAdd": [],
+        "CPUFlagsRemove": [],
+        "CPUCount": 4,
+        "MemorySize": 4096,
+        "JITCacheSize": 0,
+        "ForceMulticore": False,
+    }
+    assert config["QEMU"]["UEFIBoot"] is True
+    assert config["QEMU"]["RNGDevice"] is True
+    assert config["QEMU"]["Hypervisor"] is True
+    assert config["QEMU"]["AdditionalArguments"] == []
+    assert set(config["QEMU"]) == {
+        "DebugLog", "UEFIBoot", "RNGDevice", "BalloonDevice", "TPMDevice",
+        "Hypervisor", "TSO", "RTCLocalTime", "PS2Controller",
+        "AdditionalArguments",
+    }
+    assert config["Input"] == {
+        "UsbBusSupport": "3.0",
+        "UsbSharing": False,
+        "MaximumUsbShare": 3,
+    }
+    assert config["Sharing"] == {
+        "DirectoryShareMode": "None",
+        "DirectoryShareReadOnly": True,
+        "ClipboardSharing": False,
+    }
+    assert config["Information"]["IconCustom"] is True
+    assert config["Information"]["Icon"] == "moos-icon.png"
+    uuid.UUID(config["Information"]["UUID"])
+    assert (skeleton / "Data/moos-icon.png").is_file()
+    assert config["Display"] == [{
+        "Hardware": "virtio-ramfb",
+        "DynamicResolution": False,
+        "NativeResolution": False,
+        "UpscalingFilter": "Linear",
+        "DownscalingFilter": "Linear",
+    }]
+    assert [drive["ImageName"] for drive in config["Drive"]] == [
         "moos-arm.qcow2", "seed.iso"
     ]
+    for drive, image_type, read_only in zip(
+        config["Drive"], ("Disk", "CD"), (False, True), strict=True
+    ):
+        assert drive["ImageType"] == image_type
+        assert drive["Interface"] == "VirtIO"
+        assert drive["InterfaceVersion"] == 1
+        assert drive["ReadOnly"] is read_only
+        uuid.UUID(drive["Identifier"])
+    assert config["Serial"][0]["Mode"] == "Terminal"
+    assert config["Serial"][0]["Target"] == "Auto"
+    assert set(config["Serial"][0]["Terminal"]) == {
+        "ForegroundColor", "BackgroundColor", "Font", "FontSize", "CursorBlink",
+    }
+    assert config["Network"][0]["Hardware"] == "virtio-net-pci"
+    assert config["Network"][0]["PortForward"] == []
+    assert set(config["Network"][0]) == {
+        "Mode", "Hardware", "MacAddress", "IsolateFromHost", "PortForward",
+    }
+    assert re.fullmatch(r"[0-9A-F]{2}(?::[0-9A-F]{2}){5}", config["Network"][0]["MacAddress"])
+    first_mac_octet = int(config["Network"][0]["MacAddress"].split(":")[0], 16)
+    assert first_mac_octet & 0x02 and not first_mac_octet & 0x01
+    assert config["Sound"] == [{"Hardware": "intel-hda"}]
     skeleton_readme = (skeleton / "README-FIRST.txt").read_text(encoding="utf-8")
     assert "actions/workflows/build-arm.yml" in skeleton_readme
+    assert "VM-unique password" in skeleton_readme
+    assert "one-time password is" not in skeleton_readme
+
+    # The fake seed is the user-data payload. It must ask the guest to generate
+    # a password, never contain one produced by the public release job.
+    seed_payload = (skeleton / "Data/seed.iso").read_text(encoding="utf-8")
+    assert "type: RANDOM" in seed_payload
+    assert "password: RANDOM" not in seed_payload
+    assert "expire: false" in seed_payload
+    assert "expire: true" not in seed_payload
+    assert "ssh_pwauth: false" in seed_payload
+    assert f"instance-id: moos-arm-utm-{config['Information']['UUID'].lower()}" in seed_payload
 
     # A complete bundle is bound to the exact QCOW2 that passed boot proof.
     qcow = root / "release.qcow2"
@@ -88,14 +179,12 @@ with tempfile.TemporaryDirectory(prefix="moos-utm-gate-") as tmp:
         capture_output=True, text=True, timeout=60, env=env,
     )
     assert complete.returncode == 0, complete.stderr
+    complete_config = plistlib.loads((bundle / "config.plist").read_bytes())
     readme_path = bundle / "README-FIRST.txt"
     readme = readme_path.read_text(encoding="utf-8")
-    password_match = re.search(r"one-time password is:\s*\n\s+(\S+)", readme)
-    assert password_match
-    password = password_match.group(1)
-    assert password not in complete.stdout and password not in complete.stderr, \
-        "the generated credential must never enter CI logs"
-    assert readme_path.stat().st_mode & 0o777 == 0o600
+    assert "VM-unique password" in readme
+    assert "one-time password is" not in readme
+    assert "password: RANDOM" not in readme
 
     copied_qcow = bundle / "Data/moos-arm.qcow2"
     assert sha256(copied_qcow) == expected_sha
@@ -108,7 +197,11 @@ with tempfile.TemporaryDirectory(prefix="moos-utm-gate-") as tmp:
         "bytes": qcow.stat().st_size,
     }
     assert manifest["seed"]["volume"] == "cidata"
-    assert password not in manifest_text
+    assert manifest["seed"]["credential"] == "generated-in-guest-console"
+    assert manifest["seed"]["ssh_password_authentication"] is False
+    assert manifest["seed"]["password_expired_at_greeter"] is False
+    assert manifest["icon"]["path"] == "Data/moos-icon.png"
+    assert manifest["icon"]["sha256"] == sha256(bundle / "Data/moos-icon.png")
 
     zip_path = root / "MoOS-ARM.utm.zip"
     assert zip_path.is_file()
@@ -119,6 +212,7 @@ with tempfile.TemporaryDirectory(prefix="moos-utm-gate-") as tmp:
             "MoOS-ARM.utm/manifest.json",
             "MoOS-ARM.utm/Data/moos-arm.qcow2",
             "MoOS-ARM.utm/Data/seed.iso",
+            "MoOS-ARM.utm/Data/moos-icon.png",
         }
         archived_manifest = json.loads(
             archive.read("MoOS-ARM.utm/manifest.json").decode("utf-8")
@@ -143,7 +237,8 @@ with tempfile.TemporaryDirectory(prefix="moos-utm-gate-") as tmp:
     assert wrong.returncode == 1
     assert not wrong_bundle.exists()
 
-    # Two generated bundles never share a bootstrap credential.
+    # Two generated bundles have independent VM and device identities. Their
+    # credentials are generated later, inside their respective guests.
     second_bundle = root / "Second.utm"
     second = subprocess.run(
         [
@@ -156,11 +251,9 @@ with tempfile.TemporaryDirectory(prefix="moos-utm-gate-") as tmp:
         capture_output=True, text=True, timeout=60, env=env,
     )
     assert second.returncode == 0, second.stderr
-    second_readme = (second_bundle / "README-FIRST.txt").read_text(encoding="utf-8")
-    second_password = re.search(
-        r"one-time password is:\s*\n\s+(\S+)", second_readme
-    ).group(1)
-    assert password != second_password
+    second_config = plistlib.loads((second_bundle / "config.plist").read_bytes())
+    assert complete_config["Information"]["UUID"] != second_config["Information"]["UUID"]
+    assert complete_config["Network"][0]["MacAddress"] != second_config["Network"][0]["MacAddress"]
 
 # The release workflow must package only after the exact disk passes boot.
 workflow = WORKFLOW.read_text(encoding="utf-8")

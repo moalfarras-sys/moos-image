@@ -35,6 +35,7 @@
 
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Window
 
 import org.kde.plasma.clock as PlasmaClock
 import org.kde.plasma.components as PlasmaComponents3
@@ -47,6 +48,14 @@ ColumnLayout {
     readonly property bool softwareRendering: GraphicsInfo.api === GraphicsInfo.Software
     readonly property var sessionLocale: Qt.locale()
     readonly property var design: MoUI.Tokens
+    // AArch64 firmware and first-boot VMs commonly start at 640x480 before the
+    // desktop applies its preferred mode. Plasma places this clock only when its
+    // implicit height fits above the user card; a fixed desktop-sized face is
+    // therefore hidden at boot and turns the idle greeter into bare wallpaper.
+    // Scale the same face down in logical pixels, then grow smoothly to its full
+    // editorial size. This also keeps large host scale factors honest.
+    readonly property real responsiveScale: Math.min(
+        1.0, Math.max(0.28, (Screen.height - 320) / 760))
 
     function latinNumerals(s) {
         return String(s)
@@ -57,7 +66,8 @@ ColumnLayout {
             .replace(/[٨۸]/g, "8").replace(/[٩۹]/g, "9");
     }
 
-    spacing: Kirigami.Units.largeSpacing
+    spacing: Math.max(Kirigami.Units.smallSpacing,
+                      Math.round(Kirigami.Units.largeSpacing * responsiveScale))
 
     RowLayout {
         Layout.alignment: Qt.AlignHCenter
@@ -81,7 +91,8 @@ ColumnLayout {
             styleColor: root.softwareRendering ? Kirigami.Theme.backgroundColor : "transparent"
             color: Kirigami.Theme.textColor
             font.family: design.interfaceFamily
-            font.pointSize: Math.round(Kirigami.Theme.defaultFont.pointSize * 7.4)
+            font.pointSize: Math.round(Kirigami.Theme.defaultFont.pointSize
+                                       * 7.4 * root.responsiveScale)
             font.weight: Font.ExtraLight
             renderType: Text.CurveRendering
         }
@@ -134,7 +145,8 @@ ColumnLayout {
         color: Kirigami.Theme.textColor
         opacity: 1 - design.surfaceRestingOpacity
         font.family: design.interfaceFamily
-        font.pointSize: Math.round(Kirigami.Theme.defaultFont.pointSize * 1.5)
+        font.pointSize: Math.round(Kirigami.Theme.defaultFont.pointSize * 1.5
+                                   * Math.max(0.75, root.responsiveScale))
         font.weight: Font.Normal
         horizontalAlignment: Text.AlignHCenter
         renderType: Text.NativeRendering

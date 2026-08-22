@@ -7,8 +7,8 @@ started as. The bundle it emits is HONEST about first boot: the ARM image
 provisions its user through cloud-init NoCloud, exactly like the release
 boot proof in tests/boot_arm_qcow2.sh — a UTM VM without a seed disk boots
 to a login screen with no account on it. So the bundle always carries a
-seed drive, and the seed is generated per bundle with a random one-time
-password (or an SSH key), never a shared static one.
+seed drive. That public seed contains no password: cloud-init generates a
+different local-console bootstrap password inside every VM first boot.
 
 Usage:
   ./generate_utm_bundle.py [--output DIR]
@@ -30,15 +30,20 @@ import json
 import pathlib
 import plistlib
 import re
-import secrets
 import shutil
 import subprocess
 import sys
+import uuid
 import zipfile
 
 BUNDLE_NAME = "MoOS-ARM.utm"
 SEED_VOLUME = "cidata"
 README_NAME = "README-FIRST.txt"
+ICON_NAME = "moos-icon.png"
+ICON_SOURCE = (
+    pathlib.Path(__file__).resolve().parent.parent
+    / "system_files/usr/share/moos/moos-logo.png"
+)
 OFFICIAL_IMAGE_RE = re.compile(
     r"^ghcr\.io/moalfarras-sys/moos-arm@sha256:[0-9a-f]{64}$"
 )
@@ -52,10 +57,15 @@ def sha256_file(path: pathlib.Path) -> str:
     return digest.hexdigest()
 
 
-def seed_user_data(ssh_key: str | None, password: str) -> str:
-    # chpasswd with type:text hashes the random password inside the guest;
-    # users[].passwd would need a pre-hashed value. expire:true forces a
-    # change at first login, so the generated secret has a bounded life.
+def seed_user_data(ssh_key: str | None) -> str:
+    # The public release bundle must not contain a credential shared by every
+    # downloader. cloud-init's RANDOM type generates the bootstrap password
+    # inside each VM and writes it to /dev/console. Do not expire it here:
+    # plasma-login-manager 6.7 cannot complete its three-prompt expired-token
+    # PAM conversation, so expire:true deadlocks the graphical first login.
+    # SSH password authentication remains disabled and KRDP is off by default;
+    # the credential is usable only at the local UTM console until the owner
+    # changes it from the desktop.
     lines = [
         "#cloud-config",
         "users:",
@@ -72,61 +82,127 @@ def seed_user_data(ssh_key: str | None, password: str) -> str:
         ]
     lines += [
         "chpasswd:",
-        "  expire: true",
+        "  expire: false",
         "  users:",
         "    - name: moos",
-        f"      password: {password}",
-        "      type: text",
-        # The generated password is for the local UTM console only. SSH stays
-        # key-only so a public release bundle never exposes a password login.
+        "      type: RANDOM",
+        # The generated password is local-console bootstrap only. SSH stays
+        # key-only, so the public bundle never exposes password login remotely.
         "ssh_pwauth: false",
+        "disable_root: true",
+        "final_message: MOOS_ARM_FIRST_BOOT_READY — read the VM-unique moos password above in the UTM Terminal view",
     ]
     return "\n".join(lines) + "\n"
 
 
+def random_mac_address() -> str:
+    raw = bytearray(uuid.uuid4().bytes[:6])
+    raw[0] = (raw[0] & 0xFC) | 0x02
+    return ":".join(f"{byte:02X}" for byte in raw)
+
+
 def build_config() -> dict:
-    # UTM configuration schema v4 (iOS & macOS compatible).
+    # UTM's current QEMU configuration schema is v4. All non-optional Codable
+    # fields are present so UTM decodes this directly instead of guessing that
+    # it is a legacy bundle. The built-in serial terminal is load-bearing: it
+    # is where cloud-init reveals the credential generated inside this VM.
     return {
+        "Backend": "QEMU",
         "ConfigurationVersion": 4,
         "Information": {
             "Name": "MoOS ARM",
-            "Notes": "MoOS for aarch64 — MoOS UI. First boot creates the "
-                     "'moos' user from the bundled cloud-init seed; the "
-                     "one-time password is in README-FIRST.txt.",
-            "IconCustom": False,
-            "Icon": "linux",
+            "Notes": "MoOS for aarch64 — MoOS UI. On first boot open the "
+                     "built-in Terminal view: this VM generates and prints its "
+                     "own local-console password for the 'moos' user.",
+            "IconCustom": True,
+            "Icon": ICON_NAME,
+            "UUID": str(uuid.uuid4()).upper(),
         },
         "System": {
             "Architecture": "aarch64",
             "Target": "virt",
             "CPU": "default",
+            "CPUFlagsAdd": [],
+            "CPUFlagsRemove": [],
             "CPUCount": 4,
-            "Memory": 3072,
+            # 4 GiB is the smallest profile the release boot proof has actually
+            # exercised. Do not advertise the former unproven 3 GiB guess.
+            "MemorySize": 4096,
             "JITCacheSize": 0,
             "ForceMulticore": False,
         },
+        "QEMU": {
+            "DebugLog": False,
+            "UEFIBoot": True,
+            "RNGDevice": True,
+            "BalloonDevice": False,
+            "TPMDevice": False,
+            "Hypervisor": True,
+            "TSO": False,
+            "RTCLocalTime": False,
+            "PS2Controller": False,
+            "AdditionalArguments": [],
+        },
+        "Input": {
+            "UsbBusSupport": "3.0",
+            "UsbSharing": False,
+            "MaximumUsbShare": 3,
+        },
+        "Sharing": {
+            "DirectoryShareMode": "None",
+            "DirectoryShareReadOnly": True,
+            "ClipboardSharing": False,
+        },
         "Display": [
             {
-                "Hardware": "virtio-gpu-pci",
-                "Resolution": "1280x800",
+                # UTM's own aarch64/virt default combines an early RAM
+                # framebuffer (visible UEFI) with the virtio GPU used by MoOS.
+                "Hardware": "virtio-ramfb",
+                "DynamicResolution": False,
+                "NativeResolution": False,
                 "UpscalingFilter": "Linear",
                 "DownscalingFilter": "Linear",
             }
         ],
-        "Drives": [
+        "Drive": [
             {
                 "ImageName": "moos-arm.qcow2",
-                "Interface": "virtio",
+                "ImageType": "Disk",
+                "Interface": "VirtIO",
+                "InterfaceVersion": 1,
+                "Identifier": str(uuid.uuid4()).upper(),
                 "ReadOnly": False,
             },
             {
                 "ImageName": "seed.iso",
-                "Interface": "virtio",
+                "ImageType": "CD",
+                "Interface": "VirtIO",
+                "InterfaceVersion": 1,
+                "Identifier": str(uuid.uuid4()).upper(),
                 "ReadOnly": True,
             },
         ],
         "Network": [
-            {"Mode": "Emulated", "Hardware": "virtio-net-pci"}
+            {
+                "Mode": "Emulated",
+                "Hardware": "virtio-net-pci",
+                "MacAddress": random_mac_address(),
+                "IsolateFromHost": False,
+                "PortForward": [],
+            }
+        ],
+        "Serial": [
+            {
+                "Mode": "Terminal",
+                "Target": "Auto",
+                "Terminal": {
+                    "ForegroundColor": "#F4F7FF",
+                    "BackgroundColor": "#07111F",
+                    "Font": "Menlo",
+                    "FontSize": 13,
+                    "CursorBlink": False,
+                },
+            }
         ],
         "Sound": [
             {"Hardware": "intel-hda"}
@@ -183,7 +259,7 @@ def main() -> int:
                         default=pathlib.Path(__file__).resolve().parent.parent / BUNDLE_NAME,
                         help="bundle directory (default: repo root)")
     parser.add_argument("--ssh-key", type=pathlib.Path, default=None,
-                        help="public key to install instead of password-only login")
+                        help="optional public key to install alongside console login")
     parser.add_argument("--expected-qcow2-sha256", default=None,
                         help="required SHA-256 of --qcow2; binds the bundle to boot proof")
     parser.add_argument("--source-image-ref", default=None,
@@ -224,17 +300,20 @@ def main() -> int:
     data_dir = bundle / "Data"
     data_dir.mkdir(parents=True, exist_ok=True)
 
+    if not ICON_SOURCE.is_file():
+        print(f"error: MoOS UTM icon is missing: {ICON_SOURCE}", file=sys.stderr)
+        return 1
+    config = build_config()
     with open(bundle / "config.plist", "wb") as handle:
-        plistlib.dump(build_config(), handle)
+        plistlib.dump(config, handle)
+    shutil.copy2(ICON_SOURCE, data_dir / ICON_NAME)
 
     ssh_key = args.ssh_key.read_text(encoding="utf-8").strip() if args.ssh_key else None
-    # A per-bundle random password, shown once in README-FIRST.txt. It is
-    # chpasswd-expired, so the first login forces a change. This is the
-    # generated NoCloud seed the release contract requires — never a shared
-    # static password shipped inside the image.
-    one_time_password = secrets.token_urlsafe(12)
-    user_data = seed_user_data(ssh_key, one_time_password)
-    meta_data = "instance-id: moos-arm-utm-local\nlocal-hostname: moos-arm\n"
+    # No password is generated on the build host or stored in the public zip.
+    # cloud-init generates it independently inside every first boot.
+    user_data = seed_user_data(ssh_key)
+    instance_id = config["Information"]["UUID"].lower()
+    meta_data = f"instance-id: moos-arm-utm-{instance_id}\nlocal-hostname: moos-arm\n"
 
     seed = build_seed_iso(data_dir, user_data, meta_data)
     if seed is None:
@@ -285,13 +364,23 @@ def main() -> int:
         "  config.plist       UTM VM configuration (ARM64, UEFI is added by UTM)",
         "  Data/moos-arm.qcow2  the MoOS ARM disk" + ("" if args.qcow2 else "  (ADD ME — see below)"),
         "  Data/seed.iso      cloud-init NoCloud first-boot provisioning",
+        "  Data/moos-icon.png native MoOS identity in the UTM library",
         "",
-        f"First boot creates the user 'moos'. Its one-time password is:",
+        "First boot creates the user 'moos' and generates its password INSIDE",
+        "your VM. The public download contains no shared or pre-generated password.",
         "",
-        f"    {one_time_password}",
+        "Before pressing Start, open UTM's built-in Terminal view and keep it",
+        "visible. During first boot cloud-init prints:",
         "",
-        "You must change it at first login (cloud-init expires it).",
-        "Keep this file private, or delete it after the first login.",
+        "    Set the following 'random' passwords",
+        "    moos:<your VM-unique password>",
+        "",
+        "Use that password on the graphical MoOS login screen. SSH password",
+        "login is disabled and Mo PC Remote is off until you explicitly enable it.",
+        "After login, change the bootstrap password in Settings, then stop the VM",
+        "and detach the read-only seed.iso drive. The password is not forcibly",
+        "expired at the greeter because Plasma Login Manager 6.7 cannot complete",
+        "that three-step PAM conversation; expiring it would lock out first login.",
         "",
         "To use: open MoOS-ARM.utm (or the .utm.zip) in UTM / UTM SE.",
         "On iPhone/iPad UTM SE runs the same ARM64 system under emulation —",
@@ -318,6 +407,13 @@ def main() -> int:
                 "path": "Data/seed.iso",
                 "sha256": sha256_file(seed),
                 "volume": SEED_VOLUME,
+                "credential": "generated-in-guest-console",
+                "ssh_password_authentication": False,
+                "password_expired_at_greeter": False,
+            },
+            "icon": {
+                "path": f"Data/{ICON_NAME}",
+                "sha256": sha256_file(data_dir / ICON_NAME),
             },
             "config": {
                 "path": "config.plist",

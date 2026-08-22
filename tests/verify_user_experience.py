@@ -3927,12 +3927,12 @@ if login_plugin is not None and not login_plugin.group(1).startswith("org.kde.")
                 f"the login scene's tones for {_package} have drifted from "
                 f"{_scheme_file.name}: scene {_got} vs scheme {_want}")
 
-# Login is one security surface, not an idle clock page followed by a second
-# authentication layout. The clock remains on the lock screen; a cold boot
-# presents the password prompt directly.
-require(re.search(r"^ShowClock=false$", login_config, re.MULTILINE) is not None,
-        "Plasma Login Manager must open directly on the password surface; its "
-        "idle clock page reintroduces a second layout and can overlap branding")
+# Plasma Login Manager hides the authentication controls after ten idle seconds
+# regardless of this setting. Its MoOS clock must remain enabled so the timeout
+# lands on an intentional idle surface instead of a wallpaper-only false failure.
+require(re.search(r"^ShowClock=true$", login_config, re.MULTILINE) is not None,
+        "Plasma Login Manager must show the MoOS clock after its idle timeout; "
+        "ShowClock=false makes the greeter appear blank while it is still active")
 
 lock_wallpaper = re.search(r"^Image=.*/wallpapers/([A-Za-z0-9_.-]+)",
                            code(lock_config), re.MULTILINE)
@@ -4600,18 +4600,24 @@ require("TidalHorizon {" not in login_wallpaper,
 require("The Tidal Portal key" in login_action
         and "radius: design.radiusPanel" in login_action
         and "font.family: design.interfaceFamily" in login_action
-        and "import org.moos.ui as MoUI" in login_action,
+        and "import org.moos.ui as MoUI" in login_action
+        and "readonly property real compactScale" in login_action
+        and "Screen.height - 320" in login_action,
         "the compiled plasma-login controls must use the shared MoOS portal-key "
-        "geometry and typography instead of generic circular Breeze actions")
+        "geometry, responsive low-resolution fit and typography instead of "
+        "generic circular Breeze actions")
 require("trackSeconds: false" in login_clock
         and "Animation.Infinite" not in login_clock
         and 'text: ":"' in login_clock
         and "Locale.LongFormat" in login_clock
         and "sessionLocale.dateFormat(Locale.LongFormat)" in login_clock
         and "LayoutMirroring.enabled: false" in login_clock
-        and "layoutDirection: Qt.LeftToRight" in login_clock,
+        and "layoutDirection: Qt.LeftToRight" in login_clock
+        and "readonly property real responsiveScale" in login_clock
+        and "Screen.height - 320" in login_clock,
         "the login clock must be one static MoOS editorial face: active-locale "
-        "date, accent colon, minute precision, semantic LTR time and no idle animation")
+        "date, accent colon, minute precision, semantic LTR time, low-resolution "
+        "fit and no idle animation")
 
 # Every selectable palette is one MoOS UI engine, not another login/session
 # design hiding under a different colour name. KDE needs a look-and-feel package

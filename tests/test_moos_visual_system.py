@@ -6,6 +6,8 @@ from __future__ import annotations
 import configparser
 import pathlib
 import re
+import subprocess
+import tempfile
 import unittest
 import xml.etree.ElementTree as ET
 
@@ -157,6 +159,81 @@ def blend(foreground: tuple[int, int, int],
 
 
 class MoOSVisualSystemTests(unittest.TestCase):
+    def test_installer_launcher_refuses_installed_systems_before_side_effects(self) -> None:
+        """The public installer route must stop before probing disks off LiveOS."""
+        launcher = (
+            ROOT / "system_files/usr/bin/moos-installer"
+        ).read_text(encoding="utf-8")
+
+        self.assertNotIn(
+            "installer/disk/<node>",
+            launcher,
+            "the launcher still documents the retired public disk-node route",
+        )
+        function = re.search(
+            r"(?ms)^is_live_boot\(\)\s*\{.*?^\}",
+            launcher,
+        )
+        self.assertIsNotNone(function, "the installer has no reusable live-boot predicate")
+        guard_at = launcher.index("if ! is_live_boot; then")
+        guard_exit_at = launcher.index("exit 1", guard_at)
+        self.assertLess(guard_at, launcher.index('CACHEDIR="${CACHE}/moos-installer"'))
+        self.assertLess(guard_at, launcher.index("moos-list-disks"))
+        self.assertLess(guard_exit_at, launcher.index("# QML disk cache", guard_at))
+
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            cmdline = root / "cmdline"
+            live_dir = root / "live"
+            harness = function.group(0) + '\nis_live_boot "$1" "$2"\n'
+
+            cmdline.write_text("quiet splash rd.live.image", encoding="utf-8")
+            by_karg = subprocess.run(
+                ["bash", "-c", harness, "installer-live-test", str(cmdline), str(live_dir)],
+                check=False,
+            )
+            self.assertEqual(by_karg.returncode, 0, "rd.live.image must allow the installer")
+
+            # Dots in a kernel argument are literal. A regex-style grep would
+            # wrongly accept this lookalike and reopen the installer off LiveOS.
+            cmdline.write_text("quiet splash rdXliveYimage", encoding="utf-8")
+            installed = subprocess.run(
+                ["bash", "-c", harness, "installer-installed-test", str(cmdline), str(live_dir)],
+                check=False,
+            )
+            self.assertNotEqual(
+                installed.returncode,
+                0,
+                "an installed-system cmdline with no LiveOS mount must be refused",
+            )
+
+            live_dir.mkdir()
+            by_initramfs = subprocess.run(
+                ["bash", "-c", harness, "installer-live-test", str(cmdline), str(live_dir)],
+                check=False,
+            )
+            self.assertEqual(
+                by_initramfs.returncode,
+                0,
+                "/run/initramfs/live remains the supported fallback live signal",
+            )
+
+    def test_installer_account_fields_have_stable_accessible_names(self) -> None:
+        """AT-SPI must identify every account input without relying on field order."""
+        installer = (
+            SHARE / "moos/apps/installer/main.qml"
+        ).read_text(encoding="utf-8")
+        fields = {
+            "userInput": 'Accessible.name: win.tr("اسم المستخدم", "Username")',
+            "fullInput": 'Accessible.name: win.tr("الاسم الكامل (اختياري)", "Full name (optional)")',
+            "passInput": 'Accessible.name: win.tr("كلمة السر", "Password")',
+            "pass2Input": 'Accessible.name: win.tr("أعد كلمة السر", "Repeat password")',
+        }
+        for object_id, accessible_name in fields.items():
+            with self.subTest(field=object_id):
+                block = qml_object_block(installer, f"id: {object_id}")
+                self.assertIn(accessible_name, block)
+
     def test_every_palette_owns_high_visibility_plasma_surfaces(self) -> None:
         for style in STYLE_NAMES:
             with self.subTest(style=style):
