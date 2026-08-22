@@ -28,6 +28,21 @@ account_path="$(busctl call org.freedesktop.Accounts /org/freedesktop/Accounts \
     org.freedesktop.Accounts FindUserByName s moos)"
 [[ "$account_path" == *"/org/freedesktop/Accounts/User"* ]]
 
+# A visible greeter without keyboard/pointer devices is not an interactive
+# operating system. The first visual ARM run exposed that the old QEMU gate
+# reached graphical.target while QEMU itself reported no mouse devices and
+# the user could not log in. Prove the exact release VM exposes both input
+# classes to the guest before calling its graphical path usable.
+input_devices="$(cat /proc/bus/input/devices)"
+grep -Fqi 'QEMU Virtio Keyboard' <<<"$input_devices" || {
+    echo "ARM RUNTIME FATAL: QEMU virtio keyboard is unavailable" >&2
+    exit 1
+}
+grep -Fqi 'QEMU Virtio Tablet' <<<"$input_devices" || {
+    echo "ARM RUNTIME FATAL: QEMU virtio tablet is unavailable" >&2
+    exit 1
+}
+
 # Fedora bootc is the single physical disk-growth authority. Its stock service
 # is Type=simple in the Fedora 44 image, so local-fs.target may continue while
 # the helper is still running. Wait for that one owner before measuring the
@@ -124,6 +139,7 @@ printf 'origin=%s\n' "$origin"
 printf 'cloud_init=done\n'
 printf 'graphical=%s\n' "$(systemctl is-active graphical.target)"
 printf 'display_manager=%s\n' "$(systemctl is-active display-manager.service)"
+printf 'interactive_input=virtio-keyboard+tablet\n'
 printf 'accounts_user=published\n'
 printf 'first_party_arch=aarch64\n'
 printf 'first_party_linkage=resolved\n'

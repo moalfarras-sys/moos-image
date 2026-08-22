@@ -404,6 +404,14 @@ class ArmEditionTests(unittest.TestCase):
         self.assertIn("ARM VISUAL FAILED", boot_gate,
                       "a failed visible VM must stay open for diagnosis")
         self.assertIn('"${qemu_display[@]}"', boot_gate)
+        self.assertIn("-device virtio-keyboard-pci", boot_gate,
+                      "the visual ARM VM must accept real keyboard input")
+        self.assertIn("-device virtio-tablet-pci", boot_gate,
+                      "the visual ARM VM must expose an absolute pointer")
+        runtime_gate = code(read(RUNTIME_GATE))
+        self.assertIn("QEMU Virtio Keyboard", runtime_gate)
+        self.assertIn("QEMU Virtio Tablet", runtime_gate)
+        self.assertIn("interactive_input=virtio-keyboard+tablet", runtime_gate)
         self.assertIn("touch '$continue_file'", boot_gate)
         self.assertIn("-display none", boot_gate,
                       "CI must retain its deterministic headless mode")

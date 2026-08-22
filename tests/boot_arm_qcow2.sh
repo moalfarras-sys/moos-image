@@ -187,6 +187,8 @@ qemu-system-aarch64 \
     -drive "file=$work/overlay.qcow2,format=qcow2,if=virtio,cache=unsafe" \
     -drive "file=$work/seed.iso,format=raw,if=virtio,readonly=on" \
     -device virtio-gpu-pci \
+    -device virtio-keyboard-pci \
+    -device virtio-tablet-pci \
     -netdev "user,id=net0,hostfwd=tcp:127.0.0.1:${port}-:22" \
     -device virtio-net-pci,netdev=net0 \
     -serial "file:$serial" \
