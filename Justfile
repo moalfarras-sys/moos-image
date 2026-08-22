@@ -234,9 +234,9 @@ build-nvidia: check
 # No NVIDIA (a cloud VM has no card to layer a driver onto), no gaming stack, no
 # Android layer; SSH enabled with keys only, a serial console so the provider's
 # rescue shows the boot, and KWin effects off because llvmpipe renders on the CPU.
-# Deployed with `system-reinstall-bootc` onto any VPS that offers Fedora — see
-# MOOS_CLOUD_PLAN.md. It shares the base with the desktop editions on purpose: one
-# identity, one gate suite, one signed update train.
+# Deployed with `system-reinstall-bootc` onto a supported x86 VPS. It shares the
+# base with the desktop editions on purpose: one identity, one gate suite, one
+# signed update train. AArch64 cloud deployment uses the native MoOS ARM image.
 build-cloud: check
     podman build \
         --pull=always \

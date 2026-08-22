@@ -43,7 +43,7 @@ echo "=== kernel frozen at the base version (dnf.conf exclude added) ==="
 #                signed update train, no gaming stack, no Android layer, a serial
 #                console so the provider's rescue works, SSH as a first-class
 #                entry point, and effects tuned for software rendering because a
-#                cloud VM has no GPU. See MOOS_CLOUD_PLAN.md.
+#                cloud VM has no GPU. AArch64 cloud hosts use Containerfile.arm.
 MOOS_EDITION="${MOOS_IMAGE_NAME:-moos}"
 case "$MOOS_EDITION" in
     moos|moos-nvidia|moos-cloud) ;;

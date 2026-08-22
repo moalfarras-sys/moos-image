@@ -6068,8 +6068,8 @@ for _qml_root in ("system_files/usr/share/moos/apps",
             )
 
 # ── The cloud edition is a third image, not a second project ─────────────────
-# MOOS_CLOUD_PLAN.md §1: moos-cloud shares this tree, these gates and this signing
-# key with the two desktop editions, because a second repository means every fix
+# moos-cloud shares this tree, these gates and this signing key with the two
+# desktop editions, because a second repository means every fix
 # gets made twice or forgotten once. That only holds if the wiring is actually
 # there — a build recipe nobody can run and a matrix row that does not exist are
 # how a "third edition" quietly becomes documentation.

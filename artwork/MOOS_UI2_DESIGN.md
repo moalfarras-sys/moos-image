@@ -1,463 +1,205 @@
-# MoOS UI2 — Graphite / Tidal Glass visual contract
+# MoOS UI — Liquid Glass design system
 
-Status: **implemented, live-session proven and locally image-built; awaiting signed image rollout**
-Owner: visual-system workstream
-Started: 2026-07-14
-Baseline image: signed MoOS `44.20260713.112`
+Status: current authoritative visual contract. Historical UI1, Nova and session
+audit journals live in Git history, not in HEAD.
 
-This is the hand-off point for every agent touching MoOS UI2. Read it with
-`AGENTS.md`, `PROJECT_STATE.md`, and `artwork/MOOS_UI_DESIGN.md`. UI2 is a new,
-isolated visual family. It must not overwrite or rename the retired Nova
-generation (UI1-era) or MoOS UI (UI1), which remain installed fallbacks.
+## Authority
 
-## Why UI2 exists
+MoOS has one visual implementation with palette variants, not several themes
+that may drift independently.
 
-The first real-hardware review of MoOS UI revision 15 found that it loaded and
-worked, but did not meet the visual target. The desktop widget was a large,
-muted square, its weather glyph read as flat 2D artwork, the aubergine wallpaper
-made the whole desktop feel like one dark block, and first-party QML apps still
-carried hard-coded colours from the retired Nova generation instead of the
-running desktop palette.
+- semantic dark/light core: `artwork/moos-ui2/palette.json`;
+- family tokens: `artwork/moos-themes/palettes.json`;
+- deterministic package/artwork generator: `artwork/generate_moos_ui2.py`;
+- shared Qt/Kirigami tokens: `system_files/usr/lib64/qt6/qml/org/moos/ui/`;
+- runtime selector/migration: `moos-theme`, `moos-apply-theme`,
+  `moos-ui-migrate`;
+- current migration revision: `THEME_REV` in `moos-apply-theme`;
+- action icon geometry: `generate_moos_symbolic_icons.py` and
+  `MOOS_UI_SYMBOL_MAP.md`.
 
-The proof was captured from the running Plasma containment, not inferred from
-repository files:
+Graphite/Tidal is the base pair. Amethyst, Aurora, Dev, Gaming, Midnight, Nova
+and Study are colour families generated through the same engine; each has a
+dark and light package. A variant may change semantic colour values and
+wallpaper exposure, never component geometry, typography, spacing, interaction
+or ownership.
 
-- `/var/home/mo/Pictures/MoOS-UI2-audit/baseline-containment-ui1-v2.png`
-- active deployment `44.20260713.112`, signed origin, digest
-  `sha256:26ea315ef8eb69731bb8f9d906d6a4a5bf69079c73eb018b68df45c76c664891`
-- active selectors: `org.moos.ui`, `MoOSUIDark`, `MoOSUI`
-- active desktop widget: `org.moos.nova.deskclock`, geometry
-  `x=48 y=32 w=496 h=400` on the 1397×786 logical desktop
+## Product character
 
-GTK intentionally names the `Breeze` stylesheet: Plasma's gtkconfig-generated
-palette feeds that stylesheet. UI2 must verify the *runtime colours*, not reject
-the stylesheet name.
+MoOS is calm, clear and materially rich. Liquid Glass communicates hierarchy;
+it is not decoration applied to every rectangle. The product signature is the
+Tidal Horizon: broad mineral-glass planes that settle into a quiet horizon,
+plus a short Tidal Cut used as a controlled luminous edge.
 
-## Identity and isolation
+The user should not see where Plasma ends and MoOS begins. Login, lock, power,
+desktop, launcher, panel, popups, Qt/GTK applications and first-party apps share
+one palette, type system, corner system, icon language and motion rhythm.
 
-| Surface | Dark | Light |
-|---|---|---|
-| Global Theme | `org.moos.ui2` | `org.moos.ui2.light` |
-| Plasma Style | `MoOSUI2` | `MoOSUI2Light` |
-| KDE colour scheme | `MoOSUI2Dark` | `MoOSUI2Light` |
-| Aurorae decoration | `MoOSUI2` | `MoOSUI2Light` |
-| Konsole profile | `MoOSUI2.profile` | `MoOSUI2Light.profile` |
-| Wallpaper | `MoOSUI2Graphite` | `MoOSUI2Tide` |
-| Desktop widget | `org.moos.ui2.dashboard` | same adaptive package |
+Avoid:
 
-UI1 selectors and `org.moos.nova.deskclock` stay byte-for-byte available. UI2
-theme switching may replace the visible desktop widget with the UI2 dashboard,
-but switching back must restore the UI1 widget without leaving duplicates.
+- pure black/white, neon cyberpunk, random purple/blue gradients;
+- stacked translucent cards with no readable hierarchy;
+- copied macOS traffic lights or Windows/ChromeOS silhouettes;
+- stock or mixed icon families on a MoOS-owned surface;
+- blur as the only source of contrast;
+- ambient motion that consumes CPU or hides state;
+- hard-coded LTR ordering, bilingual labels, or a second Arabic fallback face.
 
-Revision 16's completion marker distinguishes migration from rollback. Before
-the marker exists, an inherited UI1 Light/Dark desktop migrates to the matching
-UI2 half. After it exists, UI1 can only be an explicit rollback choice, so a
-later self-heal repairs that same UI1 half and its per-containment dashboard; it
-must never use drift as a reason to pull the user silently back into UI2.
+## Core semantic palette
 
-Plasma's built-in automatic Look-and-Feel switch does not reliably carry the
-wallpaper and does not own Konsole or GTK's light/dark preference. The globally
-enabled `moos-theme-sync.path` watches the effective `~/.config/kdeglobals` only
-during `plasma-workspace.target` and runs `moos-theme sync-auto` after a stable
-UI2 selector is observed twice. The sync writes only those non-LNF supplements,
-checks every desktop wallpaper plus lock screen, Konsole and GTK, and never
-writes `kdeglobals`; therefore it cannot trigger its own path unit. UI1 and
-foreign themes are ignored. A shared runtime lock serialises it with manual and
-first-login theme transitions.
-
-## Palette
-
-No runtime surface uses pure black or pure white.
-
-| Token | Graphite Dark | Tidal Light | Purpose |
-|---|---|---|---|
+| Token | Graphite dark | Tidal light | Purpose |
+|---|---:|---:|---|
 | canvas | `#14191C` | `#D8EBE7` | desktop/app foundation |
-| surface | `#1D2529` | `#C9E2DD` | windows, menus and dock |
-| card | `#232D32` | `#E1F0EC` | primary bento cards |
-| raised | `#2C383E` | `#B8D8D2` | controls and selected rows |
-| primary | `#4ED7C8` | `#006D67` | focus, progress and active state |
-| secondary | `#78AFFF` | `#1D6278` | links and secondary motion |
-| luminous | `#A8F1E8` | `#0B6965` | restrained highlights |
+| surface | `#1D2529` | `#C9E2DD` | windows, menus, panel |
+| card | `#232D32` | `#E1F0EC` | primary groups |
+| raised | `#2C383E` | `#B8D8D2` | controls and selection |
+| primary | `#4ED7C8` | `#006D67` | focus and active state |
+| secondary | `#78AFFF` | `#1D6278` | links and secondary state |
 | positive | `#69D9A5` | `#086B4B` | healthy state |
 | warning | `#F4C56A` | `#7B520F` | caution |
 | negative | `#FF7D88` | `#A52F3F` | destructive/error |
-| text | `#E8F1EF` | `#17302E` | primary text |
-| muted text | `#9CAFAC` | `#466360` | secondary text |
-| outline | `#415158` | `#527F79` | separators and card edges |
+| text | `#E8F1EF` | `#17302E` | primary ink |
+| muted | `#9CAFAC` | `#466360` | secondary ink |
+| outline | `#415158` | `#527F79` | edges and separators |
 
-Contrast is checked against the opaque colour tokens; translucent glass is not
-used as an excuse for low-contrast text.
+Text contrast is judged against the effective fallback fill, not an ideal blur
+sample. Every important edge must remain legible with compositing disabled.
 
-## Visual language
+## Geometry and rhythm
 
-UI2 is **Tidal Glass** and its product signature is **Tidal Horizon**: quiet
-graphite mechanics in Dark, mineral daylight in Light, and one rising cubic rim
-interrupted by a short central **Tidal Cut**. The signature is spatial rather
-than decorative: it seats content, marks a threshold and gives the system a
-silhouette that remains recognisable when the palette changes.
+- spacing rhythm: 4 / 8 / 12 / 16 / 24 / 32 logical px;
+- minimum interactive target: 40×40 logical px; touch-first controls: 44×44;
+- nested radii: controls 8–12, cards 12–16, panels 16–20, dialogs 20–24;
+- a nested surface uses a smaller radius than its parent;
+- panel/dock stays one bottom floating capsule. Do not add a second bar;
+- the Tidal Horizon is physical geometry and does not mirror in RTL. Logical
+  content, navigation and text do mirror;
+- wallpaper geometry is shared across palettes and preserves quiet upper space
+  for work and desktop content.
 
-The normal horizon contract is `left/right=0.11/0.89W`,
-`horizon=0.82H`, `crest=0.12H`, `shoulder=0.22W` and
-`cutHalf=max(11px,0.013W)`. Compact surfaces use `0.04/0.96W`,
-`0.78H`, `0.19H` and `0.18W`. The precision rim is
-`max(1.25px,0.0024H)` above a non-blurred optical under-stroke of
-`max(8px,0.018H)` at 48% intensity. The aperture fades from 7% to 3.5%
-to zero; it never becomes another glass card. Geometry is physical and therefore
-does not mirror in RTL; content and controls keep logical start/end behaviour.
+Responsive layout is based on logical width/height, not one owner's 4K screen.
+Login controls in particular must fit the 640×480 firmware/TCG mode while
+remaining full-sized at normal desktop resolutions.
 
-Tidal Horizon appears in the session portals, Command Canvas, Store, Mo AI and
-Control Centre. The MoOS and Mo AI marks keep their existing geometry and are
-seated within the horizon; the motif never redraws either brand.
+## Typography
 
-Surfaces use offset bento cards, soft inner highlights, one broad shadow, one
-luminous edge, and large calm negative space. Avoid white slabs, neon
-cyberpunk, purple/orchid from UI1, excessive blur, fake macOS traffic-light
-buttons, glass stacked on glass, and animation on every object.
+- interface: IBM Plex Sans; Arabic: IBM Plex Sans Arabic;
+- code/terminal: IBM Plex Mono;
+- primary body: 13–15 logical px; captions: 10–12; section title: 18–24;
+- large clock numerals may use ExtraLight, but controls never use display type;
+- time is a semantic LTR island even inside Arabic RTL;
+- expose plain localized labels to accessibility APIs—never raw mnemonic marks.
 
-The dock keeps one proven Plasma panel. Dark and Light use identical FrameSvg
-geometry: a low floating capsule, translucent tinted fill, one-pixel inner edge,
-and a soft turquoise active shelf. They own separate, fully generated SVG suites;
-Light must never inherit a fixed-colour Dark SVG. Adaptive transparency stays
-disabled in both variants so a maximised window cannot turn only the Light dock
-opaque.
+## Icons
 
-KDE, Qt, GTK, Konsole, Plasma popups, window decorations and first-party cards
-draw from the active colour scheme. Mo AI, Store and Control Centre bind the
-horizon to Kirigami semantic roles; brand art retains its identity geometry.
+MoOS action icons use the Tidal Cut symbolic set. They are filled silhouettes
+with one deliberate counter, readable in one colour at 16 px and bound to KDE
+semantic colour roles. Full-colour marks are reserved for product/application
+identity. Do not recolour or mask the MoOS or Mo AI identity marks as actions.
 
-The Command Canvas is `828×630` logical px (`46×35` grid units) with `24px`
-outer rhythm, a `68px` command bar, targets of at least `40px` and the shared
-`8/12/16/24px` radius scale. It exposes three primary destinations—Mo AI, Store
-and Settings—then quiet contextual actions; it does not repeat the same
-destinations in a second loud strip. Entrance is one finite `240ms`
-opacity/scale transition, interaction feedback is `120ms`, and both collapse to
-zero when `Kirigami.Units.longDuration <= 1`.
+Application launchers, settings routes, notifications, dialogs and system
+actions must resolve to a real icon at every shipped size. A missing icon that
+falls back to a generic placeholder is a release defect.
 
-## Wallpaper contract
+## Material
 
-Every variant uses the same 16:9 Tidal Horizon composition and exports
-3840×2160, 3440×1440 and 2560×1600. Broad interlocking liquid-glass planes flow
-from the lower corners toward one calm horizon; the upper field stays quiet for
-work, icons and desktop information. Palette switching changes light and
-material exposure, not geometry. There is no text, logo, UI mock-up, fake
-window, copied OS motif or visible banding.
+A Liquid Glass surface has:
 
-Final dark generation prompt (`mode=generate`):
+1. a palette-tinted fallback fill that works without blur;
+2. one restrained hairline/inner highlight;
+3. one soft depth shadow where elevation is meaningful;
+4. a focus/active edge using the semantic primary role;
+5. no more layers than needed to explain containment.
 
-> Create a premium 16:9 Tidal Horizon wallpaper from broad sculpted layers of
-> liquid glass and translucent mineral surfaces flowing from the lower corners
-> into a calm horizon. Use deep graphite atmosphere, controlled #55E6D2 edge
-> light and tiny violet spectral glints. Preserve generous upper negative space;
-> no text, logo, objects, UI, watermark, neon, particles or central clutter.
+Software rendering uses opaque or near-opaque fallbacks. Cloud/TCG/weak-device
+profiles reduce effects through capability detection, not a separate design.
 
-Final light sibling prompt (`mode=edit`, using the accepted dark master):
+## Motion
 
-> Preserve the exact composition, camera, horizon and ribbon geometry. Convert
-> only illumination and material exposure into luminous pearl atmosphere and
-> pale frosted sea glass with restrained teal edges. Add or remove no shapes;
-> no text, logo, objects, UI, watermark or blown highlights.
+Motion communicates entrance, focus, selection, progress or state change.
 
-The built-in image generator is used for the raster masters. Generated output is
-inspected, cropped to 16:9 without stretching, then exported deterministically by
-`artwork/generate_moos_ui2.py`. Runtime packages never reference a file left only
-under `$CODEX_HOME`.
+- interaction feedback: about 120 ms;
+- normal geometry transition: 180–240 ms;
+- emphasized finite transition: 320–420 ms;
+- boot animation yields immediately when the system is ready;
+- Reduced Motion makes decorative transitions exactly zero, not one millisecond;
+- infinite motion must be visible, state-bearing, low-frequency and guarded by
+  `visible && Kirigami.Units.longDuration > 1` or an equivalent shared token;
+- no 60 Hz JavaScript timers, ShaderEffect theatre, or process-spawning motion.
 
-The accepted lossless masters are
-`moos-ui-tidal-horizon-master-v2.png` and
-`moos-ui-graphite-horizon-master-v2.png`, both 1672×941. The family generator
-maps their luminance and edge mask to all 16 semantic palettes, so every picker
-preview and runtime crop keeps the same geometry. Lanczos scale-and-crop creates
-deterministic 4:4:4 runtime JPEGs. The family proof sheet is
-[`moos-ui2/previews/tidal-horizon-family-v2.jpg`](moos-ui2/previews/tidal-horizon-family-v2.jpg).
+## Surface contracts
 
-## Desktop dashboard contract
+### Boot → login → desktop
 
-`org.moos.ui2.dashboard` is a new plasmoid, not an in-place rewrite of UI1. It is
-one passive desktop widget containing three internal bento cards:
+Plymouth's final composition, Plasma Login Manager and the first desktop frame
+share logo scale, horizon position and background family. Normal boot shows no
+foreign identity, text console, cursor flash or avoidable black/white frame.
+The animation never delays a ready login/desktop.
 
-1. **Time card** — rolling HH:mm digits, Arabic and locale date, quiet minute pulse.
-2. **Weather card** — generated 3D weather art, temperature/condition/high/low,
-   slow float and condition-specific rain/snow/fog/storm motion in QML.
-3. **System card** — compact CPU/RAM/GPU bars and a breathing health beacon using
-   the verified sensor IDs.
+Plasma Login Manager owns two intentional states: MoOS idle clock and password
+form. Its upstream ten-second timeout hides the form; therefore `ShowClock=true`
+is required. Any key/pointer action restores authentication immediately.
 
-Target geometry is a wide 31×12 grid-unit composition, materially shorter than
-UI1's 27×14 square-like dashboard. It contains no `MouseArea`, does not intercept
-desktop gestures, keeps the keyless ipwho.is + Open-Meteo path, does not poll more
-often than UI1, and hides failed weather data cleanly.
+### Panel and launcher
 
-Weather art covers sun, moon, partly cloudy day/night, cloud, rain, snow, fog and
-storm. The shipping assets are local, licence-owned MoOS artwork. Only one weather
-PNG is decoded at a time. Motion comes from QML transforms/particles/shapes; no
-network-loaded animation and no Lottie runtime dependency enter plasmashell.
+The Horizon panel is one quiet bottom command island. Its active applet is a lit
+slot, never a bordered box. The launcher presents primary destinations once;
+secondary actions stay visually quiet. Popups inherit the same material and
+must not fall back to Breeze artwork.
 
-Weather-art provenance (2026-07-14): the built-in image generator produced two
-lossless source atlases: the RGBA `weather-atlas-alpha.png` and the RGB
-`weather-atlas-chroma.png`, both retained under `artwork/moos-ui2/weather/`.
-The nine named 512×512 RGBA masters were isolated from those atlases, visually
-inspected on both UI2 wallpapers, and remain beside them; no LottieFiles or
-third-party weather pack was used.
-The project-bound generation prompt was:
+### First-party apps
 
-> Use case: stylized-concept. Asset type: transparent 3D weather-icon atlas for
-> a premium operating-system desktop widget. Create a coherent family containing
-> clear day, clear night, partly cloudy day, partly cloudy night, overcast cloud,
-> rain, snow, fog and thunderstorm. Sculpted frosted sea-glass forms, soft pearl
-> clouds, mineral turquoise and restrained cool-blue highlights, rounded modern
-> silhouettes, subtle depth and broad soft shadows, readable at 96 px, consistent
-> three-quarter lighting and scale. Arrange isolated icons on a clean grid with
-> generous separation and transparent background; no text, labels, UI, border,
-> watermark, purple, neon cyberpunk, pure black or pure white background.
+Settings, Store, Updater, Recovery, Mo AI, Installer, MoPlayer and Mo PC Remote
+share the token module. Each surface needs honest loading, success, error and
+recovery states. The UI never reports success before the backend confirms it.
+Privilege prompts and error dialogs belong to the same language and remain
+usable with blur/effects disabled.
 
-`artwork/generate_moos_ui2.py` copies the nine owned masters into the dashboard,
-so the runtime weather set is reproducible rather than a hand-maintained duplicate;
-the dashboard QML itself remains normal source code and is not generator output.
-The generator preflights every raster input and `ffmpeg`, moves existing outputs
-to a same-filesystem temporary backup, and restores them byte-for-byte on any
-generation or validation failure. A failed regeneration therefore cannot leave
-the repository with a half-deleted UI2 family.
+### Dashboard and wallpaper
 
-## Motion system
+The dashboard is one passive plasmoid with time, weather and system groups. It
+must not intercept desktop gestures. Weather artwork is local and MoOS-owned;
+failed network data disappears or explains itself without stale false values.
+Only the active asset is decoded, and idle CPU/RSS is measured after changes.
 
-- card entrance: one 420ms stagger after creation;
-- weather float: 5–7 seconds, 2–3 px travel, ease-in-out;
-- surface sheen: one 12–16 second pass, low opacity;
-- minute change: only changed digits roll, 420ms;
-- health beacon: 3 seconds, opacity only;
-- rain/snow/fog/storm: condition-specific and clipped inside the weather card;
-- no movement consumes input, starts processes or runs at a 60 Hz JavaScript timer.
+## Localization, scaling and accessibility
 
-All infinite motion is guarded by
-`root.motionEnabled = root.visible && Kirigami.Units.longDuration > 0`. The
-dashboard uses no QtQuick3D, ShaderEffect or full-dashboard live blur. During live
-proof, compare plasmashell for 60 seconds before/after; UI2's target is under one
-CPU core-percent idle delta and under 25 MB decoded RSS delta.
+Required representative visual classes:
 
-Animations must remain useful when captured as a still: the layout and lighting,
-not motion alone, carry the design.
+- 1920×1080, 2560×1440, 3840×2160;
+- 100%, 125%, 150%, 200%, 225%;
+- English LTR, German LTR, Arabic RTL;
+- dark and light; software-rendered fallback where relevant.
 
-## Real-session proof — 2026-07-14
+Every class needs a real screenshot from a running surface. Inspect clipping,
+overlap, elision, minimum targets, RTL order, focus, keyboard navigation,
+accessible names, reduced motion and contrast. Automation may reduce redundant
+combinations but cannot replace looking at each distinct responsive/RTL class.
 
-Both variants were staged under the exact user-level package IDs, loaded by the
-installed Plasma 6 session, read back from KConfig, and captured from the real
-`HDMI-A-1` containment. These are reduced repository copies of the 3842×2162
-proof captures:
+## Change and proof workflow
 
-- [`moos-ui2/live-tests/ui2-dark-real-desktop.jpg`](moos-ui2/live-tests/ui2-dark-real-desktop.jpg)
-- [`moos-ui2/live-tests/ui2-light-real-desktop.jpg`](moos-ui2/live-tests/ui2-light-real-desktop.jpg)
+1. Modify the authoritative token/source/generator, never a generated sibling.
+2. Regenerate and run deterministic checks; bump `THEME_REV` when an existing
+   user's cache or persisted state must be migrated.
+3. Run SVG/XML/QML/source gates and deliberately prove new regressions bite.
+4. Load the real surface, interact with it and inspect its journal/process state.
+5. Capture temporary evidence outside the repository; retain only selected,
+   current evidence with a release purpose.
+6. Build the image and boot the exact artifact. A source screenshot does not
+   prove the installed image and a parser does not prove the pixels.
+7. Remove every user-local package/cache shadow used for live development so
+   `/usr` remains the runtime authority after update.
 
-The full-resolution audit, including panel screenshots and pre-change config
-archive, is at
-`/var/home/mo/Pictures/MoOS-UI2-audit/session-20260713T223931Z/` on the maintainer
-machine. Runtime readback was:
+Core checks:
 
-| Variant | Look-and-feel | Scheme | Plasma style | Decoration |
-|---|---|---|---|---|
-| Graphite | `org.moos.ui2` | `MoOSUI2Dark` | `MoOSUI2` | `__aurorae__svg__MoOSUI2` |
-| Tidal | `org.moos.ui2.light` | `MoOSUI2Light` | `MoOSUI2Light` | `__aurorae__svg__MoOSUI2Light` |
-
-`plasmawindowed org.moos.ui2.dashboard` ran for 15 seconds and stayed loaded. The
-live dashboard resolved Berlin weather and all three system metrics. After the
-initial shell start settled, a 10-second Tidal sample measured 4.40% of one CPU
-core and a 540 KiB RSS change; the previous UI1 shell's long-lived average was
-6.4%, so UI2 did not introduce a measured CPU regression.
-
-**Correction (revision 16.1).** This section originally claimed that no QML error
-appeared in either journal. That claim was false, and it is the reason a real bug
-shipped. The same journal it cites logged, twenty-one times across those very runs:
-
-```text
-QML QQuickImage: Binding loop detected for property "sourceSize.height"
-  .../org.moos.ui2.dashboard/contents/ui/WeatherScene.qml:42
+```bash
+python3 artwork/generate_moos_ui2.py --check
+python3 artwork/generate_moos_symbolic_icons.py --check
+python3 tests/test_moos_ui2.py
+python3 tests/test_tidal_portals.py
+python3 tests/test_moos_symbolic_icons.py
+python3 tests/test_moos_symbolic_runtime.py
+python3 tests/verify_user_experience.py
 ```
 
-`WeatherScene.qml` bound `sourceSize.height` to `sourceSize.width`. Both are
-components of one `QSize`, so the property depended on itself; Qt resolved the loop
-by dropping the binding, and the weather art decoded at a stale size on every load
-and every condition change. It is fixed — the pixel size is computed once and the
-whole `QSize` assigned in a single binding — and the fix was re-proved by running
-the package and reading the journal back empty.
-
-Two lessons are now encoded as gates rather than prose:
-
-- The build's plasmoid smoke test already grepped its log for `binding loop` and
-  **could never have caught this**. Under `QT_QPA_PLATFORM=offscreen` the card is
-  never laid out to a real width, so the binding is evaluated once, never re-enters,
-  and Qt has no loop to detect. Reproduced deliberately: the broken file exits 124
-  with a clean log and the build calls it a pass. A runtime gate that cannot give a
-  thing geometry cannot see a geometry-driven loop.
-- So the gate that bites is **static**, in `tests/verify_user_experience.py`: no
-  shipped MoOS QML may bind one component of a value-type group (`sourceSize`,
-  `font`, `icon`, `palette`) to another component of the same group. `Layout` and
-  `anchors` are deliberately excluded — they are an attached object and a grouped
-  object, their components do not notify each other, and the running session proves
-  it: Qt logged loops for `sourceSize.height` and `icon.height` and never once for
-  `Layout.preferredHeight`, which this same dashboard binds to `Layout.preferredWidth`
-  on every frame.
-
-Do not restate a clean-journal proof in this document without pasting the command
-that produced it. The claim above is what let the bug through.
-
-The first migration proof found a real Folder View collision: add-new-before-
-remove-old safely proved the new package, but snapped it to `0,0`. The final
-migration deliberately uses separate D-Bus turns after that proof; the persisted
-geometry is now `x=80 y=64 w=560 h=224`. This is gated and documented rather than
-hidden as a manual adjustment.
-
-The generator proof also caught and fixed a cascading identifier rewrite
-(`MoOSUI2ActionButton` becoming the nonexistent `MoOSUI22ActionButton`). Output
-validation now rejects that class and requires the logout component to exist and
-be instantiated in both variants.
-
-## Rollout checklist
-
-1. Build all UI2 packages from new masters; do not hand-edit generated output.
-2. Make `dark`, `light`, `toggle` and `auto` select UI2 after live proof.
-   (`ui1-dark` / `ui1-light` were planned here as explicit rollback commands and
-   were never implemented; UI1 has since been removed from the image entirely.
-   The rollback path is `moos-theme undo`, then Breeze, then `rpm-ostree
-   rollback` — see PROJECT_STATE.md.)
-3. Stage system packages temporarily in `~/.local/share` only for live review,
-   run `plasmawindowed org.moos.ui2.dashboard`, inspect the journal, then apply
-   each real Global Theme and capture the actual containment with
-   `org.kde.PlasmaShell.grabContainmentImage`.
-4. Restore the original active theme and remove every user-local shadow after
-   proof. The system image remains the authority until the signed deployment boots.
-5. Add gates for package identity, both palettes, wallpaper assets, selector
-   symmetry, no duplicate widget migration, no `MouseArea`, sensor IDs, weather
-   routes and generated-output reproducibility. The QML scan is recursive across
-   every component, not only `main.qml`. Break each new gate once.
-6. Add a real plasmoid QML runtime smoke test; text assertions alone are not
-   enough and have already allowed broken visible surfaces to pass.
-7. Run all repository gates, shell/QML/SVG/XML validation and a local container
-   build before push.
-8. Push only after local proof. Wait for both signed editions. Stage the signed
-   NVIDIA deployment, verify signature/digest, reboot, and run
-   `tests/post-update-check.sh`. Keep the previous deployment for rollback.
-
-## Pre-existing baseline failures
-
-Before UI2 work, `tests/post-update-check.sh` reported 26 passing sections and
-one section failure caused by two user units:
-
-- `app-org.kde.xwaylandvideobridge@autostart.service`
-- `plasma-ksmserver.service`
-
-Do not misattribute those baseline unit failures to UI2. Any new plasmashell,
-KWin, QML, GPU allocation or theme-readback error after staging UI2 is a UI2
-regression until proven otherwise.
-
-## Known UI2 coverage gaps — historical record (all seven CLOSED)
-
-> **2026-07-15 status:** every numbered item below has since shipped — teal
-> `MoOSUI2`/`MoOSUI2Light` icon themes (1), libadwaita/Flatpak palette via
-> `moos-ui2.css` + the gtk-4.0 read hole (2), the GTK theme-name pin on every
-> switch (3), the `MoOSDark` pointer for Tidal Light (4), the MoOS lock screen
-> in the shell package (5), the retired Nova pickers gone with the one-generation
-> cleanup (6), and the traffic-light decision (7). The desktop dashboard additionally
-> moved INSIDE the wallpaper (`org.moos.ui2.wallpaper`) so it renders below the
-> icons, and the Welcome/Store split into two apps (`apps/welcome` onboarding,
-> `apps/store` = Mo Store). The gates — not this list — are the source of truth.
-> The original text is kept because it documents WHY each surface mattered.
-
-Revision 16.1 swept every visual surface of the system and closed four: the QML
-binding loop in the weather art, the login screen (still on NovaHorizonII while
-the lock screen had moved to Graphite), the Plymouth boot splash (still the
-retired Nova generation's navy `#050A14` with a `#2E7BFF` bar), and the
-kde-settings profile (still naming `org.moos.nova`, a family the theme switcher
-cannot even reach).
-
-These are the surfaces it found and did **not** close. They are listed because a
-short honest list is worth more than a long claimed one — and because each of them
-is a place where the desktop is UI2 and the thing sitting on it is not.
-
-1. **The icon theme is still the retired Nova generation's electric blue.**
-   `build.sh` (c5) builds `Nova` and `NovaLight` from Colloid with `-t default`,
-   and Colloid's "default" folder colour is `#5b9bf8` — chosen deliberately to
-   match the retired Nova generation's electric blue `#2E7BFF`. UI2's primary is
-   turquoise `#4ED7C8`; its only blue is the *secondary* `#78AFFF`. Both UI2
-   variants still select `Nova`/`NovaLight`, so every folder in Dolphin, the
-   Places sidebar, the file dialogs and Kickoff is blue on a graphite and
-   turquoise desktop. Colloid ships a `teal` variant. Closing this means a second
-   Colloid pass in (c5) producing `MoOSUI2`/`MoOSUI2Light` icon themes by the
-   same copy-index-then-symlink route already proven for the `Nova` icon themes,
-   then repointing `moos-theme`, `moos-apply-theme`, `moos-selfcheck`, both
-   `defaults` files and `/etc/xdg/kdeglobals`. **This is the largest remaining
-   visual gap, and it is a brand decision the owner should make, not a bug to
-   fix quietly.**
-
-2. **GTK4 / libadwaita gets nothing but light/dark.** MoOS ships no
-   `/usr/share/themes` content and no `gtk-4.0/gtk.css`. libadwaita apps ignore
-   `gtk-theme-name` entirely, so **Bazaar — the app store MoOS itself ships — and
-   every Flathub app installed through it render in stock Adwaita** with Adwaita's
-   `#3584e4` blue. Flatpak sandboxes additionally cannot read the host theme at all.
-   Closing this means per-variant `@define-color` overrides for libadwaita's named
-   palette plus a `flatpak override` beside the Flathub remote in `build.sh`.
-
-3. **The GTK theme *name* is pinned once, not on every switch.** `moos-theme`'s
-   `apply_supplements()` writes `prefer-dark` to all three GTK sources correctly, but
-   writes no theme name; the name is set only by `moos-apply-theme`'s `pin_gtk()`,
-   behind the once-per-revision marker, and it `continue`s past `settings.ini` /
-   `xsettingsd.conf` when the file does not exist yet. A fresh user whose gtkconfig
-   has not yet materialised those files keeps an empty GTK theme name, which means
-   Adwaita — the exact failure AGENTS.md documents.
-
-4. **The light cursor.** `MoOS` (Bibata-Modern-Ice, white) is pinned for *both*
-   variants, and `moos-theme` has no cursor variable at all. White-on-mint is a
-   low-contrast pointer on Tidal Light's `#D8EBE7` canvas.
-
-5. **The lock screen is Breeze's.** No MoOS look-and-feel package ships a
-   `contents/lockscreen/` — `org.moos.ui2`, `org.moos.ui` and `org.moos.nova` all
-   have only `splash/` and `logout/`. The lock screen therefore gets UI2's wallpaper
-   and colour scheme over Plasma's own clock, field and typography.
-
-6. **The pickers still offer Nova.** `NovaAurora`/`NovaDeep`/`NovaHorizon`/
-   `NovaHorizonII`/`NovaPulse` wallpapers, `Nova`/`NovaLight` Plasma styles and
-   colour schemes, and `org.moos.nova{,.light}` are all installed and un-hidden —
-   neither the default (UI2) nor the documented rollback (UI1). AGENTS.md deleted
-   Fedora's themes for exactly this reason: "a picker is a user-facing screen like
-   any other."
-
-7. ~~**Dead SDDM weight.**~~ **Closed 2026-07-14.** The `moos` SDDM theme
-   (~60 files) and `/etc/sddm.conf.d/moos.conf` are deleted — `sddm` is never
-   installed on Kinoite 44, so nothing read them. `verify_image_experience.py`
-   no longer requires the theme's background; it now fails the build if
-   `/usr/share/sddm` or `/etc/sddm.conf.d` ever ships again. The Qt extras that
-   arrived as its deps (virtual keyboard, image formats) stay: the lock screen's
-   Arabic on-screen keyboard uses them.
-
-## Decisions 2026-07-30 — material, maximized bar, typography, motion cost
-
-Recorded during the ship-readiness milestone; full evidence in
-the 2026-07-29 session notes in git history (rejected approaches, decisions).
-
-- **Material hierarchy.** PERSISTENT surfaces (window frames/titlebars) are
-  SOLID; Liquid Glass belongs to TRANSIENT shell surfaces (dock, popups,
-  notifications). The Aurorae decoration therefore ships NO `mask-*` blur
-  frame — the frame is 100% opaque and a mask made KWin compute blur behind
-  covered pixels every frame. Gates fail on a mask returning. Going
-  translucent later means: reintroduce the mask AND re-verify caption
-  contrast on all 16 themes.
-- **The maximized titlebar is FLAT, in the title ramp's terminal colour.**
-  Not a gradient: FrameSvg stretches the centre cell and no gradient basis
-  survives it (userSpaceOnUse distorts; objectBoundingBox resolves against
-  the whole window — both measured as a barely-moving ramp). The floating
-  window keeps the ramp; the docked window rests on the ramp's landing
-  colour. Worst caption contrast across the family: 10.28:1.
-- **Typography.** Any label that can carry Arabic binds "IBM Plex Sans
-  Arabic" (Inter has no Arabic; the fallback face split surfaces in two).
-  `font.families` is unusable on Qt 6.11.1 — it fails the whole component.
-  Inter remains ONLY on always-Latin digits (hero clocks) and the "MoOS"
-  wordmark, both documented at the site.
-- **Numerals.** Shell-chrome dates fold digits to Latin via latinNumerals();
-  day/month names stay the locale's. The bilingual calendar popup remains
-  deliberately dual-locale.
-- **Motion cost.** Decorative ambient loops must not bill an unfocused
-  window: gate on `longDuration > 1` + visibility AND `paused: !active`
-  (measured: Mo AI's ambient scene was ~13% of a core for the window's
-  lifetime). State-gated pulses must also be BOUNDED on their failure path
-  (the Store's index pulse ran forever at ~12% when the catalogue build
-  failed).
-- **Icon seating.** App icons sit on the shared graphite plate at ~86% solid
-  box; commissioned raster art is seated on the plate, never shipped raw
-  (`artwork/generate_moai_icon.py`), with the byte-exact master preserved.
+The release decision still requires clean-VM and upgraded-real-host visual proof.

@@ -97,8 +97,7 @@ jobs:
         # door, a serial console for the provider's rescue, and effects tuned for
         # software rendering. It layers no driver either, so it takes the same
         # scratch akmods stage the generic image does. One repository, one gate
-        # suite, one signing key — see MOOS_CLOUD_PLAN.md §1 for why it is a third
-        # matrix row and not a second project.
+        # suite, one signing key — a third matrix row, never a second project.
         include:
           - image_name: moos
             nvidia: "false"

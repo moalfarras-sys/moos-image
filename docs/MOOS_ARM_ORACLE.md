@@ -1,15 +1,16 @@
 # MoOS ARM — running it on Oracle Cloud (free) and on UTM
 
-`moos-arm` is MoOS built for **aarch64**. Same identity, same UI2 desktop, same
-boot animation as the x86 editions — the whole `system_files/` tree is shared
-byte-for-byte — but built from Fedora's own bootc base, because the Kinoite base
+`moos-arm` is MoOS built for **aarch64**. It uses the same identity, Liquid Glass
+desktop, boot experience and first-party applications as the x86 editions. The
+shared `system_files/` source is finalized for each architecture during the image
+build. ARM starts from Fedora's bootc base because the Kinoite base
 the x86 editions use is published for amd64 only.
 
 It targets three things:
 
 | Target | Shape | Notes |
 |---|---|---|
-| **Oracle Cloud** | `VM.Standard.A1.Flex` (Ampere) | Current Always Free ceiling: 2 OCPU + 12 GB RAM + 200 GB block storage |
+| **Oracle Cloud** | `VM.Standard.A1.Flex` (Ampere) | Verify the Always Free label and current tenancy allowance before launch |
 | **UTM on Apple silicon** | Virtualize | Near-native speed |
 | **UTM on iPhone / iPad** | Emulate (UTM SE) | Works, but see [the honest note](#utm-on-iphone) |
 
@@ -25,14 +26,20 @@ on x86 takes hours and usually blows the job timeout.
 2. The `main` push builds, signs and publishes the image and then creates the
    QCOW2 automatically. To repeat it manually, Actions → **Build MoOS ARM
    (aarch64)** → *Run workflow* and select `main`.
-3. When it finishes, download the `moos-arm-qcow2` artifact and unpack it:
+3. When it finishes, download both release artifacts:
+
+   - `moos-arm-qcow2`: compressed exact boot-proven QCOW2, manifest, checksums;
+   - `moos-arm-utm`: ready-to-import `MoOS-ARM.utm.zip`, manifest, checksums.
+
+   Unpack the standalone disk when Oracle needs it:
 
 ```bash
 zstd -d moos-arm-*.qcow2.zst
 ```
 
-You now have `moos-arm-YYYYMMDD.qcow2`. That one file is what both Oracle and UTM
-take.
+You now have `moos-arm-<version>.qcow2`. Oracle imports that file. UTM users
+should import the `.utm.zip`; it contains the same QCOW2 hash plus the required
+NoCloud seed and current UTM configuration.
 
 > The workflow also pushes `ghcr.io/<you>/moos-arm:latest`. That is the *update*
 > channel — once an instance is running, `bootc upgrade` pulls from it. The qcow2
@@ -44,9 +51,12 @@ take.
 
 ### 2.1 Before you start
 
-You need an OCI account with the **Always Free** tier. The A1 allocation is
-currently **2 OCPU + 12 GB RAM total per tenancy**, and Always Free includes
-200 GB of block volumes.
+You need an OCI tenancy where `VM.Standard.A1.Flex` is marked Always Free in the
+home region. Oracle's current Free Tier page describes 1,500 OCPU-hours and
+9,000 GB-hours monthly (equivalent to 2 OCPUs and 12 GB continuously) plus
+200 GB of Always Free block storage, but service limits and offers can change;
+verify the console before creating chargeable resources:
+<https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_Resources.htm>
 
 Object/custom-image storage is not an unlimited free resource. OCI includes
 **20 GB combined Object Storage** in the Always Free allowance, and Oracle
@@ -190,32 +200,34 @@ console, which you discover exactly when you need it.
 
 ## 4. UTM
 
-The same `.qcow2` file, no conversion.
+Use the generated `MoOS-ARM.utm.zip`. It contains the exact QCOW2 that passed
+the release boot gate; the workflow checks the raw hash before packaging and
+records it in `manifest.json`.
 
 ### Apple silicon Mac
 
-1. UTM → **Create a New Virtual Machine → Virtualize → Linux**
-2. Tick **Boot from kernel image**: *off*. Instead, skip the ISO step.
-3. In the VM's settings, remove the empty drive and **import** `moos-arm.qcow2`
-   as the boot drive.
-4. **System**: 4+ GB RAM, 2+ cores. **Display**: `virtio-gpu-pci` (the image ships
-   the virtio drivers in its initramfs).
-5. Boot. The MoOS animation plays, then the login screen.
+1. Download the `moos-arm-utm` workflow artifact and verify `SHA256SUMS`.
+2. Import `MoOS-ARM.utm.zip` in UTM. Do not replace either bundled drive.
+3. Open UTM's built-in **Terminal** view before pressing Start.
+4. During first boot cloud-init prints a password generated inside this VM for
+   user `moos`. The public bundle and its README contain no password.
+5. Use that password on the graphical MoOS login screen, then change it from
+   Settings. SSH password login and KRDP remain disabled until explicitly enabled.
 
-Because there is no Oracle metadata, the QCOW2 alone has no safe per-device
-password or SSH key. Attach a `NoCloud` seed ISO that creates the `moos` account
-with your own password/key before expecting graphical login. A repository-known
-default password is deliberately not shipped. The datasource list already
-accepts NoCloud.
+The bundle uses current QEMU configuration schema v4, AArch64 `virt`, UEFI,
+`virtio-ramfb`, VirtIO disk/network, 4 GiB RAM and a MoOS library icon. UTM can
+use hardware virtualization when the host exposes it and falls back to emulation
+when it does not.
 
 ### UTM on iPhone
 
 <a name="utm-on-iphone"></a>
-It runs, and it is worth being straight about what that means. On iPhone, UTM
-cannot use hardware virtualisation — **UTM SE is a JIT-less emulator**. An
-emulated Plasma desktop on a phone is *slow*: minutes to reach the desktop, and
-sluggish once there. It is a demonstration, not a machine to work on. On an
-M-series iPad running full UTM with virtualisation, it is genuinely fast.
+The same bundle is intended for UTM on iPhone/iPad, but this release must not be
+called iPhone-proven until it is imported on the owner's physical device. UTM SE
+uses JIT-less emulation, so a full Plasma desktop can take minutes to boot and be
+slow even when the identical AArch64/UEFI/virtio path passes on a Linux host.
+Apple-silicon devices with supported virtualization can be much faster. Current
+mission status is **OWNER-DEVICE-TEST-REQUIRED**.
 
 ---
 
@@ -224,8 +236,8 @@ M-series iPad running full UTM with virtualisation, it is genuinely fast.
 MoOS ARM is a bootc image, so updates are atomic and roll back:
 
 ```bash
-sudo bootc upgrade        # pulls ghcr.io/<you>/moos-arm:latest
-sudo systemctl reboot
+moai-do update            # resolves and stages an exact signed digest
+# reboot from the MoOS power UI after the staged deployment is verified
 ```
 
 If a boot goes wrong, pick the previous deployment in the boot menu, or:
@@ -245,9 +257,9 @@ sudo bootc rollback
 | Identity, UI2, boot animation | `system_files/` | **the same `system_files/`** |
 | NVIDIA | `moos-nvidia` edition | n/a |
 | Gaming stack | yes | no |
-| MoPlayer (Flutter), Mo Remote (.NET) | yes | not yet — both ship prebuilt `linux-x64` binaries |
+| MoPlayer (Flutter), Mo PC Remote (.NET) | native x86_64 | native aarch64, architecture-gated |
 | Serial console | `ttyS0` | `ttyAMA0` |
-| Remote desktop | Mo Remote | KRDP |
+| Remote desktop | Mo PC Remote | Mo PC Remote plus opt-in KRDP for cloud access |
 
 `moos-qml-shell`, the one C++ binary MoOS compiles itself, **is** built for
 aarch64 — natively, in the same throwaway stage the x86 build uses — so MoOS's own

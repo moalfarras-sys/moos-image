@@ -499,8 +499,9 @@ jobs:
 
           UTM (Apple silicon / iPhone):
             download moos-arm-utm and import MoOS-ARM.utm.zip directly.
-            The bundled README contains its random, console-only first-login
-            credential. Change it immediately when prompted.
+            Keep UTM's Terminal view visible on first boot. cloud-init creates
+            and prints a VM-unique, console-only password there; the public zip
+            contains no credential. Change it from MoOS Settings after login.
 
           Oracle Cloud:
             upload the .qcow2 to an Object Storage bucket, then
