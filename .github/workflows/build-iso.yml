@@ -44,7 +44,7 @@ jobs:
     runs-on: ubuntu-latest
     # Titanoboa's build plus the ~15 GB unsquashfs/mksquashfs offline embed is a
     # long job; cap it so a hang fails instead of burning the 6h default.
-    timeout-minutes: 90
+    timeout-minutes: 180
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -129,6 +129,12 @@ jobs:
           ISO_DEST: ${{ steps.titanoboa.outputs.iso-dest }}
         run: |
           ls -lh "${ISO_DEST}" || find "${GITHUB_WORKSPACE}" -maxdepth 4 -name '*.iso' -printf '%p (%s bytes)\n' || true
+
+      - name: ISO proof source gates
+        run: |
+          bash -n tests/boot_live_iso.sh
+          bash -n tests/install_live_iso.sh
+          python3 tests/test_iso_install_gate.py
 
       # ── OFFLINE-INSTALL EMBED (the fix for "the ISO would not install on disk") ──
       # Titanoboa builds a live ISO whose squashfs is the image's rootfs MINUS
@@ -252,6 +258,12 @@ jobs:
                -update "${work}/squashfs-new.img" /LiveOS/squashfs.img \
                -commit
           sudo rm -f "${work}/squashfs-new.img"
+          # Titanoboa's pre-embed ISO is not a release artifact. Once the exact
+          # offline ISO exists, drop the first copy so the disposable installed
+          # disk has room to grow during the end-to-end gate.
+          if [ "$(realpath "${ISO_DEST}")" != "$(realpath "${out}")" ]; then
+            sudo rm -f "${ISO_DEST}"
+          fi
           ls -lh "${out}"
           echo "iso=${out}" >> "$GITHUB_OUTPUT"
 
@@ -273,6 +285,22 @@ jobs:
         with:
           name: moos-live-iso-boot-proof
           path: ${{ runner.temp }}/iso-boot-proof
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Install the exact final ISO offline and boot the target disk
+        env:
+          FINAL_ISO: ${{ steps.embed.outputs.iso }}
+          EXPECTED_IMAGE: ${{ steps.pin.outputs.image_ref }}
+          EVIDENCE_DIR: ${{ runner.temp }}/iso-install-proof
+        run: tests/install_live_iso.sh "$FINAL_ISO" "$EXPECTED_IMAGE" "$EVIDENCE_DIR"
+
+      - name: Upload installed-system proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: moos-iso-install-proof
+          path: ${{ runner.temp }}/iso-install-proof
           if-no-files-found: warn
           retention-days: 14
 
