@@ -339,6 +339,31 @@ jobs:
             echo "FATAL: the boot gate modified the release QCOW2" >&2
             exit 1
           }
+          python3 - "$expected" "$before" "$GITHUB_SHA" "$GITHUB_RUN_ID" \
+            arm-boot-proof/proof-manifest.json <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          source_image, qcow_sha, revision, run_id, output = sys.argv[1:]
+          pathlib.Path(output).write_text(
+              json.dumps(
+                  {
+                      "schema": 1,
+                      "source_image": source_image,
+                      "boot_proven_raw_qcow2_sha256": qcow_sha,
+                      "revision": revision,
+                      "workflow_run_id": int(run_id),
+                      "first_boot": "healthy",
+                      "second_boot": "healthy",
+                      "poweroff": "clean",
+                  },
+                  indent=2,
+                  sort_keys=True,
+              ) + "\n",
+              encoding="utf-8",
+          )
+          PY
           echo "MOOS_ARM_PROVEN_SHA256=${before}" >> "$GITHUB_ENV"
 
       - name: Upload ARM boot proof
@@ -347,7 +372,7 @@ jobs:
         with:
           name: moos-arm-boot-proof
           path: arm-boot-proof/
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 14
 
       - name: Package the boot-proven ARM releases

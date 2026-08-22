@@ -416,6 +416,9 @@ class ArmEditionTests(unittest.TestCase):
             "boot_arm_qcow2.sh",
             "moos-arm-boot-proof",
             "sha256sum \"$MOOS_ARM_QCOW\"",
+            "arm-boot-proof/proof-manifest.json",
+            '"boot_proven_raw_qcow2_sha256": qcow_sha',
+            "if-no-files-found: error",
         ):
             self.assertIn(proof, text, f"the final ARM disk path lacks {proof}")
         self.assertLess(
