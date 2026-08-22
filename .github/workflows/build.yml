@@ -305,6 +305,7 @@ jobs:
           # the maintainer's own machine. This asserts both generations retire and that hand-written
           # or symlinked units are still never touched.
           python3 tests/test_openclaw_modern_unit_retire.py
+          python3 tests/test_openclaw_idle_mask_migration.py
           # moai-wake is the only process that can wake a sleeping local agent.
           # Drive its real failover logic offline so an active-but-deaf service cannot ship.
           python3 tests/test_moai_wake_telegram_reachability.py

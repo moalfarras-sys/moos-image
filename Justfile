@@ -176,6 +176,7 @@ check:
     # ExecStartPre=moai-openclaw-preflight — the entire Mo AI link — silently never runs while
     # the gateway still answers. The retirement only matched the EARLY installer's strings.
     python3 tests/test_openclaw_modern_unit_retire.py
+    python3 tests/test_openclaw_idle_mask_migration.py
     # The lightweight wake receiver must survive an unreachable resolved address
     # and preserve HTTP errors; this offline gate drives its real network layer.
     python3 tests/test_moai_wake_telegram_reachability.py

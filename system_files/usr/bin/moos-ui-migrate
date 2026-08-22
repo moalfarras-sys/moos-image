@@ -74,6 +74,57 @@ migrate_startup_numlock() {
 }
 migrate_startup_numlock
 
+# A development recovery for the first broken OpenClaw idle unit masked the
+# user service with ~/.config/systemd/user/openclaw-idle.service -> /dev/null.
+# The fixed image later shipped the real service and globally enabled its timer,
+# but a user mask outranks /usr forever: every login then queued an enabled timer
+# whose trigger was "not loaded".  Repair only that internally contradictory
+# state.  A disabled/masked timer is an intentional user choice and is preserved.
+repair_legacy_openclaw_idle_mask() {
+    local user_unit_dir="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
+    local mask="${user_unit_dir}/openclaw-idle.service"
+    local system_user_dir="${MOOS_SYSTEMD_USER_DIR:-/usr/lib/systemd/user}"
+    local systemctl_bin="${MOOS_SYSTEMCTL_BIN:-/usr/bin/systemctl}"
+    local idle_marker="$state_dir/openclaw-idle-mask-v1.done"
+    local idle_log="$log_dir/openclaw-idle-mask-v1.log"
+
+    [ -e "$idle_marker" ] && return 0
+    [ -f "${system_user_dir}/openclaw-idle.service" ] || return 0
+
+    # Mark coherent states once so a user who deliberately masks the unit later
+    # is never fought by an image migration.
+    if [ ! -L "$mask" ] || [ "$(readlink -- "$mask" 2>/dev/null)" != "/dev/null" ]; then
+        touch "$idle_marker"
+        return 0
+    fi
+    if ! "$systemctl_bin" --user is-enabled --quiet openclaw-idle.timer; then
+        touch "$idle_marker"
+        echo "$(date -u '+%FT%TZ') preserved idle-service mask with disabled timer" \
+            >>"$idle_log" 2>/dev/null || true
+        return 0
+    fi
+
+    rm -f -- "$mask" || return 0
+    "$systemctl_bin" --user daemon-reload >/dev/null 2>&1 || true
+    "$systemctl_bin" --user reset-failed openclaw-idle.service openclaw-idle.timer \
+        >/dev/null 2>&1 || true
+    if "$systemctl_bin" --user start openclaw-idle.timer \
+       && "$systemctl_bin" --user is-active --quiet openclaw-idle.timer; then
+        touch "$idle_marker"
+        echo "$(date -u '+%FT%TZ') retired incoherent idle-service mask; timer active" \
+            >>"$idle_log" 2>/dev/null || true
+        return 0
+    fi
+
+    # Transactional failure: restore the exact mask and retry on a later login.
+    ln -s /dev/null "$mask" 2>/dev/null || true
+    "$systemctl_bin" --user daemon-reload >/dev/null 2>&1 || true
+    echo "$(date -u '+%FT%TZ') idle-mask repair failed; original mask restored" \
+        >>"$idle_log" 2>/dev/null || true
+    return 0
+}
+repair_legacy_openclaw_idle_mask
+
 # --- The XDG data directories KDE expects to be able to stat ---------------------------------
 #
 # These are mkdir -p on empty directories, which sounds like housekeeping and is
