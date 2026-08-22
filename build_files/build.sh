@@ -4186,6 +4186,12 @@ if [ -n "${stray_pycache}" ]; then
     exit 1
 fi
 
+# The generated desktop contract is shared with aarch64. The x86 build creates
+# these assets earlier, while ARM must create them after installing Plasma; this
+# final idempotent authority verifies/repairs the finished filesystem after all
+# edition-specific package transactions so neither architecture can drift.
+bash /ctx/finalize_moos_desktop.sh
+
 # -----------------------------------------------------------------------------
 # (z9b) FINAL legacy-logo seal — AFTER every edition-specific rpm transaction
 # -----------------------------------------------------------------------------

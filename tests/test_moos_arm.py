@@ -26,6 +26,7 @@ CONTAINERFILE = ROOT / "Containerfile.arm"
 BUILD = ROOT / "build_files/build-arm.sh"
 X86_BUILD = ROOT / "build_files/build.sh"
 ARM_VERIFY = ROOT / "build_files/verify_arm_image.py"
+DESKTOP_FINALIZER = ROOT / "build_files/finalize_moos_desktop.sh"
 IMAGE_VERIFY = ROOT / "build_files/verify_image_experience.py"
 HWDB_COMPILE = ROOT / "build_files/compile_system_hwdb.sh"
 WORKFLOW = ROOT / ".github/workflows/build-arm.yml"
@@ -84,6 +85,7 @@ class ArmEditionTests(unittest.TestCase):
     def test_the_pieces_exist(self) -> None:
         for p in (
             CONTAINERFILE, BUILD, X86_BUILD, ARM_VERIFY, IMAGE_VERIFY,
+            DESKTOP_FINALIZER,
             HWDB_COMPILE, WORKFLOW, DOCS,
             RUNTIME_GATE, BOOT_GATE,
         ):
@@ -121,6 +123,38 @@ class ArmEditionTests(unittest.TestCase):
                       "RPMs are installed after the first COPY system_files; without a "
                       "pristine final overlay, package transaction order can silently "
                       "replace the MoOS session, greeter, or theme")
+
+    def test_finished_arm_runs_the_generated_desktop_contract(self) -> None:
+        build = code(read(BUILD))
+        finalizer = code(read(DESKTOP_FINALIZER))
+        verifier = code(read(ARM_VERIFY))
+        self.assertIn("bash /ctx/finalize_moos_desktop.sh", build)
+        self.assertIn("bash /ctx/finalize_moos_desktop.sh", code(read(X86_BUILD)),
+                      "x86 and ARM must share the same final desktop authority")
+        self.assertGreater(
+            build.index("bash /ctx/finalize_moos_desktop.sh"),
+            build.index("cp -a /moos-overlay/. /"),
+            "package payloads must be overlaid before generated desktop assets are sealed",
+        )
+        for contract in (
+            "COLLOID_COMMIT=",
+            "BIBATA_VERSION=",
+            "/usr/share/icons/MoOSUI2/index.theme",
+            "/usr/share/icons/MoOSDark/cursors",
+            "sed -i '/^prefer /d'",
+            "/usr/share/moos/plasmalogin/kdeglobals",
+            "/usr/lib/tmpfiles.d/moos-plasmalogin-greeter.conf",
+        ):
+            self.assertIn(contract, finalizer,
+                          f"shared finished-desktop finalizer lacks {contract}")
+        for outcome in (
+            '"MoOSUI2", "MoOSUI2Light"',
+            '"MoOS", "MoOSDark"',
+            'line.startswith("prefer ")',
+            "/usr/share/moos/plasmalogin/kdeglobals",
+        ):
+            self.assertIn(outcome, verifier,
+                          f"finished ARM image never proves visual runtime outcome {outcome}")
 
     def test_clean_boot_does_not_rebuild_hwdb_before_udevd(self) -> None:
         helper = code(read(HWDB_COMPILE))

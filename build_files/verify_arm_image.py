@@ -156,6 +156,43 @@ def main() -> None:
 
     require((ROOT / "usr/lib/systemd/system/plasmalogin.service").is_file(),
             "Plasma Login Manager service is missing")
+
+    # The shared source tree is not the finished desktop. MoOSUI2/MoOSDark are
+    # generated after RPM installation, and Plasma's qmldir must be changed so
+    # the greeter loads the shipped MoOS controls rather than AOT Breeze copies.
+    # The first boot-proven ARM release omitted this finalization and visibly
+    # produced wallpaper plus a language label with no usable login card.
+    for theme in ("MoOSUI2", "MoOSUI2Light"):
+        theme_root = ROOT / "usr/share/icons" / theme
+        index = theme_root / "index.theme"
+        require(index.is_file() and (theme_root / "apps").is_dir(),
+                f"generated broad icon theme is invalid: {theme}")
+        index_text = index.read_text(encoding="utf-8", errors="replace")
+        require("Directories=moos/actions/scalable,moos/apps/scalable," in index_text,
+                f"generated icon theme does not prioritize MoOS controls: {theme}")
+        require((theme_root / "moos/apps/scalable/moos-store.svg").is_file(),
+                f"generated icon theme lacks first-party application marks: {theme}")
+    for cursor in ("MoOS", "MoOSDark"):
+        require((ROOT / "usr/share/icons" / cursor / "cursors/left_ptr").exists(),
+                f"generated MoOS pointer theme is missing: {cursor}")
+    require("Inherits=MoOS" in read("/usr/share/icons/default/index.theme"),
+            "the pre-session default pointer does not resolve to MoOS")
+
+    breeze_qmldir = read("/usr/lib64/qt6/qml/org/kde/breeze/components/qmldir")
+    require(not any(line.startswith("prefer ") for line in breeze_qmldir.splitlines()),
+            "Plasma Login Manager still prefers compiled Breeze controls over MoOS QML")
+    for component in ("ActionButton.qml", "Clock.qml", "UserDelegate.qml"):
+        require((ROOT / "usr/lib64/qt6/qml/org/kde/breeze/components" / component).is_file(),
+                f"MoOS login control is absent: {component}")
+    greeter_palette = read("/usr/share/moos/plasmalogin/kdeglobals")
+    require("ColorScheme=MoOSUI2Dark" in greeter_palette
+            and "Theme=MoOSUI2" in greeter_palette,
+            "the greeter account is not pinned to the MoOS dark palette and icons")
+    greeter_tmpfiles = read("/usr/lib/tmpfiles.d/moos-plasmalogin-greeter.conf")
+    require("r! /var/lib/plasmalogin/.config/kdeglobals" in greeter_tmpfiles
+            and "C+ /var/lib/plasmalogin/.config/kdeglobals" in greeter_tmpfiles,
+            "the immutable greeter palette is not materialized on every boot")
+
     display_manager = ROOT / "etc/systemd/system/display-manager.service"
     require(display_manager.is_symlink()
             and os.path.basename(os.readlink(display_manager)) == "plasmalogin.service",

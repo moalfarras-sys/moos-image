@@ -90,6 +90,7 @@ jobs:
       - name: ARM and boot-splash source gates
         run: |
           bash -n build_files/build-arm.sh
+          bash -n build_files/finalize_moos_desktop.sh
           bash -n build_files/seal_arm_qcow2.sh
           bash -n build_files/seal_release_qcow2.sh
           bash -n tests/boot_arm_qcow2.sh

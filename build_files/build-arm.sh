@@ -88,6 +88,9 @@ _PLASMA=(
     mesa-dri-drivers mesa-libEGL mesa-libgbm
     openssh-server cloud-init cloud-utils-growpart
     firewalld flatpak openssl sudo
+    # Architecture-independent MoOS desktop assets are generated after the
+    # final RPM transaction by finalize_moos_desktop.sh.
+    git-core curl tar xz gtk-update-icon-cache
     # Same local-brain engine as x86. The model remains an explicit download;
     # only the small routing/control services start with the user session.
     ramalama
@@ -167,6 +170,13 @@ test -d /moos-overlay/usr/share || {
     exit 1
 }
 cp -a /moos-overlay/. /
+
+# system_files is architecture-independent, but its broad icon themes, pointer
+# binaries and plasma-login account palette are generated at image build time.
+# The first boot-proven ARM image skipped this x86-owned step: the greeter drew
+# only wallpaper/language, logged missing MoOSUI2/MoOS pointer themes, and kept
+# the compiled Breeze QML preference. Finalize the SAME desktop contract here.
+bash /ctx/finalize_moos_desktop.sh
 
 # Mo AI is one system on every architecture. Its pure-QML frontend always talks
 # to these loopback authorities, so leaving them disabled makes the ARM window
