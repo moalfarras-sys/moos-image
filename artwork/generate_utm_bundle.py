@@ -464,7 +464,7 @@ def main() -> int:
     if seed is None or args.qcow2 is None:
         print("INCOMPLETE bundle — follow README-FIRST.txt before importing.", file=sys.stderr)
         return 2
-    print(f"First-boot console credential is stored only in {README_NAME}")
+    print("First-boot credential will be generated only inside the guest and shown on ttyAMA0")
     return 0
 
 

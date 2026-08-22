@@ -40,6 +40,7 @@ assert "subprocess.run(['chpasswd']" in script
 assert "type: RANDOM" not in script
 assert "password: RANDOM" not in script
 assert "expire: true" not in script
+assert "credential is stored" not in script
 assert "ssh_pwauth: false" in script, \
     "the public bundle password must be console-only; SSH remains key-only"
 assert '"ImageName": "seed.iso"' in script
