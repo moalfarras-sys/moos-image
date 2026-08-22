@@ -142,6 +142,20 @@ grep -qw rd.live.image /proc/cmdline
 [ "${ID:-}" = moos ]
 [ "${NAME:-}" = MoOS ]
 [ "$(uname -m)" = x86_64 ]
+# qemu-guest-agent starts before the graphical boot transaction is complete.
+# Wait for the real live desktop instead of turning that expected ordering into
+# a false release failure. The assertions below are intentionally unchanged.
+desktop_ready=0
+for _ in $(seq 1 120); do
+    if systemctl is-active --quiet graphical.target display-manager.service NetworkManager.service \
+        && pgrep -u liveuser -x kwin_wayland >/dev/null \
+        && pgrep -u liveuser -x plasmashell >/dev/null; then
+        desktop_ready=1
+        break
+    fi
+    sleep 5
+done
+[ "$desktop_ready" -eq 1 ]
 systemctl is-active graphical.target display-manager.service NetworkManager.service
 getent passwd liveuser
 pgrep -u liveuser -x kwin_wayland
@@ -165,7 +179,7 @@ started = request({
     },
 })
 pid = started["pid"]
-deadline = time.monotonic() + 180
+deadline = time.monotonic() + 720
 while time.monotonic() < deadline:
     status = request({"execute": "guest-exec-status", "arguments": {"pid": pid}})
     if status.get("exited"):
