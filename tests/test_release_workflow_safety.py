@@ -540,9 +540,9 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
             "/run/ostree-booted",
             "rd.live.image",
             "plasmalogin.service",
-            "pgrep -u plasmalogin -x kwin_wayland",
+            'pgrep -u "$login_uid" -x kwin_wayland',
             "/dev/dri/card*",
-            "container-image-reference-digest",
+            "origin-digest",
             "guest-sync-delimited",
             'send_shutdown("reboot")',
             'send_shutdown("powerdown")',
@@ -624,10 +624,10 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
         self.assertIn("system-state=%s", script)
         self.assertIn("root-mount=%s", script)
         self.assertIn("booted-origin=", script)
-        self.assertIn("timeout 10 rpm-ostree status --json", script)
-        self.assertIn('"path": "/usr/bin/chroot"', script)
-        self.assertIn('"/proc/1/root", "/usr/bin/bash", "-lc"', script)
-        self.assertIn("qemu-ga cannot enter PID 1's root", script)
+        self.assertIn("hostroot=/proc/1/root", script)
+        self.assertIn('busctl --json=short --address="$system_bus"', script)
+        self.assertIn('[ -e "$hostroot/run/ostree-booted" ]', script)
+        self.assertIn("manager_property NFailedUnits", script)
 
     def test_live_iso_waits_for_desktop_after_early_qga_start(self) -> None:
         script = (ROOT / "tests" / "boot_live_iso.sh").read_text(encoding="utf-8")

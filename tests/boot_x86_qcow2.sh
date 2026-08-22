@@ -196,14 +196,8 @@ def guest_exec(script, args=(), timeout=180):
     started = request({
         "execute": "guest-exec",
         "arguments": {
-            # The virtio port can start QGA before switch-root.  Execute below
-            # PID 1's root so /run, the system bus and mount state are always
-            # the installed userspace rather than QGA's stale initramfs view.
-            # chroot needs no CAP_SYS_ADMIN (qemu-ga deliberately cannot setns).
-            "path": "/usr/bin/chroot",
-            "arg": [
-                "/proc/1/root", "/usr/bin/bash", "-lc", script, "--", *args,
-            ],
+            "path": "/usr/bin/bash",
+            "arg": ["-lc", script, "--", *args],
             "capture-output": True,
         },
     })
@@ -215,10 +209,6 @@ def guest_exec(script, args=(), timeout=180):
             stdout = base64.b64decode(status.get("out-data", "")).decode(errors="replace")
             stderr = base64.b64decode(status.get("err-data", "")).decode(errors="replace")
             if status.get("exitcode") != 0:
-                if "chroot:" in stderr and "Operation not permitted" in stderr:
-                    raise SystemExit(
-                        "X86 QCOW2 FATAL: qemu-ga cannot enter PID 1's root: " + stderr.strip()
-                    )
                 raise RuntimeError(
                     f"runtime gate exited {status.get('exitcode')}: {stderr or stdout}"
                 )
@@ -282,71 +272,88 @@ def screendump(path):
 runtime_gate = r'''
 set -euo pipefail
 expected="$1"
+hostroot=/proc/1/root
+system_bus="unix:path=${hostroot}/run/dbus/system_bus_socket"
+bus_data() {
+    python3 -c 'import json,sys
+value=json.load(sys.stdin).get("data", "")
+print(value[0] if isinstance(value, list) and value else value)'
+}
+manager_property() {
+    busctl --json=short --address="$system_bus" get-property \
+        org.freedesktop.systemd1 /org/freedesktop/systemd1 \
+        org.freedesktop.systemd1.Manager "$1" | bus_data
+}
+unit_property() {
+    local unit="$1" property="$2" path
+    path="$(busctl --json=short --address="$system_bus" call \
+        org.freedesktop.systemd1 /org/freedesktop/systemd1 \
+        org.freedesktop.systemd1.Manager GetUnit s "$unit" | bus_data)" || return 1
+    busctl --json=short --address="$system_bus" get-property \
+        org.freedesktop.systemd1 "$path" org.freedesktop.systemd1.Unit "$property" | bus_data
+}
+deployed_origin() {
+    local origins=()
+    shopt -s nullglob
+    origins=("$hostroot"/ostree/deploy/*/deploy/*.origin)
+    shopt -u nullglob
+    [ "${#origins[@]}" -eq 1 ] || return 1
+    sed -n 's/^container-image-reference=//p' "${origins[0]}"
+}
 gate_fail() {
     printf 'runtime-gate=%s\n' "$1" >&2
     # QGA can answer before the installed userspace is ready.  Preserve a small
     # snapshot from the *last* retry so a timed-out release proof distinguishes
     # an early/initramfs answer from a fully booted system with a bad contract.
-    printf 'system-state=%s\n' "$(systemctl is-system-running 2>/dev/null || true)" >&2
+    printf 'system-state=%s\n' "$(manager_property SystemState 2>/dev/null || true)" >&2
     printf 'root-mount=%s\n' "$(findmnt -n -o SOURCE,FSTYPE / 2>/dev/null || true)" >&2
-    timeout 10 rpm-ostree status --json 2>/dev/null | python3 -c '
-import json, sys
-try:
-    deployments = json.load(sys.stdin).get("deployments", [])
-except Exception:
-    deployments = []
-booted = next((item for item in deployments if item.get("booted")), {})
-print("booted-origin=" + booted.get("container-image-reference", ""), file=sys.stderr)
-' || true
+    printf 'booted-origin=%s\n' "$(deployed_origin 2>/dev/null || true)" >&2
     return 1
 }
-. /etc/os-release
+[ -S "$hostroot/run/dbus/system_bus_socket" ] || gate_fail system-bus
+. "$hostroot/etc/os-release"
 [ "${ID:-}" = moos ] || gate_fail identity-id
 [ "${NAME:-}" = MoOS ] || gate_fail identity-name
 [ "$(uname -m)" = x86_64 ] || gate_fail architecture
-[ -e /run/ostree-booted ] || gate_fail ostree-booted
+[ -e "$hostroot/run/ostree-booted" ] || gate_fail ostree-booted
 grep -qw rd.live.image /proc/cmdline && gate_fail unexpected-live-boot
-[ -e /etc/moos-firstboot-done ] || gate_fail firstboot-stamp
-systemctl is-active --quiet graphical.target display-manager.service plasmalogin.service NetworkManager.service qemu-guest-agent.service \
-    || gate_fail required-system-service
-[ "$(systemctl show display-manager.service -p Id --value)" = plasmalogin.service ] \
+[ -e "$hostroot/etc/moos-firstboot-done" ] || gate_fail firstboot-stamp
+for unit in graphical.target display-manager.service plasmalogin.service NetworkManager.service; do
+    [ "$(unit_property "$unit" ActiveState 2>/dev/null || true)" = active ] \
+        || gate_fail "required-system-service-${unit}"
+done
+[ "$(unit_property display-manager.service Id 2>/dev/null || true)" = plasmalogin.service ] \
     || gate_fail display-manager-identity
-getent passwd mo >/dev/null || gate_fail provisioned-user
-account_path="$(busctl call org.freedesktop.Accounts /org/freedesktop/Accounts \
-    org.freedesktop.Accounts FindUserByName s mo)"
+grep -q '^mo:' "$hostroot/etc/passwd" || gate_fail provisioned-user
+account_path="$(busctl --address="$system_bus" call org.freedesktop.Accounts \
+    /org/freedesktop/Accounts org.freedesktop.Accounts FindUserByName s mo)"
 [[ "$account_path" == *"/org/freedesktop/Accounts/User"* ]] || gate_fail accounts-service-user
-compgen -G '/dev/dri/card*' >/dev/null || gate_fail drm-device
-pgrep -u plasmalogin -x kwin_wayland >/dev/null || gate_fail greeter-kwin
+compgen -G "$hostroot/dev/dri/card*" >/dev/null || gate_fail drm-device
+login_uid="$(awk -F: '$1 == "plasmalogin" {print $3}' "$hostroot/etc/passwd")"
+[ -n "$login_uid" ] || gate_fail greeter-user
+pgrep -u "$login_uid" -x kwin_wayland >/dev/null || gate_fail greeter-kwin
 ipv4="$(ip -4 -o addr show scope global)"
 [ -n "$ipv4" ] || gate_fail network-address
 routes="$(ip -4 route show default)"
 [[ "$routes" == default\ * ]] || gate_fail network-default-route
 for helper in moos-settings moos-update moos-rollback moos-store moai moplayer mo-pc-remote; do
-    command -v "$helper" >/dev/null || gate_fail "missing-command-${helper}"
+    [ -x "$hostroot/usr/bin/$helper" ] || gate_fail "missing-command-${helper}"
 done
-mapfile -t deployment < <(rpm-ostree status --json | python3 -c '
-import json, sys
-for deployment in json.load(sys.stdin).get("deployments", []):
-    if deployment.get("booted"):
-        print(deployment.get("container-image-reference", ""))
-        print(deployment.get("container-image-reference-digest", ""))
-        break
-')
-origin="${deployment[0]:-}"
-origin_digest="${deployment[1]:-}"
+origin="$(deployed_origin || true)"
+origin_digest="${origin##*@}"
 [ "$origin" = "ostree-image-signed:docker://${expected}" ] || gate_fail signed-origin
 [ "$origin_digest" = "${expected##*@}" ] || gate_fail origin-digest
-python3 - <<'INNER'
+python3 - "$hostroot/etc/containers/policy.json" <<'INNER'
 import json
-with open('/etc/containers/policy.json', encoding='utf-8') as source:
+import sys
+with open(sys.argv[1], encoding='utf-8') as source:
     policy = json.load(source)
 entry = policy['transports']['docker']['ghcr.io/moalfarras-sys']
 assert len(entry) == 1 and entry[0]['type'] == 'sigstoreSigned'
 assert entry[0]['keyPath'] == '/etc/pki/containers/moos.pub'
 assert entry[0]['signedIdentity'] == {'type': 'matchRepository'}
 INNER
-failed="$(systemctl --failed --no-legend --plain)"
-[ -z "$failed" ] || { printf 'failed units:\n%s\n' "$failed" >&2; exit 1; }
+[ "$(manager_property NFailedUnits 2>/dev/null || true)" = 0 ] || gate_fail failed-system-unit
 printf 'boot_id=%s\nidentity=%s\narch=%s\norigin=%s\norigin-digest=%s\ngraphical=active\ndisplay-manager=plasmalogin\ngreeter-kwin=active\ndrm=present\nnetwork=active\nqga=active\nfirst-party-commands=7\nfailed-units=0\n' \
     "$(cat /proc/sys/kernel/random/boot_id)" "$PRETTY_NAME" "$(uname -m)" "$origin" "$origin_digest"
 '''
