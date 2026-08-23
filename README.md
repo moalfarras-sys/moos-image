@@ -15,9 +15,9 @@
 > | [`PROJECT_STATE.md`](PROJECT_STATE.md) | الحالة الحية بجملة واحدة + جداول |
 > | [`docs/CHECKPOINT-2026-08-23-UTM-INSTALLER-SESSION.md`](docs/CHECKPOINT-2026-08-23-UTM-INSTALLER-SESSION.md) | **تقرير الجلسة الكامل** (UTM آيفون، Oracle، الفشل، ما بُني) — نسخة ويب بعد الدمج |
 >
-> **ملخص سريع:** بنينا مثبّت شبكة UTM (`MoOS-UTM-Installer.utm.zip`). اختبار
-> الآيفون **فشل** — الإقلاع أظهر Fedora (ممنوع). قرص المثبّت recovery ما زال
-> على قاعدة fedora-bootc بدون scrub هوية كامل. Oracle **متوقف**. لا iPhone PASS.
+> **ملخص سريع:** اختبار الآيفون **فشل** (Fedora على الإقلاع — ممنوع).
+> **تم إصلاح هوية recovery في الكود** (Plymouth MoOS + os-release + initramfs).
+> **يجب إعادة بناء** zip من CI ثم إعادة اختبار الآيفون. Oracle **متوقف**.
 
 > ## ⚠️ قراءة إلزامية قبل أي تعديل
 >

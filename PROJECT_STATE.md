@@ -28,10 +28,9 @@ scrub. Net-install E2E and iPhone PASS remain **open**.
 | Slim recovery (`Containerfile.arm-recovery`) | **In `main`** — Fedora bootc base + installer tools |
 | Menu + cosign + `bootc install` scripts | **In `main`** |
 | Old full-QCOW2-in-zip bundle | **SUPERSEDED / FAILED** (real iPhone + fstab flood) |
-| `MoOS-UTM-Installer.utm.zip` (CI `32655458877`) | **Built & delivered** — SHA256 `21cfe0f2…`, 1.5 GB |
-| Recovery identity (no Fedora on screen) | **NOT DONE** — owner rejected Fedora on boot |
-| Local TCG menu test (x86 emulation) | **FAIL** — menu not seen in 600s |
-| iPhone physical test | **FAIL** — Fedora visible at boot; full flow not proven |
+| `MoOS-UTM-Installer.utm.zip` (CI `32655458877`) | **Old zip on Desktop** — rebuild required after identity fix |
+| Recovery identity (MoOS plymouth, no Fedora splash) | **FIXED in code** (`build-arm-recovery.sh`) — pending CI rebuild |
+| iPhone physical test | **FAIL** (old zip showed Fedora); **retest after new zip** |
 | Net install → target disk → MoOS greeter | **NOT PROVEN** |
 
 Install source (manifest): `ghcr.io/moalfarras-sys/moos-arm@sha256:e1ace22c3a6a207f2bcd3507fe98f2071bdb9a9d6bd3bfbf7de03e1d0de28601`
