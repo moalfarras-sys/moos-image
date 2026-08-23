@@ -4,61 +4,70 @@ This file is current state, not session history. Git history owns the history.
 When documentation disagrees with a running machine, a freshly booted artifact,
 or current source, those stronger forms of evidence win.
 
-Last reconciled: 2026-08-22 on `fix/release-trust-boot-20260820` (PR #60).
-The last fully remote checkpoint before this document cleanup is `059f62c9`.
+Last reconciled: 2026-08-23 on `fix/release-trust-boot-20260820` (PR #60)
+at exact revision `70aff7a9235f8e8e641b635dce45ed3f073c9653`.
 
 ## Running development host
 
-- The real host is on signed `moos-nvidia` release `44.20260820.617`, digest
-  `sha256:1d9dd510f92fa906aa3a48eba0f83584417cbfb39c540db3352611cba722d1a5`.
-- Signed `.612` is retained as the rollback deployment.
-- Baseline boot: 37.293 s total = 10.327 s firmware + 5.994 s loader +
-  6.081 s kernel + 4.274 s initrd + 10.616 s userspace.
-- Hardware baseline: x86_64, kernel 7.1.8, NVIDIA RTX 2080 Super, one 4K
-  display at 225%. At capture time system and user failed-unit sets were empty;
-  `moos-selfcheck` was 50/50 and the post-update check 49/49.
-- Do not update or reboot this machine until the exact signed candidate and its
-  artifact boots are proven and the rollback deployment is rechecked.
+- Booted signed `moos-nvidia` `44.20260821.632`, digest
+  `sha256:ef3b4ea72568e76a47b2b617c11ba594b93908e68c92647c7e6e5a831bc7adab`.
+- Staged (not yet rebooted) `44.20260822.633`, digest
+  `sha256:525ba286c317c6c5d863bba0e5a5aa2c09d89df8f1b68880e2911b591beb3de9`.
+  That staged digest is **not** the frozen PR #60 candidate; do not reboot onto
+  it for this release mission.
+- Rollback retained: `44.20260820.617`
+  (`sha256:1d9dd510f92fa906aa3a48eba0f83584417cbfb39c540db3352611cba722d1a5`).
+- Hardware baseline: x86_64, kernel 7.1.8, NVIDIA RTX 2080 SUPER (driver
+  610.57.04), Wayland session active, Wi-Fi connected, system and user failed
+  unit sets empty at reconciliation.
+- Do not update or reboot this machine onto a release digest until that exact
+  signed candidate's QCOW2/ISO boots are proven and rollback is rechecked.
 
-## Current candidate
+## Frozen candidate (PR #60)
 
-The recovery branch preserves the release-trust, x86 boot-proof, ARM, native
-MoPlayer/Mo PC Remote, cloud first-boot, UTM and visual-login work. It must not
-be recreated from `main` or force-pushed.
+Branch tip and remote HEAD are identical; working tree clean.
 
-What is proven from current source:
+| Edition | Digest | Image workflow |
+|---|---|---|
+| `moos` | `sha256:87dcf9e6d8666e3eac7aeed69ec31035248c90534f82132e2afabcd7537e1342` | `32615972889` |
+| `moos-nvidia` | `sha256:ab0c35a81f7941993331cd84ac8a85921637607f50ed99b905e2365098c3be22` | `32615972889` |
+| `moos-cloud` | `sha256:652981fe41d696d391b768e2948b55a60c593b54b348749eff6b16d3c334ed12` | `32615972889` |
+| `moos-arm` | `sha256:1abe212f5eca6e3182ad47d5a254f541da63eec1c05cc96f69418f7d709aae87` | `32615974079` |
 
-- fast source, syntax, identity, route, ARM, release-safety and UTM gates pass;
-- native ARM64 MoPlayer and Mo PC Remote are built and their architecture is
-  gated—ARM does not intentionally omit either app;
-- ARM owns one update writer (`moos-image-update`), one hardware policy layer,
-  the shared Mo AI loopback authorities and on-demand KRDP;
-- the ARM disk emergency-mode cause was reproduced under AArch64 TCG: mutable
-  `/etc/udev/hwdb.bin` delayed real-root udev until `/boot` and `/boot/efi`
-  timed out. The image now compiles the database under immutable `/usr/lib`;
-- workflow run `32558263735` booted its exact final ARM QCOW2 twice through
-  AArch64 UEFI, completed cloud-init, reached graphical login, had zero failed
-  critical units and powered off cleanly. That run predates the latest UI and
-  UTM fixes and is evidence of the root-cause repair, not the final release;
-- Plasma Login Manager 6.7 always hides the authentication form after its idle
-  timeout. `ShowClock=false` therefore produced an apparently dead wallpaper.
-  The MoOS clock is enabled and is responsive at the VM's 640×480 firmware
-  mode; real captured frames proved both the idle clock and wake-to-password
-  form. The final candidate still needs the same visual proof after rebuilding;
-- the UTM generator emits current QEMU schema v4, binds the bundle to the exact
-  boot-proven QCOW2, carries a MoOS icon, and creates no shared build-time
-  password. cloud-init generates a unique console credential inside each VM;
-- the final-ISO workflow now contains an end-to-end offline install gate:
-  LiveOS → real installer backend → blank disk → ISO detached → installed PLM
-  login → desktop/app smoke → reboot → second boot → poweroff. It is source-
-  gated but has not yet run on a newly built final ISO.
+Candidate tags are run-scoped (`candidate-32615972889-70aff7a9…`). ARM
+production promote remains main-push-only and has **not** run.
 
-In progress at reconciliation time:
+### Proven for this freeze
 
-- ARM workflow dispatch `32563571676` builds the first candidate containing
-  the responsive login and secure UTM bundle work. A final run must be repeated
-  from the eventual release SHA because subsequent ISO/document commits do not
-  change image bytes but do change revision provenance.
+- Signed x86 generic/NVIDIA/cloud images built and cosign-verified from the
+  freeze SHA.
+- ARM image + QCOW2 + UTM package from workflow `32615974079`:
+  two-boot runtime proof healthy, poweroff clean, zero failed units,
+  signed origin matches, UTM `Data/moos-arm.qcow2` sha256 equals
+  `boot_proven_raw_qcow2_sha256`
+  (`fb5c465fc25282665d682657a862f059e9a40031665f6123451fd657e9a434bb`).
+- Local `~/Desktop/MoOS-Release/` currently holds matching
+  `MoOS-ARM64.qcow2.zst`, `MoOS-ARM.utm.zip`, and `MoOS-ARM-iPhone.utm.zip`
+  (the iPhone zip is byte-identical to `MoOS-ARM.utm.zip` by design — one
+  bundle for Apple silicon and UTM SE).
+
+### Not proven / blockers
+
+- **x86 QCOW2 boot proof** and **final ISO live+install proof** had never
+  succeeded on this freeze. Earlier failures on `d29dd5cf` stopped at
+  `greeter-user` (fixed in `9cca1e0b` by querying NSS for `plasmalogin`) and
+  ISO `stable-desktop`. Fresh proofs were dispatched from the freeze SHA:
+  disk runs `32622079477` / `32622080738` / `32622081785` and ISO
+  `32622082711`.
+- **ARM visual login frame** from the healthy runtime proof is a nearly black
+  1280×800 capture with cursor only (~163 non-black pixels). Runtime says
+  `graphical=active`, but that is **not** accepted as visible MoOS greeter /
+  desktop proof. Owner-device UTM import and OCI Ampere deploy remain open.
+- PR #60 is mergeable but marked UNSTABLE solely because `claude-review`
+  failed (tooling/auth noise, not an image gate). Do not merge until disk+ISO
+  proofs pass on this exact tree.
+- Host is not on the frozen NVIDIA digest; staged `.633` must not be confused
+  with the freeze candidate `ab0c35a8…`.
 
 ## One authority per responsibility
 
@@ -95,28 +104,27 @@ In progress at reconciliation time:
 
 ## Still unproven
 
-- The current branch is not merged or released; the real host still runs `.617`.
-- The newest ARM QCOW2 has not yet been downloaded, opened visibly, logged into,
-  and driven through every first-party app.
-- `MoOS-ARM.utm.zip` has not been imported on an owner iPhone/iPad. Local
-  AArch64/UEFI/virtio proof cannot be reported as physical iPhone proof.
-- No OCI Ampere instance has been created from the final disk in this mission.
-  Until credentials and host capacity allow it, status is ready-but-not-deployed.
-- The new final-ISO offline install gate has not yet completed on the exact
-  release ISO.
-- The final generic/NVIDIA/cloud images, signed digests, real-host update,
-  suspend/resume, second real reboot and rollback exercise remain open.
-- The full clean-VM visual matrix (1080p/1440p/4K, 100–225%, English/German/
-  Arabic, dark/light) is incomplete. Existing evidence must not be stretched
-  into combinations that were not captured.
+- PR #60 is not merged; `main` is 68 commits behind this branch tip.
+- x86 QCOW2 and ISO install proofs for the freeze digests are in flight /
+  not yet green.
+- ARM greeter/desktop has runtime health but not an accepted visual frame.
+- `MoOS-ARM.utm.zip` has not been imported on the owner's iPhone/iPad
+  (OWNER-DEVICE-TEST-REQUIRED).
+- No OCI Ampere instance from this disk (READY-BUT-NOT-DEPLOYED until
+  credentials/quota allow).
+- Real-host update to frozen `moos-nvidia` digest, suspend/resume, second
+  reboot and rollback exercise remain open.
+- Full clean-VM visual matrix (1080p/1440p/4K × scale × EN/DE/AR × dark/light)
+  remains incomplete.
 
 ## Next safe order
 
-1. Finish and inspect the current ARM candidate; visibly boot its exact QCOW2,
-   log in, use the first-party applications, reboot and power off.
-2. Fix any runtime/visual failure, add a regression gate, checkpoint and repeat.
-3. Build the exact x86 candidates and final ISO; run QCOW2 and offline-install
-   artifact gates.
-4. Reconcile the visual matrix on clean VMs and the upgraded real host.
-5. Merge the proven tree, verify signatures/digests, stage the matching NVIDIA
-   deployment with rollback intact, then reboot and perform full live proof.
+1. Wait for freeze disk+ISO workflow results; if red, fix the reproduced
+   runtime failure, checkpoint, rebuild only what changed.
+2. Accept ARM only after a non-blank greeter/desktop frame (wake/capture or
+   real login path) on the same QCOW2 hash.
+3. Assemble `~/Desktop/MoOS-Release/` with ISO, checksums, manifest and
+   install README once artifacts exist.
+4. Merge PR #60 only for this exact proven tree; promote signed tags; stage
+   the matching NVIDIA digest with rollback intact; reboot and live-prove
+   the physical host.

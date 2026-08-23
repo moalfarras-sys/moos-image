@@ -481,6 +481,15 @@ class ArmEditionTests(unittest.TestCase):
         self.assertIn("touch '$continue_file'", boot_gate)
         self.assertIn("-display none", boot_gate,
                       "CI must retain its deterministic headless mode")
+        self.assertIn("sendkey shift", boot_gate,
+                      "ARM visual proof must wake the idle Plasma Login Manager "
+                      "before capturing the greeter")
+        self.assertIn("standard_deviation", boot_gate,
+                      "a near-black cursor-only screendump must fail the ARM "
+                      "boot proof the same way x86/ISO blank frames do")
+        self.assertIn("value < 0.02", boot_gate,
+                      "the ARM blank threshold must reject cursor-only black "
+                      "frames that still clear the weaker 0.01 x86 floor")
 
     def test_arm_enforces_the_same_signed_registry_policy(self) -> None:
         build = read(BUILD)

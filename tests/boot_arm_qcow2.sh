@@ -261,10 +261,27 @@ first_boot_id="$(printf '%s\n' "$runtime" | sed -n 's/^boot_id=//p')"
 
 for _ in $(seq 1 60); do [ -S "$monitor" ] && break; sleep 0.25; done
 [ -S "$monitor" ] || { echo "ARM BOOT FATAL: QEMU monitor is unavailable" >&2; exit 1; }
+# Plasma Login Manager hides the authentication form after idle timeout.
+# A headless screendump taken without waking it can be a black frame with only
+# the cursor while runtime still reports graphical=active — that already shipped
+# as false visual proof for freeze 70aff7a9. Wake the greeter the same way the
+# UTM interactive gate does, then reject flat captures.
+printf 'sendkey shift\n' | socat - UNIX-CONNECT:"$monitor" >/dev/null
+sleep 2
 printf 'screendump %s\n' "$screenshot" | socat - UNIX-CONNECT:"$monitor" >/dev/null
 [ -s "$screenshot" ] || { echo "ARM BOOT FATAL: graphical screendump is empty" >&2; exit 1; }
 convert "$screenshot" "$evidence/graphical.png"
 [ -s "$evidence/graphical.png" ] || { echo "ARM BOOT FATAL: graphical PNG evidence is empty" >&2; exit 1; }
+stddev="$(convert "$evidence/graphical.png" -colorspace gray -format '%[fx:standard_deviation]' info:)"
+python3 - "$stddev" <<'PY'
+import sys
+value = float(sys.argv[1])
+# 0.01 still passes a near-black cursor-only frame (freeze 70aff7a9 measured
+# ~0.011). Real MoOS greeter/desktop frames are well above 0.04.
+if value < 0.02:
+    raise SystemExit(f"ARM BOOT FATAL: graphical evidence is blank/flat (stddev={value})")
+print(f"graphical screenshot stddev={value:.6f}")
+PY
 
 if [ "$visual_hold" = 1 ]; then
     continue_file="$evidence/continue"
