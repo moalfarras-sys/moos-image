@@ -232,10 +232,14 @@ install -D -m0644 /dev/stdin \
 [Service]
 EnvironmentFile=-/run/moos/plasmalogin-kwin.env
 Environment=LIBGL_ALWAYS_SOFTWARE=1
+Environment=MESA_LOADER_DRIVER_OVERRIDE=llvmpipe
+Environment=GALLIUM_DRIVER=llvmpipe
 KWINDROP
 install -D -m0644 /dev/stdin /etc/environment.d/60-moos-arm-llvmpipe.conf <<'LLVMPIPE'
 # MoOS ARM: software rendering for every user session, including plasmalogin.
 LIBGL_ALWAYS_SOFTWARE=1
+MESA_LOADER_DRIVER_OVERRIDE=llvmpipe
+GALLIUM_DRIVER=llvmpipe
 LP_NUM_THREADS=2
 LLVMPIPE
 install -D -m0644 /dev/stdin /etc/modules-load.d/moos-arm-vgem.conf <<'MODLOAD'
@@ -895,6 +899,10 @@ grep -q 'LIBGL_ALWAYS_SOFTWARE=1' \
     /usr/lib/systemd/user/plasma-login-kwin_wayland.service.d/10-moos-arm-greeter-gl.conf \
     /etc/environment.d/60-moos-arm-llvmpipe.conf \
     || { echo "GATE FAIL: ARM login greeter must force software GL for virtio proof VMs"; exit 1; }
+grep -q 'MESA_LOADER_DRIVER_OVERRIDE=llvmpipe' \
+    /usr/lib/systemd/user/plasma-login-kwin_wayland.service.d/10-moos-arm-greeter-gl.conf \
+    /etc/environment.d/60-moos-arm-llvmpipe.conf \
+    || { echo "GATE FAIL: ARM login greeter must pin llvmpipe for virtio proof VMs"; exit 1; }
 grep -qxF 'vgem' /etc/modules-load.d/moos-arm-vgem.conf \
     || { echo "GATE FAIL: ARM must load vgem for greeter/desktop GL"; exit 1; }
 MOOS_IDENTITY_PROFILE=arm-cloud python3 /ctx/verify_identity.py

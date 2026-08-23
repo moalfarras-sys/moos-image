@@ -15,5 +15,15 @@ if compgen -G '/dev/nvidia*' >/dev/null 2>&1 && [ "$(uname -m)" != aarch64 ]; th
     exit 0
 fi
 
-printf 'LIBGL_ALWAYS_SOFTWARE=1\n' >"$envfile"
+# ARM virt greeters need vgem before KWin probes DRM; modules-load may not have
+# finished when plasmalogin starts.
+if [ "$(uname -m)" = aarch64 ]; then
+    modprobe vgem 2>/dev/null || true
+fi
+
+{
+    printf 'LIBGL_ALWAYS_SOFTWARE=1\n'
+    printf 'MESA_LOADER_DRIVER_OVERRIDE=llvmpipe\n'
+    printf 'GALLIUM_DRIVER=llvmpipe\n'
+} >"$envfile"
 exit 0
