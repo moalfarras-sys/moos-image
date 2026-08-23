@@ -123,7 +123,7 @@ def random_mac_address() -> str:
     return ":".join(f"{byte:02X}" for byte in raw)
 
 
-def build_config() -> dict:
+def build_config(*, iphone: bool = False) -> dict:
     # UTM's current QEMU configuration schema is v4. All non-optional Codable
     # fields are present so UTM decodes this directly instead of guessing that
     # it is a legacy bundle. The built-in serial terminal is load-bearing: it
@@ -151,7 +151,7 @@ def build_config() -> dict:
             # exercised. Do not advertise the former unproven 3 GiB guess.
             "MemorySize": 4096,
             "JITCacheSize": 0,
-            "ForceMulticore": False,
+            "ForceMulticore": bool(iphone),
         },
         "QEMU": {
             "DebugLog": False,
@@ -159,7 +159,7 @@ def build_config() -> dict:
             "RNGDevice": True,
             "BalloonDevice": False,
             "TPMDevice": False,
-            "Hypervisor": True,
+            "Hypervisor": not iphone,
             "TSO": False,
             "RTCLocalTime": False,
             "PS2Controller": False,
@@ -286,6 +286,8 @@ def main() -> int:
                         help="required SHA-256 of --qcow2; binds the bundle to boot proof")
     parser.add_argument("--source-image-ref", default=None,
                         help="required signed ghcr.io/.../moos-arm@sha256:... source")
+    parser.add_argument("--iphone", action="store_true",
+                        help="iPhone/UTM SE profile (Hypervisor=false, ForceMulticore=true)")
     args = parser.parse_args()
 
     if args.ssh_key is not None and not args.ssh_key.is_file():
@@ -325,7 +327,7 @@ def main() -> int:
     if not ICON_SOURCE.is_file():
         print(f"error: MoOS UTM icon is missing: {ICON_SOURCE}", file=sys.stderr)
         return 1
-    config = build_config()
+    config = build_config(iphone=args.iphone)
     with open(bundle / "config.plist", "wb") as handle:
         plistlib.dump(config, handle)
     shutil.copy2(ICON_SOURCE, data_dir / ICON_NAME)

@@ -42,6 +42,7 @@ on:
       - "tests/test_moos_arm.py"
       - "tests/test_utm_bundle.py"
       - "artwork/generate_utm_bundle.py"
+      - "artwork/generate_utm_installer.py"
       - "tests/test_boot_splash_polish.py"
       - ".github/workflows/build-arm.yml"
   pull_request:
@@ -55,6 +56,7 @@ on:
       - "tests/test_moos_arm.py"
       - "tests/test_utm_bundle.py"
       - "artwork/generate_utm_bundle.py"
+      - "artwork/generate_utm_installer.py"
       - "tests/boot_arm_qcow2.sh"
       - "tests/verify_arm_runtime.sh"
       - "tests/test_boot_splash_polish.py"
@@ -407,6 +409,20 @@ jobs:
             exit 1
           fi
 
+          python3 artwork/generate_utm_bundle.py \
+            --qcow2 "$work/$raw_name" \
+            --expected-qcow2-sha256 "$MOOS_ARM_PROVEN_SHA256" \
+            --source-image-ref "$SOURCE_IMAGE" \
+            --iphone \
+            --output "$work/MoOS-ARM-iPhone-Full.utm" \
+            | tee "$work/utm-iphone-generation.log"
+
+          python3 artwork/generate_utm_installer.py \
+            --installer-qcow2 "$work/$raw_name" \
+            --iphone \
+            --output "$work/MoOS-UTM-Installer.utm" \
+            --zip "$work/MoOS-UTM-Installer.utm.zip"
+
           python3 - "$work/MoOS-ARM.utm.zip" "$MOOS_ARM_PROVEN_SHA256" "$SOURCE_IMAGE" <<'PY'
           import json
           import plistlib
@@ -449,6 +465,8 @@ jobs:
           zstd -19 -T0 --long=27 "$work/$raw_name" \
             -o "release/qcow2/${raw_name}.zst"
           cp "$work/MoOS-ARM.utm.zip" release/utm/MoOS-ARM.utm.zip
+          cp "$work/MoOS-ARM-iPhone-Full.utm.zip" release/utm/MoOS-ARM-iPhone-Full.utm.zip
+          cp "$work/MoOS-UTM-Installer.utm.zip" release/utm/MoOS-UTM-Installer.utm.zip
 
           python3 - \
             "$RELEASE_VERSION" "$GITHUB_SHA" "$GITHUB_RUN_ID" \
