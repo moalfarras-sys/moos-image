@@ -79,6 +79,7 @@ verify_and_install() {
         --target-transport registry \
         --target-imgref "$ref" \
         --skip-fetch-check \
+        --enforce-container-sigpolicy \
         "$target" 2>&1 | tee -a "$LOG"
 
     status "Configuring UEFI...\nInstallation complete."
