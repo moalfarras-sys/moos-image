@@ -268,9 +268,33 @@ for _ in $(seq 1 60); do [ -S "$monitor" ] && break; sleep 0.25; done
 # UTM interactive gate does, then reject flat captures.
 printf 'sendkey shift\n' | socat - UNIX-CONNECT:"$monitor" >/dev/null
 sleep 2
-printf 'screendump %s\n' "$screenshot" | socat - UNIX-CONNECT:"$monitor" >/dev/null
-[ -s "$screenshot" ] || { echo "ARM BOOT FATAL: graphical screendump is empty" >&2; exit 1; }
-convert "$screenshot" "$evidence/graphical.png"
+guest_png="$work/graphical-guest.png"
+if "${ssh_base[@]}" sudo bash -s -- "$guest_png" <<'EOS' >/dev/null 2>&1; then
+set -euo pipefail
+out=$1
+uid=$(id -u plasmalogin)
+runtime="/run/user/${uid}"
+socket=""
+if [ -d "$runtime" ]; then
+    socket=$(find "$runtime" -maxdepth 1 -name 'wayland-*' -type s | head -1)
+fi
+[ -n "$socket" ] || socket=$(find /run/plasmalogin -name 'wayland-*' -type s 2>/dev/null | head -1)
+[ -n "$socket" ] || exit 1
+export WAYLAND_DISPLAY="${socket##*/}"
+export XDG_RUNTIME_DIR="$(dirname "$socket")"
+pgrep -u plasmalogin -x kwin_wayland >/dev/null || exit 1
+command -v grim >/dev/null 2>&1 || exit 1
+runuser -u plasmalogin -- env WAYLAND_DISPLAY="$WAYLAND_DISPLAY" XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" \
+    grim "$out"
+[ -s "$out" ]
+EOS
+    cp "$guest_png" "$evidence/graphical-guest.png"
+    convert "$guest_png" "$evidence/graphical.png"
+else
+    printf 'screendump %s\n' "$screenshot" | socat - UNIX-CONNECT:"$monitor" >/dev/null
+    [ -s "$screenshot" ] || { echo "ARM BOOT FATAL: graphical screendump is empty" >&2; exit 1; }
+    convert "$screenshot" "$evidence/graphical.png"
+fi
 [ -s "$evidence/graphical.png" ] || { echo "ARM BOOT FATAL: graphical PNG evidence is empty" >&2; exit 1; }
 stddev="$(convert "$evidence/graphical.png" -colorspace gray -format '%[fx:standard_deviation]' info:)"
 python3 - "$stddev" <<'PY'

@@ -100,7 +100,7 @@ _PLASMA=(
     rpm-ostree skopeo
     # Native Mo PC Remote runtime. Encoders are capability-probed and JPEG is
     # the real fallback when a virtual GPU exposes no hardware codec.
-    ydotool wl-clipboard spectacle python3-websockets poppler-utils qrencode
+    ydotool wl-clipboard grim spectacle python3-websockets poppler-utils qrencode
     gstreamer1 gstreamer1-plugins-base gstreamer1-plugins-good
     gstreamer1-plugins-bad-free pipewire-gstreamer
 )
@@ -234,6 +234,10 @@ EnvironmentFile=-/run/moos/plasmalogin-kwin.env
 Environment=LIBGL_ALWAYS_SOFTWARE=1
 Environment=MESA_LOADER_DRIVER_OVERRIDE=llvmpipe
 Environment=GALLIUM_DRIVER=llvmpipe
+# virtio-gpu proof VMs and Oracle both need vgem + a virtual output before KWin
+# will composite the MoOS greeter instead of a black QPainter surface.
+ExecStart=
+ExecStart=/usr/bin/kwin_wayland_wrapper --virtual --width 1920 --height 1080
 KWINDROP
 install -D -m0644 /dev/stdin /etc/environment.d/60-moos-arm-llvmpipe.conf <<'LLVMPIPE'
 # MoOS ARM: software rendering for every user session, including plasmalogin.
@@ -903,6 +907,9 @@ grep -q 'MESA_LOADER_DRIVER_OVERRIDE=llvmpipe' \
     /usr/lib/systemd/user/plasma-login-kwin_wayland.service.d/10-moos-arm-greeter-gl.conf \
     /etc/environment.d/60-moos-arm-llvmpipe.conf \
     || { echo "GATE FAIL: ARM login greeter must pin llvmpipe for virtio proof VMs"; exit 1; }
+grep -q 'kwin_wayland_wrapper --virtual' \
+    /usr/lib/systemd/user/plasma-login-kwin_wayland.service.d/10-moos-arm-greeter-gl.conf \
+    || { echo "GATE FAIL: ARM login greeter must use KWin virtual output on virtio"; exit 1; }
 grep -qxF 'vgem' /etc/modules-load.d/moos-arm-vgem.conf \
     || { echo "GATE FAIL: ARM must load vgem for greeter/desktop GL"; exit 1; }
 MOOS_IDENTITY_PROFILE=arm-cloud python3 /ctx/verify_identity.py
