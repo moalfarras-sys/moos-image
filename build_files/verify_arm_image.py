@@ -55,6 +55,7 @@ def main() -> None:
 
     for package in (
         "plasma-workspace",
+        "plasma-milou",
         "plasma-login-manager",
         "kwin-libs",
         "plasma-breeze",
