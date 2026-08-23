@@ -684,6 +684,9 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
         self.assertLess(script.index('[ -e "$theme_marker" ]'), script.index("stable_samples=$((stable_samples + 1))"))
         self.assertIn("desktop_ready=1", script)
         self.assertIn("live-runtime-gate=%s", script)
+        self.assertIn("theme-marker=%s", script)
+        self.assertIn("plasma-plasmashell.service", script)
+        self.assertIn("liveuser-journal:", script)
         self.assertIn("deadline = time.monotonic() + 720", script)
         self.assertLess(script.index("desktop_ready=0"), script.index("[ \"$desktop_ready\" -eq 1 ]"))
 

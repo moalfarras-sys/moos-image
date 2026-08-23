@@ -172,7 +172,34 @@ for _ in $(seq 1 120); do
     fi
     sleep 5
 done
-gate_fail() { printf 'live-runtime-gate=%s\n' "$1" >&2; return 1; }
+gate_fail() {
+    printf 'live-runtime-gate=%s\n' "$1" >&2
+    if [ "$1" = stable-desktop ]; then
+        live_uid="$(id -u liveuser 2>/dev/null || true)"
+        printf 'theme-marker=%s\n' "$(test -e "$theme_marker" && echo present || echo missing)" >&2
+        printf 'system-services=%s\n' \
+            "$(systemctl is-active graphical.target display-manager.service NetworkManager.service 2>&1 | tr '\n' ' ')" >&2
+        printf 'live-uid=%s\n' "${live_uid:-missing}" >&2
+        if [ -n "$live_uid" ]; then
+            printf '%s\n' 'live-processes:' >&2
+            ps -u "$live_uid" -o pid=,comm=,args= --sort=pid 2>/dev/null | tail -80 >&2 || true
+            runtime="/run/user/${live_uid}"
+            if [ -S "${runtime}/bus" ]; then
+                printf '%s\n' 'plasma-plasmashell.service:' >&2
+                runuser -u liveuser -- env \
+                    XDG_RUNTIME_DIR="$runtime" \
+                    DBUS_SESSION_BUS_ADDRESS="unix:path=${runtime}/bus" \
+                    systemctl --user status plasma-plasmashell.service \
+                        --no-pager --full 2>&1 | tail -80 >&2 || true
+            fi
+            printf '%s\n' 'liveuser-journal:' >&2
+            journalctl -b "_UID=${live_uid}" -o short-monotonic --no-pager -n 120 >&2 || true
+        fi
+        printf '%s\n' 'theme-log:' >&2
+        tail -120 /home/liveuser/.cache/moos-apply-theme.log 2>/dev/null >&2 || true
+    fi
+    return 1
+}
 [ "$desktop_ready" -eq 1 ] || gate_fail stable-desktop
 systemctl is-active --quiet graphical.target display-manager.service NetworkManager.service \
     || gate_fail required-system-service
