@@ -336,7 +336,7 @@ jobs:
       - name: Build slim recovery installer disk
         run: |
           set -euo pipefail
-          sudo podman build -f Containerfile.arm-recovery -t moos-arm-recovery:local .
+          sudo podman build -f Containerfile.arm-recovery -t localhost/moos-arm-recovery:local .
           mkdir -p output-recovery
           cat > config/recovery.toml <<'TOML'
           [[customizations.filesystem]]
@@ -350,7 +350,7 @@ jobs:
             -v /var/lib/containers/storage:/var/lib/containers/storage \
             quay.io/centos-bootc/bootc-image-builder@sha256:2b52843ea2bfda73b0a08d97e76b734393b1d3a804681b9fabb26723bd3a2f0b \
             --type qcow2 --rootfs btrfs --config /config.toml --target-arch arm64 --local \
-            moos-arm-recovery:local
+            localhost/moos-arm-recovery:local
           recovery="$(sudo find output-recovery -name '*.qcow2' -print -quit)"
           [ -n "$recovery" ] || { echo "FATAL: recovery qcow2 missing"; exit 1; }
           sudo chown "$USER:$USER" "$recovery"

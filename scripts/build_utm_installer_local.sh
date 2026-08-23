@@ -11,8 +11,8 @@ PLATFORM="${MOOS_ARM_PLATFORM:-linux/arm64}"
 mkdir -p "$OUT_DIR" "$BUILD_DIR/output" "$BUILD_DIR/config"
 
 echo "=== Building recovery container ($PLATFORM) ==="
-podman build --platform "$PLATFORM" -f "$ROOT/Containerfile.arm-recovery" -t "$RECOVERY_TAG" "$ROOT"
-podman save -o /var/tmp/moos-recovery.tar "$RECOVERY_TAG"
+podman build --platform "$PLATFORM" -f "$ROOT/Containerfile.arm-recovery" -t localhost/moos-arm-recovery:local "$ROOT"
+podman save -o /var/tmp/moos-recovery.tar localhost/moos-arm-recovery:local
 sudo podman load -i /var/tmp/moos-recovery.tar
 
 cat > "$BUILD_DIR/config/config.toml" <<'TOML'
@@ -28,7 +28,7 @@ sudo podman run --rm --privileged --pull=newer \
     -v "$BUILD_DIR/config/config.toml":/config.toml:ro \
     -v /var/lib/containers/storage:/var/lib/containers/storage \
     quay.io/centos-bootc/bootc-image-builder@sha256:2b52843ea2bfda73b0a08d97e76b734393b1d3a804681b9fabb26723bd3a2f0b \
-    --type qcow2 --rootfs btrfs --config /config.toml --target-arch arm64 --local "$RECOVERY_TAG"
+    --type qcow2 --rootfs btrfs --config /config.toml --target-arch arm64 --local localhost/moos-arm-recovery:local
 
 RECOVERY_QCOW="$(find "$BUILD_DIR/output" -name '*.qcow2' -print -quit)"
 [ -n "$RECOVERY_QCOW" ] || { echo "FATAL: no recovery qcow2"; exit 1; }
