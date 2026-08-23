@@ -23,7 +23,7 @@ runtime_gate="$script_dir/verify_arm_runtime.sh"
 display_backend="${MOOS_ARM_DISPLAY:-none}"
 visual_hold="${MOOS_ARM_VISUAL_HOLD:-0}"
 case "$display_backend" in
-    none) qemu_display=( -display egl-headless ) ;;
+    none) qemu_display=( -display none ) ;;
     gtk)
         [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ] || {
             echo "ARM BOOT FATAL: GTK visual mode needs a graphical host session" >&2
@@ -275,16 +275,16 @@ if "${ssh_base[@]}" sudo bash -s -- "$guest_png" <<'EOS'
 set -euo pipefail
 out=$1
 uid=$(id -u plasmalogin)
-runtime="/run/user/${uid}"
 socket=""
-if [ -d "$runtime" ]; then
-    socket=$(find "$runtime" -maxdepth 1 -name 'wayland-*' -type s | head -1)
-fi
-[ -n "$socket" ] || socket=$(find /run/plasmalogin -name 'wayland-*' -type s 2>/dev/null | head -1)
+for runtime in "/run/user/${uid}" /run/plasmalogin; do
+    [ -d "$runtime" ] || continue
+    socket=$(find "$runtime" -maxdepth 2 -name 'wayland-*' -type s | head -1)
+    [ -n "$socket" ] && break
+done
 [ -n "$socket" ] || { echo "NO_WL_SOCKET"; exit 1; }
 export WAYLAND_DISPLAY="${socket##*/}"
 export XDG_RUNTIME_DIR="$(dirname "$socket")"
-pgrep -u plasmalogin -x kwin_wayland >/dev/null || { echo "NO_KWIN"; exit 1; }
+pgrep -u plasmalogin -f kwin_wayland >/dev/null || { echo "NO_KWIN"; exit 1; }
 if command -v grim >/dev/null 2>&1; then
     runuser -u plasmalogin -- env WAYLAND_DISPLAY="$WAYLAND_DISPLAY" XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" \
         grim "$out"
@@ -311,9 +311,9 @@ command -v grim spectacle || true
 EOS
 fi
 if [ "$guest_capture_ok" -eq 0 ]; then
-    printf 'screendump %s\n' "$screenshot" | socat - UNIX-CONNECT:"$monitor" >/dev/null
-    [ -s "$screenshot" ] || { echo "ARM BOOT FATAL: graphical screendump is empty" >&2; exit 1; }
-    convert "$screenshot" "$evidence/graphical.png"
+    echo "ARM BOOT FATAL: plasmalogin Wayland capture failed — see graphical-guest-diagnostics.txt" >&2
+    cat "$evidence/graphical-guest-diagnostics.txt" >&2 || true
+    exit 1
 fi
 [ -s "$evidence/graphical.png" ] || { echo "ARM BOOT FATAL: graphical PNG evidence is empty" >&2; exit 1; }
 stddev="$(convert "$evidence/graphical.png" -colorspace gray -format '%[fx:standard_deviation]' info:)"
