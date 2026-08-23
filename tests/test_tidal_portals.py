@@ -140,12 +140,18 @@ class TidalPortalContractTests(unittest.TestCase):
         self.assertIn("radius: design.radiusPanel", action)
         self.assertNotIn("radius: width / 2", action)
         self.assertIn("font.family: design.interfaceFamily", action)
+        self.assertIn("readonly property real compactScale", action)
+        self.assertIn("Screen.height - 320", action)
+        self.assertIn("largeSpacing * 4 * compactScale", action)
+        self.assertIn("6.6 * Math.max(0.82, root.compactScale)", action)
         self.assertIn("trackSeconds: false", clock)
         self.assertIn("Locale.LongFormat", clock)
         self.assertIn("sessionLocale.dateFormat(Locale.LongFormat)", clock)
         self.assertNotIn("Animation.Infinite", clock)
         self.assertIn("LayoutMirroring.enabled: false", clock)
         self.assertIn("layoutDirection: Qt.LeftToRight", clock)
+        self.assertIn("readonly property real responsiveScale", clock)
+        self.assertIn("Screen.height - 320", clock)
 
         self.assertNotIn("Animation.Infinite", lock)
         self.assertIn(

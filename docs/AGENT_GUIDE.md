@@ -337,8 +337,8 @@ launcher and a popup at each step.
 - `THEME_REV` bumped if any shipped SVG or plasmoid QML changed, with both pinned
   gates moved.
 - Every home override under `~/.local/share/plasma/` removed.
-- `PROJECT_STATE.md` and `docs/CONTINUATION.md` updated — **including what you did
-  NOT finish**.
+- `PROJECT_STATE.md` and `MOOS_ROADMAP.md` updated concisely — **including what
+  you did NOT finish**. Git history replaces per-session continuation journals.
 - Branches: work on a branch, then merge to `main`. After merging, retire it.
   Verify a branch is safe to delete rather than guessing:
   `git cherry main <branch>` — every line starting `-` is already upstream.

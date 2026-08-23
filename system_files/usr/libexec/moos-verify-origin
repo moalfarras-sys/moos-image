@@ -11,7 +11,7 @@
 #   container-image-reference=ostree-unverified-registry:ghcr.io/…     ← NOT
 #
 # `bootc switch` was already caught writing the unverified form (see
-# FIXES_2026-07-16b.md — `moai-do install-nvidia` silently turned a machine that
+# Git history from 2026-07-16 records how `moai-do install-nvidia` silently turned a machine that
 # enforced signatures into one that verified nothing, for the rest of the
 # install's life, because the origin persists). That path now passes
 # --enforce-container-sigpolicy and a gate holds it there.
@@ -41,34 +41,49 @@ set -euo pipefail
 
 REGISTRY_PREFIX="ghcr.io/moalfarras-sys/"
 UNVERIFIED_PREFIX="ostree-unverified-registry:"
+DEPLOY_ROOT="${MOOS_ORIGIN_DEPLOY_ROOT:-/ostree/deploy}"
+RPM_OSTREE="${MOOS_ORIGIN_RPM_OSTREE:-rpm-ostree}"
+BOOTC="${MOOS_ORIGIN_BOOTC:-bootc}"
+RETRY_DELAY="${MOOS_ORIGIN_RETRY_DELAY:-30}"
 
 log() { printf 'moos-verify-origin: %s\n' "$*"; }
 
 # Not a bootc system (a container build, a test chroot) — nothing to do, and
 # certainly nothing to fail over.
-command -v bootc >/dev/null 2>&1 || { log "no bootc — not a deployed system, skipping"; exit 0; }
-[ -d /ostree/deploy ]            || { log "no /ostree/deploy — not a deployed system, skipping"; exit 0; }
+command -v "$BOOTC" >/dev/null 2>&1 || { log "no bootc — not a deployed system, skipping"; exit 0; }
+[ -d "$DEPLOY_ROOT" ]             || { log "no deployment root — not a deployed system, skipping"; exit 0; }
+command -v "$RPM_OSTREE" >/dev/null 2>&1 || {
+    log "ERROR: rpm-ostree is missing, so the booted deployment cannot be audited"
+    exit 1
+}
 
-status="$(bootc status --json 2>/dev/null || true)"
-[ -n "$status" ] || { log "bootc status returned nothing — skipping"; exit 0; }
-
-stateroot="$(jq -r '.status.booted.ostree.stateroot // empty' <<<"$status")"
-checksum="$(jq -r  '.status.booted.ostree.checksum  // empty' <<<"$status")"
-serial="$(jq -r    '.status.booted.ostree.deploySerial // 0'  <<<"$status")"
-image="$(jq -r     '.status.booted.image.image.image // empty' <<<"$status")"
-
-# No booted deployment described (staged-only, or an ostree layout this does not
-# understand). Silence beats a guess that rewrites the wrong origin.
-if [ -z "$stateroot" ] || [ -z "$checksum" ] || [ -z "$image" ]; then
-    log "could not read the booted deployment — skipping"
-    exit 0
+if ! status="$("$RPM_OSTREE" status --json 2>/dev/null)" || [ -z "$status" ]; then
+    log "ERROR: rpm-ostree status returned no deployment data"
+    exit 1
 fi
 
-origin="/ostree/deploy/${stateroot}/deploy/${checksum}.${serial}.origin"
-[ -r "$origin" ] || { log "origin file not readable: ${origin} — skipping"; exit 0; }
+booted="$(jq -r '
+    first(.deployments[]? | select(.booted == true)) as $d
+    | [$d.osname, $d.checksum, ($d.serial | tostring)]
+    | @tsv
+' <<<"$status" 2>/dev/null || true)"
+IFS=$'\t' read -r stateroot checksum serial <<<"$booted"
+
+# Refuse malformed path components before using status output in a pathname.
+# These are root-owned rpm-ostree fields, but an audit tool should still fail
+# closed instead of ever wandering outside the deployment root.
+if ! [[ "$stateroot" =~ ^[A-Za-z0-9._-]+$ ]] \
+        || ! [[ "$checksum" =~ ^[0-9a-f]{64}$ ]] \
+        || ! [[ "$serial" =~ ^[0-9]+$ ]]; then
+    log "ERROR: could not identify the booted rpm-ostree deployment"
+    exit 1
+fi
+
+origin="${DEPLOY_ROOT}/${stateroot}/deploy/${checksum}.${serial}.origin"
+[ -r "$origin" ] || { log "ERROR: origin file not readable: ${origin}"; exit 1; }
 
 ref="$(sed -n 's/^container-image-reference=//p' "$origin" | head -1)"
-[ -n "$ref" ] || { log "no container-image-reference in ${origin} — skipping"; exit 0; }
+[ -n "$ref" ] || { log "ERROR: no container-image-reference in ${origin}"; exit 1; }
 
 case "$ref" in
     "${UNVERIFIED_PREFIX}${REGISTRY_PREFIX}"*) ;;
@@ -84,6 +99,13 @@ case "$ref" in
         log "origin already enforces the signature policy — nothing to do"
         exit 0 ;;
 esac
+
+# bootc expects the image reference, not rpm-ostree's transport prefix. Derive
+# it from the origin we just proved is the unverified MoOS origin; do not trust a
+# second, potentially divergent status field.
+image="${ref#${UNVERIFIED_PREFIX}}"
+image="${image#docker://}"
+[ -n "$image" ] || { log "ERROR: unverified origin has no image reference"; exit 1; }
 
 log "origin is UNVERIFIED: ${ref}"
 log "rebinding to the signed transport for ${image}"
@@ -102,14 +124,14 @@ log "rebinding to the signed transport for ${image}"
 # signature problem. Three tries over ~90s, then report honestly.
 attempt=1
 while [ "$attempt" -le 3 ]; do
-    if bootc switch --enforce-container-sigpolicy "$image"; then
+    if "$BOOTC" switch --enforce-container-sigpolicy "$image"; then
         log "origin rebound — this machine now verifies its updates"
         log "the change applies on the next reboot"
         exit 0
     fi
     log "attempt ${attempt}/3 failed"
     attempt=$((attempt + 1))
-    [ "$attempt" -le 3 ] && sleep 30
+    [ "$attempt" -le 3 ] && sleep "$RETRY_DELAY"
 done
 
 # Three failures with the network up is not a blip. A machine taking unverified

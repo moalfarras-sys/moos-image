@@ -1,6 +1,10 @@
 # build-disk.yml — build a PRE-INSTALLED MoOS disk image (qcow2) via
 # bootc-image-builder, then smoke-check that the produced disk actually contains
 # a working ostree/bootc deployment (the v20 fix). Manual + monthly.
+# This is a CI verification fixture, not an end-user login image: its one-time
+# random test credential is deliberately discarded. The supported interactive
+# x86 delivery artifact is the live/install ISO, whose account recipe is chosen
+# by the user. Do not present this QCOW2 as a pre-provisioned desktop download.
 #
 # WHY: the installed-disk boot path (initramfs -> ostree-prepare-root ->
 # /sysroot) is what regressed in v19 (dracut emergency mode). A qcow2 from
@@ -14,7 +18,7 @@ on:
   workflow_dispatch:
     inputs:
       image-ref:
-        description: "Image ref (empty = ghcr.io/<owner>/moos:latest — the generic edition; matches the resolver below)"
+        description: "Exact signed moos, moos-nvidia or moos-cloud ref (empty = generic latest for scheduled smoke only)"
         required: false
         default: ""
   schedule:
@@ -27,20 +31,31 @@ permissions:
 # bootc-image-builder jobs sharing /var/lib/containers/storage is asking for a
 # corrupt build.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # Each edition has independent storage on its hosted runner. Keep duplicate
+  # proofs for the same ref serialized without cancelling the other editions.
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs['image-ref'] || 'scheduled-generic' }}
   cancel-in-progress: true
 
 jobs:
   build-disk:
     name: Build qcow2 (bootc-image-builder)
     runs-on: ubuntu-latest
-    # bootc-image-builder + the deployed-initramfs proof + a 10-minute TCG QEMU
-    # boot is ~an hour; cap it so a wedged QEMU (no KVM on GH runners) fails
-    # instead of burning the 6h default.
+    # bootc-image-builder + deployed-initramfs proof + two complete TCG boots
+    # are bounded to 90 minutes so a wedged QEMU fails instead of consuming the
+    # GitHub six-hour default.
     timeout-minutes: 90
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Release-disk source gates
+        run: |
+          bash -n build_files/seal_x86_qcow2.sh
+          bash -n build_files/seal_release_qcow2.sh
+          bash -n tests/boot_x86_qcow2.sh
+          python3 tests/test_release_workflow_safety.py
+          python3 tests/test_release_partition_roles.py
+          python3 tests/test_seal_arm_deployment.py
 
       - name: Free disk space
         uses: jlumbroso/free-disk-space@v1.3.1
@@ -49,9 +64,11 @@ jobs:
           docker-images: true
 
       - name: Resolve image ref
-        id: ref
+        id: requested
+        env:
+          INPUT_REF: ${{ inputs['image-ref'] }}
         run: |
-          REF="${{ github.event.inputs.image-ref }}"
+          REF="${INPUT_REF}"
           [ -n "$REF" ] || REF="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/moos:latest"
           echo "image_ref=$REF" >> "$GITHUB_OUTPUT"
           echo "Building disk from: $REF"
@@ -64,24 +81,63 @@ jobs:
       - name: Install cosign
         uses: sigstore/cosign-installer@v3
 
-      - name: Verify the image signature before building a disk from it
+      - name: Verify and pin the exact image digest
+        id: pin
         env:
-          IMAGE_REF: ${{ steps.ref.outputs.image_ref }}
-        run: cosign verify --key cosign.pub "${IMAGE_REF}"
+          REQUESTED_REF: ${{ steps.requested.outputs.image_ref }}
+        run: |
+          set -euo pipefail
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          if [[ ! "${REQUESTED_REF}" =~ ^ghcr\.io/${owner}/(moos|moos-nvidia|moos-cloud)(:[A-Za-z0-9._-]+|@sha256:[0-9a-f]{64})$ ]]; then
+            echo "FATAL: disk source is not an official MoOS x86 reference: ${REQUESTED_REF}" >&2
+            exit 1
+          fi
+          verified_json="$(cosign verify --key cosign.pub --output json "${REQUESTED_REF}")"
+          digest="$(jq -er '.[0].critical.image["docker-manifest-digest"]' <<<"${verified_json}")"
+          [[ "${digest}" =~ ^sha256:[0-9a-f]{64}$ ]] \
+            || { echo "FATAL: cosign returned an invalid digest" >&2; exit 1; }
+          repository="${REQUESTED_REF%%@*}"
+          [ "${repository}" != "${REQUESTED_REF}" ] || repository="${REQUESTED_REF%:*}"
+          pinned_ref="${repository}@${digest}"
+          cosign verify --key cosign.pub "${pinned_ref}" >/dev/null
+          echo "image_ref=${pinned_ref}" >> "$GITHUB_OUTPUT"
+          echo "Pinned signed disk source: ${pinned_ref}"
 
       - name: Pull the MoOS image (public — no auth)
-        run: sudo podman pull "${{ steps.ref.outputs.image_ref }}"
+        run: sudo podman pull "${{ steps.pin.outputs.image_ref }}"
 
       - name: Build qcow2 with bootc-image-builder
         run: |
+          set -euo pipefail
           mkdir -p output
-          # Never publish a disk artifact with a repository-known password.
-          # The random CI-only credential is intentionally not printed or saved.
+          # Never publish a disk artifact with a repository-known credential.
+          # SSH is a CI-only observation channel; its private key is destroyed
+          # after the two-boot proof and is never uploaded.
           TEST_PASSWORD="$(openssl rand -hex 20)"
-          sed "s/__MOOS_CI_RANDOM_PASSWORD__/${TEST_PASSWORD}/" \
-            bib/config.toml > /tmp/moos-bib-config.toml
+          ssh-keygen -q -t ed25519 -N '' -C moos-ci-runtime-proof \
+            -f "${RUNNER_TEMP}/moos-ci-runtime-key"
+          TEST_SSH_PUBLIC_KEY="$(<"${RUNNER_TEMP}/moos-ci-runtime-key.pub")"
+          export TEST_PASSWORD TEST_SSH_PUBLIC_KEY
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          source = Path("bib/config.toml").read_text(encoding="utf-8")
+          replacements = {
+              "__MOOS_CI_RANDOM_PASSWORD__": os.environ["TEST_PASSWORD"],
+              "__MOOS_CI_SSH_PUBLIC_KEY__": os.environ["TEST_SSH_PUBLIC_KEY"],
+          }
+          for marker, value in replacements.items():
+              if source.count(marker) != 1:
+                  raise SystemExit(f"FATAL: expected exactly one {marker} placeholder")
+              source = source.replace(marker, value)
+          Path("/tmp/moos-bib-config.toml").write_text(source, encoding="utf-8")
+          PY
           unset TEST_PASSWORD
+          unset TEST_SSH_PUBLIC_KEY
           chmod 0600 /tmp/moos-bib-config.toml
+          chmod 0600 "${RUNNER_TEMP}/moos-ci-runtime-key"
+          echo "MOOS_X86_SSH_KEY=${RUNNER_TEMP}/moos-ci-runtime-key" >> "$GITHUB_ENV"
           # --rootfs btrfs matches the real-hardware Anaconda install (and the
           # 00-moos.toml default), so this qcow2 boots the SAME on-disk layout.
           sudo podman run --rm --privileged \
@@ -89,19 +145,36 @@ jobs:
             -v "/tmp/moos-bib-config.toml:/config.toml:ro" \
             -v "$PWD/output:/output" \
             -v /var/lib/containers/storage:/var/lib/containers/storage \
-            quay.io/centos-bootc/bootc-image-builder:latest \
+            quay.io/centos-bootc/bootc-image-builder@sha256:2b52843ea2bfda73b0a08d97e76b734393b1d3a804681b9fabb26723bd3a2f0b \
             --type qcow2 \
             --rootfs btrfs \
             --config /config.toml \
             --local \
-            "${{ steps.ref.outputs.image_ref }}"
+            "${{ steps.pin.outputs.image_ref }}" 2>&1 | tee /tmp/moos-bib-build.log
+          if grep -Fq "blueprint validation failed" /tmp/moos-bib-build.log; then
+            echo "FATAL: bootc-image-builder ignored an unsupported customization" >&2
+            exit 1
+          fi
           echo "=== output tree ==="; sudo find output -maxdepth 3 -type f -printf '%p (%s bytes)\n'
+
+      - name: Seal the exact signed x86 deployment
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq qemu-utils
+          qcow="$(sudo find output -name '*.qcow2' -print -quit)"
+          [ -n "$qcow" ] || { echo "FATAL: no qcow2 was produced" >&2; exit 1; }
+          expected="${{ steps.pin.outputs.image_ref }}"
+          sudo build_files/seal_x86_qcow2.sh \
+            "$qcow" "$expected" --enable-ci-runtime-proof
+          sudo chown "$USER:$USER" "$qcow"
+          echo "MOOS_X86_QCOW=$(readlink -f "$qcow")" >> "$GITHUB_ENV"
 
       - name: Verify the deployed disk's initramfs has ostree-prepare-root
         run: |
           set -uo pipefail
           sudo apt-get update -qq && sudo apt-get install -y -qq qemu-utils zstd initramfs-tools-core >/dev/null
-          QCOW=$(sudo find output -name '*.qcow2' | head -1)
+          QCOW="$MOOS_X86_QCOW"
           [ -n "$QCOW" ] || { echo "FATAL: no qcow2 produced"; exit 1; }
           echo "qcow2: $QCOW ($(sudo du -h "$QCOW" | cut -f1))"
           # Map the qcow2 (no boot) and pull the DEPLOYED initramfs off it. This
@@ -129,79 +202,44 @@ jobs:
             echo "FATAL: deployed initramfs is missing ostree-prepare-root."; exit 1
           fi
 
-      - name: Boot the qcow2 in QEMU UEFI — real boot test (the v-boot regression gate)
+      - name: Boot, reboot and power off the exact sealed QCOW2
+        env:
+          EXPECTED_IMAGE: ${{ steps.pin.outputs.image_ref }}
+          EVIDENCE_DIR: ${{ runner.temp }}/x86-qcow2-boot-proof
         run: |
-          set -uo pipefail
-          sudo apt-get install -y -qq qemu-system-x86 ovmf >/dev/null
-          QCOW=$(sudo find output -name '*.qcow2' | head -1)
-          [ -n "$QCOW" ] || { echo "FATAL: no qcow2"; exit 1; }
-          # Make the boot observable: add a serial console and drop quiet/rhgb on
-          # the installed BLS entries (via the nbd mapping used above).
-          sudo qemu-nbd --connect=/dev/nbd0 -f qcow2 "$QCOW"; sleep 3
-          sudo partprobe /dev/nbd0 2>/dev/null || true
-          MNT=$(mktemp -d)
-          for P in $(lsblk -rno NAME /dev/nbd0 | tail -n +2); do
-            sudo mount "/dev/$P" "$MNT" 2>/dev/null || continue
-            if sudo test -d "$MNT/loader/entries"; then
-              echo "boot partition: /dev/$P"
-              sudo sed -i -E 's/\bquiet\b//g; s/\brhgb\b//g; /^options /{/console=ttyS0/!s/$/ console=ttyS0,115200/}' "$MNT"/loader/entries/*.conf
-              sudo grep -h '^options' "$MNT"/loader/entries/*.conf | head
-              sudo umount "$MNT"; break
-            fi
-            sudo umount "$MNT" 2>/dev/null || true
-          done
-          sudo qemu-nbd --disconnect /dev/nbd0 || true
-          # find (not ls) — `ls a b` returns 2 when ANY path is missing, and
-          # pipefail would abort even though the other file exists.
-          OVMF_CODE=$(find /usr/share -name 'OVMF_CODE*.fd' 2>/dev/null | sort | head -1)
-          OVMF_VARS=$(find /usr/share -name 'OVMF_VARS*.fd' 2>/dev/null | sort | head -1)
-          if [ -z "$OVMF_CODE" ] || [ -z "$OVMF_VARS" ]; then
-            echo "WARN: OVMF firmware not present on this runner — cannot run the QEMU UEFI boot test here."
-            echo "  (The initramfs SIZE guard + the deployed-disk ostree-prepare-root static proof above still gate the image; the fix is also proven booting on the real hardware.)"
-            find /usr -iname '*OVMF*' 2>/dev/null | head; exit 0
-          fi
-          cp "$OVMF_VARS" /tmp/vars.fd
-          echo "OVMF: $OVMF_CODE ; boot (TCG, no KVM on GH runners — allow time)…"
-          # Never exits on its own (boots to a login); timeout stops it, then we
-          # analyse the captured serial console.
-          sudo timeout 600 qemu-system-x86_64 \
-            -machine q35 -cpu Haswell -m 4096 -smp 2 \
-            -drive if=pflash,format=raw,readonly=on,file="$OVMF_CODE" \
-            -drive if=pflash,format=raw,file=/tmp/vars.fd \
-            -drive file="$QCOW",format=qcow2,if=virtio \
-            -device virtio-gpu-pci -nic none \
-            -serial file:/tmp/serial.log -display none -no-reboot 2>/tmp/qemu.err || true
-          echo "=== serial console (tail) ==="; tail -80 /tmp/serial.log 2>/dev/null || true
-          [ -s /tmp/serial.log ] || { echo "FATAL: QEMU produced no serial boot log."; exit 1; }
-          # systemd colours the unit state and target name separately. Grepping
-          # the raw stream therefore misses visible text such as
-          # "Reached target Basic System" because ANSI bytes sit in the middle
-          # of the phrase. Normalise once, then run every decision on the same
-          # plain log so colour can never turn a successful boot into a failure
-          # (or hide a real emergency signature).
-          python3 - <<'PY' || { echo "FATAL: could not normalise the QEMU serial log."; exit 1; }
-          import pathlib
-          import re
+          set -euo pipefail
+          trap 'rm -f -- "$MOOS_X86_SSH_KEY" "$MOOS_X86_SSH_KEY.pub"' EXIT
+          sudo apt-get install -y -qq qemu-system-x86 ovmf imagemagick >/dev/null
+          before="$(sha256sum "$MOOS_X86_QCOW" | awk '{print $1}')"
+          tests/boot_x86_qcow2.sh \
+            "$MOOS_X86_QCOW" "$EXPECTED_IMAGE" "$EVIDENCE_DIR" "$MOOS_X86_SSH_KEY"
+          after="$(sha256sum "$MOOS_X86_QCOW" | awk '{print $1}')"
+          [ "$before" = "$after" ] || {
+            echo "FATAL: the boot gate modified the sealed release QCOW2" >&2
+            exit 1
+          }
 
-          source = pathlib.Path("/tmp/serial.log").read_bytes()
-          ansi = re.compile(rb"\x1b(?:\[[0-?]*[ -/]*[@-~]|[@-_])")
-          pathlib.Path("/tmp/serial.plain.log").write_bytes(ansi.sub(b"", source))
-          PY
-          # Negative gate: any boot failure signature fails the build.
-          if grep -qiE "Kernel panic|Entering emergency|emergency mode|Cannot open root device|Failed to mount /sysroot|unable to allocate memory|out of memory|can't allocate|ostree-prepare-root: .*(fail|error)" /tmp/serial.plain.log; then
-            echo "FATAL: boot failure detected in the QEMU serial log."; exit 1
-          fi
-          # Positive gate: reached a systemd target => GRUB+kernel+initramfs+ostree
-          # +root+systemd all worked (the exact chain that failed on real hardware).
-          if grep -qiE "Reached target (Graphical|Multi-User|Login Prompts|Basic System)|Startup finished|Started .*Display Manager|Welcome to MoOS|plasma-login-manager|plasmalogin" /tmp/serial.plain.log; then
-            echo "PASS: MoOS booted in QEMU UEFI to a systemd target with no emergency/panic."
-          else
-            echo "FATAL: boot did not reach a systemd target within the timeout."; tail -120 /tmp/serial.plain.log; exit 1
-          fi
-
-      - name: Upload qcow2
+      - name: Upload x86 QCOW2 boot evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: moos-disk-qcow2
+          name: moos-x86-qcow2-boot-proof
+          path: ${{ runner.temp }}/x86-qcow2-boot-proof
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload qcow2
+        run: |
+          set -euo pipefail
+          QCOW="$MOOS_X86_QCOW"
+          expected="$(sed -n 's/^sha256=//p' "${{ runner.temp }}/x86-qcow2-boot-proof/manifest.txt")"
+          actual="$(sha256sum "$QCOW" | awk '{print $1}')"
+          [[ "$expected" =~ ^[0-9a-f]{64}$ ]] || { echo "FATAL: boot proof has no valid artifact SHA"; exit 1; }
+          [ "$actual" = "$expected" ] || { echo "FATAL: qcow2 changed before upload"; exit 1; }
+
+      - name: Publish the pristine qcow2
+        uses: actions/upload-artifact@v4
+        with:
+          name: moos-ci-verified-disk-qcow2
           path: output/**/*.qcow2
           compression-level: 0

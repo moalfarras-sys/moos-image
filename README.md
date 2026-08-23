@@ -6,7 +6,18 @@
 ويدفعها إلى GHCR، والأجهزة المثبتة تسحب التحديثات الموقعة منها مباشرة —
 **بما فيها جهاز المشرف اليومي**.
 
-آخر تحديث: 2026-07-30
+آخر تحديث: **2026-08-23** (بعد دمج PR #60 في `main`)
+
+> ## 📍 أين وصلنا الآن؟ (اقرأ أولاً)
+>
+> | الملف | ماذا ي answer |
+> |---|---|
+> | [`PROJECT_STATE.md`](PROJECT_STATE.md) | الحالة الحية بجملة واحدة + جداول |
+> | [`docs/CHECKPOINT-2026-08-23-UTM-INSTALLER-SESSION.md`](docs/CHECKPOINT-2026-08-23-UTM-INSTALLER-SESSION.md) | **تقرير الجلسة الكامل** (UTM آيفون، Oracle، الفشل، ما بُني) — نسخة ويب بعد الدمج |
+>
+> **ملخص سريع:** بنينا مثبّت شبكة UTM (`MoOS-UTM-Installer.utm.zip`). اختبار
+> الآيفون **فشل** — الإقلاع أظهر Fedora (ممنوع). قرص المثبّت recovery ما زال
+> على قاعدة fedora-bootc بدون scrub هوية كامل. Oracle **متوقف**. لا iPhone PASS.
 
 > ## ⚠️ قراءة إلزامية قبل أي تعديل
 >
@@ -15,10 +26,8 @@
 > 2. [`AGENTS.md`](AGENTS.md) — القواعد وعقد الهوية وبوابات البناء.
 > 3. [`PROJECT_STATE.md`](PROJECT_STATE.md) — الخريطة الحية: ما هو موجود فعلاً،
 >    وما هي الفخاخ التي كلفت المشروع أياماً.
-> 4. [`HANDOFF.md`](docs/HANDOFF.md) — نقطة الاستمرار: **أحدث إدخال جلسة في أعلاه هو
->    الحالة الجارية**؛ وتسليم وسم 2026-07-30 الكامل (تدقيق عدائي + 14 commit +
->    خطة العمل المؤجل) في
->    [`docs/SESSION_HANDOFF_2026-07-29.md`](docs/SESSION_HANDOFF_2026-07-29.md).
+> 4. [`RELEASE.md`](RELEASE.md) — عقد الإصدار الحالي من candidate إلى artifacts
+>    مُقلعة ثم promotion؛ لا تستنتج مسار النشر من handoff أو سجل جلسة قديم.
 >
 > هذا النظام مثبّت على جهاز حقيقي يسحب من `main` عبر CI. لا توجد بيئة تجريبية
 > بين الدمج وبين جهاز قد يفشل في الإقلاع — وقد حدث ذلك فعلاً مرة. الحراسات في
@@ -51,9 +60,12 @@
 | `ghcr.io/moalfarras-sys/moos-nvidia` | نفس القاعدة + سواقة NVIDIA المفتوحة مطبّقة كطبقة | نفسها |
 | `ghcr.io/moalfarras-sys/moos-cloud` | نسخة الخوادم (VPS): بلا حزم ألعاب/أندرويد، SSH هو الباب، سطح مكتب عبر المتصفح | نفسها |
 
-كل صورة تبنى يومياً (06:00 UTC) وعند كل push إلى `main`، بوسمي `latest` و`YYYYMMDD`،
-وتوقَّع بـcosign. **النظام المثبت يفرض التحقق من التوقيع** (سياسة sigstoreSigned +
-`/etc/pki/containers/moos.pub`؛ المفتاح العام المتعقب هنا هو `cosign.pub`).
+كل build يومي أو يدوي أو ناتج من `main` يُدفع أولًا بوسم candidate مربوط بـrun
+وcommit، ثم يوقّع digest ويُتحقق منه. لا يحرّك `build.yml` وسم `latest`.
+`latest` ووسم الإصدار لا يتحركان إلا من `promote-x86.yml` بعد إقلاع نفس digest
+داخل QCOW2 وISO النهائيين والتحقق من أدلتهما. **النظام المثبت يفرض التحقق من
+التوقيع** (سياسة sigstoreSigned + `/etc/pki/containers/moos.pub`؛ المفتاح العام
+المتعقب هنا هو `cosign.pub`).
 
 ## هيكل المستودع
 
@@ -72,7 +84,9 @@ moos-image/
 ├── .github/workflows/
 │   ├── build.yml               # بناء + دفع + توقيع الصور الثلاث (push + يومي + يدوي)
 │   ├── build-iso.yml           # Titanoboa live ISO (يدوي + شهري)
-│   └── build-disk.yml          # صورة قرص qcow2 (يدوي)
+│   ├── build-disk.yml          # صورة قرص qcow2 (يدوي)
+│   ├── build-arm.yml           # ARM native + QCOW2 boot proof + promotion
+│   └── promote-x86.yml         # promotion بعد إثبات build + QCOW2 + ISO
 ├── Justfile                    # build / build-nvidia / build-cloud / lint / sync-moplayer
 ├── AGENTS.md · PROJECT_STATE.md · MOOS_ROADMAP.md   # القواعد · الخريطة · الحالة
 └── cosign.pub                  # المفتاح العام للتحقق من كل الصور
@@ -81,8 +95,9 @@ moos-image/
 ## البناء والاختبار
 
 - **الرسمي (CI):** أي push إلى `main` يشغّل `build.yml` فيبني الصور الثلاث
-  ويوقعها ويدفعها. بوابات المستودع (خطوة "Repo gates") تعمل أولاً وتُسقط البناء
-  في أول 20 ثانية إن انكسر عقد مختبَر.
+  ويوقع digests ويدفع candidates فقط. بوابات المستودع (خطوة "Repo gates") تعمل
+  أولاً. اتبع [`RELEASE.md`](RELEASE.md) لبناء artifacts من digest العام نفسه
+  ثم promotion؛ مجرد نجاح container build ليس إصدارًا.
 - **محلياً:**
 
 ```bash
@@ -121,9 +136,17 @@ sudo bootc switch ghcr.io/moalfarras-sys/moos:latest && sudo systemctl reboot
 كاملاً في QEMU (تثبيت offline حتى إقلاع القرص المستهدف)؛ **لم يُجرَّب بعد على
 عتاد حقيقي**.
 
+الـQCOW2 الخاص بـx86 هو fixture لاختبار مسار القرص المثبت وليس artifact دخول
+لمستخدم نهائي؛ كلمة اختباره العشوائية تُتلف عمدًا. الـISO هو artifact x86
+التفاعلي. ARM ينتج QCOW2 مخصصًا لـOracle/UTM مع provisioning آمن موثق في
+[`docs/MOOS_ARM_ORACLE.md`](docs/MOOS_ARM_ORACLE.md).
+
 ## أين الحقيقة؟
 
-- **الحالة والبوابات المتبقية:** [`MOOS_ROADMAP.md`](MOOS_ROADMAP.md)
-- **الخريطة والفخاخ:** [`PROJECT_STATE.md`](PROJECT_STATE.md)
+- **الواقع أولًا:** الجهاز الجاري وjournal/deployments، ثم HEAD والاختبارات
+  المنفذة حديثًا، ثم artifacts المُقلعة؛ وثيقة قديمة لا تتغلب على أي منها.
+- **عقد الإصدار الحالي:** [`RELEASE.md`](RELEASE.md)
+- **الحالة والفخاخ التاريخية:** [`PROJECT_STATE.md`](PROJECT_STATE.md) و
+  [`MOOS_ROADMAP.md`](MOOS_ROADMAP.md)؛ استعملهما كسياق لا كدليل runtime.
 - **ما هو غير منجَز** (ولا يجوز ادعاء عكسه): قسم "What is NOT done" في
   [`AGENTS.md`](AGENTS.md)

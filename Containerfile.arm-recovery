@@ -1,0 +1,25 @@
+# =============================================================================
+# MoOS ARM Recovery — slim UTM net-installer boot environment (NOT full desktop)
+# =============================================================================
+# Produces a small aarch64 bootc image used ONLY as installer.qcow2 inside
+# MoOS-UTM-Installer. The full MoOS desktop is downloaded at install time from
+# the signed ghcr.io/moalfarras-sys/moos-arm digest in arm-latest.json.
+#
+# BUILD (native arm64 or emulated — slow on x86):
+#   podman build --platform linux/arm64 -f Containerfile.arm-recovery -t moos-arm-recovery .
+#   bootc-image-builder --type qcow2 --build-dir /var/tmp/bib moos-arm-recovery
+# =============================================================================
+
+FROM quay.io/fedora/fedora-bootc:44 AS base
+
+FROM scratch AS ctx
+COPY build_files /
+
+FROM scratch AS system-files
+COPY system_files /
+
+FROM base
+COPY --from=ctx /build-arm-recovery.sh /usr/libexec/moos-build-arm-recovery.sh
+COPY --from=system-files / /
+RUN bash /usr/libexec/moos-build-arm-recovery.sh \
+    && rm -f /usr/libexec/moos-build-arm-recovery.sh

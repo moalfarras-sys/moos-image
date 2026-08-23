@@ -14,7 +14,7 @@ from gi.repository import Gtk, Gdk, GLib
 from moos_ui2 import UI2StyleController, local_text, logical_start, ui_is_rtl
 
 UNIT = "mo-remote-personal.service"
-PORT = 8765
+DEFAULT_PORT = 8765
 
 # MoOS UI2 semantic colours.  Keep this panel on the same Graphite/Tidal rails as
 # the phone controller instead of letting ad-hoc Nova/purple colours creep into
@@ -40,6 +40,46 @@ def lan_ip():
     except OSError: return "unavailable"
 
 
+def configured_port(environ=None):
+    """Return the endpoint the running agent published after binding it.
+
+    settings.json is only a fallback for a stopped/starting service.  The
+    runtime endpoint is authoritative because it represents the value Kestrel
+    actually accepted, not merely a value another process expects it to use.
+    """
+    env = os.environ if environ is None else environ
+    runtime = env.get("XDG_RUNTIME_DIR")
+    if runtime and os.path.isabs(runtime):
+        try:
+            with open(os.path.join(runtime, "mo-remote", "endpoint.json")) as source:
+                endpoint = json.load(source)
+            port = endpoint.get("port")
+            pid = endpoint.get("pid")
+            if (
+                endpoint.get("schema") == 1
+                and isinstance(port, int) and not isinstance(port, bool)
+                and 0 < port < 65536
+                and isinstance(pid, int) and pid > 0
+            ):
+                os.kill(pid, 0)
+                return port
+        except (OSError, ValueError, TypeError, AttributeError):
+            pass
+    data_home = env.get("XDG_DATA_HOME")
+    if not data_home:
+        home = env.get("HOME") or os.path.expanduser("~")
+        data_home = os.path.join(home, ".local", "share")
+    try:
+        with open(os.path.join(data_home, "MoRemotePersonal", "settings.json")) as source:
+            settings = json.load(source)
+        port = settings.get("port")
+        if isinstance(port, int) and not isinstance(port, bool) and 0 < port < 65536:
+            return port
+    except (OSError, ValueError, TypeError, AttributeError):
+        pass
+    return DEFAULT_PORT
+
+
 # --- the address that still works once the phone leaves the house ---------------------------
 #
 # Mo PC Remote was already reachable from anywhere — Tailscale is a mesh, not a LAN thing, and
@@ -57,8 +97,9 @@ def lan_ip():
 #
 # Nothing is published to the public internet: serve is tailnet-only. (`tailscale funnel` is the
 # public one. MoOS does not use it.)
-def tailscale_url():
+def tailscale_url(port=None):
     """The MagicDNS HTTPS address, but only if serve is really proxying to our port."""
+    port = configured_port() if port is None else port
     try:
         st = json.loads(run("tailscale", "status", "--json").stdout or "{}")
     except (ValueError, OSError, subprocess.SubprocessError):
@@ -73,7 +114,7 @@ def tailscale_url():
         served = run("tailscale", "serve", "status").stdout or ""
     except (OSError, subprocess.SubprocessError):
         return None
-    if f"127.0.0.1:{PORT}" not in served and f"localhost:{PORT}" not in served:
+    if f"127.0.0.1:{port}" not in served and f"localhost:{port}" not in served:
         return None
     # Self-heal in the OTHER direction: tear the /audio mount DOWN if it is still there.
     #
@@ -98,9 +139,10 @@ def tailscale_url():
     return f"https://{name}/"
 
 
-def enable_anywhere():
+def enable_anywhere(port=None):
     """Point serve at the agent. Needs no root once the user is Tailscale's operator."""
-    r = run("tailscale", "serve", "--bg", "--https=443", f"http://127.0.0.1:{PORT}")
+    port = configured_port() if port is None else port
+    r = run("tailscale", "serve", "--bg", "--https=443", f"http://127.0.0.1:{port}")
     ok = r.returncode == 0
     if ok:
         # One mount, one door. The sound rides the agent's own authenticated route now; see
@@ -197,7 +239,8 @@ def collect_remote_snapshot():
     seconds.  This function deliberately contains no GTK calls.
     """
     on = active(UNIT)
-    far = tailscale_url() if on else None
+    port = configured_port()
+    far = tailscale_url(port) if on else None
     qr_path = None
     if far:
         candidate = _remote_qr_path(far)
@@ -208,6 +251,7 @@ def collect_remote_snapshot():
             qr_path = candidate
     return {
         "on": on,
+        "port": port,
         "far": far,
         "qr_path": qr_path,
         "hostname": socket.gethostname(),

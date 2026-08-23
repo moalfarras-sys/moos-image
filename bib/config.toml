@@ -11,4 +11,10 @@
 [[customizations.user]]
 name = "mo"
 password = "__MOOS_CI_RANDOM_PASSWORD__"
+key = "__MOOS_CI_SSH_PUBLIC_KEY__"
 groups = ["wheel"]
+
+# The pinned bootc-image-builder accepts user provisioning but does not accept
+# a services customization.  The x86 disk workflow enables the shipped,
+# kernel-marker-gated proof unit only while sealing its disposable QCOW2.
+# Normal MoOS installs therefore never enable SSH for this gate.

@@ -7,6 +7,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "system_files/usr/bin/moai-do"
+BUILD = ROOT / "build_files/build.sh"
 
 
 def command(path: Path, body: str) -> None:
@@ -62,3 +63,8 @@ assert "waydroid show-full-ui" in passed_log
 assert "Android جاهز" in passed.stdout
 
 print("PASS: Waydroid always confirms and reports ready only after container/session proof")
+
+build = BUILD.read_text(encoding="utf-8")
+assert "systemctl disable waydroid-container.service" in build
+assert "GATE FAIL: Waydroid starts at boot before the owner opts in" in build
+print("PASS: the image leaves Waydroid off until that confirmed setup action")

@@ -582,18 +582,17 @@ Kirigami.ApplicationWindow {
     property string searchNote: ""
 
     // ── Startup ─────────────────────────────────────────────────────────────
-    Component.onCompleted: {
-        chatModel.append({ role: "assistant", text: greetingText })
-        refreshScan()
-        loadModels()
-        // The saved UI language must apply from the first frame it can:
-        // cfgLoad carries ui.language and every root.local() binding tracks
-        // moaiRtl, so the whole surface re-renders when this lands.
-        root.cfgLoad()
+    // moos-qml-shell is unique per app id. Forwarded launches must therefore
+    // apply their navigation intent to this live object; Qt.application.arguments
+    // belongs to the first process and never changes.
+    function activateRequested(argv) {
+        applyLaunchArguments(argv)
+    }
+
+    function applyLaunchArguments(argv) {
         // Open straight onto a panel. This is how the old centres survive as
         // commands: moos-hardware runs `moai --panel device`, moos-compat runs
         // `moai --panel compat`. `--device` is kept as an alias.
-        const argv = Qt.application.arguments
         if (argv.indexOf("--device") !== -1) {
             root.panel = "device"
         } else {
@@ -689,6 +688,17 @@ Kirigami.ApplicationWindow {
                 Qt.callLater(function () { root.sendPrompt(startupPrompt) })
             }
         }
+    }
+
+    Component.onCompleted: {
+        chatModel.append({ role: "assistant", text: greetingText })
+        refreshScan()
+        loadModels()
+        // The saved UI language must apply from the first frame it can:
+        // cfgLoad carries ui.language and every root.local() binding tracks
+        // moaiRtl, so the whole surface re-renders when this lands.
+        root.cfgLoad()
+        root.applyLaunchArguments(Qt.application.arguments)
     }
 
     FileDialog {

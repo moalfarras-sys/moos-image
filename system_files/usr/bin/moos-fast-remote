@@ -9,8 +9,14 @@
 # Toggling is instant and never restarts kwin/plasmashell, so it is safe to run
 # from inside an active remote session — the connection is not dropped.
 set -uo pipefail
+umask 077
 
-STATE="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/moos-fast-remote.on"
+STATE_ROOT="${XDG_STATE_HOME:-$HOME/.local/state}/moos"
+mkdir -p "$STATE_ROOT" || {
+  echo "Fast Remote: cannot create the recovery journal" >&2
+  exit 1
+}
+STATE="${STATE_ROOT}/fast-remote.on"
 ENGINE_HELPER="${MOOS_ENGINE_HELPER:-/usr/libexec/moai-local-engine}"
 THEME_HELPER="${MOOS_THEME_HELPER:-/usr/bin/moos-theme}"
 
@@ -239,7 +245,10 @@ fast_off() {
 case "${1:-toggle}" in
   on)     fast_on ;;
   off)    fast_off ;;
+  recover) fast_off ;;
   status) [ -f "$STATE" ] && echo "on" || echo "off" ;;
-  toggle) [ -f "$STATE" ] && fast_off || fast_on ;;
-  *) echo "usage: moos-fast-remote {on|off|toggle|status}" >&2; exit 2 ;;
+  toggle)
+    if [ -f "$STATE" ]; then fast_off; else fast_on; fi
+    ;;
+  *) echo "usage: moos-fast-remote {on|off|recover|toggle|status}" >&2; exit 2 ;;
 esac

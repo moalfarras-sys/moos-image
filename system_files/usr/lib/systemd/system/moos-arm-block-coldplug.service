@@ -1,0 +1,18 @@
+[Unit]
+Description=Publish ARM boot partition links before local mounts
+Documentation=https://github.com/moalfarras-sys/moos-image
+DefaultDependencies=no
+ConditionArchitecture=arm64
+ConditionPathExists=/run/ostree-booted
+Requires=systemd-udevd.service
+After=systemd-udev-trigger.service
+Before=local-fs-pre.target boot.mount boot-efi.mount
+
+[Service]
+Type=oneshot
+TimeoutStartSec=120
+ExecStart=/usr/libexec/moos-arm-block-coldplug
+RemainAfterExit=yes
+
+[Install]
+WantedBy=local-fs-pre.target

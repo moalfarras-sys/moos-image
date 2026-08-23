@@ -1,0 +1,15 @@
+[Unit]
+Description=Run MoOS hardware adaptation after the desktop is available
+Documentation=https://github.com/moalfarras-sys/moos-image
+ConditionPathExists=/run/ostree-booted
+
+[Timer]
+# The timer itself is started by graphical.target and is effectively instant;
+# the potentially slow service starts only after the desktop target has been up.
+OnActiveSec=45s
+OnUnitActiveSec=1d
+AccuracySec=5s
+Unit=moos-hardware-adapt.service
+
+[Install]
+WantedBy=graphical.target

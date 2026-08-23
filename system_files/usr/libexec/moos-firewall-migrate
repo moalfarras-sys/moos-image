@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Replace only the inherited vendor desktop zone that opens every high port.
+# A custom administrator zone is owner state and is never rewritten.
+set -euo pipefail
+
+firewall="${MOOS_FIREWALL_CMD:-firewall-cmd}"
+vendor_dir="${MOOS_FIREWALL_VENDOR_DIR:-/usr/lib/firewalld/zones}"
+custom_dir="${MOOS_FIREWALL_ETC_DIR:-/etc/firewalld/zones}"
+desired=moos-desktop
+
+current="$($firewall --get-default-zone)"
+if [ "$current" = "$desired" ]; then
+    echo "moos-firewall-migrate: MoOS desktop zone already active"
+    exit 0
+fi
+
+vendor="$vendor_dir/$current.xml"
+custom="$custom_dir/$current.xml"
+if [ -e "$custom" ]; then
+    echo "moos-firewall-migrate: preserving owner-managed default zone $current"
+    exit 0
+fi
+
+# Match the insecure inherited policy by behaviour, not by a brand/name. This
+# also keeps the internal identity contract out of a user-visible firewall UI.
+if [ -r "$vendor" ] \
+        && grep -q 'protocol="tcp" port="1025-65535"' "$vendor" \
+        && grep -q 'protocol="udp" port="1025-65535"' "$vendor"; then
+    $firewall --set-default-zone="$desired"
+    echo "moos-firewall-migrate: replaced inherited all-high-ports policy with $desired"
+else
+    echo "moos-firewall-migrate: preserving nonstandard default zone $current"
+fi

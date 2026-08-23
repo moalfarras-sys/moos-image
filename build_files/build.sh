@@ -43,7 +43,7 @@ echo "=== kernel frozen at the base version (dnf.conf exclude added) ==="
 #                signed update train, no gaming stack, no Android layer, a serial
 #                console so the provider's rescue works, SSH as a first-class
 #                entry point, and effects tuned for software rendering because a
-#                cloud VM has no GPU. See MOOS_CLOUD_PLAN.md.
+#                cloud VM has no GPU. AArch64 cloud hosts use Containerfile.arm.
 MOOS_EDITION="${MOOS_IMAGE_NAME:-moos}"
 case "$MOOS_EDITION" in
     moos|moos-nvidia|moos-cloud) ;;
@@ -137,14 +137,18 @@ osrel_set BUG_REPORT_URL    '"https://github.com/moalfarras-sys/moos-image/issue
 grep -E '^(NAME|PRETTY_NAME|ID|VERSION_ID|LOGO|HOME_URL|DOCUMENTATION_URL|SUPPORT_URL|BUG_REPORT_URL)=' /usr/lib/os-release
 
 # -----------------------------------------------------------------------------
-# (b) uupd — Universal Blue background updater (bootc + Flatpak + distrobox)
+# (b) Application updater plus the registry client used by MoOS image updates
 # -----------------------------------------------------------------------------
 # uupd ships from the ublue-os/packages COPR (https://github.com/ublue-os/uupd).
 # The COPR is enabled only for this install and disabled right after, so the
 # shipped image does not carry an active third-party repo.
 dnf5 -y copr enable ublue-os/packages
-dnf5 -y install uupd
+dnf5 -y install uupd skopeo qemu-guest-agent
 dnf5 -y copr disable ublue-os/packages
+[ -x /usr/bin/skopeo ] \
+    || { echo "GATE FAIL: signed image updater requires /usr/bin/skopeo"; exit 1; }
+[ -x /usr/bin/qemu-ga ] \
+    || { echo "GATE FAIL: release artifact boot proof requires qemu-guest-agent"; exit 1; }
 
 # -----------------------------------------------------------------------------
 # (b1) Resolve the base's kernel ambiguity — drop INCOMPLETE kernels, keep one
@@ -273,6 +277,24 @@ if [ "${MOOS_IMAGE_NAME:-moos}" = "moos-nvidia" ]; then
     # depmod the map has no entry for the just-installed out-of-tree modules, dracut silently
     # finds nothing to force, and the initramfs comes out with no nvidia in it at all.
     depmod -a "${kver_image}"
+
+    # CI/installer VMs have no NVIDIA device. KWin's greeter still needs GL on the
+    # emulated DRM node; write a software-GL env file only when /dev/nvidia* is absent.
+    [ -x /usr/libexec/moos-greeter-gl-env ] || {
+        echo "FATAL: moos-greeter-gl-env is missing — the NVIDIA edition cannot fall back"
+        echo "       to software GL on a VM without an NVIDIA device."
+        exit 1
+    }
+    install -D -m0644 /dev/stdin \
+        /usr/lib/systemd/system/plasmalogin.service.d/20-moos-nvidia-greeter-gl.conf <<'PLMDROP'
+[Service]
+ExecStartPre=-/usr/libexec/moos-greeter-gl-env
+PLMDROP
+    install -D -m0644 /dev/stdin \
+        /usr/lib/systemd/user/plasma-login-kwin_wayland.service.d/10-moos-nvidia-greeter-gl.conf <<'KWINDROP'
+[Service]
+EnvironmentFile=-/run/moos/plasmalogin-kwin.env
+KWINDROP
 
     echo "OK: NVIDIA $(rpm -q --qf '%{VERSION}' nvidia-driver) installed."
     echo "    modules: $(find "/usr/lib/modules/${kver_image}" -name 'nvidia*.ko*' -printf '%f ' )"
@@ -1499,6 +1521,14 @@ if is_desktop; then
     _core_power+=(waydroid gamemode mangohud steam-devices)
 fi
 dnf5 -y install "${_core_power[@]}"
+if is_desktop; then
+    # The package preset enables the container immediately, but Android is an
+    # opt-in compatibility layer with a multi-gigabyte first setup. Keep its
+    # system container off until the confirmed setup-waydroid action enables it.
+    systemctl disable waydroid-container.service
+    systemctl is-enabled waydroid-container.service >/dev/null 2>&1 && {
+        echo "GATE FAIL: Waydroid starts at boot before the owner opts in"; exit 1; }
+fi
 
 # Photos and video. MoOS shipped NEITHER — there was no image viewer in the
 # image at all, and no default for image/*. Double-clicking a photo therefore
@@ -2192,17 +2222,19 @@ getent group plugdev >/dev/null || groupadd -r plugdev
 # -----------------------------------------------------------------------------
 # (d) Enable services
 # -----------------------------------------------------------------------------
-# uupd runs from a systemd timer; enabling it here bakes the symlink into the
-# image so every deployment gets background updates by default.
+# uupd runs from a systemd timer and owns application updates only (Flatpak and
+# distrobox). Its system-image module is disabled in /etc/uupd/config.json.
 systemctl enable uupd.timer
 
-# uupd's `bootc upgrade` is a permanent no-op on a digest-pinned origin, and
-# `moai-do update` deliberately pins (exact-object privilege escalation) — so
-# every machine that ever updated manually fell OFF the background train while
-# the uupd timer stayed green. moos-auto-update is the missing OS leg: nightly
-# resolve of the official :latest to an exact digest, staged through the same
-# signature-enforcing transport. See /usr/libexec/moos-auto-update.
+# moos-image-update is the single authority for the immutable OS image. The
+# compatible moos-auto-update unit name remains so existing deployment enable
+# symlinks keep working, but its ExecStart delegates directly to that backend.
+# It resolves official :latest, verifies an exact digest after authentication,
+# and rebases only through the signature-enforcing transport.
+[ -x /usr/libexec/moos-image-update ] \
+    || { echo "GATE FAIL: the MoOS image-update authority is not executable"; exit 1; }
 systemctl enable moos-auto-update.timer
+systemctl enable qemu-guest-agent.service
 
 # ONE UPDATER, NOT TWO.
 #
@@ -2211,22 +2243,12 @@ systemctl enable moos-auto-update.timer
 # OSTree sysroot. Measured on the maintainer's machine, both were enabled+active,
 # and `rpm-ostree upgrade` reported "note: automatic updates (stage) are enabled".
 #
-# That is not merely redundant, it defeats a deliberate policy. uupd is MoOS's
-# updater and it is CONDITIONAL: /etc/uupd/config.json refuses to update below
-# 20% battery, above 50% CPU, above 90% memory, or while the network is busy
-# (>700 kB/s), and uupd.service.d/moos-idle.conf keeps it off the login path.
-# The whole intent is that "an update nobody asked for right now must never be".
-# rpm-ostreed-automatic honours none of that: it fires 1h after boot and then
-# daily, whatever the user is doing — on battery, mid-game, on metered data.
+# That is not merely redundant: it creates a second deployment writer outside
+# MoOS's signed exact-digest policy. rpm-ostreed-automatic fires independently
+# and can contend with the MoOS backend for the same OSTree transaction lock.
 #
-# They also contend for the same rpm-ostree transaction lock, so when both fire
-# one of them simply fails, and it stages deployments outside the path
-# `moai-do update` and MoOS Recovery are built around.
-#
-# uupd covers everything it did: its config has "system": {"disable": false} and
-# its log shows it resolving ghcr.io/<owner>/moos-nvidia through the rpm-ostree
-# driver, alongside flatpak and distrobox. So disable the redundant one and leave
-# exactly one updater in charge.
+# uupd's system module is also disabled, so only moos-image-update can stage an
+# OS deployment. uupd remains enabled for its non-OS application modules.
 systemctl disable rpm-ostreed-automatic.timer 2>/dev/null || true
 # bootc-fetch-apply-updates is the third one, off in the base image today. Assert
 # it stays off rather than trusting that, for the same reason.
@@ -2405,7 +2427,7 @@ systemctl --global mask grub-boot-success.service 2>/dev/null || true
 #    different unit that works and stays enabled. The alternative (RuntimeMaxSec=infinity)
 #    keeps the pickup and also clears the red, but leaves the processor running all session
 #    beside the socket launcher, risking DOUBLE crash dialogs — worse than the noise it fixes.
-#    So: mask, and keep the crash reporter that works. See docs/FIXES_2026-07-16b.md.
+#    So: mask, and keep the crash reporter that works.
 systemctl --global mask drkonqi-coredump-pickup.service 2>/dev/null || true
 
 # Mo AI in-app Settings backend: a tiny per-user control API. --global enables it
@@ -2626,7 +2648,37 @@ rpm -q microcode_ctl >/dev/null 2>&1 || rpm -q amd-ucode-firmware >/dev/null 2>&
 
 chmod 0755 /usr/libexec/moos-hardware-adapt
 chmod 0755 /usr/libexec/moos-wait-drm
-systemctl enable moos-hardware-adapt.service
+chmod 0755 /usr/libexec/moos-greeter-gl-env
+# A slow first-run DDC probe or zram re-tier must never hold graphical.target.
+# Remove the legacy direct enablement on upgraded images and let the post-desktop
+# timer own activation.
+systemctl disable moos-hardware-adapt.service 2>/dev/null || true
+systemctl enable moos-hardware-adapt.timer
+
+# A desktop does not need every high TCP/UDP port exposed to whichever network
+# it joins. Keep only discovery and KDE Connect on the ordinary interface; Mo PC
+# Remote and developer services use the authenticated tailnet, which is pinned
+# to trusted before the default changes. Existing owner-created zones are
+# preserved by the runtime migration helper.
+if is_desktop; then
+    [ -f /etc/firewalld/firewalld.conf ] || {
+        echo "GATE FAIL: firewalld.conf is missing; MoOS cannot set its desktop policy"
+        exit 1
+    }
+    if grep -q '^DefaultZone=' /etc/firewalld/firewalld.conf; then
+        sed -i 's/^DefaultZone=.*/DefaultZone=moos-desktop/' /etc/firewalld/firewalld.conf
+    else
+        printf 'DefaultZone=moos-desktop\n' >> /etc/firewalld/firewalld.conf
+    fi
+    systemctl enable moos-firewall-migrate.service
+    grep -q 'interface name="tailscale0"' /etc/firewalld/zones/trusted.xml || {
+        echo "GATE FAIL: the private tailnet is not pinned to trusted"; exit 1; }
+    grep -q 'service name="kdeconnect"' /usr/lib/firewalld/zones/moos-desktop.xml || {
+        echo "GATE FAIL: MoOS desktop firewall lost phone integration"; exit 1; }
+    if grep -q '1025-65535' /usr/lib/firewalld/zones/moos-desktop.xml; then
+        echo "GATE FAIL: MoOS desktop firewall exposes every high port"; exit 1
+    fi
+fi
 
 # Plasma Login Manager reads the monolithic /etc/plasmalogin.conf AFTER its vendor
 # layers, so any ACTIVE key there outranks everything MoOS ships and can mask the
@@ -2780,13 +2832,13 @@ systemctl enable moos-firstboot.service
 # ships in every edition rather than only in the cloud one — an unverified origin is
 # not a cloud-specific failure, it is just where this one came from.
 chmod 0755 /usr/libexec/moos-verify-origin
-systemctl enable moos-verify-origin.service
+systemctl enable moos-verify-origin.timer
 [ -x /usr/libexec/moos-verify-origin ] || {
     echo "GATE FAIL: /usr/libexec/moos-verify-origin is missing or not executable —"
     echo "           a converted server would keep taking unverified updates forever."
     exit 1; }
-systemctl is-enabled moos-verify-origin.service >/dev/null 2>&1 || {
-    echo "GATE FAIL: moos-verify-origin.service is not enabled — it would never run."
+systemctl is-enabled moos-verify-origin.timer >/dev/null 2>&1 || {
+    echo "GATE FAIL: moos-verify-origin.timer is not enabled — it would never run."
     exit 1; }
 
 # -----------------------------------------------------------------------------
@@ -3462,6 +3514,14 @@ if [ -x /usr/bin/g++ ] || [ -x /usr/bin/gcc ] || rpm -q gcc-c++ >/dev/null 2>&1;
 fi
 echo "=== no C++ compiler ships in this image ==="
 
+# Package transactions generate /etc/udev/hwdb.bin, but a bootc image's
+# authoritative hardware database is immutable content. Leaving that package
+# artifact in /etc makes systemd-hwdb-update block real-root udevd on every
+# deployment; ARM/TCG proved the delay can expire the /boot device units.
+# Run after the final dnf transaction so no package can put the mutable copy
+# back. The finished-image gate below proves this remains true.
+bash /ctx/compile_system_hwdb.sh
+
 # -----------------------------------------------------------------------------
 # (e) Cleanup — required for `bootc container lint` to pass
 # -----------------------------------------------------------------------------
@@ -3746,6 +3806,7 @@ TUNE
 # what starts the compositor and the shell — so this reaches the processes that
 # actually rasterize, without touching anything that does not.
 LP_NUM_THREADS=2
+LIBGL_ALWAYS_SOFTWARE=1
 LLVMPIPE
 
     # The bento dashboard is the single most expensive thing on this desktop, and
@@ -4010,6 +4071,9 @@ TRUSTED
         echo "           thread per core inside EVERY session, so two desktops on an"
         echo "           8-vCPU box means 16 threads fighting for 8 cores — measured at"
         echo "           165% CPU for one idle plasmashell."; _cloud_fail=1; }
+    grep -q '^LIBGL_ALWAYS_SOFTWARE=1' /usr/lib/environment.d/60-moos-cloud-llvmpipe.conf 2>/dev/null || {
+        echo "GATE FAIL: cloud llvmpipe must force software GL — without it the login"
+        echo "           greeter's KWin cannot start on a GPU-less VM."; _cloud_fail=1; }
     _dash_cfg="$(grep -A2 '"ShowDashboard"' /usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/config/main.xml)"
     grep -q '<default>false</default>' <<<"${_dash_cfg}" || {
         echo "GATE FAIL: the bento dashboard is still on by default in the cloud edition."
@@ -4144,6 +4208,12 @@ if [ -n "${stray_pycache}" ]; then
     echo "${stray_pycache}"
     exit 1
 fi
+
+# The generated desktop contract is shared with aarch64. The x86 build creates
+# these assets earlier, while ARM must create them after installing Plasma; this
+# final idempotent authority verifies/repairs the finished filesystem after all
+# edition-specific package transactions so neither architecture can drift.
+bash /ctx/finalize_moos_desktop.sh
 
 # -----------------------------------------------------------------------------
 # (z9b) FINAL legacy-logo seal — AFTER every edition-specific rpm transaction

@@ -128,6 +128,8 @@ RUN git config --global --add safe.directory /opt/flutter \
 WORKDIR /src
 COPY moplayer/ ./
 RUN flutter pub get \
+    && flutter analyze --no-fatal-infos \
+    && flutter test \
     && flutter build linux --release \
     && mkdir -p /out \
     && cp -r build/linux/x64/release/bundle/. /out/

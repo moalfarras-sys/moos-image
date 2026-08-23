@@ -1,0 +1,14 @@
+[Unit]
+Description=Apply the MoOS cloud hostname after metadata and D-Bus are ready
+Documentation=file:///usr/libexec/moos-cloud-hostname
+ConditionPathExists=/run/ostree-booted
+After=cloud-init-network.service dbus.service
+Wants=dbus.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/moos-cloud-hostname
+TimeoutStartSec=15s
+
+[Install]
+WantedBy=multi-user.target

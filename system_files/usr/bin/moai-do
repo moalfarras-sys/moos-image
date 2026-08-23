@@ -130,64 +130,61 @@ launch_app() {
 }
 
 # -----------------------------------------------------------------------------
-# update — resolve the official latest image to an immutable digest, then stage it
-# through the signature-enforcing rpm-ostree transport. A digest-pinned installation
-# cannot advance with `bootc upgrade`: its origin deliberately names the old immutable
-# object. We therefore discover `:latest` without privilege, reject every repository
-# except MoOS's two official editions, validate the digest shape, and pass only the
-# constructed exact reference across Polkit.
+# update — the UI/assistant entry point delegates image policy to the one MoOS
+# backend. Resolution stays unprivileged; Polkit receives only the backend plus
+# the exact digest that backend returned, and the privileged backend revalidates
+# repository, edition, digest and live deployment state before staging.
 # -----------------------------------------------------------------------------
 do_update() {
     hdr "تحديث النظام (صورة MoOS موقّعة وثابتة)" "System update (exact signed MoOS image)"
     echo "${D}يُنزّل ويُجهّز نسخة جديدة — تُطبَّق عند إعادة التشغيل. لا يمسّ ملفاتك.${N}"
     echo "${D}Downloads & stages a new version — applies on reboot. Files untouched.${N}"
     echo
-    need rpm-ostree || { echo "${Y}شغّل هذا داخل MoOS | run this on a MoOS system${N}"; return 1; }
-    need skopeo || return 1
-    need python3 || return 1
+    local resolve_backend privileged_backend resolved state edition current latest
+    resolve_backend="${MOOS_IMAGE_UPDATE_BACKEND:-/usr/libexec/moos-image-update}"
+    if [ ! -x "$resolve_backend" ]; then
+        resolve_backend="$(dirname "$0")/../libexec/moos-image-update"
+    fi
+    [ -x "$resolve_backend" ] || {
+        echo "${R}محرك تحديث MoOS غير موجود | MoOS update backend is missing${N}" >&2
+        return 1
+    }
+    # Never carry a test/environment path across the privilege boundary. A web
+    # route or inherited shell environment may select only the unprivileged
+    # resolver used by source tests; Polkit always executes the immutable,
+    # root-owned backend shipped in /usr.
+    privileged_backend=/usr/libexec/moos-image-update
 
-    local status ref edition registry latest current target
-    status="$(rpm-ostree status --json)" || return 1
-    ref="$(python3 -c '
-import json, sys
-for deployment in json.load(sys.stdin).get("deployments", []):
-    if deployment.get("booted"):
-        print(deployment.get("container-image-reference", ""))
-        break
-' <<<"$status")"
-
-    registry="ghcr.io/moalfarras-sys"
-    case "$ref" in
-        *"/moos-nvidia@"*|*"/moos-nvidia:"*) edition="moos-nvidia" ;;
-        *"/moos-cloud@"*|*"/moos-cloud:"*) edition="moos-cloud" ;;
-        *"/moos@"*|*"/moos:"*) edition="moos" ;;
+    echo "${D}يفحص أحدث صورة MoOS موقّعة…${N}"
+    echo "${D}Checking the latest signed MoOS image…${N}"
+    resolved="$("$resolve_backend" resolve --format pipe)" || return 1
+    IFS='|' read -r state edition current latest <<<"$resolved"
+    case "$state" in
+        busy)
+            echo "${Y}هناك تحديث آخر قيد التنفيذ | another deployment transaction is active${N}"
+            return 0
+            ;;
+        current)
+            echo "${G}✓ النظام على أحدث صورة موقّعة | already on the latest signed image${N}"
+            return 0
+            ;;
+        staged)
+            echo "${G}✓ التحديث جاهز — أعد التشغيل لتطبيقه | update already staged; reboot to apply${N}"
+            return 0
+            ;;
+        available) ;;
         *)
-            echo "${R}تعذّر تحديد إصدار MoOS المشغّل بأمان.${N}" >&2
-            echo "${R}Could not safely identify the booted MoOS edition.${N}" >&2
+            echo "${R}حالة تحديث غير صالحة | invalid update state${N}" >&2
             return 1
             ;;
     esac
 
     echo "${C}الإصدار | Edition:${N} ${edition}"
-    echo "${D}يفحص أحدث صورة من ghcr.io/moalfarras-sys فقط…${N}"
-    echo "${D}Checking only the official ghcr.io/moalfarras-sys image…${N}"
-    latest="$(skopeo inspect --format '{{.Digest}}' "docker://${registry}/${edition}:latest")" || return 1
-    if ! printf '%s' "$latest" | grep -Eq '^sha256:[0-9a-f]{64}$'; then
-        echo "${R}رفض digest غير صالح من السجل | refused invalid registry digest${N}" >&2
-        return 1
-    fi
-    current="$(printf '%s' "$ref" | grep -Eo 'sha256:[0-9a-f]{64}' | tail -n 1 || true)"
-    if [ "$latest" = "$current" ]; then
-        echo "${G}✓ النظام على أحدث صورة موقّعة | already on the latest signed image${N}"
-        return 0
-    fi
-
-    target="ostree-image-signed:docker://${registry}/${edition}@${latest}"
     echo "${C}الحالي | Current:${N} ${current:-unknown}"
     echo "${C}الجديد | New:    ${N} ${latest}"
     confirm || return 0
     echo "${C}قد يظهر طلب إذن المسؤول | an admin prompt may appear…${N}"
-    if run_priv rpm-ostree rebase "$target"; then
+    if run_priv "$privileged_backend" stage --expected-digest "$latest"; then
         echo "${G}✓ تم التجهيز — أعد التشغيل لإكمال التحديث.${N}"
         echo "${G}  Staged — reboot to finish. The previous deployment remains available.${N}"
     else

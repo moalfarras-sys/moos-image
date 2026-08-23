@@ -183,22 +183,19 @@ for bad_id in ("../../etc/passwd",
 result = run("install")
 check(result.returncode == 2, "moai-do install with no id must exit 2")
 
-# The updater must turn the mutable official `:latest` tag into an exact digest before
-# privilege escalation. Run it against command doubles: nothing here reaches rpm-ostreed,
-# the registry or Polkit, but the captured pkexec argv proves the security boundary.
+# The assistant is a UX client, not a second update implementation. Its unprivileged
+# resolver can be doubled, but the path handed to Polkit is fixed to the root-owned
+# backend and carries only the digest the user confirmed.
 with tempfile.TemporaryDirectory() as tmp:
     bindir = Path(tmp)
     log = bindir / "pkexec.log"
     digest = "sha256:" + "d" * 64
     current = "sha256:" + "b" * 64
-    status = (
-        '{"deployments":[{"booted":true,"container-image-reference":'
-        f'"ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos-nvidia@{current}"'
-        "}]}"
-    )
     doubles = {
-        "rpm-ostree": f"#!/bin/sh\nprintf '%s\\n' '{status}'\n",
-        "skopeo": f"#!/bin/sh\nprintf '%s\\n' '{digest}'\n",
+        "moos-image-update": (
+            "#!/bin/sh\n"
+            f"printf '%s\\n' 'available|moos-nvidia|{current}|{digest}'\n"
+        ),
         "pkexec": '#!/bin/sh\nprintf "%s\\n" "$@" > "$MOOS_TEST_PKEXEC_LOG"\n',
     }
     for name, body in doubles.items():
@@ -208,6 +205,7 @@ with tempfile.TemporaryDirectory() as tmp:
     env = os.environ.copy()
     env["PATH"] = f"{bindir}{os.pathsep}{env.get('PATH', '')}"
     env["MOOS_TEST_PKEXEC_LOG"] = str(log)
+    env["MOOS_IMAGE_UPDATE_BACKEND"] = str(bindir / "moos-image-update")
     result = subprocess.run(
         [BASH, str(MOAI_DO), "update"],
         input="y\n",
@@ -220,13 +218,12 @@ with tempfile.TemporaryDirectory() as tmp:
     )
     check(result.returncode == 0, f"exact-digest update simulation failed: {result.stderr}")
     expected = (
-        "rpm-ostree\nrebase\n"
-        "ostree-image-signed:docker://ghcr.io/moalfarras-sys/"
-        f"moos-nvidia@{digest}\n"
+        "/usr/libexec/moos-image-update\nstage\n--expected-digest\n"
+        f"{digest}\n"
     )
     actual = log.read_text(encoding="utf-8") if log.exists() else ""
     check(actual == expected,
-          "update must escalate only an exact signature-enforced official MoOS reference; "
+          "update must escalate only the fixed backend plus the confirmed exact digest; "
           f"got {actual!r}")
 
 if errors:

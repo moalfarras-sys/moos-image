@@ -1,10 +1,10 @@
-﻿# =============================================================================
-# MoOS ARM ÔÇö the aarch64 bootc image (moos-arm)
+# =============================================================================
+# MoOS ARM — the aarch64 bootc image (moos-arm)
 # =============================================================================
 #
 # WHY A SECOND CONTAINERFILE
 #   The x86_64 image builds FROM ghcr.io/ublue-os/kinoite-main:44. That tag is
-#   published for amd64 only ÔÇö it has no arm64 manifest at all ÔÇö so no build
+#   published for amd64 only — it has no arm64 manifest at all — so no build
 #   flag can make the main Containerfile produce an ARM image. This one starts
 #   from Fedora's own bootc base, which does ship aarch64, and brings up Plasma
 #   itself.
@@ -16,7 +16,7 @@
 #   architectures and the two editions cannot drift apart in how they look.
 #
 # WHAT THIS IS FOR
-#   * Oracle Cloud, Ampere A1 (VM.Standard.A1.Flex) ÔÇö the Always Free aarch64
+#   * Oracle Cloud, Ampere A1 (VM.Standard.A1.Flex) — the Always Free aarch64
 #     allowance currently totals 2 OCPU and 12 GB. See
 #     docs/MOOS_ARM_ORACLE.md for the storage-cost boundary.
 #   * UTM on Apple silicon (hardware virtualisation) and on iPhone/iPad.
@@ -25,7 +25,7 @@
 # BUILD
 #   Natively on an arm64 machine or runner:
 #       podman build -f Containerfile.arm -t moos-arm:latest .
-#   Under emulation from x86 (slow ÔÇö hours, not minutes):
+#   Under emulation from x86 (slow — hours, not minutes):
 #       podman build --platform linux/arm64 -f Containerfile.arm -t moos-arm .
 #   CI does the former: .github/workflows/build-arm.yml runs on ubuntu-24.04-arm.
 #
@@ -50,7 +50,7 @@ FROM scratch AS system-files
 COPY system_files /
 
 # -----------------------------------------------------------------------------
-# moos-qml-shell ÔÇö the one C++ binary MoOS compiles itself: the QML host that
+# moos-qml-shell — the one C++ binary MoOS compiles itself: the QML host that
 # gives every pure-QML MoOS app a real Wayland app_id.
 #
 # Compiled in a throwaway stage FROM the same base, exactly as the x86 build
@@ -68,6 +68,51 @@ RUN dnf5 -y install gcc-c++ qt6-qtbase-devel qt6-qtdeclarative-devel \
         kf6-kdbusaddons-devel kf6-kwindowsystem-devel \
     && bash /src/build_moos_qml_shell.sh /src/moos-qml-shell.cpp /out/moos-qml-shell
 
+# Mo PC Remote is managed .NET plus the architecture-neutral Portal/PipeWire
+# helper. Publish the real linux-arm64 host; an x64 self-contained bundle would
+# fail before Main() on Oracle or UTM.
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS moremote-build
+WORKDIR /src
+COPY moremote/ ./
+RUN dotnet run --project tests/MoRemote.Tests -c Release --nologo
+RUN dotnet publish agent-linux/MoRemoteLinux.csproj -c Release -r linux-arm64 \
+    --self-contained true -o /out
+
+# Flutter does not publish a Linux ARM64 SDK archive. Its native-host path is a
+# pinned stable Git tag, which downloads matching arm64 engine artifacts on the
+# native runner. Build against Fedora 44's libmpv, just like the x86 bundle.
+FROM registry.fedoraproject.org/fedora:44 AS moplayer-build
+ARG FLUTTER_VERSION=3.44.8
+RUN dnf -y install --setopt=install_weak_deps=False \
+        clang cmake ninja-build pkgconf-pkg-config gtk3-devel mpv-libs-devel \
+        xz zip unzip git curl file which findutils \
+    && dnf clean all
+RUN git clone --depth 1 --branch "${FLUTTER_VERSION}" \
+        https://github.com/flutter/flutter.git /opt/flutter
+ENV PATH="/opt/flutter/bin:${PATH}"
+# Flutter's universal cache contains a Gradle-wrapper tarball stamped with
+# Google-internal uid/gid values.  A rootless Podman user namespace cannot
+# chown to those unmapped IDs, even though Linux desktop never uses Gradle.
+# GNU tar honours this for Flutter's own extraction subprocesses.
+ENV TAR_OPTIONS="--no-same-owner"
+RUN git config --global --add safe.directory /opt/flutter \
+    && flutter config --no-analytics --enable-linux-desktop >/dev/null \
+    && flutter precache --linux --no-universal \
+    && flutter --version
+WORKDIR /src
+COPY moplayer/ ./
+RUN flutter pub get \
+    && flutter analyze --no-fatal-infos \
+    && flutter test \
+    && flutter build linux --release \
+    && mkdir -p /out \
+    && cp -r build/linux/arm64/release/bundle/. /out/
+RUN test -x /out/moplayer \
+    && test -f /out/data/icudtl.dat \
+    && test -d /out/data/flutter_assets \
+    && file /out/moplayer | grep -q 'ARM aarch64' \
+    || { echo "GATE FAIL: native ARM64 MoPlayer bundle is incomplete or wrong-architecture"; exit 1; }
+
 # -----------------------------------------------------------------------------
 # The image
 # -----------------------------------------------------------------------------
@@ -76,13 +121,16 @@ FROM base
 ARG IMAGE_NAME=moos-arm
 
 LABEL org.opencontainers.image.title="MoOS ARM" \
-      org.opencontainers.image.description="MoOS for aarch64 ÔÇö the MoOS UI Liquid Glass desktop on Oracle Cloud Ampere, UTM and any ARM64 UEFI machine" \
+      org.opencontainers.image.description="MoOS for aarch64 — the MoOS UI Liquid Glass desktop on Oracle Cloud Ampere, UTM and any ARM64 UEFI machine" \
       org.opencontainers.image.vendor="Moalfarras" \
       org.opencontainers.image.source="https://github.com/moalfarras-sys/moos-image"
 
 # The complete MoOS identity, byte-identical to the x86 editions.
 COPY system_files/ /
 COPY --from=qmlshell-build /out/moos-qml-shell /usr/bin/moos-qml-shell
+COPY --from=moremote-build /out/ /usr/lib/mo-remote/
+COPY moremote/Logo.png /usr/share/icons/hicolor/512x512/apps/moos-pc-remote.png
+COPY --from=moplayer-build /out/ /usr/lib/moplayer/
 
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=bind,from=system-files,source=/,target=/moos-overlay \

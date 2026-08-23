@@ -22,21 +22,24 @@
 #   * co-install conflicting power daemons (tuned-ppd is the Fedora default; keep it)
 #
 # IDEMPOTENT & RE-RUNNABLE: state lives in /etc/moos/hardware-adapt.state, keyed on
-# a revision number AND the booted image name. A `bootc switch`/rebase or a bumped
-# HW_REV re-triggers; an ordinary boot no-ops in milliseconds. Test-overridable via
-# MOOS_HW_STATE / MOOS_HW_SYSFS / MOOS_HW_DRYRUN so the gate can exercise it.
+# a revision number AND a stable signature of the hardware that affects this policy.
+# An OS update by itself must not re-size live swap or re-assert mutable settings;
+# a bumped HW_REV or relevant hardware/display change re-triggers the adapter.
+# Test-overridable via MOOS_HW_STATE / MOOS_HW_SYSFS / MOOS_HW_DRYRUN so the gate
+# can exercise it.
 set -uo pipefail
 
-# Bumped 1 -> 2 on 2026-07-27. Two reasons, both of which need the adaptation to
-# actually run again on machines that have already been stamped: booted_image() was
-# returning "" (see below), and section 3's balanced default had therefore never
-# re-asserted itself on a desktop that had drifted onto tuned's `powersave`.
-HW_REV=3
+# Revision 4 replaces the image-digest stamp with a hardware-policy signature and
+# stops overriding the power profile selected by the owner/desktop environment.
+HW_REV=5
 
-STATE="${MOOS_HW_STATE:-/etc/moos/hardware-adapt.state}"
+ROOT="${MOOS_HW_ROOT:-}"
+STATE="${MOOS_HW_STATE:-${ROOT}/etc/moos/hardware-adapt.state}"
 SYS="${MOOS_HW_SYSFS:-/sys}"
+PROC="${MOOS_HW_PROCFS:-/proc}"
 DRYRUN="${MOOS_HW_DRYRUN:-0}"
-LOG="${MOOS_HW_LOG:-/run/moos-hardware-adapt.log}"
+LOG="${MOOS_HW_LOG:-${ROOT}/run/moos-hardware-adapt.log}"
+FAILURES=0
 
 log() {
     echo "moos-hardware-adapt: $*"
@@ -45,25 +48,66 @@ log() {
     [ -d "$(dirname "$LOG")" ] && [ -w "$(dirname "$LOG")" ] || return 0
     printf '%s %s\n' "$(date -u '+%FT%TZ' 2>/dev/null || echo now)" "$*" >>"$LOG" 2>/dev/null || true
 }
-do_run() { if [ "$DRYRUN" = "1" ]; then log "DRYRUN: $*"; else "$@" >>"$LOG" 2>&1 || log "warn: '$*' failed (non-fatal)"; fi; }
+mutation_failed() {
+    FAILURES=$((FAILURES + 1))
+    log "warn: $*"
+    return 1
+}
+do_run() {
+    if [ "$DRYRUN" = "1" ]; then
+        log "DRYRUN: $*"
+    elif "$@" >>"$LOG" 2>&1; then
+        return 0
+    else
+        mutation_failed "'$*' failed; policy will be retried"
+    fi
+}
 
-# ── idempotency ──────────────────────────────────────────────────────────────
+# zram-generator may already have sized swap from /usr/lib defaults on first boot.
+# Persist /etc/systemd/zram-generator.conf when the live device already matches the
+# RAM tier, but do NOT stop/restart swap just to change compression metadata — that
+# storms dev-zram0.swap into start-limit-hit on low-RAM TCG VMs (CI boot proof).
+zram_swap_active() {
+    grep -qw zram0 "$PROC/swaps" 2>/dev/null
+}
+zram_disksize_bytes() {
+    if [ -r "$SYS/block/zram0/disksize" ]; then
+        cat "$SYS/block/zram0/disksize"
+    else
+        echo 0
+    fi
+}
+zram_tier_bytes() {
+    local expr="$1" mem_bytes=$((mem_kb * 1024)) cap half
+    case "$expr" in
+        ram) echo "$mem_bytes" ;;
+        min\(ram,\ 8192\)|"min(ram, 8192)")
+            cap=$((8192 * 1024 * 1024))
+            if [ "$mem_bytes" -lt "$cap" ]; then echo "$mem_bytes"; else echo "$cap"; fi
+            ;;
+        min\(ram\ /\ 2,\ 16384\)|"min(ram / 2, 16384)")
+            half=$((mem_bytes / 2))
+            cap=$((16384 * 1024 * 1024))
+            if [ "$half" -lt "$cap" ]; then echo "$half"; else echo "$cap"; fi
+            ;;
+        *) echo 0 ;;
+    esac
+}
+zram_size_matches_tier() {
+    local expected actual diff tol
+    expected="$(zram_tier_bytes "$1")"
+    actual="$(zram_disksize_bytes)"
+    [ "$expected" -gt 0 ] && [ "$actual" -gt 0 ] || return 1
+    diff=$(( expected > actual ? expected - actual : actual - expected ))
+    tol=$(( expected / 100 + 4096 ))
+    [ "$diff" -le "$tol" ]
+}
+
+# ── deployed edition ───────────────────────────────────────────────────────────
 booted_image() {
-    # The image this deployment runs, so a rebase re-adapts.
-    #
-    # This used to read `bootc status --json` at .status.booted.image.image.image.
-    # On a real MoOS deployment that path does not exist: `status.booted.image` comes
-    # back as an EMPTY object, so the expression raised and the `except` printed "".
-    # The stamp therefore degenerated to `rev=1 image=` on every machine — which
-    # matches itself forever, so a rebase NEVER re-triggered adaptation. Checked on
-    # the maintainer's desktop 2026-07-27: /etc/moos/hardware-adapt.state contained
-    # literally `rev=1 image=`, and the unit had logged "already adapted" at every
-    # boot since install. The image half of the key has never once done its job.
-    #
-    # rpm-ostree's `container-image-reference` IS populated, and it is the same field
-    # `moai-do`'s do_update already reads to identify the booted edition. Use that.
-    # It carries the digest, so each new signed image is a new stamp — exactly the
-    # "a rebase re-adapts" behaviour the key was written for.
+    # The deployed image name is needed only to decide whether an NVIDIA system is
+    # already on the NVIDIA edition. Its digest is deliberately NOT part of the
+    # idempotency key: an atomic update is not a hardware change.
     rpm-ostree status --json 2>/dev/null | python3 -c 'import json,sys
 try:
     for d in json.load(sys.stdin).get("deployments", []):
@@ -73,16 +117,10 @@ try:
         print("")
 except Exception: print("")' 2>/dev/null || echo ""
 }
-want_stamp="rev=${HW_REV} image=$(booted_image)"
-if [ -r "$STATE" ] && grep -qxF "$want_stamp" "$STATE" 2>/dev/null; then
-    log "already adapted for this revision+image — nothing to do"
-    exit 0
-fi
-log "adapting (rev ${HW_REV}) …"
 
 # ── detections (read-only) ───────────────────────────────────────────────────
-cpu_vendor="$(grep -m1 '^vendor_id' /proc/cpuinfo 2>/dev/null | awk '{print $3}')"
-mem_kb="$(grep -m1 '^MemTotal:' /proc/meminfo 2>/dev/null | awk '{print $2}')"
+cpu_vendor="$(grep -m1 '^vendor_id' "$PROC/cpuinfo" 2>/dev/null | awk '{print $3}')"
+mem_kb="$(grep -m1 '^MemTotal:' "$PROC/meminfo" 2>/dev/null | awk '{print $2}')"
 mem_kb="${mem_kb:-0}"
 # MemTotal is always a little below the physical RAM (firmware/kernel reserve), so a
 # plain floor reads 8 GiB as 7 and 32 as 31, dropping the machine into the wrong zram
@@ -102,14 +140,41 @@ has_intel_gpu=0; case "$gpu_vendors" in *0x8086*) has_intel_gpu=1 ;; esac
 booted_img="$(booted_image)"
 is_nvidia_edition=0; case "$booted_img" in *moos-nvidia*) is_nvidia_edition=1 ;; esac
 
+# Include connected-display identity because the DDC decision below changes when
+# a monitor is replaced or hot-plugged. Missing EDID is still a stable connector
+# identity. Sorting makes the signature independent of sysfs enumeration order.
+display_signature="$({
+    for status in "$SYS"/class/drm/card*-*/status; do
+        [ -r "$status" ] || continue
+        [ "$(cat "$status" 2>/dev/null)" = "connected" ] || continue
+        connector="$(basename "${status%/status}")"
+        edid="${status%/status}/edid"
+        if [ -s "$edid" ]; then
+            printf '%s:%s\n' "$connector" "$(sha256sum "$edid" 2>/dev/null | awk '{print $1}')"
+        else
+            printf '%s:no-edid\n' "$connector"
+        fi
+    done
+} | sort | tr '\n' ',' )"
+display_signature="${display_signature:-none}"
+gpu_signature="$(printf '%s\n' $gpu_vendors 2>/dev/null | sed '/^$/d' | sort -u | tr '\n' ',' )"
+gpu_signature="${gpu_signature:-none}"
+want_stamp="rev=${HW_REV} cpu=${cpu_vendor:-unknown} ram=${mem_gib} chassis=${chassis:-unknown} battery=${have_battery} gpu=${gpu_signature} display=${display_signature}"
+if [ -r "$STATE" ] && grep -qxF "$want_stamp" "$STATE" 2>/dev/null; then
+    log "already adapted for this hardware-policy revision — nothing to do"
+    exit 0
+fi
+log "adapting hardware policy (rev ${HW_REV}) …"
+
 log "cpu=${cpu_vendor:-?} ram=${mem_gib}GiB chassis=${chassis} battery=${have_battery} gpu_nvidia=${has_nvidia} gpu_intel=${has_intel_gpu} edition=${booted_img:-?}"
 
 # ── 1. Intel CPU → thermald (proactive overheat prevention). AMD relies on
 #       amd-pstate + firmware passive throttling, which is always on. ──────────
 if [ "$cpu_vendor" = "GenuineIntel" ]; then
     if systemctl list-unit-files thermald.service >/dev/null 2>&1; then
-        do_run systemctl enable --now thermald.service
-        log "Intel CPU: thermald enabled"
+        if do_run systemctl enable --now thermald.service; then
+            log "Intel CPU: thermald enabled"
+        fi
     else
         log "Intel CPU: thermald not installed (skipping)"
     fi
@@ -133,80 +198,80 @@ fi
 # Requires=). Verified in QEMU: the storm reproduces with the old sequence and
 # does not with this one.
 if [ "$mem_gib" -gt 0 ]; then
-    zconf="/etc/systemd/zram-generator.conf"
+    zconf="${ROOT}/etc/systemd/zram-generator.conf"
+    sysconf="${ROOT}/etc/sysctl.d/90-moos-hardware.conf"
     if [ "$mem_gib" -lt 8 ]; then zsize="ram"          # low RAM: compression buys real headroom
     elif [ "$mem_gib" -lt 32 ]; then zsize="min(ram, 8192)"
     else zsize="min(ram / 2, 16384)"; fi
     zwant="$(printf '# Written by moos-hardware-adapt (RAM tier: %sGiB). Reversible.\n[zram0]\nzram-size = %s\ncompression-algorithm = zstd\n' \
         "$mem_gib" "$zsize")"
+    minfree=$(( mem_kb / 100 ))
+    syswant="$(printf '# Written by moos-hardware-adapt. Reversible.\nvm.min_free_kbytes = %s\n' "$minfree")"
     if [ "$DRYRUN" = "1" ]; then
         log "DRYRUN would write ${zconf}: zram-size=${zsize}"
-    elif [ -r "$zconf" ] && [ "$(cat "$zconf" 2>/dev/null)" = "$zwant" ]; then
-        log "zram already sized for ${mem_gib}GiB (${zsize}) — leaving the running swap alone"
     else
-        mkdir -p /etc/systemd 2>/dev/null || true
-        printf '%s\n' "$zwant" > "$zconf" 2>/dev/null && log "zram sized for ${mem_gib}GiB: ${zsize}" \
-            || log "warn: could not write ${zconf}"
-        # vm.min_free_kbytes ~1% of RAM (Bazzite pattern) — keeps a reclaim buffer.
-        minfree=$(( mem_kb / 100 ))
-        printf '# Written by moos-hardware-adapt. Reversible.\nvm.min_free_kbytes = %s\n' "$minfree" \
-            > /etc/sysctl.d/90-moos-hardware.conf 2>/dev/null || true
-        # Apply it THIS boot. This service runs After=systemd-sysctl.service, which
-        # already applied the earlier config and will NOT re-read the new file until
-        # next boot; `systemctl daemon-reload` only reloads UNIT files, not sysctls.
-        do_run sysctl --system
-        do_run systemctl stop dev-zram0.swap systemd-zram-setup@zram0.service
-        do_run systemctl daemon-reload
-        do_run systemctl reset-failed dev-zram0.swap systemd-zram-setup@zram0.service
-        do_run systemctl start dev-zram0.swap
-        # Say out loud whether swap actually came back — a silent OFF swap is the bug.
-        if [ "$(systemctl is-active dev-zram0.swap 2>/dev/null)" = "active" ]; then
-            log "zram swap re-activated cleanly"
-        else
-            log "warn: dev-zram0.swap is $(systemctl is-active dev-zram0.swap 2>/dev/null || echo unknown) after re-size"
+        zram_changed=0
+        sysctl_changed=0
+        if [ ! -r "$zconf" ] || [ "$(cat "$zconf" 2>/dev/null)" != "$zwant" ]; then
+            mkdir -p "$(dirname "$zconf")" 2>/dev/null || true
+            persist_only=0
+            if zram_swap_active && zram_size_matches_tier "$zsize"; then
+                persist_only=1
+            fi
+            if printf '%s\n' "$zwant" > "$zconf" 2>/dev/null; then
+                if [ "$persist_only" = 1 ]; then
+                    log "zram already active at ${zsize} tier — persisted config without live restart"
+                else
+                    zram_changed=1
+                    log "zram sized for ${mem_gib}GiB: ${zsize}"
+                fi
+            else
+                mutation_failed "could not write ${zconf}" || true
+            fi
+        fi
+        if [ ! -r "$sysconf" ] || [ "$(cat "$sysconf" 2>/dev/null)" != "$syswant" ]; then
+            mkdir -p "$(dirname "$sysconf")" 2>/dev/null || true
+            if printf '%s\n' "$syswant" > "$sysconf" 2>/dev/null; then
+                sysctl_changed=1
+            else
+                mutation_failed "could not write ${sysconf}" || true
+            fi
+        fi
+        if [ "$sysctl_changed" = 1 ]; then
+            # systemd-sysctl already ran this boot; apply the new file now.
+            do_run sysctl --system || true
+        fi
+        if [ "$zram_changed" = 1 ]; then
+            do_run systemctl stop dev-zram0.swap systemd-zram-setup@zram0.service || true
+            do_run systemctl daemon-reload || true
+            do_run systemctl reset-failed dev-zram0.swap systemd-zram-setup@zram0.service || true
+            do_run systemctl start dev-zram0.swap || true
+            if [ "$(systemctl is-active dev-zram0.swap 2>/dev/null)" = "active" ]; then
+                log "zram swap re-activated cleanly"
+            else
+                mutation_failed "dev-zram0.swap is $(systemctl is-active dev-zram0.swap 2>/dev/null || echo unknown) after re-size" || true
+            fi
+        elif [ "$sysctl_changed" = 0 ]; then
+            log "zram and reclaim reserve already match ${mem_gib}GiB — leaving swap untouched"
         fi
     fi
 fi
 
-# ── 3. Chassis-aware default power profile. Desktops with NO battery get
-#       'balanced' as the sane default; laptops/handhelds keep 'balanced' and let
-#       KDE PowerDevil switch to power-saver on battery. NEVER force performance
-#       silently, NEVER disable tuned/ppd. ────────────────────────────────────
-#
-#       Why this is worth re-asserting, measured on the maintainer's desktop
-#       (i5-14400F, no battery) on 2026-07-27: the machine was sitting on tuned's
-#       `powersave` profile, and had been for 13 consecutive boots. That profile
-#       sets `boost=0` — Turbo OFF — so:
-#
-#           /sys/devices/system/cpu/intel_pstate/no_turbo   = 1
-#           /sys/.../cpu0/cpufreq/scaling_max_freq          = 2500000   (2.5 GHz)
-#           energy_performance_preference                   = power
-#
-#       On a part whose turbo is 4.7 GHz that is a hard 47% cut to the single-core
-#       ceiling. Measured single-thread benchmark before/after switching to
-#       balanced: 0.594s -> 0.314s, i.e. 1.9x. Under an all-core load the cores
-#       went from pinned at the 2.5 GHz cap to ~3.95 GHz sustained. It also sets
-#       `vm.laptop_mode=5` and SATA `alpm=med_power_with_dipm` — writeback delay
-#       and link-power latency on a DESKTOP's boot SSD.
-#
-#       None of that is a MoOS setting; a person can select Power Save in Plasma's
-#       power widget and tuned-ppd maps it straight onto this profile. That is
-#       their right, and this is still not "force performance": `balanced` leaves
-#       turbo available and lets the DE manage it. What changed is that the default
-#       now genuinely re-asserts after an update instead of being stamped out on
-#       first boot forever.
-if command -v tuned-adm >/dev/null 2>&1; then
-    do_run tuned-adm profile balanced
-    log "tuned default profile: balanced (the DE switches on battery)"
-fi
+# ── 3. Power ownership ─────────────────────────────────────────────────────────────
+# tuned-ppd + the desktop environment own the selected profile. This adapter may
+# report an unexpectedly constrained desktop through moos-selfcheck, but it must
+# never overwrite the owner's Power Save/Balanced/Performance choice in the
+# background. Defaults belong in image/session policy, not a recurring root job.
+log "power profile left to tuned-ppd and the desktop environment"
 
 # ── 4. NVIDIA GPU on the BASE edition → SURFACE a rebase suggestion (never
 #       install drivers at runtime on an atomic system). Written where Mo AI /
 #       the welcome can read it. ─────────────────────────────────────────────
-notice_dir="/run/moos"
+notice_dir="${ROOT}/run/moos"
 mkdir -p "$notice_dir" 2>/dev/null || true
 if [ "$has_nvidia" = 1 ] && [ "$is_nvidia_edition" = 0 ]; then
-    printf 'nvidia-rebase\n' > "${notice_dir}/hardware-notice" 2>/dev/null || true
+    printf 'nvidia-rebase\n' > "${notice_dir}/hardware-notice" 2>/dev/null \
+        || mutation_failed "could not write NVIDIA hardware notice" || true
     log "NVIDIA GPU on the base edition — suggest rebasing to moos-nvidia (advice only, no runtime driver install)"
 else
     rm -f "${notice_dir}/hardware-notice" 2>/dev/null || true
@@ -215,14 +280,19 @@ fi
 # ── 5. Intel GPU → a harmless per-session renderer hint (Bazzite pattern) so
 #       GTK apps use the GL renderer, which is smoother on Intel. Env drop-in,
 #       trivially reversible, affects rendering only. ────────────────────────
+_intel_dropin="${ROOT}/etc/environment.d/90-moos-intel-gpu.conf"
 if [ "$has_intel_gpu" = 1 ]; then
     if [ "$DRYRUN" = "1" ]; then
         log "DRYRUN would set GSK_RENDERER=gl for Intel GPU"
     else
-        mkdir -p /etc/environment.d 2>/dev/null || true
+        mkdir -p "$(dirname "$_intel_dropin")" 2>/dev/null || true
         printf '# Written by moos-hardware-adapt (Intel GPU). Reversible.\nGSK_RENDERER=gl\n' \
-            > /etc/environment.d/90-moos-intel-gpu.conf 2>/dev/null && log "Intel GPU: GSK_RENDERER=gl" || true
+            > "$_intel_dropin" 2>/dev/null && log "Intel GPU: GSK_RENDERER=gl" \
+            || mutation_failed "could not write ${_intel_dropin}" || true
     fi
+elif [ -e "$_intel_dropin" ]; then
+    do_run rm -f "$_intel_dropin" || true
+    log "non-Intel GPU: removed stale Intel renderer policy"
 fi
 
 # ── 6. Firmware: refresh LVFS METADATA only (never apply). Surfacing the count
@@ -250,9 +320,10 @@ fi
 #
 # Laptops are unaffected either way: their panel uses the kernel backlight, a
 # different powerdevil path entirely.
-_ddc_dropin=/etc/systemd/user/plasma-powerdevil.service.d/50-moos-ddc.conf
+_ddc_dropin="${ROOT}/etc/systemd/user/plasma-powerdevil.service.d/50-moos-ddc.conf"
 if command -v ddcutil >/dev/null 2>&1; then
-    if timeout 30 ddcutil detect --brief 2>/dev/null | grep -qE '^Display [0-9]'; then
+    _ddc_result="$(timeout 30 ddcutil detect --brief 2>/dev/null || true)"
+    if grep -qE '^Display [0-9]' <<<"$_ddc_result"; then
         # A real DDC/CI display answered: make sure a stale opt-out is gone.
         if [ -e "$_ddc_dropin" ]; then
             do_run rm -f "$_ddc_dropin"
@@ -264,7 +335,8 @@ if command -v ddcutil >/dev/null 2>&1; then
         if [ "$DRYRUN" != "1" ]; then
             mkdir -p "$(dirname "$_ddc_dropin")" 2>/dev/null || true
             printf '# Written by moos-hardware-adapt: no DDC/CI display answered on this\n# machine, and probing for one cost 6.5s of every login. Reversible —\n# delete this file (or attach a DDC-capable monitor and bump HW_REV).\n[Service]\nEnvironment=POWERDEVIL_NO_DDCUTIL=1\n' \
-                > "$_ddc_dropin" 2>/dev/null || log "warn: could not write ${_ddc_dropin}"
+                > "$_ddc_dropin" 2>/dev/null \
+                || mutation_failed "could not write ${_ddc_dropin}" || true
         fi
         log "DDC/CI: no display answered — powerdevil will skip the probe (saves ~6s per login)"
     fi
@@ -295,9 +367,14 @@ else
 fi
 
 # ── record state (idempotency) ───────────────────────────────────────────────
-if [ "$DRYRUN" != "1" ]; then
+if [ "$DRYRUN" != "1" ] && [ "$FAILURES" -eq 0 ]; then
     mkdir -p "$(dirname "$STATE")" 2>/dev/null || true
-    printf '%s\n' "$want_stamp" > "$STATE" 2>/dev/null || log "warn: could not write state ${STATE}"
+    printf '%s\n' "$want_stamp" > "$STATE" 2>/dev/null \
+        || mutation_failed "could not write state ${STATE}" || true
+fi
+if [ "$FAILURES" -ne 0 ]; then
+    log "hardware adaptation incomplete (${FAILURES} failed mutation(s)); no success stamp written"
+    exit 1
 fi
 log "hardware adaptation complete"
 exit 0

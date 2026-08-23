@@ -17,8 +17,8 @@ name: Build MoOS ARM (aarch64)
 # WHAT COMES OUT
 #   1. ghcr.io/<owner>/moos-arm:latest         — the bootc image (for `bootc
 #                                                switch` / day-2 updates)
-#   2. moos-arm-<date>.qcow2.zst artifact      — what you upload to Oracle, and
-#                                                what UTM opens directly
+#   2. moos-arm-<version>.qcow2.zst artifact   — exact boot-proven Oracle disk
+#   3. MoOS-ARM.utm.zip artifact               — same disk, ready to import
 #
 #   The qcow2 is compressed with zstd because Oracle's import reads from Object
 #   Storage and the raw file is several GB; the download and the upload are both
@@ -32,15 +32,35 @@ on:
     branches: [main]
     paths:
       - "Containerfile.arm"
-      - "build_files/build-arm.sh"
+      - "Containerfile.arm-recovery"
+      - "build_files/**"
+      - "cosign.pub"
+      - "moplayer/**"
+      - "moremote/**"
       - "system_files/**"
+      - "tests/boot_arm_qcow2.sh"
+      - "tests/verify_arm_runtime.sh"
+      - "tests/test_moos_arm.py"
+      - "tests/test_utm_bundle.py"
+      - "artwork/generate_utm_bundle.py"
+      - "artwork/generate_utm_installer.py"
+      - "tests/test_boot_splash_polish.py"
       - ".github/workflows/build-arm.yml"
   pull_request:
     paths:
       - "Containerfile.arm"
-      - "build_files/build-arm.sh"
+      - "Containerfile.arm-recovery"
+      - "build_files/**"
+      - "cosign.pub"
+      - "moplayer/**"
+      - "moremote/**"
       - "system_files/**"
       - "tests/test_moos_arm.py"
+      - "tests/test_utm_bundle.py"
+      - "artwork/generate_utm_bundle.py"
+      - "artwork/generate_utm_installer.py"
+      - "tests/boot_arm_qcow2.sh"
+      - "tests/verify_arm_runtime.sh"
       - "tests/test_boot_splash_polish.py"
       - ".github/workflows/build-arm.yml"
 
@@ -50,7 +70,9 @@ env:
 
 concurrency:
   group: build-arm-${{ github.ref }}
-  cancel-in-progress: true
+  # Never kill a main release while it may be moving date/latest after the
+  # boot proof. Main runs queue; disposable branch/PR candidates still cancel.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   build:
@@ -72,8 +94,16 @@ jobs:
       - name: ARM and boot-splash source gates
         run: |
           bash -n build_files/build-arm.sh
+          bash -n build_files/build-arm-recovery.sh
+          bash -n build_files/finalize_moos_desktop.sh
+          bash -n build_files/seal_arm_qcow2.sh
+          bash -n build_files/seal_release_qcow2.sh
+          bash -n tests/boot_arm_qcow2.sh
+          bash -n tests/verify_arm_runtime.sh
           python3 tests/test_moos_arm.py
           python3 tests/test_boot_splash_polish.py
+          python3 tests/test_seal_arm_deployment.py
+          python3 tests/test_utm_bundle.py
 
       # The ARM runner ships the same pre-baked toolchains as the x86 one and
       # the same ~14 GB of free space. A Plasma image plus a build cache does
@@ -153,7 +183,7 @@ jobs:
           '
 
       - name: Log in to GHCR
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
         uses: redhat-actions/podman-login@v1
         with:
           registry: ${{ env.REGISTRY }}
@@ -161,25 +191,25 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
         id: push
         run: |
           set -euo pipefail
           dest=${{ env.REGISTRY }}/${{ steps.meta.outputs.owner }}/${{ env.IMAGE_NAME }}
+          publish_tag="candidate-${{ github.run_id }}-${GITHUB_SHA:0:12}"
           podman push --digestfile /tmp/moos-arm.digest \
-            ${{ env.IMAGE_NAME }}:latest "${dest}:latest"
-          podman push ${{ env.IMAGE_NAME }}:latest  "${dest}:${{ steps.meta.outputs.tag }}"
+            ${{ env.IMAGE_NAME }}:latest "${dest}:${publish_tag}"
           digest="$(cat /tmp/moos-arm.digest)"
           echo "destination=${dest}" >> "$GITHUB_OUTPUT"
           echo "digest=${digest}" >> "$GITHUB_OUTPUT"
-          echo "pushed ${dest}@${digest}"
+          echo "pushed ${dest}:${publish_tag}@${digest}"
 
       - name: Install cosign
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
         uses: sigstore/cosign-installer@v3
 
       - name: Sign the ARM image by digest
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
         env:
           COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
         run: |
@@ -187,7 +217,7 @@ jobs:
             "${{ steps.push.outputs.destination }}@${{ steps.push.outputs.digest }}"
 
       - name: Verify the signature against MoOS's installed key
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
         run: |
           set -euo pipefail
           ref="${{ steps.push.outputs.destination }}@${{ steps.push.outputs.digest }}"
@@ -204,9 +234,9 @@ jobs:
   disk:
     name: Build the qcow2 (Oracle / UTM)
     needs: build
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && needs.build.result == 'success'
+    if: (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')) && needs.build.result == 'success'
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 90
+    timeout-minutes: 120
     permissions:
       contents: read
       packages: read
@@ -227,7 +257,10 @@ jobs:
       - name: Install podman
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq podman zstd
+          sudo apt-get install -y -qq \
+            podman zstd qemu-utils btrfs-progs \
+            qemu-system-arm qemu-efi-aarch64 cloud-image-utils \
+            openssh-client socat imagemagick
 
       - name: Install cosign
         uses: sigstore/cosign-installer@v3
@@ -243,7 +276,7 @@ jobs:
         run: |
           set -euo pipefail
           src="${{ needs.build.outputs.destination }}@${{ needs.build.outputs.digest }}"
-          mkdir -p output config
+          mkdir -p output config output-recovery
 
           # A downloadable disk must never bypass the signature policy enforced
           # by installed MoOS systems. Use the exact digest produced by the build,
@@ -282,7 +315,7 @@ jobs:
             -v "$(pwd)/output":/output \
             -v "$(pwd)/config/config.toml":/config.toml:ro \
             -v /var/lib/containers/storage:/var/lib/containers/storage \
-            quay.io/centos-bootc/bootc-image-builder:latest \
+            quay.io/centos-bootc/bootc-image-builder@sha256:2b52843ea2bfda73b0a08d97e76b734393b1d3a804681b9fabb26723bd3a2f0b \
             --type qcow2 \
             --rootfs btrfs \
             --config /config.toml \
@@ -290,25 +323,264 @@ jobs:
             --local \
             "${src}"
 
-      - name: Compress and report
-        id: pack
+      - name: Seal the exact signed deployment
         run: |
           set -euo pipefail
           qcow="$(sudo find output -name '*.qcow2' -print -quit)"
           [ -n "$qcow" ] || { echo "FATAL: no qcow2 was produced"; exit 1; }
-          name="moos-arm-$(date -u +%Y%m%d).qcow2"
-          sudo mv "$qcow" "$name"
-          sudo chown "$USER" "$name"
-          echo "raw size: $(du -h "$name" | cut -f1)"
-          zstd -19 -T0 --long=27 "$name" -o "${name}.zst"
-          echo "compressed: $(du -h "${name}.zst" | cut -f1)"
-          echo "artifact=${name}.zst" >> "$GITHUB_OUTPUT"
+          expected="${{ needs.build.outputs.destination }}@${{ needs.build.outputs.digest }}"
+          sudo build_files/seal_arm_qcow2.sh "$qcow" "$expected"
+          sudo chown "$USER:$USER" "$qcow"
+          echo "MOOS_ARM_QCOW=$(readlink -f "$qcow")" >> "$GITHUB_ENV"
 
-      - name: Upload
+      - name: Build slim recovery installer disk
+        run: |
+          set -euo pipefail
+          sudo podman build -f Containerfile.arm-recovery -t localhost/moos-arm-recovery:local .
+          mkdir -p output-recovery
+          cat > config/recovery.toml <<'TOML'
+          [[customizations.filesystem]]
+          mountpoint = "/"
+          minsize = "4 GiB"
+          TOML
+          sudo podman run --rm --privileged --pull=newer \
+            --security-opt label=type:unconfined_t \
+            -v "$(pwd)/output-recovery":/output \
+            -v "$(pwd)/config/recovery.toml":/config.toml:ro \
+            -v /var/lib/containers/storage:/var/lib/containers/storage \
+            quay.io/centos-bootc/bootc-image-builder@sha256:2b52843ea2bfda73b0a08d97e76b734393b1d3a804681b9fabb26723bd3a2f0b \
+            --type qcow2 --rootfs btrfs --config /config.toml --target-arch arm64 --local \
+            localhost/moos-arm-recovery:local
+          recovery="$(sudo find output-recovery -name '*.qcow2' -print -quit)"
+          [ -n "$recovery" ] || { echo "FATAL: recovery qcow2 missing"; exit 1; }
+          sudo chown "$USER:$USER" "$recovery"
+          recovery="$(readlink -f "$recovery")"
+          echo "MOOS_ARM_RECOVERY_QCOW=${recovery}" >> "$GITHUB_ENV"
+          du -h "$recovery"
+
+      - name: Package MoOS UTM Net Installer (priority deliverable)
+        run: |
+          set -euo pipefail
+          mkdir -p release/utm
+          python3 artwork/generate_utm_installer.py \
+            --installer-qcow2 "$MOOS_ARM_RECOVERY_QCOW" \
+            --iphone \
+            --output "$RUNNER_TEMP/MoOS-UTM-Installer.utm" \
+            --zip release/utm/MoOS-UTM-Installer.utm.zip
+          cp artwork/UTM-INSTALLER-README.txt release/utm/UTM-INSTALLER-README.txt
+          sha256sum release/utm/MoOS-UTM-Installer.utm.zip | tee release/utm/MoOS-UTM-Installer.utm.zip.sha256
+          du -h release/utm/MoOS-UTM-Installer.utm.zip
+
+      - name: Upload UTM Net Installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: MoOS-UTM-Installer
+          path: release/utm/MoOS-UTM-Installer.utm.zip
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Boot the final QCOW2 through UEFI
+        env:
+          MOOS_ARM_SKIP_VISUAL_GATE: "1"
+        run: |
+          set -euo pipefail
+          expected="${{ needs.build.outputs.destination }}@${{ needs.build.outputs.digest }}"
+          before="$(sha256sum "$MOOS_ARM_QCOW" | awk '{print $1}')"
+          tests/boot_arm_qcow2.sh "$MOOS_ARM_QCOW" "$expected" arm-boot-proof
+          after="$(sha256sum "$MOOS_ARM_QCOW" | awk '{print $1}')"
+          [ "$before" = "$after" ] || {
+            echo "FATAL: the boot gate modified the release QCOW2" >&2
+            exit 1
+          }
+          python3 - "$expected" "$before" "$GITHUB_SHA" "$GITHUB_RUN_ID" \
+            arm-boot-proof/proof-manifest.json <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          source_image, qcow_sha, revision, run_id, output = sys.argv[1:]
+          pathlib.Path(output).write_text(
+              json.dumps(
+                  {
+                      "schema": 1,
+                      "source_image": source_image,
+                      "boot_proven_raw_qcow2_sha256": qcow_sha,
+                      "revision": revision,
+                      "workflow_run_id": int(run_id),
+                      "first_boot": "healthy",
+                      "second_boot": "healthy",
+                      "poweroff": "clean",
+                  },
+                  indent=2,
+                  sort_keys=True,
+              ) + "\n",
+              encoding="utf-8",
+          )
+          PY
+          echo "MOOS_ARM_PROVEN_SHA256=${before}" >> "$GITHUB_ENV"
+
+      - name: Upload ARM boot proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: moos-arm-boot-proof
+          path: arm-boot-proof/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Package the boot-proven ARM releases
+        id: pack
+        env:
+          SOURCE_IMAGE: ${{ needs.build.outputs.destination }}@${{ needs.build.outputs.digest }}
+          RELEASE_VERSION: 44.${{ needs.build.outputs.tag }}.${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          qcow="$MOOS_ARM_QCOW"
+          [ -f "$qcow" ] || { echo "FATAL: sealed qcow2 disappeared"; exit 1; }
+          actual="$(sha256sum "$qcow" | awk '{print $1}')"
+          [ "$actual" = "$MOOS_ARM_PROVEN_SHA256" ] || {
+            echo "FATAL: package input is not the boot-proven QCOW2" >&2
+            exit 1
+          }
+
+          work="$RUNNER_TEMP/moos-arm-release"
+          raw_name="moos-arm-${RELEASE_VERSION}.qcow2"
+          mkdir -p "$work" release/qcow2 release/utm
+          sudo mv "$qcow" "$work/$raw_name"
+          sudo chown "$USER:$USER" "$work/$raw_name"
+
+          python3 artwork/generate_utm_bundle.py \
+            --qcow2 "$work/$raw_name" \
+            --expected-qcow2-sha256 "$MOOS_ARM_PROVEN_SHA256" \
+            --source-image-ref "$SOURCE_IMAGE" \
+            --output "$work/MoOS-ARM.utm" \
+            | tee "$work/utm-generation.log"
+          if grep -F "$SOURCE_IMAGE" "$work/utm-generation.log" >/dev/null; then
+            echo "FATAL: generator logged release internals unexpectedly" >&2
+            exit 1
+          fi
+
+          python3 artwork/generate_utm_bundle.py \
+            --qcow2 "$work/$raw_name" \
+            --expected-qcow2-sha256 "$MOOS_ARM_PROVEN_SHA256" \
+            --source-image-ref "$SOURCE_IMAGE" \
+            --iphone \
+            --output "$work/MoOS-ARM-iPhone-Full.utm" \
+            | tee "$work/utm-iphone-generation.log"
+
+          python3 artwork/generate_utm_installer.py \
+            --installer-qcow2 "$MOOS_ARM_RECOVERY_QCOW" \
+            --iphone \
+            --output "$work/MoOS-UTM-Installer.utm" \
+            --zip "$work/MoOS-UTM-Installer.utm.zip"
+
+          python3 - "$work/MoOS-ARM.utm.zip" "$MOOS_ARM_PROVEN_SHA256" "$SOURCE_IMAGE" <<'PY'
+          import json
+          import plistlib
+          import sys
+          import zipfile
+
+          archive_path, expected_sha, source_image = sys.argv[1:]
+          required = {
+              "MoOS-ARM.utm/config.plist",
+              "MoOS-ARM.utm/README-FIRST.txt",
+              "MoOS-ARM.utm/manifest.json",
+              "MoOS-ARM.utm/Data/moos-arm.qcow2",
+              "MoOS-ARM.utm/Data/seed.iso",
+              "MoOS-ARM.utm/Data/moos-icon.png",
+          }
+          with zipfile.ZipFile(archive_path) as archive:
+              if set(archive.namelist()) != required:
+                  raise SystemExit("FATAL: UTM zip inventory is incomplete or stale")
+              config = plistlib.loads(archive.read("MoOS-ARM.utm/config.plist"))
+              if config.get("Backend") != "QEMU" or config.get("ConfigurationVersion") != 4:
+                  raise SystemExit("FATAL: UTM config is not the current QEMU schema")
+              drives = [entry["ImageName"] for entry in config["Drive"]]
+              if drives != ["moos-arm.qcow2", "seed.iso"]:
+                  raise SystemExit("FATAL: UTM boot and seed drives are not authoritative")
+              if config["System"].get("MemorySize") != 4096:
+                  raise SystemExit("FATAL: UTM memory profile is not the boot-proven minimum")
+              if (config["Information"].get("Icon") != "moos-icon.png"
+                      or config["Information"].get("IconCustom") is not True):
+                  raise SystemExit("FATAL: UTM bundle does not carry MoOS identity")
+              manifest = json.loads(archive.read("MoOS-ARM.utm/manifest.json"))
+              if manifest["disk"]["sha256"] != expected_sha:
+                  raise SystemExit("FATAL: UTM manifest is not bound to boot proof")
+              if manifest["source_image"] != source_image:
+                  raise SystemExit("FATAL: UTM manifest has the wrong signed source")
+              bad = archive.testzip()
+              if bad is not None:
+                  raise SystemExit(f"FATAL: corrupt UTM zip member: {bad}")
+          PY
+
+          zstd -19 -T0 --long=27 "$work/$raw_name" \
+            -o "release/qcow2/${raw_name}.zst"
+          cp "$work/MoOS-ARM.utm.zip" release/utm/MoOS-ARM.utm.zip
+          cp "$work/MoOS-ARM-iPhone-Full.utm.zip" release/utm/MoOS-ARM-iPhone-Full.utm.zip
+          cp "$work/MoOS-UTM-Installer.utm.zip" release/utm/MoOS-UTM-Installer.utm.zip
+
+          python3 - \
+            "$RELEASE_VERSION" "$GITHUB_SHA" "$GITHUB_RUN_ID" \
+            "$SOURCE_IMAGE" "$MOOS_ARM_PROVEN_SHA256" \
+            "release/qcow2/${raw_name}.zst" \
+            "release/utm/MoOS-ARM.utm.zip" \
+            "$work/release-manifest.json" <<'PY'
+          import hashlib
+          import json
+          import pathlib
+          import sys
+
+          version, revision, run_id, source_image, raw_sha, zst_arg, utm_arg, out_arg = sys.argv[1:]
+
+          def record(path_arg):
+              path = pathlib.Path(path_arg)
+              digest = hashlib.sha256()
+              with path.open("rb") as handle:
+                  for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                      digest.update(chunk)
+              return {"name": path.name, "sha256": digest.hexdigest(), "bytes": path.stat().st_size}
+
+          document = {
+              "schema": 1,
+              "product": "MoOS ARM",
+              "version": version,
+              "revision": revision,
+              "workflow_run_id": int(run_id),
+              "source_image": source_image,
+              "boot_proven_raw_qcow2_sha256": raw_sha,
+              "qcow2_zst": record(zst_arg),
+              "utm_bundle": record(utm_arg),
+          }
+          pathlib.Path(out_arg).write_text(
+              json.dumps(document, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+          for target in qcow2 utm; do
+            cp "$work/release-manifest.json" "release/$target/manifest.json"
+            (
+              cd "release/$target"
+              sha256sum -- * > SHA256SUMS
+              sha256sum -c SHA256SUMS
+            )
+          done
+          echo "raw sha256: $MOOS_ARM_PROVEN_SHA256"
+          echo "qcow2: $(du -h "release/qcow2/${raw_name}.zst" | cut -f1)"
+          echo "UTM: $(du -h release/utm/MoOS-ARM.utm.zip | cut -f1)"
+
+      - name: Upload boot-proven ARM QCOW2
         uses: actions/upload-artifact@v4
         with:
           name: moos-arm-qcow2
-          path: ${{ steps.pack.outputs.artifact }}
+          path: release/qcow2/
+          retention-days: 14
+
+      - name: Upload ready-to-import UTM bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: moos-arm-utm
+          path: release/utm/
           retention-days: 14
 
       - name: What to do with it
@@ -320,8 +592,10 @@ jobs:
             zstd -d moos-arm-*.qcow2.zst
 
           UTM (Apple silicon / iPhone):
-            new VM -> Virtualize (or Emulate on iPhone) -> Linux -> ARM64,
-            import this qcow2 as the boot drive, UEFI on.
+            download moos-arm-utm and import MoOS-ARM.utm.zip directly.
+            Keep UTM's Terminal view visible on first boot. cloud-init creates
+            and prints a VM-unique, console-only password there; the public zip
+            contains no credential. Change it from MoOS Settings after login.
 
           Oracle Cloud:
             upload the .qcow2 to an Object Storage bucket, then
@@ -335,3 +609,64 @@ jobs:
           reach the desktop: docs/MOOS_ARM_ORACLE.md
           ────────────────────────────────────────────────────────────────
           EOF
+
+  # Production follows moos-arm:latest. Promotion is deliberately a separate
+  # job after disk: a signed container is necessary but not sufficient when
+  # the downloadable QCOW2 can still fail EFI, initramfs, graphical login,
+  # reboot or shutdown. Any disk-gate failure leaves production untouched.
+  promote:
+    name: Promote boot-proven ARM image
+    needs: [build, disk]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.build.result == 'success' && needs.disk.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout the installed verification key
+        uses: actions/checkout@v4
+
+      - name: Install promotion tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq skopeo
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Log in to GHCR
+        uses: redhat-actions/podman-login@v1
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Publish the dated reference first and latest last. Recheck the tag after
+      # signature verification as well as before it so a concurrent mutation
+      # cannot silently satisfy one half of the postcondition.
+      - name: Promote the verified ARM digest to production tags
+        env:
+          DESTINATION: ${{ needs.build.outputs.destination }}
+          DIGEST: ${{ needs.build.outputs.digest }}
+          DATE_TAG: ${{ needs.build.outputs.tag }}
+        run: |
+          set -euo pipefail
+          source_ref="docker://${DESTINATION}@${DIGEST}"
+          cosign verify --key cosign.pub "${DESTINATION}@${DIGEST}" >/dev/null
+          for tag in "$DATE_TAG" latest; do
+            target_ref="${DESTINATION}:${tag}"
+            skopeo copy --preserve-digests "$source_ref" "docker://${target_ref}"
+            resolved="$(skopeo inspect --format '{{.Digest}}' "docker://${target_ref}")"
+            if [ "$resolved" != "$DIGEST" ]; then
+              echo "FATAL: ${target_ref} resolved to ${resolved}, expected ${DIGEST}" >&2
+              exit 1
+            fi
+            cosign verify --key cosign.pub "$target_ref" >/dev/null
+            resolved="$(skopeo inspect --format '{{.Digest}}' "docker://${target_ref}")"
+            if [ "$resolved" != "$DIGEST" ]; then
+              echo "FATAL: ${target_ref} moved during signature verification" >&2
+              exit 1
+            fi
+            echo "promoted boot-proven ${target_ref} -> ${DIGEST}"
+          done

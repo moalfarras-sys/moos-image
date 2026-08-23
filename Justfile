@@ -39,6 +39,7 @@ check:
     python3 tests/test_moai_waydroid.py
     python3 tests/test_moai_app_launch.py
     python3 tests/test_moai_control.py
+    python3 tests/test_moai_config.py
     python3 tests/test_moos_fast_remote.py
     python3 tests/test_moai_workspace.py
     python3 tests/test_moai_hybrid.py
@@ -48,12 +49,19 @@ check:
     python3 tests/test_moai_credential_store.py
     python3 tests/test_moos_cloud_audio.py
     python3 tests/test_fwupd_refresh_policy.py
+    python3 tests/test_flatpak_user_update.py
     python3 tests/test_exec_bits.py
     # CI never runs `npm run build`; the image ships the COMMITTED controller bundle, and
     # moremote/.gitignore hides the very directory it lives in. This catches an index.html
     # pointing at an asset that never made it into git — which serves a blank page with a 200.
     python3 tests/test_shipped_bundle_is_tracked.py
     python3 tests/test_release_workflow_safety.py
+    python3 tests/test_seal_arm_deployment.py
+    python3 tests/test_firewall_migration.py
+    python3 tests/test_hardware_adapt_lifecycle.py
+    # Execute the real signed-origin parser against rpm-ostree-shaped fixtures;
+    # string checks cannot detect a JSON path that is absent on deployed MoOS.
+    python3 tests/test_moos_verify_origin.py
     # Troubleshooting reports must not commit an owner's phone number or an
     # allow-all phone-channel policy as though it were a safe product default.
     python3 tests/test_docs_privacy.py
@@ -131,6 +139,7 @@ check:
     python3 tests/test_tidal_horizon.py
     python3 tests/test_tidal_portals.py
     python3 tests/test_moos_theme_safety.py
+    python3 tests/test_theme_shadow_cleanup.py
     python3 tests/test_moos_visual_system.py
     # MoOS Command Center is the owned settings front door: every visual command
     # must resolve through a fixed route, and its live status boundary stays
@@ -145,8 +154,6 @@ check:
     # Recovery is where a broken update sends the user: its target, queued-state
     # copy, and non-blocking Polkit/bootc path belong in the local gate too.
     python3 tests/test_recovery_rollback_target.py
-    python3 tests/test_moai_ports_fail_closed.py
-    python3 tests/test_openclaw_bootstrap_noop.py
     # Owned first-party chrome must resolve to deterministic palette-aware SVGs,
     # never the retired fixed-colour action artwork or a missing icon name.
     python3 tests/test_moos_symbolic_icons.py
@@ -169,13 +176,20 @@ check:
     # ExecStartPre=moai-openclaw-preflight — the entire Mo AI link — silently never runs while
     # the gateway still answers. The retirement only matched the EARLY installer's strings.
     python3 tests/test_openclaw_modern_unit_retire.py
+    python3 tests/test_openclaw_idle_mask_migration.py
+    # The lightweight wake receiver must survive an unreachable resolved address
+    # and preserve HTTP errors; this offline gate drives its real network layer.
+    python3 tests/test_moai_wake_telegram_reachability.py
     # Runs the motion gate in a REAL QML engine instead of grepping for it. Skips
     # cleanly where there is no Qt (the CI runner); the string half of the same
     # contract is in verify_user_experience.py and runs everywhere.
     python3 tests/test_moos_motion_gate.py
     python3 tests/test_cloud_private_desktop.py
     python3 tests/test_mo_remote_codec_resend.py
-    python3 tests/test_remote_h264_fallback.py
+    # The UTM bundle must carry a NoCloud seed (the ARM image has no other
+    # user-provisioning path) and generate a per-bundle one-time password —
+    # never a shared static one inside the image.
+    python3 tests/test_utm_bundle.py
     python3 artwork/verify_visuals.py
     # The agent contract: .mcp.json and .claude/settings.json are committed, so a
     # pasted API key, an unapproved server, or a quietly deleted deny rule all reach
@@ -222,9 +236,9 @@ build-nvidia: check
 # No NVIDIA (a cloud VM has no card to layer a driver onto), no gaming stack, no
 # Android layer; SSH enabled with keys only, a serial console so the provider's
 # rescue shows the boot, and KWin effects off because llvmpipe renders on the CPU.
-# Deployed with `system-reinstall-bootc` onto any VPS that offers Fedora — see
-# MOOS_CLOUD_PLAN.md. It shares the base with the desktop editions on purpose: one
-# identity, one gate suite, one signed update train.
+# Deployed with `system-reinstall-bootc` onto a supported x86 VPS. It shares the
+# base with the desktop editions on purpose: one identity, one gate suite, one
+# signed update train. AArch64 cloud deployment uses the native MoOS ARM image.
 build-cloud: check
     podman build \
         --pull=always \

@@ -131,6 +131,7 @@ esac
             "XDG_CONFIG_HOME": str(self.config),
             "XDG_CONFIG_DIRS": str(self.xdg_dirs),
             "XDG_RUNTIME_DIR": str(self.runtime),
+            "XDG_STATE_HOME": str(self.state),
             "PATH": str(self.bin) + os.pathsep + os.environ.get("PATH", ""),
             "MOOS_THEME_HELPER": str(self.theme),
             "MOOS_ENGINE_HELPER": str(self.engine),
@@ -210,13 +211,17 @@ esac
         failed = self._run("off", check=False)
         self.assertNotEqual(failed.returncode, 0)
         self.assertIn("state retained", failed.stderr)
-        marker = self.runtime / "moos-fast-remote.on"
+        marker = self.state / "moos" / "fast-remote.on"
         self.assertTrue(marker.exists())
-        self.assertTrue((self.runtime / "moos-fast-remote.on.motion").exists())
-        self.assertTrue((self.runtime / "moos-fast-remote.on.contrast.missing").exists())
+        self.assertTrue((self.state / "moos" / "fast-remote.on.motion").exists())
+        self.assertTrue((self.state / "moos" / "fast-remote.on.contrast.missing").exists())
 
         self.layout_fail.unlink()
-        self._run("off")
+        # A crash/reboot clears XDG_RUNTIME_DIR.  The phase-2 autostart recovery
+        # must still have the exact persistent transaction journal it needs.
+        shutil.rmtree(self.runtime)
+        self.runtime.mkdir()
+        self._run("recover")
         self.assertEqual(self._run("status").stdout.strip(), "off")
         self.assertEqual(self._read_config("kwinrc", "Plugins", "blurEnabled"), "true")
         self.assertEqual(self._read_config("kwinrc", "Plugins", "slideEnabled"), "true")
@@ -230,7 +235,7 @@ esac
         self.assertEqual(self.motion.read_text(encoding="utf-8").strip(), "alive")
         self.assertEqual(self.layout.read_text(encoding="utf-8").strip(), "0")
         self.assertEqual(self.brain.read_text(encoding="utf-8").strip(), "active")
-        self.assertEqual(list(self.runtime.glob("moos-fast-remote.on*")), [])
+        self.assertEqual(list((self.state / "moos").glob("fast-remote.on*")), [])
 
 
 if __name__ == "__main__":

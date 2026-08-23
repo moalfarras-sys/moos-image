@@ -60,9 +60,9 @@ boot. Read this before changing anything.
 > theme), the MoOS UI — Liquid Glass design language, and the rules no session may break.
 
 > **New here?** Read **[PROJECT_STATE.md](PROJECT_STATE.md)** as well, and read it *first* if
-> you are about to touch MoPlayer, the vendoring, the gates or anything visual. It is the map:
-> what exists, what is load-bearing, and the five traps that have already shipped — each one a
-> case where **the gate was green while the thing was broken**. This file is the rules;
+> you are about to touch MoPlayer, the vendoring, the gates or anything visual. It is the concise
+> map of what exists, what is load-bearing, what is proven and what remains. The false-green
+> traps are preserved below in this rules file. This file is the rules;
 > `PROJECT_STATE.md` is the terrain.
 
 ## Where the rest of the knowledge is
@@ -80,8 +80,7 @@ boot. Read this before changing anything.
   `THEME_REV` mandatory, and the motion gate that floors at 1), how a change
   reaches all three editions, how to actually see the desktop, and an honest
   backlog of what is NOT done with instructions for doing it.
-- **`PROJECT_STATE.md`** — the terrain and the history of what bit us.
-- **`docs/CONTINUATION.md`** — what the last session did and left.
+- **`PROJECT_STATE.md`** — concise current terrain and evidence only. Git owns history.
 - **`docs/MCP.md`** — the four MCP servers every agent here gets (structured
   reasoning, version-current library docs, a real headless Chrome for the Mo Remote
   PWA and SVG review, and image generation), what each is *for*, which credentials
@@ -347,5 +346,5 @@ Being honest about this list is more useful than shrinking it.
 - **Audio/Bluetooth/Wi-Fi/suspend/multi-monitor** have not been verified on hardware other than
   the maintainer's desktop.
 
-`MOOS_ROADMAP.md` is the source of truth for status. Keep it honest: it is more valuable as a
-list of what is missing than as a list of what is claimed.
+`MOOS_ROADMAP.md` is the concise list of open release gates. Keep it honest: it is more valuable
+as a list of what is missing than as a list of what is claimed.

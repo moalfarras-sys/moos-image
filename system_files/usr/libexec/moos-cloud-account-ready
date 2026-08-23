@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Publish the cloud-provisioned user to AccountsService before the greeter.
+# Creating /etc/passwd is not enough: if the display manager snapshots an empty
+# AccountsService model first, it keeps showing only the wallpaper.
+set -euo pipefail
+
+target="${MOOS_CLOUD_USER:-moos}"
+if ! id "$target" >/dev/null 2>&1; then
+    echo "moos-cloud-account-ready: cloud-init did not create $target" >&2
+    exit 1
+fi
+
+account_object=""
+for _attempt in $(seq 1 50); do
+    account_object="$(busctl call org.freedesktop.Accounts \
+        /org/freedesktop/Accounts org.freedesktop.Accounts \
+        CacheUser s "$target" 2>/dev/null)" && break
+    sleep 0.2
+done
+case "$account_object" in
+    *"/org/freedesktop/Accounts/User"*)
+        echo "moos-cloud-account-ready: published $target ($account_object)"
+        ;;
+    *)
+        echo "moos-cloud-account-ready: AccountsService did not publish $target" >&2
+        exit 1
+        ;;
+esac

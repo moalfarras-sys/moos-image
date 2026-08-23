@@ -1,0 +1,15 @@
+[Unit]
+Description=MoOS disposable QCOW2 runtime proof channel
+Documentation=https://github.com/moalfarras-sys/moos-image
+After=NetworkManager.service
+ConditionKernelCommandLine=moos.ci-runtime-proof=1
+ConditionVirtualization=yes
+ConditionPathExists=/home/mo/.ssh/authorized_keys
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/moos-ci-runtime-proof-firewall
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

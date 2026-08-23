@@ -1,0 +1,16 @@
+[Unit]
+Description=Audit the MoOS signed update origin without delaying login
+Documentation=file:///usr/libexec/moos-verify-origin
+
+[Timer]
+# Give first boot networking time to settle, but stay ahead of normal scheduled
+# update windows. The daily pass catches a manually changed origin without
+# making every boot depend on the registry.
+OnBootSec=45s
+OnUnitInactiveSec=1d
+RandomizedDelaySec=30s
+Persistent=true
+Unit=moos-verify-origin.service
+
+[Install]
+WantedBy=timers.target

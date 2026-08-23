@@ -7,12 +7,40 @@
 #
 # It probes disks ONCE at startup into a JSON the QML reads; the QML's "Rescan"
 # re-runs the probe via moos://installer/probe (handled in moos-open). The actual
-# destructive install is a SEPARATE privileged helper (moos-install-to-disk) the
-# QML triggers via moos://installer/disk/<node> — this launcher never touches a
-# disk. Distinct from /usr/bin/moos-setup (the Flatpak power-apps picker).
+# destructive install is a SEPARATE privileged helper (moos-install-to-disk).
+# The QML first writes its selected disk and account answers through the private
+# MoosInstaller bridge, then triggers the fixed moos://installer/begin route; no
+# disk node or password ever travels in a public URL. This launcher never touches
+# a disk. Distinct from /usr/bin/moos-setup (the Flatpak power-apps picker).
 set -euo pipefail
 QML="/usr/share/moos/apps/installer/main.qml"
 export QT_QUICK_CONTROLS_STYLE="${QT_QUICK_CONTROLS_STYLE:-Basic}"
+
+# This UI belongs only to the live install environment. The privileged helper has
+# its own identical fail-closed guard, but stopping here matters too: otherwise a
+# public moos://installer/open URL can raise a convincing disk-erasure wizard on
+# an already-installed machine, only to fail after the user enters a password and
+# holds the destructive confirmation. Keep the optional arguments solely so the
+# regression test can execute this exact predicate against disposable fixtures;
+# production calls it with the kernel's real paths.
+is_live_boot() {
+    local cmdline="${1:-/proc/cmdline}" live_dir="${2:-/run/initramfs/live}"
+    grep -Fqw rd.live.image "$cmdline" 2>/dev/null || [ -d "$live_dir" ]
+}
+
+if ! is_live_boot; then
+    case "${LC_ALL:-${LC_MESSAGES:-${LANG:-en}}}" in
+        ar*|AR*) _not_live_message="المثبّت متاح فقط بعد الإقلاع من USB أو ISO الخاص بـ MoOS." ;;
+        *)       _not_live_message="Install MoOS is available only after booting the MoOS USB or ISO." ;;
+    esac
+    if command -v kdialog >/dev/null 2>&1; then
+        kdialog --title "MoOS" --sorry "$_not_live_message" >/dev/null 2>&1 || true
+    elif command -v notify-send >/dev/null 2>&1; then
+        notify-send "MoOS" "$_not_live_message" >/dev/null 2>&1 || true
+    fi
+    printf 'MoOS Installer: %s\n' "$_not_live_message" >&2
+    exit 1
+fi
 
 # QML disk cache, content-hash stamped (same seam as moos-welcome/moai): drops
 # exactly once per real UI change, warm every other launch. OSTree's frozen mtimes

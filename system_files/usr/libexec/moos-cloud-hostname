@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# Apply the cloud provider's hostname after the system bus exists.
+# cloud-init's local stage runs before D-Bus on this bootc image; letting its
+# stock hostname module call hostnamectl there records a degraded first boot
+# even though the network stage later succeeds.
+set -euo pipefail
+
+instance_data=/run/cloud-init/instance-data.json
+[ -r "$instance_data" ] || exit 0
+
+hostname="$(python3 - "$instance_data" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as source:
+    data = json.load(source)
+print(data.get("v1", {}).get("local_hostname", ""))
+PY
+)"
+
+# Accept a normal host name or FQDN only. Metadata is external input; never
+# hand arbitrary text to hostnamectl.
+if [ -z "$hostname" ] || [ "${#hostname}" -gt 253 ] \
+        || ! [[ "$hostname" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]]; then
+    echo "moos-cloud-hostname: metadata supplied no valid hostname; preserving current value"
+    exit 0
+fi
+IFS='.' read -r -a labels <<<"$hostname"
+for label in "${labels[@]}"; do
+    if [ -z "$label" ] || [ "${#label}" -gt 63 ] \
+            || ! [[ "$label" =~ ^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?$ ]]; then
+        echo "moos-cloud-hostname: metadata hostname has an invalid label; preserving current value"
+        exit 0
+    fi
+done
+
+hostnamectl set-hostname "$hostname"
+echo "moos-cloud-hostname: applied provider hostname $hostname"

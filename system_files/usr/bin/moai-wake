@@ -22,8 +22,11 @@
 #   channels.telegram.botToken   and   channels.telegram.allowFrom
 #   No second secret store, no token on the command line, no model loaded here.
 # =============================================================================
+import http.client
 import json
 import os
+import socket
+import ssl
 import subprocess
 import sys
 import time
@@ -34,12 +37,77 @@ import urllib.request
 HOME = os.path.expanduser("~")
 CONFIG = os.path.join(HOME, ".openclaw", "openclaw.json")
 GATEWAY_UNIT = "openclaw-gateway.service"
+API_HOST = "api.telegram.org"
 API = "https://api.telegram.org/bot{token}/{method}"
 LONG_POLL = 25          # getUpdates long-poll seconds
 IDLE_RECHECK = 8        # while OpenClaw owns the connection, re-check this often
 BACKOFF_MAX = 60
 SYSTEMCTL_PROBE_TIMEOUT = 5
 SYSTEMCTL_START_TIMEOUT = 110
+
+# REACHING TELEGRAM ON A NETWORK THAT BLOCKS THE DEFAULT ADDRESS
+#
+# This receiver is the ONLY thing that can wake OpenClaw once openclaw-idle has
+# put it to sleep, so if it cannot reach Telegram the phone agent is silently
+# dead: messages arrive at Telegram, nothing here ever reads them, and every
+# surface still says "active". Measured on the maintainer's own network:
+#
+#   getaddrinfo("api.telegram.org") -> 149.154.166.110 AND 2001:67c:4e8:f004::9
+#   the host has NO IPv6 default route  -> urlopen picks v6 first and dies
+#                                          instantly with [Errno 101]
+#   curl -4 to 149.154.166.110          -> no answer, 8s timeout
+#   curl -4 to 149.154.167.220 / .99    -> HTTP 302 in ~0.10s
+#
+# So both halves of the default resolution are unusable here while Telegram
+# itself is perfectly reachable on other addresses in its range. OpenClaw's own
+# client already survives this by retrying an alternative API IP; this receiver
+# used a bare urlopen and had no such path, which is why it logged
+# "Network is unreachable" and "read operation timed out" forever.
+#
+# Two fixes, both narrow:
+#   1. Restrict resolution to IPv4, so a missing v6 route cannot fail the call
+#      before a usable v4 address is ever tried.
+#   2. On a CONNECTION failure (never on an HTTP error, which means we reached
+#      Telegram and it answered), retry against known api.telegram.org
+#      addresses, pinning the socket while keeping TLS SNI and the Host header
+#      set to the real name so certificate validation is unchanged.
+# The winner is cached and tried first next time, so the steady state is one
+# connection attempt. A network where the default address works is unaffected:
+# the first attempt succeeds and the fallback list is never consulted.
+# Verified by hand from the affected network: both answer api.telegram.org over
+# TLS in ~0.10s. 149.154.175.50 is deliberately NOT here — it resolves in
+# Telegram's range but does not serve the API over TLS on 443
+# (SSL: WRONG_VERSION_NUMBER), so listing it would only buy a wasted round.
+TELEGRAM_FALLBACK_IPS = ("149.154.167.220", "149.154.167.99")
+_pinned_ip = None       # the address that last worked, or None for default DNS
+
+_real_getaddrinfo = socket.getaddrinfo
+
+
+def _ipv4_only_getaddrinfo(host, port, family=0, *args, **kwargs):
+    """Resolve A records only — a host with no IPv6 route must not try AAAA."""
+    results = _real_getaddrinfo(host, port, socket.AF_INET, *args, **kwargs)
+    return results
+
+
+socket.getaddrinfo = _ipv4_only_getaddrinfo
+
+
+class _PinnedHTTPSConnection(http.client.HTTPSConnection):
+    """HTTPS to a fixed IP while TLS/Host still say api.telegram.org.
+
+    Pinning the socket without this would either break certificate validation
+    (SNI would carry the bare IP) or defeat the point (the name would resolve
+    back to the blocked address).
+    """
+
+    def __init__(self, host, ip, **kwargs):
+        super().__init__(host, **kwargs)
+        self._pinned_ip = ip
+
+    def connect(self):
+        self.sock = socket.create_connection((self._pinned_ip, self.port), self.timeout)
+        self.sock = self._context.wrap_socket(self.sock, server_hostname=self.host)
 
 
 def log(msg):
@@ -118,12 +186,68 @@ def start_gateway():
     return True
 
 
+def _tg_via_ip(token, method, data, timeout, ip):
+    """One Telegram call with the socket pinned to `ip` (None = default DNS)."""
+    path = f"/bot{token}/{method}"
+    headers = {}
+    if data:
+        headers["Content-Type"] = "application/x-www-form-urlencoded"
+    if ip is None:
+        conn = http.client.HTTPSConnection(API_HOST, timeout=timeout)
+    else:
+        conn = _PinnedHTTPSConnection(
+            API_HOST, ip, timeout=timeout, context=ssl.create_default_context()
+        )
+    try:
+        conn.request("POST" if data else "GET", path, body=data or None, headers=headers)
+        resp = conn.getresponse()
+        body = resp.read()
+        if resp.status != 200:
+            # Reaching Telegram and being refused is NOT a connectivity problem;
+            # surface it unchanged so the caller's 409/401 handling still works.
+            raise urllib.error.HTTPError(
+                API.format(token=token, method=method), resp.status,
+                resp.reason, resp.headers, None)
+        return json.loads(body)
+    finally:
+        conn.close()
+
+
 def tg_call(token, method, params=None, timeout=35):
-    url = API.format(token=token, method=method)
-    data = urllib.parse.urlencode(params or {}).encode()
-    req = urllib.request.Request(url, data=data if params else None)
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        return json.load(resp)
+    """Call Telegram, surviving a blocked or v6-only default address.
+
+    Order: last known-good address, then default DNS, then the fallback list.
+    Only connection-level failures advance to the next candidate.
+    """
+    global _pinned_ip
+    data = urllib.parse.urlencode(params or {}).encode() if params else None
+
+    candidates = []
+    if _pinned_ip is not None:
+        candidates.append(_pinned_ip)
+    candidates.append(None)
+    candidates.extend(ip for ip in TELEGRAM_FALLBACK_IPS if ip != _pinned_ip)
+
+    last_exc = None
+    for candidate in candidates:
+        try:
+            result = _tg_via_ip(token, method, data, timeout, candidate)
+        except urllib.error.HTTPError:
+            # Telegram ANSWERED and refused. There is nothing to fail over to,
+            # and retrying a 409 (a second getUpdates consumer) or a 401 across
+            # every address would hammer the API for no reason. Note this clause
+            # MUST come first: HTTPError subclasses OSError, so the connection
+            # handler below would otherwise swallow it and retry the lot.
+            raise
+        except (OSError, ssl.SSLError, http.client.HTTPException) as exc:
+            # Connection-level: this address is unusable, try the next one.
+            last_exc = exc
+            continue
+        if _pinned_ip != candidate:
+            _pinned_ip = candidate
+            log(f"Telegram reachable via {candidate or 'default DNS'}")
+        return result
+    raise last_exc if last_exc else urllib.error.URLError("no Telegram address reachable")
 
 
 def send_ack(token, chat_id):

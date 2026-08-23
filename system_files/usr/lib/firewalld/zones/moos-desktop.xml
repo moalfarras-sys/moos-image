@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<zone>
+  <short>MoOS Desktop</short>
+  <description>Local desktop discovery and phone integration. Other inbound services stay closed unless the owner enables them.</description>
+  <service name="dhcpv6-client"/>
+  <service name="mdns"/>
+  <service name="kdeconnect"/>
+  <forward/>
+</zone>

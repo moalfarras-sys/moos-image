@@ -1,0 +1,15 @@
+[Unit]
+Description=Publish the cloud user before the MoOS login screen
+Documentation=file:///usr/libexec/moos-cloud-account-ready
+ConditionPathExists=/run/ostree-booted
+Requires=cloud-init-network.service accounts-daemon.service
+After=cloud-init-network.service accounts-daemon.service
+Before=display-manager.service plasmalogin.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/moos-cloud-account-ready
+TimeoutStartSec=20s
+
+[Install]
+WantedBy=graphical.target

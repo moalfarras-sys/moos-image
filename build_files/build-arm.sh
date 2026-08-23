@@ -13,11 +13,10 @@
 #
 #   That could have been done by teaching build.sh a fourth edition. It is not,
 #   deliberately. build.sh is ~4 000 lines that assume the Kinoite base is
-#   already there and assume x86: an NVIDIA akmods stage, i686 multilib, a
-#   gaming host stack, and two prebuilt binaries (Mo Remote linux-x64, MoPlayer's
-#   Flutter bundle) that do not exist for aarch64. Threading a new guard through
-#   all of that would put the owner's daily-driver image one editing mistake away
-#   from breaking, to serve a second architecture that cannot share most of it.
+#   already there and assume x86: an NVIDIA akmods stage, i686 multilib, and a
+#   gaming host stack. Threading a new guard through all of that would put the
+#   owner's daily-driver image one editing mistake away from breaking. The two
+#   first-party compiled apps instead have native arm64 stages in Containerfile.arm.
 #   So the ARM edition is isolated: nothing here can regress the x86 build.
 #
 #   WHAT IS SHARED IS THE PART THAT MATTERS. system_files/ — the entire MoOS
@@ -67,10 +66,14 @@ _PLASMA=(
     # Fedora 44 merged plasma-workspace-wayland into plasma-workspace
     # (changelog 2025-06-25). rpm -q plasma-workspace-wayland is therefore
     # empty even when Wayland is present; startplasma-wayland ships here.
-    plasma-workspace plasma-desktop
+    plasma-workspace plasma-desktop plasma-milou
     kwin kwin-wayland kwin-libs
     systemsettings kscreen kscreenlocker
     plasma-nm plasma-pa plasma-systemmonitor
+    # MoOS routes to these backends from Store and Command Center. Shipping the
+    # QML cards without their executables/KCMs creates polished dead buttons.
+    plasma-discover plasma-discover-flatpak plasma-discover-kns
+    kinfocenter bluedevil plasma-print-manager flatpak-kcm
     xdg-desktop-portal-kde xdg-desktop-portal
     qt6-qtwayland qt6-qtsvg qt6-qtdeclarative qt6-qtmultimedia qt6-qtimageformats
     kf6-kirigami kf6-kirigami-addons kf6-qqc2-desktop-style
@@ -81,12 +84,43 @@ _PLASMA=(
     plymouth plymouth-plugin-script plymouth-plugin-two-step plymouth-system-theme
     dracut-network
     python3 python3-gobject
-    fontconfig gtk4 libadwaita
+    fontconfig gtk3 gtk4 libadwaita mpv-libs
     mesa-dri-drivers mesa-libEGL mesa-libgbm
     openssh-server cloud-init cloud-utils-growpart
     firewalld flatpak openssl sudo
+    # Architecture-independent MoOS desktop assets are generated after the
+    # final RPM transaction by finalize_moos_desktop.sh.
+    git-core curl tar xz gtk-update-icon-cache
+    # Same local-brain engine as x86. The model remains an explicit download;
+    # only the small routing/control services start with the user session.
+    ramalama
+    # Day-2 updates resolve a mutable release tag to an exact signed digest.
+    # fedora-bootc supplies rpm-ostree today, but both tools are explicit product
+    # dependencies rather than accidental base-image contents.
+    rpm-ostree skopeo
+    # Native Mo PC Remote runtime. Encoders are capability-probed and JPEG is
+    # the real fallback when a virtual GPU exposes no hardware codec.
+    ydotool wl-clipboard grim spectacle python3-websockets poppler-utils qrencode
+    gstreamer1 gstreamer1-plugins-base gstreamer1-plugins-good
+    gstreamer1-plugins-bad-free pipewire-gstreamer
 )
 dnf5 -y install --setopt=install_weak_deps=False "${_PLASMA[@]}"
+
+# cosign is not always packaged for aarch64 — install the static binary when needed.
+if ! command -v cosign >/dev/null 2>&1; then
+    if ! dnf5 -y install --setopt=install_weak_deps=False cosign 2>/dev/null; then
+        curl -fsSL "https://github.com/sigstore/cosign/releases/download/v2.4.1/cosign-linux-arm64" \
+            -o /usr/bin/cosign
+        chmod +x /usr/bin/cosign
+    fi
+fi
+command -v cosign >/dev/null || { echo "FATAL: cosign unavailable for UTM net install"; exit 1; }
+
+# Prefer a portable software H.264 encoder when Fedora's Cisco repository has
+# one for aarch64. The helper auditions PLAYING state and automatically falls
+# back to JPEG when the factory is absent or unusable on the VM.
+dnf5 -y install --allowerasing openh264 gstreamer1-plugin-openh264 \
+    || echo "ARM NOTE: OpenH264 unavailable; Mo PC Remote will capability-fallback to JPEG"
 
 # Fonts: MoOS's UI is IBM Plex, and its Arabic surfaces are first-class (the
 # owner's own locale). A desktop that falls back to a substitute face for Arabic
@@ -130,11 +164,11 @@ fi
 # every user of this image. `moos-arm-remote` (section 6) turns it on with a
 # password the owner chooses, once, over SSH.
 echo "=== (3) remote access ==="
-if ! dnf5 -y install --setopt=install_weak_deps=False krdp; then
-    echo "WARNING: krdp is not in this Fedora's repos — the ARM edition will ship"
-    echo "         with SSH only and no graphical remote. moos-arm-remote will say so."
-    touch /usr/lib/moos/no-krdp
-fi
+dnf5 -y install --setopt=install_weak_deps=False krdp || {
+    echo "FATAL: krdp is unavailable — an Oracle desktop with no graphical access"
+    echo "       is not a releasable MoOS ARM image."
+    exit 1
+}
 
 # Package payloads are allowed to overwrite vendor defaults during installation.
 # The MoOS overlay is the final authority, so restore it only after the LAST dnf
@@ -147,11 +181,84 @@ test -d /moos-overlay/usr/share || {
 }
 cp -a /moos-overlay/. /
 
+# system_files is architecture-independent, but its broad icon themes, pointer
+# binaries and plasma-login account palette are generated at image build time.
+# The first boot-proven ARM image skipped this x86-owned step: the greeter drew
+# only wallpaper/language, logged missing MoOSUI2/MoOS pointer themes, and kept
+# the compiled Breeze QML preference. Finalize the SAME desktop contract here.
+bash /ctx/finalize_moos_desktop.sh
+
+# Mo AI is one system on every architecture. Its pure-QML frontend always talks
+# to these loopback authorities, so leaving them disabled makes the ARM window
+# open while every live status/settings request is dead. The local model service
+# itself stays on-demand and no model is downloaded in the image.
+for unit in \
+    moai-gateway.service moai-control.service moai-agent-api.service \
+    moai-wake.service moai-idle.timer openclaw-idle.timer \
+    moos-ensure-brain.timer moos-theme-sync.path \
+    moos-cloud-audio.service moos-update-ready.timer moos-reclaim-disk.timer; do
+    test -f "/usr/lib/systemd/user/${unit}" || {
+        echo "FATAL: shared user authority is missing: ${unit}"
+        exit 1
+    }
+done
+systemd-analyze verify \
+    /usr/lib/systemd/user/moai-gateway.service \
+    /usr/lib/systemd/user/moai-control.service \
+    /usr/lib/systemd/user/moai-agent-api.service \
+    /usr/lib/systemd/user/moai-wake.service
+systemctl --global enable \
+    moai-gateway.service moai-control.service moai-agent-api.service \
+    moai-wake.service moai-idle.timer openclaw-idle.timer \
+    moos-ensure-brain.timer moos-theme-sync.path \
+    moos-cloud-audio.service moos-update-ready.timer moos-reclaim-disk.timer
+
 systemctl enable NetworkManager.service sshd.service firewalld.service
+systemctl enable moos-auto-update.timer
+# moos-image-update is the only OS deployment writer. The Fedora bootc base
+# enables its own mutable-tag fetch timer, so disable both upstream rivals on
+# ARM just as the shared x86 build does. Serial boot proof caught this timer
+# active in the finished ARM disk even though the source gates were green.
+systemctl disable rpm-ostreed-automatic.timer 2>/dev/null || true
+systemctl disable bootc-fetch-apply-updates.timer 2>/dev/null || true
 # Fedora 44's documented PLM switch uses --force because the graphical-login
 # alias may still point at a display manager inherited from a package preset.
 systemctl enable --force plasmalogin.service
 systemctl set-default graphical.target
+
+# QEMU virtio-gpu proof VMs need software GL for plasmalogin's KWin. Without it
+# runtime reports graphical=active while screendump stays near-black (~0.011 stddev).
+[ -x /usr/libexec/moos-greeter-gl-env ] || {
+    echo "FATAL: moos-greeter-gl-env is missing — ARM greeter cannot fall back to software GL"
+    exit 1
+}
+install -D -m0644 /dev/stdin \
+    /usr/lib/systemd/system/plasmalogin.service.d/20-moos-arm-greeter-gl.conf <<'PLMDROP'
+[Service]
+ExecStartPre=-/usr/libexec/moos-greeter-gl-env
+PLMDROP
+install -D -m0644 /dev/stdin \
+    /usr/lib/systemd/user/plasma-login-kwin_wayland.service.d/10-moos-arm-greeter-gl.conf <<'KWINDROP'
+[Service]
+EnvironmentFile=-/run/moos/plasmalogin-kwin.env
+Environment=LIBGL_ALWAYS_SOFTWARE=1
+Environment=MESA_LOADER_DRIVER_OVERRIDE=llvmpipe
+Environment=GALLIUM_DRIVER=llvmpipe
+# virtio-gpu proof VMs and Oracle both need vgem + a virtual output before KWin
+# will composite the MoOS greeter instead of a black QPainter surface.
+ExecStart=
+ExecStart=/usr/bin/kwin_wayland_wrapper --virtual --width 1920 --height 1080
+KWINDROP
+install -D -m0644 /dev/stdin /etc/environment.d/60-moos-arm-llvmpipe.conf <<'LLVMPIPE'
+# MoOS ARM: software rendering for every user session, including plasmalogin.
+LIBGL_ALWAYS_SOFTWARE=1
+MESA_LOADER_DRIVER_OVERRIDE=llvmpipe
+GALLIUM_DRIVER=llvmpipe
+LP_NUM_THREADS=2
+LLVMPIPE
+install -D -m0644 /dev/stdin /etc/modules-load.d/moos-arm-vgem.conf <<'MODLOAD'
+vgem
+MODLOAD
 
 # Defence in depth around the public cloud VM. SSH is the only service exposed
 # by the image. KRDP remains reachable through an SSH tunnel to localhost; this
@@ -221,14 +328,22 @@ echo "=== (5) Oracle Cloud (Ampere A1) ==="
 #                 booting instead of hanging on a datasource that is not coming.
 install -D -m0644 /dev/stdin /etc/cloud/cloud.cfg.d/10-moos-arm.cfg <<'CLOUDCFG'
 datasource_list: [ Oracle, ConfigDrive, NoCloud, None ]
+# The local cloud-init stage runs before the system D-Bus. Its stock hostname
+# module calls hostnamectl there and permanently marks first boot degraded.
+# Preserve during cloud-init; moos-cloud-hostname applies the validated provider
+# name after metadata and D-Bus are both ready.
+preserve_hostname: true
 # Oracle attaches a boot volume that is larger than the imported image (50 GB by
 # default on the Always Free tier, against a ~10 GB image). Without growpart the
 # machine boots with the image's original small root and fills up.
+# The stock modules see composefs at `/` on bootc and therefore try to resize
+# `/dev/composefs`. Fedora bootc already owns the correct physical-/sysroot
+# implementation in bootc-generic-growpart; do not add a second growpart writer.
 growpart:
-  mode: auto
-  devices: ['/']
-  ignore_growroot_disabled: false
-resize_rootfs: true
+  # YAML 1.1 treats an unquoted `off` as Boolean false. cloud-init 26 warns
+  # that the Boolean form is deprecated, so keep the required string type.
+  mode: "off"
+resize_rootfs: false
 # The default user. Oracle's own images use `opc`; MoOS uses `moos` so the same
 # name works on OCI, on UTM and on bare metal, and so that documentation does not
 # have to fork per platform.
@@ -243,11 +358,41 @@ system_info:
   default_user:
     name: moos
     gecos: MoOS
-    groups: [wheel, video, audio, input, render]
+    # Only wheel is a persistent privilege group.  Desktop device access is
+    # granted per active seat through logind/uaccess.  Some minimal ARM images
+    # do not create the legacy audio/video/input/render groups, and naming them
+    # here makes cloud-init abort before it can install the SSH key.
+    groups: [wheel]
     shell: /bin/bash
 CLOUDCFG
 systemctl enable cloud-init-network.service cloud-init-local.service \
     cloud-config.service cloud-final.service
+# One disk-growth authority only. The first boot proof caught the custom MoOS
+# helper racing Fedora bootc's already-enabled growpart service against the same
+# mounted root partition; the duplicate timed out and left the release red.
+test -f /usr/lib/systemd/system/bootc-generic-growpart.service || {
+    echo "FATAL: Fedora bootc's physical root grow service is missing"
+    exit 1
+}
+systemctl enable bootc-generic-growpart.service
+systemctl enable moos-arm-block-coldplug.service
+install -D -m0644 /dev/stdin /etc/systemd/system.conf.d/moos-arm-device-timeout.conf <<'TIMEOUT'
+# Slow aarch64 virt (TCG proof VMs) can miss boot-partition UUID links for up
+# to ~60s while moos-arm-block-coldplug republishes them. The default 45s device
+# timeout sent the release gate to emergency mode even when coldplug was running.
+[Manager]
+DefaultDeviceTimeoutSec=120
+TIMEOUT
+for _mount in boot.mount boot-efi.mount; do
+    install -D -m0644 /dev/stdin \
+        "/usr/lib/systemd/system/${_mount}.d/moos-arm-coldplug.conf" <<'MOUNT'
+[Unit]
+After=moos-arm-block-coldplug.service
+Requires=moos-arm-block-coldplug.service
+MOUNT
+done
+systemctl enable moos-cloud-hostname.service
+systemctl enable moos-cloud-account-ready.service
 
 # The serial console. THIS IS THE ARM DIFFERENCE that most cloud images get
 # wrong: on x86 the provider's console is ttyS0, and on Ampere/aarch64 it is
@@ -291,6 +436,9 @@ systemctl enable serial-getty@ttyAMA0.service
 install -D -m0644 /dev/stdin /usr/lib/dracut/dracut.conf.d/50-moos-arm.conf <<'DRACUT'
 hostonly="no"
 hostonly_cmdline="no"
+# Image composition has no syslog socket. Console/file output remains captured by
+# CI, so do not ask dracut to emit a misleading "No /dev/log" error.
+sysloglvl="0"
 add_drivers+=" virtio_blk virtio_net virtio_pci virtio_scsi virtio_gpu virtio_console "
 DRACUT
 
@@ -315,11 +463,6 @@ set -euo pipefail
 action="${1:-on}"
 target="${2:-${SUDO_USER:-moos}}"
 
-if [ -f /usr/lib/moos/no-krdp ]; then
-    echo "This image was built without krdp, so there is no graphical remote."
-    echo "SSH still works. Rebuild once krdp is available in Fedora aarch64."
-    exit 1
-fi
 [ "$(id -u)" -eq 0 ] || {
     echo "Run with sudo: sudo moos-arm-remote ${action} ${target}" >&2
     exit 1
@@ -488,6 +631,12 @@ fi
 # serialises the whole udev coldplug behind the slowest device.
 systemctl mask systemd-udev-settle.service 2>/dev/null || true
 
+# The shared x86 desktop policy contains game-specific preemption and Intel
+# split-lock arguments. They have no measured ARM benefit, and one names an
+# x86-only mechanism, so the architecture layer must not carry them into an
+# Ampere/UTM kernel command line. mokernel also declares them only on x86_64.
+rm -f /usr/lib/bootc/kargs.d/30-moos-latency.toml
+
 # dbus-broker's default 90 s start timeout is the root of the slow-boot network
 # cascade documented for the x86 editions; system_files ships the drop-in that
 # shortens it. Prove it survived the copy rather than assuming.
@@ -495,25 +644,14 @@ test -f /usr/lib/systemd/system/dbus-broker.service.d/moos-start-timeout.conf ||
     echo "FATAL: the dbus-broker start-timeout drop-in did not arrive from system_files"; exit 1
 }
 
-# The x86 editions compile MoPlayer's Flutter bundle and Mo PC Remote's .NET
-# agent in architecture-specific build stages. Those binaries do not exist in
-# this deliberately lightweight ARM image. Do not leave launchers that open a
-# control panel for a missing backend or a player wrapper with no bundle.
-rm -f \
-    /usr/bin/moplayer \
+# Both first-party apps arrive from native aarch64 build stages. Remote remains
+# opt-in exactly like x86: the panel starts its service explicitly, so a fresh
+# cloud/UTM desktop pays zero idle daemon cost.
+chmod 0755 /usr/lib/mo-remote/MoRemotePersonal \
+    /usr/lib/mo-remote/mo-remote-portal.py \
     /usr/bin/mo-pc-remote \
-    /usr/share/applications/org.moos.moplayer.desktop \
-    /usr/share/applications/org.moos.remote.desktop \
-    /usr/share/metainfo/org.moos.moplayer.metainfo.xml
-install -D -m0644 /dev/stdin /usr/share/doc/moos-arm/OMITTED.md <<'OMITTED'
-# Intentionally omitted from MoOS ARM
-
-- MoPlayer: its vendored Flutter Linux bundle is currently built only for x86_64.
-- Mo PC Remote: its self-contained .NET agent is currently built only for x86_64.
-
-The ARM cloud path uses KDE KRDP over an SSH tunnel (`moos-arm-remote`) instead.
-No non-working launcher is shown for either omitted binary.
-OMITTED
+    /usr/bin/moplayer
+systemctl --global disable mo-remote-personal.service 2>/dev/null || true
 
 # -----------------------------------------------------------------------------
 # (8) Identity
@@ -668,34 +806,114 @@ fi
 unset -v _x11_sessions
 
 # -----------------------------------------------------------------------------
+# (8b) Container policy — every day-2 ARM update must verify its signature
+# -----------------------------------------------------------------------------
+grep -q "use-sigstore-attachments" /etc/containers/registries.d/moalfarras-sys.yaml \
+    || { echo "FATAL: ARM lacks the sigstore attachment registry mapping"; exit 1; }
+[ -s /etc/pki/containers/moos.pub ] \
+    || { echo "FATAL: ARM lacks the MoOS container signing public key"; exit 1; }
+[ -f /etc/containers/policy.json ] \
+    || { echo "FATAL: ARM lacks /etc/containers/policy.json"; exit 1; }
+python3 - <<'PYSEC'
+import json
+
+path = "/etc/containers/policy.json"
+with open(path, encoding="utf-8") as source:
+    policy = json.load(source)
+policy.setdefault("transports", {}).setdefault("docker", {})[
+    "ghcr.io/moalfarras-sys"
+] = [{
+    "type": "sigstoreSigned",
+    "keyPath": "/etc/pki/containers/moos.pub",
+    "signedIdentity": {"type": "matchRepository"},
+}]
+with open(path, "w", encoding="utf-8") as target:
+    json.dump(policy, target, indent=4)
+PYSEC
+python3 - <<'PYSEC'
+import json
+
+entry = json.load(open("/etc/containers/policy.json", encoding="utf-8"))[
+    "transports"
+]["docker"]["ghcr.io/moalfarras-sys"]
+if len(entry) != 1 or entry[0].get("type") != "sigstoreSigned":
+    raise SystemExit("FATAL: ARM registry policy does not require sigstoreSigned")
+if entry[0].get("keyPath") != "/etc/pki/containers/moos.pub":
+    raise SystemExit("FATAL: ARM registry policy does not use the MoOS public key")
+PYSEC
+
+# -----------------------------------------------------------------------------
 # (9) Rebuild the initramfs so the splash and the virtio drivers are in it
 # -----------------------------------------------------------------------------
 echo "=== (9) initramfs ==="
+# Fedora's package transaction writes the compiled hwdb into /etc. On a fresh
+# bootc deployment /etc is newer than the image and systemd rebuilds that 14 MB
+# database before it starts real-root udevd. The ARM release proof measured the
+# consequence under TCG: /boot, /boot/efi and ttyAMA0 device units expired while
+# udevd was still blocked. Compile the immutable database into /usr once here;
+# local administrator overrides still re-enable the upstream update service.
+bash /ctx/compile_system_hwdb.sh
 kver="$(rpm -q --qf '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-core | tail -1)"
 [ -n "${kver}" ] || { echo "FATAL: no kernel-core in the image"; exit 1; }
+# bootc keeps /root as a symlink to mutable /var/roothome, while an image build
+# deliberately leaves /var empty. dracut resolves that root home while composing
+# its passwd payload; with a dangling target it logs a false-success ERROR for
+# `/root`. Materialize it only for the compose, then restore the clean /var
+# contract before bootc lint.
+install -d -m0700 /var/roothome
 dracut --no-hostonly --force --reproducible \
     --add "ostree plymouth" \
     "/usr/lib/modules/${kver}/initramfs.img" "${kver}" 2>&1 | tail -20
+rmdir /var/roothome
 
 # GATE: the splash has to actually be inside the initramfs. Everything else can
 # be green while it is not, and the failure is only visible on a boot.
-lsinitrd "/usr/lib/modules/${kver}/initramfs.img" > /tmp/moos-arm-initrd.txt 2>/dev/null || true
-if [ -s /tmp/moos-arm-initrd.txt ]; then
-    for _need in 'plymouth/themes/moos/moos.script' 'plymouth/themes/moos/intro1.png' \
-                 'plymouth/themes/moos/moos.plymouth'; do
-        grep -q "${_need}" /tmp/moos-arm-initrd.txt || {
-            echo "FATAL: the initramfs lacks ${_need} — the boot animation would not render"
-            exit 1
-        }
-    done
-    grep -qE 'plymouth/(script\.so|script)' /tmp/moos-arm-initrd.txt || {
-        echo "FATAL: the initramfs lacks Plymouth's script plugin — the theme cannot render"
+lsinitrd "/usr/lib/modules/${kver}/initramfs.img" > /tmp/moos-arm-initrd.txt 2>/dev/null \
+    || { echo "FATAL: lsinitrd could not inspect the deployed ARM initramfs"; exit 1; }
+[ -s /tmp/moos-arm-initrd.txt ] \
+    || { echo "FATAL: lsinitrd produced no ARM initramfs inventory"; exit 1; }
+for _need in 'plymouth/themes/moos/moos.script' 'plymouth/themes/moos/intro1.png' \
+             'plymouth/themes/moos/moos.plymouth'; do
+    grep -q "${_need}" /tmp/moos-arm-initrd.txt || {
+        echo "FATAL: the initramfs lacks ${_need} — the boot animation would not render"
         exit 1
     }
-    echo "=== initramfs carries the MoOS splash ==="
-else
-    echo "WARNING: lsinitrd produced nothing; the splash could not be verified here"
-fi
+done
+grep -qE 'plymouth/(script\.so|script)' /tmp/moos-arm-initrd.txt || {
+    echo "FATAL: the initramfs lacks Plymouth's script plugin — the theme cannot render"
+    exit 1
+}
+grep -q 'ostree-prepare-root' /tmp/moos-arm-initrd.txt || {
+    echo "FATAL: the ARM initramfs lacks ostree-prepare-root — deployed root cannot mount"
+    exit 1
+}
+# Fedora's aarch64 kernel deliberately compiles the root-disk, PCI transport and
+# console virtio drivers into vmlinux. A built-in has no .ko to put in initramfs,
+# so testing only the archive invents a failure on the exact kernel that boots.
+# Prove every required driver through modinfo; loadable drivers must additionally
+# be present in the initramfs inventory.
+for _driver in virtio_blk virtio_pci virtio_scsi virtio_net virtio_gpu virtio_console; do
+    _driver_file="$(modinfo -k "${kver}" -F filename "${_driver}" 2>/dev/null)" || {
+        echo "FATAL: the ARM kernel does not provide ${_driver}"
+        exit 1
+    }
+    if [ "${_driver_file}" = "(builtin)" ]; then
+        grep -qE "/${_driver}\\.ko$" "/usr/lib/modules/${kver}/modules.builtin" || {
+            echo "FATAL: modinfo claims ${_driver} is built-in but modules.builtin disagrees"
+            exit 1
+        }
+        echo "       ${_driver}: built into the ARM kernel"
+    else
+        _driver_basename="${_driver_file##*/}"
+        grep -qF "${_driver_basename}" /tmp/moos-arm-initrd.txt || {
+            echo "FATAL: the ARM initramfs lacks ${_driver} (${_driver_basename})"
+            exit 1
+        }
+        echo "       ${_driver}: ${_driver_basename} in initramfs"
+    fi
+done
+unset -v _driver _driver_file _driver_basename
+echo "=== initramfs carries OSTree, virtio and the MoOS splash ==="
 
 # The ARM edition does not get a reduced identity standard. These are the same
 # identity and foreign-brand gates the x86 editions run, plus ARM-specific
@@ -703,6 +921,36 @@ fi
 # installer and the two intentionally omitted x86 binaries; it does not weaken
 # the shared session, application, logo or theme identity checks.
 echo "=== (9b) finished-image identity gates ==="
+grep -q 'ExecStartPre=-/usr/libexec/moos-greeter-gl-env' \
+    /usr/lib/systemd/system/plasmalogin.service.d/20-moos-arm-greeter-gl.conf \
+    || { echo "GATE FAIL: ARM plasmalogin must run moos-greeter-gl-env before the greeter"; exit 1; }
+grep -q 'LIBGL_ALWAYS_SOFTWARE=1' \
+    /usr/lib/systemd/user/plasma-login-kwin_wayland.service.d/10-moos-arm-greeter-gl.conf \
+    /etc/environment.d/60-moos-arm-llvmpipe.conf \
+    || { echo "GATE FAIL: ARM login greeter must force software GL for virtio proof VMs"; exit 1; }
+grep -q 'MESA_LOADER_DRIVER_OVERRIDE=llvmpipe' \
+    /usr/lib/systemd/user/plasma-login-kwin_wayland.service.d/10-moos-arm-greeter-gl.conf \
+    /etc/environment.d/60-moos-arm-llvmpipe.conf \
+    || { echo "GATE FAIL: ARM login greeter must pin llvmpipe for virtio proof VMs"; exit 1; }
+grep -q 'kwin_wayland_wrapper --virtual' \
+    /usr/lib/systemd/user/plasma-login-kwin_wayland.service.d/10-moos-arm-greeter-gl.conf \
+    || { echo "GATE FAIL: ARM login greeter must use KWin virtual output on virtio"; exit 1; }
+grep -qxF 'vgem' /etc/modules-load.d/moos-arm-vgem.conf \
+    || { echo "GATE FAIL: ARM must load vgem for greeter/desktop GL"; exit 1; }
+grep -q 'DefaultDeviceTimeoutSec=120' /etc/systemd/system.conf.d/moos-arm-device-timeout.conf \
+    || { echo "GATE FAIL: ARM must extend device timeout for slow virt boot"; exit 1; }
+grep -q 'Requires=moos-arm-block-coldplug.service' \
+    /usr/lib/systemd/system/boot.mount.d/moos-arm-coldplug.conf \
+    /usr/lib/systemd/system/boot-efi.mount.d/moos-arm-coldplug.conf \
+    || { echo "GATE FAIL: ARM boot mounts must wait for block coldplug"; exit 1; }
+command -v cosign >/dev/null 2>&1 \
+    || { echo "GATE FAIL: cosign must ship for UTM net install"; exit 1; }
+[ -x /usr/libexec/moos-utm-net-install ] \
+    || { echo "GATE FAIL: moos-utm-net-install missing"; exit 1; }
+[ -x /usr/libexec/moos-utm-installer-menu ] \
+    || { echo "GATE FAIL: moos-utm-installer-menu missing"; exit 1; }
+[ -r /usr/share/moos/release/arm-latest.json ] \
+    || { echo "GATE FAIL: arm-latest.json missing"; exit 1; }
 MOOS_IDENTITY_PROFILE=arm-cloud python3 /ctx/verify_identity.py
 python3 /ctx/verify_arm_image.py
 python3 /ctx/verify_no_foreign_identity.py

@@ -134,7 +134,7 @@ def _boot_and_ask(script: str, env_port: str, path: str, headers: dict) -> None:
 
 
 _boot_and_ask("moai-agent-api", "MOAI_AGENT_PORT", "/", {"X-Moai-Agent": "1"})
-_boot_and_ask("moai-control", "MOAI_CONTROL_PORT", "/providers",
+_boot_and_ask("moai-control", "MOAI_CONTROL_PORT", "/quick",
               {"X-Moai-Control": "1"})
 _boot_and_ask("moai-gateway", "MOAI_GATEWAY_PORT", "/healthz", {})
 print("Mo AI daemons boot and answer for real")

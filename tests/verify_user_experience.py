@@ -795,26 +795,8 @@ require('heroOrb.pulse()' in moai_qml_code,
         "launch() must pulse the hero orb by id (heroOrb.pulse()), the in-scope way to fire "
         "the launch feedback")
 
-# Saving Mo AI's mode must always answer the HTTP request. A prior bind-race fix
-# accidentally indented self._send() under the "gateway already active" branch,
-# so the first save that had to start the gateway succeeded server-side but left
-# the UI waiting forever.
-_moai_control_for_save = code(read("system_files/usr/bin/moai-control"), "hash")
-_gateway_start = re.search(
-    r"if not user_unit_active\(GATEWAY_UNIT\):\s+"
-    r"sysctl\(\"enable\", \"--now\", GATEWAY_UNIT\)\s+"
-    r"else:\s+sysctl\(\"enable\", GATEWAY_UNIT\)\s+"
-    r"self\._send\(200, \{\"ok\": True, \"mode\": mode\}\)",
-    _moai_control_for_save,
-)
-require(_gateway_start is not None,
-        "Mo AI config save must answer after either starting or reusing the gateway; "
-        "self._send() cannot be conditional on the gateway already being active")
-
-# Whitespace-sensitive Python can satisfy the sequence above while placing the
-# whole sequence in H's class body. That imports as far as the class definition,
-# then crashes immediately because neither `self` nor `mode` exists there. Check
-# the syntax tree: the gateway activation and response must belong to do_POST.
+# Keep request code inside the handler methods. A past indentation regression
+# put live request statements in H's class body and crashed the service at import.
 _control_tree = ast.parse(read("system_files/usr/bin/moai-control"))
 _control_imports = {
     alias.name
@@ -835,14 +817,6 @@ if _handler:
     require(not any(isinstance(n, (ast.If, ast.Expr)) for n in _handler.body),
             "moai-control H class body must contain only definitions/assignments; request code "
             "at class scope crashes the service during startup")
-if _post:
-    _post_calls = [n for n in ast.walk(_post) if isinstance(n, ast.Call)]
-    require(any(isinstance(n.func, ast.Attribute)
-                and isinstance(n.func.value, ast.Name)
-                and n.func.value.id == "self" and n.func.attr == "_send"
-                and n.lineno > 1235 for n in _post_calls),
-            "Mo AI config save response must execute inside H.do_POST")
-
 # ── The camera the user actually gets must run on THIS desktop ────────────────
 #
 # "Install a camera" resolved, on Flathub's top hit, to io.github.cosmic_utils.camera:
@@ -1683,33 +1657,32 @@ _uupd_cfg = json.loads(read("system_files/etc/uupd/config.json"))
 require(_uupd_cfg["modules"]["brew"]["disable"] is True,
         "uupd's Brew module must be disabled — MoOS ships no Homebrew, so the module can "
         "only ever fail and make every automatic update report errors")
-for _mod in ("distrobox", "flatpak", "system"):
+for _mod in ("distrobox", "flatpak"):
     require(_uupd_cfg["modules"][_mod]["disable"] is False,
             f"uupd's {_mod} module must stay enabled — disabling it silently stops that "
             "half of the update")
+require(_uupd_cfg["modules"]["system"]["disable"] is True,
+        "uupd's system module must be disabled — moos-image-update is the sole signed OS "
+        "deployment writer; enabling both creates a transaction race and duplicate policy")
 
-# EXACTLY ONE UPDATER MAY BE ENABLED.
+# EXACTLY ONE OS-IMAGE WRITER MAY BE ENABLED.
 #
 # The base image enables rpm-ostreed-automatic.timer, and it was left running beside uupd:
 # measured on the maintainer's machine BOTH were enabled and active, and `rpm-ostree upgrade`
 # reported "note: automatic updates (stage) are enabled". Two updaters on one OSTree sysroot
 # contend for the same transaction lock, so when both fire one of them just fails.
 #
-# Worse, the second one defeats a deliberate policy. uupd is conditional — the config above
-# refuses to update below 20% battery, above 50% CPU or 90% memory, or while the network is
-# busy — and its drop-in keeps it off the login path. rpm-ostreed-automatic honours none of
-# that: 1h after boot and then daily, whatever the user is doing. It also stages deployments
-# outside the path `moai-do update` and Recovery are built around, which is how a staged
-# update appears that nobody asked for.
+# uupd now owns application refreshes only. The MoOS backend is the one OS-image authority;
+# rpm-ostreed-automatic and bootc-fetch-apply would bypass its signed exact-digest contract.
 _build_sh = read("build_files/build.sh")     # build_script is defined further down this file
 require("systemctl enable uupd.timer" in _build_sh,
-        "uupd must be the enabled updater — it is the one MoOS configures and guards")
+        "uupd must remain enabled for Flatpak and distrobox application updates")
+require("systemctl enable moos-auto-update.timer" in _build_sh,
+        "the single MoOS image backend must be scheduled on every edition")
 for _rival in ("rpm-ostreed-automatic.timer", "bootc-fetch-apply-updates.timer"):
     require(re.search(rf"systemctl disable {re.escape(_rival)}", _build_sh),
-            f"{_rival} must be explicitly disabled in the image. uupd already covers the "
-            f"system image (its config has \"system\": {{\"disable\": false}}), so leaving a "
-            f"second updater enabled only adds a lock fight and an unguarded update that "
-            f"ignores MoOS's battery/CPU/memory/network conditions.")
+            f"{_rival} must be explicitly disabled: it would be a second OS deployment "
+            f"writer outside moos-image-update's signed exact-digest policy.")
 # uupd unmarshals this file STRICTLY: one key it does not know and it refuses to start at
 # all — "'config.Config' has invalid keys" — which is worse than the failing module this
 # file exists to silence. Learned the hard way: a JSON block explaining WHY brew is off,
@@ -1835,9 +1808,13 @@ require("content_block_delta" in gateway,
 require("max_tokens" in gateway,
         "Anthropic requires max_tokens; the gateway must supply one")
 
-# Presets describe providers. A preset must never carry a credential.
-require('"key"' not in control_py.split("PROVIDERS = [")[1].split("]")[0],
-        "a provider preset must never contain an API key")
+# One provider catalog, owned by the OpenClaw configuration API.
+agent_api_py = read("system_files/usr/bin/moai-agent-api")
+require("PROVIDERS = [" in agent_api_py and "PROVIDERS = [" not in control_py,
+        "moai-agent-api must be the one provider-catalog authority")
+require('route == "/config"' not in control_py
+        and 'route == "/providers"' not in control_py,
+        "moai-control must not retain a second configuration API")
 require("moai-credential-store" in gateway,
         "the gateway must read the key from Mo AI's private XDG store, not config.json")
 
@@ -2128,6 +2105,12 @@ require(session_code.index("ValidateAndTouch") < session_code.index("SessionArri
 # MagicDNS HTTPS name, which works anywhere on the tailnet AND is a secure context — without
 # which the browser will not give Mo PC Remote WebCodecs, the clipboard, or a real PWA install.
 panel = read("system_files/usr/bin/mo-pc-remote")
+remote_linux_entry = read("moremote/agent-linux/Program.cs")
+require("endpoint.json" in panel and "configured_port" in panel
+        and "endpoint.json" in remote_linux_entry
+        and "await app.StartAsync()" in remote_linux_entry
+        and re.search(r"^PORT\s*=", panel, re.MULTILINE) is None,
+        "the Mo PC Remote panel must consume the agent's bound runtime endpoint, not hardcode 8765")
 require("tailscale" in panel and "serve" in panel,
         "the Mo PC Remote panel must offer the Tailscale address; a LAN IP over http dies the "
         "moment the phone leaves the house")
@@ -2321,6 +2304,11 @@ require(not (ROOT / "system_files/usr/lib/systemd/user/moai-cloud.service").exis
         "moai-cloud.service was the opt-in cloud proxy; moai-gateway.service replaces it")
 require("moai-cloud" not in code(read("system_files/usr/bin/moai-config")),
         "moai-config must not still enable/disable the retired moai-cloud.service")
+_moai_config_tool = read("system_files/usr/bin/moai-config")
+require('"/api/config"' in _moai_config_tool
+        and "config.json" not in _moai_config_tool
+        and "openclaw.json" not in _moai_config_tool,
+        "moai-config must be a client of moai-agent-api, never another config writer")
 
 # ── The local brain must not hold VRAM while idle ─────────────────────────────
 #
@@ -3939,12 +3927,12 @@ if login_plugin is not None and not login_plugin.group(1).startswith("org.kde.")
                 f"the login scene's tones for {_package} have drifted from "
                 f"{_scheme_file.name}: scene {_got} vs scheme {_want}")
 
-# Login is one security surface, not an idle clock page followed by a second
-# authentication layout. The clock remains on the lock screen; a cold boot
-# presents the password prompt directly.
-require(re.search(r"^ShowClock=false$", login_config, re.MULTILINE) is not None,
-        "Plasma Login Manager must open directly on the password surface; its "
-        "idle clock page reintroduces a second layout and can overlap branding")
+# Plasma Login Manager hides the authentication controls after ten idle seconds
+# regardless of this setting. Its MoOS clock must remain enabled so the timeout
+# lands on an intentional idle surface instead of a wallpaper-only false failure.
+require(re.search(r"^ShowClock=true$", login_config, re.MULTILINE) is not None,
+        "Plasma Login Manager must show the MoOS clock after its idle timeout; "
+        "ShowClock=false makes the greeter appear blank while it is still active")
 
 lock_wallpaper = re.search(r"^Image=.*/wallpapers/([A-Za-z0-9_.-]+)",
                            code(lock_config), re.MULTILINE)
@@ -4612,18 +4600,24 @@ require("TidalHorizon {" not in login_wallpaper,
 require("The Tidal Portal key" in login_action
         and "radius: design.radiusPanel" in login_action
         and "font.family: design.interfaceFamily" in login_action
-        and "import org.moos.ui as MoUI" in login_action,
+        and "import org.moos.ui as MoUI" in login_action
+        and "readonly property real compactScale" in login_action
+        and "Screen.height - 320" in login_action,
         "the compiled plasma-login controls must use the shared MoOS portal-key "
-        "geometry and typography instead of generic circular Breeze actions")
+        "geometry, responsive low-resolution fit and typography instead of "
+        "generic circular Breeze actions")
 require("trackSeconds: false" in login_clock
         and "Animation.Infinite" not in login_clock
         and 'text: ":"' in login_clock
         and "Locale.LongFormat" in login_clock
         and "sessionLocale.dateFormat(Locale.LongFormat)" in login_clock
         and "LayoutMirroring.enabled: false" in login_clock
-        and "layoutDirection: Qt.LeftToRight" in login_clock,
+        and "layoutDirection: Qt.LeftToRight" in login_clock
+        and "readonly property real responsiveScale" in login_clock
+        and "Screen.height - 320" in login_clock,
         "the login clock must be one static MoOS editorial face: active-locale "
-        "date, accent colon, minute precision, semantic LTR time and no idle animation")
+        "date, accent colon, minute precision, semantic LTR time, low-resolution "
+        "fit and no idle animation")
 
 # Every selectable palette is one MoOS UI engine, not another login/session
 # design hiding under a different colour name. KDE needs a look-and-feel package
@@ -4662,12 +4656,15 @@ require('src.suffix == ".svg"' in family_lnf
 # log. systemd colours individual words, so grepping the raw stream previously
 # reported failure after the disk had visibly reached Basic System and login.
 disk_workflow = read(".github/workflows/build-disk.yml")
+disk_boot_gate = read("tests/boot_x86_qcow2.sh")
 require(
-    "serial.plain.log" in disk_workflow
-    and "ansi = re.compile" in disk_workflow
-    and disk_workflow.count("/tmp/serial.plain.log") >= 3,
-    "the qcow2 boot gate must strip ANSI once and use the normalised serial log "
-    "for both failure and success decisions",
+    "serial.plain.log" in disk_boot_gate
+    and "ansi = re.compile" in disk_boot_gate
+    and 'grep -Eqi "$fatal" "$evidence/serial.plain.log"' in disk_boot_gate
+    and "guest-sync-delimited" in disk_boot_gate
+    and "runtime-first-boot.txt" in disk_boot_gate,
+    "the qcow2 boot gate must normalise its diagnostic serial log and prove "
+    "positive runtime state through a synchronised guest channel",
 )
 require(
     "sddm-greeter" not in code(disk_workflow),
@@ -4758,6 +4755,16 @@ require("KDBusService::activateRequested" in shell_src
         and "KWindowSystem::activateWindow" in shell_src,
         "a second launch must RAISE the running window: uniqueness alone turns the second click "
         "into nothing happening, which reads as an app that failed to start")
+require("QMetaObject::invokeMethod" in shell_src
+        and '"activateRequested"' in shell_src
+        and "QVariant::fromValue(arguments)" in shell_src,
+        "a second launch must forward its argv into the running QML object; raising the "
+        "window alone leaves Mo AI panels and Command Center sections on stale state")
+for _qml_app in ("moai", "settings"):
+    _qml_activation = code(read(
+        f"system_files/usr/share/moos/apps/{_qml_app}/main.qml"), "slash")
+    require("function activateRequested(" in _qml_activation,
+            f"{_qml_app} cannot consume navigation from a second unique-instance launch")
 require("-lKF6DBusAddons" in shell_build_script and "libKF6DBusAddons" in build_code,
         "the qml-shell build script must LINK the guard and build.sh must verify the link on the "
         "shipped binary — a silently unlinked binary still runs, still shows the app, and still "
@@ -5243,9 +5250,12 @@ require("ostree-unverified-registry:" in _origin_fix,
 _origin_unit = read("system_files/usr/lib/systemd/system/moos-verify-origin.service")
 require("ExecStart=/usr/libexec/moos-verify-origin" in _origin_unit,
         "moos-verify-origin.service does not run /usr/libexec/moos-verify-origin.")
-require("WantedBy=multi-user.target" in _origin_unit,
-        "moos-verify-origin.service is not wanted by any target, so it never runs and a "
-        "converted server keeps taking unverified updates.")
+require("WantedBy=multi-user.target" not in _origin_unit,
+        "moos-verify-origin.service blocks the boot path again; it must be timer-driven.")
+_origin_timer = read("system_files/usr/lib/systemd/system/moos-verify-origin.timer")
+require("Unit=moos-verify-origin.service" in _origin_timer and
+        "WantedBy=timers.target" in _origin_timer,
+        "moos-verify-origin.timer no longer schedules the signed-origin audit.")
 
 
 # ── Every action Mo AI PROMISES gets a Run button ─────────────────────────────
@@ -5638,6 +5648,12 @@ require(re.search(r"90-moos-hardware\.conf.*?sysctl --system", _hw, re.DOTALL) i
 
 # #8 Fast Remote must restore the CAPTURED layout on off, not a hard-coded country.
 _fr = code(read("system_files/usr/bin/moos-fast-remote"), "hash")
+require("XDG_STATE_HOME" in _fr and "XDG_RUNTIME_DIR" not in _fr.split("STATE=", 1)[0],
+        "Fast Remote changes persistent KConfig, so its recovery journal must survive reboot")
+_fr_recover = read("system_files/etc/xdg/autostart/org.moos.fastremote-recover.desktop")
+require("Exec=/usr/bin/moos-fast-remote recover" in _fr_recover
+        and "X-KDE-autostart-phase=2" in _fr_recover,
+        "a crash/reboot during Fast Remote must restore the exact prior appearance at login")
 require("set_layout de" not in _fr,
         "Fast Remote off must not restore a hard-coded 'de' layout")
 require("prevlayout" in _fr and "set_layout_idx" in _fr,
@@ -5816,11 +5832,14 @@ require(_m is not None and int(_m.group(1)) >= 150,
 # The published qcow2 is a downloadable disk, so it must never contain a
 # repository-known credential. CI substitutes a random value in a private temp file.
 _bib = read("bib/config.toml")
-require("__MOOS_CI_RANDOM_PASSWORD__" in _bib and "moostest2026" not in _bib,
-        "bib/config.toml must contain only the CI-random password placeholder")
+require("__MOOS_CI_RANDOM_PASSWORD__" in _bib
+        and "__MOOS_CI_SSH_PUBLIC_KEY__" in _bib
+        and "moostest2026" not in _bib,
+        "bib/config.toml must contain only CI-random credential placeholders")
 require("openssl rand -hex" in disk_workflow
+        and "ssh-keygen -q -t ed25519" in disk_workflow
         and "/tmp/moos-bib-config.toml:/config.toml:ro" in disk_workflow,
-        "build-disk.yml must inject a fresh private password before publishing qcow2")
+        "build-disk.yml must inject fresh disposable credentials before publishing qcow2")
 
 # Welcome is the one live-session landing surface, hands off to the unique
 # installer without leaving two wizard windows stacked, and returns once on the
@@ -5972,7 +5991,8 @@ _isoyml = read(".github/workflows/build-iso.yml")
 require("containers-storage:[overlay@" in _isoyml and "image exists" in _isoyml,
         "build-iso.yml must embed the MoOS image into the live ISO's containers-storage and verify it")
 require(
-    'offline_ref="$(sudo tr -d' in _isoyml
+    'offline_ref="$(sudo cat ' in _isoyml
+    and "| tr -d" in _isoyml
     and '${rootfs}/usr/lib/moos/install-imageref' in _isoyml
     and ']${offline_ref}"' in _isoyml
     and 'image exists "${offline_ref}"' in _isoyml,
@@ -6051,8 +6071,8 @@ for _qml_root in ("system_files/usr/share/moos/apps",
             )
 
 # ── The cloud edition is a third image, not a second project ─────────────────
-# MOOS_CLOUD_PLAN.md §1: moos-cloud shares this tree, these gates and this signing
-# key with the two desktop editions, because a second repository means every fix
+# moos-cloud shares this tree, these gates and this signing key with the two
+# desktop editions, because a second repository means every fix
 # gets made twice or forgotten once. That only holds if the wiring is actually
 # there — a build recipe nobody can run and a matrix row that does not exist are
 # how a "third edition" quietly becomes documentation.
@@ -6177,6 +6197,9 @@ _FLUTTER_TO_DART = {
     "3.44.8": (3, 12, 2),
 }
 _containerfile = read("Containerfile")
+require("flutter analyze --no-fatal-infos" in _containerfile
+        and "flutter test" in _containerfile,
+        "the release image must run MoPlayer analysis and tests before building the bundle")
 _flutter_pin = re.search(r"ARG FLUTTER_VERSION=([0-9.]+)", _containerfile)
 require(_flutter_pin is not None,
         "the Containerfile must pin FLUTTER_VERSION — an unpinned SDK builds a "
@@ -6204,6 +6227,9 @@ if _flutter_pin:
 # (The theme-safety and UI2 gates already run transitively via this file's own
 # subprocess invocations above, so they are wired — no separate build.yml entry.)
 _byml = read(".github/workflows/build.yml")
+require("npm test" in _byml
+        and "tests/bundle-freshness.test.ts" in _byml,
+        "build.yml must run the complete Mo PC Remote controller suite and the shipped-bundle gate")
 require("cosign verify --key cosign.pub" in _byml,
         "build.yml must verify the signature against the OS-enforced public key")
 

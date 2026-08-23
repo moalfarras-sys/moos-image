@@ -195,6 +195,8 @@ def main() -> None:
             "moos-hardware-adapt is missing or not executable")
     require((ROOT / "usr/lib/systemd/system/moos-hardware-adapt.service").is_file(),
             "moos-hardware-adapt.service is missing")
+    require((ROOT / "usr/lib/systemd/system/moos-hardware-adapt.timer").is_file(),
+            "moos-hardware-adapt.timer is missing")
     hw_text = hw.read_text(encoding="utf-8")
     # The dangerous operations must not appear as ACTIONS. `fwupdmgr update -y`
     # would auto-apply firmware (brick risk); the service may only refresh
@@ -207,6 +209,8 @@ def main() -> None:
     # boot no-ops — the fstab-sanitize discipline.
     require("hardware-adapt.state" in hw_text or "MOOS_HW_STATE" in hw_text,
             "moos-hardware-adapt must be idempotent via a versioned state file")
+    require("tuned-adm profile" not in hw_text,
+            "moos-hardware-adapt must not overwrite the user's selected power profile")
 
     # The MoOS theme FAMILY. One design engine (UI2), several MoOS-branded looks the user picks
     # between — Graphite (dark) and Tidal (light) are the base pair; Nova/Amethyst/Midnight/Aurora

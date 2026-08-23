@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "edition": "moos-arm",
+  "repository": "ghcr.io/moalfarras-sys/moos-arm",
+  "digest": "sha256:e1ace22c3a6a207f2bcd3507fe98f2071bdb9a9d6bd3bfbf7de03e1d0de28601",
+  "product_sha": "196f8679",
+  "note": "Updated by release engineer when a new signed ARM candidate is boot-proven"
+}
