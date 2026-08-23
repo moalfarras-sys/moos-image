@@ -5,9 +5,11 @@ When documentation disagrees with a running machine, a freshly booted artifact,
 or current source, those stronger forms of evidence win.
 
 Last reconciled: 2026-08-23 on `fix/release-trust-boot-20260820` (PR #60).
-Container freeze revision (signed image digests below):
-`70aff7a9235f8e8e641b635dce45ed3f073c9653`.
-Branch tip (gates/docs only after that freeze): see `git rev-parse HEAD`.
+**Release freeze SHA (product):** `e9292c01d45a28ff7cac1183957c291fff3d3648`
+(zram persist-only first boot, NVIDIA/cloud greeter GL fallback).
+Prior signed candidates from `70aff7a9` are superseded — do not mix digests.
+
+Image build in flight: workflow `32627509922` from this SHA.
 
 ## Running development host
 
@@ -55,16 +57,17 @@ production promote remains main-push-only and has **not** run.
 
 ### Not proven / blockers
 
-- **x86 QCOW2** on freeze digests (runs `32622079477` / `80738` / `81785`):
-  - `moos`: reached greeter/network/origin then `runtime-gate=failed-system-unit`
-    (`system-state=degraded`). Unit names were not captured; diagnostic dump
-    added and re-run as `32624318835`.
-  - `moos-nvidia` / `moos-cloud`: `runtime-gate=greeter-kwin` (plasmalogin
-    resolves; `kwin_wayland` for that UID is not running).
+- **x86 QCOW2** on prior freeze digests (`70aff7a9`, runs `32622079477` / `80738` /
+  `81785`) failed as documented below. **Product fixes landed in `e9292c01`:**
+  - `moos`: `failed-system-unit` (3 units — zram restart storm from
+    `moos-hardware-adapt` on first boot; fixed by persist-only tier apply).
+  - `moos-nvidia` / `moos-cloud`: `greeter-kwin` (no `kwin_wayland` for
+    plasmalogin on GPU-less TCG; fixed by software-GL fallback).
+  New signed candidates + disk proofs must run from `e9292c01` only.
 - **Final ISO** (`32622082711`): `live-runtime-gate=stable-desktop`,
   `theme-marker=missing`. Live services were active, but the theme stamp never
   appeared; late journal shows plasmashell/kded stop-timeouts and drkonqi
-  coredumps under TCG. Not an install proof yet.
+  coredumps under TCG. Re-proof after the new image build.
 - **ARM visual**: runtime two-boot proof healthy for
   `moos-arm@sha256:1abe212f…`, but the uploaded frame is near-black with cursor
   only (stddev ≈ 0.011). Gate now wakes PLM and rejects stddev &lt; 0.02
