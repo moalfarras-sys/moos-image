@@ -548,7 +548,7 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
             "plasmalogin.service",
             "getent passwd plasmalogin",
             'pgrep -u "$login_uid" -x kwin_wayland',
-            "systemctl --failed --no-legend --plain",
+            "systemctl list-units --state=failed --full --no-pager --no-legend",
             "greeter-processes:",
             "display-manager-journal:",
             "/dev/dri/card*",

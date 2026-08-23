@@ -314,8 +314,25 @@ gate_fail() {
     printf 'root-mount=%s\n' "$(findmnt -n -o SOURCE,FSTYPE / 2>/dev/null || true)" >&2
     printf 'booted-origin=%s\n' "$(deployed_origin 2>/dev/null || true)" >&2
     printf '%s\n' 'failed-units:' >&2
-    systemctl --failed --no-legend --plain 2>/dev/null >&2 || true
+    # Prefer list-units: --failed --plain can print nothing on some systemd
+    # builds even when NFailedUnits > 0 (observed on freeze CI).
+    systemctl list-units --state=failed --full --no-pager --no-legend 2>/dev/null >&2 || true
+    printf '%s\n' 'failed-unit-details:' >&2
+    systemctl list-units --state=failed --full --no-pager --no-legend --output=json 2>/dev/null \
+        | python3 -c 'import json,sys
+try:
+    units=json.load(sys.stdin)
+except Exception:
+    raise SystemExit(0)
+for u in units:
+    print(u.get("unit") or u.get("Unit") or u)' 2>/dev/null >&2 || true
+    if [ -d /run/systemd/failed ]; then
+        printf 'failed-unit-files=%s\n' "$(ls -1 /run/systemd/failed 2>/dev/null | tr '\n' ' ')" >&2
+    fi
     printf 'n-failed-units=%s\n' "$(systemctl show -p NFailedUnits --value 2>/dev/null || true)" >&2
+    printf '%s\n' 'failed-unit-journal:' >&2
+    journalctl -b -p warning --no-pager -n 80 2>/dev/null \
+        | grep -E 'Failed|failed|zram|hardware-adapt|swap|start-limit' | tail -40 >&2 || true
     if [ -n "${login_uid:-}" ]; then
         printf 'greeter-uid=%s\n' "$login_uid" >&2
         printf '%s\n' 'greeter-processes:' >&2
