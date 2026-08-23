@@ -480,8 +480,8 @@ class ArmEditionTests(unittest.TestCase):
         self.assertIn("QEMU Virtio Tablet", runtime_gate)
         self.assertIn("interactive_input=virtio-keyboard+tablet", runtime_gate)
         self.assertIn("touch '$continue_file'", boot_gate)
-        self.assertIn("-display none", boot_gate,
-                      "CI must retain its deterministic headless mode")
+        self.assertIn("-display egl-headless", boot_gate,
+                      "CI must use egl-headless so virtio-gpu screendumps are not flat black")
         self.assertIn("sendkey shift", boot_gate,
                       "ARM visual proof must wake the idle Plasma Login Manager "
                       "before capturing the greeter")

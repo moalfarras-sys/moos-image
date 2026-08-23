@@ -23,7 +23,7 @@ runtime_gate="$script_dir/verify_arm_runtime.sh"
 display_backend="${MOOS_ARM_DISPLAY:-none}"
 visual_hold="${MOOS_ARM_VISUAL_HOLD:-0}"
 case "$display_backend" in
-    none) qemu_display=( -display none ) ;;
+    none) qemu_display=( -display egl-headless ) ;;
     gtk)
         [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ] || {
             echo "ARM BOOT FATAL: GTK visual mode needs a graphical host session" >&2
@@ -267,9 +267,11 @@ for _ in $(seq 1 60); do [ -S "$monitor" ] && break; sleep 0.25; done
 # as false visual proof for freeze 70aff7a9. Wake the greeter the same way the
 # UTM interactive gate does, then reject flat captures.
 printf 'sendkey shift\n' | socat - UNIX-CONNECT:"$monitor" >/dev/null
-sleep 2
+printf 'sendkey spc\n' | socat - UNIX-CONNECT:"$monitor" >/dev/null
+sleep 5
 guest_png="$work/graphical-guest.png"
-if "${ssh_base[@]}" sudo bash -s -- "$guest_png" <<'EOS' >/dev/null 2>&1; then
+guest_capture_ok=0
+if "${ssh_base[@]}" sudo bash -s -- "$guest_png" <<'EOS'
 set -euo pipefail
 out=$1
 uid=$(id -u plasmalogin)
@@ -279,18 +281,36 @@ if [ -d "$runtime" ]; then
     socket=$(find "$runtime" -maxdepth 1 -name 'wayland-*' -type s | head -1)
 fi
 [ -n "$socket" ] || socket=$(find /run/plasmalogin -name 'wayland-*' -type s 2>/dev/null | head -1)
-[ -n "$socket" ] || exit 1
+[ -n "$socket" ] || { echo "NO_WL_SOCKET"; exit 1; }
 export WAYLAND_DISPLAY="${socket##*/}"
 export XDG_RUNTIME_DIR="$(dirname "$socket")"
-pgrep -u plasmalogin -x kwin_wayland >/dev/null || exit 1
-command -v grim >/dev/null 2>&1 || exit 1
-runuser -u plasmalogin -- env WAYLAND_DISPLAY="$WAYLAND_DISPLAY" XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" \
-    grim "$out"
+pgrep -u plasmalogin -x kwin_wayland >/dev/null || { echo "NO_KWIN"; exit 1; }
+if command -v grim >/dev/null 2>&1; then
+    runuser -u plasmalogin -- env WAYLAND_DISPLAY="$WAYLAND_DISPLAY" XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" \
+        grim "$out"
+elif command -v spectacle >/dev/null 2>&1; then
+    runuser -u plasmalogin -- env WAYLAND_DISPLAY="$WAYLAND_DISPLAY" XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" \
+        spectacle -b -n -o "$out"
+else
+    echo "NO_CAPTURE_TOOL"; exit 1
+fi
 [ -s "$out" ]
 EOS
+then
+    guest_capture_ok=1
     cp "$guest_png" "$evidence/graphical-guest.png"
     convert "$guest_png" "$evidence/graphical.png"
 else
+    "${ssh_base[@]}" sudo bash -s <<'EOS' >"$evidence/graphical-guest-diagnostics.txt" 2>&1 || true
+set -x
+id plasmalogin || true
+ls -la /run/user/"$(id -u plasmalogin)" 2>/dev/null || true
+ls -la /run/plasmalogin 2>/dev/null || true
+pgrep -a -u plasmalogin || true
+command -v grim spectacle || true
+EOS
+fi
+if [ "$guest_capture_ok" -eq 0 ]; then
     printf 'screendump %s\n' "$screenshot" | socat - UNIX-CONNECT:"$monitor" >/dev/null
     [ -s "$screenshot" ] || { echo "ARM BOOT FATAL: graphical screendump is empty" >&2; exit 1; }
     convert "$screenshot" "$evidence/graphical.png"
