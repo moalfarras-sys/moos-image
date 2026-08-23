@@ -10,6 +10,7 @@ Before=local-fs-pre.target
 
 [Service]
 Type=oneshot
+TimeoutStartSec=120
 ExecStart=/usr/libexec/moos-arm-block-coldplug
 RemainAfterExit=yes
 

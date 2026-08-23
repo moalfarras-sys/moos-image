@@ -15,19 +15,31 @@ set -euo pipefail
 udevadm trigger --type=devices --subsystem-match=block --action=change \
     --wait-daemon=30 --settle
 
-missing=0
-while read -r spec where _rest; do
-    case "$where" in /boot|/boot/efi) ;; *) continue ;; esac
-    case "$spec" in
-        UUID=*) link="/dev/disk/by-uuid/${spec#UUID=}" ;;
-        PARTUUID=*) link="/dev/disk/by-partuuid/${spec#PARTUUID=}" ;;
-        /dev/disk/by-uuid/*|/dev/disk/by-partuuid/*) link="$spec" ;;
-        *) continue ;;
-    esac
-    if [ ! -e "$link" ]; then
-        printf 'moos-arm-block-coldplug: %s still lacks %s\n' "$where" "$link" >&2
-        missing=1
-    fi
-done < /etc/fstab
+check_links() {
+    local missing=0 spec where _rest link
+    while read -r spec where _rest; do
+        case "$where" in /boot|/boot/efi) ;; *) continue ;; esac
+        case "$spec" in
+            UUID=*) link="/dev/disk/by-uuid/${spec#UUID=}" ;;
+            PARTUUID=*) link="/dev/disk/by-partuuid/${spec#PARTUUID=}" ;;
+            /dev/disk/by-uuid/*|/dev/disk/by-partuuid/*) link="$spec" ;;
+            *) continue ;;
+        esac
+        if [ ! -e "$link" ]; then
+            printf 'moos-arm-block-coldplug: %s still lacks %s\n' "$where" "$link" >&2
+            missing=1
+        fi
+    done < /etc/fstab
+    return "$missing"
+}
 
-[ "$missing" -eq 0 ]
+if check_links; then
+    exit 0
+fi
+
+# Slow virt disks can miss the first change event window (QEMU boot proof saw
+# dev-disk-by-uuid units hit the 45s default before links existed).
+udevadm trigger --type=devices --subsystem-match=block --action=change \
+    --wait-daemon=30 --settle
+sleep 2
+check_links
