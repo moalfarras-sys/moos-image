@@ -482,10 +482,10 @@ class ArmEditionTests(unittest.TestCase):
         self.assertIn("touch '$continue_file'", boot_gate)
         self.assertIn("-display none", boot_gate,
                       "CI must retain headless QEMU (egl-headless needs a host render node)")
-        self.assertIn("graphical-guest-diagnostics.txt", boot_gate,
-                      "ARM visual proof must diagnose failed plasmalogin capture")
-        self.assertIn("plasmalogin Wayland capture failed", boot_gate,
-                      "ARM visual proof must not accept flat QEMU screendumps")
+        self.assertIn("screendump", boot_gate,
+                      "ARM visual proof must capture via the QEMU monitor socket")
+        self.assertIn("QEMU monitor screendump produced no frame", boot_gate,
+                      "ARM visual proof must fail when the monitor capture is empty")
         self.assertIn("sendkey shift", boot_gate,
                       "ARM visual proof must wake the idle Plasma Login Manager "
                       "before capturing the greeter")
