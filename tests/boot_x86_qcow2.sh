@@ -333,7 +333,11 @@ account_path="$(busctl call org.freedesktop.Accounts \
     /org/freedesktop/Accounts org.freedesktop.Accounts FindUserByName s mo)"
 [[ "$account_path" == *"/org/freedesktop/Accounts/User"* ]] || gate_fail accounts-service-user
 compgen -G "/dev/dri/card*" >/dev/null || gate_fail drm-device
-login_uid="$(awk -F: '$1 == "plasmalogin" {print $3}' /etc/passwd)"
+# plasma-login-manager declares its greeter through systemd-sysusers.  On a
+# fresh bootc deployment nss-systemd resolves that account even when it has no
+# literal entry in /etc/passwd, so reading the file directly rejects a real,
+# running greeter.  Query NSS, which is also what the service stack uses.
+login_uid="$(getent passwd plasmalogin | cut -d: -f3)"
 [ -n "$login_uid" ] || gate_fail greeter-user
 pgrep -u "$login_uid" -x kwin_wayland >/dev/null || gate_fail greeter-kwin
 ipv4="$(ip -4 -o addr show scope global)"

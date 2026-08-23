@@ -546,6 +546,7 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
             "/run/ostree-booted",
             "rd.live.image",
             "plasmalogin.service",
+            "getent passwd plasmalogin",
             'pgrep -u "$login_uid" -x kwin_wayland',
             "/dev/dri/card*",
             "origin-digest",
