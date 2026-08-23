@@ -4,94 +4,71 @@ This file is current state, not session history. Git history owns the history.
 When documentation disagrees with a running machine, a freshly booted artifact,
 or current source, those stronger forms of evidence win.
 
-Last reconciled: 2026-08-23 on `fix/release-trust-boot-20260820` (PR #60).
-**Priority pivot:** UTM iPhone Net Installer (`MoOS-UTM-Installer.utm.zip`).
-Oracle capacity work **paused** (A1 host pool dry in Frankfurt).
+Last reconciled: **2026-08-23** after merge of PR #60 into `main`.
+Full session narrative: [`docs/CHECKPOINT-2026-08-23-UTM-INSTALLER-SESSION.md`](docs/CHECKPOINT-2026-08-23-UTM-INSTALLER-SESSION.md)
 
-## UTM Net Installer (current mission)
+---
+
+## Where we are (one paragraph)
+
+Work pivoted from Oracle (paused) to a **UTM iPhone net installer**
+(`MoOS-UTM-Installer.utm.zip`). The branch was **merged to `main`** at owner
+request to stabilize the repo. A CI-built zip (1.5 GB) was delivered to the
+owner's Desktop. **Real iPhone test FAILED:** boot showed **Fedora** branding —
+an identity violation. The recovery installer is **fedora-bootc-based** with
+minimal `os-release` patching only; it does **not** pass full MoOS identity
+scrub. Net-install E2E and iPhone PASS remain **open**.
+
+---
+
+## UTM iPhone net installer
 
 | Item | Status |
 |---|---|
-| Slim recovery image (`Containerfile.arm-recovery`) | **Added** — not full desktop |
-| Installer menu + cosign + bootc net install | **Added** |
-| Old full-QCOW2-as-installer bundle | **SUPERSEDED / FAILED on real iPhone** |
-| `MoOS-UTM-Installer.utm.zip` deliverable | **READY FOR OWNER TEST** — CI run `32655458877`, 1.5 GB, SHA256 `21cfe0f2…` |
-| Local TCG menu boot test | **IN PROGRESS** (host lacks native qemu; container test running) |
-| Physical iPhone test | **OWNER TEST REQUIRED** |
+| Slim recovery (`Containerfile.arm-recovery`) | **In `main`** — Fedora bootc base + installer tools |
+| Menu + cosign + `bootc install` scripts | **In `main`** |
+| Old full-QCOW2-in-zip bundle | **SUPERSEDED / FAILED** (real iPhone + fstab flood) |
+| `MoOS-UTM-Installer.utm.zip` (CI `32655458877`) | **Built & delivered** — SHA256 `21cfe0f2…`, 1.5 GB |
+| Recovery identity (no Fedora on screen) | **NOT DONE** — owner rejected Fedora on boot |
+| Local TCG menu test (x86 emulation) | **FAIL** — menu not seen in 600s |
+| iPhone physical test | **FAIL** — Fedora visible at boot; full flow not proven |
+| Net install → target disk → MoOS greeter | **NOT PROVEN** |
 
-Install source: `ghcr.io/moalfarras-sys/moos-arm@sha256:e1ace22c…` (manifest
-`release/arm-latest.json` @ product `196f8679`).
+Install source (manifest): `ghcr.io/moalfarras-sys/moos-arm@sha256:e1ace22c3a6a207f2bcd3507fe98f2071bdb9a9d6bd3bfbf7de03e1d0de28601`
+(`release/arm-latest.json`, product `196f8679`).
+
+Owner deliverable path: `/var/home/moos/Desktop/MoOS-Release/MoOS-UTM-Installer.utm.zip`
+
+---
 
 ## Oracle (paused)
 
-Capacity watcher stopped. Frankfurt A1 `OUT_OF_HOST_CAPACITY` on official
-capacity report API. Not a MoOS/quota issue.
+Frankfurt A1 `OUT_OF_HOST_CAPACITY`. Watcher stopped. Not a MoOS quota issue.
+See Desktop `ORACLE-BLOCKER.txt` if present.
+
+---
+
+## PR #60 — merged
+
+Branch `fix/release-trust-boot-20260820` merged into `main` on **2026-08-23**
+(owner directive: stop work, merge, document, push).
+
+Includes: release-trust fixes, ARM boot proof gates, UTM net installer pipeline,
+`Containerfile.arm-recovery`, CI reorder (UTM zip before visual gate).
+
+**Merge does not mean:** iPhone PASS, recovery identity clean, tag promotion, or
+host update to a new digest.
+
+---
 
 ## Running development host
 
 - Booted signed `moos-nvidia` `44.20260821.632`, digest
   `sha256:ef3b4ea72568e76a47b2b617c11ba594b93908e68c92647c7e6e5a831bc7adab`.
-- Staged (not yet rebooted) `44.20260822.633`, digest
-  `sha256:525ba286c317c6c5d863bba0e5a5aa2c09d89df8f1b68880e2911b591beb3de9`.
-  That staged digest is **not** the frozen PR #60 candidate; do not reboot onto
-  it for this release mission.
-- Rollback retained: `44.20260820.617`
-  (`sha256:1d9dd510f92fa906aa3a48eba0f83584417cbfb39c540db3352611cba722d1a5`).
-- Hardware baseline: x86_64, kernel 7.1.8, NVIDIA RTX 2080 SUPER (driver
-  610.57.04), Wayland session active, Wi-Fi connected, system and user failed
-  unit sets empty at reconciliation.
-- Do not update or reboot this machine onto a release digest until that exact
-  signed candidate's QCOW2/ISO boots are proven and rollback is rechecked.
+- Staged (not rebooted) `44.20260822.633` — **not** the UTM mission digest.
+- Do not reboot onto unstaged/unproven digests for release work.
 
-## Frozen candidate (PR #60)
-
-Branch tip and remote HEAD are identical; working tree clean.
-
-| Edition | Digest | Image workflow |
-|---|---|---|
-| `moos` | `sha256:87dcf9e6d8666e3eac7aeed69ec31035248c90534f82132e2afabcd7537e1342` | `32615972889` |
-| `moos-nvidia` | `sha256:ab0c35a81f7941993331cd84ac8a85921637607f50ed99b905e2365098c3be22` | `32615972889` |
-| `moos-cloud` | `sha256:652981fe41d696d391b768e2948b55a60c593b54b348749eff6b16d3c334ed12` | `32615972889` |
-| `moos-arm` | `sha256:1abe212f5eca6e3182ad47d5a254f541da63eec1c05cc96f69418f7d709aae87` | `32615974079` |
-
-Candidate tags are run-scoped (`candidate-32615972889-70aff7a9…`). ARM
-production promote remains main-push-only and has **not** run.
-
-### Proven for this freeze
-
-- Signed x86 generic/NVIDIA/cloud images built and cosign-verified from the
-  freeze SHA.
-- ARM image + QCOW2 + UTM package from workflow `32615974079`:
-  two-boot runtime proof healthy, poweroff clean, zero failed units,
-  signed origin matches, UTM `Data/moos-arm.qcow2` sha256 equals
-  `boot_proven_raw_qcow2_sha256`
-  (`fb5c465fc25282665d682657a862f059e9a40031665f6123451fd657e9a434bb`).
-- Local `~/Desktop/MoOS-Release/` currently holds matching
-  `MoOS-ARM64.qcow2.zst`, `MoOS-ARM.utm.zip`, and `MoOS-ARM-iPhone.utm.zip`
-  (the iPhone zip is byte-identical to `MoOS-ARM.utm.zip` by design — one
-  bundle for Apple silicon and UTM SE).
-
-### Not proven / blockers
-
-- **x86 QCOW2** on prior freeze digests (`70aff7a9`, runs `32622079477` / `80738` /
-  `81785`) failed as documented below. **Product fixes landed in `e9292c01`:**
-  - `moos`: `failed-system-unit` (3 units — zram restart storm from
-    `moos-hardware-adapt` on first boot; fixed by persist-only tier apply).
-  - `moos-nvidia` / `moos-cloud`: `greeter-kwin` (no `kwin_wayland` for
-    plasmalogin on GPU-less TCG; fixed by software-GL fallback).
-  New signed candidates + disk proofs must run from `e9292c01` only.
-- **Final ISO** (`32622082711`): `live-runtime-gate=stable-desktop`,
-  `theme-marker=missing`. Live services were active, but the theme stamp never
-  appeared; late journal shows plasmashell/kded stop-timeouts and drkonqi
-  coredumps under TCG. Re-proof after the new image build.
-- **ARM visual**: runtime two-boot proof healthy for
-  `moos-arm@sha256:1abe212f…`, but the uploaded frame is near-black with cursor
-  only (stddev ≈ 0.011). Gate now wakes PLM and rejects stddev &lt; 0.02
-  (`2656d159`). A new ARM disk proof must produce a real greeter frame.
-- PR #60 must not merge until disk+ISO proofs pass. `claude-review` failure is
-  tooling noise, not the release gate.
-- Host is not on the frozen NVIDIA digest; staged `.633` must not be confused
-  with freeze candidate `ab0c35a8…`.
+---
 
 ## One authority per responsibility
 
@@ -99,56 +76,36 @@ production promote remains main-push-only and has **not** run.
 |---|---|---|---|
 | OS image update | `moos-image-update` | bootc/OSTree deployment + signed origin | release gates, post-update check |
 | Rollback | bootc/rpm-ostree | previous signed deployment | live deployment inspection |
-| Image identity | `build.sh` / `finalize_moos_desktop.sh` | final image filesystem | three identity firewalls |
+| Image identity | `build.sh` / finalize scripts | final image filesystem | three identity firewalls |
 | Theme selection | `moos-theme` → `moos-apply-theme` | user KConfig/GSettings | live readback + UI gates |
 | Hardware policy | `moos-device-plan` + `moos-hardware-adapt` | `/etc/moos` state | fixtures + live journal/readback |
-| Kernel policy | MoKernel config/kargs/sysctl layer | running kernel values | runtime checks; no custom kernel fork |
-| Mo AI config | `moai-agent-api` / OpenClaw config | user OpenClaw state | loopback API and route tests |
-| Mo AI chat | `moai-gateway` | selected local/cloud backend | real response + service status |
-| Mo PC Remote | `mo-remote-personal.service` | bound runtime endpoint | UI/status/port/process proof |
-| Store installs | `moos-storectl` behind private QML bridge | per-user job state | catalogue/bridge tests |
-| Disk installation | `moos-install-to-disk` | target disk + first-boot recipe | final-ISO install gate |
-| ARM remote desktop | `moos-arm-remote` | KRDP user unit/config | opt-in runtime proof |
+| UTM net install | `moos-utm-installer-menu` + `moos-utm-net-install` | recovery disk only | cosign + bootc; **identity scrub missing on recovery** |
+| Disk installation | `moos-install-to-disk` / bootc | target disk | ARM net install path unproven E2E |
+
+---
 
 ## Load-bearing release contracts
 
-- Never weaken `verify_identity.py`, `verify_image_experience.py`, or
-  `verify_no_foreign_identity.py`; repair the final image.
-- Generic and NVIDIA share one current base. NVIDIA is layered and its exact
-  kernel module must be present in initramfs.
-- `ostree` must be present in every deployed initramfs.
-- Published tags move only after the exact candidate artifact boots and the
-  immutable digest is cosign-verified.
-- ARM release packaging consumes the same QCOW2 hash that passed two-boot proof.
-- The ISO source is an official signed digest and the installed origin is
-  rewritten to `ostree-image-signed:` before the installer reports success.
-- `/` is composefs on an installed bootc system; disk capacity is measured from
-  `/sysroot`/`/var`, never from `/`.
-- `/var` must be empty in the image and `bootc container lint` is a release gate.
+- Never weaken identity gates; repair the image scrub.
+- **`/etc/os-release` patch alone is not MoOS identity** — recovery must be fixed.
+- Published tags move only after boot-proven artifacts.
+- `/var` empty in image; `bootc container lint` is a gate.
+
+---
 
 ## Still unproven
 
-- PR #60 is not merged; `main` is 68 commits behind this branch tip.
-- x86 QCOW2 and ISO install proofs for the freeze digests are in flight /
-  not yet green.
-- ARM greeter/desktop has runtime health but not an accepted visual frame.
-- `MoOS-ARM.utm.zip` has not been imported on the owner's iPhone/iPad
-  (OWNER-DEVICE-TEST-REQUIRED).
-- No OCI Ampere instance from this disk (READY-BUT-NOT-DEPLOYED until
-  credentials/quota allow).
-- Real-host update to frozen `moos-nvidia` digest, suspend/resume, second
-  reboot and rollback exercise remain open.
-- Full clean-VM visual matrix (1080p/1440p/4K × scale × EN/DE/AR × dark/light)
-  remains incomplete.
+- Recovery installer without foreign branding (Fedora on boot = blocker).
+- iPhone UTM net install full path (download → install → boot target → greeter).
+- ARM greeter visual frame in CI (stddev gate often skipped for delivery).
+- x86 QCOW2/ISO proofs for freeze digests (parallel track on PR #60 scope).
+- Real-host update, rollback exercise, clean-VM visual matrix.
+
+---
 
 ## Next safe order
 
-1. Wait for freeze disk+ISO workflow results; if red, fix the reproduced
-   runtime failure, checkpoint, rebuild only what changed.
-2. Accept ARM only after a non-blank greeter/desktop frame (wake/capture or
-   real login path) on the same QCOW2 hash.
-3. Assemble `~/Desktop/MoOS-Release/` with ISO, checksums, manifest and
-   install README once artifacts exist.
-4. Merge PR #60 only for this exact proven tree; promote signed tags; stage
-   the matching NVIDIA digest with rollback intact; reboot and live-prove
-   the physical host.
+1. **Recovery identity scrub** — Plymouth, logos, os-release, foreign sweep; gate it.
+2. Rebuild `MoOS-UTM-Installer.utm.zip` from CI; owner re-tests iPhone.
+3. Prove net install E2E (target disk boot, no fstab flood, greeter).
+4. Only then: promote ARM tags / host update if applicable.
