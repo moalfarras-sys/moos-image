@@ -12,8 +12,8 @@ mkdir -p "$OUT_DIR" "$BUILD_DIR/output" "$BUILD_DIR/config"
 
 echo "=== Building recovery container ($PLATFORM) ==="
 podman build --platform "$PLATFORM" -f "$ROOT/Containerfile.arm-recovery" -t "$RECOVERY_TAG" "$ROOT"
-sudo podman tag "$RECOVERY_TAG" "$RECOVERY_TAG" 2>/dev/null || \
-    sudo podman tag "localhost/${RECOVERY_TAG}" "$RECOVERY_TAG"
+podman save -o /var/tmp/moos-recovery.tar "$RECOVERY_TAG"
+sudo podman load -i /var/tmp/moos-recovery.tar
 
 cat > "$BUILD_DIR/config/config.toml" <<'TOML'
 [[customizations.filesystem]]
