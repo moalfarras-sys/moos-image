@@ -216,6 +216,14 @@ systemctl disable bootc-fetch-apply-updates.timer 2>/dev/null || true
 systemctl enable --force plasmalogin.service
 systemctl set-default graphical.target
 
+# QEMU virtio-gpu proof VMs need software GL for plasmalogin's KWin. Without it
+# runtime reports graphical=active while screendump stays near-black (~0.011 stddev).
+install -D -m0644 /dev/stdin \
+    /usr/lib/systemd/user/plasma-login-kwin_wayland.service.d/10-moos-arm-greeter-gl.conf <<'GREETERGL'
+[Service]
+Environment=LIBGL_ALWAYS_SOFTWARE=1
+GREETERGL
+
 # Defence in depth around the public cloud VM. SSH is the only service exposed
 # by the image. KRDP remains reachable through an SSH tunnel to localhost; this
 # image never opens 3389 on the host firewall.
@@ -862,6 +870,9 @@ echo "=== initramfs carries OSTree, virtio and the MoOS splash ==="
 # installer and the two intentionally omitted x86 binaries; it does not weaken
 # the shared session, application, logo or theme identity checks.
 echo "=== (9b) finished-image identity gates ==="
+grep -q 'LIBGL_ALWAYS_SOFTWARE=1' \
+    /usr/lib/systemd/user/plasma-login-kwin_wayland.service.d/10-moos-arm-greeter-gl.conf \
+    || { echo "GATE FAIL: ARM login greeter must force software GL for virtio proof VMs"; exit 1; }
 MOOS_IDENTITY_PROFILE=arm-cloud python3 /ctx/verify_identity.py
 python3 /ctx/verify_arm_image.py
 python3 /ctx/verify_no_foreign_identity.py
