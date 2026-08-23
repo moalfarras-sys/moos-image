@@ -118,6 +118,27 @@ systemctl enable NetworkManager.service
 systemctl enable moos-utm-installer.service
 systemctl enable serial-getty@ttyAMA0.service
 
+# ARM block coldplug — same fix as build-arm.sh lines 378-393.
+# Without this, VirtIO disk UUID symlinks aren't published before fstab mount
+# units start. systemd-fstab-generator retries fill the journal, and the boot
+# stalls or floods kmsg — the exact failure observed on real iPhone at ~42s.
+systemctl enable moos-arm-block-coldplug.service
+install -D -m0644 /dev/stdin /etc/systemd/system.conf.d/moos-arm-device-timeout.conf <<'TIMEOUT'
+# Slow aarch64 virt (iPhone TCG/JIT) can take >45s for UUID links to appear
+# after coldplug re-triggers udev. Default 45s device timeout sends the system
+# to emergency mode even when coldplug is actively running.
+[Manager]
+DefaultDeviceTimeoutSec=120
+TIMEOUT
+for _mount in boot.mount boot-efi.mount; do
+    install -D -m0644 /dev/stdin \
+        "/usr/lib/systemd/system/${_mount}.d/moos-arm-coldplug.conf" <<'MOUNT'
+[Unit]
+After=moos-arm-block-coldplug.service
+Requires=moos-arm-block-coldplug.service
+MOUNT
+done
+
 install -D -m0644 /dev/stdin /usr/lib/bootc/kargs.d/50-moos-arm-console.toml <<'KARGS'
 kargs = [
     "console=ttyAMA0,115200n8",
@@ -170,6 +191,19 @@ done
 grep -qx 'NAME="MoOS"' /usr/lib/os-release || { echo "FATAL: os-release NAME is not MoOS"; exit 1; }
 ! grep -qi 'fedora release' /etc/fedora-release 2>/dev/null || {
     echo "FATAL: /etc/fedora-release still names Fedora"
+    exit 1
+}
+# iPhone boot-bug gates: the fstab-generator flood was caused by these being absent.
+[ -f /etc/systemd/system.conf.d/moos-arm-device-timeout.conf ] || {
+    echo "FATAL: ARM device timeout config missing — iPhone boot will flood"
+    exit 1
+}
+grep -q 'DefaultDeviceTimeoutSec=120' /etc/systemd/system.conf.d/moos-arm-device-timeout.conf || {
+    echo "FATAL: device timeout is not 120s"
+    exit 1
+}
+[ -x /usr/libexec/moos-arm-block-coldplug ] || {
+    echo "FATAL: moos-arm-block-coldplug script missing"
     exit 1
 }
 
