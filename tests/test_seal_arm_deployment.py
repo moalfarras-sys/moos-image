@@ -143,18 +143,41 @@ def main() -> int:
         assert run(root, boot, IMAGE, "arm64", True).returncode != 0
 
     cloud_image = "ghcr.io/moalfarras-sys/moos-cloud@" + DIGEST
-    temporary, root, boot, origin, _ = fixture(
+    temporary, root, boot, origin, entry = fixture(
         "ostree-unverified-registry:" + cloud_image,
         options=(
             "root=UUID=x ostree=/ostree/boot.0/default/"
             + "e" * 64
-            + "/0 rhgb quiet splash console=ttyS0"
+            + "/0 video=Virtual-1:1920x1080@60 console=tty0 "
+            "console=ttyS0 console=ttyS0,9600n8"
         ),
     )
     with temporary:
-        result = run(root, boot, cloud_image, "x86_64")
+        deployment = origin.with_suffix("")
+        deployment.mkdir()
+        result = run(root, boot, cloud_image, "x86_64", True)
         assert result.returncode == 0, result.stdout + result.stderr
         assert "container-image-reference=ostree-image-signed:docker://" + cloud_image in origin.read_text()
+        options = entry.read_text(encoding="utf-8")
+        assert "rhgb" not in options and " quiet " not in options and "splash" not in options
+        assert options.count("console=ttyS0,115200n8") == 1
+        assert options.count("moos.ci-runtime-proof=1") == 1
+        assert options.rstrip().endswith("console=tty0")
+        assert (
+            deployment / "etc/systemd/system/multi-user.target.wants/"
+            "moos-ci-runtime-proof.service"
+        ).is_symlink()
+
+    temporary, root, boot, _, _ = fixture(
+        "ostree-unverified-registry:" + cloud_image,
+        options=(
+            "root=UUID=x ostree=/ostree/boot.0/default/"
+            + "8" * 64
+            + "/0 console=ttyS0,115200n8 console=tty0"
+        ),
+    )
+    with temporary:
+        assert run(root, boot, cloud_image, "x86_64").returncode != 0
 
     temporary, root, boot, _, _ = fixture(
         "ostree-unverified-registry:ghcr.io/moalfarras-sys/moos-arm@" + DIGEST,

@@ -90,8 +90,12 @@ def seal_origin(root: Path, expected_image: str) -> Path:
 
 
 def seal_bls(
-    boot: Path, target_arch: str, enable_ci_runtime_proof: bool = False
+    boot: Path,
+    target_arch: str,
+    expected_image: str,
+    enable_ci_runtime_proof: bool = False,
 ) -> list[Path]:
+    cloud_x86 = target_arch == "x86_64" and "/moos-cloud@" in expected_image
     entries = sorted(set(boot.glob("loader*/entries/*.conf")))
     if not entries:
         fail("no deployed BLS entries found")
@@ -105,7 +109,11 @@ def seal_bls(
         ostree_options = [item for item in options if item.startswith("ostree=")]
         if len(ostree_options) != 1 or not OSTREE_KARG.fullmatch(ostree_options[0]):
             fail(f"{entry} does not select exactly one valid OSTree deployment")
+        # BIB injects an x86 serial console for its own diagnostics. Desktop
+        # editions remove it; cloud deliberately owns a serial+tty0 ordering.
         options = [item for item in options if not item.startswith("console=ttyS0")]
+        if enable_ci_runtime_proof and CI_RUNTIME_KARG not in options:
+            options.append(CI_RUNTIME_KARG)
         if target_arch == "arm64":
             # These two latency flags are x86 policy and must not leak into an
             # ARM disk just because its shared image tree contains the source.
@@ -117,18 +125,31 @@ def seal_bls(
                 "quiet",
                 "splash",
             )
+        elif cloud_x86:
+            # Cloud intentionally withdraws Plymouth's rhgb/quiet/splash and
+            # keeps tty0 last so a provider display still has a graphical path.
+            # Rebuild the console pair deterministically after removing BIB's
+            # injected ttyS0 variant above.
+            options = [item for item in options if item != "console=tty0"]
+            options.extend(("console=ttyS0,115200n8", "console=tty0"))
+            required_options = (
+                "console=ttyS0,115200n8",
+                "console=tty0",
+                "video=Virtual-1:1920x1080@60",
+            )
+            for forbidden in ("rhgb", "quiet", "splash"):
+                if forbidden in options:
+                    fail(f"{entry} cloud policy must not contain {forbidden}")
         else:
             # x86 desktop images keep their measured MoKernel policy. BIB may
             # inject a serial console for its own builder diagnostics; remove
             # that release-only leak while preserving the branded splash.
             required_options = ("rhgb", "quiet", "splash")
-            if enable_ci_runtime_proof and CI_RUNTIME_KARG not in options:
-                options.append(CI_RUNTIME_KARG)
         for required in required_options:
             if options.count(required) != 1:
                 fail(f"{entry} must contain exactly one {required}")
         consoles = [item for item in options if item.startswith("console=")]
-        if target_arch == "arm64" and consoles[-1] != "console=tty0":
+        if (target_arch == "arm64" or cloud_x86) and consoles[-1] != "console=tty0":
             fail(f"{entry} does not keep the graphical console primary: {consoles}")
         if enable_ci_runtime_proof and options.count(CI_RUNTIME_KARG) != 1:
             fail(f"{entry} must contain exactly one {CI_RUNTIME_KARG}")
@@ -169,7 +190,12 @@ def main() -> int:
     if args.enable_ci_runtime_proof and args.target_arch != "x86_64":
         fail("the CI runtime proof channel is x86-only")
     origin = seal_origin(args.root, args.expected_image)
-    entries = seal_bls(args.boot, args.target_arch, args.enable_ci_runtime_proof)
+    entries = seal_bls(
+        args.boot,
+        args.target_arch,
+        args.expected_image,
+        args.enable_ci_runtime_proof,
+    )
     proof_link = enable_ci_runtime_proof(origin) if args.enable_ci_runtime_proof else None
     print(
         f"MOOS DISK SEALED ({args.target_arch}): {origin}; "
