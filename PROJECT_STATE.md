@@ -4,8 +4,10 @@ This file is current state, not session history. Git history owns the history.
 When documentation disagrees with a running machine, a freshly booted artifact,
 or current source, those stronger forms of evidence win.
 
-Last reconciled: 2026-08-23 on `fix/release-trust-boot-20260820` (PR #60)
-at exact revision `70aff7a9235f8e8e641b635dce45ed3f073c9653`.
+Last reconciled: 2026-08-23 on `fix/release-trust-boot-20260820` (PR #60).
+Container freeze revision (signed image digests below):
+`70aff7a9235f8e8e641b635dce45ed3f073c9653`.
+Branch tip (gates/docs only after that freeze): see `git rev-parse HEAD`.
 
 ## Running development host
 
@@ -53,21 +55,24 @@ production promote remains main-push-only and has **not** run.
 
 ### Not proven / blockers
 
-- **x86 QCOW2 boot proof** and **final ISO live+install proof** had never
-  succeeded on this freeze. Earlier failures on `d29dd5cf` stopped at
-  `greeter-user` (fixed in `9cca1e0b` by querying NSS for `plasmalogin`) and
-  ISO `stable-desktop`. Fresh proofs were dispatched from the freeze SHA:
-  disk runs `32622079477` / `32622080738` / `32622081785` and ISO
-  `32622082711`.
-- **ARM visual login frame** from the healthy runtime proof is a nearly black
-  1280×800 capture with cursor only (~163 non-black pixels). Runtime says
-  `graphical=active`, but that is **not** accepted as visible MoOS greeter /
-  desktop proof. Owner-device UTM import and OCI Ampere deploy remain open.
-- PR #60 is mergeable but marked UNSTABLE solely because `claude-review`
-  failed (tooling/auth noise, not an image gate). Do not merge until disk+ISO
-  proofs pass on this exact tree.
+- **x86 QCOW2** on freeze digests (runs `32622079477` / `80738` / `81785`):
+  - `moos`: reached greeter/network/origin then `runtime-gate=failed-system-unit`
+    (`system-state=degraded`). Unit names were not captured; diagnostic dump
+    added and re-run as `32624318835`.
+  - `moos-nvidia` / `moos-cloud`: `runtime-gate=greeter-kwin` (plasmalogin
+    resolves; `kwin_wayland` for that UID is not running).
+- **Final ISO** (`32622082711`): `live-runtime-gate=stable-desktop`,
+  `theme-marker=missing`. Live services were active, but the theme stamp never
+  appeared; late journal shows plasmashell/kded stop-timeouts and drkonqi
+  coredumps under TCG. Not an install proof yet.
+- **ARM visual**: runtime two-boot proof healthy for
+  `moos-arm@sha256:1abe212f…`, but the uploaded frame is near-black with cursor
+  only (stddev ≈ 0.011). Gate now wakes PLM and rejects stddev &lt; 0.02
+  (`2656d159`). A new ARM disk proof must produce a real greeter frame.
+- PR #60 must not merge until disk+ISO proofs pass. `claude-review` failure is
+  tooling noise, not the release gate.
 - Host is not on the frozen NVIDIA digest; staged `.633` must not be confused
-  with the freeze candidate `ab0c35a8…`.
+  with freeze candidate `ab0c35a8…`.
 
 ## One authority per responsibility
 
