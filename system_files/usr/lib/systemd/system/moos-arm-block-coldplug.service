@@ -5,8 +5,8 @@ DefaultDependencies=no
 ConditionArchitecture=arm64
 ConditionPathExists=/run/ostree-booted
 Requires=systemd-udevd.service
-After=systemd-udevd.service systemd-udev-trigger.service
-Before=local-fs-pre.target
+After=systemd-udev-trigger.service
+Before=local-fs-pre.target boot.mount boot-efi.mount
 
 [Service]
 Type=oneshot

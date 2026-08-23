@@ -292,8 +292,8 @@ def main() -> None:
     block_unit = block_unit_path.read_text(encoding="utf-8", errors="replace")
     for contract in (
         "ConditionArchitecture=arm64",
-        "After=systemd-udevd.service systemd-udev-trigger.service",
-        "Before=local-fs-pre.target",
+        "After=systemd-udev-trigger.service",
+        "Before=local-fs-pre.target boot.mount boot-efi.mount",
         "ExecStart=/usr/libexec/moos-arm-block-coldplug",
     ):
         require(contract in block_unit, f"ARM block coldplug unit lacks contract: {contract}")

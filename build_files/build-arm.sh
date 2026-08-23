@@ -366,6 +366,21 @@ test -f /usr/lib/systemd/system/bootc-generic-growpart.service || {
 }
 systemctl enable bootc-generic-growpart.service
 systemctl enable moos-arm-block-coldplug.service
+install -D -m0644 /dev/stdin /etc/systemd/system.conf.d/moos-arm-device-timeout.conf <<'TIMEOUT'
+# Slow aarch64 virt (TCG proof VMs) can miss boot-partition UUID links for up
+# to ~60s while moos-arm-block-coldplug republishes them. The default 45s device
+# timeout sent the release gate to emergency mode even when coldplug was running.
+[Manager]
+DefaultDeviceTimeoutSec=120
+TIMEOUT
+for _mount in boot.mount boot-efi.mount; do
+    install -D -m0644 /dev/stdin \
+        "/usr/lib/systemd/system/${_mount}.d/moos-arm-coldplug.conf" <<'MOUNT'
+[Unit]
+After=moos-arm-block-coldplug.service
+Requires=moos-arm-block-coldplug.service
+MOUNT
+done
 systemctl enable moos-cloud-hostname.service
 systemctl enable moos-cloud-account-ready.service
 
@@ -912,6 +927,12 @@ grep -q 'kwin_wayland_wrapper --virtual' \
     || { echo "GATE FAIL: ARM login greeter must use KWin virtual output on virtio"; exit 1; }
 grep -qxF 'vgem' /etc/modules-load.d/moos-arm-vgem.conf \
     || { echo "GATE FAIL: ARM must load vgem for greeter/desktop GL"; exit 1; }
+grep -q 'DefaultDeviceTimeoutSec=120' /etc/systemd/system.conf.d/moos-arm-device-timeout.conf \
+    || { echo "GATE FAIL: ARM must extend device timeout for slow virt boot"; exit 1; }
+grep -q 'Requires=moos-arm-block-coldplug.service' \
+    /usr/lib/systemd/system/boot.mount.d/moos-arm-coldplug.conf \
+    /usr/lib/systemd/system/boot-efi.mount.d/moos-arm-coldplug.conf \
+    || { echo "GATE FAIL: ARM boot mounts must wait for block coldplug"; exit 1; }
 MOOS_IDENTITY_PROFILE=arm-cloud python3 /ctx/verify_identity.py
 python3 /ctx/verify_arm_image.py
 python3 /ctx/verify_no_foreign_identity.py

@@ -192,13 +192,14 @@ class ArmEditionTests(unittest.TestCase):
             self.assertIn(contract, helper)
         for contract in (
             "ConditionArchitecture=arm64",
-            "After=systemd-udevd.service systemd-udev-trigger.service",
-            "Before=local-fs-pre.target",
+            "After=systemd-udev-trigger.service",
+            "Before=local-fs-pre.target boot.mount boot-efi.mount",
             "ExecStart=/usr/libexec/moos-arm-block-coldplug",
         ):
             self.assertIn(contract, unit)
             self.assertIn(contract, verifier)
         self.assertIn("systemctl enable moos-arm-block-coldplug.service", build)
+        self.assertIn("DefaultDeviceTimeoutSec=120", build)
         self.assertIn("moos-arm-block-coldplug.service", verifier)
         self.assertIn("emergency\\.service|emergency\\.target", read(BOOT_GATE))
 
