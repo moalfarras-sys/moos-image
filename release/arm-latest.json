@@ -2,7 +2,7 @@
   "schema": 1,
   "edition": "moos-arm",
   "repository": "ghcr.io/moalfarras-sys/moos-arm",
-  "digest": "sha256:e6eb73d2f449bbfe76d9aa24e3aa88fc933706f1752c1b6c6db78698e81ce090",
-  "product_sha": "f20f677b2af6c5d24b6599e2c1ac813e7ca2c901",
+  "digest": "sha256:e1ace22c3a6a207f2bcd3507fe98f2071bdb9a9d6bd3bfbf7de03e1d0de28601",
+  "product_sha": "196f8679",
   "note": "Updated by release engineer when a new signed ARM candidate is boot-proven"
 }

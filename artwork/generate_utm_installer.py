@@ -60,8 +60,8 @@ def build_config(*, iphone: bool) -> dict:
             "CPU": "default",
             "CPUFlagsAdd": [],
             "CPUFlagsRemove": [],
-            "CPUCount": 4,
-            "MemorySize": 4096,
+            "CPUCount": 2 if iphone else 4,
+            "MemorySize": 3072 if iphone else 4096,
             "JITCacheSize": 0,
             "ForceMulticore": bool(iphone),
         },
@@ -151,8 +151,8 @@ def seed_user_data() -> str:
             "#cloud-config",
             "runcmd:",
             "  - [systemctl, enable, --now, NetworkManager]",
-            "  - [/usr/libexec/moos-utm-net-install]",
-            "final_message: MoOS UTM installer finished — reboot if install succeeded",
+            "  - [systemctl, enable, --now, moos-utm-installer.service]",
+            "final_message: MoOS UTM installer ready — choose Install from the menu",
         ]
     ) + "\n"
 

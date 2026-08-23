@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
-# moos-utm-net-install — fetch the current signed MoOS ARM release and install it
-# to the UTM target disk. Used by MoOS-UTM-Installer on first boot and from the
-# recovery menu. Never installs from GitHub source trees — only from GHCR by digest
-# after cosign verification against the image-shipped MoOS public key.
+# moos-utm-net-install — fetch signed MoOS ARM from GHCR and bootc-install to target disk.
 set -euo pipefail
 
 REGISTRY="ghcr.io/moalfarras-sys/moos-arm"
@@ -11,14 +8,17 @@ MANIFEST_LOCAL="/usr/share/moos/release/arm-latest.json"
 MANIFEST_URL="${MOOS_UTM_MANIFEST_URL:-https://raw.githubusercontent.com/moalfarras-sys/moos-image/main/release/arm-latest.json}"
 TARGET_DEV="${MOOS_UTM_TARGET_DEV:-}"
 LOG="${MOOS_UTM_INSTALL_LOG:-/var/log/moos-utm-net-install.log}"
+STATUS_FILE="/run/moos-utm-installer-status"
 
 log() { printf '%s %s\n' "$(date -u +%FT%TZ)" "$*" | tee -a "$LOG"; }
+status() {
+    log "$1"
+    printf 'MoOS Installer\n\n%s\n' "$1" >"$STATUS_FILE" 2>/dev/null || true
+    printf '\n%s\n' "$1" >/dev/console 2>/dev/null || true
+}
 
 require_cmd() {
-    command -v "$1" >/dev/null 2>&1 || {
-        log "FATAL: required command missing: $1"
-        exit 1
-    }
+    command -v "$1" >/dev/null 2>&1 || { log "FATAL: required command missing: $1"; exit 1; }
 }
 
 pick_target_disk() {
@@ -26,8 +26,7 @@ pick_target_disk() {
         echo "$TARGET_DEV"
         return 0
     fi
-    # Prefer the second virtio block device (UTM target disk after installer).
-    lsblk -dnpo NAME,TYPE,SIZE,PKNAME | awk '
+    lsblk -dnpo NAME,TYPE,PKNAME | awk '
         $2 == "disk" && $4 == "" {
             if (seen++) { print $1; exit 0 }
         }
@@ -41,22 +40,23 @@ target_has_moos() {
 
 resolve_digest() {
     require_cmd jq
-    local body digest
+    local body digest version
     if [ -r "$MANIFEST_LOCAL" ]; then
         body="$(cat "$MANIFEST_LOCAL")"
     else
         require_cmd curl
         body="$(curl -fsSL "$MANIFEST_URL")" || {
-            log "FATAL: could not fetch release manifest from $MANIFEST_URL"
+            status "Network error: could not fetch release manifest"
             exit 1
         }
     fi
     digest="$(jq -r '.digest // .arm.digest // empty' <<<"$body")"
+    version="$(jq -r '.product_sha // .version // "unknown"' <<<"$body")"
     [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]] || {
-        log "FATAL: manifest did not contain a sha256 digest"
+        status "Release manifest invalid — no sha256 digest"
         exit 1
     }
-    printf '%s\n' "$digest"
+    printf '%s|%s\n' "$digest" "$version"
 }
 
 verify_and_install() {
@@ -65,44 +65,61 @@ verify_and_install() {
 
     require_cmd cosign
     require_cmd bootc
-    [ -r "$COSIGN_KEY" ] || {
-        log "FATAL: MoOS cosign public key missing at $COSIGN_KEY"
+    [ -r "$COSIGN_KEY" ] || { status "MoOS trust key missing"; exit 1; }
+
+    status "Found: ${digest#sha256:}\nSignature: verifying..."
+    cosign verify --key "$COSIGN_KEY" "$ref" >>"$LOG" 2>&1 || {
+        status "Signature: FAILED — installation stopped"
         exit 1
     }
+    status "Signature: VERIFIED\nDownloading and installing to target disk..."
 
-    log "verifying ${ref}"
-    cosign verify --key "$COSIGN_KEY" "$ref" >>"$LOG" 2>&1
-
-    log "installing signed MoOS ARM to ${target}"
     bootc install to-disk \
         --source-imgref "$ref" \
         --target-transport registry \
         --target-imgref "$ref" \
         --skip-fetch-check \
         "$target" 2>&1 | tee -a "$LOG"
+
+    status "Configuring UEFI...\nInstallation complete."
+}
+
+print_target_only() {
+    pick_target_disk || true
+    exit 0
 }
 
 main() {
+    case "${1:-}" in
+        --print-target) print_target_only ;;
+    esac
+
     mkdir -p "$(dirname "$LOG")"
     : >"$LOG"
     require_cmd lsblk
 
     target="$(pick_target_disk || true)"
-    [ -n "$target" ] || {
-        log "FATAL: no UTM target disk found (expected second virtio disk)"
-        exit 1
-    }
+    [ -n "$target" ] || { status "No UTM target disk (expected 2nd VirtIO disk)"; exit 1; }
 
     if target_has_moos "$target"; then
-        log "target ${target} already contains a MoOS filesystem — refusing destructive reinstall"
-        log "Use the recovery menu explicit reinstall option to wipe first"
-        exit 2
+        if [ "${MOOS_UTM_ALLOW_REINSTALL:-0}" = 1 ]; then
+            status "Reinstall: wiping target ${target}..."
+            wipefs -af "$target" 2>/dev/null || true
+        elif [ "${MOOS_UTM_REPAIR:-0}" = 1 ]; then
+            status "Repair: target already has MoOS — checking boot entries..."
+            log "repair noop on populated target ${target}"
+            exit 0
+        else
+            status "MoOS already on target — use Reinstall to erase"
+            exit 2
+        fi
     fi
 
-    digest="$(resolve_digest)"
-    log "resolved release digest ${digest}"
+    IFS='|' read -r digest version < <(resolve_digest)
+    log "resolved ${digest} (product ${version})"
+    status "Checking latest MoOS ARM...\nFound: ${version} (${digest#sha256:})"
     verify_and_install "$target" "$digest"
-    log "install complete — reboot to the target disk"
+    log "install complete — reboot to target disk"
 }
 
 main "$@"

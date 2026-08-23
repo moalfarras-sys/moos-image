@@ -5,11 +5,26 @@ When documentation disagrees with a running machine, a freshly booted artifact,
 or current source, those stronger forms of evidence win.
 
 Last reconciled: 2026-08-23 on `fix/release-trust-boot-20260820` (PR #60).
-**Release freeze SHA (product):** `e9292c01d45a28ff7cac1183957c291fff3d3648`
-(zram persist-only first boot, NVIDIA/cloud greeter GL fallback).
-Prior signed candidates from `70aff7a9` are superseded — do not mix digests.
+**Priority pivot:** UTM iPhone Net Installer (`MoOS-UTM-Installer.utm.zip`).
+Oracle capacity work **paused** (A1 host pool dry in Frankfurt).
 
-Image build in flight: workflow `32627509922` from this SHA.
+## UTM Net Installer (current mission)
+
+| Item | Status |
+|---|---|
+| Slim recovery image (`Containerfile.arm-recovery`) | **Added** — not full desktop |
+| Installer menu + cosign + bootc net install | **Added** |
+| Old full-QCOW2-as-installer bundle | **SUPERSEDED / FAILED on real iPhone** |
+| `MoOS-UTM-Installer.utm.zip` deliverable | **BUILD IN PROGRESS** (local + CI) |
+| Physical iPhone test | **OWNER TEST REQUIRED** |
+
+Install source: `ghcr.io/moalfarras-sys/moos-arm@sha256:e1ace22c…` (manifest
+`release/arm-latest.json` @ product `196f8679`).
+
+## Oracle (paused)
+
+Capacity watcher stopped. Frankfurt A1 `OUT_OF_HOST_CAPACITY` on official
+capacity report API. Not a MoOS/quota issue.
 
 ## Running development host
 

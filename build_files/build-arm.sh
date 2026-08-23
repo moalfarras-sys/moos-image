@@ -97,7 +97,7 @@ _PLASMA=(
     # Day-2 updates resolve a mutable release tag to an exact signed digest.
     # fedora-bootc supplies rpm-ostree today, but both tools are explicit product
     # dependencies rather than accidental base-image contents.
-    rpm-ostree skopeo
+    rpm-ostree skopeo cosign
     # Native Mo PC Remote runtime. Encoders are capability-probed and JPEG is
     # the real fallback when a virtual GPU exposes no hardware codec.
     ydotool wl-clipboard grim spectacle python3-websockets poppler-utils qrencode
@@ -933,6 +933,14 @@ grep -q 'Requires=moos-arm-block-coldplug.service' \
     /usr/lib/systemd/system/boot.mount.d/moos-arm-coldplug.conf \
     /usr/lib/systemd/system/boot-efi.mount.d/moos-arm-coldplug.conf \
     || { echo "GATE FAIL: ARM boot mounts must wait for block coldplug"; exit 1; }
+command -v cosign >/dev/null 2>&1 \
+    || { echo "GATE FAIL: cosign must ship for UTM net install"; exit 1; }
+[ -x /usr/libexec/moos-utm-net-install ] \
+    || { echo "GATE FAIL: moos-utm-net-install missing"; exit 1; }
+[ -x /usr/libexec/moos-utm-installer-menu ] \
+    || { echo "GATE FAIL: moos-utm-installer-menu missing"; exit 1; }
+[ -r /usr/share/moos/release/arm-latest.json ] \
+    || { echo "GATE FAIL: arm-latest.json missing"; exit 1; }
 MOOS_IDENTITY_PROFILE=arm-cloud python3 /ctx/verify_identity.py
 python3 /ctx/verify_arm_image.py
 python3 /ctx/verify_no_foreign_identity.py
