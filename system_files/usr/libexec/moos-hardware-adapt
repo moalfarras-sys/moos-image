@@ -63,6 +63,46 @@ do_run() {
     fi
 }
 
+# zram-generator may already have sized swap from /usr/lib defaults on first boot.
+# Persist /etc/systemd/zram-generator.conf when the live device already matches the
+# RAM tier, but do NOT stop/restart swap just to change compression metadata — that
+# storms dev-zram0.swap into start-limit-hit on low-RAM TCG VMs (CI boot proof).
+zram_swap_active() {
+    grep -qw zram0 "$PROC/swaps" 2>/dev/null
+}
+zram_disksize_bytes() {
+    if [ -r "$SYS/block/zram0/disksize" ]; then
+        cat "$SYS/block/zram0/disksize"
+    else
+        echo 0
+    fi
+}
+zram_tier_bytes() {
+    local expr="$1" mem_bytes=$((mem_kb * 1024)) cap half
+    case "$expr" in
+        ram) echo "$mem_bytes" ;;
+        min\(ram,\ 8192\)|"min(ram, 8192)")
+            cap=$((8192 * 1024 * 1024))
+            if [ "$mem_bytes" -lt "$cap" ]; then echo "$mem_bytes"; else echo "$cap"; fi
+            ;;
+        min\(ram\ /\ 2,\ 16384\)|"min(ram / 2, 16384)")
+            half=$((mem_bytes / 2))
+            cap=$((16384 * 1024 * 1024))
+            if [ "$half" -lt "$cap" ]; then echo "$half"; else echo "$cap"; fi
+            ;;
+        *) echo 0 ;;
+    esac
+}
+zram_size_matches_tier() {
+    local expected actual diff tol
+    expected="$(zram_tier_bytes "$1")"
+    actual="$(zram_disksize_bytes)"
+    [ "$expected" -gt 0 ] && [ "$actual" -gt 0 ] || return 1
+    diff=$(( expected > actual ? expected - actual : actual - expected ))
+    tol=$(( expected / 100 + 4096 ))
+    [ "$diff" -le "$tol" ]
+}
+
 # ── deployed edition ───────────────────────────────────────────────────────────
 booted_image() {
     # The deployed image name is needed only to decide whether an NVIDIA system is
@@ -174,9 +214,17 @@ if [ "$mem_gib" -gt 0 ]; then
         sysctl_changed=0
         if [ ! -r "$zconf" ] || [ "$(cat "$zconf" 2>/dev/null)" != "$zwant" ]; then
             mkdir -p "$(dirname "$zconf")" 2>/dev/null || true
+            persist_only=0
+            if zram_swap_active && zram_size_matches_tier "$zsize"; then
+                persist_only=1
+            fi
             if printf '%s\n' "$zwant" > "$zconf" 2>/dev/null; then
-                zram_changed=1
-                log "zram sized for ${mem_gib}GiB: ${zsize}"
+                if [ "$persist_only" = 1 ]; then
+                    log "zram already active at ${zsize} tier — persisted config without live restart"
+                else
+                    zram_changed=1
+                    log "zram sized for ${mem_gib}GiB: ${zsize}"
+                fi
             else
                 mutation_failed "could not write ${zconf}" || true
             fi

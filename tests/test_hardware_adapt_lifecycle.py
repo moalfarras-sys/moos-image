@@ -36,5 +36,9 @@ assert "systemctl enable moos-hardware-adapt.timer" in build
 assert "systemctl disable moos-hardware-adapt.service" in build
 assert "graphical.target.wants/moos-hardware-adapt.timer" in image_gate
 assert "multi-user.target.wants/moos-hardware-adapt.service" in image_gate
+assert "zram_size_matches_tier" in script, (
+    "hardware adaptation must skip live zram restart when swap already matches the RAM tier"
+)
+assert "persisted config without live restart" in script
 
 print("hardware-adapt lifecycle/ownership gate passed")
