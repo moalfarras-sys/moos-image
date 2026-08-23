@@ -278,6 +278,24 @@ if [ "${MOOS_IMAGE_NAME:-moos}" = "moos-nvidia" ]; then
     # finds nothing to force, and the initramfs comes out with no nvidia in it at all.
     depmod -a "${kver_image}"
 
+    # CI/installer VMs have no NVIDIA device. KWin's greeter still needs GL on the
+    # emulated DRM node; write a software-GL env file only when /dev/nvidia* is absent.
+    [ -x /usr/libexec/moos-greeter-gl-env ] || {
+        echo "FATAL: moos-greeter-gl-env is missing — the NVIDIA edition cannot fall back"
+        echo "       to software GL on a VM without an NVIDIA device."
+        exit 1
+    }
+    install -D -m0644 /dev/stdin \
+        /usr/lib/systemd/system/plasmalogin.service.d/20-moos-nvidia-greeter-gl.conf <<'PLMDROP'
+[Service]
+ExecStartPre=-/usr/libexec/moos-greeter-gl-env
+PLMDROP
+    install -D -m0644 /dev/stdin \
+        /usr/lib/systemd/user/plasma-login-kwin_wayland.service.d/10-moos-nvidia-greeter-gl.conf <<'KWINDROP'
+[Service]
+EnvironmentFile=-/run/moos/plasmalogin-kwin.env
+KWINDROP
+
     echo "OK: NVIDIA $(rpm -q --qf '%{VERSION}' nvidia-driver) installed."
     echo "    modules: $(find "/usr/lib/modules/${kver_image}" -name 'nvidia*.ko*' -printf '%f ' )"
     echo "    dracut : $(grep -h force_drivers /usr/lib/dracut/dracut.conf.d/99-nvidia.conf)"
@@ -2630,6 +2648,7 @@ rpm -q microcode_ctl >/dev/null 2>&1 || rpm -q amd-ucode-firmware >/dev/null 2>&
 
 chmod 0755 /usr/libexec/moos-hardware-adapt
 chmod 0755 /usr/libexec/moos-wait-drm
+chmod 0755 /usr/libexec/moos-greeter-gl-env
 # A slow first-run DDC probe or zram re-tier must never hold graphical.target.
 # Remove the legacy direct enablement on upgraded images and let the post-desktop
 # timer own activation.
@@ -3787,6 +3806,7 @@ TUNE
 # what starts the compositor and the shell — so this reaches the processes that
 # actually rasterize, without touching anything that does not.
 LP_NUM_THREADS=2
+LIBGL_ALWAYS_SOFTWARE=1
 LLVMPIPE
 
     # The bento dashboard is the single most expensive thing on this desktop, and
@@ -4051,6 +4071,9 @@ TRUSTED
         echo "           thread per core inside EVERY session, so two desktops on an"
         echo "           8-vCPU box means 16 threads fighting for 8 cores — measured at"
         echo "           165% CPU for one idle plasmashell."; _cloud_fail=1; }
+    grep -q '^LIBGL_ALWAYS_SOFTWARE=1' /usr/lib/environment.d/60-moos-cloud-llvmpipe.conf 2>/dev/null || {
+        echo "GATE FAIL: cloud llvmpipe must force software GL — without it the login"
+        echo "           greeter's KWin cannot start on a GPU-less VM."; _cloud_fail=1; }
     _dash_cfg="$(grep -A2 '"ShowDashboard"' /usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/config/main.xml)"
     grep -q '<default>false</default>' <<<"${_dash_cfg}" || {
         echo "GATE FAIL: the bento dashboard is still on by default in the cloud edition."

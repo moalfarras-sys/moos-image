@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# moos-greeter-gl-env — software GL for the login greeter when no NVIDIA device exists.
+#
+# The NVIDIA edition force-loads the proprietary driver for real hardware. In a
+# QEMU/TCG proof VM (or an installer/rescue session on non-NVIDIA hardware) there
+# is no /dev/nvidia*, yet KWin still needs a working GL stack on the emulated DRM
+# node. Write a tiny env file the greeter's KWin user unit can consume.
+set -eu
+
+envfile="${MOOS_GREETER_GL_ENV:-/run/moos/plasmalogin-kwin.env}"
+mkdir -p "$(dirname "$envfile")" 2>/dev/null || true
+
+if compgen -G '/dev/nvidia*' >/dev/null 2>&1; then
+    rm -f "$envfile"
+    exit 0
+fi
+
+printf 'LIBGL_ALWAYS_SOFTWARE=1\n' >"$envfile"
+exit 0
