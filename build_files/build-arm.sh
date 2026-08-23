@@ -331,6 +331,7 @@ test -f /usr/lib/systemd/system/bootc-generic-growpart.service || {
     exit 1
 }
 systemctl enable bootc-generic-growpart.service
+systemctl enable moos-arm-block-coldplug.service
 systemctl enable moos-cloud-hostname.service
 systemctl enable moos-cloud-account-ready.service
 

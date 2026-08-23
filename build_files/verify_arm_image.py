@@ -283,6 +283,39 @@ def main() -> None:
             if linked:
                 break
     require(linked, "the bootc physical root grow enable link is missing or dangling")
+
+    block_unit_path = ROOT / "usr/lib/systemd/system/moos-arm-block-coldplug.service"
+    block_helper_path = ROOT / "usr/libexec/moos-arm-block-coldplug"
+    require(block_unit_path.is_file(), "ARM block coldplug unit is missing")
+    require(block_helper_path.is_file() and os.access(block_helper_path, os.X_OK),
+            "ARM block coldplug helper is missing or not executable")
+    block_unit = block_unit_path.read_text(encoding="utf-8", errors="replace")
+    for contract in (
+        "ConditionArchitecture=arm64",
+        "After=systemd-udevd.service systemd-udev-trigger.service",
+        "Before=local-fs-pre.target",
+        "ExecStart=/usr/libexec/moos-arm-block-coldplug",
+    ):
+        require(contract in block_unit, f"ARM block coldplug unit lacks contract: {contract}")
+    block_helper = block_helper_path.read_text(encoding="utf-8", errors="replace")
+    require("--subsystem-match=block" in block_helper
+            and "--action=change" in block_helper
+            and "/dev/disk/by-uuid/" in block_helper,
+            "ARM block coldplug helper does not republish and verify filesystem links")
+    block_links = (
+        ROOT / "etc/systemd/system/local-fs-pre.target.wants/moos-arm-block-coldplug.service",
+        ROOT / "usr/lib/systemd/system/local-fs-pre.target.wants/moos-arm-block-coldplug.service",
+    )
+    block_linked = False
+    for candidate in block_links:
+        if candidate.is_symlink():
+            try:
+                block_linked = candidate.resolve(strict=True) == block_unit_path.resolve(strict=True)
+            except OSError:
+                block_linked = False
+            if block_linked:
+                break
+    require(block_linked, "ARM block coldplug enable link is missing or dangling")
     for retired in (
         "usr/libexec/moos-cloud-grow-root",
         "usr/lib/systemd/system/moos-cloud-grow-root.service",

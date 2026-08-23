@@ -33,6 +33,10 @@ WORKFLOW = ROOT / ".github/workflows/build-arm.yml"
 DOCS = ROOT / "docs/MOOS_ARM_ORACLE.md"
 RUNTIME_GATE = ROOT / "tests/verify_arm_runtime.sh"
 BOOT_GATE = ROOT / "tests/boot_arm_qcow2.sh"
+BLOCK_COLDPLUG = ROOT / "system_files/usr/libexec/moos-arm-block-coldplug"
+BLOCK_COLDPLUG_UNIT = (
+    ROOT / "system_files/usr/lib/systemd/system/moos-arm-block-coldplug.service"
+)
 
 
 def read(p: Path) -> str:
@@ -88,6 +92,7 @@ class ArmEditionTests(unittest.TestCase):
             DESKTOP_FINALIZER,
             HWDB_COMPILE, WORKFLOW, DOCS,
             RUNTIME_GATE, BOOT_GATE,
+            BLOCK_COLDPLUG, BLOCK_COLDPLUG_UNIT,
         ):
             self.assertTrue(p.is_file(), f"{p.relative_to(ROOT)} is missing")
 
@@ -172,6 +177,30 @@ class ArmEditionTests(unittest.TestCase):
             gate_text = code(read(gate))
             self.assertIn("usr/lib/udev/hwdb.bin", gate_text)
             self.assertIn("etc/udev/hwdb.bin", gate_text)
+
+    def test_arm_republishes_boot_partition_links_before_local_mounts(self) -> None:
+        helper = code(read(BLOCK_COLDPLUG))
+        unit = read(BLOCK_COLDPLUG_UNIT)
+        build = code(read(BUILD))
+        verifier = code(read(ARM_VERIFY))
+        for contract in (
+            "--subsystem-match=block",
+            "--action=change",
+            "--settle",
+            "/dev/disk/by-uuid/",
+        ):
+            self.assertIn(contract, helper)
+        for contract in (
+            "ConditionArchitecture=arm64",
+            "After=systemd-udevd.service systemd-udev-trigger.service",
+            "Before=local-fs-pre.target",
+            "ExecStart=/usr/libexec/moos-arm-block-coldplug",
+        ):
+            self.assertIn(contract, unit)
+            self.assertIn(contract, verifier)
+        self.assertIn("systemctl enable moos-arm-block-coldplug.service", build)
+        self.assertIn("moos-arm-block-coldplug.service", verifier)
+        self.assertIn("emergency\\.service|emergency\\.target", read(BOOT_GATE))
 
     def test_the_curated_desktop_uses_fedora_44_package_names(self) -> None:
         text = code(read(BUILD))
