@@ -218,11 +218,29 @@ systemctl set-default graphical.target
 
 # QEMU virtio-gpu proof VMs need software GL for plasmalogin's KWin. Without it
 # runtime reports graphical=active while screendump stays near-black (~0.011 stddev).
+[ -x /usr/libexec/moos-greeter-gl-env ] || {
+    echo "FATAL: moos-greeter-gl-env is missing — ARM greeter cannot fall back to software GL"
+    exit 1
+}
 install -D -m0644 /dev/stdin \
-    /usr/lib/systemd/user/plasma-login-kwin_wayland.service.d/10-moos-arm-greeter-gl.conf <<'GREETERGL'
+    /usr/lib/systemd/system/plasmalogin.service.d/20-moos-arm-greeter-gl.conf <<'PLMDROP'
 [Service]
+ExecStartPre=-/usr/libexec/moos-greeter-gl-env
+PLMDROP
+install -D -m0644 /dev/stdin \
+    /usr/lib/systemd/user/plasma-login-kwin_wayland.service.d/10-moos-arm-greeter-gl.conf <<'KWINDROP'
+[Service]
+EnvironmentFile=-/run/moos/plasmalogin-kwin.env
 Environment=LIBGL_ALWAYS_SOFTWARE=1
-GREETERGL
+KWINDROP
+install -D -m0644 /dev/stdin /etc/environment.d/60-moos-arm-llvmpipe.conf <<'LLVMPIPE'
+# MoOS ARM: software rendering for every user session, including plasmalogin.
+LIBGL_ALWAYS_SOFTWARE=1
+LP_NUM_THREADS=2
+LLVMPIPE
+install -D -m0644 /dev/stdin /etc/modules-load.d/moos-arm-vgem.conf <<'MODLOAD'
+vgem
+MODLOAD
 
 # Defence in depth around the public cloud VM. SSH is the only service exposed
 # by the image. KRDP remains reachable through an SSH tunnel to localhost; this
@@ -870,9 +888,15 @@ echo "=== initramfs carries OSTree, virtio and the MoOS splash ==="
 # installer and the two intentionally omitted x86 binaries; it does not weaken
 # the shared session, application, logo or theme identity checks.
 echo "=== (9b) finished-image identity gates ==="
+grep -q 'ExecStartPre=-/usr/libexec/moos-greeter-gl-env' \
+    /usr/lib/systemd/system/plasmalogin.service.d/20-moos-arm-greeter-gl.conf \
+    || { echo "GATE FAIL: ARM plasmalogin must run moos-greeter-gl-env before the greeter"; exit 1; }
 grep -q 'LIBGL_ALWAYS_SOFTWARE=1' \
     /usr/lib/systemd/user/plasma-login-kwin_wayland.service.d/10-moos-arm-greeter-gl.conf \
+    /etc/environment.d/60-moos-arm-llvmpipe.conf \
     || { echo "GATE FAIL: ARM login greeter must force software GL for virtio proof VMs"; exit 1; }
+grep -qxF 'vgem' /etc/modules-load.d/moos-arm-vgem.conf \
+    || { echo "GATE FAIL: ARM must load vgem for greeter/desktop GL"; exit 1; }
 MOOS_IDENTITY_PROFILE=arm-cloud python3 /ctx/verify_identity.py
 python3 /ctx/verify_arm_image.py
 python3 /ctx/verify_no_foreign_identity.py

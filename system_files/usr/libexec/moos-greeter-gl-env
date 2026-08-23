@@ -10,7 +10,7 @@ set -eu
 envfile="${MOOS_GREETER_GL_ENV:-/run/moos/plasmalogin-kwin.env}"
 mkdir -p "$(dirname "$envfile")" 2>/dev/null || true
 
-if compgen -G '/dev/nvidia*' >/dev/null 2>&1; then
+if compgen -G '/dev/nvidia*' >/dev/null 2>&1 && [ "$(uname -m)" != aarch64 ]; then
     rm -f "$envfile"
     exit 0
 fi
