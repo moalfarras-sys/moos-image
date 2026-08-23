@@ -97,7 +97,7 @@ _PLASMA=(
     # Day-2 updates resolve a mutable release tag to an exact signed digest.
     # fedora-bootc supplies rpm-ostree today, but both tools are explicit product
     # dependencies rather than accidental base-image contents.
-    rpm-ostree skopeo cosign
+    rpm-ostree skopeo
     # Native Mo PC Remote runtime. Encoders are capability-probed and JPEG is
     # the real fallback when a virtual GPU exposes no hardware codec.
     ydotool wl-clipboard grim spectacle python3-websockets poppler-utils qrencode
@@ -105,6 +105,16 @@ _PLASMA=(
     gstreamer1-plugins-bad-free pipewire-gstreamer
 )
 dnf5 -y install --setopt=install_weak_deps=False "${_PLASMA[@]}"
+
+# cosign is not always packaged for aarch64 — install the static binary when needed.
+if ! command -v cosign >/dev/null 2>&1; then
+    if ! dnf5 -y install --setopt=install_weak_deps=False cosign 2>/dev/null; then
+        curl -fsSL "https://github.com/sigstore/cosign/releases/download/v2.4.1/cosign-linux-arm64" \
+            -o /usr/bin/cosign
+        chmod +x /usr/bin/cosign
+    fi
+fi
+command -v cosign >/dev/null || { echo "FATAL: cosign unavailable for UTM net install"; exit 1; }
 
 # Prefer a portable software H.264 encoder when Fedora's Cisco repository has
 # one for aarch64. The helper auditions PLAYING state and automatically falls

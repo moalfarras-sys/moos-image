@@ -18,18 +18,27 @@ echo "=== MoOS ARM recovery build: edition=${MOOS_EDITION} arch=$(uname -m) ==="
 }
 
 echo "=== (1) installer tooling ==="
+install_cosign() {
+    command -v cosign >/dev/null 2>&1 && return 0
+    if dnf5 -y install --setopt=install_weak_deps=False cosign 2>/dev/null; then
+        return 0
+    fi
+    local ver="2.4.1"
+    curl -fsSL "https://github.com/sigstore/cosign/releases/download/v${ver}/cosign-linux-arm64" \
+        -o /usr/bin/cosign
+    chmod +x /usr/bin/cosign
+}
 _RECOVERY=(
-    bootc skopeo cosign jq curl
-    NetworkManager NetworkManager-wifi
-    dracut dracut-network kernel
-    cloud-init cloud-utils-growpart
+    NetworkManager-wifi
+    cloud-init
     newt efibootmgr btrfs-progs
     systemd-resolved
-    openssl sudo which findutils coreutils
+    openssl sudo which findutils
     mesa-dri-drivers
     plymouth plymouth-plugin-script
 )
 dnf5 -y install --setopt=install_weak_deps=False "${_RECOVERY[@]}"
+install_cosign
 
 echo "=== (2) identity (minimal) ==="
 # Keep os-release MoOS-branded if finalize script exists; otherwise patch ID only.
