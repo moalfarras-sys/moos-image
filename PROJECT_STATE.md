@@ -15,7 +15,8 @@ Oracle capacity work **paused** (A1 host pool dry in Frankfurt).
 | Slim recovery image (`Containerfile.arm-recovery`) | **Added** — not full desktop |
 | Installer menu + cosign + bootc net install | **Added** |
 | Old full-QCOW2-as-installer bundle | **SUPERSEDED / FAILED on real iPhone** |
-| `MoOS-UTM-Installer.utm.zip` deliverable | **BUILD IN PROGRESS** (local + CI) |
+| `MoOS-UTM-Installer.utm.zip` deliverable | **READY FOR OWNER TEST** — CI run `32655458877`, 1.5 GB, SHA256 `21cfe0f2…` |
+| Local TCG menu boot test | **IN PROGRESS** (host lacks native qemu; container test running) |
 | Physical iPhone test | **OWNER TEST REQUIRED** |
 
 Install source: `ghcr.io/moalfarras-sys/moos-arm@sha256:e1ace22c…` (manifest
