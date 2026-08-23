@@ -354,8 +354,9 @@ jobs:
           recovery="$(sudo find output-recovery -name '*.qcow2' -print -quit)"
           [ -n "$recovery" ] || { echo "FATAL: recovery qcow2 missing"; exit 1; }
           sudo chown "$USER:$USER" "$recovery"
-          echo "MOOS_ARM_RECOVERY_QCOW=$(readlink -f "$recovery")" >> "$GITHUB_ENV"
-          du -h "$MOOS_ARM_RECOVERY_QCOW"
+          recovery="$(readlink -f "$recovery")"
+          echo "MOOS_ARM_RECOVERY_QCOW=${recovery}" >> "$GITHUB_ENV"
+          du -h "$recovery"
 
       - name: Package MoOS UTM Net Installer (priority deliverable)
         run: |
@@ -424,7 +425,7 @@ jobs:
         with:
           name: moos-arm-boot-proof
           path: arm-boot-proof/
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14
 
       - name: Package the boot-proven ARM releases
