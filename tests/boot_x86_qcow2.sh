@@ -313,6 +313,19 @@ gate_fail() {
     printf 'system-state=%s\n' "$(systemctl is-system-running 2>/dev/null || true)" >&2
     printf 'root-mount=%s\n' "$(findmnt -n -o SOURCE,FSTYPE / 2>/dev/null || true)" >&2
     printf 'booted-origin=%s\n' "$(deployed_origin 2>/dev/null || true)" >&2
+    printf '%s\n' 'failed-units:' >&2
+    systemctl --failed --no-legend --plain 2>/dev/null >&2 || true
+    printf 'n-failed-units=%s\n' "$(systemctl show -p NFailedUnits --value 2>/dev/null || true)" >&2
+    if [ -n "${login_uid:-}" ]; then
+        printf 'greeter-uid=%s\n' "$login_uid" >&2
+        printf '%s\n' 'greeter-processes:' >&2
+        ps -u "$login_uid" -o pid=,comm=,args= --sort=pid 2>/dev/null | tail -40 >&2 || true
+    fi
+    printf '%s\n' 'plasmalogin-status:' >&2
+    systemctl status plasmalogin.service --no-pager --full 2>&1 | tail -40 >&2 || true
+    printf '%s\n' 'display-manager-journal:' >&2
+    journalctl -b -u plasmalogin.service -u display-manager.service \
+        -o short-monotonic --no-pager -n 80 2>/dev/null >&2 || true
     return 1
 }
 . /etc/os-release
