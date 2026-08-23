@@ -271,7 +271,7 @@ printf 'sendkey spc\n' | socat - UNIX-CONNECT:"$monitor" >/dev/null
 sleep 5
 guest_png="$work/graphical-guest.png"
 guest_capture_ok=0
-if "${ssh_base[@]}" sudo bash -s -- "$guest_png" <<'EOS'
+if "${ssh_base[@]}" bash -s -- "$guest_png" <<'EOS'
 set -euo pipefail
 out=$1
 uid=$(id -u plasmalogin)
@@ -301,7 +301,7 @@ then
     cp "$guest_png" "$evidence/graphical-guest.png"
     convert "$guest_png" "$evidence/graphical.png"
 else
-    "${ssh_base[@]}" sudo bash -s <<'EOS' >"$evidence/graphical-guest-diagnostics.txt" 2>&1 || true
+    "${ssh_base[@]}" bash -s <<'EOS' >"$evidence/graphical-guest-diagnostics.txt" 2>&1 || true
 set -x
 id plasmalogin || true
 ls -la /run/user/"$(id -u plasmalogin)" 2>/dev/null || true
