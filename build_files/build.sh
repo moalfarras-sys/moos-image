@@ -363,6 +363,23 @@ _ondisk="$(ls -1 "${_MOOS}"/intro*.png 2>/dev/null | wc -l)"
     echo "GATE FAIL: moos.script declares INTRO_COUNT=${_declared:-<unset>} but ${_ondisk} intro frames are installed"
     exit 1
 }
+# And the invisible failure: a UTF-8 BOM at byte 0 makes Plymouth's scanner
+# emit three SYMBOL tokens before the first comment, so the parser rejects the
+# whole script ("Unparsed characters at end of file") and returns NULL — which
+# plugin.c ignores, reporting success anyway. plymouthd then runs a theme that
+# draws nothing (not even its own background) = a pure BLACK splash on every
+# machine while every file-presence gate stays green. Proven 2026-08-24 with
+# Fedora 44's real parser (24.004.60): BOM => PARSE FAILED, stripped => OK.
+for _tf in "${_MOOS}"/*; do
+    [ -f "${_tf}" ] || continue
+    _sig="$(head -c 3 "${_tf}" | od -An -tx1)"
+    case "${_sig}" in
+        *ef*bb*bf*)
+            echo "GATE FAIL: ${_tf} starts with a UTF-8 BOM — Plymouth rejects the whole theme and boots a BLACK splash"
+            exit 1
+            ;;
+    esac
+done
 echo "=== plymouth: moos Script theme present ==="
 ls -1 "${_MOOS}" | grep -vE 'README' | sed 's/^/    /'
 
@@ -448,6 +465,17 @@ add_dracutmodules+=" ostree dmsquash-live dmsquash-live-autooverlay "
 # before switch-root. Omitting the *initrd* module does not remove NFS client
 # support from the real system after boot.
 omit_dracutmodules+=" nfs "
+# The generic --no-hostonly initramfs otherwise sweeps in EVERY dracut module,
+# including the full initrd network stack (network + network-manager +
+# kernel-network-modules) and every driver in kernel-modules-extra. None of it
+# can matter here: MoOS always roots from a LOCAL device (OSTree deployment or
+# local live squashfs), LUKS prompts go through Plymouth, and real networking
+# starts after switch-root from the system's own NetworkManager. Measured on
+# the 2026-08-24 image: drivers/net (~19MB) plus their NIC firmware (~10MB)
+# and the extras sweep went into every boot for nothing — GRUB read and the
+# kernel decompressed those bytes on every single machine. The only boot-
+# critical files kernel-modules-extra owned were floppy.ko and CAN/SLIP NICs.
+omit_dracutmodules+=" network network-manager kernel-network-modules kernel-modules-extra "
 add_drivers+=" erofs overlay loop "
 # Trim only the NON-NVIDIA GPU drivers (not present/needed on this hardware).
 # NVIDIA stays (base force_drivers) for a working desktop.
@@ -461,6 +489,7 @@ DRC
 DRACUT_NO_XATTR=1 dracut -v --force --zstd --reproducible --no-hostonly \
     --add "ostree dmsquash-live dmsquash-live-autooverlay" \
     --omit "nfs" \
+    --omit "network network-manager kernel-network-modules kernel-modules-extra" \
     --add-drivers "erofs overlay loop" \
     --omit-drivers "nouveau amdgpu radeon i915 xe nvidiafb" \
     "/usr/lib/modules/${kver}/initramfs.img" "${kver}" 2>&1 | tee /tmp/moos-dracut.log
@@ -3363,6 +3392,7 @@ unset -v _active_theme
 DRACUT_NO_XATTR=1 dracut -v --force --zstd --reproducible --no-hostonly \
     --add "ostree plymouth dmsquash-live dmsquash-live-autooverlay" \
     --omit "nfs" \
+    --omit "network network-manager kernel-network-modules kernel-modules-extra" \
     --add-drivers "erofs overlay loop" \
     --omit-drivers "nouveau amdgpu radeon i915 xe nvidiafb" \
     "/usr/lib/modules/${kver}/initramfs.img" "${kver}" 2>&1 | tee /tmp/moos-final-dracut.log

@@ -51,6 +51,19 @@ for _f in $(grep -oE 'Image\("[^"]+"\)' "${_MOOS}/moos.script" | sed 's/^Image("
     test -f "${_MOOS}/${_f}" || { echo "GATE FAIL: moos.script loads missing ${_f}"; _missing=1; }
 done
 [ "${_missing}" -eq 0 ] || exit 1
+# A UTF-8 BOM at byte 0 makes Plymouth's parser reject the whole script while
+# plugin.c reports success — a pure BLACK splash with every other gate green.
+# See build.sh for the proof against Fedora 44's real parser (2026-08-24).
+for _tf in "${_MOOS}"/*; do
+    [ -f "${_tf}" ] || continue
+    _sig="$(head -c 3 "${_tf}" | od -An -tx1)"
+    case "${_sig}" in
+        *ef*bb*bf*)
+            echo "GATE FAIL: ${_tf} starts with a UTF-8 BOM — Plymouth rejects the whole theme and boots a BLACK splash"
+            exit 1
+            ;;
+    esac
+done
 
 plymouth-set-default-theme moos
 sed -i 's/^Theme=.*/Theme=moos/' /usr/share/plymouth/plymouthd.defaults 2>/dev/null || true

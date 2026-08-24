@@ -8,7 +8,10 @@ WHAT THESE ARE FOR
     grey text console, because Plymouth's script plugin falls back to text the
     moment it cannot load something the script asks for.
 
-    So these gate the two things that actually break it in practice:
+    So these gate the things that actually break it in practice:
+      * a UTF-8 BOM, which makes Plymouth's parser reject the whole script —
+        and plugin.c ignores that failure and reports success, so the user
+        gets a pure black screen (no text fallback on Fedora 44),
       * the script asking for a file that is not there, and
       * the script doing unbounded work on every refresh.
 
@@ -60,6 +63,32 @@ def intro_frames() -> list[Path]:
 
 
 class BootSplashTests(unittest.TestCase):
+    # ── the failure that produces a BLACK screen, not even text ────────────
+    def test_script_has_no_utf8_bom(self) -> None:
+        # A UTF-8 BOM (EF BB BF) at byte 0 makes Plymouth's scanner emit three
+        # SYMBOL tokens before the first comment. The parser then rejects the
+        # whole file ("Unparsed characters at end of file", L:1 C:0) and
+        # script_parse_file() returns NULL — which plugin.c does NOT check: it
+        # calls start_script_animation() anyway and reports success. plymouthd
+        # therefore runs a theme that draws nothing (not even its background,
+        # which this script sets), shows a pure black screen for the whole
+        # splash window, and no gate on file presence can see it. Proven on
+        # 2026-08-24 with the real Fedora 44 parser (plymouth 24.004.60):
+        # with BOM -> PARSE FAILED; identical bytes minus BOM -> PARSE OK.
+        raw = SCRIPT.read_bytes()
+        self.assertFalse(raw.startswith(b"\xef\xbb\xbf"),
+                         "moos.script starts with a UTF-8 BOM: Plymouth's parser "
+                         "rejects the entire theme and boots a black splash "
+                         "(plugin.c ignores the NULL parse result)")
+
+    def test_theme_ships_no_bom_in_any_asset(self) -> None:
+        for path in sorted(THEME.iterdir()):
+            if not path.is_file():
+                continue
+            with self.subTest(asset=path.name):
+                self.assertFalse(path.read_bytes()[:3] == b"\xef\xbb\xbf",
+                                 f"{path.name} starts with a UTF-8 BOM")
+
     # ── the failure that produces a text console ────────────────────────────
     def test_every_image_the_script_loads_is_installed(self) -> None:
         assets = loaded_assets()
