@@ -278,11 +278,12 @@ jobs:
           ls -lh "${out}"
           echo "iso=${out}" >> "$GITHUB_OUTPUT"
 
-      # TEMPORARY (fix/iso-upload-on-test-fail branch): upload the finished ISO
-      # HERE, before the QEMU boot/install proof steps, so the artifact is
-      # captured even when those proof steps fail in the CI runner (they are an
-      # environment limitation, not an ISO defect). This branch is not merged to
-      # main; the canonical ordering keeps the proof gates authoritative.
+      # Upload the finished ISO HERE, before the QEMU boot/install proof steps.
+      # The proof steps run inside GitHub-hosted runners whose KVM/GPU setup is
+      # flaky; when they failed the whole job aborted and the already-built ISO
+      # was dropped (it was only uploaded at the very end). Moving the upload up
+      # captures the artifact even if a later proof step fails — without
+      # weakening those gates (they stay hard-fail below).
       - name: Upload ISO as workflow artifact
         uses: actions/upload-artifact@v4
         with:
@@ -298,7 +299,6 @@ jobs:
           sudo apt-get install -y -qq qemu-system-x86 ovmf socat jq imagemagick
 
       - name: Boot and prove the exact final live ISO
-        continue-on-error: true
         env:
           FINAL_ISO: ${{ steps.embed.outputs.iso }}
           EXPECTED_IMAGE: ${{ steps.pin.outputs.image_ref }}
@@ -315,7 +315,6 @@ jobs:
           retention-days: 14
 
       - name: Install the exact final ISO offline and boot the target disk
-        continue-on-error: true
         env:
           FINAL_ISO: ${{ steps.embed.outputs.iso }}
           EXPECTED_IMAGE: ${{ steps.pin.outputs.image_ref }}
@@ -331,6 +330,8 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-      # NOTE: the ISO upload was moved earlier in this branch (before the proof
-      # steps) so the artifact survives a proof-step failure. On main the upload
-      # stays authoritative-last; re-sync when merging back.
+      # NOTE: the ISO upload was moved earlier in this file (before the proof
+      # steps) so the artifact survives a proof-step failure in the runner. The
+      # proof gates themselves remain hard-fail and authoritative.
+      # NOTE: artifacts are a temporary distribution channel (short retention,
+      # slow downloads). Cloudflare R2 upload replaces this step later.
