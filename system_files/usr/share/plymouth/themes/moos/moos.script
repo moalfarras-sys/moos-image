@@ -65,7 +65,7 @@ fun clamp01(v) { return fmax(0, fmin(1, v)); }
 INTRO_COUNT  = 32;
 INTRO_HOLD   = 2;        // refreshes per frame; Plymouth refreshes at 50 Hz -> 25 fps
 INTRO_ASPECT = 1.5396;   // MUST equal the frame aspect build_boot_frames.py reports
-CUE_DELAY    = 190;      // refreshes before the slow-boot cue appears (~3.8 s)
+CUE_DELAY    = 120;      // refreshes before the slow-boot cue appears (~2.4 s) — faster, still elegant
 
 // The stage rectangle. Bounded by WIDTH as well as height: on a 5:4 or 4:3
 // panel a height-derived width overflows the screen and the composition gets
