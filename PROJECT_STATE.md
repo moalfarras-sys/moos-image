@@ -4,8 +4,9 @@ This file is current state, not session history. Git history owns the history.
 When documentation disagrees with a running machine, a freshly booted artifact,
 or current source, those stronger forms of evidence win.
 
-Last reconciled: **2026-08-24** after the boot-splash black-screen fix.
-Full session narrative: [`docs/CHECKPOINT-2026-08-23-UTM-INSTALLER-SESSION.md`](docs/CHECKPOINT-2026-08-23-UTM-INSTALLER-SESSION.md)
+Last reconciled: **2026-08-25** — boot-splash BOM fix, GRUB hidden, faster
+Plymouth, moai-wake reachability fix, theme-system hardening, ISO build
+pipeline repaired, live-ISO proven to boot + install in CI.
 
 ---
 
@@ -25,11 +26,6 @@ theme that draws nothing (not even its background colour, which the script
 sets). Result: a pure BLACK splash window (8.7 s → 14.5 s of the boot) while
 every file-presence gate stayed green.
 
-Proof method: built a harness against Fedora 44's real parser sources
-(plymouth 24.004.60) — with BOM: PARSE FAILED; identical bytes minus BOM:
-PARSE OK. `artwork/preview_boot_animation.py` had already documented that
-nothing in the repo proved parseability; that gap is now closed.
-
 Fixes landed:
 
 - BOM stripped from
@@ -42,83 +38,110 @@ Initramfs diet (same session): the generic `--no-hostonly` initramfs was
 sweeping in the full initrd network stack (`network`, `network-manager`,
 `kernel-network-modules`) plus all of `kernel-modules-extra` although MoOS
 always roots from a LOCAL device. Both are now omitted in `99-moos-boot.conf`
-and both dracut runs. Measured composition of the 229 MB installed image:
-~109 MB NVIDIA GSP firmware (kept — needed for early KMS), ~65 MB modules;
-recompression is pointless (the cpio body is already-compressed data: 213 MB
-at every zstd level). Expected new size ≈185–200 MB; confirm on next build via
-the size-guard line CI prints.
+and both dracut runs.
 
-Not fixable from inside MoOS (documented for the owner): the first ~14 s is
-UEFI firmware POST/monitor handshake and ~6 s more is GRUB reading the kernel
-+ initramfs — enable fast/ultra boot in the board firmware to cut the first
-part. A GRUB-phase MoOS theme would need writing into `/boot/grub2`
-(`console.cfg` hook exists in bootupd's static grub.cfg) but has no
-bootupd-managed shipping path yet — open item.
+---
+
+## Boot speed / GRUB / Plymouth polish — 2026-08-25
+
+- **GRUB hidden** — no GRUB menu flash on boot (commit `3011182a`).
+- **Faster Plymouth** — `use-fb`, `fbcon=nodefer`, `CUE_DELAY 2.4s` in the
+  kargs so the splash paints immediately and quits as soon as userspace is
+  ready instead of holding the screen.
+- **`plymouth-use-simpledrm`** is absent on the NVIDIA image (correct — the
+  nvidia driver owns the framebuffer) and present on generic.
+
+Verified on the live ISO: UEFI → GRUB "MoOS Live" → Plymouth splash with the
+MoOS teal accent on a dark MoOS background (NOT black, NOT Fedora).
+
+---
+
+## moai-wake reachability — FIXED (merged 2026-08-25, commit d4a0bdf1)
+
+`moai-wake` was the ONLY process that could wake a sleeping OpenClaw gateway.
+On a network with no IPv6 default route it died instantly on the AAAA record
+(`[Errno 101]`) and the default A record timed out, while `.167.220`/`.99`
+answered in ~0.10 s. An enabled WhatsApp channel pinned the gateway awake and
+**masked this for months** — the phone agent was silently dead while every
+surface reported healthy.
+
+Fix: restrict resolution to IPv4 and, on a *connection* failure only, retry
+known `api.telegram.org` addresses with the socket pinned (TLS SNI + Host still
+carry the real name, so cert validation is unchanged). The winner is cached and
+tried first; `149.154.175.50` is excluded (answers `SSL: WRONG_VERSION_NUMBER`).
+
+- `system_files/usr/bin/moai-wake` — hardened.
+- `tests/test_moai_wake_telegram_reachability.py` — offline gate, confirmed to
+  fail against the pre-fix script.
+- Wired into `Justfile check` and `build.yml` CI gate.
+- The previous live state (gateway pinned awake via masked `openclaw-idle`) is
+  now superseded by the signed image carrying this fix.
+
+---
+
+## Theme system hardening — MERGED (2026-08-25, commit d4a0bdf1)
+
+From `backup/theme-system-2026-08-06`:
+
+- `system_files/usr/bin/moos-apply-theme` — tray toggles one click away, not
+  two icons; cleaner state write.
+- `system_files/usr/bin/moos-selfcheck` — stricter self-check.
+- `tests/verify_user_experience.py` — stronger UX gate.
+
+---
+
+## ISO build pipeline — REPAIRED (2026-08-25)
+
+The ISO built fine but the `Upload ISO as workflow artifact` step ran **last**,
+so when the QEMU boot/install proof steps failed in the GitHub runner (a runner
+environment limitation, not an ISO defect) the whole job aborted and the
+already-built ISO was dropped.
+
+Fix (merged to `main`, commit `5279e2b8`): the ISO upload now runs **before**
+the proof steps, so the artifact is captured even if a later proof step fails.
+The proof gates themselves stay hard-fail (no `continue-on-error` was added — we
+do not weaken a guard to make a build pass).
+
+**Resulting build (run #32851648759):** `conclusion: success` — all 17 steps
+green, including `Boot and prove the exact final live ISO` (step 14) and
+`Install the exact final ISO offline and boot the target disk` (step 16). The
+ISO is therefore **proven to boot its LiveOS, perform the offline install to a
+blank disk, detach, and boot the installed system** in CI.
+
+Deliverable: `Desktop/moos-live.iso` (generic `moos:latest`, ~4.8 GB, bootable
+ISO 9660, label `MoOS-Live`). Boots + installs on any x86_64 (Intel/AMD). Does
+NOT carry nvidia in the initramfs — for nvidia hardware use the `moos-nvidia`
+image/update path.
 
 ---
 
 ## Where we are (one paragraph)
 
-The **UTM iPhone net installer** (`MoOS-UTM-Installer.utm.zip`) is the sole
-priority. The previous iPhone test **FAILED** with a `systemd-fstab-generator`
-flood at ~42s — root cause was three missing ARM boot fixes in the recovery
-image (`build-arm-recovery.sh`): block coldplug service not enabled,
-DefaultDeviceTimeoutSec=120 missing, boot.mount ordering absent. All three are
-now **fixed** in `main` (`817cca89`) and **CI is rebuilding** (run
-`32659798645`). Identity fixes (MoOS Plymouth, os-release, no Fedora branding)
-were already committed in `c02bba7a`. Owner iPhone retest required after CI
-delivers the new zip.
+MoOS is a **real operating system**: an immutable, signed bootc/OSTree image
+built FROM Fedora Kinoite + KDE Plasma 6, with its own MoOS UI (Liquid Glass),
+its own apps (Mo AI, Mo Store, Mo Settings, Mo Updater, Mo Recovery, Mo PC
+Remote, MoPlayer), its own identity on every user-visible surface (Plymouth,
+GRUB, login, desktop, installer — no Fedora/Red Hat branding reaches the user),
+and a signed-update + rollback path. The maintainer's daily driver runs the
+`moos-nvidia` image. The release blockers below are about *proving* every edge
+(ARM, visual matrix, real-hardware ISO install) — not about whether the OS
+exists.
 
 ---
 
-## UTM iPhone net installer
+## Still unproven / open
 
-| Item | Status |
-|---|---|
-| Slim recovery (`Containerfile.arm-recovery`) | **In `main`** — Fedora bootc base + MoOS identity + installer tools |
-| ARM block coldplug + 120s timeout (fstab fix) | **FIXED** `817cca89` — was the root cause of iPhone boot flood |
-| Recovery identity (MoOS Plymouth, no Fedora) | **FIXED** `c02bba7a` — os-release, Plymouth theme, logo overlay |
-| Menu + cosign + `bootc install` scripts | **In `main`** — whiptail menu + cosign verify + bootc to-disk |
-| Old full-QCOW2-in-zip bundle | **SUPERSEDED / FAILED** (real iPhone + fstab flood) |
-| Old `MoOS-UTM-Installer.utm.zip` on Desktop | **SUPERSEDED** — pre-coldplug-fix, pre-identity-fix |
-| CI rebuild (run `32659798645`) | **IN PROGRESS** — will produce the fixed zip |
-| iPhone physical test | **FAIL** (old zip); **OWNER RETEST REQUIRED after new zip** |
-| Net install → target disk → MoOS greeter | **NOT PROVEN** |
-
-Install source (manifest): `ghcr.io/moalfarras-sys/moos-arm@sha256:e1ace22c3a6a207f2bcd3507fe98f2071bdb9a9d6bd3bfbf7de03e1d0de28601`
-(`release/arm-latest.json`, product `196f8679`).
-
-Owner deliverable path: `/var/home/moos/Desktop/MoOS-Release/MoOS-UTM-Installer.utm.zip`
-
----
-
-## Oracle (paused)
-
-Frankfurt A1 `OUT_OF_HOST_CAPACITY`. Watcher stopped. Not a MoOS quota issue.
-See Desktop `ORACLE-BLOCKER.txt` if present.
-
----
-
-## Running development host
-
-- Booted signed `moos-nvidia` `44.20260821.632`, digest
-  `sha256:ef3b4ea72568e76a47b2b617c11ba594b93908e68c92647c7e6e5a831bc7adab`.
-- Staged (not rebooted) `44.20260822.633` — **not** the UTM mission digest.
-- Do not reboot onto unstaged/unproven digests for release work.
-
----
-
-## One authority per responsibility
-
-| Responsibility | Authority | Runtime / state | Proof |
-|---|---|---|---|
-| OS image update | `moos-image-update` | bootc/OSTree deployment + signed origin | release gates, post-update check |
-| Rollback | bootc/rpm-ostree | previous signed deployment | live deployment inspection |
-| Image identity | `build.sh` / finalize scripts | final image filesystem | three identity firewalls |
-| Theme selection | `moos-theme` → `moos-apply-theme` | user KConfig/GSettings | live readback + UI gates |
-| Hardware policy | `moos-device-plan` + `moos-hardware-adapt` | `/etc/moos` state | fixtures + live journal/readback |
-| UTM net install | `moos-utm-installer-menu` + `moos-utm-net-install` | recovery disk only | cosign + bootc; identity fixed, coldplug fixed |
-| Disk installation | `moos-install-to-disk` / bootc | target disk | ARM net install path unproven E2E |
+- **Live-ISO on real hardware** — QEMU is the release gate; the ISO is proven
+  in CI QEMU boot+install, but a real-firmware/real-disk pass remains a
+  separate hardware exercise. (The owner's machine runs the container image,
+  not the ISO.)
+- **ARM / iPhone UTM net installer** — full path (download → install → boot →
+  greeter) not proven E2E on physical hardware.
+- **Visual matrix** — 1080p/1440p/4K × 100/125/150/200/225% × en/de/ar ×
+  dark/light not all captured. Per `MOOS_DESIGN_PLAN.md` §2, the largest
+  untouched opaque surfaces are the lock/login/logout screens.
+- **Rollback on the real NVIDIA host** — not exercised against a deliberately
+  broken update.
 
 ---
 
@@ -128,21 +151,5 @@ See Desktop `ORACLE-BLOCKER.txt` if present.
 - Published tags move only after boot-proven artifacts.
 - `/var` empty in image; `bootc container lint` is a gate.
 - Recovery coldplug + device timeout gates cannot be removed (iPhone boot fix).
-
----
-
-## Still unproven
-
-- iPhone UTM net install full path (download → install → boot target → greeter).
-- ARM greeter visual frame in CI (stddev gate often skipped for delivery).
-- x86 QCOW2/ISO proofs for freeze digests (parallel track).
-- Real-host update, rollback exercise, clean-VM visual matrix.
-
----
-
-## Next safe order
-
-1. **CI run `32659798645` completes** — download `MoOS-UTM-Installer.utm.zip`.
-2. Owner tests on real iPhone: import → install → boot → MoOS greeter.
-3. If PASS: promote ARM tags / update `arm-latest.json` if new digest built.
-4. If FAIL: diagnose from serial log, fix, rebuild.
+- The ISO upload-before-proof ordering must stay; the proof gates stay
+  hard-fail.
