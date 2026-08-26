@@ -4,6 +4,14 @@
 # A phone/UTM VM exposes a connected virtio connector and must render to it.
 # A display-less VPS exposes no connector and needs KWin's virtual backend so
 # the login manager can still start without inventing a physical screen.
+#
+# The greeter's KWin runs as the unprivileged `plasmalogin` user (uid 969). On a
+# local VM the virtio DRM node defaults to `root:video` 0660, which that user
+# cannot open — KWin then logs "Failed to open drm node: No such file or
+# directory" (it probes the node before udev has applied the 0666 rule from
+# build-arm.sh) and the framebuffer stays black while plasmalogin.service still
+# reports active. So: wait for the real node to exist AND for it to be openable
+# by this user, then name it explicitly with --drm-device.
 set -eu
 
 kwin_args=(
@@ -14,19 +22,27 @@ kwin_args=(
     --locale1
 )
 
-# A QEMU/UTM virtio display can legitimately report its connector as
-# "disconnected" when the host frontend is headless.  The framebuffer is still
-# present (QEMU's monitor screendump reads it, and UTM attaches its view later),
-# so treating that status as "no display" launches KWin on a private virtual
-# output and leaves the real framebuffer black.  A genuinely display-less VPS
-# has no connector node at all.  Wait briefly for DRM coldplug, then use the DRM
-# backend whenever a connector exists, regardless of its current status text.
-for _attempt in $(seq 1 50); do
-    for status in /sys/class/drm/card*-*/status; do
-        [ -e "$status" ] || continue
-        exec /usr/bin/kwin_wayland "${kwin_args[@]}"
+# Where the virtio DRM node should be. The udev rule in build-arm.sh grants it
+# world-readable mode, and membership in the video/render groups is the fallback
+# path. Either way, do not start KWin until the node is both present and openable
+# by this user, or the first probe loses the race against udev and we go black.
+dri_node=""
+for _attempt in $(seq 1 150); do
+    for candidate in /dev/dri/card0 /dev/dri/card1 /dev/dri/renderD128; do
+        [ -e "$candidate" ] || continue
+        if [ -r "$candidate" ]; then
+            dri_node="$candidate"
+            break 2
+        fi
     done
-    sleep 0.1
+    sleep 0.2
 done
 
+if [ -n "$dri_node" ]; then
+    exec /usr/bin/kwin_wayland "${kwin_args[@]}" --drm-device "$dri_node"
+fi
+
+# No usable DRM node appeared (a genuinely display-less VPS). Keep the login
+# manager alive on a private virtual output rather than dying — the boot proof
+# only requires graphical.target to be reachable there, not a real framebuffer.
 exec /usr/bin/kwin_wayland "${kwin_args[@]}" --virtual --width 1920 --height 1080

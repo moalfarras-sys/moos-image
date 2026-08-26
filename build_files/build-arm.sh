@@ -595,10 +595,13 @@ udevadm control --reload-rules
 udevadm trigger --subsystem-match=drm --action=change
 # Ensure the unprivileged greeter user can reach the DRM nodes even if a stricter
 # udev rule wins: membership in the video/render groups is the fallback path.
+# Create the groups first (the minimal ARM image may not ship them), then add
+# plasmalogin so the 0660 default still lets it open the scan-out node.
 for _g in video render; do
-    if getent group "$_g" >/dev/null 2>&1; then
-        usermod -aG "$_g" plasmalogin 2>/dev/null || true
+    if ! getent group "$_g" >/dev/null 2>&1; then
+        groupadd -f "$_g" 2>/dev/null || true
     fi
+    usermod -aG "$_g" plasmalogin 2>/dev/null || true
 done
 
 kwin_drop="${home}/.config/systemd/user/plasma-kwin_wayland.service.d"
