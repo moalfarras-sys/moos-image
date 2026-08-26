@@ -643,6 +643,16 @@ class ArmEditionTests(unittest.TestCase):
                       "provider hostnames still need one post-D-Bus authority")
         self.assertIn("moos-cloud-account-ready.service", text,
                       "the greeter must wait until AccountsService publishes the cloud user")
+        greeter = read(ROOT / "system_files/usr/libexec/moos-arm-greeter-kwin")
+        self.assertIn('/sys/class/drm/card*-*/status', greeter)
+        self.assertIn('[ -e "$status" ]', greeter,
+                      "a headless QEMU frontend may mark a usable virtio connector disconnected")
+        self.assertNotIn("grep -qx connected", greeter,
+                         "connector status must not hide QEMU/UTM's usable framebuffer")
+        self.assertIn("seq 1 50", greeter,
+                      "the greeter must allow DRM coldplug to publish its connector")
+        self.assertIn("--virtual --width 1920 --height 1080", greeter,
+                      "a connector-less cloud VPS still needs the virtual backend")
 
     def test_bootc_is_the_only_cloud_disk_growth_authority(self) -> None:
         build = read(BUILD)

@@ -282,7 +282,7 @@ if [ "$guest_capture_ok" -eq 0 ]; then
 fi
 [ -s "$evidence/graphical.png" ] || { echo "ARM BOOT FATAL: graphical PNG evidence is empty" >&2; exit 1; }
 stddev="$(convert "$evidence/graphical.png" -colorspace gray -format '%[fx:standard_deviation]' info:)"
-python3 - "$stddev" <<'PY'
+if ! python3 - "$stddev" <<'PY'
 import sys
 value = float(sys.argv[1])
 # 0.01 still passes a near-black cursor-only frame (freeze 70aff7a9 measured
@@ -291,6 +291,32 @@ if value < 0.02:
     raise SystemExit(f"ARM BOOT FATAL: graphical evidence is blank/flat (stddev={value})")
 print(f"graphical screenshot stddev={value:.6f}")
 PY
+then
+    # Preserve the state that selected KWin's backend.  Runtime=active alone is
+    # insufficient: a private --virtual output leaves virtio's framebuffer black.
+    # Keep this read-only so a failing visual proof cannot repair its own guest.
+    "${ssh_base[@]}" bash -s >"$evidence/graphical-diagnostics.txt" 2>&1 <<'DIAG' || true
+set -u
+echo '=== DRM connectors ==='
+for status in /sys/class/drm/card*-*/status; do
+    [ -e "$status" ] || continue
+    printf '%s=' "$status"
+    cat "$status" 2>/dev/null || true
+done
+echo '=== login processes ==='
+ps -ww -eo user:24,pid,ppid,args | grep -E 'plasma-login|kwin_wayland|AccountsService' | grep -v grep || true
+echo '=== users ==='
+getent passwd moos || true
+loginctl list-users --no-legend || true
+echo '=== boot units ==='
+systemctl --no-pager --full status moos-cloud-account-ready.service plasmalogin.service || true
+echo '=== greeter journal ==='
+journalctl --no-pager -b -n 250 \
+    -u moos-cloud-account-ready.service -u plasmalogin.service || true
+DIAG
+    cat "$evidence/graphical-diagnostics.txt" >&2
+    exit 1
+fi
 
 if [ "$visual_hold" = 1 ]; then
     continue_file="$evidence/continue"

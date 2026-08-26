@@ -244,10 +244,12 @@ EnvironmentFile=-/run/moos/plasmalogin-kwin.env
 Environment=LIBGL_ALWAYS_SOFTWARE=1
 Environment=MESA_LOADER_DRIVER_OVERRIDE=llvmpipe
 Environment=GALLIUM_DRIVER=llvmpipe
-# UTM/QEMU has a real connected virtio display and must render to it. A
-# display-less VPS still needs KWin's virtual output. The helper resolves that
-# distinction from live DRM connector state; forcing --virtual everywhere made
-# runtime report graphical=active while the phone/QEMU framebuffer stayed black.
+# UTM/QEMU has a virtio display and must render to it. Its connector can report
+# "disconnected" while QEMU runs headless even though the monitor framebuffer is
+# usable, so connector *presence* — not the status text — selects DRM. A truly
+# display-less VPS has no connector and still gets KWin's virtual output.
+# Forcing --virtual everywhere made runtime report graphical=active while the
+# phone/QEMU framebuffer stayed black.
 ExecStart=
 ExecStart=/usr/libexec/moos-arm-greeter-kwin
 KWINDROP
@@ -953,6 +955,8 @@ grep -q 'ExecStart=/usr/libexec/moos-arm-greeter-kwin' \
 [ -x /usr/libexec/moos-arm-greeter-kwin ] \
     || { echo "GATE FAIL: ARM display-aware greeter launcher is missing"; exit 1; }
 grep -q '/sys/class/drm/card\*-\*/status' /usr/libexec/moos-arm-greeter-kwin \
+    && grep -q '\[ -e "$status" \]' /usr/libexec/moos-arm-greeter-kwin \
+    && grep -q 'seq 1 50' /usr/libexec/moos-arm-greeter-kwin \
     && grep -q -- '--virtual --width 1920 --height 1080' /usr/libexec/moos-arm-greeter-kwin \
     || { echo "GATE FAIL: ARM greeter must distinguish connected UTM displays from headless VPS"; exit 1; }
 grep -qxF 'vgem' /etc/modules-load.d/moos-arm-vgem.conf \

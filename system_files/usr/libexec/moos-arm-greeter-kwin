@@ -14,11 +14,19 @@ kwin_args=(
     --locale1
 )
 
-for status in /sys/class/drm/card*-*/status; do
-    [ -r "$status" ] || continue
-    if grep -qx connected "$status"; then
+# A QEMU/UTM virtio display can legitimately report its connector as
+# "disconnected" when the host frontend is headless.  The framebuffer is still
+# present (QEMU's monitor screendump reads it, and UTM attaches its view later),
+# so treating that status as "no display" launches KWin on a private virtual
+# output and leaves the real framebuffer black.  A genuinely display-less VPS
+# has no connector node at all.  Wait briefly for DRM coldplug, then use the DRM
+# backend whenever a connector exists, regardless of its current status text.
+for _attempt in $(seq 1 50); do
+    for status in /sys/class/drm/card*-*/status; do
+        [ -e "$status" ] || continue
         exec /usr/bin/kwin_wayland "${kwin_args[@]}"
-    fi
+    done
+    sleep 0.1
 done
 
 exec /usr/bin/kwin_wayland "${kwin_args[@]}" --virtual --width 1920 --height 1080
