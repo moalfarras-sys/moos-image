@@ -1639,11 +1639,15 @@ flatpak_idle = read("system_files/usr/lib/systemd/system/flatpak-system-update.s
 require("CPUSchedulingPolicy=idle" in flatpak_idle and "IOSchedulingClass=idle" in flatpak_idle,
         "flatpak-system-update must run at idle CPU and I/O priority — at normal priority it "
         "is what 'the system feels slow right after login' is actually made of")
-# uupd is the OTHER unpriced background updater, and on this machine it is now the more
-# expensive of the two: 1min 16.195s in `systemd-analyze blame`, top of the list. Its timer
-# is OnCalendar=04:00 Persistent=true, so a desktop that was off at 4 AM runs it inside the
-# first fifteen minutes of the session — the same window the flatpak updater was moved out
-# of. Fixing one and leaving the other is fixing half a boot.
+flatpak_system = read("system_files/usr/lib/systemd/system/flatpak-system-update.service.d/20-moos-resilient.conf")
+flatpak_user = read("system_files/usr/lib/systemd/user/flatpak-user-update.service.d/20-moos-resilient.conf")
+require("ExecStart=/usr/libexec/moos-flatpak-update --system" in flatpak_system
+        and "ExecStart=/usr/libexec/moos-flatpak-update --user" in flatpak_user,
+        "system and user Flatpaks must share one resilient implementation while retaining "
+        "their separate privilege scopes")
+# uupd was a THIRD Flatpak updater beside the system and user timers. One broken Firefox
+# delta therefore failed three jobs and downloaded the same object repeatedly. Keep uupd
+# for distroboxes, but never let it repeat either Flatpak scope.
 # And the update that runs must be able to report success. uupd's Brew module is on by
 # default and points at /home/linuxbrew/.linuxbrew/bin/brew — a path MoOS never creates,
 # because MoOS does not ship Homebrew. The module therefore fails on every machine, every
@@ -1657,10 +1661,10 @@ _uupd_cfg = json.loads(read("system_files/etc/uupd/config.json"))
 require(_uupd_cfg["modules"]["brew"]["disable"] is True,
         "uupd's Brew module must be disabled — MoOS ships no Homebrew, so the module can "
         "only ever fail and make every automatic update report errors")
-for _mod in ("distrobox", "flatpak"):
-    require(_uupd_cfg["modules"][_mod]["disable"] is False,
-            f"uupd's {_mod} module must stay enabled — disabling it silently stops that "
-            "half of the update")
+require(_uupd_cfg["modules"]["distrobox"]["disable"] is False,
+        "uupd must remain the distrobox update authority")
+require(_uupd_cfg["modules"]["flatpak"]["disable"] is True,
+        "uupd must not repeat the dedicated system and user Flatpak timers")
 require(_uupd_cfg["modules"]["system"]["disable"] is True,
         "uupd's system module must be disabled — moos-image-update is the sole signed OS "
         "deployment writer; enabling both creates a transaction race and duplicate policy")

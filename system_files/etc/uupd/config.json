@@ -16,7 +16,7 @@
             "disable": false
         },
         "flatpak": {
-            "disable": false
+            "disable": true
         },
         "system": {
             "disable": true

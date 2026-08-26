@@ -1,0 +1,24 @@
+#!/usr/bin/bash
+# One resilient Flatpak implementation for both the system and user scopes.
+# The two systemd timers own distinct installations; uupd no longer repeats
+# either one. A broken static delta is retried once from complete signed objects.
+set -euo pipefail
+
+case "${1:-}" in
+    --system|--user) scope="$1" ;;
+    *)
+        echo "Usage: moos-flatpak-update <--system|--user>" >&2
+        exit 2
+        ;;
+esac
+
+flatpak_bin="${MOOS_FLATPAK_BIN:-/usr/bin/flatpak}"
+
+"$flatpak_bin" "$scope" uninstall --unused -y --noninteractive
+
+if ! "$flatpak_bin" "$scope" update -y --noninteractive; then
+    echo "MoOS: Flatpak delta update failed; retrying from complete objects." >&2
+    "$flatpak_bin" "$scope" update --no-static-deltas -y --noninteractive
+fi
+
+"$flatpak_bin" "$scope" repair

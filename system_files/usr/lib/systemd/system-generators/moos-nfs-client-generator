@@ -1,0 +1,31 @@
+#!/usr/bin/bash
+# Keep NFS client services off the normal desktop boot path unless this machine
+# actually declares an NFS mount. Fedora enables nfs-client.target globally;
+# that makes systemd-user-sessions wait for network/GSS on every computer,
+# including laptops and desktops with no remote filesystem at all.
+set -eu
+
+normal_dir="${1:?systemd did not provide the generator output directory}"
+fstab="${MOOS_FSTAB:-/etc/fstab}"
+target="${MOOS_NFS_CLIENT_TARGET:-/usr/lib/systemd/system/nfs-client.target}"
+
+[ -r "$fstab" ] || exit 0
+[ -e "$target" ] || exit 0
+
+while IFS= read -r raw || [ -n "$raw" ]; do
+    line="${raw%%#*}"
+    # fstab's filesystem type cannot contain whitespace, so shell field
+    # splitting is sufficient here and preserves escaped spaces in paths.
+    set -- $line
+    [ "$#" -ge 3 ] || continue
+    case "$3" in
+        nfs|nfs4)
+            wants="${normal_dir}/remote-fs.target.wants"
+            mkdir -p "$wants"
+            ln -sfn "$target" "${wants}/nfs-client.target"
+            exit 0
+            ;;
+    esac
+done <"$fstab"
+
+exit 0

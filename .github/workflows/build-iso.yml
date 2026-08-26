@@ -278,16 +278,13 @@ jobs:
           ls -lh "${out}"
           echo "iso=${out}" >> "$GITHUB_OUTPUT"
 
-      # Upload the finished ISO HERE, before the QEMU boot/install proof steps.
-      # The proof steps run inside GitHub-hosted runners whose KVM/GPU setup is
-      # flaky; when they failed the whole job aborted and the already-built ISO
-      # was dropped (it was only uploaded at the very end). Moving the upload up
-      # captures the artifact even if a later proof step fails — without
-      # weakening those gates (they stay hard-fail below).
-      - name: Upload ISO as workflow artifact
+      # Keep the exact bytes available when a QEMU proof fails, but label them
+      # unambiguously as diagnostic and unproven. This is never the release
+      # artifact consumed by promotion or handed to users.
+      - name: Upload unproven ISO for failure diagnosis
         uses: actions/upload-artifact@v4
         with:
-          name: moos-live-iso
+          name: moos-live-iso-unproven-debug
           path: ${{ steps.embed.outputs.iso }}
           if-no-files-found: error
           retention-days: 7
@@ -330,8 +327,16 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-      # NOTE: the ISO upload was moved earlier in this file (before the proof
-      # steps) so the artifact survives a proof-step failure in the runner. The
-      # proof gates themselves remain hard-fail and authoritative.
+      # This is the only user/release-facing ISO. Default success semantics are
+      # deliberate: both hard-fail proof steps above must have completed first.
+      - name: Upload ISO as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: moos-live-iso
+          path: ${{ steps.embed.outputs.iso }}
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
       # NOTE: artifacts are a temporary distribution channel (short retention,
       # slow downloads). Cloudflare R2 upload replaces this step later.

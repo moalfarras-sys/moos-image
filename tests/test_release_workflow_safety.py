@@ -612,9 +612,20 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
         iso = ISO_WORKFLOW.read_text(encoding="utf-8")
         script = (ROOT / "tests" / "boot_live_iso.sh").read_text(encoding="utf-8")
         boot = 'tests/boot_live_iso.sh "$FINAL_ISO" "$EXPECTED_IMAGE" "$EVIDENCE_DIR"'
+        install = 'tests/install_live_iso.sh "$FINAL_ISO" "$EXPECTED_IMAGE" "$EVIDENCE_DIR"'
         self.assertIn(boot, iso)
+        self.assertIn(install, iso)
         self.assertIn("FINAL_ISO: ${{ steps.embed.outputs.iso }}", iso)
-        self.assertLess(iso.index(boot), iso.index("Upload ISO as workflow artifact"))
+        final_upload = iso.index("- name: Upload ISO as workflow artifact")
+        self.assertLess(iso.index(boot), final_upload)
+        self.assertLess(iso.index(install), final_upload)
+        self.assertEqual(iso.count("\n          name: moos-live-iso\n"), 1)
+        diagnostic = iso.split(
+            "- name: Upload unproven ISO for failure diagnosis", 1
+        )[1].split("      - name:", 1)[0]
+        self.assertIn("name: moos-live-iso-unproven-debug", diagnostic)
+        final_step = iso.split("- name: Upload ISO as workflow artifact", 1)[1]
+        self.assertNotIn("if: always()", final_step)
         boot_step = iso.split("- name: Boot and prove the exact final live ISO", 1)[1].split(
             "      - name:", 1
         )[0]

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regression proof for Flatpak's broken-static-delta recovery path."""
+"""Regression proof for the unified Flatpak update implementation."""
 
 from pathlib import Path
 import os
@@ -8,19 +8,24 @@ import tempfile
 
 
 ROOT = Path(__file__).resolve().parents[1]
-HELPER = ROOT / "system_files/usr/libexec/moos-flatpak-user-update"
-DROPIN = ROOT / (
+HELPER = ROOT / "system_files/usr/libexec/moos-flatpak-update"
+USER_DROPIN = ROOT / (
     "system_files/usr/lib/systemd/user/flatpak-user-update.service.d/"
+    "20-moos-resilient.conf"
+)
+SYSTEM_DROPIN = ROOT / (
+    "system_files/usr/lib/systemd/system/flatpak-system-update.service.d/"
     "20-moos-resilient.conf"
 )
 
 assert HELPER.is_file() and os.access(HELPER, os.X_OK), "Flatpak update helper is not executable"
-dropin = DROPIN.read_text(encoding="utf-8")
-assert "ExecStart=" in dropin
-assert "ExecStart=/usr/libexec/moos-flatpak-user-update" in dropin
+user_dropin = USER_DROPIN.read_text(encoding="utf-8")
+system_dropin = SYSTEM_DROPIN.read_text(encoding="utf-8")
+assert "ExecStart=/usr/libexec/moos-flatpak-update --user" in user_dropin
+assert "ExecStart=/usr/libexec/moos-flatpak-update --system" in system_dropin
 
 
-def run_case(mode: str) -> tuple[subprocess.CompletedProcess[str], list[str]]:
+def run_case(mode: str, scope: str = "--user") -> tuple[subprocess.CompletedProcess[str], list[str]]:
     with tempfile.TemporaryDirectory(prefix="moos-flatpak-update-") as tmp:
         tmp_path = Path(tmp)
         log = tmp_path / "calls"
@@ -30,10 +35,10 @@ def run_case(mode: str) -> tuple[subprocess.CompletedProcess[str], list[str]]:
 set -u
 printf '%s\\n' "$*" >>"$MOOS_TEST_LOG"
 case " $* " in
-  *" --user update --no-static-deltas "*)
+  *" update --no-static-deltas "*)
     [ "$MOOS_TEST_MODE" != "fail-both" ]
     ;;
-  *" --user update "*)
+  *" update "*)
     [ "$MOOS_TEST_MODE" = "normal" ]
     ;;
   *) exit 0 ;;
@@ -48,7 +53,7 @@ esac
             "MOOS_TEST_MODE": mode,
         }
         result = subprocess.run(
-            [str(HELPER)], text=True, capture_output=True, env=env, check=False
+            [str(HELPER), scope], text=True, capture_output=True, env=env, check=False
         )
         return result, log.read_text(encoding="utf-8").splitlines()
 
@@ -69,4 +74,12 @@ assert failed.returncode != 0, "both failed update paths must remain visible to 
 assert any("--no-static-deltas" in call for call in failed_calls)
 assert failed_calls[-1] != "--user repair", "repair must not conceal an update failure"
 
-print("Flatpak user-update recovery gate passed")
+system, system_calls = run_case("retry", "--system")
+assert system.returncode == 0, system.stderr
+assert all(call.startswith("--system ") for call in system_calls)
+assert system_calls[-1] == "--system repair"
+
+invalid = subprocess.run([str(HELPER), "--all"], text=True, capture_output=True, check=False)
+assert invalid.returncode == 2, "an unbounded Flatpak scope must be rejected"
+
+print("Unified Flatpak update recovery gate passed")

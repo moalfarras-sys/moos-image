@@ -457,7 +457,7 @@ kver=$(basename "$(find /usr/lib/modules -mindepth 1 -maxdepth 1 -type d)")
 # from the real root during normal boot.
 # (The generic edition has no NVIDIA and is ~124MB.)
 cat > /usr/lib/dracut/dracut.conf.d/99-moos-boot.conf <<'DRC'
-add_dracutmodules+=" ostree dmsquash-live dmsquash-live-autooverlay "
+add_dracutmodules+=" ostree dmsquash-live dmsquash-live-autooverlay moos-accounts "
 # MoOS always boots its local OSTree/composefs deployment (or the local live
 # squashfs). With --no-hostonly dracut otherwise includes 74nfs merely because
 # nfs-utils is installed, and its pre-udev hook starts rpcbind + rpc.statd in
@@ -487,7 +487,7 @@ DRC
 # terminated the build step even though dracut had already logged
 # "*** Including module: ostree ***". So we gate on dracut's log, not lsinitrd.)
 DRACUT_NO_XATTR=1 dracut -v --force --zstd --reproducible --no-hostonly \
-    --add "ostree dmsquash-live dmsquash-live-autooverlay" \
+    --add "ostree dmsquash-live dmsquash-live-autooverlay moos-accounts" \
     --omit "nfs" \
     --omit "network network-manager kernel-network-modules kernel-modules-extra" \
     --add-drivers "erofs overlay loop" \
@@ -2251,9 +2251,21 @@ getent group plugdev >/dev/null || groupadd -r plugdev
 # -----------------------------------------------------------------------------
 # (d) Enable services
 # -----------------------------------------------------------------------------
-# uupd runs from a systemd timer and owns application updates only (Flatpak and
-# distrobox). Its system-image module is disabled in /etc/uupd/config.json.
+# uupd runs from a systemd timer and owns distrobox updates only. Flatpak's
+# system and user timers each own their distinct installation through the same
+# resilient MoOS helper; letting uupd update both again caused duplicate work
+# and made a single broken delta fail three independent services.
 systemctl enable uupd.timer
+
+# Fedora enables nfs-client.target on every machine. That serialized the login
+# manager behind network/GSS by 2.7 seconds on the maintainer's real desktop,
+# even though it has no NFS mounts. Disable the unconditional preset; the MoOS
+# generator restores the target before remote-fs.target whenever /etc/fstab
+# actually declares nfs/nfs4, preserving real NFS clients without taxing every
+# local-only computer.
+[ -x /usr/lib/systemd/system-generators/moos-nfs-client-generator ] \
+    || { echo "GATE FAIL: on-demand NFS generator is missing"; exit 1; }
+systemctl disable nfs-client.target 2>/dev/null || true
 
 # moos-image-update is the single authority for the immutable OS image. The
 # compatible moos-auto-update unit name remains so existing deployment enable
@@ -3390,7 +3402,7 @@ grep -qx 'ImageDir=/usr/share/plymouth/themes/moos' /usr/share/plymouth/themes/m
 unset -v _active_theme
 
 DRACUT_NO_XATTR=1 dracut -v --force --zstd --reproducible --no-hostonly \
-    --add "ostree plymouth dmsquash-live dmsquash-live-autooverlay" \
+    --add "ostree plymouth dmsquash-live dmsquash-live-autooverlay moos-accounts" \
     --omit "nfs" \
     --omit "network network-manager kernel-network-modules kernel-modules-extra" \
     --add-drivers "erofs overlay loop" \
@@ -3419,6 +3431,9 @@ grep -q "Including module: ostree" /tmp/moos-final-dracut.log || {
 grep -q "Including module: plymouth" /tmp/moos-final-dracut.log || {
     echo "FATAL: final initramfs lost Plymouth support"; exit 1;
 }
+grep -q "Including module: moos-accounts" /tmp/moos-final-dracut.log || {
+    echo "FATAL: final initramfs lost the bootc account database"; exit 1;
+}
 grep -qx 'Theme=moos' /etc/plymouth/plymouthd.conf
 grep -qx 'Theme=moos' /usr/share/plymouth/plymouthd.defaults
 
@@ -3432,6 +3447,15 @@ if [ "${_final_lsrc}" -eq 0 ]; then
     grep -q 'ostree-prepare-root' /tmp/moos-final-initrd.txt || {
         echo "FATAL: final initramfs lacks ostree-prepare-root"; exit 1;
     }
+    lsinitrd -f etc/group \
+        "/usr/lib/modules/${kver}/initramfs.img" > /tmp/moos-final-initrd-group
+    for _group in audio video render disk kvm input tss utmp; do
+        grep -q "^${_group}:" /tmp/moos-final-initrd-group || {
+            echo "FATAL: initramfs cannot resolve the ${_group} group used by udev/tmpfiles"
+            exit 1
+        }
+    done
+    unset -v _group
     grep -q 'plymouth/themes/moos/moos.plymouth' /tmp/moos-final-initrd.txt || {
         echo "FATAL: final initramfs lacks the MoOS Plymouth descriptor"; exit 1;
     }
@@ -3475,7 +3499,7 @@ else
     echo "NOTE: final lsinitrd inspection unavailable (exit=${_final_lsrc}); dracut module gates passed"
 fi
 rm -f /tmp/moos-final-dracut.log /tmp/moos-final-initrd.txt \
-    /tmp/moos-final-plymouth.conf
+    /tmp/moos-final-plymouth.conf /tmp/moos-final-initrd-group
 unset -v _final_lsrc
 
 # -----------------------------------------------------------------------------
