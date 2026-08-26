@@ -56,7 +56,12 @@ for _attempt in $(seq 1 150); do
 done
 
 if [ "$has_connector" -eq 1 ] && [ -n "$dri_node" ]; then
-    exec /usr/bin/kwin_wayland "${kwin_args[@]}" --drm-device "$dri_node"
+    # KWin selects its DRM device from KWIN_DRM_DEVICES (this KWin has no
+    # drm-device CLI flag); pointing it at the node we just confirmed is
+    # present and readable avoids the "Failed to open drm node" race and the black
+    # frame. Export it so the exec inherits it.
+    export KWIN_DRM_DEVICES="$dri_node"
+    exec /usr/bin/kwin_wayland "${kwin_args[@]}"
 fi
 
 # No usable DRM node appeared (a genuinely display-less VPS, or a node KWin still
