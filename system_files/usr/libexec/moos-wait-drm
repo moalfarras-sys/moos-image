@@ -108,8 +108,15 @@ if [ -f "$login_conf" ] && [ ! -e "${login_conf}.moos-keep" ]; then
 fi
 
 while [ "$i" -lt "$steps" ]; do
-    for node in "$drm_dir"/card*; do
+    for node in "$drm_dir"/card* "$drm_dir"/renderD*; do
         if [ -e "$node" ]; then
+            # The greeter's KWin runs as the unprivileged plasmalogin user (uid
+            # 969). udev's world-readable rule may not have applied yet, and the
+            # default node is often root-owned 0600, so plasmalogin cannot open
+            # it and KWin reports "couldn't find dev node" / a black frame. Make
+            # every present node world-readable here (we are root, running as
+            # ExecStartPre) so the unprivileged compositor can actually open it.
+            chmod 0666 "$drm_dir"/card* "$drm_dir"/renderD* 2>/dev/null || true
             echo "MoOS login: DRM device ready ($node)"
             exit 0
         fi

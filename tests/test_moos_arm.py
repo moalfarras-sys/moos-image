@@ -648,8 +648,8 @@ class ArmEditionTests(unittest.TestCase):
                       "the greeter must wait for the real virtio DRM node, not just the sysfs connector")
         self.assertIn('[ -r "$candidate" ]', greeter,
                       "the node must be openable by the unprivileged plasmalogin user before KWin starts")
-        self.assertIn("KWIN_DRM_DEVICES", greeter,
-                      "name the DRM node via KWIN_DRM_DEVICES (KWin has no --drm-device flag)")
+        self.assertNotIn("KWIN_DRM_DEVICES", greeter,
+                         "this KWin auto-detects the present+readable node; naming it is unsupported")
         self.assertNotIn("--drm-device", greeter,
                          "KWin rejects the --drm-device CLI flag on this version")
         self.assertNotIn("grep -qx connected", greeter,
