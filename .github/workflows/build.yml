@@ -400,6 +400,7 @@ jobs:
           # user-provisioning path) and generate a per-bundle one-time password —
           # never a shared static one inside the image.
           python3 tests/test_utm_bundle.py
+          python3 tests/test_utm_installer.py
           # The store-chain gate also runs inside the image build (build.sh), where
           # it reads the finished /usr. It supports MOOS_TEST_ROOT, so run it here
           # too: a catalogue/recipe/route drift should cost 3 seconds, not a

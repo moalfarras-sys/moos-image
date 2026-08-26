@@ -210,6 +210,9 @@ jobs:
           set -euo pipefail
           trap 'rm -f -- "$MOOS_X86_SSH_KEY" "$MOOS_X86_SSH_KEY.pub"' EXIT
           sudo apt-get install -y -qq qemu-system-x86 ovmf imagemagick >/dev/null
+          if [ -e /dev/kvm ]; then
+            sudo chmod 0666 /dev/kvm
+          fi
           before="$(sha256sum "$MOOS_X86_QCOW" | awk '{print $1}')"
           tests/boot_x86_qcow2.sh \
             "$MOOS_X86_QCOW" "$EXPECTED_IMAGE" "$EVIDENCE_DIR" "$MOOS_X86_SSH_KEY"

@@ -654,11 +654,15 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
 
     def test_cloud_disk_uses_the_shared_x86_boot_proof(self) -> None:
         script = X86_BOOT.read_text(encoding="utf-8")
+        workflow = DISK_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("moos|moos-nvidia|moos-cloud", script)
         self.assertIn("runtime-gate=%s", script)
         self.assertIn("system-state=%s", script)
         self.assertIn("root-mount=%s", script)
         self.assertIn("booted-origin=", script)
+        self.assertIn("[ -r /dev/kvm ] && [ -w /dev/kvm ]", script)
+        self.assertIn("q35,accel=kvm", script)
+        self.assertIn("sudo chmod 0666 /dev/kvm", workflow)
 
     def test_disk_runtime_proof_uses_only_ephemeral_ssh_credentials(self) -> None:
         workflow = DISK_WORKFLOW.read_text(encoding="utf-8")
