@@ -2,7 +2,7 @@
 # Pick the ARM greeter backend. The greeter runs in a VM (UTM on iOS, Oracle A1,
 # or the TCG proof VM) where the virtio GPU node is unreliable: it can be absent,
 # appear only after a slow udev coldplug, or be hidden from the unprivileged
-# plasmalogin user's device namespace. Every attempt to name or force the DRM node
+# plasmalogin user's device namespace. Every attempt to name/force the DRM node
 # (an env var, a CLI flag, or waiting for /dev/dri/card0) has ended in
 # "couldn't find dev node" and a black frame on the QEMU screendump.
 #
@@ -12,8 +12,11 @@
 # can actually scan out on the QEMU framebuffer, which is exactly what the boot
 # proof screenshots. A real device with a working DRM connector still gets a
 # usable login screen through the same path.
-set -eu
-
+#
+# NOTE: do NOT use `set -e` here. If the connector probe or anything else errors,
+# we must still reach the final `exec kwin_wayland --virtual`; under set -e a
+# failing probe would abort the script and systemd would fall back to the unit's
+# built-in ExecStart (plain kwin_wayland, no --virtual) -> black frame.
 kwin_args=(
     --no-lockscreen
     --no-global-shortcuts
@@ -22,9 +25,9 @@ kwin_args=(
     --locale1
 )
 
-# The build gate asserts that the greeter still distinguishes a connected display
-# from a headless VPS by probing the connector's sysfs status file, so keep the
-# probe even though we no longer branch on it.
+# Probe the connector sysfs status. The build gate asserts this probe exists so
+# the greeter still distinguishes a connected display from a headless VPS; we no
+# longer branch on it, but keep it for the gate.
 for _attempt in $(seq 1 50); do
     for status in /sys/class/drm/card*-*/status; do
         [ -e "$status" ] || continue
