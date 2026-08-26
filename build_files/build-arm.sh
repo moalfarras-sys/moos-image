@@ -242,7 +242,6 @@ install -D -m0644 /dev/stdin \
 [Service]
 EnvironmentFile=-/run/moos/plasmalogin-kwin.env
 Environment=LIBGL_ALWAYS_SOFTWARE=1
-Environment=MESA_LOADER_DRIVER_OVERRIDE=llvmpipe
 Environment=GALLIUM_DRIVER=llvmpipe
 # UTM/QEMU has a virtio display and must render to it. Its connector can report
 # "disconnected" while QEMU runs headless even though the monitor framebuffer is
@@ -268,7 +267,6 @@ unset -v _greeter_unit
 install -D -m0644 /dev/stdin /etc/environment.d/60-moos-arm-llvmpipe.conf <<'LLVMPIPE'
 # MoOS ARM: software rendering for every user session, including plasmalogin.
 LIBGL_ALWAYS_SOFTWARE=1
-MESA_LOADER_DRIVER_OVERRIDE=llvmpipe
 GALLIUM_DRIVER=llvmpipe
 LP_NUM_THREADS=2
 # The ARM targets (UTM on iOS and Oracle A1) expose no accelerated render node.
@@ -961,10 +959,17 @@ grep -q 'LIBGL_ALWAYS_SOFTWARE=1' \
     /usr/lib/systemd/user/plasma-login-kwin_wayland.service.d/10-moos-arm-greeter-gl.conf \
     /etc/environment.d/60-moos-arm-llvmpipe.conf \
     || { echo "GATE FAIL: ARM login greeter must force software GL for virtio proof VMs"; exit 1; }
-grep -q 'MESA_LOADER_DRIVER_OVERRIDE=llvmpipe' \
+grep -q 'GALLIUM_DRIVER=llvmpipe' \
     /usr/lib/systemd/user/plasma-login-kwin_wayland.service.d/10-moos-arm-greeter-gl.conf \
     /etc/environment.d/60-moos-arm-llvmpipe.conf \
-    || { echo "GATE FAIL: ARM login greeter must pin llvmpipe for virtio proof VMs"; exit 1; }
+    || { echo "GATE FAIL: ARM login greeter must select llvmpipe through Gallium"; exit 1; }
+if grep -qE "printf 'MESA_LOADER_DRIVER_OVERRIDE=llvmpipe|^Environment=MESA_LOADER_DRIVER_OVERRIDE=llvmpipe|^MESA_LOADER_DRIVER_OVERRIDE=llvmpipe" \
+    /usr/libexec/moos-greeter-gl-env \
+    /usr/lib/systemd/user/plasma-login-kwin_wayland.service.d/10-moos-arm-greeter-gl.conf \
+    /etc/environment.d/60-moos-arm-llvmpipe.conf; then
+    echo "GATE FAIL: forcing Mesa's llvmpipe loader detaches KWin from the DRM scanout"
+    exit 1
+fi
 grep -qx 'QT_QUICK_BACKEND=software' /etc/environment.d/60-moos-arm-llvmpipe.conf \
     || { echo "GATE FAIL: ARM sessions must use Qt Quick's bounded software renderer"; exit 1; }
 for _greeter_unit in plasma-login.service plasma-wallpaper.service; do
@@ -980,6 +985,7 @@ grep -q 'ExecStart=/usr/libexec/moos-arm-greeter-kwin' \
     || { echo "GATE FAIL: ARM display-aware greeter launcher is missing"; exit 1; }
 grep -q '/sys/class/drm/card\*-\*/status' /usr/libexec/moos-arm-greeter-kwin \
     && grep -q '\[ -e "$status" \]' /usr/libexec/moos-arm-greeter-kwin \
+    && grep -q 'KWIN_DRM_DEVICES="$dri_node"' /usr/libexec/moos-arm-greeter-kwin \
     && grep -q 'seq 1 50' /usr/libexec/moos-arm-greeter-kwin \
     && grep -q -- '--virtual --width 1920 --height 1080' /usr/libexec/moos-arm-greeter-kwin \
     || { echo "GATE FAIL: ARM greeter must distinguish connected UTM displays from headless VPS"; exit 1; }

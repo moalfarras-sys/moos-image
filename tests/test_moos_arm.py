@@ -655,8 +655,18 @@ class ArmEditionTests(unittest.TestCase):
                          "connector status must not hide QEMU/UTM's usable framebuffer")
         self.assertIn("seq 1 50", greeter,
                       "the greeter must allow DRM coldplug to publish its connector")
+        self.assertIn('card="${connector%%-*}"', greeter,
+                      "the UTM connector must resolve to its owning DRM card")
+        self.assertIn('KWIN_DRM_DEVICES="$dri_node"', greeter,
+                      "KWin must scan out on the UTM card, not ARM's headless vgem card")
         self.assertIn("--virtual --width 1920 --height 1080", greeter,
                       "a connector-less cloud VPS still needs the virtual backend")
+        gl_helper = read(ROOT / "system_files/usr/libexec/moos-greeter-gl-env")
+        self.assertIn("GALLIUM_DRIVER=llvmpipe", gl_helper)
+        self.assertNotIn("printf 'MESA_LOADER_DRIVER_OVERRIDE=llvmpipe", gl_helper,
+                         "forcing the surfaceless llvmpipe loader removes KWin's DRM devnode")
+        self.assertNotIn("\nEnvironment=MESA_LOADER_DRIVER_OVERRIDE=llvmpipe", text,
+                         "the compositor must retain Mesa's KMS-aware software path")
         self.assertIn("QT_QUICK_BACKEND=software", text,
                       "unaccelerated UTM graphics need Qt Quick's software scene graph")
         self.assertIn("plasma-login.service plasma-wallpaper.service", text,

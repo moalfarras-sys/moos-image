@@ -315,7 +315,7 @@ echo '=== login environment ==='
 for pid in $(pgrep -u plasmalogin -f 'plasma-login-greeter|plasma-login-wallpaper' 2>/dev/null); do
     printf 'pid=%s ' "$pid"
     tr '\0' '\n' <"/proc/${pid}/environ" 2>/dev/null \
-        | grep -E '^(QT_QUICK_BACKEND|QSG_RHI_BACKEND|WAYLAND_DISPLAY|LIBGL_ALWAYS_SOFTWARE|MESA_LOADER_DRIVER_OVERRIDE)=' \
+        | grep -E '^(QT_QUICK_BACKEND|QSG_RHI_BACKEND|WAYLAND_DISPLAY|LIBGL_ALWAYS_SOFTWARE|MESA_LOADER_DRIVER_OVERRIDE|GALLIUM_DRIVER|KWIN_DRM_DEVICES)=' \
         | tr '\n' ' ' || true
     printf '\n'
 done

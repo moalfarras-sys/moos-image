@@ -17,10 +17,20 @@ kwin_args=(
 # A QEMU/UTM virtio display can legitimately report its connector as
 # "disconnected" when the host frontend is headless. The framebuffer is still
 # present, so connector presence — not the status text — selects the DRM backend.
-# A genuinely display-less VPS has no connector node at all.
+# Name the exact card which owns that connector. ARM also loads vgem for the
+# connector-less Oracle remote-desktop path; allowing KWin to auto-select from
+# both cards can bind the greeter to that off-screen allocation device instead
+# of the phone framebuffer.
 for _attempt in $(seq 1 50); do
     for status in /sys/class/drm/card*-*/status; do
         [ -e "$status" ] || continue
+        connector="${status%/status}"
+        connector="${connector##*/}"
+        card="${connector%%-*}"
+        dri_node="/dev/dri/${card}"
+        if [ -e "$dri_node" ]; then
+            export KWIN_DRM_DEVICES="$dri_node"
+        fi
         exec /usr/bin/kwin_wayland "${kwin_args[@]}"
     done
     sleep 0.1

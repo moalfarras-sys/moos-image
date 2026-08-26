@@ -23,7 +23,11 @@ fi
 
 {
     printf 'LIBGL_ALWAYS_SOFTWARE=1\n'
-    printf 'MESA_LOADER_DRIVER_OVERRIDE=llvmpipe\n'
+    # LIBGL_ALWAYS_SOFTWARE selects Mesa's KMS-aware software path for the DRM
+    # card.  Do not set MESA_LOADER_DRIVER_OVERRIDE=llvmpipe here: that forces a
+    # surfaceless driver binary, so KWin's EGL display reports no DRM devnode
+    # and the real scanout stays black with only the hardware cursor visible.
+    # GALLIUM_DRIVER is the supported selector for the software rasterizer.
     printf 'GALLIUM_DRIVER=llvmpipe\n'
 } >"$envfile"
 exit 0
