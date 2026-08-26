@@ -264,8 +264,10 @@ for _ in $(seq 1 60); do [ -S "$monitor" ] && break; sleep 0.25; done
 # Plasma Login Manager hides the authentication form after idle timeout.
 # A headless screendump taken without waking it can be a black frame with only
 # the cursor while runtime still reports graphical=active — that already shipped
-# as false visual proof for freeze 70aff7a9. Wake the greeter the same way the
-# UTM interactive gate does, then reject flat captures.
+# as false visual proof for freeze 70aff7a9. Wake both pointer- and keyboard-idle
+# paths (QEMU's headless frontend does not give either device host focus), then
+# reject flat captures.
+printf 'mouse_move 12 8\n' | socat - UNIX-CONNECT:"$monitor" >/dev/null
 printf 'sendkey shift\n' | socat - UNIX-CONNECT:"$monitor" >/dev/null
 printf 'sendkey spc\n' | socat - UNIX-CONNECT:"$monitor" >/dev/null
 sleep 5
@@ -305,6 +307,14 @@ for status in /sys/class/drm/card*-*/status; do
 done
 echo '=== login processes ==='
 ps -ww -eo user:24,pid,ppid,args | grep -E 'plasma-login|kwin_wayland|AccountsService' | grep -v grep || true
+echo '=== login environment ==='
+for pid in $(pgrep -u plasmalogin -f 'plasma-login-greeter|plasma-login-wallpaper' 2>/dev/null); do
+    printf 'pid=%s ' "$pid"
+    tr '\0' '\n' <"/proc/${pid}/environ" 2>/dev/null \
+        | grep -E '^(QT_QUICK_BACKEND|QSG_RHI_BACKEND|WAYLAND_DISPLAY|LIBGL_ALWAYS_SOFTWARE|MESA_LOADER_DRIVER_OVERRIDE)=' \
+        | tr '\n' ' ' || true
+    printf '\n'
+done
 echo '=== users ==='
 getent passwd moos || true
 loginctl list-users --no-legend || true
@@ -313,6 +323,8 @@ systemctl --no-pager --full status moos-cloud-account-ready.service plasmalogin.
 echo '=== greeter journal ==='
 journalctl --no-pager -b -n 250 \
     -u moos-cloud-account-ready.service -u plasmalogin.service || true
+echo '=== greeter user journal ==='
+journalctl --no-pager -b -n 500 _UID="$(id -u plasmalogin)" || true
 DIAG
     cat "$evidence/graphical-diagnostics.txt" >&2
     exit 1

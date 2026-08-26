@@ -253,12 +253,28 @@ Environment=GALLIUM_DRIVER=llvmpipe
 ExecStart=
 ExecStart=/usr/libexec/moos-arm-greeter-kwin
 KWINDROP
+for _greeter_unit in plasma-login.service plasma-wallpaper.service; do
+    install -D -m0644 /dev/stdin \
+        "/usr/lib/systemd/user/${_greeter_unit}.d/10-moos-arm-software-scenegraph.conf" <<'QTSOFTWARE'
+[Service]
+# UTM/virtio on iOS has a scanout but no accelerated render node. Qt Quick's GL
+# scene graph can stay alive while painting no client buffers, leaving only
+# KWin's hardware cursor visible. QPainter is both reliable and dramatically
+# cheaper for the static login surface on this software-rendered ARM edition.
+Environment=QT_QUICK_BACKEND=software
+QTSOFTWARE
+done
+unset -v _greeter_unit
 install -D -m0644 /dev/stdin /etc/environment.d/60-moos-arm-llvmpipe.conf <<'LLVMPIPE'
 # MoOS ARM: software rendering for every user session, including plasmalogin.
 LIBGL_ALWAYS_SOFTWARE=1
 MESA_LOADER_DRIVER_OVERRIDE=llvmpipe
 GALLIUM_DRIVER=llvmpipe
 LP_NUM_THREADS=2
+# The ARM targets (UTM on iOS and Oracle A1) expose no accelerated render node.
+# The Qt Quick software scene graph avoids a black-but-running desktop and also
+# stops idle 2D panels from spinning llvmpipe continuously.
+QT_QUICK_BACKEND=software
 LLVMPIPE
 install -D -m0644 /dev/stdin /etc/modules-load.d/moos-arm-vgem.conf <<'MODLOAD'
 vgem
@@ -949,6 +965,14 @@ grep -q 'MESA_LOADER_DRIVER_OVERRIDE=llvmpipe' \
     /usr/lib/systemd/user/plasma-login-kwin_wayland.service.d/10-moos-arm-greeter-gl.conf \
     /etc/environment.d/60-moos-arm-llvmpipe.conf \
     || { echo "GATE FAIL: ARM login greeter must pin llvmpipe for virtio proof VMs"; exit 1; }
+grep -qx 'QT_QUICK_BACKEND=software' /etc/environment.d/60-moos-arm-llvmpipe.conf \
+    || { echo "GATE FAIL: ARM sessions must use Qt Quick's bounded software renderer"; exit 1; }
+for _greeter_unit in plasma-login.service plasma-wallpaper.service; do
+    grep -q 'Environment=QT_QUICK_BACKEND=software' \
+        "/usr/lib/systemd/user/${_greeter_unit}.d/10-moos-arm-software-scenegraph.conf" \
+        || { echo "GATE FAIL: ${_greeter_unit} can run black on unaccelerated UTM graphics"; exit 1; }
+done
+unset -v _greeter_unit
 grep -q 'ExecStart=/usr/libexec/moos-arm-greeter-kwin' \
     /usr/lib/systemd/user/plasma-login-kwin_wayland.service.d/10-moos-arm-greeter-gl.conf \
     || { echo "GATE FAIL: ARM login greeter lost its display-aware KWin launcher"; exit 1; }

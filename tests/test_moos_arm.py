@@ -653,6 +653,10 @@ class ArmEditionTests(unittest.TestCase):
                       "the greeter must allow DRM coldplug to publish its connector")
         self.assertIn("--virtual --width 1920 --height 1080", greeter,
                       "a connector-less cloud VPS still needs the virtual backend")
+        self.assertIn("QT_QUICK_BACKEND=software", text,
+                      "unaccelerated UTM graphics need Qt Quick's software scene graph")
+        self.assertIn("plasma-login.service plasma-wallpaper.service", text,
+                      "both login QML clients must inherit the software scene graph")
 
     def test_bootc_is_the_only_cloud_disk_growth_authority(self) -> None:
         build = read(BUILD)
