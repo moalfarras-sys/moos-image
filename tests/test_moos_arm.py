@@ -644,20 +644,16 @@ class ArmEditionTests(unittest.TestCase):
         self.assertIn("moos-cloud-account-ready.service", text,
                       "the greeter must wait until AccountsService publishes the cloud user")
         greeter = read(ROOT / "system_files/usr/libexec/moos-arm-greeter-kwin")
-        self.assertIn("/dev/dri/card0", greeter,
-                      "the greeter must wait for the real virtio DRM node, not just the sysfs connector")
-        self.assertIn('[ -r "$candidate" ]', greeter,
-                      "the node must be openable by the unprivileged plasmalogin user before KWin starts")
+        self.assertIn("seq 1 50", greeter,
+                      "the greeter must still probe the connector sysfs status to distinguish displays")
         self.assertNotIn("KWIN_DRM_DEVICES", greeter,
                          "this KWin auto-detects the present+readable node; naming it is unsupported")
         self.assertNotIn("--drm-device", greeter,
                          "KWin rejects the --drm-device CLI flag on this version")
         self.assertNotIn("grep -qx connected", greeter,
                          "connector status must not hide QEMU/UTM's usable framebuffer")
-        self.assertIn("seq 1 150", greeter,
-                      "the greeter must allow DRM coldplug to publish (and udev to mode) its node")
         self.assertIn("--virtual --width 1920 --height 1080", greeter,
-                      "a connector-less cloud VPS still needs the virtual backend")
+                      "the greeter always uses the virtual backend (the TCG/UTM VM exposes no usable DRM node)")
         self.assertIn("QT_QUICK_BACKEND=software", text,
                       "unaccelerated UTM graphics need Qt Quick's software scene graph")
         self.assertIn("plasma-login.service plasma-wallpaper.service", text,
