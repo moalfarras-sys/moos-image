@@ -591,8 +591,12 @@ SUBSYSTEM=="drm", KERNEL=="card*", DEVPATH=="/devices/faux/vgem/drm/card*", GROU
 SUBSYSTEM=="drm", KERNEL=="card*", MODE="0666"
 SUBSYSTEM=="drm", KERNEL=="renderD*", MODE="0666"
 UDEV
-udevadm control --reload-rules
-udevadm trigger --subsystem-match=drm --action=change
+# Reload/trigger are best-effort: there is no udev daemon inside the buildah
+# build container, so both commands fail there (and would abort the build under
+# set -e). The rules are read by the real initrd/udev on first boot, so skipping
+# the live trigger here is correct, not a regression.
+udevadm control --reload-rules 2>/dev/null || true
+udevadm trigger --subsystem-match=drm --action=change 2>/dev/null || true
 # Ensure the unprivileged greeter user can reach the DRM nodes even if a stricter
 # udev rule wins: membership in the video/render groups is the fallback path.
 # Create the groups first (the minimal ARM image may not ship them), then add
