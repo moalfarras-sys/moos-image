@@ -471,10 +471,10 @@ class ArmEditionTests(unittest.TestCase):
         self.assertIn("ARM VISUAL FAILED", boot_gate,
                       "a failed visible VM must stay open for diagnosis")
         self.assertIn('"${qemu_display[@]}"', boot_gate)
-        self.assertIn("-device virtio-ramfb", boot_gate,
-                      "the raw disk proof must exercise the iPhone UTM display device")
-        self.assertNotIn("-device virtio-gpu-pci", boot_gate,
-                         "a different PCI scanout cannot prove the shipped UTM bundle")
+        self.assertIn("-device virtio-gpu-pci", boot_gate,
+                      "stock QEMU must prove UTM virtio-ramfb's post-boot PCI GPU path")
+        self.assertNotIn("-device virtio-ramfb", boot_gate,
+                         "virtio-ramfb exists only in UTM's patched QEMU")
         self.assertIn("-device virtio-keyboard-pci", boot_gate,
                       "the visual ARM VM must accept real keyboard input")
         self.assertIn("-device virtio-tablet-pci", boot_gate,

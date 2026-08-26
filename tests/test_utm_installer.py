@@ -146,6 +146,10 @@ for proof in (
     "standard_deviation",
 ):
     assert proof in boot, f"net-installer boot proof lost {proof}"
+assert "-device virtio-gpu-pci" in boot, \
+    "stock-QEMU proof lost UTM virtio-ramfb's post-boot GPU equivalent"
+assert "-device virtio-ramfb" not in boot, \
+    "stock QEMU cannot launch UTM's patched virtio-ramfb model"
 
 menu = (ROOT / "system_files/usr/libexec/moos-utm-installer-menu").read_text(
     encoding="utf-8"

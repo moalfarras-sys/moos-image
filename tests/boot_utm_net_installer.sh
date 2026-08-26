@@ -139,6 +139,8 @@ fi
 : >"$serial"
 echo "UTM INSTALLER: booting installer under TCG (no KVM)..."
 
+# UTM's patched virtio-ramfb becomes a PCI virtio GPU after early boot.
+# Stock CI QEMU lacks that wrapper; the exact UTM setting is gated above.
 qemu-system-aarch64 \
     -M virt,highmem=on \
     -cpu max \
@@ -155,7 +157,7 @@ qemu-system-aarch64 \
     -netdev user,id=net0 \
     -device virtio-net-pci,netdev=net0 \
     -device virtio-rng-pci \
-    -device virtio-ramfb \
+    -device virtio-gpu-pci \
     -device virtio-keyboard-pci \
     -device virtio-tablet-pci \
     -no-reboot &

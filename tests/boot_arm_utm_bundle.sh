@@ -227,13 +227,16 @@ else
     accelerator=( -accel "tcg,tb-size=${tb_size}" -cpu cortex-a72 )
 fi
 
+# UTM's QEMU-only virtio-ramfb wraps this PCI virtio GPU after firmware.
+# Stock CI QEMU lacks the wrapper; config.plist was validated above and this
+# equivalent device proves the guest's real post-boot scanout path.
 qemu-system-aarch64 \
     -machine virt "${accelerator[@]}" -smp "$cpu_count" -m "$memory_mib" \
     -drive "if=pflash,format=raw,readonly=on,file=$firmware_code" \
     -drive "if=pflash,format=raw,file=$work/AAVMF_VARS.fd" \
     -drive "file=$work/overlay.qcow2,format=qcow2,if=virtio,cache=unsafe" \
     -drive "file=$seed,format=raw,if=virtio,readonly=on" \
-    -device virtio-ramfb \
+    -device virtio-gpu-pci \
     -device qemu-xhci,id=usb -device usb-kbd,bus=usb.0 -device usb-tablet,bus=usb.0 \
     -audiodev driver=none,id=audio0 -device intel-hda -device hda-duplex,audiodev=audio0 \
     -netdev user,id=net0 -device virtio-net-pci,netdev=net0 \

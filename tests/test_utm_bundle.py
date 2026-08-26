@@ -16,6 +16,7 @@ import zipfile
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 GENERATOR = ROOT / "artwork/generate_utm_bundle.py"
 WORKFLOW = ROOT / ".github/workflows/build-arm.yml"
+BOOT = ROOT / "tests/boot_arm_utm_bundle.sh"
 
 
 def sha256(path: pathlib.Path) -> str:
@@ -57,6 +58,14 @@ assert "--expected-qcow2-sha256" in script
 assert "--source-image-ref" in script
 assert "manifest.json" in script
 assert "actions/runs/" not in script and "actions?query" not in script
+
+boot = BOOT.read_text(encoding="utf-8")
+assert 'get("Hardware") != "virtio-ramfb"' in boot, \
+    "the exact archive proof must gate UTM's real display setting"
+assert "-device virtio-gpu-pci" in boot, \
+    "stock-QEMU proof lost UTM virtio-ramfb's post-boot GPU equivalent"
+assert "-device virtio-ramfb" not in boot, \
+    "stock QEMU cannot launch UTM's patched virtio-ramfb model"
 
 with tempfile.TemporaryDirectory(prefix="moos-utm-gate-") as tmp:
     root = pathlib.Path(tmp)
