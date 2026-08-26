@@ -471,6 +471,10 @@ class ArmEditionTests(unittest.TestCase):
         self.assertIn("ARM VISUAL FAILED", boot_gate,
                       "a failed visible VM must stay open for diagnosis")
         self.assertIn('"${qemu_display[@]}"', boot_gate)
+        self.assertIn("-device virtio-ramfb", boot_gate,
+                      "the raw disk proof must exercise the iPhone UTM display device")
+        self.assertNotIn("-device virtio-gpu-pci", boot_gate,
+                         "a different PCI scanout cannot prove the shipped UTM bundle")
         self.assertIn("-device virtio-keyboard-pci", boot_gate,
                       "the visual ARM VM must accept real keyboard input")
         self.assertIn("-device virtio-tablet-pci", boot_gate,
@@ -644,16 +648,15 @@ class ArmEditionTests(unittest.TestCase):
         self.assertIn("moos-cloud-account-ready.service", text,
                       "the greeter must wait until AccountsService publishes the cloud user")
         greeter = read(ROOT / "system_files/usr/libexec/moos-arm-greeter-kwin")
-        self.assertIn("seq 1 50", greeter,
-                      "the greeter must still probe the connector sysfs status to distinguish displays")
-        self.assertNotIn("KWIN_DRM_DEVICES", greeter,
-                         "this KWin auto-detects the present+readable node; naming it is unsupported")
-        self.assertNotIn("--drm-device", greeter,
-                         "KWin rejects the --drm-device CLI flag on this version")
+        self.assertIn('/sys/class/drm/card*-*/status', greeter)
+        self.assertIn('[ -e "$status" ]', greeter,
+                      "a headless QEMU frontend may mark a usable virtio connector disconnected")
         self.assertNotIn("grep -qx connected", greeter,
                          "connector status must not hide QEMU/UTM's usable framebuffer")
+        self.assertIn("seq 1 50", greeter,
+                      "the greeter must allow DRM coldplug to publish its connector")
         self.assertIn("--virtual --width 1920 --height 1080", greeter,
-                      "the greeter always uses the virtual backend (the TCG/UTM VM exposes no usable DRM node)")
+                      "a connector-less cloud VPS still needs the virtual backend")
         self.assertIn("QT_QUICK_BACKEND=software", text,
                       "unaccelerated UTM graphics need Qt Quick's software scene graph")
         self.assertIn("plasma-login.service plasma-wallpaper.service", text,

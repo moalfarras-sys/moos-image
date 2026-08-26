@@ -107,24 +107,9 @@ if [ -f "$login_conf" ] && [ ! -e "${login_conf}.moos-keep" ]; then
     rm -f -- "$repair_tmp"
 fi
 
-# Make sure the virtio GPU driver is actually loaded and its DRM nodes exist with
-# the right (world-readable) mode before the greeter's KWin probes them. On a VM
-# the node can come up root-owned 0600 and a later udev re-apply can briefly
-# rename/mode it, so we (a) force the module in, (b) retrigger udev so the
-# 0666 rule from build-arm.sh is applied, then (c) chmod defensively as root.
-modprobe virtio_gpu 2>/dev/null || true
-udevadm trigger --subsystem-match=drm --action=change 2>/dev/null || true
-
 while [ "$i" -lt "$steps" ]; do
-    for node in "$drm_dir"/card* "$drm_dir"/renderD*; do
+    for node in "$drm_dir"/card*; do
         if [ -e "$node" ]; then
-            # The greeter's KWin runs as the unprivileged plasmalogin user (uid
-            # 969). udev's world-readable rule may not have applied yet, and the
-            # default node is often root-owned 0600, so plasmalogin cannot open
-            # it and KWin reports "couldn't find dev node" / a black frame. Make
-            # every present node world-readable here (we are root, running as
-            # ExecStartPre) so the unprivileged compositor can actually open it.
-            chmod 0666 "$drm_dir"/card* "$drm_dir"/renderD* 2>/dev/null || true
             echo "MoOS login: DRM device ready ($node)"
             exit 0
         fi

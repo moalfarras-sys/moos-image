@@ -1,22 +1,11 @@
 #!/usr/bin/env bash
-# Pick the ARM greeter backend. The greeter runs in a VM (UTM on iOS, Oracle A1,
-# or the TCG proof VM) where the virtio GPU node is unreliable: it can be absent,
-# appear only after a slow udev coldplug, or be hidden from the unprivileged
-# plasmalogin user's device namespace. Every attempt to name/force the DRM node
-# (an env var, a CLI flag, or waiting for /dev/dri/card0) has ended in
-# "couldn't find dev node" and a black frame on the QEMU screendump.
+# Pick the ARM greeter backend from the display hardware that actually exists.
 #
-# So the greeter always uses KWin's --virtual backend with software rendering
-# (QT_QUICK_BACKEND=software + MESA_LOADER_DRIVER_OVERRIDE=llvmpipe come from the
-# 10-moos-arm-greeter-gl.conf drop-in). --virtual gives KWin a headless output it
-# can actually scan out on the QEMU framebuffer, which is exactly what the boot
-# proof screenshots. A real device with a working DRM connector still gets a
-# usable login screen through the same path.
-#
-# NOTE: do NOT use `set -e` here. If the connector probe or anything else errors,
-# we must still reach the final `exec kwin_wayland --virtual`; under set -e a
-# failing probe would abort the script and systemd would fall back to the unit's
-# built-in ExecStart (plain kwin_wayland, no --virtual) -> black frame.
+# A phone/UTM VM exposes a connected virtio connector and must render to it.
+# A display-less VPS exposes no connector and needs KWin's virtual backend so
+# the login manager can still start without inventing a physical screen.
+set -eu
+
 kwin_args=(
     --no-lockscreen
     --no-global-shortcuts
@@ -25,13 +14,14 @@ kwin_args=(
     --locale1
 )
 
-# Probe the connector sysfs status. The build gate asserts this probe exists so
-# the greeter still distinguishes a connected display from a headless VPS; we no
-# longer branch on it, but keep it for the gate.
+# A QEMU/UTM virtio display can legitimately report its connector as
+# "disconnected" when the host frontend is headless. The framebuffer is still
+# present, so connector presence — not the status text — selects the DRM backend.
+# A genuinely display-less VPS has no connector node at all.
 for _attempt in $(seq 1 50); do
     for status in /sys/class/drm/card*-*/status; do
         [ -e "$status" ] || continue
-        break 2
+        exec /usr/bin/kwin_wayland "${kwin_args[@]}"
     done
     sleep 0.1
 done

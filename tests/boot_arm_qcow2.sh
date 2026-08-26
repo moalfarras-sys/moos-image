@@ -180,13 +180,15 @@ else
     accelerator=( -accel "tcg,thread=multi" -cpu cortex-a72 )
 fi
 
+# Match the exact display device generated for the iPhone UTM bundle. A
+# virtio-gpu-pci proof can pass/fail on a scanout path the phone never uses.
 qemu-system-aarch64 \
     -machine virt "${accelerator[@]}" -smp 4 -m 4096 \
     -drive "if=pflash,format=raw,readonly=on,file=$firmware_code" \
     -drive "if=pflash,format=raw,file=$work/AAVMF_VARS.fd" \
     -drive "file=$work/overlay.qcow2,format=qcow2,if=virtio,cache=unsafe" \
     -drive "file=$work/seed.iso,format=raw,if=virtio,readonly=on" \
-    -device virtio-gpu-pci \
+    -device virtio-ramfb \
     -device virtio-keyboard-pci \
     -device virtio-tablet-pci \
     -netdev "user,id=net0,hostfwd=tcp:127.0.0.1:${port}-:22" \
