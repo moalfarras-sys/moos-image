@@ -128,6 +128,8 @@ def build_config(*, iphone: bool = False) -> dict:
     # fields are present so UTM decodes this directly instead of guessing that
     # it is a legacy bundle. The built-in serial terminal is load-bearing: it
     # is where cloud-init reveals the credential generated inside this VM.
+    memory_mib = 1536 if iphone else 4096
+    jit_cache_mib = 64 if iphone else 0
     return {
         "Backend": "QEMU",
         "ConfigurationVersion": 4,
@@ -146,12 +148,13 @@ def build_config(*, iphone: bool = False) -> dict:
             "CPU": "default",
             "CPUFlagsAdd": [],
             "CPUFlagsRemove": [],
-            "CPUCount": 4,
-            # 4 GiB is the smallest profile the release boot proof has actually
-            # exercised. Do not advertise the former unproven 3 GiB guess.
-            "MemorySize": 4096,
-            "JITCacheSize": 0,
-            "ForceMulticore": bool(iphone),
+            "CPUCount": 2 if iphone else 4,
+            # Non-jailbroken iOS normally limits one app to roughly half the
+            # device RAM, and double-counts the separately allocated JIT cache.
+            # The phone archive leaves UTM headroom and must pass its own proof.
+            "MemorySize": memory_mib,
+            "JITCacheSize": jit_cache_mib,
+            "ForceMulticore": False,
         },
         "QEMU": {
             "DebugLog": False,
@@ -287,7 +290,7 @@ def main() -> int:
     parser.add_argument("--source-image-ref", default=None,
                         help="required signed ghcr.io/.../moos-arm@sha256:... source")
     parser.add_argument("--iphone", action="store_true",
-                        help="iPhone/UTM SE profile (Hypervisor=false, ForceMulticore=true)")
+                        help="iPhone 13+ profile (1.5 GiB RAM, 2 CPUs, 64 MiB TCG cache, no hypervisor)")
     args = parser.parse_args()
 
     if args.ssh_key is not None and not args.ssh_key.is_file():
@@ -396,8 +399,10 @@ def main() -> int:
         "Before pressing Start, open UTM's built-in Terminal view and keep it",
         "visible. During first boot cloud-init prints:",
         "",
-        "    Set the following 'random' passwords",
-        "    moos:<your VM-unique password>",
+        "    MOOS_ARM_FIRST_BOOT_PASSWORD_BEGIN",
+        "    user=moos",
+        "    password=<your VM-unique password>",
+        "    MOOS_ARM_FIRST_BOOT_PASSWORD_END",
         "",
         "Use that password on the graphical MoOS login screen. SSH password",
         "login is disabled and Mo PC Remote is off until you explicitly enable it.",

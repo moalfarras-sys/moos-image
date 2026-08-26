@@ -282,9 +282,6 @@ if [ "$guest_capture_ok" -eq 0 ]; then
 fi
 [ -s "$evidence/graphical.png" ] || { echo "ARM BOOT FATAL: graphical PNG evidence is empty" >&2; exit 1; }
 stddev="$(convert "$evidence/graphical.png" -colorspace gray -format '%[fx:standard_deviation]' info:)"
-if [ "${MOOS_ARM_SKIP_VISUAL_GATE:-0}" = 1 ]; then
-    echo "ARM VISUAL SKIP: stddev gate bypassed (MOOS_ARM_SKIP_VISUAL_GATE=1)"
-else
 python3 - "$stddev" <<'PY'
 import sys
 value = float(sys.argv[1])
@@ -294,7 +291,6 @@ if value < 0.02:
     raise SystemExit(f"ARM BOOT FATAL: graphical evidence is blank/flat (stddev={value})")
 print(f"graphical screenshot stddev={value:.6f}")
 PY
-fi
 
 if [ "$visual_hold" = 1 ]; then
     continue_file="$evidence/continue"

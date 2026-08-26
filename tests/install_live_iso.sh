@@ -78,6 +78,14 @@ printf 'iso=%s\nsha256=%s\nimage=%s\novmf=%s\ntarget-size=36G\nnetwork-during-in
 
 qemu-img create -q -f qcow2 "$work/installed.qcow2" 36G
 
+if [ -r /dev/kvm ] && [ -w /dev/kvm ]; then
+    accelerator=( -machine q35,accel=kvm -cpu host )
+    printf 'accelerator=kvm\n' >> "$evidence/manifest.txt"
+else
+    accelerator=( -machine q35,accel=tcg -cpu Haswell )
+    printf 'accelerator=tcg\n' >> "$evidence/manifest.txt"
+fi
+
 start_qemu() {
     local phase="$1"
     shift
@@ -85,7 +93,7 @@ start_qemu() {
     monitor="$work/monitor.sock"
     rm -f "$qga" "$monitor"
     qemu-system-x86_64 \
-        -machine q35,accel=tcg -cpu Haswell -m 4096 -smp 2 \
+        "${accelerator[@]}" -m 4096 -smp 2 \
         -drive "if=pflash,format=raw,readonly=on,file=$ovmf_code" \
         -drive "if=pflash,format=raw,file=$work/vars.fd" \
         -drive "file=$work/installed.qcow2,format=qcow2,if=virtio,cache=unsafe" \

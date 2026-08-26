@@ -244,10 +244,12 @@ EnvironmentFile=-/run/moos/plasmalogin-kwin.env
 Environment=LIBGL_ALWAYS_SOFTWARE=1
 Environment=MESA_LOADER_DRIVER_OVERRIDE=llvmpipe
 Environment=GALLIUM_DRIVER=llvmpipe
-# virtio-gpu proof VMs and Oracle both need vgem + a virtual output before KWin
-# will composite the MoOS greeter instead of a black QPainter surface.
+# UTM/QEMU has a real connected virtio display and must render to it. A
+# display-less VPS still needs KWin's virtual output. The helper resolves that
+# distinction from live DRM connector state; forcing --virtual everywhere made
+# runtime report graphical=active while the phone/QEMU framebuffer stayed black.
 ExecStart=
-ExecStart=/usr/bin/kwin_wayland_wrapper --virtual --width 1920 --height 1080
+ExecStart=/usr/libexec/moos-arm-greeter-kwin
 KWINDROP
 install -D -m0644 /dev/stdin /etc/environment.d/60-moos-arm-llvmpipe.conf <<'LLVMPIPE'
 # MoOS ARM: software rendering for every user session, including plasmalogin.
@@ -945,9 +947,14 @@ grep -q 'MESA_LOADER_DRIVER_OVERRIDE=llvmpipe' \
     /usr/lib/systemd/user/plasma-login-kwin_wayland.service.d/10-moos-arm-greeter-gl.conf \
     /etc/environment.d/60-moos-arm-llvmpipe.conf \
     || { echo "GATE FAIL: ARM login greeter must pin llvmpipe for virtio proof VMs"; exit 1; }
-grep -q 'kwin_wayland_wrapper --virtual' \
+grep -q 'ExecStart=/usr/libexec/moos-arm-greeter-kwin' \
     /usr/lib/systemd/user/plasma-login-kwin_wayland.service.d/10-moos-arm-greeter-gl.conf \
-    || { echo "GATE FAIL: ARM login greeter must use KWin virtual output on virtio"; exit 1; }
+    || { echo "GATE FAIL: ARM login greeter lost its display-aware KWin launcher"; exit 1; }
+[ -x /usr/libexec/moos-arm-greeter-kwin ] \
+    || { echo "GATE FAIL: ARM display-aware greeter launcher is missing"; exit 1; }
+grep -q '/sys/class/drm/card\*-\*/status' /usr/libexec/moos-arm-greeter-kwin \
+    && grep -q -- '--virtual --width 1920 --height 1080' /usr/libexec/moos-arm-greeter-kwin \
+    || { echo "GATE FAIL: ARM greeter must distinguish connected UTM displays from headless VPS"; exit 1; }
 grep -qxF 'vgem' /etc/modules-load.d/moos-arm-vgem.conf \
     || { echo "GATE FAIL: ARM must load vgem for greeter/desktop GL"; exit 1; }
 grep -q 'DefaultDeviceTimeoutSec=120' /etc/systemd/system.conf.d/moos-arm-device-timeout.conf \

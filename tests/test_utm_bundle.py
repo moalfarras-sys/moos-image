@@ -48,7 +48,8 @@ assert '"ImageName": "moos-arm.qcow2"' in script
 assert '"Architecture": "aarch64"' in script
 assert '"ConfigurationVersion": 4' in script
 assert '"Backend": "QEMU"' in script
-assert '"MemorySize": 4096' in script
+assert "memory_mib = 1536 if iphone else 4096" in script
+assert "jit_cache_mib = 64 if iphone else 0" in script
 assert '"UEFIBoot": True' in script
 assert '"Mode": "Terminal"' in script
 assert '"IconCustom": True' in script
@@ -252,6 +253,7 @@ with tempfile.TemporaryDirectory(prefix="moos-utm-gate-") as tmp:
             "--qcow2", str(qcow),
             "--expected-qcow2-sha256", expected_sha,
             "--source-image-ref", source_ref,
+            "--iphone",
             "--output", str(second_bundle),
         ],
         capture_output=True, text=True, timeout=60, env=env,
@@ -260,6 +262,11 @@ with tempfile.TemporaryDirectory(prefix="moos-utm-gate-") as tmp:
     second_config = plistlib.loads((second_bundle / "config.plist").read_bytes())
     assert complete_config["Information"]["UUID"] != second_config["Information"]["UUID"]
     assert complete_config["Network"][0]["MacAddress"] != second_config["Network"][0]["MacAddress"]
+    assert second_config["System"]["MemorySize"] == 1536
+    assert second_config["System"]["CPUCount"] == 2
+    assert second_config["System"]["JITCacheSize"] == 64
+    assert second_config["System"]["ForceMulticore"] is False
+    assert second_config["QEMU"]["Hypervisor"] is False
 
 # The release workflow must package only after the exact disk passes boot.
 workflow = WORKFLOW.read_text(encoding="utf-8")

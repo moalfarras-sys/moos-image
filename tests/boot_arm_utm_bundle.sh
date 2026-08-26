@@ -97,11 +97,20 @@ archive_path, destination, expected_image = sys.argv[1:]
 root = pathlib.Path(destination).resolve()
 with zipfile.ZipFile(archive_path) as archive:
     names = set(archive.namelist())
+    bundle_roots = {
+        pathlib.PurePosixPath(name).parts[0]
+        for name in names
+        if pathlib.PurePosixPath(name).parts
+        and pathlib.PurePosixPath(name).parts[0].endswith(".utm")
+    }
+    if len(bundle_roots) != 1:
+        raise SystemExit("ARM UTM FATAL: archive must contain exactly one .utm bundle")
+    bundle_name = bundle_roots.pop()
     required = {
-        "MoOS-ARM.utm/config.plist",
-        "MoOS-ARM.utm/manifest.json",
-        "MoOS-ARM.utm/Data/moos-arm.qcow2",
-        "MoOS-ARM.utm/Data/seed.iso",
+        f"{bundle_name}/config.plist",
+        f"{bundle_name}/manifest.json",
+        f"{bundle_name}/Data/moos-arm.qcow2",
+        f"{bundle_name}/Data/seed.iso",
     }
     if not required.issubset(names) or archive.testzip() is not None:
         raise SystemExit("ARM UTM FATAL: archive inventory or CRC is invalid")
@@ -111,7 +120,7 @@ with zipfile.ZipFile(archive_path) as archive:
             raise SystemExit("ARM UTM FATAL: archive contains a path escape")
     archive.extractall(root)
 
-bundle = root / "MoOS-ARM.utm"
+bundle = root / bundle_name
 manifest = json.loads((bundle / "manifest.json").read_text(encoding="utf-8"))
 config = plistlib.loads((bundle / "config.plist").read_bytes())
 if manifest.get("source_image") != expected_image:
@@ -120,8 +129,25 @@ if config.get("Backend") != "QEMU" or config.get("ConfigurationVersion") != 4:
     raise SystemExit("ARM UTM FATAL: configuration is not QEMU schema v4")
 if config.get("System", {}).get("Architecture") != "aarch64":
     raise SystemExit("ARM UTM FATAL: configuration is not aarch64")
-if config.get("System", {}).get("MemorySize") != 4096:
-    raise SystemExit("ARM UTM FATAL: memory differs from the proven profile")
+memory_mib = config.get("System", {}).get("MemorySize")
+cpu_count = config.get("System", {}).get("CPUCount")
+hypervisor = config.get("QEMU", {}).get("Hypervisor")
+jit_cache_mib = config.get("System", {}).get("JITCacheSize")
+if memory_mib not in (1536, 4096) or cpu_count not in (2, 4):
+    raise SystemExit("ARM UTM FATAL: CPU/RAM differs from a supported release profile")
+if memory_mib == 1536:
+    if cpu_count != 2 or jit_cache_mib != 64:
+        raise SystemExit("ARM UTM FATAL: phone profile lost its bounded JIT cache")
+    if config["QEMU"].get("Hypervisor") is not False:
+        raise SystemExit("ARM UTM FATAL: phone profile incorrectly requires a hypervisor")
+elif cpu_count != 4 or jit_cache_mib != 0:
+    raise SystemExit("ARM UTM FATAL: desktop profile differs from its release contract")
+if config["System"].get("ForceMulticore") is not False:
+    raise SystemExit("ARM UTM FATAL: bundle forces an unsafe emulation mode")
+if config.get("Network", [{}])[0].get("Mode") != "Emulated":
+    raise SystemExit("ARM UTM FATAL: bundle lost portable QEMU networking")
+if config.get("Display", [{}])[0].get("Hardware") != "virtio-ramfb":
+    raise SystemExit("ARM UTM FATAL: bundle differs from UTM's aarch64 display")
 if [drive.get("ImageName") for drive in config.get("Drive", [])] != ["moos-arm.qcow2", "seed.iso"]:
     raise SystemExit("ARM UTM FATAL: disk order differs from the release contract")
 disk = bundle / "Data/moos-arm.qcow2"
@@ -131,9 +157,27 @@ with disk.open("rb") as handle:
         digest.update(chunk)
 if digest.hexdigest() != manifest.get("disk", {}).get("sha256"):
     raise SystemExit("ARM UTM FATAL: extracted disk SHA does not match manifest")
+(root / "bundle-name.txt").write_text(bundle_name, encoding="utf-8")
+(root / "memory-mib.txt").write_text(str(memory_mib), encoding="ascii")
+(root / "cpu-count.txt").write_text(str(cpu_count), encoding="ascii")
+(root / "hypervisor.txt").write_text("1" if hypervisor else "0", encoding="ascii")
+(root / "jit-cache-mib.txt").write_text(str(jit_cache_mib), encoding="ascii")
 PY
 
-bundle="$work/MoOS-ARM.utm"
+bundle_name="$(cat "$work/bundle-name.txt")"
+memory_mib="$(cat "$work/memory-mib.txt")"
+cpu_count="$(cat "$work/cpu-count.txt")"
+hypervisor="$(cat "$work/hypervisor.txt")"
+jit_cache_mib="$(cat "$work/jit-cache-mib.txt")"
+[[ "$bundle_name" =~ ^[A-Za-z0-9._-]+\.utm$ ]] \
+    || { echo "ARM UTM FATAL: unsafe bundle directory name" >&2; exit 1; }
+[[ "$memory_mib" =~ ^(1536|4096)$ && "$cpu_count" =~ ^(2|4)$ ]] \
+    || { echo "ARM UTM FATAL: unsafe CPU/RAM profile" >&2; exit 1; }
+[[ "$hypervisor" =~ ^(0|1)$ ]] \
+    || { echo "ARM UTM FATAL: unsafe hypervisor profile" >&2; exit 1; }
+[[ "$jit_cache_mib" =~ ^(0|64)$ ]] \
+    || { echo "ARM UTM FATAL: unsafe JIT cache profile" >&2; exit 1; }
+bundle="$work/$bundle_name"
 qcow="$bundle/Data/moos-arm.qcow2"
 seed="$bundle/Data/seed.iso"
 qemu-img check "$qcow" | tee "$evidence/qcow2-check.txt"
@@ -175,19 +219,21 @@ done
 }
 cp "$firmware_vars" "$work/AAVMF_VARS.fd"
 
-if [ -r /dev/kvm ] && [ -w /dev/kvm ]; then
+if [ "$hypervisor" = 1 ] && [ -r /dev/kvm ] && [ -w /dev/kvm ]; then
     accelerator=( -accel kvm -cpu host )
 else
-    accelerator=( -accel "tcg,thread=multi" -cpu cortex-a72 )
+    tb_size="$jit_cache_mib"
+    [ "$tb_size" -gt 0 ] || tb_size=$((memory_mib / 4))
+    accelerator=( -accel "tcg,tb-size=${tb_size}" -cpu cortex-a72 )
 fi
 
 qemu-system-aarch64 \
-    -machine virt "${accelerator[@]}" -smp 4 -m 4096 \
+    -machine virt "${accelerator[@]}" -smp "$cpu_count" -m "$memory_mib" \
     -drive "if=pflash,format=raw,readonly=on,file=$firmware_code" \
     -drive "if=pflash,format=raw,file=$work/AAVMF_VARS.fd" \
     -drive "file=$work/overlay.qcow2,format=qcow2,if=virtio,cache=unsafe" \
     -drive "file=$seed,format=raw,if=virtio,readonly=on" \
-    -device virtio-gpu-pci \
+    -device virtio-ramfb \
     -device qemu-xhci,id=usb -device usb-kbd,bus=usb.0 -device usb-tablet,bus=usb.0 \
     -audiodev driver=none,id=audio0 -device intel-hda -device hda-duplex,audiodev=audio0 \
     -netdev user,id=net0 -device virtio-net-pci,netdev=net0 \
@@ -464,5 +510,18 @@ save_evidence
 for proof in runtime.txt app-smoke.txt utm-login.png utm-desktop.png \
     utm-app-settings.png utm-app-moplayer.png utm-app-remote.png serial.log; do
     [ -s "$evidence/$proof" ] || { echo "ARM UTM FATAL: missing proof: $proof" >&2; exit 1; }
+done
+for frame in utm-login.png utm-desktop.png utm-app-settings.png \
+    utm-app-moplayer.png utm-app-remote.png; do
+    stddev="$(convert "$evidence/$frame" -colorspace gray -format '%[fx:standard_deviation]' info:)"
+    python3 - "$frame" "$stddev" <<'PY'
+import sys
+
+name, value_text = sys.argv[1:]
+value = float(value_text)
+if value < 0.02:
+    raise SystemExit(f"ARM UTM FATAL: {name} is blank/flat (stddev={value})")
+print(f"{name}: visual stddev={value:.6f}")
+PY
 done
 echo "ARM UTM BOOT OK: exact bundle, unique serial credential, PLM login, desktop, native apps and poweroff"

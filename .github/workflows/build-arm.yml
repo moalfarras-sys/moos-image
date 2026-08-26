@@ -39,9 +39,12 @@ on:
       - "moremote/**"
       - "system_files/**"
       - "tests/boot_arm_qcow2.sh"
+      - "tests/boot_arm_utm_bundle.sh"
+      - "tests/boot_utm_net_installer.sh"
       - "tests/verify_arm_runtime.sh"
       - "tests/test_moos_arm.py"
       - "tests/test_utm_bundle.py"
+      - "tests/test_utm_installer.py"
       - "artwork/generate_utm_bundle.py"
       - "artwork/generate_utm_installer.py"
       - "tests/test_boot_splash_polish.py"
@@ -57,9 +60,12 @@ on:
       - "system_files/**"
       - "tests/test_moos_arm.py"
       - "tests/test_utm_bundle.py"
+      - "tests/test_utm_installer.py"
       - "artwork/generate_utm_bundle.py"
       - "artwork/generate_utm_installer.py"
       - "tests/boot_arm_qcow2.sh"
+      - "tests/boot_arm_utm_bundle.sh"
+      - "tests/boot_utm_net_installer.sh"
       - "tests/verify_arm_runtime.sh"
       - "tests/test_boot_splash_polish.py"
       - ".github/workflows/build-arm.yml"
@@ -99,11 +105,14 @@ jobs:
           bash -n build_files/seal_arm_qcow2.sh
           bash -n build_files/seal_release_qcow2.sh
           bash -n tests/boot_arm_qcow2.sh
+          bash -n tests/boot_arm_utm_bundle.sh
+          bash -n tests/boot_utm_net_installer.sh
           bash -n tests/verify_arm_runtime.sh
           python3 tests/test_moos_arm.py
           python3 tests/test_boot_splash_polish.py
           python3 tests/test_seal_arm_deployment.py
           python3 tests/test_utm_bundle.py
+          python3 tests/test_utm_installer.py
 
       # The ARM runner ships the same pre-baked toolchains as the x86 one and
       # the same ~14 GB of free space. A Plasma image plus a build cache does
@@ -236,7 +245,7 @@ jobs:
     needs: build
     if: (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')) && needs.build.result == 'success'
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 120
+    timeout-minutes: 180
     permissions:
       contents: read
       packages: read
@@ -333,55 +342,7 @@ jobs:
           sudo chown "$USER:$USER" "$qcow"
           echo "MOOS_ARM_QCOW=$(readlink -f "$qcow")" >> "$GITHUB_ENV"
 
-      - name: Build slim recovery installer disk
-        run: |
-          set -euo pipefail
-          sudo podman build -f Containerfile.arm-recovery -t localhost/moos-arm-recovery:local .
-          mkdir -p output-recovery
-          cat > config/recovery.toml <<'TOML'
-          [[customizations.filesystem]]
-          mountpoint = "/"
-          minsize = "4 GiB"
-          TOML
-          sudo podman run --rm --privileged --pull=newer \
-            --security-opt label=type:unconfined_t \
-            -v "$(pwd)/output-recovery":/output \
-            -v "$(pwd)/config/recovery.toml":/config.toml:ro \
-            -v /var/lib/containers/storage:/var/lib/containers/storage \
-            quay.io/centos-bootc/bootc-image-builder@sha256:2b52843ea2bfda73b0a08d97e76b734393b1d3a804681b9fabb26723bd3a2f0b \
-            --type qcow2 --rootfs btrfs --config /config.toml --target-arch arm64 --local \
-            localhost/moos-arm-recovery:local
-          recovery="$(sudo find output-recovery -name '*.qcow2' -print -quit)"
-          [ -n "$recovery" ] || { echo "FATAL: recovery qcow2 missing"; exit 1; }
-          sudo chown "$USER:$USER" "$recovery"
-          recovery="$(readlink -f "$recovery")"
-          echo "MOOS_ARM_RECOVERY_QCOW=${recovery}" >> "$GITHUB_ENV"
-          du -h "$recovery"
-
-      - name: Package MoOS UTM Net Installer (priority deliverable)
-        run: |
-          set -euo pipefail
-          mkdir -p release/utm
-          python3 artwork/generate_utm_installer.py \
-            --installer-qcow2 "$MOOS_ARM_RECOVERY_QCOW" \
-            --iphone \
-            --output "$RUNNER_TEMP/MoOS-UTM-Installer.utm" \
-            --zip release/utm/MoOS-UTM-Installer.utm.zip
-          cp artwork/UTM-INSTALLER-README.txt release/utm/UTM-INSTALLER-README.txt
-          sha256sum release/utm/MoOS-UTM-Installer.utm.zip | tee release/utm/MoOS-UTM-Installer.utm.zip.sha256
-          du -h release/utm/MoOS-UTM-Installer.utm.zip
-
-      - name: Upload UTM Net Installer
-        uses: actions/upload-artifact@v4
-        with:
-          name: MoOS-UTM-Installer
-          path: release/utm/MoOS-UTM-Installer.utm.zip
-          if-no-files-found: error
-          retention-days: 30
-
       - name: Boot the final QCOW2 through UEFI
-        env:
-          MOOS_ARM_SKIP_VISUAL_GATE: "1"
         run: |
           set -euo pipefail
           expected="${{ needs.build.outputs.destination }}@${{ needs.build.outputs.digest }}"
@@ -428,6 +389,88 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      # Build the phone installer only after the exact candidate disk has
+      # passed two UEFI boots and the non-black visual gate. The recovery image
+      # receives that proven digest, not the stale fallback kept in git.
+      - name: Build slim recovery installer disk for the proven candidate
+        env:
+          SOURCE_IMAGE: ${{ needs.build.outputs.destination }}@${{ needs.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          candidate_digest="${SOURCE_IMAGE##*@}"
+          [[ "$candidate_digest" =~ ^sha256:[0-9a-f]{64}$ ]] || {
+            echo "FATAL: candidate digest is malformed" >&2
+            exit 1
+          }
+          jq --arg digest "$candidate_digest" --arg product_sha "$GITHUB_SHA" \
+            '.digest = $digest | .product_sha = $product_sha' \
+            release/arm-latest.json \
+            > system_files/usr/share/moos/release/arm-latest.json
+          jq -e --arg digest "$candidate_digest" '.digest == $digest' \
+            system_files/usr/share/moos/release/arm-latest.json >/dev/null
+
+          sudo podman build -f Containerfile.arm-recovery -t localhost/moos-arm-recovery:local .
+          mkdir -p output-recovery
+          cat > config/recovery.toml <<'TOML'
+          [[customizations.filesystem]]
+          mountpoint = "/"
+          minsize = "4 GiB"
+          TOML
+          sudo podman run --rm --privileged --pull=newer \
+            --security-opt label=type:unconfined_t \
+            -v "$(pwd)/output-recovery":/output \
+            -v "$(pwd)/config/recovery.toml":/config.toml:ro \
+            -v /var/lib/containers/storage:/var/lib/containers/storage \
+            quay.io/centos-bootc/bootc-image-builder@sha256:2b52843ea2bfda73b0a08d97e76b734393b1d3a804681b9fabb26723bd3a2f0b \
+            --type qcow2 --rootfs btrfs --config /config.toml --target-arch arm64 --local \
+            localhost/moos-arm-recovery:local
+          recovery="$(sudo find output-recovery -name '*.qcow2' -print -quit)"
+          [ -n "$recovery" ] || { echo "FATAL: recovery qcow2 missing"; exit 1; }
+          sudo chown "$USER:$USER" "$recovery"
+          recovery="$(readlink -f "$recovery")"
+          echo "MOOS_ARM_RECOVERY_QCOW=${recovery}" >> "$GITHUB_ENV"
+          du -h "$recovery"
+
+      - name: Package the iPhone UTM Net Installer
+        run: |
+          set -euo pipefail
+          mkdir -p release/utm
+          python3 artwork/generate_utm_installer.py \
+            --installer-qcow2 "$MOOS_ARM_RECOVERY_QCOW" \
+            --iphone \
+            --output "$RUNNER_TEMP/MoOS-UTM-Installer.utm" \
+            --zip release/utm/MoOS-UTM-Installer.utm.zip
+          cp artwork/UTM-INSTALLER-README.txt release/utm/UTM-INSTALLER-README.txt
+          sha256sum release/utm/MoOS-UTM-Installer.utm.zip \
+            | tee release/utm/MoOS-UTM-Installer.utm.zip.sha256
+          du -h release/utm/MoOS-UTM-Installer.utm.zip
+
+      - name: Boot and visually prove the exact UTM Net Installer under TCG
+        run: |
+          tests/boot_utm_net_installer.sh \
+            release/utm/MoOS-UTM-Installer.utm.zip \
+            utm-installer-tcg-proof
+
+      - name: Upload UTM Net Installer proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: moos-utm-installer-boot-proof
+          path: utm-installer-tcg-proof/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload proven UTM Net Installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: MoOS-UTM-Installer
+          path: |
+            release/utm/MoOS-UTM-Installer.utm.zip
+            release/utm/MoOS-UTM-Installer.utm.zip.sha256
+            release/utm/UTM-INSTALLER-README.txt
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Package the boot-proven ARM releases
         id: pack
         env:
@@ -467,12 +510,6 @@ jobs:
             --iphone \
             --output "$work/MoOS-ARM-iPhone-Full.utm" \
             | tee "$work/utm-iphone-generation.log"
-
-          python3 artwork/generate_utm_installer.py \
-            --installer-qcow2 "$MOOS_ARM_RECOVERY_QCOW" \
-            --iphone \
-            --output "$work/MoOS-UTM-Installer.utm" \
-            --zip "$work/MoOS-UTM-Installer.utm.zip"
 
           python3 - "$work/MoOS-ARM.utm.zip" "$MOOS_ARM_PROVEN_SHA256" "$SOURCE_IMAGE" <<'PY'
           import json
@@ -517,7 +554,6 @@ jobs:
             -o "release/qcow2/${raw_name}.zst"
           cp "$work/MoOS-ARM.utm.zip" release/utm/MoOS-ARM.utm.zip
           cp "$work/MoOS-ARM-iPhone-Full.utm.zip" release/utm/MoOS-ARM-iPhone-Full.utm.zip
-          cp "$work/MoOS-UTM-Installer.utm.zip" release/utm/MoOS-UTM-Installer.utm.zip
 
           python3 - \
             "$RELEASE_VERSION" "$GITHUB_SHA" "$GITHUB_RUN_ID" \
@@ -568,6 +604,24 @@ jobs:
           echo "raw sha256: $MOOS_ARM_PROVEN_SHA256"
           echo "qcow2: $(du -h "release/qcow2/${raw_name}.zst" | cut -f1)"
           echo "UTM: $(du -h release/utm/MoOS-ARM.utm.zip | cut -f1)"
+
+      - name: Boot, log in and visually prove the exact iPhone full bundle
+        env:
+          SOURCE_IMAGE: ${{ needs.build.outputs.destination }}@${{ needs.build.outputs.digest }}
+        run: |
+          tests/boot_arm_utm_bundle.sh \
+            release/utm/MoOS-ARM-iPhone-Full.utm.zip \
+            "$SOURCE_IMAGE" \
+            arm-iphone-utm-boot-proof
+
+      - name: Upload iPhone UTM desktop proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: moos-arm-iphone-utm-boot-proof
+          path: arm-iphone-utm-boot-proof/
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Upload boot-proven ARM QCOW2
         uses: actions/upload-artifact@v4

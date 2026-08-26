@@ -4,9 +4,10 @@ This file is current state, not session history. Git history owns the history.
 When documentation disagrees with a running machine, a freshly booted artifact,
 or current source, those stronger forms of evidence win.
 
-Last reconciled: **2026-08-25** — boot-splash BOM fix, GRUB hidden, faster
-Plymouth, moai-wake reachability fix, theme-system hardening, ISO build
-pipeline repaired, live-ISO proven to boot + install in CI.
+Last reconciled: **2026-08-26** — ARM/iPhone UTM release gates hardened and
+the live-ISO evidence record corrected. A workflow marked green while both
+runtime proof scripts had actually failed; the current gates correctly reject
+that result.
 
 ---
 
@@ -51,8 +52,10 @@ and both dracut runs.
 - **`plymouth-use-simpledrm`** is absent on the NVIDIA image (correct — the
   nvidia driver owns the framebuffer) and present on generic.
 
-Verified on the live ISO: UEFI → GRUB "MoOS Live" → Plymouth splash with the
-MoOS teal accent on a dark MoOS background (NOT black, NOT Fedora).
+The source and image gates verify the hidden-menu and Plymouth configuration.
+The latest live-ISO runtime attempt did not reach a stable themed desktop, so
+this remains pending an actual non-blank visual proof rather than being inferred
+from the files in the image.
 
 ---
 
@@ -90,7 +93,7 @@ From `backup/theme-system-2026-08-06`:
 
 ---
 
-## ISO build pipeline — REPAIRED (2026-08-25)
+## ISO build pipeline — ARTIFACT PRESERVATION FIXED; RUNTIME PROOF OPEN
 
 The ISO built fine but the `Upload ISO as workflow artifact` step ran **last**,
 so when the QEMU boot/install proof steps failed in the GitHub runner (a runner
@@ -102,16 +105,20 @@ the proof steps, so the artifact is captured even if a later proof step fails.
 The proof gates themselves stay hard-fail (no `continue-on-error` was added — we
 do not weaken a guard to make a build pass).
 
-**Resulting build (run #32851648759):** `conclusion: success` — all 17 steps
-green, including `Boot and prove the exact final live ISO` (step 14) and
-`Install the exact final ISO offline and boot the target disk` (step 16). The
-ISO is therefore **proven to boot its LiveOS, perform the offline install to a
-blank disk, detach, and boot the installed system** in CI.
+Run `32851648759` was previously recorded here as an end-to-end success. That
+was false-green evidence: its log contains `ISO BOOT FATAL` (missing live theme
+marker and an unstable graphical session), followed by `ISO INSTALL FATAL`
+(45-minute install timeout). Those steps were marked successful only because
+that historical revision used `continue-on-error`.
 
-Deliverable: `Desktop/moos-live.iso` (generic `moos:latest`, ~4.8 GB, bootable
-ISO 9660, label `MoOS-Live`). Boots + installs on any x86_64 (Intel/AMD). Does
-NOT carry nvidia in the initramfs — for nvidia hardware use the `moos-nvidia`
-image/update path.
+Current `main` removed that bypass. Run `32878499815` therefore failed at the
+live boot proof and correctly skipped installation. The finished ISO is still
+uploaded for diagnosis, but it is **not release-proven** and cannot satisfy the
+promotion gate until boot and offline installation both pass without an error
+bypass.
+
+The latest diagnostic artifact is a generic ~4.8 GB bootable ISO 9660 labelled
+`MoOS-Live`. It is not a final deliverable while the runtime proof above is red.
 
 ---
 
@@ -131,12 +138,15 @@ exists.
 
 ## Still unproven / open
 
-- **Live-ISO on real hardware** — QEMU is the release gate; the ISO is proven
-  in CI QEMU boot+install, but a real-firmware/real-disk pass remains a
-  separate hardware exercise. (The owner's machine runs the container image,
-  not the ISO.)
+- **Live-ISO runtime** — the exact final ISO must still pass the hard-fail CI
+  live boot and offline install/reboot proof. A real-firmware/real-disk pass is
+  then a separate hardware exercise.
 - **ARM / iPhone UTM net installer** — full path (download → install → boot →
-  greeter) not proven E2E on physical hardware.
+  greeter) not proven E2E on physical hardware. Current source requires the
+  1.5 GiB/2 CPU iPhone 13+ profile, portable emulated networking, a non-blank TCG
+  installer frame, two boots of the exact ARM disk, and login/app/non-blank
+  proof of the exact full iPhone bundle before GitHub can publish it. Those new
+  gates are awaiting their first CI artifact run.
 - **Visual matrix** — 1080p/1440p/4K × 100/125/150/200/225% × en/de/ar ×
   dark/light not all captured. Per `MOOS_DESIGN_PLAN.md` §2, the largest
   untouched opaque surfaces are the lock/login/logout screens.

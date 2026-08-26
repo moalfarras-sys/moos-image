@@ -34,7 +34,7 @@ wait_network() {
         network_ok && { show_status "MoOS Installer\n\nNetwork: OK"; return 0; }
         sleep 2
     done
-    show_status "MoOS Installer\n\nNetwork: FAILED — check UTM Shared networking"
+    show_status "MoOS Installer\n\nNetwork: FAILED — check UTM Emulated networking"
     return 1
 }
 
@@ -118,6 +118,7 @@ show_status "MoOS Installer\n\nStarting..."
 
 if [ -e /dev/tty1 ] && command -v whiptail >/dev/null 2>&1; then
     exec >/dev/tty1 2>&1 </dev/tty1
+    printf 'MOOS_UTM_INSTALLER_MENU_READY\n' >/dev/ttyAMA0 2>/dev/null || true
     main_menu
 else
     show_status "MoOS Installer\n\nUse serial terminal.\nRun: sudo moos-utm-net-install"

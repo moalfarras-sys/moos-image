@@ -608,17 +608,37 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
                 f"{name} executes a mutable disk builder",
             )
 
-    def test_final_iso_must_boot_before_it_can_be_uploaded(self) -> None:
+    def test_final_iso_is_preserved_before_hard_fail_runtime_proofs(self) -> None:
         iso = ISO_WORKFLOW.read_text(encoding="utf-8")
         script = (ROOT / "tests" / "boot_live_iso.sh").read_text(encoding="utf-8")
+        install_script = (ROOT / "tests" / "install_live_iso.sh").read_text(
+            encoding="utf-8"
+        )
         boot = 'tests/boot_live_iso.sh "$FINAL_ISO" "$EXPECTED_IMAGE" "$EVIDENCE_DIR"'
+        install = 'tests/install_live_iso.sh "$FINAL_ISO" "$EXPECTED_IMAGE" "$EVIDENCE_DIR"'
+        upload = "Upload ISO as workflow artifact"
         self.assertIn(boot, iso)
+        self.assertIn(install, iso)
         self.assertIn("FINAL_ISO: ${{ steps.embed.outputs.iso }}", iso)
-        self.assertLess(iso.index(boot), iso.index("Upload ISO as workflow artifact"))
+        # Preserve the expensive, finished ISO even when a flaky hosted QEMU
+        # runner fails later. This does not make the artifact promotable: both
+        # runtime proofs remain hard-fail inputs to promote-x86.yml.
+        self.assertLess(iso.index(upload), iso.index(boot))
+        self.assertLess(iso.index(boot), iso.index(install))
         boot_step = iso.split("- name: Boot and prove the exact final live ISO", 1)[1].split(
             "      - name:", 1
         )[0]
+        install_step = iso.split(
+            "- name: Install the exact final ISO offline and boot the target disk", 1
+        )[1].split("      - name:", 1)[0]
         self.assertNotIn("continue-on-error", boot_step)
+        self.assertNotIn("continue-on-error", install_step)
+        self.assertIn("sudo chmod 0666 /dev/kvm", iso)
+        for runtime_script in (script, install_script):
+            self.assertIn("[ -r /dev/kvm ] && [ -w /dev/kvm ]", runtime_script)
+            self.assertIn("q35,accel=kvm", runtime_script)
+            self.assertIn("q35,accel=tcg", runtime_script)
+            self.assertIn('"${accelerator[@]}"', runtime_script)
         for proof in (
             "rd.live.image",
             "graphical.target",

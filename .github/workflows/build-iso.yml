@@ -297,6 +297,11 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq qemu-system-x86 ovmf socat jq imagemagick
+          # Use hardware acceleration when this disposable runner exposes it.
+          # The proof scripts retain a portable TCG fallback.
+          if [ -e /dev/kvm ]; then
+            sudo chmod 0666 /dev/kvm
+          fi
 
       - name: Boot and prove the exact final live ISO
         env:

@@ -43,6 +43,13 @@ def random_mac() -> str:
 
 
 def build_config(*, iphone: bool) -> dict:
+    # UTM documents that non-jailbroken iOS normally allows an app to allocate
+    # only about half of physical RAM. UTM also allocates the JIT cache outside
+    # guest RAM and iOS double-counts that cache. A 2 GiB guest can therefore
+    # exceed the whole app limit on a 4 GiB iPhone 13 before UTM draws a frame.
+    # Keep enough headroom for UTM itself; MoOS uses its essential visual tier.
+    memory_mib = 1536 if iphone else 4096
+    jit_cache_mib = 64 if iphone else 0
     return {
         "Backend": "QEMU",
         "ConfigurationVersion": 4,
@@ -61,9 +68,11 @@ def build_config(*, iphone: bool) -> dict:
             "CPUFlagsAdd": [],
             "CPUFlagsRemove": [],
             "CPUCount": 2 if iphone else 4,
-            "MemorySize": 3072 if iphone else 4096,
-            "JITCacheSize": 0,
-            "ForceMulticore": bool(iphone),
+            "MemorySize": memory_mib,
+            "JITCacheSize": jit_cache_mib,
+            # ARM-on-ARM is not UTM's strong-on-weak case. Forcing multicore
+            # trades correctness for speed and is unnecessary here.
+            "ForceMulticore": False,
         },
         "QEMU": {
             "DebugLog": False,
@@ -71,7 +80,8 @@ def build_config(*, iphone: bool) -> dict:
             "RNGDevice": True,
             "BalloonDevice": False,
             "TPMDevice": False,
-            # iPhone / UTM SE has no Apple hypervisor — must use TCG/JIT.
+            # iPhone has no hypervisor path. Side-loaded UTM uses TCG/JIT;
+            # App Store UTM SE uses its slower threaded interpreter.
             "Hypervisor": not iphone,
             "TSO": False,
             "RTCLocalTime": False,
@@ -121,7 +131,9 @@ def build_config(*, iphone: bool) -> dict:
         ],
         "Network": [
             {
-                "Mode": "Shared",
+                # Emulated VLAN is UTM's portable QEMU NAT. The "Shared" mode
+                # is a macOS vmnet feature and is not the iPhone-safe default.
+                "Mode": "Emulated",
                 "Hardware": "virtio-net-pci",
                 "MacAddress": random_mac(),
                 "IsolateFromHost": False,
@@ -208,7 +220,7 @@ def main() -> int:
     parser.add_argument(
         "--iphone",
         action="store_true",
-        help="iPhone/UTM SE profile (Hypervisor=false, ForceMulticore=true)",
+        help="iPhone 13+ profile (1.5 GiB RAM, 2 CPUs, 64 MiB TCG cache, no hypervisor)",
     )
     args = parser.parse_args()
 
@@ -248,7 +260,7 @@ def main() -> int:
                 "  target.qcow2     empty persistent MoOS disk (32 GiB sparse)",
                 "",
                 "First boot:",
-                "  1. Connect network (Shared is fine on Mac/iPhone).",
+                "  1. Keep UTM networking on Emulated VLAN (portable iPhone NAT).",
                 "  2. Open UTM Terminal — install logs appear on ttyAMA0.",
                 "  3. Installer fetches the signed ghcr.io/moalfarras-sys/moos-arm digest",
                 "     from release/arm-latest.json and verifies cosign.",

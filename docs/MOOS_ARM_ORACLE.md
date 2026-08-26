@@ -215,9 +215,10 @@ records it in `manifest.json`.
    Settings. SSH password login and KRDP remain disabled until explicitly enabled.
 
 The bundle uses current QEMU configuration schema v4, AArch64 `virt`, UEFI,
-`virtio-ramfb`, VirtIO disk/network, 4 GiB RAM and a MoOS library icon. UTM can
-use hardware virtualization when the host exposes it and falls back to emulation
-when it does not.
+`virtio-ramfb`, VirtIO disk/network and a MoOS library icon. The desktop bundle
+has a 4 GiB Apple-silicon profile plus a separately proven iPhone 13+ profile
+with 1.5 GiB RAM, two CPUs and a 64 MiB translation cache. UTM uses hardware
+virtualization only where the host exposes it and otherwise uses emulation.
 
 ### UTM on iPhone
 

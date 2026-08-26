@@ -59,8 +59,15 @@ printf 'iso=%s\nsha256=%s\nimage=%s\novmf=%s\n' \
 
 qga="$work/qga.sock"
 monitor="$work/monitor.sock"
+if [ -r /dev/kvm ] && [ -w /dev/kvm ]; then
+    accelerator=( -machine q35,accel=kvm -cpu host )
+    printf 'accelerator=kvm\n' >> "$evidence/manifest.txt"
+else
+    accelerator=( -machine q35,accel=tcg -cpu Haswell )
+    printf 'accelerator=tcg\n' >> "$evidence/manifest.txt"
+fi
 qemu-system-x86_64 \
-    -machine q35,accel=tcg -cpu Haswell -m 4096 -smp 2 \
+    "${accelerator[@]}" -m 4096 -smp 2 \
     -drive "if=pflash,format=raw,readonly=on,file=$ovmf_code" \
     -drive "if=pflash,format=raw,file=$work/vars.fd" \
     -drive "file=$iso,media=cdrom,format=raw,readonly=on" \
