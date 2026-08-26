@@ -570,11 +570,36 @@ modprobe vgem
 install -D -m0644 /dev/stdin /etc/modules-load.d/moos-arm-vgem.conf <<'MODLOAD'
 vgem
 MODLOAD
+# The greeter's KWin runs as the unprivileged `plasmalogin` user (uid 969) and
+# opens the real virtio-gpu card to scan out the login surface. On a local VM
+# (UTM on iOS, Oracle A1, or the TCG proof VM) there is no other local user and
+# no seat ACL, so udev's default `root:video` 0660 leaves plasmalogin unable to
+# open the node — KWin then reports "Failed to open drm node" and the framebuffer
+# stays black even though plasmalogin.service says "active". Give the virtio DRM
+# card world-readable mode so the greeter can scan out, and add plasmalogin to the
+# video group as a second path. vgem keeps its render-group rule for offscreen GL.
 install -D -m0644 /dev/stdin /etc/udev/rules.d/61-moos-arm-vgem.rules <<'UDEV'
+# vgem keeps its offscreen render-group rule.
 SUBSYSTEM=="drm", KERNEL=="card*", DEVPATH=="/devices/faux/vgem/drm/card*", GROUP="render", MODE="0660"
+# The greeter's KWin runs as the unprivileged `plasmalogin` user (uid 969) and
+# opens the real virtio-gpu card/render node to scan out the login surface. On a
+# local VM (UTM on iOS, Oracle A1, or the TCG proof VM) there is no other local
+# user and no seat ACL, so udev's default `root:video` 0660 leaves plasmalogin
+# unable to open the node — KWin reports "Failed to open drm node" and the
+# framebuffer stays black even though plasmalogin.service says "active". Give the
+# real DRM nodes world-readable mode so the greeter can scan out.
+SUBSYSTEM=="drm", KERNEL=="card*", MODE="0666"
+SUBSYSTEM=="drm", KERNEL=="renderD*", MODE="0666"
 UDEV
 udevadm control --reload-rules
 udevadm trigger --subsystem-match=drm --action=change
+# Ensure the unprivileged greeter user can reach the DRM nodes even if a stricter
+# udev rule wins: membership in the video/render groups is the fallback path.
+for _g in video render; do
+    if getent group "$_g" >/dev/null 2>&1; then
+        usermod -aG "$_g" plasmalogin 2>/dev/null || true
+    fi
+done
 
 kwin_drop="${home}/.config/systemd/user/plasma-kwin_wayland.service.d"
 install -d -o "$target" -g "$target" -m0755 "$kwin_drop"
