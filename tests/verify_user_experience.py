@@ -5453,11 +5453,18 @@ require("NoDisplay=true" in one_store,
         "moos-one-store must set NoDisplay=true on the Bazaar override")
 require("flatpak/exports" not in one_store,
         "moos-one-store must not edit flatpak export files — a Bazaar update regenerates them")
-store_browse = code(read("system_files/usr/bin/moos-store-browse"), "hash")
+# Dedupe: `moos-store-browse` was a thin shim that did nothing but
+# `exec moos-storectl open-engine bazaar`. The store app (org.moos.store) calls
+# moos-storectl directly, and no other caller referenced the shim, so it was
+# removed — moos-storectl is the single owner of the Bazaar engine launch. The
+# gate now PROVES the removal: if the shim returns, this assert bites.
+import os as _os
+_store_browse_path = "system_files/usr/bin/moos-store-browse"
+require(not _os.path.exists(_store_browse_path),
+        "moos-store-browse was a redundant shim over `moos-storectl open-engine "
+        "bazaar` with no callers; the trusted backend is the one owner")
 store_backend = code(read("system_files/usr/bin/moos-storectl"), "hash")
 store_setup = code(read("system_files/usr/bin/moos-setup"), "hash")
-require("moos-storectl open-engine bazaar" in store_browse,
-        "the Bazaar compatibility launcher must delegate to the trusted backend")
 require("BAZAAR_ID" in store_backend
         and "self.adapter.install_many" in store_backend
         and "ONE_STORE" in store_backend,

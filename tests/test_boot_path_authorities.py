@@ -3,6 +3,7 @@
 
 import json
 import os
+import shutil
 from pathlib import Path
 import subprocess
 import tempfile
@@ -109,5 +110,31 @@ assert BUILD_ASSERTS_VISUAL_TIER, "build.sh must enable moos-visual-tier.service
 # The build must not enable it ON the critical path (a Wants=graphical.target
 # without After= is the same trap as the legacy hardware-adapt direct enable).
 assert "systemctl enable moos-visual-tier.timer" not in BUILD
+
+# A present service file + an `enable` line in build.sh is NOT enough: if the
+# unit has no [Install] section, `systemctl enable` wires nothing and the tier
+# never runs at boot (this is exactly what shipped broken in 4bf615a6). Prove the
+# enable actually creates the wants symlink by enabling the unit against a throw-
+# away root, the same way systemd does on a real install.
+def prove_visual_tier_is_actually_enabled() -> None:
+    with tempfile.TemporaryDirectory(prefix="moos-vt-enable-") as tmp:
+        usr = Path(tmp) / "usr/lib/systemd/system"
+        etc = Path(tmp) / "etc/systemd/system"
+        usr.mkdir(parents=True)
+        etc.mkdir(parents=True)
+        shutil.copy(VISUAL_TIER_SERVICE, usr / "moos-visual-tier.service")
+        r = subprocess.run(
+            ["systemctl", "enable", f"--root={tmp}", "moos-visual-tier.service"],
+            capture_output=True,
+            text=True,
+        )
+        assert r.returncode == 0, f"systemctl enable failed: {r.stderr}"
+        link = etc / "graphical.target.wants" / "moos-visual-tier.service"
+        assert link.is_symlink(), (
+            "moos-visual-tier.service was not enabled into graphical.target.wants; "
+            "it will never run at boot"
+        )
+
+prove_visual_tier_is_actually_enabled()
 
 print("Boot-path authorities gate passed")

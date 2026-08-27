@@ -19,3 +19,9 @@ ExecStart=/usr/bin/moos-visual-tier --apply
 # A failure must never block boot or the session; this is a quality tweak.
 SuccessExitStatus=0
 TimeoutStartSec=60s
+
+# Wiring: without an [Install] section, `systemctl enable` prints a warning and
+# returns 0 but creates NO wants symlink, so the service stays `static` and never
+# runs at boot. This section is what actually puts it on the post-desktop path.
+[Install]
+WantedBy=graphical.target

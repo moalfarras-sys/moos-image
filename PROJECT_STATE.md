@@ -115,6 +115,59 @@ image/update path.
 
 ---
 
+## Recent work — 2026-08-27 (x86 boot experience continuation)
+
+Two defects found and fixed while continuing the x86 system plan from
+`docs/MOOS_X86_SYSTEM_PLAN.md` (Phase 1 shipped; Phase 2 in progress).
+
+### `moos-visual-tier` was shipped but never ran at boot — FIXED
+
+The phase-2a commit (`4bf615a6`) added `moos-visual-tier.service` and a
+`systemctl enable moos-visual-tier.service` line in `build.sh`, but the unit
+file had **no `[Install]` section**. `systemctl enable` then printed a warning,
+returned 0, and created **no wants symlink** — so the unit stayed `static` and
+never ran. On the real machine the journal showed `-- No entries --`; the
+hardware-matched motion profile was therefore never applied automatically (a
+software-rendered box or a small laptop paid for a full GPU blur pass it could
+not afford, and the cloud edition streamed an animated wallpaper via llvmpipe).
+
+- Added `[Install] / WantedBy=graphical.target` to
+  `system_files/usr/lib/systemd/system/moos-visual-tier.service`.
+- `tests/test_boot_path_authorities.py` now PROVES the enable actually creates
+  the `graphical.target.wants` symlink (it enables the unit against a throw-away
+  root and asserts the symlink exists). Bite-tested: a unit without `[Install]`
+  is correctly rejected. The old check only looked for the `enable` string in
+  `build.sh` — a green-check trap, exactly the kind the repo's rules forbid.
+- The running machine was on image `moos-nvidia:phase2boot` (pre-fix). It was
+  left as-is by owner decision; the fix lands on the next built/updated image.
+
+Verified: `moos-visual-tier --apply` runs clean and classifies the owner's
+machine as `flagship` (nvidia, 16 cores, 15.4 GiB, 4K).
+
+### First-party app dedupe — `moos-store-browse` removed
+
+Phase 2 goal: one owner per capability, no duplicate front doors. Audit of the
+`moos-*` / `moai-*` surface found the redundancy was smaller than it looked:
+
+- `moos-store-browse` was a 18-line shim that did only
+  `exec moos-storectl open-engine bazaar`. `org.moos.store` calls
+  `moos-storectl` directly; **no caller** referenced the shim. Removed it,
+  dropped it from `build.sh`, and inverted the gate in
+  `tests/verify_user_experience.py` to **require its absence** (bites if it
+  returns). Bite-tested green→red→green.
+- `moos-store` (launcher: QML cache stamping, background index rebuild,
+  `moos-qml-shell` app_id) vs `moos-storectl` (backend) vs `moos-store-index`
+  (indexer) are **three distinct roles**, not duplicates — kept.
+- `moai-open` (detached `systemd-run --user` launch for the Telegram agent) and
+  `moos-one-store` (hide Bazaar launcher, the "one storefront" guard) are
+  **purposeful**, not duplicates — kept.
+- `moos-compat` / `moos-hardware` are intentional `moai --panel` wrappers so
+  old shortcuts/dock entries keep working — the allowed "shim routes to owner"
+  shape. Kept.
+- All five first-party QML apps already import `org.moos.ui` (the shared Liquid
+  Glass component library) from a single `main.qml` — the "shared component
+  library" Phase-2 item is already met.
+
 ## Where we are (one paragraph)
 
 MoOS is a **real operating system**: an immutable, signed bootc/OSTree image
