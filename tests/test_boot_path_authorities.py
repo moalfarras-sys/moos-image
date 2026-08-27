@@ -94,4 +94,20 @@ uupd = json.loads((ROOT / "system_files/etc/uupd/config.json").read_text(encodin
 assert uupd["modules"]["flatpak"]["disable"] is True
 assert uupd["modules"]["distrobox"]["disable"] is False
 
+# The visual tier must actually be applied on every boot, not just shipped as a
+# manual tool. A present-but-never-invoked moos-visual-tier leaves a software-
+# rendered box or a small laptop paying for a full GPU blur pass it cannot afford.
+VISUAL_TIER_SERVICE = ROOT / "system_files/usr/lib/systemd/system/moos-visual-tier.service"
+assert VISUAL_TIER_SERVICE.is_file() and os.access(VISUAL_TIER_SERVICE, os.R_OK)
+_vts = VISUAL_TIER_SERVICE.read_text(encoding="utf-8")
+assert "moos-visual-tier --apply" in _vts, "the service must apply the tier, not just probe"
+assert "After=graphical.target" in _vts, "the tier must apply post-desktop, never on the critical path"
+BUILD_ASSERTS_VISUAL_TIER = (
+    "systemctl enable moos-visual-tier.service" in BUILD
+)
+assert BUILD_ASSERTS_VISUAL_TIER, "build.sh must enable moos-visual-tier.service"
+# The build must not enable it ON the critical path (a Wants=graphical.target
+# without After= is the same trap as the legacy hardware-adapt direct enable).
+assert "systemctl enable moos-visual-tier.timer" not in BUILD
+
 print("Boot-path authorities gate passed")

@@ -63,3 +63,4 @@ test-results/
 # Mo Remote local .NET publish output — regenerable; the image builds its own in
 # the Containerfile `moremote-build` stage and never reads these bytes.
 moremote/dist-linux/
+build-*.log

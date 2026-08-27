@@ -2695,6 +2695,13 @@ chmod 0755 /usr/libexec/moos-greeter-gl-env
 # timer own activation.
 systemctl disable moos-hardware-adapt.service 2>/dev/null || true
 systemctl enable moos-hardware-adapt.timer
+# The visual tier (moos-visual-tier) matches the KWin motion profile to the
+# machine — flagship/balanced/essential — so a software-rendered box or a small
+# laptop does not pay for a full GPU blur pass it cannot afford, and a discrete
+# GPU gets the whole language. It is a post-desktop oneshot (After=graphical.target)
+# that applies once and is idempotent; it must never hold the critical path.
+chmod 0755 /usr/bin/moos-visual-tier
+systemctl enable moos-visual-tier.service
 
 # A desktop does not need every high TCP/UDP port exposed to whichever network
 # it joins. Keep only discovery and KDE Connect on the ordinary interface; Mo PC

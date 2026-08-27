@@ -1,0 +1,21 @@
+[Unit]
+Description=MoOS visual tier — apply the hardware-matched motion profile
+Documentation=https://github.com/moalfarras-sys/moos-image
+# Only on a real installed MoOS deployment — never in a build container.
+ConditionPathExists=/run/ostree-booted
+# Same post-desktop posture as moos-hardware-adapt: probing the GPU/render node
+# and writing the KWin profile must never hold the login/desktop critical path.
+# graphical.target does not want this service; it runs once the workspace is up.
+After=graphical.target
+Wants=graphical.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# moos-visual-tier --apply probes the hardware, classifies it into
+# flagship/balanced/essential, and writes ONLY the motion keys it owns via
+# kwriteconfig6/moos-theme. It is idempotent and yields to any user edit.
+ExecStart=/usr/bin/moos-visual-tier --apply
+# A failure must never block boot or the session; this is a quality tweak.
+SuccessExitStatus=0
+TimeoutStartSec=60s
