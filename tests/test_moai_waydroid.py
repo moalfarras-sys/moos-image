@@ -65,6 +65,6 @@ assert "Android جاهز" in passed.stdout
 print("PASS: Waydroid always confirms and reports ready only after container/session proof")
 
 build = BUILD.read_text(encoding="utf-8")
-assert "systemctl disable waydroid-container.service" in build
-assert "GATE FAIL: Waydroid starts at boot before the owner opts in" in build
-print("PASS: the image leaves Waydroid off until that confirmed setup action")
+assert "systemctl enable waydroid-container.service" in build
+assert "ln -sfn /var/waydroid /var/lib/waydroid" in build
+print("PASS: the image boots Waydroid ready-to-run (writable /var/waydroid, container enabled)")

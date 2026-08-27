@@ -5465,6 +5465,27 @@ require(not _os.path.exists(_store_browse_path),
         "bazaar` with no callers; the trusted backend is the one owner")
 store_backend = code(read("system_files/usr/bin/moos-storectl"), "hash")
 store_setup = code(read("system_files/usr/bin/moos-setup"), "hash")
+
+# Android + Windows must actually RUN on a fresh MoOS, not just be claimable by
+# the unified runner. Two real defects shipped:
+#   1. Waydroid's data dir was /var/lib/waydroid — a READ-ONLY OSTree layer — so
+#      the container could never write its log and died with "Permission denied".
+#      Fixed by tmpfiles.d/waydroid.conf (creates writable /var/waydroid) + a build
+#      step that repoints /var/lib/waydroid at it.
+#   2. No Windows runtime was installed at all, so a double-clicked .exe did nothing.
+#      Fixed by installing wine system-wide.
+# Prove both fixes are present so neither regresses silently.
+_waydroid_tmpfiles = "system_files/usr/lib/tmpfiles.d/waydroid.conf"
+require(_os.path.exists(_waydroid_tmpfiles),
+        "tmpfiles.d/waydroid.conf must create a writable /var/waydroid home")
+require("/var/waydroid" in read(_waydroid_tmpfiles),
+        "waydroid tmpfiles must give the container a writable /var/waydroid")
+require("ln -sfn /var/waydroid /var/lib/waydroid" in build_sh,
+        "build.sh must repoint /var/lib/waydroid (read-only) at /var/waydroid (writable)")
+require("_core_power+=(wine)" in build_sh,
+        "build.sh must install wine system-wide so Windows .exe files actually run")
+require("systemctl enable waydroid-container.service" in build_sh,
+        "build.sh must enable the waydroid container so Android is ready at first boot")
 require("BAZAAR_ID" in store_backend
         and "self.adapter.install_many" in store_backend
         and "ONE_STORE" in store_backend,

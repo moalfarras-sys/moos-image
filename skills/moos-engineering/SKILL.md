@@ -90,3 +90,29 @@ bash tests/post-update-check.sh
 If a gate is green but you have not *seen* the surface it guards, you have not verified
 it — `PROJECT_STATE.md` documents five shipped traps where the gate was green while the
 thing was broken.
+
+### Boot / systemd wiring traps (verified 2026-08-27)
+
+- **A `systemctl enable` in `build.sh` is NOT proof the unit runs.** If the unit file
+  has no `[Install]` section, `systemctl enable` prints a warning, returns 0, and
+  creates NO wants symlink — the unit stays `static` and never starts at boot. A gate
+  that only greps `build.sh` for the string `systemctl enable <unit>` is a green-check
+  trap. This shipped broken in commit `4bf615a6`: `moos-visual-tier.service` had the
+  enable line but no `[Install]`, so the hardware-matched motion profile was never
+  applied automatically. **Fix:** add `[Install] / WantedBy=graphical.target` to the
+  unit, and gate it by *proving the enable wires* (see references/boot-wiring-and-image-verification.md).
+- **Inspect the BUILT image, not the source, to confirm a fix landed.** `podman build`
+  serves cached layers and a green build log proves nothing about the bytes. After a
+  build, `podman run --rm --entrypoint bash <img>:latest -c '...'` and assert the actual
+  file/section/symlink is present (service has `[Install]`, the shim is gone, the
+  initramfs exists). This caught the `4bf615a6` regression every source-level gate missed.
+- **`kwriteconfig6 --file <name>` ignores `MOOS_TIER_ROOT`.** Tools like `moos-visual-tier`
+  honor the env var for their own probe/read functions but shell out to `kwriteconfig6`
+  for writes, which always targets the real `/etc/xdg`. A fake-root `moos-visual-tier
+  --apply` therefore CANNOT validate `kscreenlockerrc` writes — prove those against the
+  built image instead (run the real binary inside `podman run`, or rely on the source gate).
+- **Deploy a locally-built image with `bootc switch <ref>`** (not `upgrade`, which pulls
+  from the registry). The previous deployment stays bootable for rollback. Never switch
+  without confirming `bootc container lint` passed in that build. On a running machine
+  `bootc switch localhost/moos-nvidia:latest` then reboot; `rpm-ostree rollback` recovers.
+

@@ -1547,16 +1547,38 @@ _core_power=(
     nodejs22-npm
 )
 if is_desktop; then
+    # Windows application support: MoOS ships the unified runner (moos-run-foreign)
+    # that opens a double-clicked .exe through Bottles, but Bottles is a Flatpak the
+    # owner may not have installed, so a fresh system had no Windows runtime at all.
+    # Install wine system-wide so any .exe the user downloads actually runs, and the
+    # runner's fallback (offer setup-windows) only appears when they truly want Bottles.
+    _core_power+=(wine)
+fi
+if is_desktop; then
     _core_power+=(waydroid gamemode mangohud steam-devices)
 fi
 dnf5 -y install "${_core_power[@]}"
 if is_desktop; then
-    # The package preset enables the container immediately, but Android is an
-    # opt-in compatibility layer with a multi-gigabyte first setup. Keep its
-    # system container off until the confirmed setup-waydroid action enables it.
-    systemctl disable waydroid-container.service
-    systemctl is-enabled waydroid-container.service >/dev/null 2>&1 && {
-        echo "GATE FAIL: Waydroid starts at boot before the owner opts in"; exit 1; }
+    # Waydroid's data dir is /var/lib/waydroid, but /var/lib is a read-only OSTree
+    # layer, so the container can never write its log or image state and the
+    # service dies with "Permission denied: /var/lib/waydroid/waydroid.log".
+    # Repoint it at a writable home on the mutable /var (tmpfiles.d/waydroid.conf
+    # creates /var/waydroid at boot). Do this at build time, before the layer
+    # freezes, because /var/lib itself is immutable at runtime.
+    if [ -e /var/lib/waydroid ] && [ ! -L /var/lib/waydroid ]; then
+        rm -rf /var/lib/waydroid
+    fi
+    ln -sfn /var/waydroid /var/lib/waydroid
+    # Make the container's images live on the writable volume too.
+    if [ -f /var/lib/waydroid/waydroid.cfg ]; then
+        sed -i 's#^images_path = .*#images_path = /var/waydroid/images#' /var/lib/waydroid/waydroid.cfg
+    fi
+
+    # MoOS boots Android ready-to-run: the owner expects Android apps to open
+    # the moment the desktop is up, not after a multi-gigabyte opt-in download.
+    # The container only starts once the display is up (After=graphical.target),
+    # so it never holds the login path.
+    systemctl enable waydroid-container.service
 fi
 
 # Photos and video. MoOS shipped NEITHER — there was no image viewer in the
