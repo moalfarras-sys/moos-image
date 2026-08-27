@@ -4796,12 +4796,14 @@ require("-o /usr/bin/moos-qml-shell" not in build_code,
 # whatever browser the user installed. A browser's desktop file claims image/png and
 # nothing in MoOS contested it.
 require(re.search(r"^\s*gwenview \\$", build_code, re.MULTILINE) is not None
-        and re.search(r"^\s*haruna \\$", build_code, re.MULTILINE) is not None,
-        "the image must actually INSTALL an image viewer and a video player")
+        and re.search(r"^\s*haruna \\$", build_code, re.MULTILINE) is not None
+        and re.search(r"^\s*okular \\$", build_code, re.MULTILINE) is not None,
+        "the image must actually INSTALL image, video and document viewers")
 mimeapps = code(read("system_files/etc/xdg/mimeapps.list"))
 require("image/jpeg=org.kde.gwenview.desktop" in mimeapps
-        and "video/mp4=org.kde.haruna.desktop" in mimeapps,
-        "MoOS must claim image/* and video/* or a browser will")
+        and "video/mp4=org.kde.haruna.desktop" in mimeapps
+        and "application/pdf=org.kde.okular.desktop" in mimeapps,
+        "MoOS must claim image/*, video/* and PDF with native viewers")
 # Shipping the default is only half of it: ~/.config/mimeapps.list outranks /etc/xdg,
 # and Plasma writes that file the first time anyone picks "Open With" — which every
 # existing user already did, in Chrome, because there was nothing else to pick.

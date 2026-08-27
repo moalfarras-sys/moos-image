@@ -1585,6 +1585,9 @@ fi
 #           free, and it is what Dolphin's "Open" already expects.
 # haruna:   KDE's mpv frontend. mpv means real hardware decode — on the NVIDIA
 #           edition that is NVDEC, so 4K video costs the CPU almost nothing.
+# okular:   documents/PDF are a base OS capability, not an optional browser tab.
+#           A fresh account must open a local PDF in a real document viewer even
+#           before the user chooses the optional LibreOffice Flatpak.
 # kf6-kimageformats: HEIF, AVIF, JPEG-XL and friends. Qt cannot decode them on its
 #           own, so without this gwenview opens a photo straight off a modern phone
 #           and shows a grey box. NOTE the kf6- prefix: there is no bare
@@ -1594,6 +1597,7 @@ fi
 dnf5 -y install \
     gwenview \
     haruna \
+    okular \
     kf6-kimageformats \
     ffmpegthumbs \
     kdegraphics-thumbnailers

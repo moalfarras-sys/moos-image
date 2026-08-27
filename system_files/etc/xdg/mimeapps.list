@@ -91,3 +91,7 @@ video/3gpp=org.kde.haruna.desktop
 audio/mpeg=org.kde.haruna.desktop
 audio/flac=org.kde.haruna.desktop
 audio/x-wav=org.kde.haruna.desktop
+
+application/pdf=org.kde.okular.desktop
+application/postscript=org.kde.okular.desktop
+application/epub+zip=org.kde.okular.desktop
