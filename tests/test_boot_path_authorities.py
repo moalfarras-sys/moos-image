@@ -111,6 +111,22 @@ assert BUILD_ASSERTS_VISUAL_TIER, "build.sh must enable moos-visual-tier.service
 # without After= is the same trap as the legacy hardware-adapt direct enable).
 assert "systemctl enable moos-visual-tier.timer" not in BUILD
 
+# The lock screen must share the desktop's motion language: every tier now
+# writes kscreenlockerrc (KDE/AnimationDurationFactor) so unlocking feels like a
+# continuation of the session, not a second OS. Prove the script actually owns
+# that key — a regression that drops it would silently split the motion system.
+VISUAL_TIER_SCRIPT = ROOT / "system_files/usr/bin/moos-visual-tier"
+assert VISUAL_TIER_SCRIPT.is_file() and os.access(VISUAL_TIER_SCRIPT, os.X_OK)
+_vt_script = VISUAL_TIER_SCRIPT.read_text(encoding="utf-8")
+assert "\"kscreenlockerrc\"" in _vt_script, (
+    "moos-visual-tier must write kscreenlockerrc so the lock screen shares the "
+    "desktop's AnimationDurationFactor per tier"
+)
+assert "for filename in (\"kwinrc\", \"kdeglobals\", \"kscreenlockerrc\")" in _vt_script, (
+    "moos-visual-tier's apply loop must include kscreenlockerrc alongside "
+    "kwinrc and kdeglobals"
+)
+
 # A present service file + an `enable` line in build.sh is NOT enough: if the
 # unit has no [Install] section, `systemctl enable` wires nothing and the tier
 # never runs at boot (this is exactly what shipped broken in 4bf615a6). Prove the

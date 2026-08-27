@@ -6,3 +6,4 @@ Exec=/usr/bin/moos-fast-remote recover
 NoDisplay=true
 OnlyShowIn=KDE;
 X-KDE-autostart-phase=2
+X-GNOME-Autostart-Delayed=true

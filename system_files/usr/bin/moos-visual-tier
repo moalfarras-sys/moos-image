@@ -265,6 +265,11 @@ PROFILES: dict[str, dict[str, dict[str, str]]] = {
             "Effect-blur/NoiseStrength": "3",
         },
         "kdeglobals": {"KDE/AnimationDurationFactor": "1"},
+        # The lock screen shares the desktop's motion language: the same
+        # AnimationDurationFactor means unlocking feels like a continuation of
+        # the session, not a second OS. kscreenlocker reads this from its own
+        # KConfig; moos-theme owns the wallpaper, visual-tier owns the timing.
+        "kscreenlockerrc": {"KDE/AnimationDurationFactor": "1"},
         "motion": "alive",
     },
     "balanced": {
@@ -281,6 +286,7 @@ PROFILES: dict[str, dict[str, dict[str, str]]] = {
             "Effect-blur/NoiseStrength": "2",
         },
         "kdeglobals": {"KDE/AnimationDurationFactor": "0.85"},
+        "kscreenlockerrc": {"KDE/AnimationDurationFactor": "0.85"},
         "motion": "gentle",
     },
     "essential": {
@@ -297,6 +303,7 @@ PROFILES: dict[str, dict[str, dict[str, str]]] = {
         # `> 0` would still run its animations, just with a nonsense duration.
         # Short and honest beats fake-off.
         "kdeglobals": {"KDE/AnimationDurationFactor": "0.4"},
+        "kscreenlockerrc": {"KDE/AnimationDurationFactor": "0.4"},
         "motion": "still",
     },
 }
@@ -411,7 +418,7 @@ def apply(tier: str, *, dry_run: bool = False) -> dict:
     written_before = previous.get("written", {})
 
     written, skipped, changed = {}, [], 0
-    for filename in ("kwinrc", "kdeglobals"):
+    for filename in ("kwinrc", "kdeglobals", "kscreenlockerrc"):
         for path, value in profile.get(filename, {}).items():
             group, key = path.split("/", 1)
             if key == "BlurStrength" and int(value) > BLUR_CEILING:
