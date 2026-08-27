@@ -66,5 +66,6 @@ print("PASS: Waydroid always confirms and reports ready only after container/ses
 
 build = BUILD.read_text(encoding="utf-8")
 assert "systemctl enable waydroid-container.service" in build
-assert "ln -sfn /var/waydroid /var/lib/waydroid" in build
-print("PASS: the image boots Waydroid ready-to-run (writable /var/waydroid, container enabled)")
+assert "/var/lib/waydroid" in (ROOT / "system_files/usr/lib/tmpfiles.d/waydroid.conf").read_text(encoding="utf-8")
+assert "waydroid_data_t" in (ROOT / "system_files/usr/lib/tmpfiles.d/waydroid.conf").read_text(encoding="utf-8")
+print("PASS: the image boots Waydroid ready-to-run (canonical /var/lib/waydroid, SELinux-labelled data)")

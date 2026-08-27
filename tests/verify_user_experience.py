@@ -5466,26 +5466,30 @@ require(not _os.path.exists(_store_browse_path),
 store_backend = code(read("system_files/usr/bin/moos-storectl"), "hash")
 store_setup = code(read("system_files/usr/bin/moos-setup"), "hash")
 
-# Android + Windows must actually RUN on a fresh MoOS, not just be claimable by
-# the unified runner. Two real defects shipped:
-#   1. Waydroid's data dir was /var/lib/waydroid — a READ-ONLY OSTree layer — so
-#      the container could never write its log and died with "Permission denied".
-#      Fixed by tmpfiles.d/waydroid.conf (creates writable /var/waydroid) + a build
-#      step that repoints /var/lib/waydroid at it.
-#   2. No Windows runtime was installed at all, so a double-clicked .exe did nothing.
-#      Fixed by installing wine system-wide.
-# Prove both fixes are present so neither regresses silently.
+# Android + Windows are integrated, but optional runtimes must prove readiness
+# rather than being advertised as magically active on every fresh login.
+# Waydroid's container is preinstalled and enabled on desktop images; its user
+# session starts on demand through `moai-do setup-waydroid` (avoids consuming
+# RAM/GPU on machines that never use Android).
 _waydroid_tmpfiles = "system_files/usr/lib/tmpfiles.d/waydroid.conf"
 require(_os.path.exists(_waydroid_tmpfiles),
-        "tmpfiles.d/waydroid.conf must create a writable /var/waydroid home")
-require("/var/waydroid" in read(_waydroid_tmpfiles),
-        "waydroid tmpfiles must give the container a writable /var/waydroid")
-require("ln -sfn /var/waydroid /var/lib/waydroid" in build_sh,
-        "build.sh must repoint /var/lib/waydroid (read-only) at /var/waydroid (writable)")
+        "tmpfiles.d/waydroid.conf must create canonical writable /var/lib/waydroid home")
+require("/var/lib/waydroid" in read(_waydroid_tmpfiles),
+        "waydroid tmpfiles must create its canonical writable /var/lib/waydroid home")
+require("waydroid_data_t" in read(_waydroid_tmpfiles),
+        "waydroid tmpfiles must restore the SELinux waydroid_data_t label")
+require("_core_power+=(waydroid gamemode mangohud steam-devices)" in build_sh,
+        "build.sh must install Waydroid on desktop editions")
 require("_core_power+=(wine)" in build_sh,
         "build.sh must install wine system-wide so Windows .exe files actually run")
 require("systemctl enable waydroid-container.service" in build_sh,
         "build.sh must enable the waydroid container so Android is ready at first boot")
+assert "RUN chmod 0755 /home/ubuntu" in read(
+    "system_files/usr/share/moos/containers/speaches-ar.Containerfile"
+), "Speaches image must let its non-root user traverse /home/ubuntu"
+assert "chown -R ubuntu:ubuntu /home/ubuntu/speaches" in read(
+    "system_files/usr/share/moos/containers/speaches-ar.Containerfile"
+), "Speaches app tree must be owned by its non-root runtime user"
 require("BAZAAR_ID" in store_backend
         and "self.adapter.install_many" in store_backend
         and "ONE_STORE" in store_backend,

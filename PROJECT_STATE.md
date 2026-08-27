@@ -4,9 +4,7 @@ This file is current state, not session history. Git history owns the history.
 When documentation disagrees with a running machine, a freshly booted artifact,
 or current source, those stronger forms of evidence win.
 
-Last reconciled: **2026-08-25** — boot-splash BOM fix, GRUB hidden, faster
-Plymouth, moai-wake reachability fix, theme-system hardening, ISO build
-pipeline repaired, live-ISO proven to boot + install in CI.
+Last reconciled: **2026-08-28** — live user audit: Waydroid SELinux/data-path fix, Android UI proven, Speaches container permission fix staged.
 
 ---
 
@@ -168,7 +166,30 @@ Phase 2 goal: one owner per capability, no duplicate front doors. Audit of the
   Glass component library) from a single `main.qml` — the "shared component
   library" Phase-2 item is already met.
 
-## Where we are (one paragraph)
+### Live user audit — 2026-08-28
+
+A real post-reboot audit found two defects that static presence gates had missed:
+
+- Waydroid was installed/enabled but failed with SELinux AVCs while appending
+  `/var/lib/waydroid/waydroid.log`: the earlier `/var/waydroid` symlink design
+  gave the `waydroid_t` domain a generic `var_lib_t` label. The live machine was
+  migrated back to canonical `/var/lib/waydroid`, relabelled to
+  `waydroid_data_t`, and the container plus Android UI were then proven running
+  (Android home screen, Chrome, search, clock and navigation visible in a
+  3840x2160 screenshot). Source now uses `tmpfiles.d` to preserve that canonical
+  SELinux-labelled path. Android remains on-demand at the user-session level so
+  fresh boots do not consume GPU/RAM for users who do not use it.
+- The optional Speaches Arabic voice container was in a restart storm: its
+  non-root `ubuntu` user could not traverse upstream image `/home/ubuntu`
+  (`0750 root:root`), so Podman reported `uvicorn: Permission denied`. The
+  pinned bootstrap Containerfile now makes only `/home/ubuntu` traversable and
+  owns `/home/ubuntu/speaches`, retaining non-root execution. A local derived
+  image test runs `uvicorn --version` successfully as uid 1000.
+
+The live machine's Speaches/OpenClaw restart loop was stopped while the corrected
+image is built; it must not be advertised as healthy until the rebuilt image is
+prepared and the speech endpoint answers.
+
 
 MoOS is a **real operating system**: an immutable, signed bootc/OSTree image
 built FROM Fedora Kinoite + KDE Plasma 6, with its own MoOS UI (Liquid Glass),

@@ -1559,20 +1559,14 @@ if is_desktop; then
 fi
 dnf5 -y install "${_core_power[@]}"
 if is_desktop; then
-    # Waydroid's data dir is /var/lib/waydroid, but /var/lib is a read-only OSTree
-    # layer, so the container can never write its log or image state and the
-    # service dies with "Permission denied: /var/lib/waydroid/waydroid.log".
-    # Repoint it at a writable home on the mutable /var (tmpfiles.d/waydroid.conf
-    # creates /var/waydroid at boot). Do this at build time, before the layer
-    # freezes, because /var/lib itself is immutable at runtime.
-    if [ -e /var/lib/waydroid ] && [ ! -L /var/lib/waydroid ]; then
-        rm -rf /var/lib/waydroid
-    fi
-    ln -sfn /var/waydroid /var/lib/waydroid
-    # Make the container's images live on the writable volume too.
-    if [ -f /var/lib/waydroid/waydroid.cfg ]; then
-        sed -i 's#^images_path = .*#images_path = /var/waydroid/images#' /var/lib/waydroid/waydroid.cfg
-    fi
+    # Keep Waydroid at its canonical /var/lib/waydroid path. The bootc /var
+    # volume is mutable at runtime, and waydroid-selinux has an explicit
+    # waydroid_data_t rule for THIS path. A previous attempt moved it through a
+    # /var/waydroid symlink: Unix permissions looked writable, but SELinux saw
+    # generic var_lib_t and denied waydroid_t appending waydroid.log. tmpfiles.d
+    # creates/relabels the canonical directory on first boot and upgrades.
+    # Do not create a build-time symlink: /var is a runtime volume and SELinux
+    # ownership is path-based.
 
     # MoOS boots Android ready-to-run: the owner expects Android apps to open
     # the moment the desktop is up, not after a multi-gigabyte opt-in download.
