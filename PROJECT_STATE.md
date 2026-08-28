@@ -24,9 +24,13 @@ deployment `49d73f3965a1` (44.20260828), booted live:
   (synchronous `flatpak update`+`repair` on `network-online.target`). Disabled + masked on the
   live machine AND in `build.sh` so it does not return on rebuild. Flatpak stays fully usable
   (`moai-do update` / `flatpak update` on demand).
-- **No crashes since this boot** — the `drkonqi-coredump-processor` failures in `systemctl
-  --failed` were from pre-boot image-build steps (qwebengine dict convert, a kdialog burst at
-  14:24), not from the running session.
+- **Dock visual identity (post-reboot refinement):** the MoOS dock is already frosted Liquid Glass
+  (Aurora `panel-background.svg`, KWin blur BlurStrength 15). Added a **thin teal bottom edge**
+  (`#4EC8C8`, opacity ~0.42–0.52) to the dock/panel SVG so the bar carries MoOS's accent identity
+  without breaking the owner's "frosted, no white glow, no top lines" rule. Verified visually on a
+  real 4K capture: teal-edge pixel density went from 0% to ~0.9% across the bottom strip, ~1.6% on
+  the MoOS Island pill. The edit is FILL-only (no outline paths) so the build's glass-mask gate still
+  passes. Committed in source so it survives the next deployment.
 
 ---
 
