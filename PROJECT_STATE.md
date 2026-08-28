@@ -4,29 +4,29 @@ This file is current state, not session history. Git history owns the history.
 When documentation disagrees with a running machine, a freshly booted artifact,
 or current source, those stronger forms of evidence win.
 
-Last reconciled: **2026-08-28 (post-reboot audit)** — post-update verification on the new
-deployment `2747ad403c8d` (44.20260827.2):
+Last reconciled: **2026-08-28 (post-reboot Phase 4 audit)** — verification on the new
+deployment `49d73f3965a1` (44.20260828), booted live:
 
-- **Speaches actually fixed.** The speech container image was being built into the
-  *root* podman store by `sudo moos-prepare-speech-image`, but the `speaches.service`
-  quadlet runs rootless and reads from the *user* store — a store split exactly like
-  the bootc trap. The stale image (0750 `/home/ubuntu`) kept failing with
-  `Permission denied` on `uvicorn` and stormed (73 restarts/min). Fix: build the image
-  **rootless** (as the user, which is how `moai-do setup-speech` invokes it). Verified
-  live: `uvicorn 0.35.0` runs as uid 1000, service `active (running)` on :8000,
-  NRestarts=0.
-- **Default desktop theme is now MoOS Aurora** (`org.moos.ui2.aurora`), not the
-  Graphite/Gaming look. Measured on a real 4K capture: mean luminance 54.6 → 69.5,
-  near-black share 25% → 0.8%, accent-matched teal aurora. Lock screen stays
-  MoOSUI2Graphite (gated). The `kde-settings` profile and `/etc/xdg/kdeglobals`
-  defaults were repointed to the Aurora family in source so new users get it.
-- **Waydroid / Wine / Okular / PDF defaults / visual-tier** all confirmed working on
-  the booted image (see prior reconciliation).
-- **Honest gap:** the agent's screenshot tooling (`spectacle`) does not reliably capture
-  Wayland-native QML windows in this session, and Vision API quota was exhausted, so the
-  *visual* confirmation of MoStore/MoSettings/MoPlayer windows is by process-liveness
-  only (they launch and stay alive, no crash), not by a captured frame. The build gate
-  still launch-tests these apps.
+- **New deployment confirmed booted** (`49d73f3965a1` is the `●` current deployment; old
+  `2747ad403c8d` and `355327e314f8` retained as rollback).
+- **Aurora theme confirmed live**: `LookAndFeelPackage=org.moos.ui2.aurora`,
+  `ColorScheme=MoOSUI2Aurora`, plasma style `MoOSUI2Aurora`, accent `78,215,200`. A captured
+  Mo Settings window measured mean luminance 90.7 with teal `(24,120,120)` dominant — the
+  Liquid-Glass teal is actually rendering, not just configured.
+- **Speaches confirmed fixed on the shipped image**: `systemctl --user start speaches` →
+  `active (running)`, `Uvicorn running on http://0.0.0.0:8000`, `NRestarts=0`. (The earlier
+  root/user podman-store split is resolved in source: the Containerfile chmods `/home/ubuntu`
+  and the build runs rootless into the store the service reads.)
+- **Waydroid confirmed**: `Container: RUNNING`, `Session: RUNNING`, IP 192.168.240.112,
+  user moos(1000), started on demand (does not autostart — by design, to spare GPU/RAM).
+- **Wine / Okular / PDF→Okular / visual-tier** all present and enabled.
+- **Boot path**: `flatpak-system-update.timer` was found adding **~24.5s** to every cold boot
+  (synchronous `flatpak update`+`repair` on `network-online.target`). Disabled + masked on the
+  live machine AND in `build.sh` so it does not return on rebuild. Flatpak stays fully usable
+  (`moai-do update` / `flatpak update` on demand).
+- **No crashes since this boot** — the `drkonqi-coredump-processor` failures in `systemctl
+  --failed` were from pre-boot image-build steps (qwebengine dict convert, a kdialog burst at
+  14:24), not from the running session.
 
 ---
 

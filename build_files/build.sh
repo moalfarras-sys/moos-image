@@ -2335,6 +2335,16 @@ test -f /usr/lib/systemd/system/fedora-atomic-desktop-appstream-cache-refresh.se
 }
 systemctl disable fedora-atomic-desktop-appstream-cache-refresh.service
 
+# ── Flatpak auto-update must not block boot ───────────────────────────────────
+# The base enables flatpak-system-update.timer, which fires flatpak-system-update.service
+# on network-online.target and runs `flatpak update` + `repair` synchronously. Measured cost
+# on the owner's machine: ~24.5s added to every cold boot, inside the critical path. Flatpak
+# updates are NOT boot-critical; MoOS updates the whole system via `moai-do update`, and a
+# user can still `flatpak update` on demand. Disable the timer and mask the service so it
+# never runs during boot. (The appstream cache refresh is a separate, fast unit — left alone.)
+systemctl disable flatpak-system-update.timer 2>/dev/null || true
+systemctl mask flatpak-system-update.service 2>/dev/null || true
+
 # ── The base's own units must not wear another OS's name ─────────────────────
 # MoOS is not a skin over Fedora Kinoite — it IS the system, and a system whose
 # `systemctl` answers in someone else's name is telling the user what it really is.
