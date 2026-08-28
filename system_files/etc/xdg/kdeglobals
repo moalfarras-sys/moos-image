@@ -11,7 +11,7 @@
 # Qt 5 weights instead).
 
 [General]
-ColorScheme=MoOSUI2Dark
+ColorScheme=MoOSUI2Aurora
 font=IBM Plex Sans,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
 menuFont=IBM Plex Sans,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
 toolBarFont=IBM Plex Sans,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
@@ -23,7 +23,11 @@ fixed=JetBrains Mono,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
 # MoOSUI2 -> Colloid-Teal-Dark -> Papirus-Dark -> breeze-dark -> hicolor
 # (papirus-icon-theme stays installed via section (c4) as the technical
 # fallback; Git/OSTree and `moos-theme undo` own rollback, not dead UI1 themes).
-[Icons]
+#
+# DEFAULT LOOK: Aurora (org.moos.ui2.aurora). It is the most premium-looking of
+# the MoOS families and its teal aurora matches the system accent (78,215,200),
+# so a fresh install reads as a deliberate OS, not a stock Plasma session.
+#[Icons]
 Theme=MoOSUI2
 
 # AutomaticLookAndFeel is Plasma's day/night switch between the two Look and Feel
@@ -50,9 +54,9 @@ AutomaticLookAndFeel=false
 # accent) onto Dolphin/Kate/Gwenview/System Settings. On a Fedora-derived base an
 # unexpected Fusion/other default would otherwise bypass the MoOS look.
 widgetStyle=Breeze
-LookAndFeelPackage=org.moos.ui2
-DefaultDarkLookAndFeel=org.moos.ui2
-DefaultLightLookAndFeel=org.moos.ui2.light
+LookAndFeelPackage=org.moos.ui2.aurora
+DefaultDarkLookAndFeel=org.moos.ui2.aurora
+DefaultLightLookAndFeel=org.moos.ui2.aurora.light
 
 # Nova motion timing. THIS is the group KWin reads it from — kwin.kcfg declares
 # AnimationDurationFactor inside <group name="KDE">, and

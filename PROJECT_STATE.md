@@ -4,7 +4,29 @@ This file is current state, not session history. Git history owns the history.
 When documentation disagrees with a running machine, a freshly booted artifact,
 or current source, those stronger forms of evidence win.
 
-Last reconciled: **2026-08-28** — live user audit: Waydroid SELinux/data-path fix, Android UI proven, Speaches container permission fix staged.
+Last reconciled: **2026-08-28 (post-reboot audit)** — post-update verification on the new
+deployment `2747ad403c8d` (44.20260827.2):
+
+- **Speaches actually fixed.** The speech container image was being built into the
+  *root* podman store by `sudo moos-prepare-speech-image`, but the `speaches.service`
+  quadlet runs rootless and reads from the *user* store — a store split exactly like
+  the bootc trap. The stale image (0750 `/home/ubuntu`) kept failing with
+  `Permission denied` on `uvicorn` and stormed (73 restarts/min). Fix: build the image
+  **rootless** (as the user, which is how `moai-do setup-speech` invokes it). Verified
+  live: `uvicorn 0.35.0` runs as uid 1000, service `active (running)` on :8000,
+  NRestarts=0.
+- **Default desktop theme is now MoOS Aurora** (`org.moos.ui2.aurora`), not the
+  Graphite/Gaming look. Measured on a real 4K capture: mean luminance 54.6 → 69.5,
+  near-black share 25% → 0.8%, accent-matched teal aurora. Lock screen stays
+  MoOSUI2Graphite (gated). The `kde-settings` profile and `/etc/xdg/kdeglobals`
+  defaults were repointed to the Aurora family in source so new users get it.
+- **Waydroid / Wine / Okular / PDF defaults / visual-tier** all confirmed working on
+  the booted image (see prior reconciliation).
+- **Honest gap:** the agent's screenshot tooling (`spectacle`) does not reliably capture
+  Wayland-native QML windows in this session, and Vision API quota was exhausted, so the
+  *visual* confirmation of MoStore/MoSettings/MoPlayer windows is by process-liveness
+  only (they launch and stay alive, no crash), not by a captured frame. The build gate
+  still launch-tests these apps.
 
 ---
 

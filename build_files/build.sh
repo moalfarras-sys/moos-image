@@ -3194,7 +3194,7 @@ done
 # it does not lose, it fails silently and permanently. Keep it pointed at the default.
 _kde_profile=/usr/share/kde-settings/kde-profile/default/xdg
 if [ -f "${_kde_profile}/kdeglobals" ]; then
-    sed -i 's|^LookAndFeelPackage=.*|LookAndFeelPackage=org.moos.ui2|' "${_kde_profile}/kdeglobals"
+    sed -i 's|^LookAndFeelPackage=.*|LookAndFeelPackage=org.moos.ui2.aurora|' "${_kde_profile}/kdeglobals"
 fi
 if [ -f "${_kde_profile}/kscreenlockerrc" ]; then
     sed -i 's|/usr/share/backgrounds/fedora-workstation.*|/usr/share/wallpapers/MoOSUI2Graphite|' \

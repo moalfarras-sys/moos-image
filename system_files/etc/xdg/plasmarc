@@ -7,11 +7,11 @@
 # Style the system-wide default, so panels, dialogs, notifications and OSDs use
 # the same mineral-glass language instead of stock Breeze.
 #
-# When the org.moos.ui2 Look-and-Feel package is applied, Plasma's
+# When the org.moos.ui2.aurora Look-and-Feel package is applied, Plasma's
 # LookAndFeelManager writes [Theme] name=<value> from that package's
 # contents/defaults into the USER's ~/.config/plasmarc, overriding this system
-# default. org.moos.ui2/contents/defaults carries [plasmarc][Theme] name=MoOSUI2,
-# so both paths agree. This /etc/xdg default still covers
+# default. org.moos.ui2.aurora/contents/defaults carries [plasmarc][Theme]
+# name=MoOSUI2Aurora, so both paths agree. This /etc/xdg default still covers
 # sessions/greeters where the L&F was never applied.
-[Theme]
-name=MoOSUI2
+#[Theme]
+name=MoOSUI2Aurora

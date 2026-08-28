@@ -2874,11 +2874,13 @@ require('moos-theme verify-lnf "$lnf_after"' in apply_theme_code
 xdg_kdeglobals = code(read("system_files/etc/xdg/kdeglobals"))
 require("AutomaticLookAndFeel=false" in xdg_kdeglobals,
         "the day/night switch ships off; changing the look at sunset is a choice, not a default")
-require("DefaultDarkLookAndFeel=org.moos.ui2" in xdg_kdeglobals
-        and "DefaultLightLookAndFeel=org.moos.ui2.light" in xdg_kdeglobals
-        and "LookAndFeelPackage=org.moos.ui2" in xdg_kdeglobals,
-        "both day/night targets must name MoOS themes — Plasma resolves them BY NAME, "
-        "and a name it cannot resolve sends the desktop to Breeze, permanently")
+require("DefaultDarkLookAndFeel=org.moos.ui2.aurora" in xdg_kdeglobals
+        and "DefaultLightLookAndFeel=org.moos.ui2.aurora.light" in xdg_kdeglobals
+        and "LookAndFeelPackage=org.moos.ui2.aurora" in xdg_kdeglobals,
+        "the shipped default Global Theme must be a complete MoOS UI2 family (Aurora) so a "
+        "fresh install reads as a premium OS, not stock Plasma; both day/night targets must "
+        "name MoOS themes — Plasma resolves them BY NAME, and a name it cannot resolve sends "
+        "the desktop to Breeze, permanently")
 
 # ── MoOS ships ONE look, in two halves, and both halves must be whole ────────
 #
