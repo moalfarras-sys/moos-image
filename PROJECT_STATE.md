@@ -225,6 +225,35 @@ KWin effects confirmed enabled: `blur`, `magiclamp` (genie minimize), `scale` (o
 `windowview`. MoOS keeps exactly one effect per exclusive slot (magiclamp/scale/slide) and excludes
 expensive/conflicting ones (translucency, glide/fade-vs-scale, wobbly/cube/fall-apart).
 
+### Oracle ARM deployment — READY, WAITING FOR FRANKFURT CAPACITY (2026-08-29)
+
+- Exact release disk `44.20260829.197` / revision `da7fff6e` is present locally;
+  its raw SHA-256 matches the CI manifest and it passed two AArch64 UEFI boots,
+  cloud-init, graphical target, zero failed units and clean poweroff.
+- OCI authentication, full tenancy administration, the SSH-key fingerprint,
+  VCN, internet gateway, public subnet and TCP/22 security rule were verified.
+- Root cause of the first `Running` but unresponsive instance was proven in OCI:
+  the custom image and instance had `firmware=BIOS`, while the release disk is
+  UEFI. Its console history was empty and SSH timed out. The image now has an
+  ACTIVE `Compute.Firmware=UEFI_64` capability schema, and every later launch
+  reports `firmware=UEFI_64`.
+- All three Frankfurt availability domains rejected both the preferred 2/12
+  attempt and the smaller 1 OCPU / 6 GB attempt by terminating during
+  provisioning. This is host capacity, not an image or quota failure. No failed
+  attempt left a boot volume; the original 50 GB BIOS boot volume is retained
+  only as recovery until a UEFI instance is proven.
+- The tenancy currently stores 9.789 GiB in Object Storage, below the 20 GB
+  Always Free allowance. One superseded, unattached custom image was removed;
+  the current UEFI image remains available for the capacity watcher. An ACTIVE
+  tenancy-wide budget (`MoOS-Always-Free-guard`) alerts the owner at actual
+  spend above 0.01, with a budget amount of 1 in the tenancy currency.
+- `scripts/oracle_deploy.sh` now fixes the former silent valid-config exit, uses
+  the real limits API, treats the tenancy as root compartment, enforces UEFI on
+  import, and provides a duplicate-safe capacity watcher with encrypted
+  management credentials. The owner host has an enabled user service retrying
+  1/6 across all ADs; OCI runtime/SSH/desktop proof remains OPEN until it reports
+  `SUCCESS`.
+
 ---
 
 ## Boot splash: root cause of "black screen, no MoOS logo" — FIXED (2026-08-24)

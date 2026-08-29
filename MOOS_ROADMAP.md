@@ -64,6 +64,9 @@ theme layer. Order matters:
 - [ ] Import the exact boot-proven ARM disk into OCI Ampere A1 and prove serial,
   cloud-init, SSH key, root growth, update/rollback and tunneled KRDP. If OCI
   credentials or capacity are unavailable, report READY-BUT-NOT-DEPLOYED.
+  Current state (2026-08-29): image imported and corrected to UEFI_64; all three
+  Frankfurt ADs rejected 1/6 during provisioning, so an enabled duplicate-safe
+  capacity watcher is retrying. Runtime proof is not complete.
 - [ ] Import `MoOS-ARM.utm.zip` on the owner's iPhone/iPad and record boot time,
   idle RAM, desktop responsiveness and core app launches. Without access to the
   physical device, report OWNER-DEVICE-TEST-REQUIRED.

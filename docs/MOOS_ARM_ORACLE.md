@@ -92,6 +92,17 @@ Import takes a few minutes. When it finishes, open the image and check
 **Edit details → Compatible shapes** includes the `VM.Standard.A1.Flex` family.
 If Oracle did not detect it, add it there by hand.
 
+Then open **Edit image capabilities** and set **Firmware = UEFI_64**. This is
+load-bearing: the released ARM disk is UEFI. OCI has been observed importing the
+same boot-proven QCOW2 with a BIOS default; the resulting instance says
+`Running` while producing no serial output, no SSH and no health signal.
+Firmware cannot be overridden when launching that instance. The helper applies
+and verifies the image capability schema directly:
+
+```bash
+scripts/oracle_deploy.sh image-uefi <custom-image-ocid>
+```
+
 ### 2.4 Launch the instance
 
 **Compute → Instances → Create instance**
@@ -147,6 +158,23 @@ What works:
 - **A paid account with a $0 balance still gets the free tier** and is given
   priority over trial accounts for A1 capacity. Upgrading to Pay As You Go does
   not by itself cost anything.
+
+The repository helper can make bounded, serial attempts across every AD. It
+defaults to 1 OCPU / 6 GB / 50 GB because that is the shape most likely to claim
+scarce capacity; resize to 2/12 after the machine works. It refuses a BIOS image,
+checks for an already-running instance before every attempt, waits for each
+launch to become either `RUNNING` or `TERMINATED`, and keeps the management
+password in a machine-bound encrypted systemd credential rather than argv or
+the repository:
+
+```bash
+scripts/oracle_deploy.sh credential-init
+scripts/oracle_deploy.sh capacity-watch <custom-image-ocid> <subnet-ocid>
+```
+
+For unattended waiting, run that second command from a user service. Stop the
+watcher as soon as it reports `SUCCESS`; it also stops itself when it discovers
+the first running instance.
 
 ---
 
