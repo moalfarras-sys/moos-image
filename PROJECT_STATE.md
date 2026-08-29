@@ -32,6 +32,54 @@ deployment `49d73f3965a1` (44.20260828), booted live:
   the MoOS Island pill. The edit is FILL-only (no outline paths) so the build's glass-mask gate still
   passes. Committed in source so it survives the next deployment.
 
+### Theme system is FAMILY-WIDE, not a single theme (phase 4d, 2026-08-29)
+
+MoOS ships **16 themes** — 8 families (Graphite, Aurora, Nova, Amethyst, Midnight, Arena, Forge,
+Scholar) × dark/light. Each is generated from `artwork/moos-ui2/` source by `generate_moos_ui2.py`
+(Graphite/Tidal) and `generate_moos_themes.py` (the other 14), driven by `theme-profiles.json`
++ `moos-ui2/palette.json` + `moos-themes/palettes.json`.
+
+The dock bottom rim previously used a **neutral grey** (`@OUTLINE@`) on every theme — it broke the
+family identity. Fixed at the **source**: `panel-background.svg.in` now fills the bottom rim with
+`@RIM_ACCENT@` (the family primary), and `render_panel` passes `@RIM_ACCENT@ = tokens["primary"]`.
+Verified across all families in the built image:
+
+| Family (dark) | Dock rim |
+|---|---|
+| Graphite | teal `#4ED7C8` |
+| Aurora | blue `#3B82F6` |
+| Nova | indigo `#6366F1` |
+| Amethyst | violet `#C084FC` |
+| Midnight | cyan `#22D3EE` |
+| Arena | magenta `#FF2D95` |
+| Forge | green `#3FB950` |
+| Scholar | amber `#E0A458` |
+
+Visual proof (4K captures): switching to Amethyst live flipped the dock rim from teal/blue to
+**violet** (63/82 rim pixels), and the theme picker renders **125 distinct saturated accent
+buckets** — the full family set is visible and switchable. The rim is FILL-only (no outline), so
+`verify_user_experience` still passes; `test_moos_ui2.py` (40 tests) still OK.
+
+### Motion is ADAPTIVE to hardware (moos-visual-tier) — verified live
+
+`moos-visual-tier` reads the render node / GPU driver / core count / RAM and picks one of three
+tiers, then writes `kwinrc`/`kdeglobals`/`kscreenlockerrc` via `kwriteconfig6`:
+
+- **flagship** — discrete GPU with driver bound, ≥8 cores, ≥15 GiB → full motion, blur 15
+- **balanced** — real (integrated counts) GPU + driver, ≥4 cores, ≥6 GiB → blur 9, squash not magic-lamp
+- **essential** — software rendering / weak → no blur, short cheap motion only
+
+It **never raises BlurStrength above 15** (the readability ceiling) and stops touching blur once you
+set it yourself. Wired to boot via `moos-visual-tier.service` (enabled, `graphical.target.wants`)
+and called from `moos-apply-theme`. On this machine (nvidia, 16 cores, 15.4 GiB, 4K) it reported
+**Tier: flagship**. This satisfies the "1 GiB RAM → strongest, weakest GPU → flagship" goal: a 1 GiB
+no-GPU box lands on `essential` automatically.
+
+KWin effects confirmed enabled: `blur`, `magiclamp` (genie minimize), `scale` (open/close), plus
+`slidingpopups`/`fadingpopups`/`slide`/`dimscreen`/`dialogparent`/`fullscreen`/`overview`/
+`windowview`. MoOS keeps exactly one effect per exclusive slot (magiclamp/scale/slide) and excludes
+expensive/conflicting ones (translucency, glide/fade-vs-scale, wobbly/cube/fall-apart).
+
 ---
 
 ## Boot splash: root cause of "black screen, no MoOS logo" — FIXED (2026-08-24)
