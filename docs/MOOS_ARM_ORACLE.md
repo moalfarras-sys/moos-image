@@ -198,7 +198,22 @@ sudo moos-arm-remote on moos
 
 Then choose one of:
 
-**A. SSH tunnel (recommended — nothing extra is exposed)**
+**A. Private browser desktop (recommended)**
+
+The ARM image includes Tailscale and Mo PC Remote. Join the server to the
+owner's tailnet once, then publish the authenticated loopback desktop:
+
+```bash
+sudo tailscale up --ssh --hostname=moos-oracle
+sudo moos-cloud-desktop on moos
+```
+
+Open the `https://...ts.net` address printed by the second command. The URL is
+reachable only by devices in that tailnet; the desktop, clipboard and protected
+audio route are not opened on the public interface. `moos-cloud-desktop doctor
+moos` verifies the saved input permission, portal, audio and HTTPS publication.
+
+**B. RDP through an SSH tunnel**
 
 ```bash
 ssh -L 3389:localhost:3389 moos@<public-ip>
@@ -208,7 +223,7 @@ Connect your RDP client to `localhost:3389` as `moos`, using the unique system
 password from instance creation. Port 3389 stays
 closed in both OCI and firewalld.
 
-**B. Open the port (not recommended)**
+**C. Open the RDP port (not recommended)**
 
 In the OCI console: **Networking → VCN → Security Lists** → add an ingress rule
 for **TCP 3389**. Prefer restricting the source to your own IP rather than

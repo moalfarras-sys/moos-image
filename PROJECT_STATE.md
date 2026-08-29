@@ -151,7 +151,6 @@ looked for uid arithmetic and therefore held the wrong implementation in place w
 `ensure_subids` now allocates `subuid` and `subgid` independently from each file's existing
 high-water mark and the host's configured `SUB_UID_MIN`/`SUB_UID_COUNT`. The gate now executes the
 allocator against a temporary host policy and proves the production path calls it for both maps.
-
 - **New deployment confirmed booted** (`49d73f3965a1` is the `●` current deployment; old
   `2747ad403c8d` and `355327e314f8` retained as rollback).
 - **Aurora theme confirmed live**: `LookAndFeelPackage=org.moos.ui2.aurora`,
@@ -225,7 +224,7 @@ KWin effects confirmed enabled: `blur`, `magiclamp` (genie minimize), `scale` (o
 `windowview`. MoOS keeps exactly one effect per exclusive slot (magiclamp/scale/slide) and excludes
 expensive/conflicting ones (translucency, glide/fade-vs-scale, wobbly/cube/fall-apart).
 
-### Oracle ARM deployment — READY, WAITING FOR FRANKFURT CAPACITY (2026-08-29)
+### Oracle ARM deployment — LIVE ON ALWAYS FREE A1 (2026-08-30)
 
 - Exact release disk `44.20260829.197` / revision `da7fff6e` is present locally;
   its raw SHA-256 matches the CI manifest and it passed two AArch64 UEFI boots,
@@ -237,22 +236,36 @@ expensive/conflicting ones (translucency, glide/fade-vs-scale, wobbly/cube/fall-
   UEFI. Its console history was empty and SSH timed out. The image now has an
   ACTIVE `Compute.Firmware=UEFI_64` capability schema, and every later launch
   reports `firmware=UEFI_64`.
-- All three Frankfurt availability domains rejected both the preferred 2/12
-  attempt and the smaller 1 OCPU / 6 GB attempt by terminating during
-  provisioning. This is host capacity, not an image or quota failure. No failed
-  attempt left a boot volume; the original 50 GB BIOS boot volume is retained
-  only as recovery until a UEFI instance is proven.
-- The tenancy currently stores 9.789 GiB in Object Storage, below the 20 GB
-  Always Free allowance. One superseded, unattached custom image was removed;
-  the current UEFI image remains available for the capacity watcher. An ACTIVE
+- Instance `moos-arm-oracle` is running in Frankfurt AD-1 / fault domain 3 on
+  `VM.Standard.A1.Flex`, 1 OCPU, 4 GB RAM and a 50 GB boot volume. A real guest
+  reboot returned with a different boot ID, `systemd` running, graphical and
+  display-manager targets active, zero failed units, and 43 GB free on the
+  grown physical root filesystem.
+- The booted deployment is the signed exact origin
+  `ghcr.io/moalfarras-sys/moos-arm@sha256:7a6f1191e691b6f5ee35a70caad77b066cf13aa4b24c72e631a532fd90cb1825`,
+  version `44.20260829.197`, architecture `arm64`, with `containerPolicy`
+  signature enforcement. cloud-init completed from `DataSourceOracle` with no
+  errors and the provisioned SSH key works for user `moos`.
+- The private browser desktop is live at
+  `https://moos-oracle.tailab78a5.ts.net` (tailnet only). A real Firefox session
+  rendered the MoOS welcome desktop; the RemoteDesktop portal restore token,
+  authenticated audio route, H.264/clipboard HTTPS publication and autologin
+  survived reboot. No desktop or agent port is exposed on the public Internet.
+- The first Oracle runtime exposed one ARM packaging gap: Mo PC Remote shipped
+  but Tailscale did not. The live server uses the verified upstream aarch64
+  static release; `build-arm.sh` now installs the native RPM, enables
+  `tailscaled.service`, and the finished-image gate asserts both contracts.
+- Temporary capacity-proof/custom-image instances and their boot volumes were
+  terminated after the reboot proof. The uploaded QCOW2 object and all expired
+  pre-authenticated import URLs were removed. The capacity watcher is disabled;
+  only the proven 1/4/50 instance and its 50 GB boot volume remain. An ACTIVE
   tenancy-wide budget (`MoOS-Always-Free-guard`) alerts the owner at actual
   spend above 0.01, with a budget amount of 1 in the tenancy currency.
-- `scripts/oracle_deploy.sh` now fixes the former silent valid-config exit, uses
+- `scripts/oracle_deploy.sh` fixes the former silent valid-config exit, uses
   the real limits API, treats the tenancy as root compartment, enforces UEFI on
   import, and provides a duplicate-safe capacity watcher with encrypted
-  management credentials. The owner host has an enabled user service retrying
-  1/6 across all nine AD/fault-domain placements; OCI runtime/SSH/desktop proof
-  remains OPEN until it reports `SUCCESS`.
+  management credentials. Its watcher found a valid UEFI placement and stopped
+  itself; the service is now disabled to prevent duplicate instances.
 
 ---
 

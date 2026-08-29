@@ -220,6 +220,14 @@ class ArmEditionTests(unittest.TestCase):
     def test_arm_first_party_surfaces_have_live_backends(self) -> None:
         build = code(read(BUILD))
         verifier = code(read(ARM_VERIFY))
+        self.assertIn("tailscale", build,
+                      "ARM ships Mo PC Remote but lacks the private HTTPS transport")
+        self.assertIn("tailscaled.service", build,
+                      "the private remote transport is installed but never starts")
+        self.assertIn('"tailscale"', verifier,
+                      "the finished ARM image never proves Tailscale is installed")
+        self.assertIn('"tailscaled.service"', verifier,
+                      "the finished ARM image never proves Tailscale is enabled")
         for unit in (
             "moai-gateway.service",
             "moai-control.service",

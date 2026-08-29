@@ -64,10 +64,11 @@ theme layer. Order matters:
 - [ ] Import the exact boot-proven ARM disk into OCI Ampere A1 and prove serial,
   cloud-init, SSH key, root growth, update/rollback and tunneled KRDP. If OCI
   credentials or capacity are unavailable, report READY-BUT-NOT-DEPLOYED.
-  Current state (2026-08-29): image imported and corrected to UEFI_64; all three
-  Frankfurt ADs rejected 1/6 during provisioning, so an enabled duplicate-safe
-  capacity watcher is retrying all nine AD/fault-domain placements. Runtime
-  proof is not complete.
+  Current state (2026-08-30): LIVE on Frankfurt A1 1/4/50. UEFI, signed exact
+  origin, cloud-init, SSH key, root growth, graphical target, browser-rendered
+  private desktop, input portal, HTTPS/audio and a real reboot are proven with
+  zero failed units. Deliberate update/rollback proof remains open, so this item
+  is not checked complete.
 - [ ] Import `MoOS-ARM.utm.zip` on the owner's iPhone/iPad and record boot time,
   idle RAM, desktop responsiveness and core app launches. Without access to the
   physical device, report OWNER-DEVICE-TEST-REQUIRED.

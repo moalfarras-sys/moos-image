@@ -104,6 +104,24 @@ _PLASMA=(
     gstreamer1 gstreamer1-plugins-base gstreamer1-plugins-good
     gstreamer1-plugins-bad-free pipewire-gstreamer
 )
+
+# Mo PC Remote publishes its authenticated loopback agent through Tailscale
+# Serve. The first real Oracle A1 deployment proved that all of the remote
+# desktop UI and services can be present while the ARM image has no `tailscale`
+# binary at all, leaving the owner with no secure browser URL. Keep the same
+# small, static repository definition as the x86 build; dnf still verifies the
+# repository metadata and installs the native aarch64 RPM.
+cat > /etc/yum.repos.d/tailscale.repo <<'TAILSCALE_REPO'
+[tailscale-stable]
+name=Tailscale stable
+baseurl=https://pkgs.tailscale.com/stable/fedora/$basearch
+enabled=1
+type=rpm
+repo_gpgcheck=1
+gpgcheck=0
+gpgkey=https://pkgs.tailscale.com/stable/fedora/repo.gpg
+TAILSCALE_REPO
+_PLASMA+=(tailscale)
 dnf5 -y install --setopt=install_weak_deps=False "${_PLASMA[@]}"
 
 # cosign is not always packaged for aarch64 — install the static binary when needed.
@@ -247,7 +265,7 @@ systemctl --global enable \
     moos-ensure-brain.timer moos-theme-sync.path \
     moos-cloud-audio.service moos-update-ready.timer moos-reclaim-disk.timer
 
-systemctl enable NetworkManager.service sshd.service firewalld.service
+systemctl enable NetworkManager.service sshd.service firewalld.service tailscaled.service
 systemctl enable moos-auto-update.timer
 # moos-image-update is the only OS deployment writer. The Fedora bootc base
 # enables its own mutable-tag fetch timer, so disable both upstream rivals on

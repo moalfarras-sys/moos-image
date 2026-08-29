@@ -62,6 +62,7 @@ def main() -> None:
         "cloud-init",
         "cloud-utils-growpart",
         "krdp",
+        "tailscale",
         "rpm-ostree",
         "skopeo",
         "mpv-libs",
@@ -207,7 +208,10 @@ def main() -> None:
         "etc/systemd/system/multi-user.target.wants",
         "usr/lib/systemd/system/multi-user.target.wants",
     )
-    for unit in ("NetworkManager.service", "sshd.service", "firewalld.service"):
+    for unit in (
+        "NetworkManager.service", "sshd.service", "firewalld.service",
+        "tailscaled.service",
+    ):
         require(enabled(unit, service_targets), f"{unit} is not enabled")
 
     timer_targets = (
