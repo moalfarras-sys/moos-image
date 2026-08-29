@@ -278,7 +278,7 @@ def render_panel(target: pathlib.Path, variant: str, light: bool | None = None) 
     substitutions = {
         "@SURFACE@": tokens["surface"], "@PRIMARY@": tokens["primary"],
         "@TEXT@": tokens["text"], "@LUMINOUS@": tokens["luminous"],
-        "@OUTLINE@": tokens["outline"], "@PANEL_TOP@": tokens["panel_top"],
+        "@OUTLINE@": tokens["outline"], "@RIM_ACCENT@": tokens["primary"], "@PANEL_TOP@": tokens["panel_top"],
         "@PANEL_MID@": tokens["panel_mid"], "@PANEL_BOTTOM@": tokens["panel_bottom"],
         **_glass_opacity(variant, light),
     }
