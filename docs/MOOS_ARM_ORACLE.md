@@ -159,8 +159,9 @@ What works:
   priority over trial accounts for A1 capacity. Upgrading to Pay As You Go does
   not by itself cost anything.
 
-The repository helper can make bounded, serial attempts across every AD. It
-defaults to 1 OCPU / 6 GB / 50 GB because that is the shape most likely to claim
+The repository helper can make bounded, serial attempts across every AD and
+every fault domain inside it (nine placements in Frankfurt). It defaults to
+1 OCPU / 6 GB / 50 GB because that is the shape most likely to claim
 scarce capacity; resize to 2/12 after the machine works. It refuses a BIOS image,
 checks for an already-running instance before every attempt, waits for each
 launch to become either `RUNNING` or `TERMINATED`, and keeps the management

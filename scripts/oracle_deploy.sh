@@ -69,6 +69,15 @@ ads() {
         'import json, sys; print("\n".join(json.load(sys.stdin)))'
 }
 
+fault_domains() {
+    local availability_domain="$1"
+    "$OCI" iam fault-domain list \
+        --compartment-id "$(tenancy)" \
+        --availability-domain "$availability_domain" \
+        --query 'data[*].name' --raw-output | python3 -c \
+        'import json, sys; print("\n".join(json.load(sys.stdin)))'
+}
+
 ensure_uefi_capability() {
     local image_id="$1" schema_id global_version schema_data firmware
     [ -n "$image_id" ] && [ "$image_id" != null ] || die "missing custom image OCID"
@@ -152,7 +161,7 @@ cleanup_instance_metadata() {
 }
 
 capacity_watch() {
-    local image_id="$1" subnet_id="$2" user_data_file cycle=0 running_id launch_json state instance_id firmware public_ip
+    local image_id="$1" subnet_id="$2" user_data_file cycle=0 running_id launch_json state instance_id firmware public_ip fault_domain
     [ -n "$image_id" ] && [ "$image_id" != null ] || die "capacity-watch needs an image OCID"
     [ -n "$subnet_id" ] && [ "$subnet_id" != null ] || die "capacity-watch needs a subnet OCID"
     case "$OCPUS:$MEMORY_GB:$BOOT_GB:$RETRY_SECONDS:$MAX_CYCLES" in
@@ -178,46 +187,50 @@ capacity_watch() {
 
         while IFS= read -r availability_domain; do
             [ -n "$availability_domain" ] || continue
-            log "Trying $availability_domain: $SHAPE, $OCPUS OCPU, ${MEMORY_GB}GB RAM"
-            if launch_json=$("$OCI" compute instance launch \
-                --availability-domain "$availability_domain" \
-                --compartment-id "$(compartment)" \
-                --display-name "$INSTANCE_NAME" \
-                --hostname-label "$INSTANCE_NAME" \
-                --shape "$SHAPE" \
-                --shape-config "{\"ocpus\":$OCPUS,\"memoryInGBs\":$MEMORY_GB}" \
-                --subnet-id "$subnet_id" \
-                --assign-public-ip true \
-                --image-id "$image_id" \
-                --boot-volume-size-in-gbs "$BOOT_GB" \
-                --ssh-authorized-keys-file "$SSH_PUBLIC_KEY_FILE" \
-                --user-data-file "$user_data_file" \
-                --wait-for-state RUNNING \
-                --wait-for-state TERMINATED \
-                --wait-interval-seconds 10 \
-                --max-wait-seconds 300 \
-                --output json); then
-                state=$(printf '%s' "$launch_json" | jq -r '.data."lifecycle-state"')
-                instance_id=$(printf '%s' "$launch_json" | jq -r '.data.id')
-                firmware=$(printf '%s' "$launch_json" | jq -r '.data."launch-options".firmware')
-                log "Launch result: state=$state firmware=$firmware instance=$instance_id"
-                if [ "$state" = RUNNING ]; then
-                    [ "$firmware" = UEFI_64 ] || die "running instance firmware is $firmware, expected UEFI_64"
-                    sleep 5
-                    public_ip=$("$OCI" compute instance list-vnics --instance-id "$instance_id" \
-                        --query 'data[0]."public-ip"' --raw-output)
-                    log "SUCCESS instance=$instance_id public_ip=$public_ip"
-                    return 0
+            while IFS= read -r fault_domain; do
+                [ -n "$fault_domain" ] || continue
+                log "Trying $availability_domain / $fault_domain: $SHAPE, $OCPUS OCPU, ${MEMORY_GB}GB RAM"
+                if launch_json=$("$OCI" compute instance launch \
+                    --availability-domain "$availability_domain" \
+                    --fault-domain "$fault_domain" \
+                    --compartment-id "$(compartment)" \
+                    --display-name "$INSTANCE_NAME" \
+                    --hostname-label "$INSTANCE_NAME" \
+                    --shape "$SHAPE" \
+                    --shape-config "{\"ocpus\":$OCPUS,\"memoryInGBs\":$MEMORY_GB}" \
+                    --subnet-id "$subnet_id" \
+                    --assign-public-ip true \
+                    --image-id "$image_id" \
+                    --boot-volume-size-in-gbs "$BOOT_GB" \
+                    --ssh-authorized-keys-file "$SSH_PUBLIC_KEY_FILE" \
+                    --user-data-file "$user_data_file" \
+                    --wait-for-state RUNNING \
+                    --wait-for-state TERMINATED \
+                    --wait-interval-seconds 10 \
+                    --max-wait-seconds 300 \
+                    --output json); then
+                    state=$(printf '%s' "$launch_json" | jq -r '.data."lifecycle-state"')
+                    instance_id=$(printf '%s' "$launch_json" | jq -r '.data.id')
+                    firmware=$(printf '%s' "$launch_json" | jq -r '.data."launch-options".firmware')
+                    log "Launch result: state=$state firmware=$firmware instance=$instance_id"
+                    if [ "$state" = RUNNING ]; then
+                        [ "$firmware" = UEFI_64 ] || die "running instance firmware is $firmware, expected UEFI_64"
+                        sleep 5
+                        public_ip=$("$OCI" compute instance list-vnics --instance-id "$instance_id" \
+                            --query 'data[0]."public-ip"' --raw-output)
+                        log "SUCCESS instance=$instance_id public_ip=$public_ip"
+                        return 0
+                    fi
+                else
+                    log "Launch request failed in $availability_domain / $fault_domain; continuing"
                 fi
-            else
-                log "Launch request failed in $availability_domain; continuing"
-            fi
+            done < <(fault_domains "$availability_domain")
         done < <(ads)
 
         if [ "$MAX_CYCLES" -gt 0 ] && [ "$cycle" -ge "$MAX_CYCLES" ]; then
             die "all availability domains were full for $cycle cycle(s)"
         fi
-        log "All availability domains are full; retrying in $RETRY_SECONDS seconds"
+        log "All availability and fault domains are full; retrying in $RETRY_SECONDS seconds"
         sleep "$RETRY_SECONDS"
     done
 }

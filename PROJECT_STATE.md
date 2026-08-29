@@ -251,8 +251,8 @@ expensive/conflicting ones (translucency, glide/fade-vs-scale, wobbly/cube/fall-
   the real limits API, treats the tenancy as root compartment, enforces UEFI on
   import, and provides a duplicate-safe capacity watcher with encrypted
   management credentials. The owner host has an enabled user service retrying
-  1/6 across all ADs; OCI runtime/SSH/desktop proof remains OPEN until it reports
-  `SUCCESS`.
+  1/6 across all nine AD/fault-domain placements; OCI runtime/SSH/desktop proof
+  remains OPEN until it reports `SUCCESS`.
 
 ---
 

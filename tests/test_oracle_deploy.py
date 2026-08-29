@@ -131,6 +131,8 @@ def main() -> int:
             "running_instance_id",
             "--wait-for-state RUNNING",
             "--wait-for-state TERMINATED",
+            "fault_domains",
+            "--fault-domain",
             "[ \"$firmware\" = UEFI_64 ]",
             "systemd-creds decrypt --name=moos-oracle-management-password",
             "--ssh-authorized-keys-file",
