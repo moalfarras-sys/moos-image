@@ -22,6 +22,10 @@ Remote lifecycle defects that source-only gates had missed:
 - The English keyboard display name was empty (`DE,,ع`), making the active English layout look like
   no layout at all. New and migrated configurations show `DE,EN,ع`; the live session was explicitly
   returned to Arabic without restarting Plasma.
+- The live account had never recorded a MoOS language choice and still ran `C.UTF-8`, so the panel
+  clock showed an English date despite an Arabic-speaking owner. `moos-lang ar` now records Arabic,
+  sets Plasma translations and `LC_TIME=ar_SA.UTF-8`, and updates activation environments; the
+  existing shell will adopt the Arabic clock/date at the next login without disrupting Remote.
 - Every GStreamer rebuild added a bus signal watch but never removed it. On the live server one
   helper process accumulated dozens of PipeWire clients, and service stops timed out. Pipeline
   retirement now disconnects the handler, removes the watch, clears the bus references, stops the
