@@ -284,7 +284,10 @@ exists.
   separate hardware exercise. (The owner's machine runs the container image,
   not the ISO.)
 - **ARM / iPhone UTM net installer** — full path (download → install → boot →
-  greeter) not proven E2E on physical hardware.
+  greeter) not proven E2E on physical hardware. *Partial:* the owner's Oracle
+  A1 (real aarch64 hardware) has run `moos-arm` natively since 2026-08-30 —
+  native boot, package layering, font config, and reboot cycles verified on
+  the metal. Still open: the iPhone/UTM net-installer flow specifically.
 - **Visual matrix** — 1080p/1440p/4K × 100/125/150/200/225% × en/de/ar ×
   dark/light not all captured. Per `MOOS_DESIGN_PLAN.md` §2, the largest
   untouched opaque surfaces are the lock/login/logout screens.
