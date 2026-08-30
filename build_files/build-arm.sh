@@ -128,8 +128,42 @@ dnf5 -y install --allowerasing openh264 gstreamer1-plugin-openh264 \
 dnf5 -y install --setopt=install_weak_deps=False \
     ibm-plex-sans-fonts ibm-plex-sans-arabic-fonts ibm-plex-mono-fonts \
     google-noto-sans-fonts google-noto-sans-arabic-fonts \
-    google-noto-color-emoji-fonts
+    google-noto-color-emoji-fonts jetbrains-mono-fonts
 dnf5 -y install langpacks-ar langpacks-en
+
+# Kawkab Mono — the Arabic terminal font, pinned by digest exactly like the
+# x86 build (build_files/build.sh section (c4)). Without it, the fontconfig
+# rule /etc/fonts/conf.d/61-moos-brand.conf ships in the ARM image pointing at
+# a family that does not exist there: JetBrains Mono (no Arabic glyphs) falls
+# through to a proportional Arabic face and Konsole renders الطرفية as
+# ا ل ط ر ف ي ة — connected cursive shattered into loose letters. Arabic is a
+# first-class MoOS surface; an ARM Konsole that cannot draw it is broken, not
+# a cosmetic gap. The digest pin means a changed upstream tarball fails the
+# build instead of silently shipping something else.
+kawkab_ver=0.501
+kawkab_sha=11c06f57dddefaf0166d74caaa072865ab6ff8d34076e7ec5d2c20edda145666
+kawkab_zip=$(mktemp)
+curl -Lf --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 30 \
+    -o "${kawkab_zip}" \
+    "https://github.com/aiaf/kawkab-mono/releases/download/v${kawkab_ver}/kawkab-mono-${kawkab_ver}.zip"
+echo "${kawkab_sha}  ${kawkab_zip}" | sha256sum -c -
+mkdir -p /usr/share/fonts/kawkab-mono
+python3 -m zipfile -e "${kawkab_zip}" /tmp/
+install -m 0644 "/tmp/kawkab-mono-${kawkab_ver}"/KawkabMono-*.ttf /usr/share/fonts/kawkab-mono/
+install -m 0644 "/tmp/kawkab-mono-${kawkab_ver}/OFL.txt" /usr/share/fonts/kawkab-mono/
+rm -rf "${kawkab_zip}" "/tmp/kawkab-mono-${kawkab_ver}"
+fc-cache -f /usr/share/fonts/kawkab-mono
+# Gate it: a missing terminal font is invisible until an Arabic user types.
+test -f /usr/share/fonts/kawkab-mono/KawkabMono-Regular.ttf \
+    || { echo "GATE FAIL: Kawkab Mono did not install on ARM"; exit 1; }
+# Ask the question the way Konsole asks it (sorted fallback list, see the
+# x86 build.sh commentary for why plain fc-match answers the wrong question):
+# the first non-JetBrains-Mono face for Arabic must be Kawkab Mono.
+arabic_fallback="$(fc-match -s 'JetBrains Mono:lang=ar' | grep -v '"JetBrains Mono"' | head -1)"
+case "${arabic_fallback}" in
+    *Kawkab*) : ;;
+    *) echo "GATE FAIL: Arabic terminal fallback is '${arabic_fallback}', expected Kawkab Mono"; exit 1 ;;
+esac
 
 # -----------------------------------------------------------------------------
 # (2) The login manager
