@@ -77,7 +77,7 @@ _PLASMA=(
     xdg-desktop-portal-kde xdg-desktop-portal
     qt6-qtwayland qt6-qtsvg qt6-qtdeclarative qt6-qtmultimedia qt6-qtimageformats
     kf6-kirigami kf6-kirigami-addons kf6-qqc2-desktop-style
-    dolphin konsole ark kate
+    dolphin konsole ark kate gwenview haruna kf6-baloo-file
     plasma-breeze breeze-icon-theme
     pipewire pipewire-pulseaudio wireplumber
     NetworkManager NetworkManager-wifi
@@ -811,6 +811,27 @@ Hidden=true
 NoDisplay=true
 X-KDE-autostart-condition=
 PWEOF
+
+# Keep the package-management engine for updates, but expose only Mo Store as a
+# storefront. ARM previously skipped the x86 rewrite and showed both launchers.
+_disc=/usr/share/applications/org.kde.discover.desktop
+if [ -f "$_disc" ]; then
+    sed -i \
+        -e '/^Name\[/d' \
+        -e 's|^Name=.*|Name=Mo Store|' \
+        -e '/^GenericName\[/d' \
+        -e 's|^GenericName=.*|GenericName=App Store|' \
+        -e 's|^Icon=.*|Icon=mo-store|' \
+        "$_disc"
+    sed -i '/^Name=Mo Store$/a Name[ar]=متجر MoOS' "$_disc"
+    grep -q '^GenericName=' "$_disc" \
+        && sed -i '/^GenericName=App Store$/a GenericName[ar]=متجر التطبيقات' "$_disc" \
+        || true
+    grep -q '^NoDisplay=' "$_disc" \
+        && sed -i 's|^NoDisplay=.*|NoDisplay=true|' "$_disc" \
+        || sed -i '/^\[Desktop Entry\]/a NoDisplay=true' "$_disc"
+fi
+unset -v _disc
 
 # Fedora's Global Themes and wallpapers arrive with plasma-desktop on the
 # bootc base. x86 closes this in build.sh (z2a). Left in place they appear

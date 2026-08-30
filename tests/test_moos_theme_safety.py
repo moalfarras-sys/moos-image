@@ -396,7 +396,7 @@ migrate_legacy_keyboard
         migrated = run_profile(legacy)
         self.assertIn("LayoutList=de,us,ara", migrated)
         self.assertIn("VariantList=,,", migrated)
-        self.assertIn("DisplayNames=DE,,ع", migrated)
+        self.assertIn("DisplayNames=DE,EN,ع", migrated)
 
         customised = legacy + "Options=grp:alt_shift_toggle\n"
         self.assertEqual(run_profile(customised), customised)

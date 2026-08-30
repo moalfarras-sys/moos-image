@@ -546,6 +546,7 @@ state = {"sw": 0, "sh": 0, "scale": 1.0, "width": 0, "quality": 70, "fps": 30, "
          "codec": "jpeg", "want": "jpeg", "streaming": False}
 pipeline = None
 enc = rate = None
+pipeline_bus = pipeline_bus_handler = None
 
 # pipewiresrc repeats its last buffer at this interval even when the desktop has no damage. That
 # changes what "no frames" means: a static desktop is healthy and still advances this clock, while
@@ -969,10 +970,16 @@ def teardown():
     stream — that is what actually stops the compositor copying frames and takes idle back to 0%.
     The portal SESSION stays open, so resuming costs a pipeline build (~200ms) and never re-prompts
     the user for permission."""
-    global pipeline, enc, rate
+    global pipeline, enc, rate, pipeline_bus, pipeline_bus_handler
     video_health.stop()
     if pipeline is None:
         return False
+    if pipeline_bus is not None:
+        if pipeline_bus_handler is not None:
+            pipeline_bus.disconnect(pipeline_bus_handler)
+        pipeline_bus.remove_signal_watch()
+        pipeline_bus_handler = None
+        pipeline_bus = None
     pipeline.set_state(Gst.State.NULL)
     pipeline = None
     enc = rate = None
@@ -1051,9 +1058,7 @@ def _rebuild_now():
     if pipeline is not None and (w, h) == state["out"]:
         return False
     if pipeline is not None:
-        pipeline.set_state(Gst.State.NULL)
-        pipeline = None
-        video_health.stop()
+        teardown()
     try:
         return build(w, h)
     except Exception as e:
@@ -1063,7 +1068,7 @@ def _rebuild_now():
 
 
 def build(w, h):
-    global pipeline, enc, rate
+    global pipeline, enc, rate, pipeline_bus, pipeline_bus_handler
 
     # Scale BEFORE the colour convert: on a 4K source, converting every pixel to I420 and only
     # then shrinking costs more than the encode itself.
@@ -1185,9 +1190,9 @@ def build(w, h):
     if codec == "h264":
         tune_for_latency(enc, _bps, state["fps"])
     pipeline.get_by_name("sink").connect("new-sample", on_sample)
-    bus_ = pipeline.get_bus()
-    bus_.add_signal_watch()
-    bus_.connect("message", on_bus)
+    pipeline_bus = pipeline.get_bus()
+    pipeline_bus.add_signal_watch()
+    pipeline_bus_handler = pipeline_bus.connect("message", on_bus)
 
     # An encoder that exists is not an encoder that runs. NVENC opens a session against the GPU and
     # can simply refuse — out of VRAM, out of sessions — and it refuses at PREROLL, not at
@@ -1200,15 +1205,14 @@ def build(w, h):
         # at fault. Pull the ERROR which caused the failed transition while this callback still owns
         # the main context: a pipewiresrc error left in the queue is otherwise dispatched later and,
         # historically, the codec branch below condemned every encoder before that happened.
-        startup_msg = bus_.timed_pop_filtered(0, Gst.MessageType.ERROR)
+        startup_msg = pipeline_bus.timed_pop_filtered(0, Gst.MessageType.ERROR)
         startup_factory = element_factory_name(startup_msg.src) if startup_msg is not None else ""
         if startup_msg is not None:
             startup_error, startup_debug = startup_msg.parse_error()
             startup_reason = f"{startup_error.message} ({startup_debug or ''})"
         else:
             startup_reason = f"state transition returned {ok}"
-        pipeline.set_state(Gst.State.NULL)
-        pipeline = None
+        teardown()
         if codec == "h264" and is_h264_encoder_factory(startup_factory):
             emit(type="warn", warn=f"{elem} would not start; falling back")
             # Defence in depth for the same mistake: only condemn an element that failed with real
@@ -1501,5 +1505,4 @@ finally:
     # on Arabic because a phone typed a word an hour ago is the same class of theft the
     # clipboard borrow was careful to avoid.
     restore_layout()
-    if pipeline is not None:
-        pipeline.set_state(Gst.State.NULL)
+    teardown()

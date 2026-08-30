@@ -3103,7 +3103,7 @@ require("migrate_legacy_keyboard()" in ui_migrate
         and "LayoutList=de,ara" in ui_migrate
         and 'LayoutList "de,us,ara"' in ui_migrate
         and 'VariantList ",,"' in ui_migrate
-        and 'DisplayNames "DE,,ع"' in ui_migrate,
+        and 'DisplayNames "DE,EN,ع"' in ui_migrate,
         "the exact previous de,ara keyboard shadow must migrate to de,us,ara")
 require(ui_migrate.index("migrate_legacy_keyboard") <
         ui_migrate.index('[ -e "$marker" ] && exit 0'),
@@ -5455,6 +5455,8 @@ require("/.local/share}/applications" in one_store,
         "(the only dir that outranks both flatpak export scopes)")
 require("NoDisplay=true" in one_store,
         "moos-one-store must set NoDisplay=true on the Bazaar override")
+require("org.kde.discover.desktop" in one_store and "Name=Mo Store" in one_store,
+        "moos-one-store must hide the duplicate Discover launcher for existing ARM users")
 require("flatpak/exports" not in one_store,
         "moos-one-store must not edit flatpak export files — a Bazaar update regenerates them")
 # Dedupe: `moos-store-browse` was a thin shim that did nothing but

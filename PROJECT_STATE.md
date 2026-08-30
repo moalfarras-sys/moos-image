@@ -7,6 +7,30 @@ or current source, those stronger forms of evidence win.
 Last reconciled: **2026-08-28 (post-reboot Phase 4 audit)** — verification on the new
 deployment `49d73f3965a1` (44.20260828), booted live:
 
+### Oracle ARM live desktop audit — fixes in source (2026-08-30)
+
+A normal-user audit on the native Oracle A1 deployment `44.20260830.203` found ARM parity and
+Remote lifecycle defects that source-only gates had missed:
+
+- ARM shipped `balooctl6` without `kf6-baloo-file`, so configuration and self-check inputs said
+  indexing was enabled while no indexer service existed. ARM now includes the real service.
+- ARM omitted Gwenview and Haruna, leaving images assigned to Chromium and MP4 with no handler.
+  Both viewers now join the curated ARM desktop package set.
+- ARM skipped the x86 Discover rewrite and showed a second storefront beside Mo Store. The image
+  now applies the same hidden, MoOS-branded engine entry; `moos-one-store` also writes an effective
+  per-user override so existing deployments repair without modifying immutable `/usr`.
+- The English keyboard display name was empty (`DE,,ع`), making the active English layout look like
+  no layout at all. New and migrated configurations show `DE,EN,ع`; the live session was explicitly
+  returned to Arabic without restarting Plasma.
+- Every GStreamer rebuild added a bus signal watch but never removed it. On the live server one
+  helper process accumulated dozens of PipeWire clients, and service stops timed out. Pipeline
+  retirement now disconnects the handler, removes the watch, clears the bus references, stops the
+  health generation, and then transitions to NULL through one teardown path.
+
+The live wallpaper was repaired to MoOSUI2Aurora and visually inspected at 1920x1080; text and the
+desktop stream were sharp. Applying the Remote helper change still requires the next signed ARM
+deployment and a service restart, deliberately deferred so the active remote session was not cut.
+
 ### Mo PC Remote gesture scrolling — fixed in source (2026-08-30)
 
 The touch controller's default `Natural scroll` setting was wired backwards. The gesture engine

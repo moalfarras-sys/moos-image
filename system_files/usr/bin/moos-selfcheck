@@ -400,7 +400,10 @@ esac
 [ -f /usr/share/applications/org.moos.store.desktop ] \
     && ok "Mo Store has its own app entry (org.moos.store)" \
     || bad "org.moos.store.desktop is missing — the store is not in the menu"
-disc=/usr/share/applications/org.kde.discover.desktop
+disc=""
+for d in "${XDG_DATA_HOME:-$HOME/.local/share}/applications" /usr/share/applications; do
+    [ -f "$d/org.kde.discover.desktop" ] && { disc="$d/org.kde.discover.desktop"; break; }
+done
 if [ -f "$disc" ]; then
     if grep -q '^NoDisplay=true$' "$disc" 2>/dev/null; then
         ok "the Discover engine entry is hidden (Mo Store is the one storefront)"
