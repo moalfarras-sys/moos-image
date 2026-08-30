@@ -111,7 +111,7 @@ jobs:
       id-token: write     # sigstore/cosign OIDC (kept for future keyless mode)
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # ubuntu-latest ships only ~14 GB free on /, and the NVIDIA driver + i686
       # multilib + supergfxctl transaction alone needs ~1.1 GB at install time.
@@ -150,7 +150,7 @@ jobs:
       # (--experimental-strip-types, 22.6+). They import only node: builtins and the
       # source under test, so no npm install is required.
       - name: Node for the controller tests
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "22"
 
@@ -551,7 +551,7 @@ jobs:
           cat "$proof/candidate.txt"
 
       - name: Upload the signed candidate identity
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: moos-candidate-proof-${{ matrix.image_name }}
           path: ${{ runner.temp }}/candidate-proof/candidate.txt

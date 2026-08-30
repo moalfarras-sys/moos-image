@@ -55,7 +55,7 @@ jobs:
       ISO_RUN_ID: ${{ inputs.iso_run_id }}
     steps:
       - name: Checkout the candidate tree and verification key
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ inputs.revision }}
           fetch-depth: 0
