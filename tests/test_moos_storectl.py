@@ -267,6 +267,9 @@ class ValidationTests(StoreTestCase):
                 return list(self.remotes)
 
             def add_remote(self, remote, _if_needed, _cancellable):
+                # libflatpak only exposes the effective GPG verification bit
+                # after the parsed repository has been added.
+                remote.verified = True
                 self.remotes.append(remote)
                 self.added.append(remote)
                 return True
@@ -277,7 +280,7 @@ class ValidationTests(StoreTestCase):
         class RemoteFactory:
             @staticmethod
             def new_from_file(name, _data):
-                return Remote(name, MODULE.FLATHUB_REPO_BASE, True)
+                return Remote(name, MODULE.FLATHUB_REPO_BASE, False)
 
         class BytesFactory:
             @staticmethod

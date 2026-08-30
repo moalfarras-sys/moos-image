@@ -35,6 +35,16 @@ The live wallpaper was repaired to MoOSUI2Aurora and visually inspected at 1920x
 desktop stream were sharp. Applying the Remote helper change still requires the next signed ARM
 deployment and a service restart, deliberately deferred so the active remote session was not cut.
 
+### Mo Store first user install — fixed and live-proven (2026-08-30)
+
+Mo Store rejected every first per-user Flatpak install with `Parsed Flathub remote failed URL/GPG
+validation`. `Flatpak.Remote.new_from_file()` does not expose the effective `gpg-verify` bit until
+the parsed remote is installed, although the `.flatpakrepo` already carries the verified key. The
+backend now validates the pinned URL and embedded GPG key before adding the remote, then verifies
+libflatpak's effective URL/GPG/disabled/nodeps state after installation. The production path was
+proven on Oracle ARM by installing `org.gnome.Calculator`; the job completed at 100%, the user
+Flathub remote is GPG-enabled, and subsequent installs use the repaired effective remote.
+
 ### Mo PC Remote gesture scrolling — fixed in source (2026-08-30)
 
 The touch controller's default `Natural scroll` setting was wired backwards. The gesture engine
