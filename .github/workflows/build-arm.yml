@@ -184,7 +184,7 @@ jobs:
 
       - name: Log in to GHCR
         if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
-        uses: redhat-actions/podman-login@v3
+        uses: redhat-actions/podman-login@v2
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -266,7 +266,7 @@ jobs:
         uses: sigstore/cosign-installer@v3
 
       - name: Log in to GHCR
-        uses: redhat-actions/podman-login@v3
+        uses: redhat-actions/podman-login@v2
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -636,7 +636,7 @@ jobs:
         uses: sigstore/cosign-installer@v3
 
       - name: Log in to GHCR
-        uses: redhat-actions/podman-login@v3
+        uses: redhat-actions/podman-login@v2
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
