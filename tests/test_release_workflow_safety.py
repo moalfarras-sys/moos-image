@@ -115,7 +115,7 @@ class ReleaseWorkflowSafetyTests(unittest.TestCase):
         self.assertLess(record, upload)
         self.assertIn("moos-candidate-proof-${{ matrix.image_name }}", build)
         self.assertNotIn("skopeo copy --preserve-digests", build)
-        self.assertEqual(build.count("uses: redhat-actions/push-to-registry@v2"), 1)
+        self.assertEqual(build.count("uses: redhat-actions/push-to-registry@v3"), 1)
 
         required_order = (
             "Prove the candidate is the exact tree on main",
