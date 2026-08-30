@@ -27,7 +27,24 @@ if resolved_wayland="$(/usr/libexec/moos-wayland-display 2>/dev/null)"; then
 else
     unset WAYLAND_DISPLAY
 fi
+
+# An assistant/SSH process is outside the graphical login PAM environment. KWin's
+# wrapper publishes DISPLAY and XAUTHORITY into the systemd user manager when
+# Xwayland starts, but an empty shell variable used to overwrite both with
+# nothing. Wayland-native apps opened; compatibility apps accepted the launch
+# and immediately exited because they could not authenticate to :0. Read the
+# live session values from their owner rather than guessing a display number.
+if [ -z "${DISPLAY:-}" ] || [ -z "${XAUTHORITY:-}" ]; then
+    manager_environment="$(systemctl --user show-environment 2>/dev/null || true)"
+    while IFS= read -r environment_line; do
+        case "$environment_line" in
+            DISPLAY=*) [ -n "${DISPLAY:-}" ] || DISPLAY="${environment_line#DISPLAY=}" ;;
+            XAUTHORITY=*) [ -n "${XAUTHORITY:-}" ] || XAUTHORITY="${environment_line#XAUTHORITY=}" ;;
+        esac
+    done <<< "$manager_environment"
+fi
 export DISPLAY="${DISPLAY:-}"
+export XAUTHORITY="${XAUTHORITY:-}"
 export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=${XDG_RUNTIME_DIR}/bus}"
 
 unit="moai-open-$$-${RANDOM}"
@@ -36,6 +53,7 @@ if command -v systemd-run >/dev/null 2>&1; then
     if systemd-run --user --collect --quiet --unit="${unit}" \
             --setenv=WAYLAND_DISPLAY="${WAYLAND_DISPLAY}" \
             --setenv=DISPLAY="${DISPLAY}" \
+            --setenv=XAUTHORITY="${XAUTHORITY}" \
             --setenv=XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR}" \
             --setenv=DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS}" \
             -- "$@" 2>/dev/null; then

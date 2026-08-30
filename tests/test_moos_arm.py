@@ -603,7 +603,12 @@ class ArmEditionTests(unittest.TestCase):
     def test_arm_is_wayland_only(self) -> None:
         text = code(read(BUILD))
         self.assertNotIn("plasma-workspace-x11", text)
-        self.assertNotIn("--xwayland", text)
+        self.assertIn(
+            "kwin_wayland_wrapper --virtual --width 1920 --height 1080 --xwayland",
+            text,
+            "the ARM session stays Wayland-native, but ksmserver and compatibility "
+            "apps need KWin's Xwayland bridge instead of crashing at login",
+        )
         self.assertIn("/usr/share/xsessions", text,
                       "the finished image must fail if a dependency adds an X11 session")
 

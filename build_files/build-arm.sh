@@ -615,7 +615,10 @@ install -D -o "$target" -g "$target" -m0644 /dev/stdin \
 [Service]
 Environment=LIBGL_ALWAYS_SOFTWARE=1
 ExecStart=
-ExecStart=/usr/bin/kwin_wayland_wrapper --virtual --width 1920 --height 1080
+# This remains a Wayland-native session. Xwayland is the compatibility bridge
+# used by ksmserver and older developer apps; omitting it leaves the desktop
+# visible but crashes session management and several tray helpers at every login.
+ExecStart=/usr/bin/kwin_wayland_wrapper --virtual --width 1920 --height 1080 --xwayland
 KWIN
 
 desktop_unit="${home}/.config/systemd/user/moos-arm-desktop.service"

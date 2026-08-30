@@ -121,6 +121,21 @@ class RemoteStartLifecycleTests(unittest.TestCase):
         self.assertIn('wait "$inhibit_pid"', source)
         self.assertNotIn("python", source.splitlines()[0])
 
+    def test_unit_waits_for_both_screen_sharing_portals(self):
+        unit = UNIT.read_text(encoding="utf-8")
+        directives = [
+            line.strip() for line in unit.splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        ]
+        after = next(line for line in directives if line.startswith("After="))
+        wants = next(line for line in directives if line.startswith("Wants="))
+        for portal in (
+            "xdg-desktop-portal.service",
+            "plasma-xdg-desktop-portal-kde.service",
+        ):
+            self.assertIn(portal, after)
+            self.assertIn(portal, wants)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

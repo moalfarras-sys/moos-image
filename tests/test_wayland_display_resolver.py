@@ -49,4 +49,9 @@ for surface, source in (("Remote", REMOTE_START), ("Mo AI open", OPEN), ("Mo AI 
     assert "/usr/libexec/moos-wayland-display" in source, f"{surface} bypasses the shared resolver"
     assert "WAYLAND_DISPLAY:-wayland-0" not in source, f"{surface} still guesses wayland-0"
 
+assert "systemctl --user show-environment" in OPEN, \
+    "Mo AI open must recover DISPLAY/XAUTHORITY published by the live Xwayland session"
+assert '--setenv=XAUTHORITY="${XAUTHORITY}"' in OPEN, \
+    "Mo AI open finds XAUTHORITY but does not pass it into the detached app unit"
+
 print("OK: Remote and Mo AI select a connectable Wayland compositor, not a stale filename")
