@@ -146,6 +146,31 @@ if code:
             "aliased to '_', the way xdp_generate_token() mints them"
         )
 
+    if '"Lookup"' not in code or "existing_grant_works" not in code:
+        errors.append(
+            f"{SCRIPT}: trusts a restore-token file without looking up its matching "
+            "PermissionStore record — a stale token is a permanent black-screen prompt"
+        )
+
+    cmd_on = code.split("cmd_on()", 1)[-1].split("cmd_off()", 1)[0]
+    if "seed_portal_grant" not in cmd_on:
+        errors.append(
+            f"{SCRIPT}: the seat-owner `on` path does not seed the portal grant before "
+            "starting Mo PC Remote"
+        )
+    elif cmd_on.index("seed_portal_grant") > cmd_on.index("enable --now mo-remote-personal.service"):
+        errors.append(
+            f"{SCRIPT}: starts Mo PC Remote before seeding its portal grant — the "
+            "unanswerable approval prompt has already won the race"
+        )
+    if "tune_cloud_session" not in cmd_on or not all(setting in code for setting in (
+        "Autolock", "LockOnResume", "DimDisplayWhenIdle", "AutoSuspendAction"
+    )):
+        errors.append(
+            f"{SCRIPT}: does not pin no-lock/no-suspend settings into the cloud "
+            "account's own config, so stale user settings can restore the black screen"
+        )
+
     # The stored record is what the portal restores from: pointer|keyboard (3) and
     # screen sharing on. Getting these wrong yields a grant that restores into a
     # session with no input, which is exactly the failure that is hardest to see.

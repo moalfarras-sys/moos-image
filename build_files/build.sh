@@ -3376,7 +3376,14 @@ import json
 p = "/etc/containers/policy.json"
 with open(p) as f:
     d = json.load(f)
-d.setdefault("transports", {}).setdefault("docker", {})["ghcr.io/moalfarras-sys"] = [{
+docker = d.setdefault("transports", {}).setdefault("docker", {})
+# bootc refuses the whole policy when the TOP-LEVEL fallback is permissive,
+# even when the exact MoOS namespace below is signed. Keep ordinary user
+# containers usable through docker's transport fallback while making the
+# global default fail closed.
+d["default"] = [{"type": "reject"}]
+docker[""] = [{"type": "insecureAcceptAnything"}]
+docker["ghcr.io/moalfarras-sys"] = [{
     "type": "sigstoreSigned",
     "keyPath": "/etc/pki/containers/moos.pub",
     "signedIdentity": {"type": "matchRepository"},
@@ -3389,7 +3396,12 @@ PYSEC
 import json, sys
 d = json.load(open('/etc/containers/policy.json'))
 e = d.get('transports', {}).get('docker', {}).get('ghcr.io/moalfarras-sys') or [{}]
-sys.exit(0 if e[0].get('type') == 'sigstoreSigned' else 1)"; then
+default = d.get('default') or [{}]
+fallback = d.get('transports', {}).get('docker', {}).get('') or [{}]
+ok = (e[0].get('type') == 'sigstoreSigned' and
+      default[0].get('type') == 'reject' and
+      fallback[0].get('type') == 'insecureAcceptAnything')
+sys.exit(0 if ok else 1)"; then
         echo "OK: the MoOS registry is signature-enforced (install + every future upgrade)."
     else
         echo "FATAL: the MoOS registry policy is not enforcing — refusing to ship an image"

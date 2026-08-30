@@ -191,13 +191,42 @@ seed_portal_grant() {
         "XDG_RUNTIME_DIR=/run/user/${uid}" \
         "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${uid}/bus" \
         python3 - "/var/home/${user}/.config/MoRemote/portal-restore-token" <<'PYGRANT'
-import base64, os, secrets, struct, sys
+import base64, os, secrets, string, struct, sys
 
 from gi.repository import Gio, GLib
 
 token_path = sys.argv[1]
-if os.path.exists(token_path) and open(token_path).read().strip():
-    print("portal grant: already set up")
+token = ""
+if os.path.exists(token_path):
+    token = open(token_path).read().strip()
+
+bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+token_alphabet = set(string.ascii_letters + string.digits + "_")
+
+def token_is_valid(candidate):
+    return bool(candidate) and all(c in token_alphabet for c in candidate)
+
+def existing_grant_works(candidate):
+    if not token_is_valid(candidate):
+        return False
+    try:
+        reply = bus.call_sync(
+            "org.freedesktop.impl.portal.PermissionStore",
+            "/org/freedesktop/impl/portal/PermissionStore",
+            "org.freedesktop.impl.portal.PermissionStore",
+            "Lookup",
+            GLib.Variant("(ss)", ("remote-desktop", candidate)),
+            GLib.VariantType("(a{sas}v)"),
+            Gio.DBusCallFlags.NONE, 10000, None)
+    except GLib.Error:
+        return False
+    permissions = reply.get_child_value(0).unpack()
+    data = reply.get_child_value(1)
+    return (data.get_type_string() != "()" and
+            any("yes" in values for values in permissions.values()))
+
+if existing_grant_works(token):
+    print("portal grant: already set up and verified")
     sys.exit(0)
 
 def qstring(s):
@@ -217,10 +246,9 @@ blob += qstring("devices") + quint(3)
 blob += qstring("screenShareEnabled") + qbool(True)
 
 data = GLib.Variant("(suv)", ("KDE", 1, GLib.Variant("ay", blob)))
-token = base64.b64encode(secrets.token_bytes(16)).decode().rstrip("=")
-token = token.replace("+", "_").replace("/", "_")
-
-bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+if not token_is_valid(token):
+    token = base64.b64encode(secrets.token_bytes(16)).decode().rstrip("=")
+    token = token.replace("+", "_").replace("/", "_")
 bus.call_sync(
     "org.freedesktop.impl.portal.PermissionStore",
     "/org/freedesktop/impl/portal/PermissionStore",
@@ -235,6 +263,25 @@ with open(token_path, "w") as f:
 os.chmod(token_path, 0o600)
 print("portal grant: seeded")
 PYGRANT
+}
+
+# /etc/xdg only supplies defaults. Plasma copies them into the account's own
+# ~/.config on first login, and that stronger file survives every image update.
+# Pin the cloud-only no-lock/no-suspend contract in the account that will own the
+# streamed seat, or an upgraded account can keep an old Autolock=true forever.
+tune_cloud_session() {
+    local user="$1" uid="$2"
+    local env=(env "HOME=/var/home/${user}" "XDG_RUNTIME_DIR=/run/user/${uid}")
+    runuser -u "$user" -- "${env[@]}" /usr/bin/kwriteconfig6 \
+        --file kscreenlockerrc --group Daemon --key Autolock false
+    runuser -u "$user" -- "${env[@]}" /usr/bin/kwriteconfig6 \
+        --file kscreenlockerrc --group Daemon --key LockOnResume false
+    runuser -u "$user" -- "${env[@]}" /usr/bin/kwriteconfig6 \
+        --file powerdevilrc --group AC --group Display --key DimDisplayWhenIdle false
+    runuser -u "$user" -- "${env[@]}" /usr/bin/kwriteconfig6 \
+        --file powerdevilrc --group AC --group Display --key TurnOffDisplayWhenIdle false
+    runuser -u "$user" -- "${env[@]}" /usr/bin/kwriteconfig6 \
+        --file powerdevilrc --group AC --group SuspendAndShutdown --key AutoSuspendAction 0
 }
 
 own_screen() {
@@ -470,6 +517,8 @@ cmd_on() {
     local user="${1:-}"
     [ -n "$user" ] || die "which account should own the desktop? e.g. moos-cloud-desktop on moos"
     id "$user" >/dev/null 2>&1 || die "no such account: ${user}"
+    local uid
+    uid="$(id -u "$user")"
 
     install -D -m0644 /dev/stdin "$CONF" <<CONF
 # Written by moos-cloud-desktop. A cloud server has no screen, so without an
@@ -487,6 +536,9 @@ CONF
     # like the desktop crashing.
     loginctl enable-linger "$user"
     ok "lingering on — the desktop survives your logout"
+
+    tune_cloud_session "$user" "$uid"
+    ok "screen lock, display blanking and automatic suspend disabled for the cloud seat"
 
     systemctl restart plasmalogin.service
     ok "login manager restarted"
@@ -507,8 +559,31 @@ CONF
     # XDG_RUNTIME_DIR. runuser does not set it, so without this the call fails
     # with "Failed to connect to bus" — and the command reports it could not
     # start the streamer on a machine where the session is running perfectly.
-    local uid
-    uid="$(id -u "$user")"
+    # Unlock an already-running upgraded session too. The persisted settings above
+    # prevent the next lock; this clears the black screen that may exist now.
+    while read -r session; do
+        [ -n "$session" ] && loginctl unlock-session "$session" 2>/dev/null || true
+    done < <(loginctl list-sessions --no-legend 2>/dev/null \
+             | awk -v owner="$user" '$3 == owner {print $1}')
+
+    # Seed before the streamer asks. A token file alone is not proof: older
+    # releases wrote it without a matching PermissionStore record, producing a
+    # permanent approval dialog behind the very black screen it was meant to fix.
+    local grant_ok=0
+    for _ in $(seq 1 10); do
+        if seed_portal_grant "$user" "$uid"; then grant_ok=1; break; fi
+        sleep 1
+    done
+    [ "$grant_ok" = 1 ] || note "could not seed the portal grant yet"
+
+    # Stop the managed unit and any pre-systemd orphan from an older release.
+    # An orphan holding :8765 makes the new healthy unit restart-loop forever.
+    runuser -u "$user" -- env "XDG_RUNTIME_DIR=/run/user/${uid}" \
+        systemctl --user stop mo-remote-personal.service >/dev/null 2>&1 || true
+    while read -r remote_pid; do
+        [ -n "$remote_pid" ] && kill "$remote_pid" 2>/dev/null || true
+    done < <(pgrep -u "$user" -f '^/usr/lib/mo-remote/MoRemotePersonal( |$)' || true)
+
     if runuser -u "$user" -- env "XDG_RUNTIME_DIR=/run/user/${uid}" \
             systemctl --user enable --now mo-remote-personal.service >/dev/null 2>&1; then
         ok "Mo PC Remote started"

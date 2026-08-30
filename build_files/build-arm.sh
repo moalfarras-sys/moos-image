@@ -906,9 +906,13 @@ import json
 path = "/etc/containers/policy.json"
 with open(path, encoding="utf-8") as source:
     policy = json.load(source)
-policy.setdefault("transports", {}).setdefault("docker", {})[
-    "ghcr.io/moalfarras-sys"
-] = [{
+docker = policy.setdefault("transports", {}).setdefault("docker", {})
+# bootc rejects a policy whose global fallback is insecure, even if this exact
+# registry has a signed rule. Preserve normal user pulls at docker's transport
+# fallback while making the top-level policy fail closed.
+policy["default"] = [{"type": "reject"}]
+docker[""] = [{"type": "insecureAcceptAnything"}]
+docker["ghcr.io/moalfarras-sys"] = [{
     "type": "sigstoreSigned",
     "keyPath": "/etc/pki/containers/moos.pub",
     "signedIdentity": {"type": "matchRepository"},
@@ -922,10 +926,17 @@ import json
 entry = json.load(open("/etc/containers/policy.json", encoding="utf-8"))[
     "transports"
 ]["docker"]["ghcr.io/moalfarras-sys"]
+policy = json.load(open("/etc/containers/policy.json", encoding="utf-8"))
 if len(entry) != 1 or entry[0].get("type") != "sigstoreSigned":
     raise SystemExit("FATAL: ARM registry policy does not require sigstoreSigned")
 if entry[0].get("keyPath") != "/etc/pki/containers/moos.pub":
     raise SystemExit("FATAL: ARM registry policy does not use the MoOS public key")
+if policy.get("default") != [{"type": "reject"}]:
+    raise SystemExit("FATAL: ARM container policy has a permissive global default")
+if policy.get("transports", {}).get("docker", {}).get("") != [
+    {"type": "insecureAcceptAnything"}
+]:
+    raise SystemExit("FATAL: ARM ordinary user container pulls lost their docker fallback")
 PYSEC
 
 # -----------------------------------------------------------------------------
