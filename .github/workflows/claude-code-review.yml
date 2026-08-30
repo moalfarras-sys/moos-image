@@ -33,6 +33,9 @@ jobs:
 
       - name: Run Claude Code Review
         id: claude-review
+        # Non-blocking: this is an advisory review, not a release gate. The
+        # OAuth token expires periodically; a dead token must not fail PRs.
+        continue-on-error: true
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
