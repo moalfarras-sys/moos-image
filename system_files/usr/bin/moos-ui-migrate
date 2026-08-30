@@ -237,7 +237,7 @@ migrate_legacy_keyboard() {
     if cp --preserve=mode -- "$keyboard_conf" "$tmp" \
        && kwriteconfig6 --file "$tmp" --group Layout --key LayoutList "de,us,ara" \
        && kwriteconfig6 --file "$tmp" --group Layout --key VariantList ",," \
-       && kwriteconfig6 --file "$tmp" --group Layout --key DisplayNames "DE,,ع" \
+       && kwriteconfig6 --file "$tmp" --group Layout --key DisplayNames "DE,EN,ع" \
        && mv -f -- "$tmp" "$keyboard_conf"; then
         touch "$keyboard_marker"
         echo "$(date -u '+%FT%TZ') migrated exact legacy keyboard de,ara -> de,us,ara" \

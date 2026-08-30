@@ -208,7 +208,8 @@ class ArmEditionTests(unittest.TestCase):
         for current in (
             "kwin-libs", "plasma-breeze", "plasma-workspace",
             "ramalama", "plasma-discover", "kinfocenter", "bluedevil",
-            "plasma-print-manager", "flatpak-kcm",
+            "plasma-print-manager", "flatpak-kcm", "gwenview", "haruna",
+            "kf6-baloo-file",
         ):
             self.assertIn(current, text, f"the ARM build is missing Fedora 44's {current}")
         for retired in ("kwin-wayland-libs", "\n    breeze ", "plasma-workspace-wayland"):
@@ -241,6 +242,17 @@ class ArmEditionTests(unittest.TestCase):
         ):
             self.assertIn(backend, verifier,
                           f"finished ARM image does not prove route backend {backend}")
+
+    def test_arm_has_one_storefront(self) -> None:
+        build = code(read(BUILD))
+        for contract in (
+            "org.kde.discover.desktop",
+            "Name=Mo Store",
+            "Icon=mo-store",
+            "NoDisplay=true",
+        ):
+            self.assertIn(contract, build,
+                          f"ARM does not enforce the one-storefront contract: {contract}")
 
     # ── the ARM-specific things that x86 gets wrong ─────────────────────────
     def test_the_serial_console_is_the_arm_uart(self) -> None:

@@ -148,7 +148,8 @@ def main() -> int:
                 "startup failure still falls through by requested codec instead of ERROR factory", errors)
         require("startup_factory or 'pipeline'" in build and "die(EXIT_LOST" in build,
                 "a startup error from pipewiresrc/unknown source does not recreate the portal", errors)
-        require("video_health.stop" in teardown and "video_health.stop" in rebuild_now,
+        require("video_health.stop" in teardown
+                and ("video_health.stop" in rebuild_now or "teardown()" in rebuild_now),
                 "pipeline teardown/rebuild does not retire the old health generation", errors)
         require("video_health.stalled" in watchdog and "die(EXIT_LOST" in watchdog,
                 "starvation does not terminate the helper to recreate the portal session", errors)

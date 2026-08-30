@@ -15,7 +15,7 @@
 Use=true
 LayoutList=de,us,ara
 VariantList=,,
-DisplayNames=DE,,ع
+DisplayNames=DE,EN,ع
 Options=grp:alt_shift_toggle
 SwitchMode=Global
 ResetOldOptions=true

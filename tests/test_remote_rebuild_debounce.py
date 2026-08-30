@@ -94,6 +94,16 @@ def main() -> int:
             errors.append("_rebuild_now() can return True, which makes the GLib timeout REPEAT — the\n"
                           "        pipeline would be rebuilt every debounce interval, for ever.")
 
+    # A signal watch owns a reference to the old bus/pipeline. Rebuilding without disconnecting and
+    # removing it leaked one PipeWire client per quality/codec change on the live ARM desktop.
+    teardown_body = re.search(r"^def teardown\(\):\n([\s\S]*?)(?=^def )", code, re.M)
+    if not teardown_body or "remove_signal_watch" not in teardown_body.group(1):
+        errors.append("teardown() does not remove the GStreamer bus signal watch; old pipelines and\n"
+                      "        PipeWire clients remain alive after every quality/codec rebuild.")
+    if nb and "pipeline.set_state" in nb.group(1):
+        errors.append("_rebuild_now() bypasses teardown() and retires a pipeline directly, so its\n"
+                      "        bus watch can leak the old pipeline and PipeWire client.")
+
     if errors:
         print("GATE FAIL: connecting to the remote would flash the picture, or idle would cost CPU.\n")
         for e in errors:

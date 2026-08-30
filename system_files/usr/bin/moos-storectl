@@ -645,6 +645,26 @@ class FlatpakAdapter:
         except Exception:
             return False
 
+    @staticmethod
+    def _safe_remote_definition(remote: Any) -> bool:
+        """Validate properties libflatpak exposes before adding a repo file.
+
+        Flatpak.Remote.new_from_file() reports get_gpg_verify() as false even
+        when the parsed .flatpakrepo contains a valid GPGKey.  The raw file is
+        already pinned and key-validated by _repo_data(); require libflatpak's
+        effective GPG setting after add_remote() instead.
+        """
+
+        try:
+            url = (remote.get_url() or "").rstrip("/") + "/"
+            return (
+                url == FLATHUB_REPO_BASE
+                and not bool(remote.get_disabled())
+                and not bool(remote.get_nodeps())
+            )
+        except Exception:
+            return False
+
     def _repo_data(self) -> bytes:
         if FLATHUB_REPO_FILE.is_file():
             data = FLATHUB_REPO_FILE.read_bytes()
@@ -698,7 +718,7 @@ class FlatpakAdapter:
             remote = self.Flatpak.Remote.new_from_file(
                 remote_name, self.GLib.Bytes.new(data)
             )
-            if not self._official_remote(remote):
+            if not self._safe_remote_definition(remote):
                 raise StoreError("Parsed Flathub remote failed URL/GPG validation")
             self.user.add_remote(remote, True, None)
             installed = self.user.get_remote_by_name(remote_name, None)

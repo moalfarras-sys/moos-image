@@ -17,17 +17,29 @@ APP="io.github.kolunmi.Bazaar"
 DIR="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
 OVERRIDE="$DIR/${APP}.desktop"
 
-# Nothing to hide if Bazaar is not installed in any scope.
-flatpak info --user "$APP" >/dev/null 2>&1 || flatpak info "$APP" >/dev/null 2>&1 || exit 0
-
 mkdir -p "$DIR"
-cat > "$OVERRIDE" <<EOF
+if flatpak info --user "$APP" >/dev/null 2>&1 || flatpak info "$APP" >/dev/null 2>&1; then
+    cat > "$OVERRIDE" <<EOF
 [Desktop Entry]
 Type=Application
 Name=Bazaar
 Comment=Mo Store's full-catalog engine (hidden: Mo Store is the one storefront)
 Exec=flatpak run ${APP}
 Icon=${APP}
+NoDisplay=true
+EOF
+fi
+
+# Older ARM images shipped the system package's visible launcher unchanged. A
+# user override wins without modifying immutable /usr and survives that image.
+cat > "$DIR/org.kde.discover.desktop" <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Mo Store
+Name[ar]=متجر MoOS
+Comment=System update engine; Mo Store is the visible storefront
+Exec=plasma-discover %F
+Icon=mo-store
 NoDisplay=true
 EOF
 
