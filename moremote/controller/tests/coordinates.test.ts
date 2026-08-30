@@ -146,6 +146,13 @@ delta(5, 0, true, 0, 5, "screen-right is desktop-down when turned");
 const remote = readFileSync(join(import.meta.dirname, "..", "src", "ui", "RemoteScreen.tsx"), "utf8");
 const remoteCode = remote.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
+// GestureController emits finger travel while the wire carries wheel travel (positive Y means
+// scroll down). Natural scrolling therefore inverts both axes so content follows the finger.
+assert.match(remoteCode, /const direction = naturalScrollRef\.current \? -1 : 1;/,
+  "natural scrolling must translate finger travel into the opposite wheel direction");
+assert.match(remoteCode, /dx \* scrollSensitivityRef\.current \* direction[\s\S]*dy \* scrollSensitivityRef\.current \* direction/,
+  "the natural-scroll direction must apply consistently to both gesture axes");
+
 // 1. Fullscreen must NOT force the phone's physical orientation. The lock("landscape") call — which
 //    spun the phone sideways the moment the user tapped Fullscreen — must be gone from the code
 //    (the comment explaining its removal may still name it, hence the comment-stripped check).
