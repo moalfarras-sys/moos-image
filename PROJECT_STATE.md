@@ -7,6 +7,35 @@ or current source, those stronger forms of evidence win.
 Last reconciled: **2026-08-28 (post-reboot Phase 4 audit)** — verification on the new
 deployment `49d73f3965a1` (44.20260828), booted live:
 
+### Mo PC Remote gesture scrolling — fixed in source (2026-08-30)
+
+The touch controller's default `Natural scroll` setting was wired backwards. The gesture engine
+reports finger travel, while the Remote input contract reports wheel travel (`dy > 0` means scroll
+down). Passing an upward finger delta through unchanged therefore scrolled the remote page up; an
+upward swipe moved the content down, exactly opposite the label and normal phone behaviour.
+
+- Natural touch scrolling now inverts both gesture axes before sending wheel input; traditional
+  scrolling preserves the gesture sign. The desktop mouse-wheel path is unchanged because browser
+  wheel events already carry wheel, rather than finger, direction.
+- The controller test suite now gates the sign translation. All controller tests, TypeScript, the
+  production Vite build, shipped-bundle tracking gate, and all runnable `test_remote_*` repo gates
+  passed in the development environment.
+- Live Plasma/portal input and audio were not re-proven in this session: the available shell is an
+  ARM development container without systemd, PipeWire or KDE Frameworks. The next signed-image
+  acceptance still needs a real MoOS session and the release-acceptance loop documented in
+  `moremote/docs/MOOS_REMOTE_ARCHITECTURE.md`.
+
+### MoOS Cloud developer container isolation — fixed in source (2026-08-30)
+
+`moos-cloud-dev` contained a policy-aware subordinate-ID allocator but `ensure_subids` did not use
+it. New developer accounts missing a preallocated range were instead placed on a hard-coded grid
+starting at 100000, even when the host's `login.defs` required a different floor. The old gate
+looked for uid arithmetic and therefore held the wrong implementation in place while reporting OK.
+
+`ensure_subids` now allocates `subuid` and `subgid` independently from each file's existing
+high-water mark and the host's configured `SUB_UID_MIN`/`SUB_UID_COUNT`. The gate now executes the
+allocator against a temporary host policy and proves the production path calls it for both maps.
+
 - **New deployment confirmed booted** (`49d73f3965a1` is the `●` current deployment; old
   `2747ad403c8d` and `355327e314f8` retained as rollback).
 - **Aurora theme confirmed live**: `LookAndFeelPackage=org.moos.ui2.aurora`,

@@ -894,7 +894,14 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
       dragStart: (x, y) => conn.down("left", x, y),
       dragMove: (x, y) => conn.move(x, y),
       dragEnd: (x, y) => conn.up("left", x, y),
-      scroll: (dx, dy) => conn.scroll(dx*scrollSensitivityRef.current, dy*scrollSensitivityRef.current*(naturalScrollRef.current?1:-1)),
+      // GestureController reports finger travel. The remote input contract reports wheel travel:
+      // positive Y scrolls down. Natural scrolling means the content follows the finger, so an
+      // upward finger movement (negative dy) must become a positive wheel delta.
+      scroll: (dx, dy) => {
+        const direction = naturalScrollRef.current ? -1 : 1;
+        conn.scroll(dx * scrollSensitivityRef.current * direction,
+                    dy * scrollSensitivityRef.current * direction);
+      },
       zoomAt: (factor, fx, fy) => {
         const before = toNorm(fx, fy);
         view.current.zoom = Math.min(5, Math.max(minZoom(), view.current.zoom * factor));

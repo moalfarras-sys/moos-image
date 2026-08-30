@@ -19,19 +19,21 @@ Two failures, both silent, both live in the tree before this landed:
      guard skipped the broken line — until the account-update path, or a host with
      SUB_UID_COUNT unset, reached it.
 
-  2. A SHARED RANGE. "Just make it 100000-165535" fixes the inversion and introduces
-     a worse bug: every account gets the SAME block, so two developers' containers
-     map onto the same host UIDs and the isolation the ranges exist to provide is
-     gone. The range must be keyed off something unique per account (the uid).
+  2. A FOREIGN GRID. Deriving a range from the account uid looked unique, but started
+     at a hard-coded 100000 even when the host policy started at 524288. The allocator
+     must follow login.defs and the high-water mark already present in each map.
 
-So: assert the allocation is uid-derived (unique) and that no literal FIRST-LAST pair
-in the script is inverted. Per AGENTS.md the check reads the CODE with comments
-stripped, so this docstring's own `100000-65535` example cannot satisfy or trip it.
+So: execute the policy-aware allocator, prove ensure_subids actually calls it for both
+maps, and reject inverted literal ranges. Per AGENTS.md the static checks read code
+with comments stripped, so examples in this docstring cannot satisfy or trip them.
 """
 
 from pathlib import Path
+import os
 import re
+import subprocess
 import sys
+import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "system_files/usr/bin/moos-cloud-dev"
@@ -68,18 +70,33 @@ def main() -> int:
                 f"        usermod rejects it, and the || die aborts `add` after the account\n"
                 f"        already exists — a half-provisioned tenant with a misleading error.")
 
-    # 2. The allocation must be uid-derived, or two tenants share a range and lose
-    #    isolation. The honest signal is arithmetic on the account's uid.
-    if "--add-subuids" in code:
-        if not re.search(r"id -u\b", code):
+    # 2. Exercise the allocator itself. The old static test blessed an unused correct helper while
+    #    ensure_subids continued allocating from its own hard-coded grid.
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        login_defs = root / "login.defs"
+        allocated = root / "subuid"
+        login_defs.write_text("SUB_UID_MIN 524288\nSUB_UID_COUNT 65536\n", encoding="utf-8")
+        allocated.write_text("alice:524288:65536\nbob:720896:65536\n", encoding="utf-8")
+        env = os.environ.copy()
+        env.update({"MOOS_CLOUD_DEV_LIB_ONLY": "1", "MOOS_LOGIN_DEFS": str(login_defs)})
+        probe = subprocess.run(
+            ["bash", "-c", 'source "$1"; next_free_subid_block "$2"', "bash", str(SCRIPT), str(allocated)],
+            text=True, capture_output=True, env=env, check=False,
+        )
+        if probe.returncode != 0:
+            errors.append(f"the allocator cannot be executed: {probe.stderr.strip() or probe.stdout.strip()}")
+        elif probe.stdout.strip() != "786432 65536":
             errors.append(
-                "the subuid range is not derived from the account's uid (no `id -u`).\n"
-                "        A fixed range hands every developer the same block, so their\n"
-                "        containers map onto the same host UIDs and rootless isolation is lost.")
-        if not re.search(r"\buid\b.*\*\s*65536|65536\s*\*.*\buid\b|\(uid\b", code):
-            errors.append(
-                "the subuid range does not scale by a per-uid stride (expected a 65536-wide\n"
-                "        block keyed off the uid), so consecutive accounts may overlap.")
+                "the allocator did not choose the first block after the highest existing range;\n"
+                f"        expected `786432 65536`, got `{probe.stdout.strip()}`.")
+
+    if not re.search(r'next_free_subid_block\s+"\$subuid_file"', code):
+        errors.append("ensure_subids does not use the policy-aware allocator for /etc/subuid.")
+    if not re.search(r'next_free_subid_block\s+"\$subgid_file"', code):
+        errors.append("ensure_subids does not use the policy-aware allocator for /etc/subgid.")
+    if re.search(r"100000\s*\+\s*\(uid", code):
+        errors.append("the obsolete hard-coded 100000 uid grid is still active.")
 
     if errors:
         print("GATE FAIL: moos-cloud-dev would mis-allocate subordinate IDs.\n")
@@ -87,7 +104,7 @@ def main() -> int:
             print(f"  - {e}")
         return 1
 
-    print("OK: moos-cloud-dev allocates a valid, uid-derived (unique) subuid/subgid range.")
+    print("OK: moos-cloud-dev allocates policy-aware, non-overlapping subuid/subgid ranges.")
     return 0
 
 

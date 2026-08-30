@@ -83,8 +83,8 @@ valid_name() {
 next_free_subid_block() {
     local file="$1" min count highest
     # Defaults match shadow-utils' own; login.defs wins where it is set.
-    min="$(awk '/^SUB_UID_MIN/{print $2}' /etc/login.defs 2>/dev/null | tail -1)"
-    count="$(awk '/^SUB_UID_COUNT/{print $2}' /etc/login.defs 2>/dev/null | tail -1)"
+    min="$(awk '/^SUB_UID_MIN/{print $2}' "${MOOS_LOGIN_DEFS:-/etc/login.defs}" 2>/dev/null | tail -1)"
+    count="$(awk '/^SUB_UID_COUNT/{print $2}' "${MOOS_LOGIN_DEFS:-/etc/login.defs}" 2>/dev/null | tail -1)"
     case "$min" in ''|*[!0-9]*) min=524288 ;; esac
     case "$count" in ''|*[!0-9]*|0) count=65536 ;; esac
 
@@ -101,31 +101,21 @@ next_free_subid_block() {
 }
 
 ensure_subids() {
-    local user="$1" uid start end
-    uid="$(id -u "$user" 2>/dev/null)" \
-        || die "cannot read the uid of ${user} — the account was not created"
+    local user="$1" start count end
+    local subuid_file="${MOOS_SUBUID_FILE:-/etc/subuid}"
+    local subgid_file="${MOOS_SUBGID_FILE:-/etc/subgid}"
 
-    # Each account gets its OWN 65536-wide block, keyed off the uid so two
-    # developers never share one. That last part matters: overlapping subuid
-    # ranges map two users' containers onto the same host uids, which quietly
-    # defeats the isolation the ranges exist to provide. uid 1000 -> 100000,
-    # 1001 -> 165536, and so on. System accounts (uid < 1000) never take this
-    # path — only useradd'd dev accounts reach here.
-    #
-    # The previous code wrote `100000-65535`, an inverted range (start > end)
-    # that usermod rejects outright ("invalid subordinate uid range"). It
-    # survived only because Fedora's useradd usually pre-allocates a valid
-    # range, so the `grep` guard skipped it; on the account-update path, or a
-    # host with SUB_UID_COUNT unset, it fired and aborted `add` with a message
-    # blaming rootless podman, leaving the account half-provisioned.
-    start=$(( 100000 + (uid - 1000) * 65536 ))
-    end=$(( start + 65535 ))
-
-    if ! grep -q "^${user}:" /etc/subuid 2>/dev/null; then
+    # Allocate each missing map on that map's own grid. The two files can have
+    # different high-water marks, so sharing one computed range is incorrect.
+    if ! grep -q "^${user}:" "$subuid_file" 2>/dev/null; then
+        read -r start count < <(next_free_subid_block "$subuid_file")
+        end=$((start + count - 1))
         usermod --add-subuids "${start}-${end}" "$user" 2>/dev/null \
             || die "could not allocate a subuid range for ${user} — rootless podman would fail"
     fi
-    if ! grep -q "^${user}:" /etc/subgid 2>/dev/null; then
+    if ! grep -q "^${user}:" "$subgid_file" 2>/dev/null; then
+        read -r start count < <(next_free_subid_block "$subgid_file")
+        end=$((start + count - 1))
         usermod --add-subgids "${start}-${end}" "$user" 2>/dev/null \
             || die "could not allocate a subgid range for ${user} — rootless podman would fail"
     fi
@@ -286,6 +276,10 @@ cmd_remove() {
         ok "removed ${user} and their home"
     fi
 }
+
+if [ "${MOOS_CLOUD_DEV_LIB_ONLY:-0}" = 1 ]; then
+    return 0 2>/dev/null || exit 0
+fi
 
 need_root
 case "${1:-}" in
