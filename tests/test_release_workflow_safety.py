@@ -617,8 +617,15 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
         self.assertIn(install, iso)
         self.assertIn("FINAL_ISO: ${{ steps.embed.outputs.iso }}", iso)
         final_upload = iso.index("- name: Upload ISO as workflow artifact")
+        final_sign = iso.index("- name: Sign and checksum the proven ISO")
         self.assertLess(iso.index(boot), final_upload)
         self.assertLess(iso.index(install), final_upload)
+        self.assertLess(iso.index(install), final_sign)
+        self.assertLess(final_sign, final_upload)
+        signing_step = iso[final_sign:final_upload]
+        self.assertIn("cosign sign-blob -y --key env://COSIGN_PRIVATE_KEY", signing_step)
+        self.assertIn("cosign verify-blob --key cosign.pub", signing_step)
+        self.assertIn("sha256sum -c", signing_step)
         self.assertEqual(iso.count("\n          name: moos-live-iso\n"), 1)
         diagnostic = iso.split(
             "- name: Upload unproven ISO for failure diagnosis", 1
@@ -626,6 +633,8 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
         self.assertIn("name: moos-live-iso-unproven-debug", diagnostic)
         final_step = iso.split("- name: Upload ISO as workflow artifact", 1)[1]
         self.assertNotIn("if: always()", final_step)
+        self.assertIn("${{ steps.embed.outputs.iso }}.sig", final_step)
+        self.assertIn("${{ steps.embed.outputs.iso }}.sha256", final_step)
         boot_step = iso.split("- name: Boot and prove the exact final live ISO", 1)[1].split(
             "      - name:", 1
         )[0]

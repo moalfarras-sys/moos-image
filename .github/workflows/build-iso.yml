@@ -327,13 +327,38 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      # Sign the exact bytes that passed both runtime gates.  This uses the same
+      # release key as the embedded bootc image, and the public cosign.pub that
+      # ships inside MoOS verifies both.  Keep this after the install gate: an
+      # unproven diagnostic ISO must never receive a release signature.
+      - name: Sign and checksum the proven ISO
+        env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
+          FINAL_ISO: ${{ steps.embed.outputs.iso }}
+        run: |
+          set -euo pipefail
+          cosign sign-blob -y --key env://COSIGN_PRIVATE_KEY \
+            --output-signature "${FINAL_ISO}.sig" "${FINAL_ISO}"
+          cosign verify-blob --key cosign.pub \
+            --signature "${FINAL_ISO}.sig" "${FINAL_ISO}"
+          iso_dir="$(dirname "${FINAL_ISO}")"
+          iso_name="$(basename "${FINAL_ISO}")"
+          (
+            cd "${iso_dir}"
+            sha256sum "${iso_name}" > "${iso_name}.sha256"
+            sha256sum -c "${iso_name}.sha256"
+          )
+
       # This is the only user/release-facing ISO. Default success semantics are
       # deliberate: both hard-fail proof steps above must have completed first.
       - name: Upload ISO as workflow artifact
         uses: actions/upload-artifact@v6
         with:
           name: moos-live-iso
-          path: ${{ steps.embed.outputs.iso }}
+          path: |
+            ${{ steps.embed.outputs.iso }}
+            ${{ steps.embed.outputs.iso }}.sig
+            ${{ steps.embed.outputs.iso }}.sha256
           if-no-files-found: error
           retention-days: 7
           compression-level: 0
