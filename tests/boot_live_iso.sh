@@ -65,6 +65,7 @@ qemu-system-x86_64 \
     -drive "if=pflash,format=raw,file=$work/vars.fd" \
     -drive "file=$iso,media=cdrom,format=raw,readonly=on" \
     -boot order=d \
+    -vga none \
     -device virtio-gpu-pci \
     -netdev user,id=n0 -device virtio-net-pci,netdev=n0 \
     -device virtio-serial-pci \

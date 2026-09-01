@@ -652,6 +652,21 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
             self.assertIn(proof, script, f"final ISO gate lost runtime proof: {proof}")
         self.assertIn('after_sha', script)
 
+    def test_x86_runtime_proofs_expose_only_the_drm_capable_gpu(self) -> None:
+        for path in (
+            ROOT / "tests" / "boot_live_iso.sh",
+            ROOT / "tests" / "install_live_iso.sh",
+            ROOT / "tests" / "boot_x86_qcow2.sh",
+        ):
+            script = path.read_text(encoding="utf-8")
+            self.assertIn("-vga none", script, path.name)
+            self.assertIn("-device virtio-gpu-pci", script, path.name)
+            self.assertLess(
+                script.index("-vga none"),
+                script.index("-device virtio-gpu-pci"),
+                f"{path.name} must disable QEMU's non-DRM default VGA before adding virtio-gpu",
+            )
+
     def test_cloud_disk_uses_the_shared_x86_boot_proof(self) -> None:
         script = X86_BOOT.read_text(encoding="utf-8")
         self.assertIn("moos|moos-nvidia|moos-cloud", script)
