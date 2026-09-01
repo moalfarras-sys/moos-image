@@ -134,7 +134,9 @@ sudo bootc switch ghcr.io/moalfarras-sys/moos:latest && sudo systemctl reboot
 هو 2GB) — الاستضافة الدائمة لم تُفعّل بعد. اكتب الـ ISO بـ Fedora Media Writer
 أو Rufus — **Ventoy ممنوع** (يكسر live ISOs الخاصة بـ bootc). مسار المثبت جُرّب
 كاملاً في QEMU (تثبيت offline حتى إقلاع القرص المستهدف)؛ **لم يُجرَّب بعد على
-عتاد حقيقي**.
+عتاد حقيقي**. يحتوي artifact الخاص بالـ ISO المثبت والمُقلع فقط على ملف ISO
+وبصمة `.sha256` وتوقيع Cosign منفصل `.sig` قابل للتحقق عبر `cosign.pub`؛ نسخة
+التشخيص غير المثبتة تبقى موسومة `unproven` ولا تُوقّع.
 
 الـQCOW2 الخاص بـx86 هو fixture لاختبار مسار القرص المثبت وليس artifact دخول
 لمستخدم نهائي؛ كلمة اختباره العشوائية تُتلف عمدًا. الـISO هو artifact x86
