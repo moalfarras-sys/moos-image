@@ -59,6 +59,7 @@ media/
 
 # Local test evidence: screenshots and live-run logs. Useful locally, not source.
 test-results/
+.tmp-*.png
 
 # Mo Remote local .NET publish output — regenerable; the image builds its own in
 # the Containerfile `moremote-build` stage and never reads these bytes.

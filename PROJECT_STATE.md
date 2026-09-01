@@ -4,8 +4,42 @@ This file is current state, not session history. Git history owns the history.
 When documentation disagrees with a running machine, a freshly booted artifact,
 or current source, those stronger forms of evidence win.
 
-Last reconciled: **2026-08-28 (post-reboot Phase 4 audit)** — verification on the new
-deployment `49d73f3965a1` (44.20260828), booted live:
+Last reconciled: **2026-09-01 (Oracle ARM source/runtime inspection)** — latest
+source branch plus live host checks on `moos-arm-oracle`.
+
+### Inspection environment and boot overlay polish (2026-09-01)
+
+The local tree was fast-forwarded to `origin/main` at `f9be33f9`, then a work branch
+`work/system-inspection-boot-polish-20260901` merged the remaining live branch
+`origin/fix/controller-browserslist-audit-20260901`. That branch only updates the
+Mo PC Remote controller lockfile's Browserslist family.
+
+The Codex shell is a Flatpak/VS Code environment, so host tools are intentionally outside its
+normal PATH. A user-local helper was installed at `~/.local/bin/moos-host-run` to run commands
+on the real host through `flatpak-spawn --host --directory="$PWD"` without mixing host libraries
+into the Flatpak runtime. With that helper:
+
+- `mo-remote-personal.service` and `ydotoold-moremote.service` were confirmed active; Remote was
+  not restarted or stopped.
+- A fresh live screenshot was captured with host `spectacle` to
+  `.tmp-live-audit-20260901.png`. The visible desktop retained the MoOS dock, UI2 glass rim,
+  first-party icons and Arabic clock with no visible foreign identity on the captured surface.
+- The previously failing host-dependent checks were rerun correctly:
+  `tests/test_boot_path_authorities.py`, `tests/test_openclaw_modern_unit_retire.py`, and
+  `tests/test_moos_fast_remote.py` passed.
+
+Controller verification on the host passed: `npm test`, `npm ci`, `npm run typecheck`,
+`npm audit --audit-level=high`, and `npm run build`. The committed
+`moremote/agent/wwwroot` bundle remained byte-identical.
+
+Plymouth now bounds all event-driven text overlays to 78% of the screen width: boot status
+messages, encrypted-volume prompts and password bullets. This prevents long fsck/device/recovery
+messages from clipping off small VM or laptop screens while keeping the refresh loop unchanged.
+`tests/test_boot_splash_polish.py` now gates that contract. Verified:
+`python3 tests/test_boot_splash_polish.py`, `python3 tests/verify_user_experience.py`, and
+`bash -n build_files/build.sh build_files/build-arm.sh build_files/build-arm-recovery.sh`.
+
+Older state retained below:
 
 ### Oracle ARM live desktop audit — fixes in source (2026-08-30)
 

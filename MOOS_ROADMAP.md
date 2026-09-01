@@ -3,6 +3,30 @@
 Only completed evidence closes an item. Source code, a package, or a green
 parser alone is not runtime proof. Current facts live in `PROJECT_STATE.md`.
 
+## Active development plan
+
+The next work should keep MoOS moving as a complete operating system, not as a
+theme layer. Order matters:
+
+1. **Release train hygiene:** keep one clean candidate branch, merge only
+   reviewed fixes, run host-aware checks through `moos-host-run` when Codex is
+   inside Flatpak, and retire already-merged remote branches after proof.
+2. **Boot-to-login experience:** continue the single MoOS visual sequence from
+   Plymouth to Plasma Login Manager to lock/logout. High-impact work belongs on
+   full-screen owned surfaces: bounded boot overlays, measured greeter frames,
+   lock/logout clarity, and no generic fallback flash.
+3. **Simple daily use:** one obvious place for updates, recovery, apps, Remote,
+   language and theme. Keep technical logs collapsed at rest, make every action
+   explainable, and preserve Arabic/RTL as a first-class path.
+4. **Adaptive performance for everyone:** extend `moos-visual-tier` from motion
+   policy into a broader local resource policy: compositor cost, indexing,
+   update concurrency, AI defaults and Remote encoding based on real capability,
+   not product names.
+5. **Artifact proof before promotion:** x86 generic, NVIDIA, cloud and ARM must
+   each have exact digest boot evidence. A beautiful source tree is not a
+   release until the artifact has booted, logged in, smoked apps, rebooted and
+   powered off cleanly.
+
 ## Release blockers
 
 - [ ] Boot the final ARM QCOW2 twice through AArch64 UEFI with zero critical
