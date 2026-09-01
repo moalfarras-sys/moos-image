@@ -90,8 +90,7 @@ start_qemu() {
         -drive "if=pflash,format=raw,file=$work/vars.fd" \
         -drive "file=$work/installed.qcow2,format=qcow2,if=virtio,cache=unsafe" \
         "$@" \
-        -vga none \
-        -device virtio-gpu-pci \
+        -vga virtio \
         -netdev user,id=n0 -device virtio-net-pci,netdev=n0 \
         -device virtio-serial-pci \
         -chardev "socket,path=$qga,server=on,wait=off,id=qga0" \

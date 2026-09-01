@@ -103,8 +103,7 @@ qemu-system-x86_64 \
     -drive "if=pflash,format=raw,readonly=on,file=$ovmf_code" \
     -drive "if=pflash,format=raw,file=$work/vars.fd" \
     -drive "file=$work/overlay.qcow2,format=qcow2,if=virtio,cache=unsafe" \
-    -vga none \
-    -device virtio-gpu-pci \
+    -vga virtio \
     -netdev "user,id=n0,hostfwd=tcp:127.0.0.1:${ssh_port}-:22" \
     -device virtio-net-pci,netdev=n0 \
     -device virtio-serial-pci \
