@@ -659,13 +659,9 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
             ROOT / "tests" / "boot_x86_qcow2.sh",
         ):
             script = path.read_text(encoding="utf-8")
-            self.assertIn("-vga none", script, path.name)
-            self.assertIn("-device virtio-gpu-pci", script, path.name)
-            self.assertLess(
-                script.index("-vga none"),
-                script.index("-device virtio-gpu-pci"),
-                f"{path.name} must disable QEMU's non-DRM default VGA before adding virtio-gpu",
-            )
+            self.assertIn("-vga virtio", script, path.name)
+            self.assertNotIn("-vga none", script, path.name)
+            self.assertNotIn("-device virtio-gpu-pci", script, path.name)
 
     def test_cloud_disk_uses_the_shared_x86_boot_proof(self) -> None:
         script = X86_BOOT.read_text(encoding="utf-8")
@@ -733,6 +729,7 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
             ROOT / "system_files/usr/lib/systemd/system/moos-firewall-migrate.service",
             ROOT / "system_files/usr/lib/systemd/system/bootloader-update.service.d/50-moos-installed-only.conf",
             ROOT / "system_files/usr/lib/systemd/system/tuned.service.d/50-moos-installed-only.conf",
+            ROOT / "system_files/usr/lib/systemd/system/tuned-ppd.service.d/50-moos-installed-only.conf",
         )
         for unit in units:
             self.assertIn(

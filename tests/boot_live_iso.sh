@@ -65,8 +65,7 @@ qemu-system-x86_64 \
     -drive "if=pflash,format=raw,file=$work/vars.fd" \
     -drive "file=$iso,media=cdrom,format=raw,readonly=on" \
     -boot order=d \
-    -vga none \
-    -device virtio-gpu-pci \
+    -vga virtio \
     -netdev user,id=n0 -device virtio-net-pci,netdev=n0 \
     -device virtio-serial-pci \
     -chardev "socket,path=$qga,server=on,wait=off,id=qga0" \
@@ -214,7 +213,15 @@ podman image exists "$offline_ref" || gate_fail offline-image-store
 source_digest="$(tr -d '\r\n' < /usr/lib/moos/install-source-digest)"
 [ "$source_digest" = "${expected##*@}" ] || gate_fail offline-source-digest
 failed="$(systemctl --failed --no-legend --plain)"
-[ -z "$failed" ] || { printf 'failed units:\n%s\n' "$failed" >&2; gate_fail failed-system-unit; }
+if [ -n "$failed" ]; then
+    printf 'failed units:\n%s\n' "$failed" >&2
+    while read -r failed_unit _; do
+        [ -n "$failed_unit" ] || continue
+        systemctl --no-pager --full status "$failed_unit" >&2 || true
+        journalctl -b -u "$failed_unit" --no-pager -n 80 >&2 || true
+    done <<< "$failed"
+    gate_fail failed-system-unit
+fi
 printf 'boot=live\nidentity=%s\narch=%s\ngraphical=active\ndisplay-manager=active\nnetwork=active\nuser=liveuser\nkwin=active\nplasmashell=active\ninstaller=present\noffline-ref=%s\noffline-digest=%s\nfailed-units=0\n' \
     "$PRETTY_NAME" "$(uname -m)" "$offline_ref" "$source_digest"
 '''
