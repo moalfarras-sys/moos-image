@@ -842,8 +842,9 @@ class TestMoOSUI2(unittest.TestCase):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=50", apply,
-            "existing pre-v50 users would exit before the unified motion, sound, "
+            "THEME_REV=51", apply,
+            "existing pre-v51 users would exit before the responsive clock and "
+            "unified motion, sound, "
             "and high-resolution doorway assets are reapplied; "
             "pre-v49 users would also miss post-marker shadow quarantine, "
             "the Horizon Bar/theme migration, and the SVG cache purge that is the "

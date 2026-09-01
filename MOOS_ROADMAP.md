@@ -12,9 +12,9 @@ theme layer. Order matters:
    reviewed fixes, run host-aware checks through `moos-host-run` when Codex is
    inside Flatpak, and retire already-merged remote branches after proof.
 2. **Boot-to-login experience:** continue the single MoOS visual sequence from
-   Plymouth to Plasma Login Manager to lock/logout. High-impact work belongs on
-   full-screen owned surfaces: bounded boot overlays, measured greeter frames,
-   lock/logout clarity, and no generic fallback flash.
+   Plymouth to the login, lock and logout surfaces. Source now includes bounded
+   boot overlays and the responsive clock/calendar; the next closure is measured
+   signed-artifact frames with no fallback flash across scale and locale.
 3. **Simple daily use:** one obvious place for updates, recovery, apps, Remote,
    language and theme. Keep technical logs collapsed at rest, make every action
    explainable, and preserve Arabic/RTL as a first-class path.

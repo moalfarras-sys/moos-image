@@ -109,8 +109,9 @@ Ranked by pixels-owned, i.e. by how much a change can possibly show:
 2. **The desktop** — bare wallpaper again. THEME_REV 43's auto-seeded
    `org.moos.heroclock` was rejected on sight and removed in rev 44. The
    wallpaper bento stays below the icons. See §3.1 for createApplet unlock.
-3. **Lock / login / logout screens** — full-screen, opaque, still the next large
-   surface that has not been reworked in this train.
+3. **Lock / login / logout screens** — full-screen, opaque and implemented in
+   MoOS UI2. Their remaining work is final-artifact capture across scale/locale,
+   not another source redesign.
 4. **Mo AI / Mo Store / MoPlayer** app windows — own their pixels.
 5. **The dock** — at its ceiling (§1.1). Stop here.
 
@@ -159,13 +160,20 @@ missing, and both need a **regular marker file**: `FolderListModel` cannot see
 unix sockets (measured — 3 matching names, 2 sockets + 1 regular file, model
 reported `count=1`).
 
-### 3.3 Never developed
+### 3.3 Remaining visual work
 
-- **The panel clock popup** (`org.moos.nova.clock`) — still a bare calendar; only
-  rim-alpha work so far. Distinct from the desktop Hero Clock.
 - **Dock icon hover motion** — unreachable; `icontasks`' `Task.qml` is compiled
   into `org.kde.plasma.taskmanager.so`. Needs a MoOS task manager (large).
-- **100–200% scale sweep** — everything is verified at 4K@225% only.
+- **200%/225% clock proof and the complete 100–225% session sweep** — the
+  responsive clock is live-rendered in Arabic at 100/125/150% (evidence below),
+  but final 4K and light-theme frames still belong to artifact acceptance.
+
+The panel clock popup is complete in source as of 2026-09-01. It owns a
+responsive day header, progress line, return-to-today and time-settings actions,
+and a navigable scale-aware `MonthView`; forcing its compact panel chip into
+standalone windows is forbidden by a gate. Evidence:
+`clock-popup-arabic-100.png`, `clock-popup-arabic-125.png`, and
+`clock-popup-arabic-150.png` in `docs/evidence/`.
 
 ---
 
@@ -197,8 +205,12 @@ checks.
 2. ~~Ship `org.moos.heroclock` once~~ — tried in THEME_REV 43; **rejected on
    sight** and removed in rev 44. Do not auto-place it again.
 3. ~~Launcher hero cards~~ — done (CommandCard / SettingCard, measured ≥15).
-4. **Lock / login / logout** — still the largest untouched opaque surfaces.
-5. Panel clock popup Liquid Glass; only then revisit dock-icon motion (large).
-6. Scale sweep at 100 / 125 / 150 / 200%.
+4. ~~Lock / login / logout source design~~ — implemented; final artifact proof
+   across locale/scale remains.
+5. ~~Panel clock popup Liquid Glass~~ — complete in source and live-rendered at
+   100/125/150%; 200/225% stays in artifact acceptance.
+6. Complete the session-wide 100 / 125 / 150 / 200 / 225% sweep, then improve
+   launcher keyboard navigation. Revisit dock-icon motion only as a separately
+   scoped task-manager project.
 
 **Every step: change → apply live → screenshot → measure ≥15 → then commit.**

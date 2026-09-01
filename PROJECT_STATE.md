@@ -7,7 +7,7 @@ or current source, those stronger forms of evidence win.
 Last reconciled: **2026-09-01 (Oracle ARM source/runtime inspection)** — latest
 source branch plus live host checks on `moos-arm-oracle`.
 
-### Inspection environment and boot overlay polish (2026-09-01)
+### Inspection environment, boot overlay and responsive clock (2026-09-01)
 
 The local tree was fast-forwarded to `origin/main` at `f9be33f9`, then a work branch
 `work/system-inspection-boot-polish-20260901` merged the remaining live branch
@@ -38,6 +38,23 @@ messages from clipping off small VM or laptop screens while keeping the refresh 
 `tests/test_boot_splash_polish.py` now gates that contract. Verified:
 `python3 tests/test_boot_splash_polish.py`, `python3 tests/verify_user_experience.py`, and
 `bash -n build_files/build.sh build_files/build-arm.sh build_files/build-arm-recovery.sh`.
+
+The panel clock now lets Plasma choose its representation from the available space: the dock
+keeps the fixed compact chip, while a popup or standalone window receives the full clock and
+calendar. The full surface adds a theme-driven day header, minute-updated day-progress line,
+scale-aware week numbers, a working return-to-today action and the existing guarded
+`moos://settings/time` route. No new timer or permanent animation was added. `THEME_REV=51`
+purges old QML caches for existing profiles.
+
+The modified source package was loaded through an isolated temporary `XDG_DATA_HOME` and
+rendered on the live Arabic session at 100%, 125% and 150%; it produced no QML load errors,
+kept all controls/text inside the window, and its accent edge measured 90+ luminance steps
+against the adjacent surface (the design gate is 15). Evidence:
+`docs/evidence/clock-popup-arabic-100.png`,
+`docs/evidence/clock-popup-arabic-125.png`, and
+`docs/evidence/clock-popup-arabic-150.png`. The temporary package and process were removed;
+no user-local plasmoid override remains. 200%/225% on a real 4K frame and the signed-image
+popup remain release evidence, not source-complete claims.
 
 Older state retained below:
 

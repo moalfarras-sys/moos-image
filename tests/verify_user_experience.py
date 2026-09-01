@@ -2633,9 +2633,9 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=50" in apply_theme_code,
+require("THEME_REV=51" in apply_theme_code,
         "MoOS visual schema must migrate existing users to the cardless centred "
-        "Horizon Hub, single-owner launcher activation and recoverable direct "
+        "Horizon Hub, responsive clock popup, single-owner launcher activation and recoverable direct "
         "adaptive media island (moos-bar-apply), while "
         "reconciling new shadows "
         "and purging the Plasma SVG cache that would otherwise keep serving old art")
@@ -5062,6 +5062,19 @@ require("function revealPopup()" in panel_clock
         and "popupEntrance.restart()" in panel_clock,
         "the calendar entrance must replay on every open, not only when Plasma first "
         "constructs and may cache the full representation")
+require("preferredRepresentation:" not in panel_clock,
+        "the clock must let PlasmoidItem choose compact in the panel and full in a "
+        "popup/window; forcing compact stretches the panel chip across large windows")
+for clock_contract in (
+    "readonly property real dayProgress:",
+    'symbol: "calendar"',
+    "monthView.resetToToday()",
+    'symbol: "settings"',
+    'Qt.openUrlExternally("moos://settings/time")',
+    "showWeekNumbers: width >=",
+):
+    require(clock_contract in panel_clock,
+            f"the responsive MoOS clock popup is missing {clock_contract!r}")
 
 for label, qml_path in (
     ("org.moos.nova.clock",

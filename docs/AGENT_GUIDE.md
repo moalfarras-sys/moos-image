@@ -275,19 +275,17 @@ Two traps that have eaten whole sessions:
 
 Ordered by value. Each entry says what it is, why it is not done, and how.
 
-### 5.1 The launcher and the clock widget have not been developed
+### 5.1 Launcher keyboard flow and final clock scale proof
 
-**State:** in the round that shipped the context island, `LauncherView.qml` got
-**5 changed lines** and `org.moos.nova.clock` got **4** — border-alpha tweaks
-applying the rim scale, nothing more. The bar got real work; these did not.
-Do not let a changelog imply otherwise.
+**State:** the launcher now owns its card hierarchy and staggered reveal. The
+panel clock now owns a responsive full day/calendar surface and has live Arabic
+evidence at 100/125/150%. The remaining claims are narrower: keyboard-first
+launcher navigation and final 200/225% clock frames on 4K.
 
-**How:** the launcher already has entrance motion (`entranceReady` drives opacity
-+ scale), so the gap is not "add an animation". Worth doing, in order:
-a staggered reveal of the favourites grid on open (cheap: opacity per delegate,
-behind the `longDuration > 1` seam); keyboard-first navigation audit (arrow keys
-through the grid, not just the search field); and the clock popup, which today is
-a bare calendar with none of the Liquid Glass language.
+**How:** audit arrow-key movement through launcher favourites/results and the
+focus return path after launch. For the clock, boot the signed artifact at 4K
+200/225%, capture dark/light and Arabic/English, and prove the popup stays inside
+the available work area. Do not redesign the popup again without a failed frame.
 
 ### 5.2 Mo AI "thinking" is missing from the context island
 
