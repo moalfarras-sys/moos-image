@@ -21,6 +21,9 @@ native ARM Tailscale transport, signed-origin repair, portal readiness and singl
 desktop startup. The merge preserved the newer ARM application, search, storefront, Arabic font
 and Remote lifecycle work. `tests/test_oracle_deploy.py`, `tests/test_moos_arm.py`,
 `tests/test_cloud_private_desktop.py`, Remote lifecycle tests and shell syntax pass together.
+The imported repository block was then reconciled with Tailscale's current official Fedora
+definition: both x86 and ARM now require `repo_gpgcheck=1` and `gpgcheck=1`, and the Remote network
+boundary test rejects either metadata or package-signature verification being disabled.
 
 `archive/arm-utm-20260827` and the closed PR #61 branch
 `fix/utm-release-gates-20260826` were deliberately not merged. They package the recovery disk

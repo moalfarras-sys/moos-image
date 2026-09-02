@@ -1771,7 +1771,7 @@ baseurl=https://pkgs.tailscale.com/stable/fedora/$basearch
 enabled=1
 type=rpm
 repo_gpgcheck=1
-gpgcheck=0
+gpgcheck=1
 gpgkey=https://pkgs.tailscale.com/stable/fedora/repo.gpg
 TAILSCALE_REPO
 # qrencode: the Mo PC Remote panel renders its address as a QR code. Without it the user has to
