@@ -7,6 +7,26 @@ or current source, those stronger forms of evidence win.
 Last reconciled: **2026-09-02 (Remote context + x86 proof repair)** — latest
 source branch plus live host checks on `moos-arm-oracle`.
 
+### Branch reconciliation (2026-09-02)
+
+All remote refs were fetched and compared by patch and by release contract. The old
+`fix/build-*`, `fix/ci-kde-gate`, `fix/phone-typing`,
+`fix/portal-group-resolution`, `fix/cloud-remote-perf-clarity-20260815` and
+`feat/boot-animation-and-arm` refs are already represented by merged PRs; their names simply
+remain on the server. Re-merging them would replay older code.
+
+Five genuinely absent commits from `fix/oracle-uefi-capacity-20260829` were integrated on the
+current tree: multi-AD/fault-domain capacity retries, UEFI_64 image capability enforcement,
+native ARM Tailscale transport, signed-origin repair, portal readiness and single-owner cloud
+desktop startup. The merge preserved the newer ARM application, search, storefront, Arabic font
+and Remote lifecycle work. `tests/test_oracle_deploy.py`, `tests/test_moos_arm.py`,
+`tests/test_cloud_private_desktop.py`, Remote lifecycle tests and shell syntax pass together.
+
+`archive/arm-utm-20260827` and the closed PR #61 branch
+`fix/utm-release-gates-20260826` were deliberately not merged. They package the recovery disk
+before the candidate is proven and set `MOOS_ARM_SKIP_VISUAL_GATE=1`; the current workflow keeps
+the signed-digest and visual-proof ordering. This is an audited rejection, not unfinished work.
+
 ### Remote-ready context and responsive control center (2026-09-02)
 
 The native Mo PC Remote control center was rendered on the live Arabic 1920x1080 session. Its
