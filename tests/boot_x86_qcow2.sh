@@ -5,6 +5,10 @@
 # service mount namespace may not expose the booted OSTree userspace.
 set -euo pipefail
 
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=tests/qemu_virgl_env.sh
+. "$script_dir/qemu_virgl_env.sh"
+
 if [ "$#" -lt 3 ] || [ "$#" -gt 4 ]; then
     echo "usage: $0 IMAGE.qcow2 ghcr.io/moalfarras-sys/<edition>@sha256:... EVIDENCE_DIR [SSH_PRIVATE_KEY]" >&2
     exit 2
@@ -43,6 +47,7 @@ install -d -m0755 "$evidence"
 base_tmp="${RUNNER_TEMP:-/var/tmp}"
 work="$(mktemp -d -p "$base_tmp" moos-x86-qcow2-boot.XXXXXX)"
 qemu_pid=""
+xvfb_pid=""
 
 cleanup() {
     local rc=$?
@@ -51,6 +56,7 @@ cleanup() {
         kill "$qemu_pid" 2>/dev/null || true
         wait "$qemu_pid" 2>/dev/null || true
     fi
+    moos_stop_virgl_display
     if [ "$rc" -ne 0 ]; then
         echo "=== QEMU log (tail) ===" >&2
         tail -100 "$evidence/qemu.log" 2>/dev/null >&2 || true
@@ -98,15 +104,16 @@ PY
 
 qga="$work/qga.sock"
 monitor="$work/monitor.sock"
-# The firmware-visible primary VGA plus this DRM-capable adapter is the
-# topology proven end to end by ISO run 32851648759. `-vga virtio` looked
-# simpler but made PLM's KWin lose the DRM node in run 33655753536.
-qemu-system-x86_64 \
+moos_start_virgl_display "$work" "$evidence"
+# VirGL moves 3D execution to the host-side renderer. The 2D virtio backend
+# forces current Plasma/Mesa through guest llvmpipe under TCG, where the real
+# login compositor crashed in release-proof runs 33655753536 and 33662618021.
+LIBGL_ALWAYS_SOFTWARE=1 qemu-system-x86_64 \
     -machine q35,accel=tcg -cpu Haswell -m 4096 -smp 2 \
     -drive "if=pflash,format=raw,readonly=on,file=$ovmf_code" \
     -drive "if=pflash,format=raw,file=$work/vars.fd" \
     -drive "file=$work/overlay.qcow2,format=qcow2,if=virtio,cache=unsafe" \
-    -device virtio-gpu-pci \
+    -device virtio-vga-gl \
     -netdev "user,id=n0,hostfwd=tcp:127.0.0.1:${ssh_port}-:22" \
     -device virtio-net-pci,netdev=n0 \
     -device virtio-serial-pci \
@@ -114,7 +121,8 @@ qemu-system-x86_64 \
     -device virtserialport,chardev=qga0,name=org.qemu.guest_agent.0 \
     -monitor "unix:$monitor,server=on,wait=off" \
     -serial "file:$evidence/serial.log" \
-    -display none >"$evidence/qemu.log" 2>&1 &
+    -display gtk,gl=on,show-menubar=off,show-tabs=off,window-close=off \
+    >"$evidence/qemu.log" 2>&1 &
 qemu_pid=$!
 
 python3 - "$qga" "$monitor" "$qemu_pid" "$expected_ref" "$evidence" \

@@ -8,6 +8,10 @@
 # hash must remain unchanged.
 set -euo pipefail
 
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=tests/qemu_virgl_env.sh
+. "$script_dir/qemu_virgl_env.sh"
+
 iso="${1:-}"
 expected_ref="${2:-}"
 evidence="${3:-}"
@@ -27,6 +31,7 @@ evidence="$(realpath "$evidence")"
 work_base="${RUNNER_TEMP:-/tmp}"
 work="$(mktemp -d -p "$work_base" moos-iso-install.XXXXXX)"
 qemu_pid=""
+xvfb_pid=""
 
 cleanup() {
     local rc=$?
@@ -35,6 +40,7 @@ cleanup() {
         kill "$qemu_pid" 2>/dev/null || true
         wait "$qemu_pid" 2>/dev/null || true
     fi
+    moos_stop_virgl_display
     if [ "$rc" -ne 0 ]; then
         echo "=== QEMU log (tail) ===" >&2
         tail -100 "$evidence/qemu-installed.log" "$evidence/qemu-live-install.log" \
@@ -77,6 +83,7 @@ printf 'iso=%s\nsha256=%s\nimage=%s\novmf=%s\ntarget-size=36G\nnetwork-during-in
     "$iso" "$before_sha" "$expected_ref" "$ovmf_code" > "$evidence/manifest.txt"
 
 qemu-img create -q -f qcow2 "$work/installed.qcow2" 36G
+moos_start_virgl_display "$work" "$evidence"
 
 start_qemu() {
     local phase="$1"
@@ -84,22 +91,23 @@ start_qemu() {
     qga="$work/qga.sock"
     monitor="$work/monitor.sock"
     rm -f "$qga" "$monitor"
-    # Match the topology that completed the full offline-install proof in run
-    # 32851648759. `-vga virtio` regressed KWin DRM discovery.
-    qemu-system-x86_64 \
+    # VirGL keeps both the live and installed compositors on the same real 3D
+    # guest path while QMP continues to capture the pixels users would see.
+    LIBGL_ALWAYS_SOFTWARE=1 qemu-system-x86_64 \
         -machine q35,accel=tcg -cpu Haswell -m 4096 -smp 2 \
         -drive "if=pflash,format=raw,readonly=on,file=$ovmf_code" \
         -drive "if=pflash,format=raw,file=$work/vars.fd" \
         -drive "file=$work/installed.qcow2,format=qcow2,if=virtio,cache=unsafe" \
         "$@" \
-        -device virtio-gpu-pci \
+        -device virtio-vga-gl \
         -netdev user,id=n0 -device virtio-net-pci,netdev=n0 \
         -device virtio-serial-pci \
         -chardev "socket,path=$qga,server=on,wait=off,id=qga0" \
         -device virtserialport,chardev=qga0,name=org.qemu.guest_agent.0 \
         -monitor "unix:$monitor,server=on,wait=off" \
         -serial "file:$evidence/serial-${phase}.log" \
-        -display none >"$evidence/qemu-${phase}.log" 2>&1 &
+        -display gtk,gl=on,show-menubar=off,show-tabs=off,window-close=off \
+        >"$evidence/qemu-${phase}.log" 2>&1 &
     qemu_pid=$!
 }
 

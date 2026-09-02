@@ -652,14 +652,8 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
             self.assertIn(proof, script, f"final ISO gate lost runtime proof: {proof}")
         self.assertIn('after_sha', script)
 
-    def test_x86_runtime_proofs_keep_the_boot_proven_graphics_topology(self) -> None:
-        """Guard the topology that proved live boot and offline installation.
-
-        A single ``-vga virtio`` device looked cleaner, but PLM and the live
-        session repeatedly lost their DRM node under TCG. Run 32851648759
-        proved the default firmware-visible VGA plus an explicit virtio DRM
-        adapter through live boot, offline install and installed-disk boot.
-        """
+    def test_x86_runtime_proofs_require_accelerated_virtual_graphics(self) -> None:
+        """Keep current Plasma off the unstable nested llvmpipe path."""
         for path in (
             ROOT / "tests" / "boot_live_iso.sh",
             ROOT / "tests" / "install_live_iso.sh",
@@ -670,9 +664,23 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
                 line for line in script.splitlines()
                 if not line.lstrip().startswith("#")
             )
-            self.assertIn("-device virtio-gpu-pci", executable, path.name)
+            self.assertIn('. "$script_dir/qemu_virgl_env.sh"', executable, path.name)
+            self.assertIn("-device virtio-vga-gl", executable, path.name)
+            self.assertIn("-display gtk,gl=on", executable, path.name)
+            self.assertIn("LIBGL_ALWAYS_SOFTWARE=1 qemu-system-x86_64", executable, path.name)
+            self.assertNotIn("-device virtio-gpu-pci", executable, path.name)
             self.assertNotIn("-vga virtio", executable, path.name)
             self.assertNotIn("-vga none", executable, path.name)
+            self.assertNotIn("-display none", executable, path.name)
+
+        helper = (ROOT / "tests" / "qemu_virgl_env.sh").read_text(encoding="utf-8")
+        for proof in ("Xvfb -displayfd", "glxinfo -B", "OpenGL renderer string:"):
+            self.assertIn(proof, helper)
+
+        for workflow in (DISK_WORKFLOW, ISO_WORKFLOW):
+            source = workflow.read_text(encoding="utf-8")
+            for package in ("qemu-system-gui", "xvfb", "x11-utils", "mesa-utils"):
+                self.assertIn(package, source, f"{workflow.name} lost {package}")
 
     def test_cloud_disk_uses_the_shared_x86_boot_proof(self) -> None:
         script = X86_BOOT.read_text(encoding="utf-8")

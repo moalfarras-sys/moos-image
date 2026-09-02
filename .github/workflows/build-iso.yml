@@ -293,7 +293,9 @@ jobs:
       - name: Install final-ISO UEFI boot dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq qemu-system-x86 ovmf socat jq imagemagick
+          sudo apt-get install -y -qq \
+            qemu-system-x86 qemu-system-gui ovmf socat jq imagemagick \
+            xvfb x11-utils mesa-utils
 
       - name: Boot and prove the exact final live ISO
         env:

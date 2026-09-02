@@ -2,6 +2,10 @@
 # Boot the exact final MoOS live ISO read-only and prove its runtime through QGA.
 set -euo pipefail
 
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=tests/qemu_virgl_env.sh
+. "$script_dir/qemu_virgl_env.sh"
+
 iso="${1:-}"
 expected_ref="${2:-}"
 evidence="${3:-}"
@@ -20,6 +24,7 @@ install -d -m0755 "$evidence"
 evidence="$(realpath "$evidence")"
 work="$(mktemp -d /tmp/moos-live-iso-boot.XXXXXX)"
 qemu_pid=""
+xvfb_pid=""
 
 cleanup() {
     local rc=$?
@@ -28,6 +33,7 @@ cleanup() {
         kill "$qemu_pid" 2>/dev/null || true
         wait "$qemu_pid" 2>/dev/null || true
     fi
+    moos_stop_virgl_display
     if [ "$rc" -ne 0 ]; then
         echo "=== QEMU log (tail) ===" >&2
         tail -80 "$evidence/qemu.log" 2>/dev/null >&2 || true
@@ -59,25 +65,25 @@ printf 'iso=%s\nsha256=%s\nimage=%s\novmf=%s\n' \
 
 qga="$work/qga.sock"
 monitor="$work/monitor.sock"
-# Keep the firmware-visible primary VGA plus the explicit DRM-capable virtio
-# adapter. This exact topology completed the live boot, offline install and
-# installed-disk boot in run 32851648759. Replacing both with `-vga virtio`
-# made KWin lose its DRM node in runs 33655753536 and 33655789970; a nominally
-# simpler topology was not a working proof.
-qemu-system-x86_64 \
+moos_start_virgl_display "$work" "$evidence"
+# Keep the complete Plasma compositor on the VirGL guest driver. A 2D virtio
+# device falls back to nested guest llvmpipe and is unstable with the current
+# image's Mesa stack under TCG.
+LIBGL_ALWAYS_SOFTWARE=1 qemu-system-x86_64 \
     -machine q35,accel=tcg -cpu Haswell -m 4096 -smp 2 \
     -drive "if=pflash,format=raw,readonly=on,file=$ovmf_code" \
     -drive "if=pflash,format=raw,file=$work/vars.fd" \
     -drive "file=$iso,media=cdrom,format=raw,readonly=on" \
     -boot order=d \
-    -device virtio-gpu-pci \
+    -device virtio-vga-gl \
     -netdev user,id=n0 -device virtio-net-pci,netdev=n0 \
     -device virtio-serial-pci \
     -chardev "socket,path=$qga,server=on,wait=off,id=qga0" \
     -device virtserialport,chardev=qga0,name=org.qemu.guest_agent.0 \
     -monitor "unix:$monitor,server=on,wait=off" \
     -serial "file:$evidence/serial.log" \
-    -display none >"$evidence/qemu.log" 2>&1 &
+    -display gtk,gl=on,show-menubar=off,show-tabs=off,window-close=off \
+    >"$evidence/qemu.log" 2>&1 &
 qemu_pid=$!
 
 # The ISO intentionally has no ttyS0 karg. QGA observes the exact final ISO
