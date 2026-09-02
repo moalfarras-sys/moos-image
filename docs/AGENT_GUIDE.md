@@ -287,18 +287,19 @@ focus return path after launch. For the clock, boot the signed artifact at 4K
 200/225%, capture dark/light and Arabic/English, and prove the popup stays inside
 the available work area. Do not redesign the popup again without a failed frame.
 
-### 5.2 Mo AI "thinking" is missing from the context island
+### 5.2 Mo AI "thinking" is the remaining context-island state
 
-**State:** the island reads MPRIS only. Mo AI's sole signal today is the **mtime**
-of `/run/$UID/moai-activity`, and a directory watcher does not reliably see a
-touch that changes no listing. Shipping it would have been a state that lies.
+**State:** the island reads MPRIS and authenticated Mo PC Remote presence. Remote
+publishes `presence-active-N` / `presence-paused-N` as regular files below
+`$XDG_RUNTIME_DIR/mo-remote`; the applet live-proved both transitions. Mo AI's
+sole signal today is still the **mtime** of `/run/$UID/moai-activity`, and a
+directory watcher does not reliably see a touch that changes no listing.
 
-**How:** have `moai-gateway` write a real state file (a word: `idle`/`busy`) and
-watch it with `FolderListModel`. Note **`FolderListModel` cannot see unix
-sockets** — proved by measurement: three matching names in a directory, two
-sockets and one regular file, and the model reported `count=1`. So the Mo PC
-Remote session state needs a regular marker file too; the frame socket is
-invisible to it.
+**How:** have `moai-gateway` publish listing-changing idle/busy state with the
+same bounded lifecycle as Remote, then watch it with `FolderListModel`. Do not
+reuse a same-name mtime touch. Note **`FolderListModel` cannot see unix sockets**
+— proved by measurement: three matching names in a directory, two sockets and
+one regular file, and the model reported `count=1`.
 
 ### 5.3 The task area is off geometric centre
 

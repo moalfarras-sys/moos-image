@@ -192,7 +192,10 @@ set -uo pipefail
 # 51: the clock popup becomes a responsive day-and-calendar surface. Purge QML
 #     caches so the automatic compact/full representation, day header, progress
 #     line and functional today/settings controls replace the old cached popup.
-THEME_REV=51
+# 52: Mo PC Remote publishes authenticated viewer presence and the context
+#     island surfaces active/paused sessions ahead of media. Existing profiles
+#     must drop the cached media-only island QML to receive the safety signal.
+THEME_REV=52
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

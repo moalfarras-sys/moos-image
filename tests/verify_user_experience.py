@@ -179,6 +179,12 @@ require("Gtk.Application" in native_remote,
         "Mo PC Remote control center must be a native GTK application")
 require('UNIT = "mo-remote-personal.service"' in native_remote,
         "Mo PC Remote must manage the MoPC backend")
+require("Gtk.Expander(" in native_remote
+        and 'add_css_class("ui2-log-frame")' in native_remote
+        and "page_scroll.set_child(outer)" in native_remote
+        and "self.win.set_child(page_scroll)" in native_remote,
+        "Mo PC Remote must keep diagnostics collapsed and make its complete control "
+        "surface reachable on short laptop and remote-session viewports")
 
 # First-party GTK surfaces must follow the SAME active ColorScheme as Plasma,
 # including all family accents — a binary Graphite/Tidal guess makes fourteen of
@@ -2099,6 +2105,18 @@ require("SessionArrived" in session_code and "SessionGone" in session_code,
 require(session_code.index("ValidateAndTouch") < session_code.index("SessionArrived"),
         "the screen encoder must start AFTER authentication — an unauthenticated socket must not "
         "be able to make this machine start capturing its own screen")
+_windows_clipboard = code(read("moremote/agent/Core/ClipboardBridge.cs"), "slash")
+require("SetTextConfirmed" in _windows_clipboard
+        and "SetImagePngConfirmed" in _windows_clipboard
+        and "CanonicalPng" in _windows_clipboard,
+        "the shared Remote API must compile on Windows and confirm clipboard text/image "
+        "before reporting success, matching the Linux contract")
+_build_workflow = read(".github/workflows/build.yml")
+require("remote-windows-build:" in _build_workflow
+        and "runs-on: windows-latest" in _build_workflow
+        and "dotnet build moremote/agent/MoRemoteAgent.csproj" in _build_workflow,
+        "CI must compile the real Mo PC Remote Windows agent; Linux image builds cannot "
+        "detect drift in its platform-specific bridges")
 
 # Remote control that only works inside the house is not remote control.
 #
@@ -2633,10 +2651,11 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=51" in apply_theme_code,
+require("THEME_REV=52" in apply_theme_code,
         "MoOS visual schema must migrate existing users to the cardless centred "
-        "Horizon Hub, responsive clock popup, single-owner launcher activation and recoverable direct "
-        "adaptive media island (moos-bar-apply), while "
+        "Horizon Hub, responsive clock popup, authenticated Remote presence, "
+        "single-owner launcher activation and recoverable direct context island "
+        "(moos-bar-apply), while "
         "reconciling new shadows "
         "and purging the Plasma SVG cache that would otherwise keep serving old art")
 require("local_plasmoids=" in apply_theme_code
@@ -5792,6 +5811,24 @@ require("root.seekTo(root.position + seekSlider.stepSize)" in _island
         and "root.setVolume(root.bounded(root.volume - 0.05, 0, 1))" in _island,
         "the island sliders must commit AT-SPI increase/decrease actions to "
         "MPRIS, clamped to the slider's own 0..1 range")
+_remote_state = code(read("moremote/agent/Core/SessionState.cs"), "slash")
+require("Qt.labs.folderlistmodel" in _island
+        and 'runtimeFileUrl("mo-remote")' in _island
+        and "presence-active-*" in _island
+        and "presence-paused-*" in _island
+        and "remoteSessions" in _island
+        and 'Qt.openUrlExternally("moos://app/remote")' in _island,
+        "the context island must surface authenticated Remote sessions from a "
+        "regular runtime marker and provide a path to the native controls")
+require("PublishPresence();" in _remote_state
+        and 'Path.Combine(runtime, "mo-remote")' in _remote_state
+        and '"presence-active-*"' in _remote_state
+        and '"presence-paused-*"' in _remote_state
+        and "File.SetUnixFileMode" in _remote_state,
+        "Remote SessionState must atomically publish active/paused viewer presence "
+        "inside the private user runtime, not ask QML to inspect a socket")
+require(_island.index("remotePresent") < _island.index("mediaPresent"),
+        "Remote's safety state must take priority over media in the shared island")
 _island_meta = json.loads(read(
     "system_files/usr/share/plasma/plasmoids/org.moos.island/metadata.json"
 ))

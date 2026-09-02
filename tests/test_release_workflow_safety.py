@@ -35,6 +35,24 @@ def workflow_run_script(text: str, step_name: str) -> str:
     return "\n".join(lines) + "\n"
 
 
+def workflow_job(text: str, job_name: str) -> str:
+    """Return one top-level workflow job without treating sibling jobs as its config."""
+    lines: list[str] = []
+    found = False
+    for line in text.splitlines():
+        if line == f"  {job_name}:":
+            found = True
+            lines.append(line)
+            continue
+        if found and re.fullmatch(r"  [A-Za-z0-9_-]+:", line):
+            break
+        if found:
+            lines.append(line)
+    if not found:
+        raise AssertionError(f"workflow job {job_name!r} is missing")
+    return "\n".join(lines) + "\n"
+
+
 class ReleaseWorkflowSafetyTests(unittest.TestCase):
     def test_release_helpers_are_executable(self) -> None:
         for path in (
@@ -507,7 +525,8 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
 
     def test_release_timeout_covers_measured_final_commit_io_but_stays_bounded(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
-        timeout = re.search(r"(?m)^\s*timeout-minutes:\s*(\d+)\s*$", text)
+        release_job = workflow_job(text, "build-push-sign")
+        timeout = re.search(r"(?m)^\s*timeout-minutes:\s*(\d+)\s*$", release_job)
         self.assertIsNotNone(timeout, "the image release job needs an explicit timeout")
         minutes = int(timeout.group(1))
         self.assertGreaterEqual(minutes, 180)

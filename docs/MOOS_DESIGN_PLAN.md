@@ -151,14 +151,19 @@ Ruled out earlier (still true, do not re-check):
 - MoOS package validity — packages load under `plasmawindowed`
 - (`org.kde.plasma.analogclock` is **not installed**; use systemmonitor/minimizeall.)
 
-### 3.2 The context island is invisible in practice
+### 3.2 The context island now owns Remote presence
 
-It only appears while a media player is **playing**. Correct for an island that
-must not be clutter — but it means it can never be the thing that makes the
-desktop feel different. Mo AI "thinking" and Mo PC Remote states are still
-missing, and both need a **regular marker file**: `FolderListModel` cannot see
-unix sockets (measured — 3 matching names, 2 sockets + 1 regular file, model
-reported `count=1`).
+As of 2026-09-02 the island appears for authenticated Mo PC Remote viewers as
+well as useful MPRIS media. `SessionState` publishes an active/paused filename
+plus the real viewer count in `$XDG_RUNTIME_DIR/mo-remote`; `FolderListModel`
+watches that regular-file listing with no resident timer. Remote wins over media
+because screen sharing is a safety state, and the popup routes to the native
+control center. Live Arabic Active/Paused frames are in `docs/evidence/`.
+
+Mo AI "thinking" remains missing. It still needs a state-changing regular file;
+the old activity mtime is not sufficient. The measured constraint remains:
+`FolderListModel` cannot see unix sockets (3 matching names, 2 sockets + 1
+regular file, model reported `count=1`).
 
 ### 3.3 Remaining visual work
 

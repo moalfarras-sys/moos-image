@@ -17,7 +17,10 @@ theme layer. Order matters:
    signed-artifact frames with no fallback flash across scale and locale.
 3. **Simple daily use:** one obvious place for updates, recovery, apps, Remote,
    language and theme. Keep technical logs collapsed at rest, make every action
-   explainable, and preserve Arabic/RTL as a first-class path.
+   explainable, and preserve Arabic/RTL as a first-class path. The Remote control
+   centre now fits short displays with diagnostics collapsed, and the Horizon
+   island shows authenticated active/paused viewers immediately; preserve both
+   contracts while extending the same clarity to the remaining first-party apps.
 4. **Adaptive performance for everyone:** extend `moos-visual-tier` from motion
    policy into a broader local resource policy: compositor cost, indexing,
    update concurrency, AI defaults and Remote encoding based on real capability,
@@ -44,6 +47,12 @@ theme layer. Order matters:
 - [ ] Complete representative visual captures for 1080p/1440p/4K,
   100/125/150/200/225%, English/German/Arabic and dark/light. Every responsive,
   RTL and rendering class needs a real frame.
+- [ ] Exercise Mo PC Remote end to end from representative Android, iOS and
+  desktop browsers over LAN and Tailscale: pair, reconnect, rotate, type in
+  Arabic/English, transfer files, copy text/images, stream audio, pause/resume,
+  revoke trust and recover from a network handoff. Source/live-host evidence now
+  covers the responsive control centre and authenticated desktop presence, but
+  it does not replace those physical-client proofs.
 - [ ] Merge only the proven tree; verify exact GHCR digests/signatures and
   artifact manifests.
 - [ ] Reconfirm the signed rollback on the real NVIDIA host, stage the exact

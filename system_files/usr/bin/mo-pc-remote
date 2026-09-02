@@ -340,7 +340,7 @@ class App(Gtk.Application):
             Gdk.Display.get_default(), self.style_provider,
             Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
         self.style_controller=UI2StyleController(self.style_provider)
-        self.win.set_default_size(720,620)
+        self.win.set_default_size(720,700)
         outer=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=14,margin_top=22,margin_bottom=22,margin_start=24,margin_end=24)
         outer.add_css_class("remote-shell")
         title=Gtk.Label(label="Mo PC Remote",xalign=logical_start()); title.add_css_class("title-1"); outer.append(title)
@@ -405,16 +405,25 @@ class App(Gtk.Application):
         self.grid=Gtk.Grid(column_spacing=18,row_spacing=10)
         self.grid.add_css_class("ui2-card")
         outer.append(self.grid)
-        log_title=Gtk.Label(
-            label=local_text("آخر الأخطاء", "Recent errors"),
-            xalign=logical_start())
-        log_title.add_css_class("heading"); outer.append(log_title)
-        scroll=Gtk.ScrolledWindow(vexpand=True); self.log=Gtk.TextView(editable=False,monospace=True,wrap_mode=Gtk.WrapMode.WORD_CHAR)
-        scroll.add_css_class("ui2-card"); self.log.add_css_class("ui2-log")
-        scroll.set_child(self.log); outer.append(scroll)
+        self.log=Gtk.TextView(
+            editable=False,monospace=True,wrap_mode=Gtk.WrapMode.WORD_CHAR)
+        self.log.add_css_class("ui2-log")
+        log_scroll=Gtk.ScrolledWindow(hexpand=True)
+        log_scroll.add_css_class("ui2-log-frame")
+        log_scroll.set_min_content_height(150)
+        log_scroll.set_child(self.log)
+        self.details=Gtk.Expander(
+            label=local_text("آخر الأخطاء", "Recent errors"))
+        self.details.add_css_class("ui2-details")
+        self.details.set_child(log_scroll)
+        outer.append(self.details)
         self._refresh_worker=CoalescingWorker(
             collect_remote_snapshot, self._apply_refresh)
-        self.win.set_child(outer); self.win.present(); self.refresh()
+        page_scroll=Gtk.ScrolledWindow(hexpand=True,vexpand=True)
+        page_scroll.set_policy(Gtk.PolicyType.NEVER,Gtk.PolicyType.AUTOMATIC)
+        page_scroll.set_propagate_natural_height(False)
+        page_scroll.set_child(outer)
+        self.win.set_child(page_scroll); self.win.present(); self.refresh()
         GLib.timeout_add_seconds(3,self.refresh)
     def row(self,n,label,value,ok):
         a=Gtk.Label(label=label,xalign=logical_start())

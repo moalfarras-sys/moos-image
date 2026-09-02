@@ -4,8 +4,35 @@ This file is current state, not session history. Git history owns the history.
 When documentation disagrees with a running machine, a freshly booted artifact,
 or current source, those stronger forms of evidence win.
 
-Last reconciled: **2026-09-01 (Oracle ARM source/runtime inspection)** — latest
+Last reconciled: **2026-09-02 (Remote context + x86 proof repair)** — latest
 source branch plus live host checks on `moos-arm-oracle`.
+
+### Remote-ready context and responsive control center (2026-09-02)
+
+The native Mo PC Remote control center was rendered on the live Arabic 1920x1080 session. Its
+unbounded technical log pushed the window behind the Horizon Bar even though the configured
+default height was smaller; source-only tests had not exposed the natural-size minimum. The page
+now scrolls vertically and Recent errors is a collapsed, bounded diagnostic expander, matching
+Updater and Recovery. The QR, secure URL and five health rows fit in the first viewport. Evidence:
+`docs/evidence/mo-pc-remote-control-center-ar-1080p.png`.
+
+The context island now gives authenticated Remote control priority over media. `SessionState`
+atomically publishes `presence-active-N` or `presence-paused-N` in the private
+`$XDG_RUNTIME_DIR/mo-remote` directory only after WebSocket authentication, updates the real viewer
+count, and removes the marker on the last disconnect or clean shutdown. The applet watches those
+regular files with `FolderListModel`; it never polls a service and never tries to inspect the
+invisible frame socket. Active and paused states were switched live inside `plasmawindowed` with no
+QML error and no Plasma/Remote restart. Evidence:
+`docs/evidence/moos-island-remote-active-ar.png` and
+`docs/evidence/moos-island-remote-paused-ar.png`. `THEME_REV=52` makes the media-only cached island
+expire for existing users.
+
+Remote's shared Web API had also drifted beyond the Windows clipboard implementation:
+`SetTextConfirmed` and `SetImagePngConfirmed` existed only on Linux, so the Windows agent no longer
+compiled. Windows now confirms exact text and canonical decoded image pixels on its STA clipboard
+before acknowledging the phone. Verified with a clean `net10.0-windows/win-x64` build (zero warnings
+and errors), Linux x64 and ARM64 publish, and 124 Linux behavioural tests. The running Remote,
+ydotool and Plasma services were not stopped or restarted.
 
 ### Inspection environment, boot overlay and responsive clock (2026-09-01)
 
@@ -43,8 +70,8 @@ The panel clock now lets Plasma choose its representation from the available spa
 keeps the fixed compact chip, while a popup or standalone window receives the full clock and
 calendar. The full surface adds a theme-driven day header, minute-updated day-progress line,
 scale-aware week numbers, a working return-to-today action and the existing guarded
-`moos://settings/time` route. No new timer or permanent animation was added. `THEME_REV=51`
-purges old QML caches for existing profiles.
+`moos://settings/time` route. No new timer or permanent animation was added. Revision 51 introduced
+the popup; current `THEME_REV=52` also delivers Remote presence and purges both old QML surfaces.
 
 The modified source package was loaded through an isolated temporary `XDG_DATA_HOME` and
 rendered on the live Arabic session at 100%, 125% and 150%; it produced no QML load errors,

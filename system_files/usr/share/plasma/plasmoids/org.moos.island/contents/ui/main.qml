@@ -16,6 +16,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Window
 import QtCore
+import Qt.labs.folderlistmodel
 import org.kde.plasma.plasmoid
 import org.kde.plasma.core as PlasmaCore
 import org.kde.plasma.components as PC3
@@ -122,6 +123,54 @@ PlasmoidItem {
             root.setVolume(0);
         } else {
             root.setVolume(Math.max(0.35, root.lastAudibleVolume));
+        }
+    }
+
+    function runtimeFileUrl(path) {
+        const runtime = String(StandardPaths.writableLocation(
+            StandardPaths.RuntimeLocation));
+        const base = runtime.indexOf("file:") === 0
+            ? runtime : "file://" + runtime;
+        return base + "/" + path;
+    }
+    function syncRemotePresence() {
+        let mode = "idle";
+        let sessions = 0;
+        for (let index = 0; index < remotePresence.count; ++index) {
+            const name = String(remotePresence.get(index, "fileName") || "");
+            const match = name.match(/^presence-(active|paused)-([1-9][0-9]*)$/);
+            if (!match) { continue; }
+            const count = Number(match[2]);
+            if (count > sessions || (count === sessions && match[1] === "paused")) {
+                mode = match[1];
+                sessions = count;
+            }
+        }
+        root.remoteMode = mode;
+        root.remoteSessions = sessions;
+    }
+
+    property string remoteMode: "idle"
+    property int remoteSessions: 0
+    readonly property bool remotePresent: root.remoteSessions > 0
+        && (root.remoteMode === "active" || root.remoteMode === "paused")
+    readonly property string remoteTitle: root.remoteMode === "paused"
+        ? root.local("التحكم عن بُعد متوقف مؤقتًا", "Remote control paused")
+        : root.local("التحكم عن بُعد نشط", "Remote control active")
+    readonly property string remoteSource: root.remoteSessions === 1
+        ? root.local("جهاز واحد متصل", "1 device connected")
+        : root.local(root.remoteSessions + " أجهزة متصلة",
+                     root.remoteSessions + " devices connected")
+
+    FolderListModel {
+        id: remotePresence
+        folder: root.runtimeFileUrl("mo-remote")
+        nameFilters: ["presence-active-*", "presence-paused-*"]
+        showDirs: false
+        sortField: FolderListModel.Name
+        onCountChanged: root.syncRemotePresence()
+        onStatusChanged: if (status === FolderListModel.Ready) {
+            root.syncRemotePresence();
         }
     }
 
@@ -333,7 +382,14 @@ PlasmoidItem {
     readonly property bool mediaPresent: root.hasPlayer
         && root.playbackStatus > Mpris.PlaybackStatus.Stopped
         && (root.track.length > 0 || root.identity.length > 0)
-    readonly property bool active: root.mediaPresent || releaseGrace.running
+    readonly property bool active: root.remotePresent || root.mediaPresent
+                                   || releaseGrace.running
+    readonly property string contextTitle: root.remotePresent
+        ? root.remoteTitle : root.displayTrack
+    readonly property string contextSource: root.remotePresent
+        ? root.remoteSource : root.displaySource
+    readonly property string contextIcon: root.remotePresent
+        ? "moos-pc-remote" : root.playerIcon
 
     onMediaPresentChanged: {
         if (root.mediaPresent) { releaseGrace.stop(); }
@@ -366,10 +422,10 @@ PlasmoidItem {
     Plasmoid.status: root.active
         ? PlasmaCore.Types.ActiveStatus
         : PlasmaCore.Types.PassiveStatus
-    Plasmoid.icon: root.playerIcon
-    toolTipMainText: root.active ? root.displayTrack
-                                 : root.local("لا توجد وسائط", "No active media")
-    toolTipSubText: root.active ? root.displaySource : ""
+    Plasmoid.icon: root.contextIcon
+    toolTipMainText: root.active ? root.contextTitle
+                                 : root.local("لا يوجد نشاط", "No active context")
+    toolTipSubText: root.active ? root.contextSource : ""
     toolTipTextFormat: Text.PlainText
 
     switchWidth: Kirigami.Units.gridUnit * 16
@@ -379,16 +435,16 @@ PlasmoidItem {
         id: compact
 
         readonly property real baseWidth: 218 + root.bounded(
-            root.displayTrack.length * 1.65, 24, 88)
+            root.contextTitle.length * 1.65, 24, 88)
         // Reserve exactly the space the player's real capabilities need. A
         // fixed 68 px hover allowance was too small for Previous + Next +
         // Volume (90 px before spacing), so the title compressed first and the
         // bar caught up afterwards. Capability-sized geometry keeps the text
         // stable and makes the extension feel intentional.
-        readonly property int revealedControlCount:
-            (root.canGoPrevious ? 1 : 0)
-            + (root.canGoNext ? 1 : 0)
-            + (root.hasVolume ? 1 : 0)
+        readonly property int revealedControlCount: root.remotePresent ? 0
+            : (root.canGoPrevious ? 1 : 0)
+              + (root.canGoNext ? 1 : 0)
+              + (root.hasVolume ? 1 : 0)
         readonly property real hoverExtra: revealedControlCount > 0
             ? revealedControlCount * 30
               + Math.max(0, revealedControlCount - 1) * root.design.space1
@@ -497,7 +553,13 @@ PlasmoidItem {
                 property bool wasExpanded: false
                 onPressed: wasExpanded = root.expanded
                 onClicked: mouse => {
-                    if (mouse.button === Qt.MiddleButton) {
+                    if (root.remotePresent) {
+                        if (mouse.button === Qt.MiddleButton) {
+                            Qt.openUrlExternally("moos://app/remote");
+                        } else {
+                            root.expanded = !wasExpanded;
+                        }
+                    } else if (mouse.button === Qt.MiddleButton) {
                         root.togglePlaying();
                     } else {
                         root.expanded = !wasExpanded;
@@ -509,8 +571,8 @@ PlasmoidItem {
                                              true);
                 }
                 Accessible.role: Accessible.Button
-                Accessible.name: root.displayTrack
-                Accessible.description: root.displaySource
+                Accessible.name: root.contextTitle
+                Accessible.description: root.contextSource
             }
 
             // A COLUMN, not two anchored siblings. The content row and the
@@ -576,7 +638,8 @@ PlasmoidItem {
                         fillMode: Image.PreserveAspectCrop
                         asynchronous: true
                         sourceSize.width: root.decodePx(width)
-                        visible: root.artworkSource.length > 0
+                        visible: !root.remotePresent
+                                 && root.artworkSource.length > 0
                                  && status === Image.Ready
                         onStatusChanged: if (status === Image.Error
                                 && root.artworkSource !== root.artUrl) {
@@ -587,7 +650,7 @@ PlasmoidItem {
                         anchors.centerIn: parent
                         width: 22
                         height: 22
-                        source: root.playerIcon
+                        source: root.contextIcon
                         color: Kirigami.Theme.highlightColor
                         visible: !compactArt.visible
                     }
@@ -657,7 +720,7 @@ PlasmoidItem {
                     // stays correct if the bar is ever made shorter.
                     PC3.Label {
                         Layout.fillWidth: true
-                        text: root.displayTrack
+                        text: root.contextTitle
                         color: Kirigami.Theme.textColor
                         font.pixelSize: root.design.typeSecondary
                         font.weight: Font.DemiBold
@@ -671,7 +734,7 @@ PlasmoidItem {
                     }
                     PC3.Label {
                         Layout.fillWidth: true
-                        text: root.displaySource
+                        text: root.contextSource
                         color: Kirigami.Theme.disabledTextColor
                         font.pixelSize: root.design.typeCaption
                         lineHeightMode: Text.FixedHeight
@@ -685,7 +748,8 @@ PlasmoidItem {
                 }
 
                 MediaControl {
-                    revealed: compactHover.hovered && root.canGoPrevious
+                    revealed: !root.remotePresent && compactHover.hovered
+                              && root.canGoPrevious
                     controlEnabled: root.canGoPrevious
                     iconName: root.rtl ? "media-skip-forward-symbolic"
                                        : "media-skip-backward-symbolic"
@@ -696,6 +760,7 @@ PlasmoidItem {
                 // Play/pause is the one control that never hides: it is why the
                 // capsule is reachable at all without opening anything.
                 MediaControl {
+                    revealed: !root.remotePresent
                     controlEnabled: root.playing
                         ? root.canPause : (root.canPlay || root.canControl)
                     iconName: root.playing ? "media-playback-pause-symbolic"
@@ -706,7 +771,8 @@ PlasmoidItem {
                 }
 
                 MediaControl {
-                    revealed: compactHover.hovered && root.canGoNext
+                    revealed: !root.remotePresent && compactHover.hovered
+                              && root.canGoNext
                     controlEnabled: root.canGoNext
                     iconName: root.rtl ? "media-skip-backward-symbolic"
                                        : "media-skip-forward-symbolic"
@@ -715,7 +781,8 @@ PlasmoidItem {
                 }
 
                 MediaControl {
-                    revealed: compactHover.hovered && root.hasVolume
+                    revealed: !root.remotePresent && compactHover.hovered
+                              && root.hasVolume
                     controlEnabled: root.hasVolume
                     iconName: root.volume <= 0.01
                         ? "audio-volume-muted-symbolic"
@@ -724,6 +791,14 @@ PlasmoidItem {
                         ? root.local("إلغاء الكتم", "Unmute")
                         : root.local("كتم", "Mute")
                     onActivated: root.toggleMuted()
+                }
+
+                MediaControl {
+                    revealed: root.remotePresent
+                    controlEnabled: true
+                    iconName: "configure-symbolic"
+                    label: root.local("فتح إعدادات التحكم", "Open Remote controls")
+                    onActivated: Qt.openUrlExternally("moos://app/remote")
                 }
             }
 
@@ -743,7 +818,7 @@ PlasmoidItem {
                 Layout.preferredHeight: 3
                 Layout.leftMargin: compactShell.radius * 0.35
                 Layout.rightMargin: compactShell.radius * 0.35
-                visible: root.hasTimeline
+                visible: !root.remotePresent && root.hasTimeline
 
                 Rectangle {
                     anchors.fill: parent
@@ -776,9 +851,11 @@ PlasmoidItem {
         id: expanded
 
         Layout.preferredWidth: Kirigami.Units.gridUnit * 21
-        Layout.preferredHeight: Kirigami.Units.gridUnit * 17
+        Layout.preferredHeight: Kirigami.Units.gridUnit
+                                * (root.remotePresent ? 13 : 17)
         Layout.minimumWidth: Kirigami.Units.gridUnit * 18
-        Layout.minimumHeight: Kirigami.Units.gridUnit * 15
+        Layout.minimumHeight: Kirigami.Units.gridUnit
+                              * (root.remotePresent ? 12 : 15)
         opacity: root.motionEnabled ? 0 : 1
         scale: root.motionEnabled ? 0.96 : 1
         transformOrigin: Item.Top
@@ -818,6 +895,99 @@ PlasmoidItem {
             anchors.fill: parent
             anchors.margins: root.design.space5
             spacing: root.design.space4
+            visible: root.remotePresent
+            layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: root.design.space4
+
+                Rectangle {
+                    Layout.preferredWidth: 76
+                    Layout.preferredHeight: 76
+                    radius: root.design.radiusCard
+                    color: Qt.alpha(Kirigami.Theme.highlightColor, 0.16)
+
+                    Kirigami.Icon {
+                        anchors.centerIn: parent
+                        width: 40
+                        height: 40
+                        source: "moos-pc-remote"
+                        color: Kirigami.Theme.highlightColor
+                    }
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: root.design.space1
+
+                    PlasmaExtras.Heading {
+                        Layout.fillWidth: true
+                        text: root.remoteTitle
+                        level: 3
+                        maximumLineCount: 2
+                        wrapMode: Text.Wrap
+                        horizontalAlignment: root.rtl ? Text.AlignRight
+                                                      : Text.AlignLeft
+                    }
+                    PC3.Label {
+                        Layout.fillWidth: true
+                        text: root.remoteSource
+                        color: Kirigami.Theme.disabledTextColor
+                        font.pixelSize: root.design.typeSecondary
+                        horizontalAlignment: root.rtl ? Text.AlignRight
+                                                      : Text.AlignLeft
+                    }
+                }
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 1
+                color: Qt.alpha(Kirigami.Theme.textColor, 0.12)
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: root.design.space3
+
+                Rectangle {
+                    Layout.preferredWidth: 10
+                    Layout.preferredHeight: 10
+                    radius: 5
+                    color: root.remoteMode === "paused"
+                        ? Kirigami.Theme.neutralTextColor
+                        : Kirigami.Theme.positiveTextColor
+                }
+                PC3.Label {
+                    Layout.fillWidth: true
+                    text: root.remoteMode === "paused"
+                        ? root.local("المشاركة متوقفة مؤقتًا، والجلسة ما زالت متصلة.",
+                                     "Sharing is paused; the session remains connected.")
+                        : root.local("تتم مشاركة الشاشة والتحكم مع جهاز موثوق الآن.",
+                                     "Screen and controls are shared with a trusted device now.")
+                    wrapMode: Text.Wrap
+                    color: Kirigami.Theme.textColor
+                    horizontalAlignment: root.rtl ? Text.AlignRight
+                                                  : Text.AlignLeft
+                }
+            }
+
+            Item { Layout.fillHeight: true }
+
+            PC3.Button {
+                Layout.fillWidth: true
+                text: root.local("فتح مركز Mo PC Remote", "Open Mo PC Remote")
+                icon.name: "configure-symbolic"
+                onClicked: Qt.openUrlExternally("moos://app/remote")
+            }
+        }
+
+        ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: root.design.space5
+            spacing: root.design.space4
+            visible: !root.remotePresent
             layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
             RowLayout {
