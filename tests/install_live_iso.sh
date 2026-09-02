@@ -84,13 +84,15 @@ start_qemu() {
     qga="$work/qga.sock"
     monitor="$work/monitor.sock"
     rm -f "$qga" "$monitor"
+    # Match the topology that completed the full offline-install proof in run
+    # 32851648759. `-vga virtio` regressed KWin DRM discovery.
     qemu-system-x86_64 \
         -machine q35,accel=tcg -cpu Haswell -m 4096 -smp 2 \
         -drive "if=pflash,format=raw,readonly=on,file=$ovmf_code" \
         -drive "if=pflash,format=raw,file=$work/vars.fd" \
         -drive "file=$work/installed.qcow2,format=qcow2,if=virtio,cache=unsafe" \
         "$@" \
-        -vga virtio \
+        -device virtio-gpu-pci \
         -netdev user,id=n0 -device virtio-net-pci,netdev=n0 \
         -device virtio-serial-pci \
         -chardev "socket,path=$qga,server=on,wait=off,id=qga0" \

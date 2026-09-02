@@ -652,16 +652,27 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
             self.assertIn(proof, script, f"final ISO gate lost runtime proof: {proof}")
         self.assertIn('after_sha', script)
 
-    def test_x86_runtime_proofs_expose_only_the_drm_capable_gpu(self) -> None:
+    def test_x86_runtime_proofs_keep_the_boot_proven_graphics_topology(self) -> None:
+        """Guard the topology that proved live boot and offline installation.
+
+        A single ``-vga virtio`` device looked cleaner, but PLM and the live
+        session repeatedly lost their DRM node under TCG. Run 32851648759
+        proved the default firmware-visible VGA plus an explicit virtio DRM
+        adapter through live boot, offline install and installed-disk boot.
+        """
         for path in (
             ROOT / "tests" / "boot_live_iso.sh",
             ROOT / "tests" / "install_live_iso.sh",
             ROOT / "tests" / "boot_x86_qcow2.sh",
         ):
             script = path.read_text(encoding="utf-8")
-            self.assertIn("-vga virtio", script, path.name)
-            self.assertNotIn("-vga none", script, path.name)
-            self.assertNotIn("-device virtio-gpu-pci", script, path.name)
+            executable = "\n".join(
+                line for line in script.splitlines()
+                if not line.lstrip().startswith("#")
+            )
+            self.assertIn("-device virtio-gpu-pci", executable, path.name)
+            self.assertNotIn("-vga virtio", executable, path.name)
+            self.assertNotIn("-vga none", executable, path.name)
 
     def test_cloud_disk_uses_the_shared_x86_boot_proof(self) -> None:
         script = X86_BOOT.read_text(encoding="utf-8")

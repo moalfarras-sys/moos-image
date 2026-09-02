@@ -59,13 +59,18 @@ printf 'iso=%s\nsha256=%s\nimage=%s\novmf=%s\n' \
 
 qga="$work/qga.sock"
 monitor="$work/monitor.sock"
+# Keep the firmware-visible primary VGA plus the explicit DRM-capable virtio
+# adapter. This exact topology completed the live boot, offline install and
+# installed-disk boot in run 32851648759. Replacing both with `-vga virtio`
+# made KWin lose its DRM node in runs 33655753536 and 33655789970; a nominally
+# simpler topology was not a working proof.
 qemu-system-x86_64 \
     -machine q35,accel=tcg -cpu Haswell -m 4096 -smp 2 \
     -drive "if=pflash,format=raw,readonly=on,file=$ovmf_code" \
     -drive "if=pflash,format=raw,file=$work/vars.fd" \
     -drive "file=$iso,media=cdrom,format=raw,readonly=on" \
     -boot order=d \
-    -vga virtio \
+    -device virtio-gpu-pci \
     -netdev user,id=n0 -device virtio-net-pci,netdev=n0 \
     -device virtio-serial-pci \
     -chardev "socket,path=$qga,server=on,wait=off,id=qga0" \

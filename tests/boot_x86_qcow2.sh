@@ -98,12 +98,15 @@ PY
 
 qga="$work/qga.sock"
 monitor="$work/monitor.sock"
+# The firmware-visible primary VGA plus this DRM-capable adapter is the
+# topology proven end to end by ISO run 32851648759. `-vga virtio` looked
+# simpler but made PLM's KWin lose the DRM node in run 33655753536.
 qemu-system-x86_64 \
     -machine q35,accel=tcg -cpu Haswell -m 4096 -smp 2 \
     -drive "if=pflash,format=raw,readonly=on,file=$ovmf_code" \
     -drive "if=pflash,format=raw,file=$work/vars.fd" \
     -drive "file=$work/overlay.qcow2,format=qcow2,if=virtio,cache=unsafe" \
-    -vga virtio \
+    -device virtio-gpu-pci \
     -netdev "user,id=n0,hostfwd=tcp:127.0.0.1:${ssh_port}-:22" \
     -device virtio-net-pci,netdev=n0 \
     -device virtio-serial-pci \
@@ -343,6 +346,22 @@ for u in units:
     printf '%s\n' 'display-manager-journal:' >&2
     journalctl -b -u plasmalogin.service -u display-manager.service \
         -o short-monotonic --no-pager -n 80 2>/dev/null >&2 || true
+    printf '%s\n' 'drm-nodes:' >&2
+    ls -la /dev/dri 2>/dev/null >&2 || true
+    for node in /dev/dri/card* /dev/dri/renderD*; do
+        [ -e "$node" ] || continue
+        stat -c '%n mode=%a owner=%U group=%G major-minor=%t:%T' "$node" \
+            2>/dev/null >&2 || true
+        udevadm info --query=property --name="$node" 2>/dev/null \
+            | grep -E '^(DEVNAME|DEVPATH|ID_PATH|ID_SEAT|TAGS|CURRENT_TAGS)=' >&2 || true
+    done
+    printf '%s\n' 'drm-connectors:' >&2
+    for status in /sys/class/drm/card*-*/status; do
+        [ -f "$status" ] || continue
+        printf '%s=%s\n' "$status" "$(cat "$status" 2>/dev/null || true)" >&2
+    done
+    printf '%s\n' 'seat0-status:' >&2
+    loginctl seat-status seat0 --no-pager 2>/dev/null | tail -80 >&2 || true
     return 1
 }
 . /etc/os-release
