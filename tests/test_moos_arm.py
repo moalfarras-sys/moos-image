@@ -304,6 +304,11 @@ class ArmEditionTests(unittest.TestCase):
         self.assertIn("QT_QUICK_BACKEND=software", build)
         self.assertIn('usermod -aG "${_group}" plasmalogin', build,
                       "the greeter needs bounded video/render group access")
+        self.assertLess(
+            build.index('usermod -aG "${_group}" plasmalogin'),
+            build.index("<<'REMOTE'"),
+            "greeter group access must be applied while building the image, not by the later remote helper",
+        )
 
     def test_the_new_workflow_can_prove_a_feature_branch(self) -> None:
         text = read(WORKFLOW)

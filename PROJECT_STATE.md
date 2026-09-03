@@ -89,7 +89,11 @@ proof always records DRM, process, environment and greeter-journal diagnostics.
 The selectively recovered DRM launcher had also outlived a temporary
 `virtio-ramfb` experiment that removed the login user's video/render access; the
 standard-QEMU proof uses `virtio-gpu`, so current source restores bounded group
-access and refuses to launch KWin until that exact scanout is readable and writable.
+access during image composition and refuses to launch KWin until that exact scanout
+is readable and writable. Run `33773955960` proved the first correction was placed
+inside the generated remote helper instead of the image build; its finished-image
+gate failed before publication, and the rule plus group assignment now precede that
+helper's heredoc with a source-order regression test.
 
 The same candidate's final ISO booted visually, but install run `33766199203`
 ended when hosted QEMU itself asserted in epoxy after repeated EGL context loss
