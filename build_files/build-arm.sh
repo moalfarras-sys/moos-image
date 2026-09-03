@@ -326,12 +326,22 @@ SUBSYSTEM=="drm", KERNEL=="card*", GROUP="video", MODE="0660"
 SUBSYSTEM=="drm", KERNEL=="renderD*", GROUP="render", MODE="0660"
 SUBSYSTEM=="drm", KERNEL=="card*", DEVPATH=="/devices/faux/vgem/drm/card*", GROUP="render", MODE="0660"
 UDEV
-for _group in video render; do
-    getent group "${_group}" >/dev/null 2>&1 \
-        || { echo "FATAL: ARM DRM group ${_group} is missing"; exit 1; }
-    usermod -aG "${_group}" plasmalogin
-done
-unset -v _group
+_video_gid="$(getent group video | cut -d: -f3)"
+_render_gid="$(getent group render | cut -d: -f3)"
+[ -n "${_video_gid}" ] && [ -n "${_render_gid}" ] \
+    || { echo "FATAL: ARM DRM groups are missing"; exit 1; }
+# bootc keeps package-owned groups in /usr/lib/group. usermod only edits
+# /etc/group, so it can return success without changing an altfiles group.
+# sysusers creates same-GID local overlays and records the supplementary
+# membership in the database NSS actually resolves first.
+install -D -m0644 /dev/stdin /usr/lib/sysusers.d/60-moos-arm-greeter.conf <<SYSUSERS
+g video ${_video_gid}
+g render ${_render_gid}
+m plasmalogin video
+m plasmalogin render
+SYSUSERS
+systemd-sysusers /usr/lib/sysusers.d/60-moos-arm-greeter.conf
+unset -v _video_gid _render_gid
 
 # Defence in depth around the public cloud VM. SSH is the only service exposed
 # by the image. KRDP remains reachable through an SSH tunnel to localhost; this
@@ -1092,6 +1102,9 @@ case "${_plasmalogin_groups}" in
     *) echo "GATE FAIL: ARM login greeter is not in the render group"; exit 1 ;;
 esac
 unset -v _plasmalogin_groups
+grep -qx 'm plasmalogin video' /usr/lib/sysusers.d/60-moos-arm-greeter.conf \
+    && grep -qx 'm plasmalogin render' /usr/lib/sysusers.d/60-moos-arm-greeter.conf \
+    || { echo "GATE FAIL: ARM greeter DRM membership is not persistent"; exit 1; }
 grep -qxF 'vgem' /etc/modules-load.d/moos-arm-vgem.conf \
     || { echo "GATE FAIL: ARM must load vgem for greeter/desktop GL"; exit 1; }
 grep -q 'DefaultDeviceTimeoutSec=120' /etc/systemd/system.conf.d/moos-arm-device-timeout.conf \

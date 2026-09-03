@@ -302,10 +302,13 @@ class ArmEditionTests(unittest.TestCase):
                       "KWin must wait until plasmalogin can open the scanout")
         self.assertIn("--virtual --width 1920 --height 1080", launcher)
         self.assertIn("QT_QUICK_BACKEND=software", build)
-        self.assertIn('usermod -aG "${_group}" plasmalogin', build,
-                      "the greeter needs bounded video/render group access")
+        self.assertNotIn('usermod -aG "${_group}" plasmalogin', build,
+                         "bootc package groups do not live in usermod's /etc/group database")
+        self.assertIn("systemd-sysusers /usr/lib/sysusers.d/60-moos-arm-greeter.conf", build)
+        self.assertIn("m plasmalogin video", build)
+        self.assertIn("m plasmalogin render", build)
         self.assertLess(
-            build.index('usermod -aG "${_group}" plasmalogin'),
+            build.index("systemd-sysusers /usr/lib/sysusers.d/60-moos-arm-greeter.conf"),
             build.index("<<'REMOTE'"),
             "greeter group access must be applied while building the image, not by the later remote helper",
         )

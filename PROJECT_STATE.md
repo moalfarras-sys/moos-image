@@ -93,7 +93,11 @@ access during image composition and refuses to launch KWin until that exact scan
 is readable and writable. Run `33773955960` proved the first correction was placed
 inside the generated remote helper instead of the image build; its finished-image
 gate failed before publication, and the rule plus group assignment now precede that
-helper's heredoc with a source-order regression test.
+helper's heredoc with a source-order regression test. Run `33775414235` then exposed
+bootc's split account database: the package groups live in `/usr/lib/group`, so
+`usermod` can succeed without updating them. The image now uses the supported
+`systemd-sysusers` membership declaration with same-GID `/etc` overlays and gates
+both the resolved membership and its persistent declaration.
 
 The same candidate's final ISO booted visually, but install run `33766199203`
 ended when hosted QEMU itself asserted in epoxy after repeated EGL context loss
