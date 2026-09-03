@@ -289,6 +289,10 @@ podman image exists "$offline_ref"
 source_digest="$(tr -d '\r\n' < /usr/lib/moos/install-source-digest)"
 [ "$source_digest" = "${expected##*@}" ]
 nmcli networking off
+# A live environment may see unit drop-ins change while booting (e.g. the
+# image's own generators); without a reload, `stop` refuses and the whole
+# offline-install gate dies on that warning instead of the real install.
+systemctl daemon-reload
 systemctl stop NetworkManager.service
 ! ip route show default | grep -q .
 PKEXEC_UID="$(id -u liveuser)" /usr/bin/moos-install-to-disk "$cache/install.status"
