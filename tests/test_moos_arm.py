@@ -523,6 +523,7 @@ class ArmEditionTests(unittest.TestCase):
             "sigstoreSigned",
             "/etc/pki/containers/moos.pub",
             "ghcr.io/moalfarras-sys",
+            "containers-storage",
         ):
             self.assertIn(proof, build)
             self.assertIn(proof, verifier)

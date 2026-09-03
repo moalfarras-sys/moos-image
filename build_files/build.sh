@@ -3388,6 +3388,13 @@ docker["ghcr.io/moalfarras-sys"] = [{
     "keyPath": "/etc/pki/containers/moos.pub",
     "signedIdentity": {"type": "matchRepository"},
 }]
+# bootc-image-builder imports the already-pulled candidate through its private
+# root-owned containers-storage. Local stores have no registry-side sigstore
+# attachment, so permit only that transport; the deployed origin remains the
+# exact signed docker digest above and every day-2 update still verifies it.
+d.setdefault("transports", {})["containers-storage"] = {
+    "": [{"type": "insecureAcceptAnything"}],
+}
 with open(p, "w") as f:
     json.dump(d, f, indent=4)
 print("POLICY: ghcr.io/moalfarras-sys now requires a valid MoOS cosign signature.")
@@ -3398,9 +3405,11 @@ d = json.load(open('/etc/containers/policy.json'))
 e = d.get('transports', {}).get('docker', {}).get('ghcr.io/moalfarras-sys') or [{}]
 default = d.get('default') or [{}]
 fallback = d.get('transports', {}).get('docker', {}).get('') or [{}]
+local = d.get('transports', {}).get('containers-storage', {}).get('') or [{}]
 ok = (e[0].get('type') == 'sigstoreSigned' and
       default[0].get('type') == 'reject' and
-      fallback[0].get('type') == 'insecureAcceptAnything')
+      fallback[0].get('type') == 'insecureAcceptAnything' and
+      local == [{'type': 'insecureAcceptAnything'}])
 sys.exit(0 if ok else 1)"; then
         echo "OK: the MoOS registry is signature-enforced (install + every future upgrade)."
     else

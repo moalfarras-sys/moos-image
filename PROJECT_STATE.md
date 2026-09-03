@@ -4,8 +4,8 @@ This file is current state, not session history. Git history owns the history.
 When documentation disagrees with a running machine, a freshly booted artifact,
 or current source, those stronger forms of evidence win.
 
-Last reconciled: **2026-09-02 (Remote context + x86 proof repair)** — latest
-source branch plus live host checks on `moos-arm-oracle`.
+Last reconciled: **2026-09-03 (artifact pipeline repair)** — latest source
+branch plus live host checks on `moos-arm-oracle`.
 
 ### Branch reconciliation (2026-09-02)
 
@@ -29,6 +29,27 @@ boundary test rejects either metadata or package-signature verification being di
 `fix/utm-release-gates-20260826` were deliberately not merged. They package the recovery disk
 before the candidate is proven and set `MOOS_ARM_SKIP_VISUAL_GATE=1`; the current workflow keeps
 the signed-digest and visual-proof ordering. This is an audited rejection, not unfinished work.
+
+The first VirGL x86 disk proof (run `33686491949`) fixed the graphics failure: the guest exposed
+a connected virtio DRM output and Plasma Login Manager ran `kwin_wayland`, its greeter, wallpaper
+and keyboard. It then correctly failed the zero-failed-units gate because TCG software CPU
+emulation made six services hit real systemd wall-clock deadlines. The release scripts now require
+KVM plus VirGL and record both host accelerator and OpenGL evidence; they never silently fall back
+to TCG. A fresh signed-artifact run is still required before this closes the x86 release blocker.
+
+The first full ARM dispatch after reconciliation (run `33689074450`) built, pushed, signed and
+verified the native aarch64 image. QCOW2 composition then exposed a policy boundary that source
+gates could not: `bootc-image-builder` imports its already-pulled candidate through a private
+root `containers-storage`, which has no registry-side sigstore attachment, and the image's
+fail-closed default rejected that local import. The policy now permits only the local
+`containers-storage` transport while preserving an exact digest-pinned `sigstoreSigned` rule for
+`ghcr.io/moalfarras-sys`; runtime gates assert both halves. Fresh disk proof is still required.
+
+The x86 workflow also caught a newly published high-severity npm advisory before image build.
+The affected indirect `fast-uri` lock moved from `3.1.5` to fixed `3.1.7` without changing any
+direct dependency or shipped web bundle. A clean Node 22 install, all Remote controller behavioural
+tests, TypeScript checking, production build and `npm audit --audit-level=high` now pass with zero
+reported vulnerabilities.
 
 ### Remote-ready context and responsive control center (2026-09-02)
 

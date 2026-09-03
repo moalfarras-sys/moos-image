@@ -415,6 +415,9 @@ def main() -> None:
     require(policy.get("transports", {}).get("docker", {}).get("") ==
             [{"type": "insecureAcceptAnything"}],
             "ordinary ARM user container pulls lack the docker transport fallback")
+    require(policy.get("transports", {}).get("containers-storage", {}).get("") ==
+            [{"type": "insecureAcceptAnything"}],
+            "ARM disk composition cannot import its local containers-storage image")
     require((ROOT / "etc/pki/containers/moos.pub").is_file(),
             "the ARM image lacks the container signing public key")
 

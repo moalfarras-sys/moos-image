@@ -920,6 +920,13 @@ docker["ghcr.io/moalfarras-sys"] = [{
     "keyPath": "/etc/pki/containers/moos.pub",
     "signedIdentity": {"type": "matchRepository"},
 }]
+# Disk composition imports the already-pulled candidate from BIB's private
+# root containers-storage. That local transport cannot carry registry sigstore
+# attachments; the installed docker origin remains digest-pinned and
+# signature-enforced for every network update.
+policy.setdefault("transports", {})["containers-storage"] = {
+    "": [{"type": "insecureAcceptAnything"}],
+}
 with open(path, "w", encoding="utf-8") as target:
     json.dump(policy, target, indent=4)
 PYSEC
@@ -940,6 +947,10 @@ if policy.get("transports", {}).get("docker", {}).get("") != [
     {"type": "insecureAcceptAnything"}
 ]:
     raise SystemExit("FATAL: ARM ordinary user container pulls lost their docker fallback")
+if policy.get("transports", {}).get("containers-storage", {}).get("") != [
+    {"type": "insecureAcceptAnything"}
+]:
+    raise SystemExit("FATAL: ARM local disk composition cannot import containers-storage")
 PYSEC
 
 # -----------------------------------------------------------------------------
