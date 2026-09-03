@@ -28,6 +28,17 @@ fi
 # finished when plasmalogin starts.
 if [ "$arch" = aarch64 ]; then
     modprobe vgem 2>/dev/null || true
+    # plasma-login-manager starts this helper as root before it launches the
+    # unprivileged greeter user. udev owns the persistent policy; this ACL is a
+    # bounded fallback for a virtio node that was created before the image's
+    # rule database became active. A headless cloud host has no nodes here and
+    # correctly continues to the virtual-output launcher.
+    shopt -s nullglob
+    drm_nodes=("${devroot}"/dri/card* "${devroot}"/dri/renderD*)
+    for drm_node in "${drm_nodes[@]}"; do
+        /usr/bin/setfacl -m u:plasmalogin:rw "$drm_node"
+    done
+    unset -v drm_node drm_nodes
 fi
 
 {

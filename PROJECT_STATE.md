@@ -95,9 +95,14 @@ inside the generated remote helper instead of the image build; its finished-imag
 gate failed before publication, and the rule plus group assignment now precede that
 helper's heredoc with a source-order regression test. Run `33775414235` then exposed
 bootc's split account database: the package groups live in `/usr/lib/group`, so
-`usermod` can succeed without updating them. The image now uses the supported
-`systemd-sysusers` membership declaration with same-GID `/etc` overlays and gates
-both the resolved membership and its persistent declaration.
+`usermod` can succeed without updating them. The next attempt used a
+`systemd-sysusers` membership declaration with same-GID `/etc` overlays. Run
+`33776822139` proved that sysusers also declines to shadow an already-resolvable
+altfiles group during composition. Current source therefore avoids account-database mutation:
+udev gives the dedicated greeter ownership of physical DRM nodes while preserving
+the standard groups and logind ACLs, and the root pre-greeter helper applies a
+user-specific ACL as a bounded fallback. vgem's display-less nodes remain available
+to the explicitly started cloud Remote session.
 
 The same candidate's final ISO booted visually, but install run `33766199203`
 ended when hosted QEMU itself asserted in epoxy after repeated EGL context loss

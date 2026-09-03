@@ -87,7 +87,7 @@ _PLASMA=(
     fontconfig gtk3 gtk4 libadwaita mpv-libs
     mesa-dri-drivers mesa-libEGL mesa-libgbm
     openssh-server cloud-init cloud-utils-growpart
-    firewalld flatpak openssl sudo
+    firewalld flatpak openssl sudo acl
     # Architecture-independent MoOS desktop assets are generated after the
     # final RPM transaction by finalize_moos_desktop.sh.
     git-core curl tar xz gtk-update-icon-cache
@@ -287,7 +287,7 @@ systemctl set-default graphical.target
 install -D -m0644 /dev/stdin \
     /usr/lib/systemd/system/plasmalogin.service.d/20-moos-arm-greeter-gl.conf <<'PLMDROP'
 [Service]
-ExecStartPre=-/usr/libexec/moos-greeter-gl-env
+ExecStartPre=/usr/libexec/moos-greeter-gl-env
 PLMDROP
 install -D -m0644 /dev/stdin \
     /usr/lib/systemd/user/plasma-login-kwin_wayland.service.d/10-moos-arm-greeter-gl.conf <<'KWINDROP'
@@ -319,29 +319,15 @@ install -D -m0644 /dev/stdin /etc/modules-load.d/moos-arm-vgem.conf <<'MODLOAD'
 vgem
 MODLOAD
 install -D -m0644 /dev/stdin /etc/udev/rules.d/61-moos-arm-vgem.rules <<'UDEV'
-# The greeter has no interactive seat ACL before authentication. Give its
-# dedicated user group access to the real virtio scanout without opening DRM
-# devices to accounts outside the standard video/render groups.
-SUBSYSTEM=="drm", KERNEL=="card*", GROUP="video", MODE="0660"
-SUBSYSTEM=="drm", KERNEL=="renderD*", GROUP="render", MODE="0660"
-SUBSYSTEM=="drm", KERNEL=="card*", DEVPATH=="/devices/faux/vgem/drm/card*", GROUP="render", MODE="0660"
+# The greeter has no interactive seat ACL before authentication. Its dedicated
+# account owns the real scanout while logind's uaccess ACL still grants the
+# signed-in seat access. vgem has no physical output or display contents; its
+# render/card pair stays available to explicitly started headless Remote users.
+SUBSYSTEM=="drm", KERNEL=="card*", OWNER="plasmalogin", GROUP="video", MODE="0660"
+SUBSYSTEM=="drm", KERNEL=="renderD*", OWNER="plasmalogin", GROUP="render", MODE="0660"
+SUBSYSTEM=="drm", KERNEL=="card*", DEVPATH=="/devices/faux/vgem/drm/card*", OWNER="root", GROUP="render", MODE="0666"
+SUBSYSTEM=="drm", KERNEL=="renderD*", DEVPATH=="/devices/faux/vgem/drm/renderD*", OWNER="root", GROUP="render", MODE="0666"
 UDEV
-_video_gid="$(getent group video | cut -d: -f3)"
-_render_gid="$(getent group render | cut -d: -f3)"
-[ -n "${_video_gid}" ] && [ -n "${_render_gid}" ] \
-    || { echo "FATAL: ARM DRM groups are missing"; exit 1; }
-# bootc keeps package-owned groups in /usr/lib/group. usermod only edits
-# /etc/group, so it can return success without changing an altfiles group.
-# sysusers creates same-GID local overlays and records the supplementary
-# membership in the database NSS actually resolves first.
-install -D -m0644 /dev/stdin /usr/lib/sysusers.d/60-moos-arm-greeter.conf <<SYSUSERS
-g video ${_video_gid}
-g render ${_render_gid}
-m plasmalogin video
-m plasmalogin render
-SYSUSERS
-systemd-sysusers /usr/lib/sysusers.d/60-moos-arm-greeter.conf
-unset -v _video_gid _render_gid
 
 # Defence in depth around the public cloud VM. SSH is the only service exposed
 # by the image. KRDP remains reachable through an SSH tunnel to localhost; this
@@ -1065,7 +1051,7 @@ echo "=== initramfs carries OSTree, virtio and the MoOS splash ==="
 # installer and the two intentionally omitted x86 binaries; it does not weaken
 # the shared session, application, logo or theme identity checks.
 echo "=== (9b) finished-image identity gates ==="
-grep -q 'ExecStartPre=-/usr/libexec/moos-greeter-gl-env' \
+grep -q 'ExecStartPre=/usr/libexec/moos-greeter-gl-env' \
     /usr/lib/systemd/system/plasmalogin.service.d/20-moos-arm-greeter-gl.conf \
     || { echo "GATE FAIL: ARM plasmalogin must run moos-greeter-gl-env before the greeter"; exit 1; }
 grep -q 'LIBGL_ALWAYS_SOFTWARE=1' \
@@ -1092,19 +1078,14 @@ grep -q '/sys/class/drm/card\*-\*/status' /usr/libexec/moos-arm-greeter-kwin \
     && grep -q 'KWIN_DRM_DEVICES="$dri_node"' /usr/libexec/moos-arm-greeter-kwin \
     && grep -q -- '--virtual --width 1920 --height 1080' /usr/libexec/moos-arm-greeter-kwin \
     || { echo "GATE FAIL: ARM greeter must distinguish UTM displays from a headless VPS"; exit 1; }
-_plasmalogin_groups=" $(id -nG plasmalogin) "
-case "${_plasmalogin_groups}" in
-    *' video '*) ;;
-    *) echo "GATE FAIL: ARM login greeter is not in the video group"; exit 1 ;;
-esac
-case "${_plasmalogin_groups}" in
-    *' render '*) ;;
-    *) echo "GATE FAIL: ARM login greeter is not in the render group"; exit 1 ;;
-esac
-unset -v _plasmalogin_groups
-grep -qx 'm plasmalogin video' /usr/lib/sysusers.d/60-moos-arm-greeter.conf \
-    && grep -qx 'm plasmalogin render' /usr/lib/sysusers.d/60-moos-arm-greeter.conf \
-    || { echo "GATE FAIL: ARM greeter DRM membership is not persistent"; exit 1; }
+grep -q 'KERNEL=="card\*", OWNER="plasmalogin", GROUP="video", MODE="0660"' \
+    /etc/udev/rules.d/61-moos-arm-vgem.rules \
+    && grep -q 'KERNEL=="renderD\*", OWNER="plasmalogin", GROUP="render", MODE="0660"' \
+        /etc/udev/rules.d/61-moos-arm-vgem.rules \
+    || { echo "GATE FAIL: ARM greeter does not own its DRM scanout"; exit 1; }
+[ -x /usr/bin/setfacl ] \
+    && grep -q 'setfacl.*u:plasmalogin:rw' /usr/libexec/moos-greeter-gl-env \
+    || { echo "GATE FAIL: ARM greeter DRM ACL fallback is missing"; exit 1; }
 grep -qxF 'vgem' /etc/modules-load.d/moos-arm-vgem.conf \
     || { echo "GATE FAIL: ARM must load vgem for greeter/desktop GL"; exit 1; }
 grep -q 'DefaultDeviceTimeoutSec=120' /etc/systemd/system.conf.d/moos-arm-device-timeout.conf \
