@@ -51,26 +51,43 @@ def frame_metrics(path: Path) -> tuple[float, float, float]:
 
     bytes_per_channel = 1 if maximum < 256 else 2
     stride = 3 * bytes_per_channel
-    pixels = width * height
     payload = data[offset:]
-    expected = pixels * stride
+    expected = width * height * stride
     if len(payload) != expected:
         raise ValueError(f"PPM payload is {len(payload)} bytes; expected {expected}")
+
+    # A mapped GTK capture can include QEMU's own title or menu border. That
+    # bright host chrome plus one hardware cursor made a black ARM guest appear
+    # five-percent visible. Judge the inset guest canvas instead; trimming five
+    # percent keeps 81% of the rendered desktop at every supported resolution.
+    x_margin = max(1, width // 20)
+    y_margin = max(1, height // 20)
+    x_start, x_end = x_margin, width - x_margin
+    y_start, y_end = y_margin, height - y_margin
+    if x_start >= x_end or y_start >= y_end:
+        raise ValueError("visual frame is too small for the inset canvas gate")
 
     total = 0.0
     total_squared = 0.0
     visible = 0
-    for start in range(0, expected, stride):
-        channels = [
-            int.from_bytes(payload[start + index * bytes_per_channel :
-                                   start + (index + 1) * bytes_per_channel], "big")
-            / maximum
-            for index in range(3)
-        ]
-        luminance = 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]
-        total += luminance
-        total_squared += luminance * luminance
-        visible += luminance > 0.02
+    pixels = (x_end - x_start) * (y_end - y_start)
+    for y in range(y_start, y_end):
+        for x in range(x_start, x_end):
+            start = (y * width + x) * stride
+            channels = [
+                int.from_bytes(payload[start + index * bytes_per_channel :
+                                       start + (index + 1) * bytes_per_channel], "big")
+                / maximum
+                for index in range(3)
+            ]
+            luminance = (
+                0.2126 * channels[0]
+                + 0.7152 * channels[1]
+                + 0.0722 * channels[2]
+            )
+            total += luminance
+            total_squared += luminance * luminance
+            visible += luminance > 0.02
 
     mean = total / pixels
     deviation = math.sqrt(max(0.0, total_squared / pixels - mean * mean))

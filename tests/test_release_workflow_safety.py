@@ -730,6 +730,9 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
         self.assertIn("ssh_port = ssh_port_after_reboot", disk)
         install = (ROOT / "tests" / "install_live_iso.sh").read_text(encoding="utf-8")
         self.assertIn('client.sendall(b"system_powerdown\\n")', install)
+        self.assertIn("start_qemu live-install install-2d", install)
+        self.assertIn("start_qemu installed proof-virgl", install)
+        self.assertIn("-device virtio-vga )", install)
 
         for workflow in (DISK_WORKFLOW, ISO_WORKFLOW):
             source = workflow.read_text(encoding="utf-8")

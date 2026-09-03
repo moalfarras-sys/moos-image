@@ -22,6 +22,7 @@ def write_ppm(path: Path, width: int, height: int, pixels: bytes) -> None:
 with tempfile.TemporaryDirectory(prefix="moos-visual-frame-") as tmp:
     root = Path(tmp)
     black_cursor = root / "black-cursor.ppm"
+    chrome_black_cursor = root / "chrome-black-cursor.ppm"
     authored = root / "authored.ppm"
     width = height = 100
     black = bytearray(width * height * 3)
@@ -30,6 +31,12 @@ with tempfile.TemporaryDirectory(prefix="moos-visual-frame-") as tmp:
             start = (y * width + x) * 3
             black[start : start + 3] = b"\xff\xff\xff"
     write_ppm(black_cursor, width, height, bytes(black))
+    chrome = bytearray(black)
+    for y in range(5):
+        for x in range(width):
+            start = (y * width + x) * 3
+            chrome[start : start + 3] = b"\xff\xff\xff"
+    write_ppm(chrome_black_cursor, width, height, bytes(chrome))
     write_ppm(
         authored,
         width,
@@ -46,6 +53,11 @@ with tempfile.TemporaryDirectory(prefix="moos-visual-frame-") as tmp:
     assert authored_visible > 0.90
     assert subprocess.run(
         ["python3", str(ROOT / "tests/assert_visual_frame.py"), str(black_cursor)],
+        capture_output=True,
+        text=True,
+    ).returncode != 0
+    assert subprocess.run(
+        ["python3", str(ROOT / "tests/assert_visual_frame.py"), str(chrome_black_cursor)],
         capture_output=True,
         text=True,
     ).returncode != 0

@@ -75,13 +75,17 @@ serial="$work/serial.log"
 qemu_log="$work/qemu.log"
 monitor="$work/monitor.sock"
 screenshot="$work/graphical.ppm"
+guest_screenshot="$work/graphical-guest.ppm"
 qemu_pid=""
 
 save_evidence() {
     cp "$serial" "$evidence/serial.log" 2>/dev/null || true
     cp "$qemu_log" "$evidence/qemu.log" 2>/dev/null || true
     cp "$screenshot" "$evidence/graphical.ppm" 2>/dev/null || true
+    cp "$guest_screenshot" "$evidence/graphical-guest.ppm" 2>/dev/null || true
     [ -s "$screenshot" ] && convert "$screenshot" "$evidence/graphical.png" 2>/dev/null || true
+    [ -s "$guest_screenshot" ] \
+        && convert "$guest_screenshot" "$evidence/graphical-guest.png" 2>/dev/null || true
     qemu-img info --output=json "$qcow" > "$evidence/qcow2-info.json" 2>/dev/null || true
 }
 stop_qemu() {
@@ -252,6 +256,36 @@ run_runtime_gate() {
     return 1
 }
 
+collect_graphical_diagnostics() {
+    "${ssh_base[@]}" bash -s >"$evidence/graphical-diagnostics.txt" 2>&1 <<'DIAG' || true
+set -u
+echo '=== DRM connectors and nodes ==='
+for status in /sys/class/drm/card*-*/status; do
+    [ -e "$status" ] || continue
+    printf '%s=' "$status"
+    cat "$status" 2>/dev/null || true
+done
+ls -l /dev/dri 2>/dev/null || true
+id plasmalogin || true
+echo '=== login processes ==='
+ps -ww -eo user:24,pid,ppid,args \
+    | grep -E 'plasma-login|kwin_wayland|AccountsService' | grep -v grep || true
+echo '=== login process environments ==='
+for pid in $(pgrep -u plasmalogin -f 'kwin_wayland|plasma-login-greeter|plasma-login-wallpaper' 2>/dev/null); do
+    printf 'pid=%s ' "$pid"
+    tr '\0' '\n' <"/proc/${pid}/environ" 2>/dev/null \
+        | grep -E '^(QT_QUICK_BACKEND|QSG_RHI_BACKEND|WAYLAND_DISPLAY|LIBGL_ALWAYS_SOFTWARE|MESA_LOADER_DRIVER_OVERRIDE|GALLIUM_DRIVER|KWIN_DRM_DEVICES)=' \
+        | tr '\n' ' ' || true
+    printf '\n'
+done
+echo '=== login units ==='
+systemctl --no-pager --full status plasmalogin.service user@"$(id -u plasmalogin)".service || true
+echo '=== greeter journals ==='
+journalctl --no-pager -b -n 500 -u plasmalogin.service \
+    _UID="$(id -u plasmalogin)" || true
+DIAG
+}
+
 if ! run_runtime_gate first; then
     if [ "$visual_hold" = 1 ]; then
         continue_file="$evidence/continue"
@@ -280,6 +314,14 @@ for _ in $(seq 1 60); do [ -S "$monitor" ] && break; sleep 0.25; done
 printf 'sendkey shift\n' | socat - UNIX-CONNECT:"$monitor" >/dev/null
 printf 'sendkey spc\n' | socat - UNIX-CONNECT:"$monitor" >/dev/null
 sleep 5
+collect_graphical_diagnostics
+# The internal framebuffer excludes host window chrome. Keep it alongside the
+# mapped GTK frame and require both: one proves guest scanout, the other proves
+# those pixels reached the display a person would actually see.
+printf 'screendump %s\n' "$guest_screenshot" \
+    | socat - UNIX-CONNECT:"$monitor" >/dev/null
+[ -s "$guest_screenshot" ] \
+    || { echo "ARM BOOT FATAL: guest framebuffer capture is empty" >&2; exit 1; }
 if [ "$display_backend" = gtk ]; then
     xwininfo -display "$DISPLAY" -root -tree >"$evidence/graphical-windows.txt" 2>&1 || true
     window_id=""
@@ -292,9 +334,10 @@ if [ "$display_backend" = gtk ]; then
     [ -n "$window_id" ] || { echo "ARM BOOT FATAL: mapped QEMU GTK window is unavailable" >&2; exit 1; }
     import -silent -display "$DISPLAY" -window "$window_id" "$screenshot"
 else
-    printf 'screendump %s\n' "$screenshot" | socat - UNIX-CONNECT:"$monitor" >/dev/null
+    cp "$guest_screenshot" "$screenshot"
 fi
 [ -s "$screenshot" ] || { echo "ARM BOOT FATAL: graphical PPM evidence is empty" >&2; exit 1; }
+python3 "$script_dir/assert_visual_frame.py" "$guest_screenshot" "ARM guest framebuffer"
 python3 "$script_dir/assert_visual_frame.py" "$screenshot" "ARM QCOW2 login"
 convert "$screenshot" "$evidence/graphical.png"
 

@@ -98,7 +98,27 @@ moos_start_virgl_display "$work" "$evidence"
 
 start_qemu() {
     local phase="$1"
-    shift
+    local graphics="$2"
+    shift 2
+    local -a gpu display
+    case "$graphics" in
+        install-2d)
+            # The visual live boot is proven separately. Keeping VirGL alive
+            # through the long offline copy crashed hosted QEMU in epoxy/EGL,
+            # before QGA could return the install result. The installer phase
+            # needs a stable console; the installed desktop is still VirGL.
+            gpu=( -device virtio-vga )
+            display=( -display gtk,gl=off,show-menubar=off,show-tabs=off,window-close=off )
+            ;;
+        proof-virgl)
+            gpu=( -device virtio-vga-gl )
+            display=( -display gtk,gl=on,show-menubar=off,show-tabs=off,window-close=off )
+            ;;
+        *)
+            echo "ISO INSTALL FATAL: unknown QEMU graphics phase: $graphics" >&2
+            return 2
+            ;;
+    esac
     qga="$work/qga.sock"
     monitor="$work/monitor.sock"
     rm -f "$qga" "$monitor"
@@ -111,7 +131,7 @@ start_qemu() {
         -drive "if=pflash,format=raw,file=$work/vars.fd" \
         -drive "file=$work/installed.qcow2,format=qcow2,if=virtio,cache=unsafe" \
         "$@" \
-        -device virtio-vga-gl \
+        "${gpu[@]}" \
         -netdev "user,id=n0,hostfwd=tcp:127.0.0.1:${ssh_port}-:22" \
         -device virtio-net-pci,netdev=n0 \
         -device virtio-serial-pci \
@@ -119,7 +139,7 @@ start_qemu() {
         -device virtserialport,chardev=qga0,name=org.qemu.guest_agent.0 \
         -monitor "unix:$monitor,server=on,wait=off" \
         -serial "file:$evidence/serial-${phase}.log" \
-        -display gtk,gl=on,show-menubar=off,show-tabs=off,window-close=off \
+        "${display[@]}" \
         >"$evidence/qemu-${phase}.log" 2>&1 &
     qemu_pid=$!
 }
@@ -155,7 +175,7 @@ PY
 # First boot: the network device exists so the installed OS can be tested later,
 # but NetworkManager is stopped before the installer starts. Success therefore
 # proves the exact embedded containers-storage image, not a registry fallback.
-start_qemu live-install \
+start_qemu live-install install-2d \
     -drive "file=$iso,media=cdrom,format=raw,readonly=on" -boot order=d
 
 python3 - "$qga" "$qemu_pid" "$expected_ref" "$test_password" "$evidence" \
@@ -345,7 +365,7 @@ wait_for_poweroff "live installer"
 
 # Second phase has NO CD-ROM argument. If the target depends on the ISO, QEMU
 # cannot hide that by choosing the live medium again.
-start_qemu installed -boot order=c
+start_qemu installed proof-virgl -boot order=c
 
 python3 - "$qga" "$monitor" "$qemu_pid" "$expected_ref" "$test_password" "$evidence" \
     "$ssh_key" "$ssh_port" <<'PY'

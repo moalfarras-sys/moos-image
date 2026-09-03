@@ -610,8 +610,19 @@ install -D -m0644 /dev/stdin /etc/modules-load.d/moos-arm-vgem.conf <<'MODLOAD'
 vgem
 MODLOAD
 install -D -m0644 /dev/stdin /etc/udev/rules.d/61-moos-arm-vgem.rules <<'UDEV'
+# The greeter has no interactive seat ACL before authentication. Give its
+# dedicated user group access to the real virtio scanout without opening DRM
+# devices to accounts outside the standard video/render groups.
+SUBSYSTEM=="drm", KERNEL=="card*", GROUP="video", MODE="0660"
+SUBSYSTEM=="drm", KERNEL=="renderD*", GROUP="render", MODE="0660"
 SUBSYSTEM=="drm", KERNEL=="card*", DEVPATH=="/devices/faux/vgem/drm/card*", GROUP="render", MODE="0660"
 UDEV
+for _group in video render; do
+    getent group "${_group}" >/dev/null 2>&1 \
+        || { echo "FATAL: ARM DRM group ${_group} is missing"; exit 1; }
+    usermod -aG "${_group}" plasmalogin
+done
+unset -v _group
 udevadm control --reload-rules
 udevadm trigger --subsystem-match=drm --action=change
 
@@ -1067,9 +1078,13 @@ grep -q 'ExecStart=/usr/libexec/moos-arm-greeter-kwin' \
     /usr/lib/systemd/user/plasma-login-kwin_wayland.service.d/10-moos-arm-greeter-gl.conf \
     || { echo "GATE FAIL: ARM display-aware greeter launcher is missing"; exit 1; }
 grep -q '/sys/class/drm/card\*-\*/status' /usr/libexec/moos-arm-greeter-kwin \
+    && grep -q '\[ -r "$dri_node" \].*\[ -w "$dri_node" \]' /usr/libexec/moos-arm-greeter-kwin \
     && grep -q 'KWIN_DRM_DEVICES="$dri_node"' /usr/libexec/moos-arm-greeter-kwin \
     && grep -q -- '--virtual --width 1920 --height 1080' /usr/libexec/moos-arm-greeter-kwin \
     || { echo "GATE FAIL: ARM greeter must distinguish UTM displays from a headless VPS"; exit 1; }
+id -nG plasmalogin | grep -qw video \
+    && id -nG plasmalogin | grep -qw render \
+    || { echo "GATE FAIL: ARM login greeter cannot open the virtio DRM nodes"; exit 1; }
 grep -qxF 'vgem' /etc/modules-load.d/moos-arm-vgem.conf \
     || { echo "GATE FAIL: ARM must load vgem for greeter/desktop GL"; exit 1; }
 grep -q 'DefaultDeviceTimeoutSec=120' /etc/systemd/system.conf.d/moos-arm-device-timeout.conf \

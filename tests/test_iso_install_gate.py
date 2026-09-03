@@ -16,7 +16,8 @@ required_script = (
     "source: local containers-storage (offline)",
     "install-source-digest",
     "/usr/bin/moos-install-to-disk",
-    "start_qemu installed -boot order=c",
+    "start_qemu live-install install-2d",
+    "start_qemu installed proof-virgl -boot order=c",
     "! grep -qw rd.live.image /proc/cmdline",
     "ostree-image-signed:docker://${expected}",
     'hmp(["sendkey shift"])',
@@ -53,7 +54,7 @@ assert "ConditionPathExists=|/home/moosci/.ssh/authorized_keys" in proof_unit
 
 # The installed QEMU command is deliberately constructed without the ISO. A
 # future refactor must not make the second boot silently fall back to the LiveOS.
-installed_start = script.index("start_qemu installed -boot order=c")
+installed_start = script.index("start_qemu installed proof-virgl -boot order=c")
 installed_python = script.index('python3 - "$qga" "$monitor"', installed_start)
 assert "media=cdrom" not in script[installed_start:installed_python]
 

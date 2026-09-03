@@ -20,10 +20,10 @@ for _attempt in $(seq 1 50); do
         connector="${connector##*/}"
         card="${connector%%-*}"
         dri_node="/dev/dri/${card}"
-        if [ -e "$dri_node" ]; then
+        if [ -r "$dri_node" ] && [ -w "$dri_node" ]; then
             export KWIN_DRM_DEVICES="$dri_node"
+            exec /usr/bin/kwin_wayland "${kwin_args[@]}"
         fi
-        exec /usr/bin/kwin_wayland "${kwin_args[@]}"
     done
     sleep 0.1
 done

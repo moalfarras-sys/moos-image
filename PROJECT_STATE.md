@@ -75,9 +75,29 @@ only on a truly display-less VPS.
 Shim's UTF-16 fallback CSV owns the firmware's visible boot-entry label. One shared build helper now
 decodes every shipped `BOOT*.CSV` for both x86 and ARM, rewrites the presentation label to MoOS and
 fails if the legacy label survives; signed loader paths and required vendor directories remain
-untouched. The GPU selection, visible-pixel gates, independent reboot transport, clean ACPI
-fallback, ARM DRM attachment and firmware-label seal require one fresh same-SHA build, disk and ISO
-evidence set before promotion.
+untouched.
+
+Candidate `4549641c` then built and signed all x86 editions in run `33764283217`.
+Its exact generic, Cloud and NVIDIA disks passed two boots, zero failed units and
+clean poweroff in runs `33766163439`, `33766166166` and `33766715929`; their mapped
+frames were inspected and show the MoOS greeter. ARM run `33764287001` passed its
+runtime and packaging gates, but human inspection rejected its captured frame: the
+guest area was black with only a cursor while QEMU's bright 25-pixel menu bar made
+the whole-window visible-pixel score read 5%. The shared frame gate now measures an
+inset canvas, ARM preserves both the guest framebuffer and mapped window, and its
+proof always records DRM, process, environment and greeter-journal diagnostics.
+The selectively recovered DRM launcher had also outlived a temporary
+`virtio-ramfb` experiment that removed the login user's video/render access; the
+standard-QEMU proof uses `virtio-gpu`, so current source restores bounded group
+access and refuses to launch KWin until that exact scanout is readable and writable.
+
+The same candidate's final ISO booted visually, but install run `33766199203`
+ended when hosted QEMU itself asserted in epoxy after repeated EGL context loss
+during the long offline copy. The installer did not report a product error. Current
+source uses stable virtio 2D only for that nonvisual copy phase; the independent
+LiveOS proof and the installed-system login/application proof remain VirGL mapped
+captures. These ARM and ISO corrections require a new same-SHA full matrix before
+promotion.
 
 The ARM compose failure from run `33689074450` is closed: local `containers-storage` is allowed
 only for composition while the registry path remains exact `sigstoreSigned`; both policy halves

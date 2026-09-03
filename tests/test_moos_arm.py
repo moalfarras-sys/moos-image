@@ -298,8 +298,12 @@ class ArmEditionTests(unittest.TestCase):
         self.assertIn("ExecStart=/usr/libexec/moos-arm-greeter-kwin", build)
         self.assertIn("/sys/class/drm/card*-*/status", launcher)
         self.assertIn('KWIN_DRM_DEVICES="$dri_node"', launcher)
+        self.assertIn('[ -r "$dri_node" ] && [ -w "$dri_node" ]', launcher,
+                      "KWin must wait until plasmalogin can open the scanout")
         self.assertIn("--virtual --width 1920 --height 1080", launcher)
         self.assertIn("QT_QUICK_BACKEND=software", build)
+        self.assertIn('usermod -aG "${_group}" plasmalogin', build,
+                      "the greeter needs bounded video/render group access")
 
     def test_the_new_workflow_can_prove_a_feature_branch(self) -> None:
         text = read(WORKFLOW)
