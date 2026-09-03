@@ -340,6 +340,11 @@ for entry in entries:
 INNER
 sync -f "$proof_home/.ssh/authorized_keys"
 umount "$proof_root"
+# The host may stop this LiveOS immediately after the proof completes. Require
+# every target filesystem to be detached and flush all guest writes first; the
+# next phase must see only an independently bootable disk.
+! findmnt -rn -o SOURCE | grep -qE '^/dev/vda([0-9]+)?(\[|$)'
+sync
 lsblk -nrpo NAME,FSTYPE,PARTLABEL "$node"
 printf 'install=done\nsource=embedded-offline\nnetwork=disabled\ntarget=%s\nci-proof=ephemeral-ssh\n' "$node"
 '''
@@ -355,10 +360,30 @@ for guest_path, host_name in (
     code, out, err = exec_wait("cat -- \"$1\"", [guest_path], 30)
     (evidence / host_name).write_text(out + ("\n=== stderr ===\n" + err if err else ""))
 
+# Live media can carry a desktop-session inhibitor that ignores QGA's generic
+# shutdown request and the emulated ACPI button. Ask systemd directly after the
+# target is proven unmounted. guest-exec returns the PID before systemd tears
+# down QGA, so the host can distinguish a delivered request from a lost socket.
 try:
-    request({"execute": "guest-shutdown", "arguments": {"mode": "powerdown"}}, timeout=3)
-except (OSError, RuntimeError, socket.timeout):
-    pass
+    poweroff = request({
+        "execute": "guest-exec",
+        "arguments": {
+            "path": "/usr/bin/systemctl",
+            "arg": ["poweroff", "--no-wall", "--no-block"],
+            "capture-output": False,
+        },
+    }, timeout=5)
+    (evidence / "live-poweroff-request.txt").write_text(
+        f"method=systemctl\npid={poweroff.get('pid', '')}\n", encoding="utf-8"
+    )
+except (OSError, RuntimeError, socket.timeout) as error:
+    (evidence / "live-poweroff-request.txt").write_text(
+        f"method=qga-fallback\nerror={error}\n", encoding="utf-8"
+    )
+    try:
+        request({"execute": "guest-shutdown", "arguments": {"mode": "powerdown"}}, timeout=3)
+    except (OSError, RuntimeError, socket.timeout):
+        pass
 PY
 
 wait_for_poweroff "live installer"

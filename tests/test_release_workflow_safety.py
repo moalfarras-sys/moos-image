@@ -733,6 +733,8 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
         self.assertIn("start_qemu live-install install-2d", install)
         self.assertIn("start_qemu installed proof-virgl", install)
         self.assertIn("-device virtio-vga )", install)
+        self.assertIn("! findmnt -rn -o SOURCE | grep -qE '^/dev/vda", install)
+        self.assertIn('["poweroff", "--no-wall", "--no-block"]', install)
 
         for workflow in (DISK_WORKFLOW, ISO_WORKFLOW):
             source = workflow.read_text(encoding="utf-8")

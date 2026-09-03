@@ -104,12 +104,24 @@ the standard groups and logind ACLs, and the root pre-greeter helper applies a
 user-specific ACL as a bounded fallback. vgem's display-less nodes remain available
 to the explicitly started cloud Remote session.
 
-The same candidate's final ISO booted visually, but install run `33766199203`
+Candidate `70b7d438` later proved the corrected ARM disk in run `33779520543`:
+both internal guest scanout and the mapped QEMU window show the authored MoOS
+greeter, two boot IDs differ, and both boots report zero failed units. Exact
+generic and Cloud x86 disks passed the same two-boot contract in `33782226458`
+and `33782228825`; NVIDIA's first proof hit a host Xvfb startup race before QEMU
+opened and its unchanged-digest retry is `33785511871`.
+
+The earlier candidate's final ISO booted visually, but install run `33766199203`
 ended when hosted QEMU itself asserted in epoxy after repeated EGL context loss
 during the long offline copy. The installer did not report a product error. Current
 source uses stable virtio 2D only for that nonvisual copy phase; the independent
 LiveOS proof and the installed-system login/application proof remain VirGL mapped
-captures. These ARM and ISO corrections require a new same-SHA full matrix before
+captures. Run `33782234413` then completed that offline installation through 100%,
+including EFI registration, signed-origin repair, target trim, sync and unmount,
+but the LiveOS desktop session ignored both QGA's generic shutdown and an ACPI
+button for 180 seconds. The gate now proves every target filesystem is detached,
+flushes guest writes, and asks systemd directly through QGA before retaining the
+same ACPI fallback. This correction requires one new same-SHA full matrix before
 promotion.
 
 The ARM compose failure from run `33689074450` is closed: local `containers-storage` is allowed
