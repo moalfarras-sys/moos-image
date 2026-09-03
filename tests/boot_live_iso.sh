@@ -70,6 +70,7 @@ moos_start_virgl_display "$work" "$evidence"
 # device falls back to nested guest llvmpipe and is unstable with the current
 # image's Mesa stack under TCG.
 LIBGL_ALWAYS_SOFTWARE=1 qemu-system-x86_64 \
+    -name "$MOOS_QEMU_WINDOW_TITLE" \
     -machine q35,accel=kvm -cpu host -m 4096 -smp 2 \
     -drive "if=pflash,format=raw,readonly=on,file=$ovmf_code" \
     -drive "if=pflash,format=raw,file=$work/vars.fd" \
@@ -266,6 +267,10 @@ else:
     raise SystemExit("ISO BOOT FATAL: QGA runtime gate timed out")
 PY
 
+# A healthy greeter may have blanked after the runtime gate's stability wait.
+# Wake it through the VM monitor before recording the pixels a person receives.
+printf 'sendkey shift\n' | socat - UNIX-CONNECT:"$monitor" >/dev/null 2>&1
+sleep 2
 moos_capture_virgl_display "$evidence/graphical.ppm"
 [ -s "$evidence/graphical.ppm" ] \
     || { echo "ISO BOOT FATAL: mapped GTK display capture is empty" >&2; exit 1; }

@@ -5715,6 +5715,15 @@ _fb_unit = code(read("system_files/usr/lib/systemd/system/moos-firstboot.service
 require("sddm" not in _fb_unit.lower(),
         "moos-firstboot.service still orders against retired SDDM")
 
+_build = code(read("build_files/build.sh"), "hash")
+require('rglob("BOOT*.CSV")' in _build
+        and 're.sub(re.escape(legacy), "MoOS", text, flags=re.IGNORECASE)' in _build
+        and "foreign firmware label survived" in _build,
+        "shim's UTF-16 fallback CSV must register MoOS, not a foreign UEFI label")
+require("nvidia-cdi-refresh.service.d/10-moos-device.conf" in _build
+        and "ConditionPathExists=/dev/nvidiactl" in _build,
+        "the NVIDIA CDI generator must skip cleanly when no NVIDIA device exists")
+
 # #25 moos-hardware-adapt must APPLY the sysctl it writes (daemon-reload does not).
 _hw = code(read("system_files/usr/libexec/moos-hardware-adapt"), "hash")
 require(re.search(r"90-moos-hardware\.conf.*?sysctl --system", _hw, re.DOTALL) is not None,

@@ -20,7 +20,7 @@ evidence="${3:-}"
 [[ "$expected_ref" =~ ^ghcr\.io/moalfarras-sys/(moos|moos-nvidia)@sha256:[0-9a-f]{64}$ ]] \
     || { echo "ISO INSTALL FATAL: expected image ref is not an exact official digest" >&2; exit 2; }
 [ -n "$evidence" ] || { echo "ISO INSTALL FATAL: evidence directory is required" >&2; exit 2; }
-for tool in qemu-img qemu-system-x86_64 sha256sum socat python3; do
+for tool in qemu-img qemu-system-x86_64 sha256sum socat python3 ssh ssh-keygen; do
     command -v "$tool" >/dev/null \
         || { echo "ISO INSTALL FATAL: missing host tool: $tool" >&2; exit 2; }
 done
@@ -79,6 +79,17 @@ alphabet = string.ascii_lowercase + string.digits
 print("".join(secrets.choice(alphabet) for _ in range(20)))
 PY
 )"
+ssh_key="$work/moos-iso-ci-key"
+ssh-keygen -q -t ed25519 -N '' -C moos-ci-runtime-proof -f "$ssh_key"
+chmod 0600 "$ssh_key"
+ssh_public_key="$(cat "$ssh_key.pub")"
+ssh_port="$(python3 - <<'PY'
+import socket
+with socket.socket() as sock:
+    sock.bind(("127.0.0.1", 0))
+    print(sock.getsockname()[1])
+PY
+)"
 printf 'iso=%s\nsha256=%s\nimage=%s\novmf=%s\ntarget-size=36G\nnetwork-during-install=disabled\n' \
     "$iso" "$before_sha" "$expected_ref" "$ovmf_code" > "$evidence/manifest.txt"
 
@@ -94,13 +105,15 @@ start_qemu() {
     # VirGL keeps both the live and installed compositors on the same real 3D
     # guest path while Xvfb captures the mapped GTK pixels users would see.
     LIBGL_ALWAYS_SOFTWARE=1 qemu-system-x86_64 \
+        -name "$MOOS_QEMU_WINDOW_TITLE" \
         -machine q35,accel=kvm -cpu host -m 4096 -smp 2 \
         -drive "if=pflash,format=raw,readonly=on,file=$ovmf_code" \
         -drive "if=pflash,format=raw,file=$work/vars.fd" \
         -drive "file=$work/installed.qcow2,format=qcow2,if=virtio,cache=unsafe" \
         "$@" \
         -device virtio-vga-gl \
-        -netdev user,id=n0 -device virtio-net-pci,netdev=n0 \
+        -netdev "user,id=n0,hostfwd=tcp:127.0.0.1:${ssh_port}-:22" \
+        -device virtio-net-pci,netdev=n0 \
         -device virtio-serial-pci \
         -chardev "socket,path=$qga,server=on,wait=off,id=qga0" \
         -device virtserialport,chardev=qga0,name=org.qemu.guest_agent.0 \
@@ -131,17 +144,17 @@ wait_for_poweroff() {
 start_qemu live-install \
     -drive "file=$iso,media=cdrom,format=raw,readonly=on" -boot order=d
 
-python3 - "$qga" "$qemu_pid" "$expected_ref" "$test_password" "$evidence" <<'PY'
+python3 - "$qga" "$qemu_pid" "$expected_ref" "$test_password" "$evidence" \
+    "$ssh_public_key" <<'PY'
 import base64
 import json
 import os
 from pathlib import Path
 import socket
-import subprocess
 import sys
 import time
 
-qga, qemu_pid, expected, password, evidence_arg = sys.argv[1:]
+qga, qemu_pid, expected, password, evidence_arg, proof_key = sys.argv[1:]
 qemu_pid = int(qemu_pid)
 evidence = Path(evidence_arg)
 
@@ -216,6 +229,7 @@ install = r'''
 set -euo pipefail
 expected="$1"
 password="$2"
+proof_key="$3"
 grep -qw rd.live.image /proc/cmdline
 node=/dev/vda
 [ -b "$node" ]
@@ -249,10 +263,53 @@ grep -qx DONE "$cache/install.status"
 grep -Fq 'source: local containers-storage (offline)' /tmp/moos-install-to-disk.log
 ! grep -Fq 'source: registry (online)' /tmp/moos-install-to-disk.log
 [ ! -e "$cache/recipe.json" ]
+
+# Add a one-boot CI access fixture to this disposable target only. The shipped
+# image keeps this unit disabled and requires all three markers: VM, kernel
+# argument, and an ephemeral key carrying the explicit proof comment.
+root_part="$(lsblk -nrpo NAME,FSTYPE "$node" | awk '$2=="btrfs" {print $1; exit}')"
+[ -n "$root_part" ]
+proof_root=/run/moos-iso-ci-target
+install -d -m0755 "$proof_root"
+mount -o subvol=root "$root_part" "$proof_root"
+proof_home="$proof_root/var/home/moosci"
+install -d -m0700 "$proof_home/.ssh"
+printf '%s\n' "$proof_key" > "$proof_home/.ssh/authorized_keys"
+chmod 0600 "$proof_home/.ssh/authorized_keys"
+chown -R 1000:1000 "$proof_home"
+deployment="$(find "$proof_root/ostree/deploy" -mindepth 3 -maxdepth 3 \
+    -type d -name '*.0' -print -quit)"
+[ -n "$deployment" ]
+wants="$deployment/etc/systemd/system/multi-user.target.wants"
+install -d -m0755 "$wants"
+ln -s /usr/lib/systemd/system/moos-ci-runtime-proof.service \
+    "$wants/moos-ci-runtime-proof.service"
+python3 - "$proof_root" <<'INNER'
+from pathlib import Path
+import sys
+
+root = Path(sys.argv[1])
+entries = sorted(root.glob("boot/loader*/entries/*.conf"))
+if not entries:
+    raise SystemExit("no installed BLS entry for the ISO CI proof marker")
+for entry in entries:
+    lines = entry.read_text(encoding="utf-8").splitlines()
+    indexes = [i for i, line in enumerate(lines) if line.startswith("options ")]
+    if len(indexes) != 1:
+        raise SystemExit(f"invalid BLS options in {entry}")
+    index = indexes[0]
+    options = lines[index].split()[1:]
+    if "moos.ci-runtime-proof=1" not in options:
+        options.append("moos.ci-runtime-proof=1")
+    lines[index] = "options " + " ".join(options)
+    entry.write_text("\n".join(lines) + "\n", encoding="utf-8")
+INNER
+sync -f "$proof_home/.ssh/authorized_keys"
+umount "$proof_root"
 lsblk -nrpo NAME,FSTYPE,PARTLABEL "$node"
-printf 'install=done\nsource=embedded-offline\nnetwork=disabled\ntarget=%s\n' "$node"
+printf 'install=done\nsource=embedded-offline\nnetwork=disabled\ntarget=%s\nci-proof=ephemeral-ssh\n' "$node"
 '''
-code, out, err = exec_wait(install, [expected, password], 2700)
+code, out, err = exec_wait(install, [expected, password, proof_key], 2700)
 (evidence / "install.status").write_text(out + ("\n=== stderr ===\n" + err if err else ""))
 if code != 0:
     raise SystemExit(f"ISO INSTALL FATAL: installer gate exited {code}: {err or out}")
@@ -276,16 +333,19 @@ wait_for_poweroff "live installer"
 # cannot hide that by choosing the live medium again.
 start_qemu installed -boot order=c
 
-python3 - "$qga" "$monitor" "$qemu_pid" "$expected_ref" "$test_password" "$evidence" <<'PY'
+python3 - "$qga" "$monitor" "$qemu_pid" "$expected_ref" "$test_password" "$evidence" \
+    "$ssh_key" "$ssh_port" <<'PY'
 import base64
 import json
 import os
 from pathlib import Path
+import re
 import socket
+import subprocess
 import sys
 import time
 
-qga, monitor, qemu_pid, expected, password, evidence_arg = sys.argv[1:]
+qga, monitor, qemu_pid, expected, password, evidence_arg, ssh_key, ssh_port = sys.argv[1:]
 qemu_pid = int(qemu_pid)
 evidence = Path(evidence_arg)
 
@@ -334,32 +394,26 @@ def wait_qga(seconds=1000):
     raise SystemExit(f"ISO INSTALL FATAL: installed QGA timeout: {last}")
 
 
-def exec_wait(script, args=(), timeout=180):
-    started = request({
-        "execute": "guest-exec",
-        "arguments": {
-            "path": "/usr/bin/bash",
-            "arg": ["-lc", script, "--", *args],
-            "capture-output": True,
-        },
-    })
-    pid = started["pid"]
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        status = request({"execute": "guest-exec-status", "arguments": {"pid": pid}})
-        if status.get("exited"):
-            out = base64.b64decode(status.get("out-data", "")).decode(errors="replace")
-            err = base64.b64decode(status.get("err-data", "")).decode(errors="replace")
-            return status.get("exitcode", 1), out, err
-        time.sleep(2)
-    return 124, "", "guest command timed out"
+def ssh_exec(script, args=(), timeout=180):
+    command = [
+        "ssh", "-i", ssh_key, "-p", ssh_port,
+        "-o", "BatchMode=yes", "-o", "IdentitiesOnly=yes",
+        "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null",
+        "-o", "LogLevel=ERROR", "-o", "ConnectTimeout=10",
+        "moosci@127.0.0.1", "/usr/bin/bash", "-s", "--", *args,
+    ]
+    completed = subprocess.run(
+        command, input=script, text=True, capture_output=True,
+        timeout=timeout, check=False,
+    )
+    return completed.returncode, completed.stdout, completed.stderr
 
 
 def gate_until(script, args, seconds, label):
     deadline = time.monotonic() + seconds
     last = "not run"
     while time.monotonic() < deadline:
-        code, out, err = exec_wait(script, args, 60)
+        code, out, err = ssh_exec(script, args, 60)
         if code == 0:
             return out
         last = err or out or f"exit {code}"
@@ -378,14 +432,28 @@ def hmp(commands):
 def capture(path):
     log = evidence / f"{path.stem}-capture.log"
     windows = evidence / f"{path.stem}-windows.txt"
+    hmp(["sendkey shift"])
+    time.sleep(2)
     tree = subprocess.run(
         ["xwininfo", "-display", os.environ["DISPLAY"], "-root", "-tree"],
         text=True, capture_output=True, check=False,
     )
     windows.write_text(tree.stdout + tree.stderr, encoding="utf-8")
+    window = subprocess.run(
+        ["xwininfo", "-display", os.environ["DISPLAY"], "-name",
+         os.environ["MOOS_QEMU_WINDOW_TITLE"], "-int"],
+        text=True, capture_output=True, check=False,
+    )
+    match = re.search(r"Window id:\s+(\d+)", window.stdout)
+    if window.returncode != 0 or not match:
+        log.write_text(
+            f"xwininfo rc={window.returncode}\n{window.stdout}{window.stderr}",
+            encoding="utf-8",
+        )
+        raise SystemExit(f"ISO INSTALL FATAL: QEMU window was not found: {path.name}")
     result = subprocess.run(
         ["import", "-silent", "-display", os.environ["DISPLAY"],
-         "-window", "root", str(path)],
+         "-window", match.group(1), str(path)],
         text=True, capture_output=True, timeout=30, check=False,
     )
     log.write_text(
@@ -431,13 +499,15 @@ hmp([*(f"sendkey {char}" for char in password), "sendkey ret"])
 
 desktop = r'''
 set -euo pipefail
-uid="$(id -u moosci)"
+user="$(id -un)"
+[ "$user" = moosci ]
+uid="$(id -u)"
 pgrep -u "$uid" -x kwin_wayland
 pgrep -u "$uid" -x plasmashell
-runuser -u moosci -- env XDG_RUNTIME_DIR="/run/user/${uid}" \
+env XDG_RUNTIME_DIR="/run/user/${uid}" \
     DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${uid}/bus" \
     systemctl --user is-active plasma-workspace.target
-user_failed="$(runuser -u moosci -- env XDG_RUNTIME_DIR="/run/user/${uid}" \
+user_failed="$(env XDG_RUNTIME_DIR="/run/user/${uid}" \
     DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${uid}/bus" \
     systemctl --user --failed --no-legend --plain)"
 [ -z "$user_failed" ]
@@ -453,7 +523,7 @@ shift
 uid="$(id -u moosci)"
 runtime="/run/user/${uid}"
 as_user() {
-    runuser -u moosci -- env HOME=/var/home/moosci XDG_RUNTIME_DIR="$runtime" \
+    env HOME=/var/home/moosci XDG_RUNTIME_DIR="$runtime" \
         DBUS_SESSION_BUS_ADDRESS="unix:path=${runtime}/bus" "$@"
 }
 opened="$(as_user moai-open "$@")"
@@ -475,7 +545,7 @@ unit="$1"
 uid="$(id -u moosci)"
 runtime="/run/user/${uid}"
 for _ in $(seq 1 45); do
-    if ! runuser -u moosci -- env HOME=/var/home/moosci XDG_RUNTIME_DIR="$runtime" \
+    if ! env HOME=/var/home/moosci XDG_RUNTIME_DIR="$runtime" \
         DBUS_SESSION_BUS_ADDRESS="unix:path=${runtime}/bus" \
         systemctl --user is-active --quiet "$unit"; then
         exit 0
@@ -523,9 +593,9 @@ for label, executable in app_specs:
 
 user_health = r'''
 set -euo pipefail
-uid="$(id -u moosci)"
+uid="$(id -u)"
 runtime="/run/user/${uid}"
-failed="$(runuser -u moosci -- env XDG_RUNTIME_DIR="$runtime" \
+failed="$(env XDG_RUNTIME_DIR="$runtime" \
     DBUS_SESSION_BUS_ADDRESS="unix:path=${runtime}/bus" \
     systemctl --user --failed --no-legend --plain)"
 [ -z "$failed" ]
@@ -533,7 +603,7 @@ failed="$(runuser -u moosci -- env XDG_RUNTIME_DIR="$runtime" \
 gate_until(user_health, [], 60, "first-party app smoke left failed user units")
 (evidence / "app-smoke.txt").write_text("\n".join(app_proof) + "\n")
 
-code, boot_id, error = exec_wait("cat /proc/sys/kernel/random/boot_id")
+code, boot_id, error = ssh_exec("cat /proc/sys/kernel/random/boot_id")
 if code != 0:
     raise SystemExit(f"ISO INSTALL FATAL: cannot read first boot id: {error}")
 boot_id = boot_id.strip()
@@ -550,7 +620,7 @@ while time.monotonic() < deadline:
         raise SystemExit("ISO INSTALL FATAL: QEMU exited during installed reboot")
     try:
         request({"execute": "guest-ping"})
-        code, current, _ = exec_wait("cat /proc/sys/kernel/random/boot_id", timeout=20)
+        code, current, _ = ssh_exec("cat /proc/sys/kernel/random/boot_id", timeout=20)
         if code == 0 and current.strip() and current.strip() != boot_id:
             break
     except (OSError, ValueError, RuntimeError):

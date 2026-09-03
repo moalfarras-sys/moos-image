@@ -4,8 +4,8 @@ This file is current state, not session history. Git history owns the history.
 When documentation disagrees with a running machine, a freshly booted artifact,
 or current source, those stronger forms of evidence win.
 
-Last reconciled: **2026-09-03 (artifact pipeline repair)** — latest source
-branch plus live host checks on `moos-arm-oracle`.
+Last reconciled: **2026-09-03 (release boot proof hardening)** — latest source
+branch, signed CI artifacts, and live host checks on `moos-arm-oracle`.
 
 ### Branch reconciliation (2026-09-02)
 
@@ -30,36 +30,42 @@ boundary test rejects either metadata or package-signature verification being di
 before the candidate is proven and set `MOOS_ARM_SKIP_VISUAL_GATE=1`; the current workflow keeps
 the signed-digest and visual-proof ordering. This is an audited rejection, not unfinished work.
 
-The first VirGL x86 disk proof (run `33686491949`) fixed the graphics failure: the guest exposed
-a connected virtio DRM output and Plasma Login Manager ran `kwin_wayland`, its greeter, wallpaper
-and keyboard. It then correctly failed the zero-failed-units gate because TCG software CPU
-emulation made six services hit real systemd wall-clock deadlines. The release scripts now require
-KVM plus VirGL and record both host accelerator and OpenGL evidence; they never silently fall back
-to TCG. A fresh signed-artifact run is still required before this closes the x86 release blocker.
+The release candidate at `eb9c39b9` completed the full image matrix. Run `33712328521` built and
+signed generic, NVIDIA and Cloud x86 images plus the Windows Remote agent. ARM run `33712330131`
+built and signed the native image, composed main and recovery QCOW2 artifacts, completed two UEFI
+boots, captured a nonblank graphical frame, grew the disk and reported zero failed units. The PR
+ARM and code-review checks (`33712332983`, `33712333051`) also passed.
 
-The next exact Cloud disk proof (run `33709949847`) confirmed that hardware acceleration fixed
-the false system-health failures: the signed deployment reached Plasma Login Manager in about a
-minute with network, QGA, the expected digest, seven first-party commands and zero failed units.
-Its final visual capture alone failed because QEMU monitor `screendump` cannot read the VirGL
-dmabuf scanout. All x86 visual gates now capture the mapped QEMU GTK window from their private
-Xvfb display instead. That is the actual presented pixel surface and also detects a host-side
-presentation failure; window-tree and capture diagnostics travel with each frame. A new artifact
-run must prove this capture path before x86 promotion.
+The exact Cloud disk proof (`33713452606`) then passed KVM + VirGL boot, signed-origin, network,
+greeter, zero-failed-unit, reboot, second-boot and poweroff checks. It proved that capturing the
+mapped GTK presentation avoids QEMU monitor's inability to read a VirGL dmabuf. The next generic
+run (`33713587368`) exposed two remaining weaknesses in that capture rather than in MoOS: it
+captured the whole 1600x1000 Xvfb root around a 640x505 QEMU window, and the greeter blanked before
+the second frame. The gate now gives QEMU a unique title, captures that exact window, and wakes the
+display before both frames.
 
-The same monitor limitation was independently reproduced by the signed generic disk
-(`33710262874`) and the exact offline Live ISO (`33710264325`): both reached their complete
-runtime gates with zero failed units, and only monitor capture failed. The replacement
-ImageMagick/Xvfb root-window command was also executed in an isolated Ubuntu 24.04 environment
-and produced the expected 800x500 PPM. This validates the capture primitive, not the final MoOS
-frame; fresh workflow evidence remains mandatory.
+NVIDIA disk run `33713695723` reached the real Plasma Login Manager with its expected signed
+origin, then correctly rejected two failed units. The failure was the toolkit's
+`nvidia-cdi-refresh` path repeatedly running without any NVIDIA device in the proof VM. Its service
+now has `ConditionPathExists=/dev/nvidiactl`: disconnected eGPU, hybrid-disabled and VM boots skip
+cleanly, while a real NVIDIA device still triggers CDI generation.
 
-The first full ARM dispatch after reconciliation (run `33689074450`) built, pushed, signed and
-verified the native aarch64 image. QCOW2 composition then exposed a policy boundary that source
-gates could not: `bootc-image-builder` imports its already-pulled candidate through a private
-root `containers-storage`, which has no registry-side sigstore attachment, and the image's
-fail-closed default rejected that local import. The policy now permits only the local
-`containers-storage` transport while preserving an exact digest-pinned `sigstoreSigned` rule for
-`ghcr.io/moalfarras-sys`; runtime gates assert both halves. Fresh disk proof is still required.
+ISO run `33713588792` proved the final LiveOS and completed the exact offline install to a blank
+disk, including the Btrfs finalizer and MoOS UEFI registration. Its installed-system inspection
+then hit SELinux's deliberate QEMU Guest Agent D-Bus confinement (`Access denied`) while asking
+systemd for unit state. The proof now injects a random, marker-bound SSH key only into its
+disposable target and runs installed runtime/app checks through that actual userspace. The shipped
+unit remains disabled and additionally requires virtualization plus a kernel proof marker.
+
+That same boot evidence revealed a previously invisible identity leak: shim's UTF-16 fallback CSV
+registered a foreign product label in UEFI even though GRUB itself said MoOS. `build.sh` now decodes
+every shipped `BOOT*.CSV`, rewrites the presentation label to MoOS and fails if the legacy label
+survives. Signed loader paths remain untouched. All fixes above require one fresh same-SHA build,
+disk and ISO evidence set before promotion.
+
+The ARM compose failure from run `33689074450` is closed: local `containers-storage` is allowed
+only for composition while the registry path remains exact `sigstoreSigned`; both policy halves
+are asserted at runtime by the successful final ARM run.
 
 The x86 workflow also caught a newly published high-severity npm advisory before image build.
 The affected indirect `fast-uri` lock moved from `3.1.5` to fixed `3.1.7` without changing any
@@ -409,28 +415,18 @@ From `backup/theme-system-2026-08-06`:
 
 ---
 
-## ISO build pipeline — REPAIRED (2026-08-25)
+## ISO build pipeline — proof-gated
 
-The ISO built fine but the `Upload ISO as workflow artifact` step ran **last**,
-so when the QEMU boot/install proof steps failed in the GitHub runner (a runner
-environment limitation, not an ISO defect) the whole job aborted and the
-already-built ISO was dropped.
+The workflow preserves a built ISO for diagnosis as an explicitly **unproven,
+unsigned** debug artifact when a gate fails. The release ISO is signed and
+uploaded only after both the exact LiveOS boot and offline install/installed-
+system proof pass. Neither gate has `continue-on-error`.
 
-Fix (merged to `main`, commit `5279e2b8`): the ISO upload now runs **before**
-the proof steps, so the artifact is captured even if a later proof step fails.
-The proof gates themselves stay hard-fail (no `continue-on-error` was added — we
-do not weaken a guard to make a build pass).
-
-**Resulting build (run #32851648759):** `conclusion: success` — all 17 steps
-green, including `Boot and prove the exact final live ISO` (step 14) and
-`Install the exact final ISO offline and boot the target disk` (step 16). The
-ISO is therefore **proven to boot its LiveOS, perform the offline install to a
-blank disk, detach, and boot the installed system** in CI.
-
-Deliverable: `Desktop/moos-live.iso` (generic `moos:latest`, ~4.8 GB, bootable
-ISO 9660, label `MoOS-Live`). Boots + installs on any x86_64 (Intel/AMD). Does
-NOT carry nvidia in the initramfs — for nvidia hardware use the `moos-nvidia`
-image/update path.
+Run `32851648759` previously completed both paths. The current candidate has
+completed LiveOS boot and the offline disk copy in run `33713588792`; its new
+SSH userspace inspection must still pass on the final same-SHA rerun before the
+ISO can be called publishable. Generic ISO media installs the generic x86_64
+edition; NVIDIA remains a separately built and proven image/update path.
 
 ---
 
@@ -549,5 +545,5 @@ exists.
 - Published tags move only after boot-proven artifacts.
 - `/var` empty in image; `bootc container lint` is a gate.
 - Recovery coldplug + device timeout gates cannot be removed (iPhone boot fix).
-- The ISO upload-before-proof ordering must stay; the proof gates stay
-  hard-fail.
+- An unproven ISO may be retained only as an unsigned debug artifact. The signed
+  release ISO must remain after both hard-fail boot and install proofs.

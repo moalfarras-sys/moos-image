@@ -33,12 +33,23 @@ required_script = (
     '("mo-pc-remote", "mo-pc-remote")',
     "opened-closed-reopened",
     "systemctl --user --failed --no-legend --plain",
+    "moos-ci-runtime-proof",
+    "ci-proof=ephemeral-ssh",
+    '"BatchMode=yes"',
+    '"IdentitiesOnly=yes"',
+    "moosci@127.0.0.1",
     '"mode": "reboot"',
     '"mode": "powerdown"',
     "qemu-img check",
 )
 for needle in required_script:
     assert needle in script, f"ISO install proof lost required contract: {needle}"
+
+proof_unit = (
+    root / "system_files/usr/lib/systemd/system/moos-ci-runtime-proof.service"
+).read_text(encoding="utf-8")
+assert "ConditionPathExists=|/home/mo/.ssh/authorized_keys" in proof_unit
+assert "ConditionPathExists=|/home/moosci/.ssh/authorized_keys" in proof_unit
 
 # The installed QEMU command is deliberately constructed without the ISO. A
 # future refactor must not make the second boot silently fall back to the LiveOS.

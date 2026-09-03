@@ -109,6 +109,7 @@ moos_start_virgl_display "$work" "$evidence"
 # forces current Plasma/Mesa through guest llvmpipe under TCG, where the real
 # login compositor crashed in release-proof runs 33655753536 and 33662618021.
 LIBGL_ALWAYS_SOFTWARE=1 qemu-system-x86_64 \
+    -name "$MOOS_QEMU_WINDOW_TITLE" \
     -machine q35,accel=kvm -cpu host -m 4096 -smp 2 \
     -drive "if=pflash,format=raw,readonly=on,file=$ovmf_code" \
     -drive "if=pflash,format=raw,file=$work/vars.fd" \
@@ -130,6 +131,7 @@ python3 - "$qga" "$monitor" "$qemu_pid" "$expected_ref" "$evidence" \
 import json
 import os
 from pathlib import Path
+import re
 import socket
 import subprocess
 import sys
@@ -288,6 +290,14 @@ def send_shutdown(mode):
         client.sendall(json.dumps(payload, separators=(",", ":")).encode() + b"\n")
 
 
+def hmp(commands):
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
+        client.settimeout(5)
+        client.connect(monitor)
+        client.recv(4096)
+        client.sendall(("\n".join(commands) + "\n").encode())
+
+
 def capture_display(path):
     log = evidence / f"{path.stem}-capture.log"
     windows = evidence / f"{path.stem}-windows.txt"
@@ -299,10 +309,22 @@ def capture_display(path):
     deadline = time.monotonic() + 15
     attempts = []
     while time.monotonic() < deadline:
+        window = subprocess.run(
+            ["xwininfo", "-display", os.environ["DISPLAY"], "-name",
+             os.environ["MOOS_QEMU_WINDOW_TITLE"], "-int"],
+            text=True, capture_output=True, check=False,
+        )
+        match = re.search(r"Window id:\s+(\d+)", window.stdout)
+        if window.returncode != 0 or not match:
+            attempts.append(
+                f"xwininfo rc={window.returncode}\n{window.stdout}{window.stderr}"
+            )
+            time.sleep(0.5)
+            continue
         path.unlink(missing_ok=True)
         result = subprocess.run(
             ["import", "-silent", "-display", os.environ["DISPLAY"],
-             "-window", "root", str(path)],
+             "-window", match.group(1), str(path)],
             text=True, capture_output=True, timeout=10, check=False,
         )
         attempts.append(f"rc={result.returncode}\n{result.stdout}{result.stderr}")
@@ -440,6 +462,8 @@ first, first_err, first_id = wait_for_runtime(runtime_gate)
     first + (("\n=== stderr ===\n" + first_err) if first_err else ""), encoding="utf-8"
 )
 print(first, end="")
+hmp(["sendkey shift"])
+time.sleep(2)
 capture_display(evidence / "graphical-first-boot.ppm")
 
 send_shutdown("reboot")
@@ -448,6 +472,8 @@ second, second_err, second_id = wait_for_runtime(runtime_gate, first_id)
     second + (("\n=== stderr ===\n" + second_err) if second_err else ""), encoding="utf-8"
 )
 print(second, end="")
+hmp(["sendkey shift"])
+time.sleep(2)
 capture_display(evidence / "graphical-second-boot.ppm")
 send_shutdown("powerdown")
 PY

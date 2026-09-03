@@ -686,6 +686,7 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
             self.assertIn('. "$script_dir/qemu_virgl_env.sh"', executable, path.name)
             self.assertIn("-device virtio-vga-gl", executable, path.name)
             self.assertIn("-display gtk,gl=on", executable, path.name)
+            self.assertIn('-name "$MOOS_QEMU_WINDOW_TITLE"', executable, path.name)
             self.assertIn("LIBGL_ALWAYS_SOFTWARE=1 qemu-system-x86_64", executable, path.name)
             self.assertIn("-machine q35,accel=kvm -cpu host", executable, path.name)
             self.assertNotIn("accel=tcg", executable, path.name)
@@ -698,7 +699,7 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
         for proof in (
             "Xvfb -displayfd", "glxinfo -B", "OpenGL renderer string:",
             "[ -c /dev/kvm ]", "sudo chmod a+rw /dev/kvm", "accelerator=kvm",
-            'import -silent -display "$DISPLAY" -window root',
+            'import -silent -display "$DISPLAY" -window "$window_id"',
         ):
             self.assertIn(proof, helper)
 
@@ -749,7 +750,8 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
         self.assertIn("systemctl --no-block start firewalld.service sshd.service", proof_helper)
         self.assertIn("systemd-detect-virt", proof_helper)
         self.assertIn("ConditionKernelCommandLine=moos.ci-runtime-proof=1", proof_unit)
-        self.assertIn("ConditionPathExists=/home/mo/.ssh/authorized_keys", proof_unit)
+        self.assertIn("ConditionPathExists=|/home/mo/.ssh/authorized_keys", proof_unit)
+        self.assertIn("ConditionPathExists=|/home/moosci/.ssh/authorized_keys", proof_unit)
         for target in ("multi-user.target.wants", "graphical.target.wants"):
             self.assertFalse(
                 (ROOT / "system_files/etc/systemd/system" / target /

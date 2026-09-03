@@ -3,6 +3,9 @@
 # The guest must render through virtio-gpu's 3D path; recent Plasma/Mesa builds
 # are not stable when their entire compositor runs in nested TCG llvmpipe.
 
+MOOS_QEMU_WINDOW_TITLE="${MOOS_QEMU_WINDOW_TITLE:-MoOS release proof}"
+export MOOS_QEMU_WINDOW_TITLE
+
 moos_start_virgl_display() {
     local work="$1"
     local evidence="$2"
@@ -88,6 +91,7 @@ moos_start_virgl_display() {
 moos_capture_virgl_display() {
     local output="$1"
     local log="${output%.*}-capture.log"
+    local window_id=""
 
     # QEMU's monitor screendump cannot read a virtio-vga-gl dmabuf scanout on
     # current hosted runners. Capture the mapped GTK display instead: these are
@@ -96,14 +100,17 @@ moos_capture_virgl_display() {
     xwininfo -display "$DISPLAY" -root -tree > "${output%.*}-windows.txt" 2>&1 || true
     : > "$log"
     for _ in $(seq 1 20); do
+        window_id="$(xwininfo -display "$DISPLAY" -name "$MOOS_QEMU_WINDOW_TITLE" -int \
+            2>>"$log" | awk '/Window id:/ {print $4; exit}')"
+        [ -n "$window_id" ] || { sleep 0.5; continue; }
         rm -f -- "$output"
-        if import -silent -display "$DISPLAY" -window root "$output" \
+        if import -silent -display "$DISPLAY" -window "$window_id" "$output" \
                 >>"$log" 2>&1 && [ -s "$output" ]; then
             return 0
         fi
         sleep 0.5
     done
-    echo "QEMU VIRGL FATAL: the mapped GTK display could not be captured" >&2
+    echo "QEMU VIRGL FATAL: the mapped GTK window could not be captured" >&2
     tail -40 "$log" >&2 || true
     return 1
 }
