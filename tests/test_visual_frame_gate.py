@@ -55,7 +55,7 @@ with tempfile.TemporaryDirectory(prefix="moos-visual-frame-") as tmp:
     )
 
 
-def run_greeter_helper(devices: tuple[str, ...]) -> str | None:
+def run_greeter_helper(devices: tuple[str, ...], arch: str = "x86_64") -> str | None:
     with tempfile.TemporaryDirectory(prefix="moos-greeter-env-") as tmp:
         root = Path(tmp)
         devroot = root / "dev"
@@ -72,7 +72,7 @@ def run_greeter_helper(devices: tuple[str, ...]) -> str | None:
             | {
                 "MOOS_GREETER_DEV_ROOT": str(devroot),
                 "MOOS_GREETER_GL_ENV": str(envfile),
-                "MOOS_GREETER_ARCH": "x86_64",
+                "MOOS_GREETER_ARCH": arch,
             },
             check=True,
         )
@@ -85,5 +85,9 @@ fallback = run_greeter_helper(())
 assert fallback is not None
 assert "LIBGL_ALWAYS_SOFTWARE=1" in fallback
 assert "__EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/50_mesa.json" in fallback
+arm_fallback = run_greeter_helper((), "aarch64")
+assert arm_fallback is not None
+assert "GALLIUM_DRIVER=llvmpipe" in arm_fallback
+assert "MESA_LOADER_DRIVER_OVERRIDE" not in arm_fallback
 
 print("Visual frame and greeter GPU-selection gates passed")

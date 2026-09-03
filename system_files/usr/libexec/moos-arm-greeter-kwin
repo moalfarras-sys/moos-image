@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Attach the ARM greeter to UTM/QEMU DRM, with a virtual output for headless VPS.
+set -eu
+
+kwin_args=(
+    --no-lockscreen
+    --no-global-shortcuts
+    --no-kactivities
+    --inputmethod plasma-keyboard
+    --locale1
+)
+
+# UTM's virtio connector may report disconnected before the host frontend maps
+# it, but its presence identifies the scanout card. Name that card explicitly
+# so KWin cannot select the off-screen vgem device used by Oracle sessions.
+for _attempt in $(seq 1 50); do
+    for status in /sys/class/drm/card*-*/status; do
+        [ -e "$status" ] || continue
+        connector="${status%/status}"
+        connector="${connector##*/}"
+        card="${connector%%-*}"
+        dri_node="/dev/dri/${card}"
+        if [ -e "$dri_node" ]; then
+            export KWIN_DRM_DEVICES="$dri_node"
+        fi
+        exec /usr/bin/kwin_wayland "${kwin_args[@]}"
+    done
+    sleep 0.1
+done
+
+exec /usr/bin/kwin_wayland "${kwin_args[@]}" --virtual --width 1920 --height 1080

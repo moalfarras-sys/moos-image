@@ -260,7 +260,7 @@ jobs:
           sudo apt-get install -y -qq \
             podman zstd qemu-utils btrfs-progs \
             qemu-system-arm qemu-efi-aarch64 cloud-image-utils \
-            openssh-client socat imagemagick
+            openssh-client socat imagemagick xvfb x11-utils
 
       - name: Install cosign
         uses: sigstore/cosign-installer@v3
@@ -381,9 +381,27 @@ jobs:
 
       - name: Boot the final QCOW2 through UEFI
         env:
-          MOOS_ARM_SKIP_VISUAL_GATE: "1"
+          MOOS_ARM_DISPLAY: gtk
         run: |
           set -euo pipefail
+          display_file="$RUNNER_TEMP/moos-arm-xvfb-display"
+          : > "$display_file"
+          exec 3>"$display_file"
+          Xvfb -displayfd 3 -screen 0 1600x1000x24 -nolisten tcp \
+            >arm-boot-xvfb.log 2>&1 &
+          xvfb_pid=$!
+          exec 3>&-
+          trap 'kill "$xvfb_pid" 2>/dev/null || true; wait "$xvfb_pid" 2>/dev/null || true' EXIT
+          for _ in $(seq 1 100); do
+            [ -s "$display_file" ] || { sleep 0.1; continue; }
+            export DISPLAY=":$(tr -d '\r\n' < "$display_file")"
+            xdpyinfo -display "$DISPLAY" >/dev/null 2>&1 && break
+            sleep 0.1
+          done
+          [ -n "${DISPLAY:-}" ] && xdpyinfo -display "$DISPLAY" >/dev/null 2>&1 || {
+            echo "FATAL: ARM visual proof Xvfb did not start" >&2
+            exit 1
+          }
           expected="${{ needs.build.outputs.destination }}@${{ needs.build.outputs.digest }}"
           before="$(sha256sum "$MOOS_ARM_QCOW" | awk '{print $1}')"
           tests/boot_arm_qcow2.sh "$MOOS_ARM_QCOW" "$expected" arm-boot-proof

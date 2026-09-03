@@ -32,8 +32,10 @@ fi
 
 {
     printf 'LIBGL_ALWAYS_SOFTWARE=1\n'
-    printf '__EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/50_mesa.json\n'
-    printf 'MESA_LOADER_DRIVER_OVERRIDE=llvmpipe\n'
+    if [ "$arch" != aarch64 ]; then
+        printf '__EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/50_mesa.json\n'
+        printf 'MESA_LOADER_DRIVER_OVERRIDE=llvmpipe\n'
+    fi
     printf 'GALLIUM_DRIVER=llvmpipe\n'
 } >"$envfile"
 exit 0

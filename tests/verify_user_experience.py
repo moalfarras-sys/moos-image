@@ -5716,9 +5716,13 @@ require("sddm" not in _fb_unit.lower(),
         "moos-firstboot.service still orders against retired SDDM")
 
 _build = code(read("build_files/build.sh"), "hash")
-require('rglob("BOOT*.CSV")' in _build
-        and 're.sub(re.escape(legacy), "MoOS", text, flags=re.IGNORECASE)' in _build
-        and "foreign firmware label survived" in _build,
+_arm_build = code(read("build_files/build-arm.sh"), "hash")
+_firmware_label = code(read("build_files/rewrite_firmware_label.py"), "hash")
+require("python3 /ctx/rewrite_firmware_label.py" in _build
+        and "python3 /ctx/rewrite_firmware_label.py" in _arm_build
+        and 'rglob("BOOT*.CSV")' in _firmware_label
+        and 're.sub(re.escape(LEGACY_LABEL), "MoOS", text, flags=re.IGNORECASE)' in _firmware_label
+        and "foreign firmware label survived" in _firmware_label,
         "shim's UTF-16 fallback CSV must register MoOS, not a foreign UEFI label")
 require("nvidia-cdi-refresh.service.d/10-moos-device.conf" in _build
         and "ConditionPathExists=/dev/nvidiactl" in _build,

@@ -22,6 +22,8 @@ script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 runtime_gate="$script_dir/verify_arm_runtime.sh"
 display_backend="${MOOS_ARM_DISPLAY:-none}"
 visual_hold="${MOOS_ARM_VISUAL_HOLD:-0}"
+window_title="${MOOS_ARM_QEMU_WINDOW_TITLE:-MoOS ARM release proof}"
+gtk_window_title="QEMU (${window_title})"
 case "$display_backend" in
     none) qemu_display=( -display none ) ;;
     gtk)
@@ -29,7 +31,7 @@ case "$display_backend" in
             echo "ARM BOOT FATAL: GTK visual mode needs a graphical host session" >&2
             exit 1
         }
-        qemu_display=( -display "gtk,gl=off,zoom-to-fit=on,show-tabs=off" )
+        qemu_display=( -display "gtk,gl=off,zoom-to-fit=on,show-tabs=off,window-close=off" )
         ;;
     *)
         echo "ARM BOOT FATAL: MOOS_ARM_DISPLAY must be 'none' or 'gtk'" >&2
@@ -57,6 +59,14 @@ for tool in qemu-img qemu-system-aarch64 cloud-localds ssh ssh-keygen socat pyth
         exit 1
     }
 done
+if [ "$display_backend" = gtk ]; then
+    for tool in xwininfo import; do
+        command -v "$tool" >/dev/null 2>&1 || {
+            echo "ARM BOOT FATAL: GTK proof tool is missing: $tool" >&2
+            exit 1
+        }
+    done
+fi
 
 mkdir -p "$evidence"
 base_tmp="${RUNNER_TEMP:-/var/tmp}"
@@ -181,6 +191,7 @@ else
 fi
 
 qemu-system-aarch64 \
+    -name "$window_title" \
     -machine virt "${accelerator[@]}" -smp 4 -m 4096 \
     -drive "if=pflash,format=raw,readonly=on,file=$firmware_code" \
     -drive "if=pflash,format=raw,file=$work/AAVMF_VARS.fd" \
@@ -234,7 +245,7 @@ run_runtime_gate() {
         return 0
     fi
     cat "$output" >&2
-    "${ssh_base[@]}" 'cloud-init status --long; systemctl status --no-pager --full bootc-generic-growpart.service; journalctl --no-pager -u bootc-generic-growpart.service -n 150; findmnt /sysroot; lsblk -o NAME,TYPE,PKNAME,PARTN,SIZE,FSTYPE,MOUNTPOINTS; btrfs filesystem usage -b /sysroot; systemctl --failed --no-pager --plain' \
+    "${ssh_base[@]}" 'cloud-init status --long; systemctl status --no-pager --full bootc-generic-growpart.service plymouth-start.service; systemctl show plymouth-start.service -p Result -p ExecMainCode -p ExecMainStatus -p ActiveState -p SubState; journalctl --no-pager -b -u bootc-generic-growpart.service -u plymouth-start.service -u plymouth-quit.service -n 250; findmnt /sysroot; lsblk -o NAME,TYPE,PKNAME,PARTN,SIZE,FSTYPE,MOUNTPOINTS; btrfs filesystem usage -b /sysroot; systemctl --failed --no-pager --plain' \
         >"$diagnostics" 2>&1 || true
     cat "$diagnostics" >&2
     echo "ARM BOOT FATAL: ${phase}-boot runtime gate failed" >&2
@@ -269,32 +280,23 @@ for _ in $(seq 1 60); do [ -S "$monitor" ] && break; sleep 0.25; done
 printf 'sendkey shift\n' | socat - UNIX-CONNECT:"$monitor" >/dev/null
 printf 'sendkey spc\n' | socat - UNIX-CONNECT:"$monitor" >/dev/null
 sleep 5
-guest_ppm="$work/graphical-guest.ppm"
-guest_capture_ok=0
-if printf 'screendump %s\n' "$guest_ppm" | socat - UNIX-CONNECT:"$monitor" >/dev/null 2>&1 \
-    && [ -s "$guest_ppm" ]; then
-    convert "$guest_ppm" "$evidence/graphical.png"
-    guest_capture_ok=1
-fi
-if [ "$guest_capture_ok" -eq 0 ]; then
-    echo "ARM BOOT FATAL: QEMU monitor screendump produced no frame" >&2
-    exit 1
-fi
-[ -s "$evidence/graphical.png" ] || { echo "ARM BOOT FATAL: graphical PNG evidence is empty" >&2; exit 1; }
-stddev="$(convert "$evidence/graphical.png" -colorspace gray -format '%[fx:standard_deviation]' info:)"
-if [ "${MOOS_ARM_SKIP_VISUAL_GATE:-0}" = 1 ]; then
-    echo "ARM VISUAL SKIP: stddev gate bypassed (MOOS_ARM_SKIP_VISUAL_GATE=1)"
+if [ "$display_backend" = gtk ]; then
+    xwininfo -display "$DISPLAY" -root -tree >"$evidence/graphical-windows.txt" 2>&1 || true
+    window_id=""
+    for _ in $(seq 1 30); do
+        window_id="$(xwininfo -display "$DISPLAY" -name "$gtk_window_title" -int 2>/dev/null \
+            | awk '/Window id:/ {print $4; exit}')"
+        [ -n "$window_id" ] && break
+        sleep 0.5
+    done
+    [ -n "$window_id" ] || { echo "ARM BOOT FATAL: mapped QEMU GTK window is unavailable" >&2; exit 1; }
+    import -silent -display "$DISPLAY" -window "$window_id" "$screenshot"
 else
-python3 - "$stddev" <<'PY'
-import sys
-value = float(sys.argv[1])
-# 0.01 still passes a near-black cursor-only frame (freeze 70aff7a9 measured
-# ~0.011). Real MoOS greeter/desktop frames are well above 0.04.
-if value < 0.02:
-    raise SystemExit(f"ARM BOOT FATAL: graphical evidence is blank/flat (stddev={value})")
-print(f"graphical screenshot stddev={value:.6f}")
-PY
+    printf 'screendump %s\n' "$screenshot" | socat - UNIX-CONNECT:"$monitor" >/dev/null
 fi
+[ -s "$screenshot" ] || { echo "ARM BOOT FATAL: graphical PPM evidence is empty" >&2; exit 1; }
+python3 "$script_dir/assert_visual_frame.py" "$screenshot" "ARM QCOW2 login"
+convert "$screenshot" "$evidence/graphical.png"
 
 if [ "$visual_hold" = 1 ]; then
     continue_file="$evidence/continue"

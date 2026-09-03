@@ -287,6 +287,19 @@ class ArmEditionTests(unittest.TestCase):
                       "the ARM image must be built natively; emulating a Plasma build "
                       "on x86 exceeds the job timeout")
         self.assertIn("arm64", text, "the workflow must verify the image architecture")
+        self.assertIn("MOOS_ARM_DISPLAY: gtk", text,
+                      "the final ARM disk needs a mapped-window visual proof")
+        self.assertNotIn("MOOS_ARM_SKIP_VISUAL_GATE", text,
+                         "a release ARM run must never bypass its visual gate")
+
+    def test_arm_greeter_selects_the_real_utm_scanout(self) -> None:
+        build = read(BUILD)
+        launcher = read(ROOT / "system_files/usr/libexec/moos-arm-greeter-kwin")
+        self.assertIn("ExecStart=/usr/libexec/moos-arm-greeter-kwin", build)
+        self.assertIn("/sys/class/drm/card*-*/status", launcher)
+        self.assertIn('KWIN_DRM_DEVICES="$dri_node"', launcher)
+        self.assertIn("--virtual --width 1920 --height 1080", launcher)
+        self.assertIn("QT_QUICK_BACKEND=software", build)
 
     def test_the_new_workflow_can_prove_a_feature_branch(self) -> None:
         text = read(WORKFLOW)
@@ -501,20 +514,18 @@ class ArmEditionTests(unittest.TestCase):
         self.assertIn("interactive_input=virtio-keyboard+tablet", runtime_gate)
         self.assertIn("touch '$continue_file'", boot_gate)
         self.assertIn("-display none", boot_gate,
-                      "CI must retain headless QEMU (egl-headless needs a host render node)")
+                      "developers must retain a headless diagnostic mode")
         self.assertIn("screendump", boot_gate,
-                      "ARM visual proof must capture via the QEMU monitor socket")
-        self.assertIn("QEMU monitor screendump produced no frame", boot_gate,
-                      "ARM visual proof must fail when the monitor capture is empty")
+                      "headless diagnostics need a QEMU monitor fallback")
+        self.assertIn("gtk_window_title", boot_gate,
+                      "release evidence must target the exact mapped QEMU window")
+        self.assertIn("xwininfo", boot_gate)
+        self.assertIn("assert_visual_frame.py", boot_gate,
+                      "ARM must share the black-plus-cursor pixel gate with x86")
         self.assertIn("sendkey shift", boot_gate,
                       "ARM visual proof must wake the idle Plasma Login Manager "
                       "before capturing the greeter")
-        self.assertIn("standard_deviation", boot_gate,
-                      "a near-black cursor-only screendump must fail the ARM "
-                      "boot proof the same way x86/ISO blank frames do")
-        self.assertIn("value < 0.02", boot_gate,
-                      "the ARM blank threshold must reject cursor-only black "
-                      "frames that still clear the weaker 0.01 x86 floor")
+        self.assertNotIn("MOOS_ARM_SKIP_VISUAL_GATE", boot_gate)
 
     def test_arm_enforces_the_same_signed_registry_policy(self) -> None:
         build = read(BUILD)
@@ -700,7 +711,7 @@ class ArmEditionTests(unittest.TestCase):
         self.assertIn("bootc-generic-growpart.service", runtime)
         self.assertIn("cloud_grow=bootc-success", runtime)
         self.assertIn("runtime-${phase}-diagnostics.txt", boot_gate)
-        self.assertIn("journalctl --no-pager -u bootc-generic-growpart.service", boot_gate)
+        self.assertIn("journalctl --no-pager -b -u bootc-generic-growpart.service", boot_gate)
 
     def test_the_runtime_gate_needs_no_root(self) -> None:
         # The boot gate pipes verify_arm_runtime.sh over SSH as the provisioned

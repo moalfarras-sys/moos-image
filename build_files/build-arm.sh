@@ -294,19 +294,26 @@ install -D -m0644 /dev/stdin \
 [Service]
 EnvironmentFile=-/run/moos/plasmalogin-kwin.env
 Environment=LIBGL_ALWAYS_SOFTWARE=1
-Environment=MESA_LOADER_DRIVER_OVERRIDE=llvmpipe
 Environment=GALLIUM_DRIVER=llvmpipe
-# virtio-gpu proof VMs and Oracle both need vgem + a virtual output before KWin
-# will composite the MoOS greeter instead of a black QPainter surface.
+# UTM/QEMU must paint the real virtio scanout. A display-less Oracle machine
+# receives the virtual backend from the same display-aware launcher.
 ExecStart=
-ExecStart=/usr/bin/kwin_wayland_wrapper --virtual --width 1920 --height 1080
+ExecStart=/usr/libexec/moos-arm-greeter-kwin
 KWINDROP
+for _greeter_unit in plasma-login.service plasma-wallpaper.service; do
+    install -D -m0644 /dev/stdin \
+        "/usr/lib/systemd/user/${_greeter_unit}.d/10-moos-arm-software-scenegraph.conf" <<'QTSOFTWARE'
+[Service]
+Environment=QT_QUICK_BACKEND=software
+QTSOFTWARE
+done
+unset -v _greeter_unit
 install -D -m0644 /dev/stdin /etc/environment.d/60-moos-arm-llvmpipe.conf <<'LLVMPIPE'
 # MoOS ARM: software rendering for every user session, including plasmalogin.
 LIBGL_ALWAYS_SOFTWARE=1
-MESA_LOADER_DRIVER_OVERRIDE=llvmpipe
 GALLIUM_DRIVER=llvmpipe
 LP_NUM_THREADS=2
+QT_QUICK_BACKEND=software
 LLVMPIPE
 install -D -m0644 /dev/stdin /etc/modules-load.d/moos-arm-vgem.conf <<'MODLOAD'
 vgem
@@ -729,6 +736,11 @@ mkdir -p /usr/lib/moos
 printf '%s\n' "${MOOS_EDITION}" > /usr/lib/moos/edition
 printf '%s\n' "aarch64" > /usr/lib/moos/arch
 
+# shim reads this UTF-16 CSV when firmware creates its persistent boot entry.
+# The signed loader stays in its required vendor directory; its visible label
+# is MoOS on ARM just as it is on x86.
+python3 /ctx/rewrite_firmware_label.py
+
 # os-release is what every tool, every login banner and every bug report shows.
 # A MoOS that introduces itself as Fedora is not MoOS.
 cat > /usr/lib/os-release <<'OSREL'
@@ -1039,13 +1051,25 @@ grep -q 'LIBGL_ALWAYS_SOFTWARE=1' \
     /usr/lib/systemd/user/plasma-login-kwin_wayland.service.d/10-moos-arm-greeter-gl.conf \
     /etc/environment.d/60-moos-arm-llvmpipe.conf \
     || { echo "GATE FAIL: ARM login greeter must force software GL for virtio proof VMs"; exit 1; }
-grep -q 'MESA_LOADER_DRIVER_OVERRIDE=llvmpipe' \
+grep -q 'GALLIUM_DRIVER=llvmpipe' \
     /usr/lib/systemd/user/plasma-login-kwin_wayland.service.d/10-moos-arm-greeter-gl.conf \
     /etc/environment.d/60-moos-arm-llvmpipe.conf \
-    || { echo "GATE FAIL: ARM login greeter must pin llvmpipe for virtio proof VMs"; exit 1; }
-grep -q 'kwin_wayland_wrapper --virtual' \
+    || { echo "GATE FAIL: ARM login greeter must select llvmpipe through Gallium"; exit 1; }
+if grep -qE "printf 'MESA_LOADER_DRIVER_OVERRIDE=llvmpipe|^Environment=MESA_LOADER_DRIVER_OVERRIDE=llvmpipe|^MESA_LOADER_DRIVER_OVERRIDE=llvmpipe" \
     /usr/lib/systemd/user/plasma-login-kwin_wayland.service.d/10-moos-arm-greeter-gl.conf \
-    || { echo "GATE FAIL: ARM login greeter must use KWin virtual output on virtio"; exit 1; }
+    /etc/environment.d/60-moos-arm-llvmpipe.conf; then
+    echo "GATE FAIL: forcing Mesa's llvmpipe loader detaches KWin from the DRM scanout"
+    exit 1
+fi
+grep -qx 'QT_QUICK_BACKEND=software' /etc/environment.d/60-moos-arm-llvmpipe.conf \
+    || { echo "GATE FAIL: ARM sessions must use Qt Quick's bounded software renderer"; exit 1; }
+grep -q 'ExecStart=/usr/libexec/moos-arm-greeter-kwin' \
+    /usr/lib/systemd/user/plasma-login-kwin_wayland.service.d/10-moos-arm-greeter-gl.conf \
+    || { echo "GATE FAIL: ARM display-aware greeter launcher is missing"; exit 1; }
+grep -q '/sys/class/drm/card\*-\*/status' /usr/libexec/moos-arm-greeter-kwin \
+    && grep -q 'KWIN_DRM_DEVICES="$dri_node"' /usr/libexec/moos-arm-greeter-kwin \
+    && grep -q -- '--virtual --width 1920 --height 1080' /usr/libexec/moos-arm-greeter-kwin \
+    || { echo "GATE FAIL: ARM greeter must distinguish UTM displays from a headless VPS"; exit 1; }
 grep -qxF 'vgem' /etc/modules-load.d/moos-arm-vgem.conf \
     || { echo "GATE FAIL: ARM must load vgem for greeter/desktop GL"; exit 1; }
 grep -q 'DefaultDeviceTimeoutSec=120' /etc/systemd/system.conf.d/moos-arm-device-timeout.conf \

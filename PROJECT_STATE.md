@@ -27,9 +27,11 @@ definition: both x86 and ARM now require `repo_gpgcheck=1` and `gpgcheck=1`, and
 boundary test rejects either metadata or package-signature verification being disabled.
 
 `archive/arm-utm-20260827` and the closed PR #61 branch
-`fix/utm-release-gates-20260826` were deliberately not merged. They package the recovery disk
-before the candidate is proven and set `MOOS_ARM_SKIP_VISUAL_GATE=1`; the current workflow keeps
-the signed-digest and visual-proof ordering. This is an audited rejection, not unfinished work.
+`fix/utm-release-gates-20260826` were deliberately not merged wholesale. They package the recovery
+disk before the candidate is proven and carried a visual-gate bypass. The display-aware greeter
+launcher was later recovered selectively from that work onto the current release ordering: UTM's
+virtio connector selects its real DRM scanout, while a connector-less Oracle VPS selects KWin's
+virtual output. The unsafe publication order and bypass remain rejected.
 
 The candidate at `a931e09c` completed the full matrix. x86 run `33735887419` built and signed
 generic, NVIDIA and Cloud images plus the Windows Remote agent. ARM run `33735890038` built and
@@ -59,16 +61,27 @@ ACPI power-button event if that clean request stalls, then continues waiting for
 it does not force-kill the guest. The installed-system boot and app evidence still require one
 fresh same-SHA rerun.
 
-That same boot evidence revealed a previously invisible identity leak: shim's UTF-16 fallback CSV
-registered a foreign product label in UEFI even though GRUB itself said MoOS. `build.sh` now decodes
-every shipped `BOOT*.CSV`, rewrites the presentation label to MoOS and fails if the legacy label
-survives. Signed loader paths remain untouched. The GPU selection, visible-pixel gate, independent
-reboot transport and clean ACPI fallback require one fresh same-SHA build, disk and ISO evidence
-set before promotion.
+The next build at `b7424340` passed all three x86 image builds in run `33758817997`; its Cloud
+disk proof `33761593137` also passed both boots. ARM image composition succeeded in
+`33758820668`, but the second disk boot correctly failed because `plymouth-start.service` was in
+systemd's failed set. The same serial evidence exposed that ARM firmware had registered a legacy
+product label even though GRUB itself displayed MoOS. The ARM proof had also still set
+`MOOS_ARM_SKIP_VISUAL_GATE=1`, so its tiny framebuffer capture was not release evidence. Current
+source removes that bypass, runs the final ARM disk in a mapped GTK window under Xvfb, applies the
+shared visible-pixel gate, and preserves full Plymouth status/journal evidence on failure. The ARM
+greeter now attaches software rendering to UTM's actual virtio DRM node and uses a virtual output
+only on a truly display-less VPS.
+
+Shim's UTF-16 fallback CSV owns the firmware's visible boot-entry label. One shared build helper now
+decodes every shipped `BOOT*.CSV` for both x86 and ARM, rewrites the presentation label to MoOS and
+fails if the legacy label survives; signed loader paths and required vendor directories remain
+untouched. The GPU selection, visible-pixel gates, independent reboot transport, clean ACPI
+fallback, ARM DRM attachment and firmware-label seal require one fresh same-SHA build, disk and ISO
+evidence set before promotion.
 
 The ARM compose failure from run `33689074450` is closed: local `containers-storage` is allowed
 only for composition while the registry path remains exact `sigstoreSigned`; both policy halves
-are asserted at runtime by the successful final ARM run.
+are asserted at runtime by ARM run `33735890038`.
 
 The x86 workflow also caught a newly published high-severity npm advisory before image build.
 The affected indirect `fast-uri` lock moved from `3.1.5` to fixed `3.1.7` without changing any

@@ -340,41 +340,9 @@ dnf5 -y install dracut-live livesys-scripts grub2-efi-x64-cdboot \
     plymouth-plugin-script plymouth-plugin-two-step
 
 # shim's removable-media fallback creates the firmware's visible boot entry
-# from BOOT*.CSV. Keeping the signed loader in its vendor directory is required
-# plumbing, but the CSV label is presentation: without rewriting it, a fresh
-# MoOS disk registers another operating system's name in the UEFI picker before
-# our installer ever runs. Decode the CSV rather than grepping UTF-16 bytes, and
-# fail if no source was found or any legacy label survived.
-python3 <<'PY'
-from pathlib import Path
-import re
-
-legacy = "".join(map(chr, (70, 101, 100, 111, 114, 97)))
-roots = (Path("/usr/share"), Path("/usr/lib/efi"), Path("/usr/lib/bootupd"))
-paths = sorted({
-    path
-    for root in roots if root.exists()
-    for path in root.rglob("BOOT*.CSV")
-})
-if not paths:
-    raise SystemExit("GATE FAIL: shim fallback BOOT*.CSV was not found")
-
-for path in paths:
-    raw = path.read_bytes()
-    if raw.startswith((b"\xff\xfe", b"\xfe\xff")):
-        encoding = "utf-16"
-    elif b"\x00" in raw[:128]:
-        encoding = "utf-16-le"
-    else:
-        encoding = "utf-8-sig"
-    text = raw.decode(encoding)
-    updated = re.sub(re.escape(legacy), "MoOS", text, flags=re.IGNORECASE)
-    path.write_bytes(updated.encode(encoding))
-    check = path.read_bytes().decode(encoding)
-    if legacy.casefold() in check.casefold():
-        raise SystemExit(f"GATE FAIL: foreign firmware label survived in {path}")
-    print(f"MoOS firmware fallback label: {path}")
-PY
+# from BOOT*.CSV. Keep one shared rewrite for x86 and ARM so neither edition
+# can register another product name in the UEFI picker.
+python3 /ctx/rewrite_firmware_label.py
 
 # MoOS branded boot splash (flicker-free). No -R flag on purpose: the dracut
 # run right below regenerates the initramfs anyway, and the plymouth dracut
