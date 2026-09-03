@@ -666,7 +666,7 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
             'podman image exists "$offline_ref"',
             "install-source-digest",
             "guest-shutdown",
-            "screendump",
+            "moos_capture_virgl_display",
         ):
             self.assertIn(proof, script, f"final ISO gate lost runtime proof: {proof}")
         self.assertIn('after_sha', script)
@@ -698,8 +698,13 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
         for proof in (
             "Xvfb -displayfd", "glxinfo -B", "OpenGL renderer string:",
             "[ -c /dev/kvm ]", "sudo chmod a+rw /dev/kvm", "accelerator=kvm",
+            'import -silent -display "$DISPLAY" -window root',
         ):
             self.assertIn(proof, helper)
+
+        for path in (ROOT / "tests" / "boot_x86_qcow2.sh", ROOT / "tests" / "install_live_iso.sh"):
+            source = path.read_text(encoding="utf-8")
+            self.assertIn('["import", "-silent", "-display", os.environ["DISPLAY"]', source)
 
         for workflow in (DISK_WORKFLOW, ISO_WORKFLOW):
             source = workflow.read_text(encoding="utf-8")

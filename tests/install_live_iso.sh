@@ -92,7 +92,7 @@ start_qemu() {
     monitor="$work/monitor.sock"
     rm -f "$qga" "$monitor"
     # VirGL keeps both the live and installed compositors on the same real 3D
-    # guest path while QMP continues to capture the pixels users would see.
+    # guest path while Xvfb captures the mapped GTK pixels users would see.
     LIBGL_ALWAYS_SOFTWARE=1 qemu-system-x86_64 \
         -machine q35,accel=kvm -cpu host -m 4096 -smp 2 \
         -drive "if=pflash,format=raw,readonly=on,file=$ovmf_code" \
@@ -137,6 +137,7 @@ import json
 import os
 from pathlib import Path
 import socket
+import subprocess
 import sys
 import time
 
@@ -374,6 +375,26 @@ def hmp(commands):
         client.sendall(("\n".join(commands) + "\n").encode())
 
 
+def capture(path):
+    log = evidence / f"{path.stem}-capture.log"
+    windows = evidence / f"{path.stem}-windows.txt"
+    tree = subprocess.run(
+        ["xwininfo", "-display", os.environ["DISPLAY"], "-root", "-tree"],
+        text=True, capture_output=True, check=False,
+    )
+    windows.write_text(tree.stdout + tree.stderr, encoding="utf-8")
+    result = subprocess.run(
+        ["import", "-silent", "-display", os.environ["DISPLAY"],
+         "-window", "root", str(path)],
+        text=True, capture_output=True, timeout=30, check=False,
+    )
+    log.write_text(
+        f"rc={result.returncode}\n{result.stdout}{result.stderr}", encoding="utf-8"
+    )
+    if result.returncode != 0 or not path.is_file() or not path.stat().st_size:
+        raise SystemExit(f"ISO INSTALL FATAL: mapped GTK capture failed: {path.name}")
+
+
 runtime = r'''
 set -euo pipefail
 expected="$1"
@@ -405,7 +426,7 @@ first = gate_until(runtime, [expected], 1000, "installed first boot never became
 # so HMP never needs layout-dependent punctuation.
 hmp(["sendkey shift"])
 time.sleep(2)
-hmp([f"screendump {evidence / 'installed-login.ppm'}"])
+capture(evidence / "installed-login.ppm")
 hmp([*(f"sendkey {char}" for char in password), "sendkey ret"])
 
 desktop = r'''
@@ -484,7 +505,7 @@ for label, executable in app_specs:
     if not unit:
         raise SystemExit(f"ISO INSTALL FATAL: {label} returned no runtime unit")
     time.sleep(2)
-    hmp([f"screendump {evidence / ('installed-app-' + label + '.ppm')}"])
+    capture(evidence / ("installed-app-" + label + ".ppm"))
     hmp(["sendkey alt-f4"])
     gate_until(close_app, [unit], 60, f"{label} did not close")
 
@@ -496,7 +517,7 @@ for label, executable in app_specs:
     app_proof.append(f"{label}=opened-closed-reopened")
     if label == app_specs[-1][0]:
         time.sleep(2)
-        hmp([f"screendump {evidence / 'installed-desktop-apps.ppm'}"])
+        capture(evidence / "installed-desktop-apps.ppm")
     hmp(["sendkey alt-f4"])
     gate_until(close_app, [second_unit], 60, f"reopened {label} did not close")
 

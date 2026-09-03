@@ -37,6 +37,22 @@ emulation made six services hit real systemd wall-clock deadlines. The release s
 KVM plus VirGL and record both host accelerator and OpenGL evidence; they never silently fall back
 to TCG. A fresh signed-artifact run is still required before this closes the x86 release blocker.
 
+The next exact Cloud disk proof (run `33709949847`) confirmed that hardware acceleration fixed
+the false system-health failures: the signed deployment reached Plasma Login Manager in about a
+minute with network, QGA, the expected digest, seven first-party commands and zero failed units.
+Its final visual capture alone failed because QEMU monitor `screendump` cannot read the VirGL
+dmabuf scanout. All x86 visual gates now capture the mapped QEMU GTK window from their private
+Xvfb display instead. That is the actual presented pixel surface and also detects a host-side
+presentation failure; window-tree and capture diagnostics travel with each frame. A new artifact
+run must prove this capture path before x86 promotion.
+
+The same monitor limitation was independently reproduced by the signed generic disk
+(`33710262874`) and the exact offline Live ISO (`33710264325`): both reached their complete
+runtime gates with zero failed units, and only monitor capture failed. The replacement
+ImageMagick/Xvfb root-window command was also executed in an isolated Ubuntu 24.04 environment
+and produced the expected 800x500 PPM. This validates the capture primitive, not the final MoOS
+frame; fresh workflow evidence remains mandatory.
+
 The first full ARM dispatch after reconciliation (run `33689074450`) built, pushed, signed and
 verified the native aarch64 image. QCOW2 composition then exposed a policy boundary that source
 gates could not: `bootc-image-builder` imports its already-pulled candidate through a private

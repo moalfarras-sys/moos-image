@@ -9,7 +9,7 @@ moos_start_virgl_display() {
     local display_file="$work/xvfb-display"
     local tool=""
 
-    for tool in Xvfb xdpyinfo glxinfo; do
+    for tool in Xvfb xdpyinfo glxinfo import xwininfo; do
         command -v "$tool" >/dev/null || {
             echo "QEMU VIRGL FATAL: required host tool is missing: $tool" >&2
             return 1
@@ -83,6 +83,29 @@ moos_start_virgl_display() {
         echo "QEMU VIRGL FATAL: OpenGL renderer identity is unavailable" >&2
         return 1
     }
+}
+
+moos_capture_virgl_display() {
+    local output="$1"
+    local log="${output%.*}-capture.log"
+
+    # QEMU's monitor screendump cannot read a virtio-vga-gl dmabuf scanout on
+    # current hosted runners. Capture the mapped GTK display instead: these are
+    # the actual pixels a person sees, including any host-side presentation
+    # failure that an internal guest framebuffer dump would miss.
+    xwininfo -display "$DISPLAY" -root -tree > "${output%.*}-windows.txt" 2>&1 || true
+    : > "$log"
+    for _ in $(seq 1 20); do
+        rm -f -- "$output"
+        if import -silent -display "$DISPLAY" -window root "$output" \
+                >>"$log" 2>&1 && [ -s "$output" ]; then
+            return 0
+        fi
+        sleep 0.5
+    done
+    echo "QEMU VIRGL FATAL: the mapped GTK display could not be captured" >&2
+    tail -40 "$log" >&2 || true
+    return 1
 }
 
 moos_stop_virgl_display() {

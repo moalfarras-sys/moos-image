@@ -288,22 +288,30 @@ def send_shutdown(mode):
         client.sendall(json.dumps(payload, separators=(",", ":")).encode() + b"\n")
 
 
-def screendump(path):
-    deadline = time.monotonic() + 10
+def capture_display(path):
+    log = evidence / f"{path.stem}-capture.log"
+    windows = evidence / f"{path.stem}-windows.txt"
+    tree = subprocess.run(
+        ["xwininfo", "-display", os.environ["DISPLAY"], "-root", "-tree"],
+        text=True, capture_output=True, check=False,
+    )
+    windows.write_text(tree.stdout + tree.stderr, encoding="utf-8")
+    deadline = time.monotonic() + 15
+    attempts = []
     while time.monotonic() < deadline:
-        try:
-            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
-                client.settimeout(5)
-                client.connect(monitor)
-                client.recv(4096)
-                client.sendall(f"screendump {path}\n".encode())
-                client.recv(4096)
-            if path.is_file() and path.stat().st_size:
-                return
-        except (OSError, socket.timeout):
-            pass
+        path.unlink(missing_ok=True)
+        result = subprocess.run(
+            ["import", "-silent", "-display", os.environ["DISPLAY"],
+             "-window", "root", str(path)],
+            text=True, capture_output=True, timeout=10, check=False,
+        )
+        attempts.append(f"rc={result.returncode}\n{result.stdout}{result.stderr}")
+        if result.returncode == 0 and path.is_file() and path.stat().st_size:
+            log.write_text("\n".join(attempts), encoding="utf-8")
+            return
         time.sleep(0.5)
-    raise SystemExit("X86 QCOW2 FATAL: graphical screendump was not produced")
+    log.write_text("\n".join(attempts), encoding="utf-8")
+    raise SystemExit("X86 QCOW2 FATAL: mapped GTK display capture was not produced")
 
 
 runtime_gate = r'''
@@ -432,7 +440,7 @@ first, first_err, first_id = wait_for_runtime(runtime_gate)
     first + (("\n=== stderr ===\n" + first_err) if first_err else ""), encoding="utf-8"
 )
 print(first, end="")
-screendump(evidence / "graphical-first-boot.ppm")
+capture_display(evidence / "graphical-first-boot.ppm")
 
 send_shutdown("reboot")
 second, second_err, second_id = wait_for_runtime(runtime_gate, first_id)
@@ -440,7 +448,7 @@ second, second_err, second_id = wait_for_runtime(runtime_gate, first_id)
     second + (("\n=== stderr ===\n" + second_err) if second_err else ""), encoding="utf-8"
 )
 print(second, end="")
-screendump(evidence / "graphical-second-boot.ppm")
+capture_display(evidence / "graphical-second-boot.ppm")
 send_shutdown("powerdown")
 PY
 

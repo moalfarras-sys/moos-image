@@ -266,10 +266,9 @@ else:
     raise SystemExit("ISO BOOT FATAL: QGA runtime gate timed out")
 PY
 
-printf 'screendump %s\n' "$evidence/graphical.ppm" \
-    | socat - "UNIX-CONNECT:$monitor" >/dev/null
+moos_capture_virgl_display "$evidence/graphical.ppm"
 [ -s "$evidence/graphical.ppm" ] \
-    || { echo "ISO BOOT FATAL: graphical screendump is empty" >&2; exit 1; }
+    || { echo "ISO BOOT FATAL: mapped GTK display capture is empty" >&2; exit 1; }
 if command -v magick >/dev/null; then
     image_tool="magick"
 elif command -v convert >/dev/null; then
