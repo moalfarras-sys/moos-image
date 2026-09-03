@@ -78,7 +78,7 @@ _PLASMA=(
     qt6-qtwayland qt6-qtsvg qt6-qtdeclarative qt6-qtmultimedia qt6-qtimageformats
     kf6-kirigami kf6-kirigami-addons kf6-qqc2-desktop-style
     dolphin konsole ark kate gwenview haruna kf6-baloo-file
-    plasma-breeze breeze-icon-theme
+    plasma-breeze breeze-icon-theme papirus-icon-theme
     pipewire pipewire-pulseaudio wireplumber
     NetworkManager NetworkManager-wifi
     plymouth plymouth-plugin-script plymouth-plugin-two-step plymouth-system-theme

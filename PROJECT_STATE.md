@@ -111,6 +111,12 @@ generic and Cloud x86 disks passed the same two-boot contract in `33782226458`
 and `33782228825`; NVIDIA's first proof hit a host Xvfb startup race before QEMU
 opened and its unchanged-digest retry is `33785511871`.
 
+Inspection of the maintainer's running ARM session also found that its generated
+MoOSUI2 icon theme declared Papirus as a fallback while the ARM package set did
+not install it. KWin consequently logged repeated `Papirus-Dark not found`
+lookups. ARM now installs that fallback explicitly and the finished-image gate
+asserts on the RPM, so this cannot return as a silent runtime-only omission.
+
 The earlier candidate's final ISO booted visually, but install run `33766199203`
 ended when hosted QEMU itself asserted in epoxy after repeated EGL context loss
 during the long offline copy. The installer did not report a product error. Current

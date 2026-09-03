@@ -251,6 +251,14 @@ class ArmEditionTests(unittest.TestCase):
             self.assertIn(backend, verifier,
                           f"finished ARM image does not prove route backend {backend}")
 
+    def test_arm_installs_every_declared_icon_fallback(self) -> None:
+        build = code(read(BUILD))
+        verifier = code(read(ARM_VERIFY))
+        self.assertIn("papirus-icon-theme", build,
+                      "MoOSUI2 inherits Papirus but ARM never installs it")
+        self.assertIn('"papirus-icon-theme"', verifier,
+                      "the finished ARM image never proves its icon fallback exists")
+
     def test_arm_has_one_storefront(self) -> None:
         build = code(read(BUILD))
         for contract in (

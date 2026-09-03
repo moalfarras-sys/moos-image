@@ -59,6 +59,7 @@ def main() -> None:
         "plasma-login-manager",
         "kwin-libs",
         "plasma-breeze",
+        "papirus-icon-theme",
         "cloud-init",
         "cloud-utils-growpart",
         "krdp",
