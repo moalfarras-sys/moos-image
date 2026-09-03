@@ -126,8 +126,22 @@ start_qemu() {
 
 wait_for_poweroff() {
     local label="$1"
-    for _ in $(seq 1 180); do
+    local attempt
+    for attempt in $(seq 1 180); do
         kill -0 "$qemu_pid" 2>/dev/null || break
+        if [ "$attempt" -eq 30 ] && [ -S "$monitor" ]; then
+            echo "${label}: QGA shutdown is still pending; sending one ACPI power event"
+            python3 - "$monitor" <<'PY' || true
+import socket
+import sys
+
+with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
+    client.settimeout(5)
+    client.connect(sys.argv[1])
+    client.recv(4096)
+    client.sendall(b"system_powerdown\n")
+PY
+        fi
         sleep 1
     done
     if kill -0 "$qemu_pid" 2>/dev/null; then
@@ -642,6 +656,7 @@ wait_for_poweroff "installed system"
 for ppm in "$evidence"/*.ppm; do
     [ -e "$ppm" ] || continue
     png="${ppm%.ppm}.png"
+    python3 "$script_dir/assert_visual_frame.py" "$ppm" "ISO install $(basename "$ppm")"
     if command -v magick >/dev/null; then
         magick "$ppm" "$png"
     elif command -v convert >/dev/null; then

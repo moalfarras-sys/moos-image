@@ -667,6 +667,7 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
             "install-source-digest",
             "guest-shutdown",
             "moos_capture_virgl_display",
+            "assert_visual_frame.py",
         ):
             self.assertIn(proof, script, f"final ISO gate lost runtime proof: {proof}")
         self.assertIn('after_sha', script)
@@ -712,9 +713,23 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
             script = path.read_text(encoding="utf-8")
             self.assertIn("MOOS_QEMU_GTK_WINDOW_TITLE", script, path.name)
 
+        for path in (
+            ROOT / "tests" / "boot_live_iso.sh",
+            ROOT / "tests" / "install_live_iso.sh",
+            ROOT / "tests" / "boot_x86_qcow2.sh",
+        ):
+            script = path.read_text(encoding="utf-8")
+            self.assertIn("assert_visual_frame.py", script, path.name)
+
         for path in (ROOT / "tests" / "boot_x86_qcow2.sh", ROOT / "tests" / "install_live_iso.sh"):
             source = path.read_text(encoding="utf-8")
             self.assertIn('["import", "-silent", "-display", os.environ["DISPLAY"]', source)
+
+        disk = (ROOT / "tests" / "boot_x86_qcow2.sh").read_text(encoding="utf-8")
+        self.assertIn("ssh_port_after_reboot", disk)
+        self.assertIn("ssh_port = ssh_port_after_reboot", disk)
+        install = (ROOT / "tests" / "install_live_iso.sh").read_text(encoding="utf-8")
+        self.assertIn('client.sendall(b"system_powerdown\\n")', install)
 
         for workflow in (DISK_WORKFLOW, ISO_WORKFLOW):
             source = workflow.read_text(encoding="utf-8")

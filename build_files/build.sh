@@ -278,11 +278,16 @@ if [ "${MOOS_IMAGE_NAME:-moos}" = "moos-nvidia" ]; then
     # finds nothing to force, and the initramfs comes out with no nvidia in it at all.
     depmod -a "${kver_image}"
 
-    # CI/installer VMs have no NVIDIA device. KWin's greeter still needs GL on the
-    # emulated DRM node; write a software-GL env file only when /dev/nvidia* is absent.
+    # CI/installer VMs have no NVIDIA device. KWin's greeter still needs GL; the
+    # helper prefers any usable render node and falls back to Mesa llvmpipe only
+    # when there is no GPU device at all.
     [ -x /usr/libexec/moos-greeter-gl-env ] || {
         echo "FATAL: moos-greeter-gl-env is missing — the NVIDIA edition cannot fall back"
         echo "       to software GL on a VM without an NVIDIA device."
+        exit 1
+    }
+    [ -r /usr/share/glvnd/egl_vendor.d/50_mesa.json ] || {
+        echo "FATAL: Mesa's EGL vendor file is missing — the NVIDIA greeter fallback cannot render."
         exit 1
     }
     install -D -m0644 /dev/stdin \

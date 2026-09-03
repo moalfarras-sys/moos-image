@@ -274,6 +274,7 @@ sleep 2
 moos_capture_virgl_display "$evidence/graphical.ppm"
 [ -s "$evidence/graphical.ppm" ] \
     || { echo "ISO BOOT FATAL: mapped GTK display capture is empty" >&2; exit 1; }
+python3 "$script_dir/assert_visual_frame.py" "$evidence/graphical.ppm" "live ISO desktop"
 if command -v magick >/dev/null; then
     image_tool="magick"
 elif command -v convert >/dev/null; then

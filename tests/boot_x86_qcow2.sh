@@ -92,15 +92,18 @@ printf 'qcow2=%s\nsha256=%s\nimage=%s\novmf=%s\n' \
 qemu-img create -q -f qcow2 -F qcow2 -b "$qcow" "$work/overlay.qcow2"
 cp "$ovmf_vars" "$work/vars.fd"
 
-# Reserve a loopback port only long enough to choose it. Each Actions job has a
-# dedicated runner; QEMU's bind below is therefore the sole subsequent owner.
-ssh_port="$(python3 - <<'PY'
+# Reserve independent loopback forwards for each boot. QEMU's slirp backend can
+# retain a half-open pre-reboot SSH flow and then accept TCP without delivering
+# a new server banner; a fresh forward proves the second userspace instead of
+# waiting on stale host-side connection state.
+read -r ssh_port ssh_port_after_reboot < <(python3 - <<'PY'
 import socket
-with socket.socket() as sock:
-    sock.bind(("127.0.0.1", 0))
-    print(sock.getsockname()[1])
+with socket.socket() as first, socket.socket() as second:
+    first.bind(("127.0.0.1", 0))
+    second.bind(("127.0.0.1", 0))
+    print(first.getsockname()[1], second.getsockname()[1])
 PY
-)"
+)
 
 qga="$work/qga.sock"
 monitor="$work/monitor.sock"
@@ -115,7 +118,7 @@ LIBGL_ALWAYS_SOFTWARE=1 qemu-system-x86_64 \
     -drive "if=pflash,format=raw,file=$work/vars.fd" \
     -drive "file=$work/overlay.qcow2,format=qcow2,if=virtio,cache=unsafe" \
     -device virtio-vga-gl \
-    -netdev "user,id=n0,hostfwd=tcp:127.0.0.1:${ssh_port}-:22" \
+    -netdev "user,id=n0,hostfwd=tcp:127.0.0.1:${ssh_port}-:22,hostfwd=tcp:127.0.0.1:${ssh_port_after_reboot}-:22" \
     -device virtio-net-pci,netdev=n0 \
     -device virtio-serial-pci \
     -chardev "socket,path=$qga,server=on,wait=off,id=qga0" \
@@ -127,7 +130,7 @@ LIBGL_ALWAYS_SOFTWARE=1 qemu-system-x86_64 \
 qemu_pid=$!
 
 python3 - "$qga" "$monitor" "$qemu_pid" "$expected_ref" "$evidence" \
-    "$ssh_key" "$ssh_port" <<'PY'
+    "$ssh_key" "$ssh_port" "$ssh_port_after_reboot" <<'PY'
 import json
 import os
 from pathlib import Path
@@ -139,7 +142,7 @@ import time
 
 qga, monitor = sys.argv[1], sys.argv[2]
 qemu_pid, expected, evidence = int(sys.argv[3]), sys.argv[4], Path(sys.argv[5])
-ssh_key, ssh_port = sys.argv[6], sys.argv[7]
+ssh_key, ssh_port, ssh_port_after_reboot = sys.argv[6:9]
 sync_serial = 0
 
 
@@ -467,6 +470,7 @@ time.sleep(2)
 capture_display(evidence / "graphical-first-boot.ppm")
 
 send_shutdown("reboot")
+ssh_port = ssh_port_after_reboot
 second, second_err, second_id = wait_for_runtime(runtime_gate, first_id)
 (evidence / "runtime-second-boot.txt").write_text(
     second + (("\n=== stderr ===\n" + second_err) if second_err else ""), encoding="utf-8"
@@ -506,6 +510,7 @@ fi
 qemu-img check "$work/overlay.qcow2" | tee "$evidence/overlay-check.txt"
 for frame in graphical-first-boot graphical-second-boot; do
     [ -s "$evidence/${frame}.ppm" ] || { echo "X86 QCOW2 FATAL: ${frame} is empty" >&2; exit 1; }
+    python3 "$script_dir/assert_visual_frame.py" "$evidence/${frame}.ppm" "X86 QCOW2 ${frame}"
     "$image_tool" "$evidence/${frame}.ppm" "$evidence/${frame}.png"
     stddev="$("$image_tool" "$evidence/${frame}.png" -colorspace gray -format '%[fx:standard_deviation]' info:)"
     python3 - "$frame" "$stddev" <<'PY'
