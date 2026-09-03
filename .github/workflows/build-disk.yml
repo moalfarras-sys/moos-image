@@ -40,7 +40,7 @@ jobs:
   build-disk:
     name: Build qcow2 (bootc-image-builder)
     runs-on: ubuntu-latest
-    # bootc-image-builder + deployed-initramfs proof + two complete TCG boots
+    # bootc-image-builder + deployed-initramfs proof + two complete KVM boots
     # are bounded to 90 minutes so a wedged QEMU fails instead of consuming the
     # GitHub six-hour default.
     timeout-minutes: 90

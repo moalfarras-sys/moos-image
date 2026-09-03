@@ -687,13 +687,18 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
             self.assertIn("-device virtio-vga-gl", executable, path.name)
             self.assertIn("-display gtk,gl=on", executable, path.name)
             self.assertIn("LIBGL_ALWAYS_SOFTWARE=1 qemu-system-x86_64", executable, path.name)
+            self.assertIn("-machine q35,accel=kvm -cpu host", executable, path.name)
+            self.assertNotIn("accel=tcg", executable, path.name)
             self.assertNotIn("-device virtio-gpu-pci", executable, path.name)
             self.assertNotIn("-vga virtio", executable, path.name)
             self.assertNotIn("-vga none", executable, path.name)
             self.assertNotIn("-display none", executable, path.name)
 
         helper = (ROOT / "tests" / "qemu_virgl_env.sh").read_text(encoding="utf-8")
-        for proof in ("Xvfb -displayfd", "glxinfo -B", "OpenGL renderer string:"):
+        for proof in (
+            "Xvfb -displayfd", "glxinfo -B", "OpenGL renderer string:",
+            "[ -c /dev/kvm ]", "sudo chmod a+rw /dev/kvm", "accelerator=kvm",
+        ):
             self.assertIn(proof, helper)
 
         for workflow in (DISK_WORKFLOW, ISO_WORKFLOW):

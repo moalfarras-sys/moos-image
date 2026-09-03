@@ -16,6 +16,35 @@ moos_start_virgl_display() {
         }
     done
 
+    # A full Plasma boot under TCG is not a valid health measurement. Run
+    # 33686491949 reached the real greeter through VirGL, then system services
+    # timed out because software CPU emulation took minutes of wall clock for
+    # seconds of guest work. Require Linux's hardware accelerator so unit
+    # deadlines, animations and reboot timing are measured on a real clock.
+    {
+        printf 'accelerator=kvm\n'
+        printf 'host-arch=%s\n' "$(uname -m)"
+        qemu-system-x86_64 -accel help
+        ls -l /dev/kvm 2>&1 || true
+    } > "$evidence/host-kvm.txt"
+    [ -c /dev/kvm ] || {
+        echo "QEMU KVM FATAL: the x86 release runner has no /dev/kvm" >&2
+        return 1
+    }
+    grep -Fxq kvm < <(qemu-system-x86_64 -accel help) || {
+        echo "QEMU KVM FATAL: this QEMU build has no KVM accelerator" >&2
+        return 1
+    }
+    if [ ! -r /dev/kvm ] || [ ! -w /dev/kvm ]; then
+        sudo chmod a+rw /dev/kvm
+    fi
+    [ -r /dev/kvm ] && [ -w /dev/kvm ] || {
+        echo "QEMU KVM FATAL: the runner cannot access /dev/kvm" >&2
+        return 1
+    }
+    stat -c 'device=%n mode=%a owner=%U group=%G' /dev/kvm \
+        >> "$evidence/host-kvm.txt"
+
     : > "$display_file"
     exec 3>"$display_file"
     Xvfb -displayfd 3 -screen 0 1600x1000x24 -nolisten tcp \

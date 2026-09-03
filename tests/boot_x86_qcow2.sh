@@ -109,7 +109,7 @@ moos_start_virgl_display "$work" "$evidence"
 # forces current Plasma/Mesa through guest llvmpipe under TCG, where the real
 # login compositor crashed in release-proof runs 33655753536 and 33662618021.
 LIBGL_ALWAYS_SOFTWARE=1 qemu-system-x86_64 \
-    -machine q35,accel=tcg -cpu Haswell -m 4096 -smp 2 \
+    -machine q35,accel=kvm -cpu host -m 4096 -smp 2 \
     -drive "if=pflash,format=raw,readonly=on,file=$ovmf_code" \
     -drive "if=pflash,format=raw,file=$work/vars.fd" \
     -drive "file=$work/overlay.qcow2,format=qcow2,if=virtio,cache=unsafe" \
@@ -417,6 +417,10 @@ entry = policy['transports']['docker']['ghcr.io/moalfarras-sys']
 assert len(entry) == 1 and entry[0]['type'] == 'sigstoreSigned'
 assert entry[0]['keyPath'] == '/etc/pki/containers/moos.pub'
 assert entry[0]['signedIdentity'] == {'type': 'matchRepository'}
+assert policy['default'] == [{'type': 'reject'}]
+assert policy['transports']['containers-storage'][''] == [
+    {'type': 'insecureAcceptAnything'}
+]
 INNER
 [ "$(systemctl show -p NFailedUnits --value 2>/dev/null || true)" = 0 ] || gate_fail failed-system-unit
 printf 'boot_id=%s\nidentity=%s\narch=%s\norigin=%s\norigin-digest=%s\ngraphical=active\ndisplay-manager=plasmalogin\ngreeter-kwin=active\ndrm=present\nnetwork=active\nssh=ephemeral-key\nqga=responsive\nfirst-party-commands=7\nfailed-units=0\n' \

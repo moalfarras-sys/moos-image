@@ -94,7 +94,7 @@ start_qemu() {
     # VirGL keeps both the live and installed compositors on the same real 3D
     # guest path while QMP continues to capture the pixels users would see.
     LIBGL_ALWAYS_SOFTWARE=1 qemu-system-x86_64 \
-        -machine q35,accel=tcg -cpu Haswell -m 4096 -smp 2 \
+        -machine q35,accel=kvm -cpu host -m 4096 -smp 2 \
         -drive "if=pflash,format=raw,readonly=on,file=$ovmf_code" \
         -drive "if=pflash,format=raw,file=$work/vars.fd" \
         -drive "file=$work/installed.qcow2,format=qcow2,if=virtio,cache=unsafe" \

@@ -70,7 +70,7 @@ moos_start_virgl_display "$work" "$evidence"
 # device falls back to nested guest llvmpipe and is unstable with the current
 # image's Mesa stack under TCG.
 LIBGL_ALWAYS_SOFTWARE=1 qemu-system-x86_64 \
-    -machine q35,accel=tcg -cpu Haswell -m 4096 -smp 2 \
+    -machine q35,accel=kvm -cpu host -m 4096 -smp 2 \
     -drive "if=pflash,format=raw,readonly=on,file=$ovmf_code" \
     -drive "if=pflash,format=raw,file=$work/vars.fd" \
     -drive "file=$iso,media=cdrom,format=raw,readonly=on" \
