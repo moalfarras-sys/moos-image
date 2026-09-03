@@ -162,6 +162,19 @@ with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
     client.sendall(b"system_powerdown\n")
 PY
         fi
+        if [ "$attempt" -eq 90 ] && [ -S "$monitor" ]; then
+            echo "${label}: still running; sending a second ACPI power event"
+            python3 - "$monitor" <<'PY' || true
+import socket
+import sys
+
+with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
+    client.settimeout(5)
+    client.connect(sys.argv[1])
+    client.recv(4096)
+    client.sendall(b"system_powerdown\n")
+PY
+        fi
         sleep 1
     done
     if kill -0 "$qemu_pid" 2>/dev/null; then
@@ -366,14 +379,15 @@ for guest_path, host_name in (
 
 # Live media can carry a desktop-session inhibitor that ignores QGA's generic
 # shutdown request and the emulated ACPI button. Ask systemd directly after the
-# target is proven unmounted. guest-exec returns the PID before systemd tears
-# down QGA, so the host can distinguish a delivered request from a lost socket.
+# target is proven unmounted. --force skips session inhibitors (a live desktop
+# holds one), --no-block returns the PID before systemd tears down QGA, so the
+# host can distinguish a delivered request from a lost socket.
 try:
     poweroff = request({
         "execute": "guest-exec",
         "arguments": {
             "path": "/usr/bin/systemctl",
-            "arg": ["poweroff", "--no-wall", "--no-block"],
+            "arg": ["poweroff", "--no-wall", "--no-block", "--force"],
             "capture-output": False,
         },
     }, timeout=5)
