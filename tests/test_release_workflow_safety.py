@@ -699,9 +699,18 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
         for proof in (
             "Xvfb -displayfd", "glxinfo -B", "OpenGL renderer string:",
             "[ -c /dev/kvm ]", "sudo chmod a+rw /dev/kvm", "accelerator=kvm",
+            'MOOS_QEMU_GTK_WINDOW_TITLE="QEMU (${MOOS_QEMU_WINDOW_TITLE})"',
             'import -silent -display "$DISPLAY" -window "$window_id"',
         ):
             self.assertIn(proof, helper)
+
+        for path in (
+            ROOT / "tests" / "qemu_virgl_env.sh",
+            ROOT / "tests" / "install_live_iso.sh",
+            ROOT / "tests" / "boot_x86_qcow2.sh",
+        ):
+            script = path.read_text(encoding="utf-8")
+            self.assertIn("MOOS_QEMU_GTK_WINDOW_TITLE", script, path.name)
 
         for path in (ROOT / "tests" / "boot_x86_qcow2.sh", ROOT / "tests" / "install_live_iso.sh"):
             source = path.read_text(encoding="utf-8")

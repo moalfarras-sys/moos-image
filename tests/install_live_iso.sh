@@ -441,7 +441,7 @@ def capture(path):
     windows.write_text(tree.stdout + tree.stderr, encoding="utf-8")
     window = subprocess.run(
         ["xwininfo", "-display", os.environ["DISPLAY"], "-name",
-         os.environ["MOOS_QEMU_WINDOW_TITLE"], "-int"],
+         os.environ["MOOS_QEMU_GTK_WINDOW_TITLE"], "-int"],
         text=True, capture_output=True, check=False,
     )
     match = re.search(r"Window id:\s+(\d+)", window.stdout)

@@ -4,7 +4,11 @@
 # are not stable when their entire compositor runs in nested TCG llvmpipe.
 
 MOOS_QEMU_WINDOW_TITLE="${MOOS_QEMU_WINDOW_TITLE:-MoOS release proof}"
-export MOOS_QEMU_WINDOW_TITLE
+# QEMU treats -name as the guest name and GTK presents it as "QEMU (<name>)".
+# Keep the requested guest name and the exact mapped host-window title separate
+# so capture never falls back to the Xvfb root window.
+MOOS_QEMU_GTK_WINDOW_TITLE="QEMU (${MOOS_QEMU_WINDOW_TITLE})"
+export MOOS_QEMU_WINDOW_TITLE MOOS_QEMU_GTK_WINDOW_TITLE
 
 moos_start_virgl_display() {
     local work="$1"
@@ -100,7 +104,7 @@ moos_capture_virgl_display() {
     xwininfo -display "$DISPLAY" -root -tree > "${output%.*}-windows.txt" 2>&1 || true
     : > "$log"
     for _ in $(seq 1 20); do
-        window_id="$(xwininfo -display "$DISPLAY" -name "$MOOS_QEMU_WINDOW_TITLE" -int \
+        window_id="$(xwininfo -display "$DISPLAY" -name "$MOOS_QEMU_GTK_WINDOW_TITLE" -int \
             2>>"$log" | awk '/Window id:/ {print $4; exit}')"
         [ -n "$window_id" ] || { sleep 0.5; continue; }
         rm -f -- "$output"
