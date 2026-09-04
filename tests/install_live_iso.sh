@@ -501,12 +501,19 @@ def gate_until(script, args, seconds, label):
     if label.startswith("installed"):
         # The SSH gate died. Record WHY through QGA (which works even when
         # sshd does not): unit state, listen state and the fixture's own log.
-        diag = ("echo '=== sshd ==='; systemctl status sshd.service --no-pager -l | head -15;"
-                "echo '=== fixture ==='; systemctl status moos-ci-runtime-proof.service"
-                " 2>&1 | head -15; echo '=== listen ==='; ss -tln | head -10;"
-                "echo '=== fixture log ==='; journalctl -u moos-ci-runtime-proof.service"
-                " --no-pager 2>/dev/null | tail -20; echo '=== kernel marker ===';"
-                "cat /proc/cmdline")
+        diag = ("echo '=== sshd unit ==='; cat /usr/lib/systemd/system/sshd.service 2>&1 | head -5;"
+                "systemctl is-enabled sshd.service 2>&1; systemctl is-active sshd.service 2>&1;"
+                "echo '=== rpm ==='; rpm -q openssh-server 2>&1;"
+                "echo '=== fixture unit exists? ===';"
+                "ls -la /etc/systemd/system/multi-user.target.wants/ 2>&1 | grep -E 'moos|sshd';"
+                "cat /usr/lib/systemd/system/moos-ci-runtime-proof.service 2>&1 | head -8;"
+                "echo '=== journal (whole proof unit) ===';"
+                "journalctl -u moos-ci-runtime-proof.service --no-pager -o cat 2>&1 | tail -25;"
+                "echo '=== sshd journal ===';"
+                "journalctl -u sshd.service --no-pager 2>&1 | tail -15;"
+                "echo '=== listen ==='; ss -tln 2>&1 | head -10;"
+                "echo '=== auth keys ==='; ls -la /home/moosci/.ssh/ 2>&1;"
+                "echo '=== kernel marker ==='; cat /proc/cmdline")
         try:
             probe = request({
                 "execute": "guest-exec",
