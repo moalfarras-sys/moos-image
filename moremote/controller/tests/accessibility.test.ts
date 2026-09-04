@@ -67,7 +67,8 @@ for (const contract of [
   'className="remote-stage"',
   'className="toolbar-primary" role="toolbar" aria-label="Remote controls"',
   'aria-label="Show remote controls"',
-  '<span>Controls</span>',
+  // The label text is now i18n-resolved at runtime: assert the binding exists
+  '>{tr("controls")}</span>',
   'role="status" aria-live="polite"',
 ]) assert.ok(source.includes(contract), `responsive remote chrome misses ${contract}`);
 assert.match(styles, /\.remote\s*\{[\s\S]*?display:\s*grid;[\s\S]*?grid-template-areas:\s*"stage"\s*"controls";/,

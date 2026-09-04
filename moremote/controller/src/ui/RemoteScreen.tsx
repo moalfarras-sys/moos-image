@@ -1650,7 +1650,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
       // repair. Only sf === 0 needs no walk at all, so when the rewrite carries a
       // shared suffix in bidirectional text, rewrite the whole tail instead: more
       // keystrokes, but every one of them is direction-independent.
-      const bidi = /[֐-ࣿיִ-﷿ﹰ-﻿]/.test(last + v);
+      const bidi = /[֐-ࣿיִ-﷿ﹰ-]/.test(last + v);
       const walk = sf > 0 && !bidi;
       const removed = walk ? last.length - p - sf : last.length - p;
       const middle = walk ? v.slice(p, v.length - sf) : v.slice(p);
@@ -2187,7 +2187,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
         <div className="session-state recovery" role="status">
           <div className="state-icon"><IconLock /></div>
           <div className="state-copy">
-            <b>MoOS is not sharing the screen</b>
+            <b>{tr("notSharing")}</b>
             <span>
               Unlock the computer or wake its display, then reconnect. To keep it reachable, enable
               <b> “Never lock — stay reachable”</b> from Mo PC Remote on the computer.
@@ -2244,7 +2244,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
           />
           <button {...keepFocus} className="kbicon" onClick={() => sendKey("Backspace")} aria-label="Backspace"><IconBackspace /></button>
           <button {...keepFocus} className="kbicon" onClick={() => sendKey("Enter")} aria-label="Enter"><IconEnter /></button>
-          <button {...keepFocus} className="kbdone" onClick={closeKeyboard}>Done</button>
+          <button {...keepFocus} className="kbdone" onClick={closeKeyboard}>{tr("done")}</button>
         </div>
       </div>
 
@@ -2255,12 +2255,12 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
         <div className={"toolbar" + (toolbar || sheet ? "" : " fade-toolbar")}>
           <div className="toolbar-primary" role="toolbar" aria-label="Remote controls">
             <button className="tbtn" onClick={openKeyboard}><IconKeyboard /><span>Type</span></button>
-            <button className="tbtn" onClick={() => { setSheet("clip"); getPcClip(); }}><IconClipboard /><span>Clipboard</span></button>
+            <button className="tbtn" onClick={() => { setSheet("clip"); getPcClip(); }}><IconClipboard /><span>{tr("clipboard")}</span></button>
             <button className="tbtn" onClick={cycleMode}>
               {mode === "trackpad" ? <IconTrackpad /> : mode === "desktop" ? <IconDesktop /> : <IconMouse />}<span>{MODE_LABEL[mode]}</span>
             </button>
             <button className="tbtn" onClick={() => setSheet("view")}>
-              {viewMode === "fit" ? <IconFit /> : <IconActual />}<span>Display</span>
+              {viewMode === "fit" ? <IconFit /> : <IconActual />}<span>{tr("display")}</span>
             </button>
             <button
               className="tbtn"
@@ -2273,15 +2273,15 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
               }}
               aria-label="Zoom in on the centre, or back to fit"
             >
-              <IconActual /><span>Zoom</span>
+              <IconActual /><span>{tr("zoom")}</span>
             </button>
             <button className={"tbtn" + (sound === "on" ? " on" : "")} onClick={toggleSound}>
               {sound === "on" ? <IconSpeaker /> : <IconSpeakerOff />}
               <span>{sound === "connecting" ? "Starting" : "Sound"}</span>
             </button>
-            <button className="tbtn" onClick={fullscreen}><IconFullscreen /><span>Fullscreen</span></button>
+            <button className="tbtn" onClick={fullscreen}><IconFullscreen /><span>{tr("fullscreen")}</span></button>
           </div>
-          <button className="tbtn toolbar-settings accent" onClick={() => setSheet("more")}><IconSettings /><span>More</span></button>
+          <button className="tbtn toolbar-settings accent" onClick={() => setSheet("more")}><IconSettings /><span>{tr("more")}</span></button>
         </div>
       )}
 
@@ -2313,7 +2313,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
             </p>
             <div className="confirm-actions">
               <button id="power-confirm-cancel" type="button" className="btn ghost"
-                      disabled={powerBusy} onClick={cancelPowerConfirm}>Cancel</button>
+                      disabled={powerBusy} onClick={cancelPowerConfirm}>{tr("cancel")}</button>
               <button type="button" className="btn danger"
                       disabled={powerBusy} onClick={() => void runPower(powerConfirm)}>
                 {powerBusy ? "Working…" : powerConfirm.label}
@@ -2325,8 +2325,8 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
 
       {sheet === "view" && (
         <SheetPanel label="Display" onClose={closeSheet}>
-          <div className="grip" /><h3>Display</h3>
-          <div className="row-label">Screen</div>
+          <div className="grip" /><h3>{tr("display")}</h3>
+          <div className="row-label">{tr("screen")}</div>
           <div className="seg">
             <button className={viewMode === "fit" ? "on" : ""} onClick={() => chooseView("fit")}><IconFit /> Fit</button>
             <button className={viewMode === "actual" ? "on" : ""} onClick={() => chooseView("actual")}><IconActual /> 100%</button>
@@ -2336,9 +2336,9 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
               stop changing your mind". A control that appears and disappears with the viewport
               cannot deliver that promise: the moment you want the lock is the moment the picture
               just moved, and on a phone that is exactly when a portrait-only control is gone. */}
-          <div className="row-label">Rotation</div>
+          <div className="row-label">{tr("rotation")}</div>
           <div className="seg">
-            <button className={orient === "auto" ? "on" : ""} onClick={() => chooseOrient("auto")}>Fit phone</button>
+          <button className={orient === "auto" ? "on" : ""} onClick={() => chooseOrient("auto")}>{tr("fitPhone")}</button>
             <button className={orient === "on" ? "on" : ""} onClick={() => chooseOrient("on")}><IconRotate /> Sideways</button>
             <button className={orient === "off" ? "on" : ""} onClick={() => chooseOrient("off")}><IconLock /> Upright</button>
           </div>
@@ -2350,7 +2350,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
           </p>
           {monitors.length > 1 && (
             <>
-              <div className="row-label">Monitor</div>
+              <div className="row-label">{tr("monitor")}</div>
               <div className="seg">
                 {monitors.map((m, i) => (
                   <button key={m.index} className={selMonitor === i ? "on" : ""} onClick={() => chooseMonitor(i)}>
@@ -2360,15 +2360,15 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
               </div>
             </>
           )}
-          <div className="row-label">Zoom</div>
+          <div className="row-label">{tr("zoom")}</div>
           <div className="zoomrow">
             <button className="cell" onClick={() => zoomBy(0.77)}><IconZoomOut /> Out</button>
-            <button className="cell" onClick={resetZoom}>Reset</button>
+            <button className="cell" onClick={resetZoom}>{tr("reset")}</button>
             <button className="cell" onClick={() => zoomBy(1.3)}><IconZoomIn /> In</button>
           </div>
-          <div className="row-label">Quality</div>
+          <div className="row-label">{tr("quality")}</div>
           <div className="seg">
-            <button className={auto ? "on" : ""} onClick={() => { setAuto(true); showToast("Auto quality — adapts to your network"); }}>Auto</button>
+            <button className={auto ? "on" : ""} onClick={() => { setAuto(true); showToast(tr("autoQuality")); }}>{tr("auto")}</button>
             {QUALITY_PRESETS.map((p, i) => (
               <button key={p.label} className={!auto && presetIdx === i ? "on" : ""} onClick={() => { setAuto(false); selectPreset(i); }}
                 title={p.detail}>{p.label}<small>{p.detail}</small></button>
@@ -2385,7 +2385,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
               column of sliders and buttons did not give you. */}
           <div className="grip" /><h3><IconSettings /> Settings</h3>
 
-          <div className="sec-label">Pointer</div>
+          <div className="sec-label">{tr("pointer")}</div>
           <div className="card">
             <div className="card-pad">
               {/* Three buttons, not four. "Touch" and "Direct" were never two models — they
@@ -2415,16 +2415,16 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
             )}
           </div>
 
-          <div className="sec-label">Feel</div>
+          <div className="sec-label">{tr("feel")}</div>
           <div className="card">
             <div className="slider-row">
-              <div className="row"><div className="row-main"><div className="row-title">Mouse speed</div></div>
+              <div className="row"><div className="row-main"><div className="row-title">{tr("mouseSpeed")}</div></div>
                 <div className="row-value">{mouseSensitivity.toFixed(1)}</div></div>
               <input type="range" min="0.4" max="2.5" step="0.1" value={mouseSensitivity}
                      onChange={e => setMouseSensitivity(Number(e.target.value))} />
             </div>
             <div className="slider-row">
-              <div className="row"><div className="row-main"><div className="row-title">Scroll speed</div></div>
+              <div className="row"><div className="row-main"><div className="row-title">{tr("scrollSpeed")}</div></div>
                 <div className="row-value">{scrollSensitivity.toFixed(1)}</div></div>
               <input type="range" min="0.4" max="2.5" step="0.1" value={scrollSensitivity}
                      onChange={e => setScrollSensitivity(Number(e.target.value))} />
@@ -2441,7 +2441,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
             </Row>
           </div>
 
-          <div className="sec-label">Alerts</div>
+          <div className="sec-label">{tr("alerts")}</div>
           <div className="card">
             <Row title="Background alerts"
                  sub="Generic connection and transfer alerts only. Desktop notifications, filenames and clipboard content never leave the PC.">
@@ -2450,7 +2450,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
             </Row>
           </div>
 
-          <div className="sec-label">Security</div>
+          <div className="sec-label">{tr("security")}</div>
           <div className="card trusted-list" aria-busy={trustedDevices === null}>
             {trustedDevices === null && <div className="card-pad muted" role="status">Loading trusted devices…</div>}
             {trustedDevices?.length === 0 && <div className="card-pad muted">No remembered devices.</div>}
@@ -2469,7 +2469,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
             ))}
           </div>
 
-          <div className="sec-label">Actions</div>
+          <div className="sec-label">{tr("actions")}</div>
           <div className="card">
             <div className="card-pad">
               <div className="grid">
@@ -2487,7 +2487,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
           {/* Power is SHUT. These change the state of the computer you are looking at, and
               "Shut down" sitting one tap below "Copy" is how a phone in a pocket ends a
               session. Opening the section is the deliberate act that earns the buttons. */}
-          <div className="sec-label">Power</div>
+          <div className="sec-label">{tr("power")}</div>
           <div className="card">
             <details className="fold">
               <summary><span>{hostPowerAllowed ? "Lock, sleep, restart, shut down" : "Managed by the Cloud administrator"}</span><IconChevronDown /></summary>
@@ -2514,9 +2514,9 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
               <summary><span>{tr("versionAndConnection")}</span><IconChevronDown /></summary>
               <div>
                 <div className="kv"><span>{tr("appVersion")}</span><b>{BUILD}</b></div>
-                <div className="kv"><span>Connection</span><b>{status}</b></div>
+                <div className="kv"><span>{tr("connection")}</span><b>{status}</b></div>
                 <div className="kv"><span>{tr("thisDevice")}</span><b>{describeHints(deviceHints)}</b></div>
-                <div className="kv"><span>Video</span>
+                <div className="kv"><span>{tr("video")}</span>
                   <b>{status === "live"
                        ? `${codec === "h264" ? "H.264" : "JPEG"} · ${fps} fps · ${latency} ms`
                        : "—"}</b>
@@ -2560,7 +2560,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
             {fileBusy && <div className="hintline" role="status">{uploadProgress || "Loading…"}</div>}
             {!fileBusy && fileList?.truncated &&
               <div className="hintline" role="status">Showing the first 500 items. Open a smaller folder to continue.</div>}
-            {!fileBusy && fileList && fileList.entries.length === 0 && <div className="hintline">Empty folder</div>}
+            {!fileBusy && fileList && fileList.entries.length === 0 && <div className="hintline">{tr("emptyFolder")}</div>}
             {!fileBusy && fileList?.entries.map((en) => (
               <button key={en.path} className="file-row" onClick={() => (en.isDir ? navFiles(en.path) : downloadFile(en))}>
                 <span className="file-ic">{en.isDir ? <IconFolder /> : <IconFile />}</span>
@@ -2574,7 +2574,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
 
       {sheet === "clip" && (
         <SheetPanel label="Clipboard sync" onClose={closeSheet}>
-          <div className="grip" /><h3>Clipboard sync</h3>
+          <div className="grip" /><h3>{tr("clipboardSync")}</h3>
 
           <div className="row-label">PC → Phone</div>
           {pcClip.kind === "image" ? (
@@ -2623,7 +2623,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
 
       {!toolbar && !kbOpen && !sheet && !terminalOverlay && (
         <button className="show-tab" onClick={bumpToolbar} aria-label="Show remote controls">
-          <IconChevronDown /><span>Controls</span>
+          <IconChevronDown /><span>{tr("controls")}</span>
         </button>
       )}
 
