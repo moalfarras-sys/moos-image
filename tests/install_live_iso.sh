@@ -378,16 +378,19 @@ for guest_path, host_name in (
     (evidence / host_name).write_text(out + ("\n=== stderr ===\n" + err if err else ""))
 
 # Live media can carry a desktop-session inhibitor that ignores QGA's generic
-# shutdown request and the emulated ACPI button. Ask systemd directly after the
-# target is proven unmounted. --force skips session inhibitors (a live desktop
-# holds one), --no-block returns the PID before systemd tears down QGA, so the
-# host can distinguish a delivered request from a lost socket.
+# shutdown request and the emulated ACPI button. Run 33820398690 proved that
+# even `systemctl poweroff --force` is delivered yet ignored on live media:
+# systemd queues the job behind an unkillable session scope instead of acting.
+# `systemctl --force --force poweroff` (twice) makes systemd contact init
+# immediately and skip every inhibitor — the documented "immediate poweroff"
+# path. guest-exec returns the PID before systemd tears down QGA, so the host
+# can distinguish a delivered request from a lost socket.
 try:
     poweroff = request({
         "execute": "guest-exec",
         "arguments": {
             "path": "/usr/bin/systemctl",
-            "arg": ["poweroff", "--no-wall", "--no-block", "--force"],
+            "arg": ["poweroff", "--no-wall", "--force", "--force"],
             "capture-output": False,
         },
     }, timeout=5)
