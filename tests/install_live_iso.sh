@@ -498,6 +498,40 @@ def gate_until(script, args, seconds, label):
             return out
         last = err or out or f"exit {code}"
         time.sleep(5)
+    if label.startswith("installed"):
+        # The SSH gate died. Record WHY through QGA (which works even when
+        # sshd does not): unit state, listen state and the fixture's own log.
+        diag = ("echo '=== sshd ==='; systemctl status sshd.service --no-pager -l | head -15;"
+                "echo '=== fixture ==='; systemctl status moos-ci-runtime-proof.service"
+                " 2>&1 | head -15; echo '=== listen ==='; ss -tln | head -10;"
+                "echo '=== fixture log ==='; journalctl -u moos-ci-runtime-proof.service"
+                " --no-pager 2>/dev/null | tail -20; echo '=== kernel marker ===';"
+                "cat /proc/cmdline")
+        try:
+            probe = request({
+                "execute": "guest-exec",
+                "arguments": {
+                    "path": "/usr/bin/bash", "arg": ["-c", diag],
+                    "capture-output": True,
+                },
+            }, timeout=15)
+            pid = probe.get("pid")
+            if pid:
+                for _ in range(20):
+                    time.sleep(1)
+                    poll = request({"execute": "guest-exec-status",
+                                    "arguments": {"pid": pid}}, timeout=10)
+                    if poll.get("exited"):
+                        import base64 as _b64
+                        raw = poll.get("out-data", "")
+                        (evidence / "ssh-failure-diagnosis.txt").write_text(
+                            _b64.b64decode(raw).decode("utf-8", "replace"),
+                            encoding="utf-8")
+                        break
+        except (OSError, RuntimeError, ValueError) as error:
+            (evidence / "ssh-failure-diagnosis.txt").write_text(
+                f"diagnostic failed: {error}\nlast ssh error: {last}\n",
+                encoding="utf-8")
     raise SystemExit(f"ISO INSTALL FATAL: {label}: {last}")
 
 
