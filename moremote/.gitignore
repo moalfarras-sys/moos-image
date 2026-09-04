@@ -11,11 +11,10 @@ publish/
 *.user
 
 # ---- Build output served to phone ----
-agent/wwwroot/assets/
-agent/wwwroot/index.html
-agent/wwwroot/manifest.webmanifest
-agent/wwwroot/sw.js
-agent/wwwroot/registerSW.js
+# NOT ignored: the shipped UI IS the built bundle in agent/wwwroot — it is tracked
+# at the repo root so the image ships exactly what the controller source builds.
+# (Only local dev noise below stays ignored.)
+
 agent/wwwroot/workbox-*.js
 agent/wwwroot/icons/
 
