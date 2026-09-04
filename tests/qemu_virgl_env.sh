@@ -59,7 +59,10 @@ moos_start_virgl_display() {
     xvfb_pid=$!
     exec 3>&-
 
-    for _ in $(seq 1 100); do
+    # Parallel proof runs load the runner heavily; 10s was measured while this
+    # script ran alone. 60s with xdpyinfo re-checks keeps a loaded-but-healthy
+    # Xvfb from failing the gate, and an actually-dead Xvfb still fails fast.
+    for _ in $(seq 1 600); do
         if ! kill -0 "$xvfb_pid" 2>/dev/null; then
             echo "QEMU VIRGL FATAL: Xvfb exited during startup" >&2
             tail -80 "$evidence/xvfb.log" >&2 || true
