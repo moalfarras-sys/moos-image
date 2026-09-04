@@ -19,7 +19,7 @@ required_script = (
     "start_qemu live-install install-2d",
     "! findmnt -rn -o SOURCE | grep -qE '^/dev/vda",
     '"path": "/usr/bin/systemctl"',
-    '"arg": ["poweroff", "--no-wall", "--no-block"]',
+    '"arg": ["poweroff", "--no-wall", "--no-block", "--force"]',
     "start_qemu installed proof-virgl -boot order=c",
     "! grep -qw rd.live.image /proc/cmdline",
     "ostree-image-signed:docker://${expected}",
