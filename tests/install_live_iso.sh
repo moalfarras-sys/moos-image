@@ -323,14 +323,21 @@ root_part="$(lsblk -nrpo NAME,FSTYPE "$node" | awk '$2=="btrfs" {print $1; exit}
 proof_root=/run/moos-iso-ci-target
 install -d -m0755 "$proof_root"
 mount -o subvol=root "$root_part" "$proof_root"
-proof_home="$proof_root/var/home/moosci"
+deployment="$(find "$proof_root/ostree/deploy" -mindepth 3 -maxdepth 3 \
+    -type d -name '*.0' -print -quit)"
+[ -n "$deployment" ]
+# The booted system binds the DEPLOYED var (ostree/deploy/<stateroot>/var),
+# not the root subvolume's top-level var/. Run 33892146231 proved the
+# difference: a key written under <root-subvol>/var/home was invisible to the
+# installed first boot, the fixture unit's ConditionPathExists failed, sshd
+# never started, and the SSH gate timed out waiting for a banner.
+stateroot="$(basename "$(dirname "$(dirname "$deployment")")")"
+[ -n "$stateroot" ] && [ "$stateroot" != deploy ]
+proof_home="$proof_root/ostree/deploy/$stateroot/var/home/moosci"
 install -d -m0700 "$proof_home/.ssh"
 printf '%s\n' "$proof_key" > "$proof_home/.ssh/authorized_keys"
 chmod 0600 "$proof_home/.ssh/authorized_keys"
 chown -R 1000:1000 "$proof_home"
-deployment="$(find "$proof_root/ostree/deploy" -mindepth 3 -maxdepth 3 \
-    -type d -name '*.0' -print -quit)"
-[ -n "$deployment" ]
 wants="$deployment/etc/systemd/system/multi-user.target.wants"
 install -d -m0755 "$wants"
 ln -s /usr/lib/systemd/system/moos-ci-runtime-proof.service \
