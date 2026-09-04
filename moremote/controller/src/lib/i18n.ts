@@ -68,6 +68,7 @@ const dict = {
   mouseSpeed: { ar: "سرعة الفأرة", en: "Mouse speed" },
   scrollSpeed: { ar: "سرعة التمرير", en: "Scroll speed" },
   haptics: { ar: "الاهتزاز", en: "Haptics" },
+  hapticsSub: { ar: "اهتزازة قصيرة عند اللمس والنقر.", en: "A short buzz on tap and click." },
   language: { ar: "اللغة", en: "Language" },
   signOut: { ar: "تسجيل خروج", en: "Sign out" },
 
@@ -127,6 +128,34 @@ const dict = {
   trustDevice: { ar: "الثقة بهذا الجهاز لمدة 30 يوماً", en: "Trust this device for 30 days" },
   trustDeviceHint: { ar: "إعادة اتصال بعد إعادة تشغيل الوكيل دون إدخال الرمز.", en: "Reconnect after an agent restart without entering the PIN." },
   privateRemote: { ar: "تحكم خاص عن بُعد", en: "Private remote control" },
+
+  // ── Settings sheet ──
+  settingsTitle: { ar: "الإعدادات", en: "Settings" },
+  mouseKeys: { ar: "فأرة + مفاتيح", en: "Mouse + keys" },
+  trackpad: { ar: "لوحة لمس", en: "Trackpad" },
+  touch: { ar: "لمس", en: "Touch" },
+  drag: { ar: "سحب", en: "Drag" },
+  desktop: { ar: "سطح مكتب", en: "Desktop" },
+  oneFingerDrag: { ar: "سحب بإصبع واحد", en: "One-finger drag" },
+  oneFingerDragSub: { ar: "اسحب بإصبع واحد بدل التمرير.", en: "Drag with one finger instead of scrolling." },
+  capturePointer: { ar: "احتجاز المؤشر", en: "Capture pointer" },
+  capturePointerSub: { ar: "حركة خام للألعاب و3D. Esc يحرّره. ملء الشاشة يحتجز Esc وTab وCtrl+W.", en: "Raw movement for 3D and games. Esc releases it. Fullscreen also captures Esc, Tab and Ctrl+W." },
+  naturalScroll: { ar: "تمرير طبيعي", en: "Natural scroll" },
+  naturalScrollSub: { ar: "المحتوى يتبع إصبعك.", en: "Content follows your finger." },
+  magnifyTyping: { ar: "تكبير أثناء الكتابة", en: "Magnify while typing" },
+  magnifyTypingSub: { ar: "عند فتح لوحة المفاتيح، يرتفع سطح المكتب ويتكبير ليظهر سطر الكتابة بوضوح.", en: "When the keyboard opens, the desktop lifts clear of it and zooms to the cursor so you can read the line you are writing." },
+  backgroundAlerts: { ar: "تنبيهات في الخلفية", en: "Background alerts" },
+  backgroundAlertsSub: { ar: "إشعار هادئ عند انقطاع الاتصال أو توقف الجلسة.", en: "A quiet notification when the link drops or the session pauses." },
+
+  // ── Mode hints (touch/trackpad/mouse) ──
+  modeHintTouch: { ar: "نقرة · سحب بالتمرير · ضغط مطوّل = زر أيمن · ضغط ثم حركة = سحب", en: "Tap · swipe scrolls · hold = right-click · hold then move = drag" },
+  modeHintDirect: { ar: "نقرة للنقر · إصبع واحد يسحب · إصبعان يتمريران", en: "Tap to click · one finger drags · two fingers scroll" },
+  modeHintTrackpad: { ar: "مرّر لتحريك المؤشر، مثل لوحة لمس الحاسوب", en: "Slide to move the pointer, like a laptop trackpad" },
+  modeHintDesktop: { ar: "فأرة ولوحة مفاتيح حقيقية — بدون أي تفسير", en: "A real mouse and keyboard — nothing is interpreted" },
+
+  // ── Toolbar ──
+  sound: { ar: "الصوت", en: "Sound" },
+  type: { ar: "كتابة", en: "Type" },
 } as const;
 
 export type StringId = keyof typeof dict;

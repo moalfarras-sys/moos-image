@@ -490,17 +490,17 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
   const toggleBackgroundAlerts = async () => {
     if (backgroundAlerts && remoteAlertPermission() === "granted") {
       setBackgroundAlerts(false);
-      showToast("Background alerts off");
+      showToast(tr("backgroundAlerts") + " · " + (lang === "ar" ? "مطفأة" : "off"));
       return;
     }
     if (remoteAlertPermission() === "unsupported") {
       setBackgroundAlerts(false);
-      showToast("Background alerts need the installed HTTPS app");
+      showToast(lang === "ar" ? "تنبيهات الخلفية تحتاج التطبيق المثبت عبر HTTPS" : "Background alerts need the installed HTTPS app");
       return;
     }
     if (await requestRemoteAlertPermission()) {
       setBackgroundAlerts(true);
-      showToast("Background alerts on");
+      showToast(tr("backgroundAlerts") + " · " + (lang === "ar" ? "مفعّلة" : "on"));
     } else {
       setBackgroundAlerts(false);
       showToast("Notification permission was not granted");
@@ -2142,7 +2142,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
             {!screenOk && <span className="bad">· No video</span>}
             {!inputOk && <span className="bad">· No input</span>}
             {!clipboardOk && <span className="bad">· No clipboard</span>}
-            {status === "live" && <span>· {fps}fps · {latency}ms · {codec === "h264" ? "H.264" : "JPEG"} · {MODE_LABEL[mode]}</span>}
+            {status === "live" && <span>· {fps}fps · {latency}ms · {codec === "h264" ? "H.264" : "JPEG"} · {tr(mode === "touch" ? "touch" : mode === "trackpad" ? "trackpad" : mode === "desktop" ? "desktop" : "drag")}</span>}
           </>
         )}
       </button>
@@ -2254,10 +2254,10 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
       {!kbOpen && (
         <div className={"toolbar" + (toolbar || sheet ? "" : " fade-toolbar")}>
           <div className="toolbar-primary" role="toolbar" aria-label="Remote controls">
-            <button className="tbtn" onClick={openKeyboard}><IconKeyboard /><span>Type</span></button>
+            <button className="tbtn" onClick={openKeyboard}><IconKeyboard /><span>{tr("type")}</span></button>
             <button className="tbtn" onClick={() => { setSheet("clip"); getPcClip(); }}><IconClipboard /><span>{tr("clipboard")}</span></button>
             <button className="tbtn" onClick={cycleMode}>
-              {mode === "trackpad" ? <IconTrackpad /> : mode === "desktop" ? <IconDesktop /> : <IconMouse />}<span>{MODE_LABEL[mode]}</span>
+              {mode === "trackpad" ? <IconTrackpad /> : mode === "desktop" ? <IconDesktop /> : <IconMouse />}<span>{tr(mode === "touch" ? "touch" : mode === "trackpad" ? "trackpad" : mode === "desktop" ? "desktop" : "drag")}</span>
             </button>
             <button className="tbtn" onClick={() => setSheet("view")}>
               {viewMode === "fit" ? <IconFit /> : <IconActual />}<span>{tr("display")}</span>
@@ -2378,12 +2378,12 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
       )}
 
       {sheet === "more" && (
-        <SheetPanel label="Settings" onClose={closeSheet}>
+        <SheetPanel label={tr("settingsTitle")} onClose={closeSheet}>
           {/* Rebuilt as grouped cards. See styles.css "Settings sheet" for why this shape:
               a small uppercase label, then a card holding related rows. The card edge is
               what lets you find a row without reading every line — which the previous flat
               column of sliders and buttons did not give you. */}
-          <div className="grip" /><h3><IconSettings /> Settings</h3>
+          <div className="grip" /><h3><IconSettings /> {tr("settingsTitle")}</h3>
 
           <div className="sec-label">{tr("pointer")}</div>
           <div className="card">
@@ -2393,23 +2393,23 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
                   does — so that difference is the switch below, not a mode of its own. */}
               <div className="seg">
                 <button className={mode === "touch" || mode === "direct" ? "on" : ""}
-                        onClick={() => setMode("touch")}><IconMouse /> Touch</button>
+                        onClick={() => setMode("touch")}><IconMouse /> {tr("touch")}</button>
                 <button className={mode === "trackpad" ? "on" : ""}
-                        onClick={() => setMode("trackpad")}><IconTrackpad /> Trackpad</button>
+                        onClick={() => setMode("trackpad")}><IconTrackpad /> {tr("trackpad")}</button>
                 <button className={mode === "desktop" ? "on" : ""}
-                        onClick={() => setMode("desktop")}><IconMouse /> Mouse + keys</button>
+                        onClick={() => setMode("desktop")}><IconMouse /> {tr("mouseKeys")}</button>
               </div>
               <p className="hint" style={{ margin: "10px 0 0" }}>{MODE_HINT[mode]}</p>
             </div>
             {(mode === "touch" || mode === "direct") && (
-              <Row title="One-finger drag" sub="Drag with one finger instead of scrolling.">
+              <Row title={tr("oneFingerDrag")} sub={tr("oneFingerDragSub")}>
                 <Switch on={mode === "direct"}
                         onToggle={() => setMode(mode === "direct" ? "touch" : "direct")} />
               </Row>
             )}
             {mode === "desktop" && (
-              <Row title="Capture pointer"
-                   sub="Raw movement for 3D and games. Esc releases it. Fullscreen also captures Esc, Tab and Ctrl+W.">
+              <Row title={tr("capturePointer")}
+                   sub={tr("capturePointerSub")}>
                 <Switch on={pointerLock} onToggle={() => setPointerLock(v => !v)} />
               </Row>
             )}
@@ -2429,13 +2429,13 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
               <input type="range" min="0.4" max="2.5" step="0.1" value={scrollSensitivity}
                      onChange={e => setScrollSensitivity(Number(e.target.value))} />
             </div>
-            <Row title="Natural scroll" sub="Content follows your finger.">
+            <Row title={tr("naturalScroll")} sub={tr("naturalScrollSub")}>
               <Switch on={naturalScroll} onToggle={() => setNaturalScroll(v => !v)} />
             </Row>
-            <Row title="Haptics" sub="A short buzz on tap and click.">
+            <Row title={tr("haptics")} sub={tr("hapticsSub")}>
               <Switch on={haptics} onToggle={() => setHaptics(v => !v)} />
             </Row>
-            <Row title="Magnify while typing"
+            <Row title={tr("magnifyTyping")}
                  sub="When the keyboard opens, the desktop lifts clear of it and zooms to the cursor so you can read the line you are writing.">
               <Switch on={typingZoom} onToggle={() => setTypingZoom(v => !v)} />
             </Row>
@@ -2443,7 +2443,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
 
           <div className="sec-label">{tr("alerts")}</div>
           <div className="card">
-            <Row title="Background alerts"
+            <Row title={tr("backgroundAlerts")}
                  sub="Generic connection and transfer alerts only. Desktop notifications, filenames and clipboard content never leave the PC.">
               <Switch on={backgroundAlerts && remoteAlertPermission() === "granted"}
                       onToggle={() => void toggleBackgroundAlerts()} />
