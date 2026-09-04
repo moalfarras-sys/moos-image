@@ -512,6 +512,9 @@ def gate_until(script, args, seconds, label):
                 "echo '=== auth keys ==='; ls -la /var/home/moosci/.ssh/ /home/moosci/.ssh/ 2>&1;"
                 "echo '=== firewall zones ===';"
                 "/usr/bin/firewall-cmd --get-active-zones 2>&1 | head -5;"
+                "echo '=== selinux ==='; getenforce 2>&1;"
+                "ausearch -m avc -ts recent 2>&1 | tail -20 || dmesg 2>/dev/null | grep -iE 'avc|denied' | tail -15;"
+                "echo '=== sshd try ==='; /usr/sbin/sshd -t 2>&1;"
                 "echo '=== kernel marker ==='; cat /proc/cmdline")
         try:
             probe = request({
