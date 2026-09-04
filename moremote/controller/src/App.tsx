@@ -6,6 +6,7 @@ import {
 import { SetupScreen, LoginScreen } from "./ui/AuthScreens";
 import { RemoteScreen } from "./ui/RemoteScreen";
 import { IconPlug } from "./ui/icons";
+import { usePwaInstall } from "./lib/pwa";
 
 type View =
   | { name: "loading" }
@@ -16,6 +17,7 @@ type View =
 
 export default function App() {
   const [view, setView] = useState<View>({ name: "loading" });
+  const pwa = usePwaInstall();
 
   const decide = async () => {
     try {
@@ -106,10 +108,42 @@ export default function App() {
         </div>
       );
     case "setup":
-      return <SetupScreen onDone={enterRemote} />;
+      return (
+        <>
+          {pwa.canInstall && <InstallBanner onInstall={pwa.promptInstall} />}
+          <SetupScreen onDone={enterRemote} />
+        </>
+      );
     case "login":
-      return <LoginScreen onDone={enterRemote} lockoutSeconds={view.lockout} />;
+      return (
+        <>
+          {pwa.canInstall && <InstallBanner onInstall={pwa.promptInstall} />}
+          <LoginScreen onDone={enterRemote} lockoutSeconds={view.lockout} />
+        </>
+      );
     case "remote":
       return <RemoteScreen token={view.token} hostPowerAllowed={view.hostPowerAllowed} onExit={exitToLogin} onAuthExpired={authExpired} />;
   }
+}
+
+function InstallBanner({ onInstall }: { onInstall: () => void }) {
+  return (
+    <div
+      style={{
+        position: "fixed", bottom: 14, left: 14, right: 14, zIndex: 40,
+        display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between",
+        padding: "10px 12px", borderRadius: 14,
+        background: "rgba(20,25,28,.92)", border: "1px solid rgba(78,200,200,.35)",
+        boxShadow: "0 8px 24px rgba(0,0,0,.45)", color: "#e8f1f1",
+      }}
+      role="status"
+    >
+      <span style={{ fontSize: 13 }}>
+        ثبّت التطبيق على جهازك للحصول على تجربة كاملة · Install Mo Remote for the full experience
+      </span>
+      <button className="btn" onClick={onInstall} style={{ flexShrink: 0 }}>
+        تثبيت · Install
+      </button>
+    </div>
+  );
 }
