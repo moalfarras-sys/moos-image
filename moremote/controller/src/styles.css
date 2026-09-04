@@ -1649,3 +1649,25 @@ button {
 }
 .kv > span { color: var(--muted); }
 .kv > b { font-weight: 650; text-align: right; overflow-wrap: anywhere; }
+
+/* ── RTL (Arabic) layout ───────────────────────────────────────────
+   When the language switch sets dir=rtl, the physical layout must
+   mirror: paddings, fixed offsets, text alignment and the flow of
+   rows/cards follow the writing direction instead of staying LTR. */
+[dir="rtl"] .brand,
+[dir="rtl"] .auth,
+[dir="rtl"] .hint,
+[dir="rtl"] .row,
+[dir="rtl"] .row-main,
+[dir="rtl"] .trust-device span,
+[dir="rtl"] .credit,
+[dir="rtl"] .center-msg {
+  text-align: right;
+}
+[dir="rtl"] .trust-device input {
+  margin-right: 0;
+  margin-left: 10px;
+}
+[dir="rtl"] .kbinput::placeholder {
+  text-align: right;
+}
