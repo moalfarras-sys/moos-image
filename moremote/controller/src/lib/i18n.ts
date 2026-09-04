@@ -112,6 +112,21 @@ const dict = {
     en: "Install Mo Remote for the full experience",
   },
   install: { ar: "تثبيت", en: "Install" },
+
+  // ── Auth / PIN screens ──
+  pinSetup: { ar: "أنشئ رمز دخولك الخاص", en: "Set up your private access PIN" },
+  pinConfirmTitle: { ar: "أكّد رمز الدخول", en: "Confirm your PIN" },
+  pinChoose: { ar: "اختر رمزاً من 6 أرقام على الأقل.", en: "Choose a PIN of at least 6 digits." },
+  pinConfirm: { ar: "أدخل نفس الرمز مرة أخرى للتأكيد.", en: "Enter the same PIN again to confirm." },
+  pinMismatch: { ar: "الرمزان غير متطابقين. حاول مجدداً.", en: "PINs do not match. Try again." },
+  pinSaveFailed: { ar: "تعذّر حفظ الرمز. حاول مجدداً.", en: "Could not save PIN. Please retry." },
+  pinEnter: { ar: "أدخل رمز الدخول للاتصال.", en: "Enter your PIN to connect." },
+  pinWrong: { ar: "الرمز خاطئ. حاول مجدداً.", en: "Wrong PIN. Try again." },
+  locked: { ar: "مقفل. حاول بعد", en: "Locked. Try again in" },
+  connectionDropped: { ar: "انقطع الاتصال. أعد الاتصال بالكمبيوتر وحاول مجدداً.", en: "Connection dropped. Reconnect to the PC and retry." },
+  trustDevice: { ar: "الثقة بهذا الجهاز لمدة 30 يوماً", en: "Trust this device for 30 days" },
+  trustDeviceHint: { ar: "إعادة اتصال بعد إعادة تشغيل الوكيل دون إدخال الرمز.", en: "Reconnect after an agent restart without entering the PIN." },
+  privateRemote: { ar: "تحكم خاص عن بُعد", en: "Private remote control" },
 } as const;
 
 export type StringId = keyof typeof dict;

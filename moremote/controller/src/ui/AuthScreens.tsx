@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { login, setupPin, type AuthResult } from "../lib/api";
 import { BUILD } from "../types";
 import { IconBackspace, IconEnter, IconLock } from "./icons";
+import { detectLang, makeT } from "../lib/i18n";
+
+const tr = makeT(detectLang());
 
 function Brand({ subtitle }: { subtitle: string }) {
   return (
@@ -40,7 +43,7 @@ function TrustDevice({ checked, onChange }: { checked: boolean; onChange: (value
   return (
     <label className="trust-device">
       <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} />
-      <span><b>Trust this device for 30 days</b><small>Reconnect after an agent restart without entering the PIN.</small></span>
+      <span><b>{tr("trustDevice")}</b><small>{tr("trustDeviceHint")}</small></span>
     </label>
   );
 }
@@ -122,7 +125,7 @@ export function SetupScreen({ onDone }: { onDone: (grant: AuthResult) => Promise
   const [step, setStep] = useState<"create" | "confirm">("create");
   const [first, setFirst] = useState("");
   const [pin, setPin] = useState("");
-  const [hint, setHint] = useState("Choose a PIN of at least 6 digits.");
+  const [hint, setHint] = useState(tr("pinChoose"));
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
   const [trustDevice, setTrustDevice] = useState(true);
@@ -142,12 +145,12 @@ export function SetupScreen({ onDone }: { onDone: (grant: AuthResult) => Promise
       setFirst(pin);
       setPin("");
       setStep("confirm");
-      setHint("Enter the same PIN again to confirm.");
+      setHint(tr("pinConfirm"));
       return;
     }
     if (pin !== first) {
       setError(true);
-      setHint("PINs do not match. Try again.");
+      setHint(tr("pinMismatch"));
       setPin("");
       setStep("create");
       setFirst("");
@@ -163,10 +166,10 @@ export function SetupScreen({ onDone }: { onDone: (grant: AuthResult) => Promise
         return;
       }
       setError(true);
-      setHint("Could not save PIN. Please retry.");
+      setHint(tr("pinSaveFailed"));
     } catch {
       setError(true);
-      setHint("Connection dropped. Reconnect to the PC and retry.");
+      setHint(tr("connectionDropped"));
     } finally {
       if (!handedOff) setBusy(false);
     }
@@ -174,7 +177,7 @@ export function SetupScreen({ onDone }: { onDone: (grant: AuthResult) => Promise
 
   return (
     <div className="auth" aria-busy={busy}>
-      <Brand subtitle={step === "create" ? "Set up your private access PIN" : "Confirm your PIN"} />
+      <Brand subtitle={step === "create" ? tr("pinSetup") : tr("pinConfirmTitle")} />
       <PinDots count={pin.length} error={error} />
       <div className={"hint" + (error ? " error" : "")} role={error ? "alert" : "status"}>{hint}</div>
       <TrustDevice checked={trustDevice} onChange={setTrustDevice} />
@@ -187,7 +190,7 @@ export function SetupScreen({ onDone }: { onDone: (grant: AuthResult) => Promise
 
 export function LoginScreen({ onDone, lockoutSeconds }: { onDone: (grant: AuthResult) => Promise<void>; lockoutSeconds: number }) {
   const [pin, setPin] = useState("");
-  const [hint, setHint] = useState("Enter your PIN to connect.");
+  const [hint, setHint] = useState(tr("pinEnter"));
   const [error, setError] = useState(false);
   const [locked, setLocked] = useState(lockoutSeconds);
   const [busy, setBusy] = useState(false);
@@ -196,15 +199,15 @@ export function LoginScreen({ onDone, lockoutSeconds }: { onDone: (grant: AuthRe
 
   useEffect(() => {
     if (locked <= 0) return;
-    setHint(`Locked. Try again in ${locked}s.`);
+    setHint(`${tr("locked")} ${locked}s`);
     timer.current = window.setInterval(() => {
       setLocked((s) => {
         if (s <= 1) {
           window.clearInterval(timer.current!);
-          setHint("Enter your PIN to connect.");
+          setHint(tr("pinEnter"));
           return 0;
         }
-        setHint(`Locked. Try again in ${s - 1}s.`);
+        setHint(`${tr("locked")} ${s - 1}s`);
         return s - 1;
       });
     }, 1000);
@@ -237,11 +240,11 @@ export function LoginScreen({ onDone, lockoutSeconds }: { onDone: (grant: AuthRe
         setLocked(r.lockoutSeconds || 300);
       } else {
         setError(true);
-        setHint("Wrong PIN. Try again.");
+        setHint(tr("pinWrong"));
       }
     } catch {
       setError(true);
-      setHint("Connection dropped. Reconnect to the PC and retry.");
+      setHint(tr("connectionDropped"));
     } finally {
       if (!handedOff) setBusy(false);
     }
@@ -249,7 +252,7 @@ export function LoginScreen({ onDone, lockoutSeconds }: { onDone: (grant: AuthRe
 
   return (
     <div className="auth" aria-busy={busy}>
-      <Brand subtitle="Private remote control" />
+      <Brand subtitle={tr("privateRemote")} />
       <PinDots count={pin.length} error={error} />
       <div className={"hint" + (error ? " error" : locked > 0 ? " error" : "")}
            role={error ? "alert" : "status"} aria-live={locked > 0 ? "off" : "polite"}>

@@ -49,7 +49,9 @@ for (const contract of [
 
 assert.equal((auth.match(/finally \{/g) ?? []).length, 2,
   "setup and login must both release busy state through finally");
-assert.equal((auth.match(/Connection dropped\. Reconnect to the PC and retry\./g) ?? []).length, 2,
+// The network-error string lives in the i18n dictionary; both screens must
+// reference the same key so the contract stays bilingual.
+assert.equal((auth.match(/tr\("connectionDropped"\)/g) ?? []).length, 2,
   "setup and login need an explicit recoverable network error");
 assert.equal((auth.match(/onDone: \(grant: AuthResult\) => Promise<void>/g) ?? []).length, 2,
   "both auth screens must await the handoff instead of leaking its rejection");
@@ -58,8 +60,8 @@ assert.ok((auth.match(/aria-busy=\{busy\}/g) ?? []).length === 2,
 assert.ok(auth.includes('if (!handedOff) setBusy(false);'),
   "the auth screen must release busy on failure without updating after a successful unmount");
 for (const contract of [
-  "Trust this device for 30 days",
-  "Reconnect after an agent restart without entering the PIN.",
+  'tr("trustDevice")',
+  'tr("trustDeviceHint")',
   "trustDevice, defaultDeviceName()",
 ]) {
   assert.ok(auth.includes(contract), `trusted-device consent misses ${contract}`);
