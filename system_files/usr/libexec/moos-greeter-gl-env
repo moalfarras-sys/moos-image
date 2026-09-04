@@ -16,12 +16,21 @@ mkdir -p "$(dirname "$envfile")" 2>/dev/null || true
 # hardware-backed EGL device. This includes Intel/AMD hybrid graphics and the
 # virtio-gpu/VirGL device used by release VMs. Forcing llvmpipe in that case
 # leaves the compositor active but its mapped scanout black.
-if [ "$arch" != aarch64 ] && {
-    compgen -G "${devroot}/nvidia*" >/dev/null 2>&1 \
-        || compgen -G "${devroot}/dri/renderD*" >/dev/null 2>&1;
-}; then
-    rm -f "$envfile"
-    exit 0
+#
+# The 2026-09-04 x86 disk proofs (runs 33860786152/33860711185) hit this exact
+# failure on the SECOND boot only: a warm reboot starts plasmalogin faster than
+# udev settles, so the single check saw no renderD* yet, forced llvmpipe, and
+# KWin's mapped scanout went black (first boot had the node and rendered fine).
+# Give a warm boot a bounded window to produce the node before deciding.
+if [ "$arch" != aarch64 ]; then
+    for _ in $(seq 1 50); do
+        if compgen -G "${devroot}/nvidia*" >/dev/null 2>&1 \
+            || compgen -G "${devroot}/dri/renderD*" >/dev/null 2>&1; then
+            rm -f "$envfile"
+            exit 0
+        fi
+        sleep 0.2
+    done
 fi
 
 # ARM virt greeters need vgem before KWin probes DRM; modules-load may not have
