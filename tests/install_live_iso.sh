@@ -548,6 +548,11 @@ def gate_until(script, args, seconds, label):
         last = err or out or f"exit {code}"
         time.sleep(5)
     if label.startswith("installed"):
+        # Keep the gate's own last output: its stderr stage markers name the
+        # exact assert that failed, which the one-line FATAL cannot carry.
+        (evidence / "installed-gate-last-output.txt").write_text(
+            f"=== last stdout ===\n{out}\n=== last stderr ===\n{err}\n",
+            encoding="utf-8")
         # The SSH gate died. Record WHY through QGA (which works even when
         # sshd does not): unit state, listen state and the fixture's own log.
         diag = ("echo '=== whoami ==='; id;"
@@ -653,18 +658,22 @@ def capture(path):
 runtime = r'''
 set -euo pipefail
 expected="$1"
+stage() { printf 'gate: %s\n' "$*" >&2; }
 ! grep -qw rd.live.image /proc/cmdline
+stage passed live-boot-check
 . /etc/os-release
 [ "${ID:-}" = moos ]
 [ "$(uname -m)" = x86_64 ]
 [ -e /etc/moos-firstboot-done ]
 [ ! -e /etc/moos-setup.conf ]
 id moosci >/dev/null
-systemctl is-active graphical.target display-manager.service plasmalogin.service NetworkManager.service qemu-guest-agent.service
-# Read the deployed origin file directly — the same read the disk-proof gate
-# does as its wheel user. `rpm-ostree status` as a plain user makes the CLI
-# fall back to direct /ostree access and die with EACCES
-# (run 33920982463: error: Permission denied (os error 13)).
+stage passed identity
+for unit in graphical.target display-manager.service plasmalogin.service NetworkManager.service qemu-guest-agent.service; do
+    state="$(systemctl is-active "$unit" 2>&1 || true)"
+    stage "unit $unit=$state"
+    [ "$state" = active ] || exit 1
+done
+stage passed system-services
 deployed_origin() {
     local origins=()
     shopt -s nullglob
@@ -673,8 +682,13 @@ deployed_origin() {
     [ "${#origins[@]}" -eq 1 ] || return 1
     sed -n 's/^container-image-reference=//p' "${origins[0]}"
 }
-origin="$(deployed_origin)"
-[ "$origin" = "ostree-image-signed:docker://${expected}" ]
+origin="$(deployed_origin || true)"
+stage "origin=[$origin]"
+[ "$origin" = "ostree-image-signed:docker://${expected}" ] || {
+    stage "origins dir: $(ls -la /ostree/deploy/default/deploy/ 2>&1 | tr '\n' ';')"
+    exit 1
+}
+stage passed signed-origin
 failed="$(systemctl --failed --no-legend --plain)"
 [ -z "$failed" ]
 for app in moai moos-store moos-update moos-rollback moos-settings moplayer mo-pc-remote; do
