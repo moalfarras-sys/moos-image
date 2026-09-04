@@ -35,6 +35,24 @@ def workflow_run_script(text: str, step_name: str) -> str:
     return "\n".join(lines) + "\n"
 
 
+def workflow_job(text: str, job_name: str) -> str:
+    """Return one top-level workflow job without treating sibling jobs as its config."""
+    lines: list[str] = []
+    found = False
+    for line in text.splitlines():
+        if line == f"  {job_name}:":
+            found = True
+            lines.append(line)
+            continue
+        if found and re.fullmatch(r"  [A-Za-z0-9_-]+:", line):
+            break
+        if found:
+            lines.append(line)
+    if not found:
+        raise AssertionError(f"workflow job {job_name!r} is missing")
+    return "\n".join(lines) + "\n"
+
+
 class ReleaseWorkflowSafetyTests(unittest.TestCase):
     def test_release_helpers_are_executable(self) -> None:
         for path in (
@@ -507,7 +525,8 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
 
     def test_release_timeout_covers_measured_final_commit_io_but_stays_bounded(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
-        timeout = re.search(r"(?m)^\s*timeout-minutes:\s*(\d+)\s*$", text)
+        release_job = workflow_job(text, "build-push-sign")
+        timeout = re.search(r"(?m)^\s*timeout-minutes:\s*(\d+)\s*$", release_job)
         self.assertIsNotNone(timeout, "the image release job needs an explicit timeout")
         minutes = int(timeout.group(1))
         self.assertGreaterEqual(minutes, 180)
@@ -647,21 +666,80 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
             'podman image exists "$offline_ref"',
             "install-source-digest",
             "guest-shutdown",
-            "screendump",
+            "moos_capture_virgl_display",
+            "assert_visual_frame.py",
         ):
             self.assertIn(proof, script, f"final ISO gate lost runtime proof: {proof}")
         self.assertIn('after_sha', script)
 
-    def test_x86_runtime_proofs_expose_only_the_drm_capable_gpu(self) -> None:
+    def test_x86_runtime_proofs_require_accelerated_virtual_graphics(self) -> None:
+        """Keep current Plasma off the unstable nested llvmpipe path."""
         for path in (
             ROOT / "tests" / "boot_live_iso.sh",
             ROOT / "tests" / "install_live_iso.sh",
             ROOT / "tests" / "boot_x86_qcow2.sh",
         ):
             script = path.read_text(encoding="utf-8")
-            self.assertIn("-vga virtio", script, path.name)
-            self.assertNotIn("-vga none", script, path.name)
-            self.assertNotIn("-device virtio-gpu-pci", script, path.name)
+            executable = "\n".join(
+                line for line in script.splitlines()
+                if not line.lstrip().startswith("#")
+            )
+            self.assertIn('. "$script_dir/qemu_virgl_env.sh"', executable, path.name)
+            self.assertIn("-device virtio-vga-gl", executable, path.name)
+            self.assertIn("-display gtk,gl=on", executable, path.name)
+            self.assertIn('-name "$MOOS_QEMU_WINDOW_TITLE"', executable, path.name)
+            self.assertIn("LIBGL_ALWAYS_SOFTWARE=1 qemu-system-x86_64", executable, path.name)
+            self.assertIn("-machine q35,accel=kvm -cpu host", executable, path.name)
+            self.assertNotIn("accel=tcg", executable, path.name)
+            self.assertNotIn("-device virtio-gpu-pci", executable, path.name)
+            self.assertNotIn("-vga virtio", executable, path.name)
+            self.assertNotIn("-vga none", executable, path.name)
+            self.assertNotIn("-display none", executable, path.name)
+
+        helper = (ROOT / "tests" / "qemu_virgl_env.sh").read_text(encoding="utf-8")
+        for proof in (
+            "Xvfb -displayfd", "glxinfo -B", "OpenGL renderer string:",
+            "[ -c /dev/kvm ]", "sudo chmod a+rw /dev/kvm", "accelerator=kvm",
+            'MOOS_QEMU_GTK_WINDOW_TITLE="QEMU (${MOOS_QEMU_WINDOW_TITLE})"',
+            'import -silent -display "$DISPLAY" -window "$window_id"',
+        ):
+            self.assertIn(proof, helper)
+
+        for path in (
+            ROOT / "tests" / "qemu_virgl_env.sh",
+            ROOT / "tests" / "install_live_iso.sh",
+            ROOT / "tests" / "boot_x86_qcow2.sh",
+        ):
+            script = path.read_text(encoding="utf-8")
+            self.assertIn("MOOS_QEMU_GTK_WINDOW_TITLE", script, path.name)
+
+        for path in (
+            ROOT / "tests" / "boot_live_iso.sh",
+            ROOT / "tests" / "install_live_iso.sh",
+            ROOT / "tests" / "boot_x86_qcow2.sh",
+        ):
+            script = path.read_text(encoding="utf-8")
+            self.assertIn("assert_visual_frame.py", script, path.name)
+
+        for path in (ROOT / "tests" / "boot_x86_qcow2.sh", ROOT / "tests" / "install_live_iso.sh"):
+            source = path.read_text(encoding="utf-8")
+            self.assertIn('["import", "-silent", "-display", os.environ["DISPLAY"]', source)
+
+        disk = (ROOT / "tests" / "boot_x86_qcow2.sh").read_text(encoding="utf-8")
+        self.assertIn("ssh_port_after_reboot", disk)
+        self.assertIn("ssh_port = ssh_port_after_reboot", disk)
+        install = (ROOT / "tests" / "install_live_iso.sh").read_text(encoding="utf-8")
+        self.assertIn('client.sendall(b"system_powerdown\\n")', install)
+        self.assertIn("start_qemu live-install install-2d", install)
+        self.assertIn("start_qemu installed proof-virgl", install)
+        self.assertIn("-device virtio-vga )", install)
+        self.assertIn("! findmnt -rn -o SOURCE | grep -qE '^/dev/vda", install)
+        self.assertIn('["poweroff", "--no-wall", "--force", "--force"]', install)
+
+        for workflow in (DISK_WORKFLOW, ISO_WORKFLOW):
+            source = workflow.read_text(encoding="utf-8")
+            for package in ("qemu-system-gui", "xvfb", "x11-utils", "mesa-utils"):
+                self.assertIn(package, source, f"{workflow.name} lost {package}")
 
     def test_cloud_disk_uses_the_shared_x86_boot_proof(self) -> None:
         script = X86_BOOT.read_text(encoding="utf-8")
@@ -701,7 +779,8 @@ printf '{"conclusion":"success","event":"workflow_dispatch","head_sha":"%s","pat
         self.assertIn("systemctl --no-block start firewalld.service sshd.service", proof_helper)
         self.assertIn("systemd-detect-virt", proof_helper)
         self.assertIn("ConditionKernelCommandLine=moos.ci-runtime-proof=1", proof_unit)
-        self.assertIn("ConditionPathExists=/home/mo/.ssh/authorized_keys", proof_unit)
+        self.assertIn("ConditionPathExists=|/home/mo/.ssh/authorized_keys", proof_unit)
+        self.assertIn("ConditionPathExists=|/home/moosci/.ssh/authorized_keys", proof_unit)
         for target in ("multi-user.target.wants", "graphical.target.wants"):
             self.assertFalse(
                 (ROOT / "system_files/etc/systemd/system" / target /

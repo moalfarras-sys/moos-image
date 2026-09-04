@@ -4,7 +4,8 @@ Documentation=https://github.com/moalfarras-sys/moos-image
 After=NetworkManager.service
 ConditionKernelCommandLine=moos.ci-runtime-proof=1
 ConditionVirtualization=yes
-ConditionPathExists=/home/mo/.ssh/authorized_keys
+ConditionPathExists=|/home/mo/.ssh/authorized_keys
+ConditionPathExists=|/home/moosci/.ssh/authorized_keys
 
 [Service]
 Type=oneshot

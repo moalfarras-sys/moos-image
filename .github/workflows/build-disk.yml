@@ -40,7 +40,7 @@ jobs:
   build-disk:
     name: Build qcow2 (bootc-image-builder)
     runs-on: ubuntu-latest
-    # bootc-image-builder + deployed-initramfs proof + two complete TCG boots
+    # bootc-image-builder + deployed-initramfs proof + two complete KVM boots
     # are bounded to 90 minutes so a wedged QEMU fails instead of consuming the
     # GitHub six-hour default.
     timeout-minutes: 90
@@ -209,7 +209,9 @@ jobs:
         run: |
           set -euo pipefail
           trap 'rm -f -- "$MOOS_X86_SSH_KEY" "$MOOS_X86_SSH_KEY.pub"' EXIT
-          sudo apt-get install -y -qq qemu-system-x86 ovmf imagemagick >/dev/null
+          sudo apt-get install -y -qq \
+            qemu-system-x86 qemu-system-gui ovmf imagemagick \
+            xvfb x11-utils mesa-utils >/dev/null
           before="$(sha256sum "$MOOS_X86_QCOW" | awk '{print $1}')"
           tests/boot_x86_qcow2.sh \
             "$MOOS_X86_QCOW" "$EXPECTED_IMAGE" "$EVIDENCE_DIR" "$MOOS_X86_SSH_KEY"

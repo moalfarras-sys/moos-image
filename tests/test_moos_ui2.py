@@ -842,8 +842,9 @@ class TestMoOSUI2(unittest.TestCase):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=50", apply,
-            "existing pre-v50 users would exit before the unified motion, sound, "
+            "THEME_REV=52", apply,
+            "existing pre-v52 users would exit before Remote presence, the responsive clock and "
+            "unified motion, sound, "
             "and high-resolution doorway assets are reapplied; "
             "pre-v49 users would also miss post-marker shadow quarantine, "
             "the Horizon Bar/theme migration, and the SVG cache purge that is the "
@@ -1354,6 +1355,26 @@ class TestMoOSUI2(unittest.TestCase):
                 island,
                 "artwork bridging must not become a second browser registry",
             )
+
+    def test_context_island_surfaces_authenticated_remote_presence(self) -> None:
+        """A live controller must be visible without polling sockets or services."""
+        island = qml_code((
+            SHARE / "plasma/plasmoids/org.moos.island/contents/ui/main.qml"
+        ).read_text(encoding="utf-8"))
+        state = (ROOT / "moremote/agent/Core/SessionState.cs").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("import Qt.labs.folderlistmodel", island)
+        self.assertIn('root.runtimeFileUrl("mo-remote")', island)
+        self.assertIn('nameFilters: ["presence-active-*", "presence-paused-*"]', island)
+        self.assertIn("readonly property bool remotePresent", island)
+        self.assertIn('Qt.openUrlExternally("moos://app/remote")', island)
+        self.assertNotIn("interval: 2000", island)
+        self.assertIn('Path.Combine(runtime, "mo-remote")', state)
+        self.assertIn('"presence-active-*"', state)
+        self.assertIn('"presence-paused-*"', state)
+        self.assertIn("PublishPresence();", state)
 
     def test_tidal_command_canvas_is_a_product_surface_not_a_menu(self) -> None:
         """Hold the premium shell composition and its zero-idle contract."""

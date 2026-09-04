@@ -170,6 +170,15 @@ jobs:
                -extract /LiveOS/squashfs.img "${work}/squashfs.img"
           sudo unsquashfs -d "${rootfs}" "${work}/squashfs.img"
           sudo rm -f "${work}/squashfs.img"          # free ~3.5GB — done with it
+          # bootupd (bootloader-update.service) is enabled in the base image and
+          # works on an installed disk, but on live media `bootupctl update`
+          # fails with "Failed to find block device from /boot or /sysroot"
+          # (there is no real block device behind a squashfs boot) and that
+          # failed unit trips the live boot gate. Mask it in the LIVE rootfs
+          # only — the installed system comes from the embedded OCI image and
+          # keeps bootupd untouched.
+          sudo mkdir -p "${rootfs}/etc/systemd/system"
+          sudo ln -s /dev/null "${rootfs}/etc/systemd/system/bootloader-update.service"
           sudo mkdir -p "${store}"
           # This declaration is the runtime bridge. If the base ever removes it,
           # embedding under /usr would be just as dead as the old /var location.
@@ -293,7 +302,9 @@ jobs:
       - name: Install final-ISO UEFI boot dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq qemu-system-x86 ovmf socat jq imagemagick
+          sudo apt-get install -y -qq \
+            qemu-system-x86 qemu-system-gui ovmf socat jq imagemagick \
+            xvfb x11-utils mesa-utils
 
       - name: Boot and prove the exact final live ISO
         env:

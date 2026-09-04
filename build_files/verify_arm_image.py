@@ -59,9 +59,11 @@ def main() -> None:
         "plasma-login-manager",
         "kwin-libs",
         "plasma-breeze",
+        "papirus-icon-theme",
         "cloud-init",
         "cloud-utils-growpart",
         "krdp",
+        "tailscale",
         "rpm-ostree",
         "skopeo",
         "mpv-libs",
@@ -207,7 +209,10 @@ def main() -> None:
         "etc/systemd/system/multi-user.target.wants",
         "usr/lib/systemd/system/multi-user.target.wants",
     )
-    for unit in ("NetworkManager.service", "sshd.service", "firewalld.service"):
+    for unit in (
+        "NetworkManager.service", "sshd.service", "firewalld.service",
+        "tailscaled.service",
+    ):
         require(enabled(unit, service_targets), f"{unit} is not enabled")
 
     timer_targets = (
@@ -406,6 +411,14 @@ def main() -> None:
             "the ARM image does not enforce signatures for the MoOS registry")
     require(entries[0].get("keyPath") == "/etc/pki/containers/moos.pub",
             "the ARM signature policy does not use the shipped MoOS public key")
+    require(policy.get("default") == [{"type": "reject"}],
+            "the ARM container policy has a permissive global default, which bootc refuses")
+    require(policy.get("transports", {}).get("docker", {}).get("") ==
+            [{"type": "insecureAcceptAnything"}],
+            "ordinary ARM user container pulls lack the docker transport fallback")
+    require(policy.get("transports", {}).get("containers-storage", {}).get("") ==
+            [{"type": "insecureAcceptAnything"}],
+            "ARM disk composition cannot import its local containers-storage image")
     require((ROOT / "etc/pki/containers/moos.pub").is_file(),
             "the ARM image lacks the container signing public key")
 

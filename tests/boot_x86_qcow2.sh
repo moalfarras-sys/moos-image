@@ -5,6 +5,10 @@
 # service mount namespace may not expose the booted OSTree userspace.
 set -euo pipefail
 
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=tests/qemu_virgl_env.sh
+. "$script_dir/qemu_virgl_env.sh"
+
 if [ "$#" -lt 3 ] || [ "$#" -gt 4 ]; then
     echo "usage: $0 IMAGE.qcow2 ghcr.io/moalfarras-sys/<edition>@sha256:... EVIDENCE_DIR [SSH_PRIVATE_KEY]" >&2
     exit 2
@@ -43,6 +47,7 @@ install -d -m0755 "$evidence"
 base_tmp="${RUNNER_TEMP:-/var/tmp}"
 work="$(mktemp -d -p "$base_tmp" moos-x86-qcow2-boot.XXXXXX)"
 qemu_pid=""
+xvfb_pid=""
 
 cleanup() {
     local rc=$?
@@ -51,6 +56,7 @@ cleanup() {
         kill "$qemu_pid" 2>/dev/null || true
         wait "$qemu_pid" 2>/dev/null || true
     fi
+    moos_stop_virgl_display
     if [ "$rc" -ne 0 ]; then
         echo "=== QEMU log (tail) ===" >&2
         tail -100 "$evidence/qemu.log" 2>/dev/null >&2 || true
@@ -86,39 +92,49 @@ printf 'qcow2=%s\nsha256=%s\nimage=%s\novmf=%s\n' \
 qemu-img create -q -f qcow2 -F qcow2 -b "$qcow" "$work/overlay.qcow2"
 cp "$ovmf_vars" "$work/vars.fd"
 
-# Reserve a loopback port only long enough to choose it. Each Actions job has a
-# dedicated runner; QEMU's bind below is therefore the sole subsequent owner.
-ssh_port="$(python3 - <<'PY'
+# Reserve independent loopback forwards for each boot. QEMU's slirp backend can
+# retain a half-open pre-reboot SSH flow and then accept TCP without delivering
+# a new server banner; a fresh forward proves the second userspace instead of
+# waiting on stale host-side connection state.
+read -r ssh_port ssh_port_after_reboot < <(python3 - <<'PY'
 import socket
-with socket.socket() as sock:
-    sock.bind(("127.0.0.1", 0))
-    print(sock.getsockname()[1])
+with socket.socket() as first, socket.socket() as second:
+    first.bind(("127.0.0.1", 0))
+    second.bind(("127.0.0.1", 0))
+    print(first.getsockname()[1], second.getsockname()[1])
 PY
-)"
+)
 
 qga="$work/qga.sock"
 monitor="$work/monitor.sock"
-qemu-system-x86_64 \
-    -machine q35,accel=tcg -cpu Haswell -m 4096 -smp 2 \
+moos_start_virgl_display "$work" "$evidence"
+# VirGL moves 3D execution to the host-side renderer. The 2D virtio backend
+# forces current Plasma/Mesa through guest llvmpipe under TCG, where the real
+# login compositor crashed in release-proof runs 33655753536 and 33662618021.
+LIBGL_ALWAYS_SOFTWARE=1 qemu-system-x86_64 \
+    -name "$MOOS_QEMU_WINDOW_TITLE" \
+    -machine q35,accel=kvm -cpu host -m 4096 -smp 2 \
     -drive "if=pflash,format=raw,readonly=on,file=$ovmf_code" \
     -drive "if=pflash,format=raw,file=$work/vars.fd" \
     -drive "file=$work/overlay.qcow2,format=qcow2,if=virtio,cache=unsafe" \
-    -vga virtio \
-    -netdev "user,id=n0,hostfwd=tcp:127.0.0.1:${ssh_port}-:22" \
+    -device virtio-vga-gl \
+    -netdev "user,id=n0,hostfwd=tcp:127.0.0.1:${ssh_port}-:22,hostfwd=tcp:127.0.0.1:${ssh_port_after_reboot}-:22" \
     -device virtio-net-pci,netdev=n0 \
     -device virtio-serial-pci \
     -chardev "socket,path=$qga,server=on,wait=off,id=qga0" \
     -device virtserialport,chardev=qga0,name=org.qemu.guest_agent.0 \
     -monitor "unix:$monitor,server=on,wait=off" \
     -serial "file:$evidence/serial.log" \
-    -display none >"$evidence/qemu.log" 2>&1 &
+    -display gtk,gl=on,show-menubar=off,show-tabs=off,window-close=off \
+    >"$evidence/qemu.log" 2>&1 &
 qemu_pid=$!
 
 python3 - "$qga" "$monitor" "$qemu_pid" "$expected_ref" "$evidence" \
-    "$ssh_key" "$ssh_port" <<'PY'
+    "$ssh_key" "$ssh_port" "$ssh_port_after_reboot" <<'PY'
 import json
 import os
 from pathlib import Path
+import re
 import socket
 import subprocess
 import sys
@@ -126,7 +142,7 @@ import time
 
 qga, monitor = sys.argv[1], sys.argv[2]
 qemu_pid, expected, evidence = int(sys.argv[3]), sys.argv[4], Path(sys.argv[5])
-ssh_key, ssh_port = sys.argv[6], sys.argv[7]
+ssh_key, ssh_port, ssh_port_after_reboot = sys.argv[6:9]
 sync_serial = 0
 
 
@@ -277,22 +293,50 @@ def send_shutdown(mode):
         client.sendall(json.dumps(payload, separators=(",", ":")).encode() + b"\n")
 
 
-def screendump(path):
-    deadline = time.monotonic() + 10
+def hmp(commands):
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
+        client.settimeout(5)
+        client.connect(monitor)
+        client.recv(4096)
+        client.sendall(("\n".join(commands) + "\n").encode())
+
+
+def capture_display(path):
+    log = evidence / f"{path.stem}-capture.log"
+    windows = evidence / f"{path.stem}-windows.txt"
+    tree = subprocess.run(
+        ["xwininfo", "-display", os.environ["DISPLAY"], "-root", "-tree"],
+        text=True, capture_output=True, check=False,
+    )
+    windows.write_text(tree.stdout + tree.stderr, encoding="utf-8")
+    deadline = time.monotonic() + 15
+    attempts = []
     while time.monotonic() < deadline:
-        try:
-            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
-                client.settimeout(5)
-                client.connect(monitor)
-                client.recv(4096)
-                client.sendall(f"screendump {path}\n".encode())
-                client.recv(4096)
-            if path.is_file() and path.stat().st_size:
-                return
-        except (OSError, socket.timeout):
-            pass
+        window = subprocess.run(
+            ["xwininfo", "-display", os.environ["DISPLAY"], "-name",
+             os.environ["MOOS_QEMU_GTK_WINDOW_TITLE"], "-int"],
+            text=True, capture_output=True, check=False,
+        )
+        match = re.search(r"Window id:\s+(\d+)", window.stdout)
+        if window.returncode != 0 or not match:
+            attempts.append(
+                f"xwininfo rc={window.returncode}\n{window.stdout}{window.stderr}"
+            )
+            time.sleep(0.5)
+            continue
+        path.unlink(missing_ok=True)
+        result = subprocess.run(
+            ["import", "-silent", "-display", os.environ["DISPLAY"],
+             "-window", match.group(1), str(path)],
+            text=True, capture_output=True, timeout=10, check=False,
+        )
+        attempts.append(f"rc={result.returncode}\n{result.stdout}{result.stderr}")
+        if result.returncode == 0 and path.is_file() and path.stat().st_size:
+            log.write_text("\n".join(attempts), encoding="utf-8")
+            return
         time.sleep(0.5)
-    raise SystemExit("X86 QCOW2 FATAL: graphical screendump was not produced")
+    log.write_text("\n".join(attempts), encoding="utf-8")
+    raise SystemExit("X86 QCOW2 FATAL: mapped GTK display capture was not produced")
 
 
 runtime_gate = r'''
@@ -343,6 +387,22 @@ for u in units:
     printf '%s\n' 'display-manager-journal:' >&2
     journalctl -b -u plasmalogin.service -u display-manager.service \
         -o short-monotonic --no-pager -n 80 2>/dev/null >&2 || true
+    printf '%s\n' 'drm-nodes:' >&2
+    ls -la /dev/dri 2>/dev/null >&2 || true
+    for node in /dev/dri/card* /dev/dri/renderD*; do
+        [ -e "$node" ] || continue
+        stat -c '%n mode=%a owner=%U group=%G major-minor=%t:%T' "$node" \
+            2>/dev/null >&2 || true
+        udevadm info --query=property --name="$node" 2>/dev/null \
+            | grep -E '^(DEVNAME|DEVPATH|ID_PATH|ID_SEAT|TAGS|CURRENT_TAGS)=' >&2 || true
+    done
+    printf '%s\n' 'drm-connectors:' >&2
+    for status in /sys/class/drm/card*-*/status; do
+        [ -f "$status" ] || continue
+        printf '%s=%s\n' "$status" "$(cat "$status" 2>/dev/null || true)" >&2
+    done
+    printf '%s\n' 'seat0-status:' >&2
+    loginctl seat-status seat0 --no-pager 2>/dev/null | tail -80 >&2 || true
     return 1
 }
 . /etc/os-release
@@ -390,6 +450,10 @@ entry = policy['transports']['docker']['ghcr.io/moalfarras-sys']
 assert len(entry) == 1 and entry[0]['type'] == 'sigstoreSigned'
 assert entry[0]['keyPath'] == '/etc/pki/containers/moos.pub'
 assert entry[0]['signedIdentity'] == {'type': 'matchRepository'}
+assert policy['default'] == [{'type': 'reject'}]
+assert policy['transports']['containers-storage'][''] == [
+    {'type': 'insecureAcceptAnything'}
+]
 INNER
 [ "$(systemctl show -p NFailedUnits --value 2>/dev/null || true)" = 0 ] || gate_fail failed-system-unit
 printf 'boot_id=%s\nidentity=%s\narch=%s\norigin=%s\norigin-digest=%s\ngraphical=active\ndisplay-manager=plasmalogin\ngreeter-kwin=active\ndrm=present\nnetwork=active\nssh=ephemeral-key\nqga=responsive\nfirst-party-commands=7\nfailed-units=0\n' \
@@ -401,15 +465,20 @@ first, first_err, first_id = wait_for_runtime(runtime_gate)
     first + (("\n=== stderr ===\n" + first_err) if first_err else ""), encoding="utf-8"
 )
 print(first, end="")
-screendump(evidence / "graphical-first-boot.ppm")
+hmp(["sendkey shift"])
+time.sleep(2)
+capture_display(evidence / "graphical-first-boot.ppm")
 
 send_shutdown("reboot")
+ssh_port = ssh_port_after_reboot
 second, second_err, second_id = wait_for_runtime(runtime_gate, first_id)
 (evidence / "runtime-second-boot.txt").write_text(
     second + (("\n=== stderr ===\n" + second_err) if second_err else ""), encoding="utf-8"
 )
 print(second, end="")
-screendump(evidence / "graphical-second-boot.ppm")
+hmp(["sendkey shift"])
+time.sleep(2)
+capture_display(evidence / "graphical-second-boot.ppm")
 send_shutdown("powerdown")
 PY
 
@@ -441,6 +510,7 @@ fi
 qemu-img check "$work/overlay.qcow2" | tee "$evidence/overlay-check.txt"
 for frame in graphical-first-boot graphical-second-boot; do
     [ -s "$evidence/${frame}.ppm" ] || { echo "X86 QCOW2 FATAL: ${frame} is empty" >&2; exit 1; }
+    python3 "$script_dir/assert_visual_frame.py" "$evidence/${frame}.ppm" "X86 QCOW2 ${frame}"
     "$image_tool" "$evidence/${frame}.ppm" "$evidence/${frame}.png"
     stddev="$("$image_tool" "$evidence/${frame}.png" -colorspace gray -format '%[fx:standard_deviation]' info:)"
     python3 - "$frame" "$stddev" <<'PY'

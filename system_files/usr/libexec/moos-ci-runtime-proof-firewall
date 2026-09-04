@@ -5,7 +5,10 @@
 # virtualization are all required before one source-scoped SSH rule is added.
 set -euo pipefail
 
-key_file=/home/mo/.ssh/authorized_keys
+mapfile -t proof_keys < <(grep -lF 'moos-ci-runtime-proof' \
+    /home/*/.ssh/authorized_keys 2>/dev/null || true)
+[ "${#proof_keys[@]}" -eq 1 ]
+key_file="${proof_keys[0]}"
 grep -qw 'moos.ci-runtime-proof=1' /proc/cmdline
 grep -Fq 'moos-ci-runtime-proof' "$key_file"
 [ "$(systemd-detect-virt 2>/dev/null || true)" != none ]

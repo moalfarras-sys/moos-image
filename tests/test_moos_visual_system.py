@@ -511,6 +511,24 @@ class MoOSVisualSystemTests(unittest.TestCase):
             "Qt.formatDate ignores a format string in its locale overload",
         )
 
+    def test_panel_clock_is_a_responsive_functional_calendar(self) -> None:
+        qml = (
+            SHARE
+            / "plasma/plasmoids/org.moos.nova.clock/contents/ui/main.qml"
+        ).read_text(encoding="utf-8")
+        self.assertNotIn(
+            "preferredRepresentation:", qml,
+            "forcing compact stretches the panel chip across standalone windows",
+        )
+        self.assertIn("readonly property real dayProgress:", qml)
+        self.assertIn("width: parent.width * root.dayProgress", qml)
+        self.assertIn('symbol: "calendar"', qml)
+        self.assertIn("monthView.resetToToday()", qml)
+        self.assertIn('symbol: "settings"', qml)
+        self.assertIn('Qt.openUrlExternally("moos://settings/time")', qml)
+        self.assertIn("showWeekNumbers: width >=", qml)
+        self.assertIn("currentDate: root.now", qml)
+
     def test_installer_semantic_alert_colours_pass_every_palette(self) -> None:
         """Danger/warning ink must survive all 16 active light/dark schemes.
 

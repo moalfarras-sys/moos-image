@@ -146,6 +146,70 @@ if code:
             "aliased to '_', the way xdp_generate_token() mints them"
         )
 
+    if '"Lookup"' not in code or "existing_grant_works" not in code:
+        errors.append(
+            f"{SCRIPT}: trusts a restore-token file without looking up its matching "
+            "PermissionStore record — a stale token is a permanent black-screen prompt"
+        )
+
+    cmd_on = code.split("cmd_on()", 1)[-1].split("cmd_off()", 1)[0]
+    if "ensure_render_device" not in cmd_on:
+        errors.append(
+            f"{SCRIPT}: the seat-owner `on` path does not arrange a render device — "
+            "a headless KWin session falls back to QPainter and refuses PipeWire capture"
+        )
+    if "disable --now moos-arm-desktop.service" not in cmd_on:
+        errors.append(
+            f"{SCRIPT}: the seat-owner `on` path leaves the legacy ARM bootstrap "
+            "desktop running — two Plasma workspaces race for one account and the old "
+            "one may force KWIN_COMPOSE=N"
+        )
+    if "disable --now app-org.kde.krdpserver.service" not in cmd_on:
+        errors.append(
+            f"{SCRIPT}: choosing Mo PC Remote leaves KRDP enabled beside it — two "
+            "portal capture servers waste resources and compete for the same desktop"
+        )
+    if "20-moos-arm-virtual-output.conf" not in cmd_on or "--xwayland" not in cmd_on:
+        errors.append(
+            f"{SCRIPT}: the seat-owner `on` path does not migrate the legacy ARM "
+            "virtual compositor to Xwayland compatibility; ksmserver then crashes "
+            "on every login and leaves the session incomplete"
+        )
+    if "unset-environment KWIN_COMPOSE" not in cmd_on:
+        errors.append(
+            f"{SCRIPT}: the seat-owner `on` path does not clear the legacy "
+            "KWIN_COMPOSE=N environment that makes screen sharing unsupported"
+        )
+    if "Compositing Type: OpenGL" not in cmd_on:
+        errors.append(
+            f"{SCRIPT}: the seat-owner `on` path can report success without proving "
+            "KWin uses the OpenGL compositor required by PipeWire capture"
+        )
+    if not all(portal in cmd_on for portal in (
+        "xdg-desktop-portal.service", "plasma-xdg-desktop-portal-kde.service"
+    )):
+        errors.append(
+            f"{SCRIPT}: the seat-owner `on` path does not wait for both portal "
+            "services before consuming the persistent RemoteDesktop grant"
+        )
+    if "seed_portal_grant" not in cmd_on:
+        errors.append(
+            f"{SCRIPT}: the seat-owner `on` path does not seed the portal grant before "
+            "starting Mo PC Remote"
+        )
+    elif cmd_on.index("seed_portal_grant") > cmd_on.index("enable --now mo-remote-personal.service"):
+        errors.append(
+            f"{SCRIPT}: starts Mo PC Remote before seeding its portal grant — the "
+            "unanswerable approval prompt has already won the race"
+        )
+    if "tune_cloud_session" not in cmd_on or not all(setting in code for setting in (
+        "Autolock", "LockOnResume", "DimDisplayWhenIdle", "AutoSuspendAction"
+    )):
+        errors.append(
+            f"{SCRIPT}: does not pin no-lock/no-suspend settings into the cloud "
+            "account's own config, so stale user settings can restore the black screen"
+        )
+
     # The stored record is what the portal restores from: pointer|keyboard (3) and
     # screen sharing on. Getting these wrong yields a grant that restores into a
     # session with no input, which is exactly the failure that is hardest to see.

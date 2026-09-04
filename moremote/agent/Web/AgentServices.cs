@@ -27,5 +27,9 @@ public sealed class AgentServices : IDisposable
         }
     }
 
-    public void Dispose() => Uploads.Dispose();
+    public void Dispose()
+    {
+        State.Dispose();
+        Uploads.Dispose();
+    }
 }

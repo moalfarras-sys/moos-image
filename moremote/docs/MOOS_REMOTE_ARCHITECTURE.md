@@ -49,6 +49,22 @@ Sharp; Ultra is manual because RTT is latency, not available uplink bandwidth.
   explicit clipboard remains that value; a delayed restore would create the same race.
 - Text and PNG clipboard writes are acknowledged only after exact read-back. **Send & Paste** waits
   for that acknowledgement; failure means no Paste event, never stale content.
+- Windows follows the same acknowledgement rule on its STA clipboard: text is compared exactly and
+  image content is compared after deterministic 32-bit PNG normalization. The shared Web API must
+  compile against both implementations.
+
+## Desktop presence contract
+
+An authenticated controller cannot remain invisible on the MoOS desktop. The shared `SessionState`
+publishes exactly one regular runtime marker after authentication:
+`$XDG_RUNTIME_DIR/mo-remote/presence-active-N` or `presence-paused-N`, where `N` is the current
+controller count. Registration, pause/resume, disconnect and clean shutdown all update or remove it.
+Isolated test/cloud instances never overwrite the signed-in desktop's marker.
+
+The MoOS context island watches the directory listing rather than the frame socket. This is
+deliberate: `FolderListModel` does not expose Unix sockets, while changing marker filenames produces
+a real listing event without permanent polling. Remote presence takes visual priority over media and
+opens the native control center; service-active alone is never presented as a live viewer.
 
 ## Controller layout contract
 

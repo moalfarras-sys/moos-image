@@ -74,6 +74,7 @@ stage_w = fmin(sw * 0.88, sh * 0.86 * INTRO_ASPECT);
 stage_h = stage_w / INTRO_ASPECT;
 stage_x = cx - stage_w / 2;
 stage_y = cy - stage_h / 2;
+OVERLAY_MAX_W = sw * 0.78;
 
 // The sequence, loaded by literal filename.
 //
@@ -251,6 +252,9 @@ message_sprite = Sprite();
 message_sprite.SetZ(20);
 fun message_callback(text) {
     img = Image.Text(text, 0.612, 0.686, 0.675);   // muted #9CAFAC
+    if (img.GetWidth() > OVERLAY_MAX_W) {
+        img = img.Scale(OVERLAY_MAX_W, img.GetHeight() * OVERLAY_MAX_W / img.GetWidth());
+    }
     message_sprite.SetImage(img);
     message_sprite.SetX(cx - img.GetWidth() / 2);
     message_sprite.SetY(sh * 0.90);
@@ -267,6 +271,9 @@ bullets_sprite.SetZ(20);
 fun display_password(prompt, bullets) {
     hide_message();
     pimg = Image.Text(prompt, 0.910, 0.945, 0.937);   // text #E8F1EF
+    if (pimg.GetWidth() > OVERLAY_MAX_W) {
+        pimg = pimg.Scale(OVERLAY_MAX_W, pimg.GetHeight() * OVERLAY_MAX_W / pimg.GetWidth());
+    }
     prompt_sprite.SetImage(pimg);
     prompt_sprite.SetX(cx - pimg.GetWidth() / 2);
     prompt_sprite.SetY(sh * 0.80);
@@ -276,6 +283,9 @@ fun display_password(prompt, bullets) {
     while (n < bullets) { dots = dots + "*"; n++; }
     if (dots == "") { dots = " "; }
     bimg = Image.Text(dots, 0.306, 0.843, 0.784);   // primary #4ED7C8
+    if (bimg.GetWidth() > OVERLAY_MAX_W) {
+        bimg = bimg.Scale(OVERLAY_MAX_W, bimg.GetHeight() * OVERLAY_MAX_W / bimg.GetWidth());
+    }
     bullets_sprite.SetImage(bimg);
     bullets_sprite.SetX(cx - bimg.GetWidth() / 2);
     bullets_sprite.SetY(sh * 0.85);

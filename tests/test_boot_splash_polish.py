@@ -180,6 +180,33 @@ class BootSplashTests(unittest.TestCase):
             self.assertIn(f"Window.{fn}(0.078, 0.098, 0.110)", text,
                           f"{fn} is not the #14191C UI2 canvas token")
 
+    def test_boot_text_overlays_are_screen_bounded(self) -> None:
+        # Plymouth messages can be long: fsck paths, recovery notices, device
+        # waits, or encrypted-volume prompts. If they are centered at natural
+        # width, small screens and VMs clip them off both edges during the boot
+        # moment where the user has the least context. Scale those event-driven
+        # text images to the screen, but keep refresh() cheap.
+        text = script_text()
+        self.assertIn("OVERLAY_MAX_W = sw * 0.78;", text)
+        for marker, image_var in (
+            ("fun message_callback(text)", "img"),
+            ("fun display_password(prompt, bullets)", "pimg"),
+            ("fun display_password(prompt, bullets)", "bimg"),
+        ):
+            with self.subTest(marker=marker, image=image_var):
+                end_marker = (
+                    "fun hide_message()"
+                    if marker == "fun message_callback(text)"
+                    else "fun clear_password()"
+                )
+                body = text.split(marker, 1)[1].split(end_marker, 1)[0]
+                self.assertIn(f"{image_var}.GetWidth() > OVERLAY_MAX_W", body)
+                self.assertIn(
+                    f"{image_var}.Scale(OVERLAY_MAX_W, "
+                    f"{image_var}.GetHeight() * OVERLAY_MAX_W / {image_var}.GetWidth())",
+                    body,
+                )
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

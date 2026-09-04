@@ -1,8 +1,8 @@
 [Unit]
 Description=Mo Remote
 ConditionUser=!@system
-After=plasma-workspace.target network-online.target ydotoold-moremote.service
-Wants=network-online.target ydotoold-moremote.service
+After=plasma-workspace.target network-online.target ydotoold-moremote.service xdg-desktop-portal.service plasma-xdg-desktop-portal-kde.service
+Wants=network-online.target ydotoold-moremote.service xdg-desktop-portal.service plasma-xdg-desktop-portal-kde.service
 PartOf=plasma-workspace.target
 # A missing runtime/port conflict previously restarted every three seconds indefinitely:
 # the default 10-second window can never contain systemd's five failures at that cadence.

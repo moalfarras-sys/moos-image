@@ -278,11 +278,16 @@ if [ "${MOOS_IMAGE_NAME:-moos}" = "moos-nvidia" ]; then
     # finds nothing to force, and the initramfs comes out with no nvidia in it at all.
     depmod -a "${kver_image}"
 
-    # CI/installer VMs have no NVIDIA device. KWin's greeter still needs GL on the
-    # emulated DRM node; write a software-GL env file only when /dev/nvidia* is absent.
+    # CI/installer VMs have no NVIDIA device. KWin's greeter still needs GL; the
+    # helper prefers any usable render node and falls back to Mesa llvmpipe only
+    # when there is no GPU device at all.
     [ -x /usr/libexec/moos-greeter-gl-env ] || {
         echo "FATAL: moos-greeter-gl-env is missing — the NVIDIA edition cannot fall back"
         echo "       to software GL on a VM without an NVIDIA device."
+        exit 1
+    }
+    [ -r /usr/share/glvnd/egl_vendor.d/50_mesa.json ] || {
+        echo "FATAL: Mesa's EGL vendor file is missing — the NVIDIA greeter fallback cannot render."
         exit 1
     }
     install -D -m0644 /dev/stdin \
@@ -295,6 +300,21 @@ PLMDROP
 [Service]
 EnvironmentFile=-/run/moos/plasmalogin-kwin.env
 KWINDROP
+
+    # nvidia-container-toolkit enables this path unit globally. On a machine
+    # without an NVIDIA device (VMs, an eGPU that is disconnected, or hybrid
+    # hardware with the dGPU disabled) its generator exits non-zero repeatedly;
+    # both the service and path then land in systemd's failed set even though the
+    # desktop is healthy. Generate CDI only once the kernel exposed the control
+    # node. The path unit will trigger again when /dev changes on real hardware.
+    install -D -m0644 /dev/stdin \
+        /usr/lib/systemd/system/nvidia-cdi-refresh.service.d/10-moos-device.conf <<'CDIDROP'
+[Unit]
+ConditionPathExists=/dev/nvidiactl
+CDIDROP
+    grep -Fxq 'ConditionPathExists=/dev/nvidiactl' \
+        /usr/lib/systemd/system/nvidia-cdi-refresh.service.d/10-moos-device.conf \
+        || { echo "FATAL: NVIDIA CDI refresh is not gated on a real device."; exit 1; }
 
     echo "OK: NVIDIA $(rpm -q --qf '%{VERSION}' nvidia-driver) installed."
     echo "    modules: $(find "/usr/lib/modules/${kver_image}" -name 'nvidia*.ko*' -printf '%f ' )"
@@ -318,6 +338,11 @@ fi
 # it; both explicit installs are harmless guarantees.
 dnf5 -y install dracut-live livesys-scripts grub2-efi-x64-cdboot \
     plymouth-plugin-script plymouth-plugin-two-step
+
+# shim's removable-media fallback creates the firmware's visible boot entry
+# from BOOT*.CSV. Keep one shared rewrite for x86 and ARM so neither edition
+# can register another product name in the UEFI picker.
+python3 /ctx/rewrite_firmware_label.py
 
 # MoOS branded boot splash (flicker-free). No -R flag on purpose: the dracut
 # run right below regenerates the initramfs anyway, and the plymouth dracut
@@ -1771,7 +1796,7 @@ baseurl=https://pkgs.tailscale.com/stable/fedora/$basearch
 enabled=1
 type=rpm
 repo_gpgcheck=1
-gpgcheck=0
+gpgcheck=1
 gpgkey=https://pkgs.tailscale.com/stable/fedora/repo.gpg
 TAILSCALE_REPO
 # qrencode: the Mo PC Remote panel renders its address as a QR code. Without it the user has to
@@ -3376,11 +3401,25 @@ import json
 p = "/etc/containers/policy.json"
 with open(p) as f:
     d = json.load(f)
-d.setdefault("transports", {}).setdefault("docker", {})["ghcr.io/moalfarras-sys"] = [{
+docker = d.setdefault("transports", {}).setdefault("docker", {})
+# bootc refuses the whole policy when the TOP-LEVEL fallback is permissive,
+# even when the exact MoOS namespace below is signed. Keep ordinary user
+# containers usable through docker's transport fallback while making the
+# global default fail closed.
+d["default"] = [{"type": "reject"}]
+docker[""] = [{"type": "insecureAcceptAnything"}]
+docker["ghcr.io/moalfarras-sys"] = [{
     "type": "sigstoreSigned",
     "keyPath": "/etc/pki/containers/moos.pub",
     "signedIdentity": {"type": "matchRepository"},
 }]
+# bootc-image-builder imports the already-pulled candidate through its private
+# root-owned containers-storage. Local stores have no registry-side sigstore
+# attachment, so permit only that transport; the deployed origin remains the
+# exact signed docker digest above and every day-2 update still verifies it.
+d.setdefault("transports", {})["containers-storage"] = {
+    "": [{"type": "insecureAcceptAnything"}],
+}
 with open(p, "w") as f:
     json.dump(d, f, indent=4)
 print("POLICY: ghcr.io/moalfarras-sys now requires a valid MoOS cosign signature.")
@@ -3389,7 +3428,14 @@ PYSEC
 import json, sys
 d = json.load(open('/etc/containers/policy.json'))
 e = d.get('transports', {}).get('docker', {}).get('ghcr.io/moalfarras-sys') or [{}]
-sys.exit(0 if e[0].get('type') == 'sigstoreSigned' else 1)"; then
+default = d.get('default') or [{}]
+fallback = d.get('transports', {}).get('docker', {}).get('') or [{}]
+local = d.get('transports', {}).get('containers-storage', {}).get('') or [{}]
+ok = (e[0].get('type') == 'sigstoreSigned' and
+      default[0].get('type') == 'reject' and
+      fallback[0].get('type') == 'insecureAcceptAnything' and
+      local == [{'type': 'insecureAcceptAnything'}])
+sys.exit(0 if ok else 1)"; then
         echo "OK: the MoOS registry is signature-enforced (install + every future upgrade)."
     else
         echo "FATAL: the MoOS registry policy is not enforcing — refusing to ship an image"

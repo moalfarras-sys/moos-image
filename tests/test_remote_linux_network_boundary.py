@@ -9,6 +9,8 @@ ROOT = Path(__file__).resolve().parents[1]
 PROGRAM = ROOT / "moremote/agent-linux/Program.cs"
 PANEL = ROOT / "system_files/usr/bin/mo-pc-remote"
 CLOUD = ROOT / "system_files/usr/bin/moos-cloud-desktop"
+X86_BUILD = ROOT / "build_files/build.sh"
+ARM_BUILD = ROOT / "build_files/build-arm.sh"
 
 errors: list[str] = []
 
@@ -26,6 +28,21 @@ def uncommented(path: Path, marker: str) -> str:
 program = uncommented(PROGRAM, "//")
 panel = uncommented(PANEL, "#")
 cloud = uncommented(CLOUD, "#")
+
+for edition, path in (("x86", X86_BUILD), ("ARM", ARM_BUILD)):
+    build = uncommented(path, "#")
+    match = re.search(
+        r"\[tailscale-stable\](.*?)^TAILSCALE_REPO$", build,
+        flags=re.MULTILINE | re.DOTALL,
+    )
+    if match is None:
+        errors.append(f"{edition} build has no complete Tailscale repository definition")
+        continue
+    repo = match.group(1)
+    if not re.search(r"(?m)^repo_gpgcheck=1$", repo):
+        errors.append(f"{edition} build does not authenticate Tailscale repository metadata")
+    if not re.search(r"(?m)^gpgcheck=1$", repo):
+        errors.append(f"{edition} build allows an unsigned Tailscale package")
 
 if "ListenLocalhost(config.Port" not in program:
     errors.append("Linux Kestrel is not bound to loopback")

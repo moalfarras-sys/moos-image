@@ -19,6 +19,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import org.kde.plasma.plasmoid
 import org.kde.plasma.core as PlasmaCore
@@ -30,7 +31,6 @@ PlasmoidItem {
     id: root
 
     Plasmoid.backgroundHints: PlasmaCore.Types.NoBackground
-    preferredRepresentation: compactRepresentation
 
     property date now: new Date()
     readonly property bool rtl: Qt.locale().textDirection === Qt.RightToLeft
@@ -41,6 +41,10 @@ PlasmoidItem {
         root.motionEnabled, design.motionFast)
     readonly property int motionMedium: design.duration(
         root.motionEnabled, design.motionGeometry)
+    readonly property real dayProgress: {
+        const minutes = root.now.getHours() * 60 + root.now.getMinutes();
+        return Math.max(0, Math.min(1, minutes / 1440));
+    }
 
     // Same helper as the lock clock (MoOSClock.qml): day and month names stay
     // the locale's own, only the DIGITS fold to Latin — one number system on
@@ -275,13 +279,13 @@ PlasmoidItem {
         }
     }
 
-    // A finished popup, in the MoOS clock identity (matches the lock screen): a
-    // large light-weight time, a bilingual Arabic/English date and one restrained
-    // turquoise tick, above the month calendar — not a bare MonthView.
+    // Let PlasmoidItem choose the compact representation in the panel and this
+    // full representation in a popup or standalone window. Forcing compact here
+    // made plasmawindowed stretch the small panel chip across an entire window.
     fullRepresentation: Item {
         id: calendarPopup
-        implicitWidth: Kirigami.Units.gridUnit * 22
-        implicitHeight: Kirigami.Units.gridUnit * 24
+        implicitWidth: Math.max(360, Kirigami.Units.gridUnit * 24)
+        implicitHeight: Math.max(460, Kirigami.Units.gridUnit * 27)
         opacity: root.motionEnabled ? 0 : 1
         scale: root.motionEnabled ? 0.97 : 1
         transformOrigin: Item.Top
@@ -322,59 +326,125 @@ PlasmoidItem {
             anchors.margins: Kirigami.Units.largeSpacing
             spacing: Kirigami.Units.largeSpacing
 
-            RowLayout {
+            MoUI.GlassSurface {
+                id: dayHeader
                 Layout.fillWidth: true
-                spacing: Kirigami.Units.largeSpacing
-                // Inherit the shell's logical direction; do not double-mirror.
+                Layout.preferredHeight: Math.max(
+                    Kirigami.Units.gridUnit * 6,
+                    headerContent.implicitHeight + Kirigami.Units.largeSpacing * 2)
+                floating: true
+                surfaceColor: Kirigami.Theme.backgroundColor
+                accentColor: Kirigami.Theme.highlightColor
+                selected: true
+                rimOpacity: 0.34
 
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 0
-                    Text {
-                        text: Qt.formatTime(root.now, "HH:mm")
-                        color: Kirigami.Theme.textColor
-                        font.family: "IBM Plex Sans"
-                        font.pixelSize: Math.round(Kirigami.Units.gridUnit * 2.6)
-                        font.weight: Font.Light
-                        font.features: ({ "tnum": 1 })
+                RowLayout {
+                    id: headerContent
+                    anchors {
+                        fill: parent
+                        margins: Kirigami.Units.largeSpacing
                     }
-                    Text {
-                        text: Qt.formatDate(root.now, Qt.locale("ar"), Qt.locale("ar").dateFormat(Locale.LongFormat))
-                        color: Kirigami.Theme.textColor
-                        opacity: 0.9
-                        font.family: "IBM Plex Sans Arabic"
-                        font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.95)
+                    spacing: Kirigami.Units.largeSpacing
+                    // Inherit the shell's logical direction; do not double-mirror.
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 0
+
+                        Text {
+                            text: Qt.formatTime(root.now, "HH:mm")
+                            color: Kirigami.Theme.textColor
+                            font.family: "IBM Plex Sans"
+                            font.pixelSize: Math.round(Kirigami.Units.gridUnit * 2.6)
+                            font.weight: Font.Light
+                            font.features: ({ "tnum": 1 })
+                        }
+
+                        Text {
+                            Layout.fillWidth: true
+                            text: root.latinNumerals(root.displayLocale.toString(
+                                root.now, root.displayLocale.dateFormat(Locale.LongFormat)))
+                            color: Kirigami.Theme.textColor
+                            opacity: 0.88
+                            font.family: root.rtl ? "IBM Plex Sans Arabic" : "IBM Plex Sans"
+                            font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.82)
+                            elide: Text.ElideRight
+                        }
+
                     }
-                    Text {
-                        text: Qt.formatDate(root.now, Qt.locale("en"), "dddd, d MMMM yyyy")
-                        color: Kirigami.Theme.textColor
-                        opacity: 0.6
-                        font.family: "IBM Plex Sans"
-                        font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.72)
+
+                    ColumnLayout {
+                        spacing: Kirigami.Units.smallSpacing
+
+                        MoUI.IconButton {
+                            symbol: "calendar"
+                            accessibleLabel: root.rtl ? "العودة إلى اليوم" : qsTr("Return to today")
+                            onClicked: monthView.resetToToday()
+
+                            QQC2.ToolTip.visible: hovered
+                            QQC2.ToolTip.text: accessibleLabel
+                        }
+
+                        MoUI.IconButton {
+                            symbol: "settings"
+                            accessibleLabel: root.rtl ? "إعدادات الوقت والتاريخ" : qsTr("Date and time settings")
+                            onClicked: Qt.openUrlExternally("moos://settings/time")
+
+                            QQC2.ToolTip.visible: hovered
+                            QQC2.ToolTip.text: accessibleLabel
+                        }
+                    }
+
+                    Rectangle {
+                        Layout.preferredWidth: Math.max(
+                            3, Math.round(Kirigami.Units.smallSpacing * 0.7))
+                        Layout.fillHeight: true
+                        Layout.maximumHeight: Math.round(Kirigami.Units.gridUnit * 4.1)
+                        Layout.alignment: Qt.AlignVCenter
+                        radius: width
+                        color: Kirigami.Theme.highlightColor
+                        opacity: 0.88
                     }
                 }
 
-                Rectangle {   // the one luminous accent, echoing the lock screen
-                    Layout.alignment: Qt.AlignVCenter
-                    Layout.preferredWidth: Math.max(3, Math.round(Kirigami.Units.smallSpacing * 0.7))
-                    Layout.preferredHeight: Math.round(Kirigami.Units.gridUnit * 2.2)
-                    radius: width
-                    color: Kirigami.Theme.highlightColor
-                    opacity: 0.9
+                Rectangle {
+                    anchors {
+                        left: parent.left
+                        right: parent.right
+                        bottom: parent.bottom
+                    }
+                    height: Math.max(3, root.design.borderHairline * 3)
+                    radius: height / 2
+                    color: Qt.alpha(Kirigami.Theme.textColor, 0.10)
+
+                    Rectangle {
+                        width: parent.width * root.dayProgress
+                        height: parent.height
+                        radius: parent.radius
+                        color: Kirigami.Theme.highlightColor
+                    }
                 }
             }
 
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 1
-                color: Kirigami.Theme.textColor
-                opacity: 0.12
-            }
-
-            PlasmaCalendar.MonthView {
+            MoUI.GlassSurface {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                today: root.now
+                floating: false
+                surfaceColor: Kirigami.Theme.backgroundColor
+                rimOpacity: root.design.glassBorderOpacity
+
+                PlasmaCalendar.MonthView {
+                    id: monthView
+                    anchors {
+                        fill: parent
+                        margins: Kirigami.Units.largeSpacing
+                    }
+                    today: root.now
+                    currentDate: root.now
+                    showWeekNumbers: width >= Kirigami.Units.gridUnit * 22
+                    borderWidth: root.design.borderHairline
+                    borderOpacity: 0.20
+                }
             }
         }
     }

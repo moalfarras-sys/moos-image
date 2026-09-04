@@ -40,6 +40,33 @@ Eq(true, ReferenceEquals(recoveryIdr, recoveredAu), "h264 recovery exposes only 
 Eq(false, h264Queue.TryDequeue(out _), "no broken delta follows the recovery IDR");
 
 var unicode="مرحباً Grüße English";Eq(unicode,System.Text.Encoding.UTF8.GetString(System.Text.Encoding.UTF8.GetBytes(unicode)),"clipboard unicode");
+var presenceDir = Path.Combine(Path.GetTempPath(), "moremote-presence-" + Guid.NewGuid());
+Directory.CreateDirectory(presenceDir);
+using (var presence = new SessionState(presenceDir))
+{
+    Eq(0, Directory.GetFiles(presenceDir, "presence-*").Length,
+        "remote presence is absent without an authenticated viewer");
+    var firstViewer = presence.Register("phone");
+    Eq("presence-active-1", Path.GetFileName(Directory.GetFiles(presenceDir, "presence-*").Single()),
+        "first authenticated viewer publishes active presence");
+    using (var secondViewer = presence.Register("tablet"))
+    {
+        Eq("presence-active-2", Path.GetFileName(Directory.GetFiles(presenceDir, "presence-*").Single()),
+            "presence carries the real authenticated viewer count");
+        presence.SetPaused(true);
+        Eq("presence-paused-2", Path.GetFileName(Directory.GetFiles(presenceDir, "presence-*").Single()),
+            "paused sharing is explicit instead of looking active");
+    }
+    Eq("presence-paused-1", Path.GetFileName(Directory.GetFiles(presenceDir, "presence-*").Single()),
+        "disconnect updates the published viewer count");
+    presence.SetPaused(false);
+    Eq("presence-active-1", Path.GetFileName(Directory.GetFiles(presenceDir, "presence-*").Single()),
+        "resume restores active presence");
+    firstViewer.Dispose();
+    Eq(0, Directory.GetFiles(presenceDir, "presence-*").Length,
+        "last disconnect removes remote presence");
+}
+Directory.Delete(presenceDir, true);
 var clipboardClock = System.Diagnostics.Stopwatch.StartNew();
 var timedOutClipboard = ClipboardBridge.RunReadCommand(
     "/bin/sh", ["-c", "sleep 20"], TimeSpan.FromMilliseconds(120), 1024);

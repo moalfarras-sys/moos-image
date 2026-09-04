@@ -3,6 +3,33 @@
 Only completed evidence closes an item. Source code, a package, or a green
 parser alone is not runtime proof. Current facts live in `PROJECT_STATE.md`.
 
+## Active development plan
+
+The next work should keep MoOS moving as a complete operating system, not as a
+theme layer. Order matters:
+
+1. **Release train hygiene:** keep one clean candidate branch, merge only
+   reviewed fixes, run host-aware checks through `moos-host-run` when Codex is
+   inside Flatpak, and retire already-merged remote branches after proof.
+2. **Boot-to-login experience:** continue the single MoOS visual sequence from
+   Plymouth to the login, lock and logout surfaces. Source now includes bounded
+   boot overlays and the responsive clock/calendar; the next closure is measured
+   signed-artifact frames with no fallback flash across scale and locale.
+3. **Simple daily use:** one obvious place for updates, recovery, apps, Remote,
+   language and theme. Keep technical logs collapsed at rest, make every action
+   explainable, and preserve Arabic/RTL as a first-class path. The Remote control
+   centre now fits short displays with diagnostics collapsed, and the Horizon
+   island shows authenticated active/paused viewers immediately; preserve both
+   contracts while extending the same clarity to the remaining first-party apps.
+4. **Adaptive performance for everyone:** extend `moos-visual-tier` from motion
+   policy into a broader local resource policy: compositor cost, indexing,
+   update concurrency, AI defaults and Remote encoding based on real capability,
+   not product names.
+5. **Artifact proof before promotion:** x86 generic, NVIDIA, cloud and ARM must
+   each have exact digest boot evidence. A beautiful source tree is not a
+   release until the artifact has booted, logged in, smoked apps, rebooted and
+   powered off cleanly.
+
 ## Release blockers
 
 - [ ] Boot the final ARM QCOW2 twice through AArch64 UEFI with zero critical
@@ -20,6 +47,12 @@ parser alone is not runtime proof. Current facts live in `PROJECT_STATE.md`.
 - [ ] Complete representative visual captures for 1080p/1440p/4K,
   100/125/150/200/225%, English/German/Arabic and dark/light. Every responsive,
   RTL and rendering class needs a real frame.
+- [ ] Exercise Mo PC Remote end to end from representative Android, iOS and
+  desktop browsers over LAN and Tailscale: pair, reconnect, rotate, type in
+  Arabic/English, transfer files, copy text/images, stream audio, pause/resume,
+  revoke trust and recover from a network handoff. Source/live-host evidence now
+  covers the responsive control centre and authenticated desktop presence, but
+  it does not replace those physical-client proofs.
 - [ ] Merge only the proven tree; verify exact GHCR digests/signatures and
   artifact manifests.
 - [ ] Reconfirm the signed rollback on the real NVIDIA host, stage the exact
@@ -31,6 +64,11 @@ parser alone is not runtime proof. Current facts live in `PROJECT_STATE.md`.
 - [ ] Import the exact boot-proven ARM disk into OCI Ampere A1 and prove serial,
   cloud-init, SSH key, root growth, update/rollback and tunneled KRDP. If OCI
   credentials or capacity are unavailable, report READY-BUT-NOT-DEPLOYED.
+  Current state (2026-08-30): LIVE on Frankfurt A1 1/4/50. UEFI, signed exact
+  origin, cloud-init, SSH key, root growth, graphical target, browser-rendered
+  private desktop, input portal, HTTPS/audio and a real reboot are proven with
+  zero failed units. Deliberate update/rollback proof remains open, so this item
+  is not checked complete.
 - [ ] Import `MoOS-ARM.utm.zip` on the owner's iPhone/iPad and record boot time,
   idle RAM, desktop responsiveness and core app launches. Without access to the
   physical device, report OWNER-DEVICE-TEST-REQUIRED.

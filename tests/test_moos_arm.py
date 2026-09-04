@@ -220,6 +220,14 @@ class ArmEditionTests(unittest.TestCase):
     def test_arm_first_party_surfaces_have_live_backends(self) -> None:
         build = code(read(BUILD))
         verifier = code(read(ARM_VERIFY))
+        self.assertIn("tailscale", build,
+                      "ARM ships Mo PC Remote but lacks the private HTTPS transport")
+        self.assertIn("tailscaled.service", build,
+                      "the private remote transport is installed but never starts")
+        self.assertIn('"tailscale"', verifier,
+                      "the finished ARM image never proves Tailscale is installed")
+        self.assertIn('"tailscaled.service"', verifier,
+                      "the finished ARM image never proves Tailscale is enabled")
         for unit in (
             "moai-gateway.service",
             "moai-control.service",
@@ -242,6 +250,14 @@ class ArmEditionTests(unittest.TestCase):
         ):
             self.assertIn(backend, verifier,
                           f"finished ARM image does not prove route backend {backend}")
+
+    def test_arm_installs_every_declared_icon_fallback(self) -> None:
+        build = code(read(BUILD))
+        verifier = code(read(ARM_VERIFY))
+        self.assertIn("papirus-icon-theme", build,
+                      "MoOSUI2 inherits Papirus but ARM never installs it")
+        self.assertIn('"papirus-icon-theme"', verifier,
+                      "the finished ARM image never proves its icon fallback exists")
 
     def test_arm_has_one_storefront(self) -> None:
         build = code(read(BUILD))
@@ -279,6 +295,27 @@ class ArmEditionTests(unittest.TestCase):
                       "the ARM image must be built natively; emulating a Plasma build "
                       "on x86 exceeds the job timeout")
         self.assertIn("arm64", text, "the workflow must verify the image architecture")
+        self.assertIn("MOOS_ARM_DISPLAY: gtk", text,
+                      "the final ARM disk needs a mapped-window visual proof")
+        self.assertNotIn("MOOS_ARM_SKIP_VISUAL_GATE", text,
+                         "a release ARM run must never bypass its visual gate")
+
+    def test_arm_greeter_selects_the_real_utm_scanout(self) -> None:
+        build = read(BUILD)
+        launcher = read(ROOT / "system_files/usr/libexec/moos-arm-greeter-kwin")
+        self.assertIn("ExecStart=/usr/libexec/moos-arm-greeter-kwin", build)
+        self.assertIn("/sys/class/drm/card*-*/status", launcher)
+        self.assertIn('KWIN_DRM_DEVICES="$dri_node"', launcher)
+        self.assertIn('[ -r "$dri_node" ] && [ -w "$dri_node" ]', launcher,
+                      "KWin must wait until plasmalogin can open the scanout")
+        self.assertIn("--virtual --width 1920 --height 1080", launcher)
+        self.assertIn("QT_QUICK_BACKEND=software", build)
+        self.assertIn('OWNER="plasmalogin", GROUP="video", MODE="0660"', build)
+        self.assertIn('OWNER="plasmalogin", GROUP="render", MODE="0660"', build)
+        self.assertIn("ExecStartPre=/usr/libexec/moos-greeter-gl-env", build)
+        self.assertIn("/usr/bin/setfacl -m u:plasmalogin:rw", read(
+            ROOT / "system_files/usr/libexec/moos-greeter-gl-env"
+        ))
 
     def test_the_new_workflow_can_prove_a_feature_branch(self) -> None:
         text = read(WORKFLOW)
@@ -493,20 +530,18 @@ class ArmEditionTests(unittest.TestCase):
         self.assertIn("interactive_input=virtio-keyboard+tablet", runtime_gate)
         self.assertIn("touch '$continue_file'", boot_gate)
         self.assertIn("-display none", boot_gate,
-                      "CI must retain headless QEMU (egl-headless needs a host render node)")
+                      "developers must retain a headless diagnostic mode")
         self.assertIn("screendump", boot_gate,
-                      "ARM visual proof must capture via the QEMU monitor socket")
-        self.assertIn("QEMU monitor screendump produced no frame", boot_gate,
-                      "ARM visual proof must fail when the monitor capture is empty")
+                      "headless diagnostics need a QEMU monitor fallback")
+        self.assertIn("gtk_window_title", boot_gate,
+                      "release evidence must target the exact mapped QEMU window")
+        self.assertIn("xwininfo", boot_gate)
+        self.assertIn("assert_visual_frame.py", boot_gate,
+                      "ARM must share the black-plus-cursor pixel gate with x86")
         self.assertIn("sendkey shift", boot_gate,
                       "ARM visual proof must wake the idle Plasma Login Manager "
                       "before capturing the greeter")
-        self.assertIn("standard_deviation", boot_gate,
-                      "a near-black cursor-only screendump must fail the ARM "
-                      "boot proof the same way x86/ISO blank frames do")
-        self.assertIn("value < 0.02", boot_gate,
-                      "the ARM blank threshold must reject cursor-only black "
-                      "frames that still clear the weaker 0.01 x86 floor")
+        self.assertNotIn("MOOS_ARM_SKIP_VISUAL_GATE", boot_gate)
 
     def test_arm_enforces_the_same_signed_registry_policy(self) -> None:
         build = read(BUILD)
@@ -515,6 +550,7 @@ class ArmEditionTests(unittest.TestCase):
             "sigstoreSigned",
             "/etc/pki/containers/moos.pub",
             "ghcr.io/moalfarras-sys",
+            "containers-storage",
         ):
             self.assertIn(proof, build)
             self.assertIn(proof, verifier)
@@ -595,7 +631,12 @@ class ArmEditionTests(unittest.TestCase):
     def test_arm_is_wayland_only(self) -> None:
         text = code(read(BUILD))
         self.assertNotIn("plasma-workspace-x11", text)
-        self.assertNotIn("--xwayland", text)
+        self.assertIn(
+            "kwin_wayland_wrapper --virtual --width 1920 --height 1080 --xwayland",
+            text,
+            "the ARM session stays Wayland-native, but ksmserver and compatibility "
+            "apps need KWin's Xwayland bridge instead of crashing at login",
+        )
         self.assertIn("/usr/share/xsessions", text,
                       "the finished image must fail if a dependency adds an X11 session")
 
@@ -686,7 +727,7 @@ class ArmEditionTests(unittest.TestCase):
         self.assertIn("bootc-generic-growpart.service", runtime)
         self.assertIn("cloud_grow=bootc-success", runtime)
         self.assertIn("runtime-${phase}-diagnostics.txt", boot_gate)
-        self.assertIn("journalctl --no-pager -u bootc-generic-growpart.service", boot_gate)
+        self.assertIn("journalctl --no-pager -b -u bootc-generic-growpart.service", boot_gate)
 
     def test_the_runtime_gate_needs_no_root(self) -> None:
         # The boot gate pipes verify_arm_runtime.sh over SSH as the provisioned

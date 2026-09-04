@@ -85,6 +85,10 @@ with open('/etc/containers/policy.json', encoding='utf-8') as source:
 entry = policy['transports']['docker']['ghcr.io/moalfarras-sys']
 assert len(entry) == 1 and entry[0]['type'] == 'sigstoreSigned'
 assert entry[0]['keyPath'] == '/etc/pki/containers/moos.pub'
+assert policy['default'] == [{'type': 'reject'}]
+assert policy['transports']['containers-storage'][''] == [
+    {'type': 'insecureAcceptAnything'}
+]
 PY
 
 # Prove the downloadable disk retained the native first-party bundles and all

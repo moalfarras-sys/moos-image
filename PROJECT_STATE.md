@@ -4,8 +4,219 @@ This file is current state, not session history. Git history owns the history.
 When documentation disagrees with a running machine, a freshly booted artifact,
 or current source, those stronger forms of evidence win.
 
-Last reconciled: **2026-08-28 (post-reboot Phase 4 audit)** — verification on the new
-deployment `49d73f3965a1` (44.20260828), booted live:
+Last reconciled: **2026-09-03 (exact-frame release proof)** — latest source
+branch, signed CI artifacts, exact mapped-window evidence, and live host checks
+on `moos-arm-oracle`.
+
+### Branch reconciliation (2026-09-02)
+
+All remote refs were fetched and compared by patch and by release contract. The old
+`fix/build-*`, `fix/ci-kde-gate`, `fix/phone-typing`,
+`fix/portal-group-resolution`, `fix/cloud-remote-perf-clarity-20260815` and
+`feat/boot-animation-and-arm` refs are already represented by merged PRs; their names simply
+remain on the server. Re-merging them would replay older code.
+
+Five genuinely absent commits from `fix/oracle-uefi-capacity-20260829` were integrated on the
+current tree: multi-AD/fault-domain capacity retries, UEFI_64 image capability enforcement,
+native ARM Tailscale transport, signed-origin repair, portal readiness and single-owner cloud
+desktop startup. The merge preserved the newer ARM application, search, storefront, Arabic font
+and Remote lifecycle work. `tests/test_oracle_deploy.py`, `tests/test_moos_arm.py`,
+`tests/test_cloud_private_desktop.py`, Remote lifecycle tests and shell syntax pass together.
+The imported repository block was then reconciled with Tailscale's current official Fedora
+definition: both x86 and ARM now require `repo_gpgcheck=1` and `gpgcheck=1`, and the Remote network
+boundary test rejects either metadata or package-signature verification being disabled.
+
+`archive/arm-utm-20260827` and the closed PR #61 branch
+`fix/utm-release-gates-20260826` were deliberately not merged wholesale. They package the recovery
+disk before the candidate is proven and carried a visual-gate bypass. The display-aware greeter
+launcher was later recovered selectively from that work onto the current release ordering: UTM's
+virtio connector selects its real DRM scanout, while a connector-less Oracle VPS selects KWin's
+virtual output. The unsafe publication order and bypass remain rejected.
+
+The candidate at `a931e09c` completed the full matrix. x86 run `33735887419` built and signed
+generic, NVIDIA and Cloud images plus the Windows Remote agent. ARM run `33735890038` built and
+signed the native image, composed Oracle/UTM and recovery disks, completed two UEFI boots, captured
+the graphical session, grew the disk and reported zero failed units.
+
+The exact Cloud disk proof (`33740041923`) passed KVM + VirGL boot, signed-origin, network,
+MoOS greeter, zero-failed-unit, reboot, second-boot and clean poweroff checks. Both exact mapped
+window frames were visually inspected and show the authored MoOS experience. Generic run
+`33740036698` passed the first runtime/frame but its reused QEMU user-network SSH forward accepted
+TCP without delivering a banner after reboot. The proof now allocates an independent second host
+forward for the second boot, so stale slirp state cannot produce a false product failure.
+
+NVIDIA run `33740038888` passed the runtime contract twice with zero failed units, but its exact
+frames were black apart from the white pointer. The old standard-deviation check accepted those
+frames because the pointer supplied enough variance. The NVIDIA greeter helper had forced llvmpipe
+whenever `/dev/nvidia*` was absent, even though the proof VM exposed a working VirGL render node;
+KWin remained active but its mapped scanout was black. The helper now preserves NVIDIA, Intel,
+AMD and virtio DRM render nodes and uses Mesa software EGL only when no GPU node exists. A shared
+PPM gate also requires at least 3% visible pixels, and a synthetic black-plus-cursor regression
+test proves that it fails.
+
+ISO run `33740044447` passed the exact LiveOS visual proof and completed the offline install to
+100%, including Btrfs finalization and MoOS UEFI registration. QGA then accepted guest shutdown
+but did not terminate the live environment within the deadline. The installer proof now sends one
+ACPI power-button event if that clean request stalls, then continues waiting for systemd shutdown;
+it does not force-kill the guest. The installed-system boot and app evidence still require one
+fresh same-SHA rerun.
+
+The next build at `b7424340` passed all three x86 image builds in run `33758817997`; its Cloud
+disk proof `33761593137` also passed both boots. ARM image composition succeeded in
+`33758820668`, but the second disk boot correctly failed because `plymouth-start.service` was in
+systemd's failed set. The same serial evidence exposed that ARM firmware had registered a legacy
+product label even though GRUB itself displayed MoOS. The ARM proof had also still set
+`MOOS_ARM_SKIP_VISUAL_GATE=1`, so its tiny framebuffer capture was not release evidence. Current
+source removes that bypass, runs the final ARM disk in a mapped GTK window under Xvfb, applies the
+shared visible-pixel gate, and preserves full Plymouth status/journal evidence on failure. The ARM
+greeter now attaches software rendering to UTM's actual virtio DRM node and uses a virtual output
+only on a truly display-less VPS.
+
+Shim's UTF-16 fallback CSV owns the firmware's visible boot-entry label. One shared build helper now
+decodes every shipped `BOOT*.CSV` for both x86 and ARM, rewrites the presentation label to MoOS and
+fails if the legacy label survives; signed loader paths and required vendor directories remain
+untouched.
+
+Candidate `4549641c` then built and signed all x86 editions in run `33764283217`.
+Its exact generic, Cloud and NVIDIA disks passed two boots, zero failed units and
+clean poweroff in runs `33766163439`, `33766166166` and `33766715929`; their mapped
+frames were inspected and show the MoOS greeter. ARM run `33764287001` passed its
+runtime and packaging gates, but human inspection rejected its captured frame: the
+guest area was black with only a cursor while QEMU's bright 25-pixel menu bar made
+the whole-window visible-pixel score read 5%. The shared frame gate now measures an
+inset canvas, ARM preserves both the guest framebuffer and mapped window, and its
+proof always records DRM, process, environment and greeter-journal diagnostics.
+The selectively recovered DRM launcher had also outlived a temporary
+`virtio-ramfb` experiment that removed the login user's video/render access; the
+standard-QEMU proof uses `virtio-gpu`, so current source restores bounded group
+access during image composition and refuses to launch KWin until that exact scanout
+is readable and writable. Run `33773955960` proved the first correction was placed
+inside the generated remote helper instead of the image build; its finished-image
+gate failed before publication, and the rule plus group assignment now precede that
+helper's heredoc with a source-order regression test. Run `33775414235` then exposed
+bootc's split account database: the package groups live in `/usr/lib/group`, so
+`usermod` can succeed without updating them. The next attempt used a
+`systemd-sysusers` membership declaration with same-GID `/etc` overlays. Run
+`33776822139` proved that sysusers also declines to shadow an already-resolvable
+altfiles group during composition. Current source therefore avoids account-database mutation:
+udev gives the dedicated greeter ownership of physical DRM nodes while preserving
+the standard groups and logind ACLs, and the root pre-greeter helper applies a
+user-specific ACL as a bounded fallback. vgem's display-less nodes remain available
+to the explicitly started cloud Remote session.
+
+Candidate `70b7d438` later proved the corrected ARM disk in run `33779520543`:
+both internal guest scanout and the mapped QEMU window show the authored MoOS
+greeter, two boot IDs differ, and both boots report zero failed units. Exact
+generic and Cloud x86 disks passed the same two-boot contract in `33782226458`
+and `33782228825`; NVIDIA's first proof hit a host Xvfb startup race before QEMU
+opened and its unchanged-digest retry is `33785511871`.
+
+Inspection of the maintainer's running ARM session also found that its generated
+MoOSUI2 icon theme declared Papirus as a fallback while the ARM package set did
+not install it. KWin consequently logged repeated `Papirus-Dark not found`
+lookups. ARM now installs that fallback explicitly and the finished-image gate
+asserts on the RPM, so this cannot return as a silent runtime-only omission.
+
+The earlier candidate's final ISO booted visually, but install run `33766199203`
+ended when hosted QEMU itself asserted in epoxy after repeated EGL context loss
+during the long offline copy. The installer did not report a product error. Current
+source uses stable virtio 2D only for that nonvisual copy phase; the independent
+LiveOS proof and the installed-system login/application proof remain VirGL mapped
+captures. Run `33782234413` then completed that offline installation through 100%,
+including EFI registration, signed-origin repair, target trim, sync and unmount,
+but the LiveOS desktop session ignored both QGA's generic shutdown and an ACPI
+button for 180 seconds. The gate now proves every target filesystem is detached,
+flushes guest writes, and asks systemd directly through QGA before retaining the
+same ACPI fallback. This correction requires one new same-SHA full matrix before
+promotion.
+
+The ARM compose failure from run `33689074450` is closed: local `containers-storage` is allowed
+only for composition while the registry path remains exact `sigstoreSigned`; both policy halves
+are asserted at runtime by ARM run `33735890038`.
+
+The x86 workflow also caught a newly published high-severity npm advisory before image build.
+The affected indirect `fast-uri` lock moved from `3.1.5` to fixed `3.1.7` without changing any
+direct dependency or shipped web bundle. A clean Node 22 install, all Remote controller behavioural
+tests, TypeScript checking, production build and `npm audit --audit-level=high` now pass with zero
+reported vulnerabilities.
+
+### Remote-ready context and responsive control center (2026-09-02)
+
+The native Mo PC Remote control center was rendered on the live Arabic 1920x1080 session. Its
+unbounded technical log pushed the window behind the Horizon Bar even though the configured
+default height was smaller; source-only tests had not exposed the natural-size minimum. The page
+now scrolls vertically and Recent errors is a collapsed, bounded diagnostic expander, matching
+Updater and Recovery. The QR, secure URL and five health rows fit in the first viewport. Evidence:
+`docs/evidence/mo-pc-remote-control-center-ar-1080p.png`.
+
+The context island now gives authenticated Remote control priority over media. `SessionState`
+atomically publishes `presence-active-N` or `presence-paused-N` in the private
+`$XDG_RUNTIME_DIR/mo-remote` directory only after WebSocket authentication, updates the real viewer
+count, and removes the marker on the last disconnect or clean shutdown. The applet watches those
+regular files with `FolderListModel`; it never polls a service and never tries to inspect the
+invisible frame socket. Active and paused states were switched live inside `plasmawindowed` with no
+QML error and no Plasma/Remote restart. Evidence:
+`docs/evidence/moos-island-remote-active-ar.png` and
+`docs/evidence/moos-island-remote-paused-ar.png`. `THEME_REV=52` makes the media-only cached island
+expire for existing users.
+
+Remote's shared Web API had also drifted beyond the Windows clipboard implementation:
+`SetTextConfirmed` and `SetImagePngConfirmed` existed only on Linux, so the Windows agent no longer
+compiled. Windows now confirms exact text and canonical decoded image pixels on its STA clipboard
+before acknowledging the phone. Verified with a clean `net10.0-windows/win-x64` build (zero warnings
+and errors), Linux x64 and ARM64 publish, and 124 Linux behavioural tests. The running Remote,
+ydotool and Plasma services were not stopped or restarted.
+
+### Inspection environment, boot overlay and responsive clock (2026-09-01)
+
+The local tree was fast-forwarded to `origin/main` at `f9be33f9`, then a work branch
+`work/system-inspection-boot-polish-20260901` merged the remaining live branch
+`origin/fix/controller-browserslist-audit-20260901`. That branch only updates the
+Mo PC Remote controller lockfile's Browserslist family.
+
+The Codex shell is a Flatpak/VS Code environment, so host tools are intentionally outside its
+normal PATH. A user-local helper was installed at `~/.local/bin/moos-host-run` to run commands
+on the real host through `flatpak-spawn --host --directory="$PWD"` without mixing host libraries
+into the Flatpak runtime. With that helper:
+
+- `mo-remote-personal.service` and `ydotoold-moremote.service` were confirmed active; Remote was
+  not restarted or stopped.
+- A fresh live screenshot was captured with host `spectacle` to
+  `.tmp-live-audit-20260901.png`. The visible desktop retained the MoOS dock, UI2 glass rim,
+  first-party icons and Arabic clock with no visible foreign identity on the captured surface.
+- The previously failing host-dependent checks were rerun correctly:
+  `tests/test_boot_path_authorities.py`, `tests/test_openclaw_modern_unit_retire.py`, and
+  `tests/test_moos_fast_remote.py` passed.
+
+Controller verification on the host passed: `npm test`, `npm ci`, `npm run typecheck`,
+`npm audit --audit-level=high`, and `npm run build`. The committed
+`moremote/agent/wwwroot` bundle remained byte-identical.
+
+Plymouth now bounds all event-driven text overlays to 78% of the screen width: boot status
+messages, encrypted-volume prompts and password bullets. This prevents long fsck/device/recovery
+messages from clipping off small VM or laptop screens while keeping the refresh loop unchanged.
+`tests/test_boot_splash_polish.py` now gates that contract. Verified:
+`python3 tests/test_boot_splash_polish.py`, `python3 tests/verify_user_experience.py`, and
+`bash -n build_files/build.sh build_files/build-arm.sh build_files/build-arm-recovery.sh`.
+
+The panel clock now lets Plasma choose its representation from the available space: the dock
+keeps the fixed compact chip, while a popup or standalone window receives the full clock and
+calendar. The full surface adds a theme-driven day header, minute-updated day-progress line,
+scale-aware week numbers, a working return-to-today action and the existing guarded
+`moos://settings/time` route. No new timer or permanent animation was added. Revision 51 introduced
+the popup; current `THEME_REV=52` also delivers Remote presence and purges both old QML surfaces.
+
+The modified source package was loaded through an isolated temporary `XDG_DATA_HOME` and
+rendered on the live Arabic session at 100%, 125% and 150%; it produced no QML load errors,
+kept all controls/text inside the window, and its accent edge measured 90+ luminance steps
+against the adjacent surface (the design gate is 15). Evidence:
+`docs/evidence/clock-popup-arabic-100.png`,
+`docs/evidence/clock-popup-arabic-125.png`, and
+`docs/evidence/clock-popup-arabic-150.png`. The temporary package and process were removed;
+no user-local plasmoid override remains. 200%/225% on a real 4K frame and the signed-image
+popup remain release evidence, not source-complete claims.
+
+Older state retained below:
 
 ### Oracle ARM live desktop audit — fixes in source (2026-08-30)
 
@@ -73,7 +284,6 @@ looked for uid arithmetic and therefore held the wrong implementation in place w
 `ensure_subids` now allocates `subuid` and `subgid` independently from each file's existing
 high-water mark and the host's configured `SUB_UID_MIN`/`SUB_UID_COUNT`. The gate now executes the
 allocator against a temporary host policy and proves the production path calls it for both maps.
-
 - **New deployment confirmed booted** (`49d73f3965a1` is the `●` current deployment; old
   `2747ad403c8d` and `355327e314f8` retained as rollback).
 - **Aurora theme confirmed live**: `LookAndFeelPackage=org.moos.ui2.aurora`,
@@ -146,6 +356,49 @@ KWin effects confirmed enabled: `blur`, `magiclamp` (genie minimize), `scale` (o
 `slidingpopups`/`fadingpopups`/`slide`/`dimscreen`/`dialogparent`/`fullscreen`/`overview`/
 `windowview`. MoOS keeps exactly one effect per exclusive slot (magiclamp/scale/slide) and excludes
 expensive/conflicting ones (translucency, glide/fade-vs-scale, wobbly/cube/fall-apart).
+
+### Oracle ARM deployment — LIVE ON ALWAYS FREE A1 (2026-08-30)
+
+- Exact release disk `44.20260829.197` / revision `da7fff6e` is present locally;
+  its raw SHA-256 matches the CI manifest and it passed two AArch64 UEFI boots,
+  cloud-init, graphical target, zero failed units and clean poweroff.
+- OCI authentication, full tenancy administration, the SSH-key fingerprint,
+  VCN, internet gateway, public subnet and TCP/22 security rule were verified.
+- Root cause of the first `Running` but unresponsive instance was proven in OCI:
+  the custom image and instance had `firmware=BIOS`, while the release disk is
+  UEFI. Its console history was empty and SSH timed out. The image now has an
+  ACTIVE `Compute.Firmware=UEFI_64` capability schema, and every later launch
+  reports `firmware=UEFI_64`.
+- Instance `moos-arm-oracle` is running in Frankfurt AD-1 / fault domain 3 on
+  `VM.Standard.A1.Flex`, 1 OCPU, 4 GB RAM and a 50 GB boot volume. A real guest
+  reboot returned with a different boot ID, `systemd` running, graphical and
+  display-manager targets active, zero failed units, and 43 GB free on the
+  grown physical root filesystem.
+- The booted deployment is the signed exact origin
+  `ghcr.io/moalfarras-sys/moos-arm@sha256:7a6f1191e691b6f5ee35a70caad77b066cf13aa4b24c72e631a532fd90cb1825`,
+  version `44.20260829.197`, architecture `arm64`, with `containerPolicy`
+  signature enforcement. cloud-init completed from `DataSourceOracle` with no
+  errors and the provisioned SSH key works for user `moos`.
+- The private browser desktop is live at
+  `https://moos-oracle.tailab78a5.ts.net` (tailnet only). A real Firefox session
+  rendered the MoOS welcome desktop; the RemoteDesktop portal restore token,
+  authenticated audio route, H.264/clipboard HTTPS publication and autologin
+  survived reboot. No desktop or agent port is exposed on the public Internet.
+- The first Oracle runtime exposed one ARM packaging gap: Mo PC Remote shipped
+  but Tailscale did not. The live server uses the verified upstream aarch64
+  static release; `build-arm.sh` now installs the native RPM, enables
+  `tailscaled.service`, and the finished-image gate asserts both contracts.
+- Temporary capacity-proof/custom-image instances and their boot volumes were
+  terminated after the reboot proof. The uploaded QCOW2 object and all expired
+  pre-authenticated import URLs were removed. The capacity watcher is disabled;
+  only the proven 1/4/50 instance and its 50 GB boot volume remain. An ACTIVE
+  tenancy-wide budget (`MoOS-Always-Free-guard`) alerts the owner at actual
+  spend above 0.01, with a budget amount of 1 in the tenancy currency.
+- `scripts/oracle_deploy.sh` fixes the former silent valid-config exit, uses
+  the real limits API, treats the tenancy as root compartment, enforces UEFI on
+  import, and provides a duplicate-safe capacity watcher with encrypted
+  management credentials. Its watcher found a valid UEFI placement and stopped
+  itself; the service is now disabled to prevent duplicate instances.
 
 ---
 
@@ -229,28 +482,19 @@ From `backup/theme-system-2026-08-06`:
 
 ---
 
-## ISO build pipeline — REPAIRED (2026-08-25)
+## ISO build pipeline — proof-gated
 
-The ISO built fine but the `Upload ISO as workflow artifact` step ran **last**,
-so when the QEMU boot/install proof steps failed in the GitHub runner (a runner
-environment limitation, not an ISO defect) the whole job aborted and the
-already-built ISO was dropped.
+The workflow preserves a built ISO for diagnosis as an explicitly **unproven,
+unsigned** debug artifact when a gate fails. The release ISO is signed and
+uploaded only after both the exact LiveOS boot and offline install/installed-
+system proof pass. Neither gate has `continue-on-error`.
 
-Fix (merged to `main`, commit `5279e2b8`): the ISO upload now runs **before**
-the proof steps, so the artifact is captured even if a later proof step fails.
-The proof gates themselves stay hard-fail (no `continue-on-error` was added — we
-do not weaken a guard to make a build pass).
-
-**Resulting build (run #32851648759):** `conclusion: success` — all 17 steps
-green, including `Boot and prove the exact final live ISO` (step 14) and
-`Install the exact final ISO offline and boot the target disk` (step 16). The
-ISO is therefore **proven to boot its LiveOS, perform the offline install to a
-blank disk, detach, and boot the installed system** in CI.
-
-Deliverable: `Desktop/moos-live.iso` (generic `moos:latest`, ~4.8 GB, bootable
-ISO 9660, label `MoOS-Live`). Boots + installs on any x86_64 (Intel/AMD). Does
-NOT carry nvidia in the initramfs — for nvidia hardware use the `moos-nvidia`
-image/update path.
+Run `32851648759` previously completed both paths. Candidate run `33740044447`
+completed LiveOS boot and the exact offline install through Btrfs finalization
+and UEFI registration; its clean-shutdown fallback and installed-system SSH/app
+inspection must pass on the final same-SHA rerun before the ISO can be called
+publishable. Generic ISO media installs the generic x86_64 edition; NVIDIA
+remains a separately built and proven image/update path.
 
 ---
 
@@ -369,5 +613,5 @@ exists.
 - Published tags move only after boot-proven artifacts.
 - `/var` empty in image; `bootc container lint` is a gate.
 - Recovery coldplug + device timeout gates cannot be removed (iPhone boot fix).
-- The ISO upload-before-proof ordering must stay; the proof gates stay
-  hard-fail.
+- An unproven ISO may be retained only as an unsigned debug artifact. The signed
+  release ISO must remain after both hard-fail boot and install proofs.

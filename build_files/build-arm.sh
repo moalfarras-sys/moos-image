@@ -78,7 +78,7 @@ _PLASMA=(
     qt6-qtwayland qt6-qtsvg qt6-qtdeclarative qt6-qtmultimedia qt6-qtimageformats
     kf6-kirigami kf6-kirigami-addons kf6-qqc2-desktop-style
     dolphin konsole ark kate gwenview haruna kf6-baloo-file
-    plasma-breeze breeze-icon-theme
+    plasma-breeze breeze-icon-theme papirus-icon-theme
     pipewire pipewire-pulseaudio wireplumber
     NetworkManager NetworkManager-wifi
     plymouth plymouth-plugin-script plymouth-plugin-two-step plymouth-system-theme
@@ -87,7 +87,7 @@ _PLASMA=(
     fontconfig gtk3 gtk4 libadwaita mpv-libs
     mesa-dri-drivers mesa-libEGL mesa-libgbm
     openssh-server cloud-init cloud-utils-growpart
-    firewalld flatpak openssl sudo
+    firewalld flatpak openssl sudo acl
     # Architecture-independent MoOS desktop assets are generated after the
     # final RPM transaction by finalize_moos_desktop.sh.
     git-core curl tar xz gtk-update-icon-cache
@@ -104,6 +104,24 @@ _PLASMA=(
     gstreamer1 gstreamer1-plugins-base gstreamer1-plugins-good
     gstreamer1-plugins-bad-free pipewire-gstreamer
 )
+
+# Mo PC Remote publishes its authenticated loopback agent through Tailscale
+# Serve. The first real Oracle A1 deployment proved that all of the remote
+# desktop UI and services can be present while the ARM image has no `tailscale`
+# binary at all, leaving the owner with no secure browser URL. Keep the same
+# small, static repository definition as the x86 build; dnf still verifies the
+# repository metadata and installs the native aarch64 RPM.
+cat > /etc/yum.repos.d/tailscale.repo <<'TAILSCALE_REPO'
+[tailscale-stable]
+name=Tailscale stable
+baseurl=https://pkgs.tailscale.com/stable/fedora/$basearch
+enabled=1
+type=rpm
+repo_gpgcheck=1
+gpgcheck=1
+gpgkey=https://pkgs.tailscale.com/stable/fedora/repo.gpg
+TAILSCALE_REPO
+_PLASMA+=(tailscale)
 dnf5 -y install --setopt=install_weak_deps=False "${_PLASMA[@]}"
 
 # cosign is not always packaged for aarch64 — install the static binary when needed.
@@ -247,7 +265,7 @@ systemctl --global enable \
     moos-ensure-brain.timer moos-theme-sync.path \
     moos-cloud-audio.service moos-update-ready.timer moos-reclaim-disk.timer
 
-systemctl enable NetworkManager.service sshd.service firewalld.service
+systemctl enable NetworkManager.service sshd.service firewalld.service tailscaled.service
 systemctl enable moos-auto-update.timer
 # moos-image-update is the only OS deployment writer. The Fedora bootc base
 # enables its own mutable-tag fetch timer, so disable both upstream rivals on
@@ -269,30 +287,47 @@ systemctl set-default graphical.target
 install -D -m0644 /dev/stdin \
     /usr/lib/systemd/system/plasmalogin.service.d/20-moos-arm-greeter-gl.conf <<'PLMDROP'
 [Service]
-ExecStartPre=-/usr/libexec/moos-greeter-gl-env
+ExecStartPre=/usr/libexec/moos-greeter-gl-env
 PLMDROP
 install -D -m0644 /dev/stdin \
     /usr/lib/systemd/user/plasma-login-kwin_wayland.service.d/10-moos-arm-greeter-gl.conf <<'KWINDROP'
 [Service]
 EnvironmentFile=-/run/moos/plasmalogin-kwin.env
 Environment=LIBGL_ALWAYS_SOFTWARE=1
-Environment=MESA_LOADER_DRIVER_OVERRIDE=llvmpipe
 Environment=GALLIUM_DRIVER=llvmpipe
-# virtio-gpu proof VMs and Oracle both need vgem + a virtual output before KWin
-# will composite the MoOS greeter instead of a black QPainter surface.
+# UTM/QEMU must paint the real virtio scanout. A display-less Oracle machine
+# receives the virtual backend from the same display-aware launcher.
 ExecStart=
-ExecStart=/usr/bin/kwin_wayland_wrapper --virtual --width 1920 --height 1080
+ExecStart=/usr/libexec/moos-arm-greeter-kwin
 KWINDROP
+for _greeter_unit in plasma-login.service plasma-wallpaper.service; do
+    install -D -m0644 /dev/stdin \
+        "/usr/lib/systemd/user/${_greeter_unit}.d/10-moos-arm-software-scenegraph.conf" <<'QTSOFTWARE'
+[Service]
+Environment=QT_QUICK_BACKEND=software
+QTSOFTWARE
+done
+unset -v _greeter_unit
 install -D -m0644 /dev/stdin /etc/environment.d/60-moos-arm-llvmpipe.conf <<'LLVMPIPE'
 # MoOS ARM: software rendering for every user session, including plasmalogin.
 LIBGL_ALWAYS_SOFTWARE=1
-MESA_LOADER_DRIVER_OVERRIDE=llvmpipe
 GALLIUM_DRIVER=llvmpipe
 LP_NUM_THREADS=2
+QT_QUICK_BACKEND=software
 LLVMPIPE
 install -D -m0644 /dev/stdin /etc/modules-load.d/moos-arm-vgem.conf <<'MODLOAD'
 vgem
 MODLOAD
+install -D -m0644 /dev/stdin /etc/udev/rules.d/61-moos-arm-vgem.rules <<'UDEV'
+# The greeter has no interactive seat ACL before authentication. Its dedicated
+# account owns the real scanout while logind's uaccess ACL still grants the
+# signed-in seat access. vgem has no physical output or display contents; its
+# render/card pair stays available to explicitly started headless Remote users.
+SUBSYSTEM=="drm", KERNEL=="card*", OWNER="plasmalogin", GROUP="video", MODE="0660"
+SUBSYSTEM=="drm", KERNEL=="renderD*", OWNER="plasmalogin", GROUP="render", MODE="0660"
+SUBSYSTEM=="drm", KERNEL=="card*", DEVPATH=="/devices/faux/vgem/drm/card*", OWNER="root", GROUP="render", MODE="0666"
+SUBSYSTEM=="drm", KERNEL=="renderD*", DEVPATH=="/devices/faux/vgem/drm/renderD*", OWNER="root", GROUP="render", MODE="0666"
+UDEV
 
 # Defence in depth around the public cloud VM. SSH is the only service exposed
 # by the image. KRDP remains reachable through an SSH tunnel to localhost; this
@@ -584,9 +619,6 @@ modprobe vgem
 install -D -m0644 /dev/stdin /etc/modules-load.d/moos-arm-vgem.conf <<'MODLOAD'
 vgem
 MODLOAD
-install -D -m0644 /dev/stdin /etc/udev/rules.d/61-moos-arm-vgem.rules <<'UDEV'
-SUBSYSTEM=="drm", KERNEL=="card*", DEVPATH=="/devices/faux/vgem/drm/card*", GROUP="render", MODE="0660"
-UDEV
 udevadm control --reload-rules
 udevadm trigger --subsystem-match=drm --action=change
 
@@ -597,7 +629,10 @@ install -D -o "$target" -g "$target" -m0644 /dev/stdin \
 [Service]
 Environment=LIBGL_ALWAYS_SOFTWARE=1
 ExecStart=
-ExecStart=/usr/bin/kwin_wayland_wrapper --virtual --width 1920 --height 1080
+# This remains a Wayland-native session. Xwayland is the compatibility bridge
+# used by ksmserver and older developer apps; omitting it leaves the desktop
+# visible but crashes session management and several tray helpers at every login.
+ExecStart=/usr/bin/kwin_wayland_wrapper --virtual --width 1920 --height 1080 --xwayland
 KWIN
 
 desktop_unit="${home}/.config/systemd/user/moos-arm-desktop.service"
@@ -707,6 +742,11 @@ echo "=== (8) identity ==="
 mkdir -p /usr/lib/moos
 printf '%s\n' "${MOOS_EDITION}" > /usr/lib/moos/edition
 printf '%s\n' "aarch64" > /usr/lib/moos/arch
+
+# shim reads this UTF-16 CSV when firmware creates its persistent boot entry.
+# The signed loader stays in its required vendor directory; its visible label
+# is MoOS on ARM just as it is on x86.
+python3 /ctx/rewrite_firmware_label.py
 
 # os-release is what every tool, every login banner and every bug report shows.
 # A MoOS that introduces itself as Fedora is not MoOS.
@@ -888,13 +928,24 @@ import json
 path = "/etc/containers/policy.json"
 with open(path, encoding="utf-8") as source:
     policy = json.load(source)
-policy.setdefault("transports", {}).setdefault("docker", {})[
-    "ghcr.io/moalfarras-sys"
-] = [{
+docker = policy.setdefault("transports", {}).setdefault("docker", {})
+# bootc rejects a policy whose global fallback is insecure, even if this exact
+# registry has a signed rule. Preserve normal user pulls at docker's transport
+# fallback while making the top-level policy fail closed.
+policy["default"] = [{"type": "reject"}]
+docker[""] = [{"type": "insecureAcceptAnything"}]
+docker["ghcr.io/moalfarras-sys"] = [{
     "type": "sigstoreSigned",
     "keyPath": "/etc/pki/containers/moos.pub",
     "signedIdentity": {"type": "matchRepository"},
 }]
+# Disk composition imports the already-pulled candidate from BIB's private
+# root containers-storage. That local transport cannot carry registry sigstore
+# attachments; the installed docker origin remains digest-pinned and
+# signature-enforced for every network update.
+policy.setdefault("transports", {})["containers-storage"] = {
+    "": [{"type": "insecureAcceptAnything"}],
+}
 with open(path, "w", encoding="utf-8") as target:
     json.dump(policy, target, indent=4)
 PYSEC
@@ -904,10 +955,21 @@ import json
 entry = json.load(open("/etc/containers/policy.json", encoding="utf-8"))[
     "transports"
 ]["docker"]["ghcr.io/moalfarras-sys"]
+policy = json.load(open("/etc/containers/policy.json", encoding="utf-8"))
 if len(entry) != 1 or entry[0].get("type") != "sigstoreSigned":
     raise SystemExit("FATAL: ARM registry policy does not require sigstoreSigned")
 if entry[0].get("keyPath") != "/etc/pki/containers/moos.pub":
     raise SystemExit("FATAL: ARM registry policy does not use the MoOS public key")
+if policy.get("default") != [{"type": "reject"}]:
+    raise SystemExit("FATAL: ARM container policy has a permissive global default")
+if policy.get("transports", {}).get("docker", {}).get("") != [
+    {"type": "insecureAcceptAnything"}
+]:
+    raise SystemExit("FATAL: ARM ordinary user container pulls lost their docker fallback")
+if policy.get("transports", {}).get("containers-storage", {}).get("") != [
+    {"type": "insecureAcceptAnything"}
+]:
+    raise SystemExit("FATAL: ARM local disk composition cannot import containers-storage")
 PYSEC
 
 # -----------------------------------------------------------------------------
@@ -989,20 +1051,41 @@ echo "=== initramfs carries OSTree, virtio and the MoOS splash ==="
 # installer and the two intentionally omitted x86 binaries; it does not weaken
 # the shared session, application, logo or theme identity checks.
 echo "=== (9b) finished-image identity gates ==="
-grep -q 'ExecStartPre=-/usr/libexec/moos-greeter-gl-env' \
+grep -q 'ExecStartPre=/usr/libexec/moos-greeter-gl-env' \
     /usr/lib/systemd/system/plasmalogin.service.d/20-moos-arm-greeter-gl.conf \
     || { echo "GATE FAIL: ARM plasmalogin must run moos-greeter-gl-env before the greeter"; exit 1; }
 grep -q 'LIBGL_ALWAYS_SOFTWARE=1' \
     /usr/lib/systemd/user/plasma-login-kwin_wayland.service.d/10-moos-arm-greeter-gl.conf \
     /etc/environment.d/60-moos-arm-llvmpipe.conf \
     || { echo "GATE FAIL: ARM login greeter must force software GL for virtio proof VMs"; exit 1; }
-grep -q 'MESA_LOADER_DRIVER_OVERRIDE=llvmpipe' \
+grep -q 'GALLIUM_DRIVER=llvmpipe' \
     /usr/lib/systemd/user/plasma-login-kwin_wayland.service.d/10-moos-arm-greeter-gl.conf \
     /etc/environment.d/60-moos-arm-llvmpipe.conf \
-    || { echo "GATE FAIL: ARM login greeter must pin llvmpipe for virtio proof VMs"; exit 1; }
-grep -q 'kwin_wayland_wrapper --virtual' \
+    || { echo "GATE FAIL: ARM login greeter must select llvmpipe through Gallium"; exit 1; }
+if grep -qE "printf 'MESA_LOADER_DRIVER_OVERRIDE=llvmpipe|^Environment=MESA_LOADER_DRIVER_OVERRIDE=llvmpipe|^MESA_LOADER_DRIVER_OVERRIDE=llvmpipe" \
     /usr/lib/systemd/user/plasma-login-kwin_wayland.service.d/10-moos-arm-greeter-gl.conf \
-    || { echo "GATE FAIL: ARM login greeter must use KWin virtual output on virtio"; exit 1; }
+    /etc/environment.d/60-moos-arm-llvmpipe.conf; then
+    echo "GATE FAIL: forcing Mesa's llvmpipe loader detaches KWin from the DRM scanout"
+    exit 1
+fi
+grep -qx 'QT_QUICK_BACKEND=software' /etc/environment.d/60-moos-arm-llvmpipe.conf \
+    || { echo "GATE FAIL: ARM sessions must use Qt Quick's bounded software renderer"; exit 1; }
+grep -q 'ExecStart=/usr/libexec/moos-arm-greeter-kwin' \
+    /usr/lib/systemd/user/plasma-login-kwin_wayland.service.d/10-moos-arm-greeter-gl.conf \
+    || { echo "GATE FAIL: ARM display-aware greeter launcher is missing"; exit 1; }
+grep -q '/sys/class/drm/card\*-\*/status' /usr/libexec/moos-arm-greeter-kwin \
+    && grep -q '\[ -r "$dri_node" \].*\[ -w "$dri_node" \]' /usr/libexec/moos-arm-greeter-kwin \
+    && grep -q 'KWIN_DRM_DEVICES="$dri_node"' /usr/libexec/moos-arm-greeter-kwin \
+    && grep -q -- '--virtual --width 1920 --height 1080' /usr/libexec/moos-arm-greeter-kwin \
+    || { echo "GATE FAIL: ARM greeter must distinguish UTM displays from a headless VPS"; exit 1; }
+grep -q 'KERNEL=="card\*", OWNER="plasmalogin", GROUP="video", MODE="0660"' \
+    /etc/udev/rules.d/61-moos-arm-vgem.rules \
+    && grep -q 'KERNEL=="renderD\*", OWNER="plasmalogin", GROUP="render", MODE="0660"' \
+        /etc/udev/rules.d/61-moos-arm-vgem.rules \
+    || { echo "GATE FAIL: ARM greeter does not own its DRM scanout"; exit 1; }
+[ -x /usr/bin/setfacl ] \
+    && grep -q 'setfacl.*u:plasmalogin:rw' /usr/libexec/moos-greeter-gl-env \
+    || { echo "GATE FAIL: ARM greeter DRM ACL fallback is missing"; exit 1; }
 grep -qxF 'vgem' /etc/modules-load.d/moos-arm-vgem.conf \
     || { echo "GATE FAIL: ARM must load vgem for greeter/desktop GL"; exit 1; }
 grep -q 'DefaultDeviceTimeoutSec=120' /etc/systemd/system.conf.d/moos-arm-device-timeout.conf \
