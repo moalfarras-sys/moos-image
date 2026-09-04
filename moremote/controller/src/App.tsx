@@ -7,6 +7,7 @@ import { SetupScreen, LoginScreen } from "./ui/AuthScreens";
 import { RemoteScreen } from "./ui/RemoteScreen";
 import { IconPlug } from "./ui/icons";
 import { usePwaInstall } from "./lib/pwa";
+import { initLang, setLang, makeT, type Lang } from "./lib/i18n";
 
 type View =
   | { name: "loading" }
@@ -18,6 +19,13 @@ type View =
 export default function App() {
   const [view, setView] = useState<View>({ name: "loading" });
   const pwa = usePwaInstall();
+  const [lang, setLangState] = useState<Lang>(() => initLang());
+  const tt = makeT(lang);
+
+  const switchLang = (next: Lang) => {
+    setLang(next);
+    setLangState(next);
+  };
 
   const decide = async () => {
     try {
@@ -110,23 +118,23 @@ export default function App() {
     case "setup":
       return (
         <>
-          {pwa.canInstall && <InstallBanner onInstall={pwa.promptInstall} />}
+          {pwa.canInstall && <InstallBanner onInstall={pwa.promptInstall} tt={tt} />}
           <SetupScreen onDone={enterRemote} />
         </>
       );
     case "login":
       return (
         <>
-          {pwa.canInstall && <InstallBanner onInstall={pwa.promptInstall} />}
+          {pwa.canInstall && <InstallBanner onInstall={pwa.promptInstall} tt={tt} />}
           <LoginScreen onDone={enterRemote} lockoutSeconds={view.lockout} />
         </>
       );
     case "remote":
-      return <RemoteScreen token={view.token} hostPowerAllowed={view.hostPowerAllowed} onExit={exitToLogin} onAuthExpired={authExpired} />;
+      return <RemoteScreen token={view.token} hostPowerAllowed={view.hostPowerAllowed} onExit={exitToLogin} onAuthExpired={authExpired} lang={lang} onLangSwitch={switchLang} />;
   }
 }
 
-function InstallBanner({ onInstall }: { onInstall: () => void }) {
+function InstallBanner({ onInstall, tt }: { onInstall: () => void; tt: (id: Parameters<ReturnType<typeof makeT>>[0]) => string }) {
   return (
     <div
       style={{
@@ -138,11 +146,9 @@ function InstallBanner({ onInstall }: { onInstall: () => void }) {
       }}
       role="status"
     >
-      <span style={{ fontSize: 13 }}>
-        ثبّت التطبيق على جهازك للحصول على تجربة كاملة · Install Mo Remote for the full experience
-      </span>
+      <span style={{ fontSize: 13 }}>{tt("installBanner")}</span>
       <button className="btn" onClick={onInstall} style={{ flexShrink: 0 }}>
-        تثبيت · Install
+        {tt("install")}
       </button>
     </div>
   );

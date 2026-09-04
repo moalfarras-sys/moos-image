@@ -13,6 +13,7 @@ import { pickStartPreset, readDeviceHints, describeHints, encodeWidth } from "..
 import { h264Failures, noteH264Failure, H264_MAX_FAILURES } from "../lib/h264state.ts";
 import { diffToOps } from "../lib/typing.ts";
 import { remoteAlertPermission, requestRemoteAlertPermission, showRemoteAlert } from "../lib/notifications";
+import { makeT, type Lang } from "../lib/i18n";
 import { QUALITY_PRESETS, AUTO_MAX_PRESET, MAX_DPR, POINTER_BAR_QUERY, BUILD, MODE_LABEL, MODE_HINT, type GestureMode, type ViewMode, type MonitorInfo } from "../types";
 import {
   IconAltTab, IconActual, IconArrowUp, IconBackspace, IconChevronDown, IconClipboard, IconClose,
@@ -263,7 +264,7 @@ function SheetPanel({ label, onClose, children, role = "dialog", descriptionId,
   );
 }
 
-export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }: {
+export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, lang, onLangSwitch }: {
   token: string;
   hostPowerAllowed: boolean;
   onExit: () => void;
@@ -271,7 +272,11 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
    *  the trusted-device credential, and routing an EXPIRY through it destroyed the very
    *  credential that exists to survive expiry — every 60 minutes, a PIN prompt. */
   onAuthExpired: () => void;
+  /** UI language (ar/en) + the switch that flips it from the Settings sheet. */
+  lang: Lang;
+  onLangSwitch: (next: Lang) => void;
 }) {
+  const tr = makeT(lang);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cursorRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -958,7 +963,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
     if (!localStorage.getItem("moremote.seenGestureHint")) {
       try { localStorage.setItem("moremote.seenGestureHint", "1"); } catch { /* private mode */ }
       gestureHintTimer = window.setTimeout(
-        () => showToast("Two fingers: scroll · pinch to zoom · double-tap to magnify"), 1400);
+        () => showToast(tr("gestureHelp")), 1400);
     }
 
     return () => {
@@ -2159,14 +2164,14 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
         <div className="session-state recovery" role="alert">
           <div className="state-icon"><IconPower /></div>
           <div className="state-copy">
-            <b>{status === "idle" ? "Session paused after being idle" : "Session ended on the PC"}</b>
+            <b>{status === "idle" ? tr("pausedOnPc") : tr("notSharing")}</b>
             <span>{status === "idle"
               ? "Reconnect when you are ready. Nothing will be typed until the desktop returns."
               : "Start a fresh session or sign out from this device."}</span>
           </div>
           <div className="state-actions">
-            <button className="btn" onClick={reconnect}>Reconnect</button>
-            <button className="btn ghost" onClick={onExit}>Sign out</button>
+            <button className="btn" onClick={reconnect}>{tr("reconnect")}</button>
+            <button className="btn ghost" onClick={onExit}>{tr("signOut")}</button>
           </div>
         </div>
       )}
@@ -2174,7 +2179,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
       {status === "paused" && (
         <div className="session-state quiet" role="status">
           <div className="state-icon"><IconPause /></div>
-          <div className="state-copy"><b>Paused on the PC</b><span>Resume from the PC tray or banner.</span></div>
+          <div className="state-copy"><b>{tr("pausedOnPc")}</b><span>{tr("notSharing")}</span></div>
         </div>
       )}
 
@@ -2503,14 +2508,14 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
           {/* About answers "which build is my phone running?" WHERE YOU CAN ASK IT. The
               version used to appear only on the connect screen — the one screen you stop
               seeing the moment you connect. */}
-          <div className="sec-label">About</div>
+          <div className="sec-label">{tr("about")}</div>
           <div className="card">
             <details className="fold">
-              <summary><span>Version and connection</span><IconChevronDown /></summary>
+              <summary><span>{tr("versionAndConnection")}</span><IconChevronDown /></summary>
               <div>
-                <div className="kv"><span>App version</span><b>{BUILD}</b></div>
+                <div className="kv"><span>{tr("appVersion")}</span><b>{BUILD}</b></div>
                 <div className="kv"><span>Connection</span><b>{status}</b></div>
-                <div className="kv"><span>This device</span><b>{describeHints(deviceHints)}</b></div>
+                <div className="kv"><span>{tr("thisDevice")}</span><b>{describeHints(deviceHints)}</b></div>
                 <div className="kv"><span>Video</span>
                   <b>{status === "live"
                        ? `${codec === "h264" ? "H.264" : "JPEG"} · ${fps} fps · ${latency} ms`
@@ -2522,6 +2527,19 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired }:
                 </p>
               </div>
             </details>
+          </div>
+
+          {/* Language switch — a first-class setting, not a browser accident. The default
+              follows the phone; this flips the whole UI and the RTL direction live. */}
+          <div className="card" style={{ display: "flex", gap: 8, padding: "10px 14px", alignItems: "center" }}>
+            <span style={{ color: "var(--muted)", fontSize: 13, flex: 1 }}>{tr("language")}</span>
+            <button
+              className="cell"
+              onClick={() => onLangSwitch(lang === "ar" ? "en" : "ar")}
+              style={{ padding: "6px 14px", borderRadius: 999 }}
+            >
+              {lang === "ar" ? "العربية" : "English"} ⇄
+            </button>
           </div>
 
           <div className="credit">Mo Remote Personal · by Moalfarras</div>
