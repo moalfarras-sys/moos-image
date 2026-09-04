@@ -661,8 +661,20 @@ expected="$1"
 [ ! -e /etc/moos-setup.conf ]
 id moosci >/dev/null
 systemctl is-active graphical.target display-manager.service plasmalogin.service NetworkManager.service qemu-guest-agent.service
-origin="$(rpm-ostree status --json)"
-grep -Fq "ostree-image-signed:docker://${expected}" <<<"$origin"
+# Read the deployed origin file directly — the same read the disk-proof gate
+# does as its wheel user. `rpm-ostree status` as a plain user makes the CLI
+# fall back to direct /ostree access and die with EACCES
+# (run 33920982463: error: Permission denied (os error 13)).
+deployed_origin() {
+    local origins=()
+    shopt -s nullglob
+    origins=(/ostree/deploy/*/deploy/*.origin)
+    shopt -u nullglob
+    [ "${#origins[@]}" -eq 1 ] || return 1
+    sed -n 's/^container-image-reference=//p' "${origins[0]}"
+}
+origin="$(deployed_origin)"
+[ "$origin" = "ostree-image-signed:docker://${expected}" ]
 failed="$(systemctl --failed --no-legend --plain)"
 [ -z "$failed" ]
 for app in moai moos-store moos-update moos-rollback moos-settings moplayer mo-pc-remote; do
