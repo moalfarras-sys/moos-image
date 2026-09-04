@@ -323,9 +323,19 @@ root_part="$(lsblk -nrpo NAME,FSTYPE "$node" | awk '$2=="btrfs" {print $1; exit}
 proof_root=/run/moos-iso-ci-target
 install -d -m0755 "$proof_root"
 mount -o subvol=root "$root_part" "$proof_root"
-deployment="$(find "$proof_root/ostree/deploy" -mindepth 3 -maxdepth 3 \
-    -type d -name '*.0' -print -quit)"
+# Resolve the deployment EXACTLY like moos-install-to-disk's seed_target does:
+# ostree/deploy/<stateroot>/deploy/<checksum>.<index>. The new ostree also
+# keeps a BACKING checkout (ostree/deploy/<stateroot>/backing/...) that is
+# assembled at boot and is NOT what /etc binds from — run 33911557946 proved
+# an injection into backing/ simply vanishes (unit never enabled, key in the
+# shared var still landed because var is not per-deployment).
+deployment="$(find "$proof_root"/ostree/deploy/*/deploy -maxdepth 1 \
+    -type d -name '*.0' -print -quit 2>/dev/null || true)"
 [ -n "$deployment" ]
+case "$deployment" in
+    */ostree/deploy/*/deploy/*.0) ;;
+    *) echo "FATAL: deployment discovery left the deploy tree: $deployment" >&2; exit 1 ;;
+esac
 # The booted system binds the DEPLOYED var (ostree/deploy/<stateroot>/var),
 # not the root subvolume's top-level var/. Run 33892146231 proved the
 # difference: a key written under <root-subvol>/var/home was invisible to the
