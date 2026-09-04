@@ -187,6 +187,9 @@ button {
   min-height: 20px;
   margin-bottom: 18px;
   transition: color 0.2s;
+  /* Arabic hints keep their trailing punctuation at the true end of the
+     sentence instead of jumping to the visual start (bidi base direction). */
+  unicode-bidi: plaintext;
 }
 /* Inline with 14px text, so it is sized in em and pulled onto the baseline: a 24px block glyph
  * beside a 14px line sits high and stretches the row's min-height. */
