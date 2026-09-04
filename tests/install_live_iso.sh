@@ -501,18 +501,17 @@ def gate_until(script, args, seconds, label):
     if label.startswith("installed"):
         # The SSH gate died. Record WHY through QGA (which works even when
         # sshd does not): unit state, listen state and the fixture's own log.
-        diag = ("echo '=== sshd unit ==='; cat /usr/lib/systemd/system/sshd.service 2>&1 | head -5;"
-                "systemctl is-enabled sshd.service 2>&1; systemctl is-active sshd.service 2>&1;"
-                "echo '=== rpm ==='; rpm -q openssh-server 2>&1;"
-                "echo '=== fixture unit exists? ===';"
-                "ls -la /etc/systemd/system/multi-user.target.wants/ 2>&1 | grep -E 'moos|sshd';"
-                "cat /usr/lib/systemd/system/moos-ci-runtime-proof.service 2>&1 | head -8;"
-                "echo '=== journal (whole proof unit) ===';"
-                "journalctl -u moos-ci-runtime-proof.service --no-pager -o cat 2>&1 | tail -25;"
-                "echo '=== sshd journal ===';"
-                "journalctl -u sshd.service --no-pager 2>&1 | tail -15;"
-                "echo '=== listen ==='; ss -tln 2>&1 | head -10;"
-                "echo '=== auth keys ==='; ls -la /home/moosci/.ssh/ 2>&1;"
+        diag = ("echo '=== whoami ==='; id;"
+                "echo '=== sshd binary ==='; ls -la /usr/sbin/sshd 2>&1;"
+                "echo '=== sshd unit file ==='; ls -la /usr/lib/systemd/system/sshd.service 2>&1;"
+                "echo '=== fixture unit file ===';"
+                "ls -la /usr/lib/systemd/system/moos-ci-runtime-proof.service 2>&1;"
+                "echo '=== wants symlinks ===';"
+                "ls -la /etc/systemd/system/multi-user.target.wants/ 2>&1 | head -12;"
+                "echo '=== sshd keys dir ==='; ls -la /etc/ssh/ 2>&1 | head -8;"
+                "echo '=== auth keys ==='; ls -la /var/home/moosci/.ssh/ /home/moosci/.ssh/ 2>&1;"
+                "echo '=== firewall zones ===';"
+                "/usr/bin/firewall-cmd --get-active-zones 2>&1 | head -5;"
                 "echo '=== kernel marker ==='; cat /proc/cmdline")
         try:
             probe = request({
