@@ -348,6 +348,12 @@ install -d -m0700 "$proof_home/.ssh"
 printf '%s\n' "$proof_key" > "$proof_home/.ssh/authorized_keys"
 chmod 0600 "$proof_home/.ssh/authorized_keys"
 chown -R 1000:1000 "$proof_home"
+# Offline-created files carry the LIVE system's labels for this path; the
+# installed sshd needs the standard home labels or publickey auth is denied
+# (run 33916265118: banner OK, sshd up, key rejected). Types are what the
+# target's TE policy checks; verified against matchpathcon on a live MoOS.
+chcon -h system_u:object_r:user_home_dir_t:s0 "$proof_home" 2>/dev/null || true
+chcon -R -h system_u:object_r:ssh_home_t:s0 "$proof_home/.ssh" 2>/dev/null || true
 wants="$deployment/etc/systemd/system/multi-user.target.wants"
 install -d -m0755 "$wants"
 ln -s /usr/lib/systemd/system/moos-ci-runtime-proof.service \
@@ -370,6 +376,8 @@ printf 'injection: preset=%s\n' \
     "$(cat "$preset_dir/90-moos-ci-runtime-proof.preset" 2>/dev/null || echo MISSING)"
 printf 'injection: key=%s\n' \
     "$([ -s "$proof_home/.ssh/authorized_keys" ] && echo present || echo MISSING)"
+printf 'injection: labels=%s\n' \
+    "$(ls -Zd "$proof_home" "$proof_home/.ssh" "$proof_home/.ssh/authorized_keys" 2>&1 | tr '\n' ';')"
 python3 - "$proof_root" <<'INNER'
 from pathlib import Path
 import sys
@@ -563,6 +571,9 @@ def gate_until(script, args, seconds, label):
                 "/usr/bin/systemctl status moos-ci-runtime-proof.service --no-pager 2>&1 | head -12;"
                 "echo '=== sshd keys dir ==='; ls -la /etc/ssh/ 2>&1 | head -8;"
                 "echo '=== auth keys ==='; ls -la /var/home/moosci/.ssh/ /home/moosci/.ssh/ 2>&1;"
+                "echo '=== auth key labels ==='; ls -Z /var/home/moosci/.ssh/ 2>&1;"
+                "echo '=== ci user ==='; id moosci 2>&1;"
+                "echo '=== expected label ==='; matchpathcon /var/home/moosci/.ssh/authorized_keys 2>&1;"
                 "echo '=== firewall zones ===';"
                 "/usr/bin/firewall-cmd --get-active-zones 2>&1 | head -5;"
                 "echo '=== selinux ==='; getenforce 2>&1;"
