@@ -130,7 +130,8 @@ LIBGL_ALWAYS_SOFTWARE=1 qemu-system-x86_64 \
 qemu_pid=$!
 
 python3 - "$qga" "$monitor" "$qemu_pid" "$expected_ref" "$evidence" \
-    "$ssh_key" "$ssh_port" "$ssh_port_after_reboot" <<'PY'
+    "$ssh_key" "$ssh_port" "$ssh_port_after_reboot" \
+    "$script_dir/assert_visual_frame.py" <<'PY'
 import json
 import os
 from pathlib import Path
@@ -143,6 +144,7 @@ import time
 qga, monitor = sys.argv[1], sys.argv[2]
 qemu_pid, expected, evidence = int(sys.argv[3]), sys.argv[4], Path(sys.argv[5])
 ssh_key, ssh_port, ssh_port_after_reboot = sys.argv[6:9]
+visual_probe = Path(sys.argv[9])
 sync_serial = 0
 
 
@@ -339,6 +341,39 @@ def capture_display(path):
     raise SystemExit("X86 QCOW2 FATAL: mapped GTK display capture was not produced")
 
 
+def capture_until_visible(path, label, timeout=150):
+    # The runtime gate proves the greeter process exists, not that it has
+    # painted its first frame.  On a second boot the compositor can lag a few
+    # seconds behind that process check, which made a healthy greeter look
+    # black-plus-cursor to a single fixed-timing capture.  Keep capturing
+    # until the visible-pixel gate passes; a greeter that truly never paints
+    # still fails here, with every frame kept as evidence.
+    deadline = time.monotonic() + timeout
+    report = "no capture was attempted"
+    attempts = 0
+    while time.monotonic() < deadline:
+        if not qemu_alive():
+            raise SystemExit(
+                "X86 QCOW2 FATAL: QEMU exited while waiting for a visible greeter frame"
+            )
+        capture_display(path)
+        attempts += 1
+        probe = subprocess.run(
+            [sys.executable, str(visual_probe), str(path), label],
+            text=True, capture_output=True, check=False,
+        )
+        report = (probe.stdout + probe.stderr).strip()
+        if probe.returncode == 0:
+            print(f"{label}: visible frame after {attempts} capture(s)")
+            print(report)
+            return
+        time.sleep(4)
+    raise SystemExit(
+        f"X86 QCOW2 FATAL: {label} never showed visible pixels within "
+        f"{timeout}s across {attempts} capture(s); last report: {report}"
+    )
+
+
 runtime_gate = r'''
 set -euo pipefail
 expected="$1"
@@ -456,6 +491,17 @@ assert policy['transports']['containers-storage'][''] == [
 ]
 INNER
 [ "$(systemctl show -p NFailedUnits --value 2>/dev/null || true)" = 0 ] || gate_fail failed-system-unit
+# Name the greeter's GL reality on every successful boot.  The helper deletes
+# the env file when it found a render node and writes llvmpipe lines into it
+# when it fell back, so its presence on a VM that DOES have DRM nodes is the
+# fingerprint of the warm-reboot udev race (black second-boot scanout).
+gl_env_file="/run/moos/plasmalogin-kwin.env"
+if [ -s "$gl_env_file" ]; then
+    printf 'greeter-gl-env=forced(%s)\n' "$(tr '\n' ';' < "$gl_env_file")"
+else
+    printf 'greeter-gl-env=hardware\n'
+fi
+printf 'render-nodes=%s\n' "$(ls /dev/dri/renderD* 2>/dev/null | tr '\n' ' ')"
 printf 'boot_id=%s\nidentity=%s\narch=%s\norigin=%s\norigin-digest=%s\ngraphical=active\ndisplay-manager=plasmalogin\ngreeter-kwin=active\ndrm=present\nnetwork=active\nssh=ephemeral-key\nqga=responsive\nfirst-party-commands=7\nfailed-units=0\n' \
     "$(cat /proc/sys/kernel/random/boot_id)" "$PRETTY_NAME" "$(uname -m)" "$origin" "$origin_digest"
 '''
@@ -467,7 +513,7 @@ first, first_err, first_id = wait_for_runtime(runtime_gate)
 print(first, end="")
 hmp(["sendkey shift"])
 time.sleep(2)
-capture_display(evidence / "graphical-first-boot.ppm")
+capture_until_visible(evidence / "graphical-first-boot.ppm", "graphical-first-boot")
 
 send_shutdown("reboot")
 ssh_port = ssh_port_after_reboot
@@ -478,7 +524,7 @@ second, second_err, second_id = wait_for_runtime(runtime_gate, first_id)
 print(second, end="")
 hmp(["sendkey shift"])
 time.sleep(2)
-capture_display(evidence / "graphical-second-boot.ppm")
+capture_until_visible(evidence / "graphical-second-boot.ppm", "graphical-second-boot")
 send_shutdown("powerdown")
 PY
 
