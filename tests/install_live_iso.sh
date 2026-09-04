@@ -359,6 +359,12 @@ for entry in entries:
     options = lines[index].split()[1:]
     if "moos.ci-runtime-proof=1" not in options:
         options.append("moos.ci-runtime-proof=1")
+    # Disposable CI target only: make the boot verbose on the captured serial
+    # console so a silent fixture-unit failure names itself (SELinux denies the
+    # QGA diagnostic context from reading unit state).
+    for extra in ("console=ttyS0,115200n8", "loglevel=6", "systemd.show_status=true"):
+        if extra not in options:
+            options.append(extra)
     lines[index] = "options " + " ".join(options)
     entry.write_text("\n".join(lines) + "\n", encoding="utf-8")
 INNER
@@ -514,7 +520,14 @@ def gate_until(script, args, seconds, label):
                 "echo '=== fixture unit file ===';"
                 "ls -la /usr/lib/systemd/system/moos-ci-runtime-proof.service 2>&1;"
                 "echo '=== wants symlinks ===';"
-                "ls -la /etc/systemd/system/multi-user.target.wants/ 2>&1 | head -12;"
+                "ls -la /etc/systemd/system/multi-user.target.wants/ 2>&1;"
+                "echo '=== fixture wants link ===';"
+                "readlink /etc/systemd/system/multi-user.target.wants/moos-ci-runtime-proof.service 2>&1;"
+                "echo '=== fixture started (invocation marker) ===';"
+                "ls /run/systemd/units/ 2>&1 | grep -aE 'moos-ci|sshd|firewalld' || echo none-of-moos-ci/sshd/firewalld-ever-started;"
+                "echo '=== fixture systemctl view ===';"
+                "/usr/bin/systemctl is-enabled moos-ci-runtime-proof.service 2>&1;"
+                "/usr/bin/systemctl status moos-ci-runtime-proof.service --no-pager 2>&1 | head -12;"
                 "echo '=== sshd keys dir ==='; ls -la /etc/ssh/ 2>&1 | head -8;"
                 "echo '=== auth keys ==='; ls -la /var/home/moosci/.ssh/ /home/moosci/.ssh/ 2>&1;"
                 "echo '=== firewall zones ===';"
