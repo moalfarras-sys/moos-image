@@ -52,7 +52,7 @@ for token in (
     if token not in client_api + app + screen:
         errors.append(f"PWA trusted-device chain misses {token}")
 
-if "Trust this device for 30 days" not in auth:
+if 'tr("trustDevice")' not in auth:
     errors.append("PIN screens do not ask for explicit trusted-device consent")
 if "trustedDevices?.map" not in screen or "Remove trusted device" not in screen:
     errors.append("Settings has no owner-visible device inventory/revocation control")
