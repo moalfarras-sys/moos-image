@@ -342,6 +342,24 @@ wants="$deployment/etc/systemd/system/multi-user.target.wants"
 install -d -m0755 "$wants"
 ln -s /usr/lib/systemd/system/moos-ci-runtime-proof.service \
     "$wants/moos-ci-runtime-proof.service"
+# Deploy/finalize-staged re-runs a systemd preset pass over the deployment's
+# /etc AFTER this injection, and a unit no preset file names loses its wants
+# symlink (run 33906188231: the fixture link vanished while plain /etc files
+# like moos-setup.conf survived). An /etc-local preset naming the unit makes
+# that very pass recreate the enablement; with no pass, the direct symlink
+# above is already in place.
+preset_dir="$deployment/etc/systemd/system-preset"
+install -d -m0755 "$preset_dir"
+printf 'enable moos-ci-runtime-proof.service\n' \
+    > "$preset_dir/90-moos-ci-runtime-proof.preset"
+chmod 0644 "$preset_dir/90-moos-ci-runtime-proof.preset"
+printf 'injection: deployment=%s\n' "$deployment"
+printf 'injection: symlink=%s\n' \
+    "$(readlink "$wants/moos-ci-runtime-proof.service" 2>/dev/null || echo MISSING)"
+printf 'injection: preset=%s\n' \
+    "$(cat "$preset_dir/90-moos-ci-runtime-proof.preset" 2>/dev/null || echo MISSING)"
+printf 'injection: key=%s\n' \
+    "$([ -s "$proof_home/.ssh/authorized_keys" ] && echo present || echo MISSING)"
 python3 - "$proof_root" <<'INNER'
 from pathlib import Path
 import sys
@@ -525,6 +543,11 @@ def gate_until(script, args, seconds, label):
                 "readlink /etc/systemd/system/multi-user.target.wants/moos-ci-runtime-proof.service 2>&1;"
                 "echo '=== fixture started (invocation marker) ===';"
                 "ls /run/systemd/units/ 2>&1 | grep -aE 'moos-ci|sshd|firewalld' || echo none-of-moos-ci/sshd/firewalld-ever-started;"
+                "echo '=== physical deployments ==='; ls -la /ostree/deploy/default/deploy/ 2>&1;"
+                "echo '=== physical fixture symlink ===';"
+                "ls -la /ostree/deploy/default/deploy/*/etc/systemd/system/multi-user.target.wants/moos-ci-runtime-proof.service 2>&1;"
+                "echo '=== physical fixture preset ===';"
+                "cat /ostree/deploy/default/deploy/*/etc/systemd/system-preset/90-moos-ci-runtime-proof.preset 2>&1;"
                 "echo '=== fixture systemctl view ===';"
                 "/usr/bin/systemctl is-enabled moos-ci-runtime-proof.service 2>&1;"
                 "/usr/bin/systemctl status moos-ci-runtime-proof.service --no-pager 2>&1 | head -12;"
