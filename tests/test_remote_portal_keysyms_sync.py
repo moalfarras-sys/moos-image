@@ -8,7 +8,10 @@ later event.  It marks that batch ``sync:true``; layout-changing batches remain 
 
 import ast
 import sys
+import unittest
 from pathlib import Path
+
+from test_remote_portal_layout_refresh import LayoutRefreshTests
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -40,6 +43,9 @@ def main() -> int:
         return 1
 
     print("OK: keysyms sync:true and layout changes use ordered portal delivery.")
+    result = unittest.TextTestRunner().run(unittest.defaultTestLoader.loadTestsFromTestCase(LayoutRefreshTests))
+    if not result.wasSuccessful():
+        return 1
     return 0
 
 

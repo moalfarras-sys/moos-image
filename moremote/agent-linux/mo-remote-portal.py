@@ -296,18 +296,27 @@ def load_layouts():
         current = _layout_call("getLayout", reply="(u)").unpack()[0]
     except GLib.GError as e:
         emit(type="warn", warn=f"keyboard layouts unavailable: {e.message}")
-        return
+        return False
+    previous_codes = layout_state["codes"]
+    previous_current = layout_state["current"]
+    home = layout_state["home"]
+    home_code = previous_codes[home] if home is not None and home < len(previous_codes) else None
     layout_state["codes"] = codes
     layout_state["current"] = current
     # `home` is the group the user was on before we ever touched it, so restoring is restoring
     # THEIR choice and not a hard-coded country.
     if layout_state["home"] is None:
         layout_state["home"] = current
+    elif codes != previous_codes:
+        # Inserting US before Arabic must not change which language we restore.
+        layout_state["home"] = codes.index(home_code) if home_code in codes else current
     layout_state["ara"] = next((i for i, c in enumerate(codes) if c.startswith("ara")), None)
     layout_state["us"] = next((i for i, c in enumerate(codes) if c == "us" or c.startswith("us(")), None)
     layout_state["toggle"] = _group_toggle_available() and len(codes) > 1
-    emit(type="layouts", codes=codes, current=current, arabic=layout_state["ara"],
-         us=layout_state["us"], toggle=layout_state["toggle"])
+    if codes != previous_codes or current != previous_current:
+        emit(type="layouts", codes=codes, current=current, arabic=layout_state["ara"],
+             us=layout_state["us"], toggle=layout_state["toggle"])
+    return True
 
 
 # THE GROUP CHANGE TRAVELS AS KEYSTROKES, AND THAT IS THE WHOLE FIX.
@@ -400,6 +409,12 @@ def _group_index(name):
 def select_group(name, send):
     """Put `name` on the active group by injecting toggles through `send` — the SAME sender the
     batch's letters use. Returns False when the group does not exist or cannot be reached."""
+    # A settings change can reorder the ring while the portal stays alive.
+    # Resolve before even the cur == idx fast path: cached ara=1 on de,ara
+    # becomes US after inserting de,us,ara and silently types Latin positions.
+    # Also observe physical/external layout switches between remote batches.
+    if not load_layouts():
+        return False
     idx = _group_index(name)
     if idx is None:
         # Name the group that is actually missing. This hard-coded the Arabic message for EVERY

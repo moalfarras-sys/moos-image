@@ -8,6 +8,22 @@ Last reconciled: **2026-09-03 (exact-frame release proof)** — latest source
 branch, signed CI artifacts, exact mapped-window evidence, and live host checks
 on `moos-arm-oracle`.
 
+### Oracle expansion and Remote Arabic repair (2026-09-05)
+
+The live Frankfurt A1 boot disk is now 200 GiB, with about 155–156 GiB available.
+Reboot verification and a read-only full Btrfs scrub passed. The full pre-resize
+Oracle backup is retained in the separate backup allowance. App updates and
+live keyboard/AppStream repairs completed; selfcheck is 48/48 and post-update
+checks are 49/49. Detailed scope and recovery notes:
+[`docs/ORACLE_STORAGE_HEALTH_20260905.md`](docs/ORACLE_STORAGE_HEALTH_20260905.md).
+
+Adding US to the keyboard ring exposed a second Remote bug: its portal cached
+Arabic's old group index and typed Arabic positions on English. The active v38
+helper now refreshes live groups before selection and remaps the saved home
+language by code. Five regression tests and real GTK readback across repeated
+layout-list changes pass. Physical-phone confirmation and mixed Latin/emoji
+stress paths remain open; this is a local deployment, not a new signed release.
+
 ### Keyboard-layout migration reload, and ARM's own AppStream refresh (2026-09-05)
 
 Two independent, small fixes, finished and gated in this pass:

@@ -75,7 +75,9 @@ theme layer. Order matters:
 - [ ] Import the exact boot-proven ARM disk into OCI Ampere A1 and prove serial,
   cloud-init, SSH key, root growth, update/rollback and tunneled KRDP. If OCI
   credentials or capacity are unavailable, report READY-BUT-NOT-DEPLOYED.
-  Current state (2026-08-30): LIVE on Frankfurt A1 1/4/50. UEFI, signed exact
+  Current state (2026-09-05): LIVE on Frankfurt A1 with a 200 GiB boot disk.
+  Online expansion, reboot and a full read-only Btrfs scrub passed; the
+  pre-expansion backup is retained. See docs/ORACLE_STORAGE_HEALTH_20260905.md. UEFI, signed exact
   origin, cloud-init, SSH key, root growth, graphical target, browser-rendered
   private desktop, input portal, HTTPS/audio and a real reboot are proven with
   zero failed units. Deliberate update/rollback proof remains open, so this item
