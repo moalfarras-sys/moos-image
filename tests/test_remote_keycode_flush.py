@@ -71,6 +71,13 @@ def main() -> int:
         "public void KeyTapCode(string code)",
         "public void KeyTap(string k)",
         "public void KeyDown(string k)",
+        "public void Click(string button, double x, double y)",
+        "public void ClickCurrent(string button)",
+        "public void DoubleClick(double x, double y)",
+        "public void DoubleClickCurrent()",
+        "public void MouseButton(string button, bool down, double x, double y)",
+        "public void MouseButtonCurrent(string button, bool down)",
+        "public void ReleaseAll()",
     ]
     for sig in must_flush:
         b = body_of(code, sig)

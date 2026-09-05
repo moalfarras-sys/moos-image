@@ -350,6 +350,9 @@ button {
   z-index: 20;
   min-width: 44px;
   min-height: 44px;
+  max-width: calc(100% - 24px);
+  width: max-content;
+  flex-wrap: wrap;
   justify-content: center;
   transition: opacity 0.3s, transform 0.3s;
 }
@@ -434,6 +437,10 @@ button {
   -webkit-overflow-scrolling: touch;
 }
 .toolbar-primary::-webkit-scrollbar { display: none; }
+/* Five predictable phone controls, with no clipped buttons or hidden horizontal strip.
+   Zoom, sound and fullscreen also live in the Display sheet; roomy desktop rails show them. */
+.toolbar-primary > .tbtn { flex: 1 1 0; min-width: 44px; }
+.toolbar-primary > .toolbar-secondary { display: none; }
 .toolbar-settings {
   flex: 0 0 auto;
   position: relative;
@@ -544,7 +551,7 @@ button {
 .sheet-close {
   position: absolute;
   top: 10px;
-  right: max(14px, var(--safe-right));
+  inset-inline-end: max(14px, var(--safe-right), var(--safe-left));
   width: 44px;
   height: 44px;
   display: grid;
@@ -857,6 +864,14 @@ button {
   box-shadow: var(--shadow);
   animation: fade-up 0.25s ease both;
 }
+/* A sheet occupies the bottom ~82dvh of the viewport (see .sheet), which swallows the toast's
+ * normal above-the-toolbar spot — a toast fired while Settings/Files/Clipboard/the power confirm
+ * is open used to land mid-card, overlapping a slider or a row. Sheets always leave the top clear,
+ * so pin it there instead; it stays above the sheet's own z-index (41) either way. */
+.toast.in-sheet {
+  bottom: auto;
+  top: calc(var(--safe-top) + 12px);
+}
 
 .center-msg {
   position: absolute;
@@ -1101,6 +1116,8 @@ button {
     box-shadow: -10px 0 30px rgba(4, 10, 12, 0.32);
   }
   .toolbar-primary { width: 100%; flex-direction: column; overflow-x: hidden; overflow-y: auto; }
+  .toolbar-primary > .tbtn { flex: 0 0 auto; }
+  .toolbar-primary > .toolbar-secondary { display: flex; }
   .toolbar-settings { width: 100%; margin-top: auto; }
   .toolbar-settings::before { inset: -7px 7px auto; width: auto; height: 1px; }
   .tbtn { width: 100%; min-width: 0; }
@@ -1136,6 +1153,8 @@ button {
     border-left: 1px solid var(--border-strong);
   }
   .toolbar-primary { width: 100%; flex-direction: column; overflow-x: hidden; overflow-y: auto; }
+  .toolbar-primary > .tbtn { flex: 0 0 auto; }
+  .toolbar-primary > .toolbar-secondary { display: none; }
   .toolbar-settings { width: 100%; margin-top: auto; }
   .toolbar-settings::before { inset: -5px 6px auto; width: auto; height: 1px; }
   .toolbar .tbtn {
@@ -1671,3 +1690,5 @@ button {
 [dir="rtl"] .kbinput::placeholder {
   text-align: right;
 }
+
+.sheet h3 { padding-inline-end: 48px; }

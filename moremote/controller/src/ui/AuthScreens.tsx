@@ -32,11 +32,11 @@ function defaultDeviceName() {
   const ua = navigator.userAgent;
   if (/iPad/i.test(ua)) return "iPad";
   if (/iPhone/i.test(ua)) return "iPhone";
-  if (/Android/i.test(ua)) return "Android phone";
-  if (/Windows/i.test(ua)) return "Windows device";
+  if (/Android/i.test(ua)) return tr("androidPhone");
+  if (/Windows/i.test(ua)) return tr("windowsDevice");
   if (/Macintosh/i.test(ua)) return "Mac";
-  if (/Linux/i.test(ua)) return "Linux device";
-  return "My device";
+  if (/Linux/i.test(ua)) return tr("linuxDevice");
+  return tr("myDevice");
 }
 
 function TrustDevice({ checked, onChange }: { checked: boolean; onChange: (value: boolean) => void }) {
@@ -108,13 +108,13 @@ function Keypad({
           {d}
         </button>
       ))}
-      <button className="key wide" onClick={tap(onBackspace)} disabled={disabled} aria-label="Backspace">
+      <button className="key wide" onClick={tap(onBackspace)} disabled={disabled} aria-label={tr("backspaceAria")}>
         <IconBackspace />
       </button>
       <button className="key" onClick={tap(() => onDigit("0"))} disabled={disabled}>
         0
       </button>
-      <button className="key accent" onClick={tap(onSubmit)} disabled={disabled || !canSubmit} aria-label="Confirm">
+      <button className="key accent" onClick={tap(onSubmit)} disabled={disabled || !canSubmit} aria-label={tr("confirmPrefix")}>
         <IconEnter />
       </button>
     </div>

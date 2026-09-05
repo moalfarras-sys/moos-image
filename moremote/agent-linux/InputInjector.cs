@@ -19,6 +19,7 @@ public sealed class InputInjector : IDisposable
     private readonly ScreenCapture _capture;
     private readonly object _gate = new();
     private readonly HashSet<ushort> _pressed = [];
+    private volatile bool _disposed;
     private Socket? _socket;
     private string _lastError = "";
     private DateTimeOffset _lastConnectAttempt;
@@ -136,7 +137,7 @@ public sealed class InputInjector : IDisposable
         EnsureConnected(force: true);
     }
 
-    public bool IsReady => _portal.IsReady || EnsureConnectedLocked();
+    public bool IsReady => !_disposed && (_portal.IsReady || EnsureConnectedLocked());
     public string BackendName => _portal.IsReady
         ? "KDE RemoteDesktop portal (absolute)"
         : "ydotoold/uinput fallback (relative)";
@@ -196,7 +197,7 @@ public sealed class InputInjector : IDisposable
     public void Click(string button, double x, double y) { FlushPendingText(); MouseMove(x, y); ClickCode(Button(button)); }
     public void ClickCurrent(string button) { FlushPendingText(); ClickCode(Button(button)); }
     public void DoubleClick(double x, double y) { FlushPendingText(); MouseMove(x, y); DoubleClickCurrent(); }
-    public void DoubleClickCurrent() { ClickCode(BtnLeft); Thread.Sleep(40); ClickCode(BtnLeft); }
+    public void DoubleClickCurrent() { FlushPendingText(); ClickCode(BtnLeft); Thread.Sleep(40); ClickCode(BtnLeft); }
     public void MouseButton(string button, bool down, double x, double y) { FlushPendingText(); MouseMove(x, y); Set(Button(button), down); }
     public void MouseButtonCurrent(string button, bool down) { FlushPendingText(); Set(Button(button), down); }
 
@@ -402,6 +403,7 @@ public sealed class InputInjector : IDisposable
 
         lock (_textBuf)
         {
+            if (_disposed) return;
             if (_pending.Length > 0)
             {
                 _pending.Append(text);
@@ -686,22 +688,40 @@ public sealed class InputInjector : IDisposable
     {
         lock (_gate)
         {
+            if (_disposed) return;
             if (down) { if (!_pressed.Add(code)) return; }
             else { if (!_pressed.Remove(code)) return; }
+            // Keep the state change and its wire edge under the same lock. A pause or
+            // disconnect can call ReleaseAll from another session thread: unlocking
+            // before Send lets its key-up overtake this down and leaves a stuck key.
+            bool isButton = code >= BtnLeft;
+            var msg = isButton
+                ? (object)new { type = "button", button = (int)code, down }
+                : new { type = "key", code = (int)code, down };
+            if (_portal.Send(msg)) return;
+            if (!Emit(EvKey, code, down ? 1 : 0))
+            {
+                // Neither backend accepted this edge. Preserve the last accepted
+                // state so recovery can retry a down or an outstanding release.
+                if (down) _pressed.Remove(code);
+                else _pressed.Add(code);
+            }
         }
-        bool isButton = code >= BtnLeft;
-        var msg = isButton
-            ? (object)new { type = "button", button = (int)code, down }
-            : new { type = "key", code = (int)code, down };
-        if (_portal.Send(msg)) return;
-        Emit(EvKey, code, down ? 1 : 0);
     }
 
     public void ReleaseAll()
     {
-        ushort[] pressed;
-        lock (_gate) pressed = _pressed.ToArray();
-        foreach (var code in pressed) Set(code, false);
+        // Text already accepted by the input FIFO belongs before the release. Drain
+        // and disarm its timer while modifiers still have their ordered state, so it
+        // cannot type into a different field after pause/disconnect has returned.
+        lock (_textBuf)
+        {
+            FlushPendingText();
+            lock (_gate)
+            {
+                foreach (var code in _pressed.ToArray()) Set(code, false);
+            }
+        }
     }
 
     // ---------------------------------------------------------------- ydotool fallback
@@ -710,6 +730,7 @@ public sealed class InputInjector : IDisposable
 
     private bool EnsureConnected(bool force = false)
     {
+        if (_disposed) return false;
         if (_socket != null) return true;
         if (!force && DateTimeOffset.UtcNow - _lastConnectAttempt < TimeSpan.FromSeconds(1)) return false;
         _lastConnectAttempt = DateTimeOffset.UtcNow;
@@ -782,7 +803,18 @@ public sealed class InputInjector : IDisposable
 
     public void Dispose()
     {
-        ReleaseAll();
-        lock (_gate) { _socket?.Dispose(); _socket = null; }
+        lock (_textBuf)
+        {
+            if (_disposed) return;
+            ReleaseAll();
+            _textTimer?.Dispose();
+            _textTimer = null;
+            lock (_gate)
+            {
+                _disposed = true;
+                _socket?.Dispose();
+                _socket = null;
+            }
+        }
     }
 }

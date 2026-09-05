@@ -78,6 +78,8 @@ COPY moremote/ ./
 # and silently stopped covering the Unicode tests. Gating it here means the next
 # regression fails the image build instead of shipping.
 RUN dotnet run --project tests/MoRemote.Tests -c Release --nologo
+RUN dotnet run --project tests/MoRemote.Linux.Input.Tests -c Release --nologo
+RUN dotnet run --project tests/MoRemote.Stream.Tests -c Release --nologo
 RUN dotnet publish agent-linux/MoRemoteLinux.csproj -c Release -r linux-x64 \
     --self-contained true -o /out
 

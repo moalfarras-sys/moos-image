@@ -69,6 +69,34 @@ jobs:
       - name: Compile the Windows agent
         run: dotnet build moremote/agent/MoRemoteAgent.csproj -c Release --nologo
 
+  remote-dotnet-tests:
+    name: Mo PC Remote .NET connection/input tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "10.0.x"
+
+      # These executables assert the WebSocket/session recovery and Linux input-injection
+      # behavior directly (fragmented UTF-8, hidden-viewer suspension, IDR resume, pause/
+      # disconnect key-release ordering, portal-vs-uinput fallback). Containerfile and
+      # Containerfile.arm already `RUN dotnet run` both of them during the image build, so a
+      # regression fails that build — but that build takes up to 180 minutes and needs a full
+      # buildah run. This job gives the same signal in about a minute, on every push, without
+      # waiting on or duplicating the image pipeline (mirrors "Compile the Windows agent" above).
+      - name: Stream session recovery tests
+        run: dotnet run --project moremote/tests/MoRemote.Stream.Tests -c Release --nologo
+
+      - name: Linux input injector tests
+        run: dotnet run --project moremote/tests/MoRemote.Linux.Input.Tests -c Release --nologo
+
   build-push-sign:
     name: Build, push and sign (${{ matrix.image_name }})
     runs-on: ubuntu-latest

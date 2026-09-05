@@ -15,12 +15,16 @@ import assert from "node:assert/strict";
 
 class FakeDecoder {
   static instances: FakeDecoder[] = [];
+  static failConfigure = false;
   configured: { codec: string } | null = null;
   decoded: { type: string }[] = [];
   closed = false;
   decodeQueueSize = 0;
   constructor(public opts: { output: (frame: {close: () => void}) => void; error: (error: Error) => void }) { FakeDecoder.instances.push(this); }
-  configure(c: { codec: string }) { this.configured = c; }
+  configure(c: { codec: string }) {
+    if (FakeDecoder.failConfigure) throw new Error("unsupported codec");
+    this.configured = c;
+  }
   decode(chunk: { type: string }) { this.decoded.push(chunk); }
   close() { this.closed = true; }
 }
@@ -92,3 +96,26 @@ assert.equal(orphanClosed, true, "a frame emitted by a retired decoder must be r
 assert.equal(FakeDecoder.instances[1].closed, false, "a retired decoder error must not close the replacement");
 
 console.log("PASS: decode backlog recovery discards stale generations and restarts on one IDR");
+
+FakeDecoder.instances.length = 0;
+const headers = new H264Stream(() => {}, () => {});
+headers.push(au(sps(0x31)));
+headers.push(au(sps(0x31), delta));
+assert.equal(FakeDecoder.instances.length, 0,
+  "SPS metadata without an IDR is not a decodable keyframe");
+headers.push(au(sps(0x31), idr));
+assert.deepEqual(FakeDecoder.instances[0].decoded.map(chunk => chunk.type), ["key"],
+  "an actual IDR must seed the reference history after ignored headers");
+
+FakeDecoder.instances.length = 0;
+FakeDecoder.failConfigure = true;
+const configureFailures: string[] = [];
+const unsupported = new H264Stream(() => {}, why => configureFailures.push(why));
+unsupported.push(au(sps(0x31), idr));
+assert.equal(FakeDecoder.instances[0].closed, true,
+  "a configure failure must release the decoder it allocated");
+assert.equal(configureFailures.length, 1, "one unsupported codec reports one failure");
+FakeDecoder.instances[0].opts.error(new Error("late configure failure"));
+assert.equal(configureFailures.length, 1, "a retired configure callback cannot spend another retry");
+FakeDecoder.failConfigure = false;
+console.log("PASS: headers cannot masquerade as IDRs and failed configure releases its decoder");

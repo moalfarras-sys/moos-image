@@ -30,6 +30,17 @@ theme layer. Order matters:
    release until the artifact has booted, logged in, smoked apps, rebooted and
    powered off cleanly.
 
+## Remote v38 acceptance
+
+- [x] Local ARM agent/controller built and activated with previous binary retained.
+- [x] Real Wayland capture, Arabic/emoji readback, click and relative motion in a
+  dedicated focused test window; browser portrait/landscape/desktop input checks.
+- [ ] Physical Android/iOS keyboard and Safari matrix, including IME, selection,
+  autocorrect, background/resume and weak Internet connections.
+- [ ] Windows runtime input and signed image integration of this revision.
+- [ ] Per-controller held-key ownership for simultaneous active controllers;
+  view-only teardown is fixed, but active controllers still share one injector.
+
 ## Release blockers
 
 - [ ] Boot the final ARM QCOW2 twice through AArch64 UEFI with zero critical

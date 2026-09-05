@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../agent/Web/StreamSession.cs" Link="StreamSession.cs" />
+    <Compile Include="../../agent/Core/H264RecoveryQueue.cs" Link="H264RecoveryQueue.cs" />
+    <Compile Include="../../agent/Core/InputSequenceGuard.cs" Link="InputSequenceGuard.cs" />
+  </ItemGroup>
+</Project>

@@ -14,6 +14,9 @@ public sealed class StreamSession
     private readonly WebSocket _socket;
     private readonly string _remote;
     private readonly SemaphoreSlim _sendLock = new(1, 1);
+    private readonly SemaphoreSlim _inputLock = new(1, 1);
+    private static readonly bool InputDiagnostics =
+        Environment.GetEnvironmentVariable("MOREMOTE_INPUT_DIAGNOSTICS") == "1";
 
     private const int MaxMessageChars = 256 * 1024; // cap to stop a flooded control message
 
@@ -26,7 +29,7 @@ public sealed class StreamSession
     private DateTimeOffset _lastInput = DateTimeOffset.UtcNow;
     /// <summary>Whether this viewer says the page is visible. Watching-while-visible counts as
     /// activity for the idle timeout; a backgrounded phone reports false and stops counting.</summary>
-    private bool _watching = true;
+    private volatile bool _watching = true;
     private bool _screenOk = true;
     private long _lastFrameSent;
     private bool _loggedFirstInput;
@@ -146,6 +149,9 @@ public sealed class StreamSession
         // right: not a hole in the middle of a stream, but a clean restart of it.
         using var h264 = _svc.Capture.SubscribeH264(au =>
         {
+            // Another viewer can keep the shared encoder running while this tab is hidden.
+            // Its frames must not build a private backlog or trigger shared recovery requests.
+            if (!_watching || _svc.State.IsPaused) return;
             var queued = _encoded.Enqueue(au);
             // 12, not 90. The cap is a LATENCY budget, not a memory one, and 90 frames at 30fps is
             // three entire seconds of the past waiting its turn to be drawn. Long before the cap was
@@ -182,6 +188,7 @@ public sealed class StreamSession
             fps = _fps,
             paused = _svc.State.IsPaused,
             cursor = _svc.Config.ShowRemoteCursor,
+            cursorEmbedded = OperatingSystem.IsLinux() && _svc.Config.EmbedCursor,
             monitors = _svc.Capture.Monitors.Select(m => new { index = m.Index, name = m.Name, primary = m.Primary }).ToArray(),
             monitor = _svc.Capture.SelectedIndex,
             input = new { ready = _svc.Input.IsReady, backend = _svc.Input.BackendName, error = _svc.Input.LastError },
@@ -194,7 +201,7 @@ public sealed class StreamSession
         // (a click is press-pause-release, Arabic borrows the clipboard through a subprocess), and
         // doing that on the socket reader made every ping queue behind it. See the enqueue site.
         var inject = InputLoop(ct);
-        var finished = await Task.WhenAny(send, recv);
+        var finished = await Task.WhenAny(send, recv, inject);
 
         linked.Cancel();
         _inputQueue.Writer.TryComplete();
@@ -205,7 +212,15 @@ public sealed class StreamSession
         await CloseQuietly(WebSocketCloseStatus.NormalClosure, "bye");
         _ = finished;
       }
-      finally { _svc.Capture.SessionGone(_id); _svc.Input.ReleaseAll(); _sendLock.Dispose(); }
+      finally
+      {
+          _svc.Capture.SessionGone(_id);
+          // An unauthenticated or view-only connection never held input. Its teardown must not
+          // release the keys/buttons being used by another authenticated controller.
+          if (_loggedFirstInput) _svc.Input.ReleaseAll();
+          _sendLock.Dispose();
+          _inputLock.Dispose();
+      }
     }
 
     // ---------------- send: frames + status ----------------
@@ -229,7 +244,14 @@ public sealed class StreamSession
                 {
                     // Pausing drops all further input, so a drag in flight would never get its
                     // mouse-up and the button would stay physically held down on the desktop.
-                    if (paused) _svc.Input.ReleaseAll();
+                    if (paused)
+                    {
+                        await _inputLock.WaitAsync(ct);
+                        try { _svc.Input.ReleaseAll(); }
+                        finally { _inputLock.Release(); }
+                    }
+                    _encoded.Clear(waitForKeyframe: true);
+                    if (!paused && _watching) _svc.Capture.RequestKeyframe();
                     await SendJson(new { type = "status", paused, active = _svc.State.ActiveCount }, ct);
                     lastPaused = paused;
                 }
@@ -254,11 +276,12 @@ public sealed class StreamSession
                 if (codec != _sentCodec)
                 {
                     _sentCodec = codec;
-                    _encoded.Clear();                         // whatever is queued is the old codec
+                    _encoded.Clear(waitForKeyframe: true);    // old references cannot seed the new codec
                     await SendJson(new { type = "codec", codec }, ct);
+                    if (codec == "h264" && _watching) _svc.Capture.RequestKeyframe();
                 }
 
-                if (!paused && _svc.Capture.Codec == "h264")
+                if (!paused && _watching && _svc.Capture.Codec == "h264")
                 {
                     // H.264 is a stream, not a series of pictures, and every trick the JPEG path
                     // below relies on is poison here.
@@ -274,13 +297,14 @@ public sealed class StreamSession
                     // So this drains, in order, and never decides. The dropping happens where it is
                     // safe — upstream of the encoder, in the helper's videorate.
                     if (!_screenOk) { _screenOk = true; await SendJson(new { type = "screen", available = true }, ct); }
-                    while (_encoded.TryDequeue(out var au))
+                    while (_watching && !_svc.State.IsPaused && _svc.Capture.Codec == "h264" &&
+                        _encoded.TryDequeue(out var au))
                     {
                         await SendBinary(au, ct);
                         _lastFrameSent = Environment.TickCount64;
                     }
                 }
-                else if (!paused)
+                else if (!paused && _watching)
                 {
                     var frame = _svc.Capture.Capture(_quality, _scale, _svc.Config.ShowRemoteCursor);
                     if (!frame.Available)
@@ -304,8 +328,8 @@ public sealed class StreamSession
 
                 int budget = 1000 / fps;
                 int elapsed = (int)(Environment.TickCount64 - frameStart);
-                int delay = Math.Max(paused ? 200 : 5, budget - elapsed);
-                if (!paused && _svc.Capture.Codec == "h264")
+                int delay = Math.Max(paused || !_watching ? 200 : 5, budget - elapsed);
+                if (_svc.Capture.Codec == "h264" || !_watching)
                 {
                     // Sleep until the encoder produces something OR the tick expires, whichever comes
                     // first. The timeout is what keeps the idle check, the pause check and the codec
@@ -326,12 +350,15 @@ public sealed class StreamSession
     private async Task ReceiveLoop(CancellationToken ct)
     {
         var buffer = new byte[16 * 1024];
+        var decoder = Encoding.UTF8.GetDecoder();
+        var chars = new char[Encoding.UTF8.GetMaxCharCount(buffer.Length)];
         var sb = new StringBuilder();
         try
         {
             while (!ct.IsCancellationRequested && _socket.State == WebSocketState.Open)
             {
                 sb.Clear();
+                decoder.Reset();
                 WebSocketReceiveResult result;
                 bool tooBig = false;
                 do
@@ -339,7 +366,12 @@ public sealed class StreamSession
                     result = await _socket.ReceiveAsync(new ArraySegment<byte>(buffer), ct);
                     if (result.MessageType == WebSocketMessageType.Close) return;
                     if (result.MessageType == WebSocketMessageType.Text && !tooBig)
-                        sb.Append(Encoding.UTF8.GetString(buffer, 0, result.Count));
+                    {
+                        // ReceiveAsync can split inside one Arabic character or emoji. Preserve
+                        // the decoder state until EndOfMessage instead of inserting replacements.
+                        int count = decoder.GetChars(buffer, 0, result.Count, chars, 0, result.EndOfMessage);
+                        sb.Append(chars, 0, count);
+                    }
                     if (sb.Length > MaxMessageChars) tooBig = true;
                 } while (!result.EndOfMessage);
 
@@ -414,9 +446,15 @@ public sealed class StreamSession
                         (wa.ValueKind == JsonValueKind.True || wa.ValueKind == JsonValueKind.False))
                     {
                         _watching = wa.GetBoolean();
+                        _encoded.Clear(waitForKeyframe: true);
                         _svc.Capture.SessionWatching(_id, _watching);
                         // Coming back needs a reference frame, not the middle of a GOP.
-                        if (_watching) _svc.Capture.RequestKeyframe();
+                        if (_watching)
+                        {
+                            _lastFrameSent = 0;
+                            _svc.Capture.RequestKeyframe();
+                            try { _frameReady.Release(); } catch (SemaphoreFullException) { }
+                        }
                     }
                     if (root.TryGetProperty("scale", out var sc) && sc.ValueKind == JsonValueKind.Number)
                         _scale = Math.Clamp(sc.GetDouble(), 0.3, 1.0);
@@ -559,7 +597,17 @@ public sealed class StreamSession
         try
         {
             await foreach (var (root, type) in _inputQueue.Reader.ReadAllAsync(ct))
-                await ExecuteInput(root, type, ct);
+            {
+                // Input accepted just before Pause can still be waiting behind a slow click.
+                // Recheck at execution so queued key-downs cannot undo the pause release.
+                await _inputLock.WaitAsync(ct);
+                try
+                {
+                    if (!ct.IsCancellationRequested && !_svc.State.IsPaused)
+                        await ExecuteInput(root, type, ct);
+                }
+                finally { _inputLock.Release(); }
+            }
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { Log.Warn("Input loop ended: " + ex.Message); }
@@ -577,11 +625,11 @@ public sealed class StreamSession
             switch (type)
             {
                 case "move":
-                    if(++_moveLogCounter%30==1)Log.Info($"Input sample {_remote}: move x={GetNum(root,"x"):F3} y={GetNum(root,"y"):F3} mode={GetStr(root,"mode","legacy")}.");
+                    if(InputDiagnostics && ++_moveLogCounter%30==1)Log.Info($"Input sample {_remote}: move x={GetNum(root,"x"):F3} y={GetNum(root,"y"):F3} mode={GetStr(root,"mode","legacy")}.");
                     input.MouseMove(GetNum(root, "x"), GetNum(root, "y"));
                     break;
                 case "moveRelative":
-                    if(++_moveLogCounter%30==1)Log.Info($"Input sample {_remote}: relative dx={GetNum(root,"dx"):F2} dy={GetNum(root,"dy"):F2}.");
+                    if(InputDiagnostics && ++_moveLogCounter%30==1)Log.Info($"Input sample {_remote}: relative dx={GetNum(root,"dx"):F2} dy={GetNum(root,"dy"):F2}.");
                     input.MouseMoveRelative(GetNum(root,"dx"),GetNum(root,"dy"));
                     break;
                 case "down":
@@ -595,7 +643,7 @@ public sealed class StreamSession
                 case "clickCurrent": input.ClickCurrent(GetStr(root,"button","left")); break;
                 case "dblclickCurrent": input.DoubleClickCurrent(); break;
                 case "click":
-                    Log.Info($"Input sample {_remote}: click {GetStr(root,"button","left")} x={GetNum(root,"x"):F3} y={GetNum(root,"y"):F3}.");
+                    if(InputDiagnostics) Log.Info($"Input sample {_remote}: click {GetStr(root,"button","left")} x={GetNum(root,"x"):F3} y={GetNum(root,"y"):F3}.");
                     input.Click(GetStr(root, "button", "left"), GetNum(root, "x"), GetNum(root, "y"));
                     break;
                 case "dblclick":
@@ -643,7 +691,7 @@ public sealed class StreamSession
                     {
                         var v = GetStr(root, "value", "");
                         if (v.Length > 4096) v = v[..4096];
-                        Log.Info($"Input sample {_remote}: text length={v.Length}.");
+                        if(InputDiagnostics) Log.Info($"Input sample {_remote}: text length={v.Length}.");
                         input.TypeText(v);
                         break;
                     }

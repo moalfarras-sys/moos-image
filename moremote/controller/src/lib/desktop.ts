@@ -93,11 +93,6 @@ const LINES_PER_NOTCH = 3 / (100 / PX_PER_NOTCH);   // = 0.45
 const PAGES_TO_NOTCHES = 3; // deltaMode 2 is rare (Firefox on some platforms)
 const MAX_NOTCHES = 20;     // the agent clamps here too; matching avoids a silent difference
 
-/** <input> types that are controls rather than text fields, so a keystroke there is not local typing. */
-const NON_TEXT_INPUTS = new Set([
-  "range", "checkbox", "radio", "button", "submit", "reset", "file", "color", "image", "hidden",
-]);
-
 export class DesktopInput {
   private attached = false;
   private held = new Set<Button>();
@@ -120,11 +115,13 @@ export class DesktopInput {
     private cb: DesktopCallbacks,
     private getScrollSensitivity: () => number = () => 1,
     private getPointerLockWanted: () => boolean = () => false,
+    private inContent: (clientX: number, clientY: number) => boolean = () => true,
   ) {}
 
   attach() {
     if (this.attached) return;
     this.attached = true;
+    this.locked = document.pointerLockElement === this.el;
     this.el.addEventListener("mousedown", this.onDown, { passive: false });
     this.el.addEventListener("mousemove", this.onMove, { passive: false });
     this.el.addEventListener("wheel", this.onWheel, { passive: false });
@@ -132,6 +129,7 @@ export class DesktopInput {
     // Releases and keys go on window: a button released off-canvas, or a key pressed while the
     // toolbar has focus, still belongs to the remote desktop.
     window.addEventListener("mouseup", this.onUp, { passive: false });
+    window.addEventListener("mousemove", this.onWindowMove, { passive: false });
     window.addEventListener("keydown", this.onKeyDown, { passive: false });
     window.addEventListener("keyup", this.onKeyUp, { passive: false });
     window.addEventListener("blur", this.releaseAll);
@@ -147,13 +145,16 @@ export class DesktopInput {
     this.el.removeEventListener("wheel", this.onWheel);
     this.el.removeEventListener("contextmenu", this.prevent);
     window.removeEventListener("mouseup", this.onUp);
+    window.removeEventListener("mousemove", this.onWindowMove);
     window.removeEventListener("keydown", this.onKeyDown);
     window.removeEventListener("keyup", this.onKeyUp);
     window.removeEventListener("blur", this.releaseAll);
     document.removeEventListener("visibilitychange", this.onVisibility);
     document.removeEventListener("pointerlockchange", this.onLockChange);
     this.releaseAll();
+    this.releaseKeyboardLock();
     this.exitPointerLock();
+    this.locked = false;
     if (this.raf) { cancelAnimationFrame(this.raf); this.raf = 0; }
   }
 
@@ -176,7 +177,9 @@ export class DesktopInput {
     try { kb?.unlock?.(); } catch { /* */ }
   }
 
-  requestPointerLock() { try { this.el.requestPointerLock?.(); } catch { /* */ } }
+  requestPointerLock() {
+    try { void Promise.resolve(this.el.requestPointerLock?.()).catch(() => {}); } catch { /* unsupported */ }
+  }
   exitPointerLock() { try { if (document.pointerLockElement === this.el) document.exitPointerLock?.(); } catch { /* */ } }
   get pointerLocked() { return this.locked; }
 
@@ -185,6 +188,11 @@ export class DesktopInput {
   /** Release everything the remote thinks is held. Must be idempotent — it runs on blur, on tab
    *  hide, and on teardown, and a double release must not turn into a phantom press. */
   releaseAll = () => {
+    // Input queued before a tab switch/disconnect must not be delivered after the releases.
+    if (this.raf) { cancelAnimationFrame(this.raf); this.raf = 0; }
+    if (this.qMove) { this.cx = this.qMove.nx; this.cy = this.qMove.ny; }
+    this.qMove = this.qRel = null;
+    this.qScrollX = this.qScrollY = 0;
     for (const b of this.held) this.cb.up(b, this.cx, this.cy);
     this.held.clear();
     for (const c of this.heldCodes) this.cb.keyCode(c, false);
@@ -198,20 +206,26 @@ export class DesktopInput {
   private onVisibility = () => { if (document.hidden) this.releaseAll(); };
 
   private onLockChange = () => {
+    const wasLocked = this.locked;
     this.locked = document.pointerLockElement === this.el;
+    if (wasLocked && !this.locked) this.releaseAll();
+    // A pending absolute warp from before pointer lock would undo the first relative movement.
+    if (this.locked) this.qMove = null;
   };
 
   private onDown = (e: MouseEvent) => {
     const b = BUTTONS[e.button];
     if (!b) return;                       // 3/4 are back/forward; the desktop has no use for them
+    if (!this.locked && !this.inContent(e.clientX, e.clientY)) return;
     e.preventDefault();
     // Focus the canvas so keys land here rather than in whatever was focused before.
     (this.el as HTMLElement).focus?.({ preventScroll: true });
     if (this.getPointerLockWanted() && !this.locked) this.requestPointerLock();
+    this.flush();                         // flush before updating the cursor to the press position
     const p = this.locked ? { x: this.cx, y: this.cy } : this.toNorm(e.clientX, e.clientY);
     this.cx = p.x; this.cy = p.y;
+    this.cb.cursorAt(p.x, p.y);
     this.held.add(b);
-    this.flush();                         // never let a queued move land after the press
     this.cb.down(b, p.x, p.y);
   };
 
@@ -220,9 +234,10 @@ export class DesktopInput {
     if (!b || !this.held.has(b)) return;   // a release we never saw the press for is not ours
     e.preventDefault();
     this.held.delete(b);
+    this.flush();
     const p = this.locked ? { x: this.cx, y: this.cy } : this.toNorm(e.clientX, e.clientY);
     this.cx = p.x; this.cy = p.y;
-    this.flush();
+    this.cb.cursorAt(p.x, p.y);
     this.cb.up(b, p.x, p.y);
   };
 
@@ -237,13 +252,23 @@ export class DesktopInput {
       this.schedule();
       return;
     }
+    if (!this.held.size && !this.inContent(e.clientX, e.clientY)) return;
     const p = this.toNorm(e.clientX, e.clientY);
     this.qMove = { nx: p.x, ny: p.y };
     this.schedule();
   };
 
+  private onWindowMove = (e: MouseEvent) => {
+    if (this.held.size && e.target !== this.el) this.onMove(e);
+  };
+
   private onWheel = (e: WheelEvent) => {
+    if (!this.locked && !this.inContent(e.clientX, e.clientY)) return;
     e.preventDefault();
+    if (!this.locked) {
+      const p = this.toNorm(e.clientX, e.clientY);
+      this.qMove = { nx: p.x, ny: p.y };
+    }
     // deltaMode is the units the browser chose, and ignoring it is the classic wheel bug: the same
     // physical notch is ~100 in pixel mode and 3 in line mode, so reading deltaY raw makes the
     // remote scroll 30x too far on Firefox or 30x too little on Chromium, depending which one the
@@ -279,10 +304,13 @@ export class DesktopInput {
    * an Arabic keyboard's Ctrl+ت is still Ctrl+C's key.
    */
   private decideKey(e: KeyboardEvent): "physical" | "character" | "ignore" {
+    if (e.key === "Dead" || e.key === "Process" || e.key === "Unidentified" || e.key === "AltGraph") return "ignore";
+    // AltGr often reports Ctrl+Alt as well. It produces a character (@, €, …), not a shortcut.
+    if (e.getModifierState?.("AltGraph") && Array.from(e.key).length === 1) return "character";
     if (e.ctrlKey || e.altKey || e.metaKey) return "physical";
     // Anything that is not exactly one character is a named key (Enter, Tab, F5, ArrowLeft...).
     // Those have no character to disagree about.
-    if (e.key.length !== 1) return "physical";
+    if (Array.from(e.key).length !== 1) return e.code ? "physical" : "ignore";
     const us = US_LAYOUT[e.code];
     if (!us) return "character";                       // a position we have no expectation for
     if (e.key === us[0] || e.key === us[1]) return "physical";
@@ -301,20 +329,23 @@ export class DesktopInput {
     const t = e.target as HTMLElement | null;
     if (!t) return false;
     const tag = t.tagName;
-    if (tag === "TEXTAREA" || tag === "SELECT" || t.isContentEditable) return true;
-    if (tag !== "INPUT") return false;
-    // Not every <input> is a place to type. This returned true for ALL of them, and the Controls sheet
-    // is full of `<input type="range">` — so touching the mouse-sensitivity slider handed it focus, and
-    // from that moment every keystroke was treated as belonging to a local text field and never reached
-    // the remote desktop. Since the canvas is not focusable there was no way to take focus back either:
-    // the keyboard was simply dead until the page was reloaded, after adjusting a slider.
-    const type = ((t as HTMLInputElement).type || "text").toLowerCase();
-    return !NON_TEXT_INPUTS.has(type);
+    if (["INPUT", "TEXTAREA", "SELECT", "BUTTON", "SUMMARY", "A"].includes(tag) || t.isContentEditable) return true;
+    // Sliders/buttons have keyboard behavior too. Clicking the focusable canvas returns control
+    // to the desktop; arrows and Space while a local control owns focus must remain local.
+    return Boolean(t.closest?.('button,input,textarea,select,summary,a[href],[role="button"],[role="dialog"],[role="slider"],[contenteditable="true"]'));
   }
 
   private onKeyDown = (e: KeyboardEvent) => {
+    if (e.defaultPrevented) return;       // e.g. Escape already closed a local React dialog
     if (e.isComposing) return;             // an IME is mid-word; its commit arrives as input text
     if (this.localEditable(e)) return;
+    if (e.getModifierState?.("AltGraph")) {
+      // Some browsers already emitted a synthetic ControlLeft before announcing AltGraph. Retire
+      // it before committed text, so AltGr+Q cannot become Ctrl+Alt+Q on the remote.
+      for (const code of ["ControlLeft", "ControlRight", "AltLeft", "AltRight"]) {
+        if (this.heldCodes.delete(code)) this.cb.keyCode(code, false);
+      }
+    }
 
     // PASTE IS THE ONE CHORD THAT MEANS SOMETHING DIFFERENT ON EACH SIDE OF THE WIRE.
     //
@@ -327,7 +358,7 @@ export class DesktopInput {
     // Preventing the default here would suppress the browser's `paste` event, which is the only way
     // a page is allowed to read the clipboard without a permission prompt. So this key alone is left
     // alone, and the owner listens for the paste (see the desktop paste bridge in RemoteScreen).
-    if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === "v" || e.key === "V")) {
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.code === "KeyV" || e.key === "v" || e.key === "V")) {
       this.cb.pasteIntent?.();
       return;                              // no preventDefault: let `paste` fire
     }
@@ -352,7 +383,7 @@ export class DesktopInput {
 
     // The agent deduplicates a repeated down itself and lets the REMOTE repeat timer drive repeat,
     // so sending the repeats is harmless; not sending them saves a frame per repeat.
-    if (e.repeat) return;
+    if (e.repeat || this.heldCodes.has(e.code) || !e.code) return;
     this.heldCodes.add(e.code);
     this.cb.keyCode(e.code, true);
   };
