@@ -13,13 +13,14 @@ export type Lang = "ar" | "en";
 const LANG_KEY = "mo-remote-lang";
 
 export function detectLang(): Lang {
-  const saved = localStorage.getItem(LANG_KEY);
+  let saved: string | null = null;
+  try { saved = localStorage.getItem(LANG_KEY); } catch { /* storage can be denied */ }
   if (saved === "ar" || saved === "en") return saved;
   return navigator.language?.toLowerCase().startsWith("ar") ? "ar" : "en";
 }
 
 export function setLang(lang: Lang): void {
-  localStorage.setItem(LANG_KEY, lang);
+  try { localStorage.setItem(LANG_KEY, lang); } catch { /* keep the current page usable */ }
   document.documentElement.lang = lang;
   document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
 }
@@ -61,8 +62,13 @@ const dict = {
   auto: { ar: "تلقائي", en: "Auto" },
   autoQuality: { ar: "جودة تلقائية — تتكيف مع شبكتك", en: "Auto quality — adapts to your network" },
   monitor: { ar: "الشاشة", en: "Monitor" },
+  sideways: { ar: "جانبي", en: "Sideways" },
+  upright: { ar: "مستقيم", en: "Upright" },
+  rotationHelp: { ar: "ملاءمة تلقائية لحجم الشاشة، أو تدوير جانبي تختاره بنفسك. يبقى الاتجاه ثابتًا أثناء الكتابة.", en: "Fit adapts to your screen size. Choose Sideways to turn the picture. The orientation stays fixed while typing." },
   rotation: { ar: "التدوير", en: "Rotation" },
   zoom: { ar: "التكبير", en: "Zoom" },
+  zoomIn: { ar: "تكبير", en: "Zoom in" },
+  zoomOut: { ar: "تصغير", en: "Zoom out" },
   fullscreen: { ar: "ملء الشاشة", en: "Fullscreen" },
   fitPhone: { ar: "ملاءمة التلفون", en: "Fit phone" },
   mouseSpeed: { ar: "سرعة الفأرة", en: "Mouse speed" },
@@ -145,7 +151,7 @@ const dict = {
   magnifyTyping: { ar: "تكبير أثناء الكتابة", en: "Magnify while typing" },
   magnifyTypingSub: { ar: "عند فتح لوحة المفاتيح، يرتفع سطح المكتب ويتكبير ليظهر سطر الكتابة بوضوح.", en: "When the keyboard opens, the desktop lifts clear of it and zooms to the cursor so you can read the line you are writing." },
   backgroundAlerts: { ar: "تنبيهات في الخلفية", en: "Background alerts" },
-  backgroundAlertsSub: { ar: "إشعار هادئ عند انقطاع الاتصال أو توقف الجلسة.", en: "A quiet notification when the link drops or the session pauses." },
+  backgroundAlertsSub: { ar: "تنبيهات عامة للاتصال ونقل الملفات فقط. إشعارات سطح المكتب وأسماء الملفات ومحتوى الحافظة لا تغادر الكمبيوتر.", en: "Generic connection and transfer alerts only. Desktop notifications, filenames and clipboard content never leave the PC." },
 
   // ── Mode hints (touch/trackpad/mouse) ──
   modeHintTouch: { ar: "نقرة · سحب بالتمرير · ضغط مطوّل = زر أيمن · ضغط ثم حركة = سحب", en: "Tap · swipe scrolls · hold = right-click · hold then move = drag" },

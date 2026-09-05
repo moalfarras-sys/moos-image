@@ -134,3 +134,134 @@ const fireTimers = () => { const cbs = [...timers.values()]; timers.clear(); for
 }
 
 console.log("PASS: reconnect text survival, resume probe, and frame-liveness contracts hold");
+
+// Real deadlines and sockets whose close handshake never completes (a phone changing networks).
+let clock = 10_000;
+const deadlines = new Map<number, {at: number; callback: () => void}>();
+const realDateNow = Date.now;
+Date.now = () => clock;
+Object.defineProperty(globalThis, "performance", {configurable: true, value: {now: () => clock}});
+window.setTimeout = ((callback: () => void, delay: number) => {
+  const id = nextTimer++;
+  deadlines.set(id, {at: clock + delay, callback});
+  return id;
+}) as typeof window.setTimeout;
+window.clearTimeout = (id: number) => { deadlines.delete(id); };
+const advance = (ms: number) => {
+  clock += ms;
+  for (const [id, task] of [...deadlines]) {
+    if (task.at <= clock) { deadlines.delete(id); task.callback(); }
+  }
+};
+const open = (conn: RemoteConnection) => {
+  conn.connect();
+  const socket = latest;
+  socket.readyState = TestSocket.OPEN;
+  socket.onopen?.();
+  socket.onmessage?.({data: JSON.stringify({type: "hello", screen: {w: 1920, h: 1080}})});
+  return socket;
+};
+
+{
+  const conn = new RemoteConnection("token", {});
+  const socket = open(conn);
+  const sent: any[] = [];
+  socket.send = data => sent.push(JSON.parse(data));
+  conn.text("س");
+  advance(200);
+  conn.text("ل");
+  advance(50);
+  assert.deepEqual(sent.filter(m => m.type === "text").map(m => m.value), ["سل"],
+    "continuous Arabic input must flush at the actual 250 ms deadline");
+  conn.disconnect();
+  deadlines.clear();
+}
+
+{
+  let opens = 0;
+  let authFailures = 0;
+  let frames = 0;
+  const conn = new RemoteConnection("token", {
+    onOpen: () => opens++, onAuthFail: () => authFailures++, onFrame: () => frames++,
+  });
+  const old = open(conn);
+  open(conn);
+  old.onopen?.();
+  old.onmessage?.({data: JSON.stringify({type: "error", error: "unauthorized"})});
+  old.onmessage?.({data: new ArrayBuffer(4)});
+  assert.equal(opens, 2, "retired sockets cannot announce another successful open");
+  assert.equal(authFailures, 0, "retired sockets cannot sign out the replacement session");
+  assert.equal(frames, 0, "retired sockets cannot feed stale frames into the new decoder");
+  conn.disconnect();
+  deadlines.clear();
+}
+
+{
+  const notices: boolean[] = [];
+  const conn = new RemoteConnection("token", {onClose: reconnect => notices.push(reconnect)});
+  const zombie = open(conn);
+  zombie.close = () => { zombie.readyState = 2; }; // browser is stuck waiting for the dead peer
+  advance(1);
+  conn.probe();
+  advance(2000);
+  advance(500);
+  assert.notEqual(latest, zombie, "resume recovery cannot depend on a dead peer completing close");
+  assert.deepEqual(notices, [true], "a watchdog recovery reports the outage exactly once");
+  zombie.onclose?.();
+  assert.deepEqual(notices, [true], "a late zombie close cannot affect the new connection");
+  conn.disconnect();
+  deadlines.clear();
+}
+
+{
+  const conn = new RemoteConnection("token", {});
+  open(conn);
+  conn.disconnect();
+  conn.text("stale text");
+  const socket = open(conn);
+  const sent: any[] = [];
+  socket.send = data => sent.push(JSON.parse(data));
+  advance(300);
+  assert.equal(sent.filter(m => m.type === "text").length, 0,
+    "intentional disconnect must not preserve text for a later unrelated session");
+  conn.disconnect();
+  deadlines.clear();
+}
+
+{
+  const conn = new RemoteConnection("token", {});
+  conn.setWatching(false);
+  conn.connect();
+  const socket = latest;
+  const sent: any[] = [];
+  socket.send = data => sent.push(JSON.parse(data));
+  socket.readyState = TestSocket.OPEN;
+  socket.onopen?.();
+  assert.equal(sent.find(m => m.type === "video")?.watching, false,
+    "a hidden tab must preserve its visibility vote across reconnects");
+  conn.text("سلام");
+  advance(250);
+  assert.equal(sent.filter(m => m.type === "text").length, 0,
+    "queued text must wait for authentication and the current monitor geometry");
+  socket.onmessage?.({data: JSON.stringify({type: "hello", monitor: 2, screen: {w: 800, h: 600}})});
+  advance(80);
+  assert.equal(sent.find(m => m.type === "text")?.display, 2,
+    "reconnected text must use the authenticated session's display");
+  conn.disconnect();
+  deadlines.clear();
+}
+
+{
+  const conn = new RemoteConnection("token", {});
+  conn.connect();
+  const stuck = latest;
+  stuck.close = () => { stuck.readyState = 2; };
+  advance(10000);
+  advance(500);
+  assert.notEqual(latest, stuck, "a CONNECTING socket without a handshake must have a deadline");
+  conn.disconnect();
+  deadlines.clear();
+}
+
+Date.now = realDateNow;
+console.log("PASS: bounded typing latency, retired socket isolation and stalled-close recovery");

@@ -72,12 +72,12 @@ public sealed class H264RecoveryQueue
         }
     }
 
-    public void Clear()
+    public void Clear(bool waitForKeyframe = false)
     {
         lock (_sync)
         {
             _items.Clear();
-            _waitingForIdr = false;
+            _waitingForIdr = waitForKeyframe;
         }
     }
 

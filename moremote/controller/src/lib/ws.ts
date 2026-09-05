@@ -61,7 +61,11 @@ export class RemoteConnection {
   private closedByUs = false;
   private backoff = 500;
   private reconnectTimer: number | null = null;
+  private connectTimer: number | null = null;
   private pingTimer: number | null = null;
+  private authenticated = false;
+  private aliveVersion = 0;
+  private watching = true;
   /** When ANY message last arrived — frames included. The stall watchdog and probe() read it.
    *  It was pong-only once, and that killed live sessions: under load the tiny JSON pong queues
    *  behind megabytes of frames, so the one proof of life the watchdog accepted was exactly the
@@ -85,6 +89,9 @@ export class RemoteConnection {
 
   connect() {
     this.stopReconnect();
+    this.stopPing();
+    this.stopConnectTimeout();
+    this.authenticated = false;
     const generation=++this.generation;
     try{this.ws?.close();}catch{/* ignore */}
     this.closedByUs = false;
@@ -92,9 +99,13 @@ export class RemoteConnection {
     const ws = new WebSocket(`${proto}://${location.host}/ws`);
     ws.binaryType = "arraybuffer";
     this.ws = ws;
+    // A network change can leave CONNECTING open-ended just as it can an established socket.
+    this.connectTimer = window.setTimeout(() => {
+      if (generation === this.generation) this.finishConnection(generation);
+    }, 10000);
 
     ws.onopen = () => {
-      this.backoff = 500;
+      if (generation !== this.generation || this.closedByUs) return;
       ws.send(JSON.stringify({ type: "auth", token: this.token }));
     // Tell the agent what this browser can actually decode, before it picks an encoder. We never
     // let it guess: WebCodecs is absent outside a secure context, so a phone on the old plain-http
@@ -108,13 +119,15 @@ export class RemoteConnection {
     // END/START one second apart re-offered H.264 immediately. Sessions there reconnect every one
     // to two minutes, and every codec change is a pipeline rebuild the user sees as the screen
     // cutting out — so this is the difference between "settles down" and "never stops".
-    ws.send(JSON.stringify({ type: "video", h264: canDecodeH264() && !h264GivenUp() }));
+    ws.send(JSON.stringify({ type: "video", h264: canDecodeH264() && !h264GivenUp(), watching: this.watching }));
       this.h.onOpen?.();
       this.startPing();
     };
 
     ws.onmessage = (ev) => {
+      if (generation !== this.generation || this.closedByUs) return;
       this.lastAliveAt = performance.now();
+      this.aliveVersion++;
       if (typeof ev.data === "string") {
         let m: any;
         try {
@@ -124,6 +137,9 @@ export class RemoteConnection {
         }
         switch (m.type) {
           case "hello":
+            this.authenticated = true;
+            this.backoff = 500;
+            this.stopConnectTimeout();
             this.source = m.screen ?? this.source;
             this.display = m.monitor ?? 0;
             this.h.onHello?.(m as Hello);
@@ -170,18 +186,7 @@ export class RemoteConnection {
     };
 
     ws.onclose = () => {
-      if(generation!==this.generation)return;
-      this.stopPing();
-      const willReconnect = !this.closedByUs;
-      this.h.onClose?.(willReconnect);
-      if (willReconnect) {
-        const delay = this.backoff;
-        this.reconnectTimer = window.setTimeout(() => {
-          this.reconnectTimer = null;
-          if (generation === this.generation && !this.closedByUs) this.connect();
-        }, delay);
-        this.backoff = Math.min(this.backoff * 1.6, 5000);
-      }
+      this.finishConnection(generation);
     };
 
     ws.onerror = () => {
@@ -191,15 +196,48 @@ export class RemoteConnection {
 
   disconnect() {
     this.flushText();
+    this.clearText();
     this.generation++;
     this.closedByUs = true;
+    this.authenticated = false;
     this.stopReconnect();
     this.stopPing();
+    this.stopConnectTimeout();
     try {
       this.ws?.close();
     } catch {
       /* ignore */
     }
+    this.ws = null;
+  }
+
+  /** Retire immediately: WebSocket.close() may wait indefinitely for an unreachable peer. */
+  private finishConnection(generation: number) {
+    if (generation !== this.generation) return;
+    const retired = this.ws;
+    this.ws = null;
+    this.authenticated = false;
+    const nextGeneration = ++this.generation;
+    this.stopPing();
+    this.stopConnectTimeout();
+    // Invalidate callbacks before close(), which can deliver onclose synchronously in tests.
+    try { retired?.close(); } catch { /* already closed */ }
+    const willReconnect = !this.closedByUs;
+    if (!willReconnect) this.clearText();
+    this.h.onClose?.(willReconnect);
+    if (willReconnect && nextGeneration === this.generation && !this.closedByUs) {
+      const delay = this.backoff;
+      this.reconnectTimer = window.setTimeout(() => {
+        this.reconnectTimer = null;
+        if (nextGeneration === this.generation && !this.closedByUs) this.connect();
+      }, delay);
+      this.backoff = Math.min(this.backoff * 1.6, 5000);
+    }
+  }
+
+  private stopConnectTimeout() {
+    if (this.connectTimer !== null) window.clearTimeout(this.connectTimer);
+    this.connectTimer = null;
   }
 
   /**
@@ -227,7 +265,7 @@ export class RemoteConnection {
       if (performance.now() - this.lastAliveAt > RemoteConnection.STALL_MS && this.ws?.readyState === WebSocket.OPEN) {
         // Not closedByUs: this must reconnect, and it must be reported as a reconnect rather than a
         // deliberate exit, or the UI would show "signed out" for a network blip.
-        try { this.ws.close(); } catch { /* the close handler does the rest */ }
+        this.finishConnection(this.generation);
       }
     }, 2000);
   }
@@ -245,11 +283,13 @@ export class RemoteConnection {
    */
   probe() {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN || this.closedByUs) return;
+    const generation = this.generation;
+    const aliveVersion = this.aliveVersion;
     const asked = performance.now();
     this.send({ type: "ping", t: asked });
     window.setTimeout(() => {
-      if (this.lastAliveAt < asked && this.ws?.readyState === WebSocket.OPEN && !this.closedByUs) {
-        try { this.ws.close(); } catch { /* the close handler does the rest */ }
+      if (generation === this.generation && this.aliveVersion === aliveVersion && !this.closedByUs) {
+        this.finishConnection(generation);
       }
     }, PROBE_MS);
   }
@@ -286,12 +326,13 @@ export class RemoteConnection {
    * command — see ScreenCapture.SessionWatching.
    */
   setWatching(watching: boolean) {
+    this.watching = watching;
     this.send({ type: "video", watching });
   }
 
   /** Is the socket usable right now? The caller uses this to avoid queuing work for a dead link. */
   get open() {
-    return this.ws?.readyState === WebSocket.OPEN;
+    return this.authenticated && this.ws?.readyState === WebSocket.OPEN;
   }
 
   /**
@@ -303,7 +344,7 @@ export class RemoteConnection {
    * frame there is, so the moment it is most tempting to ask repeatedly is the moment asking
    * repeatedly makes things worst.
    */
-  private lastKeyframeAsk = 0;
+  private lastKeyframeAsk = -Infinity;
   requestKeyframe() {
     const t = performance.now();
     if (t - this.lastKeyframeAsk < 1000) return;
@@ -317,6 +358,7 @@ export class RemoteConnection {
 
   setInputMode(mode: string) { this.mode = mode; }
   private input(obj: Record<string, unknown>) {
+    if (!this.open) return;
     const vv = window.visualViewport;
     this.send({ ...obj, seq: ++this.seq, ts: Date.now(), mode: this.mode, display: this.display,
       viewport: { w: vv?.width ?? window.innerWidth, h: vv?.height ?? window.innerHeight,
@@ -354,6 +396,21 @@ export class RemoteConnection {
     this.flushText();
     this.input({ type: "dblclick", x, y });
   }
+  downCurrent(button: MouseButton) {
+    this.flushText();
+    this.input({type: "downCurrent", button});
+  }
+  upCurrent(button: MouseButton) {
+    this.input({type: "upCurrent", button});
+  }
+  clickCurrent(button: MouseButton) {
+    this.flushText();
+    this.input({type: "clickCurrent", button});
+  }
+  dblclickCurrent() {
+    this.flushText();
+    this.input({type: "dblclickCurrent"});
+  }
   scroll(dx: number, dy: number) {
     this.input({ type: "scroll", dx, dy });
   }
@@ -381,6 +438,7 @@ export class RemoteConnection {
     this.input({ type: "combo", keys });
   }
   text(value: string) {
+    if (this.closedByUs || !value) return;
     this.pendingText+=value;
     // Offline, the buffer holds what the user keeps typing until the reconnect delivers it.
     // Oldest first: the start of what they said beats the end of it, and past the cap the
@@ -407,7 +465,14 @@ export class RemoteConnection {
     if (this.pendingText.length >= TEXT_COALESCE_MAX) { this.flushText(); return; }
     if (!this.textQueuedAt) this.textQueuedAt = Date.now();
     if (Date.now() - this.textQueuedAt >= TEXT_COALESCE_MAX_MS) { this.flushText(); return; }
-    this.textTimer=window.setTimeout(()=>this.flushText(),fast?FAST_FLUSH_MS:COMPLEX_TEXT_FLUSH_MS);
+    const remaining = TEXT_COALESCE_MAX_MS - (Date.now() - this.textQueuedAt);
+    this.textTimer=window.setTimeout(()=>this.flushText(),Math.min(remaining,fast?FAST_FLUSH_MS:COMPLEX_TEXT_FLUSH_MS));
+  }
+  private clearText() {
+    if (this.textTimer !== null) window.clearTimeout(this.textTimer);
+    this.textTimer = null;
+    this.pendingText = "";
+    this.textQueuedAt = 0;
   }
   private flushText(){
     if(this.textTimer)window.clearTimeout(this.textTimer);

@@ -350,6 +350,9 @@ button {
   z-index: 20;
   min-width: 44px;
   min-height: 44px;
+  max-width: calc(100% - 24px);
+  width: max-content;
+  flex-wrap: wrap;
   justify-content: center;
   transition: opacity 0.3s, transform 0.3s;
 }
@@ -434,6 +437,10 @@ button {
   -webkit-overflow-scrolling: touch;
 }
 .toolbar-primary::-webkit-scrollbar { display: none; }
+/* Five predictable phone controls, with no clipped buttons or hidden horizontal strip.
+   Zoom, sound and fullscreen also live in the Display sheet; roomy desktop rails show them. */
+.toolbar-primary > .tbtn { flex: 1 1 0; min-width: 44px; }
+.toolbar-primary > .toolbar-secondary { display: none; }
 .toolbar-settings {
   flex: 0 0 auto;
   position: relative;
@@ -544,7 +551,7 @@ button {
 .sheet-close {
   position: absolute;
   top: 10px;
-  right: max(14px, var(--safe-right));
+  inset-inline-end: max(14px, var(--safe-right), var(--safe-left));
   width: 44px;
   height: 44px;
   display: grid;
@@ -1101,6 +1108,8 @@ button {
     box-shadow: -10px 0 30px rgba(4, 10, 12, 0.32);
   }
   .toolbar-primary { width: 100%; flex-direction: column; overflow-x: hidden; overflow-y: auto; }
+  .toolbar-primary > .tbtn { flex: 0 0 auto; }
+  .toolbar-primary > .toolbar-secondary { display: flex; }
   .toolbar-settings { width: 100%; margin-top: auto; }
   .toolbar-settings::before { inset: -7px 7px auto; width: auto; height: 1px; }
   .tbtn { width: 100%; min-width: 0; }
@@ -1136,6 +1145,8 @@ button {
     border-left: 1px solid var(--border-strong);
   }
   .toolbar-primary { width: 100%; flex-direction: column; overflow-x: hidden; overflow-y: auto; }
+  .toolbar-primary > .tbtn { flex: 0 0 auto; }
+  .toolbar-primary > .toolbar-secondary { display: none; }
   .toolbar-settings { width: 100%; margin-top: auto; }
   .toolbar-settings::before { inset: -5px 6px auto; width: auto; height: 1px; }
   .toolbar .tbtn {
@@ -1671,3 +1682,5 @@ button {
 [dir="rtl"] .kbinput::placeholder {
   text-align: right;
 }
+
+.sheet h3 { padding-inline-end: 48px; }

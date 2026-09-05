@@ -104,6 +104,10 @@ export async function validateSession(token: string): Promise<boolean> {
 
 export async function resumeTrustedDevice(deviceId: string, deviceToken: string): Promise<AuthResult> {
   const { status, data } = await post<any>("/api/devices/resume", { deviceId, deviceToken });
+  // Only a rejected credential may forget this device. An unavailable server is
+  // recoverable and must not turn a brief outage into another PIN enrollment.
+  if (status !== 200 && status !== 401 && status !== 403)
+    throw new Error(`device resume failed: ${status}`);
   return status === 200 ? { ok: true, token: data.token } : { ok: false, error: data.error || "untrusted_device" };
 }
 

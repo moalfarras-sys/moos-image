@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {readFileSync, existsSync} from "node:fs";
 import {join} from "node:path";
 import {normalizeContentPoint as n} from "../src/lib/coordinates.ts";
+import {diffToOps} from "../src/lib/typing.ts";
 assert.deepEqual(n(200,400,{left:0,top:300,width:400,height:200}),{x:.5,y:.5}); // portrait letterbox
 assert.deepEqual(n(400,200,{left:100,top:0,width:600,height:400}),{x:.5,y:.5}); // landscape
 assert.deepEqual(n(-2,900,{left:10,top:10,width:100,height:100}),{x:0,y:1});
@@ -76,11 +77,21 @@ assert.ok(Number(coalesceMaxMs[1]) >= Number(complexMs[1]) && Number(coalesceMax
 // ArrowLeft walks forward. The autocorrect middle-diff may only walk the caret when the text is
 // not bidirectional; otherwise it must rewrite the whole tail, which needs no arrows at all.
 const screen = readFileSync(new URL("../src/ui/RemoteScreen.tsx", import.meta.url), "utf8");
-assert.match(screen, /const walk = sf > 0 && !bidi/,
-  "the autocorrect caret walk must be disabled for bidirectional text — ArrowLeft moves FORWARD " +
-  "through Arabic, so walking would delete the shared suffix and scramble the word");
-assert.match(screen, /if \(walk\) for \(let i = 0; i < sf; i\+\+\) c\.keyTap\("ArrowLeft"\)/,
-  "both arrow walks must be gated on the same flag as the shortened delete/retype");
+assert.match(screen, /emitOps\(last, v\)/,
+  "ordinary input must use the shared, behavior-tested text diff");
+assert.match(screen, /for \(const op of diffToOps\(before, after\)\)/,
+  "the shared emitter must execute the protected diff, including composition commits");
+for (const [before, after] of [["مرحبا عالم", "مرحبا بالعالم"], ["سلا عليكم", "سلام عليكم"]]) {
+  const ops = diffToOps(before, after);
+  assert.ok(!ops.some(op => op.t === "key" && op.k.startsWith("Arrow")),
+    "Arabic autocorrection must never walk visually through the shared RTL suffix");
+  let actual = Array.from(before);
+  for (const op of ops) {
+    if (op.t === "text") actual.push(...Array.from(op.v));
+    else if (op.k === "Backspace") actual.splice(actual.length - op.n, op.n);
+  }
+  assert.equal(actual.join(""), after, "the arrow-free operations must still produce the exact replacement");
+}
 
 // ---------------------------------------------------------------------------------------------
 // The TURNED view: a desktop drawn a quarter turn round so a phone held upright is not 74% black.

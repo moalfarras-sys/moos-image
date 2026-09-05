@@ -284,6 +284,9 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
   const connRef = useRef<RemoteConnection | null>(null);
   const gestureRef = useRef<GestureController | null>(null);
   const desktopRef = useRef<DesktopInput | null>(null);
+  const cursorEmbeddedRef = useRef(false);
+  const relativeDragRef = useRef(false);
+  const relativeDesktopButtons = useRef(new Set<string>());
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioRetryRef = useRef<number | null>(null);
   const audioGenerationRef = useRef(0);
@@ -814,7 +817,10 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
         setSelMonitor(h.monitor ?? 0);
         setInputOk(!!h.input?.ready);
         setClipboardOk(!!h.clipboard?.ready);
+        cursorEmbeddedRef.current = h.cursorEmbedded === true;
+        if (cursorRef.current) cursorRef.current.hidden = cursorEmbeddedRef.current;
         pushSettings();
+        syncTypingDraft();
       },
       onStatus: (paused) => setStatus(paused ? "paused" : "live"),
       onFrame: (buf) => {
@@ -832,14 +838,13 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
       onStopped: () => setStatus("stopped"),
       onAuthFail: () => onAuthExpired(),
       onClose: (willReconnect) => {
-        // The typing diff base resyncs to what the FIELD still holds, not to "". Zeroing it
-        // while the field held a sentence made the first keystroke after every reconnect
-        // re-send the entire field — the same words typed twice on the desktop. What was in
-        // flight is not lost either: the connection keeps unsent text queued and delivers it
-        // after the reconnect's hello.
-        // A reconnect resets the typing baseline; the composition latch has to go with it, or a
-        // socket that dropped mid-composition leaves the phone unable to type at all.
-        lastVal.current = inputRef.current?.value ?? ""; composingRef.current = false; setMods(new Set());
+        gestureRef.current?.cancelAll();
+        desktopRef.current?.releaseAll();
+        // Keep the last accepted baseline and the local draft separately. Advancing
+        // the baseline here loses an unfinished IME word; replay the remaining diff
+        // only after the next authenticated hello, in normal input order.
+        composingRef.current = false;
+        setMods(new Set());
         setStatus((s) => (s === "stopped" || s === "idle" ? s : "reconnecting"));
         if (willReconnect && connectionEstablishedRef.current && !disposed &&
             backgroundAlertsRef.current && !connectionAlertedRef.current) {
@@ -887,18 +892,35 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
     conn.connect();
 
     const gest = new GestureController(canvas, toNorm, () => view.current.zoom, {
+      dismissContext: () => conn.keyTap("Escape"),
       click: (b, x, y) => {
-        conn.click(b, x, y);
+        resetTypingContext();
+        if (modeRef.current === "trackpad" && cursorEmbeddedRef.current) conn.clickCurrent(b);
+        else conn.click(b, x, y);
         // Tapping a DIFFERENT field while the keyboard is up should bring that field into view, not
         // leave the viewer looking at the last one. Deferred a frame so the click lands first and
         // the cursor position this reads is the one the user just chose.
         if (kbOpenRef.current) requestAnimationFrame(() => focusCursor());
       },
-      dblclick: (x, y) => conn.dblclick(x, y),
+      dblclick: (x, y) => {
+        resetTypingContext();
+        if (modeRef.current === "trackpad" && cursorEmbeddedRef.current) conn.dblclickCurrent();
+        else conn.dblclick(x, y);
+      },
       moveCursor: (x, y) => conn.move(x, y),
-      dragStart: (x, y) => conn.down("left", x, y),
+      moveRelative: (dx, dy) => conn.moveRelative(dx, dy),
+      dragStart: (x, y) => {
+        resetTypingContext();
+        relativeDragRef.current = modeRef.current === "trackpad" && cursorEmbeddedRef.current;
+        if (relativeDragRef.current) conn.downCurrent("left");
+        else conn.down("left", x, y);
+      },
       dragMove: (x, y) => conn.move(x, y),
-      dragEnd: (x, y) => conn.up("left", x, y),
+      dragEnd: (x, y) => {
+        if (relativeDragRef.current) conn.upCurrent("left");
+        else conn.up("left", x, y);
+        relativeDragRef.current = false;
+      },
       // GestureController reports finger travel. The remote input contract reports wheel travel:
       // positive Y scrolls down. Natural scrolling means the content follows the finger, so an
       // upward finger movement (negative dy) must become a positive wheel delta.
@@ -928,7 +950,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
       haptic: () => {if(hapticsRef.current)navigator.vibrate?.(8);},
       zoomToggleAt: (fx, fy) => zoomToggleAt(fx, fy),
     }, () => mouseSensitivityRef.current, inContent, canPan,
-       () => computeLayout()?.rot ?? false);
+       () => computeLayout()?.rot ?? false, () => cursorEmbeddedRef.current);
     gest.setMode(modeRef.current);
     gestureRef.current = gest;
 
@@ -938,14 +960,22 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
     const desk = new DesktopInput(canvas, toNorm, {
       move: (x, y) => conn.move(x, y),
       moveRelative: (dx, dy) => conn.moveRelative(dx * mouseSensitivityRef.current, dy * mouseSensitivityRef.current),
-      down: (b, x, y) => conn.down(b, x, y),
-      up: (b, x, y) => conn.up(b, x, y),
+      down: (b, x, y) => {
+        if (desktopRef.current?.pointerLocked) {
+          relativeDesktopButtons.current.add(b);
+          conn.downCurrent(b);
+        } else conn.down(b, x, y);
+      },
+      up: (b, x, y) => {
+        if (relativeDesktopButtons.current.delete(b)) conn.upCurrent(b);
+        else conn.up(b, x, y);
+      },
       scroll: (dx, dy) => conn.scroll(dx, dy),
       keyCode: (code, down) => conn.keyCode(code, down),
       text: (v) => conn.text(v),
       cursorAt: (x, y) => { cursorNorm.current = { x, y }; drawEpochRef.current++; },
       pasteIntent: () => { pasteIntentAt.current = performance.now(); armPasteFallback(); },
-    }, () => scrollSensitivityRef.current, () => pointerLockRef.current);
+    }, () => scrollSensitivityRef.current, () => pointerLockRef.current, inContent);
     desktopRef.current = desk;
     if (modeRef.current === "desktop") desk.attach();
 
@@ -960,7 +990,9 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
     // the gesture. Two fingers do three different jobs here and none of them is discoverable by
     // looking, so the one hint that earns its space is the one naming them.
     let gestureHintTimer: number | null = null;
-    if (!localStorage.getItem("moremote.seenGestureHint")) {
+    let seenGestureHint = false;
+    try { seenGestureHint = !!localStorage.getItem("moremote.seenGestureHint"); } catch { /* private mode */ }
+    if (!seenGestureHint) {
       try { localStorage.setItem("moremote.seenGestureHint", "1"); } catch { /* private mode */ }
       gestureHintTimer = window.setTimeout(
         () => showToast(tr("gestureHelp")), 1400);
@@ -1151,8 +1183,10 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
     // remote currently thinks is held, so switching modes mid-drag cannot leave a button down.
     const desk = desktopRef.current;
     if (!desk) return;
-    if (mode === "desktop") desk.attach(); else desk.detach();
-  }, [mode]);
+    if (mode === "desktop" && !sheet && !powerConfirm && !kbOpen && status === "live")
+      desk.attach();
+    else desk.detach();
+  }, [mode, sheet, powerConfirm, kbOpen, status]);
 
   // The bar stays painted while a sheet is open, so its hide timer must not keep running behind
   // it — otherwise reading the quality presets or dragging a sensitivity slider always outlives
@@ -1271,6 +1305,8 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
    */
   const KB_FOCUS_Y = 0.42;
   const focusCursor = () => {
+    // Embedded relative control has no absolute cursor telemetry to center on.
+    if (cursorEmbeddedRef.current && modeRef.current === "trackpad") return;
     const c = canvasRef.current;
     if (!c) return;
     const band = Math.max(80, c.clientHeight - kbInsetRef.current);
@@ -1571,12 +1607,15 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
     enterTyping();          // before setKbOpen, so nothing has moved the view yet
     setKbOpen(true);
     const el = inputRef.current;
-    if (el) { el.value = ""; lastVal.current = ""; composingRef.current = false; el.focus(); }
+    if (el) {
+      // A reconnecting session may still hold an unsent draft.
+      if (connRef.current?.open) resetTypingContext();
+      el.focus();
+    }
   };
   const closeKeyboard = () => {
     const el = inputRef.current;
-    if (el) el.value = "";
-    lastVal.current = "";
+    if (connRef.current?.open) resetTypingContext();
     // Nothing outside onCompositionEnd used to clear this, and a phone that dismisses its own
     // keyboard mid-word never sends one. While the latch is stuck true, onInput returns early and
     // EVERY keystroke is discarded silently: the field fills up and not one character reaches the
@@ -1608,67 +1647,59 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
    */
   const keepFocus = { onPointerDown: (e: React.PointerEvent) => e.preventDefault() };
 
+  const syncTypingDraft = () => {
+    const el = inputRef.current;
+    if (!el || !connRef.current?.open || composingRef.current) return;
+    emitOps(lastVal.current, el.value);
+    lastVal.current = el.value;
+  };
+  const resetTypingContext = () => {
+    if (!connRef.current?.open) return;
+    // A shortcut, remote click or caret move invalidates the phone's editable tail.
+    // Commit any composition first, then stop autocorrect from rewriting an old field.
+    const el = inputRef.current;
+    if (composingRef.current && el) emitOps(lastVal.current, el.value);
+    composingRef.current = false;
+    compositionStartRef.current = "";
+    lastVal.current = "";
+    if (el) el.value = "";
+  };
+  const sendShortcut = (keys: string[]) => {
+    const c = connRef.current; if (!c?.open) return;
+    resetTypingContext();
+    inputBurstAtRef.current = Date.now();
+    c.combo(keys);
+    setMods(new Set());
+  };
   const sendKey = (key: string) => {
-    const c = connRef.current; if (!c) return;
+    const c = connRef.current; if (!c?.open) return;
+    resetTypingContext();
     inputBurstAtRef.current = Date.now();
     if (mods.size > 0) { c.combo([...mods, key]); setMods(new Set()); } else c.keyTap(key);
   };
   const toggleMod = (m: string) => setMods((s) => { const n = new Set(s); n.has(m) ? n.delete(m) : n.add(m); return n; });
 
-  // Diff the field value into keystrokes (handles text, Backspace, Arabic, autocorrect).
-  const onInput = () => {
-    const el = inputRef.current!, v = el.value, last = lastVal.current, c = connRef.current;
-    if (!c) { lastVal.current = v; return; }
+  // Both ordinary input and IME commits use the same Unicode-aware diff.
+  const onInput = (event: React.FormEvent<HTMLInputElement>) => {
+    const el = event.currentTarget, v = el.value, last = lastVal.current;
+    const c = connRef.current;
+    if (!c?.open) return; // retain the local draft until authenticated recovery
+    if (composingRef.current || (event.nativeEvent as InputEvent).isComposing) return;
     inputBurstAtRef.current = Date.now();
-    // Arabic keyboards and other IMEs revise a word while it is being composed. Streaming those
-    // intermediate values duplicates letters and Backspaces remotely; send only the commit.
-    // Gate on the BROWSER's own flag as well as ours. beforeinput/input/compositionend ordering is
-    // documented as inconsistent between Chrome and Safari, and our latch can be left set by a
-    // path that never sees a compositionend — see emitOps and the resets below.
-    if (composingRef.current || (window.event as any)?.isComposing) return;
-    if (v.length > last.length && v.startsWith(last)) {
-      const added = v.slice(last.length);
-      if (mods.size > 0) { for (const ch of added) c.combo([...mods, ch]); setMods(new Set()); el.value = ""; lastVal.current = ""; return; }
-      c.text(added);
-    } else if (v.length < last.length && last.startsWith(v)) {
-      for (let i = 0; i < last.length - v.length; i++) c.keyTap("Backspace");
-    } else {
-      // Replaced (autocorrect/IME rewrite). Deleting the WHOLE line and retyping
-      // it turned one autocorrect into a Backspace storm — up to 300 taps — that
-      // visibly stalled the session. Autocorrect rewrites one word: keep the
-      // common prefix AND suffix, delete only the differing middle, retype it.
-      let p = 0;
-      const max = Math.min(last.length, v.length);
-      while (p < max && last[p] === v[p]) p++;
-      let sf = 0;
-      while (sf < max - p && last[last.length - 1 - sf] === v[v.length - 1 - sf]) sf++;
-      // Arrow keys move the caret VISUALLY, not logically: Qt's default
-      // LogicalMoveStyle reverses the mapping inside an RTL run, so ArrowLeft
-      // walks FORWARD through Arabic. Using it to step back over a shared suffix
-      // would delete that suffix instead of the differing middle and drop the
-      // replacement at the end — re-scrambling the very text this path exists to
-      // repair. Only sf === 0 needs no walk at all, so when the rewrite carries a
-      // shared suffix in bidirectional text, rewrite the whole tail instead: more
-      // keystrokes, but every one of them is direction-independent.
-      const bidi = /[֐-ࣿיִ-﷿ﹰ-]/.test(last + v);
-      const walk = sf > 0 && !bidi;
-      const removed = walk ? last.length - p - sf : last.length - p;
-      const middle = walk ? v.slice(p, v.length - sf) : v.slice(p);
-      // The remote caret sits at the end of what we sent; step over the shared
-      // suffix, delete the middle, type the replacement, then walk back.
-      if (walk) for (let i = 0; i < sf; i++) c.keyTap("ArrowLeft");
-      for (let i = 0; i < removed; i++) c.keyTap("Backspace");
-      if (middle) c.text(middle);
-      if (walk) for (let i = 0; i < sf; i++) c.keyTap("ArrowRight");
+    if (mods.size > 0 && v.startsWith(last) && v.length > last.length) {
+      for (const ch of v.slice(last.length)) c.combo([...mods, ch]);
+      setMods(new Set());
+      el.value = ""; lastVal.current = "";
+      return;
     }
+    emitOps(last, v);
     lastVal.current = v;
-    // Resync while the line is still short: the worst replace burst above is
-    // bounded by this cap, and Backspace-on-empty is handled in onKeyDown.
-    if (v.length > 48) { el.value = ""; lastVal.current = ""; composingRef.current = false; }
+    // Bound the context an autocorrection may rewrite.
+    if (Array.from(v).length > 48) { el.value = ""; lastVal.current = ""; }
   };
   const onCompositionStart = () => {
     composingRef.current = true;
-    compositionStartRef.current = inputRef.current?.value ?? "";
+    compositionStartRef.current = lastVal.current;
   };
   /** Emit a diff as keystrokes, in order. One place, so both callers behave identically. */
   const emitOps = (before: string, after: string) => {
@@ -1680,7 +1711,9 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
     }
   };
   const onCompositionEnd = (_e: React.CompositionEvent<HTMLInputElement>) => {
+    if (!composingRef.current) return; // a shortcut or reconnect retired this composition
     composingRef.current = false;
+    if (!connRef.current?.open) return; // hello commits the retained draft
     const after = inputRef.current?.value ?? "";
     const before = compositionStartRef.current;
     // WAS: `after.startsWith(before) ? after.slice(before.length) : e.data`, which is correct only
@@ -1692,8 +1725,13 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
     // at all and the word stayed on the desktop after it was gone from the phone.
     emitOps(before, after);
     lastVal.current = after;
+    if (Array.from(after).length > 48) {
+      if (inputRef.current) inputRef.current.value = "";
+      lastVal.current = "";
+    }
   };
   const onInputKeyDown = (e: React.KeyboardEvent) => {
+    if (composingRef.current || e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229) return;
     if (e.key === "Enter") {
       e.preventDefault();
       sendKey("Enter");
@@ -2096,7 +2134,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
     // deliberately by the safe 48px .show-tab handle rendered only while the controls are hidden.
     <div className={"remote" + (mode === "desktop" ? " mouse-mode" : "")}>
       <main className="remote-stage" aria-label="Remote MoOS desktop">
-      <canvas ref={canvasRef} className="screen-canvas" />
+      <canvas ref={canvasRef} className="screen-canvas" tabIndex={0} aria-label={tr("screen")} />
       {/* The server's sound, on this same origin. Never `autoPlay` — the browser would refuse it
           without a gesture and the refusal is indistinguishable from the stream being broken. */}
       <audio ref={audioRef} hidden />
@@ -2207,14 +2245,14 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
               {m === "Control" ? "Ctrl" : m}
             </button>
           ))}
-          <button {...keepFocus} className="kkey" onClick={() => c()?.keyTap("Win")}>Win</button>
+          <button {...keepFocus} className="kkey" onClick={() => sendKey("Win")}>Win</button>
           <span className="kdiv" />
-          <button {...keepFocus} className="kkey" onClick={() => c()?.combo(["Control", "A"])}>⌃A</button>
-          <button {...keepFocus} className="kkey" onClick={() => c()?.combo(["Control", "C"])}>⌃C</button>
-          <button {...keepFocus} className="kkey" onClick={() => c()?.combo(["Control", "X"])}>⌃X</button>
-          <button {...keepFocus} className="kkey" onClick={() => c()?.combo(["Control", "V"])}>⌃V</button>
-          <button {...keepFocus} className="kkey" onClick={() => c()?.combo(["Control", "Z"])}>⌃Z</button>
-          <button {...keepFocus} className="kkey" onClick={() => c()?.combo(["Alt", "Tab"])}>Alt·Tab</button>
+          <button {...keepFocus} className="kkey" onClick={() => sendShortcut(["Control", "A"])}>⌃A</button>
+          <button {...keepFocus} className="kkey" onClick={() => sendShortcut(["Control", "C"])}>⌃C</button>
+          <button {...keepFocus} className="kkey" onClick={() => sendShortcut(["Control", "X"])}>⌃X</button>
+          <button {...keepFocus} className="kkey" onClick={() => sendShortcut(["Control", "V"])}>⌃V</button>
+          <button {...keepFocus} className="kkey" onClick={() => sendShortcut(["Control", "Z"])}>⌃Z</button>
+          <button {...keepFocus} className="kkey" onClick={() => sendShortcut(["Alt", "Tab"])}>Alt·Tab</button>
           <span className="kdiv" />
           <button {...keepFocus} className="kkey" onClick={() => sendKey("Escape")}>Esc</button>
           <button {...keepFocus} className="kkey" onClick={() => sendKey("Tab")}>Tab</button>
@@ -2227,7 +2265,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
           <input
             ref={inputRef} className="kbinput" type="text" inputMode="text"
             autoCapitalize="off" autoCorrect="off" autoComplete="off" spellCheck={false}
-            placeholder="اكتب هنا ← يصل للكمبيوتر · type here"
+            placeholder={tr("typeHere")} aria-label={tr("typeHere")}
             onInput={onInput} onKeyDown={onInputKeyDown}
             onCompositionStart={onCompositionStart} onCompositionEnd={onCompositionEnd}
             onBlur={() => {
@@ -2263,7 +2301,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
               {viewMode === "fit" ? <IconFit /> : <IconActual />}<span>{tr("display")}</span>
             </button>
             <button
-              className="tbtn"
+              className="tbtn toolbar-secondary"
               onClick={() => {
                 const c = canvasRef.current;
                 if (!c) return;
@@ -2275,13 +2313,13 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
             >
               <IconActual /><span>{tr("zoom")}</span>
             </button>
-            <button className={"tbtn" + (sound === "on" ? " on" : "")} onClick={toggleSound}>
+            <button className={"tbtn toolbar-secondary" + (sound === "on" ? " on" : "")} onClick={toggleSound}>
               {sound === "on" ? <IconSpeaker /> : <IconSpeakerOff />}
-              <span>{sound === "connecting" ? "Starting" : "Sound"}</span>
+              <span>{sound === "connecting" ? tr("connecting") : tr("sound")}</span>
             </button>
-            <button className="tbtn" onClick={fullscreen}><IconFullscreen /><span>{tr("fullscreen")}</span></button>
+            <button className="tbtn toolbar-secondary" onClick={fullscreen}><IconFullscreen /><span>{tr("fullscreen")}</span></button>
           </div>
-          <button className="tbtn toolbar-settings accent" onClick={() => setSheet("more")}><IconSettings /><span>{tr("more")}</span></button>
+          <button className="tbtn toolbar-settings accent" onClick={() => setSheet("more")}><IconSettings /><span>{tr("settings")}</span></button>
         </div>
       )}
 
@@ -2339,14 +2377,11 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
           <div className="row-label">{tr("rotation")}</div>
           <div className="seg">
           <button className={orient === "auto" ? "on" : ""} onClick={() => chooseOrient("auto")}>{tr("fitPhone")}</button>
-            <button className={orient === "on" ? "on" : ""} onClick={() => chooseOrient("on")}><IconRotate /> Sideways</button>
-            <button className={orient === "off" ? "on" : ""} onClick={() => chooseOrient("off")}><IconLock /> Upright</button>
+            <button className={orient === "on" ? "on" : ""} onClick={() => chooseOrient("on")}><IconRotate /> {tr("sideways")}</button>
+            <button className={orient === "off" ? "on" : ""} onClick={() => chooseOrient("off")}><IconLock /> {tr("upright")}</button>
           </div>
           <p className="hint">
-            Fit phone follows your phone: the desktop stays upright and fits however you hold it.
-            Nothing rotates on its own. Sideways turns the desktop a quarter turn so it fills an
-            upright phone — tilt your head, not the phone. Upright never turns it. Whichever you
-            pick is held: not when you open the keyboard, and not when the address bar slides.
+            {tr("rotationHelp")}
           </p>
           {monitors.length > 1 && (
             <>
@@ -2362,9 +2397,19 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
           )}
           <div className="row-label">{tr("zoom")}</div>
           <div className="zoomrow">
-            <button className="cell" onClick={() => zoomBy(0.77)}><IconZoomOut /> Out</button>
+            <button className="cell" onClick={() => zoomBy(0.77)}><IconZoomOut /> {tr("zoomOut")}</button>
             <button className="cell" onClick={resetZoom}>{tr("reset")}</button>
-            <button className="cell" onClick={() => zoomBy(1.3)}><IconZoomIn /> In</button>
+            <button className="cell" onClick={() => zoomBy(1.3)}><IconZoomIn /> {tr("zoomIn")}</button>
+          </div>
+          <div className="row-label">{tr("actions")}</div>
+          <div className="zoomrow">
+            <button className="cell" onClick={toggleSound} aria-pressed={sound === "on"}>
+              {sound === "on" ? <IconSpeaker /> : <IconSpeakerOff />}
+              {sound === "connecting" ? tr("connecting") : tr("sound")}
+            </button>
+            <button className="cell" onClick={() => { fullscreen(); setSheet(null); }}>
+              <IconFullscreen /> {tr("fullscreen")}
+            </button>
           </div>
           <div className="row-label">{tr("quality")}</div>
           <div className="seg">
@@ -2399,7 +2444,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
                 <button className={mode === "desktop" ? "on" : ""}
                         onClick={() => setMode("desktop")}><IconMouse /> {tr("mouseKeys")}</button>
               </div>
-              <p className="hint" style={{ margin: "10px 0 0" }}>{MODE_HINT[mode]}</p>
+              <p className="hint" style={{ margin: "10px 0 0" }}>{tr(mode === "touch" ? "modeHintTouch" : mode === "direct" ? "modeHintDirect" : mode === "trackpad" ? "modeHintTrackpad" : "modeHintDesktop")}</p>
             </div>
             {(mode === "touch" || mode === "direct") && (
               <Row title={tr("oneFingerDrag")} sub={tr("oneFingerDragSub")}>
@@ -2436,7 +2481,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
               <Switch on={haptics} onToggle={() => setHaptics(v => !v)} />
             </Row>
             <Row title={tr("magnifyTyping")}
-                 sub="When the keyboard opens, the desktop lifts clear of it and zooms to the cursor so you can read the line you are writing.">
+                 sub={tr("magnifyTypingSub")}>
               <Switch on={typingZoom} onToggle={() => setTypingZoom(v => !v)} />
             </Row>
           </div>
@@ -2444,7 +2489,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
           <div className="sec-label">{tr("alerts")}</div>
           <div className="card">
             <Row title={tr("backgroundAlerts")}
-                 sub="Generic connection and transfer alerts only. Desktop notifications, filenames and clipboard content never leave the PC.">
+                 sub={tr("backgroundAlertsSub")}>
               <Switch on={backgroundAlerts && remoteAlertPermission() === "granted"}
                       onToggle={() => void toggleBackgroundAlerts()} />
             </Row>

@@ -72,12 +72,12 @@ function* nals(b: Uint8Array): Generator<{ type: number; at: number }> {
 /**
  * A decoder holding no reference frame cannot use a P-frame — it is a diff against a picture that
  * does not exist. So the first thing fed in has to be a keyframe, and everything before it is
- * dropped on the floor rather than decoded into garbage. NAL 5 is an IDR slice; NAL 7 is the SPS,
- * which the encoder is told to repeat before every keyframe precisely so a late joiner can start.
+ * dropped on the floor rather than decoded into garbage. NAL 5 is an IDR slice. NAL 7 is only
+ * configuration metadata: even when present before a delta, it supplies no reference picture.
  */
 function isKeyframe(b: Uint8Array): boolean {
   for (const n of nals(b)) {
-    if (n.type === 5 || n.type === 7) return true;
+    if (n.type === 5) return true;
     if (n.type === 1) return false;   // a non-IDR coded slice: this is a delta, stop looking
   }
   return false;
@@ -263,11 +263,12 @@ export class H264Stream {
           this.onFail(String(e));
         },
       });
-      dec.configure({ codec, optimizeForLatency: true });
       this.dec = dec;
+      dec.configure({ codec, optimizeForLatency: true });
       this.codec = codec;
       return true;
     } catch (e) {
+      this.reset();
       this.onFail(String(e));
       return false;
     }

@@ -5,7 +5,7 @@
 // tell at a glance which one you are looking at. v14 also described behaviour that no longer
 // exists ("fill-screen portrait" was the automatic quarter-turn, now removed), so it was
 // actively misleading while debugging exactly that.
-export const BUILD = "v37 · Clear picture, true touch, exact text, resilient sessions";
+export const BUILD = "v38 · Precise control, fluent typing, calm workspace";
 
 export interface ServerStatus {
   name: string;
@@ -29,6 +29,8 @@ export interface Hello {
   fps: number;
   paused: boolean;
   cursor: boolean;
+  /** The picture already contains the compositor's real cursor. */
+  cursorEmbedded?: boolean;
   monitors?: MonitorInfo[];
   monitor?: number;
   input?: { ready: boolean; backend: string; error?: string };

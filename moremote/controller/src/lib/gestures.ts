@@ -6,6 +6,7 @@ export interface GestureCallbacks {
   /** A real double-click, injected by the agent with a controlled 40ms gap. */
   dblclick: (nx: number, ny: number) => void;
   moveCursor: (nx: number, ny: number) => void; // absolute move
+  moveRelative?: (dx: number, dy: number) => void;
   dragStart: (nx: number, ny: number) => void;
   dragMove: (nx: number, ny: number) => void;
   dragEnd: (nx: number, ny: number) => void;
@@ -25,9 +26,11 @@ export interface GestureCallbacks {
    * desktop), so the zoom shortcut takes two fingers, which nothing else on the canvas uses.
    */
   zoomToggleAt?: (clientX: number, clientY: number) => void;
+  /** Close the first two-finger tap's context menu before the local zoom shortcut. */
+  dismissContext?: () => void;
 }
 
-interface Ptr { id: number; x: number; y: number; sx: number; sy: number; st: number; }
+interface Ptr { id: number; x: number; y: number; sx: number; sy: number; st: number; travel: number; }
 
 // Touch slop: how far a finger may travel and still be a tap rather than a swipe.
 //
@@ -95,6 +98,7 @@ export class GestureController {
   private pointers = new Map<number, Ptr>();
   private mode: GestureMode = "touch";
 
+  private qRelative: {dx: number; dy: number} | null = null;
   private phase: "idle" | "down" | "held" | "scroll" | "drag" | "move" = "idle";
   private longTimer: number | null = null;
   /**
@@ -119,7 +123,7 @@ export class GestureController {
 
   // The previous tap, for double-tap recognition. Position is kept in BOTH spaces: screen pixels
   // to judge whether the two taps were aimed at the same thing, normalized to place the click.
-  private lastTapAt = 0;
+  private lastTapAt = -Infinity;
   private lastTapCX = 0;
   private lastTapCY = 0;
   private lastTapNx = 0.5;
@@ -130,7 +134,10 @@ export class GestureController {
   private two = false;
   private twoMode: "undecided" | "moved" = "undecided";
   private twoStart = 0;
-  private twoSpread = 0;
+  private twoStartDist = 0;
+  private twoStartCx = 0;
+  private twoStartCy = 0;
+  private twoPinching = false;
   private lastCx = 0;
   private lastCy = 0;
   private lastDist = 0;
@@ -140,6 +147,7 @@ export class GestureController {
   private qMove: { nx: number; ny: number; drag: boolean } | null = null;
   private qScrollX = 0;
   private qScrollY = 0;
+  private qTwo = false;
 
   // Momentum: a smoothed velocity while two fingers are panning, and the glide that follows.
   private vx = 0;
@@ -147,7 +155,9 @@ export class GestureController {
   private lastMoveAt = 0;
   private glide = 0;
   /** When the last two-finger tap ended, for the double-tap-to-zoom shortcut. */
-  private lastTwoTapAt = 0;
+  private lastTwoTapAt = -Infinity;
+  private lastTwoTapCx = 0;
+  private lastTwoTapCy = 0;
 
   constructor(
     private el: HTMLElement,
@@ -167,12 +177,17 @@ export class GestureController {
      * hit-testing, pinch) is unaffected and deliberately does not consult this.
      */
     private isRotated: () => boolean = () => false,
+    /** Relative control needs the real cursor visible in the stream. */
+    private relativeTrackpad: () => boolean = () => false,
   ) {
     el.addEventListener("pointerdown", this.onDown, { passive: false });
     el.addEventListener("pointermove", this.onMove, { passive: false });
     el.addEventListener("pointerup", this.onUp, { passive: false });
     el.addEventListener("pointercancel", this.onCancel, { passive: false });
+    el.addEventListener("lostpointercapture", this.onLostCapture);
     el.addEventListener("contextmenu", this.prevent, { passive: false });
+    window.addEventListener("blur", this.cancelAll);
+    document.addEventListener("visibilitychange", this.onVisibility);
   }
 
   setMode(m: GestureMode) {
@@ -190,13 +205,21 @@ export class GestureController {
     this.el.removeEventListener("pointermove", this.onMove);
     this.el.removeEventListener("pointerup", this.onUp);
     this.el.removeEventListener("pointercancel", this.onCancel);
+    this.el.removeEventListener("lostpointercapture", this.onLostCapture);
     this.el.removeEventListener("contextmenu", this.prevent);
-    for (const id of this.pointers.keys()) { try { this.el.releasePointerCapture?.(id); } catch { /* */ } }
+    window.removeEventListener("blur", this.cancelAll);
+    document.removeEventListener("visibilitychange", this.onVisibility);
     this.endAll();   // tearing down mid-drag must still release the button
     if (this.raf) cancelAnimationFrame(this.raf);
   }
 
   private prevent = (e: Event) => e.preventDefault();
+  /** Also used by the owner when input is disabled or the connection is lost. */
+  cancelAll = () => this.endAll();
+  private onVisibility = () => { if (document.hidden) this.cancelAll(); };
+  private onLostCapture = (e: PointerEvent) => {
+    if (this.pointers.has(e.pointerId)) this.cancelAll();
+  };
 
   /**
    * In "desktop" mode a real mouse is driving, and lib/desktop.ts handles it from the mouse events.
@@ -212,11 +235,11 @@ export class GestureController {
     this.stopGlide();   // a finger on the glass always outranks the glide it is interrupting
     try { this.el.setPointerCapture(e.pointerId); } catch { /* */ }
     this.pointers.set(e.pointerId, {
-      id: e.pointerId, x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, st: now(),
+      id: e.pointerId, x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, st: now(), travel: 0,
     });
 
+    if (this.two) { this.twoMode = "moved"; return; }
     if (this.pointers.size === 2) { this.beginTwo(); return; }
-    if (this.pointers.size > 2) return;
 
     this.cancelLong();
     this.phase = "down";
@@ -250,9 +273,16 @@ export class GestureController {
     if (!p) return;
     e.preventDefault();
     p.x = e.clientX; p.y = e.clientY;
+    p.travel = Math.max(p.travel, dist(p.x, p.y, p.sx, p.sy));
 
-    if (this.two && this.pointers.size >= 2) { this.moveTwo(); return; }
+    if (this.two) {
+      if (this.pointers.size >= 2) { this.qTwo = true; this.scheduleFlush(); }
+      else if (dist(p.x, p.y, p.sx, p.sy) > MOVE_THRESHOLD) this.twoMode = "moved";
+      return;
+    }
     if (this.pointers.size !== 1) return;
+    // A direct drag may clamp after leaving the picture, but may never start in the letterbox.
+    if (this.outside && this.mode === "direct") return;
 
     const dx = p.x - this.lastX;
     const dy = p.y - this.lastY;
@@ -270,7 +300,7 @@ export class GestureController {
         const s = this.toNorm(p.sx, p.sy);
         this.moveTo(s.x, s.y, false);
         this.cb.dragStart(s.x, s.y);
-        this.lastTapAt = 0;   // a tap that became a drag cannot start a double-click
+        this.lastTapAt = -Infinity;   // a tap that became a drag cannot start a double-click
       } else if (this.mode === "trackpad") {
         this.phase = "move";
       } else {
@@ -282,6 +312,15 @@ export class GestureController {
 
     this.lastX = p.x; this.lastY = p.y;
 
+    if (this.mode === "trackpad" && this.relativeTrackpad() && this.cb.moveRelative &&
+        (this.phase === "drag" || this.phase === "move")) {
+      const d = rotateDelta(dx, dy, this.isRotated());
+      const gain = TRACKPAD_GAIN * this.getSensitivity();
+      this.qRelative = {dx: (this.qRelative?.dx ?? 0) + d.dx * gain,
+        dy: (this.qRelative?.dy ?? 0) + d.dy * gain};
+      this.scheduleFlush();
+      return;
+    }
     if (this.phase === "drag") {
       const t = this.mode === "trackpad" ? this.nudge(dx, dy) : this.toNorm(p.x, p.y);
       this.queueMove(t.x, t.y, true);
@@ -310,29 +349,25 @@ export class GestureController {
    * emit nothing else.
    */
   private onCancel = (e: PointerEvent) => {
-    if (this.inert) return;
+    if (this.inert || !this.pointers.has(e.pointerId)) return;
     e.preventDefault();
-    this.pointers.delete(e.pointerId);
-    try { this.el.releasePointerCapture?.(e.pointerId); } catch { /* */ }
-    this.cancelLong();
-    this.flush();
-    this.stopGlide();
-    this.vx = this.vy = 0;
-    if (this.phase === "drag") this.cb.dragEnd(this.cx, this.cy);
-    if (this.pointers.size < 2) this.two = false;
-    this.outside = false;
-    this.phase = "idle";
+    this.cancelAll();
   };
 
   // ---------------- up ----------------
   private onUp = (e: PointerEvent) => {
     if (this.inert) return;
     const p = this.pointers.get(e.pointerId);
+    if (!p) return;
+    e.preventDefault();
+    // pointerup can carry a final position with no preceding pointermove.
+    if (p.x !== e.clientX || p.y !== e.clientY) this.onMove(e);
+    this.flush();
     this.pointers.delete(e.pointerId);
     try { this.el.releasePointerCapture?.(e.pointerId); } catch { /* */ }
 
     if (this.two) {
-      if (this.pointers.size < 2) {
+      if (this.pointers.size === 0) {
         // TWO-FINGER TAP = RIGHT CLICK, which was missing entirely.
         //
         // Right-click was only reachable by resting a finger for 500ms. That is slow, it is
@@ -348,14 +383,18 @@ export class GestureController {
           // context menu on top of it would be actively wrong (the menu would eat the zoom), so the
           // pair is resolved here rather than by delaying every right-click to wait for a partner.
           const t = now();
-          if (t - this.lastTwoTapAt < TWO_TAP_MS && this.cb.zoomToggleAt) {
-            this.lastTwoTapAt = 0;
-            // Dismiss the context menu the first tap opened, then zoom where the fingers were.
-            this.cb.click("left", this.cx, this.cy);
+          if (t - this.lastTwoTapAt < TWO_TAP_MS
+              && dist(this.lastCx, this.lastCy, this.lastTwoTapCx, this.lastTwoTapCy) < DOUBLE_TAP_PX
+              && this.cb.zoomToggleAt) {
+            this.lastTwoTapAt = -Infinity;
+            // Zoom is local view navigation; never send a synthetic left click that could select
+            // an item in the context menu opened by the first tap.
+            this.cb.dismissContext?.();
             this.cb.zoomToggleAt(this.lastCx, this.lastCy);
             this.cb.haptic?.();
           } else {
             this.lastTwoTapAt = t;
+            this.lastTwoTapCx = this.lastCx; this.lastTwoTapCy = this.lastCy;
             this.cb.click("right", this.cx, this.cy);
             this.cb.haptic?.();
           }
@@ -365,7 +404,6 @@ export class GestureController {
       }
       return;
     }
-    if (!p) return;
     this.cancelLong();
     this.flush(); // never let a queued move land after the button event
 
@@ -380,7 +418,7 @@ export class GestureController {
         break;
       case "held":
         this.cb.click("right", this.cx, this.cy);
-        this.lastTapAt = 0;
+        this.lastTapAt = -Infinity;
         break;
       case "down": {
         // A plain tap. Two taps in a row are a DOUBLE-CLICK, but the FIRST tap was already sent
@@ -402,9 +440,11 @@ export class GestureController {
           const near = dist(p.sx, p.sy, this.lastTapCX, this.lastTapCY) < DOUBLE_TAP_PX;
           if (now() - this.lastTapAt < DOUBLE_TAP_MS && near) {
             // The FIRST tap's point: it is the one the user aimed, before any wobble.
+            if (!(this.mode === "trackpad" && this.relativeTrackpad()))
+              this.moveTo(this.lastTapNx, this.lastTapNy, false);
             this.cb.click("left", this.lastTapNx, this.lastTapNy);
             this.cb.haptic?.();
-            this.lastTapAt = 0;           // a triple tap is not two double-clicks
+            this.lastTapAt = -Infinity;   // a triple tap is not two double-clicks
           } else {
             this.cb.click("left", this.cx, this.cy);
             this.lastTapAt = now();
@@ -416,6 +456,7 @@ export class GestureController {
       }
       case "scroll":
       case "move": {
+        this.lastTapAt = -Infinity;
         // THE LATE COMMIT, and the reason a tap can no longer vanish.
         //
         // Deciding what a gesture is on its first movement means deciding before the evidence is in.
@@ -425,8 +466,7 @@ export class GestureController {
         //
         // Safe against double-firing because the scroll deltas that went out for a movement this
         // small are a pixel or two — below anything a person can see, let alone intend.
-        const travelled = dist(p.x, p.y, p.sx, p.sy);
-        if (now() - p.st < TAP_RESCUE_MS && travelled < TAP_RESCUE_PX) {
+        if (this.mode !== "trackpad" && now() - p.st < TAP_RESCUE_MS && p.travel < TAP_RESCUE_PX) {
           const s = this.toNorm(p.sx, p.sy);   // where the finger LANDED, not where it drifted to
           this.moveTo(s.x, s.y, false);
           this.cb.click("left", s.x, s.y);
@@ -440,6 +480,9 @@ export class GestureController {
   // ---------------- two fingers ----------------
   private beginTwo() {
     this.cancelLong();
+    this.flush(); // preserve move-before-release ordering when a second finger interrupts a drag
+    this.lastTapAt = -Infinity;
+    const interrupted = this.phase === "drag" || this.phase === "move" || this.phase === "scroll";
     this.vx = this.vy = 0;
     this.lastMoveAt = 0;
     // A gesture that turned out to be two-fingered must not leave a button held down.
@@ -448,27 +491,17 @@ export class GestureController {
     this.two = true;
     // A fresh two-finger gesture has decided nothing yet. Resetting here and not on release is what
     // makes two pinches in a row each get their own decision.
-    this.twoMode = "undecided";
-    this.twoSpread = 0;
+    this.twoMode = interrupted ? "moved" : "undecided";
+    this.twoPinching = false;
     this.twoStart = now();
     const [a, b] = [...this.pointers.values()];
     this.lastCx = (a.x + b.x) / 2; this.lastCy = (a.y + b.y) / 2;
     this.lastDist = dist(a.x, a.y, b.x, b.y);
+    this.twoStartDist = this.lastDist;
+    this.twoStartCx = this.lastCx; this.twoStartCy = this.lastCy;
   }
 
-  /**
-   * One two-finger gesture does ONE thing.
-   *
-   * This used to do both on every move: zoom whenever the finger distance changed by more than 0.2%,
-   * and then scroll or pan by the centroid delta unconditionally. Two fingers never travel perfectly
-   * parallel, so 0.2% is satisfied by ordinary human noise — every scroll silently drifted the zoom,
-   * and every pinch also scrolled the remote screen underneath it. Nothing was ever purely one thing.
-   *
-   * Every touch platform resolves this the same way: recognisers compete, one wins, and the losers are
-   * cancelled for the rest of the gesture. So accumulate both signals until one is clearly bigger, then
-   * LATCH it and ignore the other until the fingers lift. Below the decision threshold nothing is
-   * emitted at all, which also removes the jitter that came from acting on the first noisy delta.
-   */
+  /** Process the latest position of both fingers together, once per animation frame. */
   private moveTwo() {
     const pts = [...this.pointers.values()];
     if (pts.length < 2) return;
@@ -490,11 +523,17 @@ export class GestureController {
     // panning the axes the picture OVERFLOWS on and scrolling the remote on the
     // axes that fit. Both can happen in the same frame, which is what a pinch
     // actually is.
-    this.twoSpread += Math.abs(d - this.lastDist);
-    if (this.twoSpread > PINCH_ENGAGE_PX
-        || Math.abs(cx - this.lastCx) + Math.abs(cy - this.lastCy) > 1) this.twoMode = "moved";
+    // Net displacement, not accumulated noise: stationary fingers can jitter indefinitely without
+    // becoming a pinch. Wait for real intent so a two-finger tap does not scroll the context target.
+    const spread = Math.abs(d - this.twoStartDist);
+    if (spread > PINCH_ENGAGE_PX) this.twoPinching = true;
+    if (this.twoMode === "undecided") {
+      if (!this.twoPinching && dist(cx, cy, this.twoStartCx, this.twoStartCy) <= MOVE_THRESHOLD) return;
+      this.twoMode = "moved";
+      this.lastTwoTapAt = -Infinity;
+    }
 
-    if (this.twoSpread > PINCH_ENGAGE_PX && this.lastDist > 0 && d > 0) {
+    if (this.twoPinching && this.lastDist > 0 && d > 0) {
       const factor = d / this.lastDist;
       if (Math.abs(factor - 1) > 0.004) this.cb.zoomAt(factor, cx, cy);
     }
@@ -518,9 +557,11 @@ export class GestureController {
       }
       // Scrolling means "move the content on the DESKTOP", so it turns with the
       // picture; panning above moves the drawn box on THIS screen and does not.
-      const sd = rotateDelta(dcx, dcy, this.isRotated());
-      if (!pan.x) { this.qScrollX += sd.dx; scrolled = true; }
-      if (!pan.y) { this.qScrollY += sd.dy; scrolled = true; }
+      // Overflow is in screen space. Mask there BEFORE rotating to desktop space, otherwise a
+      // turned view scrolls the overflowing axis and discards the axis that actually fits.
+      const sd = rotateDelta(pan.x ? 0 : dcx, pan.y ? 0 : dcy, this.isRotated());
+      this.qScrollX += sd.dx; this.qScrollY += sd.dy;
+      scrolled = sd.dx !== 0 || sd.dy !== 0;
       if (scrolled) this.scheduleFlush();
     }
     this.lastCx = cx; this.lastCy = cy; this.lastDist = d;
@@ -549,9 +590,16 @@ export class GestureController {
     let vx = clampV(this.vx), vy = clampV(this.vy);
     this.vx = this.vy = 0;
     if (Math.hypot(vx, vy) < MIN_FLING_V) return;
+    let lastFrame = now();
     const step = () => {
-      this.cb.panBy(vx, vy);
-      vx *= PAN_DECAY; vy *= PAN_DECAY;
+      const t = now();
+      const frames = Math.max(0, Math.min(32, t - lastFrame)) / 16.67;
+      lastFrame = t;
+      const decay = PAN_DECAY ** frames;
+      // Integrate the same decay at 60, 90 and 120 Hz; high-refresh phones must not fling twice as fast.
+      const travel = (1 - decay) / (1 - PAN_DECAY);
+      this.cb.panBy(vx * travel, vy * travel);
+      vx *= decay; vy *= decay;
       if (Math.hypot(vx, vy) < MIN_FLING_V) { this.glide = 0; return; }
       this.glide = requestAnimationFrame(step);
     };
@@ -609,6 +657,11 @@ export class GestureController {
 
   private flush() {
     if (this.raf) { cancelAnimationFrame(this.raf); this.raf = 0; }
+    if (this.qTwo) { this.qTwo = false; this.moveTwo(); }
+    if (this.qRelative) {
+      const d = this.qRelative; this.qRelative = null;
+      this.cb.moveRelative?.(d.dx, d.dy);
+    }
     if (this.qMove) {
       const m = this.qMove;
       this.qMove = null;
@@ -622,13 +675,19 @@ export class GestureController {
   }
 
   private endAll() {
+    // Discard uncommitted work before releasing. A queued drag/scroll must never escape after
+    // blur, cancellation, a mode switch or disconnection, even if its animation frame still runs.
+    if (this.raf) { cancelAnimationFrame(this.raf); this.raf = 0; }
+    this.qMove = null; this.qRelative = null; this.qScrollX = this.qScrollY = 0; this.qTwo = false;
     if (this.phase === "drag") this.cb.dragEnd(this.cx, this.cy);
     this.outside = false;
-    this.lastTapAt = 0;
-    this.lastTwoTapAt = 0;
+    this.lastTapAt = -Infinity;
+    this.lastTwoTapAt = -Infinity;
     this.phase = "idle";
     this.two = false;
+    const ids = [...this.pointers.keys()];
     this.pointers.clear();
+    for (const id of ids) { try { this.el.releasePointerCapture?.(id); } catch { /* */ } }
     this.cancelLong();
     this.stopGlide();
     this.vx = this.vy = 0;

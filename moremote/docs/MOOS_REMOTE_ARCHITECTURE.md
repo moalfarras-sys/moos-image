@@ -118,3 +118,30 @@ Primary references used for that decision:
 - WebKit safe areas and dynamic viewport units:
   <https://webkit.org/blog/7929/designing-websites-for-iphone-x/> and
   <https://webkit.org/blog/12445/new-webkit-features-in-safari-15-4/>
+
+## v38 input and recovery refinements
+
+`hello.cursorEmbedded` advertises the Linux capture cursor. With that cursor,
+trackpad movement sends coalesced relative deltas and current-position clicks;
+the controller suppresses its synthetic cursor and automatic cursor-centered
+keyboard zoom because the portal does not supply absolute cursor telemetry.
+Older servers retain the absolute-coordinate fallback. Pointer-lock button
+releases remember their press path even if pointer lock ends first.
+
+Gesture cancellation drops queued movement and releases held input. Native IME
+composition and ordinary text use the same Unicode scalar diff. The accepted
+baseline and offline draft remain separate until an authenticated reconnect.
+This does not provide exactly-once delivery of packets lost after socket send:
+there is no server edit acknowledgement protocol. Complex grapheme deletion is
+also target-application-dependent and needs the physical keyboard matrix.
+
+A hidden viewer no longer receives or queues frames just because another viewer
+keeps the encoder alive. Resume waits for a fresh IDR. Input-loop failure closes
+its connection, fragmented UTF-8 is decoded statefully, and pause serializes with
+input execution before releasing held keys. Unauthenticated/view-only disconnects
+do not release another controller's keys. Active controllers still share one
+injector; per-controller ownership is a remaining acceptance item.
+
+Set `MOREMOTE_INPUT_DIAGNOSTICS=1` only for targeted diagnosis; ordinary pointer
+and text packets no longer cause synchronous per-input log writes. See
+[verification and browser test setup](../../docs/REMOTE_V38_VERIFICATION.md).

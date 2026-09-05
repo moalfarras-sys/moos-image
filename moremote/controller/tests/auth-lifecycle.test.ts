@@ -2,13 +2,27 @@ import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {dirname, resolve} from "node:path";
 import {fileURLToPath} from "node:url";
-import {fetchWithTimeout, getStatus} from "../src/lib/api.ts";
+import {fetchWithTimeout, getStatus, resumeTrustedDevice} from "../src/lib/api.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const app = readFileSync(resolve(here, "../src/App.tsx"), "utf8");
 const auth = readFileSync(resolve(here, "../src/ui/AuthScreens.tsx"), "utf8");
 
 const originalFetch = globalThis.fetch;
+try {
+  for (const status of [429, 500, 502, 503]) {
+    globalThis.fetch = async () => new Response('{}', {status});
+    await assert.rejects(resumeTrustedDevice("device", "credential"), /device resume failed/,
+      "a temporary service failure must preserve the trusted-device credential");
+  }
+  for (const status of [401, 403]) {
+    globalThis.fetch = async () => new Response('{}', {status});
+    assert.equal((await resumeTrustedDevice("device", "credential")).ok, false);
+  }
+} finally {
+  globalThis.fetch = originalFetch;
+}
+
 try {
   globalThis.fetch = async () => new Response('{"error":"down"}', {
     status: 503,

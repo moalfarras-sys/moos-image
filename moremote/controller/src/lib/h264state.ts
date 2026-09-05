@@ -35,14 +35,19 @@
  */
 
 const KEY = "h264Failures";
+// Storage can throw in private contexts. The current tab still needs one retry budget shared
+// by the decoder and every replacement WebSocket, even when persistence is unavailable.
+let localFailures = 0;
 
 /** How many times H.264 has failed to decode in this tab. */
 export function h264Failures(): number {
   try {
-    return Number(sessionStorage.getItem(KEY)) || 0;
+    const saved = Number(sessionStorage.getItem(KEY));
+    if (Number.isSafeInteger(saved) && saved >= 0) localFailures = Math.max(localFailures, saved);
   } catch {
-    return 0; // private mode / storage disabled — behave exactly as before.
+    /* the module-local budget still survives reconnects */
   }
+  return localFailures;
 }
 
 /**
@@ -55,10 +60,11 @@ export const H264_MAX_FAILURES = 3;
 /** Record a decode failure and return the new count. */
 export function noteH264Failure(): number {
   const next = h264Failures() + 1;
+  localFailures = next;
   try {
     sessionStorage.setItem(KEY, String(next));
   } catch {
-    /* private mode — the in-memory retry bound in RemoteScreen still applies */
+    /* localFailures is shared by the retry path and the connection handshake */
   }
   return next;
 }

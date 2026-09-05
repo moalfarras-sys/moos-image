@@ -28,7 +28,7 @@ def main() -> None:
     for token in (
         "private reconnectTimer: number | null = null",
         "this.stopReconnect();",
-        "generation === this.generation && !this.closedByUs",
+        "nextGeneration === this.generation && !this.closedByUs",
         "window.clearTimeout(this.reconnectTimer)",
     ):
         if token not in source:

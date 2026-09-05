@@ -5,23 +5,32 @@ import { diffToOps, type Op } from "../src/lib/typing.ts";
 function apply(before: string, ops: Op[]): string {
   // The remote caret sits at the end of what we sent. ArrowLeft/Right move it; Backspace deletes
   // to its left; text inserts at it. That is exactly what the desktop does with these keystrokes.
-  let s = before, caret = before.length;
+  // Qt's Backspace removes a Unicode scalar, including a whole surrogate pair.
+  // A UTF-16-only fake editor hid the production emoji over-delete for months.
+  let s = [...before], caret = s.length;
   for (const op of ops) {
-    if (op.t === "text") { s = s.slice(0, caret) + op.v + s.slice(caret); caret += op.v.length; }
+    if (op.t === "text") {
+      assert.equal(op.v.isWellFormed(), true, "wire text must never contain a lone surrogate");
+      const inserted = [...op.v];
+      s.splice(caret, 0, ...inserted); caret += inserted.length;
+    }
     else if (op.k === "Backspace") {
       const n = Math.min(op.n, caret);
-      s = s.slice(0, caret - n) + s.slice(caret); caret -= n;
+      s.splice(caret - n, n); caret -= n;
     }
     else if (op.k === "ArrowLeft") caret = Math.max(0, caret - op.n);
     else if (op.k === "ArrowRight") caret = Math.min(s.length, caret + op.n);
   }
-  return s;
+  return s.join("");
 }
 
 /** The property that matters: whatever the ops are, replaying them must reach `after`. */
 function roundTrip(before: string, after: string, what: string) {
-  const got = apply(before, diffToOps(before, after));
-  assert.equal(got, after,
+  // Text typed before this phone's current baseline belongs to the user too.
+  // Starting the fake editor empty would clamp an excess Backspace and hide it.
+  const protectedPrefix = "existing text: ";
+  const got = apply(protectedPrefix + before, diffToOps(before, after));
+  assert.equal(got, protectedPrefix + after,
     `${what}: replaying the ops on ${JSON.stringify(before)} gave ${JSON.stringify(got)}, ` +
     `expected ${JSON.stringify(after)}`);
 }
@@ -32,6 +41,16 @@ assert.deepEqual(diffToOps("ab", "abc"), [{ t: "text", v: "c" }], "append sends 
 assert.deepEqual(diffToOps("abc", "ab"), [{ t: "key", k: "Backspace", n: 1 }], "delete sends Backspace");
 roundTrip("", "hello", "typing from empty");
 roundTrip("hello", "", "clearing the field");
+assert.deepEqual(diffToOps("😀", ""), [{ t: "key", k: "Backspace", n: 1 }],
+  "one emoji requires one Backspace, not two UTF-16-unit deletions");
+roundTrip("😀", "", "deleting an emoji preserves text preceding the phone baseline");
+roundTrip("go😀", "go", "deleting an emoji preserves the word before it");
+roundTrip("😀", "😃", "replacing an emoji sharing its high surrogate");
+roundTrip("𝔸", "𝔹", "non-BMP mathematical letters keep complete scalar boundaries");
+roundTrip("a😀!", "b😀!", "a non-ASCII shared suffix is rewritten without cursor assumptions");
+roundTrip("a e\u0301", "b e\u0301", "combining-mark suffix avoids ambiguous arrow movement");
+assert.ok(diffToOps("a e\u0301", "b e\u0301").every(op => op.t !== "key" || !op.k.startsWith("Arrow")),
+  "a combining sequence must never be traversed using codepoint-counted arrows");
 
 // ── THE TWO COMPOSITION BUGS THIS MODULE EXISTS TO FIX ────────────────────────────────────
 // onCompositionEnd used to do `after.startsWith(before) ? after.slice(before.length) : e.data`,

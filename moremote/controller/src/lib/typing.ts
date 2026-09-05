@@ -37,14 +37,15 @@ export type Op =
   | { t: "key"; k: string; n: number };
 
 /**
- * The characters whose presence makes caret-relative movement unsafe.
+ * Text for which caret-relative movement has an unambiguous one-key/one-character mapping.
  *
  * Arrow keys move the caret VISUALLY, not logically: Qt's default LogicalMoveStyle reverses the
  * mapping inside an RTL run, so ArrowLeft walks FORWARD through Arabic. Stepping back over a
  * shared suffix with it would delete that suffix instead of the differing middle and drop the
  * replacement at the end — re-scrambling the very text the replace path exists to repair.
+ * Emoji and combining sequences have further application-specific cursor boundaries.
  */
-const BIDI = /[֐-ࣿיִ-﷿ﹰ-﻿]/;
+const SIMPLE_CARET = /^[\x20-\x7e]*$/;
 
 /**
  * What to send so the remote field goes from `before` to `after`.
@@ -54,6 +55,12 @@ const BIDI = /[֐-ࣿיִ-﷿ﹰ-﻿]/;
 export function diffToOps(before: string, after: string): Op[] {
   if (before === after) return [];
 
+  // A UTF-16 code unit is not a key press: 😀 occupies two units but one Backspace
+  // removes it. Comparing units also treats the shared high surrogate of 😀/😃 as
+  // a common prefix and sends a lone low surrogate as replacement text. Keep every
+  // boundary and repeat count on Unicode scalar values instead.
+  const oldChars = Array.from(before), newChars = Array.from(after);
+
   // Pure append — the overwhelmingly common case, and the cheapest.
   if (after.length > before.length && after.startsWith(before)) {
     return [{ t: "text", v: after.slice(before.length) }];
@@ -61,7 +68,7 @@ export function diffToOps(before: string, after: string): Op[] {
 
   // Pure delete from the end.
   if (after.length < before.length && before.startsWith(after)) {
-    return [{ t: "key", k: "Backspace", n: before.length - after.length }];
+    return [{ t: "key", k: "Backspace", n: oldChars.length - newChars.length }];
   }
 
   // Replaced (autocorrect / IME rewrite). Deleting the WHOLE line and retyping it turned one
@@ -69,17 +76,18 @@ export function diffToOps(before: string, after: string): Op[] {
   // Autocorrect rewrites one word: keep the common prefix AND suffix, delete only the differing
   // middle, retype it.
   let p = 0;
-  const max = Math.min(before.length, after.length);
-  while (p < max && before[p] === after[p]) p++;
+  const max = Math.min(oldChars.length, newChars.length);
+  while (p < max && oldChars[p] === newChars[p]) p++;
   let sf = 0;
-  while (sf < max - p && before[before.length - 1 - sf] === after[after.length - 1 - sf]) sf++;
+  while (sf < max - p && oldChars[oldChars.length - 1 - sf] === newChars[newChars.length - 1 - sf]) sf++;
 
   // Only sf === 0 needs no walk at all, so when the rewrite carries a shared suffix in
   // bidirectional text, rewrite the whole tail instead: more keystrokes, but every one of them is
-  // direction-independent. See BIDI above for why the walk cannot be trusted there.
-  const walk = sf > 0 && !BIDI.test(before + after);
-  const removed = walk ? before.length - p - sf : before.length - p;
-  const middle = walk ? after.slice(p, after.length - sf) : after.slice(p);
+  // direction-independent. Combining sequences also make cursor steps differ from
+  // codepoint counts, so reserve this optimization for plain printable ASCII.
+  const walk = sf > 0 && SIMPLE_CARET.test(before + after);
+  const removed = oldChars.length - p - (walk ? sf : 0);
+  const middle = newChars.slice(p, walk ? newChars.length - sf : undefined).join("");
 
   const ops: Op[] = [];
   // The remote caret sits at the end of what we sent; step over the shared suffix, delete the
