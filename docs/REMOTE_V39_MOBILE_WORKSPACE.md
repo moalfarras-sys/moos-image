@@ -64,8 +64,10 @@ production-bundle browser run also passed using the active service as its static
 asset source, with API/WebSocket traffic intercepted. The owner then confirmed
 that the typing bar stays above the keyboard on their physical phone in both
 portrait and landscape. This does not cover the complete Safari/Android matrix
-or weak cellular connections. Full ARM
-image validation/publication status will be recorded after the build finishes.
+or weak cellular connections. Full native ARM image build and bootc container lint passed. The final built
+image `c39840054b30` was opened to compare the controller and portal bytes against
+the tested sources and verify the wired AppStream service. Registry publication
+and post-update boot verification are separate steps.
 
 ## Local deployment and recovery
 
