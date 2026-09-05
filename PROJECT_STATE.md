@@ -8,6 +8,24 @@ Last reconciled: **2026-09-03 (exact-frame release proof)** — latest source
 branch, signed CI artifacts, exact mapped-window evidence, and live host checks
 on `moos-arm-oracle`.
 
+### Mo PC Remote v39 — phone workspace (2026-09-05)
+
+The local Remote deployment now serves the Liquid Glass controller with clearer
+button plates, constrained sheets, Arabic editing shortcuts and explicit clipboard
+directions. Phone clipboard reads produce an editable draft, with manual paste on
+permission failure. Sheets follow the visual viewport above the phone keyboard;
+the typing bar follows without a second delayed animation. RTL side rails fade in
+place so rotation cannot translate them into the desktop. Closed keyboard controls
+are inert while opening still focuses synchronously from the phone tap.
+
+Source/bundle tests and rendered evidence, local rollback paths, official product
+references and branch-preservation findings are recorded in
+[`docs/REMOTE_V39_MOBILE_WORKSPACE.md`](docs/REMOTE_V39_MOBILE_WORKSPACE.md).
+The owner confirmed typing-bar visibility above their phone keyboard in both
+orientations. The wider iOS/Android keyboard matrix and cellular performance remain
+physical-device gates.
+The local deployment keeps the previous app and signed OS deployment recoverable.
+
 ### Oracle expansion and Remote Arabic repair (2026-09-05)
 
 The live Frankfurt A1 boot disk is now 200 GiB, with about 155–156 GiB available.

@@ -32,6 +32,12 @@ theme layer. Order matters:
 
 ## Remote v38 acceptance
 
+v39 extends this work with Liquid Glass phone controls, viewport-aware sheets,
+explicit clipboard directions and RTL rail/keyboard geometry repairs. Evidence
+and deployment status: [mobile workspace](docs/REMOTE_V39_MOBILE_WORKSPACE.md).
+The owner confirmed keyboard/bar visibility on their phone in both orientations;
+browser viewport emulation does not close the wider physical-device gate below.
+
 - [x] Local ARM agent/controller built and activated with previous binary retained.
 - [x] Real Wayland capture, Arabic/emoji readback, click and relative motion in a
   dedicated focused test window; browser portrait/landscape/desktop input checks.
