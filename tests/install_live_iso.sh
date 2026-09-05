@@ -368,6 +368,15 @@ chcon -h system_u:object_r:admin_home_t:s0 "$root_home" 2>/dev/null || true
 chcon -R -h system_u:object_r:ssh_home_t:s0 "$root_home/.ssh" 2>/dev/null || true
 printf 'injection: rootkey=%s\n' \
     "$([ -s "$root_home/.ssh/authorized_keys" ] && echo present || echo MISSING)"
+# The offline install deployed by the embedded image's :latest tag ref, but
+# the installed gate and promote-x86 require the deployed origin to name the
+# exact verified digest — the state the qcow2 path always carries. Re-arm it
+# like moos-install-to-disk's own signed-origin re-arm, pinned to the digest.
+origin_file="$deployment.origin"
+[ -f "$origin_file" ]
+sed -i "s|^container-image-reference=.*|container-image-reference=ostree-image-signed:docker://${expected}|" "$origin_file"
+grep -Fx "container-image-reference=ostree-image-signed:docker://${expected}" "$origin_file" >/dev/null
+printf 'injection: origin-pinned=yes\n'
 wants="$deployment/etc/systemd/system/multi-user.target.wants"
 install -d -m0755 "$wants"
 ln -s /usr/lib/systemd/system/moos-ci-runtime-proof.service \
