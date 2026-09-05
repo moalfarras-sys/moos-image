@@ -733,12 +733,20 @@ first = gate_until(runtime, [expected], 1000, "installed first boot never became
 # A fresh install can start plasmalogin before AccountsService publishes the
 # first user, leaving the greeter on wallpaper-only — the exact state
 # moos-firstboot's synchronous CacheUser defends against (its comment), which
-# run 33935553129's login capture showed live. Root restarts the greeter so
-# it re-reads the populated model; --no-block because a plain restart waits
-# for the full graphical teardown and can outlive the 60s ssh window
-# (run 33938418461).
-gate_until("systemctl --no-block restart plasmalogin.service && sleep 10", [], 120,
-           "plasmalogin restart failed")
+# run 33935553129's login capture showed live, and a bare greeter restart did
+# not clear (run 33940385748's capture). Inspect AccountsService, re-cache the
+# user explicitly, then restart the greeter so it re-reads the model.
+probes = (
+    "echo '=== accounts ===';"
+    "systemctl is-active accounts-daemon.service 2>&1;"
+    "ls -la /var/lib/AccountsService/users/ 2>&1;"
+    "busctl call org.freedesktop.Accounts /org/freedesktop/Accounts "
+    "org.freedesktop.Accounts CacheUser s moosci 2>&1;"
+    "busctl call org.freedesktop.Accounts /org/freedesktop/Accounts "
+    "org.freedesktop.Accounts FindUserByName s moosci 2>&1;"
+    "systemctl --no-block restart plasmalogin.service; sleep 10"
+)
+gate_until(probes, [], 120, "AccountsService probe/repair failed")
 
 # Wake Plasma Login Manager's idle clock page and capture the actual password
 # surface before interaction. Only a lowercase/digit disposable password is used,
