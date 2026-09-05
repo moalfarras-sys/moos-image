@@ -354,6 +354,20 @@ chown -R 1000:1000 "$proof_home"
 # target's TE policy checks; verified against matchpathcon on a live MoOS.
 chcon -h system_u:object_r:user_home_dir_t:s0 "$proof_home" 2>/dev/null || true
 chcon -R -h system_u:object_r:ssh_home_t:s0 "$proof_home/.ssh" 2>/dev/null || true
+# The SSH gate runs as ROOT: plain users cannot traverse /sysroot on the
+# bootc-installed target (run 33929055023 — moosci's origin read died with
+# EACCES while every other check passed), and root's key login is the
+# documented allowed path (PermitRootLogin prohibit-password). root's home is
+# the shared var/roothome; label it exactly as an on-system key would be.
+root_home="$proof_root/ostree/deploy/$stateroot/var/roothome"
+install -d -m0700 "$root_home/.ssh"
+printf '%s\n' "$proof_key" > "$root_home/.ssh/authorized_keys"
+chmod 0600 "$root_home/.ssh/authorized_keys"
+chown -R 0:0 "$root_home"
+chcon -h system_u:object_r:admin_home_t:s0 "$root_home" 2>/dev/null || true
+chcon -R -h system_u:object_r:ssh_home_t:s0 "$root_home/.ssh" 2>/dev/null || true
+printf 'injection: rootkey=%s\n' \
+    "$([ -s "$root_home/.ssh/authorized_keys" ] && echo present || echo MISSING)"
 wants="$deployment/etc/systemd/system/multi-user.target.wants"
 install -d -m0755 "$wants"
 ln -s /usr/lib/systemd/system/moos-ci-runtime-proof.service \
@@ -529,7 +543,7 @@ def ssh_exec(script, args=(), timeout=180):
         "-o", "BatchMode=yes", "-o", "IdentitiesOnly=yes",
         "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null",
         "-o", "LogLevel=ERROR", "-o", "ConnectTimeout=10",
-        "moosci@127.0.0.1", "/usr/bin/bash", "-s", "--", *args,
+        "root@127.0.0.1", "/usr/bin/bash", "-s", "--", *args,
     ]
     completed = subprocess.run(
         command, input=script, text=True, capture_output=True,
@@ -712,9 +726,8 @@ hmp([*(f"sendkey {char}" for char in password), "sendkey ret"])
 
 desktop = r'''
 set -euo pipefail
-user="$(id -un)"
-[ "$user" = moosci ]
-uid="$(id -u)"
+id moosci >/dev/null
+uid="$(id -u moosci)"
 pgrep -u "$uid" -x kwin_wayland
 pgrep -u "$uid" -x plasmashell
 env XDG_RUNTIME_DIR="/run/user/${uid}" \

@@ -41,7 +41,7 @@ required_script = (
     "ci-proof=ephemeral-ssh",
     '"BatchMode=yes"',
     '"IdentitiesOnly=yes"',
-    "moosci@127.0.0.1",
+    "root@127.0.0.1",
     '"mode": "reboot"',
     '"mode": "powerdown"',
     "qemu-img check",
