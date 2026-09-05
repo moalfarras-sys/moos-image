@@ -1435,6 +1435,11 @@ class TestMoOSUI2(unittest.TestCase):
         self.assertIn("Qt.alpha(Kirigami.Theme.textColor, 0.11)", command_card)
         self.assertNotIn("0.025", command_card)
         self.assertNotIn("0.105", command_card)
+        # The hero card must inset its content off its own rounded edge, or the
+        # eyebrow runs into the corner and clips in RTL ("اكتشف" -> "كتشف" at
+        # 150%). MOOS_DESIGN_PLAN.md D01: no clipped RTL labels.
+        self.assertIn("leftPadding: view.space", command_card)
+        self.assertIn("rightPadding: view.space", command_card)
         self.assertIn("Qt.alpha(Kirigami.Theme.highlightColor, 0.24)", command_card)
         setting_card = launcher.split("component SettingCard:", 1)[1]
         self.assertIn("Qt.alpha(Kirigami.Theme.textColor, 0.11)", setting_card)

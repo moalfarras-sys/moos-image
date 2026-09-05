@@ -39,6 +39,11 @@ Branch `fix/system-audit-20260905`.
   **Not yet done:** driving the focus ring with real key presses on a logged-in
   Plasma session (synthetic input into the live shared session was deliberately
   not used) and the signed-image frame.
+  A follow-up in the same rev fixes a real RTL clip found by rendering the
+  launcher at 150% in `plasmawindowed`: the Home `CommandCard` eyebrow ran into
+  the card's rounded corner and lost its leading letter ("اكتشف" → "كتشف");
+  the card now insets its content (`leftPadding`/`rightPadding`), matching
+  `AppTile`. Before/after 150% + 100% frames inspected; gated in `test_moos_ui2.py`.
 
 - **`moos-visual-tier` now publishes a resource `budget`** (P01 / ROADMAP-4
   foundation). The same probe that picks the motion tier now also derives, as a

@@ -2027,6 +2027,14 @@ Item {
         signal activated()
 
         hoverEnabled: true
+        // Inset the content off the card edge. Without this the eyebrow ran
+        // flush into the rounded corner and clipped in RTL — "اكتشف" rendered
+        // as "كتشف" at 150% (docs/MOOS_DESIGN_PLAN.md D01: no clipped RTL
+        // labels). AppTile already insets its own contentItem the same way.
+        leftPadding: view.space4
+        rightPadding: view.space4
+        topPadding: view.space2
+        bottomPadding: view.space2
         Accessible.name: command.title
         Accessible.description: command.eyebrow
         Accessible.role: Accessible.Button
