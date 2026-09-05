@@ -565,7 +565,12 @@ def gate_until(script, args, seconds, label):
     deadline = time.monotonic() + seconds
     last = "not run"
     while time.monotonic() < deadline:
-        code, out, err = ssh_exec(script, args, 60)
+        try:
+            code, out, err = ssh_exec(script, args, 60)
+        except subprocess.TimeoutExpired:
+            last = "ssh call exceeded its 60s window"
+            time.sleep(5)
+            continue
         if code == 0:
             return out
         last = err or out or f"exit {code}"
@@ -729,8 +734,10 @@ first = gate_until(runtime, [expected], 1000, "installed first boot never became
 # first user, leaving the greeter on wallpaper-only — the exact state
 # moos-firstboot's synchronous CacheUser defends against (its comment), which
 # run 33935553129's login capture showed live. Root restarts the greeter so
-# it re-reads the now-populated model before the HMP login.
-gate_until("systemctl restart plasmalogin.service && sleep 8", [], 120,
+# it re-reads the populated model; --no-block because a plain restart waits
+# for the full graphical teardown and can outlive the 60s ssh window
+# (run 33938418461).
+gate_until("systemctl --no-block restart plasmalogin.service && sleep 10", [], 120,
            "plasmalogin restart failed")
 
 # Wake Plasma Login Manager's idle clock page and capture the actual password
@@ -747,16 +754,10 @@ id moosci >/dev/null
 uid="$(id -u moosci)"
 stage() { printf 'desk: %s\n' "$*" >&2; }
 stage "uid=$uid"
-for _ in $(seq 1 120); do
-    pgrep -u "$uid" -x kwin_wayland >/dev/null && break
-    sleep 2
-done
+# Single-shot checks: gate_until re-runs this whole script every few seconds,
+# so no internal waits — a long loop would outlive the 60s ssh window.
 pgrep -u "$uid" -x kwin_wayland || { stage "kwin_wayland not running under moosci"; exit 1; }
 stage kwin-active
-for _ in $(seq 1 120); do
-    pgrep -u "$uid" -x plasmashell >/dev/null && break
-    sleep 2
-done
 pgrep -u "$uid" -x plasmashell || { stage "plasmashell not running under moosci"; exit 1; }
 stage plasmashell-active
 env XDG_RUNTIME_DIR="/run/user/${uid}" \
