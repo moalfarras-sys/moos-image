@@ -463,6 +463,94 @@ class Override(unittest.TestCase):
             self.assertFalse(decision["pinned"])
 
 
+class Budget(unittest.TestCase):
+    """The capability block extends the SAME probe past the compositor.
+
+    moos-visual-tier is the one place that answers "what is this machine"; the
+    tier is only the motion slice. `budget()` derives file-indexing, update
+    fan-out, the Mo AI default route and the Remote software-encode ceiling from
+    the same facts, so a consumer reads one answer instead of re-deriving "weak
+    or streamed box" with its own thresholds. It is advisory — this tool never
+    writes baloofilerc, moai config or the Remote encoder.
+    """
+
+    def budget_of(self, build) -> tuple[str, dict, dict]:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            build(FakeMachine(root))
+            module = load_module(root)
+            facts = module.probe()
+            tier, _ = module.classify(facts)
+            return tier, facts, module.budget(facts, tier)
+
+    def test_the_maintainers_desktop_gets_the_full_budget(self) -> None:
+        tier, _, b = self.budget_of(lambda m: m
+                                    .gpu("card1", "nvidia").render_node()
+                                    .cpu(16).memory(15.4).display(3840, 2160))
+        self.assertEqual(tier, "flagship")
+        self.assertEqual(b, {
+            "file_indexing": "content",
+            "update_concurrency": 4,
+            "ai_default": "local",
+            "remote_encode": "1920x1080@60",
+        })
+
+    def test_oracle_a1_gets_the_minimal_budget(self) -> None:
+        """virtual GPU, 2 cores, 11.6 GiB — the live moos-arm-oracle shape."""
+        tier, _, b = self.budget_of(lambda m: m
+                                    .gpu("card0", "virtio-pci")
+                                    .gpu("card1", "faux_driver").render_node()
+                                    .cpu(2).memory(11.6).display(1920, 1080))
+        self.assertEqual(tier, "essential")
+        self.assertEqual(b["file_indexing"], "off")
+        self.assertEqual(b["update_concurrency"], 1)
+        self.assertEqual(b["ai_default"], "cloud")
+        self.assertEqual(b["remote_encode"], "1280x720@30")
+
+    def test_a_streamed_box_never_defaults_mo_ai_to_a_local_model(self) -> None:
+        """No GPU render node -> no local model default, whatever the cores/RAM."""
+        _, _, b = self.budget_of(lambda m: m.cpu(32).memory(64))
+        self.assertEqual(b["ai_default"], "cloud",
+                         "a local model on llvmpipe is exactly the trap the "
+                         "tier table already refuses for blur")
+        self.assertEqual(b["remote_encode"], "1280x720@30")
+
+    def test_a_capable_essential_laptop_indexes_filenames_not_content(self) -> None:
+        """Real integrated GPU but small: essential tier, but not a 2-core VM."""
+        tier, _, b = self.budget_of(lambda m: m
+                                    .gpu("card0", "i915").render_node()
+                                    .cpu(2).memory(4).display(1920, 1080))
+        self.assertEqual(tier, "essential")  # < 4 cores
+        self.assertEqual(b["file_indexing"], "filenames",
+                         "only a tiny STREAMED box turns indexing off entirely")
+
+    def test_the_budget_is_a_pure_function_of_facts_and_tier(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            FakeMachine(root).gpu("card1", "nvidia").render_node().cpu(12).memory(16)
+            module = load_module(root)
+            facts = module.probe()
+            first = module.budget(facts, "balanced")
+            second = module.budget(dict(facts), "balanced")
+            self.assertEqual(first, second)
+            # A different tier on the same facts may legitimately differ.
+            self.assertNotEqual(module.budget(facts, "essential")["remote_encode"],
+                                module.budget(facts, "flagship")["remote_encode"])
+
+    def test_resolve_and_apply_carry_the_budget(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            FakeMachine(root).gpu("card1", "nvidia").render_node().cpu(16).memory(15.4)
+            os.environ["MOOS_TIER_CONFIG_HOME"] = str(root / "config")
+            os.environ["MOOS_TIER_STATE_HOME"] = str(root / "state")
+            module = load_module(root)
+            decision = module.resolve()
+            self.assertIn("budget", decision)
+            applied = module.apply(decision["tier"], dry_run=True,
+                                   machine_budget=decision["budget"])
+            self.assertEqual(applied["budget"], decision["budget"])
+
+
 def tearDownModule() -> None:
     for key in ("MOOS_TIER_ROOT", "MOOS_TIER_STATE_HOME", "MOOS_TIER_CONFIG_HOME"):
         os.environ.pop(key, None)

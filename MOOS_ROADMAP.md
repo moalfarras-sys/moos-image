@@ -24,7 +24,11 @@ theme layer. Order matters:
 4. **Adaptive performance for everyone:** extend `moos-visual-tier` from motion
    policy into a broader local resource policy: compositor cost, indexing,
    update concurrency, AI defaults and Remote encoding based on real capability,
-   not product names.
+   not product names. *Progress:* `moos-visual-tier` now publishes an advisory
+   `budget` block (file_indexing / update_concurrency / ai_default /
+   remote_encode) from the same probe, in `--json` and the state file. Still
+   open: the consumers (baloo, `moai-do`, the Remote encoder) reading it under
+   their own owners, and the P01 before/after workload measurement.
 5. **Artifact proof before promotion:** x86 generic, NVIDIA, cloud and ARM must
    each have exact digest boot evidence. A beautiful source tree is not a
    release until the artifact has booted, logged in, smoked apps, rebooted and

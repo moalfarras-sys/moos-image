@@ -40,6 +40,19 @@ Branch `fix/system-audit-20260905`.
   Plasma session (synthetic input into the live shared session was deliberately
   not used) and the signed-image frame.
 
+- **`moos-visual-tier` now publishes a resource `budget`** (P01 / ROADMAP-4
+  foundation). The same probe that picks the motion tier now also derives, as a
+  pure function of `facts` + `tier`: `file_indexing` (content / filenames /
+  off), `update_concurrency` (1 / 2 / 4), `ai_default` (local / cloud) and
+  `remote_encode` (720p30 / 1080p30 / 1080p60). It is in `--json`, the human
+  summary and the recorded state file. It is **advisory** — visual-tier does not
+  write baloofilerc, moai or Remote config; each consumer reads it under its own
+  owner. Live on `moos-arm-oracle` (virtual, 2 cores): essential →
+  indexing off, 1 update stream, Mo AI cloud, Remote ≤ 720p30. Gated by 6 new
+  `tests/test_moos_visual_tier.py` cases (35 total). **Not yet done:** wiring the
+  consumers (baloo / `moai-do` / Remote encoder) and the P01 before/after
+  workload measurement — those stay open on the plan.
+
 ### Mo PC Remote v39 — phone workspace (2026-09-05)
 
 The local Remote deployment now serves the Liquid Glass controller with clearer
@@ -522,6 +535,11 @@ set it yourself. Wired to boot via `moos-visual-tier.service` (enabled, `graphic
 and called from `moos-apply-theme`. On this machine (nvidia, 16 cores, 15.4 GiB, 4K) it reported
 **Tier: flagship**. This satisfies the "1 GiB RAM → strongest, weakest GPU → flagship" goal: a 1 GiB
 no-GPU box lands on `essential` automatically.
+
+The same probe now also emits an advisory **`budget`** (`--json` + state file): `file_indexing`
+(content/filenames/off), `update_concurrency` (1/2/4), `ai_default` (local/cloud), `remote_encode`
+(720p30/1080p30/1080p60), a pure function of the probed facts + tier. It is not a second writer —
+baloo / `moai-do` / the Remote encoder are meant to read it under their own owners (not wired yet).
 
 KWin effects confirmed enabled: `blur`, `magiclamp` (genie minimize), `scale` (open/close), plus
 `slidingpopups`/`fadingpopups`/`slide`/`dimscreen`/`dialogparent`/`fullscreen`/`overview`/

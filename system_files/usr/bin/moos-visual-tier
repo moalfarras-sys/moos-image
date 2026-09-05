@@ -35,6 +35,13 @@ WHAT IT WILL NOT DO.
 
 Read-only probing, no external commands required: /sys, /proc and /dev only.
 Set MOOS_TIER_ROOT to probe a fake root (the gate does exactly that).
+
+BEYOND MOTION. `budget()` extends the same probe to the other sustained local
+costs — file indexing, update fan-out, the Mo AI default route, the Remote
+software-encode ceiling — and `--json` / the state file carry it as `budget`.
+It is ADVISORY: this tool stays the single authority on "what is this machine",
+but it does not write baloofilerc, moai config or the Remote encoder — each
+consumer reads the budget and applies it under its own owner.
 """
 
 from __future__ import annotations
@@ -318,6 +325,51 @@ BLUR_CEILING = 15
 FLAGSHIP_MEMORY_GIB = 15
 
 
+def budget(facts: dict, tier: str) -> dict:
+    """What this machine can afford BEYOND motion, as advisory capability data.
+
+    moos-visual-tier is the single authority on "what is this machine", and the
+    tier table above is only the compositor's slice of that. This block extends
+    the same probe to the other sustained local costs — file indexing, update
+    fan-out, the Mo AI default route, the Remote software-encode ceiling — so
+    every consumer reads ONE derived answer instead of re-implementing "is this
+    a weak or streamed box" five times with five different thresholds.
+
+    It is ADVISORY. This tool does NOT write baloofilerc, moai config or the
+    Remote encoder settings — each of those has its own owner and its own
+    migration; they read this (`moos-visual-tier --json` -> `budget`, or the
+    recorded state file) and apply it under their own lock. The values are a
+    pure function of `facts` + `tier`, so they can never disagree with the tier
+    the machine is already running.
+    """
+    cores = facts["cores"]
+    memory = facts["memory_gib"]
+    streamed = facts["gpu_class"] in ("software", "virtual")
+
+    return {
+        # baloo content indexing is a sustained CPU+IO cost. A tiny streamed
+        # box should not pay it at all; any essential box indexes names only.
+        "file_indexing": ("off" if streamed and cores <= 2
+                          else "filenames" if tier == "essential"
+                          else "content"),
+        # Parallel streams for `moai-do update` / image pulls. ostree/bootc
+        # fetch is IO-bound; >2 streams on 2 cores just thrash the scheduler.
+        "update_concurrency": 1 if cores <= 2 else 2 if cores < 8 else 4,
+        # Mo AI's PRE-SELECTED route on a fresh machine (still opt-in — this
+        # only moves the default radio). A local model wants real RAM and a
+        # real GPU; below that, default to the cloud route.
+        "ai_default": ("local"
+                       if not streamed and memory >= FLAGSHIP_MEMORY_GIB and cores >= 8
+                       else "cloud"),
+        # Mo PC Remote software-encode ceiling: a host with no GPU encodes
+        # H.264 on the CPU, so cap resolution x fps to keep interacting with
+        # the desktop from starving the encoder. A real GPU lifts the cap.
+        "remote_encode": ("1280x720@30" if streamed
+                          else "1920x1080@30" if tier != "flagship"
+                          else "1920x1080@60"),
+    }
+
+
 def config_home() -> pathlib.Path:
     return pathlib.Path(os.environ.get("MOOS_TIER_CONFIG_HOME")
                         or os.environ.get("XDG_CONFIG_HOME")
@@ -350,9 +402,10 @@ def resolve() -> dict:
     if pinned in TIERS:
         return {"tier": pinned, "detected": detected, "pinned": True,
                 "reasons": [f"pinned to {pinned} with `moos-visual-tier --set`"],
-                "facts": facts}
+                "facts": facts, "budget": budget(facts, pinned)}
     return {"tier": detected, "detected": detected, "pinned": False,
-            "reasons": reasons, "facts": facts}
+            "reasons": reasons, "facts": facts,
+            "budget": budget(facts, detected)}
 
 
 def _kwriteconfig(file: str, group: str, key: str, value: str) -> bool:
@@ -411,8 +464,14 @@ def _kreadconfig(file: str, group: str, key: str) -> str:
         return ""
 
 
-def apply(tier: str, *, dry_run: bool = False) -> dict:
-    """Write the tier's profile. Idempotent, and yields to user edits."""
+def apply(tier: str, *, dry_run: bool = False, machine_budget: dict | None = None) -> dict:
+    """Write the tier's profile. Idempotent, and yields to user edits.
+
+    `machine_budget` (from resolve()) is recorded verbatim in the state file so
+    a consumer — moos-selfcheck, a support bundle, the cloud desktop startup —
+    can read the capability answer without re-probing /sys itself. It is never
+    written to any KConfig file here.
+    """
     profile = PROFILES[tier]
     try:
         previous = json.loads(state_path().read_text(encoding="utf-8"))
@@ -486,6 +545,8 @@ def apply(tier: str, *, dry_run: bool = False) -> dict:
     result = {"tier": tier, "changed": changed, "skipped": skipped,
               "motion": profile["motion"], "motion_written": motion,
               "written": written}
+    if machine_budget is not None:
+        result["budget"] = machine_budget
     if not dry_run:
         try:
             state_path().parent.mkdir(parents=True, exist_ok=True)
@@ -532,6 +593,20 @@ def describe(decision: dict, *, arabic: bool) -> str:
                  f", {facts['render_nodes']} render node(s)")
     if decision["pinned"]:
         lines.append("  · detection is off; run `moos-visual-tier --set auto` to re-enable")
+
+    b = decision.get("budget")
+    if b:
+        idx = {"content": ("فهرسة كاملة", "full content indexing"),
+               "filenames": ("فهرسة الأسماء فقط", "filenames only"),
+               "off": ("بلا فهرسة", "indexing off")}[b["file_indexing"]]
+        lines.append(
+            ("الميزانية: " if arabic else "Budget: ")
+            + (idx[0] if arabic else idx[1])
+            + (f" · تحديثات ×{b['update_concurrency']}" if arabic
+               else f" · {b['update_concurrency']} update stream(s)")
+            + (f" · Mo AI {'محلي' if b['ai_default'] == 'local' else 'سحابي'}"
+               if arabic else f" · Mo AI defaults to {b['ai_default']}")
+            + f" · Remote ≤ {b['remote_encode']}")
     return "\n".join(lines)
 
 
@@ -561,7 +636,8 @@ def main() -> int:
 
     decision = resolve()
     if args.apply:
-        decision["applied"] = apply(decision["tier"], dry_run=args.dry_run)
+        decision["applied"] = apply(decision["tier"], dry_run=args.dry_run,
+                                    machine_budget=decision.get("budget"))
 
     if args.json:
         print(json.dumps(decision, ensure_ascii=False, indent=2))
