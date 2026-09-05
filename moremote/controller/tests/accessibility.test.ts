@@ -30,7 +30,7 @@ assert.ok(!source.includes('<div className="sheet">'),
 
 assert.match(source, /<button\s+type="button"\s+className=\{[\s\S]*?topbar[\s\S]*?aria-expanded=\{!compactBar\}/,
   "connection details must be a keyboard-operable disclosure button");
-assert.match(source, /className="toast"\s+role="status"\s+aria-live="polite"/,
+assert.match(source, /className=\{?"toast"[^>]*?\s+role="status"\s+aria-live="polite"/,
   "transient remote errors and confirmations must be announced politely");
 
 console.log("PASS: remote modal focus, status disclosure, and live announcements");
@@ -65,8 +65,8 @@ console.log("PASS: Reduced Motion is a true static state across the complete PWA
 // overlay position: the streamed stage and every toolbar hit target are disjoint by construction.
 for (const contract of [
   'className="remote-stage"',
-  'className="toolbar-primary" role="toolbar" aria-label="Remote controls"',
-  'aria-label="Show remote controls"',
+  'className="toolbar-primary" role="toolbar" aria-label={tr("remoteControlsAria")}',
+  'aria-label={tr("showRemoteControls")}',
   // The label text is now i18n-resolved at runtime: assert the binding exists
   '>{tr("controls")}</span>',
   'role="status" aria-live="polite"',
@@ -89,10 +89,11 @@ for (const contract of [
   'item.type.startsWith("image/")',
   'await setClipboardImage(token, image)',
   'await setClipboard(token, text)',
-  '<IconSend /> Send &amp; Paste',
-  '<IconClipboard /> Set only',
+  '<IconSend /> {tr("sendPaste")}',
+  '<IconClipboard /> {tr("setOnly")}',
   'role="status" aria-live="polite"><i />{clipboardBusy}',
-  'nothing pasted',
+  // The label text is now i18n-resolved at runtime: assert the failure-toast binding exists
+  'tr("textSendFailedNothingPasted")',
 ]) assert.ok(source.includes(contract), `clipboard UX misses ${contract}`);
 const desktopPaste = source.slice(source.indexOf('const onPaste = async (e: ClipboardEvent)'),
   source.indexOf('window.addEventListener("paste", onPaste)'));
@@ -108,13 +109,16 @@ for (const contract of [
   'descriptionId="power-confirm-description"',
   'initialFocusSelector="#power-confirm-cancel"',
   'id="power-confirm-cancel"',
-  'Unsaved work may be lost.',
+  // The three warning bodies are now i18n-resolved at runtime: assert the bindings exist
+  'tr("shutdownConfirmBody")',
+  'tr("restartConfirmBody")',
+  'tr("sessionEndConfirmBody")',
   'onClick={() => void runPower(powerConfirm)}',
   'if (powerInFlightRef.current) return;',
   'powerInFlightRef.current = true;',
   'dismissible={!powerBusy}',
   'disabled={powerBusy}',
-  '{powerBusy ? "Working…" : powerConfirm.label}',
+  '{powerBusy ? tr("workingEllipsis") : powerConfirm.label}',
 ]) {
   assert.ok(source.includes(contract), `power confirmation misses ${contract}`);
 }

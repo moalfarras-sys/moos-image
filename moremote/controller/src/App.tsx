@@ -49,7 +49,7 @@ export default function App() {
       }
       return setView({ name: "login", lockout: s.locked ? s.lockoutSeconds : 0 });
     } catch {
-      setView({ name: "error", message: "Cannot reach the PC. Is the agent running and Tailscale connected?" });
+      setView({ name: "error", message: tt("cannotReachPc") });
     }
   };
 
@@ -68,7 +68,7 @@ export default function App() {
     } catch {
       // Keep the freshly issued token. Retry runs decide(), and as soon as status is reachable it
       // enters the remote without asking the user to type the PIN a second time.
-      setView({ name: "error", message: "Access was approved, but the PC connection dropped. Reconnect and retry." });
+      setView({ name: "error", message: tt("approvedButDropped") });
     }
   };
 
@@ -104,7 +104,7 @@ export default function App() {
       return (
         <div className="center-msg" style={{ position: "fixed", inset: 0 }} role="status" aria-live="polite">
           <div className="spinner" aria-hidden="true" />
-          <div>Connecting…</div>
+          <div>{tt("connecting")}</div>
         </div>
       );
     case "error":
@@ -112,7 +112,7 @@ export default function App() {
         <div className="center-msg" style={{ position: "fixed", inset: 0 }} role="alert">
           <IconPlug className="error-glyph" />
           <div style={{ maxWidth: 300 }}>{view.message}</div>
-          <button className="btn" onClick={retry}>Retry</button>
+          <button className="btn" onClick={retry}>{tt("retry")}</button>
         </div>
       );
     case "setup":

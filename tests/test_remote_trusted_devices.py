@@ -54,7 +54,8 @@ for token in (
 
 if 'tr("trustDevice")' not in auth:
     errors.append("PIN screens do not ask for explicit trusted-device consent")
-if "trustedDevices?.map" not in screen or "Remove trusted device" not in screen:
+# The revoke label text is now i18n-resolved at runtime: assert the binding exists.
+if "trustedDevices?.map" not in screen or 'tr("removeTrustedDeviceAria")' not in screen:
     errors.append("Settings has no owner-visible device inventory/revocation control")
 if "deviceStore.clear()" not in client_api:
     errors.append("sign out leaves the local long-lived device secret behind")

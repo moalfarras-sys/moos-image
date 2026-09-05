@@ -43,6 +43,39 @@ regression there fails the build; `.github/workflows/build.yml` now also runs bo
 `remote-dotnet-tests` job so that signal lands in about a minute instead of waiting on the
 full (up to 180-minute) image build. See the verification report for the full gate list.
 
+### Mo PC Remote — real-browser visual audit and full Arabic i18n (2026-09-05)
+
+The controller's own dev server was run under a real headless Chromium (Playwright), with
+`window.WebSocket` and `/api/*` faked to drive the actual compiled app through its real states —
+PIN setup/login, the connected desktop view, every bottom-sheet, the power-confirm dialog — at
+phone (iPhone 14 Pro, iPhone SE) and desktop viewports, in both themes and both languages, and
+the resulting screenshots were inspected, not assumed. Evidence lives only in this session's
+scratch directory (not committed); the findings below are what changed.
+
+The audit found the Arabic experience was fake past its own surface: the connection-status pill,
+the reconnect overlay, and — almost entirely — the Files sheet, Clipboard sheet, Power section and
+Security/trusted-devices list rendered in English even with the UI language set to Arabic, despite
+the top-level toolbar and Settings toggles being genuinely translated in an earlier pass. Roughly
+70 strings across `RemoteScreen.tsx`, `AuthScreens.tsx` and `App.tsx` — including the "cannot reach
+the PC" and "connection dropped" error screens, the five power actions and their confirmation
+dialog, every clipboard/file transfer toast, and the default trusted-device names — were moved into
+`i18n.ts` and now resolve through `tr()`. A second, independent defect surfaced in the same pass:
+a toast fired while any bottom sheet was open rendered at its normal fixed position and landed
+mid-card over sheet content (first seen overlapping the scroll-speed slider); `.toast.in-sheet`
+now pins it to the clear top strip every sheet leaves above itself. Both were verified fixed by
+re-rendering the same real-browser screenshots, then confirmed structurally by updating the
+literal-source-text assertions in `accessibility.test.ts`, `auth-lifecycle.test.ts`,
+`test_remote_power_policy.py` and `test_remote_trusted_devices.py` to check for the `tr()` binding
+rather than the now-relocated English string — the same pattern an earlier translation pass had
+already established for one string, extended here to the rest. Full gate suite (controller
+typecheck/tests/audit, rebuilt-bundle tracking, and the ~86 Python repo gates) passes.
+
+The visual language itself — dark glass surfaces with `backdrop-filter` blur, the turquoise/blue
+MoOS accent gradient, restrained opacity over blur per the system's own Liquid Glass doctrine —
+was judged already consistent with the rest of MoOS and was not redesigned. Mouse+keyboard control
+on the desktop viewport and touch/typing on the phone viewport were exercised through this same
+real-render harness and read correctly; no code path was assumed to work without seeing it render.
+
 ### Branch reconciliation (2026-09-02)
 
 All remote refs were fetched and compared by patch and by release contract. The old

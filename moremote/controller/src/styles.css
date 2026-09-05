@@ -864,6 +864,14 @@ button {
   box-shadow: var(--shadow);
   animation: fade-up 0.25s ease both;
 }
+/* A sheet occupies the bottom ~82dvh of the viewport (see .sheet), which swallows the toast's
+ * normal above-the-toolbar spot — a toast fired while Settings/Files/Clipboard/the power confirm
+ * is open used to land mid-card, overlapping a slider or a row. Sheets always leave the top clear,
+ * so pin it there instead; it stays above the sheet's own z-index (41) either way. */
+.toast.in-sheet {
+  bottom: auto;
+  top: calc(var(--safe-top) + 12px);
+}
 
 .center-msg {
   position: absolute;

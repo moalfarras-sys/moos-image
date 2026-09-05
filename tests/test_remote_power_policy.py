@@ -20,7 +20,8 @@ checks = {
         "hostPowerAllowed = PowerActions.HostPowerAllowed" in api,
     "the phone does not gate the complete session/power surface in Cloud":
         'hostPowerAllowed ? <div className="grid">' in ui
-        and "shared, passwordless Cloud session" in ui,
+        # The Cloud-managed fallback copy is now i18n-resolved at runtime: assert the binding exists.
+        and 'tr("powerCloudManagedBody")' in ui,
     "Windows reports power success before shutdown.exe accepts the command":
         "return Execute(ShutdownCommand" in windows
         and "process.WaitForExit(timeoutMs)" in windows

@@ -52,7 +52,8 @@ for (const contract of [
   'await resumeTrustedDevice(remembered.id, remembered.token)',
   'deviceStore.clear();',
   'setView({ name: "loading" });',
-  'Access was approved, but the PC connection dropped.',
+  // The label text is now i18n-resolved at runtime: assert the binding exists
+  'tt("approvedButDropped")',
   'const retry = () => {',
   'void decide();',
   'role="status" aria-live="polite"',
