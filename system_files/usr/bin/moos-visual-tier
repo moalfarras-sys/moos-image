@@ -63,7 +63,10 @@ DISCRETE_DRIVERS = {"nvidia", "nouveau", "amdgpu", "radeon"}
 # So the cloud edition manufactures the very evidence this probe reads as "GPU".
 # On current kernels their driver link resolves to the faux bus rather than to
 # the module name, which is why `faux_driver` is spelled out here too.
-VIRTUAL_DRIVERS = {"virtio_gpu", "vmwgfx", "qxl", "bochs", "cirrus", "simpledrm",
+# Oracle A1 exposes `virtio-pci` at card0/device/driver (PCI 1AF4:1050),
+# alongside vgem; KWin's VirtualBackend uses llvmpipe there. Match this spelling
+# only among the DRM card driver links probe() reads, never all PCI devices.
+VIRTUAL_DRIVERS = {"virtio_gpu", "virtio-pci", "vmwgfx", "qxl", "bochs", "cirrus", "simpledrm",
                    "vboxvideo", "vgem", "vkms", "faux_driver"}
 
 

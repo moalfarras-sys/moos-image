@@ -8,6 +8,7 @@
 # and the user still could not type Arabic).
 #
 #   ./tests/post-update-check.sh
+#   MOOS_EXPECTED_DIGEST=sha256:<64 lowercase hex digits> ./tests/post-update-check.sh
 #
 # Exits non-zero if any check fails. Every line says what it is checking and, when
 # it fails, what that means for the person using the machine.
@@ -23,32 +24,80 @@ head_() { printf '\n\033[1m%s\033[0m\n' "$1"; }
 
 head_ "The deployment"
 
-# `bootc status` needs root — as a normal user it prints "This command must be
-# executed as the root user" and exits, which made this check report "could not
-# read bootc status" on a machine that had booted the right image. `rpm-ostree
-# status --json` answers the same question without a password prompt, so ask it
-# first and keep bootc as the fallback for a machine that has no rpm-ostree.
-booted_digest="$(rpm-ostree status --json 2>/dev/null \
-  | python3 -c 'import sys,json; d=json.load(sys.stdin); b=[x for x in d["deployments"] if x.get("booted")]; print(b[0].get("container-image-reference-digest","") if b else "")' 2>/dev/null)"
-[ -n "$booted_digest" ] || booted_digest="$(sudo -n bootc status --format json 2>/dev/null \
-  | python3 -c 'import sys,json; print(json.load(sys.stdin)["status"]["booted"]["image"].get("imageDigest",""))' 2>/dev/null)"
-# Compare against the SAME image this machine actually tracks. This used to
-# hardcode moos-nvidia:latest (the maintainer's desktop), so on a Cloud or
-# generic install it compared the booted digest against a sibling edition and
-# reported a false "reboot did not take" on every healthy machine.
-booted_ref="$(rpm-ostree status --json 2>/dev/null \
-  | python3 -c 'import sys,json,re; d=json.load(sys.stdin); b=[x for x in d["deployments"] if x.get("booted")]; r=b[0].get("container-image-reference","") if b else ""; m=re.search(r"docker://\S+", r); print(m.group(0) if m else "")' 2>/dev/null)"
-[ -n "$booted_ref" ] || booted_ref="docker://ghcr.io/moalfarras-sys/moos-nvidia:latest"
-published_digest="$(skopeo inspect "$booted_ref" 2>/dev/null \
-  | python3 -c 'import sys,json; print(json.load(sys.stdin)["Digest"])' 2>/dev/null)"
+# Read the booted deployment as one snapshot. Never infer an edition when its
+# origin is unavailable, and never combine fields from different status reads.
+deployment_state() {
+    python3 -c '
+import json, re, sys
+state = json.load(sys.stdin)
+if sys.argv[1] == "rpm-ostree":
+    booted = next((d for d in state["deployments"] if d.get("booted")), {})
+    digest = booted.get("container-image-reference-digest", "")
+    origin = booted.get("container-image-reference", "")
+    match = re.fullmatch(r"(?:ostree-image-signed:|ostree-unverified-registry:)?(docker://[^\s|]+)", origin)
+    reference = match.group(1) if match else ""
+else:
+    booted = state["status"]["booted"]["image"]
+    digest = booted.get("imageDigest", "")
+    image = booted.get("image", {})
+    origin = image.get("image", "")
+    reference = "docker://" + origin if image.get("transport") == "registry" and re.fullmatch(r"[^\s|]+", origin) else ""
+if not isinstance(digest, str) or not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
+    digest = ""
+print(digest + "|" + reference)
+' "$1"
+}
 
-if [ -n "$booted_digest" ] && [ "$booted_digest" = "$published_digest" ]; then
-    ok "booted image IS the published one ($booted_digest)"
-elif [ -n "$booted_digest" ]; then
-    bad "booted $booted_digest but the registry publishes $published_digest — the reboot did not take, or a newer build landed since"
-else
-    bad "could not read bootc status"
-fi
+check_deployment() {
+    local snapshot booted_digest booted_ref published_digest
+    local expected="${MOOS_EXPECTED_DIGEST:-}"
+    if [[ -v MOOS_EXPECTED_DIGEST && ! "$expected" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+        bad "MOOS_EXPECTED_DIGEST must be sha256 followed by a colon and 64 lowercase hex digits"
+        return
+    fi
+
+    # rpm-ostree answers without root; bootc is the read-only fallback on hosts
+    # where that status is unavailable. A denied sudo -n fails without prompting.
+    snapshot="$(rpm-ostree status --json 2>/dev/null | deployment_state rpm-ostree 2>/dev/null)" || snapshot=""
+    IFS='|' read -r booted_digest booted_ref <<< "$snapshot"
+    if [ -z "$booted_digest" ] || [ -z "$booted_ref" ]; then
+        snapshot="$(sudo -n bootc status --format json 2>/dev/null | deployment_state bootc 2>/dev/null)" || snapshot=""
+        if [ -n "$snapshot" ] && [ "$snapshot" != '|' ]; then
+            IFS='|' read -r booted_digest booted_ref <<< "$snapshot"
+        fi
+    fi
+    if [ -z "$booted_ref" ]; then
+        bad "could not read the booted image origin; deployment verification is unavailable"
+        return
+    fi
+    if [ -z "$booted_digest" ]; then
+        bad "could not read a valid booted image digest for $booted_ref"
+        return
+    fi
+
+    if [ -n "$expected" ]; then
+        if [ "$booted_digest" = "$expected" ]; then
+            ok "booted image matches the expected candidate ($expected; origin $booted_ref)"
+        else
+            bad "booted $booted_digest from $booted_ref; expected candidate $expected is not booted"
+        fi
+        return
+    fi
+
+    published_digest="$(skopeo inspect "$booted_ref" 2>/dev/null \
+      | python3 -c 'import sys,json; print(json.load(sys.stdin)["Digest"])' 2>/dev/null)" || published_digest=""
+    if [[ ! "$published_digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+        bad "could not resolve the tracked image origin $booted_ref; registry verification is unavailable"
+    elif [ "$booted_digest" != "$published_digest" ]; then
+        bad "booted $booted_digest; tracked origin $booted_ref currently resolves to $published_digest"
+    elif [[ "$booted_ref" == *@sha256:* ]]; then
+        ok "booted image matches its pinned origin ($booted_digest); this does not check for newer releases"
+    else
+        ok "booted image matches the tracked tag at check time ($booted_digest; $booted_ref)"
+    fi
+}
+
+check_deployment
 
 # The signature policy is the reason a locally-built image must never be forced on
 # to this machine: it is what stops an unsigned one from booting.

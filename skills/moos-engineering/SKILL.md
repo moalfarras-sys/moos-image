@@ -20,9 +20,13 @@ description: Mandatory engineering rules for ANY agent working on MoOS (moos-ima
   them**. It stays compatible with upstream and adds the MoOS layer above the original
   components. Deleting Plasma, KDE, systemd, or bootc to make a small change easier is
   forbidden.
-- Three editions build from one tree and one pinned base: **`moos`** (generic desktop),
-  **`moos-nvidia`** (same base + layered NVIDIA driver), **`moos-cloud`** (VPS edition).
-  All are cosign-signed in CI and signature-enforced on installed machines.
+- Four editions share one source tree and MoOS filesystem overlay: **`moos`**
+  (x86 desktop), **`moos-nvidia`** (same x86 base + NVIDIA driver), **`moos-cloud`**
+  (x86 VPS), and **`moos-arm`** (native aarch64, including Oracle A1).
+  The three x86 editions use the same upstream repository; ARM uses the native
+  bootc base in `Containerfile.arm`. Current upstream `:44` inputs are mutable
+  tags, not locked release digests. Published MoOS images are cosign-signed and
+  installed origins enforce signatures. See `docs/MOOS_SYSTEM_DEVELOPMENT_PLAN.md`.
 - Targets: **speed, stability, beauty, and security** — on **real hardware**
   (the maintainer's daily driver runs `moos-nvidia:latest`), not only VMs.
 - **Arabic and RTL are first-class**, and every surface targets **4K/HiDPI**
@@ -115,4 +119,3 @@ thing was broken.
   from the registry). The previous deployment stays bootable for rollback. Never switch
   without confirming `bootc container lint` passed in that build. On a running machine
   `bootc switch localhost/moos-nvidia:latest` then reboot; `rpm-ostree rollback` recovers.
-

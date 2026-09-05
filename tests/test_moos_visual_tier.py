@@ -159,6 +159,35 @@ class Classification(unittest.TestCase):
             with self.subTest(driver=raw):
                 self.assertEqual(module._driver_key(raw), bare)
 
+    def test_oracle_arm_drm_transport_stays_essential_after_cpu_expansion(self) -> None:
+        """Oracle A1 exposes virtio-pci through the DRM card's driver link.
+
+        Live on 2026-09-05: card0/device/driver -> pci/drivers/virtio-pci
+        (PCI 1AF4:1050), card1 -> faux_driver, two render nodes, and KWin
+        VirtualBackend using llvmpipe. Two cores masked the missed driver;
+        four or more cores must not enable software-rendered blur.
+        """
+        for cores in (2, 4, 8):
+            with self.subTest(cores=cores):
+                tier, facts = self.tier_of(lambda m: m
+                                           .gpu("card0", "virtio-pci")
+                                           .gpu("card1", "faux_driver")
+                                           .render_node("renderD128")
+                                           .render_node("renderD129")
+                                           .cpu(cores).memory(11.6)
+                                           .display(1920, 1080))
+                self.assertEqual(facts["gpu_class"], "virtual")
+                self.assertEqual(tier, "essential")
+
+    def test_a_real_gpu_beside_virtio_pci_keeps_its_tier(self) -> None:
+        for driver, expected in (("nvidia", "flagship"), ("i915", "balanced")):
+            with self.subTest(driver=driver):
+                tier, _ = self.tier_of(lambda m: m
+                                       .gpu("card0", "virtio-pci")
+                                       .gpu("card1", driver).render_node()
+                                       .cpu(16).memory(15.4))
+                self.assertEqual(tier, expected)
+
     def test_a_real_gpu_beside_vgem_is_still_a_real_gpu(self) -> None:
         """vgem is loadable anywhere; it must never demote real hardware."""
         tier, facts = self.tier_of(lambda m: m
