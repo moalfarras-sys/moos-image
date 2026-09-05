@@ -10,9 +10,6 @@ import platform
 import subprocess
 from pathlib import Path
 
-import yaml
-
-
 ROOT = Path("/")
 
 
@@ -34,9 +31,35 @@ def enabled(unit: str, targets: tuple[str, ...]) -> bool:
     )
 
 
+def verify_appstream_refresh() -> None:
+    """A delayed timer must resolve to an executable service in the image."""
+    timer = configparser.ConfigParser(interpolation=None)
+    timer.read_string(read("usr/lib/systemd/system/moos-appstream-refresh.timer"))
+    require(timer.get("Timer", "OnBootSec", fallback="") == "3min",
+            "AppStream refresh must remain outside the boot critical path")
+    require(timer.get("Timer", "Unit", fallback="moos-appstream-refresh.service")
+            == "moos-appstream-refresh.service", "AppStream timer targets the wrong service")
+    service = configparser.ConfigParser(interpolation=None)
+    service.read_string(read("usr/lib/systemd/system/moos-appstream-refresh.service"))
+    require(service.get("Service", "Type", fallback="") == "oneshot"
+            and service.get("Service", "ExecStart", fallback="")
+            == "/usr/bin/appstreamcli refresh-cache --force",
+            "ARM AppStream refresh has no working cache-refresh command")
+    executable = ROOT / "usr/bin/appstreamcli"
+    require(executable.is_file() and os.access(executable, os.X_OK),
+            "AppStream refresh executable is missing")
+    require(any((ROOT / base / "moos-appstream-refresh.timer").is_file() for base in (
+        "etc/systemd/system/timers.target.wants",
+        "usr/lib/systemd/system/timers.target.wants",
+    )), "AppStream timer is disabled or has a dangling enable link")
+
+
 def main() -> None:
+    import yaml
+
     require(platform.machine() == "aarch64",
             f"finished image was built on {platform.machine()}, not aarch64")
+    verify_appstream_refresh()
 
     qml_shell = ROOT / "usr/bin/moos-qml-shell"
     require(qml_shell.is_file() and os.access(qml_shell, os.X_OK),

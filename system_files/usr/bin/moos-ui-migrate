@@ -242,10 +242,13 @@ migrate_legacy_keyboard() {
         touch "$keyboard_marker"
         echo "$(date -u '+%FT%TZ') migrated exact legacy keyboard de,ara -> de,us,ara" \
             >>"$keyboard_log" 2>/dev/null || true
-        # The autostart runs after KWin has read kxkbrc. Reload it now so the
-        # first upgraded session, not only the next login, gains the US route.
-        gdbus call --session --dest org.kde.KWin --object-path /KWin \
-            --method org.kde.KWin.reconfigure >/dev/null 2>&1 || true
+        # KWin 6.5+ watches kxkbrc through KConfigWatcher. Its generic
+        # reconfigure method does not reload the keyboard. Notify the Layout
+        # group after the atomic rename; --notify on the temporary absolute
+        # filename cannot reach the watcher for /kxkbrc.
+        gdbus emit --session --object-path /kxkbrc \
+            --signal org.kde.kconfig.notify.ConfigChanged \
+            "{'Layout': @aay []}" >/dev/null 2>&1 || true
     else
         rm -f -- "$tmp"
         echo "$(date -u '+%FT%TZ') could not migrate legacy keyboard; will retry" \
