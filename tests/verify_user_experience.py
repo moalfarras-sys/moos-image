@@ -2651,13 +2651,14 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=52" in apply_theme_code,
+require("THEME_REV=53" in apply_theme_code,
         "MoOS visual schema must migrate existing users to the cardless centred "
         "Horizon Hub, responsive clock popup, authenticated Remote presence, "
-        "single-owner launcher activation and recoverable direct context island "
+        "single-owner launcher activation, the keyboard-navigable Launcher "
+        "sidebar/grid focus flow and recoverable direct context island "
         "(moos-bar-apply), while "
         "reconciling new shadows "
-        "and purging the Plasma SVG cache that would otherwise keep serving old art")
+        "and purging the Plasma QML+SVG caches that would otherwise keep serving old art")
 require("local_plasmoids=" in apply_theme_code
         and "org.moos.brand" in apply_theme_code.split("local_plasmoids=")[1][:400],
         "THEME_REV 29 must purge home shadows of the first-party MoOS plasmoids — "

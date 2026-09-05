@@ -8,6 +8,38 @@ Last reconciled: **2026-09-03 (exact-frame release proof)** — latest source
 branch, signed CI artifacts, exact mapped-window evidence, and live host checks
 on `moos-arm-oracle`.
 
+### Launcher keyboard navigation + system-audit integration (2026-09-05)
+
+Branch `fix/system-audit-20260905`.
+
+- **System audit (S01/S02) committed** (`89e4d2a7`): `moos-visual-tier` adds
+  `virtio-pci` to `VIRTUAL_DRIVERS` so an Oracle A1 core expansion can't flip the
+  host into software-rendered blur (regression proven); `post-update-check.sh`
+  reads the booted deployment as one snapshot and gains
+  `MOOS_EXPECTED_DIGEST=sha256:<64 hex>`, exercised by the new
+  `tests/test_post_update_deployment.py`. `docs/AGENT_HANDOFF.md` and
+  `docs/MOOS_SYSTEM_DEVELOPMENT_PLAN.md` are the current handoff + four-edition
+  plan; `MOOS_X86_SYSTEM_PLAN.md` is historical.
+
+- **Launcher is keyboard-operable (THEME_REV 53).** `LauncherView.qml`
+  (`org.moos.brand`) had a keyboard dead zone: the sidebar pages carried an
+  `activeFocus` edge but no key handlers and no tab-chain slot, and nothing
+  moved focus from the search field into Home/Applications/Places/Customize
+  content — only the search-results list was wired. Now: the four sidebar
+  `NavButton`s take Tab focus, Enter/Space activate, Up/Down cycle the ring,
+  Left/Right step into content; `focusActivePageContent()` is the one owner of
+  "enter the surface the user sees"; Down from the search field enters it, the
+  grids/lists return to the field from their top row, and `Shift+Tab` from a
+  grid/list/results goes to the owning page (not the last one). Keyboard
+  selection is now visible on `PlaceRow`/`RecentTile` via `ListView.isCurrentItem`.
+  Verified: modified QML loads with zero errors in `plasmawindowed`
+  (`MOOS_LAUNCHER_FULL_READY 792x576`); new source gate
+  `tests/test_moos_launcher_keyboard.py` (bite-tested) and the full CI repo-gate
+  list pass (only the documented `systemctl`-missing sandbox gap fails).
+  **Not yet done:** driving the focus ring with real key presses on a logged-in
+  Plasma session (synthetic input into the live shared session was deliberately
+  not used) and the signed-image frame.
+
 ### Mo PC Remote v39 — phone workspace (2026-09-05)
 
 The local Remote deployment now serves the Liquid Glass controller with clearer

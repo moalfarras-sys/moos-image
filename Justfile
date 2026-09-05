@@ -129,6 +129,9 @@ check:
     # controls; an app-local copy cannot silently grow back.
     python3 tests/test_moos_design_core.py
     python3 tests/test_moos_ui2.py
+    # The full Launcher must be operable with the keyboard alone: sidebar
+    # focus + activation keys, search-field <-> content crossing, Shift+Tab.
+    python3 tests/test_moos_launcher_keyboard.py
     # The bar is ONE capsule: this runs the real merge surgery out of
     # moos-bar-apply against appletsrc fixtures, so a change that can leave
     # a second bottom panel fails here instead of on the owner's desktop.

@@ -402,6 +402,11 @@ jobs:
           # controls; an app-local copy cannot silently grow back.
           python3 tests/test_moos_design_core.py
           python3 tests/test_moos_ui2.py
+          # The full Launcher must be operable with the keyboard alone: the
+          # sidebar pages take focus and activation keys, Down/Up cross between
+          # the search field and the active page's grid/list, Shift+Tab returns
+          # to the owning page. Source gate (the runner has no Qt).
+          python3 tests/test_moos_launcher_keyboard.py
           # The bar is ONE capsule: this runs the real merge surgery out of
           # moos-bar-apply against appletsrc fixtures, so a change that can leave
           # a second bottom panel fails here instead of on the owner's desktop.
