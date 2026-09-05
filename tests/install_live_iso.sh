@@ -725,6 +725,14 @@ wait_qga()
 first = gate_until(runtime, [expected], 1000, "installed first boot never became healthy")
 (evidence / "installed-first-boot.txt").write_text(first)
 
+# A fresh install can start plasmalogin before AccountsService publishes the
+# first user, leaving the greeter on wallpaper-only — the exact state
+# moos-firstboot's synchronous CacheUser defends against (its comment), which
+# run 33935553129's login capture showed live. Root restarts the greeter so
+# it re-reads the now-populated model before the HMP login.
+gate_until("systemctl restart plasmalogin.service && sleep 8", [], 120,
+           "plasmalogin restart failed")
+
 # Wake Plasma Login Manager's idle clock page and capture the actual password
 # surface before interaction. Only a lowercase/digit disposable password is used,
 # so HMP never needs layout-dependent punctuation.
@@ -737,8 +745,20 @@ desktop = r'''
 set -euo pipefail
 id moosci >/dev/null
 uid="$(id -u moosci)"
-pgrep -u "$uid" -x kwin_wayland
-pgrep -u "$uid" -x plasmashell
+stage() { printf 'desk: %s\n' "$*" >&2; }
+stage "uid=$uid"
+for _ in $(seq 1 120); do
+    pgrep -u "$uid" -x kwin_wayland >/dev/null && break
+    sleep 2
+done
+pgrep -u "$uid" -x kwin_wayland || { stage "kwin_wayland not running under moosci"; exit 1; }
+stage kwin-active
+for _ in $(seq 1 120); do
+    pgrep -u "$uid" -x plasmashell >/dev/null && break
+    sleep 2
+done
+pgrep -u "$uid" -x plasmashell || { stage "plasmashell not running under moosci"; exit 1; }
+stage plasmashell-active
 env XDG_RUNTIME_DIR="/run/user/${uid}" \
     DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${uid}/bus" \
     systemctl --user is-active plasma-workspace.target
