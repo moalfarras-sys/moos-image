@@ -60,7 +60,7 @@ applies at the next login. Say so plainly rather than claiming a live fix.
 | V3 | done | `essential` = balanced minus blur | Same file, `test_essential_keeps_the_cheap_motion_and_still_refuses_blur` |
 | V4 | done | `moos-theme` writes the GTK mirror of `ButtonsOnLeft` | `test_window_button_consistency.py`, bite-tested both directions |
 | V5 | done, needs a reload | VS Code drew its own window controls at the LEFT, over its own menu, hiding `File` and `Ed` of `Edit`. Set `window.titleBarStyle: native` so KWin's MoOS frame is the title bar | Re-crop the top-left strip after a VS Code restart; `File` and `Edit` legible, MoOS circular controls present |
-| V6 | **open** | Audit the remaining first-party app windows the same way — Mo AI, Mo Store, MoPlayer, Mo Settings — for the same class of collision, at 100 % and 150 % | A cropped top strip per app, both scales, no control overlapping content |
+| V6 | **closed, no defect + gated** | All five first-party QML windows (moai, installer, settings, store, welcome) root in `ApplicationWindow` with no frameless hint, so KWin owns their title bar and the VS Code collision cannot occur. `test_first_party_window_frame.py` keeps it that way | Source audit + bite-tested gate |
 | V7 | **closed, no defect** | The dock was suspected of a weight mismatch between tray glyphs and app icons. Measured instead — see below. Nothing to fix | Every element clears ≥15 against its own plate |
 | V8 | **open** | The desktop is bare wallpaper. `MOOS_DESIGN_PLAN.md` §3.1 unlocked `createApplet`, and §5 forbids auto-seeding a widget again (rev 43's heroclock was rejected on sight). Offer widgets through a *chooser* the user opts into, never a seed | A first-run affordance that places nothing until clicked |
 | V9 | **open** | Complete the 100/125/150/200/225 % sweep for the launcher, dock and popups | A frame per step; no clipped label, no control off-plate |
@@ -96,6 +96,29 @@ only as good as the coordinates it samples. Locate the element first — scan fo
 its actual columns — then sample its plate from a gap *beside* it. A band chosen
 by eye will happily report a defect that is not there, and this one nearly
 bought a "fix" for a dock that never needed one.
+
+## 2c. V6, closed — why MoOS's own windows cannot hit the VS Code bug
+
+The collision the owner reported is not "buttons on the left is wrong". It is
+narrower and worth stating precisely, because the fix follows from it:
+
+> Buttons on the left are safe **only while the compositor owns the title bar**.
+> KWin reserves that strip, so nothing in the client area can be underneath it.
+> An application that draws its OWN title bar has to reserve the space itself,
+> and an application written for right-hand buttons does not.
+
+All five first-party QML windows — `moai`, `installer`, `settings`, `store`,
+`welcome` — root in `ApplicationWindow` (Kirigami or QQC2) with no
+`FramelessWindowHint` and no custom title bar, so they take the MoOS Aurorae
+frame and the collision is structurally impossible. Nothing needed changing.
+
+`tests/test_first_party_window_frame.py` now holds that: no first-party window
+may go frameless, and each must root in a real `ApplicationWindow`. Bite-tested
+by adding `Qt.FramelessWindowHint` to Mo Settings and watching it go red. A new
+app under `system_files/usr/share/moos/apps/` is covered automatically.
+
+Third-party apps stay a per-app matter: VS Code was fixed by handing the title
+bar back (`window.titleBarStyle: native`), not by moving MoOS's buttons.
 
 ## 3. What must not be done
 

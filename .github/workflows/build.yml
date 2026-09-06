@@ -434,6 +434,9 @@ jobs:
           # left, GSettings and the portal said right, and half the desktop
           # disagreed with the other half.
           python3 tests/test_window_button_consistency.py
+          # MoOS's own windows must never take the title bar from KWin: buttons on
+          # the left are only safe while the compositor reserves that strip.
+          python3 tests/test_first_party_window_frame.py
           # Every name in an Inherits= chain must be a theme the image installs.
           # MoOSUI2 named Papirus-Dark, which Fedora does not ship: 69 failed
           # lookups per boot while the gate on the RPM stayed green.
