@@ -125,6 +125,27 @@ What MoOS must NOT adopt: any path where the model executes a command it wrote.
 That is the one rule `AGENTS.md` calls unbreakable, and Hermes' `local` backend
 is exactly that path.
 
+## 5b. A defect C2 created, and what is still owed
+
+Closing `ensure_local()` made every UI surface that offers a model download a
+**dead button**, and `AGENTS.md` is explicit that a button which does nothing is
+a defect. That was created by this work, so it is recorded here rather than
+discovered later.
+
+**Fixed immediately:** `moos-open`'s `brain/start` route ran `moai-start`, which
+brings up a local engine. It now opens `moai-config`, the cloud provider setup —
+which is what "start the brain" means once the brain is a cloud API. Mo AI's
+`startBrain()` therefore still works and lands somewhere useful.
+
+**Still owed (stage C5), and currently misleading:** `system_files/usr/share/moos/apps/moai/main.qml`
+still carries the local-download UI — `pullModel` / `pullPercent` / `pullError`,
+the "one-tap download" row, and a status line that promises *"the first run
+downloads the model (~2.5 GB)"*. None of it can succeed now. It does not crash
+and it does not download, but it tells the user something untrue.
+
+**C5 must ship before this branch is promoted.** A release that says it will
+download 2.5 GB and then refuses is worse than either behaviour on its own.
+
 ## 6. What must stay true
 
 - The gateway remains the only process that sees the API key.
