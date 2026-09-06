@@ -8,6 +8,41 @@ Last reconciled: **2026-09-06 (resumed audit)**. Current source and live
 findings: [`docs/SYSTEM_AUDIT_RESUME_20260906.md`](docs/SYSTEM_AUDIT_RESUME_20260906.md).
 Signed release and post-reboot verification are tracked there separately.
 
+### S03 — the OOM had one cause, and it was KWin (2026-09-06)
+
+The review left this open as an unexplained cascade with five victims. Summing
+the kernel's own OOM process table across all 151 processes settles it:
+
+    total anonymous RSS at the kill   10.66 GiB   (machine has 11.6 GiB)
+    kwin_wayland  pid 1792             6.53 GiB   — 63% of the machine, alone
+    plasmashell                        724 MiB
+    plasma-keyboard                    703 MiB
+    kded6                              591 MiB
+    xdg-desktop-portal-kde             555 MiB
+    kactivitymanagerd                  441 MiB
+    claude (this agent, two procs)     216 MiB
+
+It was a `global_oom`. **KWin was not a victim of a cascade, it caused one** —
+the later kills of plasmashell, the portal, kded6 and kactivitymanagerd happened
+over the following three minutes as they ballooned on a broken Wayland
+connection. The earlier reading of "~10.6 GB at kactivitymanagerd's kill" was
+its total-vm at a later moment, not its share of the original exhaustion.
+
+**The leak is not continuous.** The replacement compositor has run 6.5 hours at
+**168 MiB** and its RSS falls rather than climbs. So there is a trigger, and it
+has NOT been identified. Reproducing it means risking another session-wide OOM
+on the owner's only screen, so it has not been reproduced and no cause is
+claimed.
+
+**Bounded instead of guessed:** `plasma-kwin_wayland.service.d/50-moos-memory-guard.conf`
+sets `MemoryHigh=3G` (~18x the healthy 170 MiB) and `ManagedOOMPreference=avoid`.
+`MemoryHigh` applies reclaim pressure and does **not** kill — `MemoryMax` would
+kill the compositor, which on this machine is turning the monitor off, i.e.
+automating the exact disaster. A leak now becomes a slow desktop with a journal
+entry instead of a dead session. Live: accepted by systemd, KWin reads
+`MemoryCurrent` 142.8 MiB against the 3 GiB limit, and neither KWin nor Remote
+was restarted. S03 stays open: this bounds damage, it does not explain the cause.
+
 ### Mo AI goes cloud-only, free by default (2026-09-06)
 
 Owner decision: Mo AI must never download or run a model on the user's computer,

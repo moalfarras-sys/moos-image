@@ -574,7 +574,35 @@ def ensure_local(want: str) -> "tuple[str, str]":
     at all still errors. Serialised: two chats that both wake the brain must
     not race two `systemctl start`s at it, and the second one should wait for
     the first rather than start a parallel download.
+
+    STAGE C2 (docs/MOAI_CLOUD_ONLY_PLAN.md): THIS DOOR IS CLOSED. Everything
+    that could start an engine or reach a model on disk passes through here, so
+    one refusal at the top makes the whole local path unreachable — the
+    `systemctl start` below, the readiness wait and the model-substitution
+    branch can no longer run.
+
+    The owner's decision is that Mo AI never downloads or runs a model on the
+    user's computer. Measured on the live Oracle A1: a first message against a
+    local qwen3:8b cost 923 s, the engine image alone was 4.21 GB, and the same
+    agent answered through cloud in 9 s flat.
+
+    The refusal sits HERE rather than at the callers because a caller can be
+    added without noticing this rule, while a caller that reaches an engine
+    cannot exist as long as this function is the only way to one. The code below
+    is deliberately left in place and unreachable for one release so stage C2b
+    can delete it as its own reviewable change: removing ~300 lines in the same
+    commit that closes the door would make this change impossible to review.
     """
+    return (
+        "عقل Mo AI سحابي — لا يُنزَّل أي نموذج على هذا الجهاز.\n"
+        "افتح إعدادات Mo AI واختر مزوّداً مجانياً (Cerebras أو Groq أو "
+        "NVIDIA NIM أو OpenRouter) وألصق مفتاحه.\n"
+        "Mo AI's brain is in the cloud — no model is ever downloaded to this "
+        "machine.\n"
+        "Open Mo AI settings and pick a free provider (Cerebras, Groq, "
+        "NVIDIA NIM or OpenRouter), then paste its key.",
+        "")
+
     with _local_lock:
         if LOCAL_BACKEND == "ollama":
             target = short_model(want) or short_model(DEFAULT_LOCAL_MODEL)

@@ -83,7 +83,8 @@ independently correct: at no point is Mo AI half-migrated and broken.
 | Stage | Work | Gate |
 |---|---|---|
 | **C1** | Free providers enter the catalogue, free-first, labelled | Catalogue gate: free entries exist, come first, carry a free model |
-| **C2** | Gateway loses the local branch; cloud becomes the only route | Gate: no local port, unit or engine name survives in `moai-gateway` |
+| **C2** | ✅ **landed.** `ensure_local()` refuses before its lock or any `systemctl`, so no engine can start and no model can download | Gate proves the refusal is the FIRST statement and unconditional; bite-tested behind a flag and below the lock |
+| **C2b** | Delete the now-unreachable ~300 lines of local machinery in `moai-gateway` | Gate: no local port, unit or engine name survives |
 | **C3** | Provider ladder with fall-through on 429/5xx | Executable test against stubbed providers |
 | **C4** | Retire `moos-ensure-brain`, `moai-idle`, `moai-local-engine`, `moai.service`, the container + Modelfiles | Gate: the units and files are absent from the built image |
 | **C5** | Builds stop installing any local engine; QML drops the download path | Finished-image gate asserts no engine package |

@@ -19,10 +19,14 @@ change, and one source already reports Cerebras moving to a card trial. A gate
 that asserted "Cerebras is free" would fail on someone else's business decision
 rather than on a MoOS regression.
 
-Stages C2-C6 (removing the gateway's local branch, retiring moos-ensure-brain /
+Stage C2 has landed: `ensure_local()` in `moai-gateway` refuses before it can
+take its lock or call `systemctl`, so the engine-start and model-download path
+is unreachable. The dead code below it is deliberately kept for one release so
+C2b can delete it as its own reviewable change.
+
+Stages C3-C6 (the provider fall-through ladder, retiring moos-ensure-brain /
 moai-idle / moai-local-engine, dropping the engine from the builds) get their
-own gates as they land. Until C2 ships, this file must NOT claim the local path
-is gone.
+own gates as they land.
 """
 
 import ast
@@ -32,6 +36,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 AGENT_API = REPO / "system_files/usr/bin/moai-agent-api"
+GATEWAY = REPO / "system_files/usr/bin/moai-gateway"
 PLAN = REPO / "docs/MOAI_CLOUD_ONLY_PLAN.md"
 
 
@@ -104,6 +109,46 @@ class Catalogue(unittest.TestCase):
     def test_ids_are_unique(self) -> None:
         ids = [p["id"] for p in self.providers]
         self.assertEqual(len(ids), len(set(ids)), f"duplicate provider id: {ids}")
+
+
+class NoEngineCanStart(unittest.TestCase):
+    """Stage C2: the one door to a local engine is closed.
+
+    Everything that could start an engine or read a model from disk goes through
+    ensure_local(). A refusal at the TOP of that function is what makes the whole
+    path unreachable — so this gate checks position, not merely presence. A guard
+    placed after the lock, or after the systemctl call, would read as a fix and
+    still download a model.
+    """
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.src = GATEWAY.read_text(encoding="utf-8")
+        body = cls.src.split("def ensure_local(", 1)[1]
+        cls.after_doc = body.split('"""', 2)[2]
+
+    def test_the_refusal_is_the_first_executable_statement(self) -> None:
+        first = next(l.strip() for l in self.after_doc.splitlines() if l.strip())
+        self.assertTrue(
+            first.startswith("return ("),
+            f"ensure_local must refuse before anything else runs; found: {first!r}. "
+            "A guard placed after `with _local_lock:` or after systemctl start "
+            "would still be able to start an engine.")
+
+    def test_it_is_unconditional(self) -> None:
+        """A refusal behind an `if` is a switch someone will flip."""
+        head = "\n".join(self.after_doc.splitlines()[:12])
+        self.assertNotRegex(
+            head.split("return (")[0], r"\bif\b|\bwhile\b|\btry\b",
+            "nothing may guard the refusal — no flag, env var or config key")
+
+    def test_the_message_names_the_free_providers(self) -> None:
+        """A refusal that does not say what to do instead is a dead end."""
+        refusal = self.after_doc.split("return (", 1)[1].split('"")', 1)[0]
+        for provider in ("Cerebras", "Groq", "NVIDIA NIM", "OpenRouter"):
+            self.assertIn(provider, refusal)
+        self.assertIn("سحابي", refusal, "Arabic is first-class on this screen")
+        self.assertIn("cloud", refusal.lower())
 
 
 class PlanIsRecorded(unittest.TestCase):

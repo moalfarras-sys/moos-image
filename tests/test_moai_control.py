@@ -221,41 +221,65 @@ class OllamaAdapterTests(unittest.TestCase):
             self.assertEqual(scope["_pull"]["state"], "done")
             self.assertEqual(scope["_pull"]["percent"], 100)
 
-    def test_gateway_passes_ollama_model_without_restarting_or_rewriting(self):
+    # THESE THREE TESTS WERE NOT DELETED — THEY WERE STRENGTHENED.
+    #
+    # They were written to guarantee one thing: a chat message must never start
+    # a model download. Stage C2 (docs/MOAI_CLOUD_ONLY_PLAN.md) makes that
+    # guarantee absolute rather than conditional — ensure_local() now refuses
+    # before it can take its lock or reach systemd, so there is no longer a
+    # "substitute an installed model" path to get right, and no "no model is
+    # downloaded" error to phrase honestly. The same intent, enforced harder.
+    #
+    # Each keeps its original hostile stub: if any future edit reopens the door,
+    # these fail on the systemctl/env-write the stubs forbid, not merely on a
+    # changed string.
+
+    def test_gateway_never_touches_a_unit_or_env_for_a_model(self):
         with tempfile.TemporaryDirectory() as home:
             gateway = load_script(GATEWAY, home, "ollama.service")
             scope = gateway["ensure_local"].__globals__
-            scope["local_online"] = lambda *args, **kwargs: True
-            scope["pulled_models"] = lambda: ["default:latest", "qwen3:4b"]
-            scope["systemctl"] = lambda _verb: self.fail("Ollama model switch restarted a unit")
-            scope["set_env_model"] = lambda _model: self.fail("Ollama rewrote moai.env")
-            self.assertEqual(gateway["ensure_local"]("qwen3:4b"), ("", "qwen3:4b"))
-
-    def test_gateway_substitutes_installed_model_without_downloading(self):
-        # The shipped default once named a model that was never on disk; every
-        # first message then died with a 503 while the orb said Online. A
-        # missing tag now answers with an installed one — still WITHOUT ever
-        # starting a download from a chat message.
-        with tempfile.TemporaryDirectory() as home:
-            gateway = load_script(GATEWAY, home, "moai-brain.service")
-            scope = gateway["ensure_local"].__globals__
-            scope["local_online"] = lambda *args, **kwargs: True
-            scope["pulled_models"] = lambda: ["default:latest"]
+            scope["local_online"] = lambda *args, **kwargs: self.fail(
+                "ensure_local probed a local engine after C2 closed the door")
+            scope["pulled_models"] = lambda: self.fail(
+                "ensure_local read models from disk after C2 closed the door")
             scope["systemctl"] = lambda _verb: self.fail(
-                "substitution must not touch systemd")
+                "ensure_local touched systemd after C2 closed the door")
+            scope["set_env_model"] = lambda _model: self.fail(
+                "ensure_local rewrote moai.env after C2 closed the door")
             error, model = gateway["ensure_local"]("qwen3:4b")
-            self.assertEqual(error, "")
-            self.assertEqual(model, "default:latest")
+            self.assertEqual(model, "", "no local model may be selected")
+            self.assertTrue(error, "the refusal must explain itself to the user")
 
-    def test_gateway_errors_honestly_when_no_local_model_exists(self):
+    def test_a_chat_message_can_never_start_a_download(self):
+        # The original reason this file guards ensure_local: the shipped default
+        # once named a model that was never on disk, and a first message died
+        # with a 503 while the orb said Online. Neither outcome is reachable now
+        # — with no engine and no disk read, there is nothing to be wrong about.
+        for unit, installed in (("moai-brain.service", ["default:latest"]),
+                                ("moai-brain.service", []),
+                                ("ollama.service", ["qwen3:4b"])):
+            with self.subTest(unit=unit, installed=installed):
+                with tempfile.TemporaryDirectory() as home:
+                    gateway = load_script(GATEWAY, home, unit)
+                    scope = gateway["ensure_local"].__globals__
+                    scope["pulled_models"] = lambda: self.fail(
+                        "a chat message reached the model list on disk")
+                    scope["systemctl"] = lambda _verb: self.fail(
+                        "a chat message reached systemd")
+                    error, model = gateway["ensure_local"]("qwen3:4b")
+                    self.assertEqual(model, "")
+                    self.assertTrue(error)
+
+    def test_the_refusal_sends_the_user_somewhere_useful(self):
+        """A dead end is not an answer. It must name the free way out, in both
+        languages, because this is the screen where the user is stuck."""
         with tempfile.TemporaryDirectory() as home:
             gateway = load_script(GATEWAY, home, "moai-brain.service")
-            scope = gateway["ensure_local"].__globals__
-            scope["local_online"] = lambda *args, **kwargs: True
-            scope["pulled_models"] = lambda: []
-            error, model = gateway["ensure_local"]("qwen3:4b")
-            self.assertIn("No local model is downloaded", error)
-            self.assertEqual(model, "")
+            error, _ = gateway["ensure_local"]("qwen3:4b")
+            for provider in ("Cerebras", "Groq", "NVIDIA NIM", "OpenRouter"):
+                self.assertIn(provider, error)
+            self.assertIn("سحابي", error)
+            self.assertIn("cloud", error.lower())
 
 
 class RuntimeRelationshipTests(unittest.TestCase):
