@@ -151,6 +151,47 @@ class NoEngineCanStart(unittest.TestCase):
         self.assertIn("cloud", refusal.lower())
 
 
+class UiTellsTheTruth(unittest.TestCase):
+    """Stage C5: no surface may promise a download that C2 made impossible.
+
+    Closing ensure_local() turned Mo AI's local-model UI into a set of claims
+    that cannot come true. A release that says "the first run downloads the
+    model (~2.5 GB)" and then refuses is worse than either behaviour alone, and
+    AGENTS.md counts a control that does nothing as a defect. This gate reads
+    the shipped QML, not the plan.
+    """
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        raw = (REPO / "system_files/usr/share/moos/apps/moai/main.qml").read_text(
+            encoding="utf-8")
+        # Strip // comments: this change EXPLAINS the old strings in prose, and a
+        # raw search would match the explanation and fail a corrected file.
+        cls.qml = "\n".join(l for l in raw.splitlines()
+                             if not l.lstrip().startswith("//"))
+
+    def test_no_surface_promises_a_model_download(self) -> None:
+        for lie in ("2.5 GB", "2.5GB", "downloads the model"):
+            self.assertNotIn(
+                lie, self.qml,
+                f"Mo AI still promises {lie!r}; the gateway refuses, so this "
+                f"tells the user something untrue")
+
+    def test_no_surface_sends_the_user_to_the_local_engine(self) -> None:
+        for dead in ("moai-start", "Start local brain", "شغّل العقل المحلي"):
+            self.assertNotIn(
+                dead, self.qml,
+                f"Mo AI still points at {dead!r}, which C2 closed")
+
+    def test_the_offline_help_names_the_free_way_out(self) -> None:
+        """Being stuck with no provider is the one moment the user needs the
+        answer, in their own language."""
+        block = self.qml.split("offlineHelp", 1)[1][:900]
+        for provider in ("Cerebras", "Groq", "NVIDIA NIM", "OpenRouter"):
+            self.assertIn(provider, block)
+        self.assertIn("مزوّد", block, "Arabic is first-class on this screen")
+
+
 class PlanIsRecorded(unittest.TestCase):
     """The owner asked for the plan to live in the repo so every Mo AI follows it."""
 

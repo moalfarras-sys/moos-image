@@ -87,7 +87,7 @@ independently correct: at no point is Mo AI half-migrated and broken.
 | **C2b** | Delete the now-unreachable ~300 lines of local machinery in `moai-gateway` | Gate: no local port, unit or engine name survives |
 | **C3** | Provider ladder with fall-through on 429/5xx | Executable test against stubbed providers |
 | **C4** | Retire `moos-ensure-brain`, `moai-idle`, `moai-local-engine`, `moai.service`, the container + Modelfiles | Gate: the units and files are absent from the built image |
-| **C5** | Builds stop installing any local engine; QML drops the download path | Finished-image gate asserts no engine package |
+| **C5** | ✅ **QML half landed** — five untrue surfaces corrected, gated against return. Still open: builds must stop installing the engine | Finished-image gate asserts no engine package |
 | **C6** | `moai-brain-mode` becomes provider selection, not local/hybrid/cloud | Gate + the `moos-open`/`moai-do` route cross-check |
 
 **Do not skip C2's gate.** The failure this whole plan exists to prevent is a
@@ -137,14 +137,22 @@ brings up a local engine. It now opens `moai-config`, the cloud provider setup �
 which is what "start the brain" means once the brain is a cloud API. Mo AI's
 `startBrain()` therefore still works and lands somewhere useful.
 
-**Still owed (stage C5), and currently misleading:** `system_files/usr/share/moos/apps/moai/main.qml`
-still carries the local-download UI — `pullModel` / `pullPercent` / `pullError`,
-the "one-tap download" row, and a status line that promises *"the first run
-downloads the model (~2.5 GB)"*. None of it can succeed now. It does not crash
-and it does not download, but it tells the user something untrue.
+**Fixed (stage C5), five surfaces that had become untrue:**
 
-**C5 must ship before this branch is promoted.** A release that says it will
-download 2.5 GB and then refuses is worse than either behaviour on its own.
+1. `startingHelp` promised *"the first run downloads the model (~2.5 GB)"*.
+2. `offlineHelp` told the user to run `moai-start`, a command C2 closed.
+3. The brain status line repeated the 2.5 GB promise and said the brain would
+   start on the first message.
+4. `pickOrPull()` POSTed `/pull` to download a model; it now opens provider
+   setup, because a control that appears to start something and cannot is the
+   dead button `AGENTS.md` forbids.
+5. The primary button still read *"Start local brain"* while its action already
+   opened cloud setup — saying one thing and doing another is the same defect.
+
+`tests/test_moai_cloud_only.py` reads the shipped QML and fails on any returning
+download promise or local-engine instruction. It strips `//` comments first: this
+change explains the old strings in prose, and a raw search would match the
+explanation and fail a corrected file.
 
 ## 6. What must stay true
 

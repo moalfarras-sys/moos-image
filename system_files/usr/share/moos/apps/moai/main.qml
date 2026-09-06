@@ -442,19 +442,27 @@ Kirigami.ApplicationWindow {
     // paragraph; the mark then pins that paragraph's direction instead of leaving it to
     // whatever character happens to come first (an English line that opens with "Mo AI"
     // would still resolve fine, but one that opens with a digit or "«" would not).
+    // STAGE C5. This told the user to run `moai-start`, which brings up a local
+    // engine — a route C2 closed. Sending someone to a terminal command that now
+    // refuses is a worse failure than the one it was written to explain.
     readonly property string offlineHelp: root.moaiRtl
-        ? ("‏العقل المحلي غير مشغّل.\n\n" +
-           "اضغط **«شغّل العقل المحلي»** بالأسفل — أو شغّل `moai-start` في الطرفية.\n\n" +
-           "ثم أعد المحاولة.")
-        : ("‎The local brain is off.\n\n" +
-           "Tap **“Start local brain”** below — or run `moai-start` in a terminal.\n\n" +
-           "Then try again.")
+        ? ("‏لم يُضبَط مزوّد سحابي بعد.\n\n" +
+           "اضغط **«إعداد المزوّد»** بالأسفل واختر مزوّداً مجانياً — Cerebras أو Groq أو NVIDIA NIM أو OpenRouter — وألصق مفتاحه.\n\n" +
+           "لا يُنزَّل أي نموذج على جهازك.")
+        : ("‎No cloud provider is set up yet.\n\n" +
+           "Tap **“Provider setup”** below and pick a free one — Cerebras, Groq, NVIDIA NIM or OpenRouter — then paste its key.\n\n" +
+           "Nothing is downloaded to your machine.")
 
+    // STAGE C5 (docs/MOAI_CLOUD_ONLY_PLAN.md). This promised "the first run
+    // downloads the model (~2.5 GB)". Since C2 closed ensure_local() that
+    // download cannot happen, so the sentence was telling the user something
+    // untrue — worse than either behaviour on its own, which is why C5 had to
+    // ship before this branch could be promoted.
     readonly property string startingHelp: root.moaiRtl
-        ? ("‏العقل المحلي يبدأ الآن… أول تشغيل يُحمّل النموذج (~2.5GB) وقد يأخذ دقائق.\n\n" +
-           "سأصبح جاهزاً تلقائياً عند الانتهاء.")
-        : ("‎The local brain is starting… the first run downloads the model (~2.5 GB) and may take a few minutes.\n\n" +
-           "I'll be ready automatically once it finishes.")
+        ? ("‏عقل Mo AI سحابي — لا يُنزَّل أي نموذج على جهازك.\n\n" +
+           "اختر مزوّداً مجانياً (Cerebras أو Groq أو NVIDIA NIM أو OpenRouter) وألصق مفتاحه، وسأجيب فوراً.")
+        : ("‎Mo AI's brain is in the cloud — nothing is downloaded to your machine.\n\n" +
+           "Pick a free provider (Cerebras, Groq, NVIDIA NIM or OpenRouter), paste its key, and I answer straight away.")
 
     // MoOS speaks the user's ONE language. The greeting used to stack Arabic and
     // English; now it shows only the session language (RTL ⇒ Arabic), the same
@@ -1296,6 +1304,15 @@ Kirigami.ApplicationWindow {
             root.pickRoute(entry.id)
             return
         }
+        // STAGE C5. This used to POST /pull and download a model. C2 closed that
+        // door in the gateway, so the request could only ever fail now — and a
+        // control that appears to start something and cannot is exactly the dead
+        // button AGENTS.md forbids. It sends the user to the cloud provider
+        // setup instead, which is the thing that actually gives them a brain.
+        root.launch("moos://brain/start",
+                    root.local("إعداد المزوّد السحابي", "Cloud provider setup"))
+        return
+        // eslint-disable-next-line no-unreachable
         if (root.pullModel !== "")     // one at a time; the backend serialises too
             return
         const bare = entry.id.indexOf("local:") === 0 ? entry.id.substring(6) : entry.id
@@ -2746,23 +2763,27 @@ Kirigami.ApplicationWindow {
                                         ? root.local(
                                             "العقل السحابي غير مضبوط — أضف المزوّد والمفتاح.",
                                             "The cloud brain is not set up — add the provider and your API key.")
-                                        : root.brainStarting
-                                        ? root.local(
-                                            "العقل المحلي يبدأ… أول مرة يُحمّل ~2.5GB وقد يأخذ دقائق.",
-                                            "Local brain starting… the first run downloads ~2.5 GB.")
                                         : root.local(
-                                            "العقل المحلي متوقف — سأشغّله تلقائياً عند أول رسالة، أو شغّله الآن لتراه.",
-                                            "The local brain is off — I'll start it on your first message, or start it now and watch it.")
+                                            "عقل Mo AI سحابي — اختر مزوّداً مجانياً وألصق مفتاحه.",
+                                            "Mo AI's brain is in the cloud — pick a free provider and paste its key.")
                                     color: root.textLo
                                     font.family: root.uiFont
                                     font.pixelSize: root.typePx(11)
                                     wrapMode: Text.Wrap
                                 }
+                                // STAGE C5. startBrain() now opens the cloud
+                                // provider setup (moos-open's brain/start was
+                                // repointed there when C2 closed the local
+                                // door), so the ACTION was already right while
+                                // the LABEL still said "Start local brain". A
+                                // button that says one thing and does another
+                                // is the same defect as one that does nothing.
                                 MoButton {
                                     Layout.fillWidth: true
                                     visible: !!root.brains.gateway && !root.routeIsCloud
                                              && !root.brainStarting
-                                    label: root.local("شغّل العقل المحلي", "Start local brain")
+                                    label: root.local("إعداد المزوّد", "Provider setup")
+                                    iconName: "moos-settings-symbolic"
                                     primary: true
                                     onClicked: root.startBrain()
                                 }
