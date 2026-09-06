@@ -132,6 +132,10 @@ check:
     python3 tests/test_remote_trusted_devices.py
     python3 tests/test_moos_store_index.py
     python3 tests/test_moos_storectl.py
+    # Mo Store's backend reports progress and the UI owns the words: the
+    # job document carries a stable message_key beside its human message,
+    # and the UI must branch on the key, never on backend prose.
+    python3 tests/test_store_job_language.py
     # One globally importable MoUI module must own identity metrics and shared
     # controls; an app-local copy cannot silently grow back.
     python3 tests/test_moos_design_core.py

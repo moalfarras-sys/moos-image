@@ -563,13 +563,18 @@ require(re.search(
         "Mo Store must not let a Starting-state Cancel click target the stale "
         "job document from the preceding transaction")
 require(re.search(
-            r'item\.message\s*\|\|\s*""\)\s*===\s*"Already installed system-wide".*?'
+            r'win\.jobItemIs\(\s*item,\s*"already_installed_system",\s*'
+            r'"Already installed system-wide"\s*\)\s*\)\s*\{.*?'
             r'nextScopes\[item\.id\]\s*=\s*\["system"\]',
             store_qml_code,
             re.DOTALL,
         ) is not None,
         "an already-installed system Flatpak must retain its system scope in "
-        "live store state so the UI does not offer a non-functional Remove action")
+        "live store state so the UI does not offer a non-functional Remove action. "
+        "This branch keys off the backend's stable message_key and keeps the old "
+        "English prose only as the fallback for a job document written before "
+        "keys existed -- it must never go back to comparing prose, because "
+        "translating the backend would then silently break scope detection")
 require(re.search(
             r"function\s+canRemove\(app\)\s*\{.*?"
             r"installedScopeOverrides\[app\.id\]\s*!==\s*undefined\)\s*"
