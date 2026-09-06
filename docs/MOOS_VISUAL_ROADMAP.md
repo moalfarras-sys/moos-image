@@ -61,12 +61,41 @@ applies at the next login. Say so plainly rather than claiming a live fix.
 | V4 | done | `moos-theme` writes the GTK mirror of `ButtonsOnLeft` | `test_window_button_consistency.py`, bite-tested both directions |
 | V5 | done, needs a reload | VS Code drew its own window controls at the LEFT, over its own menu, hiding `File` and `Ed` of `Edit`. Set `window.titleBarStyle: native` so KWin's MoOS frame is the title bar | Re-crop the top-left strip after a VS Code restart; `File` and `Edit` legible, MoOS circular controls present |
 | V6 | **open** | Audit the remaining first-party app windows the same way — Mo AI, Mo Store, MoPlayer, Mo Settings — for the same class of collision, at 100 % and 150 % | A cropped top strip per app, both scales, no control overlapping content |
-| V7 | **open** | The dock's tray glyphs are visually lighter than the app icons beside them. Measure both against the dock plate and bring them to one weight | Luminance scan across an app icon and a tray glyph on the same row; ≥15 against the plate for both |
+| V7 | **closed, no defect** | The dock was suspected of a weight mismatch between tray glyphs and app icons. Measured instead — see below. Nothing to fix | Every element clears ≥15 against its own plate |
 | V8 | **open** | The desktop is bare wallpaper. `MOOS_DESIGN_PLAN.md` §3.1 unlocked `createApplet`, and §5 forbids auto-seeding a widget again (rev 43's heroclock was rejected on sight). Offer widgets through a *chooser* the user opts into, never a seed | A first-run affordance that places nothing until clicked |
 | V9 | **open** | Complete the 100/125/150/200/225 % sweep for the launcher, dock and popups | A frame per step; no clipped label, no control off-plate |
 | V10 | **open** | Lock / login / logout final artifact frames across locale and scale | Frames from the signed image, not a live session |
 
 ---
+
+## 2b. V7, measured and closed — the dock is fine
+
+A first pass eyeballed the dock and called the tray glyphs "lighter than the app
+icons". A first *measurement* with guessed band coordinates then reported the
+clock chip at delta 11, below the ≥15 rule. Both were wrong: the bands mixed the
+chip's own plate with the wallpaper behind the capsule.
+
+Locating each element by scanning for contiguous bright columns in the dock band
+(y 1032–1068), then sampling the plate from the clear gaps beside each element:
+
+| element | x | plate | ink | delta |
+|---|---|---|---|---|
+| MoOS wordmark | 579–653 | 29 | 239 | **210** |
+| app icons | 686–1026 | 28 | 254 | **226** |
+| tray glyphs | 1055–1181 | 28 | 255 | **227** |
+| DE + volume | 1293–1346 | 36 | 179 | **143** |
+| clock divider | 1369–1390 | 82 | 108 | **26** |
+| clock text | 1392–1502 | 82 | 159 | **77** |
+
+Every element clears the rule. The clock reads lowest only because its chip has
+its own lighter plate (82 against the capsule's 28) — that is the chip design,
+not a contrast fault.
+
+**The process lesson, which is the reusable part:** a luminance measurement is
+only as good as the coordinates it samples. Locate the element first — scan for
+its actual columns — then sample its plate from a gap *beside* it. A band chosen
+by eye will happily report a defect that is not there, and this one nearly
+bought a "fix" for a dock that never needed one.
 
 ## 3. What must not be done
 
