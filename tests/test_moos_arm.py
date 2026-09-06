@@ -208,10 +208,21 @@ class ArmEditionTests(unittest.TestCase):
         self.assertIn("emergency\\.service|emergency\\.target", read(BOOT_GATE))
 
     def test_the_curated_desktop_uses_fedora_44_package_names(self) -> None:
+        """These names must be the ones Fedora 44 actually ships.
+
+        This list is about SPELLING, not policy: a package renamed upstream
+        fails the native build before it can produce an image, and that is what
+        this test catches. `ramalama` left the list when Mo AI went cloud-only
+        (docs/MOAI_CLOUD_ONLY_PLAN.md, stage C5) — the engine is no longer
+        installed in any edition, so requiring its name here would assert a
+        product decision this test was never about. That it is ABSENT is
+        asserted by tests/test_moai_cloud_only.py, which also checks x86 and ARM
+        agree; keeping the two concerns in separate files is deliberate.
+        """
         text = code(read(BUILD))
         for current in (
             "kwin-libs", "plasma-breeze", "plasma-workspace",
-            "ramalama", "plasma-discover", "kinfocenter", "bluedevil",
+            "plasma-discover", "kinfocenter", "bluedevil",
             "plasma-print-manager", "flatpak-kcm", "gwenview", "haruna",
             "kf6-baloo-file",
         ):
