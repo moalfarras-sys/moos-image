@@ -8,6 +8,43 @@ Last reconciled: **2026-09-06 (resumed audit)**. Current source and live
 findings: [`docs/SYSTEM_AUDIT_RESUME_20260906.md`](docs/SYSTEM_AUDIT_RESUME_20260906.md).
 Signed release and post-reboot verification are tracked there separately.
 
+### Mo AI goes cloud-only, free by default (2026-09-06)
+
+Owner decision: Mo AI must never download or run a model on the user's computer,
+and the default must be usable without paying and without a credit card. The
+contract and the staged migration live in
+[`docs/MOAI_CLOUD_ONLY_PLAN.md`](docs/MOAI_CLOUD_ONLY_PLAN.md) so every edition
+and every later agent follows one plan.
+
+Why, measured: a first message against a local `qwen3:8b` on this CPU cost
+**923 s** (the agent's own ~8.5k-token prompt read cold, and the KV cache does
+not survive the gaps between phone messages); the engine image alone was
+**4.21 GB**; the same agent through cloud answered in **9 s flat**.
+
+**Landed (stage C1).** Four no-card providers now lead the settings catalogue,
+labelled in Arabic and English, each with a free model pre-selected —
+Cerebras (~1M tokens/day), Groq (~30 req/min, 131K ctx), NVIDIA NIM, and
+OpenRouter's `:free` models. All four speak the OpenAI wire `moai-gateway`
+already implements, so they needed a catalogue entry and nothing else. They
+rate-limit independently, which is why the plan routes across several rather
+than picking one. Paid providers are kept, below them.
+`tests/test_moai_cloud_only.py` gates the list's **shape** — free entries exist,
+come first, carry a model and a bilingual label — and deliberately never asserts
+that a third party is still generous, because free tiers change.
+
+**Done on this machine.** The 4.21 GB `docker.io/ollama/ollama` image is removed,
+and `moos-ensure-brain.{timer,service}` are masked — a plain `disable` could not
+hold, because the image enables them globally. No model weights exist anywhere
+(`~/.ollama` is 8 K, ramalama empty, no `.gguf`/`.safetensors`). Mo AI's
+gateway, agent API and control services stayed active throughout.
+
+**NOT done — stages C2-C6 remain**, and Mo AI still contains its local branch:
+removing the gateway's local route, the provider fall-through ladder, retiring
+`moos-ensure-brain` / `moai-idle` / `moai-local-engine` / `moai.service` / the
+brain container and Modelfiles, dropping the engine from both builds, and turning
+`moai-brain-mode` into provider selection. That is ~40 files and ~380 references;
+it lands in reviewable stages so Mo AI is never half-migrated and broken.
+
 ### Why the desktop looked unchanged — four measured causes (2026-09-06)
 
 The owner reported seeing no difference from several sessions of work. They were

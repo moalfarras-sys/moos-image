@@ -127,7 +127,37 @@ TASK_RUNNERS: dict[str, subprocess.Popen] = {}
 # `api` must be one of OpenClaw's wire protocols. "openai" alone is REJECTED —
 # the schema wants the specific dialect, and the error names the whole allowed
 # list, so read it if you add a provider here.
+# FREE FIRST. The owner's requirement (docs/MOAI_CLOUD_ONLY_PLAN.md) is that Mo
+# AI never downloads a model and that a person can use it without paying and
+# without a credit card. These four are OpenAI-wire compatible, which is the wire
+# moai-gateway already speaks, so they need a catalogue entry and nothing else.
+#
+# Researched 2026-09-06; each rate-limits INDEPENDENTLY, which is the whole
+# reason the plan routes across several rather than picking one:
+#
+#   cerebras  ~1M tokens/day, 14,400 req/day, 8K context on the free tier
+#   groq      ~30 req/min, 131K context
+#   nvidia    120+ open-weight models
+#   openrouter ~50 req/day across its :free models
+#
+# `free: True` is a LABEL for the settings UI, not a promise about a third
+# party's business decisions. Free tiers change — one source already reports
+# Cerebras moving to a card trial. The gate checks this list's SHAPE (free
+# entries exist, come first, carry a model); it must never assert that some
+# company is still generous.
 PROVIDERS = [
+    {"id": "cerebras", "name": "Cerebras (مجاني | free)",
+     "base": "https://api.cerebras.ai/v1",
+     "model": "gpt-oss-120b", "api": "openai-completions", "free": True},
+    {"id": "groq", "name": "Groq (مجاني | free)",
+     "base": "https://api.groq.com/openai/v1",
+     "model": "openai/gpt-oss-120b", "api": "openai-completions", "free": True},
+    {"id": "nvidia", "name": "NVIDIA NIM (مجاني | free)",
+     "base": "https://integrate.api.nvidia.com/v1",
+     "model": "openai/gpt-oss-120b", "api": "openai-completions", "free": True},
+    {"id": "openrouter-free", "name": "OpenRouter (مجاني | free)",
+     "base": "https://openrouter.ai/api/v1",
+     "model": "openai/gpt-oss-120b:free", "api": "openai-completions", "free": True},
     {"id": "synterolink", "name": "Synterolink", "base": "https://api.synterolink.com/v1",
      "model": "gpt-5.4-mini", "api": "openai-responses"},
     {"id": "openai", "name": "OpenAI", "base": "https://api.openai.com/v1",
