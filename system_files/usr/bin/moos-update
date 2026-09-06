@@ -206,11 +206,13 @@ class Updater(MoOSApp):
         if trust_warns:
             trust.add_css_class("ui2-badge-warning")
             trust.set_tooltip_text(local_text(
-                "هذا النظام أُقلع من أصل لم يُتحقّق من توقيعه. "
-                "ثبّت تحديثًا موقّعًا وأعد التشغيل ليعود إلى أصل موثّق.",
+                "هذا النظام أُقلع من أصل لم يُتحقّق من توقيعه، ولن تُتاح "
+                "التحديثات حتى يعود إلى أصل موثّق. أعد التشغيل إلى تحديث "
+                "موقّع — إن لم يكن هناك تحديث مُجهَّز فثبّت واحدًا أولًا.",
                 "This system booted from an origin whose signature was not "
-                "verified. Install a signed update and reboot to return it to "
-                "a verified origin.",
+                "verified, and updates stay unavailable until it returns to a "
+                "verified origin. Reboot into a signed update -- install one "
+                "first if none is staged.",
             ))
         trust.set_valign(Gtk.Align.CENTER)
         hero.append(trust)

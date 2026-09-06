@@ -36,6 +36,21 @@ unverified origin, or a local image import during bring-up, both fit; neither is
 proven, so do not repeat either explanation as fact. What is proven is the state
 above and that the rollback deployment is signed.
 
+**While it stays unverified, this machine cannot update at all.**
+`/usr/libexec/moos-image-update resolve` reads the *booted* origin, requires it
+to match the signed-official pattern, and otherwise raises a security error:
+
+    moos-image-update: the booted deployment is not a signed official MoOS origin
+
+That backend is the single authority behind `moai-do update`, the Updater's
+check/install buttons and the nightly train, so all three refuse. The refusal is
+correct -- MoOS should not pull an update onto a base it cannot vouch for -- but
+it inverts the usual release order for this host:
+
+    reboot into the staged signed deployment  ->  update  ->  reboot again
+
+Updating before that first reboot is not merely inadvisable, it is impossible.
+
 **The badge was hiding it.** The Updater's "SIGNED IMAGE · ATOMIC" was a
 hardcoded string, so the one surface that tells the owner whether they are
 running the system MoOS signed said yes without looking. It now reads the booted
