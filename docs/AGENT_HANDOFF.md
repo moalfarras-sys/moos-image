@@ -98,11 +98,17 @@ Pick ONE execution-order ID; do not re-derive what is already recorded.
   shared. `build_files/convert_webengine_dictionaries.sh` is called by both
   builds and asserts both languages. If you add a third edition, call it there
   too — `tests/test_webengine_dictionaries.py` enforces that shape.
-- **Reported, NOT changed — the owner's own unit:**
-  `~/.config/systemd/user/mo-remote-watchdog.timer` fires every minute to start
-  an already-active service, and its `ConditionPathExists=%t/bus` is in
-  `[Service]` where systemd ignores it. Moving that key to `[Unit]` is the fix;
-  it is a local override, so ask before touching it.
+- **THE SCREEN OF THIS MACHINE IS MO PC REMOTE.** Never restart
+  `mo-remote-personal.service`, and never take an action that can leave it down:
+  doing so cuts the owner's display. `systemctl --user start` on it is safe (a
+  no-op while it runs); `restart`/`stop` are not.
+- **`mo-remote-watchdog` is fixed and deliberately still enabled.** Its
+  `ConditionPathExists` was in `[Service]` (ignored there), so it fired 12.65 s
+  into the session, before Wayland, and took `xdg-desktop-portal-kde` down with
+  a qFatal every boot. It now guards on `%t/wayland-0` in `[Unit]`. Do not
+  "clean it up" by disabling it: `mo-remote-personal` has `StartLimitBurst=5`
+  and this timer is the only recovery from that on a machine with no other
+  screen. Originals: `~/.config/systemd/user/.moos-backup-20260906/`.
 - **Next bounded tasks, in order:** B02 (measure the x86 editions' initramfs the
   same way — `moos-nvidia` must keep its kmod, so expect a different answer),
   P03 (make baloo's `only basic indexing` follow `budget.file_indexing`, written

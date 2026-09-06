@@ -108,13 +108,37 @@ gate — against a system that currently has none.
 `tests/test_webengine_dictionaries.py` holds the shape that matters (both
 editions call it; neither keeps an inline copy) and is bite-tested three ways.
 
-**Local override, reported not changed:** `~/.config/systemd/user/mo-remote-watchdog.timer`
-fires `OnCalendar=*:*:00` — every minute, 104 times in this boot — to start
-`mo-remote-personal.service`, which is already active. Its
-`ConditionPathExists=%t/bus` sits in `[Service]`, where systemd ignores it
-(`Condition*` belongs in `[Unit]`), so the guard its author intended has never
-applied and each firing logs the warning. This is the owner's own unit, not
-product source; the one-line fix is to move that key into `[Unit]`.
+**Local override, FIXED with the owner's authorisation (2026-09-06).**
+`~/.config/systemd/user/mo-remote-watchdog.service` had
+`ConditionPathExists=%t/bus` in `[Service]`, where systemd ignores it
+(`Condition*` is a `[Unit]` directive), so the guard its author intended never
+applied. That was not cosmetic. Traced in the journal:
+
+    12.65s  mo-remote-watchdog.service starts (pre-graphical-session)
+              -> systemctl --user start mo-remote-personal.service
+                 -> its Wants= pulls up xdg-desktop-portal
+                    -> xdg-desktop-portal-kde is a QApplication; with no
+                       platform plugin it hit qFatal -> SIGABRT (core 1381)
+    13.18s  systemd: "Dependency failed for xdg-desktop-portal.service"
+
+at every boot, on the machine whose screen IS Mo PC Remote. `%t/bus` was never
+the right marker either — the bus exists at 12.5 s. `%t/wayland-0` is what "the
+graphical session is up" actually means, and it is what `mo-remote-personal`
+needs, so the condition now guards on that and sits in `[Unit]`.
+
+**Kept, not disabled, deliberately:** `mo-remote-personal.service` has
+`StartLimitBurst=5`, so after five failures in 300 s systemd gives up
+permanently; on this machine that timer is the only thing that recovers from
+that. Its `ExecStart` is a plain `start`, a no-op on a running unit, so it can
+never interrupt a live session. The shipped unit itself was already correctly
+ordered (`After=plasma-workspace.target`, `PartOf=`, `Restart=on-failure`) —
+this was never a product bug, only a local unit starting Remote out of band.
+
+Verified live without touching the session: originals backed up to
+`~/.config/systemd/user/.moos-backup-20260906/`, `daemon-reload` only, and
+across two observed firings the unit ran `Starting -> Finished` with no
+`Unknown key` warning while `mo-remote-personal` held **the same MainPID 2262
+and NRestarts=1** throughout.
 
 ### Launcher keyboard navigation + system-audit integration (2026-09-05)
 
