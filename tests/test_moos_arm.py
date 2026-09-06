@@ -259,8 +259,13 @@ class ArmEditionTests(unittest.TestCase):
             self.assertIn(unit, build, f"ARM never enables the shared authority {unit}")
             self.assertIn(unit, verifier,
                           f"the finished ARM image never proves {unit} is enabled")
+        # Every route the ARM UI offers must have a backend the FINISHED image
+        # proves is present. `"ramalama"` left this list with Mo AI's local
+        # brain: there is no longer a route that reaches a local engine, so
+        # requiring the image to prove one would demand a backend for a door
+        # that no longer exists (docs/MOAI_CLOUD_ONLY_PLAN.md, stages C2/C5).
         for backend in (
-            '"ramalama"', '"plasma-discover"', '"kinfocenter"',
+            '"plasma-discover"', '"kinfocenter"',
             '"bluedevil"', '"plasma-print-manager"', '"flatpak-kcm"',
         ):
             self.assertIn(backend, verifier,

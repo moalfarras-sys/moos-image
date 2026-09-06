@@ -93,7 +93,12 @@ def main() -> None:
         "ydotool",
         "gstreamer1",
         "gstreamer1-plugins-good",
-        "ramalama",
+        # ramalama is deliberately NOT here. Mo AI's brain is a cloud API
+        # (docs/MOAI_CLOUD_ONLY_PLAN.md): ensure_local() refuses before it can
+        # start an engine, so shipping one was dead weight in every image. That
+        # it is ABSENT is asserted by tests/test_moai_cloud_only.py, which also
+        # checks x86 and ARM agree — this list is "the desktop's backends are
+        # installed", a different question.
         "plasma-discover",
         "plasma-discover-flatpak",
         "plasma-discover-kns",
@@ -110,7 +115,9 @@ def main() -> None:
         )
         require(result.returncode == 0, f"required aarch64 package is absent: {package}")
 
-    for executable in ("ramalama", "plasma-discover", "kinfocenter"):
+    # Same reason as above: the local engine is no longer a MoOS control-surface
+    # backend, because there is no longer a control surface that reaches one.
+    for executable in ("plasma-discover", "kinfocenter"):
         path = ROOT / "usr/bin" / executable
         require(path.is_file() and os.access(path, os.X_OK),
                 f"ARM control surface backend is not executable: {path}")

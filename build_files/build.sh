@@ -1468,9 +1468,6 @@ grep -q '^Inherits=MoOS$' /usr/share/icons/default/index.theme \
 #                                     service is enabled here by default — Android
 #                                     support is OPT-IN via the Compatibility Hub
 #                                     (see MOOS_COMPATIBILITY_PLAN.md).
-# - ramalama      (0.21.0-1.fc44)     local AI model runner for Mo AI (binary
-#                                     package really is "ramalama", not
-#                                     python3-ramalama).
 # - gamemode      (1.8.2-4.fc44)      Feral GameMode daemon/lib — games request
 #                                     temporary host optimizations.
 # - mangohud      (0.8.3~rc1-2.fc44)  Vulkan/OpenGL overlay (FPS, temps, load).
