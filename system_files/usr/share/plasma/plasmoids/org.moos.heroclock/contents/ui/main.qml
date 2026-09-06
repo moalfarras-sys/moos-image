@@ -25,7 +25,7 @@ PlasmoidItem {
     id: root
     // Follow the session reading direction (matches org.moos.brand). Under an
     // Arabic (RTL) session the date lines below hug the reading edge, not left.
-    readonly property bool rtl: Qt.locale().textDirection === Qt.RightToLeft
+    readonly property bool rtl: MoUI.Locale.rtl
 
     Plasmoid.backgroundHints: PlasmaCore.Types.NoBackground
     preferredRepresentation: fullRepresentation

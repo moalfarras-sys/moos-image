@@ -115,7 +115,7 @@ ApplicationWindow {
     readonly property color accent:   Kirigami.Theme.highlightColor  // ONE accent for the OS: the theme's highlight,
                                       // the same teal the selection ring and the window
                                       // decoration already draw. `link` means links again.
-    readonly property bool rtl: Qt.locale().textDirection === Qt.RightToLeft
+    readonly property bool rtl: MoUI.Locale.rtl
     readonly property bool compactRail: win.width < 1080
 
     // Paths are passed by /usr/bin/moos-store.  Pure QML intentionally has no

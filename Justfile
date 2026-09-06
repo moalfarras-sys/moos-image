@@ -135,6 +135,11 @@ check:
     # One globally importable MoUI module must own identity metrics and shared
     # controls; an app-local copy cannot silently grow back.
     python3 tests/test_moos_design_core.py
+    # One answer to "is this session Arabic". Four surfaces read
+    # Qt.application.layoutDirection, which follows a translator and not the
+    # locale — the Command Center, installer and welcome screen rendered in
+    # English on Arabic installs.
+    python3 tests/test_moos_one_locale_authority.py
     python3 tests/test_moos_ui2.py
     # The full Launcher must be operable with the keyboard alone: sidebar
     # focus + activation keys, search-field <-> content crossing, Shift+Tab.

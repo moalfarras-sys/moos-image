@@ -29,7 +29,14 @@ QQC2.ApplicationWindow {
     Kirigami.Theme.inherit: false
     Kirigami.Theme.colorSet: Kirigami.Theme.View
 
-    readonly property bool rtl: Qt.application.layoutDirection === Qt.RightToLeft
+    // ONE authority (org.moos.ui Locale). This read
+    // Qt.application.layoutDirection, which follows an installed TRANSLATOR
+    // and not the locale — MoOS ships bilingual QML strings rather than Qt
+    // catalogues, so it is LeftToRight even at LANG=ar_SA.UTF-8. Proven with
+    // a QML probe on the live session: locale RTL true, application RTL false.
+    // The whole Command Center therefore rendered in English on an
+    // Arabic-first OS while the launcher beside it was correctly Arabic.
+    readonly property bool rtl: MoUI.Locale.rtl
     readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
     readonly property real fontScale: Qt.application.font.pointSize > 0
                                       ? Qt.application.font.pointSize / 10 : 1

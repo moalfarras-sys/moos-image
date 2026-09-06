@@ -1,5 +1,6 @@
 module org.moos.ui
 singleton Tokens 1.0 Tokens.qml
+singleton Locale 1.0 Locale.qml
 KeyboardViewport 1.0 KeyboardViewport.js
 SymbolCatalog 1.0 SymbolCatalog.js
 Surface 1.0 Surface.qml

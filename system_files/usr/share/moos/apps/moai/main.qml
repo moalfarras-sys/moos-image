@@ -190,8 +190,7 @@ Kirigami.ApplicationWindow {
     readonly property bool moaiRtl: langOverride === "ar" ? true
         : langOverride === "en" ? false
         : layoutDirectionOverride === "rtl"
-        || (layoutDirectionOverride === ""
-            && Qt.application.layoutDirection === Qt.RightToLeft)
+        || (layoutDirectionOverride === "" && MoUI.Locale.rtl)
     readonly property int gatewayPort: root.argPort("--gateway-port", 8080)
     readonly property int controlPort: root.argPort("--control-port", 8079)
     readonly property int agentPort:   root.argPort("--agent-port",   8077)
