@@ -240,6 +240,27 @@ def main() -> None:
     require("Inherits=MoOS" in read("/usr/share/icons/default/index.theme"),
             "the pre-session default pointer does not resolve to MoOS")
 
+    # MoUI.Locale is the single answer to "is this session Arabic?", and every
+    # first-party QML surface now asks it. Its absence does NOT raise a QML
+    # error: the import resolves to undefined, `MoUI.Locale.rtl` is falsy, and
+    # the app renders left-to-right English on an Arabic desktop while looking
+    # perfectly healthy. That exact failure was observed on the live session
+    # against an image that shipped without it, which is why this is checked in
+    # the finished image and not only in source.
+    moui = "usr/lib64/qt6/qml/org/moos/ui"
+    require((ROOT / moui / "Locale.qml").is_file(),
+            "the MoUI.Locale singleton is absent; first-party apps would fall "
+            "back to English left-to-right with no visible error")
+    moui_qmldir = read(f"/{moui}/qmldir")
+    require("singleton Locale 1.0 Locale.qml" in moui_qmldir,
+            "MoUI.Locale is present but not registered as a singleton in "
+            "qmldir, so the import resolves to undefined at runtime")
+    locale_source = read(f"/{moui}/Locale.qml")
+    require("Qt.locale().textDirection" in locale_source,
+            "MoUI.Locale must answer from the session locale; "
+            "Qt.application.layoutDirection follows the installed translator, "
+            "which MoOS never installs, and is LeftToRight on every session")
+
     breeze_qmldir = read("/usr/lib64/qt6/qml/org/kde/breeze/components/qmldir")
     require(not any(line.startswith("prefer ") for line in breeze_qmldir.splitlines()),
             "Plasma Login Manager still prefers compiled Breeze controls over MoOS QML")
