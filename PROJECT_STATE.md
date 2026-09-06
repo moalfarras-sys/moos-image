@@ -15,6 +15,62 @@ Last reconciled: **2026-09-06 (resumed audit)**. Current source and live
 findings: [`docs/SYSTEM_AUDIT_RESUME_20260906.md`](docs/SYSTEM_AUDIT_RESUME_20260906.md).
 Signed release and post-reboot verification are tracked there separately.
 
+### The live A1 is running an unverified origin (2026-09-07)
+
+Measured, not inferred, with `ostree admin status` and the deployments' own
+`.origin` files:
+
+    23beed6e…1 (staged)    ostree-image-signed:…/moos-arm@sha256:d2045552…
+  * 23beed6e…0 (booted)    ostree-unverified-registry:…/moos-arm@sha256:d2045552…
+    1cba09f5…0 (rollback)  ostree-image-signed:…/moos-arm@sha256:049a620d…
+
+The booted deployment and the staged one are the **same digest**; they differ
+only in whether the origin records signature verification. So the pending update
+is a signed re-pin of the content already running, and rebooting moves this
+machine from an unverified origin onto a verified one. That is also why the
+Updater showed 44.20260906.284 as both current and pending -- it was not a
+display bug.
+
+How it got there is not established. `bootc install to-disk` writing an
+unverified origin, or a local image import during bring-up, both fit; neither is
+proven, so do not repeat either explanation as fact. What is proven is the state
+above and that the rollback deployment is signed.
+
+**The badge was hiding it.** The Updater's "SIGNED IMAGE · ATOMIC" was a
+hardcoded string, so the one surface that tells the owner whether they are
+running the system MoOS signed said yes without looking. It now reads the booted
+deployment's origin from the kernel command line -- unprivileged, no
+bootc/rpm-ostree call -- and reports signed, unverified or unknown, with unknown
+deliberately a warning rather than a pass. Gate:
+`tests/test_updater_trust_badge.py`.
+
+### Mo Store spoke the backend's language, and branched on its prose (2026-09-07)
+
+An entirely Arabic Mo Store showed the English toast "Rebuilding the unified app
+index" above its own Arabic cancel button. The cause was structural: every job
+message `moos-storectl` emitted was English prose, and `main.qml` compared that
+prose to decide install state, so translating the backend would have silently
+broken scope detection and offered a Remove action that cannot work.
+
+The backend now emits a stable `message_key` beside the human `message` and the
+UI owns the words. Failures and dynamic Flatpak status deliberately carry no
+key so their real text reaches the user verbatim, which means every failure path
+must *clear* the key -- a job document keeps fields it was given, and the first
+run showed `message: "App index refreshed"` still carrying
+`message_key: "refreshing_index"`. Gate: `tests/test_store_job_language.py`,
+21 keys checked against 21 phrases in both directions.
+
+### First-party visual pass on the live session (2026-09-07)
+
+Captured and read, not assumed. Mo Store renders its real catalogue (2938 apps,
+1936 verified publishers) with correct RTL. Recovery is correct and calm, and
+its state matches the deployments exactly. Mo AI is healthy and genuinely
+cloud-only -- Online, `Cloud · openrouter/free` -- but its **installed** UI is
+English in an Arabic session. That is not a new defect: the tree's Mo AI is
+already RTL-aware through `MoUI.Locale.rtl`, and `Locale.qml` simply does not
+exist in the running image yet. It ships with the next build; do not "fix" it
+again in source.
+
 ### S03 — the OOM had one cause, and it was KWin (2026-09-06)
 
 The review left this open as an unexplained cascade with five victims. Summing
