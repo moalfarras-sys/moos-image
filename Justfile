@@ -227,6 +227,9 @@ check:
     # user-provisioning path) and generate a per-bundle one-time password —
     # never a shared static one inside the image.
     python3 tests/test_utm_bundle.py
+    # The net installer is the only path that writes MoOS to a target disk, and
+    # it must stay digest-pinned with cosign verified before bootc install.
+    python3 tests/test_utm_installer.py
     python3 artwork/verify_visuals.py
     # The agent contract: .mcp.json and .claude/settings.json are committed, so a
     # pasted API key, an unapproved server, or a quietly deleted deny rule all reach
