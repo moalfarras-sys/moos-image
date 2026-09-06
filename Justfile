@@ -154,6 +154,10 @@ check:
     # Protected app identities and the small-size icon ladder are separate from
     # the monochrome symbolic family and need their own proof.
     python3 tests/test_moos_app_icons.py
+    # KDE and GTK windows must put their buttons on the SAME side. KWin said
+    # left, GSettings and the portal said right, and half the desktop
+    # disagreed with the other half.
+    python3 tests/test_window_button_consistency.py
     # Every name in an Inherits= chain must be a theme the image installs.
     # MoOSUI2 named Papirus-Dark, which Fedora does not ship: 69 failed
     # lookups per boot while the gate on the RPM stayed green.

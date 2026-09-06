@@ -1,0 +1,84 @@
+# MoOS visual & experience roadmap
+
+Written 2026-09-06 after a live audit of `moos-arm-oracle` that started from one
+complaint — *"I asked you to fix and improve the system and I see no
+difference"* — and found that the complaint was correct, for reasons no
+file-level gate could see.
+
+Read `MOOS_DESIGN_PLAN.md` first (the ≥15 luminance rule and which surfaces can
+carry a change). This file is the ordered work that follows from the audit.
+
+---
+
+## 0. Why nothing looked different — the four findings
+
+These are the measurements, not opinions. Each is now fixed and gated.
+
+| # | What was wrong | Evidence |
+|---|---|---|
+| V1 | **The desktop had no motion at all.** Not "reduced" — none. | `AnimationDurationFactor=0` in the user's kdeglobals; `blur/magiclamp/squash/scale/slide/dimscreen/dialogparent` all `false` |
+| V2 | **`moos-visual-tier` never told the running session anything.** | `kwriteconfig6` was called without `--notify`, so KConfig emitted no change signal and the whole profile landed only at the next login |
+| V3 | **The `essential` tier disabled even the free effects.** | Idle `kwin_wayland` sits at ~1% of one core with `scale/squash/slide/dimscreen` ON; the real cost on this box is Remote's screen capture, not a 200 ms single-window transform |
+| V4 | **KDE and GTK windows disagreed about which side the buttons go on.** | kwinrc `ButtonsOnLeft=XIA`; GSettings and the xdg portal both `appmenu:minimize,maximize,close` |
+
+**The lesson to carry forward:** every one of these passed every existing gate,
+because the gates read files and these bugs live in *what the running session
+did with those files*. When adding a visual gate, ask what the compositor
+actually loaded, not what the config says.
+
+---
+
+## 1. The rule this roadmap adds
+
+> **A motion or theme change is not shipped until the RUNNING session has been
+> asked what it loaded.**
+>
+> ```bash
+> gdbus introspect --session -d org.kde.KWin -o /Effects --only-properties | grep loadedEffects
+> gsettings get org.gnome.desktop.wm.preferences button-layout
+> gdbus call --session -d org.freedesktop.portal.Desktop \
+>   -o /org/freedesktop/portal/desktop \
+>   -m org.freedesktop.portal.Settings.Read <schema> <key>
+> ```
+>
+> `loadedEffects` is the one that matters. A `[Plugins]` key set to `true` for an
+> effect that is not in that list is a setting nobody is reading.
+
+KWin decides at session start whether animations are enabled at all. A session
+that starts with `AnimationDurationFactor=0` will not load a single animation
+effect, and **no amount of live reconfiguring changes that** — the profile
+applies at the next login. Say so plainly rather than claiming a live fix.
+
+---
+
+## 2. Ordered work
+
+| ID | State | Work | Closure evidence |
+|---|---|---|---|
+| V1 | done, needs a session | Restore the motion profile; remove the stale `AnimationDurationFactor=0` | `loadedEffects` contains scale/squash/slide/dimscreen after the next login |
+| V2 | done | `moos-visual-tier` writes with `--notify` | `test_moos_visual_tier.py::test_every_config_write_notifies_the_running_session`, bite-tested |
+| V3 | done | `essential` = balanced minus blur | Same file, `test_essential_keeps_the_cheap_motion_and_still_refuses_blur` |
+| V4 | done | `moos-theme` writes the GTK mirror of `ButtonsOnLeft` | `test_window_button_consistency.py`, bite-tested both directions |
+| V5 | done, needs a reload | VS Code drew its own window controls at the LEFT, over its own menu, hiding `File` and `Ed` of `Edit`. Set `window.titleBarStyle: native` so KWin's MoOS frame is the title bar | Re-crop the top-left strip after a VS Code restart; `File` and `Edit` legible, MoOS circular controls present |
+| V6 | **open** | Audit the remaining first-party app windows the same way — Mo AI, Mo Store, MoPlayer, Mo Settings — for the same class of collision, at 100 % and 150 % | A cropped top strip per app, both scales, no control overlapping content |
+| V7 | **open** | The dock's tray glyphs are visually lighter than the app icons beside them. Measure both against the dock plate and bring them to one weight | Luminance scan across an app icon and a tray glyph on the same row; ≥15 against the plate for both |
+| V8 | **open** | The desktop is bare wallpaper. `MOOS_DESIGN_PLAN.md` §3.1 unlocked `createApplet`, and §5 forbids auto-seeding a widget again (rev 43's heroclock was rejected on sight). Offer widgets through a *chooser* the user opts into, never a seed | A first-run affordance that places nothing until clicked |
+| V9 | **open** | Complete the 100/125/150/200/225 % sweep for the launcher, dock and popups | A frame per step; no clipped label, no control off-plate |
+| V10 | **open** | Lock / login / logout final artifact frames across locale and scale | Frames from the signed image, not a live session |
+
+---
+
+## 3. What must not be done
+
+- **Do not enable blur on a software renderer.** It is the one per-frame
+  full-screen pass, and on this class of machine it is also being encoded and
+  streamed. The `BlurStrength` ceiling of 15 is a readability limit; "off" on
+  `essential` is a cost limit. Both stay.
+- **Do not restart KWin or `mo-remote-personal` on a machine whose screen is Mo
+  PC Remote.** Restarting the compositor there is not a refresh, it is turning
+  the monitor off.
+- **Do not auto-place desktop widgets.** Rev 43 did; it was rejected on sight
+  and removed in rev 44.
+- **Do not "fix" a user's own setting silently.** `AnimationDurationFactor=0`
+  was treated as a deliberate choice by `moos-visual-tier` for exactly the right
+  reason. It was cleared here because the owner said they wanted motion back.

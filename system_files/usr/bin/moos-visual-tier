@@ -300,13 +300,32 @@ PROFILES: dict[str, dict[str, dict[str, str]]] = {
         "motion": "gentle",
     },
     "essential": {
+        # ESSENTIAL IS NOT "NO MOTION". It is "no motion you pay for per frame".
+        #
+        # This tier used to switch every effect off, including the scripted ones,
+        # and the result was measured on the live Oracle A1 on 2026-09-06: a
+        # desktop with no window open/close, no minimise, no desktop switch and
+        # no modal dim — the entire MoOS motion identity gone — while the actual
+        # saving was nil. Idle kwin_wayland on that box sampled at 58% of one
+        # core with ALL of this off, because the cost there is the Remote screen
+        # capture compositing every frame, not a 200 ms scale on one window.
+        #
+        # The distinction that matters is per-frame full-screen work versus a
+        # brief, bounded, single-window transform:
+        #   blur      MODERATE, every frame, whole screen  -> stays OFF here
+        #   magiclamp the showy minimise                   -> stays OFF here
+        #   scale/squash/slide/dimscreen  scripted, one window, milliseconds
+        #
+        # So essential is now exactly the balanced set MINUS blur. It keeps the
+        # readability ceiling's whole point (no software blur pass) and gives a
+        # 1 GiB no-GPU machine the same MoOS motion language as a workstation.
         "kwinrc": {
             "Plugins/blurEnabled": "false",
             "Plugins/magiclampEnabled": "false",
-            "Plugins/squashEnabled": "false",
-            "Plugins/scaleEnabled": "false",
-            "Plugins/slideEnabled": "false",
-            "Plugins/dimscreenEnabled": "false",
+            "Plugins/squashEnabled": "true",
+            "Plugins/scaleEnabled": "true",
+            "Plugins/slideEnabled": "true",
+            "Plugins/dimscreenEnabled": "true",
             "Plugins/dialogparentEnabled": "false",
         },
         # NEVER 0: Kirigami's longDuration floors at 1, so QML that gates on
@@ -417,10 +436,27 @@ def resolve() -> dict:
 
 
 def _kwriteconfig(file: str, group: str, key: str, value: str) -> bool:
+    """Write one key AND tell the running session about it.
+
+    `--notify` is not optional decoration. Without it kwriteconfig6 edits the
+    file and nothing else: KConfig's change signal is never emitted, so KWin and
+    Plasma keep the values they read at session start and this tool's whole
+    profile lands only at the NEXT login. Measured on the live Oracle A1 on
+    2026-09-06: kdeglobals said AnimationDurationFactor=0.4 and kwinrc said
+    scale/squash/slide/dimscreen were enabled, while KWin's loadedEffects held
+    not one animation effect — not even slidingpopups, which had been enabled
+    all along. The desktop had no window open/close, no minimise and no desktop
+    switch, and every gate on the files was green.
+
+    This is the same trap the keyboard migration already hit: KWin 6 watches
+    config through KConfigWatcher, so `org.kde.KWin.reconfigure` alone does not
+    make it re-read a value it cached at startup. Notify on the write.
+    """
     tool = "kwriteconfig6"
     try:
         return subprocess.run(
-            [tool, "--file", file, "--group", group, "--key", key, value],
+            [tool, "--notify", "--file", file, "--group", group,
+             "--key", key, value],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10,
         ).returncode == 0
     except (OSError, subprocess.SubprocessError):

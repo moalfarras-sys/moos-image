@@ -463,6 +463,64 @@ class Override(unittest.TestCase):
             self.assertFalse(decision["pinned"])
 
 
+class MotionReachesTheSession(unittest.TestCase):
+    """Two bugs measured live on 2026-09-06, both invisible to file-level gates."""
+
+    def setUp(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            self.module = load_module(Path(tmp))
+        self.source = TIER.read_text(encoding="utf-8")
+
+    def test_every_config_write_notifies_the_running_session(self) -> None:
+        """kwriteconfig6 without --notify edits a file and tells nobody.
+
+        KConfig's change signal is never emitted, so KWin and Plasma keep the
+        values they read at session start and the whole tier profile lands only
+        at the NEXT login. Measured: kdeglobals said AnimationDurationFactor=0.4
+        and kwinrc said scale/squash/slide/dimscreen were enabled, while KWin's
+        loadedEffects held not one animation effect. Same trap as the keyboard
+        migration, which KWin 6 watches through KConfigWatcher.
+        """
+        writer = self.source.split("def _kwriteconfig(", 1)[1].split("\ndef ", 1)[0]
+        code = "\n".join(l for l in writer.splitlines()
+                          if not l.lstrip().startswith("#"))
+        code = code.split('"""', 2)[-1]
+        self.assertIn('"--notify"', code,
+                      "kwriteconfig6 must notify, or the profile only applies "
+                      "at the next login and every file-level gate stays green")
+
+    def test_essential_keeps_the_cheap_motion_and_still_refuses_blur(self) -> None:
+        """"Essential" must mean "nothing per-frame", not "nothing at all".
+
+        The tier used to disable every effect including the scripted ones, so a
+        weak machine lost the entire MoOS motion identity for no measurable
+        saving: idle kwin_wayland on the live A1 sits at ~1% of one core with
+        these on, because the real cost there is Remote's screen capture.
+        """
+        kwin = self.module.PROFILES["essential"]["kwinrc"]
+        for cheap in ("Plugins/scaleEnabled", "Plugins/squashEnabled",
+                      "Plugins/slideEnabled", "Plugins/dimscreenEnabled"):
+            self.assertEqual(kwin[cheap], "true",
+                             f"{cheap} is a scripted, single-window animation; "
+                             f"disabling it costs identity and saves nothing")
+        self.assertEqual(kwin["Plugins/blurEnabled"], "false",
+                         "blur is the per-frame full-screen pass a software "
+                         "renderer must never be asked to pay for")
+        self.assertEqual(kwin["Plugins/magiclampEnabled"], "false",
+                         "the showy minimise stays for real GPUs; squash owns "
+                         "the exclusive minimise slot here")
+
+    def test_essential_never_exceeds_balanced(self) -> None:
+        """Cheaper hardware may match richer hardware, never out-animate it."""
+        essential = self.module.PROFILES["essential"]["kwinrc"]
+        balanced = self.module.PROFILES["balanced"]["kwinrc"]
+        for key, value in essential.items():
+            if value == "true":
+                self.assertEqual(
+                    balanced.get(key), "true",
+                    f"essential enables {key} while balanced does not")
+
+
 class Budget(unittest.TestCase):
     """The capability block extends the SAME probe past the compositor.
 

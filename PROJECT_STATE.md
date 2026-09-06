@@ -8,6 +8,44 @@ Last reconciled: **2026-09-03 (exact-frame release proof)** — latest source
 branch, signed CI artifacts, exact mapped-window evidence, and live host checks
 on `moos-arm-oracle`.
 
+### Why the desktop looked unchanged — four measured causes (2026-09-06)
+
+The owner reported seeing no difference from several sessions of work. They were
+right, and none of it was visible for reasons no file-level gate could see. Full
+plan and the ordered remainder: [`docs/MOOS_VISUAL_ROADMAP.md`](docs/MOOS_VISUAL_ROADMAP.md).
+
+- **The desktop had no motion at all.** `AnimationDurationFactor=0` in the
+  user's kdeglobals, and `blur/magiclamp/squash/scale/slide/dimscreen/
+  dialogparent` all `false`. There was nothing to see.
+- **`moos-visual-tier` never told the running session anything.** It called
+  `kwriteconfig6` without `--notify`, so KConfig emitted no change signal and the
+  whole hardware-matched profile only ever landed at the NEXT login — on every
+  machine, since the tool was written. Same trap as the keyboard migration, which
+  KWin 6 watches through `KConfigWatcher`. Fixed.
+- **The `essential` tier disabled even the free effects.** It switched off the
+  scripted single-window animations along with blur, so a weak machine lost the
+  entire MoOS motion language for no measurable saving: idle `kwin_wayland`
+  measures ~1% of one core with `scale/squash/slide/dimscreen` on, because the
+  cost on this box is Remote's screen capture, not a 200 ms transform. Essential
+  is now exactly balanced **minus blur**; the blur refusal is untouched.
+- **KDE and GTK windows disagreed about which side the buttons go on.** kwinrc
+  `ButtonsOnLeft=XIA` (left) versus GSettings and the xdg portal both answering
+  `appmenu:minimize,maximize,close` (right). `moos-theme` already owned both
+  halves and simply never wrote the GTK one. Fixed and gated in both directions.
+
+**The reported bug that started it:** VS Code drew *its own* window controls at
+the left, on top of its own menu bar, hiding `File` entirely and `Ed` of `Edit`
+— measured from a 4× crop of the title strip. Its `window.titleBarStyle` is now
+`native`, so KWin's MoOS frame is the title bar and the menu moves below it.
+
+**Honest limits.** KWin decides at session start whether animations load at all;
+a session that began with factor 0 loads none, and `loadedEffects` still holds no
+animation effect on this machine. The configuration is correct and takes effect
+at the next login. KWin was NOT restarted: on this machine the screen *is* Mo PC
+Remote, so restarting the compositor is turning the monitor off. A CPU sample of
+58% taken during active screen output is not comparable to the 1% idle sample
+taken after; no CPU reduction is claimed from these changes.
+
 ### Live Oracle A1 resource audit — /boot was the real problem (2026-09-06)
 
 Measured on the running `moos-arm-oracle`, not inferred. Healthy: boot 14.3 s
