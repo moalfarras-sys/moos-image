@@ -307,9 +307,15 @@ const dict = {
   },
 
   // ── Clipboard sheet ──
-  pcToPhone: { ar: "الكمبيوتر ← الهاتف", en: "PC → Phone" },
-  phoneToPcText: { ar: "الهاتف ← الكمبيوتر · نص", en: "Phone → PC · text" },
-  phoneToPcImage: { ar: "الهاتف ← الكمبيوتر · صورة", en: "Phone → PC · image" },
+  pcToPhone: { ar: "من الكمبيوتر إلى الهاتف", en: "From PC to phone" },
+  phoneToPcText: { ar: "من الهاتف إلى الكمبيوتر · نص", en: "From phone to PC · text" },
+  phoneToPcImage: { ar: "من الهاتف إلى الكمبيوتر · صورة", en: "From phone to PC · image" },
+  readPhoneClipboard: { ar: "لصق من حافظة الهاتف", en: "Paste from phone clipboard" },
+  pastePhoneManually: { ar: "اضغط مطوّلاً داخل حقل النص واختر لصق.", en: "Long-press the text field and choose Paste." },
+  pastePc: { ar: "لصق بالكمبيوتر", en: "Paste on PC" },
+  fitScreen: { ar: "ملاءمة الشاشة", en: "Fit screen" },
+  selectAll: { ar: "تحديد الكل", en: "Select all" },
+  undo: { ar: "تراجع", en: "Undo" },
   pressGetToFetch: { ar: "اضغط جلب لإحضار حافظة الكمبيوتر", en: "Press Get to fetch the PC clipboard" },
   typeOrPasteText: { ar: "اكتب أو الصق نصاً…", en: "Type or paste text…" },
   getPcClipboard: { ar: "جلب حافظة الكمبيوتر", en: "Get PC Clipboard" },

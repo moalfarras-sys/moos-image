@@ -146,7 +146,7 @@ export interface ClipResult {
 }
 
 export async function getClipboard(token: string): Promise<ClipResult> {
-  const res = await fetch("/api/clipboard", {
+  const res = await fetchWithTimeout("/api/clipboard", {
     headers: { authorization: "Bearer " + token },
     cache: "no-store",
   });
@@ -155,7 +155,7 @@ export async function getClipboard(token: string): Promise<ClipResult> {
 }
 
 export async function setClipboard(token: string, text: string): Promise<void> {
-  const res = await fetch("/api/clipboard", {
+  const res = await fetchWithTimeout("/api/clipboard", {
     method: "POST",
     headers: { "content-type": "application/json", authorization: "Bearer " + token },
     body: JSON.stringify({ text }),

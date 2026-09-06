@@ -1,0 +1,9 @@
+[Unit]
+Description=Refresh the app catalogue index (MoOS)
+ConditionPathExists=/run/ostree-booted
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/appstreamcli refresh-cache --force
+Nice=19
+IOSchedulingClass=idle

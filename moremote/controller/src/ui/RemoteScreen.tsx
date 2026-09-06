@@ -218,6 +218,23 @@ function SheetPanel({ label, closeLabel, onClose, children, role = "dialog", des
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    const viewport = window.visualViewport;
+    const panel = panelRef.current;
+    if (!viewport || !panel) return;
+    const resize = () => {
+      panel.style.bottom = `${Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)}px`;
+      panel.style.maxHeight = `${Math.max(0, Math.min(window.innerHeight * .82, viewport.height - 16))}px`;
+    };
+    viewport.addEventListener("resize", resize);
+    viewport.addEventListener("scroll", resize);
+    resize();
+    return () => {
+      viewport.removeEventListener("resize", resize);
+      viewport.removeEventListener("scroll", resize);
+    };
+  }, []);
+
+  useEffect(() => {
     const panel = panelRef.current;
     if (!panel) return;
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -476,6 +493,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
   const [pcClip, setPcClip] = useState<ClipResult>({ kind: "empty" });
   const [sendText, setSendText] = useState("");
   const [clipboardBusy, setClipboardBusy] = useState("");
+  const phoneClipRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const imagePasteRef = useRef(false);
   const [fileList, setFileList] = useState<FileListing | null>(null);
@@ -1613,6 +1631,10 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
   const openKeyboard = () => {
     enterTyping();          // before setKbOpen, so nothing has moved the view yet
     setKbOpen(true);
+    // iOS needs focus inside the original tap. Unhide before React commits,
+    // otherwise the closed bar's inert state rejects that synchronous focus.
+    kbbarRef.current?.removeAttribute("inert");
+    kbbarRef.current?.removeAttribute("aria-hidden");
     const el = inputRef.current;
     if (el) {
       // A reconnecting session may still hold an unsent draft.
@@ -1773,6 +1795,15 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
     if (pcClip.kind !== "text" || !pcClip.text) return;
     if (await copyTextToClipboard(pcClip.text)) showToast(tr("copiedOnPhone"));
     else showToast(tr("longPressToCopy"));
+  };
+  const readPhoneClip = async () => {
+    try {
+      if (!window.isSecureContext || !navigator.clipboard?.readText) throw new Error("manual paste");
+      setSendText(await navigator.clipboard.readText());
+    } catch {
+      phoneClipRef.current?.focus();
+      showToast(tr("pastePhoneManually"));
+    }
   };
   const uploadImage = async (blob: Blob, paste = false) => {
     if (!blob) return;
@@ -2239,10 +2270,15 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
       </main>
 
       {/* keyboard bar: a shortcuts row + a visible input (so typing AND Backspace work). */}
-      <div className={"kbbar" + (kbOpen ? " open" : "")} ref={kbbarRef}>
+      <div className={"kbbar" + (kbOpen ? " open" : "")} ref={kbbarRef} inert={!kbOpen} aria-hidden={!kbOpen}>
         {/* THE SCROLL CONTAINER MUST NOT PREVENT ITS OWN DEFAULT — the row scrolls sideways, and
             that scroll IS a default action. Focus is defended on the BUTTONS instead; see keepFocus. */}
         <div className="keyrow">
+          <button {...keepFocus} className="kkey" onClick={() => sendShortcut(["Control", "A"])}>{tr("selectAll")}</button>
+          <button {...keepFocus} className="kkey" onClick={() => sendShortcut(["Control", "C"])}>{tr("copy")}</button>
+          <button {...keepFocus} className="kkey" onClick={() => sendShortcut(["Control", "V"])}>{tr("pastePc")}</button>
+          <button {...keepFocus} className="kkey" onClick={() => sendShortcut(["Control", "Z"])}>{tr("undo")}</button>
+          <span className="kdiv" />
           {(["Control", "Alt", "Shift"] as const).map((m) => (
             <button key={m} {...keepFocus} className={"kkey" + (mods.has(m) ? " on" : "")} onClick={() => toggleMod(m)}>
               {m === "Control" ? "Ctrl" : m}
@@ -2250,11 +2286,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
           ))}
           <button {...keepFocus} className="kkey" onClick={() => sendKey("Win")}>Win</button>
           <span className="kdiv" />
-          <button {...keepFocus} className="kkey" onClick={() => sendShortcut(["Control", "A"])}>⌃A</button>
-          <button {...keepFocus} className="kkey" onClick={() => sendShortcut(["Control", "C"])}>⌃C</button>
           <button {...keepFocus} className="kkey" onClick={() => sendShortcut(["Control", "X"])}>⌃X</button>
-          <button {...keepFocus} className="kkey" onClick={() => sendShortcut(["Control", "V"])}>⌃V</button>
-          <button {...keepFocus} className="kkey" onClick={() => sendShortcut(["Control", "Z"])}>⌃Z</button>
           <button {...keepFocus} className="kkey" onClick={() => sendShortcut(["Alt", "Tab"])}>Alt·Tab</button>
           <span className="kdiv" />
           <button {...keepFocus} className="kkey" onClick={() => sendKey("Escape")}>Esc</button>
@@ -2266,7 +2298,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
         </div>
         <div className="kbinput-row">
           <input
-            ref={inputRef} className="kbinput" type="text" inputMode="text"
+            ref={inputRef} className="kbinput" type="text" inputMode="text" dir="auto"
             autoCapitalize="off" autoCorrect="off" autoComplete="off" spellCheck={false}
             placeholder={tr("typeHere")} aria-label={tr("typeHere")}
             onInput={onInput} onKeyDown={onInputKeyDown}
@@ -2370,7 +2402,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
           <div className="grip" /><h3>{tr("display")}</h3>
           <div className="row-label">{tr("screen")}</div>
           <div className="seg">
-            <button className={viewMode === "fit" ? "on" : ""} onClick={() => chooseView("fit")}><IconFit /> Fit</button>
+            <button className={viewMode === "fit" ? "on" : ""} onClick={() => chooseView("fit")}><IconFit /> {tr("fitScreen")}</button>
             <button className={viewMode === "actual" ? "on" : ""} onClick={() => chooseView("actual")}><IconActual /> 100%</button>
           </div>
           {/* THE LOCK. Offered on every device, including the ones where it currently changes
@@ -2623,22 +2655,26 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
 
       {sheet === "clip" && (
         <SheetPanel label={tr("clipboardSync")} closeLabel={`${tr("closePrefix")} ${tr("clipboardSync")}`} onClose={closeSheet}>
-          <div className="grip" /><h3>{tr("clipboardSync")}</h3>
+          <div className="grip" /><h3><IconClipboard />{tr("clipboardSync")}</h3>
 
+          <section className="clip-section">
           <div className="row-label">{tr("pcToPhone")}</div>
           {pcClip.kind === "image" ? (
             <img className="clip-img" src={pcClip.dataUrl} alt={tr("pcToPhone")} />
           ) : (
-            <textarea className="clip-area" readOnly value={pcClip.text ?? ""} placeholder={tr("pressGetToFetch")} />
+            <textarea className="clip-area" dir="auto" aria-label={tr("pcToPhone")} readOnly value={pcClip.text ?? ""} placeholder={tr("pressGetToFetch")} />
           )}
           <div className="cliprow">
             <button className="cell" onClick={getPcClip}><IconRefresh /> {tr("getPcClipboard")}</button>
             <button className="cell" onClick={copyToPhone} disabled={pcClip.kind !== "text"}><IconCopy /> {tr("copy")}</button>
           </div>
           {pcClip.kind === "image" && <div className="hintline">{tr("longPressImageSaveCopy")}</div>}
+          </section>
 
+          <section className="clip-section">
           <div className="row-label">{tr("phoneToPcText")}</div>
-          <textarea className="clip-area" value={sendText} onChange={(e) => setSendText(e.target.value)} placeholder={tr("typeOrPasteText")} />
+          <button className="cell wide phone-clip-read" onClick={() => void readPhoneClip()}><IconPaste />{tr("readPhoneClipboard")}</button>
+          <textarea ref={phoneClipRef} className="clip-area" dir="auto" aria-label={tr("phoneToPcText")} value={sendText} onChange={(e) => setSendText(e.target.value)} placeholder={tr("typeOrPasteText")} />
           <div className="clipboard-actions">
             <button className="cell wide" disabled={!sendText || !!clipboardBusy} onClick={() => void sendToPc(false)}>
               <IconClipboard /> {tr("setOnly")}
@@ -2647,6 +2683,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
               <IconSend /> {tr("sendPaste")}
             </button>
           </div>
+          </section>
 
           <div className="row-label">{tr("phoneToPcImage")}</div>
           <div className="clipboard-actions">

@@ -8,6 +8,77 @@ Last reconciled: **2026-09-03 (exact-frame release proof)** — latest source
 branch, signed CI artifacts, exact mapped-window evidence, and live host checks
 on `moos-arm-oracle`.
 
+### Mo PC Remote v39 — phone workspace (2026-09-05)
+
+The local Remote deployment now serves the Liquid Glass controller with clearer
+button plates, constrained sheets, Arabic editing shortcuts and explicit clipboard
+directions. Phone clipboard reads produce an editable draft, with manual paste on
+permission failure. Sheets follow the visual viewport above the phone keyboard;
+the typing bar follows without a second delayed animation. RTL side rails fade in
+place so rotation cannot translate them into the desktop. Closed keyboard controls
+are inert while opening still focuses synchronously from the phone tap.
+
+Source/bundle tests and rendered evidence, local rollback paths, official product
+references and branch-preservation findings are recorded in
+[`docs/REMOTE_V39_MOBILE_WORKSPACE.md`](docs/REMOTE_V39_MOBILE_WORKSPACE.md).
+The owner confirmed typing-bar visibility above their phone keyboard in both
+orientations. The wider iOS/Android keyboard matrix and cellular performance remain
+physical-device gates.
+The local deployment keeps the previous app and signed OS deployment recoverable.
+
+### Oracle expansion and Remote Arabic repair (2026-09-05)
+
+The live Frankfurt A1 boot disk is now 200 GiB, with about 155–156 GiB available.
+Reboot verification and a read-only full Btrfs scrub passed. The full pre-resize
+Oracle backup is retained in the separate backup allowance. App updates and
+live keyboard/AppStream repairs completed; selfcheck is 48/48 and post-update
+checks are 49/49. Detailed scope and recovery notes:
+[`docs/ORACLE_STORAGE_HEALTH_20260905.md`](docs/ORACLE_STORAGE_HEALTH_20260905.md).
+
+Adding US to the keyboard ring exposed a second Remote bug: its portal cached
+Arabic's old group index and typed Arabic positions on English. The active v38
+helper now refreshes live groups before selection and remaps the saved home
+language by code. Five regression tests and real GTK readback across repeated
+layout-list changes pass. Physical-phone confirmation and mixed Latin/emoji
+stress paths remain open; this is a local deployment, not a new signed release.
+
+### Keyboard-layout migration reload, and ARM's own AppStream refresh (2026-09-05)
+
+Two independent, small fixes, finished and gated in this pass:
+
+- **`migrate_legacy_keyboard()` in `moos-ui-migrate`** rewrites an existing user's exact
+  legacy `LayoutList=de,ara` kxkbrc shadow to `de,us,ara` — the `us` group Mo PC Remote's
+  Linux agent needs as a landing spot for its physical-position typing fallback
+  (`UsKeymap`/`InputInjector`, see [`moremote/agent-linux/UsKeymap.cs`](moremote/agent-linux/UsKeymap.cs)).
+  Without a `us` group in the live layout ring, that fallback has nowhere to select, and
+  a run of Latin text typed through the remote lands on whichever layout IS active —
+  German or Arabic — which is exactly what scrambles it into wrong letters. The migration
+  wrote the file correctly already; what it did NOT do was take effect in the already-running
+  session. It called KWin's generic `org.kde.KWin.reconfigure`, which does not reload the
+  keyboard on KWin 6.5+ (KWin now watches `kxkbrc` through `KConfigWatcher`). Fixed by
+  emitting the watcher's own `org.kde.kconfig.notify.ConfigChanged` signal on the `Layout`
+  group after the atomic rename, so the first upgraded session gains the `us` route
+  immediately rather than at the next login. The file-rewrite half is covered by
+  `tests/test_moos_theme_safety.py::test_keyboard_migration_is_exact_and_preserves_custom_profiles`
+  (skipped in this sandbox — no `kwriteconfig6` on `PATH` here — so the live-notify half is
+  verified by reading, not by a green run; re-run that test on a real KDE session before
+  trusting the reload path fully).
+- **ARM's build gained its own AppStream refresh.** ARM does not inherit Kinoite's shipped
+  AppStream unit the way the x86 build renames-and-retimes it (see
+  `system_files/usr/lib/systemd/system/moos-appstream-refresh.timer`), so enabling that
+  timer alone did nothing on ARM — no service backed it. `build-arm.sh` now installs
+  `build_files/moos-appstream-refresh.service` (oneshot `appstreamcli refresh-cache --force`,
+  `Nice=19`/idle I/O so it doesn't compete with the desktop) and layers the `appstream`
+  package; `verify_arm_image.py` gates that the timer/service pair, the executable and the
+  enable symlink actually exist in the built image. `tests/test_arm_appstream_refresh.py`
+  and the full `tests/test_moos_arm.py` suite pass.
+
+Both changes were sitting uncommitted in the tree from a prior session; this pass ran
+`bash -n` on every touched shell script and the full CI "Repo gates" python list (all pass
+except the pre-existing `systemctl`-not-installed sandbox gap in
+`tests/test_boot_path_authorities.py` and `tests/test_openclaw_modern_unit_retire.py`,
+unrelated to these files) before committing and pushing.
+
 ### Mo PC Remote v38 — local ARM deployment (2026-09-05)
 
 The current branch fixes cancelled gestures/held inputs, letterbox hit testing,

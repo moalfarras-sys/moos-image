@@ -21,6 +21,8 @@ import re
 import unittest
 from pathlib import Path
 
+from test_arm_appstream_refresh import AppStreamImageTests
+
 ROOT = Path(__file__).resolve().parents[1]
 CONTAINERFILE = ROOT / "Containerfile.arm"
 BUILD = ROOT / "build_files/build-arm.sh"

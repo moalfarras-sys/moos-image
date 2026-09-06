@@ -32,6 +32,12 @@ theme layer. Order matters:
 
 ## Remote v38 acceptance
 
+v39 extends this work with Liquid Glass phone controls, viewport-aware sheets,
+explicit clipboard directions and RTL rail/keyboard geometry repairs. Evidence
+and deployment status: [mobile workspace](docs/REMOTE_V39_MOBILE_WORKSPACE.md).
+The owner confirmed keyboard/bar visibility on their phone in both orientations;
+browser viewport emulation does not close the wider physical-device gate below.
+
 - [x] Local ARM agent/controller built and activated with previous binary retained.
 - [x] Real Wayland capture, Arabic/emoji readback, click and relative motion in a
   dedicated focused test window; browser portrait/landscape/desktop input checks.
@@ -75,7 +81,9 @@ theme layer. Order matters:
 - [ ] Import the exact boot-proven ARM disk into OCI Ampere A1 and prove serial,
   cloud-init, SSH key, root growth, update/rollback and tunneled KRDP. If OCI
   credentials or capacity are unavailable, report READY-BUT-NOT-DEPLOYED.
-  Current state (2026-08-30): LIVE on Frankfurt A1 1/4/50. UEFI, signed exact
+  Current state (2026-09-05): LIVE on Frankfurt A1 with a 200 GiB boot disk.
+  Online expansion, reboot and a full read-only Btrfs scrub passed; the
+  pre-expansion backup is retained. See docs/ORACLE_STORAGE_HEALTH_20260905.md. UEFI, signed exact
   origin, cloud-init, SSH key, root growth, graphical target, browser-rendered
   private desktop, input portal, HTTPS/audio and a real reboot are proven with
   zero failed units. Deliberate update/rollback proof remains open, so this item

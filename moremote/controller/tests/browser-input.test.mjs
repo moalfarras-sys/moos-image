@@ -51,7 +51,7 @@ async function viewer(options, mode, language = 'en', cursorEmbedded = false) {
   });
   await page.goto(origin);
   await page.locator('.toolbar-primary').waitFor();
-  await page.waitForFunction(() => document.querySelector('.topbar')?.getAttribute('aria-label')?.includes('healthy'));
+  await page.locator('.topbar.mini[aria-expanded="false"]').waitFor();
   await page.waitForTimeout(100);
   return {page, packets, sockets, hello, holdHello: () => { autoHello = false; }};
 }
@@ -70,6 +70,7 @@ try {
   await capture(page, 'phone-ar');
   await page.getByRole('button', {name:'كتابة', exact:true}).click();
   const field = page.locator('.kbinput');
+  assert.ok(await field.evaluate(el=>document.activeElement===el),'typing tap must focus synchronously');
   await field.fill('ab😀');
   await page.waitForTimeout(300);
   packets.length = 0;
@@ -120,6 +121,7 @@ try {
   assert.deepEqual(input(packets).map(p=>[p.type,p.value]), [['text','مسودة جديدة']],
     'recovery commits the complete interrupted IME draft exactly once');
   await page.getByRole('button', {name:'تم', exact:true}).click();
+  await page.locator('.toolbar.fade-toolbar').waitFor({state:'attached',timeout:10_000});
 
   for (const [width,height] of [[844,390],[390,844],[844,390],[390,844]]) {
     await page.setViewportSize({width,height});
@@ -175,6 +177,9 @@ try {
   assert.equal(trackpad.packets.filter(p=>p.type==='clickCurrent').length,1,'tap clicks the actual host cursor');
   await capture(trackpad.page,'phone-dark-ar');
   await trackpad.page.getByRole('button',{name:'الإعدادات',exact:true}).click();
+  await trackpad.page.locator('.sheet').evaluate(async el => {
+    await Promise.all(el.getAnimations().map(animation=>animation.finished));
+  });
   const headingClear = await trackpad.page.locator('.sheet').evaluate(sheet => {
     const close = sheet.querySelector('.sheet-close').getBoundingClientRect();
     const range = document.createRange(); range.selectNodeContents(sheet.querySelector('h3'));
@@ -187,6 +192,88 @@ try {
   await trackpad.page.locator('.sheet-close').click();
   await trackpad.page.getByRole('button',{name:'الشاشة',exact:true}).click();
   await capture(trackpad.page,'display-dark-ar');
+  await trackpad.page.locator('.sheet-close').click();
+
+  // Both clipboard directions stay local to this isolated test. Prove that a failed
+  // PC clipboard write never sends Ctrl+V with whatever used to be on that PC.
+  const cp = trackpad.page;
+  await cp.evaluate(() => {
+    window.phoneClipboard = 'MoOS العربية 😀';
+    Object.defineProperty(navigator, 'clipboard', {configurable:true,value:{
+      readText: async () => window.phoneClipboard,
+      writeText: async text => { window.phoneClipboard = text; },
+    }});
+  });
+  let pcText = 'من الكمبيوتر 😀';
+  let rejectWrite = false;
+  await cp.route('**/api/clipboard', async route => {
+    if (route.request().method() === 'GET') return route.fulfill({json:{kind:'text',text:pcText}});
+    if (rejectWrite) return route.fulfill({status:503,json:{error:'isolated failure'}});
+    pcText = route.request().postDataJSON().text;
+    return route.fulfill({json:{ok:true}});
+  });
+  await cp.getByRole('button',{name:'الحافظة',exact:true}).click();
+  await cp.locator('textarea[readonly]').filter({visible:true}).waitFor();
+  await cp.waitForFunction(() => document.querySelector('textarea[readonly]')?.value === 'من الكمبيوتر 😀');
+  await cp.getByRole('button',{name:'نسخ',exact:true}).click();
+  assert.equal(await cp.evaluate(() => window.phoneClipboard),pcText,'PC text copies to phone');
+  await cp.evaluate(() => { window.phoneClipboard = 'MoOS العربية 😀'; });
+  await cp.getByRole('button',{name:'لصق من حافظة الهاتف',exact:true}).click();
+  const draft = cp.locator('textarea:not([readonly])');
+  assert.equal(await draft.inputValue(),'MoOS العربية 😀','phone clipboard becomes an editable draft');
+  trackpad.packets.length = 0;
+  await cp.getByRole('button',{name:'إرسال ولصق',exact:true}).click();
+  await cp.waitForTimeout(150);
+  assert.equal(pcText,'MoOS العربية 😀');
+  assert.equal(input(trackpad.packets).filter(p=>p.type==='combo').length,1);
+  rejectWrite = true;
+  trackpad.packets.length = 0;
+  await cp.getByRole('button',{name:'إرسال ولصق',exact:true}).click();
+  await cp.waitForTimeout(150);
+  assert.deepEqual(input(trackpad.packets),[],'failed clipboard upload must never paste stale PC data');
+  await cp.locator('.toast').waitFor({state:'hidden'});
+  await capture(cp,'clipboard-dark-ar');
+
+  // Emulate the visual viewport keyboard contract (Chromium headless has no OS
+  // keyboard). Verify geometry for suggestion/emoji-panel heights and iOS panning.
+  for (const [height,offsetTop] of [[480,0],[370,20],[844,0]]) {
+    await cp.evaluate(({height,offsetTop}) => {
+      Object.defineProperties(window.visualViewport, {
+        height:{configurable:true,value:height}, offsetTop:{configurable:true,value:offsetTop},
+      });
+      window.visualViewport.dispatchEvent(new Event('resize'));
+    },{height,offsetTop});
+    const box = await cp.locator('.sheet').boundingBox();
+    assert.ok(box.y >= offsetTop && box.y + box.height <= height + offsetTop + 1,
+      'clipboard sheet must fit above the phone keyboard');
+  }
+  await cp.evaluate(() => { navigator.clipboard.readText = async () => { throw new Error('denied'); }; });
+  await cp.getByRole('button',{name:'لصق من حافظة الهاتف',exact:true}).click();
+  assert.equal(await draft.evaluate(el=>document.activeElement===el),true,'denied clipboard read focuses manual paste');
+  assert.equal(await draft.inputValue(),'MoOS العربية 😀','denied read preserves the draft');
+  await cp.locator('.sheet-close').click();
+  await cp.getByRole('button',{name:'كتابة',exact:true}).click();
+  assert.ok(await cp.locator('.kbinput').evaluate(el=>document.activeElement===el));
+  for (const [height,offsetTop] of [[480,0],[370,20],[844,0]]) {
+    await cp.evaluate(({height,offsetTop}) => {
+      Object.defineProperties(window.visualViewport, {
+        height:{configurable:true,value:height}, offsetTop:{configurable:true,value:offsetTop},
+      });
+      window.visualViewport.dispatchEvent(new Event('resize'));
+    },{height,offsetTop});
+    const box = await cp.locator('.kbbar').boundingBox();
+    assert.ok(box.y >= offsetTop && box.y + box.height <= height + offsetTop + 1,
+      'typing and shortcuts must remain above the phone keyboard');
+  }
+  await cp.locator('.toast').waitFor({state:'hidden'});
+  await capture(cp,'keyboard-dark-ar');
+
+  const light = await viewer({viewport:{width:360,height:800},deviceScaleFactor:2,
+    isMobile:true,hasTouch:true,colorScheme:'light',reducedMotion:'reduce'},'touch','ar');
+  await capture(light.page,'phone-light-ar');
+  await light.page.getByRole('button',{name:'الإعدادات',exact:true}).click();
+  await capture(light.page,'settings-light-ar');
+  assert.equal(await light.page.locator('.sheet').evaluate(el=>getComputedStyle(el).animationName),'none');
   assert.deepEqual(errors, [], 'browser must have no uncaught application errors');
   console.log('PASS: real Chromium phone Unicode/IME/shortcuts, rotation geometry, frame continuity and desktop modal input isolation');
 } finally {

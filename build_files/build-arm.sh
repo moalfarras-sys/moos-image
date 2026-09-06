@@ -87,7 +87,7 @@ _PLASMA=(
     fontconfig gtk3 gtk4 libadwaita mpv-libs
     mesa-dri-drivers mesa-libEGL mesa-libgbm
     openssh-server cloud-init cloud-utils-growpart
-    firewalld flatpak openssl sudo acl
+    firewalld flatpak appstream openssl sudo acl
     # Architecture-independent MoOS desktop assets are generated after the
     # final RPM transaction by finalize_moos_desktop.sh.
     git-core curl tar xz gtk-update-icon-cache
@@ -267,6 +267,14 @@ systemctl --global enable \
 
 systemctl enable NetworkManager.service sshd.service firewalld.service tailscaled.service
 systemctl enable moos-auto-update.timer
+# ARM does not inherit Kinoite's AppStream service. The shared delayed timer
+# needs a real backend here too; otherwise enabling the timer alone does nothing.
+install -m0644 /ctx/moos-appstream-refresh.service \
+    /usr/lib/systemd/system/moos-appstream-refresh.service
+test -x /usr/bin/appstreamcli
+systemd-analyze verify /usr/lib/systemd/system/moos-appstream-refresh.service \
+    /usr/lib/systemd/system/moos-appstream-refresh.timer
+systemctl enable moos-appstream-refresh.timer
 # moos-image-update is the only OS deployment writer. The Fedora bootc base
 # enables its own mutable-tag fetch timer, so disable both upstream rivals on
 # ARM just as the shared x86 build does. Serial boot proof caught this timer

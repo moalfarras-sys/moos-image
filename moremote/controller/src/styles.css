@@ -21,6 +21,10 @@
   --screen: #101619;
   --glass-bar: rgba(29, 37, 41, 0.84);
   --glass-dense: rgba(29, 37, 41, 0.97);
+  --glass-edge: rgba(168, 241, 232, 0.28);
+  --glass-sheen: linear-gradient(125deg, rgba(168, 241, 232, 0.12), transparent 42%, rgba(120, 175, 255, 0.08));
+  --glass-plate: linear-gradient(145deg, rgba(168, 241, 232, 0.17), rgba(120, 175, 255, 0.06));
+  --glass-highlight: rgba(232, 241, 239, 0.16);
   --active-soft: rgba(78, 215, 200, 0.16);
   --danger-soft: rgba(255, 125, 136, 0.16);
   --scrim: rgba(4, 10, 12, 0.62);
@@ -63,6 +67,10 @@
     --screen: #14191c;
     --glass-bar: rgba(225, 240, 236, 0.88);
     --glass-dense: rgba(225, 240, 236, 0.97);
+    --glass-edge: rgba(23, 48, 46, 0.24);
+    --glass-sheen: linear-gradient(125deg, rgba(232, 241, 239, 0.72), transparent 42%, rgba(120, 175, 255, 0.14));
+    --glass-plate: linear-gradient(145deg, rgba(232, 241, 239, 0.9), rgba(225, 240, 236, 0.42));
+    --glass-highlight: rgba(232, 241, 239, 0.82);
     --active-soft: rgba(0, 109, 103, 0.14);
     --danger-soft: rgba(165, 47, 63, 0.13);
     --scrim: rgba(20, 25, 28, 0.42);
@@ -340,10 +348,10 @@ button {
   align-items: center;
   gap: 10px;
   padding: 7px 13px;
-  background: var(--glass-bar);
+  background: var(--glass-sheen), var(--glass-bar);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  border: 1px solid var(--border);
+  border: 1px solid var(--glass-edge);
   border-radius: 999px;
   font-size: 12.5px;
   color: var(--muted);
@@ -416,13 +424,12 @@ button {
   align-items: center;
   gap: 7px;
   padding: 7px 8px calc(7px + var(--safe-bottom));
-  background: var(--glass-bar);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  border-top: 1px solid var(--border-strong);
-  box-shadow: var(--shadow-up);
+  /* Static reflected light: no extra blur of every incoming video frame. */
+  background: var(--glass-sheen), var(--glass-dense);
+  border-top: 1px solid var(--glass-edge);
+  box-shadow: inset 0 1px var(--glass-highlight), var(--shadow-up);
   z-index: 30;
-  transition: opacity 0.24s ease, transform 0.24s cubic-bezier(.2,.8,.2,1);
+  transition: opacity 0.24s ease;
 }
 .toolbar-primary {
   min-width: 0;
@@ -465,7 +472,9 @@ button {
   justify-content: center;
   gap: 3px;
   color: var(--text);
-  background: transparent;
+  background: var(--glass-plate);
+  border: 1px solid var(--glass-edge);
+  box-shadow: inset 0 1px var(--glass-highlight), 0 3px 8px rgba(4, 10, 12, .12);
   transition: background 0.15s, transform 0.08s;
 }
 .tbtn span {
@@ -474,7 +483,7 @@ button {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 10.5px;
-  color: var(--muted);
+  color: var(--text);
   font-weight: 600;
   letter-spacing: 0.2px;
 }
@@ -488,6 +497,7 @@ button {
 }
 .tbtn.accent {
   background: var(--accent-grad);
+  color: var(--on-accent);
 }
 .tbtn.accent span {
   color: var(--on-accent);
@@ -497,6 +507,7 @@ button {
 }
 .tbtn.active {
   background: var(--active-soft);
+  border-color: var(--accent);
 }
 
 /* bottom sheet (more actions) */
@@ -509,16 +520,20 @@ button {
 }
 .sheet {
   position: fixed;
-  left: 0;
-  right: 0;
+  left: max(8px, var(--safe-left));
+  right: max(8px, var(--safe-right));
+  width: auto;
+  max-width: 640px;
+  margin-inline: auto;
   bottom: 0;
-  background: var(--surface);
+  background: var(--glass-sheen), var(--glass-dense);
   border-top-left-radius: var(--r-lg);
   border-top-right-radius: var(--r-lg);
-  border-top: 1px solid var(--border-strong);
+  border: 1px solid var(--glass-edge);
+  border-bottom: 0;
   padding: 12px 18px calc(20px + var(--safe-bottom));
   z-index: 41;
-  box-shadow: var(--shadow);
+  box-shadow: inset 0 1px var(--glass-highlight), var(--shadow);
   animation: slide-up 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 
   /* A sheet is `position: fixed; bottom: 0` with automatic height, so content taller than the
@@ -545,7 +560,7 @@ button {
   width: 42px;
   height: 5px;
   border-radius: 3px;
-  background: var(--border-strong);
+  background: var(--luminous);
   margin: 2px auto 14px;
 }
 .sheet-close {
@@ -698,9 +713,7 @@ button {
   flex-direction: column;
   gap: 6px;
   padding: 6px 8px calc(6px + var(--safe-bottom));
-  background: var(--glass-dense);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: var(--glass-sheen), var(--glass-dense);
   border-top: 1px solid var(--border-strong);
   box-shadow: var(--shadow-up);
   transform: translateY(135%);
@@ -708,6 +721,9 @@ button {
 }
 .kbbar.open {
   transform: translateY(0);
+  /* visualViewport already follows the OS keyboard animation. Interpolating
+     its updates again leaves these controls briefly underneath the keyboard. */
+  transition: none;
 }
 .kbinput-row {
   display: flex;
@@ -774,6 +790,8 @@ button {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   padding-bottom: 1px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--glass-edge) transparent;
 }
 .kkey {
   flex: 0 0 auto;
@@ -796,6 +814,7 @@ button {
 .kkey.on {
   background: var(--accent-grad);
   border-color: transparent;
+  color: var(--on-accent);
 }
 /* the transparent type chip: tap to raise the iOS keyboard; typing streams to the PC */
 .kkey.ktype {
@@ -1086,7 +1105,8 @@ button {
 }
 .fade-toolbar {
   opacity: 0;
-  transform: translateY(10px);
+  /* Fade in place. Translating the RTL side rail toward +X moves it into
+     the desktop, including mid-transition when the phone rotates. */
   pointer-events: none;
 }
 
@@ -1112,7 +1132,7 @@ button {
     flex-direction: column;
     padding: 8px;
     border-top: 0;
-    border-left: 1px solid var(--border-strong);
+    border-inline-start: 1px solid var(--glass-edge);
     box-shadow: -10px 0 30px rgba(4, 10, 12, 0.32);
   }
   .toolbar-primary { width: 100%; flex-direction: column; overflow-x: hidden; overflow-y: auto; }
@@ -1121,9 +1141,6 @@ button {
   .toolbar-settings { width: 100%; margin-top: auto; }
   .toolbar-settings::before { inset: -7px 7px auto; width: auto; height: 1px; }
   .tbtn { width: 100%; min-width: 0; }
-  .fade-toolbar {
-    transform: translateX(12px);
-  }
   /* The handle moves into the same reserved rail below; source order keeps both in sync. */
 }
 
@@ -1150,7 +1167,7 @@ button {
     gap: 4px;
     padding: 6px;
     border-top: 0;
-    border-left: 1px solid var(--border-strong);
+    border-inline-start: 1px solid var(--glass-edge);
   }
   .toolbar-primary { width: 100%; flex-direction: column; overflow-x: hidden; overflow-y: auto; }
   .toolbar-primary > .tbtn { flex: 0 0 auto; }
@@ -1165,10 +1182,6 @@ button {
   }
   .toolbar .tbtn span {
     font-size: 8.5px;
-  }
-  /* Without this the hide animation inherits translateX(-50%) and yanks the rail off-centre. */
-  .fade-toolbar {
-    transform: translateX(12px);
   }
 }
 
@@ -1305,6 +1318,15 @@ button {
   margin-bottom: 8px;
 }
 .clipboard-actions .cell { margin-top: 0; min-width: 0; }
+.clip-section {
+  margin-block: 14px;
+  padding: 12px;
+  border: 1px solid var(--glass-edge);
+  border-radius: var(--r);
+  background: var(--glass-plate);
+}
+.clip-section .row-label { margin-top: 0; font-weight: 700; color: var(--text); }
+.clip-section .phone-clip-read { width: 100%; margin-bottom: 10px; }
 .transfer-status {
   min-height: 44px;
   display: flex;
@@ -1353,7 +1375,7 @@ button {
   border-radius: 12px;
   color: var(--text);
   padding: 11px 13px;
-  font-size: 14px;
+  font-size: 16px; /* match typing input; avoid phone focus zoom */
   font-family: inherit;
   margin: 4px 0 10px;
 }
@@ -1380,7 +1402,7 @@ button {
   border-radius: 12px;
   color: var(--text);
   padding: 11px 13px;
-  font-size: 14px;
+  font-size: 16px;
   margin: 4px 0 10px;
   overflow: auto;
 }
@@ -1534,8 +1556,9 @@ button {
   color: var(--muted-2);
 }
 .card {
-  background: var(--surface-2);
-  border: 1px solid var(--border);
+  background: var(--glass-plate), var(--surface-2);
+  border: 1px solid var(--glass-edge);
+  box-shadow: inset 0 1px var(--glass-highlight);
   border-radius: var(--r);
   overflow: hidden;
 }
