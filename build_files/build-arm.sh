@@ -1010,6 +1010,21 @@ if policy.get("transports", {}).get("containers-storage", {}).get("") != [
 PYSEC
 
 # -----------------------------------------------------------------------------
+# (8z) Qt WebEngine spell-check dictionaries — Arabic included
+# -----------------------------------------------------------------------------
+# MEASURED ON THE LIVE ORACLE A1 (2026-09-06): this image shipped 24 en_*.bdic
+# and ZERO ar_*.bdic, with six qwebengine_convert_dict coredumps sitting in
+# coredumpctl — every one of them an Arabic locale. The Arabic-speaking owner's
+# own machine had no Arabic spell-check, on an OS whose engineering skill calls
+# Arabic first-class and whose AGENTS.md describes this as build-enforced.
+#
+# It was build-enforced, on x86 only. ARM never got the block, because the block
+# was COPIED rather than shared. It is a script now, so the two editions cannot
+# drift apart again, and the script asserts both languages before it exits.
+# Runs here, late, so every package that pulls qt6-qtwebengine is already in.
+bash /ctx/convert_webengine_dictionaries.sh
+
+# -----------------------------------------------------------------------------
 # (9) Rebuild the initramfs so the splash and the virtio drivers are in it
 # -----------------------------------------------------------------------------
 echo "=== (9) initramfs ==="

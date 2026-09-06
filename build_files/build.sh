@@ -989,64 +989,16 @@ test ! -e /usr/share/applications/org.fcitx.Fcitx5.desktop \
 
 # Qt WebEngine spell-check dictionaries.
 #
-# hunspell dictionaries are not readable by QtWebEngine — it needs them converted to its own
-# .bdic format. The qt6-qtwebengine RPM runs that converter from a scriptlet, and the
-# converter SIGTRAPs inside the build container (visible on the host as a pile of
-# qwebengine_convert_dict coredumps during every image build). The scriptlet swallows it, so
-# the image shipped with an EMPTY /usr/share/qt6/qtwebengine_dictionaries and spell-check
-# silently did not exist in any QtWebEngine app — in a bilingual OS, including Arabic.
+# The whole implementation — why the RPM scriptlet's converter SIGTRAPs, why the
+# Arabic dictionaries specifically need their hunspell IGNORE line stripped, and
+# the assertion that BOTH en_US and an ar_* dictionary were produced — lives in
+# the shared script, because this block used to live only here.
 #
-# Running the converter ourselves works (the crash is in how the scriptlet invokes it, not in
-# the tool), so do that and assert the result instead of trusting a scriptlet that fails
-# quietly.
-_convert_dict=/usr/lib64/qt6/libexec/qwebengine_convert_dict
-if [ -x "$_convert_dict" ]; then
-    mkdir -p /usr/share/qt6/qtwebengine_dictionaries /tmp/dicts
-    # The SIGTRAPs above are expected and their cores carry zero signal, but the
-    # HOST's systemd-coredump still collects ~26 of them from every rootless
-    # local build — a 3-second crash burst that reads like a real incident in
-    # `coredumpctl list` (it derailed one live audit already). A zero core
-    # limit here keeps the build container's known crashes out of the host
-    # journal; the gate below still asserts the converted output, which is the
-    # only truth that matters.
-    ulimit -c 0 2>/dev/null || true
-    _bdic=0
-    for _dic in /usr/share/hunspell/*.dic; do
-        [ -e "$_dic" ] || continue
-        _name="$(basename "$_dic" .dic)"
-        _aff="/usr/share/hunspell/${_name}.aff"
-        _src="$_dic"
-
-        # Chromium's converter aborts on the hunspell IGNORE command
-        # ("We don't support the IGNORE command yet", aff_reader.cc) — and the Arabic
-        # dictionaries use it, to ignore tashkeel. That single unsupported directive is why a
-        # bilingual OS shipped with no Arabic spell-check at all.
-        #
-        # Convert from a copy with IGNORE removed. The honest cost: diacritics are no longer
-        # ignored, so a *fully vocalised* Arabic word can be flagged as misspelled. Ordinary
-        # undiacritised Arabic — which is nearly all of it — checks correctly. A dictionary
-        # that is right about the common case beats no dictionary at all.
-        if [ -f "$_aff" ] && grep -q "^IGNORE" "$_aff" 2>/dev/null; then
-            grep -v "^IGNORE" "$_aff" > "/tmp/dicts/${_name}.aff"
-            cp -L "$_dic" "/tmp/dicts/${_name}.dic"
-            _src="/tmp/dicts/${_name}.dic"
-        fi
-
-        if QTWEBENGINE_DISABLE_SANDBOX=1 QT_QPA_PLATFORM=offscreen "$_convert_dict" "$_src" \
-            "/usr/share/qt6/qtwebengine_dictionaries/${_name}.bdic" >/dev/null 2>&1; then
-            _bdic=$((_bdic + 1))
-        fi
-    done
-    rm -rf /tmp/dicts
-    echo "OK: built ${_bdic} Qt WebEngine spell-check dictionaries."
-
-    # Arabic and English are the two languages this OS promises. Shipping the directory empty
-    # is the silent regression this whole block exists to stop, so assert on both.
-    ls /usr/share/qt6/qtwebengine_dictionaries/en_US.bdic >/dev/null 2>&1 \
-        || { echo "FATAL: no English spell-check dictionary was produced."; exit 1; }
-    ls /usr/share/qt6/qtwebengine_dictionaries/ar_*.bdic >/dev/null 2>&1 \
-        || { echo "FATAL: no Arabic spell-check dictionary was produced."; exit 1; }
-fi
+# ARM never had a copy of it. Measured on the live Oracle A1 on 2026-09-06, the
+# ARM image shipped 24 en_*.bdic and zero ar_*.bdic: an Arabic-speaking owner
+# with no Arabic spell-check, while this gate sat green on x86. A shared script
+# is what stops the two editions drifting apart again.
+bash /ctx/convert_webengine_dictionaries.sh
 
 # -----------------------------------------------------------------------------
 # (c5) Nova icon theme (generated from Colloid at build time)

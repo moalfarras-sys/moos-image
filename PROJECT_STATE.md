@@ -87,6 +87,27 @@ name. `tests/test_icon_theme_inheritance.py` rejects the live machine's exact
 configuration, holds the dark/light chains to one spelling, and is bite-tested;
 it runs in `build.yml`, `build-arm.yml` and the Justfile.
 
+**Arabic spell-check was entirely absent from `moos-arm`, and the contract that
+was supposed to prevent that existed only on x86.** Read off the live A1:
+`/usr/share/qt6/qtwebengine_dictionaries/` held 24 `en_*.bdic` and **zero**
+`ar_*.bdic`, with six `qwebengine_convert_dict` SIGTRAP coredumps in
+`coredumpctl` — every one an Arabic locale
+(`.../ar_SD.dic -> .../ar_SD.bdic`). `AGENTS.md` calls this build-enforced; it
+was, on x86 only. `build-arm.sh` had zero references to `bdic`/`convert_dict`.
+
+Root cause of the crash (already documented by the x86 block): Chromium's
+converter aborts on the hunspell `IGNORE` command, and every Arabic `.aff` uses
+it to ignore tashkeel — `IGNORE ًٌٍَُِّْـٰ` in `ar_SD.aff` on this machine.
+x86 strips that line into a temp copy and converts from there.
+
+Root cause of the DIVERGENCE: the block was copied, not shared. So it is now
+`build_files/convert_webengine_dictionaries.sh`, called by both builds, with the
+both-languages assertion inside it. **Proven live before shipping:** run on this
+A1 it built **50 dictionaries, 26 of them Arabic**, and exited 0 through its own
+gate — against a system that currently has none.
+`tests/test_webengine_dictionaries.py` holds the shape that matters (both
+editions call it; neither keeps an inline copy) and is bite-tested three ways.
+
 **Local override, reported not changed:** `~/.config/systemd/user/mo-remote-watchdog.timer`
 fires `OnCalendar=*:*:00` — every minute, 104 times in this boot — to start
 `mo-remote-personal.service`, which is already active. Its

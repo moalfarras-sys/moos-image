@@ -307,6 +307,10 @@ jobs:
           python3 tests/test_remote_keycode_flush.py
           python3 tests/test_remote_portal_keysyms_sync.py
           python3 tests/test_arabic_terminal_font.py
+          # Arabic spell-check must exist in EVERY edition from ONE shared script.
+          # ARM shipped 24 English and ZERO Arabic dictionaries because the x86
+          # block was copied instead of shared.
+          python3 tests/test_webengine_dictionaries.py
           python3 tests/test_boot_branding_tool.py
           python3 tests/test_boot_splash_polish.py
           python3 tests/test_moai_app_launch.py

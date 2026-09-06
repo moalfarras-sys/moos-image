@@ -93,6 +93,11 @@ Pick ONE execution-order ID; do not re-derive what is already recorded.
   `Papirus-Dark` was never installed (Fedora ships only `Papirus`) and cost 69
   log misses per boot while a gate on the RPM stayed green. `verify_arm_image.py`
   now resolves every `Inherits=` name against the image's real icon directories.
+- **Arabic spell-check now comes from one shared script.** ARM shipped 24
+  English and zero Arabic `.bdic` files because the x86 block was copied, not
+  shared. `build_files/convert_webengine_dictionaries.sh` is called by both
+  builds and asserts both languages. If you add a third edition, call it there
+  too — `tests/test_webengine_dictionaries.py` enforces that shape.
 - **Reported, NOT changed — the owner's own unit:**
   `~/.config/systemd/user/mo-remote-watchdog.timer` fires every minute to start
   an already-active service, and its `ConditionPathExists=%t/bus` is in

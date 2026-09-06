@@ -43,6 +43,7 @@ on:
       - "tests/test_moos_arm.py"
       - "tests/test_arm_initramfs_size.py"
       - "tests/test_icon_theme_inheritance.py"
+      - "tests/test_webengine_dictionaries.py"
       - "tests/test_utm_bundle.py"
       - "artwork/generate_utm_bundle.py"
       - "artwork/generate_utm_installer.py"
@@ -60,6 +61,7 @@ on:
       - "tests/test_moos_arm.py"
       - "tests/test_arm_initramfs_size.py"
       - "tests/test_icon_theme_inheritance.py"
+      - "tests/test_webengine_dictionaries.py"
       - "tests/test_utm_bundle.py"
       - "artwork/generate_utm_bundle.py"
       - "artwork/generate_utm_installer.py"
@@ -98,6 +100,7 @@ jobs:
       - name: ARM and boot-splash source gates
         run: |
           bash -n build_files/build-arm.sh
+          bash -n build_files/convert_webengine_dictionaries.sh
           bash -n build_files/build-arm-recovery.sh
           bash -n build_files/finalize_moos_desktop.sh
           bash -n build_files/seal_arm_qcow2.sh
@@ -107,6 +110,7 @@ jobs:
           python3 tests/test_moos_arm.py
           python3 tests/test_arm_initramfs_size.py
           python3 tests/test_icon_theme_inheritance.py
+          python3 tests/test_webengine_dictionaries.py
           python3 tests/test_boot_splash_polish.py
           python3 tests/test_seal_arm_deployment.py
           python3 tests/test_utm_bundle.py

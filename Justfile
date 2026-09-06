@@ -178,6 +178,10 @@ check:
     # every Konsole profile must keep asking for JetBrains Mono by name so the
     # weak accept alias engages instead of detaching the cursive joins.
     python3 tests/test_arabic_terminal_font.py
+    # Arabic spell-check must exist in EVERY edition from ONE shared script.
+    # ARM shipped 24 English and ZERO Arabic dictionaries because the x86
+    # block was copied instead of shared.
+    python3 tests/test_webengine_dictionaries.py
     # OpenClaw's state DB needs SQLite 3.51.3+, and Fedora 44's system Node
     # (22.23.1) embeds the broken 3.51.2. The shipped systemd override must keep
     # pinning a SQLite-safe Node on the gateway's PATH, or replies silently drop.
