@@ -258,6 +258,10 @@ jobs:
           # Mo AI's brain is a cloud API and nothing is ever downloaded to the
           # machine. Free, no-card providers must exist and come first.
           python3 tests/test_moai_cloud_only.py
+          # No externally reachable moai-do action may START a local engine.
+          # install-openclaw still called setup_brain_impl after do_setup_brain
+          # was guarded — and Mo AI can name install-openclaw.
+          python3 tests/test_moai_no_local_start_path.py
           python3 tests/test_moai_free_policy.py
           python3 tests/test_moai_hermes.py
           python3 tests/test_moai_workspace.py

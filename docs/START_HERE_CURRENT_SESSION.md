@@ -67,10 +67,21 @@ Never print credential files, full process command lines or private journals.
 
 ## Next bounded work, in order
 
-1. Finish cloud-only policy (free default / explicit paid), including old
-   moai-do install/setup, OpenClaw preflight/bootstrap and voice entry points.
-   Current top-level guards leave legacy helper bodies present; audit every
-   externally reachable start path before claiming no local inference.
+1. ✅ **Item 1 closed 2026-09-06, and the audit found a real hole.**
+   `do_setup_brain` was guarded when the policy changed; `do_install_openclaw`
+   was NOT — it still called `setup_brain_impl`, which downloads and starts a
+   local model engine and a local speech model. `install-openclaw` is one of the
+   28 actions in moai-do's allowlist, i.e. one Mo AI itself can NAME, so asking
+   the assistant for the phone agent would have caused a multi-gigabyte local
+   install on a cloud-only machine, with every top-level guard looking correct.
+   It now checks `cloud_base` — the same key moai-gateway routes on — and opens
+   `moai-config` when no provider is set. A first attempt called a
+   `moai-config --check-cloud` flag that does not exist, which would have failed
+   on an unknown argument and opened setup unconditionally: a check that is not
+   one. `tests/test_moai_no_local_start_path.py` walks every function's
+   reachability rather than trusting the obvious guard, and is bite-tested by
+   reopening the hole. Remaining: OpenClaw preflight/bootstrap and voice entry
+   points still need the same reachability audit.
 2. Finish settings/model-picker truth and on-demand Hermes service wiring.
    Validate new cloud-policy/migration and Hermes HTTP tests; keep all existing
    HTTP-origin/auth, privilege and identity guarantees.

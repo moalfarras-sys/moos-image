@@ -783,8 +783,32 @@ do_install_openclaw() {
     echo
     confirm || return 0
 
-    echo "${C}▸ التحقق من العقل والصوت المحليين | checking the local brain and voice${N}"
-    setup_brain_impl || return 1
+    # CLOUD-ONLY (docs/MOAI_CLOUD_ONLY_PLAN.md, docs/START_HERE_CURRENT_SESSION.md).
+    #
+    # This called setup_brain_impl, which downloads and starts a LOCAL engine and
+    # a local speech model. do_setup_brain was guarded when the policy changed and
+    # this path was not — and `install-openclaw` is one of the 28 actions Mo AI can
+    # name, so the model could still have caused a multi-gigabyte local install by
+    # asking for the phone agent. An audit of every externally reachable start
+    # path, not just the obvious one, is what the checkpoint asked for.
+    #
+    # OpenClaw needs a brain, not a LOCAL brain. Send the user to the cloud
+    # provider setup when none is configured, and otherwise carry on.
+    # Read the SAME key moai-gateway routes on (~/.config/moai/config.json ->
+    # cloud_base). Inventing a --check-cloud flag would have been a dead call:
+    # moai-config has no such option, so it would fail on an unknown argument and
+    # open setup every time, which looks like a check and is not one.
+    echo "${C}▸ التحقق من العقل السحابي | checking the cloud brain${N}"
+    if ! python3 -c 'import json,os,sys
+p = os.path.expanduser("~/.config/moai/config.json")
+try:
+    sys.exit(0 if str(json.load(open(p)).get("cloud_base") or "").strip() else 1)
+except Exception:
+    sys.exit(1)' 2>/dev/null; then
+        echo "${D}لا يوجد مزوّد سحابي بعد — سيُفتح الإعداد.${N}"
+        echo "${D}No cloud provider yet — opening setup.${N}"
+        moai-config || return 1
+    fi
 
     local node_dir="$HOME/.local/node"
     local node_bin="${node_dir}/bin"
