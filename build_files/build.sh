@@ -1183,7 +1183,12 @@ cp /usr/share/icons/Colloid-Teal-Dark/index.theme /usr/share/icons/MoOSUI2/index
 sed -i \
     -e 's|^Name=.*|Name=MoOS UI|' \
     -e 's|^Comment=.*|Comment=MoOS icons — mineral teal on graphite|' \
-    -e 's|^Inherits=.*|Inherits=Colloid-Teal-Dark,Papirus-Dark,breeze-dark,hicolor|' \
+    # Fedora's papirus-icon-theme ships ONE theme directory, /usr/share/icons/Papirus.
+    # There is no Papirus-Dark here (upstream splits the variants, Fedora does not),
+    # so naming it cost 69 failed lookups per boot on the live ARM session while the
+    # gate that asserted the RPM was installed stayed green. The LIGHT chain below
+    # always said Papirus and was always right.
+    -e 's|^Inherits=.*|Inherits=Colloid-Teal-Dark,Papirus,breeze-dark,hicolor|' \
     -e 's|^FollowsColorScheme=.*|FollowsColorScheme=false|' \
     -e 's|^Directories=|Directories=moos/actions/scalable,moos/apps/scalable,|' \
     /usr/share/icons/MoOSUI2/index.theme
@@ -3021,7 +3026,7 @@ grep -E '^(NAME|PRETTY_NAME|ID|ID_LIKE|VERSION_ID|VARIANT|VARIANT_ID|LOGO|ANSI_C
 # a known-good asset. Guards keep this fail-safe: it never breaks the build if
 # a path is absent. gtk-update-icon-cache exists (installed in section (c5)).
 # ROOT CAUSE (found via v14 live test): the ACTIVE icon theme is Nova, which
-# inherits Colloid-Dark -> Papirus-Dark -> breeze-dark -> hicolor. Papirus AND
+# inherits Colloid-Dark -> Papirus -> breeze-dark -> hicolor. Papirus AND
 # Colloid ship their OWN org.fedoraproject.AnacondaInstaller / fedora-logo-icon
 # / anaconda icons, which WIN over the hicolor replacement (higher in the
 # inheritance chain). So scrubbing hicolor alone leaves the Fedora "f" visible

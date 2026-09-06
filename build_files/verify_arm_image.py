@@ -198,6 +198,35 @@ def main() -> None:
                 f"generated icon theme does not prioritize MoOS controls: {theme}")
         require((theme_root / "moos/apps/scalable/moos-store.svg").is_file(),
                 f"generated icon theme lacks first-party application marks: {theme}")
+    # EVERY name in an Inherits= chain must be a theme this image actually
+    # installs. Naming one it does not is silent: the icon still resolves via a
+    # later link in the chain, so nothing looks broken, and the only symptom is
+    # the log. Measured on the live A1 (2026-09-06): MoOSUI2 inherited
+    # `Papirus-Dark`, which Fedora's papirus-icon-theme does NOT ship — it ships
+    # exactly one directory, /usr/share/icons/Papirus — and KWin logged
+    # "Icon theme \"Papirus-Dark\" not found." 69 times in a single boot. The
+    # gate that existed only asserted the RPM was installed, so it stayed green
+    # for months. Resolve the chain instead of trusting a package name.
+    installed_themes = {
+        entry.name for entry in (ROOT / "usr/share/icons").iterdir()
+        if (entry / "index.theme").is_file()
+    } if (ROOT / "usr/share/icons").is_dir() else set()
+    for theme in ("MoOSUI2", "MoOSUI2Light"):
+        index_text = (ROOT / "usr/share/icons" / theme / "index.theme").read_text(
+            encoding="utf-8", errors="replace")
+        for line in index_text.splitlines():
+            if not line.startswith("Inherits="):
+                continue
+            for parent in line.split("=", 1)[1].split(","):
+                parent = parent.strip()
+                # hicolor is the freedesktop terminal fallback and is always
+                # resolvable even where it ships no index.theme of its own.
+                if not parent or parent == "hicolor":
+                    continue
+                require(parent in installed_themes,
+                        f"{theme} inherits '{parent}', which this image does not "
+                        f"install — every lookup walks past it and logs a miss")
+
     for cursor in ("MoOS", "MoOSDark"):
         require((ROOT / "usr/share/icons" / cursor / "cursors/left_ptr").exists(),
                 f"generated MoOS pointer theme is missing: {cursor}")

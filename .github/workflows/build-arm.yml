@@ -42,6 +42,7 @@ on:
       - "tests/verify_arm_runtime.sh"
       - "tests/test_moos_arm.py"
       - "tests/test_arm_initramfs_size.py"
+      - "tests/test_icon_theme_inheritance.py"
       - "tests/test_utm_bundle.py"
       - "artwork/generate_utm_bundle.py"
       - "artwork/generate_utm_installer.py"
@@ -58,6 +59,7 @@ on:
       - "system_files/**"
       - "tests/test_moos_arm.py"
       - "tests/test_arm_initramfs_size.py"
+      - "tests/test_icon_theme_inheritance.py"
       - "tests/test_utm_bundle.py"
       - "artwork/generate_utm_bundle.py"
       - "artwork/generate_utm_installer.py"
@@ -104,6 +106,7 @@ jobs:
           bash -n tests/verify_arm_runtime.sh
           python3 tests/test_moos_arm.py
           python3 tests/test_arm_initramfs_size.py
+          python3 tests/test_icon_theme_inheritance.py
           python3 tests/test_boot_splash_polish.py
           python3 tests/test_seal_arm_deployment.py
           python3 tests/test_utm_bundle.py

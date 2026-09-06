@@ -20,7 +20,7 @@ fixed=JetBrains Mono,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
 
 # MoOS UI2 icon theme — generated at image build time from Colloid's Teal
 # variant, see build_files/build.sh section (c5). Inheritance chain:
-# MoOSUI2 -> Colloid-Teal-Dark -> Papirus-Dark -> breeze-dark -> hicolor
+# MoOSUI2 -> Colloid-Teal-Dark -> Papirus -> breeze-dark -> hicolor
 # (papirus-icon-theme stays installed via section (c4) as the technical
 # fallback; Git/OSTree and `moos-theme undo` own rollback, not dead UI1 themes).
 #

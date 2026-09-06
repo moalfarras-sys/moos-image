@@ -68,7 +68,9 @@ install_icons() {
                 base=Colloid-Teal-Dark
                 label='MoOS UI'
                 comment='MoOS icons — mineral teal on graphite'
-                inherited='Colloid-Teal-Dark,Papirus-Dark,breeze-dark,hicolor'
+                # Fedora ships only /usr/share/icons/Papirus; there is no
+                # Papirus-Dark. Naming it logged 69 misses per boot.
+                inherited='Colloid-Teal-Dark,Papirus,breeze-dark,hicolor'
                 ;;
             *)
                 base=Colloid-Teal-Light

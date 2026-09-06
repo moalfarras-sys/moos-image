@@ -426,6 +426,10 @@ jobs:
           # router destination rather than user-controlled argv.
           python3 tests/test_moos_settings.py
           python3 tests/test_moos_app_icons.py
+          # Every name in an Inherits= chain must be a theme the image installs.
+          # MoOSUI2 named Papirus-Dark, which Fedora does not ship: 69 failed
+          # lookups per boot while the gate on the RPM stayed green.
+          python3 tests/test_icon_theme_inheritance.py
           # Parse all 16 KDE palettes into first-party GTK roles and hold the
           # remote status poll behind a coalescing background worker.
           python3 tests/test_moos_gtk_runtime.py

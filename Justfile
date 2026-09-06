@@ -154,6 +154,10 @@ check:
     # Protected app identities and the small-size icon ladder are separate from
     # the monochrome symbolic family and need their own proof.
     python3 tests/test_moos_app_icons.py
+    # Every name in an Inherits= chain must be a theme the image installs.
+    # MoOSUI2 named Papirus-Dark, which Fedora does not ship: 69 failed
+    # lookups per boot while the gate on the RPM stayed green.
+    python3 tests/test_icon_theme_inheritance.py
     # First-party GTK apps must follow all 16 live KDE schemes, and the remote
     # panel's three-second poll must never run subprocesses on GTK's main loop.
     python3 tests/test_moos_gtk_runtime.py

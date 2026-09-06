@@ -61,12 +61,39 @@ OSTree/virtio/splash line printed first), plus a 150 MiB ceiling; and
 `tests/test_arm_initramfs_size.py` — bite-tested four ways: omission removed,
 storage driver sneaked into the list, `hostonly=yes` as a wrong shrink, and the
 too-strict firmware-namespace check being reintroduced — runs in the ARM workflow
-via `test_moos_arm.py`. **Expected, not yet observed on the deployed machine:**
-`/boot` near 51% once this branch's ARM image is built and the machine updates.
+via `test_moos_arm.py`. **CONFIRMED ON THE CI ARTIFACT** (run `34002105601`,
+the gate's own line): `ARM initramfs: 99 MiB`, down from 237. **Still not
+observed on the deployed machine:** `/boot` near 51% once that image is
+published and the machine updates — `df -h /boot` then is what closes B01.
 
 `AnimationDurationFactor=0` in the live user config is correct, not drift:
 `moos-visual-tier` recorded it as a user change and backed off, and MoOS's motion
 gate is `Kirigami.Units.longDuration > 1`, which reads 0 as off.
+
+**The loudest warning on the machine was a real bug: `Icon theme "Papirus-Dark"
+not found.` × 69 in one boot.** Fedora's `papirus-icon-theme` ships exactly one
+directory, `/usr/share/icons/Papirus`; upstream splits Dark/Light variants and
+Fedora does not. `MoOSUI2` (the dark base every dark family inherits) named
+`Papirus-Dark`, while `MoOSUI2Light` named `Papirus` and was right the whole
+time — the same asymmetry in `build.sh`, `finalize_moos_desktop.sh` and the
+shipped `kdeglobals` comment. Nothing looked broken because the icon still
+resolves through a later link in the chain; only the log knew. All three now say
+`Papirus`.
+
+The gate that existed asserted the RPM was installed. The gate that replaces it
+resolves the WHOLE chain against the icon directories the finished image really
+has (`verify_arm_image.py`), so the class of bug cannot return under a different
+name. `tests/test_icon_theme_inheritance.py` rejects the live machine's exact
+configuration, holds the dark/light chains to one spelling, and is bite-tested;
+it runs in `build.yml`, `build-arm.yml` and the Justfile.
+
+**Local override, reported not changed:** `~/.config/systemd/user/mo-remote-watchdog.timer`
+fires `OnCalendar=*:*:00` — every minute, 104 times in this boot — to start
+`mo-remote-personal.service`, which is already active. Its
+`ConditionPathExists=%t/bus` sits in `[Service]`, where systemd ignores it
+(`Condition*` belongs in `[Unit]`), so the guard its author intended has never
+applied and each firing logs the warning. This is the owner's own unit, not
+product source; the one-line fix is to move that key into `[Unit]`.
 
 ### Launcher keyboard navigation + system-audit integration (2026-09-05)
 
@@ -367,9 +394,12 @@ opened and its unchanged-digest retry is `33785511871`.
 
 Inspection of the maintainer's running ARM session also found that its generated
 MoOSUI2 icon theme declared Papirus as a fallback while the ARM package set did
-not install it. KWin consequently logged repeated `Papirus-Dark not found`
-lookups. ARM now installs that fallback explicitly and the finished-image gate
-asserts on the RPM, so this cannot return as a silent runtime-only omission.
+not install it. ARM now installs that fallback explicitly.
+**That fix was half of one, and the gate written for it was a green-check trap:**
+it asserted the RPM was installed — true — and said nothing about whether the
+name in the chain resolved. See the 2026-09-06 entry: the package ships only
+`/usr/share/icons/Papirus`, the chain named `Papirus-Dark`, and the misses
+continued for months at 69 per boot.
 
 The earlier candidate's final ISO booted visually, but install run `33766199203`
 ended when hosted QEMU itself asserted in epoxy after repeated EGL context loss

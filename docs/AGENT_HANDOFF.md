@@ -86,8 +86,18 @@ Pick ONE execution-order ID; do not re-derive what is already recorded.
   **99.7 MiB with it** (58% smaller). Its first CI run failed *on its own gate*,
   which had demanded an empty `firmware/nvidia/` namespace — wrong, because
   `tegra-drm`/`xhci-tegra` are real aarch64 Tegra drivers sharing it. The gate now
-  asserts the four modules are absent. After the machine updates, confirm with
+  asserts the four modules are absent. **CI run `34002105601` then printed
+  `ARM initramfs: 99 MiB`** (was 237). After the machine updates, confirm with
   `df -h /boot` and `du -sh /boot/ostree/*/`; that is what closes B01.
+- **Icon inheritance is gated by resolution now, not by package presence.**
+  `Papirus-Dark` was never installed (Fedora ships only `Papirus`) and cost 69
+  log misses per boot while a gate on the RPM stayed green. `verify_arm_image.py`
+  now resolves every `Inherits=` name against the image's real icon directories.
+- **Reported, NOT changed — the owner's own unit:**
+  `~/.config/systemd/user/mo-remote-watchdog.timer` fires every minute to start
+  an already-active service, and its `ConditionPathExists=%t/bus` is in
+  `[Service]` where systemd ignores it. Moving that key to `[Unit]` is the fix;
+  it is a local override, so ask before touching it.
 - **Next bounded tasks, in order:** B02 (measure the x86 editions' initramfs the
   same way — `moos-nvidia` must keep its kmod, so expect a different answer),
   P03 (make baloo's `only basic indexing` follow `budget.file_indexing`, written
