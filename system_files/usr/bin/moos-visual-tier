@@ -347,11 +347,19 @@ def budget(facts: dict, tier: str) -> dict:
     streamed = facts["gpu_class"] in ("software", "virtual")
 
     return {
-        # baloo content indexing is a sustained CPU+IO cost. A tiny streamed
-        # box should not pay it at all; any essential box indexes names only.
-        "file_indexing": ("off" if streamed and cores <= 2
-                          else "filenames" if tier == "essential"
-                          else "content"),
+        # Maps onto the one knob that actually costs: /etc/xdg/baloofilerc's
+        # `only basic indexing`. "content" is false (extract file contents),
+        # "filenames" is true (names and metadata only).
+        #
+        # There is deliberately no "off". Measured on the live Oracle A1
+        # (2026-09-06): baloo sat at 0.0% CPU with 12,323 files indexed and a
+        # 70 MB index — the filename index is cheap and it is what powers the
+        # launcher's file results and the Places page's "file search covers your
+        # home folder" promise. Disabling it would delete a shipped feature from
+        # exactly the machines that are used remotely and need search most,
+        # while saving almost nothing. Content EXTRACTION is the sustained
+        # CPU+IO cost, so that is what a small machine stops paying.
+        "file_indexing": "filenames" if tier == "essential" else "content",
         # Parallel streams for `moai-do update` / image pulls. ostree/bootc
         # fetch is IO-bound; >2 streams on 2 cores just thrash the scheduler.
         "update_concurrency": 1 if cores <= 2 else 2 if cores < 8 else 4,

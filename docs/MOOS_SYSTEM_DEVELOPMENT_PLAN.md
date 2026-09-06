@@ -64,6 +64,12 @@ not an idle baseline. With only two cores, software composition/encoding is
 an important target. No speculative service removal or claimed speedup follows
 from that sample.
 
+The 2026-09-06 audit added one hard constraint the earlier baseline missed:
+**`/boot` is 974 MiB and holds two complete deployments.** At 351 MiB each it was
+78% full, so a third could not be staged. Any change that grows the kernel or the
+initramfs is therefore a release-blocking change on ARM, not a size preference.
+Boot itself is healthy (14.3 s, zero failed units) and RAM/swap show no leak.
+
 Live fixes in this pass:
 
 - Clock synchronized but zone was UTC. Set this owner's machine to Europe/Berlin;
@@ -101,12 +107,15 @@ must pick one item, record scope and preserve unrelated work.
 | R03 | P0 open | Align ARM security rebuild cadence and promotion contract | Scheduled ARM rebuild, all source gates, signed exact artifact, boot proof before release tag promotion; failed boot cannot publish |
 | R04 | P0 open | Prove interrupted update and deliberate rollback | Disposable VM first, then authorized hardware with recovery access; previous signed deployment boots; app/user data preserved |
 | U01 | P1 open | First-run locale, timezone and keyboard | User selects language/zone independent of server geography; live clock/input readback, DST and offline setup fixtures; custom settings persist across updates |
-| P01 | P1 authority landed, consumers + measurement open | Capability-based workload budget. `moos-visual-tier` now derives `budget` (file_indexing, update_concurrency, ai_default, remote_encode) from the same probe and exposes it in `--json`/state — advisory, no second writer. Remaining: wire baloo / `moai-do` / Remote encoder to read it, each under its own owner. | Measure idle, typing, scroll/video, build and AI separately; compare frame/input p50/p95, CPU, memory and network before/after on identical workload |
+| P01 | P1 authority landed, consumers + measurement open | Capability-based workload budget. `moos-visual-tier` now derives `budget` (file_indexing, update_concurrency, ai_default, remote_encode) from the same probe and exposes it in `--json`/state — advisory, no second writer. `file_indexing` has no `off` state by design: measured baloo idle at 0.0% CPU, so the filename index stays and only content extraction is dropped. Remaining: wire baloo / `moai-do` / Remote encoder to read it, each under its own owner. | Measure idle, typing, scroll/video, build and AI separately; compare frame/input p50/p95, CPU, memory and network before/after on identical workload |
 | P02 | P1 open | Cloud capture/compositor efficiency | Bound software-rendered quality via measured capability, not only network RTT; test frame pacing, cursor, degraded link, reconnect and local GPU path; explicit quality override retained |
 | D01 | P1 existing visuals, remaining proof | Bar/launcher hierarchy and keyboard flow | One panel; reachable 44px equivalent targets; no clipped RTL/long labels; complete keyboard navigation; 1080p through 4K at 100–225%; light/dark screenshots and measured contrast |
 | A01 | P1 open | Application/runtime compatibility matrix | Native Linux/Flatpak apps install-launch-use-reopen-remove; ARM availability explicit; development SDK inside its actual sandbox; Windows compatibility tested per app, never promised globally |
 | H01 | P1 open | Hardware qualification | Per-model GPU/audio/Wi-Fi/Bluetooth/camera/suspend/dock/multi-monitor and firmware tests; exact image/kernel/driver versions; publish supported/experimental/unsupported status |
 | I01 | P1 open | Installer and recovery qualification | Exact signed ISO offline installation to a blank disk, detach ISO, first login, reboot and poweroff; physical firmware separate from VM proof |
+| B01 | P0 implemented, artifact proof pending | ARM initramfs carries no discrete-GPU firmware (`omit_drivers` for nouveau/amdgpu/radeon/xe). 131 MiB per deployment | Built-archive gate proves the firmware trees are absent AND OSTree/virtio/Plymouth survived; 150 MiB ceiling; after the next ARM image, confirm initramfs <110 MiB and `/boot` near 51% on the live A1 |
+| B02 | P1 open | Publish the `/boot` headroom contract: x86 and ARM both need room for N+1 deployments. Measure the x86 editions' initramfs the same way — `moos-nvidia` must keep its kmod, so its answer will differ | Per-edition initramfs + kernel size recorded per release; a release that cannot stage a third deployment fails before publication |
+| P03 | P1 open | Wire the first `moos-visual-tier` budget consumer: `only basic indexing` in baloofilerc follows `budget.file_indexing`, written by the config's existing owner, never by visual-tier | Measured baloo CPU/IO before and after on the same file set; launcher file results still return; a user's own baloofilerc edit is never taken back |
 | Q01 | P2 open | Release observability and support bundle | Explicit opt-in, redact secrets/identifiers, bounded logs, enough digest/device/health facts to reproduce; diagnostics never execute model-generated privileged commands |
 
 R01 is a proof gap found in `build_files/build.sh`: NVIDIA checks around lines

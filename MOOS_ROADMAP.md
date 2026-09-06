@@ -29,7 +29,14 @@ theme layer. Order matters:
    remote_encode) from the same probe, in `--json` and the state file. Still
    open: the consumers (baloo, `moai-do`, the Remote encoder) reading it under
    their own owners, and the P01 before/after workload measurement.
-5. **Artifact proof before promotion:** x86 generic, NVIDIA, cloud and ARM must
+5. **Boot-partition headroom is a release contract.** `/boot` is 974 MiB and
+   holds two complete deployments; measured 2026-09-06 on the live A1 it was 78%
+   full, so the next signed update had nowhere to stage. The ARM initramfs is now
+   gated for size and carries no discrete-GPU firmware. Do the same measurement
+   for the x86 editions — `moos-nvidia` must keep its kmod in-initramfs, so its
+   answer will differ — and treat a release that cannot stage an N+1 deployment
+   as blocked. (Plan B01/B02.)
+6. **Artifact proof before promotion:** x86 generic, NVIDIA, cloud and ARM must
    each have exact digest boot evidence. A beautiful source tree is not a
    release until the artifact has booted, logged in, smoked apps, rebooted and
    powered off cleanly.

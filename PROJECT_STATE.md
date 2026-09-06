@@ -8,6 +8,45 @@ Last reconciled: **2026-09-03 (exact-frame release proof)** — latest source
 branch, signed CI artifacts, exact mapped-window evidence, and live host checks
 on `moos-arm-oracle`.
 
+### Live Oracle A1 resource audit — /boot was the real problem (2026-09-06)
+
+Measured on the running `moos-arm-oracle`, not inferred. Healthy: boot 14.3 s
+(kernel 0.9 + initrd 3.0 + userspace 10.4, graphical at 8.4 s), **zero failed
+units**, 11 GiB RAM with 6.9 GiB available and **0 B swap in use**, journal
+capped at 500 M (310 M used), `/var` 35% of 199 G.
+
+**The one real fault: `/boot` was 78% full (974 MiB, 205 MiB free) with only two
+deployments at 351 MiB each.** A third needs 351 MiB, so the next signed update
+had nowhere to stage — a silent update failure, not a cosmetic one.
+
+Cause, read out of the built archive: the ARM initramfs was **237 MiB**, of which
+**137.8 MiB was firmware and 131 MiB of that belonged to discrete desktop GPUs
+that cannot exist on an Ampere A1** — `nouveau` declares 559 firmware entries
+(`firmware/nvidia`, 101.2 MiB), `amdgpu` 694 (23.4 MiB), `xe` 41
+(`firmware/xe`+`i915`, 5.0 MiB), `radeon` 232 (1.4 MiB). GPU firmware is not
+needed to reach the root filesystem, which is an initramfs's only job.
+
+Fixed in `build_files/build-arm.sh`'s dracut drop-in with
+`omit_drivers+=" nouveau amdgpu radeon xe "`. Safe by construction: dracut
+anchors every omit entry as `^name$` (`/usr/bin/dracut:1493`), so a bare `xe`
+cannot reach `sdhci-xenon-driver` or the 15 other modules whose names merely
+contain "xe" — that anchoring was verified in dracut-108-7.fc44 before relying on
+it. `hostonly="no"` and the force-added virtio drivers are untouched; **x86 is
+deliberately untouched** because `moos-nvidia` requires its kmod in-initramfs.
+
+Gated in three places: the finished-image gate in `build-arm.sh` proves the
+firmware trees left the archive *after* the existing OSTree/virtio/Plymouth gates
+prove nothing needed went with them, plus a 150 MiB size ceiling; and
+`tests/test_arm_initramfs_size.py` (bite-tested three ways: omission removed,
+storage driver sneaked into the list, `hostonly=yes` as a wrong shrink) runs in
+the ARM workflow via `test_moos_arm.py`. **Expected, not yet observed:**
+initramfs well under 110 MiB and `/boot` near 51% — that lands when CI's ARM
+image is built and the machine updates.
+
+`AnimationDurationFactor=0` in the live user config is correct, not drift:
+`moos-visual-tier` recorded it as a user change and backed off, and MoOS's motion
+gate is `Kirigami.Units.longDuration > 1`, which reads 0 as off.
+
 ### Launcher keyboard navigation + system-audit integration (2026-09-05)
 
 Branch `fix/system-audit-20260905`.
@@ -47,16 +86,21 @@ Branch `fix/system-audit-20260905`.
 
 - **`moos-visual-tier` now publishes a resource `budget`** (P01 / ROADMAP-4
   foundation). The same probe that picks the motion tier now also derives, as a
-  pure function of `facts` + `tier`: `file_indexing` (content / filenames /
-  off), `update_concurrency` (1 / 2 / 4), `ai_default` (local / cloud) and
+  pure function of `facts` + `tier`: `file_indexing` (content / filenames),
+  `update_concurrency` (1 / 2 / 4), `ai_default` (local / cloud) and
   `remote_encode` (720p30 / 1080p30 / 1080p60). It is in `--json`, the human
   summary and the recorded state file. It is **advisory** — visual-tier does not
   write baloofilerc, moai or Remote config; each consumer reads it under its own
-  owner. Live on `moos-arm-oracle` (virtual, 2 cores): essential →
-  indexing off, 1 update stream, Mo AI cloud, Remote ≤ 720p30. Gated by 6 new
-  `tests/test_moos_visual_tier.py` cases (35 total). **Not yet done:** wiring the
-  consumers (baloo / `moai-do` / Remote encoder) and the P01 before/after
-  workload measurement — those stay open on the plan.
+  owner. Live on `moos-arm-oracle` (virtual, 2 cores): essential → filename
+  indexing, 1 update stream, Mo AI cloud, Remote ≤ 720p30. Gated by
+  `tests/test_moos_visual_tier.py` (35 tests). The 2026-09-06 audit corrected
+  `file_indexing`: an earlier revision answered `off` for a small streamed box,
+  which would have deleted launcher file search from the machines used remotely.
+  Measured instead: baloo idle at 0.0% CPU, 12,323 files, 70 MB index — the
+  filename index is cheap; content EXTRACTION is the cost. The two values now
+  map 1:1 onto `only basic indexing` in `/etc/xdg/baloofilerc`. **Not yet done:**
+  wiring the consumers (baloo / `moai-do` / Remote encoder) and the P01
+  before/after workload measurement — those stay open on the plan.
 
 ### Mo PC Remote v39 — phone workspace (2026-09-05)
 

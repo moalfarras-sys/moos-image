@@ -530,6 +530,35 @@ hostonly_cmdline="no"
 # CI, so do not ask dracut to emit a misleading "No /dev/log" error.
 sysloglvl="0"
 add_drivers+=" virtio_blk virtio_net virtio_pci virtio_scsi virtio_gpu virtio_console "
+# MEASURED ON THE LIVE ORACLE A1 (2026-09-06): the ARM initramfs was 237 MB and
+# /boot (974 MB) sat at 78% with only TWO deployments at 351 MB each. A third
+# deployment does not fit, which is how a signed update fails to stage.
+#
+# 137.8 MB of that image was FIRMWARE, and 131 MB of it belonged to discrete
+# desktop GPUs that cannot exist on any ARM target this edition ships to
+# (Oracle A1 and UTM both present virtio-gpu, which is force-added above):
+#
+#   nouveau  559 firmware entries -> usr/lib/firmware/nvidia   101.2 MB
+#   amdgpu   694                  -> usr/lib/firmware/amdgpu    23.4 MB
+#   xe        41                  -> usr/lib/firmware/{xe,i915}  5.0 MB
+#   radeon   232                  -> usr/lib/firmware/radeon      1.4 MB
+#
+# GPU firmware is not needed to REACH the root filesystem, which is the only job
+# an initramfs has. Omitting these four modules drops their firmware with them.
+# On the rare ARM board that does have one of these cards the driver still loads
+# normally from the root filesystem after switch-root; only the early-KMS splash
+# falls back to efifb/simpledrm. hostonly stays "no" — this removes four GPU
+# families, NOT the portability that lets one image boot unknown hardware.
+#
+# SAFE BY CONSTRUCTION: dracut anchors every omit entry as `^name$`
+# (/usr/bin/dracut:1493), so these match the four modules by exact name and
+# cannot reach a storage or network driver. Verified against dracut-108-7.fc44.
+# The finished-image gate below proves both halves: the firmware is gone AND
+# virtio/ostree/plymouth survived.
+#
+# x86 IS DELIBERATELY NOT TOUCHED. build.sh's moos-nvidia edition requires the
+# NVIDIA kmod inside its initramfs; that contract is unrelated to this file.
+omit_drivers+=" nouveau amdgpu radeon xe "
 DRACUT
 
 # -----------------------------------------------------------------------------
@@ -1052,6 +1081,33 @@ for _driver in virtio_blk virtio_pci virtio_scsi virtio_net virtio_gpu virtio_co
 done
 unset -v _driver _driver_file _driver_basename
 echo "=== initramfs carries OSTree, virtio and the MoOS splash ==="
+
+# GATE: the discrete-GPU firmware must be GONE, and it must have stayed gone.
+# This runs AFTER the OSTree/virtio/Plymouth checks above on purpose: those prove
+# the omission did not take anything the boot needs with it, and this proves the
+# omission actually happened. Reading the BUILT archive is the point — a green
+# dracut log says nothing about the bytes (see skills/moos-engineering/SKILL.md).
+for _fw in firmware/nvidia firmware/amdgpu firmware/radeon firmware/xe firmware/i915; do
+    if grep -q "lib/${_fw}/" /tmp/moos-arm-initrd.txt; then
+        echo "FATAL: the ARM initramfs still ships ${_fw} — omit_drivers in"
+        echo "       50-moos-arm.conf did not take. 131 MB of desktop-GPU firmware"
+        echo "       per deployment is what filled /boot to 78% on the live A1."
+        exit 1
+    fi
+done
+unset -v _fw
+# A ceiling, so the bloat cannot creep back through some other driver family.
+# Measured before the fix: 237 MB. After: expected well under 110 MB.
+_initrd_mib=$(( $(stat -c %s "/usr/lib/modules/${kver}/initramfs.img") / 1048576 ))
+echo "       ARM initramfs: ${_initrd_mib} MiB"
+if [ "${_initrd_mib}" -gt 150 ]; then
+    echo "FATAL: the ARM initramfs is ${_initrd_mib} MiB (ceiling 150)."
+    echo "       /boot is 974 MiB and holds TWO deployments plus their kernels;"
+    echo "       an image this large cannot stage a third and updates start failing."
+    exit 1
+fi
+unset -v _initrd_mib
+echo "=== initramfs carries no desktop-GPU firmware and fits /boot ==="
 
 # The ARM edition does not get a reduced identity standard. These are the same
 # identity and foreign-brand gates the x86 editions run, plus ARM-specific

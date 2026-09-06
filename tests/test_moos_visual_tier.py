@@ -502,7 +502,7 @@ class Budget(unittest.TestCase):
                                     .gpu("card1", "faux_driver").render_node()
                                     .cpu(2).memory(11.6).display(1920, 1080))
         self.assertEqual(tier, "essential")
-        self.assertEqual(b["file_indexing"], "off")
+        self.assertEqual(b["file_indexing"], "filenames")
         self.assertEqual(b["update_concurrency"], 1)
         self.assertEqual(b["ai_default"], "cloud")
         self.assertEqual(b["remote_encode"], "1280x720@30")
@@ -515,14 +515,40 @@ class Budget(unittest.TestCase):
                          "tier table already refuses for blur")
         self.assertEqual(b["remote_encode"], "1280x720@30")
 
-    def test_a_capable_essential_laptop_indexes_filenames_not_content(self) -> None:
-        """Real integrated GPU but small: essential tier, but not a 2-core VM."""
-        tier, _, b = self.budget_of(lambda m: m
-                                    .gpu("card0", "i915").render_node()
-                                    .cpu(2).memory(4).display(1920, 1080))
-        self.assertEqual(tier, "essential")  # < 4 cores
-        self.assertEqual(b["file_indexing"], "filenames",
-                         "only a tiny STREAMED box turns indexing off entirely")
+    def test_indexing_is_never_turned_off_entirely(self) -> None:
+        """No machine loses file search; the weak ones stop extracting CONTENT.
+
+        Measured on the live Oracle A1 (2026-09-06): baloo idle at 0.0% CPU,
+        12,323 files indexed, 70 MB index. The filename index is cheap and it is
+        what powers the launcher's file results and the Places page's "file
+        search covers your home folder" promise. An earlier revision of this
+        table answered "off" for a 2-core streamed box, which would have deleted
+        a shipped feature from exactly the machines that are used remotely.
+        `only basic indexing` in /etc/xdg/baloofilerc is the real knob, and it
+        has two states, so this budget has two values.
+        """
+        shapes = (
+            ("2-core streamed A1", lambda m: m.gpu("card0", "virtio-pci")
+             .gpu("card1", "faux_driver").render_node().cpu(2).memory(11.6)),
+            ("small real laptop", lambda m: m.gpu("card0", "i915")
+             .render_node().cpu(2).memory(4)),
+            ("no render node at all", lambda m: m.cpu(32).memory(64)),
+        )
+        for label, build in shapes:
+            with self.subTest(machine=label):
+                tier, _, b = self.budget_of(build)
+                self.assertEqual(tier, "essential")
+                self.assertEqual(b["file_indexing"], "filenames")
+        # Read the CODE of budget(), not its prose: the docstring and comments
+        # discuss "off" precisely because it must never be a returned value.
+        body = (ROOT / "system_files/usr/bin/moos-visual-tier").read_text(
+            encoding="utf-8").split("def budget(", 1)[1].split("\ndef ", 1)[0]
+        body = body.split('"""', 2)[-1]
+        code_only = "\n".join(
+            line.split("#", 1)[0] for line in body.splitlines())
+        self.assertNotIn(
+            '"off"', code_only,
+            "the budget must not reintroduce an indexing-off state")
 
     def test_the_budget_is_a_pure_function_of_facts_and_tier(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

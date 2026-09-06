@@ -62,28 +62,53 @@ Next bounded task and exact acceptance:
 Not done / do not claim:
 ```
 
-## Current maintenance checkpoint (2026-09-05)
+## Current maintenance checkpoint (2026-09-06)
 
-- Remote v39 source checkpoint: `5b0d79ca`; build proof documentation `4079bb73`.
-  PR 73 holds keyboard/AppStream/storage/Remote integration. Query GitHub for
-  current merge state; do not assume an open PR was merged.
-- Native ARM exact-image proof passed on local image `c39840054b30`.
-  Services `moos-glass-image-build` and `moos-glass-image-final` completed.
-  Their journal records bootc lint and controller/helper byte checks.
-- Follow-on system audit branch: `fix/system-audit-20260905`.
-  Check `moos-system-audit-build.service` before starting another image build.
+Read this, then `PROJECT_STATE.md`, then `docs/MOOS_SYSTEM_DEVELOPMENT_PLAN.md`.
+Pick ONE execution-order ID; do not re-derive what is already recorded.
+
+- **Branch `fix/system-audit-20260905` → PR #74**, stacked on **PR #73**
+  (`fix/oracle-storage-health-20260905`). #74 holds five commits: S01/S02 system
+  audit, Launcher keyboard navigation (THEME_REV 53), the visual-tier resource
+  budget, the CommandCard RTL clip fix, and the ARM initramfs/`/boot` fix (B01).
+  Merge #73 first, then rebase or merge #74. **Query GitHub for current state;
+  do not assume either PR is still open.**
+- **CI on #74 is green**: `Build MoOS ARM (aarch64)` succeeded — that is a full
+  native ARM image build plus every repo gate and `bootc container lint`.
+  Locally, 97 of 98 CI gates pass; `test_openclaw_modern_unit_retire.py` needs
+  `systemctl`, which the VS Code Flatpak sandbox does not have. That gap is
+  pre-existing and unrelated — verify before blaming your own change.
+- **THEME_REV is 53.** Any further change to a shipped theme SVG or plasmoid QML
+  in this branch rides that same rev; a NEW rev needs both pinned gates
+  (`test_moos_ui2.py`, `verify_user_experience.py`) moved with it.
+- **B01 is implemented but not yet observed on hardware.** The next ARM image
+  should produce an initramfs well under 110 MiB and take `/boot` from 78% to
+  roughly 51%. After the machine updates, confirm with `df -h /boot` and
+  `du -sh /boot/ostree/*/` and record the real numbers — that is what closes B01.
+- **Next bounded tasks, in order:** B02 (measure the x86 editions' initramfs the
+  same way — `moos-nvidia` must keep its kmod, so expect a different answer),
+  P03 (make baloo's `only basic indexing` follow `budget.file_indexing`, written
+  by that config's existing owner, never by visual-tier), then R01/R04.
+- **Do not use synthetic input (`ydotool`) against the live session.** The owner
+  works in it. The Launcher's keyboard flow is proven to LOAD (`plasmawindowed`,
+  `MOOS_LAUNCHER_FULL_READY 792x576`) but its focus ring has not been driven by
+  real key presses; that proof belongs to a session you own or the signed image.
+- **`pgrep -f` / `pkill -f` kill this shell** (exit 144) because the pattern is in
+  its own command line. Kill by PID; use `pidof` to check. Cost two shells here.
 - Active Remote: `~/.local/lib/mo-remote-v39-20260905`, selected by
   `~/.config/systemd/user/mo-remote-personal.service.d/99-remote-control-v39.conf`.
   Earlier 90-oracle-live override also exists. Retire both only when signed
   image Remote is proven. Prior binary and moved overrides are retained.
 - Temporary AppStream override: `/etc/systemd/system/moos-appstream-refresh.service`;
   remove after verifying the signed image's own service and enablement.
-- Owner's zone is Europe/Berlin with synchronized clock. Theme owner restored
-  Arena's wallpaper to match the selected Arena profile.
+- Owner's zone is Europe/Berlin. Live host is `moos-arm-oracle`, booted digest
+  `sha256:049a620d…` / `44.20260905.263`, theme `MoOSUI2Arena`
+  (`org.moos.ui2.gaming`), tier `essential`. `AnimationDurationFactor=0` is the
+  owner's own setting, recorded as such — do not "repair" it.
 - Persistent SDK: `~/.local/share/dotnet` (10.0.400); verified in host and sandbox.
-  VS Code paths configured; do not reload the editor while the user is working.
+  Do not reload the editor while the user is working.
 - No user files/apps were deleted. Oracle full pre-resize backup is retained.
   Disk/boot/scrub evidence is in `ORACLE_STORAGE_HEALTH_20260905.md`.
-- Physical phone owner confirmed typing/bar visibility in both orientations.
-  Full device/network matrix, deliberate rollback, real NVIDIA hardware and
-  global application compatibility are not closed by this session.
+- Not closed by these sessions: real NVIDIA hardware, deliberate rollback (R04),
+  the full device/network matrix, the 100–225% visual sweep, and global
+  application compatibility.

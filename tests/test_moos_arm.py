@@ -22,6 +22,8 @@ import unittest
 from pathlib import Path
 
 from test_arm_appstream_refresh import AppStreamImageTests
+# /boot is 974 MiB and holds two deployments; the initramfs has to fit.
+from test_arm_initramfs_size import ArmInitramfsFits
 
 ROOT = Path(__file__).resolve().parents[1]
 CONTAINERFILE = ROOT / "Containerfile.arm"
