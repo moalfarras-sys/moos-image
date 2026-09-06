@@ -1087,15 +1087,29 @@ echo "=== initramfs carries OSTree, virtio and the MoOS splash ==="
 # the omission did not take anything the boot needs with it, and this proves the
 # omission actually happened. Reading the BUILT archive is the point — a green
 # dracut log says nothing about the bytes (see skills/moos-engineering/SKILL.md).
-for _fw in firmware/nvidia firmware/amdgpu firmware/radeon firmware/xe firmware/i915; do
-    if grep -q "lib/${_fw}/" /tmp/moos-arm-initrd.txt; then
-        echo "FATAL: the ARM initramfs still ships ${_fw} — omit_drivers in"
-        echo "       50-moos-arm.conf did not take. 131 MB of desktop-GPU firmware"
-        echo "       per deployment is what filled /boot to 78% on the live A1."
+# Assert on the MODULES, not on the firmware namespace. An earlier revision of
+# this gate demanded zero files under lib/firmware/nvidia/ and failed a build
+# whose fix had worked perfectly: `tegra-drm` and `xhci-tegra` are NVIDIA TEGRA
+# drivers — real aarch64 SoC hardware (Jetson) that MoOS keeps on purpose — and
+# they declare 12 small firmware files in that same nvidia/ namespace. Measured
+# with dracut-108-7.fc44 on kernel 7.1.13-200.fc44.aarch64:
+#
+#   no omission          248,496,743 B (237 MiB), 597 nvidia firmware files
+#   omit_drivers as here  104,554,992 B (99.7 MiB), 11 nvidia firmware files
+#
+# So the contract is "these four modules are gone" plus the size ceiling below,
+# never "this firmware directory is empty" — a gate that cannot pass on a correct
+# image is worse than no gate.
+for _mod in nouveau amdgpu radeon xe; do
+    if grep -qE "/${_mod}\.ko" /tmp/moos-arm-initrd.txt; then
+        echo "FATAL: ${_mod} is still in the ARM initramfs — omit_drivers in"
+        echo "       50-moos-arm.conf did not take. Its firmware rides with it, and"
+        echo "       131 MB of desktop-GPU firmware per deployment is what filled"
+        echo "       /boot to 78% on the live A1."
         exit 1
     fi
 done
-unset -v _fw
+unset -v _mod
 # A ceiling, so the bloat cannot creep back through some other driver family.
 # Measured before the fix: 237 MB. After: expected well under 110 MB.
 _initrd_mib=$(( $(stat -c %s "/usr/lib/modules/${kver}/initramfs.img") / 1048576 ))

@@ -19,6 +19,21 @@ The four modules are omitted by exact name. dracut anchors every omit entry as
 `sdhci-xenon-driver` or the 15 other modules whose names merely contain "xe".
 That anchoring is the whole reason bare names are safe here; if a future dracut
 drops it, the built-image gate in build-arm.sh is the backstop.
+
+MEASURED, by building three real initramfs images on the live A1 with
+dracut-108-7.fc44 against kernel 7.1.13-200.fc44.aarch64:
+
+    no omission                 248,496,743 B (237 MiB)   597 nvidia fw files
+    omit_drivers via conf file  104,554,992 B (99.7 MiB)   11 nvidia fw files
+    omit_drivers via --omit-drivers  104,554,530 B         11 nvidia fw files
+
+Both forms work; the conf drop-in is the one this edition uses. THE ELEVEN
+REMAINING FILES ARE CORRECT: `tegra-drm` (8) and `xhci-tegra` (4) are NVIDIA
+TEGRA drivers — genuine aarch64 SoC hardware — and they share the nvidia/
+firmware namespace. A first version of the build gate demanded that namespace be
+EMPTY and duly failed a build whose fix had worked perfectly. The contract is
+"these four modules are gone" plus a size ceiling, never "this directory is
+empty": a gate that cannot pass on a correct image is worse than no gate.
 """
 
 import re
@@ -90,11 +105,22 @@ class ArmInitramfsFits(unittest.TestCase):
 
     def test_the_built_archive_is_gated_not_just_the_source(self) -> None:
         """A green dracut log says nothing about the bytes it produced."""
-        for firmware in OMITTED.values():
-            self.assertIn(firmware, ARM,
-                          f"build-arm.sh must prove {firmware} left the built "
-                          f"initramfs, by reading the archive inventory")
-        self.assertIn("/tmp/moos-arm-initrd.txt", ARM)
+        # code() strips comments: the gate's own comment explains why the
+        # firmware-namespace check was WRONG, so prose must not answer here.
+        gate = code(ARM.split("GATE: the discrete-GPU firmware", 1)[1].split(
+            "=== initramfs carries no desktop-GPU firmware", 1)[0])
+        self.assertIn("/tmp/moos-arm-initrd.txt", gate,
+                      "the gate must read the BUILT archive inventory")
+        # Assert on the modules; the firmware namespace is shared with Tegra.
+        self.assertRegex(gate, r'for _mod in nouveau amdgpu radeon xe')
+        for spelling in ("firmware/nvidia", "firmware/amdgpu",
+                         "firmware/radeon", "firmware/xe", "firmware/i915"):
+            self.assertNotIn(
+                spelling, gate,
+                f"the gate must not assert on {spelling}: demanding an EMPTY "
+                "firmware namespace fails a correct image, because tegra-drm "
+                "and xhci-tegra legitimately ship 12 files under nvidia/. "
+                "Assert the four MODULES are gone, plus the size ceiling.")
         self.assertRegex(
             ARM, r'_initrd_mib.*-gt\s+150',
             "a size ceiling must stop the bloat creeping back through some "
@@ -109,7 +135,8 @@ class ArmInitramfsFits(unittest.TestCase):
         log would draw the wrong conclusion about what this change did.
         """
         self.assertLess(
-            ARM.index("ostree-prepare-root"), ARM.index("lib/${_fw}/"),
+            ARM.index("ostree-prepare-root"),
+            ARM.index("GATE: the discrete-GPU firmware"),
             "the OSTree/virtio/Plymouth gates must precede the firmware gate")
 
     def test_x86_nvidia_is_deliberately_untouched(self) -> None:

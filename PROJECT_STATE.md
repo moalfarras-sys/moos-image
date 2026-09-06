@@ -34,14 +34,35 @@ contain "xe" — that anchoring was verified in dracut-108-7.fc44 before relying
 it. `hostonly="no"` and the force-added virtio drivers are untouched; **x86 is
 deliberately untouched** because `moos-nvidia` requires its kmod in-initramfs.
 
-Gated in three places: the finished-image gate in `build-arm.sh` proves the
-firmware trees left the archive *after* the existing OSTree/virtio/Plymouth gates
-prove nothing needed went with them, plus a 150 MiB size ceiling; and
-`tests/test_arm_initramfs_size.py` (bite-tested three ways: omission removed,
-storage driver sneaked into the list, `hostonly=yes` as a wrong shrink) runs in
-the ARM workflow via `test_moos_arm.py`. **Expected, not yet observed:**
-initramfs well under 110 MiB and `/boot` near 51% — that lands when CI's ARM
-image is built and the machine updates.
+**Measured, by building three real initramfs images on the live A1**
+(dracut-108-7.fc44, kernel 7.1.13-200.fc44.aarch64):
+
+| build | size | nvidia firmware files |
+| --- | --- | --- |
+| no omission | 248,496,743 B (237 MiB) | 597 |
+| `omit_drivers` via conf drop-in | **104,554,992 B (99.7 MiB)** | 11 |
+| `omit_drivers` via `--omit-drivers` | 104,554,530 B | 11 |
+
+Both forms work; the conf drop-in is the one this edition uses. **58% smaller.**
+
+The first CI run of this fix FAILED, and its own gate is what stopped it — a
+good outcome that also exposed a bad gate. The gate demanded the
+`lib/firmware/nvidia/` namespace be EMPTY, but the eleven remaining files are
+correct: `tegra-drm` (8) and `xhci-tegra` (4) are NVIDIA **Tegra** drivers, real
+aarch64 SoC hardware MoOS keeps on purpose, sharing that namespace. The gate now
+asserts the four *modules* are absent, plus the size ceiling. **A gate that
+cannot pass on a correct image is worse than no gate** — the same lesson this
+file already records about `verify_user_experience`'s `startswith("")` default arm.
+
+Gated in three places: the finished-image gate in `build-arm.sh` proves the four
+modules left the archive *after* the existing OSTree/virtio/Plymouth gates prove
+nothing needed went with them (that ordering held in the failing run: the
+OSTree/virtio/splash line printed first), plus a 150 MiB ceiling; and
+`tests/test_arm_initramfs_size.py` — bite-tested four ways: omission removed,
+storage driver sneaked into the list, `hostonly=yes` as a wrong shrink, and the
+too-strict firmware-namespace check being reintroduced — runs in the ARM workflow
+via `test_moos_arm.py`. **Expected, not yet observed on the deployed machine:**
+`/boot` near 51% once this branch's ARM image is built and the machine updates.
 
 `AnimationDurationFactor=0` in the live user config is correct, not drift:
 `moos-visual-tier` recorded it as a user change and backed off, and MoOS's motion

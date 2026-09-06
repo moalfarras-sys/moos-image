@@ -81,10 +81,13 @@ Pick ONE execution-order ID; do not re-derive what is already recorded.
 - **THEME_REV is 53.** Any further change to a shipped theme SVG or plasmoid QML
   in this branch rides that same rev; a NEW rev needs both pinned gates
   (`test_moos_ui2.py`, `verify_user_experience.py`) moved with it.
-- **B01 is implemented but not yet observed on hardware.** The next ARM image
-  should produce an initramfs well under 110 MiB and take `/boot` from 78% to
-  roughly 51%. After the machine updates, confirm with `df -h /boot` and
-  `du -sh /boot/ostree/*/` and record the real numbers — that is what closes B01.
+- **B01 is measured in source, not yet observed on the deployed machine.**
+  Three real dracut runs on the live A1 gave 237 MiB with no omission and
+  **99.7 MiB with it** (58% smaller). Its first CI run failed *on its own gate*,
+  which had demanded an empty `firmware/nvidia/` namespace — wrong, because
+  `tegra-drm`/`xhci-tegra` are real aarch64 Tegra drivers sharing it. The gate now
+  asserts the four modules are absent. After the machine updates, confirm with
+  `df -h /boot` and `du -sh /boot/ostree/*/`; that is what closes B01.
 - **Next bounded tasks, in order:** B02 (measure the x86 editions' initramfs the
   same way — `moos-nvidia` must keep its kmod, so expect a different answer),
   P03 (make baloo's `only basic indexing` follow `budget.file_indexing`, written
