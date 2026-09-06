@@ -300,25 +300,13 @@ PROFILES: dict[str, dict[str, dict[str, str]]] = {
         "motion": "gentle",
     },
     "essential": {
-        # ESSENTIAL IS NOT "NO MOTION". It is "no motion you pay for per frame".
-        #
-        # This tier used to switch every effect off, including the scripted ones,
-        # and the result was measured on the live Oracle A1 on 2026-09-06: a
-        # desktop with no window open/close, no minimise, no desktop switch and
-        # no modal dim — the entire MoOS motion identity gone — while the actual
-        # saving was nil. Idle kwin_wayland on that box sampled at 58% of one
-        # core with ALL of this off, because the cost there is the Remote screen
-        # capture compositing every frame, not a 200 ms scale on one window.
-        #
-        # The distinction that matters is per-frame full-screen work versus a
-        # brief, bounded, single-window transform:
-        #   blur      MODERATE, every frame, whole screen  -> stays OFF here
-        #   magiclamp the showy minimise                   -> stays OFF here
-        #   scale/squash/slide/dimscreen  scripted, one window, milliseconds
-        #
-        # So essential is now exactly the balanced set MINUS blur. It keeps the
-        # readability ceiling's whole point (no software blur pass) and gives a
-        # 1 GiB no-GPU machine the same MoOS motion language as a workstation.
+        # Essential retains the owner's requested short motion without blur.
+        # This is a design choice, not a measured zero-cost optimization.
+        # The 2026-09-06 idle sample had these effects configured but NOT loaded;
+        # it cannot establish their cost during interaction or Remote capture.
+        # Slide switches desktops and dimscreen can affect multiple windows.
+        # Validate loaded effects and active-frame CPU/RSS after a fresh login,
+        # including low-memory software rendering, before claiming a budget win.
         "kwinrc": {
             "Plugins/blurEnabled": "false",
             "Plugins/magiclampEnabled": "false",

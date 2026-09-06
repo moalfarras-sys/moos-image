@@ -4,9 +4,9 @@ This file is current state, not session history. Git history owns the history.
 When documentation disagrees with a running machine, a freshly booted artifact,
 or current source, those stronger forms of evidence win.
 
-Last reconciled: **2026-09-03 (exact-frame release proof)** — latest source
-branch, signed CI artifacts, exact mapped-window evidence, and live host checks
-on `moos-arm-oracle`.
+Last reconciled: **2026-09-06 (resumed audit)**. Current source and live
+findings: [`docs/SYSTEM_AUDIT_RESUME_20260906.md`](docs/SYSTEM_AUDIT_RESUME_20260906.md).
+Signed release and post-reboot verification are tracked there separately.
 
 ### Why the desktop looked unchanged — four measured causes (2026-09-06)
 
@@ -22,12 +22,11 @@ plan and the ordered remainder: [`docs/MOOS_VISUAL_ROADMAP.md`](docs/MOOS_VISUAL
   whole hardware-matched profile only ever landed at the NEXT login — on every
   machine, since the tool was written. Same trap as the keyboard migration, which
   KWin 6 watches through `KConfigWatcher`. Fixed.
-- **The `essential` tier disabled even the free effects.** It switched off the
-  scripted single-window animations along with blur, so a weak machine lost the
-  entire MoOS motion language for no measurable saving: idle `kwin_wayland`
-  measures ~1% of one core with `scale/squash/slide/dimscreen` on, because the
-  cost on this box is Remote's screen capture, not a 200 ms transform. Essential
-  is now exactly balanced **minus blur**; the blur refusal is untouched.
+- **The `essential` tier disabled the requested window motion.** The profile
+  now retains scale/squash/slide/dimscreen and refuses blur. This is a design
+  choice with runtime cost still unmeasured: the ~1% idle sample had the
+  effects configured on but not loaded. Slide and dimscreen are not all
+  single-window transforms; do not call them free.
 - **KDE and GTK windows disagreed about which side the buttons go on.** kwinrc
   `ButtonsOnLeft=XIA` (left) versus GSettings and the xdg portal both answering
   `appmenu:minimize,maximize,close` (right). `moos-theme` already owned both
@@ -46,14 +45,14 @@ Remote, so restarting the compositor is turning the monitor off. A CPU sample of
 58% taken during active screen output is not comparable to the 1% idle sample
 taken after; no CPU reduction is claimed from these changes.
 
-### Live Oracle A1 resource audit — /boot was the real problem (2026-09-06)
+### Earlier Oracle A1 resource snapshot — /boot pressure (2026-09-06)
 
 Measured on the running `moos-arm-oracle`, not inferred. Healthy: boot 14.3 s
 (kernel 0.9 + initrd 3.0 + userspace 10.4, graphical at 8.4 s), **zero failed
 units**, 11 GiB RAM with 6.9 GiB available and **0 B swap in use**, journal
 capped at 500 M (310 M used), `/var` 35% of 199 G.
 
-**The one real fault: `/boot` was 78% full (974 MiB, 205 MiB free) with only two
+**One measured fault: `/boot` was 78% full (974 MiB, 205 MiB free) with only two
 deployments at 351 MiB each.** A third needs 351 MiB, so the next signed update
 had nowhere to stage — a silent update failure, not a cosmetic one.
 
@@ -104,9 +103,9 @@ the gate's own line): `ARM initramfs: 99 MiB`, down from 237. **Still not
 observed on the deployed machine:** `/boot` near 51% once that image is
 published and the machine updates — `df -h /boot` then is what closes B01.
 
-`AnimationDurationFactor=0` in the live user config is correct, not drift:
-`moos-visual-tier` recorded it as a user change and backed off, and MoOS's motion
-gate is `Kirigami.Units.longDuration > 1`, which reads 0 as off.
+Earlier `AnimationDurationFactor=0` was a preserved user override. The owner
+subsequently requested motion; the current live value is 0.4. Actual effect
+loading still needs the fresh-session check above. Preserve future user edits.
 
 **The loudest warning on the machine was a real bug: `Icon theme "Papirus-Dark"
 not found.` × 69 in one boot.** Fedora's `papirus-icon-theme` ships exactly one

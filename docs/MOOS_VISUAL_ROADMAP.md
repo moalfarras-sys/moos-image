@@ -12,13 +12,13 @@ carry a change). This file is the ordered work that follows from the audit.
 
 ## 0. Why nothing looked different — the four findings
 
-These are the measurements, not opinions. Each is now fixed and gated.
+Configuration fixes are implemented; runtime acceptance remains open where noted.
 
 | # | What was wrong | Evidence |
 |---|---|---|
 | V1 | **The desktop had no motion at all.** Not "reduced" — none. | `AnimationDurationFactor=0` in the user's kdeglobals; `blur/magiclamp/squash/scale/slide/dimscreen/dialogparent` all `false` |
 | V2 | **`moos-visual-tier` never told the running session anything.** | `kwriteconfig6` was called without `--notify`, so KConfig emitted no change signal and the whole profile landed only at the next login |
-| V3 | **The `essential` tier disabled even the free effects.** | Idle `kwin_wayland` sits at ~1% of one core with `scale/squash/slide/dimscreen` ON; the real cost on this box is Remote's screen capture, not a 200 ms single-window transform |
+| V3 | **Essential disabled the requested motion.** | Config now enables scale/squash/slide/dimscreen without blur. Effects were not loaded during the idle sample, so their actual interaction cost remains unmeasured |
 | V4 | **KDE and GTK windows disagreed about which side the buttons go on.** | kwinrc `ButtonsOnLeft=XIA`; GSettings and the xdg portal both `appmenu:minimize,maximize,close` |
 
 **The lesson to carry forward:** every one of these passed every existing gate,
@@ -57,7 +57,7 @@ applies at the next login. Say so plainly rather than claiming a live fix.
 |---|---|---|---|
 | V1 | done, needs a session | Restore the motion profile; remove the stale `AnimationDurationFactor=0` | `loadedEffects` contains scale/squash/slide/dimscreen after the next login |
 | V2 | done | `moos-visual-tier` writes with `--notify` | `test_moos_visual_tier.py::test_every_config_write_notifies_the_running_session`, bite-tested |
-| V3 | done | `essential` = balanced minus blur | Same file, `test_essential_keeps_the_cheap_motion_and_still_refuses_blur` |
+| V3 | implemented; performance acceptance open | `essential` = balanced minus blur | Source profile gate passes; measure loaded effects during interactions and Remote capture after fresh login, including software rendering and low RAM |
 | V4 | done | `moos-theme` writes the GTK mirror of `ButtonsOnLeft` | `test_window_button_consistency.py`, bite-tested both directions |
 | V5 | done, needs a reload | VS Code drew its own window controls at the LEFT, over its own menu, hiding `File` and `Ed` of `Edit`. Set `window.titleBarStyle: native` so KWin's MoOS frame is the title bar | Re-crop the top-left strip after a VS Code restart; `File` and `Edit` legible, MoOS circular controls present |
 | V6 | **closed, no defect + gated** | All five first-party QML windows (moai, installer, settings, store, welcome) root in `ApplicationWindow` with no frameless hint, so KWin owns their title bar and the VS Code collision cannot occur. `test_first_party_window_frame.py` keeps it that way | Source audit + bite-tested gate |

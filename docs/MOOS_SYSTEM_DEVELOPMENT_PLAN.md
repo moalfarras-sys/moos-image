@@ -68,7 +68,9 @@ The 2026-09-06 audit added one hard constraint the earlier baseline missed:
 **`/boot` is 974 MiB and holds two complete deployments.** At 351 MiB each it was
 78% full, so a third could not be staged. Any change that grows the kernel or the
 initramfs is therefore a release-blocking change on ARM, not a size preference.
-Boot itself is healthy (14.3 s, zero failed units) and RAM/swap show no leak.
+That was one healthy snapshot. A later OOM incident killed several desktop
+services; see `SYSTEM_AUDIT_RESUME_20260906.md`. Long-term memory stability
+remains unproven.
 
 Live fixes in this pass:
 
@@ -102,6 +104,7 @@ must pick one item, record scope and preserve unrelated work.
 | --- | --- | --- | --- |
 | S01 | P0 implemented | Finish v39/keyboard/AppStream integration | Source tests, native ARM build/lint, exact image byte comparison, PR/release digest and post-boot result separately recorded |
 | S02 | P0 implemented, integration pending | Correct virtual GPU classification and post-update edition/digest diagnosis | Regression must fail before fix; live probe; same-architecture image build; expected digest check after boot |
+| S03 | P0 open | Investigate 2026-09-06 desktop OOM incident; preserve bounded per-process/service memory evidence | Same-workload monitoring after signed reboot; no new OOM or accumulating memory; reproduce any suspected trigger in an isolated session |
 | R01 | P0 open | Revalidate NVIDIA modules after the final dracut rewrite | Required modules and exact kernel in final initramfs; deliberately omit module and prove gate fails; real NVIDIA boot kept separate from virtio VM proof |
 | R02 | P0 open | Resolve approved upstream base digest once per release | One immutable x86 input shared by three jobs and driver preparation; separate explicit ARM digest; preserve repository allowlist; source-tag movement test |
 | R03 | P0 open | Align ARM security rebuild cadence and promotion contract | Scheduled ARM rebuild, all source gates, signed exact artifact, boot proof before release tag promotion; failed boot cannot publish |
@@ -113,7 +116,7 @@ must pick one item, record scope and preserve unrelated work.
 | A01 | P1 open | Application/runtime compatibility matrix | Native Linux/Flatpak apps install-launch-use-reopen-remove; ARM availability explicit; development SDK inside its actual sandbox; Windows compatibility tested per app, never promised globally |
 | H01 | P1 open | Hardware qualification | Per-model GPU/audio/Wi-Fi/Bluetooth/camera/suspend/dock/multi-monitor and firmware tests; exact image/kernel/driver versions; publish supported/experimental/unsupported status |
 | I01 | P1 open | Installer and recovery qualification | Exact signed ISO offline installation to a blank disk, detach ISO, first login, reboot and poweroff; physical firmware separate from VM proof |
-| B01 | P0 implemented, artifact proof pending | ARM initramfs carries no discrete-GPU firmware (`omit_drivers` for nouveau/amdgpu/radeon/xe). 131 MiB per deployment | Built-archive gate proves the firmware trees are absent AND OSTree/virtio/Plymouth survived; 150 MiB ceiling; after the next ARM image, confirm initramfs <110 MiB and `/boot` near 51% on the live A1 |
+| B01 | P0 implemented, live staging proof pending | Omit four desktop GPU modules from ARM initramfs; retain ARM Tegra firmware and storage drivers | Final archive passes module/boot gates and size ceiling. Include kernel + DTBs in space calculation, verify signed staging and retained rollback on the real A1 |
 | B02 | P1 open | Publish the `/boot` headroom contract: x86 and ARM both need room for N+1 deployments. Measure the x86 editions' initramfs the same way — `moos-nvidia` must keep its kmod, so its answer will differ | Per-edition initramfs + kernel size recorded per release; a release that cannot stage a third deployment fails before publication |
 | P03 | P1 open | Wire the first `moos-visual-tier` budget consumer: `only basic indexing` in baloofilerc follows `budget.file_indexing`, written by the config's existing owner, never by visual-tier | Measured baloo CPU/IO before and after on the same file set; launcher file results still return; a user's own baloofilerc edit is never taken back |
 | Q01 | P2 open | Release observability and support bundle | Explicit opt-in, redact secrets/identifiers, bounded logs, enough digest/device/health facts to reproduce; diagnostics never execute model-generated privileged commands |

@@ -62,77 +62,32 @@ Next bounded task and exact acceptance:
 Not done / do not claim:
 ```
 
-## Current maintenance checkpoint (2026-09-06)
+## Current maintenance checkpoint (2026-09-06, resumed)
 
-Read this, then `PROJECT_STATE.md`, then `docs/MOOS_SYSTEM_DEVELOPMENT_PLAN.md`.
-Pick ONE execution-order ID; do not re-derive what is already recorded.
+Read [`SYSTEM_AUDIT_RESUME_20260906.md`](SYSTEM_AUDIT_RESUME_20260906.md)
+for the current branch, builds, live incident and release state. PR #73 is merged;
+PR #74 contains the reviewed continuation. Query GitHub for subsequent changes.
 
-- **Branch `fix/system-audit-20260905` → PR #74**, stacked on **PR #73**
-  (`fix/oracle-storage-health-20260905`). #74 holds five commits: S01/S02 system
-  audit, Launcher keyboard navigation (THEME_REV 53), the visual-tier resource
-  budget, the CommandCard RTL clip fix, and the ARM initramfs/`/boot` fix (B01).
-  Merge #73 first, then rebase or merge #74. **Query GitHub for current state;
-  do not assume either PR is still open.**
-- **CI on #74 is green**: `Build MoOS ARM (aarch64)` succeeded — that is a full
-  native ARM image build plus every repo gate and `bootc container lint`.
-  Locally, 97 of 98 CI gates pass; `test_openclaw_modern_unit_retire.py` needs
-  `systemctl`, which the VS Code Flatpak sandbox does not have. That gap is
-  pre-existing and unrelated — verify before blaming your own change.
-- **THEME_REV is 53.** Any further change to a shipped theme SVG or plasmoid QML
-  in this branch rides that same rev; a NEW rev needs both pinned gates
-  (`test_moos_ui2.py`, `verify_user_experience.py`) moved with it.
-- **B01 is measured in source, not yet observed on the deployed machine.**
-  Three real dracut runs on the live A1 gave 237 MiB with no omission and
-  **99.7 MiB with it** (58% smaller). Its first CI run failed *on its own gate*,
-  which had demanded an empty `firmware/nvidia/` namespace — wrong, because
-  `tegra-drm`/`xhci-tegra` are real aarch64 Tegra drivers sharing it. The gate now
-  asserts the four modules are absent. **CI run `34002105601` then printed
-  `ARM initramfs: 99 MiB`** (was 237). After the machine updates, confirm with
-  `df -h /boot` and `du -sh /boot/ostree/*/`; that is what closes B01.
-- **Icon inheritance is gated by resolution now, not by package presence.**
-  `Papirus-Dark` was never installed (Fedora ships only `Papirus`) and cost 69
-  log misses per boot while a gate on the RPM stayed green. `verify_arm_image.py`
-  now resolves every `Inherits=` name against the image's real icon directories.
-- **Arabic spell-check now comes from one shared script.** ARM shipped 24
-  English and zero Arabic `.bdic` files because the x86 block was copied, not
-  shared. `build_files/convert_webengine_dictionaries.sh` is called by both
-  builds and asserts both languages. If you add a third edition, call it there
-  too — `tests/test_webengine_dictionaries.py` enforces that shape.
-- **THE SCREEN OF THIS MACHINE IS MO PC REMOTE.** Never restart
-  `mo-remote-personal.service`, and never take an action that can leave it down:
-  doing so cuts the owner's display. `systemctl --user start` on it is safe (a
-  no-op while it runs); `restart`/`stop` are not.
-- **`mo-remote-watchdog` is fixed and deliberately still enabled.** Its
-  `ConditionPathExists` was in `[Service]` (ignored there), so it fired 12.65 s
-  into the session, before Wayland, and took `xdg-desktop-portal-kde` down with
-  a qFatal every boot. It now guards on `%t/wayland-0` in `[Unit]`. Do not
-  "clean it up" by disabling it: `mo-remote-personal` has `StartLimitBurst=5`
-  and this timer is the only recovery from that on a machine with no other
-  screen. Originals: `~/.config/systemd/user/.moos-backup-20260906/`.
-- **Next bounded tasks, in order:** B02 (measure the x86 editions' initramfs the
-  same way — `moos-nvidia` must keep its kmod, so expect a different answer),
-  P03 (make baloo's `only basic indexing` follow `budget.file_indexing`, written
-  by that config's existing owner, never by visual-tier), then R01/R04.
-- **Do not use synthetic input (`ydotool`) against the live session.** The owner
-  works in it. The Launcher's keyboard flow is proven to LOAD (`plasmawindowed`,
-  `MOOS_LAUNCHER_FULL_READY 792x576`) but its focus ring has not been driven by
-  real key presses; that proof belongs to a session you own or the signed image.
-- **`pgrep -f` / `pkill -f` kill this shell** (exit 144) because the pattern is in
-  its own command line. Kill by PID; use `pidof` to check. Cost two shells here.
-- Active Remote: `~/.local/lib/mo-remote-v39-20260905`, selected by
-  `~/.config/systemd/user/mo-remote-personal.service.d/99-remote-control-v39.conf`.
-  Earlier 90-oracle-live override also exists. Retire both only when signed
-  image Remote is proven. Prior binary and moved overrides are retained.
-- Temporary AppStream override: `/etc/systemd/system/moos-appstream-refresh.service`;
-  remove after verifying the signed image's own service and enablement.
-- Owner's zone is Europe/Berlin. Live host is `moos-arm-oracle`, booted digest
-  `sha256:049a620d…` / `44.20260905.263`, theme `MoOSUI2Arena`
-  (`org.moos.ui2.gaming`), tier `essential`. `AnimationDurationFactor=0` is the
-  owner's own setting, recorded as such — do not "repair" it.
-- Persistent SDK: `~/.local/share/dotnet` (10.0.400); verified in host and sandbox.
-  Do not reload the editor while the user is working.
-- No user files/apps were deleted. Oracle full pre-resize backup is retained.
-  Disk/boot/scrub evidence is in `ORACLE_STORAGE_HEALTH_20260905.md`.
-- Not closed by these sessions: real NVIDIA hardware, deliberate rollback (R04),
-  the full device/network matrix, the 100–225% visual sweep, and global
-  application compatibility.
+- Run source gates on the **host**, not inside VS Code Flatpak; host systemctl
+  exists. Inspect user build services with `systemctl --user` and rootless
+  images with the owner's `podman`, not `sudo podman`.
+- Remote is the owner's screen. Keep its v39 override until the signed image
+  service is verified. Never stop Remote or KWin during the owner's session.
+  The explicitly requested OS reboot is a separate authorized action.
+- THEME_REV 53 carries launcher keyboard/RTL improvements. Actual rendered focus
+  and the multi-scale sweep are still acceptance tasks, not source-gate results.
+- Live motion factor is now 0.4 following the owner's request, not the historical
+  zero override. Configured effects were not loaded during the idle benchmark.
+- The 04:12–04:15 OOM incident is unresolved; activities was recovered with
+  `systemctl --user start plasma-kactivitymanagerd.service`. Do not attribute
+  the incident to motion without evidence, or describe the earlier healthy
+  snapshot as proof of long-term stability.
+- `/boot` has only 205 MiB available. The new initramfs is ~100 MiB but DTBs and
+  kernel add ~115 MiB. Verify actual staging and retained rollback; archive size
+  alone does not prove the update fits.
+- Keep the fixed local Remote watchdog (Wayland condition belongs in `[Unit]`),
+  the pre-resize Oracle backup, previous signed deployment, and persistent SDK
+  `~/.local/share/dotnet`. Temporary overrides are listed in the release report.
+- Next acceptance: signed ARM artifact, boot/update/Remote checks, then S03
+  memory incident monitoring and P03 indexing budget. R01/R04 and the device
+  matrix stay open. No blanket compatibility or performance claim is justified.

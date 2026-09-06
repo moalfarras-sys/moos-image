@@ -3,6 +3,11 @@
 Only completed evidence closes an item. Source code, a package, or a green
 parser alone is not runtime proof. Current facts live in `PROJECT_STATE.md`.
 
+**Current release audit:** `docs/SYSTEM_AUDIT_RESUME_20260906.md`. The desktop
+OOM incident is unresolved (S03); short healthy samples do not close it. Source
+motion settings are not a performance benchmark. Launcher routing has executable
+coverage; native focus/scale acceptance remains open.
+
 ## Active development plan
 
 The next work should keep MoOS moving as a complete operating system, not as a
@@ -32,7 +37,10 @@ theme layer. Order matters:
 5. **Boot-partition headroom is a release contract.** `/boot` is 974 MiB and
    holds two complete deployments; measured 2026-09-06 on the live A1 it was 78%
    full, so the next signed update had nowhere to stage. The ARM initramfs is now
-   gated for size and carries no discrete-GPU firmware. Do the same measurement
+   gated for size and omits four desktop GPU modules while retaining ARM Tegra
+   firmware. Include kernel and DTB trees in headroom calculations, not only the
+   initramfs. This host recovered ~97 MiB by consolidating identical DTBs with
+   every boot file and security attribute verified unchanged. Do the same measurement
    for the x86 editions — `moos-nvidia` must keep its kmod in-initramfs, so its
    answer will differ — and treat a release that cannot stage an N+1 deployment
    as blocked. (Plan B01/B02.)
