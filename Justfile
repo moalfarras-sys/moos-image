@@ -32,6 +32,10 @@ check:
     python3 tests/test_device_plan.py
     python3 tests/test_moai_do.py
     python3 tests/test_moos_auto_update.py
+    # The trust badge is the only place the desktop tells the owner whether
+    # the running system is the one MoOS signed. It must read the booted
+    # deployment's origin, never assert it.
+    python3 tests/test_updater_trust_badge.py
     python3 tests/test_cloud_console_order.py
     python3 tests/test_theme_wallpaper_readback.py
     python3 tests/test_theme_wallpaper_steady_state.py
