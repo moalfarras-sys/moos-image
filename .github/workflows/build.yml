@@ -258,6 +258,8 @@ jobs:
           # Mo AI's brain is a cloud API and nothing is ever downloaded to the
           # machine. Free, no-card providers must exist and come first.
           python3 tests/test_moai_cloud_only.py
+          python3 tests/test_moai_free_policy.py
+          python3 tests/test_moai_hermes.py
           python3 tests/test_moai_workspace.py
           python3 tests/test_moai_hybrid.py
           # moos-open's session/logout and session/power hardcoded `qdbus6`, absent on Plasma 6

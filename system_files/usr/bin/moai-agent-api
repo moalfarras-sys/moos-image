@@ -43,6 +43,12 @@ import xml.etree.ElementTree as ET
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+# Shared product policy, installed and source-tree paths resolve identically.
+import sys as _policy_sys
+from pathlib import Path as _PolicyPath
+_policy_sys.path.insert(0, str(_PolicyPath(__file__).resolve().parent.parent / "lib/moai"))
+import moai_cloud_policy as cloud_policy
+
 HOME = Path.home()
 CONFIG_HOME = Path(os.environ.get("XDG_CONFIG_HOME", str(HOME / ".config"))).expanduser()
 OC_CFG = HOME / ".openclaw/openclaw.json"
@@ -146,30 +152,14 @@ TASK_RUNNERS: dict[str, subprocess.Popen] = {}
 # entries exist, come first, carry a model); it must never assert that some
 # company is still generous.
 PROVIDERS = [
-    {"id": "cerebras", "name": "Cerebras (مجاني | free)",
-     "base": "https://api.cerebras.ai/v1",
-     "model": "gpt-oss-120b", "api": "openai-completions", "free": True},
-    {"id": "groq", "name": "Groq (مجاني | free)",
-     "base": "https://api.groq.com/openai/v1",
-     "model": "openai/gpt-oss-120b", "api": "openai-completions", "free": True},
-    {"id": "nvidia", "name": "NVIDIA NIM (مجاني | free)",
-     "base": "https://integrate.api.nvidia.com/v1",
-     "model": "openai/gpt-oss-120b", "api": "openai-completions", "free": True},
-    {"id": "openrouter-free", "name": "OpenRouter (مجاني | free)",
-     "base": "https://openrouter.ai/api/v1",
-     "model": "openai/gpt-oss-120b:free", "api": "openai-completions", "free": True},
-    {"id": "synterolink", "name": "Synterolink", "base": "https://api.synterolink.com/v1",
-     "model": "gpt-5.4-mini", "api": "openai-responses"},
-    {"id": "openai", "name": "OpenAI", "base": "https://api.openai.com/v1",
-     "model": "gpt-5.4-mini", "api": "openai-responses"},
-    {"id": "anthropic", "name": "Anthropic", "base": "https://api.anthropic.com/v1",
-     "model": "claude-haiku-4-5-20251001", "api": "anthropic-messages"},
-    {"id": "google", "name": "Google Gemini", "base": "https://generativelanguage.googleapis.com/v1beta/openai",
-     "model": "gemini-2.0-flash", "api": "google-generative-ai"},
-    {"id": "openrouter", "name": "OpenRouter", "base": "https://openrouter.ai/api/v1",
-     "model": "google/gemini-2.0-flash-001", "api": "openai-completions"},
-    {"id": "custom", "name": "مخصص", "base": "", "model": "", "api": "openai-completions"},
+    {"id": "openrouter-free", "name": "OpenRouter (مجاني فقط | free only)",
+     "base": "https://openrouter.ai/api/v1", "model": "openrouter/free",
+     "api": "openai-completions", "free": True},
+    {"id": "openrouter-paid", "name": "OpenRouter (مدفوع باختيارك | paid by choice)",
+     "base": "https://openrouter.ai/api/v1", "model": "openai/gpt-5.4-mini",
+     "api": "openai-completions", "free": False},
 ]
+
 PROVIDER_API = {p["id"]: p["api"] for p in PROVIDERS}
 
 
@@ -771,7 +761,7 @@ def read_config() -> dict:
             "thinking": agents.get("thinkingDefault", "off"),
         },
         "cloud": {
-            "provider": st.get("provider", "synterolink"),
+            "provider": "openrouter-paid" if st.get("provider") == "openrouter-paid" else "openrouter-free",
             "base": cloud.get("baseUrl", ""),
             "model": cloud_model,
             "has_key": bool(cloud.get("apiKey")),
@@ -842,6 +832,18 @@ def _quadlet_with_keep_alive(text: str, keep_alive: str) -> str:
 
 def write_config(body: dict) -> dict:
     """Validate, atomically commit, and truthfully activate one config update."""
+    if (body.get("mode", "cloud") != "cloud" or body.get("local_model")
+            or body.get("performance") or body.get("voice") or body.get("power")) :
+        raise ValueError(cloud_policy.ERROR)
+    cloud_input = body.get("cloud") or {}
+    if cloud_input:
+        if not isinstance(cloud_input, dict):
+            raise ValueError(cloud_policy.ERROR)
+        if cloud_input.get("provider", "openrouter-free") not in ("openrouter-free", "openrouter-paid"):
+            raise ValueError(cloud_policy.ERROR)
+        cloud_policy.validate(cloud_input.get("base", cloud_policy.BASE),
+                              cloud_input.get("model", cloud_policy.DEFAULT_MODEL),
+                              allow_paid=cloud_input.get("provider") == "openrouter-paid")
     with CONFIG_WRITE_LOCK:
         c = load_cfg()
         st = load_state()

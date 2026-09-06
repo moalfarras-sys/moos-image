@@ -383,7 +383,7 @@ class RuntimeRelationshipTests(unittest.TestCase):
             body.index('echo "${G}✓ جاهز | ready${N}"'),
         )
 
-    def test_setup_brain_refuses_an_unmanaged_model_container(self):
+    def test_setup_brain_opens_cloud_settings_without_touching_model_container(self):
         with tempfile.TemporaryDirectory() as home, tempfile.TemporaryDirectory() as bin_dir:
             systemctl_log = Path(home) / "systemctl.log"
             podman = Path(bin_dir) / "podman"
@@ -401,12 +401,15 @@ class RuntimeRelationshipTests(unittest.TestCase):
                 "XDG_CONFIG_HOME": str(Path(home) / ".config"),
                 "PATH": bin_dir + os.pathsep + os.environ.get("PATH", ""),
             }
+            config = Path(bin_dir) / "moai-config"
+            config.write_text("#!/bin/sh\necho free-cloud-setup\n", encoding="utf-8")
+            config.chmod(0o755)
             result = subprocess.run(
                 [str(MOAI_DO), "setup-brain"], input="y\n", env=env,
                 capture_output=True, text=True,
             )
-            self.assertNotEqual(result.returncode, 0)
-            self.assertIn("unmanaged model container", result.stderr)
+            self.assertEqual(result.returncode, 0)
+            self.assertIn("free-cloud-setup", result.stdout)
             self.assertFalse(
                 (Path(home) / ".config/moos/moai-local.env").exists(),
             )

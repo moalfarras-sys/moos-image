@@ -1,174 +1,98 @@
-# Mo AI — cloud-only brain, free by default
+# Mo AI — cloud-only inference and Hermes
 
-**Owner decision, 2026-09-06:** Mo AI must never download or run a model on the
-user's computer. No local engine, no weights on disk, no multi-gigabyte first
-run. The brain is a cloud API, and the default must be one a person can use
-**without paying and without a credit card**. Paid providers stay available for
-whoever wants them.
+**Latest owner decision, 2026-09-06:** Mo AI must never download or run a local
+model. Cloud models may be **free or paid**. Free is the default; paid is an
+explicit labelled selection, never an automatic fallback from a free quota.
+This supersedes the earlier strict-free-only request and older local/hybrid plan.
+Read `START_HERE_CURRENT_SESSION.md` for the active release checkpoint.
 
-This file is the contract. Every edition of Mo AI — `moos`, `moos-nvidia`,
-`moos-cloud`, `moos-arm` — follows it, and any agent picking up this work reads
-this before touching `moai-*`.
+## Shipped-source design
 
----
+All four editions share `usr/lib/moai/moai_cloud_policy.py` and the same Mo AI
+front door. The currently supported provider is OpenRouter, with two visibly
+separate choices: Free and Paid by choice. Free routes accept `openrouter/free`
+or an explicit `:free` model and send a zero maximum prompt/completion/request/
+image price. Caller-supplied paid plugins, alternate models and provider routing
+are discarded. A free model keeps that zero ceiling even in paid mode.
 
-## 1. Why, in the owner's terms
+The current catalogue is fetched from the provider; free mode filters out every
+nonzero/missing/invalid price and every model lacking an explicit free identity.
+The documented free router remains available if catalogue fetching fails.
+Provider quotas still apply. There is no unlimited-free guarantee and no claim
+that a large model always outperforms every other model. Paid inference was
+NOT used in this session; its policy boundary is tested with fixtures.
 
-A local model on this class of machine is not a feature, it is a tax:
+Settings is the single owner of the cost choice (`moai-agent/state.json`). The
+gateway reads it, and defaults to free when absent/unreadable. The cloud key stays
+in existing private storage and never reaches QML. Local models/engines and local
+speech cannot be started through the public chat/pull/setup/preflight routes.
+Private/local-only attachments are refused, not silently uploaded.
 
-- The Oracle A1 measured **923 s** for the first message against `qwen3:8b` on
-  CPU — the agent's own ~8.5k-token system prompt being read once. The KV cache
-  does not survive the gaps between phone messages, so most messages arrive at a
-  cold brain and pay it again.
-- The engine image alone is **4.21 GB** of podman storage before any weights.
-- `/boot` on this host was 78% full with two deployments. Disk is not free here.
-- The desktop OOM incident of 2026-09-06 (S03) is unresolved. Adding a
-  multi-gigabyte resident process to that machine is the opposite of the fix.
+## Hermes integration
 
-The cloud path measured **9 s flat from the first message** and is stronger at
-code. The only thing local ever bought was privacy and offline use, and the
-owner has decided that trade explicitly.
+`moai-hermes` adapts an **already installed Hermes Python runtime** behind a
+private loopback HTTP service. `moai-gateway` starts that fixed service on demand
+for agent requests and forwards to it when ready. Hermes inference comes back
+through the same Mo AI cloud policy, so it cannot independently choose a paid
+or local provider. A Python I/O boundary restricts it to that gateway and blocks
+subprocess execution. Its agent tools are explicitly empty and verified empty.
 
-## 2. The free-tier landscape (researched 2026-09-06)
+The owner-installed Hermes 0.21.0 was actually tested: a conversation through
+Hermes -> source Mo AI gateway -> free cloud returned Arabic in ~5.8 seconds.
+A direct `nvidia/nemotron-3-super-120b-a12b:free` request returned `جاهز` and
+reported cost 0. The integration retains the history passed by the Mo AI UI.
 
-All of these are OpenAI-wire compatible, which is the wire `moai-gateway`
-already speaks, so they need catalogue entries and nothing else.
+The adapter uses an isolated home at `~/.local/share/moai/hermes`, not the
+owner's separate `~/.hermes` account or Telegram gateway. A private token guards
+its loopback API; browser Origin requests and provider/tool overrides are denied.
+The service has bounded memory/restart settings and does not start at login.
 
-| Provider | Free allowance | Card? | Endpoint |
-|---|---|---|---|
-| **Cerebras** | ~1M tokens/day — the largest free volume | no | `https://api.cerebras.ai/v1` |
-| **Groq** | ~30 req/min, 131K context, `gpt-oss-120b` | no | `https://api.groq.com/openai/v1` |
-| **NVIDIA NIM** | 120+ open-weight models | no | `https://integrate.api.nvidia.com/v1` |
-| **OpenRouter** | ~50 req/day across 14 free models | no | `https://openrouter.ai/api/v1` |
-| **Google AI Studio** | free tier on Gemini Flash | no | `…/v1beta/openai` |
+**Explicit limits:** text/history only; no Hermes tool execution, persistent
+memory, plugin loading or autonomous system changes. Its SSE response is a final
+answer frame, not incremental token streaming. A fresh system without Hermes
+reports the missing runtime and uses direct cloud; packaging/installing Hermes
+for fresh editions remains an acceptance task. Do not claim a dependency is
+shipped merely because the owner's installed runtime works.
 
-**The architectural point:** each provider rate-limits independently, so routing
-across several multiplies the free allowance. That is why the design below is a
-*ladder*, not a single default.
+## Migration and authority
 
-## 3. The design
+`moai-cloud-migrate` runs before the gateway and after the Agent API's legacy
+bootstrap. It keeps a private one-time config backup, removes local fallback
+selection, disables local speech and stops/masks fixed legacy Mo AI units.
+Existing weights and unrelated user files are preserved. Compatibility commands
+open cloud settings or refuse; they cannot start an engine. Some unreachable
+legacy helper bodies remain for a subsequent cleanup (C2b); their presence does
+not authorize restoring old UI choices or downloads.
 
-### 3.1 One route, no local branch
+Privileged actions remain `moai-do`'s fixed allowlist. Hermes and the model never execute generated commands. The user's terminal workspace is a separate,
+explicitly controlled feature, not a model tool.
 
-`moai-gateway` is the only process that sees a chat. Today it can route to a
-local engine (Ollama on 11434 / RamaLama on 8081) or to a cloud provider. The
-local branch goes away — not disabled behind a flag, **removed**, so no code path
-can start an engine or trigger a download.
+## Acceptance and next tasks
 
-### 3.2 A free ladder, not one provider
+- C1: free default / explicit paid catalogue; policy fixtures and live free reply.
+- C2: public local inference/pull paths refuse; legacy units are retired.
+- C2b: delete unreachable old helper bodies after removing legacy-only tests;
+  preserve HTTP/identity/privilege coverage and replace old policy tests with
+  executable cloud-only behavior. Do not erase a guard to get a green build.
+- C3: no cross-provider fallback ladder is shipped. OpenRouter handles provider
+  fallback within the selected model. Free quota exhaustion can still stop a reply.
+- C4: prove first-login and upgrade migration from every historic local layout;
+  local speech UI needs a future cloud transcription feature before re-enabling.
+- C5: local engine packages are omitted by both architecture builds. Check the
+  actual finished image and signed update, not just package-list source.
+- C6: full native QML / phone agent tests, Hermes package availability on fresh
+  systems, then incremental streaming and bounded memory under the same authority.
 
-Mo AI holds an ordered list of configured providers and walks it: first that
-answers wins; a 429 or 5xx falls through to the next. A user with three free keys
-gets three independent free allowances and never sees a rate limit.
+Current changed source tests include catalogue/refusal, executable price/model
+policy, atomic migration, Hermes auth/input isolation, and the prior HTTP origin
+and stream-error contracts. Run the CURRENT workflow gates on the host.
 
-### 3.3 Free first in the catalogue
+## Sources checked 2026-09-06
 
-`PROVIDERS` in `moai-agent-api` is what the settings UI offers. Free-tier entries
-come first and are labelled as free, with their free model pre-selected. Paid
-entries stay, unlabelled, below them.
+- [OpenRouter free router](https://openrouter.ai/docs/guides/routing/routers/free-router)
+- [Provider max-price boundary](https://openrouter.ai/docs/guides/routing/provider-selection)
+- [Rate limits](https://openrouter.ai/docs/api_reference/limits)
+- [Hermes integrations](https://hermes-agent.nousresearch.com/docs/integrations/)
 
-### 3.4 Nothing is downloaded, ever
-
-- No `ollama`/`ramalama` package in any edition's build.
-- No `moai-brain.container`, no Modelfile, no `moai-local-engine`.
-- `moos-ensure-brain{,.service,.timer}` and `moai-idle{,.service,.timer}`
-  retire — both existed only to manage a local engine.
-- Mo AI's QML offers a provider + key, never a model download.
-
-## 4. Staged execution
-
-A 40-file, ~380-reference migration lands in reviewable stages. Each stage is
-independently correct: at no point is Mo AI half-migrated and broken.
-
-| Stage | Work | Gate |
-|---|---|---|
-| **C1** | Free providers enter the catalogue, free-first, labelled | Catalogue gate: free entries exist, come first, carry a free model |
-| **C2** | ✅ **landed.** `ensure_local()` refuses before its lock or any `systemctl`, so no engine can start and no model can download | Gate proves the refusal is the FIRST statement and unconditional; bite-tested behind a flag and below the lock |
-| **C2b** | Delete the now-unreachable ~300 lines of local machinery in `moai-gateway` | Gate: no local port, unit or engine name survives |
-| **C3** | Provider ladder with fall-through on 429/5xx | Executable test against stubbed providers |
-| **C4** | Retire `moos-ensure-brain`, `moai-idle`, `moai-local-engine`, `moai.service`, the container + Modelfiles | Gate: the units and files are absent from the built image |
-| **C5** | ✅ **landed, both halves.** Five untrue UI surfaces corrected; `ramalama` removed from x86 and ARM package sets | Gate reads the shipped QML for returning download promises, and the package lists for either engine, with an edition-agreement check |
-| **C6** | `moai-brain-mode` becomes provider selection, not local/hybrid/cloud | Gate + the `moos-open`/`moai-do` route cross-check |
-
-**Do not skip C2's gate.** The failure this whole plan exists to prevent is a
-chat message quietly starting a multi-gigabyte download, and only a gate that
-reads the shipped `moai-gateway` can prove that path is gone.
-
-## 5. Hermes Agent — what it is and how it relates
-
-[Hermes Agent](https://hermes-agent.nousresearch.com/) (Nous Research, MIT,
-v0.21.0) is an open-source agent with persistent memory, 40+ tools including web
-browsing and vision, subagents, scheduled automation, and a single gateway to
-Telegram / Discord / Slack / WhatsApp / Signal / Email / CLI.
-
-MoOS already has the *shape* of this: `moai-gateway` is a front door, OpenClaw is
-the messaging gateway, `moai-do` is the privileged action allowlist. What Hermes
-has that Mo AI does not is **persistent memory, self-generated skills, and
-subagents**.
-
-**Integration position — deliberate, not timid.** Hermes' execution backends
-include `local`, Docker and SSH, and its desktop app runs an agent with tool
-access. MoOS's security contract (`AGENTS.md`) is that a model may *name* an
-action from `moai-do`'s fixed allowlist and never execute anything itself. Those
-two designs conflict, and the MoOS one wins on the machine.
-
-So the useful borrowing is the **capabilities**, not the runtime:
-
-1. **Persistent memory** — a per-user store Mo AI reads at the start of a turn
-   and writes at the end. Highest value, no privilege change. Start here.
-2. **Skills** — named, reviewable procedures, stored as data, executed only
-   through `moai-do`. Never model-generated shell.
-3. **Subagents** — a bounded second conversation for long tasks.
-4. **Tools** — web search and fetch first; they need no local privilege.
-
-What MoOS must NOT adopt: any path where the model executes a command it wrote.
-That is the one rule `AGENTS.md` calls unbreakable, and Hermes' `local` backend
-is exactly that path.
-
-## 5b. A defect C2 created, and what is still owed
-
-Closing `ensure_local()` made every UI surface that offers a model download a
-**dead button**, and `AGENTS.md` is explicit that a button which does nothing is
-a defect. That was created by this work, so it is recorded here rather than
-discovered later.
-
-**Fixed immediately:** `moos-open`'s `brain/start` route ran `moai-start`, which
-brings up a local engine. It now opens `moai-config`, the cloud provider setup —
-which is what "start the brain" means once the brain is a cloud API. Mo AI's
-`startBrain()` therefore still works and lands somewhere useful.
-
-**Fixed (stage C5), five surfaces that had become untrue:**
-
-1. `startingHelp` promised *"the first run downloads the model (~2.5 GB)"*.
-2. `offlineHelp` told the user to run `moai-start`, a command C2 closed.
-3. The brain status line repeated the 2.5 GB promise and said the brain would
-   start on the first message.
-4. `pickOrPull()` POSTed `/pull` to download a model; it now opens provider
-   setup, because a control that appears to start something and cannot is the
-   dead button `AGENTS.md` forbids.
-5. The primary button still read *"Start local brain"* while its action already
-   opened cloud setup — saying one thing and doing another is the same defect.
-
-`tests/test_moai_cloud_only.py` reads the shipped QML and fails on any returning
-download promise or local-engine instruction. It strips `//` comments first: this
-change explains the old strings in prose, and a raw search would match the
-explanation and fail a corrected file.
-
-## 6. What must stay true
-
-- The gateway remains the only process that sees the API key.
-- Privileged actions remain `moai-do`'s fixed allowlist with Polkit.
-- Arabic stays first-class in every string this touches.
-- No edition gets a different answer: one implementation, four editions.
-
-## 7. Open, honestly
-
-- The provider ladder is designed, not yet measured. Latency and failover
-  behaviour need a real test against real free endpoints.
-- Free tiers change. The catalogue is a starting point, not a guarantee, and the
-  gate checks its *shape*, never that a third party is still generous.
-- Hermes integration beyond memory is unscoped work, not a promise.
-
-Sources for §2 and §5: [OpenRouter free-model comparison](https://openrouter.ai/blog/tutorials/free-llm-apis-compared/),
-[awesome-free-llm-apis](https://github.com/mnfst/awesome-free-llm-apis),
-[Hermes Agent](https://hermes-agent.nousresearch.com/).
+A provider's marketing free tier is not proof that every API key is unbillable.
+Other providers need an explicit, tested billing boundary before joining free mode.

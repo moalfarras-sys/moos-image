@@ -1,0 +1,21 @@
+[Unit]
+Description=Mo AI private Hermes conversation adapter
+After=moai-gateway.service
+ConditionUser=!@system
+StartLimitIntervalSec=120
+StartLimitBurst=3
+
+[Service]
+Type=simple
+ExecStart=/usr/libexec/moai-hermes serve
+Restart=on-failure
+RestartSec=10
+RestartPreventExitStatus=69
+TimeoutStopSec=10
+NoNewPrivileges=yes
+UMask=0077
+MemoryHigh=384M
+MemoryMax=768M
+TasksMax=64
+
+# Started on demand by Mo AI. Do not enable at login or start a messaging gateway.

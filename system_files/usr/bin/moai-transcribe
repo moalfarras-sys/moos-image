@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Local speech models are retired by the cloud-only product policy.
+printf '%s\n' 'التفريغ الصوتي غير مُعدّ؛ استخدم النص حالياً | Cloud transcription is not configured; use text.' >&2
+exit 69
 # ─────────────────────────────────────────────────────────────────────────
 # moai-transcribe — يفرّغ ملفاً صوتياً عربياً أو إنجليزياً، ويطبع النص على stdout.
 #

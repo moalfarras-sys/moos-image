@@ -63,7 +63,7 @@
     "image-gen": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "mcp-image"],
+      "args": ["-y", "--package=mcp-image@0.13.2", "--package=ajv@8.17.1", "mcp-image"],
       "env": {
         "GEMINI_API_KEY": "${GEMINI_API_KEY:-}",
         "OPENAI_API_KEY": "${OPENAI_API_KEY:-}",

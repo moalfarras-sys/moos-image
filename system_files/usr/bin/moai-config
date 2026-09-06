@@ -94,8 +94,9 @@ def choose_cloud(config: dict) -> dict | None:
     if provider is None:
         raise RuntimeError("Unknown provider selection")
     current = config.get("cloud") or {}
-    base_default = str(current.get("base") or provider.get("base") or "")
-    model_default = str(current.get("model") or provider.get("model") or "")
+    same_provider = current.get("provider") == provider_id
+    base_default = str((current.get("base") if same_provider else "") or provider.get("base") or "")
+    model_default = str((current.get("model") if same_provider else "") or provider.get("model") or "")
     base = dialog(
         "--title", "Mo AI — Cloud", "--inputbox",
         "عنوان الخدمة | API base URL:", base_default,
@@ -129,27 +130,9 @@ def main() -> int:
         return 1
     try:
         config = current_config()
-        mode = dialog(
-            "--title", "Mo AI — العقل | Brain", "--menu",
-            "اختر عقل Mo AI | Choose Mo AI's brain:",
-            "local", "محلي وخاص | Local & private",
-            "cloud", "سحابي | Cloud",
-            "hybrid", "هجين | Hybrid",
-        )
-        if mode is None:
+        body = choose_cloud(config)
+        if body is None:
             return 0
-        if mode == "cloud":
-            body = choose_cloud(config)
-            if body is None:
-                return 0
-        elif mode == "local":
-            brain = config.get("brain") or {}
-            body = {
-                "mode": "local",
-                "local_model": brain.get("local_model", "ollama/default"),
-            }
-        else:
-            body = {"mode": "hybrid"}
         request("POST", "/api/config", body)
         notice("msgbox", "تم حفظ إعداد Mo AI ✓ | Mo AI setting saved ✓")
         return 0

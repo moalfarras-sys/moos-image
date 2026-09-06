@@ -1,5 +1,12 @@
 # MoOS — current project state
 
+**Current Mo AI integration:** read `docs/START_HERE_CURRENT_SESSION.md` and
+`docs/MOAI_CLOUD_ONLY_PLAN.md`. Latest owner policy is cloud-only, free default
+and explicitly selected paid models allowed. Hermes has a real isolated adapter
+and live free-cloud response proof; current changes are not yet a signed release.
+Older local/hybrid descriptions below are historical and must not re-enable engines.
+
+
 This file is current state, not session history. Git history owns the history.
 When documentation disagrees with a running machine, a freshly booted artifact,
 or current source, those stronger forms of evidence win.
@@ -45,40 +52,49 @@ was restarted. S03 stays open: this bounds damage, it does not explain the cause
 
 ### Mo AI goes cloud-only, free by default (2026-09-06)
 
-Owner decision: Mo AI must never download or run a model on the user's computer,
-and the default must be usable without paying and without a credit card. The
-contract and the staged migration live in
-[`docs/MOAI_CLOUD_ONLY_PLAN.md`](docs/MOAI_CLOUD_ONLY_PLAN.md) so every edition
-and every later agent follows one plan.
+The latest owner decision permits **free or explicitly selected paid cloud
+models**, with free as the default on every edition. Mo AI must never download
+or run a local model, and a free quota failure must never trigger paid inference.
+The current contract is
+[`docs/MOAI_CLOUD_ONLY_PLAN.md`](docs/MOAI_CLOUD_ONLY_PLAN.md); read
+[`docs/START_HERE_CURRENT_SESSION.md`](docs/START_HERE_CURRENT_SESSION.md)
+for release and deployment evidence.
 
-Why, measured: a first message against a local `qwen3:8b` on this CPU cost
-**923 s** (the agent's own ~8.5k-token prompt read cold, and the KV cache does
-not survive the gaps between phone messages); the engine image alone was
-**4.21 GB**; the same agent through cloud answered in **9 s flat**.
+**Current source:** OpenRouter is the supported provider, with separate Free
+and Paid by choice selections. Free requests use `openrouter/free` or an explicit
+`:free` model and enforce a zero price ceiling; caller-supplied model/provider
+routing and paid plugins cannot override that boundary. Settings owns the cost
+choice and the gateway reads it. The earlier four-provider catalogue and planned
+cross-provider fallback ladder are superseded. Quotas can stop a free reply;
+there is no unlimited-free guarantee. Paid selection is fixture-tested, but no
+paid inference was made in this session.
 
-**Landed (stage C1).** Four no-card providers now lead the settings catalogue,
-labelled in Arabic and English, each with a free model pre-selected —
-Cerebras (~1M tokens/day), Groq (~30 req/min, 131K ctx), NVIDIA NIM, and
-OpenRouter's `:free` models. All four speak the OpenAI wire `moai-gateway`
-already implements, so they needed a catalogue entry and nothing else. They
-rate-limit independently, which is why the plan routes across several rather
-than picking one. Paid providers are kept, below them.
-`tests/test_moai_cloud_only.py` gates the list's **shape** — free entries exist,
-come first, carry a model and a bilingual label — and deliberately never asserts
-that a third party is still generous, because free tiers change.
+**Local inference is retired at public entry points.** Chat, model pull, setup,
+preflight and voice routes cannot start local engines or speech models. Migration
+preserves a private config backup, removes local fallback selection and stops/
+masks fixed legacy units without deleting existing model weights or unrelated
+user files. Both architecture builds omit the local engine packages. Unreachable
+legacy helper bodies remain for C2b cleanup; they are not an available local mode.
+Finished-image inspection and historic-layout migration acceptance remain open.
 
-**Done on this machine.** The 4.21 GB `docker.io/ollama/ollama` image is removed,
-and `moos-ensure-brain.{timer,service}` are masked — a plain `disable` could not
-hold, because the image enables them globally. No model weights exist anywhere
-(`~/.ollama` is 8 K, ramalama empty, no `.gguf`/`.safetensors`). Mo AI's
-gateway, agent API and control services stayed active throughout.
+**Hermes is integrated with a real installed runtime.** The isolated
+`moai-hermes` adapter starts on demand, processes text/history with Hermes 0.21.0,
+and sends inference through the same Mo AI cloud policy. A real request through
+the production gateway and adapter returned Arabic from free cloud in about
+3 seconds; an earlier source-gateway proof took about 5.8 seconds. The separate
+direct free-model probe reported cost 0. The adapter uses its own private home
+and authenticated loopback endpoint; it does not start the owner's Hermes
+messaging gateway or use the owner's `~/.hermes` state. Model tools are empty
+and verified empty, outbound connections are restricted to the Mo AI gateway,
+and subprocess execution is blocked. System actions stay with `moai-do`.
 
-**NOT done — stages C2-C6 remain**, and Mo AI still contains its local branch:
-removing the gateway's local route, the provider fall-through ladder, retiring
-`moos-ensure-brain` / `moai-idle` / `moai-local-engine` / `moai.service` / the
-brain container and Modelfiles, dropping the engine from both builds, and turning
-`moai-brain-mode` into provider selection. That is ~40 files and ~380 references;
-it lands in reviewable stages so Mo AI is never half-migrated and broken.
+**Still open:** Hermes is not packaged for fresh installations across all four
+editions; a missing runtime is reported and direct cloud remains available.
+The adapter supports text/history and a final-answer SSE frame, not incremental
+streaming, persistent memory, plugins or model-executed tools. First-login and
+upgrade migration, native QML/phone acceptance and bounded-memory checks remain.
+The current native build is in progress: neither local runtime proof nor source
+tests make these changes a signed OS release.
 
 ### Why the desktop looked unchanged — four measured causes (2026-09-06)
 

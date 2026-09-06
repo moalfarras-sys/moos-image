@@ -286,8 +286,7 @@ lint:
 # freedesktop SDK runtime and no Chrome is there, so the server starts and then fails
 # on the first navigate with "Could not find Google Chrome executable".
 #
-# So: fetch a Chrome for Testing via Puppeteer (it lands in ~/.cache/puppeteer under a
-# VERSION-pinned path, which would rot the moment it updates), pin a stable symlink at
+# Reuse an installed native Chromium or fetch it through Playwright, then pin a stable symlink at
 # ~/.cache/moos-mcp/chrome, and point MOOS_CHROME at the symlink. .mcp.json reads
 # ${MOOS_CHROME:-/opt/google/chrome/chrome}, so a machine with a normal system Chrome
 # needs none of this and this recipe is harmless there.
@@ -310,13 +309,37 @@ mcp-setup:
     set -euo pipefail
     command -v npx >/dev/null || { echo "mcp-setup: needs Node.js (npx) on PATH" >&2; exit 1; }
 
-    echo "==> fetching Chrome for Testing (~150 MB, cached after the first run)"
-    npx -y puppeteer@latest browsers install chrome
-
-    BIN="$(find "${HOME}/.cache/puppeteer/chrome" -type f -name chrome -perm -u+x 2>/dev/null \
-           | sort -V | tail -1)"
-    [ -n "$BIN" ] || { echo "mcp-setup: puppeteer reported success but no chrome binary landed" >&2; exit 1; }
-    "$BIN" --version >/dev/null || { echo "mcp-setup: $BIN will not run here" >&2; exit 1; }
+    # Reuse a working native browser, including Playwright's ARM download.
+    # A server handshake does not prove its configured browser exists.
+    browser_probe() {
+        python3 - <<'PY'
+    import os, pathlib, shutil, subprocess
+    home = pathlib.Path.home()
+    candidates = [os.environ.get("MOOS_CHROME"),
+                  "/opt/google/chrome/chrome", shutil.which("chromium"),
+                  shutil.which("chromium-browser")]
+    for pattern in (".cache/ms-playwright/chromium-*/chrome-*/chrome",
+                    ".cache/puppeteer/chrome/*/chrome-*/chrome"):
+        candidates.extend(str(p) for p in sorted(home.glob(pattern), reverse=True))
+    for candidate in candidates:
+        if not candidate or not os.access(candidate, os.X_OK):
+            continue
+        try:
+            result = subprocess.run([candidate, "--version"], capture_output=True, timeout=10)
+        except (OSError, subprocess.SubprocessError):
+            continue
+        if result.returncode == 0:
+            print(pathlib.Path(candidate).resolve())
+            break
+    PY
+    }
+    BIN="$(browser_probe)"
+    if [ -z "$BIN" ]; then
+        echo "==> fetching native Chromium via Playwright (cached after the first run)"
+        npx -y playwright@latest install chromium
+        BIN="$(browser_probe)"
+    fi
+    [ -n "$BIN" ] || { echo "mcp-setup: no runnable native Chromium found; set MOOS_CHROME to a working browser" >&2; exit 1; }
 
     mkdir -p "${HOME}/.cache/moos-mcp"
     ln -sfn "$BIN" "${HOME}/.cache/moos-mcp/chrome"
@@ -361,7 +384,7 @@ mcp-setup:
 
     echo
     echo "Done. Open a NEW terminal so the profile export is in the environment, THEN restart"
-    echo "Claude Code and run /mcp — all four should be connected. Restarting the session alone"
+    echo "Claude Code and run /mcp to inspect each server. Restarting the session alone"
     echo "is not enough: .mcp.json expands \${MOOS_CHROME} from the environment the CLI was"
     echo "launched with, not from settings.local.json."
     echo "Image generation additionally needs GEMINI_API_KEY in .claude/settings.local.json;"

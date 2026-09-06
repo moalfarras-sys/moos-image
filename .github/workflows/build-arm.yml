@@ -108,6 +108,9 @@ jobs:
           bash -n tests/boot_arm_qcow2.sh
           bash -n tests/verify_arm_runtime.sh
           python3 tests/test_moos_arm.py
+          python3 tests/test_moai_cloud_only.py
+          python3 tests/test_moai_free_policy.py
+          python3 tests/test_moai_hermes.py
           python3 tests/test_arm_initramfs_size.py
           python3 tests/test_icon_theme_inheritance.py
           python3 tests/test_webengine_dictionaries.py

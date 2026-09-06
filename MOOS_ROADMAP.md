@@ -49,6 +49,37 @@ theme layer. Order matters:
    release until the artifact has booted, logged in, smoked apps, rebooted and
    powered off cleanly.
 
+## Mo AI cloud-only and Hermes acceptance
+
+The latest owner policy permits free or paid **cloud** models on every edition:
+free is the default; paid requires an explicit labelled choice and never follows
+a free quota failure automatically. Local model downloads, inference and speech
+models are unavailable through Mo AI's public paths. The former four-provider
+catalogue and cross-provider fallback plan are superseded by the current
+OpenRouter policy. See [the cloud-only plan](docs/MOAI_CLOUD_ONLY_PLAN.md) and
+[current session checkpoint](docs/START_HERE_CURRENT_SESSION.md).
+
+- [x] Source policy enforces free model identity and zero price ceilings, with
+  an explicit paid selection covered by fixtures. No paid inference was made.
+- [x] Public local-engine entry points refuse; migration retires fixed legacy
+  units while preserving private backups, existing weights and unrelated files.
+  Unreachable legacy helper bodies remain for C2b cleanup.
+- [x] Real installed Hermes 0.21.0 answers through the authenticated isolated
+  adapter and Mo AI cloud gateway. Production free-cloud Arabic response took
+  about 3 seconds. The adapter preserves supplied text/history; tools are empty,
+  subprocess execution is blocked, and system actions remain with `moai-do`.
+- [ ] Finish C2b legacy-body cleanup while preserving HTTP, identity and
+  privilege guards; prove first-login and upgrade migration from historic layouts.
+- [ ] Package/prove Hermes availability on fresh systems across all four
+  editions. The installed-runtime adapter reports absence and uses direct cloud;
+  the owner's working runtime is not proof that the dependency ships.
+- [ ] Complete native QML/phone and bounded-memory acceptance. Incremental
+  streaming, persistent memory and plugins are not currently provided; SSE
+  delivers a final-answer frame.
+- [ ] Inspect the finished native image, then prove the signed exact artifact
+  and post-update runtime. The current native build is in progress; these source
+  and local runtime checks do not close the signed-release gate.
+
 ## Remote v38 acceptance
 
 v39 extends this work with Liquid Glass phone controls, viewport-aware sheets,

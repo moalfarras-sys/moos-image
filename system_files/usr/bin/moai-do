@@ -863,6 +863,9 @@ do_install_openclaw() {
 }
 
 setup_brain_impl() {
+    /usr/libexec/moai-cloud-migrate
+    return $?
+
     local cfg_root="${XDG_CONFIG_HOME:-$HOME/.config}"
     local dst="${cfg_root}/containers/systemd"
     local engine_cfg="${cfg_root}/moos/moai-local.env"
@@ -1069,6 +1072,9 @@ EOF
 }
 
 do_setup_brain() {
+    moai-config
+    return $?
+
     hdr "تجهيز العقل المحلي" "Set up the local brain"
     echo "${D}ينزّل المكوّنات المفتوحة ويشغّلها كحاويات rootless؛ يطلب موافقة مسؤول مرة واحدة ليبقى الوكيل متاحاً بعد تسجيل الخروج.${N}"
     echo "${D}Downloads the open components as rootless containers; one admin approval keeps the agent available after logout.${N}"

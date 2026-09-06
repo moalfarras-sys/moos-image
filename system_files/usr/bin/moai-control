@@ -20,6 +20,12 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 # A base URL is expected to carry its API version ("…/v1", "…/v1beta/openai").
 VERSIONED = re.compile(r"/v\d[\w.]*(/|$)")
 
+# Shared product policy, installed and source-tree paths resolve identically.
+import sys as _policy_sys
+from pathlib import Path as _PolicyPath
+_policy_sys.path.insert(0, str(_PolicyPath(__file__).resolve().parent.parent / "lib/moai"))
+import moai_cloud_policy as cloud_policy
+
 # "ollama://library/qwen3:4b" — strip the transport, keep the name.
 SCHEME = re.compile(r"^[a-z0-9+.-]+://")
 
@@ -249,12 +255,7 @@ def cloud_ready() -> bool:
 
 def brain_online() -> bool:
     """Can the DEFAULT brain answer right now?"""
-    mode = load_merged().get("mode")
-    if mode == "cloud":
-        return cloud_ready()
-    if mode == "hybrid":
-        return local_online() or cloud_ready()
-    return local_online()
+    return cloud_ready()
 
 
 def short_model(name):
@@ -602,7 +603,7 @@ def quick() -> dict:
         "online": brain_online(),
         "brains": {
             "gateway": gateway_online(),
-            "local": local_online(),
+            "local": False,
             "cloud": cloud_ready(),
         },
         "remote": remote_state(),
@@ -1094,6 +1095,7 @@ def cloud_models(cfg):
     if not isinstance(items, list):
         return [], "ردّ غير مفهوم من المزوّد | unexpected reply from the provider"
 
+    items = items if cloud_policy.selected_cost_policy() == "paid" else cloud_policy.visible_models(items)
     out, seen = [], set()
     for item in items:
         inputs = ["text"]
@@ -1128,35 +1130,21 @@ def models() -> dict:
                 and time.monotonic() - _models_cache["ts"] < MODELS_TTL):
             return _models_cache["data"]
 
-    local = local_models()
-    cloud, cloud_error = cloud_models(cfg)
-
-    # A provider with no /models still has the model the user configured, and we
-    # know that one is real because they typed it and can Test it. Offer it.
-    if configured and not any(m["id"] == "cloud:" + configured for m in cloud):
-        cloud.insert(0, {"id": "cloud:" + configured, "label": configured,
-                         "serving": True})
-
-    if mode == "hybrid":
-        default = "hybrid"
-    elif mode == "cloud":
-        default = "cloud:" + configured if configured else "cloud"
+    cloud = []
+    cloud_error = ""
+    if str(cfg.get("cloud_base", "")).rstrip("/") == cloud_policy.BASE:
+        # A static free router remains usable even when catalogue requests fail.
+        cloud, cloud_error = cloud_models(cfg)
+        cloud.insert(0, {"id": "cloud:" + cloud_policy.DEFAULT_MODEL,
+                  "label": "Free cloud · سحابي مجاني", "serving": True,
+                  "input": ["text"]})
     else:
-        # The default must name a model that can actually answer. The configured
-        # route once pointed at a tag that was never downloaded (serving=True,
-        # pulled=False); the app seeded the chat with it and the FIRST message
-        # of every session failed. Prefer the user's saved choice (OpenClaw's
-        # ollama/<model> primary via load_merged), then the pulled serving row,
-        # then any pulled row, and only then the bare "local" token.
-        chosen = str(cfg.get("local_model") or "")
-        default = next(
-            (m["id"] for m in local
-             if chosen and same_model(m["label"], chosen) and m.get("pulled")),
-            next((m["id"] for m in local if m["serving"] and m.get("pulled")),
-                 next((m["id"] for m in local if m.get("pulled")), "local")))
+        cloud_error = cloud_policy.ERROR
+    selected = configured if (cloud_policy.free_model(configured) or
+        cloud_policy.selected_cost_policy() == "paid" and cloud_policy.valid_model(configured)) else cloud_policy.DEFAULT_MODEL
+    out = {"local": [], "cloud": cloud, "cloud_error": cloud_error,
+           "default": "cloud:" + selected, "mode": "cloud"}
 
-    out = {"local": local, "cloud": cloud, "cloud_error": cloud_error,
-           "default": default, "mode": mode}
     with _models_lock:
         _models_cache["data"] = out
         _models_cache["ts"] = time.monotonic()
@@ -1362,6 +1350,11 @@ def test_cloud(base: str, model: str, wire: str, key: str) -> dict:
                    "messages": [{"role": "user", "content": probe}]}
         headers = {"Authorization": "Bearer " + key}
 
+    try:
+        cloud_policy.validate(base, model, wire, allow_paid=cloud_policy.selected_cost_policy() == "paid")
+        payload = cloud_policy.request_body(payload, model, allow_paid=cloud_policy.selected_cost_policy() == "paid")
+    except ValueError as error:
+        return {"ok": False, "error": str(error)}
     req = urllib.request.Request(
         url, data=json.dumps(payload).encode("utf-8"), method="POST")
     req.add_header("Content-Type", "application/json")
@@ -1530,16 +1523,21 @@ class H(BaseHTTPRequestHandler):
         # come from the form (the user is still typing it) or from private
         # storage (it is already saved and the field was left blank).
         if route == "/test":
+            try:
+                cloud_policy.validate(data.get("cloud_base", ""), data.get("cloud_model", ""),
+                                      data.get("cloud_wire", "openai"),
+                                      allow_paid=cloud_policy.selected_cost_policy() == "paid")
+            except ValueError as error:
+                return self._send(409, {"error": str(error)})
             return self._send(200, test_cloud(
                 data.get("cloud_base", ""),
                 data.get("cloud_model", ""),
                 data.get("cloud_wire", "openai"),
                 data.get("cloud_key") or get_secret()))
 
-        # /pull — download a curated starter brain. The picker's "one-tap
-        # download" label finally has a machine behind it.
+        # Retained route for old clients: local downloads are retired.
         if route == "/pull":
-            return self._send(200, start_pull((data.get("model") or "").strip()))
+            return self._send(409, {"error": cloud_policy.ERROR})
 
         # /delete — remove a model the selected engine actually lists, never the
         # default brain. Nothing user-typed reaches a shell; Ollama receives the
@@ -1556,7 +1554,8 @@ class H(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    ensure_front_door()
+    subprocess.run(["systemctl", "--user", "start", "moai-gateway.service"],
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=15)
     threading.Thread(target=plan_worker, daemon=True).start()
     srv = None
     # See moai-gateway: a boot-time bind race must back off, not crash.

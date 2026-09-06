@@ -1,5 +1,7 @@
 # MoOS agent handoff contract
 
+**Active unfinished work:** read [START_HERE_CURRENT_SESSION.md](START_HERE_CURRENT_SESSION.md) first. It records the newest owner policy and uncommitted integration state.
+
 Read `AGENTS.md`, `skills/moos-engineering/SKILL.md`, `PROJECT_STATE.md`, then the
 current system plan. Visual work also reads `MOOS_DESIGN_PLAN.md` and the relevant
 mechanism in `AGENT_GUIDE.md`. Do not copy an older plan's scope into a new session.

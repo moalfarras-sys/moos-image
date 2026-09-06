@@ -55,6 +55,12 @@ import json, os, re, socket, subprocess, sys, tempfile, threading, time
 import urllib.error, urllib.parse, urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+# Shared product policy, installed and source-tree paths resolve identically.
+import sys as _policy_sys
+from pathlib import Path as _PolicyPath
+_policy_sys.path.insert(0, str(_PolicyPath(__file__).resolve().parent.parent / "lib/moai"))
+import moai_cloud_policy as cloud_policy
+
 CONFIG = os.path.expanduser("~/.config/moai/config.json")
 MOOS_DIR = os.path.expanduser("~/.config/moos")
 ENV_FILE = os.path.join(MOOS_DIR, "moai.env")
@@ -989,38 +995,21 @@ class Handler(BaseHTTPRequestHandler):
                 "ok": True,
                 "service": "moai-gateway",
                 "port": PORT,
-                "local_port": LOCAL_PORT,
-                "local_unit": LOCAL_UNIT,
-                "default_mode": (cfg.get("mode")
-                                 if cfg.get("mode") in ("local", "cloud", "hybrid")
-                                 else "local"),
+                "default_mode": "cloud",
+                "policy": "cloud-only",
+                "cost_policy": cloud_policy.selected_cost_policy(),
             })
 
         # What this door will actually route. Every id here is a real route; a
         # `cloud:<id>` for any other model the provider knows is accepted too —
         # moai-control's /models asks the provider for that list.
         if self.path.startswith("/v1/models"):
-            data = [
-                {"id": "default", "object": "model", "owned_by": "moos"},
-                {"id": "hybrid", "object": "model", "owned_by": "moos"},
-            ]
-            names = [short_model(n) for n in pulled_models()]
-            for name in names:
-                data.append({"id": "local:" + name, "object": "model",
-                             "owned_by": LOCAL_BACKEND})
-            base, key, _ = self._cloud_cfg(cfg)
-            model = (cfg.get("cloud_model") or "").strip()
-            if base and key and model:
-                data.append({"id": "cloud:" + model, "object": "model",
-                             "owned_by": "cloud"})
-            return self._send_json(200, {"object": "list", "data": data})
-
-        # Anything else is a provider endpoint (embeddings, etc.) — cloud only.
-        base, key, wire = self._cloud_cfg(cfg)
-        if not base or not key:
-            return self._err(503, "cloud brain not configured")
-        self._proxy("GET", upstream_url(base, self.path, wire),
-                    auth_headers(key, wire), None, wire, False)
+            model = str(cfg.get("cloud_model") or cloud_policy.DEFAULT_MODEL)
+            if not (cloud_policy.free_model(model) or cloud_policy.selected_cost_policy() == "paid" and cloud_policy.valid_model(model)):
+                model = cloud_policy.DEFAULT_MODEL
+            return self._send_json(200, {"object": "list", "data": [
+                {"id": "cloud:" + model, "object": "model", "owned_by": "cloud"}]})
+        return self._err(404, "only free chat completions are available")
 
     # ── POST ─────────────────────────────────────────────────────────────────
 
@@ -1057,53 +1046,56 @@ class Handler(BaseHTTPRequestHandler):
         if not isinstance(req, dict):
             return self._err(400, "json body must be an object")
 
-        self.moai_route = ""
-        self.moai_route_reason = ""
-        self.moai_agent = ""
+        if self.path != "/v1/chat/completions":
+            return self._err(404, "only free chat completions are available")
+        self.moai_route = "cloud"
+        self.moai_route_reason = "free-cloud-only"
+        self.moai_agent = "direct"
         meta = req.get("moai") if isinstance(req.get("moai"), dict) else {}
-        wants_agent = meta.get("agent") is True
-        brain, model = resolve(req.get("model", ""), cfg)
-        if brain == "hybrid":
-            brain, reason, may_fallback = choose_hybrid(req, cfg)
-            self.moai_route = brain
-            self.moai_route_reason = reason
-            req = dict(req)
-            # resolve() only fills the cloud model for brain == "cloud", so a
-            # hybrid request reaches here with model == "" — and _to_cloud
-            # would then forward the LITERAL routing token from req["model"]
-            # ("hybrid") as the upstream model id. Fill it from the config for
-            # every cloud leg of the hybrid split.
-            cloud_model = model or str(cfg.get("cloud_model") or "")
-            if brain == "local":
-                error, local_model = ensure_local(model)
-                if error and may_fallback:
-                    self.moai_route = "cloud"
-                    self.moai_route_reason = "local-unavailable"
-                    if wants_agent and self._to_agent(req, "cloud", cloud_model, cfg):
-                        return
-                    req.pop("moai", None)
-                    raw = json.dumps(req).encode("utf-8")
-                    return self._to_cloud(req, raw, cloud_model, cfg)
-                if error:
-                    return self._err(503, error)
-                if wants_agent and self._to_agent(req, "local", local_model, cfg,
-                                                  local_prepared=True):
-                    return
-                req.pop("moai", None)
-                return self._to_local(req, local_model, prepared=True)
-            if wants_agent and self._to_agent(req, "cloud", cloud_model, cfg):
-                return
-            req.pop("moai", None)
-            raw = json.dumps(req).encode("utf-8")
-            return self._to_cloud(req, raw, cloud_model, cfg)
-        if wants_agent and self._to_agent(req, brain, model, cfg):
+        # Never reinterpret an explicitly private request as consent to upload.
+        if (str(req.get("model", "")).startswith("local")
+                or meta.get("privacy") in {"local", "private", "confidential"}
+                or _has_private_attachment(req)):
+            return self._err(409, cloud_policy.ERROR)
+        selected = str(req.get("model") or "")
+        model = (selected.removeprefix("cloud:") if selected.startswith("cloud:")
+                 else selected if cloud_policy.free_model(selected)
+                 else str(cfg.get("cloud_model") or cloud_policy.DEFAULT_MODEL))
+        if meta.get("agent") is True and self._to_hermes(req):
             return
         req = dict(req)
         req.pop("moai", None)
-        raw = json.dumps(req).encode("utf-8")
-        if brain == "local":
-            return self._to_local(req, model)
-        return self._to_cloud(req, raw, model, cfg)
+        return self._to_cloud(req, json.dumps(req).encode("utf-8"), model, cfg)
+
+    def _to_hermes(self, req):
+        """Optional isolated Hermes runtime; never route through paid OpenClaw."""
+        runtime = os.environ.get("XDG_RUNTIME_DIR") or "/run/user/%d" % os.getuid()
+        # Only the fixed, unprivileged adapter may start; no command from a model.
+        try:
+            subprocess.run(["systemctl", "--user", "start", "moai-hermes.service"],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=12)
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+        try:
+            with open(os.path.join(runtime, "moai-hermes", "token")) as handle:
+                token = handle.read().strip()
+            if not token:
+                return False
+            probe = urllib.request.Request("http://127.0.0.1:%d/healthz" % (PORT + 10),
+                headers={"Authorization": "Bearer " + token})
+            with urllib.request.urlopen(probe, timeout=1) as response:
+                if response.status != 200:
+                    return False
+        except (OSError, urllib.error.URLError):
+            self.moai_agent = "direct-fallback"
+            return False
+        body = {"model": "hermes-agent", "messages": req.get("messages", []),
+                "stream": bool(req.get("stream"))}
+        self.moai_agent = "hermes"
+        self._proxy("POST", "http://127.0.0.1:%d/v1/chat/completions" % (PORT + 10),
+                    {"Authorization": "Bearer " + token}, json.dumps(body).encode(),
+                    "openai", bool(body["stream"]))
+        return True
 
     def _to_agent(self, req, brain, model, cfg, local_prepared=False):
         """Route desktop chat through the same OpenClaw runtime as phone channels.
@@ -1217,35 +1209,14 @@ class Handler(BaseHTTPRequestHandler):
                              "العقل السحابي غير مضبوط — أضف مزوّداً ومفتاحاً في إعدادات Mo AI.\n"
                              "The cloud brain is not configured — add a provider and an "
                              "API key in Mo AI's settings.")
-        if wire == "anthropic":
-            try:
-                body, streaming = to_anthropic(raw, model)
-            except Exception as e:
-                return self._err(400, "could not translate the request: %s" % e)
-        else:
-            body, streaming = raw, False
-            if req:
-                out = dict(req)
-                if model:
-                    out["model"] = model
-                else:
-                    # The request's own model field may still hold a routing
-                    # token; an upstream provider has no model named "hybrid".
-                    current = str(out.get("model") or "").strip().lower()
-                    if current in ("", "default", "hybrid") \
-                            or current.startswith(("local", "cloud", "hybrid")):
-                        configured = str(cfg.get("cloud_model") or "").strip()
-                        if not configured:
-                            return self._err(503,
-                                "لم يُحدَّد نموذج سحابي — اختره في إعدادات Mo AI ← العقل.\n"
-                                "No cloud model is configured — pick one in "
-                                "Mo AI Settings → Brain.")
-                        out["model"] = configured
-                streaming = bool(out.get("stream"))
-                body = json.dumps(out).encode("utf-8")
-
-        self._proxy("POST", upstream_url(base, self.path, wire),
-                    auth_headers(key, wire), body, wire, streaming)
+        try:
+            cloud_policy.validate(base, model, wire, allow_paid=cloud_policy.selected_cost_policy() == "paid")
+            out = cloud_policy.request_body(req, model, allow_paid=cloud_policy.selected_cost_policy() == "paid")
+        except ValueError as error:
+            return self._err(409, str(error))
+        self._proxy("POST", cloud_policy.BASE + "/chat/completions",
+                    auth_headers(key, "openai"), json.dumps(out).encode("utf-8"),
+                    "openai", bool(out.get("stream")))
 
     # ── The pipe ─────────────────────────────────────────────────────────────
 

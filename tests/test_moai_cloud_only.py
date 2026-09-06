@@ -64,7 +64,7 @@ class Catalogue(unittest.TestCase):
 
     def test_there_are_free_providers_at_all(self) -> None:
         self.assertGreaterEqual(
-            len(self.free), 3,
+            len(self.free), 1,
             "Mo AI must offer several no-card providers. Each rate-limits "
             "independently, which is the only reason a free default is usable "
             "at all — one provider's daily cap is not a product.")
@@ -100,11 +100,16 @@ class Catalogue(unittest.TestCase):
                 self.assertIn("free", p["name"].lower())
                 self.assertIn("مجاني", p["name"])
 
-    def test_paid_providers_are_kept(self) -> None:
-        """Free-by-default is not free-only. The owner asked for both."""
-        paid = {p["id"] for p in self.providers if not p.get("free")}
-        for keep in ("openai", "anthropic", "google", "custom"):
-            self.assertIn(keep, paid)
+    def test_paid_is_explicit_and_free_remains_first(self) -> None:
+        self.assertEqual(self.providers[0]["id"], "openrouter-free")
+        self.assertEqual({p["id"] for p in self.providers}, {"openrouter-free", "openrouter-paid"})
+        for p in self.providers:
+            self.assertEqual(p["base"], "https://openrouter.ai/api/v1")
+            if p.get("free"):
+                self.assertTrue(p["model"] == "openrouter/free" or p["model"].endswith(":free"))
+            else:
+                self.assertIn("paid", p["name"])
+                self.assertIn("مدفوع", p["name"])
 
     def test_ids_are_unique(self) -> None:
         ids = [p["id"] for p in self.providers]
@@ -145,7 +150,7 @@ class NoEngineCanStart(unittest.TestCase):
     def test_the_message_names_the_free_providers(self) -> None:
         """A refusal that does not say what to do instead is a dead end."""
         refusal = self.after_doc.split("return (", 1)[1].split('"")', 1)[0]
-        for provider in ("Cerebras", "Groq", "NVIDIA NIM", "OpenRouter"):
+        for provider in ("OpenRouter",):
             self.assertIn(provider, refusal)
         self.assertIn("سحابي", refusal, "Arabic is first-class on this screen")
         self.assertIn("cloud", refusal.lower())
@@ -171,7 +176,7 @@ class UiTellsTheTruth(unittest.TestCase):
                              if not l.lstrip().startswith("//"))
 
     def test_no_surface_promises_a_model_download(self) -> None:
-        for lie in ("2.5 GB", "2.5GB", "downloads the model"):
+        for lie in ("2.5 GB", "2.5GB", "downloads the model", "Download in one tap", "Local models"):
             self.assertNotIn(
                 lie, self.qml,
                 f"Mo AI still promises {lie!r}; the gateway refuses, so this "
@@ -187,7 +192,7 @@ class UiTellsTheTruth(unittest.TestCase):
         """Being stuck with no provider is the one moment the user needs the
         answer, in their own language."""
         block = self.qml.split("offlineHelp", 1)[1][:900]
-        for provider in ("Cerebras", "Groq", "NVIDIA NIM", "OpenRouter"):
+        for provider in ("OpenRouter",):
             self.assertIn(provider, block)
         self.assertIn("مزوّد", block, "Arabic is first-class on this screen")
 

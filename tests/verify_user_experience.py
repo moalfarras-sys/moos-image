@@ -1068,12 +1068,14 @@ require("the active brain" in control,
 moai_qml = read("system_files/usr/share/moos/apps/moai/main.qml")
 # …and Settings must actually offer download / use / delete on each local model —
 # a backend endpoint the UI never calls is a feature the user never gets.
-require("function deleteModel" in moai_qml and "root.deleteModel(" in moai_qml,
-        "Mo AI Settings must let the user delete a local model")
+require("root.cfgSetDefaultBrain(modelData)" in moai_qml
+        and 'mode: "cloud", cloud:' in moai_qml,
+        "the cloud model picker must save a real cloud model through the config authority")
 require('controlApi + "/delete"' in moai_qml,
         "Mo AI's deleteModel must POST to moai-control's /delete")
-require("النماذج المحلية" in moai_qml and "root.pickOrPull(" in moai_qml,
-        "Mo AI Settings must show the Local models section with a one-tap download")
+require("النماذج السحابية" in moai_qml and "model: root.cloudModels" in moai_qml
+        and "Download in one tap" not in moai_qml,
+        "Mo AI Settings must show cloud models without local-download promises")
 # Mo AI reasons about the system and offers SAFE repairs: a READ-ONLY /diagnose
 # that runs moos-selfcheck, and a Settings panel that shows health + one-tap fixes,
 # each fix a moai-do action behind confirmation — never a composed command.
@@ -2406,18 +2408,12 @@ require("for name in pulled_models():" in gateway_code
 # both stayed GREEN when the repair was disabled, because the function's own `def`
 # line contains its name. A gate that matches the thing it is looking for inside the
 # declaration of that thing cannot fail. Assert on the line that DECIDES.
-require("def ensure_front_door():" in control_code
-        and "\n    ensure_front_door()" in control_code
-        and 'MOAI_PORT=%d" % LOCAL_PORT' in control_code
-        # …and it must actually WRITE the repaired file. Asserting only on the
-        # constants passed when the write itself was gutted — leaving an empty
-        # moai.env behind — which is the same green-gate-over-a-dead-feature shape
-        # this whole file exists to catch.
-        and r'"\n".join(out)' in control_code
-        and "os.replace(tmp, ENV_FILE)" in control_code,
-        "moai-control must define AND CALL ensure_front_door(), and it must actually "
-        "rewrite a stale MOAI_PORT in ~/.config/moos/moai.env — a corrected unit file "
-        "is shadowed by that EnvironmentFile and loses the port")
+# Owner's cloud-only policy supersedes the legacy local-port migration.
+require("ExecStartPre=/usr/libexec/moai-cloud-migrate" in
+        (ROOT / "system_files/usr/lib/systemd/user/moai-gateway.service").read_text()
+        and "'moai.service','moai-brain.service','ollama.service'" in
+        (ROOT / "system_files/usr/libexec/moai-cloud-migrate").read_text(),
+        "every gateway startup must retire the fixed legacy local engines")
 require("env_port() != LOCAL_PORT" in gateway_code,
         "moai-gateway must reconcile the port before starting the local brain: a stale "
         "moai.env put RamaLama on 8080 while the gateway polled 8081, and the chat "
@@ -2439,12 +2435,9 @@ require('base + "/models"' in control_code
         "moai-control /models must ASK the configured provider for its real model list "
         "— a hardcoded tier table would be a menu of models the user's account may not "
         "have, and picking one would 404 in their face")
-require('"ramalama", "list"' in control_code
-        and "def local_models():" in control_code
-        and "local = local_models()" in control_code,
-        "moai-control /models must report the local models from `ramalama list` — and the "
-        "function must exist AND be called; gating either alone leaves the other free to "
-        "be renamed out from under it")
+require('"local": []' in control_code
+        and 'cloud_policy.visible_models(items)' in control_code,
+        "the picker must exclude local and nonzero-priced cloud models")
 require("cloud_error" in control_code,
         "a provider with no /models must say so, so the UI can fall back to the "
         "free-text model field instead of showing an invented list")

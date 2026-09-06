@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Cloud-only compatibility entry point. The legacy implementation below is unreachable.
+printf '%s\n' 'Mo AI: سحابي مجاني فقط | free cloud only. Configure with moai-config.'
+exit 0
 # moos-ensure-brain — make Mo AI's local brain the FAST instruct model, idempotently.
 #
 # The desktop chat must not run a *thinking* model: it forces 3700+ reasoning

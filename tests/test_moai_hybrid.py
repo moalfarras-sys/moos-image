@@ -150,7 +150,8 @@ def main() -> None:
     assert 'models: "brain"' in qml and 'privacy: "brain"' in qml \
         and 'projects: "permissions"' in qml, \
         "old --settings section names must be remapped, not dropped"
-    assert '{ id: "hybrid", ar: "هجين ذكي", en: "Smart hybrid"' in qml
+    assert '{ id: "cloud", ar: "عقل سحابي", en: "Cloud inference"' in qml
+    assert '{ id: "hybrid", ar: "هجين ذكي", en: "Smart hybrid"' not in qml
     assert 'visible: root.cfgTab === "health"' not in qml
     assert 'root.launch("moos://settings/themes", "MoOS themes")' in qml
     assert 'argv.indexOf("--window-size")' in qml
