@@ -181,6 +181,10 @@ check:
     # Owned first-party chrome must resolve to deterministic palette-aware SVGs,
     # never the retired fixed-colour action artwork or a missing icon name.
     python3 tests/test_moos_symbolic_icons.py
+    # A person who cannot see the screen must be able to use MoOS. The
+    # AT-SPI bus was running with NO screen reader and no speech engine
+    # behind it, and QT_ACCESSIBILITY was unset.
+    python3 tests/test_moos_accessibility.py
     # Exercise the real GTK/KDE resolver and librsvg raster path at the five
     # supported review sizes; static XML alone cannot catch a blank or clipped glyph.
     python3 tests/test_moos_symbolic_runtime.py

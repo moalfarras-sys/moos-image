@@ -79,6 +79,13 @@ _PLASMA=(
     kf6-kirigami kf6-kirigami-addons kf6-qqc2-desktop-style
     dolphin konsole ark kate gwenview haruna kf6-baloo-file
     plasma-breeze breeze-icon-theme papirus-icon-theme
+    # ACCESSIBILITY. MoOS shipped the AT-SPI bus running and nothing behind it:
+    # orca, speech-dispatcher and every speech engine were absent, so a blind
+    # user could not use this system at all. The bus was a road to nowhere.
+    # espeak-ng carries /usr/share/espeak-ng-data/ar_dict, so the screen reader
+    # speaks Arabic — on an OS that calls Arabic first-class, an English-only
+    # reader would not have been a fix.
+    orca speech-dispatcher espeak-ng
     pipewire pipewire-pulseaudio wireplumber
     NetworkManager NetworkManager-wifi
     plymouth plymouth-plugin-script plymouth-plugin-two-step plymouth-system-theme

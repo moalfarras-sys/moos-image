@@ -456,6 +456,10 @@ jobs:
           # First-party interface chrome is one owned, palette-aware symbolic
           # layer; this also catches unresolved icon names before a QML window ships.
           python3 tests/test_moos_symbolic_icons.py
+          # A person who cannot see the screen must be able to use MoOS. The
+          # AT-SPI bus was running with NO screen reader and no speech engine
+          # behind it, and QT_ACCESSIBILITY was unset.
+          python3 tests/test_moos_accessibility.py
           # Runtime rendering is skipped only when the runner lacks the desktop
           # libraries; on MoOS it resolves through GTK, KDE and librsvg at 16–128px.
           python3 tests/test_moos_symbolic_runtime.py

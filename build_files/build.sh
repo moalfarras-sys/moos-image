@@ -830,6 +830,19 @@ dnf5 -y install qt6-qtsvg qt6-qtvirtualkeyboard qt6-qtmultimedia qt6-qtimageform
 dnf5 -y install ibm-plex-sans-fonts ibm-plex-sans-arabic-fonts \
     google-noto-sans-arabic-fonts jetbrains-mono-fonts papirus-icon-theme
 
+# ACCESSIBILITY. MoOS shipped the AT-SPI bus running and nothing behind it:
+# measured on the live ARM machine 2026-09-06, orca, speech-dispatcher and every
+# speech engine were absent while at-spi-dbus-bus.service was active. The bus was
+# a road to nowhere, and a blind user could not use this system at all.
+#
+# espeak-ng carries /usr/share/espeak-ng-data/ar_dict, so the screen reader
+# speaks Arabic. On an OS whose engineering skill calls Arabic first-class, an
+# English-only screen reader would not have been a fix.
+#
+# The same three packages ship on ARM. Editions must not disagree about whether
+# a person can use the computer.
+dnf5 -y install orca speech-dispatcher espeak-ng
+
 # Kawkab Mono — the Arabic terminal font, and the reason Arabic in Konsole was
 # unreadable without it.
 #
