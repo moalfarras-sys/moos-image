@@ -192,6 +192,41 @@ class UiTellsTheTruth(unittest.TestCase):
         self.assertIn("مزوّد", block, "Arabic is first-class on this screen")
 
 
+class NoEngineShips(unittest.TestCase):
+    """Stage C5, build half: no edition installs a local model engine.
+
+    The gateway refusing is what stops a download at runtime. This is the other
+    half: a runtime the product can no longer reach should not be in the image
+    at all. It is not a stripped system — MoOS simply stops putting an engine on
+    every machine by default. Anyone who wants one can still install it.
+    """
+
+    BUILDS = ("build_files/build.sh", "build_files/build-arm.sh")
+
+    def build(self, relative: str) -> str:
+        """Package lists only — the files DISCUSS the removal in comments."""
+        raw = (REPO / relative).read_text(encoding="utf-8")
+        return "\n".join(l for l in raw.splitlines()
+                          if not l.lstrip().startswith("#"))
+
+    def test_no_edition_installs_an_engine_package(self) -> None:
+        for relative in self.BUILDS:
+            with self.subTest(build=relative):
+                for engine in ("ramalama", "ollama"):
+                    self.assertNotRegex(
+                        self.build(relative), rf"^\s+{engine}\s*$",
+                        f"{relative} still installs {engine}; Mo AI cannot "
+                        f"reach it, so it is dead weight in every image")
+
+    def test_the_editions_agree(self) -> None:
+        """x86 and ARM diverging on this is how ARM shipped no Arabic
+        dictionaries for months — one edition getting a fix the other did not."""
+        answers = {r: bool(re.search(r"^\s+ramalama\s*$", self.build(r), re.M))
+                   for r in self.BUILDS}
+        self.assertEqual(len(set(answers.values())), 1,
+                         f"editions disagree about the local engine: {answers}")
+
+
 class PlanIsRecorded(unittest.TestCase):
     """The owner asked for the plan to live in the repo so every Mo AI follows it."""
 

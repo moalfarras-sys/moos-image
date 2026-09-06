@@ -91,9 +91,8 @@ _PLASMA=(
     # Architecture-independent MoOS desktop assets are generated after the
     # final RPM transaction by finalize_moos_desktop.sh.
     git-core curl tar xz gtk-update-icon-cache
-    # Same local-brain engine as x86. The model remains an explicit download;
-    # only the small routing/control services start with the user session.
-    ramalama
+    # The local-brain engine is GONE here too (stage C5). Mo AI is cloud-only;
+    # ensure_local() refuses, so this package had no reachable caller left.
     # Day-2 updates resolve a mutable release tag to an exact signed digest.
     # fedora-bootc supplies rpm-ostree today, but both tools are explicit product
     # dependencies rather than accidental base-image contents.

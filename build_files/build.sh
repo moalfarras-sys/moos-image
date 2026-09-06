@@ -1514,11 +1514,17 @@ grep -q '^Inherits=MoOS$' /usr/share/icons/default/index.theme \
 # claiming a removal that did not happen.
 #
 # Everything a developer actually reaches for on a server —
-# ramalama, distrobox, btop, fastfetch, gh, node, the PCI/USB enumerators the
-# hardware report reads — stays, because the point of MoOS Cloud is that it is the
-# same system, not a stripped one.
+# distrobox, btop, fastfetch, gh, node, the PCI/USB enumerators the hardware
+# report reads — stays, because the point of MoOS Cloud is that it is the same
+# system, not a stripped one.
+#
+# ramalama IS GONE (stage C5, docs/MOAI_CLOUD_ONLY_PLAN.md). Mo AI's brain is a
+# cloud API: ensure_local() refuses before it can start anything, so the engine
+# was shipping in every image with no path left to reach it. Removing it is not
+# a stripped system — it is not shipping a runtime the product can no longer
+# use. Anyone who wants a local engine can still install one; MoOS just does not
+# put one on every machine by default.
 _core_power=(
-    ramalama
     distrobox
     btop
     fastfetch

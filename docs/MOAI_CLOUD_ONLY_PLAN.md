@@ -87,7 +87,7 @@ independently correct: at no point is Mo AI half-migrated and broken.
 | **C2b** | Delete the now-unreachable ~300 lines of local machinery in `moai-gateway` | Gate: no local port, unit or engine name survives |
 | **C3** | Provider ladder with fall-through on 429/5xx | Executable test against stubbed providers |
 | **C4** | Retire `moos-ensure-brain`, `moai-idle`, `moai-local-engine`, `moai.service`, the container + Modelfiles | Gate: the units and files are absent from the built image |
-| **C5** | ✅ **QML half landed** — five untrue surfaces corrected, gated against return. Still open: builds must stop installing the engine | Finished-image gate asserts no engine package |
+| **C5** | ✅ **landed, both halves.** Five untrue UI surfaces corrected; `ramalama` removed from x86 and ARM package sets | Gate reads the shipped QML for returning download promises, and the package lists for either engine, with an edition-agreement check |
 | **C6** | `moai-brain-mode` becomes provider selection, not local/hybrid/cloud | Gate + the `moos-open`/`moai-do` route cross-check |
 
 **Do not skip C2's gate.** The failure this whole plan exists to prevent is a
