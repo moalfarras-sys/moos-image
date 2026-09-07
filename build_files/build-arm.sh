@@ -1202,6 +1202,40 @@ command -v cosign >/dev/null 2>&1 \
     || { echo "GATE FAIL: moos-utm-installer-menu missing"; exit 1; }
 [ -r /usr/share/moos/release/arm-latest.json ] \
     || { echo "GATE FAIL: arm-latest.json missing"; exit 1; }
+# ── The Plasma shell overlay must survive into the finished ARM image ─────────
+#
+# Same check build.sh runs for x86, and it matters MORE here. This edition
+# forces Qt Quick's software renderer (see the QT_QUICK_BACKEND gate above), and
+# the software backend is precisely where upstream's edit mode breaks:
+# MultiEffect is a shader effect and draws nothing, so Arrange painted an opaque
+# black rectangle over the desktop with the widgets being arranged invisible
+# behind it. DesktopEditMode.qml carries the guard that fixes it.
+#
+# Both paths are owned by plasma-workspace, so a later dnf5 transaction can
+# restore stock Plasma over our bytes while every repo gate stays green. Assert
+# on the finished filesystem that each file is present AND still ours — a
+# reinstall puts upstream's content back at the very same path.
+for _pair in \
+    "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/explorer/WidgetExplorer.qml:moosDesktopCustomizer" \
+    "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/DesktopEditMode.qml:softwareRendering"
+do
+    _f="${_pair%%:*}"; _marker="${_pair##*:}"
+    [ -f "$_f" ] || {
+        echo "GATE FAIL: the MoOS Plasma shell overlay is missing from the ARM image: $_f"
+        echo "           Arrange would paint black on this software-rendered edition."
+        exit 1
+    }
+    grep -q "$_marker" "$_f" || {
+        echo "GATE FAIL: $_f exists but is not the MoOS copy (no '$_marker')."
+        echo "           A later rpm transaction overwrote the overlay with stock Plasma."
+        exit 1
+    }
+done
+unset -v _pair _f _marker
+
+[ -x /usr/bin/moos-desktop-edit ] \
+    || { echo "GATE FAIL: moos-desktop-edit missing; Customize Desktop would be a dead button"; exit 1; }
+
 MOOS_IDENTITY_PROFILE=arm-cloud python3 /ctx/verify_identity.py
 python3 /ctx/verify_arm_image.py
 python3 /ctx/verify_no_foreign_identity.py

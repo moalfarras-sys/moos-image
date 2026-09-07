@@ -34,6 +34,13 @@ theme layer. Order matters:
    centre now fits short displays with diagnostics collapsed, and the Horizon
    island shows authenticated active/paused viewers immediately; preserve both
    contracts while extending the same clarity to the remaining first-party apps.
+   *Progress:* the desktop itself now has one obvious place to change it —
+   Settings → Appearance → Customize Desktop, a MoOS UI2 widget explorer that
+   overlays Plasma's own shell while leaving Plasma the owner of every applet and
+   all persistence. It also repairs Arrange on the software-rendered editions
+   (ARM, cloud), where upstream's shader-based edit mode drew an opaque black
+   screen. Both overlays are gated on the finished image in `build.sh` and
+   `build-arm.sh`. Still open: the same pass over the panel/dock editor.
 4. **Adaptive performance for everyone:** extend `moos-visual-tier` from motion
    policy into a broader local resource policy: compositor cost, indexing,
    update concurrency, AI defaults and Remote encoding based on real capability,
@@ -51,7 +58,10 @@ theme layer. Order matters:
    every boot file and security attribute verified unchanged. Do the same measurement
    for the x86 editions — `moos-nvidia` must keep its kmod in-initramfs, so its
    answer will differ — and treat a release that cannot stage an N+1 deployment
-   as blocked. (Plan B01/B02.)
+   as blocked. (Plan B01/B02.) *Re-measured 2026-09-07 on the live A1:* `/boot`
+   is 214 MiB of 974 MiB (**24%**, 693 MiB free) holding two deployments, so the
+   pressure that blocked staging on 2026-09-06 is gone on this host. The contract
+   stands and the x86 measurement is still owed.
 6. **Artifact proof before promotion:** x86 generic, NVIDIA, cloud and ARM must
    each have exact digest boot evidence. A beautiful source tree is not a
    release until the artifact has booted, logged in, smoked apps, rebooted and

@@ -842,7 +842,7 @@ class TestMoOSUI2(unittest.TestCase):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=53", apply,
+            "THEME_REV=54", apply,
             "existing pre-v53 users would keep the cached Launcher QML and never get the "
             "keyboard-navigable sidebar/grid focus flow; pre-v52 users would also exit before "
             "Remote presence, the responsive clock and "

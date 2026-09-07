@@ -15,6 +15,98 @@ Last reconciled: **2026-09-06 (resumed audit)**. Current source and live
 findings: [`docs/SYSTEM_AUDIT_RESUME_20260906.md`](docs/SYSTEM_AUDIT_RESUME_20260906.md).
 Signed release and post-reboot verification are tracked there separately.
 
+### Customize Desktop — MoOS owns the widget explorer (2026-09-07)
+
+MoOS now ships its own Plasma shell surface for desktop widgets, reachable from
+Settings → Appearance → "Customize Desktop" (`moos://settings/desktop`) and from
+Plasma's own "Add or Manage Widgets". Two files overlay plasma-workspace's shell
+package via `COPY system_files/ /`:
+
+| Overlay | What it replaces |
+| --- | --- |
+| `.../contents/explorer/WidgetExplorer.qml` | the stock widget explorer, restyled on UI2 (`MoUI.Card`/`Surface`/`Button`), bilingual, RTL-mirrored |
+| `.../contents/views/DesktopEditMode.qml` | Arrange, made to render without a GPU |
+
+**Plasma stays the owner.** The catalog, the applet list, add/remove/configure
+and all persistence are the native `Shell.WidgetExplorer` and each applet's own
+`internalAction()`. The overlay writes no config of its own — it must never
+become a second source of truth for `plasma-org.kde.plasma.desktop-appletsrc`,
+which is what decides whether the user's desktop survives a reboot.
+
+**Arrange was black on this machine, and that is now fixed.** Upstream's edit
+mode blurs the containment through two `MultiEffect` blocks. `MultiEffect` is a
+shader effect: on the Qt Quick **software** backend it draws nothing at all. That
+backend is exactly what `moos-arm` (the Oracle A1) and `moos-cloud` run — no GPU
+— so Arrange painted an opaque black rectangle over the desktop and the widgets
+being arranged were invisible. It read as a crashed shell. The overlay hides both
+effects on the software backend and lifts the real, interactive containment above
+the backdrop instead, so the user arranges the actual desktop. GPU sessions are
+untouched and keep the blur (`restoreMode: Binding.RestoreBindingOrValue`).
+
+**Removal is confirmed and scoped.** "Remove" and "Reset desktop widgets…" act
+only on applets in the *current* containment — never Plasma's global
+`removeAllInstances()` — behind a confirmation popup, and the count is snapshotted
+so cancelling removes nothing. Undo is Plasma's own desktop notification.
+
+**Live previews never touch the desktop.** "Live preview in a window" routes
+through `moos://desktop/preview/<id>` to `moos-desktop-edit --preview`, which
+validates the id against `^[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)+$`, confirms the
+package is installed with `kpackagetool6`, and `exec`s `plasmawindowed`. URL text
+never becomes argv, and the preview is not added to any containment.
+
+Verified live on the A1 in an Arabic session by driving the real shell overlay
+(`tests/qml/desktop-live-driver.qml`): a real `systemmonitor.memory` widget was
+added, moved, rendered with live data, and survived a `plasmashell` restart at
+the same geometry; a deliberately broken applet showed its error state instead of
+a blank tile; removal took the confirmation path. Screenshots and the applet
+geometry before/after the restart are in
+[`docs/evidence/desktop-edit-20260907/`](docs/evidence/desktop-edit-20260907/) —
+compare `manage-ar.png` (black containment, pre-fix) with
+`software-edit-fixed.png` (the desktop drawn under Arrange).
+
+**Gates.** `tests/test_desktop_customize.py` covers the containment scoping, the
+confirmation/undo contract, the preview argv boundary, the fixed router routes,
+and the software-rendering guard. Because both QML files are verbatim overlays of
+upstream shell files, **both** build scripts — `build.sh` (x86) and
+`build-arm.sh` (aarch64) — additionally assert on the **finished image** that
+each one is present *and still carries its MoOS marker*; a later rpm transaction
+reinstalling plasma-workspace would otherwise restore stock Plasma at those exact
+paths with every repo gate still green. ARM is a separate ~1200-line script, so a
+repo gate also proves neither script lost the check — and ARM is the edition that
+needs it most, since it forces Qt Quick's software renderer. If an upstream
+re-sync makes that gate fire, re-apply the guard; do not weaken the gate.
+
+### A live test rig was shadowing the whole Plasma shell (2026-09-07, removed)
+
+Found on the A1 while verifying the Customize Desktop work, by the new
+post-update check — not by looking for it. `~/.local/share/plasma/shells/
+org.kde.plasma.desktop` held a **complete copy of the Plasma shell package**,
+left behind by the session that developed the overlay. A user-level shell
+package outranks `/usr` entirely, so:
+
+- every shell QML the image ships was being ignored on this machine;
+- the copy's `WidgetExplorer.qml` had a `Timer` appended that loaded
+  `file:///var/home/moos/moos-desktop-edit/tests/qml/desktop-live-driver.qml`
+  — an absolute path into a scratch worktree — and that driver polls a command
+  file every 700 ms for as long as the explorer is open;
+- it was the reason the live tests passed. They exercised `$HOME`, not the image.
+
+Left in place it would have been the worst kind of green check: the update
+would land, `/usr` would hold the right bytes, and the desktop would keep
+running the old scaffolding — including a dangling path once the worktree was
+cleaned. This is the shadowed-config trap `tests/post-update-check.sh` was
+written for, in its purest form.
+
+Removed, after backing it up to `/var/home/moos/astra-live-testrig-backup-20260907.tar.gz`
+(80 files) in case any of it is wanted again. `~/.local/state/moos-desktop-review/`
+(the driver's command file and an appletsrc snapshot) went with it.
+
+`tests/post-update-check.sh` now fails if any shell package exists in `$HOME`,
+and separately checks that the two overlay files on disk are the MoOS copies
+rather than stock Plasma. **Never develop a shell overlay by copying the package
+into `$HOME` and leaving it there** — bind-mount it, or build and deploy the
+image, so what you verify is what ships.
+
 ### Settings product pass — integration branch (2026-09-07)
 
 `fix/settings-real-state-20260907` fixes Settings status truth, missing-backend

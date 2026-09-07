@@ -165,6 +165,15 @@ case "${cat}/${tgt}" in
     # settings/kcm/* wildcard: the public URL scheme can never turn URL text
     # into argv.  These routes only open read-only configuration surfaces; the
     # user performs and confirms any state change in the destination itself.
+    desktop/preview/*)
+        id="${tgt#preview/}"
+        if [[ "$id" =~ ^[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)+$ && ${#id} -le 255 ]]; then
+            gui moos-desktop-edit --preview "$id"
+        else
+            notify "معرّف أداة غير صالح | invalid widget id"
+            exit 2
+        fi ;;
+    settings/desktop)           gui moos-desktop-edit ;;
     settings/themes)            gui moos-theme-picker ;;
     settings/display)           gui systemsettings kcm_kscreen ;;
     settings/night-light)       gui systemsettings kcm_nightlight ;;

@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Plasma owns both the explorer and isolated widget previews. No script input.
+set -euo pipefail
+fail() {
+    kdialog --error "$1"
+    exit 1
+}
+if [[ ${1:-} == --preview ]]; then
+    id=${2:-}
+    [[ $# == 2 && "$id" =~ ^[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)+$ && ${#id} -le 255 ]] \
+        || fail 'Invalid widget ID. | معرّف أداة غير صالح.'
+    kpackagetool6 --type Plasma/Applet --show "$id" >/dev/null 2>&1 \
+        || fail 'This widget is no longer installed. | هذه الأداة لم تعد مثبتة.'
+    command -v plasmawindowed >/dev/null \
+        || fail 'Widget previews are unavailable. | معاينات الأدوات غير متوفرة.'
+    # No --statusnotifier: closing the preview ends it. Never adds to a desktop.
+    exec plasmawindowed "$id"
+fi
+[[ $# == 0 ]] || fail 'Unsupported desktop action. | إجراء سطح مكتب غير مدعوم.'
+if ! gdbus call --session --dest org.kde.plasmashell --object-path /PlasmaShell \
+    --method org.kde.PlasmaShell.toggleWidgetExplorer >/dev/null; then
+    fail 'Could not open Customize Desktop. Plasma must be running.
+تعذّر فتح تخصيص سطح المكتب. يجب أن تكون جلسة سطح المكتب قيد التشغيل.'
+fi

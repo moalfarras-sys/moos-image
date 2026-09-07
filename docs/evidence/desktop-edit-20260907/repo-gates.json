@@ -1,0 +1,692 @@
+[
+  {
+    "command": "bash -n build_files/build.sh",
+    "exit": 0,
+    "seconds": 0.03,
+    "output": ""
+  },
+  {
+    "command": "python3 tests/test_shell_line_continuations.py",
+    "exit": 0,
+    "seconds": 0.19,
+    "output": "shell line-continuation gate passed\n"
+  },
+  {
+    "command": "python3 tests/test_settings_hardware_identity.py",
+    "exit": 0,
+    "seconds": 0.21,
+    "output": "Settings hardware identity gate passed\n"
+  },
+  {
+    "command": "python3 tests/test_theme_drift_repair.py",
+    "exit": 0,
+    "seconds": 0.13,
+    "output": "theme drift repair gate passed\n"
+  },
+  {
+    "command": "python3 tests/test_moai_severity_banner.py",
+    "exit": 0,
+    "seconds": 0.2,
+    "output": "Mo AI severity banner gate passed\n"
+  },
+  {
+    "command": "python3 tests/verify_user_experience.py",
+    "exit": 0,
+    "seconds": 6.78,
+    "output": "MoOS user-experience gate passed\n"
+  },
+  {
+    "command": "python3 tests/test_device_plan.py",
+    "exit": 0,
+    "seconds": 0.26,
+    "output": "MoOS device-plan test passed\ndevice-plan bilingual title gate passed (6 titles)\n"
+  },
+  {
+    "command": "python3 tests/test_moai_do.py",
+    "exit": 0,
+    "seconds": 0.29,
+    "output": "MoOS moai-do test passed (22 actions covered)\n"
+  },
+  {
+    "command": "python3 tests/test_moos_auto_update.py",
+    "exit": 0,
+    "seconds": 0.39,
+    "output": "OK: one update authority stages exact signed digests for all four editions, fails closed on malformed/security state, and defers only transient conditions\n"
+  },
+  {
+    "command": "python3 tests/test_updater_trust_badge.py",
+    "exit": 0,
+    "seconds": 0.19,
+    "output": "Updater trust badge gate passed (4 origin states)\n"
+  },
+  {
+    "command": "python3 tests/test_cloud_console_order.py",
+    "exit": 0,
+    "seconds": 0.2,
+    "output": "OK: /dev/console is a virtual terminal on MoOS Cloud, the serial log survives, and installed machines repair their own karg order exactly once\n"
+  },
+  {
+    "command": "python3 tests/test_oracle_deploy.py",
+    "exit": 0,
+    "seconds": 0.27,
+    "output": "Oracle deploy gate OK: config, all-AD limits and UEFI_64 image capability are enforced\n"
+  },
+  {
+    "command": "python3 tests/test_theme_wallpaper_readback.py",
+    "exit": 0,
+    "seconds": 0.07,
+    "output": "OK: the central theme state captures an exact encoded profile/custom wallpaper identity\n"
+  },
+  {
+    "command": "python3 tests/test_theme_wallpaper_steady_state.py",
+    "exit": 0,
+    "seconds": 0.06,
+    "output": "OK: login reconciliation preserves custom state through the one theme owner\n"
+  },
+  {
+    "command": "python3 tests/test_mokernel.py",
+    "exit": 0,
+    "seconds": 0.05,
+    "output": "OK: MoKernel declares 10 sysctls, 2 modules and 2 kargs, and every one of them is shipped by a real file \u2014 and every desktop sysctl MoOS ships is declared\n"
+  },
+  {
+    "command": "python3 tests/test_moai_control.py",
+    "exit": 0,
+    "seconds": 0.69,
+    "output": "and_retires_legacy (__main__.RuntimeRelationshipTests.test_setup_brain_selects_ollama_once_and_retires_legacy) ... ok\ntest_shell_resolver_accepts_only_known_units (__main__.RuntimeRelationshipTests.test_shell_resolver_accepts_only_known_units) ... ok\n\n----------------------------------------------------------------------\nRan 32 tests in 0.411s\n\nOK\n"
+  },
+  {
+    "command": "python3 tests/test_moai_config.py",
+    "exit": 0,
+    "seconds": 0.18,
+    "output": "ut_writing_local_config (__main__.MoAIConfigClientTests.test_missing_cloud_catalog_fails_without_writing_local_config) ... ok\ntest_tool_contains_no_legacy_config_writer (__main__.MoAIConfigClientTests.test_tool_contains_no_legacy_config_writer) ... ok\n\n----------------------------------------------------------------------\nRan 3 tests in 0.040s\n\nOK\n"
+  },
+  {
+    "command": "python3 tests/test_moai_cloud_only.py",
+    "exit": 0,
+    "seconds": 0.18,
+    "output": "h.test_no_surface_sends_the_user_to_the_local_engine) ... ok\ntest_the_offline_help_names_the_free_way_out (__main__.UiTellsTheTruth.test_the_offline_help_names_the_free_way_out)\nBeing stuck with no provider is the one moment the user needs the ... ok\n\n----------------------------------------------------------------------\nRan 16 tests in 0.021s\n\nOK\n"
+  },
+  {
+    "command": "python3 tests/test_moai_no_local_start_path.py",
+    "exit": 0,
+    "seconds": 0.13,
+    "output": "function_reaches_an_engine_helper) ... ok\ntest_the_cloud_check_reads_what_the_gateway_routes_on (__main__.NoReachableLocalStart.test_the_cloud_check_reads_what_the_gateway_routes_on)\nA check against a flag the tool does not have is not a check. ... ok\n\n----------------------------------------------------------------------\nRan 3 tests in 0.005s\n\nOK\n"
+  },
+  {
+    "command": "python3 tests/test_moai_free_policy.py",
+    "exit": 0,
+    "seconds": 0.37,
+    "output": "......\n----------------------------------------------------------------------\nRan 6 tests in 0.070s\n\nOK\n"
+  },
+  {
+    "command": "python3 tests/test_moai_hermes.py",
+    "exit": 0,
+    "seconds": 2.3,
+    "output": "PError 401: 'Unauthorized'>\n  _warnings.warn(self.warn_message, ResourceWarning)\n/usr/lib64/python3.14/tempfile.py:484: ResourceWarning: Implicitly cleaning up <HTTPError 403: 'Forbidden'>\n  _warnings.warn(self.warn_message, ResourceWarning)\n.........\n----------------------------------------------------------------------\nRan 11 tests in 1.902s\n\nOK\n"
+  },
+  {
+    "command": "python3 tests/test_moai_workspace.py",
+    "exit": 0,
+    "seconds": 3.69,
+    "output": "Mo AI workspace metadata tests passed\n"
+  },
+  {
+    "command": "python3 tests/test_moai_hybrid.py",
+    "exit": 0,
+    "seconds": 0.13,
+    "output": "Mo AI Hybrid routing tests passed\n"
+  },
+  {
+    "command": "python3 tests/test_moos_open_qdbus.py",
+    "exit": 0,
+    "seconds": 0.06,
+    "output": "OK: qdbus_run resolves qdbus-qt6 and the session routes use it.\n"
+  },
+  {
+    "command": "python3 tests/test_moai_http_security.py",
+    "exit": 0,
+    "seconds": 4.83,
+    "output": "main__.GatewaySecurityTests.test_openai_client_needs_no_custom_header_and_options_has_no_cors) ... ok\ntest_post_rejects_non_json_foreign_origin_and_bad_json (__main__.GatewaySecurityTests.test_post_rejects_non_json_foreign_origin_and_bad_json) ... ok\n\n----------------------------------------------------------------------\nRan 11 tests in 4.510s\n\nOK\n"
+  },
+  {
+    "command": "python3 tests/test_moai_gateway_streaming.py",
+    "exit": 0,
+    "seconds": 0.25,
+    "output": "OK: streaming errors/truncation are surfaced with [DONE], and a mid-stream drop closes the connection.\n"
+  },
+  {
+    "command": "python3 tests/test_exec_bits.py",
+    "exit": 0,
+    "seconds": 0.07,
+    "output": "executable-bit gate passed (system_files/usr/bin + system_files/usr/libexec scripts all +x)\n"
+  },
+  {
+    "command": "python3 tests/test_shipped_bundle_is_tracked.py",
+    "exit": 0,
+    "seconds": 0.12,
+    "output": "OK: index.html references 2 asset(s), all present and tracked (assets/index-BQvCsoxp.js, assets/index-x0f8osjE.css)\n"
+  },
+  {
+    "command": "python3 tests/test_release_workflow_safety.py",
+    "exit": 0,
+    "seconds": 1.57,
+    "output": "\nthemes=opened-closed-reopened\nmoplayer=opened-closed-reopened\nmo-pc-remote=opened-closed-reopened\norigin=ghcr.io/example/moos@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\nreboot=clean\nsecond-boot=healthy\npoweroff=clean\n....\n----------------------------------------------------------------------\nRan 18 tests in 1.348s\n\nOK\n"
+  },
+  {
+    "command": "python3 tests/test_firewall_migration.py",
+    "exit": 0,
+    "seconds": 0.15,
+    "output": "OK: inherited all-high-port policy narrows to MoOS; custom zones stay untouched; tailnet stays trusted\n"
+  },
+  {
+    "command": "python3 tests/test_hardware_adapt_lifecycle.py",
+    "exit": 0,
+    "seconds": 0.05,
+    "output": "hardware-adapt lifecycle/ownership gate passed\n"
+  },
+  {
+    "command": "python3 tests/test_moos_verify_origin.py",
+    "exit": 0,
+    "seconds": 0.34,
+    "output": "OK: signed-origin audit reads the real rpm-ostree deployment, repairs only MoOS, and fails closed\n"
+  },
+  {
+    "command": "python3 tests/test_theme_shadow_cleanup.py",
+    "exit": 0,
+    "seconds": 0.3,
+    "output": "OK: a post-marker MoOS shadow is quarantined and cleanup is idempotent\n"
+  },
+  {
+    "command": "python3 tests/test_docs_privacy.py",
+    "exit": 0,
+    "seconds": 0.2,
+    "output": "documentation privacy gate passed (21 files)\n"
+  },
+  {
+    "command": "python3 tests/test_moos_fast_remote.py",
+    "exit": 0,
+    "seconds": 1.03,
+    "output": "test_exact_round_trip_and_failed_restore_retry (__main__.FastRemoteTransactionTests.test_exact_round_trip_and_failed_restore_retry) ... ok\n\n----------------------------------------------------------------------\nRan 1 test in 0.704s\n\nOK\n"
+  },
+  {
+    "command": "python3 tests/test_remote_h264_single_slice.py",
+    "exit": 0,
+    "seconds": 0.05,
+    "output": "OK: x264enc emits one slice per frame (sliced-threads=false) with threads pinned to a latency budget, and zerolatency is intact.\n"
+  },
+  {
+    "command": "python3 tests/test_remote_h264_chroma.py",
+    "exit": 0,
+    "seconds": 0.22,
+    "output": "OK: the H.264 branch pins 4:2:0 chroma upstream of the encoder; runtime skipped (x264enc not installed).\n"
+  },
+  {
+    "command": "python3 tests/test_remote_toolbar_edge.py",
+    "exit": 0,
+    "seconds": 0.22,
+    "output": "OK: one POINTER_BAR_QUERY drives both the CSS placement and the JS summon edge, it asks about available pointers, and the short-landscape rail still wins.\n"
+  },
+  {
+    "command": "python3 tests/test_remote_input_mode.py",
+    "exit": 0,
+    "seconds": 0.08,
+    "output": "OK: a touchscreen machine with a mouse gets desktop mode, the headless-browser hole stays closed, and Keyboard Lock is requested before fullscreen.\n"
+  },
+  {
+    "command": "python3 tests/test_remote_us_keymap.py",
+    "exit": 0,
+    "seconds": 0.12,
+    "output": "OK: all 95 US positions cover printable ASCII, agree with PhysicalCodes, press Shift for level two, and are used only as a fallback.\n"
+  },
+  {
+    "command": "python3 tests/test_remote_group_resolution.py",
+    "exit": 0,
+    "seconds": 0.05,
+    "output": "OK: named groups resolve against the live layout ring, cached home/ara still work, and a missing layout is reported by name.\n"
+  },
+  {
+    "command": "python3 tests/test_remote_keycode_flush.py",
+    "exit": 0,
+    "seconds": 0.06,
+    "output": "OK: every press path flushes pending text first, releases do not, and KeyCode flushes only on the down edge.\n"
+  },
+  {
+    "command": "python3 tests/test_remote_portal_keysyms_sync.py",
+    "exit": 0,
+    "seconds": 0.32,
+    "output": ".....\n----------------------------------------------------------------------\nRan 5 tests in 0.167s\n\nOK\nOK: keysyms sync:true and layout changes use ordered portal delivery.\n"
+  },
+  {
+    "command": "python3 tests/test_arabic_terminal_font.py",
+    "exit": 0,
+    "seconds": 0.28,
+    "output": "ls_back_to_kawkab) ... ok\ntest_rule_file_is_present (__main__.TestFontConfigRuleInstalled.test_rule_file_is_present) ... ok\ntest_profiles_ask_for_jetbrains_mono_by_name (__main__.TestKonsoleProfiles.test_profiles_ask_for_jetbrains_mono_by_name) ... ok\n\n----------------------------------------------------------------------\nRan 4 tests in 0.049s\n\nOK\n"
+  },
+  {
+    "command": "python3 tests/test_webengine_dictionaries.py",
+    "exit": 0,
+    "seconds": 0.17,
+    "output": "and_unsandboxed (__main__.TheScriptItself.test_it_runs_the_converter_headless_and_unsandboxed) ... ok\ntest_it_strips_the_IGNORE_line_that_crashes_the_converter (__main__.TheScriptItself.test_it_strips_the_IGNORE_line_that_crashes_the_converter) ... ok\n\n----------------------------------------------------------------------\nRan 8 tests in 0.013s\n\nOK\n"
+  },
+  {
+    "command": "python3 tests/test_boot_branding_tool.py",
+    "exit": 0,
+    "seconds": 0.14,
+    "output": "MoOS firmware fallback label: /tmp/moos-firmware-label-47o96b9m/usr/lib/efi/vendor/BOOTAA64.CSV\nOK: boot identity repair is honest, fail-safe and never rewrites bootupd GRUB\n"
+  },
+  {
+    "command": "python3 tests/test_boot_splash_polish.py",
+    "exit": 0,
+    "seconds": 0.26,
+    "output": "pt_declares_the_aspect_its_frames_actually_have (__main__.BootSplashTests.test_the_script_declares_the_aspect_its_frames_actually_have) ... ok\ntest_theme_ships_no_bom_in_any_asset (__main__.BootSplashTests.test_theme_ships_no_bom_in_any_asset) ... ok\n\n----------------------------------------------------------------------\nRan 12 tests in 0.097s\n\nOK\n"
+  },
+  {
+    "command": "python3 tests/test_moai_app_launch.py",
+    "exit": 0,
+    "seconds": 0.6,
+    "output": "PASS: Mo AI distinguishes accepted and rejected GUI launches\n"
+  },
+  {
+    "command": "python3 tests/test_moai_credential_store.py",
+    "exit": 0,
+    "seconds": 0.66,
+    "output": "d) ... ok\ntest_round_trip_is_private_and_never_enters_config (__main__.CredentialStoreTests.test_round_trip_is_private_and_never_enters_config) ... ok\ntest_symlink_is_never_followed (__main__.CredentialStoreTests.test_symlink_is_never_followed) ... ok\n\n----------------------------------------------------------------------\nRan 3 tests in 0.515s\n\nOK\n"
+  },
+  {
+    "command": "python3 tests/test_moai_waydroid.py",
+    "exit": 0,
+    "seconds": 0.15,
+    "output": "PASS: Waydroid always confirms and reports ready only after container/session proof\nPASS: the image boots Waydroid ready-to-run (canonical /var/lib/waydroid, SELinux-labelled data)\n"
+  },
+  {
+    "command": "python3 tests/test_moos_sound_theme.py",
+    "exit": 0,
+    "seconds": 0.12,
+    "output": "or_owns_every_shipped_event (__main__.MoOSSoundThemeTests.test_generator_owns_every_shipped_event) ... ok\ntest_semantic_system_family_is_complete_and_decodable (__main__.MoOSSoundThemeTests.test_semantic_system_family_is_complete_and_decodable) ... ok\n\n----------------------------------------------------------------------\nRan 2 tests in 0.008s\n\nOK\n"
+  },
+  {
+    "command": "python3 tests/test_remote_background_alerts.py",
+    "exit": 0,
+    "seconds": 0.06,
+    "output": "remote background-alert gate passed\n"
+  },
+  {
+    "command": "python3 tests/test_remote_clipboard_runtime.py",
+    "exit": 0,
+    "seconds": 0.04,
+    "output": "remote clipboard runtime gate passed\n"
+  },
+  {
+    "command": "python3 tests/test_remote_linux_network_boundary.py",
+    "exit": 0,
+    "seconds": 0.05,
+    "output": "OK: Linux Remote listens only on loopback; desktop and Cloud publish it through Tailscale Serve.\n"
+  },
+  {
+    "command": "python3 tests/test_remote_start_lifecycle.py",
+    "exit": 0,
+    "seconds": 1.19,
+    "output": "_unit_uses_the_bounded_launcher (__main__.RemoteStartLifecycleTests.test_unit_uses_the_bounded_launcher) ... ok\ntest_unit_waits_for_both_screen_sharing_portals (__main__.RemoteStartLifecycleTests.test_unit_waits_for_both_screen_sharing_portals) ... ok\n\n----------------------------------------------------------------------\nRan 5 tests in 1.005s\n\nOK\n"
+  },
+  {
+    "command": "python3 tests/test_remote_trusted_devices.py",
+    "exit": 0,
+    "seconds": 0.06,
+    "output": "OK: trusted devices are hashed, bounded, resumable, visible and individually revocable.\n"
+  },
+  {
+    "command": "python3 tests/test_wayland_display_resolver.py",
+    "exit": 0,
+    "seconds": 0.19,
+    "output": "OK: Remote and Mo AI select a connectable Wayland compositor, not a stale filename\n"
+  },
+  {
+    "command": "python3 tests/test_moos_cloud_audio.py",
+    "exit": 0,
+    "seconds": 1.71,
+    "output": "_carries_media_and_no_encoder_chatter (__main__.TestServerBehaviour.test_stream_carries_media_and_no_encoder_chatter) ... ok\ntest_unknown_routes_do_not_start_an_encoder (__main__.TestServerBehaviour.test_unknown_routes_do_not_start_an_encoder) ... ok\n\n----------------------------------------------------------------------\nRan 12 tests in 1.508s\n\nOK\n"
+  },
+  {
+    "command": "python3 tests/test_cloud_private_desktop.py",
+    "exit": 0,
+    "seconds": 0.05,
+    "output": "OK: private desktop keeps one compositor, an OpenGL path, and its portal grant\n"
+  },
+  {
+    "command": "python3 tests/test_cloud_set_pin.py",
+    "exit": 0,
+    "seconds": 0.05,
+    "output": "OK: --set-pin reads stdin, clears lockout, resolves an absolute config dir; moos-cloud-desktop set-pin stops/starts the agent and confirms the PIN\n"
+  },
+  {
+    "command": "python3 tests/test_cloud_subid_range.py",
+    "exit": 0,
+    "seconds": 0.1,
+    "output": "OK: moos-cloud-dev allocates policy-aware, non-overlapping subuid/subgid ranges.\n"
+  },
+  {
+    "command": "python3 tests/test_recovery_rollback_target.py",
+    "exit": 0,
+    "seconds": 0.32,
+    "output": "OK: Recovery names the right deployment, describes queued cancellation accurately, and streams bootc through GLib without blocking GTK.\n"
+  },
+  {
+    "command": "python3 tests/test_moai_ports_fail_closed.py",
+    "exit": 0,
+    "seconds": 0.18,
+    "output": "OK: uid 1000 keeps the base ports; every other account gets unique non-base ports.\n"
+  },
+  {
+    "command": "python3 tests/test_moai_service_lifecycle.py",
+    "exit": 0,
+    "seconds": 1.85,
+    "output": "Mo AI service lifecycle gate passed\nMo AI daemons boot and answer for real\n"
+  },
+  {
+    "command": "python3 tests/test_openclaw_bootstrap_noop.py",
+    "exit": 0,
+    "seconds": 0.27,
+    "output": "OK: an unchanged config skips the save; a drifted config still heals.\n"
+  },
+  {
+    "command": "python3 tests/test_openclaw_nodejs_sqlite.py",
+    "exit": 0,
+    "seconds": 0.3,
+    "output": "_service_explains_private_runtime (__main__.TestOpenClawNodeOverride.test_service_explains_private_runtime) ... ok\ntest_service_selects_installed_private_runtime (__main__.TestOpenClawNodeOverride.test_service_selects_installed_private_runtime) ... ok\n\n----------------------------------------------------------------------\nRan 4 tests in 0.001s\n\nOK\n"
+  },
+  {
+    "command": "python3 tests/test_openclaw_modern_unit_retire.py",
+    "exit": 0,
+    "seconds": 0.86,
+    "output": "OK: both installer generations retire; hand-written, symlinked and unbacked units are left alone.\n"
+  },
+  {
+    "command": "python3 tests/test_openclaw_idle_mask_migration.py",
+    "exit": 0,
+    "seconds": 0.28,
+    "output": "OpenClaw idle-mask migration gate passed\n"
+  },
+  {
+    "command": "python3 tests/test_moai_wake_telegram_reachability.py",
+    "exit": 0,
+    "seconds": 0.1,
+    "output": "moai-wake: Telegram reachable via 149.154.167.99\nOK: moai-wake resolves IPv4-only, fails over past a blocked address, and still surfaces HTTP errors to the caller.\n"
+  },
+  {
+    "command": "python3 tests/test_mo_remote_codec_resend.py",
+    "exit": 0,
+    "seconds": 0.06,
+    "output": "OK: a restarted capture helper is told the codec again, so H.264 survives it\n"
+  },
+  {
+    "command": "python3 tests/test_remote_h264_fallback.py",
+    "exit": 0,
+    "seconds": 0.03,
+    "output": "OK: the JPEG fallback latch fires (pick_h264()[0] is None) and the encoder is blacklisted by factory name.\n"
+  },
+  {
+    "command": "python3 tests/test_remote_video_health.py",
+    "exit": 0,
+    "seconds": 0.08,
+    "output": "OK: encoder-only fallback and first/post-frame starvation recovery are behaviour-tested.\n"
+  },
+  {
+    "command": "python3 tests/test_kernel_network_tuning.py",
+    "exit": 0,
+    "seconds": 0.04,
+    "output": "OK: 10 sysctl key(s) valid; module-backed values paired with modules-load.d (net.ipv4.tcp_congestion_control=bbr\u2192tcp_bbr, net.core.default_qdisc=fq\u2192sch_fq)\n"
+  },
+  {
+    "command": "python3 tests/test_remote_rebuild_debounce.py",
+    "exit": 0,
+    "seconds": 0.04,
+    "output": "OK: rebuild() coalesces a settings burst into one build; the idle teardown stays immediate\n"
+  },
+  {
+    "command": "python3 tests/test_remote_connection_lifecycle.py",
+    "exit": 0,
+    "seconds": 0.03,
+    "output": "remote connection lifecycle gate passed\n"
+  },
+  {
+    "command": "python3 tests/test_remote_async_lifecycle.py",
+    "exit": 0,
+    "seconds": 0.03,
+    "output": "remote async lifecycle gate passed\n"
+  },
+  {
+    "command": "python3 tests/test_remote_logout_revocation.py",
+    "exit": 0,
+    "seconds": 0.03,
+    "output": "remote logout revocation gate passed\n"
+  },
+  {
+    "command": "python3 tests/test_remote_dotnet_dependencies.py",
+    "exit": 0,
+    "seconds": 0.03,
+    "output": "remote .NET dependency gate passed (ImageSharp 3.1.11)\n"
+  },
+  {
+    "command": "python3 tests/test_remote_data_dir.py",
+    "exit": 0,
+    "seconds": 0.03,
+    "output": "remote isolated data-dir gate passed\n"
+  },
+  {
+    "command": "python3 tests/test_remote_power_policy.py",
+    "exit": 0,
+    "seconds": 0.05,
+    "output": "remote power policy gate passed\n"
+  },
+  {
+    "command": "python3 tests/test_remote_transfer_security.py",
+    "exit": 0,
+    "seconds": 0.1,
+    "output": "remote transfer security gate passed\n"
+  },
+  {
+    "command": "python3 tests/test_input_off_socket_thread.py",
+    "exit": 0,
+    "seconds": 0.06,
+    "output": "OK: input is handed to a bounded single-reader FIFO, drained by InputLoop, with ordered backpressure so no event can be dropped or overtake another\n"
+  },
+  {
+    "command": "python3 tests/test_remote_resolution_ceiling.py",
+    "exit": 0,
+    "seconds": 0.13,
+    "output": "OK: ceiling 2560 for clients that name pixels, 1920 for clients that only send a fraction; width arbitrated across the room; fps to 60; presets absolute\n"
+  },
+  {
+    "command": "python3 tests/test_desktop_sound_reachable.py",
+    "exit": 0,
+    "seconds": 0.05,
+    "output": "OK: audio binds 127.0.0.1 (no auth of its own, so loopback only), enabled for every edition, and the panel retracts the legacy unauthenticated /audio mount\n"
+  },
+  {
+    "command": "python3 tests/test_remote_audio_is_authenticated.py",
+    "exit": 0,
+    "seconds": 0.05,
+    "output": "OK: the sound travels the agent's authenticated route; no unauthenticated mount is created, and a legacy one is retracted on panel open.\n"
+  },
+  {
+    "command": "python3 tests/test_moos_store_index.py",
+    "exit": 0,
+    "seconds": 3.9,
+    "output": "......\n----------------------------------------------------------------------\nRan 6 tests in 3.677s\n\nOK\n"
+  },
+  {
+    "command": "python3 tests/test_moos_storectl.py",
+    "exit": 0,
+    "seconds": 0.61,
+    "output": "hema\":1,\"action\":\"check-updates\",\"state\":\"success\",\"checked_at\":\"2026-09-07T11:32:49.199Z\",\"count\":1,\"app_count\":1,\"items\":[{\"id\":\"org.kde.okular\",\"ref\":\"app/org.kde.okular/x86_64/stable\",\"kind\":\"app\",\"branch\":\"stable\",\"arch\":\"x86_64\",\"origin\":\"flathub\",\"name\":\"Okular\",\"version\":\"24.2\",\"installed_size\":1024}],\"message\":\"1 app update(s) available\"}\n"
+  },
+  {
+    "command": "python3 tests/test_store_job_language.py",
+    "exit": 0,
+    "seconds": 0.05,
+    "output": "Mo Store job language gate passed (21 keys, 21 phrases)\n"
+  },
+  {
+    "command": "python3 tests/test_moos_design_core.py",
+    "exit": 0,
+    "seconds": 0.52,
+    "output": "untime_database_is_deterministic (__main__.DesignCoreTests.test_theme_profile_runtime_database_is_deterministic) ... ok\ntest_theme_profiles_are_generated_complete_pairs (__main__.DesignCoreTests.test_theme_profiles_are_generated_complete_pairs) ... ok\n\n----------------------------------------------------------------------\nRan 7 tests in 0.153s\n\nOK\n"
+  },
+  {
+    "command": "python3 tests/test_moos_one_locale_authority.py",
+    "exit": 0,
+    "seconds": 0.38,
+    "output": " still nine places to break. ... ok\ntest_the_singleton_exists_and_is_registered (__main__.OneAuthority.test_the_singleton_exists_and_is_registered) ... ok\ntest_there_are_surfaces_to_check (__main__.OneAuthority.test_there_are_surfaces_to_check) ... ok\n\n----------------------------------------------------------------------\nRan 5 tests in 0.081s\n\nOK\n"
+  },
+  {
+    "command": "python3 tests/test_moos_ui2.py",
+    "exit": 0,
+    "seconds": 2.58,
+    "output": "xpected_dimensions_and_are_distinct (__main__.TestMoOSUI2.test_wallpaper_exports_have_expected_dimensions_and_are_distinct) ... ok\ntest_weather_art_is_complete_local_and_owned (__main__.TestMoOSUI2.test_weather_art_is_complete_local_and_owned) ... ok\n\n----------------------------------------------------------------------\nRan 41 tests in 2.123s\n\nOK\n"
+  },
+  {
+    "command": "python3 tests/test_moos_launcher_keyboard.py",
+    "exit": 0,
+    "seconds": 1.36,
+    "output": "...........\n----------------------------------------------------------------------\nRan 11 tests in 0.951s\n\nOK\n"
+  },
+  {
+    "command": "python3 tests/test_moos_bar_single_panel.py",
+    "exit": 0,
+    "seconds": 1.08,
+    "output": "ion_can_never_create_a_panel (__main__.SingleSourceAgreement.test_the_migration_can_never_create_a_panel) ... ok\ntest_the_seed_template_creates_exactly_one_panel (__main__.SingleSourceAgreement.test_the_seed_template_creates_exactly_one_panel) ... ok\n\n----------------------------------------------------------------------\nRan 13 tests in 0.787s\n\nOK\n"
+  },
+  {
+    "command": "python3 tests/test_moos_visual_tier.py",
+    "exit": 0,
+    "seconds": 1.03,
+    "output": "blur_ceiling) ... ok\ntest_no_tier_writes_a_zero_animation_factor (__main__.Profiles.test_no_tier_writes_a_zero_animation_factor) ... ok\ntest_richer_hardware_never_gets_less_motion (__main__.Profiles.test_richer_hardware_never_gets_less_motion) ... ok\n\n----------------------------------------------------------------------\nRan 38 tests in 0.775s\n\nOK\n"
+  },
+  {
+    "command": "python3 tests/test_tidal_horizon.py",
+    "exit": 0,
+    "seconds": 5.57,
+    "output": ".....\n----------------------------------------------------------------------\nRan 5 tests in 5.171s\n\nOK\n"
+  },
+  {
+    "command": "python3 tests/test_tidal_portals.py",
+    "exit": 0,
+    "seconds": 0.4,
+    "output": "....\n----------------------------------------------------------------------\nRan 4 tests in 0.028s\n\nOK\n"
+  },
+  {
+    "command": "python3 tests/test_moos_theme_safety.py",
+    "exit": 0,
+    "seconds": 4.56,
+    "output": "Safety.test_wallpaper_motion_cli_maps_and_validates_exact_values) ... ok\ntest_wallpaper_motion_policy_is_atomic_and_picker_verifies_live_state (__main__.TestMoOSThemeSafety.test_wallpaper_motion_policy_is_atomic_and_picker_verifies_live_state) ... ok\n\n----------------------------------------------------------------------\nRan 14 tests in 4.164s\n\nOK\n"
+  },
+  {
+    "command": "python3 tests/test_moos_visual_system.py",
+    "exit": 0,
+    "seconds": 0.77,
+    "output": "................\n----------------------------------------------------------------------\nRan 16 tests in 0.337s\n\nOK\n"
+  },
+  {
+    "command": "python3 tests/test_moos_settings.py",
+    "exit": 0,
+    "seconds": 4.7,
+    "output": "..........\n----------------------------------------------------------------------\nRan 10 tests in 4.354s\n\nOK\n"
+  },
+  {
+    "command": "python3 tests/test_desktop_customize.py",
+    "exit": 0,
+    "seconds": 0.39,
+    "output": "....\n----------------------------------------------------------------------\nRan 4 tests in 0.244s\n\nOK\n"
+  },
+  {
+    "command": "python3 tests/test_moos_app_icons.py",
+    "exit": 0,
+    "seconds": 0.31,
+    "output": "shows_a_tile_and_a_glyph (__main__.RasterLadder.test_the_dock_cell_shows_a_tile_and_a_glyph) ... ok\ntest_the_review_evidence_covers_light_and_dark_palettes (__main__.ThemeSwitchIsVisible.test_the_review_evidence_covers_light_and_dark_palettes) ... ok\n\n----------------------------------------------------------------------\nRan 18 tests in 0.150s\n\nOK\n"
+  },
+  {
+    "command": "python3 tests/test_window_button_consistency.py",
+    "exit": 0,
+    "seconds": 0.16,
+    "output": "ain__.ButtonsAgree.test_the_kde_side_is_still_written_by_the_same_owner)\nOne writer for both halves, or they drift again. ... ok\ntest_the_two_layouts_are_the_same_arrangement (__main__.ButtonsAgree.test_the_two_layouts_are_the_same_arrangement) ... ok\n\n----------------------------------------------------------------------\nRan 3 tests in 0.001s\n\nOK\n"
+  },
+  {
+    "command": "python3 tests/test_first_party_window_frame.py",
+    "exit": 0,
+    "seconds": 0.14,
+    "output": "_no_first_party_window_goes_frameless (__main__.FirstPartyWindowsKeepTheSystemFrame.test_no_first_party_window_goes_frameless) ... ok\ntest_there_are_windows_to_check (__main__.FirstPartyWindowsKeepTheSystemFrame.test_there_are_windows_to_check) ... ok\n\n----------------------------------------------------------------------\nRan 3 tests in 0.035s\n\nOK\n"
+  },
+  {
+    "command": "python3 tests/test_icon_theme_inheritance.py",
+    "exit": 0,
+    "seconds": 0.15,
+    "output": "_names_a_papirus_variant_fedora_does_not_ship) ... ok\ntest_the_dark_and_light_chains_agree_on_papirus (__main__.PapirusSpelling.test_the_dark_and_light_chains_agree_on_papirus)\nOne package, one spelling. Asymmetry here is how this bug survived. ... ok\n\n----------------------------------------------------------------------\nRan 6 tests in 0.014s\n\nOK\n"
+  },
+  {
+    "command": "python3 tests/test_moos_gtk_runtime.py",
+    "exit": 0,
+    "seconds": 1.09,
+    "output": " running. ... ok\ntest_updater_stages_an_exact_signed_digest_never_a_tag_upgrade (__main__.TestMoOSGtkRuntime.test_updater_stages_an_exact_signed_digest_never_a_tag_upgrade)\nThe window a person opens must be able to actually update the machine. ... ok\n\n----------------------------------------------------------------------\nRan 14 tests in 0.354s\n\nOK\n"
+  },
+  {
+    "command": "python3 tests/test_moos_symbolic_icons.py",
+    "exit": 0,
+    "seconds": 0.73,
+    "output": "s_ahead_of_the_fallback_theme (__main__.MoOSSymbolicIconTests.test_image_build_places_symbols_ahead_of_the_fallback_theme) ... ok\ntest_warning_uses_the_theme_warning_role (__main__.MoOSSymbolicIconTests.test_warning_uses_the_theme_warning_role) ... ok\n\n----------------------------------------------------------------------\nRan 7 tests in 0.532s\n\nOK\n"
+  },
+  {
+    "command": "python3 tests/test_moos_accessibility.py",
+    "exit": 0,
+    "seconds": 0.13,
+    "output": "the_accessibility_stack (__main__.TheStackShips.test_every_edition_installs_the_accessibility_stack) ... ok\ntest_the_editions_agree (__main__.TheStackShips.test_the_editions_agree)\nx86 and ARM diverging here decides whether a person can use the ... ok\n\n----------------------------------------------------------------------\nRan 4 tests in 0.009s\n\nOK\n"
+  },
+  {
+    "command": "python3 tests/test_moos_symbolic_runtime.py",
+    "exit": 0,
+    "seconds": 8.19,
+    "output": "n__.MoOSSymbolicRasterTests.test_light_and_dark_palettes_recolour_without_changing_geometry) ... ok\ntest_visually_confusable_system_states_remain_distinct (__main__.MoOSSymbolicRasterTests.test_visually_confusable_system_states_remain_distinct) ... ok\n\n----------------------------------------------------------------------\nRan 6 tests in 7.764s\n\nOK\n"
+  },
+  {
+    "command": "python3 tests/test_moos_app_visual_polish.py",
+    "exit": 0,
+    "seconds": 0.19,
+    "output": "..................\n----------------------------------------------------------------------\nRan 18 tests in 0.076s\n\nOK\n"
+  },
+  {
+    "command": "python3 tests/test_moos_motion_gate.py",
+    "exit": 0,
+    "seconds": 0.12,
+    "output": "(__main__.MotionGateTests.test_the_gate_actually_shuts_when_animations_are_disabled)\n`> 1` closes at AnimationDurationFactor=0; `> 0` does not. This is the ... skipped 'needs a Qt QML runtime and kwriteconfig6 (present in the image build)'\n\n----------------------------------------------------------------------\nRan 3 tests in 0.000s\n\nOK (skipped=3)\n"
+  },
+  {
+    "command": "python3 tests/test_fwupd_refresh_policy.py",
+    "exit": 0,
+    "seconds": 0.08,
+    "output": "fwupd-refresh policy gate passed (scoped metadata refresh, no over-grant)\n"
+  },
+  {
+    "command": "python3 tests/test_flatpak_user_update.py",
+    "exit": 0,
+    "seconds": 0.13,
+    "output": "Unified Flatpak update recovery gate passed\n"
+  },
+  {
+    "command": "python3 artwork/verify_visuals.py",
+    "exit": 0,
+    "seconds": 3.45,
+    "output": "VISUALS OK: 16 wallpapers, boot sprites, logo master all well-formed\n"
+  },
+  {
+    "command": "python3 tests/test_mcp_config.py",
+    "exit": 0,
+    "seconds": 0.06,
+    "output": "MCP config gate passed (4 servers approved, 5 guard rails intact, no literal credentials)\n"
+  },
+  {
+    "command": "python3 tests/test_utm_bundle.py",
+    "exit": 0,
+    "seconds": 0.83,
+    "output": "UTM release bundle gate passed\n"
+  }
+]

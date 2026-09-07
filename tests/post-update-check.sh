@@ -282,6 +282,53 @@ done
     && ok "UI2 themes, wallpapers, dashboard and weather art all shipped" \
     || bad "UI2 asset set is incomplete:${ui2_missing}"
 
+head_ "Customize Desktop — the shell overlay the user actually gets"
+
+# MoOS restyles two files that plasma-workspace owns, by dropping its versions
+# on top of the shell package. build.sh and build-arm.sh both prove that landed
+# in the image. This proves it landed on the machine the owner is sitting at,
+# which is not the same claim: a user-level Plasma package under
+# ~/.local/share/plasma/shells would shadow /usr entirely, and Plasma's compiled
+# QML disk cache can keep serving the OLD file after an update even when the new
+# bytes are on disk (that is what THEME_REV exists to purge).
+_shell_root=/usr/share/plasma/shells/org.kde.plasma.desktop/contents
+for _pair in \
+    "$_shell_root/explorer/WidgetExplorer.qml:moosDesktopCustomizer:Customize Desktop would be stock Plasma" \
+    "$_shell_root/views/DesktopEditMode.qml:softwareRendering:Arrange would paint black on this GPU-less machine"
+do
+    _f="${_pair%%:*}"; _rest="${_pair#*:}"; _marker="${_rest%%:*}"; _cost="${_rest#*:}"
+    if [ ! -f "$_f" ]; then
+        bad "missing shell overlay $(basename "$_f") — $_cost"
+    elif grep -q "$_marker" "$_f"; then
+        ok "$(basename "$_f") on disk is the MoOS copy"
+    else
+        bad "$(basename "$_f") is stock Plasma, not MoOS — $_cost"
+    fi
+done
+unset -v _pair _f _rest _marker _cost
+
+# A user-level shell package outranks /usr. Nothing in MoOS creates one, so if it
+# exists somebody put it there and the overlay above is decorative.
+if [ -e "${XDG_DATA_HOME:-$HOME/.local/share}/plasma/shells/org.kde.plasma.desktop" ]; then
+    bad "a shell package in \$HOME is shadowing the MoOS overlay in /usr"
+else
+    ok "no shell package in \$HOME is shadowing /usr"
+fi
+
+if [ -x /usr/bin/moos-desktop-edit ]; then
+    ok "the Customize Desktop launcher ships and is executable"
+else
+    bad "/usr/bin/moos-desktop-edit missing — the Settings entry is a dead button"
+fi
+
+# Settings routes moos://settings/desktop at that launcher through moos-open.
+# A route that does not resolve is a button that does nothing.
+if grep -q "settings/desktop)" /usr/bin/moos-open 2>/dev/null; then
+    ok "moos://settings/desktop is a fixed route in moos-open"
+else
+    bad "moos-open has no settings/desktop route — Settings cannot open Customize Desktop"
+fi
+
 head_ "Keyboard — the one that silently broke"
 
 # fcitx5 rewrote ~/.config/kxkbrc to `LayoutList=us` and took Arabic and German
