@@ -1,5 +1,80 @@
 # MoOS — current project state
 
+**The x86/NVIDIA release train, and why it was stuck (2026-09-08, Oracle A1):**
+`moos:latest`, `moos-nvidia:latest` and `moos-cloud:latest` had not moved since
+**2026-08-23** (`44.20260823.650`) while ARM's `latest` was current. That is not
+a broken build: `build.yml` deliberately pushes only a run/SHA-bound
+`candidate-*` tag, and `promote-x86.yml` moves production tags only after five
+proofs of one revision — the signed build, three QCOW2 disk boots and the
+offline ISO install. **`promote-x86.yml` has never run.** The ISO proof kept
+failing, so nothing could ever be promoted, and the maintainer's daily driver
+could not receive an update.
+
+The ISO gate failed the same way every run: *"PLM login did not reach the
+desktop: kwin_wayland not running under moosci"*, printed above four EMPTY
+evidence sections. Two independent defects made it unreadable, both now fixed:
+
+- All 14 failure dumps across `install_live_iso.sh`, `boot_live_iso.sh` and
+  `boot_x86_qcow2.sh` were written `tail … 2>/dev/null >&2`. Redirections apply
+  left to right, so `>&2` pointed stdout at the `/dev/null` fd 2 had just been
+  set to and **every dump was discarded**. Gated by
+  `tests/test_diagnostic_redirection.py`, which proves the behaviour by running
+  both orders.
+- `gate_until()`'s failure diagnosis runs only `if label.startswith("installed")`.
+  The desktop gate's label is `"PLM login did not reach the desktop"`, so
+  **nothing was collected for the one gate that fails** — while SSH was plainly
+  alive. It now takes a diagnosis script, run over that same channel, printed to
+  stderr as well as archived.
+
+The cause itself was found in parallel on `fix/iso-plm-wake-space-20260908` and
+is merged here: `sendkey shift` alone did not dismiss Plasma Login Manager's
+idle clock, so the password went to the clock page and never reached PAM.
+
+**Not yet true:** no x86 promotion has been run, and `latest` for the three x86
+editions is still `44.20260823.650`. Promotion needs the five proofs to pass on
+one revision.
+
+**Stale $HOME overrides were shadowing MoOS code on the A1 (2026-09-08):**
+Mo AI's `moai-agent-api`, `moai-control` and `moai-gateway`, plus Mo PC Remote,
+were all executing binaries under `~/.local/lib` (`moai-cloud-20260906`,
+`mo-remote-v39-20260905`) via drop-ins from a migration two days earlier;
+`moai-hermes.service` had a whole replacement unit in `$HOME`; four MoOS units
+were masked to `/dev/null`. The image's copies had never run on this machine.
+`moos-selfcheck` reported *"no user-level copy is shadowing a MoOS asset"*
+throughout — it looked only at `~/.local/share`. It now also reports units,
+drop-ins that repoint ExecStart/Environment into `$HOME`, drop-ins shadowing an
+image drop-in by filename, and masks over shipped units
+(`tests/test_selfcheck_unit_shadowing.py`).
+
+**Not yet true:** the A1's overrides are still in place at the time of writing.
+They must be retired *after* the machine is updated, not before — the booted
+image (`44.20260907.319`) predates PR #77, so retiring them first would
+downgrade Mo PC Remote to a build without the input fix.
+
+**NVIDIA boot-path gates (2026-09-08):**
+`test_x86_nvidia_is_deliberately_untouched` searched `build.sh` for heredocs
+delimited `DRACUT`; the only x86 dracut config is delimited `DRC`, so it
+inspected **zero blocks and could not fail**. Its stated contract was also false
+— x86 deliberately omits nouveau/amdgpu/radeon/i915/xe/nvidiafb, which is what
+took the NVIDIA initramfs from ~368 MB (GRUB could not allocate it) to ~242 MB.
+It now asserts the contract that matters: `nvidia` and `nvidia_drm` must never
+be omitted. The x86 initramfs also had **no size ceiling** despite that
+documented GRUB failure; `build.sh` now measures the artifact dracut wrote and
+fails above 300 MiB, as ARM has since 2026-09-06.
+
+**Mo PC Remote had no recovery path in any image (2026-09-08):** after five
+failures in 300 s it stays dead for the session. On moos-cloud and the ARM host
+Remote IS the screen. A watchdog had lived only in one machine's `$HOME` since
+2026-08-30 — and it restarted Remote unconditionally, overriding the
+`systemctl --user stop` that `moos-selfcheck` documents as the off switch. The
+shipped version acts only on the `failed` state and is enabled on all four
+editions.
+
+**NVIDIA hardware remains unverified.** No session may claim otherwise from
+Oracle or from a green build; see
+[`docs/NVIDIA_HARDWARE_ACCEPTANCE.md`](docs/NVIDIA_HARDWARE_ACCEPTANCE.md),
+which is unrun.
+
 **Current bounded x86 repair (2026-09-07):** run 769 fails all three editions
 because `55737753` applies ARM's real-directory `/usr/local/sbin` repair to
 Atomic's dangling `/usr/local -> ../var/usrlocal` link. Candidate work on

@@ -131,6 +131,23 @@ browser viewport emulation does not close the wider physical-device gate below.
 
 ## Release blockers
 
+- [x] **Make the x86 proof chain readable.** `promote-x86.yml` has never run,
+  so the three x86 `latest` tags have been frozen at `44.20260823.650` since
+  2026-08-23. It needs five proofs of one revision, and the ISO proof kept
+  failing while printing four empty evidence sections. Two defects caused the
+  blindness — a `2>/dev/null >&2` redirection that discarded all 14 dumps in
+  the x86 gates, and a `gate_until()` diagnosis that only ran for labels
+  starting `"installed"` while the failing label is `"PLM login did not reach
+  the desktop"`. Both fixed and gated (`tests/test_diagnostic_redirection.py`).
+  The cause itself came from `fix/iso-plm-wake-space-20260908` and is merged.
+- [ ] **Run `promote-x86.yml` once.** Still outstanding, and it is the only
+  thing that moves `moos`, `moos-nvidia` and `moos-cloud` off 2026-08-23. It
+  needs a green build, three QCOW2 boots and a green ISO on one revision.
+- [ ] **NVIDIA hardware acceptance.** `docs/NVIDIA_HARDWARE_ACCEPTANCE.md` is
+  written and entirely unrun: boot, Plymouth, login, desktop, module, KWin on
+  Wayland, displays, suspend/resume, update, rollback, reboot. Nothing in CI
+  can substitute for it — a runner has no GPU.
+
 - [ ] Boot the final ARM QCOW2 twice through AArch64 UEFI with zero critical
   failures; capture serial, journal and non-blank login/desktop frames.
 - [ ] Log into that ARM artifact and open/use/close/reopen Launcher, Dolphin,
