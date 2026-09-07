@@ -716,6 +716,65 @@ if [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/fontconfig/conf.d/99-moos-kawkab-test
 fi
 [ "$shadows" -eq 0 ] && ok "no user-level copy is shadowing a MoOS asset"
 
+# The check above covers ASSETS. The far more consequential shadow is CODE: a
+# unit in ~/.config/systemd/user outranks the image's unit of the same name, and
+# a drop-in can repoint ExecStart at a binary staged under $HOME. Both survive
+# every image update, silently, and neither is visible in `rpm-ostree status`.
+#
+# MEASURED ON THIS MACHINE, 2026-09-08. Mo AI's three services and Mo PC Remote
+# were all executing from ~/.local/lib (moai-cloud-20260906, mo-remote-v39-*)
+# via drop-ins written during a migration two days earlier, and moai-hermes had
+# a whole replacement unit in $HOME. The image's copies had never run here. This
+# section reported "no user-level copy is shadowing a MoOS asset" throughout:
+# it looked only at ~/.local/share, so it could not see any of it.
+unit_shadows=0
+user_unit_dir="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
+# Where the image's own user units live. Overridable ONLY so the repo gate can
+# execute this exact code against a synthetic pair of trees; nothing on a real
+# system sets it, and it guards no privilege -- this file is a report, not a
+# policy boundary.
+image_unit_dir="${MOOS_SELFCHECK_UNIT_ROOT:-/usr/lib/systemd/user}"
+if [ -d "$user_unit_dir" ]; then
+    # 1. A whole unit replacing one the image ships.
+    for user_unit in "$user_unit_dir"/*.service "$user_unit_dir"/*.timer; do
+        [ -f "$user_unit" ] || continue          # skips masks (symlinks) and globs
+        name="${user_unit##*/}"
+        [ -e "${image_unit_dir}/$name" ] || continue
+        bad "~/.config/systemd/user/${name} replaces the unit MoOS ships — image updates never reach it"
+        unit_shadows=$((unit_shadows+1))
+    done
+
+    # 2. A drop-in pointing a MoOS unit at a binary under $HOME. The unit stays
+    #    the image's, so nothing looks overridden; only ExecStart moved.
+    for conf in "$user_unit_dir"/*.d/*.conf; do
+        [ -f "$conf" ] || continue
+        unit_dir="${conf%/*}"; unit_name="${unit_dir##*/}"; unit_name="${unit_name%.d}"
+        [ -e "${image_unit_dir}/$unit_name" ] || continue
+        if grep -qE "^[[:space:]]*(ExecStart|ExecStartPre|ExecStartPost|Environment)[^=]*=.*(${HOME}|%h)/" "$conf" 2>/dev/null; then
+            bad "~/.config/systemd/user/${unit_name}.d/${conf##*/} runs ${unit_name} from \$HOME, not the image"
+            unit_shadows=$((unit_shadows+1))
+        fi
+        # 3. A drop-in with the SAME filename as one the image ships for that
+        #    unit: the user file wins outright and the image's is never read.
+        if [ -e "${image_unit_dir}/${unit_name}.d/${conf##*/}" ]; then
+            bad "~/.config/systemd/user/${unit_name}.d/${conf##*/} shadows the image drop-in of the same name"
+            unit_shadows=$((unit_shadows+1))
+        fi
+    done
+
+    # 4. A mask over a unit the image ships. This is the owner's call to make,
+    #    so it is a note — but it is the reason a MoOS feature can be missing
+    #    with nothing in the journal to say so.
+    for link in "$user_unit_dir"/*; do
+        [ -L "$link" ] || continue
+        [ "$(readlink "$link")" = /dev/null ] || continue
+        name="${link##*/}"
+        [ -e "${image_unit_dir}/$name" ] || continue
+        note "${name} is masked here, but MoOS ships it (yours to change, so this is only a note)"
+    done
+fi
+[ "$unit_shadows" -eq 0 ] && ok "no user unit or drop-in is shadowing MoOS code"
+
 # ── MoKernel: is the kernel running what MoOS declared? ──────────────────────
 # `mokernel` reads the RUNNING kernel, not the files MoOS shipped — which is the
 # only reading that has ever been trustworthy here (sch_fq: the .conf was right

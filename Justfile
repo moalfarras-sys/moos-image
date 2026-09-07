@@ -99,6 +99,10 @@ check:
     # a heading and nothing else, so the ISO gate that blocks the x86 release
     # train has been failing blind since 2026-08-23.
     python3 tests/test_diagnostic_redirection.py
+    # Assets were checked for $HOME shadowing; CODE was not. Mo AI and Mo Remote
+    # ran from ~/.local/lib on the A1 for two days while this section reported
+    # "no user-level copy is shadowing a MoOS asset".
+    python3 tests/test_selfcheck_unit_shadowing.py
     python3 tests/test_gate_coverage.py
     python3 tests/test_firewall_migration.py
     python3 tests/test_hardware_adapt_lifecycle.py
