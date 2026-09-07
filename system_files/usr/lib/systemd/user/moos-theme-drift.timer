@@ -1,0 +1,30 @@
+[Unit]
+Description=Repair a MoOS desktop that has drifted from its own theme
+# WHY THIS EXISTS
+#
+# moos-theme-sync.path watches ~/.config/kdeglobals, which catches every Global
+# Theme change. It cannot catch a desktop whose WALLPAPER alone drifts, because
+# that lives in the containment config and never touches kdeglobals.
+#
+# Observed twice on the live Oracle machine: every theme surface read Arena --
+# LookAndFeelPackage, decoration, colour scheme, icons, Plasma style -- while
+# the desktop still showed the Graphite canvas, and theme-state.json recorded
+# Arena as committed. moos-selfcheck reported it as broken and nothing repaired
+# it, including across a reboot.
+#
+# Watching the containment file directly is the obvious answer and the wrong
+# one: plasmashell rewrites it on every applet move, so a path unit would fire
+# constantly. `moos-theme reconcile` is idempotent and finishes in about 16 ms,
+# so a calm periodic pass costs nothing measurable and has a predictable cost
+# ceiling, unlike a watch tied to how often the owner drags a widget.
+PartOf=plasma-workspace.target
+
+[Timer]
+OnStartupSec=3min
+OnUnitActiveSec=30min
+AccuracySec=1min
+Persistent=false
+Unit=moos-theme-sync.service
+
+[Install]
+WantedBy=timers.target

@@ -2559,6 +2559,11 @@ systemd-analyze verify \
 # by the exec-bits gate. A unit whose command is a user install cannot be build-
 # time verified; do not add it back.
 systemctl --global enable moos-theme-sync.path
+# The path unit above cannot see a wallpaper that drifts on its own: that lives
+# in the containment config and never touches kdeglobals. The timer runs the
+# same idempotent reconcile on a calm schedule so the desktop cannot sit in a
+# state moos-selfcheck calls broken with nothing to repair it.
+systemctl --global enable moos-theme-drift.timer
 
 # Mo AI's FRONT DOOR. This is the only thing on 127.0.0.1:8080 and the only thing
 # the Mo AI app ever talks to; it routes each request to the local brain (8081,

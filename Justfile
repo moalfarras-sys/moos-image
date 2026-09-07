@@ -177,6 +177,9 @@ check:
     # The Device page told an Oracle A1 owner their CPU was a "MoOS device".
     # Real hardware identity, or an honest Unknown -- never an invented name.
     python3 tests/test_settings_hardware_identity.py
+    # A desktop that drifts from its own committed theme must repair itself;
+    # the kdeglobals path watch cannot see a wallpaper-only drift.
+    python3 tests/test_theme_drift_repair.py
     # Protected app identities and the small-size icon ladder are separate from
     # the monochrome symbolic family and need their own proof.
     python3 tests/test_moos_app_icons.py
