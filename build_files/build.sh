@@ -2540,7 +2540,6 @@ systemd-analyze verify \
     /usr/lib/systemd/user/moos-input-migrate.service \
     /usr/lib/systemd/user/moos-theme-sync.path \
     /usr/lib/systemd/user/moos-theme-sync.service \
-    /usr/lib/systemd/user/moai.service \
     /usr/lib/systemd/user/moai-gateway.service \
     /usr/lib/systemd/user/moai-control.service \
     /usr/lib/systemd/user/moai-idle.service \
@@ -2575,7 +2574,10 @@ systemctl --global enable moos-theme-drift.timer
 # because local and cloud both wanted 8080 and only one could run. That either/or
 # is what made the choice of brain a global, service-bouncing setting.
 #
-# moai.service is deliberately NOT --global enabled: the local brain is on demand.
+# The RamaLama local-brain unit is GONE with the engine it started. It shipped
+# naming /usr/bin/ramalama after that binary was removed, so systemd-analyze
+# verify failed every x86 build on a unit that could never start. Mo AI's
+# services are the gateway, control and agent API.
 systemctl --global enable moai-gateway.service
 
 # Keep Mo AI's brain FAST: build/serve the instruct (non-thinking) model from

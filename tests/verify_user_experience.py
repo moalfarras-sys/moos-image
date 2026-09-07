@@ -2285,7 +2285,6 @@ require(re.search(r"onClicked:\s*root\.pickRoute\(locRow", _moai_qml) is None,
 # explains it.
 gateway_code = code(gateway)
 control_code = code(control)
-local_unit = read("system_files/usr/lib/systemd/user/moai.service")
 gateway_unit = read("system_files/usr/lib/systemd/user/moai-gateway.service")
 build_code = code(read("build_files/build.sh"))
 
@@ -2310,10 +2309,10 @@ require(r'VERSION="\1"' in build_code,
 require('PRETTY_NAME="MoOS"' in build_code,
         "the OS introduces itself as MoOS, and as nothing else")
 
-# The two ports must not collide. This is the whole architecture in two lines.
-require("Environment=MOAI_PORT=8081" in local_unit,
-        "the local brain must serve on 8081 — 8080 is moai-gateway's, and two "
-        "processes on one port is the either/or this replaced")
+# There is no second port to collide with any more: Mo AI is cloud-only, the
+# RamaLama unit is retired, and its 8081 assertion went with it. The gateway must
+# still derive an allowlisted engine's port correctly, because that code remains
+# and must not silently start answering on 8080 itself.
 require('MOAI_GATEWAY_PORT", "8080"' in gateway_code
         and "ALLOWED_LOCAL_UNITS" in gateway_code
         and '"11434" if LOCAL_BACKEND == "ollama" else "8081"' in gateway_code,
@@ -2326,6 +2325,10 @@ require('MOAI_GATEWAY_PORT", "8080"' in gateway_code
 require("systemctl --global enable moai-gateway.service" in build_code,
         "moai-gateway is the only thing Mo AI talks to; the image must enable it "
         "for every user, not leave it opt-in")
+require(not (ROOT / "system_files/usr/lib/systemd/user/moai.service").exists(),
+        "the RamaLama local-brain unit is back. Mo AI is cloud-only: /usr/bin/ramalama "
+        "is not in the image, so this unit shipped naming a binary that does not "
+        "exist and failed `systemd-analyze verify` on every x86 build")
 require("systemctl --global enable moai.service" not in build_code,
         "the local brain is ON DEMAND — enabling it for every user loads 2.5 GB of "
         "weights into VRAM at every login, on a machine where it already holds 6 of 8 GB")
@@ -2486,7 +2489,7 @@ build_script = read("build_files/build.sh")
 # install cannot be build-time verified; its runtime guard is
 # ConditionFileIsExecutable and its in-image ExecStartPre is covered elsewhere.
 for runtime_unit in (
-    "moai.service", "moai-gateway.service", "moai-control.service",
+    "moai-gateway.service", "moai-control.service",
     "moai-idle.service", "moai-idle.timer", "moos-ensure-brain.service",
     "moos-ensure-brain.timer",
     "openclaw-idle.service", "openclaw-idle.timer", "moai-agent-api.service",

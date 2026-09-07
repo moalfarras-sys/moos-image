@@ -103,7 +103,11 @@ def main() -> int:
     # `systemctl --user` is reachable by every local account, and X-Moai-* headers are
     # guards against web pages, not against another user on the same machine.
     user_units = ROOT / "system_files/usr/lib/systemd/user"
-    for unit in ("moai-agent-api", "moai-control", "moai-gateway", "moai",
+    # "moai" (the RamaLama local brain) is deliberately absent: Mo AI is
+    # cloud-only, the engine and its unit are gone, and a unit that does not
+    # exist cannot start for a system user at all. The property this loop
+    # guards is unchanged for every unit that still ships.
+    for unit in ("moai-agent-api", "moai-control", "moai-gateway",
                  "moai-wake", "openclaw-gateway"):
         path = user_units / f"{unit}.service"
         if not path.is_file():

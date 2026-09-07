@@ -178,8 +178,17 @@ def main() -> None:
         require("fedora" not in source.lower(),
                 f"a MoOS app feeds the base distro's name to the user at runtime: {qml}")
 
-    require((ROOT / "usr/lib/systemd/user/moai.service").is_file(),
-            "Mo AI user service is missing")
+    # This required moai.service, the RamaLama local-brain unit. Mo AI is
+    # cloud-only: that engine was removed, the unit was left shipping with
+    # ExecStart=/usr/bin/ramalama, and it failed `systemd-analyze verify` on
+    # every x86 build. Assert the services Mo AI actually has instead, and that
+    # the retired one does not return.
+    for unit in ("moai-gateway.service", "moai-control.service",
+                 "moai-agent-api.service"):
+        require((ROOT / "usr/lib/systemd/user" / unit).is_file(),
+                f"Mo AI user service is missing: {unit}")
+    require(not (ROOT / "usr/lib/systemd/user/moai.service").is_file(),
+            "the retired RamaLama local-brain unit is back in the image")
     sanitizer = ROOT / "usr/libexec/moos-fstab-sanitize"
     require(sanitizer.is_file() and sanitizer.stat().st_mode & 0o111,
             "bootc fstab sanitizer is missing or not executable")
