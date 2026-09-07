@@ -561,7 +561,7 @@ def ssh_exec(script, args=(), timeout=180):
     return completed.returncode, completed.stdout, completed.stderr
 
 
-def gate_until(script, args, seconds, label):
+def gate_until(script, args, seconds, label, diagnose=None):
     deadline = time.monotonic() + seconds
     last = "not run"
     while time.monotonic() < deadline:
@@ -575,6 +575,27 @@ def gate_until(script, args, seconds, label):
             return out
         last = err or out or f"exit {code}"
         time.sleep(5)
+    if diagnose is not None:
+        # The SSH channel is demonstrably working here -- the gate script itself
+        # ran and reported which assert failed -- so ask the guest directly.
+        #
+        # The block below this one only runs for labels starting "installed",
+        # and it exists for the case where SSH is dead. The desktop gate's label
+        # is "PLM login did not reach the desktop", so nothing was collected for
+        # the one failure that has blocked the x86 release train since
+        # 2026-08-23: every run said "kwin_wayland not running under moosci" and
+        # nothing whatsoever about why.
+        try:
+            _code, dout, derr = ssh_exec(diagnose, (), 180)
+            text = (dout or "") + (("\n=== stderr ===\n" + derr) if derr else "")
+        except (subprocess.TimeoutExpired, OSError) as error:
+            text = f"diagnosis could not run: {error}\n"
+        (evidence / "session-failure-diagnosis.txt").write_text(
+            text, encoding="utf-8")
+        # Print it, do not merely archive it. An artifact nobody downloads is
+        # the same blind failure with extra steps.
+        print(f"=== session failure diagnosis ===\n{text}", file=sys.stderr)
+
     if label.startswith("installed"):
         # Keep the gate's own last output: its stderr stage markers name the
         # exact assert that failed, which the one-line FATAL cannot carry.
@@ -777,7 +798,50 @@ user_failed="$(env XDG_RUNTIME_DIR="/run/user/${uid}" \
 [ -z "$user_failed" ]
 printf 'login=plasma-login-manager\ndesktop=usable\nkwin=active\nplasmashell=active\nuser-failed-units=0\n'
 '''
-desktop_out = gate_until(desktop, [], 900, "PLM login did not reach the desktop")
+# What to ask the guest when the desktop never appears. Everything here is
+# read-only and bounded; it runs once, after the 900s gate has already given up.
+desktop_diagnosis = r'''
+set +e
+uid="$(id -u moosci 2>/dev/null)"
+echo "=== who is logged in ==="
+loginctl list-sessions --no-legend 2>&1
+for s in $(loginctl list-sessions --no-legend 2>/dev/null | awk '{print $1}'); do
+    echo "--- session $s ---"
+    loginctl show-session "$s" -p Id -p User -p Name -p Type -p Class -p Active -p State -p Display 2>&1
+done
+echo "=== the greeter ==="
+systemctl status plasmalogin.service --no-pager --full 2>&1 | head -n 25
+echo "=== greeter journal ==="
+journalctl -b -u plasmalogin.service --no-pager -o short-monotonic 2>&1 | tail -n 60
+echo "=== system units that failed ==="
+systemctl list-units --state=failed --no-legend --no-pager 2>&1
+echo "=== the user manager for moosci ==="
+systemctl status "user@${uid}.service" --no-pager --full 2>&1 | head -n 20
+echo "=== moosci session journal (this is where kwin says why it died) ==="
+journalctl -b _UID="${uid}" --no-pager -o short-monotonic 2>&1 | tail -n 120
+echo "=== moosci user units ==="
+env XDG_RUNTIME_DIR="/run/user/${uid}" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${uid}/bus" \
+    systemctl --user list-units --state=failed --no-legend --no-pager 2>&1
+env XDG_RUNTIME_DIR="/run/user/${uid}" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${uid}/bus" \
+    systemctl --user status plasma-kwin_wayland.service --no-pager --full 2>&1 | head -n 30
+echo "=== runtime dir (is there a wayland socket at all?) ==="
+ls -la "/run/user/${uid}" 2>&1 | head -n 25
+echo "=== what the session had to render on ==="
+ls -la /dev/dri 2>&1
+echo "=== processes owned by moosci ==="
+ps -u moosci -o pid=,comm=,args= --sort=pid 2>&1 | head -n 40
+echo "=== kernel graphics/drm messages ==="
+dmesg 2>/dev/null | grep -iE "drm|virtio|render|gpu" | tail -n 25
+echo "=== selinux denials ==="
+getenforce 2>&1
+ausearch -m avc -ts recent 2>&1 | tail -n 25
+exit 0
+'''
+
+desktop_out = gate_until(desktop, [], 900, "PLM login did not reach the desktop",
+                         diagnose=desktop_diagnosis)
 (evidence / "desktop-session.txt").write_text(desktop_out)
 
 open_app = r'''

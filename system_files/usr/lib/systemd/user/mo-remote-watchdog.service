@@ -1,0 +1,31 @@
+[Unit]
+Description=Recover Mo PC Remote if it crashed out of its start limit
+Documentation=file:/usr/libexec/mo-remote-watchdog
+# Mo AI's units use this to keep a root login session from starting a user
+# service that belongs to a human; the same reasoning applies here.
+ConditionUser=!@system
+# THE MARKER IS THE WAYLAND SOCKET, NOT THE BUS.
+#
+# The $HOME ancestor of this unit originally had its ConditionPathExists in the
+# [Service] section, where systemd ignores Condition* entirely: it logged
+# "Unknown key ... ignoring" on every firing and the guard never applied. The
+# timer then fired 12.65s into the session, before the graphical session
+# existed, started mo-remote-personal, whose Wants= pulled up
+# xdg-desktop-portal; xdg-desktop-portal-kde is a QApplication, so with no
+# platform plugin it hit qFatal and SIGABRT, and systemd logged "Dependency
+# failed for xdg-desktop-portal.service" at 13.18s. That happened on every boot.
+#
+# %t/bus is not the right marker either -- the bus exists at 12.5s, before the
+# session. %t/wayland-0 is what "the graphical session is up" actually means,
+# and it is what mo-remote-personal itself needs.
+ConditionPathExists=%t/wayland-0
+After=plasma-workspace.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/mo-remote-watchdog
+# The recovery is a couple of systemctl calls; if it ever hangs, the timer's
+# next firing is the retry.
+TimeoutStartSec=30
+
+# NO [Install] SECTION ON PURPOSE — mo-remote-watchdog.timer starts this.

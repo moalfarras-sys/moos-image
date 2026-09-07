@@ -2679,6 +2679,28 @@ systemctl --global enable moos-ensure-brain.timer
 # the next request. Enabled for every user so stability is the default, not an opt-in.
 systemctl --global enable moai-idle.timer
 
+# Bring Mo PC Remote back after a CRASH — and only after a crash.
+#
+# mo-remote-personal has StartLimitBurst=5 over 300s with Restart=on-failure and
+# RestartSec=3, so five failures in fifteen seconds exhaust the limit and systemd
+# refuses to start it again for the rest of the session. On moos-cloud and on the
+# ARM Oracle host that is fatal in the literal sense: Mo PC Remote IS the screen,
+# so there is no local session left to type the recovery into. On generic x86 and
+# NVIDIA it is a feature that silently stops working until the next reboot.
+#
+# A hand-written version of this has been in ~/.config/systemd/user on the A1
+# since 2026-08-30 and never reached the image, which is exactly the
+# edition-specific drift the shared tree exists to prevent.
+#
+# The watchdog acts ONLY on the failed state, because `systemctl --user stop` --
+# the off switch moos-selfcheck tells the owner to use -- leaves the unit
+# inactive, not failed. The $HOME ancestor started it unconditionally once a
+# minute and so overrode that documented off switch.
+#
+# The TIMER is enabled, not the service: the service is Type=oneshot and carries
+# no [Install], for the same reason moos-ensure-brain does not.
+systemctl --global enable mo-remote-watchdog.timer
+
 # Mo AI on Telegram is ON-DEMAND. The heavy agent (openclaw-gateway: a ~386 MB Node
 # runtime + a rootless-podman sandbox + an Ollama model) is NOT enabled at boot — it
 # would sit resident just to hear "hi". Instead, moai-wake is the only always-on

@@ -123,6 +123,7 @@ jobs:
           python3 tests/test_index_policy_consumer.py
           python3 tests/test_diagnostic_redirection.py
           python3 tests/test_selfcheck_unit_shadowing.py
+          python3 tests/test_mo_remote_watchdog.py
           python3 tests/test_gate_coverage.py
           python3 tests/test_moai_cloud_only.py
           python3 tests/test_moai_free_policy.py

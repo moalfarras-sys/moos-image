@@ -103,6 +103,11 @@ check:
     # ran from ~/.local/lib on the A1 for two days while this section reported
     # "no user-level copy is shadowing a MoOS asset".
     python3 tests/test_selfcheck_unit_shadowing.py
+    # Mo PC Remote IS the screen on cloud and ARM. A crash past StartLimitBurst
+    # left it dead until reboot on every edition; the recovery unit existed only
+    # in one machine's $HOME. It must recover a crash without overriding the
+    # owner's `systemctl --user stop`.
+    python3 tests/test_mo_remote_watchdog.py
     python3 tests/test_gate_coverage.py
     python3 tests/test_firewall_migration.py
     python3 tests/test_hardware_adapt_lifecycle.py

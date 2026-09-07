@@ -1,0 +1,15 @@
+[Unit]
+Description=Check once a minute whether Mo PC Remote crashed and needs bringing back
+Documentation=file:/usr/libexec/mo-remote-watchdog
+
+[Timer]
+# Late enough that the session exists on the first firing (the service's own
+# ConditionPathExists is the real guard), then once a minute for as long as the
+# session is up -- the whole time Remote matters.
+OnStartupSec=45s
+OnUnitActiveSec=1min
+AccuracySec=10s
+Persistent=false
+
+[Install]
+WantedBy=timers.target
