@@ -3,6 +3,14 @@
 Only completed evidence closes an item. Source code, a package, or a green
 parser alone is not runtime proof. Current facts live in `PROJECT_STATE.md`.
 
+**Release integration 2026-09-07:** `main` was unbuildable for all three x86
+editions (a comment inside a backslash continuation truncated a `sed`); fixed
+and gated. The Device page named hardware that does not exist on aarch64; fixed
+against `lscpu` ground truth. Bubblewrap, which Mo AI's sandbox depends on, was
+reaching the image only by inheritance; now required by name and asserted in the
+finished image. Wallpaper drift now repairs itself on a timer. Settings and the
+Mo AI agent workspace are merged. Host suite 115/115.
+
 **Current release audit:** `docs/SYSTEM_AUDIT_RESUME_20260906.md`. The desktop
 OOM incident is unresolved (S03); short healthy samples do not close it. Source
 motion settings are not a performance benchmark. Launcher routing has executable

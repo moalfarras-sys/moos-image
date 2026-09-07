@@ -23,7 +23,46 @@ retains the shared UI2 components and graphical KDE backends. Native English/
 Arabic source frames and failure fixtures are reviewed; no OS build or deployment.
 See [the bounded handoff](docs/SETTINGS_HANDOFF_20260907.md) for tests and limits.
 
-### Nothing reconciles a wallpaper that drifts from its profile (2026-09-07)
+### main could not build any x86 edition (2026-09-07, fixed)
+
+`moos`, `moos-nvidia` and `moos-cloud` all died identically on `sed: no input
+files`, exit 4. The icon-theme `sed` carried its explanatory comment BETWEEN its
+`-e` arguments; bash joins a backslash continuation into one logical line, so
+the `#` commented out the remainder -- three expressions and the target file.
+The same truncation meant the `Inherits=` fix that comment describes never
+applied, so one defect hid a second.
+
+`bash -n` PASSES on the broken form, which is why the CI syntax check never
+caught it. `tests/test_shell_line_continuations.py` checks the structure and
+distinguishes a documentation comment block whose lines end in `\` (harmless)
+from a comment inside a continuation opened by code (fatal).
+
+### The Device page described hardware that does not exist (2026-09-07, fixed)
+
+It told the owner of this Oracle A1 that their processor was a "MoOS device",
+and showed no GPU at all. aarch64 publishes no `model name` and no `Hardware`
+line in `/proc/cpuinfo` -- only numeric implementer/part registers -- so the
+x86-only scan fell through to a branded placeholder on EVERY ARM machine.
+
+    before   cpu: "MoOS device"
+    after    cpu: "Neoverse-N1"          (lscpu ground truth: Neoverse-N1)
+             gpu: "virtio-pci (virtual)"
+
+GPU comes from `moos-visual-tier`, the prober that already drives compositor
+policy, rather than a second one that could disagree with it. An unidentified
+part now renders "Unknown"; a placeholder shaped like a product name is worse
+than an empty field.
+
+### Bubblewrap reached the image only by inheritance (2026-09-07, fixed)
+
+Mo AI runs model-proposed commands only inside bubblewrap and REFUSES when
+`/usr/bin/bwrap` is absent. That refusal is correct, which is exactly what made
+the gap dangerous: nothing in MoOS asked for the package, so an upstream change
+could have removed a security boundary with no gate firing and no crash --
+`run_command` would simply have stopped working. Both build paths now install it
+by name and `verify_arm_image.py` asserts the binary is in the finished image.
+
+### Wallpaper drift now repairs itself (2026-09-07, closed)
 
 `moos-selfcheck` reported the desktop wallpaper as broken and it was right, but
 not for the reason it looked like. Every other theme surface was Arena --
@@ -45,11 +84,22 @@ tree, so it will not re-run on the next login or even after the update.
 drift -- which touches the containment config, not kdeglobals -- fires nothing.
 The result is a state selfcheck correctly calls broken and nothing repairs.
 
-Repaired here by re-running the profile transaction (`moos-theme gaming`), which
-restored MoOSUI2Arena and took selfcheck from 2 broken to 47 passed / 0 broken.
-That is a repair, not a fix: the gap is still open. Watching the containment
-file directly is NOT an obvious answer -- plasmashell rewrites it on every
-applet move, so a naive path unit would churn. Design it deliberately.
+**Closed.** It recurred across a reboot, which settled that it was not a
+one-off. `moos-theme reconcile` already repairs the state correctly (verified
+Graphite -> Arena, selfcheck 1 broken -> 0 broken); only the trigger was
+missing, so `moos-theme-drift.timer` now runs that same idempotent service on a
+30-minute schedule. There is still exactly one repair path.
+
+Watching the containment file directly stays rejected -- plasmashell rewrites it
+on every applet move -- and `tests/test_theme_drift_repair.py` refuses that
+regression along with an aggressive period and a missing `[Install]` section.
+
+A guard that would have preserved a live custom wallpaper the recorded state
+never learned about was written and then REVERTED: a round-trip on the real
+desktop showed `plasma-apply-wallpaperimage` switches the wallpaper plugin away
+from `org.moos.ui2.wallpaper`, so the classifier returns empty and the guard
+never fires. MoOS owns that plugin by design and a genuine custom image goes
+through `moos-theme`, which records `mode=custom` and is already honoured.
 
 ### The live A1 is running an unverified origin (2026-09-07)
 
