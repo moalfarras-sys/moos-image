@@ -94,6 +94,11 @@ check:
     # sees until they look. One was live on the A1 for eight days.
     python3 tests/test_no_privileged_user_writable_units.py
     python3 tests/test_index_policy_consumer.py
+    # Every failure dump in the x86 boot proofs was written `2>/dev/null >&2`,
+    # which points stdout at the /dev/null fd 2 was just set to. All 14 printed
+    # a heading and nothing else, so the ISO gate that blocks the x86 release
+    # train has been failing blind since 2026-08-23.
+    python3 tests/test_diagnostic_redirection.py
     python3 tests/test_gate_coverage.py
     python3 tests/test_firewall_migration.py
     python3 tests/test_hardware_adapt_lifecycle.py

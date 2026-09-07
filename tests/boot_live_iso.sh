@@ -36,9 +36,9 @@ cleanup() {
     moos_stop_virgl_display
     if [ "$rc" -ne 0 ]; then
         echo "=== QEMU log (tail) ===" >&2
-        tail -80 "$evidence/qemu.log" 2>/dev/null >&2 || true
+        tail -n 80 "$evidence/qemu.log" >&2 2>/dev/null || true
         echo "=== guest serial (tail) ===" >&2
-        tail -80 "$evidence/serial.log" 2>/dev/null >&2 || true
+        tail -n 80 "$evidence/serial.log" >&2 2>/dev/null || true
     fi
     rm -rf -- "$work"
     exit "$rc"
@@ -194,7 +194,7 @@ gate_fail() {
         printf 'live-uid=%s\n' "${live_uid:-missing}" >&2
         if [ -n "$live_uid" ]; then
             printf '%s\n' 'live-processes:' >&2
-            ps -u "$live_uid" -o pid=,comm=,args= --sort=pid 2>/dev/null | tail -80 >&2 || true
+            ps -u "$live_uid" -o pid=,comm=,args= --sort=pid 2>/dev/null | tail -n 80 >&2 || true
             runtime="/run/user/${live_uid}"
             if [ -S "${runtime}/bus" ]; then
                 printf '%s\n' 'plasma-plasmashell.service:' >&2
@@ -202,13 +202,13 @@ gate_fail() {
                     XDG_RUNTIME_DIR="$runtime" \
                     DBUS_SESSION_BUS_ADDRESS="unix:path=${runtime}/bus" \
                     systemctl --user status plasma-plasmashell.service \
-                        --no-pager --full 2>&1 | tail -80 >&2 || true
+                        --no-pager --full 2>&1 | tail -n 80 >&2 || true
             fi
             printf '%s\n' 'liveuser-journal:' >&2
             journalctl -b "_UID=${live_uid}" -o short-monotonic --no-pager -n 120 >&2 || true
         fi
         printf '%s\n' 'theme-log:' >&2
-        tail -120 /home/liveuser/.cache/moos-apply-theme.log 2>/dev/null >&2 || true
+        tail -n 120 /home/liveuser/.cache/moos-apply-theme.log >&2 2>/dev/null || true
     fi
     return 1
 }

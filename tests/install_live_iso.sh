@@ -43,14 +43,14 @@ cleanup() {
     moos_stop_virgl_display
     if [ "$rc" -ne 0 ]; then
         echo "=== QEMU log (tail) ===" >&2
-        tail -100 "$evidence/qemu-installed.log" "$evidence/qemu-live-install.log" \
-            2>/dev/null >&2 || true
+        tail -n 100 "$evidence/qemu-installed.log" "$evidence/qemu-live-install.log" \
+            >&2 2>/dev/null || true
         echo "=== installed serial (tail) ===" >&2
-        tail -120 "$evidence/serial-installed.log" 2>/dev/null >&2 || true
+        tail -n 120 "$evidence/serial-installed.log" >&2 2>/dev/null || true
         echo "=== live install status ===" >&2
-        tail -80 "$evidence/install.status" 2>/dev/null >&2 || true
+        tail -n 80 "$evidence/install.status" >&2 2>/dev/null || true
         echo "=== installer log ===" >&2
-        tail -120 "$evidence/installer.log" 2>/dev/null >&2 || true
+        tail -n 120 "$evidence/installer.log" >&2 2>/dev/null || true
     fi
     rm -rf -- "$work"
     exit "$rc"
@@ -610,7 +610,7 @@ def gate_until(script, args, seconds, label):
                 "echo '=== firewall zones ===';"
                 "/usr/bin/firewall-cmd --get-active-zones 2>&1 | head -5;"
                 "echo '=== selinux ==='; getenforce 2>&1;"
-                "ausearch -m avc -ts recent 2>&1 | tail -20 || dmesg 2>/dev/null | grep -iE 'avc|denied' | tail -15;"
+                "ausearch -m avc -ts recent 2>&1 | tail -n 20 || dmesg 2>/dev/null | grep -iE 'avc|denied' | tail -n 15;"
                 "echo '=== sshd try ==='; /usr/sbin/sshd -t 2>&1;"
                 "echo '=== kernel marker ==='; cat /proc/cmdline")
         try:
