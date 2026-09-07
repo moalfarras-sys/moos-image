@@ -4343,6 +4343,52 @@ if [ -n "${stray_pycache}" ]; then
     exit 1
 fi
 
+# ── The Plasma shell overlay must survive into the finished image ─────────────
+#
+# MoOS restyles two files that belong to plasma-workspace's own shell package by
+# dropping its versions on top with `COPY system_files/ /`:
+#
+#   contents/explorer/WidgetExplorer.qml  -- Customize Desktop (the MoOS UI2 panel)
+#   contents/views/DesktopEditMode.qml    -- Arrange, drawn without a GPU
+#
+# Overlaying is the supported way to restyle the shell, but it is fragile in one
+# specific direction: the base image owns those paths too. A plasma-workspace
+# update that moves, renames or re-layouts the shell package would leave our copy
+# sitting at a path nothing loads, and a later `dnf5` transaction in this very
+# script can reinstall the package and overwrite our bytes. Either way the repo
+# gates stay green -- they only ever read the source tree -- while the shipped
+# desktop silently reverts to stock Plasma: no Customize Desktop, and a black
+# Arrange screen on every GPU-less edition.
+#
+# So assert on the finished filesystem, after all package transactions, that both
+# files are present AND are still ours. Marker strings, not just paths: a
+# reinstall restores a file at the same path with upstream's content.
+for _pair in \
+    "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/explorer/WidgetExplorer.qml:moosDesktopCustomizer" \
+    "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/DesktopEditMode.qml:softwareRendering"
+do
+    _f="${_pair%%:*}"; _marker="${_pair##*:}"
+    [ -f "$_f" ] || {
+        echo "GATE FAIL: the MoOS Plasma shell overlay is missing from the image: $_f"
+        echo "           Customize Desktop and the GPU-less Arrange fix would not ship."
+        exit 1
+    }
+    grep -q "$_marker" "$_f" || {
+        echo "GATE FAIL: $_f exists but is not the MoOS copy (no '$_marker')."
+        echo "           A later rpm transaction overwrote the overlay with stock Plasma."
+        exit 1
+    }
+done
+unset -v _pair _f _marker
+
+# The panel is only reachable if its launcher shipped too -- Settings routes
+# moos://settings/desktop straight at this binary.
+[ -x /usr/bin/moos-desktop-edit ] || {
+    echo "GATE FAIL: /usr/bin/moos-desktop-edit is missing or not executable;"
+    echo "           the Customize Desktop entry in Settings would be a dead button."
+    exit 1
+}
+
 # The generated desktop contract is shared with aarch64. The x86 build creates
 # these assets earlier, while ARM must create them after installing Plasma; this
 # final idempotent authority verifies/repairs the finished filesystem after all
