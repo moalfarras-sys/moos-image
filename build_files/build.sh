@@ -1840,6 +1840,13 @@ systemctl --global disable mo-remote-personal.service || true
 # on the WiFi. It binds 127.0.0.1 now and `tailscale serve` is the only way in; see the long note
 # at the top of /usr/bin/moos-cloud-audio.
 systemctl --global enable moos-cloud-audio.service
+# The file-indexing budget consumer. moos-visual-tier publishes
+# budget.file_indexing; this is the owner that applies it to baloofilerc. It was
+# published and unconsumed, so a 2-core machine ran full content extraction
+# against its own advice (measured on the live A1: 2.8 GB index, 394 MiB RSS).
+test -f /usr/lib/systemd/user/moos-index-policy.service \
+    || { echo "FATAL: moos-index-policy.service is missing from the image"; exit 1; }
+systemctl --global enable moos-index-policy.service
 echo "=== per-account audio enabled on loopback; the authenticated agent proxies /api/audio/stream.webm ==="
 chmod 0755 /usr/lib/mo-remote/MoRemotePersonal \
     /usr/lib/mo-remote/mo-remote-portal.py \

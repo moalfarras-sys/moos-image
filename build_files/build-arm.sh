@@ -255,7 +255,8 @@ for unit in \
     moai-gateway.service moai-control.service moai-agent-api.service \
     moai-wake.service moai-idle.timer openclaw-idle.timer \
     moos-ensure-brain.timer moos-theme-sync.path moos-theme-drift.timer \
-    moos-cloud-audio.service moos-update-ready.timer moos-reclaim-disk.timer; do
+    moos-cloud-audio.service moos-update-ready.timer moos-reclaim-disk.timer \
+    moos-index-policy.service; do
     test -f "/usr/lib/systemd/user/${unit}" || {
         echo "FATAL: shared user authority is missing: ${unit}"
         exit 1
@@ -270,7 +271,8 @@ systemctl --global enable \
     moai-gateway.service moai-control.service moai-agent-api.service \
     moai-wake.service moai-idle.timer openclaw-idle.timer \
     moos-ensure-brain.timer moos-theme-sync.path moos-theme-drift.timer \
-    moos-cloud-audio.service moos-update-ready.timer moos-reclaim-disk.timer
+    moos-cloud-audio.service moos-update-ready.timer moos-reclaim-disk.timer \
+    moos-index-policy.service
 
 systemctl enable NetworkManager.service sshd.service firewalld.service tailscaled.service
 systemctl enable moos-auto-update.timer

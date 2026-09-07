@@ -1,0 +1,251 @@
+#!/usr/bin/python3
+"""Apply the machine's file-indexing budget to Baloo. One consumer, no new authority.
+
+WHAT THIS IS, AND WHAT IT IS NOT
+
+`moos-visual-tier` is the single authority on "what is this machine". Its
+`budget()` block publishes `file_indexing` as either "content" or "filenames",
+as a pure function of the same probe that picks the motion tier. Its docstring
+is explicit that it is ADVISORY and that it deliberately does not write
+baloofilerc itself, because that file has its own owner and its own migration.
+
+This is that owner. It reads the budget and applies exactly one knob. It has no
+thresholds of its own -- no core count, no memory figure, no "is this a VM"
+check. If you find yourself adding one here, you are building a second
+performance authority and the answers will drift apart; put it in
+`moos-visual-tier.budget()` instead and read it from here.
+
+WHY IT EXISTS AT ALL
+
+The budget was published and nothing consumed it. Measured on the live Oracle A1
+on 2026-09-07, on a signed image, tier `essential`:
+
+    budget.file_indexing      filenames
+    /etc/xdg/baloofilerc      only basic indexing=false     <- content extraction
+    baloo_file RSS            394.6 MiB   (largest MoOS-owned process on the box)
+    index database            2.8 GB      for 12,456 files
+    balooctl status           "indexing file content"
+
+The same file's comment records 70 MB on 2026-09-06, so the content index had
+grown 40x in a day on a 2-core machine with no GPU. The budget had the right
+answer the whole time; nobody was listening.
+
+WHAT IT DOES NOT DO
+
+It never disables indexing. There is no "off" in the budget and there must not
+be one here: the FILENAME index is what powers the Launcher's file results and
+the Places page's "file search covers your home folder" promise, and it is
+cheap. Content EXTRACTION is the sustained CPU, IO and disk cost, and that is
+the only thing a small machine stops paying. A machine whose budget says
+"content" gets content extraction turned back on by this same script.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import pathlib
+import shutil
+import subprocess
+import sys
+
+VISUAL_TIER = "/usr/bin/moos-visual-tier"
+BALOO_RC = "baloofilerc"
+GROUP = "Basic Settings"
+KEY = "only basic indexing"
+
+# budget value -> the value of `only basic indexing`
+POLICY = {"filenames": "true", "content": "false"}
+
+
+def log(message: str) -> None:
+    print(f"moos-index-policy: {message}", flush=True)
+
+
+def read_budget() -> str | None:
+    """The one authority's answer, or None if it cannot be asked.
+
+    Never guess. If the tier tool is missing or unreadable, this script does
+    nothing at all -- an unconfigured Baloo behaving as upstream intends is a
+    far better failure than a policy invented from a second set of thresholds.
+    """
+    if not os.access(VISUAL_TIER, os.X_OK):
+        log(f"{VISUAL_TIER} is not available; leaving Baloo untouched")
+        return None
+    try:
+        out = subprocess.run([VISUAL_TIER, "--json"], capture_output=True,
+                             text=True, timeout=30, check=True).stdout
+        value = json.loads(out)["budget"]["file_indexing"]
+    except (subprocess.SubprocessError, OSError, ValueError, KeyError) as exc:
+        log(f"could not read the machine budget ({exc}); leaving Baloo untouched")
+        return None
+    if value not in POLICY:
+        log(f"budget.file_indexing is {value!r}, which this consumer does not "
+            f"know how to apply; leaving Baloo untouched")
+        return None
+    return value
+
+
+def config_path() -> pathlib.Path:
+    base = os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config")
+    return pathlib.Path(base) / BALOO_RC
+
+
+def current_value() -> str | None:
+    kread = shutil.which("kreadconfig6")
+    if kread:
+        try:
+            out = subprocess.run(
+                [kread, "--file", BALOO_RC, "--group", GROUP, "--key", KEY],
+                capture_output=True, text=True, timeout=20, check=False).stdout.strip()
+            if out:
+                return out.lower()
+        except (subprocess.SubprocessError, OSError):
+            pass
+    # kreadconfig6 answers "" both for "absent" and for a missing binary, and an
+    # absent key means Baloo's own default (content extraction). Fall back to
+    # reading the file so a wrong answer cannot masquerade as "already correct".
+    path = config_path()
+    if path.is_file():
+        for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+            if line.strip().lower().startswith(KEY):
+                return line.split("=", 1)[-1].strip().lower()
+    return None
+
+
+def write_value(value: str) -> bool:
+    kwrite = shutil.which("kwriteconfig6")
+    if not kwrite:
+        log("kwriteconfig6 is not installed; cannot apply the indexing budget")
+        return False
+    try:
+        subprocess.run(
+            [kwrite, "--file", BALOO_RC, "--group", GROUP, "--key", KEY, value],
+            check=True, timeout=20, capture_output=True)
+    except (subprocess.SubprocessError, OSError) as exc:
+        log(f"failed to write {KEY}={value}: {exc}")
+        return False
+    return True
+
+
+def restart_baloo() -> None:
+    """Ask Baloo to re-read its configuration.
+
+    balooctl6's own disable/enable pair is the supported way to make the daemon
+    pick up a changed `only basic indexing`; nothing here kills a process. If
+    balooctl6 is missing the new value simply takes effect at next login, which
+    is why this is best-effort and never fatal.
+    """
+    balooctl = shutil.which("balooctl6") or shutil.which("balooctl")
+    if not balooctl:
+        log("balooctl6 not found; the new policy applies at next login")
+        return
+    for args in (["disable"], ["enable"]):
+        try:
+            subprocess.run([balooctl] + args, check=False, timeout=60,
+                           capture_output=True)
+        except (subprocess.SubprocessError, OSError) as exc:
+            log(f"balooctl {args[0]} did not complete ({exc}); "
+                f"the new policy applies at next login")
+            return
+    log("Baloo restarted with the new indexing policy")
+
+
+def purge_content_index() -> None:
+    """Reclaim the disk an obsolete content index is holding, without blocking login.
+
+    Switching to filename-only does NOT shrink the existing database: Baloo stops
+    ADDING content but keeps every byte it already extracted. On the live A1 that
+    was 2.8 GB.
+
+    `balooctl6 purge` does the right thing but does it synchronously -- it
+    deletes AND fully re-indexes before returning. Measured here on 2026-09-07 it
+    ran well past 300 seconds, which is unacceptable in a unit that starts with
+    the graphical session. So do the two halves explicitly: stop the indexer,
+    delete the database (near-instant, and this is the only step that reclaims
+    the disk), then start it again. Baloo rebuilds the filename index itself, in
+    the background, under the idle IO priority the unit sets.
+
+    The database is a derived cache. Nothing here touches a user's files, and
+    the filename search the Launcher depends on comes back on its own.
+    """
+    balooctl = shutil.which("balooctl6") or shutil.which("balooctl")
+    if not balooctl:
+        return
+
+    def _balooctl(action: str, timeout: int) -> bool:
+        try:
+            subprocess.run([balooctl, action], check=False, timeout=timeout,
+                           capture_output=True)
+            return True
+        except (subprocess.SubprocessError, OSError) as exc:
+            log(f"balooctl {action} did not complete ({exc})")
+            return False
+
+    if not _balooctl("disable", 60):
+        log("left the stale index in place; it shrinks as files change")
+        return
+
+    base = pathlib.Path(os.environ.get("XDG_DATA_HOME")
+                        or os.path.expanduser("~/.local/share")) / "baloo"
+    freed = 0
+    for name in ("index", "index-lock"):
+        target = base / name
+        try:
+            if target.is_file():
+                freed += target.stat().st_size
+                target.unlink()
+            elif target.is_dir():
+                freed += sum(f.stat().st_size for f in target.rglob("*") if f.is_file())
+                shutil.rmtree(target)
+        except OSError as exc:
+            log(f"could not remove {target} ({exc})")
+
+    _balooctl("enable", 60)
+    if freed:
+        log(f"reclaimed {freed / (1024 ** 3):.2f} GiB of obsolete content index; "
+            f"the filename index rebuilds in the background")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--dry-run", action="store_true",
+                        help="report what would change and exit non-zero if it would")
+    parser.add_argument("--purge", action="store_true",
+                        help="also rebuild the index when tightening the policy, "
+                             "reclaiming the disk an obsolete content index holds")
+    args = parser.parse_args()
+
+    wanted_budget = read_budget()
+    if wanted_budget is None:
+        return 0
+
+    wanted = POLICY[wanted_budget]
+    have = current_value()
+    log(f"budget.file_indexing={wanted_budget} -> {KEY}={wanted} (currently {have or 'unset'})")
+
+    if have == wanted:
+        log("already applied; nothing to do")
+        return 0
+
+    if args.dry_run:
+        log("dry run: would apply")
+        return 1
+
+    if not write_value(wanted):
+        return 1
+    log(f"applied {KEY}={wanted}")
+
+    # purge_content_index() already stops and restarts the indexer around the
+    # delete, so calling restart_baloo() as well would run a second, pointless
+    # disable/enable cycle. Exactly one of these two paths runs.
+    if wanted == "true" and args.purge:
+        purge_content_index()
+    else:
+        restart_baloo()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

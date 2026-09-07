@@ -370,12 +370,26 @@ def budget(facts: dict, tier: str) -> dict:
         # Parallel streams for `moai-do update` / image pulls. ostree/bootc
         # fetch is IO-bound; >2 streams on 2 cores just thrash the scheduler.
         "update_concurrency": 1 if cores <= 2 else 2 if cores < 8 else 4,
-        # Mo AI's PRE-SELECTED route on a fresh machine (still opt-in — this
-        # only moves the default radio). A local model wants real RAM and a
-        # real GPU; below that, default to the cloud route.
-        "ai_default": ("local"
-                       if not streamed and memory >= FLAGSHIP_MEMORY_GIB and cores >= 8
-                       else "cloud"),
+        # Mo AI's route. This is ALWAYS "cloud", and it is not a hardware
+        # question any more.
+        #
+        # It used to return "local" on a flagship machine, from the reasoning
+        # that a local model wants real RAM and a real GPU. That reasoning is
+        # sound and the conclusion is now wrong: stage C2b retired the local
+        # engine outright. `moai-config` has no local mode to select, the
+        # RamaLama unit is gone, and tests/test_moai_cloud_only.py asserts that
+        # "the one door to a local engine is closed" and that nothing is ever
+        # downloaded to the machine.
+        #
+        # So on a big enough machine this key advertised a capability the OS had
+        # deliberately removed. Nothing consumed it, which is the only reason it
+        # never surfaced as a bug — a consumer written from this value would
+        # have tried to preselect a route that does not exist.
+        #
+        # Do NOT restore the hardware branch to "make the budget richer". If a
+        # local engine ever returns it will arrive with its own policy and its
+        # own gates; until then the honest answer is the only answer.
+        "ai_default": "cloud",
         # Mo PC Remote software-encode ceiling: a host with no GPU encodes
         # H.264 on the CPU, so cap resolution x fps to keep interacting with
         # the desktop from starving the encoder. A real GPU lifts the cap.
