@@ -107,6 +107,7 @@ jobs:
         run: |
           bash -n build_files/build-arm.sh
           python3 tests/test_shell_line_continuations.py
+          python3 tests/test_settings_hardware_identity.py
           bash -n build_files/convert_webengine_dictionaries.sh
           bash -n build_files/build-arm-recovery.sh
           bash -n build_files/finalize_moos_desktop.sh

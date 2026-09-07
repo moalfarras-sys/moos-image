@@ -97,7 +97,10 @@ QQC2.ApplicationWindow {
         product: "MoOS",
         hostname: "MoOS",
         kernel: "—",
-        cpu: local("جهاز MoOS", "MoOS device"),
+        // Empty, not a branded placeholder: the Device page renders "Unknown"
+        // for an unidentified part rather than inventing a product name.
+        cpu: "",
+        gpu: "",
         generatedAt: 0,
         uptimeSeconds: 0,
         storage: { total: "—", free: "—", percent: 0 },
@@ -1294,10 +1297,21 @@ QQC2.ApplicationWindow {
                                     elide: Text.ElideRight
                                 }
 
+                                // The backend used to answer "MoOS device" for any
+                                // processor it could not name, which on aarch64 was
+                                // every one of them -- an Oracle A1 was told its CPU
+                                // was a "MoOS device". It now returns the real name
+                                // or an empty string, so an unknown part is shown as
+                                // unknown rather than as a MoOS-branded invention.
                                 Text {
                                     Layout.fillWidth: true
-                                    text: !win.statusLoaded ? "—" : win.status.cpu === "MoOS device"
-                                          ? win.local("جهاز MoOS", "MoOS device") : win.status.cpu
+                                    text: {
+                                        if (!win.statusLoaded) return "—"
+                                        var unknown = win.local("غير معروف", "Unknown")
+                                        var cpu = win.status.cpu || unknown
+                                        var gpu = win.status.gpu || ""
+                                        return gpu ? cpu + "  •  " + gpu : cpu
+                                    }
                                     color: win.mutedColor
                                     font.pixelSize: win.typePx(design.typeCaption)
                                     horizontalAlignment: Text.AlignLeft
