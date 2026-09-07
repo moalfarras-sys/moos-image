@@ -791,7 +791,9 @@ if [ -d "$user_unit_dir" ]; then
         [ -f "$conf" ] || continue
         unit_dir="${conf%/*}"; unit_name="${unit_dir##*/}"; unit_name="${unit_name%.d}"
         [ -e "${image_unit_dir}/$unit_name" ] || continue
-        if grep -qE "^[[:space:]]*(ExecStart|ExecStartPre|ExecStartPost|Environment)[^=]*=.*(${HOME}|%h)/" "$conf" 2>/dev/null; then
+        # Same path set post-update-check.sh uses. Interpolating $HOME into an
+        # ERE would make the pattern depend on the characters in a path.
+        if grep -qE '^[[:space:]]*(ExecStart|ExecStartPre|ExecStartPost|Environment)[^=]*=.*(%h|/home/|/var/home/)' "$conf" 2>/dev/null; then
             bad "~/.config/systemd/user/${unit_name}.d/${conf##*/} runs ${unit_name} from \$HOME, not the image"
             unit_shadows=$((unit_shadows+1))
         fi
