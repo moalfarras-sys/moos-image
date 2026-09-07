@@ -151,6 +151,38 @@ console.log('Containment action behavior passed');
                               'Qt.createQmlObject', 'import QtQuick.Process'):
                 self.assertNotIn(forbidden, source, f'{path.name} must not own shell state')
 
+    def test_both_build_scripts_verify_the_overlay_on_the_finished_image(self):
+        """Every edition that ships Plasma must prove the overlay survived.
+
+        The two QML files land at paths plasma-workspace owns. A later dnf5
+        transaction in either build script can reinstall that package straight
+        over them, and nothing in the source tree would notice -- the repo gates
+        only ever read `system_files/`. So each build script asserts on its own
+        finished filesystem that both files are present AND still carry a MoOS
+        marker; the path alone proves nothing, because a reinstall restores a
+        file at the same path with upstream's content.
+
+        x86 (moos, moos-nvidia, moos-cloud) runs build.sh; aarch64 runs
+        build-arm.sh, which is a separate ~1200-line script -- adding the check
+        to only one of them is the easy mistake, and ARM is the edition that
+        needs it most, since it forces Qt Quick's software renderer.
+        """
+        for script in ('build_files/build.sh', 'build_files/build-arm.sh'):
+            source = (ROOT / script).read_text()
+            for marker in ('moosDesktopCustomizer', 'softwareRendering'):
+                self.assertIn(
+                    marker, source,
+                    f'{script} must verify the shipped overlay still carries {marker}')
+            self.assertIn(
+                'contents/views/DesktopEditMode.qml', source,
+                f'{script} must check the edit-mode overlay reached the image')
+            self.assertIn(
+                'contents/explorer/WidgetExplorer.qml', source,
+                f'{script} must check the explorer overlay reached the image')
+            self.assertIn(
+                '/usr/bin/moos-desktop-edit', source,
+                f'{script} must check the Customize Desktop launcher ships')
+
     def test_fixed_graphical_routes_and_reset_contract(self):
         source=QML.read_text(); router=(ROOT/'system_files/usr/bin/moos-open').read_text()
         self.assertIn('settings/desktop)           gui moos-desktop-edit',router)

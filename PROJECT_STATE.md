@@ -67,11 +67,14 @@ compare `manage-ar.png` (black containment, pre-fix) with
 **Gates.** `tests/test_desktop_customize.py` covers the containment scoping, the
 confirmation/undo contract, the preview argv boundary, the fixed router routes,
 and the software-rendering guard. Because both QML files are verbatim overlays of
-upstream shell files, `build.sh` additionally asserts on the **finished image**
-that each one is present *and still carries its MoOS marker* — a later rpm
-transaction reinstalling plasma-workspace would otherwise restore stock Plasma at
-those exact paths with every repo gate still green. If an upstream re-sync makes
-that gate fire, re-apply the guard; do not weaken the gate.
+upstream shell files, **both** build scripts — `build.sh` (x86) and
+`build-arm.sh` (aarch64) — additionally assert on the **finished image** that
+each one is present *and still carries its MoOS marker*; a later rpm transaction
+reinstalling plasma-workspace would otherwise restore stock Plasma at those exact
+paths with every repo gate still green. ARM is a separate ~1200-line script, so a
+repo gate also proves neither script lost the check — and ARM is the edition that
+needs it most, since it forces Qt Quick's software renderer. If an upstream
+re-sync makes that gate fire, re-apply the guard; do not weaken the gate.
 
 ### Settings product pass — integration branch (2026-09-07)
 
