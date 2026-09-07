@@ -36,11 +36,22 @@
 # this recovers `failed` and touches nothing else: an owner who stops Remote
 # keeps it stopped, and a Remote that died comes back.
 #
-# reset-failed is required, not decorative: once the start limit is hit, a plain
-# `start` is refused ("start request repeated too quickly") until the counter is
-# cleared. Clearing it once a minute turns "five fast retries, then dead until
-# reboot" into "five fast retries, then one calm retry a minute" — which is the
-# behaviour you want on a machine you can only reach through the thing that died.
+# reset-failed is required, not decorative. MEASURED on the live A1 with a
+# throwaway unit (Restart=on-failure, RestartSec=1, StartLimitBurst=3) that was
+# driven into `failed` and then MADE HEALTHY before recovery was attempted:
+#
+#     plain `systemctl --user start`   -> job failed, unit still `failed`
+#     reset-failed + start (this file) -> unit `active`
+#
+# The $HOME ancestor did the first of those, so on the machine it was written
+# for it could not actually recover the case it existed for. Note the unit's
+# Result read `exit-code`, not `start-limit-hit` — the recovery is needed for
+# more than the documented start-limit case, which is the reason this clears the
+# state unconditionally rather than testing for one specific Result.
+#
+# Net effect: "five fast retries, then dead until reboot" becomes "five fast
+# retries, then one calm retry a minute" — the behaviour you want on a machine
+# you can only reach through the thing that died.
 set -uo pipefail
 
 UNIT=mo-remote-personal.service
