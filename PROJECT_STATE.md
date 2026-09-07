@@ -70,6 +70,29 @@ Remote IS the screen. A watchdog had lived only in one machine's `$HOME` since
 shipped version acts only on the `failed` state and is enabled on all four
 editions.
 
+**Signature chain verified from the A1 (2026-09-08).** The problem was never
+signing. `/etc/pki/containers/moos.pub` is byte-identical to the repo's
+`cosign.pub` (sha256 3ed7f81e…), `/etc/containers/policy.json` rejects by
+default and requires `sigstoreSigned` for `ghcr.io/moalfarras-sys`, and
+`cosign verify --key cosign.pub` passes for `moos`, `moos-nvidia`, `moos-cloud`
+and `moos-arm` at `:latest`, and for BOTH deployment digests on this machine
+(booted `32283e41`, rollback `bf247bdc`). Both origins are
+`ostree-image-signed:`, and `moos-verify-origin` reports the origin already
+enforces the policy. What is broken is promotion, not trust.
+
+**Open, not explained: `efi.automount` fails on every installed x86 system.**
+The ISO proof's serial console from run 34164335024 shows
+`[FAILED] Failed to set up automount efi.automount - EFI System Partition
+Automount` on the freshly installed disk, while `installed-first-boot.txt` from
+the same run reports `failed-units=0`. Those two cannot both be right, so one of
+them is wrong and it is not yet known which. The A1 has no such unit and no ESP
+line in `/etc/fstab` (only `/boot` and the swapfile), and `moos-install-to-disk`
+mounts the ESP at `/boot/efi` — a unit named `efi.automount` is `/efi`, so a
+generator, most likely systemd's GPT auto-generator, is creating it. This is NOT
+fixed: nothing here should touch x86 EFI mounting from an aarch64 machine with
+no x86 host to test on. The ISO gate's restored diagnostics now collect failed
+system units, so the next ISO run should say which of the two readings is true.
+
 **NVIDIA hardware remains unverified.** No session may claim otherwise from
 Oracle or from a green build; see
 [`docs/NVIDIA_HARDWARE_ACCEPTANCE.md`](docs/NVIDIA_HARDWARE_ACCEPTANCE.md),
