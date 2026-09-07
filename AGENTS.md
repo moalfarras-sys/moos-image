@@ -355,3 +355,5 @@ Being honest about this list is more useful than shrinking it.
 
 `MOOS_ROADMAP.md` is the concise list of open release gates. Keep it honest: it is more valuable
 as a list of what is missing than as a list of what is claimed.
+
+Settings runtime review and backend contract: [bounded product handoff](docs/SETTINGS_HANDOFF_20260907.md). Its native review harness runs the source QML without installing user overrides.

@@ -15,6 +15,14 @@ Last reconciled: **2026-09-06 (resumed audit)**. Current source and live
 findings: [`docs/SYSTEM_AUDIT_RESUME_20260906.md`](docs/SYSTEM_AUDIT_RESUME_20260906.md).
 Signed release and post-reboot verification are tracked there separately.
 
+### Settings product pass — integration branch (2026-09-07)
+
+`fix/settings-real-state-20260907` fixes Settings status truth, missing-backend
+handling, live row summaries, search and double-mirrored Arabic alignment. It
+retains the shared UI2 components and graphical KDE backends. Native English/
+Arabic source frames and failure fixtures are reviewed; no OS build or deployment.
+See [the bounded handoff](docs/SETTINGS_HANDOFF_20260907.md) for tests and limits.
+
 ### Nothing reconciles a wallpaper that drifts from its profile (2026-09-07)
 
 `moos-selfcheck` reported the desktop wallpaper as broken and it was right, but
