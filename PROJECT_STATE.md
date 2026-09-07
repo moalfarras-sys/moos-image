@@ -15,6 +15,34 @@ Last reconciled: **2026-09-06 (resumed audit)**. Current source and live
 findings: [`docs/SYSTEM_AUDIT_RESUME_20260906.md`](docs/SYSTEM_AUDIT_RESUME_20260906.md).
 Signed release and post-reboot verification are tracked there separately.
 
+### Nothing reconciles a wallpaper that drifts from its profile (2026-09-07)
+
+`moos-selfcheck` reported the desktop wallpaper as broken and it was right, but
+not for the reason it looked like. Every other theme surface was Arena --
+LookAndFeelPackage, decoration, colour scheme, icons, Plasma style -- while the
+desktop alone still showed MoOSUI2Graphite, and `theme-state.json` recorded
+`status: committed`, `wallpaperMode: profile`, `wallpaperEncoded: …/MoOSUI2Arena`.
+Recorded intent and real state disagreed.
+
+The timeline rules out a failed transaction: the machine booted 13:57:11,
+plasmashell started 13:57:37 and never restarted, the theme committed 13:57:50,
+and `plasma-org.kde.plasma.desktop-appletsrc` was last modified at **21:31:34**
+-- almost eight hours later, during an agent session. So the wallpaper drifted
+away from a committed profile after the fact.
+
+**Two mechanisms should have caught it and neither can.** `moos-apply-theme` is
+marker-gated on THEME_REV, which is 53 in both the running image and the current
+tree, so it will not re-run on the next login or even after the update.
+`moos-theme-sync.path` watches `%h/.config/kdeglobals`, so a wallpaper-only
+drift -- which touches the containment config, not kdeglobals -- fires nothing.
+The result is a state selfcheck correctly calls broken and nothing repairs.
+
+Repaired here by re-running the profile transaction (`moos-theme gaming`), which
+restored MoOSUI2Arena and took selfcheck from 2 broken to 47 passed / 0 broken.
+That is a repair, not a fix: the gap is still open. Watching the containment
+file directly is NOT an obvious answer -- plasmashell rewrites it on every
+applet move, so a naive path unit would churn. Design it deliberately.
+
 ### The live A1 is running an unverified origin (2026-09-07)
 
 Measured, not inferred, with `ostree admin status` and the deployments' own
