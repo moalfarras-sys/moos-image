@@ -94,5 +94,6 @@ Remote bundle. The local AppStream service override can then be retired as well.
 `fix/remote-control-audit-20260904` is fully contained in main (PR 72). The active
 storage/keyboard branch incorporated current main without conflicts. There are no
 stashes or additional worktrees. `archive/arm-utm-20260827` retains 18 experimental
-commits outside main; none concerns this controller change, and its obsolete
-boot/UTM experiments were not merged wholesale. No branch was force-pushed or deleted.
+commits outside main; none concerns this controller change. Audited 2026-09-07 and
+confirmed fully superseded by main — see the development plan. No branch was
+force-pushed; the merged `feat/desktop-customize-20260907` was deleted after PR 76.

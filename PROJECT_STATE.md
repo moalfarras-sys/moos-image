@@ -171,6 +171,24 @@ on a gate path that does not exist on disk, since a typo'd path is a gate that
 silently never runs. Both failure modes are proven. The gate itself runs in both
 build workflows, so the two lists cannot drift apart again.
 
+### Branch and worktree state, audited and tidied (2026-09-07)
+
+`feat/desktop-customize-20260907` merged as PR 76 and was deleted on both sides;
+its second worktree at `/var/home/moos/moos-desktop-edit` was removed. The
+repository now has exactly one working tree and two branches: `main`, and
+`archive/arm-utm-20260827`.
+
+**The archive was audited rather than assumed.** It carries 18 commits that never
+merged, and three documents described it as unmerged work pending disposition —
+which reads like a debt. It is not. Every file it touches exists in main; it
+contains no test function main lacks; and its three `build-arm.sh` gates are all
+present in main under clearer names. main is strictly *ahead* of it: the archive's
+`moos-arm-greeter-kwin` `exec`s KWin even when no usable DRM node was found, and
+main fixed exactly that by requiring the node be readable and writable first.
+
+It is kept for provenance, and the docs now say it is superseded instead of
+implying something is owed from it. Cherry-picking from it would be a regression.
+
 ### Settings product pass — integration branch (2026-09-07)
 
 `fix/settings-real-state-20260907` fixes Settings status truth, missing-backend

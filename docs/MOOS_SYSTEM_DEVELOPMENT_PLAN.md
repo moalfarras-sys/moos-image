@@ -157,9 +157,14 @@ actual workload before choosing absolute frame/latency targets.
 - Stop disposable browser/Vite/test services after evidence capture. Do not delete
   user apps, personal files or all container caches as a shortcut to lower usage.
 - `fix/remote-control-audit-20260904` is contained in main via PR 72.
-- `archive/arm-utm-20260827` has 18 commits outside main, affecting boot/UTM/build
-  code, not Remote. Some useful behavior was recovered independently; maintain
-  semantic disposition before any cherry-pick. Preserve the archive.
+- `archive/arm-utm-20260827` holds 18 commits that never merged. **Audited
+  2026-09-07 and confirmed fully superseded — nothing is owed from it.** Every
+  file it touches exists in main; it contributes no test function main lacks; and
+  its three `build-arm.sh` gates are all present in main under clearer names.
+  main is also strictly *ahead*: `moos-arm-greeter-kwin` there `exec`s KWin even
+  when no usable DRM node was found, which main fixed by requiring the node be
+  readable and writable first. Kept as an archive for provenance only. Do not
+  cherry-pick from it without re-auditing — it would be a regression.
 - Retire local `/etc`/home overrides only after verifying the signed image contains
   their behavior. Active app overrides can hide future signed fixes indefinitely.
 
