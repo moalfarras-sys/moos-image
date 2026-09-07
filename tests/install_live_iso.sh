@@ -132,6 +132,8 @@ start_qemu() {
         -drive "file=$work/installed.qcow2,format=qcow2,if=virtio,cache=unsafe" \
         "$@" \
         "${gpu[@]}" \
+        -device virtio-keyboard-pci \
+        -device virtio-tablet-pci \
         -netdev "user,id=n0,hostfwd=tcp:127.0.0.1:${ssh_port}-:22" \
         -device virtio-net-pci,netdev=n0 \
         -device virtio-serial-pci \
@@ -673,8 +675,10 @@ def hmp(commands):
 def capture(path):
     log = evidence / f"{path.stem}-capture.log"
     windows = evidence / f"{path.stem}-windows.txt"
-    hmp(["sendkey shift"])
-    time.sleep(2)
+    # Capture only — do not inject keys here. Waking PLM's idle clock (or
+    # focusing a desktop window) belongs to the caller; a blind `sendkey shift`
+    # was measured leaving the MoOS idle clock painted, and a space here would
+    # risk activating the focused app during post-login screenshots.
     tree = subprocess.run(
         ["xwininfo", "-display", os.environ["DISPLAY"], "-root", "-tree"],
         text=True, capture_output=True, check=False,
@@ -772,7 +776,17 @@ gate_until(probes, [], 120, "AccountsService probe/repair failed")
 # Wake Plasma Login Manager's idle clock page and capture the actual password
 # surface before interaction. Only a lowercase/digit disposable password is used,
 # so HMP never needs layout-dependent punctuation.
+#
+# Measured 2026-09-07 on the exact installed ISO proof: `sendkey shift` alone
+# left the MoOS idle clock painted (screendump still showed time+date, no
+# password field), so the typed password never reached PAM and the desktop gate
+# timed out on `kwin_wayland not running under moosci`. Plasma Login Manager's
+# ShowClock idle dismisses on a real key or pointer movement — match the ARM
+# qcow2 gate (shift then space) and keep virtio keyboard + tablet attached so
+# those events have a guest input device.
 hmp(["sendkey shift"])
+time.sleep(1)
+hmp(["sendkey spc"])
 time.sleep(2)
 capture(evidence / "installed-login.ppm")
 hmp([*(f"sendkey {char}" for char in password), "sendkey ret"])
