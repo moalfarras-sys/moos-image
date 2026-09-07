@@ -48,6 +48,9 @@ import sys as _policy_sys
 from pathlib import Path as _PolicyPath
 _policy_sys.path.insert(0, str(_PolicyPath(__file__).resolve().parent.parent / "lib/moai"))
 import moai_cloud_policy as cloud_policy
+import moai_runtime
+
+AGENT_RUNTIME = None
 
 HOME = Path.home()
 CONFIG_HOME = Path(os.environ.get("XDG_CONFIG_HOME", str(HOME / ".config"))).expanduser()
@@ -504,8 +507,8 @@ def capabilities() -> dict:
         "voice": {"push_to_talk": PW_RECORD.is_file(),
                   "transcription": TRANSCRIBE.is_file()},
         "channels": {"telegram": True, "whatsapp": True,
-                     "shared_openclaw_sessions": True},
-        "brains": {"local": True, "cloud": True, "hybrid": True},
+                     "shared_openclaw_sessions": False, "shared_hermes_sessions": True},
+        "brains": {"local": False, "cloud": True, "hybrid": False},
     }
 
 
@@ -793,8 +796,8 @@ def read_config() -> dict:
         "ui": {"language": st.get("ui_language", "auto")},
         "permissions": {
             # Safe default when nothing is set yet: sandboxed, no host reach.
-            "tier": _actual_tier(c),
-            "web": "group:web" not in deny,
+            "tier": st.get("tier", _actual_tier(c)),
+            "web": st.get("web", False),
             "exec": ((c.get("tools", {}).get("exec", {}) or {})
                      .get("security", "deny")) != "deny",
             "workspace": ((agents.get("sandbox", {}) or {}).get("workspaceAccess", "ro")),
@@ -1072,6 +1075,9 @@ def write_config(body: dict) -> dict:
             restart.add("openclaw-gateway.service")
 
         if "web" in permissions:
+            if type(permissions["web"]) is not bool:
+                raise ValueError("web permission must be boolean")
+            st["web"] = permissions["web"]
             primary = _primary(c)
             if not primary:
                 raise ValueError("اضبط النموذج الأساسي قبل صلاحية الإنترنت")
@@ -1827,7 +1833,7 @@ def task_action(body: dict) -> dict:
 class TerminalSession:
     """One bounded PTY running the user's fixed shell without elevation."""
 
-    def __init__(self, cwd: Path, title: str):
+    def __init__(self, cwd: Path, title: str, argv=None):
         self.id = str(uuid.uuid4())
         self.cwd = str(cwd)
         self.title = title[:80] or cwd.name or "Terminal"
@@ -1840,7 +1846,8 @@ class TerminalSession:
         env.update({"TERM": "dumb", "PS1": r"moai:\w$ ", "PROMPT_COMMAND": ""})
         try:
             self.process = subprocess.Popen(
-                ["/bin/bash", "--noprofile", "--norc"], cwd=cwd, env=env,
+                argv or ["/bin/bash", "--noprofile", "--norc"], cwd=cwd,
+                env=({"PATH": "/usr/bin:/bin"} if argv else env),
                 stdin=slave, stdout=slave, stderr=slave, close_fds=True,
                 start_new_session=True,
             )
@@ -2241,7 +2248,7 @@ def update_session(body: dict) -> dict:
     sid = str(body.get("id") or "")
     if not re.fullmatch(r"[0-9a-fA-F-]{36}", sid):
         raise ValueError("invalid session id")
-    if not (SESSIONS / f"{sid}.jsonl").is_file():
+    if not (SESSIONS / f"{sid}.jsonl").is_file() and not (AGENT_RUNTIME and AGENT_RUNTIME.exists(sid)):
         raise ValueError("session does not exist")
     allowed = {"title", "pinned", "archived", "project"}
     unknown = set(body) - allowed - {"id"}
@@ -2456,9 +2463,13 @@ class H(BaseHTTPRequestHandler):
             if u.path == "/api/sessions":
                 search = (q.get("q") or [""])[0]
                 archived = (q.get("archived") or [""])[0] == "1"
-                return self._send(list_sessions(search, archived))
+                rows = AGENT_RUNTIME.sessions() if AGENT_RUNTIME else []
+                rows = [row for row in rows if search.casefold() in row["label"].casefold() and (archived or not row["archived"])]
+                return self._send(rows + list_sessions(search, archived))
             if u.path == "/api/session":
-                return self._send(read_session((q.get("id") or [""])[0]))
+                sid = (q.get("id") or [""])[0]
+                rows = AGENT_RUNTIME.messages(sid) if AGENT_RUNTIME else []
+                return self._send(rows or read_session(sid))
             if u.path == "/api/projects":
                 archived = (q.get("archived") or [""])[0] == "1"
                 return self._send(list_projects(archived))
@@ -2483,6 +2494,8 @@ class H(BaseHTTPRequestHandler):
                 return self._send(list_tasks((q.get("project") or [""])[0],
                                              (q.get("status") or [""])[0]))
             if u.path == "/api/approvals":
+                if AGENT_RUNTIME:
+                    return self._send(AGENT_RUNTIME.approvals())
                 return self._send(list_approvals())
             if u.path == "/api/terminals":
                 return self._send(list_terminals())
@@ -2530,8 +2543,19 @@ class H(BaseHTTPRequestHandler):
         if not isinstance(body, dict):
             return self._send({"error": "json body must be an object"}, 400)
         try:
+            if u.path.startswith("/api/runtime/"):
+                if not AGENT_RUNTIME or not AGENT_RUNTIME.authorized(self.headers):
+                    return self._reject(403, "private runtime authentication required")
+                actions = {"begin": AGENT_RUNTIME.begin, "tool": AGENT_RUNTIME.tool,
+                           "finish": AGENT_RUNTIME.finish, "channel": AGENT_RUNTIME.channel_message}
+                action = actions.get(u.path.rsplit("/", 1)[-1])
+                if not action:
+                    return self._reject(404, "unknown runtime operation")
+                return self._send(action(body))
             if u.path == "/api/config":
                 return self._send(write_config(body))
+            if u.path == "/api/agent/cancel" and AGENT_RUNTIME:
+                return self._send(AGENT_RUNTIME.cancel(body))
             if u.path == "/api/session/update":
                 return self._send(update_session(body))
             if u.path == "/api/project/upsert":
@@ -2541,8 +2565,12 @@ class H(BaseHTTPRequestHandler):
             if u.path == "/api/task/update":
                 return self._send(update_task(body))
             if u.path == "/api/task/action":
+                if AGENT_RUNTIME:
+                    return self._send(AGENT_RUNTIME.task_action(body))
                 return self._send(task_action(body))
             if u.path == "/api/approval/resolve":
+                if AGENT_RUNTIME:
+                    return self._send(AGENT_RUNTIME.resolve(body))
                 return self._send(resolve_approval(body))
             if u.path == "/api/terminal/start":
                 return self._send(start_terminal(body))
@@ -2573,6 +2601,8 @@ class H(BaseHTTPRequestHandler):
 
 
 def main():
+    global AGENT_RUNTIME
+    AGENT_RUNTIME = moai_runtime.Runtime(globals())
     # (The old guard here checked that the browser console's HTML file existed.
     # The console is deleted — this API serves JSON only — and the leftover
     # check took the whole service down on .609: py_compile cannot see a

@@ -211,6 +211,98 @@ Kirigami.ApplicationWindow {
     property string chatSessionId: "moai-desktop-" + Date.now().toString(36)
                                    + "-" + Math.floor(Math.random() * 0x1000000).toString(36)
     property string chatOpenClawSessionKey: ""
+    property var agentToolEvents: []
+    property string agentActivityError: ""
+    readonly property bool agentActivityVisible: agentActivity.opened
+    readonly property string agentSessionKey: chatOpenClawSessionKey || chatSessionId
+    Timer {
+        interval: 1200
+        running: root.panel === "chat"
+        repeat: true
+        onTriggered: {
+            root.agentLoadApprovals()
+            const xhr = new XMLHttpRequest()
+            xhr.open("GET", root.agentApi + "/api/session?id=" + encodeURIComponent(root.agentSessionKey))
+            xhr.setRequestHeader("X-Moai-Agent", "1")
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState !== XMLHttpRequest.DONE) return
+                if (xhr.status !== 200) {
+                    root.agentActivityError = root.local("تعذّر تحميل نتائج الأدوات", "Could not load tool results")
+                    return
+                }
+                try {
+                    root.agentToolEvents = JSON.parse(xhr.responseText).filter(function(row) { return row.role === "tool" })
+                    root.agentActivityError = ""
+                } catch (e) { root.agentActivityError = root.local("نتائج الأدوات غير صالحة", "Invalid tool results") }
+            }
+            xhr.send()
+        }
+    }
+    QQC2.Popup {
+        id: agentActivity
+        objectName: "agentActivity"
+        parent: QQC2.Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(root.width - 48, 820)
+        height: Math.min(root.height - 64, 700)
+        modal: true
+        padding: 20
+        background: Rectangle { color: root.surface0; radius: design.radiusControl; border.color: root.hairline }
+        contentItem: ColumnLayout {
+            LayoutMirroring.enabled: root.moaiRtl
+            LayoutMirroring.childrenInherit: true
+            RowLayout {
+                Layout.fillWidth: true
+                Text { text: root.local("نشاط الوكيل والموافقات", "Agent activity and approvals"); color: root.textHi; font.pixelSize: root.typePx(18); Layout.fillWidth: true }
+                MoButton { label: root.local("إغلاق", "Close"); onClicked: agentActivity.close() }
+            }
+            QQC2.ScrollView {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                contentWidth: availableWidth
+                ColumnLayout {
+                    width: parent.width
+                    spacing: 12
+                    Repeater {
+                        model: root.agentApprovals
+                        delegate: Rectangle {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            implicitHeight: approvalContent.implicitHeight + 24
+                            color: root.surface1; radius: design.radiusControl; border.color: root.novaBlue
+                            ColumnLayout {
+                                id: approvalContent
+                                anchors.fill: parent; anchors.margins: 12
+                                Text { text: root.local("بانتظار موافقتك · مرة واحدة", "Awaiting your approval · once only"); color: root.textHi; wrapMode: Text.Wrap; Layout.fillWidth: true }
+                                Text { text: modelData.cwd + "\n" + modelData.command; textFormat: Text.PlainText; color: root.textHi; wrapMode: Text.WrapAnywhere; Layout.fillWidth: true; font.family: "monospace" }
+                                RowLayout {
+                                    MoButton { objectName: "agentAllowOnce"; label: root.local("السماح مرة واحدة", "Allow once"); primary: true; onClicked: root.agentResolveApproval(modelData.id, "allow-once") }
+                                    MoButton { label: root.local("رفض", "Deny"); danger: true; onClicked: root.agentResolveApproval(modelData.id, "deny") }
+                                }
+                            }
+                        }
+                    }
+                    Repeater {
+                        model: root.agentToolEvents
+                        delegate: Rectangle {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            implicitHeight: eventText.implicitHeight + 24
+                            color: root.surface1; radius: design.radiusControl
+                            Text {
+                                id: eventText
+                                anchors.fill: parent; anchors.margins: 12
+                                text: modelData.status + " · " + modelData.text
+                                textFormat: Text.PlainText
+                                wrapMode: Text.WrapAnywhere
+                                color: modelData.status === "error" ? root.badColor : root.textHi
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
     property bool chatSessionStart: false
     property bool chatSidebarOpen: false
     property string agentDecision: ""
@@ -925,9 +1017,11 @@ Kirigami.ApplicationWindow {
     }
 
     function newChat() {
+        stopGenerating()
         chatModel.clear()
         history = []
         pendingRuns = []
+        agentToolEvents = []
         chatSessionId = "moai-desktop-" + Date.now().toString(36)
                         + "-" + Math.floor(Math.random() * 0x1000000).toString(36)
         chatOpenClawSessionKey = ""
@@ -935,7 +1029,6 @@ Kirigami.ApplicationWindow {
         lastSubmissionDisplay = ""
         lastSubmissionContent = null
         retryPending = false
-        stopGenerating()
         chatModel.append({ role: "assistant", text: greetingText })
     }
 
@@ -945,6 +1038,13 @@ Kirigami.ApplicationWindow {
     }
 
     function stopGenerating() {
+        if (busy) {
+            const cancel = new XMLHttpRequest()
+            cancel.open("POST", root.agentApi + "/api/agent/cancel")
+            cancel.setRequestHeader("X-Moai-Agent", "1")
+            cancel.setRequestHeader("Content-Type", "application/json")
+            cancel.send(JSON.stringify({session: root.agentSessionKey}))
+        }
         if (activeXhr) {
             try { activeXhr.abort() } catch (e) {}
             activeXhr = null
@@ -2724,6 +2824,25 @@ Kirigami.ApplicationWindow {
                         }
 
 
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Layout.leftMargin: 16
+                            Layout.rightMargin: 16
+                            visible: root.agentToolEvents.length > 0 || root.agentApprovals.length > 0 || root.agentActivityError !== ""
+                            Text {
+                                Layout.fillWidth: true
+                                text: root.agentActivityError || root.local("نتائج الأدوات: ", "Tool events: ") + root.agentToolEvents.length
+                                color: root.textLo
+                            }
+                            MoButton {
+                                objectName: "agentActivityButton"
+                                label: root.agentApprovals.length > 0
+                                    ? root.local("مراجعة الموافقة", "Review approval")
+                                    : root.local("عرض النتائج", "View results")
+                                primary: root.agentApprovals.length > 0
+                                onClicked: agentActivity.open()
+                            }
+                        }
                         // The chosen brain cannot answer → a real control, not a
                         // dead end. WHICH control depends on the route: a cloud
                         // route needs a provider and a key, a local route needs
@@ -6700,7 +6819,7 @@ Kirigami.ApplicationWindow {
                 if (chatModel.count === 0)
                     chatModel.append({ role: "assistant", text: root.greetingText })
                 root.chatOpenClawSessionKey = String(key)
-                root.chatSessionId = "moai-desktop-" + String(id)
+                root.chatSessionId = String(id)
                 root.chatSidebarOpen = false
                 root.agentError = ""
                 if (root.chatSessionStart)

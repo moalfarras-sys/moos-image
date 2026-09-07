@@ -1,10 +1,10 @@
 [Unit]
-Description=Mo AI Telegram wake receiver (lightweight; starts OpenClaw on demand)
+Description=Mo AI Telegram transport (shared cloud-only Hermes workspace)
 Documentation=file:///usr/bin/moai-wake
 # Only needs the network for the Telegram long-poll — NOT the AI stack. It must
 # stay up whether or not Ollama/OpenClaw are running, so it depends on neither.
-Wants=network-online.target
-After=network-online.target
+Wants=network-online.target moai-agent-api.service moai-gateway.service
+After=network-online.target moai-agent-api.service moai-gateway.service
 # Network failures are handled inside the process with bounded backoff. Reaching systemd
 # therefore means a real crash; five crashes in five minutes must stay failed and visible.
 StartLimitIntervalSec=300

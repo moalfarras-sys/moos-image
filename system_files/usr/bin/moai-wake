@@ -335,25 +335,10 @@ def poll_until_wake(token, allow_ids):
 
 
 def main():
-    log("started (Telegram wake receiver; no model loaded)")
-    backoff = 1
-    while True:
-        token, allow_ids = load_telegram()
-        if not token or not allow_ids:
-            # Not configured yet (no bot token / empty allowlist). Wait quietly;
-            # the Agent panel writes these, then this picks them up.
-            time.sleep(min(BACKOFF_MAX, backoff * 5))
-            backoff = min(backoff + 1, 12)
-            continue
-        backoff = 1
-        if gateway_active():
-            # OpenClaw owns the Telegram connection. Idle here until it sleeps.
-            time.sleep(IDLE_RECHECK)
-            continue
-        poll_until_wake(token, allow_ids)
-        # After a wake, give OpenClaw a moment to grab the connection before we
-        # consider polling again.
-        time.sleep(IDLE_RECHECK)
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "lib/moai"))
+    from moai_telegram import serve
+    serve(load_telegram, tg_call, log, gateway_active)
 
 
 if __name__ == "__main__":
