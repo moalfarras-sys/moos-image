@@ -20,10 +20,9 @@ class MoAIConfigClientTests(unittest.TestCase):
         module = self.load()
         scope = module["main"].__globals__
         answers = iter([
-            "cloud",
-            "openai",
-            "https://api.openai.com/v1",
-            "gpt-5.4-mini",
+            "openrouter-free",
+            "https://openrouter.ai/api/v1",
+            "openrouter/free",
             "secret-in-memory",
         ])
         calls = []
@@ -35,10 +34,10 @@ class MoAIConfigClientTests(unittest.TestCase):
             "brain": {"mode": "local", "local_model": "ollama/default"},
             "cloud": {"base": "", "model": "", "has_key": False},
             "providers": [{
-                "id": "openai",
+                "id": "openrouter-free",
                 "name": "OpenAI",
-                "base": "https://api.openai.com/v1",
-                "model": "gpt-5.4-mini",
+                "base": "https://openrouter.ai/api/v1",
+                "model": "openrouter/free",
                 "api": "openai-responses",
             }],
         }
@@ -53,36 +52,25 @@ class MoAIConfigClientTests(unittest.TestCase):
             {
                 "mode": "cloud",
                 "cloud": {
-                    "provider": "openai",
-                    "base": "https://api.openai.com/v1",
-                    "model": "gpt-5.4-mini",
+                    "provider": "openrouter-free",
+                    "base": "https://openrouter.ai/api/v1",
+                    "model": "openrouter/free",
                     "key": "secret-in-memory",
                 },
             },
         )])
         self.assertEqual(notices[0][0], "msgbox")
 
-    def test_local_choice_preserves_the_agent_reported_model(self):
+    def test_missing_cloud_catalog_fails_without_writing_local_config(self):
         module = self.load()
         scope = module["main"].__globals__
-        answers = iter(["local"])
         calls = []
         scope["shutil_which"] = lambda _name: "/usr/bin/kdialog"
-        scope["dialog"] = lambda *_args: next(answers)
         scope["notice"] = lambda *_args: None
-        scope["current_config"] = lambda: {
-            "brain": {"mode": "cloud", "local_model": "ollama/qwen3:4b"},
-            "providers": [],
-        }
-        scope["request"] = (
-            lambda method, path, body=None:
-            calls.append((method, path, body)) or {"ok": True}
-        )
-        self.assertEqual(module["main"](), 0)
-        self.assertEqual(calls, [(
-            "POST", "/api/config",
-            {"mode": "local", "local_model": "ollama/qwen3:4b"},
-        )])
+        scope["current_config"] = lambda: {"providers": []}
+        scope["request"] = lambda *args: calls.append(args)
+        self.assertEqual(module["main"](), 1)
+        self.assertEqual(calls, [])
 
     def test_tool_contains_no_legacy_config_writer(self):
         source = TOOL.read_text(encoding="utf-8")

@@ -159,6 +159,35 @@ class Classification(unittest.TestCase):
             with self.subTest(driver=raw):
                 self.assertEqual(module._driver_key(raw), bare)
 
+    def test_oracle_arm_drm_transport_stays_essential_after_cpu_expansion(self) -> None:
+        """Oracle A1 exposes virtio-pci through the DRM card's driver link.
+
+        Live on 2026-09-05: card0/device/driver -> pci/drivers/virtio-pci
+        (PCI 1AF4:1050), card1 -> faux_driver, two render nodes, and KWin
+        VirtualBackend using llvmpipe. Two cores masked the missed driver;
+        four or more cores must not enable software-rendered blur.
+        """
+        for cores in (2, 4, 8):
+            with self.subTest(cores=cores):
+                tier, facts = self.tier_of(lambda m: m
+                                           .gpu("card0", "virtio-pci")
+                                           .gpu("card1", "faux_driver")
+                                           .render_node("renderD128")
+                                           .render_node("renderD129")
+                                           .cpu(cores).memory(11.6)
+                                           .display(1920, 1080))
+                self.assertEqual(facts["gpu_class"], "virtual")
+                self.assertEqual(tier, "essential")
+
+    def test_a_real_gpu_beside_virtio_pci_keeps_its_tier(self) -> None:
+        for driver, expected in (("nvidia", "flagship"), ("i915", "balanced")):
+            with self.subTest(driver=driver):
+                tier, _ = self.tier_of(lambda m: m
+                                       .gpu("card0", "virtio-pci")
+                                       .gpu("card1", driver).render_node()
+                                       .cpu(16).memory(15.4))
+                self.assertEqual(tier, expected)
+
     def test_a_real_gpu_beside_vgem_is_still_a_real_gpu(self) -> None:
         """vgem is loadable anywhere; it must never demote real hardware."""
         tier, facts = self.tier_of(lambda m: m
@@ -432,6 +461,178 @@ class Override(unittest.TestCase):
             decision = module.resolve()
             self.assertEqual(decision["tier"], "essential")
             self.assertFalse(decision["pinned"])
+
+
+class MotionReachesTheSession(unittest.TestCase):
+    """Two bugs measured live on 2026-09-06, both invisible to file-level gates."""
+
+    def setUp(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            self.module = load_module(Path(tmp))
+        self.source = TIER.read_text(encoding="utf-8")
+
+    def test_every_config_write_notifies_the_running_session(self) -> None:
+        """kwriteconfig6 without --notify edits a file and tells nobody.
+
+        KConfig's change signal is never emitted, so KWin and Plasma keep the
+        values they read at session start and the whole tier profile lands only
+        at the NEXT login. Measured: kdeglobals said AnimationDurationFactor=0.4
+        and kwinrc said scale/squash/slide/dimscreen were enabled, while KWin's
+        loadedEffects held not one animation effect. Same trap as the keyboard
+        migration, which KWin 6 watches through KConfigWatcher.
+        """
+        writer = self.source.split("def _kwriteconfig(", 1)[1].split("\ndef ", 1)[0]
+        code = "\n".join(l for l in writer.splitlines()
+                          if not l.lstrip().startswith("#"))
+        code = code.split('"""', 2)[-1]
+        self.assertIn('"--notify"', code,
+                      "kwriteconfig6 must notify, or the profile only applies "
+                      "at the next login and every file-level gate stays green")
+
+    def test_essential_keeps_the_cheap_motion_and_still_refuses_blur(self) -> None:
+        """"Essential" must mean "nothing per-frame", not "nothing at all".
+
+        The tier used to disable every effect including the scripted ones, so a
+        weak machine lost the entire MoOS motion identity for no measurable
+        saving: idle kwin_wayland on the live A1 sits at ~1% of one core with
+        these on, because the real cost there is Remote's screen capture.
+        """
+        kwin = self.module.PROFILES["essential"]["kwinrc"]
+        for cheap in ("Plugins/scaleEnabled", "Plugins/squashEnabled",
+                      "Plugins/slideEnabled", "Plugins/dimscreenEnabled"):
+            self.assertEqual(kwin[cheap], "true",
+                             f"{cheap} is a scripted, single-window animation; "
+                             f"disabling it costs identity and saves nothing")
+        self.assertEqual(kwin["Plugins/blurEnabled"], "false",
+                         "blur is the per-frame full-screen pass a software "
+                         "renderer must never be asked to pay for")
+        self.assertEqual(kwin["Plugins/magiclampEnabled"], "false",
+                         "the showy minimise stays for real GPUs; squash owns "
+                         "the exclusive minimise slot here")
+
+    def test_essential_never_exceeds_balanced(self) -> None:
+        """Cheaper hardware may match richer hardware, never out-animate it."""
+        essential = self.module.PROFILES["essential"]["kwinrc"]
+        balanced = self.module.PROFILES["balanced"]["kwinrc"]
+        for key, value in essential.items():
+            if value == "true":
+                self.assertEqual(
+                    balanced.get(key), "true",
+                    f"essential enables {key} while balanced does not")
+
+
+class Budget(unittest.TestCase):
+    """The capability block extends the SAME probe past the compositor.
+
+    moos-visual-tier is the one place that answers "what is this machine"; the
+    tier is only the motion slice. `budget()` derives file-indexing, update
+    fan-out, the Mo AI default route and the Remote software-encode ceiling from
+    the same facts, so a consumer reads one answer instead of re-deriving "weak
+    or streamed box" with its own thresholds. It is advisory — this tool never
+    writes baloofilerc, moai config or the Remote encoder.
+    """
+
+    def budget_of(self, build) -> tuple[str, dict, dict]:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            build(FakeMachine(root))
+            module = load_module(root)
+            facts = module.probe()
+            tier, _ = module.classify(facts)
+            return tier, facts, module.budget(facts, tier)
+
+    def test_the_maintainers_desktop_gets_the_full_budget(self) -> None:
+        tier, _, b = self.budget_of(lambda m: m
+                                    .gpu("card1", "nvidia").render_node()
+                                    .cpu(16).memory(15.4).display(3840, 2160))
+        self.assertEqual(tier, "flagship")
+        self.assertEqual(b, {
+            "file_indexing": "content",
+            "update_concurrency": 4,
+            "ai_default": "local",
+            "remote_encode": "1920x1080@60",
+        })
+
+    def test_oracle_a1_gets_the_minimal_budget(self) -> None:
+        """virtual GPU, 2 cores, 11.6 GiB — the live moos-arm-oracle shape."""
+        tier, _, b = self.budget_of(lambda m: m
+                                    .gpu("card0", "virtio-pci")
+                                    .gpu("card1", "faux_driver").render_node()
+                                    .cpu(2).memory(11.6).display(1920, 1080))
+        self.assertEqual(tier, "essential")
+        self.assertEqual(b["file_indexing"], "filenames")
+        self.assertEqual(b["update_concurrency"], 1)
+        self.assertEqual(b["ai_default"], "cloud")
+        self.assertEqual(b["remote_encode"], "1280x720@30")
+
+    def test_a_streamed_box_never_defaults_mo_ai_to_a_local_model(self) -> None:
+        """No GPU render node -> no local model default, whatever the cores/RAM."""
+        _, _, b = self.budget_of(lambda m: m.cpu(32).memory(64))
+        self.assertEqual(b["ai_default"], "cloud",
+                         "a local model on llvmpipe is exactly the trap the "
+                         "tier table already refuses for blur")
+        self.assertEqual(b["remote_encode"], "1280x720@30")
+
+    def test_indexing_is_never_turned_off_entirely(self) -> None:
+        """No machine loses file search; the weak ones stop extracting CONTENT.
+
+        Measured on the live Oracle A1 (2026-09-06): baloo idle at 0.0% CPU,
+        12,323 files indexed, 70 MB index. The filename index is cheap and it is
+        what powers the launcher's file results and the Places page's "file
+        search covers your home folder" promise. An earlier revision of this
+        table answered "off" for a 2-core streamed box, which would have deleted
+        a shipped feature from exactly the machines that are used remotely.
+        `only basic indexing` in /etc/xdg/baloofilerc is the real knob, and it
+        has two states, so this budget has two values.
+        """
+        shapes = (
+            ("2-core streamed A1", lambda m: m.gpu("card0", "virtio-pci")
+             .gpu("card1", "faux_driver").render_node().cpu(2).memory(11.6)),
+            ("small real laptop", lambda m: m.gpu("card0", "i915")
+             .render_node().cpu(2).memory(4)),
+            ("no render node at all", lambda m: m.cpu(32).memory(64)),
+        )
+        for label, build in shapes:
+            with self.subTest(machine=label):
+                tier, _, b = self.budget_of(build)
+                self.assertEqual(tier, "essential")
+                self.assertEqual(b["file_indexing"], "filenames")
+        # Read the CODE of budget(), not its prose: the docstring and comments
+        # discuss "off" precisely because it must never be a returned value.
+        body = (ROOT / "system_files/usr/bin/moos-visual-tier").read_text(
+            encoding="utf-8").split("def budget(", 1)[1].split("\ndef ", 1)[0]
+        body = body.split('"""', 2)[-1]
+        code_only = "\n".join(
+            line.split("#", 1)[0] for line in body.splitlines())
+        self.assertNotIn(
+            '"off"', code_only,
+            "the budget must not reintroduce an indexing-off state")
+
+    def test_the_budget_is_a_pure_function_of_facts_and_tier(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            FakeMachine(root).gpu("card1", "nvidia").render_node().cpu(12).memory(16)
+            module = load_module(root)
+            facts = module.probe()
+            first = module.budget(facts, "balanced")
+            second = module.budget(dict(facts), "balanced")
+            self.assertEqual(first, second)
+            # A different tier on the same facts may legitimately differ.
+            self.assertNotEqual(module.budget(facts, "essential")["remote_encode"],
+                                module.budget(facts, "flagship")["remote_encode"])
+
+    def test_resolve_and_apply_carry_the_budget(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            FakeMachine(root).gpu("card1", "nvidia").render_node().cpu(16).memory(15.4)
+            os.environ["MOOS_TIER_CONFIG_HOME"] = str(root / "config")
+            os.environ["MOOS_TIER_STATE_HOME"] = str(root / "state")
+            module = load_module(root)
+            decision = module.resolve()
+            self.assertIn("budget", decision)
+            applied = module.apply(decision["tier"], dry_run=True,
+                                   machine_budget=decision["budget"])
+            self.assertEqual(applied["budget"], decision["budget"])
 
 
 def tearDownModule() -> None:

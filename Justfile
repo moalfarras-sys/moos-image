@@ -32,6 +32,10 @@ check:
     python3 tests/test_device_plan.py
     python3 tests/test_moai_do.py
     python3 tests/test_moos_auto_update.py
+    # The trust badge is the only place the desktop tells the owner whether
+    # the running system is the one MoOS signed. It must read the booted
+    # deployment's origin, never assert it.
+    python3 tests/test_updater_trust_badge.py
     python3 tests/test_cloud_console_order.py
     python3 tests/test_theme_wallpaper_readback.py
     python3 tests/test_theme_wallpaper_steady_state.py
@@ -40,6 +44,13 @@ check:
     python3 tests/test_moai_app_launch.py
     python3 tests/test_moai_control.py
     python3 tests/test_moai_config.py
+    # Mo AI's brain is a cloud API and nothing is ever downloaded to the
+    # machine. Free, no-card providers must exist and come first.
+    python3 tests/test_moai_cloud_only.py
+    # No externally reachable moai-do action may START a local engine.
+    # install-openclaw still called setup_brain_impl after do_setup_brain
+    # was guarded — and Mo AI can name install-openclaw.
+    python3 tests/test_moai_no_local_start_path.py
     python3 tests/test_moos_fast_remote.py
     python3 tests/test_moai_workspace.py
     python3 tests/test_moai_hybrid.py
@@ -125,10 +136,22 @@ check:
     python3 tests/test_remote_trusted_devices.py
     python3 tests/test_moos_store_index.py
     python3 tests/test_moos_storectl.py
+    # Mo Store's backend reports progress and the UI owns the words: the
+    # job document carries a stable message_key beside its human message,
+    # and the UI must branch on the key, never on backend prose.
+    python3 tests/test_store_job_language.py
     # One globally importable MoUI module must own identity metrics and shared
     # controls; an app-local copy cannot silently grow back.
     python3 tests/test_moos_design_core.py
+    # One answer to "is this session Arabic". Four surfaces read
+    # Qt.application.layoutDirection, which follows a translator and not the
+    # locale — the Command Center, installer and welcome screen rendered in
+    # English on Arabic installs.
+    python3 tests/test_moos_one_locale_authority.py
     python3 tests/test_moos_ui2.py
+    # The full Launcher must be operable with the keyboard alone: sidebar
+    # focus + activation keys, search-field <-> content crossing, Shift+Tab.
+    python3 tests/test_moos_launcher_keyboard.py
     # The bar is ONE capsule: this runs the real merge surgery out of
     # moos-bar-apply against appletsrc fixtures, so a change that can leave
     # a second bottom panel fails here instead of on the owner's desktop.
@@ -151,6 +174,17 @@ check:
     # Protected app identities and the small-size icon ladder are separate from
     # the monochrome symbolic family and need their own proof.
     python3 tests/test_moos_app_icons.py
+    # KDE and GTK windows must put their buttons on the SAME side. KWin said
+    # left, GSettings and the portal said right, and half the desktop
+    # disagreed with the other half.
+    python3 tests/test_window_button_consistency.py
+    # MoOS's own windows must never take the title bar from KWin: buttons on
+    # the left are only safe while the compositor reserves that strip.
+    python3 tests/test_first_party_window_frame.py
+    # Every name in an Inherits= chain must be a theme the image installs.
+    # MoOSUI2 named Papirus-Dark, which Fedora does not ship: 69 failed
+    # lookups per boot while the gate on the RPM stayed green.
+    python3 tests/test_icon_theme_inheritance.py
     # First-party GTK apps must follow all 16 live KDE schemes, and the remote
     # panel's three-second poll must never run subprocesses on GTK's main loop.
     python3 tests/test_moos_gtk_runtime.py
@@ -160,6 +194,10 @@ check:
     # Owned first-party chrome must resolve to deterministic palette-aware SVGs,
     # never the retired fixed-colour action artwork or a missing icon name.
     python3 tests/test_moos_symbolic_icons.py
+    # A person who cannot see the screen must be able to use MoOS. The
+    # AT-SPI bus was running with NO screen reader and no speech engine
+    # behind it, and QT_ACCESSIBILITY was unset.
+    python3 tests/test_moos_accessibility.py
     # Exercise the real GTK/KDE resolver and librsvg raster path at the five
     # supported review sizes; static XML alone cannot catch a blank or clipped glyph.
     python3 tests/test_moos_symbolic_runtime.py
@@ -171,6 +209,10 @@ check:
     # every Konsole profile must keep asking for JetBrains Mono by name so the
     # weak accept alias engages instead of detaching the cursive joins.
     python3 tests/test_arabic_terminal_font.py
+    # Arabic spell-check must exist in EVERY edition from ONE shared script.
+    # ARM shipped 24 English and ZERO Arabic dictionaries because the x86
+    # block was copied instead of shared.
+    python3 tests/test_webengine_dictionaries.py
     # OpenClaw's state DB needs SQLite 3.51.3+, and Fedora 44's system Node
     # (22.23.1) embeds the broken 3.51.2. The shipped systemd override must keep
     # pinning a SQLite-safe Node on the gateway's PATH, or replies silently drop.
@@ -193,6 +235,9 @@ check:
     # user-provisioning path) and generate a per-bundle one-time password —
     # never a shared static one inside the image.
     python3 tests/test_utm_bundle.py
+    # The net installer is the only path that writes MoOS to a target disk, and
+    # it must stay digest-pinned with cosign verified before bootc install.
+    python3 tests/test_utm_installer.py
     python3 artwork/verify_visuals.py
     # The agent contract: .mcp.json and .claude/settings.json are committed, so a
     # pasted API key, an unapproved server, or a quietly deleted deny rule all reach
@@ -265,8 +310,7 @@ lint:
 # freedesktop SDK runtime and no Chrome is there, so the server starts and then fails
 # on the first navigate with "Could not find Google Chrome executable".
 #
-# So: fetch a Chrome for Testing via Puppeteer (it lands in ~/.cache/puppeteer under a
-# VERSION-pinned path, which would rot the moment it updates), pin a stable symlink at
+# Reuse an installed native Chromium or fetch it through Playwright, then pin a stable symlink at
 # ~/.cache/moos-mcp/chrome, and point MOOS_CHROME at the symlink. .mcp.json reads
 # ${MOOS_CHROME:-/opt/google/chrome/chrome}, so a machine with a normal system Chrome
 # needs none of this and this recipe is harmless there.
@@ -289,13 +333,37 @@ mcp-setup:
     set -euo pipefail
     command -v npx >/dev/null || { echo "mcp-setup: needs Node.js (npx) on PATH" >&2; exit 1; }
 
-    echo "==> fetching Chrome for Testing (~150 MB, cached after the first run)"
-    npx -y puppeteer@latest browsers install chrome
-
-    BIN="$(find "${HOME}/.cache/puppeteer/chrome" -type f -name chrome -perm -u+x 2>/dev/null \
-           | sort -V | tail -1)"
-    [ -n "$BIN" ] || { echo "mcp-setup: puppeteer reported success but no chrome binary landed" >&2; exit 1; }
-    "$BIN" --version >/dev/null || { echo "mcp-setup: $BIN will not run here" >&2; exit 1; }
+    # Reuse a working native browser, including Playwright's ARM download.
+    # A server handshake does not prove its configured browser exists.
+    browser_probe() {
+        python3 - <<'PY'
+    import os, pathlib, shutil, subprocess
+    home = pathlib.Path.home()
+    candidates = [os.environ.get("MOOS_CHROME"),
+                  "/opt/google/chrome/chrome", shutil.which("chromium"),
+                  shutil.which("chromium-browser")]
+    for pattern in (".cache/ms-playwright/chromium-*/chrome-*/chrome",
+                    ".cache/puppeteer/chrome/*/chrome-*/chrome"):
+        candidates.extend(str(p) for p in sorted(home.glob(pattern), reverse=True))
+    for candidate in candidates:
+        if not candidate or not os.access(candidate, os.X_OK):
+            continue
+        try:
+            result = subprocess.run([candidate, "--version"], capture_output=True, timeout=10)
+        except (OSError, subprocess.SubprocessError):
+            continue
+        if result.returncode == 0:
+            print(pathlib.Path(candidate).resolve())
+            break
+    PY
+    }
+    BIN="$(browser_probe)"
+    if [ -z "$BIN" ]; then
+        echo "==> fetching native Chromium via Playwright (cached after the first run)"
+        npx -y playwright@latest install chromium
+        BIN="$(browser_probe)"
+    fi
+    [ -n "$BIN" ] || { echo "mcp-setup: no runnable native Chromium found; set MOOS_CHROME to a working browser" >&2; exit 1; }
 
     mkdir -p "${HOME}/.cache/moos-mcp"
     ln -sfn "$BIN" "${HOME}/.cache/moos-mcp/chrome"
@@ -340,7 +408,7 @@ mcp-setup:
 
     echo
     echo "Done. Open a NEW terminal so the profile export is in the environment, THEN restart"
-    echo "Claude Code and run /mcp — all four should be connected. Restarting the session alone"
+    echo "Claude Code and run /mcp to inspect each server. Restarting the session alone"
     echo "is not enough: .mcp.json expands \${MOOS_CHROME} from the environment the CLI was"
     echo "launched with, not from settings.local.json."
     echo "Image generation additionally needs GEMINI_API_KEY in .claude/settings.local.json;"

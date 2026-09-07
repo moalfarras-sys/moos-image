@@ -1,7 +1,9 @@
 # MoOS x86 system plan
 
-Status: active, 2026-08-27. ARM/UTM work is archived; x86-64 desktop and cloud
-are the product focus.
+Status: historical x86 baseline, 2026-08-27. The current cross-edition plan is
+[MOOS_SYSTEM_DEVELOPMENT_PLAN.md](MOOS_SYSTEM_DEVELOPMENT_PLAN.md). Native ARM
+and Oracle are active; the old UTM experimental branch remains archived. Keep
+the measurements below as historical evidence, not current machine readings.
 
 MoOS is not defined by a package list or a theme. The product boundary is the
 whole path from signed image and firmware hand-off to login, desktop, hardware

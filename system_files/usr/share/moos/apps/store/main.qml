@@ -115,7 +115,7 @@ ApplicationWindow {
     readonly property color accent:   Kirigami.Theme.highlightColor  // ONE accent for the OS: the theme's highlight,
                                       // the same teal the selection ring and the window
                                       // decoration already draw. `link` means links again.
-    readonly property bool rtl: Qt.locale().textDirection === Qt.RightToLeft
+    readonly property bool rtl: MoUI.Locale.rtl
     readonly property bool compactRail: win.width < 1080
 
     // Paths are passed by /usr/bin/moos-store.  Pure QML intentionally has no
@@ -560,6 +560,9 @@ ApplicationWindow {
                 document.message = win.rtl
                     ? "توقفت العملية السابقة قبل أن تكتمل"
                     : "The previous operation stopped before it completed"
+                // Drop the stale step's key, or jobText would render that step's
+                // cheerful progress line over this timeout notice.
+                document.message_key = ""
                 active = false
             }
             var terminal = document.state === "success"
@@ -697,6 +700,51 @@ ApplicationWindow {
         win.jobWaitTicks = 0
     }
 
+    // The backend reports progress in one language and the UI speaks the
+    // owner's. moos-storectl therefore emits a stable `message_key` beside its
+    // human `message`; the key is the contract, the prose is the fallback for a
+    // job document written before keys existed. Failures deliberately carry no
+    // key, so their real diagnostic text reaches the user verbatim.
+    readonly property var jobPhrases: ({
+        "refreshing_index":         ["يُعاد بناء فهرس التطبيقات الموحّد", "Rebuilding the unified app index"],
+        "index_refreshed":          ["تم تحديث الفهرس", "Index refreshed"],
+        "downloading_appimage":     ["يجري تنزيل حزمة AppImage موثّقة", "Downloading verified AppImage"],
+        "already_installed_user":   ["مثبّت مسبقًا لهذا المستخدم", "Already installed for this user"],
+        "already_installed_system": ["مثبّت مسبقًا على مستوى النظام", "Already installed system-wide"],
+        "not_installed":            ["التطبيق غير مثبّت", "App is not installed"],
+        "nothing_to_remove":        ["لا شيء لإزالته — هذا التطبيق يُنزَّل من موقعه الرسمي خارج متجر Mo", "Nothing to remove — this app is downloaded from its official website, outside Mo Store"],
+        "installed":                ["تم التثبيت", "Installed"],
+        "removed":                  ["تمت الإزالة", "Removed"],
+        "updated":                  ["تم التحديث", "Updated"],
+        "up_to_date":               ["كل التطبيقات محدَّثة", "Apps are up to date"],
+        "opening":                  ["جارٍ الفتح", "Opening"],
+        "opened":                   ["تم الفتح", "Opened"],
+        "preparing_gpu":            ["تهيئة موارد الرسوميات", "Preparing GPU headroom"],
+        "completed":                ["اكتمل", "Completed"],
+        "cancelled":                ["أُلغيت العملية", "Cancelled"],
+        "cancelled_before_start":   ["أُلغيت قبل أن تبدأ", "Cancelled before starting"],
+        "all_ready":                ["كل التطبيقات المطلوبة جاهزة", "All requested apps are ready"],
+        "app_removed":              ["تمت إزالة التطبيق", "App removed"],
+        "app_opened":               ["تم فتح التطبيق", "App opened"],
+        "apps_updated":             ["تم تحديث التطبيقات", "Apps updated"]
+    })
+
+    function jobText(source, fallback) {
+        var phrase = source && source.message_key
+            ? win.jobPhrases[source.message_key] : undefined
+        if (phrase)
+            return win.rtl ? phrase[0] : phrase[1]
+        return (source && source.message) || fallback
+    }
+
+    // True when `item` reports `key`, accepting the pre-key prose so a job
+    // document left in the cache by an older Mo Store still resolves.
+    function jobItemIs(item, key, legacyProse) {
+        if (!item) return false
+        if (item.message_key) return item.message_key === key
+        return (item.message || "") === legacyProse
+    }
+
     function applyJobInstalledState(document) {
         if (!document || !document.action) return
         if (document.action !== "install" && document.action !== "remove") return
@@ -708,7 +756,8 @@ ApplicationWindow {
             if (document.action === "remove") {
                 if (item.state === "done"
                         || (item.state === "skipped"
-                            && (item.message || "").indexOf("not installed") >= 0)) {
+                            && win.jobItemIs(item, "not_installed",
+                                             "App is not installed"))) {
                     var removedApp = win.appById(item.id)
                     next[item.id] = win.hasInstalledScope(removedApp, "system")
                     nextScopes[item.id] = win.hasInstalledScope(removedApp, "system")
@@ -720,11 +769,13 @@ ApplicationWindow {
                 nextScopes[item.id] = win.hasInstalledScope(installedApp, "system")
                     ? ["user", "system"] : ["user"]
             } else if (item.state === "skipped"
-                       && (item.message || "") === "Already installed system-wide") {
+                       && win.jobItemIs(item, "already_installed_system",
+                                        "Already installed system-wide")) {
                 next[item.id] = true
                 nextScopes[item.id] = ["system"]
             } else if (item.state === "skipped"
-                       && (item.message || "") === "Already installed for this user") {
+                       && win.jobItemIs(item, "already_installed_user",
+                                        "Already installed for this user")) {
                 next[item.id] = true
                 var skippedApp = win.appById(item.id)
                 nextScopes[item.id] = win.hasInstalledScope(skippedApp, "system")
@@ -2850,7 +2901,7 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         text: win.waitingForJob
                             ? (win.rtl ? "يبدأ العمل…" : "Starting…")
-                            : win.job.message || (win.rtl ? "جارٍ تنفيذ العملية" : "Working")
+                            : win.jobText(win.job, win.rtl ? "جارٍ تنفيذ العملية" : "Working")
                         color: win.txt
                         font.family: win.uiFont
                         font.pixelSize: win.typePx(12)

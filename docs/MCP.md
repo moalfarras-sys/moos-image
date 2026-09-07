@@ -10,7 +10,7 @@ earns its place, and the one command that sets them up. Config lives in
 ## TL;DR
 
 ```bash
-just mcp-setup          # installs the browser the design/perf server needs, writes the local env
+just mcp-setup          # reuses or installs native Chromium, writes the local env
 just check              # the gate that proves the config is still honest
 ```
 
@@ -78,7 +78,10 @@ public and their URLs are not Google's business.
 
 ### `image-gen` — image generation
 
-`mcp-image`, exposing one `generate_image` tool. Text-to-image and image-to-image editing, on
+`mcp-image@0.13.2`, exposing one `generate_image` tool. Its npx invocation explicitly
+includes `ajv@8.17.1`: the standalone package failed during startup on the ARM host
+because `ajv-formats` could not resolve `ajv`. Both versions are pinned together;
+verify `initialize` and `tools/list` before updating them. Text-to-image and image-to-image editing, on
 Gemini ("Nano Banana") by default, or OpenAI's `gpt-image` with `MOOS_IMAGE_PROVIDER=openai`.
 Generates any aspect ratio up to 4K — which matters, because the reference session is 4K at 225%.
 
@@ -98,7 +101,7 @@ Nothing here is required to start working. Only image generation needs a key.
 
 | Variable | Needed for | Where to get it | Cost |
 |---|---|---|---|
-| `GEMINI_API_KEY` | `image-gen` (default provider) | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) — sign in with a Google account, "Create API key" | free tier |
+| `GEMINI_API_KEY` | `image-gen` (default provider) | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) | model/account dependent; no free image-generation guarantee |
 | `OPENAI_API_KEY` | `image-gen` only if you set `MOOS_IMAGE_PROVIDER=openai` | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) | paid |
 | `CONTEXT7_API_KEY` | `context7` — **optional**, raises the rate limit | [context7.com/dashboard](https://context7.com/dashboard) | free tier |
 | `MOOS_CHROME` | `chrome-devtools`, if Chrome is not at `/opt/google/chrome/chrome` | written for you by `just mcp-setup` | — |
@@ -149,14 +152,40 @@ profile, not only in `settings.local.json`.
 
 Run once per machine. It:
 
-1. installs a Chrome for Testing binary via Puppeteer into `~/.cache/puppeteer` (~150 MB),
+1. reuses a runnable browser from `MOOS_CHROME`, the system, or existing Playwright/Puppeteer
+   caches; if none exists, downloads native Chromium with Playwright (including Linux ARM64),
 2. symlinks it to the stable path `~/.cache/moos-mcp/chrome` so a Chrome version bump does not
    break the config,
 3. writes `MOOS_CHROME` into `.claude/settings.local.json`, merging rather than overwriting any
    keys already there.
 
-Then restart your Claude Code session so it re-reads the config, and run `/mcp` to confirm all
-four show **connected**.
+Then open a new terminal and restart your Claude Code session so it re-reads the config.
+Run `/mcp` to inspect each connection. A connected browser server is not enough: use
+`list_pages` to prove its browser actually launches.
+
+### Verified development environment (2026-09-06)
+
+On the Oracle ARM host, credential-free JSON-RPC `initialize` and `tools/list`
+passed for sequential-thinking (1 tool), Context7 (2 tools, anonymous HTTP),
+Chrome DevTools (29 tools), and the corrected image server (1 tool). The old
+image invocation failed with `Cannot find module 'ajv'`; the pinned pair above
+passed both protocol requests. No image-generation request or paid API call was made.
+
+The configured default `/opt/google/chrome/chrome` was absent. The existing native
+Playwright browser at `~/.cache/ms-playwright/chromium-1243/chrome-linux-arm64/chrome`
+successfully launched through Chrome DevTools and returned an isolated `about:blank`
+page. Setup now discovers that browser rather than downloading a duplicate.
+These probes verify the configured server processes, not automatic registration
+in every editor or coding-agent client.
+
+The persistent .NET SDK is `~/.local/share/dotnet` (10.0.400, ARM64 runtime
+10.0.11). A temporary `net10.0` console project compiled and ran on both host
+and VS Code Flatpak using the explicit SDK path. Repository projects target
+`net10.0`, with the Windows agent targeting `net10.0-windows`/`win-x64`;
+this smoke test does not prove Windows execution or every project build.
+VS Code's local settings already select this SDK and add it to new terminals.
+An older inherited agent shell may still lack `dotnet` on PATH; use
+`~/.local/share/dotnet/dotnet` without reloading the owner's editor.
 
 ### Approval
 

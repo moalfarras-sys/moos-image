@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Cloud-only runtime: retire old local units before any phone-agent request.
+exec "$(dirname "$0")/moai-cloud-migrate"
 # Start the fixed speech engine OpenClaw needs, then start the selected Ollama
 # engine only when the real OpenClaw primary is local.  Cloud-only operation must
 # not reserve several GB of RAM/VRAM just because the gateway is running.

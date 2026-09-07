@@ -157,7 +157,10 @@ ApplicationWindow {
     readonly property color amber:      Kirigami.Theme.neutralTextColor
 
     // ── language (chosen on the hero, applied to the whole live session) ───────
-    property string lang: Qt.application.layoutDirection === Qt.RightToLeft ? "ar" : "en"
+    // Still mutable: this surface lets the user choose a language. Only the
+    // DEFAULT moves to the shared authority, because the old expression made
+    // the very first screen of an Arabic install open in English.
+    property string lang: MoUI.Locale.language
     readonly property bool rtl: win.lang === "ar"
     function tr(ar, en) { return win.rtl ? ar : en }
 

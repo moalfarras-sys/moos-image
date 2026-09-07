@@ -79,6 +79,13 @@ _PLASMA=(
     kf6-kirigami kf6-kirigami-addons kf6-qqc2-desktop-style
     dolphin konsole ark kate gwenview haruna kf6-baloo-file
     plasma-breeze breeze-icon-theme papirus-icon-theme
+    # ACCESSIBILITY. MoOS shipped the AT-SPI bus running and nothing behind it:
+    # orca, speech-dispatcher and every speech engine were absent, so a blind
+    # user could not use this system at all. The bus was a road to nowhere.
+    # espeak-ng carries /usr/share/espeak-ng-data/ar_dict, so the screen reader
+    # speaks Arabic — on an OS that calls Arabic first-class, an English-only
+    # reader would not have been a fix.
+    orca speech-dispatcher espeak-ng
     pipewire pipewire-pulseaudio wireplumber
     NetworkManager NetworkManager-wifi
     plymouth plymouth-plugin-script plymouth-plugin-two-step plymouth-system-theme
@@ -91,9 +98,8 @@ _PLASMA=(
     # Architecture-independent MoOS desktop assets are generated after the
     # final RPM transaction by finalize_moos_desktop.sh.
     git-core curl tar xz gtk-update-icon-cache
-    # Same local-brain engine as x86. The model remains an explicit download;
-    # only the small routing/control services start with the user session.
-    ramalama
+    # The local-brain engine is GONE here too (stage C5). Mo AI is cloud-only;
+    # ensure_local() refuses, so this package had no reachable caller left.
     # Day-2 updates resolve a mutable release tag to an exact signed digest.
     # fedora-bootc supplies rpm-ostree today, but both tools are explicit product
     # dependencies rather than accidental base-image contents.
@@ -530,6 +536,35 @@ hostonly_cmdline="no"
 # CI, so do not ask dracut to emit a misleading "No /dev/log" error.
 sysloglvl="0"
 add_drivers+=" virtio_blk virtio_net virtio_pci virtio_scsi virtio_gpu virtio_console "
+# MEASURED ON THE LIVE ORACLE A1 (2026-09-06): the ARM initramfs was 237 MB and
+# /boot (974 MB) sat at 78% with only TWO deployments at 351 MB each. A third
+# deployment does not fit, which is how a signed update fails to stage.
+#
+# 137.8 MB of that image was FIRMWARE, and 131 MB of it belonged to discrete
+# desktop GPUs that cannot exist on any ARM target this edition ships to
+# (Oracle A1 and UTM both present virtio-gpu, which is force-added above):
+#
+#   nouveau  559 firmware entries -> usr/lib/firmware/nvidia   101.2 MB
+#   amdgpu   694                  -> usr/lib/firmware/amdgpu    23.4 MB
+#   xe        41                  -> usr/lib/firmware/{xe,i915}  5.0 MB
+#   radeon   232                  -> usr/lib/firmware/radeon      1.4 MB
+#
+# GPU firmware is not needed to REACH the root filesystem, which is the only job
+# an initramfs has. Omitting these four modules drops their firmware with them.
+# On the rare ARM board that does have one of these cards the driver still loads
+# normally from the root filesystem after switch-root; only the early-KMS splash
+# falls back to efifb/simpledrm. hostonly stays "no" — this removes four GPU
+# families, NOT the portability that lets one image boot unknown hardware.
+#
+# SAFE BY CONSTRUCTION: dracut anchors every omit entry as `^name$`
+# (/usr/bin/dracut:1493), so these match the four modules by exact name and
+# cannot reach a storage or network driver. Verified against dracut-108-7.fc44.
+# The finished-image gate below proves both halves: the firmware is gone AND
+# virtio/ostree/plymouth survived.
+#
+# x86 IS DELIBERATELY NOT TOUCHED. build.sh's moos-nvidia edition requires the
+# NVIDIA kmod inside its initramfs; that contract is unrelated to this file.
+omit_drivers+=" nouveau amdgpu radeon xe "
 DRACUT
 
 # -----------------------------------------------------------------------------
@@ -981,6 +1016,21 @@ if policy.get("transports", {}).get("containers-storage", {}).get("") != [
 PYSEC
 
 # -----------------------------------------------------------------------------
+# (8z) Qt WebEngine spell-check dictionaries — Arabic included
+# -----------------------------------------------------------------------------
+# MEASURED ON THE LIVE ORACLE A1 (2026-09-06): this image shipped 24 en_*.bdic
+# and ZERO ar_*.bdic, with six qwebengine_convert_dict coredumps sitting in
+# coredumpctl — every one of them an Arabic locale. The Arabic-speaking owner's
+# own machine had no Arabic spell-check, on an OS whose engineering skill calls
+# Arabic first-class and whose AGENTS.md describes this as build-enforced.
+#
+# It was build-enforced, on x86 only. ARM never got the block, because the block
+# was COPIED rather than shared. It is a script now, so the two editions cannot
+# drift apart again, and the script asserts both languages before it exits.
+# Runs here, late, so every package that pulls qt6-qtwebengine is already in.
+bash /ctx/convert_webengine_dictionaries.sh
+
+# -----------------------------------------------------------------------------
 # (9) Rebuild the initramfs so the splash and the virtio drivers are in it
 # -----------------------------------------------------------------------------
 echo "=== (9) initramfs ==="
@@ -1052,6 +1102,47 @@ for _driver in virtio_blk virtio_pci virtio_scsi virtio_net virtio_gpu virtio_co
 done
 unset -v _driver _driver_file _driver_basename
 echo "=== initramfs carries OSTree, virtio and the MoOS splash ==="
+
+# GATE: the discrete-GPU firmware must be GONE, and it must have stayed gone.
+# This runs AFTER the OSTree/virtio/Plymouth checks above on purpose: those prove
+# the omission did not take anything the boot needs with it, and this proves the
+# omission actually happened. Reading the BUILT archive is the point — a green
+# dracut log says nothing about the bytes (see skills/moos-engineering/SKILL.md).
+# Assert on the MODULES, not on the firmware namespace. An earlier revision of
+# this gate demanded zero files under lib/firmware/nvidia/ and failed a build
+# whose fix had worked perfectly: `tegra-drm` and `xhci-tegra` are NVIDIA TEGRA
+# drivers — real aarch64 SoC hardware (Jetson) that MoOS keeps on purpose — and
+# they declare 12 small firmware files in that same nvidia/ namespace. Measured
+# with dracut-108-7.fc44 on kernel 7.1.13-200.fc44.aarch64:
+#
+#   no omission          248,496,743 B (237 MiB), 597 nvidia firmware files
+#   omit_drivers as here  104,554,992 B (99.7 MiB), 11 nvidia firmware files
+#
+# So the contract is "these four modules are gone" plus the size ceiling below,
+# never "this firmware directory is empty" — a gate that cannot pass on a correct
+# image is worse than no gate.
+for _mod in nouveau amdgpu radeon xe; do
+    if grep -qE "/${_mod}\.ko" /tmp/moos-arm-initrd.txt; then
+        echo "FATAL: ${_mod} is still in the ARM initramfs — omit_drivers in"
+        echo "       50-moos-arm.conf did not take. Its firmware rides with it, and"
+        echo "       131 MB of desktop-GPU firmware per deployment is what filled"
+        echo "       /boot to 78% on the live A1."
+        exit 1
+    fi
+done
+unset -v _mod
+# A ceiling, so the bloat cannot creep back through some other driver family.
+# Measured before the fix: 237 MB. After: expected well under 110 MB.
+_initrd_mib=$(( $(stat -c %s "/usr/lib/modules/${kver}/initramfs.img") / 1048576 ))
+echo "       ARM initramfs: ${_initrd_mib} MiB"
+if [ "${_initrd_mib}" -gt 150 ]; then
+    echo "FATAL: the ARM initramfs is ${_initrd_mib} MiB (ceiling 150)."
+    echo "       /boot is 974 MiB and holds TWO deployments plus their kernels;"
+    echo "       an image this large cannot stage a third and updates start failing."
+    exit 1
+fi
+unset -v _initrd_mib
+echo "=== initramfs carries no desktop-GPU firmware and fits /boot ==="
 
 # The ARM edition does not get a reduced identity standard. These are the same
 # identity and foreign-brand gates the x86 editions run, plus ARM-specific

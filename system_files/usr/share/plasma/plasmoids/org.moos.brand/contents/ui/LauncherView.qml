@@ -148,6 +148,53 @@ Item {
         searchInput.selectAll();
     }
 
+    // Move keyboard focus from the search field (or the sidebar) INTO the
+    // surface the user is looking at. Every non-search page has one primary
+    // interactive region; this is the single owner of "which one". Down from
+    // the search field and the logical-forward arrow from a NavButton both
+    // land here, so the launcher is fully operable without a pointer.
+    function focusActivePageContent() {
+        if (view.searching) {
+            if (searchResults.count > 0) {
+                searchResults.currentIndex = Math.max(0, searchResults.currentIndex);
+                searchResults.forceActiveFocus();
+            }
+            return;
+        }
+        switch (view.launcher.activePage) {
+        case 0:
+            if (view.favoritesModel.count > 0) {
+                favoritesGrid.currentIndex = Math.max(0, favoritesGrid.currentIndex);
+                favoritesGrid.forceActiveFocus();
+            } else {
+                homeExploreButton.forceActiveFocus();
+            }
+            break;
+        case 1:
+            applicationsGrid.currentIndex = Math.max(0, applicationsGrid.currentIndex);
+            applicationsGrid.forceActiveFocus();
+            break;
+        case 2:
+            if (placesList.count > 0) {
+                placesList.currentIndex = Math.max(0, placesList.currentIndex);
+                placesList.forceActiveFocus();
+            }
+            break;
+        case 3:
+            customizeArrangeButton.forceActiveFocus();
+            break;
+        }
+    }
+
+    // The NavButton for a page, so a grid/list can hand focus back to the
+    // sidebar entry it belongs under (Shift+Tab), not just the last one.
+    function navForPage(page) {
+        return page === 0 ? navHome
+             : page === 2 ? navPlaces
+             : page === 3 ? navCustomize
+             : navApps;
+    }
+
     function setSearchCursor(position) {
         searchInput.forceActiveFocus();
         searchInput.cursorPosition = Math.max(0, Math.min(position, searchInput.length));
@@ -472,11 +519,12 @@ Item {
 
                         onTextEdited: view.launcher.searchQuery = text
                         onAccepted: view.runCurrentSearchResult()
+                        // Down leaves the field for the content the user can
+                        // see: the results list while searching, otherwise the
+                        // active page's primary grid/list. focusActivePageContent
+                        // owns that choice for every route into the surface.
                         Keys.onDownPressed: event => {
-                            if (searchResults.count > 0) {
-                                searchResults.currentIndex = Math.max(0, searchResults.currentIndex);
-                                searchResults.forceActiveFocus();
-                            }
+                            view.focusActivePageContent();
                             event.accepted = true;
                         }
 
@@ -546,25 +594,40 @@ Item {
                 Layout.fillHeight: true
                 spacing: view.space2
 
+                // Up/Down cycle the four; the ids let each one name its
+                // neighbours so the ring wraps without a Repeater (which would
+                // cost these explicit, page-bound instances their identity).
                 NavButton {
+                    id: navHome
                     page: 0
                     iconName: "moos-home-symbolic"
                     label: view.local("الرئيسية", "Home")
+                    navUp: navCustomize
+                    navDown: navApps
                 }
                 NavButton {
+                    id: navApps
                     page: 1
                     iconName: "moos-grid-symbolic"
                     label: view.local("التطبيقات", "Applications")
+                    navUp: navHome
+                    navDown: navPlaces
                 }
                 NavButton {
+                    id: navPlaces
                     page: 2
                     iconName: "moos-document-symbolic"
                     label: view.local("الأماكن", "Places")
+                    navUp: navApps
+                    navDown: navCustomize
                 }
                 NavButton {
+                    id: navCustomize
                     page: 3
                     iconName: "moos-settings-symbolic"
                     label: view.local("تخصيص", "Customize")
+                    navUp: navPlaces
+                    navDown: navHome
                 }
 
                 Item { Layout.fillHeight: true }
@@ -693,6 +756,22 @@ Item {
                                     ? 82
                                     : 96
                                 keyNavigationWraps: true
+                                activeFocusOnTab: true
+                                readonly property int columns: Math.max(
+                                    1, Math.floor(width / Math.max(1, cellWidth)))
+                                // From the top row, Up returns to the search
+                                // field — the same contract the results list
+                                // already honours. Shift+Tab goes to this
+                                // page's sidebar entry, not the last one.
+                                KeyNavigation.backtab: navHome
+                                Keys.onUpPressed: event => {
+                                    if (currentIndex < columns) {
+                                        view.focusSearch();
+                                    } else {
+                                        moveCurrentIndexUp();
+                                    }
+                                    event.accepted = true;
+                                }
                                 QQC2.ScrollBar.vertical: QQC2.ScrollBar {
                                     policy: QQC2.ScrollBar.AsNeeded
                                     // Position indicator only: an interactive
@@ -781,10 +860,12 @@ Item {
                                     wrapMode: Text.WordWrap
                                 }
                                 PC3.Button {
+                                    id: homeExploreButton
                                     Layout.alignment: Qt.AlignHCenter
                                     Layout.minimumHeight: view.targetSize
                                     text: view.local("استكشف التطبيقات", "Explore applications")
                                     icon.name: "moos-grid-symbolic"
+                                    activeFocusOnTab: true
                                     onClicked: view.launcher.activePage = 1
                                 }
                             }
@@ -807,13 +888,33 @@ Item {
                             }
 
                             ListView {
+                                id: recentStrip
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
                                 orientation: ListView.Horizontal
                                 spacing: view.space2
                                 clip: true
                                 boundsBehavior: Flickable.StopAtBounds
+                                keyNavigationWraps: true
+                                activeFocusOnTab: true
+                                currentIndex: -1
                                 model: view.recentUsageModel
+                                KeyNavigation.backtab: navHome
+
+                                Keys.onReturnPressed: event => {
+                                    if (currentIndex >= 0) {
+                                        view.launcher.triggerEntry(
+                                            view.recentUsageModel, currentIndex);
+                                    }
+                                    event.accepted = true;
+                                }
+                                Keys.onEnterPressed: event => {
+                                    if (currentIndex >= 0) {
+                                        view.launcher.triggerEntry(
+                                            view.recentUsageModel, currentIndex);
+                                    }
+                                    event.accepted = true;
+                                }
 
                                 delegate: RecentTile {
                                     width: 156
@@ -886,6 +987,20 @@ Item {
                                 ? 82
                                 : 96
                             keyNavigationWraps: true
+                            activeFocusOnTab: true
+                            readonly property int columns: Math.max(
+                                1, Math.floor(width / Math.max(1, cellWidth)))
+                            // Same keyboard contract as the pinned grid: top row
+                            // Up -> search field, Shift+Tab -> Applications nav.
+                            KeyNavigation.backtab: navApps
+                            Keys.onUpPressed: event => {
+                                if (currentIndex < columns) {
+                                    view.focusSearch();
+                                } else {
+                                    moveCurrentIndexUp();
+                                }
+                                event.accepted = true;
+                            }
                             QQC2.ScrollBar.vertical: QQC2.ScrollBar {
                                 policy: QQC2.ScrollBar.AsNeeded
                                 // Same indicator-only contract as the pinned
@@ -975,12 +1090,46 @@ Item {
                         }
 
                         ListView {
+                            id: placesList
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             clip: true
                             spacing: view.space2
                             boundsBehavior: Flickable.StopAtBounds
+                            keyNavigationWraps: true
+                            activeFocusOnTab: true
+                            currentIndex: -1
                             model: view.placesModel
+                            KeyNavigation.backtab: navPlaces
+
+                            // Enter is handled at the view (like the results
+                            // list): the delegate carries its own handlers too,
+                            // but the view level fires whether or not the row
+                            // itself took focus.
+                            Keys.onUpPressed: event => {
+                                if (currentIndex <= 0) {
+                                    view.focusSearch();
+                                } else {
+                                    decrementCurrentIndex();
+                                }
+                                event.accepted = true;
+                            }
+                            Keys.onDownPressed: event => {
+                                incrementCurrentIndex();
+                                event.accepted = true;
+                            }
+                            Keys.onReturnPressed: event => {
+                                if (currentIndex >= 0) {
+                                    view.launcher.triggerEntry(view.placesModel, currentIndex);
+                                }
+                                event.accepted = true;
+                            }
+                            Keys.onEnterPressed: event => {
+                                if (currentIndex >= 0) {
+                                    view.launcher.triggerEntry(view.placesModel, currentIndex);
+                                }
+                                event.accepted = true;
+                            }
 
                             delegate: PlaceRow {
                                 width: ListView.view.width
@@ -1060,9 +1209,11 @@ Item {
                                         }
                                     }
                                     PC3.Button {
+                                        id: customizeArrangeButton
                                         Layout.minimumHeight: view.targetSize
                                         text: view.local("ترتيب الآن", "Arrange now")
                                         icon.name: "moos-pen-symbolic"
+                                        activeFocusOnTab: true
                                         onClicked: {
                                             view.launcher.activePage = 0;
                                             view.launcher.editMode = true;
@@ -1169,6 +1320,7 @@ Item {
                             currentIndex: -1
                             model: view.searchModel
                             activeFocusOnTab: true
+                            KeyNavigation.backtab: searchInput
                             Accessible.role: Accessible.List
                             Accessible.name: view.local("نتائج البحث", "Search results")
                             section.property: "category"
@@ -1352,17 +1504,43 @@ Item {
         required property int page
         property string iconName: ""
         property string label: ""
+        // The two vertical neighbours in the four-button ring.
+        property Item navUp: null
+        property Item navDown: null
 
         Layout.fillWidth: true
         Layout.minimumHeight: 42
         Layout.preferredHeight: 42
         hoverEnabled: true
+        // A keyboard user must be able to Tab to the sidebar and see where the
+        // focus sits — the background already draws an activeFocus edge.
+        activeFocusOnTab: true
         Accessible.name: label
         Accessible.role: Accessible.Button
-        onClicked: {
+
+        function activate() {
             view.launcher.searchQuery = "";
             view.launcher.activePage = page;
         }
+        onClicked: nav.activate()
+
+        // Enter/Space switch the page and keep focus here so the user can keep
+        // arrowing. The logical-forward arrow (Right in LTR, Left in RTL — and
+        // there is nothing on the other side of the sidebar, so both do it)
+        // steps into the page content.
+        Keys.onReturnPressed: event => { nav.activate(); event.accepted = true; }
+        Keys.onEnterPressed: event => { nav.activate(); event.accepted = true; }
+        Keys.onSpacePressed: event => { nav.activate(); event.accepted = true; }
+        Keys.onUpPressed: event => {
+            if (nav.navUp) { nav.navUp.forceActiveFocus(); }
+            event.accepted = true;
+        }
+        Keys.onDownPressed: event => {
+            if (nav.navDown) { nav.navDown.forceActiveFocus(); }
+            event.accepted = true;
+        }
+        Keys.onLeftPressed: event => { view.focusActivePageContent(); event.accepted = true; }
+        Keys.onRightPressed: event => { view.focusActivePageContent(); event.accepted = true; }
 
         background: Rectangle {
             radius: view.radiusM
@@ -1638,10 +1816,11 @@ Item {
         Keys.onSpacePressed: event => { recent.activate(); event.accepted = true; }
         background: Rectangle {
             radius: view.radiusM
-            color: recent.hovered || recent.activeFocus
+            color: recent.hovered || recent.activeFocus || recent.ListView.isCurrentItem
                 ? Qt.alpha(Kirigami.Theme.highlightColor, 0.085)
                 : "transparent"
-            border.width: recent.activeFocus ? 2 : recent.hovered ? 1 : 0
+            border.width: recent.activeFocus ? 2
+                : recent.hovered || recent.ListView.isCurrentItem ? 1 : 0
             border.color: Qt.alpha(Kirigami.Theme.highlightColor,
                 recent.activeFocus ? 0.82 : 0.34)
             // Ease the hover like every sibling row (FavoriteTile/nav/search) —
@@ -1701,10 +1880,14 @@ Item {
         Keys.onSpacePressed: event => { place.activate(); event.accepted = true; }
         background: Rectangle {
             radius: view.radiusM
-            color: place.hovered || place.activeFocus
+            // isCurrentItem is the keyboard selection: the Places list drives
+            // currentIndex from the arrow keys, so the row under it must read as
+            // chosen even with no pointer and no delegate focus.
+            color: place.hovered || place.activeFocus || place.ListView.isCurrentItem
                 ? Qt.alpha(Kirigami.Theme.highlightColor, 0.085)
                 : "transparent"
-            border.width: place.activeFocus ? 2 : place.hovered ? 1 : 0
+            border.width: place.activeFocus ? 2
+                : place.hovered || place.ListView.isCurrentItem ? 1 : 0
             border.color: Qt.alpha(Kirigami.Theme.highlightColor,
                 place.activeFocus ? 0.82 : 0.34)
             // Same eased-hover parity as the Favorite/Recent/nav rows.
@@ -1844,6 +2027,14 @@ Item {
         signal activated()
 
         hoverEnabled: true
+        // Inset the content off the card edge. Without this the eyebrow ran
+        // flush into the rounded corner and clipped in RTL — "اكتشف" rendered
+        // as "كتشف" at 150% (docs/MOOS_DESIGN_PLAN.md D01: no clipped RTL
+        // labels). AppTile already insets its own contentItem the same way.
+        leftPadding: view.space4
+        rightPadding: view.space4
+        topPadding: view.space2
+        bottomPadding: view.space2
         Accessible.name: command.title
         Accessible.description: command.eyebrow
         Accessible.role: Accessible.Button

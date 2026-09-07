@@ -361,6 +361,7 @@ class Job:
         progress: int | None | object = _UNSET,
         current_id: str | None | object = _UNSET,
         message: str | object = _UNSET,
+        message_key: str | object = _UNSET,
     ) -> None:
         with self._lock:
             changed = False
@@ -369,6 +370,7 @@ class Job:
                 ("progress", progress),
                 ("current_id", current_id),
                 ("message", message),
+                ("message_key", message_key),
             ):
                 if value is not _UNSET and self.document.get(key) != value:
                     self.document[key] = value
@@ -385,6 +387,7 @@ class Job:
         state: str | object = _UNSET,
         progress: int | None | object = _UNSET,
         message: str | object = _UNSET,
+        message_key: str | object = _UNSET,
     ) -> None:
         with self._lock:
             item = self._items.get(item_id)
@@ -395,6 +398,7 @@ class Job:
                 ("state", state),
                 ("progress", progress),
                 ("message", message),
+                ("message_key", message_key),
             ):
                 if value is not _UNSET and item.get(key) != value:
                     item[key] = value
@@ -410,7 +414,8 @@ class Job:
             targets = set(item_ids if item_ids is not None else self._items)
             for item_id, item in self._items.items():
                 if item_id in targets and item["state"] in {"queued", "running"}:
-                    item.update(state="failed", message=reason)
+                    item.update(state="failed", message=reason,
+                                message_key=None)
             states = [item["state"] for item in self._items.values()]
             has_success = any(state in {"done", "opened", "skipped"} for state in states)
             has_failure = any(state == "failed" for state in states)
@@ -420,18 +425,26 @@ class Job:
                 progress=100 if state == "partial" else self.document["progress"],
                 current_id=None,
                 message=reason,
+                message_key=None,
             )
 
     def cancelled(self) -> None:
         with self._lock:
             for item in self._items.values():
                 if item["state"] == "running":
-                    item.update(state="failed", message="Cancelled")
+                    item.update(state="failed", message="Cancelled",
+                                message_key="cancelled")
                 elif item["state"] == "queued":
-                    item.update(state="skipped", message="Cancelled before starting")
-            self.update(state="cancelled", current_id=None, message="Cancelled")
+                    item.update(state="skipped", message="Cancelled before starting",
+                                message_key="cancelled_before_start")
+            self.update(state="cancelled", current_id=None, message="Cancelled",
+                        message_key="cancelled")
 
-    def finish_from_items(self, success_message: str = "Completed") -> None:
+    def finish_from_items(
+        self,
+        success_message: str = "Completed",
+        success_key: str | None = None,
+    ) -> None:
         with self._lock:
             states = [item["state"] for item in self.document["items"]]
             failed = sum(state == "failed" for state in states)
@@ -442,11 +455,15 @@ class Job:
                 state, message = "failed", f"{failed} operation(s) failed"
             else:
                 state, message = "success", success_message
+            # The partial/failed lines embed counts, so they stay prose; only a
+            # clean success has a phrase the UI can render in either language.
+            key = success_key if state == "success" else None
             self.update(
                 state=state,
                 progress=100 if state in {"success", "partial"} else self.document["progress"],
                 current_id=None,
                 message=message,
+                message_key=key,
             )
 
 
@@ -539,13 +556,15 @@ class TransactionEvents:
         self.job.update(
             state="running",
             message=f"Resolved {operation_count} Flatpak operation(s)",
+            message_key=None,
         )
 
     def started(self, ref: str, status: str = "Starting") -> None:
         app_id = self.ref_id(ref)
         if app_id in self.requested:
             self.job.update_item(
-                app_id, state="running", progress=None, message=clean_message(status)
+                app_id, state="running", progress=None, message=clean_message(status),
+                message_key=None,
             )
             current: str | None = app_id
         else:
@@ -554,6 +573,7 @@ class TransactionEvents:
             state="running",
             current_id=current,
             message=clean_message(status or f"Processing {app_id}"),
+            message_key=None,
         )
 
     def progress(
@@ -567,20 +587,23 @@ class TransactionEvents:
         message = clean_message(status or f"Processing {app_id}")
         if app_id in self.requested:
             self.job.update_item(
-                app_id, state="running", progress=percent, message=message
+                app_id, state="running", progress=percent, message=message,
+                message_key=None,
             )
         self.job.update(
             state="running",
             progress=overall_percent,
             current_id=app_id if app_id in self.requested else self.job.document["current_id"],
             message=message,
+            message_key=None,
         )
 
     def done(self, ref: str) -> None:
         app_id = self.ref_id(ref)
         if app_id in self.requested:
             self.job.update_item(
-                app_id, state="done", progress=100, message="Completed"
+                app_id, state="done", progress=100, message="Completed",
+                message_key="completed"
             )
 
     def error(self, ref: str, error: object) -> None:
@@ -588,9 +611,10 @@ class TransactionEvents:
         message = clean_message(error)
         if app_id in self.requested:
             self.job.update_item(
-                app_id, state="failed", progress=None, message=message
+                app_id, state="failed", progress=None, message=message,
+                message_key=None
             )
-        self.job.update(message=message)
+        self.job.update(message=message, message_key=None)
 
 
 class FlatpakAdapter:
@@ -1175,9 +1199,10 @@ class Controller:
         message = "Installing developer tool"
         if note:
             message += f" ({note})"
-        job.update_item(app_id, state="running", progress=None, message=message)
+        job.update_item(app_id, state="running", progress=None, message=message, message_key=None)
         job.update(
-            state="running", progress=None, current_id=app_id, message=message
+            state="running", progress=None, current_id=app_id, message=message,
+            message_key=None,
         )
         result = self.runner.run_cancellable(
             [
@@ -1200,7 +1225,7 @@ class Controller:
         done = "Installed"
         if note:
             done += f" ({note})"
-        job.update_item(app_id, state="done", progress=100, message=done)
+        job.update_item(app_id, state="done", progress=100, message=done, message_key=None)
 
     def _install_web(self, job: Job, app_id: str, recipe: dict[str, Any]) -> None:
         install = recipe.get("install")
@@ -1222,9 +1247,10 @@ class Controller:
         message = "Opened the official download page"
         if note:
             message += f" ({note})"
-        job.update_item(app_id, state="opened", progress=100, message=message)
+        job.update_item(app_id, state="opened", progress=100, message=message, message_key=None)
         job.update(
-            state="running", current_id=app_id, message=message
+            state="running", current_id=app_id, message=message,
+            message_key=None,
         )
 
     def _install_pinned_appimage(
@@ -1292,13 +1318,13 @@ class Controller:
                         app_id,
                         state="running",
                         progress=percent,
-                        message="Downloading verified AppImage",
+                        message="Downloading verified AppImage", message_key="downloading_appimage",
                     )
                     job.update(
                         state="running",
                         progress=percent,
                         current_id=app_id,
-                        message="Downloading verified AppImage",
+                        message="Downloading verified AppImage", message_key="downloading_appimage",
                     )
                 output.flush()
                 os.fsync(output.fileno())
@@ -1311,6 +1337,7 @@ class Controller:
                 state="done",
                 progress=100,
                 message=f"Installed verified AppImage ({note})",
+                message_key=None,
             )
         finally:
             with contextlib.suppress(FileNotFoundError):
@@ -1383,6 +1410,7 @@ class Controller:
                             state="failed",
                             progress=None,
                             message=clean_message(error),
+                            message_key=None,
                         )
 
                 pending_flatpaks: list[str] = []
@@ -1392,14 +1420,14 @@ class Controller:
                             app_id,
                             state="skipped",
                             progress=100,
-                            message="Already installed for this user",
+                            message="Already installed for this user", message_key="already_installed_user",
                         )
                     elif self.adapter.is_system_installed(app_id):
                         job.update_item(
                             app_id,
                             state="skipped",
                             progress=100,
-                            message="Already installed system-wide",
+                            message="Already installed system-wide", message_key="already_installed_system",
                         )
                     else:
                         pending_flatpaks.append(app_id)
@@ -1419,6 +1447,7 @@ class Controller:
                                     state="done",
                                     progress=100,
                                     message="Installed",
+                                    message_key="installed",
                                 )
                     except CancelledError:
                         raise
@@ -1430,8 +1459,9 @@ class Controller:
                                     state="failed",
                                     progress=None,
                                     message=clean_message(error),
+                                    message_key=None,
                                 )
-                job.finish_from_items("All requested apps are ready")
+                job.finish_from_items("All requested apps are ready", "all_ready")
             except CancelledError:
                 job.cancelled()
             except Exception as error:
@@ -1468,12 +1498,13 @@ class Controller:
                         progress=100,
                         message="Nothing to remove — this app is downloaded from "
                         "its official website, outside Mo Store",
+                        message_key="nothing_to_remove",
                     )
                 else:
                     raise StoreError(
                         f"Unsupported curated install kind for {app_id}: {kind}"
                     )
-                job.finish_from_items("App removed")
+                job.finish_from_items("App removed", "app_removed")
             except CancelledError:
                 job.cancelled()
             except Exception as error:
@@ -1486,9 +1517,10 @@ class Controller:
             raise StoreError(f"Catalog has an invalid npm package for {app_id}")
         prefix = Path.home() / ".local"
         message = "Removing developer tool"
-        job.update_item(app_id, state="running", progress=None, message=message)
+        job.update_item(app_id, state="running", progress=None, message=message, message_key=None)
         job.update(
-            state="running", progress=None, current_id=app_id, message=message
+            state="running", progress=None, current_id=app_id, message=message,
+            message_key=None,
         )
         # Symmetric with _install_npm: same global user prefix, same no-shell
         # argv, `--` before the name so a package that starts with a dash can
@@ -1511,7 +1543,10 @@ class Controller:
             raise CancelledError("Cancelled")
         if result.returncode:
             raise StoreError(result.reason or f"npm exited with {result.returncode}")
-        job.update_item(app_id, state="done", progress=100, message="Removed")
+        job.update_item(
+            app_id, state="done", progress=100, message="Removed",
+            message_key="removed",
+        )
 
     def _remove_appimage(
         self, job: Job, app_id: str, install: dict[str, Any]
@@ -1527,10 +1562,14 @@ class Controller:
             target.unlink()
         except FileNotFoundError:
             job.update_item(
-                app_id, state="skipped", progress=100, message="App is not installed"
+                app_id, state="skipped", progress=100, message="App is not installed",
+                message_key="not_installed"
             )
             return
-        job.update_item(app_id, state="done", progress=100, message="Removed")
+        job.update_item(
+            app_id, state="done", progress=100, message="Removed",
+            message_key="removed",
+        )
 
     def remove(self, app_id: str) -> tuple[int, dict[str, Any]]:
         # A curated (source="moos") app is not a Flatpak, so it must be handled
@@ -1560,7 +1599,7 @@ class Controller:
                         app_id,
                         state="skipped",
                         progress=100,
-                        message="App is not installed",
+                        message="App is not installed", message_key="not_installed",
                     )
                 else:
                     events = TransactionEvents(job, [app_id])
@@ -1568,9 +1607,10 @@ class Controller:
                         app_id, events, lambda: self._cancelled(job)
                     )
                     job.update_item(
-                        app_id, state="done", progress=100, message="Removed"
+                        app_id, state="done", progress=100, message="Removed",
+                        message_key="removed",
                     )
-                job.finish_from_items("App removed")
+                job.finish_from_items("App removed", "app_removed")
             except CancelledError:
                 job.cancelled()
             except Exception as error:
@@ -1592,20 +1632,22 @@ class Controller:
                 ):
                     raise StoreError("App is not installed as a Flatpak")
                 job.update_item(
-                    app_id, state="running", progress=None, message="Opening app"
+                    app_id, state="running", progress=None, message="Opening app",
+                    message_key="opening"
                 )
                 job.update(
                     state="running",
                     current_id=app_id,
                     progress=None,
-                    message="Preparing GPU headroom",
+                    message="Preparing GPU headroom", message_key="preparing_gpu",
                 )
                 self.runner.gpu_guard()
                 self.adapter.launch(app_id)
                 job.update_item(
-                    app_id, state="done", progress=100, message="Opened"
+                    app_id, state="done", progress=100, message="Opened",
+                    message_key="opened"
                 )
-                job.finish_from_items("App opened")
+                job.finish_from_items("App opened", "app_opened")
             except Exception as error:
                 job.fail(error, [app_id])
             return exit_code(job.document["state"]), job.snapshot()
@@ -1666,7 +1708,7 @@ class Controller:
                         state="success",
                         progress=100,
                         current_id=None,
-                        message="Apps are up to date",
+                        message="Apps are up to date", message_key="up_to_date",
                     )
                 else:
                     # The update list is discovered after job creation.  Rebuild the
@@ -1684,8 +1726,9 @@ class Controller:
                                 state="done",
                                 progress=100,
                                 message="Updated",
+                                message_key="updated",
                             )
-                    job.finish_from_items("Apps updated")
+                    job.finish_from_items("Apps updated", "apps_updated")
             except CancelledError:
                 job.cancelled()
             except Exception as error:
@@ -1708,13 +1751,13 @@ class Controller:
                     item_id,
                     state="running",
                     progress=None,
-                    message="Rebuilding the unified app index",
+                    message="Rebuilding the unified app index", message_key="refreshing_index",
                 )
                 job.update(
                     state="running",
                     progress=None,
                     current_id=item_id,
-                    message="Rebuilding the unified app index",
+                    message="Rebuilding the unified app index", message_key="refreshing_index",
                 )
                 result = self.runner.run_cancellable(
                     [
@@ -1734,9 +1777,10 @@ class Controller:
                         or f"App indexer exited with {result.returncode}"
                     )
                 job.update_item(
-                    item_id, state="done", progress=100, message="Index refreshed"
+                    item_id, state="done", progress=100, message="Index refreshed",
+                    message_key="index_refreshed"
                 )
-                job.finish_from_items("App index refreshed")
+                job.finish_from_items("App index refreshed", "index_refreshed")
             except CancelledError:
                 job.cancelled()
             except Exception as error:
@@ -1754,13 +1798,15 @@ class Controller:
         with lock:
             try:
                 job.update_item(
-                    name, state="running", progress=None, message="Opening"
+                    name, state="running", progress=None, message="Opening",
+                    message_key="opening"
                 )
                 job.update(
                     state="running",
                     progress=None,
                     current_id=name,
                     message=f"Opening {name}",
+                    message_key=None,
                 )
                 if name == "bazaar":
                     if not (
@@ -1794,7 +1840,8 @@ class Controller:
                 else:
                     self.runner.spawn(command)
                 job.update_item(
-                    name, state="opened", progress=100, message="Opened"
+                    name, state="opened", progress=100, message="Opened",
+                    message_key="opened"
                 )
                 job.finish_from_items(f"Opened {name}")
             except Exception as error:

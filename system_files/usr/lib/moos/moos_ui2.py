@@ -382,6 +382,9 @@ window.moos-ui2 .ui2-badge {{
   padding: 5px 10px;
   font-size: 0.84em;
 }}
+window.moos-ui2 .ui2-badge.ui2-badge-warning {{
+  color: @ui2_warning;
+}}
 window.moos-ui2 .ui2-status {{
   color: @ui2_text;
   font-weight: 600;

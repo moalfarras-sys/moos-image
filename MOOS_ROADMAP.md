@@ -3,6 +3,11 @@
 Only completed evidence closes an item. Source code, a package, or a green
 parser alone is not runtime proof. Current facts live in `PROJECT_STATE.md`.
 
+**Current release audit:** `docs/SYSTEM_AUDIT_RESUME_20260906.md`. The desktop
+OOM incident is unresolved (S03); short healthy samples do not close it. Source
+motion settings are not a performance benchmark. Launcher routing has executable
+coverage; native focus/scale acceptance remains open.
+
 ## Active development plan
 
 The next work should keep MoOS moving as a complete operating system, not as a
@@ -24,11 +29,56 @@ theme layer. Order matters:
 4. **Adaptive performance for everyone:** extend `moos-visual-tier` from motion
    policy into a broader local resource policy: compositor cost, indexing,
    update concurrency, AI defaults and Remote encoding based on real capability,
-   not product names.
-5. **Artifact proof before promotion:** x86 generic, NVIDIA, cloud and ARM must
+   not product names. *Progress:* `moos-visual-tier` now publishes an advisory
+   `budget` block (file_indexing / update_concurrency / ai_default /
+   remote_encode) from the same probe, in `--json` and the state file. Still
+   open: the consumers (baloo, `moai-do`, the Remote encoder) reading it under
+   their own owners, and the P01 before/after workload measurement.
+5. **Boot-partition headroom is a release contract.** `/boot` is 974 MiB and
+   holds two complete deployments; measured 2026-09-06 on the live A1 it was 78%
+   full, so the next signed update had nowhere to stage. The ARM initramfs is now
+   gated for size and omits four desktop GPU modules while retaining ARM Tegra
+   firmware. Include kernel and DTB trees in headroom calculations, not only the
+   initramfs. This host recovered ~97 MiB by consolidating identical DTBs with
+   every boot file and security attribute verified unchanged. Do the same measurement
+   for the x86 editions — `moos-nvidia` must keep its kmod in-initramfs, so its
+   answer will differ — and treat a release that cannot stage an N+1 deployment
+   as blocked. (Plan B01/B02.)
+6. **Artifact proof before promotion:** x86 generic, NVIDIA, cloud and ARM must
    each have exact digest boot evidence. A beautiful source tree is not a
    release until the artifact has booted, logged in, smoked apps, rebooted and
    powered off cleanly.
+
+## Mo AI cloud-only and Hermes acceptance
+
+The latest owner policy permits free or paid **cloud** models on every edition:
+free is the default; paid requires an explicit labelled choice and never follows
+a free quota failure automatically. Local model downloads, inference and speech
+models are unavailable through Mo AI's public paths. The former four-provider
+catalogue and cross-provider fallback plan are superseded by the current
+OpenRouter policy. See [the cloud-only plan](docs/MOAI_CLOUD_ONLY_PLAN.md) and
+[current session checkpoint](docs/START_HERE_CURRENT_SESSION.md).
+
+- [x] Source policy enforces free model identity and zero price ceilings, with
+  an explicit paid selection covered by fixtures. No paid inference was made.
+- [x] Public local-engine entry points refuse; migration retires fixed legacy
+  units while preserving private backups, existing weights and unrelated files.
+  Unreachable legacy helper bodies remain for C2b cleanup.
+- [x] Real installed Hermes 0.21.0 answers through the authenticated isolated
+  adapter and Mo AI cloud gateway. Production free-cloud Arabic response took
+  about 3 seconds. The adapter preserves supplied text/history; tools are empty,
+  subprocess execution is blocked, and system actions remain with `moai-do`.
+- [ ] Finish C2b legacy-body cleanup while preserving HTTP, identity and
+  privilege guards; prove first-login and upgrade migration from historic layouts.
+- [ ] Package/prove Hermes availability on fresh systems across all four
+  editions. The installed-runtime adapter reports absence and uses direct cloud;
+  the owner's working runtime is not proof that the dependency ships.
+- [ ] Complete native QML/phone and bounded-memory acceptance. Incremental
+  streaming, persistent memory and plugins are not currently provided; SSE
+  delivers a final-answer frame.
+- [ ] Inspect the finished native image, then prove the signed exact artifact
+  and post-update runtime. The current native build is in progress; these source
+  and local runtime checks do not close the signed-release gate.
 
 ## Remote v38 acceptance
 

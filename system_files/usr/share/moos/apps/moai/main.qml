@@ -190,8 +190,7 @@ Kirigami.ApplicationWindow {
     readonly property bool moaiRtl: langOverride === "ar" ? true
         : langOverride === "en" ? false
         : layoutDirectionOverride === "rtl"
-        || (layoutDirectionOverride === ""
-            && Qt.application.layoutDirection === Qt.RightToLeft)
+        || (layoutDirectionOverride === "" && MoUI.Locale.rtl)
     readonly property int gatewayPort: root.argPort("--gateway-port", 8080)
     readonly property int controlPort: root.argPort("--control-port", 8079)
     readonly property int agentPort:   root.argPort("--agent-port",   8077)
@@ -442,19 +441,27 @@ Kirigami.ApplicationWindow {
     // paragraph; the mark then pins that paragraph's direction instead of leaving it to
     // whatever character happens to come first (an English line that opens with "Mo AI"
     // would still resolve fine, but one that opens with a digit or "«" would not).
+    // STAGE C5. This told the user to run `moai-start`, which brings up a local
+    // engine — a route C2 closed. Sending someone to a terminal command that now
+    // refuses is a worse failure than the one it was written to explain.
     readonly property string offlineHelp: root.moaiRtl
-        ? ("‏العقل المحلي غير مشغّل.\n\n" +
-           "اضغط **«شغّل العقل المحلي»** بالأسفل — أو شغّل `moai-start` في الطرفية.\n\n" +
-           "ثم أعد المحاولة.")
-        : ("‎The local brain is off.\n\n" +
-           "Tap **“Start local brain”** below — or run `moai-start` in a terminal.\n\n" +
-           "Then try again.")
+        ? ("‏لم يُضبَط مزوّد سحابي بعد.\n\n" +
+           "اضغط **«إعداد المزوّد»** بالأسفل واختر مزوّداً مجانياً — Cerebras أو Groq أو NVIDIA NIM أو OpenRouter — وألصق مفتاحه.\n\n" +
+           "لا يُنزَّل أي نموذج على جهازك.")
+        : ("‎No cloud provider is set up yet.\n\n" +
+           "Tap **“Provider setup”** below and pick a free one — OpenRouter Free — then paste its key.\n\n" +
+           "Nothing is downloaded to your machine.")
 
+    // STAGE C5 (docs/MOAI_CLOUD_ONLY_PLAN.md). This promised "the first run
+    // downloads the model (~2.5 GB)". Since C2 closed ensure_local() that
+    // download cannot happen, so the sentence was telling the user something
+    // untrue — worse than either behaviour on its own, which is why C5 had to
+    // ship before this branch could be promoted.
     readonly property string startingHelp: root.moaiRtl
-        ? ("‏العقل المحلي يبدأ الآن… أول تشغيل يُحمّل النموذج (~2.5GB) وقد يأخذ دقائق.\n\n" +
-           "سأصبح جاهزاً تلقائياً عند الانتهاء.")
-        : ("‎The local brain is starting… the first run downloads the model (~2.5 GB) and may take a few minutes.\n\n" +
-           "I'll be ready automatically once it finishes.")
+        ? ("‏عقل Mo AI سحابي — لا يُنزَّل أي نموذج على جهازك.\n\n" +
+           "اختر مزوّداً مجانياً (Cerebras أو Groq أو NVIDIA NIM أو OpenRouter) وألصق مفتاحه، وسأجيب فوراً.")
+        : ("‎Mo AI's brain is in the cloud — nothing is downloaded to your machine.\n\n" +
+           "Pick a free provider (OpenRouter Free), paste its key, and I answer straight away.")
 
     // MoOS speaks the user's ONE language. The greeting used to stack Arabic and
     // English; now it shows only the session language (RTL ⇒ Arabic), the same
@@ -1122,7 +1129,9 @@ Kirigami.ApplicationWindow {
                     ? "" : chosen + (reason === "" ? "" : " · " + reason)
             }
             const agentPath = xhr.getResponseHeader("X-MoAI-Agent") || ""
-            root.agentDecision = agentPath === "openclaw"
+            root.agentDecision = agentPath === "hermes"
+                ? "Hermes"
+                : agentPath === "openclaw"
                 ? root.local("وكيل موحّد", "Unified agent")
                 : agentPath === "direct-fallback"
                     ? root.local("رد مباشر احتياطي", "Direct fallback") : ""
@@ -1296,6 +1305,15 @@ Kirigami.ApplicationWindow {
             root.pickRoute(entry.id)
             return
         }
+        // STAGE C5. This used to POST /pull and download a model. C2 closed that
+        // door in the gateway, so the request could only ever fail now — and a
+        // control that appears to start something and cannot is exactly the dead
+        // button AGENTS.md forbids. It sends the user to the cloud provider
+        // setup instead, which is the thing that actually gives them a brain.
+        root.launch("moos://brain/start",
+                    root.local("إعداد المزوّد السحابي", "Cloud provider setup"))
+        return
+        // eslint-disable-next-line no-unreachable
         if (root.pullModel !== "")     // one at a time; the backend serialises too
             return
         const bare = entry.id.indexOf("local:") === 0 ? entry.id.substring(6) : entry.id
@@ -2746,23 +2764,27 @@ Kirigami.ApplicationWindow {
                                         ? root.local(
                                             "العقل السحابي غير مضبوط — أضف المزوّد والمفتاح.",
                                             "The cloud brain is not set up — add the provider and your API key.")
-                                        : root.brainStarting
-                                        ? root.local(
-                                            "العقل المحلي يبدأ… أول مرة يُحمّل ~2.5GB وقد يأخذ دقائق.",
-                                            "Local brain starting… the first run downloads ~2.5 GB.")
                                         : root.local(
-                                            "العقل المحلي متوقف — سأشغّله تلقائياً عند أول رسالة، أو شغّله الآن لتراه.",
-                                            "The local brain is off — I'll start it on your first message, or start it now and watch it.")
+                                            "عقل Mo AI سحابي — اختر مزوّداً مجانياً وألصق مفتاحه.",
+                                            "Mo AI's brain is in the cloud — pick a free provider and paste its key.")
                                     color: root.textLo
                                     font.family: root.uiFont
                                     font.pixelSize: root.typePx(11)
                                     wrapMode: Text.Wrap
                                 }
+                                // STAGE C5. startBrain() now opens the cloud
+                                // provider setup (moos-open's brain/start was
+                                // repointed there when C2 closed the local
+                                // door), so the ACTION was already right while
+                                // the LABEL still said "Start local brain". A
+                                // button that says one thing and does another
+                                // is the same defect as one that does nothing.
                                 MoButton {
                                     Layout.fillWidth: true
                                     visible: !!root.brains.gateway && !root.routeIsCloud
                                              && !root.brainStarting
-                                    label: root.local("شغّل العقل المحلي", "Start local brain")
+                                    label: root.local("إعداد المزوّد", "Provider setup")
+                                    iconName: "moos-settings-symbolic"
                                     primary: true
                                     onClicked: root.startBrain()
                                 }
@@ -2901,6 +2923,7 @@ Kirigami.ApplicationWindow {
                                     iconName: root.voiceRecording
                                         ? "media-playback-stop" : "audio-input-microphone"
                                     primary: root.voiceRecording
+                                    visible: false // Cloud transcription is not configured; settings explains availability.
                                     onClicked: root.toggleVoiceRecording()
                                 }
 
@@ -4960,6 +4983,7 @@ Kirigami.ApplicationWindow {
 
                     Rectangle {
                         id: hybridRow
+                        visible: false
                         Layout.fillWidth: true
                         Layout.preferredHeight: root.fs(52)
                         radius: design.radiusSmall
@@ -5507,22 +5531,14 @@ Kirigami.ApplicationWindow {
                                 SectionNote {
                                     Layout.fillWidth: true
                                     text: root.local(
-                                        "اختر محلياً أو سحابياً أو دع الوضع الهجين يحمي الخاص ويصعّد الصعب.",
-                                        "Choose local or cloud, or let Hybrid keep private work local and escalate difficult tasks.")
+                                        "نماذج سحابية فقط. المجاني افتراضي؛ المدفوع باختيارك. قد تنتهي الحصة المجانية.",
+                                        "Cloud models only. Free by default; paid models require your selection. Free quotas may run out.")
                                 }
 
                                 Repeater {
-                                    model: [
-                                        { id: "local", ar: "محلي وخاص", en: "Local & private",
-                                          dAr: "كل رسالة تعالج على هذا الجهاز",
-                                          dEn: "Every message is processed on this device" },
-                                        { id: "cloud", ar: "سحابي", en: "Cloud",
-                                          dAr: "كل رسالة تذهب إلى المزوّد الذي اخترته",
-                                          dEn: "Every message goes to your chosen provider" },
-                                        { id: "hybrid", ar: "هجين ذكي", en: "Smart hybrid",
-                                          dAr: "يحافظ على الخاص محلياً ويستخدم السحابة للمهام الصعبة فقط",
-                                          dEn: "Keeps private work local and uses cloud only for difficult tasks" }
-                                    ]
+                                    model: [{ id: "cloud", ar: "عقل سحابي", en: "Cloud inference",
+                                              dAr: "المجاني افتراضي؛ المدفوع باختيارك. لا نماذج محلية.",
+                                              dEn: "Free by default; paid by choice. No local models." }]
                                     delegate: Rectangle {
                                         required property var modelData
                                         readonly property bool on_: root.cfgMode === modelData.id
@@ -5782,10 +5798,11 @@ Kirigami.ApplicationWindow {
                                 SectionNote {
                                     Layout.fillWidth: true
                                     text: root.local(
-                                        "تكتب فيرد نصاً، وترسل رسالة صوتية فيرد صوتاً.",
-                                        "Type for a text reply; send voice for a voice reply.")
+                                        "المحادثة النصية جاهزة. الصوت السحابي غير مُعدّ حالياً.",
+                                        "Text chat is available. Cloud voice is not configured yet.")
                                 }
                                 RowLayout {
+                                    visible: false
                                     Layout.fillWidth: true
                                     Text {
                                         id: voiceRepliesLabel
@@ -5804,6 +5821,7 @@ Kirigami.ApplicationWindow {
                                 }
                                 QQC2.ComboBox {
                                     id: ttsAutoBox
+                                    visible: false
                                     Layout.fillWidth: true
                                     model: root.moaiRtl
                                         ? ["حين أرسل صوتاً فقط", "دائماً", "أبداً"]
@@ -5813,8 +5831,8 @@ Kirigami.ApplicationWindow {
                                 SectionNote {
                                     Layout.fillWidth: true
                                     text: root.local(
-                                        "الفصحى ممتازة · الشامي مقبول · المغاربية غير مفهومة. صوت واحد: ar_JO-kareem.",
-                                        "Arabic voice support uses ar_JO-kareem; Modern Standard Arabic works best.")
+                                        "لا يتم تنزيل نماذج صوتية على الجهاز.",
+                                        "No speech models are downloaded to this device.")
                                 }
                             }
 
@@ -5827,11 +5845,12 @@ Kirigami.ApplicationWindow {
                                 SectionNote {
                                     Layout.fillWidth: true
                                     text: root.local(
-                                        "متى ينزل النموذج من كرت الشاشة ويترك الجهاز يتنفّس.",
-                                        "Choose when the model releases GPU memory.")
+                                        "العقل يعمل في السحابة؛ لا يحتفظ Mo AI بنموذج محلي.",
+                                        "Inference runs in the cloud; Mo AI keeps no local model loaded.")
                                 }
                                 QQC2.ComboBox {
                                     id: keepBox
+                                    visible: false
                                     Layout.fillWidth: true
                                     model: root.moaiRtl
                                         ? ["٥ دقائق — أقل ضغط", "١٥ دقيقة — موصى به", "ساعة", "لا ينام أبداً"]
@@ -5841,8 +5860,8 @@ Kirigami.ApplicationWindow {
                                 SectionNote {
                                     Layout.fillWidth: true
                                     text: root.local(
-                                        "«لا ينام أبداً» يحجز ٤ جيجا باستمرار. مع متصفح مكبّر قد يستنزف الذاكرة ويُسقط سطح المكتب.",
-                                        "“Never sleep” keeps about 4 GB reserved and can exhaust memory beside a heavy browser.")
+                                        "Hermes يعمل عند الطلب لمعالجة المحادثة.",
+                                        "Hermes starts on demand to process conversations.")
                                 }
 
                             }
@@ -6188,17 +6207,14 @@ Kirigami.ApplicationWindow {
                                 }
                             }
 
-                            // ══ LOCAL MODELS — part of the Brain tab ═══════
+                            // Cloud catalogue; no local model/download controls.
                             ColumnLayout {
                                 visible: root.cfgTab === "brain"
                                 Layout.fillWidth: true
                                 spacing: design.space2
-
                                 RowLayout {
                                     Layout.fillWidth: true
-                                    SectionTitle {
-                                        text: root.local("النماذج المحلية", "Local models")
-                                    }
+                                    SectionTitle { text: root.local("النماذج السحابية", "Cloud models") }
                                     Item { Layout.fillWidth: true }
                                     MoButton {
                                         label: root.local("تحديث", "Refresh")
@@ -6207,132 +6223,23 @@ Kirigami.ApplicationWindow {
                                 }
                                 SectionNote {
                                     Layout.fillWidth: true
-                                    text: root.local(
-                                        "تُحمَّل من الجهاز — بلا إنترنت وبلا اشتراك. التنزيل بضغطة واحدة.",
-                                        "Runs on this device without internet or a subscription. Download in one tap.")
-                                }
-
-                                Repeater {
-                                    model: root.localModelsMain
-                                    delegate: Rectangle {
-                                        id: cfgBrainRow
-                                        required property var modelData
-                                        readonly property bool isDefault:
-                                            modelData.id === root.defaultRoute
-                                        Layout.fillWidth: true
-                                        Layout.preferredHeight: root.fs(56)
-                                        radius: design.radiusControl
-                                        color: "transparent"
-                                        border.width: 1
-                                        border.color: isDefault ? root.okColor : root.hairline
-                                        RowLayout {
-                                            anchors.fill: parent
-                                            anchors.margins: 10
-                                            spacing: design.space2
-                                            ColumnLayout {
-                                                Layout.fillWidth: true
-                                                spacing: 1
-                                                RowLayout {
-                                                    spacing: design.space2
-                                                    Text {
-                                                        text: cfgBrainRow.modelData.title
-                                                            ? root.localLegacy(cfgBrainRow.modelData.title)
-                                                            : (cfgBrainRow.modelData.label || cfgBrainRow.modelData.id)
-                                                        color: root.textHi
-                                                        font.family: root.uiFont
-                                                        font.pixelSize: root.typePx(12)
-                                                        font.weight: Font.DemiBold
-                                                        elide: Text.ElideRight
-                                                    }
-                                                    StatusPill {
-                                                        visible: cfgBrainRow.isDefault
-                                                        good: true
-                                                        goodText: root.local("الافتراضي", "Default")
-                                                        badText: ""
-                                                    }
-                                                }
-                                                Text {
-                                                    Layout.fillWidth: true
-                                                    text: cfgBrainRow.modelData.label
-                                                        + "  ·  "
-                                                        + (cfgBrainRow.modelData.pulled
-                                                            ? (root.local("محمّل", "Downloaded")
-                                                               + (cfgBrainRow.modelData.size_gb
-                                                                  ? " · " + cfgBrainRow.modelData.size_gb + " GB" : ""))
-                                                            : root.local(
-                                                                "غير محمّل — اضغط للتنزيل",
-                                                                "Not downloaded — tap to get"))
-                                                    color: root.textMute
-                                                    font.family: root.uiFont
-                                                    font.pixelSize: root.typePx(10)
-                                                    elide: Text.ElideRight
-                                                }
-                                            }
-                                            MoButton {
-                                                // A pulled brain becomes the DEFAULT for
-                                                // desktop AND phone (the old "Use" only set
-                                                // this window's session and read as if it
-                                                // persisted). An un-pulled one downloads.
-                                                visible: !cfgBrainRow.isDefault
-                                                label: cfgBrainRow.modelData.pulled
-                                                    ? root.local("اجعله الافتراضي", "Make default")
-                                                    : root.local("نزّل", "Get")
-                                                onClicked: cfgBrainRow.modelData.pulled
-                                                    ? root.cfgSetDefaultBrain(cfgBrainRow.modelData)
-                                                    : root.pickOrPull(cfgBrainRow.modelData)
-                                            }
-                                            MoButton {
-                                                // Aliases share their weights with a row
-                                                // above: deleting frees ~nothing and breaks
-                                                // the compatibility names, so no button.
-                                                visible: !!cfgBrainRow.modelData.pulled
-                                                         && !cfgBrainRow.modelData.alias_of
-                                                         && !cfgBrainRow.isDefault
-                                                label: root.local("حذف", "Delete")
-                                                danger: true
-                                                onClicked: root.deleteModel(cfgBrainRow.modelData.id)
-                                            }
-                                        }
-                                    }
-                                }
-
-                                SectionNote {
-                                    visible: root.localModelsTech.length > 0
-                                    Layout.fillWidth: true
-                                    text: root.local(
-                                        "أسماء تقنية — نفس العقول أعلاه بأوزان مشتركة، تبقى للتوافق ولا يوفر حذفها مساحة.",
-                                        "Technical names — the same brains as above with shared weights; kept for compatibility, deleting them frees almost nothing.")
+                                    text: root.local("القائمة حسب سياسة المزوّد المحفوظة. لا يتم تنزيل نماذج على الجهاز.",
+                                                     "Models follow the saved provider policy. Nothing is downloaded to this device.")
                                 }
                                 Repeater {
-                                    model: root.localModelsTech
-                                    delegate: Text {
+                                    model: root.cloudModels
+                                    delegate: MoButton {
                                         required property var modelData
                                         Layout.fillWidth: true
-                                        text: "•  " + modelData.label + "  —  "
-                                            + root.localLegacy(modelData.title || "")
-                                        color: root.textMute
-                                        font.family: root.uiFont
-                                        font.pixelSize: root.typePx(10)
-                                        elide: Text.ElideRight
+                                        label: modelData.label || modelData.id
+                                        onClicked: root.cfgSetDefaultBrain(modelData)
                                     }
                                 }
-
                                 Text {
-                                    visible: root.pullModel !== ""
+                                    visible: root.modelsError !== ""
                                     Layout.fillWidth: true
-                                    text: root.local(
-                                        "جارٍ تنزيل " + root.pullModel + " — " + root.pullPercent + "٪",
-                                        "Downloading " + root.pullModel + " — " + root.pullPercent + "%")
-                                    color: root.novaBlue
-                                    font.family: root.uiFont
-                                    font.pixelSize: root.typePx(11)
-                                }
-                                Text {
-                                    visible: root.pullError !== ""
-                                    Layout.fillWidth: true
-                                    text: root.pullError
+                                    text: root.modelsError
                                     color: root.badColor
-                                    font.family: root.uiFont
                                     font.pixelSize: root.typePx(11)
                                     wrapMode: Text.Wrap
                                 }
@@ -6424,8 +6331,8 @@ Kirigami.ApplicationWindow {
     // write the same ~/.openclaw/openclaw.json through moai-agent-api. There is
     // no second copy of "which brain" or "which key" to drift out of sync.
     property string cfgTab: "brain"
-    property string cfgMode: "local"
-    property string cfgProvider: "synterolink"
+    property string cfgMode: "cloud"
+    property string cfgProvider: "openrouter-free"
     property var    cfgProviders: []
     property var    cfgProviderNames: []
     property bool   cfgHasKey: false
@@ -6495,7 +6402,7 @@ Kirigami.ApplicationWindow {
             try {
                 const c = JSON.parse(xhr.responseText)
                 root.cfgError = ""
-                root.cfgMode = c.brain.mode
+                root.cfgMode = "cloud"
                 root.cfgProvider = c.cloud.provider
                 root.cfgProviders = c.providers
                 root.cfgProviderNames = c.providers.map(function (p) { return p.name })
@@ -6521,7 +6428,7 @@ Kirigami.ApplicationWindow {
     // which sets OpenClaw's primary; the merged read in moai-control then
     // reports it as the default the picker seeds from.
     function cfgSetDefaultBrain(entry) {
-        const bare = entry.id.indexOf("local:") === 0 ? entry.id.substring(6) : entry.id
+        const bare = entry.id.indexOf("cloud:") === 0 ? entry.id.substring(6) : entry.id
         root.cfgSaving = true
         const xhr = new XMLHttpRequest()
         xhr.open("POST", root.agentApi + "/api/config")
@@ -6544,7 +6451,8 @@ Kirigami.ApplicationWindow {
             toast.show(root.local("صار الافتراضي: ", "Default is now: ")
                        + (entry.title ? root.localLegacy(entry.title) : entry.label))
         }
-        xhr.send(JSON.stringify({ mode: "local", local_model: bare }))
+        xhr.send(JSON.stringify({ mode: "cloud", cloud: {
+            provider: root.cfgProvider, base: "https://openrouter.ai/api/v1", model: bare } }))
     }
 
     // Language-only save: applies to the UI immediately, persists in state.
@@ -6592,7 +6500,7 @@ Kirigami.ApplicationWindow {
         const AUTO = ["inbound", "always", "off"]
         const KEEP = ["5m", "15m", "60m", "-1"]
         const body = {
-            mode: v.mode,
+            mode: "cloud",
             cloud: { provider: v.provider, base: v.base, model: v.model, key: v.key },
             telegram: {
                 enabled: v.tgOn,
@@ -6600,8 +6508,6 @@ Kirigami.ApplicationWindow {
                 allow: v.allow.split(",").map(function (x) { return x.trim() })
                                         .filter(function (x) { return x.length > 0 })
             },
-            voice: { tts_enabled: v.ttsOn, tts_auto: AUTO[v.ttsAuto] || "inbound" },
-            power: { keep_alive: KEEP[v.keep] || "15m" },
             permissions: { web: v.web, tier: v.tier, project: v.project }
         }
         const xhr = new XMLHttpRequest()
@@ -6680,14 +6586,14 @@ Kirigami.ApplicationWindow {
         !agentInstalled
             ? root.local(
                 "إعداد واحد مؤكّد يثبّت OpenClaw والعقل والصوت محلياً، ثم يبقى التشغيل عند الطلب.",
-                "One confirmed setup installs OpenClaw, the local brain and speech; it then runs on demand.")
+                "Configure a free cloud provider to enable Mo AI.")
             : !agentOpenClawConfigured
                 ? root.local(
                     "إعداد OpenClaw غير مكتمل؛ أعد تشغيل المثبّت الآمن ليصلحه دون مسح اختياراتك.",
                     "OpenClaw setup is incomplete; rerun the safe installer without losing your choices.")
                 : root.local(
                     "العقل أو الصوت المحلي غير مجهّز. الإجراء التالي ينشئهما ويتحقق منهما فعلياً.",
-                    "The local brain or speech is not configured. The next action creates and verifies both.")
+                    "A free cloud provider is not configured. Open settings to connect it.")
 
     function agentLoadCurrentWorkspace() {
         // The session list feeds the chat history drawer, so it refreshes

@@ -196,7 +196,10 @@ ApplicationWindow {
     // the whole session (Plasma UI + formats + Flatpak) through /usr/bin/moos-lang.
     // Seeded from the locale the window opened under so a system already set to
     // Arabic starts Arabic. Everything reads `rtl`, which now follows the CHOICE.
-    property string lang: Qt.application.layoutDirection === Qt.RightToLeft ? "ar" : "en"
+    // Still mutable: this surface lets the user choose a language. Only the
+    // DEFAULT moves to the shared authority, because the old expression made
+    // the very first screen of an Arabic install open in English.
+    property string lang: MoUI.Locale.language
     readonly property bool rtl: win.lang === "ar"
 
     function chooseLang(which) {

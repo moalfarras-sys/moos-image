@@ -13,7 +13,7 @@
 # data store). The pure-QML app cannot read the credential and never learns
 # which provider is behind the door.
 [Unit]
-Description=Mo AI gateway (localhost front door: routes local ⇄ cloud per request)
+Description=Mo AI free cloud gateway
 Documentation=https://github.com/moalfarras-sys/moos-image
 After=graphical-session.target
 
@@ -52,6 +52,7 @@ Environment=MOAI_LOCAL_BACKEND=ramalama
 Environment=MOAI_LOCAL_PORT=8081
 Environment=MOAI_LOCAL_MODEL=ollama://qwen2.5:7b-instruct
 EnvironmentFile=-%h/.config/moos/moai-local.env
+ExecStartPre=/usr/libexec/moai-cloud-migrate
 ExecStart=/usr/bin/moai-gateway
 Restart=on-failure
 RestartSec=4

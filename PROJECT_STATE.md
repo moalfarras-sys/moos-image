@@ -1,12 +1,395 @@
 # MoOS — current project state
 
+**Current Mo AI integration:** read `docs/START_HERE_CURRENT_SESSION.md` and
+`docs/MOAI_CLOUD_ONLY_PLAN.md`. Latest owner policy is cloud-only, free default
+and explicitly selected paid models allowed. Hermes has a real isolated adapter
+and live free-cloud response proof; current changes are not yet a signed release.
+Older local/hybrid descriptions below are historical and must not re-enable engines.
+
+
 This file is current state, not session history. Git history owns the history.
 When documentation disagrees with a running machine, a freshly booted artifact,
 or current source, those stronger forms of evidence win.
 
-Last reconciled: **2026-09-03 (exact-frame release proof)** — latest source
-branch, signed CI artifacts, exact mapped-window evidence, and live host checks
-on `moos-arm-oracle`.
+Last reconciled: **2026-09-06 (resumed audit)**. Current source and live
+findings: [`docs/SYSTEM_AUDIT_RESUME_20260906.md`](docs/SYSTEM_AUDIT_RESUME_20260906.md).
+Signed release and post-reboot verification are tracked there separately.
+
+### The live A1 is running an unverified origin (2026-09-07)
+
+Measured, not inferred, with `ostree admin status` and the deployments' own
+`.origin` files:
+
+      23beed6e…1 (staged)    ostree-image-signed:…/moos-arm@sha256:d2045552…
+    * 23beed6e…0 (booted)    ostree-unverified-registry:…/moos-arm@sha256:d2045552…
+      1cba09f5…0 (rollback)  ostree-image-signed:…/moos-arm@sha256:049a620d…
+
+The booted deployment and the staged one are the **same digest**; they differ
+only in whether the origin records signature verification. So the pending update
+is a signed re-pin of the content already running, and rebooting moves this
+machine from an unverified origin onto a verified one. That is also why the
+Updater showed 44.20260906.284 as both current and pending -- it was not a
+display bug.
+
+How it got there is not established. `bootc install to-disk` writing an
+unverified origin, or a local image import during bring-up, both fit; neither is
+proven, so do not repeat either explanation as fact. What is proven is the state
+above and that the rollback deployment is signed.
+
+**While it stays unverified, this machine cannot update at all.**
+`/usr/libexec/moos-image-update resolve` reads the *booted* origin, requires it
+to match the signed-official pattern, and otherwise raises a security error:
+
+    moos-image-update: the booted deployment is not a signed official MoOS origin
+
+That backend is the single authority behind `moai-do update`, the Updater's
+check/install buttons and the nightly train, so all three refuse. The refusal is
+correct -- MoOS should not pull an update onto a base it cannot vouch for -- but
+it inverts the usual release order for this host:
+
+    reboot into the staged signed deployment  ->  update  ->  reboot again
+
+Updating before that first reboot is not merely inadvisable, it is impossible.
+
+**The badge was hiding it.** The Updater's "SIGNED IMAGE · ATOMIC" was a
+hardcoded string, so the one surface that tells the owner whether they are
+running the system MoOS signed said yes without looking. It now reads the booted
+deployment's origin from the kernel command line -- unprivileged, no
+bootc/rpm-ostree call -- and reports signed, unverified or unknown, with unknown
+deliberately a warning rather than a pass. Gate:
+`tests/test_updater_trust_badge.py`.
+
+### Mo Store spoke the backend's language, and branched on its prose (2026-09-07)
+
+An entirely Arabic Mo Store showed the English toast "Rebuilding the unified app
+index" above its own Arabic cancel button. The cause was structural: every job
+message `moos-storectl` emitted was English prose, and `main.qml` compared that
+prose to decide install state, so translating the backend would have silently
+broken scope detection and offered a Remove action that cannot work.
+
+The backend now emits a stable `message_key` beside the human `message` and the
+UI owns the words. Failures and dynamic Flatpak status deliberately carry no
+key so their real text reaches the user verbatim, which means every failure path
+must *clear* the key -- a job document keeps fields it was given, and the first
+run showed `message: "App index refreshed"` still carrying
+`message_key: "refreshing_index"`. Gate: `tests/test_store_job_language.py`,
+21 keys checked against 21 phrases in both directions.
+
+### First-party visual pass on the live session (2026-09-07)
+
+Captured and read, not assumed. Mo Store renders its real catalogue (2938 apps,
+1936 verified publishers) with correct RTL. Recovery is correct and calm, and
+its state matches the deployments exactly. Mo AI is healthy and genuinely
+cloud-only -- Online, `Cloud · openrouter/free` -- but its **installed** UI is
+English in an Arabic session. That is not a new defect: the tree's Mo AI is
+already RTL-aware through `MoUI.Locale.rtl`, and `Locale.qml` simply does not
+exist in the running image yet. It ships with the next build; do not "fix" it
+again in source.
+
+### S03 — the OOM had one cause, and it was KWin (2026-09-06)
+
+The review left this open as an unexplained cascade with five victims. Summing
+the kernel's own OOM process table across all 151 processes settles it:
+
+    total anonymous RSS at the kill   10.66 GiB   (machine has 11.6 GiB)
+    kwin_wayland  pid 1792             6.53 GiB   — 63% of the machine, alone
+    plasmashell                        724 MiB
+    plasma-keyboard                    703 MiB
+    kded6                              591 MiB
+    xdg-desktop-portal-kde             555 MiB
+    kactivitymanagerd                  441 MiB
+    claude (this agent, two procs)     216 MiB
+
+It was a `global_oom`. **KWin was not a victim of a cascade, it caused one** —
+the later kills of plasmashell, the portal, kded6 and kactivitymanagerd happened
+over the following three minutes as they ballooned on a broken Wayland
+connection. The earlier reading of "~10.6 GB at kactivitymanagerd's kill" was
+its total-vm at a later moment, not its share of the original exhaustion.
+
+**The leak is not continuous.** The replacement compositor has run 6.5 hours at
+**168 MiB** and its RSS falls rather than climbs. So there is a trigger, and it
+has NOT been identified. Reproducing it means risking another session-wide OOM
+on the owner's only screen, so it has not been reproduced and no cause is
+claimed.
+
+**Bounded instead of guessed:** `plasma-kwin_wayland.service.d/50-moos-memory-guard.conf`
+sets `MemoryHigh=3G` (~18x the healthy 170 MiB) and `ManagedOOMPreference=avoid`.
+`MemoryHigh` applies reclaim pressure and does **not** kill — `MemoryMax` would
+kill the compositor, which on this machine is turning the monitor off, i.e.
+automating the exact disaster. A leak now becomes a slow desktop with a journal
+entry instead of a dead session. Live: accepted by systemd, KWin reads
+`MemoryCurrent` 142.8 MiB against the 3 GiB limit, and neither KWin nor Remote
+was restarted. S03 stays open: this bounds damage, it does not explain the cause.
+
+### Mo AI goes cloud-only, free by default (2026-09-06)
+
+The latest owner decision permits **free or explicitly selected paid cloud
+models**, with free as the default on every edition. Mo AI must never download
+or run a local model, and a free quota failure must never trigger paid inference.
+The current contract is
+[`docs/MOAI_CLOUD_ONLY_PLAN.md`](docs/MOAI_CLOUD_ONLY_PLAN.md); read
+[`docs/START_HERE_CURRENT_SESSION.md`](docs/START_HERE_CURRENT_SESSION.md)
+for release and deployment evidence.
+
+**Current source:** OpenRouter is the supported provider, with separate Free
+and Paid by choice selections. Free requests use `openrouter/free` or an explicit
+`:free` model and enforce a zero price ceiling; caller-supplied model/provider
+routing and paid plugins cannot override that boundary. Settings owns the cost
+choice and the gateway reads it. The earlier four-provider catalogue and planned
+cross-provider fallback ladder are superseded. Quotas can stop a free reply;
+there is no unlimited-free guarantee. Paid selection is fixture-tested, but no
+paid inference was made in this session.
+
+**Local inference is retired at public entry points.** Chat, model pull, setup,
+preflight and voice routes cannot start local engines or speech models. Migration
+preserves a private config backup, removes local fallback selection and stops/
+masks fixed legacy units without deleting existing model weights or unrelated
+user files. Both architecture builds omit the local engine packages. Unreachable
+legacy helper bodies remain for C2b cleanup; they are not an available local mode.
+Finished-image inspection and historic-layout migration acceptance remain open.
+
+**Hermes is integrated with a real installed runtime.** The isolated
+`moai-hermes` adapter starts on demand, processes text/history with Hermes 0.21.0,
+and sends inference through the same Mo AI cloud policy. A real request through
+the production gateway and adapter returned Arabic from free cloud in about
+3 seconds; an earlier source-gateway proof took about 5.8 seconds. The separate
+direct free-model probe reported cost 0. The adapter uses its own private home
+and authenticated loopback endpoint; it does not start the owner's Hermes
+messaging gateway or use the owner's `~/.hermes` state. Model tools are empty
+and verified empty, outbound connections are restricted to the Mo AI gateway,
+and subprocess execution is blocked. System actions stay with `moai-do`.
+
+**Still open:** Hermes is not packaged for fresh installations across all four
+editions; a missing runtime is reported and direct cloud remains available.
+The adapter supports text/history and a final-answer SSE frame, not incremental
+streaming, persistent memory, plugins or model-executed tools. First-login and
+upgrade migration, native QML/phone acceptance and bounded-memory checks remain.
+The current native build is in progress: neither local runtime proof nor source
+tests make these changes a signed OS release.
+
+### Why the desktop looked unchanged — four measured causes (2026-09-06)
+
+The owner reported seeing no difference from several sessions of work. They were
+right, and none of it was visible for reasons no file-level gate could see. Full
+plan and the ordered remainder: [`docs/MOOS_VISUAL_ROADMAP.md`](docs/MOOS_VISUAL_ROADMAP.md).
+
+- **The desktop had no motion at all.** `AnimationDurationFactor=0` in the
+  user's kdeglobals, and `blur/magiclamp/squash/scale/slide/dimscreen/
+  dialogparent` all `false`. There was nothing to see.
+- **`moos-visual-tier` never told the running session anything.** It called
+  `kwriteconfig6` without `--notify`, so KConfig emitted no change signal and the
+  whole hardware-matched profile only ever landed at the NEXT login — on every
+  machine, since the tool was written. Same trap as the keyboard migration, which
+  KWin 6 watches through `KConfigWatcher`. Fixed.
+- **The `essential` tier disabled the requested window motion.** The profile
+  now retains scale/squash/slide/dimscreen and refuses blur. This is a design
+  choice with runtime cost still unmeasured: the ~1% idle sample had the
+  effects configured on but not loaded. Slide and dimscreen are not all
+  single-window transforms; do not call them free.
+- **KDE and GTK windows disagreed about which side the buttons go on.** kwinrc
+  `ButtonsOnLeft=XIA` (left) versus GSettings and the xdg portal both answering
+  `appmenu:minimize,maximize,close` (right). `moos-theme` already owned both
+  halves and simply never wrote the GTK one. Fixed and gated in both directions.
+
+**The reported bug that started it:** VS Code drew *its own* window controls at
+the left, on top of its own menu bar, hiding `File` entirely and `Ed` of `Edit`
+— measured from a 4× crop of the title strip. Its `window.titleBarStyle` is now
+`native`, so KWin's MoOS frame is the title bar and the menu moves below it.
+
+**Honest limits.** KWin decides at session start whether animations load at all;
+a session that began with factor 0 loads none, and `loadedEffects` still holds no
+animation effect on this machine. The configuration is correct and takes effect
+at the next login. KWin was NOT restarted: on this machine the screen *is* Mo PC
+Remote, so restarting the compositor is turning the monitor off. A CPU sample of
+58% taken during active screen output is not comparable to the 1% idle sample
+taken after; no CPU reduction is claimed from these changes.
+
+### Earlier Oracle A1 resource snapshot — /boot pressure (2026-09-06)
+
+Measured on the running `moos-arm-oracle`, not inferred. Healthy: boot 14.3 s
+(kernel 0.9 + initrd 3.0 + userspace 10.4, graphical at 8.4 s), **zero failed
+units**, 11 GiB RAM with 6.9 GiB available and **0 B swap in use**, journal
+capped at 500 M (310 M used), `/var` 35% of 199 G.
+
+**One measured fault: `/boot` was 78% full (974 MiB, 205 MiB free) with only two
+deployments at 351 MiB each.** A third needs 351 MiB, so the next signed update
+had nowhere to stage — a silent update failure, not a cosmetic one.
+
+Cause, read out of the built archive: the ARM initramfs was **237 MiB**, of which
+**137.8 MiB was firmware and 131 MiB of that belonged to discrete desktop GPUs
+that cannot exist on an Ampere A1** — `nouveau` declares 559 firmware entries
+(`firmware/nvidia`, 101.2 MiB), `amdgpu` 694 (23.4 MiB), `xe` 41
+(`firmware/xe`+`i915`, 5.0 MiB), `radeon` 232 (1.4 MiB). GPU firmware is not
+needed to reach the root filesystem, which is an initramfs's only job.
+
+Fixed in `build_files/build-arm.sh`'s dracut drop-in with
+`omit_drivers+=" nouveau amdgpu radeon xe "`. Safe by construction: dracut
+anchors every omit entry as `^name$` (`/usr/bin/dracut:1493`), so a bare `xe`
+cannot reach `sdhci-xenon-driver` or the 15 other modules whose names merely
+contain "xe" — that anchoring was verified in dracut-108-7.fc44 before relying on
+it. `hostonly="no"` and the force-added virtio drivers are untouched; **x86 is
+deliberately untouched** because `moos-nvidia` requires its kmod in-initramfs.
+
+**Measured, by building three real initramfs images on the live A1**
+(dracut-108-7.fc44, kernel 7.1.13-200.fc44.aarch64):
+
+| build | size | nvidia firmware files |
+| --- | --- | --- |
+| no omission | 248,496,743 B (237 MiB) | 597 |
+| `omit_drivers` via conf drop-in | **104,554,992 B (99.7 MiB)** | 11 |
+| `omit_drivers` via `--omit-drivers` | 104,554,530 B | 11 |
+
+Both forms work; the conf drop-in is the one this edition uses. **58% smaller.**
+
+The first CI run of this fix FAILED, and its own gate is what stopped it — a
+good outcome that also exposed a bad gate. The gate demanded the
+`lib/firmware/nvidia/` namespace be EMPTY, but the eleven remaining files are
+correct: `tegra-drm` (8) and `xhci-tegra` (4) are NVIDIA **Tegra** drivers, real
+aarch64 SoC hardware MoOS keeps on purpose, sharing that namespace. The gate now
+asserts the four *modules* are absent, plus the size ceiling. **A gate that
+cannot pass on a correct image is worse than no gate** — the same lesson this
+file already records about `verify_user_experience`'s `startswith("")` default arm.
+
+Gated in three places: the finished-image gate in `build-arm.sh` proves the four
+modules left the archive *after* the existing OSTree/virtio/Plymouth gates prove
+nothing needed went with them (that ordering held in the failing run: the
+OSTree/virtio/splash line printed first), plus a 150 MiB ceiling; and
+`tests/test_arm_initramfs_size.py` — bite-tested four ways: omission removed,
+storage driver sneaked into the list, `hostonly=yes` as a wrong shrink, and the
+too-strict firmware-namespace check being reintroduced — runs in the ARM workflow
+via `test_moos_arm.py`. **CONFIRMED ON THE CI ARTIFACT** (run `34002105601`,
+the gate's own line): `ARM initramfs: 99 MiB`, down from 237. **Still not
+observed on the deployed machine:** `/boot` near 51% once that image is
+published and the machine updates — `df -h /boot` then is what closes B01.
+
+Earlier `AnimationDurationFactor=0` was a preserved user override. The owner
+subsequently requested motion; the current live value is 0.4. Actual effect
+loading still needs the fresh-session check above. Preserve future user edits.
+
+**The loudest warning on the machine was a real bug: `Icon theme "Papirus-Dark"
+not found.` × 69 in one boot.** Fedora's `papirus-icon-theme` ships exactly one
+directory, `/usr/share/icons/Papirus`; upstream splits Dark/Light variants and
+Fedora does not. `MoOSUI2` (the dark base every dark family inherits) named
+`Papirus-Dark`, while `MoOSUI2Light` named `Papirus` and was right the whole
+time — the same asymmetry in `build.sh`, `finalize_moos_desktop.sh` and the
+shipped `kdeglobals` comment. Nothing looked broken because the icon still
+resolves through a later link in the chain; only the log knew. All three now say
+`Papirus`.
+
+The gate that existed asserted the RPM was installed. The gate that replaces it
+resolves the WHOLE chain against the icon directories the finished image really
+has (`verify_arm_image.py`), so the class of bug cannot return under a different
+name. `tests/test_icon_theme_inheritance.py` rejects the live machine's exact
+configuration, holds the dark/light chains to one spelling, and is bite-tested;
+it runs in `build.yml`, `build-arm.yml` and the Justfile.
+
+**Arabic spell-check was entirely absent from `moos-arm`, and the contract that
+was supposed to prevent that existed only on x86.** Read off the live A1:
+`/usr/share/qt6/qtwebengine_dictionaries/` held 24 `en_*.bdic` and **zero**
+`ar_*.bdic`, with six `qwebengine_convert_dict` SIGTRAP coredumps in
+`coredumpctl` — every one an Arabic locale
+(`.../ar_SD.dic -> .../ar_SD.bdic`). `AGENTS.md` calls this build-enforced; it
+was, on x86 only. `build-arm.sh` had zero references to `bdic`/`convert_dict`.
+
+Root cause of the crash (already documented by the x86 block): Chromium's
+converter aborts on the hunspell `IGNORE` command, and every Arabic `.aff` uses
+it to ignore tashkeel — `IGNORE ًٌٍَُِّْـٰ` in `ar_SD.aff` on this machine.
+x86 strips that line into a temp copy and converts from there.
+
+Root cause of the DIVERGENCE: the block was copied, not shared. So it is now
+`build_files/convert_webengine_dictionaries.sh`, called by both builds, with the
+both-languages assertion inside it. **Proven live before shipping:** run on this
+A1 it built **50 dictionaries, 26 of them Arabic**, and exited 0 through its own
+gate — against a system that currently has none.
+`tests/test_webengine_dictionaries.py` holds the shape that matters (both
+editions call it; neither keeps an inline copy) and is bite-tested three ways.
+
+**Local override, FIXED with the owner's authorisation (2026-09-06).**
+`~/.config/systemd/user/mo-remote-watchdog.service` had
+`ConditionPathExists=%t/bus` in `[Service]`, where systemd ignores it
+(`Condition*` is a `[Unit]` directive), so the guard its author intended never
+applied. That was not cosmetic. Traced in the journal:
+
+    12.65s  mo-remote-watchdog.service starts (pre-graphical-session)
+              -> systemctl --user start mo-remote-personal.service
+                 -> its Wants= pulls up xdg-desktop-portal
+                    -> xdg-desktop-portal-kde is a QApplication; with no
+                       platform plugin it hit qFatal -> SIGABRT (core 1381)
+    13.18s  systemd: "Dependency failed for xdg-desktop-portal.service"
+
+at every boot, on the machine whose screen IS Mo PC Remote. `%t/bus` was never
+the right marker either — the bus exists at 12.5 s. `%t/wayland-0` is what "the
+graphical session is up" actually means, and it is what `mo-remote-personal`
+needs, so the condition now guards on that and sits in `[Unit]`.
+
+**Kept, not disabled, deliberately:** `mo-remote-personal.service` has
+`StartLimitBurst=5`, so after five failures in 300 s systemd gives up
+permanently; on this machine that timer is the only thing that recovers from
+that. Its `ExecStart` is a plain `start`, a no-op on a running unit, so it can
+never interrupt a live session. The shipped unit itself was already correctly
+ordered (`After=plasma-workspace.target`, `PartOf=`, `Restart=on-failure`) —
+this was never a product bug, only a local unit starting Remote out of band.
+
+Verified live without touching the session: originals backed up to
+`~/.config/systemd/user/.moos-backup-20260906/`, `daemon-reload` only, and
+across two observed firings the unit ran `Starting -> Finished` with no
+`Unknown key` warning while `mo-remote-personal` held **the same MainPID 2262
+and NRestarts=1** throughout.
+
+### Launcher keyboard navigation + system-audit integration (2026-09-05)
+
+Branch `fix/system-audit-20260905`.
+
+- **System audit (S01/S02) committed** (`89e4d2a7`): `moos-visual-tier` adds
+  `virtio-pci` to `VIRTUAL_DRIVERS` so an Oracle A1 core expansion can't flip the
+  host into software-rendered blur (regression proven); `post-update-check.sh`
+  reads the booted deployment as one snapshot and gains
+  `MOOS_EXPECTED_DIGEST=sha256:<64 hex>`, exercised by the new
+  `tests/test_post_update_deployment.py`. `docs/AGENT_HANDOFF.md` and
+  `docs/MOOS_SYSTEM_DEVELOPMENT_PLAN.md` are the current handoff + four-edition
+  plan; `MOOS_X86_SYSTEM_PLAN.md` is historical.
+
+- **Launcher is keyboard-operable (THEME_REV 53).** `LauncherView.qml`
+  (`org.moos.brand`) had a keyboard dead zone: the sidebar pages carried an
+  `activeFocus` edge but no key handlers and no tab-chain slot, and nothing
+  moved focus from the search field into Home/Applications/Places/Customize
+  content — only the search-results list was wired. Now: the four sidebar
+  `NavButton`s take Tab focus, Enter/Space activate, Up/Down cycle the ring,
+  Left/Right step into content; `focusActivePageContent()` is the one owner of
+  "enter the surface the user sees"; Down from the search field enters it, the
+  grids/lists return to the field from their top row, and `Shift+Tab` from a
+  grid/list/results goes to the owning page (not the last one). Keyboard
+  selection is now visible on `PlaceRow`/`RecentTile` via `ListView.isCurrentItem`.
+  Verified: modified QML loads with zero errors in `plasmawindowed`
+  (`MOOS_LAUNCHER_FULL_READY 792x576`); new source gate
+  `tests/test_moos_launcher_keyboard.py` (bite-tested) and the full CI repo-gate
+  list pass (only the documented `systemctl`-missing sandbox gap fails).
+  **Not yet done:** driving the focus ring with real key presses on a logged-in
+  Plasma session (synthetic input into the live shared session was deliberately
+  not used) and the signed-image frame.
+  A follow-up in the same rev fixes a real RTL clip found by rendering the
+  launcher at 150% in `plasmawindowed`: the Home `CommandCard` eyebrow ran into
+  the card's rounded corner and lost its leading letter ("اكتشف" → "كتشف");
+  the card now insets its content (`leftPadding`/`rightPadding`), matching
+  `AppTile`. Before/after 150% + 100% frames inspected; gated in `test_moos_ui2.py`.
+
+- **`moos-visual-tier` now publishes a resource `budget`** (P01 / ROADMAP-4
+  foundation). The same probe that picks the motion tier now also derives, as a
+  pure function of `facts` + `tier`: `file_indexing` (content / filenames),
+  `update_concurrency` (1 / 2 / 4), `ai_default` (local / cloud) and
+  `remote_encode` (720p30 / 1080p30 / 1080p60). It is in `--json`, the human
+  summary and the recorded state file. It is **advisory** — visual-tier does not
+  write baloofilerc, moai or Remote config; each consumer reads it under its own
+  owner. Live on `moos-arm-oracle` (virtual, 2 cores): essential → filename
+  indexing, 1 update stream, Mo AI cloud, Remote ≤ 720p30. Gated by
+  `tests/test_moos_visual_tier.py` (35 tests). The 2026-09-06 audit corrected
+  `file_indexing`: an earlier revision answered `off` for a small streamed box,
+  which would have deleted launcher file search from the machines used remotely.
+  Measured instead: baloo idle at 0.0% CPU, 12,323 files, 70 MB index — the
+  filename index is cheap; content EXTRACTION is the cost. The two values now
+  map 1:1 onto `only basic indexing` in `/etc/xdg/baloofilerc`. **Not yet done:**
+  wiring the consumers (baloo / `moai-do` / Remote encoder) and the P01
+  before/after workload measurement — those stay open on the plan.
 
 ### Mo PC Remote v39 — phone workspace (2026-09-05)
 
@@ -252,9 +635,12 @@ opened and its unchanged-digest retry is `33785511871`.
 
 Inspection of the maintainer's running ARM session also found that its generated
 MoOSUI2 icon theme declared Papirus as a fallback while the ARM package set did
-not install it. KWin consequently logged repeated `Papirus-Dark not found`
-lookups. ARM now installs that fallback explicitly and the finished-image gate
-asserts on the RPM, so this cannot return as a silent runtime-only omission.
+not install it. ARM now installs that fallback explicitly.
+**That fix was half of one, and the gate written for it was a green-check trap:**
+it asserted the RPM was installed — true — and said nothing about whether the
+name in the chain resolved. See the 2026-09-06 entry: the package ships only
+`/usr/share/icons/Papirus`, the chain named `Papirus-Dark`, and the misses
+continued for months at 69 per boot.
 
 The earlier candidate's final ISO booted visually, but install run `33766199203`
 ended when hosted QEMU itself asserted in epoxy after repeated EGL context loss
@@ -490,6 +876,11 @@ set it yourself. Wired to boot via `moos-visual-tier.service` (enabled, `graphic
 and called from `moos-apply-theme`. On this machine (nvidia, 16 cores, 15.4 GiB, 4K) it reported
 **Tier: flagship**. This satisfies the "1 GiB RAM → strongest, weakest GPU → flagship" goal: a 1 GiB
 no-GPU box lands on `essential` automatically.
+
+The same probe now also emits an advisory **`budget`** (`--json` + state file): `file_indexing`
+(content/filenames/off), `update_concurrency` (1/2/4), `ai_default` (local/cloud), `remote_encode`
+(720p30/1080p30/1080p60), a pure function of the probed facts + tier. It is not a second writer —
+baloo / `moai-do` / the Remote encoder are meant to read it under their own owners (not wired yet).
 
 KWin effects confirmed enabled: `blur`, `magiclamp` (genie minimize), `scale` (open/close), plus
 `slidingpopups`/`fadingpopups`/`slide`/`dimscreen`/`dialogparent`/`fullscreen`/`overview`/

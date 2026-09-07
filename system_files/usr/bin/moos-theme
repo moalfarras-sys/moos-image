@@ -728,6 +728,24 @@ apply_supplements() {
             2>/dev/null || supplement_failed=1
         gsettings set org.gnome.desktop.sound theme-name moos \
             2>/dev/null || supplement_failed=1
+        # THE WINDOW BUTTONS HAVE TO BE ON THE SAME SIDE IN EVERY APP.
+        #
+        # This function already writes kwinrc's ButtonsOnLeft=XIA, so every
+        # server-side-decorated window (Dolphin, Konsole, the Mo apps) puts
+        # close/minimise/maximise on the LEFT, macOS-style. It never wrote the
+        # GTK equivalent, so client-side-decorated apps kept GNOME's default
+        # `appmenu:minimize,maximize,close` — buttons on the RIGHT. Measured on
+        # the live session 2026-09-06: `gsettings get` and the xdg Settings
+        # portal both answered that GNOME string while KDE windows had their
+        # buttons on the left. Half the desktop disagreed with the other half.
+        #
+        # The colon separates left from right, so this is XIA's exact mirror:
+        # close, minimise, maximise on the left and nothing on the right. The
+        # portal reads this same key, which is how SANDBOXED apps (every
+        # Flatpak) learn the layout.
+        gsettings set org.gnome.desktop.wm.preferences button-layout \
+            'close,minimize,maximize:' \
+            2>/dev/null || supplement_failed=1
     else
         supplement_failed=1
     fi

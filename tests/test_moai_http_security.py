@@ -335,11 +335,11 @@ class GatewaySecurityTests(unittest.TestCase):
 
         calls = self.calls
 
-        def safe_local(instance, req, model):
+        def safe_cloud(instance, req, raw, model, cfg):
             calls.append((req, model))
             return instance._send_json(200, {"ok": True})
 
-        self.handler._to_local = safe_local
+        self.handler._to_cloud = safe_cloud
 
     def tearDown(self):
         self.home.cleanup()
@@ -389,7 +389,7 @@ class GatewaySecurityTests(unittest.TestCase):
 
     def test_openai_client_needs_no_custom_header_and_options_has_no_cors(self):
         with running(self.handler) as port:
-            body = {"model": "local", "messages": []}
+            body = {"model": "cloud", "messages": []}
             status, headers, payload = request(
                 port,
                 "POST",
@@ -413,7 +413,7 @@ class GatewaySecurityTests(unittest.TestCase):
             self.assertGreaterEqual(status, 400)
             self.assertFalse(any(name.startswith("access-control-") for name in headers))
 
-        self.assertEqual(self.calls, [(body, "")])
+        self.assertEqual(self.calls, [(body, "openrouter/free")])
 
     def test_foreign_origin_get_is_rejected_before_any_gateway_work(self):
         with running(self.handler) as port:

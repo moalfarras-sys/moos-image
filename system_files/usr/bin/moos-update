@@ -107,6 +107,50 @@ def current_system(booted=None):
     return pretty, (booted or {}).get("version", "") or ""
 
 
+
+def booted_origin(cmdline_path: str = "/proc/cmdline") -> str:
+    """The container image reference the RUNNING deployment was created from.
+
+    The kernel command line names the booted deployment directly, and that
+    symlink plus its `.origin` file are both world-readable, so this needs no
+    privilege and no bootc/rpm-ostree call. Returns "" when the origin cannot be
+    read, which the caller must treat as unknown rather than as trusted.
+    """
+    try:
+        with open(cmdline_path, encoding="utf-8") as handle:
+            fields = handle.read().split()
+        target = next(
+            (f.split("=", 1)[1] for f in fields if f.startswith("ostree=")), "")
+        if not target:
+            return ""
+        deployment = os.path.realpath(target)
+        with open(deployment + ".origin", encoding="utf-8") as handle:
+            for line in handle:
+                if line.startswith("container-image-reference="):
+                    return line.split("=", 1)[1].strip()
+    except OSError:
+        return ""
+    return ""
+
+
+def trust_badge(cmdline_path: str = "/proc/cmdline") -> tuple[str, bool]:
+    """(label, is_warning) describing the booted deployment's signature state.
+
+    MoOS enforces signatures through the origin type: `ostree-image-signed`
+    means every update to this deployment is checked against
+    /etc/pki/containers/moos.pub, while `ostree-unverified-registry` means it is
+    not. Claiming "signed" without looking is the one thing this badge must
+    never do -- it is the only place the desktop tells the owner whether the
+    system they are running is the one MoOS signed.
+    """
+    origin = booted_origin(cmdline_path)
+    if origin.startswith("ostree-image-signed:"):
+        return local_text("صورة موقّعة  ·  ذرّي", "SIGNED IMAGE  ·  ATOMIC"), False
+    if origin.startswith("ostree-unverified"):
+        return local_text("أصل غير موثّق  ·  ذرّي", "UNVERIFIED ORIGIN  ·  ATOMIC"), True
+    return local_text("أصل غير معروف  ·  ذرّي", "UNKNOWN ORIGIN  ·  ATOMIC"), True
+
+
 class Updater(MoOSApp):
     APP_ID = "org.moos.updater"      # == org.moos.updater.desktop — see MoOSApp's docstring
     TITLE = local_text("محدّث MoOS", "MoOS Updater")
@@ -156,10 +200,20 @@ class Updater(MoOSApp):
         identity.append(version)
         hero.append(identity)
 
-        trust = Gtk.Label(
-            label=local_text("صورة موقّعة  ·  ذرّي", "SIGNED IMAGE  ·  ATOMIC")
-        )
+        trust_label, trust_warns = trust_badge()
+        trust = Gtk.Label(label=trust_label)
         trust.add_css_class("ui2-badge")
+        if trust_warns:
+            trust.add_css_class("ui2-badge-warning")
+            trust.set_tooltip_text(local_text(
+                "هذا النظام أُقلع من أصل لم يُتحقّق من توقيعه، ولن تُتاح "
+                "التحديثات حتى يعود إلى أصل موثّق. أعد التشغيل إلى تحديث "
+                "موقّع — إن لم يكن هناك تحديث مُجهَّز فثبّت واحدًا أولًا.",
+                "This system booted from an origin whose signature was not "
+                "verified, and updates stay unavailable until it returns to a "
+                "verified origin. Reboot into a signed update -- install one "
+                "first if none is staged.",
+            ))
         trust.set_valign(Gtk.Align.CENTER)
         hero.append(trust)
         page.append(self.card(hero, spacing=0))

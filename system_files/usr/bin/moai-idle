@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Cloud-only compatibility entry point. The legacy implementation below is unreachable.
+printf '%s\n' 'Mo AI: سحابي مجاني فقط | free cloud only. Configure with moai-config.'
+exit 0
 # =============================================================================
 # moai-idle — unload the Mo AI local brain when it has been idle, to free VRAM.
 # =============================================================================

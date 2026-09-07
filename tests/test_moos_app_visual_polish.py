@@ -92,7 +92,15 @@ class MoAIVisualPolishTests(unittest.TestCase):
         self.assertIn('argv.indexOf("--layout-direction")', self.source)
         self.assertIn('value === "rtl" || value === "ltr"', self.source)
         self.assertIn("LayoutMirroring.enabled: root.moaiRtl", self.source)
-        self.assertEqual(self.source.count("Qt.application.layoutDirection"), 1)
+        # The point of this count was never the expression — it was that the
+        # SESSION direction enters the app in exactly one place, so an override
+        # has a single thing to beat. That single place is now the shared
+        # org.moos.ui Locale singleton rather than a per-app read of
+        # Qt.application.layoutDirection, which followed an installed translator
+        # instead of the locale and answered LeftToRight on Arabic sessions.
+        # Same guarantee, one authority for the whole OS instead of one per app.
+        self.assertEqual(self.source.count("Qt.application.layoutDirection"), 0)
+        self.assertEqual(self.source.count("MoUI.Locale.rtl"), 1)
 
     def test_settings_secrets_and_switches_have_screen_reader_labels(self) -> None:
         for object_id in ("keyField", "tokenField"):

@@ -172,6 +172,14 @@ regular file, model reported `count=1`).
 - **200%/225% clock proof and the complete 100–225% session sweep** — the
   responsive clock is live-rendered in Arabic at 100/125/150% (evidence below),
   but final 4K and light-theme frames still belong to artifact acceptance.
+- **Launcher keyboard navigation** — source-complete at THEME_REV 53
+  (`LauncherView.qml`): the sidebar pages take Tab focus + Enter/Space/arrow
+  operation, `focusActivePageContent()` owns the search-field↔content crossing
+  in both directions, and `Shift+Tab` from a grid/list returns to its own page.
+  Gated by `tests/test_moos_launcher_keyboard.py`. Loads with zero QML errors in
+  `plasmawindowed`; still open: driving the focus ring with real key presses on
+  a logged-in session (not synthetic input into the shared session) and the
+  signed-image frame.
 
 The panel clock popup is complete in source as of 2026-09-01. It owns a
 responsive day header, progress line, return-to-today and time-settings actions,
@@ -214,8 +222,11 @@ checks.
    across locale/scale remains.
 5. ~~Panel clock popup Liquid Glass~~ — complete in source and live-rendered at
    100/125/150%; 200/225% stays in artifact acceptance.
-6. Complete the session-wide 100 / 125 / 150 / 200 / 225% sweep, then improve
-   launcher keyboard navigation. Revisit dock-icon motion only as a separately
-   scoped task-manager project.
+6. ~~Launcher keyboard navigation~~ — source-complete at THEME_REV 53
+   (sidebar focus/activation, search-field↔content crossing, Shift+Tab to the
+   owning page; `tests/test_moos_launcher_keyboard.py`). Real-key focus-ring
+   proof on a logged-in session still open.
+7. Complete the session-wide 100 / 125 / 150 / 200 / 225% sweep. Revisit
+   dock-icon motion only as a separately scoped task-manager project.
 
 **Every step: change → apply live → screenshot → measure ≥15 → then commit.**

@@ -56,7 +56,7 @@ PlasmoidItem {
     // the route governed by an undeclared default.
     activationTogglesExpanded: true
 
-    readonly property bool rtl: Qt.locale().textDirection === Qt.RightToLeft
+    readonly property bool rtl: MoUI.Locale.rtl
     readonly property var design: MoUI.Tokens
     readonly property string uiFontFamily: Qt.application.font.family
     readonly property int motionFast: design.duration(

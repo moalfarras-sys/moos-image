@@ -29,7 +29,7 @@ PlasmoidItem {
     id: root
 
     readonly property var design: MoUI.Tokens
-    readonly property bool rtl: Qt.locale().textDirection === Qt.RightToLeft
+    readonly property bool rtl: MoUI.Locale.rtl
     readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
     readonly property int motionFast: design.duration(
         root.motionEnabled, design.motionFast)

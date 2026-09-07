@@ -830,6 +830,19 @@ dnf5 -y install qt6-qtsvg qt6-qtvirtualkeyboard qt6-qtmultimedia qt6-qtimageform
 dnf5 -y install ibm-plex-sans-fonts ibm-plex-sans-arabic-fonts \
     google-noto-sans-arabic-fonts jetbrains-mono-fonts papirus-icon-theme
 
+# ACCESSIBILITY. MoOS shipped the AT-SPI bus running and nothing behind it:
+# measured on the live ARM machine 2026-09-06, orca, speech-dispatcher and every
+# speech engine were absent while at-spi-dbus-bus.service was active. The bus was
+# a road to nowhere, and a blind user could not use this system at all.
+#
+# espeak-ng carries /usr/share/espeak-ng-data/ar_dict, so the screen reader
+# speaks Arabic. On an OS whose engineering skill calls Arabic first-class, an
+# English-only screen reader would not have been a fix.
+#
+# The same three packages ship on ARM. Editions must not disagree about whether
+# a person can use the computer.
+dnf5 -y install orca speech-dispatcher espeak-ng
+
 # Kawkab Mono — the Arabic terminal font, and the reason Arabic in Konsole was
 # unreadable without it.
 #
@@ -989,64 +1002,16 @@ test ! -e /usr/share/applications/org.fcitx.Fcitx5.desktop \
 
 # Qt WebEngine spell-check dictionaries.
 #
-# hunspell dictionaries are not readable by QtWebEngine — it needs them converted to its own
-# .bdic format. The qt6-qtwebengine RPM runs that converter from a scriptlet, and the
-# converter SIGTRAPs inside the build container (visible on the host as a pile of
-# qwebengine_convert_dict coredumps during every image build). The scriptlet swallows it, so
-# the image shipped with an EMPTY /usr/share/qt6/qtwebengine_dictionaries and spell-check
-# silently did not exist in any QtWebEngine app — in a bilingual OS, including Arabic.
+# The whole implementation — why the RPM scriptlet's converter SIGTRAPs, why the
+# Arabic dictionaries specifically need their hunspell IGNORE line stripped, and
+# the assertion that BOTH en_US and an ar_* dictionary were produced — lives in
+# the shared script, because this block used to live only here.
 #
-# Running the converter ourselves works (the crash is in how the scriptlet invokes it, not in
-# the tool), so do that and assert the result instead of trusting a scriptlet that fails
-# quietly.
-_convert_dict=/usr/lib64/qt6/libexec/qwebengine_convert_dict
-if [ -x "$_convert_dict" ]; then
-    mkdir -p /usr/share/qt6/qtwebengine_dictionaries /tmp/dicts
-    # The SIGTRAPs above are expected and their cores carry zero signal, but the
-    # HOST's systemd-coredump still collects ~26 of them from every rootless
-    # local build — a 3-second crash burst that reads like a real incident in
-    # `coredumpctl list` (it derailed one live audit already). A zero core
-    # limit here keeps the build container's known crashes out of the host
-    # journal; the gate below still asserts the converted output, which is the
-    # only truth that matters.
-    ulimit -c 0 2>/dev/null || true
-    _bdic=0
-    for _dic in /usr/share/hunspell/*.dic; do
-        [ -e "$_dic" ] || continue
-        _name="$(basename "$_dic" .dic)"
-        _aff="/usr/share/hunspell/${_name}.aff"
-        _src="$_dic"
-
-        # Chromium's converter aborts on the hunspell IGNORE command
-        # ("We don't support the IGNORE command yet", aff_reader.cc) — and the Arabic
-        # dictionaries use it, to ignore tashkeel. That single unsupported directive is why a
-        # bilingual OS shipped with no Arabic spell-check at all.
-        #
-        # Convert from a copy with IGNORE removed. The honest cost: diacritics are no longer
-        # ignored, so a *fully vocalised* Arabic word can be flagged as misspelled. Ordinary
-        # undiacritised Arabic — which is nearly all of it — checks correctly. A dictionary
-        # that is right about the common case beats no dictionary at all.
-        if [ -f "$_aff" ] && grep -q "^IGNORE" "$_aff" 2>/dev/null; then
-            grep -v "^IGNORE" "$_aff" > "/tmp/dicts/${_name}.aff"
-            cp -L "$_dic" "/tmp/dicts/${_name}.dic"
-            _src="/tmp/dicts/${_name}.dic"
-        fi
-
-        if QTWEBENGINE_DISABLE_SANDBOX=1 QT_QPA_PLATFORM=offscreen "$_convert_dict" "$_src" \
-            "/usr/share/qt6/qtwebengine_dictionaries/${_name}.bdic" >/dev/null 2>&1; then
-            _bdic=$((_bdic + 1))
-        fi
-    done
-    rm -rf /tmp/dicts
-    echo "OK: built ${_bdic} Qt WebEngine spell-check dictionaries."
-
-    # Arabic and English are the two languages this OS promises. Shipping the directory empty
-    # is the silent regression this whole block exists to stop, so assert on both.
-    ls /usr/share/qt6/qtwebengine_dictionaries/en_US.bdic >/dev/null 2>&1 \
-        || { echo "FATAL: no English spell-check dictionary was produced."; exit 1; }
-    ls /usr/share/qt6/qtwebengine_dictionaries/ar_*.bdic >/dev/null 2>&1 \
-        || { echo "FATAL: no Arabic spell-check dictionary was produced."; exit 1; }
-fi
+# ARM never had a copy of it. Measured on the live Oracle A1 on 2026-09-06, the
+# ARM image shipped 24 en_*.bdic and zero ar_*.bdic: an Arabic-speaking owner
+# with no Arabic spell-check, while this gate sat green on x86. A shared script
+# is what stops the two editions drifting apart again.
+bash /ctx/convert_webengine_dictionaries.sh
 
 # -----------------------------------------------------------------------------
 # (c5) Nova icon theme (generated from Colloid at build time)
@@ -1183,7 +1148,12 @@ cp /usr/share/icons/Colloid-Teal-Dark/index.theme /usr/share/icons/MoOSUI2/index
 sed -i \
     -e 's|^Name=.*|Name=MoOS UI|' \
     -e 's|^Comment=.*|Comment=MoOS icons — mineral teal on graphite|' \
-    -e 's|^Inherits=.*|Inherits=Colloid-Teal-Dark,Papirus-Dark,breeze-dark,hicolor|' \
+    # Fedora's papirus-icon-theme ships ONE theme directory, /usr/share/icons/Papirus.
+    # There is no Papirus-Dark here (upstream splits the variants, Fedora does not),
+    # so naming it cost 69 failed lookups per boot on the live ARM session while the
+    # gate that asserted the RPM was installed stayed green. The LIGHT chain below
+    # always said Papirus and was always right.
+    -e 's|^Inherits=.*|Inherits=Colloid-Teal-Dark,Papirus,breeze-dark,hicolor|' \
     -e 's|^FollowsColorScheme=.*|FollowsColorScheme=false|' \
     -e 's|^Directories=|Directories=moos/actions/scalable,moos/apps/scalable,|' \
     /usr/share/icons/MoOSUI2/index.theme
@@ -1511,9 +1481,6 @@ grep -q '^Inherits=MoOS$' /usr/share/icons/default/index.theme \
 #                                     service is enabled here by default — Android
 #                                     support is OPT-IN via the Compatibility Hub
 #                                     (see MOOS_COMPATIBILITY_PLAN.md).
-# - ramalama      (0.21.0-1.fc44)     local AI model runner for Mo AI (binary
-#                                     package really is "ramalama", not
-#                                     python3-ramalama).
 # - gamemode      (1.8.2-4.fc44)      Feral GameMode daemon/lib — games request
 #                                     temporary host optimizations.
 # - mangohud      (0.8.3~rc1-2.fc44)  Vulkan/OpenGL overlay (FPS, temps, load).
@@ -1557,11 +1524,17 @@ grep -q '^Inherits=MoOS$' /usr/share/icons/default/index.theme \
 # claiming a removal that did not happen.
 #
 # Everything a developer actually reaches for on a server —
-# ramalama, distrobox, btop, fastfetch, gh, node, the PCI/USB enumerators the
-# hardware report reads — stays, because the point of MoOS Cloud is that it is the
-# same system, not a stripped one.
+# distrobox, btop, fastfetch, gh, node, the PCI/USB enumerators the hardware
+# report reads — stays, because the point of MoOS Cloud is that it is the same
+# system, not a stripped one.
+#
+# ramalama IS GONE (stage C5, docs/MOAI_CLOUD_ONLY_PLAN.md). Mo AI's brain is a
+# cloud API: ensure_local() refuses before it can start anything, so the engine
+# was shipping in every image with no path left to reach it. Removing it is not
+# a stripped system — it is not shipping a runtime the product can no longer
+# use. Anyone who wants a local engine can still install one; MoOS just does not
+# put one on every machine by default.
 _core_power=(
-    ramalama
     distrobox
     btop
     fastfetch
@@ -3021,7 +2994,7 @@ grep -E '^(NAME|PRETTY_NAME|ID|ID_LIKE|VERSION_ID|VARIANT|VARIANT_ID|LOGO|ANSI_C
 # a known-good asset. Guards keep this fail-safe: it never breaks the build if
 # a path is absent. gtk-update-icon-cache exists (installed in section (c5)).
 # ROOT CAUSE (found via v14 live test): the ACTIVE icon theme is Nova, which
-# inherits Colloid-Dark -> Papirus-Dark -> breeze-dark -> hicolor. Papirus AND
+# inherits Colloid-Dark -> Papirus -> breeze-dark -> hicolor. Papirus AND
 # Colloid ship their OWN org.fedoraproject.AnacondaInstaller / fedora-logo-icon
 # / anaconda icons, which WIN over the hicolor replacement (higher in the
 # inheritance chain). So scrubbing hicolor alone leaves the Fedora "f" visible

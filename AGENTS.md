@@ -67,6 +67,13 @@ boot. Read this before changing anything.
 
 ## Where the rest of the knowledge is
 
+- **`docs/START_HERE_CURRENT_SESSION.md`** — active Mo AI/Hermes integration checkpoint, newest owner policy, exact known state and remaining release work. Read before continuing the current branch.
+
+- **`docs/MOOS_SYSTEM_DEVELOPMENT_PLAN.md`** — current four-edition architecture,
+  measured Oracle constraints, ordered implementation tasks and acceptance gates.
+  Follow `docs/AGENT_HANDOFF.md` for a session checkpoint. Runtime evidence outranks
+  historical plans; never treat a local app override as a signed OS release.
+
 - **`docs/MOOS_DESIGN_PLAN.md`** — READ THIS FIRST for any visual work. The
   measured reason a whole session of changes was invisible, the ≥15 luminance
   rule that prevents it, which surfaces can and cannot carry a visible change,

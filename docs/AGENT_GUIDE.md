@@ -277,15 +277,21 @@ Ordered by value. Each entry says what it is, why it is not done, and how.
 
 ### 5.1 Launcher keyboard flow and final clock scale proof
 
-**State:** the launcher now owns its card hierarchy and staggered reveal. The
-panel clock now owns a responsive full day/calendar surface and has live Arabic
-evidence at 100/125/150%. The remaining claims are narrower: keyboard-first
-launcher navigation and final 200/225% clock frames on 4K.
+**State:** the launcher owns its card hierarchy and staggered reveal, and as of
+THEME_REV 53 it is keyboard-operable: the four sidebar `NavButton`s take Tab
+focus and Enter/Space/Up/Down/Left/Right, `focusActivePageContent()` is the one
+owner of the search-field↔content crossing, the grids/lists return to the search
+field from their top row, and `Shift+Tab` from a grid/list/results goes to its
+own page. Gated by `tests/test_moos_launcher_keyboard.py` (source-level, like the
+motion gate — the runner has no Qt). The panel clock owns a responsive full
+day/calendar surface with live Arabic evidence at 100/125/150%.
 
-**How:** audit arrow-key movement through launcher favourites/results and the
-focus return path after launch. For the clock, boot the signed artifact at 4K
-200/225%, capture dark/light and Arabic/English, and prove the popup stays inside
-the available work area. Do not redesign the popup again without a failed frame.
+**Still open:** driving the launcher focus ring with real key presses on a
+logged-in Plasma session (synthetic `ydotool` input into the shared session was
+deliberately avoided) and the signed-image frame; final 200/225% clock frames on
+4K — boot the signed artifact, capture dark/light and Arabic/English, and prove
+the popup stays inside the available work area. Do not redesign either surface
+again without a failed frame.
 
 ### 5.2 Mo AI "thinking" is the remaining context-island state
 

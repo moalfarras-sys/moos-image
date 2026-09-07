@@ -43,6 +43,7 @@ Environment=OLLAMA_API_KEY=ollama-local
 # migration as a fresh install. The leading '-' keeps the status/repair panel
 # available when a user-owned config needs manual attention.
 ExecStartPre=-/usr/libexec/moai-openclaw-bootstrap --existing-only
+ExecStartPre=/usr/libexec/moai-cloud-migrate
 ExecStart=/usr/bin/moai-agent-api
 Restart=on-failure
 RestartSec=5

@@ -164,24 +164,29 @@ class StoreTestCase(unittest.TestCase):
         )
 
     def assert_schema(self, document):
-        self.assertEqual(
-            set(document),
-            {
-                "schema",
-                "job_id",
-                "action",
-                "state",
-                "progress",
-                "current_id",
-                "message",
-                "items",
-                "started_at",
-                "updated_at",
-            },
-        )
+        # `message` is human prose the UI shows verbatim; `message_key` is the
+        # stable identifier it translates. The key is optional at both levels --
+        # dynamic prose from Flatpak and real error text deliberately carry no
+        # key -- so it is an allowed extra rather than a required field. Keeping
+        # the rest exact still catches a stray field or a dropped one.
+        required = {
+            "schema",
+            "job_id",
+            "action",
+            "state",
+            "progress",
+            "current_id",
+            "message",
+            "items",
+            "started_at",
+            "updated_at",
+        }
+        self.assertEqual(set(document) - {"message_key"}, required)
         self.assertEqual(document["schema"], 1)
         for item in document["items"]:
-            self.assertEqual(set(item), {"id", "state", "progress", "message"})
+            self.assertEqual(
+                set(item) - {"message_key"}, {"id", "state", "progress", "message"}
+            )
 
 
 class ValidationTests(StoreTestCase):

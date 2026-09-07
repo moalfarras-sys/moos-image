@@ -1,0 +1,340 @@
+#!/usr/bin/python3
+"""Private Mo AI adapter for an already-installed Hermes Python runtime.
+
+Hermes owns conversation processing; Mo AI owns free-provider routing and every
+system action. This intentionally does not start Hermes' messaging gateway or
+its broad administration API. No dependency download or setup happens here.
+"""
+from __future__ import annotations
+
+import argparse
+import hmac
+import importlib
+import json
+import os
+from pathlib import Path
+import secrets
+import shutil
+import stat
+import sys
+import threading
+import time
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import urllib.request
+import uuid
+
+MAX_BODY = 128 * 1024
+MODEL = "hermes-agent"
+
+
+def gateway_port() -> int:
+    port = int(os.environ.get("MOAI_GATEWAY_PORT", "8080"))
+    if not 1024 <= port <= 65525:
+        raise ValueError("invalid Mo AI gateway port")
+    return port
+
+
+def runtime_directory() -> Path:
+    return Path(os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")) / "moai-hermes"
+
+
+def isolated_home() -> Path:
+    data = Path(os.environ.get("XDG_DATA_HOME", str(Path.home() / ".local/share")))
+    return data / "moai/hermes"
+
+
+def discover_runtime() -> tuple[Path, Path] | None:
+    candidates = []
+    explicit = os.environ.get("MOAI_HERMES_RUNTIME_ROOT")
+    if explicit:
+        candidates.append(Path(explicit))
+    executable = shutil.which("hermes")
+    if executable:
+        entry = Path(executable).resolve()
+        candidates.append(entry.parent.parent / "runtime/hermes-agent")
+    candidates.extend((Path("/usr/lib/hermes-agent"), Path("/opt/hermes-agent"),
+                       Path.home() / ".local/lib/hermes-agent"))
+    candidates.extend(sorted((Path.home() / ".nvm/versions/node").glob(
+        "*/lib/node_modules/hermes-agent/runtime/hermes-agent"), reverse=True))
+    for root in candidates:
+        for environment in ("venv", ".venv"):
+            python = root / environment / "bin/python"
+            if (root / "run_agent.py").is_file() and python.is_file() and os.access(python, os.X_OK):
+                return root.resolve(), python
+    return None
+
+
+def private_directory(path: Path) -> None:
+    path.mkdir(mode=0o700, parents=True, exist_ok=True)
+    info = path.lstat()
+    if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid():
+        raise RuntimeError("Hermes isolation directory is not owned by this user")
+    path.chmod(0o700)
+
+
+def write_private(path: Path, contents: str) -> None:
+    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(descriptor, "w") as stream:
+        os.fchmod(stream.fileno(), 0o600)
+        stream.write(contents)
+
+
+def configuration(port: int) -> dict:
+    return {
+        "model": {"provider": "custom", "default": "cloud", "base_url": f"http://127.0.0.1:{port}/v1"},
+        "fallback_providers": [], "mcp_servers": {},
+        "compression": {"enabled": False},
+        "memory": {"memory_enabled": False, "user_profile_enabled": False},
+        "agent": {"max_turns": 1, "toolsets": []},
+        "platform_toolsets": {"cli": [], "api_server": []},
+        "auxiliary": {"free_only": True, "transient_retries": 0,
+                      "compression": {"provider": "main", "model": "cloud"}},
+    }
+
+
+def worker_environment(home: Path, port: int) -> dict[str, str]:
+    # Do not inherit provider keys, proxy routes, Telegram, MCP, plugins, Python
+    # injection variables or the owner's HERMES_HOME. HOME itself remains the
+    # real user's home; Hermes' supported isolation variable owns its state.
+    keep = ("HOME", "USER", "LOGNAME", "LANG", "LC_ALL", "LC_CTYPE", "XDG_RUNTIME_DIR")
+    env = {key: os.environ[key] for key in keep if key in os.environ}
+    env.update(PATH="/usr/bin:/bin", HERMES_HOME=str(home),
+               XDG_CONFIG_HOME=str(home / "config"), XDG_DATA_HOME=str(home / "data"),
+               XDG_CACHE_HOME=str(home / "cache"),
+               MOAI_GATEWAY_PORT=str(port), MOAI_HERMES_HOME=str(home),
+               OPENAI_BASE_URL=f"http://127.0.0.1:{port}/v1", OPENAI_API_KEY="moai-loopback",
+               HERMES_API_TIMEOUT="90", HERMES_API_CALL_STALE_TIMEOUT="90",
+               HERMES_STREAM_READ_TIMEOUT="90", PYTHONDONTWRITEBYTECODE="1",
+               HF_HUB_OFFLINE="1", HF_HUB_DISABLE_TELEMETRY="1")
+    return env
+
+
+def install_io_boundary(port: int) -> None:
+    # Enforce the only permitted upstream even if a later Hermes auxiliary
+    # default changes. Audit hooks also cover sockets created by HTTP libraries
+    # and redirects. This process must never launch model-generated commands.
+    def audit(event, args):
+        if event == "socket.connect":
+            address = args[1]
+            if not isinstance(address, tuple) or address[:2] != ("127.0.0.1", port):
+                raise PermissionError("Hermes may connect only to the Mo AI gateway")
+        elif event == "socket.getaddrinfo" and args[0] not in ("127.0.0.1", b"127.0.0.1"):
+            raise PermissionError("Hermes external DNS is disabled")
+        elif event in ("subprocess.Popen", "os.system", "os.exec", "os.posix_spawn"):
+            raise PermissionError("Hermes process execution is disabled")
+    sys.addaudithook(audit)
+
+
+def agent_factory(root: Path, port: int):
+    sys.path.insert(0, str(root))
+    install_io_boundary(port)
+    from run_agent import AIAgent
+
+    def create(max_tokens=2048):
+        agent = AIAgent(
+            provider="custom", api_mode="chat_completions", model="cloud",
+            base_url=f"http://127.0.0.1:{port}/v1", api_key="moai-loopback",
+            enabled_toolsets=[], disabled_toolsets=[], max_iterations=1,
+            max_tokens=max_tokens, quiet_mode=True, save_trajectories=False,
+            skip_context_files=True, load_soul_identity=False, skip_memory=True,
+            skip_background_review=True, checkpoints_enabled=False,
+            fallback_model=None, run_budget_seconds=120,
+        )
+        if agent.tools or agent.valid_tool_names:
+            agent.close()
+            raise RuntimeError("Hermes unexpectedly exposed tools")
+        if str(agent.client.base_url).rstrip("/") != f"http://127.0.0.1:{port}/v1":
+            agent.close()
+            raise RuntimeError("Hermes unexpectedly selected another provider")
+        return agent
+    return create
+
+
+def parse_chat(body: object) -> tuple[str, str, list[dict], int, bool]:
+    if not isinstance(body, dict) or set(body) - {"model", "messages", "stream", "max_tokens", "temperature"}:
+        raise ValueError("unsupported chat fields; provider and tool overrides are unavailable")
+    if body.get("model", MODEL) not in (MODEL, "cloud", "default"):
+        raise ValueError("unsupported model")
+    messages = body.get("messages")
+    if not isinstance(messages, list) or not 1 <= len(messages) <= 100:
+        raise ValueError("messages must contain between 1 and 100 text messages")
+    systems, history = [], []
+    for message in messages:
+        if not isinstance(message, dict) or set(message) != {"role", "content"}:
+            raise ValueError("only role and text content are supported")
+        if not isinstance(message["content"], str) or message["role"] not in ("system", "user", "assistant"):
+            raise ValueError("only system, user and assistant text messages are supported")
+        if message["role"] == "system":
+            systems.append(message["content"])
+        else:
+            history.append(dict(message))
+    if not history or history[-1]["role"] != "user":
+        raise ValueError("the final message must be from the user")
+    maximum = body.get("max_tokens", 2048)
+    if type(maximum) is not int or not 1 <= maximum <= 8192:
+        raise ValueError("max_tokens must be between 1 and 8192")
+    if type(body.get("stream", False)) is not bool:
+        raise ValueError("stream must be a boolean")
+    system = "You are Mo AI, powered by Hermes. Reply in the user's language. System actions are offered only through Mo AI's fixed action buttons; you cannot execute commands or modify files."
+    return history[-1]["content"], system + "\n" + "\n".join(systems), history[:-1], maximum, body.get("stream", False)
+
+
+class Server(ThreadingHTTPServer):
+    daemon_threads = True
+
+    def __init__(self, address, token: str, create):
+        self.token, self.create = token, create
+        self.busy = threading.Lock()
+        super().__init__(address, Handler)
+
+
+class Handler(BaseHTTPRequestHandler):
+    def setup(self):
+        super().setup()
+        self.connection.settimeout(130)
+
+    def log_message(self, *args):
+        pass
+
+    def send_json(self, status: int, body: dict):
+        data = json.dumps(body, ensure_ascii=False).encode()
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(data)
+
+    def error(self, status: int, message: str):
+        self.send_json(status, {"error": {"message": message}})
+
+    def authorized(self) -> bool:
+        if self.headers.get("Origin") is not None:
+            self.error(403, "browser origin is not allowed")
+            return False
+        if not hmac.compare_digest(self.headers.get("Authorization", ""), "Bearer " + self.server.token):
+            self.error(401, "authentication required")
+            return False
+        return True
+
+    def do_GET(self):
+        if not self.authorized():
+            return
+        if self.path == "/healthz":
+            return self.send_json(200, {"ok": True, "service": "moai-hermes", "tools": [], "provider": "moai-free-cloud"})
+        if self.path == "/v1/models":
+            return self.send_json(200, {"object": "list", "data": [{"id": MODEL, "object": "model", "owned_by": "moos"}]})
+        self.error(404, "unknown route")
+
+    def do_POST(self):
+        if not self.authorized():
+            return
+        if self.path != "/v1/chat/completions":
+            return self.error(404, "unknown route")
+        if self.headers.get("Transfer-Encoding") or len(self.headers.get_all("Content-Length") or []) != 1:
+            return self.error(400, "one content length is required")
+        if self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower() != "application/json":
+            return self.error(415, "JSON is required")
+        try:
+            length = int(self.headers["Content-Length"])
+            if not 0 < length <= MAX_BODY:
+                return self.error(413, "request is too large")
+            user, system, history, maximum, stream = parse_chat(json.loads(self.rfile.read(length)))
+        except (ValueError, UnicodeError):
+            return self.error(400, "invalid text chat request")
+        if not self.server.busy.acquire(blocking=False):
+            return self.error(429, "Hermes is answering another request")
+        agent = None
+        try:
+            agent = self.server.create(maximum)
+            result = agent.run_conversation(user_message=user, system_message=system, conversation_history=history)
+            answer = result.get("final_response")
+            if not isinstance(answer, str) or not answer.strip() or result.get("error"):
+                raise RuntimeError("Hermes did not return an answer")
+            response = {"id": "chatcmpl-" + uuid.uuid4().hex, "object": "chat.completion",
+                        "created": int(time.time()), "model": MODEL,
+                        "choices": [{"index": 0, "message": {"role": "assistant", "content": answer}, "finish_reason": "stop"}]}
+            if stream:
+                # A final-answer SSE frame is wire-compatible; it is not a claim
+                # of incremental token streaming. No synthetic progress tokens.
+                self.send_response(200)
+                self.send_header("Content-Type", "text/event-stream")
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+                response["object"] = "chat.completion.chunk"
+                response["choices"] = [{"index": 0, "delta": {"role": "assistant", "content": answer}, "finish_reason": "stop"}]
+                self.wfile.write(("data: " + json.dumps(response, ensure_ascii=False) + "\n\ndata: [DONE]\n\n").encode())
+            else:
+                self.send_json(200, response)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+        except Exception:
+            # Provider exceptions can contain request/auth data. Never reflect
+            # them into the UI or journal. The gateway owns actionable status.
+            self.error(503, "Hermes or the free cloud provider is unavailable")
+        finally:
+            if agent is not None:
+                agent.close()
+            self.server.busy.release()
+
+
+def status() -> dict:
+    installed = discover_runtime() is not None
+    result = {"installed": installed, "ready": False, "service": "moai-hermes"}
+    try:
+        token = (runtime_directory() / "token").read_text().strip()
+        request = urllib.request.Request(f"http://127.0.0.1:{gateway_port() + 10}/healthz", headers={"Authorization": "Bearer " + token})
+        with urllib.request.urlopen(request, timeout=2) as response:
+            health = json.load(response)
+        result["ready"] = health.get("ok") is True and health.get("service") == "moai-hermes"
+    except Exception:
+        pass
+    return result
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("action", choices=("status", "serve", "check"))
+    parser.add_argument("--worker-root", type=Path, help=argparse.SUPPRESS)
+    args = parser.parse_args()
+    if args.action == "status":
+        print(json.dumps(status()))
+        return 0
+    if os.getuid() < 1000:
+        print("moai-hermes: requires a desktop user", file=sys.stderr)
+        return 1
+    port = gateway_port()
+    if args.worker_root is None:
+        runtime = discover_runtime()
+        if runtime is None:
+            print("moai-hermes: Hermes runtime is not installed; no dependency was downloaded", file=sys.stderr)
+            return 69
+        root, python = runtime
+        home = isolated_home()
+        private_directory(home)
+        # JSON is also YAML; no additional parser is required in the launcher.
+        write_private(home / "config.yaml", json.dumps(configuration(port)))
+        os.chdir(home)
+        os.execve(str(python), [str(python), str(Path(__file__).resolve()), args.action, "--worker-root", str(root)], worker_environment(home, port))
+    create = agent_factory(args.worker_root, port)
+    probe = create()
+    probe.close()
+    if args.action == "check":
+        print(json.dumps({"compatible": True, "tools": [], "provider": "moai-free-cloud"}))
+        return 0
+    directory = runtime_directory()
+    private_directory(directory)
+    token = secrets.token_urlsafe(32)
+    server = Server(("127.0.0.1", port + 10), token, create)
+    write_private(directory / "token", token)
+    print("moai-hermes: private adapter ready; tools disabled", flush=True)
+    server.serve_forever()
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except Exception as error:
+        print(f"moai-hermes: startup unavailable ({type(error).__name__})", file=sys.stderr)
+        raise SystemExit(1)

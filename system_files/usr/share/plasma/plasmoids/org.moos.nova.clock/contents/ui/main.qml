@@ -33,7 +33,7 @@ PlasmoidItem {
     Plasmoid.backgroundHints: PlasmaCore.Types.NoBackground
 
     property date now: new Date()
-    readonly property bool rtl: Qt.locale().textDirection === Qt.RightToLeft
+    readonly property bool rtl: MoUI.Locale.rtl
     readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
     readonly property var design: MoUI.Tokens
     readonly property var displayLocale: rtl ? Qt.locale("ar") : Qt.locale()

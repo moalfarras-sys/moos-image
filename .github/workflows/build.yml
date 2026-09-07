@@ -248,6 +248,7 @@ jobs:
           python3 tests/test_device_plan.py
           python3 tests/test_moai_do.py
           python3 tests/test_moos_auto_update.py
+          python3 tests/test_updater_trust_badge.py
           python3 tests/test_cloud_console_order.py
           python3 tests/test_oracle_deploy.py
           python3 tests/test_theme_wallpaper_readback.py
@@ -255,6 +256,15 @@ jobs:
           python3 tests/test_mokernel.py
           python3 tests/test_moai_control.py
           python3 tests/test_moai_config.py
+          # Mo AI's brain is a cloud API and nothing is ever downloaded to the
+          # machine. Free, no-card providers must exist and come first.
+          python3 tests/test_moai_cloud_only.py
+          # No externally reachable moai-do action may START a local engine.
+          # install-openclaw still called setup_brain_impl after do_setup_brain
+          # was guarded — and Mo AI can name install-openclaw.
+          python3 tests/test_moai_no_local_start_path.py
+          python3 tests/test_moai_free_policy.py
+          python3 tests/test_moai_hermes.py
           python3 tests/test_moai_workspace.py
           python3 tests/test_moai_hybrid.py
           # moos-open's session/logout and session/power hardcoded `qdbus6`, absent on Plasma 6
@@ -307,6 +317,10 @@ jobs:
           python3 tests/test_remote_keycode_flush.py
           python3 tests/test_remote_portal_keysyms_sync.py
           python3 tests/test_arabic_terminal_font.py
+          # Arabic spell-check must exist in EVERY edition from ONE shared script.
+          # ARM shipped 24 English and ZERO Arabic dictionaries because the x86
+          # block was copied instead of shared.
+          python3 tests/test_webengine_dictionaries.py
           python3 tests/test_boot_branding_tool.py
           python3 tests/test_boot_splash_polish.py
           python3 tests/test_moai_app_launch.py
@@ -398,10 +412,21 @@ jobs:
           python3 tests/test_remote_audio_is_authenticated.py
           python3 tests/test_moos_store_index.py
           python3 tests/test_moos_storectl.py
+          python3 tests/test_store_job_language.py
           # One globally importable MoUI module must own identity metrics and shared
           # controls; an app-local copy cannot silently grow back.
           python3 tests/test_moos_design_core.py
+          # One answer to "is this session Arabic". Four surfaces read
+          # Qt.application.layoutDirection, which follows a translator and not the
+          # locale — the Command Center, installer and welcome screen rendered in
+          # English on Arabic installs.
+          python3 tests/test_moos_one_locale_authority.py
           python3 tests/test_moos_ui2.py
+          # The full Launcher must be operable with the keyboard alone: the
+          # sidebar pages take focus and activation keys, Down/Up cross between
+          # the search field and the active page's grid/list, Shift+Tab returns
+          # to the owning page. Source gate (the runner has no Qt).
+          python3 tests/test_moos_launcher_keyboard.py
           # The bar is ONE capsule: this runs the real merge surgery out of
           # moos-bar-apply against appletsrc fixtures, so a change that can leave
           # a second bottom panel fails here instead of on the owner's desktop.
@@ -421,12 +446,27 @@ jobs:
           # router destination rather than user-controlled argv.
           python3 tests/test_moos_settings.py
           python3 tests/test_moos_app_icons.py
+          # KDE and GTK windows must put their buttons on the SAME side. KWin said
+          # left, GSettings and the portal said right, and half the desktop
+          # disagreed with the other half.
+          python3 tests/test_window_button_consistency.py
+          # MoOS's own windows must never take the title bar from KWin: buttons on
+          # the left are only safe while the compositor reserves that strip.
+          python3 tests/test_first_party_window_frame.py
+          # Every name in an Inherits= chain must be a theme the image installs.
+          # MoOSUI2 named Papirus-Dark, which Fedora does not ship: 69 failed
+          # lookups per boot while the gate on the RPM stayed green.
+          python3 tests/test_icon_theme_inheritance.py
           # Parse all 16 KDE palettes into first-party GTK roles and hold the
           # remote status poll behind a coalescing background worker.
           python3 tests/test_moos_gtk_runtime.py
           # First-party interface chrome is one owned, palette-aware symbolic
           # layer; this also catches unresolved icon names before a QML window ships.
           python3 tests/test_moos_symbolic_icons.py
+          # A person who cannot see the screen must be able to use MoOS. The
+          # AT-SPI bus was running with NO screen reader and no speech engine
+          # behind it, and QT_ACCESSIBILITY was unset.
+          python3 tests/test_moos_accessibility.py
           # Runtime rendering is skipped only when the runner lacks the desktop
           # libraries; on MoOS it resolves through GTK, KDE and librsvg at 16–128px.
           python3 tests/test_moos_symbolic_runtime.py

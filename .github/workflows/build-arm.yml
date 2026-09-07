@@ -41,9 +41,15 @@ on:
       - "tests/boot_arm_qcow2.sh"
       - "tests/verify_arm_runtime.sh"
       - "tests/test_moos_arm.py"
+      - "tests/test_arm_initramfs_size.py"
+      - "tests/test_icon_theme_inheritance.py"
+      - "tests/test_webengine_dictionaries.py"
       - "tests/test_utm_bundle.py"
       - "artwork/generate_utm_bundle.py"
       - "artwork/generate_utm_installer.py"
+      - "tests/test_utm_installer.py"
+      - "tests/test_store_job_language.py"
+      - "tests/test_updater_trust_badge.py"
       - "tests/test_boot_splash_polish.py"
       - ".github/workflows/build-arm.yml"
   pull_request:
@@ -56,9 +62,15 @@ on:
       - "moremote/**"
       - "system_files/**"
       - "tests/test_moos_arm.py"
+      - "tests/test_arm_initramfs_size.py"
+      - "tests/test_icon_theme_inheritance.py"
+      - "tests/test_webengine_dictionaries.py"
       - "tests/test_utm_bundle.py"
       - "artwork/generate_utm_bundle.py"
       - "artwork/generate_utm_installer.py"
+      - "tests/test_utm_installer.py"
+      - "tests/test_store_job_language.py"
+      - "tests/test_updater_trust_badge.py"
       - "tests/boot_arm_qcow2.sh"
       - "tests/verify_arm_runtime.sh"
       - "tests/test_boot_splash_polish.py"
@@ -94,6 +106,7 @@ jobs:
       - name: ARM and boot-splash source gates
         run: |
           bash -n build_files/build-arm.sh
+          bash -n build_files/convert_webengine_dictionaries.sh
           bash -n build_files/build-arm-recovery.sh
           bash -n build_files/finalize_moos_desktop.sh
           bash -n build_files/seal_arm_qcow2.sh
@@ -101,9 +114,18 @@ jobs:
           bash -n tests/boot_arm_qcow2.sh
           bash -n tests/verify_arm_runtime.sh
           python3 tests/test_moos_arm.py
+          python3 tests/test_moai_cloud_only.py
+          python3 tests/test_moai_free_policy.py
+          python3 tests/test_moai_hermes.py
+          python3 tests/test_arm_initramfs_size.py
+          python3 tests/test_icon_theme_inheritance.py
+          python3 tests/test_webengine_dictionaries.py
           python3 tests/test_boot_splash_polish.py
           python3 tests/test_seal_arm_deployment.py
           python3 tests/test_utm_bundle.py
+          python3 tests/test_store_job_language.py
+          python3 tests/test_updater_trust_badge.py
+          python3 tests/test_utm_installer.py
 
       # The ARM runner ships the same pre-baked toolchains as the x86 one and
       # the same ~14 GB of free space. A Plasma image plus a build cache does

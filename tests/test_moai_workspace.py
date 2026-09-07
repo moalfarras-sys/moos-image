@@ -270,7 +270,10 @@ def main() -> None:
         globals_["BIN"] = str(fake_openclaw)
         globals_["write_config"] = lambda body: {"ok": True}
         started = module["task_action"]({"id": task["id"], "action": "start"})
-        assert started["status"] == "running"
+        # The tiny fixture may finish before the start response is read. Both
+        # states are valid; the checks below still require actual completion,
+        # process output, tool tracking and its terminal audit event.
+        assert started["status"] in {"running", "completed"}
         finished = None
         for _ in range(100):
             finished = module["list_tasks"]()[0]
@@ -423,12 +426,12 @@ def main() -> None:
         "load_cfg", "load_state", "save_state", "save_cfg", "command_ok",
         "selected_engine", "unit_active")}
     scope["load_cfg"] = lambda: {
-        "agents": {"defaults": {"model": {"primary": "ollama/a"}}},
-        "models": {"providers": {"ollama": {
-            "baseUrl": "http://127.0.0.1:11434",
-            "apiKey": "ollama-local", "api": "ollama",
-            "models": [{"id": "a"}, {"id": "b"}]}}},
-        "tools": {"byProvider": {"ollama/a": {"deny": ["browser", "group:web"]}}},
+        "agents": {"defaults": {"model": {"primary": "cloud/vendor/a:free"}}},
+        "models": {"providers": {"cloud": {
+            "baseUrl": "https://openrouter.ai/api/v1",
+            "apiKey": "ollama-local", "api": "openai-completions",
+            "models": [{"id": "vendor/a:free"}, {"id": "vendor/b:free"}]}}},
+        "tools": {"byProvider": {"cloud/vendor/a:free": {"deny": ["browser", "group:web"]}}},
     }
     scope["load_state"] = lambda: {}
     scope["save_state"] = lambda st: None
@@ -437,10 +440,10 @@ def main() -> None:
     scope["selected_engine"] = lambda: {"configured": False, "unit": ""}
     scope["unit_active"] = lambda unit: False
     try:
-        module["write_config"]({"mode": "local", "local_model": "b"})
+        module["write_config"]({"mode": "cloud", "cloud": {"provider": "openrouter-free", "base": "https://openrouter.ai/api/v1", "model": "vendor/b:free"}})
     finally:
         scope.update(originals)
-    carried = saved.get("tools", {}).get("byProvider", {}).get("ollama/b", {})
+    carried = saved.get("tools", {}).get("byProvider", {}).get("cloud/vendor/b:free", {})
     assert carried.get("deny") == ["browser", "group:web"], (
         "switching the primary brain must carry the deny policy with it, "
         f"got: {carried!r}")
@@ -455,14 +458,14 @@ def main() -> None:
         "load_cfg", "load_state", "save_state", "save_cfg", "command_ok",
         "selected_engine", "unit_active")}
     stale_scope["load_cfg"] = lambda: {
-        "agents": {"defaults": {"model": {"primary": "ollama/a"}}},
-        "models": {"providers": {"ollama": {
-            "baseUrl": "http://127.0.0.1:11434",
-            "apiKey": "ollama-local", "api": "ollama",
-            "models": [{"id": "a"}, {"id": "b"}]}}},
+        "agents": {"defaults": {"model": {"primary": "cloud/vendor/a:free"}}},
+        "models": {"providers": {"cloud": {
+            "baseUrl": "https://openrouter.ai/api/v1",
+            "apiKey": "ollama-local", "api": "openai-completions",
+            "models": [{"id": "vendor/a:free"}, {"id": "vendor/b:free"}]}}},
         "tools": {"byProvider": {
-            "ollama/a": {"deny": ["browser", "group:web"]},
-            "ollama/b": {"deny": []},
+            "cloud/vendor/a:free": {"deny": ["browser", "group:web"]},
+            "cloud/vendor/b:free": {"deny": []},
         }},
     }
     stale_scope["load_state"] = lambda: {}
@@ -472,10 +475,10 @@ def main() -> None:
     stale_scope["selected_engine"] = lambda: {"configured": False, "unit": ""}
     stale_scope["unit_active"] = lambda unit: False
     try:
-        module["write_config"]({"mode": "local", "local_model": "b"})
+        module["write_config"]({"mode": "cloud", "cloud": {"provider": "openrouter-free", "base": "https://openrouter.ai/api/v1", "model": "vendor/b:free"}})
     finally:
         stale_scope.update(stale_originals)
-    carried = saved.get("tools", {}).get("byProvider", {}).get("ollama/b", {})
+    carried = saved.get("tools", {}).get("byProvider", {}).get("cloud/vendor/b:free", {})
     assert carried.get("deny") == ["browser", "group:web"], (
         "a STALE policy on the new primary must be overwritten, not kept: "
         f"got: {carried!r}")

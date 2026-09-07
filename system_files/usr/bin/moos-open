@@ -135,7 +135,14 @@ case "${cat}/${tgt}" in
     app/welcome)   gui moos-welcome ;;
     app/store)     gui moos-store ;;
     app/settings)  gui moos-settings ;;
-    brain/start)   term moai-start ;;
+    # STAGE C2 (docs/MOAI_CLOUD_ONLY_PLAN.md). This used to run `moai-start`,
+    # which brings up a LOCAL engine. ensure_local() now refuses, so that button
+    # became a dead one the moment the door closed — and AGENTS.md is explicit
+    # that a button which does nothing is a defect. It is not left dead for one
+    # release: it now opens the cloud provider setup, which is what "start the
+    # brain" MEANS once the brain is a cloud API. Every caller of this route
+    # (Mo AI's startBrain()) therefore keeps working and lands somewhere useful.
+    brain/start)   term moai-config ;;
     # ai/config was removed with the one-chat redesign: it opened moai-config,
     # a THIRD brain-configuration surface (beside the in-chat picker and the
     # Settings Brain tab) — and because moos: is a public URL scheme, any web

@@ -22,6 +22,8 @@ import unittest
 from pathlib import Path
 
 from test_arm_appstream_refresh import AppStreamImageTests
+# /boot is 974 MiB and holds two deployments; the initramfs has to fit.
+from test_arm_initramfs_size import ArmInitramfsFits
 
 ROOT = Path(__file__).resolve().parents[1]
 CONTAINERFILE = ROOT / "Containerfile.arm"
@@ -206,10 +208,21 @@ class ArmEditionTests(unittest.TestCase):
         self.assertIn("emergency\\.service|emergency\\.target", read(BOOT_GATE))
 
     def test_the_curated_desktop_uses_fedora_44_package_names(self) -> None:
+        """These names must be the ones Fedora 44 actually ships.
+
+        This list is about SPELLING, not policy: a package renamed upstream
+        fails the native build before it can produce an image, and that is what
+        this test catches. `ramalama` left the list when Mo AI went cloud-only
+        (docs/MOAI_CLOUD_ONLY_PLAN.md, stage C5) — the engine is no longer
+        installed in any edition, so requiring its name here would assert a
+        product decision this test was never about. That it is ABSENT is
+        asserted by tests/test_moai_cloud_only.py, which also checks x86 and ARM
+        agree; keeping the two concerns in separate files is deliberate.
+        """
         text = code(read(BUILD))
         for current in (
             "kwin-libs", "plasma-breeze", "plasma-workspace",
-            "ramalama", "plasma-discover", "kinfocenter", "bluedevil",
+            "plasma-discover", "kinfocenter", "bluedevil",
             "plasma-print-manager", "flatpak-kcm", "gwenview", "haruna",
             "kf6-baloo-file",
         ):
@@ -246,8 +259,13 @@ class ArmEditionTests(unittest.TestCase):
             self.assertIn(unit, build, f"ARM never enables the shared authority {unit}")
             self.assertIn(unit, verifier,
                           f"the finished ARM image never proves {unit} is enabled")
+        # Every route the ARM UI offers must have a backend the FINISHED image
+        # proves is present. `"ramalama"` left this list with Mo AI's local
+        # brain: there is no longer a route that reaches a local engine, so
+        # requiring the image to prove one would demand a backend for a door
+        # that no longer exists (docs/MOAI_CLOUD_ONLY_PLAN.md, stages C2/C5).
         for backend in (
-            '"ramalama"', '"plasma-discover"', '"kinfocenter"',
+            '"plasma-discover"', '"kinfocenter"',
             '"bluedevil"', '"plasma-print-manager"', '"flatpak-kcm"',
         ):
             self.assertIn(backend, verifier,

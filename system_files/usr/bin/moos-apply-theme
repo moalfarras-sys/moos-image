@@ -195,7 +195,12 @@ set -uo pipefail
 # 52: Mo PC Remote publishes authenticated viewer presence and the context
 #     island surfaces active/paused sessions ahead of media. Existing profiles
 #     must drop the cached media-only island QML to receive the safety signal.
-THEME_REV=52
+# 53: The Launcher is fully keyboard-navigable — the sidebar pages take focus
+#     and activation keys, Down/Up cross between the search field and the
+#     active page's grid/list, and Shift+Tab returns to the owning page. The
+#     new LauncherView.qml only reaches an existing user once the frozen-/usr
+#     QML disk cache this bump purges is gone.
+THEME_REV=53
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

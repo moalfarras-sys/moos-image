@@ -35,6 +35,13 @@ WHAT IT WILL NOT DO.
 
 Read-only probing, no external commands required: /sys, /proc and /dev only.
 Set MOOS_TIER_ROOT to probe a fake root (the gate does exactly that).
+
+BEYOND MOTION. `budget()` extends the same probe to the other sustained local
+costs — file indexing, update fan-out, the Mo AI default route, the Remote
+software-encode ceiling — and `--json` / the state file carry it as `budget`.
+It is ADVISORY: this tool stays the single authority on "what is this machine",
+but it does not write baloofilerc, moai config or the Remote encoder — each
+consumer reads the budget and applies it under its own owner.
 """
 
 from __future__ import annotations
@@ -63,7 +70,10 @@ DISCRETE_DRIVERS = {"nvidia", "nouveau", "amdgpu", "radeon"}
 # So the cloud edition manufactures the very evidence this probe reads as "GPU".
 # On current kernels their driver link resolves to the faux bus rather than to
 # the module name, which is why `faux_driver` is spelled out here too.
-VIRTUAL_DRIVERS = {"virtio_gpu", "vmwgfx", "qxl", "bochs", "cirrus", "simpledrm",
+# Oracle A1 exposes `virtio-pci` at card0/device/driver (PCI 1AF4:1050),
+# alongside vgem; KWin's VirtualBackend uses llvmpipe there. Match this spelling
+# only among the DRM card driver links probe() reads, never all PCI devices.
+VIRTUAL_DRIVERS = {"virtio_gpu", "virtio-pci", "vmwgfx", "qxl", "bochs", "cirrus", "simpledrm",
                    "vboxvideo", "vgem", "vkms", "faux_driver"}
 
 
@@ -290,13 +300,20 @@ PROFILES: dict[str, dict[str, dict[str, str]]] = {
         "motion": "gentle",
     },
     "essential": {
+        # Essential retains the owner's requested short motion without blur.
+        # This is a design choice, not a measured zero-cost optimization.
+        # The 2026-09-06 idle sample had these effects configured but NOT loaded;
+        # it cannot establish their cost during interaction or Remote capture.
+        # Slide switches desktops and dimscreen can affect multiple windows.
+        # Validate loaded effects and active-frame CPU/RSS after a fresh login,
+        # including low-memory software rendering, before claiming a budget win.
         "kwinrc": {
             "Plugins/blurEnabled": "false",
             "Plugins/magiclampEnabled": "false",
-            "Plugins/squashEnabled": "false",
-            "Plugins/scaleEnabled": "false",
-            "Plugins/slideEnabled": "false",
-            "Plugins/dimscreenEnabled": "false",
+            "Plugins/squashEnabled": "true",
+            "Plugins/scaleEnabled": "true",
+            "Plugins/slideEnabled": "true",
+            "Plugins/dimscreenEnabled": "true",
             "Plugins/dialogparentEnabled": "false",
         },
         # NEVER 0: Kirigami's longDuration floors at 1, so QML that gates on
@@ -313,6 +330,59 @@ BLUR_CEILING = 15
 # flagship floor is 15, not 16 — the same convention moos-device-plan already
 # uses for "less than 16 GB". A literal 16 excluded the maintainer's own desktop.
 FLAGSHIP_MEMORY_GIB = 15
+
+
+def budget(facts: dict, tier: str) -> dict:
+    """What this machine can afford BEYOND motion, as advisory capability data.
+
+    moos-visual-tier is the single authority on "what is this machine", and the
+    tier table above is only the compositor's slice of that. This block extends
+    the same probe to the other sustained local costs — file indexing, update
+    fan-out, the Mo AI default route, the Remote software-encode ceiling — so
+    every consumer reads ONE derived answer instead of re-implementing "is this
+    a weak or streamed box" five times with five different thresholds.
+
+    It is ADVISORY. This tool does NOT write baloofilerc, moai config or the
+    Remote encoder settings — each of those has its own owner and its own
+    migration; they read this (`moos-visual-tier --json` -> `budget`, or the
+    recorded state file) and apply it under their own lock. The values are a
+    pure function of `facts` + `tier`, so they can never disagree with the tier
+    the machine is already running.
+    """
+    cores = facts["cores"]
+    memory = facts["memory_gib"]
+    streamed = facts["gpu_class"] in ("software", "virtual")
+
+    return {
+        # Maps onto the one knob that actually costs: /etc/xdg/baloofilerc's
+        # `only basic indexing`. "content" is false (extract file contents),
+        # "filenames" is true (names and metadata only).
+        #
+        # There is deliberately no "off". Measured on the live Oracle A1
+        # (2026-09-06): baloo sat at 0.0% CPU with 12,323 files indexed and a
+        # 70 MB index — the filename index is cheap and it is what powers the
+        # launcher's file results and the Places page's "file search covers your
+        # home folder" promise. Disabling it would delete a shipped feature from
+        # exactly the machines that are used remotely and need search most,
+        # while saving almost nothing. Content EXTRACTION is the sustained
+        # CPU+IO cost, so that is what a small machine stops paying.
+        "file_indexing": "filenames" if tier == "essential" else "content",
+        # Parallel streams for `moai-do update` / image pulls. ostree/bootc
+        # fetch is IO-bound; >2 streams on 2 cores just thrash the scheduler.
+        "update_concurrency": 1 if cores <= 2 else 2 if cores < 8 else 4,
+        # Mo AI's PRE-SELECTED route on a fresh machine (still opt-in — this
+        # only moves the default radio). A local model wants real RAM and a
+        # real GPU; below that, default to the cloud route.
+        "ai_default": ("local"
+                       if not streamed and memory >= FLAGSHIP_MEMORY_GIB and cores >= 8
+                       else "cloud"),
+        # Mo PC Remote software-encode ceiling: a host with no GPU encodes
+        # H.264 on the CPU, so cap resolution x fps to keep interacting with
+        # the desktop from starving the encoder. A real GPU lifts the cap.
+        "remote_encode": ("1280x720@30" if streamed
+                          else "1920x1080@30" if tier != "flagship"
+                          else "1920x1080@60"),
+    }
 
 
 def config_home() -> pathlib.Path:
@@ -347,16 +417,34 @@ def resolve() -> dict:
     if pinned in TIERS:
         return {"tier": pinned, "detected": detected, "pinned": True,
                 "reasons": [f"pinned to {pinned} with `moos-visual-tier --set`"],
-                "facts": facts}
+                "facts": facts, "budget": budget(facts, pinned)}
     return {"tier": detected, "detected": detected, "pinned": False,
-            "reasons": reasons, "facts": facts}
+            "reasons": reasons, "facts": facts,
+            "budget": budget(facts, detected)}
 
 
 def _kwriteconfig(file: str, group: str, key: str, value: str) -> bool:
+    """Write one key AND tell the running session about it.
+
+    `--notify` is not optional decoration. Without it kwriteconfig6 edits the
+    file and nothing else: KConfig's change signal is never emitted, so KWin and
+    Plasma keep the values they read at session start and this tool's whole
+    profile lands only at the NEXT login. Measured on the live Oracle A1 on
+    2026-09-06: kdeglobals said AnimationDurationFactor=0.4 and kwinrc said
+    scale/squash/slide/dimscreen were enabled, while KWin's loadedEffects held
+    not one animation effect — not even slidingpopups, which had been enabled
+    all along. The desktop had no window open/close, no minimise and no desktop
+    switch, and every gate on the files was green.
+
+    This is the same trap the keyboard migration already hit: KWin 6 watches
+    config through KConfigWatcher, so `org.kde.KWin.reconfigure` alone does not
+    make it re-read a value it cached at startup. Notify on the write.
+    """
     tool = "kwriteconfig6"
     try:
         return subprocess.run(
-            [tool, "--file", file, "--group", group, "--key", key, value],
+            [tool, "--notify", "--file", file, "--group", group,
+             "--key", key, value],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10,
         ).returncode == 0
     except (OSError, subprocess.SubprocessError):
@@ -408,8 +496,14 @@ def _kreadconfig(file: str, group: str, key: str) -> str:
         return ""
 
 
-def apply(tier: str, *, dry_run: bool = False) -> dict:
-    """Write the tier's profile. Idempotent, and yields to user edits."""
+def apply(tier: str, *, dry_run: bool = False, machine_budget: dict | None = None) -> dict:
+    """Write the tier's profile. Idempotent, and yields to user edits.
+
+    `machine_budget` (from resolve()) is recorded verbatim in the state file so
+    a consumer — moos-selfcheck, a support bundle, the cloud desktop startup —
+    can read the capability answer without re-probing /sys itself. It is never
+    written to any KConfig file here.
+    """
     profile = PROFILES[tier]
     try:
         previous = json.loads(state_path().read_text(encoding="utf-8"))
@@ -483,6 +577,8 @@ def apply(tier: str, *, dry_run: bool = False) -> dict:
     result = {"tier": tier, "changed": changed, "skipped": skipped,
               "motion": profile["motion"], "motion_written": motion,
               "written": written}
+    if machine_budget is not None:
+        result["budget"] = machine_budget
     if not dry_run:
         try:
             state_path().parent.mkdir(parents=True, exist_ok=True)
@@ -529,6 +625,20 @@ def describe(decision: dict, *, arabic: bool) -> str:
                  f", {facts['render_nodes']} render node(s)")
     if decision["pinned"]:
         lines.append("  · detection is off; run `moos-visual-tier --set auto` to re-enable")
+
+    b = decision.get("budget")
+    if b:
+        idx = {"content": ("فهرسة كاملة", "full content indexing"),
+               "filenames": ("فهرسة الأسماء فقط", "filenames only"),
+               "off": ("بلا فهرسة", "indexing off")}[b["file_indexing"]]
+        lines.append(
+            ("الميزانية: " if arabic else "Budget: ")
+            + (idx[0] if arabic else idx[1])
+            + (f" · تحديثات ×{b['update_concurrency']}" if arabic
+               else f" · {b['update_concurrency']} update stream(s)")
+            + (f" · Mo AI {'محلي' if b['ai_default'] == 'local' else 'سحابي'}"
+               if arabic else f" · Mo AI defaults to {b['ai_default']}")
+            + f" · Remote ≤ {b['remote_encode']}")
     return "\n".join(lines)
 
 
@@ -558,7 +668,8 @@ def main() -> int:
 
     decision = resolve()
     if args.apply:
-        decision["applied"] = apply(decision["tier"], dry_run=args.dry_run)
+        decision["applied"] = apply(decision["tier"], dry_run=args.dry_run,
+                                    machine_budget=decision.get("budget"))
 
     if args.json:
         print(json.dumps(decision, ensure_ascii=False, indent=2))
