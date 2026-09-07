@@ -1567,7 +1567,24 @@ if is_desktop; then
     # owner may not have installed, so a fresh system had no Windows runtime at all.
     # Install wine system-wide so any .exe the user downloads actually runs, and the
     # runner's fallback (offer setup-windows) only appears when they truly want Bottles.
-    _core_power+=(wine)
+    #
+    # mesa-dri-drivers / mesa-vulkan-drivers are named here on purpose, and they
+    # are NOT redundant with the base image. wine drags in the whole i686
+    # graphics stack, and Fedora's repository routinely runs ahead of the pinned
+    # kinoite-main base. mesa ships arch-INDEPENDENT files from both arches --
+    # /usr/share/drirc.d/00-mesa-defaults.conf, 00-radv-defaults.conf and its
+    # licence texts -- so a newer i686 mesa landing beside the base's older
+    # x86_64 mesa is a hard rpm FILE CONFLICT, not a warning, and it aborts the
+    # whole transaction. That is what broke moos-nvidia on 2026-09-07:
+    # i686 26.1.8-1.fc44 against x86_64 26.1.4-4.fc44.
+    #
+    # Naming them as install targets makes dnf upgrade the already-installed
+    # x86_64 packages to the same version inside the SAME transaction, so both
+    # arches agree on those shared files. Do not drop them to "clean up the
+    # list": the build breaks again the next time Fedora moves ahead of the base.
+    # If a future multilib pair conflicts the same way, give it the same
+    # treatment rather than dropping wine.
+    _core_power+=(wine mesa-dri-drivers mesa-vulkan-drivers)
 fi
 if is_desktop; then
     _core_power+=(waydroid gamemode mangohud steam-devices)

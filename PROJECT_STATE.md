@@ -107,6 +107,39 @@ rather than stock Plasma. **Never develop a shell overlay by copying the package
 into `$HOME` and leaving it there** — bind-mount it, or build and deploy the
 image, so what you verify is what ships.
 
+### x86 broke on a multilib file conflict, not on anything we wrote (2026-09-07, fixed)
+
+The first `main` build after the desktop merge failed for two x86 editions, and
+neither cause was in the merged tree:
+
+- **`moos`** — `reading blob ...: connection reset by peer` while buildah pulled
+  the base image, after three retries. A GHCR transport flake; a re-run is the
+  whole fix. Recorded so the next reader does not go looking for a code cause.
+- **`moos-nvidia`** — a real, reproducible defect. `wine` pulls in the i686
+  graphics stack, and Fedora's repository had moved ahead of the pinned
+  `kinoite-main:44` base: i686 `mesa-*-26.1.8-1.fc44` against the base's x86_64
+  `26.1.4-4.fc44`. mesa ships **arch-independent** files from both arches
+  (`/usr/share/drirc.d/00-mesa-defaults.conf`, `00-radv-defaults.conf`, licence
+  texts), so the two versions collide as a hard rpm **file conflict** that aborts
+  the transaction and the build.
+
+`moos-cloud` was unaffected because it is not a desktop edition and never
+installs wine — which is exactly why the failure looked selective.
+
+Fix: name `mesa-dri-drivers` and `mesa-vulkan-drivers` alongside `wine` in the
+same `dnf5 install`, so the already-installed x86_64 packages upgrade to the same
+version inside **one** transaction and both arches agree on the shared files.
+
+This is gated, not just commented. The fix reads like a redundant package list
+and is precisely what a later cleanup deletes; `verify_user_experience.py` now
+asserts both packages appear in the wine install line, and reports cleanly if the
+wine line disappears entirely. **This drift will recur** every time Fedora moves
+ahead of the base image on a multilib package that ships arch-independent files
+— give the next such pair the same treatment rather than dropping the dependency.
+
+Not verified locally: this session's host is aarch64, so the x86 transaction
+could only be proven by CI.
+
 ### Settings product pass — integration branch (2026-09-07)
 
 `fix/settings-real-state-20260907` fixes Settings status truth, missing-backend

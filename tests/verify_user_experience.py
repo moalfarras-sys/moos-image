@@ -5520,8 +5520,26 @@ require("waydroid_data_t" in read(_waydroid_tmpfiles),
         "waydroid tmpfiles must restore the SELinux waydroid_data_t label")
 require("_core_power+=(waydroid gamemode mangohud steam-devices)" in build_sh,
         "build.sh must install Waydroid on desktop editions")
-require("_core_power+=(wine)" in build_sh,
+_wine_install = _re.search(r"_core_power\+=\((wine[^)]*)\)", build_sh)
+# require() collects failures rather than aborting, so never dereference the
+# match here -- an absent wine line must report cleanly, not raise.
+_wine_pkgs = _wine_install.group(1).split() if _wine_install else []
+require("wine" in _wine_pkgs,
         "build.sh must install wine system-wide so Windows .exe files actually run")
+# wine drags in the whole i686 graphics stack. mesa ships ARCH-INDEPENDENT files
+# from both arches (/usr/share/drirc.d/*.conf and its licence texts), so a newer
+# i686 mesa landing beside the pinned base image's older x86_64 mesa is a hard
+# rpm FILE CONFLICT that aborts the transaction and the whole build. It happened
+# on 2026-09-07: i686 26.1.8-1.fc44 against x86_64 26.1.4-4.fc44 took out
+# moos-nvidia. Naming both packages in the same transaction upgrades the x86_64
+# side to match. This is asserted, not merely commented, because the fix looks
+# like a redundant package list and is exactly the kind of thing a later cleanup
+# deletes -- after which x86 stops building the next time Fedora moves ahead.
+require(all(pkg in _wine_pkgs
+            for pkg in ("mesa-dri-drivers", "mesa-vulkan-drivers")),
+        "the wine install must also name mesa-dri-drivers and mesa-vulkan-drivers so "
+        "both arches upgrade in ONE transaction; otherwise wine's i686 mesa collides "
+        "with the base image's older x86_64 mesa on the shared drirc.d files")
 require("systemctl enable waydroid-container.service" in build_sh,
         "build.sh must enable the waydroid container so Android is ready at first boot")
 assert "RUN chmod 0755 /home/ubuntu" in read(
