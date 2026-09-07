@@ -23,6 +23,42 @@ retains the shared UI2 components and graphical KDE backends. Native English/
 Arabic source frames and failure fixtures are reviewed; no OS build or deployment.
 See [the bounded handoff](docs/SETTINGS_HANDOFF_20260907.md) for tests and limits.
 
+### x86 is blocked behind the retired local-brain unit (2026-09-07, OPEN)
+
+Fixing the truncated `sed` let the x86 build run far enough to expose the next
+defect, which had been hidden behind it:
+
+    + systemd-analyze verify ... /usr/lib/systemd/user/moai.service ...
+    moai.service: Command /usr/bin/ramalama is not executable
+    Error: buildah exited with code 1
+
+`moai.service` is the RamaLama local-brain unit. Mo AI is cloud-only and
+`/usr/bin/ramalama` was removed with the engine, so the unit ships naming a
+binary that does not exist. It is masked at runtime and never `--global`
+enabled, so nothing starts it -- but `systemd-analyze verify` is right, and it
+fails the whole build.
+
+**Three things were tried and rejected, deliberately:**
+
+* Removing the unit. Three gates model its port and lifecycle contracts
+  (`test_moai_ports_fail_closed`, `test_moai_service_lifecycle`,
+  `verify_user_experience`), and one of them is a fail-closed *security*
+  contract. Deleting the unit breaks all three at once.
+* Excluding it from the verify list, the way `openclaw-gateway.service` is
+  excluded for the same reason. `verify_user_experience` explicitly requires
+  "the image build must systemd-verify Mo AI runtime unit moai.service", so the
+  repo already forbids exactly that shortcut. The gate is correct.
+* Pointing ExecStart at a shim. That invents a binary to satisfy a verifier for
+  a feature that no longer exists.
+
+The real fix is the **C2b legacy-body cleanup already tracked in
+MOOS_ROADMAP.md**: retire the unit together with the four gates that model it,
+replacing their assertions with the cloud-only contract, as one reviewed change.
+That is security-sensitive work and must not be smuggled into a release build.
+
+ARM is unaffected and shipped: `build-arm.sh` has its own verify list which
+never included this unit.
+
 ### main could not build any x86 edition (2026-09-07, fixed)
 
 `moos`, `moos-nvidia` and `moos-cloud` all died identically on `sed: no input
