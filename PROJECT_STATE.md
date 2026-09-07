@@ -253,6 +253,90 @@ the desktop by the earlier session (`org.moos.test.broken`, applet 43) was
 removed through Plasma's own applet action, then its package deleted — its error
 popup was the visible defect on the owner's screen.
 
+### Oracle stability/performance pass — the budget had no consumer (2026-09-07)
+
+Branch `oracle/stability-performance-20260907`, ARM only. The PC agent's
+`gpt/fix-x86-build-20260907` was left untouched and unmerged.
+
+**The measured win: Baloo was ignoring the machine's own budget.**
+`moos-visual-tier` has published `budget.file_indexing` since the adaptive work
+landed, and its docstring delegates application to each consumer's own owner.
+No such owner existed. So a 2-core, GPU-less A1 ran full content extraction
+against its own advice. Measured on the live machine, signed image
+44.20260907.315, tier `essential`:
+
+| | before | after |
+| --- | --- | --- |
+| `baloo_file` RSS | 439.3 MiB | **36.1 MiB** |
+| index database | 2.8 GB | **108 MB** |
+| indexer state | indexing file content | idle |
+| files indexed | 12,460 | 12,468 |
+
+403 MiB of RAM and 2.7 GB of disk, on the largest MoOS-owned process on the box.
+Nothing was disabled: the FILENAME index the Launcher's file results and the
+Places page's search promise depend on is intact. Content EXTRACTION is the
+sustained cost, and it is all that stopped.
+
+`moos-index-policy` is that consumer, under Baloo's own owner. It owns no
+thresholds — a gate asserts it references no core count, memory figure or GPU
+class — and does nothing at all if the authority cannot be asked. Live testing
+found a real flaw in the first version: `balooctl6 purge` blocked past 300 s,
+unacceptable in a unit bound to the graphical session. It now stops the indexer,
+deletes the derived database and restarts, letting the filename index rebuild in
+the background at idle IO priority.
+
+**`budget.ai_default` was advertising a route the OS removed.** It returned
+"local" on a flagship machine, from sound reasoning about RAM and GPU — but
+stage C2b retired the local engine, `moai-config` has no local mode, and
+`test_moai_cloud_only.py` asserts "the one door to a local engine is closed".
+Nothing consumed the key, which is the only reason it never surfaced. Now
+constant, and gated against the hardware branch returning.
+
+**Not wired, and deliberately.** `remote_encode` would cap what the host offers,
+but `test_remote_resolution_ceiling.py` records that 1920 was removed as a
+measured, reasoned decision with a client compatibility rule; Remote costs
+106.8 MiB here and is not a measured problem, so it was left alone.
+`update_concurrency` has no consumer to wire — `moos-image-update` exposes no
+concurrency knob. Both keys stay published and unconsumed rather than being
+forced.
+
+**S03 remains open, honestly.** KWin is healthy: 272 MiB RSS after five hours,
+cgroup 302 MiB against the 3 GiB guard, zero OOM kills across three boots. The
+6.53 GiB balloon does not reproduce, and reproducing it deliberately means
+OOM-ing the owner's only screen. No cause is claimed.
+
+**The journal's 727 errors are not defects.** 93 are SSH scans against a public
+Oracle IP, refused by a correctly hardened sshd. The rest are 26
+`qwebengine_convert_dict` coredumps from a local `podman build`, which that
+converter's own comment predicts. Filtering both leaves zero runtime errors.
+
+### Live /etc had drifted from its signed image (2026-09-07, repaired)
+
+Four stale overrides on the A1, each one a file `/etc` had taken ownership of, so
+image updates could no longer reach it. All backed up to
+`/var/home/moos/etc-drift-backup-20260907/` before removal.
+
+- `containers/policy.json` — missing the `containers-storage` block the image
+  ships. OS update signing was never affected: the origin is
+  `ostree-image-signed:` and `ghcr.io/moalfarras-sys` requires `sigstoreSigned`
+  against `/etc/pki/containers/moos.pub`.
+- `udev/rules.d/61-moos-arm-vgem.rules` — **one line where the image ships
+  eight**, missing the greeter's DRM ownership rules entirely.
+- `xdg/kdeglobals` — a comment-only delta, but enough to freeze the file.
+- `modules-load.d/moos-cloud-vgem.conf` + `61-moos-cloud-vgem.rules` — hand-placed
+  2026-08-30, duplicating what the ARM edition now ships properly.
+
+**And a privileged one.** `moos-post-reboot-check.service` was enabled and active,
+a SYSTEM unit — root, no `User=` — whose `ExecStart` was
+`/var/home/moos/.local/state/moos/post-reboot-check.sh`, owned by and writable by
+the unprivileged desktop user. Anything running as `moos` could rewrite it and be
+root at the next boot. It was one-off scaffolding for an Arabic-font fix in image
+44.20260830.203, referenced a repo path that no longer exists, and had run at
+every boot for eight days. Removed, and
+[`tests/test_no_privileged_user_writable_units.py`](tests/test_no_privileged_user_writable_units.py)
+now fails any shipped root unit that executes from a user-writable path — proven
+against this exact unit.
+
 ### Settings product pass — integration branch (2026-09-07)
 
 `fix/settings-real-state-20260907` fixes Settings status truth, missing-backend

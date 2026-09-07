@@ -546,10 +546,18 @@ class Budget(unittest.TestCase):
                                     .gpu("card1", "nvidia").render_node()
                                     .cpu(16).memory(15.4).display(3840, 2160))
         self.assertEqual(tier, "flagship")
+        # ai_default is "cloud" even here, and deliberately so. It used to be
+        # "local" on a machine this size, from sound reasoning about RAM and
+        # GPU -- but stage C2b retired the local engine outright, so that value
+        # advertised a route the OS no longer has. moai-config has no local mode
+        # and tests/test_moai_cloud_only.py asserts "the one door to a local
+        # engine is closed". Nothing consumed the key, which is the only reason
+        # it never surfaced as a bug. If a local engine ever returns it arrives
+        # with its own policy and its own gates.
         self.assertEqual(b, {
             "file_indexing": "content",
             "update_concurrency": 4,
-            "ai_default": "local",
+            "ai_default": "cloud",
             "remote_encode": "1920x1080@60",
         })
 

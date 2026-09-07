@@ -119,6 +119,8 @@ jobs:
           bash -n tests/verify_arm_runtime.sh
           python3 tests/test_moos_arm.py
           python3 tests/test_usr_local_layout.py
+          python3 tests/test_no_privileged_user_writable_units.py
+          python3 tests/test_index_policy_consumer.py
           python3 tests/test_gate_coverage.py
           python3 tests/test_moai_cloud_only.py
           python3 tests/test_moai_free_policy.py

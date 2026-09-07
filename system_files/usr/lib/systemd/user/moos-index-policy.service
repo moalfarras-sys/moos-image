@@ -1,0 +1,22 @@
+[Unit]
+Description=Apply the MoOS file-indexing budget to Baloo
+Documentation=file:///usr/libexec/moos-index-policy
+# moos-visual-tier is the authority; this consumer only applies its answer.
+# ConditionPathIsDirectory keeps this inert on an image without a session's
+# config home rather than creating one as a side effect.
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=oneshot
+# --purge rebuilds the index when the policy TIGHTENS (content -> filenames).
+# Without it Baloo keeps every byte it already extracted -- 2.8 GB on the live
+# A1 -- because the setting only stops it adding more. Loosening never purges.
+ExecStart=/usr/libexec/moos-index-policy --purge
+# Never fail a login over an indexing preference.
+SuccessExitStatus=0 1
+Nice=10
+IOSchedulingClass=idle
+
+[Install]
+WantedBy=graphical-session.target
