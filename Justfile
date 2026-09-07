@@ -174,6 +174,7 @@ check:
     # must resolve through a fixed route, and its live status boundary stays
     # read-only, private and atomic.
     python3 tests/test_moos_settings.py
+    python3 tests/test_desktop_customize.py
     # The Device page told an Oracle A1 owner their CPU was a "MoOS device".
     # Real hardware identity, or an honest Unknown -- never an invented name.
     python3 tests/test_settings_hardware_identity.py

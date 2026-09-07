@@ -84,6 +84,7 @@ DESTINATIONS = {
     'store': ('moos-store',),
     'system-monitor': ('plasma-systemmonitor',),
     'telemetry': ('systemsettings', 'kcm_feedback'),
+    'desktop': ('moos-desktop-edit',),
     'themes': ('moos-theme-picker',),
     'time': ('systemsettings', 'kcm_clock'),
     'touchpad': ('systemsettings', 'kcm_touchpad'),

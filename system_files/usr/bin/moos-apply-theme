@@ -200,7 +200,8 @@ set -uo pipefail
 #     active page's grid/list, and Shift+Tab returns to the owning page. The
 #     new LauncherView.qml only reaches an existing user once the frozen-/usr
 #     QML disk cache this bump purges is gone.
-THEME_REV=53
+# 54: MoOS Customize Desktop uses Plasma's live widget explorer and UI2.
+THEME_REV=54
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

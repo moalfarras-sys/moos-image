@@ -195,6 +195,10 @@ QQC2.ApplicationWindow {
     // Titles and summaries carry both languages for search, but only the active
     // locale is ever rendered.
     readonly property var commands: [
+        { section: "appearance", route: "moos://settings/desktop", glyph: "boxes",
+          ar: "تخصيص سطح المكتب", en: "Customize Desktop",
+          descAr: "تصفح الأدوات وأضفها ورتبها على سطح المكتب",
+          descEn: "Browse, add and arrange desktop widgets", keywords: "widgets desktop customize" },
         { section: "appearance", route: "moos://settings/themes", glyph: "diamond",
           ar: "هوية MoOS", en: "MoOS identity",
           descAr: "غيّر لوحة Liquid Glass والخلفية معاً",
