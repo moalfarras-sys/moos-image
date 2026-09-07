@@ -108,6 +108,10 @@ check:
     # in one machine's $HOME. It must recover a crash without overriding the
     # owner's `systemctl --user stop`.
     python3 tests/test_mo_remote_watchdog.py
+    # Each build script has its own `systemctl --global enable` list, so a unit
+    # added to one and not the other is invisible drift: nothing fails and the
+    # feature just does not exist on the other editions.
+    python3 tests/test_edition_unit_parity.py
     python3 tests/test_gate_coverage.py
     python3 tests/test_firewall_migration.py
     python3 tests/test_hardware_adapt_lifecycle.py
