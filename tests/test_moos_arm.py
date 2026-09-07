@@ -775,11 +775,29 @@ class ArmEditionTests(unittest.TestCase):
     def test_arm_has_exactly_one_os_image_update_authority(self) -> None:
         text = read(BUILD)
         self.assertIn("systemctl enable moos-auto-update.timer", text)
-        for rival in ("rpm-ostreed-automatic.timer", "bootc-fetch-apply-updates.timer"):
-            self.assertIn(
-                f"systemctl disable {rival}", text,
-                f"{rival} would bypass the signed exact-digest ARM update backend",
-            )
+        self.assertIn(
+            "systemctl disable rpm-ostreed-automatic.timer", text,
+            "rpm-ostreed-automatic would bypass the signed exact-digest ARM update backend",
+        )
+        # bootc-fetch-apply-updates needs MASKING, and this test used to accept
+        # disabling -- which is why the timer was found ACTIVE on the live A1 on
+        # 2026-09-07 while this gate was green. `systemctl disable` only removes
+        # symlinks derived from the unit's own [Install] section, and only under
+        # /etc. The Fedora bootc base also ships a vendor want at
+        # /usr/lib/systemd/system/default.target.wants/bootc-fetch-apply-updates.timer
+        # which disable cannot touch, so the unit reports disabled while systemd
+        # still pulls it in through default.target. It runs `bootc upgrade
+        # --apply`: stage AND reboot, outside moos-image-update's policy.
+        self.assertIn(
+            "systemctl mask bootc-fetch-apply-updates.timer", text,
+            "bootc-fetch-apply-updates.timer must be MASKED, not disabled: disabling "
+            "leaves the base image's vendor want in default.target.wants and the timer "
+            "still runs, staging and rebooting outside the signed exact-digest backend",
+        )
+        self.assertIn(
+            "default.target.wants/bootc-fetch-apply-updates.timer", text,
+            "build-arm.sh must also remove the base image's vendor want symlink",
+        )
 
     def test_the_initramfs_is_not_hostonly(self) -> None:
         text = read(BUILD)

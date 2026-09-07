@@ -74,6 +74,22 @@ check:
     python3 tests/test_shipped_bundle_is_tracked.py
     python3 tests/test_release_workflow_safety.py
     python3 tests/test_seal_arm_deployment.py
+    # The aarch64 edition has its own CI workflow (build-arm.yml) with its own gate
+    # list, and these two lived ONLY there. `just check` was therefore green while
+    # the ARM build failed -- which is exactly how a bootc-updater regression got
+    # pushed on 2026-09-07. test_gate_coverage.py now keeps the two lists in sync.
+    python3 tests/test_moos_arm.py
+    python3 tests/test_arm_initramfs_size.py
+    # These four also lived only in workflow YAML: the first two in both build
+    # workflows, the others in the disk and ISO release workflows. All four pass
+    # locally and always did -- nothing was broken, they were simply unrunnable
+    # from the one command contributors are told to use.
+    python3 tests/test_moai_free_policy.py
+    python3 tests/test_moai_hermes.py
+    python3 tests/test_release_partition_roles.py
+    python3 tests/test_iso_install_gate.py
+    # Every gate any workflow runs must also be runnable from `just check`.
+    python3 tests/test_gate_coverage.py
     python3 tests/test_firewall_migration.py
     python3 tests/test_hardware_adapt_lifecycle.py
     # Execute the real signed-origin parser against rpm-ostree-shaped fixtures;

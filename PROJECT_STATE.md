@@ -143,6 +143,34 @@ package names appear somewhere in the file.
 Not verified locally: this session's host is aarch64, so only CI can run the x86
 multilib transaction.
 
+### `just check` did not run every gate CI runs (2026-09-07, fixed)
+
+The repository has two build workflows with two independent gate lists, and
+`just check` — the command `AGENTS.md` and the engineering skill tell every
+contributor and agent to run before pushing — covered only part of the union.
+
+Missing from it: `test_moos_arm.py` and `test_arm_initramfs_size.py` (ARM
+workflow only), `test_moai_free_policy.py` and `test_moai_hermes.py` (both build
+workflows), `test_release_partition_roles.py` (disk workflow) and
+`test_iso_install_gate.py` (ISO workflow). **All six passed and always had** —
+nothing was broken. They were simply unrunnable from the one command people are
+told to use, so no local run could ever exercise them.
+
+The cost was immediate and concrete. A change to the ARM update-authority wiring
+passed `just check`, passed the x86 repo gates, was pushed to main, and failed
+the ARM build on `test_moos_arm.py` — a gate that could not have been run locally
+without reading workflow YAML by hand. The real damage is not a red build: it is
+that "I ran the gates" stops meaning anything, and this repo already documents
+several defects that shipped while every gate anyone actually ran was green.
+
+Fixed by wiring all six into the `check` recipe, and by adding
+[`tests/test_gate_coverage.py`](tests/test_gate_coverage.py), which asserts that
+the union of every workflow's gate list is a subset of what `just check` runs.
+`just check` may run more — it deliberately does — but never less. It also fails
+on a gate path that does not exist on disk, since a typo'd path is a gate that
+silently never runs. Both failure modes are proven. The gate itself runs in both
+build workflows, so the two lists cannot drift apart again.
+
 ### Settings product pass — integration branch (2026-09-07)
 
 `fix/settings-real-state-20260907` fixes Settings status truth, missing-backend
