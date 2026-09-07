@@ -101,6 +101,34 @@ and `moos-arm` at `:latest`, and for BOTH deployment digests on this machine
 `ostree-image-signed:`, and `moos-verify-origin` reports the origin already
 enforces the policy. What is broken is promotion, not trust.
 
+**Observed, cause NOT established: the desktop wallpaper drifted mid-session
+(2026-09-08, A1).** At the start of the session `moos-selfcheck` reported
+*"all 1 desktop wallpaper(s) match: MoOSUI2Arena"*. Roughly an hour later the
+same check reported *"only 0/1 desktop wallpaper(s) match MoOSUI2Arena"*, with
+`[Containments][24][Wallpaper][org.moos.ui2.wallpaper][General] Image=` reading
+`MoOSUI2Graphite` while the family stayed `org.moos.ui2.gaming` / Arena. The
+`[Containments][24][General]` key still read Arena; it is the plugin-specific
+section, the one that wins, that had moved.
+
+Timeline: `moos-theme-drift.timer` fires `moos-theme-sync.service`
+(`moos-theme reconcile-service`) every 30 minutes — it ran 00:55:38–00:55:51 —
+and `plasma-org.kde.plasma.desktop-appletsrc` was rewritten at 00:58:54, three
+minutes AFTER that reconcile. Running `moos-theme reconcile` by hand restored
+Arena in both the file and the live plasmashell (read back over
+`org.kde.PlasmaShell.evaluateScript`, not from the file), and selfcheck went
+green again.
+
+What this does NOT establish is the cause. Nothing in this session wrote Plasma
+configuration, and the installed `moos-theme` and `moos-apply-theme` are
+byte-identical to the repo copies, so it is not a stale image. The shape — a
+reconcile writing the correct value and the file carrying the wrong one minutes
+later — is consistent with plasmashell flushing its own in-memory copy over a
+config written behind its back, but that has NOT been proven and must not be
+recorded as fixed. The 30-minute reconcile timer is the existing mitigation and
+it did repair it. `moos-theme wallpaper-*` and the two wallpaper gates
+(`test_theme_wallpaper_readback.py`, `test_theme_wallpaper_steady_state.py`)
+are where a real fix would go once the writer is identified.
+
 **Open, not explained: `efi.automount` fails on every installed x86 system.**
 The ISO proof's serial console from run 34164335024 shows
 `[FAILED] Failed to set up automount efi.automount - EFI System Partition
