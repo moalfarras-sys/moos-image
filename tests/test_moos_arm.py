@@ -799,6 +799,46 @@ class ArmEditionTests(unittest.TestCase):
             "build-arm.sh must also remove the base image's vendor want symlink",
         )
 
+    def test_the_initrd_carries_no_nfs_client(self) -> None:
+        """No NFS in the initrd: MoOS always roots from a LOCAL device.
+
+        With hostonly="no", dracut pulls in its 74nfs module merely because
+        nfs-utils is installed in the image. That module's pre-udev hook
+        (99-nfs-start-rpc.sh) starts rpcbind and rpc.statd inside the initrd on
+        every boot, where neither can persist state: /run/rpcbind does not exist
+        yet, and /var/lib/nfs/statd/sm is absent because bootc images may not
+        ship content under /var. Both log hard errors before switch-root on a
+        machine with no NFS mount at all -- six of them per boot, measured on the
+        live A1 on 2026-09-07 and identical on the three boots before it.
+
+        build.sh has omitted this for the x86 editions since the same symptom was
+        found there; ARM was simply never given the same treatment, which is what
+        this gate now prevents from recurring.
+
+        Omitting the initrd module does NOT remove NFS client support from the
+        running system: mounting a NAS after boot is unaffected.
+        """
+        text = read(BUILD)
+        self.assertRegex(
+            text, r'omit_dracutmodules\+=" *nfs\b',
+            "the ARM initrd must omit dracut's nfs module, or rpcbind and rpc.statd "
+            "start in the initramfs every boot and log errors they cannot avoid",
+        )
+
+    def test_usr_local_sbin_exists_so_tmpfiles_does_not_error(self) -> None:
+        """rpm-ostree asks for it; /usr is read-only when it asks.
+
+        rpm-ostree-0-integration.conf requests the eight classic /usr/local
+        subdirectories. The base ships seven -- `sbin` is missing -- and on a
+        bootc system systemd-tmpfiles cannot create it at runtime, so every boot
+        logs "Failed to create directory or subvolume /usr/local/sbin:
+        Read-only file system". Create it at build time instead.
+        """
+        self.assertIn(
+            "install -d -m 0755 /usr/local/sbin", read(BUILD),
+            "build-arm.sh must create /usr/local/sbin while /usr is still writable",
+        )
+
     def test_the_initramfs_is_not_hostonly(self) -> None:
         text = read(BUILD)
         self.assertIn('hostonly="no"', text,

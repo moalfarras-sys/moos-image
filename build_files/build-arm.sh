@@ -561,6 +561,27 @@ hostonly_cmdline="no"
 # CI, so do not ask dracut to emit a misleading "No /dev/log" error.
 sysloglvl="0"
 add_drivers+=" virtio_blk virtio_net virtio_pci virtio_scsi virtio_gpu virtio_console "
+# MoOS always boots its LOCAL OSTree/composefs deployment -- never an NFS root.
+# With hostonly="no", dracut pulls in 74nfs merely because nfs-utils is installed
+# in the image, and that module's pre-udev hook (99-nfs-start-rpc.sh) starts
+# rpcbind and rpc.statd inside the initrd on every single boot. Neither can
+# persist state there: /run/rpcbind does not exist yet and /var/lib/nfs/statd/sm
+# is absent because bootc images may not ship content under /var. So both log
+# hard errors before switch-root, on a machine with no NFS mount at all.
+#
+# Measured on the live A1 (2026-09-07), identical on the previous three boots:
+#   rpc.statd: Failed to open directory sm: No such file or directory
+#   rpc.statd: Failed to create /var/lib/nfs/statd/.state.new
+#   rpcbind:   cannot open file = /run/rpcbind/rpcbind.xdr for writing  (x2)
+#   rpcbind:   cannot save any registration                            (x2)
+#
+# build.sh has omitted this module for the x86 editions since the same symptom
+# was found there; ARM was simply never given the same treatment. Omitting the
+# *initrd* module does NOT remove NFS client support from the running system --
+# mounting a NAS after boot is unaffected. It also takes rpcbind and its hook
+# back out of the initramfs, which this edition treats as a release contract
+# (see the firmware measurement below and the /boot headroom in MOOS_ROADMAP).
+omit_dracutmodules+=" nfs "
 # MEASURED ON THE LIVE ORACLE A1 (2026-09-06): the ARM initramfs was 237 MB and
 # /boot (974 MB) sat at 78% with only TWO deployments at 351 MB each. A third
 # deployment does not fit, which is how a signed update fails to stage.
@@ -1226,6 +1247,27 @@ command -v cosign >/dev/null 2>&1 \
     || { echo "GATE FAIL: moos-utm-installer-menu missing"; exit 1; }
 [ -r /usr/share/moos/release/arm-latest.json ] \
     || { echo "GATE FAIL: arm-latest.json missing"; exit 1; }
+# ── /usr/local/sbin: present, or systemd-tmpfiles errors on every boot ───────
+#
+# rpm-ostree ships /usr/lib/tmpfiles.d/rpm-ostree-0-integration.conf, which asks
+# for the eight classic /usr/local subdirectories. The base image carries seven
+# of them; `sbin` is missing. On a bootc system /usr is read-only at runtime, so
+# systemd-tmpfiles cannot create it and logs, on every boot:
+#
+#   systemd-tmpfiles[888]: Failed to create directory or subvolume
+#                          "/usr/local/sbin": Read-only file system
+#
+# Measured on the live A1 2026-09-07 and on the two boots before it. Harmless in
+# effect, but it is a real error in the boot journal, and a journal with expected
+# errors in it is one nobody reads carefully. Create it at build time, where /usr
+# is still writable.
+install -d -m 0755 /usr/local/sbin
+
+[ -d /usr/local/sbin ] \
+    || { echo "GATE FAIL: /usr/local/sbin is missing; rpm-ostree's tmpfiles entry"
+         echo "           would fail on every boot because /usr is read-only at runtime."
+         exit 1; }
+
 # ── The Plasma shell overlay must survive into the finished ARM image ─────────
 #
 # Same check build.sh runs for x86, and it matters MORE here. This edition

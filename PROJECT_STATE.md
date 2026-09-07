@@ -189,6 +189,46 @@ main fixed exactly that by requiring the node be readable and writable first.
 It is kept for provenance, and the docs now say it is superseded instead of
 implying something is owed from it. Cherry-picking from it would be a regression.
 
+### Post-update boot journal: two real errors, both fixed (2026-09-07)
+
+The 305 -> 315 update landed and the desktop work is live and verified on the
+running A1 (see below). The boot journal was not clean, though, and the same
+errors were present on the three previous boots — pre-existing, not caused by
+the update.
+
+**NFS client machinery was starting inside the initramfs.** With `hostonly="no"`,
+dracut pulls in its `74nfs` module merely because `nfs-utils` is installed, and
+that module's pre-udev hook (`99-nfs-start-rpc.sh`) starts `rpcbind` and
+`rpc.statd` in the initrd on every boot. Neither can work there: `/run/rpcbind`
+does not exist yet and `/var/lib/nfs/statd/sm` is absent because bootc images may
+not ship content under `/var`. Six hard errors per boot, on a machine with no NFS
+mount at all — and `rpcbind` plus its hook riding in an initramfs this edition
+treats as a size contract.
+
+`build.sh` has omitted this module for the x86 editions since the same symptom
+was found there; its comment describes this exact failure. **ARM was simply never
+given the same treatment.** Now omitted in `build-arm.sh` too, and gated. Omitting
+the *initrd* module does not remove NFS client support from the running system —
+mounting a NAS after boot is unaffected.
+
+**`/usr/local/sbin` did not exist.** `rpm-ostree-0-integration.conf` asks for the
+eight classic `/usr/local` subdirectories; the base ships seven. On bootc `/usr`
+is read-only at runtime, so `systemd-tmpfiles` failed to create it and logged an
+error every boot. Created at build time in both scripts, and gated.
+
+**Not defects:** the repeated `sshd: kex_exchange_identification: Connection reset
+by peer` lines are internet background scanning against a public Oracle IP. sshd
+is correctly hardened — `permitrootlogin no`, `passwordauthentication no`,
+pubkey only — so these are refused connections, not failures to fix.
+
+**Also cleaned:** `moos-post-reboot-verify.service`, the one-shot unit used to
+capture proof across the reboot, failed its `ExecStartPost` because it ran as
+`User=moos` and could not disable a system unit. Its verification had already run
+and passed; the unit was removed. And the deliberately broken QA plasmoid left on
+the desktop by the earlier session (`org.moos.test.broken`, applet 43) was
+removed through Plasma's own applet action, then its package deleted — its error
+popup was the visible defect on the owner's screen.
+
 ### Settings product pass — integration branch (2026-09-07)
 
 `fix/settings-real-state-20260907` fixes Settings status truth, missing-backend

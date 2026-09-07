@@ -4387,6 +4387,27 @@ if [ -n "${stray_pycache}" ]; then
     exit 1
 fi
 
+# ── /usr/local/sbin: present, or systemd-tmpfiles errors on every boot ───────
+#
+# rpm-ostree ships /usr/lib/tmpfiles.d/rpm-ostree-0-integration.conf, which asks
+# for the eight classic /usr/local subdirectories. The base image carries seven
+# of them; `sbin` is missing. On a bootc system /usr is read-only at runtime, so
+# systemd-tmpfiles cannot create it and logs, on every boot:
+#
+#   systemd-tmpfiles[888]: Failed to create directory or subvolume
+#                          "/usr/local/sbin": Read-only file system
+#
+# Measured on the live A1 2026-09-07 and on the two boots before it. Harmless in
+# effect, but it is a real error in the boot journal, and a journal with expected
+# errors in it is one nobody reads carefully. Create it at build time, where /usr
+# is still writable.
+install -d -m 0755 /usr/local/sbin
+
+[ -d /usr/local/sbin ] \
+    || { echo "GATE FAIL: /usr/local/sbin is missing; rpm-ostree's tmpfiles entry"
+         echo "           would fail on every boot because /usr is read-only at runtime."
+         exit 1; }
+
 # ── The Plasma shell overlay must survive into the finished image ─────────────
 #
 # MoOS restyles two files that belong to plasma-workspace's own shell package by
