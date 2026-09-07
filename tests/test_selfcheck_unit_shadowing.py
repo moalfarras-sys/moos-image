@@ -102,6 +102,36 @@ def build_world(tmp: Path):
     return image, home
 
 
+POST_UPDATE = (ROOT / "tests/post-update-check.sh").read_text(encoding="utf-8")
+
+
+def check_post_update_covers_the_same_shapes():
+    """moos-selfcheck and post-update-check.sh enforce the same contract from
+    two places -- the interactive report and the after-reboot gate -- so they
+    can drift apart. This is a SOURCE check, deliberately: that script reads the
+    real /usr and $HOME of a live machine and cannot be pointed at fixtures. Its
+    job is only to stop the rules being quietly deleted; the behavioural proof
+    for this contract is the section test above.
+
+    post-update-check.sh caught only ExecStart= drop-ins. On the A1 that meant
+    it reported "no systemd drop-in redirects a MoOS unit outside /usr" while
+    Mo PC Remote ran from ~/.local/lib via Environment=MO_REMOTE_AGENT, and
+    moai-hermes.service had been replaced outright by a file in $HOME.
+    """
+    problems = []
+    if "^Environment=" not in POST_UPDATE:
+        problems.append(
+            "post-update-check.sh no longer inspects Environment= drop-ins; "
+            "mo-remote-start resolves its agent from MO_REMOTE_AGENT, so an "
+            "Environment= pointing into $HOME shadows the image binary")
+    if "REPLACED wholesale by a file in" not in POST_UPDATE:
+        problems.append(
+            "post-update-check.sh no longer detects a $HOME unit file with the "
+            "same name as one the image ships -- systemd prefers $HOME, so the "
+            "image's unit is never read")
+    return problems
+
+
 def main():
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp = Path(tmpdir)
@@ -142,6 +172,7 @@ def main():
             problems.append(f"false positive: {why} ({needle!r})")
     if "OK no user unit or drop-in is shadowing MoOS code" in out:
         problems.append("reported a clean bill of health on a machine full of shadows")
+    problems.extend(check_post_update_covers_the_same_shapes())
 
     if problems:
         print("FAIL: moos-selfcheck's unit-shadow section is wrong:", file=sys.stderr)
