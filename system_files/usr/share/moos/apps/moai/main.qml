@@ -424,8 +424,24 @@ Kirigami.ApplicationWindow {
     // the user their device was healthy before anything had looked at it.
     readonly property bool planReady: !snap.device_plan_pending && !!snap.device_plan
     readonly property var actions: (plan.actions || [])
-    readonly property int problemCount: actions.length
-    readonly property bool healthy: planReady && problemCount === 0
+    // A device plan carries two severities. Counting them together made Mo AI
+    // announce "وجدت 2 مشكلة في جهازك" under a warning triangle on a perfectly
+    // healthy machine whose only entries were an Android-emulator KVM note and a
+    // "16 GiB is recommended for development" suggestion. Advice is not a fault,
+    // and dressing it as one teaches the owner to ignore the banner that matters.
+    readonly property int problemCount: {
+        var n = 0
+        for (let i = 0; i < actions.length; i++)
+            if (actions[i].severity === "important") n++
+        return n
+    }
+    readonly property int adviceCount: actions.length - problemCount
+    readonly property var firstOfSeverity: {
+        for (let i = 0; i < actions.length; i++)
+            if (actions[i].severity === "important") return actions[i]
+        return actions[0] || ({})
+    }
+    readonly property bool healthy: planReady && actions.length === 0
     readonly property bool hasImportant: {
         for (let i = 0; i < actions.length; i++)
             if (actions[i].severity === "important")
@@ -1534,6 +1550,16 @@ Kirigami.ApplicationWindow {
         if (n === 2) return "مشكلتان"
         if (n >= 3 && n <= 10) return n + " مشاكل"
         return n + " مشكلة"
+    }
+
+    // Same number agreement for advice, which is NOT a fault and must not be
+    // counted or worded as one.
+    function adviceCountText(n) {
+        if (!root.moaiRtl) return n === 1 ? "1 suggestion" : n + " suggestions"
+        if (n === 1) return "اقتراح واحد"
+        if (n === 2) return "اقتراحان"
+        if (n >= 3 && n <= 10) return n + " اقتراحات"
+        return n + " اقتراحًا"
     }
 
     Timer {
@@ -2773,11 +2799,12 @@ Kirigami.ApplicationWindow {
                             visible: root.problemCount > 0 && chatModel.count <= 1
                             radius: design.radiusControl
                             implicitHeight: bannerRow.implicitHeight + 22
-                            color: Qt.rgba(root.warnColor.r, root.warnColor.g,
-                                           root.warnColor.b, 0.09)
+                            readonly property color bannerTone: root.problemCount > 0
+                                ? root.warnColor : root.accent
+                            color: Qt.rgba(bannerTone.r, bannerTone.g, bannerTone.b, 0.09)
                             border.width: 1
-                            border.color: Qt.rgba(root.warnColor.r, root.warnColor.g,
-                                                  root.warnColor.b, 0.38)
+                            border.color: Qt.rgba(bannerTone.r, bannerTone.g,
+                                                  bannerTone.b, 0.38)
 
                             RowLayout {
                                 id: bannerRow
@@ -2789,8 +2816,10 @@ Kirigami.ApplicationWindow {
                                 spacing: design.space3
 
                                 Kirigami.Icon {
-                                    source: "moos-warning-symbolic"
-                                    color: root.warnColor
+                                    source: root.problemCount > 0
+                                        ? "moos-warning-symbolic" : "moos-bulb-symbolic"
+                                    color: root.problemCount > 0
+                                        ? root.warnColor : root.accent
                                     Layout.preferredWidth: root.fs(22)
                                     Layout.preferredHeight: root.fs(22)
                                 }
@@ -2798,9 +2827,13 @@ Kirigami.ApplicationWindow {
                                     Layout.fillWidth: true
                                     spacing: 2
                                     Text {
-                                        text: root.local(
-                                            "وجدت " + root.problemCount + " مشكلة في جهازك",
-                                            "Found " + root.problemCount + " issue(s)")
+                                        text: root.problemCount > 0
+                                            ? root.local(
+                                                "وجدت " + root.issueCountText(root.problemCount) + " في جهازك",
+                                                "Found " + root.issueCountText(root.problemCount))
+                                            : root.local(
+                                                "لا مشاكل — " + root.adviceCountText(root.adviceCount) + " لجهازك",
+                                                "No problems — " + root.adviceCountText(root.adviceCount))
                                         color: root.textHi
                                         font.family: root.uiFont
                                         font.pixelSize: root.typePx(13)
@@ -2808,7 +2841,7 @@ Kirigami.ApplicationWindow {
                                     }
                                     Text {
                                         Layout.fillWidth: true
-                                        text: (root.actions[0] || {}).title || ""
+                                        text: (root.firstOfSeverity || {}).title || ""
                                         color: root.textLo
                                         font.family: root.uiFont
                                         font.pixelSize: root.typePx(11)

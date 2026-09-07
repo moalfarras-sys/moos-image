@@ -120,7 +120,7 @@ def detect():
         actions.append({
             "id": "nvidia-image", "severity": "important",
             "title": "تعريف NVIDIA الرسمي | NVIDIA driver",
-            "detail": "Switch atomically to the MoOS NVIDIA image; applies after reboot.",
+            "detail": "انتقل ذرّيًا إلى صورة MoOS NVIDIA؛ تُطبَّق بعد إعادة التشغيل. | Switch atomically to the MoOS NVIDIA image; applies after reboot.",
             "url": "moos://do/install-nvidia"
         })
     if vendor == "nvidia" and "nvidia" in driver and nvidia_image:
@@ -162,9 +162,9 @@ def detect():
         })
 
     if not kvm:
-        actions.append({"id": "kvm", "severity": "info", "title": "تسريع محاكي أندرويد | Android emulator acceleration", "detail": "Enable CPU virtualization in firmware and grant KVM access.", "url": ""})
+        actions.append({"id": "kvm", "severity": "info", "title": "تسريع محاكي أندرويد | Android emulator acceleration", "detail": "فعّل المحاكاة الافتراضية للمعالج من إعدادات البرنامج الثابت وامنح صلاحية KVM. | Enable CPU virtualization in firmware and grant KVM access.", "url": ""})
     if memory_gib and memory_gib < 15:
-        actions.append({"id": "memory", "severity": "info", "title": "ذاكرة للتطوير | Development memory", "detail": "16 GiB or more is recommended for Android development.", "url": ""})
+        actions.append({"id": "memory", "severity": "info", "title": "ذاكرة للتطوير | Development memory", "detail": "يُنصح بـ16 غيغابايت أو أكثر لتطوير أندرويد. | 16 GiB or more is recommended for Android development.", "url": ""})
     # Mo Store is the one visible store; Bazaar is an OPTIONAL full-catalog engine,
     # never auto-installed into the default plan (that would ship a second store).
     recommended = [

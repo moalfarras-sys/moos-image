@@ -180,6 +180,9 @@ check:
     # A desktop that drifts from its own committed theme must repair itself;
     # the kdeglobals path watch cannot see a wallpaper-only drift.
     python3 tests/test_theme_drift_repair.py
+    # Advice is not a fault: Mo AI announced "2 problems" under a warning
+    # triangle for two INFO suggestions on a healthy machine.
+    python3 tests/test_moai_severity_banner.py
     # Protected app identities and the small-size icon ladder are separate from
     # the monochrome symbolic family and need their own proof.
     python3 tests/test_moos_app_icons.py
