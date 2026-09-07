@@ -8,6 +8,15 @@ isolated; branch build/signature acceptance is tracked in
 [the bounded handoff](docs/X86_RELEASE_REPAIR_20260907.md). ARM's NFS/initrd and
 immutable sbin repair remain intact. Artifact boot/promotion gates below stay open.
 
+**Physical NVIDIA update audit:** the machine is on a preserved local
+44.20260829.1 deployment, so the signed updater correctly refuses to advance it.
+The boot audit's false “signed” report for local `containers-storage` origins is
+fixed and fixture-tested. The update authority now refuses an older or equal
+release even when its digest differs. Rejoin the signed train only after the
+x86/NVIDIA candidate is built, signed, boot-proven and promoted; then use the
+explicit signed NVIDIA switch once and prove ordinary `moai-do update` reads the
+new official origin. Keep the local 44.20260828 rollback until that proof passes.
+
 **Release integration 2026-09-07:** `main` was unbuildable for all three x86
 editions (a comment inside a backslash continuation truncated a `sed`); fixed
 and gated. The Device page named hardware that does not exist on aarch64; fixed

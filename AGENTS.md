@@ -272,6 +272,22 @@ sweep was right and the check was wrong, which is the same shape as the pipefail
 above. Ask the filesystem (`[ -x /usr/bin/g++ ]`) or the rpm database; neither remembers
 what this script ran. `hash -r` also clears it if you must keep `command -v`.
 
+**Recognize a signed origin positively; never infer it from one absent prefix.**
+The physical NVIDIA machine booted from
+`ostree-unverified-image:containers-storage:localhost/...`, while
+`moos-verify-origin` checked only for `ostree-unverified-registry:` and let every
+other transport fall through to “already enforces the signature policy.” The
+Updater correctly called the same deployment unverified. Match the complete
+official signed reference (transport, registry, exact edition and digest/tag),
+repair only the complete official unverified-registry form, and report every
+local/foreign/unknown origin honestly without silently replacing it.
+
+**A different digest is not necessarily an update.** Production `latest` can
+move backwards after a failed release operation or manual registry edit. Compare
+the validated `org.opencontainers.image.version` label with the booted deployment
+before offering an update, and repeat the check after privilege escalation. A
+digest-only updater can silently downgrade a newer working machine.
+
 **`pgrep -f <name>` matches your own shell.** `until ! pgrep -f bootc-image-builder; do sleep 30;
 done` never exits: the waiting shell's own command line contains the string, so pgrep finds
 itself and the loop waits forever on a process that already finished — or, worse, on one that

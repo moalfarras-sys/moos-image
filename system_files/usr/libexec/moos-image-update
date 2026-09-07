@@ -7,8 +7,9 @@ All callers use this boundary:
     from the booted edition after revalidating live rpm-ostree state.
   * ``auto`` performs the same flow for the system timer without rebooting.
 
-The registry may supply only a sha256 digest. Repository, edition, transport
-and signature enforcement are constructed here from fixed product policy.
+The registry supplies only validated digest and release-version metadata.
+Repository, edition, transport and signature enforcement are constructed here
+from fixed product policy.
 """
 
 from __future__ import annotations
@@ -31,6 +32,7 @@ RPM_OSTREE = "/usr/bin/rpm-ostree"
 SKOPEO = "/usr/bin/skopeo"
 DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 DIGEST_IN_REF_RE = re.compile(r"sha256:[0-9a-f]{64}")
+VERSION_RE = re.compile(r"^([0-9]+)\.([0-9]{8})(?:\.([0-9]+))?$")
 SIGNED_PREFIX = f"ostree-image-signed:docker://{REGISTRY}/"
 ORIGIN_RE = re.compile(
     rf"^{re.escape(SIGNED_PREFIX)}"
@@ -120,35 +122,53 @@ def read_deployments() -> dict[str, Any]:
     return {"booted": booted, "staged": staged, "busy": transaction.strip()}
 
 
-def registry_digest(edition: str) -> str:
+def release_version_key(version: str, *, source: str) -> tuple[int, int, int]:
+    """Return the sortable MoOS release identity or fail closed."""
+    match = VERSION_RE.fullmatch(version)
+    if match is None:
+        raise UpdateError(
+            f"{source} has an invalid MoOS release version: {version!r}",
+            code=5,
+            security=True,
+        )
+    return tuple(int(part or "0") for part in match.groups())
+
+
+def registry_release(edition: str) -> dict[str, str]:
     if not os.access(SKOPEO, os.X_OK):
         raise UpdateError(f"required tool is missing: {SKOPEO}", code=3)
     try:
         output = run(
             SKOPEO,
             "inspect",
-            "--format",
-            "{{.Digest}}",
             f"docker://{REGISTRY}/{edition}:latest",
             timeout=120,
         )
-        # splitlines removes only the record separator emitted by skopeo. Do
-        # not strip spaces from a security token: a padded/malformed digest
-        # must be rejected, not normalized into something trusted.
-        latest = output.splitlines()[-1]
     except UpdateError as error:
         raise UpdateError(
             f"registry lookup failed: {error}", code=4, transient=True
         ) from error
-    except IndexError as error:
-        raise UpdateError("registry returned an empty digest", code=4) from error
-    if DIGEST_RE.fullmatch(latest) is None:
+    try:
+        metadata = json.loads(output)
+        latest = metadata["Digest"]
+        labels = metadata["Labels"]
+        version = labels["org.opencontainers.image.version"]
+    except (KeyError, TypeError, ValueError) as error:
+        raise UpdateError(
+            "registry returned incomplete image metadata", code=5, security=True
+        ) from error
+    if not isinstance(latest, str) or DIGEST_RE.fullmatch(latest) is None:
         raise UpdateError(
             f"registry returned an invalid digest: {latest!r}",
             code=5,
             security=True,
         )
-    return latest
+    if not isinstance(version, str):
+        raise UpdateError(
+            "registry returned a non-string release version", code=5, security=True
+        )
+    release_version_key(version, source="registry image")
+    return {"digest": latest, "version": version}
 
 
 def resolve() -> dict[str, Any]:
@@ -173,6 +193,7 @@ def resolve() -> dict[str, Any]:
         "current_digest": digest_in(reference),
         "staged_digest": "",
         "latest_digest": "",
+        "latest_version": "",
         "busy": state["busy"],
     }
     if state["busy"]:
@@ -182,12 +203,17 @@ def resolve() -> dict[str, Any]:
     if official_edition(staged_reference) == edition:
         result["staged_digest"] = digest_in(staged_reference)
 
-    latest = registry_digest(edition)
+    candidate = registry_release(edition)
+    latest = candidate["digest"]
     result["latest_digest"] = latest
+    result["latest_version"] = candidate["version"]
     if latest == result["current_digest"]:
         result["state"] = "current"
     elif latest == result["staged_digest"]:
         result["state"] = "staged"
+    elif release_version_key(candidate["version"], source="registry image") \
+            <= release_version_key(result["booted_version"], source="booted deployment"):
+        result["state"] = "blocked-downgrade"
     else:
         result["state"] = "available"
     return result
@@ -244,11 +270,19 @@ def _stage_locked(expected_digest: str) -> str:
 
     # Re-resolve after privilege escalation. A mutable tag can move between the
     # user's check and confirmation; stage only the digest the user actually saw.
-    latest = registry_digest(booted_edition)
-    if latest != expected_digest:
+    candidate = registry_release(booted_edition)
+    if candidate["digest"] != expected_digest:
         raise UpdateError(
             "the release candidate changed after confirmation; check again",
             code=76,
+            security=True,
+        )
+    booted_version = str(state["booted"].get("version", "") or "")
+    if release_version_key(candidate["version"], source="registry image") \
+            <= release_version_key(booted_version, source="booted deployment"):
+        raise UpdateError(
+            f"refused non-newer release {candidate['version']} over {booted_version}",
+            code=78,
             security=True,
         )
     target = f"{SIGNED_PREFIX}{booted_edition}@{expected_digest}"
@@ -381,6 +415,12 @@ def automatic() -> int:
         return 0
     if state == "staged":
         print(f"moos-image-update: latest image already staged ({result['latest_digest']})")
+        return 0
+    if state == "blocked-downgrade":
+        print(
+            "moos-image-update: refusing downgrade from "
+            f"{result['booted_version']} to {result['latest_version']}"
+        )
         return 0
 
     print(

@@ -172,6 +172,11 @@ do_update() {
             echo "${G}✓ التحديث جاهز — أعد التشغيل لتطبيقه | update already staged; reboot to apply${N}"
             return 0
             ;;
+        blocked-downgrade)
+            echo "${Y}حُظر الرجوع إلى صورة منشورة أقدم | refused an older published image${N}"
+            echo "${D}انتظر ترقية أحدث موقّعة؛ لم يتغير النظام | wait for a newer signed release; nothing changed${N}"
+            return 0
+            ;;
         available) ;;
         *)
             echo "${R}حالة تحديث غير صالحة | invalid update state${N}" >&2

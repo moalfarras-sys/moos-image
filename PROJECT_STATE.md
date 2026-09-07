@@ -8,6 +8,22 @@ existing boot-time tmpfiles rules. ARM's NFS and sbin fixes remain unchanged.
 Validation and exact build evidence: [Opus handoff](docs/X86_RELEASE_REPAIR_20260907.md).
 This branch is not merged or deployed; candidate builds do not promote releases.
 
+**Live NVIDIA update-path audit (2026-09-07):** the physical PC is booted from
+local `containers-storage` image `44.20260829.1`, with one local 44.20260828
+rollback. `moos-image-update` correctly refuses that unverified origin, so
+`moai-do update` cannot advance it. The boot-time `moos-verify-origin` audit,
+however, falsely logged that this same local origin enforced signatures because
+its default case treated every reference other than `ostree-unverified-registry`
+as signed. The parser now positively recognizes only the exact official signed
+repositories, repairs only an exact official unverified-registry reference, and
+reports local/foreign origins without replacing them. Rejoining the release
+train remains an explicit signed NVIDIA edition switch after a newer candidate
+passes artifact boot gates and is promoted. The one update backend now compares
+validated MoOS release labels as well as digests and refuses an older or equal
+production `latest`, both during resolution and again after privilege escalation.
+The installed and repository public keys match, and the current signed candidate
+verifies with that key.
+
 **Current Mo AI integration:** read `docs/START_HERE_CURRENT_SESSION.md` and
 `docs/MOAI_CLOUD_ONLY_PLAN.md`. Latest owner policy is cloud-only, free default
 and explicitly selected paid models allowed. Hermes has a real isolated adapter
