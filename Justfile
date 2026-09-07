@@ -112,6 +112,10 @@ check:
     # added to one and not the other is invisible drift: nothing fails and the
     # feature just does not exist on the other editions.
     python3 tests/test_edition_unit_parity.py
+    # `xdg-mime query default` returns a NAME. Which FILE wins is XDG precedence,
+    # and a stale $HOME entry pointing at a deleted program kept the name right
+    # while every moos:// link on the A1 was dead.
+    python3 tests/test_selfcheck_url_handler.py
     python3 tests/test_gate_coverage.py
     python3 tests/test_firewall_migration.py
     python3 tests/test_hardware_adapt_lifecycle.py

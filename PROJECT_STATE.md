@@ -70,6 +70,27 @@ Remote IS the screen. A watchdog had lived only in one machine's `$HOME` since
 shipped version acts only on the `failed` state and is enabled on all four
 editions.
 
+**Every `moos://` link on the A1 was dead, under a green check (2026-09-08).**
+`~/.local/share/applications/org.moos.urlhandler.desktop` carried
+`Exec=/var/home/moos/moos-desktop-edit/system_files/usr/bin/moos-open` — a path
+inside a working copy that had since been deleted. `~/.local/share` outranks
+`/usr/share`, so that entry was the one the desktop ran, and Mo Store install
+links, Settings routes and Mo AI's app links all went nowhere.
+
+`moos-selfcheck` printed *"moos:// links route to MoOS"* throughout, because it
+compared the NAME `xdg-mime` returned and never resolved which FILE that name
+won, nor whether that file's `Exec` program existed. The check now resolves the
+entry by XDG precedence, takes argv[0] of `Exec=` with the field codes dropped,
+and requires it to be executable — and separately reports a handler that wins
+from the user's data home even when it works, because it freezes the image's
+copy. Gated by `tests/test_selfcheck_url_handler.py`.
+
+**FIXED ON THE MACHINE.** The stale entry was removed (backed up to
+`~/.moos-override-backup-20260908/`); `xdg-mime` now resolves to
+`/usr/share/applications/org.moos.urlhandler.desktop` → `/usr/bin/moos-open`,
+which exists and is executable. This was the one live repair made before the
+image update, because it needed no new image.
+
 **Signature chain verified from the A1 (2026-09-08).** The problem was never
 signing. `/etc/pki/containers/moos.pub` is byte-identical to the repo's
 `cosign.pub` (sha256 3ed7f81e…), `/etc/containers/policy.json` rejects by

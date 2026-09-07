@@ -387,9 +387,50 @@ if [ -x /usr/bin/moos-open ] \
 else
     bad "the public URL handler still exposes a store install authority"
 fi
+# THE NAME IS NOT THE HANDLER.
+#
+# `xdg-mime query default` returns a desktop-entry NAME. Which FILE that name
+# resolves to is decided by XDG precedence, and ~/.local/share/applications wins
+# over /usr/share/applications. So the name can be exactly right while the entry
+# that actually runs is a stale copy in $HOME pointing at a binary that no longer
+# exists.
+#
+# MEASURED ON THIS MACHINE, 2026-09-08. ~/.local/share/applications/
+# org.moos.urlhandler.desktop carried
+# Exec=/var/home/moos/moos-desktop-edit/system_files/usr/bin/moos-open, a path
+# inside a working copy that had since been deleted. Every moos:// link on the
+# machine — Mo Store install links, Settings routes, Mo AI's app links — was
+# dead, and this check printed "moos:// links route to MoOS" because the NAME
+# matched. Resolve the file and check the program it would actually exec.
 moos_handler="$(xdg-mime query default x-scheme-handler/moos 2>/dev/null)"
+moos_handler_file=""
+if [ -n "$moos_handler" ]; then
+    _IFS_SAVE="$IFS"; IFS=:
+    for _dir in "${XDG_DATA_HOME:-$HOME/.local/share}" ${XDG_DATA_DIRS:-/usr/local/share:/usr/share}; do
+        IFS="$_IFS_SAVE"
+        [ -f "${_dir}/applications/${moos_handler}" ] || continue
+        moos_handler_file="${_dir}/applications/${moos_handler}"
+        break
+    done
+    IFS="$_IFS_SAVE"; unset -v _dir _IFS_SAVE
+fi
+# The program is argv[0] of Exec=, with the %u/%f field codes dropped.
+moos_handler_exec=""
+if [ -n "$moos_handler_file" ]; then
+    moos_handler_exec="$(sed -n 's/^Exec=//p' "$moos_handler_file" | head -1 | awk '{print $1}')"
+fi
 case "$moos_handler" in
-    org.moos.urlhandler.desktop) ok "moos:// links route to MoOS" ;;
+    org.moos.urlhandler.desktop)
+        if [ -z "$moos_handler_file" ]; then
+            bad "moos:// names org.moos.urlhandler.desktop but no such entry exists — the links are dead"
+        elif [ ! -x "$moos_handler_exec" ]; then
+            bad "moos:// runs '${moos_handler_exec}' (from ${moos_handler_file}), which is not executable — every moos:// link is dead"
+        elif [ "${moos_handler_file#${XDG_DATA_HOME:-$HOME/.local/share}/}" != "$moos_handler_file" ]; then
+            bad "moos:// is handled by ${moos_handler_file}, not the image copy — later fixes will never reach it"
+        else
+            ok "moos:// links route to MoOS (${moos_handler_exec})"
+        fi
+        ;;
     "") bad "nothing handles moos:// — Welcome handoff links are dead" ;;
     *)  note "moos:// is handled by '${moos_handler}' (expected org.moos.urlhandler.desktop)" ;;
 esac
