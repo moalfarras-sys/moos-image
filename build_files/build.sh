@@ -2343,9 +2343,31 @@ systemctl enable qemu-guest-agent.service
 # uupd's system module is also disabled, so only moos-image-update can stage an
 # OS deployment. uupd remains enabled for its non-OS application modules.
 systemctl disable rpm-ostreed-automatic.timer 2>/dev/null || true
-# bootc-fetch-apply-updates is the third one, off in the base image today. Assert
-# it stays off rather than trusting that, for the same reason.
-systemctl disable bootc-fetch-apply-updates.timer 2>/dev/null || true
+# `systemctl disable` is NOT enough for this one, and believing it was is why
+# the timer has been live on the maintainer's A1 all along.
+#
+# disable only removes symlinks derived from the unit's own [Install] section
+# (WantedBy=timers.target), and only under /etc. The Fedora bootc base ALSO
+# ships a vendor want at
+#     /usr/lib/systemd/system/default.target.wants/bootc-fetch-apply-updates.timer
+# which disable cannot touch — /usr is the vendor tree. The unit therefore
+# reports UnitFileState=disabled while systemd still pulls it in through
+# default.target, and `2>/dev/null || true` swallowed the warning that said so.
+#
+# Measured on the live A1 on 2026-09-07, booted from a signed image built by
+# this script: is-enabled=disabled, is-active=ACTIVE, WantedBy=graphical.target,
+# next trigger in nine hours. bootc-fetch-apply-updates runs `bootc upgrade
+# --apply`, which stages the newest image AND REBOOTS — on a daily driver, with
+# none of MoOS's battery/CPU/network deferral and outside its exact-digest
+# policy. Two deployment writers on one OSTree sysroot is exactly what the
+# rpm-ostreed-automatic paragraph above exists to prevent.
+#
+# mask wins over a vendor want (/etc/systemd/system/<unit> -> /dev/null), and it
+# keeps winning if a base update re-adds the symlink. Remove the vendor want too
+# so the finished tree is honest to anyone reading it. `bootc upgrade` by hand is
+# unaffected; only the automatic timer is.
+rm -f /usr/lib/systemd/system/default.target.wants/bootc-fetch-apply-updates.timer
+systemctl mask bootc-fetch-apply-updates.timer
 
 # --- Get the app catalogue OUT of the boot path -------------------------------
 # Measured on the maintainer's machine (`systemd-analyze critical-chain`):
@@ -4453,6 +4475,28 @@ unset -v _final_logo_src _px _dst
 # removed a scrub step without understanding what it protected. It runs after
 # z9 and every rpm transaction, so Cloud is inspected just like both desktop
 # editions and nothing can mutate the image after this finished-byte check.
+# ── Exactly one updater may write deployments, proven on the finished tree ────
+#
+# The source line above says "mask". This asserts the image actually got it,
+# because the previous attempt (`systemctl disable`) returned 0, printed a
+# warning into /dev/null, left UnitFileState=disabled, and the timer still ran
+# on real hardware for weeks. is-enabled is NOT the question; being pulled in by
+# a target is. So check the two things that can pull it: a mask, and any *.wants
+# symlink anywhere in the unit search path.
+[ -L /etc/systemd/system/bootc-fetch-apply-updates.timer ] \
+    && [ "$(readlink /etc/systemd/system/bootc-fetch-apply-updates.timer)" = /dev/null ] \
+    || { echo "GATE FAIL: bootc-fetch-apply-updates.timer is not masked."
+         echo "           'systemctl disable' does not remove the base image's vendor want in"
+         echo "           /usr/lib/systemd/system/default.target.wants, so the timer would run"
+         echo "           'bootc upgrade --apply' — staging AND REBOOTING outside MoOS's"
+         echo "           update authority. Mask it; do not weaken this gate."; exit 1; }
+_rival_wants="$(find /usr/lib/systemd/system /etc/systemd/system -path '*.wants/*' \
+    -name 'bootc-fetch-apply-updates.timer' 2>/dev/null)"
+[ -z "${_rival_wants}" ] \
+    || { echo "GATE FAIL: a *.wants symlink still pulls in bootc-fetch-apply-updates.timer:"
+         echo "${_rival_wants}"; exit 1; }
+unset -v _rival_wants
+
 python3 /ctx/verify_no_foreign_identity.py
 
 echo "MoOS build.sh finished OK"

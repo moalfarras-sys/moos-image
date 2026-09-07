@@ -140,6 +140,50 @@ ahead of the base image on a multilib package that ships arch-independent files
 Not verified locally: this session's host is aarch64, so the x86 transaction
 could only be proven by CI.
 
+### A second updater was live on the A1 the whole time (2026-09-07, fixed)
+
+Found while answering "do updates actually reach the other editions". The answer
+for this machine was: yes, and one of them was not ours.
+
+`bootc-fetch-apply-updates.timer` was **active** on the live A1, booted from a
+signed image this repo built. Measured: `is-enabled=disabled`,
+`is-active=active`, `WantedBy=graphical.target`, next trigger nine hours out. It
+runs `bootc upgrade --apply` — stages the newest image **and reboots** — with
+none of `moos-image-update`'s battery/CPU/network deferral and outside its
+exact-digest policy. Two deployment writers on one OSTree sysroot is precisely
+what the `rpm-ostreed-automatic` handling exists to prevent.
+
+**Why every gate was green.** Both build scripts ran
+`systemctl disable bootc-fetch-apply-updates.timer 2>/dev/null || true`, and
+`verify_user_experience.py` asserted that exact string. But `disable` only
+removes symlinks derived from the unit's own `[Install]` section, and only under
+`/etc`. The Fedora bootc base **also** ships a vendor want at
+`/usr/lib/systemd/system/default.target.wants/bootc-fetch-apply-updates.timer`,
+which `disable` cannot touch — `/usr` is the vendor tree. So the unit honestly
+reported `disabled` while systemd went on pulling it in through `default.target`,
+and `2>/dev/null || true` swallowed the warning that said so.
+
+`build-arm.sh` even carries the comment *"Serial boot proof caught this timer
+active in the finished ARM disk even though the source gates were green"* — the
+symptom was seen, `disable` was added, and nobody re-checked a running machine.
+This is the enable/disable trap in
+[`references/boot-wiring-and-image-verification.md`](.claude/skills/moos-engineering/references/boot-wiring-and-image-verification.md),
+in its mirror form: **`systemctl disable` is not proof a unit is inert.**
+
+Fix, in both `build.sh` and `build-arm.sh`: remove the vendor want and
+`systemctl mask` the timer. A mask (`/etc/systemd/system/<unit>` → `/dev/null`)
+outranks a vendor want and keeps winning if a base update re-adds the symlink.
+`bootc upgrade` by hand is unaffected; only the automatic timer is.
+
+Gated on the finished image in both scripts — the mask symlink must exist AND no
+`*.wants` entry anywhere may still pull the unit in. `is-enabled` is deliberately
+not the question. The source gate now demands `mask` in **both** scripts, since
+accepting `disable` is what let this ship.
+
+Applied to the live A1 immediately rather than waiting for the next image, so the
+unscheduled reboot did not happen that night. `moos-auto-update.timer` remains the
+only scheduled deployment writer.
+
 ### Settings product pass — integration branch (2026-09-07)
 
 `fix/settings-real-state-20260907` fixes Settings status truth, missing-backend

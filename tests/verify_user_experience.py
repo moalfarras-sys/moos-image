@@ -1696,10 +1696,27 @@ require("systemctl enable uupd.timer" in _build_sh,
         "uupd must remain enabled for Flatpak and distrobox application updates")
 require("systemctl enable moos-auto-update.timer" in _build_sh,
         "the single MoOS image backend must be scheduled on every edition")
-for _rival in ("rpm-ostreed-automatic.timer", "bootc-fetch-apply-updates.timer"):
-    require(re.search(rf"systemctl disable {re.escape(_rival)}", _build_sh),
-            f"{_rival} must be explicitly disabled: it would be a second OS deployment "
-            f"writer outside moos-image-update's signed exact-digest policy.")
+require(re.search(r"systemctl disable rpm-ostreed-automatic\.timer", _build_sh),
+        "rpm-ostreed-automatic.timer must be explicitly disabled: it would be a second OS "
+        "deployment writer outside moos-image-update's signed exact-digest policy.")
+# bootc-fetch-apply-updates needs MASKING, not disabling, and this gate used to accept
+# disabling. That is why the timer was live on the maintainer's A1 while every gate was
+# green: `systemctl disable` only removes symlinks derived from the unit's own [Install]
+# section, and only under /etc. The Fedora bootc base also ships a vendor want at
+# /usr/lib/systemd/system/default.target.wants/bootc-fetch-apply-updates.timer, which
+# disable cannot touch. The unit then reports UnitFileState=disabled while systemd still
+# pulls it in via default.target. Measured on the live A1 2026-09-07: is-enabled=disabled,
+# is-active=ACTIVE, next trigger nine hours out, running `bootc upgrade --apply` — staging
+# AND REBOOTING a daily driver outside MoOS's policy.
+for _script in ("build_files/build.sh", "build_files/build-arm.sh"):
+    _src = read(_script)
+    require(re.search(r"systemctl mask bootc-fetch-apply-updates\.timer", _src),
+            f"{_script} must MASK bootc-fetch-apply-updates.timer, not disable it: disable "
+            "leaves the base image's vendor want in default.target.wants and the timer still "
+            "runs. Masking wins over a vendor want and survives a base update re-adding it.")
+    require("default.target.wants/bootc-fetch-apply-updates.timer" in _src,
+            f"{_script} must also remove the base image's vendor want symlink so the finished "
+            "tree is honest about what pulls the timer in.")
 # uupd unmarshals this file STRICTLY: one key it does not know and it refuses to start at
 # all — "'config.Config' has invalid keys" — which is worse than the failing module this
 # file exists to silence. Learned the hard way: a JSON block explaining WHY brew is off,
