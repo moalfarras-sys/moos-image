@@ -247,6 +247,15 @@ def main() -> None:
     # perfectly healthy. That exact failure was observed on the live session
     # against an image that shipped without it, which is why this is checked in
     # the finished image and not only in source.
+    # Mo AI runs model-proposed commands only inside bubblewrap and REFUSES when
+    # it is absent, so a missing bwrap is not a crash -- it is a feature that
+    # quietly stops working. It reached the image by inheritance from the
+    # upstream base until MoOS started requiring it by name; this asserts the
+    # binary is actually present in the finished image, not merely requested.
+    require((ROOT / "usr/bin/bwrap").is_file(),
+            "bubblewrap is absent: Mo AI could not sandbox a command and would "
+            "refuse every run_command request")
+
     moui = "usr/lib64/qt6/qml/org/moos/ui"
     require((ROOT / moui / "Locale.qml").is_file(),
             "the MoUI.Locale singleton is absent; first-party apps would fall "

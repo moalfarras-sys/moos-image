@@ -842,6 +842,16 @@ dnf5 -y install ibm-plex-sans-fonts ibm-plex-sans-arabic-fonts \
 # The same three packages ship on ARM. Editions must not disagree about whether
 # a person can use the computer.
 dnf5 -y install orca speech-dispatcher espeak-ng
+# Mo AI executes model-proposed commands ONLY inside a bubblewrap sandbox
+# (moai_runtime.run_command), and refuses outright when /usr/bin/bwrap is
+# missing rather than falling back to running them unsandboxed. That refusal is
+# correct, but it turns a missing package into a silently dead feature.
+#
+# bwrap was reaching the image only by inheritance from the upstream base, where
+# it arrives as a Flatpak dependency. Nothing in MoOS asked for it, so an
+# upstream change could have removed a security boundary without failing a
+# single gate. MoOS now requires it by name.
+dnf5 -y install bubblewrap
 
 # Kawkab Mono — the Arabic terminal font, and the reason Arabic in Konsole was
 # unreadable without it.

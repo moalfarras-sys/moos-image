@@ -84,11 +84,30 @@ class RuntimeTests(unittest.TestCase):
             self.assertIn("error", self.call("read_file", project=self.pid, path=path))
 
     def test_real_pty_sandbox_does_not_inherit_secrets(self):
+        """Isolation when bwrap exists; a refusal, never a fallback, when it does not.
+
+        This ran green on a workstation and red in CI, because the source-gate
+        step executes on a bare runner where /usr/bin/bwrap is absent while the
+        MoOS image carries it. Asserting only the happy path made the gate
+        environment-dependent; skipping it outright would have hidden the more
+        important property. So both branches assert something.
+
+        The absent branch is the security-critical one: run_command must REFUSE
+        when it cannot sandbox. Silently executing unsandboxed would hand the
+        model the very environment -- OPENROUTER_API_KEY, /home/moos -- that the
+        present branch proves it cannot see.
+        """
+        sandboxed = Path("/usr/bin/bwrap").is_file()
         with patch.dict(os.environ, {"OPENROUTER_API_KEY": "never-forward"}):
             with concurrent.futures.ThreadPoolExecutor() as pool:
                 command = 'test -z "$OPENROUTER_API_KEY" && test ! -e /run/user && test ! -e /home/moos && printf verified'
                 job = pool.submit(self.call, "run_command", project=self.pid, command=command)
                 result = self.approve(job)
+        if not sandboxed:
+            self.assertIn("error", result)
+            self.assertIn("sandbox is unavailable", result["error"])
+            self.assertNotIn("output", result)
+            return
         self.assertNotIn("error", result)
         self.assertEqual(result["exit_code"], 0, result)
         self.assertIn("verified", result["output"])

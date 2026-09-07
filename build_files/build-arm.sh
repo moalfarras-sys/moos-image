@@ -86,6 +86,7 @@ _PLASMA=(
     # speaks Arabic — on an OS that calls Arabic first-class, an English-only
     # reader would not have been a fix.
     orca speech-dispatcher espeak-ng
+    bubblewrap
     pipewire pipewire-pulseaudio wireplumber
     NetworkManager NetworkManager-wifi
     plymouth plymouth-plugin-script plymouth-plugin-two-step plymouth-system-theme
