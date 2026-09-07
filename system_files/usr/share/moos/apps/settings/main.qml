@@ -23,7 +23,7 @@ QQC2.ApplicationWindow {
                            Screen.desktopAvailableWidth * 0.94)
     minimumHeight: Math.min(design.commandCenterMinimumHeight,
                             Screen.desktopAvailableHeight * 0.94)
-    title: win.local("مركز قيادة MoOS", "MoOS Command Center")
+    title: win.local("إعدادات MoOS", "MoOS Settings")
     color: canvas
 
     Kirigami.Theme.inherit: false
@@ -83,9 +83,15 @@ QQC2.ApplicationWindow {
 
     property string activeSection: "home"
     property string searchQuery: ""
+    onSearchQueryChanged: {
+        searchField.text = searchQuery
+        contentFlick.contentY = 0
+    }
     property bool statusLoaded: false
     property string statusError: ""
     property int statusSerial: 0
+    property bool statusBusy: false
+    property string launchError: ""
     property var status: ({
         schema: 1,
         product: "MoOS",
@@ -96,12 +102,13 @@ QQC2.ApplicationWindow {
         uptimeSeconds: 0,
         storage: { total: "—", free: "—", percent: 0 },
         memory: { total: "—", used: "—", percent: 0 },
-        network: { connected: false, full: false, label: "" },
+        destinations: {},
+        network: { known: false, connectivity: "unknown", connected: false, full: false, label: "" },
         bluetooth: { available: false, powered: false },
         audio: { available: false, volume: 0, muted: false },
         battery: { available: false, percent: 0, state: "" },
         deployment: {
-            version: "—", digest: "", signed: false,
+            version: "—", digest: "", signed: false, known: false,
             staged: false, stagedVersion: "", rollback: 0
         }
     })
@@ -166,9 +173,9 @@ QQC2.ApplicationWindow {
             ar: "النظام", en: "System",
             descAr: "التحديث، الحسابات ومعلومات الجهاز",
             descEn: "Updates, accounts and device facts",
-            heroAr: "موثّق من الأساس.", heroEn: "Verified by design.",
-            heroDescAr: "صورة ذرّية موقّعة ومعلومات جهاز يمكن الوثوق بها",
-            heroDescEn: "A signed atomic image and device facts you can trust"
+            heroAr: "حالة النظام وتفضيلاتك.", heroEn: "System state and preferences.",
+            heroDescAr: "التحديثات والحسابات واللغة ومعلومات الجهاز",
+            heroDescEn: "Updates, accounts, language and device information"
         },
         {
             id: "recovery", glyph: "repair",
@@ -176,8 +183,8 @@ QQC2.ApplicationWindow {
             descAr: "الرجوع الآمن وتشخيص الأداء",
             descEn: "Safe rollback and diagnostics",
             heroAr: "ارجع بثقة.", heroEn: "Return with confidence.",
-            heroDescAr: "نسخة سليمة محفوظة حين تحتاجها، وملفاتك تبقى مكانها",
-            heroDescEn: "A known-good image when you need it, with your files untouched"
+            heroDescAr: "راجع النسخ المحفوظة وخيارات الاستعادة المتاحة",
+            heroDescEn: "Review saved deployments and available recovery options"
         }
     ]
 
@@ -306,9 +313,13 @@ QQC2.ApplicationWindow {
           descAr: "الحسابات المحلية وصور المستخدمين",
           descEn: "Local accounts and profile pictures" },
         { section: "system", route: "moos://settings/time", glyph: "orbit",
-          ar: "الوقت والمنطقة", en: "Time & region",
-          descAr: "المنطقة الزمنية والساعة والتنسيقات",
-          descEn: "Time zone, clock and regional formats" },
+          ar: "التاريخ والوقت", en: "Date & time",
+          descAr: "المنطقة الزمنية والساعة التلقائية",
+          descEn: "Time zone and automatic clock" },
+        { section: "system", route: "moos://settings/region", glyph: "identity",
+          ar: "اللغة والمنطقة", en: "Language & region",
+          descAr: "لغة النظام وتنسيقات الأرقام والتاريخ",
+          descEn: "System language, number and date formats" },
         { section: "system", route: "moos://settings/storage", glyph: "storage",
           ar: "التخزين", en: "Storage",
           descAr: "الأقراص والأقسام والمساحة المتاحة",
@@ -322,7 +333,7 @@ QQC2.ApplicationWindow {
           ar: "استعادة MoOS", en: "MoOS Recovery",
           descAr: "ارجع إلى نسخة سليمة من دون لمس ملفاتك",
           descEn: "Return to a known-good system without touching your files",
-          tagAr: "محمي", tagEn: "Protected" },
+          tagAr: "", tagEn: "" },
         { section: "recovery", route: "moos://settings/firmware-security", glyph: "shield",
           ar: "أمان العتاد", en: "Firmware security",
           descAr: "حالة الإقلاع والبرامج الثابتة",
@@ -350,7 +361,7 @@ QQC2.ApplicationWindow {
         for (var i = 0; i < commands.length; ++i) {
             var item = commands[i]
             var haystack = [
-                item.ar, item.en, item.descAr, item.descEn, item.section
+                item.ar, item.en, item.descAr, item.descEn, item.section, item.route.substring(16)
             ].join(" ").toLocaleLowerCase()
             if (needle !== "" ? haystack.indexOf(needle) >= 0
                               : item.section === activeSection)
@@ -382,14 +393,70 @@ QQC2.ApplicationWindow {
         }
     }
 
+    function routeAvailable(route) {
+        return statusLoaded && status.destinations[String(route).substring(16)] === true
+    }
+
+    function routeReason(route) {
+        if (!statusLoaded)
+            return statusError || local("جارٍ قراءة الإعدادات…", "Reading settings…")
+        return routeAvailable(route) ? "" : local(
+            "هذه الإعدادات غير مثبتة على هذا الجهاز", "These settings are not installed on this device")
+    }
+
+    readonly property string imageLabel: !statusLoaded || !status.deployment.known
+        ? local("حالة التوقيع غير متاحة", "Signature status unavailable")
+        : status.deployment.signed ? local("صورة نظام موقّعة", "Signed system image")
+        : local("صورة نظام غير موثّقة", "Unverified system image")
+
+    readonly property string networkLabel: !statusLoaded || !status.network.known
+        ? local("حالة الشبكة غير متاحة", "Network status unavailable")
+        : !status.network.connected ? local("غير متصل", "Offline")
+        : status.network.full ? local("متصل بالإنترنت", "Online")
+        : status.network.connectivity === "portal" ? local("يلزم تسجيل الدخول", "Sign-in required")
+        : local("الإنترنت غير مؤكد", "Internet not confirmed")
+
+    readonly property string bluetoothLabel: !statusLoaded
+        ? local("حالة بلوتوث غير متاحة", "Bluetooth status unavailable")
+        : !status.bluetooth.available ? local("بلوتوث غير متاح", "Bluetooth unavailable")
+        : status.bluetooth.powered ? local("بلوتوث يعمل", "Bluetooth on")
+        : local("بلوتوث متوقف", "Bluetooth off")
+
+    readonly property string rollbackLabel: !statusLoaded || !status.deployment.known
+        ? local("حالة الاستعادة غير متاحة", "Recovery status unavailable")
+        : status.deployment.rollback > 0 ? local("نسخة رجوع متاحة", "Rollback available")
+        : local("لا توجد نسخة رجوع", "No rollback saved")
+
+    function isolated(value) { return "\u2068" + value + "\u2069" }
+
+    function commandDetail(item) {
+        var reason = routeReason(item.route)
+        if (reason) return reason
+        switch (item.route) {
+        case "moos://settings/network": return networkLabel + (status.network.label ? " · " + isolated(status.network.label) : "")
+        case "moos://settings/bluetooth": return bluetoothLabel
+        case "moos://settings/audio": return !status.audio.available ? local("لا يوجد مخرج صوت متاح", "No audio output available")
+            : status.audio.muted ? local("الصوت مكتوم", "Output muted") : local("مستوى الصوت: ", "Output volume: ") + isolated(status.audio.volume + "%")
+        case "moos://settings/storage": return isolated(status.storage.free) + local(" متاحة من ", " free of ") + isolated(status.storage.total)
+        case "moos://settings/about": return isolated("MoOS " + isolated(status.deployment.version)) + " · " + isolated(status.hostname)
+        case "moos://settings/recovery": return rollbackLabel
+        case "moos://settings/update": return status.deployment.staged
+            ? local("جاهز لإعادة التشغيل: ", "Ready to restart: ") + isolated(status.deployment.stagedVersion)
+            : local("الإصدار المثبت: ", "Installed version: ") + isolated(status.deployment.version)
+        }
+        return local(item.descAr, item.descEn)
+    }
+
     function openRoute(route) {
-        if (String(route).indexOf("moos://settings/") !== 0)
+        if (String(route).indexOf("moos://settings/") !== 0 || !routeAvailable(route))
             return
-        Qt.openUrlExternally(route)
+        launchError = Qt.openUrlExternally(route) ? "" : local(
+            "تعذّر فتح الإعدادات. حاول مرة أخرى.", "Could not open settings. Try again.")
     }
 
     function selectSection(sectionId) {
         searchQuery = ""
+        launchError = ""
         activeSection = sectionId
         contentFlick.contentY = 0
     }
@@ -405,27 +472,59 @@ QQC2.ApplicationWindow {
                    : hours + "h " + (minutes % 60) + "m"
     }
 
+    function statusFailure() {
+        statusLoaded = false
+        statusError = local("تعذّرت قراءة حالة الجهاز. ستتم إعادة المحاولة تلقائياً.",
+                            "Device status is unavailable. Retrying automatically.")
+    }
+
+    function acceptStatus(parsed) {
+        // A matching schema alone is not a usable document. Reject partial and
+        // stale snapshots before any binding can present their defaults as facts.
+        var age = Date.now() / 1000 - (parsed && parsed.generatedAt)
+        if (!parsed || parsed.schema !== 1 || parsed.product !== "MoOS"
+                || !Number.isFinite(age) || age < -5 || age > 45)
+            return false
+        var objects = ["deployment", "network", "bluetooth", "audio", "battery", "storage", "memory", "destinations"]
+        for (var i = 0; i < objects.length; ++i)
+            if (!parsed[objects[i]] || typeof parsed[objects[i]] !== "object") return false
+        var shape = {
+            deployment: {known: "boolean", signed: "boolean", staged: "boolean", rollback: "number", version: "string", stagedVersion: "string", digest: "string"},
+            network: {known: "boolean", connected: "boolean", full: "boolean", connectivity: "string", label: "string"},
+            audio: {available: "boolean", muted: "boolean", volume: "number"},
+            bluetooth: {available: "boolean", powered: "boolean"},
+            battery: {available: "boolean", percent: "number", state: "string"},
+            memory: {used: "string", total: "string", percent: "number"},
+            storage: {free: "string", total: "string", percent: "number"}
+        }
+        for (var group in shape)
+            for (var key in shape[group])
+                if (typeof parsed[group][key] !== shape[group][key]) return false
+        for (var field of ["hostname", "kernel", "cpu"])
+            if (typeof parsed[field] !== "string") return false
+        if (typeof parsed.uptimeSeconds !== "number") return false
+        if (typeof parsed.deployment.known !== "boolean" || typeof parsed.network.known !== "boolean")
+            return false
+        status = parsed
+        statusLoaded = true
+        statusError = ""
+        statusSerial++
+        return true
+    }
+
     function loadStatus() {
-        if (!statusUrl)
-            return
+        if (statusBusy) return
+        if (!statusUrl) { statusFailure(); return }
+        statusBusy = true
         var request = new XMLHttpRequest()
         request.open("GET", statusUrl)
         request.onreadystatechange = function() {
-            if (request.readyState !== XMLHttpRequest.DONE)
-                return
-            if (request.status === 0 || (request.status >= 200 && request.status < 300)) {
-                try {
-                    var parsed = JSON.parse(request.responseText)
-                    if (parsed.schema === 1 && parsed.product === "MoOS") {
-                        win.status = parsed
-                        win.statusLoaded = true
-                        win.statusError = ""
-                        win.statusSerial++
-                    }
-                } catch (error) {
-                    win.statusError = String(error)
-                }
-            }
+            if (request.readyState !== XMLHttpRequest.DONE) return
+            win.statusBusy = false
+            try {
+                if ((request.status !== 0 && (request.status < 200 || request.status >= 300))
+                        || !win.acceptStatus(JSON.parse(request.responseText))) win.statusFailure()
+            } catch (error) { win.statusFailure() }
         }
         request.send()
     }
@@ -458,7 +557,6 @@ QQC2.ApplicationWindow {
         onActivated: {
             if (win.searchQuery !== "") {
                 win.searchQuery = ""
-                searchField.text = ""
             } else if (win.activeSection !== "home") {
                 win.selectSection("home")
             } else {
@@ -515,7 +613,7 @@ QQC2.ApplicationWindow {
                     color: win.textColor
                     font.pixelSize: win.typePx(design.typeSecondary)
                     font.weight: Font.DemiBold
-                    horizontalAlignment: win.rtl ? Text.AlignRight : Text.AlignLeft
+                    horizontalAlignment: Text.AlignLeft
                     Layout.maximumWidth: 180
                     elide: Text.ElideRight
                 }
@@ -524,7 +622,7 @@ QQC2.ApplicationWindow {
                     text: capsule.detail
                     color: win.mutedColor
                     font.pixelSize: win.typePx(design.typeCaption)
-                    horizontalAlignment: win.rtl ? Text.AlignRight : Text.AlignLeft
+                    horizontalAlignment: Text.AlignLeft
                     Layout.maximumWidth: 180
                     elide: Text.ElideRight
                 }
@@ -589,7 +687,7 @@ QQC2.ApplicationWindow {
                 color: win.textColor
                 font.pixelSize: win.typePx(design.typeBody)
                 font.weight: navControl.selected ? Font.DemiBold : Font.Medium
-                horizontalAlignment: win.rtl ? Text.AlignRight : Text.AlignLeft
+                horizontalAlignment: Text.AlignLeft
                 elide: Text.ElideRight
             }
 
@@ -645,7 +743,7 @@ QQC2.ApplicationWindow {
                     color: win.mutedColor
                     font.pixelSize: win.typePx(design.typeCaption)
                     font.weight: Font.DemiBold
-                    horizontalAlignment: win.rtl ? Text.AlignRight : Text.AlignLeft
+                    horizontalAlignment: Text.AlignLeft
                     elide: Text.ElideRight
                 }
             }
@@ -656,7 +754,7 @@ QQC2.ApplicationWindow {
                 color: win.textColor
                 font.pixelSize: win.typePx(design.typeTitle)
                 font.weight: Font.DemiBold
-                horizontalAlignment: win.rtl ? Text.AlignRight : Text.AlignLeft
+                horizontalAlignment: Text.AlignLeft
                 elide: Text.ElideRight
             }
 
@@ -690,11 +788,21 @@ QQC2.ApplicationWindow {
 
         Layout.fillWidth: true
         implicitHeight: win.fs(88)
+        leftPadding: design.space4
+        rightPadding: design.space4
+        onActiveFocusChanged: {
+            if (!activeFocus) return
+            var top = mapToItem(contentColumn, 0, 0).y
+            if (top < contentFlick.contentY) contentFlick.contentY = top
+            else if (top + height > contentFlick.contentY + contentFlick.height)
+                contentFlick.contentY = top + height - contentFlick.height
+        }
         hoverEnabled: true
         activeFocusOnTab: true
         Accessible.role: Accessible.Button
         Accessible.name: win.local(commandData.ar, commandData.en)
-        Accessible.description: win.local(commandData.descAr, commandData.descEn)
+        enabled: win.routeAvailable(commandData.route)
+        Accessible.description: win.commandDetail(commandData)
         onClicked: win.openRoute(commandData.route)
         scale: down ? 0.992 : 1
 
@@ -779,7 +887,7 @@ QQC2.ApplicationWindow {
                         color: win.textColor
                         font.pixelSize: win.typePx(design.typeLabel)
                         font.weight: Font.DemiBold
-                        horizontalAlignment: win.rtl ? Text.AlignRight : Text.AlignLeft
+                        horizontalAlignment: Text.AlignLeft
                         elide: Text.ElideRight
                     }
 
@@ -804,11 +912,10 @@ QQC2.ApplicationWindow {
 
                 Text {
                     Layout.fillWidth: true
-                    text: win.local(commandControl.commandData.descAr,
-                                    commandControl.commandData.descEn)
+                    text: win.commandDetail(commandControl.commandData)
                     color: win.mutedColor
                     font.pixelSize: win.typePx(design.typeSecondary)
-                    horizontalAlignment: win.rtl ? Text.AlignRight : Text.AlignLeft
+                    horizontalAlignment: Text.AlignLeft
                     elide: Text.ElideRight
                 }
             }
@@ -825,7 +932,7 @@ QQC2.ApplicationWindow {
                     anchors.centerIn: parent
                     width: 17
                     height: 17
-                    symbol: MoUI.SymbolCatalog.resolve("arrow")
+                    symbol: MoUI.SymbolCatalog.resolve(commandControl.enabled ? "external" : "lock")
                     foreground: commandControl.hovered ? win.accent : win.mutedColor
                 }
             }
@@ -899,7 +1006,7 @@ QQC2.ApplicationWindow {
                             font.weight: Font.Bold
                         }
                         Text {
-                            text: win.local("مركز القيادة", "COMMAND CENTER")
+                            text: win.local("الإعدادات", "SETTINGS")
                             color: win.accent
                             font.pixelSize: win.typePx(design.typeCaption)
                             font.weight: Font.DemiBold
@@ -940,30 +1047,25 @@ QQC2.ApplicationWindow {
                                 symbol: MoUI.SymbolCatalog.resolve(
                                     win.status.deployment.signed ? "shield" : "warning"
                                 )
-                                foreground: win.status.deployment.signed
+                                foreground: win.statusLoaded && win.status.deployment.signed
                                             ? win.positiveColor : win.warningColor
                             }
                             Text {
                                 Layout.fillWidth: true
-                                text: win.status.deployment.signed
-                                      ? win.local("صورة نظام موثّقة", "Verified system image")
-                                      : win.local("جارٍ التحقق", "Verification pending")
+                                text: win.imageLabel
                                 color: win.textColor
                                 font.pixelSize: win.typePx(design.typeSecondary)
                                 font.weight: Font.DemiBold
-                                horizontalAlignment: win.rtl ? Text.AlignRight : Text.AlignLeft
+                                horizontalAlignment: Text.AlignLeft
                                 elide: Text.ElideRight
                             }
                         }
                         Text {
                             Layout.fillWidth: true
-                            text: win.local(
-                                "نسخ الرجوع المحفوظة: " + win.status.deployment.rollback,
-                                "Safe rollbacks: " + win.status.deployment.rollback
-                            )
+                            text: win.rollbackLabel
                             color: win.mutedColor
                             font.pixelSize: win.typePx(design.typeCaption)
-                            horizontalAlignment: win.rtl ? Text.AlignRight : Text.AlignLeft
+                            horizontalAlignment: Text.AlignLeft
                         }
                         Rectangle {
                             Layout.fillWidth: true
@@ -974,7 +1076,7 @@ QQC2.ApplicationWindow {
                                 width: parent.width
                                 height: parent.height
                                 radius: parent.radius
-                                color: win.status.deployment.signed
+                                color: win.statusLoaded && win.status.deployment.signed
                                        ? win.positiveColor : win.warningColor
                                 opacity: win.statusLoaded ? 1 : 0.25
                             }
@@ -991,6 +1093,9 @@ QQC2.ApplicationWindow {
                     textColor: win.textColor
                     accentForegroundColor: win.accentText
                     fontPixelSize: win.typePx(design.typeSecondary)
+                    enabled: win.routeAvailable("moos://settings/full")
+                    visible: !win.statusLoaded || enabled
+                    Accessible.description: win.routeReason("moos://settings/full")
                     onClicked: win.openRoute("moos://settings/full")
                 }
             }
@@ -1017,33 +1122,34 @@ QQC2.ApplicationWindow {
                         color: win.textColor
                         font.pixelSize: win.typePx(design.typeHeadline)
                         font.weight: Font.DemiBold
-                        horizontalAlignment: win.rtl ? Text.AlignRight : Text.AlignLeft
+                        horizontalAlignment: Text.AlignLeft
                         elide: Text.ElideRight
                     }
                     Text {
                         Layout.fillWidth: true
                         text: win.searchQuery !== ""
                               ? win.local(
-                                    win.visibleCommands.length + " نتيجة ضمن مركز القيادة",
-                                    win.visibleCommands.length + " commands across MoOS"
+                                    win.visibleCommands.length + " نتيجة في الإعدادات",
+                                    win.visibleCommands.length + " settings found"
                                 )
                               : win.local(win.activeSectionData.descAr,
                                           win.activeSectionData.descEn)
                         color: win.mutedColor
                         font.pixelSize: win.typePx(design.typeCaption)
-                        horizontalAlignment: win.rtl ? Text.AlignRight : Text.AlignLeft
+                        horizontalAlignment: Text.AlignLeft
                         elide: Text.ElideRight
                     }
                 }
 
                 QQC2.TextField {
                     id: searchField
+                    objectName: "settingsSearch"
+                    horizontalAlignment: Text.AlignLeft
                     Layout.preferredWidth: Math.min(340, win.width * 0.27)
                     Layout.preferredHeight: win.fs(44)
                     leftPadding: win.rtl ? design.space4 : 46
                     rightPadding: win.rtl ? 46 : design.space4
                     placeholderText: win.local("ابحث في النظام…", "Search the system…")
-                    text: win.searchQuery
                     color: win.textColor
                     placeholderTextColor: win.mutedColor
                     selectionColor: win.accent
@@ -1051,7 +1157,7 @@ QQC2.ApplicationWindow {
                     font.pixelSize: win.typePx(design.typeSecondary)
                     activeFocusOnTab: true
                     Accessible.name: placeholderText
-                    onTextEdited: win.searchQuery = text
+                    onTextEdited: { win.searchQuery = text; contentFlick.contentY = 0 }
 
                     background: Rectangle {
                         radius: design.radiusControl
@@ -1062,10 +1168,8 @@ QQC2.ApplicationWindow {
 
                     MoUI.SymbolIcon {
                         anchors.verticalCenter: parent.verticalCenter
-                        anchors.left: win.rtl ? undefined : parent.left
+                        anchors.left: parent.left
                         anchors.leftMargin: design.space4
-                        anchors.right: win.rtl ? parent.right : undefined
-                        anchors.rightMargin: design.space4
                         width: 18
                         height: 18
                         symbol: MoUI.SymbolCatalog.resolve("search")
@@ -1075,6 +1179,34 @@ QQC2.ApplicationWindow {
                     FocusRing {
                         anchors.fill: searchField
                         controlRadius: design.radiusControl
+                    }
+                }
+            }
+
+            MoUI.Surface {
+                visible: !win.statusLoaded || win.launchError !== ""
+                Layout.fillWidth: true
+                implicitHeight: noticeRow.implicitHeight + design.space4 * 2
+                surfaceColor: win.raised
+                inkColor: win.textColor
+                accentColor: win.warningColor
+                radius: design.radiusCard
+                RowLayout {
+                    id: noticeRow
+                    anchors.fill: parent
+                    anchors.margins: design.space4
+                    Text {
+                        Layout.fillWidth: true
+                        text: win.launchError || win.statusError || win.local("جارٍ قراءة حالة الجهاز…", "Reading device status…")
+                        color: win.textColor
+                        font.pixelSize: win.typePx(design.typeSecondary)
+                        horizontalAlignment: Text.AlignLeft
+                        wrapMode: Text.WordWrap
+                    }
+                    MoUI.Button {
+                        label: win.local("إعادة المحاولة", "Retry")
+                        enabled: !win.statusBusy
+                        onClicked: { win.launchError = ""; win.loadStatus() }
                     }
                 }
             }
@@ -1127,7 +1259,8 @@ QQC2.ApplicationWindow {
                                     Text {
                                         id: heroEyebrow
                                         anchors.centerIn: parent
-                                        text: win.statusLoaded
+                                        text: win.statusError ? win.local("الحالة غير متاحة", "STATUS UNAVAILABLE")
+                                              : win.statusLoaded
                                               ? win.local("النظام حيّ الآن", "LIVE SYSTEM")
                                               : win.local("جارٍ قراءة الجهاز", "READING DEVICE")
                                         color: win.accent
@@ -1143,13 +1276,13 @@ QQC2.ApplicationWindow {
                                     color: win.textColor
                                     font.pixelSize: win.typePx(design.typeDisplay)
                                     font.weight: Font.Bold
-                                    horizontalAlignment: win.rtl ? Text.AlignRight : Text.AlignLeft
+                                    horizontalAlignment: Text.AlignLeft
                                     wrapMode: Text.WordWrap
                                 }
 
                                 Text {
                                     Layout.fillWidth: true
-                                    text: win.local(
+                                    text: !win.statusLoaded ? "MoOS" : win.local(
                                         "MoOS " + win.status.deployment.version
                                         + " • " + win.status.hostname,
                                         "MoOS " + win.status.deployment.version
@@ -1157,16 +1290,17 @@ QQC2.ApplicationWindow {
                                     )
                                     color: win.mutedColor
                                     font.pixelSize: win.typePx(design.typeBody)
-                                    horizontalAlignment: win.rtl ? Text.AlignRight : Text.AlignLeft
+                                    horizontalAlignment: Text.AlignLeft
                                     elide: Text.ElideRight
                                 }
 
                                 Text {
                                     Layout.fillWidth: true
-                                    text: win.status.cpu
+                                    text: !win.statusLoaded ? "—" : win.status.cpu === "MoOS device"
+                                          ? win.local("جهاز MoOS", "MoOS device") : win.status.cpu
                                     color: win.mutedColor
                                     font.pixelSize: win.typePx(design.typeCaption)
-                                    horizontalAlignment: win.rtl ? Text.AlignRight : Text.AlignLeft
+                                    horizontalAlignment: Text.AlignLeft
                                     elide: Text.ElideRight
                                 }
 
@@ -1183,7 +1317,10 @@ QQC2.ApplicationWindow {
                                         textColor: win.textColor
                                         accentForegroundColor: win.accentText
                                         fontPixelSize: win.typePx(design.typeSecondary)
-                                        onClicked: win.openRoute("moos://settings/update")
+                                        enabled: win.routeAvailable("moos://settings/update")
+                    visible: !win.statusLoaded || enabled
+                    Accessible.description: win.routeReason("moos://settings/update")
+                    onClicked: win.openRoute("moos://settings/update")
                                     }
                                     MoUI.Button {
                                         label: win.local("تفاصيل الجهاز", "Device details")
@@ -1193,7 +1330,10 @@ QQC2.ApplicationWindow {
                                         textColor: win.textColor
                                         accentForegroundColor: win.accentText
                                         fontPixelSize: win.typePx(design.typeSecondary)
-                                        onClicked: win.openRoute("moos://settings/about")
+                                        enabled: win.routeAvailable("moos://settings/about")
+                    visible: !win.statusLoaded || enabled
+                    Accessible.description: win.routeReason("moos://settings/about")
+                    onClicked: win.openRoute("moos://settings/about")
                                     }
                                 }
                             }
@@ -1286,10 +1426,8 @@ QQC2.ApplicationWindow {
                                     Text {
                                         id: orbitLabel
                                         anchors.centerIn: parent
-                                        text: win.status.deployment.signed
-                                              ? win.local("موقّع ومحمي", "SIGNED & PROTECTED")
-                                              : win.local("جاري التحقق", "VERIFYING")
-                                        color: win.status.deployment.signed
+                                        text: win.imageLabel
+                                        color: win.statusLoaded && win.status.deployment.signed
                                                ? win.positiveColor : win.warningColor
                                         font.pixelSize: win.typePx(design.typeCaption)
                                         font.weight: Font.DemiBold
@@ -1308,48 +1446,42 @@ QQC2.ApplicationWindow {
 
                         StatusCapsule {
                             glyph: "network"
-                            label: win.status.network.connected
-                                   ? win.local("متصل", "Online")
-                                   : win.local("غير متصل", "Offline")
-                            detail: win.status.network.label
-                            statusColor: win.status.network.connected
+                            label: win.networkLabel
+                            detail: win.statusLoaded ? win.status.network.label : ""
+                            statusColor: win.statusLoaded && win.status.network.full
                                          ? win.positiveColor : win.warningColor
-                            active: win.status.network.connected
+                            active: win.statusLoaded && win.status.network.full
                         }
                         StatusCapsule {
                             glyph: "bluetooth"
-                            label: win.status.bluetooth.powered
-                                   ? win.local("بلوتوث يعمل", "Bluetooth on")
-                                   : win.local("بلوتوث متوقف", "Bluetooth off")
-                            detail: win.status.bluetooth.available
+                            label: win.bluetoothLabel
+                            detail: !win.statusLoaded ? "" : win.status.bluetooth.available
                                     ? win.local("جاهز للأجهزة", "Ready for devices")
                                     : win.local("غير متاح", "Not available")
                             statusColor: win.linkColor
-                            active: win.status.bluetooth.powered
+                            active: win.statusLoaded && win.status.bluetooth.powered
                         }
                         StatusCapsule {
                             glyph: "shield"
-                            label: win.status.deployment.signed
-                                   ? win.local("صورة موثّقة", "Verified image")
-                                   : win.local("جارٍ التحقق", "Checking image")
-                            detail: win.status.deployment.digest
-                            statusColor: win.positiveColor
-                            active: win.status.deployment.signed
+                            label: win.imageLabel
+                            detail: win.statusLoaded ? win.status.deployment.digest : ""
+                            statusColor: win.statusLoaded && win.status.deployment.signed ? win.positiveColor : win.warningColor
+                            active: win.statusLoaded && win.status.deployment.signed
                         }
                         StatusCapsule {
                             glyph: win.status.battery.available ? "bolt" : "repair"
-                            label: win.status.battery.available
+                            label: win.statusLoaded && win.status.battery.available
                                    ? win.status.battery.percent + "%"
-                                   : win.local("رجوع جاهز", "Rollback ready")
-                            detail: win.status.battery.available
+                                   : win.rollbackLabel
+                            detail: !win.statusLoaded ? "" : win.status.battery.available
                                     ? win.local("طاقة الجهاز", "Device battery")
                                     : win.local(
                                           win.status.deployment.rollback + " نسخة محفوظة",
-                                          win.status.deployment.rollback + " safe image"
+                                          win.status.deployment.rollback + " saved"
                                       )
                             statusColor: win.accent
-                            active: win.status.battery.available
-                                    || win.status.deployment.rollback > 0
+                            active: win.statusLoaded && (win.status.battery.available
+                                    || win.status.deployment.rollback > 0)
                         }
                     }
 
@@ -1363,8 +1495,8 @@ QQC2.ApplicationWindow {
                             Layout.fillWidth: true
                             glyph: "storage"
                             label: win.local("المساحة المتاحة", "Storage free")
-                            value: win.status.storage.free
-                            progress: Number(win.status.storage.percent) / 100
+                            value: win.statusLoaded ? win.status.storage.free : "—"
+                            progress: win.statusLoaded ? 1 - Number(win.status.storage.percent) / 100 : -1
                             tone: Number(win.status.storage.percent) > 88
                                   ? win.dangerColor : win.accent
                         }
@@ -1372,20 +1504,20 @@ QQC2.ApplicationWindow {
                             Layout.fillWidth: true
                             glyph: "memory"
                             label: win.local("الذاكرة المستخدمة", "Memory in use")
-                            value: win.status.memory.used
-                            progress: Number(win.status.memory.percent) / 100
+                            value: win.statusLoaded ? win.status.memory.used : "—"
+                            progress: win.statusLoaded ? Number(win.status.memory.percent) / 100 : -1
                             tone: win.linkColor
                         }
                         MetricTile {
                             Layout.fillWidth: true
                             glyph: "audio"
                             label: win.local("الصوت", "Sound")
-                            value: win.status.audio.available
+                            value: win.statusLoaded && win.status.audio.available
                                    ? (win.status.audio.muted
                                       ? win.local("صامت", "Muted")
                                       : win.status.audio.volume + "%")
                                    : "—"
-                            progress: win.status.audio.available
+                            progress: win.statusLoaded && win.status.audio.available
                                       ? Number(win.status.audio.volume) / 100 : -1
                             tone: win.warningColor
                         }
@@ -1393,7 +1525,7 @@ QQC2.ApplicationWindow {
                             Layout.fillWidth: true
                             glyph: "orbit"
                             label: win.local("مدة التشغيل", "Uptime")
-                            value: win.uptimeLabel(win.status.uptimeSeconds)
+                            value: win.statusLoaded ? win.uptimeLabel(win.status.uptimeSeconds) : "—"
                             progress: -1
                             tone: win.positiveColor
                         }
@@ -1409,14 +1541,14 @@ QQC2.ApplicationWindow {
                             Layout.fillWidth: true
                             Text {
                                 Layout.fillWidth: true
-                                text: win.local("محاور النظام", "System lanes")
+                                text: win.local("فئات الإعدادات", "Settings categories")
                                 color: win.textColor
                                 font.pixelSize: win.typePx(design.typeTitle)
                                 font.weight: Font.DemiBold
-                                horizontalAlignment: win.rtl ? Text.AlignRight : Text.AlignLeft
+                                horizontalAlignment: Text.AlignLeft
                             }
                             Text {
-                                text: win.local("اختر محوراً لتشكيله", "Choose a lane to shape it")
+                                text: win.local("اختر الإعدادات التي تريد تغييرها", "Choose what to configure")
                                 color: win.mutedColor
                                 font.pixelSize: win.typePx(design.typeCaption)
                             }
@@ -1535,27 +1667,27 @@ QQC2.ApplicationWindow {
                                     Text {
                                         Layout.fillWidth: true
                                         text: win.searchQuery !== ""
-                                              ? win.local("ابحث. افتح. تحكّم.", "Find. Open. Shape.")
+                                              ? win.local("ابحث عن إعداداتك.", "Find your settings.")
                                               : win.local(win.activeSectionData.heroAr,
                                                           win.activeSectionData.heroEn)
                                         color: win.textColor
                                         font.pixelSize: win.typePx(design.typeHeadline)
                                         font.weight: Font.DemiBold
-                                        horizontalAlignment: win.rtl ? Text.AlignRight : Text.AlignLeft
+                                        horizontalAlignment: Text.AlignLeft
                                         elide: Text.ElideRight
                                     }
                                     Text {
                                         Layout.fillWidth: true
                                         text: win.searchQuery !== ""
                                               ? win.local(
-                                                    "نتائج من كل محاور MoOS، بلا قوائم مخفية.",
-                                                    "Commands across every MoOS lane, with no hidden maze."
+                                                    "افتح الإعدادات المطابقة لبحثك.",
+                                                    "Open the settings that match your search."
                                                 )
                                               : win.local(win.activeSectionData.heroDescAr,
                                                           win.activeSectionData.heroDescEn)
                                         color: win.mutedColor
                                         font.pixelSize: win.typePx(design.typeBody)
-                                        horizontalAlignment: win.rtl ? Text.AlignRight : Text.AlignLeft
+                                        horizontalAlignment: Text.AlignLeft
                                         wrapMode: Text.WordWrap
                                     }
                                 }
@@ -1592,7 +1724,7 @@ QQC2.ApplicationWindow {
                                 }
                                 Text {
                                     Layout.fillWidth: true
-                                    text: win.local("لا توجد أوامر مطابقة", "No matching commands")
+                                    text: win.local("لا توجد إعدادات مطابقة", "No matching settings")
                                     color: win.textColor
                                     font.pixelSize: win.typePx(design.typeTitle)
                                     font.weight: Font.DemiBold
