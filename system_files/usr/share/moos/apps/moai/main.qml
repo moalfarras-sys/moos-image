@@ -274,7 +274,7 @@ Kirigami.ApplicationWindow {
                                 id: approvalContent
                                 anchors.fill: parent; anchors.margins: 12
                                 Text { text: root.local("بانتظار موافقتك · مرة واحدة", "Awaiting your approval · once only"); color: root.textHi; wrapMode: Text.Wrap; Layout.fillWidth: true }
-                                Text { text: modelData.cwd + "\n" + modelData.command; textFormat: Text.PlainText; color: root.textHi; wrapMode: Text.WrapAnywhere; Layout.fillWidth: true; font.family: "monospace" }
+                                Text { text: modelData.cwd + "\n" + modelData.command; textFormat: Text.PlainText; color: root.textHi; wrapMode: Text.WrapAnywhere; Layout.fillWidth: true; font.family: "JetBrains Mono" }
                                 RowLayout {
                                     MoButton { objectName: "agentAllowOnce"; label: root.local("السماح مرة واحدة", "Allow once"); primary: true; onClicked: root.agentResolveApproval(modelData.id, "allow-once") }
                                     MoButton { label: root.local("رفض", "Deny"); danger: true; onClicked: root.agentResolveApproval(modelData.id, "deny") }
