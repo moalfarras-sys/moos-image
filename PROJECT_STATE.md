@@ -76,6 +76,37 @@ repo gate also proves neither script lost the check — and ARM is the edition t
 needs it most, since it forces Qt Quick's software renderer. If an upstream
 re-sync makes that gate fire, re-apply the guard; do not weaken the gate.
 
+### A live test rig was shadowing the whole Plasma shell (2026-09-07, removed)
+
+Found on the A1 while verifying the Customize Desktop work, by the new
+post-update check — not by looking for it. `~/.local/share/plasma/shells/
+org.kde.plasma.desktop` held a **complete copy of the Plasma shell package**,
+left behind by the session that developed the overlay. A user-level shell
+package outranks `/usr` entirely, so:
+
+- every shell QML the image ships was being ignored on this machine;
+- the copy's `WidgetExplorer.qml` had a `Timer` appended that loaded
+  `file:///var/home/moos/moos-desktop-edit/tests/qml/desktop-live-driver.qml`
+  — an absolute path into a scratch worktree — and that driver polls a command
+  file every 700 ms for as long as the explorer is open;
+- it was the reason the live tests passed. They exercised `$HOME`, not the image.
+
+Left in place it would have been the worst kind of green check: the update
+would land, `/usr` would hold the right bytes, and the desktop would keep
+running the old scaffolding — including a dangling path once the worktree was
+cleaned. This is the shadowed-config trap `tests/post-update-check.sh` was
+written for, in its purest form.
+
+Removed, after backing it up to `/var/home/moos/astra-live-testrig-backup-20260907.tar.gz`
+(80 files) in case any of it is wanted again. `~/.local/state/moos-desktop-review/`
+(the driver's command file and an appletsrc snapshot) went with it.
+
+`tests/post-update-check.sh` now fails if any shell package exists in `$HOME`,
+and separately checks that the two overlay files on disk are the MoOS copies
+rather than stock Plasma. **Never develop a shell overlay by copying the package
+into `$HOME` and leaving it there** — bind-mount it, or build and deploy the
+image, so what you verify is what ships.
+
 ### Settings product pass — integration branch (2026-09-07)
 
 `fix/settings-real-state-20260907` fixes Settings status truth, missing-backend
