@@ -128,6 +128,21 @@ Arena in both the file and the live plasmashell (read back over
 `org.kde.PlasmaShell.evaluateScript`, not from the file), and selfcheck went
 green again.
 
+It RECURS. Watched from 01:31: Arena at 01:31, Graphite again by 01:43:52, and
+Graphite again by ~02:00 — three independent observations, each repaired by
+`moos-theme reconcile`. So this is a live loop, not a one-off, and the 30-minute
+drift timer is currently the only thing holding the desktop to its own theme.
+
+RULED OUT BY TEST, not by reading: `moos-visual-tier`. It was the only caller of
+`kscreen-doctor`, which appeared in the journal at 01:43:56, seconds from the
+flip, and it drives `moos-theme motion`, which writes `MotionMode`/
+`AmbientMotion` into the SAME config group as `Image=` — and whose
+`restore_desktop_scene()` does write `Image` back from a snapshot. That made it
+the obvious suspect. Running `moos-visual-tier --apply` directly, immediately
+after a reconcile had restored Arena, reported "0 setting(s) changed" and left
+the wallpaper on Arena. It is not the writer, at least not when its profile is
+already satisfied.
+
 What this does NOT establish is the cause. Nothing in this session wrote Plasma
 configuration, and the installed `moos-theme` and `moos-apply-theme` are
 byte-identical to the repo copies, so it is not a stale image. The shape — a
