@@ -1,0 +1,557 @@
+[
+  {
+    "command": "bash -n build_files/build.sh",
+    "exit": 0,
+    "seconds": 0.0
+  },
+  {
+    "command": "python3 tests/verify_user_experience.py",
+    "exit": 0,
+    "seconds": 4.3
+  },
+  {
+    "command": "python3 tests/test_device_plan.py",
+    "exit": 0,
+    "seconds": 0.2
+  },
+  {
+    "command": "python3 tests/test_moai_do.py",
+    "exit": 0,
+    "seconds": 0.2
+  },
+  {
+    "command": "python3 tests/test_moos_auto_update.py",
+    "exit": 0,
+    "seconds": 0.2
+  },
+  {
+    "command": "python3 tests/test_updater_trust_badge.py",
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "command": "python3 tests/test_cloud_console_order.py",
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "command": "python3 tests/test_oracle_deploy.py",
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "command": "python3 tests/test_theme_wallpaper_readback.py",
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "command": "python3 tests/test_theme_wallpaper_steady_state.py",
+    "exit": 0,
+    "seconds": 0.0
+  },
+  {
+    "command": "python3 tests/test_mokernel.py",
+    "exit": 0,
+    "seconds": 0.0
+  },
+  {
+    "command": "python3 tests/test_moai_control.py",
+    "exit": 0,
+    "seconds": 0.6
+  },
+  {
+    "command": "python3 tests/test_moai_config.py",
+    "exit": 0,
+    "seconds": 0.2
+  },
+  {
+    "command": "python3 tests/test_moai_cloud_only.py",
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "command": "python3 tests/test_moai_no_local_start_path.py",
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "command": "python3 tests/test_moai_free_policy.py",
+    "exit": 0,
+    "seconds": 0.2
+  },
+  {
+    "command": "python3 tests/test_moai_hermes.py",
+    "exit": 0,
+    "seconds": 0.8
+  },
+  {
+    "command": "python3 tests/test_moai_workspace.py",
+    "exit": 0,
+    "seconds": 3.3
+  },
+  {
+    "command": "python3 tests/test_moai_hybrid.py",
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "command": "python3 tests/test_moos_open_qdbus.py",
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "command": "python3 tests/test_moai_http_security.py",
+    "exit": 0,
+    "seconds": 4.0
+  },
+  {
+    "command": "python3 tests/test_moai_gateway_streaming.py",
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "command": "python3 tests/test_exec_bits.py",
+    "exit": 0,
+    "seconds": 0.0
+  },
+  {
+    "command": "python3 tests/test_shipped_bundle_is_tracked.py",
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "command": "python3 tests/test_release_workflow_safety.py",
+    "exit": 0,
+    "seconds": 0.9
+  },
+  {
+    "command": "python3 tests/test_firewall_migration.py",
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "command": "python3 tests/test_hardware_adapt_lifecycle.py",
+    "exit": 0,
+    "seconds": 0.0
+  },
+  {
+    "command": "python3 tests/test_moos_verify_origin.py",
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "command": "python3 tests/test_theme_shadow_cleanup.py",
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "command": "python3 tests/test_docs_privacy.py",
+    "exit": 0,
+    "seconds": 0.0
+  },
+  {
+    "command": "python3 tests/test_moos_fast_remote.py",
+    "exit": 0,
+    "seconds": 0.6
+  },
+  {
+    "command": "python3 tests/test_remote_h264_single_slice.py",
+    "exit": 0,
+    "seconds": 0.0
+  },
+  {
+    "command": "python3 tests/test_remote_h264_chroma.py",
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "command": "python3 tests/test_remote_toolbar_edge.py",
+    "exit": 0,
+    "seconds": 0.0
+  },
+  {
+    "command": "python3 tests/test_remote_input_mode.py",
+    "exit": 0,
+    "seconds": 0.0
+  },
+  {
+    "command": "python3 tests/test_remote_us_keymap.py",
+    "exit": 0,
+    "seconds": 0.0
+  },
+  {
+    "command": "python3 tests/test_remote_group_resolution.py",
+    "exit": 0,
+    "seconds": 0.0
+  },
+  {
+    "command": "python3 tests/test_remote_keycode_flush.py",
+    "exit": 0,
+    "seconds": 0.0
+  },
+  {
+    "command": "python3 tests/test_remote_portal_keysyms_sync.py",
+    "exit": 0,
+    "seconds": 0.2
+  },
+  {
+    "command": "python3 tests/test_arabic_terminal_font.py",
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "command": "python3 tests/test_webengine_dictionaries.py",
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "command": "python3 tests/test_boot_branding_tool.py",
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "command": "python3 tests/test_boot_splash_polish.py",
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "command": "python3 tests/test_moai_app_launch.py",
+    "exit": 0,
+    "seconds": 0.6
+  },
+  {
+    "command": "python3 tests/test_moai_credential_store.py",
+    "exit": 0,
+    "seconds": 0.6
+  },
+  {
+    "command": "python3 tests/test_moai_waydroid.py",
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "command": "python3 tests/test_moos_sound_theme.py",
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "command": "python3 tests/test_remote_background_alerts.py",
+    "exit": 0,
+    "seconds": 0.0
+  },
+  {
+    "command": "python3 tests/test_remote_clipboard_runtime.py",
+    "exit": 0,
+    "seconds": 0.0
+  },
+  {
+    "command": "python3 tests/test_remote_linux_network_boundary.py",
+    "exit": 0,
+    "seconds": 0.0
+  },
+  {
+    "command": "python3 tests/test_remote_start_lifecycle.py",
+    "exit": 0,
+    "seconds": 1.0
+  },
+  {
+    "command": "python3 tests/test_remote_trusted_devices.py",
+    "exit": 0,
+    "seconds": 0.0
+  },
+  {
+    "command": "python3 tests/test_wayland_display_resolver.py",
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "command": "python3 tests/test_moos_cloud_audio.py",
+    "exit": 0,
+    "seconds": 1.4
+  },
+  {
+    "command": "python3 tests/test_cloud_private_desktop.py",
+    "exit": 0,
+    "seconds": 0.0
+  },
+  {
+    "command": "python3 tests/test_cloud_set_pin.py",
+    "exit": 0,
+    "seconds": 0.0
+  },
+  {
+    "command": "python3 tests/test_cloud_subid_range.py",
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "command": "python3 tests/test_recovery_rollback_target.py",
+    "exit": 0,
+    "seconds": 0.2
+  },
+  {
+    "command": "python3 tests/test_moai_ports_fail_closed.py",
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "command": "python3 tests/test_moai_service_lifecycle.py",
+    "exit": 0,
+    "seconds": 1.1
+  },
+  {
+    "command": "python3 tests/test_openclaw_bootstrap_noop.py",
+    "exit": 0,
+    "seconds": 0.2
+  },
+  {
+    "command": "python3 tests/test_openclaw_nodejs_sqlite.py",
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "command": "python3 tests/test_openclaw_modern_unit_retire.py",
+    "exit": 0,
+    "seconds": 0.5
+  },
+  {
+    "command": "python3 tests/test_openclaw_idle_mask_migration.py",
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "command": "python3 tests/test_moai_wake_telegram_reachability.py",
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "command": "python3 tests/test_mo_remote_codec_resend.py",
+    "exit": 0,
+    "seconds": 0.0
+  },
+  {
+    "command": "python3 tests/test_remote_h264_fallback.py",
+    "exit": 0,
+    "seconds": 0.0
+  },
+  {
+    "command": "python3 tests/test_remote_video_health.py",
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "command": "python3 tests/test_kernel_network_tuning.py",
+    "exit": 0,
+    "seconds": 0.0
+  },
+  {
+    "command": "python3 tests/test_remote_rebuild_debounce.py",
+    "exit": 0,
+    "seconds": 0.0
+  },
+  {
+    "command": "python3 tests/test_remote_connection_lifecycle.py",
+    "exit": 0,
+    "seconds": 0.0
+  },
+  {
+    "command": "python3 tests/test_remote_async_lifecycle.py",
+    "exit": 0,
+    "seconds": 0.0
+  },
+  {
+    "command": "python3 tests/test_remote_logout_revocation.py",
+    "exit": 0,
+    "seconds": 0.0
+  },
+  {
+    "command": "python3 tests/test_remote_dotnet_dependencies.py",
+    "exit": 0,
+    "seconds": 0.0
+  },
+  {
+    "command": "python3 tests/test_remote_data_dir.py",
+    "exit": 0,
+    "seconds": 0.0
+  },
+  {
+    "command": "python3 tests/test_remote_power_policy.py",
+    "exit": 0,
+    "seconds": 0.0
+  },
+  {
+    "command": "python3 tests/test_remote_transfer_security.py",
+    "exit": 0,
+    "seconds": 0.0
+  },
+  {
+    "command": "python3 tests/test_input_off_socket_thread.py",
+    "exit": 0,
+    "seconds": 0.0
+  },
+  {
+    "command": "python3 tests/test_remote_resolution_ceiling.py",
+    "exit": 0,
+    "seconds": 0.0
+  },
+  {
+    "command": "python3 tests/test_desktop_sound_reachable.py",
+    "exit": 0,
+    "seconds": 0.0
+  },
+  {
+    "command": "python3 tests/test_remote_audio_is_authenticated.py",
+    "exit": 0,
+    "seconds": 0.0
+  },
+  {
+    "command": "python3 tests/test_moos_store_index.py",
+    "exit": 0,
+    "seconds": 1.2
+  },
+  {
+    "command": "python3 tests/test_moos_storectl.py",
+    "exit": 0,
+    "seconds": 0.2
+  },
+  {
+    "command": "python3 tests/test_store_job_language.py",
+    "exit": 0,
+    "seconds": 0.0
+  },
+  {
+    "command": "python3 tests/test_moos_design_core.py",
+    "exit": 0,
+    "seconds": 0.2
+  },
+  {
+    "command": "python3 tests/test_moos_one_locale_authority.py",
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "command": "python3 tests/test_moos_ui2.py",
+    "exit": 0,
+    "seconds": 0.7
+  },
+  {
+    "command": "python3 tests/test_moos_launcher_keyboard.py",
+    "exit": 0,
+    "seconds": 0.4
+  },
+  {
+    "command": "python3 tests/test_moos_bar_single_panel.py",
+    "exit": 0,
+    "seconds": 0.5
+  },
+  {
+    "command": "python3 tests/test_moos_visual_tier.py",
+    "exit": 0,
+    "seconds": 0.3
+  },
+  {
+    "command": "python3 tests/test_tidal_horizon.py",
+    "exit": 0,
+    "seconds": 2.2
+  },
+  {
+    "command": "python3 tests/test_tidal_portals.py",
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "command": "python3 tests/test_moos_theme_safety.py",
+    "exit": 0,
+    "seconds": 2.0
+  },
+  {
+    "command": "python3 tests/test_moos_visual_system.py",
+    "exit": 0,
+    "seconds": 0.4
+  },
+  {
+    "command": "python3 tests/test_moos_settings.py",
+    "exit": 0,
+    "seconds": 3.7
+  },
+  {
+    "command": "python3 tests/test_moos_app_icons.py",
+    "exit": 0,
+    "seconds": 0.6
+  },
+  {
+    "command": "python3 tests/test_window_button_consistency.py",
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "command": "python3 tests/test_first_party_window_frame.py",
+    "exit": 0,
+    "seconds": 0.2
+  },
+  {
+    "command": "python3 tests/test_icon_theme_inheritance.py",
+    "exit": 0,
+    "seconds": 0.2
+  },
+  {
+    "command": "python3 tests/test_moos_gtk_runtime.py",
+    "exit": 0,
+    "seconds": 0.7
+  },
+  {
+    "command": "python3 tests/test_moos_symbolic_icons.py",
+    "exit": 0,
+    "seconds": 0.7
+  },
+  {
+    "command": "python3 tests/test_moos_accessibility.py",
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "command": "python3 tests/test_moos_symbolic_runtime.py",
+    "exit": 0,
+    "seconds": 7.8
+  },
+  {
+    "command": "python3 tests/test_moos_app_visual_polish.py",
+    "exit": 0,
+    "seconds": 0.2
+  },
+  {
+    "command": "python3 tests/test_moos_motion_gate.py",
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "command": "python3 tests/test_fwupd_refresh_policy.py",
+    "exit": 0,
+    "seconds": 0.0
+  },
+  {
+    "command": "python3 tests/test_flatpak_user_update.py",
+    "exit": 0,
+    "seconds": 0.1
+  },
+  {
+    "command": "python3 artwork/verify_visuals.py",
+    "exit": 0,
+    "seconds": 2.8
+  },
+  {
+    "command": "python3 tests/test_mcp_config.py",
+    "exit": 0,
+    "seconds": 0.0
+  },
+  {
+    "command": "python3 tests/test_utm_bundle.py",
+    "exit": 0,
+    "seconds": 0.5
+  },
+  {
+    "command": "MOOS_TEST_ROOT=system_files python3 build_files/verify_store_catalog.py",
+    "exit": 0,
+    "seconds": 0.1
+  }
+]

@@ -54,6 +54,56 @@ def command(argv: list[str], timeout: float = 1.5) -> str:
     return result.stdout.strip() if result.returncode == 0 else ""
 
 
+# Fixed destinations mirror moos-open; the regression gate checks both directions.
+DESTINATIONS = {
+    'about': ('systemsettings', 'kcm_about-distro'),
+    'accessibility': ('systemsettings', 'kcm_access'),
+    'accounts': ('systemsettings', 'kcm_kaccounts'),
+    'audio': ('systemsettings', 'kcm_pulseaudio'),
+    'autostart': ('systemsettings', 'kcm_autostart'),
+    'bluetooth': ('systemsettings', 'kcm_bluetooth'),
+    'default-apps': ('systemsettings', 'kcm_componentchooser'),
+    'display': ('systemsettings', 'kcm_kscreen'),
+    'energy': ('systemsettings', 'kcm_powerdevilprofilesconfig'),
+    'file-search': ('systemsettings', 'kcm_baloofile'),
+    'firmware-security': ('kinfocenter', 'kcm_firmware_security'),
+    'fonts': ('systemsettings', 'kcm_fonts'),
+    'full': ('systemsettings',),
+    'hotspot': ('systemsettings', 'kcm_mobile_hotspot'),
+    'keyboard': ('systemsettings', 'kcm_keyboard'),
+    'lock': ('systemsettings', 'kcm_screenlocker'),
+    'mouse': ('systemsettings', 'kcm_mouse'),
+    'network': ('systemsettings', 'kcm_networkmanagement'),
+    'night-light': ('systemsettings', 'kcm_nightlight'),
+    'notifications': ('systemsettings', 'kcm_notifications'),
+    'permissions': ('systemsettings', 'kcm_app-permissions'),
+    'printers': ('systemsettings', 'kcm_printer_manager'),
+    'recovery': ('moos-rollback',),
+    'region': ('systemsettings', 'kcm_regionandlang'),
+    'storage': ('kinfocenter', 'kcm_block_devices'),
+    'store': ('moos-store',),
+    'system-monitor': ('plasma-systemmonitor',),
+    'telemetry': ('systemsettings', 'kcm_feedback'),
+    'themes': ('moos-theme-picker',),
+    'time': ('systemsettings', 'kcm_clock'),
+    'touchpad': ('systemsettings', 'kcm_touchpad'),
+    'update': ('moos-update',),
+    'usb': ('kinfocenter', 'kcm_usb'),
+    'users': ('systemsettings', 'kcm_users'),
+    'wallpaper': ('moos-theme-picker',),
+}
+
+
+def destinations_state() -> dict[str, bool]:
+    # Query Qt's installation, not one architecture-specific plugin directory.
+    plugins = command(["qtpaths6", "--query", "QT_INSTALL_PLUGINS"])
+    modules = {p.stem for p in (Path(plugins) / "plasma/kcms").rglob("*.so")} if plugins else set()
+    return {
+        route: bool(shutil.which(argv[0])) and (len(argv) == 1 or argv[1] in modules)
+        for route, argv in DESTINATIONS.items()
+    }
+
+
 def human_bytes(value: int) -> str:
     units = ("B", "KB", "MB", "GB", "TB")
     amount = float(max(0, value))
@@ -104,23 +154,79 @@ def storage_state() -> dict[str, object]:
     }
 
 
+# aarch64 exposes NO "model name" and NO "Hardware" line in /proc/cpuinfo -- only
+# numeric "CPU implementer"/"CPU part" registers. The x86-only scan therefore fell
+# through to the placeholder on every ARM machine, and the Device page told the
+# owner of an Oracle A1 that their processor was a "MoOS device". lscpu decodes
+# the same registers through util-linux's ARM table and answers "Neoverse-N1",
+# which is what the hardware actually is.
+ARM_IMPLEMENTERS = {
+    "0x41": "ARM", "0x42": "Broadcom", "0x43": "Cavium", "0x44": "DEC",
+    "0x4e": "NVIDIA", "0x50": "APM", "0x51": "Qualcomm", "0x53": "Samsung",
+    "0x56": "Marvell", "0x61": "Apple", "0x69": "Intel", "0xc0": "Ampere",
+}
+
+
 def cpu_name() -> str:
+    """The processor's real identity, or an honest blank -- never a fake name."""
     try:
+        implementer = part = ""
         for line in Path("/proc/cpuinfo").read_text(
             encoding="utf-8", errors="replace"
         ).splitlines():
             if line.startswith(("model name", "Hardware")) and ":" in line:
-                value = line.split(":", 1)[1].strip()
-                return re.sub(r"\s+", " ", value)
+                return re.sub(r"\s+", " ", line.split(":", 1)[1].strip())
+            if line.startswith("CPU implementer") and ":" in line:
+                implementer = line.split(":", 1)[1].strip().lower()
+            elif line.startswith("CPU part") and ":" in line:
+                part = line.split(":", 1)[1].strip()
     except OSError:
-        pass
-    return "MoOS device"
+        implementer = part = ""
+
+    # util-linux carries the implementer/part -> name table; prefer it.
+    for line in command(["lscpu"], timeout=2.0).splitlines():
+        if line.startswith("Model name:"):
+            value = re.sub(r"\s+", " ", line.split(":", 1)[1].strip())
+            if value and value != "-":
+                return value
+
+    # Last resort before giving up: name the vendor we decoded ourselves rather
+    # than inventing a product name.
+    vendor = ARM_IMPLEMENTERS.get(implementer, "")
+    if vendor and part:
+        return f"{vendor} {part}"
+    if vendor:
+        return vendor
+    return ""
+
+
+def gpu_name() -> str:
+    """Graphics identity from moos-visual-tier, the one hardware prober.
+
+    The Device page had no GPU field at all. Rather than grow a second probe
+    that could disagree with the tier that actually drives compositor policy,
+    this asks that tool and renders its answer.
+    """
+    raw = command(["moos-visual-tier", "--json"], timeout=4.0)
+    if not raw:
+        return ""
+    try:
+        facts = json.loads(raw).get("facts", {})
+    except ValueError:
+        return ""
+    drivers = [d for d in (facts.get("gpu_drivers") or []) if d and d != "faux_driver"]
+    gpu_class = str(facts.get("gpu_class") or "")
+    if drivers:
+        label = ", ".join(drivers)
+        return f"{label} ({gpu_class})" if gpu_class else label
+    return gpu_class
 
 
 def network_state() -> dict[str, object]:
     raw = command(["nmcli", "-t", "-f", "STATE,CONNECTIVITY", "general"])
     state, _, connectivity = raw.partition(":")
-    connected = state == "connected" and connectivity in {"full", "limited", "portal"}
+    connected = state.startswith("connected")
+    known = bool(state and connectivity)
     active = command(["nmcli", "-t", "-f", "TYPE,NAME", "connection", "show", "--active"])
     label = ""
     for line in active.splitlines():
@@ -129,6 +235,8 @@ def network_state() -> dict[str, object]:
             label = name.replace(r"\:", ":")
             break
     return {
+        "known": known,
+        "connectivity": connectivity if known else "unknown",
         "connected": connected,
         "full": connectivity == "full",
         "label": label,
@@ -165,6 +273,8 @@ def deployment_state() -> dict[str, object]:
     raw = command(["rpm-ostree", "status", "--json"], timeout=4)
     try:
         deployments = json.loads(raw).get("deployments", [])
+        if not isinstance(deployments, list) or not all(isinstance(d, dict) for d in deployments):
+            deployments = []
     except (json.JSONDecodeError, AttributeError):
         deployments = []
     booted = next((item for item in deployments if item.get("booted")), {})
@@ -174,7 +284,12 @@ def deployment_state() -> dict[str, object]:
     return {
         "version": str(booted.get("version", "—")),
         "digest": digest[7:19] if digest.startswith("sha256:") else "",
-        "signed": reference.startswith("ostree-image-signed:") and "moos" in reference,
+        "known": bool(booted and reference),
+        "signed": bool(re.fullmatch(
+            r"ostree-image-signed:docker://ghcr\.io/moalfarras-sys/"
+            r"(?:moos|moos-nvidia|moos-cloud|moos-arm)"
+            r"(?:@sha256:[0-9a-f]{64}|:[A-Za-z0-9][A-Za-z0-9._-]*)", reference
+        )),
         "staged": bool(staged),
         "stagedVersion": str(staged.get("version", "")),
         "rollback": sum(
@@ -189,8 +304,7 @@ def dynamic_state() -> dict[str, object]:
     except (ValueError, IndexError):
         uptime = 0
     return {
-        "generatedAt": int(time.time()),
-        "uptimeSeconds": uptime,
+                "uptimeSeconds": uptime,
         "network": network_state(),
         "bluetooth": bluetooth_state(),
         "audio": audio_state(),
@@ -206,8 +320,10 @@ def full_state() -> dict[str, object]:
         "hostname": command(["hostname", "-s"]) or "MoOS",
         "kernel": command(["uname", "-r"]) or "—",
         "cpu": cpu_name(),
+        "gpu": gpu_name(),
         "storage": storage_state(),
         "deployment": deployment_state(),
+        "destinations": destinations_state(),
         **dynamic_state(),
     }
 
@@ -216,7 +332,7 @@ def publish(path: Path, state: dict[str, object]) -> None:
     fd, temporary = tempfile.mkstemp(prefix=".status-", suffix=".json", dir=path.parent)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            json.dump(state, handle, ensure_ascii=False, separators=(",", ":"))
+            json.dump({**state, "generatedAt": int(time.time())}, handle, ensure_ascii=False, separators=(",", ":"))
             handle.write("\n")
             handle.flush()
             os.fsync(handle.fileno())

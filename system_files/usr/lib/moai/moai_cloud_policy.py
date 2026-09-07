@@ -9,6 +9,9 @@ import re
 import json
 import os
 from pathlib import Path
+import threading
+import time
+import urllib.request
 
 BASE = 'https://openrouter.ai/api/v1'
 DEFAULT_MODEL = 'openrouter/free'
@@ -75,3 +78,37 @@ def visible_models(items):
             continue
         result.append(item)
     return result
+
+
+_catalogue_lock = threading.Lock()
+_catalogue = (0, [])
+
+
+def automatic_model(require_tools=False):
+    """Rank currently free variants; never substitute a billed model.
+
+    Published model size is a capability heuristic, not a quality benchmark.
+    Prefer capable reasoning/tool models, then model size and context. Refresh
+    availability every five minutes, failing closed if it cannot be verified.
+    """
+    global _catalogue
+    with _catalogue_lock:
+        if time.monotonic() - _catalogue[0] > 300 or not _catalogue[1]:
+            try:
+                req = urllib.request.Request(BASE + '/models', headers={'User-Agent': 'MoAI/1'})
+                with urllib.request.urlopen(req, timeout=15) as response:
+                    data = json.loads(response.read(4 * 1024 * 1024))
+                _catalogue = (time.monotonic(), visible_models(data['data']))
+            except Exception as exc:
+                raise ValueError('Cannot verify the free model catalogue. Retry; no paid fallback was used.') from exc
+        candidates = [item for item in _catalogue[1] if item['id'].endswith(':free')
+                      and (not require_tools or 'tools' in item.get('supported_parameters', []))]
+        if not candidates:
+            raise ValueError('No verified free model supports this request. No paid fallback was used.')
+        def rank(item):
+            parameters = item.get('supported_parameters', [])
+            sizes = re.findall(r'(\d+(?:\.\d+)?)b(?:[^a-z]|$)', item['id'].lower())
+            return ('tools' in parameters, 'reasoning' in parameters,
+                    max([float(size) for size in sizes] or [0]),
+                    int(item.get('context_length') or 0), item['id'])
+        return max(candidates, key=rank)['id']

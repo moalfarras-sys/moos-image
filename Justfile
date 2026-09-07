@@ -28,6 +28,9 @@ default:
 # 20-minute image build.
 check:
     bash -n build_files/build.sh
+    # bash -n accepts a comment inside a backslash continuation, which
+    # silently truncates the command. That shipped and broke every x86 build.
+    python3 tests/test_shell_line_continuations.py
     python3 tests/verify_user_experience.py
     python3 tests/test_device_plan.py
     python3 tests/test_moai_do.py
@@ -171,6 +174,9 @@ check:
     # must resolve through a fixed route, and its live status boundary stays
     # read-only, private and atomic.
     python3 tests/test_moos_settings.py
+    # The Device page told an Oracle A1 owner their CPU was a "MoOS device".
+    # Real hardware identity, or an honest Unknown -- never an invented name.
+    python3 tests/test_settings_hardware_identity.py
     # Protected app identities and the small-size icon ladder are separate from
     # the monochrome symbolic family and need their own proof.
     python3 tests/test_moos_app_icons.py

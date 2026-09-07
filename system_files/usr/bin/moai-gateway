@@ -1072,25 +1072,30 @@ class Handler(BaseHTTPRequestHandler):
         runtime = os.environ.get("XDG_RUNTIME_DIR") or "/run/user/%d" % os.getuid()
         # Only the fixed, unprivileged adapter may start; no command from a model.
         try:
-            subprocess.run(["systemctl", "--user", "start", "moai-hermes.service"],
-                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=12)
+            if PORT == 8080:
+                subprocess.run(["systemctl", "--user", "start", "moai-agent-api.service", "moai-hermes.service"],
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=12)
         except (OSError, subprocess.TimeoutExpired):
             pass
         try:
             with open(os.path.join(runtime, "moai-hermes", "token")) as handle:
                 token = handle.read().strip()
             if not token:
-                return False
+                self._err(503, "Mo AI agent is not ready. Retry after its workspace service starts.")
+                return True
             probe = urllib.request.Request("http://127.0.0.1:%d/healthz" % (PORT + 10),
                 headers={"Authorization": "Bearer " + token})
             with urllib.request.urlopen(probe, timeout=1) as response:
                 if response.status != 200:
-                    return False
+                    self._err(503, "Mo AI agent is unavailable. No direct-model substitute was used.")
+                    return True
         except (OSError, urllib.error.URLError):
-            self.moai_agent = "direct-fallback"
-            return False
+            self._err(503, "Mo AI agent is unavailable. No direct-model substitute was used.")
+            return True
         body = {"model": "hermes-agent", "messages": req.get("messages", []),
-                "stream": bool(req.get("stream"))}
+                "stream": bool(req.get("stream")),
+                "session": (req.get("moai") or {}).get("session_key") or
+                           (req.get("moai") or {}).get("session") or "moai-desktop-default"}
         self.moai_agent = "hermes"
         self._proxy("POST", "http://127.0.0.1:%d/v1/chat/completions" % (PORT + 10),
                     {"Authorization": "Bearer " + token}, json.dumps(body).encode(),
@@ -1210,6 +1215,8 @@ class Handler(BaseHTTPRequestHandler):
                              "The cloud brain is not configured — add a provider and an "
                              "API key in Mo AI's settings.")
         try:
+            if model == cloud_policy.DEFAULT_MODEL:
+                model = cloud_policy.automatic_model(require_tools=bool(req.get("tools")))
             cloud_policy.validate(base, model, wire, allow_paid=cloud_policy.selected_cost_policy() == "paid")
             out = cloud_policy.request_body(req, model, allow_paid=cloud_policy.selected_cost_policy() == "paid")
         except ValueError as error:
@@ -1227,7 +1234,7 @@ class Handler(BaseHTTPRequestHandler):
         for name, value in (headers or {}).items():
             req.add_header(name, value)
         try:
-            up = urllib.request.urlopen(req, timeout=180)
+            up = urllib.request.urlopen(req, timeout=700 if getattr(self, "moai_agent", "") == "hermes" else 180)
         except urllib.error.HTTPError as e:
             return self._err(e.code, e.read().decode("utf-8", "replace"))
         except Exception as e:
