@@ -4389,24 +4389,26 @@ fi
 
 # ── /usr/local/sbin: present, or systemd-tmpfiles errors on every boot ───────
 #
-# rpm-ostree ships /usr/lib/tmpfiles.d/rpm-ostree-0-integration.conf, which asks
-# for the eight classic /usr/local subdirectories. The base image carries seven
-# of them; `sbin` is missing. On a bootc system /usr is read-only at runtime, so
-# systemd-tmpfiles cannot create it and logs, on every boot:
-#
-#   systemd-tmpfiles[888]: Failed to create directory or subvolume
-#                          "/usr/local/sbin": Read-only file system
-#
-# Measured on the live A1 2026-09-07 and on the two boots before it. Harmless in
-# effect, but it is a real error in the boot journal, and a journal with expected
-# errors in it is one nobody reads carefully. Create it at build time, where /usr
-# is still writable.
-install -d -m 0755 /usr/local/sbin
-
-[ -d /usr/local/sbin ] \
-    || { echo "GATE FAIL: /usr/local/sbin is missing; rpm-ostree's tmpfiles entry"
-         echo "           would fail on every boot because /usr is read-only at runtime."
-         exit 1; }
+# ARM's bootc base has a real immutable /usr/local directory, so it must create
+# sbin at build time. Kinoite instead links /usr/local to ../var/usrlocal, whose
+# machine-local target is absent during compose. The unconditional install from
+# 55737753 failed all three x86 editions (run 769) on that dangling symlink.
+# Preserve Atomic's writable layout and let its existing tmpfiles rule populate
+# sbin at boot; do not replace the link or put machine-local content in /var.
+if [ -L /usr/local ]; then
+    [ "$(readlink /usr/local)" = ../var/usrlocal ] || {
+        echo "GATE FAIL: unexpected /usr/local symlink target"; exit 1; }
+    grep -Eq '^d[[:space:]]+/var/usrlocal[[:space:]]+0755[[:space:]]+root[[:space:]]+root[[:space:]]' \
+        /usr/lib/tmpfiles.d/rpm-ostree-0-integration-opt-usrlocal.conf || {
+        echo "GATE FAIL: Atomic /usr/local target has no boot-time tmpfiles rule"; exit 1; }
+    grep -Eq '^d[[:space:]]+/usr/local/sbin[[:space:]]+0755[[:space:]]+root[[:space:]]+root[[:space:]]' \
+        /usr/lib/tmpfiles.d/rpm-ostree-0-integration.conf || {
+        echo "GATE FAIL: Atomic /usr/local/sbin has no boot-time tmpfiles rule"; exit 1; }
+else
+    install -d -m 0755 /usr/local/sbin
+    [ -d /usr/local/sbin ] || {
+        echo "GATE FAIL: immutable /usr/local/sbin is missing"; exit 1; }
+fi
 
 # ── The Plasma shell overlay must survive into the finished image ─────────────
 #

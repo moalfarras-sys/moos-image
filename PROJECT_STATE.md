@@ -1,5 +1,13 @@
 # MoOS — current project state
 
+**Current bounded x86 repair (2026-09-07):** run 769 fails all three editions
+because `55737753` applies ARM's real-directory `/usr/local/sbin` repair to
+Atomic's dangling `/usr/local -> ../var/usrlocal` link. Candidate work on
+`gpt/fix-x86-build-20260907` preserves that writable layout and gates the two
+existing boot-time tmpfiles rules. ARM's NFS and sbin fixes remain unchanged.
+Validation and exact build evidence: [Opus handoff](docs/X86_RELEASE_REPAIR_20260907.md).
+This branch is not merged or deployed; candidate builds do not promote releases.
+
 **Current Mo AI integration:** read `docs/START_HERE_CURRENT_SESSION.md` and
 `docs/MOAI_CLOUD_ONLY_PLAN.md`. Latest owner policy is cloud-only, free default
 and explicitly selected paid models allowed. Hermes has a real isolated adapter

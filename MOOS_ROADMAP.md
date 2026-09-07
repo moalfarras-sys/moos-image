@@ -3,6 +3,11 @@
 Only completed evidence closes an item. Source code, a package, or a green
 parser alone is not runtime proof. Current facts live in `PROJECT_STATE.md`.
 
+**Current x86 train repair:** run 769's shared `/usr/local` symlink failure is
+isolated; branch build/signature acceptance is tracked in
+[the bounded handoff](docs/X86_RELEASE_REPAIR_20260907.md). ARM's NFS/initrd and
+immutable sbin repair remain intact. Artifact boot/promotion gates below stay open.
+
 **Release integration 2026-09-07:** `main` was unbuildable for all three x86
 editions (a comment inside a backslash continuation truncated a `sed`); fixed
 and gated. The Device page named hardware that does not exist on aarch64; fixed

@@ -284,6 +284,13 @@ tmpfs. Build them somewhere on real disk.
 **`/var` must be clean.** `bootc container lint` is the final build stage and it will reject
 content in `/var`.
 
+**`/usr/local` has two layouts.** The x86 Atomic base links it to
+`../var/usrlocal` (absent during compose); ARM has a real immutable directory.
+Never blindly install through that dangling link or replace it. Preserve the
+Atomic link and its boot-time tmpfiles rules; pre-create immutable ARM paths.
+Regression and run 769 evidence: `tests/test_usr_local_layout.py` and
+`docs/X86_RELEASE_REPAIR_20260907.md`.
+
 **Privileged actions go through `moai-do`, and nowhere else.** It is a fixed allowlist with
 confirmation and Polkit. Mo AI can *name* an action from that list — the UI turns it into a Run
 button — but the model never executes anything itself. Do not add a path that lets a model, or a
