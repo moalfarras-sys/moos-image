@@ -162,9 +162,9 @@ def detect():
         })
 
     if not kvm:
-        actions.append({"id": "kvm", "severity": "info", "title": "Android emulator acceleration", "detail": "Enable CPU virtualization in firmware and grant KVM access.", "url": ""})
+        actions.append({"id": "kvm", "severity": "info", "title": "تسريع محاكي أندرويد | Android emulator acceleration", "detail": "Enable CPU virtualization in firmware and grant KVM access.", "url": ""})
     if memory_gib and memory_gib < 15:
-        actions.append({"id": "memory", "severity": "info", "title": "Development memory", "detail": "16 GiB or more is recommended for Android development.", "url": ""})
+        actions.append({"id": "memory", "severity": "info", "title": "ذاكرة للتطوير | Development memory", "detail": "16 GiB or more is recommended for Android development.", "url": ""})
     # Mo Store is the one visible store; Bazaar is an OPTIONAL full-catalog engine,
     # never auto-installed into the default plan (that would ship a second store).
     recommended = [

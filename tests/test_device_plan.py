@@ -1,3 +1,4 @@
+import pathlib
 #!/usr/bin/env python3
 """Black-box hardware-plan tests with deterministic fake host commands."""
 from pathlib import Path
@@ -86,3 +87,19 @@ assert data["actions"][0]["url"] == "moos://do/install-nvidia"
 assert "r8169" not in data["driver"]
 
 print("MoOS device-plan test passed")
+
+
+# Every device-plan title reaches the owner's screen through Mo AI's diagnostic
+# card. Four of the six carried "عربي | English"; two shipped English-only and
+# showed up untranslated inside an otherwise fully Arabic Mo AI on the live
+# session. The convention is only a convention if something enforces it.
+import re as _re
+_plan = (pathlib.Path(__file__).resolve().parent.parent
+         / "system_files/usr/bin/moos-device-plan").read_text(encoding="utf-8")
+_titles = _re.findall(r'"title":\s*"([^"]+)"', _plan)
+assert _titles, "no device-plan titles found"
+_english_only = [t for t in _titles if not _re.search(r"[؀-ۿ]", t)]
+assert not _english_only, (
+    "these titles reach an Arabic screen untranslated; follow the "
+    f"\"عربي | English\" convention the others use: {_english_only}")
+print(f"device-plan bilingual title gate passed ({len(_titles)} titles)")
