@@ -107,82 +107,41 @@ rather than stock Plasma. **Never develop a shell overlay by copying the package
 into `$HOME` and leaving it there** — bind-mount it, or build and deploy the
 image, so what you verify is what ships.
 
-### x86 broke on a multilib file conflict, not on anything we wrote (2026-09-07, fixed)
+### moos-nvidia could not build: a multilib mesa file conflict (2026-09-07, fixed)
 
 The first `main` build after the desktop merge failed for two x86 editions, and
 neither cause was in the merged tree:
 
 - **`moos`** — `reading blob ...: connection reset by peer` while buildah pulled
-  the base image, after three retries. A GHCR transport flake; a re-run is the
-  whole fix. Recorded so the next reader does not go looking for a code cause.
-- **`moos-nvidia`** — a real, reproducible defect. `wine` pulls in the i686
-  graphics stack, and Fedora's repository had moved ahead of the pinned
-  `kinoite-main:44` base: i686 `mesa-*-26.1.8-1.fc44` against the base's x86_64
-  `26.1.4-4.fc44`. mesa ships **arch-independent** files from both arches
+  the base image, after three retries. A GHCR transport flake; re-running fixed
+  it. Recorded so the next reader does not hunt for a code cause.
+- **`moos-nvidia`** — real and reproducible. `MULTILIB=1` makes ublue's
+  `nvidia-install.sh` add the 32-bit NVIDIA/GL stack, which pulls **i686 mesa**
+  as a dependency. mesa ships **arch-independent** files from *both* arches
   (`/usr/share/drirc.d/00-mesa-defaults.conf`, `00-radv-defaults.conf`, licence
-  texts), so the two versions collide as a hard rpm **file conflict** that aborts
-  the transaction and the build.
+  texts), so the two arches must be the same version or rpm aborts the whole
+  transaction on a file conflict. The pinned `kinoite-main:44` base lagged
+  Fedora's repository: i686 `26.1.8-1.fc44` against x86_64 `26.1.4-4.fc44`.
 
-`moos-cloud` was unaffected because it is not a desktop edition and never
-installs wine — which is exactly why the failure looked selective.
+Only `moos-nvidia` is affected — the generic and cloud editions never enable
+multilib, which is exactly why the failure looked edition-specific rather than
+environmental.
 
-Fix: name `mesa-dri-drivers` and `mesa-vulkan-drivers` alongside `wine` in the
-same `dnf5 install`, so the already-installed x86_64 packages upgrade to the same
-version inside **one** transaction and both arches agree on the shared files.
+Fix: `dnf5 -y upgrade 'mesa*'` immediately **before** `nvidia-install.sh`, so
+both arches agree before the 32-bit packages arrive.
 
-This is gated, not just commented. The fix reads like a redundant package list
-and is precisely what a later cleanup deletes; `verify_user_experience.py` now
-asserts both packages appear in the wine install line, and reports cleanly if the
-wine line disappears entirely. **This drift will recur** every time Fedora moves
-ahead of the base image on a multilib package that ships arch-independent files
-— give the next such pair the same treatment rather than dropping the dependency.
+**The first attempt at this fix did nothing, and that is the lesson.** It named
+`mesa-dri-drivers` and `mesa-vulkan-drivers` in the later `wine` install list, on
+the assumption that wine pulled the i686 stack and that naming an installed
+package upgrades it. Both were wrong: wine was never the source (`moos` installs
+wine and pulls no i686 mesa at all), and **`dnf5 install` on an already-installed
+package answers "already installed" and changes nothing** — it does not upgrade.
+The build failed again, identically. The gate therefore asserts the `upgrade`
+verb *and the ordering* relative to `nvidia-install.sh`, not merely that the
+package names appear somewhere in the file.
 
-Not verified locally: this session's host is aarch64, so the x86 transaction
-could only be proven by CI.
-
-### A second updater was live on the A1 the whole time (2026-09-07, fixed)
-
-Found while answering "do updates actually reach the other editions". The answer
-for this machine was: yes, and one of them was not ours.
-
-`bootc-fetch-apply-updates.timer` was **active** on the live A1, booted from a
-signed image this repo built. Measured: `is-enabled=disabled`,
-`is-active=active`, `WantedBy=graphical.target`, next trigger nine hours out. It
-runs `bootc upgrade --apply` — stages the newest image **and reboots** — with
-none of `moos-image-update`'s battery/CPU/network deferral and outside its
-exact-digest policy. Two deployment writers on one OSTree sysroot is precisely
-what the `rpm-ostreed-automatic` handling exists to prevent.
-
-**Why every gate was green.** Both build scripts ran
-`systemctl disable bootc-fetch-apply-updates.timer 2>/dev/null || true`, and
-`verify_user_experience.py` asserted that exact string. But `disable` only
-removes symlinks derived from the unit's own `[Install]` section, and only under
-`/etc`. The Fedora bootc base **also** ships a vendor want at
-`/usr/lib/systemd/system/default.target.wants/bootc-fetch-apply-updates.timer`,
-which `disable` cannot touch — `/usr` is the vendor tree. So the unit honestly
-reported `disabled` while systemd went on pulling it in through `default.target`,
-and `2>/dev/null || true` swallowed the warning that said so.
-
-`build-arm.sh` even carries the comment *"Serial boot proof caught this timer
-active in the finished ARM disk even though the source gates were green"* — the
-symptom was seen, `disable` was added, and nobody re-checked a running machine.
-This is the enable/disable trap in
-[`references/boot-wiring-and-image-verification.md`](.claude/skills/moos-engineering/references/boot-wiring-and-image-verification.md),
-in its mirror form: **`systemctl disable` is not proof a unit is inert.**
-
-Fix, in both `build.sh` and `build-arm.sh`: remove the vendor want and
-`systemctl mask` the timer. A mask (`/etc/systemd/system/<unit>` → `/dev/null`)
-outranks a vendor want and keeps winning if a base update re-adds the symlink.
-`bootc upgrade` by hand is unaffected; only the automatic timer is.
-
-Gated on the finished image in both scripts — the mask symlink must exist AND no
-`*.wants` entry anywhere may still pull the unit in. `is-enabled` is deliberately
-not the question. The source gate now demands `mask` in **both** scripts, since
-accepting `disable` is what let this ship.
-
-Applied to the live A1 immediately rather than waiting for the next image, so the
-unscheduled reboot did not happen that night. `moos-auto-update.timer` remains the
-only scheduled deployment writer.
+Not verified locally: this session's host is aarch64, so only CI can run the x86
+multilib transaction.
 
 ### Settings product pass — integration branch (2026-09-07)
 

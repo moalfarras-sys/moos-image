@@ -236,6 +236,27 @@ if [ "${MOOS_IMAGE_NAME:-moos}" = "moos-nvidia" ]; then
     fi
     echo "OK: kmod and image agree on kernel ${kver_image}."
 
+    # MULTILIB=1 makes ublue's installer add the 32-bit NVIDIA/GL stack, which
+    # drags in i686 mesa as a dependency. mesa ships ARCH-INDEPENDENT files --
+    # /usr/share/drirc.d/00-mesa-defaults.conf, 00-radv-defaults.conf and its
+    # licence texts -- from BOTH arches, so the i686 packages must be the same
+    # version as the x86_64 ones already in the image or rpm aborts the whole
+    # transaction on a file conflict. The pinned kinoite-main base routinely lags
+    # Fedora's repository, and on 2026-09-07 that killed every moos-nvidia build:
+    # i686 26.1.8-1.fc44 against the base's x86_64 26.1.4-4.fc44.
+    #
+    # Upgrade the x86_64 side FIRST so both arches agree. It must be `upgrade`,
+    # not `install`: dnf5 answers "Package ... is already installed" for an
+    # install of a present package and changes nothing, which is why naming these
+    # packages in a later install list did NOT fix this. The glob covers whatever
+    # mesa subpackages the base happens to carry, so a new one cannot reintroduce
+    # the conflict. A no-op when the base is already current.
+    #
+    # Only moos-nvidia hits this. The generic and cloud editions never enable
+    # multilib, which is why the failure looked edition-specific rather than
+    # environmental.
+    dnf5 -y upgrade 'mesa*'
+
     AKMODNV_PATH=/akmods/rpms IMAGE_NAME=kinoite MULTILIB=1 \
         bash /akmods/rpms/ublue-os/nvidia-install.sh
 
@@ -1568,23 +1589,7 @@ if is_desktop; then
     # Install wine system-wide so any .exe the user downloads actually runs, and the
     # runner's fallback (offer setup-windows) only appears when they truly want Bottles.
     #
-    # mesa-dri-drivers / mesa-vulkan-drivers are named here on purpose, and they
-    # are NOT redundant with the base image. wine drags in the whole i686
-    # graphics stack, and Fedora's repository routinely runs ahead of the pinned
-    # kinoite-main base. mesa ships arch-INDEPENDENT files from both arches --
-    # /usr/share/drirc.d/00-mesa-defaults.conf, 00-radv-defaults.conf and its
-    # licence texts -- so a newer i686 mesa landing beside the base's older
-    # x86_64 mesa is a hard rpm FILE CONFLICT, not a warning, and it aborts the
-    # whole transaction. That is what broke moos-nvidia on 2026-09-07:
-    # i686 26.1.8-1.fc44 against x86_64 26.1.4-4.fc44.
-    #
-    # Naming them as install targets makes dnf upgrade the already-installed
-    # x86_64 packages to the same version inside the SAME transaction, so both
-    # arches agree on those shared files. Do not drop them to "clean up the
-    # list": the build breaks again the next time Fedora moves ahead of the base.
-    # If a future multilib pair conflicts the same way, give it the same
-    # treatment rather than dropping wine.
-    _core_power+=(wine mesa-dri-drivers mesa-vulkan-drivers)
+    _core_power+=(wine)
 fi
 if is_desktop; then
     _core_power+=(waydroid gamemode mangohud steam-devices)
