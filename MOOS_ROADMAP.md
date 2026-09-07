@@ -139,7 +139,10 @@ browser viewport emulation does not close the wider physical-device gate below.
   the x86 gates, and a `gate_until()` diagnosis that only ran for labels
   starting `"installed"` while the failing label is `"PLM login did not reach
   the desktop"`. Both fixed and gated (`tests/test_diagnostic_redirection.py`).
-  The cause itself came from `fix/iso-plm-wake-space-20260908` and is merged.
+  The mechanism came from `fix/iso-plm-wake-space-20260908` and is merged, but
+  ITS FIX DOES NOT WORK: run 34167769770 failed identically with the shift+space
+  wake in place, and its login screenshot still shows the idle clock with no
+  password field.
 - [ ] **Run `promote-x86.yml` once.** Still outstanding, and it is the only
   thing that moves `moos`, `moos-nvidia` and `moos-cloud` off 2026-08-23. It
   needs a green build, three QCOW2 boots and a green ISO on one revision.
