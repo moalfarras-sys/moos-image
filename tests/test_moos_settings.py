@@ -4,6 +4,10 @@
 from __future__ import annotations
 
 import json
+import runpy
+import shutil
+import time
+from unittest.mock import patch
 import os
 from pathlib import Path
 import re
@@ -153,6 +157,124 @@ class MoOSSettingsTests(unittest.TestCase):
             self.assertIn("network", state)
             self.assertIn("memory", state)
             self.assertEqual(stat.S_IMODE(output.stat().st_mode), 0o600)
+
+
+    def test_network_distinguishes_portal_limited_offline_and_unknown(self):
+        scope = runpy.run_path(str(STATUS))
+        probe = scope["network_state"]
+        for raw, connected, full, known in (
+            ("connected:full", True, True, True),
+            ("connected:portal", True, False, True),
+            ("connected (site only):limited", True, False, True),
+            ("disconnected:none", False, False, True),
+            ("", False, False, False),
+        ):
+            with self.subTest(raw=raw), patch.dict(probe.__globals__, command=lambda args: raw if args[-1] == "general" else ""):
+                state = probe()
+                self.assertEqual((state["connected"], state["full"], state["known"]), (connected, full, known))
+
+    def test_signature_requires_official_origin_and_known_deployment(self):
+        probe = runpy.run_path(str(STATUS))["deployment_state"]
+        for ref, signed in (
+            ("ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos-arm:latest", True),
+            ("ostree-image-signed:docker://example.org/moos:latest", False),
+            ("ostree-unverified-registry:ghcr.io/moalfarras-sys/moos-arm:latest", False),
+        ):
+            raw = json.dumps({"deployments": [{"booted": True, "container-image-reference": ref}, {"staged": True}]})
+            with self.subTest(ref=ref), patch.dict(probe.__globals__, command=lambda *a, **kw: raw):
+                state = probe()
+                self.assertTrue(state["known"])
+                self.assertEqual(state["signed"], signed)
+                self.assertEqual(state["rollback"], 0, "staged image is never a rollback")
+        for raw in ("", "null", '{"deployments":null}', '{"deployments":[null]}'):
+            with patch.dict(probe.__globals__, command=lambda *a, **kw: raw):
+                self.assertFalse(probe()["known"])
+
+    def test_destination_probe_matches_router_and_checks_modules(self):
+        scope = runpy.run_path(str(STATUS))
+        routes = {key: tuple(argv.split()) for key, argv in re.findall(
+            r"^    settings/([a-z-]+)\)\s+gui ([^;]+?)\s*;;", ROUTER.read_text(), re.M)}
+        self.assertEqual(scope["DESTINATIONS"], routes)
+        probe = scope["destinations_state"]
+        with tempfile.TemporaryDirectory() as tmp:
+            module = Path(tmp) / "plasma/kcms/systemsettings_qwidgets/kcm_clock.so"
+            module.parent.mkdir(parents=True)
+            module.touch()
+            with patch.dict(probe.__globals__, command=lambda *a: tmp), patch.object(shutil, "which", return_value="/usr/bin/systemsettings"):
+                state = probe()
+                self.assertTrue(state["time"])
+                self.assertFalse(state["region"])
+                self.assertTrue(state["full"])
+            with patch.object(shutil, "which", return_value=None):
+                self.assertFalse(any(probe().values()))
+
+    def test_publish_stamps_completed_snapshot(self):
+        publish = runpy.run_path(str(STATUS))["publish"]
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "status.json"
+            publish(path, {"generatedAt": 1})
+            self.assertLess(abs(json.loads(path.read_text())["generatedAt"] - time.time()), 2)
+
+    def test_ui_status_navigation_and_launch_behaviour(self):
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("Node required to execute the QML JavaScript functions")
+        qml = APP.read_text()
+        def function(name):
+            start = qml.index("    function " + name + "(")
+            brace = qml.index("{", start)
+            depth = 1
+            end = brace + 1
+            while depth:
+                if qml[end] == "{": depth += 1
+                if qml[end] == "}": depth -= 1
+                end += 1
+            return qml[start:end]
+        scope = runpy.run_path(str(STATUS))
+        state = scope["full_state"]()
+        state["generatedAt"] = int(time.time())
+        state["destinations"] = {"audio": True}
+        script = """
+const assert = require('node:assert/strict');
+let statusLoaded=false, statusError='', statusSerial=0, status={}, launchError='';
+let rtl=false, searchQuery='sound', activeSection='home';
+let searchField={text:'sound'}, contentFlick={contentY:500};
+let calls=[]; const Qt={openUrlExternally: url => {calls.push(url); return false}};
+""" + "\n".join(function(n) for n in ("local", "routeAvailable", "routeReason", "openRoute", "selectSection", "acceptStatus", "statusFailure"))
+        commands = qml.split("readonly property var commands: ")[1].split("\n\n    readonly property var activeSectionData")[0].strip()
+        visible = qml.split("readonly property var visibleCommands: ")[1].split("\n\n    readonly property string statusUrl")[0].strip()
+        script += "\nconst commands = " + commands + ";\nfunction visibleCommands() " + visible
+        script += "\nassert.ok(visibleCommands().some(item => item.route === 'moos://settings/audio')); searchQuery='audio'; assert.equal(visibleCommands().length, 1);\n"
+        script += "\nlet valid = " + json.dumps(state) + ";\n"
+        script += """
+assert.equal(acceptStatus(valid), true);
+assert.equal(statusLoaded, true);
+for (const bad of [null, {}, {...valid, generatedAt:1}, {...valid, schema:2}, {...valid, audio:{}}, {...valid, network:null}])
+    assert.equal(acceptStatus(bad), false);
+assert.equal(routeAvailable('moos://settings/audio'), true);
+assert.equal(routeAvailable('moos://settings/missing'), false);
+openRoute('https://example.org'); openRoute('moos://settings/missing');
+assert.deepEqual(calls, []);
+openRoute('moos://settings/audio');
+assert.equal(calls.length, 1); assert.notEqual(launchError, '');
+selectSection('devices');
+assert.equal(searchQuery, ''); assert.equal(contentFlick.contentY, 0);
+statusFailure(); assert.equal(statusLoaded, false); assert.notEqual(statusError, '');
+assert.equal(routeAvailable('moos://settings/audio'), false);
+assert.equal(acceptStatus(valid), true); assert.equal(statusError, '');
+"""
+        result = subprocess.run([node, "-e", script], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_rtl_is_mirrored_once_and_search_stays_synchronised(self):
+        qml = APP.read_text()
+        self.assertIn("onSearchQueryChanged:", qml)
+        self.assertIn("searchField.text = searchQuery", qml)
+        self.assertNotIn("horizontalAlignment: win.rtl ? Text.AlignRight", qml)
+        search = qml.split('id: searchField')[1].split('FocusRing {')[0]
+        self.assertIn('anchors.left: parent.left', search)
+        self.assertNotIn('anchors.right:', search)
+        self.assertIn('settings/region', qml)
 
 
 if __name__ == "__main__":

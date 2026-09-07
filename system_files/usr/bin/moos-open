@@ -189,6 +189,7 @@ case "${cat}/${tgt}" in
     settings/about)             gui systemsettings kcm_about-distro ;;
     settings/users)             gui systemsettings kcm_users ;;
     settings/time)              gui systemsettings kcm_clock ;;
+    settings/region)            gui systemsettings kcm_regionandlang ;;
     settings/storage)           gui kinfocenter kcm_block_devices ;;
     settings/firmware-security) gui kinfocenter kcm_firmware_security ;;
     settings/recovery)          gui moos-rollback ;;

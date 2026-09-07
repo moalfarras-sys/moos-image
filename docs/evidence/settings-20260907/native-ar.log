@@ -1,0 +1,14 @@
+qml: KEY_RESULT audio audio true
+qml: RESULTS 1
+qml: SETTINGS_INTERACTIONS_PASSED
+qml: SAVED home true
+qml: SAVED appearance true
+qml: SAVED connectivity true
+qml: SAVED devices true
+qml: SAVED apps true
+qml: SAVED privacy true
+qml: SAVED system true
+qml: SAVED recovery true
+qml: SAVED unavailable true
+qml: SAVED empty-search true
+qml: SAVED missing-module true

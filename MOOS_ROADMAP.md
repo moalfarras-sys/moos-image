@@ -157,3 +157,5 @@ browser viewport emulation does not close the wider physical-device gate below.
   Plasma Login Manager, desktop, applications, recovery and installation.
 - Checkpoint and push after every coherent phase and before long builds, reboots,
   risky system changes or context compaction.
+
+Settings source product pass: [audit, native English/Arabic evidence and integration limits](docs/SETTINGS_HANDOFF_20260907.md). Signed-image and hardware acceptance remain with release integration.
