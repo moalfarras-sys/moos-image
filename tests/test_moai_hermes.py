@@ -9,6 +9,7 @@ import unittest
 import urllib.request
 import urllib.error
 from unittest.mock import patch
+from test_moai_runtime import RuntimeTests
 
 ROOT=Path(__file__).resolve().parents[1]
 m=runpy.run_path(str(ROOT/'system_files/usr/libexec/moai-hermes'))
@@ -54,7 +55,10 @@ class AdapterTests(unittest.TestCase):
             body={'messages':[{'role':'user','content':'مرحبا'}],'stream':True}
             req=urllib.request.Request(base+'/v1/chat/completions',data=json.dumps(body).encode(),
                 headers={'Content-Type':'application/json','Authorization':'Bearer fixture-private'})
-            with urllib.request.urlopen(req,timeout=3) as response:result=response.read().decode()
+            def broker(action, body):
+                return {'id':'review-session','run':'private-run','history':[]} if action=='begin' else {'ok':True}
+            with patch.dict(m['Handler'].do_POST.__globals__, {'broker': broker}):
+                with urllib.request.urlopen(req,timeout=3) as response:result=response.read().decode()
             self.assertIn('جاهز',result);self.assertIn('data: [DONE]',result)
         finally:srv.shutdown();srv.server_close();thread.join()
 
