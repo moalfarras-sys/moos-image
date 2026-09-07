@@ -578,6 +578,20 @@ def gate_until(script, args, seconds, label, diagnose=None):
         last = err or out or f"exit {code}"
         time.sleep(5)
     if diagnose is not None:
+        # A picture of the screen at the moment of failure. The gate already
+        # captures installed-login.ppm BEFORE the password is typed; what was
+        # missing is the screen AFTER, which is what distinguishes "the password
+        # field never appeared" from "it appeared and the login was rejected".
+        #
+        # Run 34167769770 is why this exists: the before-shot showed the MoOS
+        # idle clock still painted, with no password field, even with the
+        # shift+space wake in place -- so the password went into the clock page
+        # and never reached PAM. Nothing recorded what happened next.
+        try:
+            capture(evidence / "installed-desktop-failed.ppm")
+        except Exception as error:                      # never mask the real failure
+            print(f"(failure screenshot unavailable: {error})", file=sys.stderr)
+
         # The SSH channel is demonstrably working here -- the gate script itself
         # ran and reported which assert failed -- so ask the guest directly.
         #
