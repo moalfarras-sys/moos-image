@@ -28,6 +28,9 @@ default:
 # 20-minute image build.
 check:
     bash -n build_files/build.sh
+    # bash -n accepts a comment inside a backslash continuation, which
+    # silently truncates the command. That shipped and broke every x86 build.
+    python3 tests/test_shell_line_continuations.py
     python3 tests/verify_user_experience.py
     python3 tests/test_device_plan.py
     python3 tests/test_moai_do.py

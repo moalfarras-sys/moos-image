@@ -1145,14 +1145,21 @@ recolor_moos_app_dir() {
 rm -rf /usr/share/icons/MoOSUI2
 mkdir -p /usr/share/icons/MoOSUI2
 cp /usr/share/icons/Colloid-Teal-Dark/index.theme /usr/share/icons/MoOSUI2/index.theme
+# Fedora's papirus-icon-theme ships ONE theme directory, /usr/share/icons/Papirus.
+# There is no Papirus-Dark here (upstream splits the variants, Fedora does not),
+# so naming it cost 69 failed lookups per boot on the live ARM session while the
+# gate that asserted the RPM was installed stayed green. The LIGHT chain below
+# always said Papirus and was always right.
+#
+# This comment lives ABOVE the command on purpose. Bash joins a backslash
+# continuation into ONE logical line, so a '#' between the -e arguments comments
+# out the REST of that line -- the remaining expressions and the target file.
+# That is exactly what shipped: sed ran with two expressions and no input file,
+# printed "sed: no input files", exited 4, and killed every x86 build. The
+# Inherits fix this comment describes never applied either.
 sed -i \
     -e 's|^Name=.*|Name=MoOS UI|' \
     -e 's|^Comment=.*|Comment=MoOS icons — mineral teal on graphite|' \
-    # Fedora's papirus-icon-theme ships ONE theme directory, /usr/share/icons/Papirus.
-    # There is no Papirus-Dark here (upstream splits the variants, Fedora does not),
-    # so naming it cost 69 failed lookups per boot on the live ARM session while the
-    # gate that asserted the RPM was installed stayed green. The LIGHT chain below
-    # always said Papirus and was always right.
     -e 's|^Inherits=.*|Inherits=Colloid-Teal-Dark,Papirus,breeze-dark,hicolor|' \
     -e 's|^FollowsColorScheme=.*|FollowsColorScheme=false|' \
     -e 's|^Directories=|Directories=moos/actions/scalable,moos/apps/scalable,|' \
