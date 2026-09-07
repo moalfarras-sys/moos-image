@@ -23,7 +23,7 @@ retains the shared UI2 components and graphical KDE backends. Native English/
 Arabic source frames and failure fixtures are reviewed; no OS build or deployment.
 See [the bounded handoff](docs/SETTINGS_HANDOFF_20260907.md) for tests and limits.
 
-### x86 is blocked behind the retired local-brain unit (2026-09-07, OPEN)
+### x86 was blocked behind the retired local-brain unit (2026-09-07, FIXED)
 
 Fixing the truncated `sed` let the x86 build run far enough to expose the next
 defect, which had been hidden behind it:
@@ -51,13 +51,24 @@ fails the whole build.
 * Pointing ExecStart at a shim. That invents a binary to satisfy a verifier for
   a feature that no longer exists.
 
-The real fix is the **C2b legacy-body cleanup already tracked in
-MOOS_ROADMAP.md**: retire the unit together with the four gates that model it,
-replacing their assertions with the cloud-only contract, as one reviewed change.
-That is security-sensitive work and must not be smuggled into a release build.
+**Fixed by doing the C2b cleanup properly**: the unit and the four gates that
+modelled it were retired together, because removing the unit alone breaks all
+four at once. None was weakened. The fail-closed ports gate checked six units
+carry `ConditionUser=!@system`; "moai" is simply no longer one of them, and a
+unit that does not exist cannot start for a system user at all. The lifecycle
+gate's restart-limit checks went with the brain. The 8081 port-collision
+assertion went with the second port that no longer exists, while the gateway's
+own port-derivation check stayed. `verify_identity` now requires the three
+services Mo AI actually has, and both it and `verify_user_experience` assert the
+unit does NOT come back -- stronger than before, and bite-tested by restoring it.
 
-ARM is unaffected and shipped: `build-arm.sh` has its own verify list which
-never included this unit.
+The gateway's `RAMALAMA_UNIT` default was left alone deliberately:
+`ensure_local()` refuses unconditionally before anything reads it, so it can
+never resolve to the absent unit, and rewriting that allowlist is a separate
+change with its own risk.
+
+Result: all three x86 editions build, push and sign again, each signature
+verified against `/etc/pki/containers/moos.pub`.
 
 ### main could not build any x86 edition (2026-09-07, fixed)
 
