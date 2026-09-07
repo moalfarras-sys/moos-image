@@ -59,8 +59,10 @@ def run_automatic(
     *,
     booted_ref: str,
     registry: str | list[str] = NEW,
+    registry_version: str | list[str] = "44.20260907.2",
     transaction: str | list[str] | None = None,
     staged_ref: str = "",
+    booted_version: str = "44.20260829.1",
     status_payload: str | None = None,
     status_failure: bool = False,
     registry_failure: bool = False,
@@ -71,13 +73,13 @@ def run_automatic(
         deployments.append({
             "booted": False,
             "staged": True,
-            "version": "44.staged",
+            "version": "44.20260906.1",
             "container-image-reference": staged_ref,
         })
     deployments.append({
         "booted": True,
         "staged": False,
-        "version": "44.booted",
+        "version": booted_version,
         "container-image-reference": booted_ref,
     })
     status = status_payload if status_payload is not None else json.dumps({
@@ -85,6 +87,7 @@ def run_automatic(
         "deployments": deployments,
     })
     digests = list(registry) if isinstance(registry, list) else [registry]
+    versions = list(registry_version) if isinstance(registry_version, list) else [registry_version]
     rebases: list[tuple[str, ...]] = []
 
     def fake_run(*argv: str, timeout: int = 60) -> str:
@@ -96,7 +99,12 @@ def run_automatic(
         if argv[:2] == (UPDATE.SKOPEO, "inspect"):
             if registry_failure:
                 raise UPDATE.UpdateError("network unavailable", code=3)
-            return (digests.pop(0) if len(digests) > 1 else digests[0]) + "\n"
+            digest = digests.pop(0) if len(digests) > 1 else digests[0]
+            version = versions.pop(0) if len(versions) > 1 else versions[0]
+            return json.dumps({
+                "Digest": digest,
+                "Labels": {"org.opencontainers.image.version": version},
+            })
         if argv[:2] == (UPDATE.RPM_OSTREE, "rebase"):
             rebases.append(tuple(argv))
             return ""
@@ -173,6 +181,18 @@ rc, rebases, out, _err = run_automatic(
 check(rc == 0 and not rebases and "already staged" in out,
       "the latest already-staged image must not be rebased again")
 
+# A mutable production tag may move backwards after a bad promotion or manual
+# registry edit. Digest inequality does not mean newer: never auto-downgrade a
+# running machine, and report the refusal as a clean no-op.
+for published in ("44.20260823.650", "44.20260829.1"):
+    rc, rebases, out, err = run_automatic(
+        booted_ref=signed("moos-nvidia", OLD),
+        booted_version="44.20260829.1",
+        registry_version=published,
+    )
+    check(rc == 0 and not rebases and "refusing downgrade" in out,
+          f"a non-newer production tag must never stage: {published}: {err}")
+
 # An older staged deployment does not hide a newer candidate.
 rc, rebases, _out, err = run_automatic(
     booted_ref=signed("moos-cloud", OLD),
@@ -194,6 +214,15 @@ for bad in ("latest", "sha256:" + "a" * 63, "sha256:" + "A" * 64, " " + NEW):
     rc, rebases, _out, _err = run_automatic(
         booted_ref=signed("moos", OLD), registry=bad)
     check(rc == 5 and not rebases, f"invalid registry digest must fail: {bad!r}")
+for bad_version in ("", "44.latest", "44.2026097.1", "44.20260907.-1"):
+    rc, rebases, _out, _err = run_automatic(
+        booted_ref=signed("moos", OLD), registry_version=bad_version)
+    check(rc == 5 and not rebases,
+          f"an invalid registry release version must fail closed: {bad_version!r}")
+rc, rebases, _out, _err = run_automatic(
+    booted_ref=signed("moos", OLD), booted_version="unknown")
+check(rc == 5 and not rebases,
+      "an incomparable booted version must not be replaced by guesswork")
 rc, rebases, _out, _err = run_automatic(
     booted_ref=signed("moos", OLD), status_payload="{not-json")
 check(rc == 3 and not rebases, "malformed rpm-ostree state must fail the unit")

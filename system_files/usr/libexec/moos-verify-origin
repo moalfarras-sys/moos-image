@@ -39,8 +39,8 @@
 # nobody did.
 set -euo pipefail
 
-REGISTRY_PREFIX="ghcr.io/moalfarras-sys/"
-UNVERIFIED_PREFIX="ostree-unverified-registry:"
+SIGNED_RE='^ostree-image-signed:docker://ghcr\.io/moalfarras-sys/(moos|moos-nvidia|moos-cloud|moos-arm)(@sha256:[0-9a-f]{64}|:[A-Za-z0-9][A-Za-z0-9._-]*)$'
+UNVERIFIED_OFFICIAL_RE='^ostree-unverified-registry:(docker://)?(ghcr\.io/moalfarras-sys/(moos|moos-nvidia|moos-cloud|moos-arm)(@sha256:[0-9a-f]{64}|:[A-Za-z0-9][A-Za-z0-9._-]*))$'
 DEPLOY_ROOT="${MOOS_ORIGIN_DEPLOY_ROOT:-/ostree/deploy}"
 RPM_OSTREE="${MOOS_ORIGIN_RPM_OSTREE:-rpm-ostree}"
 BOOTC="${MOOS_ORIGIN_BOOTC:-bootc}"
@@ -85,26 +85,31 @@ origin="${DEPLOY_ROOT}/${stateroot}/deploy/${checksum}.${serial}.origin"
 ref="$(sed -n 's/^container-image-reference=//p' "$origin" | head -1)"
 [ -n "$ref" ] || { log "ERROR: no container-image-reference in ${origin}"; exit 1; }
 
-case "$ref" in
-    "${UNVERIFIED_PREFIX}${REGISTRY_PREFIX}"*) ;;
-    "${UNVERIFIED_PREFIX}"*)
-        # Unverified, but pointed somewhere that is not the MoOS registry. The
-        # owner built or retagged this deliberately; rebinding it to a policy
-        # keyed on the MoOS public key would brick their next update. Say so and
-        # stop — loudly enough to be found, quietly enough not to fail the boot.
-        log "WARNING: origin is unverified and not a MoOS image: ${ref}"
-        log "         leaving it alone — a custom image is the owner's to police."
-        exit 0 ;;
-    *)
-        log "origin already enforces the signature policy — nothing to do"
-        exit 0 ;;
-esac
+if [[ "$ref" =~ $SIGNED_RE ]]; then
+    log "origin already enforces the signature policy — nothing to do"
+    exit 0
+fi
+
+if [[ "$ref" =~ $UNVERIFIED_OFFICIAL_RE ]]; then
+    # Capture only after the whole reference has matched the exact official
+    # repository/edition grammar. A prefix match would accept lookalikes such
+    # as moos.evil and bind them to the MoOS key.
+    image="${BASH_REMATCH[2]}"
+else
+    # This includes local containers-storage development deployments. They are
+    # deliberately not rebound: a local image was never signed by the release
+    # key, and silently replacing it at boot could downgrade or discard the
+    # owner's work. Report the truth without failing an intentionally custom
+    # machine's boot. The explicit moai-do edition switch is the recovery path
+    # once a newer boot-proven signed release exists.
+    log "WARNING: origin is unverified or not an official signed MoOS image: ${ref}"
+    log "         leaving it alone — use the explicit signed edition switch to rejoin releases."
+    exit 0
+fi
 
 # bootc expects the image reference, not rpm-ostree's transport prefix. Derive
 # it from the origin we just proved is the unverified MoOS origin; do not trust a
 # second, potentially divergent status field.
-image="${ref#${UNVERIFIED_PREFIX}}"
-image="${image#docker://}"
 [ -n "$image" ] || { log "ERROR: unverified origin has no image reference"; exit 1; }
 
 log "origin is UNVERIFIED: ${ref}"

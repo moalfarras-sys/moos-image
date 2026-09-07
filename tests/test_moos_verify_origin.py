@@ -66,6 +66,7 @@ def main() -> int:
     )
     assert signed.returncode == 0, signed.stdout + signed.stderr
     assert not signed_calls, "an already-signed origin must never stage a deployment"
+    assert "already enforces the signature policy" in signed.stdout
 
     image = "ghcr.io/moalfarras-sys/moos-arm@sha256:" + "c" * 64
     repaired, repair_calls = run_case("ostree-unverified-registry:" + image)
@@ -75,6 +76,33 @@ def main() -> int:
     custom, custom_calls = run_case("ostree-unverified-registry:example.invalid/custom:latest")
     assert custom.returncode == 0, custom.stdout + custom.stderr
     assert not custom_calls, "a custom origin must be reported but never rebound to the MoOS key"
+    assert "unverified or not an official signed" in custom.stdout
+
+    local, local_calls = run_case(
+        "ostree-unverified-image:containers-storage:localhost/moos-nvidia@sha256:"
+        + "d" * 64
+    )
+    assert local.returncode == 0, local.stdout + local.stderr
+    assert not local_calls, "a local development origin must never be silently replaced"
+    assert "unverified or not an official signed" in local.stdout
+    assert "already enforces" not in local.stdout, (
+        "the live NVIDIA regression: a local unverified deployment was reported as signed"
+    )
+
+    lookalike, lookalike_calls = run_case(
+        "ostree-unverified-registry:ghcr.io/moalfarras-sys/moos.evil@sha256:" + "e" * 64
+    )
+    assert lookalike.returncode == 0, lookalike.stdout + lookalike.stderr
+    assert not lookalike_calls, "a repository prefix lookalike must never reach bootc switch"
+
+    foreign_signed, foreign_signed_calls = run_case(
+        "ostree-image-signed:docker://example.invalid/moos@sha256:" + "f" * 64
+    )
+    assert foreign_signed.returncode == 0, foreign_signed.stdout + foreign_signed.stderr
+    assert not foreign_signed_calls
+    assert "already enforces" not in foreign_signed.stdout, (
+        "only an exact official signed MoOS origin may be reported as trusted"
+    )
 
     malformed, malformed_calls = run_case(
         "ostree-unverified-registry:" + image, valid_status=False
@@ -82,7 +110,7 @@ def main() -> int:
     assert malformed.returncode != 0, "missing booted deployment data must fail closed"
     assert not malformed_calls
 
-    print("OK: signed-origin audit reads the real rpm-ostree deployment, repairs only MoOS, and fails closed")
+    print("OK: signed-origin audit repairs only exact official MoOS origins and reports local/foreign origins honestly")
     return 0
 
 

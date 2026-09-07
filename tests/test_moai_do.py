@@ -226,6 +226,27 @@ with tempfile.TemporaryDirectory() as tmp:
           "update must escalate only the fixed backend plus the confirmed exact digest; "
           f"got {actual!r}")
 
+    # A stale production tag is reported by the resolver as a blocked downgrade.
+    # The UI must not prompt and must never cross the privilege boundary.
+    (bindir / "moos-image-update").write_text(
+        "#!/bin/sh\nprintf '%s\\n' 'blocked-downgrade|moos-nvidia|old|older'\n",
+        encoding="utf-8",
+    )
+    log.unlink(missing_ok=True)
+    result = subprocess.run(
+        [BASH, str(MOAI_DO), "update"],
+        input="y\n",
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=30,
+        env=env,
+    )
+    check(result.returncode == 0 and "refused an older" in result.stdout,
+          "a blocked downgrade must be a clear, clean no-op")
+    check(not log.exists(), "a blocked downgrade must never invoke pkexec")
+
 if errors:
     print("MoOS moai-do test failed:", file=sys.stderr)
     for error in errors:

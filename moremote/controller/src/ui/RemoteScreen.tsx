@@ -995,7 +995,15 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
         if (relativeDesktopButtons.current.delete(b)) conn.upCurrent(b);
         else conn.up(b, x, y);
       },
-      scroll: (dx, dy) => conn.scroll(dx, dy),
+      // WheelEvent.deltaY is positive when the physical wheel is turned DOWN. Both remote
+      // backends consume the opposite vertical convention at their injection boundary: positive
+      // is an upward wheel step (Windows WHEEL_DELTA and Linux evdev/portal). Keep horizontal
+      // untouched (positive is right on both sides), and invert only the real-mouse vertical path.
+      //
+      // Do this here rather than in InputInjector: the touch controller already owns a separate,
+      // user-selectable natural-scroll convention. Flipping the shared wire would repair the
+      // mouse by breaking phone swipes.
+      scroll: (dx, dy) => conn.scroll(dx, -dy),
       keyCode: (code, down) => conn.keyCode(code, down),
       text: (v) => conn.text(v),
       cursorAt: (x, y) => { cursorNorm.current = { x, y }; drawEpochRef.current++; },

@@ -1,5 +1,10 @@
 # Start here — current Mo AI integration and release checkpoint
 
+**Current bounded task, 2026-09-07:** x86 release train repair from `55737753`
+on `gpt/fix-x86-build-20260907`; see
+[the current Opus handoff](X86_RELEASE_REPAIR_20260907.md). This task does not
+merge, promote, deploy or resume the older UI/integration work below.
+
 Updated 2026-09-06. Read this BEFORE continuing this session's unfinished work,
 then AGENTS.md, skills/moos-engineering/SKILL.md, PROJECT_STATE.md and
 MOAI_CLOUD_ONLY_PLAN.md. Current runtime/source evidence outranks older prose.

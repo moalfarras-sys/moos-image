@@ -36,7 +36,13 @@ Type=simple
 ExecStart=/usr/libexec/mo-remote-start
 Restart=on-failure
 RestartSec=3
-TimeoutStopSec=15s
+# The desktop portal helper owns a PipeWire main loop and does not always leave on SIGTERM. The
+# distribution-wide user-service policy turns a stop timeout into SIGABRT + a core dump; measured
+# on the ARM cloud host, one routine restart then took 69 seconds and wrote a multi-threaded dump.
+# Remote recovery must be short and boring: allow five seconds for a clean exit, then kill the
+# service cgroup without producing a crash artifact that competes with the replacement session.
+TimeoutStopSec=5s
+TimeoutStopFailureMode=kill
 Environment=DOTNET_EnableDiagnostics=0
 Environment=YDOTOOL_SOCKET=%t/.ydotool_socket
 Environment=XDG_RUNTIME_DIR=%t

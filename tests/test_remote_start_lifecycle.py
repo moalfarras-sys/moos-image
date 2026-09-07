@@ -109,6 +109,8 @@ class RemoteStartLifecycleTests(unittest.TestCase):
             if line.strip() and not line.lstrip().startswith("#")
         ]
         self.assertIn("ExecStart=/usr/libexec/mo-remote-start", directives)
+        self.assertIn("TimeoutStopSec=5s", directives)
+        self.assertIn("TimeoutStopFailureMode=kill", directives)
         self.assertFalse(any("/bin/sh -c" in line for line in directives))
         source = LAUNCHER.read_text(encoding="utf-8")
         self.assertIn('resolve_timeout="${MO_REMOTE_RESOLVE_TIMEOUT:-5}"', source)

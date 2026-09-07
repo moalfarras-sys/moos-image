@@ -157,6 +157,16 @@ delta(5, 0, true, 0, 5, "screen-right is desktop-down when turned");
 const remote = readFileSync(join(import.meta.dirname, "..", "src", "ui", "RemoteScreen.tsx"), "utf8");
 const remoteCode = remote.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
+// A browser wheel reports positive deltaY for a physical turn DOWN, while the remote injection
+// boundary consumes positive vertical wheel steps as UP. This was passed through unchanged, so
+// the owner's wheel ran backwards. Only the desktop-mouse callback is inverted: touch gestures
+// have their own explicit natural-scroll setting and must not change with this repair.
+assert.match(remoteCode, /scroll:\s*\(dx,\s*dy\)\s*=>\s*conn\.scroll\(dx,\s*-dy\)/,
+  "desktop wheel-down must become a negative remote vertical step; leave horizontal and touch alone");
+assert.match(remoteCode,
+  /scroll:\s*\(dx,\s*dy\)\s*=>\s*\{\s*const direction\s*=\s*naturalScrollRef\.current\s*\?\s*-1\s*:\s*1;\s*conn\.scroll\(dx\s*\*\s*scrollSensitivityRef\.current\s*\*\s*direction,\s*dy\s*\*\s*scrollSensitivityRef\.current\s*\*\s*direction\);\s*\}/,
+  "touch scrolling must retain its independent natural-scroll preference");
+
 // GestureController emits finger travel while the wire carries wheel travel (positive Y means
 // scroll down). Natural scrolling therefore inverts both axes so content follows the finger.
 assert.match(remoteCode, /const direction = naturalScrollRef\.current \? -1 : 1;/,
