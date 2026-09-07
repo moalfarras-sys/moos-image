@@ -560,6 +560,38 @@ if [ "${MOOS_IMAGE_NAME:-moos}" = "moos-nvidia" ]; then
     # initramfs that was actually produced instead of trusting dracut's log wording.
     echo "=== dracut nvidia mentions: $(grep -ciE 'nvidia' /tmp/moos-dracut.log || true) ==="
 fi
+
+# --- A CEILING ON THE INITRAMFS, measured against the artifact ----------------
+# x86 MoOS has no separate /boot partition (moos-install-to-disk lays down BIOS
+# boot + a 512 MiB ESP + one root partition), so the limit here is not disk
+# space: it is GRUB's ability to allocate and load the initrd before the kernel
+# starts. That limit was hit for real. The comment on 99-moos-boot.conf records
+# it: the NVIDIA initramfs was ~368 MB and "GRUB could not allocate" it, and
+# trimming the non-NVIDIA display drivers brought it to ~242 MB, which boots.
+# The generic edition is ~124 MB.
+#
+# Nothing gated that. Every saving in this file -- the omitted network stack,
+# kernel-modules-extra, the other GPU families -- is one deleted line away from
+# coming back, and the failure mode is not a red build: it is the maintainer's
+# daily driver stopping at the GRUB prompt with the previous deployment as the
+# only way back. The ARM edition has had this ceiling since 2026-09-06
+# (build-arm.sh, 150 MiB); the x86 editions never did.
+#
+# 300 MiB sits above the measured 242 MB NVIDIA image with room for driver
+# growth, and far enough below the ~368 MB that failed to be a real warning
+# rather than a tripwire. The size is read off the file dracut just wrote, not
+# inferred from its configuration.
+_initrd_mib=$(( $(stat -c %s "/usr/lib/modules/${kver}/initramfs.img") / 1048576 ))
+echo "=== ${MOOS_IMAGE_NAME:-moos} initramfs: ${_initrd_mib} MiB (ceiling 300) ==="
+if [ "${_initrd_mib}" -gt 300 ]; then
+    echo "FATAL: the ${MOOS_IMAGE_NAME:-moos} initramfs is ${_initrd_mib} MiB (ceiling 300)."
+    echo "       GRUB failed to allocate this initrd at ~368 MB on real hardware and the"
+    echo "       machine stopped before the kernel. Find what was added back to the"
+    echo "       initramfs -- most likely an omit_dracutmodules or omit_drivers entry in"
+    echo "       99-moos-boot.conf -- rather than raising this number."
+    exit 1
+fi
+unset -v _initrd_mib
 rm -f /tmp/moos-dracut.log
 
 # --- USER-REQUESTED PROOF: lsinitrd | grep ostree-prepare-root ----------------
