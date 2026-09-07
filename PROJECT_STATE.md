@@ -143,6 +143,21 @@ after a reconcile had restored Arena, reported "0 setting(s) changed" and left
 the wallpaper on Arena. It is not the writer, at least not when its profile is
 already satisfied.
 
+Also excluded by inspection: the wallpaper plugin's own config default.
+`/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/config/main.xml`
+declares `<entry name="Image"><default></default>`, i.e. empty — so a config
+reload writing the declared default back cannot be the source of a Graphite
+value.
+
+And MoOS's own intent is correct throughout:
+`~/.local/state/moos/theme/theme-state.json` reads `"active":
+"org.moos.ui2.gaming"`, `"wallpaperMode": "profile"`, `"wallpaperEncoded":
+"%2Fusr%2Fshare%2Fwallpapers%2FMoOSUI2Arena"`. Whatever writes Graphite is not
+reading MoOS's recorded intent. (Noted in passing: a stale
+`~/.local/state/moos/theme/transaction.1Ced2U/` directory has been sitting there
+since 2026-09-06 04:13 — an abandoned theme transaction, not yet shown to be
+related.)
+
 What this does NOT establish is the cause. Nothing in this session wrote Plasma
 configuration, and the installed `moos-theme` and `moos-apply-theme` are
 byte-identical to the repo copies, so it is not a stale image. The shape — a
