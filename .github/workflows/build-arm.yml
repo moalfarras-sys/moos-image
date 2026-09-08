@@ -413,7 +413,7 @@ jobs:
           du -h release/utm/MoOS-UTM-Installer.utm.zip
 
       - name: Upload UTM Net Installer
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: MoOS-UTM-Installer
           path: release/utm/MoOS-UTM-Installer.utm.zip
@@ -480,7 +480,7 @@ jobs:
 
       - name: Upload ARM boot proof
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: moos-arm-boot-proof
           path: arm-boot-proof/
@@ -629,14 +629,14 @@ jobs:
           echo "UTM: $(du -h release/utm/MoOS-ARM.utm.zip | cut -f1)"
 
       - name: Upload boot-proven ARM QCOW2
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: moos-arm-qcow2
           path: release/qcow2/
           retention-days: 14
 
       - name: Upload ready-to-import UTM bundle
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: moos-arm-utm
           path: release/utm/

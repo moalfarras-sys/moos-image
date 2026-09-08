@@ -223,7 +223,7 @@ jobs:
 
       - name: Upload x86 QCOW2 boot evidence
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: moos-x86-qcow2-boot-proof
           path: ${{ runner.temp }}/x86-qcow2-boot-proof
@@ -240,7 +240,7 @@ jobs:
           [ "$actual" = "$expected" ] || { echo "FATAL: qcow2 changed before upload"; exit 1; }
 
       - name: Publish the pristine qcow2
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: moos-ci-verified-disk-qcow2
           path: output/**/*.qcow2

@@ -657,7 +657,7 @@ jobs:
           cat "$proof/candidate.txt"
 
       - name: Upload the signed candidate identity
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: moos-candidate-proof-${{ matrix.image_name }}
           path: ${{ runner.temp }}/candidate-proof/candidate.txt
