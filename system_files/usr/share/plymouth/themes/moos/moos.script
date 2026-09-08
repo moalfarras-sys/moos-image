@@ -43,10 +43,12 @@
 // animation happened to be showing.
 
 // ÔöÇÔöÇ the ground ÔÇö the SAME canvas the desktop opens on ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
-// Flat, top and bottom identical. The render's own near-black background was
-// keyed to transparency when the frames were cut, precisely so the splash could
-// sit on this colour: #14191C is the UI2 canvas token the MoOS desktop opens on,
-// so splash -> first desktop frame is one continuous colour with no hue flip.
+// The flat UI2 canvas remains underneath as a fail-safe: before Plymouth has
+// decoded the backdrop, the first pixel is still MoOS graphite rather than
+// video black. boot-backdrop.png is a lightweight derivative of the exact
+// Graphite scene Plasma Login Manager paints next. The retained Plymouth frame
+// and first login frame therefore share their whole ground; only the centred
+// boot mark is replaced by the authentication surface.
 Window.SetBackgroundTopColor(0.078, 0.098, 0.110);      // #14191C ÔÇö UI2 canvas
 Window.SetBackgroundBottomColor(0.078, 0.098, 0.110);   // #14191C ÔÇö flat, no seam
 
@@ -60,6 +62,19 @@ PI = 3.14159265;
 fun fmin(a, b) { if (a < b) return a; return b; }
 fun fmax(a, b) { if (a > b) return a; return b; }
 fun clamp01(v) { return fmax(0, fmin(1, v)); }
+
+// Cover the screen without stretching. Scaling happens once during theme
+// setup, never in refresh(), and the 1080p source keeps initramfs decode cost
+// bounded while retaining the reviewed 4K wallpaper's composition.
+BACKDROP_W = 1920;
+BACKDROP_H = 1080;
+backdrop_scale = fmax(sw / BACKDROP_W, sh / BACKDROP_H);
+backdrop_w = BACKDROP_W * backdrop_scale;
+backdrop_h = BACKDROP_H * backdrop_scale;
+backdrop_sprite = Sprite(Image("boot-backdrop.png").Scale(backdrop_w, backdrop_h));
+backdrop_sprite.SetX(cx - backdrop_w / 2);
+backdrop_sprite.SetY(cy - backdrop_h / 2);
+backdrop_sprite.SetZ(0);
 
 // ÔöÇÔöÇ the sequence ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
 INTRO_COUNT  = 32;

@@ -1109,7 +1109,8 @@ lsinitrd "/usr/lib/modules/${kver}/initramfs.img" > /tmp/moos-arm-initrd.txt 2>/
     || { echo "FATAL: lsinitrd could not inspect the deployed ARM initramfs"; exit 1; }
 [ -s /tmp/moos-arm-initrd.txt ] \
     || { echo "FATAL: lsinitrd produced no ARM initramfs inventory"; exit 1; }
-for _need in 'plymouth/themes/moos/moos.script' 'plymouth/themes/moos/intro1.png' \
+for _need in 'plymouth/themes/moos/moos.script' 'plymouth/themes/moos/boot-backdrop.png' \
+             'plymouth/themes/moos/intro1.png' \
              'plymouth/themes/moos/moos.plymouth'; do
     grep -q "${_need}" /tmp/moos-arm-initrd.txt || {
         echo "FATAL: the initramfs lacks ${_need} — the boot animation would not render"

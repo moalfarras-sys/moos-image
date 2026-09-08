@@ -40,8 +40,14 @@ theme layer. Order matters:
    inside Flatpak, and retire already-merged remote branches after proof.
 2. **Boot-to-login experience:** continue the single MoOS visual sequence from
    Plymouth to the login, lock and logout surfaces. Source now includes bounded
-   boot overlays and the responsive clock/calendar; the next closure is measured
-   signed-artifact frames with no fallback flash across scale and locale.
+   boot overlays and the responsive clock/calendar. The 2026-09-08 source pass
+   places the rendered sting over the exact Graphite login landscape and retains
+   that ground through the measured Plymouth→login compositor gap; 16:9 and 4:3
+   previews plus source/initramfs gates are green. A clean local x86 image build
+   also passed and independently proved the exact backdrop inside the final
+   107 MiB initramfs. The next closure remains measured signed-artifact frames
+   with no fallback flash across scale and locale; a built image without a
+   visible UEFI boot does not close the release item.
 3. **Simple daily use:** one obvious place for updates, recovery, apps, Remote,
    language and theme. Keep technical logs collapsed at rest, make every action
    explainable, and preserve Arabic/RTL as a first-class path. The Remote control

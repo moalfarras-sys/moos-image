@@ -4377,6 +4377,19 @@ require('omit_dracutmodules+=" nfs "' in build and build.count('--omit "nfs"') >
         "its pre-udev hook starts rpcbind/rpc.statd on every local OSTree boot and logs hard "
         "state-directory errors before switch-root")
 
+# Every edition builds its initramfs through a different shell path. The shared
+# boot/login scene is real only if each finished archive contains the backdrop;
+# a source-only check would leave ARM or recovery booting the old flat plate.
+require(
+    "for _spr in boot-backdrop ring head glow" in build,
+    "build_files/build.sh does not prove boot-backdrop.png reached the final initramfs",
+)
+for build_script in ("build_files/build-arm.sh", "build_files/build-arm-recovery.sh"):
+    require(
+        "plymouth/themes/moos/boot-backdrop.png" in read(build_script),
+        f"{build_script} does not prove boot-backdrop.png reached the final initramfs",
+    )
+
 # ── The kde-settings profile must name the theme the image actually defaults to ─
 #
 # /usr/share/kde-settings/kde-profile/default/xdg is the layer AGENTS.md blames for the Breeze

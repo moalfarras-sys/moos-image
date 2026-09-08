@@ -181,7 +181,8 @@ rmdir /var/roothome
 
 lsinitrd "/usr/lib/modules/${kver}/initramfs.img" > /tmp/moos-recovery-initrd.txt 2>/dev/null \
     || { echo "FATAL: lsinitrd could not inspect recovery initramfs"; exit 1; }
-for _need in 'plymouth/themes/moos/moos.script' 'plymouth/themes/moos/intro1.png' \
+for _need in 'plymouth/themes/moos/moos.script' 'plymouth/themes/moos/boot-backdrop.png' \
+             'plymouth/themes/moos/intro1.png' \
              'plymouth/themes/moos/moos.plymouth'; do
     grep -q "${_need}" /tmp/moos-recovery-initrd.txt || {
         echo "FATAL: recovery initramfs lacks ${_need} — boot would show foreign splash"

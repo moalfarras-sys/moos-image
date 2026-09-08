@@ -30,9 +30,16 @@ import struct
 import unittest
 from pathlib import Path
 
+from PIL import Image, ImageChops, ImageStat
+
 ROOT = Path(__file__).resolve().parents[1]
 THEME = ROOT / "system_files/usr/share/plymouth/themes/moos"
 SCRIPT = THEME / "moos.script"
+BACKDROP = THEME / "boot-backdrop.png"
+LOGIN_SCENE = (
+    ROOT
+    / "system_files/usr/share/wallpapers/MoOSUI2Graphite/contents/images_dark/3840x2160.jpg"
+)
 
 
 def png_size(path: Path) -> tuple[int, int]:
@@ -98,6 +105,48 @@ class BootSplashTests(unittest.TestCase):
                 self.assertTrue((THEME / name).is_file(),
                                 f"moos.script loads {name}, which is not in the theme — "
                                 f"Plymouth would abort this splash to its text fallback")
+
+    def test_boot_backdrop_is_the_login_scene_not_an_unrelated_black_plate(self) -> None:
+        self.assertEqual(png_size(BACKDROP), (1920, 1080))
+        with Image.open(LOGIN_SCENE) as source, Image.open(BACKDROP) as actual:
+            expected = source.convert("RGB").resize(
+                (1920, 1080), Image.Resampling.LANCZOS
+            )
+            actual_rgb = actual.convert("RGB")
+            difference = ImageChops.difference(expected, actual_rgb)
+            self.assertIsNone(
+                difference.getbbox(),
+                "boot-backdrop.png drifted from the exact Graphite login scene; "
+                "regenerate it with artwork/generate_boot_backdrop.py",
+            )
+        self.assertLess(
+            BACKDROP.stat().st_size / 1048576,
+            4,
+            "the boot backdrop adds more than 4 MiB to every initramfs",
+        )
+        luminance = actual_rgb.convert("L")
+        self.assertGreater(
+            ImageStat.Stat(luminance).mean[0],
+            10,
+            "the boot backdrop regressed to a black-looking screen",
+        )
+        low, high = luminance.getextrema()
+        self.assertGreaterEqual(
+            high - low,
+            15,
+            "the boot backdrop lost the visible depth required by the visual gate",
+        )
+
+    def test_backdrop_is_scaled_once_outside_the_refresh_loop(self) -> None:
+        text = script_text()
+        setup, refresh = text.split("fun refresh()", 1)
+        self.assertIn('Image("boot-backdrop.png").Scale(', setup)
+        self.assertNotIn("boot-backdrop.png", refresh)
+        self.assertIn(
+            "backdrop_scale = fmax(sw / BACKDROP_W, sh / BACKDROP_H)", setup
+        )
+        self.assertIn("backdrop_sprite.SetX(cx - backdrop_w / 2)", setup)
+        self.assertIn("backdrop_sprite.SetY(cy - backdrop_h / 2)", setup)
 
     def test_intro_count_matches_the_frames_on_disk(self) -> None:
         self.assertEqual(int(scalar("INTRO_COUNT")), len(intro_frames()),

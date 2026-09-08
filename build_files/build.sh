@@ -3644,18 +3644,18 @@ if [ "${_final_lsrc}" -eq 0 ]; then
     grep -q 'plymouth/themes/moos/moos.plymouth' /tmp/moos-final-initrd.txt || {
         echo "FATAL: final initramfs lacks the MoOS Plymouth descriptor"; exit 1;
     }
-    # The Script theme's mark (logo.png), its animation SCRIPT, and its moving
-    # sprites must all be in the initramfs, or Plymouth renders the background but
-    # no reveal, or aborts to the text fallback. The script plugin (script.so) is
-    # the difference between a full render and that fallback — the equivalent of
-    # the old two-step.so check.
+    # The Script theme's mark, shared login backdrop, animation script and moving
+    # sprites must all be in the initramfs, or Plymouth renders a flat ground with
+    # no reveal/continuity, or aborts to text. The script plugin (script.so) is the
+    # difference between a full render and that fallback — the equivalent of the
+    # old two-step.so check.
     grep -q 'plymouth/themes/moos/logo.png' /tmp/moos-final-initrd.txt || {
         echo "FATAL: final initramfs lacks the MoOS logo sprite"; exit 1;
     }
     grep -q 'plymouth/themes/moos/moos.script' /tmp/moos-final-initrd.txt || {
         echo "FATAL: final initramfs lacks moos.script — the Script splash would abort to text"; exit 1;
     }
-    for _spr in ring head glow; do
+    for _spr in boot-backdrop ring head glow; do
         grep -q "plymouth/themes/moos/${_spr}.png" /tmp/moos-final-initrd.txt || {
             echo "FATAL: final initramfs lacks the MoOS ${_spr} sprite — the reveal cannot draw"; exit 1;
         }
