@@ -612,7 +612,7 @@ def gate_until(script, args, seconds, label, diagnose=None):
         # the same blind failure with extra steps.
         print(f"=== session failure diagnosis ===\n{text}", file=sys.stderr)
 
-    if label.startswith("installed"):
+    if label.startswith("installed") or label.startswith("PLM login"):
         # Keep the gate's own last output: its stderr stage markers name the
         # exact assert that failed, which the one-line FATAL cannot carry.
         (evidence / "installed-gate-last-output.txt").write_text(

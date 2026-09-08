@@ -24,7 +24,7 @@ Image=MoOSUI2ForgeLight
 
 [ksplashrc][KSplash]
 Theme=org.moos.ui2.dev.light
-Engine=KSplashQML
+Engine=None
 
 [kdeglobals][Icons]
 Theme=MoOSUI2ForgeLight

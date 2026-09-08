@@ -24,7 +24,7 @@ Image=MoOSUI2Nova
 
 [ksplashrc][KSplash]
 Theme=org.moos.ui2.nova
-Engine=KSplashQML
+Engine=None
 
 [kdeglobals][Icons]
 Theme=MoOSUI2Nova

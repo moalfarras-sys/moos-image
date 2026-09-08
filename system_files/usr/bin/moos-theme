@@ -962,7 +962,7 @@ full_theme_complete() {
     [ "$(kreadconfig6 --file ksplashrc --group KSplash --key Theme 2>/dev/null)" \
         = "$lnf" ] || return 1
     [ "$(kreadconfig6 --file ksplashrc --group KSplash --key Engine 2>/dev/null)" \
-        = KSplashQML ] || return 1
+        = None ] || return 1
     [ "$(kreadconfig6 --file kcminputrc --group Mouse --key cursorTheme 2>/dev/null)" \
         = "$cursor" ] || return 1
 
@@ -1035,7 +1035,7 @@ apply() {
         kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key theme "$deco" || write_failed=1
         kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key ButtonsOnLeft XIA || write_failed=1
         kwriteconfig6 --file ksplashrc --group KSplash --key Theme "$lnf" || write_failed=1
-        kwriteconfig6 --file ksplashrc --group KSplash --key Engine KSplashQML || write_failed=1
+        kwriteconfig6 --file ksplashrc --group KSplash --key Engine None || write_failed=1
         kwriteconfig6 --file kcminputrc --group Mouse --key cursorTheme "$cursor" || write_failed=1
         if [ "$write_failed" -ne 0 ]; then
             echo "moos-theme: could not write the full theme cascade for $lnf" >&2

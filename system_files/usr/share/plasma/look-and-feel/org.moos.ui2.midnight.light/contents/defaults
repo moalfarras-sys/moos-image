@@ -24,7 +24,7 @@ Image=MoOSUI2Daylight
 
 [ksplashrc][KSplash]
 Theme=org.moos.ui2.midnight.light
-Engine=KSplashQML
+Engine=None
 
 [kdeglobals][Icons]
 Theme=MoOSUI2Daylight

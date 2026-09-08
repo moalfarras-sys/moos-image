@@ -24,7 +24,7 @@ Image=MoOSUI2Amethyst
 
 [ksplashrc][KSplash]
 Theme=org.moos.ui2.amethyst
-Engine=KSplashQML
+Engine=None
 
 [kdeglobals][Icons]
 Theme=MoOSUI2Amethyst

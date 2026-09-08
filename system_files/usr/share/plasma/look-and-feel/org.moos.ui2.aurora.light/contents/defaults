@@ -24,7 +24,7 @@ Image=MoOSUI2AuroraLight
 
 [ksplashrc][KSplash]
 Theme=org.moos.ui2.aurora.light
-Engine=KSplashQML
+Engine=None
 
 [kdeglobals][Icons]
 Theme=MoOSUI2AuroraLight

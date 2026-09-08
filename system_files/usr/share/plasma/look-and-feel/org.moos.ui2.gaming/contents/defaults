@@ -24,7 +24,7 @@ Image=MoOSUI2Arena
 
 [ksplashrc][KSplash]
 Theme=org.moos.ui2.gaming
-Engine=KSplashQML
+Engine=None
 
 [kdeglobals][Icons]
 Theme=MoOSUI2Arena

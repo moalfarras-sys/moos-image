@@ -24,7 +24,7 @@ Image=MoOSUI2Scholar
 
 [ksplashrc][KSplash]
 Theme=org.moos.ui2.study
-Engine=KSplashQML
+Engine=None
 
 [kdeglobals][Icons]
 Theme=MoOSUI2Scholar
