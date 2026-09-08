@@ -560,6 +560,38 @@ if [ "${MOOS_IMAGE_NAME:-moos}" = "moos-nvidia" ]; then
     # initramfs that was actually produced instead of trusting dracut's log wording.
     echo "=== dracut nvidia mentions: $(grep -ciE 'nvidia' /tmp/moos-dracut.log || true) ==="
 fi
+
+# --- A CEILING ON THE INITRAMFS, measured against the artifact ----------------
+# x86 MoOS has no separate /boot partition (moos-install-to-disk lays down BIOS
+# boot + a 512 MiB ESP + one root partition), so the limit here is not disk
+# space: it is GRUB's ability to allocate and load the initrd before the kernel
+# starts. That limit was hit for real. The comment on 99-moos-boot.conf records
+# it: the NVIDIA initramfs was ~368 MB and "GRUB could not allocate" it, and
+# trimming the non-NVIDIA display drivers brought it to ~242 MB, which boots.
+# The generic edition is ~124 MB.
+#
+# Nothing gated that. Every saving in this file -- the omitted network stack,
+# kernel-modules-extra, the other GPU families -- is one deleted line away from
+# coming back, and the failure mode is not a red build: it is the maintainer's
+# daily driver stopping at the GRUB prompt with the previous deployment as the
+# only way back. The ARM edition has had this ceiling since 2026-09-06
+# (build-arm.sh, 150 MiB); the x86 editions never did.
+#
+# 300 MiB sits above the measured 242 MB NVIDIA image with room for driver
+# growth, and far enough below the ~368 MB that failed to be a real warning
+# rather than a tripwire. The size is read off the file dracut just wrote, not
+# inferred from its configuration.
+_initrd_mib=$(( $(stat -c %s "/usr/lib/modules/${kver}/initramfs.img") / 1048576 ))
+echo "=== ${MOOS_IMAGE_NAME:-moos} initramfs: ${_initrd_mib} MiB (ceiling 300) ==="
+if [ "${_initrd_mib}" -gt 300 ]; then
+    echo "FATAL: the ${MOOS_IMAGE_NAME:-moos} initramfs is ${_initrd_mib} MiB (ceiling 300)."
+    echo "       GRUB failed to allocate this initrd at ~368 MB on real hardware and the"
+    echo "       machine stopped before the kernel. Find what was added back to the"
+    echo "       initramfs -- most likely an omit_dracutmodules or omit_drivers entry in"
+    echo "       99-moos-boot.conf -- rather than raising this number."
+    exit 1
+fi
+unset -v _initrd_mib
 rm -f /tmp/moos-dracut.log
 
 # --- USER-REQUESTED PROOF: lsinitrd | grep ostree-prepare-root ----------------
@@ -1840,6 +1872,13 @@ systemctl --global disable mo-remote-personal.service || true
 # on the WiFi. It binds 127.0.0.1 now and `tailscale serve` is the only way in; see the long note
 # at the top of /usr/bin/moos-cloud-audio.
 systemctl --global enable moos-cloud-audio.service
+# The file-indexing budget consumer. moos-visual-tier publishes
+# budget.file_indexing; this is the owner that applies it to baloofilerc. It was
+# published and unconsumed, so a 2-core machine ran full content extraction
+# against its own advice (measured on the live A1: 2.8 GB index, 394 MiB RSS).
+test -f /usr/lib/systemd/user/moos-index-policy.service \
+    || { echo "FATAL: moos-index-policy.service is missing from the image"; exit 1; }
+systemctl --global enable moos-index-policy.service
 echo "=== per-account audio enabled on loopback; the authenticated agent proxies /api/audio/stream.webm ==="
 chmod 0755 /usr/lib/mo-remote/MoRemotePersonal \
     /usr/lib/mo-remote/mo-remote-portal.py \
@@ -2639,6 +2678,28 @@ systemctl --global enable moos-ensure-brain.timer
 # desktop. moai-idle.timer stops the brain after it is idle; moai-gateway restarts it on
 # the next request. Enabled for every user so stability is the default, not an opt-in.
 systemctl --global enable moai-idle.timer
+
+# Bring Mo PC Remote back after a CRASH — and only after a crash.
+#
+# mo-remote-personal has StartLimitBurst=5 over 300s with Restart=on-failure and
+# RestartSec=3, so five failures in fifteen seconds exhaust the limit and systemd
+# refuses to start it again for the rest of the session. On moos-cloud and on the
+# ARM Oracle host that is fatal in the literal sense: Mo PC Remote IS the screen,
+# so there is no local session left to type the recovery into. On generic x86 and
+# NVIDIA it is a feature that silently stops working until the next reboot.
+#
+# A hand-written version of this has been in ~/.config/systemd/user on the A1
+# since 2026-08-30 and never reached the image, which is exactly the
+# edition-specific drift the shared tree exists to prevent.
+#
+# The watchdog acts ONLY on the failed state, because `systemctl --user stop` --
+# the off switch moos-selfcheck tells the owner to use -- leaves the unit
+# inactive, not failed. The $HOME ancestor started it unconditionally once a
+# minute and so overrode that documented off switch.
+#
+# The TIMER is enabled, not the service: the service is Type=oneshot and carries
+# no [Install], for the same reason moos-ensure-brain does not.
+systemctl --global enable mo-remote-watchdog.timer
 
 # Mo AI on Telegram is ON-DEMAND. The heavy agent (openclaw-gateway: a ~386 MB Node
 # runtime + a rootless-podman sandbox + an Ollama model) is NOT enabled at boot — it
@@ -3583,18 +3644,18 @@ if [ "${_final_lsrc}" -eq 0 ]; then
     grep -q 'plymouth/themes/moos/moos.plymouth' /tmp/moos-final-initrd.txt || {
         echo "FATAL: final initramfs lacks the MoOS Plymouth descriptor"; exit 1;
     }
-    # The Script theme's mark (logo.png), its animation SCRIPT, and its moving
-    # sprites must all be in the initramfs, or Plymouth renders the background but
-    # no reveal, or aborts to the text fallback. The script plugin (script.so) is
-    # the difference between a full render and that fallback — the equivalent of
-    # the old two-step.so check.
+    # The Script theme's mark, shared login backdrop, animation script and moving
+    # sprites must all be in the initramfs, or Plymouth renders a flat ground with
+    # no reveal/continuity, or aborts to text. The script plugin (script.so) is the
+    # difference between a full render and that fallback — the equivalent of the
+    # old two-step.so check.
     grep -q 'plymouth/themes/moos/logo.png' /tmp/moos-final-initrd.txt || {
         echo "FATAL: final initramfs lacks the MoOS logo sprite"; exit 1;
     }
     grep -q 'plymouth/themes/moos/moos.script' /tmp/moos-final-initrd.txt || {
         echo "FATAL: final initramfs lacks moos.script — the Script splash would abort to text"; exit 1;
     }
-    for _spr in ring head glow; do
+    for _spr in boot-backdrop ring head glow; do
         grep -q "plymouth/themes/moos/${_spr}.png" /tmp/moos-final-initrd.txt || {
             echo "FATAL: final initramfs lacks the MoOS ${_spr} sprite — the reveal cannot draw"; exit 1;
         }

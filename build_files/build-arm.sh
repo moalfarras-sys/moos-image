@@ -255,7 +255,8 @@ for unit in \
     moai-gateway.service moai-control.service moai-agent-api.service \
     moai-wake.service moai-idle.timer openclaw-idle.timer \
     moos-ensure-brain.timer moos-theme-sync.path moos-theme-drift.timer \
-    moos-cloud-audio.service moos-update-ready.timer moos-reclaim-disk.timer; do
+    moos-cloud-audio.service moos-update-ready.timer moos-reclaim-disk.timer \
+    moos-index-policy.service mo-remote-watchdog.timer; do
     test -f "/usr/lib/systemd/user/${unit}" || {
         echo "FATAL: shared user authority is missing: ${unit}"
         exit 1
@@ -270,7 +271,9 @@ systemctl --global enable \
     moai-gateway.service moai-control.service moai-agent-api.service \
     moai-wake.service moai-idle.timer openclaw-idle.timer \
     moos-ensure-brain.timer moos-theme-sync.path moos-theme-drift.timer \
-    moos-cloud-audio.service moos-update-ready.timer moos-reclaim-disk.timer
+    moos-cloud-audio.service moos-update-ready.timer moos-reclaim-disk.timer \
+    moos-index-policy.service \
+    mo-remote-watchdog.timer
 
 systemctl enable NetworkManager.service sshd.service firewalld.service tailscaled.service
 systemctl enable moos-auto-update.timer
@@ -1106,7 +1109,8 @@ lsinitrd "/usr/lib/modules/${kver}/initramfs.img" > /tmp/moos-arm-initrd.txt 2>/
     || { echo "FATAL: lsinitrd could not inspect the deployed ARM initramfs"; exit 1; }
 [ -s /tmp/moos-arm-initrd.txt ] \
     || { echo "FATAL: lsinitrd produced no ARM initramfs inventory"; exit 1; }
-for _need in 'plymouth/themes/moos/moos.script' 'plymouth/themes/moos/intro1.png' \
+for _need in 'plymouth/themes/moos/moos.script' 'plymouth/themes/moos/boot-backdrop.png' \
+             'plymouth/themes/moos/intro1.png' \
              'plymouth/themes/moos/moos.plymouth'; do
     grep -q "${_need}" /tmp/moos-arm-initrd.txt || {
         echo "FATAL: the initramfs lacks ${_need} — the boot animation would not render"

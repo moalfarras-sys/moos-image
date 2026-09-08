@@ -90,6 +90,32 @@ check:
     python3 tests/test_release_partition_roles.py
     python3 tests/test_iso_install_gate.py
     # Every gate any workflow runs must also be runnable from `just check`.
+    # A root unit executing a script from $HOME is a privilege boundary nobody
+    # sees until they look. One was live on the A1 for eight days.
+    python3 tests/test_no_privileged_user_writable_units.py
+    python3 tests/test_index_policy_consumer.py
+    # Every failure dump in the x86 boot proofs was written `2>/dev/null >&2`,
+    # which points stdout at the /dev/null fd 2 was just set to. All 14 printed
+    # a heading and nothing else, so the ISO gate that blocks the x86 release
+    # train has been failing blind since 2026-08-23.
+    python3 tests/test_diagnostic_redirection.py
+    # Assets were checked for $HOME shadowing; CODE was not. Mo AI and Mo Remote
+    # ran from ~/.local/lib on the A1 for two days while this section reported
+    # "no user-level copy is shadowing a MoOS asset".
+    python3 tests/test_selfcheck_unit_shadowing.py
+    # Mo PC Remote IS the screen on cloud and ARM. A crash past StartLimitBurst
+    # left it dead until reboot on every edition; the recovery unit existed only
+    # in one machine's $HOME. It must recover a crash without overriding the
+    # owner's `systemctl --user stop`.
+    python3 tests/test_mo_remote_watchdog.py
+    # Each build script has its own `systemctl --global enable` list, so a unit
+    # added to one and not the other is invisible drift: nothing fails and the
+    # feature just does not exist on the other editions.
+    python3 tests/test_edition_unit_parity.py
+    # `xdg-mime query default` returns a NAME. Which FILE wins is XDG precedence,
+    # and a stale $HOME entry pointing at a deleted program kept the name right
+    # while every moos:// link on the A1 was dead.
+    python3 tests/test_selfcheck_url_handler.py
     python3 tests/test_gate_coverage.py
     python3 tests/test_firewall_migration.py
     python3 tests/test_hardware_adapt_lifecycle.py

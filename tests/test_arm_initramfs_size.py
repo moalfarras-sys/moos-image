@@ -57,6 +57,16 @@ OMITTED = {
 }
 
 
+def x86_dracut_blocks():
+    """Every dracut.conf.d heredoc in build.sh, whatever its delimiter.
+
+    Matching the delimiter by name is what made the previous version of this
+    check vacuous, so the delimiter is captured and back-referenced instead.
+    """
+    return [body for _, _, body in re.findall(
+        r"dracut\.conf\.d/([^\n]*)<<'?(\w+)'?(.*?)\n\2\n", X86, re.S)]
+
+
 def code(text: str) -> str:
     """Strip shell comments so prose cannot satisfy a wiring assertion."""
     return "\n".join(
@@ -139,15 +149,57 @@ class ArmInitramfsFits(unittest.TestCase):
             ARM.index("GATE: the discrete-GPU firmware"),
             "the OSTree/virtio/Plymouth gates must precede the firmware gate")
 
-    def test_x86_nvidia_is_deliberately_untouched(self) -> None:
-        """moos-nvidia REQUIRES its driver inside the initramfs — a black screen
-        otherwise (AGENTS.md, 'An NVIDIA image must contain a working NVIDIA
-        driver'). This ARM-only saving must never be copied there."""
-        conf_blocks = re.findall(r"dracut\.conf\.d/[^\n]*<<'?DRACUT'?(.*?)\nDRACUT\n",
-                                 X86, re.S)
-        for block in conf_blocks:
-            self.assertNotIn("omit_drivers", block,
-                             "x86 must not omit GPU drivers from its initramfs")
+    def test_x86_dracut_blocks_are_actually_found(self) -> None:
+        """The x86 check below is worthless if its regex matches nothing.
+
+        It used to look for heredocs delimited `DRACUT`. The one dracut config
+        x86 writes (99-moos-boot.conf) is delimited `DRC`, so the search
+        returned zero blocks and the loop under it never executed: a gate that
+        could not fail, guarding the boot path of the maintainer's daily driver.
+        """
+        self.assertTrue(x86_dracut_blocks(),
+                        "no x86 dracut.conf.d heredoc found -- the gate below "
+                        "would pass without inspecting anything")
+
+    def test_x86_keeps_nvidia_in_the_initramfs(self) -> None:
+        """moos-nvidia REQUIRES its driver inside the initramfs -- a black
+        screen otherwise (AGENTS.md, 'An NVIDIA image must contain a working
+        NVIDIA driver').
+
+        The previous version of this test asserted x86 omits no GPU drivers at
+        all. That contract was already false: build.sh deliberately omits
+        nouveau, amdgpu, radeon, i915, xe and nvidiafb, which is what took the
+        NVIDIA initramfs from ~368 MB (GRUB could not allocate it) to ~242 MB.
+        Only the vacuous regex kept the assertion from failing the correct
+        build. What actually must never happen is `nvidia` itself being omitted.
+        """
+        for block in x86_dracut_blocks():
+            for line in block.splitlines():
+                line = line.strip()
+                if not line.startswith("omit_drivers"):
+                    continue
+                omitted = line.split("=", 1)[1].strip().strip('"').split()
+                self.assertNotIn(
+                    "nvidia", omitted,
+                    "x86 must never omit the nvidia driver from the initramfs; "
+                    "moos-nvidia would boot to a black screen")
+                self.assertNotIn(
+                    "nvidia_drm", omitted,
+                    "omitting nvidia_drm kills early KMS and the splash")
+
+    def test_x86_initramfs_has_a_size_ceiling(self) -> None:
+        """The savings above are one deleted line from returning, and the
+        failure is a machine that stops at GRUB rather than a red build.
+
+        ARM has had a measured ceiling since 2026-09-06; x86 had none.
+        """
+        self.assertRegex(
+            X86, r"initramfs is \$\{_initrd_mib\} MiB \(ceiling 300\)",
+            "build.sh must fail an x86 initramfs over the 300 MiB ceiling")
+        self.assertIn(
+            'stat -c %s "/usr/lib/modules/${kver}/initramfs.img"', X86,
+            "the ceiling must measure the initramfs dracut actually wrote, "
+            "not infer a size from the dracut configuration")
 
 
 if __name__ == "__main__":

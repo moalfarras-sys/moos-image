@@ -103,6 +103,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      # test_boot_splash_polish.py opens the shipped PNG masters with Pillow.
+      # Keep this explicit, as on the x86 workflow: hosted ARM runners do not
+      # provide PIL and the source gate otherwise fails before the image build.
+      - name: Gate dependencies
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq python3-pil
+
       - name: ARM and boot-splash source gates
         run: |
           bash -n build_files/build-arm.sh
@@ -119,6 +125,13 @@ jobs:
           bash -n tests/verify_arm_runtime.sh
           python3 tests/test_moos_arm.py
           python3 tests/test_usr_local_layout.py
+          python3 tests/test_no_privileged_user_writable_units.py
+          python3 tests/test_index_policy_consumer.py
+          python3 tests/test_diagnostic_redirection.py
+          python3 tests/test_selfcheck_unit_shadowing.py
+          python3 tests/test_mo_remote_watchdog.py
+          python3 tests/test_edition_unit_parity.py
+          python3 tests/test_selfcheck_url_handler.py
           python3 tests/test_gate_coverage.py
           python3 tests/test_moai_cloud_only.py
           python3 tests/test_moai_free_policy.py

@@ -1,5 +1,255 @@
 # MoOS — current project state
 
+**The x86/NVIDIA release train, and why it was stuck (2026-09-08, Oracle A1):**
+`moos:latest`, `moos-nvidia:latest` and `moos-cloud:latest` had not moved since
+**2026-08-23** (`44.20260823.650`) while ARM's `latest` was current. That is not
+a broken build: `build.yml` deliberately pushes only a run/SHA-bound
+`candidate-*` tag, and `promote-x86.yml` moves production tags only after five
+proofs of one revision — the signed build, three QCOW2 disk boots and the
+offline ISO install. **`promote-x86.yml` has never run.** The ISO proof kept
+failing, so nothing could ever be promoted, and the maintainer's daily driver
+could not receive an update.
+
+The ISO gate failed the same way every run: *"PLM login did not reach the
+desktop: kwin_wayland not running under moosci"*, printed above four EMPTY
+evidence sections. Two independent defects made it unreadable, both now fixed:
+
+- All 14 failure dumps across `install_live_iso.sh`, `boot_live_iso.sh` and
+  `boot_x86_qcow2.sh` were written `tail … 2>/dev/null >&2`. Redirections apply
+  left to right, so `>&2` pointed stdout at the `/dev/null` fd 2 had just been
+  set to and **every dump was discarded**. Gated by
+  `tests/test_diagnostic_redirection.py`, which proves the behaviour by running
+  both orders.
+- `gate_until()`'s failure diagnosis runs only `if label.startswith("installed")`.
+  The desktop gate's label is `"PLM login did not reach the desktop"`, so
+  **nothing was collected for the one gate that fails** — while SSH was plainly
+  alive. It now takes a diagnosis script, run over that same channel, printed to
+  stderr as well as archived.
+
+The MECHANISM was identified in parallel on `fix/iso-plm-wake-space-20260908`
+and is merged here: the password is typed into Plasma Login Manager's idle clock
+page instead of a password field, so it never reaches PAM and no session — and
+therefore no `kwin_wayland` — is ever created.
+
+**That branch's FIX does not work.** Run 34167769770 carried its shift+space
+wake and its virtio keyboard/tablet, and failed identically. Converting that
+run's `installed-login.ppm` and looking at it shows the MoOS idle clock still
+painted — the time and "Monday, 7 September 2026", no password field. So the
+wake does not dismiss the clock. Why it does not is NOT known; the next ISO run
+carries the restored diagnostics, a session diagnosis over SSH, and a second
+screenshot taken at the moment the gate gives up, which is the first run that
+will be able to say.
+
+**Not yet true:** no x86 promotion has been run, and `latest` for the three x86
+editions is still `44.20260823.650`. Promotion needs the five proofs to pass on
+one revision.
+
+**Stale $HOME overrides were shadowing MoOS code on the A1 (2026-09-08):**
+Mo AI's `moai-agent-api`, `moai-control` and `moai-gateway`, plus Mo PC Remote,
+were all executing binaries under `~/.local/lib` (`moai-cloud-20260906`,
+`mo-remote-v39-20260905`) via drop-ins from a migration two days earlier;
+`moai-hermes.service` had a whole replacement unit in `$HOME`; four MoOS units
+were masked to `/dev/null`. The image's copies had never run on this machine.
+`moos-selfcheck` reported *"no user-level copy is shadowing a MoOS asset"*
+throughout — it looked only at `~/.local/share`. It now also reports units,
+drop-ins that repoint ExecStart/Environment into `$HOME`, drop-ins shadowing an
+image drop-in by filename, and masks over shipped units
+(`tests/test_selfcheck_unit_shadowing.py`).
+
+**DONE (2026-09-08).** The A1 now has `44.20260908.322`
+(`sha256:f8447708…`) **staged and awaiting a reboot**, and the overrides are
+retired. Order mattered: the booted image (`44.20260907.319`) predates PR #77,
+so retiring them first would have downgraded Mo PC Remote to a build without the
+input fix.
+
+What was verified before staging, not after: `cosign verify` against
+`cosign.pub` for that exact digest; the ARM boot proof for the same digest
+(`workflow_run_id` 34187655686, `first_boot: healthy`, `second_boot: healthy`,
+`poweroff: clean`, `graphical=active`, `display_manager=active`,
+`failed_units=0` on both boots); and after `bootc switch
+--enforce-container-sigpolicy --retain`, that the staged origin string is
+character-for-character the signed digest asked for. The booted deployment and
+one older one are retained, and `/boot` is unchanged at 48% with three
+deployments.
+
+Retired (backed up to `~/.moos-override-backup-20260908/`): the three Mo AI
+drop-ins, `moai-hermes.service`, both Mo PC Remote agent redirects, the `$HOME`
+`mo-remote-watchdog` pair, the now-shipped kwin memory guard, a
+`.conf.before-xwayland` leftover, and `moos-oracle-verify.service`. Kept on
+purpose: `20-stability.conf`, the ARM virtual-output drop-in and
+`moos-web-studio.service` — owner tuning that shadows no image code.
+
+One self-inflicted fault, found and cleared: removing the `$HOME` watchdog files
+while its timer was running left `mo-remote-watchdog.timer` failed with
+"Unit to trigger vanished" (`Result: resources`). Stop the unit before deleting
+its files. Cleared with `reset-failed`; no failed system or user units remain.
+
+The machine went from **51 passed / 3 failed** to **54 passed / 1 failed** on
+`tests/post-update-check.sh`. The single remaining failure is the wallpaper
+drift documented below, which is not claimed fixed.
+
+**NOT DONE: the reboot.** The owner reboots. Nothing here has booted the new
+deployment, so nothing in this file may be read as post-reboot verification.
+
+**NVIDIA boot-path gates (2026-09-08):**
+`test_x86_nvidia_is_deliberately_untouched` searched `build.sh` for heredocs
+delimited `DRACUT`; the only x86 dracut config is delimited `DRC`, so it
+inspected **zero blocks and could not fail**. Its stated contract was also false
+— x86 deliberately omits nouveau/amdgpu/radeon/i915/xe/nvidiafb, which is what
+took the NVIDIA initramfs from ~368 MB (GRUB could not allocate it) to ~242 MB.
+It now asserts the contract that matters: `nvidia` and `nvidia_drm` must never
+be omitted. The x86 initramfs also had **no size ceiling** despite that
+documented GRUB failure; `build.sh` now measures the artifact dracut wrote and
+fails above 300 MiB, as ARM has since 2026-09-06.
+
+**Mo PC Remote had no recovery path in any image (2026-09-08):** after five
+failures in 300 s it stays dead for the session. On moos-cloud and the ARM host
+Remote IS the screen. A watchdog had lived only in one machine's `$HOME` since
+2026-08-30 — and it restarted Remote unconditionally, overriding the
+`systemctl --user stop` that `moos-selfcheck` documents as the off switch. The
+shipped version acts only on the `failed` state and is enabled on all four
+editions.
+
+**Every `moos://` link on the A1 was dead, under a green check (2026-09-08).**
+`~/.local/share/applications/org.moos.urlhandler.desktop` carried
+`Exec=/var/home/moos/moos-desktop-edit/system_files/usr/bin/moos-open` — a path
+inside a working copy that had since been deleted. `~/.local/share` outranks
+`/usr/share`, so that entry was the one the desktop ran, and Mo Store install
+links, Settings routes and Mo AI's app links all went nowhere.
+
+`moos-selfcheck` printed *"moos:// links route to MoOS"* throughout, because it
+compared the NAME `xdg-mime` returned and never resolved which FILE that name
+won, nor whether that file's `Exec` program existed. The check now resolves the
+entry by XDG precedence, takes argv[0] of `Exec=` with the field codes dropped,
+and requires it to be executable — and separately reports a handler that wins
+from the user's data home even when it works, because it freezes the image's
+copy. Gated by `tests/test_selfcheck_url_handler.py`.
+
+**FIXED ON THE MACHINE.** The stale entry was removed (backed up to
+`~/.moos-override-backup-20260908/`); `xdg-mime` now resolves to
+`/usr/share/applications/org.moos.urlhandler.desktop` → `/usr/bin/moos-open`,
+which exists and is executable. This was the one live repair made before the
+image update, because it needed no new image.
+
+**Signature chain verified from the A1 (2026-09-08).** The problem was never
+signing. `/etc/pki/containers/moos.pub` is byte-identical to the repo's
+`cosign.pub` (sha256 3ed7f81e…), `/etc/containers/policy.json` rejects by
+default and requires `sigstoreSigned` for `ghcr.io/moalfarras-sys`, and
+`cosign verify --key cosign.pub` passes for `moos`, `moos-nvidia`, `moos-cloud`
+and `moos-arm` at `:latest`, and for BOTH deployment digests on this machine
+(booted `32283e41`, rollback `bf247bdc`). Both origins are
+`ostree-image-signed:`, and `moos-verify-origin` reports the origin already
+enforces the policy. What is broken is promotion, not trust.
+
+**Observed, cause NOT established: the desktop wallpaper drifted mid-session
+(2026-09-08, A1).** At the start of the session `moos-selfcheck` reported
+*"all 1 desktop wallpaper(s) match: MoOSUI2Arena"*. Roughly an hour later the
+same check reported *"only 0/1 desktop wallpaper(s) match MoOSUI2Arena"*, with
+`[Containments][24][Wallpaper][org.moos.ui2.wallpaper][General] Image=` reading
+`MoOSUI2Graphite` while the family stayed `org.moos.ui2.gaming` / Arena. The
+`[Containments][24][General]` key still read Arena; it is the plugin-specific
+section, the one that wins, that had moved.
+
+Timeline: `moos-theme-drift.timer` fires `moos-theme-sync.service`
+(`moos-theme reconcile-service`) every 30 minutes — it ran 00:55:38–00:55:51 —
+and `plasma-org.kde.plasma.desktop-appletsrc` was rewritten at 00:58:54, three
+minutes AFTER that reconcile. Running `moos-theme reconcile` by hand restored
+Arena in both the file and the live plasmashell (read back over
+`org.kde.PlasmaShell.evaluateScript`, not from the file), and selfcheck went
+green again.
+
+It RECURS. Watched from 01:31: Arena at 01:31, Graphite again by 01:43:52, and
+Graphite again by ~02:00 — three independent observations, each repaired by
+`moos-theme reconcile`. So this is a live loop, not a one-off, and the 30-minute
+drift timer is currently the only thing holding the desktop to its own theme.
+
+RULED OUT BY TEST, not by reading: `moos-visual-tier`. It was the only caller of
+`kscreen-doctor`, which appeared in the journal at 01:43:56, seconds from the
+flip, and it drives `moos-theme motion`, which writes `MotionMode`/
+`AmbientMotion` into the SAME config group as `Image=` — and whose
+`restore_desktop_scene()` does write `Image` back from a snapshot. That made it
+the obvious suspect. Running `moos-visual-tier --apply` directly, immediately
+after a reconcile had restored Arena, reported "0 setting(s) changed" and left
+the wallpaper on Arena. It is not the writer, at least not when its profile is
+already satisfied.
+
+Also excluded by inspection: the wallpaper plugin's own config default.
+`/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/config/main.xml`
+declares `<entry name="Image"><default></default>`, i.e. empty — so a config
+reload writing the declared default back cannot be the source of a Graphite
+value.
+
+And MoOS's own intent is correct throughout:
+`~/.local/state/moos/theme/theme-state.json` reads `"active":
+"org.moos.ui2.gaming"`, `"wallpaperMode": "profile"`, `"wallpaperEncoded":
+"%2Fusr%2Fshare%2Fwallpapers%2FMoOSUI2Arena"`. Whatever writes Graphite is not
+reading MoOS's recorded intent. (Noted in passing: a stale
+`~/.local/state/moos/theme/transaction.1Ced2U/` directory has been sitting there
+since 2026-09-06 04:13 — an abandoned theme transaction, not yet shown to be
+related.)
+
+What this does NOT establish is the cause. Nothing in this session wrote Plasma
+configuration, and the installed `moos-theme` and `moos-apply-theme` are
+byte-identical to the repo copies, so it is not a stale image. The shape — a
+reconcile writing the correct value and the file carrying the wrong one minutes
+later — is consistent with plasmashell flushing its own in-memory copy over a
+config written behind its back, but that has NOT been proven and must not be
+recorded as fixed. The 30-minute reconcile timer is the existing mitigation and
+it did repair it. `moos-theme wallpaper-*` and the two wallpaper gates
+(`test_theme_wallpaper_readback.py`, `test_theme_wallpaper_steady_state.py`)
+are where a real fix would go once the writer is identified.
+
+**Open, not explained: `efi.automount` fails on every installed x86 system.**
+The ISO proof's serial console from run 34164335024 shows
+`[FAILED] Failed to set up automount efi.automount - EFI System Partition
+Automount` on the freshly installed disk, while `installed-first-boot.txt` from
+the same run reports `failed-units=0`. Those two cannot both be right, so one of
+them is wrong and it is not yet known which. The A1 has no such unit and no ESP
+line in `/etc/fstab` (only `/boot` and the swapfile), and `moos-install-to-disk`
+mounts the ESP at `/boot/efi` — a unit named `efi.automount` is `/efi`, so a
+generator, most likely systemd's GPT auto-generator, is creating it. This is NOT
+fixed: nothing here should touch x86 EFI mounting from an aarch64 machine with
+no x86 host to test on. The ISO gate's restored diagnostics now collect failed
+system units, so the next ISO run should say which of the two readings is true.
+
+**NVIDIA hardware remains unverified.** No session may claim otherwise from
+Oracle or from a green build; see
+[`docs/NVIDIA_HARDWARE_ACCEPTANCE.md`](docs/NVIDIA_HARDWARE_ACCEPTANCE.md),
+which is unrun.
+**Boot visual continuity source pass (2026-09-08):** the physical NVIDIA host's
+last boot measured 44.377 s end to end: 10.329 s firmware + 5.932 s loader +
+6.073 s kernel + 4.151 s initrd + 17.890 s userspace. Plymouth started at
+kernel-monotonic 8.815 s and quit at 21.171 s; the login compositor selected its
+DRM backend at 24.855 s. The existing `plymouth quit --retain-splash` therefore
+covers a measured ~3.7 s handoff that would otherwise be black. The remaining
+visual defect was the surface itself: the rendered logo sting played on a flat,
+almost-black canvas, then the login manager replaced the whole frame with its
+Graphite glass landscape.
+
+Source now plays the existing 32-frame energy/mark animation over
+`boot-backdrop.png`, a deterministic 1920x1080 downsample of the **exact**
+Graphite-dark wallpaper already configured for Plasma Login Manager. The
+backdrop is 864 KiB encoded, is scaled once outside Plymouth's refresh loop,
+contains zero pure-black pixels, and stays visible in the retained handoff; the
+login frame therefore replaces the mark/authentication layer without replacing
+the ground. The preview now renders the complete slow-boot cue after 2.4 s and
+the explicit quit frame, not only the 1.28 s intro. The reviewed 16:9 and 4:3
+storyboards are `artwork/generated/boot-animation-filmstrip.png` and the
+temporary scale preview; horizontal scans on the 1080p settled frame measured
+127–231 luminance steps across the glass/brand rows (design floor: 15).
+
+Repo gates cover exact backdrop provenance, 4 MiB encoded ceiling, cover
+geometry, one-time scaling, missing assets, BOM/parser safety, and final-initrd
+presence in x86, ARM and recovery build paths. `just check` passed all 123
+workflow gates, and a clean local `just build` produced
+`localhost/moos:latest` with `bootc container lint` passing. Independent
+built-image inspection found the exact source SHA-256
+`bdb3b79845eac51265bd850ca2cb0762c1c253a5ed6a8a7885d6a4dc888d9931`
+in the image and its 107 MiB final initramfs, with `Theme=moos` and the
+`--retain-splash` override active. This is **built-image proof**, not a visible
+boot proof: a UEFI VM/hardware capture remains required before merge or release,
+and firmware-controlled pixels before Plymouth remain outside the OS renderer.
+
 **Current bounded x86 repair (2026-09-07):** run 769 fails all three editions
 because `55737753` applies ARM's real-directory `/usr/local/sbin` repair to
 Atomic's dangling `/usr/local -> ../var/usrlocal` link. Candidate work on
@@ -252,6 +502,90 @@ and passed; the unit was removed. And the deliberately broken QA plasmoid left o
 the desktop by the earlier session (`org.moos.test.broken`, applet 43) was
 removed through Plasma's own applet action, then its package deleted — its error
 popup was the visible defect on the owner's screen.
+
+### Oracle stability/performance pass — the budget had no consumer (2026-09-07)
+
+Branch `oracle/stability-performance-20260907`, ARM only. The PC agent's
+`gpt/fix-x86-build-20260907` was left untouched and unmerged.
+
+**The measured win: Baloo was ignoring the machine's own budget.**
+`moos-visual-tier` has published `budget.file_indexing` since the adaptive work
+landed, and its docstring delegates application to each consumer's own owner.
+No such owner existed. So a 2-core, GPU-less A1 ran full content extraction
+against its own advice. Measured on the live machine, signed image
+44.20260907.315, tier `essential`:
+
+| | before | after |
+| --- | --- | --- |
+| `baloo_file` RSS | 439.3 MiB | **36.1 MiB** |
+| index database | 2.8 GB | **108 MB** |
+| indexer state | indexing file content | idle |
+| files indexed | 12,460 | 12,468 |
+
+403 MiB of RAM and 2.7 GB of disk, on the largest MoOS-owned process on the box.
+Nothing was disabled: the FILENAME index the Launcher's file results and the
+Places page's search promise depend on is intact. Content EXTRACTION is the
+sustained cost, and it is all that stopped.
+
+`moos-index-policy` is that consumer, under Baloo's own owner. It owns no
+thresholds — a gate asserts it references no core count, memory figure or GPU
+class — and does nothing at all if the authority cannot be asked. Live testing
+found a real flaw in the first version: `balooctl6 purge` blocked past 300 s,
+unacceptable in a unit bound to the graphical session. It now stops the indexer,
+deletes the derived database and restarts, letting the filename index rebuild in
+the background at idle IO priority.
+
+**`budget.ai_default` was advertising a route the OS removed.** It returned
+"local" on a flagship machine, from sound reasoning about RAM and GPU — but
+stage C2b retired the local engine, `moai-config` has no local mode, and
+`test_moai_cloud_only.py` asserts "the one door to a local engine is closed".
+Nothing consumed the key, which is the only reason it never surfaced. Now
+constant, and gated against the hardware branch returning.
+
+**Not wired, and deliberately.** `remote_encode` would cap what the host offers,
+but `test_remote_resolution_ceiling.py` records that 1920 was removed as a
+measured, reasoned decision with a client compatibility rule; Remote costs
+106.8 MiB here and is not a measured problem, so it was left alone.
+`update_concurrency` has no consumer to wire — `moos-image-update` exposes no
+concurrency knob. Both keys stay published and unconsumed rather than being
+forced.
+
+**S03 remains open, honestly.** KWin is healthy: 272 MiB RSS after five hours,
+cgroup 302 MiB against the 3 GiB guard, zero OOM kills across three boots. The
+6.53 GiB balloon does not reproduce, and reproducing it deliberately means
+OOM-ing the owner's only screen. No cause is claimed.
+
+**The journal's 727 errors are not defects.** 93 are SSH scans against a public
+Oracle IP, refused by a correctly hardened sshd. The rest are 26
+`qwebengine_convert_dict` coredumps from a local `podman build`, which that
+converter's own comment predicts. Filtering both leaves zero runtime errors.
+
+### Live /etc had drifted from its signed image (2026-09-07, repaired)
+
+Four stale overrides on the A1, each one a file `/etc` had taken ownership of, so
+image updates could no longer reach it. All backed up to
+`/var/home/moos/etc-drift-backup-20260907/` before removal.
+
+- `containers/policy.json` — missing the `containers-storage` block the image
+  ships. OS update signing was never affected: the origin is
+  `ostree-image-signed:` and `ghcr.io/moalfarras-sys` requires `sigstoreSigned`
+  against `/etc/pki/containers/moos.pub`.
+- `udev/rules.d/61-moos-arm-vgem.rules` — **one line where the image ships
+  eight**, missing the greeter's DRM ownership rules entirely.
+- `xdg/kdeglobals` — a comment-only delta, but enough to freeze the file.
+- `modules-load.d/moos-cloud-vgem.conf` + `61-moos-cloud-vgem.rules` — hand-placed
+  2026-08-30, duplicating what the ARM edition now ships properly.
+
+**And a privileged one.** `moos-post-reboot-check.service` was enabled and active,
+a SYSTEM unit — root, no `User=` — whose `ExecStart` was
+`/var/home/moos/.local/state/moos/post-reboot-check.sh`, owned by and writable by
+the unprivileged desktop user. Anything running as `moos` could rewrite it and be
+root at the next boot. It was one-off scaffolding for an Arabic-font fix in image
+44.20260830.203, referenced a repo path that no longer exists, and had run at
+every boot for eight days. Removed, and
+[`tests/test_no_privileged_user_writable_units.py`](tests/test_no_privileged_user_writable_units.py)
+now fails any shipped root unit that executes from a user-writable path — proven
+against this exact unit.
 
 ### Settings product pass — integration branch (2026-09-07)
 

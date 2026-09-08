@@ -40,8 +40,14 @@ theme layer. Order matters:
    inside Flatpak, and retire already-merged remote branches after proof.
 2. **Boot-to-login experience:** continue the single MoOS visual sequence from
    Plymouth to the login, lock and logout surfaces. Source now includes bounded
-   boot overlays and the responsive clock/calendar; the next closure is measured
-   signed-artifact frames with no fallback flash across scale and locale.
+   boot overlays and the responsive clock/calendar. The 2026-09-08 source pass
+   places the rendered sting over the exact Graphite login landscape and retains
+   that ground through the measured Plymouth→login compositor gap; 16:9 and 4:3
+   previews plus source/initramfs gates are green. A clean local x86 image build
+   also passed and independently proved the exact backdrop inside the final
+   107 MiB initramfs. The next closure remains measured signed-artifact frames
+   with no fallback flash across scale and locale; a built image without a
+   visible UEFI boot does not close the release item.
 3. **Simple daily use:** one obvious place for updates, recovery, apps, Remote,
    language and theme. Keep technical logs collapsed at rest, make every action
    explainable, and preserve Arabic/RTL as a first-class path. The Remote control
@@ -130,6 +136,26 @@ browser viewport emulation does not close the wider physical-device gate below.
   view-only teardown is fixed, but active controllers still share one injector.
 
 ## Release blockers
+
+- [x] **Make the x86 proof chain readable.** `promote-x86.yml` has never run,
+  so the three x86 `latest` tags have been frozen at `44.20260823.650` since
+  2026-08-23. It needs five proofs of one revision, and the ISO proof kept
+  failing while printing four empty evidence sections. Two defects caused the
+  blindness — a `2>/dev/null >&2` redirection that discarded all 14 dumps in
+  the x86 gates, and a `gate_until()` diagnosis that only ran for labels
+  starting `"installed"` while the failing label is `"PLM login did not reach
+  the desktop"`. Both fixed and gated (`tests/test_diagnostic_redirection.py`).
+  The mechanism came from `fix/iso-plm-wake-space-20260908` and is merged, but
+  ITS FIX DOES NOT WORK: run 34167769770 failed identically with the shift+space
+  wake in place, and its login screenshot still shows the idle clock with no
+  password field.
+- [ ] **Run `promote-x86.yml` once.** Still outstanding, and it is the only
+  thing that moves `moos`, `moos-nvidia` and `moos-cloud` off 2026-08-23. It
+  needs a green build, three QCOW2 boots and a green ISO on one revision.
+- [ ] **NVIDIA hardware acceptance.** `docs/NVIDIA_HARDWARE_ACCEPTANCE.md` is
+  written and entirely unrun: boot, Plymouth, login, desktop, module, KWin on
+  Wayland, displays, suspend/resume, update, rollback, reboot. Nothing in CI
+  can substitute for it — a runner has no GPU.
 
 - [ ] Boot the final ARM QCOW2 twice through AArch64 UEFI with zero critical
   failures; capture serial, journal and non-blank login/desktop frames.

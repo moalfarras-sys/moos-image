@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+# mo-remote-watchdog — bring Mo PC Remote back after a crash, and ONLY after a crash.
+#
+# WHY THIS EXISTS
+#
+# mo-remote-personal.service carries StartLimitIntervalSec=300 / StartLimitBurst=5
+# with Restart=on-failure and RestartSec=3. Five failures inside fifteen seconds
+# therefore exhaust the limit, and systemd then refuses to start the unit again
+# for the rest of the session. That is the correct behaviour for a service that
+# is genuinely broken, and the wrong outcome for this one on two of the four
+# editions: on moos-cloud and on the ARM Oracle host, Mo PC Remote IS the screen.
+# There is no monitor to notice, and no local session to type the recovery in.
+#
+# A hand-written unit doing this has lived in ~/.config/systemd/user on the A1
+# since 2026-08-30. It never reached the image, so the generic x86 and NVIDIA
+# editions have had no recovery path at all — on those a crashed Remote is just
+# a feature that stopped working, silently, until the next reboot.
+#
+# WHY IT ONLY ACTS ON THE FAILED STATE
+#
+# The $HOME version ran `systemctl --user start mo-remote-personal.service`
+# unconditionally, once a minute. That also restarts a Remote the OWNER turned
+# off — and `systemctl --user stop mo-remote-personal.service` is exactly what
+# moos-selfcheck tells them to use ("stop it with: systemctl --user stop
+# mo-remote-personal.service (or the switch in Mo AI → Access)"). On that machine
+# the documented off switch was a lie: Remote came back within sixty seconds.
+#
+# systemd distinguishes the two cases and this uses that distinction. Measured on
+# the live A1 with a throwaway unit:
+#
+#     after `systemctl --user start`   is-active=active    is-failed=active
+#     after `systemctl --user stop`    is-active=inactive  is-failed=inactive
+#     after the process crashed        is-active=failed    is-failed=failed
+#
+# A deliberate stop leaves the unit INACTIVE. Only a crash leaves it FAILED. So
+# this recovers `failed` and touches nothing else: an owner who stops Remote
+# keeps it stopped, and a Remote that died comes back.
+#
+# reset-failed is required, not decorative. MEASURED on the live A1 with a
+# throwaway unit (Restart=on-failure, RestartSec=1, StartLimitBurst=3) that was
+# driven into `failed` and then MADE HEALTHY before recovery was attempted:
+#
+#     plain `systemctl --user start`   -> job failed, unit still `failed`
+#     reset-failed + start (this file) -> unit `active`
+#
+# The $HOME ancestor did the first of those, so on the machine it was written
+# for it could not actually recover the case it existed for. Note the unit's
+# Result read `exit-code`, not `start-limit-hit` — the recovery is needed for
+# more than the documented start-limit case, which is the reason this clears the
+# state unconditionally rather than testing for one specific Result.
+#
+# Net effect: "five fast retries, then dead until reboot" becomes "five fast
+# retries, then one calm retry a minute" — the behaviour you want on a machine
+# you can only reach through the thing that died.
+set -uo pipefail
+
+UNIT=mo-remote-personal.service
+
+# Nothing to recover if the owner never asked for Remote in the first place.
+# `disable` is the persistent off switch (moos-cloud-desktop uses it); honour it.
+systemctl --user is-enabled --quiet "$UNIT" 2>/dev/null || exit 0
+
+# Only a crash. An inactive unit was stopped on purpose — leave it alone.
+systemctl --user is-failed --quiet "$UNIT" 2>/dev/null || exit 0
+
+echo "mo-remote-watchdog: ${UNIT} is failed — clearing the start limit and restarting it"
+systemctl --user reset-failed "$UNIT" 2>/dev/null || true
+if systemctl --user start "$UNIT" 2>/dev/null; then
+    echo "mo-remote-watchdog: ${UNIT} restarted"
+else
+    # Do not fail the unit: the timer is the retry, and a failed oneshot here
+    # would add a second failed unit to a session that already has a problem.
+    echo "mo-remote-watchdog: ${UNIT} did not come back this time; will retry"
+fi
+exit 0

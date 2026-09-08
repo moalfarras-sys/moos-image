@@ -453,6 +453,13 @@ jobs:
           python3 tests/test_desktop_customize.py
           # `just check` must be able to run every gate CI runs; it could not,
           # and an ARM regression reached main because of it.
+          python3 tests/test_no_privileged_user_writable_units.py
+          python3 tests/test_index_policy_consumer.py
+          python3 tests/test_diagnostic_redirection.py
+          python3 tests/test_selfcheck_unit_shadowing.py
+          python3 tests/test_mo_remote_watchdog.py
+          python3 tests/test_edition_unit_parity.py
+          python3 tests/test_selfcheck_url_handler.py
           python3 tests/test_gate_coverage.py
           python3 tests/test_moos_app_icons.py
           # KDE and GTK windows must put their buttons on the SAME side. KWin said

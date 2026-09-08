@@ -59,9 +59,9 @@ cleanup() {
     moos_stop_virgl_display
     if [ "$rc" -ne 0 ]; then
         echo "=== QEMU log (tail) ===" >&2
-        tail -100 "$evidence/qemu.log" 2>/dev/null >&2 || true
+        tail -n 100 "$evidence/qemu.log" >&2 2>/dev/null || true
         echo "=== serial log (tail) ===" >&2
-        tail -100 "$evidence/serial.log" 2>/dev/null >&2 || true
+        tail -n 100 "$evidence/serial.log" >&2 2>/dev/null || true
     fi
     case "$work" in
         "$base_tmp"/moos-x86-qcow2-boot.*) rm -rf -- "$work" ;;
@@ -395,7 +395,7 @@ gate_fail() {
     printf '%s\n' 'failed-units:' >&2
     # Prefer list-units: --failed --plain can print nothing on some systemd
     # builds even when NFailedUnits > 0 (observed on freeze CI).
-    systemctl list-units --state=failed --full --no-pager --no-legend 2>/dev/null >&2 || true
+    systemctl list-units --state=failed --full --no-pager --no-legend >&2 2>/dev/null || true
     printf '%s\n' 'failed-unit-details:' >&2
     systemctl list-units --state=failed --full --no-pager --no-legend --output=json 2>/dev/null \
         | python3 -c 'import json,sys
@@ -404,30 +404,30 @@ try:
 except Exception:
     raise SystemExit(0)
 for u in units:
-    print(u.get("unit") or u.get("Unit") or u)' 2>/dev/null >&2 || true
+    print(u.get("unit") or u.get("Unit") or u)' >&2 2>/dev/null || true
     if [ -d /run/systemd/failed ]; then
         printf 'failed-unit-files=%s\n' "$(ls -1 /run/systemd/failed 2>/dev/null | tr '\n' ' ')" >&2
     fi
     printf 'n-failed-units=%s\n' "$(systemctl show -p NFailedUnits --value 2>/dev/null || true)" >&2
     printf '%s\n' 'failed-unit-journal:' >&2
     journalctl -b -p warning --no-pager -n 80 2>/dev/null \
-        | grep -E 'Failed|failed|zram|hardware-adapt|swap|start-limit' | tail -40 >&2 || true
+        | grep -E 'Failed|failed|zram|hardware-adapt|swap|start-limit' | tail -n 40 >&2 || true
     if [ -n "${login_uid:-}" ]; then
         printf 'greeter-uid=%s\n' "$login_uid" >&2
         printf '%s\n' 'greeter-processes:' >&2
-        ps -u "$login_uid" -o pid=,comm=,args= --sort=pid 2>/dev/null | tail -40 >&2 || true
+        ps -u "$login_uid" -o pid=,comm=,args= --sort=pid 2>/dev/null | tail -n 40 >&2 || true
     fi
     printf '%s\n' 'plasmalogin-status:' >&2
-    systemctl status plasmalogin.service --no-pager --full 2>&1 | tail -40 >&2 || true
+    systemctl status plasmalogin.service --no-pager --full 2>&1 | tail -n 40 >&2 || true
     printf '%s\n' 'display-manager-journal:' >&2
     journalctl -b -u plasmalogin.service -u display-manager.service \
-        -o short-monotonic --no-pager -n 80 2>/dev/null >&2 || true
+        -o short-monotonic --no-pager -n 80 >&2 2>/dev/null || true
     printf '%s\n' 'drm-nodes:' >&2
-    ls -la /dev/dri 2>/dev/null >&2 || true
+    ls -la /dev/dri >&2 2>/dev/null || true
     for node in /dev/dri/card* /dev/dri/renderD*; do
         [ -e "$node" ] || continue
         stat -c '%n mode=%a owner=%U group=%G major-minor=%t:%T' "$node" \
-            2>/dev/null >&2 || true
+            >&2 2>/dev/null || true
         udevadm info --query=property --name="$node" 2>/dev/null \
             | grep -E '^(DEVNAME|DEVPATH|ID_PATH|ID_SEAT|TAGS|CURRENT_TAGS)=' >&2 || true
     done
@@ -437,7 +437,7 @@ for u in units:
         printf '%s=%s\n' "$status" "$(cat "$status" 2>/dev/null || true)" >&2
     done
     printf '%s\n' 'seat0-status:' >&2
-    loginctl seat-status seat0 --no-pager 2>/dev/null | tail -80 >&2 || true
+    loginctl seat-status seat0 --no-pager 2>/dev/null | tail -n 80 >&2 || true
     return 1
 }
 . /etc/os-release

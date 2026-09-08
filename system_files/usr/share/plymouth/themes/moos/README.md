@@ -1,9 +1,10 @@
 # The MoOS boot splash
 
-A Plymouth **script** theme that plays the owner's rendered MoOS logo sting as
-the boot animation: a plasma ring ignites, the mark's arcs tear out of it and
-rotate into place, the solid mark lands on its reflective floor, and the MoOS
-wordmark fades up. It then holds that last frame until the desktop takes over.
+A Plymouth **script** theme that plays the owner's rendered MoOS logo sting over
+the same Graphite glass scene used by Plasma Login Manager: a plasma ring
+ignites, the mark's arcs tear out of it and rotate into place, the solid mark
+lands on its reflective floor, and the MoOS wordmark fades up. It then holds
+that last frame until the login surface takes over without replacing the ground.
 
 Nothing here is hand-authored motion. Everything in this directory is generated,
 and the generators are in `artwork/`.
@@ -14,6 +15,7 @@ and the generators are in `artwork/`.
 |---|---|
 | `moos.script` | The whole animation. Plays the sequence, holds the last frame, composes the frame the handoff leaves on screen, and draws the LUKS/message overlays. |
 | `moos.plymouth` | The theme descriptor. Selects the `script` module. |
+| `boot-backdrop.png` | A lightweight 1080p derivative of the exact 4K Graphite login wallpaper. Scaled once to cover, never stretched. |
 | `intro1.png` … `intro32.png` | The sequence, cut from the render. ~1.3 s at 25 fps. |
 | `logo.png` | The mark on its own. **Not drawn by the splash.** `build.sh` copies it over Fedora's `spinner/watermark.png` and gates that the two match — that is what keeps the Fedora wordmark out of the fallback splash. |
 | `glow.png`, `ring.png`, `head.png` | The slow-boot cue only (see below). A fast boot never shows them. |
@@ -21,6 +23,7 @@ and the generators are in `artwork/`.
 ## Rebuilding it
 
 ```sh
+python artwork/generate_boot_backdrop.py  # exact login-scene derivative
 python artwork/build_boot_frames.py      # the sequence, from the source video
 python artwork/generate_boot_splash.py   # logo + the slow-boot cue sprites
 python artwork/preview_boot_animation.py # look at it without booting
@@ -48,7 +51,10 @@ the displayed frame changes, and only one scaled copy exists at a time.
 
 **The stored frame size is a memory budget, not a quality knob.** Every frame is
 decoded into RAM in the initramfs on every boot. It is currently ~58 MB decoded
-and ~11 MB on disk; `test_intro_frames_fit_the_initramfs_budget` pins both.
+and ~11 MB on disk; `test_intro_frames_fit_the_initramfs_budget` pins both. The
+backdrop is kept at 1080p (under 4 MiB encoded) and scaled once outside the
+refresh loop; the gate also proves that it remains an exact downsample of the
+login scene rather than drifting into a separate illustration.
 
 ## The handoff
 
@@ -59,14 +65,15 @@ on a cold boot. `quit_callback()` therefore jumps to the sequence's resting fram
 and hides everything that moves, so the retained image is a composed still rather
 than a comet frozen mid-orbit, which reads as a hang.
 
-The ground is flat `#14191C`, the UI2 canvas token the desktop opens on. The
-render's own near-black background was keyed to transparency when the frames were
-cut, precisely so the splash could sit on that colour: splash → first desktop
-frame is one continuous colour with no hue flip.
+The fail-safe ground is flat `#14191C`; above it, `boot-backdrop.png` is the same
+Graphite glass landscape configured in `/usr/lib/plasmalogin/defaults.conf`.
+The render's near-black background was keyed to transparency when the frames
+were cut, so the energy and mark live inside that landscape. At handoff the
+background does not change; the authentication surface replaces only the mark.
 
 ## The slow-boot cue
 
-A fast boot is over before it appears. After ~3.8 s — a first boot, an fsck, a
+A fast boot is over before it appears. After ~2.4 s — a first boot, an fsck, a
 cloud instance — a soft breath and a faint head running a ring fade in, so a long
 boot does not present a still image that reads as a hang.
 

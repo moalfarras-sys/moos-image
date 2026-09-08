@@ -513,22 +513,59 @@ fi
 # still the right way to prove a fix. Just delete the drop-in afterwards — otherwise the image
 # copy is never exercised again and the next "verified live" means nothing.
 drop_shadow=""
-for d in "${XDG_CONFIG_HOME:-$HOME/.config}"/systemd/user/*.service.d; do
+user_unit_dir="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
+for d in "$user_unit_dir"/*.service.d "$user_unit_dir"/*.timer.d; do
     [ -d "$d" ] || continue
     unit="$(basename "${d%.d}")"
     [ -e "/usr/lib/systemd/user/$unit" ] || continue
-    # Only flag an ExecStart= that actually leaves /usr — plenty of legitimate drop-ins set
-    # Environment= or Restart= and touch ExecStart not at all.
+    # An ExecStart= that leaves /usr. Restart=, MemoryHigh= and friends are fine.
     grep -rhs '^ExecStart=' "$d" 2>/dev/null \
         | grep -qE '(^ExecStart=[^ ]*(%h|/home/|/var/home/))|( (%h|/home/|/var/home/))' \
         && drop_shadow="$drop_shadow $unit"
+    # An Environment= whose VALUE is a path under $HOME. The original version of
+    # this check skipped Environment= entirely, on the reasoning that plenty of
+    # legitimate drop-ins set it — true in general, and wrong for the one unit
+    # where the variable IS the binary: mo-remote-start resolves
+    # agent="${MO_REMOTE_AGENT:-/usr/lib/mo-remote/MoRemotePersonal}", so
+    # Environment=MO_REMOTE_AGENT=$HOME/... shadows the image exactly as much as
+    # an ExecStart= would. Measured on the A1, 2026-09-08: Mo PC Remote had run
+    # from ~/.local/lib/mo-remote-v39-20260905 since 2026-09-05 and this check
+    # said "no systemd drop-in redirects a MoOS unit outside /usr".
+    # Only a $HOME PATH is flagged, so Environment=QT_QPA_PLATFORM=wayland and
+    # the like stay quiet.
+    grep -rhs '^Environment=' "$d" 2>/dev/null \
+        | grep -qE '=(%h|/home/|/var/home/)' \
+        && drop_shadow="$drop_shadow $unit"
 done
-if [ -z "$drop_shadow" ]; then
+# Deduplicate: a unit can be caught by both rules above.
+drop_shadow="$(printf '%s\n' $drop_shadow | sort -u | tr '\n' ' ')"
+if [ -z "${drop_shadow// /}" ]; then
     ok "no systemd drop-in redirects a MoOS unit outside /usr"
 else
     bad "these MoOS units are redirected by a \$HOME drop-in — the unit is green but the image binary is NOT what runs:"
     for u in $drop_shadow; do printf '      %s\n' "$u"; done
     printf '      \033[2m(delete the drop-in under ~/.config/systemd/user/<unit>.d/, then daemon-reload)\033[0m\n'
+fi
+
+# The bluntest shadow of all, and the one the drop-in scan above cannot see: a
+# whole unit file in $HOME with the same name as one the image ships. systemd
+# prefers ~/.config/systemd/user outright, so the image's unit is not merely
+# overridden, it is never read. Found on the A1: moai-hermes.service ran
+# /var/home/moos/.local/lib/moai-cloud-20260906/usr/libexec/moai-hermes for two
+# days while the image's own adapter sat unused.
+unit_replaced=""
+for f in "$user_unit_dir"/*.service "$user_unit_dir"/*.timer; do
+    [ -f "$f" ] || continue          # skips masks, which are symlinks to /dev/null
+    name="$(basename "$f")"
+    [ -e "/usr/lib/systemd/user/$name" ] || continue
+    unit_replaced="$unit_replaced $name"
+done
+if [ -z "$unit_replaced" ]; then
+    ok "no \$HOME unit file replaces one the image ships"
+else
+    bad "these MoOS units are REPLACED wholesale by a file in \$HOME — the image's copy never runs:"
+    for u in $unit_replaced; do printf '      %s\n' "$u"; done
+    printf '      \033[2m(delete ~/.config/systemd/user/<unit>, then daemon-reload)\033[0m\n'
 fi
 
 head_ "The image is not carrying the build machine's litter"

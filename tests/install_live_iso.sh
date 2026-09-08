@@ -43,14 +43,14 @@ cleanup() {
     moos_stop_virgl_display
     if [ "$rc" -ne 0 ]; then
         echo "=== QEMU log (tail) ===" >&2
-        tail -100 "$evidence/qemu-installed.log" "$evidence/qemu-live-install.log" \
-            2>/dev/null >&2 || true
+        tail -n 100 "$evidence/qemu-installed.log" "$evidence/qemu-live-install.log" \
+            >&2 2>/dev/null || true
         echo "=== installed serial (tail) ===" >&2
-        tail -120 "$evidence/serial-installed.log" 2>/dev/null >&2 || true
+        tail -n 120 "$evidence/serial-installed.log" >&2 2>/dev/null || true
         echo "=== live install status ===" >&2
-        tail -80 "$evidence/install.status" 2>/dev/null >&2 || true
+        tail -n 80 "$evidence/install.status" >&2 2>/dev/null || true
         echo "=== installer log ===" >&2
-        tail -120 "$evidence/installer.log" 2>/dev/null >&2 || true
+        tail -n 120 "$evidence/installer.log" >&2 2>/dev/null || true
     fi
     rm -rf -- "$work"
     exit "$rc"
@@ -132,6 +132,8 @@ start_qemu() {
         -drive "file=$work/installed.qcow2,format=qcow2,if=virtio,cache=unsafe" \
         "$@" \
         "${gpu[@]}" \
+        -device virtio-keyboard-pci \
+        -device virtio-tablet-pci \
         -netdev "user,id=n0,hostfwd=tcp:127.0.0.1:${ssh_port}-:22" \
         -device virtio-net-pci,netdev=n0 \
         -device virtio-serial-pci \
@@ -561,7 +563,7 @@ def ssh_exec(script, args=(), timeout=180):
     return completed.returncode, completed.stdout, completed.stderr
 
 
-def gate_until(script, args, seconds, label):
+def gate_until(script, args, seconds, label, diagnose=None):
     deadline = time.monotonic() + seconds
     last = "not run"
     while time.monotonic() < deadline:
@@ -575,6 +577,41 @@ def gate_until(script, args, seconds, label):
             return out
         last = err or out or f"exit {code}"
         time.sleep(5)
+    if diagnose is not None:
+        # A picture of the screen at the moment of failure. The gate already
+        # captures installed-login.ppm BEFORE the password is typed; what was
+        # missing is the screen AFTER, which is what distinguishes "the password
+        # field never appeared" from "it appeared and the login was rejected".
+        #
+        # Run 34167769770 is why this exists: the before-shot showed the MoOS
+        # idle clock still painted, with no password field, even with the
+        # shift+space wake in place -- so the password went into the clock page
+        # and never reached PAM. Nothing recorded what happened next.
+        try:
+            capture(evidence / "installed-desktop-failed.ppm")
+        except Exception as error:                      # never mask the real failure
+            print(f"(failure screenshot unavailable: {error})", file=sys.stderr)
+
+        # The SSH channel is demonstrably working here -- the gate script itself
+        # ran and reported which assert failed -- so ask the guest directly.
+        #
+        # The block below this one only runs for labels starting "installed",
+        # and it exists for the case where SSH is dead. The desktop gate's label
+        # is "PLM login did not reach the desktop", so nothing was collected for
+        # the one failure that has blocked the x86 release train since
+        # 2026-08-23: every run said "kwin_wayland not running under moosci" and
+        # nothing whatsoever about why.
+        try:
+            _code, dout, derr = ssh_exec(diagnose, (), 180)
+            text = (dout or "") + (("\n=== stderr ===\n" + derr) if derr else "")
+        except (subprocess.TimeoutExpired, OSError) as error:
+            text = f"diagnosis could not run: {error}\n"
+        (evidence / "session-failure-diagnosis.txt").write_text(
+            text, encoding="utf-8")
+        # Print it, do not merely archive it. An artifact nobody downloads is
+        # the same blind failure with extra steps.
+        print(f"=== session failure diagnosis ===\n{text}", file=sys.stderr)
+
     if label.startswith("installed"):
         # Keep the gate's own last output: its stderr stage markers name the
         # exact assert that failed, which the one-line FATAL cannot carry.
@@ -610,7 +647,7 @@ def gate_until(script, args, seconds, label):
                 "echo '=== firewall zones ===';"
                 "/usr/bin/firewall-cmd --get-active-zones 2>&1 | head -5;"
                 "echo '=== selinux ==='; getenforce 2>&1;"
-                "ausearch -m avc -ts recent 2>&1 | tail -20 || dmesg 2>/dev/null | grep -iE 'avc|denied' | tail -15;"
+                "ausearch -m avc -ts recent 2>&1 | tail -n 20 || dmesg 2>/dev/null | grep -iE 'avc|denied' | tail -n 15;"
                 "echo '=== sshd try ==='; /usr/sbin/sshd -t 2>&1;"
                 "echo '=== kernel marker ==='; cat /proc/cmdline")
         try:
@@ -641,19 +678,59 @@ def gate_until(script, args, seconds, label):
     raise SystemExit(f"ISO INSTALL FATAL: {label}: {last}")
 
 
-def hmp(commands):
+def hmp(commands, label=""):
+    """Send HMP commands AND read what QEMU says back.
+
+    This used to send every command in one write and close the socket without
+    reading a single byte of the reply. Nothing anywhere checked that QEMU had
+    accepted the command, so an unknown command, a rejected argument, or a
+    monitor that was not in a state to execute anything all looked exactly like
+    success -- and the only visible consequence was a login that silently never
+    happened, reported fifteen minutes later as "kwin_wayland not running".
+
+    Runs 34167769770, 34170891110 and 34187614662 sent `sendkey shift`,
+    `sendkey spc` and (in the last) `mouse_move`, and in all three the greeter's
+    clock never moved and no session for uid 1000 was ever created. Whether
+    those events were injected at all was never established, because the answer
+    was thrown away. It is now returned, recorded, and checked.
+    """
+    replies = []
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
         client.settimeout(5)
         client.connect(monitor)
-        client.recv(4096)
-        client.sendall(("\n".join(commands) + "\n").encode())
+        try:
+            client.recv(4096)          # banner
+        except socket.timeout:
+            pass
+        for command in commands:
+            client.sendall((command + "\n").encode())
+            # Read the reply before moving on. This also guarantees QEMU has
+            # processed the command before the socket is torn down.
+            time.sleep(0.2)
+            try:
+                replies.append(command + " -> "
+                               + client.recv(8192).decode("utf-8", "replace"))
+            except socket.timeout:
+                replies.append(command + " -> (no reply within 5s)")
+    text = "\n".join(replies)
+    # QEMU answers an unusable command in prose on the same channel; surface it
+    # rather than letting it scroll past inside a password-typing loop.
+    lowered = text.lower()
+    for marker in ("invalid", "unknown command", "error", "not found"):
+        if marker in lowered:
+            print(f"hmp{(' ' + label) if label else ''}: QEMU rejected something:"
+                  f"\n{text}", file=sys.stderr)
+            break
+    return text
 
 
 def capture(path):
     log = evidence / f"{path.stem}-capture.log"
     windows = evidence / f"{path.stem}-windows.txt"
-    hmp(["sendkey shift"])
-    time.sleep(2)
+    # Capture only — do not inject keys here. Waking PLM's idle clock (or
+    # focusing a desktop window) belongs to the caller; a blind `sendkey shift`
+    # was measured leaving the MoOS idle clock painted, and a space here would
+    # risk activating the focused app during post-login screenshots.
     tree = subprocess.run(
         ["xwininfo", "-display", os.environ["DISPLAY"], "-root", "-tree"],
         text=True, capture_output=True, check=False,
@@ -736,25 +813,133 @@ first = gate_until(runtime, [expected], 1000, "installed first boot never became
 # run 33935553129's login capture showed live, and a bare greeter restart did
 # not clear (run 33940385748's capture). Inspect AccountsService, re-cache the
 # user explicitly, then restart the greeter so it re-reads the model.
-probes = (
-    "echo '=== accounts ===';"
-    "systemctl is-active accounts-daemon.service 2>&1;"
-    "ls -la /var/lib/AccountsService/users/ 2>&1;"
-    "busctl call org.freedesktop.Accounts /org/freedesktop/Accounts "
-    "org.freedesktop.Accounts CacheUser s moosci 2>&1;"
-    "busctl call org.freedesktop.Accounts /org/freedesktop/Accounts "
-    "org.freedesktop.Accounts FindUserByName s moosci 2>&1;"
-    "systemctl --no-block restart plasmalogin.service; sleep 10"
-)
-gate_until(probes, [], 120, "AccountsService probe/repair failed")
+# THIS STEP ASSERTED NOTHING FOR AS LONG AS IT HAS EXISTED.
+#
+# It was a bare sequence of echo/busctl/systemctl ending in `sleep 10`, so it
+# ALWAYS exited 0: `gate_until` passed it on the first attempt every time,
+# whatever AccountsService actually said, and the return value was discarded so
+# nothing it saw was ever written down. A step whose entire purpose is to prove
+# the greeter has a user to offer could not fail and left no record.
+#
+# That is on the critical path. If AccountsService does not publish moosci, PLM
+# comes up with no user, shows its clock page with no password field, and every
+# keystroke after this goes nowhere -- which is exactly what runs 34160471709,
+# 34164335024, 34167769770 and 34170891110 did, each ending 15 minutes later on
+# the unrelated-sounding "kwin_wayland not running under moosci".
+#
+# It now asserts, and its output is kept.
+probes = r"""
+set -uo pipefail
+echo "=== accounts-daemon ==="
+systemctl is-active accounts-daemon.service 2>&1
+echo "=== published users ==="
+ls -la /var/lib/AccountsService/users/ 2>&1
+echo "=== CacheUser ==="
+busctl call org.freedesktop.Accounts /org/freedesktop/Accounts \
+    org.freedesktop.Accounts CacheUser s moosci 2>&1
+echo "=== FindUserByName ==="
+found="$(busctl call org.freedesktop.Accounts /org/freedesktop/Accounts \
+    org.freedesktop.Accounts FindUserByName s moosci 2>&1)"
+echo "$found"
+# A published user answers with an object path, e.g. o "/org/freedesktop/Accounts/User1000".
+case "$found" in
+    *"/org/freedesktop/Accounts/User"*) ;;
+    *) echo "FATAL: AccountsService does not publish moosci; the greeter will" \
+            "have no user to offer and no password field to type into" >&2
+       exit 1 ;;
+esac
+echo "=== restarting the greeter so it re-reads the user model ==="
+systemctl --no-block restart plasmalogin.service
+# NOT `sleep 10`. Wait for the greeter to actually be back: its own Wayland
+# session must exist again, or the keystrokes below land on nothing.
+for _ in $(seq 1 60); do
+    sleep 1
+    systemctl is-active --quiet plasmalogin.service || continue
+    pgrep -u plasmalogin -f startplasma-login-wayland >/dev/null 2>&1 || continue
+    echo "=== greeter is back up ==="
+    exit 0
+done
+echo "FATAL: the greeter did not come back within 60s of the restart" >&2
+exit 1
+"""
+accounts_out = gate_until(probes, [], 180, "AccountsService probe/repair failed")
+(evidence / "accounts-probe.txt").write_text(accounts_out, encoding="utf-8")
+print(accounts_out, end="")
 
 # Wake Plasma Login Manager's idle clock page and capture the actual password
 # surface before interaction. Only a lowercase/digit disposable password is used,
 # so HMP never needs layout-dependent punctuation.
-hmp(["sendkey shift"])
-time.sleep(2)
+#
+# Measured 2026-09-07 on the exact installed ISO proof: `sendkey shift` alone
+# left the MoOS idle clock painted (screendump still showed time+date, no
+# password field), so the typed password never reached PAM and the desktop gate
+# timed out on `kwin_wayland not running under moosci`. Plasma Login Manager's
+# ShowClock idle dismisses on a real key or pointer movement — match the ARM
+# qcow2 gate (shift then space) and keep virtio keyboard + tablet attached so
+# those events have a guest input device.
+def session_for_uid(uid="1000"):
+    """Has logind actually opened a session for the CI user yet?
+
+    This is the only honest success signal for "the password was accepted":
+    kwin and plasmashell come later, and their absence is what every failed run
+    has reported instead of the login itself.
+    """
+    code, out, _ = ssh_exec(
+        "loginctl list-sessions --no-legend 2>/dev/null "
+        "| awk '$2==\"" + uid + "\" {print $1}'; exit 0")
+    return code == 0 and out.strip() != ""
+
+
+# WAKE, TYPE, THEN CHECK -- and try again rather than assume.
+#
+# Keys alone provably do not dismiss the clock. Runs 34167769770 and
+# 34170891110 both carried `sendkey shift` + `sendkey spc` with a virtio
+# keyboard attached, and both login captures show the clock still painted; the
+# second run's shot taken 15 minutes later shows the same page with the time
+# advanced, so the greeter never left it.
+#
+# A virtio TABLET is attached for exactly this and was never used. PLM's idle
+# page dismisses on a real key OR pointer movement, so this sends both: keys,
+# then absolute pointer motion to two different points (one move to the same
+# spot twice is not motion).
+#
+# Each attempt captures its own screenshot, so a future failure shows what the
+# screen looked like on every try rather than only the first.
+# What input devices does QEMU actually believe it has? `mouse_move` acts on
+# the CURRENTLY SELECTED mouse, and with no usable pointer it does nothing at
+# all -- silently, until now.
+input_state = hmp(["info status", "info mice", "info chardev"], label="input-state")
+(evidence / "qemu-input-state.txt").write_text(input_state, encoding="utf-8")
+print("=== QEMU input state ===\n" + input_state)
+
+logged_in = False
+for attempt in range(1, 4):
+    wake = hmp(["sendkey shift", "sendkey spc",
+                 "mouse_move 320 240", "mouse_move 360 280"],
+                label=f"wake-{attempt}")
+    (evidence / f"hmp-wake-attempt{attempt}.txt").write_text(wake, encoding="utf-8")
+    time.sleep(2)
+    capture(evidence / f"installed-login-attempt{attempt}.ppm")
+    typed = hmp([*(f"sendkey {char}" for char in password), "sendkey ret"],
+                label=f"type-{attempt}")
+    (evidence / f"hmp-type-attempt{attempt}.txt").write_text(typed, encoding="utf-8")
+    for _ in range(12):
+        time.sleep(5)
+        if session_for_uid():
+            logged_in = True
+            break
+    if logged_in:
+        print(f"login: logind opened a session for uid 1000 on attempt {attempt}")
+        break
+    print(f"login: no session for uid 1000 after attempt {attempt}; retrying",
+          file=sys.stderr)
+
+# Keep the historical filename so existing tooling and the gate's own
+# expectations still find the pre-interaction shot.
 capture(evidence / "installed-login.ppm")
-hmp([*(f"sendkey {char}" for char in password), "sendkey ret"])
+if not logged_in:
+    print("login: no session for uid 1000 after 3 attempts -- the desktop gate "
+          "below will now say what the guest looks like", file=sys.stderr)
 
 desktop = r'''
 set -euo pipefail
@@ -777,7 +962,73 @@ user_failed="$(env XDG_RUNTIME_DIR="/run/user/${uid}" \
 [ -z "$user_failed" ]
 printf 'login=plasma-login-manager\ndesktop=usable\nkwin=active\nplasmashell=active\nuser-failed-units=0\n'
 '''
-desktop_out = gate_until(desktop, [], 900, "PLM login did not reach the desktop")
+# What to ask the guest when the desktop never appears. Everything here is
+# read-only and bounded; it runs once, after the 900s gate has already given up.
+desktop_diagnosis = r'''
+set +e
+uid="$(id -u moosci 2>/dev/null)"
+echo "=== who is logged in ==="
+loginctl list-sessions --no-legend 2>&1
+for s in $(loginctl list-sessions --no-legend 2>/dev/null | awk '{print $1}'); do
+    echo "--- session $s ---"
+    loginctl show-session "$s" -p Id -p User -p Name -p Type -p Class -p Active -p State -p Display 2>&1
+done
+echo "=== does AccountsService publish the CI user? ==="
+systemctl is-active accounts-daemon.service 2>&1
+ls -la /var/lib/AccountsService/users/ 2>&1
+busctl call org.freedesktop.Accounts /org/freedesktop/Accounts \
+    org.freedesktop.Accounts FindUserByName s moosci 2>&1
+echo "=== the greeter ==="
+systemctl status plasmalogin.service --no-pager --full 2>&1 | head -n 25
+echo "=== greeter journal ==="
+journalctl -b -u plasmalogin.service --no-pager -o short-monotonic 2>&1 | tail -n 60
+echo "=== system units that failed ==="
+systemctl list-units --state=failed --no-legend --no-pager 2>&1
+echo "=== the user manager for moosci ==="
+systemctl status "user@${uid}.service" --no-pager --full 2>&1 | head -n 20
+echo "=== moosci session journal (this is where kwin says why it died) ==="
+journalctl -b _UID="${uid}" --no-pager -o short-monotonic 2>&1 | tail -n 120
+echo "=== moosci user units ==="
+env XDG_RUNTIME_DIR="/run/user/${uid}" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${uid}/bus" \
+    systemctl --user list-units --state=failed --no-legend --no-pager 2>&1
+env XDG_RUNTIME_DIR="/run/user/${uid}" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${uid}/bus" \
+    systemctl --user status plasma-kwin_wayland.service --no-pager --full 2>&1 | head -n 30
+echo "=== runtime dir (is there a wayland socket at all?) ==="
+ls -la "/run/user/${uid}" 2>&1 | head -n 25
+echo "=== what the session had to render on ==="
+ls -la /dev/dri 2>&1
+# THE OTHER HALF OF "no input reached the greeter". QEMU can accept a sendkey
+# and the guest can still ignore it: an input device that is not attached to
+# seat0, or that the compositor never opened, produces exactly the same
+# symptom -- a greeter that renders and never responds.
+echo "=== does seat0 own the input devices? ==="
+loginctl seat-status seat0 --no-pager 2>&1 | head -n 40
+echo "=== input devices the kernel exposes ==="
+ls -l /dev/input/ 2>&1
+cat /proc/bus/input/devices 2>&1 | head -n 60
+echo "=== udev seat tags for the virtio input devices ==="
+for dev in /dev/input/event*; do
+    printf -- '--- %s\n' "$dev"
+    udevadm info --query=property --name="$dev" 2>&1 \
+        | grep -E 'ID_SEAT|ID_INPUT|TAGS|DEVPATH|NAME' || true
+done
+echo "=== what the greeter compositor said about input ==="
+journalctl -b _UID=967 --no-pager -o short-monotonic 2>&1 \
+    | grep -iE 'libinput|input|seat|keyboard|pointer|tablet' | tail -n 40
+echo "=== processes owned by moosci ==="
+ps -u moosci -o pid=,comm=,args= --sort=pid 2>&1 | head -n 40
+echo "=== kernel graphics/drm messages ==="
+dmesg 2>/dev/null | grep -iE "drm|virtio|render|gpu" | tail -n 25
+echo "=== selinux denials ==="
+getenforce 2>&1
+ausearch -m avc -ts recent 2>&1 | tail -n 25
+exit 0
+'''
+
+desktop_out = gate_until(desktop, [], 900, "PLM login did not reach the desktop",
+                         diagnose=desktop_diagnosis)
 (evidence / "desktop-session.txt").write_text(desktop_out)
 
 open_app = r'''

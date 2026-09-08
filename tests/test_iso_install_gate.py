@@ -23,8 +23,32 @@ required_script = (
     "start_qemu installed proof-virgl -boot order=c",
     "! grep -qw rd.live.image /proc/cmdline",
     "ostree-image-signed:docker://${expected}",
-    'hmp(["sendkey shift"])',
+    # The wake must still send both keys, and must ALSO move the pointer: keys
+    # alone provably do not dismiss PLM's idle clock (runs 34167769770,
+    # 34170891110, 34187614662 all sent them and all three captures show the
+    # clock still painted). These are asserted as the command strings rather
+    # than as one literal call, so the calls can be batched without the gate
+    # going quiet about the contract.
+    '"sendkey shift"',
+    '"sendkey spc"',
+    '"mouse_move',
+    "-device virtio-keyboard-pci",
+    "-device virtio-tablet-pci",
     '"sendkey ret"',
+    # hmp() must READ QEMU's reply. Sending blind made a rejected command
+    # indistinguishable from a delivered keystroke, which is why three runs
+    # could not establish whether any input reached the guest at all.
+    "client.recv(8192)",
+    # The login must be confirmed by logind opening a session for the CI user.
+    # kwin and plasmashell are downstream of that; reporting their absence is
+    # what disguised a login that never happened as a compositor failure.
+    "def session_for_uid",
+    "loginctl list-sessions",
+    # The AccountsService step must be able to FAIL. It was a bare command
+    # sequence ending in `sleep 10`, so it always exited 0 and its output was
+    # discarded -- on the critical path for whether the greeter has any user.
+    "AccountsService does not publish moosci",
+    "accounts-probe.txt",
     "pgrep -u \"$uid\" -x kwin_wayland",
     "pgrep -u \"$uid\" -x plasmashell",
     '("dolphin", "dolphin")',
