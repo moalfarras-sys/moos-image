@@ -775,17 +775,58 @@ first = gate_until(runtime, [expected], 1000, "installed first boot never became
 # run 33935553129's login capture showed live, and a bare greeter restart did
 # not clear (run 33940385748's capture). Inspect AccountsService, re-cache the
 # user explicitly, then restart the greeter so it re-reads the model.
-probes = (
-    "echo '=== accounts ===';"
-    "systemctl is-active accounts-daemon.service 2>&1;"
-    "ls -la /var/lib/AccountsService/users/ 2>&1;"
-    "busctl call org.freedesktop.Accounts /org/freedesktop/Accounts "
-    "org.freedesktop.Accounts CacheUser s moosci 2>&1;"
-    "busctl call org.freedesktop.Accounts /org/freedesktop/Accounts "
-    "org.freedesktop.Accounts FindUserByName s moosci 2>&1;"
-    "systemctl --no-block restart plasmalogin.service; sleep 10"
-)
-gate_until(probes, [], 120, "AccountsService probe/repair failed")
+# THIS STEP ASSERTED NOTHING FOR AS LONG AS IT HAS EXISTED.
+#
+# It was a bare sequence of echo/busctl/systemctl ending in `sleep 10`, so it
+# ALWAYS exited 0: `gate_until` passed it on the first attempt every time,
+# whatever AccountsService actually said, and the return value was discarded so
+# nothing it saw was ever written down. A step whose entire purpose is to prove
+# the greeter has a user to offer could not fail and left no record.
+#
+# That is on the critical path. If AccountsService does not publish moosci, PLM
+# comes up with no user, shows its clock page with no password field, and every
+# keystroke after this goes nowhere -- which is exactly what runs 34160471709,
+# 34164335024, 34167769770 and 34170891110 did, each ending 15 minutes later on
+# the unrelated-sounding "kwin_wayland not running under moosci".
+#
+# It now asserts, and its output is kept.
+probes = r"""
+set -uo pipefail
+echo "=== accounts-daemon ==="
+systemctl is-active accounts-daemon.service 2>&1
+echo "=== published users ==="
+ls -la /var/lib/AccountsService/users/ 2>&1
+echo "=== CacheUser ==="
+busctl call org.freedesktop.Accounts /org/freedesktop/Accounts \
+    org.freedesktop.Accounts CacheUser s moosci 2>&1
+echo "=== FindUserByName ==="
+found="$(busctl call org.freedesktop.Accounts /org/freedesktop/Accounts \
+    org.freedesktop.Accounts FindUserByName s moosci 2>&1)"
+echo "$found"
+# A published user answers with an object path, e.g. o "/org/freedesktop/Accounts/User1000".
+case "$found" in
+    *"/org/freedesktop/Accounts/User"*) ;;
+    *) echo "FATAL: AccountsService does not publish moosci; the greeter will" \
+            "have no user to offer and no password field to type into" >&2
+       exit 1 ;;
+esac
+echo "=== restarting the greeter so it re-reads the user model ==="
+systemctl --no-block restart plasmalogin.service
+# NOT `sleep 10`. Wait for the greeter to actually be back: its own Wayland
+# session must exist again, or the keystrokes below land on nothing.
+for _ in $(seq 1 60); do
+    sleep 1
+    systemctl is-active --quiet plasmalogin.service || continue
+    pgrep -u plasmalogin -f startplasma-login-wayland >/dev/null 2>&1 || continue
+    echo "=== greeter is back up ==="
+    exit 0
+done
+echo "FATAL: the greeter did not come back within 60s of the restart" >&2
+exit 1
+"""
+accounts_out = gate_until(probes, [], 180, "AccountsService probe/repair failed")
+(evidence / "accounts-probe.txt").write_text(accounts_out, encoding="utf-8")
+print(accounts_out, end="")
 
 # Wake Plasma Login Manager's idle clock page and capture the actual password
 # surface before interaction. Only a lowercase/digit disposable password is used,
@@ -798,12 +839,63 @@ gate_until(probes, [], 120, "AccountsService probe/repair failed")
 # ShowClock idle dismisses on a real key or pointer movement — match the ARM
 # qcow2 gate (shift then space) and keep virtio keyboard + tablet attached so
 # those events have a guest input device.
-hmp(["sendkey shift"])
-time.sleep(1)
-hmp(["sendkey spc"])
-time.sleep(2)
+def session_for_uid(uid="1000"):
+    """Has logind actually opened a session for the CI user yet?
+
+    This is the only honest success signal for "the password was accepted":
+    kwin and plasmashell come later, and their absence is what every failed run
+    has reported instead of the login itself.
+    """
+    code, out, _ = ssh_exec(
+        "loginctl list-sessions --no-legend 2>/dev/null "
+        "| awk '$2==\"" + uid + "\" {print $1}'; exit 0")
+    return code == 0 and out.strip() != ""
+
+
+# WAKE, TYPE, THEN CHECK -- and try again rather than assume.
+#
+# Keys alone provably do not dismiss the clock. Runs 34167769770 and
+# 34170891110 both carried `sendkey shift` + `sendkey spc` with a virtio
+# keyboard attached, and both login captures show the clock still painted; the
+# second run's shot taken 15 minutes later shows the same page with the time
+# advanced, so the greeter never left it.
+#
+# A virtio TABLET is attached for exactly this and was never used. PLM's idle
+# page dismisses on a real key OR pointer movement, so this sends both: keys,
+# then absolute pointer motion to two different points (one move to the same
+# spot twice is not motion).
+#
+# Each attempt captures its own screenshot, so a future failure shows what the
+# screen looked like on every try rather than only the first.
+logged_in = False
+for attempt in range(1, 4):
+    hmp(["sendkey shift"])
+    time.sleep(1)
+    hmp(["sendkey spc"])
+    time.sleep(1)
+    hmp(["mouse_move 320 240"])
+    time.sleep(1)
+    hmp(["mouse_move 360 280"])
+    time.sleep(2)
+    capture(evidence / f"installed-login-attempt{attempt}.ppm")
+    hmp([*(f"sendkey {char}" for char in password), "sendkey ret"])
+    for _ in range(12):
+        time.sleep(5)
+        if session_for_uid():
+            logged_in = True
+            break
+    if logged_in:
+        print(f"login: logind opened a session for uid 1000 on attempt {attempt}")
+        break
+    print(f"login: no session for uid 1000 after attempt {attempt}; retrying",
+          file=sys.stderr)
+
+# Keep the historical filename so existing tooling and the gate's own
+# expectations still find the pre-interaction shot.
 capture(evidence / "installed-login.ppm")
-hmp([*(f"sendkey {char}" for char in password), "sendkey ret"])
+if not logged_in:
+    print("login: no session for uid 1000 after 3 attempts -- the desktop gate "
+          "below will now say what the guest looks like", file=sys.stderr)
 
 desktop = r'''
 set -euo pipefail
@@ -837,6 +929,11 @@ for s in $(loginctl list-sessions --no-legend 2>/dev/null | awk '{print $1}'); d
     echo "--- session $s ---"
     loginctl show-session "$s" -p Id -p User -p Name -p Type -p Class -p Active -p State -p Display 2>&1
 done
+echo "=== does AccountsService publish the CI user? ==="
+systemctl is-active accounts-daemon.service 2>&1
+ls -la /var/lib/AccountsService/users/ 2>&1
+busctl call org.freedesktop.Accounts /org/freedesktop/Accounts \
+    org.freedesktop.Accounts FindUserByName s moosci 2>&1
 echo "=== the greeter ==="
 systemctl status plasmalogin.service --no-pager --full 2>&1 | head -n 25
 echo "=== greeter journal ==="
