@@ -56,10 +56,40 @@ drop-ins that repoint ExecStart/Environment into `$HOME`, drop-ins shadowing an
 image drop-in by filename, and masks over shipped units
 (`tests/test_selfcheck_unit_shadowing.py`).
 
-**Not yet true:** the A1's overrides are still in place at the time of writing.
-They must be retired *after* the machine is updated, not before — the booted
-image (`44.20260907.319`) predates PR #77, so retiring them first would
-downgrade Mo PC Remote to a build without the input fix.
+**DONE (2026-09-08).** The A1 now has `44.20260908.322`
+(`sha256:f8447708…`) **staged and awaiting a reboot**, and the overrides are
+retired. Order mattered: the booted image (`44.20260907.319`) predates PR #77,
+so retiring them first would have downgraded Mo PC Remote to a build without the
+input fix.
+
+What was verified before staging, not after: `cosign verify` against
+`cosign.pub` for that exact digest; the ARM boot proof for the same digest
+(`workflow_run_id` 34187655686, `first_boot: healthy`, `second_boot: healthy`,
+`poweroff: clean`, `graphical=active`, `display_manager=active`,
+`failed_units=0` on both boots); and after `bootc switch
+--enforce-container-sigpolicy --retain`, that the staged origin string is
+character-for-character the signed digest asked for. The booted deployment and
+one older one are retained, and `/boot` is unchanged at 48% with three
+deployments.
+
+Retired (backed up to `~/.moos-override-backup-20260908/`): the three Mo AI
+drop-ins, `moai-hermes.service`, both Mo PC Remote agent redirects, the `$HOME`
+`mo-remote-watchdog` pair, the now-shipped kwin memory guard, a
+`.conf.before-xwayland` leftover, and `moos-oracle-verify.service`. Kept on
+purpose: `20-stability.conf`, the ARM virtual-output drop-in and
+`moos-web-studio.service` — owner tuning that shadows no image code.
+
+One self-inflicted fault, found and cleared: removing the `$HOME` watchdog files
+while its timer was running left `mo-remote-watchdog.timer` failed with
+"Unit to trigger vanished" (`Result: resources`). Stop the unit before deleting
+its files. Cleared with `reset-failed`; no failed system or user units remain.
+
+The machine went from **51 passed / 3 failed** to **54 passed / 1 failed** on
+`tests/post-update-check.sh`. The single remaining failure is the wallpaper
+drift documented below, which is not claimed fixed.
+
+**NOT DONE: the reboot.** The owner reboots. Nothing here has booted the new
+deployment, so nothing in this file may be read as post-reboot verification.
 
 **NVIDIA boot-path gates (2026-09-08):**
 `test_x86_nvidia_is_deliberately_untouched` searched `build.sh` for heredocs
