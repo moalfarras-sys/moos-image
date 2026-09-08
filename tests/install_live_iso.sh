@@ -999,6 +999,24 @@ echo "=== runtime dir (is there a wayland socket at all?) ==="
 ls -la "/run/user/${uid}" 2>&1 | head -n 25
 echo "=== what the session had to render on ==="
 ls -la /dev/dri 2>&1
+# THE OTHER HALF OF "no input reached the greeter". QEMU can accept a sendkey
+# and the guest can still ignore it: an input device that is not attached to
+# seat0, or that the compositor never opened, produces exactly the same
+# symptom -- a greeter that renders and never responds.
+echo "=== does seat0 own the input devices? ==="
+loginctl seat-status seat0 --no-pager 2>&1 | head -n 40
+echo "=== input devices the kernel exposes ==="
+ls -l /dev/input/ 2>&1
+cat /proc/bus/input/devices 2>&1 | head -n 60
+echo "=== udev seat tags for the virtio input devices ==="
+for dev in /dev/input/event*; do
+    printf -- '--- %s\n' "$dev"
+    udevadm info --query=property --name="$dev" 2>&1 \
+        | grep -E 'ID_SEAT|ID_INPUT|TAGS|DEVPATH|NAME' || true
+done
+echo "=== what the greeter compositor said about input ==="
+journalctl -b _UID=967 --no-pager -o short-monotonic 2>&1 \
+    | grep -iE 'libinput|input|seat|keyboard|pointer|tablet' | tail -n 40
 echo "=== processes owned by moosci ==="
 ps -u moosci -o pid=,comm=,args= --sort=pid 2>&1 | head -n 40
 echo "=== kernel graphics/drm messages ==="
