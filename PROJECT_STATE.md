@@ -1,5 +1,39 @@
 # MoOS — current project state
 
+**Boot visual continuity source pass (2026-09-08):** the physical NVIDIA host's
+last boot measured 44.377 s end to end: 10.329 s firmware + 5.932 s loader +
+6.073 s kernel + 4.151 s initrd + 17.890 s userspace. Plymouth started at
+kernel-monotonic 8.815 s and quit at 21.171 s; the login compositor selected its
+DRM backend at 24.855 s. The existing `plymouth quit --retain-splash` therefore
+covers a measured ~3.7 s handoff that would otherwise be black. The remaining
+visual defect was the surface itself: the rendered logo sting played on a flat,
+almost-black canvas, then the login manager replaced the whole frame with its
+Graphite glass landscape.
+
+Source now plays the existing 32-frame energy/mark animation over
+`boot-backdrop.png`, a deterministic 1920x1080 downsample of the **exact**
+Graphite-dark wallpaper already configured for Plasma Login Manager. The
+backdrop is 864 KiB encoded, is scaled once outside Plymouth's refresh loop,
+contains zero pure-black pixels, and stays visible in the retained handoff; the
+login frame therefore replaces the mark/authentication layer without replacing
+the ground. The preview now renders the complete slow-boot cue after 2.4 s and
+the explicit quit frame, not only the 1.28 s intro. The reviewed 16:9 and 4:3
+storyboards are `artwork/generated/boot-animation-filmstrip.png` and the
+temporary scale preview; horizontal scans on the 1080p settled frame measured
+127–231 luminance steps across the glass/brand rows (design floor: 15).
+
+Repo gates cover exact backdrop provenance, 4 MiB encoded ceiling, cover
+geometry, one-time scaling, missing assets, BOM/parser safety, and final-initrd
+presence in x86, ARM and recovery build paths. `just check` passed all 123
+workflow gates, and a clean local `just build` produced
+`localhost/moos:latest` with `bootc container lint` passing. Independent
+built-image inspection found the exact source SHA-256
+`bdb3b79845eac51265bd850ca2cb0762c1c253a5ed6a8a7885d6a4dc888d9931`
+in the image and its 107 MiB final initramfs, with `Theme=moos` and the
+`--retain-splash` override active. This is **built-image proof**, not a visible
+boot proof: a UEFI VM/hardware capture remains required before merge or release,
+and firmware-controlled pixels before Plymouth remain outside the OS renderer.
+
 **Current bounded x86 repair (2026-09-07):** run 769 fails all three editions
 because `55737753` applies ARM's real-directory `/usr/local/sbin` repair to
 Atomic's dangling `/usr/local -> ../var/usrlocal` link. Candidate work on

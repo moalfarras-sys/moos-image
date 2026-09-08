@@ -29,17 +29,19 @@ USAGE
 from __future__ import annotations
 
 import argparse
+import math
 import pathlib
 import re
 import sys
 
-from PIL import Image
+from PIL import Image, ImageOps
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 THEME = ROOT / "system_files/usr/share/plymouth/themes/moos"
 SCRIPT = THEME / "moos.script"
+BACKDROP = THEME / "boot-backdrop.png"
 
-# The UI2 canvas token moos.script pins as its ground.
+# The UI2 canvas token moos.script pins beneath the shared login backdrop.
 GRAPHITE = (20, 25, 28)
 
 
@@ -49,7 +51,10 @@ def load_constants() -> dict[str, float]:
     text = SCRIPT.read_text(encoding="utf-8")
     found = {k: float(v) for k, v in re.findall(
         r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(-?[0-9]*\.?[0-9]+)\s*;", text, re.MULTILINE)}
-    needed = ["INTRO_COUNT", "INTRO_HOLD", "INTRO_ASPECT", "CUE_DELAY"]
+    needed = [
+        "INTRO_COUNT", "INTRO_HOLD", "INTRO_ASPECT", "CUE_DELAY",
+        "BACKDROP_W", "BACKDROP_H",
+    ]
     missing = [n for n in needed if n not in found]
     if missing:
         sys.exit(f"FATAL: moos.script no longer defines {', '.join(missing)} — "
@@ -101,32 +106,73 @@ def main() -> int:
     sx, sy = int((w - stage_w) / 2), int((h - stage_h) / 2)
     size = (int(stage_w), int(stage_h))
 
+    if not BACKDROP.is_file():
+        sys.exit(f"FATAL: {BACKDROP} is missing — run artwork/generate_boot_backdrop.py")
+
     intro = [Image.open(p).convert("RGBA").resize(size, Image.LANCZOS) for p in fs]
+    backdrop = ImageOps.fit(
+        Image.open(BACKDROP).convert("RGBA"), (w, h), method=Image.LANCZOS
+    )
+
+    glow_size = int(h * 1.05)
+    ring_size = int(h * 1.02)
+    head_size = int(h * 0.075)
+    ring_radius = ring_size * 0.44
+    glow = Image.open(THEME / "glow.png").convert("RGBA").resize(
+        (glow_size, glow_size), Image.LANCZOS
+    )
+    ring = Image.open(THEME / "ring.png").convert("RGBA").resize(
+        (ring_size, ring_size), Image.LANCZOS
+    )
+    head = Image.open(THEME / "head.png").convert("RGBA").resize(
+        (head_size, head_size), Image.LANCZOS
+    )
 
     def compose(layers) -> Image.Image:
         f = Image.new("RGBA", (w, h), GRAPHITE + (255,))
-        for img, op in layers:
+        f.alpha_composite(backdrop)
+        for img, op, xy in layers:
             if op > 0.002:
-                f.alpha_composite(with_opacity(img, op), (sx, sy))
+                f.alpha_composite(with_opacity(img, op), xy)
         return f
 
     hold = int(c["INTRO_HOLD"])
     gif: list[Image.Image] = []
     strip: list[Image.Image] = []
-    n_last = len(intro) - 1
-    marks = {0, 4, 9, 14, 19, 24, n_last}
+    cue_delay = int(c["CUE_DELAY"])
+    # Long enough to show that a slow boot remains alive, while still keeping
+    # the preview compact. Plymouth itself keeps running until userspace wins.
+    preview_ticks = cue_delay + 125
+    marks = {0, 18, 38, 62, cue_delay, cue_delay + 45, preview_ticks - 1}
 
-    for n, im in enumerate(intro):
-        f = compose([(im, 1.0)])
-        if n in marks:
-            strip.append(f)
-        for _ in range(hold):
-            gif.append(f)
-    # The splash simply holds its last frame from here on.
-    rest = compose([(intro[-1], 1.0)])
+    for tick in range(preview_ticks):
+        frame_index = min(len(intro) - 1, tick // hold)
+        layers = []
+        if tick > cue_delay:
+            t = (tick - cue_delay) / 50.0
+            into = max(0.0, min(1.0, t))
+            glow_opacity = into * (
+                0.16 + 0.05 * math.sin(t * 2 * math.pi / 4.5)
+            )
+            angle = math.radians(t * 130 - 90)
+            hx = int(w / 2 + ring_radius * math.cos(angle) - head_size / 2)
+            hy = int(h / 2 + ring_radius * math.sin(angle) - head_size / 2)
+            layers.extend([
+                (glow, glow_opacity, ((w - glow_size) // 2, (h - glow_size) // 2)),
+                (ring, into * 0.35, ((w - ring_size) // 2, (h - ring_size) // 2)),
+                (head, into * 0.85, (hx, hy)),
+            ])
+        layers.append((intro[frame_index], 1.0, (sx, sy)))
+        frame = compose(layers)
+        if tick in marks:
+            strip.append(frame)
+        if tick % 4 == 0:
+            gif.append(frame)
+
+    # quit_callback hides every moving cue and pins this deliberately composed
+    # handoff frame; include it as the eighth storyboard panel.
+    rest = compose([(intro[-1], 1.0, (sx, sy))])
     strip.append(rest)
-    for _ in range(30):
-        gif.append(rest)
 
     cw, ch = w // 4, h // 4
     sheet = Image.new("RGB", (cw * 4, ch * 2), GRAPHITE)
@@ -136,14 +182,14 @@ def main() -> int:
     sheet.save(out / "boot-animation-filmstrip.png")
     rest.convert("RGB").save(out / "boot-animation-settled.png")
 
-    small = [g.convert("RGB").resize((w // 3, h // 3), Image.LANCZOS) for g in gif[::2]]
+    small = [g.convert("RGB").resize((w // 4, h // 4), Image.LANCZOS) for g in gif]
     small[0].save(out / "boot-animation.gif", save_all=True, append_images=small[1:],
-                  duration=40, loop=0, optimize=True)
+                  duration=80, loop=0, optimize=True)
 
     total = (len(intro) * hold) / 50.0
     print(f"stage     : {int(stage_w)}x{int(stage_h)} at ({sx}, {sy}) on {w}x{h}")
     print(f"intro     : {len(intro)} frames x {hold} refreshes = {total:.2f} s to rest")
-    print(f"cue after : {c['CUE_DELAY']/50.0:.1f} s (slow boots only)")
+    print(f"cue after : {c['CUE_DELAY']/50.0:.1f} s (slow boots only; included in preview)")
     print(f"filmstrip : {out/'boot-animation-filmstrip.png'}")
     print(f"settled   : {out/'boot-animation-settled.png'}   <- the frame --retain-splash holds")
     print(f"gif       : {out/'boot-animation.gif'}")
