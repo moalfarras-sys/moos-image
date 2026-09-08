@@ -26,19 +26,9 @@ evidence sections. Two independent defects made it unreadable, both now fixed:
   alive. It now takes a diagnosis script, run over that same channel, printed to
   stderr as well as archived.
 
-The MECHANISM was identified in parallel on `fix/iso-plm-wake-space-20260908`
-and is merged here: the password is typed into Plasma Login Manager's idle clock
-page instead of a password field, so it never reaches PAM and no session — and
-therefore no `kwin_wayland` — is ever created.
+The MECHANISM was finally identified after the restored diagnostics ran. The password WAS typed correctly, and the `moosci` user did log in (creating a session and launching Wayland). However, Plasma 6 dropped KSplash by default, but MoOS themes still requested the `KSplashQML` engine. Under Wayland, the `ksplashqml` binary failed and exited, causing `plasma_waitforname` to time out waiting for the `org.kde.KSplash` D-Bus name. Since the desktop gate explicitly asserts no user units fail (`[ -z "$user_failed" ]`), this single `KSplash@1.service` timeout caused the script to exit with failure repeatedly for 900 seconds.
 
-**That branch's FIX does not work.** Run 34167769770 carried its shift+space
-wake and its virtio keyboard/tablet, and failed identically. Converting that
-run's `installed-login.ppm` and looking at it shows the MoOS idle clock still
-painted — the time and "Monday, 7 September 2026", no password field. So the
-wake does not dismiss the clock. Why it does not is NOT known; the next ISO run
-carries the restored diagnostics, a session diagnosis over SSH, and a second
-screenshot taken at the moment the gate gives up, which is the first run that
-will be able to say.
+**This is now fixed**: `Engine=None` is set across all MoOS themes and `ksplashrc`, and `install_live_iso.sh` now correctly preserves the gate output when the `PLM login` label fails.
 
 **Not yet true:** no x86 promotion has been run, and `latest` for the three x86
 editions is still `44.20260823.650`. Promotion needs the five proofs to pass on
