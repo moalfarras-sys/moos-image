@@ -678,12 +678,50 @@ def gate_until(script, args, seconds, label, diagnose=None):
     raise SystemExit(f"ISO INSTALL FATAL: {label}: {last}")
 
 
-def hmp(commands):
+def hmp(commands, label=""):
+    """Send HMP commands AND read what QEMU says back.
+
+    This used to send every command in one write and close the socket without
+    reading a single byte of the reply. Nothing anywhere checked that QEMU had
+    accepted the command, so an unknown command, a rejected argument, or a
+    monitor that was not in a state to execute anything all looked exactly like
+    success -- and the only visible consequence was a login that silently never
+    happened, reported fifteen minutes later as "kwin_wayland not running".
+
+    Runs 34167769770, 34170891110 and 34187614662 sent `sendkey shift`,
+    `sendkey spc` and (in the last) `mouse_move`, and in all three the greeter's
+    clock never moved and no session for uid 1000 was ever created. Whether
+    those events were injected at all was never established, because the answer
+    was thrown away. It is now returned, recorded, and checked.
+    """
+    replies = []
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
         client.settimeout(5)
         client.connect(monitor)
-        client.recv(4096)
-        client.sendall(("\n".join(commands) + "\n").encode())
+        try:
+            client.recv(4096)          # banner
+        except socket.timeout:
+            pass
+        for command in commands:
+            client.sendall((command + "\n").encode())
+            # Read the reply before moving on. This also guarantees QEMU has
+            # processed the command before the socket is torn down.
+            time.sleep(0.2)
+            try:
+                replies.append(command + " -> "
+                               + client.recv(8192).decode("utf-8", "replace"))
+            except socket.timeout:
+                replies.append(command + " -> (no reply within 5s)")
+    text = "\n".join(replies)
+    # QEMU answers an unusable command in prose on the same channel; surface it
+    # rather than letting it scroll past inside a password-typing loop.
+    lowered = text.lower()
+    for marker in ("invalid", "unknown command", "error", "not found"):
+        if marker in lowered:
+            print(f"hmp{(' ' + label) if label else ''}: QEMU rejected something:"
+                  f"\n{text}", file=sys.stderr)
+            break
+    return text
 
 
 def capture(path):
@@ -867,18 +905,24 @@ def session_for_uid(uid="1000"):
 #
 # Each attempt captures its own screenshot, so a future failure shows what the
 # screen looked like on every try rather than only the first.
+# What input devices does QEMU actually believe it has? `mouse_move` acts on
+# the CURRENTLY SELECTED mouse, and with no usable pointer it does nothing at
+# all -- silently, until now.
+input_state = hmp(["info status", "info mice", "info chardev"], label="input-state")
+(evidence / "qemu-input-state.txt").write_text(input_state, encoding="utf-8")
+print("=== QEMU input state ===\n" + input_state)
+
 logged_in = False
 for attempt in range(1, 4):
-    hmp(["sendkey shift"])
-    time.sleep(1)
-    hmp(["sendkey spc"])
-    time.sleep(1)
-    hmp(["mouse_move 320 240"])
-    time.sleep(1)
-    hmp(["mouse_move 360 280"])
+    wake = hmp(["sendkey shift", "sendkey spc",
+                 "mouse_move 320 240", "mouse_move 360 280"],
+                label=f"wake-{attempt}")
+    (evidence / f"hmp-wake-attempt{attempt}.txt").write_text(wake, encoding="utf-8")
     time.sleep(2)
     capture(evidence / f"installed-login-attempt{attempt}.ppm")
-    hmp([*(f"sendkey {char}" for char in password), "sendkey ret"])
+    typed = hmp([*(f"sendkey {char}" for char in password), "sendkey ret"],
+                label=f"type-{attempt}")
+    (evidence / f"hmp-type-attempt{attempt}.txt").write_text(typed, encoding="utf-8")
     for _ in range(12):
         time.sleep(5)
         if session_for_uid():
