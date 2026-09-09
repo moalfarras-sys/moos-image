@@ -655,7 +655,7 @@ def build_icon_theme(key: str, meta: dict) -> None:
     Baked rather than live for a measured reason: FollowsColorScheme=true makes
     QIcon re-colour from the application QPalette instead of the Plasma surface
     colour set, which painted near-invisible symbols on the live dark Launcher
-    (artwork/moos-ui2/live-tests/).
+    (docs/evidence/ and live session captures).
     """
     roles = _roles(key)
     target = SHARE / "icons" / meta["style"]

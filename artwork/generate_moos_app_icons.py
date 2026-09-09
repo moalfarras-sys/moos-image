@@ -15,7 +15,7 @@ do it the way upstream does:
   sets it to **false** on every icon theme.  With `true`, that rewrite reads
   the *application* QPalette instead of the Plasma surface's colour set and
   painted near-invisible symbols on the live dark Launcher (evidence pair in
-  artwork/moos-ui2/live-tests/, and PROJECT_STATE.md records the decision).
+  PROJECT_STATE.md records the decision).
 * So MoOS **bakes** the inks instead: `generate_moos_themes.build_icon_theme`
   writes one copy of every mark into each of the 14 palette icon themes with
   that palette's own roles substituted into the stylesheet, and

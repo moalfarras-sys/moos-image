@@ -51,7 +51,7 @@ try { panel.floating = true; } catch (e) { /* keep the dock, lose the gap */ }
 
 /* The dock is a CAPSULE, not a bar: it hugs its content and sits centered, the
  * geometry the maintainer's installed machine actually runs (the shipped proof
- * artwork/moos-ui2/live-tests/ui2-dark-real-desktop.jpg is exactly this). The
+ * the MoOS UI2 dark desktop capture documents exactly this). The
  * template used to stop at `floating`, so every NEW user — and the live ISO —
  * got an edge-to-edge bar while the flagship desktop showed a floating capsule.
  *
