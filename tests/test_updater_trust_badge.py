@@ -97,4 +97,19 @@ assert ".ui2-badge.ui2-badge-warning" in style and "@ui2_warning" in style, \
     "an unverified origin must be visually distinct, not only differently worded"
 assert "ui2-badge-warning" in source, "moos-update never applies the warning class"
 
-print("Updater trust badge gate passed (4 origin states)")
+# blocked-downgrade is a protective success, not an invalid-state failure. When
+# production :latest lags behind a signed candidate the machine already runs,
+# the backend refuses the older object; painting that as a red error is what
+# made the Updater look broken while it was doing its job.
+assert 'state == "blocked-downgrade"' in source, \
+    "moos-update must handle blocked-downgrade explicitly"
+blocked = source[source.index('state == "blocked-downgrade"'):]
+blocked = blocked[:blocked.index("digest = payload.get")]
+assert 'add_css_class("success")' in blocked, \
+    "blocked-downgrade must present as healthy, not as an error"
+assert 'add_css_class("error")' not in blocked, \
+    "blocked-downgrade must not reuse the failure path"
+assert "newer than the published production image" in blocked, \
+    "blocked-downgrade must explain that the device is ahead of production"
+
+print("Updater trust badge gate passed (4 origin states + blocked-downgrade)")

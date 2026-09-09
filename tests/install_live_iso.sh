@@ -548,13 +548,20 @@ def wait_qga(seconds=1000):
     raise SystemExit(f"ISO INSTALL FATAL: installed QGA timeout: {last}")
 
 
-def ssh_exec(script, args=(), timeout=180):
+def ssh_exec(script, args=(), timeout=180, *, desktop_user=False):
+    # Root is required to inspect /sysroot, but cannot impersonate the desktop
+    # merely by setting XDG_RUNTIME_DIR. systemd checks the caller's UID (run
+    # 34201023152: KWin and plasmashell active, user bus Operation not permitted).
+    # Drop credentials for session/app checks; keep system/origin checks root.
+    remote = ["/usr/bin/bash", "-s", "--", *args]
+    if desktop_user:
+        remote = ["/usr/sbin/runuser", "-u", "moosci", "--", *remote]
     command = [
         "ssh", "-i", ssh_key, "-p", ssh_port,
         "-o", "BatchMode=yes", "-o", "IdentitiesOnly=yes",
         "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null",
         "-o", "LogLevel=ERROR", "-o", "ConnectTimeout=10",
-        "root@127.0.0.1", "/usr/bin/bash", "-s", "--", *args,
+        "root@127.0.0.1", *remote,
     ]
     completed = subprocess.run(
         command, input=script, text=True, capture_output=True,
@@ -563,12 +570,12 @@ def ssh_exec(script, args=(), timeout=180):
     return completed.returncode, completed.stdout, completed.stderr
 
 
-def gate_until(script, args, seconds, label, diagnose=None):
+def gate_until(script, args, seconds, label, diagnose=None, *, desktop_user=False):
     deadline = time.monotonic() + seconds
     last = "not run"
     while time.monotonic() < deadline:
         try:
-            code, out, err = ssh_exec(script, args, 60)
+            code, out, err = ssh_exec(script, args, 60, desktop_user=desktop_user)
         except subprocess.TimeoutExpired:
             last = "ssh call exceeded its 60s window"
             time.sleep(5)
@@ -989,10 +996,10 @@ systemctl status "user@${uid}.service" --no-pager --full 2>&1 | head -n 20
 echo "=== moosci session journal (this is where kwin says why it died) ==="
 journalctl -b _UID="${uid}" --no-pager -o short-monotonic 2>&1 | tail -n 120
 echo "=== moosci user units ==="
-env XDG_RUNTIME_DIR="/run/user/${uid}" \
+/usr/sbin/runuser -u moosci -- env XDG_RUNTIME_DIR="/run/user/${uid}" \
     DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${uid}/bus" \
     systemctl --user list-units --state=failed --no-legend --no-pager 2>&1
-env XDG_RUNTIME_DIR="/run/user/${uid}" \
+/usr/sbin/runuser -u moosci -- env XDG_RUNTIME_DIR="/run/user/${uid}" \
     DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${uid}/bus" \
     systemctl --user status plasma-kwin_wayland.service --no-pager --full 2>&1 | head -n 30
 echo "=== runtime dir (is there a wayland socket at all?) ==="
@@ -1028,7 +1035,7 @@ exit 0
 '''
 
 desktop_out = gate_until(desktop, [], 900, "PLM login did not reach the desktop",
-                         diagnose=desktop_diagnosis)
+                         diagnose=desktop_diagnosis, desktop_user=True)
 (evidence / "desktop-session.txt").write_text(desktop_out)
 
 open_app = r'''
@@ -1084,7 +1091,8 @@ app_specs = (
 )
 app_proof = []
 for label, executable in app_specs:
-    first = gate_until(open_app, [label, executable], 150, f"{label} did not open")
+    first = gate_until(open_app, [label, executable], 150, f"{label} did not open",
+                       desktop_user=True)
     unit = next((line.removeprefix("unit=") for line in first.splitlines()
                  if line.startswith("unit=")), "")
     if not unit:
@@ -1092,9 +1100,10 @@ for label, executable in app_specs:
     time.sleep(2)
     capture(evidence / ("installed-app-" + label + ".ppm"))
     hmp(["sendkey alt-f4"])
-    gate_until(close_app, [unit], 60, f"{label} did not close")
+    gate_until(close_app, [unit], 60, f"{label} did not close", desktop_user=True)
 
-    second = gate_until(open_app, [label, executable], 150, f"{label} did not reopen")
+    second = gate_until(open_app, [label, executable], 150, f"{label} did not reopen",
+                        desktop_user=True)
     second_unit = next((line.removeprefix("unit=") for line in second.splitlines()
                         if line.startswith("unit=")), "")
     if not second_unit or second_unit == unit:
@@ -1104,7 +1113,8 @@ for label, executable in app_specs:
         time.sleep(2)
         capture(evidence / "installed-desktop-apps.ppm")
     hmp(["sendkey alt-f4"])
-    gate_until(close_app, [second_unit], 60, f"reopened {label} did not close")
+    gate_until(close_app, [second_unit], 60, f"reopened {label} did not close",
+               desktop_user=True)
 
 user_health = r'''
 set -euo pipefail
@@ -1115,7 +1125,8 @@ failed="$(env XDG_RUNTIME_DIR="$runtime" \
     systemctl --user --failed --no-legend --plain)"
 [ -z "$failed" ]
 '''
-gate_until(user_health, [], 60, "first-party app smoke left failed user units")
+gate_until(user_health, [], 60, "first-party app smoke left failed user units",
+           desktop_user=True)
 (evidence / "app-smoke.txt").write_text("\n".join(app_proof) + "\n")
 
 code, boot_id, error = ssh_exec("cat /proc/sys/kernel/random/boot_id")

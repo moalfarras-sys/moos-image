@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
-"""Static regression gate for the final-ISO installation proof."""
+"""Contracts and executable SSH identity checks for the final-ISO proof."""
 
+import ast
 from pathlib import Path
+from types import SimpleNamespace
+import unittest
+from unittest.mock import Mock
 
 
 root = Path(__file__).resolve().parents[1]
@@ -92,4 +96,65 @@ assert workflow.index("Boot and prove the exact final live ISO") < workflow.inde
 assert "name: moos-iso-install-proof" in workflow
 assert "timeout-minutes: 180" in workflow
 
-print("ISO end-to-end install gate passed")
+# Load only the installed-proof functions, never its QEMU/SSH main program.
+installed_code = script[installed_python:].split("<<'PY'\n", 1)[1].split("\nPY\n", 1)[0]
+installed_tree = ast.parse(installed_code)
+functions = ast.Module(body=[node for node in installed_tree.body
+                            if isinstance(node, ast.FunctionDef)
+                            and node.name in {"ssh_exec", "gate_until"}], type_ignores=[])
+
+
+class SessionIdentityTests(unittest.TestCase):
+    def setUp(self):
+        self.run = Mock(return_value=SimpleNamespace(returncode=0, stdout="healthy", stderr=""))
+        self.namespace = {
+            "subprocess": SimpleNamespace(run=self.run, TimeoutExpired=TimeoutError),
+            "ssh_key": "/fixture/key", "ssh_port": "2200",
+            "time": SimpleNamespace(monotonic=lambda: 0),
+        }
+        exec(compile(functions, str(script_path), "exec"), self.namespace)
+
+    def remote_command(self):
+        command = self.run.call_args.args[0]
+        return command[command.index("root@127.0.0.1") + 1:]
+
+    def test_system_proof_retains_root_and_script_stdin(self):
+        result = self.namespace["ssh_exec"]("read origin", ["digest"])
+        self.assertEqual(result, (0, "healthy", ""))
+        self.assertEqual(self.remote_command(), ["/usr/bin/bash", "-s", "--", "digest"])
+        self.assertEqual(self.run.call_args.kwargs["input"], "read origin")
+
+    def test_session_gate_drops_credentials_before_executing_shell(self):
+        result = self.namespace["gate_until"]("inspect desktop", ["dolphin"], 10,
+                                               "desktop", desktop_user=True)
+        self.assertEqual(result, "healthy")
+        self.assertEqual(self.remote_command(), ["/usr/sbin/runuser", "-u", "moosci", "--",
+                                                 "/usr/bin/bash", "-s", "--", "dolphin"])
+        self.assertEqual(self.run.call_args.kwargs["input"], "inspect desktop")
+
+    def test_failed_session_probe_cannot_report_success(self):
+        self.run.return_value = SimpleNamespace(returncode=1, stdout="", stderr="bus denied")
+        self.assertEqual(self.namespace["ssh_exec"]("probe", desktop_user=True),
+                         (1, "", "bus denied"))
+
+    def test_all_session_checks_select_desktop_uid(self):
+        session_scripts = {"desktop", "open_app", "close_app", "user_health"}
+        counts = {name: 0 for name in session_scripts}
+        for node in ast.walk(installed_tree):
+            if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                    and node.func.id == "gate_until" and node.args
+                    and isinstance(node.args[0], ast.Name)):
+                continue
+            name = node.args[0].id
+            options = {kw.arg: kw.value for kw in node.keywords}
+            enabled = ("desktop_user" in options
+                       and isinstance(options["desktop_user"], ast.Constant)
+                       and options["desktop_user"].value is True)
+            self.assertEqual(enabled, name in session_scripts, name)
+            if name in counts:
+                counts[name] += 1
+        self.assertEqual(counts, {"desktop": 1, "open_app": 2, "close_app": 2, "user_health": 1})
+
+
+if __name__ == "__main__":
+    unittest.main()

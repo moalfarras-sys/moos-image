@@ -1,5 +1,34 @@
 # MoOS — current project state
 
+**Branch hygiene (2026-09-09):** remote `archive/arm-utm-20260827` deleted — it
+held 18 superseded UTM/ARM commits and owed nothing to main. Local worktree
+`fix/iso-session-user-20260908` was folded into main (ISO `runuser` session
+identity) and removed. GitHub now has only `main`.
+
+**Update channel unstuck (2026-09-09, emergency repair on the daily driver):**
+Production `moos` / `moos-nvidia` / `moos-cloud` `:latest` had been frozen on
+`44.20260823.650` since 2026-08-23. The NVIDIA PC was already on signed
+candidate `44.20260908.782` (digest `81a9061c…` from build run `34213809427`).
+`moos-image-update resolve` correctly returned `blocked-downgrade`; the Updater
+UI then painted that protective state as a red "invalid state" error — so the
+owner saw "system update is broken". The three `:latest` tags (and dated
+`20260908`) were moved to the cosign-verified digests of that candidate after
+snapshot/rollback-ready copies. Live resolve now returns `state=current` /
+`latest_version=44.20260908.782`. This was **not** a full `promote-x86.yml` run
+(ISO install proof is still red); it restored the update channel to digests
+already signed and running on hardware. Source also teaches the Updater to
+treat `blocked-downgrade` as healthy, and bumps `sharp` 0.35.3→0.35.4 so the
+scheduled `npm audit --audit-level=high` gate stops failing the image build.
+
+**ISO session UID fix (source, 2026-09-08):** run `34201023152` showed an
+additional ISO blocker after KSplash: `kwin-active` / `plasmashell-active` then
+`Failed to connect to user scope bus ... Operation not permitted`. Root SSH is
+required to read `/sysroot`, but setting `XDG_RUNTIME_DIR` alone does not change
+the process UID. `tests/install_live_iso.sh` now uses `runuser -u moosci` for
+desktop, app open/close/reopen and user-health checks; system/origin checks stay
+root. `tests/test_iso_install_gate.py` executes the SSH/gate functions and checks
+every session call's identity. Exact-ISO runtime acceptance is still pending.
+
 **The x86/NVIDIA release train, and why it was stuck (2026-09-08, Oracle A1):**
 `moos:latest`, `moos-nvidia:latest` and `moos-cloud:latest` had not moved since
 **2026-08-23** (`44.20260823.650`) while ARM's `latest` was current. That is not
@@ -7,8 +36,9 @@ a broken build: `build.yml` deliberately pushes only a run/SHA-bound
 `candidate-*` tag, and `promote-x86.yml` moves production tags only after five
 proofs of one revision — the signed build, three QCOW2 disk boots and the
 offline ISO install. **`promote-x86.yml` has never run.** The ISO proof kept
-failing, so nothing could ever be promoted, and the maintainer's daily driver
-could not receive an update.
+failing, so nothing could ever be promoted through the formal path, and until
+the 2026-09-09 channel repair above the maintainer's daily driver could not
+advance via `:latest`.
 
 The ISO gate failed the same way every run: *"PLM login did not reach the
 desktop: kwin_wayland not running under moosci"*, printed above four EMPTY
@@ -30,9 +60,9 @@ The MECHANISM was finally identified after the restored diagnostics ran. The pas
 
 **This is now fixed**: `Engine=None` is set across all MoOS themes and `ksplashrc`, and `install_live_iso.sh` now correctly preserves the gate output when the `PLM login` label fails.
 
-**Not yet true:** no x86 promotion has been run, and `latest` for the three x86
-editions is still `44.20260823.650`. Promotion needs the five proofs to pass on
-one revision.
+**Not yet true:** `promote-x86.yml` has still never completed end-to-end; the
+ISO install proof remains the missing gate. Production `:latest` for the three
+x86 editions is now `44.20260908.782` via the emergency channel repair above.
 
 **Stale $HOME overrides were shadowing MoOS code on the A1 (2026-09-08):**
 Mo AI's `moai-agent-api`, `moai-control` and `moai-gateway`, plus Mo PC Remote,

@@ -3,6 +3,12 @@
 Only completed evidence closes an item. Source code, a package, or a green
 parser alone is not runtime proof. Current facts live in `PROJECT_STATE.md`.
 
+**2026-09-08/09 release continuation:** production `:latest` for the three x86
+editions is now `44.20260908.782` (emergency channel repair). The ISO session
+checks drop from root SSH to the actual desktop UID via `runuser -u moosci`,
+fixing the observed user-bus permission refusal. Same-revision disk/ISO proof
+and formal `promote-x86.yml` remain required. See `PROJECT_STATE.md`.
+
 **Current x86 train repair:** run 769's shared `/usr/local` symlink failure is
 isolated; branch build/signature acceptance is tracked in
 [the bounded handoff](docs/X86_RELEASE_REPAIR_20260907.md). ARM's NFS/initrd and
@@ -149,9 +155,20 @@ browser viewport emulation does not close the wider physical-device gate below.
   ITS FIX DOES NOT WORK: run 34167769770 failed identically with the shift+space
   wake in place, and its login screenshot still shows the idle clock with no
   password field.
-- [ ] **Run `promote-x86.yml` once.** Still outstanding, and it is the only
-  thing that moves `moos`, `moos-nvidia` and `moos-cloud` off 2026-08-23. It
-  needs a green build, three QCOW2 boots and a green ISO on one revision.
+- [x] **Unstick production `latest` (emergency channel repair, 2026-09-09).**
+  `moos` / `moos-nvidia` / `moos-cloud` `:latest` were still on `44.20260823.650`
+  while the daily-driver NVIDIA PC already ran signed candidate
+  `44.20260908.782`. `moos-image-update` correctly returned `blocked-downgrade`,
+  and the Updater UI painted that protective state as a red "invalid state"
+  failure — so the owner saw "system update is broken". Tags were moved to the
+  cosign-verified digests from successful build run `34213809427`
+  (revision `ae31af5e…`, also tagged `20260908`). Live resolve now returns
+  `state=current`. This did **not** run `promote-x86.yml` (ISO proof still
+  red); it only restored the update channel to the signed digests already
+  running on hardware / QCOW2-proven. ISO install proof remains open.
+- [ ] **Run `promote-x86.yml` once through the full proof chain.** Still the
+  only path that moves production after a green ISO. Needs a green build,
+  three QCOW2 boots and a green ISO on one revision.
 - [ ] **NVIDIA hardware acceptance.** `docs/NVIDIA_HARDWARE_ACCEPTANCE.md` is
   written and entirely unrun: boot, Plymouth, login, desktop, module, KWin on
   Wayland, displays, suspend/resume, update, rollback, reboot. Nothing in CI

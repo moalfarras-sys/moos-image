@@ -408,6 +408,29 @@ class Updater(MoOSApp):
                     "✓ You are on the latest signed MoOS image.",
                 ))
                 return
+            # Production :latest can lag behind a machine that already took a
+            # signed candidate (or can move backwards after a bad retag). The
+            # backend refuses that older object on purpose — that is health,
+            # not a broken updater. Showing it as "invalid state" made the
+            # desktop look broken while the protecter was doing its job.
+            if state == "blocked-downgrade":
+                self.status.add_css_class("success")
+                self.status.set_text(local_text(
+                    "✓ نظامك أحدث من صورة الإنتاج المنشورة (الجهاز: {booted}، الإنتاج: {published}). "
+                    "لا يوجد تحديث آمن الآن؛ انتظر ترقية موقّعة أحدث.",
+                    "✓ Your system is newer than the published production image "
+                    "(device: {booted}, production: {published}). No safe update "
+                    "right now; wait for a newer signed release.",
+                ).format(
+                    booted=payload.get("booted_version") or "—",
+                    published=payload.get("latest_version") or "—",
+                ))
+                self.say(
+                    "blocked-downgrade: "
+                    f"booted={payload.get('booted_version') or '-'} "
+                    f"published={payload.get('latest_version') or '-'}"
+                )
+                return
             digest = payload.get("latest_digest")
             if state != "available" or not isinstance(digest, str):
                 self.fail("رفض المحرك حالة تحديث غير صالحة.",

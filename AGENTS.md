@@ -235,6 +235,12 @@ with `screendump` takes about half an hour and is the only thing that found any 
 
 ## Things that are easy to get wrong here
 
+**A desktop runtime directory is not a desktop UID.** Installed-ISO SSH uses root
+to inspect `/sysroot`. Session/app checks must drop to `moosci` with `runuser`;
+setting `XDG_RUNTIME_DIR` and `DBUS_SESSION_BUS_ADDRESS` as root still fails the
+user-manager credential check. Keep system/origin checks root and preserve both
+the zero-failed-unit assertion and the real open/close/reopen app smoke proof.
+
 **Never build an edition on a different base.** `moos-nvidia` used to build `FROM
 ghcr.io/ublue-os/kinoite-nvidia:44`. That tag was abandoned upstream in May; the "NVIDIA image"
 silently became a six-week-old system, 589 packages behind the generic one. Both editions now
