@@ -144,4 +144,4 @@ injector; per-controller ownership is a remaining acceptance item.
 
 Set `MOREMOTE_INPUT_DIAGNOSTICS=1` only for targeted diagnosis; ordinary pointer
 and text packets no longer cause synchronous per-input log writes. See
-[verification and browser test setup](../../docs/REMOTE_V38_VERIFICATION.md).
+[verification and browser test setup](../../docs/MO_PC_REMOTE_ARCHITECTURE.md).

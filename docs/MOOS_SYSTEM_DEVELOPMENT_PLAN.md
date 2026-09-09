@@ -3,7 +3,7 @@
 Status: active, 2026-09-05. This supersedes the product-scope statement in
 `MOOS_X86_SYSTEM_PLAN.md`; that file retains historical x86 measurements.
 Evidence and open gates, not ambition, determine release status. Read alongside
-`PROJECT_STATE.md`, `MOOS_ROADMAP.md`, the engineering skill and `AGENT_HANDOFF.md`.
+`PROJECT_STATE.md`, `MOOS_ROADMAP.md`, the engineering skill and `PROJECT_STATE.md`.
 
 ## Product boundary and architecture
 
@@ -69,7 +69,7 @@ The 2026-09-06 audit added one hard constraint the earlier baseline missed:
 78% full, so a third could not be staged. Any change that grows the kernel or the
 initramfs is therefore a release-blocking change on ARM, not a size preference.
 That was one healthy snapshot. A later OOM incident killed several desktop
-services; see `SYSTEM_AUDIT_RESUME_20260906.md`. Long-term memory stability
+services; see `PROJECT_STATE.md`. Long-term memory stability
 remains unproven.
 
 Live fixes in this pass:

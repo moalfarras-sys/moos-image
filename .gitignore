@@ -68,3 +68,9 @@ build-*.log
 
 # Local ARM Mo Remote publish scratch — never commit
 .tmp-moremote-*/
+
+# Flutter/MoPlayer local build trees — image builds MoPlayer in Containerfile
+moplayer/build/
+moplayer/.dart_tool/
+moplayer/.flutter-plugins-dependencies
+moplayer/linux/flutter/ephemeral/

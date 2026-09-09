@@ -4,7 +4,7 @@
 model. Cloud models may be **free or paid**. Free is the default; paid is an
 explicit labelled selection, never an automatic fallback from a free quota.
 This supersedes the earlier strict-free-only request and older local/hybrid plan.
-Read `START_HERE_CURRENT_SESSION.md` for the active release checkpoint.
+Read `PROJECT_STATE.md` for the active release checkpoint.
 
 ## Shipped-source design
 

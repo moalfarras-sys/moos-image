@@ -275,7 +275,7 @@ because `55737753` applies ARM's real-directory `/usr/local/sbin` repair to
 Atomic's dangling `/usr/local -> ../var/usrlocal` link. Candidate work on
 `gpt/fix-x86-build-20260907` preserves that writable layout and gates the two
 existing boot-time tmpfiles rules. ARM's NFS and sbin fixes remain unchanged.
-Validation and exact build evidence: [Opus handoff](docs/X86_RELEASE_REPAIR_20260907.md).
+Validation and exact build evidence: [Opus handoff](docs/MOOS_X86_SYSTEM_PLAN.md).
 This branch is not merged or deployed; candidate builds do not promote releases.
 
 **Live NVIDIA update-path audit (2026-09-07):** the physical PC is booted from
@@ -294,7 +294,7 @@ production `latest`, both during resolution and again after privilege escalation
 The installed and repository public keys match, and the current signed candidate
 verifies with that key.
 
-**Current Mo AI integration:** read `docs/START_HERE_CURRENT_SESSION.md` and
+**Current Mo AI integration:** read `PROJECT_STATE.md` and
 `docs/MOAI_CLOUD_ONLY_PLAN.md`. Latest owner policy is cloud-only, free default
 and explicitly selected paid models allowed. Hermes has a real isolated adapter
 and live free-cloud response proof; current changes are not yet a signed release.
@@ -306,7 +306,7 @@ When documentation disagrees with a running machine, a freshly booted artifact,
 or current source, those stronger forms of evidence win.
 
 Last reconciled: **2026-09-06 (resumed audit)**. Current source and live
-findings: [`docs/SYSTEM_AUDIT_RESUME_20260906.md`](docs/SYSTEM_AUDIT_RESUME_20260906.md).
+findings: [`PROJECT_STATE.md`](PROJECT_STATE.md).
 Signed release and post-reboot verification are tracked there separately.
 
 ### Customize Desktop — MoOS owns the widget explorer (2026-09-07)
@@ -613,7 +613,7 @@ against this exact unit.
 handling, live row summaries, search and double-mirrored Arabic alignment. It
 retains the shared UI2 components and graphical KDE backends. Native English/
 Arabic source frames and failure fixtures are reviewed; no OS build or deployment.
-See [the bounded handoff](docs/SETTINGS_HANDOFF_20260907.md) for tests and limits.
+See [the bounded handoff](docs/MOOS_SYSTEM_DEVELOPMENT_PLAN.md) for tests and limits.
 
 ### x86 was blocked behind the retired local-brain unit (2026-09-07, FIXED)
 
@@ -853,7 +853,7 @@ models**, with free as the default on every edition. Mo AI must never download
 or run a local model, and a free quota failure must never trigger paid inference.
 The current contract is
 [`docs/MOAI_CLOUD_ONLY_PLAN.md`](docs/MOAI_CLOUD_ONLY_PLAN.md); read
-[`docs/START_HERE_CURRENT_SESSION.md`](docs/START_HERE_CURRENT_SESSION.md)
+[`PROJECT_STATE.md`](PROJECT_STATE.md)
 for release and deployment evidence.
 
 **Current source:** OpenRouter is the supported provider, with separate Free
@@ -1070,7 +1070,7 @@ Branch `fix/system-audit-20260905`.
   host into software-rendered blur (regression proven); `post-update-check.sh`
   reads the booted deployment as one snapshot and gains
   `MOOS_EXPECTED_DIGEST=sha256:<64 hex>`, exercised by the new
-  `tests/test_post_update_deployment.py`. `docs/AGENT_HANDOFF.md` and
+  `tests/test_post_update_deployment.py`. `PROJECT_STATE.md` and
   `docs/MOOS_SYSTEM_DEVELOPMENT_PLAN.md` are the current handoff + four-edition
   plan; `MOOS_X86_SYSTEM_PLAN.md` is historical.
 
@@ -1128,7 +1128,7 @@ are inert while opening still focuses synchronously from the phone tap.
 
 Source/bundle tests and rendered evidence, local rollback paths, official product
 references and branch-preservation findings are recorded in
-[`docs/REMOTE_V39_MOBILE_WORKSPACE.md`](docs/REMOTE_V39_MOBILE_WORKSPACE.md).
+[`docs/MO_PC_REMOTE_ARCHITECTURE.md`](docs/MO_PC_REMOTE_ARCHITECTURE.md).
 The owner confirmed typing-bar visibility above their phone keyboard in both
 orientations. The wider iOS/Android keyboard matrix and cellular performance remain
 physical-device gates.
@@ -1141,7 +1141,7 @@ Reboot verification and a read-only full Btrfs scrub passed. The full pre-resize
 Oracle backup is retained in the separate backup allowance. App updates and
 live keyboard/AppStream repairs completed; selfcheck is 48/48 and post-update
 checks are 49/49. Detailed scope and recovery notes:
-[`docs/ORACLE_STORAGE_HEALTH_20260905.md`](docs/ORACLE_STORAGE_HEALTH_20260905.md).
+[`docs/MOOS_ARM_ORACLE.md`](docs/MOOS_ARM_ORACLE.md).
 
 Adding US to the keyboard ring exposed a second Remote bug: its portal cached
 Arabic's old group index and typed Arabic positions on English. The active v38
@@ -1206,7 +1206,7 @@ seven seconds, negotiated H.264/OpenH264 and reported ready portal input. A dedi
 focused GTK field read back `MoOS العربية 😀` exactly; a remote click activated its
 button, relative movement moved the real pointer, and Backspace removed the emoji.
 Browser UI tests use intercepted transport, separately from this live proof.
-See [the v38 verification report](docs/REMOTE_V38_VERIFICATION.md) for scope and limits.
+See [the v38 verification report](docs/MO_PC_REMOTE_ARCHITECTURE.md) for scope and limits.
 Physical iOS/Android keyboards, Internet loss/latency matrices and Windows runtime
 input remain unverified for this revision; Windows compilation passes.
 

@@ -67,12 +67,9 @@ boot. Read this before changing anything.
 
 ## Where the rest of the knowledge is
 
-- **`docs/START_HERE_CURRENT_SESSION.md`** — active Mo AI/Hermes integration checkpoint, newest owner policy, exact known state and remaining release work. Read before continuing the current branch.
-
 - **`docs/MOOS_SYSTEM_DEVELOPMENT_PLAN.md`** — current four-edition architecture,
   measured Oracle constraints, ordered implementation tasks and acceptance gates.
-  Follow `docs/AGENT_HANDOFF.md` for a session checkpoint. Runtime evidence outranks
-  historical plans; never treat a local app override as a signed OS release.
+  Runtime evidence outranks historical plans; never treat a local app override as a signed OS release.
 
 - **`docs/MOOS_DESIGN_PLAN.md`** — READ THIS FIRST for any visual work. The
   measured reason a whole session of changes was invisible, the ≥15 luminance
@@ -311,7 +308,7 @@ content in `/var`.
 Never blindly install through that dangling link or replace it. Preserve the
 Atomic link and its boot-time tmpfiles rules; pre-create immutable ARM paths.
 Regression and run 769 evidence: `tests/test_usr_local_layout.py` and
-`docs/X86_RELEASE_REPAIR_20260907.md`.
+`docs/MOOS_X86_SYSTEM_PLAN.md` and `PROJECT_STATE.md`.
 
 **Privileged actions go through `moai-do`, and nowhere else.** It is a fixed allowlist with
 confirmation and Polkit. Mo AI can *name* an action from that list — the UI turns it into a Run
@@ -385,4 +382,4 @@ Being honest about this list is more useful than shrinking it.
 `MOOS_ROADMAP.md` is the concise list of open release gates. Keep it honest: it is more valuable
 as a list of what is missing than as a list of what is claimed.
 
-Settings runtime review and backend contract: [bounded product handoff](docs/SETTINGS_HANDOFF_20260907.md). Its native review harness runs the source QML without installing user overrides.
+Settings runtime review and backend contract: [bounded product handoff](docs/MOOS_SYSTEM_DEVELOPMENT_PLAN.md). Its native review harness runs the source QML without installing user overrides.

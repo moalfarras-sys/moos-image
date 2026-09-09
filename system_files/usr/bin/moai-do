@@ -788,7 +788,7 @@ do_install_openclaw() {
     echo
     confirm || return 0
 
-    # CLOUD-ONLY (docs/MOAI_CLOUD_ONLY_PLAN.md, docs/START_HERE_CURRENT_SESSION.md).
+    # CLOUD-ONLY (docs/MOAI_CLOUD_ONLY_PLAN.md, PROJECT_STATE.md).
     #
     # This called setup_brain_impl, which downloads and starts a LOCAL engine and
     # a local speech model. do_setup_brain was guarded when the policy changed and

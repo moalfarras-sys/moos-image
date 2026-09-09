@@ -11,7 +11,7 @@ and formal `promote-x86.yml` remain required. See `PROJECT_STATE.md`.
 
 **Current x86 train repair:** run 769's shared `/usr/local` symlink failure is
 isolated; branch build/signature acceptance is tracked in
-[the bounded handoff](docs/X86_RELEASE_REPAIR_20260907.md). ARM's NFS/initrd and
+[the bounded handoff](docs/MOOS_X86_SYSTEM_PLAN.md). ARM's NFS/initrd and
 immutable sbin repair remain intact. Artifact boot/promotion gates below stay open.
 
 **Physical NVIDIA update audit:** the machine is on a preserved local
@@ -31,7 +31,7 @@ reaching the image only by inheritance; now required by name and asserted in the
 finished image. Wallpaper drift now repairs itself on a timer. Settings and the
 Mo AI agent workspace are merged. Host suite 115/115.
 
-**Current release audit:** `docs/SYSTEM_AUDIT_RESUME_20260906.md`. The desktop
+**Current release audit:** `PROJECT_STATE.md`. The desktop
 OOM incident is unresolved (S03); short healthy samples do not close it. Source
 motion settings are not a performance benchmark. Launcher routing has executable
 coverage; native focus/scale acceptance remains open.
@@ -101,7 +101,7 @@ a free quota failure automatically. Local model downloads, inference and speech
 models are unavailable through Mo AI's public paths. The former four-provider
 catalogue and cross-provider fallback plan are superseded by the current
 OpenRouter policy. See [the cloud-only plan](docs/MOAI_CLOUD_ONLY_PLAN.md) and
-[current session checkpoint](docs/START_HERE_CURRENT_SESSION.md).
+[current session checkpoint](PROJECT_STATE.md).
 
 - [x] Source policy enforces free model identity and zero price ceilings, with
   an explicit paid selection covered by fixtures. No paid inference was made.
@@ -128,7 +128,7 @@ OpenRouter policy. See [the cloud-only plan](docs/MOAI_CLOUD_ONLY_PLAN.md) and
 
 v39 extends this work with Liquid Glass phone controls, viewport-aware sheets,
 explicit clipboard directions and RTL rail/keyboard geometry repairs. Evidence
-and deployment status: [mobile workspace](docs/REMOTE_V39_MOBILE_WORKSPACE.md).
+and deployment status: [mobile workspace](docs/MO_PC_REMOTE_ARCHITECTURE.md).
 The owner confirmed keyboard/bar visibility on their phone in both orientations;
 browser viewport emulation does not close the wider physical-device gate below.
 
@@ -208,7 +208,7 @@ browser viewport emulation does not close the wider physical-device gate below.
   credentials or capacity are unavailable, report READY-BUT-NOT-DEPLOYED.
   Current state (2026-09-05): LIVE on Frankfurt A1 with a 200 GiB boot disk.
   Online expansion, reboot and a full read-only Btrfs scrub passed; the
-  pre-expansion backup is retained. See docs/ORACLE_STORAGE_HEALTH_20260905.md. UEFI, signed exact
+  pre-expansion backup is retained. See docs/MOOS_ARM_ORACLE.md. UEFI, signed exact
   origin, cloud-init, SSH key, root growth, graphical target, browser-rendered
   private desktop, input portal, HTTPS/audio and a real reboot are proven with
   zero failed units. Deliberate update/rollback proof remains open, so this item
@@ -233,4 +233,4 @@ browser viewport emulation does not close the wider physical-device gate below.
 - Checkpoint and push after every coherent phase and before long builds, reboots,
   risky system changes or context compaction.
 
-Settings source product pass: [audit, native English/Arabic evidence and integration limits](docs/SETTINGS_HANDOFF_20260907.md). Signed-image and hardware acceptance remain with release integration.
+Settings source product pass: [audit, native English/Arabic evidence and integration limits](docs/MOOS_SYSTEM_DEVELOPMENT_PLAN.md). Signed-image and hardware acceptance remain with release integration.

@@ -10,10 +10,9 @@
 
 > ## 📍 أين وصلنا الآن؟ (اقرأ أولاً)
 >
-> | الملف | ماذا ي answer |
+> | الملف | ماذا يجيب |
 > |---|---|
-> | [`PROJECT_STATE.md`](PROJECT_STATE.md) | الحالة الحية بجملة واحدة + جداول |
-> | [`docs/CHECKPOINT-2026-08-23-UTM-INSTALLER-SESSION.md`](docs/CHECKPOINT-2026-08-23-UTM-INSTALLER-SESSION.md) | **تقرير الجلسة الكامل** (UTM آيفون، Oracle، الفشل، ما بُني) — نسخة ويب بعد الدمج |
+> | [`PROJECT_STATE.md`](PROJECT_STATE.md) | **حالة المشروع الحالية** — ما هو مثبت، وما يبقى |
 >
 > **ملخص سريع:** اختبار الآيفون **فشل** (Fedora على الإقلاع — ممنوع).
 > **تم إصلاح هوية recovery في الكود** (Plymouth MoOS + os-release + initramfs).
