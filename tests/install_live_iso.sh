@@ -767,6 +767,48 @@ def capture(path):
         raise SystemExit(f"ISO INSTALL FATAL: mapped GTK capture failed: {path.name}")
 
 
+def frame_changed(before, after, threshold=2.5):
+    """Mean absolute per-channel pixel difference between two P6 PPM frames,
+    sampled every 32nd pixel for speed. True when the guest screen visibly
+    changed (e.g. an app mapped a window); cursor blinks and clock ticks stay
+    far below the threshold."""
+
+    def load(path):
+        data = path.read_bytes()
+        tokens = []
+        pos = 0
+        while len(tokens) < 4:
+            while pos < len(data) and data[pos:pos + 1] in b" \t\r\n":
+                pos += 1
+            if data[pos:pos + 1] == b"#":
+                end = data.find(b"\n", pos)
+                if end < 0:
+                    raise ValueError("unterminated PPM comment")
+                pos = end + 1
+                continue
+            end = pos
+            while end < len(data) and data[end:end + 1] not in b" \t\r\n":
+                end += 1
+            tokens.append(data[pos:end])
+            pos = end
+        if tokens[0] != b"P6":
+            raise ValueError("frame gate accepts binary P6 PPM only")
+        if data[pos:pos + 1] in b" \t\r\n":
+            pos += 1
+        return data[pos:]
+
+    a, b = load(before), load(after)
+    if len(a) != len(b):
+        return True
+    step = 3 * 32
+    total = 0
+    count = 0
+    for i in range(0, len(a), step):
+        total += abs(a[i] - b[i])
+        count += 1
+    return (total / count) > threshold if count else False
+
+
 runtime = r'''
 set -euo pipefail
 expected="$1"
@@ -1069,22 +1111,6 @@ done
 exit 1
 '''
 
-close_app = r'''
-set -euo pipefail
-unit="$1"
-uid="$(id -u moosci)"
-runtime="/run/user/${uid}"
-for _ in $(seq 1 45); do
-    if ! env HOME=/var/home/moosci XDG_RUNTIME_DIR="$runtime" \
-        DBUS_SESSION_BUS_ADDRESS="unix:path=${runtime}/bus" \
-        systemctl --user is-active --quiet "$unit"; then
-        exit 0
-    fi
-    sleep 1
-done
-exit 1
-'''
-
 app_specs = (
     ("dolphin", "dolphin"),
     ("konsole", "konsole"),
@@ -1098,31 +1124,57 @@ app_specs = (
     ("mo-pc-remote", "mo-pc-remote"),
 )
 app_proof = []
-for label, executable in app_specs:
-    first = gate_until(open_app, [label, executable], 150, f"{label} did not open",
-                       desktop_user=True)
-    unit = next((line.removeprefix("unit=") for line in first.splitlines()
+probe = evidence / "window-probe.ppm"
+
+
+def open_close_cycle(label, executable, tag, previous=""):
+    """One open/close cycle through moai-open: open, require a mapped window
+    (a running unit with no window is a real product failure, failed loudly
+    here instead of sending Alt-F4 into the void), capture it, then close it
+    with Alt-F4 re-sent while the unit stays up — on this profile a slow
+    first map can swallow a single blind keystroke, and one shot then fails a
+    healthy app. The unit must still genuinely exit. Returns the unit name."""
+    baseline = Path(f"/tmp/moos-iso-baseline-{label}-{tag}.ppm")
+    capture(baseline)
+    result = gate_until(open_app, [label, executable], 150,
+                        f"{label} did not {tag}", desktop_user=True)
+    unit = next((line.removeprefix("unit=") for line in result.splitlines()
                  if line.startswith("unit=")), "")
     if not unit:
         raise SystemExit(f"ISO INSTALL FATAL: {label} returned no runtime unit")
-    time.sleep(2)
-    capture(evidence / ("installed-app-" + label + ".ppm"))
-    hmp(["sendkey alt-f4"])
-    gate_until(close_app, [unit], 60, f"{label} did not close", desktop_user=True)
-
-    second = gate_until(open_app, [label, executable], 150, f"{label} did not reopen",
-                        desktop_user=True)
-    second_unit = next((line.removeprefix("unit=") for line in second.splitlines()
-                        if line.startswith("unit=")), "")
-    if not second_unit or second_unit == unit:
+    if previous and unit == previous:
         raise SystemExit(f"ISO INSTALL FATAL: {label} reopen did not create a new unit")
-    app_proof.append(f"{label}=opened-closed-reopened")
-    if label == app_specs[-1][0]:
-        time.sleep(2)
+    deadline = time.monotonic() + 90
+    while time.monotonic() < deadline:
+        capture(probe)
+        if frame_changed(baseline, probe):
+            break
+        time.sleep(3)
+    else:
+        raise SystemExit(
+            f"ISO INSTALL FATAL: {label} {tag} opened a unit but never mapped a window")
+    if tag == "open":
+        capture(evidence / ("installed-app-" + label + ".ppm"))
+    if tag == "reopen" and label == app_specs[-1][0]:
         capture(evidence / "installed-desktop-apps.ppm")
-    hmp(["sendkey alt-f4"])
-    gate_until(close_app, [second_unit], 60, f"reopened {label} did not close",
-               desktop_user=True)
+    deadline = time.monotonic() + 75
+    last_send = 0.0
+    while time.monotonic() < deadline:
+        code, _, _ = ssh_exec("systemctl --user is-active --quiet \"$1\"",
+                              (unit,), 20, desktop_user=True)
+        if code != 0:
+            return unit
+        if time.monotonic() - last_send >= 5:
+            hmp(["sendkey alt-f4"], label=f"{label} {tag} close")
+            last_send = time.monotonic()
+        time.sleep(1)
+    raise SystemExit(f"ISO INSTALL FATAL: {label} {tag} did not close")
+
+
+for label, executable in app_specs:
+    first_unit = open_close_cycle(label, executable, "open")
+    open_close_cycle(label, executable, "reopen", previous=first_unit)
+    app_proof.append(f"{label}=opened-closed-reopened")
 
 user_health = r'''
 set -euo pipefail
