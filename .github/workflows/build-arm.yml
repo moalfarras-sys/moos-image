@@ -161,7 +161,17 @@ jobs:
 
       - name: Install podman and buildah
         run: |
-          sudo apt-get update -qq
+          for attempt in 1 2 3 4 5; do
+            if sudo apt-get update -qq; then
+              break
+            fi
+            echo "apt update attempt ${attempt} failed (mirror sync?); retrying..."
+            sleep $((attempt * 15))
+            if [ "$attempt" -eq 5 ]; then
+              echo "FATAL: apt-get update failed after retries" >&2
+              exit 1
+            fi
+          done
           sudo apt-get install -y -qq podman buildah
 
       - name: Confirm the runner really is aarch64
@@ -297,7 +307,19 @@ jobs:
 
       - name: Install podman
         run: |
-          sudo apt-get update -qq
+          # ports.ubuntu.com occasionally serves mid-sync Packages.xz sizes;
+          # fail closed after retries rather than weakening package verification.
+          for attempt in 1 2 3 4 5; do
+            if sudo apt-get update -qq; then
+              break
+            fi
+            echo "apt update attempt ${attempt} failed (mirror sync?); retrying..."
+            sleep $((attempt * 15))
+            if [ "$attempt" -eq 5 ]; then
+              echo "FATAL: apt-get update failed after retries" >&2
+              exit 1
+            fi
+          done
           sudo apt-get install -y -qq \
             podman zstd qemu-utils btrfs-progs \
             qemu-system-arm qemu-efi-aarch64 cloud-image-utils \
