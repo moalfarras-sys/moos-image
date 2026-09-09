@@ -416,14 +416,14 @@ class Updater(MoOSApp):
             if state == "blocked-downgrade":
                 self.status.add_css_class("success")
                 self.status.set_text(local_text(
-                    "✓ نظامك أحدث من صورة الإنتاج المنشورة (الجهاز: {booted}، الإنتاج: {published}). "
+                    "✓ نظامك أحدث من صورة الإنتاج المنشورة (الجهاز: {}، الإنتاج: {}). "
                     "لا يوجد تحديث آمن الآن؛ انتظر ترقية موقّعة أحدث.",
                     "✓ Your system is newer than the published production image "
-                    "(device: {booted}, production: {published}). No safe update "
+                    "(device: {}, production: {}). No safe update "
                     "right now; wait for a newer signed release.",
                 ).format(
-                    booted=payload.get("booted_version") or "—",
-                    published=payload.get("latest_version") or "—",
+                    payload.get("booted_version") or "—",
+                    payload.get("latest_version") or "—",
                 ))
                 self.say(
                     "blocked-downgrade: "
