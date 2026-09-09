@@ -463,6 +463,31 @@ seed_target() {
             umount "$mnt" 2>>"$LOG" || true
             return 1
         fi
+
+        # The ESP was staged at /boot/efi only so bootc could place its signed
+        # payload; bootc does not persist that mount in the deployment.  On the
+        # installed system systemd's gpt-auto-generator instead creates a
+        # redundant `efi.automount` at /efi whose setup fails at boot, leaving
+        # the ESP unmounted at runtime (observed on x86 release ISO installs).
+        # Declare the real mount in the deployed fstab: systemd then mounts
+        # /boot/efi itself and the generator skips its /efi automount — the
+        # same mechanism the bootc-image-builder QCOW2 layout relies on.
+        esp="$(lsblk -nrpo NAME,FSTYPE "$NODE" 2>/dev/null | awk '$2=="vfat"{print $1; exit}')"
+        if [ -n "$esp" ]; then
+            esp_puid="$(lsblk -nrpo PARTUUID "$esp" 2>/dev/null | tr -d ' ')"
+            if [ -n "$esp_puid" ] \
+                && ! grep -Eq '[[:space:]]/boot/efi([[:space:]]|$)' "$etc/fstab" 2>>"$LOG"; then
+                {
+                    [ -f "$etc/fstab" ] && cat "$etc/fstab"
+                    printf '\n# MoOS: EFI System Partition (declared by moos-install-to-disk).\nPARTUUID=%s  /boot/efi  vfat  umask=0077,shortname=winnt  0 0\n' "$esp_puid"
+                } > "$etc/fstab.moos-new" 2>>"$LOG" \
+                    && chmod 0644 "$etc/fstab.moos-new" 2>>"$LOG" \
+                    && chown root:root "$etc/fstab.moos-new" 2>>"$LOG" \
+                    && mv -f "$etc/fstab.moos-new" "$etc/fstab" 2>>"$LOG" \
+                    && echo "seed: declared ESP $esp (PARTUUID=$esp_puid) at /boot/efi in installed fstab" >>"$LOG" \
+                    || echo "seed: WARN could not declare ESP at /boot/efi in installed fstab" >>"$LOG"
+            fi
+        fi
     fi
     # Re-arm signed day-2 updates: rewrite the deployment origin so every future
     # `bootc upgrade` verifies the cosign signature (matches the Anaconda %post).

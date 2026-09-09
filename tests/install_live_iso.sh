@@ -808,6 +808,14 @@ for app in moai moos-store moos-update moos-rollback moos-settings moplayer mo-p
 done
 printf 'boot=installed\nidentity=%s\nuser=moosci\ngraphical=active\ndisplay-manager=active\norigin=%s\nfailed-units=0\n' \
     "$PRETTY_NAME" "$expected"
+efi_auto="$(systemctl show -p ActiveState -p SubState efi.automount 2>&1 | tr '\n' ' ' || true)"
+stage "efi.automount=[$efi_auto]"
+esp_mnt="$(findmnt -n -o TARGET,SOURCE,FSTYPE /boot/efi 2>&1 || true)"
+stage "boot/efi=[$esp_mnt]"
+fstab_lines="$(awk 'NF && $0 !~ /^[[:space:]]*#/ { print }' /etc/fstab 2>/dev/null || true)"
+stage "fstab=[$fstab_lines]"
+printf 'efi-automount=[%s]\nboot-efi=[%s]\nfstab=%s\n' \
+    "$efi_auto" "$esp_mnt" "$fstab_lines"
 '''
 
 wait_qga()
