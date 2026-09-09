@@ -65,3 +65,6 @@ test-results/
 # the Containerfile `moremote-build` stage and never reads these bytes.
 moremote/dist-linux/
 build-*.log
+
+# Local ARM Mo Remote publish scratch — never commit
+.tmp-moremote-*/
