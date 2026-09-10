@@ -497,6 +497,7 @@ import re
 import socket
 import subprocess
 import sys
+import threading
 import time
 
 qga, monitor, qemu_pid, expected, password, evidence_arg, ssh_key, ssh_port = sys.argv[1:]
@@ -1111,6 +1112,22 @@ done
 exit 1
 '''
 
+close_app = r'''
+set -euo pipefail
+unit="$1"
+uid="$(id -u moosci)"
+runtime="/run/user/${uid}"
+for _ in $(seq 1 45); do
+    if ! env HOME=/var/home/moosci XDG_RUNTIME_DIR="$runtime" \
+        DBUS_SESSION_BUS_ADDRESS="unix:path=${runtime}/bus" \
+        systemctl --user is-active --quiet "$unit"; then
+        exit 0
+    fi
+    sleep 1
+done
+exit 1
+'''
+
 app_specs = (
     ("dolphin", "dolphin"),
     ("konsole", "konsole"),
@@ -1127,53 +1144,76 @@ app_proof = []
 probe = evidence / "window-probe.ppm"
 
 
-def open_close_cycle(label, executable, tag, previous=""):
-    """One open/close cycle through moai-open: open, require a mapped window
-    (a running unit with no window is a real product failure, failed loudly
-    here instead of sending Alt-F4 into the void), capture it, then close it
-    with Alt-F4 re-sent while the unit stays up — on this profile a slow
-    first map can swallow a single blind keystroke, and one shot then fails a
-    healthy app. The unit must still genuinely exit. Returns the unit name."""
+def wait_for_window(label, tag, seconds=90):
+    """Poll captures until the guest screen visibly differs from the pre-open
+    baseline, proving the app mapped a window. A running unit with no window
+    is a real product failure, failed loudly here instead of sending Alt-F4
+    into the void."""
     baseline = Path(f"/tmp/moos-iso-baseline-{label}-{tag}.ppm")
     capture(baseline)
-    result = gate_until(open_app, [label, executable], 150,
-                        f"{label} did not {tag}", desktop_user=True)
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        capture(probe)
+        if frame_changed(baseline, probe):
+            print(f"{label} {tag}: window mapped", file=sys.stderr)
+            return
+        time.sleep(3)
+    raise SystemExit(
+        f"ISO INSTALL FATAL: {label} {tag} opened a unit but never mapped a window")
+
+
+def start_close_resends(stop, label, tag):
+    """Re-send Alt-F4 every 5s until stop is set. On this profile a slow
+    first map can swallow a single blind keystroke, and one shot then fails
+    a healthy app; the close_app gate below still requires the unit to
+    genuinely exit, so no assertion is weakened."""
+    def resend():
+        hmp(["sendkey alt-f4"], label=f"{label} {tag} close")
+        while not stop.wait(5):
+            hmp(["sendkey alt-f4"], label=f"{label} {tag} close")
+    thread = threading.Thread(target=resend, daemon=True)
+    thread.start()
+    return thread
+
+
+def parse_unit(result, label, previous=""):
     unit = next((line.removeprefix("unit=") for line in result.splitlines()
                  if line.startswith("unit=")), "")
     if not unit:
         raise SystemExit(f"ISO INSTALL FATAL: {label} returned no runtime unit")
     if previous and unit == previous:
         raise SystemExit(f"ISO INSTALL FATAL: {label} reopen did not create a new unit")
-    deadline = time.monotonic() + 90
-    while time.monotonic() < deadline:
-        capture(probe)
-        if frame_changed(baseline, probe):
-            break
-        time.sleep(3)
-    else:
-        raise SystemExit(
-            f"ISO INSTALL FATAL: {label} {tag} opened a unit but never mapped a window")
-    if tag == "open":
-        capture(evidence / ("installed-app-" + label + ".ppm"))
-    if tag == "reopen" and label == app_specs[-1][0]:
-        capture(evidence / "installed-desktop-apps.ppm")
-    deadline = time.monotonic() + 75
-    last_send = 0.0
-    while time.monotonic() < deadline:
-        code, _, _ = ssh_exec("systemctl --user is-active --quiet \"$1\"",
-                              (unit,), 20, desktop_user=True)
-        if code != 0:
-            return unit
-        if time.monotonic() - last_send >= 5:
-            hmp(["sendkey alt-f4"], label=f"{label} {tag} close")
-            last_send = time.monotonic()
-        time.sleep(1)
-    raise SystemExit(f"ISO INSTALL FATAL: {label} {tag} did not close")
+    return unit
 
 
 for label, executable in app_specs:
-    first_unit = open_close_cycle(label, executable, "open")
-    open_close_cycle(label, executable, "reopen", previous=first_unit)
+    first = gate_until(open_app, [label, executable], 150, f"{label} did not open",
+                       desktop_user=True)
+    unit = parse_unit(first, label)
+    wait_for_window(label, "open")
+    capture(evidence / ("installed-app-" + label + ".ppm"))
+    stop = threading.Event()
+    thread = start_close_resends(stop, label, "open")
+    try:
+        gate_until(close_app, [unit], 75, f"{label} did not close", desktop_user=True)
+    finally:
+        stop.set()
+        thread.join()
+
+    second = gate_until(open_app, [label, executable], 150, f"{label} did not reopen",
+                        desktop_user=True)
+    second_unit = parse_unit(second, label, previous=unit)
+    wait_for_window(label, "reopen")
+    if label == app_specs[-1][0]:
+        capture(evidence / "installed-desktop-apps.ppm")
+    stop = threading.Event()
+    thread = start_close_resends(stop, label, "reopen")
+    try:
+        gate_until(close_app, [second_unit], 75, f"reopened {label} did not close",
+                   desktop_user=True)
+    finally:
+        stop.set()
+        thread.join()
     app_proof.append(f"{label}=opened-closed-reopened")
 
 user_health = r'''
