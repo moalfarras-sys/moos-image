@@ -159,6 +159,36 @@ class ImageStateTests(unittest.TestCase):
                     self.assertRaisesRegex(RuntimeError, 'cleanup state is not a directory'):
                 finalize(root)
 
+    def test_contained_runtime_links_are_removed_but_escaping_links_fail(self):
+        # x86 run 34646188216 stopped on cockpit-ws's tmpfiles rule
+        # `L /run/cockpit/issue - - - - inactive.issue`.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); self.fixture(root)
+            cockpit = root/'run/cockpit'
+            (cockpit/'inactive.issue').write_text('issue')
+            (cockpit/'issue').symlink_to('inactive.issue')
+            finalize(root)
+            self.assertFalse(cockpit.exists())
+        for kind in ('escaping-relative', 'absolute'):
+            with self.subTest(kind=kind), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory); self.fixture(root)
+                link = root/'run/cockpit/issue'
+                link.symlink_to('../../boot' if kind == 'escaping-relative' else root/'boot')
+                with self.assertRaisesRegex(RuntimeError, 'unsafe entry'):
+                    finalize(root)
+                self.assertTrue(link.is_symlink())
+                self.assertTrue((root/'boot/efi/EFI/moos/loader.efi').exists())
+
+    def test_every_unsafe_cleanup_entry_is_reported_at_once(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); self.fixture(root)
+            (root/'run/cockpit/escape').symlink_to('../../boot')
+            (root/'var/lib/dnf/repos/example/escape').symlink_to(root/'boot')
+            with self.assertRaises(RuntimeError) as caught:
+                finalize(root)
+            self.assertIn('run/cockpit/escape', str(caught.exception))
+            self.assertIn('var/lib/dnf/repos/example/escape', str(caught.exception))
+
     def test_first_boot_unit_is_wired_and_preserves_existing_config(self):
         name = 'moos-flatpak-init.service'
         source = ROOT/'system_files/usr/lib/systemd/system'/name
