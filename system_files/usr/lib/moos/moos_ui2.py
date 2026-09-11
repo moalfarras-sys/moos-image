@@ -253,13 +253,41 @@ def kdeglobals_path(config_home=None):
     return base / "kdeglobals"
 
 
-def active_color_scheme(config_path=None):
-    path = Path(config_path) if config_path is not None else kdeglobals_path()
-    try:
-        name = _kconfig(path)["General"]["ColorScheme"].strip()
-    except (OSError, KeyError, configparser.Error):
-        return None
-    return name if _SAFE_SCHEME_NAME.fullmatch(name) else None
+def kdeglobals_layers(config_path=None, config_dirs=None):
+    """kdeglobals files in KConfig cascade order, the order kreadconfig6 reads.
+
+    The user's own file first, then every XDG_CONFIG_DIRS entry. Plasma's
+    LookAndFeelManager writes the applied Global Theme's ColorScheme into
+    ~/.config/kdedefaults/kdeglobals, which MoOS puts first in XDG_CONFIG_DIRS.
+    Measured 2026-09-11 on the daily driver: the user file had no ColorScheme,
+    kdedefaults said MoOSUI2Arena, and reading only the user file made Updater,
+    Recovery and Mo PC Remote fall back to the Graphite palette.
+    """
+    layers = [Path(config_path) if config_path is not None else kdeglobals_path()]
+    if config_dirs is None:
+        config_dirs = (os.environ.get("XDG_CONFIG_DIRS") or "/etc/xdg").split(":")
+    layers.extend(Path(entry) / "kdeglobals" for entry in config_dirs if entry)
+    return layers
+
+
+def active_color_scheme(config_path=None, config_dirs=None):
+    """The ColorScheme the session actually uses; None if unset or unsafe.
+
+    Always the full cascade. UI2StyleController passes the user's kdeglobals path
+    explicitly, so a single-file shortcut for explicit paths silently kept every
+    GTK app on the fallback palette (caught by a live capture, not by a test).
+    Pass config_dirs=() to inspect one file in isolation.
+    """
+    layers = kdeglobals_layers(config_path, config_dirs)
+    for path in layers:
+        try:
+            name = _kconfig(path)["General"]["ColorScheme"].strip()
+        except (OSError, KeyError, configparser.Error):
+            continue
+        # The first layer that defines the key wins, exactly as in KConfig; an
+        # unsafe value there is refused rather than skipped to a lower layer.
+        return name if _SAFE_SCHEME_NAME.fullmatch(name) else None
+    return None
 
 
 def _data_roots(data_dirs=None):
@@ -280,12 +308,13 @@ def find_color_scheme(name, data_dirs=None):
     return None
 
 
-def active_ui2_palette(config_path=None, data_dirs=None, prefers_dark=None):
+def active_ui2_palette(config_path=None, data_dirs=None, prefers_dark=None,
+                       config_dirs=None):
     """Resolve the live KDE ColorScheme, failing safely to Graphite/Tidal."""
     dark = gtk_prefers_dark() if prefers_dark is None else bool(prefers_dark)
     fallback = UI2_DARK if dark else UI2_LIGHT
     try:
-        name = active_color_scheme(config_path)
+        name = active_color_scheme(config_path, config_dirs)
         path = find_color_scheme(name, data_dirs)
         if path is None:
             return dict(fallback)
@@ -484,8 +513,10 @@ class UI2StyleController:
         data_dirs=None,
         settings=None,
         prefers_dark=None,
+        config_dirs=None,
     ):
         self.provider = provider
+        self.config_dirs = config_dirs
         self.config_path = (
             Path(config_path) if config_path is not None else kdeglobals_path()
         )
@@ -512,6 +543,7 @@ class UI2StyleController:
         self._pending_source = 0
         palette = active_ui2_palette(
             config_path=self.config_path,
+            config_dirs=self.config_dirs,
             data_dirs=self.data_dirs,
             prefers_dark=self._fallback_prefers_dark(),
         )

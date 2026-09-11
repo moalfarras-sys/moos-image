@@ -505,6 +505,38 @@ class TestMoOSGtkRuntime(unittest.TestCase):
             )
 
     @unittest.skipUnless(HAS_GI, "PyGObject/Gio is unavailable on this runner")
+    def test_active_scheme_follows_the_kconfig_cascade_like_kreadconfig6(self):
+        # Daily driver 2026-09-11: the user's kdeglobals had no ColorScheme,
+        # kdedefaults held MoOSUI2Arena, /etc/xdg held Aurora; GTK apps fell
+        # back to Graphite because only the user file was read.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            user = root / "config/kdeglobals"
+            defaults = root / "kdedefaults/kdeglobals"
+            system = root / "xdg/kdeglobals"
+            for path in (user, defaults, system):
+                path.parent.mkdir(parents=True)
+            user.write_text("[General]\nAccentColor=6,215,37\n", encoding="utf-8")
+            defaults.write_text("[General]\nColorScheme=MoOSUI2Arena\n", encoding="utf-8")
+            system.write_text("[General]\nColorScheme=MoOSUI2Aurora\n", encoding="utf-8")
+            dirs = [str(defaults.parent), str(system.parent)]
+            self.assertEqual(UI2.active_color_scheme(user, config_dirs=dirs), "MoOSUI2Arena")
+            user.write_text("[General]\nColorScheme=MoOSUI2Forge\n", encoding="utf-8")
+            self.assertEqual(UI2.active_color_scheme(user, config_dirs=dirs), "MoOSUI2Forge")
+            user.write_text("[General]\n", encoding="utf-8")
+            defaults.write_text("[General]\n", encoding="utf-8")
+            self.assertEqual(UI2.active_color_scheme(user, config_dirs=dirs), "MoOSUI2Aurora")
+            defaults.write_text("[General]\nColorScheme=../../etc/passwd\n", encoding="utf-8")
+            self.assertIsNone(UI2.active_color_scheme(user, config_dirs=dirs))
+            self.assertIsNone(UI2.active_color_scheme(user, config_dirs=()))
+            # The live caller's shape: an explicit user path still reads the layers.
+            user.write_text("[General]\n", encoding="utf-8")
+            defaults.write_text("[General]\nColorScheme=MoOSUI2Arena\n", encoding="utf-8")
+            palette = UI2.active_ui2_palette(config_path=user, config_dirs=dirs,
+                                             data_dirs=(SHARE,), prefers_dark=True)
+            self.assertEqual(palette, UI2.palette_from_color_scheme(
+                SHARE / "color-schemes/MoOSUI2Arena.colors"))
+
     def test_kdeglobals_change_restyles_live_and_burst_is_coalesced(self):
         with tempfile.TemporaryDirectory(prefix="moos-gtk-watch-") as temp:
             config = Path(temp) / "kdeglobals"
