@@ -520,7 +520,6 @@ class TestMoOSGtkRuntime(unittest.TestCase):
                 "an installed scheme with unreadable selected text must fail safe",
             )
 
-    @unittest.skipUnless(HAS_GI, "PyGObject/Gio is unavailable on this runner")
     def test_active_scheme_follows_the_kconfig_cascade_like_kreadconfig6(self):
         # Daily driver 2026-09-11: the user's kdeglobals had no ColorScheme,
         # kdedefaults held MoOSUI2Arena, /etc/xdg held Aurora; GTK apps fell
@@ -553,6 +552,7 @@ class TestMoOSGtkRuntime(unittest.TestCase):
             self.assertEqual(palette, UI2.palette_from_color_scheme(
                 SHARE / "color-schemes/MoOSUI2Arena.colors"))
 
+    @unittest.skipUnless(HAS_GI, "PyGObject/Gio is unavailable on this runner")
     def test_kdeglobals_change_restyles_live_and_burst_is_coalesced(self):
         with tempfile.TemporaryDirectory(prefix="moos-gtk-watch-") as temp:
             config = Path(temp) / "kdeglobals"
