@@ -187,3 +187,6 @@ change weekly; a single sample is evidence of a problem, not a final ranking.
   delegate to `moos-storectl`; Mo AI Remove and update chips and routes; truthful
   cloud-only prompt; OpenCode config fixed (old model reproduced HTTP 409). Live
   run on the daily driver installed, removed and updated apps with readback.
+- **2026-09-11, M2.2 source + live proof:** measured free ranking, cooldown and
+  pre-byte retry among verified free models; the branch gateway answered Arabic in
+  2.0 s and 1.8 s and a tool call in 1.9 s, against 13–37 s on the installed route.

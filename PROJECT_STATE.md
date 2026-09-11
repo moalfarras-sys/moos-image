@@ -1,5 +1,24 @@
 # MoOS — current project state
 
+**Mo AI answers in about two seconds (2026-09-11, branch `feat/moos-completion-20260911`, plan M2.2):**
+the slow automatic free route was MoOS's own choice, not OpenRouter's:
+`moai-gateway` replaced `openrouter/free` with `automatic_model()`, which ranked
+verified free models by tool support, reasoning and parameter count and so picked
+`nvidia/nemotron-3-ultra-550b-a55b:free` — measured 36.7 s and 13.1 s for one-line
+answers, and 15.5 s with no answer in the final side-by-side run. The policy now
+orders the same verified zero-price catalogue by a measured preference (chat:
+`nex-agi/nex-n2.5-pro:free`; tools: `dots-studio/dots-3-note-preview:free`) and
+cools down a free model the provider refuses (429/5xx ten minutes, 403/404 six
+hours). When the first automatic candidate is refused, the gateway asks the next
+verified free candidate before any response byte is sent; explicit model choices
+and authentication or request errors are never retried, every attempt keeps a
+zero `max_price`, and the answering model is reported as `X-MoAI-Model`. Live, the
+branch gateway on a second port with the same key answered two Arabic questions in
+2.0 s and 1.8 s and returned a tool call in 1.9 s. The streaming close-on-drop gate
+is unchanged and passes; 126/126 CI repo gates pass. The preference is one sample per
+model and free catalogues change weekly, so a recurring evaluation remains open.
+Not in a signed image yet.
+
 **Mo AI app lifecycle has one authority (2026-09-11, branch `feat/moos-completion-20260911`):**
 measured on the daily driver, Mo Store installed per user through `moos-storectl`
 (22 apps) while `moai-do install` used Flatpak's system installation (3 apps), so

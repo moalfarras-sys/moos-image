@@ -124,10 +124,12 @@ OpenRouter policy. See [the cloud-only plan](docs/MOAI_CLOUD_ONLY_PLAN.md) and
   through `moos-storectl` with confirmation, and a live daily-driver run of the
   branch's `moai-do` installed, removed and updated apps with readback. Signed
   image and in-app chip acceptance remain.
-- [ ] Brain latency (plan M2.2). The default `openrouter/free` route selected a
-  550B reasoning model and took 36.7 s and 13.1 s for one-line answers, while a
-  measured free tool-capable model answered in 3.7 s. `automatic_model()` ranks by
-  size; replace it with a recurring measured ranking under the zero-price policy.
+- [ ] Brain latency (plan M2.2). The automatic `openrouter/free` route selected a
+  550B reasoning model (36.7 s, 13.1 s, and 15.5 s with no answer). *Progress:*
+  source on `feat/moos-completion-20260911` orders verified free models by measured
+  preference, cools down refused models and asks the next free candidate before any
+  byte is sent; live answers took 2.0 s and 1.8 s and a tool call 1.9 s. Remaining:
+  a recurring evaluation instead of a one-sample list, and signed-image acceptance.
 - [ ] Migrate existing OpenCode configs that still name the retired local model.
 - [ ] Finish C2b legacy-body cleanup while preserving HTTP, identity and
   privilege guards; prove first-login and upgrade migration from historic layouts.

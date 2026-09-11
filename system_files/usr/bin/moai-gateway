@@ -1050,6 +1050,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._err(404, "only free chat completions are available")
         self.moai_route = "cloud"
         self.moai_route_reason = "free-cloud-only"
+        self.moai_model = ""   # a kept-alive connection must not report the last model
         self.moai_agent = "direct"
         meta = req.get("moai") if isinstance(req.get("moai"), dict) else {}
         # Never reinterpret an explicitly private request as consent to upload.
@@ -1214,31 +1215,70 @@ class Handler(BaseHTTPRequestHandler):
                              "العقل السحابي غير مضبوط — أضف مزوّداً ومفتاحاً في إعدادات Mo AI.\n"
                              "The cloud brain is not configured — add a provider and an "
                              "API key in Mo AI's settings.")
+        paid = cloud_policy.selected_cost_policy() == "paid"
+        automatic = model == cloud_policy.DEFAULT_MODEL
         try:
-            if model == cloud_policy.DEFAULT_MODEL:
-                model = cloud_policy.automatic_model(require_tools=bool(req.get("tools")))
-            cloud_policy.validate(base, model, wire, allow_paid=cloud_policy.selected_cost_policy() == "paid")
-            out = cloud_policy.request_body(req, model, allow_paid=cloud_policy.selected_cost_policy() == "paid")
+            candidates = (cloud_policy.automatic_candidates(require_tools=bool(req.get("tools")))
+                          if automatic else [model])
+            attempts = []
+            for candidate in candidates:
+                cloud_policy.validate(base, candidate, wire, allow_paid=paid)
+                attempts.append((candidate, cloud_policy.request_body(req, candidate, allow_paid=paid)))
         except ValueError as error:
             return self._err(409, str(error))
-        self._proxy("POST", cloud_policy.BASE + "/chat/completions",
-                    auth_headers(key, "openai"), json.dumps(out).encode("utf-8"),
-                    "openai", bool(out.get("stream")))
+        if not automatic:
+            self.moai_model = model
+            out = attempts[0][1]
+            return self._proxy("POST", cloud_policy.BASE + "/chat/completions",
+                               auth_headers(key, "openai"), json.dumps(out).encode("utf-8"),
+                               "openai", bool(out.get("stream")))
+        # ── Automatic free route: a refused free model is skipped, not shown ────
+        # Measured 2026-09-11: a verified free model can be rate-limited upstream
+        # (HTTP 429) or restricted to agent harnesses (HTTP 403) at any moment, and
+        # the user then saw an error although other free models were answering.
+        # Before any response byte is sent, a refusal in RETRIABLE_STATUS cools that
+        # model down and the next measured candidate is asked. Every attempt is a
+        # zero-price free model built by the same request_body(); an explicit model
+        # choice and authentication or request errors are never retried.
+        for index, (candidate, out) in enumerate(attempts):
+            try:
+                up = self._open_upstream("POST", cloud_policy.BASE + "/chat/completions",
+                                         auth_headers(key, "openai"),
+                                         json.dumps(out).encode("utf-8"))
+            except urllib.error.HTTPError as error:
+                detail = error.read().decode("utf-8", "replace")
+                cloud_policy.note_upstream_failure(candidate, error.code)
+                if error.code in cloud_policy.RETRIABLE_STATUS and index + 1 < len(attempts):
+                    continue
+                return self._err(error.code, detail)
+            except Exception as error:
+                return self._err(502, "request failed: %s" % error)
+            self.moai_model = candidate
+            return self._proxy("POST", cloud_policy.BASE + "/chat/completions", None, None,
+                               "openai", bool(out.get("stream")), upstream=up)
 
     # ── The pipe ─────────────────────────────────────────────────────────────
 
-    def _proxy(self, method, url, headers, body, wire, streaming):
+    def _open_upstream(self, method, url, headers, body):
         req = urllib.request.Request(url, data=body, method=method)
         req.add_header("Content-Type", "application/json")
         req.add_header("User-Agent", USER_AGENT)     # or Cloudflare answers 403/1010
         for name, value in (headers or {}).items():
             req.add_header(name, value)
-        try:
-            up = urllib.request.urlopen(req, timeout=700 if getattr(self, "moai_agent", "") == "hermes" else 180)
-        except urllib.error.HTTPError as e:
-            return self._err(e.code, e.read().decode("utf-8", "replace"))
-        except Exception as e:
-            return self._err(502, "request failed: %s" % e)
+        return urllib.request.urlopen(req, timeout=700 if getattr(self, "moai_agent", "") == "hermes" else 180)
+
+    def _proxy(self, method, url, headers, body, wire, streaming, upstream=None):
+        # `upstream` is a response the caller already opened (the automatic free
+        # route opens candidates itself so a refusal can move to the next one);
+        # everything from the status line on is the same single relay path.
+        if upstream is None:
+            try:
+                upstream = self._open_upstream(method, url, headers, body)
+            except urllib.error.HTTPError as e:
+                return self._err(e.code, e.read().decode("utf-8", "replace"))
+            except Exception as e:
+                return self._err(502, "request failed: %s" % e)
+        up = upstream
 
         self.send_response(up.status)
         ctype = up.headers.get("Content-Type", "application/json")
@@ -1251,6 +1291,8 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("X-MoAI-Route-Reason", self.moai_route_reason)
         if getattr(self, "moai_agent", ""):
             self.send_header("X-MoAI-Agent", self.moai_agent)
+        if getattr(self, "moai_model", ""):
+            self.send_header("X-MoAI-Model", self.moai_model)
         self.send_header("Transfer-Encoding", "chunked")
         self.end_headers()
 
