@@ -204,3 +204,5 @@ change weekly; a single sample is evidence of a problem, not a final ranking.
 - **2026-09-12, M1.2 + drift root cause:** Updater, Recovery and Mo PC Remote now take
   the active theme's palette (KConfig cascade; live captures on Arena). The recurring
   wallpaper drift was the gate suite driving the live shell; the suite is isolated.
+- **2026-09-12, M1.5 + polish:** Remote offers only the valid action; the Updater checks
+  on open; Mo AI's chip names the model in full. All captured live from the branch.

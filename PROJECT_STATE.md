@@ -1,5 +1,15 @@
 # MoOS — current project state
 
+**Everyday polish verified live (2026-09-12, branch `feat/moos-completion-20260911`):**
+the Updater now checks once on open unless an update is already staged — a live
+capture shows "You are on the latest signed MoOS image." without a click; Mo PC
+Remote offers only the action that changes the service (Start disabled while
+running, captured); Mo AI's brain chip names the answering model in full ("سحابي ·
+مجاني · nex-n2.5-pro") and moves the direct-fallback detail, true of every reply
+without Hermes, into a tooltip. Two "Unable to assign [undefined] to QColor" load
+warnings exist identically in the installed and branch Mo AI and are not from
+this work.
+
 **The recurring wallpaper drift was the gate suite; GTK apps ignored the active theme (2026-09-12, branch `feat/moos-completion-20260911`):**
 running `tests/test_moos_theme_safety.py` inside a desktop session — directly, or
 through `verify_user_experience.py`, which runs it — executed the real `moos-theme`

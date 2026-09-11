@@ -306,6 +306,7 @@ Kirigami.ApplicationWindow {
     property bool chatSessionStart: false
     property bool chatSidebarOpen: false
     property string agentDecision: ""
+    property string agentPath: ""      // raw X-MoAI-Agent of the last reply
     property string panel: "chat"       // chat|device|apps|compat|remote|dev|agent
 
     // ── Which brain answers THIS conversation ───────────────────────────────
@@ -1269,6 +1270,7 @@ Kirigami.ApplicationWindow {
             }
             const agentPath = xhr.getResponseHeader("X-MoAI-Agent") || ""
             root.answerModel = xhr.getResponseHeader("X-MoAI-Model") || ""
+            root.agentPath = agentPath
             root.agentDecision = agentPath === "hermes"
                 ? "Hermes"
                 : agentPath === "openclaw"
@@ -3173,9 +3175,14 @@ Kirigami.ApplicationWindow {
                                                     if (root.routeModel === "openrouter/free" && root.answerModel !== "")
                                                         routeText = root.local("مجاني", "Free") + " · "
                                                             + root.brainName(root.answerModel)
-                                                    if (routeText !== "" && root.agentDecision !== "")
-                                                        return routeText + " · " + root.agentDecision
-                                                    return routeText !== "" ? routeText : root.agentDecision
+                                                    // Without a Hermes runtime every reply is a direct
+                                                    // one, so naming it on each message is noise that
+                                                    // also elided the model name; the tooltip keeps it.
+                                                    const decision = root.agentPath === "direct-fallback"
+                                                        ? "" : root.agentDecision
+                                                    if (routeText !== "" && decision !== "")
+                                                        return routeText + " · " + decision
+                                                    return routeText !== "" ? routeText : decision
                                                 }
                                                 color: root.textLo
                                                 font.family: root.uiFont
@@ -3195,6 +3202,11 @@ Kirigami.ApplicationWindow {
                                     ActionArea {
                                         id: chipMa
                                         anchors.fill: parent
+                                        QQC2.ToolTip.visible: containsMouse && root.agentDecision !== ""
+                                        QQC2.ToolTip.delay: 400
+                                        QQC2.ToolTip.text: root.brainName(root.answerModel !== ""
+                                                ? root.answerModel : root.routeModel)
+                                            + (root.agentDecision !== "" ? " · " + root.agentDecision : "")
                                         actionName: root.moaiRtl
                                             ? "اختيار مسار العقل" : "Choose brain route"
                                         focusRadius: root.fs(11)

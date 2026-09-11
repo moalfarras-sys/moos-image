@@ -261,6 +261,22 @@ class TestMoOSGtkRuntime(unittest.TestCase):
         self.assertIn("page_scroll.set_child(outer)", source)
         self.assertIn("self.win.set_child(page_scroll)", source)
 
+    def test_updater_checks_on_open_unless_an_update_is_already_staged(self):
+        source = UPDATER_PATH.read_text(encoding="utf-8")
+        build = source[source.index("    def build(self, page):"):source.index("    def _check_on_open")]
+        staged_branch = build[build.index("        if staged:"):]
+        self.assertIn("GLib.idle_add(self._check_on_open)", staged_branch.split("        else:", 1)[1],
+                      "the automatic check must run only when nothing is staged")
+        self.assertNotIn("_check_on_open", staged_branch.split("        else:", 1)[0])
+        calls = []
+        fake = type("Fake", (), {"on_check": lambda self, button: calls.append(button)})()
+        namespace = {}
+        start = source.index("    def _check_on_open")
+        end = source.index("\n    def ", start + 1)
+        exec("class Probe:\n" + source[start:end], {"__builtins__": __builtins__}, namespace)
+        self.assertIs(namespace["Probe"]._check_on_open(fake), False, "idle callback must be one-shot")
+        self.assertEqual(calls, [None])
+
     def test_updater_stages_an_exact_signed_digest_never_a_tag_upgrade(self):
         """The window a person opens must be able to actually update the machine.
 
