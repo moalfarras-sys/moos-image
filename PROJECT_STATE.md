@@ -1,5 +1,24 @@
 # MoOS — current project state
 
+**Mo AI app lifecycle has one authority (2026-09-11, branch `feat/moos-completion-20260911`):**
+measured on the daily driver, Mo Store installed per user through `moos-storectl`
+(22 apps) while `moai-do install` used Flatpak's system installation (3 apps), so
+Mo AI could install but never remove or update apps, and the Store could not
+remove what Mo AI had installed. `moai-do install`, the new `uninstall <id>` and
+`update-apps` now delegate to `moos-storectl` only after confirmation; `moos-open`
+routes `apps/uninstall/<id>` and `do/update-apps`; Mo AI renders Remove and
+update chips, with `update-apps` ordered before `update` and pinned by a gate.
+Live proof on the daily driver, running the branch's `moai-do` against the
+installed backend: install `org.gnome.Calculator` exit 0 with user-scope
+readback and a successful launch, uninstall exit 0 with absence on readback,
+`update-apps` exit 0 (up to date), each recorded in the `moai-do` audit journal.
+The Mo AI system prompt no longer describes a local brain. `install-opencode`
+wrote `local:qwen2.5:7b-instruct`, which the cloud-only gateway rejects with
+HTTP 409 (reproduced); it now writes the gateway's `moai` model, which answered
+through the configured free route. Existing OpenCode configs are left untouched
+and still need a migration. Nothing here is in a signed image yet. Plan:
+[`docs/MOOS_COMPLETION_PLAN.md`](docs/MOOS_COMPLETION_PLAN.md) (M2.1).
+
 **Unified platform integration (2026-09-11, candidate source):** keep KDE/KWin
 upstream and own the MoOS experience above them. Settings and Mo AI now share
 `usr/lib/moos/moos_hardware.py`, with executable ARM/x86 and malformed-tool

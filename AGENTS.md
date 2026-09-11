@@ -67,6 +67,10 @@ boot. Read this before changing anything.
 
 ## Where the rest of the knowledge is
 
+- **`docs/MOOS_COMPLETION_PLAN.md`** — the master program: measured live audit,
+  binding product decisions, phases P0–P5 with exit evidence, and the scorecard.
+  Start here to know what to build next and why.
+
 - **`docs/MOOS_SYSTEM_DEVELOPMENT_PLAN.md`** — current four-edition architecture,
   measured Oracle constraints, ordered implementation tasks and acceptance gates.
   Runtime evidence outranks historical plans; never treat a local app override as a signed OS release.

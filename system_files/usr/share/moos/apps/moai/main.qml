@@ -500,6 +500,10 @@ Kirigami.ApplicationWindow {
         "it is KDE's own, and it still segfaults in GStreamer a few seconds after it " +
         "opens. If you are not certain of an app id, tell the user to search it in " +
         "the Apps panel rather than guessing one.\n" +
+        "• Remove or update apps: `moai-do uninstall <flatpak-id>` removes an app for this " +
+        "user (e.g. `moai-do uninstall com.spotify.Client`), and `moai-do update-apps` " +
+        "updates every app. Installs, removals and app updates all go through Mo Store's " +
+        "backend and ask the user to confirm first. Use the exact id from the Apps panel.\n" +
         "• Run apps from OTHER systems, for real:\n" +
         "   – DOUBLE-CLICK IS ENOUGH. A downloaded .exe or .apk runs when the user opens " +
         "it in Files: MoOS hands it to the right layer, and if that layer is not installed " +
@@ -512,21 +516,21 @@ Kirigami.ApplicationWindow {
         "(idempotent — safe to re-run); afterwards Android apps appear in the launcher " +
         "like any other app, and an APK installs by double-clicking it (or " +
         "`waydroid app install <file>`).\n" +
-        "• Coding agents, and ONE OF THEM NEEDS NO ACCOUNT: `moai-do install-opencode` " +
-        "installs OpenCode wired to THIS MACHINE'S OWN brain — it codes with no cloud, no " +
-        "login and no internet, and MoOS writes its provider config for the user. Recommend " +
-        "it FIRST to anyone who has no AI subscription. The other two are cloud agents and " +
-        "each needs its vendor account: `moai-do install-codex`, `moai-do install-claude` — they " +
+        "• Coding agents, and ONE OF THEM NEEDS NO VENDOR ACCOUNT: `moai-do install-opencode` " +
+        "installs OpenCode wired to Mo AI's own free cloud brain through this account's " +
+        "gateway, and MoOS writes its provider config for the user. Recommend " +
+        "it FIRST to anyone who has no AI subscription. The other two " +
+        "each need their vendor account: `moai-do install-codex`, `moai-do install-claude` — they " +
         "install into ~/.local and run as the user, with no admin rights.\n" +
         "• Phone agent: `moai-do install-openclaw` installs and fully configures the " +
-        "Telegram agent, local brain and Arabic voice. `moai-do setup-brain` repairs or " +
-        "prepares only the local model and speech engines. Both are fixed, confirmed actions.\n" +
+        "Telegram agent on Mo AI's cloud brain. `moai-do setup-brain` opens the brain " +
+        "settings (cloud provider and model). Both are fixed, confirmed actions.\n" +
         "• Diagnose: explain the likely cause in plain language, then give the " +
         "SMALLEST safe repair.\n\n" +
         "WHICH BRAIN YOU ARE: the user picks it per conversation, from the chip next " +
-        "to the message box — a LOCAL model that runs on this machine and never " +
-        "leaves it, or a CLOUD model through their own API key. If they ask how to " +
-        "change model or make you stronger/more private, point them at that chip; " +
+        "to the message box. MoOS runs you on a FREE cloud model by default; a paid " +
+        "cloud model is used only when the user explicitly picks it, and nothing is downloaded to this machine. If they ask how to " +
+        "change model or make you stronger, point them at that chip; " +
         "the provider and the key live behind it, in Settings.\n\n" +
         "HOW TO BEHAVE: understand the goal → briefly diagnose → propose the smallest " +
         "safe action → show the exact command → one line on what it does. Always " +
@@ -1015,7 +1019,7 @@ Kirigami.ApplicationWindow {
     // tests/verify_user_experience.py now compares this list against the prompt.
     function extractRuns(text) {
         const out = []
-        const re = /moai-do\s+(update-firmware|update|fix-audio|check-drivers|optimize|hw-report|diagnose-services|inspect-boot|install-nvidia|setup-waydroid|setup-gaming|setup-windows|install-codex|install-claude|install-opencode|install-openclaw|setup-brain|rollback|net-doctor|gpu-report)\b/g
+        const re = /moai-do\s+(update-firmware|update-apps|update|fix-audio|check-drivers|optimize|hw-report|diagnose-services|inspect-boot|install-nvidia|setup-waydroid|setup-gaming|setup-windows|install-codex|install-claude|install-opencode|install-openclaw|setup-brain|rollback|net-doctor|gpu-report)\b/g
         let m
         while ((m = re.exec(text)) !== null)
             if (out.indexOf(m[1]) === -1)
@@ -1029,6 +1033,12 @@ Kirigami.ApplicationWindow {
         while ((m = inst.exec(text)) !== null)
             if (out.indexOf("install:" + m[1]) === -1)
                 out.push("install:" + m[1])
+        // Removal mirrors install: the id rides moos://apps/uninstall/<id>, which
+        // moos-open validates and moai-do confirms before Mo Store's backend acts.
+        const uninst = /moai-do\s+uninstall\s+([A-Za-z][A-Za-z0-9_-]*(?:\.[A-Za-z0-9_-]+){2,})/g
+        while ((m = uninst.exec(text)) !== null)
+            if (out.indexOf("uninstall:" + m[1]) === -1)
+                out.push("uninstall:" + m[1])
         return out
     }
 
@@ -2968,15 +2978,23 @@ Kirigami.ApplicationWindow {
                                 delegate: MoButton {
                                     required property string modelData
                                     readonly property bool isInstall: modelData.indexOf("install:") === 0
-                                    readonly property string flatpakId: isInstall ? modelData.substring(8) : ""
+                                    readonly property bool isUninstall: modelData.indexOf("uninstall:") === 0
+                                    readonly property string flatpakId: isInstall ? modelData.substring(8)
+                                        : isUninstall ? modelData.substring(10) : ""
                                     label: isInstall
                                         ? root.local("ثبّت " + flatpakId, "Install " + flatpakId)
-                                        : root.local("نفّذ  moai-do " + modelData, "Run  moai-do " + modelData)
-                                    iconName: isInstall ? "moos-install-symbolic" : "moos-safe-update-symbolic"
-                                    primary: true
+                                        : isUninstall
+                                            ? root.local("احذف " + flatpakId, "Remove " + flatpakId)
+                                            : root.local("نفّذ  moai-do " + modelData, "Run  moai-do " + modelData)
+                                    iconName: isInstall ? "moos-install-symbolic"
+                                        : isUninstall ? "edit-delete-symbolic" : "moos-safe-update-symbolic"
+                                    // A removal is never the visually primary action.
+                                    primary: !isUninstall
                                     onClicked: isInstall
                                         ? root.launch("moos://apps/install/" + flatpakId, flatpakId)
-                                        : root.launch("moos://do/" + modelData, "moai-do " + modelData)
+                                        : isUninstall
+                                            ? root.launch("moos://apps/uninstall/" + flatpakId, flatpakId)
+                                            : root.launch("moos://do/" + modelData, "moai-do " + modelData)
                                 }
                             }
                         }

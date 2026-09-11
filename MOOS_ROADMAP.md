@@ -3,6 +3,11 @@
 Only completed evidence closes an item. Source code, a package, or a green
 parser alone is not runtime proof. Current facts live in `PROJECT_STATE.md`.
 
+**Master program (2026-09-11):** [the MoOS completion plan](docs/MOOS_COMPLETION_PLAN.md)
+orders the work from release unblock (P0) through one product (P1), Mo AI as the
+system operator (P2), Android/Windows apps (P3), form factors (P4) and world-class
+trust (P5), with a measured scorecard. This file remains the release-gate list.
+
 **Current release evidence (2026-09-11):** the formal five-proof promotion
 completed in run `34432578942` for `c0cc94e7`. The daily-driver NVIDIA PC is
 booted on signed `44.20260910.796`, retaining signed `44.20260908.782` for
@@ -114,6 +119,16 @@ OpenRouter policy. See [the cloud-only plan](docs/MOAI_CLOUD_ONLY_PLAN.md) and
   adapter and Mo AI cloud gateway. Production free-cloud Arabic response took
   about 3 seconds. The adapter preserves supplied text/history; tools are empty,
   subprocess execution is blocked, and system actions remain with `moai-do`.
+- [ ] App lifecycle through one authority (plan M2.1). *Progress:* source on
+  `feat/moos-completion-20260911` routes install, uninstall and update-apps
+  through `moos-storectl` with confirmation, and a live daily-driver run of the
+  branch's `moai-do` installed, removed and updated apps with readback. Signed
+  image and in-app chip acceptance remain.
+- [ ] Brain latency (plan M2.2). The default `openrouter/free` route selected a
+  550B reasoning model and took 36.7 s and 13.1 s for one-line answers, while a
+  measured free tool-capable model answered in 3.7 s. `automatic_model()` ranks by
+  size; replace it with a recurring measured ranking under the zero-price policy.
+- [ ] Migrate existing OpenCode configs that still name the retired local model.
 - [ ] Finish C2b legacy-body cleanup while preserving HTTP, identity and
   privilege guards; prove first-login and upgrade migration from historic layouts.
 - [ ] Package/prove Hermes availability on fresh systems across all four

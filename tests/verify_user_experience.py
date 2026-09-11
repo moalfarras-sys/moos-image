@@ -5343,11 +5343,12 @@ require("Unit=moos-verify-origin.service" in _origin_timer and
 #
 # So: every id the prompt hands the model must be matchable by the regex, and every id
 # the regex matches must be a real, routed action (the button opens moos://do/<id>).
-# `install` is excluded — it takes a Flathub id and goes through moos://apps/install/<id>.
+# `install` and `uninstall` are excluded from the fixed alternation — each takes a Flathub id
+# and goes through moos://apps/install/<id> or moos://apps/uninstall/<id>, proven below.
 _moai_qml = read("system_files/usr/share/moos/apps/moai/main.qml")
 _prompt_start = _moai_qml.index("property string systemPrompt")
 _prompt_text = _moai_qml[_prompt_start:_moai_qml.index("function ", _prompt_start)]
-_prompt_actions = set(re.findall(r"moai-do ([a-z][a-z0-9-]+)", _prompt_text)) - {"install"}
+_prompt_actions = set(re.findall(r"moai-do ([a-z][a-z0-9-]+)", _prompt_text)) - {"install", "uninstall"}
 
 _re_match = re.search(r"const re = /moai-do\\s\+\((.*?)\)\\b/g", _moai_qml)
 require(_re_match is not None,
@@ -5363,6 +5364,10 @@ if _re_match:
     require(_alternation.index("update-firmware") < _alternation.index("update"),
             "extractRuns() must match update-firmware BEFORE update — reversed, a "
             "firmware suggestion becomes a full-system-update Run chip")
+    require("update-apps" in _alternation
+            and _alternation.index("update-apps") < _alternation.index("update"),
+            "extractRuns() must match update-apps BEFORE update — reversed, an app-update "
+            "suggestion becomes a full-system-update Run chip")
     _button_actions = set(_alternation)
     _moai_do_text = read("system_files/usr/bin/moai-do")
     _router_text = read("system_files/usr/bin/moos-open")
@@ -5373,6 +5378,17 @@ if _re_match:
                 f"not match it, so the model names it exactly as told and NO Run button appears. "
                 f"Add '{_act}' to the regex or stop promising it in the prompt.")
 
+    # The id-carrying removal path, end to end: extractRuns captures the id, the chip opens
+    # moos://apps/uninstall/<id>, moos-open routes it, and moai-do implements the action.
+    require(re.search(r"const uninst = /moai-do\\s\+uninstall\\s\+\(", _moai_qml) is not None,
+            "Mo AI's system prompt offers `moai-do uninstall <id>`, but extractRuns() has no "
+            "capture for it, so no Remove chip can appear")
+    require('"moos://apps/uninstall/"' in _moai_qml,
+            "Mo AI's Remove chip must open moos://apps/uninstall/<id>")
+    require(route_is_covered("apps/uninstall/org.example.App", routes_declared(_router_text)),
+            "moos-open must route moos://apps/uninstall/<id> to moai-do uninstall")
+    require(re.search(r"^\s+uninstall\)\s", _moai_do_text, re.M) is not None,
+            "moai-do must implement uninstall for Mo AI's Remove chip")
     for _act in sorted(_button_actions):
         require(re.search(rf"^\s+{re.escape(_act)}\)\s", _moai_do_text, re.M) is not None,
                 f"extractRuns() offers a Run button for `moai-do {_act}`, but moai-do implements "
