@@ -54,6 +54,13 @@ STATIC_STATE_DIRECTORIES = (
 )
 
 
+# systemd 259 keeps this compose marker as an empty regular file (native ARM
+# compose, run 34646190268; the Fedora 44 daily driver shows the same). Only the
+# entries listed here may be a single regular file; every other cleanup root must
+# still be a real directory, and links, mounts and special nodes always fail.
+CLEANUP_FILE_OR_DIRECTORY = frozenset({"run/systemd/systemd-units-load"})
+
+
 def owned_path(root: Path, relative: str) -> Path:
     path = root / relative
     if (not path.resolve().is_relative_to(root)
@@ -116,6 +123,8 @@ def reject_unsafe_cleanup_entries(root: Path, relative: str) -> None:
         return
     if os.path.ismount(path):
         raise RuntimeError(f"unsafe mount in compose cleanup state: {relative}")
+    if relative in CLEANUP_FILE_OR_DIRECTORY and stat.S_ISREG(path.lstat().st_mode):
+        return  # a single regular file is unlinked below, never walked or rmtree'd
     if not path.is_dir():
         raise RuntimeError(f"cleanup state is not a directory: {relative}")
     for current, dirs, files in os.walk(path, followlinks=False):

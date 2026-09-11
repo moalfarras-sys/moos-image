@@ -132,6 +132,33 @@ class ImageStateTests(unittest.TestCase):
                     with self.assertRaisesRegex(RuntimeError, 'unexpected mutable|unsafe entry'):
                         finalize(root)
 
+    def test_systemd_units_load_marker_file_is_compose_residue(self):
+        # Native ARM run 34646190268 failed because the preflight demanded a
+        # directory where systemd 259 leaves an empty regular file.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); self.fixture(root)
+            marker = root/'run/systemd/systemd-units-load'
+            marker.parent.mkdir(parents=True, exist_ok=True)
+            marker.write_text('')
+            finalize(root)
+            self.assertFalse(marker.exists())
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); self.fixture(root)
+            marker = root/'run/systemd/systemd-units-load'
+            marker.parent.mkdir(parents=True, exist_ok=True)
+            marker.symlink_to(root/'boot', target_is_directory=True)
+            with self.assertRaises(RuntimeError):
+                finalize(root)
+            self.assertTrue((root/'boot/efi/EFI/moos/loader.efi').exists())
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); self.fixture(root)
+            import shutil
+            shutil.rmtree(root/'var/lib/flatpak')
+            (root/'var/lib/flatpak').write_text('must-not-delete')
+            with mock.patch('os.path.ismount', return_value=False), \
+                    self.assertRaisesRegex(RuntimeError, 'cleanup state is not a directory'):
+                finalize(root)
+
     def test_first_boot_unit_is_wired_and_preserves_existing_config(self):
         name = 'moos-flatpak-init.service'
         source = ROOT/'system_files/usr/lib/systemd/system'/name
