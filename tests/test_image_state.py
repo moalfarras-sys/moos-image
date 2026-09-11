@@ -132,6 +132,63 @@ class ImageStateTests(unittest.TestCase):
                     with self.assertRaisesRegex(RuntimeError, 'unexpected mutable|unsafe entry'):
                         finalize(root)
 
+    def test_systemd_units_load_marker_file_is_compose_residue(self):
+        # Native ARM run 34646190268 failed because the preflight demanded a
+        # directory where systemd 259 leaves an empty regular file.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); self.fixture(root)
+            marker = root/'run/systemd/systemd-units-load'
+            marker.parent.mkdir(parents=True, exist_ok=True)
+            marker.write_text('')
+            finalize(root)
+            self.assertFalse(marker.exists())
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); self.fixture(root)
+            marker = root/'run/systemd/systemd-units-load'
+            marker.parent.mkdir(parents=True, exist_ok=True)
+            marker.symlink_to(root/'boot', target_is_directory=True)
+            with self.assertRaises(RuntimeError):
+                finalize(root)
+            self.assertTrue((root/'boot/efi/EFI/moos/loader.efi').exists())
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); self.fixture(root)
+            import shutil
+            shutil.rmtree(root/'var/lib/flatpak')
+            (root/'var/lib/flatpak').write_text('must-not-delete')
+            with mock.patch('os.path.ismount', return_value=False), \
+                    self.assertRaisesRegex(RuntimeError, 'cleanup state is not a directory'):
+                finalize(root)
+
+    def test_contained_runtime_links_are_removed_but_escaping_links_fail(self):
+        # x86 run 34646188216 stopped on cockpit-ws's tmpfiles rule
+        # `L /run/cockpit/issue - - - - inactive.issue`.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); self.fixture(root)
+            cockpit = root/'run/cockpit'
+            (cockpit/'inactive.issue').write_text('issue')
+            (cockpit/'issue').symlink_to('inactive.issue')
+            finalize(root)
+            self.assertFalse(cockpit.exists())
+        for kind in ('escaping-relative', 'absolute'):
+            with self.subTest(kind=kind), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory); self.fixture(root)
+                link = root/'run/cockpit/issue'
+                link.symlink_to('../../boot' if kind == 'escaping-relative' else root/'boot')
+                with self.assertRaisesRegex(RuntimeError, 'unsafe entry'):
+                    finalize(root)
+                self.assertTrue(link.is_symlink())
+                self.assertTrue((root/'boot/efi/EFI/moos/loader.efi').exists())
+
+    def test_every_unsafe_cleanup_entry_is_reported_at_once(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); self.fixture(root)
+            (root/'run/cockpit/escape').symlink_to('../../boot')
+            (root/'var/lib/dnf/repos/example/escape').symlink_to(root/'boot')
+            with self.assertRaises(RuntimeError) as caught:
+                finalize(root)
+            self.assertIn('run/cockpit/escape', str(caught.exception))
+            self.assertIn('var/lib/dnf/repos/example/escape', str(caught.exception))
+
     def test_first_boot_unit_is_wired_and_preserves_existing_config(self):
         name = 'moos-flatpak-init.service'
         source = ROOT/'system_files/usr/lib/systemd/system'/name

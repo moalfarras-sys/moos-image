@@ -124,6 +124,20 @@ survives `preset-all`, masks the inherited bootstrap, requires fresh artifacts
 to expose only signed Flathub, and waits a bounded six minutes for the actual ARM
 desktop/store transaction. Ten image-state tests and the full 131-gate source
 suite pass; a new candidate must repeat every artifact proof.
+Native ARM compose for `153f056a` (run `34646190268`) then stopped in the new
+cleanup preflight, which required `run/systemd/systemd-units-load` to be a
+directory. systemd 259 (Fedora 44, the ARM base) keeps it as an empty regular
+file, which the cleanup already unlinks; x86 compose does not create it. The
+preflight now accepts a regular file for that single entry only; symlinks,
+mounts and cleanup roots that must be directories still fail (eleven
+image-state tests).
+x86 run `34646188216` for `153f056a` stopped at the same preflight on
+`run/cockpit/issue`, the relative link cockpit-ws's tmpfiles rule creates
+(`L /run/cockpit/issue - - - - inactive.issue`). The preflight now allows a
+relative link whose target stays inside the cleanup root (removal never
+follows it), still rejects absolute or escaping links, mounts and special
+nodes, and reports every unsafe entry in one failure so a single CI run names
+all remaining problems (thirteen image-state tests).
 
 **Release train and live origin re-verified (2026-09-11):** the prior claim that
 promotion never ran is superseded. [Promotion run 34432578942](https://github.com/moalfarras-sys/moos-image/actions/runs/34432578942)

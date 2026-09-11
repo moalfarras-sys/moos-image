@@ -54,6 +54,13 @@ STATIC_STATE_DIRECTORIES = (
 )
 
 
+# systemd 259 keeps this compose marker as an empty regular file (native ARM
+# compose, run 34646190268; the Fedora 44 daily driver shows the same). Only the
+# entries listed here may be a single regular file; every other cleanup root must
+# still be a real directory, and links, mounts and special nodes always fail.
+CLEANUP_FILE_OR_DIRECTORY = frozenset({"run/systemd/systemd-units-load"})
+
+
 def owned_path(root: Path, relative: str) -> Path:
     path = root / relative
     if (not path.resolve().is_relative_to(root)
@@ -109,28 +116,56 @@ def unexpected_mutable_entries(root: Path, relative: str,
     return unexpected
 
 
-def reject_unsafe_cleanup_entries(root: Path, relative: str) -> None:
-    """Never let recursive cleanup hide a link or special filesystem node."""
+def contained_relative_link(base: Path, link: Path) -> bool:
+    """True for a relative symlink whose lexical target stays inside base.
+
+    tmpfiles rules create such links as runtime state, for example cockpit-ws's
+    `L /run/cockpit/issue - - - - inactive.issue` (x86 run 34646188216).
+    shutil.rmtree unlinks a link without following it, so removing one can never
+    touch its target. Absolute or escaping links still fail: they point at state
+    outside the tree being cleaned.
+    """
+    target = os.readlink(link)
+    if not target or os.path.isabs(target):
+        return False
+    resolved = os.path.normpath(os.path.join(os.path.dirname(link), target))
+    return resolved == str(base) or resolved.startswith(str(base) + os.sep)
+
+
+def unsafe_cleanup_entries(root: Path, relative: str) -> list[str]:
+    """Every reason recursive cleanup of this tree would be unsafe."""
     path = owned_path(root, relative)
     if not path.exists():
-        return
+        return []
     if os.path.ismount(path):
-        raise RuntimeError(f"unsafe mount in compose cleanup state: {relative}")
+        return [f"unsafe mount in compose cleanup state: {relative}"]
+    if relative in CLEANUP_FILE_OR_DIRECTORY and stat.S_ISREG(path.lstat().st_mode):
+        return []  # a single regular file is unlinked below, never walked or rmtree'd
     if not path.is_dir():
-        raise RuntimeError(f"cleanup state is not a directory: {relative}")
+        return [f"cleanup state is not a directory: {relative}"]
+    problems: list[str] = []
     for current, dirs, files in os.walk(path, followlinks=False):
-        for name in (*dirs, *files):
+        for name in list(dirs) + list(files):
             child = Path(current) / name
             child_relative = str(child.relative_to(root))
             if os.path.ismount(child):
-                raise RuntimeError(
-                    f"unsafe mount in compose cleanup state: {child_relative}"
-                )
+                problems.append(f"unsafe mount in compose cleanup state: {child_relative}")
+                if name in dirs:
+                    dirs.remove(name)
+                continue
             mode = child.lstat().st_mode
+            if stat.S_ISLNK(mode) and contained_relative_link(path, child):
+                continue
             if stat.S_ISLNK(mode) or not (stat.S_ISDIR(mode) or stat.S_ISREG(mode)):
-                raise RuntimeError(
-                    f"unsafe entry in compose cleanup state: {child_relative}"
-                )
+                problems.append(f"unsafe entry in compose cleanup state: {child_relative}")
+    return problems
+
+
+def reject_unsafe_cleanup_entries(root: Path, relative: str) -> None:
+    """Never let recursive cleanup hide an escaping link or special filesystem node."""
+    problems = unsafe_cleanup_entries(root, relative)
+    if problems:
+        raise RuntimeError("; ".join(problems))
 
 
 def require_scaffold(root: Path, relative: str, mode: int) -> None:
@@ -164,10 +199,14 @@ def finalize(root: Path) -> None:
                      "usr/lib/systemd/system/moos-flatpak-init.service"):
         if not (root / relative).is_file():
             raise RuntimeError(f"missing first-boot store authority: {relative}")
+    cleanup_problems: list[str] = []
     for relative in ("var/lib/flatpak", "var/lib/dnf/repos", "run/cockpit",
                      "run/dnf", "run/selinux-policy",
                      "run/systemd/systemd-units-load"):
-        reject_unsafe_cleanup_entries(root, relative)
+        # Collect every root's problems so one failed build names all of them.
+        cleanup_problems.extend(unsafe_cleanup_entries(root, relative))
+    if cleanup_problems:
+        raise RuntimeError("; ".join(cleanup_problems))
     # xorg-x11-server-common puts documentation in its mutable keymap cache.
     # Preserve those bytes in /usr; tmpfiles below recreates the cache itself.
     xkb_readme = owned_path(root, "var/lib/xkb/README.compiled")
