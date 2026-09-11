@@ -12,13 +12,26 @@ Compose now removes only known derived DNF/empty Flatpak state and rejects
 unexpected `/var` files. A first-boot unit initializes the system store and
 ar/en/de locale policy offline while preserving existing config. `plugdev` is
 owned by sysusers. A disposable image cleanup and offline store recreation
-passed; full new NVIDIA build and fresh-install artifact proof are still pending.
+passed; the full NVIDIA build now passes; signed fresh-install artifact proof remains pending.
 The 131-gate source suite passed. Motion tests now use `moos-qml-shell` and
 all three execute successfully instead of skipping on the installed runtime.
 Empty package-owned `/var` directories now have generated tmpfiles declarations
 with their original modes and named owners. The disposable image passes 12 lint
 checks with one skip; only the existing EFI/GRUB boot-asset warning remains.
 [Architecture, implementation and validation](docs/MOOS_UNIFIED_PLATFORM.md).
+
+**Local NVIDIA image accepted (2026-09-11):**
+`localhost/moos-nvidia:unified-platform-20260911`, ID `14b21c399430…`, built with
+exit 0. Final identity, application-load and NVIDIA initramfs gates passed;
+lint reports 12 passed, one skipped, and only the retained EFI/GRUB warning.
+Independent offline inspection matched six shipped source files byte-for-byte,
+proved zero regular files under `/var`, read the enabled store unit and generated
+tmpfiles policy, imported the shared hardware module through both consumers,
+and found all four required NVIDIA modules in the 203,733,446-byte initramfs
+for kernel `7.2.4-200.fc44.x86_64`. Offline store recreation read back Flathub,
+its trusted key and `ar;en;de`. This is image evidence, not signed boot proof.
+Logs: `/var/tmp/moos-integrated-nvidia-final-build.log` and
+`/var/tmp/moos-integrated-image-verification.log`.
 
 **Release train and live origin re-verified (2026-09-11):** the prior claim that
 promotion never ran is superseded. [Promotion run 34432578942](https://github.com/moalfarras-sys/moos-image/actions/runs/34432578942)

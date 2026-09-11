@@ -190,6 +190,13 @@ A disposable `podman run --network none` after finalization recreated the store
 using the unit's exact Flatpak command, read back `ar;en;de`, found the `flathub`
 remote and trusted key, and proved the unit condition skips an initialized repo.
 This is offline command-level evidence, not a systemd boot or install proof.
-Full new NVIDIA image validation is in progress. No new release was staged or
+The full NVIDIA image built successfully: `14b21c399430…`,
+`localhost/moos-nvidia:unified-platform-20260911`. Final identity/application
+and boot gates passed. Offline inspection matched six source hashes, verified
+the enabled store unit and generated tmpfiles policy, proved shared installed
+hardware imports and zero regular files in `/var`, and checked the four NVIDIA
+modules inside the 203,733,446-byte initramfs for `7.2.4-200.fc44.x86_64`.
+It also repeated offline store recreation on this final image. The only lint
+warning is the retained EFI/GRUB boot content (12 passed, one skipped). No new release was staged or
 rebooted at the time of this source record. No comparative performance benchmark
 or new physical-device qualification was performed.
