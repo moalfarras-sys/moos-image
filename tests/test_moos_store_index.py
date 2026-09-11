@@ -610,5 +610,38 @@ class StoreIndexTests(unittest.TestCase):
             self.assertEqual(origins, {"flathub"})
 
 
+class StoreEditorialPicksTests(unittest.TestCase):
+    """MoOS picks are editorial, not alphabetical (plan M1.4)."""
+
+    CATALOG = ROOT / "system_files/usr/share/moos/store/catalog.json"
+    STORE = ROOT / "system_files/usr/share/moos/apps/store/main.qml"
+
+    def ranked(self, limit):
+        apps = json.loads(self.CATALOG.read_text(encoding="utf-8"))["apps"]
+        order = sorted(range(len(apps)),
+                       key=lambda index: (0 if apps[index].get("popular") is True else 1, index))
+        return [apps[index]["id"] for index in order[:limit]]
+
+    def test_picks_lead_with_the_popular_catalogue_in_editorial_order(self):
+        picks = self.ranked(8)
+        self.assertEqual(picks[:4], ["org.mozilla.firefox", "com.google.Chrome",
+                                     "com.valvesoftware.Steam", "com.usebottles.bottles"])
+        self.assertIn("com.usebottles.bottles", self.ranked(6),
+                      "running Windows apps is a MoOS promise and belongs in the first row")
+        local_only = {"com.jeffser.Alpaca", "io.gpt4all.gpt4all", "lmstudio"}
+        self.assertFalse(local_only & set(picks),
+                         "Mo AI is cloud-only; local-model apps must not lead MoOS picks")
+
+    def test_store_ranks_by_popular_flag_and_catalogue_order(self):
+        source = self.STORE.read_text(encoding="utf-8")
+        start = source.index("function curatedFeatured(limit)")
+        body = source[start:source.index("\n    function ", start + 1)]
+        self.assertIn("win.curatedApps", body, "picks must follow catalog.json's own order")
+        self.assertIn("popular", body)
+        self.assertIn("a.rank - b.rank || a.order - b.order", body)
+        self.assertNotIn("win.allApps[i]\n            if (app.curated", body,
+                         "the store-wide alphabetical list must not decide MoOS picks")
+
+
 if __name__ == "__main__":
     unittest.main()
