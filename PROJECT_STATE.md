@@ -1,5 +1,15 @@
 # MoOS — current project state
 
+**Mo Store stat cards and Mo AI's brain label (2026-09-11, branch `feat/moos-completion-20260911`, plan M1.4/M1.6):**
+at 4K/225% the Store hero's stat captions sat on their card borders and each
+number started at a different offset; fixed line heights, a filling left-aligned
+column and a content-driven minimum height now keep all three captions inside
+aligned cards, verified by before/after captures of the running Store from this
+branch's QML. Mo AI's composer chip showed the raw `openrouter/free` routing id;
+it now shows "Free · automatic" (Arabic: "مجاني تلقائي") and, after a reply, the
+model named by the gateway's `X-MoAI-Model` header. `brainName()` was evaluated in a
+real QML engine and the Arabic chip captured live from this branch.
+
 **Mo AI answers in about two seconds (2026-09-11, branch `feat/moos-completion-20260911`, plan M2.2):**
 the slow automatic free route was MoOS's own choice, not OpenRouter's:
 `moai-gateway` replaced `openrouter/free` with `automatic_model()`, which ranked

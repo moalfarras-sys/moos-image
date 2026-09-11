@@ -333,6 +333,19 @@ Kirigami.ApplicationWindow {
     readonly property bool routeIsLocal: root.route.indexOf("local") === 0
     readonly property bool routeIsHybrid: root.route.indexOf("hybrid") === 0
     property string hybridDecision: ""
+    // The free model that actually answered the last reply (X-MoAI-Model).
+    property string answerModel: ""
+    // People read a brain, not a routing id. "openrouter/free" is the automatic
+    // free route; "vendor/name:free" is shown as its name without the plumbing.
+    function brainName(model) {
+        const id = String(model || "")
+        if (id === "")
+            return ""
+        if (id === "openrouter/free")
+            return root.local("مجاني تلقائي", "Free · automatic")
+        const bare = id.indexOf("/") === -1 ? id : id.substring(id.lastIndexOf("/") + 1)
+        return bare.endsWith(":free") ? bare.substring(0, bare.length - 5) : bare
+    }
     // The part after the FIRST colon — a model id may contain colons of its own
     // ("local:qwen3:4b").
     readonly property string routeModel: {
@@ -1255,6 +1268,7 @@ Kirigami.ApplicationWindow {
                     ? "" : chosen + (reason === "" ? "" : " · " + reason)
             }
             const agentPath = xhr.getResponseHeader("X-MoAI-Agent") || ""
+            root.answerModel = xhr.getResponseHeader("X-MoAI-Model") || ""
             root.agentDecision = agentPath === "hermes"
                 ? "Hermes"
                 : agentPath === "openclaw"
@@ -3153,9 +3167,12 @@ Kirigami.ApplicationWindow {
                                                          || (root.routeIsHybrid
                                                              && root.hybridDecision !== "")
                                                 text: {
-                                                    const routeText = root.routeIsHybrid
+                                                    let routeText = root.routeIsHybrid
                                                         && root.hybridDecision !== ""
-                                                        ? root.hybridDecision : root.routeModel
+                                                        ? root.hybridDecision : root.brainName(root.routeModel)
+                                                    if (root.routeModel === "openrouter/free" && root.answerModel !== "")
+                                                        routeText = root.local("مجاني", "Free") + " · "
+                                                            + root.brainName(root.answerModel)
                                                     if (routeText !== "" && root.agentDecision !== "")
                                                         return routeText + " · " + root.agentDecision
                                                     return routeText !== "" ? routeText : root.agentDecision

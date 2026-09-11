@@ -190,3 +190,9 @@ change weekly; a single sample is evidence of a problem, not a final ranking.
 - **2026-09-11, M2.2 source + live proof:** measured free ranking, cooldown and
   pre-byte retry among verified free models; the branch gateway answered Arabic in
   2.0 s and 1.8 s and a tool call in 1.9 s, against 13–37 s on the installed route.
+- **2026-09-11, M1.4 + M1.6 source + live captures:** Mo Store's hero stat cards kept
+  their captions on the card border and centred each number at a different offset;
+  fixed line heights and a filling column put all three inside their cards, aligned
+  (before/after 4K captures of the running Store). Mo AI's composer chip showed the raw
+  `openrouter/free` id; it now reads "Free · automatic" / "مجاني تلقائي" and names the
+  model that answered from `X-MoAI-Model` (QML engine probe plus a live capture).

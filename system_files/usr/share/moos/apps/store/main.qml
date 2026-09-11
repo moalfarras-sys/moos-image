@@ -1745,30 +1745,53 @@ ApplicationWindow {
                                             color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.72)
                                             border.width: 1
                                             border.color: win.outline
+                                            // The three stat cards share the hero's height, and an
+                                            // Arabic-capable UI font's natural line boxes are taller
+                                            // than its glyphs: measured at 4K/225%, each caption sat
+                                            // on its card's border. Fixed line heights keep value and
+                                            // caption inside the card, the minimum height grows the
+                                            // hero instead of clipping, and a filling column stops
+                                            // each card centring its text at a different offset.
+                                            Layout.minimumHeight: statRow.implicitHeight + 16
                                             RowLayout {
+                                                id: statRow
                                                 anchors.fill: parent
-                                                anchors.margins: 12
-                                                spacing: 10
+                                                anchors.leftMargin: 14
+                                                anchors.rightMargin: 14
+                                                anchors.topMargin: 8
+                                                anchors.bottomMargin: 8
+                                                spacing: 12
                                                 Glyph {
                                                     name: modelData.glyph
                                                     tint: win.accent
                                                     Layout.preferredWidth: win.fs(19)
                                                     Layout.preferredHeight: win.fs(19)
+                                                    Layout.alignment: Qt.AlignVCenter
                                                 }
                                                 ColumnLayout {
-                                                    spacing: -2
+                                                    Layout.fillWidth: true
+                                                    Layout.alignment: Qt.AlignVCenter
+                                                    spacing: 0
                                                     Text {
+                                                        Layout.fillWidth: true
                                                         text: modelData.value
                                                         color: win.txt
                                                         font.family: win.uiFont
                                                         font.pixelSize: win.typePx(18)
                                                         font.bold: true
+                                                        lineHeightMode: Text.FixedHeight
+                                                        lineHeight: Math.ceil(win.typePx(18) * 1.15)
+                                                        elide: Text.ElideRight
                                                     }
                                                     Text {
+                                                        Layout.fillWidth: true
                                                         text: modelData.label
                                                         color: win.txt2
                                                         font.family: win.uiFont
                                                         font.pixelSize: win.typePx(9)
+                                                        lineHeightMode: Text.FixedHeight
+                                                        lineHeight: Math.ceil(win.typePx(9) * 1.35)
+                                                        elide: Text.ElideRight
                                                     }
                                                 }
                                             }
