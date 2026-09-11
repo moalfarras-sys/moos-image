@@ -108,7 +108,7 @@ Do not remove a guard because it is inconvenient. If a guard fires, it is tellin
 | | |
 |---|---|
 | Base | Fedora Atomic (bootc/OSTree) + KDE Plasma 6, from `ghcr.io/ublue-os/kinoite-main:44` |
-| Editions | `moos` (generic) and `moos-nvidia` (**same base**, driver layered on) |
+| Editions | `moos`, `moos-nvidia` and `moos-cloud` share the x86 base; `moos-arm` uses the native ARM base and common MoOS overlay |
 | Update path | `moai-do update` → resolves and stages a signed immutable digest; applies on reboot and keeps the previous deployment for rollback |
 | Signing | every image is cosign-signed; the installed system **enforces** the signature |
 | ISO | built in CI by `build-iso.yml` (Titanoboa), published as a workflow artifact |
@@ -300,8 +300,12 @@ substring of your own command.
 **Disk images do not fit in a tmpfs.** A qcow2 of this image is ~10GB and `/tmp` here is a 7.8GB
 tmpfs. Build them somewhere on real disk.
 
-**`/var` must be clean.** `bootc container lint` is the final build stage and it will reject
-content in `/var`.
+**`/var` must be clean.** `bootc container lint` is the final build stage, but
+its exit status alone is insufficient: the 2026-09-10 generic image returned 0
+while warning about actual DNF/Flatpak files in `/var`. Inspect the finished
+filesystem and lint warnings; fix lifecycle ownership without losing Flatpak
+initialization or boot assets. The clean-state requirement is unchanged. See
+`docs/MOOS_UNIFIED_PLATFORM.md` for the lifecycle fix and remaining artifact proof.
 
 **`/usr/local` has two layouts.** The x86 Atomic base links it to
 `../var/usrlocal` (absent during compose); ARM has a real immutable directory.
@@ -328,7 +332,7 @@ as the user. Do not "fix" that by reaching for pkexec.
 ## Layout
 
 ```
-Containerfile          all three editions; IMAGE_NAME selects whether NVIDIA is layered on
+Containerfile          three x86 editions; IMAGE_NAME selects whether NVIDIA is layered on
 build_files/build.sh   everything package-dependent, plus the boot/identity gates
 system_files/          copied verbatim onto / — identity, themes, apps, units
 moremote/              Mo PC Remote, vendored source; built by a stage in the Containerfile
@@ -372,9 +376,9 @@ Being honest about this list is more useful than shrinking it.
   answers. The kickstart verifies the signature at install time (and therefore deploys a
   signed origin, so updates stay verified for life); if an install fails with a signature
   error, that is still where to look.
-- **Mo AI has no model until the user downloads one.** The chat is real and the local/cloud
-  routing is real, but a fresh install cannot answer until the one-time model download is
-  accepted.
+- **Mo AI is cloud-only.** Free models are the default; paid models require an explicit
+  choice. Cloud connectivity and provider availability are required. Local model downloads
+  are retired; see `docs/MOAI_CLOUD_ONLY_PLAN.md` for fresh-install acceptance gaps.
 - **Rollback has not been tested** against a deliberately broken update.
 - **Audio/Bluetooth/Wi-Fi/suspend/multi-monitor** have not been verified on hardware other than
   the maintainer's desktop.
@@ -383,3 +387,7 @@ Being honest about this list is more useful than shrinking it.
 as a list of what is missing than as a list of what is claimed.
 
 Settings runtime review and backend contract: [bounded product handoff](docs/MOOS_SYSTEM_DEVELOPMENT_PLAN.md). Its native review harness runs the source QML without installing user overrides.
+
+Unified platform ownership and implementation priorities: [architecture audit](docs/MOOS_UNIFIED_PLATFORM.md).
+Hardware identity for Settings and Mo AI belongs to `usr/lib/moos/moos_hardware.py`;
+keep GPU classification with `moos-visual-tier` and cover consumer agreement with executable fixtures.

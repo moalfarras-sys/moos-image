@@ -1,5 +1,43 @@
 # MoOS — current project state
 
+**Unified platform integration (2026-09-11, candidate source):** keep KDE/KWin
+upstream and own the MoOS experience above them. Settings and Mo AI now share
+`usr/lib/moos/moos_hardware.py`, with executable ARM/x86 and malformed-tool
+fixtures. Settings Overview has four prominent task cards, working Enter/RTL
+navigation and a scrollable sidebar on short windows. Native source captures
+show resting card luminance deltas of 30.071 (dark) and 22.103 (light), with no
+installed desktop overrides. [Visual evidence](docs/evidence/settings-workspace-20260911/README.md).
+
+Compose now removes only known derived DNF/empty Flatpak state and rejects
+unexpected `/var` files. A first-boot unit initializes the system store and
+ar/en/de locale policy offline while preserving existing config. `plugdev` is
+owned by sysusers. A disposable image cleanup and offline store recreation
+passed; full new NVIDIA build and fresh-install artifact proof are still pending.
+The 131-gate source suite passed. Motion tests now use `moos-qml-shell` and
+all three execute successfully instead of skipping on the installed runtime.
+Empty package-owned `/var` directories now have generated tmpfiles declarations
+with their original modes and named owners. The disposable image passes 12 lint
+checks with one skip; only the existing EFI/GRUB boot-asset warning remains.
+[Architecture, implementation and validation](docs/MOOS_UNIFIED_PLATFORM.md).
+
+**Release train and live origin re-verified (2026-09-11):** the prior claim that
+promotion never ran is superseded. [Promotion run 34432578942](https://github.com/moalfarras-sys/moos-image/actions/runs/34432578942)
+completed successfully on 2026-09-10 for `c0cc94e7213cafde8ddbc58d292084ae52af70f0`.
+Read-only host status shows signed NVIDIA `44.20260910.796`, digest `7f1df5b03d97…`,
+booted; signed `44.20260908.782`, digest `81a9061cbe2e…`, remains the rollback.
+This does not constitute deliberate rollback testing or full hardware acceptance.
+The new integration changes below have not yet reached the signed image.
+
+**Local phone gateway repair (2026-09-11):** the installed OpenClaw gateway
+was failed because workspace setup state had not been migrated to its new store.
+After a private state/config backup, the installed `openclaw doctor --fix
+--non-interactive --no-workspace-suggestions` migrated and archived legacy state.
+Restarting the packaged user unit reached `ready`, `Result=success`, `NRestarts=0`.
+This was local account maintenance, not part of the image overlay. Existing
+DrKonqi coredump-processing timeout failures remain recorded; they were not
+reset merely to produce an empty failed-unit list. Remote message delivery was
+not tested by sending a message.
+
 **Branch hygiene (2026-09-09):** remote `archive/arm-utm-20260827` deleted — it
 held 18 superseded UTM/ARM commits and owed nothing to main. Local worktree
 `fix/iso-session-user-20260908` was folded into main (ISO `runuser` session
@@ -35,7 +73,7 @@ every session call's identity. Exact-ISO runtime acceptance is still pending.
 a broken build: `build.yml` deliberately pushes only a run/SHA-bound
 `candidate-*` tag, and `promote-x86.yml` moves production tags only after five
 proofs of one revision — the signed build, three QCOW2 disk boots and the
-offline ISO install. **`promote-x86.yml` has never run.** The ISO proof kept
+offline ISO install. **At the time of this 2026-09-08 diagnosis, `promote-x86.yml` had never run.** The ISO proof kept
 failing, so nothing could ever be promoted through the formal path, and until
 the 2026-09-09 channel repair above the maintainer's daily driver could not
 advance via `:latest`.
@@ -60,9 +98,8 @@ The MECHANISM was finally identified after the restored diagnostics ran. The pas
 
 **This is now fixed**: `Engine=None` is set across all MoOS themes and `ksplashrc`, and `install_live_iso.sh` now correctly preserves the gate output when the `PLM login` label fails.
 
-**Not yet true:** `promote-x86.yml` has still never completed end-to-end; the
-ISO install proof remains the missing gate. Production `:latest` for the three
-x86 editions is now `44.20260908.782` via the emergency channel repair above.
+**Historical limit (superseded 2026-09-10):** ISO/promotion was still missing
+after the emergency repair; the successful formal run is recorded at the top.
 
 **Stale $HOME overrides were shadowing MoOS code on the A1 (2026-09-08):**
 Mo AI's `moai-agent-api`, `moai-control` and `moai-gateway`, plus Mo PC Remote,
@@ -1603,9 +1640,9 @@ and called from `moos-apply-theme`. On this machine (nvidia, 16 cores, 15.4 GiB,
 no-GPU box lands on `essential` automatically.
 
 The same probe now also emits an advisory **`budget`** (`--json` + state file): `file_indexing`
-(content/filenames/off), `update_concurrency` (1/2/4), `ai_default` (local/cloud), `remote_encode`
+(content/filenames), `update_concurrency` (1/2/4), `ai_default` (cloud only), `remote_encode`
 (720p30/1080p30/1080p60), a pure function of the probed facts + tier. It is not a second writer —
-baloo / `moai-do` / the Remote encoder are meant to read it under their own owners (not wired yet).
+Baloo now reads it through `moos-index-policy` (2026-09-07); update and Remote hints remain advisory.
 
 KWin effects confirmed enabled: `blur`, `magiclamp` (genie minimize), `scale` (open/close), plus
 `slidingpopups`/`fadingpopups`/`slide`/`dimscreen`/`dialogparent`/`fullscreen`/`overview`/

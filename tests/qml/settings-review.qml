@@ -9,10 +9,17 @@ Item {
     property var frame
     property int step: -1
     property string out: Qt.application.arguments.filter(a => a.indexOf('--out=') === 0)[0].substring(6)
+    function argument(prefix, fallback) {
+        var found = Qt.application.arguments.filter(a => a.indexOf(prefix) === 0)[0]
+        return found ? found.substring(prefix.length) : fallback
+    }
     Component.onCompleted: {
-        var component = Qt.createComponent(Qt.resolvedUrl('../../system_files/usr/share/moos/apps/settings/main.qml'))
+        var component = Qt.createComponent(argument('--source=', Qt.resolvedUrl('../../system_files/usr/share/moos/apps/settings/main.qml')))
         if (component.status !== Component.Ready) { console.error(component.errorString()); Qt.exit(1); return }
-        app = component.createObject(null, {width: 1400, height: 900, minimumWidth: 900, minimumHeight: 640})
+        app = component.createObject(null, {width: Number(argument('--width=', 1400)), height: Number(argument('--height=', 900)), minimumWidth: 800, minimumHeight: 640})
+        console.warn("REVIEW_LOCALE", Qt.locale().name, app.rtl)
+        var expectedRtl = argument("--rtl=", "")
+        if (expectedRtl !== "" && app.rtl !== (expectedRtl === "true")) { console.error("Wrong review locale"); Qt.exit(1); return }
         var children = Array.from(app.contentItem.children)
         frame = Qt.createQmlObject('import QtQuick; Rectangle { anchors.fill: parent; color: "' + app.color + '" }', app.contentItem)
         for (var child of children) child.parent = frame
@@ -51,6 +58,19 @@ Item {
                 harness.app.searchQuery = "audio"
                 driver.compare(field.text, "audio")
                 harness.app.selectSection("home")
+                if (Qt.application.arguments.indexOf("--workspace") >= 0) {
+                    for (var section of ["appearance", "connectivity", "apps", "system"]) {
+                        var card = harness.find(harness.frame, "workspace-" + section)
+                        console.warn("WORKSPACE_CARD", section, card, card ? card.visible : false)
+                        driver.verify(card !== null, "Workspace card exists: " + section)
+                        card.forceActiveFocus()
+                        driver.keyClick(Qt.Key_Return)
+                        console.warn("WORKSPACE_RESULT", section, harness.app.activeSection, card.activeFocus)
+                        driver.compare(harness.app.activeSection, section)
+                        harness.app.selectSection("home")
+                    }
+                    console.warn("WORKSPACE_NAVIGATION_PASSED")
+                }
                 console.warn("SETTINGS_INTERACTIONS_PASSED")
                 harness.snapshot = JSON.parse(JSON.stringify(harness.app.status))
                 clock.start()
@@ -98,6 +118,7 @@ Item {
                 : ["unavailable", "empty-search", "missing-module"][harness.step - harness.app.sections.length]
             harness.frame.grabToImage(function(result) {
                 console.warn("SAVED", name, result.saveToFile(harness.out + '/' + name + '.png'))
+                if (Qt.application.arguments.indexOf("--home-only") >= 0) { Qt.quit(); return }
                 if (harness.step + 1 < harness.app.sections.length + 3) clock.start()
                 else end.start()
             })

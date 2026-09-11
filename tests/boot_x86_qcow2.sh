@@ -491,6 +491,14 @@ assert policy['transports']['containers-storage'][''] == [
 ]
 INNER
 [ "$(systemctl show -p NFailedUnits --value 2>/dev/null || true)" = 0 ] || gate_fail failed-system-unit
+# A fresh immutable deployment must initialize the real system store. Check
+# disk state before invoking Flatpak, which can otherwise create it for us.
+[ -s /var/lib/flatpak/repo/config ] || gate_fail store-not-initialized
+[ -s /var/lib/flatpak/repo/flathub.trustedkeys.gpg ] || gate_fail store-trust-missing
+[ "$(flatpak config --system --get extra-languages)" = 'ar;en;de' ] || gate_fail store-languages
+store_remotes="$(flatpak remotes --system --columns=name)"
+grep -Fx flathub <<<"$store_remotes" >/dev/null || gate_fail store-remote
+printf 'store=initialized\nstore-languages=ar;en;de\n'
 # Name the greeter's GL reality on every successful boot.  The helper deletes
 # the env file when it found a render node and writes llvmpipe lines into it
 # when it fell back, so its presence on a VM that DOES have DRM nodes is the

@@ -51,9 +51,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SHARE = ROOT / "system_files/usr/share"
 
-# The runtime is `qml-qt6` on Fedora; upstream and some distros call it `qml6`.
+# Prefer the actual MoOS application host; developer systems may only have Qt's
+# generic launcher. The image intentionally does not require the generic tool.
 QML_RUNTIME = next(
-    (name for name in ("qml-qt6", "qml6", "qml") if shutil.which(name)), None
+    (name for name in ("moos-qml-shell", "qml-qt6", "qml6", "qml") if shutil.which(name)), None
 )
 
 # Every surface that owns a motion gate, and the expression that must gate it.
@@ -116,14 +117,16 @@ def _run_probe(qml_source: str, animation_factor: str) -> int:
             # make this test pass for the wrong reason.
             "QT_QPA_PLATFORMTHEME": "kde",
         })
+        command = ([QML_RUNTIME, "--app-id", "org.moos.motion.review", "--qml", str(probe)]
+                   if QML_RUNTIME == "moos-qml-shell" else [QML_RUNTIME, str(probe)])
         return subprocess.run(
-            [QML_RUNTIME, str(probe)], env=env, timeout=90,
+            command, env=env, timeout=90,
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         ).returncode
 
 
 @unittest.skipIf(QML_RUNTIME is None or shutil.which("kwriteconfig6") is None,
-                 "needs a Qt QML runtime and kwriteconfig6 (present in the image build)")
+                 "needs moos-qml-shell (or Qt's QML launcher) and kwriteconfig6")
 class MotionGateTests(unittest.TestCase):
 
     def test_kirigami_floors_long_duration_at_one_not_zero(self) -> None:

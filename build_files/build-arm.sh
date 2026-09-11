@@ -1328,16 +1328,28 @@ _rival_wants="$(find /usr/lib/systemd/system /etc/systemd/system -path '*.wants/
          echo "${_rival_wants}"; exit 1; }
 unset -v _rival_wants
 
-MOOS_IDENTITY_PROFILE=arm-cloud python3 /ctx/verify_identity.py
-python3 /ctx/verify_arm_image.py
-python3 /ctx/verify_no_foreign_identity.py
-
 # -----------------------------------------------------------------------------
 # (10) Clean up so `bootc container lint` passes
 # -----------------------------------------------------------------------------
+# Match the desktop store initialization contract on fresh native ARM systems.
+mkdir -p /etc/flatpak/remotes.d
+curl -Lf --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 30 \
+    -o /etc/flatpak/remotes.d/flathub.flatpakrepo \
+    https://dl.flathub.org/repo/flathub.flatpakrepo
+systemctl enable moos-flatpak-init.service
+systemd-sysusers /usr/lib/sysusers.d/moos-hardware.conf
+
 dnf5 clean all
 rm -rf /var/cache/* /var/log/* /tmp/* || true
 # bootc requires /var to be empty of anything the image is not entitled to own.
 find /var -mindepth 1 -maxdepth 1 ! -name 'lib' ! -name 'tmp' -exec rm -rf {} + 2>/dev/null || true
+
+python3 /ctx/finalize_image_state.py --root /
+
+
+MOOS_IDENTITY_PROFILE=arm-cloud python3 /ctx/verify_identity.py
+python3 /ctx/verify_arm_image.py
+python3 /ctx/verify_no_foreign_identity.py
+
 
 echo "=== MoOS ARM build complete: ${MOOS_EDITION} (aarch64) ==="

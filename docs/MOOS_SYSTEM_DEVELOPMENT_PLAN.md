@@ -1,9 +1,12 @@
 # MoOS system development plan
 
-Status: active, 2026-09-05. This supersedes the product-scope statement in
+Status: active, 2026-09-05; integration audit reconciled 2026-09-10. This supersedes the product-scope statement in
 `MOOS_X86_SYSTEM_PLAN.md`; that file retains historical x86 measurements.
 Evidence and open gates, not ambition, determine release status. Read alongside
 `PROJECT_STATE.md`, `MOOS_ROADMAP.md`, the engineering skill and `PROJECT_STATE.md`.
+
+For current core/API ownership and KDE integration decisions, see
+[the unified platform audit](MOOS_UNIFIED_PLATFORM.md).
 
 ## Product boundary and architecture
 
@@ -110,7 +113,7 @@ must pick one item, record scope and preserve unrelated work.
 | R03 | P0 open | Align ARM security rebuild cadence and promotion contract | Scheduled ARM rebuild, all source gates, signed exact artifact, boot proof before release tag promotion; failed boot cannot publish |
 | R04 | P0 open | Prove interrupted update and deliberate rollback | Disposable VM first, then authorized hardware with recovery access; previous signed deployment boots; app/user data preserved |
 | U01 | P1 open | First-run locale, timezone and keyboard | User selects language/zone independent of server geography; live clock/input readback, DST and offline setup fixtures; custom settings persist across updates |
-| P01 | P1 authority landed, consumers + measurement open | Capability-based workload budget. `moos-visual-tier` now derives `budget` (file_indexing, update_concurrency, ai_default, remote_encode) from the same probe and exposes it in `--json`/state — advisory, no second writer. `file_indexing` has no `off` state by design: measured baloo idle at 0.0% CPU, so the filename index stays and only content extraction is dropped. Remaining: wire baloo / `moai-do` / Remote encoder to read it, each under its own owner. | Measure idle, typing, scroll/video, build and AI separately; compare frame/input p50/p95, CPU, memory and network before/after on identical workload |
+| P01 | P1 authority landed, consumers + measurement open | Capability-based workload budget. `moos-visual-tier` now derives `budget` (file_indexing, update_concurrency, ai_default, remote_encode) from the same probe and exposes it in `--json`/state — advisory, no second writer. `file_indexing` has no `off` state by design: measured baloo idle at 0.0% CPU, so the filename index stays and only content extraction is dropped. Baloo consumption landed on 2026-09-07 through `moos-index-policy`. AI policy is cloud-only. Update/Remote keys remain advisory; no unsupported concurrency control or removed resolution cap should be invented. | Measure idle, typing, scroll/video, build and AI separately; compare frame/input p50/p95, CPU, memory and network before/after on identical workload |
 | P02 | P1 open | Cloud capture/compositor efficiency | Bound software-rendered quality via measured capability, not only network RTT; test frame pacing, cursor, degraded link, reconnect and local GPU path; explicit quality override retained |
 | D01 | P1 existing visuals, remaining proof | Bar/launcher hierarchy and keyboard flow | One panel; reachable 44px equivalent targets; no clipped RTL/long labels; complete keyboard navigation; 1080p through 4K at 100–225%; light/dark screenshots and measured contrast |
 | A01 | P1 open | Application/runtime compatibility matrix | Native Linux/Flatpak apps install-launch-use-reopen-remove; ARM availability explicit; development SDK inside its actual sandbox; Windows compatibility tested per app, never promised globally |
@@ -118,7 +121,7 @@ must pick one item, record scope and preserve unrelated work.
 | I01 | P1 open | Installer and recovery qualification | Exact signed ISO offline installation to a blank disk, detach ISO, first login, reboot and poweroff; physical firmware separate from VM proof |
 | B01 | P0 implemented, live staging proof pending | Omit four desktop GPU modules from ARM initramfs; retain ARM Tegra firmware and storage drivers | Final archive passes module/boot gates and size ceiling. Include kernel + DTBs in space calculation, verify signed staging and retained rollback on the real A1 |
 | B02 | P1 open | Publish the `/boot` headroom contract: x86 and ARM both need room for N+1 deployments. Measure the x86 editions' initramfs the same way — `moos-nvidia` must keep its kmod, so its answer will differ | Per-edition initramfs + kernel size recorded per release; a release that cannot stage a third deployment fails before publication |
-| P03 | P1 open | Wire the first `moos-visual-tier` budget consumer: `only basic indexing` in baloofilerc follows `budget.file_indexing`, written by the config's existing owner, never by visual-tier | Measured baloo CPU/IO before and after on the same file set; launcher file results still return; a user's own baloofilerc edit is never taken back |
+| P03 | P1 implemented, broader acceptance open | Wired the first `moos-visual-tier` budget consumer: `only basic indexing` in baloofilerc follows `budget.file_indexing`, written by the config's existing owner, never by visual-tier | Measured baloo CPU/IO before and after on the same file set; launcher file results still return; a user's own baloofilerc edit is never taken back |
 | X01 | P1 stack landed, runtime proof open | Accessibility. The AT-SPI bus shipped running with no screen reader, no speech bridge and no engine behind it, and `QT_ACCESSIBILITY` unset — a blind user could not use MoOS at all. `orca`, `speech-dispatcher` and `espeak-ng` (which carries `ar_dict`) now ship on both editions, and a systemd environment drop-in enables the Qt bridge | Gate asserts the stack ships, the editions agree, and the bridge is a systemd drop-in. **Open:** actually drive Orca on a real session in Arabic and English, and read a first-party Mo app aloud |
 | Q01 | P2 open | Release observability and support bundle | Explicit opt-in, redact secrets/identifiers, bounded logs, enough digest/device/health facts to reproduce; diagnostics never execute model-generated privileged commands |
 

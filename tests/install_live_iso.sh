@@ -844,6 +844,12 @@ stage "origin=[$origin]"
     exit 1
 }
 stage passed signed-origin
+[ -s /var/lib/flatpak/repo/config ]
+[ -s /var/lib/flatpak/repo/flathub.trustedkeys.gpg ]
+[ "$(flatpak config --system --get extra-languages)" = 'ar;en;de' ]
+store_remotes="$(flatpak remotes --system --columns=name)"
+grep -Fx flathub <<<"$store_remotes" >/dev/null
+stage passed store-initialized
 failed="$(systemctl --failed --no-legend --plain)"
 [ -z "$failed" ]
 for app in moai moos-store moos-update moos-rollback moos-settings moplayer mo-pc-remote; do

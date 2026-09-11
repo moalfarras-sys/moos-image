@@ -3,25 +3,11 @@
 Only completed evidence closes an item. Source code, a package, or a green
 parser alone is not runtime proof. Current facts live in `PROJECT_STATE.md`.
 
-**2026-09-08/09 release continuation:** production `:latest` for the three x86
-editions is now `44.20260908.782` (emergency channel repair). The ISO session
-checks drop from root SSH to the actual desktop UID via `runuser -u moosci`,
-fixing the observed user-bus permission refusal. Same-revision disk/ISO proof
-and formal `promote-x86.yml` remain required. See `PROJECT_STATE.md`.
-
-**Current x86 train repair:** run 769's shared `/usr/local` symlink failure is
-isolated; branch build/signature acceptance is tracked in
-[the bounded handoff](docs/MOOS_X86_SYSTEM_PLAN.md). ARM's NFS/initrd and
-immutable sbin repair remain intact. Artifact boot/promotion gates below stay open.
-
-**Physical NVIDIA update audit:** the machine is on a preserved local
-44.20260829.1 deployment, so the signed updater correctly refuses to advance it.
-The boot audit's false “signed” report for local `containers-storage` origins is
-fixed and fixture-tested. The update authority now refuses an older or equal
-release even when its digest differs. Rejoin the signed train only after the
-x86/NVIDIA candidate is built, signed, boot-proven and promoted; then use the
-explicit signed NVIDIA switch once and prove ordinary `moai-do update` reads the
-new official origin. Keep the local 44.20260828 rollback until that proof passes.
+**Current release evidence (2026-09-11):** the formal five-proof promotion
+completed in run `34432578942` for `c0cc94e7`. The daily-driver NVIDIA PC is
+booted on signed `44.20260910.796`, retaining signed `44.20260908.782` for
+rollback. New changes need their own candidate, disk and ISO proofs; earlier
+success does not qualify a changed image. See `PROJECT_STATE.md`.
 
 **Release integration 2026-09-07:** `main` was unbuildable for all three x86
 editions (a comment inside a backslash continuation truncated a `sed`); fixed
@@ -35,6 +21,13 @@ Mo AI agent workspace are merged. Host suite 115/115.
 OOM incident is unresolved (S03); short healthy samples do not close it. Source
 motion settings are not a performance benchmark. Launcher routing has executable
 coverage; native focus/scale acceptance remains open.
+
+**Unified platform pass (2026-09-10, source):** Settings and Mo AI now share
+CPU identity and the visual-tier GPU description, with executable ARM/x86 and
+malformed-backend fixtures in `test_settings_hardware_identity.py`. Architecture,
+remaining API work and ordered acceptance are in
+[the integration audit](docs/MOOS_UNIFIED_PLATFORM.md). Native dark/light and Arabic captures now prove the Settings workspace
+cards and keyboard navigation. Full image and hardware acceptance remain separate.
 
 ## Active development plan
 
@@ -143,18 +136,16 @@ browser viewport emulation does not close the wider physical-device gate below.
 
 ## Release blockers
 
-- [x] **Make the x86 proof chain readable.** `promote-x86.yml` has never run,
-  so the three x86 `latest` tags have been frozen at `44.20260823.650` since
-  2026-08-23. It needs five proofs of one revision, and the ISO proof kept
-  failing while printing four empty evidence sections. Two defects caused the
-  blindness — a `2>/dev/null >&2` redirection that discarded all 14 dumps in
-  the x86 gates, and a `gate_until()` diagnosis that only ran for labels
-  starting `"installed"` while the failing label is `"PLM login did not reach
-  the desktop"`. Both fixed and gated (`tests/test_diagnostic_redirection.py`).
-  The mechanism came from `fix/iso-plm-wake-space-20260908` and is merged, but
-  ITS FIX DOES NOT WORK: run 34167769770 failed identically with the shift+space
-  wake in place, and its login screenshot still shows the idle clock with no
-  password field.
+- [ ] **Clean-state and first-boot Store proof.** Known DNF and empty Flatpak
+  files are removed during compose, unknown mutable files fail the new gate,
+  and sysusers owns `plugdev`. Offline recreation of the store, Flathub remote
+  and locale policy passed in a disposable container. Full candidate boot/install
+  proof remains required. Package-owned empty directories are now declared via
+  tmpfiles; the disposable image retains only the EFI/GRUB boot-asset warning. [Integration audit](docs/MOOS_UNIFIED_PLATFORM.md).
+
+- [x] **Make the x86 proof chain readable.** Diagnostic redirections, KSplash
+  startup and ISO session UID were repaired without weakening the zero-failed-unit
+  check. The complete chain subsequently passed on 2026-09-10.
 - [x] **Unstick production `latest` (emergency channel repair, 2026-09-09).**
   `moos` / `moos-nvidia` / `moos-cloud` `:latest` were still on `44.20260823.650`
   while the daily-driver NVIDIA PC already ran signed candidate
@@ -162,13 +153,13 @@ browser viewport emulation does not close the wider physical-device gate below.
   and the Updater UI painted that protective state as a red "invalid state"
   failure — so the owner saw "system update is broken". Tags were moved to the
   cosign-verified digests from successful build run `34213809427`
-  (revision `ae31af5e…`, also tagged `20260908`). Live resolve now returns
+  (revision `ae31af5e…`, also tagged `20260908`). Resolve at that time returned
   `state=current`. This did **not** run `promote-x86.yml` (ISO proof still
   red); it only restored the update channel to the signed digests already
-  running on hardware / QCOW2-proven. ISO install proof remains open.
-- [ ] **Run `promote-x86.yml` once through the full proof chain.** Still the
-  only path that moves production after a green ISO. Needs a green build,
-  three QCOW2 boots and a green ISO on one revision.
+  running on hardware / QCOW2-proven. The subsequent full promotion is recorded below.
+- [x] **Run `promote-x86.yml` through the full proof chain.** Run `34432578942`
+  succeeded on 2026-09-10 for `c0cc94e7`, consuming the signed build, three
+  QCOW2 proofs and offline ISO install. Repeat all proofs for the new candidate.
 - [ ] **NVIDIA hardware acceptance.** `docs/NVIDIA_HARDWARE_ACCEPTANCE.md` is
   written and entirely unrun: boot, Plymouth, login, desktop, module, KWin on
   Wayland, displays, suspend/resume, update, rollback, reboot. Nothing in CI

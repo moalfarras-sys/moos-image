@@ -25,6 +25,8 @@ import sys as _policy_sys
 from pathlib import Path as _PolicyPath
 _policy_sys.path.insert(0, str(_PolicyPath(__file__).resolve().parent.parent / "lib/moai"))
 import moai_cloud_policy as cloud_policy
+_policy_sys.path.insert(0, str(_PolicyPath(__file__).resolve().parent.parent / "lib/moos"))
+import moos_hardware as hardware
 
 # "ollama://library/qwen3:4b" — strip the transport, keep the name.
 SCHEME = re.compile(r"^[a-z0-9+.-]+://")
@@ -614,7 +616,7 @@ def quick() -> dict:
 def scan() -> dict:
     """Read-only system snapshot. The device plan comes from cache (see above)."""
     info = {"os": _first_line("/etc/os-release", "PRETTY_NAME=") or "MoOS",
-            "cpu": _first_line("/proc/cpuinfo", "model name"),
+            "cpu": hardware.cpu_name(),
             "cores": os.cpu_count()}
     try:
         # Brand + de-leak the kernel string the Hardware panel shows. os.uname()
@@ -632,14 +634,7 @@ def scan() -> dict:
     except Exception:
         info["mem_gb"] = 0
     info["disk"] = disk_usage()
-    try:
-        out = subprocess.run(
-            ["bash", "-lc", "lspci 2>/dev/null | grep -iE 'vga|3d|display' || true"],
-            capture_output=True, text=True, timeout=6).stdout.strip()
-        info["gpu"] = "; ".join(l.split(":", 2)[-1].strip()
-                                for l in out.splitlines()) if out else ""
-    except Exception:
-        info["gpu"] = ""
+    info["gpu"] = hardware.gpu_name()
     info["desktop"] = os.environ.get("XDG_CURRENT_DESKTOP", "")
 
     # One read-only inventory powers the Device, Apps, Compatibility, Remote and

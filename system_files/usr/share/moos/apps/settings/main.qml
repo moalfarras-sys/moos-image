@@ -789,6 +789,97 @@ QQC2.ApplicationWindow {
         }
     }
 
+    // Task entry points share the section model and stay inside this window.
+    component WorkspaceCard: QQC2.AbstractButton {
+        id: workspaceCard
+        required property var sectionData
+        objectName: "workspace-" + sectionData.id
+        implicitHeight: win.fs(132)
+        hoverEnabled: true
+        activeFocusOnTab: true
+        leftPadding: design.space4
+        rightPadding: design.space4
+        topPadding: design.space4
+        bottomPadding: design.space4
+        Accessible.role: Accessible.Button
+        Accessible.name: win.local(sectionData.ar, sectionData.en)
+        Accessible.description: win.local(sectionData.descAr, sectionData.descEn)
+        onClicked: win.selectSection(sectionData.id)
+        Keys.onReturnPressed: clicked()
+        Keys.onEnterPressed: clicked()
+        onActiveFocusChanged: {
+            if (!activeFocus) return
+            var top = mapToItem(contentColumn, 0, 0).y
+            if (top < contentFlick.contentY) contentFlick.contentY = top
+            else if (top + height > contentFlick.contentY + contentFlick.height)
+                contentFlick.contentY = top + height - contentFlick.height
+        }
+        background: Rectangle {
+            radius: design.radiusCard
+            color: workspaceCard.hovered || workspaceCard.down
+                   ? Qt.tint(win.raisedStrong, Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.12))
+                   : win.raisedStrong
+            border.width: 1
+            border.color: workspaceCard.hovered ? win.accent : win.outline
+            Behavior on color { ColorAnimation { duration: win.motionEnabled ? design.motionFast : 0 } }
+        }
+        contentItem: ColumnLayout {
+            spacing: design.space2
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: design.space3
+                Rectangle {
+                    Layout.preferredWidth: win.fs(40)
+                    Layout.preferredHeight: win.fs(40)
+                    radius: design.radiusControl
+                    color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.18)
+                    MoUI.SymbolIcon {
+                        anchors.centerIn: parent
+                        width: 22; height: 22
+                        symbol: MoUI.SymbolCatalog.resolve(workspaceCard.sectionData.glyph)
+                        foreground: win.accent
+                    }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: win.local(workspaceCard.sectionData.ar, workspaceCard.sectionData.en)
+                    font.pixelSize: win.typePx(design.typeLabel)
+                    font.weight: Font.DemiBold
+                    color: win.textColor
+                    horizontalAlignment: Text.AlignLeft
+                    elide: Text.ElideRight
+                }
+                MoUI.SymbolIcon {
+                    Layout.preferredWidth: win.fs(18); Layout.preferredHeight: win.fs(18)
+                    symbol: MoUI.SymbolCatalog.resolve(win.rtl ? "arrow-back" : "arrow")
+                    foreground: win.accent
+                }
+            }
+            Text {
+                Layout.fillWidth: true
+                text: win.local(workspaceCard.sectionData.descAr, workspaceCard.sectionData.descEn)
+                color: win.mutedColor
+                font.pixelSize: win.typePx(design.typeSecondary)
+                horizontalAlignment: Text.AlignLeft
+                elide: Text.ElideRight
+            }
+            Text {
+                Layout.fillWidth: true
+                text: workspaceCard.sectionData.id === "connectivity" ? win.networkLabel
+                    : workspaceCard.sectionData.id === "system" ? win.imageLabel
+                    : workspaceCard.sectionData.id === "appearance"
+                      ? win.local("خصّص مساحة عملك", "Personalize your workspace")
+                      : win.local("المتجر والأذونات في مكان واحد", "Store and permissions, together")
+                color: win.accent
+                font.pixelSize: win.typePx(design.typeCaption)
+                font.weight: Font.Medium
+                horizontalAlignment: Text.AlignLeft
+                elide: Text.ElideRight
+            }
+        }
+        FocusRing { anchors.fill: workspaceCard; accentColor: win.accent; controlRadius: design.radiusCard }
+    }
+
     component CommandRow: QQC2.AbstractButton {
         id: commandControl
         required property var commandData
@@ -1022,15 +1113,36 @@ QQC2.ApplicationWindow {
                     }
                 }
 
-                Repeater {
-                    model: win.sections
-                    delegate: NavButton {
-                        required property var modelData
-                        sectionData: modelData
+                Flickable {
+                    id: navigationFlick
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    Layout.minimumHeight: win.fs(96)
+                    contentWidth: width
+                    contentHeight: navigationColumn.implicitHeight
+                    clip: true
+                    boundsBehavior: Flickable.StopAtBounds
+                    QQC2.ScrollBar.vertical: QQC2.ScrollBar { }
+                    ColumnLayout {
+                        id: navigationColumn
+                        width: navigationFlick.width
+                        spacing: design.space3
+                        Repeater {
+                            model: win.sections
+                            delegate: NavButton {
+                                required property var modelData
+                                sectionData: modelData
+                                onActiveFocusChanged: {
+                                    if (!activeFocus) return
+                                    var top = mapToItem(navigationColumn, 0, 0).y
+                                    if (top < navigationFlick.contentY) navigationFlick.contentY = top
+                                    else if (top + height > navigationFlick.contentY + navigationFlick.height)
+                                        navigationFlick.contentY = top + height - navigationFlick.height
+                                }
+                            }
+                        }
                     }
                 }
-
-                Item { Layout.fillHeight: true }
 
                 Rectangle {
                     Layout.fillWidth: true
@@ -1239,7 +1351,7 @@ QQC2.ApplicationWindow {
                         id: hero
                         visible: win.activeSection === "home" && win.searchQuery === ""
                         width: parent.width
-                        height: visible ? win.fs(design.commandCenterHeroHeight) : 0
+                        height: visible ? win.fs(width < win.fs(800) ? design.commandCenterHeroHeight : 248) : 0
                         radius: design.radiusDialog
                         surfaceColor: win.raisedStrong
                         inkColor: win.textColor
@@ -1456,6 +1568,38 @@ QQC2.ApplicationWindow {
                         }
                     }
 
+                    ColumnLayout {
+                        visible: win.activeSection === "home" && win.searchQuery === ""
+                        width: parent.width
+                        height: visible ? implicitHeight : win.fs(0)
+                        spacing: design.space3
+                        Text {
+                            Layout.fillWidth: true
+                            text: win.local("مساحة عملك في MoOS", "Your MoOS workspace")
+                            color: win.textColor
+                            font.pixelSize: win.typePx(design.typeTitle)
+                            font.weight: Font.DemiBold
+                            horizontalAlignment: Text.AlignLeft
+                        }
+                        GridLayout {
+                            Layout.fillWidth: true
+                            columns: width >= win.fs(500) ? 2 : 1
+                            columnSpacing: design.space3
+                            rowSpacing: design.space3
+                            Repeater {
+                                model: win.sections.filter(function(section) {
+                                    return ["appearance", "connectivity", "apps", "system"].indexOf(section.id) >= 0
+                                })
+                                delegate: WorkspaceCard {
+                                    required property var modelData
+                                    sectionData: modelData
+                                    Layout.fillWidth: true
+                                    Layout.preferredWidth: win.fs(1)
+                                }
+                            }
+                        }
+                    }
+
                     Flow {
                         visible: win.activeSection === "home" && win.searchQuery === ""
                         width: parent.width
@@ -1546,94 +1690,6 @@ QQC2.ApplicationWindow {
                             value: win.statusLoaded ? win.uptimeLabel(win.status.uptimeSeconds) : "—"
                             progress: -1
                             tone: win.positiveColor
-                        }
-                    }
-
-                    ColumnLayout {
-                        visible: win.activeSection === "home" && win.searchQuery === ""
-                        width: parent.width
-                        height: visible ? implicitHeight : win.fs(0)
-                        spacing: design.space3
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Text {
-                                Layout.fillWidth: true
-                                text: win.local("فئات الإعدادات", "Settings categories")
-                                color: win.textColor
-                                font.pixelSize: win.typePx(design.typeTitle)
-                                font.weight: Font.DemiBold
-                                horizontalAlignment: Text.AlignLeft
-                            }
-                            Text {
-                                text: win.local("اختر الإعدادات التي تريد تغييرها", "Choose what to configure")
-                                color: win.mutedColor
-                                font.pixelSize: win.typePx(design.typeCaption)
-                            }
-                        }
-
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: win.fs(102)
-                            radius: design.radiusCard
-                            color: win.surface
-                            border.width: 1
-                            border.color: win.faintOutline
-
-                            RowLayout {
-                                anchors.fill: parent
-                                anchors.margins: design.space2
-                                spacing: 0
-
-                                Repeater {
-                                    model: win.sections.slice(1)
-                                    delegate: QQC2.AbstractButton {
-                                        id: laneButton
-                                        required property var modelData
-                                        Layout.fillWidth: true
-                                        Layout.fillHeight: true
-                                        hoverEnabled: true
-                                        activeFocusOnTab: true
-                                        Accessible.role: Accessible.Button
-                                        Accessible.name: win.local(modelData.ar, modelData.en)
-                                        onClicked: win.selectSection(modelData.id)
-
-                                        background: Rectangle {
-                                            radius: design.radiusControl
-                                            color: laneButton.hovered
-                                                   ? Qt.rgba(win.accent.r, win.accent.g,
-                                                             win.accent.b, 0.13)
-                                                   : "transparent"
-                                        }
-                                        contentItem: ColumnLayout {
-                                            spacing: design.space2
-                                            MoUI.SymbolIcon {
-                                                Layout.alignment: Qt.AlignHCenter
-                                                Layout.preferredWidth: win.fs(24)
-                                                Layout.preferredHeight: win.fs(24)
-                                                symbol: MoUI.SymbolCatalog.resolve(laneButton.modelData.glyph)
-                                                foreground: laneButton.hovered
-                                                            ? win.accent : win.textColor
-                                            }
-                                            Text {
-                                                Layout.fillWidth: true
-                                                text: win.local(laneButton.modelData.ar,
-                                                                laneButton.modelData.en)
-                                                color: win.textColor
-                                                font.pixelSize: win.typePx(design.typeCaption)
-                                                font.weight: Font.DemiBold
-                                                horizontalAlignment: Text.AlignHCenter
-                                                elide: Text.ElideRight
-                                            }
-                                        }
-                                        FocusRing {
-                                            anchors.fill: laneButton
-                                            accentColor: win.accent
-                                            controlRadius: design.radiusControl
-                                        }
-                                    }
-                                }
-                            }
                         }
                     }
 

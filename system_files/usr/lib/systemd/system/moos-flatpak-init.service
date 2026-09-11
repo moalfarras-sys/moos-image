@@ -1,0 +1,14 @@
+[Unit]
+Description=Prepare the MoOS application store on first boot
+After=local-fs.target
+Before=display-manager.service flatpak-system-helper.service
+ConditionPathExists=!/var/lib/flatpak/repo/config
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/flatpak config --system --set extra-languages "ar;en;de"
+TimeoutStartSec=30
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

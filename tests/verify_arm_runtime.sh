@@ -24,6 +24,13 @@ grep -qx 'status: done' <<<"$cloud_status"
 grep -qx 'extended_status: done' <<<"$cloud_status"
 [ "$(systemctl is-active graphical.target)" = "active" ]
 [ "$(systemctl is-active display-manager.service)" = "active" ]
+# Observe first-boot store state before Flatpak can initialize it implicitly.
+[ -s /var/lib/flatpak/repo/config ]
+[ -s /var/lib/flatpak/repo/flathub.trustedkeys.gpg ]
+[ "$(flatpak config --system --get extra-languages)" = 'ar;en;de' ]
+store_remotes="$(flatpak remotes --system --columns=name)"
+grep -Fx flathub <<<"$store_remotes" >/dev/null
+printf 'store=initialized\nstore-languages=ar;en;de\n'
 account_path="$(busctl call org.freedesktop.Accounts /org/freedesktop/Accounts \
     org.freedesktop.Accounts FindUserByName s moos)"
 [[ "$account_path" == *"/org/freedesktop/Accounts/User"* ]]

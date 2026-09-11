@@ -143,7 +143,10 @@ grep -E '^(NAME|PRETTY_NAME|ID|VERSION_ID|LOGO|HOME_URL|DOCUMENTATION_URL|SUPPOR
 # The COPR is enabled only for this install and disabled right after, so the
 # shipped image does not carry an active third-party repo.
 dnf5 -y copr enable ublue-os/packages
-dnf5 -y install uupd skopeo qemu-guest-agent
+# /var/cache survives local builds. Refresh metadata before the first package
+# transaction so the later NVIDIA multilib installer does not request retired
+# RPMs from a previous compose (observed mesa i686 404 on 2026-09-11).
+dnf5 --refresh -y install uupd skopeo qemu-guest-agent
 dnf5 -y copr disable ublue-os/packages
 [ -x /usr/bin/skopeo ] \
     || { echo "GATE FAIL: signed image updater requires /usr/bin/skopeo"; exit 1; }
@@ -2260,16 +2263,10 @@ curl -Lf --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 30 \
     -o /etc/flatpak/remotes.d/flathub.flatpakrepo \
     https://dl.flathub.org/repo/flathub.flatpakrepo
 
-# Pre-seed the languages Flathub apps carry, regardless of which one the user
-# picks at first run. The org.freedesktop.Platform.Locale extension otherwise
-# defaults to "match the host locale only" — so a user who installs an app in
-# English and later switches to Arabic gets an app with no Arabic strings until a
-# manual `flatpak update`. Declaring all three shipped languages here means every
-# Flathub install already carries ar/en/de locale data; moos-lang then only has
-# to point the SESSION at the chosen one. System-wide default; a per-user
-# `flatpak config --user --set languages` (moos-lang) still refines it.
-flatpak config --set extra-languages 'ar;en;de' 2>/dev/null || \
-    echo "note: flatpak extra-languages not set at build time (set per-user by moos-lang)" >&2
+# Mutable Flatpak installation data belongs to the machine, not the image.
+# Fresh systems create their store and locale defaults offline at boot. Existing
+# installations keep their own configuration; moos-lang owns per-user changes.
+systemctl enable moos-flatpak-init.service
 
 # -----------------------------------------------------------------------------
 # (c8) First-boot experience — permissions safety net
@@ -2342,7 +2339,7 @@ fi
 #    fourteen times per boot, at ERROR priority. Creating the group is the whole
 #    fix; the rules then resolve, and a FIDO key plugged into this machine gets the
 #    permissions it was always supposed to have.
-getent group plugdev >/dev/null || groupadd -r plugdev
+systemd-sysusers /usr/lib/sysusers.d/moos-hardware.conf
 
 # -----------------------------------------------------------------------------
 # (d) Enable services
@@ -4586,6 +4583,7 @@ _rival_wants="$(find /usr/lib/systemd/system /etc/systemd/system -path '*.wants/
          echo "${_rival_wants}"; exit 1; }
 unset -v _rival_wants
 
+python3 /ctx/finalize_image_state.py --root /
 python3 /ctx/verify_no_foreign_identity.py
 
 echo "MoOS build.sh finished OK"
