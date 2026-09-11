@@ -138,4 +138,28 @@ class ImageStateTests(unittest.TestCase):
                                             capture_output=True)
                     self.assertEqual(result.returncode == 0, fault == 'healthy', result.stderr)
 
+    def test_arm_authselect_seed_preserves_existing_machine_checksum(self):
+        code = (ROOT/'build_files/build-arm.sh').read_text()
+        start = code.index('if [ -f /var/lib/authselect/checksum ]; then')
+        block = code[start:code.index('\nfi', start)+3]
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            state=root/'var/lib/authselect/checksum'
+            state.parent.mkdir(parents=True); state.write_text('applied-profile-checksum')
+            (root/'usr/lib/tmpfiles.d').mkdir(parents=True)
+            # Run the actual compose block against an isolated filesystem.
+            subprocess.run(['bash','-ec', block.replace('/var/lib/', directory+'/var/lib/')
+                            .replace('/usr/lib/', directory+'/usr/lib/')], check=True)
+            self.assertFalse(state.exists())
+            policy=root/'usr/lib/tmpfiles.d/moos-authselect-state.conf'
+            self.assertIn('0644 root root -', policy.read_text())
+            # The test runs unprivileged; retain its UID/GID while executing
+            # the identical copy-if-absent operation and mode from the policy.
+            policy.write_text(policy.read_text().replace(directory, '').replace('root root', '- -'))
+            for expected in ('applied-profile-checksum','machine-custom-checksum'):
+                subprocess.run(['systemd-tmpfiles','--root',directory,'--create',str(policy)],
+                               check=True,capture_output=True)
+                self.assertEqual(state.read_text(), expected)
+                state.write_text('machine-custom-checksum')
+
 if __name__ == '__main__': unittest.main()

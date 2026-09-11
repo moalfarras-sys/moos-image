@@ -1339,6 +1339,20 @@ curl -Lf --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 30 \
 systemctl enable moos-flatpak-init.service
 systemd-sysusers /usr/lib/sysusers.d/moos-hardware.conf
 
+# Preserve authselect's last-applied profile checksum outside mutable /var.
+# Its existing apply-changes service remains the owner of profile upgrades.
+# tmpfiles seeds only a missing checksum; it never overwrites a machine's state.
+if [ -f /var/lib/authselect/checksum ]; then
+    [ ! -L /var/lib/authselect ] && [ ! -L /var/lib/authselect/checksum ]
+    install -D -m0644 /var/lib/authselect/checksum /usr/lib/moos/authselect-checksum
+    cmp /var/lib/authselect/checksum /usr/lib/moos/authselect-checksum
+    cat > /usr/lib/tmpfiles.d/moos-authselect-state.conf <<'AUTHSELECT_STATE'
+d /var/lib/authselect 0755 root root -
+C /var/lib/authselect/checksum 0644 root root - /usr/lib/moos/authselect-checksum
+AUTHSELECT_STATE
+    rm /var/lib/authselect/checksum
+fi
+
 dnf5 clean all
 rm -rf /var/cache/* /var/log/* /tmp/* || true
 # bootc requires /var to be empty of anything the image is not entitled to own.

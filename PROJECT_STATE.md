@@ -33,6 +33,16 @@ its trusted key and `ar;en;de`. This is image evidence, not signed boot proof.
 Logs: `/var/tmp/moos-integrated-nvidia-final-build.log` and
 `/var/tmp/moos-integrated-image-verification.log`.
 
+**ARM candidate correction (2026-09-11):** native CI run `34580503351`
+reached finalization but correctly rejected `/var/lib/authselect/checksum`.
+ARM compose now preserves the exact applied-profile checksum in immutable
+storage and emits a tmpfiles copy-if-absent rule. Existing machine checksums
+are never overwritten; upstream authselect remains the profile-upgrade owner.
+Eight image-state tests pass, including actual tmpfiles preservation. The real
+compose block also passed in a disposable image with `authselect check` valid
+after recreation. This ARM-only correction requires fresh CI candidate proof;
+no x86 runtime/build behavior was changed by it.
+
 **Release train and live origin re-verified (2026-09-11):** the prior claim that
 promotion never ran is superseded. [Promotion run 34432578942](https://github.com/moalfarras-sys/moos-image/actions/runs/34432578942)
 completed successfully on 2026-09-10 for `c0cc94e7213cafde8ddbc58d292084ae52af70f0`.

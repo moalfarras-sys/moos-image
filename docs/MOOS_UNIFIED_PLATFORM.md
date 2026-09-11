@@ -116,11 +116,19 @@ manager. It uses no network; existing repo configuration causes the unit to skip
 This is a one-shot initialization, not a second update service. x86 and ARM both
 enable it. `moos-hardware.conf` declares the `plugdev` group through sysusers.
 
-Seven image-state tests exercise preservation, rejection, enable symlink wiring,
+Eight image-state tests exercise preservation, rejection, enable symlink wiring,
 tmpfiles directory recreation with its original mode, and the real x86/ARM/ISO
 store-check snippets against healthy and broken fixtures.
 The artifact checks read the repo and trusted key **before** invoking Flatpak,
 so Flatpak cannot silently initialize them and create a false-green boot test.
+
+The native ARM candidate exposed another lifecycle issue: its package setup
+writes `/var/lib/authselect/checksum`. The ARM compose path preserves those exact
+bytes under `/usr/lib/moos` and uses a tmpfiles copy-if-absent rule to initialize
+fresh systems without overwriting existing machine checksums. Upstream's
+`authselect-apply-changes.service` keeps ownership of profile upgrades.
+The actual compose block, checksum restoration and `authselect check` passed
+in a disposable local image; native ARM CI must repeat the complete proof.
 
 The NVIDIA build also exposed expired shared DNF metadata requesting a retired
 Mesa i686 RPM (HTTP 404). A fresh query resolved an available newer version.
