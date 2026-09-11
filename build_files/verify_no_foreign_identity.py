@@ -187,17 +187,29 @@ def check_unit_identity() -> None:
 
     Scope is deliberate: only units NOT owned by an RPM. A packaged unit's name is not
     MoOS's to change — renaming it means every update silently restores the old name while
-    the rename appears to work, and other units reference it by name. Two package-owned
-    families are therefore expected and allowed, and they are not branding:
+    the rename appears to work, and other units reference it by name. Protocol/installer
+    package-owned families are therefore expected and allowed:
       - dbus-org.fedoraproject.FirewallD1.service — a D-Bus interface NAME that firewalld
         activates on. It is a protocol identifier; renaming it breaks the firewall.
-      - flatpak-add-fedora-repos / ublue-nvctk-cdi / anaconda-* — owned by their packages.
+      - ublue-nvctk-cdi / anaconda-* — owned by their packages.
+    flatpak-add-fedora-repos is different: it ran during boot, printed the foreign name on
+    the console and populated Discover with foreign remotes. build.sh must mask it and the
+    checks below prove neither a vendor preset nor a wants link can execute it.
     Documentation= URLs are not checked: they cite the real upstream bug a workaround
     exists for, which is provenance, not branding.
     """
     unit_dir = ROOT / "usr/lib/systemd/system"
     if not unit_dir.is_dir():
         return
+    inherited_store = "flatpak-add-fedora-repos.service"
+    mask = ROOT / "etc/systemd/system" / inherited_store
+    if not mask.is_symlink() or mask.readlink() != Path("/dev/null"):
+        fail("the inherited Flatpak bootstrap is not masked — it would expose foreign "
+             "remotes and its foreign unit name during boot")
+    for wants_root in (ROOT / "usr/lib/systemd/system", ROOT / "etc/systemd/system"):
+        if wants_root.is_dir():
+            for path in wants_root.glob(f"*.wants/{inherited_store}"):
+                fail(f"the inherited Flatpak bootstrap is still pulled into boot: {path}")
     foreign = re.compile(r"fedora|kinoite|silverblue|redhat|red-hat|rhel", re.I)
     for path in sorted(unit_dir.glob("*")):
         if not path.is_file() or path.is_symlink():

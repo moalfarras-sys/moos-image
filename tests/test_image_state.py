@@ -9,6 +9,7 @@ import os
 import shlex
 import pwd
 import grp
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 finalize = runpy.run_path(str(ROOT / 'build_files/finalize_image_state.py'))['finalize']
@@ -24,6 +25,9 @@ class ImageStateTests(unittest.TestCase):
             path = root / name
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text('fixture')
+        var_tmp = root/'var/tmp'
+        var_tmp.mkdir(parents=True, exist_ok=True)
+        var_tmp.chmod(0o1777)
 
     def test_cleanup_keeps_boot_and_immutable_store_policy(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -32,6 +36,7 @@ class ImageStateTests(unittest.TestCase):
             self.assertEqual((root/'boot/efi/EFI/moos/loader.efi').read_text(), 'fixture')
             self.assertTrue((root/'etc/flatpak/remotes.d/flathub.flatpakrepo').is_file())
             self.assertFalse((root/'var/lib/flatpak').exists())
+            self.assertFalse((root/'var/lib').exists())
             self.assertFalse((root/'run/cockpit').exists())
             self.assertEqual((root/'usr/share/doc/moos-xkb/README.compiled').read_text(), 'fixture')
             finalize(root)  # idempotent
@@ -55,7 +60,7 @@ class ImageStateTests(unittest.TestCase):
             self.assertIn('d /var/lib/lxc 0750 ', policy.read_text())
             self.assertNotIn('winbindd_privileged', policy.read_text())
             self.assertFalse(runtime.exists())
-            package_state.rmdir()
+            self.assertFalse(package_state.exists())
             account = pwd.getpwuid(os.getuid())
             group = grp.getgrgid(os.getgid())
             (root/'etc/passwd').write_text(
@@ -92,23 +97,141 @@ class ImageStateTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, 'unexpected symlink'): finalize(root)
             self.assertTrue((root/'boot/efi/EFI/moos/loader.efi').exists())
 
+    def test_unknown_directories_links_and_run_state_are_rejected(self):
+        for kind in ('empty-directory', 'symlink', 'dangling-symlink', 'run-file',
+                     'cleanup-file', 'cleanup-mount'):
+            with self.subTest(kind=kind), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory); self.fixture(root)
+                if kind == 'empty-directory':
+                    (root/'var/lib/unowned-empty').mkdir(parents=True)
+                elif kind == 'symlink':
+                    path = root/'var/lib/unowned-link'; path.parent.mkdir(parents=True, exist_ok=True)
+                    path.symlink_to(root/'boot')
+                elif kind == 'dangling-symlink':
+                    path = root/'var/lib/flatpak/unowned-link'; path.parent.mkdir(parents=True, exist_ok=True)
+                    path.symlink_to(root/'missing')
+                else:
+                    path = root/'run/unowned-state'; path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_text('state')
+                if kind in ('cleanup-file', 'cleanup-mount'):
+                    import shutil
+                    path = root/'var/lib/flatpak'
+                    if kind == 'cleanup-file':
+                        shutil.rmtree(path); path.write_text('must-not-delete')
+                        context = mock.patch('os.path.ismount', return_value=False)
+                    else:
+                        context = mock.patch(
+                            'os.path.ismount',
+                            side_effect=lambda candidate: Path(candidate) == path,
+                        )
+                    with context, self.assertRaisesRegex(
+                            RuntimeError, 'cleanup state|unsafe mount'):
+                        finalize(root)
+                    self.assertTrue(path.exists())
+                else:
+                    with self.assertRaisesRegex(RuntimeError, 'unexpected mutable|unsafe entry'):
+                        finalize(root)
+
     def test_first_boot_unit_is_wired_and_preserves_existing_config(self):
         name = 'moos-flatpak-init.service'
         source = ROOT/'system_files/usr/lib/systemd/system'/name
         text = source.read_text()
-        self.assertIn('ConditionPathExists=!/var/lib/flatpak/repo/config', text)
-        self.assertIn('ExecStart=/usr/bin/flatpak config --system --set extra-languages "ar;en;de"', text)
+        self.assertNotIn('ConditionPathExists=', text)
+        self.assertIn('ExecStart=/usr/bin/bash /usr/libexec/moos-flatpak-init', text)
         self.assertIn('Before=display-manager.service flatpak-system-helper.service', text)
+        helper = (ROOT/'system_files/usr/libexec/moos-flatpak-init').read_text()
+        self.assertIn('flatpak-init.pending', helper)
+        self.assertIn('flatpak-init.complete', helper)
+        self.assertIn('--show-disabled --columns=name,url,options', helper)
+        self.assertNotIn('remote-delete --system --force', helper)
+        preset = ROOT/'system_files/usr/lib/systemd/system-preset/00-moos-flatpak.preset'
+        self.assertIn('enable moos-flatpak-init.service', preset.read_text())
+        self.assertIn('disable flatpak-add-fedora-repos.service', preset.read_text())
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory); unit=root/'usr/lib/systemd/system'/name
             unit.parent.mkdir(parents=True); unit.write_text(text)
-            subprocess.run(['systemctl', '--root', directory, 'enable', name], check=True, capture_output=True)
+            inherited = unit.with_name('flatpak-add-fedora-repos.service')
+            inherited.write_text('[Install]\nWantedBy=multi-user.target\n')
+            preset_copy = root/'usr/lib/systemd/system-preset/00-moos-flatpak.preset'
+            preset_copy.parent.mkdir(parents=True); preset_copy.write_text(preset.read_text())
+            catch_all = preset_copy.with_name('99-default-disable.preset')
+            catch_all.write_text('disable *\n')
+            subprocess.run(['systemctl', '--root', directory, 'preset-all'],
+                           check=True, capture_output=True)
             self.assertTrue((root/'etc/systemd/system/multi-user.target.wants'/name).is_symlink())
+            self.assertFalse((root/'etc/systemd/system/multi-user.target.wants'/inherited.name).exists())
+            subprocess.run(['systemctl', '--root', directory, 'mask', inherited.name],
+                           check=True, capture_output=True)
+            masked = subprocess.run(['systemctl', '--root', directory, 'is-enabled', inherited.name],
+                                    text=True, check=False, capture_output=True)
+            self.assertEqual(masked.stdout.strip(), 'masked')
+            subprocess.run(['systemctl', '--root', directory, 'preset-all'],
+                           check=True, capture_output=True)
+            self.assertEqual((root/'etc/systemd/system'/inherited.name).readlink(), Path('/dev/null'))
         for script in ('build.sh','build-arm.sh'):
             code=(ROOT/'build_files'/script).read_text()
             self.assertIn('systemctl enable '+name,code)
+            self.assertIn('systemctl disable flatpak-add-fedora-repos.service', code)
+            self.assertIn('systemctl mask flatpak-add-fedora-repos.service', code)
             self.assertIn('python3 /ctx/finalize_image_state.py --root /',code)
             self.assertGreater(code.index('python3 /ctx/finalize_image_state.py'), code.rindex('dnf5 '))
+
+    def test_store_helper_completes_fresh_state_and_migrates_only_safe_legacy(self):
+        source = (ROOT/'system_files/usr/libexec/moos-flatpak-init').read_text()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            store = root/'store'; state = root/'moos'; descriptor = root/'flathub.flatpakrepo'
+            descriptor.write_text('descriptor')
+            fake = root/'flatpak'; log = root/'calls'
+            fake.write_text("""#!/usr/bin/env bash
+set -eu
+printf '%s\\n' "$*" >>"$TEST_LOG"
+case "$1" in
+  remote-add)
+    mkdir -p "$TEST_STORE/repo"
+    printf 'gpg-verify=true\\n' >"$TEST_STORE/repo/config"
+    printf 'key' >"$TEST_STORE/repo/flathub.trustedkeys.gpg" ;;
+  config)
+    if [ "${3:-}" = --get ]; then printf 'ar;en;de\\n'; fi ;;
+  list) printf '%s' "${TEST_ORIGINS:-}" ;;
+  remotes)
+    case "$*" in
+      *"--columns=name,url") printf 'flathub\\thttps://dl.flathub.org/repo/\\n' ;;
+      *) printf '%s' "${TEST_REMOTES:-}" ;;
+    esac ;;
+  remote-delete) printf '%s\\n' "${3:-}" >>"$TEST_DELETES" ;;
+esac
+""")
+            fake.chmod(0o755)
+            code = (source.replace('/usr/bin/flatpak', str(fake))
+                          .replace('/var/lib/flatpak', str(store))
+                          .replace('/var/lib/moos', str(state))
+                          .replace('/etc/flatpak/remotes.d/flathub.flatpakrepo', str(descriptor)))
+            deletes = root/'deletes'
+            env = {**os.environ, 'TEST_LOG': str(log), 'TEST_STORE': str(store),
+                   'TEST_DELETES': str(deletes),
+                   'TEST_REMOTES': 'flathub\thttps://dl.flathub.org/repo/\n'}
+            subprocess.run(['bash', '-ec', code], env=env, check=True, capture_output=True)
+            self.assertTrue((state/'flatpak-init.complete').is_file())
+            self.assertFalse((state/'flatpak-init.pending').exists())
+            self.assertFalse(deletes.exists())
+
+            # Exact disabled legacy entries with no installed origin migrate.
+            env['TEST_REMOTES'] = (
+                'fedora\toci+https://registry.fedoraproject.org\tdisabled,oci\n'
+                'fedora-testing\toci+https://registry.fedoraproject.org#testing\tdisabled,oci\n'
+                'flathub\thttps://dl.flathub.org/repo/\n')
+            subprocess.run(['bash', '-ec', code], env=env, check=True, capture_output=True)
+            self.assertEqual(deletes.read_text().splitlines(), ['fedora', 'fedora-testing'])
+
+            # An installed origin and a user-enabled remote are both preserved.
+            deletes.unlink()
+            env['TEST_ORIGINS'] = 'fedora\n'
+            env['TEST_REMOTES'] = (
+                'fedora\toci+https://registry.fedoraproject.org\tdisabled,oci\n'
+                'fedora-testing\toci+https://registry.fedoraproject.org#testing\toci\n')
+            subprocess.run(['bash', '-ec', code], env=env, check=True, capture_output=True)
+            self.assertFalse(deletes.exists())
 
     def test_artifact_boot_checks_reject_missing_or_wrong_store_state(self):
         for script, end in (('boot_x86_qcow2.sh', "printf 'store=initialized"),
@@ -121,16 +244,22 @@ class ImageStateTests(unittest.TestCase):
                 with self.subTest(script=script, fault=fault), tempfile.TemporaryDirectory() as directory:
                     root = Path(directory)
                     repo = root/'repo'; repo.mkdir()
-                    for name in ('config', 'flathub.trustedkeys.gpg'):
-                        (repo/name).write_text('fixture')
+                    (repo/'config').write_text('gpg-verify=true\n')
+                    (repo/'flathub.trustedkeys.gpg').write_text('fixture')
                     if fault == 'missing-config': (repo/'config').unlink()
                     if fault == 'missing-key': (repo/'flathub.trustedkeys.gpg').unlink()
                     flatpak = root/'flatpak'
                     languages = 'en' if fault == 'language' else 'ar;en;de'
                     remote = 'unexpected' if fault == 'remote' else 'flathub'
-                    flatpak.write_text('#!/bin/sh\ncase "$1" in\n'
-                                       + 'config) printf "%s\\n" '+shlex.quote(languages)+';;\n'
-                                       + 'remotes) printf "%s\\n" '+shlex.quote(remote)+';;\nesac\n')
+                    details = ('flathub\thttps://dl.flathub.org/repo/'
+                               if remote == 'flathub' else 'unexpected\thttps://example.invalid/')
+                    flatpak.write_text('#!/bin/sh\ncase "$*" in\n'
+                                       + '"config --system --get extra-languages") printf "%s\\n" '
+                                       + shlex.quote(languages)+';;\n'
+                                       + '*"--columns=name,url,options"*) printf "%s\\n" '
+                                       + shlex.quote(details)+';;\n'
+                                       + '*"--columns=name"*) printf "%s\\n" '
+                                       + shlex.quote(remote)+';;\nesac\n')
                     flatpak.chmod(0o755)
                     result = subprocess.run(['bash', '-ec', 'gate_fail() { exit 1; }\n'
                                              + check.replace('/var/lib/flatpak/repo', str(repo))],
@@ -140,8 +269,11 @@ class ImageStateTests(unittest.TestCase):
 
     def test_arm_authselect_seed_preserves_existing_machine_checksum(self):
         code = (ROOT/'build_files/build-arm.sh').read_text()
-        start = code.index('if [ -f /var/lib/authselect/checksum ]; then')
-        block = code[start:code.index('\nfi', start)+3]
+        self.assertIn('[ -s /var/lib/authselect/checksum ]', code)
+        self.assertLess(code.index('authselect check'), code.index('rm /var/lib/authselect/checksum'))
+        start = code.index('[ ! -L /var/lib/authselect ]')
+        end = code.index('rm /var/lib/authselect/checksum', start) + len('rm /var/lib/authselect/checksum')
+        block = code[start:end]
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory)
             state=root/'var/lib/authselect/checksum'

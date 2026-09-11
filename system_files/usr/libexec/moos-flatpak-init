@@ -1,0 +1,50 @@
+#!/usr/bin/bash
+# Own the system Flatpak installation without changing an existing user's
+# chosen remotes or language policy. Fresh machines are initialized entirely
+# from the immutable Flathub descriptor, so first boot does not need a network.
+set -euo pipefail
+export LC_ALL=C
+
+config=/var/lib/flatpak/repo/config
+state_dir=/var/lib/moos
+pending="$state_dir/flatpak-init.pending"
+complete="$state_dir/flatpak-init.complete"
+if [ ! -s "$config" ]; then
+    /usr/bin/mkdir -p "$state_dir"
+    : >"$pending"
+fi
+if [ -e "$pending" ]; then
+    /usr/bin/flatpak remote-add --system --if-not-exists \
+        flathub /etc/flatpak/remotes.d/flathub.flatpakrepo
+    /usr/bin/flatpak config --system --set extra-languages "ar;en;de"
+    [ -s "$config" ]
+    [ -s /var/lib/flatpak/repo/flathub.trustedkeys.gpg ]
+    [ "$(/usr/bin/flatpak config --system --get extra-languages)" = "ar;en;de" ]
+    [ "$(/usr/bin/flatpak remotes --system --show-disabled --columns=name,url)" \
+        = $'flathub\thttps://dl.flathub.org/repo/' ]
+    grep -q '^gpg-verify=true$' "$config"
+    /usr/bin/mv -f "$pending" "$complete"
+fi
+
+# Older base images seeded two disabled remotes. Remove only the exact automatic
+# entries and only while no installed system ref depends on them. A remote the
+# owner enabled or used is left untouched; fresh MoOS machines never create it.
+installed_origins="$(/usr/bin/flatpak list --system --columns=origin)"
+remote_rows="$(/usr/bin/flatpak remotes --system --show-disabled --columns=name,url,options)"
+while IFS=$'\t' read -r name url options; do
+    case "${name}|${url}" in
+        'fedora|oci+https://registry.fedoraproject.org'|\
+        'fedora-testing|oci+https://registry.fedoraproject.org#testing')
+            ;;
+        *)
+            continue
+            ;;
+    esac
+    case ",${options}," in
+        *,disabled,*) ;;
+        *) continue ;;
+    esac
+    if ! grep -Fx "$name" <<<"$installed_origins" >/dev/null; then
+        /usr/bin/flatpak remote-delete --system "$name"
+    fi
+done <<<"$remote_rows"

@@ -9,6 +9,15 @@ booted on signed `44.20260910.796`, retaining signed `44.20260908.782` for
 rollback. New changes need their own candidate, disk and ISO proofs; earlier
 success does not qualify a changed image. See `PROJECT_STATE.md`.
 
+Candidate `a0e7ef96` is explicitly rejected: its three x86 images and three
+QCOW2 proofs passed, but ISO run `34583782652` proved the MoOS Flatpak bootstrap
+lost its enablement during installer presets while the inherited foreign-remote
+bootstrap ran. ARM run `34581668929` also exposed their race and an early
+graphical readiness sample. Source now gives MoOS one preset-backed store owner,
+masks the inherited unit, rejects hidden disabled remotes, waits for ARM
+readiness and strictly owns empty mutable directories. All five x86 proofs and
+the ARM pipeline must start again from the corrected commit.
+
 **Release integration 2026-09-07:** `main` was unbuildable for all three x86
 editions (a comment inside a backslash continuation truncated a `sed`); fixed
 and gated. The Device page named hardware that does not exist on aarch64; fixed

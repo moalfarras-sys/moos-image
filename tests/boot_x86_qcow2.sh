@@ -453,6 +453,14 @@ for unit in graphical.target display-manager.service plasmalogin.service Network
 done
 [ "$(systemctl show -p Id --value display-manager.service 2>/dev/null || true)" = plasmalogin.service ] \
     || gate_fail display-manager-identity
+[ "$(systemctl is-enabled moos-flatpak-init.service 2>/dev/null || true)" = enabled ] \
+    || gate_fail store-owner-enabled
+[ "$(systemctl is-enabled flatpak-add-fedora-repos.service 2>/dev/null || true)" = masked ] \
+    || gate_fail inherited-store-owner-not-masked
+[ "$(systemctl show -p ActiveState --value moos-flatpak-init.service 2>/dev/null || true)" = active ] \
+    || gate_fail store-owner-inactive
+[ "$(systemctl show -p Result --value moos-flatpak-init.service 2>/dev/null || true)" = success ] \
+    || gate_fail store-owner-failed
 grep -q '^mo:' /etc/passwd || gate_fail provisioned-user
 account_path="$(busctl call org.freedesktop.Accounts \
     /org/freedesktop/Accounts org.freedesktop.Accounts FindUserByName s mo)"
@@ -496,8 +504,12 @@ INNER
 [ -s /var/lib/flatpak/repo/config ] || gate_fail store-not-initialized
 [ -s /var/lib/flatpak/repo/flathub.trustedkeys.gpg ] || gate_fail store-trust-missing
 [ "$(flatpak config --system --get extra-languages)" = 'ar;en;de' ] || gate_fail store-languages
-store_remotes="$(flatpak remotes --system --columns=name)"
-grep -Fx flathub <<<"$store_remotes" >/dev/null || gate_fail store-remote
+store_remotes="$(flatpak remotes --system --show-disabled --columns=name)"
+[ "$store_remotes" = flathub ] || gate_fail store-remotes
+store_details="$(flatpak remotes --system --show-disabled --columns=name,url,options)"
+grep -Fx $'flathub\thttps://dl.flathub.org/repo/' <<<"$store_details" >/dev/null \
+    || gate_fail store-remote-url
+grep -q '^gpg-verify=true$' /var/lib/flatpak/repo/config || gate_fail store-signature-policy
 printf 'store=initialized\nstore-languages=ar;en;de\n'
 # Name the greeter's GL reality on every successful boot.  The helper deletes
 # the env file when it found a render node and writes llvmpipe lines into it

@@ -34,6 +34,7 @@
 # 40 MB of binaries the image must never see. (`just sync-moplayer` already vendors
 # only what git tracks, but the raw directories are here for anyone who copies one
 # in by hand.)
+flutter/
 moplayer/build/
 moplayer/.dart_tool/
 moplayer/linux/flutter/ephemeral/

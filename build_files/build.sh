@@ -2266,7 +2266,18 @@ curl -Lf --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 30 \
 # Mutable Flatpak installation data belongs to the machine, not the image.
 # Fresh systems create their store and locale defaults offline at boot. Existing
 # installations keep their own configuration; moos-lang owns per-user changes.
+# The base service also creates two disabled foreign remotes and races this one.
+# A mask wins over its vendor preset, while MoOS's own preset survives bootc
+# install/finalize rebuilding /etc on an installed target.
+test -f /usr/lib/systemd/system/flatpak-add-fedora-repos.service || {
+    echo "GATE FAIL: the inherited Flatpak bootstrap moved; MoOS cannot prove sole store ownership"
+    exit 1
+}
+systemctl disable flatpak-add-fedora-repos.service
+systemctl mask flatpak-add-fedora-repos.service
 systemctl enable moos-flatpak-init.service
+[ "$(systemctl is-enabled flatpak-add-fedora-repos.service)" = masked ]
+[ "$(systemctl is-enabled moos-flatpak-init.service)" = enabled ]
 
 # -----------------------------------------------------------------------------
 # (c8) First-boot experience — permissions safety net

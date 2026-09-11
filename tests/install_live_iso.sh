@@ -844,11 +844,18 @@ stage "origin=[$origin]"
     exit 1
 }
 stage passed signed-origin
+[ "$(systemctl is-enabled moos-flatpak-init.service 2>/dev/null || true)" = enabled ]
+[ "$(systemctl is-enabled flatpak-add-fedora-repos.service 2>/dev/null || true)" = masked ]
+[ "$(systemctl show -p ActiveState --value moos-flatpak-init.service 2>/dev/null || true)" = active ]
+[ "$(systemctl show -p Result --value moos-flatpak-init.service 2>/dev/null || true)" = success ]
 [ -s /var/lib/flatpak/repo/config ]
 [ -s /var/lib/flatpak/repo/flathub.trustedkeys.gpg ]
 [ "$(flatpak config --system --get extra-languages)" = 'ar;en;de' ]
-store_remotes="$(flatpak remotes --system --columns=name)"
-grep -Fx flathub <<<"$store_remotes" >/dev/null
+store_remotes="$(flatpak remotes --system --show-disabled --columns=name)"
+[ "$store_remotes" = flathub ]
+store_details="$(flatpak remotes --system --show-disabled --columns=name,url,options)"
+grep -Fx $'flathub\thttps://dl.flathub.org/repo/' <<<"$store_details" >/dev/null
+grep -q '^gpg-verify=true$' /var/lib/flatpak/repo/config
 stage passed store-initialized
 failed="$(systemctl --failed --no-legend --plain)"
 [ -z "$failed" ]

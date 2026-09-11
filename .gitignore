@@ -70,6 +70,7 @@ build-*.log
 .tmp-moremote-*/
 
 # Flutter/MoPlayer local build trees — image builds MoPlayer in Containerfile
+/flutter/
 moplayer/build/
 moplayer/.dart_tool/
 moplayer/.flutter-plugins-dependencies

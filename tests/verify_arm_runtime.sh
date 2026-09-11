@@ -22,15 +22,48 @@ printf '%s\n' "$cloud_status"
 }
 grep -qx 'status: done' <<<"$cloud_status"
 grep -qx 'extended_status: done' <<<"$cloud_status"
-[ "$(systemctl is-active graphical.target)" = "active" ]
-[ "$(systemctl is-active display-manager.service)" = "active" ]
+# SSH and cloud-init can become ready before the display manager transaction.
+# Wait for the actual desktop and MoOS store owner with a hard deadline; a
+# one-shot sample here caused run 34581668929 to reject a healthy late boot.
+desktop_deadline=$((SECONDS + 360))
+while [ "$SECONDS" -lt "$desktop_deadline" ]; do
+    graphical_state="$(systemctl is-active graphical.target 2>/dev/null || true)"
+    display_state="$(systemctl is-active display-manager.service 2>/dev/null || true)"
+    store_state="$(systemctl is-active moos-flatpak-init.service 2>/dev/null || true)"
+    store_result="$(systemctl show -p Result --value moos-flatpak-init.service 2>/dev/null || true)"
+    store_status="$(systemctl show -p ExecMainStatus --value moos-flatpak-init.service 2>/dev/null || true)"
+    if [ "$graphical_state" = active ] && [ "$display_state" = active ] \
+            && [ "$store_state" = active ] && [ "$store_result" = success ] \
+            && [ "$store_status" = 0 ]; then
+        break
+    fi
+    [ "$store_result" != failed ] || break
+    sleep 3
+done
+if [ "${graphical_state:-}" != active ] || [ "${display_state:-}" != active ] \
+        || [ "${store_state:-}" != active ] || [ "${store_result:-}" != success ] \
+        || [ "${store_status:-}" != 0 ]; then
+    systemctl status --no-pager --full graphical.target display-manager.service \
+        moos-flatpak-init.service >&2 || true
+    journalctl --no-pager -b -u display-manager.service \
+        -u moos-flatpak-init.service -n 160 >&2 || true
+    echo "ARM RUNTIME FATAL: desktop/store readiness deadline expired" >&2
+    exit 1
+fi
+[ "$(systemctl is-enabled moos-flatpak-init.service)" = enabled ]
+[ "$(systemctl is-enabled flatpak-add-fedora-repos.service)" = masked ]
 # Observe first-boot store state before Flatpak can initialize it implicitly.
 [ -s /var/lib/flatpak/repo/config ]
 [ -s /var/lib/flatpak/repo/flathub.trustedkeys.gpg ]
 [ "$(flatpak config --system --get extra-languages)" = 'ar;en;de' ]
-store_remotes="$(flatpak remotes --system --columns=name)"
-grep -Fx flathub <<<"$store_remotes" >/dev/null
+store_remotes="$(flatpak remotes --system --show-disabled --columns=name)"
+[ "$store_remotes" = flathub ]
+store_details="$(flatpak remotes --system --show-disabled --columns=name,url,options)"
+grep -Fx $'flathub\thttps://dl.flathub.org/repo/' <<<"$store_details" >/dev/null
+grep -q '^gpg-verify=true$' /var/lib/flatpak/repo/config
 printf 'store=initialized\nstore-languages=ar;en;de\n'
+[ -s /var/lib/authselect/checksum ]
+authselect check
 account_path="$(busctl call org.freedesktop.Accounts /org/freedesktop/Accounts \
     org.freedesktop.Accounts FindUserByName s moos)"
 [[ "$account_path" == *"/org/freedesktop/Accounts/User"* ]]

@@ -102,23 +102,34 @@ every external configuration page has been embedded.
 ### Image state and first-boot store
 
 `finalize_image_state.py` removes known derived DNF and empty Flatpak installation
-state after all package transactions. It refuses populated apps/runtimes,
-committed refs, symlinked cleanup targets and unknown regular files under `/var`.
+state after all package transactions. Before recursive deletion it rejects a
+cleanup root that became a file or mount and rejects links and special nodes
+inside it. Its final sweep rejects unknown files, empty directories, links and
+non-allowlisted mounts across both `/var` and `/run`. Explicit package-created
+directories are converted leaf-first into generated tmpfiles declarations with
+their measured modes and named owners, then removed from the image.
 The X server package's `README.compiled` is preserved under immutable
 `/usr/share/doc/moos-xkb`, and its empty keymap cache receives a tmpfiles
 declaration. This was caught by the full NVIDIA build after the generic
-experiment passed. Boot files are outside the cleanup scope. Buildah's injected DNS mount is left
-alone. The last identity firewall remains last and is unchanged.
+experiment passed. Boot files are outside the cleanup scope. Buildah's exact
+cache/runtime mounts and the base's zero-byte resolver mountpoint are validated
+through a narrow allowlist. The last identity firewall remains last and now also
+requires the inherited store bootstrap to be masked and absent from boot targets.
 
 `moos-flatpak-init.service` initializes fresh installations from the immutable
 Flathub remote declaration, with `extra-languages=ar;en;de`, before the display
-manager. It uses no network; existing repo configuration causes the unit to skip.
-This is a one-shot initialization, not a second update service. x86 and ARM both
-enable it. `moos-hardware.conf` declares the `plugdev` group through sysusers.
+manager. It uses a pending/completion transaction so a partial fresh store is
+retried, while existing repo configuration and user choices are preserved. An
+early preset keeps it enabled through bootc installer finalization. The base
+bootstrap is masked because it raced MoOS and added two disabled foreign remotes;
+the helper migrates only those exact automatic entries when no installed ref
+depends on them. This is a one-shot boot reconciliation, not a second update
+service. x86 and ARM share it. `moos-hardware.conf` declares `plugdev` via sysusers.
 
-Eight image-state tests exercise preservation, rejection, enable symlink wiring,
-tmpfiles directory recreation with its original mode, and the real x86/ARM/ISO
-store-check snippets against healthy and broken fixtures.
+Ten image-state tests exercise preservation, rejection, `preset-all` and mask
+survival, offline completion, safe legacy migration, tmpfiles directory
+recreation with its original mode, and the real x86/ARM/ISO store-check snippets
+against healthy and broken fixtures.
 The artifact checks read the repo and trusted key **before** invoking Flatpak,
 so Flatpak cannot silently initialize them and create a false-green boot test.
 
@@ -128,7 +139,9 @@ bytes under `/usr/lib/moos` and uses a tmpfiles copy-if-absent rule to initializ
 fresh systems without overwriting existing machine checksums. Upstream's
 `authselect-apply-changes.service` keeps ownership of profile upgrades.
 The actual compose block, checksum restoration and `authselect check` passed
-in a disposable local image; native ARM CI must repeat the complete proof.
+in a disposable local image. Compose now rejects a missing/empty checksum and
+the signed ARM disk gate runs `authselect check` on both boots; native ARM CI
+must repeat the complete proof.
 
 The NVIDIA build also exposed expired shared DNF metadata requesting a retired
 Mesa i686 RPM (HTTP 404). A fresh query resolved an available newer version.

@@ -1336,22 +1336,33 @@ mkdir -p /etc/flatpak/remotes.d
 curl -Lf --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 30 \
     -o /etc/flatpak/remotes.d/flathub.flatpakrepo \
     https://dl.flathub.org/repo/flathub.flatpakrepo
+test -f /usr/lib/systemd/system/flatpak-add-fedora-repos.service || {
+    echo "GATE FAIL: the inherited Flatpak bootstrap moved; MoOS cannot prove sole store ownership"
+    exit 1
+}
+systemctl disable flatpak-add-fedora-repos.service
+systemctl mask flatpak-add-fedora-repos.service
 systemctl enable moos-flatpak-init.service
+[ "$(systemctl is-enabled flatpak-add-fedora-repos.service)" = masked ]
+[ "$(systemctl is-enabled moos-flatpak-init.service)" = enabled ]
 systemd-sysusers /usr/lib/sysusers.d/moos-hardware.conf
 
 # Preserve authselect's last-applied profile checksum outside mutable /var.
 # Its existing apply-changes service remains the owner of profile upgrades.
 # tmpfiles seeds only a missing checksum; it never overwrites a machine's state.
-if [ -f /var/lib/authselect/checksum ]; then
-    [ ! -L /var/lib/authselect ] && [ ! -L /var/lib/authselect/checksum ]
-    install -D -m0644 /var/lib/authselect/checksum /usr/lib/moos/authselect-checksum
-    cmp /var/lib/authselect/checksum /usr/lib/moos/authselect-checksum
-    cat > /usr/lib/tmpfiles.d/moos-authselect-state.conf <<'AUTHSELECT_STATE'
+[ -s /var/lib/authselect/checksum ] || {
+    echo "GATE FAIL: ARM authselect checksum is absent or empty"
+    exit 1
+}
+authselect check
+[ ! -L /var/lib/authselect ] && [ ! -L /var/lib/authselect/checksum ]
+install -D -m0644 /var/lib/authselect/checksum /usr/lib/moos/authselect-checksum
+cmp /var/lib/authselect/checksum /usr/lib/moos/authselect-checksum
+cat > /usr/lib/tmpfiles.d/moos-authselect-state.conf <<'AUTHSELECT_STATE'
 d /var/lib/authselect 0755 root root -
 C /var/lib/authselect/checksum 0644 root root - /usr/lib/moos/authselect-checksum
 AUTHSELECT_STATE
-    rm /var/lib/authselect/checksum
-fi
+rm /var/lib/authselect/checksum
 
 dnf5 clean all
 rm -rf /var/cache/* /var/log/* /tmp/* || true

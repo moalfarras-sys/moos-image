@@ -8,19 +8,24 @@ navigation and a scrollable sidebar on short windows. Native source captures
 show resting card luminance deltas of 30.071 (dark) and 22.103 (light), with no
 installed desktop overrides. [Visual evidence](docs/evidence/settings-workspace-20260911/README.md).
 
-Compose now removes only known derived DNF/empty Flatpak state and rejects
-unexpected `/var` files. A first-boot unit initializes the system store and
-ar/en/de locale policy offline while preserving existing config. `plugdev` is
-owned by sysusers. A disposable image cleanup and offline store recreation
-passed; the full NVIDIA build now passes; signed fresh-install artifact proof remains pending.
+Compose now preflights every recursively cleaned tree, rejects files, empty
+directories, links, special nodes and non-allowlisted mounts under `/var` and
+`/run`, then converts the explicit cross-edition package directory set to
+tmpfiles ownership before removing it. A first-boot unit initializes the system
+store and ar/en/de locale policy offline while preserving existing config.
+It has an early system preset and is the sole store bootstrap; the inherited
+competing unit is masked. Its safe migration removes only the two exact disabled
+legacy remotes when no installed ref depends on them. `plugdev` is owned by
+sysusers. Offline fresh/migration/preservation probes passed in disposable
+containers; signed fresh-install artifact proof remains pending.
 The 131-gate source suite passed. Motion tests now use `moos-qml-shell` and
 all three execute successfully instead of skipping on the installed runtime.
-Empty package-owned `/var` directories now have generated tmpfiles declarations
+Empty package-owned `/var` and `/run` directories now have generated tmpfiles declarations
 with their original modes and named owners. The disposable image passes 12 lint
 checks with one skip; only the existing EFI/GRUB boot-asset warning remains.
 [Architecture, implementation and validation](docs/MOOS_UNIFIED_PLATFORM.md).
 
-**Local NVIDIA image accepted (2026-09-11):**
+**Superseded local NVIDIA image evidence (2026-09-11):**
 `localhost/moos-nvidia:unified-platform-20260911`, ID `14b21c399430…`, built with
 exit 0. Final identity, application-load and NVIDIA initramfs gates passed;
 lint reports 12 passed, one skipped, and only the retained EFI/GRUB warning.
@@ -29,19 +34,28 @@ proved zero regular files under `/var`, read the enabled store unit and generate
 tmpfiles policy, imported the shared hardware module through both consumers,
 and found all four required NVIDIA modules in the 203,733,446-byte initramfs
 for kernel `7.2.4-200.fc44.x86_64`. Offline store recreation read back Flathub,
-its trusted key and `ar;en;de`. This is image evidence, not signed boot proof.
+its trusted key and `ar;en;de`. Later artifact boots exposed a competing inherited
+store service and lost enablement after installer presets, so this image is not
+a releasable candidate.
 Logs: `/var/tmp/moos-integrated-nvidia-final-build.log` and
 `/var/tmp/moos-integrated-image-verification.log`.
 
-**ARM candidate correction (2026-09-11):** native CI run `34580503351`
+**Rejected integration candidate and corrections (2026-09-11):** native CI run `34580503351`
 reached finalization but correctly rejected `/var/lib/authselect/checksum`.
 ARM compose now preserves the exact applied-profile checksum in immutable
 storage and emits a tmpfiles copy-if-absent rule. Existing machine checksums
 are never overwritten; upstream authselect remains the profile-upgrade owner.
-Eight image-state tests pass, including actual tmpfiles preservation. The real
-compose block also passed in a disposable image with `authselect check` valid
-after recreation. This ARM-only correction requires fresh CI candidate proof;
-no x86 runtime/build behavior was changed by it.
+The real compose block passed in a disposable image with `authselect check`
+valid after recreation; the build and both runtime boots now require that check.
+The following `a0e7ef96` image build (`34581665411`) succeeded, but ISO run
+`34583782652` correctly failed because installer finalization removed the MoOS
+store unit's enable link and ran the inherited bootstrap instead. ARM run
+`34581668929` also exposed the two bootstraps racing and a one-sample graphical
+readiness error. Neither candidate was promoted. Source now adds a preset that
+survives `preset-all`, masks the inherited bootstrap, requires fresh artifacts
+to expose only signed Flathub, and waits a bounded six minutes for the actual ARM
+desktop/store transaction. Ten image-state tests and the full 131-gate source
+suite pass; a new candidate must repeat every artifact proof.
 
 **Release train and live origin re-verified (2026-09-11):** the prior claim that
 promotion never ran is superseded. [Promotion run 34432578942](https://github.com/moalfarras-sys/moos-image/actions/runs/34432578942)

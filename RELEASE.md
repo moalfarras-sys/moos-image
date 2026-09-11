@@ -14,12 +14,14 @@ revision واحد، ثم يُقلع artifact النهائي نفسه، ثم يُ
 2. شغّل **Build MoOS image** يدويًا على branch. الإصدارات الثلاثة تُدفع بوسم
    `candidate-<run-id>-<sha12>` فقط، وتُوقّع، ويرفع كل matrix job ملف
    `moos-candidate-proof-<edition>/candidate.txt`.
-3. استخرج مرجع `moos@sha256:…` من proof وشغّل على **نفس revision**:
+3. استخرج المراجع الدقيقة لكل editions من proofs وشغّل على **نفس revision**:
 
-   - **Build MoOS disk image (qcow2)** مع `image-ref=<exact ref>`؛ يجب أن ينجح
-     sealing وUEFI والإقلاع وإعادة الإقلاع والإطفاء ورفع proof.
-   - **Build MoOS Live ISO** مع `image_ref=<exact ref>`؛ يجب أن يقلع ISO النهائي
-     read-only إلى live desktop، يرى offline image بالدجست نفسه، ثم يطفئ نظيفًا.
+   - **Build MoOS disk image (qcow2)** ثلاث مرات، لكل من `moos` و`moos-nvidia`
+     و`moos-cloud` مع `image-ref=<exact edition ref>`؛ يجب أن ينجح sealing وUEFI
+     والإقلاع وإعادة الإقلاع والإطفاء ورفع proof لكل واحدة.
+   - **Build MoOS Live ISO** مرة واحدة مع `image_ref=<exact moos ref>`؛ يجب أن
+     يقلع ISO النهائي read-only إلى live desktop، يرى offline image بالدجست نفسه،
+     يثبتها، يقلع النظام المثبت، ثم يطفئ نظيفًا.
 
 4. لا تستخدم **Re-run jobs** لهذه runs؛ promotion يقبل `run_attempt == 1` فقط.
    أصلح السبب وشغّل workflow_dispatch جديدًا كي لا تختلط artifacts بين attempts.
@@ -27,10 +29,10 @@ revision واحد، ثم يُقلع artifact النهائي نفسه، ثم يُ
    `main` مطابقًا له (merge commit مناسب). أي تغيير source بعد الأدلة يفرض مرشحًا
    جديدًا.
 6. من `main` شغّل **Promote boot-proven MoOS x86 release** وأدخل candidate
-   revision وrun IDs الثلاثة. الـworkflow يعيد التحقق من:
+   revision وخمسة run IDs: build، وثلاثة disks، وISO. الـworkflow يعيد التحقق من:
 
    - تطابق candidate tree مع tree الجاري على `main` لحظة الترقية؛
-   - نجاح runs الثلاثة ومساراتها وSHA وattempt؛
+   - نجاح runs الخمسة ومساراتها وSHA وattempt؛
    - manifests للإصدارات الثلاثة؛
    - signed OSTree origin في إقلاعي QCOW2؛
    - live/offline digest وإطفاء ISO؛

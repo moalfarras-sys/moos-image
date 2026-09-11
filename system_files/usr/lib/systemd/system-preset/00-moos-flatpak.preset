@@ -1,0 +1,5 @@
+# MoOS is the sole owner of the system application-store bootstrap. This file
+# intentionally sorts before the base image's enable and catch-all presets so
+# bootc install/finalize cannot replace the compose-time enablement.
+enable moos-flatpak-init.service
+disable flatpak-add-fedora-repos.service
