@@ -60,6 +60,34 @@ import sys as _policy_sys
 from pathlib import Path as _PolicyPath
 _policy_sys.path.insert(0, str(_PolicyPath(__file__).resolve().parent.parent / "lib/moai"))
 import moai_cloud_policy as cloud_policy
+import threading as _hermes_threading
+import time as _hermes_time
+
+# The Hermes adapter's own discovery is the one authority on whether an agent
+# runtime exists here; the source tree and /usr resolve the same sibling path.
+HERMES_ADAPTER = os.environ.get("MOAI_HERMES_ADAPTER") or str(
+    _PolicyPath(__file__).resolve().parent.parent / "libexec/moai-hermes")
+_hermes_status = (0.0, None)
+_hermes_status_lock = _hermes_threading.Lock()
+
+
+def hermes_runtime_installed():
+    """True or False from `moai-hermes status`, None when it cannot answer."""
+    global _hermes_status
+    with _hermes_status_lock:
+        stamp, value = _hermes_status
+        if stamp and _hermes_time.monotonic() - stamp < 60:
+            return value
+        try:
+            completed = subprocess.run([HERMES_ADAPTER, "status"], capture_output=True,
+                                       text=True, timeout=5)
+            data = json.loads(completed.stdout or "{}")
+            installed = data.get("installed") if isinstance(data, dict) else None
+            value = installed if isinstance(installed, bool) else None
+        except (OSError, subprocess.TimeoutExpired, ValueError):
+            value = None
+        _hermes_status = (_hermes_time.monotonic(), value)
+        return value
 
 CONFIG = os.path.expanduser("~/.config/moai/config.json")
 MOOS_DIR = os.path.expanduser("~/.config/moos")
@@ -1069,7 +1097,21 @@ class Handler(BaseHTTPRequestHandler):
         return self._to_cloud(req, json.dumps(req).encode("utf-8"), model, cfg)
 
     def _to_hermes(self, req):
-        """Optional isolated Hermes runtime; never route through paid OpenClaw."""
+        """Optional isolated Hermes runtime; never route through paid OpenClaw.
+
+        False means no Hermes runtime is installed on this machine: the caller
+        answers through the direct free cloud route and says so with
+        X-MoAI-Agent: direct-fallback, which Mo AI shows as a direct reply.
+        Measured 2026-09-11 on the daily driver: every desktop message carries
+        agent:true, the runtime was absent, the adapter exited 69 and this
+        method answered HTTP 503 in 0.0 s, so Mo AI could not reply at all.
+        An installed runtime that is starting or broken, or an adapter that
+        cannot report, still gets an honest 503: a conversation expecting the
+        agent's workspace tools is never silently swapped for a plain model.
+        """
+        if hermes_runtime_installed() is False:
+            self.moai_agent = "direct-fallback"
+            return False
         runtime = os.environ.get("XDG_RUNTIME_DIR") or "/run/user/%d" % os.getuid()
         # Only the fixed, unprivileged adapter may start; no command from a model.
         try:

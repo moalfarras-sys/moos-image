@@ -157,6 +157,7 @@ change weekly; a single sample is evidence of a problem, not a final ranking.
 
 | Metric | Measured 2026-09-11 | Target |
 | --- | --- | --- |
+| Mo AI desktop chat answers at all | no: HTTP 503 for every message | yes, on every edition |
 | Mo AI one-line Arabic answer | 36.7 s with the default brain | ≤ 5 s p50 |
 | Mo AI tool-call accuracy | not yet measured systematically | ≥ 95 % |
 | App lifecycle from Mo AI | install only, separate scope | install, remove, update via the Store backend |
@@ -196,3 +197,7 @@ change weekly; a single sample is evidence of a problem, not a final ranking.
   (before/after 4K captures of the running Store). Mo AI's composer chip showed the raw
   `openrouter/free` id; it now reads "Free · automatic" / "مجاني تلقائي" and names the
   model that answered from `X-MoAI-Model` (QML engine probe plus a live capture).
+- **2026-09-11, P0 found by using the app:** Mo AI's desktop chat returned "agent
+  unavailable" for every message on the daily driver (absent Hermes runtime → HTTP 503
+  in 0.0 s). Source now answers through the direct free route with a `direct-fallback`
+  label; the branch app replied in-app with a working Remove chip.

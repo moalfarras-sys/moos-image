@@ -119,6 +119,12 @@ OpenRouter policy. See [the cloud-only plan](docs/MOAI_CLOUD_ONLY_PLAN.md) and
   adapter and Mo AI cloud gateway. Production free-cloud Arabic response took
   about 3 seconds. The adapter preserves supplied text/history; tools are empty,
   subprocess execution is blocked, and system actions remain with `moai-do`.
+- [ ] Desktop chat answers without an installed Hermes runtime. *Progress:* on the
+  daily driver every desktop message failed with HTTP 503 because the absent
+  runtime was treated as unavailable; source on `feat/moos-completion-20260911`
+  answers through the direct free route with an honest `direct-fallback` label
+  (live: HTTP 200 in 2.2 s and a real in-app reply with its Remove chip). Signed
+  image acceptance remains; packaging Hermes itself remains the item below.
 - [ ] App lifecycle through one authority (plan M2.1). *Progress:* source on
   `feat/moos-completion-20260911` routes install, uninstall and update-apps
   through `moos-storectl` with confirmation, and a live daily-driver run of the

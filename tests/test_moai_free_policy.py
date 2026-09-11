@@ -171,6 +171,46 @@ class FreePolicy(unittest.TestCase):
             handler._to_cloud({'messages':[]},b'{}',policy.DEFAULT_MODEL,{})
         self.assertEqual(handler.opened,['a/one:free','b/two:free']);self.assertEqual(handler.errors,[429])
 
+    def test_absent_hermes_runtime_answers_directly_and_says_so(self):
+        handler=object.__new__(gateway.Handler)
+        errors=[]
+        handler._err=lambda code,msg:errors.append(code)
+        started=[]
+        with patch.object(gateway,'hermes_runtime_installed',return_value=False), \
+                patch.object(gateway.subprocess,'run',side_effect=lambda *a,**k:started.append(a)):
+            self.assertIs(handler._to_hermes({'messages':[]}),False)
+        self.assertEqual(handler.moai_agent,'direct-fallback')
+        self.assertEqual(errors,[]);self.assertEqual(started,[])
+
+    def test_installed_or_unknown_hermes_is_never_silently_substituted(self):
+        for installed in (True,None):
+            with self.subTest(installed=installed), tempfile.TemporaryDirectory() as runtime:
+                handler=object.__new__(gateway.Handler)
+                errors=[]
+                handler._err=lambda code,msg,errors=errors:errors.append(code)
+                with patch.object(gateway,'hermes_runtime_installed',return_value=installed), \
+                        patch.object(gateway,'PORT',8095), \
+                        patch.dict(gateway.os.environ,{'XDG_RUNTIME_DIR':runtime}):
+                    self.assertIs(handler._to_hermes({'messages':[]}),True)
+                self.assertEqual(errors,[503])
+
+    def test_runtime_status_comes_from_the_adapter_and_is_cached(self):
+        with tempfile.TemporaryDirectory() as directory:
+            adapter=Path(directory)/'moai-hermes'
+            adapter.write_text('#!/bin/sh\nprintf \'{"installed": false, "ready": false}\\n\'\n')
+            adapter.chmod(0o755)
+            with patch.object(gateway,'HERMES_ADAPTER',str(adapter)), \
+                    patch.object(gateway,'_hermes_status',(0.0,None)):
+                self.assertIs(gateway.hermes_runtime_installed(),False)
+                adapter.write_text('#!/bin/sh\nprintf \'{"installed": true}\\n\'\n')
+                self.assertIs(gateway.hermes_runtime_installed(),False)
+                later=gateway._hermes_time.monotonic()+61
+                with patch.object(gateway._hermes_time,'monotonic',return_value=later):
+                    self.assertIs(gateway.hermes_runtime_installed(),True)
+                adapter.write_text('#!/bin/sh\nprintf \'not json\'\n')
+                with patch.object(gateway._hermes_time,'monotonic',return_value=later+61):
+                    self.assertIsNone(gateway.hermes_runtime_installed())
+
     def test_migration_preserves_key_and_backup_disables_local_fallback(self):
         with tempfile.TemporaryDirectory() as td:
             p=Path(td)/'openclaw.json'

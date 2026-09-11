@@ -1,5 +1,25 @@
 # MoOS — current project state
 
+**Mo AI's desktop chat could not answer on the daily driver — fixed in source (2026-09-11, branch `feat/moos-completion-20260911`):**
+driven as a user from the running app, every message returned "Mo AI agent is
+unavailable. No direct-model substitute was used." Every desktop request carries
+`moai.agent: true`; the gateway sends agent requests to the Hermes adapter, the
+Hermes runtime is not installed on this machine (`moai-hermes status` →
+`installed: false`), the adapter exits 69 and the gateway answered HTTP 503 in
+0.0 s — reproduced twice on the installed stack. Starting the absent adapter also
+left `moai-hermes.service` failed after each message. The roadmap's intended
+contract is that an absent runtime uses the direct cloud route, and Mo AI already
+renders a "Direct fallback" label that nothing sent. The gateway now asks the
+adapter's own `status` (cached 60 s): an absent runtime answers through the
+direct free route with `X-MoAI-Agent: direct-fallback` and never starts the unit;
+an installed-but-not-ready runtime, or an adapter that cannot report, still gets
+the honest 503. Live on the branch stack (second port, same key): the exact
+desktop request answered HTTP 200 in 2.2 s via `nex-agi/nex-n2.5-pro:free`, and
+the branch's Mo AI, driven through its own `sendPrompt()`, replied
+`moai-do uninstall com.spotify.Client`, rendered the Remove chip and showed
+"Free · nex-n2.5-pro · Direct fallback" (the chip elides the last word). The
+installed image keeps this bug until a signed image carries the fix.
+
 **Mo Store stat cards and Mo AI's brain label (2026-09-11, branch `feat/moos-completion-20260911`, plan M1.4/M1.6):**
 at 4K/225% the Store hero's stat captions sat on their card borders and each
 number started at a different offset; fixed line heights, a filling left-aligned
