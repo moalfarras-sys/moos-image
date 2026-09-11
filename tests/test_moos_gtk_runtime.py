@@ -602,6 +602,34 @@ class TestMoOSGtkRuntime(unittest.TestCase):
             remote_source,
         )
 
+    @unittest.skipUnless(HAS_GI, "PyGObject/Gio is unavailable on this runner")
+    def test_remote_offers_only_the_action_that_changes_the_service(self):
+        class FakeButton:
+            def __init__(self):
+                self.sensitive = True
+
+            def set_sensitive(self, value):
+                self.sensitive = bool(value)
+
+        panel = type("Panel", (), {})()
+        panel.service_buttons = {role: FakeButton() for role in ("start", "stop", "refresh")}
+        state = lambda: (panel.service_buttons["start"].sensitive,
+                         panel.service_buttons["stop"].sensitive)
+        REMOTE.App._sync_service_buttons(panel, True)
+        self.assertEqual(state(), (False, True), "a running service offers only Stop")
+        REMOTE.App._sync_service_buttons(panel, False)
+        self.assertEqual(state(), (True, False), "a stopped service offers only Start")
+        REMOTE.App._sync_service_buttons(panel, None)
+        self.assertEqual(state(), (True, True), "an unknown state offers both")
+        self.assertTrue(panel.service_buttons["refresh"].sensitive)
+        source = REMOTE_PATH.read_text(encoding="utf-8")
+        start = source.index("def _apply_refresh")
+        ends = [source.find(marker, start + 1)
+                for marker in ("\n    def ", "\ndef ", "\nclass ", "\nif __name__")]
+        body = source[start:min([end for end in ends if end >= 0] or [len(source)])]
+        self.assertIn("self._sync_service_buttons(None)", body)
+        self.assertIn("self._sync_service_buttons(bool(on))", body)
+
     def test_remote_refresh_returns_immediately_and_coalesces_bursts(self):
         idle_queue = queue.Queue()
         first_started = threading.Event()

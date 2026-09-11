@@ -353,14 +353,21 @@ class App(Gtk.Application):
             xalign=logical_start())
         self.status.set_wrap(True); self.status.add_css_class("ui2-card"); outer.append(self.status)
         buttons=Gtk.Box(spacing=8)
-        for label,cb,style in (
-            (local_text("تشغيل", "Start"),self.start,"suggested-action"),
-            (local_text("إيقاف", "Stop"),self.stop,"destructive-action"),
-            (local_text("تحديث", "Refresh"),self.refresh,None),
+        self.service_buttons={}
+        for role,label,cb,style in (
+            ("start",local_text("تشغيل", "Start"),self.start,"suggested-action"),
+            ("stop",local_text("إيقاف", "Stop"),self.stop,"destructive-action"),
+            ("refresh",local_text("تحديث", "Refresh"),self.refresh,None),
         ):
             b=Gtk.Button(label=label); b.connect("clicked",cb)
             if style:b.add_css_class(style)
             buttons.append(b)
+            self.service_buttons[role]=b
+        # Start and Stop were both live while the service ran, so the one action that
+        # changes anything looked exactly like the one that does nothing (captured
+        # 2026-09-12). Offer neither until the first status read decides.
+        self.service_buttons["start"].set_sensitive(False)
+        self.service_buttons["stop"].set_sensitive(False)
         outer.append(buttons)
 
         # Fast Remote — folded in from what used to be a SECOND dock icon. MoOS ships one
@@ -431,8 +438,20 @@ class App(Gtk.Application):
             label=("● " if ok else "○ ")+value,
             xalign=logical_start())
         b.add_css_class("success" if ok else "error"); self.grid.attach(a,0,n,1,1); self.grid.attach(b,1,n,1,1)
-    def start(self,*_): run("systemctl","--user","enable","--now",UNIT); self.refresh()
-    def stop(self,*_): run("systemctl","--user","disable","--now",UNIT); self.refresh()
+    def start(self,*_):
+        run("systemctl","--user","enable","--now",UNIT)
+        self._sync_service_buttons(True); self.refresh()
+
+    def stop(self,*_):
+        run("systemctl","--user","disable","--now",UNIT)
+        self._sync_service_buttons(False); self.refresh()
+
+    def _sync_service_buttons(self,on):
+        """Offer only the action that changes the service; an unknown state offers both."""
+        buttons=getattr(self,"service_buttons",None)
+        if not buttons: return
+        buttons["start"].set_sensitive(on is not True)
+        buttons["stop"].set_sensitive(on is not False)
 
     # Fast Remote toggle. The switch drives the ONE moos-fast-remote script; refresh() reads
     # its status back so the panel always reflects the real mode (e.g. if it was flipped by
@@ -536,6 +555,7 @@ class App(Gtk.Application):
     def _apply_refresh(self,snapshot,error):
         """Apply one immutable worker result; runs only through GLib.idle_add."""
         if error is not None:
+            self._sync_service_buttons(None)
             self.status.set_markup(
                 "<b>" + local_text(
                     "تعذّر تحديث الحالة",
@@ -546,6 +566,7 @@ class App(Gtk.Application):
 
         on=snapshot["on"]
         far=snapshot["far"]
+        self._sync_service_buttons(bool(on))
         self.status.set_markup(
             local_text(
                 f"<b>الخدمة:</b> {'تعمل' if on else 'متوقفة'}    "
