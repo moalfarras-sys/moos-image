@@ -244,6 +244,9 @@ browser viewport emulation does not close the wider physical-device gate below.
 
 ## Continuous quality
 
+- A test that executes a MoOS desktop tool must isolate the session bus, display and
+  XDG directories. Until 2026-09-12 `test_moos_theme_safety.py` rewrote the live
+  desktop wallpaper whenever the gates ran on a workstation.
 - Every runtime bug follows reproduce → root cause → fix → regression → artifact
   proof. A gate that passed the broken behavior must be strengthened, not edited
   merely to stay green.

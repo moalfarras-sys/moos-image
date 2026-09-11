@@ -311,6 +311,15 @@ filesystem and lint warnings; fix lifecycle ownership without losing Flatpak
 initialization or boot assets. The clean-state requirement is unchanged. See
 `docs/MOOS_UNIFIED_PLATFORM.md` for the lifecycle fix and remaining artifact proof.
 
+**A test that runs a MoOS desktop tool inherits your live desktop.** CI has no
+session bus, so a suite can pass there while, on a workstation, the same run drives
+the real plasmashell. `tests/test_moos_theme_safety.py` executed `moos-theme`, and
+every gate run on the daily driver silently switched the desktop wallpaper to the
+fixture profile until `moos-theme-drift.timer` put it back — recorded for weeks as
+an unexplained "wallpaper drift". Isolate `DBUS_SESSION_BUS_ADDRESS`, `DISPLAY`,
+`WAYLAND_DISPLAY`, HOME and the XDG directories before executing such a tool, and
+read the live state back before and after when you suspect a side effect.
+
 **`/usr/local` has two layouts.** The x86 Atomic base links it to
 `../var/usrlocal` (absent during compose); ARM has a real immutable directory.
 Never blindly install through that dangling link or replace it. Preserve the

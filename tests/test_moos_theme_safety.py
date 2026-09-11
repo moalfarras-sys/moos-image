@@ -14,6 +14,29 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+# ── This suite must never reach the live desktop ─────────────────────────────
+# It executes the real moos-theme. Run inside a desktop session it inherited the
+# live session bus, so moos-theme's plasmashell evaluateScript rewrote the RUNNING
+# desktop's wallpaper to its fixture profile. Measured 2026-09-11 on the daily
+# driver: running this file alone flipped MoOSUI2Arena to MoOSUI2Graphite (and
+# verify_user_experience.py did too, because it runs this file), after which
+# moos-theme-drift.timer "repaired" it up to thirty minutes later — the recurring
+# wallpaper drift PROJECT_STATE had recorded as unexplained. CI has no session
+# bus and a throwaway HOME; make every workstation run identical to that.
+import atexit as _atexit
+import tempfile as _tempfile
+
+_ISOLATED = Path(_tempfile.mkdtemp(prefix="moos-theme-safety-"))
+_atexit.register(shutil.rmtree, _ISOLATED, True)
+for _variable in ("WAYLAND_DISPLAY", "DISPLAY"):
+    os.environ.pop(_variable, None)
+os.environ["DBUS_SESSION_BUS_ADDRESS"] = f"unix:path={_ISOLATED / 'no-session-bus'}"
+for _variable, _leaf in (("HOME", "home"), ("XDG_CONFIG_HOME", "config"),
+                         ("XDG_STATE_HOME", "state"), ("XDG_CACHE_HOME", "cache"),
+                         ("XDG_DATA_HOME", "data"), ("XDG_RUNTIME_DIR", "run")):
+    (_ISOLATED / _leaf).mkdir(mode=0o700)
+    os.environ[_variable] = str(_ISOLATED / _leaf)
 APPLY = ROOT / "system_files/usr/bin/moos-apply-theme"
 SWITCH = ROOT / "system_files/usr/bin/moos-theme"
 PATH_UNIT = ROOT / "system_files/usr/lib/systemd/user/moos-theme-sync.path"
@@ -66,6 +89,13 @@ def function(text: str, name: str) -> str:
 
 
 class TestMoOSThemeSafety(unittest.TestCase):
+    def test_suite_cannot_reach_the_live_desktop(self) -> None:
+        self.assertNotIn("WAYLAND_DISPLAY", os.environ)
+        self.assertNotIn("DISPLAY", os.environ)
+        self.assertTrue(os.environ["DBUS_SESSION_BUS_ADDRESS"].startswith(f"unix:path={_ISOLATED}"))
+        for variable in ("HOME", "XDG_CONFIG_HOME", "XDG_STATE_HOME", "XDG_RUNTIME_DIR"):
+            self.assertTrue(Path(os.environ[variable]).is_relative_to(_ISOLATED), variable)
+
     def test_manual_theme_switch_is_snapshot_verified_and_exactly_reversible(self) -> None:
         switch = SWITCH.read_text(encoding="utf-8")
         apply = function(switch, "apply")

@@ -201,3 +201,6 @@ change weekly; a single sample is evidence of a problem, not a final ranking.
   unavailable" for every message on the daily driver (absent Hermes runtime → HTTP 503
   in 0.0 s). Source now answers through the direct free route with a `direct-fallback`
   label; the branch app replied in-app with a working Remove chip.
+- **2026-09-12, M1.2 + drift root cause:** Updater, Recovery and Mo PC Remote now take
+  the active theme's palette (KConfig cascade; live captures on Arena). The recurring
+  wallpaper drift was the gate suite driving the live shell; the suite is isolated.

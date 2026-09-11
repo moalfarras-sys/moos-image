@@ -1,5 +1,25 @@
 # MoOS — current project state
 
+**The recurring wallpaper drift was the gate suite; GTK apps ignored the active theme (2026-09-12, branch `feat/moos-completion-20260911`):**
+running `tests/test_moos_theme_safety.py` inside a desktop session — directly, or
+through `verify_user_experience.py`, which runs it — executed the real `moos-theme`
+against the inherited live session bus and rewrote the running desktop's wallpaper
+to the fixture Graphite profile; `moos-theme-drift.timer` repaired it up to thirty
+minutes later. Proven by running each suspect test alone with a plasmashell
+readback: only those two files flipped `MoOSUI2Arena` to `MoOSUI2Graphite`, and
+nine others left it untouched. The suite now isolates itself exactly like CI (no
+session bus, no display, temporary HOME/XDG/runtime directories) and asserts that
+isolation; both files then passed and left the live wallpaper on Arena. Earlier
+drift records that ruled out `moos-visual-tier` and the PLM wake fix are consistent
+with this cause. Separately, Updater, Recovery and Mo PC Remote rendered the
+Graphite fallback palette on an Arena desktop: `moos_ui2.active_color_scheme()` read
+only `~/.config/kdeglobals`, while Plasma keeps the applied ColorScheme in
+`~/.config/kdedefaults/kdeglobals`, an `XDG_CONFIG_DIRS` layer. The resolver now
+follows the same cascade as kreadconfig6. A first version kept single-file semantics
+for explicit paths; `UI2StyleController` always passes one, so live captures still
+showed Graphite while the unit test passed — the cascade is now unconditional, and
+captures of all three apps from this branch show the Arena palette.
+
 **Mo AI's desktop chat could not answer on the daily driver — fixed in source (2026-09-11, branch `feat/moos-completion-20260911`):**
 driven as a user from the running app, every message returned "Mo AI agent is
 unavailable. No direct-model substitute was used." Every desktop request carries
