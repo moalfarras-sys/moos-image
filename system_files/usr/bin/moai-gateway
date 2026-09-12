@@ -1033,7 +1033,7 @@ class Handler(BaseHTTPRequestHandler):
         # moai-control's /models asks the provider for that list.
         if self.path.startswith("/v1/models"):
             model = str(cfg.get("cloud_model") or cloud_policy.DEFAULT_MODEL)
-            if not (cloud_policy.free_model(model) or cloud_policy.selected_cost_policy() == "paid" and cloud_policy.valid_model(model)):
+            if not (cloud_policy.free_model(model) or cloud_policy.paid_model(model)):
                 model = cloud_policy.DEFAULT_MODEL
             return self._send_json(200, {"object": "list", "data": [
                 {"id": "cloud:" + model, "object": "model", "owned_by": "cloud"}]})
@@ -1259,19 +1259,26 @@ class Handler(BaseHTTPRequestHandler):
                              "API key in Mo AI's settings.")
         paid = cloud_policy.selected_cost_policy() == "paid"
         automatic = model == cloud_policy.DEFAULT_MODEL
+        if automatic and base == cloud_policy.ZEN_BASE:
+            # The free router is OpenRouter's. On OpenCode Zen "automatic" is the model
+            # the owner chose for Zen in Settings: never a guess, never a free fallback.
+            model = str(cfg.get("cloud_model") or "")
+            automatic = False
         try:
             candidates = (cloud_policy.automatic_candidates(require_tools=bool(req.get("tools")))
                           if automatic else [model])
             attempts = []
             for candidate in candidates:
                 cloud_policy.validate(base, candidate, wire, allow_paid=paid)
-                attempts.append((candidate, cloud_policy.request_body(req, candidate, allow_paid=paid)))
+                attempts.append((candidate, cloud_policy.request_body(req, candidate, allow_paid=paid, base=base)))
         except ValueError as error:
             return self._err(409, str(error))
+        # validate() admitted exactly OpenRouter's or OpenCode Zen's base, nothing else.
+        url = base + "/chat/completions"
         if not automatic:
             self.moai_model = model
             out = attempts[0][1]
-            return self._proxy("POST", cloud_policy.BASE + "/chat/completions",
+            return self._proxy("POST", url,
                                auth_headers(key, "openai"), json.dumps(out).encode("utf-8"),
                                "openai", bool(out.get("stream")))
         # ── Automatic free route: a refused free model is skipped, not shown ────
@@ -1286,7 +1293,7 @@ class Handler(BaseHTTPRequestHandler):
         # and authentication or request errors are never retried.
         for index, (candidate, out) in enumerate(attempts):
             try:
-                up = self._open_upstream("POST", cloud_policy.BASE + "/chat/completions",
+                up = self._open_upstream("POST", url,
                                          auth_headers(key, "openai"),
                                          json.dumps(out).encode("utf-8"))
             except urllib.error.HTTPError as error:
@@ -1298,7 +1305,7 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as error:
                 return self._err(502, "request failed: %s" % error)
             self.moai_model = candidate
-            return self._proxy("POST", cloud_policy.BASE + "/chat/completions", None, None,
+            return self._proxy("POST", url, None, None,
                                "openai", bool(out.get("stream")), upstream=up)
 
     # ── The pipe ─────────────────────────────────────────────────────────────

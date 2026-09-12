@@ -5920,7 +5920,9 @@ Kirigami.ApplicationWindow {
                                         anchors.bottomMargin: 4
                                         text: cldRow.group === "curated"
                                               ? root.local("مختارة ومجرّبة", "Curated & tested")
-                                              : root.local("كل النماذج المجانية", "All free models")
+                                              : cldRow.group === "paid"
+                                                ? root.local("نماذج مدفوعة — OpenCode Zen", "Paid models — OpenCode Zen")
+                                                : root.local("كل النماذج المجانية", "All free models")
                                         color: root.textMute
                                         font.family: root.uiFont
                                         font.pixelSize: root.typePx(9)
@@ -6288,7 +6290,7 @@ Kirigami.ApplicationWindow {
                                     Accessible.name: root.local("مفتاح API السحابي",
                                                                 "Cloud API key")
                                     Accessible.labelledBy: cloudKeyLabel
-                                    placeholderText: root.cfgHasKey
+                                    placeholderText: root.cfgHasKey && root.cfgSameService
                                         ? root.local(
                                             "المفتاح محفوظ — اتركه فارغاً لإبقائه",
                                             "Key saved — leave blank to keep it")
@@ -6300,13 +6302,24 @@ Kirigami.ApplicationWindow {
                                 SectionNote {
                                     visible: root.cfgMode !== "local"
                                     Layout.fillWidth: true
-                                    text: root.cfgHasKey
+                                    text: root.cfgHasKey && root.cfgSameService
                                         ? root.local(
                                             "مفتاح محفوظ في الإعداد. لن يُعرض هنا أبداً.",
                                             "A key is saved. It is never displayed here.")
+                                        : root.cfgHasKey
+                                        ? root.local(
+                                            "المفتاح المحفوظ يخص مزوّداً آخر — أدخل مفتاح هذا المزوّد ليُحفظ.",
+                                            "The saved key belongs to another provider — enter this provider's key to save.")
                                         : root.local(
                                             "لا مفتاح محفوظ — الوضع السحابي لن يعمل بدونه.",
                                             "No key saved — cloud mode requires one.")
+                                }
+                                SectionNote {
+                                    visible: root.cfgMode !== "local" && root.cfgProvider === "opencode-zen"
+                                    Layout.fillWidth: true
+                                    text: root.local(
+                                        "OpenCode Zen مدفوع حسب الاستخدام، بمفتاح من opencode.ai بعد إضافة وسيلة دفع. يعرض Mo AI نماذج المحادثة التي يخدمها Zen ببروتوكول Mo AI فقط (DeepSeek وGLM وKimi وMiniMax وغيرها). نماذجه المجانية المؤقتة قد تُستخدم بياناتك لتحسينها — لا ترسل إليها بيانات شخصية.",
+                                        "OpenCode Zen bills per use, with a key from opencode.ai once billing is added. Mo AI lists only the chat models Zen serves on Mo AI's protocol (DeepSeek, GLM, Kimi, MiniMax and others). Its temporary free models may use your data to improve them — don't send them personal data.")
                                 }
                             }
 
@@ -6992,8 +7005,17 @@ Kirigami.ApplicationWindow {
     property string cfgTab: "brain"
     property string cfgMode: "cloud"
     property string cfgProvider: "openrouter-free"
+    property string cfgSavedProvider: ""   // the provider the saved key belongs to
     property var    cfgProviders: []
     property var    cfgProviderNames: []
+    // A key belongs to the service that issued it: moai-agent-api refuses a switch
+    // between services without the new one's key, and the form says so up front.
+    readonly property bool cfgSameService: root.providerBase(root.cfgProvider)
+                                           === root.providerBase(root.cfgSavedProvider)
+    function providerBase(id) {
+        const p = (root.cfgProviders || []).find(function (x) { return x.id === id })
+        return p ? String(p.base || "") : ""
+    }
     property bool   cfgHasKey: false
     property bool   cfgHasToken: false
     property var    cfgChannels: ({
@@ -7063,6 +7085,7 @@ Kirigami.ApplicationWindow {
                 root.cfgError = ""
                 root.cfgMode = "cloud"
                 root.cfgProvider = c.cloud.provider
+                root.cfgSavedProvider = c.cloud.provider
                 root.cfgProviders = c.providers
                 root.cfgProviderNames = c.providers.map(function (p) { return p.name })
                 root.cfgHasKey = c.cloud.has_key
@@ -7111,7 +7134,7 @@ Kirigami.ApplicationWindow {
                        + (entry.title ? root.localLegacy(entry.title) : entry.label))
         }
         xhr.send(JSON.stringify({ mode: "cloud", cloud: {
-            provider: root.cfgProvider, base: "https://openrouter.ai/api/v1", model: bare } }))
+            provider: root.cfgProvider, base: root.providerBase(root.cfgProvider), model: bare } }))
     }
 
     // Language-only save: applies to the UI immediately, persists in state.

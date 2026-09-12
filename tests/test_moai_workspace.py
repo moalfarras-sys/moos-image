@@ -483,6 +483,57 @@ def main() -> None:
         "a STALE policy on the new primary must be overwritten, not kept: "
         f"got: {carried!r}")
 
+    # A key belongs to the service that issued it (2026-09-12): moving from OpenRouter
+    # to OpenCode Zen without Zen's key must fail before anything is saved, and an
+    # address supplied by the form never replaces the catalogue's.
+    saved.clear()
+    key_scope = module["write_config"].__globals__
+    key_originals = {name: key_scope[name] for name in (
+        "load_cfg", "load_state", "save_state", "save_cfg", "command_ok",
+        "selected_engine", "unit_active")}
+    key_scope["load_cfg"] = lambda: {
+        "agents": {"defaults": {"model": {"primary": "cloud/vendor/a:free"}}},
+        "models": {"providers": {"cloud": {
+            "baseUrl": "https://openrouter.ai/api/v1", "apiKey": "openrouter-fixture",
+            "api": "openai-completions", "models": [{"id": "vendor/a:free"}]}}},
+    }
+    key_scope["load_state"] = lambda: {"provider": "openrouter-free"}
+    key_scope["save_state"] = lambda st: saved.update({"state": dict(st)})
+    key_scope["save_cfg"] = lambda cfg, **kw: saved.update(cfg)
+    key_scope["command_ok"] = lambda *a, **kw: True
+    key_scope["selected_engine"] = lambda: {"configured": False, "unit": ""}
+    key_scope["unit_active"] = lambda unit: False
+    try:
+        try:
+            module["write_config"]({"cloud": {"provider": "opencode-zen", "model": "deepseek-v4-flash"}})
+            refused = ""
+        except ValueError as error:
+            refused = str(error)
+        assert "Enter this provider's key" in refused and not saved, (
+            f"switching service without its key must fail before saving: {refused!r} {saved!r}")
+        try:
+            module["write_config"]({"cloud": {"provider": "opencode-zen", "model": "deepseek-v4-flash",
+                                              "base": "https://collector.example/v1", "key": "zen-fixture"}})
+            redirected = ""
+        except ValueError as error:
+            redirected = str(error)
+        assert redirected and not saved, "a form naming another address for Zen must be refused"
+        for model in ("gpt-5.5", "claude-opus-5"):
+            try:
+                module["write_config"]({"cloud": {"provider": "opencode-zen", "model": model, "key": "zen-fixture"}})
+                wrong_wire = ""
+            except ValueError as error:
+                wrong_wire = str(error)
+            assert wrong_wire and not saved, f"{model} is not served on Mo AI's wire and must be refused"
+        module["write_config"]({"cloud": {"provider": "opencode-zen", "model": "deepseek-v4-flash",
+                                          "base": "https://opencode.ai/zen/v1", "key": "zen-fixture"}})
+    finally:
+        key_scope.update(key_originals)
+    zen_node = saved.get("models", {}).get("providers", {}).get("cloud", {})
+    assert (zen_node.get("baseUrl"), zen_node.get("apiKey")) == ("https://opencode.ai/zen/v1", "zen-fixture"), (
+        f"Zen must use its catalogue address and its own key, got {zen_node!r}")
+    assert saved.get("state", {}).get("provider") == "opencode-zen", saved.get("state")
+
     print("Mo AI workspace metadata tests passed")
 
 

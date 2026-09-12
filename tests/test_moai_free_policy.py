@@ -256,4 +256,110 @@ class FreePolicy(unittest.TestCase):
             first=p.read_bytes();migration.migrate(p);self.assertEqual(p.read_bytes(),first)
             self.assertEqual(p.stat().st_mode & 0o777,0o600)
 
+    # ── OpenCode Zen: billed by explicit choice, chat-completions models only ──
+    def zen(self, module=None):
+        return patch.object(module or policy,'selected_provider',return_value='opencode-zen')
+
+    def test_zen_needs_explicit_selection_and_a_chat_completions_model(self):
+        with self.assertRaises(ValueError):
+            policy.validate(policy.ZEN_BASE,'deepseek-v4-flash',allow_paid=True)
+        with self.zen():
+            policy.validate(policy.ZEN_BASE,'deepseek-v4-flash',allow_paid=True)
+            policy.validate(policy.ZEN_BASE+'/','big-pickle',allow_paid=True)
+            for model in ('gpt-5.5','grok-4.6','claude-opus-5','qwen3.6-plus','gemini-3.5-flash',
+                          'muse-spark-1.3-contributor-free','openrouter/free','kimi-k3/../x'):
+                with self.subTest(model=model), self.assertRaises(ValueError):
+                    policy.validate(policy.ZEN_BASE,model,allow_paid=True)
+            for base,model,paid in (('https://opencode.ai.evil/zen/v1','deepseek-v4-flash',True),
+                                    (policy.ZEN_BASE,'deepseek-v4-flash',False),
+                                    (policy.BASE,'deepseek-v4-flash',True)):
+                with self.subTest(base=base,paid=paid), self.assertRaises(ValueError):
+                    policy.validate(base,model,allow_paid=paid)
+
+    def test_settings_choice_is_checked_against_the_provider_being_selected(self):
+        policy.validate_selection('openrouter-free',policy.DEFAULT_MODEL)
+        policy.validate_selection('openrouter-paid','openai/gpt-5.4-mini')
+        policy.validate_selection('opencode-zen','kimi-k3')
+        for provider,model in (('openrouter-free','openai/gpt-5.4-mini'),('openrouter-free','kimi-k3'),
+                               ('opencode-zen','gpt-5.5'),('opencode-zen',policy.DEFAULT_MODEL),
+                               ('openrouter-paid','kimi-k3'),('someone-else','kimi-k3')):
+            with self.subTest(provider=provider,model=model), self.assertRaises(ValueError):
+                policy.validate_selection(provider,model)
+
+    def test_zen_body_carries_no_openrouter_routing(self):
+        with self.zen():
+            body=policy.request_body({'messages':[],'provider':{'max_price':{'prompt':9}},'models':['x'],
+                                      'reasoning':{'effort':'high'},'plugins':[{'id':'web'}]},
+                                     'glm-5.3',allow_paid=True,base=policy.ZEN_BASE)
+            self.assertEqual(set(body),{'messages','model'})
+            with self.assertRaises(ValueError):
+                policy.request_body({'messages':[]},'gpt-5.5',allow_paid=True,base=policy.ZEN_BASE)
+        with self.assertRaises(ValueError):
+            policy.request_body({'messages':[]},'glm-5.3',allow_paid=True,base=policy.ZEN_BASE)
+
+    def test_selected_provider_reads_settings_and_only_billed_ones_are_paid(self):
+        with tempfile.TemporaryDirectory() as home:
+            state=Path(home)/'moai-agent/state.json'; state.parent.mkdir()
+            with patch.dict(policy.os.environ,{'XDG_CONFIG_HOME':home}):
+                for stored,provider,cost in ((None,'','free'),('[]','','free'),('{"provider":7}','','free'),
+                                             ('{"provider":"openrouter-free"}','openrouter-free','free'),
+                                             ('{"provider":"openrouter-paid"}','openrouter-paid','paid'),
+                                             ('{"provider":"opencode-zen"}','opencode-zen','paid')):
+                    with self.subTest(stored=stored):
+                        if stored is None:
+                            state.unlink(missing_ok=True)
+                        else:
+                            state.write_text(stored)
+                        self.assertEqual(policy.selected_provider(),provider)
+                        self.assertEqual(policy.selected_cost_policy(),cost)
+        self.assertTrue(policy.paid_model('kimi-k3','opencode-zen'))
+        self.assertFalse(policy.paid_model('openai/gpt-5.4-mini','opencode-zen'))
+        self.assertTrue(policy.paid_model('openai/gpt-5.4-mini','openrouter-paid'))
+        self.assertFalse(policy.paid_model('kimi-k3','openrouter-free'))
+
+    def test_gateway_sends_zen_requests_to_zen_with_the_chosen_model(self):
+        handler=self.gateway_handler()
+        handler._cloud_cfg=lambda cfg:(policy.ZEN_BASE,'zen-fixture','openai')
+        sent=[]
+        handler._proxy=lambda method,url,headers,body,wire,streaming,upstream=None:sent.append((url,headers,json.loads(body)))
+        with self.zen(gateway.cloud_policy):
+            # "Automatic" on Zen is the model the owner chose for Zen, and a GPT id is refused.
+            handler._to_cloud({'messages':[{'role':'user','content':'hi'}]},b'{}',policy.DEFAULT_MODEL,
+                              {'cloud_model':'deepseek-v4-flash'})
+            handler._to_cloud({'messages':[]},b'{}','gpt-5.5',{'cloud_model':'deepseek-v4-flash'})
+        self.assertEqual(handler.errors,[409]);self.assertEqual(len(sent),1)
+        url,headers,body=sent[0]
+        self.assertEqual(url,policy.ZEN_BASE+'/chat/completions')
+        self.assertEqual(headers.get('Authorization'),'Bearer zen-fixture')
+        self.assertEqual(body['model'],'deepseek-v4-flash');self.assertNotIn('provider',body)
+        self.assertEqual(handler.moai_model,'deepseek-v4-flash')
+        # Without the owner's Zen selection the same configuration is refused before any request.
+        handler.errors.clear();sent.clear()
+        with patch.object(gateway.cloud_policy,'selected_provider',return_value='openrouter-free'):
+            handler._to_cloud({'messages':[]},b'{}','deepseek-v4-flash',{})
+        self.assertEqual((handler.errors,sent),([409],[]))
+
+    def test_control_sends_the_key_only_to_routable_services_and_lists_only_zen_chat_models(self):
+        control=load('moai_control_zen','system_files/usr/bin/moai-control')
+        opened=[]
+        catalogue={'data':[{'id':m} for m in ('deepseek-v4-flash','gpt-5.5','claude-opus-5','big-pickle',
+                                               'muse-spark-1.3-contributor-free','kimi-k3')]}
+        class Reply:
+            def __enter__(self): return self
+            def __exit__(self,*args): return False
+            def read(self): return json.dumps(catalogue).encode()
+        def urlopen(req,timeout=0):
+            opened.append((req.full_url,req.get_header('Authorization')));return Reply()
+        with patch.object(control.urllib.request,'urlopen',side_effect=urlopen):
+            with self.zen(control.cloud_policy):
+                models,error=control.cloud_models({'cloud_base':policy.ZEN_BASE,'cloud_key':'zen-fixture'})
+                self.assertEqual(error,'')
+                self.assertEqual([m['id'] for m in models],['cloud:deepseek-v4-flash','cloud:big-pickle','cloud:kimi-k3'])
+                self.assertEqual(control.cloud_models({'cloud_base':'https://collector.example/v1','cloud_key':'zen-fixture'}),
+                                 ([],policy.ERROR))
+            with patch.object(control.cloud_policy,'selected_provider',return_value='openrouter-free'):
+                self.assertEqual(control.cloud_models({'cloud_base':policy.ZEN_BASE,'cloud_key':'or-fixture'}),
+                                 ([],policy.ERROR))
+        self.assertEqual(opened,[(policy.ZEN_BASE+'/models','Bearer zen-fixture')])
+
 if __name__=='__main__':unittest.main()

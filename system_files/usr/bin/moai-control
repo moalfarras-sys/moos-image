@@ -1152,6 +1152,10 @@ def cloud_models(cfg):
         return [], "لا يوجد مزوّد أو مفتاح | no provider or API key configured"
     if not VERSIONED.search(base):
         base += "/v1"
+    # The stored key goes only to the two services Mo AI's policy can route to.
+    zen = base == cloud_policy.ZEN_BASE
+    if base != cloud_policy.BASE and not (zen and cloud_policy.selected_provider() == "opencode-zen"):
+        return [], cloud_policy.ERROR
 
     req = urllib.request.Request(base + "/models", method="GET")
     req.add_header("User-Agent", USER_AGENT)
@@ -1174,7 +1178,11 @@ def cloud_models(cfg):
     if not isinstance(items, list):
         return [], "ردّ غير مفهوم من المزوّد | unexpected reply from the provider"
 
-    items = items if cloud_policy.selected_cost_policy() == "paid" else cloud_policy.visible_models(items)
+    if zen:
+        items = [item for item in items
+                 if isinstance(item, dict) and cloud_policy.zen_model(item.get("id"))]
+    elif cloud_policy.selected_provider() != "openrouter-paid":
+        items = cloud_policy.visible_models(items)
     out, seen = [], set()
     for item in items:
         inputs = ["text"]
@@ -1226,7 +1234,7 @@ def curated_cloud_models(cloud: list) -> list:
                        note_ar=arabic, note_en=english)
             picked.append(row)
         else:
-            row.update(group="all")
+            row.setdefault("group", "all")
             others.append(row)
     picked.sort(key=lambda row: row["rank"])
     others.sort(key=lambda row: str(row.get("id", "")))
@@ -1247,17 +1255,23 @@ def models() -> dict:
 
     cloud = []
     cloud_error = ""
-    if str(cfg.get("cloud_base", "")).rstrip("/") == cloud_policy.BASE:
+    base = str(cfg.get("cloud_base", "")).rstrip("/")
+    if base == cloud_policy.BASE:
         # A static free router remains usable even when catalogue requests fail.
         cloud, cloud_error = cloud_models(cfg)
         cloud.insert(0, {"id": "cloud:" + cloud_policy.DEFAULT_MODEL,
                   "label": "Free cloud · سحابي مجاني", "serving": True,
                   "input": ["text"]})
+    elif base == cloud_policy.ZEN_BASE and cloud_policy.selected_provider() == "opencode-zen":
+        # Billed by the owner's choice: no free router, only what Zen serves on this wire.
+        cloud, cloud_error = cloud_models(cfg)
+        for row in cloud:
+            row["group"] = "paid"
     else:
         cloud_error = cloud_policy.ERROR
     cloud = curated_cloud_models(cloud)
     selected = configured if (cloud_policy.free_model(configured) or
-        cloud_policy.selected_cost_policy() == "paid" and cloud_policy.valid_model(configured)) else cloud_policy.DEFAULT_MODEL
+        cloud_policy.paid_model(configured)) else cloud_policy.DEFAULT_MODEL
     out = {"local": [], "cloud": cloud, "cloud_error": cloud_error,
            "default": "cloud:" + selected, "mode": "cloud"}
 
@@ -1468,7 +1482,8 @@ def test_cloud(base: str, model: str, wire: str, key: str) -> dict:
 
     try:
         cloud_policy.validate(base, model, wire, allow_paid=cloud_policy.selected_cost_policy() == "paid")
-        payload = cloud_policy.request_body(payload, model, allow_paid=cloud_policy.selected_cost_policy() == "paid")
+        payload = cloud_policy.request_body(payload, model, allow_paid=cloud_policy.selected_cost_policy() == "paid",
+                                            base=base)
     except ValueError as error:
         return {"ok": False, "error": str(error)}
     req = urllib.request.Request(

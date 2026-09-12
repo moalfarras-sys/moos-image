@@ -15,6 +15,15 @@ import urllib.request
 
 BASE = 'https://openrouter.ai/api/v1'
 DEFAULT_MODEL = 'openrouter/free'
+# OpenCode Zen, a billed provider the owner can pick in Settings. Only the families Zen
+# serves on /chat/completions (the one wire Mo AI speaks) are routable, per
+# opencode.ai/docs/zen on 2026-09-12: DeepSeek, MiniMax, GLM, Kimi, Big Pickle, MiMo, Ling
+# and Nemotron. GPT, Grok and Muse use /responses, Claude and Qwen /messages, Gemini its
+# own path; listing those would offer choices that can only fail.
+ZEN_BASE = 'https://opencode.ai/zen/v1'
+ZEN_CHAT_MODEL = re.compile(r'(?:deepseek|minimax|glm|kimi|mimo|ling|nemotron)-[a-z0-9][a-z0-9.-]*|big-pickle')
+# Every billed provider; each is reachable only after the owner selects it in Settings.
+PAID_PROVIDERS = {'openrouter-paid': BASE, 'opencode-zen': ZEN_BASE}
 ERROR = ('Mo AI يعمل بالسحابة فقط. اختر مزوّداً ونموذجاً مسموحاً في الإعدادات؛ '
          'المدفوع يحتاج اختياراً صريحاً ولا يوجد بديل محلي. | Cloud inference only; '
          'choose an allowed provider/model. Paid models require explicit selection; no local fallback.')
@@ -25,29 +34,73 @@ def free_model(model):
         re.fullmatch(r'[A-Za-z0-9._-]+/[A-Za-z0-9._/-]+:free', model)))
 
 
-def selected_cost_policy():
-    """Only the explicit Settings provider selection enables billed requests."""
+def selected_provider():
+    """The provider the owner selected in Settings; '' when none was chosen."""
     path = Path(os.environ.get('XDG_CONFIG_HOME', str(Path.home()/'.config'))) / 'moai-agent/state.json'
     try:
-        state = json.loads(path.read_text())
-        return 'paid' if state.get('provider') == 'openrouter-paid' else 'free'
-    except (OSError, ValueError, TypeError):
-        return 'free'
+        provider = json.loads(path.read_text()).get('provider')
+    except (OSError, ValueError, TypeError, AttributeError):
+        return ''
+    return provider if isinstance(provider, str) else ''
+
+
+def selected_cost_policy():
+    """Only the explicit Settings provider selection enables billed requests."""
+    return 'paid' if selected_provider() in PAID_PROVIDERS else 'free'
 
 
 def valid_model(model):
     return isinstance(model, str) and bool(re.fullmatch(r'[A-Za-z0-9._-]+/[A-Za-z0-9._/:-]+', model))
 
 
+def zen_model(model):
+    return isinstance(model, str) and bool(ZEN_CHAT_MODEL.fullmatch(model))
+
+
+def paid_model(model, provider=None):
+    """A billed model the SELECTED paid provider can actually serve."""
+    provider = selected_provider() if provider is None else provider
+    if provider == 'openrouter-paid':
+        return valid_model(model)
+    if provider == 'opencode-zen':
+        return zen_model(model)
+    return False
+
+
+def validate_selection(provider, model):
+    """Check a Settings choice before it is saved; saving it IS the explicit selection."""
+    if provider in ('openrouter-free', 'openrouter-paid') and free_model(model):
+        return
+    if provider == 'openrouter-paid' and valid_model(model):
+        return
+    if provider == 'opencode-zen' and zen_model(model):
+        return
+    raise ValueError(ERROR)
+
+
+def _zen_route(base, model, allow_paid):
+    # Zen is never free here and never a fallback: it takes the owner's explicit
+    # selection in Settings AND a documented chat-completions model.
+    return (str(base).rstrip('/') == ZEN_BASE and allow_paid
+            and selected_provider() == 'opencode-zen' and zen_model(model))
+
+
 def validate(base, model, wire='openai', allow_paid=False):
-    if (str(base).rstrip('/') != BASE or wire != 'openai'
-            or not (free_model(model) or allow_paid and valid_model(model))):
+    if wire != 'openai':
         raise ValueError(ERROR)
+    if str(base).rstrip('/') == BASE and (free_model(model) or allow_paid and valid_model(model)):
+        return
+    if _zen_route(base, model, allow_paid):
+        return
+    raise ValueError(ERROR)
 
 
-def request_body(body, model, allow_paid=False):
+def request_body(body, model, allow_paid=False, base=BASE):
     """Discard caller routing/plugins so paid web/audio tools cannot bypass policy."""
-    if not (free_model(model) or allow_paid and valid_model(model)):
+    zen = str(base).rstrip('/') == ZEN_BASE
+    if zen and not _zen_route(base, model, allow_paid):
+        raise ValueError(ERROR)
+    if not zen and not (free_model(model) or allow_paid and valid_model(model)):
         raise ValueError(ERROR)
     allowed = {'messages', 'stream', 'stream_options', 'temperature', 'top_p',
                'max_tokens', 'max_completion_tokens', 'stop', 'seed',
@@ -55,6 +108,10 @@ def request_body(body, model, allow_paid=False):
                'tools', 'tool_choice', 'parallel_tool_calls', 'reasoning'}
     out = {k: v for k, v in body.items() if k in allowed}
     out['model'] = model
+    if zen:
+        # OpenRouter's routing object and reasoning extension mean nothing to Zen.
+        out.pop('reasoning', None)
+        return out
     out['provider'] = {'allow_fallbacks': True}
     if free_model(model):
         out['provider']['max_price'] = {'prompt': 0, 'completion': 0, 'request': 0, 'image': 0}

@@ -102,14 +102,20 @@ class Catalogue(unittest.TestCase):
 
     def test_paid_is_explicit_and_free_remains_first(self) -> None:
         self.assertEqual(self.providers[0]["id"], "openrouter-free")
-        self.assertEqual({p["id"] for p in self.providers}, {"openrouter-free", "openrouter-paid"})
+        self.assertEqual({p["id"] for p in self.providers},
+                         {"openrouter-free", "openrouter-paid", "opencode-zen"})
+        bases = {"openrouter-free": "https://openrouter.ai/api/v1",
+                 "openrouter-paid": "https://openrouter.ai/api/v1",
+                 "opencode-zen": "https://opencode.ai/zen/v1"}
         for p in self.providers:
-            self.assertEqual(p["base"], "https://openrouter.ai/api/v1")
+            self.assertEqual(p["base"], bases[p["id"]])
             if p.get("free"):
                 self.assertTrue(p["model"] == "openrouter/free" or p["model"].endswith(":free"))
             else:
                 self.assertIn("paid", p["name"])
                 self.assertIn("مدفوع", p["name"])
+        # Only OpenRouter's explicit free route is free; every other entry is billed by choice.
+        self.assertEqual([p["id"] for p in self.providers if p.get("free")], ["openrouter-free"])
 
     def test_ids_are_unique(self) -> None:
         ids = [p["id"] for p in self.providers]

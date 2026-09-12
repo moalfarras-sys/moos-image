@@ -161,9 +161,13 @@ PROVIDERS = [
     {"id": "openrouter-paid", "name": "OpenRouter (مدفوع باختيارك | paid by choice)",
      "base": "https://openrouter.ai/api/v1", "model": "openai/gpt-5.4-mini",
      "api": "openai-completions", "free": False},
+    {"id": "opencode-zen", "name": "OpenCode Zen (مدفوع باختيارك | paid by choice)",
+     "base": "https://opencode.ai/zen/v1", "model": "deepseek-v4-flash",
+     "api": "openai-completions", "free": False},
 ]
 
 PROVIDER_API = {p["id"]: p["api"] for p in PROVIDERS}
+PROVIDER_BY_ID = {p["id"]: p for p in PROVIDERS}
 
 
 # ── permission tiers ────────────────────────────────────────────────────
@@ -842,11 +846,14 @@ def write_config(body: dict) -> dict:
     if cloud_input:
         if not isinstance(cloud_input, dict):
             raise ValueError(cloud_policy.ERROR)
-        if cloud_input.get("provider", "openrouter-free") not in ("openrouter-free", "openrouter-paid"):
+        provider = str(cloud_input.get("provider", "openrouter-free"))
+        if provider not in PROVIDER_BY_ID:
             raise ValueError(cloud_policy.ERROR)
-        cloud_policy.validate(cloud_input.get("base", cloud_policy.BASE),
-                              cloud_input.get("model", cloud_policy.DEFAULT_MODEL),
-                              allow_paid=cloud_input.get("provider") == "openrouter-paid")
+        # The catalogue fixes each provider's address; a form naming another one is refused.
+        base = str(cloud_input.get("base") or "").strip().rstrip("/")
+        if base and base != PROVIDER_BY_ID[provider]["base"]:
+            raise ValueError(cloud_policy.ERROR)
+        cloud_policy.validate_selection(provider, cloud_input.get("model", cloud_policy.DEFAULT_MODEL))
     with CONFIG_WRITE_LOCK:
         c = load_cfg()
         st = load_state()
@@ -865,11 +872,19 @@ def write_config(body: dict) -> dict:
                               or "synterolink")
             if provider_id not in PROVIDER_API:
                 raise ValueError("المزوّد غير معروف")
-            st["provider"] = provider_id
             providers = c.setdefault("models", {}).setdefault("providers", {})
             node = providers.setdefault("cloud", {})
-            if "base" in cl and str(cl.get("base") or "").strip():
-                node["baseUrl"] = _valid_base(cl["base"])
+            service = PROVIDER_BY_ID[provider_id]["base"]
+            # A key belongs to the service that issued it. Moving between services
+            # (OpenRouter <-> OpenCode Zen) without that service's key would send the
+            # stored key to another company on the next catalogue or chat request.
+            if (node.get("apiKey") and str(node.get("baseUrl") or "").rstrip("/") not in ("", service)
+                    and not cl.get("key")):
+                raise ValueError("أدخل مفتاح هذا المزوّد؛ المفتاح المحفوظ يخص مزوّداً آخر | "
+                                 "Enter this provider's key; the saved key belongs to another provider")
+            st["provider"] = provider_id
+            # Each provider's address comes from the catalogue, never from the form.
+            node["baseUrl"] = _valid_base(service)
             if "model" in cl and str(cl.get("model") or "").strip():
                 cloud_model = _clean_model(cl["model"], "نموذج السحابة")
                 st["cloud_model"] = cloud_model
