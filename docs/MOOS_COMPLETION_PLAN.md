@@ -211,3 +211,8 @@ change weekly; a single sample is evidence of a problem, not a final ranking.
   the field before typing, pinned by its gate, awaiting the next ISO run. Mo AI device,
   apps and compatibility panels and six Settings icons fixed after live use; a new gate
   stops Settings glyphs from silently falling back to the sparkle.
+- **2026-09-12, released:** `6021840c` signed and promoted; the ISO login fix is proven
+  (run 34676614084 logged in on attempt 1).
+- **2026-09-12, M2.3 (control) + M2.4 (daily check) + P1 Plasma:** `moos-control`
+  tap-to-run actions, `moos-health` read-only daily check with Mo AI card and brain
+  context, and the `moai-krunner` search runner; each proven live and gated.

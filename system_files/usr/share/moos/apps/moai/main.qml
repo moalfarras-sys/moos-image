@@ -533,6 +533,14 @@ Kirigami.ApplicationWindow {
         "bluetooth, keyboard, mouse, themes, wallpaper, fonts, energy, time, region, users, " +
         "storage, update). Offer these only when the user wants the change; for “how do I…” " +
         "questions explain instead.\n" +
+        "• YOUR DAILY CHECK: MoOS runs a read-only check every day — app and system updates, " +
+        "what is using the machine and why, security signs (ports open to the network, " +
+        "suspicious startup entries, user services or shell lines, programs running from " +
+        "temporary folders, apps that can read every file) and devices without a driver. The " +
+        "latest findings are in THIS MACHINE below. When the user asks whether the system is " +
+        "safe, up to date or why it is slow, answer from those findings, offer the matching " +
+        "action, and suggest “Check now” in the Device panel for a fresh check. It is NOT a " +
+        "signature antivirus: never claim it scanned files for viruses.\n" +
         "• Run apps from OTHER systems, for real:\n" +
         "   – DOUBLE-CLICK IS ENOUGH. A downloaded .exe or .apk runs when the user opens " +
         "it in Files: MoOS hands it to the right layer, and if that layer is not installed " +
@@ -757,6 +765,17 @@ Kirigami.ApplicationWindow {
                 }
             }
         }
+        // `moai --ask "<question>"` opens the chat already asking it — how Plasma's
+        // search bar hands a question to Mo AI. It only starts a conversation:
+        // any action in the answer is still a button the user has to tap.
+        const askIndex = argv.indexOf("--ask")
+        if (askIndex !== -1 && askIndex + 1 < argv.length) {
+            const question = String(argv[askIndex + 1]).slice(0, 2000)
+            if (question.trim() !== "") {
+                root.panel = "chat"
+                Qt.callLater(function () { root.sendPrompt(question) })
+            }
+        }
         const workspaceIndex = argv.indexOf("--workspace")
         if (workspaceIndex !== -1 && workspaceIndex + 1 < argv.length) {
             const workspace = argv[workspaceIndex + 1]
@@ -904,6 +923,80 @@ Kirigami.ApplicationWindow {
         onTriggered: root.refreshScan()
     }
 
+    // ── Mo AI's daily check (moos-health, served read-only by moai-control) ──
+    property var healthReport: ({})
+    property bool healthScanning: false
+    readonly property var healthFindings: (healthReport.findings || []).slice(0, 8)
+    readonly property string healthStatus: ((healthReport.summary || {}).status) || ""
+
+    function healthHeadline() {
+        if (!root.healthReport.generated_at)
+            return root.healthScanning ? root.local("جارٍ الفحص الأول…", "Running the first check…")
+                                       : root.local("لم يُجرَ فحص بعد", "No check has run yet")
+        const c = (root.healthReport.summary || {}).counts || {}
+        if (root.healthStatus === "ok")
+            return root.local("كل شيء سليم", "All clear")
+        return root.local("مهم: " + (c.important || 0) + " · تنبيهات: " + (c.warning || 0),
+                          "Important: " + (c.important || 0) + " · Warnings: " + (c.warning || 0))
+    }
+
+    function healthSubline() {
+        const s = root.healthReport.summary || {}
+        let t = root.healthReport.generated_at
+            ? root.local("آخر فحص: ", "Last check: ")
+              + new Date(root.healthReport.generated_at).toLocaleString(Qt.locale(), Locale.ShortFormat)
+            : root.local("يفحص التحديثات والموارد وعلامات الأمان والأجهزة كل يوم",
+                         "Checks updates, resources, security signs and devices every day")
+        if (s.app_updates)
+            t += root.local(" · تحديثات تطبيقات: ", " · App updates: ") + s.app_updates
+        if (s.system_update_staged)
+            t += root.local(" · تحديث النظام جاهز", " · System update ready")
+        return t
+    }
+
+    function loadHealth() {
+        const xhr = new XMLHttpRequest()
+        xhr.open("GET", controlApi + "/health")
+        xhr.setRequestHeader("X-Moai-Control", "1")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE || xhr.status !== 200)
+                return
+            try {
+                const doc = JSON.parse(xhr.responseText)
+                const finished = root.healthScanning && !doc.scanning
+                root.healthReport = doc.report || ({})
+                root.healthScanning = !!doc.scanning
+                if (root.healthScanning)
+                    healthPoll.restart()
+                else if (finished)
+                    root.refreshScan()   // the brain's context picks up the new findings
+            } catch (e) { /* keep the last good report */ }
+        }
+        xhr.send()
+    }
+
+    function scanHealth() {
+        const xhr = new XMLHttpRequest()
+        xhr.open("POST", controlApi + "/health/scan")
+        xhr.setRequestHeader("X-Moai-Control", "1")
+        xhr.setRequestHeader("Content-Type", "application/json")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE)
+                return
+            root.healthScanning = xhr.status === 200
+            if (root.healthScanning)
+                healthPoll.restart()
+        }
+        xhr.send("{}")
+    }
+
+    Timer {
+        id: healthPoll
+        interval: 3000
+        repeat: false
+        onTriggered: root.loadHealth()
+    }
+
     function refreshScan() {
         root.scanning = true
         const xhr = new XMLHttpRequest()
@@ -920,6 +1013,8 @@ Kirigami.ApplicationWindow {
                 root.snap = s
                 root.plan = s.device_plan || {}
                 root.machineContext = root.buildContext(s)
+                if (!root.healthScanning)
+                    root.loadHealth()
             } catch (e) { /* keep the last good snapshot, not a half-parsed one */ }
         }
         xhr.send()
@@ -962,6 +1057,25 @@ Kirigami.ApplicationWindow {
             c += "If something above is broken, say so first and offer the exact action.\n"
         } else {
             c += "• No hardware or driver problems detected.\n"
+        }
+        const h = s.health || {}
+        const hs = h.summary || {}
+        if (h.generated_at) {
+            const hc = hs.counts || {}
+            c += "• Daily check (" + h.generated_at + "): " + (hs.status || "?")
+               + " — important " + (hc.important || 0) + ", warnings " + (hc.warning || 0)
+               + ", app updates " + (hs.app_updates || 0)
+               + (hs.system_update_staged ? ", a system update is staged (restart to apply)" : "") + "\n"
+            const hf = h.findings || []
+            for (let i = 0; i < hf.length; i++)
+                c += "   - [" + hf[i].severity + "] " + hf[i].title
+                   + (hf[i].detail ? ": " + hf[i].detail : "")
+                   + (hf[i].action ? "  ->  " + hf[i].action : "") + "\n"
+            const hot = h.top_cpu || []
+            if (hot.length)
+                c += "• Busiest programs at the last check: " + hot.map(function (item) {
+                    return item.name + " " + item.cpu_percent + "%" + (item.why ? " (" + item.why + ")" : "")
+                }).join("; ") + "\n"
         }
         c += "Never invent hardware facts that are not in this list.\n"
         return c
@@ -2905,7 +3019,7 @@ Kirigami.ApplicationWindow {
                             radius: design.radiusControl
                             implicitHeight: bannerRow.implicitHeight + 22
                             readonly property color bannerTone: root.problemCount > 0
-                                ? root.warnColor : root.accent
+                                ? root.warnColor : root.novaBlue
                             color: Qt.rgba(bannerTone.r, bannerTone.g, bannerTone.b, 0.09)
                             border.width: 1
                             border.color: Qt.rgba(bannerTone.r, bannerTone.g,
@@ -2924,7 +3038,7 @@ Kirigami.ApplicationWindow {
                                     source: root.problemCount > 0
                                         ? "moos-warning-symbolic" : "moos-bulb-symbolic"
                                     color: root.problemCount > 0
-                                        ? root.warnColor : root.accent
+                                        ? root.warnColor : root.novaBlue
                                     Layout.preferredWidth: root.fs(22)
                                     Layout.preferredHeight: root.fs(22)
                                 }
@@ -3586,6 +3700,117 @@ Kirigami.ApplicationWindow {
                                 }
                             }
 
+                            // Mo AI's daily check: read-only findings, each with its fix.
+                            SectionTitle {
+                                text: root.local("الفحص اليومي", "Daily check")
+                                Layout.topMargin: 6
+                            }
+
+                            Card {
+                                Layout.fillWidth: true
+                                ColumnLayout {
+                                    width: parent.width
+                                    spacing: design.space2
+
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        spacing: design.space3
+                                        Kirigami.Icon {
+                                            source: root.healthStatus === "ok" ? "moos-shield-symbolic"
+                                                                              : "moos-warning-symbolic"
+                                            color: root.healthStatus === "ok" ? root.okColor
+                                                 : root.healthStatus === "action-needed" ? root.badColor
+                                                 : root.healthStatus === "" ? root.textLo : root.warnColor
+                                            Layout.preferredWidth: root.fs(22)
+                                            Layout.preferredHeight: root.fs(22)
+                                        }
+                                        ColumnLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 2
+                                            Text {
+                                                Layout.fillWidth: true
+                                                text: root.healthHeadline()
+                                                color: root.textHi
+                                                font.family: root.uiFont
+                                                font.pixelSize: root.typePx(13)
+                                                font.weight: Font.DemiBold
+                                                wrapMode: Text.Wrap
+                                            }
+                                            Text {
+                                                Layout.fillWidth: true
+                                                text: root.healthSubline()
+                                                color: root.textLo
+                                                font.family: root.uiFont
+                                                font.pixelSize: root.typePx(11)
+                                                wrapMode: Text.Wrap
+                                            }
+                                        }
+                                        MoButton {
+                                            label: root.healthScanning ? root.local("جارٍ الفحص…", "Checking…")
+                                                                       : root.local("افحص الآن", "Check now")
+                                            iconName: "moos-search-symbolic"
+                                            enabled_: !root.healthScanning
+                                            onClicked: root.scanHealth()
+                                        }
+                                    }
+
+                                    Repeater {
+                                        model: root.healthFindings
+                                        delegate: RowLayout {
+                                            id: healthItem
+                                            required property var modelData
+                                            Layout.fillWidth: true
+                                            spacing: design.space2
+                                            Rectangle {
+                                                Layout.preferredWidth: root.fs(8)
+                                                Layout.preferredHeight: root.fs(8)
+                                                Layout.alignment: Qt.AlignTop
+                                                Layout.topMargin: root.fs(6)
+                                                radius: height / 2
+                                                color: healthItem.modelData.severity === "important" ? root.badColor
+                                                     : healthItem.modelData.severity === "warning" ? root.warnColor
+                                                     : root.novaViolet
+                                            }
+                                            ColumnLayout {
+                                                Layout.fillWidth: true
+                                                spacing: 1
+                                                Text {
+                                                    Layout.fillWidth: true
+                                                    text: root.planText(healthItem.modelData.title)
+                                                    color: root.textHi
+                                                    font.family: root.uiFont
+                                                    font.pixelSize: root.typePx(12)
+                                                    wrapMode: Text.Wrap
+                                                }
+                                                Text {
+                                                    Layout.fillWidth: true
+                                                    visible: text !== ""
+                                                    text: String(healthItem.modelData.detail || "")
+                                                    color: root.textLo
+                                                    font.family: root.uiFont
+                                                    font.pixelSize: root.typePx(10)
+                                                    wrapMode: Text.Wrap
+                                                    maximumLineCount: 2
+                                                    elide: Text.ElideRight
+                                                }
+                                            }
+                                            MoButton {
+                                                visible: String(healthItem.modelData.action || "").indexOf("moos://") === 0
+                                                label: root.local("نفّذ الحل", "Fix it")
+                                                primary: true
+                                                onClicked: root.launch(healthItem.modelData.action,
+                                                                       root.planText(healthItem.modelData.title))
+                                            }
+                                            MoButton {
+                                                label: root.local("اسأل", "Ask")
+                                                onClicked: root.askAbout(root.planText(healthItem.modelData.title),
+                                                                         String(healthItem.modelData.detail || ""))
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
                             // Maintenance — the whole of the old Hardware Centre's action list.
                             SectionTitle {
                                 text: root.local("الصيانة", "Maintenance")
@@ -3931,7 +4156,7 @@ Kirigami.ApplicationWindow {
                                                 anchors.centerIn: parent
                                                 width: 20; height: 20
                                                 source: "moos-boxes-symbolic"
-                                                color: root.accent
+                                                color: root.novaBlue
                                             }
                                         }
                                         ColumnLayout {

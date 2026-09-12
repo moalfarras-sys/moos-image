@@ -1,0 +1,14 @@
+[Unit]
+Description=Run Mo AI's daily check
+
+[Timer]
+# Once a day at a random quiet hour, caught up at the next login if the machine
+# was off; plus one check half an hour into each session. The scan is read-only,
+# idle-priority, and notifies at most once for the same findings on the same day.
+OnCalendar=daily
+RandomizedDelaySec=1h
+Persistent=true
+OnActiveSec=30min
+
+[Install]
+WantedBy=timers.target

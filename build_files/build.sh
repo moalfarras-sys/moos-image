@@ -2654,6 +2654,8 @@ systemctl --global enable moos-theme-sync.path
 # same idempotent reconcile on a calm schedule so the desktop cannot sit in a
 # state moos-selfcheck calls broken with nothing to repair it.
 systemctl --global enable moos-theme-drift.timer
+# Mo AI's daily check (read-only; notifies only when something needs attention).
+systemctl --global enable moos-health.timer
 
 # Mo AI's FRONT DOOR. This is the only thing on 127.0.0.1:8080 and the only thing
 # the Mo AI app ever talks to; it routes each request to the local brain (8081,

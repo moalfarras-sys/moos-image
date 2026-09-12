@@ -1,0 +1,623 @@
+#!/usr/bin/python3
+"""moos-health — Mo AI's daily check of this computer. Read-only.
+
+WHY: the owner asked for an assistant that notices, before being asked, which
+apps need updates, what is using the machine and why, whether anything looks
+malicious and which devices have no driver. This scanner looks and reports; it
+never changes, deletes or quarantines anything. Mo AI reads the report through
+moai-control and offers each fix as a button the owner taps.
+
+It is not a signature antivirus: MoOS ships no signature database, so there is
+no background download and no disk cost. On an atomic, signed image the useful
+questions are different, and they are the ones asked here: is the running
+system still the signed image; is SELinux enforcing and the firewall up; which
+ports are open to the network and who owns them; did anything add itself to the
+session, the user's services or the shell; is a program running from a
+temporary folder; which apps can read every file in the home.
+
+moos-health.timer runs it daily at idle priority. `--notify` raises one
+notification when something needs attention, and never twice for the same
+findings on the same day.
+"""
+import argparse
+import hashlib
+import ipaddress
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+
+HOME = Path(os.environ.get("MOOS_HEALTH_HOME") or Path.home())
+PROC = Path(os.environ.get("MOOS_HEALTH_PROC") or "/proc")
+OS_RELEASE = Path(os.environ.get("MOOS_HEALTH_OS_RELEASE") or "/etc/os-release")
+STATE = Path(os.environ.get("MOOS_HEALTH_STATE") or
+             Path(os.environ.get("XDG_STATE_HOME") or HOME / ".local/state") / "moos" / "health")
+SAMPLE_SECONDS = float(os.environ.get("MOOS_HEALTH_SAMPLE_SECONDS") or 2.0)
+KEEP_DAYS = 7
+SEVERITIES = ("important", "warning", "info")
+
+TEMP_DIRS = ("/tmp/", "/var/tmp/", "/dev/shm/")
+UNTRUSTED_PLACES = TEMP_DIRS + ("/.cache/", "/Downloads/", "/التنزيلات/")
+SUSPICIOUS = re.compile(
+    r"(?:curl|wget)\b[^\n|;]*\|\s*(?:ba|z|da)?sh\b"
+    r"|base64\s+(?:-d|--decode)\b"
+    r"|/dev/(?:tcp|udp)/"
+    r"|\bLD_PRELOAD="
+    r"|\bnc(?:at)?\s+(?:-\w*\s+)*-\w*e\b", re.IGNORECASE)
+
+# Ports a MoOS desktop is expected to open beyond loopback, and who opens them.
+KNOWN_PORTS = {
+    5353: "Avahi — local device discovery",
+    5355: "systemd-resolved — local name lookup (LLMNR)",
+    27036: "Steam — local game streaming",
+    41641: "Tailscale — encrypted private network",
+    27500: "Passim (fwupd) — shares firmware metadata on the local network",
+}
+# Known, and still worth a warning: remote access to this desktop from any machine
+# on the network.
+REMOTE_ACCESS_PORTS = {
+    3389: "سطح المكتب البعيد (RDP) مفتوح للشبكة | Remote Desktop (RDP) is open to the network",
+    5900: "مشاركة الشاشة (VNC) مفتوحة للشبكة | Screen sharing (VNC) is open to the network",
+    22: "الدخول عبر SSH مفتوح للشبكة | SSH login is open to the network",
+}
+KNOWN_PORT_RANGES = ((1714, 1764, "KDE Connect — phone link"),)
+
+# Plain-language reasons for the processes that most often top the list.
+WHY = {
+    "kwin_wayland": "مدير النوافذ يرسم الشاشة | the window manager drawing the screen",
+    "plasmashell": "سطح المكتب والشريط | the desktop and panels",
+    "baloo_file": "فهرسة البحث في الملفات | file search indexing new files",
+    "baloo_file_extractor": "فهرسة البحث في الملفات | file search indexing new files",
+    "packagekitd": "تجهيز تحديثات البرامج | software updates being prepared",
+    "flatpak": "تثبيت أو تحديث تطبيقات | apps being installed or updated",
+    "rpm-ostree": "تجهيز تحديث النظام | the system update being prepared",
+    "rpm-ostreed": "تجهيز تحديث النظام | the system update being prepared",
+    "podman": "حاويات قيد التشغيل أو البناء | containers running or building",
+    "buildah": "بناء صورة حاوية | a container image being built",
+    "steam": "ستيم: ألعاب وذاكرة الظلال | Steam: games and shader cache",
+    "chrome": "تبويبات المتصفح | browser tabs",
+    "firefox": "تبويبات المتصفح | browser tabs",
+    "code": "محرر VS Code وإضافاته | VS Code and its extensions",
+    "node": "برنامج Node.js (غالباً إضافة محرر أو خادم تطوير) | a Node.js program, often an editor extension or dev server",
+    "python3": "برنامج Python | a Python program",
+    "gst-launch-1.0": "بث الشاشة عبر Mo PC Remote | Mo PC Remote streaming the screen",
+    "waydroid": "حاوية أندرويد | the Android container",
+    "tracker-miner-fs-3": "فهرسة الملفات | file indexing",
+}
+
+
+def tool(argv, timeout=30):
+    """Run one fixed command; None when it is missing, fails or hangs."""
+    if shutil.which(argv[0]) is None:
+        return None
+    try:
+        result = subprocess.run(argv, capture_output=True, text=True, timeout=timeout)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return result.stdout if result.returncode == 0 else None
+
+
+def finding(fid, severity, title, detail="", action=""):
+    return {"id": fid, "severity": severity, "title": title,
+            "detail": detail, "action": action}
+
+
+def read_text(path):
+    try:
+        return Path(path).read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+
+
+# ── The running system ──────────────────────────────────────────────────────
+def system_section(findings):
+    info = {"os": "MoOS", "version": "", "image": "", "signed": None,
+            "staged": "", "rollback": False, "kernel": ""}
+    for line in read_text(OS_RELEASE).splitlines():
+        if line.startswith("PRETTY_NAME="):
+            info["os"] = line.split("=", 1)[1].strip().strip('"')
+    try:
+        info["kernel"] = os.uname().release.split(".fc")[0]
+    except OSError:
+        pass
+    status = tool(["rpm-ostree", "status", "--json"], timeout=60)
+    try:
+        deployments = json.loads(status).get("deployments", []) if status else []
+    except ValueError:
+        deployments = []
+    booted = next((item for item in deployments if item.get("booted")), {})
+    staged = next((item for item in deployments if item.get("staged")), {})
+    reference = booted.get("container-image-reference") or ""
+    info["version"] = booted.get("version") or ""
+    info["image"] = reference.split(":", 1)[-1] if reference else ""
+    info["signed"] = reference.startswith("ostree-image-signed:") if reference else None
+    info["staged"] = staged.get("version") or ""
+    info["rollback"] = len(deployments) > 1
+    if reference and not info["signed"]:
+        findings.append(finding(
+            "unsigned-origin", "important",
+            "النظام لا يتحقق من توقيع التحديثات | Updates are not signature-verified",
+            reference))
+    if info["staged"]:
+        findings.append(finding(
+            "update-staged", "info",
+            "تحديث النظام جاهز — أعد التشغيل لتطبيقه | System update ready — restart to apply",
+            info["staged"], "moos://app/updater"))
+    return info
+
+
+# ── Updates ─────────────────────────────────────────────────────────────────
+def updates_section(findings):
+    result = {"checked": False, "apps": [], "nightly_system_update": None,
+              "last_nightly_result": ""}
+    if tool(["moos-storectl", "check-updates"], timeout=240) is not None:
+        cache = Path(os.environ.get("XDG_CACHE_HOME") or HOME / ".cache")
+        try:
+            document = json.loads(read_text(cache / "moos-store" / "updates.json") or "{}")
+        except ValueError:
+            document = {}
+        if document.get("action") == "check-updates" and document.get("state") == "success":
+            result["checked"] = True
+            for item in document.get("items") or []:
+                if isinstance(item, dict):
+                    name = item.get("name") or item.get("id") or item.get("app_id") or ""
+                else:
+                    name = str(item)
+                if name:
+                    result["apps"].append(name)
+    if result["apps"]:
+        count = len(result["apps"])
+        findings.append(finding(
+            "app-updates", "info",
+            f"تحديثات تطبيقات متاحة ({count}) | App updates available ({count})",
+            ", ".join(result["apps"][:8]), "moos://do/update-apps"))
+    enabled = (tool(["systemctl", "is-enabled", "moos-auto-update.timer"]) or "").strip()
+    result["nightly_system_update"] = enabled == "enabled"
+    last = (tool(["systemctl", "show", "moos-auto-update.service", "-p", "Result",
+                  "--value"]) or "").strip()
+    result["last_nightly_result"] = last
+    if last and last != "success":
+        findings.append(finding(
+            "nightly-update-failed", "warning",
+            "آخر تحديث ليلي للنظام لم ينجح | The last nightly system update did not succeed",
+            last, "moos://app/updater"))
+    return result
+
+
+# ── What is using the machine, and why ─────────────────────────────────────
+def cpu_ticks():
+    ticks = {}
+    for entry in PROC.iterdir() if PROC.is_dir() else ():
+        if not entry.name.isdigit():
+            continue
+        try:
+            fields = (entry / "stat").read_text().rsplit(")", 1)[1].split()
+            ticks[int(entry.name)] = int(fields[11]) + int(fields[12])
+        except (OSError, IndexError, ValueError):
+            continue
+    return ticks
+
+
+def process(pid):
+    base = PROC / str(pid)
+    name = read_text(base / "comm").strip()
+    if not name:
+        return None
+    rss_kb = 0
+    for line in read_text(base / "status").splitlines():
+        if line.startswith("VmRSS:"):
+            try:
+                rss_kb = int(line.split()[1])
+            except (IndexError, ValueError):
+                pass
+            break
+    owner = ""
+    cgroup = read_text(base / "cgroup")
+    match = re.search(r"app-flatpak-([A-Za-z0-9._-]+?)-\d+\.scope", cgroup)
+    if match:
+        owner = match.group(1)
+    else:
+        match = re.search(r"/([A-Za-z0-9@._-]+\.service)\b", cgroup)
+        owner = match.group(1) if match else ""
+    why = WHY.get(name, "")
+    return {"pid": pid, "name": name, "owner": owner, "rss_mb": round(rss_kb / 1024), "why": why}
+
+
+def meminfo():
+    values = {}
+    for line in read_text(PROC / "meminfo").splitlines():
+        parts = line.replace(":", " ").split()
+        if len(parts) >= 2 and parts[1].isdigit():
+            values[parts[0]] = int(parts[1])
+    return values
+
+
+def resources_section(findings):
+    clock = os.sysconf("SC_CLK_TCK") if hasattr(os, "sysconf") else 100
+    first = cpu_ticks()
+    started = time.monotonic()
+    time.sleep(SAMPLE_SECONDS)
+    second = cpu_ticks()
+    elapsed = max(0.05, time.monotonic() - started)
+    busy = sorted(((second[pid] - first[pid]) / clock / elapsed * 100, pid)
+                  for pid in second if pid in first)
+    top_cpu = []
+    for percent, pid in reversed(busy[-5:]):
+        if percent < 1:
+            continue
+        item = process(pid)
+        if item:
+            item["cpu_percent"] = round(percent)
+            top_cpu.append(item)
+    top_memory = sorted((item for item in (process(pid) for pid in second) if item),
+                        key=lambda item: item["rss_mb"], reverse=True)[:5]
+    memory = meminfo()
+    total = memory.get("MemTotal", 0)
+    available = memory.get("MemAvailable", 0)
+    result = {
+        "top_cpu": top_cpu,
+        "top_memory": top_memory,
+        "memory_total_mb": round(total / 1024),
+        "memory_available_mb": round(available / 1024),
+        "disks": [],
+    }
+    if top_cpu and top_cpu[0]["cpu_percent"] >= 80:
+        hog = top_cpu[0]
+        findings.append(finding(
+            "cpu-hog", "info",
+            "برنامج يستهلك المعالج بشدة | A program is using a lot of CPU",
+            f"{hog['name']} {hog['cpu_percent']}%" + (f" — {hog['why']}" if hog["why"] else "")))
+    if total and available / total < 0.10:
+        heaviest = top_memory[0]["name"] if top_memory else ""
+        findings.append(finding(
+            "memory-low", "warning",
+            "الذاكرة شبه ممتلئة | Memory is almost full",
+            f"{round(available / 1024)} MB free" + (f" — {heaviest}" if heaviest else "")))
+    seen = set()
+    # On MoOS "/" is the read-only signed image and always reads as full; the
+    # system's writable data lives in /var, and the owner's files in the home.
+    for label, path in (("system", os.environ.get("MOOS_HEALTH_SYSTEM_DATA") or "/var"),
+                        ("home", str(HOME))):
+        try:
+            stats = os.statvfs(path)
+        except OSError:
+            continue
+        if stats.f_flag & os.ST_RDONLY:
+            continue
+        key = (stats.f_blocks, stats.f_bfree)
+        if key in seen:
+            continue
+        seen.add(key)
+        size = stats.f_blocks * stats.f_frsize
+        free = stats.f_bavail * stats.f_frsize
+        if not size:
+            continue
+        used = round(100 * (size - free) / size)
+        result["disks"].append({"label": label, "used_percent": used,
+                                "free_gb": round(free / 1024 ** 3, 1)})
+        if used >= 90:
+            findings.append(finding(
+                f"disk-{label}", "important" if used >= 97 else "warning",
+                "مساحة التخزين شبه ممتلئة | Storage is almost full",
+                f"{used}% used, {round(free / 1024 ** 3, 1)} GB free", "moos://do/optimize"))
+    return result
+
+
+# ── Security signs ──────────────────────────────────────────────────────────
+def known_port(port):
+    if port in KNOWN_PORTS:
+        return KNOWN_PORTS[port]
+    for low, high, name in KNOWN_PORT_RANGES:
+        if low <= port <= high:
+            return name
+    return ""
+
+
+def exposed(address):
+    host = address.strip("[]")
+    if host in ("*", ""):
+        return True
+    host = host.split("%", 1)[0]
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    if ip.is_loopback or ip.is_link_local:
+        return False
+    # Tailscale's private overlay is reachable only by your own devices:
+    # 100.64.0.0/10 over IPv4 and fd7a:115c:a1e0::/48 over IPv6.
+    if ip.version == 4 and ip in ipaddress.ip_network("100.64.0.0/10"):
+        return False
+    if ip.version == 6 and ip in ipaddress.ip_network("fd7a:115c:a1e0::/48"):
+        return False
+    return True
+
+
+def listeners(findings):
+    out = tool(["ss", "-tulnpH"], timeout=20) or ""
+    items, grouped = [], {}
+    for line in out.splitlines():
+        fields = line.split()
+        if len(fields) < 5:
+            continue
+        local = fields[4]
+        address, _, port_text = local.rpartition(":")
+        if not port_text.isdigit() or not exposed(address):
+            continue
+        port = int(port_text)
+        match = re.search(r'users:\(\("([^"]+)"', line)
+        owner = match.group(1) if match else ""
+        known = known_port(port)
+        items.append({"protocol": fields[0], "address": local, "process": owner, "known": known})
+        if known and port not in REMOTE_ACCESS_PORTS:
+            continue
+        entry = grouped.setdefault((fields[0], port), {"addresses": [], "owner": ""})
+        entry["addresses"].append(local)
+        entry["owner"] = entry["owner"] or owner
+    for (protocol, port), entry in sorted(grouped.items()):
+        where = ", ".join(entry["addresses"])
+        who = entry["owner"] or "owner not visible to this user"
+        findings.append(finding(
+            f"open-port-{protocol}-{port}", "warning",
+            REMOTE_ACCESS_PORTS.get(port, "منفذ مفتوح على الشبكة | A port is open to the network"),
+            f"{protocol} {where} — {who}"))
+    return items
+
+
+def running_from_temp(findings):
+    temp, stale = [], []
+    for entry in PROC.iterdir() if PROC.is_dir() else ():
+        if not entry.name.isdigit():
+            continue
+        try:
+            target = os.readlink(entry / "exe")
+        except OSError:
+            continue
+        name = read_text(entry / "comm").strip() or target
+        if target.startswith("/memfd:"):
+            continue
+        if target.endswith(" (deleted)"):
+            stale.append(name)
+        elif target.startswith(TEMP_DIRS):
+            temp.append(f"{name} ({target})")
+    for item in sorted(set(temp)):
+        findings.append(finding(
+            "temp-exe-" + hashlib.sha1(item.encode()).hexdigest()[:8], "warning",
+            "برنامج يعمل من مجلد مؤقت | A program is running from a temporary folder", item))
+    if stale:
+        findings.append(finding(
+            "restart-updated-apps", "info",
+            "برامج ما زالت تعمل بنسختها القديمة بعد التحديث | Programs still running their pre-update version",
+            ", ".join(sorted(set(stale))[:8])))
+    return {"from_temp": sorted(set(temp)), "pre_update": sorted(set(stale))}
+
+
+def untrusted_command(command):
+    return bool(SUSPICIOUS.search(command)) or any(place in command for place in UNTRUSTED_PLACES)
+
+
+def persistence(findings):
+    result = {"autostart": [], "user_services": [], "shell": [], "cron": []}
+    for desktop in sorted((HOME / ".config/autostart").glob("*.desktop")):
+        command = next((line.split("=", 1)[1] for line in read_text(desktop).splitlines()
+                        if line.startswith("Exec=")), "")
+        result["autostart"].append({"file": desktop.name, "exec": command})
+        if untrusted_command(command):
+            findings.append(finding(
+                "autostart-" + desktop.stem, "warning",
+                "عنصر تشغيل تلقائي مريب | Suspicious autostart entry",
+                f"{desktop.name}: {command}", "moos://settings/autostart"))
+    for unit in sorted((HOME / ".config/systemd/user").glob("*.service")):
+        commands = [line.split("=", 1)[1] for line in read_text(unit).splitlines()
+                    if line.startswith(("ExecStart=", "ExecStartPre=", "ExecStartPost="))]
+        result["user_services"].append({"file": unit.name, "exec": commands})
+        for command in commands:
+            if untrusted_command(command):
+                findings.append(finding(
+                    "user-service-" + unit.stem, "warning",
+                    "خدمة مستخدم مريبة | Suspicious user service",
+                    f"{unit.name}: {command}"))
+                break
+    for name in (".bashrc", ".bash_profile", ".profile", ".zshrc", ".config/fish/config.fish"):
+        for number, line in enumerate(read_text(HOME / name).splitlines(), 1):
+            if line.lstrip().startswith("#") or not SUSPICIOUS.search(line):
+                continue
+            result["shell"].append(f"{name}:{number}")
+            findings.append(finding(
+                f"shell-{name.strip('.').replace('/', '-')}-{number}", "warning",
+                "سطر مريب في ملف بدء الطرفية | Suspicious line in a shell startup file",
+                f"~/{name}:{number}: {line.strip()[:160]}"))
+    for line in (tool(["crontab", "-l"], timeout=10) or "").splitlines():
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        result["cron"].append(line.strip())
+        if untrusted_command(line):
+            findings.append(finding(
+                "cron-" + hashlib.sha1(line.encode()).hexdigest()[:8], "warning",
+                "مهمة مجدولة مريبة | Suspicious scheduled job", line.strip()[:160]))
+    return result
+
+
+def broad_app_access(findings):
+    listed = tool(["flatpak", "list", "--app", "--columns=application"], timeout=60) or ""
+    broad = []
+    for app in sorted({line.strip() for line in listed.splitlines() if line.strip()}):
+        permissions = tool(["flatpak", "info", "--show-permissions", app], timeout=20) or ""
+        match = re.search(r"^filesystems=(.*)$", permissions, re.MULTILINE)
+        places = [item.split(":", 1)[0] for item in (match.group(1).split(";") if match else [])]
+        if {"host", "host-os", "home", "~"} & set(places):
+            broad.append(app)
+    if broad:
+        findings.append(finding(
+            "broad-file-access", "info",
+            f"تطبيقات تستطيع قراءة كل ملفاتك ({len(broad)}) | Apps that can read all your files ({len(broad)})",
+            ", ".join(broad[:10]), "moos://settings/permissions"))
+    return broad
+
+
+def security_section(findings):
+    result = {"signature_scan": False,
+              "method": "integrity, exposure and persistence checks — not a signature antivirus"}
+    enforce = (tool(["getenforce"], timeout=10) or "").strip()
+    result["selinux"] = enforce or None
+    if enforce and enforce != "Enforcing":
+        findings.append(finding(
+            "selinux-not-enforcing", "important",
+            "حماية SELinux ليست مفعّلة بالكامل | SELinux is not enforcing", enforce))
+    firewall = tool(["firewall-cmd", "--state"], timeout=10)
+    result["firewall"] = (firewall or "").strip() or None
+    if shutil.which("firewall-cmd") and (firewall or "").strip() != "running":
+        findings.append(finding(
+            "firewall-off", "warning",
+            "الجدار الناري متوقف | The firewall is not running"))
+    result["open_ports"] = listeners(findings)
+    result["processes"] = running_from_temp(findings)
+    result["persistence"] = persistence(findings)
+    result["broad_file_access"] = broad_app_access(findings)
+    keys = HOME / ".ssh/authorized_keys"
+    if keys.is_file():
+        count = sum(1 for line in read_text(keys).splitlines()
+                    if line.strip() and not line.startswith("#"))
+        result["ssh_authorized_keys"] = count
+        if time.time() - keys.stat().st_mtime < 7 * 86400:
+            findings.append(finding(
+                "ssh-keys-changed", "info",
+                "تغيّرت مفاتيح الدخول عبر SSH مؤخراً | SSH access keys changed recently",
+                f"{count} key(s) in ~/.ssh/authorized_keys"))
+    return result
+
+
+# ── Devices and drivers ─────────────────────────────────────────────────────
+def hardware_section(findings):
+    out = tool(["moos-device-plan", "--compact"], timeout=120)
+    try:
+        plan = json.loads(out) if out else {}
+    except ValueError:
+        plan = {}
+    for action in plan.get("actions") or []:
+        findings.append(finding(
+            "device-" + str(action.get("id", "")),
+            "warning" if action.get("severity") == "important" else "info",
+            action.get("title", ""), action.get("detail", ""), action.get("url", "")))
+    return {"gpu": plan.get("gpu", ""), "driver_status": plan.get("driver_status", ""),
+            "driver_gaps": plan.get("driver_gaps", []),
+            "missing_firmware": plan.get("missing_firmware", [])}
+
+
+# ── Maintenance the system already does on its own ─────────────────────────
+def maintenance_section(findings):
+    timers = {}
+    for unit, scope in (("moos-auto-update.timer", []), ("moos-verify-origin.timer", []),
+                        ("moos-reclaim-disk.timer", ["--user"]), ("moos-health.timer", ["--user"])):
+        state = (tool(["systemctl", *scope, "is-active", unit], timeout=10) or "").strip()
+        timers[unit] = state or "inactive"
+    if timers["moos-auto-update.timer"] != "active":
+        findings.append(finding(
+            "nightly-update-off", "info",
+            "التحديث الليلي التلقائي متوقف | Nightly automatic updates are off",
+            "", "moos://app/updater"))
+    return {"timers": timers}
+
+
+# ── Report ──────────────────────────────────────────────────────────────────
+def scan():
+    findings = []
+    report = {"schema": 1,
+              "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+    for name, section in (("system", system_section), ("updates", updates_section),
+                          ("resources", resources_section), ("security", security_section),
+                          ("hardware", hardware_section), ("maintenance", maintenance_section)):
+        try:
+            report[name] = section(findings)
+        except Exception as error:  # one broken probe must never hide the others
+            report[name] = {"error": f"{type(error).__name__}: {error}"}
+    findings.sort(key=lambda item: SEVERITIES.index(item["severity"]))
+    counts = {severity: sum(1 for item in findings if item["severity"] == severity)
+              for severity in SEVERITIES}
+    report["summary"] = {
+        "status": "action-needed" if counts["important"] else "attention" if counts["warning"] else "ok",
+        "counts": counts,
+        "app_updates": len((report.get("updates") or {}).get("apps") or []),
+        "system_update_staged": bool((report.get("system") or {}).get("staged")),
+    }
+    report["findings"] = findings
+    return report
+
+
+def save(report):
+    STATE.mkdir(parents=True, exist_ok=True)
+    text = json.dumps(report, ensure_ascii=False, indent=1)
+    latest = STATE / "latest.json"
+    temporary = STATE / ".latest.json.tmp"
+    temporary.write_text(text, encoding="utf-8")
+    os.replace(temporary, latest)
+    day = report["generated_at"][:10]
+    (STATE / f"report-{day}.json").write_text(text, encoding="utf-8")
+    history = sorted(STATE.glob("report-*.json"))
+    for old in history[:-KEEP_DAYS]:
+        old.unlink(missing_ok=True)
+
+
+def session_is_arabic():
+    language = os.environ.get("LC_ALL") or os.environ.get("LC_MESSAGES") or os.environ.get("LANG") or "en"
+    return language.split(".")[0].split("@")[0].split("_")[0] in ("ar", "fa", "he", "ur")
+
+
+def notify(report):
+    summary = report["summary"]
+    counts = summary["counts"]
+    worth = counts["important"] or counts["warning"] or summary["app_updates"] \
+        or summary["system_update_staged"]
+    if not worth:
+        return False
+    fingerprint = hashlib.sha256(json.dumps(
+        [report["generated_at"][:10], sorted(item["id"] for item in report["findings"])]
+    ).encode()).hexdigest()
+    marker = STATE / "notified"
+    if read_text(marker).strip() == fingerprint:
+        return False
+    if session_is_arabic():
+        title = "Mo AI · الفحص اليومي"
+        body = (f"مهم: {counts['important']} · تنبيهات: {counts['warning']} · "
+                f"تحديثات تطبيقات: {summary['app_updates']}"
+                + (" · تحديث النظام جاهز" if summary["system_update_staged"] else "")
+                + " — افتح Mo AI للتفاصيل.")
+    else:
+        title = "Mo AI · Daily check"
+        body = (f"Important: {counts['important']} · Warnings: {counts['warning']} · "
+                f"App updates: {summary['app_updates']}"
+                + (" · System update ready" if summary["system_update_staged"] else "")
+                + " — open Mo AI for details.")
+    if tool(["notify-send", "--app-name=Mo AI", "--icon=moai", title, body], timeout=15) is None:
+        return False
+    STATE.mkdir(parents=True, exist_ok=True)
+    marker.write_text(fingerprint, encoding="utf-8")
+    return True
+
+
+def main(argv):
+    parser = argparse.ArgumentParser(prog="moos-health", description=__doc__.split("\n", 1)[0])
+    commands = parser.add_subparsers(dest="command", required=True)
+    run = commands.add_parser("scan", help="run the check and save the report")
+    run.add_argument("--notify", action="store_true", help="notify when something needs attention")
+    commands.add_parser("report", help="print the latest saved report")
+    args = parser.parse_args(argv)
+    if args.command == "report":
+        latest = STATE / "latest.json"
+        print(read_text(latest) if latest.is_file() else json.dumps({"pending": True}))
+        return 0
+    report = scan()
+    save(report)
+    if args.notify:
+        notify(report)
+    print(json.dumps(report["summary"], ensure_ascii=False))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

@@ -254,7 +254,7 @@ bash /ctx/finalize_moos_desktop.sh
 for unit in \
     moai-gateway.service moai-control.service moai-agent-api.service \
     moai-wake.service moai-idle.timer openclaw-idle.timer \
-    moos-ensure-brain.timer moos-theme-sync.path moos-theme-drift.timer \
+    moos-ensure-brain.timer moos-theme-sync.path moos-theme-drift.timer moos-health.timer \
     moos-cloud-audio.service moos-update-ready.timer moos-reclaim-disk.timer \
     moos-index-policy.service mo-remote-watchdog.timer; do
     test -f "/usr/lib/systemd/user/${unit}" || {
@@ -270,7 +270,7 @@ systemd-analyze verify \
 systemctl --global enable \
     moai-gateway.service moai-control.service moai-agent-api.service \
     moai-wake.service moai-idle.timer openclaw-idle.timer \
-    moos-ensure-brain.timer moos-theme-sync.path moos-theme-drift.timer \
+    moos-ensure-brain.timer moos-theme-sync.path moos-theme-drift.timer moos-health.timer \
     moos-cloud-audio.service moos-update-ready.timer moos-reclaim-disk.timer \
     moos-index-policy.service \
     mo-remote-watchdog.timer

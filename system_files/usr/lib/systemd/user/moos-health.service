@@ -1,0 +1,12 @@
+[Unit]
+Description=Mo AI daily check: updates, resources, security signs and devices (read-only)
+Documentation=file:///usr/bin/moos-health
+After=graphical-session.target network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/moos-health scan --notify
+Nice=19
+IOSchedulingClass=idle
+CPUSchedulingPolicy=idle
+TimeoutStartSec=15min

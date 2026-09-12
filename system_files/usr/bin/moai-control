@@ -613,6 +613,62 @@ def quick() -> dict:
     }
 
 
+# ── Mo AI's daily check ─────────────────────────────────────────────────────
+# moos-health writes a read-only report once a day (and on demand). moai-control
+# serves it to the app and folds its summary into /scan, so the brain opens a
+# conversation already knowing what the last check found.
+_health_lock = threading.Lock()
+_health_scan = {"running": False}
+
+
+def health_report_path() -> _PolicyPath:
+    state = os.environ.get("XDG_STATE_HOME") or str(_PolicyPath.home() / ".local/state")
+    return _PolicyPath(state) / "moos" / "health" / "latest.json"
+
+
+def health_report() -> dict:
+    try:
+        report = json.loads(health_report_path().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        report = None
+    with _health_lock:
+        running = _health_scan["running"]
+    return {"report": report, "scanning": running}
+
+
+def health_summary() -> dict:
+    report = health_report()["report"] or {}
+    findings = report.get("findings") or []
+    return {
+        "generated_at": report.get("generated_at", ""),
+        "summary": report.get("summary") or {},
+        "findings": [{key: item.get(key, "") for key in ("severity", "title", "detail", "action")}
+                     for item in findings[:8]],
+        "top_cpu": [{key: item.get(key) for key in ("name", "cpu_percent", "why")}
+                    for item in ((report.get("resources") or {}).get("top_cpu") or [])[:3]],
+    }
+
+
+def start_health_scan() -> dict:
+    with _health_lock:
+        if _health_scan["running"]:
+            return {"started": False, "scanning": True}
+        _health_scan["running"] = True
+
+    def worker():
+        try:
+            subprocess.run(["moos-health", "scan"], stdout=subprocess.DEVNULL,
+                           stderr=subprocess.DEVNULL, timeout=900)
+        except (OSError, subprocess.SubprocessError):
+            pass
+        finally:
+            with _health_lock:
+                _health_scan["running"] = False
+
+    threading.Thread(target=worker, daemon=True).start()
+    return {"started": True, "scanning": True}
+
+
 def scan() -> dict:
     """Read-only system snapshot. The device plan comes from cache (see above)."""
     info = {"os": _first_line("/etc/os-release", "PRETTY_NAME=") or "MoOS",
@@ -673,6 +729,7 @@ def scan() -> dict:
         info["device_plan"] = plan
     else:
         info["device_plan_pending"] = True   # first refresh still running
+    info["health"] = health_summary()
     return info
 
 
@@ -1478,6 +1535,9 @@ class H(BaseHTTPRequestHandler):
                 self._send(200, dict(_pull))
         elif route == "/scan":
             self._send(200, scan())
+        elif route == "/health":
+            # Read-only: the latest daily check and whether one is running.
+            self._send(200, health_report())
         elif route == "/search":
             q = urllib.parse.parse_qs(path.query).get("q", [""])[0]
             self._send(200, search_apps(q))
@@ -1529,6 +1589,10 @@ class H(BaseHTTPRequestHandler):
                 data.get("cloud_model", ""),
                 data.get("cloud_wire", "openai"),
                 data.get("cloud_key") or get_secret()))
+
+        # /health/scan — run the read-only daily check now (one at a time).
+        if route == "/health/scan":
+            return self._send(200, start_health_scan())
 
         # Retained route for old clients: local downloads are retired.
         if route == "/pull":

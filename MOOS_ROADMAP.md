@@ -30,6 +30,11 @@ The proof now empties the password field before typing (gate-pinned); it and the
 Mo AI/Settings fixes ride on `feat/moos-completion-20260911`, whose next candidate
 must pass all five x86 proofs again.
 
+**2026-09-12 release:** `6021840c` passed all five x86 proofs on the first attempt
+(ISO `34676614084` included) and `promote-x86` `34680178565` published it; `main`
+fast-forwarded. Next candidate: `feat/moai-control-20260912` — Mo AI control,
+daily check, Plasma search runner — must pass the same five proofs before `main`.
+
 **Release integration 2026-09-07:** `main` was unbuildable for all three x86
 editions (a comment inside a backslash continuation truncated a `sed`); fixed
 and gated. The Device page named hardware that does not exist on aarch64; fixed

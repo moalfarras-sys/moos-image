@@ -1,0 +1,213 @@
+#!/usr/bin/python3
+"""moai-krunner — Mo AI in Plasma's search bar (KRunner D-Bus runner).
+
+WHY: MoOS is built on Plasma, and the owner wants Plasma itself to feel like
+MoOS's own, clever shell. Typing "volume 40", "السطوع 70", "لقطة شاشة" or
+"dark mode" into the search bar now offers the change as a result, and any
+question can be handed to Mo AI in one step.
+
+Safety: this runner only SUGGESTS. Nothing happens until the user picks a
+result. Every control result is a fixed moos:// route from a closed grammar
+(moos-open validates it again, and Wi-Fi off still asks first); a question is
+passed to Mo AI as one argv element, never through a shell.
+"""
+import base64
+import os
+import re
+import subprocess
+import sys
+
+SERVICE = "org.moos.MoAIRunner"
+PATH = "/runner"
+EXACT, POSSIBLE = 100, 30
+# Every icon is a MoOS-owned asset, so no result ever shows a missing-icon glyph.
+ASK_ICON = "moos-moai"
+
+INTERFACE = """<node>
+  <interface name="org.kde.krunner1">
+    <method name="Actions"><arg type="a(sss)" direction="out"/></method>
+    <method name="Match">
+      <arg name="query" type="s" direction="in"/>
+      <arg type="a(sssida{sv})" direction="out"/>
+    </method>
+    <method name="Run">
+      <arg name="matchId" type="s" direction="in"/>
+      <arg name="actionId" type="s" direction="in"/>
+    </method>
+    <method name="Config"><arg type="a{sv}" direction="out"/></method>
+    <method name="Teardown"/>
+  </interface>
+</node>"""
+
+ARABIC_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹", "01234567890123456789")
+TO = r"(?:\s+(?:to|الى|إلى))?"
+PERCENT = r"\s*[%٪]?"
+THEMES = ("dark", "light", "nova", "amethyst", "midnight", "aurora", "auto")
+
+# (pattern, route builder, English label, Arabic label, icon). Every route this
+# runner can produce is one of these shapes and nothing else.
+RULES = [
+    (rf"^(?:volume|sound|vol|الصوت|صوت){TO}\s+(100|[0-9]{{1,2}}){PERCENT}$",
+     lambda m: f"control/volume/{int(m.group(1))}",
+     lambda m: f"Volume {int(m.group(1))}%", lambda m: f"الصوت {int(m.group(1))}%", "moos-volume-symbolic"),
+    (r"^(?:volume up|sound up|louder|ارفع الصوت|علي الصوت|علّي الصوت)$",
+     lambda m: "control/volume/up", lambda m: "Volume up", lambda m: "ارفع الصوت", "moos-volume-symbolic"),
+    (r"^(?:volume down|sound down|quieter|اخفض الصوت|أخفض الصوت|وطي الصوت|وطّي الصوت)$",
+     lambda m: "control/volume/down", lambda m: "Volume down", lambda m: "اخفض الصوت", "moos-volume-symbolic"),
+    (r"^(?:mute|اكتم الصوت|كتم الصوت|اكتم|كتم)$",
+     lambda m: "control/mute", lambda m: "Mute", lambda m: "كتم الصوت", "moos-volume-off-symbolic"),
+    (r"^(?:unmute|الغاء الكتم|إلغاء الكتم)$",
+     lambda m: "control/unmute", lambda m: "Unmute", lambda m: "إلغاء الكتم", "moos-volume-symbolic"),
+    (rf"^(?:brightness|السطوع|سطوع){TO}\s+(100|[1-9][0-9]|[5-9]){PERCENT}$",
+     lambda m: f"control/brightness/{int(m.group(1))}",
+     lambda m: f"Brightness {int(m.group(1))}%", lambda m: f"السطوع {int(m.group(1))}%", "moos-sun-symbolic"),
+    (r"^(?:brightness up|brighter|زد السطوع|ارفع السطوع)$",
+     lambda m: "control/brightness/up", lambda m: "Brightness up", lambda m: "زد السطوع", "moos-sun-symbolic"),
+    (r"^(?:brightness down|dimmer|خفف السطوع|خفّف السطوع|اخفض السطوع)$",
+     lambda m: "control/brightness/down", lambda m: "Brightness down", lambda m: "خفّف السطوع", "moos-sun-symbolic"),
+    (r"^(?:night light|night mode|الضوء الليلي|الوضع الليلي)(?:\s+(?:on|شغل|شغّل|تشغيل))?$",
+     lambda m: "control/night-light/on", lambda m: "Night light on", lambda m: "شغّل الضوء الليلي", "moos-moon-symbolic"),
+    (r"^(?:night light|night mode|الضوء الليلي|الوضع الليلي)\s+(?:off|اطفئ|أطفئ|اطفي|ايقاف|إيقاف)$",
+     lambda m: "control/night-light/off", lambda m: "Night light off", lambda m: "أطفئ الضوء الليلي", "moos-moon-symbolic"),
+    (r"^(?:screenshot|screen shot|لقطة شاشة|لقطه شاشه|صورة الشاشة|صوره الشاشه)$",
+     lambda m: "control/screenshot", lambda m: "Take a screenshot", lambda m: "التقط لقطة شاشة", "moos-camera-symbolic"),
+    (r"^(?:dark mode|dark theme|الوضع الداكن|المظهر الداكن|داكن)$",
+     lambda m: "theme/dark", lambda m: "Dark mode", lambda m: "الوضع الداكن", "moos-ui-symbolic"),
+    (r"^(?:light mode|light theme|الوضع الفاتح|المظهر الفاتح|فاتح)$",
+     lambda m: "theme/light", lambda m: "Light mode", lambda m: "الوضع الفاتح", "moos-ui-symbolic"),
+    (r"^(?:bluetooth|البلوتوث|بلوتوث)\s+(on|off|شغل|شغّل|اطفئ|أطفئ)$",
+     lambda m: "control/bluetooth/" + ("on" if m.group(1) in ("on", "شغل", "شغّل") else "off"),
+     lambda m: "Bluetooth " + ("on" if m.group(1) in ("on", "شغل", "شغّل") else "off"),
+     lambda m: "شغّل البلوتوث" if m.group(1) in ("on", "شغل", "شغّل") else "أطفئ البلوتوث", "moos-bluetooth-symbolic"),
+    (r"^(?:wifi|wi-fi|الواي فاي|واي فاي)\s+(on|off|شغل|شغّل|اطفئ|أطفئ)$",
+     lambda m: "control/wifi/" + ("on" if m.group(1) in ("on", "شغل", "شغّل") else "off"),
+     lambda m: "Wi-Fi " + ("on" if m.group(1) in ("on", "شغل", "شغّل") else "off (asks first)"),
+     lambda m: "شغّل الواي فاي" if m.group(1) in ("on", "شغل", "شغّل") else "أطفئ الواي فاي (يسأل أولاً)", "moos-wifi-symbolic"),
+]
+RULES = [(re.compile(pattern), route, en, ar, icon) for pattern, route, en, ar, icon in RULES]
+
+ALLOWED_ROUTE = re.compile(
+    r"^(?:control/volume/(?:100|[0-9]{1,2}|up|down)|control/mute|control/unmute"
+    r"|control/brightness/(?:100|[1-9][0-9]|[5-9]|up|down)|control/night-light/(?:on|off)"
+    r"|control/screenshot|control/bluetooth/(?:on|off)|control/wifi/(?:on|off)"
+    r"|theme/(?:" + "|".join(THEMES) + r"))$")
+ASK_PREFIX = re.compile(r"^(?:ask|ai|mo ?ai|اسأل|اسال|سؤال)\s*[:،,]?\s+", re.IGNORECASE)
+
+
+def arabic_session():
+    language = os.environ.get("LC_ALL") or os.environ.get("LC_MESSAGES") or os.environ.get("LANG") or ""
+    return language.split(".")[0].split("_")[0] in ("ar", "fa", "he", "ur")
+
+
+def normalize(query):
+    text = (query or "").translate(ARABIC_DIGITS).strip().lower()
+    return re.sub(r"\s+", " ", text)
+
+
+def encode(question):
+    return base64.urlsafe_b64encode(question.encode("utf-8")).decode("ascii").rstrip("=")
+
+
+def decode(token):
+    padded = token + "=" * (-len(token) % 4)
+    return base64.urlsafe_b64decode(padded.encode("ascii")).decode("utf-8")
+
+
+def match(query):
+    """Return [(id, text, icon, type, relevance, subtext)] for one KRunner query."""
+    text = normalize(query)
+    if len(text) < 2 or len(text) > 500:
+        return []
+    arabic = arabic_session()
+    results = []
+    for pattern, route, en, ar, icon in RULES:
+        found = pattern.match(text)
+        if found:
+            target = route(found)
+            if ALLOWED_ROUTE.match(target):
+                label = ar(found) if arabic else en(found)
+                results.append(("route:" + target, label, icon, EXACT, 1.0,
+                                "Mo AI · تحكّم بالجهاز" if arabic else "Mo AI · control this computer"))
+            break
+    question = ASK_PREFIX.sub("", (query or "").strip(), count=1)
+    explicit = question != (query or "").strip()
+    asks = explicit or text.endswith(("?", "؟")) or len(text.split()) >= 4
+    if asks and len(question.strip()) >= 2:
+        question = question.strip()[:2000]
+        label = ("اسأل Mo AI: " if arabic else "Ask Mo AI: ") + question
+        results.append(("ask:" + encode(question), label, ASK_ICON,
+                        EXACT if explicit else POSSIBLE, 0.9 if explicit else 0.4,
+                        "Mo AI · سؤال" if arabic else "Mo AI · question"))
+    return results
+
+
+def open_route(route):
+    subprocess.Popen(["xdg-open", "moos://" + route], stdin=subprocess.DEVNULL,
+                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+
+
+def ask(question):
+    subprocess.Popen(["moai", "--panel", "chat", "--ask", question], stdin=subprocess.DEVNULL,
+                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+
+
+def run(match_id):
+    """Perform a chosen result. Ids are re-validated: KRunner hands back strings."""
+    if match_id.startswith("route:"):
+        route = match_id[len("route:"):]
+        if not ALLOWED_ROUTE.match(route):
+            return False
+        open_route(route)
+        return True
+    if match_id.startswith("ask:"):
+        try:
+            question = decode(match_id[len("ask:"):]).strip()
+        except (ValueError, UnicodeDecodeError):
+            return False
+        if not question or len(question) > 2000:
+            return False
+        ask(question)
+        return True
+    return False
+
+
+def main():
+    import gi
+    gi.require_version("Gio", "2.0")
+    from gi.repository import Gio, GLib
+
+    node = Gio.DBusNodeInfo.new_for_xml(INTERFACE)
+    loop = GLib.MainLoop()
+
+    def on_call(_connection, _sender, _path, _interface, method, parameters, invocation):
+        if method == "Match":
+            matches = [(mid, label, icon, kind, relevance, {"subtext": GLib.Variant("s", subtext)})
+                       for mid, label, icon, kind, relevance, subtext in match(parameters.unpack()[0])]
+            invocation.return_value(GLib.Variant("(a(sssida{sv}))", (matches,)))
+        elif method == "Run":
+            run(parameters.unpack()[0])
+            invocation.return_value(None)
+        elif method == "Actions":
+            invocation.return_value(GLib.Variant("(a(sss))", ([],)))
+        elif method == "Config":
+            invocation.return_value(GLib.Variant("(a{sv})", ({},)))
+        else:
+            invocation.return_value(None)
+
+    def on_bus(connection, _name):
+        # PyGObject deprecated register_object in favour of the closures2 form;
+        # use it where present so the session journal stays free of warnings.
+        register = getattr(connection, "register_object_with_closures2", None)
+        if register is not None:
+            register(PATH, node.interfaces[0], on_call, None, None)
+        else:
+            connection.register_object(PATH, node.interfaces[0], on_call, None, None)
+
+    Gio.bus_own_name(Gio.BusType.SESSION, SERVICE, Gio.BusNameOwnerFlags.NONE,
+                     on_bus, None, lambda *_args: loop.quit())
+    loop.run()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

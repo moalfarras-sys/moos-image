@@ -1,5 +1,51 @@
 # MoOS — current project state
 
+**Mo AI controls the computer, checks it every day, and lives in Plasma's search bar (2026-09-12, branch `feat/moai-control-20260912`):**
+the release that fixed the ISO login is signed: all five x86 proofs passed on
+`6021840c` on their first attempt (ISO run 34676614084 logged in on attempt 1 —
+the select-all/backspace fix is proven) and `promote-x86` run 34680178565 moved
+the production tags; `main` fast-forwarded to it. This branch builds on the free
+route resilience from `fix/moai-release-20260912` (catalogue failure falls back to
+the zero-price `openrouter/free` router; OpenClaw memory no longer creates a hidden
+paid embeddings path).
+*Control.* `moos-control` performs fixed, reversible, user-level actions — volume,
+mute, brightness (Plasma ScreenBrightness, including DDC monitors), night light,
+Wi-Fi, Bluetooth, screenshot, theme, open an installed app — one fixed argv each,
+exit 2 on invalid input, 69 when a tool is missing, audited in the journal.
+`moos-open` accepts only the exact `moos://control/…` shapes and asks before Wi-Fi
+off (fails closed without a dialog tool). Mo AI turns `moos-control …` in a reply
+into a button; auto-running model text was deliberately not shipped (it would make
+model output a remote-control surface). Live: volume 40 → 0.40, route volume/35 →
+0.35, `volume/35;reboot` exit 2 unchanged, brightness 95 → 9500/10000 (restored);
+the free brain answered «اخفض الصوت إلى 40%» with the command in 2 s and a how-to
+question with an explanation and no button.
+*Daily check.* `moos-health` (read-only, `moos-health.timer` daily at idle
+priority, notifies once per change) reports app/system updates, the busiest
+programs and why, storage, SELinux and firewall state, ports open to the network
+(Tailscale's overlay, LLMNR, Avahi, KDE Connect and fwupd's passimd are known),
+suspicious autostart entries, user services, shell lines and cron jobs, programs
+running from temporary folders, apps with whole-home file access and devices
+without a driver. It is not a signature antivirus and says so. moai-control serves
+it at `/health` (+ `/health/scan`), Mo AI shows a Daily check card with a fix and
+an Ask button per finding, and the brain's context carries the findings. The first
+real run on this PC (4 s) found KDE Remote Desktop (`krdpserver`) listening on
+3389 on every interface — worth the owner's review — and exposed two scanner bugs
+fixed before release: `/` on MoOS is the read-only image (storage is measured on
+`/var`), and one finding per port rather than per address family.
+*Plasma.* `moai-krunner` is a KRunner D-Bus runner: «الصوت 40», «السطوع 70»,
+«لقطة شاشة», "dark mode" and similar become search results on the validated
+routes, and "اسأل: …" opens Mo AI already asking (`moai --ask`). Live on the session
+bus it answered in Arabic, returned nothing for `volume 40; reboot`, and ran nothing
+for a forged id. Also fixed: three `root.accent` references in Mo AI resolved to
+nothing (the colour lives in the orb component) — including the Mo Store card from
+the previous release; Settings keeps a constant scrollbar gutter (identical content
+edge measured on Connectivity and Appearance). Gates: `test_moos_control.py`,
+`test_moos_health.py`, `test_moai_krunner.py` (38 checks), all CI repo gates.
+**Still owed:** the owner stages the signed update (`moai-do update` is theirs by
+permission rule) and reboots; the legacy local-brain user units in
+`~/.config/systemd/user` on the daily driver (ollama, speaches, moai-brain) are C2b
+cleanup, not yet done.
+
 **The ISO release gate failed at login, and six everyday defects seen as a user (2026-09-12, branch `feat/moos-polish-20260912`):**
 the #80 release chain passed its build, all three disk proofs and ARM, but ISO run
 34650456175 stopped at the installed system's Plasma Login step: PAM rejected the

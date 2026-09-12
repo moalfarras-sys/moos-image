@@ -1,0 +1,3 @@
+[D-BUS Service]
+Name=org.moos.MoAIRunner
+Exec=/usr/libexec/moai-krunner

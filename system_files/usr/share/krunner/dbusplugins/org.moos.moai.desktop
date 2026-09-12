@@ -1,0 +1,17 @@
+[Desktop Entry]
+Name=Mo AI
+Name[ar]=Mo AI
+Comment=Control this computer and ask Mo AI from the search bar
+Comment[ar]=تحكّم بالجهاز واسأل Mo AI من شريط البحث
+X-KDE-ServiceTypes=Plasma/Runner
+Type=Service
+Icon=moos-moai
+X-KDE-PluginInfo-Name=org.moos.moai
+X-KDE-PluginInfo-Version=1.0
+X-KDE-PluginInfo-License=GPL-3.0-or-later
+X-KDE-PluginInfo-EnabledByDefault=true
+X-Plasma-API=DBus
+X-Plasma-DBusRunner-Service=org.moos.MoAIRunner
+X-Plasma-DBusRunner-Path=/runner
+X-Plasma-Request-Actions-Once=true
+X-Plasma-Runner-Min-Letter-Count=2
