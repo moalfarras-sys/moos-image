@@ -25,6 +25,16 @@ with their original modes and named owners. The disposable image passes 12 lint
 checks with one skip; only the existing EFI/GRUB boot-asset warning remains.
 [Architecture, implementation and validation](docs/MOOS_UNIFIED_PLATFORM.md).
 
+**Live Mo AI free-route audit (2026-09-12):** the installed NVIDIA machine
+returned `READY` through both the MoOS direct gateway and an isolated OpenClaw
+agent turn using `cloud/openrouter/free`; each reported the free cloud route.
+The same live journal exposed repeated paid OpenAI embedding requests failing
+with exhausted credit. Source now sends the provider's official free router
+directly instead of making chat availability depend on a separate model-catalogue
+fetch, and seeds OpenClaw keyword-only memory so an unrelated paid embedding key
+cannot break or bill the free experience. Explicit owner memory providers remain
+untouched. A new signed image and post-update visual proof are still required.
+
 **Superseded local NVIDIA image evidence (2026-09-11):**
 `localhost/moos-nvidia:unified-platform-20260911`, ID `14b21c399430…`, built with
 exit 0. Final identity, application-load and NVIDIA initramfs gates passed;

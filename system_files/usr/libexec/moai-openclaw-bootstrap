@@ -127,6 +127,14 @@ def merge_baseline(cfg: dict) -> dict:
     chat_endpoint.setdefault("maxImageParts", 8)
     chat_endpoint.setdefault("maxTotalImageBytes", 20 * 1024 * 1024)
 
+    # OpenClaw otherwise auto-selects paid OpenAI embeddings whenever an
+    # OPENAI_API_KEY happens to exist in the login environment. Mo AI's default
+    # route is explicitly free, so memory must not create a hidden billed path or
+    # spam the gateway when that unrelated account has no credit. Keyword search
+    # remains available, and an owner's explicit embedding provider is preserved.
+    memory_search = object_at(object_at(cfg, "memory"), "search")
+    memory_search.setdefault("provider", "none")
+
     providers = object_at(object_at(cfg, "models"), "providers")
     ollama = object_at(providers, "ollama")
     for key, value in OLLAMA_PROVIDER.items():

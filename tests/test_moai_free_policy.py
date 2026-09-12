@@ -58,7 +58,27 @@ class FreePolicy(unittest.TestCase):
         self.assertEqual(errors,[409]);self.assertEqual(calls,[])
         handler._to_cloud({'messages':[],'plugins':[{'id':'web'}]},b'{}',policy.DEFAULT_MODEL,{})
         self.assertEqual(len(calls),1)
-        self.assertEqual(json.loads(calls[0][3])['provider']['max_price']['request'],0)
+        body=json.loads(calls[0][3])
+        self.assertEqual(body['model'],policy.DEFAULT_MODEL)
+        self.assertEqual(body['provider']['max_price']['request'],0)
+
+    def test_free_router_does_not_depend_on_catalogue_availability(self):
+        handler=object.__new__(gateway.Handler)
+        handler._cloud_cfg=lambda cfg:(policy.BASE,'fixture','openai')
+        calls=[]
+        handler._err=lambda code,msg:self.fail('free router was rejected: %s %s' % (code,msg))
+        handler._proxy=lambda *args:calls.append(args)
+        # This attribute existed in the broken implementation. If the gateway
+        # consults it again, this fixture proves the regression without network.
+        with patch.object(gateway.cloud_policy,'automatic_model',
+                          side_effect=AssertionError('catalogue lookup'),create=True):
+            handler._to_cloud({'messages':[], 'tools':[{'type':'function'}]},
+                              b'{}',policy.DEFAULT_MODEL,{})
+        self.assertEqual(len(calls),1)
+        body=json.loads(calls[0][3])
+        self.assertEqual(body['model'],policy.DEFAULT_MODEL)
+        self.assertEqual(body['provider']['max_price'],
+                         {'prompt':0,'completion':0,'request':0,'image':0})
     def test_migration_preserves_key_and_backup_disables_local_fallback(self):
         with tempfile.TemporaryDirectory() as td:
             p=Path(td)/'openclaw.json'

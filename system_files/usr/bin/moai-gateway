@@ -1215,8 +1215,10 @@ class Handler(BaseHTTPRequestHandler):
                              "The cloud brain is not configured — add a provider and an "
                              "API key in Mo AI's settings.")
         try:
-            if model == cloud_policy.DEFAULT_MODEL:
-                model = cloud_policy.automatic_model(require_tools=bool(req.get("tools")))
+            # openrouter/free is the provider's zero-cost capability router. It
+            # already selects only free models that support the request's tools,
+            # images and structured output. Resolving it through /models here made
+            # a catalogue outage reject a chat that the router could still serve.
             cloud_policy.validate(base, model, wire, allow_paid=cloud_policy.selected_cost_policy() == "paid")
             out = cloud_policy.request_body(req, model, allow_paid=cloud_policy.selected_cost_policy() == "paid")
         except ValueError as error:

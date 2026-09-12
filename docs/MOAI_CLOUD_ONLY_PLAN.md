@@ -17,7 +17,10 @@ are discarded. A free model keeps that zero ceiling even in paid mode.
 
 The current catalogue is fetched from the provider; free mode filters out every
 nonzero/missing/invalid price and every model lacking an explicit free identity.
-The documented free router remains available if catalogue fetching fails.
+The documented free router is sent directly to the provider and remains
+available if catalogue fetching fails; the gateway does not replace it with a
+heuristically selected model. The router itself filters for capabilities such as
+tools and image input, and MoOS still sends an explicit zero maximum price.
 Provider quotas still apply. There is no unlimited-free guarantee and no claim
 that a large model always outperforms every other model. Paid inference was
 NOT used in this session; its policy boundary is tested with fixtures.
@@ -63,6 +66,12 @@ Existing weights and unrelated user files are preserved. Compatibility commands
 open cloud settings or refuse; they cannot start an engine. Some unreachable
 legacy helper bodies remain for a subsequent cleanup (C2b); their presence does
 not authorize restoring old UI choices or downloads.
+
+OpenClaw's default semantic-memory provider is paid OpenAI embeddings when an
+unrelated API key is present. The MoOS baseline explicitly selects keyword-only
+memory (`memory.search.provider=none`) so a free chat never creates a hidden paid
+request or fails on exhausted embedding credit. An owner-selected embedding
+provider is preserved.
 
 Privileged actions remain `moai-do`'s fixed allowlist. Hermes and the model never execute generated commands. The user's terminal workspace is a separate,
 explicitly controlled feature, not a model tool.

@@ -539,6 +539,20 @@ class RuntimeRelationshipTests(unittest.TestCase):
 
 
 class OpenClawBootstrapTests(unittest.TestCase):
+    def test_memory_defaults_to_keyword_only_without_hidden_paid_embeddings(self):
+        with tempfile.TemporaryDirectory() as home:
+            bootstrap = load_script(OPENCLAW_BOOTSTRAP, home)
+            fresh = bootstrap["merge_baseline"]({})
+            self.assertEqual(fresh["memory"]["search"]["provider"], "none")
+
+            configured = bootstrap["merge_baseline"]({
+                "memory": {"search": {"provider": "ollama", "model": "owner/embed"}}
+            })
+            self.assertEqual(
+                configured["memory"]["search"],
+                {"provider": "ollama", "model": "owner/embed"},
+            )
+
     def test_desktop_endpoint_and_hybrid_provider_share_the_agent_runtime(self):
         with tempfile.TemporaryDirectory() as home:
             bootstrap = load_script(OPENCLAW_BOOTSTRAP, home)
