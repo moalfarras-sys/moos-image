@@ -101,13 +101,28 @@ public sealed class InputInjector : IDisposable
     }
     public void DoubleClickCurrent(){var(dn,up)=ButtonFlags("left");Send(MakeMouse(dn),MakeMouse(up),MakeMouse(dn),MakeMouse(up));}
 
+    /// <summary>
+    /// ONE WIRE CONVENTION, AND THIS IS THE END THAT HAS TO ADAPT.
+    ///
+    /// The controller sends wheel notches with <b>positive = right / down</b> — the sign a browser
+    /// WheelEvent already uses, the sign wl_pointer/libinput uses, and the sign the Linux agent's
+    /// own injector documents and consumes. This parameter used to be declared "up = positive",
+    /// which is the <i>Win32</i> convention (MOUSEEVENTF_WHEEL counts forward, away from the user)
+    /// leaking into the protocol: the same packet then scrolled one way against a MoOS PC and the
+    /// other way against a Windows PC, and the controller was made to invert its mouse path to
+    /// paper over it — which repaired Windows and left every MoOS session scrolling backwards.
+    ///
+    /// The negation belongs here, at the boundary that is actually different, exactly as the Linux
+    /// injector negates for uinput's REL_WHEEL (also positive-up) while passing the portal axis
+    /// (positive-down) straight through.
+    /// </summary>
     /// <param name="dx">horizontal notches (right = positive)</param>
-    /// <param name="dy">vertical notches (up = positive)</param>
+    /// <param name="dy">vertical notches (DOWN = positive, as on the wire)</param>
     public void Scroll(double dx, double dy)
     {
         lock (_gate)
         {
-            _scrollRemY += dy * WHEEL_DELTA;
+            _scrollRemY += -dy * WHEEL_DELTA;
             _scrollRemX += dx * WHEEL_DELTA;
             int ty = (int)_scrollRemY; _scrollRemY -= ty;
             int tx = (int)_scrollRemX; _scrollRemX -= tx;

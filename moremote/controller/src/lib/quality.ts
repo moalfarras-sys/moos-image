@@ -180,3 +180,56 @@ export function describeHints(h: DeviceHints): string {
   if (typeof h.hardwareConcurrency === "number") bits.push(`${h.hardwareConcurrency} cores`);
   return bits.length ? bits.join(" · ") : "not reported by this browser";
 }
+
+/** What the host said it can encode, as `hello.encode` delivers it. */
+export interface HostEncode { maxWidth: number; maxHeight: number; maxFps: number; }
+
+function usable(host: HostEncode | null | undefined): HostEncode | null {
+  return host && host.maxWidth > 0 && host.maxFps > 0 ? host : null;
+}
+
+/**
+ * The highest preset the automatic ladder may climb to, given what the HOST said it can encode.
+ *
+ * pickStartPreset asks what the phone can decode and what the link can carry. Neither question
+ * reaches the other end of the wire, and on a cloud desktop the other end is the constraint: a
+ * 2-core Oracle A1 with a virtual display encodes H.264 in software, and MoOS's own probe
+ * (`moos-visual-tier` -> `budget.remote_encode`) says so in as many words — "1280x720@30". The
+ * stream ran at 1920x1080 anyway, because that value had no reader, and the cost was not
+ * abstract: the portal helper sat at ~15% of one core of two, continuously, encoding pixels the
+ * machine could not spare while the person was trying to use the desktop those cores belong to.
+ *
+ * This caps by FRAME RATE only, and the pixels are handled by hostEncodeCeiling below. The two
+ * are deliberately separate. A preset is a bundle of {width, fps, JPEG quality}, so demoting a
+ * whole rung to fit a width throws away the quality and the frame rate as well: the A1's 1280
+ * ceiling would drop Sharp (1920px, q80) all the way to Data saver (1024px, q52) — a picture
+ * WORSE than the host's own limit, for no reason. Clamping the requested width instead keeps
+ * Sharp's quality at exactly the number of pixels the box said it can make.
+ *
+ * Frame rate cannot be clamped the same way because it belongs to the rung: Ultra is 60fps, and a
+ * host that says 30 cannot serve it at any width.
+ */
+export function hostMaxPreset(
+  presets: readonly { width: number; fps: number }[],
+  host: HostEncode | null | undefined,
+  fallback: number,
+): number {
+  const cap = usable(host);
+  if (!cap) return fallback;
+  let best = -1;
+  for (let i = 0; i < presets.length; i++) if (presets[i].fps <= cap.maxFps) best = i;
+  if (best < 0) best = 0;   // a ceiling below every preset still gets the smallest real one
+  return Math.min(fallback, best);
+}
+
+/**
+ * The widest picture to ask this host for, in encoder pixels.
+ *
+ * Applied to the AUTOMATIC choice only. A viewer who picks Sharp or Ultra by hand has made a
+ * decision about their own link and their own eyes, and a preset button that silently refused to
+ * change anything would be a dead control.
+ */
+export function hostEncodeCeiling(ceiling: number, host: HostEncode | null | undefined): number {
+  const cap = usable(host);
+  return cap ? Math.min(ceiling, cap.maxWidth) : ceiling;
+}

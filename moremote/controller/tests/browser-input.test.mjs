@@ -11,16 +11,23 @@ const evidence = process.env.MO_REMOTE_EVIDENCE;
 const frame = await readFile(new URL('../../../docs/evidence/mo-pc-remote-control-center-ar-1080p.png', import.meta.url));
 const contexts = [];
 const errors = [];
-async function viewer(options, mode, language = 'en', cursorEmbedded = false) {
+// `orient` is seeded, not left to the app's default, so a test that cares about geometry gets the
+// same picture every run. "off" is the Upright LOCK; the seed used to be the string "upright",
+// which is not one of the three values the app writes — it fell through to Auto's branch and
+// behaved the same, but it meant no test ever ran against a value the app could actually store.
+// Pass null to leave the preference unset and get the shipped default (Auto).
+async function viewer(options, mode, language = 'en', cursorEmbedded = false, orient = 'off',
+                      encode = null) {
   const context = await browser.newContext({...options, serviceWorkers: 'block'});
   contexts.push(context);
-  await context.addInitScript(({mode, language}) => {
+  await context.addInitScript(({mode, language, orient}) => {
     localStorage.setItem('mo_remote_token', 'isolated-browser-test');
     localStorage.setItem('moremote.mode', JSON.stringify(mode));
     localStorage.setItem('moremote.seenGestureHint', '1');
     localStorage.setItem('mo-remote-lang', language);
-    localStorage.setItem('moremote.orient', '"upright"');
-  }, {mode, language});
+    if (orient) localStorage.setItem('moremote.orient', JSON.stringify(orient));
+    else localStorage.removeItem('moremote.orient');
+  }, {mode, language, orient});
   const page = await context.newPage();
   page.on('pageerror', e => errors.push(e.message));
   await page.route('**/api/**', route => {
@@ -35,7 +42,7 @@ async function viewer(options, mode, language = 'en', cursorEmbedded = false) {
   let autoHello = true;
   const hello = ws => {
     ws.send(JSON.stringify({type:'hello', screen:{w:1920,h:1080}, paused:false,
-      cursorEmbedded, input:{ready:true}, clipboard:{ready:true}, monitors:[]}));
+      cursorEmbedded, input:{ready:true}, clipboard:{ready:true}, monitors:[], encode}));
     ws.send(frame);
   };
   await page.routeWebSocket('**/ws', ws => {
@@ -55,8 +62,11 @@ async function viewer(options, mode, language = 'en', cursorEmbedded = false) {
   await page.waitForTimeout(100);
   return {page, packets, sockets, hello, holdHello: () => { autoHello = false; }};
 }
+// Everything that MOVES OR TYPES ON THE REMOTE PC. `scroll` and `dblclick` were missing, so
+// every "this must never reach the remote" assertion below was blind to a stray wheel event, and
+// no test could see the sign the wheel put on the wire at all.
 function input(packets) {
-  return packets.filter(p => ['text','key','combo','down','up','click','move','moveRelative','downCurrent','upCurrent','clickCurrent','dblclickCurrent'].includes(p.type));
+  return packets.filter(p => ['text','key','combo','down','up','click','dblclick','scroll','move','moveRelative','downCurrent','upCurrent','clickCurrent','dblclickCurrent'].includes(p.type));
 }
 async function capture(page, name) {
   if (!evidence) return;
@@ -156,6 +166,53 @@ try {
   await dp.waitForTimeout(100);
   assert.equal(input(desktop.packets).filter(p=>p.type==='key').length,2,
     'physical keyboard must resume after the modal closes');
+
+  // A REAL MOUSE WHEEL AND A REAL FINGER MUST AGREE ON WHICH WAY IS DOWN.
+  //
+  // desktop.test.ts already exercised DesktopInput on its own, and passed the whole time the
+  // browser scrolled backwards: the inversion was not in DesktopInput, it was in the callback
+  // RemoteScreen hands it, and nothing tested the two together. So this asserts the SIGN THAT
+  // LEAVES THE PAGE, from the production bundle, for both input paths at once.
+  //
+  // The wire contract is InputInjector.Scroll's: "dx/dy arrive in wheel notches, positive =
+  // right / down". Turning the wheel down and swiping a finger up (with natural scrolling, the
+  // default) are the same intent — scroll down — so both must put a POSITIVE dy on the wire.
+  desktop.packets.length = 0;
+  await dp.mouse.move(500,350);
+  await dp.mouse.wheel(0,120);
+  await dp.waitForTimeout(150);
+  const wheelDown = input(desktop.packets).filter(p => p.type === 'scroll');
+  assert.ok(wheelDown.length > 0, 'a wheel turn must reach the wire');
+  assert.ok(wheelDown.every(p => p.dy > 0),
+    `wheel down must scroll the remote down (positive dy), got ${wheelDown.map(p=>p.dy)}`);
+  desktop.packets.length = 0;
+  await dp.mouse.wheel(120,0);
+  await dp.waitForTimeout(150);
+  const wheelRight = input(desktop.packets).filter(p => p.type === 'scroll');
+  assert.ok(wheelRight.length > 0 && wheelRight.every(p => p.dx > 0),
+    `wheel right must scroll the remote right (positive dx), got ${wheelRight.map(p=>p.dx)}`);
+
+  // The same intent through the touch path, on the phone viewer, at its current size.
+  packets.length = 0;
+  await page.evaluate(async () => {
+    const c = document.querySelector('canvas.screen-canvas');
+    const r = c.getBoundingClientRect();
+    const x = r.left + r.width / 2, y = r.top + r.height / 2;
+    const ev = (type, py, buttons) => c.dispatchEvent(new PointerEvent(type, {bubbles:true,
+      cancelable:true, pointerId:31, pointerType:'touch', isPrimary:true, clientX:x, clientY:py,
+      button:0, buttons}));
+    ev('pointerdown', y, 1);
+    for (let i = 1; i <= 8; i++) {
+      await new Promise(r => setTimeout(r, 16));
+      ev('pointermove', y - i * 12, 1);
+    }
+    ev('pointerup', y - 96, 0);
+  });
+  await page.waitForTimeout(250);
+  const swipeUp = input(packets).filter(p => p.type === 'scroll');
+  assert.ok(swipeUp.length > 0, 'a finger swipe must reach the wire');
+  assert.ok(swipeUp.every(p => p.dy > 0),
+    `swiping up with natural scrolling must scroll the remote down (positive dy), got ${swipeUp.map(p=>p.dy)}`);
   await capture(dp, 'desktop-en');
   const trackpad = await viewer({viewport:{width:390,height:844},deviceScaleFactor:3,
     isMobile:true,hasTouch:true,colorScheme:'dark'}, 'trackpad', 'ar', true);
@@ -267,6 +324,103 @@ try {
   }
   await cp.locator('.toast').waitFor({state:'hidden'});
   await capture(cp,'keyboard-dark-ar');
+
+  // THE UPRIGHT DESKTOP ON AN UPRIGHT PHONE, AND THE ONE TAP OUT OF IT.
+  //
+  // A 16:9 desktop fitted to a 9:19.5 phone covers a measured 28.6% of the stage; the rest is
+  // black and the text is about a pixel tall. Auto deliberately does NOT turn the picture (that
+  // shipped once and was reported as a fault), so the fix is an offer — and an offer is only
+  // worth anything if it is present exactly when the picture is small and gone otherwise.
+  const fill = await viewer({viewport:{width:390,height:844}, deviceScaleFactor:3,
+    isMobile:true, hasTouch:true}, 'touch', 'ar', false, null);
+  // Accepting or dismissing writes a preference; clear both so each case starts from the default
+  // the app actually ships. The init script above leaves `orient` unset for this viewer.
+  const unseed = () => fill.page.evaluate(() => {
+    localStorage.removeItem('moremote.orient');
+    localStorage.removeItem('moremote.fillOfferHidden');
+  });
+  const coverage = () => fill.page.evaluate(() => {
+    const c = document.querySelector('canvas.screen-canvas');
+    // The drawn picture's extent down the middle of the canvas, read off the canvas itself.
+    const row = c.getContext('2d').getImageData(Math.round(c.width / 2), 0, 1, c.height).data;
+    let top = -1, bottom = -1;
+    for (let y = 0; y < c.height; y++) {
+      const i = y * 4;
+      if (!(row[i] < 10 && row[i+1] < 12 && row[i+2] < 18)) { if (top < 0) top = y; bottom = y; }
+    }
+    return top < 0 ? 0 : (bottom - top + 1) / c.height;
+  });
+  await fill.page.locator('.fill-offer-act').waitFor();
+  const beforeShare = await coverage();
+  assert.ok(beforeShare < 0.42,
+    `an upright desktop on an upright phone must be the small case (was ${beforeShare})`);
+  await fill.page.locator('.fill-offer-act').click();
+  await fill.page.waitForTimeout(400);
+  const afterShare = await coverage();
+  assert.ok(afterShare > 0.8, `one tap must fill the phone with the desktop (was ${afterShare})`);
+  assert.equal(await fill.page.locator('.fill-offer').count(), 0,
+    'the offer must withdraw once it has been accepted');
+  // Landscape has no problem to solve, so it must never be asked about one.
+  await unseed();
+  await fill.page.setViewportSize({width:844,height:390});
+  await fill.page.reload();
+  await fill.page.locator('.toolbar-primary').waitFor();
+  await fill.page.waitForTimeout(400);
+  assert.equal(await fill.page.locator('.fill-offer').count(), 0,
+    'a landscape phone already fills and must not be offered a rotation');
+  // Dismissal is a decision, and it has to outlive the tab.
+  await fill.page.setViewportSize({width:390,height:844});
+  await fill.page.reload();
+  await fill.page.locator('.fill-offer-dismiss').click();
+  await fill.page.reload();
+  await fill.page.locator('.toolbar-primary').waitFor();
+  await fill.page.waitForTimeout(400);
+  assert.equal(await fill.page.locator('.fill-offer').count(), 0,
+    'a dismissed offer must stay dismissed after a reload');
+
+  // THE HOST'S OWN ENCODE BUDGET, END TO END.
+  //
+  // moos-visual-tier publishes "1280x720@30" for the maintainer's 2-core A1 and the agent now
+  // relays it in `hello`. What matters is the number that leaves the page: Auto must never ask a
+  // box for more pixels than it has said it can make, and a preset chosen by hand must still be
+  // honoured or the button is a lie.
+  //
+  // The comparison is made against a viewer of the SAME shape with no ceiling, rather than
+  // against a literal width: pickStartPreset reads this browser's own cores and link, so the
+  // unbounded answer legitimately differs between machines (the CI runner and the 2-core A1 that
+  // this is about do not agree). The ceiling's EFFECT is the claim.
+  const settingsWidth = async v => {
+    await v.page.waitForTimeout(400);
+    const last = v.packets.filter(p => p.type === 'settings').at(-1);
+    assert.ok(last, 'the viewer must push settings after hello');
+    return last.width;
+  };
+  const desktopVp = {viewport:{width:1366,height:900}};
+  const uncapped = await viewer(desktopVp, 'desktop', 'en');
+  const plainWidth = await settingsWidth(uncapped);
+  assert.ok(plainWidth >= 720, `an unbounded viewer still asks for a real width, got ${plainWidth}`);
+
+  const LOW = 960;   // under every preset's width, and over encodeWidth()'s 720 floor
+  const capped = await viewer(desktopVp, 'desktop', 'en', false, 'off',
+    {maxWidth:LOW, maxHeight:540, maxFps:30});
+  const autoWidth = await settingsWidth(capped);
+  assert.ok(autoWidth <= LOW, `Auto must respect the host ceiling, asked for ${autoWidth}`);
+  assert.ok(autoWidth < plainWidth,
+    `the ceiling must actually change the request (${autoWidth} vs ${plainWidth} unbounded)`);
+
+  // It has to SAY so. A limit that acts without explaining itself is indistinguishable from the
+  // app being bad at its job.
+  await capped.page.getByRole('button', {name:'Display', exact:true}).click();
+  await capped.page.getByRole('dialog').waitFor();
+  assert.match(await capped.page.locator('.sheet').innerText(), /960×540@30/,
+    'the Display sheet must name the host limit it is applying');
+
+  // And a preset chosen by hand goes past it, or the button is a dead control.
+  capped.packets.length = 0;
+  await capped.page.getByRole('button', {name:/^Sharp/}).click();
+  const manualWidth = await settingsWidth(capped);
+  assert.ok(manualWidth > LOW,
+    `choosing Sharp by hand must go past the host ceiling, asked for ${manualWidth}`);
 
   const light = await viewer({viewport:{width:360,height:800},deviceScaleFactor:2,
     isMobile:true,hasTouch:true,colorScheme:'light',reducedMotion:'reduce'},'touch','ar');

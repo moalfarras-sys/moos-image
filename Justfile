@@ -26,6 +26,12 @@ default:
 # They run in seconds and need no container, so they go FIRST: a typo in a Konsole group name
 # or a Mo AI button pointing at a command that does not exist should cost you 3 seconds, not a
 # 20-minute image build.
+# Every .NET project in moremote/, built and run the way the image builds do. Needs the dotnet
+# SDK. Not part of `check` because that must stay seconds-fast and SDK-free; run it before
+# pushing anything under moremote/.
+dotnet-check:
+    bash moremote/dotnet-check.sh
+
 check:
     bash -n build_files/build.sh
     # bash -n accepts a comment inside a backslash continuation, which
@@ -87,6 +93,9 @@ check:
     # the ARM build failed -- which is exactly how a bootc-updater regression got
     # pushed on 2026-09-07. test_gate_coverage.py now keeps the two lists in sync.
     python3 tests/test_moos_arm.py
+    # The overlay is shared byte-for-byte; the `systemctl enable` lines are not. Three MoOS
+    # units shipped disabled on the maintainer's A1 because only build.sh ever enabled them.
+    python3 tests/test_arm_unit_enablement.py
     python3 tests/test_arm_initramfs_size.py
     # These four also lived only in workflow YAML: the first two in both build
     # workflows, the others in the disk and ISO release workflows. All four pass
@@ -173,6 +182,14 @@ check:
     python3 tests/test_remote_h264_chroma.py
     python3 tests/test_remote_toolbar_edge.py
     python3 tests/test_remote_input_mode.py
+    # One scroll convention across the controller, the portal and BOTH agents. The two
+    # injectors disagreed about which way is down and the repair landed in the shared
+    # middle, which inverted the wheel on MoOS itself for a release.
+    python3 tests/test_remote_scroll_direction.py
+    # Seven .csproj files, seven hand-written lists of the SHARED agent sources. A new
+    # shared file wired into some of them compiles clean and dies in the image build;
+    # `just dotnet-check` says so in under a minute, and this keeps it complete.
+    python3 tests/test_dotnet_project_coverage.py
     python3 tests/test_remote_us_keymap.py
     python3 tests/test_remote_group_resolution.py
     python3 tests/test_remote_keycode_flush.py

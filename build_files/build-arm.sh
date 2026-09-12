@@ -285,6 +285,43 @@ test -x /usr/bin/appstreamcli
 systemd-analyze verify /usr/lib/systemd/system/moos-appstream-refresh.service \
     /usr/lib/systemd/system/moos-appstream-refresh.timer
 systemctl enable moos-appstream-refresh.timer
+
+# THREE UNITS THE SHARED OVERLAY SHIPS AND ARM NEVER SWITCHED ON.
+#
+# system_files/ is copied byte-identical into every edition, but the ENABLEMENT lives in the two
+# build scripts, and only build.sh ever grew these three. Read off the maintainer's own A1
+# (image 44.20260912.353): `systemctl is-enabled` says `disabled` for all three, there is no
+# /etc/moos/hardware-adapt.state, no /run/moos-hardware-adapt.log, and `mokernel` reports "this
+# machine has not been adapted yet". They are not broken units — they have correct [Install]
+# sections and are simply never wanted by anything on ARM.
+#
+# The 2-core Oracle A1 is the machine that needs them most:
+#   * moos-visual-tier picks the KWin motion profile from what the hardware can actually do.
+#     Unapplied, a software-rendered cloud desktop pays for the full blur pass of a flagship.
+#   * moos-hardware-adapt is the "MoOS plants itself into this machine" pass — the same curated,
+#     anti-brick set the x86 editions get, and the thing mokernel is reporting the absence of.
+#   * moos-verify-origin audits that the booted deployment is still the signed MoOS origin. An
+#     ARM install pulls signed images exactly like an x86 one; there is no reason it should be
+#     the edition that does not check.
+#
+# tests/test_arm_unit_enablement.py holds the whole list, so the next unit added to one script
+# and not the other fails a gate instead of quietly not running for a release.
+systemctl enable moos-visual-tier.service
+systemctl enable moos-hardware-adapt.timer
+systemctl enable moos-verify-origin.timer
+# Deliberately NOT enabled here, each for a reason that is about ARM and not about oversight:
+#   moos-firstboot.service        ARM is provisioned by cloud-init, which creates the interactive
+#                                 user before this would run; its recipe file (/etc/moos-setup.conf)
+#                                 is written by moos-install-to-disk, which is the x86 installer.
+#   moos-fstab-sanitize.service   the ARM root is assembled by bootc with no obsolete physical-root
+#                                 fstab entry to remove; systemd-remount-fs has never failed here.
+#   moos-firewall-migrate.service ARM's firewall policy is written directly above rather than
+#                                 migrated, and re-zoning a machine reachable only over ssh and
+#                                 the tailnet is not a change to make blind.
+#   moos-live-polish.service      needs livesys.service; there is no ARM live ISO.
+#   moos-cloud-console-order.svc  repairs the x86 cloud edition's own console=ttyS0 karg ordering.
+#                                 ARM already boots console=ttyAMA0 then console=tty0, Oracle wires
+#                                 the port up, and serial-getty@ttyAMA0 shows NRestarts=0.
 # moos-image-update is the only OS deployment writer. The Fedora bootc base
 # enables its own mutable-tag fetch timer, so disable both upstream rivals on
 # ARM just as the shared x86 build does. Serial boot proof caught this timer

@@ -2165,6 +2165,74 @@ exists.
 
 ---
 
+## Mo PC Remote v40 + ARM unit enablement — 2026-09-12 (`feat/remote-cloud-desktop-20260912`)
+
+Measured on the shipped bundle in a real Chromium and read off the live Oracle A1
+(`ghcr.io/moalfarras-sys/moos-arm`, version `44.20260912.353`, digest `a860e8c2`). Detail:
+[v40 cloud desktop](docs/REMOTE_V40_CLOUD_DESKTOP.md).
+
+**Fixed**
+
+- **The real mouse wheel scrolled backwards in every browser.** The two agents disagreed about
+  which way is down — `agent-linux` is positive-down (the portal's `NotifyPointerAxis`, like
+  `wl_pointer`), `agent/Core` was positive-up (Win32 `MOUSEEVENTF_WHEEL`) — and the repair was
+  made in the shared controller, which double-negated MoOS's own path. The Win32 boundary now
+  absorbs the Win32 convention. `tests/test_remote_scroll_direction.py` (in `just check` and
+  `build.yml`) holds one convention across four files.
+- **A phone in portrait showed 28.6% of a desktop.** A one-tap offer in the dead space takes it
+  to 90.5%, measured on the canvas. Nothing rotates automatically — that behaviour was reported
+  as a fault once and has not returned; the offer is the change.
+- **`moos-visual-tier`'s `remote_encode` had no consumer.** The A1 publishes `1280x720@30` while
+  the stream ran at `1920x1080` and the portal helper burned ~15% of one core of two,
+  continuously. `moremote/agent/Core/HostBudget.cs` reads it, `hello` carries it, Auto is bounded
+  by it (rung by frame rate, width by clamp), an explicit preset is not, and the Display sheet
+  names it. Verified through the shipping code path against the real A1 state file.
+- **Three MoOS units were never enabled on ARM.** `moos-visual-tier.service`,
+  `moos-hardware-adapt.timer` and `moos-verify-origin.timer` have correct `[Install]` sections,
+  ship in the ARM image via the shared overlay, and were wanted by nothing:
+  `systemctl is-enabled` said `disabled` for all three, there was no
+  `/etc/moos/hardware-adapt.state`, and `mokernel` reported "this machine has not been adapted
+  yet". `build-arm.sh` enables them; `tests/test_arm_unit_enablement.py` compares the two build
+  scripts against the shared overlay and requires every remaining divergence to be documented.
+- **`npm run test:browser` had no runner.** The only test that drives the production bundle in a
+  real browser was run by hand and therefore not run, and its wire filter omitted `scroll`
+  entirely. `moremote/controller/scripts/browser-test.mjs` serves the committed bundle, launches
+  Chromium and runs it.
+
+- **One product had three user-visible names.** The login screen said "Mo Remote", the launcher
+  on the same machine says "Mo PC Remote", the About line said "Mo Remote Personal". The surfaces
+  a person reads now all say Mo PC Remote; `MoRemotePersonal`, `mo-remote-personal.service`, the
+  `MoRemote` namespace and the Windows installer id are untouched, and the PWA manifest keeps
+  `short_name: "Mo Remote"` for the home-screen label.
+- **The .NET tree had no local build check, and no PR check either.** Seven `.csproj` files carry
+  seven hand-written lists of the shared `agent/Core`/`agent/Web` sources. A shared file wired
+  into some of them compiled clean locally and failed the ARM image build 25 minutes in with
+  `CS0103: The name 'HostBudget' does not exist` from MoRemote.Stream.Tests. `moremote/dotnet-check.sh`
+  (`just dotnet-check`) builds all seven and runs all four test executables in under a minute;
+  `tests/test_dotnet_project_coverage.py` keeps it complete; `.github/workflows/moremote-fast.yml`
+  runs it on pull requests, which `build.yml` (push to main only) never did.
+
+**Diagnosed, not fixed**
+
+- **A viewer's H.264 decoder gives up ~80s into session after session** and takes the whole room
+  to JPEG (one pipeline, so H.264 is only safe while every client can decode it). The reason now
+  travels with the vote and the agent logs it once on the transition; the cause is unknown.
+
+**Not proven**
+
+- No signed image has been built with any of this. The three ARM enables are verified as source
+  against the mechanism proven by their neighbours in the same script (`moos-auto-update.timer`,
+  three lines above, does reach the shipped image's `timers.target.wants/`). The next ARM build
+  must be inspected for them, and the A1 must show `enabled` after its update reboot.
+- The live A1 still has the three units disabled; they were not enabled on the running machine.
+- `budget.update_concurrency` still has no reader; `moai-do update` does not consult it.
+- **Local machine drift on the A1, left alone deliberately:** `/etc/sysctl.d/99-moos-performance.conf`
+  (hand-written 2026-09-10) sets `vm.swappiness=100` and `vm.dirty_ratio=15` against MoOS's
+  declared 150/10, which is what `mokernel` reports as drift. It is the owner's own file on their
+  own machine, so it is recorded here rather than removed; `moos-hardware-adapt` is the supported
+  place for per-machine policy and its dry run on this box wants only
+  `zram-size=min(ram, 8192)` and `fwupd-refresh.timer`.
+
 ## Still unproven / open
 
 - **Live-ISO on real hardware** — QEMU is the release gate; the ISO is proven

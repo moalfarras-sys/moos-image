@@ -5,7 +5,7 @@
 // tell at a glance which one you are looking at. v14 also described behaviour that no longer
 // exists ("fill-screen portrait" was the automatic quarter-turn, now removed), so it was
 // actively misleading while debugging exactly that.
-export const BUILD = "v39 · MoOS Liquid Glass · Mobile workspace";
+export const BUILD = "v40 · MoOS Liquid Glass · Cloud desktop";
 
 export interface ServerStatus {
   name: string;
@@ -35,6 +35,16 @@ export interface Hello {
   monitor?: number;
   input?: { ready: boolean; backend: string; error?: string };
   clipboard?: { ready: boolean };
+  /**
+   * What the HOST can afford to encode, from moos-visual-tier's published budget.
+   *
+   * Absent when the machine has published no opinion (a Windows host, a fresh install before the
+   * post-desktop timer has run). Present, it is the honest limit of a box that encodes H.264 on
+   * its CPU — the maintainer's 2-core Oracle A1 publishes 1280x720@30 while the stream ran at
+   * 1920x1080 because nothing read it. It bounds the AUTOMATIC choice only; an explicit preset
+   * still wins, because a control that silently does nothing is a defect.
+   */
+  encode?: { maxWidth: number; maxHeight: number; maxFps: number } | null;
 }
 
 export type MouseButton = "left" | "right" | "middle";

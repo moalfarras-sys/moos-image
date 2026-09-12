@@ -188,6 +188,44 @@ browser viewport emulation does not close the wider physical-device gate below.
 - [ ] Per-controller held-key ownership for simultaneous active controllers;
   view-only teardown is fixed, but active controllers still share one injector.
 
+## Remote v40 — the cloud desktop (2026-09-12)
+
+Measured on the shipped bundle in a real Chromium and on the live Oracle A1. Detail and the
+honest limits: [v40 cloud desktop](docs/REMOTE_V40_CLOUD_DESKTOP.md).
+
+- [x] The real mouse wheel scrolls the right way. One wire convention (positive dy = down) across
+  the controller, the portal helper and both injectors; the Win32 difference absorbed at the
+  Win32 boundary. Gated by `tests/test_remote_scroll_direction.py` and by the sign that actually
+  leaves the production bundle in `browser-input.test.mjs`.
+- [x] An upright phone can fill itself with the desktop in one tap: 28.6% → 90.5% of the stage,
+  measured. Nothing rotates automatically; the offer is the change.
+- [x] `moos-visual-tier`'s `remote_encode` has a reader. Auto is bounded by what the host said it
+  can encode, an explicit preset is not, and the Display sheet names the limit.
+- [x] `npm run test:browser` has a runner. The only test that exercises the production bundle
+  end to end previously had none, which is how an inverted wheel shipped past a green suite.
+- [x] `moos-visual-tier.service`, `moos-hardware-adapt.timer` and `moos-verify-origin.timer` are
+  enabled on ARM. They shipped `disabled` on the maintainer's A1; `mokernel` reported "this
+  machine has not been adapted yet" and there was no `hardware-adapt.state` to contradict it.
+  `tests/test_arm_unit_enablement.py` keeps the two build scripts comparable.
+- [ ] **Prove the three ARM enables in a BUILT image.** Source and gate only so far. The next ARM
+  build must show them under `usr/etc/systemd/system/{graphical,timers}.target.wants/`, and the
+  A1 must show `enabled` after the update reboot.
+- [ ] **The H.264 give-up is diagnosed, not fixed.** A viewer's decoder gives up roughly 80s into
+  session after session and takes the whole room to JPEG. The reason now travels with the vote
+  and is logged; the cause is still unknown.
+- [ ] **`budget.update_concurrency` still has no reader.** `moai-do update` does not consult it,
+  so a 32-core machine and a 2-core A1 fan out identically. Pinned by
+  `tests/test_moos_visual_tier.py` so it cannot be forgotten again.
+- [x] One user-visible product name. The login screen said "Mo Remote", the launcher says
+  "Mo PC Remote", the About line said "Mo Remote Personal"; the surfaces a person reads now agree.
+  Load-bearing identifiers are untouched.
+- [x] The .NET tree has a local, complete build check. Seven .csproj files with seven hand-written
+  lists of the shared sources cost a 25-minute ARM build to report one missing line; `just
+  dotnet-check` now says the same in under a minute, `tests/test_dotnet_project_coverage.py` keeps
+  it complete, and `moremote-fast.yml` runs it on pull requests — which `build.yml`, triggered
+  only on pushes to main, never did.
+- [ ] Physical Android/iOS keyboard and Safari matrix — unchanged from v38/v39, still open.
+
 ## Release blockers
 
 - [ ] **Clean-state and first-boot Store proof.** Known DNF and empty Flatpak

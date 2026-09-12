@@ -914,6 +914,52 @@ button {
   opacity: 0.9;
 }
 
+/*
+ * The turn-to-fill offer: one glass pill in the black band an upright 16:9 desktop leaves on a
+ * phone. It lives at the BOTTOM of the stage rather than over the picture, because the picture is
+ * the thing it is apologising for — covering it would be the same mistake at a smaller size.
+ *
+ * No animation. The band it sits in is already still, and MoOS ships no unguarded perpetual
+ * motion (one 8px dot once cost ~11% of a core on the real machine).
+ */
+.fill-offer {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 12px;
+  z-index: 16;
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  gap: 6px;
+  padding-inline: 14px;
+  pointer-events: none;   /* the black band still belongs to the desktop's gestures */
+}
+.fill-offer > * { pointer-events: auto; }
+.fill-offer-act,
+.fill-offer-dismiss {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 16px;
+  border-radius: 999px;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 650;
+  background: var(--glass-sheen), var(--glass-bar);
+  border: 1px solid var(--glass-edge);
+  box-shadow: inset 0 1px var(--glass-highlight), var(--shadow-sm);
+}
+.fill-offer-act svg { width: 20px; height: 20px; color: var(--accent); }
+.fill-offer-dismiss {
+  min-width: 44px;
+  padding: 0;
+  color: var(--muted);
+}
+.fill-offer-dismiss svg { width: 18px; height: 18px; }
+.fill-offer-act:active { transform: scale(0.97); }
+
 /* Session state is one quiet glass island, with the same hierarchy for opening, recovery and lock. */
 .session-state {
   position: absolute;

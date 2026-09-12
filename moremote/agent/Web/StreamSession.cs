@@ -193,6 +193,13 @@ public sealed class StreamSession
             monitor = _svc.Capture.SelectedIndex,
             input = new { ready = _svc.Input.IsReady, backend = _svc.Input.BackendName, error = _svc.Input.LastError },
             clipboard = new { ready = ClipboardBridge.IsReady },
+            // What this HOST can afford to encode, as moos-visual-tier already decided it. Only
+            // the host can read the host's own state file, so the viewer is told rather than left
+            // to guess from its own phone's cores. Absent on a machine with no published opinion;
+            // see HostBudget for why that must stay silent.
+            encode = HostBudget.RemoteEncode() is { } cap
+                ? new { maxWidth = cap.Width, maxHeight = cap.Height, maxFps = cap.Fps }
+                : null,
         }, ct);
 
         var send = SendLoop(ct);
@@ -434,8 +441,24 @@ public sealed class StreamSession
                         (hv.ValueKind == JsonValueKind.True || hv.ValueKind == JsonValueKind.False))
                     {
                         _codecDeclared = true;
-                        _svc.Capture.SessionCodec(_id, hv.GetBoolean());
-                        if (hv.GetBoolean()) _svc.Capture.RequestKeyframe();
+                        // A client that turns H.264 OFF mid-session drops the WHOLE ROOM to JPEG,
+                        // and until now it did so silently: the log recorded the consequence
+                        // ("Video codec: jpeg") and never the cause, which lives in the browser and
+                        // dies with the tab. The live log on the ARM machine shows this happening
+                        // ~80s into session after session with no way to tell whether it is a
+                        // decoder error, a renegotiation the phone could not follow, or a device
+                        // that simply cannot keep up. Log it once, on the transition only, so the
+                        // next occurrence explains itself.
+                        var canH264 = hv.GetBoolean();
+                        if (!canH264 && _sentCodec == "h264")
+                        {
+                            var why = GetStr(root, "reason", "");
+                            Log.Warn(why.Length > 0
+                                ? $"Viewer {_remote} gave up on H.264 — the room falls back to JPEG: {why}"
+                                : $"Viewer {_remote} gave up on H.264 — the room falls back to JPEG (no reason sent).");
+                        }
+                        _svc.Capture.SessionCodec(_id, canH264);
+                        if (canH264) _svc.Capture.RequestKeyframe();
                     }
                     // "Is anyone actually looking at this?" — the client says so when the page is
                     // hidden (tab in the background, phone screen off, app switched away) and again

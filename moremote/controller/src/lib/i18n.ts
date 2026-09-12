@@ -61,6 +61,11 @@ const dict = {
   quality: { ar: "الجودة", en: "Quality" },
   auto: { ar: "تلقائي", en: "Auto" },
   autoQuality: { ar: "جودة تلقائية — تتكيف مع شبكتك", en: "Auto quality — adapts to your network" },
+  hostCapPrefix: { ar: "هذا الكمبيوتر يرمّز بالمعالج، وحدّه", en: "This computer encodes on its CPU; its limit is" },
+  hostCapSuffix: {
+    ar: "الجودة التلقائية تلتزم به. اختيارك اليدوي يتجاوزه، وقد يصبح التحكم أبطأ.",
+    en: "Auto quality stays within it. A preset you choose by hand goes past it, and control may get slower.",
+  },
   monitor: { ar: "الشاشة", en: "Monitor" },
   sideways: { ar: "جانبي", en: "Sideways" },
   upright: { ar: "مستقيم", en: "Upright" },
@@ -116,7 +121,7 @@ const dict = {
   // ── PWA install banner ──
   installBanner: {
     ar: "ثبّت التطبيق على جهازك للحصول على تجربة كاملة",
-    en: "Install Mo Remote for the full experience",
+    en: "Install Mo PC Remote for the full experience",
   },
   install: { ar: "تثبيت", en: "Install" },
 
@@ -256,6 +261,12 @@ const dict = {
   },
 
   // ── Orientation toast ──
+  fillOffer: { ar: "أدر الصورة لملء الشاشة", en: "Turn the picture to fill the screen" },
+  fillOfferAria: {
+    ar: "سطح المكتب صغير على هذه الشاشة. المس لإدارة الصورة جانبياً وملء الشاشة.",
+    en: "The desktop is small on this screen. Tap to turn the picture sideways and fill it.",
+  },
+  fillOfferDismiss: { ar: "إخفاء هذا الاقتراح", en: "Hide this suggestion" },
   orientAutoToast: { ar: "يتبع هاتفك — مستقيم", en: "Follows your phone — upright" },
   orientOnToast: { ar: "مُدار جانبياً — يملأ الشاشة", en: "Turned sideways — fills the screen" },
   orientOffToast: { ar: "مُثبّت مستقيماً", en: "Locked upright" },

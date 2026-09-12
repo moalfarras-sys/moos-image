@@ -348,6 +348,37 @@ static string RepoRoot()
     return dir ?? throw new Exception("could not locate the moremote tree");
 }
 
+// ── The host's own encode ceiling, parsed from what moos-visual-tier actually writes ──────
+//
+// `budget.remote_encode` had no reader at all: the maintainer's 2-core A1 published
+// "1280x720@30" while the stream ran at 1920x1080. HostBudget is the reader, so its parser is
+// the boundary between MoOS's answer and Remote acting on it — and it must fail closed, because
+// "no opinion" and "a ceiling of zero" are opposite outcomes.
+Eq(new HostBudget.Encode(1280, 720, 30), HostBudget.Parse("1280x720@30")!.Value, "the A1's real budget");
+Eq(new HostBudget.Encode(1920, 1080, 60), HostBudget.Parse("1920x1080@60")!.Value, "a flagship budget");
+foreach (var bad in new[] { "", "   ", "1280x720", "@30", "1280@30", "1280x720@", "axbx@c",
+                            "0x0@0", "99999x99999@30", "1280x720@1", "1280x720@999" })
+    Eq(true, HostBudget.Parse(bad) is null, $"a ceiling of '{bad}' must be no opinion, not a limit");
+Eq(true, HostBudget.Parse(null) is null, "an absent budget is no opinion");
+
+// And the file path it reads is the one moos-visual-tier writes: state_home()/moos-visual-tier.json.
+{
+    var stateDir = Path.Combine(Path.GetTempPath(), "moremote-tier-" + Guid.NewGuid());
+    Directory.CreateDirectory(stateDir);
+    var file = Path.Combine(stateDir, "moos-visual-tier.json");
+    File.WriteAllText(file, """
+    {"tier":"essential","budget":{"file_indexing":"filenames","update_concurrency":1,
+     "ai_default":"cloud","remote_encode":"1280x720@30"}}
+    """);
+    Environment.SetEnvironmentVariable("MOREMOTE_TIER_STATE", file);
+    var read = HostBudget.RemoteEncode();
+    Eq(true, read is not null, "the agent must find the state file moos-visual-tier writes");
+    Eq(1280, read!.Value.Width, "the width the host published");
+    Eq(30, read.Value.Fps, "the frame rate the host published");
+    Environment.SetEnvironmentVariable("MOREMOTE_TIER_STATE", Path.Combine(stateDir, "absent.json"));
+    Directory.Delete(stateDir, recursive: true);
+}
+
 Console.WriteLine($"PASS: {passed} mapping/validation/Unicode tests");
 
 sealed class FailingReadStream : Stream
