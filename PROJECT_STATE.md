@@ -2113,10 +2113,10 @@ Measured on the shipped bundle in a real Chromium and read off the live Oracle A
 
 **Not proven**
 
-- No signed image has been built with any of this. The three ARM enables are verified as source
-  against the mechanism proven by their neighbours in the same script (`moos-auto-update.timer`,
-  three lines above, does reach the shipped image's `timers.target.wants/`). The next ARM build
-  must be inspected for them, and the A1 must show `enabled` after its update reboot.
+- The three ARM enables are now asserted against the BUILT image by the ARM workflow's "Verify
+  the built image" step, before signing — a `systemctl enable` in a build script proves nothing
+  about the bytes, which is how this shipped in the first place. What remains unproven is the
+  running machine: the A1 must show `enabled` after its update reboot.
 - The live A1 still has the three units disabled; they were not enabled on the running machine.
 - `budget.update_concurrency` still has no reader; `moai-do update` does not consult it.
 - **Local machine drift on the A1, left alone deliberately:** `/etc/sysctl.d/99-moos-performance.conf`
