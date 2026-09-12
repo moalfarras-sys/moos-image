@@ -1,6 +1,6 @@
 # MoOS — current project state
 
-**ARM first boot: `moos-hardware-adapt.service` still fails, and #87 was based on a false premise (2026-09-12, branch `fix/arm-boot-proof-diagnostics-20260912`):**
+**ARM first boot: `moos-hardware-adapt` counted a `systemctl stop` of a not-yet-generated zram unit as a failure — fix awaiting its boot proof (2026-09-12, branches `fix/arm-boot-proof-diagnostics-20260912` and `fix/arm-hardware-adapt-first-boot-20260912`):**
 the ARM boot proof on `main` has failed four times (run 34707148234 attempts 1–2 on `495a47d2`,
 34710449602 on `3a37bd47`, 34713962867 on `84a8108c`), so ARM is not promoted. Once `c012bfc7`
 let the runtime gate connect, it reported `moos-hardware-adapt.service loaded failed failed`
@@ -9,14 +9,25 @@ zram-generator and added a guard for that case. **That claim was false.** The bu
 (`moos-arm@sha256:b1c64063…`, listed file by file without running it) contains
 `/usr/lib/systemd/system-generators/zram-generator`, `zram.ko.xz`, `zramctl` and
 `systemd-zram-setup@.service`. Only the default `/usr/lib/systemd/zram-generator.conf` is
-absent, which is why no zram device appears at boot. The guard therefore never triggers on ARM.
-It is harmless: x86 is unchanged, and ARM fails exactly as before. `systemd-sysctl` completed
-cleanly on the same boot, and `tcp_bbr` and `sch_fq` ship in the image. **The failing mutation
-is not known.** The boot proof kept neither the unit's journal nor
-`/run/moos-hardware-adapt.log`. This branch makes the failure diagnostics print, for every
-failed unit, its status and its journal for the boot, plus the adapter's own log, so the next
-run on `main` names the step.
-**Still owed:** that run, then the fix for the step it names, then the ARM promotion.
+absent, which is why no zram device appears at boot and why the guard never triggers on ARM.
+*The defect.* With no zram running, the adapter writes the RAM-tier config and applies it, and
+the apply began with `systemctl stop dev-zram0.swap systemd-zram-setup@zram0.service`. The
+generator has not made that unit yet, and systemd answers a stop of a unit that is not loaded
+with exit 5 (`reset-failed`: exit 1; both measured on the daily driver). `do_run` counted that
+as a failed mutation, so the script exited 1 and wrote no success stamp even though the
+daemon-reload and the single start that follow bring swap up. That is the end state run
+34713962867 recorded: `zram0 3.8G [SWAP]` active next to the failed unit. #87's gate could not
+see it, because its stub `systemctl` answered 0 to everything except `start`.
+*The fix.* `stop` and `reset-failed` run only when `systemctl show -p LoadState` reports
+`dev-zram0.swap` as `loaded`. The apply order (stop → daemon-reload → reset-failed → one start)
+and its gate are unchanged. `tests/test_hardware_adapt_zram_availability.py` now stubs systemd's
+real answers and runs the real script in three shapes: ARM first boot, x86 re-tier, and no
+generator. On the old code it fails the ARM shape (exit 1, the refused stop, no stamp).
+The diagnostics branch also makes the boot proof print every failed unit's journal and
+`/run/moos-hardware-adapt.log`, so a remaining failure names its step.
+**Still owed:** the ARM boot proof for the fix, then its merge to `main` and the ARM promotion.
+If that journal names another step, it is the next fix. One candidate: `sysctl --system` exits 1
+for any key the kernel lacks.
 
 **Release integration: everything pending in one candidate, and OpenCode Zen as a paid choice (2026-09-12, branch `release/moos-integration-20260912`, PR #85):**
 the daily driver now runs the signed `44.20260912.806` (`6021840c`, kernel 7.2.4). This
