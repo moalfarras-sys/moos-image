@@ -2565,13 +2565,36 @@ require('self.headers.get("X-Moai-Control") != "1"' in control_http_code
         and "os.replace(tmp_name, CFG)" in control_http_code,
         "moai-control must enforce the same loopback browser boundary and commit "
         "private settings atomically under a process-wide lock")
+_agent_machine_match = re.search(
+    r"readonly property bool agentMachineConfigured:\s*(.*?)"
+    r"\n\s*readonly property string agentAnyError:",
+    moai_qml,
+    re.DOTALL,
+)
+_agent_machine_expression = (
+    " ".join(_agent_machine_match.group(1).split())
+    if _agent_machine_match else ""
+)
+_agent_setup_match = re.search(
+    r"readonly property string agentSetupAction:\s*(.*?)"
+    r"\n\s*readonly property string agentSetupLabel:",
+    moai_qml,
+    re.DOTALL,
+)
+_agent_setup_expression = (
+    " ".join(_agent_setup_match.group(1).split())
+    if _agent_setup_match else ""
+)
 require("property bool agentStatusLoaded" in moai_qml
-        and "readonly property bool agentMachineConfigured" in moai_qml
         and "readonly property bool agentReady" in moai_qml
-        and "moos://do/install-openclaw" in moai_qml
-        and "moos://do/setup-brain" in moai_qml,
-        "the Workbench must read real installation/configuration status and "
-        "offer working setup actions for missing pieces")
+        and _agent_machine_expression
+            == "agentInstalled && agentOpenClawConfigured"
+        and _agent_setup_expression
+            == ('!agentInstalled ? "moos://do/install-openclaw" '
+                ': "moos://do/setup-brain"'),
+        "the cloud-only Workbench must become available when OpenClaw is installed "
+        "and cloud-configured, then route a missing install to install-openclaw and "
+        "a missing cloud configuration to setup-brain")
 # ONE chat. The agent panel used to carry a second composer POSTing to the
 # agent API's /api/send while the chat panel streamed through the gateway —
 # two chat surfaces over one session store, which the owner rightly called

@@ -196,6 +196,55 @@ class UiTellsTheTruth(unittest.TestCase):
             self.assertIn(provider, block)
         self.assertIn("مزوّد", block, "Arabic is first-class on this screen")
 
+    def test_workbench_needs_only_openclaw_and_its_cloud_config(self) -> None:
+        """Retired local services must not hide the working cloud workspace."""
+        expression = self.qml.split(
+            "readonly property bool agentMachineConfigured:", 1
+        )[1].split("readonly property string agentAnyError:", 1)[0]
+        self.assertEqual(
+            " ".join(expression.split()),
+            "agentInstalled && agentOpenClawConfigured",
+            "Workbench readiness must follow the installed OpenClaw cloud "
+            "configuration, without requiring retired local brain or speech services",
+        )
+
+    def test_workbench_setup_route_matches_the_missing_piece(self) -> None:
+        """An existing install needing cloud config must not rerun npm install."""
+        expression = self.qml.split(
+            "readonly property string agentSetupAction:", 1
+        )[1].split("readonly property string agentSetupLabel:", 1)[0]
+        self.assertEqual(
+            " ".join(expression.split()),
+            '!agentInstalled ? "moos://do/install-openclaw" : "moos://do/setup-brain"',
+            "missing OpenClaw should install it; an installed but unconfigured "
+            "OpenClaw should open cloud settings",
+        )
+
+    def test_workbench_setup_copy_describes_the_cloud_contract(self) -> None:
+        note = self.qml.split(
+            "readonly property string agentSetupNote:", 1
+        )[1].split("function agentLoadCurrentWorkspace", 1)[0]
+        for stale in (
+            "العقل والصوت محلياً",
+            "العقل أو الصوت المحلي",
+            "rerun the safe installer",
+            "local brain",
+            "local speech",
+        ):
+            self.assertNotIn(stale, note)
+        for truth in (
+            "سحابياً مجانياً",
+            "مزوّداً ونموذجاً سحابيين",
+            "free cloud provider",
+            "cloud provider and model",
+        ):
+            self.assertIn(truth, note)
+        label = self.qml.split(
+            "readonly property string agentSetupLabel:", 1
+        )[1].split("readonly property string agentSetupNote:", 1)[0]
+        self.assertIn("إعداد السحابة", label)
+        self.assertIn("Cloud setup", label)
+
 
 class NoEngineShips(unittest.TestCase):
     """Stage C5, build half: no edition installs a local model engine.

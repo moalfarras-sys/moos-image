@@ -4343,10 +4343,10 @@ Kirigami.ApplicationWindow {
                                     Text {
                                         Layout.fillWidth: true
                                         text: root.agentInstalled
-                                            ? root.local("أكمل تجهيز الوكيل",
-                                                         "Finish agent setup")
-                                            : root.local("ثبّت وكيل الهاتف",
-                                                         "Install phone agent")
+                                            ? root.local("اربط العقل السحابي",
+                                                         "Connect cloud brain")
+                                            : root.local("ثبّت OpenClaw",
+                                                         "Install OpenClaw")
                                         color: root.textHi
                                         font.family: root.uiFont
                                         font.pixelSize: root.typePx(14)
@@ -4364,7 +4364,7 @@ Kirigami.ApplicationWindow {
                                     label: root.agentSetupLabel
                                     onClicked: root.launch(root.agentSetupAction,
                                                            root.agentInstalled
-                                                               ? root.local("تجهيز الوكيل", "Agent setup")
+                                                               ? root.local("إعداد السحابة", "Cloud setup")
                                                                : "OpenClaw")
                                 }
                             }
@@ -6845,33 +6845,35 @@ Kirigami.ApplicationWindow {
     property bool agentOpenClawConfigured: false
     property bool agentBrainConfigured: false
     property bool agentSpeechConfigured: false
+    // Workbench runs through OpenClaw's configured cloud primary. Local model
+    // and speech services were retired from MoOS, so their legacy diagnostic
+    // fields must never hide projects, tasks or the terminal.
     readonly property bool agentMachineConfigured:
         agentInstalled && agentOpenClawConfigured
-        && agentBrainConfigured && agentSpeechConfigured
     readonly property string agentAnyError:
         agentStatusError !== "" ? agentStatusError : agentError
     readonly property bool agentReady:
         agentStatusLoaded && agentMachineConfigured && agentAnyError === ""
     readonly property string agentSetupAction:
-        !agentInstalled || !agentOpenClawConfigured
+        !agentInstalled
             ? "moos://do/install-openclaw"
             : "moos://do/setup-brain"
     readonly property string agentSetupLabel:
-        !agentInstalled || !agentOpenClawConfigured
-            ? root.local("ثبّت وأكمل", "Install")
-            : root.local("جهّز العقل", "Set up")
+        !agentInstalled
+            ? root.local("ثبّت OpenClaw", "Install OpenClaw")
+            : root.local("إعداد السحابة", "Cloud setup")
     readonly property string agentSetupNote:
         !agentInstalled
             ? root.local(
-                "إعداد واحد مؤكّد يثبّت OpenClaw والعقل والصوت محلياً، ثم يبقى التشغيل عند الطلب.",
-                "Configure a free cloud provider to enable Mo AI.")
+                "ثبّت OpenClaw واربط مزوّداً سحابياً مجانياً لتفعيل المشاريع والمهام والطرفية.",
+                "Install OpenClaw and connect a free cloud provider to enable projects, tasks and the terminal.")
             : !agentOpenClawConfigured
                 ? root.local(
-                    "إعداد OpenClaw غير مكتمل؛ أعد تشغيل المثبّت الآمن ليصلحه دون مسح اختياراتك.",
-                    "OpenClaw setup is incomplete; rerun the safe installer without losing your choices.")
+                    "اختر مزوّداً ونموذجاً سحابيين من إعدادات Mo AI لتجهيز Workbench.",
+                    "Choose a cloud provider and model in Mo AI settings to make Workbench ready.")
                 : root.local(
-                    "العقل أو الصوت المحلي غير مجهّز. الإجراء التالي ينشئهما ويتحقق منهما فعلياً.",
-                    "A free cloud provider is not configured. Open settings to connect it.")
+                    "OpenClaw مثبّت ومربوط بالعقل السحابي.",
+                    "OpenClaw is installed and connected to the cloud brain.")
 
     function agentLoadCurrentWorkspace() {
         // The session list feeds the chat history drawer, so it refreshes
