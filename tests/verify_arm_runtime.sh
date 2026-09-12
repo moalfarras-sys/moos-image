@@ -104,6 +104,29 @@ done
     exit 1
 }
 [ "${growth_status:-}" = "0" ]
+# BEGIN HARDWARE ADAPT ACCEPTANCE
+# Its timer starts 45s after graphical.target. A zero failed-unit count before
+# that work completes cannot prove the first boot succeeded. Observe completion
+# through systemd, including its exit status, before accepting the disk.
+hardware_deadline=$((SECONDS + 300))
+while [ "$SECONDS" -lt "$hardware_deadline" ]; do
+    hardware_state="$(systemctl is-active moos-hardware-adapt.service 2>/dev/null || true)"
+    hardware_result="$(systemctl show -p Result --value moos-hardware-adapt.service 2>/dev/null || true)"
+    hardware_status="$(systemctl show -p ExecMainStatus --value moos-hardware-adapt.service 2>/dev/null || true)"
+    if [ "$hardware_state" = active ] && [ "$hardware_result" = success ] && [ "$hardware_status" = 0 ]; then
+        break
+    fi
+    [ "$hardware_state" != failed ] || break
+    sleep 3
+done
+if [ "${hardware_state:-}" != active ] || [ "${hardware_result:-}" != success ] || [ "${hardware_status:-}" != 0 ]; then
+    systemctl status --no-pager --full moos-hardware-adapt.service >&2 || true
+    journalctl --no-pager -b -u moos-hardware-adapt.service -n 100 >&2 || true
+    echo "ARM RUNTIME FATAL: hardware adaptation did not finish successfully" >&2
+    exit 1
+fi
+printf 'hardware-adapt=complete\n'
+# END HARDWARE ADAPT ACCEPTANCE
 failed="$(systemctl --failed --no-legend --plain)"
 [ -z "$failed" ] || { printf 'failed units:\n%s\n' "$failed" >&2; exit 1; }
 getent hosts ghcr.io >/dev/null

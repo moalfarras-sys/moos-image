@@ -1,5 +1,21 @@
 # MoOS — current project state
 
+**Oracle Remote and ARM acceptance continuation (2026-09-13):**
+`feat/remote-oracle-experience-20260912` integrates `main` through `84a8108c`
+and #88/#89 through `8767b973`, preserving the parallel agents' commits.
+Desktop text follows the viewer's layout and IME, modifiers release correctly,
+mobile Process/229 deletion reaches the remote, and the Arabic typing bar was
+reviewed in Chromium. Linux queries compositor Caps Lock before native text;
+locked/unknown state uses exact paste. Baloo policy now writes its real General
+group and diagnostics honor filename-only cloud indexing. Browser and .NET
+tests pass; native app/physical phone acceptance is still owed.
+ARM run `34717090843` proved #89's zram fix worked but hardware adaptation hit
+its 90s timeout. The branch removes an unnecessary fwupd enable reload, bounds
+the service at 180s, and makes the ARM boot gate wait for actual successful
+completion. This changes first-boot acceptance and post-desktop timing; no
+service is added to the login critical path. Local image/CI boot proof and
+signed Oracle update are pending. [Evidence and completion sequence](docs/REMOTE_ORACLE_INPUT_20260913.md).
+
 **ARM first boot: `moos-hardware-adapt` counted a `systemctl stop` of a not-yet-generated zram unit as a failure — fix awaiting its boot proof (2026-09-12, branches `fix/arm-boot-proof-diagnostics-20260912` and `fix/arm-hardware-adapt-first-boot-20260912`):**
 the ARM boot proof on `main` has failed four times (run 34707148234 attempts 1–2 on `495a47d2`,
 34710449602 on `3a37bd47`, 34713962867 on `84a8108c`), so ARM is not promoted. Once `c012bfc7`

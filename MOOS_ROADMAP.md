@@ -3,6 +3,13 @@
 Only completed evidence closes an item. Source code, a package, or a green
 parser alone is not runtime proof. Current facts live in `PROJECT_STATE.md`.
 
+**Oracle continuation, 2026-09-13:** the independent Remote branch now includes
+latest main and #88/#89, with tested layout/IME/mobile-delete and effective
+Baloo policy repairs. The latest ARM proof remains rejected: zram succeeded,
+hardware adaptation timed out. A bounded service/runtime-acceptance repair is
+in source; image, boot, signed update and physical phone acceptance remain open.
+See [the exact checkpoint](docs/REMOTE_ORACLE_INPUT_20260913.md).
+
 **Master program (2026-09-11):** [the MoOS completion plan](docs/MOOS_COMPLETION_PLAN.md)
 orders the work from release unblock (P0) through one product (P1), Mo AI as the
 system operator (P2), Android/Windows apps (P3), form factors (P4) and world-class

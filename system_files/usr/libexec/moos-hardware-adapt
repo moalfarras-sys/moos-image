@@ -326,7 +326,9 @@ fi
 # ── 6. Firmware: refresh LVFS METADATA only (never apply). Surfacing the count
 #       to the user is Mo AI's job; applying requires explicit consent. ───────
 if systemctl list-unit-files fwupd-refresh.timer >/dev/null 2>&1; then
-    do_run systemctl enable fwupd-refresh.timer
+    # Enabling schedules the next boot; it does not start the timer now. Avoid
+    # another global daemon-reload here (31s in ARM proof 34717090843).
+    do_run systemctl enable --no-reload fwupd-refresh.timer
     log "fwupd-refresh.timer enabled (metadata only — updates are never auto-applied)"
 fi
 

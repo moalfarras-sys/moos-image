@@ -15,4 +15,7 @@ RemainAfterExit=yes
 ExecStart=/usr/libexec/moos-hardware-adapt
 # The script is idempotent and best-effort; a failure must never block boot.
 SuccessExitStatus=0
-TimeoutStartSec=90s
+# ARM proof 34717090843 completed zram and DDC but exhausted 90s during
+# first-boot systemd reloads. Keep this post-desktop work bounded, with room
+# for its 30s DDC probe and the measured reloads on a software-rendered host.
+TimeoutStartSec=180s

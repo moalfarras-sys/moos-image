@@ -3,6 +3,9 @@
 
 from pathlib import Path
 import re
+import os
+import subprocess
+import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 script = (ROOT / "system_files/usr/libexec/moos-hardware-adapt").read_text()
@@ -42,3 +45,43 @@ assert "zram_size_matches_tier" in script, (
 assert "persisted config without live restart" in script
 
 print("hardware-adapt lifecycle/ownership gate passed")
+
+# The service's deadline is finite and outside the login path. The acceptance
+# gate must wait for the timer/oneshot to finish, not sample --failed too early.
+timeout = re.search(r'^TimeoutStartSec=(\d+)s$', service, re.M)
+assert timeout and 180 <= int(timeout[1]) <= 240
+assert "systemctl enable --no-reload fwupd-refresh.timer" in script
+runtime = (ROOT / 'tests/verify_arm_runtime.sh').read_text()
+block = re.search(r'# BEGIN HARDWARE ADAPT ACCEPTANCE\n(.*?)# END HARDWARE ADAPT ACCEPTANCE', runtime, re.S)
+assert block, 'ARM proof must await hardware adaptation'
+for outcome, expected in [('success', 0), ('failed', 1), ('bad-status', 1), ('never-started', 1)]:
+    with tempfile.TemporaryDirectory() as directory:
+        counter = Path(directory) / 'polls'
+        counter.write_text('0')
+        stubs = r'''
+set -euo pipefail
+systemctl() {
+    local n="$(cat "$TEST_POLLS")"
+    case "$*" in
+        'is-active moos-hardware-adapt.service')
+            n=$((n+1)); printf '%s' "$n" > "$TEST_POLLS"
+            if [ "$TEST_OUTCOME" = never-started ]; then echo inactive
+            elif [ "$n" -lt 3 ]; then echo activating
+            elif [ "$TEST_OUTCOME" = failed ]; then echo failed
+            else echo active; fi ;;
+        'show -p Result --value moos-hardware-adapt.service')
+            if [ "$TEST_OUTCOME" = failed ] && [ "$n" -ge 3 ]; then echo timeout; else echo success; fi ;;
+        'show -p ExecMainStatus --value moos-hardware-adapt.service')
+            if [ "$TEST_OUTCOME" = bad-status ]; then echo 1; else echo 0; fi ;;
+    esac
+}
+journalctl() { :; }
+sleep() { SECONDS=$((SECONDS+100)); }
+'''
+        result = subprocess.run(['bash', '-c', stubs + block[1]], text=True,
+            capture_output=True, timeout=5,
+            env=os.environ | {'TEST_POLLS': str(counter), 'TEST_OUTCOME': outcome})
+        assert result.returncode == expected, (outcome, result.stdout, result.stderr)
+        assert int(counter.read_text()) >= 3, 'gate accepted an unfinished oneshot'
+        assert ('hardware-adapt=complete' in result.stdout) == (expected == 0)
+print('hardware-adapt completed/failed/delayed first-boot acceptance passed')

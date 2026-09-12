@@ -236,6 +236,17 @@ with `screendump` takes about half an hour and is the only thing that found any 
 
 ## Things that are easy to get wrong here
 
+**KConfig can agree with a write that the application ignores.** Baloo reads
+`only basic indexing` under `[General]`; `[Basic Settings]` owns the enabled
+flag. Verify `balooctl6 config list contentIndexing` against the visual-tier
+budget. `test_index_policy_consumer.py` reads the effective setting in an
+isolated profile, including stale keys in the wrong group.
+
+**Build Remote's PWA before .NET.** Vite replaces the hashed files consumed by
+the .NET static-asset build; running both builds concurrently can delete an
+asset while .NET compresses it. Browser transport fixtures prove the controller;
+they do not prove native app text or physical phone keyboard behavior.
+
 **A desktop runtime directory is not a desktop UID.** Installed-ISO SSH uses root
 to inspect `/sysroot`. Session/app checks must drop to `moosci` with `runuser`;
 setting `XDG_RUNTIME_DIR` and `DBUS_SESSION_BUS_ADDRESS` as root still fails the
