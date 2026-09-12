@@ -1,5 +1,34 @@
 # MoOS — current project state
 
+**The ISO release gate failed at login, and six everyday defects seen as a user (2026-09-12, branch `feat/moos-polish-20260912`):**
+the #80 release chain passed its build, all three disk proofs and ARM, but ISO run
+34650456175 stopped at the installed system's Plasma Login step: PAM rejected the
+correct 20-character disposable password on all three attempts (`pam_unix ...
+authentication failure`), so logind never opened a session. The typed keys were the
+exact password each time; the last green ISO (`c0cc94e7`) logged in on attempt 1 and
+its pre-typing frame shows the password page, while this run's frames show no
+password field; the runner's GL stack also changed (0 MB dedicated video memory
+against ~1 TB two days earlier). When the greeter is already on its password page
+there is no idle clock to swallow the wake, so the wake's `sendkey spc` is typed into
+the focused field — exactly this failure. The proof now empties the field
+(select-all, backspace) before typing and `tests/test_iso_install_gate.py` pins that;
+the gate is not weakened. **Not yet proven:** the next ISO run is the proof.
+Found by using the apps: Mo AI's device card said "وجدت 0 مشكلة" under a warning
+icon when the only entry was an optional firmware update (it now reads "جهازك سليم"
+with "لا مشاكل · اقتراح واحد"); issue cards printed both languages on one line
+("Firmware updates | تحديث البرامج الثابتة") and now show the session language; the
+graphics line was English-only (`moos-device-plan` now also emits
+`driver_status_ar`); the Apps panel recommended Bazaar as a second store (it now opens
+Mo Store); the KVM row said Waydroid needs KVM (Waydroid uses LXC; the row now names
+Windows VMs and the Android Studio emulator). In MoOS Settings, `SymbolCatalog.resolve()`
+answers an unknown glyph with the sparkle: Displays asked for `monitor`, four rows
+reused `identity` (itself a sparkle) and Date & time and Uptime wore the MoOS logo.
+Rows now use monitor, image, mail, info, user, clock and globe, and
+`test_moos_symbolic_icons.py` fails on any Settings glyph outside the catalog (proven
+against the old file). Verified: 125/125 CI repo gates; live captures of the branch
+Mo AI (device, apps, compatibility) and Settings (appearance, connectivity, system)
+on the daily driver.
+
 **Everyday polish verified live (2026-09-12, branch `feat/moos-completion-20260911`):**
 the Updater now checks once on open unless an update is already staged — a live
 capture shows "You are on the latest signed MoOS image." without a click; Mo PC

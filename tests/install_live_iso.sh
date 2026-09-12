@@ -991,7 +991,14 @@ for attempt in range(1, 4):
     (evidence / f"hmp-wake-attempt{attempt}.txt").write_text(wake, encoding="utf-8")
     time.sleep(2)
     capture(evidence / f"installed-login-attempt{attempt}.ppm")
-    typed = hmp([*(f"sendkey {char}" for char in password), "sendkey ret"],
+    # Empty the field before typing. Run 34650456175 sent the correct
+    # 20-character password on all three attempts and PAM rejected it every
+    # time. When PLM is already on its password page there is no idle clock to
+    # swallow the wake, so the wake's `sendkey spc` is typed INTO the focused
+    # field, which is exactly that failure. Select-all + backspace is a no-op
+    # on an empty field and on the clock page alike.
+    typed = hmp(["sendkey ctrl-a", "sendkey backspace",
+                 *(f"sendkey {char}" for char in password), "sendkey ret"],
                 label=f"type-{attempt}")
     (evidence / f"hmp-type-attempt{attempt}.txt").write_text(typed, encoding="utf-8")
     for _ in range(12):

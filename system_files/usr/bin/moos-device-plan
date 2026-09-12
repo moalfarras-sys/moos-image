@@ -123,12 +123,17 @@ def detect():
             "detail": "انتقل ذرّيًا إلى صورة MoOS NVIDIA؛ تُطبَّق بعد إعادة التشغيل. | Switch atomically to the MoOS NVIDIA image; applies after reboot.",
             "url": "moos://do/install-nvidia"
         })
+    # Mo AI shows this line as-is, so it carries both languages like every other
+    # device-plan string the owner reads.
     if vendor == "nvidia" and "nvidia" in driver and nvidia_image:
         driver_status = "NVIDIA proprietary driver active"
+        driver_status_ar = "تعريف NVIDIA الرسمي يعمل"
     elif vendor == "nvidia":
         driver_status = "NVIDIA detected; optimized image required"
+        driver_status_ar = "تم اكتشاف NVIDIA؛ يلزم الانتقال إلى صورة MoOS NVIDIA"
     else:
         driver_status = f"{vendor.title()} graphics using {driver}"
+        driver_status_ar = f"رسوميات {vendor.title()} تعمل بتعريف {driver}"
     # Real driver/firmware gaps — the Hardware Center's whole job is to say "this device of
     # yours does not work and here is why", instead of only ever talking about the GPU.
     gaps = driver_gaps()
@@ -177,6 +182,7 @@ def detect():
     return {
         "schema": 1, "health": health, "gpu_vendor": vendor, "gpu": gpu,
         "driver": driver, "driver_status": driver_status,
+        "driver_status_ar": driver_status_ar,
         "nvidia_image": nvidia_image, "memory_gib": memory_gib, "kvm": kvm,
         "secure_boot": secure_boot, "os": os_release.get("PRETTY_NAME", "MoOS"),
         "driver_gaps": gaps,

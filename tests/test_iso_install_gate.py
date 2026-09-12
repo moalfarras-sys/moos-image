@@ -39,6 +39,9 @@ required_script = (
     "-device virtio-keyboard-pci",
     "-device virtio-tablet-pci",
     '"sendkey ret"',
+    # The password field is emptied first: a wake space typed into an
+    # already-focused field made PAM reject the right password (run 34650456175).
+    '"sendkey ctrl-a", "sendkey backspace"',
     # hmp() must READ QEMU's reply. Sending blind made a rejected command
     # indistinguishable from a delivered keystroke, which is why three runs
     # could not establish whether any input reached the guest at all.

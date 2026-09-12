@@ -23,6 +23,13 @@ masks the inherited unit, rejects hidden disabled remotes, waits for ARM
 readiness and strictly owns empty mutable directories. All five x86 proofs and
 the ARM pipeline must start again from the corrected commit.
 
+Candidate `e10181f9` is also rejected: build `34648333190`, all three QCOW2 proofs
+and ARM passed, but ISO run `34650456175` failed at the installed system's Plasma
+Login step — PAM rejected the correct disposable password on all three attempts.
+The proof now empties the password field before typing (gate-pinned); it and the
+Mo AI/Settings fixes ride on `feat/moos-completion-20260911`, whose next candidate
+must pass all five x86 proofs again.
+
 **Release integration 2026-09-07:** `main` was unbuildable for all three x86
 editions (a comment inside a backslash continuation truncated a `sed`); fixed
 and gated. The Device page named hardware that does not exist on aarch64; fixed

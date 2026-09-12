@@ -639,5 +639,36 @@ class MoOSSymbolicIconTests(unittest.TestCase):
         self.assertIn("Kirigami.Icon", shared_symbol)
 
 
+    def test_settings_glyphs_are_catalog_names_not_silent_sparkles(self) -> None:
+        # Settings resolves glyphs straight through SymbolCatalog.resolve() with
+        # no alias table, and resolve() answers an unknown name with the sparkle.
+        # Displays asked for "monitor" and shipped a sparkle; four unrelated rows
+        # reused "identity" (itself a sparkle) and Date & time wore the MoOS logo.
+        catalog = (
+            ROOT / "system_files/usr/lib64/qt6/qml/org/moos/ui/SymbolCatalog.js"
+        ).read_text(encoding="utf-8")
+        names = set(re.findall(r'"([a-z0-9-]+)":\s*true', catalog))
+        self.assertIn('"moos-spark-symbolic"', catalog, "resolve() fallback moved; re-check this gate")
+        source = (
+            ROOT / "system_files/usr/share/moos/apps/settings/main.qml"
+        ).read_text(encoding="utf-8")
+        used = re.findall(r'\bglyph\s*:\s*(?:[^"\n]*\?\s*)?"([a-z0-9-]+)"(?:\s*:\s*"([a-z0-9-]+)")?', source)
+        glyphs = {name for pair in used for name in pair if name}
+        self.assertTrue(glyphs, "no Settings glyphs found; the pattern no longer matches")
+        self.assertFalse(
+            sorted(glyphs - names),
+            "Settings glyphs that resolve() silently turns into the sparkle",
+        )
+        # The MoOS mark belongs to the Overview only, not to ordinary rows.
+        self.assertEqual(
+            re.findall(r'id:\s*"([a-z]+)",\s*glyph:\s*"orbit"', source), ["home"])
+        self.assertEqual(source.count('glyph: "orbit"'), 1)
+        expected = {"display": "system", "wallpaper": "image", "accounts": "mail",
+                    "about": "about", "users": "user", "time": "clock", "region": "globe"}
+        for route, glyph in expected.items():
+            with self.subTest(route=route):
+                self.assertIn(f'route: "moos://settings/{route}", glyph: "{glyph}"', source)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

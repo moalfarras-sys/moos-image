@@ -455,7 +455,9 @@ Kirigami.ApplicationWindow {
             if (actions[i].severity === "important") return actions[i]
         return actions[0] || ({})
     }
-    readonly property bool healthy: planReady && actions.length === 0
+    // Healthy means no faults. Optional advice (a firmware update, a KVM note)
+    // is still listed below the card, but never turns the card into a warning.
+    readonly property bool healthy: planReady && problemCount === 0
     readonly property bool hasImportant: {
         for (let i = 0; i < actions.length; i++)
             if (actions[i].severity === "important")
@@ -699,9 +701,9 @@ Kirigami.ApplicationWindow {
         return (new Date(t * 1000)).toLocaleDateString(Qt.locale(), Locale.ShortFormat)
     }
 
-    // The apps we recommend. Anything else is found by searching Flathub.
+    // The apps we recommend. Everything else lives in Mo Store, the one store,
+    // or is found by searching Flathub right here.
     readonly property var appCatalog: [
-        { id: "io.github.kolunmi.Bazaar", title: "App Center (Bazaar)", ar: "تصفّح كل التطبيقات", en: "Browse everything" },
         { id: "org.mozilla.firefox",      title: "Firefox",     ar: "متصفح ويب",      en: "Web browser" },
         { id: "org.videolan.VLC",         title: "VLC",         ar: "مشغل وسائط",     en: "Media player" },
         { id: "org.libreoffice.LibreOffice", title: "LibreOffice", ar: "حزمة مكتبية", en: "Office suite" },
@@ -1570,6 +1572,15 @@ Kirigami.ApplicationWindow {
     }
 
     // Arabic needs real number agreement; "3 مشكلة" reads machine-made.
+    // Device-plan strings carry both languages as "عربي | English", so every
+    // consumer (Mo AI's own context included) has both. A card shows one: the
+    // raw pair rendered "Firmware updates | تحديث البرامج الثابتة" in one line.
+    function planText(s) {
+        const text = String(s || "")
+        const cut = text.indexOf(" | ")
+        return cut < 0 ? text : root.local(text.slice(0, cut), text.slice(cut + 3))
+    }
+
     function issueCountText(n) {
         if (!root.moaiRtl) return n === 1 ? "1 issue" : n + " issues"
         if (n === 1) return "مشكلة واحدة"
@@ -2242,7 +2253,10 @@ Kirigami.ApplicationWindow {
                                     case "device": return !root.planReady
                                         ? root.local("جارٍ الفحص…", "Scanning…")
                                         : root.healthy
-                                        ? root.local("لا مشاكل", "No problems")
+                                        ? (root.adviceCount > 0
+                                           ? root.local("لا مشاكل · " + root.adviceCountText(root.adviceCount),
+                                                        "No problems · " + root.adviceCountText(root.adviceCount))
+                                           : root.local("لا مشاكل", "No problems"))
                                         : root.issueCountText(root.problemCount)
                                     case "apps":   return root.local("ابحث وثبّت أي تطبيق",
                                                                      "Search and install anything")
@@ -3330,8 +3344,8 @@ Kirigami.ApplicationWindow {
                                                 ? root.local("جهازك سليم",
                                                              "Your device is healthy")
                                                 : root.local(
-                                                    "وجدت " + root.problemCount + " مشكلة",
-                                                    root.problemCount + " issue(s) found")
+                                                    "وجدت " + root.issueCountText(root.problemCount),
+                                                    "Found " + root.issueCountText(root.problemCount))
                                             color: root.textHi
                                             font.family: root.uiFont
                                             font.pixelSize: root.typePx(16)
@@ -3343,6 +3357,14 @@ Kirigami.ApplicationWindow {
                                                 ? root.local(
                                                     "أقرأ التعريفات والبرامج الثابتة والأجهزة المتصلة…",
                                                     "Reading drivers, firmware and attached devices…")
+                                                : root.healthy && root.adviceCount === 1
+                                                ? root.local(
+                                                    "لا توجد مشاكل. بالأسفل تحسين اختياري لجهازك.",
+                                                    "No problems. An optional improvement is below.")
+                                                : root.healthy && root.adviceCount > 1
+                                                ? root.local(
+                                                    "لا توجد مشاكل. بالأسفل تحسينات اختيارية لجهازك.",
+                                                    "No problems. Optional improvements are below.")
                                                 : root.healthy
                                                 ? root.local(
                                                     "لا توجد مشاكل في الأجهزة أو التعريفات.",
@@ -3424,7 +3446,8 @@ Kirigami.ApplicationWindow {
                                     }
                                     Text {
                                         Layout.fillWidth: true
-                                        text: root.plan.driver_status || ""
+                                        text: root.local(root.plan.driver_status_ar || root.plan.driver_status || "",
+                                                         root.plan.driver_status || "")
                                         color: root.textHi
                                         font.family: root.uiFont
                                         font.pixelSize: root.typePx(12)
@@ -3457,7 +3480,7 @@ Kirigami.ApplicationWindow {
                                             }
                                             Text {
                                                 Layout.fillWidth: true
-                                                text: issue.modelData.title || ""
+                                                text: root.planText(issue.modelData.title)
                                                 color: root.textHi
                                                 font.family: root.uiFont
                                                 font.pixelSize: root.typePx(13)
@@ -3467,7 +3490,7 @@ Kirigami.ApplicationWindow {
                                         }
                                         Text {
                                             Layout.fillWidth: true
-                                            text: issue.modelData.detail || ""
+                                            text: root.planText(issue.modelData.detail)
                                             color: root.textLo
                                             font.family: root.uiFont
                                             font.pixelSize: root.typePx(11)
@@ -3480,11 +3503,12 @@ Kirigami.ApplicationWindow {
                                                 label: root.local("أصلحها الآن", "Fix it")
                                                 primary: true
                                                 iconName: "moos-safe-update-symbolic"
-                                                onClicked: root.launch(issue.modelData.url, issue.modelData.title)
+                                                onClicked: root.launch(issue.modelData.url, root.planText(issue.modelData.title))
                                             }
                                             MoButton {
                                                 label: root.local("اسأل Mo AI", "Ask")
-                                                onClicked: root.askAbout(issue.modelData.title, issue.modelData.detail || "")
+                                                onClicked: root.askAbout(root.planText(issue.modelData.title),
+                                                                         root.planText(issue.modelData.detail))
                                             }
                                         }
                                     }
@@ -3817,6 +3841,56 @@ Kirigami.ApplicationWindow {
                                     }
                                 }
 
+                                // Mo Store is the one store: the full catalogue, updates and
+                                // removals live there, so this panel hands over to it rather
+                                // than recommending a second store app.
+                                Card {
+                                    Layout.fillWidth: true
+                                    Layout.topMargin: 4
+                                    visible: searchModel.count === 0
+                                    RowLayout {
+                                        width: parent.width
+                                        spacing: design.space3
+                                        Rectangle {
+                                            Layout.preferredWidth: root.fs(38)
+                                            Layout.preferredHeight: root.fs(38)
+                                            radius: design.radiusSmall
+                                            color: root.surface2
+                                            Kirigami.Icon {
+                                                anchors.centerIn: parent
+                                                width: 20; height: 20
+                                                source: "moos-boxes-symbolic"
+                                                color: root.accent
+                                            }
+                                        }
+                                        ColumnLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 2
+                                            Text {
+                                                text: "Mo Store"
+                                                color: root.textHi
+                                                font.family: root.uiFont
+                                                font.pixelSize: root.typePx(13)
+                                                font.weight: Font.DemiBold
+                                            }
+                                            Text {
+                                                Layout.fillWidth: true
+                                                text: root.local("كل التطبيقات والتحديثات في مكان واحد",
+                                                                 "Every app and update in one place")
+                                                color: root.textLo
+                                                font.family: root.uiFont
+                                                font.pixelSize: root.typePx(11)
+                                                wrapMode: Text.Wrap
+                                            }
+                                        }
+                                        MoButton {
+                                            label: root.local("افتح المتجر", "Open Mo Store")
+                                            iconName: "moos-external-symbolic"
+                                            onClicked: root.launch("moos://app/store", "Mo Store")
+                                        }
+                                    }
+                                }
+
                                 SectionTitle {
                                     text: root.local("موصى بها", "Recommended")
                                     Layout.topMargin: 4
@@ -3996,9 +4070,14 @@ Kirigami.ApplicationWindow {
                                             font.weight: Font.DemiBold
                                         }
                                         Text {
+                                            Layout.fillWidth: true
+                                            wrapMode: Text.Wrap
+                                            // Waydroid runs Android in an LXC container and never
+                                            // uses KVM; real virtual machines and the Android
+                                            // Studio emulator do.
                                             text: root.local(
-                                                "يحتاجه Waydroid والأجهزة الافتراضية.",
-                                                "Needed by Waydroid and virtual machines.")
+                                                "تحتاجه أجهزة Windows الافتراضية ومحاكي Android Studio. تطبيقات Android عبر Waydroid تعمل بدونه.",
+                                                "Needed by Windows virtual machines and the Android Studio emulator. Android apps through Waydroid run without it.")
                                             color: root.textLo
                                             font.family: root.uiFont
                                             font.pixelSize: root.typePx(11)

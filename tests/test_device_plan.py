@@ -85,6 +85,9 @@ assert data["driver"] == "nouveau", data["driver"]
 assert data["health"] == "action-needed"
 assert data["actions"][0]["url"] == "moos://do/install-nvidia"
 assert "r8169" not in data["driver"]
+assert data["driver_status"] == "NVIDIA detected; optimized image required", data["driver_status"]
+# Mo AI renders the status line verbatim; an Arabic session must get Arabic.
+assert any("\u0600" <= ch <= "\u06ff" for ch in data["driver_status_ar"]), data["driver_status_ar"]
 
 print("MoOS device-plan test passed")
 

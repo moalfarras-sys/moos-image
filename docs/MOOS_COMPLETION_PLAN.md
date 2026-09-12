@@ -206,3 +206,8 @@ change weekly; a single sample is evidence of a problem, not a final ranking.
   wallpaper drift was the gate suite driving the live shell; the suite is isolated.
 - **2026-09-12, M1.5 + polish:** Remote offers only the valid action; the Updater checks
   on open; Mo AI's chip names the model in full. All captured live from the branch.
+- **2026-09-12, release unblock + user-visible polish:** the ISO install proof failed only
+  at Plasma Login (PAM rejected the correct password three times); the proof now clears
+  the field before typing, pinned by its gate, awaiting the next ISO run. Mo AI device,
+  apps and compatibility panels and six Settings icons fixed after live use; a new gate
+  stops Settings glyphs from silently falling back to the sparkle.
