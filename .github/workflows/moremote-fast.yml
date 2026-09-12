@@ -23,11 +23,9 @@ on:
     paths:
       - "moremote/**"
       - ".github/workflows/moremote-fast.yml"
-  push:
-    branches-ignore: [main]   # main is already covered by build.yml
-    paths:
-      - "moremote/**"
-      - ".github/workflows/moremote-fast.yml"
+  # Deliberately NOT `push:` as well. A branch with an open PR matches both triggers and every
+  # job runs twice — observed on the first run of this file. `main` is covered by build.yml, and
+  # a branch with no PR yet is covered by `just dotnet-check` locally.
 
 concurrency:
   group: moremote-fast-${{ github.ref }}
