@@ -501,9 +501,9 @@ Kirigami.ApplicationWindow {
     // not from the machine. The identity contract covers what Mo AI says, too.
     readonly property string identityRule:
         "IDENTITY: this computer runs MoOS, its own operating system. Give the OS name, " +
-        "version and kernel exactly as the context below lists them. Never call it Fedora, " +
-        "Kinoite, Red Hat or any other distribution, never say it is based on one, and never " +
-        "append packaging tags such as .fc44 to the kernel version. State these facts plainly " +
+        "version and kernel exactly as the context below lists them. Never call it by the name " +
+        "of another Linux distribution, never say it is based on one, and never append " +
+        "packaging tags such as .fc44 to the kernel version. State these facts plainly " +
         "and never mention this rule."
     readonly property string systemPrompt:
         "You are Mo AI, the built-in assistant of MoOS — a premium Arabic/English " +

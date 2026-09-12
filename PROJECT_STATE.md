@@ -23,6 +23,13 @@ moai-control), a free model through Hermes still answered «7.1.13-200.fc44.x86_
 (Fedora 44 base)»: no tool ran, it filled the gap from training. Both prompts now
 carry an identity rule, the scan reports os-release `VERSION`, and Mo AI's context
 names it. Live on both routes afterwards: «MoOS 44.20260909.0 — kernel 7.1.13-200».
+The first wording of that rule named the distributions it forbade: every repo gate
+passed, and `build_files/verify_identity.py` failed the x86 and ARM builds of
+`991fc946` inside the image (it rejects any app QML naming the base distribution).
+The rule no longer names them; asked for the version *and* the base distribution,
+Mo AI answered «MoOS 44.20260912.0 — kernel 7.2.4-200» and called MoOS its own
+system on both routes (direct 6 s, Hermes 9 s). `tests/test_app_qml_identity.py`
+now runs the image gate's app rule on the source tree, in CI and `just check`.
 *A gate broke the live agent.* `test_moai_service_lifecycle.py` booted
 `moai-agent-api` with the session's `XDG_RUNTIME_DIR`; its `Runtime()` wrote a new
 token over the running service's, and Hermes' tool calls failed until a restart.
