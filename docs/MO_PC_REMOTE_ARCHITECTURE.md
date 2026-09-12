@@ -84,6 +84,23 @@ unless something writes `tls/host.txt`; nothing in the image should.
 H.264 path — and the native clipboard available at all. Any reasoning that starts "the agent is
 plain http, so we are stuck on JPEG" is describing a topology this has not had for a while.
 
+## The host decides how many pixels it can make
+
+`moos-visual-tier` probes the machine once and publishes a budget next to the motion tier. One of
+its keys is the Remote's: `remote_encode`, "a host with no GPU encodes H.264 on the CPU, so cap
+resolution × fps". On the Oracle A1 it reads `1280x720@30`.
+
+Only the host can read the host's own state file, so the agent reads it (`Core/HostBudget.cs`) and
+puts it in `hello`. The controller bounds its AUTOMATIC choice with it — the quality ladder stops
+at a rung whose frame rate the host can serve, and the requested encode width is clamped to the
+host's pixels — and names the limit in the Display sheet. An explicit preset still overrides it,
+because a control that silently does nothing is a defect.
+
+Absent on a host that publishes no opinion, which is every Windows agent and any install where the
+post-desktop timer has not run yet; the controller then behaves exactly as it did before.
+
+See [the v40 pass](REMOTE_V40_CLOUD_DESKTOP.md) for what this was costing while nothing read it.
+
 ## Encoding
 
 H.264 when the phone can decode it, JPEG when it cannot. The phone declares which on connect
