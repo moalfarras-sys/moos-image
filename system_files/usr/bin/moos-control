@@ -1,0 +1,308 @@
+#!/usr/bin/python3
+"""moos-control — instant, reversible control of this computer.
+
+WHY: Mo AI could repair, update and install software (moai-do), but not do the
+everyday things people ask an assistant for: turn it down, dim the screen, night
+light on, take a screenshot. Each action here runs as the logged-in user with no
+privilege, maps to ONE fixed argv (never a shell, never free text) and is undone
+by its opposite. moos-open exposes them as moos://control/… routes; Mo AI shows
+them as buttons, and nothing runs until the user taps one.
+
+Exit codes: 0 done, 2 invalid request, 69 that control is unavailable here.
+"""
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+from datetime import datetime
+from pathlib import Path
+
+EX_USAGE = 2
+EX_UNAVAILABLE = 69
+SINK = "@DEFAULT_AUDIO_SINK@"
+STEP = 10
+BRIGHTNESS_SERVICE = "org.kde.ScreenBrightness"
+BRIGHTNESS_PATH = "/org/kde/ScreenBrightness"
+THEMES = ("dark", "light", "nova", "amethyst", "midnight", "aurora", "auto")
+APP_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{2,254}")
+DISPLAY_NAME = re.compile(r"[A-Za-z0-9_]{1,64}")
+
+USAGE = """moos-control — تحكّم فوري بالجهاز | instant control of this computer
+
+  moos-control status
+  moos-control volume <0-100|up|down>
+  moos-control mute | unmute
+  moos-control brightness <5-100|up|down>
+  moos-control night-light <on|off|auto>
+  moos-control wifi <on|off>
+  moos-control bluetooth <on|off>
+  moos-control screenshot
+  moos-control theme <dark|light|nova|amethyst|midnight|aurora|auto>
+  moos-control open <installed-app-id>
+"""
+
+
+class Invalid(Exception):
+    pass
+
+
+class Unavailable(Exception):
+    pass
+
+
+def run(argv):
+    if shutil.which(argv[0]) is None:
+        raise Unavailable(f"{argv[0]} is not installed")
+    try:
+        result = subprocess.run(argv, capture_output=True, text=True, timeout=30)
+    except subprocess.TimeoutExpired as error:
+        raise Unavailable(f"{argv[0]} did not answer") from error
+    if result.returncode != 0:
+        raise Unavailable((result.stderr or result.stdout or f"{argv[0]} failed").strip())
+    return result.stdout
+
+
+def spawn(argv):
+    """Start a long-running action (a theme change, an app) detached."""
+    if shutil.which(argv[0]) is None:
+        raise Unavailable(f"{argv[0]} is not installed")
+    subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                     stderr=subprocess.DEVNULL, start_new_session=True)
+
+
+def audit(message):
+    if shutil.which("logger"):
+        subprocess.run(["logger", "-t", "moos-control", message],
+                       capture_output=True, timeout=5)
+
+
+def level(value, low, high, what):
+    if not re.fullmatch(r"[0-9]{1,3}", value or "") or not low <= int(value) <= high:
+        raise Invalid(f"{what} must be {low}-{high}, up or down")
+    return int(value)
+
+
+def one_of(value, choices, what):
+    if value not in choices:
+        raise Invalid(f"{what} must be one of: {', '.join(choices)}")
+    return value
+
+
+# ── Volume (PipeWire default output) ────────────────────────────────────────
+def volume_state():
+    out = run(["wpctl", "get-volume", SINK])
+    match = re.search(r"Volume:\s*([0-9.]+)", out)
+    return (round(float(match.group(1)) * 100) if match else None), "[MUTED]" in out
+
+
+def volume(value):
+    if value in ("up", "down"):
+        change = f"{STEP}%{'+' if value == 'up' else '-'}"
+    else:
+        change = f"{level(value, 0, 100, 'volume') / 100:.2f}"
+    run(["wpctl", "set-volume", "-l", "1.0", SINK, change])
+    # Asking for a volume means wanting to hear it.
+    run(["wpctl", "set-mute", SINK, "0"])
+    now, _ = volume_state()
+    return f"🔊 الصوت {now}% | Volume {now}%"
+
+
+def mute(on):
+    run(["wpctl", "set-mute", SINK, "1" if on else "0"])
+    return "🔇 تم كتم الصوت | Muted" if on else "🔊 أُلغي الكتم | Unmuted"
+
+
+# ── Brightness (Plasma ScreenBrightness: laptop panels and DDC monitors) ────
+def busctl_data(*args):
+    out = run(["busctl", "--user", "--json=short", *args])
+    try:
+        return json.loads(out)["data"]
+    except (ValueError, KeyError, TypeError) as error:
+        raise Unavailable("unexpected brightness service reply") from error
+
+
+def displays():
+    names = busctl_data("get-property", BRIGHTNESS_SERVICE, BRIGHTNESS_PATH,
+                        BRIGHTNESS_SERVICE, "DisplaysDBusNames")
+    found = [name for name in (names or [])
+             if isinstance(name, str) and DISPLAY_NAME.fullmatch(name)]
+    if not found:
+        raise Unavailable("no screen with adjustable brightness")
+    return found
+
+
+def display_value(name, prop):
+    return int(busctl_data("get-property", BRIGHTNESS_SERVICE, f"{BRIGHTNESS_PATH}/{name}",
+                           BRIGHTNESS_SERVICE + ".Display", prop))
+
+
+def brightness(value):
+    target = None if value in ("up", "down") else level(value, 5, 100, "brightness") / 100
+    applied = []
+    for name in displays():
+        maximum = display_value(name, "MaxBrightness")
+        if maximum <= 0:
+            continue
+        if target is None:
+            ratio = display_value(name, "Brightness") / maximum
+            ratio += STEP / 100 if value == "up" else -STEP / 100
+        else:
+            ratio = target
+        # Never all the way to black: 5% is the floor on every screen.
+        ratio = min(1.0, max(0.05, ratio))
+        run(["busctl", "--user", "call", BRIGHTNESS_SERVICE, f"{BRIGHTNESS_PATH}/{name}",
+             BRIGHTNESS_SERVICE + ".Display", "SetBrightness", "iu",
+             str(round(ratio * maximum)), "0"])
+        applied.append(round(ratio * 100))
+    if not applied:
+        raise Unavailable("no screen with adjustable brightness")
+    return f"☀ السطوع {applied[0]}% | Brightness {applied[0]}%"
+
+
+# ── Night light (KWin) ──────────────────────────────────────────────────────
+def night_light(value):
+    one_of(value, ("on", "off", "auto"), "night-light")
+    write = ["kwriteconfig6", "--file", "kwinrc", "--group", "NightColor"]
+    run([*write, "--key", "Active", "--type", "bool", "false" if value == "off" else "true"])
+    if value != "off":
+        # Constant is warm now; DarkLight is Plasma's own day/night schedule.
+        run([*write, "--key", "Mode", "Constant" if value == "on" else "DarkLight"])
+    # reconfigure is a no-reply method; waiting for an answer would only time out.
+    run(["busctl", "--user", "--expect-reply=no", "call", "org.kde.KWin", "/KWin",
+         "org.kde.KWin", "reconfigure"])
+    return {"on": "🌙 الضوء الليلي يعمل | Night light on",
+            "off": "☀ الضوء الليلي متوقف | Night light off",
+            "auto": "🌗 الضوء الليلي تلقائي | Night light automatic"}[value]
+
+
+# ── Radios ──────────────────────────────────────────────────────────────────
+def wifi(value):
+    one_of(value, ("on", "off"), "wifi")
+    run(["nmcli", "radio", "wifi", value])
+    return "📶 الواي فاي يعمل | Wi-Fi on" if value == "on" else "📴 الواي فاي متوقف | Wi-Fi off"
+
+
+def bluetooth(value):
+    one_of(value, ("on", "off"), "bluetooth")
+    if value == "on" and shutil.which("rfkill"):
+        # A soft block makes "power on" fail; lifting it is best-effort.
+        subprocess.run(["rfkill", "unblock", "bluetooth"], capture_output=True, timeout=10)
+    run(["bluetoothctl", "power", value])
+    return "🔵 البلوتوث يعمل | Bluetooth on" if value == "on" else "⚪ البلوتوث متوقف | Bluetooth off"
+
+
+# ── Screenshot ──────────────────────────────────────────────────────────────
+def pictures_dir():
+    try:
+        out = subprocess.run(["xdg-user-dir", "PICTURES"], capture_output=True,
+                             text=True, timeout=5).stdout.strip()
+    except (OSError, subprocess.TimeoutExpired):
+        out = ""
+    return Path(out) if out else Path.home() / "Pictures"
+
+
+def screenshot():
+    folder = pictures_dir() / "Screenshots"
+    folder.mkdir(parents=True, exist_ok=True)
+    target = folder / f"MoOS-{datetime.now():%Y%m%d-%H%M%S}.png"
+    run(["spectacle", "--background", "--nonotify", "--fullscreen", "--output", str(target)])
+    return f"📸 حُفظت اللقطة | Screenshot saved: {target}"
+
+
+# ── Theme and apps: the same fixed actions moos-open already offers ─────────
+def theme(value):
+    one_of(value, THEMES, "theme")
+    spawn(["moos-theme", value])
+    return f"🎨 المظهر: {value} | Theme: {value}"
+
+
+def data_dirs():
+    home = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share")
+    shared = os.environ.get("XDG_DATA_DIRS") or "/usr/local/share:/usr/share"
+    return [home, *(Path(item) for item in shared.split(":") if item)]
+
+
+def open_app(value):
+    if not APP_ID.fullmatch(value or ""):
+        raise Invalid("invalid app id")
+    if shutil.which("flatpak") and subprocess.run(
+            ["flatpak", "info", value], capture_output=True, timeout=15).returncode == 0:
+        spawn(["flatpak", "run", value])
+    elif any((base / "applications" / f"{value}.desktop").is_file() for base in data_dirs()):
+        spawn(["gtk-launch", value])
+    else:
+        raise Unavailable(f"app is not installed: {value}")
+    return f"🚀 فتح {value} | Opening {value}"
+
+
+# ── Status (read-only) ──────────────────────────────────────────────────────
+def status():
+    state = {}
+    try:
+        state["volume"], state["muted"] = volume_state()
+    except Unavailable:
+        state["volume"], state["muted"] = None, None
+    try:
+        name = displays()[0]
+        state["brightness"] = round(100 * display_value(name, "Brightness")
+                                    / max(1, display_value(name, "MaxBrightness")))
+    except Unavailable:
+        state["brightness"] = None
+    try:
+        state["night_light"] = bool(busctl_data(
+            "get-property", "org.kde.KWin", "/org/kde/KWin/NightLight",
+            "org.kde.KWin.NightLight", "running"))
+    except Unavailable:
+        state["night_light"] = None
+    try:
+        state["wifi"] = run(["nmcli", "radio", "wifi"]).strip() == "enabled"
+    except Unavailable:
+        state["wifi"] = None
+    try:
+        state["bluetooth"] = "Powered: yes" in run(["bluetoothctl", "show"])
+    except Unavailable:
+        state["bluetooth"] = None
+    return json.dumps(state, ensure_ascii=False)
+
+
+ACTIONS = {
+    "volume": (1, volume),
+    "brightness": (1, brightness),
+    "night-light": (1, night_light),
+    "wifi": (1, wifi),
+    "bluetooth": (1, bluetooth),
+    "theme": (1, theme),
+    "open": (1, open_app),
+    "mute": (0, lambda: mute(True)),
+    "unmute": (0, lambda: mute(False)),
+    "screenshot": (0, screenshot),
+    "status": (0, status),
+}
+
+
+def main(argv):
+    if argv[:1] in (["-h"], ["--help"], ["help"]):
+        print(USAGE, end="")
+        return 0
+    action = ACTIONS.get(argv[0]) if argv else None
+    if action is None or len(argv) - 1 != action[0]:
+        print(USAGE, end="", file=sys.stderr)
+        return EX_USAGE
+    try:
+        message = action[1](*argv[1:])
+    except Invalid as error:
+        print(f"moos-control: {error}", file=sys.stderr)
+        return EX_USAGE
+    except Unavailable as error:
+        print(f"moos-control: {error}", file=sys.stderr)
+        return EX_UNAVAILABLE
+    if argv[0] != "status":
+        audit(" ".join(argv))
+    print(message)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

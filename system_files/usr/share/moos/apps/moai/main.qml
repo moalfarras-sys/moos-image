@@ -520,6 +520,19 @@ Kirigami.ApplicationWindow {
         "user (e.g. `moai-do uninstall com.spotify.Client`), and `moai-do update-apps` " +
         "updates every app. Installs, removals and app updates all go through Mo Store's " +
         "backend and ask the user to confirm first. Use the exact id from the Apps panel.\n" +
+        "• CONTROL THIS COMPUTER: when the user asks you to CHANGE something, put the exact " +
+        "command in a code block and the app shows it as a button that does it in one tap — " +
+        "no password, and every one is reversible: `moos-control volume 40` (0–100, or " +
+        "`up`/`down`), `moos-control mute` / `moos-control unmute`, `moos-control brightness 70` " +
+        "(5–100, or `up`/`down`), `moos-control night-light on|off|auto`, `moos-control " +
+        "bluetooth on|off`, `moos-control wifi on|off` (Wi-Fi off also asks first — it " +
+        "disconnects the internet, you and remote control), `moos-control screenshot`, " +
+        "`moos-control theme dark|light|nova|amethyst|midnight|aurora|auto`, `moos-control open " +
+        "<installed-app-id>` (e.g. `moos-control open org.mozilla.firefox`) and `moos-control " +
+        "settings <page>` for the exact settings page (display, night-light, audio, network, " +
+        "bluetooth, keyboard, mouse, themes, wallpaper, fonts, energy, time, region, users, " +
+        "storage, update). Offer these only when the user wants the change; for “how do I…” " +
+        "questions explain instead.\n" +
         "• Run apps from OTHER systems, for real:\n" +
         "   – DOUBLE-CLICK IS ENOUGH. A downloaded .exe or .apk runs when the user opens " +
         "it in Files: MoOS hands it to the right layer, and if that layer is not installed " +
@@ -1055,7 +1068,59 @@ Kirigami.ApplicationWindow {
         while ((m = uninst.exec(text)) !== null)
             if (out.indexOf("uninstall:" + m[1]) === -1)
                 out.push("uninstall:" + m[1])
+        // Everyday control: reversible, user-level changes (volume, brightness,
+        // night light, radios, screenshot, theme, opening an installed app or a
+        // settings page). The grammar is closed — only these exact shapes become
+        // buttons — and nothing runs until the user taps one; moos-open then
+        // validates the shape again.
+        const ctl = /moos-control\s+(volume\s+(?:100|[0-9]{1,2}|up|down)|mute|unmute|brightness\s+(?:100|[1-9][0-9]|[5-9]|up|down)|night-light\s+(?:on|off|auto)|wifi\s+(?:on|off)|bluetooth\s+(?:on|off)|screenshot|theme\s+(?:dark|light|nova|amethyst|midnight|aurora|auto)|open\s+[A-Za-z0-9][A-Za-z0-9._-]{2,254}|settings\s+(?:display|night-light|audio|network|bluetooth|keyboard|mouse|touchpad|printers|themes|wallpaper|fonts|accessibility|notifications|energy|time|region|users|about|storage|update|default-apps|autostart|lock|permissions))\b/g
+        while ((m = ctl.exec(text)) !== null) {
+            const spec = "control:" + m[1].trim().replace(/\s+/g, "/")
+            if (out.indexOf(spec) === -1)
+                out.push(spec)
+        }
         return out
+    }
+
+    // control:<verb>/<value> → the moos:// route that performs it.
+    function controlUrl(spec) {
+        const parts = spec.substring(8).split("/")
+        if (parts[0] === "theme") return "moos://theme/" + parts[1]
+        if (parts[0] === "open") return "moos://apps/run/" + parts[1]
+        if (parts[0] === "settings") return "moos://settings/" + parts[1]
+        return "moos://control/" + parts.join("/")
+    }
+
+    function controlLabel(spec) {
+        const p = spec.substring(8).split("/")
+        const v = p[1] || ""
+        switch (p[0]) {
+        case "volume":
+            return v === "up" ? root.local("ارفع الصوت", "Volume up")
+                 : v === "down" ? root.local("اخفض الصوت", "Volume down")
+                 : root.local("الصوت " + v + "%", "Volume " + v + "%")
+        case "mute": return root.local("كتم الصوت", "Mute")
+        case "unmute": return root.local("إلغاء الكتم", "Unmute")
+        case "brightness":
+            return v === "up" ? root.local("زد السطوع", "Brightness up")
+                 : v === "down" ? root.local("خفّف السطوع", "Brightness down")
+                 : root.local("السطوع " + v + "%", "Brightness " + v + "%")
+        case "night-light":
+            return v === "on" ? root.local("شغّل الضوء الليلي", "Night light on")
+                 : v === "off" ? root.local("أطفئ الضوء الليلي", "Night light off")
+                 : root.local("الضوء الليلي تلقائي", "Night light automatic")
+        case "wifi":
+            return v === "on" ? root.local("شغّل الواي فاي", "Wi-Fi on")
+                              : root.local("أطفئ الواي فاي", "Wi-Fi off")
+        case "bluetooth":
+            return v === "on" ? root.local("شغّل البلوتوث", "Bluetooth on")
+                              : root.local("أطفئ البلوتوث", "Bluetooth off")
+        case "screenshot": return root.local("لقطة شاشة", "Screenshot")
+        case "theme": return root.local("المظهر: " + v, "Theme: " + v)
+        case "open": return root.local("افتح " + v, "Open " + v)
+        case "settings": return root.local("الإعدادات: " + v, "Settings: " + v)
+        }
+        return spec
     }
 
     function newChat() {
@@ -3007,20 +3072,26 @@ Kirigami.ApplicationWindow {
                                 model: root.pendingRuns
                                 delegate: MoButton {
                                     required property string modelData
+                                    readonly property bool isControl: modelData.indexOf("control:") === 0
                                     readonly property bool isInstall: modelData.indexOf("install:") === 0
                                     readonly property bool isUninstall: modelData.indexOf("uninstall:") === 0
                                     readonly property string flatpakId: isInstall ? modelData.substring(8)
                                         : isUninstall ? modelData.substring(10) : ""
-                                    label: isInstall
+                                    label: isControl
+                                        ? root.controlLabel(modelData)
+                                        : isInstall
                                         ? root.local("ثبّت " + flatpakId, "Install " + flatpakId)
                                         : isUninstall
                                             ? root.local("احذف " + flatpakId, "Remove " + flatpakId)
                                             : root.local("نفّذ  moai-do " + modelData, "Run  moai-do " + modelData)
-                                    iconName: isInstall ? "moos-install-symbolic"
+                                    iconName: isControl ? "moos-settings-symbolic"
+                                        : isInstall ? "moos-install-symbolic"
                                         : isUninstall ? "edit-delete-symbolic" : "moos-safe-update-symbolic"
                                     // A removal is never the visually primary action.
                                     primary: !isUninstall
-                                    onClicked: isInstall
+                                    onClicked: isControl
+                                        ? root.launch(root.controlUrl(modelData), root.controlLabel(modelData))
+                                        : isInstall
                                         ? root.launch("moos://apps/install/" + flatpakId, flatpakId)
                                         : isUninstall
                                             ? root.launch("moos://apps/uninstall/" + flatpakId, flatpakId)

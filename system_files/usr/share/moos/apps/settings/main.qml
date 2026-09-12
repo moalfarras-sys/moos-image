@@ -1344,7 +1344,11 @@ QQC2.ApplicationWindow {
 
                 Column {
                     id: contentColumn
-                    width: contentFlick.width - (contentFlick.contentHeight > contentFlick.height ? 12 : 0)
+                    // Always keep the scrollbar's gutter. Reserving it only when a
+                    // page overflowed made every card 12 px wider on short pages
+                    // (Connectivity, Apps, Privacy, Recovery) than on long ones, so
+                    // the layout jumped sideways when switching sections.
+                    width: contentFlick.width - 12
                     spacing: design.space4
 
                     MoUI.GlassSurface {
