@@ -30,6 +30,33 @@ def main() -> None:
                                "ask": tier["exec_ask"]}},
         }
         assert module["_actual_tier"](cfg) == name
+
+    # Workbench readiness comes from this API field. A legacy local provider
+    # can be structurally complete while its retired engine is unavailable, so
+    # only a complete cloud primary is allowed to report configured.
+    cloud_cfg = {
+        "agents": {"defaults": {"model": {"primary": "cloud/openrouter/free"}}},
+        "models": {"providers": {"cloud": {
+            "baseUrl": "https://openrouter.ai/api/v1",
+            "api": "openai-completions",
+            "apiKey": "fixture-key",
+            "models": [{"id": "openrouter/free", "name": "Free router"}],
+        }}},
+    }
+    assert module["_openclaw_configured"](cloud_cfg) is True
+    for missing in ("baseUrl", "api", "apiKey", "models"):
+        incomplete = json.loads(json.dumps(cloud_cfg))
+        incomplete["models"]["providers"]["cloud"].pop(missing)
+        assert module["_openclaw_configured"](incomplete) is False
+    for retired_provider in ("ollama", "moai"):
+        legacy = json.loads(json.dumps(cloud_cfg))
+        node = legacy["models"]["providers"].pop("cloud")
+        legacy["models"]["providers"][retired_provider] = node
+        legacy["agents"]["defaults"]["model"]["primary"] = (
+            f"{retired_provider}/openrouter/free"
+        )
+        assert module["_openclaw_configured"](legacy) is False
+
     with tempfile.TemporaryDirectory() as td:
         home = Path(td)
         sessions = home / ".openclaw/agents/main/sessions"

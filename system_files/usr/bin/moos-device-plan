@@ -3,6 +3,7 @@
 import argparse
 import json
 import os
+import platform
 import re
 import shutil
 import subprocess
@@ -80,7 +81,9 @@ def firmware_report():
     return updates, missing[:8]
 
 
-def detect():
+def detect(machine=None):
+    machine = (machine or platform.machine()).lower()
+    x86_64 = machine in ("x86_64", "amd64")
     pci = run("lspci", "-nnk")
     blocks = re.split(r"\n(?=\S)", pci)
     gpu_blocks = [block for block in blocks
@@ -115,7 +118,7 @@ def detect():
     secure_boot = run("mokutil", "--sb-state") or "unavailable"
     actions = []
     health = "ready"
-    if vendor == "nvidia" and "nvidia" not in driver:
+    if vendor == "nvidia" and "nvidia" not in driver and x86_64:
         health = "action-needed"
         actions.append({
             "id": "nvidia-image", "severity": "important",
@@ -128,9 +131,12 @@ def detect():
     if vendor == "nvidia" and "nvidia" in driver and nvidia_image:
         driver_status = "NVIDIA proprietary driver active"
         driver_status_ar = "تعريف NVIDIA الرسمي يعمل"
-    elif vendor == "nvidia":
+    elif vendor == "nvidia" and x86_64:
         driver_status = "NVIDIA detected; optimized image required"
         driver_status_ar = "تم اكتشاف NVIDIA؛ يلزم الانتقال إلى صورة MoOS NVIDIA"
+    elif vendor == "nvidia":
+        driver_status = "NVIDIA detected; use the driver supplied for this ARM device"
+        driver_status_ar = "تم اكتشاف NVIDIA؛ استخدم التعريف المخصص لجهاز ARM هذا"
     else:
         driver_status = f"{vendor.title()} graphics using {driver}"
         driver_status_ar = f"رسوميات {vendor.title()} تعمل بتعريف {driver}"
@@ -180,7 +186,8 @@ def detect():
         recommended.append("com.google.AndroidStudio")
     installed = [app for app in recommended if flatpak_installed(app)]
     return {
-        "schema": 1, "health": health, "gpu_vendor": vendor, "gpu": gpu,
+        "schema": 1, "health": health, "architecture": machine,
+        "gpu_vendor": vendor, "gpu": gpu,
         "driver": driver, "driver_status": driver_status,
         "driver_status_ar": driver_status_ar,
         "nvidia_image": nvidia_image, "memory_gib": memory_gib, "kvm": kvm,

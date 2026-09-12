@@ -489,14 +489,16 @@ class MoOSVisualSystemTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         self.assertIn("duration: Kirigami.Units.shortDuration", metric_ring)
 
-    def test_panel_clock_localizes_compact_date_in_rtl(self) -> None:
+    def test_panel_clock_uses_the_moos_shell_locale_and_open_status_layout(self) -> None:
         qml = (
             SHARE
             / "plasma/plasmoids/org.moos.nova.clock/contents/ui/main.qml"
         ).read_text(encoding="utf-8")
         self.assertIn(
-            'displayLocale: rtl ? Qt.locale("ar") : Qt.locale()', qml
+            'displayLocale: rtl ? Qt.locale("ar") : Qt.locale("en_US")', qml
         )
+        self.assertIn('const pattern = root.rtl ? "ddd، d MMM" : "ddd · d MMM"', qml)
+        self.assertIn("readonly property string compactDate:", qml)
         # The pattern must go through Locale.toString. This test used to assert
         # `Qt.formatDate(now, locale, "ddd d MMM")`, which LOOKS like it applies
         # the pattern and does not: the three-argument overload takes a
@@ -504,12 +506,19 @@ class MoOSVisualSystemTests(unittest.TestCase):
         # the full long date instead of the compact one this test is named for.
         # A green assertion sat on top of the broken call for a whole revision.
         self.assertIn(
-            'root.displayLocale.toString(root.now, "ddd d MMM")', qml
+            "root.displayLocale.toString(root.now, pattern)", qml
         )
         self.assertNotIn(
             'Qt.formatDate(root.now, root.displayLocale, "ddd d MMM")', qml,
             "Qt.formatDate ignores a format string in its locale overload",
         )
+        # The Horizon Bar itself is the status cluster's shared glass surface.
+        # At rest the clock must not draw a second capsule around itself and
+        # visually leave the tray outside. It gains only a subtle hover state.
+        self.assertIn("id: statusRow", qml)
+        self.assertIn("id: clockColumn", qml)
+        self.assertIn(": root.expanded ? 0.055 : 0)", qml)
+        self.assertNotIn("id: chip", qml)
 
     def test_panel_clock_is_a_responsive_functional_calendar(self) -> None:
         qml = (
@@ -522,9 +531,13 @@ class MoOSVisualSystemTests(unittest.TestCase):
         )
         self.assertIn("readonly property real dayProgress:", qml)
         self.assertIn("width: parent.width * root.dayProgress", qml)
-        self.assertIn('symbol: "calendar"', qml)
+        self.assertIn('symbol: "moos-calendar-symbolic"', qml)
+        self.assertIn("id: calendarSettleTimer", qml)
+        self.assertIn("onWidthChanged: calendarSettleTimer.restart()", qml)
+        self.assertIn("onHeightChanged: calendarSettleTimer.restart()", qml)
+        self.assertGreaterEqual(qml.count("monthView.resetToToday()"), 4)
         self.assertIn("monthView.resetToToday()", qml)
-        self.assertIn('symbol: "settings"', qml)
+        self.assertIn('symbol: "moos-settings-symbolic"', qml)
         self.assertIn('Qt.openUrlExternally("moos://settings/time")', qml)
         self.assertIn("showWeekNumbers: width >=", qml)
         self.assertIn("currentDate: root.now", qml)

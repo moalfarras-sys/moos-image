@@ -2565,13 +2565,36 @@ require('self.headers.get("X-Moai-Control") != "1"' in control_http_code
         and "os.replace(tmp_name, CFG)" in control_http_code,
         "moai-control must enforce the same loopback browser boundary and commit "
         "private settings atomically under a process-wide lock")
+_agent_machine_match = re.search(
+    r"readonly property bool agentMachineConfigured:\s*(.*?)"
+    r"\n\s*readonly property string agentAnyError:",
+    moai_qml,
+    re.DOTALL,
+)
+_agent_machine_expression = (
+    " ".join(_agent_machine_match.group(1).split())
+    if _agent_machine_match else ""
+)
+_agent_setup_match = re.search(
+    r"readonly property string agentSetupAction:\s*(.*?)"
+    r"\n\s*readonly property string agentSetupLabel:",
+    moai_qml,
+    re.DOTALL,
+)
+_agent_setup_expression = (
+    " ".join(_agent_setup_match.group(1).split())
+    if _agent_setup_match else ""
+)
 require("property bool agentStatusLoaded" in moai_qml
-        and "readonly property bool agentMachineConfigured" in moai_qml
         and "readonly property bool agentReady" in moai_qml
-        and "moos://do/install-openclaw" in moai_qml
-        and "moos://do/setup-brain" in moai_qml,
-        "the Workbench must read real installation/configuration status and "
-        "offer working setup actions for missing pieces")
+        and _agent_machine_expression
+            == "agentInstalled && agentOpenClawConfigured"
+        and _agent_setup_expression
+            == ('!agentInstalled ? "moos://do/install-openclaw" '
+                ': "moos://do/setup-brain"'),
+        "the cloud-only Workbench must become available when OpenClaw is installed "
+        "and cloud-configured, then route a missing install to install-openclaw and "
+        "a missing cloud configuration to setup-brain")
 # ONE chat. The agent panel used to carry a second composer POSTing to the
 # agent API's /api/send while the chat panel streamed through the gateway —
 # two chat surfaces over one session store, which the owner rightly called
@@ -2669,7 +2692,7 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=54" in apply_theme_code,
+require("THEME_REV=55" in apply_theme_code,
         "MoOS visual schema must migrate existing users to the cardless centred "
         "Horizon Hub, responsive clock popup, authenticated Remote presence, "
         "single-owner launcher activation, the keyboard-navigable Launcher "
@@ -5041,6 +5064,22 @@ require('conf tray.extraItems' in bar_apply
         and 'writeConfig("extraItems"' in bar_apply,
         "moos-bar-apply must MERGE the MoOS tray items into the user's existing "
         "extraItems (never replace it — the rest of that list is Plasma's own)")
+# Plasma 6.7 exposes scaleIconsToFit (bool) and iconSpacing (the supported
+# 1/2/6 presets). The compact MoOS density must reach both a fresh layout and an
+# upgraded profile, then be read back by the live check; otherwise the source
+# conf can be correct while the user keeps Plasma's wider default spacing.
+require("scaleIconsToFit=false" in _bar_conf_code
+        and "iconSpacing=1" in _bar_conf_code
+        and 'systray.writeConfig("scaleIconsToFit", false)' in layout_code
+        and 'systray.writeConfig("iconSpacing", 1)' in layout_code
+        and 'TRAY_SCALE="$(conf tray.scaleIconsToFit)"' in bar_apply
+        and 'TRAY_SPACING="$(conf tray.iconSpacing)"' in bar_apply
+        and 'ws3[s].writeConfig("scaleIconsToFit", SCALE_ICONS)' in bar_apply
+        and 'ws3[s].writeConfig("iconSpacing", ICON_SPACING)' in bar_apply
+        and '[ "$scale" = "$TRAY_SCALE" ]' in bar_apply
+        and '[ "$spacing" = "$TRAY_SPACING" ]' in bar_apply,
+        "the tray's compact icon scale/spacing must agree across moos-bar.conf, "
+        "the fresh-profile layout, upgraded profiles and the live readback")
 require('ISLAND_APPLET="$(conf island.applet)"' in bar_apply
         and "dock.addWidget(ISLAND_APPLET)" in bar_apply
         and 'island_plugin = zone_plugin.get("island"' in bar_apply
@@ -5118,9 +5157,12 @@ require("preferredRepresentation:" not in panel_clock,
         "popup/window; forcing compact stretches the panel chip across large windows")
 for clock_contract in (
     "readonly property real dayProgress:",
-    'symbol: "calendar"',
+    'symbol: "moos-calendar-symbolic"',
     "monthView.resetToToday()",
-    'symbol: "settings"',
+    "id: calendarSettleTimer",
+    "onWidthChanged: calendarSettleTimer.restart()",
+    "onHeightChanged: calendarSettleTimer.restart()",
+    'symbol: "moos-settings-symbolic"',
     'Qt.openUrlExternally("moos://settings/time")',
     "showWeekNumbers: width >=",
 ):

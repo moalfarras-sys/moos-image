@@ -36,7 +36,12 @@ PlasmoidItem {
     readonly property bool rtl: MoUI.Locale.rtl
     readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
     readonly property var design: MoUI.Tokens
-    readonly property var displayLocale: rtl ? Qt.locale("ar") : Qt.locale()
+    // MoOS shell chrome is bilingual. Following the host's unrelated regional
+    // locale made an English desktop show German abbreviations ("Sa. 12 Sept.")
+    // beside otherwise English controls. Keep this shell surface in the same
+    // Arabic/English language as MoOS itself; the full calendar still exposes
+    // regional date settings through its settings action.
+    readonly property var displayLocale: rtl ? Qt.locale("ar") : Qt.locale("en_US")
     readonly property int motionFast: design.duration(
         root.motionEnabled, design.motionFast)
     readonly property int motionMedium: design.duration(
@@ -44,6 +49,12 @@ PlasmoidItem {
     readonly property real dayProgress: {
         const minutes = root.now.getHours() * 60 + root.now.getMinutes();
         return Math.max(0, Math.min(1, minutes / 1440));
+    }
+    readonly property string compactDate: {
+        const pattern = root.rtl ? "ddd، d MMM" : "ddd · d MMM";
+        const localized = root.latinNumerals(
+            root.displayLocale.toString(root.now, pattern));
+        return root.rtl ? localized : localized.toUpperCase();
     }
 
     // Same helper as the lock clock (MoOSClock.qml): day and month names stay
@@ -83,13 +94,15 @@ PlasmoidItem {
     compactRepresentation: MouseArea {
         id: compact
 
-        // The one number the panel layout actually reads. Everything else about
-        // this applet's width is derived from it — see the header comment.
-        readonly property int contentWidth: clockRow.implicitWidth + Kirigami.Units.largeSpacing * 2
+        // The outer Horizon Bar is the status area's one glass container. The
+        // former clock-only capsule left tray icons visibly outside their own
+        // group's surface. At rest this applet therefore adds no second box;
+        // one accent rail and a compact two-line rhythm join tray and time.
+        readonly property int contentWidth: statusRow.implicitWidth
+            + Math.round(Kirigami.Units.largeSpacing * 1.5)
 
         implicitWidth: contentWidth
         implicitHeight: Kirigami.Units.gridUnit * 2
-
         Layout.minimumWidth: contentWidth
         Layout.preferredWidth: contentWidth
         Layout.maximumWidth: contentWidth
@@ -97,38 +110,20 @@ PlasmoidItem {
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
         onClicked: root.expanded = !root.expanded
-
         Accessible.name: root.toolTipMainText + ", " + root.toolTipSubText
 
-        // The clock is a CHIP, not loose text. The dock now carries the launcher
-        // as a chip at one end; giving the clock the same quiet glass at the
-        // other end is what makes the dock read as one designed object instead
-        // of a bar with things dropped on it. Faint at rest on purpose — this
-        // sits over live wallpaper all day and must never shout.
         Rectangle {
-            id: chip
             anchors.fill: parent
             anchors.topMargin: Kirigami.Units.smallSpacing
             anchors.bottomMargin: Kirigami.Units.smallSpacing
-            radius: Math.round(height * 0.32)
-            transformOrigin: Item.Center
-            scale: compact.containsMouse ? 1.012 : 1.0
-
-            // The glass is an ALPHA on the colour, never `opacity`. Item opacity
-            // multiplies onto children, so a 0.05 chip took the lit hairline
-            // below down to 0.05 x 0.25 and it never appeared on screen at all.
-            readonly property real glass: compact.containsMouse ? 0.13
-                                        : (root.expanded ? 0.10 : 0.05)
-            color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
-                           Kirigami.Theme.textColor.b, glass)
+            radius: Math.round(height * 0.34)
+            color: Qt.alpha(Kirigami.Theme.highlightColor,
+                            compact.containsMouse ? 0.09
+                            : root.expanded ? 0.055 : 0)
             border.width: root.design.borderHairline
-            // Rim scale (THEME_REV 32): hover is carried by the glass above,
-            // so the edge stays a hint at every state instead of hardening into
-            // an outline the moment the pointer arrives.
-            border.color: Qt.alpha(compact.containsMouse || root.expanded
-                ? Kirigami.Theme.highlightColor
-                : Kirigami.Theme.textColor,
-                compact.containsMouse || root.expanded ? 0.25 : 0.09)
+            border.color: Qt.alpha(Kirigami.Theme.highlightColor,
+                                   compact.containsMouse || root.expanded ? 0.22 : 0)
+            scale: compact.containsMouse ? 1.01 : 1
             Behavior on color { ColorAnimation { duration: root.motionFast } }
             Behavior on border.color { ColorAnimation { duration: root.motionFast } }
             Behavior on scale {
@@ -137,144 +132,103 @@ PlasmoidItem {
                     easing.type: root.design.easeStandard
                 }
             }
-
-            // Tidal Cut: the top horizon is deliberately broken into a signal
-            // and a marker, matching the Command Canvas and its dock island.
-            Row {
-                anchors {
-                    left: parent.left
-                    top: parent.top
-                    leftMargin: parent.radius
-                }
-                height: 2
-                spacing: 5
-
-                Rectangle {
-                    width: compact.containsMouse || root.expanded ? 38 : 24
-                    height: 2
-                    radius: 1
-                    color: Kirigami.Theme.highlightColor
-                    opacity: compact.containsMouse ? 0.78 : 0.42
-                    Behavior on width {
-                        NumberAnimation {
-                            duration: root.motionMedium
-                            easing.type: Easing.OutCubic
-                        }
-                    }
-                }
-                Rectangle {
-                    width: 7
-                    height: 2
-                    radius: 1
-                    color: Kirigami.Theme.highlightColor
-                    opacity: 0.28
-                }
-            }
-        }
-
-        // A turquoise hairline sweeps in under the time on hover — the same
-        // accent the lock clock and the hero clock carry, sized from the row
-        // so it works at any panel scale.
-        Rectangle {
-            anchors {
-                bottom: parent.bottom
-                bottomMargin: 3
-                horizontalCenter: parent.horizontalCenter
-            }
-            width: compact.containsMouse ? clockRow.width : 0
-            height: 2
-            radius: 1
-            color: Kirigami.Theme.highlightColor
-            opacity: compact.containsMouse ? 0.9 : 0
-            Behavior on width {
-                NumberAnimation {
-                    duration: root.motionMedium
-                    easing.type: Easing.OutCubic
-                }
-            }
-            Behavior on opacity { NumberAnimation { duration: root.motionFast } }
         }
 
         RowLayout {
-            id: clockRow
+            id: statusRow
             anchors.centerIn: parent
-            spacing: Math.round(Kirigami.Units.smallSpacing * 1.5)
-            // plasmashell mirrors the compact representation for RTL. An
-            // explicit RightToLeft here mirrors the row a second time.
+            spacing: Kirigami.Units.largeSpacing
+            // Plasma mirrors the whole compact representation for RTL. Do not
+            // mirror this row a second time.
 
-            Text {
-                id: timeLabel
-                text: Qt.formatTime(root.now, "HH:mm")
-                color: Kirigami.Theme.textColor
-                font.family: "IBM Plex Sans"
-                font.pixelSize: Math.max(12, Kirigami.Units.gridUnit * 0.78)
-                font.weight: Font.DemiBold
-                // The parentheses are load-bearing: `font.features: { "tnum": 1 }`
-                // parses as a JS block, not an object literal, and silently yields
-                // undefined. Tabular figures keep the clock from twitching as the
-                // digits change width.
-                font.features: ({ "tnum": 1 })
-
-                // The minute turns over with a short rise, so the one moment
-                // this applet has anything to say is the one moment it moves.
-                // It rides a Translate rather than y/anchors: the layout must not
-                // see the applet change height mid-animation, or the whole dock
-                // relayouts sixty times an hour.
-                transform: Translate { id: minuteShift }
-                onTextChanged: minuteTurn.restart()
-                SequentialAnimation {
-                    id: minuteTurn
-                    ParallelAnimation {
-                        NumberAnimation {
-                            target: minuteShift; property: "y"
-                            from: -Math.round(Kirigami.Units.gridUnit * 0.35); to: 0
-                            duration: root.motionMedium; easing.type: Easing.OutCubic
-                        }
-                        NumberAnimation {
-                            target: timeLabel; property: "opacity"
-                            from: 0.25; to: 1.0
-                            duration: root.motionMedium; easing.type: Easing.OutCubic
-                        }
+            Rectangle {
+                Layout.preferredWidth: Math.max(2, root.design.borderHairline * 2)
+                Layout.preferredHeight: Math.round(Kirigami.Units.gridUnit * 1.38)
+                Layout.alignment: Qt.AlignVCenter
+                radius: width
+                gradient: Gradient {
+                    GradientStop { position: 0; color: Kirigami.Theme.highlightColor }
+                    GradientStop {
+                        position: 1
+                        color: Qt.alpha(Kirigami.Theme.highlightColor, 0.24)
                     }
                 }
-            }
-
-            // The divider carries the accent instead of grey text: it is the one
-            // pixel of MoOS turquoise at this end of the dock, answering the lit
-            // rim above it and the launcher chip opposite.
-            Rectangle {
-                Layout.preferredWidth: 2
-                Layout.preferredHeight: Math.round(Kirigami.Units.gridUnit * 0.72)
-                Layout.alignment: Qt.AlignVCenter
-                radius: width / 2
-                gradient: Gradient {
-                    GradientStop { position: 0.0; color: Kirigami.Theme.highlightColor }
-                    GradientStop { position: 1.0; color: Kirigami.Theme.textColor }
-                }
-                opacity: compact.containsMouse ? 0.75 : 0.45
+                opacity: compact.containsMouse || root.expanded ? 1 : 0.78
                 Behavior on opacity { NumberAnimation { duration: root.motionFast } }
             }
 
-            Text {
-                // `Qt.formatDate(date, locale, "ddd d MMM")` does NOT accept a
-                // format STRING in its three-argument form — that overload wants
-                // a Locale.FormatType, so the pattern was discarded and the dock
-                // silently rendered the full long date ("الاثنين، ٢٧ يوليو ٢٠٢٦"),
-                // stretching the clock across the end of the panel. Locale.toString
-                // is the call that honours a pattern, and it still uses the
-                // locale's own day and month names. Same call the lock clock makes.
-                //
-                // Digits fold to Latin, same as the lock clock's date and the
-                // wallpaper hero card: the two always-visible shell clocks used
-                // to disagree in the same glance — pill "٢٩ يوليو", hero card
-                // "29 يوليو". Day and month names stay the locale's own; only
-                // the number system is one decision, applied everywhere.
-                text: root.latinNumerals(root.displayLocale.toString(root.now, "ddd d MMM"))
-                color: Kirigami.Theme.textColor
-                opacity: root.design.mutedOpacity
-                font.family: root.rtl ? "IBM Plex Sans Arabic" : "IBM Plex Sans"
-                font.pixelSize: Math.max(9, Kirigami.Units.gridUnit * 0.58)
-                font.weight: Font.Medium
+            ColumnLayout {
+                id: clockColumn
+                spacing: -Math.round(Kirigami.Units.smallSpacing * 0.45)
+
+                Text {
+                    id: timeLabel
+                    Layout.alignment: Qt.AlignHCenter
+                    text: Qt.formatTime(root.now, "HH:mm")
+                    color: Kirigami.Theme.textColor
+                    font.family: "IBM Plex Sans"
+                    font.pixelSize: Math.max(13, Kirigami.Units.gridUnit * 0.82)
+                    font.weight: Font.DemiBold
+                    font.features: ({ "tnum": 1 })
+                    transform: Translate { id: minuteShift }
+                    onTextChanged: minuteTurn.restart()
+                    SequentialAnimation {
+                        id: minuteTurn
+                        ParallelAnimation {
+                            NumberAnimation {
+                                target: minuteShift; property: "y"
+                                from: -Math.round(Kirigami.Units.gridUnit * 0.30); to: 0
+                                duration: root.motionMedium; easing.type: Easing.OutCubic
+                            }
+                            NumberAnimation {
+                                target: timeLabel; property: "opacity"
+                                from: 0.30; to: 1
+                                duration: root.motionMedium; easing.type: Easing.OutCubic
+                            }
+                        }
+                    }
+                }
+
+                Text {
+                    id: dateLabel
+                    Layout.alignment: Qt.AlignHCenter
+                    text: root.compactDate
+                    color: Kirigami.Theme.textColor
+                    opacity: root.design.mutedOpacity
+                    font.family: root.rtl ? "IBM Plex Sans Arabic" : "IBM Plex Sans"
+                    font.pixelSize: Math.max(8, Kirigami.Units.gridUnit * 0.47)
+                    font.weight: Font.Medium
+                    font.letterSpacing: root.rtl ? 0 : 0.55
+                }
+
+                // A quiet day-progress line gives the status cluster one MoOS
+                // signal without drawing another enclosing capsule. Keeping it
+                // inside the column also keeps every anchor within its legal
+                // parent/sibling scope when Plasma constructs the applet.
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: Math.max(1, root.design.borderHairline)
+                    Layout.topMargin: Math.round(Kirigami.Units.smallSpacing * 0.22)
+                    radius: height
+                    color: Qt.alpha(Kirigami.Theme.textColor, 0.09)
+
+                    Rectangle {
+                        width: parent.width * root.dayProgress
+                        height: parent.height
+                        radius: parent.radius
+                        color: Kirigami.Theme.highlightColor
+                        opacity: compact.containsMouse ? 0.92 : 0.58
+                        Behavior on width {
+                            NumberAnimation {
+                                duration: root.motionMedium
+                                easing.type: Easing.OutCubic
+                            }
+                        }
+                        Behavior on opacity {
+                            NumberAnimation { duration: root.motionFast }
+                        }
+                    }
+                }
             }
         }
     }
@@ -290,6 +244,21 @@ PlasmoidItem {
         scale: root.motionEnabled ? 0.97 : 1
         transformOrigin: Item.Top
 
+        // Plasma's MonthView resets its internal SwipeView index while its
+        // width/height settles. In an RTL application, plasmawindowed exposed
+        // an upstream ordering bug where those initial resizes advanced the
+        // backend from September 2026 to October 2037 *after* an immediate
+        // resetToToday(). Debounce the reset until geometry is stable. The
+        // entrance animation covers the correction in a normal panel popup.
+        Timer {
+            id: calendarSettleTimer
+            interval: Math.max(140, root.motionFast)
+            repeat: false
+            onTriggered: monthView.resetToToday()
+        }
+        onWidthChanged: calendarSettleTimer.restart()
+        onHeightChanged: calendarSettleTimer.restart()
+
         function revealPopup() {
             if (!root.motionEnabled) {
                 popupEntrance.stop();
@@ -301,10 +270,21 @@ PlasmoidItem {
                 popupEntrance.restart();
             }
         }
-        Component.onCompleted: revealPopup()
+        Component.onCompleted: {
+            // MonthView owns a separate displayed-date backend. Binding only
+            // `today`/`currentDate` does not initialise that backend reliably
+            // when plasmawindowed or the popup constructs it offscreen first;
+            // live review exposed a September 2026 header over October 2037.
+            // Match Plasma's digital-clock contract and explicitly reset it.
+            monthView.resetToToday()
+            calendarSettleTimer.restart()
+            revealPopup()
+        }
         Connections {
             target: root
             function onExpandedChanged() {
+                monthView.resetToToday()
+                calendarSettleTimer.restart()
                 if (root.expanded) { calendarPopup.revealPopup(); }
             }
             function onMotionEnabledChanged() { calendarPopup.revealPopup(); }
@@ -377,7 +357,7 @@ PlasmoidItem {
                         spacing: Kirigami.Units.smallSpacing
 
                         MoUI.IconButton {
-                            symbol: "calendar"
+                            symbol: "moos-calendar-symbolic"
                             accessibleLabel: root.rtl ? "العودة إلى اليوم" : qsTr("Return to today")
                             onClicked: monthView.resetToToday()
 
@@ -386,7 +366,7 @@ PlasmoidItem {
                         }
 
                         MoUI.IconButton {
-                            symbol: "settings"
+                            symbol: "moos-settings-symbolic"
                             accessibleLabel: root.rtl ? "إعدادات الوقت والتاريخ" : qsTr("Date and time settings")
                             onClicked: Qt.openUrlExternally("moos://settings/time")
 

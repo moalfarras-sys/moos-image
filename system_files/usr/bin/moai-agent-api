@@ -687,7 +687,12 @@ def _openclaw_configured(cfg: dict, primary: str | None = None) -> bool:
     if "/" not in primary:
         return False
     provider_id, model_id = primary.split("/", 1)
-    if provider_id not in ("ollama", "cloud", "moai") or not model_id:
+    # Mo AI is cloud-only. A complete historical ollama/moai node can still be
+    # present while its engine is retired, so treating it as ready makes the
+    # Workbench expose controls whose task runner cannot answer. The preserving
+    # migration moves supported installs to `cloud`; until then the setup card
+    # must remain visible and route the user to cloud settings.
+    if provider_id != "cloud" or not model_id:
         return False
     node = (((cfg.get("models") or {}).get("providers") or {}).get(provider_id) or {})
     models = node.get("models") or []
@@ -695,9 +700,9 @@ def _openclaw_configured(cfg: dict, primary: str | None = None) -> bool:
         isinstance(item, dict) and item.get("id") == model_id
         for item in models
     )
-    if not node.get("baseUrl") or not node.get("api") or not has_model:
-        return False
-    return provider_id != "cloud" or bool(node.get("apiKey"))
+    return bool(
+        node.get("baseUrl") and node.get("api") and node.get("apiKey") and has_model
+    )
 
 
 def _actual_tier(cfg: dict) -> str:
