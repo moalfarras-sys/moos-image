@@ -173,10 +173,21 @@ those divergences to be written down.
 
 ## What is NOT proven here
 
-* **The three ARM enables are asserted against the BUILT image.** The ARM workflow's "Verify the
-  built image" step runs the image and requires each wants symlink to exist before anything is
-  signed. What that does NOT prove is the running machine: the A1 must show `enabled` after its
-  update reboot, and it still shows `disabled` today.
+* **The three ARM enables are proven in the BUILT image.** The ARM workflow's "Verify the built
+  image" step runs the image and requires each wants symlink to exist before anything is signed.
+  Read off run `34706942794`:
+
+  ```text
+  enabled: graphical.target.wants/moos-visual-tier.service
+  enabled: graphical.target.wants/moos-hardware-adapt.timer
+  enabled: timers.target.wants/moos-verify-origin.timer
+  enabled: timers.target.wants/moos-auto-update.timer
+  enabled: timers.target.wants/moos-appstream-refresh.timer
+  ARM unit enablement OK
+  ```
+
+  What that does NOT prove is the running machine: the A1 must show `enabled` after its update
+  reboot, and it still shows `disabled` today.
 * **The live A1 still has them disabled** at the time of writing; enabling them on the running
   machine was not performed.
 * **The H.264 give-up is diagnosed, not fixed.** The reason is now logged; the cause is not known.

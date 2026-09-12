@@ -217,10 +217,10 @@ honest limits: [v40 cloud desktop](docs/REMOTE_V40_CLOUD_DESKTOP.md).
   machine has not been adapted yet" and there was no `hardware-adapt.state` to contradict it.
   `tests/test_arm_unit_enablement.py` keeps the two build scripts comparable.
 - [x] **The three ARM enables are proven in the BUILT image, not just in the script.** The ARM
-  workflow's "Verify the built image" step now runs the image and asserts each wants symlink
-  exists under `/usr/etc/systemd/system/{graphical,timers}.target.wants/` before anything is
-  signed — the same class of check that would have caught this the first time, since a
-  `systemctl enable` in a build script proves nothing about the bytes.
+  workflow's "Verify the built image" step runs the image and asserts each wants symlink exists
+  before anything is signed — a `systemctl enable` in a build script proves nothing about the
+  bytes, which is how this shipped. Run `34706942794` printed `enabled:` for all five MoOS units
+  and `ARM unit enablement OK`.
 - [ ] **The A1 must show `enabled` after its update reboot.** The image gate proves the symlink
   ships; only the running machine proves it takes effect.
 - [ ] **The H.264 give-up is diagnosed, not fixed.** A viewer's decoder gives up roughly 80s into
