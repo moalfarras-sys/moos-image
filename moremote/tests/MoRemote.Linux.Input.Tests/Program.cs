@@ -1,4 +1,6 @@
 using System.Text.Json;
+using System.Net.Sockets;
+using System.Text;
 using MoRemote;
 
 // Compile the production injector against an in-memory portal and a deliberately
@@ -13,7 +15,7 @@ void Check(bool condition, string name)
 }
 
 using (var portal = new PortalBridge())
-using (var input = new InputInjector(portal, new ScreenCapture()))
+using (var input = new InputInjector(portal, new ScreenCapture(), () => false))
 {
     input.TypeText("a");
     input.DoubleClickCurrent();
@@ -25,7 +27,7 @@ using (var input = new InputInjector(portal, new ScreenCapture()))
 }
 
 using (var portal = new PortalBridge())
-using (var input = new InputInjector(portal, new ScreenCapture()))
+using (var input = new InputInjector(portal, new ScreenCapture(), () => false))
 {
     input.KeyCode("ControlLeft", true);
     input.TypeText("a");
@@ -40,7 +42,7 @@ using (var input = new InputInjector(portal, new ScreenCapture()))
 
 using (var portal = new PortalBridge())
 {
-    var input = new InputInjector(portal, new ScreenCapture());
+    var input = new InputInjector(portal, new ScreenCapture(), () => false);
     input.TypeText("a");
     input.Dispose();
     Check(portal.Snapshot().Length == 1, "dispose drains accepted text before returning");
@@ -53,7 +55,7 @@ using (var portal = new PortalBridge())
 }
 
 using (var portal = new PortalBridge())
-using (var input = new InputInjector(portal, new ScreenCapture()))
+using (var input = new InputInjector(portal, new ScreenCapture(), () => false))
 {
     portal.Accept = false;
     input.KeyCode("KeyA", true);
@@ -69,7 +71,7 @@ using (var input = new InputInjector(portal, new ScreenCapture()))
 }
 
 using (var portal = new PortalBridge())
-using (var input = new InputInjector(portal, new ScreenCapture()))
+using (var input = new InputInjector(portal, new ScreenCapture(), () => false))
 using (var enteredDown = new ManualResetEventSlim())
 using (var unblockDown = new ManualResetEventSlim())
 using (var releaseStarted = new ManualResetEventSlim())
@@ -99,7 +101,71 @@ using (var releaseStarted = new ManualResetEventSlim())
         .SequenceEqual([true, false]), "wire order ends released after concurrent cleanup");
 }
 
-Console.WriteLine($"PASS: {passed} Linux input ordering, recovery and disposal assertions (fake portal only)");
+foreach (bool? caps in new bool?[] { true, null })
+using (var portal = new PortalBridge())
+using (var input = new InputInjector(portal, new ScreenCapture(), () => caps))
+{
+    const string expected = "MoOS Arabic العربية 123";
+    ClipboardBridge.Text = null;
+    input.TypeText(expected);
+    input.FlushPendingText();
+    var sent = portal.Snapshot();
+    Check(ClipboardBridge.Text == expected, "locked/unknown state preserves the complete commit");
+    Check(sent.Length == 1 && sent[0].GetProperty("sync").GetBoolean(), "exact paste stays one ordered batch");
+    Check(sent[0].GetProperty("events").EnumerateArray().Select(e => e.GetProperty("code").GetInt32())
+        .SequenceEqual([42, 110, 110, 42]), "Caps Lock is never toggled to type committed text");
+}
+
+// Exercise the production wire reader against a private Unix socket, with no connection
+// to the test runner's desktop. Byte-fragmented replies also cover partial socket reads.
+foreach (int state in new[] {0, 1, 2, 3, -1, -2, -3})
+{
+    string directory = Path.Combine(Path.GetTempPath(), "mo-lock-" + Guid.NewGuid().ToString("N"));
+    Directory.CreateDirectory(directory);
+    string path = Path.Combine(directory, "wayland-test");
+    try
+    {
+        using var listener = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
+        listener.Bind(new UnixDomainSocketEndPoint(path)); listener.Listen(1);
+        var server = Task.Run(() =>
+        {
+            using var peer = listener.Accept();
+            peer.ReceiveTimeout = peer.SendTimeout = 2000;
+            byte[] Read(int n) { var b = new byte[n]; for(int i=0;i<n;) { int got=peer.Receive(b.AsSpan(i));
+                if(got==0)throw new IOException("client closed"); i+=got; } return b; }
+            (uint Id,uint Op,byte[] Body) Request() { var h=Read(8);uint w=BitConverter.ToUInt32(h,4);
+                return(BitConverter.ToUInt32(h),w&65535,Read((int)(w>>16)-8)); }
+            void Reply(uint id,uint op,byte[] body) {
+                byte[] b=BitConverter.GetBytes(id).Concat(BitConverter.GetBytes((uint)((body.Length+8)<<16)|op)).Concat(body).ToArray();
+                foreach(byte value in b)peer.Send(new[]{value});
+            }
+            var registry=Request(); var sync=Request();
+            if(registry.Id!=1||registry.Op!=1||sync.Id!=1||sync.Op!=0)throw new Exception("reader must only query state");
+            if(state==-3) { Thread.Sleep(450); return; }
+            if(state==-2) { peer.Send(BitConverter.GetBytes(2u).Concat(BitConverter.GetBytes(4u<<16)).ToArray()); return; }
+            if(state!=-1) {
+                var name=Encoding.UTF8.GetBytes("org_kde_kwin_keystate\0");
+                var padding=new byte[(name.Length+3)&~3]; name.CopyTo(padding,0);
+                Reply(2,0,BitConverter.GetBytes(7u).Concat(BitConverter.GetBytes((uint)name.Length))
+                    .Concat(padding).Concat(BitConverter.GetBytes(5u)).ToArray());
+            }
+            Reply(3,0,BitConverter.GetBytes(1u));
+            if(state==-1)return;
+            var bind=Request(); var fetch=Request(); var done=Request();
+            if(bind.Id!=2||bind.Op!=0||fetch.Id!=4||fetch.Op!=0||fetch.Body.Length!=0||done.Id!=1||done.Op!=0)
+                throw new Exception("unexpected state-changing request");
+            Reply(4,0,BitConverter.GetBytes(0u).Concat(BitConverter.GetBytes((uint)state)).ToArray());
+            Reply(5,0,BitConverter.GetBytes(2u));
+        });
+        bool? expected = state is 0 ? false : state is 1 or 2 ? true : null;
+        Check(KeyboardLockState.ReadCapsLock(path) == expected, $"compositor state {state} is read without guessing");
+        server.GetAwaiter().GetResult();
+    }
+    finally { Directory.Delete(directory, true); }
+}
+Check(KeyboardLockState.ReadCapsLock("/nonexistent/moos-wayland-test") == null, "absent compositor is unknown");
+
+Console.WriteLine($"PASS: {passed} Linux input ordering, lock state, recovery and disposal assertions (isolated sockets/portal)");
 
 namespace MoRemote
 {
@@ -128,7 +194,8 @@ namespace MoRemote
     }
     public static class ClipboardBridge
     {
-        public static bool SetTextConfirmed(string text) => throw new Exception("test must not access clipboard");
+        public static string? Text;
+        public static bool SetTextConfirmed(string text) { Text = text; return true; }
     }
     public static class Log
     {

@@ -109,6 +109,29 @@ try {
   await field.evaluate(el => el.dispatchEvent(new CompositionEvent('compositionend', {bubbles:true,data:'سلام'})));
   await page.waitForTimeout(300);
   assert.deepEqual(input(packets).map(p => [p.type,p.value]), [['text','سلام']], 'composition commits exactly once');
+  // An Android Process/229 delete must also reach text outside the local draft.
+  await page.getByRole('button', {name:'Backspace', exact:true}).click();
+  packets.length = 0;
+  const mobileDelete = await field.evaluate(el => {
+    el.dispatchEvent(new KeyboardEvent('keydown', {bubbles:true,cancelable:true,
+      key:'Unidentified',code:'',keyCode:229}));
+    const event = new InputEvent('beforeinput', {bubbles:true,cancelable:true,
+      inputType:'deleteContentBackward',data:null});
+    el.dispatchEvent(event);
+    return event.defaultPrevented;
+  });
+  await page.waitForTimeout(100);
+  assert.ok(mobileDelete, 'empty mobile deletion is owned by remote input');
+  assert.deepEqual(input(packets).map(p => [p.type,p.key]), [['key','Backspace']],
+    'Process/229 deletion reaches existing remote text exactly once');
+  await page.getByRole('button', {name:'Ctrl', exact:true}).click();
+  packets.length = 0;
+  await field.evaluate(el => el.dispatchEvent(new InputEvent('beforeinput', {
+    bubbles:true,cancelable:true,inputType:'deleteContentBackward',data:null})));
+  await page.waitForTimeout(100);
+  assert.deepEqual(input(packets).map(p => [p.type,p.keys]), [['combo',['Control','Backspace']]],
+    'mobile native deletion honors the selected shortcut modifier');
+  await capture(page, 'keyboard-light-ar');
   // A network break while an IME word is marked preserves it as a local draft.
   await field.fill('');
   await page.waitForTimeout(100);
@@ -166,6 +189,25 @@ try {
   await dp.waitForTimeout(100);
   assert.equal(input(desktop.packets).filter(p=>p.type==='key').length,2,
     'physical keyboard must resume after the modal closes');
+  desktop.packets.length=0;
+  await dp.keyboard.type('abc Y:z@');
+  await dp.keyboard.insertText(' العربية');
+  await dp.waitForTimeout(300);
+  assert.equal(input(desktop.packets).filter(p=>p.type==='text').map(p=>p.value).join(''),
+    'abc Y:z@ العربية', 'desktop text follows the viewer layout, including shifted punctuation');
+  const desktopField = dp.locator('[data-remote-keyboard]');
+  assert.ok(await desktopField.evaluate(el => document.activeElement === el),
+    'desktop screen focus enables the IME editing target');
+  desktop.packets.length=0;
+  const desktopCdp = await dp.context().newCDPSession(dp);
+  await desktopCdp.send('Input.imeSetComposition', {text:'日本語',selectionStart:3,selectionEnd:3});
+  await dp.waitForTimeout(120);
+  assert.equal(input(desktop.packets).length,0,'desktop IME waits for confirmed text');
+  await desktopCdp.send('Input.insertText', {text:'日本語'});
+  await dp.waitForTimeout(300);
+  assert.equal(input(desktop.packets).filter(p=>p.type==='text').map(p=>p.value).join(''),
+    '日本語','native Chromium IME commits desktop text exactly once');
+  await desktopCdp.detach();
 
   // A REAL MOUSE WHEEL AND A REAL FINGER MUST AGREE ON WHICH WAY IS DOWN.
   //
@@ -276,7 +318,7 @@ try {
   assert.equal(await cp.evaluate(() => window.phoneClipboard),pcText,'PC text copies to phone');
   await cp.evaluate(() => { window.phoneClipboard = 'MoOS العربية 😀'; });
   await cp.getByRole('button',{name:'لصق من حافظة الهاتف',exact:true}).click();
-  const draft = cp.locator('textarea:not([readonly])');
+  const draft = cp.locator('.sheet textarea:not([readonly])');
   assert.equal(await draft.inputValue(),'MoOS العربية 😀','phone clipboard becomes an editable draft');
   trackpad.packets.length = 0;
   await cp.getByRole('button',{name:'إرسال ولصق',exact:true}).click();

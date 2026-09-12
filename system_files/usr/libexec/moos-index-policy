@@ -52,7 +52,9 @@ import sys
 
 VISUAL_TIER = "/usr/bin/moos-visual-tier"
 BALOO_RC = "baloofilerc"
-GROUP = "Basic Settings"
+# Baloo reads this key from General. Basic Settings owns the enabled flag;
+# a key written there looks correct to kreadconfig but Baloo ignores it.
+GROUP = "General"
 KEY = "only basic indexing"
 
 # budget value -> the value of `only basic indexing`
@@ -108,9 +110,15 @@ def current_value() -> str | None:
     # reading the file so a wrong answer cannot masquerade as "already correct".
     path = config_path()
     if path.is_file():
+        group = ""
         for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
-            if line.strip().lower().startswith(KEY):
-                return line.split("=", 1)[-1].strip().lower()
+            line = line.strip()
+            if line.startswith("[") and line.endswith("]"):
+                group = line[1:-1]
+            elif group == GROUP and "=" in line:
+                key, value = line.split("=", 1)
+                if key.strip() == KEY:
+                    return value.strip().lower()
     return None
 
 
@@ -143,8 +151,10 @@ def restart_baloo() -> None:
         return
     for args in (["disable"], ["enable"]):
         try:
+            # enable can leave a daemon holding its output descriptors. Pipes
+            # make communicate() wait for that daemon instead of the command.
             subprocess.run([balooctl] + args, check=False, timeout=60,
-                           capture_output=True)
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except (subprocess.SubprocessError, OSError) as exc:
             log(f"balooctl {args[0]} did not complete ({exc}); "
                 f"the new policy applies at next login")
@@ -177,7 +187,7 @@ def purge_content_index() -> None:
     def _balooctl(action: str, timeout: int) -> bool:
         try:
             subprocess.run([balooctl, action], check=False, timeout=timeout,
-                           capture_output=True)
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             return True
         except (subprocess.SubprocessError, OSError) as exc:
             log(f"balooctl {action} did not complete ({exc})")

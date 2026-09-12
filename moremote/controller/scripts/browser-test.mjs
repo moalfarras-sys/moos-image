@@ -46,10 +46,13 @@ await new Promise(resolve => server.listen(PORT, '127.0.0.1', resolve));
 
 // Launched rather than connected-to, so the test needs no browser running beforehand. The test
 // itself reconnects over CDP, which is how it can open several isolated contexts of its own.
-const browser = await chromium.launch({args: [`--remote-debugging-port=${CDP_PORT}`]});
-
+let browser;
 let code = 0;
 try {
+  // Reuse a native browser on ARM hosts; the Playwright package may have been
+  // installed separately from its browser cache. Default remains Playwright's pin.
+  browser = await chromium.launch({executablePath: process.env.MO_REMOTE_CHROME || undefined,
+    args: [`--remote-debugging-port=${CDP_PORT}`]});
   await new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [join(here, '..', 'tests', 'browser-input.test.mjs')], {
       stdio: 'inherit',
@@ -66,7 +69,7 @@ try {
   console.error(String(error.message ?? error));
   code = 1;
 } finally {
-  await browser.close();
+  await browser?.close();
   server.close();
 }
 process.exit(code);

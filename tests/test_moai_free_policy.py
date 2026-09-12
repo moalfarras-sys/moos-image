@@ -19,6 +19,16 @@ gateway=load('moai_free_gateway','system_files/usr/bin/moai-gateway')
 migration=load('moai_cloud_migrate','system_files/usr/libexec/moai-cloud-migrate')
 
 class FreePolicy(unittest.TestCase):
+    def setUp(self):
+        # A developer may have selected a paid provider in their real Settings.
+        # Every fixture starts with an unconfigured/free profile; individual paid
+        # cases still opt in explicitly and exercise the same production policy.
+        self.profile = tempfile.TemporaryDirectory(prefix='moai-policy-test-')
+        self.addCleanup(self.profile.cleanup)
+        isolated = patch.dict(policy.os.environ, {'XDG_CONFIG_HOME': self.profile.name})
+        isolated.start()
+        self.addCleanup(isolated.stop)
+
     def test_paid_local_untrusted_and_ambiguous_routes_rejected(self):
         for base,model in [('http://127.0.0.1:11434','qwen3'),
                            ('https://openrouter.ai.evil/api/v1','openrouter/free'),

@@ -1,5 +1,11 @@
 using MoRemote;
 
+// Read-only probe: must precede PortalBridge construction (no second sharing session).
+if(args.Contains("--caps-state")) {
+ Console.WriteLine("CAPS_LOCK=" + (KeyboardLockState.ReadCapsLock()?.ToString() ?? "unknown"));
+ return;
+}
+
 using var portal=new PortalBridge();
 using var capture=new ScreenCapture(portal);
 using var input=new InputInjector(portal,capture);

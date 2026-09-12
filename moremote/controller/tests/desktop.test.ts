@@ -96,9 +96,9 @@ test("wheel targets the hovered remote point and supports fractional and line de
 
 test("physical repeats stay held and release even after focus enters a local field", () => {
   const h = setup();
-  h.key("keydown", "a", "KeyA"); h.key("keydown", "a", "KeyA", {repeat: true});
-  h.key("keyup", "a", "KeyA", {target: {tagName: "TEXTAREA"}});
-  assert.deepEqual(h.events("key"), [["KeyA", true], ["KeyA", false]]);
+  h.key("keydown", "ArrowLeft", "ArrowLeft"); h.key("keydown", "ArrowLeft", "ArrowLeft", {repeat: true});
+  h.key("keyup", "ArrowLeft", "ArrowLeft", {target: {tagName: "TEXTAREA"}});
+  assert.deepEqual(h.events("key"), [["ArrowLeft", true], ["ArrowLeft", false]]);
   h.key("keydown", "b", "KeyB", {target: {tagName: "INPUT", type: "text"}});
   assert.equal(h.events("key").length, 2);
   h.desktop.destroy();
@@ -117,7 +117,8 @@ test("local buttons, sliders, dialogs and already-handled Escape retain their ke
   assert.equal(h.events("key").length, 0);
   h.mouse("mousedown"); h.mouse("mouseup");
   h.key("keydown", "a", "KeyA"); h.key("keyup", "a", "KeyA");
-  assert.deepEqual(h.events("key"), [["KeyA", true], ["KeyA", false]], "canvas focus restores physical typing");
+  assert.deepEqual(h.events("text"), [["a"]], "canvas focus restores remote typing");
+  assert.equal(h.events("key").length, 0);
   h.desktop.destroy();
 });
 
@@ -143,11 +144,109 @@ test("dead/composition placeholder keys do not inject their physical position", 
   h.desktop.destroy();
 });
 
+test("Caps Lock determines local text case without toggling the host twice", () => {
+  const h = setup();
+  assert.equal(h.key("keydown", "CapsLock", "CapsLock").defaultPrevented, false);
+  h.key("keyup", "CapsLock", "CapsLock");
+  h.key("keydown", "A", "KeyA", {getModifierState: (name: string) => name === "CapsLock"});
+  assert.deepEqual(h.events("text"), [["A"]]);
+  assert.equal(h.events("key").length, 0);
+  h.desktop.destroy();
+});
+
 test("Ctrl+V on an Arabic layout invokes the clipboard bridge without a physical V", () => {
   const h = setup();
   const event = h.key("keydown", "ر", "KeyV", {ctrlKey: true});
   assert.equal(h.events("paste").length, 1);
   assert.equal(h.events("key").length, 0);
   assert.equal(event.defaultPrevented, false, "the browser paste event must still be allowed");
+  h.desktop.destroy();
+});
+
+test("desktop text preserves Arabic, US and German characters across local layout switches", () => {
+  const h = setup();
+  const samples = [["ش", "KeyA"], ["a", "KeyA"], ["y", "KeyY"], ["z", "KeyY"],
+    ["y", "KeyZ"], ["ä", "Quote"], [" ", "Space"], [",", "NumpadDecimal"]];
+  for (const [key, code] of samples) {
+    assert.equal(h.key("keydown", key, code).defaultPrevented, true);
+    h.key("keyup", key, code);
+  }
+  h.key("keydown", "a", "KeyA", {repeat: true});
+  assert.deepEqual(h.events("text"), [...samples.map(([key]) => [key]), ["a"]]);
+  assert.equal(h.events("key").length, 0, "printable text must not depend on the server's active group");
+  h.desktop.destroy();
+});
+
+test("Shift is suspended for exact text then restored for selection shortcuts", () => {
+  const h = setup();
+  h.key("keydown", "Shift", "ShiftRight", {shiftKey: true});
+  for (const [key, code] of [["@", "Digit2"], ["?", "Slash"], ["A", "KeyA"]]) {
+    h.key("keydown", key, code, {shiftKey: true}); h.key("keyup", key, code, {shiftKey: true});
+  }
+  h.key("keydown", "ArrowLeft", "ArrowLeft", {shiftKey: true});
+  h.key("keyup", "ArrowLeft", "ArrowLeft", {shiftKey: true});
+  h.key("keyup", "Shift", "ShiftRight");
+  assert.deepEqual(h.output.filter(event => event.kind === "key" || event.kind === "text"), [
+    {kind: "key", values: ["ShiftRight", true]}, {kind: "key", values: ["ShiftRight", false]},
+    {kind: "text", values: ["@"]}, {kind: "text", values: ["?"]}, {kind: "text", values: ["A"]},
+    {kind: "key", values: ["ShiftRight", true]}, {kind: "key", values: ["ArrowLeft", true]},
+    {kind: "key", values: ["ArrowLeft", false]}, {kind: "key", values: ["ShiftRight", false]},
+  ]);
+  h.desktop.destroy();
+});
+
+test("Ctrl shortcuts preserve positions on Arabic and German layouts", () => {
+  const h = setup();
+  h.key("keydown", "Control", "ControlLeft", {ctrlKey: true});
+  for (const [key, code] of [["ؤ", "KeyC"], ["y", "KeyZ"]]) {
+    h.key("keydown", key, code, {ctrlKey: true}); h.key("keyup", key, code, {ctrlKey: true});
+  }
+  h.key("keyup", "Control", "ControlLeft");
+  assert.deepEqual(h.events("key"), [["ControlLeft", true], ["KeyC", true], ["KeyC", false],
+    ["KeyZ", true], ["KeyZ", false], ["ControlLeft", false]]);
+  assert.equal(h.events("text").length, 0);
+  h.desktop.destroy();
+});
+
+test("Shift selection and wheel modifiers survive committed text", () => {
+  for (const action of ["mousedown", "wheel"]) {
+    const h = setup();
+    h.key("keydown", "Shift", "ShiftLeft", {shiftKey: true});
+    h.desktop.sendText("É");
+    h.surface.emit(action, {clientX: 100, clientY: 350, button: 0, shiftKey: true,
+      deltaMode: 0, deltaX: 0, deltaY: 15});
+    h.env.frame();
+    assert.deepEqual(h.events("key"), [["ShiftLeft", true], ["ShiftLeft", false], ["ShiftLeft", true]]);
+    const restore = h.output.findLastIndex(item => item.kind === "key");
+    assert.ok(h.output.findIndex(item => item.kind === (action === "wheel" ? "scroll" : "down")) > restore);
+    h.key("keyup", "Shift", "ShiftLeft", {isComposing: true});
+    assert.deepEqual(h.events("key").at(-1), ["ShiftLeft", false]);
+    h.desktop.destroy();
+  }
+});
+
+test("composition releases held modifiers and commits through the remote IME field", () => {
+  const h = setup();
+  const target = {tagName: "TEXTAREA", dataset: {remoteKeyboard: "true"}};
+  h.key("keydown", "Control", "ControlLeft", {ctrlKey: true, target});
+  h.key("keyup", "Control", "ControlLeft", {isComposing: true, target});
+  h.key("keydown", "Process", "KeyA", {isComposing: true, target});
+  h.desktop.sendText("日本語");
+  assert.deepEqual(h.events("key"), [["ControlLeft", true], ["ControlLeft", false]]);
+  assert.deepEqual(h.events("text"), [["日本語"]]);
+  h.desktop.detach();
+  h.desktop.sendText("discard after disconnect");
+  assert.equal(h.events("text").length, 1);
+});
+
+test("explicit pointer lock keeps game movement keys held and returns to text on exit", () => {
+  const h = setup();
+  h.env.document.pointerLockElement = h.surface; h.env.document.emit("pointerlockchange");
+  h.key("keydown", "ص", "KeyW"); h.key("keydown", "ص", "KeyW", {repeat: true});
+  assert.deepEqual(h.events("key"), [["KeyW", true]]);
+  h.env.document.pointerLockElement = null; h.env.document.emit("pointerlockchange");
+  h.key("keydown", "w", "KeyW"); h.key("keyup", "w", "KeyW");
+  assert.deepEqual(h.events("key"), [["KeyW", true], ["KeyW", false]]);
+  assert.deepEqual(h.events("text"), [["w"]]);
   h.desktop.destroy();
 });

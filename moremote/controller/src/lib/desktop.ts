@@ -19,11 +19,11 @@
  *   drag                       mousedown ... mouseup, with the release caught on WINDOW so that
  *                              letting go outside the canvas still releases the remote button
  *   wheel, both axes           WheelEvent, with deltaMode normalised to notches
- *   held keys / key repeat     physical down+up, so the REMOTE's repeat timer drives repeat
+ *   held navigation / games   physical down+up, so the REMOTE's repeat timer drives repeat
  *   any shortcut               physical positions, because a keysym only reaches shift level 1
- *   the keypad as its own keys Numpad1 is not Digit1 and spreadsheets know the difference
+ *   text / keypad / repeat    the viewer's committed character, independent of host layout
  *   Esc / Tab / Ctrl+W         only capturable via the Keyboard Lock API, in fullscreen, Chromium
- *   other-layout text          falls back to the character path — see decideKey() below
+ *   composed text              the desktop input owns the IME commit — see sendText() below
  */
 
 export interface DesktopCallbacks {
@@ -45,37 +45,12 @@ export interface DesktopCallbacks {
    * clipboard) the owner forwards the chord anyway, so the key is never simply dead.
    */
   pasteIntent?: () => void;
+  /** Focus the desktop IME input without opening the phone typing bar. */
+  focusKeyboard?: () => void;
 }
 
 const BUTTONS = ["left", "middle", "right"] as const;
 type Button = (typeof BUTTONS)[number];
-
-/**
- * What each physical key produces on a plain US layout, unshifted and shifted.
- *
- * This table is not here to type anything. It answers one question — "does the keyboard in front of
- * this person agree with the positions we are about to send?" — and it is the whole reason a desktop
- * viewer can have held keys AND correct Arabic in the same session. See decideKey().
- */
-const US_LAYOUT: Record<string, [string, string]> = {
-  KeyA: ["a", "A"], KeyB: ["b", "B"], KeyC: ["c", "C"], KeyD: ["d", "D"], KeyE: ["e", "E"],
-  KeyF: ["f", "F"], KeyG: ["g", "G"], KeyH: ["h", "H"], KeyI: ["i", "I"], KeyJ: ["j", "J"],
-  KeyK: ["k", "K"], KeyL: ["l", "L"], KeyM: ["m", "M"], KeyN: ["n", "N"], KeyO: ["o", "O"],
-  KeyP: ["p", "P"], KeyQ: ["q", "Q"], KeyR: ["r", "R"], KeyS: ["s", "S"], KeyT: ["t", "T"],
-  KeyU: ["u", "U"], KeyV: ["v", "V"], KeyW: ["w", "W"], KeyX: ["x", "X"], KeyY: ["y", "Y"],
-  KeyZ: ["z", "Z"],
-  Digit1: ["1", "!"], Digit2: ["2", "@"], Digit3: ["3", "#"], Digit4: ["4", "$"],
-  Digit5: ["5", "%"], Digit6: ["6", "^"], Digit7: ["7", "&"], Digit8: ["8", "*"],
-  Digit9: ["9", "("], Digit0: ["0", ")"],
-  Minus: ["-", "_"], Equal: ["=", "+"], BracketLeft: ["[", "{"], BracketRight: ["]", "}"],
-  Backslash: ["\\", "|"], Semicolon: [";", ":"], Quote: ["'", '"'], Backquote: ["`", "~"],
-  Comma: [",", "<"], Period: [".", ">"], Slash: ["/", "?"], Space: [" ", " "],
-  Numpad0: ["0", "0"], Numpad1: ["1", "1"], Numpad2: ["2", "2"], Numpad3: ["3", "3"],
-  Numpad4: ["4", "4"], Numpad5: ["5", "5"], Numpad6: ["6", "6"], Numpad7: ["7", "7"],
-  Numpad8: ["8", "8"], Numpad9: ["9", "9"], NumpadDecimal: [".", "."],
-  NumpadAdd: ["+", "+"], NumpadSubtract: ["-", "-"], NumpadMultiply: ["*", "*"],
-  NumpadDivide: ["/", "/"],
-};
 
 // One wheel step in deltaMode 0 (pixels). Chromium reports 100 for a notch; the agent expands a notch
 // back to 15 libinput pixels, so this pair is the whole scroll calibration and the two must be read
@@ -97,6 +72,7 @@ export class DesktopInput {
   private attached = false;
   private held = new Set<Button>();
   private heldCodes = new Set<string>();
+  private suspendedShift = new Set<string>();
   private locked = false;
   private cx = 0.5;
   private cy = 0.5;
@@ -197,6 +173,7 @@ export class DesktopInput {
     this.held.clear();
     for (const c of this.heldCodes) this.cb.keyCode(c, false);
     this.heldCodes.clear();
+    this.suspendedShift.clear();
   };
 
   // ---------------------------------------------------------------- mouse
@@ -219,9 +196,11 @@ export class DesktopInput {
     if (!this.locked && !this.inContent(e.clientX, e.clientY)) return;
     e.preventDefault();
     // Focus the canvas so keys land here rather than in whatever was focused before.
-    (this.el as HTMLElement).focus?.({ preventScroll: true });
+    if (this.cb.focusKeyboard) this.cb.focusKeyboard();
+    else this.el.focus?.({ preventScroll: true });
     if (this.getPointerLockWanted() && !this.locked) this.requestPointerLock();
     this.flush();                         // flush before updating the cursor to the press position
+    this.restoreShift(e);
     const p = this.locked ? { x: this.cx, y: this.cy } : this.toNorm(e.clientX, e.clientY);
     this.cx = p.x; this.cy = p.y;
     this.cb.cursorAt(p.x, p.y);
@@ -265,6 +244,7 @@ export class DesktopInput {
   private onWheel = (e: WheelEvent) => {
     if (!this.locked && !this.inContent(e.clientX, e.clientY)) return;
     e.preventDefault();
+    this.restoreShift(e);
     if (!this.locked) {
       const p = this.toNorm(e.clientX, e.clientY);
       this.qMove = { nx: p.x, ny: p.y };
@@ -286,35 +266,45 @@ export class DesktopInput {
 
   // ---------------------------------------------------------------- keyboard
 
-  /**
-   * Physical position, or character?
-   *
-   * Physical is what makes a keyboard a keyboard: holding a key, every Ctrl-chord, the keypad, the
-   * function row. But a position only produces the RIGHT character if the layout in front of the
-   * viewer agrees with the one on the server — and on an Arabic or AZERTY keyboard it does not.
-   *
-   * So ask the browser. It reports both the position (`code`) and what that key actually produced
-   * (`key`). If `key` is what a US layout would have produced from that position, the two agree and
-   * the physical path is safe and better. If it disagrees — ش from KeyA, é from Digit2 — then the
-   * viewer's layout is doing work the server's cannot reproduce, and the character path (which
-   * types by keysym, or borrows the clipboard for anything harder) is the only one that arrives
-   * intact.
-   *
-   * Modifier chords always go physical regardless: Ctrl+C is a position chord, not a character, and
-   * an Arabic keyboard's Ctrl+ت is still Ctrl+C's key.
+  /** Text follows the viewer's layout; named keys and shortcuts retain their positions.
+   * Matching a US key table never proves the remote uses US: it may still be Arabic
+   * after the previous text batch. Explicit pointer lock keeps physical game controls.
    */
   private decideKey(e: KeyboardEvent): "physical" | "character" | "ignore" {
-    if (e.key === "Dead" || e.key === "Process" || e.key === "Unidentified" || e.key === "AltGraph") return "ignore";
-    // AltGr often reports Ctrl+Alt as well. It produces a character (@, €, …), not a shortcut.
+    if (["Dead", "Process", "Unidentified", "AltGraph"].includes(e.key)) return "ignore";
+    // Caps Lock belongs to the viewer's text layout. Its next e.key already has
+    // the requested case; toggling the remote too would apply that case twice.
+    if (e.key === "CapsLock" && !this.locked) return "ignore";
     if (e.getModifierState?.("AltGraph") && Array.from(e.key).length === 1) return "character";
-    if (e.ctrlKey || e.altKey || e.metaKey) return "physical";
-    // Anything that is not exactly one character is a named key (Enter, Tab, F5, ArrowLeft...).
-    // Those have no character to disagree about.
-    if (Array.from(e.key).length !== 1) return e.code ? "physical" : "ignore";
-    const us = US_LAYOUT[e.code];
-    if (!us) return "character";                       // a position we have no expectation for
-    if (e.key === us[0] || e.key === us[1]) return "physical";
-    return "character";
+    if (e.ctrlKey || e.altKey || e.metaKey || this.locked) return e.code ? "physical" : "ignore";
+    return Array.from(e.key).length === 1 ? "character" : e.code ? "physical" : "ignore";
+  }
+
+  /** Text injection owns its shift level; leave held Shift available for the next shortcut. */
+  private suspendShift() {
+    for (const code of ["ShiftLeft", "ShiftRight"]) {
+      if (this.heldCodes.delete(code)) {
+        this.cb.keyCode(code, false);
+        this.suspendedShift.add(code);
+      }
+    }
+  }
+
+  private restoreShift(e: {shiftKey: boolean}) {
+    if (e.shiftKey) {
+      for (const code of this.suspendedShift) {
+        this.cb.keyCode(code, true);
+        this.heldCodes.add(code);
+      }
+    }
+    this.suspendedShift.clear();
+  }
+
+  /** Both key characters and IME commits own their shift level. */
+  sendText(value: string) {
+    if (!value || !this.attached) return;
+    this.suspendShift();
+    this.cb.text(value);
   }
 
   /**
@@ -328,6 +318,7 @@ export class DesktopInput {
   private localEditable(e: KeyboardEvent) {
     const t = e.target as HTMLElement | null;
     if (!t) return false;
+    if (t.dataset?.remoteKeyboard === "true") return false;
     const tag = t.tagName;
     if (["INPUT", "TEXTAREA", "SELECT", "BUTTON", "SUMMARY", "A"].includes(tag) || t.isContentEditable) return true;
     // Sliders/buttons have keyboard behavior too. Clicking the focusable canvas returns control
@@ -377,9 +368,11 @@ export class DesktopInput {
     if (decision === "character") {
       // Repeats of a character key are real keystrokes (holding Backspace, holding a letter), so
       // they are forwarded rather than deduplicated the way the physical path does.
-      this.cb.text(e.key);
+      this.sendText(e.key);
       return;
     }
+
+    this.restoreShift(e);
 
     // The agent deduplicates a repeated down itself and lets the REMOTE repeat timer drive repeat,
     // so sending the repeats is harmless; not sending them saves a frame per repeat.
@@ -389,7 +382,7 @@ export class DesktopInput {
   };
 
   private onKeyUp = (e: KeyboardEvent) => {
-    if (e.isComposing) return;
+    if (this.suspendedShift.delete(e.code)) { e.preventDefault(); return; }
     // Release by position unconditionally, and WITHOUT re-asking decideKey: a key pressed while the
     // layouts agreed must not stay down on the remote because a modifier changed before it came up.
     // Not gated on localEditable either — if focus moved into a text field mid-chord, the release

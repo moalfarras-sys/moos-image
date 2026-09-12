@@ -703,6 +703,30 @@ button {
 }
 
 /* keyboard bar: shortcut row + a real visible input (tap = iOS keyboard) */
+.desktop-keyboard {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+  resize: none;
+}
+.typing-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 12px;
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--raised) 96%, var(--text));
+  color: var(--text);
+}
+.typing-status > span { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 650; }
+.typing-status svg { width: 16px; height: 16px; }
+.typing-status small { font-size: 11px; color: var(--muted); }
 .kbbar {
   position: fixed;
   left: 0;

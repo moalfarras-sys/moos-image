@@ -44,6 +44,10 @@ const dict = {
   // ── Bottom chrome tabs ──
   controls: { ar: "التحكم", en: "Controls" },
   keyboard: { ar: "لوحة المفاتيح", en: "Keyboard" },
+  remoteKeyboardAria: { ar: "الكتابة على سطح مكتب MoOS", en: "Type on the MoOS desktop" },
+  typingInMoos: { ar: "الكتابة على MoOS", en: "Typing on MoOS" },
+  useYourKeyboardLanguage: { ar: "استخدم لغة لوحة مفاتيح جهازك", en: "Use your keyboard’s language" },
+  typingDraftUntilConnected: { ar: "تُحفظ المسودة حتى الاتصال", en: "Draft kept until connected" },
   clipboard: { ar: "الحافظة", en: "Clipboard" },
   files: { ar: "الملفات", en: "Files" },
   more: { ar: "المزيد", en: "More" },

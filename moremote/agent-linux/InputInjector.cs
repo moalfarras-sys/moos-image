@@ -17,6 +17,7 @@ public sealed class InputInjector : IDisposable
 
     private readonly PortalBridge _portal;
     private readonly ScreenCapture _capture;
+    private readonly Func<bool?> _readCapsLock;
     private readonly object _gate = new();
     private readonly HashSet<ushort> _pressed = [];
     private volatile bool _disposed;
@@ -130,10 +131,11 @@ public sealed class InputInjector : IDisposable
     /// <summary>True when this physical key is one we can actually press.</summary>
     public static bool HasPhysical(string code) => PhysicalCodes.ContainsKey(code);
 
-    public InputInjector(PortalBridge portal, ScreenCapture capture)
+    public InputInjector(PortalBridge portal, ScreenCapture capture, Func<bool?>? readCapsLock = null)
     {
         _portal = portal;
         _capture = capture;
+        _readCapsLock = readCapsLock ?? KeyboardLockState.ReadCapsLock;
         EnsureConnected(force: true);
     }
 
@@ -526,7 +528,7 @@ public sealed class InputInjector : IDisposable
         // by the first one (measured live as `Grüße` becoming `Gr€e`). If any grapheme needs the
         // compatibility path, preserve the browser's whole committed run with one clipboard owner
         // and one ordered Paste. Native-only commits still use real Arabic/Latin key events.
-        if (TextRunPlanner.RequiresAtomicPaste(planned))
+        if (TextRunPlanner.RequiresAtomicPaste(planned) || _readCapsLock() != false)
         {
             PasteUnicodeFallback(run);
             return;
@@ -590,9 +592,9 @@ public sealed class InputInjector : IDisposable
     /// <summary>
     /// Exact Unicode escape hatch for text which no installed keyboard group can produce.
     ///
-    /// libei 1.6 has native TEXT/UTF-8 events, but MoOS 44 currently ships libei/libeis 1.5 and
-    /// KWin therefore cannot advertise that capability. Silently dropping ä, é, € or an emoji is
-    /// not acceptable. Until the compositor stack carries TEXT, publish this committed input to
+    /// Native TEXT/UTF-8 needs an EIS capability negotiation; this bridge still uses the portal's
+    /// keyboard calls. Silently dropping ä, é, € or an emoji, or assuming Caps Lock is off, is
+    /// not acceptable. Until this bridge negotiates TEXT, publish this committed input to
     /// Wayland's clipboard, read the exact bytes back, then inject Shift+Insert as one synchronous
     /// batch. The single-reader input FIFO plus sync:true keeps later keys from overtaking it.
     /// The clipboard intentionally remains this text: restoring it on a timer would race the target

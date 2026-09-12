@@ -314,6 +314,8 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cursorRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const desktopInputRef = useRef<HTMLTextAreaElement>(null);
+  const desktopComposingRef = useRef(false);
   const kbbarRef = useRef<HTMLDivElement>(null);
   const connRef = useRef<RemoteConnection | null>(null);
   const gestureRef = useRef<GestureController | null>(null);
@@ -1067,6 +1069,10 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
       scroll: (dx, dy) => conn.scroll(dx, dy),
       keyCode: (code, down) => conn.keyCode(code, down),
       text: (v) => conn.text(v),
+      focusKeyboard: () => {
+        if (desktopRef.current?.pointerLocked) canvas.focus({ preventScroll: true });
+        else desktopInputRef.current?.focus({ preventScroll: true });
+      },
       cursorAt: (x, y) => { cursorNorm.current = { x, y }; drawEpochRef.current++; },
       pasteIntent: () => { pasteIntentAt.current = performance.now(); armPasteFallback(); },
     }, () => scrollSensitivityRef.current, () => pointerLockRef.current, inContent);
@@ -1857,6 +1863,30 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
     }
   };
 
+  // Mobile keyboards may emit only Process/229 plus beforeinput for deletion.
+  // An empty local context still has remote text behind it. Non-empty deletion
+  // stays with the ordinary input diff; cancelled keydown suppresses beforeinput.
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el || !kbOpen) return;
+    const beforeInput = (event: InputEvent) => {
+      if (event.inputType !== "deleteContentBackward" || el.value !== ""
+          || composingRef.current || event.isComposing || !connRef.current?.open) return;
+      event.preventDefault();
+      sendKey("Backspace");
+    };
+    el.addEventListener("beforeinput", beforeInput);
+    return () => el.removeEventListener("beforeinput", beforeInput);
+  }, [kbOpen, mods]);
+
+  const commitDesktopInput = () => {
+    const el = desktopInputRef.current, conn = connRef.current;
+    if (!el || desktopComposingRef.current || !conn?.open || !el.value) return;
+    desktopRef.current?.sendText(el.value);
+    el.value = "";
+    inputBurstAtRef.current = Date.now();
+  };
+
   // ---------- clipboard (text + images) ----------
   const getPcClip = async () => {
     try {
@@ -2256,7 +2286,21 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
     // deliberately by the safe 48px .show-tab handle rendered only while the controls are hidden.
     <div className={"remote" + (mode === "desktop" ? " mouse-mode" : "")}>
       <main className="remote-stage" aria-label={tr("remoteMoosDesktopAria")}>
-      <canvas ref={canvasRef} className="screen-canvas" tabIndex={0} aria-label={tr("screen")} />
+      <canvas ref={canvasRef} className="screen-canvas" tabIndex={0} aria-label={tr("screen")}
+        onFocus={() => {
+          if (mode === "desktop" && !kbOpen && !sheet && !powerConfirm)
+            desktopInputRef.current?.focus({ preventScroll: true });
+        }} />
+      {/* A real editing target is required for desktop IME/dead-key commits.
+          Normal keys are handled by DesktopInput and prevent their default edit. */}
+      <textarea ref={desktopInputRef} className="desktop-keyboard" data-remote-keyboard="true"
+        tabIndex={-1} aria-label={tr("remoteKeyboardAria")} inputMode="none"
+        autoCapitalize="off" autoComplete="off" spellCheck={false}
+        disabled={mode !== "desktop" || kbOpen || !!sheet || !!powerConfirm || status !== "live"}
+        onInput={(e) => { if (!(e.nativeEvent as InputEvent).isComposing) commitDesktopInput(); }}
+        onCompositionStart={() => { desktopComposingRef.current = true; }}
+        onCompositionEnd={() => { desktopComposingRef.current = false; commitDesktopInput(); }}
+        onBlur={() => { desktopComposingRef.current = false; commitDesktopInput(); }} />
       {/* The server's sound, on this same origin. Never `autoPlay` — the browser would refuse it
           without a gesture and the refusal is indistinguishable from the stream being broken. */}
       <audio ref={audioRef} hidden />
@@ -2383,6 +2427,10 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
 
       {/* keyboard bar: a shortcuts row + a visible input (so typing AND Backspace work). */}
       <div className={"kbbar" + (kbOpen ? " open" : "")} ref={kbbarRef} inert={!kbOpen} aria-hidden={!kbOpen}>
+        <div className="typing-status">
+          <span><IconKeyboard />{tr("typingInMoos")}</span>
+          <small>{tr(status === "live" ? "useYourKeyboardLanguage" : "typingDraftUntilConnected")}</small>
+        </div>
         {/* THE SCROLL CONTAINER MUST NOT PREVENT ITS OWN DEFAULT — the row scrolls sideways, and
             that scroll IS a default action. Focus is defended on the BUTTONS instead; see keepFocus. */}
         <div className="keyrow">

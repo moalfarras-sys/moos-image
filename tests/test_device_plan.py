@@ -8,6 +8,7 @@ import importlib.util
 import os
 import stat
 import subprocess
+import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -50,7 +51,7 @@ if os.name == "nt":
     module.run = fake_run
     module.flatpak_installed = lambda _app_id: False
     module.firmware_report = lambda: ([], [])
-    data = module.detect()
+    data = module.detect(machine="x86_64")
 else:
     with tempfile.TemporaryDirectory() as tmp:
         bindir = Path(tmp)
@@ -78,7 +79,17 @@ echo   Kernel driver in use: r8169
         )
         env = dict(os.environ)
         env["PATH"] = str(bindir) + os.pathsep + env.get("PATH", "")
-        data = json.loads(subprocess.check_output([str(PLAN)], text=True, env=env))
+        # This fixture describes an x86 NVIDIA machine even when the gate itself
+        # runs on Oracle ARM. Keep the real CLI/process boundary and fake the
+        # architecture alongside lspci; the separate ARM case below must refuse
+        # exactly the image switch this x86 case requires.
+        runner = """import platform, runpy, sys
+platform.machine = lambda: 'x86_64'
+sys.argv = sys.argv[1:]
+runpy.run_path(sys.argv[0], run_name='__main__')
+"""
+        data = json.loads(subprocess.check_output(
+            [sys.executable, "-c", runner, str(PLAN)], text=True, env=env))
 
 assert data["gpu_vendor"] == "nvidia"
 assert data["driver"] == "nouveau", data["driver"]
