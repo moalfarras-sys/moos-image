@@ -3,10 +3,30 @@
 import importlib.machinery
 import importlib.util
 import json
+import os
 from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
+
+# ── ISOLATE THE OWNER'S OWN SETTINGS BEFORE ANYTHING IS IMPORTED ─────────────────────────────
+#
+# `selected_provider()` reads $XDG_CONFIG_HOME/moai-agent/state.json — the LIVE choice the person
+# using this machine made — and `selected_cost_policy()` turns that into free-or-paid, which is
+# what decides whether a paid model is refused with 409 or admitted.
+#
+# So two of these tests asserted the free-only behaviour while reading whatever the owner had
+# selected. On a CI runner there is no such file, they pass, and the gate looks green forever. On
+# the maintainer's own Oracle A1, where Settings says `openrouter-paid`, they FAIL — and `just
+# check` is exactly what AGENTS.md tells every contributor to run before pushing. A gate that only
+# passes on a machine shaped like CI teaches people that a red gate means nothing, which is the
+# one thing this repository cannot afford.
+#
+# Pointing HOME and XDG_CONFIG_HOME at an empty directory for the whole module fixes it for every
+# test here, not just the two that happened to notice: none of them is about the host's config.
+_ISOLATED = tempfile.TemporaryDirectory()
+os.environ["XDG_CONFIG_HOME"] = str(Path(_ISOLATED.name) / "config")
+os.environ["HOME"] = _ISOLATED.name
 
 ROOT=Path(__file__).resolve().parents[1]
 def load(name,path):

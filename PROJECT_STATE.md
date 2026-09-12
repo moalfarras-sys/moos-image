@@ -2277,24 +2277,91 @@ Measured on the shipped bundle in a real Chromium and read off the live Oracle A
 
 **Diagnosed, not fixed**
 
-- **A viewer's H.264 decoder gives up ~80s into session after session** and takes the whole room
-  to JPEG (one pipeline, so H.264 is only safe while every client can decode it). The reason now
-  travels with the vote and the agent logs it once on the transition; the cause is unknown.
+- **The H.264 collapse is a SECOND-VIEWER problem, not a decoder that degrades.** One pipeline
+  feeds every viewer, so H.264 is only safe while every client can decode it, and one client that
+  says it cannot drops the whole room to JPEG. Counted against the live viewer count on the A1
+  for 2026-09-12: **16 of 16** drops happened with 2+ viewers connected, **0** with one; after the
+  count first reached zero at 19:20:51 every later single-viewer session held H.264 with no
+  transition. One drop landed in the same second the second viewer connected — a declaration at
+  connect, so `canDecodeH264()` false or `h264GivenUp()`. The reason now travels with the vote and
+  the agent logs it on the transition; what that second client is remains unknown.
 
 **Not proven**
 
-- No signed image has been built with any of this. The three ARM enables are verified as source
-  against the mechanism proven by their neighbours in the same script (`moos-auto-update.timer`,
-  three lines above, does reach the shipped image's `timers.target.wants/`). The next ARM build
-  must be inspected for them, and the A1 must show `enabled` after its update reboot.
+- The three ARM enables are now asserted against the BUILT image by the ARM workflow's "Verify
+  the built image" step, before signing — a `systemctl enable` in a build script proves nothing
+  about the bytes, which is how this shipped in the first place. What remains unproven is the
+  running machine: the A1 must show `enabled` after its update reboot.
 - The live A1 still has the three units disabled; they were not enabled on the running machine.
 - `budget.update_concurrency` still has no reader; `moai-do update` does not consult it.
-- **Local machine drift on the A1, left alone deliberately:** `/etc/sysctl.d/99-moos-performance.conf`
-  (hand-written 2026-09-10) sets `vm.swappiness=100` and `vm.dirty_ratio=15` against MoOS's
-  declared 150/10, which is what `mokernel` reports as drift. It is the owner's own file on their
-  own machine, so it is recorded here rather than removed; `moos-hardware-adapt` is the supported
-  place for per-machine policy and its dry run on this box wants only
-  `zram-size=min(ram, 8192)` and `fwupd-refresh.timer`.
+- **Local machine drift on the A1, left alone deliberately.** Two hand-written files from
+  2026-09-10 that MoOS does not ship. They are the owner's own, on their own machine, so they are
+  recorded here rather than removed — but both are doing less than they look like they are doing,
+  and `moos-hardware-adapt` is the supported place for per-machine policy (its dry run on this box
+  wants only `zram-size=min(ram, 8192)` and `fwupd-refresh.timer`).
+
+  `/etc/sysctl.d/99-moos-performance.conf` sets `vm.swappiness=100` and `vm.dirty_ratio=15`
+  against MoOS's declared 150/10. That is exactly what `mokernel` reports as drift.
+
+  `/etc/systemd/system/moos-perf-tune.service` is **the slowest unit on this machine** —
+  `systemd-analyze blame` puts it at 10.153 s of a 25.858 s boot — and all of it is the literal
+  `sleep 10` in its first `ExecStart`, which waits for KWin in order to renice it. Measured:
+
+  ```console
+  $ ps -o ni= -p $(pgrep -f mo-remote  | head -1)   ->  -5    applied
+  $ ps -o ni= -p $(pgrep -f 'pipewire$' | head -1)  ->  -8    applied
+  $ ps -o ni= -p $(pgrep -f kwin_wayland | head -1) ->   0    NOT applied
+  ```
+
+  Two reasons, and the second makes the first moot:
+
+  * `pgrep -f kwin_wayland | head -1` returns pid 1746, `kwin_wayland_wrapper` — the wrapper, not
+    the compositor. The compositor is pid 1750.
+  * pid 1750 is already `SCHED_RR|SCHED_RESET_ON_FORK` at priority 1, granted by `rtkit-daemon`
+    (active). `nice` does not apply to a real-time process at all, so even a corrected `pgrep`
+    would change nothing — the compositor is already scheduled better than any nice value can
+    express.
+
+  So the ten seconds buy nothing. The two boosts that DO land (Mo Remote, PipeWire) need no sleep;
+  removing the first `ExecStart` would return 10 s to every boot and lose no priority.
+
+## Release integration verified on ARM — 2026-09-12 (`integrate/moos-20260912`)
+
+`release/moos-integration-20260912` (Mo AI control, daily check, KRunner, Hermes, OpenCode Zen,
+Horizon tray, native ARM installs) merged with Mo PC Remote v40. Every gate CI runs, plus every
+gate CI does NOT run, executed on the maintainer's own Oracle A1:
+
+- 144/144 `just check` gates, `tests/repo-gates.sh` clean end to end
+- controller typecheck + 15 test programs + the real-Chromium browser suite
+- all 7 `.csproj` projects and 4 .NET test executables (`just dotnet-check`)
+
+**Three gates passed in CI and failed on this machine, and the code was right in all three.**
+
+- `tests/test_device_plan.py` ran the real `moos-device-plan` as a subprocess while simulating an
+  x86 NVIDIA desktop, then let it read the HOST's CPU. `moos-device-plan` became
+  architecture-aware in `f9f35bac` (correctly — the NVIDIA image is x86_64-only), so the
+  simulation started taking the ARM branch. Green on every runner, red on aarch64. Fixed with a
+  documented test seam, `MOOS_DEVICE_PLAN_MACHINE`, in the same shape as `MOOS_TIER_ROOT`.
+- `tests/test_moai_free_policy.py` (×2) asserted the free-only boundary while
+  `selected_provider()` read `~/.config/moai-agent/state.json` — the LIVE choice of whoever is
+  using the machine. This owner has `openrouter-paid` selected, so a paid model was legitimately
+  admitted and the test called it a failure. All 26 pass with an isolated config dir; the module
+  now isolates `HOME`/`XDG_CONFIG_HOME` for every test in it, not just the two that noticed.
+
+Neither is a code defect, and both are worse than a slow signal: `just check` is what `AGENTS.md`
+tells every contributor to run before pushing, and two of its gates could not pass on the machine
+this project is built for. A gate that only passes on something shaped like CI teaches people that
+red means nothing.
+
+**Why all three reached a merge candidate:** the gate list lived inside `build.yml`'s
+`build-push-sign` job, which triggers only on `push: branches: [main]`. On a branch or a pull
+request, not one repo gate ran — the only pre-merge signal was a 12-to-180-minute image build.
+That is also what spent 25 minutes of ARM build to report one missing line of XML in a `.csproj`.
+The list is now `tests/repo-gates.sh`, called by `build.yml` before it signs anything and by
+`.github/workflows/repo-gates.yml` on every pull request, in about half a minute.
+`tests/test_gate_coverage.py` reads the script as well as the workflows, so `just check` still has
+to be a superset, and `tests/verify_user_experience.py`'s "must run locally and in CI" assertion
+follows the list rather than one filename.
 
 ## Still unproven / open
 

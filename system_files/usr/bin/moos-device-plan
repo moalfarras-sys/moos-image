@@ -82,7 +82,14 @@ def firmware_report():
 
 
 def detect(machine=None):
-    machine = (machine or platform.machine()).lower()
+    # MOOS_DEVICE_PLAN_MACHINE lets a test drive the architecture branch through the REAL process
+    # boundary, the way tests/test_device_plan.py runs this file. Without it the black-box section
+    # simulated an x86 NVIDIA box and then read the host's own CPU, so it passed on a CI runner and
+    # failed on the maintainer's aarch64 machine — where `just check` is the thing everyone is told
+    # to run. Same shape as MOOS_TIER_ROOT and MOOS_HW_DRYRUN elsewhere in the image: a documented
+    # test seam, never consulted by anything that ships.
+    machine = (machine or os.environ.get("MOOS_DEVICE_PLAN_MACHINE")
+               or platform.machine()).lower()
     x86_64 = machine in ("x86_64", "amd64")
     pci = run("lspci", "-nnk")
     blocks = re.split(r"\n(?=\S)", pci)

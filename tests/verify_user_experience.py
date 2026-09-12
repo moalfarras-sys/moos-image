@@ -243,8 +243,11 @@ require(not (_remote_apply_calls & {
         "Mo PC Remote's GTK apply path still performs blocking I/O instead of "
         "consuming the worker snapshot")
 gtk_runtime_test = "python3 tests/test_moos_gtk_runtime.py"
-require(gtk_runtime_test in read("Justfile")
-        and gtk_runtime_test in read(".github/workflows/build.yml"),
+# CI's gate list is tests/repo-gates.sh — build.yml used to hold it inline, and it moved out so
+# the same list could run on pull requests instead of only on pushes to main. Accept either, so
+# this keeps meaning "CI runs it" rather than "it appears in one particular file".
+_ci_gate_lists = read("tests/repo-gates.sh") + read(".github/workflows/build.yml")
+require(gtk_runtime_test in read("Justfile") and gtk_runtime_test in _ci_gate_lists,
         "the 16-palette/live-restyle/non-blocking GTK gate must run locally and in CI")
 
 # ── Remote control must be a whole, regression-proof chain ────────────────────
