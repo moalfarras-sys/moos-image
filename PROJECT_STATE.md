@@ -2277,9 +2277,14 @@ Measured on the shipped bundle in a real Chromium and read off the live Oracle A
 
 **Diagnosed, not fixed**
 
-- **A viewer's H.264 decoder gives up ~80s into session after session** and takes the whole room
-  to JPEG (one pipeline, so H.264 is only safe while every client can decode it). The reason now
-  travels with the vote and the agent logs it once on the transition; the cause is unknown.
+- **The H.264 collapse is a SECOND-VIEWER problem, not a decoder that degrades.** One pipeline
+  feeds every viewer, so H.264 is only safe while every client can decode it, and one client that
+  says it cannot drops the whole room to JPEG. Counted against the live viewer count on the A1
+  for 2026-09-12: **16 of 16** drops happened with 2+ viewers connected, **0** with one; after the
+  count first reached zero at 19:20:51 every later single-viewer session held H.264 with no
+  transition. One drop landed in the same second the second viewer connected — a declaration at
+  connect, so `canDecodeH264()` false or `h264GivenUp()`. The reason now travels with the vote and
+  the agent logs it on the transition; what that second client is remains unknown.
 
 **Not proven**
 

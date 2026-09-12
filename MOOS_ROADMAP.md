@@ -223,9 +223,14 @@ honest limits: [v40 cloud desktop](docs/REMOTE_V40_CLOUD_DESKTOP.md).
   and `ARM unit enablement OK`.
 - [ ] **The A1 must show `enabled` after its update reboot.** The image gate proves the symlink
   ships; only the running machine proves it takes effect.
-- [ ] **The H.264 give-up is diagnosed, not fixed.** A viewer's decoder gives up roughly 80s into
-  session after session and takes the whole room to JPEG. The reason now travels with the vote
-  and is logged; the cause is still unknown.
+- [ ] **The H.264 give-up is narrowed, not fixed.** Counted against the viewer count on the A1
+  for a whole day: **16 of 16** drops to JPEG happened with a second viewer connected, **0** with
+  one, and after the count first reached zero every later single-viewer session held H.264 with
+  no transition at all. One of the sixteen declared JPEG in the same second it connected, which
+  is `canDecodeH264()` false or a tab that had already given up. So the question is not why a
+  decoder degrades: it is what that second client is, and whether one viewer that cannot decode
+  H.264 should put a 2-core host back on whole-picture JPEG for everybody. The reason now travels
+  with the vote and is logged on the transition.
 - [ ] **`budget.update_concurrency` still has no reader.** `moai-do update` does not consult it,
   so a 32-core machine and a 2-core A1 fan out identically. Pinned by
   `tests/test_moos_visual_tier.py` so it cannot be forgotten again.

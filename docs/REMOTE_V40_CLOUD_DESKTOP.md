@@ -77,15 +77,44 @@ A preset chosen by hand still wins, and the Display sheet names the limit
 ([Arabic](evidence/remote-cloud-20260912/display-host-ceiling-ar.png)). A ceiling that acted
 invisibly would read as the app being bad at its job.
 
-### A viewer giving up on H.264 took the room down silently
+### A viewer giving up on H.264 takes the room down silently — and it is always the SECOND one
 
 One pipeline feeds every viewer, so H.264 is only safe while every client can decode it. A client
-that gives up mid-session therefore drops **the whole room** to JPEG — and until now it did so
-with no record of why: the agent logged `Video codec: jpeg` and the reason lived in the browser
-and died with the tab. The live log shows this roughly 80 s into session after session. The
-reason now travels with the vote and is logged once, on the transition.
+that says it cannot therefore drops **the whole room** to JPEG. Until now it did so with no record
+of why: the agent logged `Video codec: jpeg` and the reason lived in the browser and died with the
+tab. The reason now travels with the vote and is logged once, on the transition.
 
-This does not claim to fix the decode failure. It makes the next one explain itself.
+Counting the live log against the viewer count at each moment — every JPEG transition on the A1
+on 2026-09-12:
+
+```text
+drops to JPEG while 2+ viewers connected : 16
+drops to JPEG while only 1 viewer        : 0
+```
+
+Sixteen out of sixteen. And after 19:20:51, when the viewer count reached 0 for the first time
+that day and every later session was single, there was **not one** codec transition — H.264 held.
+
+That is worth stating plainly because it corrects the obvious reading. This is not a decoder that
+degrades over time on the phone that is being used; the timings looked that way (70 s, 118 s) only
+because they are measured from when a *second* viewer arrives. One of them declared JPEG in the
+same second it connected:
+
+```text
+18:27:48 Control session START from 127.0.0.1 (active: 2).
+18:27:48 Video codec: jpeg (jpegenc).
+18:27:52 Control session END from 127.0.0.1 (active: 1).
+18:27:53 Video codec: h264 (openh264enc).
+```
+
+A declaration at connect is `canDecodeH264()` returning false — no `VideoDecoder`, or not a secure
+context — or `h264GivenUp()` from a tab that has already failed three times. So the next step is
+not to debug the decoder: it is to read the reason the agent now logs, and then decide whether one
+viewer that cannot decode H.264 should really put a 2-core host back on whole-picture JPEG for
+everybody. The room-wide vote is a deliberate design (`ScreenCapture.SessionArrived` documents
+it), and it is the right trade only while the second viewer is as important as the first.
+
+Not fixed here. Measured, narrowed to one cause, and made to explain itself next time.
 
 ## Why none of it was caught
 
