@@ -107,6 +107,46 @@ could have seen the sign in any case.
   and pins the set of budget keys that still have **no** reader so wiring one, or adding another,
   comes back to that test.
 
+## One product, three names
+
+The login screen — the first thing anyone sees — said **Mo Remote**. The launcher on the same
+machine says **Mo PC Remote** (`org.moos.remote.desktop`, the artwork, this document). The About
+line said **Mo Remote Personal**. Three names for one app, on three surfaces the same person
+passes through in a minute.
+
+The user-visible name is now **Mo PC Remote** everywhere the person reads it: the login heading,
+the browser tab, the install prompt, the About credit. Load-bearing identifiers are untouched —
+the `MoRemotePersonal` binary, `mo-remote-personal.service`, the `MoRemote` namespace and the
+Windows installer's own product id all stay exactly as they are, because renaming those outside a
+complete gated migration is forbidden. The manifest keeps `short_name: "Mo Remote"`, which is what
+`short_name` is for: the home-screen label, where the full name does not fit.
+
+## Seven .csproj files, one missing line
+
+The first push of this work failed the ARM image build:
+
+```text
+/src/agent/Web/StreamSession.cs(200,22): error CS0103:
+    The name 'HostBudget' does not exist in the current context
+    [/src/tests/MoRemote.Stream.Tests/MoRemote.Stream.Tests.csproj]
+```
+
+The agent's C# is compiled in seven projects, and the five test executables each pull in a
+hand-written subset of the shared `agent/Core` and `agent/Web` sources. The new shared file was
+wired into the Linux agent and MoRemote.Tests, both built clean locally, and MoRemote.Stream.Tests
+— which compiles `StreamSession.cs` — was missed. It took twenty-five minutes of image build to
+say so, because the fast x86 job that runs these executables in about a minute triggers only on
+`push: branches: [main]` and therefore never runs on a branch or a pull request.
+
+* `moremote/dotnet-check.sh` (`just dotnet-check`) builds all seven and runs all four test
+  executables, in under a minute, from the dotnet SDK alone.
+* `tests/test_dotnet_project_coverage.py` fails if a `.csproj` exists that the script does not
+  build, if the script names one that does not exist, or if a Containerfile runs a project the
+  script does not.
+* `.github/workflows/moremote-fast.yml` runs the same script, plus the controller's typecheck,
+  unit tests and shipped-bundle freshness, **on pull requests** — no registry credentials, no
+  image build, nothing to push.
+
 ## Three ARM units that were never switched on
 
 `system_files/` is copied byte-identical into every edition — that is the identity contract. The

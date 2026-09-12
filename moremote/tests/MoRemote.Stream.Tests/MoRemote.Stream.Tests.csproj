@@ -7,7 +7,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../agent/Web/StreamSession.cs" Link="StreamSession.cs" />
-    <Compile Include="../../agent/Core/H264RecoveryQueue.cs" Link="H264RecoveryQueue.cs" />
+    <Compile Include="../../agent/Core/H264RecoveryQueue.cs" Link="H264RecoveryQueue.cs" /><Compile Include="../../agent/Core/HostBudget.cs" Link="HostBudget.cs" />
     <Compile Include="../../agent/Core/InputSequenceGuard.cs" Link="InputSequenceGuard.cs" />
   </ItemGroup>
 </Project>

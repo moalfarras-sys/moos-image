@@ -2741,7 +2741,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
             </button>
           </div>
 
-          <div className="credit">Mo Remote Personal · by Moalfarras</div>
+          <div className="credit">Mo PC Remote · by Moalfarras</div>
         </SheetPanel>
       )}
 

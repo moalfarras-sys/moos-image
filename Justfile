@@ -26,6 +26,12 @@ default:
 # They run in seconds and need no container, so they go FIRST: a typo in a Konsole group name
 # or a Mo AI button pointing at a command that does not exist should cost you 3 seconds, not a
 # 20-minute image build.
+# Every .NET project in moremote/, built and run the way the image builds do. Needs the dotnet
+# SDK. Not part of `check` because that must stay seconds-fast and SDK-free; run it before
+# pushing anything under moremote/.
+dotnet-check:
+    bash moremote/dotnet-check.sh
+
 check:
     bash -n build_files/build.sh
     # bash -n accepts a comment inside a backslash continuation, which
@@ -174,6 +180,10 @@ check:
     # injectors disagreed about which way is down and the repair landed in the shared
     # middle, which inverted the wheel on MoOS itself for a release.
     python3 tests/test_remote_scroll_direction.py
+    # Seven .csproj files, seven hand-written lists of the SHARED agent sources. A new
+    # shared file wired into some of them compiles clean and dies in the image build;
+    # `just dotnet-check` says so in under a minute, and this keeps it complete.
+    python3 tests/test_dotnet_project_coverage.py
     python3 tests/test_remote_us_keymap.py
     python3 tests/test_remote_group_resolution.py
     python3 tests/test_remote_keycode_flush.py

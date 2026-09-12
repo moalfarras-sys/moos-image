@@ -1,0 +1,69 @@
+name: Mo PC Remote fast checks
+
+# WHY THIS WORKFLOW EXISTS
+#
+# The agent's C# is compiled in seven projects with seven hand-written lists of the SHARED
+# `agent/Core` and `agent/Web` sources, and the controller ships a committed bundle. Both classes
+# of mistake are caught in about a minute — and before this file, neither was caught before an
+# image build:
+#
+#   * `build.yml` has exactly these jobs and triggers only on `push: branches: [main]`, so on a
+#     branch or a pull request they do not run at all.
+#   * `build-arm.yml` DOES run on pull_request, and it compiles the same C# — inside a 180-minute
+#     image build. On 2026-09-12 a shared file missing from one .csproj spent twenty-five minutes
+#     of that build to report `error CS0103: The name 'HostBudget' does not exist`.
+#
+# So this is the same signal, on a pull request, in a minute, with no registry credentials, no
+# image build and nothing to push. It duplicates work `build.yml` does on main deliberately: the
+# point is WHEN it runs, not that it is new.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "moremote/**"
+      - ".github/workflows/moremote-fast.yml"
+  push:
+    branches-ignore: [main]   # main is already covered by build.yml
+    paths:
+      - "moremote/**"
+      - ".github/workflows/moremote-fast.yml"
+
+concurrency:
+  group: moremote-fast-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  dotnet:
+    name: Every .NET project compiles, every test executable passes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "10.0.x"
+      # The same script the engineering docs tell a contributor to run before pushing, so the two
+      # cannot drift. tests/test_dotnet_project_coverage.py keeps it covering the whole tree.
+      - name: moremote/dotnet-check.sh
+        run: bash moremote/dotnet-check.sh
+
+  controller:
+    name: Controller typecheck, unit tests and shipped-bundle freshness
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: moremote/controller
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      # The image ships the COMMITTED bundle, so a source change with no rebuild ships the old
+      # JavaScript with a green suite. This is the assertion that catches it.
+      - run: node --experimental-strip-types tests/bundle-freshness.test.ts

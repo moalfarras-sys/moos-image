@@ -2092,6 +2092,19 @@ Measured on the shipped bundle in a real Chromium and read off the live Oracle A
   entirely. `moremote/controller/scripts/browser-test.mjs` serves the committed bundle, launches
   Chromium and runs it.
 
+- **One product had three user-visible names.** The login screen said "Mo Remote", the launcher
+  on the same machine says "Mo PC Remote", the About line said "Mo Remote Personal". The surfaces
+  a person reads now all say Mo PC Remote; `MoRemotePersonal`, `mo-remote-personal.service`, the
+  `MoRemote` namespace and the Windows installer id are untouched, and the PWA manifest keeps
+  `short_name: "Mo Remote"` for the home-screen label.
+- **The .NET tree had no local build check, and no PR check either.** Seven `.csproj` files carry
+  seven hand-written lists of the shared `agent/Core`/`agent/Web` sources. A shared file wired
+  into some of them compiled clean locally and failed the ARM image build 25 minutes in with
+  `CS0103: The name 'HostBudget' does not exist` from MoRemote.Stream.Tests. `moremote/dotnet-check.sh`
+  (`just dotnet-check`) builds all seven and runs all four test executables in under a minute;
+  `tests/test_dotnet_project_coverage.py` keeps it complete; `.github/workflows/moremote-fast.yml`
+  runs it on pull requests, which `build.yml` (push to main only) never did.
+
 **Diagnosed, not fixed**
 
 - **A viewer's H.264 decoder gives up ~80s into session after session** and takes the whole room

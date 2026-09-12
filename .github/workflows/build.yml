@@ -319,6 +319,7 @@ jobs:
           python3 tests/test_remote_toolbar_edge.py
           python3 tests/test_remote_input_mode.py
           python3 tests/test_remote_scroll_direction.py
+          python3 tests/test_dotnet_project_coverage.py
           python3 tests/test_remote_us_keymap.py
           python3 tests/test_remote_group_resolution.py
           python3 tests/test_remote_keycode_flush.py

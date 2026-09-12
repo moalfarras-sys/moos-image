@@ -201,6 +201,14 @@ honest limits: [v40 cloud desktop](docs/REMOTE_V40_CLOUD_DESKTOP.md).
 - [ ] **`budget.update_concurrency` still has no reader.** `moai-do update` does not consult it,
   so a 32-core machine and a 2-core A1 fan out identically. Pinned by
   `tests/test_moos_visual_tier.py` so it cannot be forgotten again.
+- [x] One user-visible product name. The login screen said "Mo Remote", the launcher says
+  "Mo PC Remote", the About line said "Mo Remote Personal"; the surfaces a person reads now agree.
+  Load-bearing identifiers are untouched.
+- [x] The .NET tree has a local, complete build check. Seven .csproj files with seven hand-written
+  lists of the shared sources cost a 25-minute ARM build to report one missing line; `just
+  dotnet-check` now says the same in under a minute, `tests/test_dotnet_project_coverage.py` keeps
+  it complete, and `moremote-fast.yml` runs it on pull requests — which `build.yml`, triggered
+  only on pushes to main, never did.
 - [ ] Physical Android/iOS keyboard and Safari matrix — unchanged from v38/v39, still open.
 
 ## Release blockers

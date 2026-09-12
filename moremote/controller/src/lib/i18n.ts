@@ -121,7 +121,7 @@ const dict = {
   // ── PWA install banner ──
   installBanner: {
     ar: "ثبّت التطبيق على جهازك للحصول على تجربة كاملة",
-    en: "Install Mo Remote for the full experience",
+    en: "Install Mo PC Remote for the full experience",
   },
   install: { ar: "تثبيت", en: "Install" },
 

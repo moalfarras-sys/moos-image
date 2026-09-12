@@ -10,10 +10,10 @@ function Brand({ subtitle }: { subtitle: string }) {
   return (
     <div className="brand">
       <div className="brand-logo">
-        <img src="/icons/brand-logo.png" alt="Mo Remote" />
+        <img src="/icons/brand-logo.png" alt="Mo PC Remote" />
       </div>
       <div>
-        <h1>Mo Remote</h1>
+        <h1>Mo PC Remote</h1>
         <p>{subtitle}</p>
       </div>
     </div>
