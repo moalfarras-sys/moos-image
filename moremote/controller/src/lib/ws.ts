@@ -302,10 +302,21 @@ export class RemoteConnection {
     this.reconnectTimer = null;
   }
 
-  /** Re-declare what this client can decode. Used when the decoder gives up mid-session: the agent
-   *  needs to know, or it keeps sending a codec nobody in the room can read. */
-  setH264(can: boolean) {
-    this.send({ type: "video", h264: can });
+  /**
+   * Re-declare what this client can decode. Used when the decoder gives up mid-session: the agent
+   * needs to know, or it keeps sending a codec nobody in the room can read.
+   *
+   * `why` exists because the give-up is INVISIBLE FROM THE SERVER. The agent's log records
+   * "Video codec: jpeg" and nothing else, so a session that ran on H.264 for eighty seconds and
+   * then quietly dropped the whole room to JPEG — which is what the live log on the Oracle machine
+   * shows, repeatedly — leaves no evidence of what the decoder actually objected to. The only
+   * party that knows is the browser, and it knew and threw the string away. It is sent once, on
+   * the transition, and truncated because it is a diagnostic and not a channel.
+   */
+  setH264(can: boolean, why?: string) {
+    this.send(can || !why
+      ? { type: "video", h264: can }
+      : { type: "video", h264: can, reason: why.slice(0, 200) });
   }
 
   /**

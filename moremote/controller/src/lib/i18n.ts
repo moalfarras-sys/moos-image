@@ -61,6 +61,11 @@ const dict = {
   quality: { ar: "الجودة", en: "Quality" },
   auto: { ar: "تلقائي", en: "Auto" },
   autoQuality: { ar: "جودة تلقائية — تتكيف مع شبكتك", en: "Auto quality — adapts to your network" },
+  hostCapPrefix: { ar: "هذا الكمبيوتر يرمّز بالمعالج، وحدّه", en: "This computer encodes on its CPU; its limit is" },
+  hostCapSuffix: {
+    ar: "الجودة التلقائية تلتزم به. اختيارك اليدوي يتجاوزه، وقد يصبح التحكم أبطأ.",
+    en: "Auto quality stays within it. A preset you choose by hand goes past it, and control may get slower.",
+  },
   monitor: { ar: "الشاشة", en: "Monitor" },
   sideways: { ar: "جانبي", en: "Sideways" },
   upright: { ar: "مستقيم", en: "Upright" },

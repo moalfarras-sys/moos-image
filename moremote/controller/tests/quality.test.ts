@@ -3,9 +3,10 @@ import {readFileSync} from "node:fs";
 import {dirname, resolve} from "node:path";
 import {fileURLToPath} from "node:url";
 import {
-  pickStartPreset, describeHints, encodeWidth,
+  pickStartPreset, describeHints, encodeWidth, hostMaxPreset, hostEncodeCeiling,
   PRESET_DATA_SAVER, PRESET_BALANCED, PRESET_SHARP,
 } from "../src/lib/quality.ts";
+import { QUALITY_PRESETS, AUTO_MAX_PRESET } from "../src/types.ts";
 
 // ── A failed measurement must not become a request for full size ─────────────────────────
 // Every distinct encode width costs the helper a full GStreamer teardown and rebuild, which the
@@ -163,9 +164,50 @@ console.log("PASS: opening-quality choice (device + link aware)");
 // RTT promote the stream to Ultra, even though RTT says nothing about the available bandwidth.
 const here = dirname(fileURLToPath(import.meta.url));
 const remote = readFileSync(resolve(here, "../src/ui/RemoteScreen.tsx"), "utf8");
-assert.match(remote, /const autoMaxPreset = \(\) => AUTO_MAX_PRESET;/,
-  "the RTT ladder must always stop at Sharp; Ultra is a manual bandwidth decision");
+assert.match(remote, /const autoMaxPreset = \(\) => hostMaxPreset\(QUALITY_PRESETS, hostEncodeRef\.current, AUTO_MAX_PRESET\);/,
+  "the RTT ladder must stop at Sharp AND at whatever the host says it can encode");
 assert.ok(!/autoMaxPreset\s*=\s*\(\)\s*=>[^;]*displayWidthPx/.test(remote),
   "display size must not bypass the automatic Sharp ceiling");
 
 console.log("PASS: Auto quality cannot promote a wide display to Ultra from RTT");
+
+// ── The HOST's own encode budget, which had no reader at all ──────────────────────────────
+//
+// moos-visual-tier publishes `budget.remote_encode` and documents it as "Mo PC Remote
+// software-encode ceiling"; on the maintainer's 2-core Oracle A1 it reads "1280x720@30" while
+// the agent log said `Video stream: 1920x1080`, because nothing consumed the value.
+const PRESETS = QUALITY_PRESETS.map((p) => ({ width: p.width, fps: p.fps }));
+const A1 = { maxWidth: 1280, maxHeight: 720, maxFps: 30 };
+
+// The rung: frame rate only, because fps belongs to the preset and width does not.
+assert.equal(hostMaxPreset(PRESETS, null, AUTO_MAX_PRESET), AUTO_MAX_PRESET,
+  "a host with no published opinion must not change the automatic ceiling");
+assert.equal(hostMaxPreset(PRESETS, undefined, AUTO_MAX_PRESET), AUTO_MAX_PRESET,
+  "an older agent that sends no `encode` must behave exactly as before");
+assert.equal(hostMaxPreset(PRESETS, A1, AUTO_MAX_PRESET), PRESET_SHARP,
+  "a 30fps host still reaches Sharp — its 1280 limit is spent on pixels, not on the rung");
+assert.equal(hostMaxPreset(PRESETS, {maxWidth: 2560, maxHeight: 1440, maxFps: 60}, AUTO_MAX_PRESET),
+  AUTO_MAX_PRESET, "a capable host must never lift Auto above Sharp — that is still manual");
+assert.equal(hostMaxPreset(PRESETS, {maxWidth: 1920, maxHeight: 1080, maxFps: 15}, AUTO_MAX_PRESET),
+  PRESET_DATA_SAVER,
+  "15fps cannot serve a 30fps preset at any width, so the rung is what has to give");
+assert.equal(hostMaxPreset(PRESETS, {maxWidth: 0, maxHeight: 0, maxFps: 0}, AUTO_MAX_PRESET),
+  AUTO_MAX_PRESET, "a malformed ceiling is no opinion, not a ceiling of zero");
+
+// The pixels: clamped, never rounded down to a smaller preset. Demoting Sharp (1920px, q80) to
+// Data saver (1024px, q52) to fit 1280 would send a picture WORSE than the host's own limit.
+assert.equal(hostEncodeCeiling(1920, A1), 1280, "Auto must ask for no more pixels than the host has");
+assert.equal(hostEncodeCeiling(1024, A1), 1024, "a request already under the ceiling is untouched");
+assert.equal(hostEncodeCeiling(2560, null), 2560, "no published opinion leaves the request alone");
+assert.equal(hostEncodeCeiling(2560, A1), 1280, "the 100%/zoom escape is still bounded while Auto is on");
+assert.ok(encodeWidth(1600, hostEncodeCeiling(1920, A1), 0) <= 1280,
+  "the clamp must survive the measured-width path, which is what actually reaches the wire");
+
+// Only Auto is bounded. A preset chosen by hand turns Auto off, and the clamp with it.
+const remoteAuto = remote.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+assert.match(remoteAuto, /if \(autoRef\.current\) ceiling = hostEncodeCeiling\(ceiling, hostEncodeRef\.current\);/,
+  "the host clamp must be conditional on Auto, or a manual preset becomes a dead control");
+assert.match(remoteAuto, /onClick=\{\(\) => \{ setAuto\(false\); selectPreset\(i\); \}\}/,
+  "choosing a preset by hand must leave the automatic ceiling behind");
+
+console.log("PASS: the host's published encode budget bounds Auto and nothing else");

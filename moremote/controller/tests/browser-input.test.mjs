@@ -16,7 +16,8 @@ const errors = [];
 // which is not one of the three values the app writes — it fell through to Auto's branch and
 // behaved the same, but it meant no test ever ran against a value the app could actually store.
 // Pass null to leave the preference unset and get the shipped default (Auto).
-async function viewer(options, mode, language = 'en', cursorEmbedded = false, orient = 'off') {
+async function viewer(options, mode, language = 'en', cursorEmbedded = false, orient = 'off',
+                      encode = null) {
   const context = await browser.newContext({...options, serviceWorkers: 'block'});
   contexts.push(context);
   await context.addInitScript(({mode, language, orient}) => {
@@ -41,7 +42,7 @@ async function viewer(options, mode, language = 'en', cursorEmbedded = false, or
   let autoHello = true;
   const hello = ws => {
     ws.send(JSON.stringify({type:'hello', screen:{w:1920,h:1080}, paused:false,
-      cursorEmbedded, input:{ready:true}, clipboard:{ready:true}, monitors:[]}));
+      cursorEmbedded, input:{ready:true}, clipboard:{ready:true}, monitors:[], encode}));
     ws.send(frame);
   };
   await page.routeWebSocket('**/ws', ws => {
@@ -376,6 +377,50 @@ try {
   await fill.page.waitForTimeout(400);
   assert.equal(await fill.page.locator('.fill-offer').count(), 0,
     'a dismissed offer must stay dismissed after a reload');
+
+  // THE HOST'S OWN ENCODE BUDGET, END TO END.
+  //
+  // moos-visual-tier publishes "1280x720@30" for the maintainer's 2-core A1 and the agent now
+  // relays it in `hello`. What matters is the number that leaves the page: Auto must never ask a
+  // box for more pixels than it has said it can make, and a preset chosen by hand must still be
+  // honoured or the button is a lie.
+  //
+  // The comparison is made against a viewer of the SAME shape with no ceiling, rather than
+  // against a literal width: pickStartPreset reads this browser's own cores and link, so the
+  // unbounded answer legitimately differs between machines (the CI runner and the 2-core A1 that
+  // this is about do not agree). The ceiling's EFFECT is the claim.
+  const settingsWidth = async v => {
+    await v.page.waitForTimeout(400);
+    const last = v.packets.filter(p => p.type === 'settings').at(-1);
+    assert.ok(last, 'the viewer must push settings after hello');
+    return last.width;
+  };
+  const desktopVp = {viewport:{width:1366,height:900}};
+  const uncapped = await viewer(desktopVp, 'desktop', 'en');
+  const plainWidth = await settingsWidth(uncapped);
+  assert.ok(plainWidth >= 720, `an unbounded viewer still asks for a real width, got ${plainWidth}`);
+
+  const LOW = 960;   // under every preset's width, and over encodeWidth()'s 720 floor
+  const capped = await viewer(desktopVp, 'desktop', 'en', false, 'off',
+    {maxWidth:LOW, maxHeight:540, maxFps:30});
+  const autoWidth = await settingsWidth(capped);
+  assert.ok(autoWidth <= LOW, `Auto must respect the host ceiling, asked for ${autoWidth}`);
+  assert.ok(autoWidth < plainWidth,
+    `the ceiling must actually change the request (${autoWidth} vs ${plainWidth} unbounded)`);
+
+  // It has to SAY so. A limit that acts without explaining itself is indistinguishable from the
+  // app being bad at its job.
+  await capped.page.getByRole('button', {name:'Display', exact:true}).click();
+  await capped.page.getByRole('dialog').waitFor();
+  assert.match(await capped.page.locator('.sheet').innerText(), /960×540@30/,
+    'the Display sheet must name the host limit it is applying');
+
+  // And a preset chosen by hand goes past it, or the button is a dead control.
+  capped.packets.length = 0;
+  await capped.page.getByRole('button', {name:/^Sharp/}).click();
+  const manualWidth = await settingsWidth(capped);
+  assert.ok(manualWidth > LOW,
+    `choosing Sharp by hand must go past the host ceiling, asked for ${manualWidth}`);
 
   const light = await viewer({viewport:{width:360,height:800},deviceScaleFactor:2,
     isMobile:true,hasTouch:true,colorScheme:'light',reducedMotion:'reduce'},'touch','ar');

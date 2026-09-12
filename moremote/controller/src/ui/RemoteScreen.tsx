@@ -9,7 +9,8 @@ import {
   listTrustedDevices, revokeTrustedDevice,
   type ClipResult, type FileListing, type FileEntry, type PowerAction, type TrustedDeviceInfo,
 } from "../lib/api";
-import { pickStartPreset, readDeviceHints, describeHints, encodeWidth } from "../lib/quality";
+import { pickStartPreset, readDeviceHints, describeHints, encodeWidth, hostMaxPreset,
+  hostEncodeCeiling, type HostEncode } from "../lib/quality";
 import { h264Failures, noteH264Failure, H264_MAX_FAILURES } from "../lib/h264state.ts";
 import { diffToOps } from "../lib/typing.ts";
 import { remoteAlertPermission, requestRemoteAlertPermission, showRemoteAlert } from "../lib/notifications";
@@ -397,6 +398,9 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
   // back up on a fast link, without the user ever opening the quality menu. They can still turn
   // it off and pin a preset by hand. This is the client half of Fast Remote (host half).
   const [auto, setAuto] = usePref("autoQuality", true);
+  /** What the host told us it can encode, in `hello`. Null until it does, or if it never does. */
+  const [hostEncode, setHostEncode] = useState<HostEncode | null>(null);
+  const hostEncodeRef = useRef<HostEncode | null>(null);
   const latRef = useRef(0);
   const [kbOpen, setKbOpen] = useState(false);
   const [sheet, setSheet] = useState<Sheet>(null);
@@ -530,6 +534,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
   const modeRef = useRef(mode); modeRef.current = mode;
   const viewModeRef = useRef(viewMode); viewModeRef.current = viewMode;
   const presetIdxRef = useRef(presetIdx); presetIdxRef.current = presetIdx;
+  const autoRef = useRef(auto); autoRef.current = auto;
 
   const showToast = (m: string) => {
     setToast(m);
@@ -833,7 +838,9 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
       // this client can no longer take H.264 and it will put the whole room back on JPEG.
       console.warn("H.264 decode failed, falling back to JPEG:", why);
       codecRef.current = "jpeg";
-      connRef.current?.setH264(false);
+      // Send the reason with the vote. Without it the agent's log says only "Video codec: jpeg"
+      // and the cause of a mid-session collapse is gone the moment the tab is closed.
+      connRef.current?.setH264(false, why);
       showToast(tr("videoFellBackJpeg"));
 
       // AND THEN TRY AGAIN, because "fell back" used to mean "for ever".
@@ -875,6 +882,15 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
         setClipboardOk(!!h.clipboard?.ready);
         cursorEmbeddedRef.current = h.cursorEmbedded === true;
         if (cursorRef.current) cursorRef.current.hidden = cursorEmbeddedRef.current;
+        // The host's own encode budget, before the first settings push, so a session never opens
+        // by asking a 2-core box for a picture it has already said it cannot make.
+        const cap = h.encode && h.encode.maxWidth > 0 && h.encode.maxFps > 0 ? h.encode : null;
+        hostEncodeRef.current = cap;
+        setHostEncode(cap);
+        if (autoRef.current) {
+          const limit = hostMaxPreset(QUALITY_PRESETS, cap, AUTO_MAX_PRESET);
+          if (presetIdxRef.current > limit) { presetIdxRef.current = limit; setPresetIdx(limit); }
+        }
         pushSettings();
         syncTypingDraft();
       },
@@ -1499,8 +1515,14 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
    * bandwidth; a 4K display does not turn a low-latency 5 Mbit/s link into an Ultra-capable one.
    * Ultra remains available as an explicit choice, where its bitrate is a decision rather than a
    * guess made by the control loop.
+   *
+   * And the HOST gets a vote it never had. Every input to this decision used to be measured on
+   * the phone — its cores, its memory, its link — while the thing doing the encoding sat at the
+   * other end with a published opinion nobody read. `hello.encode` carries it now; see
+   * hostMaxPreset. It bounds the automatic ladder only: choosing Sharp by hand on a host that
+   * says 720p still gets Sharp, because a preset button that quietly does nothing is a defect.
    */
-  const autoMaxPreset = () => AUTO_MAX_PRESET;
+  const autoMaxPreset = () => hostMaxPreset(QUALITY_PRESETS, hostEncodeRef.current, AUTO_MAX_PRESET);
 
   /** The last width we asked for, and when — the dead band and the floor that protect the helper. */
   const lastPushedWidth = useRef(0);
@@ -1514,7 +1536,12 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
     // (tuned for the fitted view) must not pin a 2x zoom to upscaled mush, so a
     // zoomed viewer may ask up to the hard 2560 cap just like "100%".
     const zoomed = view.current.zoom > 1.05;
-    const ceiling = viewModeRef.current === "actual" || zoomed ? 2560 : Math.min(p.width, 2560);
+    let ceiling = viewModeRef.current === "actual" || zoomed ? 2560 : Math.min(p.width, 2560);
+    // And never more pixels than the HOST said it can encode — but only while the choice is
+    // automatic. "100%" and a zoom are explicit requests for detail from the viewer; a preset is
+    // an explicit request too. Auto is the one case where nobody has decided, and it is the case
+    // that was asking a 2-core box for 1920 wide while the box's own budget said 1280.
+    if (autoRef.current) ceiling = hostEncodeCeiling(ceiling, hostEncodeRef.current);
     const shown = displayWidthPx();
     // A zero means we could not measure right now (no canvas, no size, a frame mid-relayout). That
     // is NOT a request for full size — treating it as one made the encode width ping-pong between
@@ -2536,6 +2563,16 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
                 title={p.detail}>{tr(QUALITY_LABEL_KEYS[i])}<small>{p.detail}</small></button>
             ))}
           </div>
+          {/* Say the limit out loud. The host's ceiling used to be invisible — a value MoOS had
+              computed and nobody read — and a limit that acts without explaining itself is
+              indistinguishable from the app being bad at its job. */}
+          {hostEncode && (
+            <p className="hint" style={{ margin: "10px 0 0" }}>
+              {tr("hostCapPrefix")}{" "}
+              <b dir="ltr">{hostEncode.maxWidth}×{hostEncode.maxHeight}@{hostEncode.maxFps}</b>.{" "}
+              {tr("hostCapSuffix")}
+            </p>
+          )}
         </SheetPanel>
       )}
 

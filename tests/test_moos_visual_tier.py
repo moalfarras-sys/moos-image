@@ -25,6 +25,7 @@ import json
 import os
 from pathlib import Path
 import tempfile
+import re
 import unittest
 
 
@@ -641,6 +642,76 @@ class Budget(unittest.TestCase):
             applied = module.apply(decision["tier"], dry_run=True,
                                    machine_budget=decision["budget"])
             self.assertEqual(applied["budget"], decision["budget"])
+
+
+
+class BudgetHasReaders(unittest.TestCase):
+    """The budget is advisory, but advice nobody reads is a comment with extra steps.
+
+    `remote_encode` shipped for weeks described in its own source as "Mo PC Remote
+    software-encode ceiling" with NO consumer anywhere in the tree. On the maintainer's
+    2-core Oracle A1 the recorded state said "1280x720@30" while the agent's log said
+    `Video stream: 1920x1080` and the portal helper sat at ~15% of one core of two,
+    continuously — the OS had computed the right answer and Remote was not listening.
+
+    So each budget key must be reachable from something that runs. This checks the wiring
+    end to end for the Remote ceiling: the agent reads the state file, puts the value in
+    `hello`, and the controller bounds its automatic choice with it.
+    """
+
+    def test_remote_encode_reaches_the_remote_agent_and_controller(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        host_budget = (root / "moremote/agent/Core/HostBudget.cs").read_text(encoding="utf-8")
+        self.assertIn("moos-visual-tier.json", host_budget,
+                      "the agent must read the state file moos-visual-tier actually writes")
+        self.assertIn('"remote_encode"', host_budget,
+                      "the agent must read the budget key by name")
+
+        session = (root / "moremote/agent/Web/StreamSession.cs").read_text(encoding="utf-8")
+        self.assertIn("HostBudget.RemoteEncode()", session,
+                      "hello must carry the host ceiling; only the host can read its own state")
+
+        # The controller half, with comments stripped so prose cannot satisfy it.
+        remote = (root / "moremote/controller/src/ui/RemoteScreen.tsx").read_text(encoding="utf-8")
+        code = re.sub(r"/\*[\s\S]*?\*/", "", remote)
+        code = "\n".join(l for l in code.splitlines() if not l.lstrip().startswith("//"))
+        self.assertIn("hostEncodeCeiling(ceiling, hostEncodeRef.current)", code,
+                      "the controller must clamp its automatic encode width to the host ceiling")
+        self.assertIn("hostMaxPreset(QUALITY_PRESETS, hostEncodeRef.current, AUTO_MAX_PRESET)", code,
+                      "the automatic quality ladder must stop at what the host can encode")
+
+    def test_the_keys_without_a_reader_are_known_and_named(self) -> None:
+        """Which budget keys are still advice nobody takes — stated, not discovered later.
+
+        `remote_encode` is wired (above). `ai_default` is documented in budget() itself as a
+        constant with no consumer left, because the local engine was retired. That leaves
+        `file_indexing`, which moos-index-policy owns, and `update_concurrency`, which nothing
+        reads: `moai-do update` does not consult it, so a 32-core machine and a 2-core Oracle A1
+        fan out identically. That is a real gap and it is recorded in MOOS_ROADMAP.md rather than
+        quietly tolerated; this test fails if the set of unwired keys CHANGES, in either
+        direction, so wiring one or adding another both come back here.
+        """
+        root = Path(__file__).resolve().parents[1]
+        module = load_module(Path("/"))
+        keys = set(module.budget({"cores": 2, "memory_gib": 8.0, "gpu_class": "virtual"},
+                                 "essential"))
+        readers = {
+            "remote_encode": [root / "moremote/agent/Core/HostBudget.cs"],
+            "file_indexing": [root / "system_files/usr/libexec/moos-index-policy"],
+        }
+        # Keys that deliberately have no consumer, each with the reason in budget()'s own source.
+        known_unwired = {"ai_default", "update_concurrency"}
+
+        wired = set()
+        for key, paths in readers.items():
+            text = "\n".join(p.read_text(encoding="utf-8") for p in paths if p.is_file())
+            if key in text:
+                wired.add(key)
+        self.assertEqual(wired, set(readers),
+                         "a key listed with a reader must actually be named in that reader")
+        self.assertEqual(keys - wired, known_unwired,
+                         "the set of budget keys nobody reads changed; wire it, or update this "
+                         "test and MOOS_ROADMAP.md together")
 
 
 def tearDownModule() -> None:

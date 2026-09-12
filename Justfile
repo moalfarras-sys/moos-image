@@ -81,6 +81,9 @@ check:
     # the ARM build failed -- which is exactly how a bootc-updater regression got
     # pushed on 2026-09-07. test_gate_coverage.py now keeps the two lists in sync.
     python3 tests/test_moos_arm.py
+    # The overlay is shared byte-for-byte; the `systemctl enable` lines are not. Three MoOS
+    # units shipped disabled on the maintainer's A1 because only build.sh ever enabled them.
+    python3 tests/test_arm_unit_enablement.py
     python3 tests/test_arm_initramfs_size.py
     # These four also lived only in workflow YAML: the first two in both build
     # workflows, the others in the disk and ISO release workflows. All four pass
