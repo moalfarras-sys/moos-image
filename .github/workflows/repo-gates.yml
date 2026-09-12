@@ -37,5 +37,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      # verify_visuals.py and test_moos_ui2.py open the shipped PNG/JPG masters with Pillow, and
+      # the stock runner has no PIL. build.yml installs this before its own gate step; a job that
+      # runs the same list needs the same dependency, and the first run of this workflow proved it
+      # by failing on `ModuleNotFoundError: No module named 'PIL'`. apt rather than pip, to avoid
+      # PEP-668's externally-managed refusal on ubuntu-latest.
+      - name: Gate dependencies
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq python3-pil
       - name: tests/repo-gates.sh
         run: bash tests/repo-gates.sh
