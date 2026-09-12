@@ -1,19 +1,22 @@
 # MoOS — current project state
 
-**ARM first boot: moos-hardware-adapt no longer fails on a zram swap it does not have (2026-09-12, branch `fix/arm-hardware-adapt-zram-20260912`):**
-the ARM boot proof on `main` failed three times (run 34707148234 attempts 1–2 on `495a47d2`,
-run 34710449602 on `3a37bd47`), so ARM was not promoted. Once `c012bfc7` let the runtime gate
-connect, it reported `moos-hardware-adapt.service loaded failed failed`. That unit became
-enabled on ARM with `f15998e9`, and its zram step assumes a zram-generator swap. The x86
-editions have one (the .814 ISO install proof's first boot activates `dev-zram0.swap`); the ARM
-image is built from `fedora-bootc:44`, which ships no zram-generator, and no ARM boot-proof
-serial log has a single zram line. Every ARM first boot therefore wrote `zram-generator.conf`,
-failed `systemctl start dev-zram0.swap`, recorded two failed mutations and exited 1; the real
-script reproduced exactly that on a fake ARM root. The zram step now runs only when the
-generator is installed; the `vm.min_free_kbytes` reserve still applies and x86 is unchanged.
-`tests/test_hardware_adapt_zram_availability.py` runs the real script on fake ARM and x86
-roots, and fails against the previous script on four counts.
-**Still owed:** the ARM boot proof runs only on `main`, so the ARM promotion is proven after merge.
+**ARM first boot: `moos-hardware-adapt.service` still fails, and #87 was based on a false premise (2026-09-12, branch `fix/arm-boot-proof-diagnostics-20260912`):**
+the ARM boot proof on `main` has failed four times (run 34707148234 attempts 1–2 on `495a47d2`,
+34710449602 on `3a37bd47`, 34713962867 on `84a8108c`), so ARM is not promoted. Once `c012bfc7`
+let the runtime gate connect, it reported `moos-hardware-adapt.service loaded failed failed`
+every time. That unit became enabled on ARM with `f15998e9`. #87 claimed the ARM image ships no
+zram-generator and added a guard for that case. **That claim was false.** The built ARM image
+(`moos-arm@sha256:b1c64063…`, listed file by file without running it) contains
+`/usr/lib/systemd/system-generators/zram-generator`, `zram.ko.xz`, `zramctl` and
+`systemd-zram-setup@.service`. Only the default `/usr/lib/systemd/zram-generator.conf` is
+absent, which is why no zram device appears at boot. The guard therefore never triggers on ARM.
+It is harmless: x86 is unchanged, and ARM fails exactly as before. `systemd-sysctl` completed
+cleanly on the same boot, and `tcp_bbr` and `sch_fq` ship in the image. **The failing mutation
+is not known.** The boot proof kept neither the unit's journal nor
+`/run/moos-hardware-adapt.log`. This branch makes the failure diagnostics print, for every
+failed unit, its status and its journal for the boot, plus the adapter's own log, so the next
+run on `main` names the step.
+**Still owed:** that run, then the fix for the step it names, then the ARM promotion.
 
 **Release integration: everything pending in one candidate, and OpenCode Zen as a paid choice (2026-09-12, branch `release/moos-integration-20260912`, PR #85):**
 the daily driver now runs the signed `44.20260912.806` (`6021840c`, kernel 7.2.4). This
