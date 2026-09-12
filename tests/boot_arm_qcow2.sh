@@ -240,16 +240,58 @@ wait_for_ssh() {
 }
 
 wait_for_ssh
+# A DROPPED CONNECTION IS NOT A FAILED GATE.
+#
+# wait_for_ssh proves the VM answers once, and then this ran a SINGLE ssh with ConnectTimeout=5.
+# On a nested-QEMU ARM runner the guest is still grinding through cloud-config at that point —
+# measured on run 34707148234, cloud-init-network alone took 3min 7s and `modules:config` started
+# 327 s into the boot — so sshd can miss a 5-second connect while being perfectly healthy. That
+# run failed the release with:
+#
+#     Connection to 127.0.0.1 port 2222 timed out          (the gate)
+#     Timeout, server 127.0.0.1 not responding.            (the diagnostics, moments later)
+#
+# and the serial log ends at `moos-arm-release login:` with sshd started. The image was fine; the
+# promotion was skipped anyway. For contrast, the run that PASSED earlier the same day was slower
+# still — 25 cloud-init-network progress ticks against this run's 21 — so this is a coin toss on
+# runner load, not a regression.
+#
+# Retry the TRANSPORT only. ssh exits 255 for its own connection errors and passes the remote
+# script's exit code through otherwise, so a gate that actually ran and actually failed still
+# fails on the first attempt, with its output, exactly as before. Nothing here is weakened: the
+# assertions are the runtime gate's and they are untouched.
+SSH_TRANSPORT_ERROR=255
+ssh_with_retry() {
+    local attempt rc
+    for attempt in 1 2 3 4 5; do
+        # `cmd || rc=$?`, NOT `if ! cmd; then rc=$?`. The second form looks equivalent and is
+        # not: `!` inverts the status, so $? inside the branch is 0 and every real failure would
+        # be read as success. It is also `set -e` safe, because the failure sits on the left of
+        # `||`. (Caught by exercising this helper against a fake gate that exits 7.)
+        rc=0
+        "$@" || rc=$?
+        if [ "$rc" -ne "$SSH_TRANSPORT_ERROR" ]; then
+            return "$rc"          # the command ran: its verdict is the verdict, pass or fail
+        fi
+        if ! kill -0 "$qemu_pid" 2>/dev/null; then
+            return "$rc"          # the guest is gone; retrying would only hide that
+        fi
+        echo "ARM BOOT: ssh transport error (attempt ${attempt}/5); the guest is still busy, retrying" >&2
+        sleep 10
+    done
+    return "$SSH_TRANSPORT_ERROR"
+}
+
 run_runtime_gate() {
     local phase="$1"
     local output="$evidence/runtime-${phase}-boot.txt"
     local diagnostics="$evidence/runtime-${phase}-diagnostics.txt"
-    if "${ssh_base[@]}" bash -s -- "$expected_image" < "$runtime_gate" >"$output" 2>&1; then
+    if ssh_with_retry "${ssh_base[@]}" bash -s -- "$expected_image" < "$runtime_gate" >"$output" 2>&1; then
         cat "$output"
         return 0
     fi
     cat "$output" >&2
-    "${ssh_base[@]}" 'cloud-init status --long; systemctl status --no-pager --full bootc-generic-growpart.service plymouth-start.service; systemctl show plymouth-start.service -p Result -p ExecMainCode -p ExecMainStatus -p ActiveState -p SubState; journalctl --no-pager -b -u bootc-generic-growpart.service -u plymouth-start.service -u plymouth-quit.service -n 250; findmnt /sysroot; lsblk -o NAME,TYPE,PKNAME,PARTN,SIZE,FSTYPE,MOUNTPOINTS; btrfs filesystem usage -b /sysroot; systemctl --failed --no-pager --plain' \
+    ssh_with_retry "${ssh_base[@]}" 'cloud-init status --long; systemctl status --no-pager --full bootc-generic-growpart.service plymouth-start.service; systemctl show plymouth-start.service -p Result -p ExecMainCode -p ExecMainStatus -p ActiveState -p SubState; journalctl --no-pager -b -u bootc-generic-growpart.service -u plymouth-start.service -u plymouth-quit.service -n 250; findmnt /sysroot; lsblk -o NAME,TYPE,PKNAME,PARTN,SIZE,FSTYPE,MOUNTPOINTS; btrfs filesystem usage -b /sysroot; systemctl --failed --no-pager --plain' \
         >"$diagnostics" 2>&1 || true
     cat "$diagnostics" >&2
     echo "ARM BOOT FATAL: ${phase}-boot runtime gate failed" >&2
