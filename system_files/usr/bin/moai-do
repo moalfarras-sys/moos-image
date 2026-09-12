@@ -201,26 +201,75 @@ do_update() {
 # -----------------------------------------------------------------------------
 # install <flatpak-id> — install a Flatpak app from Flathub.
 # -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# App lifecycle — Mo Store's backend is the ONE authority for installing,
+# removing and updating apps (docs/MOOS_COMPLETION_PLAN.md, decision 2).
+#
+# This used to call `flatpak install` itself, which lands in the SYSTEM
+# installation while Mo Store installs per user: two scopes, two job locks, and
+# apps Mo AI installed that Mo Store could never remove (measured 2026-09-11 on
+# the daily driver: 22 user apps, 3 system apps). Every app transaction now goes
+# through moos-storectl, the same trusted backend the Store window uses, and
+# store_job turns its final JSON document into one bilingual result line.
+# -----------------------------------------------------------------------------
+store_job() {
+    local out code parsed state message
+    if out="$(moos-storectl "$@" 2>/dev/null)"; then code=0; else code=$?; fi
+    parsed="$(printf '%s\n' "$out" | tail -n 1 | python3 -c 'import json, sys
+try:
+    document = json.loads(sys.stdin.read())
+except ValueError:
+    document = {}
+if not isinstance(document, dict):
+    document = {}
+print(str(document.get("state") or ""))
+print(" ".join(str(document.get("message") or "").split()))' 2>/dev/null)"
+    state="${parsed%%$'\n'*}"
+    message="${parsed#*$'\n'}"
+    [ "$message" = "$parsed" ] && message=""
+    if [ "$code" -eq 0 ] && [ "$state" = success ]; then
+        echo "${G}✓ ${message:-Done}${N}"
+        return 0
+    fi
+    case "$code" in
+        75)
+            echo "${Y}Mo Store مشغول بعملية أخرى — جرّب بعد انتهائها.${N}"
+            echo "${Y}Mo Store is busy with another job — try again when it finishes.${N}"
+            ;;
+        130)
+            echo "${D}أُلغي | Cancelled.${N}"
+            ;;
+        *)
+            echo "${R}✗ ${message:-moos-storectl did not report a result}${N}"
+            ;;
+    esac
+    [ "$code" -ne 0 ] || code=1
+    return "$code"
+}
+
+valid_app_id() {
+    # Letters, digits, dots, dashes, underscores only (reverse-DNS ids).
+    printf '%s' "${1:-}" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._-]*$'
+}
+
 do_install() {
     local id="${1:-}"
-    hdr "تثبيت تطبيق من Flathub" "Install an app from Flathub"
+    hdr "تثبيت تطبيق عبر Mo Store" "Install an app through Mo Store"
     if [ -z "$id" ]; then
         echo "${Y}حدّد معرّف التطبيق | provide an app id${N}"
         echo "${D}مثال | e.g.:  moai-do install org.mozilla.firefox${N}"
         return 2
     fi
-    # Validate: letters, digits, dots, dashes, underscores only (reverse-DNS ids).
-    if ! printf '%s' "$id" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._-]*$'; then
+    if ! valid_app_id "$id"; then
         echo "${R}معرّف غير صالح | invalid app id:${N} ${id}"
         echo "${D}يُسمح بالحروف والأرقام والنقاط والشرطات فقط | letters, digits, dots, dashes only${N}"
         return 2
     fi
-    need flatpak || return 1
+    need moos-storectl || return 1
     echo "${C}التطبيق | App :${N} ${id}"
-    echo "${D}المصدر | From : flathub${N}"
+    echo "${D}المصدر | From : Mo Store (Flathub) — لهذا المستخدم | for this user${N}"
     confirm || return 0
-    if flatpak install -y flathub "$id"; then
-        echo "${G}✓ تم التثبيت | installed:${N} ${id}"
+    if store_job install "$id"; then
         echo "${C}يفتح التطبيق الآن… | opening it now…${N}"
         if ! launch_app "$id"; then
             echo "${Y}تم التثبيت، لكن تعذّر فتح التطبيق الآن.${N}" >&2
@@ -228,10 +277,39 @@ do_install() {
             return 1
         fi
     else
-        echo "${Y}لم يكتمل التثبيت (تحقّق من المعرّف على flathub.org).${N}"
-        echo "${Y}Install did not complete (check the id on flathub.org).${N}"
+        echo "${Y}لم يكتمل التثبيت (تحقّق من المعرّف في Mo Store).${N}"
+        echo "${Y}Install did not complete (check the id in Mo Store).${N}"
         return 1
     fi
+}
+
+do_uninstall() {
+    local id="${1:-}"
+    hdr "حذف تطبيق عبر Mo Store" "Remove an app through Mo Store"
+    if [ -z "$id" ]; then
+        echo "${Y}حدّد معرّف التطبيق | provide an app id${N}"
+        echo "${D}مثال | e.g.:  moai-do uninstall com.spotify.Client${N}"
+        return 2
+    fi
+    if ! valid_app_id "$id"; then
+        echo "${R}معرّف غير صالح | invalid app id:${N} ${id}"
+        return 2
+    fi
+    need moos-storectl || return 1
+    echo "${C}التطبيق | App :${N} ${id}"
+    echo "${D}يُحذف التطبيق لهذا المستخدم عبر Mo Store، ويمكن إعادة تثبيته في أي وقت.${N}"
+    echo "${D}Removes the app for this user through Mo Store; you can reinstall it any time.${N}"
+    confirm || return 0
+    store_job remove "$id"
+}
+
+do_update_apps() {
+    hdr "تحديث كل التطبيقات عبر Mo Store" "Update all apps through Mo Store"
+    echo "${D}يحدّث تطبيقات هذا المستخدم. النظام نفسه يتحدّث بـ moai-do update.${N}"
+    echo "${D}Updates this user's apps. The system itself updates with moai-do update.${N}"
+    need moos-storectl || return 1
+    confirm || return 0
+    store_job update
 }
 
 # -----------------------------------------------------------------------------
@@ -715,7 +793,7 @@ do_install_claude() {
 }
 
 # -----------------------------------------------------------------------------
-# install-opencode — the coding agent that runs on MoOS's OWN brain.
+# install-opencode — the coding agent that runs on Mo AI's free cloud brain.
 #
 # Codex and Claude Code are excellent, and they are both somebody else's cloud: each
 # needs an account, a subscription and a network. OpenCode is provider-agnostic, so on
@@ -1138,23 +1216,24 @@ do_install_opencode() {
   "provider": {
     "moos": {
       "npm": "@ai-sdk/openai-compatible",
-      "name": "MoOS local brain",
+      "name": "Mo AI free cloud brain",
       "options": {
         "baseURL": "http://127.0.0.1:${gw_port}/v1",
         "apiKey": "moos"
       },
       "models": {
-        "local:qwen2.5:7b-instruct": { "name": "MoOS local (Qwen2.5 7B Instruct)" }
+        "moai": { "name": "Mo AI (free cloud brain)" }
       }
     }
   },
-  "model": "moos/local:qwen2.5:7b-instruct"
+  "model": "moos/moai"
 }
 JSON
-    echo "${G}✓ مضبوط على عقل MoOS المحلي — بلا حساب وبلا إنترنت.${N}"
-    echo "${G}  Pointed at the MoOS local brain — no account, no internet.${N}"
-    echo "${D}العقل يصحو تلقائياً عند أول سؤال (~دقيقة في أول مرة).${N}"
-    echo "${D}The brain wakes on the first question (~a minute the first time).${N}"
+    # The gateway refuses every local:* model (Mo AI is cloud-only), so the old
+    # local:qwen2.5 entry produced an agent whose every request failed with 409.
+    # A plain model name makes the gateway use the brain chosen in Mo AI Settings.
+    echo "${G}✓ مضبوط على عقل Mo AI السحابي المجاني عبر بوابة هذا الحساب — بلا حساب مزوّد.${N}"
+    echo "${G}  Pointed at Mo AI's free cloud brain through this account's gateway — no vendor account.${N}"
 }
 
 # -----------------------------------------------------------------------------
@@ -1168,8 +1247,12 @@ ${V}الاستعمال | Usage:${N}  moai-do <command> [args]
 
   ${C}update${N}            تجهيز أحدث صورة MoOS موقّعة وثابتة بالـdigest
                     Stage the latest signed MoOS image by exact digest
-  ${C}install <id>${N}      تثبيت تطبيق Flatpak من Flathub ثم فتحه
-                    Install a Flatpak app from Flathub, then open it
+  ${C}install <id>${N}      تثبيت تطبيق عبر Mo Store (لهذا المستخدم) ثم فتحه
+                    Install an app through Mo Store (for this user), then open it
+  ${C}uninstall <id>${N}    حذف تطبيق عبر Mo Store
+                    Remove an app through Mo Store
+  ${C}update-apps${N}       تحديث كل التطبيقات عبر Mo Store
+                    Update all apps through Mo Store
   ${C}fix-audio${N}         إعادة تشغيل خدمات الصوت (PipeWire)
                     Restart audio services (PipeWire)
   ${C}check-drivers${N}     عرض كرت الشاشة والبرمجيات الثابتة (قراءة فقط)
@@ -1191,12 +1274,12 @@ ${V}الاستعمال | Usage:${N}  moai-do <command> [args]
                     Install the Codex agent into ~/.local (no privileges)
   ${C}install-claude${N}    تثبيت وكيل Claude Code في ~/.local (بلا صلاحيات)
                     Install the Claude Code agent into ~/.local (no privileges)
-  ${C}install-opencode${N}  تثبيت OpenCode — وكيل برمجة يعمل على عقلك المحلي (بلا حساب)
-                    Install OpenCode — a coding agent on your LOCAL brain (no account)
+  ${C}install-opencode${N}  تثبيت OpenCode — وكيل برمجة على عقل Mo AI السحابي المجاني
+                    Install OpenCode — a coding agent on Mo AI's free cloud brain
   ${C}install-openclaw${N}  وكيل الهاتف — موافقة مسؤول واحدة للعمل بعد تسجيل الخروج
                     Phone agent — one admin approval for after-logout availability
-  ${C}setup-brain${N}       تشغيل العقل المحلي: خادم النماذج ومحرّك الصوت العربي
-                    Start the local brain: model server and Arabic speech engine
+  ${C}setup-brain${N}       فتح إعدادات عقل Mo AI (المزوّد والنموذج السحابي)
+                    Open Mo AI brain settings (cloud provider and model)
   ${C}remote-anywhere${N}   تشغيل Mo PC Remote من خارج البيت (Tailscale HTTPS)
                     Reach Mo PC Remote from outside the house
   ${C}diagnose-services${N} عرض الخدمات الفاشلة (قراءة فقط)
@@ -1260,6 +1343,8 @@ main() {
     case "$cmd" in
         update)        do_update ;;
         install)       do_install "${1:-}" ;;
+        uninstall)     do_uninstall "${1:-}" ;;
+        update-apps)   do_update_apps ;;
         fix-audio)     do_fix_audio ;;
         check-drivers) do_check_drivers ;;
         install-nvidia) do_install_nvidia ;;

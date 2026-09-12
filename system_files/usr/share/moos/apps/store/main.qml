@@ -442,12 +442,26 @@ ApplicationWindow {
         jobPoll.restart()
     }
 
+    // MoOS picks are editorial: the catalogue's popular apps first, then the rest
+    // of the curated catalogue, both in catalog.json's own order. Taking the first
+    // curated apps of the store-wide alphabetical list made the row "Alpaca,
+    // Android Studio, Anki, Antigravity…" and ignored the popular flag entirely
+    // (captured on the daily driver, plan M1.4). Live index entries are preferred
+    // so installed state and icons stay current.
     function curatedFeatured(limit) {
-        var out = []
-        for (var i = 0; i < win.allApps.length && out.length < limit; ++i) {
-            var app = win.allApps[i]
-            if (app.curated === true || app.popular === true) out.push(app)
+        var live = {}
+        for (var i = 0; i < win.allApps.length; ++i)
+            live[win.allApps[i].id] = win.allApps[i]
+        var ranked = []
+        for (var j = 0; j < win.curatedApps.length; ++j) {
+            var entry = live[win.curatedApps[j].id] || win.curatedApps[j]
+            var popular = entry.popular === true || win.curatedApps[j].popular === true
+            ranked.push({ app: entry, rank: popular ? 0 : 1, order: j })
         }
+        ranked.sort(function(a, b) { return a.rank - b.rank || a.order - b.order })
+        var out = []
+        for (var k = 0; k < ranked.length && out.length < limit; ++k)
+            out.push(ranked[k].app)
         return out
     }
 
@@ -1745,30 +1759,53 @@ ApplicationWindow {
                                             color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.72)
                                             border.width: 1
                                             border.color: win.outline
+                                            // The three stat cards share the hero's height, and an
+                                            // Arabic-capable UI font's natural line boxes are taller
+                                            // than its glyphs: measured at 4K/225%, each caption sat
+                                            // on its card's border. Fixed line heights keep value and
+                                            // caption inside the card, the minimum height grows the
+                                            // hero instead of clipping, and a filling column stops
+                                            // each card centring its text at a different offset.
+                                            Layout.minimumHeight: statRow.implicitHeight + 16
                                             RowLayout {
+                                                id: statRow
                                                 anchors.fill: parent
-                                                anchors.margins: 12
-                                                spacing: 10
+                                                anchors.leftMargin: 14
+                                                anchors.rightMargin: 14
+                                                anchors.topMargin: 8
+                                                anchors.bottomMargin: 8
+                                                spacing: 12
                                                 Glyph {
                                                     name: modelData.glyph
                                                     tint: win.accent
                                                     Layout.preferredWidth: win.fs(19)
                                                     Layout.preferredHeight: win.fs(19)
+                                                    Layout.alignment: Qt.AlignVCenter
                                                 }
                                                 ColumnLayout {
-                                                    spacing: -2
+                                                    Layout.fillWidth: true
+                                                    Layout.alignment: Qt.AlignVCenter
+                                                    spacing: 0
                                                     Text {
+                                                        Layout.fillWidth: true
                                                         text: modelData.value
                                                         color: win.txt
                                                         font.family: win.uiFont
                                                         font.pixelSize: win.typePx(18)
                                                         font.bold: true
+                                                        lineHeightMode: Text.FixedHeight
+                                                        lineHeight: Math.ceil(win.typePx(18) * 1.15)
+                                                        elide: Text.ElideRight
                                                     }
                                                     Text {
+                                                        Layout.fillWidth: true
                                                         text: modelData.label
                                                         color: win.txt2
                                                         font.family: win.uiFont
                                                         font.pixelSize: win.typePx(9)
+                                                        lineHeightMode: Text.FixedHeight
+                                                        lineHeight: Math.ceil(win.typePx(9) * 1.35)
+                                                        elide: Text.ElideRight
                                                     }
                                                 }
                                             }

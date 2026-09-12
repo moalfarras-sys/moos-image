@@ -3,6 +3,11 @@
 Only completed evidence closes an item. Source code, a package, or a green
 parser alone is not runtime proof. Current facts live in `PROJECT_STATE.md`.
 
+**Master program (2026-09-11):** [the MoOS completion plan](docs/MOOS_COMPLETION_PLAN.md)
+orders the work from release unblock (P0) through one product (P1), Mo AI as the
+system operator (P2), Android/Windows apps (P3), form factors (P4) and world-class
+trust (P5), with a measured scorecard. This file remains the release-gate list.
+
 **Current release evidence (2026-09-11):** the formal five-proof promotion
 completed in run `34432578942` for `c0cc94e7`. The daily-driver NVIDIA PC is
 booted on signed `44.20260910.796`, retaining signed `44.20260908.782` for
@@ -17,6 +22,13 @@ graphical readiness sample. Source now gives MoOS one preset-backed store owner,
 masks the inherited unit, rejects hidden disabled remotes, waits for ARM
 readiness and strictly owns empty mutable directories. All five x86 proofs and
 the ARM pipeline must start again from the corrected commit.
+
+Candidate `e10181f9` is also rejected: build `34648333190`, all three QCOW2 proofs
+and ARM passed, but ISO run `34650456175` failed at the installed system's Plasma
+Login step — PAM rejected the correct disposable password on all three attempts.
+The proof now empties the password field before typing (gate-pinned); it and the
+Mo AI/Settings fixes ride on `feat/moos-completion-20260911`, whose next candidate
+must pass all five x86 proofs again.
 
 **Release integration 2026-09-07:** `main` was unbuildable for all three x86
 editions (a comment inside a backslash continuation truncated a `sed`); fixed
@@ -114,6 +126,24 @@ OpenRouter policy. See [the cloud-only plan](docs/MOAI_CLOUD_ONLY_PLAN.md) and
   adapter and Mo AI cloud gateway. Production free-cloud Arabic response took
   about 3 seconds. The adapter preserves supplied text/history; tools are empty,
   subprocess execution is blocked, and system actions remain with `moai-do`.
+- [ ] Desktop chat answers without an installed Hermes runtime. *Progress:* on the
+  daily driver every desktop message failed with HTTP 503 because the absent
+  runtime was treated as unavailable; source on `feat/moos-completion-20260911`
+  answers through the direct free route with an honest `direct-fallback` label
+  (live: HTTP 200 in 2.2 s and a real in-app reply with its Remove chip). Signed
+  image acceptance remains; packaging Hermes itself remains the item below.
+- [ ] App lifecycle through one authority (plan M2.1). *Progress:* source on
+  `feat/moos-completion-20260911` routes install, uninstall and update-apps
+  through `moos-storectl` with confirmation, and a live daily-driver run of the
+  branch's `moai-do` installed, removed and updated apps with readback. Signed
+  image and in-app chip acceptance remain.
+- [ ] Brain latency (plan M2.2). The automatic `openrouter/free` route selected a
+  550B reasoning model (36.7 s, 13.1 s, and 15.5 s with no answer). *Progress:*
+  source on `feat/moos-completion-20260911` orders verified free models by measured
+  preference, cools down refused models and asks the next free candidate before any
+  byte is sent; live answers took 2.0 s and 1.8 s and a tool call 1.9 s. Remaining:
+  a recurring evaluation instead of a one-sample list, and signed-image acceptance.
+- [ ] Migrate existing OpenCode configs that still name the retired local model.
 - [ ] Finish C2b legacy-body cleanup while preserving HTTP, identity and
   privilege guards; prove first-login and upgrade migration from historic layouts.
 - [ ] Package/prove Hermes availability on fresh systems across all four
@@ -221,6 +251,9 @@ browser viewport emulation does not close the wider physical-device gate below.
 
 ## Continuous quality
 
+- A test that executes a MoOS desktop tool must isolate the session bus, display and
+  XDG directories. Until 2026-09-12 `test_moos_theme_safety.py` rewrote the live
+  desktop wallpaper whenever the gates ran on a workstation.
 - Every runtime bug follows reproduce → root cause → fix → regression → artifact
   proof. A gate that passed the broken behavior must be strengthened, not edited
   merely to stay green.

@@ -9,6 +9,9 @@ import re
 import json
 import os
 from pathlib import Path
+import threading
+import time
+import urllib.request
 
 BASE = 'https://openrouter.ai/api/v1'
 DEFAULT_MODEL = 'openrouter/free'
@@ -75,3 +78,100 @@ def visible_models(items):
             continue
         result.append(item)
     return result
+
+
+_catalogue_lock = threading.Lock()
+_catalogue = (0, [])
+
+# ── Measured preference for the automatic free route ───────────────────────────
+# 2026-09-11, through the real moai-gateway with this zero-price policy active, one
+# sample each (docs/MOOS_COMPLETION_PLAN.md, section 1). The previous ranking chose
+# the LARGEST free reasoning model, nvidia/nemotron-3-ultra-550b-a55b:free, which
+# took 36.7 s and 13.1 s for one-line answers. Measured instead:
+#   dots-studio/dots-3-note-preview:free    tool call correct 2.7 s, Arabic 5.1 s
+#   nex-agi/nex-n2.5-pro:free               Arabic 2.4 s; asked to confirm instead of calling
+#   nvidia/nemotron-3-super-120b-a12b:free  tool call correct 3.0 s, Arabic 9.4 s
+# This only ORDERS candidates the live catalogue already proves free. A withdrawn or
+# priced id drops out and the next candidate answers; nothing here can admit a model.
+MEASURED_PREFERENCE = {
+    'chat': ('nex-agi/nex-n2.5-pro:free', 'dots-studio/dots-3-note-preview:free',
+             'nvidia/nemotron-3-super-120b-a12b:free'),
+    'tools': ('dots-studio/dots-3-note-preview:free', 'nvidia/nemotron-3-super-120b-a12b:free',
+              'nex-agi/nex-n2.5-pro:free'),
+}
+
+# Upstream answers that mean "not this free model right now". Authentication and
+# request errors are not the model's fault and never cool a model down.
+RETRIABLE_STATUS = frozenset({403, 404, 408, 429, 500, 502, 503, 504})
+_cooldown_lock = threading.Lock()
+_cooldown = {}
+
+
+def note_upstream_failure(model, status):
+    """Skip a free model the provider refused: hours if withdrawn, minutes if busy."""
+    if not isinstance(model, str) or status not in RETRIABLE_STATUS:
+        return
+    seconds = 6 * 3600 if status in (403, 404) else 600
+    with _cooldown_lock:
+        _cooldown[model] = time.monotonic() + seconds
+
+
+def _free_catalogue():
+    global _catalogue
+    with _catalogue_lock:
+        if time.monotonic() - _catalogue[0] > 300 or not _catalogue[1]:
+            try:
+                req = urllib.request.Request(BASE + '/models', headers={'User-Agent': 'MoAI/1'})
+                with urllib.request.urlopen(req, timeout=15) as response:
+                    data = json.loads(response.read(4 * 1024 * 1024))
+                _catalogue = (time.monotonic(), visible_models(data['data']))
+            except Exception:
+                # The provider's official free router remains usable when the
+                # optional catalogue endpoint is unavailable. Keep a previously
+                # verified catalogue if one exists; otherwise let the caller use
+                # that router directly. The request still carries a zero-price
+                # ceiling, so this cannot cross into a billed model.
+                pass
+        return list(_catalogue[1])
+
+
+def automatic_candidates(require_tools=False, limit=3):
+    """Ordered zero-price candidates with the provider router as final fallback.
+
+    Measured preference first; models without a measurement follow in the
+    capability heuristic (tools, reasoning, size, context). A model the provider
+    recently refused is skipped unless it is the only one left. The official
+    ``openrouter/free`` capability router is always the last attempt, including
+    when catalogue refresh fails, so catalogue availability is never a chat
+    dependency. Every attempt is independently pinned to a zero price.
+    """
+    candidates = [item for item in _free_catalogue() if item['id'].endswith(':free')
+                  and (not require_tools or 'tools' in item.get('supported_parameters', []))]
+    if not candidates:
+        return [DEFAULT_MODEL]
+    now = time.monotonic()
+    with _cooldown_lock:
+        cooled = {model for model, until in _cooldown.items() if until > now}
+    available = [item for item in candidates if item['id'] not in cooled] or candidates
+    preference = MEASURED_PREFERENCE['tools' if require_tools else 'chat']
+
+    def heuristic(item):
+        parameters = item.get('supported_parameters', [])
+        sizes = re.findall(r'(\d+(?:\.\d+)?)b(?:[^a-z]|$)', item['id'].lower())
+        return ('tools' in parameters, 'reasoning' in parameters,
+                max([float(size) for size in sizes] or [0]),
+                int(item.get('context_length') or 0), item['id'])
+
+    measured = sorted((item for item in available if item['id'] in preference),
+                      key=lambda item: preference.index(item['id']))
+    unmeasured = sorted((item for item in available if item['id'] not in preference),
+                        key=heuristic, reverse=True)
+    chosen = [item['id'] for item in measured + unmeasured][:max(1, int(limit))]
+    if DEFAULT_MODEL not in chosen:
+        chosen.append(DEFAULT_MODEL)
+    return chosen
+
+
+def automatic_model(require_tools=False):
+    """The single best verified-free model; never substitutes a billed one."""
+    return automatic_candidates(require_tools, limit=1)[0]

@@ -280,6 +280,21 @@ class Updater(MoOSApp):
                 "✓ An update is already staged ({}) — restart to apply it.",
             ).format(staged.get("version", "") or "—"))
             self.reboot_btn.set_visible(True)
+        else:
+            # Check once on open, the way phones and other desktops do: the window
+            # used to wait on "Press Check for updates to begin" for a question the
+            # owner opened it to ask. The resolve is unprivileged and asynchronous;
+            # a staged update keeps its restart message above instead.
+            self.status.set_text(local_text(
+                "جارٍ البحث عن تحديثات…",
+                "Checking for updates…",
+            ))
+            GLib.idle_add(self._check_on_open)
+
+    def _check_on_open(self):
+        """One-shot GLib idle callback: start the same check as the button."""
+        self.on_check(None)
+        return False
 
     # -- log -------------------------------------------------------------------
 

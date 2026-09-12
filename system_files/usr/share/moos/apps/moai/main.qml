@@ -306,6 +306,7 @@ Kirigami.ApplicationWindow {
     property bool chatSessionStart: false
     property bool chatSidebarOpen: false
     property string agentDecision: ""
+    property string agentPath: ""      // raw X-MoAI-Agent of the last reply
     property string panel: "chat"       // chat|device|apps|compat|remote|dev|agent
 
     // ── Which brain answers THIS conversation ───────────────────────────────
@@ -333,6 +334,19 @@ Kirigami.ApplicationWindow {
     readonly property bool routeIsLocal: root.route.indexOf("local") === 0
     readonly property bool routeIsHybrid: root.route.indexOf("hybrid") === 0
     property string hybridDecision: ""
+    // The free model that actually answered the last reply (X-MoAI-Model).
+    property string answerModel: ""
+    // People read a brain, not a routing id. "openrouter/free" is the automatic
+    // free route; "vendor/name:free" is shown as its name without the plumbing.
+    function brainName(model) {
+        const id = String(model || "")
+        if (id === "")
+            return ""
+        if (id === "openrouter/free")
+            return root.local("مجاني تلقائي", "Free · automatic")
+        const bare = id.indexOf("/") === -1 ? id : id.substring(id.lastIndexOf("/") + 1)
+        return bare.endsWith(":free") ? bare.substring(0, bare.length - 5) : bare
+    }
     // The part after the FIRST colon — a model id may contain colons of its own
     // ("local:qwen3:4b").
     readonly property string routeModel: {
@@ -441,7 +455,9 @@ Kirigami.ApplicationWindow {
             if (actions[i].severity === "important") return actions[i]
         return actions[0] || ({})
     }
-    readonly property bool healthy: planReady && actions.length === 0
+    // Healthy means no faults. Optional advice (a firmware update, a KVM note)
+    // is still listed below the card, but never turns the card into a warning.
+    readonly property bool healthy: planReady && problemCount === 0
     readonly property bool hasImportant: {
         for (let i = 0; i < actions.length; i++)
             if (actions[i].severity === "important")
@@ -500,6 +516,10 @@ Kirigami.ApplicationWindow {
         "it is KDE's own, and it still segfaults in GStreamer a few seconds after it " +
         "opens. If you are not certain of an app id, tell the user to search it in " +
         "the Apps panel rather than guessing one.\n" +
+        "• Remove or update apps: `moai-do uninstall <flatpak-id>` removes an app for this " +
+        "user (e.g. `moai-do uninstall com.spotify.Client`), and `moai-do update-apps` " +
+        "updates every app. Installs, removals and app updates all go through Mo Store's " +
+        "backend and ask the user to confirm first. Use the exact id from the Apps panel.\n" +
         "• Run apps from OTHER systems, for real:\n" +
         "   – DOUBLE-CLICK IS ENOUGH. A downloaded .exe or .apk runs when the user opens " +
         "it in Files: MoOS hands it to the right layer, and if that layer is not installed " +
@@ -512,21 +532,21 @@ Kirigami.ApplicationWindow {
         "(idempotent — safe to re-run); afterwards Android apps appear in the launcher " +
         "like any other app, and an APK installs by double-clicking it (or " +
         "`waydroid app install <file>`).\n" +
-        "• Coding agents, and ONE OF THEM NEEDS NO ACCOUNT: `moai-do install-opencode` " +
-        "installs OpenCode wired to THIS MACHINE'S OWN brain — it codes with no cloud, no " +
-        "login and no internet, and MoOS writes its provider config for the user. Recommend " +
-        "it FIRST to anyone who has no AI subscription. The other two are cloud agents and " +
-        "each needs its vendor account: `moai-do install-codex`, `moai-do install-claude` — they " +
+        "• Coding agents, and ONE OF THEM NEEDS NO VENDOR ACCOUNT: `moai-do install-opencode` " +
+        "installs OpenCode wired to Mo AI's own free cloud brain through this account's " +
+        "gateway, and MoOS writes its provider config for the user. Recommend " +
+        "it FIRST to anyone who has no AI subscription. The other two " +
+        "each need their vendor account: `moai-do install-codex`, `moai-do install-claude` — they " +
         "install into ~/.local and run as the user, with no admin rights.\n" +
         "• Phone agent: `moai-do install-openclaw` installs and fully configures the " +
-        "Telegram agent, local brain and Arabic voice. `moai-do setup-brain` repairs or " +
-        "prepares only the local model and speech engines. Both are fixed, confirmed actions.\n" +
+        "Telegram agent on Mo AI's cloud brain. `moai-do setup-brain` opens the brain " +
+        "settings (cloud provider and model). Both are fixed, confirmed actions.\n" +
         "• Diagnose: explain the likely cause in plain language, then give the " +
         "SMALLEST safe repair.\n\n" +
         "WHICH BRAIN YOU ARE: the user picks it per conversation, from the chip next " +
-        "to the message box — a LOCAL model that runs on this machine and never " +
-        "leaves it, or a CLOUD model through their own API key. If they ask how to " +
-        "change model or make you stronger/more private, point them at that chip; " +
+        "to the message box. MoOS runs you on a FREE cloud model by default; a paid " +
+        "cloud model is used only when the user explicitly picks it, and nothing is downloaded to this machine. If they ask how to " +
+        "change model or make you stronger, point them at that chip; " +
         "the provider and the key live behind it, in Settings.\n\n" +
         "HOW TO BEHAVE: understand the goal → briefly diagnose → propose the smallest " +
         "safe action → show the exact command → one line on what it does. Always " +
@@ -681,9 +701,9 @@ Kirigami.ApplicationWindow {
         return (new Date(t * 1000)).toLocaleDateString(Qt.locale(), Locale.ShortFormat)
     }
 
-    // The apps we recommend. Anything else is found by searching Flathub.
+    // The apps we recommend. Everything else lives in Mo Store, the one store,
+    // or is found by searching Flathub right here.
     readonly property var appCatalog: [
-        { id: "io.github.kolunmi.Bazaar", title: "App Center (Bazaar)", ar: "تصفّح كل التطبيقات", en: "Browse everything" },
         { id: "org.mozilla.firefox",      title: "Firefox",     ar: "متصفح ويب",      en: "Web browser" },
         { id: "org.videolan.VLC",         title: "VLC",         ar: "مشغل وسائط",     en: "Media player" },
         { id: "org.libreoffice.LibreOffice", title: "LibreOffice", ar: "حزمة مكتبية", en: "Office suite" },
@@ -1015,7 +1035,7 @@ Kirigami.ApplicationWindow {
     // tests/verify_user_experience.py now compares this list against the prompt.
     function extractRuns(text) {
         const out = []
-        const re = /moai-do\s+(update-firmware|update|fix-audio|check-drivers|optimize|hw-report|diagnose-services|inspect-boot|install-nvidia|setup-waydroid|setup-gaming|setup-windows|install-codex|install-claude|install-opencode|install-openclaw|setup-brain|rollback|net-doctor|gpu-report)\b/g
+        const re = /moai-do\s+(update-firmware|update-apps|update|fix-audio|check-drivers|optimize|hw-report|diagnose-services|inspect-boot|install-nvidia|setup-waydroid|setup-gaming|setup-windows|install-codex|install-claude|install-opencode|install-openclaw|setup-brain|rollback|net-doctor|gpu-report)\b/g
         let m
         while ((m = re.exec(text)) !== null)
             if (out.indexOf(m[1]) === -1)
@@ -1029,6 +1049,12 @@ Kirigami.ApplicationWindow {
         while ((m = inst.exec(text)) !== null)
             if (out.indexOf("install:" + m[1]) === -1)
                 out.push("install:" + m[1])
+        // Removal mirrors install: the id rides moos://apps/uninstall/<id>, which
+        // moos-open validates and moai-do confirms before Mo Store's backend acts.
+        const uninst = /moai-do\s+uninstall\s+([A-Za-z][A-Za-z0-9_-]*(?:\.[A-Za-z0-9_-]+){2,})/g
+        while ((m = uninst.exec(text)) !== null)
+            if (out.indexOf("uninstall:" + m[1]) === -1)
+                out.push("uninstall:" + m[1])
         return out
     }
 
@@ -1245,6 +1271,8 @@ Kirigami.ApplicationWindow {
                     ? "" : chosen + (reason === "" ? "" : " · " + reason)
             }
             const agentPath = xhr.getResponseHeader("X-MoAI-Agent") || ""
+            root.answerModel = xhr.getResponseHeader("X-MoAI-Model") || ""
+            root.agentPath = agentPath
             root.agentDecision = agentPath === "hermes"
                 ? "Hermes"
                 : agentPath === "openclaw"
@@ -1544,6 +1572,15 @@ Kirigami.ApplicationWindow {
     }
 
     // Arabic needs real number agreement; "3 مشكلة" reads machine-made.
+    // Device-plan strings carry both languages as "عربي | English", so every
+    // consumer (Mo AI's own context included) has both. A card shows one: the
+    // raw pair rendered "Firmware updates | تحديث البرامج الثابتة" in one line.
+    function planText(s) {
+        const text = String(s || "")
+        const cut = text.indexOf(" | ")
+        return cut < 0 ? text : root.local(text.slice(0, cut), text.slice(cut + 3))
+    }
+
     function issueCountText(n) {
         if (!root.moaiRtl) return n === 1 ? "1 issue" : n + " issues"
         if (n === 1) return "مشكلة واحدة"
@@ -2216,7 +2253,10 @@ Kirigami.ApplicationWindow {
                                     case "device": return !root.planReady
                                         ? root.local("جارٍ الفحص…", "Scanning…")
                                         : root.healthy
-                                        ? root.local("لا مشاكل", "No problems")
+                                        ? (root.adviceCount > 0
+                                           ? root.local("لا مشاكل · " + root.adviceCountText(root.adviceCount),
+                                                        "No problems · " + root.adviceCountText(root.adviceCount))
+                                           : root.local("لا مشاكل", "No problems"))
                                         : root.issueCountText(root.problemCount)
                                     case "apps":   return root.local("ابحث وثبّت أي تطبيق",
                                                                      "Search and install anything")
@@ -2968,15 +3008,23 @@ Kirigami.ApplicationWindow {
                                 delegate: MoButton {
                                     required property string modelData
                                     readonly property bool isInstall: modelData.indexOf("install:") === 0
-                                    readonly property string flatpakId: isInstall ? modelData.substring(8) : ""
+                                    readonly property bool isUninstall: modelData.indexOf("uninstall:") === 0
+                                    readonly property string flatpakId: isInstall ? modelData.substring(8)
+                                        : isUninstall ? modelData.substring(10) : ""
                                     label: isInstall
                                         ? root.local("ثبّت " + flatpakId, "Install " + flatpakId)
-                                        : root.local("نفّذ  moai-do " + modelData, "Run  moai-do " + modelData)
-                                    iconName: isInstall ? "moos-install-symbolic" : "moos-safe-update-symbolic"
-                                    primary: true
+                                        : isUninstall
+                                            ? root.local("احذف " + flatpakId, "Remove " + flatpakId)
+                                            : root.local("نفّذ  moai-do " + modelData, "Run  moai-do " + modelData)
+                                    iconName: isInstall ? "moos-install-symbolic"
+                                        : isUninstall ? "edit-delete-symbolic" : "moos-safe-update-symbolic"
+                                    // A removal is never the visually primary action.
+                                    primary: !isUninstall
                                     onClicked: isInstall
                                         ? root.launch("moos://apps/install/" + flatpakId, flatpakId)
-                                        : root.launch("moos://do/" + modelData, "moai-do " + modelData)
+                                        : isUninstall
+                                            ? root.launch("moos://apps/uninstall/" + flatpakId, flatpakId)
+                                            : root.launch("moos://do/" + modelData, "moai-do " + modelData)
                                 }
                             }
                         }
@@ -3135,12 +3183,20 @@ Kirigami.ApplicationWindow {
                                                          || (root.routeIsHybrid
                                                              && root.hybridDecision !== "")
                                                 text: {
-                                                    const routeText = root.routeIsHybrid
+                                                    let routeText = root.routeIsHybrid
                                                         && root.hybridDecision !== ""
-                                                        ? root.hybridDecision : root.routeModel
-                                                    if (routeText !== "" && root.agentDecision !== "")
-                                                        return routeText + " · " + root.agentDecision
-                                                    return routeText !== "" ? routeText : root.agentDecision
+                                                        ? root.hybridDecision : root.brainName(root.routeModel)
+                                                    if (root.routeModel === "openrouter/free" && root.answerModel !== "")
+                                                        routeText = root.local("مجاني", "Free") + " · "
+                                                            + root.brainName(root.answerModel)
+                                                    // Without a Hermes runtime every reply is a direct
+                                                    // one, so naming it on each message is noise that
+                                                    // also elided the model name; the tooltip keeps it.
+                                                    const decision = root.agentPath === "direct-fallback"
+                                                        ? "" : root.agentDecision
+                                                    if (routeText !== "" && decision !== "")
+                                                        return routeText + " · " + decision
+                                                    return routeText !== "" ? routeText : decision
                                                 }
                                                 color: root.textLo
                                                 font.family: root.uiFont
@@ -3160,6 +3216,11 @@ Kirigami.ApplicationWindow {
                                     ActionArea {
                                         id: chipMa
                                         anchors.fill: parent
+                                        QQC2.ToolTip.visible: containsMouse && root.agentDecision !== ""
+                                        QQC2.ToolTip.delay: 400
+                                        QQC2.ToolTip.text: root.brainName(root.answerModel !== ""
+                                                ? root.answerModel : root.routeModel)
+                                            + (root.agentDecision !== "" ? " · " + root.agentDecision : "")
                                         actionName: root.moaiRtl
                                             ? "اختيار مسار العقل" : "Choose brain route"
                                         focusRadius: root.fs(11)
@@ -3283,8 +3344,8 @@ Kirigami.ApplicationWindow {
                                                 ? root.local("جهازك سليم",
                                                              "Your device is healthy")
                                                 : root.local(
-                                                    "وجدت " + root.problemCount + " مشكلة",
-                                                    root.problemCount + " issue(s) found")
+                                                    "وجدت " + root.issueCountText(root.problemCount),
+                                                    "Found " + root.issueCountText(root.problemCount))
                                             color: root.textHi
                                             font.family: root.uiFont
                                             font.pixelSize: root.typePx(16)
@@ -3296,6 +3357,14 @@ Kirigami.ApplicationWindow {
                                                 ? root.local(
                                                     "أقرأ التعريفات والبرامج الثابتة والأجهزة المتصلة…",
                                                     "Reading drivers, firmware and attached devices…")
+                                                : root.healthy && root.adviceCount === 1
+                                                ? root.local(
+                                                    "لا توجد مشاكل. بالأسفل تحسين اختياري لجهازك.",
+                                                    "No problems. An optional improvement is below.")
+                                                : root.healthy && root.adviceCount > 1
+                                                ? root.local(
+                                                    "لا توجد مشاكل. بالأسفل تحسينات اختيارية لجهازك.",
+                                                    "No problems. Optional improvements are below.")
                                                 : root.healthy
                                                 ? root.local(
                                                     "لا توجد مشاكل في الأجهزة أو التعريفات.",
@@ -3377,7 +3446,8 @@ Kirigami.ApplicationWindow {
                                     }
                                     Text {
                                         Layout.fillWidth: true
-                                        text: root.plan.driver_status || ""
+                                        text: root.local(root.plan.driver_status_ar || root.plan.driver_status || "",
+                                                         root.plan.driver_status || "")
                                         color: root.textHi
                                         font.family: root.uiFont
                                         font.pixelSize: root.typePx(12)
@@ -3410,7 +3480,7 @@ Kirigami.ApplicationWindow {
                                             }
                                             Text {
                                                 Layout.fillWidth: true
-                                                text: issue.modelData.title || ""
+                                                text: root.planText(issue.modelData.title)
                                                 color: root.textHi
                                                 font.family: root.uiFont
                                                 font.pixelSize: root.typePx(13)
@@ -3420,7 +3490,7 @@ Kirigami.ApplicationWindow {
                                         }
                                         Text {
                                             Layout.fillWidth: true
-                                            text: issue.modelData.detail || ""
+                                            text: root.planText(issue.modelData.detail)
                                             color: root.textLo
                                             font.family: root.uiFont
                                             font.pixelSize: root.typePx(11)
@@ -3433,11 +3503,12 @@ Kirigami.ApplicationWindow {
                                                 label: root.local("أصلحها الآن", "Fix it")
                                                 primary: true
                                                 iconName: "moos-safe-update-symbolic"
-                                                onClicked: root.launch(issue.modelData.url, issue.modelData.title)
+                                                onClicked: root.launch(issue.modelData.url, root.planText(issue.modelData.title))
                                             }
                                             MoButton {
                                                 label: root.local("اسأل Mo AI", "Ask")
-                                                onClicked: root.askAbout(issue.modelData.title, issue.modelData.detail || "")
+                                                onClicked: root.askAbout(root.planText(issue.modelData.title),
+                                                                         root.planText(issue.modelData.detail))
                                             }
                                         }
                                     }
@@ -3770,6 +3841,56 @@ Kirigami.ApplicationWindow {
                                     }
                                 }
 
+                                // Mo Store is the one store: the full catalogue, updates and
+                                // removals live there, so this panel hands over to it rather
+                                // than recommending a second store app.
+                                Card {
+                                    Layout.fillWidth: true
+                                    Layout.topMargin: 4
+                                    visible: searchModel.count === 0
+                                    RowLayout {
+                                        width: parent.width
+                                        spacing: design.space3
+                                        Rectangle {
+                                            Layout.preferredWidth: root.fs(38)
+                                            Layout.preferredHeight: root.fs(38)
+                                            radius: design.radiusSmall
+                                            color: root.surface2
+                                            Kirigami.Icon {
+                                                anchors.centerIn: parent
+                                                width: 20; height: 20
+                                                source: "moos-boxes-symbolic"
+                                                color: root.accent
+                                            }
+                                        }
+                                        ColumnLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 2
+                                            Text {
+                                                text: "Mo Store"
+                                                color: root.textHi
+                                                font.family: root.uiFont
+                                                font.pixelSize: root.typePx(13)
+                                                font.weight: Font.DemiBold
+                                            }
+                                            Text {
+                                                Layout.fillWidth: true
+                                                text: root.local("كل التطبيقات والتحديثات في مكان واحد",
+                                                                 "Every app and update in one place")
+                                                color: root.textLo
+                                                font.family: root.uiFont
+                                                font.pixelSize: root.typePx(11)
+                                                wrapMode: Text.Wrap
+                                            }
+                                        }
+                                        MoButton {
+                                            label: root.local("افتح المتجر", "Open Mo Store")
+                                            iconName: "moos-external-symbolic"
+                                            onClicked: root.launch("moos://app/store", "Mo Store")
+                                        }
+                                    }
+                                }
+
                                 SectionTitle {
                                     text: root.local("موصى بها", "Recommended")
                                     Layout.topMargin: 4
@@ -3949,9 +4070,14 @@ Kirigami.ApplicationWindow {
                                             font.weight: Font.DemiBold
                                         }
                                         Text {
+                                            Layout.fillWidth: true
+                                            wrapMode: Text.Wrap
+                                            // Waydroid runs Android in an LXC container and never
+                                            // uses KVM; real virtual machines and the Android
+                                            // Studio emulator do.
                                             text: root.local(
-                                                "يحتاجه Waydroid والأجهزة الافتراضية.",
-                                                "Needed by Waydroid and virtual machines.")
+                                                "تحتاجه أجهزة Windows الافتراضية ومحاكي Android Studio. تطبيقات Android عبر Waydroid تعمل بدونه.",
+                                                "Needed by Windows virtual machines and the Android Studio emulator. Android apps through Waydroid run without it.")
                                             color: root.textLo
                                             font.family: root.uiFont
                                             font.pixelSize: root.typePx(11)

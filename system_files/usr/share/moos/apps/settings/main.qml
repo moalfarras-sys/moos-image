@@ -204,7 +204,7 @@ QQC2.ApplicationWindow {
           descAr: "غيّر لوحة Liquid Glass والخلفية معاً",
           descEn: "Change the Liquid Glass palette and wallpaper together",
           tagAr: "موصى به", tagEn: "Curated" },
-        { section: "appearance", route: "moos://settings/display", glyph: "monitor",
+        { section: "appearance", route: "moos://settings/display", glyph: "system",
           ar: "الشاشات", en: "Displays",
           descAr: "الدقة، القياس، الاتجاه ومعدل التحديث",
           descEn: "Resolution, scale, orientation and refresh rate" },
@@ -216,7 +216,7 @@ QQC2.ApplicationWindow {
           ar: "الخطوط", en: "Typography",
           descAr: "حجم ووضوح النص في النظام كله",
           descEn: "Text size and legibility across the system" },
-        { section: "appearance", route: "moos://settings/wallpaper", glyph: "spark",
+        { section: "appearance", route: "moos://settings/wallpaper", glyph: "image",
           ar: "مساحة العمل", en: "Desktop canvas",
           descAr: "الخلفية وتكوين سطح المكتب",
           descEn: "Wallpaper and desktop composition" },
@@ -237,7 +237,7 @@ QQC2.ApplicationWindow {
           ar: "نقطة اتصال", en: "Mobile hotspot",
           descAr: "شارك اتصال هذا الجهاز عند الحاجة",
           descEn: "Share this device's connection when needed" },
-        { section: "connectivity", route: "moos://settings/accounts", glyph: "identity",
+        { section: "connectivity", route: "moos://settings/accounts", glyph: "mail",
           ar: "الحسابات المتصلة", en: "Connected accounts",
           descAr: "خدماتك وحساباتك على الإنترنت",
           descEn: "Your online services and accounts" },
@@ -311,19 +311,19 @@ QQC2.ApplicationWindow {
           descAr: "تحديث ذرّي موقّع مع رجوع محفوظ",
           descEn: "Signed atomic update with a preserved rollback",
           tagAr: "آمن", tagEn: "Atomic" },
-        { section: "system", route: "moos://settings/about", glyph: "identity",
+        { section: "system", route: "moos://settings/about", glyph: "about",
           ar: "حول هذا الجهاز", en: "About this device",
           descAr: "إصدار النظام والعتاد ومعلومات الدعم",
           descEn: "System version, hardware and support details" },
-        { section: "system", route: "moos://settings/users", glyph: "identity",
+        { section: "system", route: "moos://settings/users", glyph: "user",
           ar: "المستخدمون", en: "Users",
           descAr: "الحسابات المحلية وصور المستخدمين",
           descEn: "Local accounts and profile pictures" },
-        { section: "system", route: "moos://settings/time", glyph: "orbit",
+        { section: "system", route: "moos://settings/time", glyph: "clock",
           ar: "التاريخ والوقت", en: "Date & time",
           descAr: "المنطقة الزمنية والساعة التلقائية",
           descEn: "Time zone and automatic clock" },
-        { section: "system", route: "moos://settings/region", glyph: "identity",
+        { section: "system", route: "moos://settings/region", glyph: "globe",
           ar: "اللغة والمنطقة", en: "Language & region",
           descAr: "لغة النظام وتنسيقات الأرقام والتاريخ",
           descEn: "System language, number and date formats" },
@@ -1685,7 +1685,7 @@ QQC2.ApplicationWindow {
                         }
                         MetricTile {
                             Layout.fillWidth: true
-                            glyph: "orbit"
+                            glyph: "clock"
                             label: win.local("مدة التشغيل", "Uptime")
                             value: win.statusLoaded ? win.uptimeLabel(win.status.uptimeSeconds) : "—"
                             progress: -1

@@ -60,6 +60,34 @@ import sys as _policy_sys
 from pathlib import Path as _PolicyPath
 _policy_sys.path.insert(0, str(_PolicyPath(__file__).resolve().parent.parent / "lib/moai"))
 import moai_cloud_policy as cloud_policy
+import threading as _hermes_threading
+import time as _hermes_time
+
+# The Hermes adapter's own discovery is the one authority on whether an agent
+# runtime exists here; the source tree and /usr resolve the same sibling path.
+HERMES_ADAPTER = os.environ.get("MOAI_HERMES_ADAPTER") or str(
+    _PolicyPath(__file__).resolve().parent.parent / "libexec/moai-hermes")
+_hermes_status = (0.0, None)
+_hermes_status_lock = _hermes_threading.Lock()
+
+
+def hermes_runtime_installed():
+    """True or False from `moai-hermes status`, None when it cannot answer."""
+    global _hermes_status
+    with _hermes_status_lock:
+        stamp, value = _hermes_status
+        if stamp and _hermes_time.monotonic() - stamp < 60:
+            return value
+        try:
+            completed = subprocess.run([HERMES_ADAPTER, "status"], capture_output=True,
+                                       text=True, timeout=5)
+            data = json.loads(completed.stdout or "{}")
+            installed = data.get("installed") if isinstance(data, dict) else None
+            value = installed if isinstance(installed, bool) else None
+        except (OSError, subprocess.TimeoutExpired, ValueError):
+            value = None
+        _hermes_status = (_hermes_time.monotonic(), value)
+        return value
 
 CONFIG = os.path.expanduser("~/.config/moai/config.json")
 MOOS_DIR = os.path.expanduser("~/.config/moos")
@@ -1050,6 +1078,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._err(404, "only free chat completions are available")
         self.moai_route = "cloud"
         self.moai_route_reason = "free-cloud-only"
+        self.moai_model = ""   # a kept-alive connection must not report the last model
         self.moai_agent = "direct"
         meta = req.get("moai") if isinstance(req.get("moai"), dict) else {}
         # Never reinterpret an explicitly private request as consent to upload.
@@ -1068,7 +1097,21 @@ class Handler(BaseHTTPRequestHandler):
         return self._to_cloud(req, json.dumps(req).encode("utf-8"), model, cfg)
 
     def _to_hermes(self, req):
-        """Optional isolated Hermes runtime; never route through paid OpenClaw."""
+        """Optional isolated Hermes runtime; never route through paid OpenClaw.
+
+        False means no Hermes runtime is installed on this machine: the caller
+        answers through the direct free cloud route and says so with
+        X-MoAI-Agent: direct-fallback, which Mo AI shows as a direct reply.
+        Measured 2026-09-11 on the daily driver: every desktop message carries
+        agent:true, the runtime was absent, the adapter exited 69 and this
+        method answered HTTP 503 in 0.0 s, so Mo AI could not reply at all.
+        An installed runtime that is starting or broken, or an adapter that
+        cannot report, still gets an honest 503: a conversation expecting the
+        agent's workspace tools is never silently swapped for a plain model.
+        """
+        if hermes_runtime_installed() is False:
+            self.moai_agent = "direct-fallback"
+            return False
         runtime = os.environ.get("XDG_RUNTIME_DIR") or "/run/user/%d" % os.getuid()
         # Only the fixed, unprivileged adapter may start; no command from a model.
         try:
@@ -1214,33 +1257,72 @@ class Handler(BaseHTTPRequestHandler):
                              "العقل السحابي غير مضبوط — أضف مزوّداً ومفتاحاً في إعدادات Mo AI.\n"
                              "The cloud brain is not configured — add a provider and an "
                              "API key in Mo AI's settings.")
+        paid = cloud_policy.selected_cost_policy() == "paid"
+        automatic = model == cloud_policy.DEFAULT_MODEL
         try:
-            # openrouter/free is the provider's zero-cost capability router. It
-            # already selects only free models that support the request's tools,
-            # images and structured output. Resolving it through /models here made
-            # a catalogue outage reject a chat that the router could still serve.
-            cloud_policy.validate(base, model, wire, allow_paid=cloud_policy.selected_cost_policy() == "paid")
-            out = cloud_policy.request_body(req, model, allow_paid=cloud_policy.selected_cost_policy() == "paid")
+            candidates = (cloud_policy.automatic_candidates(require_tools=bool(req.get("tools")))
+                          if automatic else [model])
+            attempts = []
+            for candidate in candidates:
+                cloud_policy.validate(base, candidate, wire, allow_paid=paid)
+                attempts.append((candidate, cloud_policy.request_body(req, candidate, allow_paid=paid)))
         except ValueError as error:
             return self._err(409, str(error))
-        self._proxy("POST", cloud_policy.BASE + "/chat/completions",
-                    auth_headers(key, "openai"), json.dumps(out).encode("utf-8"),
-                    "openai", bool(out.get("stream")))
+        if not automatic:
+            self.moai_model = model
+            out = attempts[0][1]
+            return self._proxy("POST", cloud_policy.BASE + "/chat/completions",
+                               auth_headers(key, "openai"), json.dumps(out).encode("utf-8"),
+                               "openai", bool(out.get("stream")))
+        # ── Automatic free route: a refused free model is skipped, not shown ────
+        # Measured 2026-09-11: a verified free model can be rate-limited upstream
+        # (HTTP 429) or restricted to agent harnesses (HTTP 403) at any moment, and
+        # the user then saw an error although other free models were answering.
+        # Before any response byte is sent, a refusal in RETRIABLE_STATUS cools that
+        # model down and the next measured candidate is asked. Every attempt is a
+        # zero-price free model built by the same request_body(); the provider's
+        # official free capability router is the final fallback if the catalogue
+        # is unavailable or every measured model is busy. An explicit model choice
+        # and authentication or request errors are never retried.
+        for index, (candidate, out) in enumerate(attempts):
+            try:
+                up = self._open_upstream("POST", cloud_policy.BASE + "/chat/completions",
+                                         auth_headers(key, "openai"),
+                                         json.dumps(out).encode("utf-8"))
+            except urllib.error.HTTPError as error:
+                detail = error.read().decode("utf-8", "replace")
+                cloud_policy.note_upstream_failure(candidate, error.code)
+                if error.code in cloud_policy.RETRIABLE_STATUS and index + 1 < len(attempts):
+                    continue
+                return self._err(error.code, detail)
+            except Exception as error:
+                return self._err(502, "request failed: %s" % error)
+            self.moai_model = candidate
+            return self._proxy("POST", cloud_policy.BASE + "/chat/completions", None, None,
+                               "openai", bool(out.get("stream")), upstream=up)
 
     # ── The pipe ─────────────────────────────────────────────────────────────
 
-    def _proxy(self, method, url, headers, body, wire, streaming):
+    def _open_upstream(self, method, url, headers, body):
         req = urllib.request.Request(url, data=body, method=method)
         req.add_header("Content-Type", "application/json")
         req.add_header("User-Agent", USER_AGENT)     # or Cloudflare answers 403/1010
         for name, value in (headers or {}).items():
             req.add_header(name, value)
-        try:
-            up = urllib.request.urlopen(req, timeout=700 if getattr(self, "moai_agent", "") == "hermes" else 180)
-        except urllib.error.HTTPError as e:
-            return self._err(e.code, e.read().decode("utf-8", "replace"))
-        except Exception as e:
-            return self._err(502, "request failed: %s" % e)
+        return urllib.request.urlopen(req, timeout=700 if getattr(self, "moai_agent", "") == "hermes" else 180)
+
+    def _proxy(self, method, url, headers, body, wire, streaming, upstream=None):
+        # `upstream` is a response the caller already opened (the automatic free
+        # route opens candidates itself so a refusal can move to the next one);
+        # everything from the status line on is the same single relay path.
+        if upstream is None:
+            try:
+                upstream = self._open_upstream(method, url, headers, body)
+            except urllib.error.HTTPError as e:
+                return self._err(e.code, e.read().decode("utf-8", "replace"))
+            except Exception as e:
+                return self._err(502, "request failed: %s" % e)
+        up = upstream
 
         self.send_response(up.status)
         ctype = up.headers.get("Content-Type", "application/json")
@@ -1253,6 +1335,8 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("X-MoAI-Route-Reason", self.moai_route_reason)
         if getattr(self, "moai_agent", ""):
             self.send_header("X-MoAI-Agent", self.moai_agent)
+        if getattr(self, "moai_model", ""):
+            self.send_header("X-MoAI-Model", self.moai_model)
         self.send_header("Transfer-Encoding", "chunked")
         self.end_headers()
 

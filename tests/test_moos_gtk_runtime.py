@@ -261,6 +261,22 @@ class TestMoOSGtkRuntime(unittest.TestCase):
         self.assertIn("page_scroll.set_child(outer)", source)
         self.assertIn("self.win.set_child(page_scroll)", source)
 
+    def test_updater_checks_on_open_unless_an_update_is_already_staged(self):
+        source = UPDATER_PATH.read_text(encoding="utf-8")
+        build = source[source.index("    def build(self, page):"):source.index("    def _check_on_open")]
+        staged_branch = build[build.index("        if staged:"):]
+        self.assertIn("GLib.idle_add(self._check_on_open)", staged_branch.split("        else:", 1)[1],
+                      "the automatic check must run only when nothing is staged")
+        self.assertNotIn("_check_on_open", staged_branch.split("        else:", 1)[0])
+        calls = []
+        fake = type("Fake", (), {"on_check": lambda self, button: calls.append(button)})()
+        namespace = {}
+        start = source.index("    def _check_on_open")
+        end = source.index("\n    def ", start + 1)
+        exec("class Probe:\n" + source[start:end], {"__builtins__": __builtins__}, namespace)
+        self.assertIs(namespace["Probe"]._check_on_open(fake), False, "idle callback must be one-shot")
+        self.assertEqual(calls, [None])
+
     def test_updater_stages_an_exact_signed_digest_never_a_tag_upgrade(self):
         """The window a person opens must be able to actually update the machine.
 
@@ -504,6 +520,38 @@ class TestMoOSGtkRuntime(unittest.TestCase):
                 "an installed scheme with unreadable selected text must fail safe",
             )
 
+    def test_active_scheme_follows_the_kconfig_cascade_like_kreadconfig6(self):
+        # Daily driver 2026-09-11: the user's kdeglobals had no ColorScheme,
+        # kdedefaults held MoOSUI2Arena, /etc/xdg held Aurora; GTK apps fell
+        # back to Graphite because only the user file was read.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            user = root / "config/kdeglobals"
+            defaults = root / "kdedefaults/kdeglobals"
+            system = root / "xdg/kdeglobals"
+            for path in (user, defaults, system):
+                path.parent.mkdir(parents=True)
+            user.write_text("[General]\nAccentColor=6,215,37\n", encoding="utf-8")
+            defaults.write_text("[General]\nColorScheme=MoOSUI2Arena\n", encoding="utf-8")
+            system.write_text("[General]\nColorScheme=MoOSUI2Aurora\n", encoding="utf-8")
+            dirs = [str(defaults.parent), str(system.parent)]
+            self.assertEqual(UI2.active_color_scheme(user, config_dirs=dirs), "MoOSUI2Arena")
+            user.write_text("[General]\nColorScheme=MoOSUI2Forge\n", encoding="utf-8")
+            self.assertEqual(UI2.active_color_scheme(user, config_dirs=dirs), "MoOSUI2Forge")
+            user.write_text("[General]\n", encoding="utf-8")
+            defaults.write_text("[General]\n", encoding="utf-8")
+            self.assertEqual(UI2.active_color_scheme(user, config_dirs=dirs), "MoOSUI2Aurora")
+            defaults.write_text("[General]\nColorScheme=../../etc/passwd\n", encoding="utf-8")
+            self.assertIsNone(UI2.active_color_scheme(user, config_dirs=dirs))
+            self.assertIsNone(UI2.active_color_scheme(user, config_dirs=()))
+            # The live caller's shape: an explicit user path still reads the layers.
+            user.write_text("[General]\n", encoding="utf-8")
+            defaults.write_text("[General]\nColorScheme=MoOSUI2Arena\n", encoding="utf-8")
+            palette = UI2.active_ui2_palette(config_path=user, config_dirs=dirs,
+                                             data_dirs=(SHARE,), prefers_dark=True)
+            self.assertEqual(palette, UI2.palette_from_color_scheme(
+                SHARE / "color-schemes/MoOSUI2Arena.colors"))
+
     @unittest.skipUnless(HAS_GI, "PyGObject/Gio is unavailable on this runner")
     def test_kdeglobals_change_restyles_live_and_burst_is_coalesced(self):
         with tempfile.TemporaryDirectory(prefix="moos-gtk-watch-") as temp:
@@ -569,6 +617,34 @@ class TestMoOSGtkRuntime(unittest.TestCase):
             "self.style_controller=UI2StyleController(self.style_provider)",
             remote_source,
         )
+
+    @unittest.skipUnless(HAS_GI, "PyGObject/Gio is unavailable on this runner")
+    def test_remote_offers_only_the_action_that_changes_the_service(self):
+        class FakeButton:
+            def __init__(self):
+                self.sensitive = True
+
+            def set_sensitive(self, value):
+                self.sensitive = bool(value)
+
+        panel = type("Panel", (), {})()
+        panel.service_buttons = {role: FakeButton() for role in ("start", "stop", "refresh")}
+        state = lambda: (panel.service_buttons["start"].sensitive,
+                         panel.service_buttons["stop"].sensitive)
+        REMOTE.App._sync_service_buttons(panel, True)
+        self.assertEqual(state(), (False, True), "a running service offers only Stop")
+        REMOTE.App._sync_service_buttons(panel, False)
+        self.assertEqual(state(), (True, False), "a stopped service offers only Start")
+        REMOTE.App._sync_service_buttons(panel, None)
+        self.assertEqual(state(), (True, True), "an unknown state offers both")
+        self.assertTrue(panel.service_buttons["refresh"].sensitive)
+        source = REMOTE_PATH.read_text(encoding="utf-8")
+        start = source.index("def _apply_refresh")
+        ends = [source.find(marker, start + 1)
+                for marker in ("\n    def ", "\ndef ", "\nclass ", "\nif __name__")]
+        body = source[start:min([end for end in ends if end >= 0] or [len(source)])]
+        self.assertIn("self._sync_service_buttons(None)", body)
+        self.assertIn("self._sync_service_buttons(bool(on))", body)
 
     def test_remote_refresh_returns_immediately_and_coalesces_bursts(self):
         idle_queue = queue.Queue()

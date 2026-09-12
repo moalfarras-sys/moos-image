@@ -1,5 +1,132 @@
 # MoOS — current project state
 
+**The ISO release gate failed at login, and six everyday defects seen as a user (2026-09-12, branch `feat/moos-polish-20260912`):**
+the #80 release chain passed its build, all three disk proofs and ARM, but ISO run
+34650456175 stopped at the installed system's Plasma Login step: PAM rejected the
+correct 20-character disposable password on all three attempts (`pam_unix ...
+authentication failure`), so logind never opened a session. The typed keys were the
+exact password each time; the last green ISO (`c0cc94e7`) logged in on attempt 1 and
+its pre-typing frame shows the password page, while this run's frames show no
+password field; the runner's GL stack also changed (0 MB dedicated video memory
+against ~1 TB two days earlier). When the greeter is already on its password page
+there is no idle clock to swallow the wake, so the wake's `sendkey spc` is typed into
+the focused field — exactly this failure. The proof now empties the field
+(select-all, backspace) before typing and `tests/test_iso_install_gate.py` pins that;
+the gate is not weakened. **Not yet proven:** the next ISO run is the proof.
+Found by using the apps: Mo AI's device card said "وجدت 0 مشكلة" under a warning
+icon when the only entry was an optional firmware update (it now reads "جهازك سليم"
+with "لا مشاكل · اقتراح واحد"); issue cards printed both languages on one line
+("Firmware updates | تحديث البرامج الثابتة") and now show the session language; the
+graphics line was English-only (`moos-device-plan` now also emits
+`driver_status_ar`); the Apps panel recommended Bazaar as a second store (it now opens
+Mo Store); the KVM row said Waydroid needs KVM (Waydroid uses LXC; the row now names
+Windows VMs and the Android Studio emulator). In MoOS Settings, `SymbolCatalog.resolve()`
+answers an unknown glyph with the sparkle: Displays asked for `monitor`, four rows
+reused `identity` (itself a sparkle) and Date & time and Uptime wore the MoOS logo.
+Rows now use monitor, image, mail, info, user, clock and globe, and
+`test_moos_symbolic_icons.py` fails on any Settings glyph outside the catalog (proven
+against the old file). Verified: 125/125 CI repo gates; live captures of the branch
+Mo AI (device, apps, compatibility) and Settings (appearance, connectivity, system)
+on the daily driver.
+
+**Everyday polish verified live (2026-09-12, branch `feat/moos-completion-20260911`):**
+the Updater now checks once on open unless an update is already staged — a live
+capture shows "You are on the latest signed MoOS image." without a click; Mo PC
+Remote offers only the action that changes the service (Start disabled while
+running, captured); Mo AI's brain chip names the answering model in full ("سحابي ·
+مجاني · nex-n2.5-pro") and moves the direct-fallback detail, true of every reply
+without Hermes, into a tooltip. Two "Unable to assign [undefined] to QColor" load
+warnings exist identically in the installed and branch Mo AI and are not from
+this work.
+
+**The recurring wallpaper drift was the gate suite; GTK apps ignored the active theme (2026-09-12, branch `feat/moos-completion-20260911`):**
+running `tests/test_moos_theme_safety.py` inside a desktop session — directly, or
+through `verify_user_experience.py`, which runs it — executed the real `moos-theme`
+against the inherited live session bus and rewrote the running desktop's wallpaper
+to the fixture Graphite profile; `moos-theme-drift.timer` repaired it up to thirty
+minutes later. Proven by running each suspect test alone with a plasmashell
+readback: only those two files flipped `MoOSUI2Arena` to `MoOSUI2Graphite`, and
+nine others left it untouched. The suite now isolates itself exactly like CI (no
+session bus, no display, temporary HOME/XDG/runtime directories) and asserts that
+isolation; both files then passed and left the live wallpaper on Arena. Earlier
+drift records that ruled out `moos-visual-tier` and the PLM wake fix are consistent
+with this cause. Separately, Updater, Recovery and Mo PC Remote rendered the
+Graphite fallback palette on an Arena desktop: `moos_ui2.active_color_scheme()` read
+only `~/.config/kdeglobals`, while Plasma keeps the applied ColorScheme in
+`~/.config/kdedefaults/kdeglobals`, an `XDG_CONFIG_DIRS` layer. The resolver now
+follows the same cascade as kreadconfig6. A first version kept single-file semantics
+for explicit paths; `UI2StyleController` always passes one, so live captures still
+showed Graphite while the unit test passed — the cascade is now unconditional, and
+captures of all three apps from this branch show the Arena palette.
+
+**Mo AI's desktop chat could not answer on the daily driver — fixed in source (2026-09-11, branch `feat/moos-completion-20260911`):**
+driven as a user from the running app, every message returned "Mo AI agent is
+unavailable. No direct-model substitute was used." Every desktop request carries
+`moai.agent: true`; the gateway sends agent requests to the Hermes adapter, the
+Hermes runtime is not installed on this machine (`moai-hermes status` →
+`installed: false`), the adapter exits 69 and the gateway answered HTTP 503 in
+0.0 s — reproduced twice on the installed stack. Starting the absent adapter also
+left `moai-hermes.service` failed after each message. The roadmap's intended
+contract is that an absent runtime uses the direct cloud route, and Mo AI already
+renders a "Direct fallback" label that nothing sent. The gateway now asks the
+adapter's own `status` (cached 60 s): an absent runtime answers through the
+direct free route with `X-MoAI-Agent: direct-fallback` and never starts the unit;
+an installed-but-not-ready runtime, or an adapter that cannot report, still gets
+the honest 503. Live on the branch stack (second port, same key): the exact
+desktop request answered HTTP 200 in 2.2 s via `nex-agi/nex-n2.5-pro:free`, and
+the branch's Mo AI, driven through its own `sendPrompt()`, replied
+`moai-do uninstall com.spotify.Client`, rendered the Remove chip and showed
+"Free · nex-n2.5-pro · Direct fallback" (the chip elides the last word). The
+installed image keeps this bug until a signed image carries the fix.
+
+**Mo Store stat cards and Mo AI's brain label (2026-09-11, branch `feat/moos-completion-20260911`, plan M1.4/M1.6):**
+at 4K/225% the Store hero's stat captions sat on their card borders and each
+number started at a different offset; fixed line heights, a filling left-aligned
+column and a content-driven minimum height now keep all three captions inside
+aligned cards, verified by before/after captures of the running Store from this
+branch's QML. Mo AI's composer chip showed the raw `openrouter/free` routing id;
+it now shows "Free · automatic" (Arabic: "مجاني تلقائي") and, after a reply, the
+model named by the gateway's `X-MoAI-Model` header. `brainName()` was evaluated in a
+real QML engine and the Arabic chip captured live from this branch.
+
+**Mo AI answers in about two seconds (2026-09-11, branch `feat/moos-completion-20260911`, plan M2.2):**
+the slow automatic free route was MoOS's own choice, not OpenRouter's:
+`moai-gateway` replaced `openrouter/free` with `automatic_model()`, which ranked
+verified free models by tool support, reasoning and parameter count and so picked
+`nvidia/nemotron-3-ultra-550b-a55b:free` — measured 36.7 s and 13.1 s for one-line
+answers, and 15.5 s with no answer in the final side-by-side run. The policy now
+orders the same verified zero-price catalogue by a measured preference (chat:
+`nex-agi/nex-n2.5-pro:free`; tools: `dots-studio/dots-3-note-preview:free`) and
+cools down a free model the provider refuses (429/5xx ten minutes, 403/404 six
+hours). When the first automatic candidate is refused, the gateway asks the next
+verified free candidate before any response byte is sent; explicit model choices
+and authentication or request errors are never retried, every attempt keeps a
+zero `max_price`, and the answering model is reported as `X-MoAI-Model`. Live, the
+branch gateway on a second port with the same key answered two Arabic questions in
+2.0 s and 1.8 s and returned a tool call in 1.9 s. The streaming close-on-drop gate
+is unchanged and passes; 126/126 CI repo gates pass. The preference is one sample per
+model and free catalogues change weekly, so a recurring evaluation remains open.
+Not in a signed image yet.
+
+**Mo AI app lifecycle has one authority (2026-09-11, branch `feat/moos-completion-20260911`):**
+measured on the daily driver, Mo Store installed per user through `moos-storectl`
+(22 apps) while `moai-do install` used Flatpak's system installation (3 apps), so
+Mo AI could install but never remove or update apps, and the Store could not
+remove what Mo AI had installed. `moai-do install`, the new `uninstall <id>` and
+`update-apps` now delegate to `moos-storectl` only after confirmation; `moos-open`
+routes `apps/uninstall/<id>` and `do/update-apps`; Mo AI renders Remove and
+update chips, with `update-apps` ordered before `update` and pinned by a gate.
+Live proof on the daily driver, running the branch's `moai-do` against the
+installed backend: install `org.gnome.Calculator` exit 0 with user-scope
+readback and a successful launch, uninstall exit 0 with absence on readback,
+`update-apps` exit 0 (up to date), each recorded in the `moai-do` audit journal.
+The Mo AI system prompt no longer describes a local brain. `install-opencode`
+wrote `local:qwen2.5:7b-instruct`, which the cloud-only gateway rejects with
+HTTP 409 (reproduced); it now writes the gateway's `moai` model, which answered
+through the configured free route. Existing OpenCode configs are left untouched
+and still need a migration. Nothing here is in a signed image yet. Plan:
+[`docs/MOOS_COMPLETION_PLAN.md`](docs/MOOS_COMPLETION_PLAN.md) (M2.1).
+
 **Unified platform integration (2026-09-11, candidate source):** keep KDE/KWin
 upstream and own the MoOS experience above them. Settings and Mo AI now share
 `usr/lib/moos/moos_hardware.py`, with executable ARM/x86 and malformed-tool

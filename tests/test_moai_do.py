@@ -247,6 +247,64 @@ with tempfile.TemporaryDirectory() as tmp:
           "a blocked downgrade must be a clear, clean no-op")
     check(not log.exists(), "a blocked downgrade must never invoke pkexec")
 
+# ── 3. App lifecycle has ONE authority: Mo Store's backend ───────────────────
+# uninstall carries the same free-form id as install, so it gets the same refusals.
+for bad_id in ("../../etc/passwd", "org.foo; rm -rf ~", "org.foo && reboot", "$(id)", "org foo"):
+    result = run("uninstall", bad_id)
+    check(result.returncode == 2,
+          f"moai-do uninstall must refuse the id {bad_id!r} with exit 2, got {result.returncode}")
+    check("invalid app id" in result.stdout + result.stderr,
+          f"moai-do uninstall must reject {bad_id!r} as an invalid id")
+result = run("uninstall")
+check(result.returncode == 2, "moai-do uninstall with no id must exit 2")
+
+# Install, remove and update must reach moos-storectl with exactly the confirmed
+# arguments, and a declined prompt must never reach it at all. Flatpak itself is
+# doubled to fail, which proves moai-do no longer performs transactions directly.
+with tempfile.TemporaryDirectory() as tmp:
+    bindir = Path(tmp)
+    store_log = bindir / "storectl.log"
+    success = ('#!/bin/sh\nprintf "%s\\n" "$@" >> "$MOOS_TEST_STORE_LOG"\n'
+               "printf '%s\\n' '{\"schema\":1,\"state\":\"success\",\"message\":\"Done\"}'\n")
+    for name, body in {"moos-storectl": success,
+                       "flatpak": "#!/bin/sh\nexit 1\n",
+                       "gtk-launch": "#!/bin/sh\nexit 0\n",
+                       "moos-gpu-headroom": "#!/bin/sh\nexit 0\n"}.items():
+        (bindir / name).write_text(body, encoding="utf-8")
+        (bindir / name).chmod(0o755)
+    store_env = os.environ.copy()
+    store_env["PATH"] = f"{bindir}{os.pathsep}{store_env.get('PATH', '')}"
+    store_env["MOOS_TEST_STORE_LOG"] = str(store_log)
+
+    def store_run(args, answer):
+        store_log.unlink(missing_ok=True)
+        completed = subprocess.run([BASH, str(MOAI_DO), *args], input=answer,
+                                   capture_output=True, text=True, encoding="utf-8",
+                                   errors="replace", timeout=60, env=store_env)
+        logged = store_log.read_text(encoding="utf-8") if store_log.exists() else ""
+        return completed, logged
+
+    for args, expected in ((["uninstall", "org.example.App"], "remove\norg.example.App\n"),
+                           (["update-apps"], "update\n"),
+                           (["install", "org.example.App"], "install\norg.example.App\n")):
+        label = " ".join(args)
+        completed, logged = store_run(args, "y\n")
+        check(logged == expected,
+              f"moai-do {label} must delegate exactly to moos-storectl; got {logged!r}")
+        check(completed.returncode == 0,
+              f"a successful Store job must make moai-do {label} succeed: {completed.stdout}")
+        completed, logged = store_run(args, "n\n")
+        check(logged == "", f"a declined moai-do {label} must never reach moos-storectl")
+        check(completed.returncode == 0, f"declining moai-do {label} must be a clean no-op")
+
+    (bindir / "moos-storectl").write_text(
+        "#!/bin/sh\nprintf '%s\\n' '{\"schema\":1,\"state\":\"failed\",\"message\":"
+        "\"This app is installed system-wide; Mo Store only removes user installations\"}'\n"
+        "exit 1\n", encoding="utf-8")
+    completed, _ = store_run(["uninstall", "org.example.App"], "y\n")
+    check(completed.returncode != 0 and "system-wide" in completed.stdout,
+          "a failed Store job must fail the action and show the backend's own reason")
+
 if errors:
     print("MoOS moai-do test failed:", file=sys.stderr)
     for error in errors:

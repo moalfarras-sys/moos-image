@@ -67,6 +67,10 @@ boot. Read this before changing anything.
 
 ## Where the rest of the knowledge is
 
+- **`docs/MOOS_COMPLETION_PLAN.md`** — the master program: measured live audit,
+  binding product decisions, phases P0–P5 with exit evidence, and the scorecard.
+  Start here to know what to build next and why.
+
 - **`docs/MOOS_SYSTEM_DEVELOPMENT_PLAN.md`** — current four-edition architecture,
   measured Oracle constraints, ordered implementation tasks and acceptance gates.
   Runtime evidence outranks historical plans; never treat a local app override as a signed OS release.
@@ -306,6 +310,15 @@ while warning about actual DNF/Flatpak files in `/var`. Inspect the finished
 filesystem and lint warnings; fix lifecycle ownership without losing Flatpak
 initialization or boot assets. The clean-state requirement is unchanged. See
 `docs/MOOS_UNIFIED_PLATFORM.md` for the lifecycle fix and remaining artifact proof.
+
+**A test that runs a MoOS desktop tool inherits your live desktop.** CI has no
+session bus, so a suite can pass there while, on a workstation, the same run drives
+the real plasmashell. `tests/test_moos_theme_safety.py` executed `moos-theme`, and
+every gate run on the daily driver silently switched the desktop wallpaper to the
+fixture profile until `moos-theme-drift.timer` put it back — recorded for weeks as
+an unexplained "wallpaper drift". Isolate `DBUS_SESSION_BUS_ADDRESS`, `DISPLAY`,
+`WAYLAND_DISPLAY`, HOME and the XDG directories before executing such a tool, and
+read the live state back before and after when you suspect a side effect.
 
 **`/usr/local` has two layouts.** The x86 Atomic base links it to
 `../var/usrlocal` (absent during compose); ARM has a real immutable directory.

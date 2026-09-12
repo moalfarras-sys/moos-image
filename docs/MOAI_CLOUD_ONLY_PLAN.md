@@ -85,6 +85,12 @@ explicitly controlled feature, not a model tool.
   executable cloud-only behavior. Do not erase a guard to get a green build.
 - C3: no cross-provider fallback ladder is shipped. OpenRouter handles provider
   fallback within the selected model. Free quota exhaustion can still stop a reply.
+- C3a (2026-09-11): the automatic free route may ask the next verified
+  zero-price model from the same OpenRouter catalogue when the first refuses
+  (429/403/404/5xx) before any response byte is sent. This is not a paid or
+  cross-provider fallback: every candidate passes `visible_models()` and carries
+  a zero `max_price`, and explicit model selections are never retried. Ordering
+  is the measured `MEASURED_PREFERENCE` in `moai_cloud_policy.py`.
 - C4: prove first-login and upgrade migration from every historic local layout;
   local speech UI needs a future cloud transcription feature before re-enabling.
 - C5: local engine packages are omitted by both architecture builds. Check the
