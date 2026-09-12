@@ -148,6 +148,11 @@ class PackagedRuntimeTests(unittest.TestCase):
         positions = [body.index(step) for step in order]
         self.assertEqual(positions, sorted(positions))
         self.assertIn("confirm || return 0", body)
+        # After an upgrade the running adapter must not keep the moved runtime.
+        self.assertIn("try-restart moai-agent-api.service moai-hermes.service", body)
+        help_text = moai_do[moai_do.index("${C}install-opencode${N}"):moai_do.index("${C}install-openclaw${N}")]
+        self.assertLess(help_text.index("Install OpenCode"), help_text.index("${C}install-hermes${N}"),
+                        "each action's English line stays under its own name in moai-do help")
         self.assertIn("        install-hermes) do_install_hermes ;;", moai_do)
         self.assertIn("do/install-hermes|", self.read("system_files/usr/bin/moos-open"))
         qml = self.read("system_files/usr/share/moos/apps/moai/main.qml")

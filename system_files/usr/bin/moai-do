@@ -856,7 +856,9 @@ do_install_hermes() {
         mv "$staging" "$root" || return 1
         if /usr/libexec/moai-hermes check >/dev/null 2>&1; then
             rm -rf "${root}.old"
-            systemctl --user try-restart moai-agent-api.service >/dev/null 2>&1 || true
+            # The adapter still runs the runtime that was just moved and deleted; restart it
+            # with the agent API so the next message uses the version that was installed.
+            systemctl --user try-restart moai-agent-api.service moai-hermes.service >/dev/null 2>&1 || true
             echo "${G}✓ Hermes ${HERMES_VERSION} جاهز لوضع الوكيل في Mo AI | Hermes ${HERMES_VERSION} is ready for Mo AI's agent mode${N}"
         else
             rm -rf "$root"
@@ -1379,8 +1381,9 @@ ${V}الاستعمال | Usage:${N}  moai-do <command> [args]
   ${C}install-claude${N}    تثبيت وكيل Claude Code في ~/.local (بلا صلاحيات)
                     Install the Claude Code agent into ~/.local (no privileges)
   ${C}install-opencode${N}  تثبيت OpenCode — وكيل برمجة على عقل Mo AI السحابي المجاني
-  ${C}install-hermes${N}    تثبيت Hermes — عقل وضع الوكيل في Mo AI (حزمة رسمية مثبّتة بالتجزئة) | Install Hermes, Mo AI's agent runtime
                     Install OpenCode — a coding agent on Mo AI's free cloud brain
+  ${C}install-hermes${N}    تثبيت Hermes — عقل وضع الوكيل في Mo AI (حزمة رسمية مثبّتة بالتجزئة)
+                    Install Hermes, Mo AI's agent runtime (official release, pinned by hash)
   ${C}install-openclaw${N}  وكيل الهاتف — موافقة مسؤول واحدة للعمل بعد تسجيل الخروج
                     Phone agent — one admin approval for after-logout availability
   ${C}setup-brain${N}       فتح إعدادات عقل Mo AI (المزوّد والنموذج السحابي)

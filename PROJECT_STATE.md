@@ -45,6 +45,15 @@ platform, and root reads KConfig with a private home under /run. Live, the branc
 answered with and without a display (8,294,400 against 2,073,600 pixels) and the core-dump
 count did not move. `tests/post-update-check.sh` on that system passed 54 of 55; the one
 failure was the same display race.
+*Code review of PR #85.* Its automated review job had failed internally while the check
+showed green, so the PR was reviewed directly. Four defects, each fixed with a gate:
+`moai-do install-hermes` restarted only the agent API and left `moai-hermes` running the
+runtime it had just moved away; one failed daily-check poll left «Check now» disabled
+until Mo AI restarted (with moai-control unreachable, a live QML probe now sees it released
+after 20 polls); the prompt taught `moos-control settings <page>`, which moos-control did
+not implement and now does for exactly the 25 pages Mo AI's chat grammar allows, each a
+fixed moos-open route; and `moai-do help` printed OpenCode's description under
+`install-hermes`.
 *#82's ISO proof.* Run 34683021017 failed at «installed reboot never produced a new boot
 id» after install, login and all ten apps passed. The serial log shows a clean reboot and
 a second boot that reached the login prompt, and the proof script and every boot, SSH and

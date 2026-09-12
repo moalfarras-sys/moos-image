@@ -26,6 +26,13 @@ STEP = 10
 BRIGHTNESS_SERVICE = "org.kde.ScreenBrightness"
 BRIGHTNESS_PATH = "/org/kde/ScreenBrightness"
 THEMES = ("dark", "light", "nova", "amethyst", "midnight", "aurora", "auto")
+# The settings pages Mo AI offers as buttons (its closed grammar); each is a fixed
+# route in moos-open, which opens the page.
+SETTINGS_PAGES = ("display", "night-light", "audio", "network", "bluetooth", "keyboard",
+                  "mouse", "touchpad", "printers", "themes", "wallpaper", "fonts",
+                  "accessibility", "notifications", "energy", "time", "region", "users",
+                  "about", "storage", "update", "default-apps", "autostart", "lock",
+                  "permissions")
 APP_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{2,254}")
 DISPLAY_NAME = re.compile(r"[A-Za-z0-9_]{1,64}")
 
@@ -41,6 +48,7 @@ USAGE = """moos-control — تحكّم فوري بالجهاز | instant control
   moos-control screenshot
   moos-control theme <dark|light|nova|amethyst|midnight|aurora|auto>
   moos-control open <installed-app-id>
+  moos-control settings <page>
 """
 
 
@@ -237,6 +245,12 @@ def open_app(value):
     return f"🚀 فتح {value} | Opening {value}"
 
 
+def settings(value):
+    one_of(value, SETTINGS_PAGES, "settings page")
+    spawn(["moos-open", f"moos://settings/{value}"])
+    return f"⚙ فتح الإعدادات: {value} | Opening settings: {value}"
+
+
 # ── Status (read-only) ──────────────────────────────────────────────────────
 def status():
     state = {}
@@ -275,6 +289,7 @@ ACTIONS = {
     "bluetooth": (1, bluetooth),
     "theme": (1, theme),
     "open": (1, open_app),
+    "settings": (1, settings),
     "mute": (0, lambda: mute(True)),
     "unmute": (0, lambda: mute(False)),
     "screenshot": (0, screenshot),

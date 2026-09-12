@@ -953,6 +953,7 @@ Kirigami.ApplicationWindow {
     // ── Mo AI's daily check (moos-health, served read-only by moai-control) ──
     property var healthReport: ({})
     property bool healthScanning: false
+    property int healthPollFailures: 0
     readonly property var healthFindings: (healthReport.findings || []).slice(0, 8)
     readonly property string healthStatus: ((healthReport.summary || {}).status) || ""
 
@@ -986,8 +987,21 @@ Kirigami.ApplicationWindow {
         xhr.open("GET", controlApi + "/health")
         xhr.setRequestHeader("X-Moai-Control", "1")
         xhr.onreadystatechange = function () {
-            if (xhr.readyState !== XMLHttpRequest.DONE || xhr.status !== 200)
+            if (xhr.readyState !== XMLHttpRequest.DONE)
                 return
+            if (xhr.status !== 200) {
+                // One failed poll (moai-control restarting, say) used to end polling with
+                // healthScanning still true, locking "Check now" until Mo AI restarted.
+                // Keep asking for about a minute, then let the button go.
+                if (root.healthScanning && ++root.healthPollFailures < 20)
+                    healthPoll.restart()
+                else {
+                    root.healthScanning = false
+                    root.healthPollFailures = 0
+                }
+                return
+            }
+            root.healthPollFailures = 0
             try {
                 const doc = JSON.parse(xhr.responseText)
                 const finished = root.healthScanning && !doc.scanning
