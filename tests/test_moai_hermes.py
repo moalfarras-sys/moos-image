@@ -62,4 +62,103 @@ class AdapterTests(unittest.TestCase):
             self.assertIn('جاهز',result);self.assertIn('data: [DONE]',result)
         finally:srv.shutdown();srv.server_close();thread.join()
 
+
+class PackagedRuntimeTests(unittest.TestCase):
+    """Hermes on fresh systems: the official package, pinned by hash, found by the adapter."""
+
+    ROOT = Path(__file__).resolve().parents[1]
+
+    def read(self, relative):
+        return (self.ROOT / relative).read_text(encoding="utf-8")
+
+    def test_adapter_discovers_the_packaged_venv_layout(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as home:
+            runtime = Path(home) / ".local/lib/hermes-agent"
+            python = runtime / "venv/bin/python"
+            site = runtime / "venv/lib/python3.12/site-packages"
+            python.parent.mkdir(parents=True)
+            site.mkdir(parents=True)
+            python.write_text("#!/bin/sh\n")
+            python.chmod(0o755)
+            with patch.dict(os.environ, {"HOME": home, "MOAI_HERMES_RUNTIME_ROOT": "", "PATH": "/nonexistent"}):
+                adapter = runpy.run_path(str(self.ROOT / "system_files/usr/libexec/moai-hermes"),
+                                         run_name="moai_hermes_packaged_test")
+                self.assertIsNone(adapter["discover_runtime"](), "found a runtime with no run_agent")
+                (site / "run_agent.py").write_text("")
+                found = adapter["discover_runtime"]()
+            self.assertIsNotNone(found)
+            self.assertEqual(found[0], site.resolve())
+            self.assertEqual(found[1], python)
+
+    def test_dependency_lock_pins_every_package_by_version_and_hash(self):
+        lock = self.read("system_files/usr/share/moos/hermes/requirements.lock").splitlines()
+        entries = [index for index, line in enumerate(lock) if line and not line.startswith((" ", "#"))]
+        self.assertGreater(len(entries), 20)
+        for index in entries:
+            with self.subTest(requirement=lock[index]):
+                self.assertRegex(lock[index], r"^[A-Za-z0-9_.-]+(\[[a-z0-9,_-]+\])?==")
+                self.assertTrue(lock[index].rstrip().endswith("\\"))
+                self.assertIn("--hash=sha256:", lock[index + 1])
+        # The runtime is the verified release checkout, never a package pip would build.
+        self.assertFalse(any(lock[index].startswith("hermes-agent") for index in entries))
+
+    def test_release_archive_is_pinned_in_one_place(self):
+        moai_do = self.read("system_files/usr/bin/moai-do")
+        url = "https://github.com/NousResearch/hermes-agent/archive/refs/tags/v2026.9.11.tar.gz"
+        self.assertIn(f'HERMES_URL="{url}"', moai_do)
+        self.assertRegex(moai_do, r'HERMES_SHA256="[0-9a-f]{64}"')
+        self.assertIn(url, self.read("system_files/usr/share/moos/hermes/requirements.in"))
+
+    def test_install_action_verifies_before_it_unpacks_imports_and_can_roll_back(self):
+        moai_do = self.read("system_files/usr/bin/moai-do")
+        body = moai_do[moai_do.index("do_install_hermes() {"):moai_do.index("do_install_codex() {")]
+        order = ['curl -fL --proto \'=https\'', "sha256sum -c --quiet -", "tar -xzf",
+                 '"$HERMES_PYTHON" -m venv', '--require-hashes --no-deps -r "$HERMES_LOCK"',
+                 "./venv/bin/python -c 'import run_agent'", 'mv "$staging" "$root"',
+                 "/usr/libexec/moai-hermes check", 'mv "${root}.old" "$root"']
+        positions = [body.index(step) for step in order]
+        self.assertEqual(positions, sorted(positions))
+        self.assertIn("confirm || return 0", body)
+        self.assertIn("        install-hermes) do_install_hermes ;;", moai_do)
+        self.assertIn("do/install-hermes|", self.read("system_files/usr/bin/moos-open"))
+        qml = self.read("system_files/usr/share/moos/apps/moai/main.qml")
+        self.assertIn("install-opencode|install-hermes|install-openclaw|", qml)
+        self.assertIn("`moai-do install-hermes` installs Hermes Agent", qml)
+        self.assertIn("    python3.12\n)", self.read("build_files/build.sh"))
+        self.assertIn("python3 python3-gobject python3.12", self.read("build_files/build-arm.sh"))
+
+    def test_agent_switch_reports_what_the_adapter_discovers(self):
+        # Mo AI shows its Agent switch from moai-control's /quick; the gateway routes by the
+        # adapter. Both must read the same discovery, or the switch offers a refused runtime.
+        import tempfile
+        with tempfile.TemporaryDirectory() as home:
+            runtime = Path(home) / ".local/lib/hermes-agent"
+            python = runtime / "venv/bin/python"
+            site = runtime / "venv/lib/python3.12/site-packages"
+            python.parent.mkdir(parents=True)
+            site.mkdir(parents=True)
+            python.write_text("#!/bin/sh\n")
+            python.chmod(0o755)
+            with patch.dict(os.environ, {"HOME": home, "MOAI_HERMES_RUNTIME_ROOT": "", "PATH": "/nonexistent",
+                                         "MOAI_HERMES_ADAPTER": str(self.ROOT / "system_files/usr/libexec/moai-hermes")}):
+                control = runpy.run_path(str(self.ROOT / "system_files/usr/bin/moai-control"),
+                                         run_name="moai_control_agent_switch_test")
+                self.assertFalse(control["agent_state"]()["hermes"], "switch offered with no run_agent")
+                (site / "run_agent.py").write_text("")
+                self.assertTrue(control["agent_state"]()["hermes"])
+                self.assertTrue(control["quick"].__code__.co_names.count("agent_state"))
+
+    def test_both_prompts_carry_the_identity_rule(self):
+        qml = self.read("system_files/usr/share/moos/apps/moai/main.qml")
+        rule = qml[qml.index("readonly property string identityRule:"):qml.index("readonly property string systemPrompt:")]
+        self.assertIn("this computer runs MoOS", rule)
+        self.assertIn(".fc44", rule)
+        prompt = qml[qml.index("readonly property string systemPrompt:"):]
+        self.assertLess(prompt.index("root.identityRule"), prompt.index("WHAT YOU CAN DO"))
+        self.assertIn('(s.os || "MoOS") + (s.version ? " " + s.version : "") + ", kernel "', qml)
+        _, system, _, _, _ = m["parse_chat"]({"messages": [{"role": "user", "content": "hi"}]})
+        self.assertIn("This computer runs MoOS", system)
+        self.assertIn("never add packaging tags such as .fc44", system)
+
 if __name__=='__main__':unittest.main()

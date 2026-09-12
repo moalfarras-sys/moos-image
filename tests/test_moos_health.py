@@ -185,6 +185,7 @@ class MoosHealthScanTests(unittest.TestCase):
         self.assertEqual(self.severity("open-port-tcp-3389"), "warning")
         self.assertIn("Remote Desktop (RDP)", self.findings["open-port-tcp-3389"]["title"])
         self.assertIn("krdpserver", self.findings["open-port-tcp-3389"]["detail"])
+        self.assertEqual(self.findings["open-port-tcp-3389"]["action"], "moos://app/remote")
         # One finding per protocol and port, whatever the address family.
         ports = [item["id"] for item in self.report["findings"] if item["id"] == "open-port-tcp-8080"]
         self.assertEqual(ports, ["open-port-tcp-8080"])

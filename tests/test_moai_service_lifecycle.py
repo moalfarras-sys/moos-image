@@ -85,14 +85,34 @@ def _free_port() -> int:
         return s.getsockname()[1]
 
 
-def _boot_and_ask(script: str, env_port: str, path: str, headers: dict) -> None:
+def _runtime_token_snapshot():
+    # The token the owner's LIVE moai-agent-api answers with. Measured
+    # 2026-09-12 on the daily driver: this gate booted moai-agent-api with the
+    # session's XDG_RUNTIME_DIR, its Runtime() wrote a fresh token over the live
+    # one, and Hermes' next tool call got 401 until the service was restarted.
+    runtime = os.environ.get("XDG_RUNTIME_DIR") or f"/run/user/{os.getuid()}"
+    token = os.path.join(runtime, "moai-agent", "token")
+    try:
+        with open(token, "rb") as handle:
+            return os.stat(token).st_mtime_ns, handle.read()
+    except OSError:
+        return None
+
+
+def _boot_and_ask(script: str, env_port: str, path: str, headers: dict,
+                  runtime_file: str = "") -> None:
     port = _free_port()
     with tempfile.TemporaryDirectory() as home:
+        runtime = os.path.join(home, "run")
+        os.mkdir(runtime, 0o700)
         env = dict(os.environ)
         env.update({
             "HOME": home,
             "XDG_CONFIG_HOME": os.path.join(home, ".config"),
             "XDG_DATA_HOME": os.path.join(home, ".local/share"),
+            "XDG_STATE_HOME": os.path.join(home, ".local/state"),
+            "XDG_CACHE_HOME": os.path.join(home, ".cache"),
+            "XDG_RUNTIME_DIR": runtime,
             env_port: str(port),
             # Keep the boot hermetic: no unit probing, no engine helper.
             "MOAI_LOCAL_ENGINE_HELPER": "/nonexistent",
@@ -114,7 +134,13 @@ def _boot_and_ask(script: str, env_port: str, path: str, headers: dict) -> None:
                     with urllib.request.urlopen(req, timeout=3) as r:
                         body = r.read(2048)
                         json.loads(body)
-                        return
+                    # Proves the daemon honoured the isolated runtime directory,
+                    # so the unchanged-live-token check below is not vacuous.
+                    if runtime_file and not os.path.isfile(os.path.join(runtime, runtime_file)):
+                        raise AssertionError(
+                            f"{script} answered but never wrote {runtime_file} in the "
+                            f"isolated XDG_RUNTIME_DIR — it is writing somewhere else")
+                    return
                 except Exception as exc:  # noqa: BLE001 - retry until deadline
                     last_error = exc
                     time.sleep(0.3)
@@ -127,8 +153,14 @@ def _boot_and_ask(script: str, env_port: str, path: str, headers: dict) -> None:
                 proc.kill()
 
 
-_boot_and_ask("moai-agent-api", "MOAI_AGENT_PORT", "/", {"X-Moai-Agent": "1"})
+_live_token = _runtime_token_snapshot()
+_boot_and_ask("moai-agent-api", "MOAI_AGENT_PORT", "/", {"X-Moai-Agent": "1"},
+              runtime_file="moai-agent/token")
 _boot_and_ask("moai-control", "MOAI_CONTROL_PORT", "/quick",
               {"X-Moai-Control": "1"})
 _boot_and_ask("moai-gateway", "MOAI_GATEWAY_PORT", "/healthz", {})
+if _runtime_token_snapshot() != _live_token:
+    raise SystemExit("Mo AI service lifecycle gate failed:\n- booting the daemons "
+                     "rewrote the session's moai-agent/token; the live agent API now "
+                     "rejects Hermes until it restarts")
 print("Mo AI daemons boot and answer for real")

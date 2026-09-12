@@ -784,6 +784,78 @@ install_agent() {
     fi
 }
 
+# -----------------------------------------------------------------------------
+# install-hermes — the agent runtime behind Mo AI's agent mode.
+#
+# Mo AI already talks to Hermes Agent (Nous Research, MIT) through /usr/libexec/moai-hermes: a
+# private adapter that runs Hermes' model loop against Mo AI's free cloud gateway with a closed set
+# of Mo AI tools, no external DNS and no subprocesses. Fresh systems lacked the runtime itself.
+#
+# Hermes ships as a source release, not a wheel: building its package raises "Building wheels or
+# sdists for hermes-agent is not supported" (measured on v2026.9.11), and PyPI stops at 0.19.0, which
+# lacks options the adapter uses. So this installs what its own installer does — the release checkout
+# plus a venv — verified end to end: the archive must match HERMES_SHA256 before it is unpacked, and
+# every dependency comes from a lock pinned by version AND sha256 (pip refuses anything else). Hermes
+# needs Python 3.11-3.13 and the system Python is newer, so the image ships python3.12. The new runtime
+# replaces the old one only after `import run_agent` works in it, and the old one is restored if the
+# adapter's own compatibility check then fails.
+# -----------------------------------------------------------------------------
+HERMES_VERSION="0.21.2"
+HERMES_URL="https://github.com/NousResearch/hermes-agent/archive/refs/tags/v2026.9.11.tar.gz"
+HERMES_SHA256="bf45fc6c40ad770e30dfa7677ee6804a24be1a7eab768b283a0883c64662d76e"
+HERMES_LOCK="/usr/share/moos/hermes/requirements.lock"
+HERMES_PYTHON="/usr/bin/python3.12"
+
+do_install_hermes() {
+    local root="$HOME/.local/lib/hermes-agent"
+    local staging="${root}.new"
+    hdr "تثبيت Hermes ${HERMES_VERSION} — عقل وضع الوكيل في Mo AI" \
+        "Install Hermes ${HERMES_VERSION} — the agent brain behind Mo AI"
+    echo "${D}الإصدار الرسمي من Nous Research؛ الأرشيف وكل الاعتماديات مُتحقَّق منها بالتجزئة.${N}"
+    echo "${D}Official Nous Research release; the archive and every dependency are verified by sha256.${N}"
+    echo "${D}يُثبَّت لحسابك فقط (قرابة 400 MB) | Installs for your account only (about 400 MB): ${root}${N}"
+    echo
+    need curl && need tar && need sha256sum || return 1
+    [ -x "$HERMES_PYTHON" ] || {
+        echo "${Y}Python 3.12 غير موجود في هذه النسخة | Python 3.12 is missing from this image${N}"
+        return 1
+    }
+    [ -r "$HERMES_LOCK" ] || {
+        echo "${Y}ملف القفل غير موجود | lock file missing: ${HERMES_LOCK}${N}"
+        return 1
+    }
+    confirm || return 0
+    rm -rf "$staging"
+    mkdir -p "$staging" || return 1
+    if curl -fL --proto '=https' --tlsv1.2 --retry 2 -o "$staging/hermes.tar.gz" "$HERMES_URL" \
+        && printf '%s  %s\n' "$HERMES_SHA256" "$staging/hermes.tar.gz" | sha256sum -c --quiet - \
+        && tar -xzf "$staging/hermes.tar.gz" -C "$staging" --strip-components=1 --no-same-owner \
+        && rm -f "$staging/hermes.tar.gz" \
+        && [ -f "$staging/run_agent.py" ] \
+        && "$HERMES_PYTHON" -m venv "$staging/venv" \
+        && "$staging/venv/bin/python" -m pip install --disable-pip-version-check --no-input \
+               --require-hashes --no-deps -r "$HERMES_LOCK" \
+        && (cd "$staging" && ./venv/bin/python -c 'import run_agent'); then
+        rm -rf "${root}.old"
+        [ -d "$root" ] && mv "$root" "${root}.old"
+        mv "$staging" "$root" || return 1
+        if /usr/libexec/moai-hermes check >/dev/null 2>&1; then
+            rm -rf "${root}.old"
+            systemctl --user try-restart moai-agent-api.service >/dev/null 2>&1 || true
+            echo "${G}✓ Hermes ${HERMES_VERSION} جاهز لوضع الوكيل في Mo AI | Hermes ${HERMES_VERSION} is ready for Mo AI's agent mode${N}"
+        else
+            rm -rf "$root"
+            [ -d "${root}.old" ] && mv "${root}.old" "$root"
+            echo "${Y}لم يجتز Hermes فحص التوافق؛ أُعيد الإصدار السابق | Hermes failed the compatibility check; the previous runtime was restored${N}"
+            return 1
+        fi
+    else
+        rm -rf "$staging"
+        echo "${Y}لم يكتمل التثبيت، ولم يتغيّر شيء | install did not complete; nothing changed${N}"
+        return 1
+    fi
+}
+
 do_install_codex() {
     install_agent "@openai/codex" "codex" "Codex"
 }
@@ -1275,6 +1347,7 @@ ${V}الاستعمال | Usage:${N}  moai-do <command> [args]
   ${C}install-claude${N}    تثبيت وكيل Claude Code في ~/.local (بلا صلاحيات)
                     Install the Claude Code agent into ~/.local (no privileges)
   ${C}install-opencode${N}  تثبيت OpenCode — وكيل برمجة على عقل Mo AI السحابي المجاني
+  ${C}install-hermes${N}    تثبيت Hermes — عقل وضع الوكيل في Mo AI (حزمة رسمية مثبّتة بالتجزئة) | Install Hermes, Mo AI's agent runtime
                     Install OpenCode — a coding agent on Mo AI's free cloud brain
   ${C}install-openclaw${N}  وكيل الهاتف — موافقة مسؤول واحدة للعمل بعد تسجيل الخروج
                     Phone agent — one admin approval for after-logout availability
@@ -1356,6 +1429,7 @@ main() {
         install-codex) do_install_codex ;;
         install-claude) do_install_claude ;;
         install-opencode) do_install_opencode ;;
+        install-hermes) do_install_hermes ;;
         install-openclaw) do_install_openclaw ;;
         setup-brain)      do_setup_brain ;;
         optimize)      do_optimize ;;

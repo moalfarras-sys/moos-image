@@ -115,7 +115,9 @@ class HardwareIdentityTests(unittest.TestCase):
         settings_stubs = {name: (lambda: {}) for name in ("storage_state", "deployment_state", "destinations_state", "dynamic_state")}
         settings_stubs["command"] = lambda *a, **k: ""
         control_stubs = {name: (lambda: {}) for name in ("disk_usage", "installed_apps", "remote_state", "agent_state", "cached_plan")}
-        control_stubs.update(_first_line=lambda *a: "", command_exists=lambda *a: False)
+        os_release = {"PRETTY_NAME=": "MoOS", "VERSION=": "44.20260912.0"}
+        control_stubs.update(_first_line=lambda path, prefix: os_release.get(prefix, "") if path == "/etc/os-release" else "",
+                             command_exists=lambda *a: False)
         def probe(argv, **kwargs):
             if argv == ["lscpu"]:
                 return "Model name: Neoverse-N1"
@@ -129,6 +131,10 @@ class HardwareIdentityTests(unittest.TestCase):
         for field, expected in (("cpu", "Neoverse-N1"), ("gpu", "software")):
             self.assertEqual(settings[field], expected)
             self.assertEqual(scan[field], expected)
+        # Mo AI's context names the OS and its release from these two fields; with the
+        # version missing, a model asked for it invented a base distribution's instead.
+        self.assertEqual((scan["os"], scan["version"]), ("MoOS", "44.20260912.0"))
+        self.assertNotIn(".fc", scan["kernel"])
 
 
 if __name__ == "__main__":

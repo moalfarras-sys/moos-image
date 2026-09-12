@@ -214,6 +214,7 @@ case "${cat}/${tgt}" in
     settings/storage)           gui kinfocenter kcm_block_devices ;;
     settings/firmware-security) gui kinfocenter kcm_firmware_security ;;
     settings/recovery)          gui moos-rollback ;;
+    settings/remote)            gui mo-pc-remote ;;
     settings/system-monitor)    gui plasma-systemmonitor ;;
     settings/energy)            gui systemsettings kcm_powerdevilprofilesconfig ;;
     settings/full)              gui systemsettings ;;
@@ -374,7 +375,7 @@ case "${cat}/${tgt}" in
     # button as "moai-do setup-gaming", so a shortcut straight to moos-setup
     # --gaming made the label name a command that never ran and left the action
     # missing from `journalctl -t moai-do`.
-    do/update|do/update-apps|do/fix-audio|do/check-drivers|do/optimize|do/hw-report|do/diagnose-services|do/inspect-boot|do/install-nvidia|do/update-firmware|do/setup-waydroid|do/setup-gaming|do/setup-windows|do/install-codex|do/install-claude|do/install-opencode|do/install-openclaw|do/setup-brain|do/remote-anywhere|do/rollback|do/net-doctor|do/gpu-report)
+    do/install-hermes|do/update|do/update-apps|do/fix-audio|do/check-drivers|do/optimize|do/hw-report|do/diagnose-services|do/inspect-boot|do/install-nvidia|do/update-firmware|do/setup-waydroid|do/setup-gaming|do/setup-windows|do/install-codex|do/install-claude|do/install-opencode|do/install-openclaw|do/setup-brain|do/remote-anywhere|do/rollback|do/net-doctor|do/gpu-report)
                    term moai-do "$tgt" ;;
     *)
         notify "أمر MoOS غير معروف | unknown MoOS action: ${path}"

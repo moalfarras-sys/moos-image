@@ -94,11 +94,30 @@ _catalogue = (0, [])
 # This only ORDERS candidates the live catalogue already proves free. A withdrawn or
 # priced id drops out and the next candidate answers; nothing here can admit a model.
 MEASURED_PREFERENCE = {
-    'chat': ('nex-agi/nex-n2.5-pro:free', 'dots-studio/dots-3-note-preview:free',
-             'nvidia/nemotron-3-super-120b-a12b:free'),
-    'tools': ('dots-studio/dots-3-note-preview:free', 'nvidia/nemotron-3-super-120b-a12b:free',
-              'nex-agi/nex-n2.5-pro:free'),
+    # Re-measured 2026-09-12 through the gateway (Arabic answer, set_volume tool call):
+    #   nex-n2.5-pro        1.9 s / 1.1 s   correct Arabic, correct call
+    #   nemotron-3-super    2.3 s / 1.0 s   correct Arabic, correct call
+    #   nex-n2.5-mini       0.9 s / 0.7 s   correct Arabic, correct call
+    #   ling-3.0-flash-vl   1.9 s / 1.4 s   correct Arabic, correct call, reads images
+    # Dropped: dots-3-note-preview mixed English into Arabic answers; nemotron-3.5-lightning
+    # printed its reasoning as the answer; inkling models answered 403; gemma-4 and laguna 429.
+    'chat': ('nex-agi/nex-n2.5-pro:free', 'nvidia/nemotron-3-super-120b-a12b:free',
+             'nex-agi/nex-n2.5-mini:free', 'inclusionai/ling-3.0-flash-vl:free'),
+    'tools': ('nex-agi/nex-n2.5-pro:free', 'nex-agi/nex-n2.5-mini:free',
+              'nvidia/nemotron-3-super-120b-a12b:free', 'inclusionai/ling-3.0-flash-vl:free'),
 }
+
+# The free models Mo AI offers by name, in the order the picker shows them, each with the
+# plain-language reason to pick it. Same measurements as above; anything else stays reachable
+# under "all free models". Update both lists together after re-measuring.
+CURATED_FREE = (
+    ('nex-agi/nex-n2.5-pro:free', 'Nex Pro', 'قوي وسريع — الأفضل لمعظم الأسئلة', 'Strong and fast — best for most questions'),
+    ('nex-agi/nex-n2.5-mini:free', 'Nex Mini', 'الأسرع — ردود فورية', 'Fastest — instant replies'),
+    ('nvidia/nemotron-3-super-120b-a12b:free', 'Nemotron Super', 'تفكير أعمق للمسائل الصعبة', 'Deeper reasoning for hard problems'),
+    ('inclusionai/ling-3.0-flash-vl:free', 'Ling Flash Vision', 'يفهم الصور', 'Understands images'),
+    ('cohere/north-mini-code:free', 'North Code', 'مخصص للبرمجة', 'Built for code'),
+    ('nvidia/nemotron-3-ultra-550b-a55b:free', 'Nemotron Ultra', 'الأعمق — أبطأ بكثير', 'Deepest — much slower'),
+)
 
 # Upstream answers that mean "not this free model right now". Authentication and
 # request errors are not the model's fault and never cool a model down.

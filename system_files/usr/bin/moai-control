@@ -587,10 +587,34 @@ def remote_state():
     }
 
 
+# The Hermes adapter's own discovery decides whether agent mode exists here, so
+# Mo AI's Agent switch and the gateway's routing can never disagree. Loaded once;
+# discover_runtime() itself is a few stat() calls, cheap enough for /quick.
+HERMES_ADAPTER = os.environ.get("MOAI_HERMES_ADAPTER") or str(
+    _PolicyPath(__file__).resolve().parent.parent / "libexec/moai-hermes")
+_hermes_discover = None
+
+
+def hermes_installed():
+    global _hermes_discover
+    if _hermes_discover is None:
+        try:
+            import runpy
+            _hermes_discover = runpy.run_path(
+                HERMES_ADAPTER, run_name="moai_control_hermes")["discover_runtime"]
+        except Exception:
+            return False
+    try:
+        return _hermes_discover() is not None
+    except Exception:
+        return False
+
+
 def agent_state():
     return {"codex": command_exists("codex"),
             "claude": command_exists("claude"),
-            "opencode": command_exists("opencode")}
+            "opencode": command_exists("opencode"),
+            "hermes": hermes_installed()}
 
 
 def quick() -> dict:
@@ -671,7 +695,10 @@ def start_health_scan() -> dict:
 
 def scan() -> dict:
     """Read-only system snapshot. The device plan comes from cache (see above)."""
+    # VERSION too: with only "MoOS" in Mo AI's context a model asked for the
+    # version either said it was unknown or invented a base distribution's.
     info = {"os": _first_line("/etc/os-release", "PRETTY_NAME=") or "MoOS",
+            "version": _first_line("/etc/os-release", "VERSION="),
             "cpu": hardware.cpu_name(),
             "cores": os.cpu_count()}
     try:
@@ -1170,6 +1197,42 @@ def cloud_models(cfg):
     return out, ""
 
 
+def curated_cloud_models(cloud: list) -> list:
+    """Order the picker: automatic first, then the measured models by name, then the rest.
+
+    The provider's catalogue arrives as raw ids in its own order, with the free router listed
+    twice and a content-safety classifier that is not a chat model. Measured models (see
+    cloud_policy.CURATED_FREE) carry a name and a one-line reason in both languages; every other
+    free model stays reachable under "all free models".
+    """
+    curated = {model_id: (rank, name, arabic, english)
+               for rank, (model_id, name, arabic, english) in enumerate(cloud_policy.CURATED_FREE)}
+    automatic, picked, others, seen = [], [], [], set()
+    for item in cloud:
+        model_id = str(item.get("id", ""))
+        bare = model_id.split(":", 1)[1] if model_id.startswith("cloud:") else model_id
+        if not model_id or model_id in seen or "content-safety" in bare or "guard" in bare:
+            continue
+        seen.add(model_id)
+        row = dict(item)
+        if bare == cloud_policy.DEFAULT_MODEL:
+            row.update(group="auto", label_ar="تلقائي — أفضل نموذج مجاني متاح",
+                       label_en="Automatic — best free model available",
+                       note_ar="يختار Mo AI الأسرع المتاح الآن", note_en="Mo AI picks the fastest one available now")
+            automatic.append(row)
+        elif bare in curated:
+            rank, name, arabic, english = curated[bare]
+            row.update(group="curated", rank=rank, label_ar=name, label_en=name,
+                       note_ar=arabic, note_en=english)
+            picked.append(row)
+        else:
+            row.update(group="all")
+            others.append(row)
+    picked.sort(key=lambda row: row["rank"])
+    others.sort(key=lambda row: str(row.get("id", "")))
+    return automatic + picked + others
+
+
 def models() -> dict:
     cfg = load_merged()
     mode = cfg.get("mode") if cfg.get("mode") in ("local", "cloud", "hybrid") else "local"
@@ -1192,6 +1255,7 @@ def models() -> dict:
                   "input": ["text"]})
     else:
         cloud_error = cloud_policy.ERROR
+    cloud = curated_cloud_models(cloud)
     selected = configured if (cloud_policy.free_model(configured) or
         cloud_policy.selected_cost_policy() == "paid" and cloud_policy.valid_model(configured)) else cloud_policy.DEFAULT_MODEL
     out = {"local": [], "cloud": cloud, "cloud_error": cloud_error,

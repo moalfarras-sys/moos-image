@@ -1,5 +1,49 @@
 # MoOS — current project state
 
+**Hermes inside Mo AI, named free models, and Mo PC Remote as the remote desktop (2026-09-12, branch `feat/moos-unified-20260912`, on top of `feat/moai-control-20260912`):**
+*Hermes.* `moai-do install-hermes` installs the official Hermes Agent release
+v2026.9.11 (0.21.2): the archive is pinned by SHA-256, its 68 dependencies by
+version and hash (`/usr/share/moos/hermes/requirements.lock`, `--require-hashes
+--no-deps`), it runs on the image's `python3.12` (Hermes needs <3.14; added to
+both x86 and ARM package lists), must import before it replaces a working runtime,
+and the previous runtime is restored if the adapter's check fails. PyPI's 0.19.0
+is incompatible with the adapter and the upstream archive refuses a wheel build,
+which is why it is a verified checkout plus a hash-locked venv. The adapter finds
+that layout (`run_agent.py` in the venv's site-packages). Installed on the daily
+driver, the production gateway answered with `X-MoAI-Agent: hermes` (163 MB).
+*Agent switch.* Mo AI's composer has an Agent switch («وكيل»), on by default and
+shown only when `moai-control` reports `agents.hermes` — read from the adapter's
+own `discover_runtime()`, so the switch and the gateway's routing cannot disagree;
+off sends a plain direct reply. One turn at a time, four prompts on the branch
+stack: direct 8/11/3/34 s, Hermes 4/8/5/7 s, every answer in the question's
+language. The 16–42 s measured first came from the installed gateway's model
+choice, not from Hermes.
+*Identity.* Given only «MoOS, kernel 7.1.13-200» (already stripped by
+moai-control), a free model through Hermes still answered «7.1.13-200.fc44.x86_64
+(Fedora 44 base)»: no tool ran, it filled the gap from training. Both prompts now
+carry an identity rule, the scan reports os-release `VERSION`, and Mo AI's context
+names it. Live on both routes afterwards: «MoOS 44.20260909.0 — kernel 7.1.13-200».
+*A gate broke the live agent.* `test_moai_service_lifecycle.py` booted
+`moai-agent-api` with the session's `XDG_RUNTIME_DIR`; its `Runtime()` wrote a new
+token over the running service's, and Hermes' tool calls failed until a restart.
+The boot now uses a private runtime directory, proves the daemon wrote its token
+there, and fails if the session's token changed (verified unchanged across a run).
+*Free models.* The picker lists named, measured free models in both languages
+(Nex N2.5 Pro and Mini, Nemotron 3 Super and Ultra, Ling 3.0 Flash Vision, North
+Code) above the automatic router and the full free catalogue; it had rendered a
+single row (Flickable without a height) and an empty "local" heading — both
+fixed and captured.
+*Remote.* Settings › Connectivity has «سطح المكتب البعيد» opening Mo PC Remote,
+and the daily check's desktop-sharing finding opens it too. Mo PC Remote scales
+4K frames in CUDA before NVENC (measured ~6.1 → ~2.9 ms per frame); a GPU scaler
+that fails at startup or mid-stream rebuilds on the CPU path with the same encoder
+(`test_remote_cuda_scaler.py`). Wine's helper launchers are hidden from the menu
+at build time (`test_foreign_app_menus.py`).
+**Still owed:** signed-image acceptance of all of the above; Hermes on fresh
+systems across editions; paid OpenCode Zen as a provider; Plasma/X11 unification
+work; C2b removal of the dormant local-brain helpers; the owner's own cleanup of
+local-brain files and old Hermes staging folders (blocked for agents by rule).
+
 **Mo AI controls the computer, checks it every day, and lives in Plasma's search bar (2026-09-12, branch `feat/moai-control-20260912`):**
 the release that fixed the ISO login is signed: all five x86 proofs passed on
 `6021840c` on their first attempt (ISO run 34676614084 logged in on attempt 1 —

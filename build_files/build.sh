@@ -1616,6 +1616,9 @@ _core_power=(
     gh
     nodejs22
     nodejs22-npm
+    # Hermes Agent needs Python 3.11-3.13 and the system Python is newer; moai-do
+    # install-hermes builds the user's Hermes venv on this interpreter.
+    python3.12
 )
 if is_desktop; then
     # Windows application support: MoOS ships the unified runner (moos-run-foreign)
@@ -1630,6 +1633,26 @@ if is_desktop; then
     _core_power+=(waydroid gamemode mangohud steam-devices)
 fi
 dnf5 -y install "${_core_power[@]}"
+if is_desktop; then
+    # Wine ships its internal tools (winecfg, regedit, notepad, wordpad, uninstaller,
+    # WineMine, …) as ten menu entries. In MoOS a Windows program runs by double-click
+    # through moos-run-foreign and Bottles, so those tools only cluttered "All
+    # applications" (seen live in the MoOS launcher). Keep the files — their MIME
+    # handlers still work — and hide them from every menu.
+    for _wine_entry in /usr/share/applications/wine-*.desktop; do
+        [ -f "$_wine_entry" ] || continue
+        if grep -q '^NoDisplay=' "$_wine_entry"; then
+            sed -i 's|^NoDisplay=.*|NoDisplay=true|' "$_wine_entry"
+        else
+            sed -i '0,/^\[Desktop Entry\]/s//[Desktop Entry]\nNoDisplay=true/' "$_wine_entry"
+        fi
+    done
+    _visible_wine="$(grep -L '^NoDisplay=true' /usr/share/applications/wine-*.desktop 2>/dev/null || true)"
+    [ -z "$_visible_wine" ] || {
+        echo "GATE FAIL: Wine tools are still visible in menus: ${_visible_wine}"
+        exit 1
+    }
+fi
 if is_desktop; then
     # Keep Waydroid at its canonical /var/lib/waydroid path. The bootc /var
     # volume is mutable at runtime, and waydroid-selinux has an explicit

@@ -681,6 +681,38 @@ def is_h264_encoder_factory(factory):
     return factory in H264_ENCODER_FACTORIES
 
 
+# SCALE AND CONVERT ON THE GPU WHEN NVENC WILL TAKE THE FRAMES.
+#
+# NVENC accepts frames that already live in CUDA memory, so the 4K -> stream-size scale and the
+# BGRx -> NV12 conversion do not have to happen on the CPU first. Measured on this machine
+# (RTX 2080 SUPER, i5-14400F), 300 frames of 3840x2160 BGRx scaled to 1920x1080 NV12 and encoded,
+# minus the cost of generating the frames:
+#
+#     videoscale + videoconvert (CPU)    ~6.1 ms per frame
+#     cudaupload + cudaconvertscale      ~2.9 ms per frame
+#
+# so every frame leaves about 3 ms sooner and a CPU core stops paying for pixels it never shows.
+# Only the NVENC encoders take CUDA memory; every other encoder and JPEG keep the CPU path. A GPU
+# scaler that fails is remembered for CUDA_RETRY_MS and the pipeline is rebuilt on the CPU path, so
+# the worst this can cost a session is one rebuild — never the session, never the encoder.
+CUDA_ENCODERS = frozenset({"nvh264enc", "nvautogpuh264enc"})
+CUDA_SCALERS = ("cudaupload", "cudaconvertscale")
+CUDA_RETRY_MS = 10 * 60 * 1000
+_cuda_failed_at = {"ms": 0}
+
+
+def is_cuda_scaler_factory(factory):
+    return factory in CUDA_SCALERS
+
+
+def cuda_path_available(elem):
+    if elem not in CUDA_ENCODERS:
+        return False
+    if _cuda_failed_at["ms"] and monotonic_ms() - _cuda_failed_at["ms"] < CUDA_RETRY_MS:
+        return False
+    return all(Gst.ElementFactory.find(name) is not None for name in CUDA_SCALERS)
+
+
 def element_factory_name(element):
     """Factory name from a Gst message source, or empty when the source is a bin/pipeline."""
     try:
@@ -951,6 +983,15 @@ def on_bus(_b, msg):
         # hardware encoder should cost the user some bandwidth, not their remote desktop. Blacklist
         # it, rebuild on the next one down, and keep the session alive.
         factory = element_factory_name(msg.src)
+        if state.get("gpu") and is_cuda_scaler_factory(factory):
+            # A CUDA context can be lost mid-stream (driver reset, GPU memory pressure). That costs
+            # the CPU path, not the session: remember it and rebuild without the GPU scaler.
+            emit(type="warn", warn=f"GPU scaler {factory} failed mid-stream ({err.message}); "
+                                   "scaling on the CPU")
+            _cuda_failed_at["ms"] = monotonic_ms()
+            state["out"] = (0, 0)
+            GLib.idle_add(rebuild)
+            return True
         if state["codec"] == "h264" and is_h264_encoder_factory(factory):
             # msg.src.get_name() is the element INSTANCE name — every H.264 pipeline builds the
             # encoder as `name=enc`, so it is always "enc". The blacklist is keyed by FACTORY name
@@ -1111,8 +1152,6 @@ def build(w, h):
         # is enough to absorb one slow encode without ever becoming a place where latency hides.
         f"! queue name=capq leaky=downstream max-size-buffers=2 max-size-bytes=0 max-size-time=0 "
         f"! videorate drop-only=true max-rate={state['fps']} name=rate "
-        f"! videoscale method=bilinear {caps}"
-        f"! videoconvert "
     )
 
     codec, elem = "jpeg", None
@@ -1135,6 +1174,16 @@ def build(w, h):
         elem, props = pick_h264()
         if elem:
             codec = "h264"
+
+    # The scaler is chosen after the encoder because it depends on it (see CUDA_ENCODERS).
+    gpu = codec == "h264" and cuda_path_available(elem)
+    head += (
+        f"! cudaupload ! cudaconvertscale "
+        f"! video/x-raw(memory:CUDAMemory),format=NV12,width={w},height={h} "
+        if gpu else
+        f"! videoscale method=bilinear {caps}"
+        f"! videoconvert "
+    )
 
     if codec == "h264":
         # An IDR is many times the size of a P-frame, so a periodic one is a periodic bandwidth spike —
@@ -1174,11 +1223,11 @@ def build(w, h):
             # Nothing here is a quality loss worth having: at these bitrates 4:2:0 is what every
             # video call on earth uses, and 4:4:4 was costing chroma bandwidth on a desktop stream
             # that no decoder on the far end could use.
-            "! video/x-raw,format=(string){ I420, NV12 } "
+            ("" if gpu else "! video/x-raw,format=(string){ I420, NV12 } ")
             # ONE value, computed for the size this pipeline is actually building, then expressed in
             # whichever unit the chosen encoder wants. Calling the budget three times invited the three
             # to disagree; and it must be told w/h explicitly, since state["out"] is not set yet here.
-            f"! {elem} " + props.format(kbps=max(1, _bps // 1000), bps=_bps,
+            + f"! {elem} " + props.format(kbps=max(1, _bps // 1000), bps=_bps,
                                         maxbps=int(_bps * 1.5), gop=gop)
             + " name=enc "
             # config-interval=-1 repeats SPS/PPS before every keyframe: a decoder that joins late
@@ -1228,6 +1277,13 @@ def build(w, h):
         else:
             startup_reason = f"state transition returned {ok}"
         teardown()
+        if gpu:
+            # The GPU scaler is the newest part of this pipeline, so it is the first thing taken out:
+            # rebuild the SAME encoder on the CPU path before condemning anything else.
+            emit(type="warn", warn=f"GPU scaling would not start ({startup_factory or startup_reason}); "
+                                   "scaling on the CPU")
+            _cuda_failed_at["ms"] = monotonic_ms()
+            return build(w, h)
         if codec == "h264" and is_h264_encoder_factory(startup_factory):
             emit(type="warn", warn=f"{elem} would not start; falling back")
             # Defence in depth for the same mistake: only condemn an element that failed with real
@@ -1249,6 +1305,7 @@ def build(w, h):
                        f"{startup_reason}")
 
     state["codec"] = codec
+    state["gpu"] = gpu
     state["out"] = (w, h)
     # Start only after PLAYING was proven. The synchronous get_state above may legitimately spend
     # four seconds auditioning an encoder; counting that setup time as starvation would condemn a

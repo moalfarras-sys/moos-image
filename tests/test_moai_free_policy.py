@@ -56,19 +56,19 @@ class FreePolicy(unittest.TestCase):
 
     def test_automatic_route_prefers_measured_speed_over_size(self):
         items = self.catalogue(('nvidia/nemotron-3-ultra-550b-a55b:free', ['tools', 'reasoning']),
-                               ('dots-studio/dots-3-note-preview:free', ['tools', 'reasoning']),
+                               ('nex-agi/nex-n2.5-mini:free', ['tools', 'reasoning']),
                                ('nex-agi/nex-n2.5-pro:free', ['tools', 'reasoning']))
         with patch.object(policy, '_catalogue', (policy.time.monotonic(), items)), \
                 patch.dict(policy._cooldown, {}, clear=True):
-            self.assertEqual(policy.automatic_model(require_tools=True),
-                             'dots-studio/dots-3-note-preview:free')
+            # The 550B model is the largest and was 25 s per answer when measured; size loses.
+            self.assertEqual(policy.automatic_model(require_tools=True), 'nex-agi/nex-n2.5-pro:free')
             self.assertEqual(policy.automatic_model(), 'nex-agi/nex-n2.5-pro:free')
             self.assertEqual(policy.automatic_candidates(limit=3)[-2:],
                              ['nvidia/nemotron-3-ultra-550b-a55b:free', policy.DEFAULT_MODEL])
 
     def test_measured_preference_never_admits_a_priced_model(self):
         items = policy.visible_models([
-            {'id': 'dots-studio/dots-3-note-preview:free', 'pricing': {'prompt': '0.1'},
+            {'id': 'nex-agi/nex-n2.5-pro:free', 'pricing': {'prompt': '0.1'},
              'supported_parameters': ['tools']},
             {'id': 'vendor/big-400b:free', 'pricing': {'prompt': '0', 'completion': '0'},
              'supported_parameters': ['tools']}])
@@ -107,6 +107,19 @@ class FreePolicy(unittest.TestCase):
             with patch.object(policy, '_catalogue', (now + 601, items)), \
                     patch.object(policy.time, 'monotonic', return_value=now + 601):
                 self.assertEqual(policy.automatic_model(), 'nex-agi/nex-n2.5-pro:free')
+
+    def test_curated_models_are_free_measured_and_named_in_both_languages(self):
+        ids = [entry[0] for entry in policy.CURATED_FREE]
+        self.assertEqual(len(ids), len(set(ids)))
+        for model_id, name, arabic, english in policy.CURATED_FREE:
+            with self.subTest(model=model_id):
+                self.assertTrue(model_id.endswith(':free'))
+                self.assertTrue(policy.free_model(model_id))
+                self.assertTrue(name and english)
+                self.assertRegex(arabic, '[\u0600-\u06ff]')
+        for route in policy.MEASURED_PREFERENCE.values():
+            self.assertTrue(set(route) <= set(ids), route)
+        self.assertNotIn('dots-studio/dots-3-note-preview:free', ids)
 
     def test_every_candidate_cooled_still_answers(self):
         items = self.catalogue(('nex-agi/nex-n2.5-pro:free', ['tools']))

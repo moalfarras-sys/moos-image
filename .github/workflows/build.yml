@@ -256,6 +256,8 @@ jobs:
           python3 tests/test_moos_control.py
           python3 tests/test_moos_health.py
           python3 tests/test_moai_krunner.py
+          python3 tests/test_foreign_app_menus.py
+          python3 tests/test_remote_cuda_scaler.py
           python3 tests/test_moos_auto_update.py
           python3 tests/test_updater_trust_badge.py
           python3 tests/test_cloud_console_order.py

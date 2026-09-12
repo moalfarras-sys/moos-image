@@ -91,7 +91,7 @@ _PLASMA=(
     NetworkManager NetworkManager-wifi
     plymouth plymouth-plugin-script plymouth-plugin-two-step plymouth-system-theme
     dracut-network
-    python3 python3-gobject
+    python3 python3-gobject python3.12
     fontconfig gtk3 gtk4 libadwaita mpv-libs
     mesa-dri-drivers mesa-libEGL mesa-libgbm
     openssh-server cloud-init cloud-utils-growpart

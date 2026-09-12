@@ -362,10 +362,15 @@ def listeners(findings):
     for (protocol, port), entry in sorted(grouped.items()):
         where = ", ".join(entry["addresses"])
         who = entry["owner"] or "owner not visible to this user"
+        desktop_share = port in (3389, 5900)
         findings.append(finding(
             f"open-port-{protocol}-{port}", "warning",
             REMOTE_ACCESS_PORTS.get(port, "منفذ مفتوح على الشبكة | A port is open to the network"),
-            f"{protocol} {where} — {who}"))
+            f"{protocol} {where} — {who}"
+            + (" — MoOS's remote desktop is Mo PC Remote" if desktop_share else ""),
+            # MoOS's remote desktop is Mo PC Remote (private tailnet, PIN): offer it
+            # instead of leaving a second, network-wide desktop server running.
+            "moos://app/remote" if desktop_share else ""))
     return items
 
 

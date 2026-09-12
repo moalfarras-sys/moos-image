@@ -1,0 +1,12 @@
+# Hermes Agent (Nous Research, MIT) — the agent runtime behind Mo AI's agent mode.
+#
+# Hermes ships as a source release, not a wheel ("Building wheels or sdists for hermes-agent is not
+# supported"), and PyPI stops at 0.19.0, which lacks options the adapter uses. `moai-do install-hermes`
+# therefore unpacks the release archive (verified against HERMES_SHA256 in moai-do) and installs ONLY
+# its dependencies from requirements.lock with `pip --require-hashes --no-deps`.
+#
+# Regenerate after moving to a newer release (keep HERMES_URL/HERMES_SHA256 in moai-do in step):
+#   uv pip compile requirements.in --python-version 3.12 --universal --generate-hashes -o full.lock
+#   then drop the `hermes-agent @ ...` entry and its hash lines -> requirements.lock
+# v2026.9.11 = Hermes Agent 0.21.2 (requires Python >=3.11,<3.14).
+hermes-agent @ https://github.com/NousResearch/hermes-agent/archive/refs/tags/v2026.9.11.tar.gz

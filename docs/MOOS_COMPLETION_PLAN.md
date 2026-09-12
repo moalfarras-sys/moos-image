@@ -216,3 +216,10 @@ change weekly; a single sample is evidence of a problem, not a final ranking.
 - **2026-09-12, M2.3 (control) + M2.4 (daily check) + P1 Plasma:** `moos-control`
   tap-to-run actions, `moos-health` read-only daily check with Mo AI card and brain
   context, and the `moai-krunner` search runner; each proven live and gated.
+- **2026-09-12, Hermes in Mo AI + identity + remote:** hash-pinned `moai-do
+  install-hermes` (0.21.2) live on the daily driver; an Agent switch driven by the
+  adapter's discovery (Hermes 4–8 s against direct 3–34 s over four prompts); an
+  identity rule and the MoOS version in context after a model invented a base
+  distribution; a gate that overwrote the live agent token is isolated; named free
+  models in the picker; Settings opens Mo PC Remote, which scales on CUDA with a CPU
+  fallback.

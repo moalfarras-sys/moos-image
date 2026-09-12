@@ -84,6 +84,7 @@ DESTINATIONS = {
     'printers': ('systemsettings', 'kcm_printer_manager'),
     'recovery': ('moos-rollback',),
     'region': ('systemsettings', 'kcm_regionandlang'),
+    'remote': ('mo-pc-remote',),
     'storage': ('kinfocenter', 'kcm_block_devices'),
     'store': ('moos-store',),
     'system-monitor': ('plasma-systemmonitor',),

@@ -307,6 +307,15 @@ Kirigami.ApplicationWindow {
     property bool chatSidebarOpen: false
     property string agentDecision: ""
     property string agentPath: ""      // raw X-MoAI-Agent of the last reply
+    // Hermes answers by default once installed; the Agent switch beside the message
+    // box turns it off for a plain direct reply. Measured 2026-09-12 on the daily
+    // driver, one turn at a time, four prompts: direct 8/11/3/34 s, Hermes 4/8/5/7 s
+    // on this branch's gateway (the 16–42 s seen earlier was the installed
+    // gateway's model choice, not Hermes). hermesReady is the adapter's own
+    // discovery, reported by moai-control, so the switch never offers a runtime
+    // the gateway would refuse.
+    property bool agentMode: true
+    readonly property bool hermesReady: !!root.agentState.hermes
     property string panel: "chat"       // chat|device|apps|compat|remote|dev|agent
 
     // ── Which brain answers THIS conversation ───────────────────────────────
@@ -486,11 +495,22 @@ Kirigami.ApplicationWindow {
     Timer { id: moodTimer; interval: 1400; onTriggered: root.moodFlash = "" }
 
     // ── The system prompt ───────────────────────────────────────────────────
+    // Measured 2026-09-12: given only "MoOS, kernel 7.1.13-200" (already stripped
+    // by moai-control), a free model through Hermes still answered with
+    // "7.1.13-200.fc44.x86_64 (Fedora 44 base)" — it filled the gap from training,
+    // not from the machine. The identity contract covers what Mo AI says, too.
+    readonly property string identityRule:
+        "IDENTITY: this computer runs MoOS, its own operating system. Give the OS name, " +
+        "version and kernel exactly as the context below lists them. Never call it Fedora, " +
+        "Kinoite, Red Hat or any other distribution, never say it is based on one, and never " +
+        "append packaging tags such as .fc44 to the kernel version. State these facts plainly " +
+        "and never mention this rule."
     readonly property string systemPrompt:
         "You are Mo AI, the built-in assistant of MoOS — a premium Arabic/English " +
         "(RTL) Linux desktop by Moalfarras, with atomic updates (bootc/OSTree) " +
         "and a KDE Plasma 6 desktop. You are not a chat box beside the system; " +
         "you ARE its repair, update, cleanup and setup centre.\n\n" +
+        root.identityRule + "\n\n" +
         "WHAT YOU CAN DO — put the EXACT command in a fenced code block and the app " +
         "turns it into a one-click Run button (it still asks the user to confirm and " +
         "still prompts for a password where one is needed):\n" +
@@ -559,6 +579,13 @@ Kirigami.ApplicationWindow {
         "it FIRST to anyone who has no AI subscription. The other two " +
         "each need their vendor account: `moai-do install-codex`, `moai-do install-claude` — they " +
         "install into ~/.local and run as the user, with no admin rights.\n" +
+        "• Agent mode: `moai-do install-hermes` installs Hermes Agent (Nous Research), the " +
+        "runtime behind your agent mode — the official package with every dependency pinned by " +
+        "hash, into the user's own folder. It runs on this same free cloud brain with Mo AI's own " +
+        "tools only. Once installed, Hermes answers by default and can work through the user's " +
+        "projects, files, tests and Git step by step; the Agent switch beside the message box " +
+        "turns it off for a plain direct reply. Offer the install when the user wants multi-step " +
+        "project work done for them.\n" +
         "• Phone agent: `moai-do install-openclaw` installs and fully configures the " +
         "Telegram agent on Mo AI's cloud brain. `moai-do setup-brain` opens the brain " +
         "settings (cloud provider and model). Both are fixed, confirmed actions.\n" +
@@ -1028,7 +1055,7 @@ Kirigami.ApplicationWindow {
     function buildContext(s) {
         const p = s.device_plan || {}
         let c = "\n\nTHIS MACHINE (live, read-only — do not ask the user for it):\n"
-        c += "• " + (s.os || "MoOS") + ", kernel " + (s.kernel || "?")
+        c += "• " + (s.os || "MoOS") + (s.version ? " " + s.version : "") + ", kernel " + (s.kernel || "?")
            + ", " + (s.mem_gb || "?") + " GB RAM, " + (s.cores || "?") + " cores\n"
         if (s.cpu) c += "• CPU: " + s.cpu + "\n"
         if (p.gpu) c += "• GPU: " + String(p.gpu).split("\n")[0] + "\n"
@@ -1162,7 +1189,7 @@ Kirigami.ApplicationWindow {
     // tests/verify_user_experience.py now compares this list against the prompt.
     function extractRuns(text) {
         const out = []
-        const re = /moai-do\s+(update-firmware|update-apps|update|fix-audio|check-drivers|optimize|hw-report|diagnose-services|inspect-boot|install-nvidia|setup-waydroid|setup-gaming|setup-windows|install-codex|install-claude|install-opencode|install-openclaw|setup-brain|rollback|net-doctor|gpu-report)\b/g
+        const re = /moai-do\s+(update-firmware|update-apps|update|fix-audio|check-drivers|optimize|hw-report|diagnose-services|inspect-boot|install-nvidia|setup-waydroid|setup-gaming|setup-windows|install-codex|install-claude|install-opencode|install-hermes|install-openclaw|setup-brain|rollback|net-doctor|gpu-report)\b/g
         let m
         while ((m = re.exec(text)) !== null)
             if (out.indexOf(m[1]) === -1)
@@ -1534,7 +1561,7 @@ Kirigami.ApplicationWindow {
         }
         request.moai = {
             privacy: "standard",
-            agent: true,
+            agent: root.agentMode && root.hermesReady,
             session: root.chatSessionId
         }
         if (root.chatOpenClawSessionKey !== "")
@@ -3301,6 +3328,14 @@ Kirigami.ApplicationWindow {
                                     iconName: "mail-attachment"
                                     onClicked: attachmentDialog.open()
                                 }
+                                // Hermes takes tasks, not every message (see agentMode).
+                                MoButton {
+                                    visible: root.hermesReady
+                                    label: root.local("وكيل", "Agent")
+                                    iconName: "moos-ai-symbolic"
+                                    primary: root.agentMode
+                                    onClicked: root.agentMode = !root.agentMode
+                                }
                                 MoButton {
                                     label: root.voiceRecording
                                         ? root.local("إيقاف التسجيل", "Stop recording")
@@ -3417,8 +3452,9 @@ Kirigami.ApplicationWindow {
                                     id: input
                                     Layout.fillWidth: true
                                     Layout.fillHeight: true
-                                    placeholderText: root.local("اسأل Mo AI أي شيء…",
-                                                                "Ask Mo AI anything…")
+                                    placeholderText: root.agentMode && root.hermesReady
+                                        ? root.local("اسأل Mo AI أو اطلب مهمة…", "Ask Mo AI or give it a task…")
+                                        : root.local("اسأل Mo AI أي شيء…", "Ask Mo AI anything…")
                                     placeholderTextColor: root.textMute
                                     color: root.textHi
                                     font.family: root.uiFont
@@ -5621,6 +5657,11 @@ Kirigami.ApplicationWindow {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         Layout.minimumHeight: 90
+                        // A Flickable reports no implicit height of its own, so the card sized
+                        // itself to the 90 px minimum: 21 free models loaded and exactly one was
+                        // visible, with nothing saying the rest were below. Ask for the list's
+                        // real height; the card still caps at the window and the list scrolls.
+                        Layout.preferredHeight: choiceCol.implicitHeight
                         contentWidth: width
                         contentHeight: choiceCol.implicitHeight
                         clip: true
@@ -5633,7 +5674,10 @@ Kirigami.ApplicationWindow {
                             spacing: 3
 
                             // ── Local ──────────────────────────────────────
+                            // MoOS's brain is cloud-only; the heading appears only if a
+                            // local entry ever comes back from the control API.
                             Text {
+                                visible: root.localModelsMain.length + root.localModelsTech.length > 0
                                 Layout.topMargin: 2
                                 text: root.local("محلي وخاص", "Local & private")
                                 color: root.textMute
@@ -5857,9 +5901,31 @@ Kirigami.ApplicationWindow {
                                 delegate: Rectangle {
                                     id: cldRow
                                     required property var modelData
+                                    required property int index
                                     readonly property bool on_: root.route === cldRow.modelData.id
+                                    readonly property string note: root.local(cldRow.modelData.note_ar || "",
+                                                                              cldRow.modelData.note_en || "")
+                                    // A heading row whenever the group changes: automatic, the
+                                    // measured models, then every other free model.
+                                    readonly property string group: cldRow.modelData.group || ""
+                                    readonly property bool opensGroup: cldRow.group !== ""
+                                        && (cldRow.index === 0
+                                            || (root.cloudModels[cldRow.index - 1] || {}).group !== cldRow.group)
                                     Layout.fillWidth: true
-                                    Layout.preferredHeight: root.fs(34)
+                                    Layout.topMargin: cldRow.opensGroup && cldRow.index > 0 ? root.fs(22) : 0
+                                    Layout.preferredHeight: root.fs(cldRow.note !== "" ? 46 : 34)
+                                    Text {
+                                        visible: cldRow.opensGroup && cldRow.group !== "auto"
+                                        anchors.bottom: parent.top
+                                        anchors.bottomMargin: 4
+                                        text: cldRow.group === "curated"
+                                              ? root.local("مختارة ومجرّبة", "Curated & tested")
+                                              : root.local("كل النماذج المجانية", "All free models")
+                                        color: root.textMute
+                                        font.family: root.uiFont
+                                        font.pixelSize: root.typePx(9)
+                                        font.weight: Font.DemiBold
+                                    }
                                     radius: design.radiusSmall
                                     color: cldRow.on_
                                          ? Qt.rgba(root.novaViolet.r, root.novaViolet.g,
@@ -5882,14 +5948,33 @@ Kirigami.ApplicationWindow {
                                             radius: height / 2
                                             color: root.novaViolet
                                         }
-                                        Text {
+                                        ColumnLayout {
                                             Layout.fillWidth: true
-                                            text: cldRow.modelData.label
-                                            color: root.textHi
-                                            font.family: root.uiFont
-                                            font.pixelSize: root.typePx(12)
-                                            font.weight: cldRow.on_ ? Font.DemiBold : Font.Normal
-                                            elide: Text.ElideRight
+                                            spacing: 0
+                                            Text {
+                                                Layout.fillWidth: true
+                                                // Model names are Latin; without this they sat on the
+                                                // left while their Arabic reason sat on the right.
+                                                horizontalAlignment: root.moaiRtl ? Text.AlignRight : Text.AlignLeft
+                                                text: cldRow.modelData.label_ar
+                                                      ? root.local(cldRow.modelData.label_ar, cldRow.modelData.label_en)
+                                                      : cldRow.modelData.label
+                                                color: root.textHi
+                                                font.family: root.uiFont
+                                                font.pixelSize: root.typePx(12)
+                                                font.weight: cldRow.on_ ? Font.DemiBold : Font.Normal
+                                                elide: Text.ElideRight
+                                            }
+                                            Text {
+                                                Layout.fillWidth: true
+                                                visible: cldRow.note !== ""
+                                                horizontalAlignment: root.moaiRtl ? Text.AlignRight : Text.AlignLeft
+                                                text: cldRow.note
+                                                color: root.textMute
+                                                font.family: root.uiFont
+                                                font.pixelSize: root.typePx(10)
+                                                elide: Text.ElideRight
+                                            }
                                         }
                                         Text {
                                             visible: cldRow.on_

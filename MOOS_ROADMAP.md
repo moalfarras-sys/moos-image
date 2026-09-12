@@ -154,6 +154,16 @@ OpenRouter policy. See [the cloud-only plan](docs/MOAI_CLOUD_ONLY_PLAN.md) and
 - [ ] Package/prove Hermes availability on fresh systems across all four
   editions. The installed-runtime adapter reports absence and uses direct cloud;
   the owner's working runtime is not proof that the dependency ships.
+  *Progress:* `feat/moos-unified-20260912` adds `moai-do install-hermes` (release
+  archive pinned by SHA-256, 68 hash-locked dependencies, `python3.12` in the x86
+  and ARM images, import check and rollback); installed on the daily driver and
+  answering through the production gateway. Fresh-system proof per edition remains.
+- [ ] Mo AI names this machine as MoOS on every route, and Hermes is a visible
+  choice. *Progress:* on `feat/moos-unified-20260912` both prompts carry an identity
+  rule, the scan reports the MoOS version, and live answers on the direct and Hermes
+  routes read «MoOS 44.20260909.0 — kernel 7.1.13-200» (before: «Fedora 44 base»).
+  The composer's Agent switch follows the adapter's own discovery. Signed-image
+  acceptance remains.
 - [ ] Complete native QML/phone and bounded-memory acceptance. Incremental
   streaming, persistent memory and plugins are not currently provided; SSE
   delivers a final-answer frame.

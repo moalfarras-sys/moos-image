@@ -129,7 +129,12 @@ def main() -> None:
         assert captured["headers"]["x-openclaw-session-key"] == "agent:main:main"
         assert "user" not in captured["body"]
     qml = (ROOT / "system_files/usr/share/moos/apps/moai/main.qml").read_text(encoding="utf-8")
-    assert 'agent: true' in qml and 'session: root.chatSessionId' in qml
+    # The desktop sends the agent flag from the Agent switch (on by default), and only
+    # when the adapter reports an installed runtime.
+    assert 'agent: root.agentMode && root.hermesReady' in qml and 'session: root.chatSessionId' in qml
+    assert 'property bool agentMode: true' in qml and 'agent: true' not in qml
+    assert 'readonly property bool hermesReady: !!root.agentState.hermes' in qml
+    assert 'onClicked: root.agentMode = !root.agentMode' in qml
     assert 'session_key = root.chatOpenClawSessionKey' in qml
     assert 'function agentOpenPrimary(id, key, label)' in qml
     assert 'chatModel.clear()' in qml and 'root.chatModel.clear()' not in qml
