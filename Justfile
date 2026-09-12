@@ -41,6 +41,7 @@ check:
     python3 tests/test_moai_krunner.py
     python3 tests/test_foreign_app_menus.py
     python3 tests/test_remote_cuda_scaler.py
+    python3 tests/test_app_qml_identity.py
     python3 tests/test_moos_auto_update.py
     # The trust badge is the only place the desktop tells the owner whether
     # the running system is the one MoOS signed. It must read the booted

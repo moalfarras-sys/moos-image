@@ -154,11 +154,14 @@ class PackagedRuntimeTests(unittest.TestCase):
         rule = qml[qml.index("readonly property string identityRule:"):qml.index("readonly property string systemPrompt:")]
         self.assertIn("this computer runs MoOS", rule)
         self.assertIn(".fc44", rule)
+        # The image identity gate fails any app QML naming the base distribution, even here.
+        self.assertNotIn("fedora", rule.lower())
         prompt = qml[qml.index("readonly property string systemPrompt:"):]
         self.assertLess(prompt.index("root.identityRule"), prompt.index("WHAT YOU CAN DO"))
         self.assertIn('(s.os || "MoOS") + (s.version ? " " + s.version : "") + ", kernel "', qml)
         _, system, _, _, _ = m["parse_chat"]({"messages": [{"role": "user", "content": "hi"}]})
         self.assertIn("This computer runs MoOS", system)
-        self.assertIn("never add packaging tags such as .fc44", system)
+        self.assertIn("packaging tags such as .fc44", system)
+        self.assertNotIn("fedora", system.lower())
 
 if __name__=='__main__':unittest.main()
