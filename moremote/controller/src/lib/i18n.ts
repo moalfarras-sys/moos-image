@@ -256,6 +256,12 @@ const dict = {
   },
 
   // ── Orientation toast ──
+  fillOffer: { ar: "أدر الصورة لملء الشاشة", en: "Turn the picture to fill the screen" },
+  fillOfferAria: {
+    ar: "سطح المكتب صغير على هذه الشاشة. المس لإدارة الصورة جانبياً وملء الشاشة.",
+    en: "The desktop is small on this screen. Tap to turn the picture sideways and fill it.",
+  },
+  fillOfferDismiss: { ar: "إخفاء هذا الاقتراح", en: "Hide this suggestion" },
   orientAutoToast: { ar: "يتبع هاتفك — مستقيم", en: "Follows your phone — upright" },
   orientOnToast: { ar: "مُدار جانبياً — يملأ الشاشة", en: "Turned sideways — fills the screen" },
   orientOffToast: { ar: "مُثبّت مستقيماً", en: "Locked upright" },

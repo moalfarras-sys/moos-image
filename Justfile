@@ -167,6 +167,10 @@ check:
     python3 tests/test_remote_h264_chroma.py
     python3 tests/test_remote_toolbar_edge.py
     python3 tests/test_remote_input_mode.py
+    # One scroll convention across the controller, the portal and BOTH agents. The two
+    # injectors disagreed about which way is down and the repair landed in the shared
+    # middle, which inverted the wheel on MoOS itself for a release.
+    python3 tests/test_remote_scroll_direction.py
     python3 tests/test_remote_us_keymap.py
     python3 tests/test_remote_group_resolution.py
     python3 tests/test_remote_keycode_flush.py

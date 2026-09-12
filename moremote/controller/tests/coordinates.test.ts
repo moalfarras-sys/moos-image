@@ -157,12 +157,22 @@ delta(5, 0, true, 0, 5, "screen-right is desktop-down when turned");
 const remote = readFileSync(join(import.meta.dirname, "..", "src", "ui", "RemoteScreen.tsx"), "utf8");
 const remoteCode = remote.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
-// A browser wheel reports positive deltaY for a physical turn DOWN, while the remote injection
-// boundary consumes positive vertical wheel steps as UP. This was passed through unchanged, so
-// the owner's wheel ran backwards. Only the desktop-mouse callback is inverted: touch gestures
-// have their own explicit natural-scroll setting and must not change with this repair.
-assert.match(remoteCode, /scroll:\s*\(dx,\s*dy\)\s*=>\s*conn\.scroll\(dx,\s*-dy\)/,
-  "desktop wheel-down must become a negative remote vertical step; leave horizontal and touch alone");
+// ONE SIGN ON THE WIRE: POSITIVE Y SCROLLS THE REMOTE DOWN.
+//
+// This assertion used to demand the opposite — `conn.scroll(dx, -dy)` — on the grounds that "the
+// remote injection boundary consumes positive vertical wheel steps as UP". That is true of exactly
+// two boundaries (Win32 MOUSEEVENTF_WHEEL and evdev REL_WHEEL) and false of the one MoOS actually
+// uses: the portal's NotifyPointerAxis is positive-DOWN, like wl_pointer, libinput and WheelEvent,
+// and agent-linux/InputInjector.cs both documents that and negates only for its uinput fallback.
+// So the inversion here was a second negation on top of a correct one, and a real mouse scrolled
+// backwards on every MoOS session while this gate stayed green. The Windows injector now negates
+// at its own boundary instead, which is where a platform difference belongs.
+//
+// The runtime half of this lives in tests/browser-input.test.mjs, which reads the sign that
+// actually leaves the production bundle for a wheel turn AND for a finger swipe and requires the
+// two to agree. This is the source half: it stops the inversion being reinstated by inspection.
+assert.match(remoteCode, /scroll:\s*\(dx,\s*dy\)\s*=>\s*conn\.scroll\(dx,\s*dy\)/,
+  "desktop wheel-down must become a POSITIVE remote vertical step; leave horizontal and touch alone");
 assert.match(remoteCode,
   /scroll:\s*\(dx,\s*dy\)\s*=>\s*\{\s*const direction\s*=\s*naturalScrollRef\.current\s*\?\s*-1\s*:\s*1;\s*conn\.scroll\(dx\s*\*\s*scrollSensitivityRef\.current\s*\*\s*direction,\s*dy\s*\*\s*scrollSensitivityRef\.current\s*\*\s*direction\);\s*\}/,
   "touch scrolling must retain its independent natural-scroll preference");

@@ -286,6 +286,15 @@ function SheetPanel({ label, closeLabel, onClose, children, role = "dialog", des
 /** QUALITY_PRESETS is fixed order (data saver, balanced, sharp, ultra); translate its labels by index. */
 const QUALITY_LABEL_KEYS: StringId[] = ["qualityDataSaver", "qualityBalanced", "qualitySharp", "qualityUltra"];
 
+/**
+ * Below this share of the stage, an upright desktop is too small to work in and the quarter turn
+ * is worth offering. 0.42 sits well clear of both cases that matter: a phone in portrait covers
+ * 0.28 and gets the offer; the same phone in landscape covers 0.99 and never sees it. A tablet or
+ * a browser window at 4:3 lands around 0.75 and is left alone, which is correct — nothing there
+ * is unreadable.
+ */
+const SMALL_PICTURE = 0.42;
+
 export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, lang, onLangSwitch }: {
   token: string;
   hostPowerAllowed: boolean;
@@ -406,8 +415,24 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
   const [latency, setLatency] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
   const [toolbar, setToolbar] = useState(true);
-  /** Is the viewport taller than it is wide? Drives whether the Fill-screen control is offered. */
   const [statsOpen, setStatsOpen] = useState(false);
+  /**
+   * Does the desktop cover so little of the stage that the offer to turn it is worth making?
+   *
+   * A 16:9 desktop on a 9:19.5 phone held upright fits to the WIDTH, and the arithmetic is brutal:
+   * measured on the shipped bundle at 390x844, the picture is 390x219 inside a 390x766 stage —
+   * 28% of it. The other 72% is black, the desktop's text is about a pixel tall, and nothing on
+   * screen says the quarter turn that fixes it exists.
+   *
+   * The picture is NOT turned automatically. That behaviour shipped once and the owner reported it
+   * as a fault ("الشاشة عم تعمل عرضي" — a phone held upright showing a sideways desktop), so Auto
+   * follows the phone and stays upright; see shouldRotate. What was missing was not the rotation,
+   * it was the offer. This is the offer: one tap, in the dead space, only while the dead space is
+   * real, dismissible for good.
+   */
+  const [pictureSmall, setPictureSmall] = useState(false);
+  const pictureSmallRef = useRef(false);
+  const [fillOfferHidden, setFillOfferHidden] = usePref("fillOfferHidden", false);
   const [sound, setSound] = useState<"off" | "connecting" | "on" | "unavailable">("off");
   const [codec, setCodec] = useState<"jpeg" | "h264">("jpeg");
   const [screenOk, setScreenOk] = useState(true);
@@ -731,6 +756,12 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
       ctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
       const l = computeLayout();
       if (f && l) {
+        // Measured here because this is the one place that already knows the final geometry, and
+        // it only runs when something actually changed. Zooming in counts: once the viewer has
+        // magnified the picture themselves the offer has been answered and withdraws.
+        const stage = Math.max(1, canvas.clientWidth * canvas.clientHeight);
+        const small = !l.rot && (l.dispW * l.dispH) / stage < SMALL_PICTURE;
+        if (small !== pictureSmallRef.current) { pictureSmallRef.current = small; setPictureSmall(small); }
         // Smoothing has to follow what the canvas ACTUALLY resamples at, not a zoom multiplier.
         // `zoom` multiplies `base`, and base is 0.20 on a portrait phone and 0.75 on a laptop — so
         // at zoom 1.5 a phone is still DOWNSCALING by 24% with smoothing switched off. Nearest
@@ -995,15 +1026,29 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
         if (relativeDesktopButtons.current.delete(b)) conn.upCurrent(b);
         else conn.up(b, x, y);
       },
-      // WheelEvent.deltaY is positive when the physical wheel is turned DOWN. Both remote
-      // backends consume the opposite vertical convention at their injection boundary: positive
-      // is an upward wheel step (Windows WHEEL_DELTA and Linux evdev/portal). Keep horizontal
-      // untouched (positive is right on both sides), and invert only the real-mouse vertical path.
+      // THE WIRE'S SIGN IS "POSITIVE Y SCROLLS DOWN", AND THIS USED TO SEND THE OPPOSITE.
       //
-      // Do this here rather than in InputInjector: the touch controller already owns a separate,
-      // user-selectable natural-scroll convention. Flipping the shared wire would repair the
-      // mouse by breaking phone swipes.
-      scroll: (dx, dy) => conn.scroll(dx, -dy),
+      // This line was `conn.scroll(dx, -dy)`, justified by "both backends consume the opposite
+      // vertical convention at their injection boundary". They do — and InputInjector.Scroll is
+      // where that conversion already happens ("dx/dy arrive in wheel notches, positive = right /
+      // down"; it hands the portal `dy * PixelsPerNotch` and the uinput fallback `-y`, because
+      // libinput/wl_pointer axis is positive-down while evdev REL_WHEEL is positive-up). Flipping
+      // it a second time here made every real mouse scroll BACKWARDS: a wheel turned down moved
+      // the remote page up.
+      //
+      // The two input paths prove it against each other. Measured on the production bundle in
+      // Chromium against the same wire (tests/browser-input.test.mjs "wheel and swipe agree"):
+      //
+      //     swipe a finger UP  (natural scrolling: content follows the finger, so this is
+      //                         "scroll down")            ->  dy = +0.42   <- always was correct
+      //     turn the wheel DOWN (deltaY +100, also "scroll down") ->  dy = -6.67   <- backwards
+      //
+      // One intent, two signs. desktop.ts deliberately does no inversion of its own ("A wheel
+      // already reports the direction the user turned it"), so the fix is to stop inverting here
+      // and let the one conversion that belongs to the backend stay in the backend.
+      //
+      // Horizontal was never wrong and is unchanged: positive is right on every side of this.
+      scroll: (dx, dy) => conn.scroll(dx, dy),
       keyCode: (code, down) => conn.keyCode(code, down),
       text: (v) => conn.text(v),
       cursorAt: (x, y) => { cursorNorm.current = { x, y }; drawEpochRef.current++; },
@@ -2230,6 +2275,34 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
           </>
         )}
       </button>
+
+      {/* The dead space, made to say something. Live sessions only, never over a modal state,
+          never while typing (the keyboard already owns the bottom of the screen), and never in
+          desktop mode where a mouse-driven window has no orientation problem to solve. */}
+      {/* "not locked" rather than "=== auto": the stored preference is whatever a previous build
+          wrote, and an unrecognised value must not silently withhold the only way out of a
+          28%-of-the-screen desktop. shouldRotate treats the same values as Auto. */}
+      {pictureSmall && orient !== "on" && orient !== "off" && !fillOfferHidden && !kbOpen
+        && mode !== "desktop" && status === "live" && (
+        <div className="fill-offer">
+          <button
+            type="button"
+            className="fill-offer-act"
+            aria-label={tr("fillOfferAria")}
+            onClick={() => chooseOrient("on")}
+          >
+            <IconRotate /> <span>{tr("fillOffer")}</span>
+          </button>
+          <button
+            type="button"
+            className="fill-offer-dismiss"
+            aria-label={tr("fillOfferDismiss")}
+            onClick={() => setFillOfferHidden(true)}
+          >
+            <IconClose />
+          </button>
+        </div>
+      )}
 
       {waitingOverlay && (
         <div className="session-state waiting" role="status" aria-live="polite">
