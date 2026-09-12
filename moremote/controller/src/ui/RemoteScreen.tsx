@@ -1537,10 +1537,14 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
     // zoomed viewer may ask up to the hard 2560 cap just like "100%".
     const zoomed = view.current.zoom > 1.05;
     let ceiling = viewModeRef.current === "actual" || zoomed ? 2560 : Math.min(p.width, 2560);
-    // And never more pixels than the HOST said it can encode — but only while the choice is
-    // automatic. "100%" and a zoom are explicit requests for detail from the viewer; a preset is
-    // an explicit request too. Auto is the one case where nobody has decided, and it is the case
-    // that was asking a 2-core box for 1920 wide while the box's own budget said 1280.
+    // And never more pixels than the HOST said it can encode — but only while the QUALITY choice
+    // is automatic. The distinction is which question was answered by a person: a preset is an
+    // answer to "how much bandwidth and CPU is this worth", so it overrides the host's estimate.
+    // "100%" and a zoom answer a different question — how the picture is LAID OUT — and leave the
+    // first one on Auto, so they raise the ceiling to 2560 and this still bounds it. That is not
+    // an oversight: a 2-core box asked for 1920 wide while its own budget said 1280 is exactly
+    // the case that made the desktop unusable, and it does not become affordable because the
+    // viewer zoomed in. Turning Auto off is the way to overrule it, and it is one tap away.
     if (autoRef.current) ceiling = hostEncodeCeiling(ceiling, hostEncodeRef.current);
     const shown = displayWidthPx();
     // A zero means we could not measure right now (no canvas, no size, a frame mid-relayout). That
