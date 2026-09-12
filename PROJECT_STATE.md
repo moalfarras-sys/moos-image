@@ -1,5 +1,20 @@
 # MoOS — current project state
 
+**ARM first boot: moos-hardware-adapt no longer fails on a zram swap it does not have (2026-09-12, branch `fix/arm-hardware-adapt-zram-20260912`):**
+the ARM boot proof on `main` failed three times (run 34707148234 attempts 1–2 on `495a47d2`,
+run 34710449602 on `3a37bd47`), so ARM was not promoted. Once `c012bfc7` let the runtime gate
+connect, it reported `moos-hardware-adapt.service loaded failed failed`. That unit became
+enabled on ARM with `f15998e9`, and its zram step assumes a zram-generator swap. The x86
+editions have one (the .814 ISO install proof's first boot activates `dev-zram0.swap`); the ARM
+image is built from `fedora-bootc:44`, which ships no zram-generator, and no ARM boot-proof
+serial log has a single zram line. Every ARM first boot therefore wrote `zram-generator.conf`,
+failed `systemctl start dev-zram0.swap`, recorded two failed mutations and exited 1; the real
+script reproduced exactly that on a fake ARM root. The zram step now runs only when the
+generator is installed; the `vm.min_free_kbytes` reserve still applies and x86 is unchanged.
+`tests/test_hardware_adapt_zram_availability.py` runs the real script on fake ARM and x86
+roots, and fails against the previous script on four counts.
+**Still owed:** the ARM boot proof runs only on `main`, so the ARM promotion is proven after merge.
+
 **Release integration: everything pending in one candidate, and OpenCode Zen as a paid choice (2026-09-12, branch `release/moos-integration-20260912`, PR #85):**
 the daily driver now runs the signed `44.20260912.806` (`6021840c`, kernel 7.2.4). This
 branch merges, from that `main` and without conflicts: #82 (Mo AI control, daily check,

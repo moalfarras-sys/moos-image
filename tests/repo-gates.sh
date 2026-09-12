@@ -85,6 +85,7 @@ python3 tests/test_shipped_bundle_is_tracked.py
 python3 tests/test_release_workflow_safety.py
 python3 tests/test_firewall_migration.py
 python3 tests/test_hardware_adapt_lifecycle.py
+python3 tests/test_hardware_adapt_zram_availability.py
 python3 tests/test_moos_verify_origin.py
 python3 tests/test_theme_shadow_cleanup.py
 python3 tests/test_docs_privacy.py
