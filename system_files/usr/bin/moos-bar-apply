@@ -58,6 +58,8 @@ BAR_ALIGN="$(conf bar.alignment)"
 BAR_APPLETS="$(conf bar.applets)"
 TRAY_SHOWN="$(conf tray.shownItems)"
 TRAY_EXTRA="$(conf tray.extraItems)"
+TRAY_SCALE="$(conf tray.scaleIconsToFit)"
+TRAY_SPACING="$(conf tray.iconSpacing)"
 BRAND_APPLET="$(conf brand.applet)"
 ISLAND_APPLET="$(conf island.applet)"
 TASKS_APPLET="$(conf tasks.applet)"
@@ -66,6 +68,17 @@ CLOCK_APPLET="$(conf clock.applet)"
 SEP_APPLET="$(conf separator.applet)"
 POPUP_W="$(conf brand.popupWidth)"
 POPUP_H="$(conf brand.popupHeight)"
+
+# These are Plasma's public System Tray settings. Refuse a malformed canonical
+# definition instead of injecting an empty/unknown value into every profile.
+case "$TRAY_SCALE" in
+    true|false) ;;
+    *) echo "moos-bar-apply: tray.scaleIconsToFit must be true or false" >&2; exit 3 ;;
+esac
+case "$TRAY_SPACING" in
+    1|2|6) ;;
+    *) echo "moos-bar-apply: tray.iconSpacing must be one of 1, 2 or 6" >&2; exit 3 ;;
+esac
 
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
@@ -493,6 +506,8 @@ live_pass() {
             var HEIGHT = Number("'"$BAR_HEIGHT"'");
             var SHOWN = "'"$TRAY_SHOWN"'".split(",").filter(function (s) { return s.length > 0; });
             var EXTRA = "'"$TRAY_EXTRA"'".split(",").filter(function (s) { return s.length > 0; });
+            var SCALE_ICONS = "'"$TRAY_SCALE"'" == "true";
+            var ICON_SPACING = Number("'"$TRAY_SPACING"'");
             var SHIPPED = ['"$dock_shipped"'];
             var HIDE = [
                 "org.kde.kdeconnect", "org.kde.plasma.vault", "org.kde.kscreen",
@@ -659,6 +674,7 @@ live_pass() {
                 var ws3 = dock.widgets();
                 var directBrand = 0, directIsland = 0, directTasks = 0;
                 var directTray = 0, directClock = 0;
+                var trayVisualOk = false;
                 var directTypesById = {};
                 for (var s = 0; s < ws3.length; s++) {
                     var directType = String(ws3[s].type);
@@ -676,6 +692,14 @@ live_pass() {
                             ws3[s].currentConfigGroup = ["General"];
                             ws3[s].writeConfig("shownItems", SHOWN.join(","));
                             ws3[s].writeConfig("hiddenItems", HIDE.join(","));
+                            if (String(ws3[s].readConfig("scaleIconsToFit", false)) != String(SCALE_ICONS)) {
+                                ws3[s].writeConfig("scaleIconsToFit", SCALE_ICONS);
+                                applied++;
+                            }
+                            if (Number(ws3[s].readConfig("iconSpacing", 2)) != ICON_SPACING) {
+                                ws3[s].writeConfig("iconSpacing", ICON_SPACING);
+                                applied++;
+                            }
                             // extraItems is the tray LOAD list. shownItems only
                             // controls visibility; it cannot instantiate an inner
                             // applet. The notification id once existed only in
@@ -693,6 +717,8 @@ live_pass() {
                             }
                             if (changed) { ws3[s].writeConfig("extraItems", known.join(",")); applied++; }
                             ws3[s].reloadConfig();
+                            trayVisualOk = String(ws3[s].readConfig("scaleIconsToFit", false)) == String(SCALE_ICONS)
+                                && Number(ws3[s].readConfig("iconSpacing", 2)) == ICON_SPACING;
                         } catch (e) {}
                     }
                 }
@@ -712,12 +738,14 @@ live_pass() {
                 var directIslandPosition = directVisualTypes.indexOf(ISLAND_APPLET);
                 if (directBrand == 1 && directIsland == 1 && directTasks == 1
                         && directTray == 1 && directClock == 1
-                        && directIslandPosition == directBrandPosition + 1) {
+                        && directIslandPosition == directBrandPosition + 1
+                        && trayVisualOk) {
                     report.push("bar=ok");
                 } else {
                     report.push("bar=incomplete;brand=" + directBrand
                         + ";island=" + directIsland + ";tasks=" + directTasks
-                        + ";tray=" + directTray + ";clock=" + directClock);
+                        + ";tray=" + directTray + ";clock=" + directClock
+                        + ";trayVisual=" + (trayVisualOk ? "ok" : "drift"));
                 }
             } else if (!split) {
                 report.push("bar=missing");
@@ -882,6 +910,7 @@ cmd_check() {
             var ISLAND_APPLET = "'"$ISLAND_APPLET"'";
             var ps = panels();
              var bottom = 0, whole = 0, align = "", shown = "", extra = "";
+             var scaleIcons = "", iconSpacing = "";
              var launcherCount = 0, islandCount = 0, trayCount = 0, clockCount = 0;
             for (var i = 0; i < ps.length; i++) {
                 if (ps[i].location != "bottom") { continue; }
@@ -920,12 +949,15 @@ cmd_check() {
                             ws[k].currentConfigGroup = ["General"];
                             shown = String(ws[k].readConfig("shownItems", ""));
                             extra = String(ws[k].readConfig("extraItems", ""));
+                            scaleIcons = String(ws[k].readConfig("scaleIconsToFit", false));
+                            iconSpacing = String(ws[k].readConfig("iconSpacing", 2));
                         }
                     }
                 }
             }
              print("bottom=" + bottom + ";whole=" + whole
                  + ";align=" + align + ";shown=" + shown + ";extra=" + extra
+                 + ";scale=" + scaleIcons + ";spacing=" + iconSpacing
                  + ";launcher=" + launcherCount + ";island=" + islandCount
                  + ";tray=" + trayCount
                  + ";clock=" + clockCount);
@@ -933,12 +965,14 @@ cmd_check() {
     local report
     report="$(printf '%s\n' "$out" | grep -oE 'bottom=[0-9]+;whole=[0-9]+;align=[a-z]*;shown=.*' | head -n1)"
     [ -n "$report" ] || { echo "bar: no live report"; return 1; }
-    local bottom whole align shown extra shown_norm want_norm launcher island tray clock item
+    local bottom whole align shown extra scale spacing shown_norm want_norm launcher island tray clock item
     bottom="$(printf '%s' "$report" | sed -n 's/.*bottom=\([0-9]*\).*/\1/p')"
     whole="$(printf '%s' "$report" | sed -n 's/.*whole=\([0-9]*\).*/\1/p')"
     align="$(printf '%s' "$report" | sed -n 's/.*align=\([a-z]*\).*/\1/p')"
     shown="$(printf '%s' "$report" | sed -n 's/.*shown=\([^;]*\).*/\1/p')"
     extra="$(printf '%s' "$report" | sed -n 's/.*extra=\([^;]*\).*/\1/p')"
+    scale="$(printf '%s' "$report" | sed -n 's/.*scale=\([^;]*\).*/\1/p')"
+    spacing="$(printf '%s' "$report" | sed -n 's/.*spacing=\([^;]*\).*/\1/p')"
     launcher="$(printf '%s' "$report" | sed -n 's/.*;launcher=\([0-9]*\).*/\1/p')"
     island="$(printf '%s' "$report" | sed -n 's/.*;island=\([0-9]*\).*/\1/p')"
     tray="$(printf '%s' "$report" | sed -n 's/.*;tray=\([0-9]*\).*/\1/p')"
@@ -956,6 +990,14 @@ cmd_check() {
     [ "$align" = "$BAR_ALIGN" ] || { echo "bar: alignment is '$align' (want $BAR_ALIGN)"; failures=$((failures+1)); }
     [ "$shown_norm" = "$want_norm" ] || {
         echo "bar: tray shownItems drift: live '$shown_norm' vs conf '$want_norm'"
+        failures=$((failures+1))
+    }
+    [ "$scale" = "$TRAY_SCALE" ] || {
+        echo "bar: tray scaleIconsToFit drift: live '$scale' vs conf '$TRAY_SCALE'"
+        failures=$((failures+1))
+    }
+    [ "$spacing" = "$TRAY_SPACING" ] || {
+        echo "bar: tray iconSpacing drift: live '$spacing' vs conf '$TRAY_SPACING'"
         failures=$((failures+1))
     }
     while IFS= read -r item; do

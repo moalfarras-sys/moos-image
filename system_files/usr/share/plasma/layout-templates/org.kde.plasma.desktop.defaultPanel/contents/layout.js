@@ -151,6 +151,10 @@ var systray = panel.addWidget("org.kde.plasma.systemtray");
 // "control centre in the corner" without a custom plasmoid. This list is a
 // mirror of moos-bar.conf [tray] shownItems; the gate keeps them equal.
 systray.currentConfigGroup = ["General"];
+// Keep status glyphs compact and evenly grouped inside the 54 px Horizon Bar.
+// Mirrors moos-bar.conf [tray]; Plasma's supported spacing presets are 1/2/6.
+systray.writeConfig("scaleIconsToFit", false);
+systray.writeConfig("iconSpacing", 1);
 systray.writeConfig("shownItems", "org.kde.plasma.networkmanagement,org.kde.plasma.volume,org.kde.plasma.notifications,org.kde.plasma.keyboardlayout");
 // extraItems is the tray's LOAD list, not merely optional third-party additions.
 // A shownItems id without a loaded inner applet draws nothing; in particular the

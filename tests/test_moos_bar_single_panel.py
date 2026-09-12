@@ -272,6 +272,26 @@ class SingleSourceAgreement(unittest.TestCase):
             self.assertIn(applet, layout,
                           f"{applet} belongs on the one panel, not a second one")
 
+    def test_tray_visual_density_has_one_source_and_live_readback(self) -> None:
+        """Fresh and upgraded profiles must render the same compact tray."""
+        layout = LAYOUT.read_text(encoding="utf-8")
+        apply = BAR_APPLY.read_text(encoding="utf-8")
+
+        self.assertEqual(conf_value("tray", "scaleIconsToFit"), "false")
+        self.assertEqual(conf_value("tray", "iconSpacing"), "1")
+        self.assertIn('systray.writeConfig("scaleIconsToFit", false)', layout)
+        self.assertIn('systray.writeConfig("iconSpacing", 1)', layout)
+        self.assertIn('TRAY_SCALE="$(conf tray.scaleIconsToFit)"', apply)
+        self.assertIn('TRAY_SPACING="$(conf tray.iconSpacing)"', apply)
+        self.assertIn('true|false)', apply)
+        self.assertIn('1|2|6)', apply)
+        self.assertIn('ws3[s].writeConfig("scaleIconsToFit", SCALE_ICONS)', apply)
+        self.assertIn('ws3[s].writeConfig("iconSpacing", ICON_SPACING)', apply)
+        self.assertIn('[ "$scale" = "$TRAY_SCALE" ]', apply)
+        self.assertIn('[ "$spacing" = "$TRAY_SPACING" ]', apply)
+        self.assertIn('tray scaleIconsToFit drift', apply)
+        self.assertIn('tray iconSpacing drift', apply)
+
     def test_the_migration_can_never_create_a_panel(self) -> None:
         apply = BAR_APPLY.read_text(encoding="utf-8")
         self.assertNotIn("split_appletsrc", apply,
