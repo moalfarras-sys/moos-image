@@ -223,3 +223,8 @@ change weekly; a single sample is evidence of a problem, not a final ranking.
   distribution; a gate that overwrote the live agent token is isolated; named free
   models in the picker; Settings opens Mo PC Remote, which scales on CUDA with a CPU
   fallback.
+- **2026-09-12, release integration + OpenCode Zen:** #82, #83, #84 and the local release
+  commits merged without conflicts into `release/moos-integration-20260912` (PR #85); the
+  identity rule no longer names the distribution the image gate forbids; OpenCode Zen is a
+  paid-by-choice provider whose key never reaches another service; #82's ISO proof failure
+  (no new boot id after a clean reboot) is recorded, cause not established.

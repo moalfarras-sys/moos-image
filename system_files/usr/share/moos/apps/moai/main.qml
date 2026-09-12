@@ -5918,6 +5918,9 @@ Kirigami.ApplicationWindow {
                                         visible: cldRow.opensGroup && cldRow.group !== "auto"
                                         anchors.bottom: parent.top
                                         anchors.bottomMargin: 4
+                                        // LayoutMirroring (on for Arabic) flips this to the right edge;
+                                        // an explicit anchors.right would be flipped back to the left.
+                                        anchors.left: parent.left
                                         text: cldRow.group === "curated"
                                               ? root.local("مختارة ومجرّبة", "Curated & tested")
                                               : cldRow.group === "paid"
@@ -5955,9 +5958,10 @@ Kirigami.ApplicationWindow {
                                             spacing: 0
                                             Text {
                                                 Layout.fillWidth: true
-                                                // Model names are Latin; without this they sat on the
-                                                // left while their Arabic reason sat on the right.
-                                                horizontalAlignment: root.moaiRtl ? Text.AlignRight : Text.AlignLeft
+                                                // Model names are Latin. LayoutMirroring (on for Arabic)
+                                                // mirrors an explicit AlignLeft to the right, beside the
+                                                // row's dot; AlignRight here was mirrored to the far side.
+                                                horizontalAlignment: Text.AlignLeft
                                                 text: cldRow.modelData.label_ar
                                                       ? root.local(cldRow.modelData.label_ar, cldRow.modelData.label_en)
                                                       : cldRow.modelData.label
@@ -5970,7 +5974,7 @@ Kirigami.ApplicationWindow {
                                             Text {
                                                 Layout.fillWidth: true
                                                 visible: cldRow.note !== ""
-                                                horizontalAlignment: root.moaiRtl ? Text.AlignRight : Text.AlignLeft
+                                                horizontalAlignment: Text.AlignLeft
                                                 text: cldRow.note
                                                 color: root.textMute
                                                 font.family: root.uiFont
@@ -6318,7 +6322,7 @@ Kirigami.ApplicationWindow {
                                     visible: root.cfgMode !== "local" && root.cfgProvider === "opencode-zen"
                                     Layout.fillWidth: true
                                     text: root.local(
-                                        "OpenCode Zen مدفوع حسب الاستخدام، بمفتاح من opencode.ai بعد إضافة وسيلة دفع. يعرض Mo AI نماذج المحادثة التي يخدمها Zen ببروتوكول Mo AI فقط (DeepSeek وGLM وKimi وMiniMax وغيرها). نماذجه المجانية المؤقتة قد تُستخدم بياناتك لتحسينها — لا ترسل إليها بيانات شخصية.",
+                                        "خدمة OpenCode Zen مدفوعة حسب الاستخدام، بمفتاح من opencode.ai بعد إضافة وسيلة دفع. يعرض Mo AI فقط نماذج المحادثة التي تعمل ببروتوكوله، مثل DeepSeek وGLM وKimi وMiniMax. نماذجه المجانية المؤقتة قد تُستخدم بياناتك لتحسينها، فلا ترسل إليها بيانات شخصية.",
                                         "OpenCode Zen bills per use, with a key from opencode.ai once billing is added. Mo AI lists only the chat models Zen serves on Mo AI's protocol (DeepSeek, GLM, Kimi, MiniMax and others). Its temporary free models may use your data to improve them — don't send them personal data.")
                                 }
                             }
@@ -6532,7 +6536,7 @@ Kirigami.ApplicationWindow {
                                 SectionNote {
                                     Layout.fillWidth: true
                                     text: root.local(
-                                        "Hermes يعمل عند الطلب لمعالجة المحادثة.",
+                                        "يعمل Hermes عند الطلب لمعالجة المحادثة.",
                                         "Hermes starts on demand to process conversations.")
                                 }
 
@@ -6865,7 +6869,7 @@ Kirigami.ApplicationWindow {
                                 SectionNote {
                                     Layout.fillWidth: true
                                     text: root.local(
-                                        "Mo AI يتبع لوحة MoOS النشطة، اتجاه اللغة، حجم الخط وتقليل الحركة تلقائياً. غيّرها من منتقي MoOS الموحد.",
+                                        "يتبع Mo AI لوحة MoOS النشطة، اتجاه اللغة، حجم الخط وتقليل الحركة تلقائياً. غيّرها من منتقي MoOS الموحد.",
                                         "Mo AI follows the active MoOS palette, language direction, font scale and reduced-motion setting. Change them in the shared MoOS picker.")
                                 }
                                 MoButton {
@@ -7276,7 +7280,7 @@ Kirigami.ApplicationWindow {
                     "اختر مزوّداً ونموذجاً سحابيين من إعدادات Mo AI لتجهيز Workbench.",
                     "Choose a cloud provider and model in Mo AI settings to make Workbench ready.")
                 : root.local(
-                    "OpenClaw مثبّت ومربوط بالعقل السحابي.",
+                    "تطبيق OpenClaw مثبّت ومربوط بالعقل السحابي.",
                     "OpenClaw is installed and connected to the cloud brain.")
 
     function agentLoadCurrentWorkspace() {

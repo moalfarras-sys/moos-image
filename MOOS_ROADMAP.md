@@ -162,8 +162,17 @@ OpenRouter policy. See [the cloud-only plan](docs/MOAI_CLOUD_ONLY_PLAN.md) and
   choice. *Progress:* on `feat/moos-unified-20260912` both prompts carry an identity
   rule, the scan reports the MoOS version, and live answers on the direct and Hermes
   routes read «MoOS 44.20260909.0 — kernel 7.1.13-200» (before: «Fedora 44 base»).
-  The composer's Agent switch follows the adapter's own discovery. Signed-image
-  acceptance remains.
+  The composer's Agent switch follows the adapter's own discovery. The first wording
+  named the distribution and failed the image identity gate; reworded in `313a34f2`,
+  and asked also for the base distribution, Mo AI answers «MoOS 44.20260912.0 — kernel
+  7.2.4-200» on both routes; `tests/test_app_qml_identity.py` checks the image rule on
+  the source tree. Signed-image acceptance remains.
+- [ ] Paid cloud providers by explicit choice. *Progress:* OpenRouter paid existed;
+  `release/moos-integration-20260912` adds OpenCode Zen (chat-completions families only,
+  address pinned by the catalogue, a service switch needs that service's key, the stored
+  key goes only to OpenRouter or Zen). Live: requests reach opencode.ai (401 with an
+  invalid key) and unroutable or unselected Zen requests stop at 409. A paid Zen answer
+  with a real key and signed-image acceptance remain.
 - [ ] Complete native QML/phone and bounded-memory acceptance. Incremental
   streaming, persistent memory and plugins are not currently provided; SSE
   delivers a final-answer frame.

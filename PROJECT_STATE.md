@@ -1,5 +1,44 @@
 # MoOS — current project state
 
+**Release integration: everything pending in one candidate, and OpenCode Zen as a paid choice (2026-09-12, branch `release/moos-integration-20260912`, PR #85):**
+the daily driver now runs the signed `44.20260912.806` (`6021840c`, kernel 7.2.4). This
+branch merges, from that `main` and without conflicts: #82 (Mo AI control, daily check,
+KRunner), #83 (Hermes, identity, free models, remote), the identity build fix recorded in
+the next entry, OpenCode Zen, #84 (Mo PC Remote v40, from a parallel session) and the
+unpushed `fix/moai-release-20260912` commits (ARM-native OpenClaw installs; the unified
+Horizon status tray and clock; a Workbench readiness fix a parallel session had left
+uncommitted, reviewed and committed after its gates passed). Repo gates: 133/133.
+*OpenCode Zen.* A third provider, billed only by the owner's explicit choice. Only the
+families Zen serves on `/chat/completions`, the one wire Mo AI speaks, are routable:
+DeepSeek, MiniMax, GLM, Kimi, Big Pickle, MiMo, Ling and Nemotron (GPT, Grok and Muse use
+`/responses`, Claude and Qwen `/messages`, Gemini its own path). Zen is never a fallback
+and never receives OpenRouter's routing object; "automatic" on Zen is the model chosen for
+it. The agent API takes each provider's address from the catalogue, refuses a form naming
+another, and refuses to switch services without the new service's key; `moai-control` now
+sends the stored key only to OpenRouter or Zen — before, it fetched
+`<configured base>/models` with the key ahead of any policy check. Live through an
+isolated gateway with an invalid key: a Zen chat model and "automatic" reached opencode.ai
+and got its 401 «Invalid API key» in 0.5 s; a GPT id and Zen without the selection were
+refused with 409 before any request. Captured in Arabic: Settings shows the Zen provider,
+address, model and a note on billing and data use; the picker heads Zen's models
+«نماذج مدفوعة — OpenCode Zen». Not proven: a paid Zen answer (no Zen key on this machine).
+*Arabic layout the captures exposed.* Arabic sentences that began with a Latin word
+took a left-to-right paragraph direction and read scrambled; the Zen note and the
+Memory and Appearance notes now begin with an Arabic word (re-captured, reading
+right to left), and the Workbench's OpenClaw status line got the same change. Mo AI
+mirrors its layout for Arabic, so the picker's group headings (no horizontal anchor)
+and model names (an explicit `AlignRight`, which mirroring flips) sat on the far side;
+both now use the left edge, which mirroring places on the right, and a re-capture shows
+headings and names beside each row's dot.
+*#82's ISO proof.* Run 34683021017 failed at «installed reboot never produced a new boot
+id» after install, login and all ten apps passed. The serial log shows a clean reboot and
+a second boot that reached the login prompt, and the proof script and every boot, SSH and
+guest-agent file are unchanged since the passing `6021840c` run. Cause not established;
+this candidate's ISO proof decides whether it repeats.
+**Still owed:** the candidate build, three disk proofs and the ISO proof on this exact
+commit, then the `main` fast-forward and promotion; the owner's update and reboot; a paid
+Zen answer with a real key; Hermes on fresh systems per edition; C2b cleanup.
+
 **Hermes inside Mo AI, named free models, and Mo PC Remote as the remote desktop (2026-09-12, branch `feat/moos-unified-20260912`, on top of `feat/moai-control-20260912`):**
 *Hermes.* `moai-do install-hermes` installs the official Hermes Agent release
 v2026.9.11 (0.21.2): the archive is pinned by SHA-256, its 68 dependencies by
