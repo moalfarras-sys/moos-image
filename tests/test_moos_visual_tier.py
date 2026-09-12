@@ -714,6 +714,68 @@ class BudgetHasReaders(unittest.TestCase):
                          "test and MOOS_ROADMAP.md together")
 
 
+class DisplayToolsNeverRunWithoutADisplay(unittest.TestCase):
+    """Measured 2026-09-12 on the daily driver: 44 kdialog and 9 kscreen-doctor core dumps
+    in one boot. The root unit ran kreadconfig6 with HOME=/ (KConfig spawned kdialog to
+    warn that "//.config" is unwritable) and kscreen-doctor with no display; moai-control
+    ran it at login before the compositor. Qt fell back to xcb and aborted each time."""
+
+    def setUp(self) -> None:
+        from unittest.mock import patch
+        self.patch = patch
+        with tempfile.TemporaryDirectory() as tmp:
+            self.module = load_module(Path(tmp))
+        self.calls: list[tuple[list[str], dict]] = []
+
+    def record(self, stdout: str = ""):
+        def run(argv, **kwargs):
+            self.calls.append((argv, kwargs))
+            return self.module.subprocess.CompletedProcess(argv, 0, stdout, "")
+        return run
+
+    def test_kscreen_doctor_needs_a_reachable_wayland_socket(self) -> None:
+        outputs = json.dumps({"outputs": [{"enabled": True, "currentModeId": "1",
+                                           "modes": [{"id": "1", "size": {"width": 3840, "height": 2160}}]}]})
+        with tempfile.TemporaryDirectory() as runtime:
+            cases = (({}, 0, False),
+                     ({"WAYLAND_DISPLAY": "wayland-0"}, 0, False),
+                     ({"WAYLAND_DISPLAY": "wayland-0", "XDG_RUNTIME_DIR": runtime}, 0, False),
+                     ({"WAYLAND_DISPLAY": "wayland-0", "XDG_RUNTIME_DIR": runtime}, 3840 * 2160, True))
+            for env, pixels, create_socket in cases:
+                with self.subTest(env=env, socket=create_socket):
+                    self.calls.clear()
+                    socket = Path(runtime) / "wayland-0"
+                    if create_socket:
+                        socket.write_text("")
+                    base = {k: v for k, v in os.environ.items()
+                            if k not in ("MOOS_TIER_ROOT", "WAYLAND_DISPLAY", "XDG_RUNTIME_DIR")}
+                    with self.patch.dict(os.environ, {**base, **env}, clear=True), \
+                            self.patch.object(self.module.subprocess, "run", side_effect=self.record(outputs)):
+                        self.assertEqual(self.module._pixels_from_compositor(), pixels)
+                    if create_socket:
+                        self.assertEqual([argv for argv, _ in self.calls], [["kscreen-doctor", "--json"]])
+                        self.assertEqual(self.calls[0][1]["env"]["QT_QPA_PLATFORM"], "wayland",
+                                         "never let Qt fall back to xcb, which aborts here")
+                    else:
+                        self.assertEqual(self.calls, [], "no display: kscreen-doctor must not start")
+
+    def test_root_reads_kconfig_with_a_private_writable_home(self) -> None:
+        for euid, home, private in ((0, "/", True), (0, "", True), (0, "/root", False), (1000, "/", False)):
+            with self.subTest(euid=euid, home=home):
+                self.calls.clear()
+                with self.patch.object(self.module.os, "geteuid", return_value=euid), \
+                        self.patch.object(self.module.os, "makedirs"), \
+                        self.patch.dict(os.environ, {"HOME": home}), \
+                        self.patch.object(self.module.subprocess, "run", side_effect=self.record("value\n")):
+                    self.assertEqual(self.module._kreadconfig("kwinrc", "Plugins", "blurEnabled"), "value")
+                kwargs = self.calls[0][1]
+                if private:
+                    self.assertEqual((kwargs["env"]["HOME"], kwargs["env"]["XDG_CONFIG_HOME"]),
+                                     ("/run/moos-visual-tier", "/run/moos-visual-tier/config"))
+                else:
+                    self.assertNotIn("env", kwargs, "a real home must keep the caller's environment")
+
+
 def tearDownModule() -> None:
     for key in ("MOOS_TIER_ROOT", "MOOS_TIER_STATE_HOME", "MOOS_TIER_CONFIG_HOME"):
         os.environ.pop(key, None)

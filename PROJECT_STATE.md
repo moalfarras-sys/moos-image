@@ -30,6 +30,21 @@ mirrors its layout for Arabic, so the picker's group headings (no horizontal anc
 and model names (an explicit `AlignRight`, which mirroring flips) sat on the far side;
 both now use the left edge, which mirroring places on the right, and a re-capture shows
 headings and names beside each row's dot.
+*The updated desktop, checked after its reboot.* On `44.20260912.806` the first Mo AI
+message after login answered 503 in 0.1 s: the gateway started Hermes and probed it once
+with a 1 s timeout, and the adapter reported ready 2 s later. The gateway now waits for an
+adapter it has just started (bounded, 25 s); a runtime that never becomes ready still gets
+503. A follow-up sent the moment a reply arrived got 429, because the previous turn still
+held the adapter's lock; turns now queue (bounded, 110 s). Live on the branch stack, an
+immediate follow-up and two overlapping requests all answered 200 through Hermes. The same
+boot logged 44 kdialog and 9 kscreen-doctor core dumps: `moos-visual-tier.service` runs as
+root with HOME=/, so KConfig spawned kdialog to warn about "//.config", and both it and
+moai-control ran kscreen-doctor with no display; Qt fell back to xcb and aborted each
+time. kscreen-doctor now runs only with a reachable Wayland socket and the Wayland
+platform, and root reads KConfig with a private home under /run. Live, the branch tool
+answered with and without a display (8,294,400 against 2,073,600 pixels) and the core-dump
+count did not move. `tests/post-update-check.sh` on that system passed 54 of 55; the one
+failure was the same display race.
 *#82's ISO proof.* Run 34683021017 failed at «installed reboot never produced a new boot
 id» after install, login and all ten apps passed. The serial log shows a clean reboot and
 a second boot that reached the login prompt, and the proof script and every boot, SSH and

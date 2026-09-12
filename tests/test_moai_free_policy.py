@@ -224,6 +224,41 @@ class FreePolicy(unittest.TestCase):
                     self.assertIs(handler._to_hermes({'messages':[]}),True)
                 self.assertEqual(errors,[503])
 
+    def test_first_message_waits_for_the_adapter_it_just_started(self):
+        # Measured 2026-09-12 after a reboot: the adapter reported ready 2 s after the first
+        # message started it, and a single 1 s probe had already answered 503.
+        class Healthy:
+            status=200
+            def __enter__(self): return self
+            def __exit__(self,*args): return False
+        for ready_on_probe,wait,expected in ((3,5.0,[]),(None,0.3,[503])):
+            with self.subTest(ready_on_probe=ready_on_probe), tempfile.TemporaryDirectory() as runtime:
+                (Path(runtime)/'moai-hermes').mkdir()
+                (Path(runtime)/'moai-hermes/token').write_text('fixture-token')
+                handler=object.__new__(gateway.Handler)
+                errors=[];proxied=[];probes=[];started=[]
+                handler._err=lambda code,msg,errors=errors:errors.append(code)
+                handler._proxy=lambda *args,**kwargs:proxied.append(args[1])
+                def urlopen(req,timeout=0,probes=probes,ready_on_probe=ready_on_probe):
+                    probes.append(req.full_url)
+                    if ready_on_probe is None or len(probes)<ready_on_probe:
+                        raise gateway.urllib.error.URLError('adapter still starting')
+                    return Healthy()
+                with patch.object(gateway,'hermes_runtime_installed',return_value=True), \
+                        patch.object(gateway,'PORT',8080), patch.object(gateway,'HERMES_START_WAIT',wait), \
+                        patch.object(gateway.subprocess,'run',side_effect=lambda *a,**k:started.append(a[0])), \
+                        patch.object(gateway.urllib.request,'urlopen',side_effect=urlopen), \
+                        patch.object(gateway._hermes_time,'sleep',lambda seconds:None), \
+                        patch.dict(gateway.os.environ,{'XDG_RUNTIME_DIR':runtime}):
+                    self.assertIs(handler._to_hermes({'messages':[],'moai':{'session':'s'}}),True)
+                self.assertEqual(errors,expected)
+                self.assertEqual(started,[['systemctl','--user','start','moai-agent-api.service','moai-hermes.service']])
+                if expected:
+                    self.assertEqual(proxied,[])
+                else:
+                    self.assertEqual(len(probes),3)
+                    self.assertEqual(proxied,['http://127.0.0.1:8090/v1/chat/completions'])
+
     def test_runtime_status_comes_from_the_adapter_and_is_cached(self):
         with tempfile.TemporaryDirectory() as directory:
             adapter=Path(directory)/'moai-hermes'
