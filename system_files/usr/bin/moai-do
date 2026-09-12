@@ -349,7 +349,7 @@ do_check_drivers() {
     fi
     echo
 
-    if printf '%s' "$gpu" | grep -qi nvidia; then
+    if printf '%s' "$gpu" | grep -qi nvidia && nvidia_edition_supported; then
         echo "${Y}⚠ كرت NVIDIA مكتشف — لأفضل تعريف انتقل إلى صورة MoOS الخاصة بـ NVIDIA:${N}"
         echo "${Y}⚠ NVIDIA GPU detected — for the best driver, switch to the MoOS NVIDIA image:${N}"
         # Point at the action, not a raw bootc line. The action keeps the confirmation, the
@@ -366,6 +366,16 @@ do_check_drivers() {
     else
         echo "  ${D}fwupdmgr غير مثبّت | not installed${N}"
     fi
+}
+
+# The published NVIDIA edition is x86_64. Keep this as a tiny pure predicate so
+# the architecture boundary can be executed in tests without ever invoking the
+# privileged switch action.
+nvidia_edition_supported() {
+    case "${1:-$(uname -m)}" in
+        x86_64|amd64) return 0 ;;
+        *) return 1 ;;
+    esac
 }
 
 do_update_firmware() {
@@ -392,6 +402,11 @@ do_update_firmware() {
 
 do_install_nvidia() {
     hdr "تثبيت تعريف NVIDIA الأمثل" "Install the optimized NVIDIA driver"
+    if ! nvidia_edition_supported; then
+        echo "${Y}صورة MoOS NVIDIA مخصّصة حالياً لأجهزة x86_64؛ لم يتغير النظام.${N}"
+        echo "${Y}The MoOS NVIDIA image currently targets x86_64; nothing changed.${N}"
+        return 1
+    fi
     local gpu
     gpu="$(lspci 2>/dev/null | grep -Ei 'vga compatible controller|3d controller|display controller' || true)"
     if ! printf '%s' "$gpu" | grep -qi nvidia; then
@@ -820,6 +835,16 @@ do_install_claude() {
 OPENCLAW_NODE="v24.18.0"
 OPENCLAW_VERSION="2026.7.1-2"
 
+# Node publishes different archive names for the two MoOS CPU families. The
+# former hard-coded linux-x64 path installed an x86 executable on moos-arm.
+node_dist_arch() {
+    case "${1:-$(uname -m)}" in
+        x86_64|amd64) printf '%s\n' x64 ;;
+        aarch64|arm64) printf '%s\n' arm64 ;;
+        *) return 1 ;;
+    esac
+}
+
 # The first MoOS Quadlets were installable and therefore started at every login,
 # even though every consumer already knows how to wake them on demand. Remove
 # only the exact trailing [Install] block from files that still carry all of the
@@ -895,21 +920,28 @@ except Exception:
 
     local node_dir="$HOME/.local/node"
     local node_bin="${node_dir}/bin"
+    local node_arch node_archive
+    if ! node_arch="$(node_dist_arch)"; then
+        echo "${R}معمارية المعالج غير مدعومة من OpenClaw: $(uname -m)${N}" >&2
+        echo "${R}Unsupported OpenClaw CPU architecture: $(uname -m)${N}" >&2
+        return 1
+    fi
+    node_archive="node-${OPENCLAW_NODE}-linux-${node_arch}.tar.xz"
 
     # A private Node only if the system one is too old for the engines field.
     if ! "${node_bin}/node" --version >/dev/null 2>&1; then
         echo "${C}▸ تنزيل Node ${OPENCLAW_NODE} إلى ~/.local/node${N}"
         local tmp; tmp="$(mktemp -d)" || return 1
         if ! curl -fsSL --max-time 600 -o "${tmp}/node.tar.xz" \
-             "https://nodejs.org/dist/${OPENCLAW_NODE}/node-${OPENCLAW_NODE}-linux-x64.tar.xz"; then
+             "https://nodejs.org/dist/${OPENCLAW_NODE}/${node_archive}"; then
             echo "${Y}تعذّر تنزيل Node | could not download Node${N}" >&2
             rm -rf "$tmp"; return 1
         fi
         # Verify before extracting: this lands on PATH for an agent with shell access.
         if curl -fsSL --max-time 120 -o "${tmp}/SHASUMS256.txt" \
              "https://nodejs.org/dist/${OPENCLAW_NODE}/SHASUMS256.txt"; then
-            ( cd "$tmp" && grep "node-${OPENCLAW_NODE}-linux-x64.tar.xz\$" SHASUMS256.txt \
-              | sed "s#node-${OPENCLAW_NODE}-linux-x64.tar.xz#node.tar.xz#" | sha256sum -c - ) \
+            ( cd "$tmp" && grep " ${node_archive}\$" SHASUMS256.txt \
+              | sed "s#${node_archive}#node.tar.xz#" | sha256sum -c - ) \
               || { echo "${R}فشل التحقق من البصمة | checksum mismatch${N}" >&2; rm -rf "$tmp"; return 1; }
         else
             echo "${Y}تعذّر جلب البصمات — أُلغي التثبيت | checksums unavailable, aborting${N}" >&2

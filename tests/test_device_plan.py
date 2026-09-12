@@ -89,6 +89,25 @@ assert data["driver_status"] == "NVIDIA detected; optimized image required", dat
 # Mo AI renders the status line verbatim; an Arabic session must get Arabic.
 assert any("\u0600" <= ch <= "\u06ff" for ch in data["driver_status_ar"]), data["driver_status_ar"]
 
+# The NVIDIA image is published only for x86_64. Some ARM boards expose an
+# NVIDIA PCI display device too; the hardware card must never offer an x86 image
+# switch there even when the driver is absent.
+loader = importlib.machinery.SourceFileLoader("moos_device_plan_arm", str(PLAN))
+spec = importlib.util.spec_from_loader(loader.name, loader)
+arm_module = importlib.util.module_from_spec(spec)
+loader.exec_module(arm_module)
+arm_module.run = lambda *args, **kwargs: (
+    "01:00.0 VGA compatible controller: NVIDIA Corporation Device" if args[0] == "lspci"
+    else '{"status":"ok"}' if args[0] in ("bootc", "rpm-ostree")
+    else ""
+)
+arm_module.flatpak_installed = lambda _app_id: False
+arm_module.firmware_report = lambda: ([], [])
+arm = arm_module.detect(machine="aarch64")
+assert arm["architecture"] == "aarch64"
+assert all(action.get("url") != "moos://do/install-nvidia" for action in arm["actions"])
+assert "ARM" in arm["driver_status"], arm["driver_status"]
+
 print("MoOS device-plan test passed")
 
 

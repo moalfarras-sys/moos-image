@@ -274,6 +274,8 @@ check:
     # (22.23.1) embeds the broken 3.51.2. The shipped systemd override must keep
     # pinning a SQLite-safe Node on the gateway's PATH, or replies silently drop.
     python3 tests/test_openclaw_nodejs_sqlite.py
+    # Per-user Node and the optional NVIDIA edition must never cross CPU families.
+    python3 tests/test_openclaw_arch_install.py
     # An `openclaw service install` unit in ~/.config/systemd/user outranks the image's, so
     # ExecStartPre=moai-openclaw-preflight — the entire Mo AI link — silently never runs while
     # the gateway still answers. The retirement only matched the EARLY installer's strings.
