@@ -78,6 +78,12 @@ echo   Kernel driver in use: r8169
         )
         env = dict(os.environ)
         env["PATH"] = str(bindir) + os.pathsep + env.get("PATH", "")
+        # This block simulates an x86 NVIDIA desktop, and moos-device-plan is architecture-aware
+        # (the NVIDIA image is published for x86_64 only). Reading the HOST's CPU here made the
+        # whole black-box section pass on a CI runner and fail on the maintainer's aarch64
+        # machine. Say which machine is being simulated; the ARM branch is asserted separately
+        # below, by importing the module and passing `machine` directly.
+        env["MOOS_DEVICE_PLAN_MACHINE"] = "x86_64"
         data = json.loads(subprocess.check_output([str(PLAN)], text=True, env=env))
 
 assert data["gpu_vendor"] == "nvidia"

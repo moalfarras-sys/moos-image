@@ -1,0 +1,41 @@
+name: Repo gates
+
+# The gates that need nothing but a checkout, python3 and bash — on every pull request.
+#
+# They already existed. They lived inside `build.yml`'s `build-push-sign` job, which triggers only
+# on `push: branches: [main]`, the daily schedule and workflow_dispatch. So on a branch or a pull
+# request not one of them ran, and the only pre-merge signal in this repository was an image build
+# that takes twelve minutes on a good day.
+#
+# On 2026-09-12 that cost, in one afternoon: twenty-five minutes of ARM image build to report a
+# shared C# file missing from one .csproj; a device-plan test that read the host's own CPU while
+# simulating an x86 desktop, green on every runner and red on the maintainer's aarch64 machine;
+# and a free-only policy test that read the owner's live Mo AI provider selection. The last two
+# are the worse kind, because `just check` is what AGENTS.md tells every contributor to run before
+# pushing — and two of its gates could not pass on the machine this project is built for.
+#
+# The list itself is tests/repo-gates.sh, called from here and from build.yml, so the two can
+# never drift. tests/test_gate_coverage.py reads that script as well as the workflows, so
+# `just check` still has to be a superset of everything CI runs.
+
+on:
+  workflow_dispatch:
+  pull_request:
+  # Deliberately no `push:` as well — a branch with an open PR would match both and run every job
+  # twice. `main` is covered by build.yml, before it signs anything.
+
+concurrency:
+  group: repo-gates-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  gates:
+    name: Repo gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: tests/repo-gates.sh
+        run: bash tests/repo-gates.sh

@@ -44,8 +44,18 @@ def main() -> int:
     justfile = JUSTFILE.read_text(encoding="utf-8")
     local = gates_in(justfile)
 
+    # The gate list moved out of build.yml into tests/repo-gates.sh so it could run on pull
+    # requests too. Reading only the workflows after that would make this check vacuous — the
+    # workflows now just call the script — so the script counts as a required source as well.
+    required_sources = [*sorted(WORKFLOWS.glob("*.yml"))]
+    gate_script = ROOT / "tests/repo-gates.sh"
+    if not gate_script.is_file():
+        print("gate coverage FAILED: tests/repo-gates.sh is missing; CI has no gate list to run.")
+        return 1
+    required_sources.append(gate_script)
+
     missing: dict[str, set[str]] = {}
-    for workflow in sorted(WORKFLOWS.glob("*.yml")):
+    for workflow in required_sources:
         required = gates_in(workflow.read_text(encoding="utf-8"))
         gap = {g for g in required if g not in local}
         if gap:
@@ -54,7 +64,7 @@ def main() -> int:
     # A gate listed anywhere must also exist on disk; a typo'd path is a gate
     # that silently never runs.
     ghosts = set()
-    for workflow in sorted(WORKFLOWS.glob("*.yml")):
+    for workflow in required_sources:
         for gate in gates_in(workflow.read_text(encoding="utf-8")):
             if not (ROOT / gate).exists():
                 ghosts.add(f"{workflow.name}: {gate}")

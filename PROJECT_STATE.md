@@ -2296,6 +2296,44 @@ Measured on the shipped bundle in a real Chromium and read off the live Oracle A
   place for per-machine policy and its dry run on this box wants only
   `zram-size=min(ram, 8192)` and `fwupd-refresh.timer`.
 
+## Release integration verified on ARM — 2026-09-12 (`integrate/moos-20260912`)
+
+`release/moos-integration-20260912` (Mo AI control, daily check, KRunner, Hermes, OpenCode Zen,
+Horizon tray, native ARM installs) merged with Mo PC Remote v40. Every gate CI runs, plus every
+gate CI does NOT run, executed on the maintainer's own Oracle A1:
+
+- 144/144 `just check` gates, `tests/repo-gates.sh` clean end to end
+- controller typecheck + 15 test programs + the real-Chromium browser suite
+- all 7 `.csproj` projects and 4 .NET test executables (`just dotnet-check`)
+
+**Three gates passed in CI and failed on this machine, and the code was right in all three.**
+
+- `tests/test_device_plan.py` ran the real `moos-device-plan` as a subprocess while simulating an
+  x86 NVIDIA desktop, then let it read the HOST's CPU. `moos-device-plan` became
+  architecture-aware in `f9f35bac` (correctly — the NVIDIA image is x86_64-only), so the
+  simulation started taking the ARM branch. Green on every runner, red on aarch64. Fixed with a
+  documented test seam, `MOOS_DEVICE_PLAN_MACHINE`, in the same shape as `MOOS_TIER_ROOT`.
+- `tests/test_moai_free_policy.py` (×2) asserted the free-only boundary while
+  `selected_provider()` read `~/.config/moai-agent/state.json` — the LIVE choice of whoever is
+  using the machine. This owner has `openrouter-paid` selected, so a paid model was legitimately
+  admitted and the test called it a failure. All 26 pass with an isolated config dir; the module
+  now isolates `HOME`/`XDG_CONFIG_HOME` for every test in it, not just the two that noticed.
+
+Neither is a code defect, and both are worse than a slow signal: `just check` is what `AGENTS.md`
+tells every contributor to run before pushing, and two of its gates could not pass on the machine
+this project is built for. A gate that only passes on something shaped like CI teaches people that
+red means nothing.
+
+**Why all three reached a merge candidate:** the gate list lived inside `build.yml`'s
+`build-push-sign` job, which triggers only on `push: branches: [main]`. On a branch or a pull
+request, not one repo gate ran — the only pre-merge signal was a 12-to-180-minute image build.
+That is also what spent 25 minutes of ARM build to report one missing line of XML in a `.csproj`.
+The list is now `tests/repo-gates.sh`, called by `build.yml` before it signs anything and by
+`.github/workflows/repo-gates.yml` on every pull request, in about half a minute.
+`tests/test_gate_coverage.py` reads the script as well as the workflows, so `just check` still has
+to be a superset, and `tests/verify_user_experience.py`'s "must run locally and in CI" assertion
+follows the list rather than one filename.
+
 ## Still unproven / open
 
 - **Live-ISO on real hardware** — QEMU is the release gate; the ISO is proven
