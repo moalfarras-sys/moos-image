@@ -21,6 +21,7 @@ to 9500/10000 over Plasma's ScreenBrightness service.
 """
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -61,6 +62,7 @@ esac
     "flatpak": 'case "$1 $2" in "info org.mozilla.firefox") exit 0;; info*) exit 1;; esac\n',
     "xdg-user-dir": 'echo "$STUB_PICTURES"\n',
     "moos-control": "",
+    "moos-open": "",
     "kdialog": 'case "$*" in *warningyesno*) exit "${KDIALOG_ANSWER:-1}";; esac\n',
 }
 
@@ -193,6 +195,16 @@ class MoosControlTests(unittest.TestCase):
         missing = self.control("open", "org.example.NotInstalled")
         self.assertEqual(missing.returncode, 69)
 
+    def test_settings_opens_only_the_pages_mo_ai_offers(self):
+        result = self.control("settings", "night-light")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(["moos-open", "moos://settings/night-light"], self.machine.calls(settle=1.0))
+        self.machine.log.write_text("")
+        for page in ("kcm/../x", "reboot", "Display", "display;reboot", "full"):
+            with self.subTest(page=page):
+                self.assertEqual(self.control("settings", page).returncode, 2)
+        self.assertEqual([call for call in self.machine.calls(settle=0.5) if call[0] == "moos-open"], [])
+
     def test_missing_tool_is_reported_as_unavailable(self):
         bare = StubMachine(omit=("wpctl",))
         try:
@@ -285,6 +297,22 @@ class MoaiControlButtonTests(unittest.TestCase):
     def test_prompt_teaches_the_same_closed_grammar(self):
         self.assertIn("`moos-control volume 40`", self.qml)
         self.assertIn("`moos-control wifi on|off` (Wi-Fi off also asks first", self.qml)
+
+    def test_settings_pages_agree_across_grammar_prompt_control_and_moos_open(self):
+        # Review of PR #85: the prompt taught `moos-control settings <page>`, which
+        # moos-control did not implement; the button worked and the command did not.
+        import runpy
+        pages = set(runpy.run_path(str(CONTROL), run_name="moos_control_pages")["SETTINGS_PAGES"])
+        grammar = re.search(r"settings\\s\+\(\?:([a-z|-]+)\)", self.qml)
+        self.assertIsNotNone(grammar, "Mo AI's control grammar lost its settings pages")
+        self.assertEqual(set(grammar.group(1).split("|")), pages)
+        start = self.qml.index("settings <page>` for the exact settings page (")
+        listed = self.qml[start:self.qml.index(")", start)].split("(", 1)[1]
+        listed = re.sub(r'"\s*\+\s*"', "", listed)
+        self.assertLessEqual({page.strip() for page in listed.split(",")}, pages)
+        opener = OPEN.read_text(encoding="utf-8")
+        for page in sorted(pages):
+            self.assertRegex(opener, rf"\n\s*settings/{re.escape(page)}\)", page)
 
 
 if __name__ == "__main__":

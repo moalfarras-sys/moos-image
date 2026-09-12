@@ -69,6 +69,8 @@ HERMES_ADAPTER = os.environ.get("MOAI_HERMES_ADAPTER") or str(
     _PolicyPath(__file__).resolve().parent.parent / "libexec/moai-hermes")
 _hermes_status = (0.0, None)
 _hermes_status_lock = _hermes_threading.Lock()
+# How long the first message waits for an adapter this gateway just started.
+HERMES_START_WAIT = 25.0
 
 
 def hermes_runtime_installed():
@@ -1120,21 +1122,28 @@ class Handler(BaseHTTPRequestHandler):
                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=12)
         except (OSError, subprocess.TimeoutExpired):
             pass
-        try:
-            with open(os.path.join(runtime, "moai-hermes", "token")) as handle:
-                token = handle.read().strip()
-            if not token:
-                self._err(503, "Mo AI agent is not ready. Retry after its workspace service starts.")
+        # Measured 2026-09-12 after a reboot: the first message started the adapter,
+        # it reported ready 2 s later, and a single 1 s probe had already answered 503,
+        # so the first message of every session failed. Wait for it, bounded; a
+        # runtime that never becomes ready still gets the honest 503.
+        deadline = _hermes_time.monotonic() + (HERMES_START_WAIT if PORT == 8080 else 0)
+        token = ""
+        while True:
+            try:
+                with open(os.path.join(runtime, "moai-hermes", "token")) as handle:
+                    token = handle.read().strip()
+                if token:
+                    probe = urllib.request.Request("http://127.0.0.1:%d/healthz" % (PORT + 10),
+                        headers={"Authorization": "Bearer " + token})
+                    with urllib.request.urlopen(probe, timeout=2) as response:
+                        if response.status == 200:
+                            break
+            except (OSError, urllib.error.URLError):
+                pass
+            if _hermes_time.monotonic() >= deadline:
+                self._err(503, "Mo AI agent is unavailable. No direct-model substitute was used.")
                 return True
-            probe = urllib.request.Request("http://127.0.0.1:%d/healthz" % (PORT + 10),
-                headers={"Authorization": "Bearer " + token})
-            with urllib.request.urlopen(probe, timeout=1) as response:
-                if response.status != 200:
-                    self._err(503, "Mo AI agent is unavailable. No direct-model substitute was used.")
-                    return True
-        except (OSError, urllib.error.URLError):
-            self._err(503, "Mo AI agent is unavailable. No direct-model substitute was used.")
-            return True
+            _hermes_time.sleep(0.5)
         body = {"model": "hermes-agent", "messages": req.get("messages", []),
                 "stream": bool(req.get("stream")),
                 "session": (req.get("moai") or {}).get("session_key") or

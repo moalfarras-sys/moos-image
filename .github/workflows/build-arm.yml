@@ -237,6 +237,36 @@ jobs:
             echo "image identity and splash OK"
           '
 
+          # THE ENABLEMENT, READ OFF THE BUILT IMAGE — NOT OFF build-arm.sh.
+          #
+          # `systemctl enable` in a build script is not proof that a unit runs. If the unit has no
+          # [Install] it prints a warning, returns 0 and wires nothing; if the enable line is only
+          # in the OTHER edition's build script it never runs here at all. Both have shipped.
+          # Three units — the hardware-matched motion profile, the machine-adaptation pass and the
+          # signed-origin audit — reached the maintainer's A1 present, correct and `disabled`,
+          # because system_files/ is shared byte-for-byte and the enable lines are not.
+          #
+          # tests/test_arm_unit_enablement.py compares the two build scripts. This checks the
+          # bytes: the wants symlink has to exist in the image that is about to be signed.
+          podman run --rm "$img" bash -c '
+            set -e
+            missing=0
+            for want in \
+                graphical.target.wants/moos-visual-tier.service \
+                graphical.target.wants/moos-hardware-adapt.timer \
+                timers.target.wants/moos-verify-origin.timer \
+                timers.target.wants/moos-auto-update.timer \
+                timers.target.wants/moos-appstream-refresh.timer; do
+              if [ -L "/usr/etc/systemd/system/$want" ] || [ -L "/etc/systemd/system/$want" ]; then
+                echo "enabled: $want"
+              else
+                echo "FATAL: $want is not wanted by anything in this image"; missing=1
+              fi
+            done
+            [ "$missing" = 0 ]
+            echo "ARM unit enablement OK"
+          '
+
       - name: Log in to GHCR
         if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
         uses: redhat-actions/podman-login@v2

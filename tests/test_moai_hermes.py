@@ -61,6 +61,34 @@ class AdapterTests(unittest.TestCase):
                 with urllib.request.urlopen(req,timeout=3) as response:result=response.read().decode()
             self.assertIn('جاهز',result);self.assertIn('data: [DONE]',result)
         finally:srv.shutdown();srv.server_close();thread.join()
+    def test_a_follow_up_waits_for_the_previous_turn_instead_of_429(self):
+        # Measured 2026-09-12: a follow-up sent the moment a reply arrived got 429 while
+        # the previous turn was still releasing its lock.
+        class Agent:
+            def run_conversation(self,**kw):return {'final_response':'تم'}
+            def close(self):pass
+        srv=m['Server'](('127.0.0.1',0),'fixture-private',lambda maximum:Agent())
+        thread=threading.Thread(target=srv.serve_forever,daemon=True);thread.start()
+        body=json.dumps({'messages':[{'role':'user','content':'التالي'}]}).encode()
+        def post():
+            return urllib.request.urlopen(urllib.request.Request(
+                'http://127.0.0.1:'+str(srv.server_port)+'/v1/chat/completions',data=body,
+                headers={'Content-Type':'application/json','Authorization':'Bearer fixture-private'}),timeout=10)
+        def broker(action, body):
+            return {'id':'review-session','run':'private-run','history':[]} if action=='begin' else {'ok':True}
+        try:
+            with patch.dict(m['Handler'].do_POST.__globals__, {'broker': broker}):
+                srv.busy.acquire()
+                threading.Timer(0.4, srv.busy.release).start()
+                with post() as response:
+                    self.assertEqual(response.status,200);self.assertIn('تم',response.read().decode())
+                srv.busy.acquire()
+                try:
+                    with patch.dict(m['Handler'].do_POST.__globals__, {'BUSY_WAIT_SECONDS': 0.2}):
+                        with self.assertRaises(urllib.error.HTTPError) as ctx:post()
+                    self.assertEqual(ctx.exception.code,429)
+                finally:srv.busy.release()
+        finally:srv.shutdown();srv.server_close();thread.join()
 
 
 class PackagedRuntimeTests(unittest.TestCase):
@@ -120,6 +148,11 @@ class PackagedRuntimeTests(unittest.TestCase):
         positions = [body.index(step) for step in order]
         self.assertEqual(positions, sorted(positions))
         self.assertIn("confirm || return 0", body)
+        # After an upgrade the running adapter must not keep the moved runtime.
+        self.assertIn("try-restart moai-agent-api.service moai-hermes.service", body)
+        help_text = moai_do[moai_do.index("${C}install-opencode${N}"):moai_do.index("${C}install-openclaw${N}")]
+        self.assertLess(help_text.index("Install OpenCode"), help_text.index("${C}install-hermes${N}"),
+                        "each action's English line stays under its own name in moai-do help")
         self.assertIn("        install-hermes) do_install_hermes ;;", moai_do)
         self.assertIn("do/install-hermes|", self.read("system_files/usr/bin/moos-open"))
         qml = self.read("system_files/usr/share/moos/apps/moai/main.qml")

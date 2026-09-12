@@ -315,6 +315,17 @@ class MoosHealthWiringTests(unittest.TestCase):
         self.assertIn("signature antivirus: never claim it scanned files for viruses.", qml)
         self.assertIn('c += "• Daily check (" + h.generated_at', qml)
 
+    def test_a_failed_poll_never_locks_check_now(self):
+        # Review of PR #85: one failed /health poll ended polling with healthScanning
+        # still true, so "Check now" stayed disabled until Mo AI restarted. A live QML
+        # probe with moai-control unreachable released it after 20 failed polls.
+        qml = self.read("system_files/usr/share/moos/apps/moai/main.qml")
+        body = qml[qml.index("function loadHealth()"):qml.index("function scanHealth()")]
+        failure = body[body.index("if (xhr.status !== 200) {"):body.index("root.healthPollFailures = 0\n            try {")]
+        self.assertIn("++root.healthPollFailures < 20", failure)
+        self.assertIn("healthPoll.restart()", failure)
+        self.assertIn("root.healthScanning = false", failure)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

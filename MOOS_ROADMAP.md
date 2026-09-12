@@ -162,8 +162,17 @@ OpenRouter policy. See [the cloud-only plan](docs/MOAI_CLOUD_ONLY_PLAN.md) and
   choice. *Progress:* on `feat/moos-unified-20260912` both prompts carry an identity
   rule, the scan reports the MoOS version, and live answers on the direct and Hermes
   routes read «MoOS 44.20260909.0 — kernel 7.1.13-200» (before: «Fedora 44 base»).
-  The composer's Agent switch follows the adapter's own discovery. Signed-image
-  acceptance remains.
+  The composer's Agent switch follows the adapter's own discovery. The first wording
+  named the distribution and failed the image identity gate; reworded in `313a34f2`,
+  and asked also for the base distribution, Mo AI answers «MoOS 44.20260912.0 — kernel
+  7.2.4-200» on both routes; `tests/test_app_qml_identity.py` checks the image rule on
+  the source tree. Signed-image acceptance remains.
+- [ ] Paid cloud providers by explicit choice. *Progress:* OpenRouter paid existed;
+  `release/moos-integration-20260912` adds OpenCode Zen (chat-completions families only,
+  address pinned by the catalogue, a service switch needs that service's key, the stored
+  key goes only to OpenRouter or Zen). Live: requests reach opencode.ai (401 with an
+  invalid key) and unroutable or unselected Zen requests stop at 409. A paid Zen answer
+  with a real key and signed-image acceptance remain.
 - [ ] Complete native QML/phone and bounded-memory acceptance. Incremental
   streaming, persistent memory and plugins are not currently provided; SSE
   delivers a final-answer frame.
@@ -207,12 +216,21 @@ honest limits: [v40 cloud desktop](docs/REMOTE_V40_CLOUD_DESKTOP.md).
   enabled on ARM. They shipped `disabled` on the maintainer's A1; `mokernel` reported "this
   machine has not been adapted yet" and there was no `hardware-adapt.state` to contradict it.
   `tests/test_arm_unit_enablement.py` keeps the two build scripts comparable.
-- [ ] **Prove the three ARM enables in a BUILT image.** Source and gate only so far. The next ARM
-  build must show them under `usr/etc/systemd/system/{graphical,timers}.target.wants/`, and the
-  A1 must show `enabled` after the update reboot.
-- [ ] **The H.264 give-up is diagnosed, not fixed.** A viewer's decoder gives up roughly 80s into
-  session after session and takes the whole room to JPEG. The reason now travels with the vote
-  and is logged; the cause is still unknown.
+- [x] **The three ARM enables are proven in the BUILT image, not just in the script.** The ARM
+  workflow's "Verify the built image" step runs the image and asserts each wants symlink exists
+  before anything is signed — a `systemctl enable` in a build script proves nothing about the
+  bytes, which is how this shipped. Run `34706942794` printed `enabled:` for all five MoOS units
+  and `ARM unit enablement OK`.
+- [ ] **The A1 must show `enabled` after its update reboot.** The image gate proves the symlink
+  ships; only the running machine proves it takes effect.
+- [ ] **The H.264 give-up is narrowed, not fixed.** Counted against the viewer count on the A1
+  for a whole day: **16 of 16** drops to JPEG happened with a second viewer connected, **0** with
+  one, and after the count first reached zero every later single-viewer session held H.264 with
+  no transition at all. One of the sixteen declared JPEG in the same second it connected, which
+  is `canDecodeH264()` false or a tab that had already given up. So the question is not why a
+  decoder degrades: it is what that second client is, and whether one viewer that cannot decode
+  H.264 should put a 2-core host back on whole-picture JPEG for everybody. The reason now travels
+  with the vote and is logged on the transition.
 - [ ] **`budget.update_concurrency` still has no reader.** `moai-do update` does not consult it,
   so a 32-core machine and a 2-core A1 fan out identically. Pinned by
   `tests/test_moos_visual_tier.py` so it cannot be forgotten again.

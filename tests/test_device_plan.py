@@ -8,7 +8,6 @@ import importlib.util
 import os
 import stat
 import subprocess
-import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -79,17 +78,13 @@ echo   Kernel driver in use: r8169
         )
         env = dict(os.environ)
         env["PATH"] = str(bindir) + os.pathsep + env.get("PATH", "")
-        # This fixture describes an x86 NVIDIA machine even when the gate itself
-        # runs on Oracle ARM. Keep the real CLI/process boundary and fake the
-        # architecture alongside lspci; the separate ARM case below must refuse
-        # exactly the image switch this x86 case requires.
-        runner = """import platform, runpy, sys
-platform.machine = lambda: 'x86_64'
-sys.argv = sys.argv[1:]
-runpy.run_path(sys.argv[0], run_name='__main__')
-"""
-        data = json.loads(subprocess.check_output(
-            [sys.executable, "-c", runner, str(PLAN)], text=True, env=env))
+        # This block simulates an x86 NVIDIA desktop, and moos-device-plan is architecture-aware
+        # (the NVIDIA image is published for x86_64 only). Reading the HOST's CPU here made the
+        # whole black-box section pass on a CI runner and fail on the maintainer's aarch64
+        # machine. Say which machine is being simulated; the ARM branch is asserted separately
+        # below, by importing the module and passing `machine` directly.
+        env["MOOS_DEVICE_PLAN_MACHINE"] = "x86_64"
+        data = json.loads(subprocess.check_output([str(PLAN)], text=True, env=env))
 
 assert data["gpu_vendor"] == "nvidia"
 assert data["driver"] == "nouveau", data["driver"]

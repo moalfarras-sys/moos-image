@@ -119,9 +119,21 @@ def _pixels_from_compositor() -> int:
     """Total pixels of the enabled outputs, straight from KScreen. 0 if absent."""
     if os.environ.get("MOOS_TIER_ROOT"):
         return 0  # a fake root must not consult the real session
+    # Ask only when a Wayland compositor is actually reachable. Measured 2026-09-12:
+    # the root unit, and moai-control at login, ran kscreen-doctor with no display;
+    # Qt fell back to xcb, aborted and dumped core on every boot.
+    display = os.environ.get("WAYLAND_DISPLAY", "")
+    runtime = os.environ.get("XDG_RUNTIME_DIR", "")
+    if display.startswith("/"):
+        socket_path = display
+    else:
+        socket_path = os.path.join(runtime, display) if display and runtime else ""
+    if not socket_path or not os.path.exists(socket_path):
+        return 0
     try:
         p = subprocess.run(["kscreen-doctor", "--json"],
-                           capture_output=True, text=True, timeout=10)
+                           capture_output=True, text=True, timeout=10,
+                           env={**os.environ, "QT_QPA_PLATFORM": "wayland"})
         outputs = json.loads(p.stdout or "{}").get("outputs", [])
     except (OSError, subprocess.SubprocessError, ValueError):
         return 0
@@ -501,10 +513,22 @@ def _apply_motion(policy: str) -> bool:
 
 
 def _kreadconfig(file: str, group: str, key: str) -> str:
+    extra = {}
+    if os.geteuid() == 0 and os.environ.get("HOME", "/") in ("", "/"):
+        # The root unit runs with HOME=/. KConfig then finds "//.config" unwritable and
+        # spawns kdialog to say so, which aborts with no display: 44 core dumps in one
+        # boot (2026-09-12). A private, root-only config home under /run keeps the same
+        # system-wide answers, silently.
+        private = "/run/moos-visual-tier"
+        try:
+            os.makedirs(private, mode=0o700, exist_ok=True)
+            extra["env"] = {**os.environ, "HOME": private, "XDG_CONFIG_HOME": private + "/config"}
+        except OSError:
+            pass
     try:
         p = subprocess.run(
             ["kreadconfig6", "--file", file, "--group", group, "--key", key],
-            capture_output=True, text=True, timeout=10)
+            capture_output=True, text=True, timeout=10, **extra)
         return (p.stdout or "").strip()
     except (OSError, subprocess.SubprocessError):
         return ""

@@ -200,6 +200,11 @@ fi
 if [ "$mem_gib" -gt 0 ]; then
     zconf="${ROOT}/etc/systemd/zram-generator.conf"
     sysconf="${ROOT}/etc/sysctl.d/90-moos-hardware.conf"
+    # The ARM edition is built FROM fedora-bootc, which ships no zram-generator: there is no
+    # dev-zram0.swap to size. Measured 2026-09-12, every ARM first boot tried to start it,
+    # recorded two failed mutations and left moos-hardware-adapt.service failed, which failed
+    # the ARM boot proof. Without the generator, only the reclaim reserve below applies.
+    zram_generator="${MOOS_HW_ZRAM_GENERATOR:-${ROOT}/usr/lib/systemd/system-generators/zram-generator}"
     if [ "$mem_gib" -lt 8 ]; then zsize="ram"          # low RAM: compression buys real headroom
     elif [ "$mem_gib" -lt 32 ]; then zsize="min(ram, 8192)"
     else zsize="min(ram / 2, 16384)"; fi
@@ -212,7 +217,9 @@ if [ "$mem_gib" -gt 0 ]; then
     else
         zram_changed=0
         sysctl_changed=0
-        if [ ! -r "$zconf" ] || [ "$(cat "$zconf" 2>/dev/null)" != "$zwant" ]; then
+        if [ ! -x "$zram_generator" ]; then
+            log "zram-generator is not installed — leaving swap untouched"
+        elif [ ! -r "$zconf" ] || [ "$(cat "$zconf" 2>/dev/null)" != "$zwant" ]; then
             mkdir -p "$(dirname "$zconf")" 2>/dev/null || true
             persist_only=0
             if zram_swap_active && zram_size_matches_tier "$zsize"; then
@@ -246,12 +253,15 @@ if [ "$mem_gib" -gt 0 ]; then
             do_run systemctl daemon-reload || true
             do_run systemctl reset-failed dev-zram0.swap systemd-zram-setup@zram0.service || true
             do_run systemctl start dev-zram0.swap || true
-            if [ "$(systemctl is-active dev-zram0.swap 2>/dev/null)" = "active" ]; then
+            zram_state="$(systemctl is-active dev-zram0.swap 2>/dev/null)"
+            if [ "$zram_state" = "active" ]; then
                 log "zram swap re-activated cleanly"
             else
-                mutation_failed "dev-zram0.swap is $(systemctl is-active dev-zram0.swap 2>/dev/null || echo unknown) after re-size" || true
+                # is-active prints the state AND exits non-zero, so `|| echo unknown` used to
+                # append a second word on its own line; report the one state once.
+                mutation_failed "dev-zram0.swap is ${zram_state:-unknown} after re-size" || true
             fi
-        elif [ "$sysctl_changed" = 0 ]; then
+        elif [ "$sysctl_changed" = 0 ] && [ -x "$zram_generator" ]; then
             log "zram and reclaim reserve already match ${mem_gib}GiB — leaving swap untouched"
         fi
     fi

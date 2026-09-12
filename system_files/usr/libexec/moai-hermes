@@ -27,6 +27,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "lib/moai"))
 from moai_runtime import TOOLS
 
 MAX_BODY = 128 * 1024
+# One conversation at a time, queued. Measured 2026-09-12: a follow-up sent the moment
+# a reply arrived reached this adapter before the previous turn released its lock and
+# was refused with 429. Stays under the 130 s connection timeout.
+BUSY_WAIT_SECONDS = 110.0
 MODEL = "hermes-agent"
 
 
@@ -290,7 +294,7 @@ class Handler(BaseHTTPRequestHandler):
             user, system, history, maximum, stream = parse_chat(body)
         except (ValueError, UnicodeError):
             return self.error(400, "invalid text chat request")
-        if not self.server.busy.acquire(blocking=False):
+        if not self.server.busy.acquire(timeout=BUSY_WAIT_SECONDS):
             return self.error(429, "Hermes is answering another request")
         agent = None
         turn = None

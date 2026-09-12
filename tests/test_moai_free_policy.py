@@ -3,10 +3,30 @@
 import importlib.machinery
 import importlib.util
 import json
+import os
 from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
+
+# ── ISOLATE THE OWNER'S OWN SETTINGS BEFORE ANYTHING IS IMPORTED ─────────────────────────────
+#
+# `selected_provider()` reads $XDG_CONFIG_HOME/moai-agent/state.json — the LIVE choice the person
+# using this machine made — and `selected_cost_policy()` turns that into free-or-paid, which is
+# what decides whether a paid model is refused with 409 or admitted.
+#
+# So two of these tests asserted the free-only behaviour while reading whatever the owner had
+# selected. On a CI runner there is no such file, they pass, and the gate looks green forever. On
+# the maintainer's own Oracle A1, where Settings says `openrouter-paid`, they FAIL — and `just
+# check` is exactly what AGENTS.md tells every contributor to run before pushing. A gate that only
+# passes on a machine shaped like CI teaches people that a red gate means nothing, which is the
+# one thing this repository cannot afford.
+#
+# Pointing HOME and XDG_CONFIG_HOME at an empty directory for the whole module fixes it for every
+# test here, not just the two that happened to notice: none of them is about the host's config.
+_ISOLATED = tempfile.TemporaryDirectory()
+os.environ["XDG_CONFIG_HOME"] = str(Path(_ISOLATED.name) / "config")
+os.environ["HOME"] = _ISOLATED.name
 
 ROOT=Path(__file__).resolve().parents[1]
 def load(name,path):
@@ -19,16 +39,6 @@ gateway=load('moai_free_gateway','system_files/usr/bin/moai-gateway')
 migration=load('moai_cloud_migrate','system_files/usr/libexec/moai-cloud-migrate')
 
 class FreePolicy(unittest.TestCase):
-    def setUp(self):
-        # A developer may have selected a paid provider in their real Settings.
-        # Every fixture starts with an unconfigured/free profile; individual paid
-        # cases still opt in explicitly and exercise the same production policy.
-        self.profile = tempfile.TemporaryDirectory(prefix='moai-policy-test-')
-        self.addCleanup(self.profile.cleanup)
-        isolated = patch.dict(policy.os.environ, {'XDG_CONFIG_HOME': self.profile.name})
-        isolated.start()
-        self.addCleanup(isolated.stop)
-
     def test_paid_local_untrusted_and_ambiguous_routes_rejected(self):
         for base,model in [('http://127.0.0.1:11434','qwen3'),
                            ('https://openrouter.ai.evil/api/v1','openrouter/free'),
@@ -233,6 +243,41 @@ class FreePolicy(unittest.TestCase):
                         patch.dict(gateway.os.environ,{'XDG_RUNTIME_DIR':runtime}):
                     self.assertIs(handler._to_hermes({'messages':[]}),True)
                 self.assertEqual(errors,[503])
+
+    def test_first_message_waits_for_the_adapter_it_just_started(self):
+        # Measured 2026-09-12 after a reboot: the adapter reported ready 2 s after the first
+        # message started it, and a single 1 s probe had already answered 503.
+        class Healthy:
+            status=200
+            def __enter__(self): return self
+            def __exit__(self,*args): return False
+        for ready_on_probe,wait,expected in ((3,5.0,[]),(None,0.3,[503])):
+            with self.subTest(ready_on_probe=ready_on_probe), tempfile.TemporaryDirectory() as runtime:
+                (Path(runtime)/'moai-hermes').mkdir()
+                (Path(runtime)/'moai-hermes/token').write_text('fixture-token')
+                handler=object.__new__(gateway.Handler)
+                errors=[];proxied=[];probes=[];started=[]
+                handler._err=lambda code,msg,errors=errors:errors.append(code)
+                handler._proxy=lambda *args,**kwargs:proxied.append(args[1])
+                def urlopen(req,timeout=0,probes=probes,ready_on_probe=ready_on_probe):
+                    probes.append(req.full_url)
+                    if ready_on_probe is None or len(probes)<ready_on_probe:
+                        raise gateway.urllib.error.URLError('adapter still starting')
+                    return Healthy()
+                with patch.object(gateway,'hermes_runtime_installed',return_value=True), \
+                        patch.object(gateway,'PORT',8080), patch.object(gateway,'HERMES_START_WAIT',wait), \
+                        patch.object(gateway.subprocess,'run',side_effect=lambda *a,**k:started.append(a[0])), \
+                        patch.object(gateway.urllib.request,'urlopen',side_effect=urlopen), \
+                        patch.object(gateway._hermes_time,'sleep',lambda seconds:None), \
+                        patch.dict(gateway.os.environ,{'XDG_RUNTIME_DIR':runtime}):
+                    self.assertIs(handler._to_hermes({'messages':[],'moai':{'session':'s'}}),True)
+                self.assertEqual(errors,expected)
+                self.assertEqual(started,[['systemctl','--user','start','moai-agent-api.service','moai-hermes.service']])
+                if expected:
+                    self.assertEqual(proxied,[])
+                else:
+                    self.assertEqual(len(probes),3)
+                    self.assertEqual(proxied,['http://127.0.0.1:8090/v1/chat/completions'])
 
     def test_runtime_status_comes_from_the_adapter_and_is_cached(self):
         with tempfile.TemporaryDirectory() as directory:
