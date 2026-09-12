@@ -2294,12 +2294,36 @@ Measured on the shipped bundle in a real Chromium and read off the live Oracle A
   running machine: the A1 must show `enabled` after its update reboot.
 - The live A1 still has the three units disabled; they were not enabled on the running machine.
 - `budget.update_concurrency` still has no reader; `moai-do update` does not consult it.
-- **Local machine drift on the A1, left alone deliberately:** `/etc/sysctl.d/99-moos-performance.conf`
-  (hand-written 2026-09-10) sets `vm.swappiness=100` and `vm.dirty_ratio=15` against MoOS's
-  declared 150/10, which is what `mokernel` reports as drift. It is the owner's own file on their
-  own machine, so it is recorded here rather than removed; `moos-hardware-adapt` is the supported
-  place for per-machine policy and its dry run on this box wants only
-  `zram-size=min(ram, 8192)` and `fwupd-refresh.timer`.
+- **Local machine drift on the A1, left alone deliberately.** Two hand-written files from
+  2026-09-10 that MoOS does not ship. They are the owner's own, on their own machine, so they are
+  recorded here rather than removed — but both are doing less than they look like they are doing,
+  and `moos-hardware-adapt` is the supported place for per-machine policy (its dry run on this box
+  wants only `zram-size=min(ram, 8192)` and `fwupd-refresh.timer`).
+
+  `/etc/sysctl.d/99-moos-performance.conf` sets `vm.swappiness=100` and `vm.dirty_ratio=15`
+  against MoOS's declared 150/10. That is exactly what `mokernel` reports as drift.
+
+  `/etc/systemd/system/moos-perf-tune.service` is **the slowest unit on this machine** —
+  `systemd-analyze blame` puts it at 10.153 s of a 25.858 s boot — and all of it is the literal
+  `sleep 10` in its first `ExecStart`, which waits for KWin in order to renice it. Measured:
+
+  ```console
+  $ ps -o ni= -p $(pgrep -f mo-remote  | head -1)   ->  -5    applied
+  $ ps -o ni= -p $(pgrep -f 'pipewire$' | head -1)  ->  -8    applied
+  $ ps -o ni= -p $(pgrep -f kwin_wayland | head -1) ->   0    NOT applied
+  ```
+
+  Two reasons, and the second makes the first moot:
+
+  * `pgrep -f kwin_wayland | head -1` returns pid 1746, `kwin_wayland_wrapper` — the wrapper, not
+    the compositor. The compositor is pid 1750.
+  * pid 1750 is already `SCHED_RR|SCHED_RESET_ON_FORK` at priority 1, granted by `rtkit-daemon`
+    (active). `nice` does not apply to a real-time process at all, so even a corrected `pgrep`
+    would change nothing — the compositor is already scheduled better than any nice value can
+    express.
+
+  So the ten seconds buy nothing. The two boosts that DO land (Mo Remote, PipeWire) need no sleep;
+  removing the first `ExecStart` would return 10 s to every boot and lose no priority.
 
 ## Release integration verified on ARM — 2026-09-12 (`integrate/moos-20260912`)
 
