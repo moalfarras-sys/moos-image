@@ -26,9 +26,10 @@ KDE/Wayland, make cloud AI truthful, and deliver the same result in signed ISOs.
 Repository cleanup and engineering instructions support that work; screenshots,
 old plans and extra packages are not product progress.
 
-**Active slice: P2.7, at the owner's explicit request.** Finish existing dock
-feedback, clock input and native sound integration, then freeze a new P0.1
-candidate. P0 acceptance remains open; no earlier candidate proves this slice.
+**Active slice: P2.7, at the owner's explicit request.** The existing dock
+feedback, clock input and native sound source/image work is locally complete;
+freeze a new signed P0.1 candidate next. P0 acceptance remains open; no earlier
+candidate proves this slice.
 Do not launch several competing release candidates while its source is moving.
 
 | Requested outcome | Work stream | What must actually be proven |
@@ -230,6 +231,8 @@ stable.^9 Native KNotification event defaults must match the installed KDE
 event IDs and yield to personal choices.^10 Asset presence or successful audio
 decoding is not evidence of login/logout playback. Test both event delivery and
 session volume, including notification quiet mode and per-event/global mute.
+The local source and NVIDIA-image gates are complete at `0bdb289e`; candidate
+boot and upgraded-session evidence remain required before this row can close.
 
 Plasma 6 has no LTS branch and follows feature plus patch-release cycles.^1
 MoOS therefore tracks stable releases through the shared base, keeps local

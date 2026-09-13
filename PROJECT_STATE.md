@@ -16,6 +16,10 @@ rejected approaches and completed incident narratives.
   complete the candidate/boot-proof contract before release integration.
 - Latest retained local test image:
   `localhost/moos-nvidia:latest`, image ID `8d325f56369b`.
+- Current visual/sound source evidence was built locally at
+  `0bdb289ef3960a507a57dc5aa77178929890e9f1`: the new NVIDIA image is
+  `localhost/moos-nvidia:latest` image ID `759d74be1989`. It remains unsigned
+  local evidence only; it must never become this workstation's deployment.
 
 ## Physical development machine
 
@@ -69,6 +73,15 @@ kernel journal contains no fatal NVRM event.
 
 The lint warning for non-empty `/boot` is intentional: EFI/GRUB inputs are
 required by the offline ISO path.
+
+The P2.7 source slice has a full host `just check` pass (145 maintained gates)
+and a local NVIDIA image proof: built-image QML motion passed with physical
+settling/reversal/reduced-motion/hidden-state/key/pointer checks; the sound
+gate resolved real core KDE event definitions to 32 original MoOS Ogg files;
+the actual image carries the MoKernel identity fix and NVIDIA/OStree initramfs
+content. A source Arabic/English QML frame was reviewed on the installed
+Wayland/Qt stack. KDE login/logout/notification playback and custom mute need a
+signed upgraded-session proof; decoding/mapping alone does not prove delivery.
 
 PR checks at `55898f85` passed the repository gates, MoRemote checks and ARM
 image build. ARM signing/disk/boot/promotion were skipped on the PR. The Claude
@@ -160,6 +173,10 @@ portals. Full light/dark and scaled desktop review remain open.
   branch lands.
 - The local image is unsigned test evidence. It must not replace the signed
   installed deployment or be described as a release.
+- The live `plasmawindowed` source-applet process stayed healthy but did not
+  surface as a composited preview in this session's capture. Its QML/key path
+  is covered by the isolated native review and direct process readback; a
+  booted candidate desktop remains required visual evidence.
 
 ## Next task
 
