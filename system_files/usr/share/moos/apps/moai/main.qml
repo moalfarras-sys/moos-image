@@ -962,6 +962,8 @@ Kirigami.ApplicationWindow {
             return root.healthScanning ? root.local("جارٍ الفحص الأول…", "Running the first check…")
                                        : root.local("لم يُجرَ فحص بعد", "No check has run yet")
         const c = (root.healthReport.summary || {}).counts || {}
+        if (root.healthStatus === "incomplete")
+            return root.local("الفحص غير مكتمل", "Check incomplete")
         if (root.healthStatus === "ok")
             return root.local("كل شيء سليم", "All clear")
         return root.local("مهم: " + (c.important || 0) + " · تنبيهات: " + (c.warning || 0),
@@ -5938,7 +5940,7 @@ Kirigami.ApplicationWindow {
                                         text: cldRow.group === "curated"
                                               ? root.local("مختارة ومجرّبة", "Curated & tested")
                                               : cldRow.group === "paid"
-                                                ? root.local("نماذج مدفوعة — OpenCode Zen", "Paid models — OpenCode Zen")
+                                                ? root.local("نماذج مدفوعة", "Paid models")
                                                 : root.local("كل النماذج المجانية", "All free models")
                                         color: root.textMute
                                         font.family: root.uiFont

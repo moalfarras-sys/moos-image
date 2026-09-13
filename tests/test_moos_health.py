@@ -246,6 +246,39 @@ class MoosHealthScanTests(unittest.TestCase):
         self.assertEqual(json.loads(printed.stdout)["summary"]["status"], "action-needed")
 
 
+class MoosHealthUnknownIsNotHealthyTests(unittest.TestCase):
+    """A probe that cannot answer is unknown, and a firewall that answers "not running" is off."""
+
+    def scan(self, **stubs):
+        machine = HealthMachine()
+        self.addCleanup(machine.close)
+        for name, body in stubs.items():
+            path = machine.bin / name
+            path.write_text("#!/bin/sh\n" + RECORD + body)
+            path.chmod(0o755)
+        result = machine.run("scan")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        report = json.loads((machine.state / "latest.json").read_text())
+        return report, {item["id"]: item for item in report["findings"]}
+
+    def test_a_stopped_firewall_is_still_reported_as_off(self):
+        # firewalld's own answer when it is stopped: "not running" on stdout, exit 252.
+        _, findings = self.scan(**{"firewall-cmd": 'echo "not running"\nexit 252\n'})
+        self.assertEqual(findings["firewall-off"]["severity"], "warning")
+        self.assertNotIn("check-incomplete-firewall", findings)
+
+    def test_an_unanswered_firewall_query_is_unknown_not_off(self):
+        # Measured with an unreachable system bus: nothing on stdout, DBUS_ERROR on stderr, exit 36.
+        report, findings = self.scan(**{
+            "firewall-cmd": 'echo "Error: DBUS_ERROR: Failed to connect to socket" >&2\nexit 36\n',
+            "getenforce": "echo Enforcing\n",
+        })
+        self.assertIn("check-incomplete-firewall", findings)
+        self.assertNotIn("firewall-off", findings)
+        # Nothing important is left, so "we could not look" outranks the remaining warnings.
+        self.assertEqual(report["summary"]["status"], "incomplete")
+
+
 class MoaiControlHealthTests(unittest.TestCase):
     """Run moai-control's real health functions against a temporary home."""
 

@@ -765,6 +765,11 @@ def read_config() -> dict:
         if mode == "cloud"
         else str(st.get("cloud_model") or "")
     )
+    # Read back the explicit catalogue choice, including billed providers.
+    # Inferring a choice from a model/address could opt an old config into billing.
+    provider = st.get("provider")
+    if not isinstance(provider, str) or provider not in PROVIDER_BY_ID:
+        provider = "openrouter-free"
     return {
         "brain": {
             "mode": mode,
@@ -773,7 +778,7 @@ def read_config() -> dict:
             "thinking": agents.get("thinkingDefault", "off"),
         },
         "cloud": {
-            "provider": "openrouter-paid" if st.get("provider") == "openrouter-paid" else "openrouter-free",
+            "provider": provider,
             "base": cloud.get("baseUrl", ""),
             "model": cloud_model,
             "has_key": bool(cloud.get("apiKey")),
