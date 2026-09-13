@@ -55,6 +55,7 @@ FROM ghcr.io/ublue-os/kinoite-main:44 AS base
 # -----------------------------------------------------------------------------
 FROM scratch AS ctx
 COPY build_files /
+COPY tests/qml/motion-review.qml /motion-review.qml
 
 # -----------------------------------------------------------------------------
 # Stage "akmods": ublue's NVIDIA kmod + driver RPMs, bind-mounted (not copied) at

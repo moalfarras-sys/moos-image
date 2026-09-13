@@ -51,7 +51,7 @@ jobs:
           REVIEW_OUTCOME: ${{ steps.claude-review.outcome }}
         run: |
           if [ "$REVIEW_OUTCOME" = success ]; then
-            echo 'Advisory review action completed. Inspect its findings; this job is not release acceptance.' >> "$GITHUB_STEP_SUMMARY"
+            echo 'Advisory action returned success; review completion is unverified. Workflow-validation skips can also return success. Inspect actual findings and logs; this job is not release acceptance.' >> "$GITHUB_STEP_SUMMARY"
           else
             echo '::warning::Advisory review unavailable. This green job does not mean the code was reviewed.'
             echo 'Advisory review did not complete. Require an actual code review; inspect the action log for the cause.' >> "$GITHUB_STEP_SUMMARY"

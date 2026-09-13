@@ -111,6 +111,9 @@ QtObject {
     readonly property int shadowYOffset: 8
     readonly property real pressScale: 0.97
     readonly property real hoverScale: 1.02
+    readonly property real springStiffness: 4
+    readonly property real springDamping: 0.32
+    readonly property real springEpsilon: 0.005
 
     // easing
     readonly property int easeStandard: Easing.OutCubic

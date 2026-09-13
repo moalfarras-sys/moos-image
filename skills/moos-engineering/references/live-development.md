@@ -11,6 +11,11 @@ machine through `flatpak-spawn --host`; run Git authentication and Podman there.
 Use the shared checkout path as an argument, never interpolate untrusted text
 into a shell command. From a host terminal, omit the Flatpak wrapper.
 
+The visual/image suite imports Pillow and other host development dependencies.
+From VS Code Flatpak, run `flatpak-spawn --host just check` (not the editor
+runtime's `just check`); a missing module is a workstation-environment defect,
+not a reason to skip the image test.
+
 ```bash
 git status --short --branch
 git log -1 --format='%h %s'
@@ -84,6 +89,14 @@ Read the interaction assertions and runtime log as well. Distinguish:
 
 Do not count one as another. Never change a theme or replace artwork simply
 because the task asks for polish; identify a failed frame or missing flow first.
+
+When reviewing a shared QML component, set `QML_IMPORT_PATH` on the review
+process to the source module root. A source app importing the installed module
+does not test changes to that module. `tests/qml/motion-review.qml` exercises
+real spring settling, reversal, interruption, hidden state and button input;
+`build_files/verify_moos_motion.py` isolates its bus/display/home for image tests.
+Use a detached Wayland review separately for rendered evidence. Never export
+the review import path globally into the desktop's user manager.
 
 ## Leave a usable workstation
 

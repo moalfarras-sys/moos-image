@@ -40,6 +40,7 @@ FROM quay.io/fedora/fedora-bootc:44 AS base
 # -----------------------------------------------------------------------------
 FROM scratch AS ctx
 COPY build_files /
+COPY tests/qml/motion-review.qml /motion-review.qml
 
 # Keep a pristine copy of the shared MoOS filesystem overlay. Fedora packages
 # are installed during build-arm.sh and may replace session/default files that

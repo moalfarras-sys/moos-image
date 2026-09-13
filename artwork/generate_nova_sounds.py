@@ -265,6 +265,16 @@ def trash_empty() -> np.ndarray:
     return finish(audio, peak=0.13)
 
 
+def timer_elapsed() -> np.ndarray:
+    """A bounded two-part reminder; repetition remains the caller's policy."""
+    duration = 1.22
+    audio = chime(duration, 783.99, start=0.02, decay=8.4, amplitude=0.66, pan=-0.12)
+    audio += chime(duration, 1046.50, start=0.20, decay=8.0, amplitude=0.70, pan=0.12)
+    audio += chime(duration, 783.99, start=0.57, decay=8.4, amplitude=0.62, pan=-0.12)
+    audio += chime(duration, 1046.50, start=0.75, decay=8.0, amplitude=0.68, pan=0.12)
+    return finish(audio, peak=0.18)
+
+
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     success = complete()
@@ -281,20 +291,25 @@ def main() -> None:
         "dialog-warning.oga": warning(),
         "dialog-warning-auth.oga": warning(),
         "dialog-error.oga": failure,
+        "dialog-error-critical.oga": serious_error(),
         "dialog-error-serious.oga": serious_error(),
         "device-added.oga": arrival,
         "device-removed.oga": departure,
         "service-login.oga": arrival,
         "service-logout.oga": departure,
         "audio-volume-change.oga": volume_tick(),
+        "bell-window-system.oga": volume_tick(),
+        "alarm-clock-elapsed.oga": timer_elapsed(),
         "button-pressed.oga": button_tick(),
         "button-pressed-modifier.oga": button_tick(),
         "battery-caution.oga": battery_caution(),
         "battery-low.oga": battery_low(),
+        "battery-full.oga": success,
         "power-plug.oga": power_plug(),
         "power-unplug.oga": power_unplug(),
         "complete-download.oga": success,
         "completion-success.oga": success,
+        "completion-rotation.oga": button_tick(),
         "outcome-success.oga": success,
         "completion-fail.oga": failure,
         "outcome-failure.oga": failure,

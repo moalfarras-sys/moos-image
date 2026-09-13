@@ -74,6 +74,9 @@ PR checks at `55898f85` passed the repository gates, MoRemote checks and ARM
 image build. ARM signing/disk/boot/promotion were skipped on the PR. The Claude
 advisory action failed inside a green job; it provided no completed code review.
 Direct independent source review found the Baloo edge fixed below.
+The follow-up advisory run skipped execution because its workflow differed
+from `main`, while returning success. Its summary now explicitly treats success
+as unverified until actual review findings/logs establish completion.
 
 Candidate run [34767888628](https://github.com/moalfarras-sys/moos-image/actions/runs/34767888628)
 successfully built and signed all three x86 editions at the earlier `55898f85`

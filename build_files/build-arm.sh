@@ -1412,6 +1412,8 @@ python3 /ctx/finalize_image_state.py --root /
 
 MOOS_IDENTITY_PROFILE=arm-cloud python3 /ctx/verify_identity.py
 python3 /ctx/verify_arm_image.py
+python3 /ctx/verify_sound_theme.py
+python3 /ctx/verify_moos_motion.py --qml /ctx/motion-review.qml
 python3 /ctx/verify_no_foreign_identity.py
 
 

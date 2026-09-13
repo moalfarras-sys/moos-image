@@ -76,7 +76,7 @@ value_of() {
 
 print_status() {
     printf '%s\n' "${C_B}MoKernel rev ${MOKERNEL_REV}${C_N} ${C_DIM}on Linux $(uname -r)${C_N}"
-    printf '%s\n' "${C_DIM}MoOS configures Fedora's signed kernel; it does not fork or rebuild it.${C_N}"
+    printf '%s\n' "${C_DIM}MoOS configures the signed Linux kernel; it does not fork or rebuild it.${C_N}"
     printf '\n'
     local kind name want why have
     while IFS='|' read -r kind name want why; do

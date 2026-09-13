@@ -54,6 +54,13 @@ candidate commit ancestry and final tree required by the promotion workflow.
 Inspect individual CI steps and artifacts: a skipped boot job or an advisory
 review with `continue-on-error` is not acceptance evidence.
 
+For a broad "complete the OS" request, reconcile it with the existing plan,
+name the active vertical slice and keep the rest as explicit acceptance work.
+An engineering team may parallelize independent files/reviews; one agent owns
+integration and the candidate SHA. Kernel policy is not a custom kernel, a
+healthy API process is not a successful user flow, and available assets are
+not evidence that Plasma actually consumes them.
+
 ## The design language: MoOS UI
 
 - The official design system of MoOS is **MoOS UI — Liquid Glass Design System**.

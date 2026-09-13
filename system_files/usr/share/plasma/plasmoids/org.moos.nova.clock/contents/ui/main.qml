@@ -31,6 +31,9 @@ PlasmoidItem {
     id: root
 
     Plasmoid.backgroundHints: PlasmaCore.Types.NoBackground
+    // Keyboard and accessibility use Plasma's native activation route. Pointer
+    // clicks remain owned by the compact MouseArea below, exactly once.
+    activationTogglesExpanded: true
 
     property date now: new Date()
     readonly property bool rtl: MoUI.Locale.rtl
@@ -108,30 +111,68 @@ PlasmoidItem {
         Layout.maximumWidth: contentWidth
 
         hoverEnabled: true
+        activeFocusOnTab: true
         cursorShape: Qt.PointingHandCursor
-        onClicked: root.expanded = !root.expanded
+        property bool wasExpanded: false
+
+        function activate() {
+            Plasmoid.activated();
+        }
+
+        // Plasma may dismiss the popup between press and release. Remember the
+        // pressed state so clicking an open clock closes it instead of reopening.
+        onPressed: compact.wasExpanded = root.expanded
+        onClicked: root.expanded = !compact.wasExpanded
+        Keys.onReturnPressed: event => {
+            if (!event.isAutoRepeat) { compact.activate(); }
+            event.accepted = true;
+        }
+        Keys.onEnterPressed: event => {
+            if (!event.isAutoRepeat) { compact.activate(); }
+            event.accepted = true;
+        }
+        Keys.onSpacePressed: event => {
+            if (!event.isAutoRepeat) { compact.activate(); }
+            event.accepted = true;
+        }
         Accessible.name: root.toolTipMainText + ", " + root.toolTipSubText
+        Accessible.role: Accessible.Button
+        Accessible.pressed: compact.pressed
+        Accessible.checked: root.expanded
+        Accessible.onPressAction: compact.activate()
 
         Rectangle {
+            id: clockPlate
             anchors.fill: parent
             anchors.topMargin: Kirigami.Units.smallSpacing
             anchors.bottomMargin: Kirigami.Units.smallSpacing
             radius: Math.round(height * 0.34)
             color: Qt.alpha(Kirigami.Theme.highlightColor,
-                            compact.containsMouse ? 0.09
+                            compact.pressed ? 0.14
+                            : compact.containsMouse || compact.activeFocus ? 0.09
                             : root.expanded ? 0.055 : 0)
             border.width: root.design.borderHairline
             border.color: Qt.alpha(Kirigami.Theme.highlightColor,
-                                   compact.containsMouse || root.expanded ? 0.22 : 0)
-            scale: compact.containsMouse ? 1.01 : 1
+                                   compact.containsMouse || compact.activeFocus
+                                   || root.expanded ? 0.22 : 0)
+            scale: clockFeedback.value
             Behavior on color { ColorAnimation { duration: root.motionFast } }
             Behavior on border.color { ColorAnimation { duration: root.motionFast } }
-            Behavior on scale {
-                NumberAnimation {
-                    duration: root.motionFast
-                    easing.type: root.design.easeStandard
-                }
+            MoUI.SpringFeedback {
+                id: clockFeedback
+                active: clockPlate.visible
+                targetScale: !root.motionEnabled ? 1
+                    : compact.pressed ? root.design.pressScale
+                    : compact.containsMouse ? root.design.hoverScale : 1
+                motionEnabled: root.motionEnabled
             }
+        }
+
+        MoUI.FocusRing {
+            anchors.fill: clockPlate
+            anchors.margins: 0
+            controlRadius: clockPlate.radius
+            visible: compact.activeFocus
         }
 
         RowLayout {
@@ -153,7 +194,7 @@ PlasmoidItem {
                         color: Qt.alpha(Kirigami.Theme.highlightColor, 0.24)
                     }
                 }
-                opacity: compact.containsMouse || root.expanded ? 1 : 0.78
+                opacity: compact.containsMouse || compact.activeFocus || root.expanded ? 1 : 0.78
                 Behavior on opacity { NumberAnimation { duration: root.motionFast } }
             }
 

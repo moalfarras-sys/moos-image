@@ -3809,6 +3809,8 @@ chmod 1777 /var/tmp
 # It runs here now: after every package, every rebrand, every mask — and under `set -e`, so
 # a failure stops the build.
 python3 /ctx/verify_image_experience.py
+python3 /ctx/verify_sound_theme.py
+python3 /ctx/verify_moos_motion.py --qml /ctx/motion-review.qml
 
 # ── The MoOS Store must be internally consistent end-to-end ───────────────────
 #
