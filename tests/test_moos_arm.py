@@ -563,6 +563,38 @@ class ArmEditionTests(unittest.TestCase):
                       "before capturing the greeter")
         self.assertNotIn("MOOS_ARM_SKIP_VISUAL_GATE", boot_gate)
 
+    def test_boot_proof_waits_for_hardware_adaptation_to_finish(self) -> None:
+        # moos-hardware-adapt runs from a timer after the desktop, so one `systemctl --failed`
+        # sample can see it before it starts, or while it runs, and pass a boot whose adaptation
+        # fails a minute later. Its 90 s bound also killed the emulated first boot at exactly
+        # 90 s (run 34717090843). The gate's wait has to outlast the timer delay plus that bound.
+        units = ROOT / "system_files/usr/lib/systemd/system"
+        service = code(read(units / "moos-hardware-adapt.service"))
+        timer = code(read(units / "moos-hardware-adapt.timer"))
+        gate = code(read(RUNTIME_GATE))
+
+        def seconds(span: str) -> int:
+            match = re.fullmatch(r"(\d+)\s*(s|sec|min)?", span.strip())
+            self.assertIsNotNone(match, f"unparseable systemd time span {span!r}")
+            return int(match.group(1)) * (60 if match.group(2) == "min" else 1)
+
+        timeout = re.search(r"^TimeoutStartSec=(.+)$", service, re.MULTILINE)
+        delay = re.search(r"^OnActiveSec=(.+)$", timer, re.MULTILINE)
+        deadline = re.search(r"hwadapt_deadline=\$\(\(SECONDS \+ (\d+)\)\)", gate)
+        self.assertTrue(timeout, "moos-hardware-adapt.service must bound its run")
+        self.assertTrue(delay, "moos-hardware-adapt.timer must say when it starts the service")
+        self.assertTrue(deadline, "the ARM runtime gate must wait for moos-hardware-adapt")
+        self.assertGreaterEqual(seconds(timeout.group(1)), 300,
+                                "an emulated ARM first boot needs far more than 90 s")
+        self.assertGreater(int(deadline.group(1)),
+                           seconds(delay.group(1)) + seconds(timeout.group(1)),
+                           "the gate must outwait the timer delay plus the unit's own bound")
+        self.assertLess(gate.index("hwadapt_deadline="), gate.index("systemctl --failed"),
+                        "failed units are judged only after adaptation has finished")
+        # Result is already `success` before a unit has ever run; only ActiveState proves a pass.
+        self.assertIn('[ "${hwadapt_active:-}" = "active" ]', gate)
+        self.assertIn('[ "$hwadapt_result" = "success" ]', gate)
+
     def test_arm_enforces_the_same_signed_registry_policy(self) -> None:
         build = read(BUILD)
         verifier = read(ARM_VERIFY)

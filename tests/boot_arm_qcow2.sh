@@ -291,7 +291,7 @@ run_runtime_gate() {
         return 0
     fi
     cat "$output" >&2
-    ssh_with_retry "${ssh_base[@]}" 'cloud-init status --long; systemctl status --no-pager --full bootc-generic-growpart.service plymouth-start.service; systemctl show plymouth-start.service -p Result -p ExecMainCode -p ExecMainStatus -p ActiveState -p SubState; journalctl --no-pager -b -u bootc-generic-growpart.service -u plymouth-start.service -u plymouth-quit.service -n 250; findmnt /sysroot; lsblk -o NAME,TYPE,PKNAME,PARTN,SIZE,FSTYPE,MOUNTPOINTS; btrfs filesystem usage -b /sysroot; systemctl --failed --no-pager --plain' \
+    ssh_with_retry "${ssh_base[@]}" 'cloud-init status --long; systemctl status --no-pager --full bootc-generic-growpart.service plymouth-start.service; systemctl show plymouth-start.service -p Result -p ExecMainCode -p ExecMainStatus -p ActiveState -p SubState; journalctl --no-pager -b -u bootc-generic-growpart.service -u plymouth-start.service -u plymouth-quit.service -n 250; findmnt /sysroot; lsblk -o NAME,TYPE,PKNAME,PARTN,SIZE,FSTYPE,MOUNTPOINTS; btrfs filesystem usage -b /sysroot; systemctl --failed --no-pager --plain; for u in $(systemctl --failed --no-legend --plain | cut -d" " -f1); do echo "=== failed unit: $u"; systemctl status --no-pager --full "$u"; journalctl --no-pager -b -u "$u" -n 200; done; echo "=== /run/moos-hardware-adapt.log"; cat /run/moos-hardware-adapt.log 2>/dev/null || echo "(absent)"' \
         >"$diagnostics" 2>&1 || true
     cat "$diagnostics" >&2
     echo "ARM BOOT FATAL: ${phase}-boot runtime gate failed" >&2

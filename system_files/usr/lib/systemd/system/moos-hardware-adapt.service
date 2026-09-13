@@ -15,4 +15,10 @@ RemainAfterExit=yes
 ExecStart=/usr/libexec/moos-hardware-adapt
 # The script is idempotent and best-effort; a failure must never block boot.
 SuccessExitStatus=0
-TimeoutStartSec=90s
+# Nothing orders after this unit: its timer starts it 45 s after the desktop, so this bound only
+# has to stop a real hang, never protect boot. 90 s was too short for an emulated ARM first boot:
+# on the qcow2 boot proof (run 34717090843) re-activating zram took 43 s (daemon-reload + one
+# start) and enabling fwupd-refresh.timer 30 s (enable reloads systemd again), and systemd killed
+# the pass at exactly 90 s with no success stamp written. UTM without a JIT is slower still.
+# tests/verify_arm_runtime.sh waits longer than the timer delay plus this bound.
+TimeoutStartSec=10min

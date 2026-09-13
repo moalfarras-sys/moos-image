@@ -38,13 +38,26 @@ instead of shipping.
 """
 
 import re
+import os
+import shutil
+import subprocess
 import sys
+import tempfile
+import textwrap
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 UNITS = ROOT / "system_files/usr/lib/systemd/system"
 X86 = ROOT / "build_files/build.sh"
 ARM = ROOT / "build_files/build-arm.sh"
+WORKFLOW = ROOT / ".github/workflows/build-arm.yml"
+WANTS = (
+    "graphical.target.wants/moos-visual-tier.service",
+    "graphical.target.wants/moos-hardware-adapt.timer",
+    "timers.target.wants/moos-verify-origin.timer",
+    "timers.target.wants/moos-auto-update.timer",
+    "timers.target.wants/moos-appstream-refresh.timer",
+)
 
 # Units build.sh enables that build-arm.sh deliberately does not. The reason must be about what
 # ARM is, never "we did not get to it" — an unexplained entry here is the bug this gate exists to
@@ -83,6 +96,109 @@ def enabled_units(script: Path) -> set[str]:
             if word.endswith((".service", ".timer", ".socket", ".target", ".path")):
                 found.add(word)
     return found
+
+
+def check_image_gate() -> int:
+    """Execute the workflow shell, with all writes confined to disposable roots."""
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    before, marker, after = workflow.partition("# BEGIN ARM UNIT WIRING GATE\n")
+    assert marker, "ARM image wiring gate is missing from its workflow"
+    body, marker, _ = after.partition("# END ARM UNIT WIRING GATE")
+    assert marker, "ARM image wiring gate has no end marker"
+    assert before.rfind("- name: Verify the built image") > before.rfind("- name: Build the image")
+    assert workflow.index("# END ARM UNIT WIRING GATE") < workflow.index("- name: Log in to GHCR")
+    gate = textwrap.dedent(body)
+    checks = 0
+
+    def run_gate(root: Path, healthy: bool, case: str) -> None:
+        nonlocal checks
+        result = subprocess.run(
+            ["bash", "-c", gate, "arm-unit-gate", str(root)],
+            text=True, capture_output=True, timeout=10,
+        )
+        assert (result.returncode == 0) == healthy, (
+            f"ARM image wiring gate incorrectly accepted/rejected {case}:\n"
+            f"{result.stdout}{result.stderr}"
+        )
+        if healthy:
+            for want in WANTS:
+                assert f"enabled: {want}" in result.stdout, f"Gate no longer checks {want}"
+        else:
+            assert "FATAL:" in result.stdout, f"{case} failed without a gate diagnostic"
+        checks += 1
+
+    def link_to(link: Path, target: Path) -> None:
+        link.parent.mkdir(parents=True, exist_ok=True)
+        link.symlink_to(os.path.relpath(target, link.parent))
+
+    for layout in ("etc", "usr/etc"):
+        with tempfile.TemporaryDirectory(prefix="moos-arm-wiring-") as tmp:
+            root = Path(tmp).resolve()
+            vendor = root / "usr/lib/systemd/system"
+            vendor.mkdir(parents=True)
+            config = root / layout / "systemd/system"
+            for want in WANTS:
+                unit = Path(want).name
+                shutil.copyfile(UNITS / unit, vendor / unit)
+                link_to(config / want, vendor / unit)
+            run_gate(root, True, f"valid {layout} wiring")
+            # Exercise every named unit, so omitting one from the workflow cannot go green.
+            for want in WANTS:
+                link = config / want
+                expected = vendor / link.name
+                link.unlink()
+                run_gate(root, False, f"{layout}/{want} absent")
+                link_to(link, vendor / "missing.service")
+                run_gate(root, False, f"{layout}/{want} dangling")
+                link.unlink()
+                wrong = vendor / "wrong.service"
+                wrong.write_text("[Service]\nExecStart=/usr/bin/true\n", encoding="utf-8")
+                link_to(link, wrong)
+                run_gate(root, False, f"{layout}/{want} targeting another unit")
+                link.unlink()
+                link_to(link, expected)
+            if layout == "usr/etc":
+                want = WANTS[0]
+                # A good immutable link must not conceal bad stronger /etc wiring.
+                shadow = root / "etc/systemd/system" / want
+                link_to(shadow, root / "dev/null")
+                run_gate(root, False, "bad /etc wants shadows correct /usr/etc")
+                shadow.unlink()
+                override = shadow.parent.parent / shadow.name
+                link_to(override, root / "dev/null")
+                run_gate(root, False, "masked unit with correct wants")
+                override.unlink()
+                override.write_text("[Service]\nExecStart=/usr/bin/false\n", encoding="utf-8")
+                run_gate(root, False, "replacement unit with correct wants")
+                override.unlink()
+                link_to(override, vendor / shadow.name)
+                run_gate(root, True, "unit alias to its own shipped definition")
+
+    # Preserve the real enable mechanism: ask systemctl to read each shipped [Install].
+    with tempfile.TemporaryDirectory(prefix="moos-arm-enable-") as tmp:
+        root = Path(tmp).resolve()
+        vendor = root / "usr/lib/systemd/system"
+        vendor.mkdir(parents=True)
+        for want in WANTS:
+            unit = Path(want).name
+            shutil.copyfile(UNITS / unit, vendor / unit)
+        result = subprocess.run(
+            ["systemctl", "enable", f"--root={root}", *(Path(want).name for want in WANTS)],
+            text=True, capture_output=True, timeout=10,
+        )
+        assert result.returncode == 0, f"Enabling shipped ARM units failed: {result.stderr}"
+        for want in WANTS:
+            link = root / "etc/systemd/system" / want
+            assert link.is_symlink(), f"systemctl did not create {want}"
+            target = link.readlink()
+            expected = Path("/usr/lib/systemd/system") / link.name
+            if target.is_absolute():
+                assert target == expected, f"systemctl enabled {want} to {target}"
+                # Resolve against the disposable root without needing privileged chroot.
+                link.unlink()
+                link_to(link, root / target.relative_to("/"))
+        run_gate(root, True, "real systemctl enable output")
+    return checks
 
 
 def main() -> int:
@@ -141,6 +257,8 @@ def main() -> int:
 
     print(f"PASS: {len(x86 & arm)} shared MoOS units enabled on both x86 and ARM, "
           f"{len(EXCEPTIONS)} documented ARM exceptions")
+    checks = check_image_gate()
+    print(f"PASS: ARM workflow wiring shell passed {checks} valid and broken image fixtures")
     return 0
 
 
