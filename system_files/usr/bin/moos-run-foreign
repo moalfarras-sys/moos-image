@@ -6,7 +6,7 @@
 # clicking a downloaded .exe did nothing at all: no handler claimed it, so Dolphin offered to
 # open it in a text editor. That is the gap between "the OS supports Windows apps" and "the
 # user can run the program they just downloaded", and closing it is the whole point of the
-# unified runner (MOOS_ROADMAP.md batch 0).
+# unified runner (docs/DEVELOPMENT_PLAN.md P4.3).
 #
 # WHAT IT DOES: decides by file type, and — this is the part that matters — behaves sanely
 # when the runtime is NOT installed yet. A user who downloads their first .exe on a fresh MoOS

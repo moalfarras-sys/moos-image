@@ -8,7 +8,7 @@ Item {
     required property var desktopItem
     // Resolved from this file so the driver keeps working from any checkout
     // or worktree; it used to hard-code one clone's absolute path.
-    property string output: Qt.resolvedUrl("../../docs/evidence/desktop-edit-20260907/")
+    property string output: "file:///var/home/moos/.local/state/moos-desktop-review/"
                               .toString().replace("file://", "")
     property string lastCommand: ""
     function find(item, name) {

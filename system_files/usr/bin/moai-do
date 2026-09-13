@@ -203,7 +203,7 @@ do_update() {
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 # App lifecycle — Mo Store's backend is the ONE authority for installing,
-# removing and updating apps (docs/MOOS_COMPLETION_PLAN.md, decision 2).
+# removing and updating apps (docs/DEVELOPMENT_PLAN.md P4.1).
 #
 # This used to call `flatpak install` itself, which lands in the SYSTEM
 # installation while Mo Store installs per user: two scopes, two job locks, and

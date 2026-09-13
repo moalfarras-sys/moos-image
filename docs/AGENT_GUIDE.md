@@ -4,9 +4,9 @@
 the thing neither of them is: a map of *which files can hurt you*, and an honest
 list of *what is still not done and how to do it*.
 
-Read `AGENTS.md` first. It is short and it is binding. Then read this.
-For **visual** work read `docs/MOOS_DESIGN_PLAN.md` before either — it
-carries the measured design findings and the ordered plan.
+Read `AGENTS.md` first; it is binding. Then read this. For visual work, read
+`artwork/MOOS_UI2_DESIGN.md` and the active task in
+`docs/DEVELOPMENT_PLAN.md`.
 
 ---
 
@@ -342,8 +342,9 @@ launcher and a popup at each step.
 - `THEME_REV` bumped if any shipped SVG or plasmoid QML changed, with both pinned
   gates moved.
 - Every home override under `~/.local/share/plasma/` removed.
-- `PROJECT_STATE.md` and `MOOS_ROADMAP.md` updated concisely — **including what
-  you did NOT finish**. Git history replaces per-session continuation journals.
+- `PROJECT_STATE.md` and `docs/DEVELOPMENT_PLAN.md` updated concisely —
+  **including what you did NOT finish**. Git history replaces per-session
+  continuation journals.
 - Branches: work on a branch, then merge to `main`. After merging, retire it.
   Verify a branch is safe to delete rather than guessing:
   `git cherry main <branch>` — every line starting `-` is already upstream.

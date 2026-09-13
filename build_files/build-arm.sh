@@ -620,7 +620,8 @@ add_drivers+=" virtio_blk virtio_net virtio_pci virtio_scsi virtio_gpu virtio_co
 # *initrd* module does NOT remove NFS client support from the running system --
 # mounting a NAS after boot is unaffected. It also takes rpcbind and its hook
 # back out of the initramfs, which this edition treats as a release contract
-# (see the firmware measurement below and the /boot headroom in MOOS_ROADMAP).
+# (see the firmware measurement below and the /boot headroom in
+# docs/DEVELOPMENT_PLAN.md P5.3).
 omit_dracutmodules+=" nfs "
 # MEASURED ON THE LIVE ORACLE A1 (2026-09-06): the ARM initramfs was 237 MB and
 # /boot (974 MB) sat at 78% with only TWO deployments at 351 MB each. A third

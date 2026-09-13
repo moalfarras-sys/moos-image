@@ -63,8 +63,6 @@ PALETTE_PREVIEW = ROOT / "artwork/moos-ui2/previews/moos-app-icons-palettes.png"
 MOAI_MASTER = ROOT / "artwork/icons/mo-ai-1024.png"
 MOAI_GENERATOR = ROOT / "artwork/generate_moai_icon.py"
 REMOTE_LOGO = ROOT / "moremote/Logo.png"
-LEGACY_REMOTE_SVG = ROOT / "artwork/moos-ui/icons/moos-pc-remote.svg"
-LEGACY_REMOTE_PREVIEW = ROOT / "artwork/moos-ui/previews/moos-pc-remote-512.png"
 SIZES = (16, 22, 24, 32, 48, 64, 96, 128, 192, 256, 512)
 
 # The MoOS default palette (system_files/usr/share/color-schemes/MoOSUI2Dark.colors),
@@ -526,12 +524,6 @@ def main() -> None:
         source = HICOLOR / f"{size}x{size}/apps/moos-store.png"
         shutil.copyfile(source, HICOLOR / f"{size}x{size}/apps/mo-store.png")
     shutil.copyfile(HICOLOR / "512x512/apps/moos-pc-remote.png", REMOTE_LOGO)
-    shutil.copyfile(SCALABLE / "moos-pc-remote.svg", LEGACY_REMOTE_SVG)
-    shutil.copyfile(
-        HICOLOR / "512x512/apps/moos-pc-remote.png",
-        LEGACY_REMOTE_PREVIEW,
-    )
-
     # Contact sheet is review evidence, not a runtime asset.
     PREVIEW.parent.mkdir(parents=True, exist_ok=True)
     for stale in PREVIEW.parent.glob(f"{PREVIEW.stem}-*{PREVIEW.suffix}"):

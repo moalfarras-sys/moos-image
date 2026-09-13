@@ -6795,7 +6795,8 @@ require("ExecStartPre=-/usr/bin/moos-ui-migrate --input-only" in _own_code,
 # recorded timestamp, so KSycoca answers "rebuild" for ever — a full, synchronous
 # rebuild every time anything looks up a service. flatpak's user-environment
 # generator puts the exports dir in XDG_DATA_DIRS for every account; it exists
-# only once that account has installed something. See MOOS_ROADMAP.md item 6.
+# only once that account has installed something. The remaining performance
+# work is tracked as P1.4 in docs/DEVELOPMENT_PLAN.md.
 for _xdg_dir in ("/applications", "/icons", "/flatpak/exports/share/applications"):
     require(f'{{XDG_DATA_HOME:-$HOME/.local/share}}{_xdg_dir}"' in _ui_migrate
             or f'XDG_DATA_HOME:-$HOME/.local/share}}{_xdg_dir}' in _ui_migrate,

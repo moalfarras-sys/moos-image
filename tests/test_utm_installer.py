@@ -161,9 +161,9 @@ with tempfile.TemporaryDirectory(prefix="moos-utm-installer-gate-") as temporary
 # bypass remain rejected". Restoring its ordering here would re-litigate a
 # decided design through a test file, which is not what a recovered gate is for.
 #
-# The gap itself is NOT dropped on the floor: MOOS_ROADMAP.md already tracks
-# "Package that exact QCOW2 as MoOS-ARM.utm.zip ... Perform a visible
-# UTM-equivalent login" as an open release blocker. That is where the missing
+# The gap itself is NOT dropped on the floor: docs/DEVELOPMENT_PLAN.md P5.3
+# tracks packaging the exact QCOW2 and proving a visible UTM-equivalent login
+# as an open release blocker. That is where the missing
 # visual proof belongs, as a release gate someone closes with evidence — not as
 # a string comparison against a workflow.
 #

@@ -4071,7 +4071,7 @@ LLVMPIPE
     #
     # confirmed A/B/A in both directions on a live override, so it is not a
     # startup transient (an earlier 25s window taken right after a restart gave a
-    # number that did not reproduce — see MOOS_ROADMAP §6).
+    # number that did not reproduce — see docs/DEVELOPMENT_PLAN.md P1.4).
     #
     # It is NOT the animations. Forcing the wallpaper's motionEnabled to false
     # still left 124%, and AnimationDurationFactor=0 vs 1 measured 157% vs 139% —
@@ -4182,7 +4182,7 @@ BENTO
     # answers "Forbidden: this device is only reachable over Tailscale" to
     # anything that does not arrive over the tailnet. But that application check
     # was the ONLY thing standing between the public internet and a desktop
-    # stream, and MOOS_ROADMAP §3 still lists "restrict listening to the private
+    # stream, and docs/DEVELOPMENT_PLAN.md P5.2 still requires the private
     # network by default" as open work. A firewall that says no first turns a
     # single application bug into a non-event.
     #
@@ -4204,7 +4204,7 @@ BENTO
     #
     # So pin the tailnet to `trusted` FIRST, and only then narrow the default.
     # After this: ens3 (public) answers ssh; tailscale0 answers everything; which
-    # is the arrangement MOOS_ROADMAP §3 asks for.
+    # is the arrangement docs/DEVELOPMENT_PLAN.md P5.2 requires.
     install -D -m0644 /dev/stdin /etc/firewalld/zones/trusted.xml <<'TRUSTED'
 <?xml version="1.0" encoding="utf-8"?>
 <zone target="ACCEPT">

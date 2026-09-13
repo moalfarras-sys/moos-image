@@ -143,5 +143,6 @@ do not release another controller's keys. Active controllers still share one
 injector; per-controller ownership is a remaining acceptance item.
 
 Set `MOREMOTE_INPUT_DIAGNOSTICS=1` only for targeted diagnosis; ordinary pointer
-and text packets no longer cause synchronous per-input log writes. See
-[verification and browser test setup](../../docs/MO_PC_REMOTE_ARCHITECTURE.md).
+and text packets no longer cause synchronous per-input log writes. Browser
+integration lives in `controller/tests`; release acceptance is tracked in
+[`docs/DEVELOPMENT_PLAN.md`](../../docs/DEVELOPMENT_PLAN.md).

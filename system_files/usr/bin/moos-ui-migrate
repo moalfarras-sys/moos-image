@@ -157,7 +157,7 @@ repair_legacy_openclaw_idle_mask
 # It is applied anyway because these directories should exist regardless (they
 # are where a user's own .desktop files and icons go), and creating an empty
 # directory cannot break anything. Four other hypotheses were tried and refuted;
-# they are recorded in MOOS_ROADMAP.md and should not be retried without new
+# they are tracked in docs/DEVELOPMENT_PLAN.md and should not be retried without new
 # evidence.
 #
 # This runs BEFORE the --input-only gate below, because the loop is driven by the

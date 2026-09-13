@@ -58,9 +58,8 @@ just check     # analyze + test  (نفس بوابة CI)
 
 ## التثبيت داخل صورة النظام
 
-عندما يصبح جزءاً من MoOS بدل `~/.local`:
-[`packaging/moos/moos-image/README.md`](packaging/moos/moos-image/README.md) —
-مقطع `Containerfile`، بوابة البناء الواجب إضافتها، ومسار `moos://app/moplayer`.
+تتولى صورة MoOS بناء النسخة المورّدة من هذا المجلد في مرحلة `moplayer-builder`
+داخل `Containerfile`، ثم تتحقق بوابات الصورة من الحزمة وواجهة QML قبل النشر.
 
 ## البنية
 

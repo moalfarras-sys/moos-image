@@ -1426,7 +1426,7 @@ class TestMoOSUI2(unittest.TestCase):
             launcher.count("CommandCard {"), 3,
             "the Command Canvas must keep exactly three hero destinations",
         )
-        # THEME_REV 43: hero cards must carry at REST (docs/MOOS_DESIGN_PLAN.md §0).
+        # THEME_REV 43: hero cards must carry at REST (artwork/MOOS_UI2_DESIGN.md).
         # Resting textColour 0.11 is the measured AppTile contract; 0.025/0.105
         # was the invisible band that made these cards look flat.
         command_card = launcher.split("component CommandCard:", 1)[1].split(
@@ -1437,7 +1437,7 @@ class TestMoOSUI2(unittest.TestCase):
         self.assertNotIn("0.105", command_card)
         # The hero card must inset its content off its own rounded edge, or the
         # eyebrow runs into the corner and clips in RTL ("اكتشف" -> "كتشف" at
-        # 150%). MOOS_DESIGN_PLAN.md D01: no clipped RTL labels.
+        # 150%). DEVELOPMENT_PLAN.md P2.5: no clipped RTL labels.
         self.assertIn("leftPadding: view.space", command_card)
         self.assertIn("rightPadding: view.space", command_card)
         self.assertIn("Qt.alpha(Kirigami.Theme.highlightColor, 0.24)", command_card)
