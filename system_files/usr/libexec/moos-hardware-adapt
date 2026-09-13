@@ -256,14 +256,17 @@ if [ "$mem_gib" -gt 0 ]; then
             do_run sysctl --system || true
         fi
         if [ "$zram_changed" = 1 ]; then
-            # Stop and reset only a zram swap unit that exists. Where no config was on disk
+            # Stop and reset only a zram swap that exists. Where no config was on disk
             # before this step (the ARM edition's first boot) the generator has made no
             # dev-zram0.swap yet, and systemd answers `stop` of a unit that is not loaded
             # with exit 5 and `reset-failed` with exit 1: failed mutations, and a failed
-            # moos-hardware-adapt.service, for a swap that was never running. daemon-reload
-            # generates the unit from the config written above; the single start below is
-            # still the one check that swap really came up.
-            if zram_unit_loaded; then
+            # moos-hardware-adapt.service, for a swap that was never running. A swap that
+            # /proc/swaps lists is always stopped, even when `systemctl show` cannot answer:
+            # skipping that stop would leave the old size active, the start below would
+            # succeed as a no-op, and the old size would be stamped as adapted.
+            # daemon-reload generates the unit from the config written above; the single
+            # start below is still the one check that swap really came up.
+            if zram_swap_active || zram_unit_loaded; then
                 do_run systemctl stop dev-zram0.swap systemd-zram-setup@zram0.service || true
             fi
             do_run systemctl daemon-reload || true

@@ -21,6 +21,8 @@ fake roots with stub `systemctl`/`sysctl` on an isolated PATH, so nothing on the
     that does not exist, the tier config written, ONE start, swap active, success stamp written;
   * x86 re-tier (generator, default config, swap active at another size): the full
     stop -> daemon-reload -> reset-failed -> start apply still runs, in that order, exit 0;
+  * the same re-tier while `systemctl show` cannot answer: /proc/swaps lists the active swap,
+    so it is still stopped instead of the old size being stamped as adapted;
   * no generator at all: exit 0, the zram stack never touched, no zram config, and the
     reclaim reserve and success stamp still applied.
 """
@@ -46,6 +48,9 @@ refuse() { echo "FAILED systemctl $1" >> "$STUB_LOG"; echo "$2" >&2; exit "$3"; 
 case "$*" in
   "list-unit-files thermald.service"|"list-unit-files fwupd-refresh.timer") exit 1 ;;
   "show -p LoadState --value dev-zram0.swap")
+    if [ -n "${STUB_SHOW_FAILS:-}" ]; then
+      echo "Failed to get properties: Connection timed out" >&2; exit 1
+    fi
     if units_exist; then echo loaded; else echo not-found; fi
     exit 0 ;;
   "daemon-reload")
@@ -73,7 +78,8 @@ esac
 '''
 
 
-def machine(*, generator: bool, default_config: bool, mem_kb: int, active_bytes: int = 0) -> dict:
+def machine(*, generator: bool, default_config: bool, mem_kb: int, active_bytes: int = 0,
+            show_fails: bool = False) -> dict:
     tmp = Path(tempfile.mkdtemp(prefix="hwadapt-zram-"))
     root, sysfs, procfs, bindir = tmp / "root", tmp / "sys", tmp / "proc", tmp / "bin"
     for d in (root / "etc", root / "run", sysfs / "class/power_supply", sysfs / "bus/pci/devices",
@@ -93,6 +99,8 @@ def machine(*, generator: bool, default_config: bool, mem_kb: int, active_bytes:
         "MOOS_HW_PROCFS": str(procfs),
         "MOOS_HW_DRYRUN": "0",
     }
+    if show_fails:
+        env["STUB_SHOW_FAILS"] = "1"
     if generator:
         path = root / "usr/lib/systemd/system-generators/zram-generator"
         path.parent.mkdir(parents=True)
@@ -194,6 +202,19 @@ def main() -> int:
             errors.append(f"x86 re-tier: zram swap is not active after the apply: {x86['calls']}")
     finally:
         shutil.rmtree(x86["tmp"], ignore_errors=True)
+
+    # The same re-tier while `systemctl show` cannot answer (a D-Bus timeout). /proc/swaps still
+    # lists the active swap, so it must still be stopped: skipping that stop leaves the 8 GiB swap
+    # active, the later start succeeds as a no-op, and the old size is stamped as adapted.
+    blind = machine(generator=True, default_config=True, mem_kb=65000000, active_bytes=8 * GIB,
+                    show_fails=True)
+    try:
+        check("x86 re-tier, systemctl show unanswered", blind, errors)
+        if "systemctl stop dev-zram0.swap systemd-zram-setup@zram0.service" not in blind["calls"]:
+            errors.append("x86 re-tier, systemctl show unanswered: the active swap was never stopped, "
+                          f"so the old size would be stamped as adapted: {blind['calls']}")
+    finally:
+        shutil.rmtree(blind["tmp"], ignore_errors=True)
 
     bare = machine(generator=False, default_config=False, mem_kb=3997540)
     try:
