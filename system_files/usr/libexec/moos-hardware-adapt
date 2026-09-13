@@ -102,6 +102,11 @@ zram_size_matches_tier() {
     tol=$(( expected / 100 + 4096 ))
     [ "$diff" -le "$tol" ]
 }
+# The generator creates dev-zram0.swap only from a config; `systemctl show` answers
+# "not-found" (exit 0) for a unit that does not exist, "loaded" once it does.
+zram_unit_loaded() {
+    [ "$(systemctl show -p LoadState --value dev-zram0.swap 2>/dev/null)" = loaded ]
+}
 
 # ── deployed edition ───────────────────────────────────────────────────────────
 booted_image() {
@@ -200,10 +205,12 @@ fi
 if [ "$mem_gib" -gt 0 ]; then
     zconf="${ROOT}/etc/systemd/zram-generator.conf"
     sysconf="${ROOT}/etc/sysctl.d/90-moos-hardware.conf"
-    # The ARM edition is built FROM fedora-bootc, which ships no zram-generator: there is no
-    # dev-zram0.swap to size. Measured 2026-09-12, every ARM first boot tried to start it,
-    # recorded two failed mutations and left moos-hardware-adapt.service failed, which failed
-    # the ARM boot proof. Without the generator, only the reclaim reserve below applies.
+    # zram-generator builds dev-zram0.swap only from a config. x86 Kinoite ships a default
+    # config, so its zram is already running when this step starts. The ARM edition's
+    # fedora-bootc base ships the generator but NO default config, so on its first boot there
+    # is no zram swap and no dev-zram0.swap unit until this step writes one. Where the
+    # generator itself is absent there is nothing to size, and only the reclaim reserve
+    # below applies.
     zram_generator="${MOOS_HW_ZRAM_GENERATOR:-${ROOT}/usr/lib/systemd/system-generators/zram-generator}"
     if [ "$mem_gib" -lt 8 ]; then zsize="ram"          # low RAM: compression buys real headroom
     elif [ "$mem_gib" -lt 32 ]; then zsize="min(ram, 8192)"
@@ -249,9 +256,23 @@ if [ "$mem_gib" -gt 0 ]; then
             do_run sysctl --system || true
         fi
         if [ "$zram_changed" = 1 ]; then
-            do_run systemctl stop dev-zram0.swap systemd-zram-setup@zram0.service || true
+            # Stop and reset only a zram swap that exists. Where no config was on disk
+            # before this step (the ARM edition's first boot) the generator has made no
+            # dev-zram0.swap yet, and systemd answers `stop` of a unit that is not loaded
+            # with exit 5 and `reset-failed` with exit 1: failed mutations, and a failed
+            # moos-hardware-adapt.service, for a swap that was never running. A swap that
+            # /proc/swaps lists is always stopped, even when `systemctl show` cannot answer:
+            # skipping that stop would leave the old size active, the start below would
+            # succeed as a no-op, and the old size would be stamped as adapted.
+            # daemon-reload generates the unit from the config written above; the single
+            # start below is still the one check that swap really came up.
+            if zram_swap_active || zram_unit_loaded; then
+                do_run systemctl stop dev-zram0.swap systemd-zram-setup@zram0.service || true
+            fi
             do_run systemctl daemon-reload || true
-            do_run systemctl reset-failed dev-zram0.swap systemd-zram-setup@zram0.service || true
+            if zram_unit_loaded; then
+                do_run systemctl reset-failed dev-zram0.swap systemd-zram-setup@zram0.service || true
+            fi
             do_run systemctl start dev-zram0.swap || true
             zram_state="$(systemctl is-active dev-zram0.swap 2>/dev/null)"
             if [ "$zram_state" = "active" ]; then
