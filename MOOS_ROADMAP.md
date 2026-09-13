@@ -281,8 +281,9 @@ honest limits: [v40 cloud desktop](docs/REMOTE_V40_CLOUD_DESKTOP.md).
   *Progress (2026-09-13):* every ARM proof since `f15998e9` failed on
   `moos-hardware-adapt.service`. #89 removed the refused zram stop; its own run then
   hit the unit's 90 s bound on the emulated guest. The candidate raises the bound to
-  10 min and makes the runtime gate wait for the adapter's first pass. Its boot proof
-  is pending.
+  10 min and makes the runtime gate wait for the adapter's first pass. The first
+  candidate `ff7bb39c` passed the qcow2 boot proof (run 34734684091; both boots
+  `hardware_adapt=active`, `failed_units=0`); the final candidate re-runs it.
 - [ ] Log into that ARM artifact and open/use/close/reopen Launcher, Dolphin,
   Konsole, Settings, Mo AI, Store, Updater, Recovery, theme picker, MoPlayer and
   Mo PC Remote. Prove native ARM binaries and real backend status.

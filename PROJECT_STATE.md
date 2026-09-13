@@ -6,13 +6,21 @@ then `TimeoutStartSec=10min` and a gate that waits for the adapter's first pass 
 PR #90. #90 is work that sat uncommitted in a local worktree, on no branch and no remote; review
 found it unfinished and it was fixed before commit.
 *moos-health.* A probe that cannot answer (rpm-ostree, app updates, `ss`, flatpak, `getenforce`, a
-section that raises) adds a `check-incomplete-*` warning, the summary reads `incomplete`, and Mo AI
-shows «الفحص غير مكتمل». The first version also turned a stopped firewall into "incomplete":
-`tool()` drops the output of any nonzero exit, and firewalld answers `not running` **with exit
-252**. `firewall_state()` now reads stdout itself: `not running` stays `firewall-off`; only no answer
-(measured: an unreachable system bus prints nothing on stdout and exits 36) is
-`check-incomplete-firewall`. `test_a_stopped_firewall_is_still_reported_as_off` went red on that
-first version.
+section that raises) adds a `check-incomplete-*` warning. It only ever takes the place of "ok": a
+real warning keeps `attention` and its counts, incomplete rows sort after real ones of the same
+severity, and they never notify on their own. When nothing else is wrong the summary reads
+`incomplete` and Mo AI shows «الفحص غير مكتمل». The firewall's state comes from firewall-cmd's
+exit code, because it writes every answer whose exit code is above 1 to **stderr**
+(`firewall/command.py`, `print_and_exit`): 252 "not running" and 251 "failed" are `firewall-off`;
+anything else (measured: an unreachable system bus exits 36 with DBUS_ERROR) is
+`check-incomplete-firewall`. App permissions are read per installed ref in its installation, since
+`flatpak info <app-id>` refuses an app installed from two branches.
+*Review.* The PR review check posted nothing (`is_error:true`, empty `ANTHROPIC_API_KEY`). A separate
+review found that the first two versions read firewalld's answer from stdout and so reported a
+stopped firewall as "incomplete" (their test stub echoed to stdout, so it stayed green), that
+"incomplete" hid real warning counts, sorted ahead of real warnings and notified daily, and the
+two-branch flatpak refusal. Each now has a test that failed before its fix (3 failures and 3 errors,
+now 18/18). The same review found the zram stop edge recorded in the ARM entry below.
 *Zen read-back.* `read_config` could only return `openrouter-paid` or `openrouter-free`, so Settings
 reloaded a saved OpenCode Zen choice as OpenRouter and the next save was invalid. It now returns
 the stored catalogue choice; an unknown value falls back to `openrouter-free`, never to a billed
@@ -22,11 +30,14 @@ provider. The new test had failed because it saved without `mode`, which Setting
 under «كل النماذج المجانية».
 *ARM wiring gate.* Every ARM wants link must resolve to its shipped unit with no `/etc` override
 shadowing it; `tests/test_arm_unit_enablement.py` runs that same shell against 37 fixture roots.
-Verified before the candidate was pushed: the full `tests/repo-gates.sh` on each branch and on the
-merged tree, `tests/test_moos_arm.py`, and `bash -n` on both ARM boot scripts, all with an isolated
-environment. **Not yet done:** the ARM qcow2 boot proof, the x86 candidate build with its three
-QCOW2 proofs and the ISO install proof, the merge, both promotions, and the owner's update and
-reboot. Not captured live: the renamed «نماذج مدفوعة» label.
+Verified: the full `tests/repo-gates.sh` on each branch and on the merged tree,
+`tests/test_moos_arm.py`, and `bash -n` on both ARM boot scripts, all with an isolated environment.
+The first candidate (`ff7bb39c`, before the review fixes) built all three x86 editions (run
+34734685073) and **passed the ARM qcow2 boot proof** (run 34734684091), the first ARM pass since
+`f15998e9`: on both boots the runtime gate printed `hardware_adapt=active` and `failed_units=0`.
+The review fixes changed the tree, so every proof is re-run on the final candidate. **Not yet
+done:** those runs, the three x86 QCOW2 proofs and the ISO install proof, the merge, both
+promotions, and the owner's update and reboot. Not captured live: the renamed «نماذج مدفوعة» label.
 
 **ARM first boot: `moos-hardware-adapt` counted a `systemctl stop` of a not-yet-generated zram unit as a failure, then ran out of its 90 s bound — two fixes awaiting their boot proof (2026-09-12/13, branches `fix/arm-boot-proof-diagnostics-20260912` and `fix/arm-hardware-adapt-first-boot-20260912`):**
 the ARM boot proof on `main` has failed four times (run 34707148234 attempts 1–2 on `495a47d2`,
