@@ -43,9 +43,9 @@ grep -A1 "\[Install\]" /usr/lib/systemd/system/moos-visual-tier.service
 tmp=$(mktemp -d); mkdir -p $tmp/usr/lib/systemd/system $tmp/etc/systemd/system
 cp /usr/lib/systemd/system/moos-visual-tier.service $tmp/usr/lib/systemd/system/
 systemctl enable --root=$tmp moos-visual-tier.service >/dev/null 2>&1
-[ -L $tmp/etc/systemd/system/graphical.target.wants/moos-visual-tier.service ] \
-  && echo PASS: wants symlink created || echo FAIL
-[ -e /usr/bin/moos-store-browse ] && echo FAIL: shim present || echo PASS: shim absent
+test -L "$tmp/etc/systemd/system/graphical.target.wants/moos-visual-tier.service"
+test ! -e /usr/bin/moos-store-browse
+echo PASS: unit wired and retired shim absent
 '
 ```
 
@@ -56,18 +56,21 @@ Always check `IDENTITY FIREWALL OK` and `bootc container lint` in the build log 
 `MOOS_TIER_ROOT` / `MOOS_TIER_CONFIG_HOME` / `MOOS_TIER_STATE_HOME` are honored by the
 script's own read functions, but `apply()` writes via `kwriteconfig6 --file <name>`,
 which always targets the real `/etc/xdg`. So a fake-root `--apply` validates kwinrc/
-kdeglobals reads but CANNOT prove `kscreenlockerrc` was written. Validate kscreenlockerrc
-against the built image (section 2) or via the source gate asserting the key is in PROFILES
-and the apply loop covers `"kwinrc", "kdeglobals", "kscreenlockerrc"`.
+kdeglobals reads but CANNOT prove `kscreenlockerrc` was written. Validate those
+writes against the built image (section 2). A source gate asserting the key is
+in PROFILES and the apply loop covers `"kwinrc", "kdeglobals", "kscreenlockerrc"`
+provides source coverage only, not proof of actual configuration writes.
 
-## 4. Deploy a locally-built image
+## 4. Preserve the signed development station
 
 ```bash
-bootc switch localhost/moos-nvidia:latest   # stages new deployment; old one stays for rollback
-# reboot from the MoOS power UI, then verify:
-systemctl is-enabled moos-visual-tier.service
-journalctl -u moos-visual-tier.service --no-pager | tail
-rpm-ostree rollback                         # if the new deployment is broken
+rpm-ostree status --json   # read the booted and rollback container-image-reference
+systemctl --failed --no-pager
+systemctl --user --failed --no-pager
 ```
 
-`bootc upgrade` pulls from the registry; `bootc switch` targets a local/any reference.
+Local build tags do not carry release trust. Run them in a container or disposable
+VM; never use them to replace the physical station's signed origin. Read
+[`RELEASE.md`](../../../RELEASE.md) for candidate signing, exact-digest boot
+proof, promotion and the installed update/readback procedure. Merely counting
+deployments does not prove either deployment is signed or bootable.

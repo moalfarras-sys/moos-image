@@ -129,6 +129,40 @@ def write_value(value: str) -> bool:
     return True
 
 
+def stop_baloo_for_policy(systemctl: str) -> bool:
+    """Stop the managed daemon and prove that no unmanaged Baloo still owns it.
+
+    Stopping an inactive unit succeeds even when an older balooctl-launched
+    daemon is still running outside it. Never unlink that daemon's open index
+    or launch a second instance. A read-only D-Bus query observes ownership
+    without activating Baloo; an unavailable bus is not proof of absence.
+    """
+    busctl = shutil.which("busctl")
+    if not busctl:
+        log("cannot verify Baloo ownership; the saved policy applies at next login")
+        return False
+    try:
+        stopped = subprocess.run(
+            [systemctl, "--user", "stop", "kde-baloo.service"],
+            check=False, timeout=60, capture_output=True)
+        if stopped.returncode != 0:
+            log("could not stop kde-baloo.service; leaving the existing index in place")
+            return False
+        owner = subprocess.run(
+            [busctl, "--user", "call", "org.freedesktop.DBus",
+             "/org/freedesktop/DBus", "org.freedesktop.DBus",
+             "NameHasOwner", "s", "org.kde.baloo"],
+            check=False, timeout=10, capture_output=True, text=True)
+    except (subprocess.SubprocessError, OSError) as exc:
+        log(f"could not verify that Baloo stopped ({exc}); leaving the existing index in place")
+        return False
+    if owner.returncode != 0 or owner.stdout.strip() != "b false":
+        log("Baloo is still owned or its ownership is unknown; leaving the existing "
+            "index untouched without starting another daemon")
+        return False
+    return True
+
+
 def restart_baloo() -> None:
     """Ask Baloo to re-read its configuration.
 
@@ -143,9 +177,11 @@ def restart_baloo() -> None:
     if not systemctl:
         log("systemctl not found; the new policy applies at next login")
         return
+    if not stop_baloo_for_policy(systemctl):
+        return
     try:
         result = subprocess.run(
-            [systemctl, "--user", "restart", "kde-baloo.service"],
+            [systemctl, "--user", "start", "kde-baloo.service"],
             check=False, timeout=60, capture_output=True)
     except (subprocess.SubprocessError, OSError) as exc:
         log(f"could not restart kde-baloo.service ({exc}); the new policy "
@@ -189,8 +225,7 @@ def purge_content_index() -> None:
             log(f"kde-baloo.service {action} did not complete ({exc})")
             return False
 
-    if not _unit("stop", 60):
-        log("left the stale index in place; it shrinks as files change")
+    if not stop_baloo_for_policy(systemctl):
         return
 
     base = pathlib.Path(os.environ.get("XDG_DATA_HOME")
@@ -245,7 +280,7 @@ def main() -> int:
 
     # purge_content_index() already stops and restarts the indexer around the
     # delete, so calling restart_baloo() as well would run a second, pointless
-    # disable/enable cycle. Exactly one of these two paths runs.
+    # stop/start cycle. Exactly one of these two paths runs.
     if wanted == "true" and args.purge:
         purge_content_index()
     else:

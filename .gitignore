@@ -35,8 +35,9 @@ Thumbs.db
 !.claude/skills/
 !.claude/settings.json
 
-# Local editor workspace settings — machine-local, never shipped
-.vscode/
+# Keep machine-local editor settings private; share only extension recommendations.
+.vscode/*
+!.vscode/extensions.json
 
 # Controller dev deps — the SHIPPED UI is the built output in moremote/agent/wwwroot,
 # which IS committed (MoRemoteLinux.csproj copies it into the image). These are not.

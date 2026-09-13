@@ -76,16 +76,20 @@ measurement is `not proven`, never a pass.
 
 ## Task protocol
 
-Only one task is active at a time unless the plan explicitly states that two
-independent artifacts may run in parallel.
+Only one product task is active at a time. During P0.1, read-only hardware
+diagnostics, independent code review and development-tooling work may run in
+parallel with CI. The candidate branch/SHA stays fixed; reviewed source changes
+must enter a new candidate. Neither a second branch nor a running build is a
+second release authority.
 
 For every task:
 
 1. Read this plan, `PROJECT_STATE.md`, the engineering skill and the affected
    component documentation.
 2. Record the current runtime or artifact behavior before editing.
-3. Add a regression that fails for the reproduced defect or a measurable
-   acceptance check for new work.
+3. For runtime defects, add a regression that fails for the reproduced defect;
+   for new behavior, define measurable acceptance. Documentation/editor-only
+   changes need direct validation, not tests that merely mirror their wording.
 4. Implement the smallest complete vertical slice. Do not leave a second owner,
    compatibility alias or dead service unless an upgrade path requires it.
 5. Run targeted tests, `just check`, and the risk-appropriate image/VM/hardware
@@ -106,12 +110,24 @@ revision and all required editions/artifacts prove that revision.
 
 | ID | Status | Task | Exit evidence |
 | --- | --- | --- | --- |
-| P0.1 | **NEXT** | Authenticate GitHub, push the current branch, review it, and create one candidate revision | PR URL; clean review; signed candidate digests bound to one SHA |
+| P0.1 | **In progress** | Integrate the reviewed first-install repairs and create one candidate revision | PR #92 published; direct review found/fixed legacy Baloo ownership; final signed candidate digests still required |
 | P0.2 | Open | Run generic, NVIDIA and cloud QCOW2 proofs plus offline ISO install/second boot | manifests and runtime logs name the exact P0.1 digests |
 | P0.3 | Open | Finish physical NVIDIA qualification | Plymouth/login photos; two suspend cycles; audio/network recovery; second monitor; clean journal |
 | P0.4 | Open | Prove failed-update recovery | disposable VM bad-candidate rollback, then hardware rollback/roll-forward with user data intact |
 | P0.5 | Open | Configure and accept free Mo AI on a clean account | valid OpenRouter key entered through Settings; Arabic/English reply; reboot persistence; provider failure UI |
 | P0.6 | Open | Promote only the proven digests and update the physical PC | signed origin, exact version/digest, zero failed units, full post-update check |
+
+Repository cleanup is complete: retired plans/evidence/assets were removed,
+and all 13 historical remote branches were proven ancestors of `main` before
+deleting their refs. PR #92 is the remaining integration. Its earlier green
+Claude job did not complete review; never count that job as review evidence.
+
+The engineering-instructions slice now distinguishes source, live workstation,
+container and signed-artifact evidence; it includes a host/Flatpak preflight and
+a live-review reference. Realistic independent skill scenarios exposed and
+removed an unsigned-local deployment recipe and false-success shell checks.
+The Settings visual harness also rejects stale normal-state status, after a
+real English review exposed disabled actions hidden by passing keyboard tests.
 
 bootc stages updates without changing the running deployment and exposes an
 explicit rollback verb.^3 MoOS already builds on this behavior; P0.4 tests it
@@ -135,6 +151,31 @@ entry.^4 The implementation must fit MoOS's real GRUB/bootc layout; do not copy 
 systemd-boot recipe without proving compatibility.
 
 ### P2 — One desktop experience
+
+Implement through the existing owners below. KDE provides documented theme,
+widget and window-decoration extension points; MoOS should use those supported
+boundaries.^8 The actual display-manager unit takes precedence over generic
+upstream examples that still describe SDDM.
+
+| Surface | Existing owner | Integration rule |
+| --- | --- | --- |
+| Session, windows, display, input | Plasma/KWin Wayland, KScreen, input-method services | Read actual session capabilities; verify scale, screen capture and input through their real services |
+| Palette, controls, app material | UI2 palette generators + `org/moos/ui` QML module | One geometry/type/icon system; dark/light and device tiers are tokens |
+| Dock, launcher, desktop scene | `moos-bar.conf`, `moos-bar-apply`, MoOS plasmoids | One panel writer; existing and clean profiles converge after migration |
+| Login, lock, splash | resolved display manager, MoOS shell theme, Plymouth | Same identity; exercise the real greeter and boot frames |
+| Settings and service pages | MoOS Settings + owning backend | Read back actual state; existing standalone surfaces become tested links |
+| Privileged operations and apps | `moai-do`, Mo Store transaction backend | Fixed action/confirmation; truthful progress and errors |
+
+Start P2.1 with **Updater only**: baseline current light/dark Arabic/English
+frames and routes, move its controls onto shared UI2, prove check/stage/error/
+reboot-needed states, then repeat on a clean and upgraded image. Recovery and
+Remote follow after that slice passes. This prevents one redesign from leaving
+several half-migrated system surfaces.
+
+Observed polish gaps to include in P2.3/P2.5: the shared hardware summary still
+renders the technical `nvidia (discrete)` label in Arabic; narrower English
+trust text can elide. Translate presentation separately from hardware
+classification, and retain the full accessible/error meaning at small widths.
 
 | ID | Task | Exit evidence |
 | --- | --- | --- |
@@ -210,9 +251,16 @@ known-good boot path. This remains an acceptance requirement, not marketing.
 The physical PC is a MoOS engineering station. Its setup must be reproducible,
 not an undocumented pile of host changes.
 
-Create `scripts/setup-development-machine.sh` in a dedicated task. It should:
+The first slice is implemented: `just workstation-check` runs
+`scripts/setup-development-machine.sh --check` on the host, including when
+invoked from VS Code Flatpak. It reads signed-origin state, real `/var` space,
+tool paths, native SDK availability, KVM access and redacted GitHub readiness.
+It installs nothing and does not launch apps. A successful inventory is not a
+successful SDK build. `.vscode/extensions.json` carries the shared editor
+recommendations; machine-specific paths remain local.
 
-- verify the signed MoOS origin and available disk space;
+The remaining provisioning slice must:
+
 - install editor/SDK/debug tools in user sandboxes or Toolbx/Distrobox-style
   development containers where possible;
 - configure Git and GitHub authentication interactively without storing tokens
@@ -220,11 +268,18 @@ Create `scripts/setup-development-machine.sh` in a dedicated task. It should:
 - install QEMU/KVM, image, accessibility, performance and network-debug tools
   through an auditable profile;
 - verify Podman, `just`, Flutter/MoPlayer, .NET/MoRemote, QML and Python gates;
-- generate a machine capability report without identifiers or secrets;
+- keep the report free of credentials and private configuration;
 - be idempotent and support `--check` without mutation.
 
 Do not layer compilers onto the immutable host merely for convenience. Do not
 put API keys in `.env`, committed config, shell history or test fixtures.
+
+Performance work starts with repeated measurements, not removing dependencies
+based on RPM size metadata. The current boot is 36.783 s with 5.325 s in
+`ldconfig`; P5.4 must check another boot and a real idle interval. P5.6 must
+measure final image/ISO bytes and package reverse dependencies before removing
+unused payload. Compiler SDKs stay in user/development environments; optional
+office, Android and compatibility stacks remain on demand.
 
 ## Documentation policy
 
@@ -249,3 +304,4 @@ only a small canonical fixture belongs in Git when a test consumes it.
 5. Flatpak project, [Basic concepts: sandboxes and portals](https://docs.flatpak.org/en/latest/basic-concepts.html), accessed 2026-09-13.
 6. Flatpak project, [Introduction and packaging boundaries](https://docs.flatpak.org/en/latest/introduction.html), accessed 2026-09-13.
 7. Android Open Source Project, [Virtual A/B overview](https://source.android.com/docs/core/ota/virtual_ab), accessed 2026-09-13.
+8. KDE Developer, [Plasma themes and plugins](https://develop.kde.org/docs/plasma/), accessed 2026-09-13.

@@ -1,5 +1,5 @@
 # =============================================================================
-# MoOS Justfile — local inner-loop recipes (run inside WSL2 with podman 5.x)
+# MoOS Justfile — local development recipes (native MoOS or supported build host)
 # =============================================================================
 # IMAGE builds are the ONLY thing supported locally/WSL2.
 # ISO/disk-image recipes are deliberately ABSENT: ISO builds are CI-only
@@ -31,6 +31,10 @@ default:
 # pushing anything under moremote/.
 dotnet-check:
     bash moremote/dotnet-check.sh
+
+# Read-only host inventory, including from VS Code Flatpak. Does not install SDKs.
+workstation-check:
+    bash scripts/setup-development-machine.sh --check
 
 check:
     bash -n build_files/build.sh

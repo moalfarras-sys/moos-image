@@ -1,8 +1,8 @@
-# The MoOS agent guide — the map, the mines, and the backlog
+# The MoOS agent guide — runtime ownership and delivery
 
 `AGENTS.md` is the **rules**. `PROJECT_STATE.md` is the **terrain**. This file is
-the thing neither of them is: a map of *which files can hurt you*, and an honest
-list of *what is still not done and how to do it*.
+the map of which files can affect boot or desktop state. Open product work is
+tracked only in `docs/DEVELOPMENT_PLAN.md`.
 
 Read `AGENTS.md` first; it is binding. Then read this. For visual work, read
 `artwork/MOOS_UI2_DESIGN.md` and the active task in
@@ -15,28 +15,15 @@ Read `AGENTS.md` first; it is binding. Then read this. For visual work, read
 **Never write "done" for something you did not watch happen.**
 
 Every claim in this repository is supposed to be backed by a command that ran and
-returned output. That is not a style preference — `PROJECT_STATE.md` documents
-five separate occasions where a gate was green and the shipped thing was broken.
+returned output. `PROJECT_STATE.md` records measured state; `AGENTS.md`
+preserves occasions where green gates missed a shipped defect.
 The gates check what someone thought to check; they cannot see the screen.
 
 The honest loop, in order:
 
 ```bash
-bash -n build_files/build.sh                  # syntax first, it is free
-python3 tests/verify_user_experience.py       # the big one, ~3 s
-# ... the full CI list — extract it rather than retyping it:
-python3 - <<'EOF' > /tmp/gates.sh
-import pathlib
-y = pathlib.Path(".github/workflows/build.yml").read_text()
-step = y.split("- name: Repo gates")[1].split("- name: Resolve registry")[0]
-cmds = [l.strip() for l in step.splitlines()
-        if l.strip() and not l.strip().startswith("#") and l.strip() != "run: |"]
-print("set -o pipefail")
-for c in cmds:
-    print(f'echo "### {c}"; {c} || echo "!!!FAILED: {c}"')
-EOF
-bash /tmp/gates.sh 2>&1 | grep -c '!!!FAILED'   # must print 0
-just build                                     # ~20 min, runs every IMAGE gate
+just check              # maintained CI gate; failures propagate
+just build              # use build-nvidia/build-cloud for the affected edition
 ```
 
 Then **look at it**. A screenshot, a live readback, a pixel. See §4.
@@ -50,18 +37,22 @@ Then **look at it**. A screenshot, a live readback, a pixel. See §4.
 | file | why it is dangerous |
 |---|---|
 | `build_files/build.sh` | builds the whole image; a bad line fails at minute 20 of CI, or ships a broken `/usr` |
-| `Containerfile` | the pinned base; changing it changes every edition at once |
+| `Containerfile` / `Containerfile.arm` | shared x86 / native ARM base inputs; current tags are mutable, see P6.1 |
 | `system_files/usr/lib/dracut/**`, anything initramfs | a bad initramfs is an unbootable machine, and the failure is at boot, not at build |
 | `/etc/pki/containers/moos.pub` + the signature policy | break it and `bootc` refuses every update, including the one that would fix it |
-| `.github/workflows/build.yml` | the only thing that signs images; a broken matrix means no signed update reaches anyone |
+| `.github/workflows/build*.yml`, `promote-x86.yml` | candidate signing, artifact proof and promotion; ARM also signs in its own pipeline |
 
 Rule: for anything in Tier 1, the previous deployment must stay bootable
 (`bootc rollback` / the second GRUB entry). Check before you reboot:
 
 ```bash
-rpm-ostree status | grep -c 'ostree-image-signed'   # expect >= 2
-ls /boot/loader/entries/*.conf | wc -l              # expect >= 2
+rpm-ostree status --json
 ```
+
+Inspect the booted and rollback deployments' `container-image-reference` and
+resolved digests. An official `ostree-image-signed:docker://ghcr.io/…` reference
+is signed-origin evidence; an entry count or missing `unverified` substring is
+not. Follow `RELEASE.md` for the full pre-update procedure.
 
 ### Tier 2 — the desktop breaks, the machine still boots
 
@@ -83,13 +74,18 @@ ls /boot/loader/entries/*.conf | wc -l              # expect >= 2
 
 ## 2. The five mechanisms you must understand before touching the desktop
 
-These are not documented anywhere else and each one has cost a session.
+These mechanisms have caused real regressions and need runtime readback.
 
 ### 2.1 A running plasmashell overwrites your config edits
 
 plasmashell holds the panel config in memory and **flushes it over the file when
 it exits**. Edit `plasma-org.kde.plasma.desktop-appletsrc` while it runs and your
 change is silently reverted.
+
+Determine the actual lifecycle owner first with `systemctl --user status
+plasma-plasmashell.service` and the process cgroup. On the current station it
+is an active systemd user service. Use that service for lifecycle changes.
+Only for a verified legacy session-managed instance, use this sequence:
 
 ```bash
 kquitapp6 plasmashell                        # stop FIRST
@@ -98,8 +94,7 @@ for i in $(seq 1 25); do pgrep -x plasmashell >/dev/null || break; sleep 1; done
 setsid plasmashell >/dev/null 2>&1 &         # then start
 ```
 
-`plasmashell` on this system is **session-launched, not a systemd unit** —
-`systemctl --user restart plasma-plasmashell.service` is a silent no-op.
+Verify one live process and re-read the panel afterward.
 
 ### 2.2 The tray has three lists and they do not mean the same thing
 
@@ -158,16 +153,17 @@ itself, not a derived property, because the checker cannot follow an alias.
 
 ## 3. How a change reaches every edition
 
-One tree, one `Containerfile`, three matrix variants — `moos`, `moos-nvidia`,
-`moos-cloud`. **Anything under `system_files/` ships to all three automatically.**
-There is nothing per-edition to remember; a new edition added to the matrix picks
-up everything by construction.
+`Containerfile` produces `moos`, `moos-nvidia` and `moos-cloud` from the same
+x86 base. `Containerfile.arm` uses the native ARM base. Both consume the common
+`system_files/` overlay; architecture-specific paths and service wiring still
+need built-image verification on each architecture.
 
 The release path:
 
 ```
-commit -> push to main -> CI builds + cosign-signs all three
-       -> moai-do update (stages the signed digest)
+fixed branch SHA -> signed candidate -> exact QCOW2 + offline ISO boot proofs
+       -> reviewed merge preserving ancestry/tree -> promotion of proven digests
+       -> moai-do update (stages the promoted signed digest)
        -> reboot -> moos-apply-theme runs the THEME_REV migration at login
 ```
 
@@ -176,24 +172,18 @@ Verify a release rather than assuming it:
 ```bash
 skopeo inspect docker://ghcr.io/moalfarras-sys/moos-nvidia:latest \
   | jq -r '.Labels["org.opencontainers.image.version"], .Labels["org.opencontainers.image.revision"]'
-# the revision MUST be the commit you pushed, or the registry is serving a rebuild
+# Compare with the promoted candidate revision, not the newest branch commit.
 ```
 
-### Two ways delivery fails silently — check for both
+### Delivery checks
 
-**1. A push to `main` does not always create a workflow run.** It has silently
-failed to trigger; if no run appears within a few minutes,
-`gh workflow run "Build MoOS image" --ref main` produces one, and the
-`concurrency` group makes that safe.
+**A dispatch is not proof of completion.** Record the workflow run ID, head SHA,
+attempt, individual job outcomes and candidate/boot manifests. An advisory
+review can fail inside a green job; inspect its outcome and findings.
 
-**2. One edition can be left behind.** The three editions build as independent
-matrix jobs, so a run whose overall conclusion is `cancelled` or `failure` may
-still have SIGNED two of them. `moos-nvidia` is the one that fails: it layers
-the NVIDIA driver, and the GitHub runner is disk-constrained — it has been
-killed mid-`buildah` with every repo gate already green. The result is the
-dangerous state: `moos` and `moos-cloud` publishing the new commit while
-`moos-nvidia` still serves the previous one, which is the edition the
-maintainer's own machine tracks.
+**One edition can finish while another fails.** Matrix builds publish candidate
+tags only. A partial build must not move production tags; promotion requires
+all edition proofs from the same revision.
 
 **Never read the run's top-level conclusion alone.** Check per-edition, at the
 registry, which is the only thing users pull from:
@@ -204,52 +194,50 @@ for i in moos moos-nvidia moos-cloud; do
   skopeo inspect docker://ghcr.io/moalfarras-sys/$i:latest \
     | jq -r '"\(.Labels["org.opencontainers.image.version"])  rev=\(.Labels["org.opencontainers.image.revision"][0:8])"'
 done
-# every revision MUST equal the commit you pushed
+# Every revision must equal the accepted release candidate.
 ```
 
-**3. GHCR rate-limits you, and it looks like a permissions error.** Every push
-to `main` builds AND pushes three images. Do that six times in an afternoon and
-the registry answers:
+**GHCR can rate-limit uploads.** Inspect the actual error before changing
+credentials. A previously observed response was:
 
 ```
 denied: permission_denied ... HTTP status code 403 "Forbidden"
   "You have exceeded a secondary rate limit."
 ```
 
-It reads like a broken token. It is not — it is throttling, and it hits ONE
-edition while the other two finish, leaving exactly the split state above. The
-only fix is to wait and re-run the losing job.
+That response describes throttling, not a broken token. Respect the cooldown
+and inspect the failed step before attempting another candidate.
 
 So: **batch your work into one push.** A commit is cheap; a push costs three
 image builds and three registry uploads. Committing five times and pushing once
 is the same history and a fifth of the load.
 
-To repair just the edition that lost, rather than rebuilding all three:
+Inspect individual failed jobs:
 
 ```bash
 gh run view <run-id> --json jobs \
   --jq '.jobs[] | select(.conclusion!="success") | "\(.databaseId) \(.name)"'
-gh run rerun --job <job-id>
 ```
 
-Before promising "it will apply after reboot", read it out of the deployment the
-machine will actually boot:
+For release evidence, launch a fresh workflow dispatch after fixing the cause;
+`RELEASE.md` requires `run_attempt == 1`, so **Re-run jobs** cannot repair a
+release candidate. Keep the previous completed release available.
+
+Before promising "it will apply after reboot", resolve the staged deployment
+from status, then inspect its files. Directory mtimes cannot identify it:
 
 ```bash
-STAGED=$(ls -1dt /ostree/deploy/default/deploy/*.0 | head -1)
-grep -o "THEME_REV=[0-9]*" "$STAGED/usr/bin/moos-apply-theme"
-test -e ~/.local/state/moos-ui2-theme-applied.v<REV> && echo "migration would SKIP" || echo "migration WILL run"
+rpm-ostree status --json | jq '.deployments[] | select(.staged) | {checksum, serial, osname, "container-image-reference": .["container-image-reference"]}'
 ```
 
 ---
 
 ## 4. How to actually see the desktop
 
-```bash
-export XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 \
-       DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus
-spectacle -b -n -f -o /var/home/moos/.cache/shot.png
-```
+Use the actual logged-in user's environment and `moai-open` for detached app
+launches. Read [`live-development.md`](../skills/moos-engineering/references/live-development.md)
+for host/Flatpak access, private evidence and the Settings review harness. Do
+not hard-code the UID or Wayland socket from a previous session.
 
 - Read panel state live:
   `gdbus call --session -d org.kde.plasmashell -o /PlasmaShell -m org.kde.PlasmaShell.evaluateScript '<js>'`
@@ -271,74 +259,28 @@ Two traps that have eaten whole sessions:
 
 ---
 
-## 5. What is NOT done — the honest backlog
+## 5. Constraints for the active plan
 
-Ordered by value. Each entry says what it is, why it is not done, and how.
+The task queue and missing acceptance evidence live in
+[`DEVELOPMENT_PLAN.md`](DEVELOPMENT_PLAN.md), not in a second backlog here.
 
-### 5.1 Launcher keyboard flow and final clock scale proof
-
-**State:** the launcher owns its card hierarchy and staggered reveal, and as of
-THEME_REV 53 it is keyboard-operable: the four sidebar `NavButton`s take Tab
-focus and Enter/Space/Up/Down/Left/Right, `focusActivePageContent()` is the one
-owner of the search-field↔content crossing, the grids/lists return to the search
-field from their top row, and `Shift+Tab` from a grid/list/results goes to its
-own page. Gated by `tests/test_moos_launcher_keyboard.py` (source-level, like the
-motion gate — the runner has no Qt). The panel clock owns a responsive full
-day/calendar surface with live Arabic evidence at 100/125/150%.
-
-**Still open:** driving the launcher focus ring with real key presses on a
-logged-in Plasma session (synthetic `ydotool` input into the shared session was
-deliberately avoided) and the signed-image frame; final 200/225% clock frames on
-4K — boot the signed artifact, capture dark/light and Arabic/English, and prove
-the popup stays inside the available work area. Do not redesign either surface
-again without a failed frame.
-
-### 5.2 Mo AI "thinking" is the remaining context-island state
-
-**State:** the island reads MPRIS and authenticated Mo PC Remote presence. Remote
-publishes `presence-active-N` / `presence-paused-N` as regular files below
-`$XDG_RUNTIME_DIR/mo-remote`; the applet live-proved both transitions. Mo AI's
-sole signal today is still the **mtime** of `/run/$UID/moai-activity`, and a
-directory watcher does not reliably see a touch that changes no listing.
-
-**How:** have `moai-gateway` publish listing-changing idle/busy state with the
-same bounded lifecycle as Remote, then watch it with `FolderListModel`. Do not
-reuse a same-name mtime touch. Note **`FolderListModel` cannot see unix sockets**
-— proved by measurement: three matching names in a directory, two sockets and
-one regular file, and the model reported `count=1`.
-
-### 5.3 The task area is off geometric centre
-
-**State:** accepted and documented in `moos-bar.conf`. The system zone outweighs
-the launcher, so the tasks sit slightly right of centre. Rev 30 fixed this by
-splitting the bar into two capsules; **the owner rejected that on sight and it
-was reverted in rev 33.** Do not re-split the bar — a gate now prevents it.
-
-**How, if it is ever addressed:** inside ONE surface only — a balancing spacer
-applet, or a launcher and system zone of matched width.
-
-### 5.4 Dock icon hover/active motion is not reachable
-
-**State:** the task icons are Plasma's stock `icontasks`, and its `Task.qml` is
-compiled inside `org.kde.plasma.taskmanager.so`. Hover/active motion on the
-dock icons cannot be added without replacing the whole task manager.
-
-**How:** a MoOS task manager applet is a large piece of work (drag-reorder,
-grouping, window previews, launcher pinning). Do not start it casually.
-
-### 5.5 Visual sweep at other scales
-
-**State:** everything visual is verified at 4K@225% only. 100/125/150/200% has
-never been swept.
-
-**How:** `kscreen-doctor output.HDMI-A-1.scale.1.5` then screenshot the dock,
-launcher and a popup at each step.
+- **P2.4/P2.5:** launcher source tests cover search/content focus transitions;
+  real-key and scale-specific proof must come from the current artifact. Do not
+  generalize one clock or Settings capture into whole-desktop qualification.
+- **P3.2:** context-island activity needs observable state transitions. A same-name
+  mtime touch may not notify a directory model; `FolderListModel` does not list
+  Unix sockets. Prefer lifecycle-bound regular-file presence or a typed signal.
+- **P2:** the dock remains one capsule as specified in `moos-bar.conf`. Preserve
+  Plasma task-manager behavior (pinning, grouping, drag/reorder and previews)
+  when evaluating motion. A hover effect alone does not justify replacing it.
+- **P2.5:** derive actual outputs/scales from KScreen. Review each responsive/RTL
+  class and restore any session state changed by the review.
 
 ---
 
 ## 6. Before you push
 
-- All CI gates green (§0), and `just build` exit 0.
+- `just check` green (§0); a matching full local build for image/runtime changes.
 - `THEME_REV` bumped if any shipped SVG or plasmoid QML changed, with both pinned
   gates moved.
 - Every home override under `~/.local/share/plasma/` removed.
@@ -347,4 +289,5 @@ launcher and a popup at each step.
   continuation journals.
 - Branches: work on a branch, then merge to `main`. After merging, retire it.
   Verify a branch is safe to delete rather than guessing:
-  `git cherry main <branch>` — every line starting `-` is already upstream.
+  `git merge-base --is-ancestor <branch> origin/main`. If ancestry does not hold,
+  review unique commits and patch equivalence before retiring it.

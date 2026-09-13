@@ -63,6 +63,7 @@ changes also require a complete image build and the matching VM or hardware
 proof.
 
 ```bash
+just workstation-check     # read-only host/SDK capability inventory
 just check
 just build                 # generic x86
 just build-nvidia          # NVIDIA x86

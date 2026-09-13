@@ -1,0 +1,12 @@
+{
+    "recommendations": [
+        "theqtcompany.qt-qml",
+        "timonwong.shellcheck",
+        "ms-python.python",
+        "redhat.vscode-yaml",
+        "dart-code.flutter",
+        "ms-dotnettools.csharp",
+        "dbaeumer.vscode-eslint",
+        "ms-vscode.cmake-tools"
+    ]
+}

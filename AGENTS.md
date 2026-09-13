@@ -92,10 +92,10 @@ boot. Read this before changing anything.
 
 ## The one fact that changes how you work
 
-**The maintainer's daily-driver PC runs this image.** `main` is built by CI, published to
-`ghcr.io/moalfarras-sys/moos`, and that machine pulls from it. A bad commit does not produce a
-failing test — it produces a computer that boots to a black screen, on the machine you are
-talking to the maintainer on.
+**This physical PC is the dedicated MoOS development station.** `main` builds
+signed candidates; the boot-proof promotion workflows control production tags.
+The installed machine follows the signed NVIDIA release. A broken promoted
+image can stop this workstation from booting and interrupt development itself.
 
 This has already happened once. It is the reason for most of the guards you will find in
 `build_files/build.sh`, and why they are written to **fail the build loudly** rather than warn.
@@ -351,6 +351,12 @@ skills/                the mandatory moos-engineering agent skill
 ```
 
 ## Before you push
+
+Run `just check` for repository changes and the affected component checks.
+Image/runtime changes also require the matching complete local image build;
+documentation-only edits do not require rebuilding an unchanged image. Visual
+changes require rendered/live review. The boot and promotion contract remains
+in `RELEASE.md`.
 
 ```bash
 python3 tests/verify_user_experience.py     # the user-experience gate

@@ -68,12 +68,14 @@ def main() -> int:
     policy = importlib.util.module_from_spec(spec)
     loader.exec_module(policy)
     calls: list[tuple[str, ...]] = []
+    owner_reply, owner_rc, stop_rc = "b false", 0, 0
 
     def fake_run(argv, **_kwargs):
         calls.append(tuple(argv))
         class Result:
-            returncode = 0
-            stdout = b""
+            returncode = (owner_rc if argv[0].endswith("busctl") else
+                          stop_rc if "stop" in argv else 0)
+            stdout = owner_reply if argv[0].endswith("busctl") else ""
         return Result()
 
     old_run = policy.subprocess.run
@@ -81,7 +83,7 @@ def main() -> int:
     old_data = policy.os.environ.get("XDG_DATA_HOME")
     try:
         policy.subprocess.run = fake_run
-        policy.shutil.which = lambda name: f"/usr/bin/{name}" if name == "systemctl" else None
+        policy.shutil.which = lambda name: f"/usr/bin/{name}" if name in {"systemctl", "busctl"} else None
         policy.restart_baloo()
         with tempfile.TemporaryDirectory() as tmp:
             policy.os.environ["XDG_DATA_HOME"] = tmp
@@ -91,6 +93,26 @@ def main() -> int:
             policy.purge_content_index()
             if database.exists():
                 errors.append("the purge path did not remove Baloo's derived index")
+            normal_calls = calls[:]
+
+            # An inactive unit can stop successfully while a legacy daemon
+            # outside systemd still owns org.kde.baloo. Neither policy-change
+            # path may start a duplicate, and purge must preserve its open DB.
+            # Unknown ownership and a failed stop must be equally conservative.
+            for scenario, owner_reply, owner_rc, stop_rc in (
+                ("unmanaged daemon", "b true", 0, 0),
+                ("unavailable session bus", "", 1, 0),
+                ("malformed ownership answer", "unexpected", 0, 0),
+                ("failed managed stop", "b false", 0, 1),
+            ):
+                database.write_bytes(b"live-derived-index")
+                calls.clear()
+                policy.restart_baloo()
+                policy.purge_content_index()
+                if not database.exists() or database.read_bytes() != b"live-derived-index":
+                    errors.append(f"{scenario}: the live index was removed or modified")
+                if any("start" in call or "restart" in call for call in calls):
+                    errors.append(f"{scenario}: a second Baloo daemon could be started")
     finally:
         policy.subprocess.run = old_run
         policy.shutil.which = old_which
@@ -99,15 +121,23 @@ def main() -> int:
         else:
             policy.os.environ["XDG_DATA_HOME"] = old_data
 
+    ownership_query = (
+        "/usr/bin/busctl", "--user", "call", "org.freedesktop.DBus",
+        "/org/freedesktop/DBus", "org.freedesktop.DBus", "NameHasOwner", "s",
+        "org.kde.baloo",
+    )
     wanted_calls = [
-        ("/usr/bin/systemctl", "--user", "restart", "kde-baloo.service"),
         ("/usr/bin/systemctl", "--user", "stop", "kde-baloo.service"),
+        ownership_query,
+        ("/usr/bin/systemctl", "--user", "start", "kde-baloo.service"),
+        ("/usr/bin/systemctl", "--user", "stop", "kde-baloo.service"),
+        ownership_query,
         ("/usr/bin/systemctl", "--user", "start", "kde-baloo.service"),
     ]
-    if calls != wanted_calls:
+    if normal_calls != wanted_calls:
         errors.append(
-            "Baloo lifecycle must stay under kde-baloo.service; expected "
-            f"{wanted_calls!r}, got {calls!r}"
+            "Baloo lifecycle must prove the owner left before restarting kde-baloo.service; expected "
+            f"{wanted_calls!r}, got {normal_calls!r}"
         )
 
     # It must ask the authority, by running it -- not re-derive the answer.

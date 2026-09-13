@@ -6,14 +6,16 @@ rejected approaches and completed incident narratives.
 ## Source state
 
 - Date measured: 2026-09-13.
-- Active branch: `fix/first-install-hardware-update-race-20260913`.
-- Source head contains the first physical-install repairs, physical NVIDIA
-  proof and the repository cleanup described below. Use `git log` for hashes;
-  this file records product state rather than duplicating history.
-- GitHub authentication is not configured on this installation. The branch is
-  local and has not been pushed or released.
+- Integration: [PR #92](https://github.com/moalfarras-sys/moos-image/pull/92),
+  first-install repairs and repository cleanup; follow-up review also fixes
+  legacy Baloo ownership and makes the engineering workflow reproducible.
+- GitHub authentication and branch publishing work from the host. Thirteen
+  historical remote branches were deleted after fresh ancestry checks proved
+  every tip was already contained in `main`; their commits remain in history.
+- `main` still represents the previous accepted release. The new source must
+  complete the candidate/boot-proof contract before release integration.
 - Latest retained local test image:
-  `localhost/moos-nvidia:latest`, image ID `6161803c8dee`, 15.7 GB.
+  `localhost/moos-nvidia:latest`, image ID `8d325f56369b`.
 
 ## Physical development machine
 
@@ -26,10 +28,10 @@ rejected approaches and completed incident narratives.
 | GPU | NVIDIA RTX 2080 SUPER |
 | Network | Intel AX210 Wi-Fi/Bluetooth + RTL8125 Ethernet |
 | Display | Wayland, HDMI, 3840×2160@60, scale 250% |
-| Audio | PipeWire and Bluetooth audio operational |
+| Audio | PipeWire devices enumerated; Bluetooth powered; full playback/call matrix open |
 | Firmware | Inventory completed; no update offered |
 | Failed units | Zero system and user units |
-| Storage after cleanup | 48 GB used of 477 GB on `/var` |
+| Storage after build/SDK setup | 62 GiB used of 477 GiB; 413 GiB available on `/var` |
 
 The machine boots signed `moos-nvidia` version `44.20260913.819`, resolved
 digest `sha256:c7c58ab993345b1ce2eba7e08e903bb715f4957902fec9d4a93b1e959e4beb15`.
@@ -52,7 +54,7 @@ kernel journal contains no fatal NVRM event.
 
 ## Verified source and image
 
-`just build-nvidia` completed with exit code 0 from the current source:
+`just build-nvidia` completed with exit 0 including the Baloo ownership fix:
 
 - complete repository gate passed;
 - MoRemote tests and publish passed;
@@ -68,9 +70,15 @@ kernel journal contains no fatal NVRM event.
 The lint warning for non-empty `/boot` is intentional: EFI/GRUB inputs are
 required by the offline ISO path.
 
-After repository cleanup, `just check` completed again with exit code 0. The
-cleanup changes documentation, test fixtures and unused generator outputs; a
-new image build is therefore still required for the eventual P0 candidate.
+PR checks at `55898f85` passed the repository gates, MoRemote checks and ARM
+image build. ARM signing/disk/boot/promotion were skipped on the PR. The Claude
+advisory action failed inside a green job; it provided no completed code review.
+Direct independent source review found the Baloo edge fixed below.
+
+Candidate run [34767888628](https://github.com/moalfarras-sys/moos-image/actions/runs/34767888628)
+successfully built and signed all three x86 editions at the earlier `55898f85`
+revision. Its outputs cannot prove later changes.
+A new exact revision and artifact proofs are required for release acceptance.
 
 ## Fixed in the current branch
 
@@ -79,7 +87,8 @@ new image build is therefore still required for the eventual P0 candidate.
 2. Update comparison reads the resolved deployment digest for tag-tracked
    images and no longer reports a false downgrade.
 3. The index policy controls `kde-baloo.service`; it no longer spawns a second
-   unmanaged indexer.
+   unmanaged indexer. It checks D-Bus ownership after stopping that unit and
+   preserves the index if a legacy daemon survives or ownership is unknown.
 4. Mo AI migration preserves policy-approved providers, models and keys and can
    recover the exact previously observed key-loss shape from the private
    pre-migration file.
@@ -93,8 +102,43 @@ new image build is therefore still required for the eventual P0 candidate.
    broken Markdown links and a new state-file diary. Current deterministic
    sources, runtime assets and test-consumed review sheets remain.
 
-`moos-selfcheck` reports 49 passed, zero broken. Baloo runs under its user unit
-and indexed 25,676 files using 136.61 MiB at the last measurement.
+`moos-selfcheck` reports 50 passed, zero broken, six notes: cloud key setup,
+two omitted tray controls and four retired local-brain units still present in
+the installed release but masked. Source fixes are not yet installed fixes.
+
+## Workstation and performance
+
+- `scripts/setup-development-machine.sh --check` is read-only and delegates
+  from VS Code Flatpak to the host. It distinguishes available tools from
+  executed builds and reports SDK gaps without reading provider credentials.
+- `.vscode/extensions.json` recommends eight component-specific extensions;
+  personal editor settings remain ignored. Qt QML and ShellCheck support were
+  installed locally; 24 unrelated/duplicate extensions were uninstalled.
+- Native .NET SDK `10.0.401` was installed in user space from Microsoft's
+  release artifact after checking its published SHA-512. The shared editor SDK
+  path now exists; `just dotnet-check` built every MoRemote .NET project and
+  passed all test executables with exit 0.
+- Boot measured 36.783 s including firmware/loader, with 11.335 s userspace.
+  `ldconfig` accounted for 5.325 s; a later boot must determine repeatability.
+- A five-second sample with browser/editor active was 94–97% CPU idle. This
+  is not a clean desktop-idle or memory-pressure qualification.
+- Twenty-six `qwebengine_convert_dict` SIGTRAP dumps came from Hunspell RPM
+  scriptlets inside the rootless image build. They were not desktop app crashes
+  or `just check` fixtures. Explicit dictionary conversion passed; suppressing
+  those earlier scriptlet dumps remains unimplemented.
+
+## Visual review
+
+The source Settings harness ran on the installed Wayland/Qt stack at 250%.
+Arabic 1400×760 logical frames showed coherent RTL and active Aurora colours.
+An English run exposed stale input status: navigation passed while real actions
+were disabled. The harness now requires fresh status before normal captures and
+fails if image saving fails. A stale-status negative run exited 1 as intended.
+Fresh English 1100×700 and Arabic 1400×760 reruns passed search/Escape and all
+four workspace keyboard routes, saving eleven section/error frames each.
+Private captures remain
+outside Git. This harness does not prove a new installed release or screen/file
+portals. Full light/dark and scaled desktop review remain open.
 
 ## Known open gaps
 
@@ -116,6 +160,7 @@ and indexed 25,676 files using 136.61 MiB at the last measurement.
 
 ## Next task
 
-Execute `P0.1` in [`docs/DEVELOPMENT_PLAN.md`](docs/DEVELOPMENT_PLAN.md): push
-the cleaned branch after GitHub authentication, obtain review, then build and
-boot-prove the exact candidate digest before any promotion.
+Complete `P0.1` in [`docs/DEVELOPMENT_PLAN.md`](docs/DEVELOPMENT_PLAN.md):
+publish the reviewed fixes as one revision, build signed candidates, then run
+`P0.2` exact-digest disk and offline-ISO proofs. Merge/promotion and the physical
+update must follow the evidence; free cloud chat still needs a provider key.

@@ -8,14 +8,14 @@
 # IMPORTANT:
 #   - ISO builds are CI-ONLY. NEVER attempt them in WSL2 — the osbuild/ISO
 #     tooling is explicitly unsupported on the WSL2 kernel. Offline fallback:
-#     a real Fedora VM in Hyper-V. See MOOS_BUILD_WORKFLOW.md (Phase 5).
+#     a native Linux build host. See RELEASE.md for the supported artifact proof.
 #   - Titanoboa is pinned to the exact upstream commit whose action.yml was
 #     audited on 2026-08-20. Never float release construction on @main.
 #   - GitHub-hosted runners have only ~14 GB free disk; the free-disk-space
 #     step below is mandatory for multi-GB ISO jobs (uBlue does the same).
 #   - The ISO is uploaded as a workflow artifact for now. Real hosting moves
 #     to Cloudflare R2 later (GitHub Releases has a 2 GB/file limit) — see
-#     MOOS_BUILD_WORKFLOW.md (Phase 5/10).
+#     docs/DEVELOPMENT_PLAN.md for remaining distribution work.
 # =============================================================================
 
 name: Build MoOS Live ISO
@@ -117,7 +117,7 @@ jobs:
       # Titanoboa's action.yml exposes exactly two inputs (image-ref, iso-dest)
       # and one output (iso-dest). Flatpak preloading is NOT an action input —
       # iso/flatpaks.list is consumed via the container image / Titanoboa hooks
-      # (see MOOS_BUILD_WORKFLOW.md Phase 5); do not add unsupported inputs here.
+      # (see RELEASE.md); do not add unsupported inputs here.
       - name: Build live ISO with Titanoboa
         id: titanoboa
         uses: ublue-os/titanoboa@5c457c3d0518bd17e754be0fd98a60d29d26abb4
