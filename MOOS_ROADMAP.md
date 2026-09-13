@@ -171,8 +171,9 @@ OpenRouter policy. See [the cloud-only plan](docs/MOAI_CLOUD_ONLY_PLAN.md) and
   `release/moos-integration-20260912` adds OpenCode Zen (chat-completions families only,
   address pinned by the catalogue, a service switch needs that service's key, the stored
   key goes only to OpenRouter or Zen). Live: requests reach opencode.ai (401 with an
-  invalid key) and unroutable or unselected Zen requests stop at 409. A paid Zen answer
-  with a real key and signed-image acceptance remain.
+  invalid key) and unroutable or unselected Zen requests stop at 409. PR #90 fixes Settings
+  reloading a saved Zen choice as OpenRouter and groups paid rows as «نماذج مدفوعة». A paid
+  Zen answer with a real key and signed-image acceptance remain.
 - [ ] Complete native QML/phone and bounded-memory acceptance. Incremental
   streaming, persistent memory and plugins are not currently provided; SSE
   delivers a final-answer frame.
@@ -277,6 +278,11 @@ honest limits: [v40 cloud desktop](docs/REMOTE_V40_CLOUD_DESKTOP.md).
 
 - [ ] Boot the final ARM QCOW2 twice through AArch64 UEFI with zero critical
   failures; capture serial, journal and non-blank login/desktop frames.
+  *Progress (2026-09-13):* every ARM proof since `f15998e9` failed on
+  `moos-hardware-adapt.service`. #89 removed the refused zram stop; its own run then
+  hit the unit's 90 s bound on the emulated guest. The candidate raises the bound to
+  10 min and makes the runtime gate wait for the adapter's first pass. Its boot proof
+  is pending.
 - [ ] Log into that ARM artifact and open/use/close/reopen Launcher, Dolphin,
   Konsole, Settings, Mo AI, Store, Updater, Recovery, theme picker, MoPlayer and
   Mo PC Remote. Prove native ARM binaries and real backend status.
