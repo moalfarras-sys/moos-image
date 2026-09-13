@@ -39,6 +39,11 @@ adaptation is still running and fails later. `tests/verify_arm_runtime.sh` now w
 for the unit's first pass and requires `ActiveState=active` with `Result=success` before it judges
 failed units (`Result` already reads `success` before a unit has ever run). `tests/test_moos_arm.py`
 ties that wait to the timer delay plus the unit's bound; it went red on the old gate first.
+A review of the candidate found one more edge in the first fix: with the stop guarded only by
+`systemctl show`, a D-Bus timeout on a machine whose swap needed re-sizing skipped the stop, the
+start succeeded as a no-op and the old size was stamped as adapted. The stop now also runs whenever
+`/proc/swaps` lists zram0; a fourth shape in `tests/test_hardware_adapt_zram_availability.py` went
+red on the old guard first.
 **Still owed:** the ARM boot proof for both fixes, then their merge to `main` and the ARM promotion.
 If another step fails, one candidate is `sysctl --system`, which exits 1 for any key the kernel lacks.
 
