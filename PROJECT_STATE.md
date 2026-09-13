@@ -1,6 +1,6 @@
 # MoOS — current project state
 
-**ARM first boot: `moos-hardware-adapt` counted a `systemctl stop` of a not-yet-generated zram unit as a failure — fix awaiting its boot proof (2026-09-12, branches `fix/arm-boot-proof-diagnostics-20260912` and `fix/arm-hardware-adapt-first-boot-20260912`):**
+**ARM first boot: `moos-hardware-adapt` counted a `systemctl stop` of a not-yet-generated zram unit as a failure, then ran out of its 90 s bound — two fixes awaiting their boot proof (2026-09-12/13, branches `fix/arm-boot-proof-diagnostics-20260912` and `fix/arm-hardware-adapt-first-boot-20260912`):**
 the ARM boot proof on `main` has failed four times (run 34707148234 attempts 1–2 on `495a47d2`,
 34710449602 on `3a37bd47`, 34713962867 on `84a8108c`), so ARM is not promoted. Once `c012bfc7`
 let the runtime gate connect, it reported `moos-hardware-adapt.service loaded failed failed`
@@ -25,9 +25,22 @@ real answers and runs the real script in three shapes: ARM first boot, x86 re-ti
 generator. On the old code it fails the ARM shape (exit 1, the refused stop, no stamp).
 The diagnostics branch also makes the boot proof print every failed unit's journal and
 `/run/moos-hardware-adapt.log`, so a remaining failure names its step.
-**Still owed:** the ARM boot proof for the fix, then its merge to `main` and the ARM promotion.
-If that journal names another step, it is the next fix. One candidate: `sysctl --system` exits 1
-for any key the kernel lacks.
+*It named the next step (2026-09-13).* The fix's own ARM run (34717090843 on `8767b973`) no
+longer logs the refused stop, but the unit still failed, now with `Result: timeout`. Its log shows
+the first-boot pass on the nested-QEMU guest: zram re-activation (daemon-reload + one start) 43 s,
+enabling `fwupd-refresh.timer` (which reloads systemd again) 30 s, then systemd's kill at exactly
+the unit's `TimeoutStartSec=90s`, one second after the DDC/CI step, with no success stamp. The run
+before the fix had finished, with its refused stop, in 87 s. The "Transport endpoint is not
+connected" line in that earlier log is the best-effort user-manager reload (`|| true`), not a failure.
+*The second fix.* `TimeoutStartSec=10min`: nothing orders after this unit (its timer starts it 45 s
+after the desktop), so the bound only has to stop a real hang, and UTM without a JIT is slower than
+the CI guest. The boot proof also sampled `systemctl --failed` once, which can pass a boot whose
+adaptation is still running and fails later. `tests/verify_arm_runtime.sh` now waits up to 720 s
+for the unit's first pass and requires `ActiveState=active` with `Result=success` before it judges
+failed units (`Result` already reads `success` before a unit has ever run). `tests/test_moos_arm.py`
+ties that wait to the timer delay plus the unit's bound; it went red on the old gate first.
+**Still owed:** the ARM boot proof for both fixes, then their merge to `main` and the ARM promotion.
+If another step fails, one candidate is `sysctl --system`, which exits 1 for any key the kernel lacks.
 
 **Release integration: everything pending in one candidate, and OpenCode Zen as a paid choice (2026-09-12, branch `release/moos-integration-20260912`, PR #85):**
 the daily driver now runs the signed `44.20260912.806` (`6021840c`, kernel 7.2.4). This

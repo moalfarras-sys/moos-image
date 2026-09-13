@@ -104,6 +104,28 @@ done
     exit 1
 }
 [ "${growth_status:-}" = "0" ]
+# moos-hardware-adapt is started by its timer 45 s after the desktop, so a single
+# `systemctl --failed` sample can see it before it has run, or while it is still running,
+# and pass a boot whose adaptation fails later. Wait for its first pass to finish:
+# RemainAfterExit=yes leaves a finished pass `active` and a failed one `failed`. Result is
+# already `success` before the unit has ever started, so only ActiveState ends the wait.
+# The deadline outlasts the timer's OnActiveSec plus the unit's TimeoutStartSec
+# (tests/test_moos_arm.py ties the three numbers together).
+hwadapt_deadline=$((SECONDS + 720))
+while [ "$SECONDS" -lt "$hwadapt_deadline" ]; do
+    hwadapt_active="$(systemctl is-active moos-hardware-adapt.service 2>/dev/null || true)"
+    case "$hwadapt_active" in active|failed) break ;; esac
+    sleep 3
+done
+hwadapt_result="$(systemctl show -p Result --value moos-hardware-adapt.service 2>/dev/null || true)"
+[ "${hwadapt_active:-}" = "active" ] && [ "$hwadapt_result" = "success" ] || {
+    systemctl status --no-pager --full moos-hardware-adapt.service moos-hardware-adapt.timer >&2 || true
+    journalctl --no-pager -b -u moos-hardware-adapt.service -n 120 >&2 || true
+    cat /run/moos-hardware-adapt.log >&2 2>/dev/null || true
+    echo "ARM RUNTIME FATAL: moos-hardware-adapt did not finish its first pass (state=${hwadapt_active:-unknown} result=${hwadapt_result:-unknown})" >&2
+    exit 1
+}
+printf 'hardware_adapt=%s\n' "$hwadapt_active"
 failed="$(systemctl --failed --no-legend --plain)"
 [ -z "$failed" ] || { printf 'failed units:\n%s\n' "$failed" >&2; exit 1; }
 getent hosts ghcr.io >/dev/null
