@@ -340,48 +340,20 @@ class RuntimeRelationshipTests(unittest.TestCase):
             text = (ROOT / relative).read_text(encoding="utf-8")
             self.assertIn("/usr/libexec/moai-local-engine", text, relative)
 
-    def test_setup_brain_selects_ollama_once_and_retires_legacy(self):
+    def test_retired_brain_scheduler_is_not_shipped_or_enabled(self):
         text = (ROOT / "system_files/usr/bin/moai-do").read_text(encoding="utf-8")
-        body = text.split("setup_brain_impl() {", 1)[1].split("\n}\n", 1)[0]
-        self.assertIn("MOAI_LOCAL_UNIT=$model_unit", body)
-        self.assertIn("MOAI_LOCAL_BACKEND=ollama", body)
-        self.assertIn("MOAI_LOCAL_PORT=11434", body)
-        self.assertIn("Environment=OLLAMA_NO_CLOUD=true", body)
-        self.assertIn("/^\\[Container\\]$/a Environment=OLLAMA_NO_CLOUD=true", body)
-        self.assertIn("disable --now moai.service", body)
-        self.assertIn('run_priv /usr/bin/loginctl enable-linger "$login_user"', body)
-        self.assertGreaterEqual(
-            body.count('loginctl show-user "$login_user" -p Linger --value'),
-            2,
-        )
-        self.assertLess(
-            body.index('systemctl --user start "$model_unit"'),
-            body.index("MOAI_LOCAL_UNIT=$model_unit"),
-        )
-        self.assertIn(
-            "After=network-online.target ollama.service moai-brain.service",
-            (ROOT / "system_files/usr/lib/systemd/user/moos-ensure-brain.service")
-            .read_text(encoding="utf-8"),
-        )
-        self.assertIn("restart moos-ensure-brain.service", body)
-        self.assertIn("http://127.0.0.1:11434/api/tags", body)
-        self.assertIn('"default" in names', body)
-        self.assertLess(
-            body.index("restart moos-ensure-brain.service"),
-            body.index("http://127.0.0.1:11434/api/tags"),
-        )
-        self.assertLess(
-            body.index("http://127.0.0.1:11434/api/tags"),
-            body.index("MOAI_LOCAL_UNIT=$model_unit"),
-        )
-        self.assertLess(
-            body.index("restart moos-ensure-brain.service"),
-            body.index('echo "${G}✓ جاهز | ready${N}"'),
-        )
-        self.assertLess(
-            body.index('"default" in names'),
-            body.index('echo "${G}✓ جاهز | ready${N}"'),
-        )
+        build = (ROOT / "build_files/build.sh").read_text(encoding="utf-8")
+        for unit in ("moos-ensure-brain.service", "moos-ensure-brain.timer",
+                     "moai-idle.service", "moai-idle.timer"):
+            with self.subTest(unit=unit):
+                self.assertFalse(
+                    (ROOT / "system_files/usr/lib/systemd/user" / unit).exists())
+                self.assertNotIn(f"systemctl --global enable {unit}", build)
+        # Upgrade migration must keep retiring copies left by an older image.
+        migration = (ROOT / "system_files/usr/libexec/moai-cloud-migrate").read_text(
+            encoding="utf-8")
+        self.assertIn("'moos-ensure-brain.service'", migration)
+        self.assertIn("'moai-idle.timer'", migration)
 
     def test_setup_brain_opens_cloud_settings_without_touching_model_container(self):
         with tempfile.TemporaryDirectory() as home, tempfile.TemporaryDirectory() as bin_dir:

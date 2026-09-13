@@ -38,6 +38,7 @@ REPO = Path(__file__).resolve().parents[1]
 AGENT_API = REPO / "system_files/usr/bin/moai-agent-api"
 GATEWAY = REPO / "system_files/usr/bin/moai-gateway"
 PLAN = REPO / "docs/MOAI_CLOUD_ONLY_PLAN.md"
+DESKTOP_ENTRY = REPO / "system_files/usr/share/applications/org.moos.moai.desktop"
 
 
 def catalogue():
@@ -193,6 +194,21 @@ class UiTellsTheTruth(unittest.TestCase):
             self.assertNotIn(
                 dead, self.qml,
                 f"Mo AI still points at {dead!r}, which C2 closed")
+
+    def test_desktop_launcher_is_cloud_only_too(self) -> None:
+        """Kickoff and right-click actions are product UI, not metadata.
+
+        The QML-only version of this gate stayed green while the application
+        launcher still offered a dead “Start local brain” action.
+        """
+        desktop = DESKTOP_ENTRY.read_text(encoding="utf-8")
+        for dead in ("StartBrain", "moai-start", "local brain", "العقل المحلي",
+                     "ذكاء محلي", "local;llm"):
+            self.assertNotIn(
+                dead, desktop,
+                f"the Mo AI desktop launcher still exposes retired local AI: {dead!r}")
+        self.assertIn("free cloud AI", desktop)
+        self.assertIn("سحابي مجاني", desktop)
 
     def test_the_offline_help_names_the_free_way_out(self) -> None:
         """Being stuck with no provider is the one moment the user needs the

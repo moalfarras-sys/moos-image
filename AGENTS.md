@@ -380,13 +380,16 @@ gh auth refresh -h github.com -s workflow
 
 Being honest about this list is more useful than shrinking it.
 
-- **The install path has been run end to end in a VM, but never on real hardware.** On
+- **The install path has now run end to end in both a VM and real hardware.** On
   2026-07-23 the published ISO was booted in UEFI QEMU and driven through the whole MoOS
   installer: it offered only the target disk (never the live medium), gated the wipe behind a
   press-and-hold, installed **offline** from the image embedded in the ISO, reported "MoOS is
-  installed", and the disk then booted on its own to the MoOS login greeter. What that does
-  NOT cover: real firmware, real disks, and first-login account creation from the planted
-  answers. The kickstart verifies the signature at install time (and therefore deploys a
+  installed", and the disk then booted on its own to the MoOS login greeter. On 2026-09-13
+  the owner also installed offline from USB to a dedicated 476.4 GiB disk, booted the signed
+  installed system, completed first run, initialized Mo Store and switched the physical RTX
+  2080 SUPER machine to the signed NVIDIA edition. The other disks remained intact. That pass
+  did not capture every installer/boot screen or exercise rollback. The kickstart verifies the
+  signature at install time (and therefore deploys a
   signed origin, so updates stay verified for life); if an install fails with a signature
   error, that is still where to look.
 - **Mo AI is cloud-only.** Free models are the default; paid models require an explicit

@@ -253,8 +253,8 @@ bash /ctx/finalize_moos_desktop.sh
 # itself stays on-demand and no model is downloaded in the image.
 for unit in \
     moai-gateway.service moai-control.service moai-agent-api.service \
-    moai-wake.service moai-idle.timer openclaw-idle.timer \
-    moos-ensure-brain.timer moos-theme-sync.path moos-theme-drift.timer moos-health.timer \
+    moai-wake.service openclaw-idle.timer \
+    moos-theme-sync.path moos-theme-drift.timer moos-health.timer \
     moos-cloud-audio.service moos-update-ready.timer moos-reclaim-disk.timer \
     moos-index-policy.service mo-remote-watchdog.timer; do
     test -f "/usr/lib/systemd/user/${unit}" || {
@@ -269,8 +269,8 @@ systemd-analyze verify \
     /usr/lib/systemd/user/moai-wake.service
 systemctl --global enable \
     moai-gateway.service moai-control.service moai-agent-api.service \
-    moai-wake.service moai-idle.timer openclaw-idle.timer \
-    moos-ensure-brain.timer moos-theme-sync.path moos-theme-drift.timer moos-health.timer \
+    moai-wake.service openclaw-idle.timer \
+    moos-theme-sync.path moos-theme-drift.timer moos-health.timer \
     moos-cloud-audio.service moos-update-ready.timer moos-reclaim-disk.timer \
     moos-index-policy.service \
     mo-remote-watchdog.timer

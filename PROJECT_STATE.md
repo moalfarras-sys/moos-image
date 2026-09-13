@@ -1,5 +1,49 @@
 # MoOS — current project state
 
+**First physical offline-ISO install and NVIDIA boot (2026-09-13, branch
+`fix/first-install-hardware-update-race-20260913`):** the owner installed MoOS
+from USB with the network disconnected onto a 476.4 GiB Btrfs target (512 MiB
+ESP); the other NTFS/NVMe disks and the USB medium were not modified. The
+installed signed generic image booted, completed first-run in 47 s, initialized
+Mo Store, installed VS Code as the first per-user Flatpak, and had zero failed
+system/user units. Hardware observed: i5-14400F, 15.4 GiB RAM, RTX 2080 SUPER,
+AX210 Wi-Fi/Bluetooth and RTL8125 Ethernet; network, Bluetooth audio and
+PipeWire were live. Firmware inventory completed with no update offered.
+
+The first-run NVIDIA switch and the automatic generic update overlapped: both
+reported success and could replace the same staged deployment. Source now uses
+one `/run/lock/moos-image-update.lock` for both writers and preserves a signed
+staged edition switch until reboot. After reboot the physical machine is on
+signed `moos-nvidia` `44.20260913.819`, digest
+`sha256:c7c58ab993345b1ce2eba7e08e903bb715f4957902fec9d4a93b1e959e4beb15`,
+with signed generic rollback retained. NVIDIA 615.71.09 owns the RTX 2080 SUPER
+on Wayland at 3840×2160@60, `nvidia`, `nvidia_drm`, `nvidia_modeset` and
+`nvidia_uvm` are loaded, `nvidia_peermem` is absent, and the kernel log has no
+NVRM failure. `moos-selfcheck` is 49 passed, zero broken. Still unrun: a
+photographed Plymouth/login pass, suspend/resume twice, multiple outputs, and a
+deliberate rollback/roll-forward.
+
+Two fresh-install defects were reproduced and gated. `balooctl6 enable` had
+spawned an unowned indexer while `kde-baloo.service` stayed inactive; the policy
+consumer now restarts/stops/starts the systemd unit and the rebooted indexer is
+healthy (25,676 files, 136.61 MiB). A tag-tracked boot exposed the resolved OCI
+digest in `container-image-reference-digest`; the updater now reads that field
+instead of falsely reporting `blocked-downgrade`. Mo AI also exposed a later
+provider integration bug: the login migration treated every non-OpenRouter
+address as obsolete, erased the selected Zen node/key, and reset to an unkeyed
+free route. It now preserves every policy-approved provider and recovers the
+exact old-loss shape from its private backup. This machine's Zen request before
+reboot reached the provider but returned 401 `No payment method`; Zen is billed,
+not the free brain. After the buggy migration, OpenRouter Free is correctly
+selected but has no OpenRouter key, so chat honestly returns 503 until one is
+entered. The private Zen backup remains available.
+
+The same source slice completes the user-unit half of C2b: fresh images no
+longer ship or enable `moai-idle.{service,timer}` or
+`moos-ensure-brain.{service,timer}` only to mask them at login. Upgrade
+migration still names and masks those units if an older deployment left them
+behind. The deeper unreachable helper-body deletion remains a separate change.
+
 **Release candidate 2026-09-13: the ARM first-boot fixes and the uncommitted health/Zen work in one tree (branch `release/moos-integration-20260913`):**
 `main` (`84a8108c`) plus PR #88 (boot-proof diagnostics), PR #89 (stop only a loaded zram unit,
 then `TimeoutStartSec=10min` and a gate that waits for the adapter's first pass — entry below) and
@@ -703,10 +747,12 @@ fixed: nothing here should touch x86 EFI mounting from an aarch64 machine with
 no x86 host to test on. The ISO gate's restored diagnostics now collect failed
 system units, so the next ISO run should say which of the two readings is true.
 
-**NVIDIA hardware remains unverified.** No session may claim otherwise from
-Oracle or from a green build; see
-[`docs/NVIDIA_HARDWARE_ACCEPTANCE.md`](docs/NVIDIA_HARDWARE_ACCEPTANCE.md),
-which is unrun.
+**NVIDIA core hardware acceptance is now partial, not complete.** The physical
+2026-09-13 boot proves the signed NVIDIA edition, proprietary modules, Wayland,
+one 4K output, a clean kernel log and a clean rebooted session. See
+[`docs/NVIDIA_HARDWARE_ACCEPTANCE.md`](docs/NVIDIA_HARDWARE_ACCEPTANCE.md) for
+the recorded evidence and the remaining visual, suspend, multi-output and
+rollback rows.
 **Boot visual continuity source pass (2026-09-08):** the physical NVIDIA host's
 last boot measured 44.377 s end to end: 10.329 s firmware + 5.932 s loader +
 6.073 s kernel + 4.151 s initrd + 17.890 s userspace. Plymouth started at

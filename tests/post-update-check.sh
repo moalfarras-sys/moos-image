@@ -414,7 +414,7 @@ grep -q KNOWN_GOOD /usr/bin/moai-control 2>/dev/null \
     && ok "the decision layer is there (answers the need, not the keyword)" \
     || bad "moai-control lost its KNOWN_GOOD table"
 grep -q install-opencode /usr/bin/moai-do 2>/dev/null \
-    && ok "OpenCode — the agent that runs on the local brain" \
+    && ok "OpenCode — the optional coding agent installer" \
     || bad "moai-do lost install-opencode"
 # The diagnosis lives in moai-gateway (commit 3928b61), not moai-control — this
 # gate used to grep the wrong file and went red against a working system. And it

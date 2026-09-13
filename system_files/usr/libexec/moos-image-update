@@ -43,6 +43,7 @@ BATTERY_MIN_PERCENT = 20
 CPU_MAX_PERCENT = 50
 MEMORY_MAX_PERCENT = 90
 NETWORK_MAX_BYTES_PER_SECOND = 700_000
+DEPLOYMENT_LOCK = "/run/lock/moos-image-update.lock"
 
 
 class UpdateError(RuntimeError):
@@ -87,6 +88,22 @@ def official_edition(reference: str) -> str | None:
 def digest_in(reference: str) -> str:
     matches = DIGEST_IN_REF_RE.findall(reference or "")
     return matches[-1] if matches else ""
+
+
+def deployment_digest(deployment: dict[str, Any] | None) -> str:
+    """Read the resolved OCI digest even when the tracked origin is a tag.
+
+    rpm-ostree keeps `container-image-reference` as `:latest` after bootc switch
+    and publishes the pulled digest separately.  Reading only the reference made
+    a freshly booted NVIDIA system look different from the same registry image
+    and report `blocked-downgrade` instead of `current`.
+    """
+    if not isinstance(deployment, dict):
+        return ""
+    resolved = str(deployment.get("container-image-reference-digest", "") or "")
+    if DIGEST_RE.fullmatch(resolved):
+        return resolved
+    return digest_in(str(deployment.get("container-image-reference", "") or ""))
 
 
 def read_deployments() -> dict[str, Any]:
@@ -190,18 +207,29 @@ def resolve() -> dict[str, Any]:
         "edition": edition,
         "booted_version": str(booted.get("version", "") or ""),
         "staged_version": str((staged or {}).get("version", "") or ""),
-        "current_digest": digest_in(reference),
+        "current_digest": deployment_digest(booted),
         "staged_digest": "",
         "latest_digest": "",
         "latest_version": "",
         "busy": state["busy"],
+        "staged_edition": "",
     }
     if state["busy"]:
         return result
 
     staged_reference = str((staged or {}).get("container-image-reference", "") or "")
-    if official_edition(staged_reference) == edition:
-        result["staged_digest"] = digest_in(staged_reference)
+    staged_edition = official_edition(staged_reference)
+    result["staged_edition"] = staged_edition or ""
+    if staged_edition:
+        result["staged_digest"] = deployment_digest(staged)
+    # A signed deployment for another MoOS edition is an intentional switch,
+    # not a stale update.  This occurs on the generic ISO's first boot when an
+    # NVIDIA machine accepts the optimized-image recommendation.  Do not even
+    # resolve the booted edition's registry tag: staging it would overwrite the
+    # driver's deployment while both user interfaces claimed success.
+    if staged_edition and staged_edition != edition:
+        result["state"] = "staged"
+        return result
 
     candidate = registry_release(edition)
     latest = candidate["digest"]
@@ -227,7 +255,7 @@ def deployment_lock():
         # production system service and pkexec path are root and always lock.
         yield
         return
-    with open("/run/lock/moos-image-update.lock", "a+", encoding="utf-8") as lock:
+    with open(DEPLOYMENT_LOCK, "a+", encoding="utf-8") as lock:
         fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
         yield
 
@@ -256,15 +284,18 @@ def _stage_locked(expected_digest: str) -> str:
             code=5,
             security=True,
         )
-    if digest_in(booted_reference) == expected_digest:
+    if deployment_digest(state["booted"]) == expected_digest:
         return "already-current"
 
     staged_reference = str(
         (state["staged"] or {}).get("container-image-reference", "") or ""
     )
+    staged_edition = official_edition(staged_reference)
+    if staged_edition and staged_edition != booted_edition:
+        return "edition-switch-already-staged"
     if (
-        official_edition(staged_reference) == booted_edition
-        and digest_in(staged_reference) == expected_digest
+        staged_edition == booted_edition
+        and deployment_digest(state["staged"]) == expected_digest
     ):
         return "already-staged"
 
@@ -414,7 +445,13 @@ def automatic() -> int:
         print(f"moos-image-update: already current ({result['current_digest']})")
         return 0
     if state == "staged":
-        print(f"moos-image-update: latest image already staged ({result['latest_digest']})")
+        if result.get("staged_edition") != result["edition"]:
+            print(
+                "moos-image-update: edition switch already staged "
+                f"({result['staged_edition']}); reboot before updating again"
+            )
+        else:
+            print(f"moos-image-update: latest image already staged ({result['latest_digest']})")
         return 0
     if state == "blocked-downgrade":
         print(

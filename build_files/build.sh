@@ -2656,10 +2656,6 @@ systemd-analyze verify \
     /usr/lib/systemd/user/moos-theme-sync.service \
     /usr/lib/systemd/user/moai-gateway.service \
     /usr/lib/systemd/user/moai-control.service \
-    /usr/lib/systemd/user/moai-idle.service \
-    /usr/lib/systemd/user/moai-idle.timer \
-    /usr/lib/systemd/user/moos-ensure-brain.service \
-    /usr/lib/systemd/user/moos-ensure-brain.timer \
     /usr/lib/systemd/user/openclaw-idle.service \
     /usr/lib/systemd/user/openclaw-idle.timer \
     /usr/lib/systemd/user/moai-agent-api.service
@@ -2695,22 +2691,6 @@ systemctl --global enable moos-health.timer
 # verify failed every x86 build on a unit that could never start. Mo AI's
 # services are the gateway, control and agent API.
 systemctl --global enable moai-gateway.service
-
-# Keep Mo AI's brain FAST: build/serve the instruct (non-thinking) model from
-# system_files/.../moai-brain.Modelfile. A thinking model made trivial replies
-# cost ~97 s; the instruct model answers in <0.5 s. Idempotent + failure-tolerant.
-# Enable the TIMER, not the service: the service is Type=oneshot, so anything that
-# Wants it makes the session WAIT for it to exit. Pulling it in from default.target
-# cost 7.9s of a 9.4s login to log "nothing to do". The timer runs the same
-# reconcile 15s into the session, off the login path.
-systemctl --global enable moos-ensure-brain.timer
-
-# Free the local brain's VRAM when it goes idle. moai.service loads ~6 GB into an 8 GB
-# GPU and never releases it while up, which starves the compositor — a maximised browser
-# on a loaded brain has crashed kwin_wayland (NVRM: invalid mmap context) and frozen the
-# desktop. moai-idle.timer stops the brain after it is idle; moai-gateway restarts it on
-# the next request. Enabled for every user so stability is the default, not an opt-in.
-systemctl --global enable moai-idle.timer
 
 # Bring Mo PC Remote back after a CRASH — and only after a crash.
 #

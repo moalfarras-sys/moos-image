@@ -8,11 +8,12 @@ orders the work from release unblock (P0) through one product (P1), Mo AI as the
 system operator (P2), Android/Windows apps (P3), form factors (P4) and world-class
 trust (P5), with a measured scorecard. This file remains the release-gate list.
 
-**Current release evidence (2026-09-11):** the formal five-proof promotion
-completed in run `34432578942` for `c0cc94e7`. The daily-driver NVIDIA PC is
-booted on signed `44.20260910.796`, retaining signed `44.20260908.782` for
-rollback. New changes need their own candidate, disk and ISO proofs; earlier
-success does not qualify a changed image. See `PROJECT_STATE.md`.
+**Current release evidence (2026-09-13):** the first physical offline-USB
+installation completed and the daily-driver PC now boots signed `moos-nvidia`
+`44.20260913.819` (`sha256:c7c58ab9…`), retaining a signed generic deployment
+for rollback. Core NVIDIA/Wayland/4K and reboot checks passed; suspend,
+multi-output, visual Plymouth capture and deliberate rollback remain. New source
+fixes still need their own candidate, disk and ISO proofs. See `PROJECT_STATE.md`.
 
 Candidate `a0e7ef96` is explicitly rejected: its three x86 images and three
 QCOW2 proofs passed, but ISO run `34583782652` proved the MoOS Flatpak bootstrap
@@ -151,6 +152,9 @@ OpenRouter policy. See [the cloud-only plan](docs/MOAI_CLOUD_ONLY_PLAN.md) and
 - [ ] Migrate existing OpenCode configs that still name the retired local model.
 - [ ] Finish C2b legacy-body cleanup while preserving HTTP, identity and
   privilege guards; prove first-login and upgrade migration from historic layouts.
+  *Progress (2026-09-13):* the four retired local-brain service/timer files and
+  both x86/ARM enablement paths are gone; upgrade migration still masks historic
+  copies. Unreachable helper bodies and their legacy-only tests remain.
 - [ ] Package/prove Hermes availability on fresh systems across all four
   editions. The installed-runtime adapter reports absence and uses direct cloud;
   the owner's working runtime is not proof that the dependency ships.
@@ -271,10 +275,11 @@ honest limits: [v40 cloud desktop](docs/REMOTE_V40_CLOUD_DESKTOP.md).
 - [x] **Run `promote-x86.yml` through the full proof chain.** Run `34432578942`
   succeeded on 2026-09-10 for `c0cc94e7`, consuming the signed build, three
   QCOW2 proofs and offline ISO install. Repeat all proofs for the new candidate.
-- [ ] **NVIDIA hardware acceptance.** `docs/NVIDIA_HARDWARE_ACCEPTANCE.md` is
-  written and entirely unrun: boot, Plymouth, login, desktop, module, KWin on
-  Wayland, displays, suspend/resume, update, rollback, reboot. Nothing in CI
-  can substitute for it — a runner has no GPU.
+- [ ] **Complete NVIDIA hardware acceptance.** Physical boot, login, desktop,
+  proprietary module, KWin on Wayland, one native 4K output, signed edition
+  switch and reboot passed on 2026-09-13. Still required: photographed Plymouth
+  continuity, suspend/resume twice, a multi-output setup and deliberate
+  rollback/roll-forward. Exact evidence is in `docs/NVIDIA_HARDWARE_ACCEPTANCE.md`.
 
 - [ ] Boot the final ARM QCOW2 twice through AArch64 UEFI with zero critical
   failures; capture serial, journal and non-blank login/desktop frames.
@@ -324,8 +329,11 @@ honest limits: [v40 cloud desktop](docs/REMOTE_V40_CLOUD_DESKTOP.md).
 - [ ] Import `MoOS-ARM.utm.zip` on the owner's iPhone/iPad and record boot time,
   idle RAM, desktop responsiveness and core app launches. Without access to the
   physical device, report OWNER-DEVICE-TEST-REQUIRED.
-- [ ] Run the final ISO installation on real hardware. QEMU is the release gate;
-  firmware/disk-specific proof remains a separate hardware exercise.
+- [x] Run the final ISO installation on real hardware. On 2026-09-13 the owner
+  installed offline from USB to a dedicated 476.4 GiB disk, booted the installed
+  signed system, completed first run, initialized Mo Store and installed the
+  first Flatpak; unrelated disks remained intact. Per-step installer photographs
+  were not captured, so keep QEMU's automated proof as the repeatable release gate.
 
 ## Continuous quality
 

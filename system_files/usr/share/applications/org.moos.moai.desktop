@@ -4,8 +4,8 @@ Name=Mo AI
 Name[ar]=مساعد Mo AI
 GenericName=AI Assistant & Device Centre
 GenericName[ar]=المساعد الذكي ومركز الجهاز
-Comment=Fix drivers, update MoOS, install any app, and control this PC — with a local or cloud AI
-Comment[ar]=أصلح التعريفات، حدّث MoOS، ثبّت أي تطبيق، وتحكّم بجهازك — بذكاء محلي أو سحابي
+Comment=Fix drivers, update MoOS, install apps, and control this PC — with free cloud AI by default
+Comment[ar]=أصلح التعريفات، حدّث MoOS، ثبّت التطبيقات، وتحكّم بجهازك — بذكاء سحابي مجاني افتراضياً
 Exec=moai
 TryExec=moai
 Icon=moos-moai
@@ -15,9 +15,9 @@ Terminal=false
 # this is the XWayland/fallback safety net (must equal that id).
 StartupWMClass=org.moos.moai
 Categories=Utility;
-Keywords=AI;assistant;chat;local;llm;drivers;hardware;update;install;apps;remote;compatibility;
-Keywords[ar]=ذكاء;مساعد;محادثة;محلي;تعريفات;أجهزة;تحديث;تثبيت;تطبيقات;توافق;
-Actions=Device;Apps;Remote;StartBrain;
+Keywords=AI;assistant;chat;cloud;llm;drivers;hardware;update;install;apps;remote;compatibility;
+Keywords[ar]=ذكاء;مساعد;محادثة;سحابي;تعريفات;أجهزة;تحديث;تثبيت;تطبيقات;توافق;
+Actions=Device;Apps;Remote;
 
 [Desktop Action Device]
 Name=My device
@@ -36,8 +36,3 @@ Exec=moai --panel apps
 Name=Remote control
 Name[ar]=التحكّم عن بعد
 Exec=moai --panel remote
-
-[Desktop Action StartBrain]
-Name=Start local brain
-Name[ar]=تشغيل العقل المحلي
-Exec=konsole -e moai-start

@@ -37,6 +37,9 @@ from __future__ import annotations
 
 import re
 import sys
+import importlib.machinery
+import importlib.util
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -53,6 +56,59 @@ def main() -> int:
               "published file_indexing budget would go unread again.")
         return 1
     source = CONSUMER.read_text(encoding="utf-8")
+
+    # The physical first ISO install exposed a lifecycle split: `balooctl6
+    # enable` launched baloo_file under flatpak-session-helper.service while
+    # kde-baloo.service stayed inactive.  Starting the real unit then failed
+    # with "Another instance is running".  Exercise both policy-change paths
+    # and require systemd to remain the sole process owner.
+    loader = importlib.machinery.SourceFileLoader("moos_index_policy", str(CONSUMER))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    assert spec is not None
+    policy = importlib.util.module_from_spec(spec)
+    loader.exec_module(policy)
+    calls: list[tuple[str, ...]] = []
+
+    def fake_run(argv, **_kwargs):
+        calls.append(tuple(argv))
+        class Result:
+            returncode = 0
+            stdout = b""
+        return Result()
+
+    old_run = policy.subprocess.run
+    old_which = policy.shutil.which
+    old_data = policy.os.environ.get("XDG_DATA_HOME")
+    try:
+        policy.subprocess.run = fake_run
+        policy.shutil.which = lambda name: f"/usr/bin/{name}" if name == "systemctl" else None
+        policy.restart_baloo()
+        with tempfile.TemporaryDirectory() as tmp:
+            policy.os.environ["XDG_DATA_HOME"] = tmp
+            database = Path(tmp) / "baloo/index"
+            database.parent.mkdir(parents=True)
+            database.write_bytes(b"derived-index")
+            policy.purge_content_index()
+            if database.exists():
+                errors.append("the purge path did not remove Baloo's derived index")
+    finally:
+        policy.subprocess.run = old_run
+        policy.shutil.which = old_which
+        if old_data is None:
+            policy.os.environ.pop("XDG_DATA_HOME", None)
+        else:
+            policy.os.environ["XDG_DATA_HOME"] = old_data
+
+    wanted_calls = [
+        ("/usr/bin/systemctl", "--user", "restart", "kde-baloo.service"),
+        ("/usr/bin/systemctl", "--user", "stop", "kde-baloo.service"),
+        ("/usr/bin/systemctl", "--user", "start", "kde-baloo.service"),
+    ]
+    if calls != wanted_calls:
+        errors.append(
+            "Baloo lifecycle must stay under kde-baloo.service; expected "
+            f"{wanted_calls!r}, got {calls!r}"
+        )
 
     # It must ask the authority, by running it -- not re-derive the answer.
     if "moos-visual-tier" not in source:

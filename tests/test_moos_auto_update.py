@@ -67,6 +67,7 @@ def run_automatic(
     status_failure: bool = False,
     registry_failure: bool = False,
     missing_tool: str = "",
+    booted_resolved_digest: str = "",
 ) -> tuple[int, list[tuple[str, ...]], str, str]:
     deployments = []
     if staged_ref:
@@ -76,12 +77,15 @@ def run_automatic(
             "version": "44.20260906.1",
             "container-image-reference": staged_ref,
         })
-    deployments.append({
+    booted_deployment = {
         "booted": True,
         "staged": False,
         "version": booted_version,
         "container-image-reference": booted_ref,
-    })
+    }
+    if booted_resolved_digest:
+        booted_deployment["container-image-reference-digest"] = booted_resolved_digest
+    deployments.append(booted_deployment)
     status = status_payload if status_payload is not None else json.dumps({
         "transaction": transaction,
         "deployments": deployments,
@@ -142,6 +146,21 @@ check(
     f"the backend must construct one exact signed rebase; got {rebases!r}",
 )
 
+# A bootc switch tracks `:latest` as the origin and records the immutable pulled
+# digest in a separate rpm-ostree field.  This is the exact shape read from the
+# first physical NVIDIA boot; it must resolve as current, not blocked-downgrade.
+tag_origin = "ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos-nvidia:latest"
+rc, rebases, out, err = run_automatic(
+    booted_ref=tag_origin,
+    booted_resolved_digest=NEW,
+    registry=NEW,
+    booted_version="44.20260913.819",
+    registry_version="44.20260913.819",
+)
+check(rc == 0 and not rebases and "already current" in out,
+      "a tag-tracked boot must compare its resolved deployment digest; "
+      f"got rc={rc}, rebases={rebases!r}, out={out!r}, err={err!r}")
+
 # All product editions share the same policy, without prefix confusion.
 for edition in UPDATE.EDITIONS:
     rc, rebases, _out, err = run_automatic(booted_ref=signed(edition, OLD))
@@ -180,6 +199,20 @@ rc, rebases, out, _err = run_automatic(
 )
 check(rc == 0 and not rebases and "already staged" in out,
       "the latest already-staged image must not be rebased again")
+
+# A first-boot NVIDIA edition switch and the automatic generic-image update can
+# overlap.  The physical ISO install did exactly that on 2026-09-13: the NVIDIA
+# switch completed, then the generic updater replaced its staged deployment,
+# while both front ends reported success.  A staged, signed different edition
+# is intentional state and must win until reboot; it is never an "old update"
+# for the booted edition to overwrite.
+rc, rebases, out, err = run_automatic(
+    booted_ref=signed("moos", OLD),
+    staged_ref=signed("moos-nvidia", NEW),
+)
+check(rc == 0 and not rebases and "edition switch already staged" in out,
+      "an automatic update must preserve a staged signed edition switch; "
+      f"got rc={rc}, rebases={rebases!r}, out={out!r}, err={err!r}")
 
 # A mutable production tag may move backwards after a bad promotion or manual
 # registry edit. Digest inequality does not mean newer: never auto-downgrade a
@@ -300,6 +333,13 @@ for client in (
     source = client.read_text(encoding="utf-8")
     check('"rpm-ostree", "rebase"' not in source and "run_priv rpm-ostree rebase" not in source,
           f"{client.name} must delegate instead of writing deployments")
+
+moai_do = (ROOT / "system_files/usr/bin/moai-do").read_text(encoding="utf-8")
+check(
+    "/usr/bin/flock /run/lock/moos-image-update.lock bootc switch" in moai_do,
+    "the NVIDIA edition switch must share the deployment-writer lock with "
+    "moos-image-update; otherwise first-run update can overwrite it",
+)
 
 
 def run_notifier(*, staged_version: str, already_told: str = "") -> tuple[str, str]:

@@ -423,7 +423,11 @@ do_install_nvidia() {
     # boots `ostree-image-signed:docker://` (the kickstart deploys it that way and
     # verify_image_experience.py gates it); switching editions must land on the same footing.
     # Guarded by tests/verify_user_experience.py — do not drop the flag.
-    run_priv bootc switch --enforce-container-sigpolicy ghcr.io/moalfarras-sys/moos-nvidia:latest
+    # Share the update backend's root-owned lock.  The generic ISO starts its
+    # automatic update near the same time the first-run hardware card offers
+    # this switch; without one lock both deployment writers can run and the
+    # generic update can replace the successfully staged NVIDIA image.
+    run_priv /usr/bin/flock /run/lock/moos-image-update.lock bootc switch --enforce-container-sigpolicy ghcr.io/moalfarras-sys/moos-nvidia:latest
     echo "${G}✓ تم التجهيز — أعد التشغيل لتفعيل التعريف | Staged — reboot to activate${N}"
 }
 

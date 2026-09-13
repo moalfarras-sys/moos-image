@@ -311,6 +311,46 @@ class FreePolicy(unittest.TestCase):
             first=p.read_bytes();migration.migrate(p);self.assertEqual(p.read_bytes(),first)
             self.assertEqual(p.stat().st_mode & 0o777,0o600)
 
+    def test_reboot_migration_preserves_a_selected_zen_key(self):
+        """The pre-Zen migration erased the provider and key at every login."""
+        with tempfile.TemporaryDirectory() as td, \
+                patch.object(migration.policy, 'selected_provider',
+                             return_value='opencode-zen'):
+            p=Path(td)/'openclaw.json'
+            original={'models':{'providers':{'cloud':{
+                'apiKey':'zen-private-fixture','baseUrl':policy.ZEN_BASE,
+                'api':'openai-completions',
+                'models':[{'id':'deepseek-v4-flash','name':'DeepSeek V4 Flash'}]}}},
+                'agents':{'defaults':{'model':{'primary':'cloud/deepseek-v4-flash'}}}}
+            p.write_text(json.dumps(original));migration.migrate(p)
+            changed=json.loads(p.read_text())
+            cloud=changed['models']['providers']['cloud']
+            self.assertEqual(cloud['baseUrl'],policy.ZEN_BASE)
+            self.assertEqual(cloud['apiKey'],'zen-private-fixture')
+            self.assertEqual(changed['agents']['defaults']['model']['primary'],
+                             'cloud/deepseek-v4-flash')
+            first=p.read_bytes();migration.migrate(p);self.assertEqual(p.read_bytes(),first)
+
+    def test_migration_repairs_the_exact_key_loss_shape_from_backup(self):
+        """Machines hit by the old login migration can recover without retyping."""
+        with tempfile.TemporaryDirectory() as td, \
+                patch.object(migration.policy, 'selected_provider',
+                             return_value='opencode-zen'):
+            p=Path(td)/'openclaw.json'
+            reset={'models':{'providers':{'cloud':{
+                'baseUrl':policy.BASE,'api':'openai-completions',
+                'models':[{'id':policy.DEFAULT_MODEL,'name':'Mo AI Free Cloud'}]}}}}
+            backup={'models':{'providers':{'cloud':{
+                'apiKey':'recovered-zen-fixture','baseUrl':policy.ZEN_BASE,
+                'api':'openai-completions',
+                'models':[{'id':'deepseek-v4-flash','name':'DeepSeek V4 Flash'}]}}}}
+            p.write_text(json.dumps(reset))
+            p.with_name(p.name+'.before-free-cloud').write_text(json.dumps(backup))
+            migration.migrate(p)
+            cloud=json.loads(p.read_text())['models']['providers']['cloud']
+            self.assertEqual((cloud['baseUrl'],cloud['apiKey']),
+                             (policy.ZEN_BASE,'recovered-zen-fixture'))
+
     # ── OpenCode Zen: billed by explicit choice, chat-completions models only ──
     def zen(self, module=None):
         return patch.object(module or policy,'selected_provider',return_value='opencode-zen')
