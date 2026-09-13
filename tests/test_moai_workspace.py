@@ -552,7 +552,10 @@ def main() -> None:
             except ValueError as error:
                 wrong_wire = str(error)
             assert wrong_wire and not saved, f"{model} is not served on Mo AI's wire and must be refused"
-        module["write_config"]({"cloud": {"provider": "opencode-zen", "model": "deepseek-v4-flash",
+        # Saved exactly as Settings saves it (main.qml sends mode "cloud" with every cloud
+        # block), so the primary moves to the chosen Zen model and the readback below is real.
+        module["write_config"]({"mode": "cloud",
+                                "cloud": {"provider": "opencode-zen", "model": "deepseek-v4-flash",
                                           "base": "https://opencode.ai/zen/v1", "key": "zen-fixture"}})
     finally:
         key_scope.update(key_originals)
@@ -560,6 +563,33 @@ def main() -> None:
     assert (zen_node.get("baseUrl"), zen_node.get("apiKey")) == ("https://opencode.ai/zen/v1", "zen-fixture"), (
         f"Zen must use its catalogue address and its own key, got {zen_node!r}")
     assert saved.get("state", {}).get("provider") == "opencode-zen", saved.get("state")
+
+    # Settings immediately reloads after saving. Losing Zen here switches the
+    # visible provider back to OpenRouter and makes the next save invalid.
+    read_scope = module["read_config"].__globals__
+    read_originals = {name: read_scope[name] for name in (
+        "load_cfg", "load_state", "selected_engine", "selected_speech")}
+    read_scope["load_cfg"] = lambda: saved
+    read_scope["load_state"] = lambda: saved["state"]
+    read_scope["selected_engine"] = lambda: {"configured": False}
+    read_scope["selected_speech"] = lambda: {"configured": False}
+    try:
+        loaded = module["read_config"]()["cloud"]
+        assert loaded == {
+            "provider": "opencode-zen", "base": "https://opencode.ai/zen/v1",
+            "model": "deepseek-v4-flash", "has_key": True,
+        }, loaded
+        assert "zen-fixture" not in json.dumps(loaded), "config readback must keep keys write-only"
+        for chosen in ("openrouter-free", "openrouter-paid", "opencode-zen"):
+            saved["state"]["provider"] = chosen
+            assert module["read_config"]()["cloud"]["provider"] == chosen
+        # An old/malformed config never infers permission to use a paid service
+        # from its address or model, and cannot crash catalogue lookup.
+        for unknown in (None, "retired-provider", 7, [], {}):
+            saved["state"]["provider"] = unknown
+            assert module["read_config"]()["cloud"]["provider"] == "openrouter-free"
+    finally:
+        read_scope.update(read_originals)
 
     print("Mo AI workspace metadata tests passed")
 

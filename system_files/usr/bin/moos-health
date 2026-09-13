@@ -107,6 +107,13 @@ def finding(fid, severity, title, detail="", action=""):
             "detail": detail, "action": action}
 
 
+def incomplete(findings, probe, detail):
+    """A failed read is unknown, never evidence that the machine is healthy."""
+    findings.append(finding(
+        "check-incomplete-" + probe, "warning",
+        "تعذّر إكمال جزء من الفحص | Part of the check could not complete", detail))
+
+
 def read_text(path):
     try:
         return Path(path).read_text(encoding="utf-8", errors="replace")
@@ -131,6 +138,8 @@ def system_section(findings):
     except ValueError:
         deployments = []
     booted = next((item for item in deployments if item.get("booted")), {})
+    if not booted:
+        incomplete(findings, "system", "تعذّر قراءة حالة النظام وتوقيع التحديثات | System and update-signature status unavailable")
     staged = next((item for item in deployments if item.get("staged")), {})
     reference = booted.get("container-image-reference") or ""
     info["version"] = booted.get("version") or ""
@@ -170,6 +179,8 @@ def updates_section(findings):
                     name = str(item)
                 if name:
                     result["apps"].append(name)
+    if not result["checked"]:
+        incomplete(findings, "updates", "تعذّر التحقق من تحديثات التطبيقات | Could not check app updates")
     if result["apps"]:
         count = len(result["apps"])
         findings.append(finding(
@@ -339,7 +350,10 @@ def exposed(address):
 
 
 def listeners(findings):
-    out = tool(["ss", "-tulnpH"], timeout=20) or ""
+    out = tool(["ss", "-tulnpH"], timeout=20)
+    if out is None:
+        incomplete(findings, "ports", "تعذّر فحص منافذ الشبكة | Could not check network ports")
+        return []
     items, grouped = [], {}
     for line in out.splitlines():
         fields = line.split()
@@ -449,14 +463,23 @@ def persistence(findings):
 
 
 def broad_app_access(findings):
-    listed = tool(["flatpak", "list", "--app", "--columns=application"], timeout=60) or ""
+    listed = tool(["flatpak", "list", "--app", "--columns=application"], timeout=60)
+    if listed is None:
+        incomplete(findings, "app-access", "تعذّر فحص صلاحيات التطبيقات | Could not check app permissions")
+        return []
     broad = []
+    unavailable = False
     for app in sorted({line.strip() for line in listed.splitlines() if line.strip()}):
-        permissions = tool(["flatpak", "info", "--show-permissions", app], timeout=20) or ""
+        permissions = tool(["flatpak", "info", "--show-permissions", app], timeout=20)
+        if permissions is None:
+            unavailable = True
+            continue
         match = re.search(r"^filesystems=(.*)$", permissions, re.MULTILINE)
         places = [item.split(":", 1)[0] for item in (match.group(1).split(";") if match else [])]
         if {"host", "host-os", "home", "~"} & set(places):
             broad.append(app)
+    if unavailable:
+        incomplete(findings, "app-access", "تعذّر فحص صلاحيات بعض التطبيقات | Could not check some app permissions")
     if broad:
         findings.append(finding(
             "broad-file-access", "info",
@@ -465,21 +488,44 @@ def broad_app_access(findings):
     return broad
 
 
+def firewall_state():
+    """firewalld's own answer, "running" or "not running"; None when it gave neither.
+
+    tool() drops the output of any nonzero exit, and a stopped firewalld answers
+    "not running" on stdout WITH exit 252, so tool() cannot tell a stopped firewall
+    from a query that never reached the daemon. That one prints nothing on stdout
+    (measured: an unreachable system bus gives DBUS_ERROR on stderr and exit 36).
+    """
+    if shutil.which("firewall-cmd") is None:
+        return None
+    try:
+        result = subprocess.run(["firewall-cmd", "--state"], capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    answer = result.stdout.strip()
+    return answer if answer in ("running", "not running") else None
+
+
 def security_section(findings):
     result = {"signature_scan": False,
               "method": "integrity, exposure and persistence checks — not a signature antivirus"}
     enforce = (tool(["getenforce"], timeout=10) or "").strip()
     result["selinux"] = enforce or None
+    if not enforce:
+        incomplete(findings, "selinux", "تعذّر قراءة حالة حماية SELinux | SELinux protection status unavailable")
     if enforce and enforce != "Enforcing":
         findings.append(finding(
             "selinux-not-enforcing", "important",
             "حماية SELinux ليست مفعّلة بالكامل | SELinux is not enforcing", enforce))
-    firewall = tool(["firewall-cmd", "--state"], timeout=10)
-    result["firewall"] = (firewall or "").strip() or None
-    if shutil.which("firewall-cmd") and (firewall or "").strip() != "running":
+    firewall = firewall_state()
+    result["firewall"] = firewall
+    if firewall == "not running":
         findings.append(finding(
             "firewall-off", "warning",
             "الجدار الناري متوقف | The firewall is not running"))
+    elif firewall is None and shutil.which("firewall-cmd"):
+        # No answer is unknown, never an assertion that protection is off.
+        incomplete(findings, "firewall", "تعذّر تأكيد تشغيل الجدار الناري | Could not confirm the firewall is running")
     result["open_ports"] = listeners(findings)
     result["processes"] = running_from_temp(findings)
     result["persistence"] = persistence(findings)
@@ -503,6 +549,9 @@ def hardware_section(findings):
     try:
         plan = json.loads(out) if out else {}
     except ValueError:
+        plan = {}
+    if not isinstance(plan, dict) or not plan:
+        incomplete(findings, "hardware", "تعذّر فحص الأجهزة والتعريفات | Could not check devices and drivers")
         plan = {}
     for action in plan.get("actions") or []:
         findings.append(finding(
@@ -541,11 +590,17 @@ def scan():
             report[name] = section(findings)
         except Exception as error:  # one broken probe must never hide the others
             report[name] = {"error": f"{type(error).__name__}: {error}"}
+            labels = {"system": "النظام | System", "updates": "التحديثات | Updates",
+                      "resources": "الموارد | Resources", "security": "الأمان | Security",
+                      "hardware": "الأجهزة | Devices", "maintenance": "الصيانة | Maintenance"}
+            incomplete(findings, name, labels[name])
     findings.sort(key=lambda item: SEVERITIES.index(item["severity"]))
     counts = {severity: sum(1 for item in findings if item["severity"] == severity)
               for severity in SEVERITIES}
     report["summary"] = {
-        "status": "action-needed" if counts["important"] else "attention" if counts["warning"] else "ok",
+        "status": ("action-needed" if counts["important"] else "incomplete"
+                   if any(item["id"].startswith("check-incomplete-") for item in findings)
+                   else "attention" if counts["warning"] else "ok"),
         "counts": counts,
         "app_updates": len((report.get("updates") or {}).get("apps") or []),
         "system_update_staged": bool((report.get("system") or {}).get("staged")),
