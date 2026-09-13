@@ -44,6 +44,17 @@ longer ship or enable `moai-idle.{service,timer}` or
 migration still names and masks those units if an older deployment left them
 behind. The deeper unreachable helper-body deletion remains a separate change.
 
+The repaired source was then built locally as the complete NVIDIA edition on
+the same physical machine. `just build-nvidia` passed the repository suite,
+MoRemote tests/publish, MoPlayer analysis and all 179 tests, every QML runtime
+smoke, the identity and no-foreign-identity firewalls, the clean image-state
+gate, and all 12 `bootc container lint` checks. The final initramfs is 194 MiB;
+`lsinitrd` proves `ostree-prepare-root`, the MoOS Plymouth assets and six NVIDIA
+kernel modules are inside it. The retained test image is
+`localhost/moos-nvidia:latest`, image ID `6161803c8dee`. The only lint warning is
+the intentionally non-empty `/boot` carrying the EFI/GRUB inputs needed by the
+offline ISO path.
+
 **Release candidate 2026-09-13: the ARM first-boot fixes and the uncommitted health/Zen work in one tree (branch `release/moos-integration-20260913`):**
 `main` (`84a8108c`) plus PR #88 (boot-proof diagnostics), PR #89 (stop only a loaded zram unit,
 then `TimeoutStartSec=10min` and a gate that waits for the adapter's first pass — entry below) and
