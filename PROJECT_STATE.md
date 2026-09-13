@@ -1,5 +1,33 @@
 # MoOS — current project state
 
+**Release candidate 2026-09-13: the ARM first-boot fixes and the uncommitted health/Zen work in one tree (branch `release/moos-integration-20260913`):**
+`main` (`84a8108c`) plus PR #88 (boot-proof diagnostics), PR #89 (stop only a loaded zram unit,
+then `TimeoutStartSec=10min` and a gate that waits for the adapter's first pass — entry below) and
+PR #90. #90 is work that sat uncommitted in a local worktree, on no branch and no remote; review
+found it unfinished and it was fixed before commit.
+*moos-health.* A probe that cannot answer (rpm-ostree, app updates, `ss`, flatpak, `getenforce`, a
+section that raises) adds a `check-incomplete-*` warning, the summary reads `incomplete`, and Mo AI
+shows «الفحص غير مكتمل». The first version also turned a stopped firewall into "incomplete":
+`tool()` drops the output of any nonzero exit, and firewalld answers `not running` **with exit
+252**. `firewall_state()` now reads stdout itself: `not running` stays `firewall-off`; only no answer
+(measured: an unreachable system bus prints nothing on stdout and exits 36) is
+`check-incomplete-firewall`. `test_a_stopped_firewall_is_still_reported_as_off` went red on that
+first version.
+*Zen read-back.* `read_config` could only return `openrouter-paid` or `openrouter-free`, so Settings
+reloaded a saved OpenCode Zen choice as OpenRouter and the next save was invalid. It now returns
+the stored catalogue choice; an unknown value falls back to `openrouter-free`, never to a billed
+provider. The new test had failed because it saved without `mode`, which Settings never does
+(`main.qml` sends `mode: "cloud"` with every cloud block); it now saves the way Settings does.
+*Paid models.* Non-free rows from a paid catalogue are grouped as «نماذج مدفوعة» instead of
+under «كل النماذج المجانية».
+*ARM wiring gate.* Every ARM wants link must resolve to its shipped unit with no `/etc` override
+shadowing it; `tests/test_arm_unit_enablement.py` runs that same shell against 37 fixture roots.
+Verified before the candidate was pushed: the full `tests/repo-gates.sh` on each branch and on the
+merged tree, `tests/test_moos_arm.py`, and `bash -n` on both ARM boot scripts, all with an isolated
+environment. **Not yet done:** the ARM qcow2 boot proof, the x86 candidate build with its three
+QCOW2 proofs and the ISO install proof, the merge, both promotions, and the owner's update and
+reboot. Not captured live: the renamed «نماذج مدفوعة» label.
+
 **ARM first boot: `moos-hardware-adapt` counted a `systemctl stop` of a not-yet-generated zram unit as a failure, then ran out of its 90 s bound — two fixes awaiting their boot proof (2026-09-12/13, branches `fix/arm-boot-proof-diagnostics-20260912` and `fix/arm-hardware-adapt-first-boot-20260912`):**
 the ARM boot proof on `main` has failed four times (run 34707148234 attempts 1–2 on `495a47d2`,
 34710449602 on `3a37bd47`, 34713962867 on `84a8108c`), so ARM is not promoted. Once `c012bfc7`
