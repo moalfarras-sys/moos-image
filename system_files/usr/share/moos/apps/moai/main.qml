@@ -5922,7 +5922,7 @@ Kirigami.ApplicationWindow {
                                     readonly property string note: root.local(cldRow.modelData.note_ar || "",
                                                                               cldRow.modelData.note_en || "")
                                     // A heading row whenever the group changes: automatic, the
-                                    // measured models, then every other free model.
+                                    // measured models, every other free model, then paid models.
                                     readonly property string group: cldRow.modelData.group || ""
                                     readonly property bool opensGroup: cldRow.group !== ""
                                         && (cldRow.index === 0
