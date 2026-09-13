@@ -66,10 +66,15 @@ tcp   LISTEN 0      4096            [::]:8080         [::]:*
 SS
 """,
     "crontab": "exit 1\n",
+    # org.example.Wide is installed from two branches in two installations, the way a stable
+    # and a beta build coexist: `flatpak info <app-id>` then refuses, as real flatpak does.
     "flatpak": """case "$*" in
-  "list --app --columns=application") printf 'org.example.Wide\\norg.example.Narrow\\n';;
-  "info --show-permissions org.example.Wide") printf '[Context]\\nfilesystems=host;xdg-download;\\n';;
-  "info --show-permissions org.example.Narrow") printf '[Context]\\nfilesystems=xdg-download;\\n';;
+  "list --app --columns=application,ref,installation") printf 'org.example.Wide\\torg.example.Wide/x86_64/stable\\tsystem\\norg.example.Wide\\torg.example.Wide/x86_64/beta\\tuser\\norg.example.Narrow\\torg.example.Narrow/x86_64/stable\\tsystem\\n';;
+  "info --system --show-permissions org.example.Wide/x86_64/stable") printf '[Context]\\nfilesystems=host;xdg-download;\\n';;
+  "info --user --show-permissions org.example.Wide/x86_64/beta") printf '[Context]\\nfilesystems=xdg-download;\\n';;
+  "info --system --show-permissions org.example.Narrow/x86_64/stable") printf '[Context]\\nfilesystems=xdg-download;\\n';;
+  "info --show-permissions org.example.Wide") echo "error: Multiple branches available for org.example.Wide" >&2; exit 1;;
+  *) exit 1;;
 esac
 """,
     "moos-device-plan": """cat <<'JSON'
@@ -244,6 +249,88 @@ class MoosHealthScanTests(unittest.TestCase):
     def test_report_command_prints_the_saved_report(self):
         printed = self.machine.run("report")
         self.assertEqual(json.loads(printed.stdout)["summary"]["status"], "action-needed")
+
+
+class MoosHealthUnknownIsNotHealthyTests(unittest.TestCase):
+    """A probe that cannot answer is unknown: never "ok", never a notification of its own, never
+    ahead of a real warning, and never a stand-in for a firewall that really is off."""
+
+    # Measured with an unreachable system bus: nothing on stdout, DBUS_ERROR on stderr, exit 36.
+    UNANSWERED_FIREWALL = 'echo "Error: DBUS_ERROR: Failed to connect to socket" >&2\nexit 36\n'
+
+    def machine(self, **stubs):
+        machine = HealthMachine()
+        self.addCleanup(machine.close)
+        for name, body in stubs.items():
+            path = machine.bin / name
+            path.write_text("#!/bin/sh\n" + RECORD + body)
+            path.chmod(0o755)
+        return machine
+
+    def scan(self, machine, *args):
+        result = machine.run("scan", *args)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        report = json.loads((machine.state / "latest.json").read_text())
+        return report, {item["id"]: item for item in report["findings"]}
+
+    def test_every_probe_of_the_planted_machine_answers(self):
+        # Includes an app installed from two branches: `flatpak info <app-id>` refuses to choose
+        # between them, so only a per-ref query can read its permissions.
+        _, findings = self.scan(self.machine())
+        self.assertEqual([fid for fid in findings if fid.startswith("check-incomplete-")], [])
+
+    def test_a_stopped_or_failed_firewall_is_still_reported_as_off(self):
+        # firewall-cmd writes every answer whose exit code is above 1 to STDERR
+        # (firewall/command.py print_and_exit): "not running" exits 252, "failed" exits 251.
+        for answer, code in (("not running", 252), ("failed", 251)):
+            with self.subTest(answer=answer):
+                _, findings = self.scan(self.machine(**{"firewall-cmd": f'echo "{answer}" >&2\nexit {code}\n'}))
+                self.assertEqual(findings["firewall-off"]["severity"], "warning")
+                self.assertEqual(findings["firewall-off"]["detail"], answer)
+                self.assertNotIn("check-incomplete-firewall", findings)
+
+    def test_an_unanswered_firewall_query_is_unknown_and_ranks_after_real_warnings(self):
+        report, findings = self.scan(self.machine(**{
+            "firewall-cmd": self.UNANSWERED_FIREWALL, "getenforce": "echo Enforcing\n"}))
+        self.assertIn("check-incomplete-firewall", findings)
+        self.assertNotIn("firewall-off", findings)
+        # Real warnings are still on this machine: they keep the status and their counts, and
+        # "could not look" never pushes them out of the eight rows Mo AI shows.
+        self.assertEqual(report["summary"]["status"], "attention")
+        warnings = [item["id"] for item in report["findings"] if item["severity"] == "warning"]
+        self.assertEqual(warnings[-1], "check-incomplete-firewall", warnings)
+
+    def test_only_unanswered_probes_read_incomplete_and_never_notify(self):
+        machine = self.machine(**{
+            "firewall-cmd": self.UNANSWERED_FIREWALL,
+            "getenforce": "echo Enforcing\n",
+            "ss": "exit 0\n",
+            "rpm-ostree": """cat <<'JSON'
+{"deployments": [
+ {"booted": true, "version": "44.20260912.800", "container-image-reference": "ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos-nvidia:latest"}]}
+JSON
+""",
+            "moos-storectl": """mkdir -p "$XDG_CACHE_HOME/moos-store"
+printf '%s' '{"action":"check-updates","state":"success","items":[]}' > "$XDG_CACHE_HOME/moos-store/updates.json"
+""",
+            "moos-device-plan": """cat <<'JSON'
+{"gpu": "Test GPU", "driver_status": "ok", "driver_gaps": [], "missing_firmware": [], "actions": []}
+JSON
+""",
+        })
+        (machine.home / ".config/autostart/helper.desktop").unlink()
+        (machine.home / ".bashrc").write_text("export PATH=$HOME/bin:$PATH\n")
+        for entry in (machine.proc / "101").iterdir():
+            entry.unlink()
+        (machine.proc / "101").rmdir()
+        report, findings = self.scan(machine, "--notify")
+        real = [fid for fid, item in findings.items()
+                if item["severity"] != "info" and not fid.startswith("check-incomplete-")]
+        self.assertEqual(real, [], "the quiet machine still has a real warning")
+        self.assertIn("check-incomplete-firewall", findings)
+        # Never "ok" when a probe could not look, and nothing to act on is nothing to notify.
+        self.assertEqual(report["summary"]["status"], "incomplete")
+        self.assertEqual([call for call in machine.calls() if call[0] == "notify-send"], [])
 
 
 class MoaiControlHealthTests(unittest.TestCase):

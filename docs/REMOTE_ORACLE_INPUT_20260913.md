@@ -7,7 +7,7 @@ This continues the owner's Oracle desktop work without modifying the parallel
 ## Source integration
 
 The branch contains `main` through `84a8108c` (including #85, #86 and #87),
-the Remote follow-up `2f47ad92`, and #88/#89 through `8767b973`.
+the Remote follow-up `2f47ad92`, and release #91 through `d2688109` (including #88/#89/#90).
 The earlier local search repair from `fix/system-search-20260912` is ported here.
 That older worktree is retained; its uncommitted files were not reset or discarded.
 
@@ -109,7 +109,9 @@ The fwupd timer enable alone took 31 seconds because it reloaded all units.
 
 This branch keeps #89's first-boot zram fix, avoids that unnecessary reload
 (`enable --no-reload` still enables the timer for subsequent boots), and gives
-the post-desktop service a finite 180-second deadline. The ARM runtime gate
+the post-desktop service the integration branch's finite 10-minute deadline.
+That branch already passed an ARM boot proof on `ff7bb39c`; later review fixes
+changed its revision, so the combined source still needs its own proof. The ARM runtime gate
 now waits for the timer's actual oneshot completion, requiring active/success/0;
 an empty failed-unit list before the timer runs can no longer qualify a disk.
 The lifecycle gate executes delayed-success, failure, bad-exit and never-started
@@ -117,7 +119,9 @@ fixtures against that exact acceptance block.
 
 Remaining sequence:
 
-1. Run the integrated source gates and full local ARM container build.
+1. Re-run integrated gates and the local ARM build after absorbing #91. The
+   earlier `4e7c5bb6` build passed all image gates and `bootc container lint`;
+   its container contained the new PWA and effective Baloo section.
 2. Publish this branch, review it, and run the signed ARM candidate and exact
    disk/boot proof. Earlier failed runs do not qualify the changed source.
 3. Merge only after release acceptance; verify the promoted immutable ARM digest

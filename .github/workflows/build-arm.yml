@@ -247,9 +247,12 @@ jobs:
           # because system_files/ is shared byte-for-byte and the enable lines are not.
           #
           # tests/test_arm_unit_enablement.py compares the two build scripts. This checks the
-          # bytes: the wants symlink has to exist in the image that is about to be signed.
+          # bytes: every wants link must resolve to its shipped unit, without a conflicting
+          # /etc override. Tests execute this same shell against missing and broken wiring.
           podman run --rm "$img" bash -c '
+            # BEGIN ARM UNIT WIRING GATE
             set -e
+            unit_root="${1:-}"
             missing=0
             for want in \
                 graphical.target.wants/moos-visual-tier.service \
@@ -257,14 +260,40 @@ jobs:
                 timers.target.wants/moos-verify-origin.timer \
                 timers.target.wants/moos-auto-update.timer \
                 timers.target.wants/moos-appstream-refresh.timer; do
-              if [ -L "/usr/etc/systemd/system/$want" ] || [ -L "/etc/systemd/system/$want" ]; then
-                echo "enabled: $want"
-              else
+              unit="${want##*/}"
+              expected="$unit_root/usr/lib/systemd/system/$unit"
+              if [ ! -f "$expected" ] || [ -L "$expected" ]; then
+                echo "FATAL: $unit has no regular shipped unit definition"; missing=1
+                continue
+              fi
+              found=0
+              for config_dir in "$unit_root/etc/systemd/system" "$unit_root/usr/etc/systemd/system"; do
+                link="$config_dir/$want"
+                if [ -e "$link" ] || [ -L "$link" ]; then
+                  found=1
+                  resolved="$(readlink -e "$link" || true)"
+                  if [ ! -L "$link" ] || [ "$resolved" != "$expected" ]; then
+                    echo "FATAL: $link does not resolve to $expected"; missing=1
+                  else
+                    echo "enabled: $want"
+                  fi
+                fi
+                # Unit lookup can still mask or replace a correctly wired wants link.
+                override="$config_dir/$unit"
+                if [ -e "$override" ] || [ -L "$override" ]; then
+                  resolved="$(readlink -e "$override" || true)"
+                  if [ "$resolved" != "$expected" ]; then
+                    echo "FATAL: $override shadows $expected"; missing=1
+                  fi
+                fi
+              done
+              if [ "$found" = 0 ]; then
                 echo "FATAL: $want is not wanted by anything in this image"; missing=1
               fi
             done
             [ "$missing" = 0 ]
             echo "ARM unit enablement OK"
+            # END ARM UNIT WIRING GATE
           '
 
       - name: Log in to GHCR

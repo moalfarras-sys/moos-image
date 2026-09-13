@@ -2,7 +2,7 @@
 
 **Oracle Remote and ARM acceptance continuation (2026-09-13):**
 `feat/remote-oracle-experience-20260912` integrates `main` through `84a8108c`
-and #88/#89 through `8767b973`, preserving the parallel agents' commits.
+and release #91 through `d2688109`, preserving the parallel agents' commits.
 Desktop text follows the viewer's layout and IME, modifiers release correctly,
 mobile Process/229 deletion reaches the remote, and the Arabic typing bar was
 reviewed in Chromium. Linux queries compositor Caps Lock before native text;
@@ -11,12 +11,51 @@ group and diagnostics honor filename-only cloud indexing. Browser and .NET
 tests pass; native app/physical phone acceptance is still owed.
 ARM run `34717090843` proved #89's zram fix worked but hardware adaptation hit
 its 90s timeout. The branch removes an unnecessary fwupd enable reload, bounds
-the service at 180s, and makes the ARM boot gate wait for actual successful
+the service at the release branch's 10-minute bound, and makes the ARM boot gate wait for actual successful
 completion. This changes first-boot acceptance and post-desktop timing; no
-service is added to the login critical path. Local image/CI boot proof and
-signed Oracle update are pending. [Evidence and completion sequence](docs/REMOTE_ORACLE_INPUT_20260913.md).
+service is added to the login critical path. The earlier local ARM image and
+repo gates passed; the final combined image/CI proof and signed Oracle update are pending. [Evidence and completion sequence](docs/REMOTE_ORACLE_INPUT_20260913.md).
 
-**ARM first boot: `moos-hardware-adapt` counted a `systemctl stop` of a not-yet-generated zram unit as a failure — fix awaiting its boot proof (2026-09-12, branches `fix/arm-boot-proof-diagnostics-20260912` and `fix/arm-hardware-adapt-first-boot-20260912`):**
+**Release candidate 2026-09-13: the ARM first-boot fixes and the uncommitted health/Zen work in one tree (branch `release/moos-integration-20260913`):**
+`main` (`84a8108c`) plus PR #88 (boot-proof diagnostics), PR #89 (stop only a loaded zram unit,
+then `TimeoutStartSec=10min` and a gate that waits for the adapter's first pass — entry below) and
+PR #90. #90 is work that sat uncommitted in a local worktree, on no branch and no remote; review
+found it unfinished and it was fixed before commit.
+*moos-health.* A probe that cannot answer (rpm-ostree, app updates, `ss`, flatpak, `getenforce`, a
+section that raises) adds a `check-incomplete-*` warning. It only ever takes the place of "ok": a
+real warning keeps `attention` and its counts, incomplete rows sort after real ones of the same
+severity, and they never notify on their own. When nothing else is wrong the summary reads
+`incomplete` and Mo AI shows «الفحص غير مكتمل». The firewall's state comes from firewall-cmd's
+exit code, because it writes every answer whose exit code is above 1 to **stderr**
+(`firewall/command.py`, `print_and_exit`): 252 "not running" and 251 "failed" are `firewall-off`;
+anything else (measured: an unreachable system bus exits 36 with DBUS_ERROR) is
+`check-incomplete-firewall`. App permissions are read per installed ref in its installation, since
+`flatpak info <app-id>` refuses an app installed from two branches.
+*Review.* The PR review check posted nothing (`is_error:true`, empty `ANTHROPIC_API_KEY`). A separate
+review found that the first two versions read firewalld's answer from stdout and so reported a
+stopped firewall as "incomplete" (their test stub echoed to stdout, so it stayed green), that
+"incomplete" hid real warning counts, sorted ahead of real warnings and notified daily, and the
+two-branch flatpak refusal. Each now has a test that failed before its fix (3 failures and 3 errors,
+now 18/18). The same review found the zram stop edge recorded in the ARM entry below.
+*Zen read-back.* `read_config` could only return `openrouter-paid` or `openrouter-free`, so Settings
+reloaded a saved OpenCode Zen choice as OpenRouter and the next save was invalid. It now returns
+the stored catalogue choice; an unknown value falls back to `openrouter-free`, never to a billed
+provider. The new test had failed because it saved without `mode`, which Settings never does
+(`main.qml` sends `mode: "cloud"` with every cloud block); it now saves the way Settings does.
+*Paid models.* Non-free rows from a paid catalogue are grouped as «نماذج مدفوعة» instead of
+under «كل النماذج المجانية».
+*ARM wiring gate.* Every ARM wants link must resolve to its shipped unit with no `/etc` override
+shadowing it; `tests/test_arm_unit_enablement.py` runs that same shell against 37 fixture roots.
+Verified: the full `tests/repo-gates.sh` on each branch and on the merged tree,
+`tests/test_moos_arm.py`, and `bash -n` on both ARM boot scripts, all with an isolated environment.
+The first candidate (`ff7bb39c`, before the review fixes) built all three x86 editions (run
+34734685073) and **passed the ARM qcow2 boot proof** (run 34734684091), the first ARM pass since
+`f15998e9`: on both boots the runtime gate printed `hardware_adapt=active` and `failed_units=0`.
+The review fixes changed the tree, so every proof is re-run on the final candidate. **Not yet
+done:** those runs, the three x86 QCOW2 proofs and the ISO install proof, the merge, both
+promotions, and the owner's update and reboot. Not captured live: the renamed «نماذج مدفوعة» label.
+
+**ARM first boot: `moos-hardware-adapt` counted a `systemctl stop` of a not-yet-generated zram unit as a failure, then ran out of its 90 s bound — two fixes awaiting their boot proof (2026-09-12/13, branches `fix/arm-boot-proof-diagnostics-20260912` and `fix/arm-hardware-adapt-first-boot-20260912`):**
 the ARM boot proof on `main` has failed four times (run 34707148234 attempts 1–2 on `495a47d2`,
 34710449602 on `3a37bd47`, 34713962867 on `84a8108c`), so ARM is not promoted. Once `c012bfc7`
 let the runtime gate connect, it reported `moos-hardware-adapt.service loaded failed failed`
@@ -41,9 +80,27 @@ real answers and runs the real script in three shapes: ARM first boot, x86 re-ti
 generator. On the old code it fails the ARM shape (exit 1, the refused stop, no stamp).
 The diagnostics branch also makes the boot proof print every failed unit's journal and
 `/run/moos-hardware-adapt.log`, so a remaining failure names its step.
-**Still owed:** the ARM boot proof for the fix, then its merge to `main` and the ARM promotion.
-If that journal names another step, it is the next fix. One candidate: `sysctl --system` exits 1
-for any key the kernel lacks.
+*It named the next step (2026-09-13).* The fix's own ARM run (34717090843 on `8767b973`) no
+longer logs the refused stop, but the unit still failed, now with `Result: timeout`. Its log shows
+the first-boot pass on the nested-QEMU guest: zram re-activation (daemon-reload + one start) 43 s,
+enabling `fwupd-refresh.timer` (which reloads systemd again) 30 s, then systemd's kill at exactly
+the unit's `TimeoutStartSec=90s`, one second after the DDC/CI step, with no success stamp. The run
+before the fix had finished, with its refused stop, in 87 s. The "Transport endpoint is not
+connected" line in that earlier log is the best-effort user-manager reload (`|| true`), not a failure.
+*The second fix.* `TimeoutStartSec=10min`: nothing orders after this unit (its timer starts it 45 s
+after the desktop), so the bound only has to stop a real hang, and UTM without a JIT is slower than
+the CI guest. The boot proof also sampled `systemctl --failed` once, which can pass a boot whose
+adaptation is still running and fails later. `tests/verify_arm_runtime.sh` now waits up to 720 s
+for the unit's first pass and requires `ActiveState=active` with `Result=success` before it judges
+failed units (`Result` already reads `success` before a unit has ever run). `tests/test_moos_arm.py`
+ties that wait to the timer delay plus the unit's bound; it went red on the old gate first.
+A review of the candidate found one more edge in the first fix: with the stop guarded only by
+`systemctl show`, a D-Bus timeout on a machine whose swap needed re-sizing skipped the stop, the
+start succeeded as a no-op and the old size was stamped as adapted. The stop now also runs whenever
+`/proc/swaps` lists zram0; a fourth shape in `tests/test_hardware_adapt_zram_availability.py` went
+red on the old guard first.
+**Still owed:** the ARM boot proof for both fixes, then their merge to `main` and the ARM promotion.
+If another step fails, one candidate is `sysctl --system`, which exits 1 for any key the kernel lacks.
 
 **Release integration: everything pending in one candidate, and OpenCode Zen as a paid choice (2026-09-12, branch `release/moos-integration-20260912`, PR #85):**
 the daily driver now runs the signed `44.20260912.806` (`6021840c`, kernel 7.2.4). This

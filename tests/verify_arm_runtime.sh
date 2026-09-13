@@ -105,27 +105,29 @@ done
 }
 [ "${growth_status:-}" = "0" ]
 # BEGIN HARDWARE ADAPT ACCEPTANCE
-# Its timer starts 45s after graphical.target. A zero failed-unit count before
-# that work completes cannot prove the first boot succeeded. Observe completion
-# through systemd, including its exit status, before accepting the disk.
-hardware_deadline=$((SECONDS + 300))
-while [ "$SECONDS" -lt "$hardware_deadline" ]; do
-    hardware_state="$(systemctl is-active moos-hardware-adapt.service 2>/dev/null || true)"
-    hardware_result="$(systemctl show -p Result --value moos-hardware-adapt.service 2>/dev/null || true)"
-    hardware_status="$(systemctl show -p ExecMainStatus --value moos-hardware-adapt.service 2>/dev/null || true)"
-    if [ "$hardware_state" = active ] && [ "$hardware_result" = success ] && [ "$hardware_status" = 0 ]; then
-        break
-    fi
-    [ "$hardware_state" != failed ] || break
+# moos-hardware-adapt is started by its timer 45 s after the desktop, so a single
+# `systemctl --failed` sample can see it before it has run, or while it is still running,
+# and pass a boot whose adaptation fails later. Wait for its first pass to finish:
+# RemainAfterExit=yes leaves a finished pass `active` and a failed one `failed`. Result is
+# already `success` before the unit has ever started, so only ActiveState ends the wait.
+# The deadline outlasts the timer's OnActiveSec plus the unit's TimeoutStartSec
+# (tests/test_moos_arm.py ties the three numbers together).
+hwadapt_deadline=$((SECONDS + 720))
+while [ "$SECONDS" -lt "$hwadapt_deadline" ]; do
+    hwadapt_active="$(systemctl is-active moos-hardware-adapt.service 2>/dev/null || true)"
+    case "$hwadapt_active" in active|failed) break ;; esac
     sleep 3
 done
-if [ "${hardware_state:-}" != active ] || [ "${hardware_result:-}" != success ] || [ "${hardware_status:-}" != 0 ]; then
-    systemctl status --no-pager --full moos-hardware-adapt.service >&2 || true
-    journalctl --no-pager -b -u moos-hardware-adapt.service -n 100 >&2 || true
-    echo "ARM RUNTIME FATAL: hardware adaptation did not finish successfully" >&2
+hwadapt_result="$(systemctl show -p Result --value moos-hardware-adapt.service 2>/dev/null || true)"
+hwadapt_status="$(systemctl show -p ExecMainStatus --value moos-hardware-adapt.service 2>/dev/null || true)"
+[ "${hwadapt_active:-}" = "active" ] && [ "$hwadapt_result" = "success" ] && [ "$hwadapt_status" = 0 ] || {
+    systemctl status --no-pager --full moos-hardware-adapt.service moos-hardware-adapt.timer >&2 || true
+    journalctl --no-pager -b -u moos-hardware-adapt.service -n 120 >&2 || true
+    cat /run/moos-hardware-adapt.log >&2 2>/dev/null || true
+    echo "ARM RUNTIME FATAL: moos-hardware-adapt did not finish its first pass (state=${hwadapt_active:-unknown} result=${hwadapt_result:-unknown})" >&2
     exit 1
-fi
-printf 'hardware-adapt=complete\n'
+}
+printf 'hardware_adapt=%s\n' "$hwadapt_active"
 # END HARDWARE ADAPT ACCEPTANCE
 failed="$(systemctl --failed --no-legend --plain)"
 [ -z "$failed" ] || { printf 'failed units:\n%s\n' "$failed" >&2; exit 1; }

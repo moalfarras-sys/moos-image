@@ -48,8 +48,8 @@ print("hardware-adapt lifecycle/ownership gate passed")
 
 # The service's deadline is finite and outside the login path. The acceptance
 # gate must wait for the timer/oneshot to finish, not sample --failed too early.
-timeout = re.search(r'^TimeoutStartSec=(\d+)s$', service, re.M)
-assert timeout and 180 <= int(timeout[1]) <= 240
+timeout = re.search(r'^TimeoutStartSec=(\d+)(s|min)$', service, re.M)
+assert timeout and 300 <= int(timeout[1]) * (60 if timeout[2] == "min" else 1) <= 600
 assert "systemctl enable --no-reload fwupd-refresh.timer" in script
 runtime = (ROOT / 'tests/verify_arm_runtime.sh').read_text()
 block = re.search(r'# BEGIN HARDWARE ADAPT ACCEPTANCE\n(.*?)# END HARDWARE ADAPT ACCEPTANCE', runtime, re.S)
@@ -83,5 +83,5 @@ sleep() { SECONDS=$((SECONDS+100)); }
             env=os.environ | {'TEST_POLLS': str(counter), 'TEST_OUTCOME': outcome})
         assert result.returncode == expected, (outcome, result.stdout, result.stderr)
         assert int(counter.read_text()) >= 3, 'gate accepted an unfinished oneshot'
-        assert ('hardware-adapt=complete' in result.stdout) == (expected == 0)
+        assert ('hardware_adapt=active' in result.stdout) == (expected == 0)
 print('hardware-adapt completed/failed/delayed first-boot acceptance passed')
