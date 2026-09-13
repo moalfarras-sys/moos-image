@@ -1211,11 +1211,12 @@ def curated_cloud_models(cloud: list) -> list:
     The provider's catalogue arrives as raw ids in its own order, with the free router listed
     twice and a content-safety classifier that is not a chat model. Measured models (see
     cloud_policy.CURATED_FREE) carry a name and a one-line reason in both languages; every other
-    free model stays reachable under "all free models".
+    free model stays reachable under "all free models", and billed rows from a paid catalogue
+    follow under "paid".
     """
     curated = {model_id: (rank, name, arabic, english)
                for rank, (model_id, name, arabic, english) in enumerate(cloud_policy.CURATED_FREE)}
-    automatic, picked, others, seen = [], [], [], set()
+    automatic, picked, others, paid, seen = [], [], [], [], set()
     for item in cloud:
         model_id = str(item.get("id", ""))
         bare = model_id.split(":", 1)[1] if model_id.startswith("cloud:") else model_id
@@ -1234,11 +1235,15 @@ def curated_cloud_models(cloud: list) -> list:
                        note_ar=arabic, note_en=english)
             picked.append(row)
         else:
-            row.setdefault("group", "all")
-            others.append(row)
+            # OpenRouter's paid catalogue also contains free choices. Keep the
+            # billed rows together and never label them as "all free models".
+            is_free = cloud_policy.free_model(bare)
+            row["group"] = "all" if is_free else "paid"
+            (others if is_free else paid).append(row)
     picked.sort(key=lambda row: row["rank"])
     others.sort(key=lambda row: str(row.get("id", "")))
-    return automatic + picked + others
+    paid.sort(key=lambda row: str(row.get("id", "")))
+    return automatic + picked + others + paid
 
 
 def models() -> dict:

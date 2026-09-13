@@ -91,20 +91,48 @@ WHY = {
 }
 
 
-def tool(argv, timeout=30):
-    """Run one fixed command; None when it is missing, fails or hangs."""
+def run(argv, timeout=30):
+    """Run one fixed command; the finished process, or None when it is missing or hangs."""
     if shutil.which(argv[0]) is None:
         return None
     try:
-        result = subprocess.run(argv, capture_output=True, text=True, timeout=timeout)
+        return subprocess.run(argv, capture_output=True, text=True, timeout=timeout)
     except (OSError, subprocess.TimeoutExpired):
         return None
-    return result.stdout if result.returncode == 0 else None
+
+
+def tool(argv, timeout=30):
+    """Run one fixed command; its stdout, or None when it is missing, fails or hangs."""
+    result = run(argv, timeout)
+    return result.stdout if result is not None and result.returncode == 0 else None
 
 
 def finding(fid, severity, title, detail="", action=""):
     return {"id": fid, "severity": severity, "title": title,
             "detail": detail, "action": action}
+
+
+# A probe that could not answer. Its findings rank after real ones of the same severity, never
+# notify on their own, and only ever take the place of "ok" in the summary (scan(), notify()).
+INCOMPLETE = "check-incomplete-"
+SECTION_LABELS = {"system": "النظام | System", "updates": "التحديثات | Updates",
+                  "resources": "الموارد | Resources", "security": "الأمان | Security",
+                  "hardware": "الأجهزة | Devices", "maintenance": "الصيانة | Maintenance"}
+
+
+def incomplete(findings, probe, detail):
+    """A failed read is unknown, never evidence that the machine is healthy."""
+    findings.append(finding(
+        INCOMPLETE + probe, "warning",
+        "تعذّر إكمال جزء من الفحص | Part of the check could not complete", detail))
+
+
+def is_incomplete(item):
+    return item["id"].startswith(INCOMPLETE)
+
+
+def real_warnings(findings):
+    return sum(1 for item in findings if item["severity"] == "warning" and not is_incomplete(item))
 
 
 def read_text(path):
@@ -131,6 +159,8 @@ def system_section(findings):
     except ValueError:
         deployments = []
     booted = next((item for item in deployments if item.get("booted")), {})
+    if not booted:
+        incomplete(findings, "system", "تعذّر قراءة حالة النظام وتوقيع التحديثات | System and update-signature status unavailable")
     staged = next((item for item in deployments if item.get("staged")), {})
     reference = booted.get("container-image-reference") or ""
     info["version"] = booted.get("version") or ""
@@ -170,6 +200,8 @@ def updates_section(findings):
                     name = str(item)
                 if name:
                     result["apps"].append(name)
+    if not result["checked"]:
+        incomplete(findings, "updates", "تعذّر التحقق من تحديثات التطبيقات | Could not check app updates")
     if result["apps"]:
         count = len(result["apps"])
         findings.append(finding(
@@ -339,7 +371,10 @@ def exposed(address):
 
 
 def listeners(findings):
-    out = tool(["ss", "-tulnpH"], timeout=20) or ""
+    out = tool(["ss", "-tulnpH"], timeout=20)
+    if out is None:
+        incomplete(findings, "ports", "تعذّر فحص منافذ الشبكة | Could not check network ports")
+        return []
     items, grouped = [], {}
     for line in out.splitlines():
         fields = line.split()
@@ -449,14 +484,32 @@ def persistence(findings):
 
 
 def broad_app_access(findings):
-    listed = tool(["flatpak", "list", "--app", "--columns=application"], timeout=60) or ""
+    # One row per installed ref. The same app can come from two branches or live in both
+    # installations, and `flatpak info <app-id>` then refuses to choose ("Multiple branches
+    # available"), so every ref is asked about in its own installation.
+    listed = tool(["flatpak", "list", "--app", "--columns=application,ref,installation"], timeout=60)
+    if listed is None:
+        incomplete(findings, "app-access", "تعذّر فحص صلاحيات التطبيقات | Could not check app permissions")
+        return []
     broad = []
-    for app in sorted({line.strip() for line in listed.splitlines() if line.strip()}):
-        permissions = tool(["flatpak", "info", "--show-permissions", app], timeout=20) or ""
+    unavailable = False
+    for row in sorted({tuple(part.strip() for part in line.split("\t"))
+                       for line in listed.splitlines() if line.strip()}):
+        if len(row) != 3 or not all(row):
+            unavailable = True
+            continue
+        app, ref, installation = row
+        where = {"system": "--system", "user": "--user"}.get(installation, "--installation=" + installation)
+        permissions = tool(["flatpak", "info", where, "--show-permissions", ref], timeout=20)
+        if permissions is None:
+            unavailable = True
+            continue
         match = re.search(r"^filesystems=(.*)$", permissions, re.MULTILINE)
         places = [item.split(":", 1)[0] for item in (match.group(1).split(";") if match else [])]
-        if {"host", "host-os", "home", "~"} & set(places):
+        if {"host", "host-os", "home", "~"} & set(places) and app not in broad:
             broad.append(app)
+    if unavailable:
+        incomplete(findings, "app-access", "تعذّر فحص صلاحيات بعض التطبيقات | Could not check some app permissions")
     if broad:
         findings.append(finding(
             "broad-file-access", "info",
@@ -465,21 +518,42 @@ def broad_app_access(findings):
     return broad
 
 
+def firewall_state():
+    """What firewalld says about itself: "running", "not running", "failed" or "unknown".
+
+    None when firewall-cmd is not installed. firewall-cmd writes every answer whose exit code
+    is above 1 to STDERR (firewall/command.py, print_and_exit), so the state comes from the exit
+    code: 0 is running, 252 NOT_RUNNING, 251 RUNNING_BUT_FAILED. Anything else, such as exit 36
+    with DBUS_ERROR when the system bus cannot be reached, is unknown and never "off".
+    """
+    result = run(["firewall-cmd", "--state"], timeout=10)
+    if result is None:
+        return None if shutil.which("firewall-cmd") is None else "unknown"
+    if result.returncode == 0 and result.stdout.strip() == "running":
+        return "running"
+    return {252: "not running", 251: "failed"}.get(result.returncode, "unknown")
+
+
 def security_section(findings):
     result = {"signature_scan": False,
               "method": "integrity, exposure and persistence checks — not a signature antivirus"}
     enforce = (tool(["getenforce"], timeout=10) or "").strip()
     result["selinux"] = enforce or None
+    if not enforce:
+        incomplete(findings, "selinux", "تعذّر قراءة حالة حماية SELinux | SELinux protection status unavailable")
     if enforce and enforce != "Enforcing":
         findings.append(finding(
             "selinux-not-enforcing", "important",
             "حماية SELinux ليست مفعّلة بالكامل | SELinux is not enforcing", enforce))
-    firewall = tool(["firewall-cmd", "--state"], timeout=10)
-    result["firewall"] = (firewall or "").strip() or None
-    if shutil.which("firewall-cmd") and (firewall or "").strip() != "running":
+    firewall = firewall_state()
+    result["firewall"] = firewall
+    if firewall in ("not running", "failed"):
         findings.append(finding(
             "firewall-off", "warning",
-            "الجدار الناري متوقف | The firewall is not running"))
+            "الجدار الناري متوقف | The firewall is not running", firewall))
+    elif firewall == "unknown":
+        # No answer is unknown, never an assertion that protection is off.
+        incomplete(findings, "firewall", "تعذّر تأكيد تشغيل الجدار الناري | Could not confirm the firewall is running")
     result["open_ports"] = listeners(findings)
     result["processes"] = running_from_temp(findings)
     result["persistence"] = persistence(findings)
@@ -503,6 +577,9 @@ def hardware_section(findings):
     try:
         plan = json.loads(out) if out else {}
     except ValueError:
+        plan = {}
+    if not isinstance(plan, dict) or not plan:
+        incomplete(findings, "hardware", "تعذّر فحص الأجهزة والتعريفات | Could not check devices and drivers")
         plan = {}
     for action in plan.get("actions") or []:
         findings.append(finding(
@@ -541,11 +618,19 @@ def scan():
             report[name] = section(findings)
         except Exception as error:  # one broken probe must never hide the others
             report[name] = {"error": f"{type(error).__name__}: {error}"}
-    findings.sort(key=lambda item: SEVERITIES.index(item["severity"]))
+            incomplete(findings, name, SECTION_LABELS[name])
+    # Real findings first within a severity: "could not look" must never push a real warning out
+    # of the eight rows Mo AI shows and hands to the brain.
+    findings.sort(key=lambda item: (SEVERITIES.index(item["severity"]), is_incomplete(item)))
     counts = {severity: sum(1 for item in findings if item["severity"] == severity)
               for severity in SEVERITIES}
     report["summary"] = {
-        "status": "action-needed" if counts["important"] else "attention" if counts["warning"] else "ok",
+        # A real warning keeps "attention" and its counts on screen; "incomplete" only ever takes
+        # the place of "ok", so an unanswered probe can never read as all clear.
+        "status": ("action-needed" if counts["important"]
+                   else "attention" if real_warnings(findings)
+                   else "incomplete" if any(is_incomplete(item) for item in findings)
+                   else "ok"),
         "counts": counts,
         "app_updates": len((report.get("updates") or {}).get("apps") or []),
         "system_update_staged": bool((report.get("system") or {}).get("staged")),
@@ -576,25 +661,29 @@ def session_is_arabic():
 def notify(report):
     summary = report["summary"]
     counts = summary["counts"]
-    worth = counts["important"] or counts["warning"] or summary["app_updates"] \
+    # A probe that could not answer is nothing to act on: it never notifies on its own, is not
+    # counted as a warning, and does not change the fingerprint of what was already notified.
+    warnings = real_warnings(report["findings"])
+    worth = counts["important"] or warnings or summary["app_updates"] \
         or summary["system_update_staged"]
     if not worth:
         return False
     fingerprint = hashlib.sha256(json.dumps(
-        [report["generated_at"][:10], sorted(item["id"] for item in report["findings"])]
+        [report["generated_at"][:10],
+         sorted(item["id"] for item in report["findings"] if not is_incomplete(item))]
     ).encode()).hexdigest()
     marker = STATE / "notified"
     if read_text(marker).strip() == fingerprint:
         return False
     if session_is_arabic():
         title = "Mo AI · الفحص اليومي"
-        body = (f"مهم: {counts['important']} · تنبيهات: {counts['warning']} · "
+        body = (f"مهم: {counts['important']} · تنبيهات: {warnings} · "
                 f"تحديثات تطبيقات: {summary['app_updates']}"
                 + (" · تحديث النظام جاهز" if summary["system_update_staged"] else "")
                 + " — افتح Mo AI للتفاصيل.")
     else:
         title = "Mo AI · Daily check"
-        body = (f"Important: {counts['important']} · Warnings: {counts['warning']} · "
+        body = (f"Important: {counts['important']} · Warnings: {warnings} · "
                 f"App updates: {summary['app_updates']}"
                 + (" · System update ready" if summary["system_update_staged"] else "")
                 + " — open Mo AI for details.")
