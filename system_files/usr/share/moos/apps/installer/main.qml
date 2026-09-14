@@ -282,8 +282,11 @@ ApplicationWindow {
     }
     function zoneLabel(z) { return z.replace(/_/g, " ").replace("/", " › ") }
     readonly property bool acctUserValid: /^[a-z_][a-z0-9_-]{0,31}$/.test(win.acctUser)
+    // The owner chooses the password length. Empty is never a password, while a
+    // short password is accepted with an honest recommendation instead of an
+    // arbitrary hard stop. The privileged backend repeats the non-empty check.
     readonly property bool acctValid: win.acctUserValid
-        && win.acctPass.length >= 8 && win.acctPass === win.acctPass2
+        && win.acctPass.length >= 1 && win.acctPass === win.acctPass2
 
     function goNext() { if (win.step < win.stepCount - 1) win.step++ }
     function goBack() { if (win.step > 0) win.step-- }
@@ -418,8 +421,8 @@ ApplicationWindow {
         case "no-image": return win.tr("صورة MoOS غير متوفّرة محلّياً ولا شبكة لجلبها.",
                                        "The MoOS image isn't available locally and there's no network to fetch it.")
         case "password-required":
-            return win.tr("أنشئ كلمة سر من 8 محارف على الأقل قبل بدء التثبيت.",
-                          "Create a password with at least 8 characters before installing.")
+            return win.tr("أنشئ كلمة سر قبل بدء التثبيت.",
+                          "Create a password before installing.")
         case "hash-failed":
             return win.tr("تعذّر تأمين كلمة السر. لم نبدأ التثبيت حفاظاً على حسابك.",
                           "Couldn't secure the password. Installation did not start, to protect your account.")
@@ -1550,8 +1553,9 @@ ApplicationWindow {
                             }
                             Text {
                                 visible: win.acctPass !== "" && win.acctPass.length < 8
-                                text: win.tr("استخدم 8 محارف على الأقل.", "Use at least 8 characters.")
-                                color: win.danger
+                                text: win.tr("مسموح، لكن كلمة أطول تكون أكثر أماناً.",
+                                             "Allowed, but a longer password is safer.")
+                                color: win.txt2
                                 font.family: win.uiFont; font.pixelSize: win.typePx(11)
                                 Layout.topMargin: 4
                             }

@@ -5934,8 +5934,8 @@ require("flock -n 9" in _i2d,
         "moos-install-to-disk must hold an flock so a re-fired begin cannot double-wipe")
 require('fail "hash-failed"' in _i2d,
         "a chosen password that cannot be hashed must fail, not become passwordless")
-require('fail "password-required"' in _i2d and '${#R_PASS}' in _i2d,
-        "moos-install-to-disk must reject a missing/short password in the privileged backend")
+require('fail "password-required"' in _i2d and '[ "${#R_PASS}" -ge 1 ]' in _i2d,
+        "moos-install-to-disk must reject an empty password in the privileged backend")
 require('fail "seed-failed"' in _i2d,
         "the installer must not report success when the target account recipe could not be saved")
 require("/usr/lib/systemd/systemd-update-done --root=" in _i2d
@@ -5988,8 +5988,10 @@ for _part_guid in (
     require(_part_guid in _i2d,
             f"the external bootc filesystem layout is missing partition type {_part_guid}")
 _iqml = read("system_files/usr/share/moos/apps/installer/main.qml")
-require("acctPass.length >= 8" in _iqml,
-        "the account page must require a password")
+require("acctPass.length >= 1" in _iqml,
+        "the account page must require a non-empty password")
+require("acctPass.length < 8" in _iqml and "a longer password is safer" in _iqml,
+        "the account page must warn honestly, without blocking an owner-chosen short password")
 require("acctAutologin" not in _iqml and "autologin:" not in _iqml.lower(),
         "the installer must not expose or write an automatic-sign-in choice")
 require("AUTOLOGIN=" not in _i2d,

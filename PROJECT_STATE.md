@@ -5,21 +5,13 @@ rejected approaches and completed incident narratives.
 
 ## Source state
 
-- Date measured: 2026-09-13.
-- Integration: [PR #92](https://github.com/moalfarras-sys/moos-image/pull/92),
-  first-install repairs and repository cleanup; follow-up review also fixes
-  legacy Baloo ownership and makes the engineering workflow reproducible.
-- GitHub authentication and branch publishing work from the host. Thirteen
+- Date measured: 2026-09-14.
+- [PR #92](https://github.com/moalfarras-sys/moos-image/pull/92) is merged into
+  `main` as `b6a72ad2`. Its exact source revision `1d92082f` was signed, booted
+  and promoted by release run 34807542252.
+- GitHub authentication and branch publishing work from the host. Fourteen
   historical remote branches were deleted after fresh ancestry checks proved
   every tip was already contained in `main`; their commits remain in history.
-- `main` still represents the previous accepted release. The new source must
-  complete the candidate/boot-proof contract before release integration.
-- Latest retained local test image:
-  `localhost/moos-nvidia:latest`, image ID `8d325f56369b`.
-- Current visual/sound source evidence was built locally at
-  `0bdb289ef3960a507a57dc5aa77178929890e9f1`: the new NVIDIA image is
-  `localhost/moos-nvidia:latest` image ID `759d74be1989`. It remains unsigned
-  local evidence only; it must never become this workstation's deployment.
 
 ## Physical development machine
 
@@ -35,11 +27,21 @@ rejected approaches and completed incident narratives.
 | Audio | PipeWire devices enumerated; Bluetooth powered; full playback/call matrix open |
 | Firmware | Inventory completed; no update offered |
 | Failed units | Zero system and user units |
-| Storage after build/SDK setup | 62 GiB used of 477 GiB; 413 GiB available on `/var` |
+| Storage during the Remote image build | 73 GiB used of 477 GiB; 403 GiB available on `/var` |
 
 The machine boots signed `moos-nvidia` version `44.20260913.819`, resolved
 digest `sha256:c7c58ab993345b1ce2eba7e08e903bb715f4957902fec9d4a93b1e959e4beb15`.
 A signed generic deployment is retained for rollback.
+The promoted NVIDIA release `44.20260913.824`, digest
+`sha256:76861a3b7cc8b9d8fb61d9506ed26183b4035fae67d3e9d683bc7baadaa92d3a`,
+is staged for the next boot. Staging is not runtime proof; the machine still
+runs the older deployment until reboot.
+A root-owned local administrator override at
+`/etc/plasmalogin.conf.d/90-moos-development-autologin.conf` enables one-session
+automatic login for user `moos` while this dedicated development cycle runs.
+It is not in the repository/image and sets `Relogin=false`. Remove it with
+`pkexec rm /etc/plasmalogin.conf.d/90-moos-development-autologin.conf` when the
+owner ends development; normal MoOS releases continue to require login.
 
 Current host versions:
 
@@ -83,18 +85,10 @@ content. A source Arabic/English QML frame was reviewed on the installed
 Wayland/Qt stack. KDE login/logout/notification playback and custom mute need a
 signed upgraded-session proof; decoding/mapping alone does not prove delivery.
 
-PR checks at `55898f85` passed the repository gates, MoRemote checks and ARM
-image build. ARM signing/disk/boot/promotion were skipped on the PR. The Claude
-advisory action failed inside a green job; it provided no completed code review.
-Direct independent source review found the Baloo edge fixed below.
-The follow-up advisory run skipped execution because its workflow differed
-from `main`, while returning success. Its summary now explicitly treats success
-as unverified until actual review findings/logs establish completion.
-
-Candidate run [34767888628](https://github.com/moalfarras-sys/moos-image/actions/runs/34767888628)
-successfully built and signed all three x86 editions at the earlier `55898f85`
-revision. Its outputs cannot prove later changes.
-A new exact revision and artifact proofs are required for release acceptance.
+Candidate run 34785063649 signed all three x86 editions at `1d92082f`.
+Generic, NVIDIA and cloud QCOW2 boot/reboot proofs (34786215189, 34786216334,
+34786218085) and the live/offline-install/installed-second-boot ISO proof
+(34786220039) succeeded. Promotion 34807542252 moved only those proven digests.
 
 ## Fixed in the current branch
 
@@ -117,8 +111,21 @@ A new exact revision and artifact proofs are required for release acceptance.
    one task queue. `tests/test_repository_hygiene.py` rejects retired paths,
    broken Markdown links and a new state-file diary. Current deterministic
    sources, runtime assets and test-consumed review sheets remain.
+7. Mo PC Remote's broken touch was reproduced on the physical Wayland desktop:
+   its portal retained 1280×720 after the desktop changed to 1536×864, so a
+   requested center landed at 639×359 rather than 768×432. The current branch
+   observes native Wayland monitor geometry and renews the combined portal grant
+   on scale, size, position, rotation or hotplug changes. A live 225%→250% test
+   renewed twice and exact quarter/center/three-quarter injection then landed at
+   384×216, 768×432 and 1151×647. Seven isolated regressions and the real
+   Chromium mobile-input suite pass.
+8. The offline installer now requires a non-empty password but does not impose
+   an eight-character minimum. It visibly recommends a longer password while
+   leaving length to the owner; hashing, confirmation and password-protected
+   login remain mandatory.
 
-`moos-selfcheck` reports 50 passed, zero broken, six notes: cloud key setup,
+The pre-update `moos-selfcheck` reports 50 passed, zero broken, seven notes:
+cloud key setup,
 two omitted tray controls and four retired local-brain units still present in
 the installed release but masked. Source fixes are not yet installed fixes.
 
@@ -169,8 +176,8 @@ portals. Full light/dark and scaled desktop review remain open.
   disposable VM.
 - Laptop power/lid/brightness, touch/tablet, camera, broad Bluetooth/audio and
   diverse Wi-Fi hardware are not qualified.
-- ARM and cloud editions require fresh exact-commit boot proofs after this
-  branch lands.
+- ARM remains separately unqualified for this x86 release. The cloud x86 exact
+  digest passed its QCOW2 boot/reboot proof; provider chat acceptance is still open.
 - The local image is unsigned test evidence. It must not replace the signed
   installed deployment or be described as a release.
 - The live `plasmawindowed` source-applet process stayed healthy but did not
@@ -180,7 +187,7 @@ portals. Full light/dark and scaled desktop review remain open.
 
 ## Next task
 
-Complete `P0.1` in [`docs/DEVELOPMENT_PLAN.md`](docs/DEVELOPMENT_PLAN.md):
-publish the reviewed fixes as one revision, build signed candidates, then run
-`P0.2` exact-digest disk and offline-ISO proofs. Merge/promotion and the physical
-update must follow the evidence; free cloud chat still needs a provider key.
+Complete `P0.6`: reboot into the staged signed NVIDIA digest and run the full
+post-update/runtime checks. In parallel, finish the current Remote geometry and
+installer-password branch through local image proof, review and a new signed
+candidate; free cloud chat still needs a valid approved provider key.

@@ -182,6 +182,7 @@ check:
     python3 tests/test_remote_resolution_ceiling.py
     python3 tests/test_remote_h264_fallback.py
     python3 tests/test_remote_video_health.py
+    python3 tests/test_remote_display_geometry.py
     python3 tests/test_remote_h264_single_slice.py
     # The SECOND reason iOS refused the stream: no format caps meant the encoder took
     # pipewiresrc's BGRx as 4:4:4 and shipped High 4:4:4 Predictive (profile_idc 244),

@@ -113,7 +113,7 @@ R_KEYMAP="${_RF[4]}"; R_XKB="${_RF[5]}"; R_LOCALE="${_RF[6]}"; R_TZ="${_RF[7]}"
 # Hash the password now (stdin, never argv) so the plaintext can be discarded with
 # the recipe immediately after — nothing plaintext survives the long install.
 PASS_HASH=""
-[ "${#R_PASS}" -ge 8 ] || { R_PASS=""; wipe_recipe; fail "password-required"; }
+[ "${#R_PASS}" -ge 1 ] || { R_PASS=""; wipe_recipe; fail "password-required"; }
 command -v mkpasswd >/dev/null 2>&1 && PASS_HASH="$(printf '%s' "$R_PASS" | mkpasswd -m yescrypt -s 2>/dev/null)"
 [ -z "$PASS_HASH" ] && command -v openssl >/dev/null 2>&1 && PASS_HASH="$(printf '%s' "$R_PASS" | openssl passwd -6 -stdin 2>/dev/null)"
 # A required password that cannot be hashed must fail loudly. There is no

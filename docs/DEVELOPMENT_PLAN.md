@@ -26,11 +26,13 @@ KDE/Wayland, make cloud AI truthful, and deliver the same result in signed ISOs.
 Repository cleanup and engineering instructions support that work; screenshots,
 old plans and extra packages are not product progress.
 
-**Active slice: P2.7, at the owner's explicit request.** The existing dock
-feedback, clock input and native sound source/image work is locally complete;
-freeze a new signed P0.1 candidate next. P0 acceptance remains open; no earlier
-candidate proves this slice.
-Do not launch several competing release candidates while its source is moving.
+**Active slice: P5.8 Remote input recovery, at the owner's explicit request.**
+The P2.7 Horizon feedback, clock input and native sound source was released in
+the boot-proven x86 revision `1d92082f`; its physical post-update sound/input
+readback remains part of P0.6. A reproduced Remote defect showed that a portal
+grant kept its old 1280×720 coordinate space after the desktop became
+1536×864. The current slice renews the combined capture/input grant on a real
+Wayland display-geometry change. Keep this fix in its own new candidate.
 
 | Requested outcome | Work stream | What must actually be proven |
 | --- | --- | --- |
@@ -138,17 +140,17 @@ revision and all required editions/artifacts prove that revision.
 
 | ID | Status | Task | Exit evidence |
 | --- | --- | --- | --- |
-| P0.1 | **In progress** | Integrate the reviewed first-install repairs and create one candidate revision | PR #92 published; direct review found/fixed legacy Baloo ownership; final signed candidate digests still required |
-| P0.2 | Open | Run generic, NVIDIA and cloud QCOW2 proofs plus offline ISO install/second boot | manifests and runtime logs name the exact P0.1 digests |
+| P0.1 | Complete | Integrate the reviewed first-install repairs and create one candidate revision | PR #92 merged as `b6a72ad2`; signed candidate revision `1d92082f`, build run 34785063649 |
+| P0.2 | Complete | Run generic, NVIDIA and cloud QCOW2 proofs plus offline ISO install/second boot | QCOW2 runs 34786215189/34786216334/34786218085 and offline ISO run 34786220039 succeeded on the exact candidate |
 | P0.3 | Open | Finish physical NVIDIA qualification | Plymouth/login photos; two suspend cycles; audio/network recovery; second monitor; clean journal |
 | P0.4 | Open | Prove failed-update recovery | disposable VM bad-candidate rollback, then hardware rollback/roll-forward with user data intact |
 | P0.5 | Open | Configure and accept free Mo AI on a clean account | valid OpenRouter key entered through Settings; Arabic/English reply; reboot persistence; provider failure UI |
-| P0.6 | Open | Promote only the proven digests and update the physical PC | signed origin, exact version/digest, zero failed units, full post-update check |
+| P0.6 | **In progress** | Promote only the proven digests and update the physical PC | promotion 34807542252 succeeded; NVIDIA digest `76861a3b…` is staged; reboot/readback and full post-update check remain |
 
 Repository cleanup is complete: retired plans/evidence/assets were removed,
-and all 13 historical remote branches were proven ancestors of `main` before
-deleting their refs. PR #92 is the remaining integration. Its earlier green
-Claude job did not complete review; never count that job as review evidence.
+and all 14 historical remote branches were proven ancestors of `main` before
+deleting their refs. PR #92 is merged. Its earlier green Claude job did not
+complete review; never count that job as review evidence.
 
 The engineering-instructions slice now distinguishes source, live workstation,
 container and signed-artifact evidence; it includes a host/Flatpak preflight and

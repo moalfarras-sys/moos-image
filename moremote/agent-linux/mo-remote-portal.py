@@ -103,6 +103,82 @@ def save_token(token):
         emit(type="warn", warn=f"could not persist restore token: {e}")
 
 
+class DisplayGeometryWatch:
+    """Invalidate a portal grant whose coordinate space has become stale.
+
+    Start's stream size is a snapshot. KWin may keep that stream alive after a
+    resolution/scale change, but still inject into the new desktop. Do not patch
+    logical_w from video pixels: the portal validates against its ORIGINAL size.
+    Recreate the combined grant instead, so capture and input agree again.
+    GDK uses the existing GLib loop; there is no polling process or extra window.
+    """
+    def __init__(self, display, schedule, changed):
+        self.display = display
+        self.schedule = schedule
+        self.changed = changed
+        self.pending = False
+        self.invalid = False
+        self.baseline = self.snapshot()
+        for i in range(display.get_n_monitors()):
+            self.watch(display.get_monitor(i))
+        display.connect("monitor-added", self.added)
+        display.connect("monitor-removed", self.queue)
+        display.connect("closed", self.closed)
+
+    def snapshot(self):
+        result = []
+        for i in range(self.display.get_n_monitors()):
+            monitor = self.display.get_monitor(i)
+            rect = monitor.get_geometry()
+            result.append((monitor, rect.x, rect.y, rect.width, rect.height,
+                           monitor.get_scale_factor()))
+        return tuple(result)
+
+    def watch(self, monitor):
+        monitor.connect("notify::geometry", self.queue)
+        monitor.connect("notify::scale-factor", self.queue)
+
+    def added(self, _display, monitor):
+        self.watch(monitor)
+        self.queue()
+
+    def queue(self, *_args):
+        if not self.pending and not self.invalid:
+            self.pending = True
+            self.schedule(self.check)
+
+    def check(self):
+        self.pending = False
+        if not self.invalid and self.snapshot() != self.baseline:
+            self.invalidate()
+        return False
+
+    def invalidate(self):
+        if not self.invalid:
+            self.invalid = True
+            self.changed()
+
+    def closed(self, *_args):
+        self.invalidate()
+
+
+def watch_display_geometry():
+    # This helper is Wayland-only. An inherited X11 backend would observe the
+    # XWayland coordinate emulation instead of the compositor's real outputs.
+    os.environ["GDK_BACKEND"] = "wayland"
+    gi.require_version("Gdk", "3.0")
+    from gi.repository import Gdk
+    display = Gdk.Display.get_default()
+    if display is None:
+        die(EXIT_LOST, "cannot observe Wayland display geometry")
+    return DisplayGeometryWatch(display, GLib.idle_add,
+        lambda: die(EXIT_LOST, "display geometry changed; renewing capture and input grant"))
+
+
+# Observe BEFORE Start, including changes while its permission picker is open.
+display_watch = watch_display_geometry()
+
+
 # ---------------------------------------------------------------- portal session
 try:
     tok = "moremote_" + uuid.uuid4().hex
