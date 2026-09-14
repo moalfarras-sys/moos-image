@@ -1,14 +1,14 @@
 # MoOS current state
 
-This file contains current measured facts only. Git history owns old sessions,
-rejected approaches and completed incident narratives.
+Current measured facts only; Git owns history.
 
 ## Source state
 
 - Date measured: 2026-09-14.
-- [PR #92](https://github.com/moalfarras-sys/moos-image/pull/92) is merged into
-  `main` as `b6a72ad2`. Its exact source revision `1d92082f` was signed, booted
-  and promoted by release run 34807542252.
+- PR #93 is merged as `225e29f3`; Remote geometry source `64f0e76b` passed
+  signed build 34810522899 and all three QCOW2 boot/reboot proofs. ISO run
+  34811868497 installed offline, booted and opened/closed/reopened ten apps,
+  but timed out waiting for the second boot ID. It was not promoted.
 - GitHub authentication and branch publishing work from the host. Fourteen
   historical remote branches were deleted after fresh ancestry checks proved
   every tip was already contained in `main`; their commits remain in history.
@@ -29,13 +29,10 @@ rejected approaches and completed incident narratives.
 | Failed units | Zero system and user units |
 | Storage during the Remote image build | 73 GiB used of 477 GiB; 403 GiB available on `/var` |
 
-The machine boots signed `moos-nvidia` version `44.20260913.819`, resolved
-digest `sha256:c7c58ab993345b1ce2eba7e08e903bb715f4957902fec9d4a93b1e959e4beb15`.
-A signed generic deployment is retained for rollback.
-The promoted NVIDIA release `44.20260913.824`, digest
+The machine now boots signed `moos-nvidia` version `44.20260913.824`, digest
 `sha256:76861a3b7cc8b9d8fb61d9506ed26183b4035fae67d3e9d683bc7baadaa92d3a`,
-is staged for the next boot. Staging is not runtime proof; the machine still
-runs the older deployment until reboot.
+with signed NVIDIA `44.20260913.819` retained for rollback. Boot measured
+35.993 seconds, including 8.640 seconds userspace. Both failed-unit lists are empty.
 A root-owned local administrator override at
 `/etc/plasmalogin.conf.d/90-moos-development-autologin.conf` enables one-session
 automatic login for user `moos` while this dedicated development cycle runs.
@@ -152,6 +149,16 @@ the installed release but masked. Source fixes are not yet installed fixes.
 
 ## Visual review
 
+Current Horizon work uses revision 57: larger time beside readable day/date,
+a visible 40px search target in the existing launcher, and a smaller media island
+with larger cover artwork. Real 4K/250% Arabic desktop captures prove rendering
+and a portal-injected click opened the launcher. Source applets are temporarily
+previewed with KPackage under the user's local Plasma directory; remove the
+three preview packages (brand, clock, island) before release handoff.
+KWin readback proves Arabic-first `ara,de`, with exactly two layouts. Source
+defaults, installer and scoped stock-profile migration now agree. The VT uses
+the German physical map because Arabic XKB has no matching console keymap.
+
 The source Settings harness ran on the installed Wayland/Qt stack at 250%.
 Arabic 1400×760 logical frames showed coherent RTL and active Aurora colours.
 An English run exposed stale input status: navigation passed while real actions
@@ -165,10 +172,9 @@ portals. Full light/dark and scaled desktop review remain open.
 
 ## Known open gaps
 
-- Mo AI free cloud: the current OpenRouter route has no OpenRouter API key and
-  therefore returns HTTP 503. The previously entered Zen key reached Zen, but
-  Zen returned HTTP 401 because that provider requires billing. No secret is
-  stored in the repository.
+- Mo AI free cloud now returned both `OK` and Arabic `جاهز` through the live
+  gateway, including `moai.agent=true`, using `nex-agi/nex-n2.5-pro:free` with
+  reported cost zero. This proves replies, not unrestricted agent tool execution.
 - NVIDIA acceptance still needs photographed Plymouth/login evidence,
   suspend/resume twice, multi-monitor coverage and deliberate rollback then
   roll-forward on hardware.
@@ -186,8 +192,8 @@ portals. Full light/dark and scaled desktop review remain open.
   booted candidate desktop remains required visual evidence.
 
 ## Next task
-
-Complete `P0.6`: reboot into the staged signed NVIDIA digest and run the full
-post-update/runtime checks. In parallel, finish the current Remote geometry and
-installer-password branch through local image proof, review and a new signed
-candidate; free cloud chat still needs a valid approved provider key.
+Finish the visible Horizon slice through local image build and a new signed
+candidate. Re-run ISO proof with independent SSH boot-ID observation and QGA
+stream synchronisation; preserve both checks. Current post-update check reports
+52 passes and three expected development differences: two old-image/new-layout
+comparisons and the temporary launcher preview. Full release acceptance remains open.

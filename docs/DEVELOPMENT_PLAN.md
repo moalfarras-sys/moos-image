@@ -26,13 +26,17 @@ KDE/Wayland, make cloud AI truthful, and deliver the same result in signed ISOs.
 Repository cleanup and engineering instructions support that work; screenshots,
 old plans and extra packages are not product progress.
 
-**Active slice: P5.8 Remote input recovery, at the owner's explicit request.**
+**Active slice: P2.7 visible Horizon UI and P2.3 Arabic-first keyboard.**
+Owner requested observable desktop changes: readable time/date, visible search,
+compact media island and exactly Arabic/German layouts. Live source review is
+in progress; signed image delivery and complete visual matrix remain required.
 The P2.7 Horizon feedback, clock input and native sound source was released in
 the boot-proven x86 revision `1d92082f`; its physical post-update sound/input
 readback remains part of P0.6. A reproduced Remote defect showed that a portal
 grant kept its old 1280×720 coordinate space after the desktop became
 1536×864. The current slice renews the combined capture/input grant on a real
-Wayland display-geometry change. Keep this fix in its own new candidate.
+Wayland display-geometry change. PR #93 is merged; its ISO second-boot proof
+failed, so the next candidate must include the fix and repeat every release proof.
 
 | Requested outcome | Work stream | What must actually be proven |
 | --- | --- | --- |

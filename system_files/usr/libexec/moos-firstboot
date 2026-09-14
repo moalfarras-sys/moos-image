@@ -33,7 +33,7 @@ USERNAME="moos"; FULLNAME="MoOS User"; PASSWORD_HASH=""
 # replaces it, and the machine then fails moos-selfcheck's keyboard check on first boot
 # having been touched by nobody. It said de,ara, which is the layout the 2026-07-22 image
 # moved away from.
-TIMEZONE=""; KEYMAP="de"; XKBLAYOUT="de,us,ara"; LOCALE=""
+TIMEZONE=""; KEYMAP="de"; XKBLAYOUT="ara,de"; LOCALE=""
 
 if [ ! -r "$CONF" ]; then
     # bootc-image-builder/Anaconda may provision an account themselves. In that
