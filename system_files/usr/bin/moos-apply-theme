@@ -206,7 +206,7 @@ set -uo pipefail
 #     locale, and debounces Plasma's RTL MonthView geometry bug. The tray also
 #     adopts the compact supported spacing preset. Purge frozen QML and apply
 #     both changes to every existing profile.
-THEME_REV=56
+THEME_REV=57
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

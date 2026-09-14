@@ -54,7 +54,7 @@ PlasmoidItem {
         return Math.max(0, Math.min(1, minutes / 1440));
     }
     readonly property string compactDate: {
-        const pattern = root.rtl ? "ddd، d MMM" : "ddd · d MMM";
+        const pattern = "d MMM";
         const localized = root.latinNumerals(
             root.displayLocale.toString(root.now, pattern));
         return root.rtl ? localized : localized.toUpperCase();
@@ -178,13 +178,13 @@ PlasmoidItem {
         RowLayout {
             id: statusRow
             anchors.centerIn: parent
-            spacing: Kirigami.Units.largeSpacing
+            spacing: Kirigami.Units.smallSpacing * 2
             // Plasma mirrors the whole compact representation for RTL. Do not
             // mirror this row a second time.
 
             Rectangle {
-                Layout.preferredWidth: Math.max(2, root.design.borderHairline * 2)
-                Layout.preferredHeight: Math.round(Kirigami.Units.gridUnit * 1.38)
+                Layout.preferredWidth: 3
+                Layout.preferredHeight: 28
                 Layout.alignment: Qt.AlignVCenter
                 radius: width
                 gradient: Gradient {
@@ -198,9 +198,9 @@ PlasmoidItem {
                 Behavior on opacity { NumberAnimation { duration: root.motionFast } }
             }
 
-            ColumnLayout {
+            RowLayout {
                 id: clockColumn
-                spacing: -Math.round(Kirigami.Units.smallSpacing * 0.45)
+                spacing: Kirigami.Units.smallSpacing * 2
 
                 Text {
                     id: timeLabel
@@ -208,8 +208,8 @@ PlasmoidItem {
                     text: Qt.formatTime(root.now, "HH:mm")
                     color: Kirigami.Theme.textColor
                     font.family: "IBM Plex Sans"
-                    font.pixelSize: Math.max(13, Kirigami.Units.gridUnit * 0.82)
-                    font.weight: Font.DemiBold
+                    font.pixelSize: 21
+                    font.weight: Font.Medium
                     font.features: ({ "tnum": 1 })
                     transform: Translate { id: minuteShift }
                     onTextChanged: minuteTurn.restart()
@@ -233,11 +233,12 @@ PlasmoidItem {
                 Text {
                     id: dateLabel
                     Layout.alignment: Qt.AlignHCenter
-                    text: root.compactDate
+                    text: root.displayLocale.toString(root.now, "ddd") + "\n" + root.compactDate
+                    horizontalAlignment: Text.AlignHCenter
                     color: Kirigami.Theme.textColor
                     opacity: root.design.mutedOpacity
                     font.family: root.rtl ? "IBM Plex Sans Arabic" : "IBM Plex Sans"
-                    font.pixelSize: Math.max(8, Kirigami.Units.gridUnit * 0.47)
+                    font.pixelSize: 11
                     font.weight: Font.Medium
                     font.letterSpacing: root.rtl ? 0 : 0.55
                 }
@@ -247,6 +248,7 @@ PlasmoidItem {
                 // inside the column also keeps every anchor within its legal
                 // parent/sibling scope when Plasma constructs the applet.
                 Rectangle {
+                    visible: false
                     Layout.fillWidth: true
                     Layout.preferredHeight: Math.max(1, root.design.borderHairline)
                     Layout.topMargin: Math.round(Kirigami.Units.smallSpacing * 0.22)

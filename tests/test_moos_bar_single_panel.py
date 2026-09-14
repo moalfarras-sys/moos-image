@@ -120,9 +120,9 @@ class SinglePanelMerge(unittest.TestCase):
         self.assertNotIn("[Containments][430]", merged,
                          "the absorbed panel must be gone, not emptied")
         self.assertEqual(self.order_of(merged, "398"),
-                         ["424", "425", "400", "401", "402", "421"],
+                         ["424", "425", "431", "400", "401", "402", "421"],
                          "applets must land in moos-bar.conf order: "
-                         "brand, island, tasks, separator, tray, clock")
+                         "brand, island, search, tasks, separator, tray, clock")
         for aid in ("401", "402", "421"):
             self.assertIn(f"[Containments][398][Applets][{aid}]", merged,
                           f"applet {aid} must be re-homed, never dropped")
@@ -193,7 +193,7 @@ class SinglePanelMerge(unittest.TestCase):
         self.assertEqual(verdict, "merged")
         self.assertEqual(self.bottom_panels(merged), ["20"],
                          "the panel holding the MoOS launcher is the one that survives")
-        self.assertEqual(self.order_of(merged, "20"), ["22", "32", "21", "11", "31"])
+        self.assertEqual(self.order_of(merged, "20"), ["22", "32", "33", "21", "11", "31"])
 
     def test_a_locked_desktop_is_handed_back_to_its_owner(self) -> None:
         """immutability=1 is Plasma's "Widgets are locked".
@@ -257,7 +257,7 @@ class SingleSourceAgreement(unittest.TestCase):
                              f"{retired} is the retired two-slab definition")
         for key in ("lengthMode=fit", "alignment=center", "floating=true"):
             self.assertIn(key, conf, "the capsule geometry lives in the conf")
-        self.assertIn("applets=brand;island;tasks;separator;tray;clock", conf,
+        self.assertIn("applets=brand;island;search;tasks;separator;tray;clock", conf,
                       "one order, mirrored by Plasma for RTL")
 
     def test_the_seed_template_creates_exactly_one_panel(self) -> None:

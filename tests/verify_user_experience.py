@@ -2651,7 +2651,7 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=56" in apply_theme_code,
+require("THEME_REV=57" in apply_theme_code,
         "MoOS visual schema must migrate existing users to the cardless centred "
         "Horizon Hub, responsive clock popup, authenticated Remote presence, "
         "single-owner launcher activation, the keyboard-navigable Launcher "
@@ -3119,12 +3119,12 @@ require(ui_migrate.index("gst-registry-") < ui_migrate.index('[ -e "$marker" ] &
         "the GStreamer registry drop must run BEFORE the once-per-revision marker gate; "
         "an apply-once marker cannot notice that the machine booted a different image")
 require("migrate_legacy_keyboard()" in ui_migrate
-        and "keyboard-layout-v2.done" in ui_migrate
-        and "LayoutList=de,ara" in ui_migrate
-        and 'LayoutList "de,us,ara"' in ui_migrate
-        and 'VariantList ",,"' in ui_migrate
-        and 'DisplayNames "DE,EN,ع"' in ui_migrate,
-        "the exact previous de,ara keyboard shadow must migrate to de,us,ara")
+        and "keyboard-layout-v3.done" in ui_migrate
+        and "LayoutList=(de,ara|de,us,ara)" in ui_migrate
+        and 'LayoutList "ara,de"' in ui_migrate
+        and 'VariantList ","' in ui_migrate
+        and 'DisplayNames "ع,DE"' in ui_migrate,
+        "stock legacy keyboard shadows must migrate to Arabic-first ara,de")
 require(ui_migrate.index("migrate_legacy_keyboard") <
         ui_migrate.index('[ -e "$marker" ] && exit 0'),
         "the keyboard shadow repair needs its own marker and must run before "
@@ -5010,7 +5010,7 @@ require("org.moos.island" not in _extra_line,
         "the tray's extraItems")
 _bar_applets_line = next((l for l in _bar_conf_code.splitlines()
                           if l.startswith("applets=")), "")
-require(_bar_applets_line == "applets=brand;island;tasks;separator;tray;clock",
+require(_bar_applets_line == "applets=brand;island;search;tasks;separator;tray;clock",
         "the single-capsule order must be launcher, adaptive island, tasks, "
         "separator, tray and clock")
 for _inner in (*_tray_shown, "org.kde.plasma.bluetooth",
@@ -5449,9 +5449,9 @@ require(f'Option "XkbLayout" "{layout_list}"' in xorg_kbd,
         f"00-keyboard.conf must ship XkbLayout \"{layout_list}\" — the same list "
         "kxkbrc declares, because KWin compiles what locale1 answers")
 vconsole = code(read("system_files/etc/vconsole.conf"), "hash")
-first_layout = layout_list.split(",")[0]
+first_layout = next(layout for layout in layout_list.split(",") if layout != "ara")
 require(f"KEYMAP={first_layout}" in vconsole,
-        f"vconsole.conf must ship KEYMAP={first_layout} (the primary kxkbrc layout, "
+        f"vconsole.conf must ship KEYMAP={first_layout} (the first VT-supported layout, "
         "same derivation the installer uses)")
 
 # KWin owns Num Lock on Wayland. Its kcminputrc enum is 0=on, 1=off,

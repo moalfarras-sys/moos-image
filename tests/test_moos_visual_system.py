@@ -497,7 +497,8 @@ class MoOSVisualSystemTests(unittest.TestCase):
         self.assertIn(
             'displayLocale: rtl ? Qt.locale("ar") : Qt.locale("en_US")', qml
         )
-        self.assertIn('const pattern = root.rtl ? "ddd، d MMM" : "ddd · d MMM"', qml)
+        self.assertIn('const pattern = "d MMM"', qml)
+        self.assertIn('root.displayLocale.toString(root.now, "ddd") + "\\n" + root.compactDate', qml)
         self.assertIn("readonly property string compactDate:", qml)
         # The pattern must go through Locale.toString. This test used to assert
         # `Qt.formatDate(now, locale, "ddd d MMM")`, which LOOKS like it applies

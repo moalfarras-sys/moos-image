@@ -211,7 +211,9 @@ ApplicationWindow {
     // comma, so the primary layout is all there is to send. xkb layout codes and console
     // keymap names coincide for what MoOS ships (de, us, both in `localectl list-keymaps`);
     // a layout whose console keymap has a different name would need a mapping here.
-    function keymapForLang() { return win.xkbForLang().split(",")[0] }
+    // Linux VT has no matching Arabic XKB map. Use the German physical layout
+    // for recovery/password entry; the graphical session starts in Arabic.
+    function keymapForLang() { return win.xkbForLang().split(",").filter(layout => layout !== "ara")[0] }
     // THE LAYOUT THE IMAGE ITSELF SHIPS — do not invent a different one here.
     //
     // /etc/xdg/kxkbrc and /etc/X11/xorg.conf.d/00-keyboard.conf both say `de,us,ara`, and
@@ -226,7 +228,7 @@ ApplicationWindow {
     // a per-session choice the user makes with the layout switcher; which ones are AVAILABLE
     // is a property of the image, and the installer's job is to match it, not to fork it.
     // The console keymap is still derived from the primary entry above, so it stays `de`.
-    function xkbForLang()    { return "de,us,ara" }
+    function xkbForLang()    { return "ara,de" }
     function localeForLang() { return win.lang === "ar" ? "ar_SA.UTF-8" : "en_US.UTF-8" }
     // A GUESS, and only the zone step's starting selection — never the answer on its own.
     // Language is not location: this project's own owner is an Arabic speaker in Germany, so

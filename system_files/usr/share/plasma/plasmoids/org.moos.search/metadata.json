@@ -1,0 +1,14 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Id": "org.moos.search",
+        "Name": "MoOS Search",
+        "Name[ar]": "بحث MoOS",
+        "Description": "Search applications, files and settings from the Horizon Bar",
+        "Description[ar]": "ابحث في التطبيقات والملفات والإعدادات من شريط Horizon",
+        "Icon": "moos-search-symbolic",
+        "Category": "Utilities",
+        "Version": "1.0"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0"
+}

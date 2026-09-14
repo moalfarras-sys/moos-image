@@ -434,8 +434,8 @@ PlasmoidItem {
     compactRepresentation: Item {
         id: compact
 
-        readonly property real baseWidth: 218 + root.bounded(
-            root.contextTitle.length * 1.65, 24, 88)
+        readonly property real baseWidth: 194 + root.bounded(
+            root.contextTitle.length * 1.35, 24, 64)
         // Reserve exactly the space the player's real capabilities need. A
         // fixed 68 px hover allowance was too small for Previous + Next +
         // Volume (90 px before spacing), so the title compressed first and the
@@ -453,7 +453,7 @@ PlasmoidItem {
             ? Math.round(baseWidth + (compactHover.hovered ? hoverExtra : 0)) : 1
         implicitHeight: root.design.panelHeight
         Layout.preferredWidth: implicitWidth
-        Layout.minimumWidth: root.active ? 242 : 1
+        Layout.minimumWidth: root.active ? 218 : 1
         Layout.maximumWidth: 420
         Layout.fillHeight: true
         opacity: root.active ? 1 : 0
@@ -500,7 +500,7 @@ PlasmoidItem {
             anchors.fill: parent
             anchors.topMargin: root.design.space1
             anchors.bottomMargin: root.design.space1
-            radius: height / 2
+            radius: Math.min(16, height / 2)
             // Density from the family's own palette, not a literal: a
             // true-black OLED profile wants a denser slab than the reference
             // dark, and a light profile wants less body. See MoUI.Tokens.
@@ -609,7 +609,7 @@ PlasmoidItem {
                     // the pill's bottom curve. Sizing from the shell keeps a
                     // real margin at every panel height the bar can take.
                     readonly property int artSize:
-                        Math.round(compactShell.height * 0.7)
+                        Math.round(compactShell.height * 0.78)
                     Layout.preferredWidth: artSize
                     Layout.preferredHeight: artSize
                     // Without this the artwork stretched to the capsule's full

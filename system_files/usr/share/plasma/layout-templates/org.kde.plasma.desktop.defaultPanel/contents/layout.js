@@ -100,6 +100,7 @@ try {
  * pixel into artwork, title/source and transport controls. The applet itself
  * keeps Plasma's Mpris2Model architecture and hides again when media stops. */
 try { panel.addWidget("org.moos.island"); } catch (e) { /* media is optional */ }
+try { panel.addWidget("org.moos.search"); } catch (e) { /* repair retries */ }
 
 /* Icons-Only Task Manager — Mo AI pinned FIRST, then browser, files, Mo PC
  * Remote, System Settings and the terminal.

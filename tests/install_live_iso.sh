@@ -220,6 +220,25 @@ def request(payload, timeout=10.0):
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
         client.settimeout(timeout)
         client.connect(qga)
+        # Resynchronise each connection, including after a guest reboot. A
+        # timed-out prior command can leave bytes on QGA's persistent channel.
+        serial = time.monotonic_ns()
+        sync = {"execute": "guest-sync-delimited", "arguments": {"id": serial}}
+        client.sendall(b"\xff" + json.dumps(sync).encode() + b"\n")
+        pending = b""
+        while True:
+            chunk = client.recv(65536)
+            if not chunk:
+                raise RuntimeError("QGA closed during sync")
+            pending += chunk
+            if b"\xff" not in pending:
+                continue
+            framed = pending.rsplit(b"\xff", 1)[1]
+            if b"\n" not in framed:
+                continue
+            if json.loads(framed.split(b"\n", 1)[0]).get("return") != serial:
+                raise RuntimeError("QGA sync id mismatch")
+            break
         client.sendall(json.dumps(payload, separators=(",", ":")).encode() + b"\n")
         data = b""
         deadline = time.monotonic() + timeout
@@ -517,6 +536,25 @@ def request(payload, timeout=10.0):
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
         client.settimeout(timeout)
         client.connect(qga)
+        # Resynchronise each connection, including after a guest reboot. A
+        # timed-out prior command can leave bytes on QGA's persistent channel.
+        serial = time.monotonic_ns()
+        sync = {"execute": "guest-sync-delimited", "arguments": {"id": serial}}
+        client.sendall(b"\xff" + json.dumps(sync).encode() + b"\n")
+        pending = b""
+        while True:
+            chunk = client.recv(65536)
+            if not chunk:
+                raise RuntimeError("QGA closed during sync")
+            pending += chunk
+            if b"\xff" not in pending:
+                continue
+            framed = pending.rsplit(b"\xff", 1)[1]
+            if b"\n" not in framed:
+                continue
+            if json.loads(framed.split(b"\n", 1)[0]).get("return") != serial:
+                raise RuntimeError("QGA sync id mismatch")
+            break
         client.sendall(json.dumps(payload, separators=(",", ":")).encode() + b"\n")
         data = b""
         deadline = time.monotonic() + timeout
@@ -1261,19 +1299,26 @@ except (OSError, RuntimeError, socket.timeout):
 # The monitor/QEMU process persists across this real guest reboot. Require a new
 # kernel boot_id before accepting QGA again, then rerun the full installed gate.
 deadline = time.monotonic() + 1000
+last_reboot_error = "SSH has not returned after reboot"
 while time.monotonic() < deadline:
     if not alive():
         raise SystemExit("ISO INSTALL FATAL: QEMU exited during installed reboot")
     try:
-        request({"execute": "guest-ping"})
-        code, current, _ = ssh_exec("cat /proc/sys/kernel/random/boot_id", timeout=20)
+        # SSH is the boot-id authority. QGA's stream can retain partial replies
+        # across a reboot; gating SSH behind a ping hid a successful second
+        # kernel boot in run 34811868497. Check both channels independently.
+        code, current, error = ssh_exec("cat /proc/sys/kernel/random/boot_id", timeout=20)
         if code == 0 and current.strip() and current.strip() != boot_id:
             break
-    except (OSError, ValueError, RuntimeError):
-        pass
+        last_reboot_error = error.strip() if code else "kernel boot id unchanged"
+    except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired) as error:
+        last_reboot_error = str(error)
     time.sleep(5)
 else:
-    raise SystemExit("ISO INSTALL FATAL: installed reboot never produced a new boot id")
+    (evidence / "reboot-channel-error.txt").write_text(last_reboot_error + "\n")
+    raise SystemExit(f"ISO INSTALL FATAL: installed reboot never produced a new boot id: {last_reboot_error}")
+
+wait_qga(120)
 
 second = gate_until(runtime, [expected], 900, "installed second boot never became healthy")
 (evidence / "installed-second-boot.txt").write_text(second + "reboot=clean\n")
