@@ -5,6 +5,15 @@ Current measured facts only; Git owns history.
 ## Source state
 
 - Date measured: 2026-09-14.
+- PR #94 is merged as `93b29ad8`: the visible Horizon slice (readable
+  clock, `org.moos.search` bar target, compact media island, Arabic-first
+  `ara,de` keyboard across defaults/installer/firstboot, THEME_REV 57) plus
+  the ISO-proof repair (SSH boot-id authority + QGA stream resync). Its
+  exact revision passed `just check` (145 gates), a full local
+  `just build-nvidia` (identity firewall, motion, sound, store, image-state,
+  12/12 bootc lint; initramfs 194 MB) and signed CI build run 34877080740
+  for all three x86 editions. QCOW2 and ISO release proofs were dispatched
+  on the exact digests; promotion follows only if every proof passes.
 - PR #93 is merged as `225e29f3`; Remote geometry source `64f0e76b` passed
   signed build 34810522899 and all three QCOW2 boot/reboot proofs. ISO run
   34811868497 installed offline, booted and opened/closed/reopened ten apps,
@@ -192,8 +201,10 @@ portals. Full light/dark and scaled desktop review remain open.
   booted candidate desktop remains required visual evidence.
 
 ## Next task
-Finish the visible Horizon slice through local image build and a new signed
-candidate. Re-run ISO proof with independent SSH boot-ID observation and QGA
+Wait for the four `93b29ad8` release proofs (QCOW2 generic/NVIDIA/cloud and
+the offline ISO install), then run `promote-x86` with all five run IDs and
+update the physical PC through `moai-do update` + reboot + full post-update
+check. Re-run ISO proof with independent SSH boot-ID observation and QGA
 stream synchronisation; preserve both checks. Current post-update check reports
 52 passes and three expected development differences: two old-image/new-layout
 comparisons and the temporary launcher preview. Full release acceptance remains open.
