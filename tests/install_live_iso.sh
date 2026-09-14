@@ -461,6 +461,20 @@ printf 'install=done\nsource=embedded-offline\nnetwork=disabled\ntarget=%s\nci-p
 code, out, err = exec_wait(install, [expected, password, proof_key], 2700)
 (evidence / "install.status").write_text(out + ("\n=== stderr ===\n" + err if err else ""))
 if code != 0:
+    # The installer's own log and status are the ONLY record of WHY it failed,
+    # but the guest may be dying (QGA torn down mid-install). Collect them on a
+    # best-effort basis so a red run is diagnosable; run 34880117263 exited 1
+    # with empty stdout/stderr and no installer.log at all.
+    for guest_path, host_name in (
+        ("/tmp/moos-install-to-disk.log", "installer.log"),
+        ("/var/home/liveuser/.cache/moos-installer/install.status", "installer-status.raw"),
+    ):
+        try:
+            _, diag_out, diag_err = exec_wait("cat -- \"$1\"", [guest_path], 30)
+            (evidence / host_name).write_text(
+                diag_out + ("\n=== stderr ===\n" + diag_err if diag_err else ""))
+        except (OSError, ValueError, RuntimeError, SystemExit):
+            pass
     raise SystemExit(f"ISO INSTALL FATAL: installer gate exited {code}: {err or out}")
 
 for guest_path, host_name in (
