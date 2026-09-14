@@ -6,6 +6,7 @@ files. Does not read or change the owner's standalone Hermes/coding tools.
 """
 import json
 import os
+import copy
 from pathlib import Path
 import subprocess
 import sys
@@ -28,6 +29,54 @@ def atomic_json(path, data):
         if os.path.exists(tmp): os.unlink(tmp)
 
 
+def _provider_selection(cloud):
+    """Return (provider, base, model, name) for a supported saved cloud node.
+
+    The cloud-only migration predates billed catalogue providers.  Comparing
+    every saved node with OpenRouter's base erased a valid OpenCode Zen key on
+    every login.  Provider identity lives in Mo AI's state file; validate that
+    explicit choice against the shared policy instead of guessing from a URL.
+    """
+    provider = policy.selected_provider() or 'openrouter-free'
+    bases = {'openrouter-free': policy.BASE, 'openrouter-paid': policy.BASE,
+             **policy.PAID_PROVIDERS}
+    base = bases.get(provider)
+    if not base or str(cloud.get('baseUrl', '')).rstrip('/') != base:
+        return None
+    for item in cloud.get('models', []):
+        if not isinstance(item, dict):
+            continue
+        model = item.get('id')
+        try:
+            policy.validate_selection(provider, model)
+        except ValueError:
+            continue
+        return provider, base, model, str(item.get('name') or model)
+    # A historical OpenRouter node may carry a paid/local model while the
+    # cloud-only migration moves it to the explicit zero-price router.  The
+    # credential still belongs to the same service and must survive that model
+    # correction.  Billed providers have no universally safe fallback model.
+    if provider == 'openrouter-free':
+        return provider, base, policy.DEFAULT_MODEL, 'Mo AI Free Cloud'
+    return None
+
+
+def _recover_provider_backup(path, provider):
+    """Recover a key erased by the old migration, only for an exact match."""
+    if provider not in policy.PAID_PROVIDERS:
+        return None
+    backup = path.with_name(path.name + '.before-free-cloud')
+    try:
+        data = json.loads(backup.read_text())
+        cloud = ((data.get('models') or {}).get('providers') or {}).get('cloud') or {}
+    except (OSError, ValueError, TypeError, AttributeError):
+        return None
+    selection = _provider_selection(cloud)
+    if selection and selection[0] == provider and cloud.get('apiKey'):
+        return copy.deepcopy(cloud)
+    return None
+
+
 def migrate(path):
     if not path.exists(): return
     data=json.loads(path.read_text())
@@ -35,13 +84,21 @@ def migrate(path):
     if path.name == 'openclaw.json':
         providers=data.setdefault('models',{}).setdefault('providers',{})
         cloud=providers.get('cloud',{})
-        if str(cloud.get('baseUrl','')).rstrip('/') != policy.BASE:
+        choice = _provider_selection(cloud)
+        selected_provider = policy.selected_provider() or 'openrouter-free'
+        if choice is None:
+            recovered = _recover_provider_backup(path, selected_provider)
+            if recovered is not None:
+                cloud = recovered
+                choice = _provider_selection(cloud)
+        if choice is None:
             cloud={}
-        selected=next((m['id'] for m in cloud.get('models',[]) if isinstance(m,dict)
-                       and (policy.free_model(m.get('id')) or
-                            policy.selected_cost_policy() == 'paid' and policy.valid_model(m.get('id')))),policy.DEFAULT_MODEL)
+            choice=('openrouter-free', policy.BASE, policy.DEFAULT_MODEL,
+                    'Mo AI Free Cloud')
+        _, selected_base, selected, selected_name = choice
         providers.clear()
-        cloud.update(baseUrl=policy.BASE,api='openai-completions',models=[{'id':selected,'name':'Mo AI Free Cloud'}])
+        cloud.update(baseUrl=selected_base,api='openai-completions',
+                     models=[{'id':selected,'name':selected_name}])
         providers['cloud']=cloud
         defaults=data.setdefault('agents',{}).setdefault('defaults',{})
         defaults['model']={'primary':'cloud/'+selected,'fallbacks':[]}

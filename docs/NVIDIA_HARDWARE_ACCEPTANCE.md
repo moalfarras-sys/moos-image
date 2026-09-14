@@ -1,6 +1,7 @@
 # NVIDIA hardware acceptance — the checklist for the real PC
 
-**Status: NOT RUN. No step below has been executed.**
+**Status: PARTIAL — core boot/driver/Wayland path passed on physical hardware
+2026-09-13; visual boot capture, suspend, multi-output and rollback remain.**
 
 Everything in `moos-nvidia` that this repository can prove without a GPU is
 proven in CI: the akmod and the image agree on one kernel, the driver packages
@@ -11,10 +12,9 @@ initramfs is under the 300 MiB ceiling GRUB can allocate, and
 `plymouth.use-simpledrm` is withheld so Plymouth draws on the display nvidia
 actually owns.
 
-None of that is evidence that a GPU rendered a frame. A CI runner has no NVIDIA
-device, so **no session may claim NVIDIA hardware success from Oracle or from a
-green build.** This file is the only thing that can, and it must be filled in
-from the physical machine.
+A CI runner has no NVIDIA device, so it cannot replace this physical record.
+The rows marked PASS below were read from the installed machine after its first
+offline-ISO install and NVIDIA reboot. Unrun rows remain open.
 
 ## Before you start
 
@@ -47,23 +47,32 @@ evidence; the command output or the photograph is.
 ## Record the result here
 
 ```
-Date:
-Image digest:
-GPU / driver version:
-Kernel:
+Date: 2026-09-13
+Image digest: sha256:c7c58ab993345b1ce2eba7e08e903bb715f4957902fec9d4a93b1e959e4beb15
+GPU / driver version: NVIDIA GeForce RTX 2080 SUPER / 615.71.09
+Kernel: 7.2.4-200.fc44.x86_64
 
- 1 Boot              PASS / FAIL   evidence:
- 2 Plymouth          PASS / FAIL   evidence:
- 3 Login             PASS / FAIL   evidence:
- 4 Desktop           PASS / FAIL   evidence:
- 5 NVIDIA module     PASS / FAIL   evidence:
- 6 Wayland / KWin    PASS / FAIL   evidence:
- 7 Displays          PASS / FAIL   evidence:
- 8 Suspend / resume  PASS / FAIL   evidence:
- 9 Update            PASS / FAIL   evidence:
-10 Rollback          PASS / FAIL   evidence:
-11 Reboot            PASS / FAIL   evidence:
+ 1 Boot              PASS    signed moos-nvidia 44.20260913.819 is booted;
+                              signed generic digest retained as rollback
+ 2 Plymouth          OPEN    cmdline has rhgb/quiet/splash and no simpledrm;
+                              no boot photograph was captured
+ 3 Login             PASS    physical login accepted and opened this session;
+                              themed greeter photograph still open
+ 4 Desktop           PASS    live 4K Tidal Horizon desktop captured;
+                              moos-selfcheck: 49 passed, zero broken
+ 5 NVIDIA module     PASS    nvidia/nvidia_drm/nvidia_modeset/nvidia_uvm loaded;
+                              nvidia-smi reports the GPU; no fatal NVRM line;
+                              nvidia_peermem absent
+ 6 Wayland / KWin    PASS    XDG_SESSION_TYPE=wayland; KWin is listed by
+                              nvidia-smi on the physical GPU
+ 7 Displays          PARTIAL HDMI-A-1 enabled at native 3840x2160@60, scale 2.5;
+                              no multi-monitor configuration was attached
+ 8 Suspend / resume  OPEN    not exercised
+ 9 Update            PASS    signed NVIDIA switch staged and applied; the race
+                              with generic automatic update is fixed in source
+10 Rollback          OPEN    signed generic rollback exists but was not booted
+11 Reboot            PASS    reboot returned to the working NVIDIA desktop
 ```
 
-Until this block is filled in from the physical machine, `moos-nvidia` is
-"built, signed and gated", never "verified on hardware".
+This proves the core NVIDIA hardware route on one machine. It does not yet
+qualify suspend, multiple displays, rollback, or every supported GPU generation.

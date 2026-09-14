@@ -49,16 +49,16 @@ QQC2.AbstractButton {
     topPadding: Tokens.space2
     bottomPadding: Tokens.space2
     opacity: enabled ? 1 : Tokens.disabledOpacity
-    scale: enabled && down ? Tokens.pressScale : 1
 
-    Behavior on scale {
-        NumberAnimation {
-            duration: Tokens.duration(control.motionEnabled, Tokens.motionFast)
-            easing.type: Tokens.easeStandard
-        }
+    SpringFeedback {
+        id: feedback
+        active: control.visible
+        targetScale: control.enabled && control.down ? Tokens.pressScale : 1
+        motionEnabled: control.motionEnabled
     }
 
     background: Rectangle {
+        scale: feedback.value
         radius: control.cornerRadius
         color: control.enabled ? control.restingColor : control.surfaceColor
         border.width: control.primary ? 0 : Tokens.borderHairline
@@ -97,6 +97,7 @@ QQC2.AbstractButton {
 
     contentItem: RowLayout {
         id: contentRow
+        scale: feedback.value
         spacing: Tokens.space2
 
         SymbolIcon {

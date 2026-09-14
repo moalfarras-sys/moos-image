@@ -1282,7 +1282,8 @@ guard_theme_defaults() {
     command -v kwriteconfig6 >/dev/null 2>&1 || return 1
     pin_switch_targets || return 1
     kwriteconfig6 --file kdeglobals --group Sounds --key Theme moos || return 1
-    kwriteconfig6 --file kdeglobals --group Sounds --key Enable true || return 1
+    # /etc/xdg supplies the initial enabled state. A personal mute belongs to
+    # the owner and must survive theme reconciliation and the next login.
 }
 
 # Read the effective motion policy from every live MoOS wallpaper containment.

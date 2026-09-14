@@ -8,7 +8,7 @@ const {chromium} = require(process.env.MO_REMOTE_PLAYWRIGHT || 'playwright');
 const browser = await chromium.connectOverCDP(process.env.MO_REMOTE_CDP || 'http://127.0.0.1:9228');
 const origin = process.env.MO_REMOTE_TEST_URL || 'http://127.0.0.1:5178';
 const evidence = process.env.MO_REMOTE_EVIDENCE;
-const frame = await readFile(new URL('../../../docs/evidence/mo-pc-remote-control-center-ar-1080p.png', import.meta.url));
+const frame = await readFile(new URL('./fixtures/synthetic-desktop-frame.png', import.meta.url));
 const contexts = [];
 const errors = [];
 // `orient` is seeded, not left to the app's default, so a test that cares about geometry gets the

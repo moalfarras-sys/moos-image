@@ -1,5 +1,5 @@
 # =============================================================================
-# MoOS Justfile — local inner-loop recipes (run inside WSL2 with podman 5.x)
+# MoOS Justfile — local development recipes (native MoOS or supported build host)
 # =============================================================================
 # IMAGE builds are the ONLY thing supported locally/WSL2.
 # ISO/disk-image recipes are deliberately ABSENT: ISO builds are CI-only
@@ -31,6 +31,10 @@ default:
 # pushing anything under moremote/.
 dotnet-check:
     bash moremote/dotnet-check.sh
+
+# Read-only host inventory, including from VS Code Flatpak. Does not install SDKs.
+workstation-check:
+    bash scripts/setup-development-machine.sh --check
 
 check:
     bash -n build_files/build.sh
@@ -142,6 +146,9 @@ check:
     # Troubleshooting reports must not commit an owner's phone number or an
     # allow-all phone-channel policy as though it were a safe product default.
     python3 tests/test_docs_privacy.py
+    # Git history owns old plans and session screenshots. Keep one current state
+    # file, one product plan, and no broken links to retired material.
+    python3 tests/test_repository_hygiene.py
     # The kernel half of "the remote feels slow": BBR must be both asked for and loadable, and
     # every key must exist on the kernel that will read it. Both failures are silent otherwise.
     python3 tests/test_kernel_network_tuning.py
@@ -214,6 +221,8 @@ check:
     # One globally importable MoUI module must own identity metrics and shared
     # controls; an app-local copy cannot silently grow back.
     python3 tests/test_moos_design_core.py
+    python3 tests/test_moos_motion.py
+    python3 tests/test_moos_clock_keyboard.py
     # One answer to "is this session Arabic". Four surfaces read
     # Qt.application.layoutDirection, which follows a translator and not the
     # locale — the Command Center, installer and welcome screen rendered in

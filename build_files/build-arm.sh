@@ -253,8 +253,8 @@ bash /ctx/finalize_moos_desktop.sh
 # itself stays on-demand and no model is downloaded in the image.
 for unit in \
     moai-gateway.service moai-control.service moai-agent-api.service \
-    moai-wake.service moai-idle.timer openclaw-idle.timer \
-    moos-ensure-brain.timer moos-theme-sync.path moos-theme-drift.timer moos-health.timer \
+    moai-wake.service openclaw-idle.timer \
+    moos-theme-sync.path moos-theme-drift.timer moos-health.timer \
     moos-cloud-audio.service moos-update-ready.timer moos-reclaim-disk.timer \
     moos-index-policy.service mo-remote-watchdog.timer; do
     test -f "/usr/lib/systemd/user/${unit}" || {
@@ -269,8 +269,8 @@ systemd-analyze verify \
     /usr/lib/systemd/user/moai-wake.service
 systemctl --global enable \
     moai-gateway.service moai-control.service moai-agent-api.service \
-    moai-wake.service moai-idle.timer openclaw-idle.timer \
-    moos-ensure-brain.timer moos-theme-sync.path moos-theme-drift.timer moos-health.timer \
+    moai-wake.service openclaw-idle.timer \
+    moos-theme-sync.path moos-theme-drift.timer moos-health.timer \
     moos-cloud-audio.service moos-update-ready.timer moos-reclaim-disk.timer \
     moos-index-policy.service \
     mo-remote-watchdog.timer
@@ -620,7 +620,8 @@ add_drivers+=" virtio_blk virtio_net virtio_pci virtio_scsi virtio_gpu virtio_co
 # *initrd* module does NOT remove NFS client support from the running system --
 # mounting a NAS after boot is unaffected. It also takes rpcbind and its hook
 # back out of the initramfs, which this edition treats as a release contract
-# (see the firmware measurement below and the /boot headroom in MOOS_ROADMAP).
+# (see the firmware measurement below and the /boot headroom in
+# docs/DEVELOPMENT_PLAN.md P5.3).
 omit_dracutmodules+=" nfs "
 # MEASURED ON THE LIVE ORACLE A1 (2026-09-06): the ARM initramfs was 237 MB and
 # /boot (974 MB) sat at 78% with only TWO deployments at 351 MB each. A third
@@ -1411,6 +1412,8 @@ python3 /ctx/finalize_image_state.py --root /
 
 MOOS_IDENTITY_PROFILE=arm-cloud python3 /ctx/verify_identity.py
 python3 /ctx/verify_arm_image.py
+python3 /ctx/verify_sound_theme.py
+python3 /ctx/verify_moos_motion.py --qml /ctx/motion-review.qml
 python3 /ctx/verify_no_foreign_identity.py
 
 

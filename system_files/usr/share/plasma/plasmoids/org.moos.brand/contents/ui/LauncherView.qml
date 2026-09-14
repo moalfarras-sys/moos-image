@@ -1544,7 +1544,7 @@ Item {
 
         background: Rectangle {
             radius: view.radiusM
-            // AMPLITUDE (see docs/MOOS_DESIGN_PLAN.md §0). The SELECTED page sat
+            // AMPLITUDE (see artwork/MOOS_UI2_DESIGN.md). The SELECTED page sat
             // at 0.11 and hover at 0.065 — both inside the 0.05-0.12 band that
             // renders as 5-11 luminance steps, under the ~15 a person needs. The
             // sidebar could not tell you which page you were on. Rows correctly
@@ -2029,7 +2029,7 @@ Item {
         hoverEnabled: true
         // Inset the content off the card edge. Without this the eyebrow ran
         // flush into the rounded corner and clipped in RTL — "اكتشف" rendered
-        // as "كتشف" at 150% (docs/MOOS_DESIGN_PLAN.md D01: no clipped RTL
+        // as "كتشف" at 150% (docs/DEVELOPMENT_PLAN.md P2.5: no clipped RTL
         // labels). AppTile already insets its own contentItem the same way.
         leftPadding: view.space4
         rightPadding: view.space4
@@ -2060,7 +2060,7 @@ Item {
             }
         }
 
-        // AMPLITUDE (docs/MOOS_DESIGN_PLAN.md §0). Resting fill was 0.025 /
+        // AMPLITUDE (artwork/MOOS_UI2_DESIGN.md). Resting fill was 0.025 /
         // featured 0.105 — both inside the 0.05–0.12 band that renders as 5–11
         // luminance steps. Same contract as AppTile: textColour 0.11 at rest so
         // one value works across all 16 themes; accent only on interaction.

@@ -687,7 +687,7 @@ class BudgetHasReaders(unittest.TestCase):
         constant with no consumer left, because the local engine was retired. That leaves
         `file_indexing`, which moos-index-policy owns, and `update_concurrency`, which nothing
         reads: `moai-do update` does not consult it, so a 32-core machine and a 2-core Oracle A1
-        fan out identically. That is a real gap and it is recorded in MOOS_ROADMAP.md rather than
+        fan out identically. That is a real gap tracked in docs/DEVELOPMENT_PLAN.md P5.1 rather than
         quietly tolerated; this test fails if the set of unwired keys CHANGES, in either
         direction, so wiring one or adding another both come back here.
         """
@@ -711,7 +711,7 @@ class BudgetHasReaders(unittest.TestCase):
                          "a key listed with a reader must actually be named in that reader")
         self.assertEqual(keys - wired, known_unwired,
                          "the set of budget keys nobody reads changed; wire it, or update this "
-                         "test and MOOS_ROADMAP.md together")
+                         "test and docs/DEVELOPMENT_PLAN.md together")
 
 
 class DisplayToolsNeverRunWithoutADisplay(unittest.TestCase):

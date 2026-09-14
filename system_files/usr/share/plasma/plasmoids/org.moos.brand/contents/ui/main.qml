@@ -398,8 +398,10 @@ PlasmoidItem {
         Accessible.onPressAction: compact.activate()
 
         function playActivationFeedback() {
-            clickWave.restart();
-            logoFlourish.restart();
+            if (Kirigami.Units.longDuration > 1) {
+                clickWave.restart();
+                logoFlourish.restart();
+            }
         }
 
         // One toggle owner PER input route, matching Plasma 6.7's installed
@@ -554,9 +556,15 @@ PlasmoidItem {
                     // already carries on the splash and the greeter wallpaper.
                     mipmap: true
                     
-                    // Premium, snappy physical press scale
-                    scale: compact.pressed ? 0.85 : (compact.containsMouse ? 1.08 : 1.0)
-                    Behavior on scale { NumberAnimation { duration: root.motionMedium; easing.type: compact.pressed ? Easing.OutQuad : Easing.OutBack } }
+                    // The shared spring retargets from its current velocity;
+                    // rapid pointer reversals never restart a canned bounce.
+                    scale: logoFeedback.value
+                    MoUI.SpringFeedback {
+                        id: logoFeedback
+                        active: compactLogo.visible
+                        targetScale: compact.pressed ? root.design.pressScale
+                            : (compact.containsMouse ? root.design.hoverScale : 1)
+                    }
                     
                     // A restrained directional settle: enough response to feel
                     // physical, never a novelty spin beside working app icons.
@@ -578,8 +586,12 @@ PlasmoidItem {
                 spacing: 0
                 
                 // Subtle push-down on press
-                scale: compact.pressed ? 0.92 : 1.0
-                Behavior on scale { NumberAnimation { duration: root.motionMedium; easing.type: Easing.OutQuad } }
+                scale: wordmarkFeedback.value
+                MoUI.SpringFeedback {
+                    id: wordmarkFeedback
+                    active: compact.visible
+                    targetScale: compact.pressed ? root.design.pressScale : 1
+                }
                 
                 // ONE wordmark, two inks — not two words. The halves used to
                 // carry different WEIGHTS (Bold "Mo", Normal "OS"), so the

@@ -37,6 +37,9 @@ from __future__ import annotations
 
 import re
 import sys
+import importlib.machinery
+import importlib.util
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -53,6 +56,89 @@ def main() -> int:
               "published file_indexing budget would go unread again.")
         return 1
     source = CONSUMER.read_text(encoding="utf-8")
+
+    # The physical first ISO install exposed a lifecycle split: `balooctl6
+    # enable` launched baloo_file under flatpak-session-helper.service while
+    # kde-baloo.service stayed inactive.  Starting the real unit then failed
+    # with "Another instance is running".  Exercise both policy-change paths
+    # and require systemd to remain the sole process owner.
+    loader = importlib.machinery.SourceFileLoader("moos_index_policy", str(CONSUMER))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    assert spec is not None
+    policy = importlib.util.module_from_spec(spec)
+    loader.exec_module(policy)
+    calls: list[tuple[str, ...]] = []
+    owner_reply, owner_rc, stop_rc = "b false", 0, 0
+
+    def fake_run(argv, **_kwargs):
+        calls.append(tuple(argv))
+        class Result:
+            returncode = (owner_rc if argv[0].endswith("busctl") else
+                          stop_rc if "stop" in argv else 0)
+            stdout = owner_reply if argv[0].endswith("busctl") else ""
+        return Result()
+
+    old_run = policy.subprocess.run
+    old_which = policy.shutil.which
+    old_data = policy.os.environ.get("XDG_DATA_HOME")
+    try:
+        policy.subprocess.run = fake_run
+        policy.shutil.which = lambda name: f"/usr/bin/{name}" if name in {"systemctl", "busctl"} else None
+        policy.restart_baloo()
+        with tempfile.TemporaryDirectory() as tmp:
+            policy.os.environ["XDG_DATA_HOME"] = tmp
+            database = Path(tmp) / "baloo/index"
+            database.parent.mkdir(parents=True)
+            database.write_bytes(b"derived-index")
+            policy.purge_content_index()
+            if database.exists():
+                errors.append("the purge path did not remove Baloo's derived index")
+            normal_calls = calls[:]
+
+            # An inactive unit can stop successfully while a legacy daemon
+            # outside systemd still owns org.kde.baloo. Neither policy-change
+            # path may start a duplicate, and purge must preserve its open DB.
+            # Unknown ownership and a failed stop must be equally conservative.
+            for scenario, owner_reply, owner_rc, stop_rc in (
+                ("unmanaged daemon", "b true", 0, 0),
+                ("unavailable session bus", "", 1, 0),
+                ("malformed ownership answer", "unexpected", 0, 0),
+                ("failed managed stop", "b false", 0, 1),
+            ):
+                database.write_bytes(b"live-derived-index")
+                calls.clear()
+                policy.restart_baloo()
+                policy.purge_content_index()
+                if not database.exists() or database.read_bytes() != b"live-derived-index":
+                    errors.append(f"{scenario}: the live index was removed or modified")
+                if any("start" in call or "restart" in call for call in calls):
+                    errors.append(f"{scenario}: a second Baloo daemon could be started")
+    finally:
+        policy.subprocess.run = old_run
+        policy.shutil.which = old_which
+        if old_data is None:
+            policy.os.environ.pop("XDG_DATA_HOME", None)
+        else:
+            policy.os.environ["XDG_DATA_HOME"] = old_data
+
+    ownership_query = (
+        "/usr/bin/busctl", "--user", "call", "org.freedesktop.DBus",
+        "/org/freedesktop/DBus", "org.freedesktop.DBus", "NameHasOwner", "s",
+        "org.kde.baloo",
+    )
+    wanted_calls = [
+        ("/usr/bin/systemctl", "--user", "stop", "kde-baloo.service"),
+        ownership_query,
+        ("/usr/bin/systemctl", "--user", "start", "kde-baloo.service"),
+        ("/usr/bin/systemctl", "--user", "stop", "kde-baloo.service"),
+        ownership_query,
+        ("/usr/bin/systemctl", "--user", "start", "kde-baloo.service"),
+    ]
+    if normal_calls != wanted_calls:
+        errors.append(
+            "Baloo lifecycle must prove the owner left before restarting kde-baloo.service; expected "
+            f"{wanted_calls!r}, got {normal_calls!r}"
+        )
 
     # It must ask the authority, by running it -- not re-derive the answer.
     if "moos-visual-tier" not in source:

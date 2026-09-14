@@ -67,19 +67,14 @@ boot. Read this before changing anything.
 
 ## Where the rest of the knowledge is
 
-- **`docs/MOOS_COMPLETION_PLAN.md`** — the master program: measured live audit,
-  binding product decisions, phases P0–P5 with exit evidence, and the scorecard.
-  Start here to know what to build next and why.
+- **`docs/DEVELOPMENT_PLAN.md`** — the only product plan: architecture,
+  measured baseline, ordered tasks, exit evidence and current external sources.
+  Runtime evidence outranks plans; never treat a local override or local image
+  as a signed OS release.
 
-- **`docs/MOOS_SYSTEM_DEVELOPMENT_PLAN.md`** — current four-edition architecture,
-  measured Oracle constraints, ordered implementation tasks and acceptance gates.
-  Runtime evidence outranks historical plans; never treat a local app override as a signed OS release.
-
-- **`docs/MOOS_DESIGN_PLAN.md`** — READ THIS FIRST for any visual work. The
-  measured reason a whole session of changes was invisible, the ≥15 luminance
-  rule that prevents it, which surfaces can and cannot carry a visible change,
-  the open bugs with everything already ruled out, and the ordered plan. Evidence
-  screenshots in `docs/evidence/`.
+- **`artwork/MOOS_UI2_DESIGN.md`** — the current Liquid Glass visual contract.
+  Visual evidence belongs in a task/CI artifact; generated fixtures remain in
+  the tree only when a test or runtime consumer needs them.
 
 - **`docs/AGENT_GUIDE.md`** — the map this file is not: which files can break
   boot vs only the desktop, the five desktop mechanisms that have each cost a
@@ -97,10 +92,10 @@ boot. Read this before changing anything.
 
 ## The one fact that changes how you work
 
-**The maintainer's daily-driver PC runs this image.** `main` is built by CI, published to
-`ghcr.io/moalfarras-sys/moos`, and that machine pulls from it. A bad commit does not produce a
-failing test — it produces a computer that boots to a black screen, on the machine you are
-talking to the maintainer on.
+**This physical PC is the dedicated MoOS development station.** `main` builds
+signed candidates; the boot-proof promotion workflows control production tags.
+The installed machine follows the signed NVIDIA release. A broken promoted
+image can stop this workstation from booting and interrupt development itself.
 
 This has already happened once. It is the reason for most of the guards you will find in
 `build_files/build.sh`, and why they are written to **fail the build loudly** rather than warn.
@@ -309,7 +304,8 @@ its exit status alone is insufficient: the 2026-09-10 generic image returned 0
 while warning about actual DNF/Flatpak files in `/var`. Inspect the finished
 filesystem and lint warnings; fix lifecycle ownership without losing Flatpak
 initialization or boot assets. The clean-state requirement is unchanged. See
-`docs/MOOS_UNIFIED_PLATFORM.md` for the lifecycle fix and remaining artifact proof.
+`PROJECT_STATE.md` for the measured result and `docs/DEVELOPMENT_PLAN.md` for
+remaining artifact proof.
 
 **A test that runs a MoOS desktop tool inherits your live desktop.** CI has no
 session bus, so a suite can pass there while, on a workstation, the same run drives
@@ -324,8 +320,7 @@ read the live state back before and after when you suspect a side effect.
 `../var/usrlocal` (absent during compose); ARM has a real immutable directory.
 Never blindly install through that dangling link or replace it. Preserve the
 Atomic link and its boot-time tmpfiles rules; pre-create immutable ARM paths.
-Regression and run 769 evidence: `tests/test_usr_local_layout.py` and
-`docs/MOOS_X86_SYSTEM_PLAN.md` and `PROJECT_STATE.md`.
+Regression evidence: `tests/test_usr_local_layout.py` and `PROJECT_STATE.md`.
 
 **Privileged actions go through `moai-do`, and nowhere else.** It is a fixed allowlist with
 confirmation and Polkit. Mo AI can *name* an action from that list — the UI turns it into a Run
@@ -357,6 +352,12 @@ skills/                the mandatory moos-engineering agent skill
 
 ## Before you push
 
+Run `just check` for repository changes and the affected component checks.
+Image/runtime changes also require the matching complete local image build;
+documentation-only edits do not require rebuilding an unchanged image. Visual
+changes require rendered/live review. The boot and promotion contract remains
+in `RELEASE.md`.
+
 ```bash
 python3 tests/verify_user_experience.py     # the user-experience gate
 python3 tests/test_device_plan.py
@@ -380,13 +381,16 @@ gh auth refresh -h github.com -s workflow
 
 Being honest about this list is more useful than shrinking it.
 
-- **The install path has been run end to end in a VM, but never on real hardware.** On
+- **The install path has now run end to end in both a VM and real hardware.** On
   2026-07-23 the published ISO was booted in UEFI QEMU and driven through the whole MoOS
   installer: it offered only the target disk (never the live medium), gated the wipe behind a
   press-and-hold, installed **offline** from the image embedded in the ISO, reported "MoOS is
-  installed", and the disk then booted on its own to the MoOS login greeter. What that does
-  NOT cover: real firmware, real disks, and first-login account creation from the planted
-  answers. The kickstart verifies the signature at install time (and therefore deploys a
+  installed", and the disk then booted on its own to the MoOS login greeter. On 2026-09-13
+  the owner also installed offline from USB to a dedicated 476.4 GiB disk, booted the signed
+  installed system, completed first run, initialized Mo Store and switched the physical RTX
+  2080 SUPER machine to the signed NVIDIA edition. The other disks remained intact. That pass
+  did not capture every installer/boot screen or exercise rollback. The kickstart verifies the
+  signature at install time (and therefore deploys a
   signed origin, so updates stay verified for life); if an install fails with a signature
   error, that is still where to look.
 - **Mo AI is cloud-only.** Free models are the default; paid models require an explicit
@@ -396,11 +400,12 @@ Being honest about this list is more useful than shrinking it.
 - **Audio/Bluetooth/Wi-Fi/suspend/multi-monitor** have not been verified on hardware other than
   the maintainer's desktop.
 
-`MOOS_ROADMAP.md` is the concise list of open release gates. Keep it honest: it is more valuable
-as a list of what is missing than as a list of what is claimed.
+`docs/DEVELOPMENT_PLAN.md` is the single list of open work. Complete one task at
+a time, attach its exit evidence, update the current state, and say “Task
+complete; ready for the next task.” only when that task has no remaining work.
 
-Settings runtime review and backend contract: [bounded product handoff](docs/MOOS_SYSTEM_DEVELOPMENT_PLAN.md). Its native review harness runs the source QML without installing user overrides.
-
-Unified platform ownership and implementation priorities: [architecture audit](docs/MOOS_UNIFIED_PLATFORM.md).
+The Settings native review harness runs source QML without installing user
+overrides. Platform ownership and implementation order live in the development
+plan.
 Hardware identity for Settings and Mo AI belongs to `usr/lib/moos/moos_hardware.py`;
 keep GPU classification with `moos-visual-tier` and cover consumer agreement with executable fixtures.

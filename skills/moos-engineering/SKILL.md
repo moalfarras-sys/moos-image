@@ -1,6 +1,6 @@
 ---
 name: moos-engineering
-description: Mandatory engineering rules for ANY agent working on MoOS (moos-image). Load before touching the image, themes, apps, boot path, or docs — MoOS is a real OS installed on real hardware, and main ships to a daily-driver machine.
+description: Engineer and verify MoOS images, KDE/Wayland integration, first-party apps and release workflows. Required before repository changes; distinguishes source, live-machine and signed-artifact evidence.
 ---
 
 # MoOS engineering — the mandatory skill
@@ -26,11 +26,40 @@ description: Mandatory engineering rules for ANY agent working on MoOS (moos-ima
   The three x86 editions use the same upstream repository; ARM uses the native
   bootc base in `Containerfile.arm`. Current upstream `:44` inputs are mutable
   tags, not locked release digests. Published MoOS images are cosign-signed and
-  installed origins enforce signatures. See `docs/MOOS_SYSTEM_DEVELOPMENT_PLAN.md`.
-- Targets: **speed, stability, beauty, and security** — on **real hardware**
-  (the maintainer's daily driver runs `moos-nvidia:latest`), not only VMs.
-- **Arabic and RTL are first-class**, and every surface targets **4K/HiDPI**
-  (the reference session runs 4K at 225%).
+  installed origins enforce signatures. See `docs/DEVELOPMENT_PLAN.md`.
+- Targets: **speed, stability, beauty, and security** on real hardware and VMs.
+  This physical computer is now the dedicated MoOS development station. Its
+  boot and rollback remain load-bearing for continuing development.
+- **Arabic and RTL are first-class**. Layouts use logical dimensions; read the
+  actual resolution and scale from the session, not a remembered reference PC.
+
+## Select the work and its evidence
+
+Read the current task in [`docs/DEVELOPMENT_PLAN.md`](../../docs/DEVELOPMENT_PLAN.md).
+Choose a bounded result with an observable exit condition before changing code.
+Independent review, host diagnostics and tooling may run beside a candidate build;
+keep that candidate's branch/SHA fixed. Any later source change needs a new candidate.
+
+| Work | Read before acting | Required distinction |
+| --- | --- | --- |
+| Boot, units, image assembly | [Boot wiring and image verification](references/boot-wiring-and-image-verification.md) | source declaration vs installed unit wiring and actual initramfs |
+| KDE, Wayland, apps or artwork | [Agent guide](../../docs/AGENT_GUIDE.md), [visual contract](../../artwork/MOOS_UI2_DESIGN.md) | generated assets vs live readback, input and rendered pixels |
+| Branch integration or release | [Release contract](../../RELEASE.md) | merged source vs signed candidate vs boot-proven promotion |
+| Live diagnostics, visual review or workstation setup | [Live development](references/live-development.md), development-machine section of the plan | host vs sandbox tools; source vs installed UI; available SDK vs executed tests |
+
+Before retiring a branch, fetch current refs and prove its tip is an ancestor
+of the target (`git merge-base --is-ancestor`). Review unique commits when it
+is not; timestamps, names and an old merged PR are insufficient. Preserve the
+candidate commit ancestry and final tree required by the promotion workflow.
+Inspect individual CI steps and artifacts: a skipped boot job or an advisory
+review with `continue-on-error` is not acceptance evidence.
+
+For a broad "complete the OS" request, reconcile it with the existing plan,
+name the active vertical slice and keep the rest as explicit acceptance work.
+An engineering team may parallelize independent files/reviews; one agent owns
+integration and the candidate SHA. Kernel policy is not a custom kernel, a
+healthy API process is not a successful user flow, and available assets are
+not evidence that Plasma actually consumes them.
 
 ## The design language: MoOS UI
 
@@ -56,10 +85,10 @@ description: Mandatory engineering rules for ANY agent working on MoOS (moos-ima
 
 1. **Never claim success for anything you did not actually run and verify.** A claim
    without a command that ran and returned output is a lie in this repo's terms.
-2. **Every change passes visual review, code review, and the tests.** Run the same gates
-   CI runs (`.github/workflows/build.yml` "Repo gates" step — `bash -n build_files/build.sh`
-   plus the `python3 tests/...` list) before pushing. For visual work, verify on the live
-   session or a rendered screenshot, not from metadata.
+2. **Review the change and run the applicable checks.** `just check` is the
+   maintained repository gate used by CI; do not extract a second test list
+   from workflow YAML. Visual changes also require live interaction/rendered
+   review; documentation and tooling changes do not imply a desktop redesign.
 3. **Never modify `main` casually.** Work on a branch; a bad merge does not fail a test —
    it can boot the maintainer's machine to a black screen. That has happened.
 4. **Never disable, weaken, or delete a build gate because it fails.** A firing gate is
@@ -74,9 +103,10 @@ description: Mandatory engineering rules for ANY agent working on MoOS (moos-ima
 8. **Document every change that affects boot, kernel, or updates** (initramfs, dracut,
    GRUB, Plymouth, uupd/`moai-do update`, signing) — in the commit message AND in
    `PROJECT_STATE.md`.
-9. **Update the truth files.** `PROJECT_STATE.md` (map/state), `MOOS_ROADMAP.md` (status
-   and gates), `AGENTS.md` (rules) must reflect reality after your session; what is NOT
-   done stays listed as not done.
+9. **Update the truth files.** `PROJECT_STATE.md` (measured state),
+   `docs/DEVELOPMENT_PLAN.md` (task status and gates), and `AGENTS.md` (rules)
+   must reflect reality after your session; what is NOT done stays listed as
+   not done.
 10. **Respect upstream compatibility.** Prefer configuration/overlay over forking;
     changes ride on top of stock Kinoite packages so base updates keep flowing.
 
@@ -84,16 +114,20 @@ description: Mandatory engineering rules for ANY agent working on MoOS (moos-ima
 
 ```bash
 # the exact repo gates CI runs (fast, no container needed):
-bash -n build_files/build.sh && python3 tests/verify_user_experience.py  # + the full list in build.yml
+just check
 # a full local image build runs every image gate (identity, initramfs, NVIDIA, QML apps):
 just build            # or: just build-nvidia / just build-cloud
 # on the installed machine, after an update reboot:
 bash tests/post-update-check.sh
 ```
 
-If a gate is green but you have not *seen* the surface it guards, you have not verified
-it — `PROJECT_STATE.md` documents five shipped traps where the gate was green while the
-thing was broken.
+For tests that execute desktop tools, isolate the session bus, display and
+HOME/XDG state in the test process; a fake root alone does not isolate Plasma.
+Check the real desktop before/after suspected test side effects. Never source
+private API configuration to diagnose readiness: use redacted status endpoints.
+
+If a gate is green but you have not seen or exercised the surface it guards,
+record the missing runtime evidence. `AGENTS.md` preserves the false-green traps.
 
 ### Boot / systemd wiring traps (verified 2026-08-27)
 
@@ -115,7 +149,7 @@ thing was broken.
   for writes, which always targets the real `/etc/xdg`. A fake-root `moos-visual-tier
   --apply` therefore CANNOT validate `kscreenlockerrc` writes — prove those against the
   built image instead (run the real binary inside `podman run`, or rely on the source gate).
-- **Deploy a locally-built image with `bootc switch <ref>`** (not `upgrade`, which pulls
-  from the registry). The previous deployment stays bootable for rollback. Never switch
-  without confirming `bootc container lint` passed in that build. On a running machine
-  `bootc switch localhost/moos-nvidia:latest` then reboot; `rpm-ostree rollback` recovers.
+- **A local image is container/VM evidence only.** Do not replace this station's
+  signed origin with `localhost` or an unverified transport. Follow `RELEASE.md`
+  to create a signed candidate, boot the exact artifact and promote the proven
+  digest. A host update is a separate action through the MoOS update authority.

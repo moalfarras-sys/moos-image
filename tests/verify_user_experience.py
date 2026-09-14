@@ -2362,38 +2362,21 @@ require('"/api/config"' in _moai_config_tool
         and "openclaw.json" not in _moai_config_tool,
         "moai-config must be a client of moai-agent-api, never another config writer")
 
-# ── The local brain must not hold VRAM while idle ─────────────────────────────
+# ── Retired local-brain schedulers must not ship ──────────────────────────────
 #
-# moai.service loads ~6 GB into an 8 GB GPU and never releases it while up. That left the
-# compositor almost nothing: a maximised browser on top of a loaded brain exhausted VRAM,
-# the NVIDIA driver logged `NVRM: VM: invalid mmap context`, and kwin_wayland SIGSEGV'd —
-# the whole desktop froze. So the brain is unloaded when idle and reloaded on demand.
-idle_watch = code(read("system_files/usr/bin/moai-idle"))
-require('UNIT="$("$ENGINE_HELPER" unit)"' in idle_watch
-        and 'systemctl --user stop "$UNIT"' in idle_watch,
-        "moai-idle must STOP the selected allowlisted local engine when idle — a "
-        "watchdog that only measures idleness frees no VRAM")
-require("moai-activity" in idle_watch and "moai-activity" in gateway_code,
-        "moai-idle must key off the same activity stamp moai-gateway writes, or 'idle' is a "
-        "guess — and the gateway must actually write it")
-require("def mark_activity" in gateway_code and "\n        mark_activity()" in gateway_code,
-        "moai-gateway must DEFINE and CALL mark_activity() on the local-chat path, or the "
-        "watchdog cannot tell a loaded-but-unused brain from one in active use")
-require("ActiveEnterTimestamp" in idle_watch,
-        "moai-idle must treat the unit's own start as activity (ActiveEnterTimestamp): "
-        "the stamp records the last CHAT, so a brain started seconds ago still wears a "
-        "stale stamp — this checker killed a 2-second-old brain live on 2026-07-17, "
-        "which read to the owner as 'the assistant does not work'")
-require((ROOT / "system_files/usr/lib/systemd/user/moai-idle.timer").is_file()
-        and (ROOT / "system_files/usr/lib/systemd/user/moai-idle.service").is_file(),
-        "the idle-unload timer and its oneshot service must ship")
-require("systemctl --global enable moai-idle.timer" in build_code,
-        "the idle-unload timer must be enabled for every user; leaving it opt-in means the "
-        "brain keeps holding VRAM until someone stops it by hand, and the freeze returns")
-# The gateway must still be able to bring the brain BACK, or unloading it is a one-way trip.
-require('systemctl("start")' in gateway_code and "def ensure_local" in gateway_code,
-        "moai-gateway.ensure_local must start the local brain on demand — moai-idle stopping "
-        "it is only safe because the next request reloads it")
+# Cloud migration used to stop and mask these four units after every fresh
+# login while the image simultaneously shipped and enabled them. The result was
+# eight selfcheck notes on a clean install and two pointless timer activations.
+# Keep their names in moai-cloud-migrate so upgrades retire old copies, but a
+# new image must have nothing to mask.
+for retired_unit in (
+    "moai-idle.service", "moai-idle.timer",
+    "moos-ensure-brain.service", "moos-ensure-brain.timer",
+):
+    require(not (ROOT / "system_files/usr/lib/systemd/user" / retired_unit).exists(),
+            f"retired local-brain unit still ships: {retired_unit}")
+    require(f"systemctl --global enable {retired_unit}" not in build_code,
+            f"retired local-brain unit is still enabled: {retired_unit}")
 
 # THE ROUTING CONTRACT. The app names the brain in the `model` field, and a request
 # that names none must still work exactly as it did — an older client, or a chat
@@ -2510,38 +2493,11 @@ build_script = read("build_files/build.sh")
 # ConditionFileIsExecutable and its in-image ExecStartPre is covered elsewhere.
 for runtime_unit in (
     "moai-gateway.service", "moai-control.service",
-    "moai-idle.service", "moai-idle.timer", "moos-ensure-brain.service",
-    "moos-ensure-brain.timer",
     "openclaw-idle.service", "openclaw-idle.timer", "moai-agent-api.service",
 ):
     require(f"/usr/lib/systemd/user/{runtime_unit}" in build_script,
             f"the image build must systemd-verify Mo AI runtime unit {runtime_unit}")
 
-# NOTHING SLOW MAY SIT ON THE PATH BETWEEN LOGIN AND THE DESKTOP.
-#
-# moos-ensure-brain is Type=oneshot with RemainAfterExit, so any target that Wants it
-# WAITS for it to exit. It was WantedBy=default.target, and it queries the model backend,
-# which is slow whether or not there is work to do. Measured on the maintainer's machine:
-#
-#     default.target @9.440s
-#     └─moos-ensure-brain.service @1.490s +7.949s
-#
-# — 7.9 of the session's 9.4 seconds, to log "brain already correct — nothing to do". Its
-# own unit file says "never let it block the session"; the Install section was what made it
-# do exactly that. It is started by moos-ensure-brain.timer now, and must not go back.
-_ensure_brain_unit = read("system_files/usr/lib/systemd/user/moos-ensure-brain.service")
-require("WantedBy=default.target" not in code(_ensure_brain_unit, "hash"),
-        "moos-ensure-brain.service is WantedBy=default.target again. It is a Type=oneshot, so "
-        "the session waits for it to finish — that put ~8 seconds of model queries between the "
-        "user logging in and their desktop appearing. Start it from moos-ensure-brain.timer.")
-require("systemctl --global enable moos-ensure-brain.timer" in build_script,
-        "the image must enable moos-ensure-brain.timer — without it the brain reconcile never "
-        "runs at all, since the service no longer has an [Install] section")
-_ensure_brain_timer = code(
-    read("system_files/usr/lib/systemd/user/moos-ensure-brain.timer"), "hash")
-require("OnStartupSec=" in _ensure_brain_timer,
-        "moos-ensure-brain.timer must fire relative to session start (OnStartupSec), so the "
-        "reconcile still happens every login — just after the desktop, not before it")
 require("systemctl --global enable moai-agent-api.service" in build_script,
         "the Agent settings API must persist across logout/reboot for every user")
 agent_api_unit = code(
@@ -2695,7 +2651,7 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=55" in apply_theme_code,
+require("THEME_REV=56" in apply_theme_code,
         "MoOS visual schema must migrate existing users to the cardless centred "
         "Horizon Hub, responsive clock popup, authenticated Remote presence, "
         "single-owner launcher activation, the keyboard-navigable Launcher "
@@ -6839,7 +6795,8 @@ require("ExecStartPre=-/usr/bin/moos-ui-migrate --input-only" in _own_code,
 # recorded timestamp, so KSycoca answers "rebuild" for ever — a full, synchronous
 # rebuild every time anything looks up a service. flatpak's user-environment
 # generator puts the exports dir in XDG_DATA_DIRS for every account; it exists
-# only once that account has installed something. See MOOS_ROADMAP.md item 6.
+# only once that account has installed something. The remaining performance
+# work is tracked as P1.4 in docs/DEVELOPMENT_PLAN.md.
 for _xdg_dir in ("/applications", "/icons", "/flatpak/exports/share/applications"):
     require(f'{{XDG_DATA_HOME:-$HOME/.local/share}}{_xdg_dir}"' in _ui_migrate
             or f'XDG_DATA_HOME:-$HOME/.local/share}}{_xdg_dir}' in _ui_migrate,

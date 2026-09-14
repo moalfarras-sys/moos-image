@@ -148,9 +148,7 @@ def main() -> None:
         require(enabled(unit, user_default_targets),
                 f"first-party ARM user authority is disabled: {unit}")
     for unit in (
-        "moai-idle.timer",
         "openclaw-idle.timer",
-        "moos-ensure-brain.timer",
         "moos-update-ready.timer",
         "moos-reclaim-disk.timer",
     ):

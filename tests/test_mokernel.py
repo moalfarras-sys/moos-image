@@ -46,6 +46,8 @@ def check(condition: bool, message: str) -> None:
 check(CLI.is_file(), "system_files/usr/bin/mokernel is missing")
 cli_text = CLI.read_text(encoding="utf-8")
 check(CLI.stat().st_mode & 0o111 != 0, "mokernel must be executable")
+check(not re.search(r"printf[^\n]*(?:Fedora|Red Hat)", cli_text, re.I),
+      "mokernel exposes a foreign OS identity in its displayed status")
 
 # ── Parse the declared policy out of the shipped script ───────────────────────
 policy_blocks = re.findall(

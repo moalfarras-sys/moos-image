@@ -142,7 +142,7 @@ _catalogue = (0, [])
 
 # ── Measured preference for the automatic free route ───────────────────────────
 # 2026-09-11, through the real moai-gateway with this zero-price policy active, one
-# sample each (docs/MOOS_COMPLETION_PLAN.md, section 1). The previous ranking chose
+# sample each (docs/DEVELOPMENT_PLAN.md P3.2). The previous ranking chose
 # the LARGEST free reasoning model, nvidia/nemotron-3-ultra-550b-a55b:free, which
 # took 36.7 s and 13.1 s for one-line answers. Measured instead:
 #   dots-studio/dots-3-note-preview:free    tool call correct 2.7 s, Arabic 5.1 s

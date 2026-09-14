@@ -2656,10 +2656,6 @@ systemd-analyze verify \
     /usr/lib/systemd/user/moos-theme-sync.service \
     /usr/lib/systemd/user/moai-gateway.service \
     /usr/lib/systemd/user/moai-control.service \
-    /usr/lib/systemd/user/moai-idle.service \
-    /usr/lib/systemd/user/moai-idle.timer \
-    /usr/lib/systemd/user/moos-ensure-brain.service \
-    /usr/lib/systemd/user/moos-ensure-brain.timer \
     /usr/lib/systemd/user/openclaw-idle.service \
     /usr/lib/systemd/user/openclaw-idle.timer \
     /usr/lib/systemd/user/moai-agent-api.service
@@ -2695,22 +2691,6 @@ systemctl --global enable moos-health.timer
 # verify failed every x86 build on a unit that could never start. Mo AI's
 # services are the gateway, control and agent API.
 systemctl --global enable moai-gateway.service
-
-# Keep Mo AI's brain FAST: build/serve the instruct (non-thinking) model from
-# system_files/.../moai-brain.Modelfile. A thinking model made trivial replies
-# cost ~97 s; the instruct model answers in <0.5 s. Idempotent + failure-tolerant.
-# Enable the TIMER, not the service: the service is Type=oneshot, so anything that
-# Wants it makes the session WAIT for it to exit. Pulling it in from default.target
-# cost 7.9s of a 9.4s login to log "nothing to do". The timer runs the same
-# reconcile 15s into the session, off the login path.
-systemctl --global enable moos-ensure-brain.timer
-
-# Free the local brain's VRAM when it goes idle. moai.service loads ~6 GB into an 8 GB
-# GPU and never releases it while up, which starves the compositor — a maximised browser
-# on a loaded brain has crashed kwin_wayland (NVRM: invalid mmap context) and frozen the
-# desktop. moai-idle.timer stops the brain after it is idle; moai-gateway restarts it on
-# the next request. Enabled for every user so stability is the default, not an opt-in.
-systemctl --global enable moai-idle.timer
 
 # Bring Mo PC Remote back after a CRASH — and only after a crash.
 #
@@ -3829,6 +3809,8 @@ chmod 1777 /var/tmp
 # It runs here now: after every package, every rebrand, every mask — and under `set -e`, so
 # a failure stops the build.
 python3 /ctx/verify_image_experience.py
+python3 /ctx/verify_sound_theme.py
+python3 /ctx/verify_moos_motion.py --qml /ctx/motion-review.qml
 
 # ── The MoOS Store must be internally consistent end-to-end ───────────────────
 #
@@ -4091,7 +4073,7 @@ LLVMPIPE
     #
     # confirmed A/B/A in both directions on a live override, so it is not a
     # startup transient (an earlier 25s window taken right after a restart gave a
-    # number that did not reproduce — see MOOS_ROADMAP §6).
+    # number that did not reproduce — see docs/DEVELOPMENT_PLAN.md P1.4).
     #
     # It is NOT the animations. Forcing the wallpaper's motionEnabled to false
     # still left 124%, and AnimationDurationFactor=0 vs 1 measured 157% vs 139% —
@@ -4202,7 +4184,7 @@ BENTO
     # answers "Forbidden: this device is only reachable over Tailscale" to
     # anything that does not arrive over the tailnet. But that application check
     # was the ONLY thing standing between the public internet and a desktop
-    # stream, and MOOS_ROADMAP §3 still lists "restrict listening to the private
+    # stream, and docs/DEVELOPMENT_PLAN.md P5.2 still requires the private
     # network by default" as open work. A firewall that says no first turns a
     # single application bug into a non-event.
     #
@@ -4224,7 +4206,7 @@ BENTO
     #
     # So pin the tailnet to `trusted` FIRST, and only then narrow the default.
     # After this: ens3 (public) answers ssh; tailscale0 answers everything; which
-    # is the arrangement MOOS_ROADMAP §3 asks for.
+    # is the arrangement docs/DEVELOPMENT_PLAN.md P5.2 requires.
     install -D -m0644 /dev/stdin /etc/firewalld/zones/trusted.xml <<'TRUSTED'
 <?xml version="1.0" encoding="utf-8"?>
 <zone target="ACCEPT">

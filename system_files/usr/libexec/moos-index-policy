@@ -129,27 +129,68 @@ def write_value(value: str) -> bool:
     return True
 
 
+def stop_baloo_for_policy(systemctl: str) -> bool:
+    """Stop the managed daemon and prove that no unmanaged Baloo still owns it.
+
+    Stopping an inactive unit succeeds even when an older balooctl-launched
+    daemon is still running outside it. Never unlink that daemon's open index
+    or launch a second instance. A read-only D-Bus query observes ownership
+    without activating Baloo; an unavailable bus is not proof of absence.
+    """
+    busctl = shutil.which("busctl")
+    if not busctl:
+        log("cannot verify Baloo ownership; the saved policy applies at next login")
+        return False
+    try:
+        stopped = subprocess.run(
+            [systemctl, "--user", "stop", "kde-baloo.service"],
+            check=False, timeout=60, capture_output=True)
+        if stopped.returncode != 0:
+            log("could not stop kde-baloo.service; leaving the existing index in place")
+            return False
+        owner = subprocess.run(
+            [busctl, "--user", "call", "org.freedesktop.DBus",
+             "/org/freedesktop/DBus", "org.freedesktop.DBus",
+             "NameHasOwner", "s", "org.kde.baloo"],
+            check=False, timeout=10, capture_output=True, text=True)
+    except (subprocess.SubprocessError, OSError) as exc:
+        log(f"could not verify that Baloo stopped ({exc}); leaving the existing index in place")
+        return False
+    if owner.returncode != 0 or owner.stdout.strip() != "b false":
+        log("Baloo is still owned or its ownership is unknown; leaving the existing "
+            "index untouched without starting another daemon")
+        return False
+    return True
+
+
 def restart_baloo() -> None:
     """Ask Baloo to re-read its configuration.
 
-    balooctl6's own disable/enable pair is the supported way to make the daemon
-    pick up a changed `only basic indexing`; nothing here kills a process. If
-    balooctl6 is missing the new value simply takes effect at next login, which
-    is why this is best-effort and never fatal.
+    Keep systemd as the one process owner.  On the first physical ISO install,
+    `balooctl6 enable` launched baloo_file under flatpak-session-helper.service
+    while kde-baloo.service stayed inactive; a later unit start then failed with
+    "Another instance is running".  Restarting the actual unit reloads the same
+    setting without creating an untracked daemon.  Failure remains best-effort:
+    the persisted value applies at next login.
     """
-    balooctl = shutil.which("balooctl6") or shutil.which("balooctl")
-    if not balooctl:
-        log("balooctl6 not found; the new policy applies at next login")
+    systemctl = shutil.which("systemctl")
+    if not systemctl:
+        log("systemctl not found; the new policy applies at next login")
         return
-    for args in (["disable"], ["enable"]):
-        try:
-            subprocess.run([balooctl] + args, check=False, timeout=60,
-                           capture_output=True)
-        except (subprocess.SubprocessError, OSError) as exc:
-            log(f"balooctl {args[0]} did not complete ({exc}); "
-                f"the new policy applies at next login")
-            return
-    log("Baloo restarted with the new indexing policy")
+    if not stop_baloo_for_policy(systemctl):
+        return
+    try:
+        result = subprocess.run(
+            [systemctl, "--user", "start", "kde-baloo.service"],
+            check=False, timeout=60, capture_output=True)
+    except (subprocess.SubprocessError, OSError) as exc:
+        log(f"could not restart kde-baloo.service ({exc}); the new policy "
+            "applies at next login")
+        return
+    if result.returncode == 0:
+        log("kde-baloo.service restarted with the new indexing policy")
+    else:
+        log("kde-baloo.service did not restart; the new policy applies at next login")
 
 
 def purge_content_index() -> None:
@@ -170,21 +211,21 @@ def purge_content_index() -> None:
     The database is a derived cache. Nothing here touches a user's files, and
     the filename search the Launcher depends on comes back on its own.
     """
-    balooctl = shutil.which("balooctl6") or shutil.which("balooctl")
-    if not balooctl:
+    systemctl = shutil.which("systemctl")
+    if not systemctl:
         return
 
-    def _balooctl(action: str, timeout: int) -> bool:
+    def _unit(action: str, timeout: int) -> bool:
         try:
-            subprocess.run([balooctl, action], check=False, timeout=timeout,
-                           capture_output=True)
-            return True
+            result = subprocess.run(
+                [systemctl, "--user", action, "kde-baloo.service"],
+                check=False, timeout=timeout, capture_output=True)
+            return result.returncode == 0
         except (subprocess.SubprocessError, OSError) as exc:
-            log(f"balooctl {action} did not complete ({exc})")
+            log(f"kde-baloo.service {action} did not complete ({exc})")
             return False
 
-    if not _balooctl("disable", 60):
-        log("left the stale index in place; it shrinks as files change")
+    if not stop_baloo_for_policy(systemctl):
         return
 
     base = pathlib.Path(os.environ.get("XDG_DATA_HOME")
@@ -202,7 +243,7 @@ def purge_content_index() -> None:
         except OSError as exc:
             log(f"could not remove {target} ({exc})")
 
-    _balooctl("enable", 60)
+    _unit("start", 60)
     if freed:
         log(f"reclaimed {freed / (1024 ** 3):.2f} GiB of obsolete content index; "
             f"the filename index rebuilds in the background")
@@ -239,7 +280,7 @@ def main() -> int:
 
     # purge_content_index() already stops and restarts the indexer around the
     # delete, so calling restart_baloo() as well would run a second, pointless
-    # disable/enable cycle. Exactly one of these two paths runs.
+    # stop/start cycle. Exactly one of these two paths runs.
     if wanted == "true" and args.purge:
         purge_content_index()
     else:

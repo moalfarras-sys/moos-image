@@ -167,7 +167,7 @@ Only the active asset is decoded, and idle CPU/RSS is measured after changes.
 Required representative visual classes:
 
 - 1920×1080, 2560×1440, 3840×2160;
-- 100%, 125%, 150%, 200%, 225%;
+- 100%, 125%, 150%, 200%, 225%, 250%;
 - English LTR, German LTR, Arabic RTL;
 - dark and light; software-rendered fallback where relevant.
 

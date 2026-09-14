@@ -172,6 +172,7 @@ Surface 1.0 Surface.qml
 GlassSurface 1.0 GlassSurface.qml
 Card 1.0 Card.qml
 Button 1.0 Button.qml
+SpringFeedback 1.0 SpringFeedback.qml
 IconButton 1.0 IconButton.qml
 Separator 1.0 Separator.qml
 FocusRing 1.0 FocusRing.qml

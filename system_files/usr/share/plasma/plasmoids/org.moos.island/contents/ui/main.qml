@@ -353,12 +353,12 @@ PlasmoidItem {
                 height: control.glyphSize
                 color: control.primary ? Kirigami.Theme.highlightedTextColor
                                        : Kirigami.Theme.textColor
-                scale: controlTap.pressed ? 0.86 : 1.0
-                Behavior on scale {
-                    NumberAnimation {
-                        duration: root.motionFast
-                        easing.type: Easing.OutQuad
-                    }
+                scale: glyphFeedback.value
+                MoUI.SpringFeedback {
+                    id: glyphFeedback
+                    active: controlIcon.visible
+                    targetScale: controlTap.pressed ? root.design.pressScale : 1
+                    motionEnabled: root.motionEnabled
                 }
             }
 

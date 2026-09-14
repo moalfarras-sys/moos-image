@@ -1,0 +1,15 @@
+# Native KDE event defaults. KNotification reads this KConfig layer before its
+# event definitions in /usr/share/knotifications6. A user's own .notifyrc still
+# wins, including Action= (muted) and a custom Sound. Never migrate these defaults
+# by copying them into the home directory. Global sound mute remains authoritative.
+[Event/startkde]
+Action=Sound
+Sound=desktop-login
+
+[Event/exitkde]
+Action=Sound
+Sound=desktop-logout
+
+[Event/notification]
+Action=Popup|Sound
+Sound=message-new-instant

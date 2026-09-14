@@ -17,7 +17,7 @@ UNSAFE_CHANNEL = re.compile(
 def main() -> None:
     failures: list[str] = []
     documents = [ROOT / "AGENTS.md", ROOT / "PROJECT_STATE.md",
-                 ROOT / "MOOS_ROADMAP.md", ROOT / "README.md"]
+                 ROOT / "README.md"]
     documents.extend(sorted((ROOT / "docs").rglob("*.md")))
     for path in documents:
         if not path.is_file():

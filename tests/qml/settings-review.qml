@@ -40,6 +40,9 @@ Item {
         interval: 1200
         onTriggered: {
             try {
+                // Normal-state captures require a fresh backend snapshot.
+                // Keyboard navigation alone can pass with all real actions disabled.
+                driver.tryCompare(harness.app, "statusLoaded", true, 5000)
                 var field = harness.find(harness.frame, "settingsSearch")
                 harness.app.requestActivate()
                 driver.wait(100)
@@ -85,6 +88,11 @@ Item {
             clock.stop()
             harness.step++
             if (harness.step < harness.app.sections.length) {
+                if (!harness.app.statusLoaded) {
+                    console.error("SETTINGS_REVIEW_FAILED: status expired before normal-state capture")
+                    Qt.exit(1)
+                    return
+                }
                 harness.app.selectSection(harness.app.sections[harness.step].id)
             } else {
                 harness.app.statusBusy = true // freeze polling only for explicit failure fixtures
@@ -117,7 +125,9 @@ Item {
             var name = harness.step < harness.app.sections.length ? harness.app.activeSection
                 : ["unavailable", "empty-search", "missing-module"][harness.step - harness.app.sections.length]
             harness.frame.grabToImage(function(result) {
-                console.warn("SAVED", name, result.saveToFile(harness.out + '/' + name + '.png'))
+                var saved = result.saveToFile(harness.out + '/' + name + '.png')
+                console.warn("SAVED", name, saved)
+                if (!saved) { console.error("SETTINGS_REVIEW_FAILED: capture not saved"); Qt.exit(1); return }
                 if (Qt.application.arguments.indexOf("--home-only") >= 0) { Qt.quit(); return }
                 if (harness.step + 1 < harness.app.sections.length + 3) clock.start()
                 else end.start()

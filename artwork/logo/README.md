@@ -1,14 +1,12 @@
-# MoOS logo masters (2026-07-16 vector delivery)
+# MoOS logo masters
 
 The owner's official MoOS mark — the blue/cyan/violet dual-swirl "MS" orb — as
-vector masters, delivered 2026-07-16 in `MoOS_Logo_Vector_Lottie_Package.zip`
-(a VTracer 0.6.12 trace of the original 3D-rendered PNG).
+vector masters derived from the original 3D-rendered PNG.
 
 | File | What it is | Where it is used |
 |---|---|---|
 | `MoOS_Logo_Vector_High_Detail.svg` | 2 756-path trace, ~2 000 distinct fills — visually closest to the original render. | The MASTER. Every shipped `moos-logo.png` is rendered from it (see below). |
 | `MoOS_Logo_Vector_Animation_Optimized.svg` | 1 002-path light trace, flat posterised palette. | Shipped as `/usr/share/moos/moos-logo.svg` for QML surfaces that want vector scaling. |
-| `MoOS_Logo_Lottie.json` | Lottie wrapper around the vector. **Contains zero animated properties** (one layer, no keyframes) — it is a static vector in a Lottie envelope, kept only as provenance. | Nothing. Plasmashell surfaces ban a Lottie runtime (`tests/test_moos_ui2.py` BANNED types); all logo motion is plain QML transforms. |
 
 ## Regenerating the shipped PNGs
 
