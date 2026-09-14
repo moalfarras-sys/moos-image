@@ -1231,8 +1231,10 @@ if inst_qml.is_file():
             "the installer does not hand the account recipe to the helper (no secure bridge call)")
     require("acctUser" in _iq and "acctPass" in _iq,
             "the installer has no secure username / password account screen")
-    require("acctPass.length >= 8" in _iq,
-            "the installer must require a real password before installation")
+    require("acctPass.length >= 1" in _iq,
+            "the installer must require a non-empty password before installation")
+    require("acctPass.length < 8" in _iq and "a longer password is safer" in _iq,
+            "the installer must warn about a short password without overriding the owner's choice")
     require("acctAutologin" not in _iq and "autologin:" not in _iq.lower(),
             "the installer must not expose an automatic-sign-in choice")
     require("moalfarras.space" in _iq,
