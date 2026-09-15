@@ -43,6 +43,20 @@ passed the three QCOW2 proofs and the full final-ISO live/offline install,
 installed-disk boot/reboot proof before promotion run `34996440151` moved the
 x86 production tags.
 
+**Next candidate: Remote typing, local RPM and the ARM disk job.** On
+2026-09-15 the owner reported that Mo PC Remote typed no English and failed with
+German and phone-language keyboards. Live KWin readback showed `ara,de` with
+Arabic active: the helper typed Latin keysyms on the Arabic group (replayed
+live: nothing arrived), German had no position table, and a desk Caps Lock
+inverts injected letters. The candidate compiles the running keymap with
+libxkbcommon from KWin's own kxkbrc names, plans text, shortcuts and physical
+keys on it, and neutralizes or synchronizes Caps Lock. It also carries the
+signature-verified Mo AI local-RPM installer (P4.1 first path) and repairs the
+ARM UTM packaging step, which failed every `main` push by copying a README the
+cleanup deleted. It must pass the signed image build, three QCOW2 proofs, the
+offline ISO proof and a dispatched ARM proof before promotion; installed
+acceptance includes typing from the owner's iPhone and German keyboard.
+
 | Requested outcome | Work stream | What must actually be proven |
 | --- | --- | --- |
 | One clean project any agent can continue | Documentation policy + workstation profile | One state/plan; fresh branch ancestry; reproducible component checks |
