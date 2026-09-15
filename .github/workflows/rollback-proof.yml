@@ -1,0 +1,147 @@
+# rollback-proof.yml — DEVELOPMENT_PLAN P0.4 in a disposable VM.
+#
+# Builds the same sealed, signed x86 QCOW2 fixture as build-disk.yml from an EXACT digest, then
+# runs tests/rollback_x86_qcow2.sh on a copy-on-write overlay: user data is written, a second
+# deployment is booted, `bootc rollback` returns to the previous deployment, and the booted system
+# is read back over ephemeral-key SSH. The published fixture is never modified and nothing here
+# can move a production tag: promotion still consumes only build, QCOW2 and ISO proofs.
+name: Prove MoOS rollback (x86 qcow2)
+
+on:
+  workflow_dispatch:
+    inputs:
+      image-ref:
+        description: "Exact signed ghcr.io/<owner>/(moos|moos-nvidia|moos-cloud)@sha256:... reference"
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs['image-ref'] }}
+  cancel-in-progress: false
+
+jobs:
+  rollback:
+    name: Boot, switch deployment and roll back
+    runs-on: ubuntu-latest
+    # Image build + seal + three complete KVM boots; bounded so a wedged guest fails.
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Rollback proof source gates
+        run: |
+          bash -n build_files/seal_x86_qcow2.sh
+          bash -n build_files/seal_release_qcow2.sh
+          bash -n tests/rollback_x86_qcow2.sh
+          python3 tests/test_rollback_proof_harness.py
+          python3 tests/test_seal_arm_deployment.py
+
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          tool-cache: true
+          docker-images: true
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Verify the exact signed digest
+        id: pin
+        env:
+          REQUESTED_REF: ${{ inputs['image-ref'] }}
+        run: |
+          set -euo pipefail
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          if [[ ! "${REQUESTED_REF}" =~ ^ghcr\.io/${owner}/(moos|moos-nvidia|moos-cloud)@sha256:[0-9a-f]{64}$ ]]; then
+            echo "FATAL: the rollback proof needs an exact official x86 digest: ${REQUESTED_REF}" >&2
+            exit 1
+          fi
+          cosign verify --key cosign.pub "${REQUESTED_REF}" >/dev/null
+          echo "image_ref=${REQUESTED_REF}" >> "$GITHUB_OUTPUT"
+          echo "Rollback proof source: ${REQUESTED_REF}"
+
+      - name: Pull the MoOS image (public — no auth)
+        run: sudo podman pull "${{ steps.pin.outputs.image_ref }}"
+
+      - name: Build the disposable qcow2 with bootc-image-builder
+        run: |
+          set -euo pipefail
+          mkdir -p output
+          # Ephemeral credentials only: the key is deleted after the proof and never uploaded.
+          TEST_PASSWORD="$(openssl rand -hex 20)"
+          ssh-keygen -q -t ed25519 -N '' -C moos-ci-runtime-proof \
+            -f "${RUNNER_TEMP}/moos-ci-runtime-key"
+          TEST_SSH_PUBLIC_KEY="$(<"${RUNNER_TEMP}/moos-ci-runtime-key.pub")"
+          export TEST_PASSWORD TEST_SSH_PUBLIC_KEY
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          source = Path("bib/config.toml").read_text(encoding="utf-8")
+          replacements = {
+              "__MOOS_CI_RANDOM_PASSWORD__": os.environ["TEST_PASSWORD"],
+              "__MOOS_CI_SSH_PUBLIC_KEY__": os.environ["TEST_SSH_PUBLIC_KEY"],
+          }
+          for marker, value in replacements.items():
+              if source.count(marker) != 1:
+                  raise SystemExit(f"FATAL: expected exactly one {marker} placeholder")
+              source = source.replace(marker, value)
+          Path("/tmp/moos-bib-config.toml").write_text(source, encoding="utf-8")
+          PY
+          unset TEST_PASSWORD
+          unset TEST_SSH_PUBLIC_KEY
+          chmod 0600 /tmp/moos-bib-config.toml
+          chmod 0600 "${RUNNER_TEMP}/moos-ci-runtime-key"
+          echo "MOOS_X86_SSH_KEY=${RUNNER_TEMP}/moos-ci-runtime-key" >> "$GITHUB_ENV"
+          sudo podman run --rm --privileged \
+            --security-opt label=type:unconfined_t \
+            -v "/tmp/moos-bib-config.toml:/config.toml:ro" \
+            -v "$PWD/output:/output" \
+            -v /var/lib/containers/storage:/var/lib/containers/storage \
+            quay.io/centos-bootc/bootc-image-builder@sha256:2b52843ea2bfda73b0a08d97e76b734393b1d3a804681b9fabb26723bd3a2f0b \
+            --type qcow2 \
+            --rootfs btrfs \
+            --config /config.toml \
+            --local \
+            "${{ steps.pin.outputs.image_ref }}" 2>&1 | tee /tmp/moos-bib-build.log
+          if grep -Fq "blueprint validation failed" /tmp/moos-bib-build.log; then
+            echo "FATAL: bootc-image-builder ignored an unsupported customization" >&2
+            exit 1
+          fi
+
+      - name: Seal the exact signed x86 deployment
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq qemu-utils
+          qcow="$(sudo find output -name '*.qcow2' -print -quit)"
+          [ -n "$qcow" ] || { echo "FATAL: no qcow2 was produced" >&2; exit 1; }
+          sudo build_files/seal_x86_qcow2.sh \
+            "$qcow" "${{ steps.pin.outputs.image_ref }}" --enable-ci-runtime-proof
+          sudo chown "$USER:$USER" "$qcow"
+          echo "MOOS_X86_QCOW=$(readlink -f "$qcow")" >> "$GITHUB_ENV"
+
+      - name: Boot, switch deployment and roll back
+        env:
+          EXPECTED_IMAGE: ${{ steps.pin.outputs.image_ref }}
+          EVIDENCE_DIR: ${{ runner.temp }}/x86-rollback-proof
+        run: |
+          set -euo pipefail
+          trap 'rm -f -- "$MOOS_X86_SSH_KEY" "$MOOS_X86_SSH_KEY.pub"' EXIT
+          sudo apt-get install -y -qq qemu-system-x86 ovmf >/dev/null
+          [ -c /dev/kvm ] || { echo "FATAL: this runner has no /dev/kvm" >&2; exit 1; }
+          sudo chmod a+rw /dev/kvm
+          tests/rollback_x86_qcow2.sh \
+            "$MOOS_X86_QCOW" "$EXPECTED_IMAGE" "$EVIDENCE_DIR" "$MOOS_X86_SSH_KEY"
+
+      - name: Upload rollback evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: moos-x86-rollback-proof
+          path: ${{ runner.temp }}/x86-rollback-proof
+          if-no-files-found: warn
+          retention-days: 30
