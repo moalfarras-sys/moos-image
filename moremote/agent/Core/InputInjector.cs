@@ -170,7 +170,8 @@ public sealed class InputInjector : IDisposable
     /// scancode) and the international/media keys are absent. A key that does nothing gets
     /// reported; a key wired to the wrong scancode gets lived with.
     /// </summary>
-    public void KeyCode(string code, bool down)
+    /// <param name="produced">Ignored here: a scancode already takes the Windows keymap's meaning.</param>
+    public void KeyCode(string code, bool down, string? produced = null)
     {
         if (!PhysicalScan.TryGetValue(code, out var s)) return;
         // A held key fires keydown over and over at the BROWSER's repeat rate. Forwarding every one

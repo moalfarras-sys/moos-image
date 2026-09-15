@@ -687,8 +687,13 @@ public sealed class StreamSession
                         var code = GetStr(root, "code", "");
                         if (code.Length is > 0 and <= 32)
                         {
+                            // `ch` is the character that press produced on the viewer's own keyboard.
+                            // It never replaces the position; the Linux agent uses it only to make
+                            // the remote's active keymap group agree with it.
+                            var produced = GetStr(root, "ch", "");
+                            if (produced.Length > 8) produced = "";
                             if (root.TryGetProperty("down", out var cd) && cd.ValueKind != JsonValueKind.Null)
-                                input.KeyCode(code, cd.GetBoolean());
+                                input.KeyCode(code, cd.GetBoolean(), produced.Length > 0 ? produced : null);
                             else input.KeyTapCode(code);
                             break;
                         }

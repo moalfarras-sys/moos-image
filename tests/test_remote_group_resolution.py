@@ -76,9 +76,9 @@ def main() -> int:
                               f"resolved once at startup and must keep working.")
 
     # 3. select_group must USE it.
-    sg = re.search(r"def select_group\(name, send\):(.*?)(?=\ndef )", code, re.S)
+    sg = re.search(r"def select_group\(name, send(?:, group=None)?\):(.*?)(?=\ndef )", code, re.S)
     if not sg:
-        errors.append("could not find select_group(name, send).")
+        errors.append("could not find select_group(name, send[, group]).")
     elif "_group_index(name)" not in sg.group(1):
         errors.append("select_group does not call _group_index(name).")
 

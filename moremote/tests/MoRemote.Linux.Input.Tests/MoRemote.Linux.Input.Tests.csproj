@@ -7,9 +7,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../agent-linux/InputInjector.cs" Link="InputInjector.cs" />
-    <Compile Include="../../agent-linux/AraKeymap.cs" Link="AraKeymap.cs" />
-    <Compile Include="../../agent-linux/UsKeymap.cs" Link="UsKeymap.cs" />
-    <Compile Include="../../agent-linux/TextRunPlanner.cs" Link="TextRunPlanner.cs" />
+    <Compile Include="../../agent-linux/LiveKeymap.cs" Link="LiveKeymap.cs" />
     <Compile Include="../../agent-linux/TextKeysym.cs" Link="TextKeysym.cs" />
   </ItemGroup>
 </Project>

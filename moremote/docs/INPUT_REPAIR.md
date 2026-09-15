@@ -8,10 +8,19 @@ content rectangle, video source dimensions, and display id. The server rejects s
 non-finite, out-of-range, wrong-display, or geometry-less packets.
 
 On KDE Wayland the server uses the restored XDG RemoteDesktop portal session for pointer and
-keyboard injection. The portal helper owns ordering and switches named keyboard groups through the
-same event stream as the keys they qualify. ASCII and Arabic use real key positions. Unsupported
-Unicode is grouped safely, written and read back exactly through Wayland, then pasted by one
-synchronous shortcut; it is never silently replaced or dropped. The web server remains an
+keyboard injection. The portal helper compiles the session keymap with libxkbcommon from KWin's own
+kxkbrc names (validated against the live layout list) and reports every group's positions, Shift/AltGr
+levels and dead keys; it re-reports on every active-group or layout-list change. The agent plans each
+committed run on those groups with the fewest group switches, and the helper switches groups through
+the same ordered event stream as the keys they qualify. English, German (umlauts, ß, €, AltGr symbols),
+Arabic and dead-key accents from any phone keyboard language therefore use real key positions on the
+configured layouts. A desktop viewer's physical key also carries the character it produced, so the
+remote selects a group that agrees instead of typing Arabic letters for a Latin keyboard. KWin applies
+one Caps Lock to every keyboard, so a lock left on at the desk is released around typed text and
+restored after it; a viewer's letter press also aligns the desk lock with the viewer's own. Both
+happen only where a Caps Lock LED makes the state observable. Text no
+loaded group can produce (emoji, unconfigured scripts) is written and read back exactly through
+Wayland, then pasted by one synchronous shortcut; it is never silently replaced or dropped. The web server remains an
 unprivileged user process. On disconnect, all tracked buttons and keys are released.
 
 Direct mode maps the phone point within the actual rendered content rectangle to normalized

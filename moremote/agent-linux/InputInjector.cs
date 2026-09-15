@@ -262,7 +262,7 @@ public sealed class InputInjector : IDisposable
     /// It also means ReleaseAll() already covers these keys, so a browser tab closed mid-chord
     /// cannot leave Ctrl stuck down on the server.
     /// </summary>
-    public void KeyCode(string code, bool down)
+    public void KeyCode(string code, bool down, string? produced = null)
     {
         // FLUSH FIRST, and its absence is why typing from a COMPUTER browser came out scrambled.
         //
@@ -284,7 +284,79 @@ public sealed class InputInjector : IDisposable
         // flushed — and flushing on every key-up would defeat the gathering that makes Arabic typing
         // one batch instead of one round trip per letter. This mirrors KeyDown/KeyUp exactly.
         if (down) FlushPendingText();
-        if (PhysicalCodes.TryGetValue(code, out var c)) Set(c, down);
+        if (!PhysicalCodes.TryGetValue(code, out var c)) return;
+
+        // A position means whatever the ACTIVE group says, exactly as for a keyboard plugged into
+        // the machine — but the viewer is looking at their own keyboard. With the Arabic group
+        // active (MoOS ships `ara,de`), a German or US keyboard's A typed ش. `produced` is what the
+        // press produced on the viewer's keyboard: when the active group disagrees and another group
+        // carries that character on the same key, select that group in the ordered stream first.
+        // Chords stay purely positional; a character on no group's key goes the text path.
+        if (down && !string.IsNullOrEmpty(produced) && !IsPressed(c) && !HoldsChordModifier()
+            && _portal.Keymap is { } keymap)
+        {
+            var plan = keymap.PlanPhysical(c, produced, out var group);
+            if (plan == PhysicalKeyPlan.TypeText)
+            {
+                TypeText(produced);
+                return;
+            }
+            bool? viewerLock = ViewerCapsLock(produced);
+            if (plan == PhysicalKeyPlan.SelectGroup || viewerLock is not null)
+                PreparePhysical(plan == PhysicalKeyPlan.SelectGroup ? group : null, viewerLock);
+        }
+        Set(c, down);
+    }
+
+    /// <summary>
+    /// The viewer's own Caps Lock, read off a cased letter their keyboard just produced: uppercase
+    /// without Shift, or lowercase with it, means their lock is on. Null for uncased characters.
+    /// KWin has one Caps Lock for every keyboard, so a lock left on at the desk otherwise inverted
+    /// every letter a viewer typed (measured live: `hallo` arrived `HALLO`).
+    /// </summary>
+    private bool? ViewerCapsLock(string produced)
+    {
+        if (!System.Text.Rune.TryGetRuneAt(produced, 0, out var rune) || rune.Utf16SequenceLength != produced.Length
+            || !System.Text.Rune.IsLetter(rune)) return null;
+        var upper = System.Text.Rune.ToUpperInvariant(rune);
+        if (upper == System.Text.Rune.ToLowerInvariant(rune)) return null;
+        bool shift;
+        lock (_gate) shift = _pressed.Contains(42) || _pressed.Contains(54);
+        return (rune == upper) != shift;
+    }
+
+    /// <summary>
+    /// One ordered batch before a viewer's physical press: optionally select the group that puts
+    /// their character on this key (held Shift/AltGr released around the toggle), and carry their
+    /// Caps Lock for the helper to align. Not text: the press itself keeps keyboard semantics.
+    /// </summary>
+    private void PreparePhysical(GroupKeymap? group, bool? viewerLock)
+    {
+        var events = new List<object>();
+        if (group is not null)
+        {
+            var held = HeldLevelModifiers();
+            foreach (var code in held) events.Add(new { code = (int)code, down = false });
+            events.Add(new { layout = group.Code, group = group.Group });
+            foreach (var code in held) events.Add(new { code = (int)code, down = true });
+        }
+        _portal.Send(new { type = "keysyms", text = false, capsLock = viewerLock, events });
+    }
+
+    private ushort[] HeldLevelModifiers()
+    {
+        lock (_gate) return _pressed.Where(code => code is 42 or 54 or 100).ToArray();
+    }
+
+    private bool IsPressed(ushort code)
+    {
+        lock (_gate) return _pressed.Contains(code);
+    }
+
+    /// <summary>Ctrl, Alt or Meta held: the press is a shortcut, which is a position by definition.</summary>
+    private bool HoldsChordModifier()
+    {
+        lock (_gate) return _pressed.Any(code => code is 29 or 97 or 56 or 125 or 126);
     }
 
     public void KeyTapCode(string code)
@@ -299,23 +371,30 @@ public sealed class InputInjector : IDisposable
     }
 
     /// <summary>
-    /// Modifiers are physical keys, so they go by keycode. The key they modify is a CHARACTER, so
-    /// it goes by keysym: the keycode table above is QWERTY, and the owner's keymap is German
-    /// QWERTZ, where evdev 44 is 'y' — which is why Ctrl+Z was performing redo instead of undo.
-    /// A keysym lets the compositor find the right physical key for whatever layout is loaded.
+    /// Modifiers are physical keys, so they go by keycode. The letter they modify is resolved to a
+    /// position on the LIVE keymap: the keycode table above is QWERTY, and on German QWERTZ evdev 44
+    /// is 'y' — which is why Ctrl+Z once performed redo. A keysym fixed that only while a Latin
+    /// group was active; on MoOS's Arabic-first ring it resolved to no key at all. Without a live
+    /// keymap the keysym remains the fallback.
     /// </summary>
     public void Combo(IReadOnlyList<string> keys)
     {
         // Same ordering rule as KeyTap — and with no exemption now. Shift+Insert used to be
         // exempt because typing WAS a paste; it no longer is, so the combo is just a shortcut.
         FlushPendingText();
+        var keymap = _portal.Keymap;
         var mods = new List<ushort>();
         var rest = new List<Stroke>();
         foreach (var k in keys)
         {
             if (Modifiers.TryGetValue(k, out var mod)) { if (!mods.Contains(mod)) mods.Add(mod); }
             else if (k.Length == 1 && k[0] is > ' ' and <= '~')
-                rest.Add(Stroke.Keysym(char.ToLowerInvariant(k[0])));
+            {
+                char letter = char.ToLowerInvariant(k[0]);
+                rest.Add(keymap?.ShortcutPosition(letter) is ushort position
+                    ? Stroke.Code(position)
+                    : Stroke.Keysym(letter));
+            }
             else if (Keys.TryGetValue(k, out var code))
                 rest.Add(Stroke.Code(code));
         }
@@ -472,121 +551,52 @@ public sealed class InputInjector : IDisposable
     /// <summary>Deliver anything still gathered — called before a key that acts on the text.</summary>
     public void FlushPendingText() => FlushText();
 
-    /// <summary>
-    /// Appends an ordered press/release batch for text typed on a LATIN group, or fails if any
-    /// character is not level 1 there. Keysyms rather than positions: the user's Latin layout may
-    /// be any of them (this machine's is German QWERTZ), and a keysym lets the compositor find
-    /// the right key for the layout it actually has — which is exactly what the Arabic path
-    /// cannot do, and why that one names positions instead.
-    /// </summary>
-    private static bool TryDirectStrokes(string text, List<object> events)
-    {
-        foreach (var rune in text.EnumerateRunes())
-        {
-            int c = rune.Value;
-            if (c is >= 'a' and <= 'z' or >= '0' and <= '9' || c == ' ')
-            {
-                events.Add(new { keysym = c, down = true });
-                events.Add(new { keysym = c, down = false });
-            }
-            else if (c is >= 'A' and <= 'Z')
-            {
-                // The capital's own keysym resolves to the same physical key but types lowercase,
-                // so the shift has to be a real key press around it.
-                int lower = c + ('a' - 'A');
-                events.Add(new { code = (int)ShiftCode, down = true });
-                events.Add(new { keysym = lower, down = true });
-                events.Add(new { keysym = lower, down = false });
-                events.Add(new { code = (int)ShiftCode, down = false });
-            }
-            else return false;
-        }
-        return true;
-    }
-
     private const ushort ShiftCode = 42;
 
     // ---------------------------------------------------------------- layout-aware delivery
 
     /// <summary>
-    /// Types a gathered run, splitting it where the required keymap group changes.
+    /// Types a gathered run on the live keymap: KeymapPlanner resolves every grapheme on every loaded
+    /// group and cuts the run where the required group changes, preferring the fewest switches.
     ///
-    /// A run is cut into maximal stretches that one group can type, and each stretch becomes a
-    /// batch whose FIRST element names the group it needs. Characters that both groups carry —
-    /// space, digits, Latin punctuation — deliberately do NOT decide a stretch: they join
-    /// whichever one is already open. Letting a full stop between two Arabic words claim the
-    /// Latin group would cost two switches, and every switch is an OSD pill painted across the
-    /// picture the remote user is watching.
+    /// Each stretch becomes ONE ordered batch naming its group before its strokes, and the helper
+    /// executes such a batch strictly sequentially (see select_group in mo-remote-portal.py), so a
+    /// group change can neither overtake a key nor be overtaken by one.
     /// </summary>
     private void Deliver(string run)
     {
-        var planned = TextRunPlanner.Split(run);
-        // A target application is allowed to request clipboard bytes after it handles Paste.
-        // Publishing a second Unicode segment first can therefore replace the selection observed
-        // by the first one (measured live as `Grüße` becoming `Gr€e`). If any grapheme needs the
-        // compatibility path, preserve the browser's whole committed run with one clipboard owner
-        // and one ordered Paste. Native-only commits still use real Arabic/Latin key events.
-        if (TextRunPlanner.RequiresAtomicPaste(planned))
+        var keymap = _portal.Keymap;
+        if (keymap is not null && KeymapPlanner.TryPlan(run, keymap, out var plan))
         {
-            PasteUnicodeFallback(run);
+            foreach (var planned in plan)
+                if (!SendOnGroup(planned.Group, planned)) FallbackType(planned.Text);
             return;
         }
-
-        // Build every native batch before emitting the first one. A missing keyboard group must
-        // move the COMPLETE commit to the exact path; discovering that only after typing a prefix
-        // would duplicate/reorder text around the later Paste.
-        var batches = new List<(string Text, bool Arabic, List<object> Events)>();
-        foreach (var (text, arabic, _) in planned)
-        {
-            // A positional table is deterministic only when its named group ACTUALLY exists.
-            // The old helper treated every name except `ara` as `home`; on a German desktop an
-            // allegedly-US `@#:/` arrived as `"§Ö-`. Missing groups take the exact-text path.
-            if (arabic && !_portal.HasLayout("ara"))
-            {
-                PasteUnicodeFallback(run);
-                return;
-            }
-            var events = new List<object> { new { layout = arabic ? "ara" : "home" } };
-            bool built = arabic ? AraKeymap.TryStrokes(text, events)
-                                : TryDirectStrokes(text, events);
-            // SYMBOLS: fall to the US GROUP rather than dropping the run.
-            //
-            // TryDirectStrokes injects keysyms, which KWin resolves at shift level ONE only, so it
-            // covers a-z, 0-9, space and A-Z (uppercase being the one level-two case that is the
-            // same on every Latin layout) and nothing else. Every symbol is level two or higher and
-            // its position is not layout-invariant — `@` is Shift+2 on US and AltGr+Q on German — so
-            // a run containing one returned false and Deliver dropped the WHOLE run with a warning.
-            // From the user's side: paste a URL, a password or an email address into the remote and
-            // the symbols are missing, or the line never arrives at all.
-            //
-            // Selecting a known group makes positions deterministic, which is the trick AraKeymap
-            // already proved for a much harder script. Only reached when the fast path fails, so
-            // ordinary Latin text still types by keysym on the user's own layout and pays nothing.
-            if (!built && !arabic && UsKeymap.Covers(text) && _portal.HasLayout("us"))
-            {
-                events.Clear();
-                events.Add(new { layout = "us" });
-                built = UsKeymap.TryStrokes(text, events);
-            }
-            if (!built)
-            {
-                // Never silently omit text a known layout could not build. Preserve the exact
-                // committed UTF-8 as one transaction, before any prefix has been emitted.
-                PasteUnicodeFallback(run);
-                return;
-            }
-            batches.Add((text, arabic, events));
-        }
-        foreach (var (text, arabic, events) in batches)
-        {
-            if (!_portal.Send(new { type = "keysyms", events })) FallbackType(text, arabic);
-        }
+        // Either the running keymap could not be reproduced, or a grapheme (an emoji, a script no
+        // loaded layout carries) has no key on any group. Preserve the complete committed run
+        // exactly, before any prefix has been typed: a prefix followed by a later Paste would
+        // reorder the text.
+        PasteUnicodeFallback(run);
     }
 
     /// <summary>
-    /// Cuts a run into (text, needsArabicGroup) stretches. Characters either group can produce
-    /// extend the current stretch rather than starting a new one.
+    /// One ordered batch: release held Shift/AltGr, select the group, type the run, then restore
+    /// what was held. A held Shift would otherwise turn the Alt+Shift group toggle into a different
+    /// chord and change the level of every planned stroke.
     /// </summary>
+    private bool SendOnGroup(GroupKeymap group, PlannedRun run)
+    {
+        var held = HeldLevelModifiers();
+        var events = new List<object>();
+        foreach (var code in held) events.Add(new { code = (int)code, down = false });
+        events.Add(new { layout = group.Code, group = group.Group });
+        KeymapPlanner.AppendEvents(run, events);
+        foreach (var code in held) events.Add(new { code = (int)code, down = true });
+        // `text` marks exact characters: the helper neutralizes a Caps Lock left on at the desk for
+        // this batch and restores it afterwards.
+        return _portal.Send(new { type = "keysyms", text = true, events });
+    }
+
     /// <summary>
     /// Exact Unicode escape hatch for text which no installed keyboard group can produce.
     ///
@@ -631,16 +641,16 @@ public sealed class InputInjector : IDisposable
     /// <summary>
     /// The portal is down, so injection is uinput and there is no way to select a keymap group
     /// from here — ydotoold speaks positions to the kernel, and the group lives in the
-    /// compositor. ASCII still types correctly on any Latin layout; Arabic cannot, and says so
-    /// rather than delivering the Latin reading of those positions (which is exactly the
-    /// 'lvpfhab' failure this design was built to prevent).
+    /// compositor. Plain letters, digits and space are attempted; anything else says so rather
+    /// than delivering another layout's reading of those positions (the 'lvpfhab' failure).
     /// </summary>
-    private void FallbackType(string text, bool arabic)
+    private void FallbackType(string text)
     {
-        if (arabic)
+        foreach (var rune in text.EnumerateRunes())
         {
-            Log.Warn($"Cannot type {text.Length} Arabic character(s): the portal is unavailable and " +
-                     "the uinput fallback cannot select a keymap group.");
+            if (rune.Value is >= 'a' and <= 'z' or >= 'A' and <= 'Z' or >= '0' and <= '9' or ' ') continue;
+            Log.Warn($"Cannot type {text.Length} character(s): the portal is unavailable and the " +
+                     "uinput fallback cannot select a keymap group or reach other levels.");
             return;
         }
         foreach (var rune in text.EnumerateRunes())

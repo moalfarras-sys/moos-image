@@ -10,7 +10,7 @@ input injection and a live PipeWire video stream.
 The screen is encoded by GStreamer straight off the PipeWire node, so a frame costs a few
 milliseconds instead of the ~700ms a spectacle+PNG round trip used to.
 """
-import json, os, socket, struct, subprocess, sys, threading, time, uuid
+import ctypes, json, os, socket, struct, subprocess, sys, threading, time, unicodedata, uuid
 
 import gi
 gi.require_version("Gio", "2.0")
@@ -364,9 +364,10 @@ def _layout_call(method, sig=None, args=None, reply=None):
                          Gio.DBusCallFlags.NONE, 2000, None)
 
 
-def load_layouts():
+def load_layouts(refresh_keymaps=False):
     """Read the groups KWin ACTUALLY loaded — never the config, which can disagree with the
-    running session for the whole life of a login."""
+    running session for the whole life of a login. The per-group keymap is compiled from kxkbrc
+    only when its layout list matches these live codes (see build_keymaps)."""
     try:
         codes = [row[0] for row in _layout_call("getLayoutsList", reply="(a(sss))").unpack()[0]]
         current = _layout_call("getLayout", reply="(u)").unpack()[0]
@@ -389,9 +390,25 @@ def load_layouts():
     layout_state["ara"] = next((i for i, c in enumerate(codes) if c.startswith("ara")), None)
     layout_state["us"] = next((i for i, c in enumerate(codes) if c == "us" or c.startswith("us(")), None)
     layout_state["toggle"] = _group_toggle_available() and len(codes) > 1
-    if codes != previous_codes or current != previous_current:
-        emit(type="layouts", codes=codes, current=current, arabic=layout_state["ara"],
-             us=layout_state["us"], toggle=layout_state["toggle"])
+    rebuild = refresh_keymaps or codes != previous_codes or not layout_state.get("keymaps_built")
+    if rebuild:
+        layout_state["keymaps_built"] = True
+        try:
+            keymaps = build_keymaps(codes)
+            compose = keymap_composition(keymaps) if keymaps else []
+        except Exception as e:  # keymap introspection must never stop video or the rest of input
+            keymaps, compose = None, []
+            emit(type="warn", warn=f"live keymap failed: {e}")
+        layout_state["keymaps"], layout_state["compose"] = keymaps, compose
+        if keymaps is None:
+            emit(type="warn", warn="the running keymap could not be reproduced from kxkbrc; "
+                                   "typed text is delivered by exact paste")
+    if rebuild or codes != previous_codes or current != previous_current:
+        event = dict(type="layouts", codes=codes, current=current, arabic=layout_state["ara"],
+                     us=layout_state["us"], toggle=layout_state["toggle"])
+        if rebuild:
+            event.update(keymaps=layout_state["keymaps"], compose=layout_state["compose"])
+        emit(**event)
     return True
 
 
@@ -482,16 +499,23 @@ def _group_index(name):
     return next((i for i, c in enumerate(codes) if c.startswith(name)), None)
 
 
-def select_group(name, send):
+def select_group(name, send, group=None):
     """Put `name` on the active group by injecting toggles through `send` — the SAME sender the
-    batch's letters use. Returns False when the group does not exist or cannot be reached."""
+    batch's letters use. Returns False when the group does not exist or cannot be reached.
+
+    `group` is the index the agent planned against. It is honoured only while that index still
+    carries the same layout code; a ring reordered since then is resolved by name again."""
     # A settings change can reorder the ring while the portal stays alive.
     # Resolve before even the cur == idx fast path: cached ara=1 on de,ara
     # becomes US after inserting de,us,ara and silently types Latin positions.
     # Also observe physical/external layout switches between remote batches.
     if not load_layouts():
         return False
-    idx = _group_index(name)
+    codes = layout_state["codes"]
+    if isinstance(group, int) and not isinstance(group, bool) and 0 <= group < len(codes) and codes[group] == name:
+        idx = group
+    else:
+        idx = _group_index(name)
     if idx is None:
         # Name the group that is actually missing. This hard-coded the Arabic message for EVERY
         # failure, so a machine without a `us` group told its owner to install an Arabic keyboard.
@@ -575,6 +599,257 @@ def restore_layout():
             layout_state["current"] = layout_state["home"]
         except GLib.GError:
             pass
+
+
+# ---------------------------------------------------------------- live keymap
+#
+# WHICH KEY PRODUCES WHICH CHARACTER IS A FACT OF THE RUNNING KEYMAP, NOT OF THIS SOURCE TREE.
+#
+# Typing used to rely on two hand-written position tables (Arabic, US) and to inject every other
+# Latin letter as a keysym on `home`, the group active when this helper started. MoOS then made
+# Arabic the FIRST group (`ara,de`): `home` became Arabic, a Latin keysym has no key there, and
+# English from the phone arrived as nothing. German had no table and no `us` group remained, so
+# ä ö ü ß €, @ and every other symbol went through the clipboard, and a desktop viewer's physical
+# German keyboard typed Arabic letters.
+#
+# KWin compiles its keymap with libxkbcommon from kxkbrc's [Layout] names
+# (Xkb::loadKeymapFromConfig: Model defaults to pc104, Options apply only with ResetOldOptions,
+# XKB_DEFAULT_* fills empty fields). Compiling the same names with the same library and data yields
+# the same keycode -> level -> keysym table, and xkb_keysym_to_utf32 is the conversion toolkits
+# apply. The agent plans every run against this per-group table, for whatever layouts the owner
+# adds. The measured Arabic positions remain a regression oracle in tests/test_remote_live_keymap.py.
+XKB_DEAD_MARKS = {
+    0xfe50: 0x0300, 0xfe51: 0x0301, 0xfe52: 0x0302, 0xfe53: 0x0303, 0xfe54: 0x0304,
+    0xfe55: 0x0306, 0xfe56: 0x0307, 0xfe57: 0x0308, 0xfe58: 0x030A, 0xfe59: 0x030B,
+    0xfe5a: 0x030C, 0xfe5b: 0x0327, 0xfe5c: 0x0328,
+}
+XKB_KEY_SHIFT_L = 0xffe1
+XKB_KEY_ISO_LEVEL3_SHIFT = 0xfe03
+XKB_MOD_INVALID = 0xffffffff
+# The alphanumeric block. The keypad is excluded: its level follows NumLock state, which an
+# injected batch cannot observe.
+KEYMAP_TYPING_CODES = tuple(code for code in range(1, 89) if code != 55 and not 71 <= code <= 83)
+KEYMAP_MOD_SHIFT, KEYMAP_MOD_LEVEL3 = 1, 2
+KEYMAP_SHIFT_CODE, KEYMAP_LEVEL3_CODE = 42, 100
+_xkb = None
+
+
+def _xkb_library():
+    """libxkbcommon with typed signatures, or None. Loaded once; a failure is remembered."""
+    global _xkb
+    if _xkb is None:
+        try:
+            lib = ctypes.CDLL("libxkbcommon.so.0")
+        except OSError:
+            _xkb = False
+            return None
+        vp, u32, size = ctypes.c_void_p, ctypes.c_uint32, ctypes.c_size_t
+
+        class RuleNames(ctypes.Structure):
+            _fields_ = [(field, ctypes.c_char_p) for field in ("rules", "model", "layout", "variant", "options")]
+
+        for name, restype, argtypes in (
+            ("xkb_context_new", vp, [ctypes.c_int]),
+            ("xkb_context_unref", None, [vp]),
+            ("xkb_keymap_new_from_names", vp, [vp, ctypes.POINTER(RuleNames), ctypes.c_int]),
+            ("xkb_keymap_unref", None, [vp]),
+            ("xkb_keymap_num_layouts", u32, [vp]),
+            ("xkb_keymap_num_levels_for_key", u32, [vp, u32, u32]),
+            ("xkb_keymap_key_get_syms_by_level", ctypes.c_int, [vp, u32, u32, u32, ctypes.POINTER(ctypes.POINTER(u32))]),
+            ("xkb_keymap_key_get_mods_for_level", size, [vp, u32, u32, u32, ctypes.POINTER(u32), size]),
+            ("xkb_keymap_mod_get_index", u32, [vp, ctypes.c_char_p]),
+            ("xkb_keysym_to_utf32", u32, [u32]),
+        ):
+            function = getattr(lib, name)
+            function.restype, function.argtypes = restype, argtypes
+        lib.RuleNames = RuleNames
+        _xkb = lib
+    return _xkb or None
+
+
+def _kxkbrc_layout_config():
+    """kxkbrc [Layout] as KConfig resolves it for KWin: /etc/xdg, then the Global Theme's
+    kdedefaults, then the user's own file, later files winning per key."""
+    home = os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config")
+    merged = {}
+    for path in ("/etc/xdg/kxkbrc", os.path.join(home, "kdedefaults", "kxkbrc"), os.path.join(home, "kxkbrc")):
+        try:
+            with open(path, encoding="utf-8") as f:
+                group = None
+                for raw in f:
+                    line = raw.strip()
+                    if not line or line[0] in "#;":
+                        continue
+                    if line.startswith("["):
+                        group = line
+                    elif group == "[Layout]" and "=" in line:
+                        key, value = line.split("=", 1)
+                        merged[key.split("[", 1)[0].strip()] = value.strip()
+        except OSError:
+            continue
+    return merged
+
+
+def _kconfig_bool(value):
+    return str(value or "").strip().lower() in ("true", "1", "on", "yes")
+
+
+def build_keymaps(codes, config=None):
+    """Per-group reverse keymaps for the groups KWin reports, or None when the running keymap
+    cannot be reproduced exactly. Positions compiled from names the compositor is NOT using would
+    be confidently wrong; the agent's exact paste path is never wrong."""
+    codes = list(codes)
+    if not codes:
+        return None
+    config = _kxkbrc_layout_config() if config is None else config
+    configured = [code.strip() for code in config["LayoutList"].split(",")] if config.get("LayoutList") else []
+    if configured and configured != codes:
+        return None
+    lib = _xkb_library()
+    if lib is None:
+        return None
+    env = os.environ.get
+    fields = (
+        env("XKB_DEFAULT_RULES") or "evdev",
+        config.get("Model", "pc104") or env("XKB_DEFAULT_MODEL", ""),
+        ",".join(codes),
+        (config.get("VariantList", "") if configured else "") or env("XKB_DEFAULT_VARIANT", ""),
+        (config.get("Options", "") if _kconfig_bool(config.get("ResetOldOptions")) else "")
+        or env("XKB_DEFAULT_OPTIONS", ""),
+    )
+    names = lib.RuleNames(*(field.encode() or None for field in fields))
+    context = lib.xkb_context_new(0)
+    if not context:
+        return None
+    keymap = None
+    try:
+        keymap = lib.xkb_keymap_new_from_names(context, ctypes.byref(names), 0)
+        if not keymap or lib.xkb_keymap_num_layouts(keymap) != len(codes):
+            return None
+        return [_group_keymap(lib, keymap, group, code) for group, code in enumerate(codes)]
+    finally:
+        if keymap:
+            lib.xkb_keymap_unref(keymap)
+        lib.xkb_context_unref(context)
+
+
+def _group_keymap(lib, keymap, group, code):
+    """Every character (and dead accent) the alphanumeric block reaches on one group, with the
+    Shift/AltGr state that reaches it. Levels needing Lock, NumLock or Control are omitted."""
+    def mod_bits(*names):
+        bits = 0
+        for name in names:
+            index = lib.xkb_keymap_mod_get_index(keymap, name)
+            if index != XKB_MOD_INVALID and index < 32:
+                bits |= 1 << index
+        return bits
+
+    def symbol(key, level):
+        syms = ctypes.POINTER(ctypes.c_uint32)()
+        if lib.xkb_keymap_key_get_syms_by_level(keymap, key + 8, group, level, ctypes.byref(syms)) != 1:
+            return None
+        return syms[0]
+
+    shift_bits, level3_bits = mod_bits(b"Shift"), mod_bits(b"Mod5", b"LevelThree")
+    shift = KEYMAP_SHIFT_CODE if symbol(KEYMAP_SHIFT_CODE, 0) == XKB_KEY_SHIFT_L else None
+    level3 = KEYMAP_LEVEL3_CODE if symbol(KEYMAP_LEVEL3_CODE, 0) == XKB_KEY_ISO_LEVEL3_SHIFT else None
+    levels, dead = [], []
+    masks = (ctypes.c_uint32 * 16)()
+    for key in KEYMAP_TYPING_CODES:
+        for level in range(lib.xkb_keymap_num_levels_for_key(keymap, key + 8, group)):
+            sym = symbol(key, level)
+            if sym is None:
+                continue
+            mods = None
+            count = lib.xkb_keymap_key_get_mods_for_level(keymap, key + 8, group, level, masks, len(masks))
+            for mask in masks[:min(count, len(masks))]:
+                if mask & ~(shift_bits | level3_bits):
+                    continue
+                wanted = ((KEYMAP_MOD_SHIFT if mask & shift_bits else 0)
+                          | (KEYMAP_MOD_LEVEL3 if mask & level3_bits else 0))
+                if (wanted & KEYMAP_MOD_SHIFT and shift is None) or (wanted & KEYMAP_MOD_LEVEL3 and level3 is None):
+                    continue
+                if mods is None or bin(wanted).count("1") < bin(mods).count("1"):
+                    mods = wanted
+            if mods is None:
+                continue
+            if sym in XKB_DEAD_MARKS:
+                dead.append([key, mods, XKB_DEAD_MARKS[sym]])
+                continue
+            char = lib.xkb_keysym_to_utf32(sym)
+            if 0x20 <= char < 0x110000 and char != 0x7f and not 0xd800 <= char < 0xe000:
+                levels.append([key, mods, char])
+    return {"code": code, "group": group, "shift": shift, "level3": level3, "levels": levels, "dead": dead}
+
+
+CAPS_LOCK_CODE = 58
+# Our own restoring Caps Lock tap reaches the LED asynchronously; a batch that starts within this
+# window trusts the tap instead of a possibly stale LED.
+CAPS_RESTORE_TRUST_S = 0.5
+
+
+def caps_lock_on(leds="/sys/class/leds"):
+    """Whether KWin's Caps Lock is on, as it mirrors the lock onto every keyboard LED, or None
+    when no Caps Lock LED exists and the state is unobservable.
+
+    KWin keeps ONE xkb state for all keyboards, the portal's included, and exposes no D-Bus
+    property for the lock. With no LED nothing is adjusted: toggling a lock we cannot read back
+    would flip it on every batch."""
+    try:
+        names = os.listdir(leds)
+    except OSError:
+        return None
+    seen = False
+    for name in names:
+        if not name.endswith("::capslock"):
+            continue
+        try:
+            with open(os.path.join(leds, name, "brightness")) as f:
+                if int(f.read().strip() or "0") > 0:
+                    return True
+            seen = True
+        except (OSError, ValueError):
+            continue
+    return False if seen else None
+
+
+def caps_lock_state():
+    """The lock as our own last tap left it while the LED may still lag, else the LED."""
+    known = layout_state.get("caps_known")
+    if known and time.monotonic() - known[1] < CAPS_RESTORE_TRUST_S:
+        return known[0]
+    return caps_lock_on()
+
+
+def _tap_keycode(send, code):
+    for down in (1, 0):
+        send("NotifyKeyboardKeycode", "(oa{sv}iu)", (session, empty, code, down))
+
+
+def _set_caps_lock(send, wanted):
+    _tap_keycode(send, CAPS_LOCK_CODE)
+    layout_state["caps_known"] = (wanted, time.monotonic())
+
+
+def keymap_composition(groups):
+    """[composed, base, mark] for single-accent characters the agent's planner may need.
+
+    The agent runs with .NET invariant globalization, where string.Normalize returns its input
+    unchanged (measured), so composition is resolved here: decomposed input can use a precomposed
+    key (a + U+0308 -> ä) and a precomposed character can use a dead key (é -> dead_acute, e)."""
+    direct = {char for group in groups for _key, _mods, char in group["levels"]}
+    marks = {mark for group in groups for _key, _mods, mark in group["dead"]}
+    for char in direct:
+        decomposed = unicodedata.normalize("NFD", chr(char))
+        if len(decomposed) == 2 and unicodedata.combining(decomposed[1]):
+            marks.add(ord(decomposed[1]))
+    table = []
+    for base in sorted(direct):
+        for mark in sorted(marks):
+            composed = unicodedata.normalize("NFC", chr(base) + chr(mark))
+            if len(composed) == 1:
+                table.append([ord(composed), base, mark])
+    return table
 
 
 # ---------------------------------------------------------------- frame transport
@@ -1600,9 +1875,22 @@ def handle(m):
         # picture for no ordering benefit.
         ordered = bool(m.get("sync")) or any("layout" in e for e in events)
         send = notify_sync if ordered else notify
+        # TYPED TEXT IS EXACT CHARACTERS, SO IT MUST NOT INHERIT A CAPS LOCK LEFT ON AT THE DESK.
+        # Measured live 2026-09-15 with the lock on: "Hello World" arrived "hELLO wORLD", ß arrived
+        # ẞ and AltGr symbols landed a level up. The agent marks text batches; the lock is released
+        # for the batch and restored after it, inside the same ordered stream.
+        caps = bool(m.get("text")) and ordered and caps_lock_state() is True
+        if caps:
+            _set_caps_lock(send, False)
+        # A desktop viewer's letter press carries the viewer's OWN Caps Lock (derived by the agent
+        # from the letter's case and the held Shift). Align the desk's lock with it, as remote
+        # desktop protocols synchronize toggle keys, so both keyboards agree about case.
+        wanted_lock = m.get("capsLock")
+        if isinstance(wanted_lock, bool) and caps_lock_state() not in (None, wanted_lock):
+            _set_caps_lock(notify_sync, wanted_lock)
         for event in events:
             if "layout" in event:
-                if not select_group(str(event["layout"]), send):
+                if not select_group(str(event["layout"]), send, event.get("group")):
                     # The group we need does not exist. Typing the rest would deliver the OTHER
                     # layout's reading of those positions — the exact corruption this design
                     # exists to prevent — so the run is dropped and reported.
@@ -1616,6 +1904,8 @@ def handle(m):
                 send("NotifyKeyboardKeysym", "(oa{sv}iu)",
                      (session, empty, int(event["keysym"]), 1 if event["down"] else 0))
                 layout_state["typed"] = True
+        if caps:
+            _set_caps_lock(send, True)
     elif t == "keyframe":
         # A phone that just connected has no reference frame. Asking costs one larger frame;
         # not asking costs it up to a whole GOP of garbage.
@@ -1639,6 +1929,16 @@ def stdin_loop():
 
 
 load_layouts()
+
+
+def _keyboard_changed(_connection, _sender, _path, _interface, signal, _parameters):
+    """A desk Alt+Shift, System Settings > Keyboard, or our own toggles. The agent plans text and
+    shortcuts for the group that is ACTUALLY active, and recompiles when the layout list changed."""
+    load_layouts(refresh_keymaps=signal == "layoutListChanged")
+
+
+bus.signal_subscribe(KEYBOARD_BUS, KEYBOARD_IFACE, None, KEYBOARD_PATH, None,
+                     Gio.DBusSignalFlags.NONE, _keyboard_changed)
 
 emit(type="ready", backend="KDE RemoteDesktop + ScreenCast portal", node=node_id,
      logical_width=logical_w, logical_height=logical_h)

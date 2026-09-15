@@ -33,8 +33,9 @@ export interface DesktopCallbacks {
   up: (button: "left" | "middle" | "right", nx: number, ny: number) => void;
   /** positive dy = scroll down, exactly as a real wheel reports it */
   scroll: (dxNotches: number, dyNotches: number) => void;
-  /** a PHYSICAL key position (KeyboardEvent.code) */
-  keyCode: (code: string, down: boolean) => void;
+  /** a PHYSICAL key position (KeyboardEvent.code), plus the character it produced on the viewer's
+   *  keyboard when it produced exactly one and no Ctrl/Alt/Meta chord was held */
+  keyCode: (code: string, down: boolean, produced?: string) => void;
   /** a CHARACTER, for when the viewer's layout disagrees with the wire */
   text: (value: string) => void;
   cursorAt: (nx: number, ny: number) => void;
@@ -385,7 +386,12 @@ export class DesktopInput {
     // so sending the repeats is harmless; not sending them saves a frame per repeat.
     if (e.repeat || this.heldCodes.has(e.code) || !e.code) return;
     this.heldCodes.add(e.code);
-    this.cb.keyCode(e.code, true);
+    // The position stays authoritative; the character it produced HERE rides along so the remote
+    // can make its active keymap group agree. A German or US keyboard pressing A must type `a`
+    // even when the desktop's Arabic group is active, exactly as the phone's text path already does.
+    const produced = !e.ctrlKey && !e.altKey && !e.metaKey && Array.from(e.key).length === 1 ? e.key : undefined;
+    if (produced === undefined) this.cb.keyCode(e.code, true);
+    else this.cb.keyCode(e.code, true, produced);
   };
 
   private onKeyUp = (e: KeyboardEvent) => {

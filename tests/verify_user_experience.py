@@ -1959,7 +1959,6 @@ require("CURSOR_HIDDEN" in portal,
 # explicit user-requested clipboard transfer remains a separate, byte-confirmed feature.
 text_keysym = read("moremote/agent-linux/TextKeysym.cs")
 input_injector = read("moremote/agent-linux/InputInjector.cs")
-ara_keymap = read("moremote/agent-linux/AraKeymap.cs")
 clipboard_bridge = read("moremote/agent-linux/ClipboardBridge.cs")
 remote_screen = read("moremote/controller/src/ui/RemoteScreen.tsx")
 # The broad clipboard borrow is retired. Real keymap events remain the normal path. A character no
@@ -1980,11 +1979,12 @@ require("SetTextConfirmed" in code(clipboard_bridge, "slash")
         and "SetImagePngConfirmed" in code(clipboard_bridge, "slash"),
         "explicit clipboard text/image writes must be read back exactly before the browser is "
         "allowed to send Paste; keyboard typing itself must stay off the clipboard")
-require("AraKeymap.TryStrokes(" in code(input_injector, "slash")
-        and "public static bool TryStrokes(" in code(ara_keymap, "slash"),
-        "Arabic must be typed by pressing the positions that carry it on the Arabic group")
-require('{ layout = arabic ? "ara" : "home" }' in code(input_injector, "slash"),
-        "every typed run must name the keymap group it needs, as the FIRST element of its batch")
+require("KeymapPlanner.TryPlan(run, keymap, out var plan)" in code(input_injector, "slash")
+        and "xkb_keymap_new_from_names" in code(portal) and "def build_keymaps(" in code(portal),
+        "typed text must be planned on the RUNNING keymap compiled from KWin's own kxkbrc names; "
+        "hand-written tables typed nothing on the Arabic-first ring (measured 2026-09-15)")
+require("new { layout = group.Code, group = group.Group }" in code(input_injector, "slash"),
+        "every typed run must name the keymap group it needs before its strokes, in one batch")
 require("_toggle_events" in code(portal) and "grp:alt_shift_toggle" in code(portal),
         "the group change must ride the keymap's own Alt+Shift switch, so it travels in the SAME "
         "ordered stream as the letters — an out-of-band setLayout overtakes keys in flight "
@@ -2008,7 +2008,7 @@ gestures = read("moremote/controller/src/lib/gestures.ts")
 # pill is re-encoded into the video stream, so a switch per letter would strobe the picture.
 # Keysym-typable text must still go out within one 60 Hz frame: English never pays for Arabic.
 require("FAST_FLUSH_MS = 12" in remote_ws,
-        "phone text the agent can type by keysym must still flush within one 60 Hz frame")
+        "plain Latin phone text must still flush within one 60 Hz frame")
 require("COMPLEX_TEXT_FLUSH_MS" in remote_ws and "FAST_TEXT" in remote_ws,
         "text the agent must type on another keymap group has to batch into words, not one "
         "group switch (and one OSD flash) per letter")

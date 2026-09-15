@@ -24,7 +24,7 @@ public sealed class PortalBridge : IDisposable
     private volatile bool _ready;
     private volatile bool _disposed;
     private volatile string _lastError = "";
-    private readonly HashSet<string> _layouts = new(StringComparer.OrdinalIgnoreCase);
+    private LiveKeymap? _keymap;
 
     private byte[]? _frame;
     private long _version;
@@ -214,7 +214,7 @@ public sealed class PortalBridge : IDisposable
 
         using var proc = Process.Start(psi) ?? throw new IOException("could not start python3");
         int generation = Interlocked.Increment(ref _generation);
-        lock (_gate) _layouts.Clear();
+        lock (_gate) _keymap = null;
         _proc = proc;
         _stdin = proc.StandardInput;
         _stdin.AutoFlush = true;
@@ -305,16 +305,24 @@ public sealed class PortalBridge : IDisposable
                 }
                 break;
             case "layouts":
-                lock (_gate)
                 {
-                    _layouts.Clear();
-                    if (root.TryGetProperty("codes", out var codes) && codes.ValueKind == JsonValueKind.Array)
-                        foreach (var code in codes.EnumerateArray())
-                            if (code.ValueKind == JsonValueKind.String &&
-                                code.GetString() is { Length: > 0 } value)
-                                _layouts.Add(value);
+                    int current = root.TryGetProperty("current", out var cur) && cur.ValueKind == JsonValueKind.Number
+                        && cur.TryGetInt32(out var index) ? index : -1;
+                    lock (_gate)
+                    {
+                        // The helper sends the compiled keymap only when it (re)built one; a group
+                        // switch alone updates which group is active.
+                        if (root.TryGetProperty("keymaps", out var keymaps))
+                        {
+                            root.TryGetProperty("compose", out var compose);
+                            _keymap = LiveKeymap.Parse(keymaps, compose, current);
+                            if (_keymap is null)
+                                Log.Warn("Portal: no usable live keymap; typed text that needs one uses exact paste.");
+                        }
+                        else if (_keymap is not null) _keymap = _keymap.WithCurrent(current);
+                    }
+                    break;
                 }
-                break;
             case "video":
                 VideoWidth = GetInt(root, "width", VideoWidth);
                 VideoHeight = GetInt(root, "height", VideoHeight);
@@ -354,12 +362,14 @@ public sealed class PortalBridge : IDisposable
     private static int GetInt(JsonElement e, string name, int fallback) =>
         e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetInt32() : fallback;
 
-    /// <summary>The groups KWin reported as loaded for this exact portal generation.</summary>
-    public bool HasLayout(string code)
+    /// <summary>
+    /// The keymap KWin has loaded for this exact portal generation, compiled by the helper, plus the
+    /// group KWin last reported active. Null until the helper reports one, or when it could not be
+    /// reproduced — callers then use exact paste rather than guessing positions.
+    /// </summary>
+    public LiveKeymap? Keymap
     {
-        lock (_gate)
-            return _layouts.Any(value => value.Equals(code, StringComparison.OrdinalIgnoreCase)
-                || value.StartsWith(code + "(", StringComparison.OrdinalIgnoreCase));
+        get { lock (_gate) return _keymap; }
     }
 
     /// <summary>What the helper's encoder is producing right now: "jpeg" or "h264".</summary>
