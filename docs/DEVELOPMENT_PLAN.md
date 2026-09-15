@@ -36,10 +36,12 @@ readback remains part of P0.6. A reproduced Remote defect showed that a portal
 grant kept its old 1280×720 coordinate space after the desktop became
 1536×864. The current slice renews the combined capture/input grant on a real
 Wayland display-geometry change. PR #93 is merged; its earlier ISO second-boot
-proof failed. The later Horizon ISO proof `34885449896` completed the offline
+proof failed. A later Horizon attempt `34885449896` completed the offline
 deployment but lost a transient ESP unmount race before the installed-disk boot.
-The next candidate must include the bounded unmount repair and repeat every
-release proof.
+PR #96 added the bounded regular-unmount repair; exact revision `3298a3d9` then
+passed the three QCOW2 proofs and the full final-ISO live/offline install,
+installed-disk boot/reboot proof before promotion run `34996440151` moved the
+x86 production tags.
 
 | Requested outcome | Work stream | What must actually be proven |
 | --- | --- | --- |
