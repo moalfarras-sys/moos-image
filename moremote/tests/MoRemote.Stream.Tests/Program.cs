@@ -264,7 +264,7 @@ public sealed class TestInput
     }
     public void DoubleClick(double x, double y) { }
     public void Scroll(double x, double y) { }
-    public void KeyCode(string code, bool down) { }
+    public void KeyCode(string code, bool down, string? produced = null) { }
     public void KeyTapCode(string code) { }
     public void KeyDown(string key) { }
     public void KeyUp(string key) { }

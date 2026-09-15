@@ -183,6 +183,23 @@ for bad_id in ("../../etc/passwd",
 result = run("install")
 check(result.returncode == 2, "moai-do install with no id must exit 2")
 
+# Local packages have a stronger contract than a Flatpak id: only an existing,
+# owned, non-symlink RPM in a common user folder may even reach signature
+# inspection or Polkit. Public moos: URLs cannot turn an arbitrary path into a
+# privileged package transaction.
+for bad_rpm in ("",
+                "../../etc/passwd",
+                "/etc/passwd",
+                "/tmp/not-a-package.rpm",
+                "/var/home/moos/Downloads/pkg.rpm;reboot"):
+    result = run("install-rpm", bad_rpm)
+    check(result.returncode == 2,
+          f"moai-do install-rpm must refuse {bad_rpm!r}, got {result.returncode}")
+    check("Choose a regular RPM" in result.stdout + result.stderr,
+          f"moai-do install-rpm must explain its safe path policy for {bad_rpm!r}")
+    check("rpm-ostree install" not in result.stdout + result.stderr,
+          f"moai-do install-rpm must not reach a transaction for {bad_rpm!r}")
+
 # The assistant is a UX client, not a second update implementation. Its unprivileged
 # resolver can be doubled, but the path handed to Polkit is fixed to the root-owned
 # backend and carries only the digest the user confirmed.

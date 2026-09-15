@@ -3,6 +3,7 @@
 
 from pathlib import Path
 import ast
+import hashlib
 import json
 import os
 import re
@@ -907,6 +908,44 @@ declared_routes = routes_declared(router)
 require("*" not in declared_routes, "the default arm must not count as a route")
 require("apps/install/*" in declared_routes,
         "moos-open must accept an app id to install (apps/install/*)")
+require("apps/install-rpm/*" in declared_routes,
+        "moos-open must accept a local RPM selected by Mo AI")
+
+# A local RPM executes privileged scriptlets, so this path is intentionally
+# stricter than opening a normal attachment: three validations, a trusted
+# signature, explicit confirmation, and an rpm-ostree deployment. Never let a
+# convenience UI weaken this to dnf/rpm --install or a signature bypass.
+_local_rpm_helper = read("system_files/usr/libexec/moos-install-local-rpm")
+_local_rpm_frontend = read("system_files/usr/bin/moai-do")
+_openai_key = ROOT / "system_files/etc/pki/rpm-gpg/RPM-GPG-KEY-openai-chatgpt"
+require(hashlib.sha256(_openai_key.read_bytes()).hexdigest()
+        == "6c8933f828af390b2457f9e2d234082d783d6e4bb1911615b4861c6c61f4ea5a",
+        "the pinned OpenAI ChatGPT publisher key changed; verify the new fingerprint "
+        "out of band and update this digest deliberately")
+require('do_install_rpm()' in _local_rpm_frontend
+        and 'digest="$(sha256sum -- "$rpm_path"' in _local_rpm_frontend
+        and 'run_priv /usr/libexec/moos-install-local-rpm "$rpm_path" "$digest"' in _local_rpm_frontend,
+        "Mo AI local RPM installs must cross the fixed root-owned helper")
+require('install -m 0600 -- "$resolved" "$staged"' in _local_rpm_helper
+        and 'sha256sum -- "$staged"' in _local_rpm_helper
+        and 'rpmkeys -Kv -- "$staged"' in _local_rpm_helper
+        and 'rpm-ostree install --idempotent -- "$staged"' in _local_rpm_helper
+        and "PKEXEC_UID" in _local_rpm_helper
+        and "aarch64:aarch64" in _local_rpm_helper
+        and "--nosignature" not in _local_rpm_helper
+        and "--nogpgcheck" not in _local_rpm_helper,
+        "the privileged local RPM helper must revalidate ownership/signature and stage "
+        "an atomic deployment without any signature bypass")
+for _build in (read("build_files/build.sh"), read("build_files/build-arm.sh")):
+    require("rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-openai-chatgpt" in _build
+            and "moos-install-local-rpm" in _build,
+            "every architecture must import the pinned ChatGPT publisher key and make "
+            "the privileged local-package helper executable")
+require('id: localPackageDialog' in moai_qml
+        and 'label: root.local("ثبّت RPM", "Install RPM")' in moai_qml
+        and 'root.handlePickedFile(String(urls[i]))' in moai_qml
+        and 'clean.endsWith(".rpm")' in moai_qml,
+        "Mo AI must offer a visible RPM picker and recognise a dropped RPM")
 
 # ── Device onboarding buttons must reach real Plasma settings routes ─────────
 #
@@ -1920,7 +1959,6 @@ require("CURSOR_HIDDEN" in portal,
 # explicit user-requested clipboard transfer remains a separate, byte-confirmed feature.
 text_keysym = read("moremote/agent-linux/TextKeysym.cs")
 input_injector = read("moremote/agent-linux/InputInjector.cs")
-ara_keymap = read("moremote/agent-linux/AraKeymap.cs")
 clipboard_bridge = read("moremote/agent-linux/ClipboardBridge.cs")
 remote_screen = read("moremote/controller/src/ui/RemoteScreen.tsx")
 # The broad clipboard borrow is retired. Real keymap events remain the normal path. A character no
@@ -1941,11 +1979,12 @@ require("SetTextConfirmed" in code(clipboard_bridge, "slash")
         and "SetImagePngConfirmed" in code(clipboard_bridge, "slash"),
         "explicit clipboard text/image writes must be read back exactly before the browser is "
         "allowed to send Paste; keyboard typing itself must stay off the clipboard")
-require("AraKeymap.TryStrokes(" in code(input_injector, "slash")
-        and "public static bool TryStrokes(" in code(ara_keymap, "slash"),
-        "Arabic must be typed by pressing the positions that carry it on the Arabic group")
-require('{ layout = arabic ? "ara" : "home" }' in code(input_injector, "slash"),
-        "every typed run must name the keymap group it needs, as the FIRST element of its batch")
+require("KeymapPlanner.TryPlan(run, keymap, out var plan)" in code(input_injector, "slash")
+        and "xkb_keymap_new_from_names" in code(portal) and "def build_keymaps(" in code(portal),
+        "typed text must be planned on the RUNNING keymap compiled from KWin's own kxkbrc names; "
+        "hand-written tables typed nothing on the Arabic-first ring (measured 2026-09-15)")
+require("new { layout = group.Code, group = group.Group }" in code(input_injector, "slash"),
+        "every typed run must name the keymap group it needs before its strokes, in one batch")
 require("_toggle_events" in code(portal) and "grp:alt_shift_toggle" in code(portal),
         "the group change must ride the keymap's own Alt+Shift switch, so it travels in the SAME "
         "ordered stream as the letters — an out-of-band setLayout overtakes keys in flight "
@@ -1969,7 +2008,7 @@ gestures = read("moremote/controller/src/lib/gestures.ts")
 # pill is re-encoded into the video stream, so a switch per letter would strobe the picture.
 # Keysym-typable text must still go out within one 60 Hz frame: English never pays for Arabic.
 require("FAST_FLUSH_MS = 12" in remote_ws,
-        "phone text the agent can type by keysym must still flush within one 60 Hz frame")
+        "plain Latin phone text must still flush within one 60 Hz frame")
 require("COMPLEX_TEXT_FLUSH_MS" in remote_ws and "FAST_TEXT" in remote_ws,
         "text the agent must type on another keymap group has to batch into words, not one "
         "group switch (and one OSD flash) per letter")

@@ -45,7 +45,7 @@ checks = {
     # retired: it raced on three fronts (one shared slot, a wl-copy that returns before the
     # selection is servable, an asynchronous fetch by the target app) and every scrambling report
     # in this project's history came out of it. Arabic is now typed by selecting the keymap group
-    # that carries the characters and pressing the positions — see AraKeymap and
+    # that carries the characters and pressing the positions — see LiveKeymap.cs and
     # InputInjector.Deliver. Each contract below is the SAME guarantee, re-expressed against the
     # mechanism that replaced it, so nothing is weakened by the migration.
 

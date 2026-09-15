@@ -200,7 +200,7 @@ check:
     # shared file wired into some of them compiles clean and dies in the image build;
     # `just dotnet-check` says so in under a minute, and this keeps it complete.
     python3 tests/test_dotnet_project_coverage.py
-    python3 tests/test_remote_us_keymap.py
+    python3 tests/test_remote_live_keymap.py
     python3 tests/test_remote_group_resolution.py
     python3 tests/test_remote_keycode_flush.py
     python3 tests/test_remote_portal_keysyms_sync.py

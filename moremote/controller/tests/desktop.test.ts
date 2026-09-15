@@ -98,7 +98,7 @@ test("physical repeats stay held and release even after focus enters a local fie
   const h = setup();
   h.key("keydown", "a", "KeyA"); h.key("keydown", "a", "KeyA", {repeat: true});
   h.key("keyup", "a", "KeyA", {target: {tagName: "TEXTAREA"}});
-  assert.deepEqual(h.events("key"), [["KeyA", true], ["KeyA", false]]);
+  assert.deepEqual(h.events("key"), [["KeyA", true, "a"], ["KeyA", false]]);
   h.key("keydown", "b", "KeyB", {target: {tagName: "INPUT", type: "text"}});
   assert.equal(h.events("key").length, 2);
   h.desktop.destroy();
@@ -117,7 +117,7 @@ test("local buttons, sliders, dialogs and already-handled Escape retain their ke
   assert.equal(h.events("key").length, 0);
   h.mouse("mousedown"); h.mouse("mouseup");
   h.key("keydown", "a", "KeyA"); h.key("keyup", "a", "KeyA");
-  assert.deepEqual(h.events("key"), [["KeyA", true], ["KeyA", false]], "canvas focus restores physical typing");
+  assert.deepEqual(h.events("key"), [["KeyA", true, "a"], ["KeyA", false]], "canvas focus restores physical typing");
   h.desktop.destroy();
 });
 

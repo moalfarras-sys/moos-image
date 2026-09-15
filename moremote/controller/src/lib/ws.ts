@@ -3,11 +3,11 @@ import type { Hello, MouseButton } from "../types";
 import { h264GivenUp } from "./h264state.ts";
 import { canDecodeH264 } from "./decode.ts";
 
-/** One 60 Hz frame: text the agent types by keysym must not wait longer than this. */
+/** One 60 Hz frame: plain Latin text must not wait longer than this. */
 const FAST_FLUSH_MS = 12;
 /** Text that needs a group switch or exact-Unicode fallback batches into committed words. */
 const COMPLEX_TEXT_FLUSH_MS = 220;
-/** Exactly what the agent can type by keysym — see InputInjector.TryDirectStrokes. */
+/** Plain Latin text, which normally needs no keymap group change — see KeymapPlanner. */
 const FAST_TEXT = /^[a-zA-Z0-9 ]*$/;
 /** Mirrors InputInjector.PasteCoalesceMax: never hold more than one gather's worth. */
 const TEXT_COALESCE_MAX = 240;
@@ -438,11 +438,12 @@ export class RemoteConnection {
     this.input({ type: "key", key, down: false });
   }
   /** A PHYSICAL key position (a browser KeyboardEvent.code). The agent prefers `code` over `key`
-   *  when both are present, so this deliberately sends only the position — see StreamSession's
-   *  "key" case and InputInjector.PhysicalCodes. */
-  keyCode(code: string, down: boolean) {
+   *  when both are present, so this sends the position and never `key` — see StreamSession's
+   *  "key" case and InputInjector.PhysicalCodes. `ch`, when given, is the character the press
+   *  produced on the viewer's keyboard; the agent uses it only to select a matching keymap group. */
+  keyCode(code: string, down: boolean, produced?: string) {
     this.flushText();
-    this.input({ type: "key", code, down });
+    this.input(produced ? { type: "key", code, down, ch: produced } : { type: "key", code, down });
   }
   combo(keys: string[]) {
     this.flushText();
@@ -459,14 +460,12 @@ export class RemoteConnection {
     if(this.textTimer)window.clearTimeout(this.textTimer);
     // How long to coalesce depends on how the agent will have to type this.
     //
-    // Text it can inject by keysym goes out within one 60 Hz frame — English must not get slower
-    // to serve Arabic. Complex committed text is slower for honest reasons: Arabic selects and
-    // confirms its real keymap group; symbols use the known US group; a character no installed
-    // group carries takes the exact UTF-8 compatibility path. A 220 ms window is longer than an
-    // ordinary inter-letter gap and shorter than a pause between words, so the client sends one
-    // committed word rather than making the agent switch mechanisms for every letter.
-    //
-    // The test mirrors the agent's own fast-path rule (InputInjector.TryDirectStrokes).
+    // Plain Latin text goes out within one 60 Hz frame — English must not get slower to serve
+    // Arabic. Other committed text is slower for honest reasons: it may select and confirm another
+    // keymap group, and a character no loaded group carries takes the exact UTF-8 compatibility
+    // path. A 220 ms window is longer than an ordinary inter-letter gap and shorter than a pause
+    // between words, so the client sends one committed word rather than one group switch (and one
+    // layout OSD) per letter. The agent plans groups itself (KeymapPlanner); this only paces.
     const fast = FAST_TEXT.test(this.pendingText);
     // The debounce re-arms on every keystroke, so input whose gaps never reach the
     // window — dictation, swipe typing, a fast typist — would defer the flush for as

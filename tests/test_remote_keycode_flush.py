@@ -67,7 +67,7 @@ def main() -> int:
 
     # 1. The paths that MUST flush.
     must_flush = [
-        "public void KeyCode(string code, bool down)",
+        "public void KeyCode(string code, bool down, string? produced = null)",
         "public void KeyTapCode(string code)",
         "public void KeyTap(string k)",
         "public void KeyDown(string k)",
@@ -90,7 +90,7 @@ def main() -> int:
                 f"browser (Space/Enter/digits go by position, Arabic goes as text).")
 
     # 2. KeyCode must flush only on the DOWN edge, or the gathering is defeated.
-    b = body_of(code, "public void KeyCode(string code, bool down)")
+    b = body_of(code, "public void KeyCode(string code, bool down, string? produced = null)")
     if b and "FlushPendingText()" in b:
         if not re.search(r"if\s*\(\s*down\s*\)\s*FlushPendingText\(\)", b):
             errors.append(

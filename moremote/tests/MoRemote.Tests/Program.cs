@@ -1,3 +1,4 @@
+using System.Text.Json;
 using MoRemote;
 
 var trustDir = Path.Combine(Path.GetTempPath(), "moremote-tests-" + Guid.NewGuid());
@@ -251,7 +252,6 @@ Directory.Delete(trustDir, true);
 {
     var injector = File.ReadAllText(Path.Combine(RepoRoot(), "agent-linux/InputInjector.cs"));
     var bridge = File.ReadAllText(Path.Combine(RepoRoot(), "agent-linux/ClipboardBridge.cs"));
-    var araMap = File.ReadAllText(Path.Combine(RepoRoot(), "agent-linux/AraKeymap.cs"));
     var portal = File.ReadAllText(Path.Combine(RepoRoot(), "agent-linux/mo-remote-portal.py"));
     // Comment-stripped: these require a NAME to be absent, and the paragraph
     // explaining why it is absent must not be able to break them.
@@ -263,24 +263,26 @@ Directory.Delete(trustDir, true);
         throw new Exception("unsupported Unicode must use one exact, ordered paste transaction");
     if (!Code(bridge, "//").Contains("SetTextConfirmed"))
         throw new Exception("explicit clipboard writes must be confirmed before the UI sends Paste");
-    if (!araMap.Contains("public static bool TryStrokes("))
-        throw new Exception("Arabic must be typed by pressing the positions that carry it");
     passed++;
 
-    var unicodeRuns = TextRunPlanner.Split("Hello 👩🏽‍💻 Grüße");
-    Eq(true, unicodeRuns.Any(p => p.UnicodePaste && p.Text == "👩🏽‍💻"),
-        "emoji ZWJ/skin-tone sequence remains one Unicode paste transaction");
-    Eq(true, unicodeRuns.Any(p => p.UnicodePaste && p.Text == "üß"),
-        "adjacent characters absent from the known groups are not silently dropped");
-    Eq(true, TextRunPlanner.RequiresAtomicPaste(unicodeRuns),
-        "one unsupported grapheme makes the complete browser commit one atomic paste");
-    Eq(false, TextRunPlanner.RequiresAtomicPaste(TextRunPlanner.Split("English عربي 123")),
-        "fully mapped text keeps the native Latin and Arabic key paths");
-    var keycapRuns = TextRunPlanner.Split("A1️⃣B");
-    Eq(true, keycapRuns.Any(p => p.UnicodePaste && p.Text == "1️⃣"),
+    // Planning on the live keymap (fixture: real libxkbcommon output for `ara,de`).
+    LiveKeymap keymap;
+    using (var fixture = JsonDocument.Parse(File.ReadAllText(Path.Combine(RepoRoot(), "tests/fixtures/keymap-ara-de.json"))))
+        keymap = LiveKeymap.Parse(fixture.RootElement.GetProperty("keymaps"), fixture.RootElement.GetProperty("compose"), 0)
+            ?? throw new Exception("the keymap fixture must parse");
+    Eq(false, KeymapPlanner.TryPlan("Hello 👩🏽‍💻 Grüße", keymap, out _),
+        "one grapheme no group carries makes the complete browser commit one exact paste");
+    Eq(false, KeymapPlanner.TryPlan("A1️⃣B", keymap, out _),
         "a keycap emoji stays one grapheme and never splits across keyboard and paste paths");
-    Eq(true, TextRunPlanner.RequiresAtomicPaste(keycapRuns),
-        "a keycap uses one clipboard owner for its complete committed run");
+    Eq(true, KeymapPlanner.TryPlan("English عربي 123", keymap, out var mixed) && mixed.Count == 2,
+        "mixed Latin/Arabic text needs exactly one group change; digits and spaces join a run");
+    Eq("English عربي 123", string.Concat(mixed.Select(run => run.Text)), "planned runs preserve text order");
+    Eq(true, KeymapPlanner.TryPlan("Grüße, ça coûte 5€", keymap, out var french) && french.Count == 1,
+        "German, French accents and € are one German-group run (dead cedilla/circumflex)");
+    using (var outOfOrder = JsonDocument.Parse("[{\"code\":\"de\",\"group\":1,\"shift\":42,\"level3\":100,\"levels\":[[30,0,97]],\"dead\":[]}]"))
+        Eq(true, LiveKeymap.Parse(outOfOrder.RootElement, default, 0) is null, "groups out of ring order are refused");
+    using (var badMods = JsonDocument.Parse("[{\"code\":\"de\",\"group\":0,\"shift\":42,\"level3\":100,\"levels\":[[30,7,97]],\"dead\":[]}]"))
+        Eq(true, LiveKeymap.Parse(badMods.RootElement, default, 0) is null, "malformed modifier state is refused, not partly trusted");
 
     // The group change must ride the keymap's own Alt+Shift switch, so it
     // travels in the SAME ordered stream as the letters. An out-of-band

@@ -90,6 +90,12 @@ for _rel in /etc/redhat-release /etc/system-release /etc/fedora-release; do
 done
 unset -v _rel
 
+# Trust the pinned OpenAI ChatGPT Linux repository key so MoOS can verify an
+# optional local ChatGPT RPM before layering it.  The app itself is deliberately
+# not in the base image (~1.4 GiB installed); users choose it from Mo AI's local
+# package picker. Fingerprint: 3BFA0E4AE8B8CC16A2D9BA684A3B4A566C4660E4.
+rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-openai-chatgpt
+
 # Full UI branding for graphical about-pages (KInfoCenter "About this System",
 # Plasma system settings, GNOME Software style dialogs, ...).
 # LOGO= takes an ICON NAME, not a file path — os-release(5): "A string,
@@ -2860,6 +2866,7 @@ rpm -q microcode_ctl >/dev/null 2>&1 || rpm -q amd-ucode-firmware >/dev/null 2>&
 chmod 0755 /usr/libexec/moos-hardware-adapt
 chmod 0755 /usr/libexec/moos-wait-drm
 chmod 0755 /usr/libexec/moos-greeter-gl-env
+chmod 0755 /usr/libexec/moos-install-local-rpm
 # A slow first-run DDC probe or zram re-tier must never hold graphical.target.
 # Remove the legacy direct enablement on upgraded images and let the post-desktop
 # timer own activation.

@@ -493,7 +493,9 @@ jobs:
             --iphone \
             --output "$RUNNER_TEMP/MoOS-UTM-Installer.utm" \
             --zip release/utm/MoOS-UTM-Installer.utm.zip
-          cp artwork/UTM-INSTALLER-README.txt release/utm/UTM-INSTALLER-README.txt
+          # The loose quick-start text was retired with the 2026-09-13 repository cleanup
+          # (tests/test_repository_hygiene.py forbids it) and was never uploaded: the artifact
+          # below is the zip alone. Copying the deleted file failed every ARM disk job on main.
           sha256sum release/utm/MoOS-UTM-Installer.utm.zip | tee release/utm/MoOS-UTM-Installer.utm.zip.sha256
           du -h release/utm/MoOS-UTM-Installer.utm.zip
 

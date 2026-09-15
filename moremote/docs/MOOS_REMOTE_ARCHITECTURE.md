@@ -38,11 +38,14 @@ Sharp; Ultra is manual because RTT is latency, not available uplink bandwidth.
 - Pointer Events drive Touch, Trackpad, Direct and desktop modes. A double tap produces exactly two
   clicks in total. Fine-pointer detection keeps mouse and physical keyboard active on touchscreen
   laptops.
-- ASCII uses the user's active layout when possible. Arabic and printable US symbols use named,
-  verified keyboard groups and physical positions. A missing group takes the exact-text path;
-  a failed in-stream group switch fails closed instead of typing the wrong positions.
-- Text that the installed portal protocol cannot represent (accents, German characters, emoji,
-  composed sequences) is classified without splitting grapheme clusters. If any grapheme in a
+- Typed text is planned on the running keymap: the helper compiles KWin's kxkbrc names with
+  libxkbcommon and reports each group's positions, levels and dead keys; the agent picks groups
+  per grapheme with the fewest switches. Shortcut letters use Qt's active-group rule; a desktop
+  viewer's physical key selects the group that produces the character the viewer's keyboard
+  produced. A kxkbrc that disagrees with the live layout list yields no keymap and the exact-text
+  path; a failed in-stream group switch fails closed instead of typing the wrong positions.
+- Text no loaded group can produce (emoji, scripts without a configured layout) is classified
+  without splitting grapheme clusters. If any grapheme in a
   gathered browser commit needs that path, the complete commit is written to Wayland, read back
   byte-for-byte, then pasted as one synchronous ordered action. Multiple clipboard owners inside
   one commit are forbidden because applications may fetch an earlier Paste asynchronously. The

@@ -301,6 +301,37 @@ case "${cat}/${tgt}" in
             exit 2
         fi ;;
 
+    # Local package picker. The value is a percent-encoded file URL/path, not a
+    # command. Decode once, then validate the real file under the signed-in
+    # user's common folders before moai-do validates it again and the privileged
+    # helper validates it a third time. A public moos: link can only raise an
+    # explicit package confirmation dialog.
+    apps/install-rpm/*)
+        encoded="${tgt#install-rpm/}"
+        local_path="$(python3 - "$encoded" <<'PY'
+import sys
+from urllib.parse import unquote, urlparse
+value = unquote(sys.argv[1])
+if value.startswith("file:"):
+    parsed = urlparse(value)
+    if parsed.netloc not in ("", "localhost"):
+        raise SystemExit(2)
+    value = unquote(parsed.path)
+print(value, end="")
+PY
+)" || { notify "مسار حزمة غير صالح | invalid package path"; exit 2; }
+        home="$(getent passwd "$(id -u)" | cut -d: -f6)"
+        resolved="$(realpath -e -- "$local_path" 2>/dev/null)" \
+            || { notify "ملف الحزمة غير موجود | package file not found"; exit 2; }
+        case "$resolved" in
+            "$home"/Downloads/*.rpm|"$home"/Desktop/*.rpm|"$home"/Documents/*.rpm)
+                [ -f "$resolved" ] && [ ! -L "$local_path" ] \
+                    && [ "$(stat -c %u -- "$resolved")" = "$(id -u)" ] \
+                    || { notify "ملف حزمة غير آمن | unsafe package file"; exit 2; }
+                term moai-do install-rpm "$resolved" ;;
+            *) notify "اختر RPM من Downloads أو Desktop أو Documents | choose an RPM from Downloads, Desktop, or Documents"; exit 2 ;;
+        esac ;;
+
     # ── App Centre: REMOVE an installed app by id ─────────────────────────────
     # The counterpart to apps/install, with the same free-form id, so the same
     # reverse-DNS validation here and again in moai-do, which asks for

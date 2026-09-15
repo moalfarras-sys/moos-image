@@ -1065,7 +1065,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
       //
       // Horizontal was never wrong and is unchanged: positive is right on every side of this.
       scroll: (dx, dy) => conn.scroll(dx, dy),
-      keyCode: (code, down) => conn.keyCode(code, down),
+      keyCode: (code, down, produced) => conn.keyCode(code, down, produced),
       text: (v) => conn.text(v),
       cursorAt: (x, y) => { cursorNorm.current = { x, y }; drawEpochRef.current++; },
       pasteIntent: () => { pasteIntentAt.current = performance.now(); armPasteFallback(); },

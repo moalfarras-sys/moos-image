@@ -156,6 +156,11 @@ dnf5 -y install --setopt=install_weak_deps=False \
     google-noto-color-emoji-fonts jetbrains-mono-fonts
 dnf5 -y install langpacks-ar langpacks-en
 
+# Optional local ChatGPT RPMs are accepted only after their publisher signature
+# verifies against this pinned key; the large application does not ship in the
+# base image. Keep parity with the x86 Mo AI package picker.
+rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-openai-chatgpt
+
 # Kawkab Mono — the Arabic terminal font, pinned by digest exactly like the
 # x86 build (build_files/build.sh section (c4)). Without it, the fontconfig
 # rule /etc/fonts/conf.d/61-moos-brand.conf ships in the ARM image pointing at
@@ -861,6 +866,7 @@ test -f /usr/lib/systemd/system/dbus-broker.service.d/moos-start-timeout.conf ||
 # cloud/UTM desktop pays zero idle daemon cost.
 chmod 0755 /usr/lib/mo-remote/MoRemotePersonal \
     /usr/lib/mo-remote/mo-remote-portal.py \
+    /usr/libexec/moos-install-local-rpm \
     /usr/bin/mo-pc-remote \
     /usr/bin/moplayer
 systemctl --global disable mo-remote-personal.service 2>/dev/null || true

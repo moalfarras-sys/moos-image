@@ -5,37 +5,21 @@ Current measured facts only; Git owns history.
 ## Source state
 
 - Date measured: 2026-09-15.
-- PR #96 is merged as `6813068d` with candidate revision `3298a3d9`. It
-  replaces the ISO installer's single ESP unmount with a bounded regular
-  unmount retry and preserves fail-closed behavior with `findmnt`/`fuser`
-  diagnostics. The revision passed all 147 local Linux gates, signed x86 build
-  `34989715430`, exact-digest QCOW2 boot/reboot/poweroff runs `34992172032`
-  (generic), `34992175700` (NVIDIA), `34992178861` (cloud), and final ISO live
-  boot/offline-install/installed-boot/reboot run `34992182459`. Promotion run
-  `34996440151` verified all five immutable proofs and moved the x86 production
-  tags. The promoted digests are generic `sha256:14c3c01422b7fd4fa95dab14a3f6eac827114b31209112722273d1e4064ff4b9`,
-  NVIDIA `sha256:5ca554bad2a036074ab0ec72307b0dae65d750c76cf91ee55da6313e292c678f`,
+- PR #96 (`6813068d`, candidate `3298a3d9`) replaced the ISO installer's single
+  ESP unmount with a bounded regular retry that stays fail-closed with
+  `findmnt`/`fuser` diagnostics. It passed 147 local gates, signed x86 build
+  `34989715430`, QCOW2 runs `34992172032`/`34992175700`/`34992178861` and the
+  full ISO live/offline-install/installed-boot/reboot run `34992182459`.
+  Promotion `34996440151` moved the x86 tags to generic
+  `sha256:14c3c01422b7fd4fa95dab14a3f6eac827114b31209112722273d1e4064ff4b9`,
+  NVIDIA `sha256:5ca554bad2a036074ab0ec72307b0dae65d750c76cf91ee55da6313e292c678f`
   and cloud `sha256:d254438110b4f95324e59f95a550d9f571d5350300a85558d76065cf3c0c35ed`.
-- PR #94 is merged as `93b29ad8`: the visible Horizon slice (readable
-  clock, `org.moos.search` bar target, compact media island, Arabic-first
-  `ara,de` keyboard across defaults/installer/firstboot, THEME_REV 57) plus
-  the ISO-proof repair (SSH boot-id authority + QGA stream resync). Its
-  exact revision passed `just check` (145 gates), a full local
-  `just build-nvidia` (identity firewall, motion, sound, store, image-state,
-  12/12 bootc lint; initramfs 194 MB) and signed CI build run 34877080740
-  for all three x86 editions. QCOW2 and ISO release proofs were dispatched
-  on the exact digests. The ISO proof below supersedes that release attempt.
-- Earlier exact-digest ISO run `34885449896` built and booted the final ISO and
-  completed the offline bootc deployment, but a transient `EBUSY` on the
-  installer-owned ESP mount made the bootloader-repair gate fail before the
-  installed-disk boot. PR #96 fixed and proved that race without lazy detach.
-- PR #93 is merged as `225e29f3`; Remote geometry source `64f0e76b` passed
-  signed build 34810522899 and all three QCOW2 boot/reboot proofs. ISO run
-  34811868497 installed offline, booted and opened/closed/reopened ten apps,
-  but timed out waiting for the second boot ID. It was not promoted.
-- GitHub authentication and branch publishing work from the host. Fourteen
-  historical remote branches were deleted after fresh ancestry checks proved
-  every tip was already contained in `main`; their commits remain in history.
+- The promoted revision contains PR #94 (`93b29ad8`, visible Horizon slice and
+  Arabic-first `ara,de`) and PR #93 (`225e29f3`, Remote geometry renewal).
+- The ARM disk job failed on every `main` push since the cleanup, including run
+  `34996414275`: its UTM packaging step copied a deleted README.
+- GitHub authentication and branch publishing work from the host; historical
+  branches are deleted only after ancestry proof.
 
 ## Physical development machine
 
@@ -53,10 +37,12 @@ Current measured facts only; Git owns history.
 | Failed units | Zero system and user units |
 | Storage during the Remote image build | 73 GiB used of 477 GiB; 403 GiB available on `/var` |
 
-The machine now boots signed `moos-nvidia` version `44.20260913.824`, digest
+The machine boots signed `moos-nvidia` version `44.20260913.824`, digest
 `sha256:76861a3b7cc8b9d8fb61d9506ed26183b4035fae67d3e9d683bc7baadaa92d3a`,
-with signed NVIDIA `44.20260913.819` retained for rollback. Boot measured
-35.993 seconds, including 8.640 seconds userspace. Both failed-unit lists are empty.
+with signed NVIDIA `44.20260913.819` retained for rollback. The newly promoted
+NVIDIA digest is not staged here yet (automatic staging timer inactive). Boot
+measured 35.993 seconds, 8.640 seconds userspace. Both failed-unit lists are
+empty (2026-09-15).
 A root-owned local administrator override at
 `/etc/plasmalogin.conf.d/90-moos-development-autologin.conf` enables one-session
 automatic login for user `moos` while this dedicated development cycle runs.
@@ -97,53 +83,38 @@ kernel journal contains no fatal NVRM event.
 The lint warning for non-empty `/boot` is intentional: EFI/GRUB inputs are
 required by the offline ISO path.
 
-The P2.7 source slice has a full host `just check` pass (145 maintained gates)
-and a local NVIDIA image proof: built-image QML motion passed with physical
-settling/reversal/reduced-motion/hidden-state/key/pointer checks; the sound
-gate resolved real core KDE event definitions to 32 original MoOS Ogg files;
-the actual image carries the MoKernel identity fix and NVIDIA/OStree initramfs
-content. A source Arabic/English QML frame was reviewed on the installed
-Wayland/Qt stack. KDE login/logout/notification playback and custom mute need a
-signed upgraded-session proof; decoding/mapping alone does not prove delivery.
+The P2.7 image proof passed built-image QML motion (settling, reversal,
+reduced motion, hidden state, key/pointer) and resolved core KDE events to 32
+original MoOS Ogg files. KDE login/logout/notification playback and custom mute
+still need a signed upgraded-session proof; decoding alone is not delivery.
 
-Candidate run 34785063649 signed all three x86 editions at `1d92082f`.
-Generic, NVIDIA and cloud QCOW2 boot/reboot proofs (34786215189, 34786216334,
-34786218085) and the live/offline-install/installed-second-boot ISO proof
-(34786220039) succeeded. Promotion 34807542252 moved only those proven digests.
+## Fixed in this branch (not yet released)
 
-## Fixed in the current branch
+1. Mo PC Remote typing follows the running keymap. Reproduced live on `ara,de`
+   with Arabic active: the shipped Latin keysym batch typed nothing. The helper
+   compiles KWin's kxkbrc names with libxkbcommon (refusing a list that differs
+   from KWin's live one) and reports positions, levels and dead keys; the agent
+   plans text with the fewest group switches, shortcut letters by Qt's rule and
+   a desktop viewer's physical keys by the character they produced. Typed text
+   releases a desk Caps Lock and restores it; a viewer's letter aligns the desk
+   lock with theirs, only where a Caps Lock LED makes it observable. Fifteen
+   live cases through the real portal into Konsole typed exactly with Caps Lock
+   on: English, German umlauts/ß/€/AltGr symbols, dead-key accents, decomposed
+   input, Arabic with harakat, mixed text and viewer physical keys. Emoji and
+   unconfigured scripts keep the exact paste path.
+2. Mo AI offers Apps → Install RPM and recognises a dropped `.rpm`. A root-owned
+   helper re-checks the confirmed digest, path, owner, architecture and an OK
+   signature line (NOKEY/BAD/NOTTRUSTED rejected; digest lines alone never
+   pass), then stages the package with `rpm-ostree`. The OpenAI ChatGPT
+   publisher key is pinned; ChatGPT itself stays optional.
+3. The ARM UTM packaging step no longer copies the retired README; the bundle
+   writes its own `README-FIRST.txt`.
+4. This file is back under the 200-line limit `just check` enforces; at
+   `bdee8c49` it had 225 lines and `main` failed that gate.
 
-1. NVIDIA first-run switching and automatic updates now share one image lock.
-   An automatic update cannot overwrite a staged signed edition switch.
-2. Update comparison reads the resolved deployment digest for tag-tracked
-   images and no longer reports a false downgrade.
-3. The index policy controls `kde-baloo.service`; it no longer spawns a second
-   unmanaged indexer. It checks D-Bus ownership after stopping that unit and
-   preserves the index if a legacy daemon survives or ownership is unknown.
-4. Mo AI migration preserves policy-approved providers, models and keys and can
-   recover the exact previously observed key-loss shape from the private
-   pre-migration file.
-5. Fresh images no longer ship four retired local-brain units or advertise a
-   local-brain launcher action. Upgrade migration still masks old installed
-   copies.
-6. Six competing product plans, old session evidence, retired remote/UI1
-   artwork and unused static wrappers were removed. `README.md`, this file and
-   `docs/DEVELOPMENT_PLAN.md` now form one entry point, one measured state and
-   one task queue. `tests/test_repository_hygiene.py` rejects retired paths,
-   broken Markdown links and a new state-file diary. Current deterministic
-   sources, runtime assets and test-consumed review sheets remain.
-7. Mo PC Remote's broken touch was reproduced on the physical Wayland desktop:
-   its portal retained 1280×720 after the desktop changed to 1536×864, so a
-   requested center landed at 639×359 rather than 768×432. The current branch
-   observes native Wayland monitor geometry and renews the combined portal grant
-   on scale, size, position, rotation or hotplug changes. A live 225%→250% test
-   renewed twice and exact quarter/center/three-quarter injection then landed at
-   384×216, 768×432 and 1151×647. Seven isolated regressions and the real
-   Chromium mobile-input suite pass.
-8. The offline installer now requires a non-empty password but does not impose
-   an eight-character minimum. It visibly recommends a longer password while
-   leaving length to the owner; hashing, confirmation and password-protected
-   login remain mandatory.
+Already released (Git history has the evidence): NVIDIA switch/update lock,
+digest-based update comparison, Baloo ownership, Mo AI key migration, retired
+local-brain units, repository cleanup, Remote geometry renewal, password policy.
 
 The pre-update `moos-selfcheck` reports 50 passed, zero broken, seven notes:
 cloud key setup,
@@ -206,6 +177,8 @@ portals. Full light/dark and scaled desktop review remain open.
   disposable VM.
 - Laptop power/lid/brightness, touch/tablet, camera, broad Bluetooth/audio and
   diverse Wi-Fi hardware are not qualified.
+- Remote typing still needs installed acceptance from the owner's iPhone and
+  German keyboard; Caps Lock handling is inactive where no LED reports it.
 - ARM remains separately unqualified for this x86 release. The cloud x86 exact
   digest passed its QCOW2 boot/reboot proof; provider chat acceptance is still open.
 - The local image is unsigned test evidence. It must not replace the signed
@@ -216,10 +189,8 @@ portals. Full light/dark and scaled desktop review remain open.
   booted candidate desktop remains required visual evidence.
 
 ## Next task
-Wait for the four `93b29ad8` release proofs (QCOW2 generic/NVIDIA/cloud and
-the offline ISO install), then run `promote-x86` with all five run IDs and
-update the physical PC through `moai-do update` + reboot + full post-update
-check. Re-run ISO proof with independent SSH boot-ID observation and QGA
-stream synchronisation; preserve both checks. Current post-update check reports
-52 passes and three expected development differences: two old-image/new-layout
-comparisons and the temporary launcher preview. Full release acceptance remains open.
+Run the signed image build, three QCOW2 proofs, the offline ISO proof and a
+dispatched ARM proof on this branch's exact revision. Promote only all-green
+digests, update the physical PC, reboot, then verify Remote typing from the
+owner's iPhone and German keyboard, the Horizon desktop and the local-RPM flow
+on the installed signed release. Release acceptance remains open.
