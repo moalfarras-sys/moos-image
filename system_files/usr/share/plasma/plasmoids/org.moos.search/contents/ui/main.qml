@@ -113,15 +113,31 @@ PlasmoidItem {
                     ColorAnimation { duration: MoUI.Tokens.duration(Kirigami.Units.longDuration > 1, 120) }
                 }
             }
-            QQC2.ToolButton {
-                anchors.verticalCenter: parent.verticalCenter
-                x: root.rtl ? parent.width - width : 0
-                width: 36; height: parent.height
-                icon.name: "moos-search-symbolic"
-                icon.width: 18; icon.height: 18
-                Accessible.name: root.rtl ? "بحث" : "Search"
+        }
+
+        // The magnifier is a SIBLING drawn above the field, not a child of the TextField. As a
+        // child ToolButton it never appeared on the live bar (measured on a full-resolution crop,
+        // 2026-09-15) although the icon resolves: the brand launcher draws the same
+        // moos-search-symbolic through Kirigami.Icon, so this uses that proven path.
+        Kirigami.Icon {
+            id: magnifier
+            source: "moos-search-symbolic"
+            width: 18
+            height: 18
+            anchors.verticalCenter: query.verticalCenter
+            anchors.left: root.rtl ? undefined : query.left
+            anchors.right: root.rtl ? query.right : undefined
+            anchors.leftMargin: 12
+            anchors.rightMargin: 12
+            z: 1
+            opacity: query.activeFocus ? 1.0 : 0.82
+            Accessible.role: Accessible.Button
+            Accessible.name: root.rtl ? "بحث" : "Search"
+            MouseArea {
+                anchors.fill: parent
+                anchors.margins: -9
+                cursorShape: Qt.PointingHandCursor
                 onClicked: query.submit()
-                background: Item {}
             }
         }
     }
