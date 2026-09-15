@@ -536,6 +536,12 @@ Kirigami.ApplicationWindow {
         "it is KDE's own, and it still segfaults in GStreamer a few seconds after it " +
         "opens. If you are not certain of an app id, tell the user to search it in " +
         "the Apps panel rather than guessing one.\n" +
+        "• Install a local RPM: tell the user to drag the .rpm onto this chat or use " +
+        "Apps → Install RPM. Do not invent a shell command or ask them to disable " +
+        "signature checks. MoOS shows the package/version/installed size, accepts only " +
+        "a trusted publisher signature, asks for confirmation, then stages an atomic " +
+        "deployment that applies after restart. Prefer the newer official file when the " +
+        "same publisher offers one.\n" +
         "• Remove or update apps: `moai-do uninstall <flatpak-id>` removes an app for this " +
         "user (e.g. `moai-do uninstall com.spotify.Client`), and `moai-do update-apps` " +
         "updates every app. Installs, removals and app updates all go through Mo Store's " +
@@ -897,9 +903,18 @@ Kirigami.ApplicationWindow {
 
     FileDialog {
         id: attachmentDialog
-        title: root.local("أرفق صورة أو ملفاً", "Attach an image or file")
+        title: root.local("أرفق ملفاً أو اختر حزمة RPM لتثبيتها",
+                          "Attach a file or choose an RPM to install")
         fileMode: FileDialog.OpenFile
-        onAccepted: root.importAttachment(selectedFile.toString())
+        onAccepted: root.handlePickedFile(selectedFile.toString())
+    }
+
+    FileDialog {
+        id: localPackageDialog
+        title: root.local("ثبّت حزمة RPM موثوقة", "Install a trusted RPM package")
+        fileMode: FileDialog.OpenFile
+        nameFilters: [root.local("حزم RPM (*.rpm)", "RPM packages (*.rpm)")]
+        onAccepted: root.installLocalRpm(selectedFile.toString())
     }
 
     // Cheap poll: brain + remote + agents. moai-control serves this without
@@ -2758,7 +2773,7 @@ Kirigami.ApplicationWindow {
                             onDropped: function (drop) {
                                 const urls = drop.urls || []
                                 for (let i = 0; i < Math.min(urls.length, 8); ++i)
-                                    root.importAttachment(String(urls[i]))
+                                    root.handlePickedFile(String(urls[i]))
                                 drop.accept()
                             }
                             Rectangle {
@@ -4043,6 +4058,12 @@ Kirigami.ApplicationWindow {
                                     primary: true
                                     enabled_: !root.searching
                                     onClicked: root.searchApps(searchField.text)
+                                }
+                                MoButton {
+                                    Layout.preferredHeight: root.fs(40)
+                                    label: root.local("ثبّت RPM", "Install RPM")
+                                    iconName: "moos-boxes-symbolic"
+                                    onClicked: localPackageDialog.open()
                                 }
                             }
                         }
@@ -7805,6 +7826,21 @@ Kirigami.ApplicationWindow {
             }
         }
         xhr.send(JSON.stringify({ path: path }))
+    }
+
+    function installLocalRpm(path) {
+        if (!path) return
+        root.launch("moos://apps/install-rpm/" + encodeURIComponent(String(path)),
+                    root.local("تثبيت حزمة محلية", "Install local package"))
+    }
+
+    function handlePickedFile(path) {
+        const clean = String(path || "").split(/[?#]/)[0].toLowerCase()
+        if (clean.endsWith(".rpm")) {
+            root.installLocalRpm(path)
+            return
+        }
+        root.importAttachment(path)
     }
 
     function removePendingAttachment(id) {

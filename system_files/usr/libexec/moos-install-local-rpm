@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# Privileged half of Mo AI's local RPM installer.  The public moos: scheme can
+# only raise the confirmation UI; this root-owned helper repeats every check at
+# the privilege boundary before rpm-ostree is allowed to stage a deployment.
+set -euo pipefail
+export LC_ALL=C PATH=/usr/sbin:/usr/bin:/sbin:/bin
+
+die() { echo "MoOS local package refused: $*" >&2; exit 2; }
+
+[ "$#" -eq 2 ] || die "an RPM path and confirmed digest are required"
+caller_uid="${PKEXEC_UID:-}"
+[[ "$caller_uid" =~ ^[0-9]+$ ]] || die "missing authenticated caller identity"
+caller_home="$(getent passwd "$caller_uid" | cut -d: -f6)"
+[ -n "$caller_home" ] && [ -d "$caller_home" ] || die "caller home is unavailable"
+
+requested="$1"
+confirmed_digest="$2"
+[[ "$confirmed_digest" =~ ^[0-9a-f]{64}$ ]] || die "invalid confirmed digest"
+[ "${requested:0:1}" = / ] || die "the package path must be absolute"
+[ -f "$requested" ] && [ ! -L "$requested" ] || die "the package must be a regular, non-symlink file"
+resolved="$(realpath -e -- "$requested")" || die "the package path cannot be resolved"
+case "$resolved" in
+    "$caller_home"/Downloads/*.rpm|"$caller_home"/Desktop/*.rpm|"$caller_home"/Documents/*.rpm) ;;
+    *) die "choose an RPM from Downloads, Desktop, or Documents" ;;
+esac
+[ "$(stat -c %u -- "$resolved")" = "$caller_uid" ] || die "the package must be owned by the signed-in user"
+
+# The source remains user-owned until this privilege boundary. Copy it first,
+# then verify the copy in a root-only directory and bind it to the digest shown
+# before confirmation. A user replacing the original path can therefore only
+# make the operation fail, never change what is installed.
+stage_dir="$(mktemp -d /var/tmp/moos-local-rpm.XXXXXX)"
+trap 'rm -rf -- "$stage_dir"' EXIT
+chmod 0700 "$stage_dir"
+staged="$stage_dir/package.rpm"
+install -m 0600 -- "$resolved" "$staged"
+[ "$(sha256sum -- "$staged" | awk '{print $1}')" = "$confirmed_digest" ] \
+    || die "the package changed after confirmation"
+
+# rpmkeys consults the immutable image's trusted RPM keyring.  Verification is
+# mandatory because an RPM can execute root scriptlets.
+sig="$(rpmkeys -Kv -- "$staged" 2>&1)" || { printf '%s\n' "$sig" >&2; die "signature verification failed"; }
+# rpm 6 prints one line per check, e.g. "Header OpenPGP V4 RSA/SHA256 signature, key
+# fingerprint: …: OK". Digest lines also end in ": OK", so require an OK *signature* line
+# and reject any line reporting a missing, bad or untrusted key. Here-strings, not pipes:
+# `producer | grep -q` under pipefail can report a match as failure (AGENTS.md).
+if ! grep -Eiq '^[[:space:]]*Header .*signature, key .*: OK$' <<<"$sig" \
+    || grep -Eq ': (NOKEY|BAD|NOTTRUSTED|NOTFOUND|NOT OK)' <<<"$sig"; then
+    printf '%s\n' "$sig" >&2
+    die "the publisher signature is not trusted"
+fi
+
+arch="$(rpm -qp --qf '%{ARCH}' -- "$staged")" || die "invalid RPM metadata"
+machine="$(uname -m)"
+case "$machine:$arch" in
+    x86_64:x86_64|x86_64:noarch|aarch64:aarch64|aarch64:noarch) ;;
+    *) die "package architecture $arch does not match this $machine system" ;;
+esac
+
+rpm-ostree install --idempotent -- "$staged"

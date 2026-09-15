@@ -283,6 +283,66 @@ do_install() {
     fi
 }
 
+valid_local_rpm() {
+    local requested="${1:-}" home resolved
+    home="$(getent passwd "$(id -u)" | cut -d: -f6)"
+    [ -n "$requested" ] && [ "${requested:0:1}" = / ] \
+        && [ -f "$requested" ] && [ ! -L "$requested" ] || return 1
+    resolved="$(realpath -e -- "$requested")" || return 1
+    case "$resolved" in
+        "$home"/Downloads/*.rpm|"$home"/Desktop/*.rpm|"$home"/Documents/*.rpm) ;;
+        *) return 1 ;;
+    esac
+    [ "$(stat -c %u -- "$resolved")" = "$(id -u)" ] || return 1
+    printf '%s' "$resolved"
+}
+
+do_install_rpm() {
+    local requested="${1:-}" rpm_path sig name version arch bytes digest
+    hdr "تثبيت حزمة محلية على MoOS" "Install a local package on MoOS"
+    rpm_path="$(valid_local_rpm "$requested")" || {
+        echo "${R}اختر ملف RPM عادياً تملكه من Downloads أو Desktop أو Documents.${N}" >&2
+        echo "${R}Choose a regular RPM you own from Downloads, Desktop, or Documents.${N}" >&2
+        return 2
+    }
+    need rpmkeys || return 1
+    need rpm || return 1
+    sig="$(LC_ALL=C rpmkeys -Kv -- "$rpm_path" 2>&1)" || {
+        echo "${R}فشل التحقق من توقيع الناشر؛ لم يتغيّر النظام.${N}" >&2
+        echo "${R}Publisher signature verification failed; the system was not changed.${N}" >&2
+        printf '%s\n' "$sig" >&2
+        return 2
+    }
+    # Digest lines also end in ": OK"; only an OK signature line, with no missing/bad/untrusted
+    # key line, is a trusted publisher. The root helper repeats this check on its own copy.
+    if ! grep -Eiq '^[[:space:]]*Header .*signature, key .*: OK$' <<<"$sig" \
+        || grep -Eq ': (NOKEY|BAD|NOTTRUSTED|NOTFOUND|NOT OK)' <<<"$sig"; then
+        echo "${R}توقيع الناشر غير موثوق؛ لم يتغيّر النظام.${N}" >&2
+        echo "${R}The publisher signature is not trusted; the system was not changed.${N}" >&2
+        return 2
+    fi
+    IFS='|' read -r name version arch bytes < <(
+        LC_ALL=C rpm -qp --qf '%{NAME}|%{VERSION}-%{RELEASE}|%{ARCH}|%{SIZE}\n' -- "$rpm_path"
+    ) || return 2
+    case "$(uname -m):$arch" in
+        x86_64:x86_64|x86_64:noarch|aarch64:aarch64|aarch64:noarch) ;;
+        *) echo "${R}الحزمة لا تطابق معمارية الجهاز | package architecture does not match this system:${N} $arch" >&2; return 2 ;;
+    esac
+    echo "${C}الحزمة | Package:${N} ${name} ${version} (${arch})"
+    echo "${C}الحجم بعد التثبيت | Installed size:${N} $(human "$bytes")"
+    echo "${G}✓ توقيع الناشر موثوق | publisher signature trusted${N}"
+    echo "${D}سيُنشئ MoOS نشراً ذرياً جديداً؛ ملفاتك والنشر الحالي يبقيان للرجوع.${N}"
+    echo "${D}MoOS will stage a new atomic deployment; your files and current deployment remain available.${N}"
+    confirm || return 0
+    # Bind the privileged transaction to the exact bytes described above. The
+    # root helper copies into a private directory and checks this digest again,
+    # closing the replace-after-confirmation race on a user-owned file.
+    digest="$(sha256sum -- "$rpm_path" | awk '{print $1}')" || return 2
+    run_priv /usr/libexec/moos-install-local-rpm "$rpm_path" "$digest"
+    echo "${G}✓ تم تجهيز الحزمة. أعد التشغيل لتظهر في النظام.${N}"
+    echo "${G}✓ Package staged. Restart to make it available.${N}"
+}
+
 do_uninstall() {
     local id="${1:-}"
     hdr "حذف تطبيق عبر Mo Store" "Remove an app through Mo Store"
@@ -1359,6 +1419,8 @@ ${V}الاستعمال | Usage:${N}  moai-do <command> [args]
                     Stage the latest signed MoOS image by exact digest
   ${C}install <id>${N}      تثبيت تطبيق عبر Mo Store (لهذا المستخدم) ثم فتحه
                     Install an app through Mo Store (for this user), then open it
+  ${C}install-rpm <file>${N} تثبيت RPM محلي موقّع كتحديث ذري (يتطلب إعادة تشغيل)
+                    Install a signed local RPM atomically (restart required)
   ${C}uninstall <id>${N}    حذف تطبيق عبر Mo Store
                     Remove an app through Mo Store
   ${C}update-apps${N}       تحديث كل التطبيقات عبر Mo Store
@@ -1431,9 +1493,9 @@ EOF
 #     journalctl -t moai-do            # everything the assistant has done
 #     journalctl -t moai-do -p warning # only the refusals and failures
 #
-# Deliberately records the ACTION NAME and the verdict, never arguments beyond a validated
-# app id: the only free-form value that reaches here is a Flatpak id, and a log is not a
-# place to start echoing anything a model produced.
+# Deliberately records the ACTION NAME and verdict, never its arguments. Flatpak
+# ids and validated local package paths can reach here, and neither user paths
+# nor anything a model produced belongs in the system journal.
 audit() {
     local verdict="$1"; shift
     command -v logger >/dev/null 2>&1 || return 0
@@ -1455,6 +1517,7 @@ main() {
     case "$cmd" in
         update)        do_update ;;
         install)       do_install "${1:-}" ;;
+        install-rpm)   do_install_rpm "${1:-}" ;;
         uninstall)     do_uninstall "${1:-}" ;;
         update-apps)   do_update_apps ;;
         fix-audio)     do_fix_audio ;;
