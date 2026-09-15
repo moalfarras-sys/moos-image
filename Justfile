@@ -109,6 +109,7 @@ check:
     python3 tests/test_moai_hermes.py
     python3 tests/test_release_partition_roles.py
     python3 tests/test_iso_install_gate.py
+    python3 tests/test_installer_mount_cleanup.py
     # Every gate any workflow runs must also be runnable from `just check`.
     # A root unit executing a script from $HOME is a privilege boundary nobody
     # sees until they look. One was live on the A1 for eight days.

@@ -5966,12 +5966,15 @@ require('--skip-finalize' in _i2d
         "sibling is gone; its built-in Btrfs remount makes the live image proxy EROFS "
         "after a complete 10.8-GiB copy")
 require('repair_subvolume_bootloader' in _i2d
+        and 'unmount_installer_mount "$mnt" "bootloader: target ESP"' in _i2d
+        and 'mount remained busy after 40 attempts' in _i2d
         and 'set btrfs_relative_path=y' in _i2d
         and 'set btrfs_subvol=/root' in _i2d
         and 'set blsdir=/root/boot/loader/entries' in _i2d
         and 'target bootloader redirect repair failed' in _i2d,
         "the live install uses a root Btrfs subvolume, so its EFI GRUB redirect "
-        "must select that subvolume for the config, BLS entries, kernel and initrd; "
+        "must select that subvolume for the config, BLS entries, kernel and initrd, "
+        "and tolerate the bounded live-desktop ESP unmount race; "
         "otherwise a completed install drops to the grub prompt with the ISO removed")
 _stage_delete = _i2d.rfind('btrfs subvolume delete "$mnt/bootc-stage"')
 _target_trim = _i2d.rfind('fstrim --quiet-unsupported -v "$mnt"')

@@ -501,6 +501,27 @@ seed_target() {
     [ -n "$etc" ]
 }
 
+# The live desktop may briefly inspect a newly written ESP while udisks and the
+# firmware helpers settle. A single umount therefore has a real race: the same
+# final ISO has both passed and failed here with EBUSY. Retry only this fixed,
+# installer-owned mountpoint; never detach it lazily because the next phase must
+# know all EFI writes reached the target before filesystem finalization.
+unmount_installer_mount() {
+    local mnt="$1" label="$2" attempt
+    for attempt in $(seq 1 40); do
+        mountpoint -q "$mnt" 2>/dev/null || return 0
+        if umount "$mnt" >>"$LOG" 2>&1; then
+            echo "$label: unmounted after attempt $attempt" >>"$LOG"
+            return 0
+        fi
+        sleep 0.25
+    done
+    echo "$label: mount remained busy after 40 attempts" >>"$LOG"
+    findmnt -R "$mnt" >>"$LOG" 2>&1 || true
+    command -v fuser >/dev/null 2>&1 && fuser -vm "$mnt" >>"$LOG" 2>&1 || true
+    return 1
+}
+
 # `bootc install to-filesystem --generic-image` writes the boot payload below the
 # mounted target.  Our target is the `root` Btrfs subvolume (the disposable image
 # proxy must live in a sibling), while GRUB starts from Btrfs tree ID 5 and does
@@ -517,13 +538,13 @@ repair_subvolume_bootloader() {
     [ -n "$esp" ] || { echo "bootloader: no ESP (vfat) on $NODE" >>"$LOG"; return 1; }
 
     mkdir -p "$mnt"
-    mountpoint -q "$mnt" 2>/dev/null && umount "$mnt" >>"$LOG" 2>&1 || true
+    unmount_installer_mount "$mnt" "bootloader: stale target ESP" || return 1
     mount "$esp" "$mnt" 2>>"$LOG" \
         || { echo "bootloader: could not mount target ESP" >>"$LOG"; return 1; }
     cfg="$mnt/EFI/fedora/grub.cfg"
     if [ ! -f "$cfg" ]; then
         echo "bootloader: missing EFI GRUB redirect ($cfg)" >>"$LOG"
-        umount "$mnt" 2>>"$LOG" || true
+        unmount_installer_mount "$mnt" "bootloader: target ESP cleanup" || true
         return 1
     fi
 
@@ -558,12 +579,12 @@ PY
         || ! grep -Fq 'set btrfs_subvol=/root' "$cfg" \
         || ! grep -Fq 'set blsdir=/root/boot/loader/entries' "$cfg"; then
         echo "bootloader: failed to install the Btrfs subvolume redirect" >>"$LOG"
-        umount "$mnt" 2>>"$LOG" || true
+        unmount_installer_mount "$mnt" "bootloader: target ESP cleanup" || true
         return 1
     fi
     sync -f "$cfg" >>"$LOG" 2>&1 \
-        || { echo "bootloader: EFI redirect sync failed" >>"$LOG"; umount "$mnt" 2>>"$LOG" || true; return 1; }
-    umount "$mnt" 2>>"$LOG" \
+        || { echo "bootloader: EFI redirect sync failed" >>"$LOG"; unmount_installer_mount "$mnt" "bootloader: target ESP cleanup" || true; return 1; }
+    unmount_installer_mount "$mnt" "bootloader: target ESP" \
         || { echo "bootloader: target ESP would not unmount" >>"$LOG"; return 1; }
     rmdir "$mnt" 2>/dev/null || true
     echo "bootloader: installed Btrfs-aware EFI redirect" >>"$LOG"

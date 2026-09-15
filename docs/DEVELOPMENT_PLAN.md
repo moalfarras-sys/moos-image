@@ -35,8 +35,11 @@ the boot-proven x86 revision `1d92082f`; its physical post-update sound/input
 readback remains part of P0.6. A reproduced Remote defect showed that a portal
 grant kept its old 1280×720 coordinate space after the desktop became
 1536×864. The current slice renews the combined capture/input grant on a real
-Wayland display-geometry change. PR #93 is merged; its ISO second-boot proof
-failed, so the next candidate must include the fix and repeat every release proof.
+Wayland display-geometry change. PR #93 is merged; its earlier ISO second-boot
+proof failed. The later Horizon ISO proof `34885449896` completed the offline
+deployment but lost a transient ESP unmount race before the installed-disk boot.
+The next candidate must include the bounded unmount repair and repeat every
+release proof.
 
 | Requested outcome | Work stream | What must actually be proven |
 | --- | --- | --- |

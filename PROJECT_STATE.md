@@ -14,6 +14,12 @@ Current measured facts only; Git owns history.
   12/12 bootc lint; initramfs 194 MB) and signed CI build run 34877080740
   for all three x86 editions. QCOW2 and ISO release proofs were dispatched
   on the exact digests; promotion follows only if every proof passes.
+- The exact-digest ISO run `34885449896` built and booted the final ISO and
+  completed the offline bootc deployment, but a transient `EBUSY` on the
+  installer-owned ESP mount made the bootloader-repair gate fail before the
+  installed-disk boot. The current repair branch gives that fixed mountpoint a
+  bounded regular-unmount retry and records `findmnt`/`fuser` diagnostics if it
+  remains busy; a new exact-image ISO proof is still required.
 - PR #93 is merged as `225e29f3`; Remote geometry source `64f0e76b` passed
   signed build 34810522899 and all three QCOW2 boot/reboot proofs. ISO run
   34811868497 installed offline, booted and opened/closed/reopened ten apps,
