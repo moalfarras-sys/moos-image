@@ -58,6 +58,7 @@ BAR_ALIGN="$(conf bar.alignment)"
 BAR_APPLETS="$(conf bar.applets)"
 TRAY_SHOWN="$(conf tray.shownItems)"
 TRAY_EXTRA="$(conf tray.extraItems)"
+TRAY_HIDDEN="$(conf tray.hiddenItems)"
 TRAY_SCALE="$(conf tray.scaleIconsToFit)"
 TRAY_SPACING="$(conf tray.iconSpacing)"
 BRAND_APPLET="$(conf brand.applet)"
@@ -528,17 +529,8 @@ live_pass() {
             var SCALE_ICONS = "'"$TRAY_SCALE"'" == "true";
             var ICON_SPACING = Number("'"$TRAY_SPACING"'");
             var SHIPPED = ['"$dock_shipped"'];
-            var HIDE = [
-                "org.kde.kdeconnect", "org.kde.plasma.vault", "org.kde.kscreen",
-                "org.kde.plasma.battery", "org.kde.plasma.cameraindicator",
-                "org.kde.plasma.clipboard", "org.kde.plasma.devicenotifier",
-                "org.kde.plasma.keyboardindicator", "org.kde.plasma.manage-inputmethod",
-                "org.kde.plasma.mediacontroller", "org.kde.plasma.printmanager",
-                "org.kde.plasma.weather",
-                "xwaylandvideobridge",
-                "Xwayland Video Bridge", "Xwayland-Video-Bruecke",
-                "جسر فيديو ويلاند_اكس"
-            ];
+            // moos-bar.conf [tray] hiddenItems is the only owner of this list.
+            var HIDE = "'"$TRAY_HIDDEN"'".split(",").filter(function (s) { return s.length > 0; });
             var DOCK_APPLET = "'"$BRAND_APPLET"'";
             var ISLAND_APPLET = "'"$ISLAND_APPLET"'";
             var KICKOFF_APPLET = "org.kde.plasma.kickoff";
