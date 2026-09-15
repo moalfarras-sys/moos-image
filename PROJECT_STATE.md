@@ -4,7 +4,18 @@ Current measured facts only; Git owns history.
 
 ## Source state
 
-- Date measured: 2026-09-14.
+- Date measured: 2026-09-15.
+- PR #96 is merged as `6813068d` with candidate revision `3298a3d9`. It
+  replaces the ISO installer's single ESP unmount with a bounded regular
+  unmount retry and preserves fail-closed behavior with `findmnt`/`fuser`
+  diagnostics. The revision passed all 147 local Linux gates, signed x86 build
+  `34989715430`, exact-digest QCOW2 boot/reboot/poweroff runs `34992172032`
+  (generic), `34992175700` (NVIDIA), `34992178861` (cloud), and final ISO live
+  boot/offline-install/installed-boot/reboot run `34992182459`. Promotion run
+  `34996440151` verified all five immutable proofs and moved the x86 production
+  tags. The promoted digests are generic `sha256:14c3c01422b7fd4fa95dab14a3f6eac827114b31209112722273d1e4064ff4b9`,
+  NVIDIA `sha256:5ca554bad2a036074ab0ec72307b0dae65d750c76cf91ee55da6313e292c678f`,
+  and cloud `sha256:d254438110b4f95324e59f95a550d9f571d5350300a85558d76065cf3c0c35ed`.
 - PR #94 is merged as `93b29ad8`: the visible Horizon slice (readable
   clock, `org.moos.search` bar target, compact media island, Arabic-first
   `ara,de` keyboard across defaults/installer/firstboot, THEME_REV 57) plus
@@ -13,13 +24,11 @@ Current measured facts only; Git owns history.
   `just build-nvidia` (identity firewall, motion, sound, store, image-state,
   12/12 bootc lint; initramfs 194 MB) and signed CI build run 34877080740
   for all three x86 editions. QCOW2 and ISO release proofs were dispatched
-  on the exact digests; promotion follows only if every proof passes.
-- The exact-digest ISO run `34885449896` built and booted the final ISO and
+  on the exact digests. The ISO proof below supersedes that release attempt.
+- Earlier exact-digest ISO run `34885449896` built and booted the final ISO and
   completed the offline bootc deployment, but a transient `EBUSY` on the
   installer-owned ESP mount made the bootloader-repair gate fail before the
-  installed-disk boot. The current repair branch gives that fixed mountpoint a
-  bounded regular-unmount retry and records `findmnt`/`fuser` diagnostics if it
-  remains busy; a new exact-image ISO proof is still required.
+  installed-disk boot. PR #96 fixed and proved that race without lazy detach.
 - PR #93 is merged as `225e29f3`; Remote geometry source `64f0e76b` passed
   signed build 34810522899 and all three QCOW2 boot/reboot proofs. ISO run
   34811868497 installed offline, booted and opened/closed/reopened ten apps,
