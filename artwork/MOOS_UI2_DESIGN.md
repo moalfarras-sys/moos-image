@@ -3,6 +3,10 @@
 Status: current authoritative visual contract. Historical UI1, Nova and session
 audit journals live in Git history, not in HEAD.
 
+This file defines appearance and interaction, not completion status or a second
+task queue. `docs/DEVELOPMENT_PLAN.md` schedules the work; `PROJECT_STATE.md`
+records what source, a candidate image and the installed machine actually prove.
+
 ## Authority
 
 MoOS has one visual implementation with palette variants, not several themes
@@ -35,6 +39,13 @@ The user should not see where Plasma ends and MoOS begins. Login, lock, power,
 desktop, launcher, panel, popups, Qt/GTK applications and first-party apps share
 one palette, type system, corner system, icon language and motion rhythm.
 
+Plasma owns the shell, KWin owns composition/window management, and Wayland is
+the display/input protocol. MoOS composes their supported interfaces into one
+product. Product naming does not rename packages, D-Bus interfaces, plugin IDs,
+license notices or recovery diagnostics. Identity is enforced by the existing
+image and migration gates; it is not code obfuscation, disk encryption or a
+restriction on the owner's ability to repair their computer.
+
 Avoid:
 
 - pure black/white, neon cyberpunk, random purple/blue gradients;
@@ -44,6 +55,24 @@ Avoid:
 - blur as the only source of contrast;
 - ambient motion that consumes CPU or hides state;
 - hard-coded LTR ordering, bilingual labels, or a second Arabic fallback face.
+
+## Product names and implementation owners
+
+These names describe user-facing experiences. They do not authorize technical
+ID changes or assert that the proposed interactions below already ship.
+
+| Product name | Scope and existing owner |
+| --- | --- |
+| **MoOS UI** | The shared design system: palette generators, `org/moos/ui`, Plasma Style and Aurorae assets |
+| **MoOS Bar** | One floating Horizon panel; `usr/share/moos/moos-bar.conf`, `usr/bin/moos-bar-apply`, the Plasma layout template and stock task manager |
+| **MoOS Search** | The separate `org.moos.search` field and `org.moos.brand/contents/ui/LauncherView.qml`; use existing KDE search models and routes |
+| **MoOS Island** | The contextual `org.moos.island` panel zone; MPRIS owns media state and Remote owns session state |
+| **MoOS Workspace** | The desktop/window experience: stock KWin overview, desktops, tiling, KScreen and generated MoOS decorations |
+| **MoOS Intro** | One visual journey through Plymouth, the resolved Plasma Login Manager, shell splash and welcome application |
+
+Paths in this table are under `system_files/` unless otherwise stated. Existing
+IDs such as `org.moos.nova.clock`, `MoOSUI2*` and `org.moos.ui2.*` remain stable.
+"Horizon" names the composition; "Nova" is a palette, not another desktop.
 
 ## Core semantic palette
 
@@ -84,11 +113,16 @@ remaining full-sized at normal desktop resolutions.
 ## Typography
 
 - interface: IBM Plex Sans; Arabic: IBM Plex Sans Arabic;
-- code/terminal: IBM Plex Mono;
+- code/terminal: JetBrains Mono, with Kawkab Mono for joined Arabic glyphs;
 - primary body: 13–15 logical px; captions: 10–12; section title: 18–24;
 - large clock numerals may use ExtraLight, but controls never use display type;
 - time is a semantic LTR island even inside Arabic RTL;
 - expose plain localized labels to accessibility APIs—never raw mnemonic marks.
+
+The font authority is `system_files/etc/fonts/conf.d/61-moos-brand.conf`,
+`etc/xdg/kdeglobals` and the generated Konsole profiles. Verify the effective
+font cascade and mixed Arabic/Latin rendering on the installed system; a
+configured family alone does not prove glyph fallback.
 
 ## Icons
 
@@ -147,6 +181,12 @@ slot, never a bordered box. The launcher presents primary destinations once;
 secondary actions stay visually quiet. Popups inherit the same material and
 must not fall back to Breeze artwork.
 
+The search field has its own space and hit target; it never overlays the MoOS
+button. Preserve stock task grouping, pinning, previews and drag/reorder.
+MoOS Island is currently a horizontal panel applet with a one-pixel idle
+footprint, keeping its representation instantiated. Do not move its wide media
+content into a square tray cell or return to a zero-width initial state.
+
 ### First-party apps
 
 Settings, Store, Updater, Recovery, Mo AI, Installer, MoPlayer and Mo PC Remote
@@ -161,6 +201,84 @@ The dashboard is one passive plasmoid with time, weather and system groups. It
 must not intercept desktop gestures. Weather artwork is local and MoOS-owned;
 failed network data disappears or explains itself without stale false values.
 Only the active asset is decoded, and idle CPU/RSS is measured after changes.
+
+## Experience goals for coherent implementation batches
+
+The following are design goals for the development plan, not claims of shipped
+capability. Extend the existing components. Deliver a complete user journey in
+each batch, with controls, motion, error states and accessibility reviewed
+together before producing its release candidate.
+
+1. **A composed MoOS Bar and Search.** The bar reads as three regions within
+   one surface: entry/search, running work, and system state. Search opens a
+   single focused results surface for applications, settings and permitted
+   local content, with an explicit handoff to Mo AI. Results reveal their type
+   and action before activation. Work in `moos-bar.conf`, `moos-bar-apply`,
+   `org.moos.search`, `org.moos.brand` and `org.moos.nova.clock`. Acceptance:
+   no overlaps at the smallest supported logical width, two separate entry
+   targets, real keyboard search/launch/Escape, preserved app pins/reordering,
+   readable localized date/time and correct RTL order.
+
+2. **A useful MoOS Island.** A small state-bearing area grows into context,
+   then settles when the work ends. Start from existing media and Remote
+   states; expose progress/cancel/retry for other work only after its owner
+   supplies a real job contract. Keep one foreground state, deterministic
+   priorities and a discoverable way to inspect background work. Work in
+   `org.moos.island`, MPRIS integration and the owning job APIs. Acceptance:
+   idle → active → changed → complete/error → idle transitions, simultaneous
+   media/Remote cases, keyboard-equivalent controls, and no stale success or
+   invisible running progress animation.
+
+3. **A spatial MoOS Workspace.** Windows, task previews, desktop switching
+   and overview share focus colour and a restrained directional rhythm.
+   Provide discoverable overview and tiling through supported KWin actions;
+   preserve user's shortcuts, focus and application state. Own appearance in
+   the artwork generators/Aurorae; own policy in `etc/xdg/kwinrc`,
+   `moos-apply-theme` and `moos-visual-tier`. Acceptance: real minimize/restore,
+   maximize/tile/overview/full-screen flows, correct exclusive effect groups,
+   fractional-scale and output-hotplug checks, no stolen focus and no dropped
+   input during repeated transitions. A custom compositor fork is not required.
+
+4. **A continuous MoOS Intro.** Carry the same horizon and logo composition
+   from the boot screen into authentication and the first desktop frame.
+   Fade between meaningful states; never wait for an animation to finish when
+   the next state is ready. Work in the Plymouth generator/assets,
+   `org.moos.ui2.greeter`, generated look-and-feel splash and `apps/welcome`.
+   Acceptance: recorded cold boot and login at normal and 640×480 fallback
+   sizes, no foreign identity or avoidable blank flash, immediate password
+   entry, and successful first-run/repeated-login paths. Still screenshots
+   alone cannot prove the handoff.
+
+5. **One system interaction language.** Settings, Updater, Recovery, Store,
+   Mo AI and Remote use shared controls and page structure. Progress lives in
+   the same place across surfaces; every operation has a truthful pending,
+   success, error and retry/cancel state appropriate to its backend. Extend
+   `org/moos/ui`, `usr/share/moos/apps/` and existing service routes. Mo AI
+   confirmations name the actual action, then show the executor's result.
+   Acceptance: complete install/update/device/provider journeys, shared
+   dark/light controls, accessible state changes and backend readback. A
+   decorative card or a model's answer cannot stand in for an executed action.
+
+6. **Physical feedback and original sound.** Finite springs add a small
+   compression/release to controls; geometry settles without moving hit
+   targets. Page transitions explain direction, and sound marks meaningful
+   outcomes rather than every hover. Reuse `SpringFeedback.qml`, `Tokens.qml`,
+   `Button.qml`, `usr/share/sounds/moos/` and KDE event mappings. Acceptance:
+   interruption/reversal/rapid-input tests, immediate stop when hidden or
+   Reduced Motion is enabled, stable targets, real event playback, mute and
+   custom-sound preservation. No animation timer may run merely to decorate
+   an idle desktop.
+
+7. **Responsive clarity and measured speed.** Complete every goal above for
+   Arabic, English and German, light/dark, keyboard and pointer before adding
+   further visual layers. Use the existing locale authority, visual-tier
+   policy and native review harnesses. Acceptance: the representative matrix
+   below, screen-reader names/order, visible focus, contrast against opaque
+   fallbacks, and recorded launch latency/frame pacing/idle CPU/PSS against
+   the same workload before the batch. Regressions require a measured cause
+   and resolution; "lighter" is not a property inferred from fewer files or
+   stronger hardware. Weak-GPU/software rendering keeps the same layout with
+   cheaper materials.
 
 ## Localization, scaling and accessibility
 
@@ -185,8 +303,12 @@ combinations but cannot replace looking at each distinct responsive/RTL class.
 4. Load the real surface, interact with it and inspect its journal/process state.
 5. Capture temporary evidence outside the repository; retain only selected,
    current evidence with a release purpose.
-6. Build the image and boot the exact artifact. A source screenshot does not
-   prove the installed image and a parser does not prove the pixels.
+6. Finish the coherent batch and its fast component/live checks, then freeze
+   the candidate revision and run the matching complete local image build.
+   Rebuild after source fixes or a demonstrated image-level failure, not after
+   every cosmetic edit. Boot the exact artifact through `RELEASE.md` before
+   promotion. A source screenshot does not prove the installed image and a
+   parser does not prove the pixels.
 7. Remove every user-local package/cache shadow used for live development so
    `/usr` remains the runtime authority after update.
 
