@@ -7,6 +7,9 @@
 
 > ## 🤖 If you are Mo AI (the owner's assistant on this machine)
 >
+> *Scope: this box is for the runtime assistant that operates the owner's computer. A coding
+> agent working on this repository skips it and starts at the identity contract below.*
+>
 > You run ON this MoOS computer with a REAL shell as the owner (sandbox off).
 > **Actually run commands and report the REAL result — never claim you did
 > something unless a tool call truly ran and returned output.** Prefer these
@@ -21,8 +24,8 @@
 > | **Run a terminal command visibly** | `moai-open konsole -e <cmd>` (opens a terminal that stays), or just run it and report output. |
 > | **Check memory / health** | `free -h` · `ps -eo comm,%mem --sort=-%mem \| head` · `df -h /var` · `nvidia-smi` |
 > | **Clean caches** | `rpm-ostree cleanup -m` · `journalctl --user --vacuum-time=2d` · `podman image prune -f` · `rm -rf ~/.cache/thumbnails/*` |
-> | **Install a program** | Flatpak (no reboot): `flatpak install -y flathub <app-id>`. Layered rpm: `rpm-ostree install <pkg>` (needs reboot). |
-> | **Remove a program** | `flatpak uninstall -y <app-id>` · `rpm-ostree uninstall <pkg>` |
+> | **Install a program** | Through Mo Store: `moai-do install <app-id>` (Flatpak, no reboot). A downloaded signed RPM: `moai-do install-rpm <file>` (verifies owner, digest, architecture and signature). Do not layer packages with `rpm-ostree install`: a layered deployment stops following the signed MoOS image cleanly. |
+> | **Remove a program** | `moai-do uninstall <app-id>` · for an RPM the owner layered earlier, tell them it is layered and ask before `rpm-ostree uninstall <pkg>` |
 > | **Update the system** | `moai-do update` — resolves and stages the latest immutable signed digest; reboot from the MoOS power UI to apply |
 >
 > Reply in the user's language. Keep replies short; do the work, then confirm what actually happened.
@@ -428,22 +431,20 @@ gh auth refresh -h github.com -s workflow
 
 Being honest about this list is more useful than shrinking it.
 
-- **The install path has now run end to end in both a VM and real hardware.** On
-  2026-07-23 the published ISO was booted in UEFI QEMU and driven through the whole MoOS
-  installer: it offered only the target disk (never the live medium), gated the wipe behind a
-  press-and-hold, installed **offline** from the image embedded in the ISO, reported "MoOS is
-  installed", and the disk then booted on its own to the MoOS login greeter. On 2026-09-13
-  the owner also installed offline from USB to a dedicated 476.4 GiB disk, booted the signed
-  installed system, completed first run, initialized Mo Store and switched the physical RTX
-  2080 SUPER machine to the signed NVIDIA edition. The other disks remained intact. That pass
-  did not capture every installer/boot screen or exercise rollback. The kickstart verifies the
-  signature at install time (and therefore deploys a
-  signed origin, so updates stay verified for life); if an install fails with a signature
-  error, that is still where to look.
+- **The install path runs end to end in a VM and on real hardware.** The only reachable
+  installer is the MoOS installer (`moos-installer` → `moos-install-to-disk`); the Anaconda
+  kickstart in `build.sh` is live-ISO infrastructure that no UI opens. The installer copies
+  the image embedded in the ISO offline (a local copy carries no signature attachment) and
+  then re-arms the signed origin, so every later update is verified. CI proves the offline
+  install and the installed-disk boot on every candidate; the owner's 2026-09-13 USB install
+  wrote only its target disk. Installer and boot screens were not all photographed. A
+  signature error after install points at the origin re-arm step, not at the copy.
 - **Mo AI is cloud-only.** Free models are the default; paid models require an explicit
   choice. Cloud connectivity and provider availability are required. Local model downloads
   are retired; see `docs/MOAI_CLOUD_ONLY_PLAN.md` for fresh-install acceptance gaps.
-- **Rollback has not been tested** against a deliberately broken update.
+- **Deliberate rollback is not proven on hardware.** Source now has automatic boot
+  fallback (`moos-boot-assess`, P1.2) and a disposable-VM rollback harness (P0.4), but no
+  bad candidate has been rolled back and forward on the physical station.
 - **Audio/Bluetooth/Wi-Fi/suspend/multi-monitor** have not been verified on hardware other than
   the maintainer's desktop.
 

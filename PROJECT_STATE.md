@@ -82,8 +82,28 @@ Remote/Media detail switch. It also makes `moplayer/` the only MoPlayer source,
 removes the obsolete external workflow/download path and stale screenshots,
 updates the pinned x86/ARM Flutter builder to 3.47.4, and preserves the installed
 demo and GPU crash guard. `THEME_REV=58` carries the QML change to existing profiles.
-This state becomes true for users only after gates, signed proof, promotion,
-update and reboot.
+That batch is wave W1 (PR #107); its exact revision `92248b5d` is being proven by
+branch run `35148344935` (`scripts/release-candidate.sh --ref`) before merge.
+
+Wave W2 (`feat/moos-experience-wave2-20260916`, on top of W1) gives MoOS Hub its
+own controls in the desktop right-click menu (show/hide and per-card time,
+weather, device health) and on the wallpaper page, bumps `THEME_REV=59`, extends
+the update-time shadow sweep to `org.moos.search` and the desktop scene, and
+unifies the instructions around the MoOS Experience Program in the plan.
+Neither wave is true for users until gates, signed proof, promotion, update and
+reboot.
+
+Live review on this station (Arabic, 4K/250%) with temporary package shadows:
+the desktop menu showed all four Hub controls; turning weather off redrew the Hub
+as time + device health with one divider; MoOS Search received typed input and
+listed grouped app, settings and folder rows for `firew` (German layout) and a
+web row for Arabic input, each with its action chip and the Ask Mo AI row. The
+keyboard layout and applet shortcuts were restored afterwards.
+**Review shadows left on purpose:** `~/.local/share/plasma/plasmoids/`
+`org.moos.{search,island,nova.clock}` and `~/.local/share/plasma/wallpapers/`
+`org.moos.ui2.wallpaper` (W2 source) stay so the owner sees the new desktop before
+the update. `THEME_REV=59` removes all four at the first login after W2 is
+installed; W1's `THEME_REV=58` removes the island and clock copies only.
 
 ## Proven source/image behavior
 
@@ -114,9 +134,9 @@ update and reboot.
 
 - Fix and rerun the exact ISO second-boot proof; then promote, stage, reboot and
   read back Horizon 2 from `/usr` on this workstation.
-- Capture the M1 visual/accessibility matrix: Arabic/English/German, light/dark,
-  reduced motion, 1080p–4K and 100–250%, including typed Search and island
-  Remote/Media switching.
+- Capture the M1 visual/accessibility matrix: English/German sessions, light/dark,
+  reduced motion, 1080p–4K and 100–250%, including island Remote/Media switching
+  (typed Search and Hub controls are reviewed in Arabic only).
 - Prove two suspend/resume cycles, multi-monitor, audio/network recovery,
   deliberate rollback/roll-forward and photographed boot/login on hardware.
 - Qualify broader Wi-Fi/Bluetooth/audio/camera, laptop/touch hardware, ARM
@@ -127,9 +147,10 @@ update and reboot.
 
 ## Next execution
 
-Finish the current M1 Search/Island + in-tree MoPlayer + ISO-proof batch; run
-targeted gates, `just check` and one local image build; integrate one reviewed pull request;
-confirm there is no active release runner; execute
-`scripts/release-candidate.sh --promote`; update/reboot this signed NVIDIA
-station; then capture live Arabic and English readback. Continue with M2 only
-after recording the exact proof outcome.
+When branch run `35148344935` and its proofs pass, merge PR #107 with a merge
+commit (tree identical to `92248b5d`) and promote those exact runs through
+`promote-x86.yml`; a red proof is fixed on a branch and dispatched fresh. Then
+merge W2, run one `scripts/release-candidate.sh --promote`, and have the owner
+update and reboot; read the Hub controls, Search and Island back from `/usr` and
+confirm the review shadows were swept. W3 (Island jobs and privacy chips, Search
+answers) follows as the next wave.
