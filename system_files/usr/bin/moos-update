@@ -38,6 +38,7 @@ by the nightly train and Mo AI. The UI displays state and progress; the backend 
 edition allowlist, registry resolution, target validation and exact signed rebase.
 """
 import json
+import time
 import os
 import subprocess
 import sys
@@ -61,6 +62,28 @@ def sh(*cmd, timeout=25):
 
 
 UPDATE_BACKEND = "/usr/libexec/moos-image-update"
+# P1.5: the same record the backend publishes and logs. The window paints the last
+# known state immediately instead of showing "Checking…" over a stale view, and it
+# never invents a state of its own — a missing or old record simply means "check".
+UPDATE_STATE_FILE = "/run/moos/update-state.json"
+UPDATE_STATE_MAX_AGE_SECONDS = 900
+
+
+def published_state():
+    """The backend's current published record, or None when it is absent or stale."""
+    try:
+        with open(UPDATE_STATE_FILE, encoding="utf-8") as stream:
+            record = json.load(stream)
+    except (OSError, ValueError):
+        return None
+    if not isinstance(record, dict) or record.get("schema") != 1:
+        return None
+    updated = record.get("updated")
+    if not isinstance(updated, int) or updated <= 0:
+        return None
+    if time.time() - updated > UPDATE_STATE_MAX_AGE_SECONDS:
+        return None
+    return record
 
 
 def deployment_state():
@@ -268,6 +291,15 @@ class Updater(MoOSApp):
         row.append(self.reboot_btn)
         page.append(row)
 
+        # P1.5: the record moos-image-update publishes and logs. The window, the
+        # journal (`journalctl -t moos-update`) and the timer therefore describe ONE
+        # state machine; the live check below still confirms it rather than trusting
+        # a file, and a missing or stale record simply means "check".
+        record = published_state()
+        if record:
+            self.say(f"published: state={record.get('state') or '-'} "
+                     f"event={record.get('event') or '-'}")
+
         # An update the nightly train already staged is finished work waiting on a
         # restart, and nothing else on this desktop says so: the notifier and the
         # old `bootc upgrade --check` both read the pinned origin and report "no
@@ -285,10 +317,18 @@ class Updater(MoOSApp):
             # used to wait on "Press Check for updates to begin" for a question the
             # owner opened it to ask. The resolve is unprivileged and asynchronous;
             # a staged update keeps its restart message above instead.
-            self.status.set_text(local_text(
-                "جارٍ البحث عن تحديثات…",
-                "Checking for updates…",
-            ))
+            if record and record.get("state") == "current":
+                # Say what the published state already knows instead of opening on a
+                # spinner; the asynchronous check that follows confirms or corrects it.
+                self.status.set_text(local_text(
+                    "✓ نظامك على أحدث صورة MoOS موقّعة — يجري التأكد…",
+                    "✓ You are on the latest signed MoOS image — confirming…",
+                ))
+            else:
+                self.status.set_text(local_text(
+                    "جارٍ البحث عن تحديثات…",
+                    "Checking for updates…",
+                ))
             GLib.idle_add(self._check_on_open)
 
     def _check_on_open(self):

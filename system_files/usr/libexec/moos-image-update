@@ -44,6 +44,21 @@ CPU_MAX_PERCENT = 50
 MEMORY_MAX_PERCENT = 90
 NETWORK_MAX_BYTES_PER_SECOND = 700_000
 DEPLOYMENT_LOCK = "/run/lock/moos-image-update.lock"
+# P1.5: ONE update state machine. This backend already owns the only validated
+# vocabulary (current/available/staged/blocked-downgrade/busy/unknown), but it
+# spoke it to stdout alone, so the Updater window, `moai-do update` and the timer
+# each re-derived their own view and nothing reached the journal. Every path now
+# publishes the same record here and says the same word to the journal, so the UI
+# and `journalctl -t moos-update` can never disagree about what the system is doing.
+STATE_DIR = "/run/moos"
+STATE_FILE = f"{STATE_DIR}/update-state.json"
+# Older than this and the record is history, not state: callers resolve again.
+STATE_MAX_AGE_SECONDS = 900
+JOURNAL_TAG = "moos-update"
+STATE_KEYS = (
+    "state", "event", "edition", "booted_version", "staged_version",
+    "current_digest", "staged_digest", "latest_digest", "latest_version",
+)
 
 
 class UpdateError(RuntimeError):
@@ -188,7 +203,60 @@ def registry_release(edition: str) -> dict[str, str]:
     return {"digest": latest, "version": version}
 
 
+def state_record(result: dict[str, Any], event: str) -> dict[str, Any]:
+    """The published shape. Digests, versions and edition only — never credentials."""
+    record: dict[str, Any] = {"schema": 1, "updated": int(time.time())}
+    for key in STATE_KEYS:
+        record[key] = str(result.get(key, "") or "") if key != "event" else event
+    return record
+
+
+def publish_state(result: dict[str, Any], event: str) -> dict[str, Any]:
+    """Write the record and log the same state. Never fails a caller: an
+    unprivileged `resolve` cannot write /run/moos and still logs its line."""
+    record = state_record(result, event)
+    summary = " ".join(f"{key}={record[key] or '-'}" for key in STATE_KEYS)
+    try:
+        subprocess.run(["logger", "-t", JOURNAL_TAG, "--", summary],
+                       check=False, timeout=5)
+    except (OSError, subprocess.SubprocessError):
+        pass
+    try:
+        os.makedirs(STATE_DIR, exist_ok=True)
+        temporary = f"{STATE_FILE}.tmp"
+        with open(temporary, "w", encoding="utf-8") as stream:
+            json.dump(record, stream, separators=(",", ":"), sort_keys=True)
+        os.chmod(temporary, 0o644)
+        os.replace(temporary, STATE_FILE)
+    except OSError:
+        pass
+    return record
+
+
+def published_state(max_age: int = STATE_MAX_AGE_SECONDS) -> dict[str, Any] | None:
+    """The last published record while it is still current, else None."""
+    try:
+        with open(STATE_FILE, encoding="utf-8") as stream:
+            record = json.load(stream)
+    except (OSError, ValueError):
+        return None
+    if not isinstance(record, dict) or record.get("schema") != 1:
+        return None
+    updated = record.get("updated")
+    if not isinstance(updated, int) or updated <= 0:
+        return None
+    if time.time() - updated > max_age:
+        return None
+    return record
+
+
 def resolve() -> dict[str, Any]:
+    result = _resolve()
+    publish_state(result, "resolve")
+    return result
+
+
+def _resolve() -> dict[str, Any]:
     state = read_deployments()
     booted = state["booted"]
     staged = state["staged"]
@@ -266,7 +334,26 @@ def stage(expected_digest: str) -> str:
     if DIGEST_RE.fullmatch(expected_digest) is None:
         raise UpdateError("refused an invalid expected digest", code=5, security=True)
     with deployment_lock():
-        return _stage_locked(expected_digest)
+        outcome = _stage_locked(expected_digest)
+    publish_state(_deployment_view(outcome), f"stage:{outcome}")
+    return outcome
+
+
+def _deployment_view(outcome: str) -> dict[str, Any]:
+    """What the machine looks like right after a stage, read from rpm-ostree."""
+    state = read_deployments()
+    booted, staged = state["booted"], state["staged"] or {}
+    reference = str(booted.get("container-image-reference", "") or "")
+    return {
+        "state": "staged" if outcome != "already-current" else "current",
+        "edition": official_edition(reference) or "",
+        "booted_version": str(booted.get("version", "") or ""),
+        "staged_version": str(staged.get("version", "") or ""),
+        "current_digest": deployment_digest(booted),
+        "staged_digest": deployment_digest(staged) if staged else "",
+        "latest_digest": "",
+        "latest_version": "",
+    }
 
 
 def _stage_locked(expected_digest: str) -> str:
@@ -478,6 +565,8 @@ def main() -> int:
     subparsers = parser.add_subparsers(dest="command", required=True)
     resolve_parser = subparsers.add_parser("resolve")
     resolve_parser.add_argument("--format", choices=("json", "pipe"), default="json")
+    state_parser = subparsers.add_parser("state")
+    state_parser.add_argument("--format", choices=("json", "pipe"), default="json")
     stage_parser = subparsers.add_parser("stage")
     stage_parser.add_argument("--expected-digest", required=True)
     subparsers.add_parser("auto")
@@ -486,6 +575,11 @@ def main() -> int:
     try:
         if args.command == "resolve":
             print_result(resolve(), args.format)
+            return 0
+        if args.command == "state":
+            # The published record while it is current; otherwise resolve once and
+            # publish, so a caller never has to guess which source is authoritative.
+            print_result(published_state() or resolve(), args.format)
             return 0
         if args.command == "stage":
             print(stage(args.expected_digest))
