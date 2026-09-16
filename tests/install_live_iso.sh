@@ -124,9 +124,15 @@ start_qemu() {
     rm -f "$qga" "$monitor"
     # VirGL keeps both the live and installed compositors on the same real 3D
     # guest path while Xvfb captures the mapped GTK pixels users would see.
+    # The installed proof opens every first-party app twice and then performs a
+    # real reboot. Two vCPUs made the second boot take longer than the 1000-second
+    # channel deadline on the hosted four-core runner even though the serial
+    # console eventually reached login (run 35091031129). Give the proof VM the
+    # runner resources it is actually allowed to use; this does not change the
+    # image under test.
     LIBGL_ALWAYS_SOFTWARE=1 qemu-system-x86_64 \
         -name "$MOOS_QEMU_WINDOW_TITLE" \
-        -machine q35,accel=kvm -cpu host -m 4096 -smp 2 \
+        -machine q35,accel=kvm -cpu host -m 6144 -smp 4 \
         -drive "if=pflash,format=raw,readonly=on,file=$ovmf_code" \
         -drive "if=pflash,format=raw,file=$work/vars.fd" \
         -drive "file=$work/installed.qcow2,format=qcow2,if=virtio,cache=unsafe" \
@@ -599,6 +605,28 @@ def wait_qga(seconds=1000):
             last = str(error)
             time.sleep(5)
     raise SystemExit(f"ISO INSTALL FATAL: installed QGA timeout: {last}")
+
+
+def qga_exec(script, timeout=60):
+    """Run one bounded diagnostic through the reboot-independent QGA channel."""
+    started = request({
+        "execute": "guest-exec",
+        "arguments": {
+            "path": "/usr/bin/bash",
+            "arg": ["-lc", script],
+            "capture-output": True,
+        },
+    })
+    pid = started["pid"]
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        status = request({"execute": "guest-exec-status", "arguments": {"pid": pid}})
+        if status.get("exited"):
+            stdout = base64.b64decode(status.get("out-data", "")).decode(errors="replace")
+            stderr = base64.b64decode(status.get("err-data", "")).decode(errors="replace")
+            return status.get("exitcode", 1), stdout, stderr
+        time.sleep(2)
+    raise RuntimeError("QGA guest command exceeded its bounded window")
 
 
 def ssh_exec(script, args=(), timeout=180, *, desktop_user=False):
@@ -1310,27 +1338,63 @@ try:
 except (OSError, RuntimeError, socket.timeout):
     pass
 
-# The monitor/QEMU process persists across this real guest reboot. Require a new
-# kernel boot_id before accepting QGA again, then rerun the full installed gate.
+# The monitor/QEMU process persists across this real guest reboot. Require BOTH
+# independent channels to observe the new kernel: QGA proves its stream was
+# resynchronised after the reboot, while SSH proves the actual runtime-proof
+# path users and the QCOW2 gates rely on is alive. Never substitute one for the
+# other: run 35091031129 reached a second login on serial but SSH stalled before
+# its banner, and the old one-channel loop could not say which side was broken.
 deadline = time.monotonic() + 1000
 last_reboot_error = "SSH has not returned after reboot"
+qga_boot_id = ""
+ssh_boot_id = ""
 while time.monotonic() < deadline:
     if not alive():
         raise SystemExit("ISO INSTALL FATAL: QEMU exited during installed reboot")
     try:
-        # SSH is the boot-id authority. QGA's stream can retain partial replies
-        # across a reboot; gating SSH behind a ping hid a successful second
-        # kernel boot in run 34811868497. Check both channels independently.
+        code, current, error = qga_exec("cat /proc/sys/kernel/random/boot_id", timeout=20)
+        if code == 0 and current.strip() and current.strip() != boot_id:
+            qga_boot_id = current.strip()
+    except (OSError, ValueError, RuntimeError, KeyError, socket.timeout) as error:
+        last_reboot_error = f"QGA: {error}"
+    try:
+        # Do not gate SSH behind QGA. A stale QGA reply once hid a successful
+        # second kernel boot (run 34811868497), so both probes run independently.
         code, current, error = ssh_exec("cat /proc/sys/kernel/random/boot_id", timeout=20)
         if code == 0 and current.strip() and current.strip() != boot_id:
-            break
-        last_reboot_error = error.strip() if code else "kernel boot id unchanged"
+            ssh_boot_id = current.strip()
+        if not ssh_boot_id:
+            last_reboot_error = error.strip() if code else "SSH kernel boot id unchanged"
     except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired) as error:
-        last_reboot_error = str(error)
+        last_reboot_error = f"SSH: {error}"
+    if qga_boot_id and ssh_boot_id:
+        if qga_boot_id != ssh_boot_id:
+            raise SystemExit(
+                "ISO INSTALL FATAL: QGA and SSH observed different second boot ids: "
+                f"qga={qga_boot_id} ssh={ssh_boot_id}")
+        break
     time.sleep(5)
 else:
     (evidence / "reboot-channel-error.txt").write_text(last_reboot_error + "\n")
-    raise SystemExit(f"ISO INSTALL FATAL: installed reboot never produced a new boot id: {last_reboot_error}")
+    try:
+        _code, diag_out, diag_err = qga_exec(
+            "echo '=== boot id ==='; cat /proc/sys/kernel/random/boot_id; "
+            "echo '=== proof unit ==='; systemctl status moos-ci-runtime-proof.service --no-pager --full; "
+            "echo '=== sshd ==='; systemctl status sshd.service --no-pager --full; "
+            "echo '=== listeners ==='; ss -lntp; "
+            "echo '=== failed units ==='; systemctl --failed --no-legend --plain; "
+            "echo '=== proof journal ==='; journalctl -b -u moos-ci-runtime-proof.service -u sshd.service --no-pager -n 120",
+            timeout=90)
+        (evidence / "reboot-qga-state.txt").write_text(
+            diag_out + (("\n=== stderr ===\n" + diag_err) if diag_err else ""),
+            encoding="utf-8")
+    except (OSError, ValueError, RuntimeError, KeyError, socket.timeout) as error:
+        (evidence / "reboot-qga-state.txt").write_text(
+            f"QGA diagnostic failed: {error}\n", encoding="utf-8")
+    raise SystemExit(
+        "ISO INSTALL FATAL: installed reboot did not become healthy on both "
+        f"QGA and SSH: qga={qga_boot_id or 'missing'} "
+        f"ssh={ssh_boot_id or 'missing'} last={last_reboot_error}")
 
 wait_qga(120)
 

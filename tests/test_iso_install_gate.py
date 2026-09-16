@@ -74,6 +74,10 @@ required_script = (
     '"IdentitiesOnly=yes"',
     "root@127.0.0.1",
     '"mode": "reboot"',
+    'qga_boot_id = ""',
+    'ssh_boot_id = ""',
+    'reboot-qga-state.txt',
+    '-machine q35,accel=kvm -cpu host -m 6144 -smp 4',
     '"mode": "powerdown"',
     "qemu-img check",
 )
