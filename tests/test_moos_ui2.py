@@ -1111,13 +1111,37 @@ class TestMoOSUI2(unittest.TestCase):
             "the pin affordance belongs on logical trailing",
         )
 
+        # The panel CLOCK is the measured exception. Its compact row does not
+        # receive plasmashell's mirroring: on the station's Arabic session
+        # (plasmashell 6.7.5, 4K capture 2026-09-16) the accent rail sat on the
+        # bar's outer edge — unmirrored source order — while the popup launcher
+        # above WAS mirrored. Setting the row direction from the locale moved the
+        # rail between tray and time in the next capture, which a double mirror
+        # could not do. So the rule for this row is one direction authority:
+        # MoUI.Locale, never Qt.application.layoutDirection and never a second,
+        # hand-written mirror of individual anchors.
         clock = qml_code((
             SHARE / "plasma/plasmoids/org.moos.nova.clock/contents/ui/main.qml"
         ).read_text(encoding="utf-8"))
+        self.assertIn(
+            "readonly property bool rtl: MoUI.Locale.rtl",
+            clock,
+            "the clock must take its direction from the one locale authority",
+        )
+        self.assertEqual(
+            len(re.findall(r"layoutDirection\s*:\s*root\.rtl\s*\?\s*Qt\.RightToLeft\s*:\s*Qt\.LeftToRight", clock)),
+            2,
+            "the status row and the time/date row each follow the locale exactly once",
+        )
         self.assertNotRegex(
             clock,
-            r"layoutDirection\s*:\s*root\.rtl\s*\?",
-            "clock rows inherit plasmashell RTL; setting RTL again double-mirrors",
+            r"Qt\.application\.layoutDirection",
+            "Qt.application.layoutDirection is LeftToRight on MoOS Arabic sessions",
+        )
+        self.assertNotRegex(
+            clock.split("compactRepresentation:", 1)[1].split("fullRepresentation:", 1)[0],
+            r"anchors\.(?:left|right)\s*:\s*root\.rtl\s*\?",
+            "the compact clock must not also mirror individual anchors",
         )
 
     def test_launcher_uses_one_readable_low_density_shell_language(self) -> None:
@@ -2506,7 +2530,8 @@ class TestMoOSUI2(unittest.TestCase):
         )
         self.assertRegex(
             system_card,
-            r"healthLabel\s*:\s*!coreSensorsReady\s*\n\s*\?\s*\"WAITING\"",
+            r"healthLabel\s*:\s*!coreSensorsReady\s*\n\s*\?\s*"
+            r"systemCard\.local\(\"[^\"]+\",\s*\"WAITING\"\)",
             "missing core sensors must never be labelled HEALTHY",
         )
         self.assertRegex(

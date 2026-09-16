@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
+import org.moos.ui as MoUI
 
 Item {
     id: clockCard
@@ -16,6 +17,15 @@ Item {
     property bool integrated: false
     // Active MoOS look, e.g. "MIDNIGHT GLASS"; empty falls back to the half.
     property string themeLabel: ""
+
+    // One locale authority for every label on the hub. The cards used to hard-code a mix of
+    // English eyebrows ("SYSTEM", "HIGH", "FEELS") and Arabic words ("الآن") whatever the session
+    // language was, so an Arabic desktop read as two languages and an English one showed Arabic
+    // weather. Brand names and the bilingual date pair shared with the login/lock clocks are the
+    // only deliberate exceptions. Arabic is never letter-spaced.
+    readonly property bool rtl: MoUI.Locale.rtl
+    readonly property string labelFamily: rtl ? "IBM Plex Sans Arabic" : "IBM Plex Sans"
+    function local(arabic, english) { return MoUI.Locale.local(arabic, english) }
 
     // The once-a-minute colon pulse is a one-shot transition, which is exactly
     // what Plasma's animation-speed slider is meant to own — and it could not,
@@ -60,12 +70,12 @@ Item {
                 }
 
                 Text {
-                    text: "LOCAL TIME"
+                    text: clockCard.local("الوقت المحلي", "LOCAL TIME")
                     color: Kirigami.Theme.disabledTextColor
-                    font.family: "IBM Plex Sans"
+                    font.family: clockCard.labelFamily
                     font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.55)
                     font.weight: Font.DemiBold
-                    font.letterSpacing: 1.8
+                    font.letterSpacing: clockCard.rtl ? 0 : 1.8
                 }
 
                 // No AM/PM badge: the digits below are 24-hour (HH:mm), so a

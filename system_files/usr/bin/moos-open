@@ -399,6 +399,12 @@ PY
     search/)       gui krunner ;;
     search/*)      query="$(python3 -c 'import sys,urllib.parse; print(urllib.parse.unquote(sys.argv[1]))' "$tgt" 2>/dev/null)";
                    if [ -n "$query" ]; then gui krunner "$query"; else gui krunner; fi ;;
+    # MoOS Search's Mo AI hand-off: open the chat already asking the question. This only starts a
+    # conversation — the same entry the Mo AI KRunner runner uses — and any action in the answer is
+    # still a button the user has to confirm. The question is passed as ONE argv element and is
+    # never evaluated; an empty question simply opens Mo AI.
+    ai/ask/*)      query="$(python3 -c 'import sys,urllib.parse; print(urllib.parse.unquote(sys.argv[1])[:2000])' "${tgt#ask/}" 2>/dev/null)";
+                   if [ -n "$query" ]; then gui moai --panel chat --ask "$query"; else gui moai; fi ;;
     session/lock)  loginctl lock-session ;;
     session/logout) confirm "تسجيل الخروج الآن؟ | Log out now?" \
                           && { qdbus_run org.kde.Shutdown /Shutdown logout 2>/dev/null || true; } ;;

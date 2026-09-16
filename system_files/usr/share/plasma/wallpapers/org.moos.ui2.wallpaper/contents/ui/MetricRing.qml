@@ -10,6 +10,7 @@ import QtQuick
 import QtQuick.Shapes
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
+import org.moos.ui as MoUI
 
 Item {
     id: ring
@@ -177,10 +178,10 @@ Item {
             Layout.alignment: Qt.AlignHCenter
             text: ring.label
             color: Kirigami.Theme.disabledTextColor
-            font.family: "IBM Plex Sans"
+            font.family: MoUI.Locale.rtl ? "IBM Plex Sans Arabic" : "IBM Plex Sans"
             font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.46)
             font.weight: Font.DemiBold
-            font.letterSpacing: 1.1
+            font.letterSpacing: MoUI.Locale.rtl ? 0 : 1.1
         }
     }
 }

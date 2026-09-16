@@ -214,38 +214,21 @@ Item {
         return "cloudy"
     }
 
-    function conditionNameArabic(code) {
-        if (code === 0) {
-            return "سماء صافية"
-        }
-        if (code === 1) {
-            return "صحو غالباً"
-        }
-        if (code === 2) {
-            return "غائم جزئياً"
-        }
-        if (code === 3) {
-            return "غائم"
-        }
-        if (code === 45 || code === 48) {
-            return "ضباب هادئ"
-        }
-        if (code >= 95) {
-            return "عاصفة رعدية"
-        }
-        if ((code >= 71 && code <= 77) || code === 85 || code === 86) {
-            return "تساقط ثلجي"
-        }
-        if (code >= 80 && code <= 82) {
-            return "زخّات مطر"
-        }
-        if (code >= 61 && code <= 67) {
-            return "أمطار"
-        }
-        if (code >= 51 && code <= 57) {
-            return "رذاذ"
-        }
-        return "غائم"
+    // Weather condition in the SESSION language. This was Arabic-only, so an English or German
+    // desktop showed "أمطار" under an English city name.
+    function conditionName(code) {
+        const L = MoUI.Locale
+        if (code === 0) return L.local("سماء صافية", "Clear sky")
+        if (code === 1) return L.local("صحو غالباً", "Mostly clear")
+        if (code === 2) return L.local("غائم جزئياً", "Partly cloudy")
+        if (code === 3) return L.local("غائم", "Overcast")
+        if (code === 45 || code === 48) return L.local("ضباب هادئ", "Fog")
+        if (code >= 95) return L.local("عاصفة رعدية", "Thunderstorm")
+        if ((code >= 71 && code <= 77) || code === 85 || code === 86) return L.local("تساقط ثلجي", "Snow")
+        if (code >= 80 && code <= 82) return L.local("زخّات مطر", "Showers")
+        if (code >= 61 && code <= 67) return L.local("أمطار", "Rain")
+        if (code >= 51 && code <= 57) return L.local("رذاذ", "Drizzle")
+        return L.local("غائم", "Cloudy")
     }
 
     Component.onCompleted: root.locate()
@@ -318,7 +301,7 @@ Item {
                                        root.forecastData.daylight)
                     : "cloudy"
             condition: root.weatherReady
-                    ? root.conditionNameArabic(root.forecastData.code)
+                    ? root.conditionName(root.forecastData.code)
                     : ""
             motionEnabled: root.motionEnabled
             accentMotion: root.accentMotion

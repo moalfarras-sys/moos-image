@@ -275,6 +275,7 @@ classification, and retain the full accessible/error meaning at small widths.
 | P2.5 | Run the visual matrix | 1080p–4K, 100–250%, RTL/LTR, light/dark, reduced motion; measured contrast and no clipping |
 | P2.6 | Remove remaining retired UI names/assets and enforce reachability | generated asset manifest; every shipped asset has a runtime/generator/test consumer |
 | P2.7 | **Active:** complete existing Horizon feedback, clock input and original system sound | Shared finite spring with stable hit targets; reversal/hidden/reduced-motion tests; real clock keys; KDE event playback and mute/custom overrides; image and upgraded-session proof |
+| P2.8 | **In progress:** compose MoOS Bar, Search and Island (experience goals 1–2 in `artwork/MOOS_UI2_DESIGN.md`) | Search opens one anchored surface with Milou results, recent apps, destinations, keyboard hints and an explicit Mo AI hand-off; the Remote island announces then settles to a live chip; clock and desktop hub follow MoUI.Locale; remaining: typed-query and English/German frames, and the booted-candidate readback |
 
 P2.7 retains the stock Plasma task manager and one existing panel writer. It
 does not install an unrelated dock/effects pack. Qt's native spring provides

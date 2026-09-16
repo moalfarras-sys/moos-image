@@ -408,6 +408,40 @@ PlasmoidItem {
         repeat: false
     }
 
+    // Remote is a STANDING state: a phone can stay connected for hours. A two-line capsule that
+    // never settles spends ~230 px of the bar repeating a sentence the user has already read — on
+    // the station it sat beside the search field for a whole evening. So the sentence is an
+    // announcement: the full capsule appears when a session starts, pauses, resumes or gains or
+    // loses a device, stays long enough to read, then settles to a live chip (the Remote glyph, a
+    // status dot and the device count). Hovering the chip or opening its popup brings the sentence
+    // back. The timer runs once per real state change and never while nothing is happening.
+    property bool remoteAnnouncing: false
+    readonly property bool remoteSettled: root.remotePresent && !root.remoteAnnouncing
+                                          && !root.compactHovered && !root.expanded
+    function announceRemote() {
+        // Read the two inputs, not the remotePresent binding: a change handler can run before
+        // that binding has re-evaluated. Measured on the station: the handler for the new session
+        // count saw remotePresent=false with mode=active and sessions=1, so the announcement was
+        // cancelled at the exact moment it should have started.
+        const present = root.remoteSessions > 0
+            && (root.remoteMode === "active" || root.remoteMode === "paused");
+        if (present) {
+            root.remoteAnnouncing = true;
+            remoteAnnounce.restart();
+        } else {
+            remoteAnnounce.stop();
+            root.remoteAnnouncing = false;
+        }
+    }
+    onRemoteModeChanged: root.announceRemote()
+    onRemoteSessionsChanged: root.announceRemote()
+    Timer {
+        id: remoteAnnounce
+        interval: 5000
+        repeat: false
+        onTriggered: root.remoteAnnouncing = false
+    }
+
     // Some players publish position only on request. Wake once per second only
     // while progress is both moving and visible (popup open or capsule hovered).
     Timer {
@@ -449,11 +483,15 @@ PlasmoidItem {
             ? revealedControlCount * 30
               + Math.max(0, revealedControlCount - 1) * root.design.space1
             : 0
+        // The settled Remote chip: glyph plate plus the capsule's own rim insets.
+        readonly property real chipWidth: 72
         implicitWidth: root.active
-            ? Math.round(baseWidth + (compactHover.hovered ? hoverExtra : 0)) : 1
+            ? (root.remoteSettled ? chipWidth
+               : Math.round(baseWidth + (compactHover.hovered ? hoverExtra : 0)))
+            : 1
         implicitHeight: root.design.panelHeight
         Layout.preferredWidth: implicitWidth
-        Layout.minimumWidth: root.active ? 218 : 1
+        Layout.minimumWidth: root.active ? (root.remoteSettled ? chipWidth : 218) : 1
         Layout.maximumWidth: 420
         Layout.fillHeight: true
         opacity: root.active ? 1 : 0
@@ -601,6 +639,9 @@ PlasmoidItem {
                 spacing: root.design.space1
                 layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
+                // Centres the glyph plate while the Remote chip is settled.
+                Item { Layout.fillWidth: true; visible: root.remoteSettled }
+
                 Rectangle {
                     // DERIVED, never a literal. A hardcoded 38 was the same
                     // height the capsule had left over, so the artwork had no
@@ -654,10 +695,55 @@ PlasmoidItem {
                         color: Kirigami.Theme.highlightColor
                         visible: !compactArt.visible
                     }
+
+                    // Live state on the settled chip, never animated: a status dot (active or
+                    // paused) and, for more than one device, the count. Both come from the same
+                    // presence files as the sentence they replace.
+                    Rectangle {
+                        visible: root.remotePresent
+                        width: 10
+                        height: 10
+                        radius: 5
+                        anchors.top: parent.top
+                        anchors.topMargin: -2
+                        anchors.right: root.rtl ? undefined : parent.right
+                        anchors.left: root.rtl ? parent.left : undefined
+                        anchors.rightMargin: -2
+                        anchors.leftMargin: -2
+                        color: root.remoteMode === "paused"
+                            ? Kirigami.Theme.neutralTextColor
+                            : Kirigami.Theme.positiveTextColor
+                        border.width: 2
+                        border.color: Kirigami.Theme.backgroundColor
+                    }
+                    Rectangle {
+                        visible: root.remotePresent && root.remoteSessions > 1
+                        height: 16
+                        width: Math.max(16, remoteCount.implicitWidth + 8)
+                        radius: 8
+                        anchors.bottom: parent.bottom
+                        anchors.bottomMargin: -3
+                        anchors.right: root.rtl ? undefined : parent.right
+                        anchors.left: root.rtl ? parent.left : undefined
+                        anchors.rightMargin: -4
+                        anchors.leftMargin: -4
+                        color: Kirigami.Theme.highlightColor
+                        Text {
+                            id: remoteCount
+                            anchors.centerIn: parent
+                            text: String(root.remoteSessions)
+                            color: Kirigami.Theme.highlightedTextColor
+                            font.pixelSize: 10
+                            font.weight: Font.Bold
+                        }
+                    }
                 }
+
+                Item { Layout.fillWidth: true; visible: root.remoteSettled }
 
                 ColumnLayout {
                     id: compactText
+                    visible: !root.remoteSettled
                     Layout.fillWidth: true
                     Layout.minimumWidth: 92
                     // Centre the two lines as a BLOCK. Filling the capsule's
@@ -794,7 +880,7 @@ PlasmoidItem {
                 }
 
                 MediaControl {
-                    revealed: root.remotePresent
+                    revealed: root.remotePresent && !root.remoteSettled
                     controlEnabled: true
                     iconName: "configure-symbolic"
                     label: root.local("فتح إعدادات التحكم", "Open Remote controls")
