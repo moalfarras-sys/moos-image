@@ -50,9 +50,10 @@
 > places another OS's name may appear — they are technical plumbing the user never sees. Every
 > other appearance is a leak.
 
-This repo builds a **real operating system that is installed on a real machine**. It is not a
-sandbox, and there is no staging environment between a merge and someone's desktop failing to
-boot. Read this before changing anything.
+This repo builds a **real operating system installed on a real machine**. Host
+commands reach the owner's PC. Merging source does not update that PC: signed
+candidates, artifact proofs and promotion separate development from delivery.
+A broken promoted image can still prevent this workstation from booting.
 
 > **Mandatory for every agent:** load
 > [`skills/moos-engineering/SKILL.md`](skills/moos-engineering/SKILL.md) before your first
@@ -81,8 +82,8 @@ boot. Read this before changing anything.
   session (plasmashell overwriting your config edits, the tray's three lists,
   why a disappearing applet must be a tray item, why OSTree's frozen mtimes make
   `THEME_REV` mandatory, and the motion gate that floors at 1), how a change
-  reaches all three editions, how to actually see the desktop, and an honest
-  backlog of what is NOT done with instructions for doing it.
+  reaches all four editions and how to actually see the desktop. Open tasks
+  belong only to `docs/DEVELOPMENT_PLAN.md`.
 - **`PROJECT_STATE.md`** — concise current terrain and evidence only. Git owns history.
 - **`docs/MCP.md`** — the four MCP servers every agent here gets (structured
   reasoning, version-current library docs, a real headless Chrome for the Mo Remote
@@ -331,12 +332,13 @@ button — but the model never executes anything itself. Do not add a path that 
 web page, run a command. If you add an action, add it to `moai-do`, to `moos-open`'s case
 statement, and to Mo AI's system prompt.
 
-`moos:` is a **registered URL scheme**, so any web page the user visits can hand `moos-open` a
-URL. That is survivable only because every route is a fixed action: the one route that carries a
-free-form value (`apps/install/<id>`, whose id comes from a Flathub search) validates the
-reverse-DNS shape in `moos-open` *and* again in `moai-do`, which then refuses to install without
-an explicit `y`. Keep it that way — a drive-by page must never be able to do more than raise a
-prompt the user has to answer. Coding agents (`moai-do install-codex` / `install-claude`) take
+`moos:` is a **registered URL scheme**, so web pages can hand `moos-open` a URL.
+Every route must remain a fixed action with validated arguments. The Flatpak
+route validates reverse-DNS IDs in both router and executor. Local RPM paths
+also require ownership, confirmed digest, architecture and trusted-signature
+validation at the privileged helper. Installation requires explicit confirmation;
+a drive-by URL must never silently mutate the system. Coding agents
+(`moai-do install-codex` / `install-claude`) take
 **no privilege at all**: `/usr` is read-only here, so they `npm install --prefix ~/.local` and run
 as the user. Do not "fix" that by reaching for pkexec.
 
@@ -357,9 +359,11 @@ skills/                the mandatory moos-engineering agent skill
 
 **Milestone batching is the default. One task does not end a session.**
 
-`docs/DEVELOPMENT_PLAN.md` is one execution backlog, worked in priority order
-P0 → P1 → P2 → P3 → P4 → P5 → P6. Implement the largest safe, coherent group of
-related tasks in one working cycle; when a task is finished, move to the next
+`docs/DEVELOPMENT_PLAN.md` is the single execution backlog and owns the current
+milestone order. P0–P6 identify work streams, not a rule that unavailable hardware
+blocks all UI development. Resolve active boot/security/data-loss defects first;
+then follow the owner's visual-first milestone. Implement the largest safe,
+coherent group of related tasks in one working cycle; when a task is finished, move to the next
 automatically while no real blocker exists. Fix defects you find on the way
 inside the same cycle. Do not stop to ask for the next task, and do not open a
 release cycle for every fix.
@@ -367,13 +371,21 @@ release cycle for every fix.
 | During the cycle | Once per milestone |
 |---|---|
 | targeted tests, `just check`, live/rendered review | full local image build |
-| merge each reviewed slice to `main` after its fast gates | signed candidate + 3×QCOW2 + ISO + ARM proofs |
+| commit reviewable slices; integrate the coherent batch after its fast gates | signed candidate + 3×QCOW2 + ISO; separate ARM proof |
 | keep implementing while CI runs | promotion of the proven digests |
 
 Merging to `main` deploys nothing: `build.yml` pushes only `candidate-*` tags and
 production tags move only through `promote-x86.yml` after exact-revision proofs.
 Start the end-of-milestone cycle with one command — `scripts/release-candidate.sh`
 (`--promote` to promote when every x86 proof passes).
+
+Inspect active release runners and workflow SHAs before dispatching. Reuse their
+run IDs; never start duplicate image builds to learn their status. A running
+candidate freezes `main` until its promotion/failure is resolved. Independent
+work continues on a topic branch with non-overlapping agent file ownership.
+Review related slices together before pushing: `main` pushes start image builds,
+so per-file pushes defeat batching. The full local build tests the final image
+tree once; only a later image change or a real failed gate justifies repeating it.
 
 **Batching reduces iterations, never safety.** Every gate, signature check,
 rollback guarantee and identity rule in this file still holds, a boot/initramfs/
@@ -428,8 +440,8 @@ Being honest about this list is more useful than shrinking it.
 - **Audio/Bluetooth/Wi-Fi/suspend/multi-monitor** have not been verified on hardware other than
   the maintainer's desktop.
 
-`docs/DEVELOPMENT_PLAN.md` is the single list of open work, in priority order
-P0 → P1 → P2 → P3 → P4 → P5 → P6. Work it in milestone batches: finish a task,
+`docs/DEVELOPMENT_PLAN.md` is the single list of open work and the current
+milestone order. Work it in milestone batches: finish a task,
 attach its evidence, update the current state, and continue with the next one in
 the same cycle. Stop only for a real blocker — the owner's hardware, a
 credential, a reboot, a failing safety gate — and say what it is. Never claim a
