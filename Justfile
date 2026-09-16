@@ -284,6 +284,8 @@ check:
     # Recovery is where a broken update sends the user: its target, queued-state
     # copy, and non-blocking Polkit/bootc path belong in the local gate too.
     python3 tests/test_recovery_rollback_target.py
+    python3 tests/test_update_state_machine.py
+    python3 tests/test_support_bundle_redaction.py
     python3 tests/test_rollback_proof_harness.py
     # Owned first-party chrome must resolve to deterministic palette-aware SVGs,
     # never the retired fixed-colour action artwork or a missing icon name.

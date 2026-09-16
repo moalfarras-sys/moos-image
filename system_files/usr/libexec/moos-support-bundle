@@ -1,0 +1,215 @@
+#!/usr/bin/python3
+"""Collect a redacted MoOS support bundle (DEVELOPMENT_PLAN P1.4).
+
+A support bundle exists so an owner can hand a stranger enough to diagnose their machine —
+and nothing else. Two properties make that true, and both are enforced here rather than
+left to the person pressing the button:
+
+  * BOUNDED. Every section has a hard cap: line counts on journals, a fixed set of
+    read-only commands, and a total byte ceiling. A bundle that grows with uptime is one
+    nobody can send and everybody truncates by hand.
+
+  * REDACTED BY CONSTRUCTION. The collector never reads a credential file, and every line
+    it does collect passes through one redactor before it is written. Machine identifiers
+    that are useless for diagnosis but identify a person or host (MAC addresses, IPv4/IPv6
+    addresses, Wi-Fi names, serial numbers, the machine ID, Tailscale keys, bearer tokens,
+    API keys, passwords) are replaced with a stable placeholder. The redactor is applied to
+    stdout AND stderr of every command, because a failing command prints its arguments.
+
+What it deliberately does NOT collect: /etc/moos/*secret*, provider keys, ~/.config
+credential stores, clipboard content, file names from the user's home, or anything from
+another user's session. `moai-do support-bundle` runs this unprivileged; the few root-only
+facts (failed system units, boot journal) come from read-only systemd/journalctl calls that
+work for a normal user on this system.
+"""
+
+from __future__ import annotations
+
+import argparse
+import datetime as _datetime
+import json
+import os
+from pathlib import Path
+import re
+import subprocess
+import sys
+
+MAX_BUNDLE_BYTES = 512 * 1024
+# A cap on journal ENTRIES is not a cap on bytes: on a real machine 200 error entries came
+# back as 104 KB of kernel dumps — 80% of the bundle, crowding out the twelve sections a
+# reader actually starts from. Every section gets its own ceiling as well.
+MAX_SECTION_BYTES = 24 * 1024
+JOURNAL_LINES = 200
+COMMAND_TIMEOUT = 25
+PLACEHOLDER = "[redacted]"
+
+# Ordered: the first pattern that matches a span wins, so a token inside a URL is redacted
+# as a token rather than half-escaping through the address rule.
+#
+# The assignment rule consumes the REST OF THE LINE, not one whitespace-free word. A
+# credential value routinely contains spaces ("Authorization: Bearer <jwt>"), and matching
+# only `\S+` would eat the keyword and hand the secret itself to a later rule that can no
+# longer recognise it. Over-redacting the tail of a line that named a credential is always
+# the safe direction.
+REDACTIONS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("secret-assignment", re.compile(
+        r"(?i)\b(api[_-]?key|token|secret|password|passwd|bearer|authorization|auth[_-]?key"
+        r"|client[_-]?secret|refresh[_-]?token|access[_-]?key|private[_-]?key)\b"
+        r"\s*[:=]\s*.*")),
+    ("bearer", re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._\-]{8,}")),
+    ("openrouter-key", re.compile(r"\bsk-[A-Za-z0-9._\-]{12,}")),
+    ("tailscale-key", re.compile(r"\btskey-[A-Za-z0-9\-]{8,}")),
+    ("github-token", re.compile(r"\bgh[pousr]_[A-Za-z0-9]{16,}")),
+    ("private-key-block", re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----")),
+    ("mac", re.compile(r"\b(?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}\b")),
+    ("ipv6", re.compile(r"\b(?:[0-9A-Fa-f]{1,4}:){4,7}[0-9A-Fa-f]{1,4}\b")),
+    ("ipv4", re.compile(r"\b(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)\b")),
+    ("wifi-ssid", re.compile(r"(?i)\b(ssid|essid)\b\s*[:=]?\s*\"?[^\"\n]{1,32}\"?")),
+    # Real tools spell these with a space before the separator — `Serial Number: …`,
+    # `Machine ID: …` — so the keyword alone is not enough to find the value.
+    ("serial", re.compile(
+        r"(?i)\b(serial(\s+number)?|uuid|machine[ _-]?id|product[ _-]?(uuid|serial)"
+        r"|board[ _-]?serial|imei)\b\s*[:=]\s*.*")),
+    ("email", re.compile(r"\b[\w.+-]+@[\w-]+\.[\w.-]+\b")),
+    ("home-path", re.compile(r"/(?:var/)?home/[^/\s:,\"']+")),
+)
+# Addresses a reader needs in order to understand a local service, and which identify
+# nobody: the loopback host and the QEMU user-network gateway used by the proofs.
+KEEP = frozenset({"127.0.0.1", "0.0.0.0", "255.255.255.255", "10.0.2.2", "::1"})
+
+
+def redact(text: str) -> str:
+    """Every line the bundle writes passes through here. Never the other way around."""
+    def replace(match: re.Match[str]) -> str:
+        found = match.group(0)
+        return found if found in KEEP else PLACEHOLDER
+
+    for _name, pattern in REDACTIONS:
+        text = pattern.sub(replace, text)
+    return text
+
+
+def run(argv: list[str]) -> str:
+    try:
+        result = subprocess.run(
+            argv, capture_output=True, text=True, timeout=COMMAND_TIMEOUT, check=False
+        )
+    except (OSError, subprocess.SubprocessError) as error:
+        return f"[{argv[0]}: {type(error).__name__}]"
+    output = (result.stdout or "") + (result.stderr or "")
+    return output.strip() or f"[{argv[0]}: no output]"
+
+
+def deployment_facts() -> dict[str, str]:
+    """Digest and edition from the booted deployment, the two facts every report needs."""
+    facts = {"edition": "", "version": "", "digest": "", "origin": ""}
+    raw = run(["rpm-ostree", "status", "--json"])
+    try:
+        deployments = json.loads(raw).get("deployments", [])
+    except ValueError:
+        return facts
+    booted = next((item for item in deployments if item.get("booted")), {})
+    origin = str(booted.get("container-image-reference", "") or "")
+    facts["origin"] = origin
+    facts["version"] = str(booted.get("version", "") or "")
+    facts["digest"] = str(booted.get("checksum", "") or "")
+    for edition in ("moos-nvidia", "moos-cloud", "moos-arm", "moos"):
+        if f"/{edition}@" in origin or origin.endswith(f"/{edition}"):
+            facts["edition"] = edition
+            break
+    return facts
+
+
+SECTIONS: tuple[tuple[str, list[str]], ...] = (
+    ("os-release", ["cat", "/etc/os-release"]),
+    ("kernel", ["uname", "-srmo"]),
+    ("deployments", ["rpm-ostree", "status"]),
+    ("update-state", ["/usr/libexec/moos-image-update", "state"]),
+    # Model and vendor from DMI, deliberately NOT product_serial/board_serial: the model
+    # explains a driver bug, the serial only identifies the owner's machine. And the
+    # hardware adapter (moos-hardware-adapt) is never invoked here — it enables units and
+    # restarts zram, and a diagnostic collector must not change the machine it describes.
+    ("machine-model", ["sh", "-c",
+                       "cat /sys/class/dmi/id/sys_vendor /sys/class/dmi/id/product_name "
+                       "/sys/class/dmi/id/bios_version 2>/dev/null"]),
+    ("cpu-memory", ["sh", "-c", "lscpu | head -20; free -h"]),
+    ("graphics", ["sh", "-c", "ls -l /dev/dri 2>/dev/null; lspci -nn | grep -i -E 'vga|3d' || true"]),
+    ("storage", ["df", "-h", "/", "/var", "/boot"]),
+    ("failed-system-units", ["systemctl", "--failed", "--no-pager", "--no-legend"]),
+    ("failed-user-units", ["systemctl", "--user", "--failed", "--no-pager", "--no-legend"]),
+    ("boot-errors", ["journalctl", "-b", "-p", "err", "--no-pager", "-n", str(JOURNAL_LINES)]),
+    ("update-journal", ["journalctl", "-t", "moos-update", "--no-pager", "-n", "50"]),
+    ("privileged-actions", ["journalctl", "-t", "moai-do", "--no-pager", "-n", "50"]),
+)
+
+
+def bounded(text: str, *, tail: bool) -> str:
+    """Trim one section to its ceiling.
+
+    `tail` decides which end survives. `journalctl -n` prints oldest first, so the newest
+    lines — the ones describing whatever just broke — are at the END. Trimming a journal
+    from the front would keep the boot noise and drop the failure.
+    """
+    encoded = text.encode("utf-8")
+    if len(encoded) <= MAX_SECTION_BYTES:
+        return text
+    note = f"[truncated: section limit, kept the {'newest' if tail else 'first'} "
+    note += f"{MAX_SECTION_BYTES // 1024} KB]"
+    if tail:
+        kept = encoded[-MAX_SECTION_BYTES:].decode("utf-8", "ignore")
+        return f"{note}\n{kept}"
+    kept = encoded[:MAX_SECTION_BYTES].decode("utf-8", "ignore")
+    return f"{kept}\n{note}"
+
+
+def collect() -> str:
+    facts = deployment_facts()
+    stamp = _datetime.datetime.now(_datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    parts = [
+        "# MoOS support bundle",
+        f"collected: {stamp}",
+        f"edition: {facts['edition'] or 'unknown'}",
+        f"version: {facts['version'] or 'unknown'}",
+        f"origin: {facts['origin'] or 'unknown'}",
+        "",
+        "This report is redacted: addresses, identifiers and credentials are replaced with "
+        f"{PLACEHOLDER}. Read it before sharing it.",
+    ]
+    for title, argv in SECTIONS:
+        parts.append(f"\n===== {title} =====")
+        parts.append(bounded(run(argv), tail=argv[0].endswith("journalctl")))
+    body = redact("\n".join(parts) + "\n")
+    if len(body.encode("utf-8")) > MAX_BUNDLE_BYTES:
+        encoded = body.encode("utf-8")[:MAX_BUNDLE_BYTES]
+        body = encoded.decode("utf-8", "ignore") + "\n[truncated: bundle size limit]\n"
+    return body
+
+
+def default_path() -> Path:
+    stamp = _datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    base = Path(os.environ.get("XDG_CACHE_HOME") or (Path.home() / ".cache"))
+    return base / f"moos-support-{stamp}.txt"
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output", help="where to write the bundle (default: ~/.cache)")
+    parser.add_argument("--stdout", action="store_true", help="print instead of writing a file")
+    args = parser.parse_args()
+
+    body = collect()
+    if args.stdout:
+        sys.stdout.write(body)
+        return 0
+    target = Path(args.output) if args.output else default_path()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temporary = target.with_name(target.name + ".tmp")
+    temporary.write_text(body, encoding="utf-8")
+    os.chmod(temporary, 0o600)
+    os.replace(temporary, target)
+    print(str(target))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

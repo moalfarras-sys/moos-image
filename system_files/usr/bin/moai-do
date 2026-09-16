@@ -703,6 +703,20 @@ do_diagnose_services() {
     systemctl --user --failed --no-pager || true
 }
 
+do_support_bundle() {
+    hdr "تقرير دعم منقّح (قراءة فقط)" "Redacted support bundle (read-only)"
+    echo "${D}يجمع MoOS إصدارك وعتادك والوحدات الفاشلة وسجلات محدودة، ويحذف العناوين"
+    echo "والمعرّفات والمفاتيح قبل الكتابة. راجع الملف قبل مشاركته.${N}"
+    echo "${D}Collects edition, hardware, failed units and bounded logs with addresses,"
+    echo "identifiers and credentials removed before writing. Read it before sharing.${N}"
+    local target
+    target="$(/usr/libexec/moos-support-bundle)" || {
+        echo "${R}تعذّر إنشاء التقرير | could not collect the bundle${N}" >&2
+        return 1
+    }
+    echo "${G}✓ ${target}${N}"
+}
+
 do_inspect_boot() {
     hdr "فحص مشاكل الإقلاع (قراءة فقط)" "Inspect boot problems (read-only)"
     echo "${B}Boot deployment:${N}"
@@ -1460,6 +1474,8 @@ ${V}الاستعمال | Usage:${N}  moai-do <command> [args]
                     Show failed services (read-only)
   ${C}inspect-boot${N}      عرض حالة النشر وأخطاء الإقلاع (قراءة فقط)
                     Show deployment and boot errors (read-only)
+  ${C}support-bundle${N}    تقرير دعم منقّح للمشاركة (قراءة فقط)
+                    Redacted support bundle you can share (read-only)
   ${C}rollback${N}          الرجوع إلى النسخة السابقة (إنقاذ، قابل للعكس)
                     Roll back to the previous version (rescue, reversible)
   ${C}net-doctor${N}        تشخيص الشبكة وDNS وTailscale (قراءة فقط)
@@ -1537,6 +1553,7 @@ main() {
         optimize)      do_optimize ;;
         diagnose-services) do_diagnose_services ;;
         inspect-boot)  do_inspect_boot ;;
+        support-bundle) do_support_bundle ;;
         rollback)      do_rollback ;;
         net-doctor)    do_net_doctor ;;
         gpu-report)    do_gpu_report ;;
