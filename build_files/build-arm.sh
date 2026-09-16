@@ -314,6 +314,11 @@ systemctl enable moos-appstream-refresh.timer
 systemctl enable moos-visual-tier.service
 systemctl enable moos-hardware-adapt.timer
 systemctl enable moos-verify-origin.timer
+# Boot assessment (P1.2). A headless A1 has no one watching the screen when a boot
+# fails, so counting unblessed boots and returning to the previous deployment matters
+# more here than on the desktop, not less.
+systemctl enable moos-boot-assess-arm.service
+systemctl enable moos-boot-assess-bless.timer
 # Deliberately NOT enabled here, each for a reason that is about ARM and not about oversight:
 #   moos-firstboot.service        ARM is provisioned by cloud-init, which creates the interactive
 #                                 user before this would run; its recipe file (/etc/moos-setup.conf)
