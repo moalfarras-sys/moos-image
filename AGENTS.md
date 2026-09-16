@@ -251,9 +251,12 @@ reason. Anything that needs a COPR must run before section (z).
 arg belongs to that stage, `FROM ${ARG}` expands to nothing, and buildah fails the whole build
 with the unhelpful `no FROM statement found`. This has already cost one red CI run.
 
-**Build locally before you push.** `podman build` runs every gate CI runs. The `no FROM` failure
-above, and an NVIDIA image whose initramfs contained no NVIDIA, were both caught by a local
-build — one of them only because someone bothered to run it.
+**Build the image when the image can break, not after every edit.** `podman build` runs every
+gate CI runs: the `no FROM` failure above, and an NVIDIA image whose initramfs contained no
+NVIDIA, were both caught by a local build. That makes it mandatory for changes to the
+Containerfiles, `build.sh`/`build-arm.sh`, packages, initramfs/dracut, kernel arguments, boot,
+signing or the installer — and a waste of an hour for a QML string or a test. Batch the rest and
+build once at the end of the milestone (see **How MoOS work is scheduled** below).
 
 **`producer | grep -q pattern` under `set -o pipefail` reports a match as a FAILURE.**
 `grep -q` exits the instant it matches; a producer with more to write then dies of
@@ -350,23 +353,48 @@ skills/                the mandatory moos-engineering agent skill
 .github/workflows/     build.yml (moos + moos-nvidia + moos-cloud), build-iso.yml (ISO), build-disk.yml (qcow2)
 ```
 
+## How MoOS work is scheduled
+
+**Milestone batching is the default. One task does not end a session.**
+
+`docs/DEVELOPMENT_PLAN.md` is one execution backlog, worked in priority order
+P0 → P1 → P2 → P3 → P4 → P5 → P6. Implement the largest safe, coherent group of
+related tasks in one working cycle; when a task is finished, move to the next
+automatically while no real blocker exists. Fix defects you find on the way
+inside the same cycle. Do not stop to ask for the next task, and do not open a
+release cycle for every fix.
+
+| During the cycle | Once per milestone |
+|---|---|
+| targeted tests, `just check`, live/rendered review | full local image build |
+| merge each reviewed slice to `main` after its fast gates | signed candidate + 3×QCOW2 + ISO + ARM proofs |
+| keep implementing while CI runs | promotion of the proven digests |
+
+Merging to `main` deploys nothing: `build.yml` pushes only `candidate-*` tags and
+production tags move only through `promote-x86.yml` after exact-revision proofs.
+Start the end-of-milestone cycle with one command — `scripts/release-candidate.sh`
+(`--promote` to promote when every x86 proof passes).
+
+**Batching reduces iterations, never safety.** Every gate, signature check,
+rollback guarantee and identity rule in this file still holds, a boot/initramfs/
+signing/installer change is still proven before it ships, and nothing is called
+released before promotion.
+
 ## Before you push
 
 Run `just check` for repository changes and the affected component checks.
-Image/runtime changes also require the matching complete local image build;
-documentation-only edits do not require rebuilding an unchanged image. Visual
-changes require rendered/live review. The boot and promotion contract remains
-in `RELEASE.md`.
+Visual changes require rendered/live review. A complete local image build is
+required for Tier 1 changes (Containerfiles, `build.sh`, packages, initramfs,
+kernel arguments, boot, signing, installer) and at the end of a milestone;
+documentation, test and app-level edits do not rebuild an unchanged image. The
+boot and promotion contract remains in `RELEASE.md`.
 
 ```bash
 python3 tests/verify_user_experience.py     # the user-experience gate
 python3 tests/test_device_plan.py
 bash -n build_files/build.sh
-just build                                  # or: podman build … — catches the real gates
+just build                                  # Tier 1 and milestone end — catches the real gates
 ```
-
-A local `podman build` is worth the wait. It runs every gate CI runs, and it has already caught
-a change that would have shipped an unbootable NVIDIA image.
 
 ## Pushing workflow changes
 
@@ -400,9 +428,12 @@ Being honest about this list is more useful than shrinking it.
 - **Audio/Bluetooth/Wi-Fi/suspend/multi-monitor** have not been verified on hardware other than
   the maintainer's desktop.
 
-`docs/DEVELOPMENT_PLAN.md` is the single list of open work. Complete one task at
-a time, attach its exit evidence, update the current state, and say “Task
-complete; ready for the next task.” only when that task has no remaining work.
+`docs/DEVELOPMENT_PLAN.md` is the single list of open work, in priority order
+P0 → P1 → P2 → P3 → P4 → P5 → P6. Work it in milestone batches: finish a task,
+attach its evidence, update the current state, and continue with the next one in
+the same cycle. Stop only for a real blocker — the owner's hardware, a
+credential, a reboot, a failing safety gate — and say what it is. Never claim a
+task is done without the evidence its row requires.
 
 The Settings native review harness runs source QML without installing user
 overrides. Platform ownership and implementation order live in the development

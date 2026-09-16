@@ -5,6 +5,15 @@ system, x86, unified-platform, visual and remote-v40 plans. Current evidence is
 in [`PROJECT_STATE.md`](../PROJECT_STATE.md); release mechanics are in
 [`RELEASE.md`](../RELEASE.md).
 
+**How this plan is worked:** every unfinished task below is one execution
+backlog, in priority order P0 → P1 → P2 → P3 → P4 → P5 → P6. Work it in
+milestone batches — several related tasks per cycle, moving to the next task
+automatically, with targeted tests and `just check` as you go — and run the full
+image build, QCOW2/ISO/ARM proofs and promotion once at the end of the
+milestone. The scheduling rules are in `AGENTS.md`
+("How MoOS work is scheduled"); the release cycle itself is one command,
+`scripts/release-candidate.sh`.
+
 ## Product outcome
 
 MoOS must be a coherent operating-system product rather than a collection of
@@ -127,13 +136,22 @@ measurement is `not proven`, never a pass.
 
 ## Task protocol
 
-Only one integration slice is active at a time. Independent implementation
-may run in parallel with explicit non-overlapping file ownership, followed by
-one integration review. During P0.1, read-only hardware
-diagnostics, independent code review and development-tooling work may run in
-parallel with CI. The candidate branch/SHA stays fixed; reviewed source changes
-must enter a new candidate. Neither a second branch nor a running build is a
-second release authority.
+Work in release batches. Plan slices are implemented back to back, and each
+merges into `main` as its own reviewed pull request once the fast gates pass:
+targeted tests, `just check`, PR CI, and a local image build when a Tier 1
+boot/image file changed (see `docs/AGENT_GUIDE.md`). Merging does not deploy:
+`build.yml` pushes only `candidate-*` tags, and production tags move only
+through `promote-x86.yml` after exact-revision proofs. Do not stop and wait for
+a release cycle between slices; keep implementing while CI runs.
+
+A batch ends with one release cycle, started by `scripts/release-candidate.sh`:
+merges freeze, the signed candidate is built from `main`, the three QCOW2
+proofs, the offline ISO proof and the ARM proof run in parallel on the exact
+digests, and promotion happens only when every x86 proof passes. Merges reopen
+after promotion, or after the failure is fixed and a new cycle starts. The
+candidate SHA stays fixed for its cycle; neither a second branch nor a running
+build is a second release authority. Independent implementation may run in
+parallel with explicit non-overlapping file ownership.
 
 For every task:
 
@@ -143,16 +161,25 @@ For every task:
 3. For runtime defects, add a regression that fails for the reproduced defect;
    for new behavior, define measurable acceptance. Documentation/editor-only
    changes need direct validation, not tests that merely mirror their wording.
-4. Implement the smallest complete vertical slice. Do not leave a second owner,
-   compatibility alias or dead service unless an upgrade path requires it.
-5. Run targeted tests, `just check`, and the risk-appropriate image/VM/hardware
-   proof.
+4. Implement the largest safe, coherent batch of related tasks, each as a
+   complete vertical slice. Do not leave a second owner, compatibility alias or
+   dead service unless an upgrade path requires it, and do not split one
+   coherent change into several release cycles.
+5. Run targeted tests, `just check` and, for Tier 1 boot/image changes, a local
+   image build. VM, ISO and hardware proofs run once per release batch unless
+   the slice is itself a boot fix that must be proven before anything else.
 6. Update `PROJECT_STATE.md` with current evidence and update the task status
    here. Remove superseded prose instead of appending a diary.
 7. Commit one reviewable result. Report changed behavior, evidence and open
    exclusions.
-8. Say **“Task complete; ready for the next task.”** only when the exit evidence
-   is present. Otherwise state the exact blocker and keep the task open.
+8. **Move straight to the next task in the batch.** Do not announce readiness and
+   wait: a finished task is recorded, not celebrated. Stop only for a real
+   blocker — something that needs the owner (hardware, a credential, a reboot),
+   a failing safety gate, or a decision that changes the plan — and then state
+   the exact blocker and carry on with the next unblocked task. Source
+   completion and release evidence are separate: a merged slice is complete in
+   source, and its row closes when the batch promotion proves it. Report the
+   whole cycle at the end: what landed, what each proof showed, what is open.
 
 ## Ordered execution
 
