@@ -1,0 +1,28 @@
+[Unit]
+Description=Count this MoOS boot and fall back if it keeps failing
+Documentation=file:///usr/libexec/moos-boot-assess
+
+# WHY THIS RUNS EARLY AND UNCONDITIONALLY
+#
+# The counter has to be incremented by the boot that is about to fail, not by the
+# one after it. If a machine hangs before the desktop, nothing later in the boot
+# will ever run — so the increment happens as soon as /var is mounted and
+# rpm-ostree can be asked which deployment is booted.
+#
+# It is ordered before the login screen so that a machine which has already
+# failed twice returns to the previous deployment instead of showing the user a
+# third broken session.
+ConditionPathExists=/run/ostree-booted
+ConditionPathExists=/usr/bin/bootc
+After=local-fs.target
+Before=display-manager.service plasmalogin.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/libexec/moos-boot-assess arm
+# Reading rpm-ostree status is the slow part; a hung registry is not involved.
+TimeoutStartSec=120
+
+[Install]
+WantedBy=multi-user.target

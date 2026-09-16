@@ -1,0 +1,259 @@
+#!/usr/bin/python3
+"""moos-boot-assess — count unblessed boots and fall back automatically (P1.2).
+
+WHY THIS CANNOT BE GREENBOOT
+
+The stock Fedora answer is greenboot plus GRUB's boot_counter in grubenv. Neither is
+available here, and not by oversight:
+
+  * /boot is mounted READ-ONLY on a bootc/OSTree system. `grub2-set-bootflag boot_success`
+    fails with "Read-only file system" on every boot, which is why build.sh masks
+    grub-boot-success.timer and .service outright.
+  * greenboot is not installed, and MoOS rolls back through bootc, which never reads
+    grubenv. A boot counter written there would be a number nothing consumes.
+
+So the counter lives where this system can actually write: /var/lib/moos, the same
+persistent state directory moos-flatpak-init and moos-cloud-console-order already use.
+
+WHAT COUNTS AS A HEALTHY BOOT
+
+Exactly one thing: the machine's own default target became active. That is what "it came
+up" means, and it is deliberately narrower than every other health signal MoOS ships.
+moos-health is a daily USER-level security and hygiene scan — an open port or a new
+autostart entry makes it report "action needed", and rolling a machine back for that would
+be absurd. moos-selfcheck needs a live desktop session it cannot have at boot. A failed
+unit is recorded here for diagnosis but never triggers a rollback: printers that did not
+start are not a reason to revert someone's operating system.
+
+THE TOGGLE THAT MAKES AUTOMATIC ROLLBACK DANGEROUS
+
+`bootc rollback` is not idempotent — it is a toggle. When a rollback is ALREADY queued, it
+cancels that rollback and makes the running system default again (moos-rollback documents
+this at length, and two earlier versions of the Recovery window got it wrong). An automatic
+fallback that fired blindly after a failed boot would therefore CANCEL the rescue a user had
+just queued. So this refuses to act unless the booted deployment is the default one, and it
+records which deployment it rolled away from so a machine can never ping-pong between two
+broken versions.
+
+Manual rollback is untouched: moos-rollback and `moai-do rollback` keep working, and a user
+who has queued one is explicitly left alone.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import time
+
+SCHEMA = 1
+STATE_DIR = Path(os.environ.get("MOOS_BOOT_ASSESS_DIR") or "/var/lib/moos")
+STATE_FILE = Path(os.environ.get("MOOS_BOOT_ASSESS_STATE") or (STATE_DIR / "boot-assessment.json"))
+RPM_OSTREE = os.environ.get("MOOS_BOOT_ASSESS_RPM_OSTREE") or "rpm-ostree"
+BOOTC = os.environ.get("MOOS_BOOT_ASSESS_BOOTC") or "/usr/bin/bootc"
+SYSTEMCTL = os.environ.get("MOOS_BOOT_ASSESS_SYSTEMCTL") or "/usr/bin/systemctl"
+JOURNAL_TAG = "moos-boot-assess"
+
+# Three consecutive boots that never reached the default target. The third one does not get
+# a fourth chance: greenboot's own default is three attempts, and a user watching a machine
+# fail to come up twice does not want to sit through it a third time for nothing.
+MAX_UNBLESSED_BOOTS = int(os.environ.get("MOOS_BOOT_ASSESS_MAX") or 3)
+BLESS_WAIT_SECONDS = int(os.environ.get("MOOS_BOOT_ASSESS_WAIT") or 120)
+BLESS_POLL_SECONDS = float(os.environ.get("MOOS_BOOT_ASSESS_POLL") or 5)
+
+
+def log(message: str) -> None:
+    print(f"{JOURNAL_TAG}: {message}", flush=True)
+
+
+def run(argv: list[str], timeout: int = 60) -> tuple[int, str]:
+    try:
+        result = subprocess.run(argv, capture_output=True, text=True,
+                                timeout=timeout, check=False)
+    except (OSError, subprocess.SubprocessError) as error:
+        return 127, f"{type(error).__name__}"
+    return result.returncode, (result.stdout or "") + (result.stderr or "")
+
+
+def deployments() -> list[dict]:
+    code, output = run([RPM_OSTREE, "status", "--json"])
+    if code != 0:
+        return []
+    try:
+        return json.loads(output).get("deployments", [])
+    except ValueError:
+        return []
+
+
+def booted_checksum(deps: list[dict]) -> str:
+    return next((str(d.get("checksum") or "") for d in deps if d.get("booted")), "")
+
+
+def read_state() -> dict:
+    try:
+        record = json.loads(STATE_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(record, dict) or record.get("schema") != SCHEMA:
+        return {}
+    return record
+
+
+def write_state(record: dict) -> None:
+    """Atomic, so a crash mid-boot can never leave a half-written counter."""
+    record["schema"] = SCHEMA
+    record["updated"] = int(time.time())
+    try:
+        STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        temporary = STATE_FILE.with_name(STATE_FILE.name + ".tmp")
+        temporary.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+        os.replace(temporary, STATE_FILE)
+    except OSError as error:
+        log(f"could not record boot state: {error}")
+
+
+def default_target() -> str:
+    code, output = run([SYSTEMCTL, "get-default"])
+    target = output.strip().splitlines()[-1] if code == 0 and output.strip() else ""
+    return target or "multi-user.target"
+
+
+def target_is_active(target: str) -> bool:
+    code, _ = run([SYSTEMCTL, "is-active", "--quiet", target], timeout=30)
+    return code == 0
+
+
+def failed_units() -> list[str]:
+    code, output = run([SYSTEMCTL, "--failed", "--no-pager", "--no-legend", "--plain"])
+    if code != 0:
+        return []
+    names = []
+    for line in output.splitlines():
+        parts = line.replace("●", " ").split()
+        if parts and parts[0].endswith((".service", ".mount", ".socket", ".timer")):
+            names.append(parts[0])
+    return names
+
+
+def rollback_plan(deps: list[dict]) -> tuple[str, str]:
+    """(action, reason) — the same deployment reading moos-rollback does, for the same reason.
+
+    `bootc rollback` toggles. Getting this wrong does not mean "no rollback happens"; it
+    means cancelling a rescue the user already queued.
+    """
+    booted_at = next((index for index, d in enumerate(deps) if d.get("booted")), None)
+    if booted_at is None:
+        return "skip", "no booted deployment in rpm-ostree status"
+    ahead = [d for d in deps[:booted_at] if not d.get("staged")]
+    if ahead:
+        return "skip", "a rollback is already queued; calling bootc rollback would cancel it"
+    target = next((d for d in deps[booted_at + 1:] if not d.get("staged")), None)
+    if target is None:
+        return "skip", "no previous deployment to return to"
+    return "rollback", str(target.get("version") or (target.get("checksum") or "")[:12])
+
+
+def do_arm() -> int:
+    deps = deployments()
+    checksum = booted_checksum(deps)
+    if not checksum:
+        log("cannot identify the booted deployment; not counting this boot")
+        return 0
+
+    state = read_state()
+    if state.get("deployment") != checksum:
+        # A different deployment is booted: this is a fresh start, not a retry.
+        state = {"deployment": checksum, "attempts": 0,
+                 "rolled_back_from": state.get("rolled_back_from", [])}
+    state["attempts"] = int(state.get("attempts", 0)) + 1
+    state["last_result"] = "unblessed"
+    attempts = state["attempts"]
+    log(f"boot attempt {attempts} of deployment {checksum[:12]}")
+
+    if attempts < MAX_UNBLESSED_BOOTS:
+        write_state(state)
+        return 0
+
+    if checksum in state.get("rolled_back_from", []):
+        log("already rolled away from this deployment once; not doing it again")
+        state["last_result"] = "exhausted"
+        write_state(state)
+        return 0
+
+    action, detail = rollback_plan(deps)
+    if action == "skip":
+        log(f"not rolling back: {detail}")
+        state["last_result"] = f"held:{detail}"
+        write_state(state)
+        return 0
+
+    log(f"{attempts} boots never reached the default target; returning to {detail}")
+    code, output = run([BOOTC, "rollback"], timeout=180)
+    if code != 0:
+        log(f"bootc rollback failed: {output.strip()[:200]}")
+        state["last_result"] = "rollback-failed"
+        write_state(state)
+        return 1
+    state.setdefault("rolled_back_from", []).append(checksum)
+    state["attempts"] = 0
+    state["last_result"] = "rolled-back"
+    write_state(state)
+    log("rollback queued; rebooting into the previous deployment")
+    run([SYSTEMCTL, "reboot"], timeout=30)
+    return 0
+
+
+def do_bless(wait_seconds: int) -> int:
+    target = default_target()
+    deadline = time.monotonic() + max(0, wait_seconds)
+    while True:
+        if target_is_active(target):
+            break
+        if time.monotonic() >= deadline:
+            log(f"{target} still not active after {wait_seconds}s; leaving the counter alone")
+            return 1
+        time.sleep(BLESS_POLL_SECONDS)
+
+    state = read_state()
+    deps = deployments()
+    checksum = booted_checksum(deps) or state.get("deployment", "")
+    broken = failed_units()
+    state.update({"deployment": checksum, "attempts": 0, "last_result": "blessed",
+                  "blessed_target": target, "failed_units": broken})
+    write_state(state)
+    # Recorded, never acted on: a printer that did not start is not a reason to revert
+    # somebody's operating system.
+    log(f"boot blessed on {target}" + (f"; failed units: {', '.join(broken)}" if broken else ""))
+    return 0
+
+
+def do_status() -> int:
+    state = read_state()
+    if not state:
+        print("no boot assessment recorded yet")
+        return 0
+    print(json.dumps(state, indent=2))
+    return 0
+
+
+def main(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    sub = parser.add_subparsers(dest="command", required=True)
+    sub.add_parser("arm", help="count this boot, and fall back if it keeps failing")
+    bless = sub.add_parser("bless", help="clear the counter once the default target is up")
+    bless.add_argument("--wait", type=int, default=BLESS_WAIT_SECONDS)
+    sub.add_parser("status", help="print the recorded assessment")
+    args = parser.parse_args(argv)
+
+    if args.command == "arm":
+        return do_arm()
+    if args.command == "bless":
+        return do_bless(args.wait)
+    return do_status()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv[1:]))

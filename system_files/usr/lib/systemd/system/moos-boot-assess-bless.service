@@ -1,0 +1,15 @@
+[Unit]
+Description=Bless this MoOS boot once the desktop is actually up
+Documentation=file:///usr/libexec/moos-boot-assess
+
+# Started by its timer, never ordered against the target it inspects. Ordering a
+# unit After= the very target that pulls it in is how boot cycles get created;
+# the timer sidesteps that entirely, and the script waits for the target itself.
+ConditionPathExists=/run/ostree-booted
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/moos-boot-assess bless
+# The script polls for the default target for up to two minutes; give it room to
+# finish that wait and still exit cleanly on a slow first boot.
+TimeoutStartSec=300

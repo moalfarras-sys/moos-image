@@ -2608,7 +2608,10 @@ systemctl mask systemd-udev-settle.service 2>/dev/null || true
 #    means nothing. Masking removes the noise and changes no behaviour — the flag was
 #    already never written. Mask the TIMER (so nothing queues the job) and the SERVICE
 #    (so a manual/drop-in start cannot resurrect the failure).
-#    If greenboot is ever added, or /boot becomes writable, revisit this.
+#    MoOS does its own boot assessment instead, on state it can actually write:
+#    moos-boot-assess counts unblessed boots in /var/lib/moos and falls back with
+#    bootc rollback. See /usr/libexec/moos-boot-assess. If greenboot is ever added,
+#    or /boot becomes writable, reconcile the two rather than running both.
 systemctl --global mask grub-boot-success.timer 2>/dev/null || true
 systemctl --global mask grub-boot-success.service 2>/dev/null || true
 
@@ -3058,6 +3061,11 @@ systemctl enable moos-firstboot.service
 # not a cloud-specific failure, it is just where this one came from.
 chmod 0755 /usr/libexec/moos-verify-origin
 systemctl enable moos-verify-origin.timer
+
+# Boot assessment (P1.2). The arm unit must run on EVERY boot or it counts nothing;
+# the bless timer clears the counter once the default target is actually active.
+systemctl enable moos-boot-assess-arm.service
+systemctl enable moos-boot-assess-bless.timer
 [ -x /usr/libexec/moos-verify-origin ] || {
     echo "GATE FAIL: /usr/libexec/moos-verify-origin is missing or not executable —"
     echo "           a converted server would keep taking unverified updates forever."
