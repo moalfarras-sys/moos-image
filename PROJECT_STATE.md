@@ -1,23 +1,27 @@
 # MoOS current state
 
-Current measured facts only; Git owns history. Last measured 2026-09-16.
+Current measured facts only; Git owns history. Last measured 2026-09-17.
 
 ## Source and release truth
 
-- `origin/main` is `57874d6c` (PR #106, Horizon 2). All historical remote topic
-  heads are ancestors of `main`; no unique branch commit is waiting to merge.
-- The physical release is revision `5fce15df`, version `44.20260915.836`.
-  Promotion run `35060599655` moved and read back the x86 production tags:
-  generic `fa5cbfe3…`, NVIDIA `086f7086…`, cloud `42a95f1d…`.
-- The next signed candidate was built from exact revision `57874d6c` in run
-  `35088882717`: generic `946549c7…`, NVIDIA `0301e6f6…`, cloud `19d0f44c…`.
-  Generic/NVIDIA/cloud QCOW2 runs `35091019991`/`35091023951`/`35091027313`
-  and ARM run `35091035163` passed.
-- ISO run `35091031129` installed offline, booted the target disk, reached the
-  desktop, opened/closed/reopened all ten first-party apps, and serial proved a
-  different second kernel reached the MoOS login. Its SSH proof channel timed
-  out before a banner on that second boot, so the workflow failed and **no tag
-  was promoted**. The active branch is repairing and diagnosing that proof path.
+- `origin/main` is `f91c0366`, the merge of wave W1 (PR #107) whose tree is
+  identical to candidate `92248b5d`. Wave W2 is PR #108. Every other remote
+  topic branch is an ancestor of `main`.
+- **Production is W1**: revision `92248b5d`, version `44.20260916.848`, promoted
+  by run `35156269206` from build `35148344935`, QCOW2 generic/NVIDIA/cloud
+  `35150447739`/`35150452495`/`35150457478` and ISO `35150461926` (all attempt 1).
+  Read back from the registry: generic `f1d62342…`, NVIDIA `2b4b04c4…`, cloud
+  `51a3f37c…`. The hardened ISO proof passed both reboot channels.
+- The first promotion attempt `35156091444` failed after copying the new
+  `:20260916` tag: GHCR answered "manifest unknown" to the immediate read, and
+  the tag resolved to the copied digest seconds later; `latest` never moved. The
+  fresh dispatch succeeded. W2 makes that read a bounded wait for the exact digest.
+- **ARM is not promoted.** ARM run `35150466421` built, then its second boot left
+  `plymouth-start.service` failed: `plymouthd` SEGV in `on_new_frame` →
+  `ply_list_node_get_data` (plymouth 24.004.60, aarch64). The same crash failed
+  the 2026-09-15 ARM run, and a re-run passed, so it is an intermittent boot
+  defect, not a flaky gate. The previous candidate `57874d6c` was never promoted
+  (its ISO SSH channel timed out).
 - A merged commit or locally built image is not an installed or released state.
   Production moves only after the exact candidate passes 3×QCOW2 + ISO; ARM is
   separately required evidence.
@@ -82,8 +86,28 @@ Remote/Media detail switch. It also makes `moplayer/` the only MoPlayer source,
 removes the obsolete external workflow/download path and stale screenshots,
 updates the pinned x86/ARM Flutter builder to 3.47.4, and preserves the installed
 demo and GPU crash guard. `THEME_REV=58` carries the QML change to existing profiles.
-This state becomes true for users only after gates, signed proof, promotion,
-update and reboot.
+That batch is wave W1 (PR #107); its exact revision `92248b5d` is being proven by
+branch run `35148344935` (`scripts/release-candidate.sh --ref`) before merge.
+
+Wave W2 (`feat/moos-experience-wave2-20260916`, on top of W1) gives MoOS Hub its
+own controls in the desktop right-click menu (show/hide and per-card time,
+weather, device health) and on the wallpaper page, bumps `THEME_REV=59`, extends
+the update-time shadow sweep to `org.moos.search` and the desktop scene, and
+unifies the instructions around the MoOS Experience Program in the plan.
+Neither wave is true for users until gates, signed proof, promotion, update and
+reboot.
+
+Live review on this station (Arabic, 4K/250%) with temporary package shadows:
+the desktop menu showed all four Hub controls; turning weather off redrew the Hub
+as time + device health with one divider; MoOS Search received typed input and
+listed grouped app, settings and folder rows for `firew` (German layout) and a
+web row for Arabic input, each with its action chip and the Ask Mo AI row. The
+keyboard layout and applet shortcuts were restored afterwards.
+**Review shadows left on purpose:** `~/.local/share/plasma/plasmoids/`
+`org.moos.{search,island,nova.clock}` and `~/.local/share/plasma/wallpapers/`
+`org.moos.ui2.wallpaper` (W2 source) stay so the owner sees the new desktop before
+the update. `THEME_REV=59` removes all four at the first login after W2 is
+installed; W1's `THEME_REV=58` removes the island and clock copies only.
 
 ## Proven source/image behavior
 
@@ -114,9 +138,9 @@ update and reboot.
 
 - Fix and rerun the exact ISO second-boot proof; then promote, stage, reboot and
   read back Horizon 2 from `/usr` on this workstation.
-- Capture the M1 visual/accessibility matrix: Arabic/English/German, light/dark,
-  reduced motion, 1080p–4K and 100–250%, including typed Search and island
-  Remote/Media switching.
+- Capture the M1 visual/accessibility matrix: English/German sessions, light/dark,
+  reduced motion, 1080p–4K and 100–250%, including island Remote/Media switching
+  (typed Search and Hub controls are reviewed in Arabic only).
 - Prove two suspend/resume cycles, multi-monitor, audio/network recovery,
   deliberate rollback/roll-forward and photographed boot/login on hardware.
 - Qualify broader Wi-Fi/Bluetooth/audio/camera, laptop/touch hardware, ARM
@@ -127,9 +151,11 @@ update and reboot.
 
 ## Next execution
 
-Finish the current M1 Search/Island + in-tree MoPlayer + ISO-proof batch; run
-targeted gates, `just check` and one local image build; integrate one reviewed pull request;
-confirm there is no active release runner; execute
-`scripts/release-candidate.sh --promote`; update/reboot this signed NVIDIA
-station; then capture live Arabic and English readback. Continue with M2 only
-after recording the exact proof outcome.
+W1 is promoted. `moos-auto-update.timer` (04:36) stages the signed
+`44.20260916.848` NVIDIA image on this station; the owner may also stage it now
+from the Updater, and a reboot applies it. Merge W2, run one
+`scripts/release-candidate.sh --promote`, then read the Hub controls, Search and
+Island back from `/usr` after the next update and confirm the review shadows were
+swept. Diagnose the ARM `plymouthd` crash with an ARM-only branch dispatch before
+the next ARM promotion. W3 (Island jobs and privacy chips, Search answers) is the
+next visual wave.

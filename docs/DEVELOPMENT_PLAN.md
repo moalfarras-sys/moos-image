@@ -27,6 +27,112 @@ Competition with macOS, Windows and Android is a quality benchmark, not a claim
 of API compatibility or feature parity. MoOS should reuse mature upstream
 components and own the integration, defaults, verification and recovery paths.
 
+## MoOS Experience Program
+
+**The goal is a desktop computer that feels like one product called MoOS** —
+fast, calm, beautiful and obviously its own — with the reliability of an
+image-based system. macOS, Windows, Android and iOS are the quality bar for
+feel and polish; they are not API targets, and no claim of being "better" is
+made without measured evidence. Plasma, KWin and Wayland stay the engine: MoOS
+owns every surface the user sees and every default, never a fork.
+
+### One vocabulary
+
+User-facing names are MoOS names. Technical IDs (`org.moos.nova.clock`,
+`MoOSUI2*`, `org.moos.ui2.*`, KDE package and D-Bus names, licence notices) stay
+stable and are never renamed for branding. Every agent uses these words in plans,
+commits and UI text:
+
+| Name | What the user experiences | Owners in the tree |
+| --- | --- | --- |
+| **MoOS UI** | one palette, type, icon, corner and motion system everywhere | `artwork/` generators, `org/moos/ui`, Plasma Style, Aurorae |
+| **MoOS Bar** | the one floating glass bar | `moos-bar.conf`, `moos-bar-apply`, layout template, stock task manager |
+| **MoOS Search** | one anchored search surface with an Ask Mo AI hand-off | `org.moos.search`, Milou/KRunner runners, `moos-open` |
+| **MoOS Island** | the living context zone: Remote, media, later jobs and privacy | `org.moos.island`, MPRIS, Remote presence, job owners |
+| **MoOS Hub** | time, weather and device health on the desktop, user-controlled | `org.moos.ui2.wallpaper` (desktop scene) |
+| **MoOS Workspace** | windows, overview, tiling, desktops and window frames | KWin effects/config, generated Aurorae, `moos-visual-tier` |
+| **MoOS Intro** | boot → login → first desktop as one continuous scene | Plymouth generator, login theme, splash, `apps/welcome` |
+| **MoOS Motion** | finite spring feedback, same rhythm in shell and apps | `SpringFeedback.qml`, `Tokens.qml`, KWin durations, reduced motion |
+| **MoOS Sound** | original event sounds that mark outcomes, not hovers | `usr/share/sounds/moos`, KDE notification events |
+| **MoOS Shield** | identity lock, signed updates, boot fallback, rollback, privacy | identity firewalls, cosign policy, `moos-boot-assess`, Recovery |
+| **MoOS Speed** | hardware-tiered visuals and measured idle/boot/launch budgets | `moos-visual-tier`, `moos-hardware-adapt`, P5.4 harness |
+| **Mo Store / Mo AI / MoPlayer / Mo PC Remote** | first-party apps | their own directories and `moai-do` |
+
+**Identity lock.** No user-visible surface may show Fedora, Red Hat or another
+OS's name or logo (three build firewalls enforce it). Plasma/KDE names that users
+see in MoOS-owned surfaces are replaced by MoOS names; upstream application names,
+licence text and diagnostics are left intact. **Disk encryption** is a deliberate
+later item (MoOS Shield, M4): offer it only when the offline installer can enrol a
+TPM2 key and that key is proven to survive an image update — a passphrase prompt
+without that enrolment would lock owners out of headless and docked machines.
+
+### Waves — what "big batch" means here
+
+A wave is one coherent, user-visible release. It is implemented on one branch,
+reviewed live, gated once, merged once and proven once.
+
+| Wave | Milestone | User-visible content | State |
+| --- | --- | --- | --- |
+| W1 | M1 | MoOS Search surface, settling Remote chip, clock rail, localized Hub, keyboard-safe Search/Island, in-tree MoPlayer, hardened ISO proof | **promoted** `92248b5d` / `44.20260916.848` (run `35156269206`); ARM held by a `plymouthd` crash |
+| W2 | M1 | MoOS Hub controls (desktop right-click show/hide and per-card toggles, wallpaper page), review-shadow retirement, unified instructions and this program | in review on `feat/moos-experience-wave2-20260916` |
+| W3 | M1 | MoOS Island jobs (Store installs, updates, downloads) and privacy chips (camera, microphone, screen share); Search inline answers (calculator, units, file actions) | planned |
+| W4 | M2 | MoOS Workspace: MoOS-styled overview, one-click tiling layouts, window open/close/minimise durations taken from MoOS Motion, gesture defaults | planned |
+| W5 | M2 | MoOS Intro: one horizon scene from Plymouth through login to the Hub; first-run tour; offline first run (P1.6) | planned |
+| W6 | M2 | System surfaces on MoOS UI: Updater, Recovery, Remote centre, Settings front door (P2.1–P2.2) | planned |
+| W7 | M3 | Mo AI and Mo Store as real job systems with confirmation cards and readback (P1.7, P3, P4.1–P4.2) | planned |
+| W8+ | M4–M5 | hardware breadth, compatibility products, MoOS Shield encryption, release trust | planned |
+
+### Ideas worth building (each needs its owner and a proof before it ships)
+
+- **Living Island:** one foreground state with a deterministic priority
+  (Remote > call/screen share > recording > install/update job > media), a
+  spring expansion that settles, and a history popover of finished work.
+- **Hub stacks:** each Hub card becomes a small stack (time → calendar → world
+  clock; weather → hourly; device → network/battery) that the user scrolls
+  through with the wheel, never auto-rotating.
+- **Search that answers:** inline calculator/unit/currency rows, file rows with
+  open-folder/copy-path actions, and a Mo AI row that streams a short answer
+  before the user commits to the chat.
+- **Arrange in one click:** a Bar or overview popover with KWin tiling presets
+  (halves, thirds, 2+1) and a live preview of the user's own windows.
+- **Motion with meaning:** window open/close/minimise and popup durations derive
+  from the same MoOS Motion tokens as QML springs; one "calm / lively" switch
+  drives both, and Reduced Motion stops both at once.
+- **Quiet privacy:** camera, microphone and screen-share indicators appear in the
+  Island with the owning app's name and a one-tap stop.
+
+Anything that would replace KWin, fork Plasma, add an always-running animation
+or weaken a gate is out of scope, however attractive it looks.
+
+### How an agent executes a wave
+
+```bash
+# 0. Orient: never start a duplicate release; never touch another agent's worktree.
+git fetch --prune origin && git worktree list
+systemctl --user list-units 'moos-release-*' ; gh run list --limit 10
+# 1. One branch for the wave, from the newest main (or from an unmerged wave it builds on).
+git worktree add -b feat/<wave> ~/.cache/<wave> origin/main
+# 2. Implement the whole wave. Review it on the live desktop with TEMPORARY package
+#    shadows (copy the package to ~/.local/share/plasma/{plasmoids,wallpapers}/,
+#    `systemctl --user restart plasma-plasmashell.service`, capture with
+#    `spectacle -b -n -f -o …`), driving it with a temporary applet shortcut and
+#    `YDOTOOL_SOCKET=$XDG_RUNTIME_DIR/.ydotool_socket ydotool`. Restore layouts,
+#    shortcuts and config you changed. THEME_REV sweeps first-party shadows on update.
+# 3. Fast gates once, not per edit.
+python3 tests/<affected>.py ; flatpak-spawn --host just check
+just build-nvidia            # only when a Tier 1 file changed
+# 4. One PR, merge after Repo gates (never while a release runner freezes main).
+gh pr create … ; gh pr merge <n> --merge
+# 5. One release for the wave, supervised outside the chat session.
+systemd-run --user --unit=moos-release-<wave> --collect \
+  --property=StandardOutput=file:$HOME/.cache/moos-release-<wave>.log \
+  bash scripts/release-candidate.sh --promote
+# 6. A red proof: read the failed step AND its proof artifact, fix on a new branch,
+#    dispatch fresh (never "Re-run jobs"). Green: the owner stages the update
+#    (Updater or `moai-do update`) and reboots; the agent reads the result back
+#    from /usr and records it in PROJECT_STATE.md.
+```
+
 ## Current engineering brief
 
 The owner's requests converge on one product, not a new desktop rewrite:
@@ -43,9 +149,11 @@ one anchored MoOS Search, the compact Remote island, localized desktop hub and
 the clock rail. Its signed build, all three x86 QCOW2 proofs and ARM proof passed;
 the ISO installed offline, opened/reopened every first-party app and reached its
 second login on serial, but its SSH reboot channel timed out before a banner.
-Because that proof is red, the candidate was not promoted. The current batch
-finishes keyboard-safe Search/Island interaction, diagnoses that ISO channel and
-then repeats the exact-revision release proof once — no duplicate release run.
+Because that proof is red, the candidate was not promoted. Wave W1 (PR #107)
+finishes keyboard-safe Search/Island interaction and proves the ISO reboot through
+two independent channels; its exact branch revision `92248b5d` is being proven by
+run `35148344935` before merge and promotion. Wave W2 adds MoOS Hub controls and
+this unified program on top of W1.
 
 | Requested outcome | Work stream | What must actually be proven |
 | --- | --- | --- |
@@ -196,7 +304,8 @@ revision and all required editions/artifacts prove that revision.
 | P0.3 | Open | Finish physical NVIDIA qualification | Plymouth/login photos; two suspend cycles; audio/network recovery; second monitor; clean journal |
 | P0.4 | Open | Prove failed-update recovery | disposable VM bad-candidate rollback, then hardware rollback/roll-forward with user data intact |
 | P0.5 | Open | Configure and accept free Mo AI on a clean account | valid OpenRouter key entered through Settings; Arabic/English reply; reboot persistence; provider failure UI |
-| P0.6 | **In progress** | Promote only the proven digests and update the physical PC | station boots signed NVIDIA `44.20260915.836` (`086f7086…`) with prior signed deployment retained; next candidate must pass the complete proof set before stage/reboot/readback |
+| P0.6 | **In progress** | Promote only the proven digests and update the physical PC | W1 (`92248b5d`, `44.20260916.848`) is promoted for x86; the station still boots `44.20260915.836` until the staged update is rebooted and read back |
+| P0.7 | Open | Remove the intermittent ARM second-boot `plymouthd` crash | SEGV in `on_new_frame` failed ARM runs on 2026-09-15 and `35150466421`; reproduce with ARM-only branch dispatches, fix without weakening the zero-failed-unit gate, then two consecutive green ARM proofs |
 
 Repository cleanup is complete: retired plans/evidence/assets were removed,
 and all 14 historical remote branches were proven ancestors of `main` before
@@ -256,11 +365,11 @@ upstream examples that still describe SDDM.
 | Settings and service pages | MoOS Settings + owning backend | Read back actual state; existing standalone surfaces become tested links |
 | Privileged operations and apps | `moai-do`, Mo Store transaction backend | Fixed action/confirmation; truthful progress and errors |
 
-Start P2.1 with **Updater only**: baseline current light/dark Arabic/English
-frames and routes, move its controls onto shared UI2, prove check/stage/error/
-reboot-needed states, then repeat on a clean and upgraded image. Recovery and
-Remote follow after that slice passes. This prevents one redesign from leaving
-several half-migrated system surfaces.
+Within wave W6, the Updater leads P2.1: baseline its light/dark Arabic/English
+frames and routes, move its controls onto shared UI2 and prove check/stage/error/
+reboot-needed states. Recovery and Remote follow in the same wave once the
+Updater passes its review, so no surface is left half-migrated and the wave still
+ships as one release.
 
 Observed polish gaps to include in P2.3/P2.5: the shared hardware summary still
 renders the technical `nvidia (discrete)` label in Arabic; narrower English
@@ -276,7 +385,7 @@ classification, and retain the full accessible/error meaning at small widths.
 | P2.5 | Run the visual matrix | 1080p–4K, 100–250%, RTL/LTR, light/dark, reduced motion; measured contrast and no clipping |
 | P2.6 | Remove remaining retired UI names/assets and enforce reachability | generated asset manifest; every shipped asset has a runtime/generator/test consumer |
 | P2.7 | **Active:** complete existing Horizon feedback, clock input and original system sound | Shared finite spring with stable hit targets; reversal/hidden/reduced-motion tests; real clock keys; KDE event playback and mute/custom overrides; image and upgraded-session proof |
-| P2.8 | **In progress:** compose MoOS Bar, Search and Island (experience goals 1–2 in `artwork/MOOS_UI2_DESIGN.md`) | one anchored Milou surface with recent apps/destinations/Mo AI, stale-result protection and complete keyboard escape/traversal; Remote keeps privacy priority while its popup can switch to media; native ≥40 px controls; localized clock/hub; remaining: English/German matrix and booted-candidate readback |
+| P2.8 | **In progress:** compose MoOS Bar, Search and Island (experience goals 1–2 in `artwork/MOOS_UI2_DESIGN.md`) | one anchored Milou surface with recent apps/destinations/Mo AI, stale-result protection and complete keyboard escape/traversal; Remote keeps privacy priority while its popup can switch to media; native ≥40 px controls; localized clock/hub; typed queries reviewed live on the station (Arabic and German layouts: grouped app, settings and folder rows); MoOS Hub has desktop right-click controls; remaining: English/German session matrix and booted-candidate readback |
 
 P2.7 retains the stock Plasma task manager and one existing panel writer. It
 does not install an unrelated dock/effects pack. Qt's native spring provides

@@ -19,10 +19,77 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import org.kde.kirigami as Kirigami
+import org.kde.plasma.core as PlasmaCore
 import org.kde.plasma.plasmoid
+import org.moos.ui as MoUI
 
 WallpaperItem {
     id: root
+
+    // ── MoOS Hub controls on the desktop itself ──────────────────────────────
+    //
+    // The hub is painted by this wallpaper, not by a widget, so Plasma's widget
+    // handles (move, remove, configure) never appear on it. The owner tried to
+    // remove it the way every other desktop object is removed and could not:
+    // the only switch lived inside Desktop and Wallpaper settings. The desktop's
+    // own right-click menu now carries the hub's controls, which Plasma shows
+    // for the active wallpaper (the same mechanism org.kde.image uses for "Next
+    // Wallpaper Image"). Every toggle writes the real configuration key, so the
+    // wallpaper settings page and moos-theme read the same answer.
+    function hubFlag(value) { return value === undefined || value === null || value === true }
+    readonly property bool hubClock: root.hubFlag(root.configuration.HubClock)
+    readonly property bool hubWeather: root.hubFlag(root.configuration.HubWeather)
+    readonly property bool hubSystem: root.hubFlag(root.configuration.HubSystem)
+    readonly property bool hubAnyCard: root.hubClock || root.hubWeather || root.hubSystem
+    readonly property bool hubShown:
+        (root.configuration.ShowDashboard === undefined || root.configuration.ShowDashboard)
+        && root.hubAnyCard
+
+    function setHubKey(key, value) {
+        root.configuration[key] = value
+        // Showing the hub again after its last card was switched off must show
+        // something: bring every card back rather than an empty instrument.
+        if (key === "ShowDashboard" && value && !root.hubAnyCard) {
+            root.configuration.HubClock = true
+            root.configuration.HubWeather = true
+            root.configuration.HubSystem = true
+        }
+        root.configuration.writeConfig()
+    }
+
+    contextualActions: [
+        PlasmaCore.Action {
+            text: MoUI.Locale.local("إظهار لوحة MoOS", "Show MoOS Hub")
+            icon.name: "moos-grid-symbolic"
+            checkable: true
+            checked: root.hubShown
+            onTriggered: root.setHubKey("ShowDashboard", !root.hubShown)
+        },
+        PlasmaCore.Action {
+            text: MoUI.Locale.local("لوحة MoOS: الوقت", "MoOS Hub: time")
+            icon.name: "moos-clock-symbolic"
+            checkable: true
+            checked: root.hubClock
+            visible: root.hubShown
+            onTriggered: root.setHubKey("HubClock", !root.hubClock)
+        },
+        PlasmaCore.Action {
+            text: MoUI.Locale.local("لوحة MoOS: الطقس", "MoOS Hub: weather")
+            icon.name: "moos-globe-symbolic"
+            checkable: true
+            checked: root.hubWeather
+            visible: root.hubShown
+            onTriggered: root.setHubKey("HubWeather", !root.hubWeather)
+        },
+        PlasmaCore.Action {
+            text: MoUI.Locale.local("لوحة MoOS: حالة الجهاز", "MoOS Hub: device health")
+            icon.name: "moos-pulse-symbolic"
+            checkable: true
+            checked: root.hubSystem
+            visible: root.hubShown
+            onTriggered: root.setHubKey("HubSystem", !root.hubSystem)
+        }
+    ]
 
     property int ambientPhase: 0
 
@@ -238,6 +305,9 @@ WallpaperItem {
         DashboardBento {
             resolvedMotionMode: root.resolvedMotionMode
             themeLabel: root.themeLabel
+            showClock: root.hubClock
+            showWeather: root.hubWeather
+            showSystem: root.hubSystem
         }
     }
 
@@ -259,9 +329,7 @@ WallpaperItem {
         readonly property real roomHeight:
             root.height * 0.58 - anchors.topMargin
 
-        readonly property bool dashboardRequested:
-            root.configuration.ShowDashboard === undefined
-            || root.configuration.ShowDashboard
+        readonly property bool dashboardRequested: root.hubShown
         readonly property real bentoWidth:
             bentoLoader.item ? bentoLoader.item.implicitWidth : 0
         readonly property real bentoHeight:

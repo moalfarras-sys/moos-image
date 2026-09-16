@@ -98,6 +98,24 @@ real spring settling, reversal, interruption, hidden state and button input;
 Use a detached Wayland review separately for rendered evidence. Never export
 the review import path globally into the desktop's user manager.
 
+## Drive the live shell without leaving traces
+
+- Open a panel applet without a pointer: give it a temporary shortcut with
+  `evaluateScript` (`widget.globalShortcut = "Meta+Alt+Shift+F11"`), invoke
+  `activate widget <id>` through `org.kde.kglobalaccel /component/plasmashell`,
+  then set the shortcut back to `""`.
+- Type and click with the user's ydotool daemon:
+  `YDOTOOL_SOCKET=$XDG_RUNTIME_DIR/.ydotool_socket ydotool type …`. Keys follow
+  the ACTIVE layout (Arabic turns `settin` into `سثففهى`); switch with
+  `org.kde.keyboard /Layouts setLayout <n>` and restore the recorded index.
+- Reveal the desktop with KWin's `Show Desktop` shortcut and invoke it again
+  afterwards; a desktop right-click after an absolute `mousemove` lands where the
+  pointer really is, which may be the top-left hot corner.
+- Review a first-party package by copying it under
+  `~/.local/share/plasma/{plasmoids,wallpapers}/`; refuse to overwrite an existing
+  copy. `moos-apply-theme` removes MoOS-owned shadows on the next `THEME_REV`, but
+  record any shadow you leave in `PROJECT_STATE.md` with the reason.
+
 ## Leave a usable workstation
 
 SDKs and editor extensions belong to the development profile, not automatically

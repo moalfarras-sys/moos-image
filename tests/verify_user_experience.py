@@ -2721,7 +2721,7 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=58" in apply_theme_code,
+require("THEME_REV=59" in apply_theme_code,
         "MoOS visual schema must migrate existing users to the cardless centred "
         "Horizon Hub, responsive clock popup, authenticated Remote presence, "
         "single-owner launcher activation, the keyboard-navigable Launcher "

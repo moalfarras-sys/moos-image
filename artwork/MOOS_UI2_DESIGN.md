@@ -69,6 +69,12 @@ ID changes or assert that the proposed interactions below already ship.
 | **MoOS Island** | The contextual `org.moos.island` panel zone; MPRIS owns media state and Remote owns session state |
 | **MoOS Workspace** | The desktop/window experience: stock KWin overview, desktops, tiling, KScreen and generated MoOS decorations |
 | **MoOS Intro** | One visual journey through Plymouth, the resolved Plasma Login Manager, shell splash and welcome application |
+| **MoOS Hub** | The desktop scene's time, weather and device-health instrument in `org.moos.ui2.wallpaper`; controlled from the desktop right-click menu and the wallpaper page, drawn below icons and windows |
+| **MoOS Motion** | Finite spring feedback and transition rhythm: `SpringFeedback.qml`, `Tokens.qml`, KWin durations; Reduced Motion stops all of it |
+| **MoOS Sound** | Original event sounds in `usr/share/sounds/moos/` mapped to KDE notification events |
+
+The complete vocabulary, including MoOS Shield and MoOS Speed, and the wave
+plan live in `docs/DEVELOPMENT_PLAN.md` ("MoOS Experience Program").
 
 Paths in this table are under `system_files/` unless otherwise stated. Existing
 IDs such as `org.moos.nova.clock`, `MoOSUI2*` and `org.moos.ui2.*` remain stable.

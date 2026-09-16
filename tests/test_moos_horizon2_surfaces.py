@@ -195,9 +195,56 @@ class LocalizedHub(unittest.TestCase):
         self.assertIn('L.local("أمطار", "Rain")', bento)
 
 
+class HubControls(unittest.TestCase):
+    """The owner could not hide or change MoOS Hub: it is painted by the wallpaper, so Plasma's
+    widget handles never appear on it. Its controls live in the desktop right-click menu."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.scene = code(HUB / "main.qml")
+        cls.bento = code(HUB / "DashboardBento.qml")
+        cls.page = code(HUB / "config.qml")
+        cls.schema = (HUB.parent / "config/main.xml").read_text(encoding="utf-8")
+
+    def test_every_control_is_a_real_configuration_key(self):
+        for key in ("ShowDashboard", "HubClock", "HubWeather", "HubSystem"):
+            self.assertIn(f'<entry name="{key}" type="Bool">', self.schema, key)
+            self.assertIn(f"cfg_{key}", self.page, f"the wallpaper page must own {key} too")
+        self.assertIn("root.configuration.writeConfig()", self.scene)
+
+    def test_the_desktop_menu_offers_show_and_per_card_toggles(self):
+        actions = self.scene.split("contextualActions: [", 1)[1].split("\n    ]\n", 1)[0]
+        self.assertEqual(actions.count("PlasmaCore.Action {"), 4)
+        self.assertEqual(actions.count("checkable: true"), 4)
+        for key in ("ShowDashboard", "HubClock", "HubWeather", "HubSystem"):
+            self.assertIn(f'root.setHubKey("{key}"', actions)
+        self.assertIn('MoUI.Locale.local("إظهار لوحة MoOS", "Show MoOS Hub")', actions)
+
+    def test_no_card_selection_leaves_an_invisible_running_hub(self):
+        self.assertIn("readonly property bool hubAnyCard:", self.scene)
+        self.assertIn("&& root.hubAnyCard", self.scene)
+        self.assertIn("readonly property bool dashboardRequested: root.hubShown", self.scene)
+        self.assertIn('if (key === "ShowDashboard" && value && !root.hubAnyCard)', self.scene)
+
+    def test_hidden_cards_take_no_width_and_keep_no_divider(self):
+        for card, flag in (("ClockCard {", "root.showClock"), ("WeatherCard {", "root.showWeather"),
+                           ("SystemCard {", "root.showSystem")):
+            block = self.bento.split(card, 1)[1][:120]
+            self.assertIn(f"visible: {flag}", block, card)
+        self.assertIn("visible: root.showClock && (root.showWeather || root.showSystem)", self.bento)
+        self.assertIn("visible: root.showWeather && root.showSystem", self.bento)
+        self.assertIn("visibleCards === 3", self.bento,
+                      "with every card shown the designed width must not change")
+
+    def test_review_shadows_of_the_scene_and_search_are_retired_on_update(self):
+        apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
+        self.assertIn("org.moos.island org.moos.search; do", apply)
+        self.assertIn('rm -rf "${local_wallpapers:?}/org.moos.ui2.wallpaper"', apply)
+
+
 if __name__ == "__main__":
     suite = unittest.TestSuite()
-    for case in (MoOSSearch, RemoteIsland, LocalizedHub):
+    for case in (MoOSSearch, RemoteIsland, LocalizedHub, HubControls):
         suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(case))
     result = unittest.TextTestRunner(verbosity=1).run(suite)
     sys.exit(0 if result.wasSuccessful() else 1)
