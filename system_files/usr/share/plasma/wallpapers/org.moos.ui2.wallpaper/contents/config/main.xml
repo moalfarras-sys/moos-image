@@ -78,5 +78,18 @@
     <entry name="ShowDashboard" type="Bool">
       <default>true</default>
     </entry>
+    <!-- Which MoOS Hub cards are drawn. The hub is part of this wallpaper, so Plasma's
+         widget handles never appear on it; these keys are what the desktop right-click
+         menu and the wallpaper page toggle. All three false is treated as a hidden hub,
+         so a user can never end up with an empty, invisible-but-running instrument. -->
+    <entry name="HubClock" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="HubWeather" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="HubSystem" type="Bool">
+      <default>true</default>
+    </entry>
   </group>
 </kcfg>

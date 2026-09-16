@@ -54,6 +54,9 @@ Kirigami.FormLayout {
     // This is the same shape org.kde.color (cfg_Color) and org.kde.image
     // (cfg_Blur) use.
     property alias cfg_ShowDashboard: dashboardBox.checked
+    property alias cfg_HubClock: hubClockBox.checked
+    property alias cfg_HubWeather: hubWeatherBox.checked
+    property alias cfg_HubSystem: hubSystemBox.checked
 
     // -1 is main.xml's "nobody has chosen a level on this desktop yet" sentinel,
     // and an unregistered key (a plasmashell still holding the pre-MotionMode
@@ -146,8 +149,8 @@ Kirigami.FormLayout {
 
     QQC2.CheckBox {
         id: dashboardBox
-        Kirigami.FormData.label: "اللوحة  ·  Dashboard:"
-        text: "اعرض لوحة MoOS | Show the MoOS dashboard"
+        Kirigami.FormData.label: "لوحة MoOS  ·  MoOS Hub:"
+        text: "اعرض لوحة MoOS | Show MoOS Hub"
         // No `checked:` binding and no onToggled — cfg_ShowDashboard is an alias
         // onto this very property, so the host reads and writes it directly.
     }
@@ -158,12 +161,30 @@ Kirigami.FormLayout {
         // the whole reason the switch is offered rather than hidden: on a machine
         // with no GPU the bento is genuinely expensive, and a user on such a
         // machine deserves to know what turning it off buys them.
-        text: "الساعة والطقس وحالة الجهاز أسفل يسار سطح المكتب.\n"
-              + "The clock, weather and device health, below your desktop icons. "
+        text: "الوقت والطقس وحالة الجهاز في أعلى سطح المكتب، تحت أيقوناتك دائماً. "
+              + "يمكن التحكم بها أيضاً من قائمة النقر الأيمن على سطح المكتب.\n"
+              + "Time, weather and device health across the top of the desktop, always below "
+              + "your icons. The desktop right-click menu has the same switches. "
               + "On a machine with no GPU this is the most expensive thing the "
               + "desktop draws."
         wrapMode: Text.WordWrap
         opacity: 0.7
+    }
+
+    QQC2.CheckBox {
+        id: hubClockBox
+        enabled: dashboardBox.checked
+        text: "الوقت | Time"
+    }
+    QQC2.CheckBox {
+        id: hubWeatherBox
+        enabled: dashboardBox.checked
+        text: "الطقس | Weather"
+    }
+    QQC2.CheckBox {
+        id: hubSystemBox
+        enabled: dashboardBox.checked
+        text: "حالة الجهاز | Device health"
     }
 
     FileDialog {
