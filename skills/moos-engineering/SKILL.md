@@ -32,6 +32,11 @@ description: Engineer and verify MoOS images, KDE/Wayland integration, first-par
   boot and rollback remain load-bearing for continuing development.
 - **Arabic and RTL are first-class**. Layouts use logical dimensions; read the
   actual resolution and scale from the session, not a remembered reference PC.
+- **MoPlayer has one source of truth:** `moplayer/` in this repository. The
+  Containerfiles analyze, test and build that exact source into `/usr/lib/moplayer`;
+  do not restore an external MoPlayer checkout, release download, nested workflow
+  or vendoring/synchronization path. `just refresh-moplayer-packaging` only copies
+  the in-tree launcher/AppStream files into the immutable overlay.
 
 ## Select the work and its evidence
 

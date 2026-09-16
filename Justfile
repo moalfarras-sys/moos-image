@@ -520,72 +520,15 @@ mcp-setup:
 clean:
     -podman rmi -f {{ image_name }}:latest {{ image_name }}-nvidia:latest
 
-# Re-vendor MoPlayer's source from its own repository.
-#
-# The image builds MoPlayer from source in a Containerfile stage (see
-# `moplayer/VENDORED.md`), so this directory has to be a faithful copy of the app's
-# tree. It copies exactly what MoPlayer's git tracks — never the 40 MB build
-# output, never .dart_tool, never linux/flutter/ephemeral.
-#
-# And "what git tracks" is exactly why the working tree has to be clean first.
-# `git ls-files` lists tracked files, so a NEW file that has not been committed is
-# copied by nobody: the vendored tree gets the imports and not the file they point
-# at, and the failure surfaces twenty minutes later, inside a container, as a Dart
-# compile error about a URI that does not exist. That happened. A modified-but-
-# uncommitted file is worse in a quieter way — the image would ship a build of
-# source that exists on no branch, and nothing could ever reproduce it.
-sync-moplayer:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    SRC="${MOPLAYER_SRC:-$(pwd)/../MoPlayerMoOS}"
-    [ -f "$SRC/pubspec.yaml" ] || { echo "sync-moplayer: no MoPlayer tree at $SRC" >&2; exit 1; }
-
-    DIRT="$(cd "$SRC" && git status --porcelain)"
-    if [ -n "$DIRT" ]; then
-        echo "sync-moplayer: MoPlayer's tree is not clean — refusing to vendor it." >&2
-        echo "" >&2
-        echo "$DIRT" >&2
-        echo "" >&2
-        echo "  A vendored copy is built from 'git ls-files'. An untracked file is" >&2
-        echo "  copied by NOBODY, and the image then compiles source with a missing" >&2
-        echo "  import; a modified one would ship a build of code that exists on no" >&2
-        echo "  branch. Commit (or stash) in $SRC first." >&2
-        exit 1
-    fi
-
-    REV="$(cd "$SRC" && git rev-parse --short HEAD)"
-    echo "==> syncing from $SRC @ $REV"
-    rm -rf moplayer.tmp && mkdir -p moplayer.tmp
-    (cd "$SRC" && git ls-files) | while read -r f; do
-        mkdir -p "moplayer.tmp/$(dirname "$f")"
-        cp "$SRC/$f" "moplayer.tmp/$f"
-    done
-    cp moplayer/VENDORED.md moplayer.tmp/VENDORED.md
-    rm -rf moplayer && mv moplayer.tmp moplayer
-
-    # The launcher, the desktop entry and the icons are the app's, not the image's
-    # — they live in MoPlayer's packaging/ and the image only carries a copy. Copy
-    # it here rather than printing a reminder: a reminder is a step someone skips,
-    # and the step that gets skipped is the one that drops the GPU-headroom guard
-    # out of the launcher and lets the player abort on a full graphics card.
+# MoPlayer is owned by this repository. Its complete source lives in `moplayer/`
+# and the image builds that exact tree; no external checkout or branch participates
+# in a MoOS build. Refresh only the three immutable-image packaging copies after
+# editing their source under moplayer/packaging/moos/.
+refresh-moplayer-packaging:
     install -D -m0755 moplayer/packaging/moos/moplayer system_files/usr/bin/moplayer
     install -D -m0644 moplayer/packaging/moos/org.moos.moplayer.desktop \
         system_files/usr/share/applications/org.moos.moplayer.desktop
     install -D -m0644 moplayer/packaging/moos/org.moos.moplayer.metainfo.xml \
         system_files/usr/share/metainfo/org.moos.moplayer.metainfo.xml
-    # The ICONS are deliberately NOT copied any more.
-    #
-    # They used to be, on the same reasoning as the launcher: the app's art is
-    # the app's. That stopped being true when MoOS grew one owned icon family —
-    # `artwork/generate_moos_app_icons.py` renders moos-moplayer along with the
-    # other eight first-party plates, so the shipped icon is MoOS's, not
-    # MoPlayer's. Copying packaging/ over it silently reverted part of the
-    # unified visual system to older art, and nothing said so: a re-vendor for a
-    # one-line code fix would quietly change the dock icon. Caught exactly that
-    # way on 2026-07-25, when syncing a keyring fix rewrote twelve PNGs.
-    #
-    # If MoPlayer's own icon changes and MoOS should follow, change it in the
-    # generator and re-run it — that is the single source now.
-
-    echo "==> vendored $(find moplayer -type f | wc -l) files ($(du -sh moplayer | cut -f1)) and installed its packaging"
-    echo "    (icons NOT touched — MoOS generates moos-moplayer itself; see artwork/generate_moos_app_icons.py)"
+    @echo "==> refreshed MoPlayer packaging from the in-tree source"
+    @echo "    icons remain owned by artwork/generate_moos_app_icons.py"

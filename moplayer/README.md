@@ -13,9 +13,8 @@ Codes أو M3U — مبني على نفس محرّك التشغيل الذي ي�
 مجلد التطبيق الخاص بصلاحيات لينكس `0600` دون فتح KDE Wallet. فتح رابط أو ملف
 في MoPlayer وهو يعمل يرسله إلى النافذة الموجودة بدل تشغيل نسخة ثانية.
 
-> مستودع جديد. **لم يُعدَّل مستودع `MoPlayerios` إطلاقاً** — أُخذت منه الهوية
-> (الشعار، الألوان) والقلب (Xtream API، محلّل M3U، النماذج، المستودعات)، وأُعيدت
-> كتابة الواجهة بالكامل لسطح المكتب.
+> المصدر الرسمي الوحيد لـ MoPlayer موجود هنا داخل مستودع MoOS. تبني صورة النظام
+> هذا المصدر نفسه وتثبّت الحزمة الناتجة؛ لا يعتمد البناء على فرع أو Release خارجي.
 
 ---
 
@@ -38,11 +37,11 @@ Codes أو M3U — مبني على نفس محرّك التشغيل الذي ي�
 |---|---|
 | **المحرّك** | `libmpv` — نفس `mpv-libs` في الصورة. لا نسخة ثانية. |
 | **مفاتيح الوسائط** | MPRIS2 عبر D-Bus: زر التشغيل/الإيقاف يعمل، والقناة تظهر في لوحة وسائط بلازما وفي شاشة القفل، و`playerctl` يتحكّم بها. |
-| **الأيقونة والنافذة** | `app_id = org.moos.moplayer` مطابق لملف `.desktop` — بلازما تعرف نافذتها. لا شريط عنوان GNOME: KWin يزخرف النافذة بثيم MoOS Nova. |
-| **الخط** | IBM Plex Sans + IBM Plex Sans Arabic — خط Nova نفسه، من النظام، بلا تحزيم. |
+| **الأيقونة والنافذة** | `app_id = org.moos.moplayer` مطابق لملف `.desktop` — بلازما تعرف نافذتها، والنافذة ترسم شريط MoPlayer المتوافق مع MoOS Liquid Glass. |
+| **الخط** | IBM Plex Sans + IBM Plex Sans Arabic — خط MoOS نفسه، من النظام، بلا تحزيم. |
 | **الشاشة** | يمنع الإطفاء أثناء التشغيل فقط (`org.freedesktop.ScreenSaver`)، لا أثناء الإيقاف المؤقت. |
 | **اللغة** | يتبع لغة الجلسة تلقائياً. عربي كامل RTL: التنقّل، الأشرطة، شريط التقدّم. |
-| **التصميم** | رموز Nova (المسافات، الأنصاف، سُلّم الخط) مع هوية MoPlayer الجمرية — انظر [`DESIGN.md`](DESIGN.md). |
+| **التصميم** | Glass Orange Cinema فوق قواعد MoOS Liquid Glass مع هوية MoPlayer الجمرية — انظر [`DESIGN.md`](DESIGN.md). |
 
 ## البناء
 
@@ -58,8 +57,11 @@ just check     # analyze + test  (نفس بوابة CI)
 
 ## التثبيت داخل صورة النظام
 
-تتولى صورة MoOS بناء النسخة المورّدة من هذا المجلد في مرحلة `moplayer-builder`
-داخل `Containerfile`، ثم تتحقق بوابات الصورة من الحزمة وواجهة QML قبل النشر.
+`moplayer/` هو المصدر الأول داخل مستودع MoOS. مرحلتا البناء في
+[`Containerfile`](../Containerfile) و[`Containerfile.arm`](../Containerfile.arm)
+تشغّلان التحليل والاختبارات ثم تبنيان حزمة الإصدار إلى `/usr/lib/moplayer/`؛
+الصورة لا تحمل Flutter أو أدوات البناء. بعد تعديل ملفات `packaging/moos/` شغّل
+`just refresh-moplayer-packaging` من جذر المستودع لمزامنة نسخ الصورة.
 
 ## البنية
 
@@ -67,13 +69,13 @@ just check     # analyze + test  (نفس بوابة CI)
 lib/
 ├── app/          القشرة والتوجيه والإقلاع (main_shell = التنقّل + سطح المشغّل)
 ├── core/         الثيم (Nova Cinema)، اللغة، الإعدادات، الأدوات
-├── models/       ← منقولة كما هي من MoPlayerios
+├── models/       نماذج الوسائط والمكتبة
 ├── services/
-│   ├── xtream/   ← منقولة كما هي
-│   ├── m3u/      ← منقولة كما هي
+│   ├── xtream/   عميل Xtream
+│   ├── m3u/      محلّل M3U
 │   ├── player/   libmpv عبر media_kit + ضبط خاص بـ IPTV
 │   └── system/   MPRIS2 (D-Bus) + النافذة + منع الإطفاء   ← جديد كلياً
-├── repositories/ ← منقولة كما هي
+├── repositories/ طبقة البيانات والحفظ
 ├── providers/    حالة Riverpod + متحكّم التشغيل
 ├── features/     الواجهة — مكتوبة من الصفر لسطح المكتب
 └── widgets/      مكتبة الودجت (Nova Cinema)
@@ -112,7 +114,9 @@ new runtime dependencies to the image, and MoPlayer's core — Xtream client, M3
 parser, models, repositories — is reused rather than rewritten in another
 language.
 
-Build with `just setup && just build && just install`. The design system is in
+This directory is the canonical source built into the signed MoOS image; image
+builds never download a MoPlayer release or consult another branch. For isolated
+app development, build with `just setup && just build && just install`. The design system is in
 [`DESIGN.md`](DESIGN.md); the rules that will bite you are in [`AGENTS.md`](AGENTS.md).
 
 Version 1.2 adds faster catalogue loading, previous/next live-channel zapping,

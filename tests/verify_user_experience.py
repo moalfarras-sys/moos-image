@@ -1196,23 +1196,55 @@ require("moos-gpu-headroom" in code(read("system_files/usr/bin/moplayer")),
         "it aborts on eglMakeCurrent, which reads to the user as a broken app")
 
 # ── The image's copy of MoPlayer's launcher must BE MoPlayer's launcher ───────
-# The launcher is the app's file (moplayer/packaging/moos/moplayer). The image only carries
-# a copy of it at system_files/usr/bin/moplayer, and for two hours those two files silently
-# disagreed: the GPU-headroom guard above existed ONLY in the image's copy. One `install -D`
-# from the app's packaging — exactly what `just sync-moplayer` prints — and the guard is gone,
-# with nothing to notice. `sync-moplayer` now performs that install itself; this is what
-# catches it if the two ever drift again.
+# MoPlayer is owned in this repository. Its packaging source lives under moplayer/ and the
+# immutable image carries a copy under system_files/. This gate keeps those two in-tree
+# surfaces byte-identical so a packaging refresh cannot silently drop the GPU guard.
 require(read("system_files/usr/bin/moplayer") == read("moplayer/packaging/moos/moplayer"),
         "system_files/usr/bin/moplayer must be byte-identical to moplayer/packaging/moos/moplayer "
         "— the launcher belongs to the app, and a divergent copy is one `install -D` away from "
-        "dropping the GPU guard (run `just sync-moplayer`)")
+        "dropping the GPU guard (run `just refresh-moplayer-packaging`)")
+for _moplayer_packaging_source, _moplayer_image_copy in (
+    ("moplayer/packaging/moos/org.moos.moplayer.desktop",
+     "system_files/usr/share/applications/org.moos.moplayer.desktop"),
+    ("moplayer/packaging/moos/org.moos.moplayer.metainfo.xml",
+     "system_files/usr/share/metainfo/org.moos.moplayer.metainfo.xml"),
+):
+    require(read(_moplayer_packaging_source) == read(_moplayer_image_copy),
+            f"{_moplayer_image_copy} must match the first-party source "
+            f"{_moplayer_packaging_source} (run `just refresh-moplayer-packaging`)")
 
-# ── The vendored app must be the app that was committed ───────────────────────
-# The vendored tree is built from `git ls-files`, so an UNTRACKED file in MoPlayer's working
-# tree is copied by nobody: the image compiles source with an import pointing at a file that
-# is not there, and the build fails twenty minutes in, inside a container. `sync-moplayer`
-# refuses a dirty tree for that reason. Here we check the result: every Dart file the vendored
-# source imports from its own lib/ has to exist in the vendored tree.
+# MoPlayer has one source and one release path. It used to be copied from a
+# second repository whose branch and release archive could drift independently
+# of the signed OS. Keep that architecture from returning quietly.
+require(not (ROOT / "moplayer/VENDORED.md").exists()
+        and not (ROOT / "moplayer/.github").exists()
+        and not (ROOT / "moplayer/packaging/moos/moos-image").exists(),
+        "MoPlayer must remain an in-tree first-party app, not a nested/external release")
+_moplayer_external_name = "MoPlayer" + "MoOS"
+_moplayer_text_suffixes = {
+    ".cc", ".cmake", ".dart", ".h", ".json", ".m3u", ".md", ".sh",
+    ".txt", ".xml", ".yaml", ".yml",
+}
+_moplayer_external_refs: list[str] = []
+for _moplayer_source in (ROOT / "moplayer").rglob("*"):
+    if (_moplayer_source.is_file()
+            and _moplayer_source.suffix.lower() in _moplayer_text_suffixes):
+        try:
+            if _moplayer_external_name in _moplayer_source.read_text(encoding="utf-8"):
+                _moplayer_external_refs.append(str(_moplayer_source.relative_to(ROOT)))
+        except UnicodeDecodeError:
+            pass
+require(not _moplayer_external_refs,
+        "MoPlayer must not point back to the retired external repository: "
+        f"{_moplayer_external_refs[:3]}")
+_moplayer_container = read("Containerfile")
+require("COPY moplayer/ ./" in _moplayer_container
+        and "COPY --from=moplayer-build /out/ /usr/lib/moplayer/" in _moplayer_container,
+        "the x86 image must build and install the in-tree MoPlayer source")
+
+# ── Every committed in-tree import must exist ─────────────────────────────────
+# MoPlayer now has one source of truth: this repository. Catch a missing relative import in
+# milliseconds instead of failing deep inside the image's Flutter build stage.
 vendor_lib = ROOT / "moplayer" / "lib"
 missing_imports: list[str] = []
 for dart in vendor_lib.rglob("*.dart"):
@@ -1221,9 +1253,8 @@ for dart in vendor_lib.rglob("*.dart"):
         if not (dart.parent / target).resolve().exists():
             missing_imports.append(f"{dart.relative_to(ROOT)} -> {target}")
 require(not missing_imports,
-        "the vendored MoPlayer source imports files that were not vendored — its working tree "
-        "had uncommitted files when it was synced, and the image build will fail on a missing "
-        f"URI: {missing_imports[:3]}")
+        "the in-tree MoPlayer source imports files that are missing; the image build will fail "
+        f"on these URIs: {missing_imports[:3]}")
 
 # ── One MoPlayer, not one per click ──────────────────────────────────────────
 # Flutter's runner template sets G_APPLICATION_NON_UNIQUE, and with it every click in Kickoff
@@ -6430,9 +6461,8 @@ require("freedesktop" in _selfcheck and "secrets" in _selfcheck
         "moos-selfcheck must ask the session bus whether a disabled wallet is "
         "still active")
 
-# ── The vendored MoPlayer must be buildable by the Flutter the image pins ────
-# moplayer/ is a copy of a live project, and a live project is being opened in an
-# editor. A Flutter SDK newer than the pinned one rewrites pubspec.lock's `sdks:`
+# ── MoPlayer must be buildable by the Flutter the image pins ──────────────────
+# Opening the in-tree project with a newer Flutter SDK can rewrite pubspec.lock's `sdks:`
 # floor on any `pub get` — observed here as `dart: ">=3.9.0 <4.0.0"` becoming
 # `">=3.12.0 <4.0.0"` when the workstation moved to Flutter 3.44.8 while the
 # Containerfile was still building with 3.35.1.
@@ -6442,10 +6472,11 @@ require("freedesktop" in _selfcheck and "secrets" in _selfcheck
 # editor that caused it. This gate costs milliseconds and names the cause.
 #
 # The map is deliberately explicit: bumping FLUTTER_VERSION means adding its Dart
-# version here, which is the moment to re-vendor the lock as well.
+# version here, which is the moment to refresh and test the in-tree lock as well.
 _FLUTTER_TO_DART = {
     "3.35.1": (3, 9, 0),
     "3.44.8": (3, 12, 2),
+    "3.47.4": (3, 13, 3),
 }
 _containerfile = read("Containerfile")
 require("flutter analyze --no-fatal-infos" in _containerfile
@@ -6459,7 +6490,7 @@ if _flutter_pin:
     _pinned = _flutter_pin.group(1)
     require(_pinned in _FLUTTER_TO_DART,
             f"Flutter is pinned to {_pinned} but tests/verify_user_experience.py does not "
-            "know which Dart that ships — add it to _FLUTTER_TO_DART and re-vendor "
+            "know which Dart that ships — add it to _FLUTTER_TO_DART and refresh "
             "moplayer/pubspec.lock with that SDK")
     if _pinned in _FLUTTER_TO_DART:
         _lock_floor = re.search(r'dart:\s*">=\s*([0-9]+)\.([0-9]+)\.([0-9]+)',

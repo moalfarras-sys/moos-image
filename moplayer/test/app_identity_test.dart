@@ -220,7 +220,7 @@ void main() {
       expect(
         xml,
         contains(
-          '<url type="homepage">https://github.com/moalfarras-sys/MoPlayerMoOS</url>',
+          '<url type="homepage">https://github.com/moalfarras-sys/moos-image/tree/main/moplayer</url>',
         ),
         reason: 'AppStream rejects a first-party app with no homepage URL',
       );

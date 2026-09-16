@@ -45,7 +45,7 @@ Containerfile.arm             native ARM image
 build_files/                  image assembly and build-time gates
 system_files/                 immutable MoOS filesystem overlay
 artwork/                      canonical design sources and deterministic generators
-moplayer/                     vendored MoPlayer source and tests
+moplayer/                     first-party MoPlayer source and tests
 moremote/                     Mo PC Remote source and component documentation
 iso/                          offline ISO inputs
 tests/                        repository, image, VM and hardware verification

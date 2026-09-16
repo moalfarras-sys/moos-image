@@ -78,6 +78,9 @@ then repeats the exact-revision release proof once — no duplicate release run.
    explicit choice, and credentials remain private user state.
 8. A build, a local image, a published candidate, a booted artifact and a
    promoted release are different states and must never be conflated.
+9. MoPlayer is a first-party in-tree application. `moplayer/` is its only source;
+   x86 and ARM build and test it directly and install only the resulting bundle.
+   No external MoPlayer branch, release archive or nested workflow participates.
 
 ## Baseline on 2026-09-13
 

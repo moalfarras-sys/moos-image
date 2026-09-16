@@ -61,7 +61,7 @@ A broken promoted image can still prevent this workstation from booting.
 > theme), the MoOS UI — Liquid Glass design language, and the rules no session may break.
 
 > **New here?** Read **[PROJECT_STATE.md](PROJECT_STATE.md)** as well, and read it *first* if
-> you are about to touch MoPlayer, the vendoring, the gates or anything visual. It is the concise
+> you are about to touch MoPlayer, its in-tree source, the gates or anything visual. It is the concise
 > map of what exists, what is load-bearing, what is proven and what remains. The false-green
 > traps are preserved below in this rules file. This file is the rules;
 > `PROJECT_STATE.md` is the terrain.
@@ -344,12 +344,19 @@ as the user. Do not "fix" that by reaching for pkexec.
 
 ## Layout
 
+**MoPlayer ownership is intentionally closed:** `moplayer/` is the canonical
+first-party source. Both Containerfiles build and test that tree and install only
+its release bundle. Never restore `VENDORED.md`, `sync-moplayer`, a nested GitHub
+workflow, or a download from another MoPlayer repository/release. Packaging copies
+inside `system_files/` are refreshed only from this tree with
+`just refresh-moplayer-packaging`; `verify_user_experience.py` enforces the boundary.
+
 ```
 Containerfile          three x86 editions; IMAGE_NAME selects whether NVIDIA is layered on
 build_files/build.sh   everything package-dependent, plus the boot/identity gates
 system_files/          copied verbatim onto / — identity, themes, apps, units
 moremote/              Mo PC Remote, vendored source; built by a stage in the Containerfile
-moplayer/              MoPlayer (Flutter), vendored source; built by a stage in the Containerfile
+moplayer/              MoPlayer (Flutter), first-party source; built by a stage in the Containerfile
 tests/                 run these before pushing; they are the same gates CI runs
 skills/                the mandatory moos-engineering agent skill
 .github/workflows/     build.yml (moos + moos-nvidia + moos-cloud), build-iso.yml (ISO), build-disk.yml (qcow2)

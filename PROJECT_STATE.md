@@ -78,9 +78,12 @@ Horizon 2 composes one MoOS Bar instead of overlapping controls:
 The current topic batch (not released) makes Search refuse stale/deferred rows,
 restores full Tab/Escape/Ctrl+Enter traversal, separates its reviewable view,
 and gives the island stationary native keyboard/accessibility controls plus a
-Remote/Media detail switch. `THEME_REV=58` carries the QML change to existing
-profiles. This state becomes true for users only after gates, signed proof,
-promotion, update and reboot.
+Remote/Media detail switch. It also makes `moplayer/` the only MoPlayer source,
+removes the obsolete external workflow/download path and stale screenshots,
+updates the pinned x86/ARM Flutter builder to 3.47.4, and preserves the installed
+demo and GPU crash guard. `THEME_REV=58` carries the QML change to existing profiles.
+This state becomes true for users only after gates, signed proof, promotion,
+update and reboot.
 
 ## Proven source/image behavior
 
@@ -102,10 +105,9 @@ promotion, update and reboot.
   helpers. `just workstation-check` is a read-only inventory.
 - Qt QML and ShellCheck editor support are installed. Native user-space .NET
   SDK `10.0.401` passed every MoRemote build/test target.
-- Flutter on the host is newer than the image-pinned toolchain. The local
-  `moplayer/analysis_options.yaml` and `moplayer/pubspec.lock` changes came from
-  that host run and are intentionally excluded from MoOS commits until the
-  toolchain upgrade is planned.
+- Flutter 3.47.4 is installed on the host and is now the x86/ARM image-builder
+  pin. Its generated analyzer exclusions and lock refresh are part of the
+  in-tree MoPlayer source and are verified with that SDK.
 - `.kilo/` is local untracked agent state and is not product source.
 
 ## Open evidence gaps
@@ -125,8 +127,8 @@ promotion, update and reboot.
 
 ## Next execution
 
-Finish the current M1 Search/Island + ISO-proof batch; run targeted gates,
-`just check` and one local image build; integrate one reviewed pull request;
+Finish the current M1 Search/Island + in-tree MoPlayer + ISO-proof batch; run
+targeted gates, `just check` and one local image build; integrate one reviewed pull request;
 confirm there is no active release runner; execute
 `scripts/release-candidate.sh --promote`; update/reboot this signed NVIDIA
 station; then capture live Arabic and English readback. Continue with M2 only
