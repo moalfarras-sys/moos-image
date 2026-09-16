@@ -22,11 +22,16 @@ The gates check what someone thought to check; they cannot see the screen.
 The honest loop, in order:
 
 ```bash
-just check              # maintained CI gate; failures propagate
-just build              # use build-nvidia/build-cloud for the affected edition
+just check              # every slice; maintained CI gate, failures propagate
+just build              # Tier 1 changes and milestone end (build-nvidia/build-cloud)
 ```
 
 Then **look at it**. A screenshot, a live readback, a pixel. See §4.
+
+Work is batched: several plan tasks per cycle, `just check` and live review as you
+go, the full image build and the release proofs once per milestone. See
+**How MoOS work is scheduled** in `AGENTS.md` and the task protocol in
+`docs/DEVELOPMENT_PLAN.md`.
 
 ---
 
@@ -280,7 +285,8 @@ The task queue and missing acceptance evidence live in
 
 ## 6. Before you push
 
-- `just check` green (§0); a matching full local build for image/runtime changes.
+- `just check` green (§0); a full local build for Tier 1 changes (§1) and at the
+  end of a milestone, not after every edit.
 - `THEME_REV` bumped if any shipped SVG or plasmoid QML changed, with both pinned
   gates moved.
 - Every home override under `~/.local/share/plasma/` removed.

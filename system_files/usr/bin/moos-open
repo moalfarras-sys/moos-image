@@ -393,8 +393,12 @@ PY
     control/wifi/off)
         confirm "إيقاف الواي فاي يقطع الإنترنت وMo AI والتحكم عن بعد. متابعة؟ | Turning Wi-Fi off disconnects the internet, Mo AI and remote control. Continue?" \
             && control_run wifi off ;;
+    # `moos://search/` carries no query after the trailing slash is stripped, so it arrives as
+    # `search/`. The Horizon Bar magnifier and an empty Enter use it to open live search itself;
+    # before this case they fell through to "unknown MoOS action".
+    search/)       gui krunner ;;
     search/*)      query="$(python3 -c 'import sys,urllib.parse; print(urllib.parse.unquote(sys.argv[1]))' "$tgt" 2>/dev/null)";
-                   [ -n "$query" ] && gui krunner "$query" ;;
+                   if [ -n "$query" ]; then gui krunner "$query"; else gui krunner; fi ;;
     session/lock)  loginctl lock-session ;;
     session/logout) confirm "تسجيل الخروج الآن؟ | Log out now?" \
                           && { qdbus_run org.kde.Shutdown /Shutdown logout 2>/dev/null || true; } ;;

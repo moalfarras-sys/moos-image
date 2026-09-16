@@ -91,6 +91,7 @@ check:
     # pointing at an asset that never made it into git — which serves a blank page with a 200.
     python3 tests/test_shipped_bundle_is_tracked.py
     python3 tests/test_release_workflow_safety.py
+    python3 tests/test_release_candidate_script.py
     python3 tests/test_seal_arm_deployment.py
     # The aarch64 edition has its own CI workflow (build-arm.yml) with its own gate
     # list, and these two lived ONLY there. `just check` was therefore green while
@@ -285,6 +286,7 @@ check:
     python3 tests/test_recovery_rollback_target.py
     python3 tests/test_update_state_machine.py
     python3 tests/test_support_bundle_redaction.py
+    python3 tests/test_rollback_proof_harness.py
     # Owned first-party chrome must resolve to deterministic palette-aware SVGs,
     # never the retired fixed-colour action artwork or a missing icon name.
     python3 tests/test_moos_symbolic_icons.py

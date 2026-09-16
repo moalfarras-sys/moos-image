@@ -163,7 +163,9 @@ systray.writeConfig("shownItems", "org.kde.plasma.networkmanagement,org.kde.plas
 // and brightness are loaded but not forced visible, so their Active/Passive
 // status still decides whether they consume bar space. The media island is a
 // direct panel zone and must not be duplicated inside this list.
-systray.writeConfig("extraItems", "org.kde.plasma.networkmanagement,org.kde.plasma.volume,org.kde.plasma.notifications,org.kde.plasma.keyboardlayout,org.kde.plasma.bluetooth,org.kde.plasma.brightness");
+systray.writeConfig("extraItems", "org.kde.plasma.networkmanagement,org.kde.plasma.volume,org.kde.plasma.notifications,org.kde.plasma.keyboardlayout,org.kde.plasma.bluetooth,org.kde.plasma.brightness,org.kde.plasma.battery,org.kde.plasma.devicenotifier,org.kde.plasma.cameraindicator,org.kde.plasma.keyboardindicator,org.kde.plasma.printmanager,org.kde.plasma.clipboard,org.kde.kdeconnect,org.kde.plasma.vault,org.kde.kscreen,org.kde.plasma.manage-inputmethod");
+// Mirror of moos-bar.conf [tray] hiddenItems: only what stays behind the arrow even while active.
+systray.writeConfig("hiddenItems", "org.kde.plasma.clipboard,org.kde.kscreen,org.kde.plasma.manage-inputmethod,org.kde.plasma.mediacontroller,org.kde.plasma.weather,xwaylandvideobridge,Xwayland Video Bridge,Xwayland-Video-Bruecke,جسر فيديو ويلاند_اكس");
 
 panel.addWidget("org.moos.nova.clock");
 

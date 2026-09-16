@@ -5114,7 +5114,16 @@ require(("restart plasma-plasmashell.service" in bar_apply
 # collapse arrow. On an OS that ships Mo PC Remote, the portal item is the one
 # at-a-glance "your screen is being watched" signal. Unlisted, Plasma shows it by
 # Status: invisible while Passive, in the tray while a session is Active.
-require("xdg-desktop-portal-kde" not in bar_apply,
+# moos-bar.conf [tray] hiddenItems is now the ONLY owner of the always-hidden list (the applier
+# reads it and the new-profile seed mirrors it), so both rules below are checked on that owner.
+_hidden_line = next((l for l in _bar_conf_code.splitlines() if l.startswith("hiddenItems=")), "")
+require(_hidden_line and 'conf tray.hiddenItems' in bar_apply
+        and 'var HIDE = "\'"$TRAY_HIDDEN"\'"' in bar_apply,
+        "moos-bar.conf must own the tray hiddenItems list and moos-bar-apply must read it from there")
+require(f'systray.writeConfig("hiddenItems", "{_hidden_line.split("=", 1)[1]}")' in
+        read("system_files/usr/share/plasma/layout-templates/org.kde.plasma.desktop.defaultPanel/contents/layout.js"),
+        "the new-profile layout seed must mirror moos-bar.conf [tray] hiddenItems exactly")
+require("xdg-desktop-portal-kde" not in _hidden_line and "xdg-desktop-portal-kde" not in bar_apply,
         "the portal's remote-control indicator must NOT be hidden — hidden SNIs do not "
         "surface when they turn Active (measured on Plasma 6), so hiding it blinds the "
         "user to an active remote-control session")
@@ -5123,10 +5132,20 @@ require("xdg-desktop-portal-kde" not in bar_apply,
 # OS's own first-class locale was the one missing.
 for bridge_id in ("xwaylandvideobridge", "Xwayland Video Bridge",
                   "Xwayland-Video-Bruecke", "جسر فيديو ويلاند_اكس"):
-    require(bridge_id in bar_apply,
+    require(bridge_id in _hidden_line.split("=", 1)[1].split(","),
             f"the Xwayland bridge hide-list is missing the Id variant {bridge_id!r} — "
-            f"SNIs match on their translated Id, so a missing locale variant pops the "
-            f"icon into the curated tray for exactly that locale's users")
+            "SNIs match on their translated Id, so a missing locale variant pops the icon "
+            "into the curated tray for exactly that locale's users")
+# Hiding a status applet the tray never loads empties the arrow popup (measured
+# 2026-09-15). Everything behind the arrow except SNI ids and the island-owned media
+# controller must also be in the load list.
+_extra_ids = _extra_line.split("=", 1)[1].split(",")
+for _hidden_applet in _hidden_line.split("=", 1)[1].split(","):
+    if _hidden_applet.startswith("org.kde.") and _hidden_applet not in (
+            "org.kde.plasma.mediacontroller", "org.kde.plasma.weather"):
+        require(_hidden_applet in _extra_ids,
+                f"{_hidden_applet} is hidden but never loaded: it would leave a hole in the "
+                "tray popup instead of an item")
 
 # The panel clock must declare its width to the panel layout. implicitWidth alone is
 # NOT enough: Plasma lays the panel out from the Layout attached properties, and

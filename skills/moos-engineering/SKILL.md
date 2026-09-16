@@ -35,10 +35,28 @@ description: Engineer and verify MoOS images, KDE/Wayland integration, first-par
 
 ## Select the work and its evidence
 
-Read the current task in [`docs/DEVELOPMENT_PLAN.md`](../../docs/DEVELOPMENT_PLAN.md).
-Choose a bounded result with an observable exit condition before changing code.
+Read the plan in [`docs/DEVELOPMENT_PLAN.md`](../../docs/DEVELOPMENT_PLAN.md). Its
+unfinished tasks are ONE execution backlog, worked in priority order P0 → P6 in
+**milestone batches**: implement the largest safe, coherent group of related tasks in a
+cycle, move to the next task automatically, and fix what you find on the way. Each task
+still needs a bounded result with an observable exit condition before you change code.
+
+Fast signals belong in the cycle — targeted tests, `just check`, live/rendered review, and
+a merge per reviewed slice once its gates pass. The expensive signals belong at the end of
+the milestone: the full local image build, the signed candidate, three QCOW2 boots, the
+offline ISO install, the ARM proof and promotion, all started by one command,
+`scripts/release-candidate.sh`. A Tier 1 change (Containerfiles, `build.sh`, packages,
+initramfs, kernel arguments, boot, signing, installer) is the exception that still builds
+and proves before it ships. Batching removes iterations, never gates: signing, rollback,
+identity and every firing gate hold exactly as written below.
 Independent review, host diagnostics and tooling may run beside a candidate build;
 keep that candidate's branch/SHA fixed. Any later source change needs a new candidate.
+Between release cycles, merge reviewed slices after the fast gates and batch the full
+proofs with `scripts/release-candidate.sh` (task protocol in the plan); do not start a
+candidate for every slice.
+Between release cycles, merge reviewed slices after the fast gates and batch the full
+proofs with `scripts/release-candidate.sh` (task protocol in the plan); do not start a
+candidate for every slice.
 
 | Work | Read before acting | Required distinction |
 | --- | --- | --- |
@@ -115,7 +133,8 @@ not evidence that Plasma actually consumes them.
 ```bash
 # the exact repo gates CI runs (fast, no container needed):
 just check
-# a full local image build runs every image gate (identity, initramfs, NVIDIA, QML apps):
+# a full local image build runs every image gate (identity, initramfs, NVIDIA, QML apps).
+# Run it for Tier 1 changes and at the end of a milestone — not after every edit:
 just build            # or: just build-nvidia / just build-cloud
 # on the installed machine, after an update reboot:
 bash tests/post-update-check.sh
