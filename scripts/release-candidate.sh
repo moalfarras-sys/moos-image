@@ -55,12 +55,26 @@ dispatch() {
 }
 
 wait_run() {
-    local id="$1" label="$2"
-    if gh run watch "$id" --exit-status --interval 60 >/dev/null 2>&1; then
+    local id="$1" label="$2" state="" try
+    gh run watch "$id" --exit-status --interval 60 >/dev/null 2>&1 || true
+    # `gh run watch` also exits non-zero when the API is unreachable. The
+    # 2026-09-17 W2 release printed FAIL for two QCOW2 proofs that had in fact
+    # succeeded, only because the host lost api.github.com while watching. The
+    # verdict is therefore the run's own recorded status, re-read until the API
+    # answers and the run is complete — never the watcher's exit code.
+    for try in $(seq 1 120); do
+        state="$(gh run view "$id" --json status,conclusion,attempt \
+            --jq '.status + " " + (.conclusion // "") + " " + (.attempt|tostring)' 2>/dev/null)" || state=""
+        case "$state" in
+            "completed "*) break ;;
+        esac
+        sleep 60
+    done
+    if [ "$state" = "completed success 1" ]; then
         echo "PASS $label (run $id)"
         return 0
     fi
-    echo "FAIL $label (run $id, attempt $(gh run view "$id" --json attempt --jq .attempt))"
+    echo "FAIL $label (run $id, state: ${state:-unreadable})"
     return 1
 }
 
