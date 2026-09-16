@@ -27,6 +27,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 SHARE = ROOT / "system_files/usr/share/plasma"
 SEARCH = SHARE / "plasmoids/org.moos.search/contents/ui/main.qml"
+SEARCH_VIEW = SHARE / "plasmoids/org.moos.search/contents/ui/SearchView.qml"
 ISLAND = SHARE / "plasmoids/org.moos.island/contents/ui/main.qml"
 HUB = SHARE / "wallpapers/org.moos.ui2.wallpaper/contents/ui"
 MOOS_OPEN = ROOT / "system_files/usr/bin/moos-open"
@@ -42,6 +43,7 @@ class MoOSSearch(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.qml = code(SEARCH)
+        cls.view = code(SEARCH_VIEW)
 
     def test_results_come_from_plasma_search_and_run_through_their_own_model(self):
         self.assertIn("Milou.ResultsModel", self.qml)
@@ -54,18 +56,22 @@ class MoOSSearch(unittest.TestCase):
     def test_enter_never_runs_a_row_from_an_older_query(self):
         self.assertIn("if (results.querying || results.rowCount() < 1 || row < 0)", self.qml)
         self.assertIn("root.queuedRun === root.query", self.qml)
+        self.assertIn("root.queryRevision === requestedRevision", self.qml,
+                      "clearing and retyping identical text must invalidate a deferred Enter")
+        self.assertIn("if (!root.expanded", self.qml,
+                      "a deferred result must never launch after its popup closed")
         self.assertIn("onQueryingChanged: root.runQueued()", self.qml)
 
     def test_the_surface_is_a_popup_not_a_permanent_input_grab(self):
-        self.assertIn("fullRepresentation: FocusScope", self.qml)
+        self.assertIn("FocusScope {", self.view)
         self.assertIn("activationTogglesExpanded: true", self.qml)
         self.assertNotIn("AcceptingInputStatus", self.qml,
                          "holding panel input would steal keys from every window")
-        self.assertIn("Keys.onEscapePressed", self.qml)
+        self.assertIn("Keys.onEscapePressed", self.view)
 
     def test_mo_ai_hand_off_uses_a_declared_route_with_one_argv_element(self):
         self.assertIn('"moos://ai/ask/" + encodeURIComponent(question)', self.qml)
-        self.assertIn("event.modifiers & Qt.ControlModifier", self.qml)
+        self.assertIn("event.modifiers & Qt.ControlModifier", self.view)
         router = MOOS_OPEN.read_text(encoding="utf-8")
         self.assertRegex(router, r"(?m)^\s*ai/ask/\*\)")
         self.assertIn('gui moai --panel chat --ask "$query"', router,
@@ -75,24 +81,31 @@ class MoOSSearch(unittest.TestCase):
         self.assertIn("shownItems: Kicker.RecentUsageModel.OnlyApps", self.qml)
         self.assertIn("recentApps.trigger(row", self.qml)
         for route in ("moos://app/settings", "moos://app/store", "moos://app/updater"):
-            self.assertIn(route, self.qml)
+            self.assertIn(route, self.view)
             self.assertRegex(MOOS_OPEN.read_text(encoding="utf-8"),
                              r"(?m)^\s*" + re.escape(route.removeprefix("moos://")) + r"\)")
-        self.assertNotRegex(self.qml, r"Enter للفتح",
+        self.assertNotRegex(self.view, r"Enter للفتح",
                             "a mixed Arabic/Latin hint sentence is reordered by bidi")
-        self.assertIn('{ keys: "Esc", ar: "إغلاق", en: "Close" }', self.qml)
+        self.assertIn('{ keys: "Esc", ar: "إغلاق", en: "Close" }', self.view)
+        self.assertIn('function bidi(value) { return "\\u2068" + value + "\\u2069"; }',
+                      self.view)
+        self.assertIn('surface.bidi("Mo AI:', self.view,
+                      "the Arabic AI hand-off must isolate its Latin/query run")
 
     def test_motion_is_finite_and_gated(self):
-        self.assertIn("MoUI.SpringFeedback", self.qml)
-        self.assertNotIn("Animation.Infinite", self.qml)
+        for source in (self.qml, self.view):
+            self.assertIn("MoUI.SpringFeedback", source)
+            self.assertNotIn("Animation.Infinite", source)
         self.assertIn("readonly property bool motionEnabled: Kirigami.Units.longDuration > 1",
                       self.qml)
+        self.assertIn("root.motionEnabled", self.view)
 
 
 class RemoteIsland(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.qml = code(ISLAND)
+        cls.control = code(ISLAND.with_name("MediaControl.qml"))
 
     def test_announcement_is_one_shot_and_settles(self):
         timer = self.qml.split("id: remoteAnnounce", 1)[1].split("}", 1)[0]
@@ -109,11 +122,35 @@ class RemoteIsland(unittest.TestCase):
                          "the derived binding can still hold the previous value here")
 
     def test_settled_chip_keeps_live_state_and_the_idle_pixel(self):
+        width_block = self.qml.split("implicitWidth: root.active", 1)[1].split(
+            "implicitHeight:", 1)[0]
         self.assertIn("readonly property real chipWidth: 72", self.qml)
         self.assertIn("root.remoteSettled ? chipWidth", self.qml)
-        self.assertIn(": 1\n", self.qml.split("implicitWidth: root.active", 1)[1][:200])
+        self.assertIn(": 1", width_block)
         self.assertIn('root.remoteMode === "paused"', self.qml)
         self.assertIn("root.remoteSessions > 1", self.qml)
+
+    def test_remote_keeps_privacy_priority_but_popup_can_inspect_media(self):
+        self.assertIn('property string detailContext: "remote"', self.qml)
+        self.assertIn("readonly property bool multipleContexts:", self.qml)
+        self.assertIn("readonly property bool showRemoteDetails:", self.qml)
+        self.assertIn('root.detailContext = "remote"', self.qml)
+        self.assertIn('root.detailContext = "media"', self.qml)
+
+    def test_media_controls_are_stationary_native_targets(self):
+        self.assertIn("Controls.AbstractButton", self.control)
+        self.assertIn("property real slotSize: control.primary ? 52 : 40", self.control)
+        self.assertIn("focusPolicy: Qt.StrongFocus", self.control)
+        self.assertIn("Accessible.onPressAction", self.control)
+        self.assertIn("Keys.onReturnPressed", self.control)
+        self.assertIn("scale: feedback.value", self.control)
+        self.assertNotIn("scale: control.revealProgress", self.control,
+                         "revealing a control must not shrink its interactive target")
+
+    def test_media_polling_stops_when_nobody_can_see_progress(self):
+        timer = self.qml.split("id: positionSync", 1)[1].split("}", 1)[0]
+        self.assertIn("root.expanded || root.compactHovered", timer)
+        self.assertIn("!root.showRemoteDetails", timer)
 
 
 class LocalizedHub(unittest.TestCase):
