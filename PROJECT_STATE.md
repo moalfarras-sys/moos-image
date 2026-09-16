@@ -4,20 +4,20 @@ Current measured facts only; Git owns history.
 
 ## Source state
 
-- Date measured: 2026-09-15.
-- PR #96 (`6813068d`, candidate `3298a3d9`) replaced the ISO installer's single
-  ESP unmount with a bounded regular retry that stays fail-closed with
-  `findmnt`/`fuser` diagnostics. It passed 147 local gates, signed x86 build
-  `34989715430`, QCOW2 runs `34992172032`/`34992175700`/`34992178861` and the
-  full ISO live/offline-install/installed-boot/reboot run `34992182459`.
-  Promotion `34996440151` moved the x86 tags to generic
-  `sha256:14c3c01422b7fd4fa95dab14a3f6eac827114b31209112722273d1e4064ff4b9`,
-  NVIDIA `sha256:5ca554bad2a036074ab0ec72307b0dae65d750c76cf91ee55da6313e292c678f`
-  and cloud `sha256:d254438110b4f95324e59f95a550d9f571d5350300a85558d76065cf3c0c35ed`.
-- The promoted revision contains PR #94 (`93b29ad8`, visible Horizon slice and
-  Arabic-first `ara,de`) and PR #93 (`225e29f3`, Remote geometry renewal).
-- The ARM disk job failed on every `main` push since the cleanup, including run
-  `34996414275`: its UTM packaging step copied a deleted README.
+- Date measured: 2026-09-16.
+- Promotion `35060599655` moved the x86 tags to revision `5fce15df`
+  (version 44.20260915.836): generic
+  `sha256:fa5cbfe3fa3e2d04555233e2906bbf02dec4bd04bcdd7ca5a7fced75052260d4`,
+  NVIDIA `sha256:086f70863c5bb37f05a35c01761bd7c246ab0487e323b5e7c99db9db46cc91ff`
+  and cloud `sha256:42a95f1d578c49e2833863e33fe3882749553556f353f9d9877f077013fd497f`,
+  each verified by reading the revision label back from the production tag.
+  Its proofs were build `35020040690`, QCOW2 `35041130671`/`35022568669`/
+  `35022223373`, ISO `35022230306` and ARM `35024967781` — all attempt 1 on the
+  exact candidate.
+- The promoted revision carries the Mo PC Remote live-keymap repair (English,
+  German and phone keyboards) and the signature-verified local RPM install.
+- The ARM disk job was repaired (its UTM packaging step copied a deleted README)
+  and run `35024967781` then passed end to end on the promoted revision.
 - GitHub authentication and branch publishing work from the host; historical
   branches are deleted only after ancestry proof.
 

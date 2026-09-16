@@ -218,11 +218,11 @@ preservation must be exercised during P0.2.
 
 | ID | Task | Exit evidence |
 | --- | --- | --- |
-| P1.1 | Make every first-boot migration versioned, idempotent and transaction-safe | interrupted/repeated migration fixtures; clean account and upgraded account reach identical owned state |
+| P1.1 | **Complete:** Make every first-boot migration versioned, idempotent and transaction-safe | every migration records id/revision/outcome in one append-only ledger; the two-key wallet write is staged and renamed so an interruption leaves the original file; interrupted, repeated and clean-vs-upgraded fixtures in `tests/test_migration_ledger.py` |
 | P1.2 | Add boot-success health and automatic fallback design compatible with the actual boot loader | three failed-boot simulation; successful boot blessing; manual rollback remains available |
 | P1.3 | Make offline installer storage policy hardware-safe | SATA/NVMe/USB/eMMC fixtures; target-only mutation; encryption decision; low-space and firmware errors are actionable |
-| P1.4 | Build a redacted support bundle | digest, edition, hardware, failed units and bounded logs; automated secret/identifier rejection |
-| P1.5 | Establish update observability | one state machine for current/checking/downloading/staged/rebooted/rolled-back/failed; UI and journal read the same source |
+| P1.4 | **Complete:** Build a redacted support bundle | `/usr/libexec/moos-support-bundle` with per-section and whole-bundle caps; redaction proven in `tests/test_support_bundle_redaction.py` and on this machine (51.6 KB, 13 sections, no live address, MAC, home path or credential shape); PR #102 |
+| P1.5 | **Complete:** Establish update observability | `moos-image-update` publishes one atomic record that the Updater window and the journal both read; `tests/test_update_state_machine.py`; PR #102 |
 | P1.6 | Qualify first-run without internet | Store metadata, dictionaries, locale, drivers and Help remain useful; cloud-only features explain connectivity clearly |
 | P1.7 | Version and qualify core/API boundaries | gateway, control, agent API, Settings snapshot and Store job schemas; stale/dead/partial response, timeout, restart and same-host cross-user negative tests |
 

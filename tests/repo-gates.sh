@@ -174,6 +174,7 @@ python3 tests/test_openclaw_nodejs_sqlite.py
 # or symlinked units are still never touched.
 python3 tests/test_openclaw_modern_unit_retire.py
 python3 tests/test_openclaw_idle_mask_migration.py
+python3 tests/test_migration_ledger.py
 # moai-wake is the ONLY thing that can wake a sleeping gateway, so if it cannot reach
 # Telegram the phone agent is silently dead while every surface reports healthy. On a
 # host with no IPv6 route it died instantly on the AAAA record ([Errno 101]) and the

@@ -331,6 +331,7 @@ printf '%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n' \
 set -euo pipefail
 state_dir={shlex.quote(str(state))}
 log_dir={shlex.quote(str(logs))}
+record_migration() {{ :; }}
 {migrator}
 migrate_startup_numlock
 """
@@ -406,6 +407,7 @@ set -euo pipefail
 state_dir={shlex.quote(str(state))}
 log_dir={shlex.quote(str(logs))}
 gdbus() {{ return 0; }}
+record_migration() {{ :; }}
 {migrator}
 migrate_legacy_keyboard
 """
@@ -465,6 +467,7 @@ systemctl() {{ return 0; }}
 pkill() {{ return 0; }}
 gdbus() {{ return 1; }}
 secret-tool() {{ return 1; }}
+record_migration() {{ :; }}
 {migrator}
 disable_wallet_v2
 """

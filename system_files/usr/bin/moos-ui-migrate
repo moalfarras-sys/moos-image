@@ -11,8 +11,43 @@ MOAI_UI_REV=3
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/moos"
 cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}"
 log_dir="$state_dir/migrations"
+ledger="$log_dir/ledger.tsv"
 marker="$state_dir/ui-theme-${MOOS_THEME_REV}-moai-${MOAI_UI_REV}.done"
 mkdir -p "$log_dir" 2>/dev/null || exit 0
+
+# One machine-readable record of what this account's migrations did.
+#
+# The per-migration .log files are prose, written for a human already reading one
+# failure. Nothing could answer the question a support bundle, an upgrade check or
+# a test actually asks: which migrations ran on this account, at which revision,
+# and did any of them fail? The ledger answers it in four tab-separated fields:
+#
+#     <utc-timestamp>  <migration-id>  <revision>  <outcome>
+#
+# Written with a single >> append, which the kernel performs atomically for a
+# short line on an O_APPEND descriptor. That matters because two sessions can be
+# logging in at once: a read-modify-write would silently drop one session's
+# entries, and a lock file would leave a stale lock behind after a crash. The
+# outcomes are a closed set — applied, skipped, preserved, failed — so the file
+# stays parseable by anything that reads it.
+record_migration() {
+    printf '%s\t%s\t%s\t%s\n' \
+        "$(date -u '+%FT%TZ' 2>/dev/null || echo unknown)" "$1" "$2" "$3" \
+        >>"$ledger" 2>/dev/null || true
+}
+
+# Keep it bounded: an account logging in daily for years must not grow an
+# unbounded file. Trim to the most recent entries, newest last, by rename.
+if [ -f "$ledger" ] && [ "$(wc -l <"$ledger" 2>/dev/null || echo 0)" -gt 400 ]; then
+    ledger_tmp="$(mktemp "$log_dir/.ledger-XXXXXX" 2>/dev/null)" || ledger_tmp=
+    if [ -n "$ledger_tmp" ]; then
+        if tail -n 200 -- "$ledger" >"$ledger_tmp" 2>/dev/null; then
+            mv -f -- "$ledger_tmp" "$ledger" 2>/dev/null || rm -f -- "$ledger_tmp"
+        else
+            rm -f -- "$ledger_tmp"
+        fi
+    fi
+fi
 
 # KWin reads [Keyboard] NumLock from kcminputrc while its Wayland compositor is
 # starting. /etc/xdg supplies the right default for fresh accounts, but an
@@ -33,6 +68,7 @@ migrate_startup_numlock() {
     [ -e "$input_marker" ] && return 0
     if [ ! -f "$input_conf" ]; then
         touch "$input_marker"
+        record_migration numlock-startup-v1 1 skipped
         return 0
     fi
     command -v kreadconfig6 >/dev/null 2>&1 || return 0
@@ -43,6 +79,7 @@ migrate_startup_numlock() {
     case "$old_value" in
         0|__missing__)
             touch "$input_marker"
+            record_migration numlock-startup-v1 1 skipped
             return 0
             ;;
         1|2)
@@ -50,6 +87,7 @@ migrate_startup_numlock() {
         *)
             # Preserve unknown/future values rather than guessing their meaning.
             touch "$input_marker"
+            record_migration numlock-startup-v1 1 preserved
             echo "$(date -u '+%FT%TZ') preserved unknown NumLock value: $old_value" \
                 >>"$input_log" 2>/dev/null || true
             return 0
@@ -64,10 +102,12 @@ migrate_startup_numlock() {
        && [ "$new_value" = "0" ] \
        && mv -f -- "$tmp" "$input_conf"; then
         touch "$input_marker"
+        record_migration numlock-startup-v1 1 applied
         echo "$(date -u '+%FT%TZ') migrated NumLock $old_value -> 0 before KWin" \
             >>"$input_log" 2>/dev/null || true
     else
         rm -f -- "$tmp"
+        record_migration numlock-startup-v1 1 failed
         echo "$(date -u '+%FT%TZ') could not migrate NumLock; will retry" \
             >>"$input_log" 2>/dev/null || true
     fi
@@ -95,10 +135,12 @@ repair_legacy_openclaw_idle_mask() {
     # is never fought by an image migration.
     if [ ! -L "$mask" ] || [ "$(readlink -- "$mask" 2>/dev/null)" != "/dev/null" ]; then
         touch "$idle_marker"
+        record_migration openclaw-idle-mask-v1 1 skipped
         return 0
     fi
     if ! "$systemctl_bin" --user is-enabled --quiet openclaw-idle.timer; then
         touch "$idle_marker"
+        record_migration openclaw-idle-mask-v1 1 preserved
         echo "$(date -u '+%FT%TZ') preserved idle-service mask with disabled timer" \
             >>"$idle_log" 2>/dev/null || true
         return 0
@@ -111,6 +153,7 @@ repair_legacy_openclaw_idle_mask() {
     if "$systemctl_bin" --user start openclaw-idle.timer \
        && "$systemctl_bin" --user is-active --quiet openclaw-idle.timer; then
         touch "$idle_marker"
+        record_migration openclaw-idle-mask-v1 1 applied
         echo "$(date -u '+%FT%TZ') retired incoherent idle-service mask; timer active" \
             >>"$idle_log" 2>/dev/null || true
         return 0
@@ -119,6 +162,7 @@ repair_legacy_openclaw_idle_mask() {
     # Transactional failure: restore the exact mask and retry on a later login.
     ln -s /dev/null "$mask" 2>/dev/null || true
     "$systemctl_bin" --user daemon-reload >/dev/null 2>&1 || true
+    record_migration openclaw-idle-mask-v1 1 failed
     echo "$(date -u '+%FT%TZ') idle-mask repair failed; original mask restored" \
         >>"$idle_log" 2>/dev/null || true
     return 0
@@ -200,6 +244,7 @@ if [ -n "${deployment:-}" ] && [ ! -e "$state_dir/gst-registry-${deployment}.don
     rm -rf "$cache_dir/gstreamer-1.0"
     rm -f "$state_dir"/gst-registry-*.done
     touch "$state_dir/gst-registry-${deployment}.done"
+    record_migration gst-registry 1 applied
     echo "$(date -u '+%FT%TZ') dropped the GStreamer registry for deployment ${deployment}" \
         >>"$log_dir/gst-registry.log" 2>/dev/null || true
 fi
@@ -216,6 +261,7 @@ migrate_legacy_keyboard() {
     [ -e "$keyboard_marker" ] && return 0
     if [ ! -f "$keyboard_conf" ]; then
         touch "$keyboard_marker"
+        record_migration keyboard-layout-v3 3 skipped
         return 0
     fi
 
@@ -226,6 +272,7 @@ migrate_legacy_keyboard() {
        || ! grep -Eq '^LayoutList=(de,ara|de,us,ara)$' "$keyboard_conf" \
        || ! grep -Eq '^VariantList=,{1,2}$' "$keyboard_conf"; then
         touch "$keyboard_marker"
+        record_migration keyboard-layout-v3 3 skipped
         return 0
     fi
 
@@ -236,6 +283,7 @@ migrate_legacy_keyboard() {
        && kwriteconfig6 --file "$tmp" --group Layout --key DisplayNames "ع,DE" \
        && mv -f -- "$tmp" "$keyboard_conf"; then
         touch "$keyboard_marker"
+        record_migration keyboard-layout-v3 3 applied
         echo "$(date -u '+%FT%TZ') migrated stock keyboard shadow to ara,de" \
             >>"$keyboard_log" 2>/dev/null || true
         # KWin 6.5+ watches kxkbrc through KConfigWatcher. Its generic
@@ -247,6 +295,7 @@ migrate_legacy_keyboard() {
             "{'Layout': @aay []}" >/dev/null 2>&1 || true
     else
         rm -f -- "$tmp"
+        record_migration keyboard-layout-v3 3 failed
         echo "$(date -u '+%FT%TZ') could not migrate legacy keyboard; will retry" \
             >>"$keyboard_log" 2>/dev/null || true
     fi
@@ -263,7 +312,7 @@ disable_wallet_v2() {
     local wallet_marker="$state_dir/wallet-disabled-v2.done"
     local wallet_log="$log_dir/wallet-disabled-v2.log"
     local credential_store=/usr/libexec/moai-credential-store
-    local legacy_key new_value
+    local legacy_key new_value wallet_tmp
 
     [ -e "$wallet_marker" ] && return 0
 
@@ -292,11 +341,27 @@ disable_wallet_v2() {
     command -v kreadconfig6 >/dev/null 2>&1 || return 0
     command -v kwriteconfig6 >/dev/null 2>&1 || return 0
     mkdir -p "$(dirname "$wallet_conf")" 2>/dev/null || return 0
-    if kwriteconfig6 --file "$wallet_conf" --group Wallet --key Enabled false \
-       && kwriteconfig6 --file "$wallet_conf" --group Wallet --key "First Use" false \
-       && new_value="$(kreadconfig6 --file "$wallet_conf" --group Wallet \
+
+    # Disabling KWallet takes TWO keys, and kwriteconfig6 edits the file in place.
+    # Interrupted between the two calls — a logout, a crash, an OOM kill — the
+    # account is left with Enabled=false and First Use untouched: a half-disabled
+    # wallet that still prompts on the next login. Stage both keys on a copy,
+    # verify the copy, then rename it over the original, so the account only ever
+    # sees the old file or the fully migrated one. Same discipline as the NumLock
+    # and keyboard migrations above.
+    wallet_tmp="$(mktemp "${wallet_conf}.moos-wallet.XXXXXX" 2>/dev/null)" || return 0
+    if [ -f "$wallet_conf" ] \
+       && ! cp --preserve=mode -- "$wallet_conf" "$wallet_tmp" 2>/dev/null; then
+        rm -f -- "$wallet_tmp"
+        record_migration wallet-disabled-v2 2 failed
+        return 0
+    fi
+    if kwriteconfig6 --file "$wallet_tmp" --group Wallet --key Enabled false \
+       && kwriteconfig6 --file "$wallet_tmp" --group Wallet --key "First Use" false \
+       && new_value="$(kreadconfig6 --file "$wallet_tmp" --group Wallet \
             --key Enabled --default __missing__ 2>/dev/null)" \
-       && [ "$new_value" = "false" ]; then
+       && [ "$new_value" = "false" ] \
+       && mv -f -- "$wallet_tmp" "$wallet_conf"; then
         systemctl --user disable --now moos-secret-service.service \
             >/dev/null 2>&1 || true
         systemctl --user mask --now moos-secret-service.service \
@@ -304,9 +369,12 @@ disable_wallet_v2() {
         pkill -TERM -u "$(id -u)" -x ksecretd >/dev/null 2>&1 || true
         pkill -TERM -u "$(id -u)" -x kwalletd6 >/dev/null 2>&1 || true
         touch "$wallet_marker"
+        record_migration wallet-disabled-v2 2 applied
         echo "$(date -u '+%FT%TZ') disabled KWallet and its session services" \
             >>"$wallet_log" 2>/dev/null || true
     else
+        rm -f -- "$wallet_tmp"
+        record_migration wallet-disabled-v2 2 failed
         echo "$(date -u '+%FT%TZ') could not disable KWallet; will retry" \
             >>"$wallet_log" 2>/dev/null || true
     fi
@@ -353,4 +421,5 @@ command -v update-desktop-database >/dev/null 2>&1 && \
 command -v kbuildsycoca6 >/dev/null 2>&1 && kbuildsycoca6 --noincremental || true
 
 touch "$marker"
+record_migration ui-theme "$MOOS_THEME_REV" applied
 echo "$(date -u '+%FT%TZ') migration complete"
