@@ -3,9 +3,8 @@
 #
 # This is how you run MoPlayer on a MoOS machine *without* rebuilding the image.
 # MoOS is an atomic OS: /usr is read-only and belongs to the bootc image, so a
-# user-level install is not a workaround, it is the correct place for something
-# that is not yet part of the system. When it is, `packaging/moos/moos-image/`
-# has what the image build needs, and this script becomes unnecessary.
+# user-level install is the safe way to test a source build without replacing
+# the signed system copy. The root Containerfiles own immutable-image delivery.
 #
 #   ./packaging/moos/install-local.sh            install from build/linux/.../bundle
 #   ./packaging/moos/install-local.sh --uninstall

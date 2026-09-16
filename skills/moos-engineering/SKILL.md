@@ -32,17 +32,24 @@ description: Engineer and verify MoOS images, KDE/Wayland integration, first-par
   boot and rollback remain load-bearing for continuing development.
 - **Arabic and RTL are first-class**. Layouts use logical dimensions; read the
   actual resolution and scale from the session, not a remembered reference PC.
+- **MoPlayer has one source of truth:** `moplayer/` in this repository. The
+  Containerfiles analyze, test and build that exact source into `/usr/lib/moplayer`;
+  do not restore an external MoPlayer checkout, release download, nested workflow
+  or vendoring/synchronization path. `just refresh-moplayer-packaging` only copies
+  the in-tree launcher/AppStream files into the immutable overlay.
 
 ## Select the work and its evidence
 
 Read the plan in [`docs/DEVELOPMENT_PLAN.md`](../../docs/DEVELOPMENT_PLAN.md). Its
-unfinished tasks are ONE execution backlog, worked in priority order P0 → P6 in
-**milestone batches**: implement the largest safe, coherent group of related tasks in a
+unfinished tasks are ONE execution backlog. P0–P6 are work-stream IDs; follow
+the active milestone order in that plan, with boot/security/data-loss defects
+first and the owner's visual priority next. Work in **milestone batches**:
+implement the largest safe, coherent group of related tasks in a
 cycle, move to the next task automatically, and fix what you find on the way. Each task
 still needs a bounded result with an observable exit condition before you change code.
 
-Fast signals belong in the cycle — targeted tests, `just check`, live/rendered review, and
-a merge per reviewed slice once its gates pass. The expensive signals belong at the end of
+Fast signals belong in the cycle — targeted tests, `just check`, live/rendered review,
+and reviewable commits integrated as a coherent batch. The expensive signals belong at the end of
 the milestone: the full local image build, the signed candidate, three QCOW2 boots, the
 offline ISO install, the ARM proof and promotion, all started by one command,
 `scripts/release-candidate.sh`. A Tier 1 change (Containerfiles, `build.sh`, packages,
@@ -51,12 +58,11 @@ and proves before it ships. Batching removes iterations, never gates: signing, r
 identity and every firing gate hold exactly as written below.
 Independent review, host diagnostics and tooling may run beside a candidate build;
 keep that candidate's branch/SHA fixed. Any later source change needs a new candidate.
-Between release cycles, merge reviewed slices after the fast gates and batch the full
-proofs with `scripts/release-candidate.sh` (task protocol in the plan); do not start a
-candidate for every slice.
-Between release cycles, merge reviewed slices after the fast gates and batch the full
-proofs with `scripts/release-candidate.sh` (task protocol in the plan); do not start a
-candidate for every slice.
+Check active release runners and workflow SHAs before dispatching. A running
+candidate freezes `main`, not independent development on a topic branch. Reuse
+its run IDs for monitoring; never duplicate the build or cancel somebody else's
+proof casually. Each push to `main` starts image CI, so batch related reviewed
+commits into one integration and use `RELEASE.md` for delivery.
 
 | Work | Read before acting | Required distinction |
 | --- | --- | --- |
@@ -107,8 +113,9 @@ not evidence that Plasma actually consumes them.
    maintained repository gate used by CI; do not extract a second test list
    from workflow YAML. Visual changes also require live interaction/rendered
    review; documentation and tooling changes do not imply a desktop redesign.
-3. **Never modify `main` casually.** Work on a branch; a bad merge does not fail a test —
-   it can boot the maintainer's machine to a black screen. That has happened.
+3. **Work on a topic branch.** Preserve unrelated edits, fetch current refs,
+   review unique commits and integrate only tested work. Main contains candidate
+   source; only proven signed promotion can reach the installed workstation.
 4. **Never disable, weaken, or delete a build gate because it fails.** A firing gate is
    telling the truth. Fix the cause (usually in `build.sh`), never the gate.
 5. **No undocumented temporary hacks.** If a workaround must exist, it is documented

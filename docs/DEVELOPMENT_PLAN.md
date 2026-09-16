@@ -5,12 +5,13 @@ system, x86, unified-platform, visual and remote-v40 plans. Current evidence is
 in [`PROJECT_STATE.md`](../PROJECT_STATE.md); release mechanics are in
 [`RELEASE.md`](../RELEASE.md).
 
-**How this plan is worked:** every unfinished task below is one execution
-backlog, in priority order P0 → P1 → P2 → P3 → P4 → P5 → P6. Work it in
-milestone batches — several related tasks per cycle, moving to the next task
-automatically, with targeted tests and `just check` as you go — and run the full
-image build, QCOW2/ISO/ARM proofs and promotion once at the end of the
-milestone. The scheduling rules are in `AGENTS.md`
+**How this plan is worked:** P0–P6 are product work streams, not a command to
+stop all visible work behind hardware that is unavailable today. Active boot,
+security and data-loss defects pre-empt everything; otherwise follow the
+milestone map below and finish a coherent user journey across its owners. Run
+targeted tests and `just check` as the batch develops, then one full image build,
+QCOW2/ISO/ARM proof set and promotion at the milestone boundary. The scheduling
+rules are in `AGENTS.md`
 ("How MoOS work is scheduled"); the release cycle itself is one command,
 `scripts/release-candidate.sh`.
 
@@ -35,36 +36,16 @@ KDE/Wayland, make cloud AI truthful, and deliver the same result in signed ISOs.
 Repository cleanup and engineering instructions support that work; screenshots,
 old plans and extra packages are not product progress.
 
-**Active slice: P2.7 visible Horizon UI and P2.3 Arabic-first keyboard.**
-Owner requested observable desktop changes: readable time/date, visible search,
-compact media island and exactly Arabic/German layouts. Live source review is
-in progress; signed image delivery and complete visual matrix remain required.
-The P2.7 Horizon feedback, clock input and native sound source was released in
-the boot-proven x86 revision `1d92082f`; its physical post-update sound/input
-readback remains part of P0.6. A reproduced Remote defect showed that a portal
-grant kept its old 1280×720 coordinate space after the desktop became
-1536×864. The current slice renews the combined capture/input grant on a real
-Wayland display-geometry change. PR #93 is merged; its earlier ISO second-boot
-proof failed. A later Horizon attempt `34885449896` completed the offline
-deployment but lost a transient ESP unmount race before the installed-disk boot.
-PR #96 added the bounded regular-unmount repair; exact revision `3298a3d9` then
-passed the three QCOW2 proofs and the full final-ISO live/offline install,
-installed-disk boot/reboot proof before promotion run `34996440151` moved the
-x86 production tags.
-
-**Next candidate: Remote typing, local RPM and the ARM disk job.** On
-2026-09-15 the owner reported that Mo PC Remote typed no English and failed with
-German and phone-language keyboards. Live KWin readback showed `ara,de` with
-Arabic active: the helper typed Latin keysyms on the Arabic group (replayed
-live: nothing arrived), German had no position table, and a desk Caps Lock
-inverts injected letters. The candidate compiles the running keymap with
-libxkbcommon from KWin's own kxkbrc names, plans text, shortcuts and physical
-keys on it, and neutralizes or synchronizes Caps Lock. It also carries the
-signature-verified Mo AI local-RPM installer (P4.1 first path) and repairs the
-ARM UTM packaging step, which failed every `main` push by copying a README the
-cleanup deleted. It must pass the signed image build, three QCOW2 proofs, the
-offline ISO proof and a dispatched ARM proof before promotion; installed
-acceptance includes typing from the owner's iPhone and German keyboard.
+**Active milestone: M1, the daily MoOS desktop journey.** The promoted physical
+station already includes the Remote live-keymap repair, signature-verified local
+RPM install and ARM packaging repair. `main` revision `57874d6c` adds Horizon 2:
+one anchored MoOS Search, the compact Remote island, localized desktop hub and
+the clock rail. Its signed build, all three x86 QCOW2 proofs and ARM proof passed;
+the ISO installed offline, opened/reopened every first-party app and reached its
+second login on serial, but its SSH reboot channel timed out before a banner.
+Because that proof is red, the candidate was not promoted. The current batch
+finishes keyboard-safe Search/Island interaction, diagnoses that ISO channel and
+then repeats the exact-revision release proof once — no duplicate release run.
 
 | Requested outcome | Work stream | What must actually be proven |
 | --- | --- | --- |
@@ -97,6 +78,9 @@ acceptance includes typing from the owner's iPhone and German keyboard.
    explicit choice, and credentials remain private user state.
 8. A build, a local image, a published candidate, a booted artifact and a
    promoted release are different states and must never be conflated.
+9. MoPlayer is a first-party in-tree application. `moplayer/` is its only source;
+   x86 and ARM build and test it directly and install only the resulting bundle.
+   No external MoPlayer branch, release archive or nested workflow participates.
 
 ## Baseline on 2026-09-13
 
@@ -136,16 +120,19 @@ measurement is `not proven`, never a pass.
 
 ## Task protocol
 
-Work in release batches. Plan slices are implemented back to back, and each
-merges into `main` as its own reviewed pull request once the fast gates pass:
-targeted tests, `just check`, PR CI, and a local image build when a Tier 1
-boot/image file changed (see `docs/AGENT_GUIDE.md`). Merging does not deploy:
+Work in release batches. Related slices may use reviewable commits, but integrate
+the coherent batch in one pull request after its fast gates pass: targeted tests,
+`just check`, PR CI, and a local image build when a Tier 1 boot/image file changed
+(see `docs/AGENT_GUIDE.md`). A push to `main` starts candidate work, so do not
+spend one image build on every small file. Merging does not deploy:
 `build.yml` pushes only `candidate-*` tags, and production tags move only
 through `promote-x86.yml` after exact-revision proofs. Do not stop and wait for
 a release cycle between slices; keep implementing while CI runs.
 
-A batch ends with one release cycle, started by `scripts/release-candidate.sh`:
-merges freeze, the signed candidate is built from `main`, the three QCOW2
+A batch ends with one release cycle, started by `scripts/release-candidate.sh`.
+Before dispatch, inspect active workflow SHA/run IDs and reuse them; never start
+a duplicate build merely to learn status. At dispatch, merges freeze, the signed
+candidate is built from `main`, the three QCOW2
 proofs, the offline ISO proof and the ARM proof run in parallel on the exact
 digests, and promotion happens only when every x86 proof passes. Merges reopen
 after promotion, or after the failure is fixed and a new cycle starts. The
@@ -170,8 +157,8 @@ For every task:
    the slice is itself a boot fix that must be proven before anything else.
 6. Update `PROJECT_STATE.md` with current evidence and update the task status
    here. Remove superseded prose instead of appending a diary.
-7. Commit one reviewable result. Report changed behavior, evidence and open
-   exclusions.
+7. Commit reviewable results and integrate the coherent batch once. Report
+   changed behavior, evidence and open exclusions.
 8. **Move straight to the next task in the batch.** Do not announce readiness and
    wait: a finished task is recorded, not celebrated. Stop only for a real
    blocker — something that needs the owner (hardware, a credential, a reboot),
@@ -182,6 +169,20 @@ For every task:
    whole cycle at the end: what landed, what each proof showed, what is open.
 
 ## Ordered execution
+
+### Milestone map
+
+| Milestone | Coherent outcome | Work-stream rows | Boundary proof |
+| --- | --- | --- | --- |
+| M0 | One honest source/release/workstation state | P0.1–P0.2, P0.6, release harness defects | signed build + 3×QCOW2 + ISO + ARM; exact installed readback |
+| **M1 active** | Daily shell feels like one MoOS product: Bar, Search, Island, clock, sound, keyboard and desktop hub | P2.3–P2.5, P2.7–P2.8, P5.4 baseline | native keyboard/render review, matrix samples, then the M0 artifact set |
+| M2 | Workspace, Intro, login/lock/boot and first-run form one journey | P1.6, P2.1–P2.2, P2.5, P5.8 | clean and upgraded profiles; offline/online; Wayland restart and scale/hotplug |
+| M3 | Settings, Store and Mo AI complete real jobs with one authority | P1.7, P3.1–P3.7, P4.1–P4.2 | schema/failure fixtures plus install/update/remove and confirmed AI-action readback |
+| M4 | Hardware and compatibility breadth | P0.3–P0.5, P4.3–P4.5, P5.1–P5.8 | device records, suspend/rollback and published compatibility evidence |
+| M5 | Sustainable releases and support | P6.1–P6.6 | reproducible inputs, attestations, staged rollout and support policy |
+
+Rows can contribute to more than one milestone. A row closes only when its own
+exit evidence exists; the map controls batching, not truth.
 
 ### P0 — Establish one proven release
 
@@ -195,7 +196,7 @@ revision and all required editions/artifacts prove that revision.
 | P0.3 | Open | Finish physical NVIDIA qualification | Plymouth/login photos; two suspend cycles; audio/network recovery; second monitor; clean journal |
 | P0.4 | Open | Prove failed-update recovery | disposable VM bad-candidate rollback, then hardware rollback/roll-forward with user data intact |
 | P0.5 | Open | Configure and accept free Mo AI on a clean account | valid OpenRouter key entered through Settings; Arabic/English reply; reboot persistence; provider failure UI |
-| P0.6 | **In progress** | Promote only the proven digests and update the physical PC | promotion 34807542252 succeeded; NVIDIA digest `76861a3b…` is staged; reboot/readback and full post-update check remain |
+| P0.6 | **In progress** | Promote only the proven digests and update the physical PC | station boots signed NVIDIA `44.20260915.836` (`086f7086…`) with prior signed deployment retained; next candidate must pass the complete proof set before stage/reboot/readback |
 
 Repository cleanup is complete: retired plans/evidence/assets were removed,
 and all 14 historical remote branches were proven ancestors of `main` before
@@ -275,7 +276,7 @@ classification, and retain the full accessible/error meaning at small widths.
 | P2.5 | Run the visual matrix | 1080p–4K, 100–250%, RTL/LTR, light/dark, reduced motion; measured contrast and no clipping |
 | P2.6 | Remove remaining retired UI names/assets and enforce reachability | generated asset manifest; every shipped asset has a runtime/generator/test consumer |
 | P2.7 | **Active:** complete existing Horizon feedback, clock input and original system sound | Shared finite spring with stable hit targets; reversal/hidden/reduced-motion tests; real clock keys; KDE event playback and mute/custom overrides; image and upgraded-session proof |
-| P2.8 | **In progress:** compose MoOS Bar, Search and Island (experience goals 1–2 in `artwork/MOOS_UI2_DESIGN.md`) | Search opens one anchored surface with Milou results, recent apps, destinations, keyboard hints and an explicit Mo AI hand-off; the Remote island announces then settles to a live chip; clock and desktop hub follow MoUI.Locale; remaining: typed-query and English/German frames, and the booted-candidate readback |
+| P2.8 | **In progress:** compose MoOS Bar, Search and Island (experience goals 1–2 in `artwork/MOOS_UI2_DESIGN.md`) | one anchored Milou surface with recent apps/destinations/Mo AI, stale-result protection and complete keyboard escape/traversal; Remote keeps privacy priority while its popup can switch to media; native ≥40 px controls; localized clock/hub; remaining: English/German matrix and booted-candidate readback |
 
 P2.7 retains the stock Plasma task manager and one existing panel writer. It
 does not install an unrelated dock/effects pack. Qt's native spring provides

@@ -85,7 +85,7 @@ RUN dotnet publish agent-linux/MoRemoteLinux.csproj -c Release -r linux-arm64 \
 # pinned stable Git tag, which downloads matching arm64 engine artifacts on the
 # native runner. Build against Fedora 44's libmpv, just like the x86 bundle.
 FROM registry.fedoraproject.org/fedora:44 AS moplayer-build
-ARG FLUTTER_VERSION=3.44.8
+ARG FLUTTER_VERSION=3.47.4
 RUN dnf -y install --setopt=install_weak_deps=False \
         clang cmake ninja-build pkgconf-pkg-config gtk3-devel mpv-libs-devel \
         xz zip unzip git curl file which findutils \

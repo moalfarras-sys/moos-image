@@ -238,6 +238,20 @@ PlasmoidItem {
         && isFinite(root.volume) && root.volume >= 0
     property real lastAudibleVolume: 0.65
     property bool compactHovered: false
+    property bool compactFocused: false
+    readonly property bool compactInteractive: root.compactHovered || root.compactFocused
+
+    // Remote always owns the bar while it is connected. The popup can inspect
+    // media too, without hiding the live sharing indicator or picking another
+    // player outside Plasma's MPRIS authority.
+    property string detailContext: "remote"
+    readonly property bool multipleContexts: root.remotePresent && root.mediaPresent
+    readonly property bool showRemoteDetails: root.remotePresent
+        && (root.detailContext !== "media" || !root.mediaPresent)
+    function openDetails() {
+        root.detailContext = root.remotePresent ? "remote" : "media";
+        root.expanded = true;
+    }
 
     // Decode rasters for the DEVICE, not for logical pixels. A sourceSize is a
     // hard cap on the decoded image, so a fixed number silently under-samples
@@ -249,132 +263,6 @@ PlasmoidItem {
     readonly property real pixelRatio: Math.max(1, Screen.devicePixelRatio)
     function decodePx(logical) {
         return Math.ceil(Math.max(1, logical) * root.pixelRatio);
-    }
-
-    // A control that OPENS with the capsule instead of appearing inside it.
-    //
-    // These were plain `visible: hovered` buttons. visible flips at frame 0
-    // while the capsule is still widening over motionGeometry, so all three
-    // icons took their full layout width instantly, crushed the title beside
-    // them, and then the text sprang back as the space caught up — the capsule
-    // moved smoothly and its contents jumped. Giving the slot the SAME clock
-    // and easing as the capsule's own implicitWidth makes the two read as one
-    // movement: the capsule opens and the controls travel out of its edge.
-    // Width carries the layout, opacity carries the ink slightly faster so the
-    // icons are legible before they finish arriving, and visible follows the
-    // width so a closed control costs no layout space at rest.
-    // ONE control, designed — not a bare Plasma ToolButton dropped into glass.
-    //
-    // The transport used PC3.ToolButton with display:IconOnly, which inherits
-    // the panel's own metrics: the icons came out around 28 px beside 14 px
-    // type, sat on no surface at all, and each carried the widget style's
-    // generic hover. Against a Liquid Glass capsule that reads as leftover
-    // system parts, not as part of the product. This gives every control the
-    // same geometry (a 30 px circular target with a 16 px glyph), the same
-    // resting transparency, and the same glass fill on hover/press, so the
-    // whole cluster keeps one rhythm and one language.
-    //
-    // The reveal is folded in here rather than wrapped around it: width and
-    // ink travel on the capsule's own clock and easing, so the capsule and its
-    // controls are a single movement, and a hidden control costs no layout
-    // space at rest. Anchored to the edge the capsule grows from (RTL-aware)
-    // so the glyph slides out of the rim instead of being squeezed.
-    component MediaControl: Item {
-        id: control
-        property alias iconName: controlIcon.source
-        property bool revealed: true
-        property bool controlEnabled: true
-        property string label: ""
-        // The one action the surface exists for gets a filled plate and more
-        // room; everything else stays a ghost. The expanded popup used to give
-        // play/pause, previous and next the same bare glyph at the same
-        // weight, so nothing said which one was the point.
-        property bool primary: false
-        property real slotSize: control.primary ? 52 : 30
-        signal activated
-
-        readonly property real glyphSize: Math.round(control.slotSize * 0.5)
-        // One progress value owns layout, ink and travel. The old version
-        // animated width and opacity independently, so the glyph appeared at
-        // the edge before the slot was wide enough to hold it. That looked like
-        // three separate buttons popping into a bar that happened to resize.
-        // This is one reveal: the slot opens while its key travels out of the
-        // capsule edge and settles at full opacity.
-        property real revealProgress: control.revealed ? 1 : 0
-
-        Layout.preferredWidth: control.slotSize * control.revealProgress
-        Layout.preferredHeight: control.slotSize
-        Layout.alignment: Qt.AlignVCenter
-        clip: true
-        opacity: control.revealProgress * (control.controlEnabled ? 1 : 0.35)
-        visible: Layout.preferredWidth > 0.5
-        enabled: control.controlEnabled
-
-        Behavior on revealProgress {
-            NumberAnimation {
-                duration: root.motionGeometry
-                easing.type: root.design.easeEmphasis
-            }
-        }
-
-        Item {
-            width: control.slotSize
-            height: control.slotSize
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.right: root.rtl ? undefined : parent.right
-            anchors.left: root.rtl ? parent.left : undefined
-            opacity: 0.25 + control.revealProgress * 0.75
-            scale: 0.90 + control.revealProgress * 0.10
-            transform: Translate {
-                x: (root.rtl ? -1 : 1)
-                   * (1 - control.revealProgress) * root.design.space2
-            }
-
-            Rectangle {
-                id: controlPlate
-                anchors.fill: parent
-                radius: width / 2
-                color: control.primary
-                    ? Qt.alpha(Kirigami.Theme.highlightColor,
-                               controlTap.pressed ? 1.0
-                                   : (controlHover.hovered ? 0.92 : 0.82))
-                    : Qt.alpha(Kirigami.Theme.textColor,
-                               controlTap.pressed ? 0.18
-                                   : (controlHover.hovered ? 0.10 : 0.0))
-                Behavior on color {
-                    ColorAnimation { duration: root.motionFast }
-                }
-            }
-
-            Kirigami.Icon {
-                id: controlIcon
-                anchors.centerIn: parent
-                width: control.glyphSize
-                height: control.glyphSize
-                color: control.primary ? Kirigami.Theme.highlightedTextColor
-                                       : Kirigami.Theme.textColor
-                scale: glyphFeedback.value
-                MoUI.SpringFeedback {
-                    id: glyphFeedback
-                    active: controlIcon.visible
-                    targetScale: controlTap.pressed ? root.design.pressScale : 1
-                    motionEnabled: root.motionEnabled
-                }
-            }
-
-            HoverHandler {
-                id: controlHover
-                cursorShape: Qt.PointingHandCursor
-            }
-            TapHandler {
-                id: controlTap
-                onTapped: control.activated()
-            }
-
-            Accessible.role: Accessible.Button
-            Accessible.name: control.label
-            Accessible.onPressAction: control.activated()
-        }
     }
 
     // Paused media remains useful. Stopped media gets a short release grace so
@@ -395,6 +283,7 @@ PlasmoidItem {
         if (root.mediaPresent) { releaseGrace.stop(); }
         else { releaseGrace.restart(); }
     }
+    onActiveChanged: if (!root.active) { root.expanded = false; }
     onVolumeChanged: {
         if (root.volume > 0.01) { root.lastAudibleVolume = root.volume; }
     }
@@ -418,6 +307,7 @@ PlasmoidItem {
     property bool remoteAnnouncing: false
     readonly property bool remoteSettled: root.remotePresent && !root.remoteAnnouncing
                                           && !root.compactHovered && !root.expanded
+                                          && !root.compactFocused
     function announceRemote() {
         // Read the two inputs, not the remotePresent binding: a change handler can run before
         // that binding has re-evaluated. Measured on the station: the handler for the new session
@@ -426,6 +316,7 @@ PlasmoidItem {
         const present = root.remoteSessions > 0
             && (root.remoteMode === "active" || root.remoteMode === "paused");
         if (present) {
+            root.detailContext = "remote";
             root.remoteAnnouncing = true;
             remoteAnnounce.restart();
         } else {
@@ -449,7 +340,8 @@ PlasmoidItem {
         interval: 1000
         repeat: true
         running: root.playing && root.hasTimeline
-                 && (root.expanded || root.compactHovered)
+                 && root.visible && (root.expanded || root.compactHovered)
+                 && (!root.remotePresent || (root.expanded && !root.showRemoteDetails))
         onTriggered: if (root.player) { root.player.updatePosition(); }
     }
 
@@ -465,8 +357,20 @@ PlasmoidItem {
     switchWidth: Kirigami.Units.gridUnit * 16
     switchHeight: Kirigami.Units.gridUnit * 11
 
-    compactRepresentation: Item {
+    compactRepresentation: FocusScope {
         id: compact
+        activeFocusOnTab: root.active
+        onActiveFocusChanged: root.compactFocused = activeFocus
+        Keys.onReturnPressed: root.openDetails()
+        Keys.onEnterPressed: root.openDetails()
+        Keys.onSpacePressed: event => {
+            if (!event.isAutoRepeat) { root.openDetails(); }
+        }
+        Keys.onEscapePressed: root.expanded = false
+        Accessible.role: Accessible.Button
+        Accessible.name: root.contextTitle
+        Accessible.description: root.contextSource
+        Accessible.onPressAction: root.openDetails()
 
         readonly property real baseWidth: 194 + root.bounded(
             root.contextTitle.length * 1.35, 24, 64)
@@ -480,14 +384,16 @@ PlasmoidItem {
               + (root.canGoNext ? 1 : 0)
               + (root.hasVolume ? 1 : 0)
         readonly property real hoverExtra: revealedControlCount > 0
-            ? revealedControlCount * 30
+            ? revealedControlCount * 40
               + Math.max(0, revealedControlCount - 1) * root.design.space1
             : 0
         // The settled Remote chip: glyph plate plus the capsule's own rim insets.
         readonly property real chipWidth: 72
         implicitWidth: root.active
             ? (root.remoteSettled ? chipWidth
-               : Math.round(baseWidth + (compactHover.hovered ? hoverExtra : 0)))
+               : Math.round(baseWidth + Math.max(
+                  compactHover.hovered ? hoverExtra : 0,
+                  root.compactFocused ? hoverExtra : 0)))
             : 1
         implicitHeight: root.design.panelHeight
         Layout.preferredWidth: implicitWidth
@@ -545,9 +451,10 @@ PlasmoidItem {
             color: Qt.alpha(Kirigami.Theme.backgroundColor,
                             root.design.glassDensity(Kirigami.Theme.backgroundColor)
                             + (compactHover.hovered ? 0.05 : 0))
-            border.width: root.design.borderHairline
-            border.color: Qt.alpha(Kirigami.Theme.textColor,
-                                   compactHover.hovered ? 0.22 : 0.13)
+            border.width: compact.activeFocus ? 2 : root.design.borderHairline
+            border.color: compact.activeFocus ? Kirigami.Theme.highlightColor
+                : Qt.alpha(Kirigami.Theme.textColor,
+                           compactHover.hovered ? 0.22 : 0.13)
             antialiasing: true
 
             Behavior on border.color {
@@ -604,13 +511,13 @@ PlasmoidItem {
                     }
                 }
                 onWheel: wheel => {
-                    if (!root.player || !root.hasVolume) { return; }
+                    if (root.remotePresent || !root.player || !root.hasVolume) {
+                        wheel.accepted = false;
+                        return;
+                    }
                     root.player.changeVolume(wheel.angleDelta.y > 0 ? 0.05 : -0.05,
                                              true);
                 }
-                Accessible.role: Accessible.Button
-                Accessible.name: root.contextTitle
-                Accessible.description: root.contextSource
             }
 
             // A COLUMN, not two anchored siblings. The content row and the
@@ -768,15 +675,30 @@ PlasmoidItem {
                     // it collapses to nothing when the user has motion off
                     // because motionFast is already gated on longDuration > 1.
                     opacity: 1
+                    function stopTrackTurn() {
+                        trackTurn.stop();
+                        compactText.opacity = 1;
+                        trackShift.y = 0;
+                    }
+                    onVisibleChanged: if (!visible) { stopTrackTurn(); }
                     Connections {
                         target: root
                         function onDisplayTrackChanged() {
-                            if (root.motionEnabled) {
+                            if (root.motionEnabled && compactText.visible
+                                    && !root.remotePresent && root.visible) {
                                 trackTurn.restart();
                             } else {
-                                compactText.opacity = 1;
-                                trackShift.y = 0;
+                                compactText.stopTrackTurn();
                             }
+                        }
+                        function onMotionEnabledChanged() {
+                            if (!root.motionEnabled) { compactText.stopTrackTurn(); }
+                        }
+                        function onRemotePresentChanged() {
+                            if (root.remotePresent) { compactText.stopTrackTurn(); }
+                        }
+                        function onVisibleChanged() {
+                            if (!root.visible) { compactText.stopTrackTurn(); }
                         }
                     }
                     ParallelAnimation {
@@ -834,7 +756,7 @@ PlasmoidItem {
                 }
 
                 MediaControl {
-                    revealed: !root.remotePresent && compactHover.hovered
+                    revealed: !root.remotePresent && root.compactInteractive
                               && root.canGoPrevious
                     controlEnabled: root.canGoPrevious
                     iconName: root.rtl ? "media-skip-forward-symbolic"
@@ -857,7 +779,7 @@ PlasmoidItem {
                 }
 
                 MediaControl {
-                    revealed: !root.remotePresent && compactHover.hovered
+                    revealed: !root.remotePresent && root.compactInteractive
                               && root.canGoNext
                     controlEnabled: root.canGoNext
                     iconName: root.rtl ? "media-skip-backward-symbolic"
@@ -867,7 +789,7 @@ PlasmoidItem {
                 }
 
                 MediaControl {
-                    revealed: !root.remotePresent && compactHover.hovered
+                    revealed: !root.remotePresent && root.compactInteractive
                               && root.hasVolume
                     controlEnabled: root.hasVolume
                     iconName: root.volume <= 0.01
@@ -933,21 +855,24 @@ PlasmoidItem {
         }
     }
 
-    fullRepresentation: Item {
+    fullRepresentation: FocusScope {
         id: expanded
+        Keys.onEscapePressed: root.expanded = false
 
         Layout.preferredWidth: Kirigami.Units.gridUnit * 21
         Layout.preferredHeight: Kirigami.Units.gridUnit
-                                * (root.remotePresent ? 13 : 17)
+                                * (root.showRemoteDetails ? 13 : 17)
+                                + (root.multipleContexts ? 48 : 0)
         Layout.minimumWidth: Kirigami.Units.gridUnit * 18
         Layout.minimumHeight: Kirigami.Units.gridUnit
-                              * (root.remotePresent ? 12 : 15)
+                              * (root.showRemoteDetails ? 12 : 15)
+                              + (root.multipleContexts ? 48 : 0)
         opacity: root.motionEnabled ? 0 : 1
         scale: root.motionEnabled ? 0.96 : 1
         transformOrigin: Item.Top
 
         function revealPopup() {
-            if (!root.motionEnabled) {
+            if (!root.motionEnabled || !root.expanded || !expanded.visible) {
                 expandedEntrance.stop();
                 expanded.opacity = 1;
                 expanded.scale = 1;
@@ -961,10 +886,11 @@ PlasmoidItem {
         Connections {
             target: root
             function onExpandedChanged() {
-                if (root.expanded) { expanded.revealPopup(); }
+                expanded.revealPopup();
             }
             function onMotionEnabledChanged() { expanded.revealPopup(); }
         }
+        onVisibleChanged: revealPopup()
         ParallelAnimation {
             id: expandedEntrance
             NumberAnimation {
@@ -977,11 +903,35 @@ PlasmoidItem {
             }
         }
 
+        PC3.TabBar {
+            id: contextTabs
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.margins: root.design.space4
+            visible: root.multipleContexts
+            currentIndex: root.showRemoteDetails ? 0 : 1
+            LayoutMirroring.enabled: root.rtl
+            LayoutMirroring.childrenInherit: true
+            PC3.TabButton {
+                text: root.local("التحكم عن بُعد", "Remote")
+                icon.name: "moos-pc-remote"
+                onClicked: root.detailContext = "remote"
+            }
+            PC3.TabButton {
+                text: root.local("الوسائط", "Media")
+                icon.name: root.playerIcon
+                onClicked: root.detailContext = "media"
+            }
+        }
+
         ColumnLayout {
             anchors.fill: parent
             anchors.margins: root.design.space5
+            anchors.topMargin: root.multipleContexts
+                ? contextTabs.height + root.design.space5 * 2 : root.design.space5
             spacing: root.design.space4
-            visible: root.remotePresent
+            visible: root.showRemoteDetails
             layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
             RowLayout {
@@ -1072,8 +1022,10 @@ PlasmoidItem {
         ColumnLayout {
             anchors.fill: parent
             anchors.margins: root.design.space5
+            anchors.topMargin: root.multipleContexts
+                ? contextTabs.height + root.design.space5 * 2 : root.design.space5
             spacing: root.design.space4
-            visible: !root.remotePresent
+            visible: !root.showRemoteDetails
             layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
             RowLayout {
@@ -1251,7 +1203,7 @@ PlasmoidItem {
                 spacing: root.design.space2
 
                 MediaControl {
-                    slotSize: 28
+                    slotSize: 40
                     controlEnabled: root.hasVolume
                     iconName: root.volume <= 0.01
                         ? "audio-volume-muted-symbolic"

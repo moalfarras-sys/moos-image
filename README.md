@@ -45,7 +45,7 @@ Containerfile.arm             native ARM image
 build_files/                  image assembly and build-time gates
 system_files/                 immutable MoOS filesystem overlay
 artwork/                      canonical design sources and deterministic generators
-moplayer/                     vendored MoPlayer source and tests
+moplayer/                     first-party MoPlayer source and tests
 moremote/                     Mo PC Remote source and component documentation
 iso/                          offline ISO inputs
 tests/                        repository, image, VM and hardware verification
@@ -56,11 +56,12 @@ RELEASE.md                    release/promotion contract
 
 ## Development workflow
 
-Create one branch for one bounded task. Before editing, reproduce the problem
-or record the missing proof. After editing, run the smallest relevant regression
-test, then the complete repository gate. Boot-, driver-, identity- and installer
-changes also require a complete image build and the matching VM or hardware
-proof.
+Work on a branch for a coherent experience batch from the active milestone in
+`docs/DEVELOPMENT_PLAN.md`. Establish source, live-machine and release state
+first; preserve unrelated local edits. Implement related tasks together, run
+focused checks while iterating, then `just check` before publishing. Review
+visual changes on the running surface. Tier 1 boot/image changes require a
+complete local image build; other UI changes share one build at milestone end.
 
 ```bash
 just workstation-check     # read-only host/SDK capability inventory
@@ -74,15 +75,21 @@ For the physical development machine, inspect the host from the VS Code
 sandbox with `flatpak-spawn --host`. GUI programs must be launched through
 `moai-open` so they survive the command session.
 
-Every finished task must end with:
+Record each finished task with:
 
 - the exact behavior changed;
 - tests and physical/artifact evidence;
 - remaining risks or untested surfaces;
 - `PROJECT_STATE.md` and the task status in
   `docs/DEVELOPMENT_PLAN.md` updated;
-- the sentence **“Task complete; ready for the next task.”** only when no work
-  for that task remains.
+- source, live-review and release status separately. Continue the next
+  unblocked task in the batch without waiting for another instruction.
+
+The plan selects the batch, `AGENTS.md` defines engineering invariants,
+`artwork/MOOS_UI2_DESIGN.md` defines MoOS UI, and `RELEASE.md` specifies
+candidate proof and promotion. At batch end, merge reviewed source and freeze
+one revision for `scripts/release-candidate.sh`. Do not start another candidate
+while an existing release runner still owns that freeze.
 
 ## Release boundary
 
@@ -105,9 +112,6 @@ initramfs, signature, route or runtime-loading gate to get a green result.
 
 ## Current status
 
-The first offline ISO installation on the physical development PC succeeded.
-The machine boots the signed NVIDIA edition, the driver owns the GPU on Wayland,
-and the repaired source builds a complete NVIDIA image locally. Mo AI's UI and
-gateway are present, but free cloud chat still requires a valid OpenRouter key.
-See [`PROJECT_STATE.md`](PROJECT_STATE.md) for exact versions, evidence and open
-hardware checks.
+See [`PROJECT_STATE.md`](PROJECT_STATE.md) for the measured installed version,
+promoted revision, newer source, live Mo AI evidence and open hardware checks.
+This entry point carries no duplicate release or readiness status.
