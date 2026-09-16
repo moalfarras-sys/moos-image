@@ -195,28 +195,24 @@ class SinglePanelMerge(unittest.TestCase):
                          "the panel holding the MoOS launcher is the one that survives")
         self.assertEqual(self.order_of(merged, "20"), ["22", "32", "33", "21", "11", "31"])
 
-    def test_a_locked_desktop_is_handed_back_to_its_owner(self) -> None:
-        """immutability=1 is Plasma's "Widgets are locked".
+    def test_invalid_immutability_is_repaired_to_mutable(self) -> None:
+        """Plasma's ImmutabilityType is Mutable=1, UserImmutable=2, SystemImmutable=4.
 
-        It does not merely stop a drag: it removes Add Widgets, Configure and
-        every applet's own settings from the context menus, so the desk goes
-        read-only with nothing on screen explaining why. Found live on this
-        machine on BOTH the panel and the folder containment, with nothing in
-        this repo setting it — a stray lock from an earlier session that had
-        been in force ever since. MoOS does not ship a desktop its owner cannot
-        arrange.
+        An earlier revision read 1 as a lock and wrote 0, a value outside the
+        enum that Plasma treats as not mutable. Every widget it touched lost its
+        Remove button; the owner could not delete a desktop widget (measured
+        live, 2026-09-17). Invalid values become Mutable; a user's own lock
+        and a system lock are kept.
         """
         src = "\n".join((
             panel("398", {"400": "org.kde.plasma.icontasks", "424": BRAND},
-                  order=["424", "400"], immutability="1"),
-            panel("417", {}, location="0", immutability="1"),
+                  order=["424", "400"], immutability="0"),
+            panel("417", {}, location="0", immutability="2"),
         ))
         _, out, _ = self.run_merge(src)
-        self.assertNotIn("immutability=1", out,
-                         "every containment must come back mutable")
-        self.assertEqual(out.count("immutability=0"), 2,
-                         "the folder containment counts too — a locked desktop "
-                         "is exactly where 'I cannot add widgets' comes from")
+        self.assertNotIn("immutability=0", out, "0 is not a Plasma immutability type")
+        self.assertIn("immutability=1", out, "an invalid value must become Mutable")
+        self.assertIn("immutability=2", out, "a lock the user chose is kept")
 
     def test_a_users_own_top_or_side_panel_is_never_absorbed(self) -> None:
         src = "\n".join((

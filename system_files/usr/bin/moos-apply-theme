@@ -214,7 +214,12 @@ set -uo pipefail
 #     scene package (org.moos.ui2.wallpaper): a live review copy of either
 #     outranks /usr exactly like the plasmoids rev 29 cleaned, and the station
 #     carried both while this revision was reviewed.
-THEME_REV=59
+# 60: widgets become removable again. moos-bar-apply had been writing
+#     immutability=0 — not a Plasma type — into every containment AND applet,
+#     so every widget was locked and had no Remove button (the owner could not
+#     delete the desktop Disk Activity widget). The repair now writes Mutable (1)
+#     only over invalid values and keeps a user's own lock.
+THEME_REV=60
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

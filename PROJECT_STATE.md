@@ -134,6 +134,18 @@ installed; W1's `THEME_REV=58` removes the island and clock copies only.
   in-tree MoPlayer source and are verified with that SDK.
 - `.kilo/` is local untracked agent state and is not product source.
 
+## Widget lock defect (fixed in source, THEME_REV 60)
+
+`moos-bar-apply` wrote `immutability=0` into every containment and applet group.
+Plasma's types are Mutable=1, UserImmutable=2, SystemImmutable=4 (read from
+`PlasmaCore.Types` here), so 0 left every widget locked: in edit mode the desktop
+Disk Activity widget showed rotate, configure and background buttons but no
+Remove. The station was repaired live (runtime unlock, then `0` to `1` in the
+appletsrc with plasmashell stopped; backup in `~/.cache/moos-live/`). The source
+repair now writes Mutable only over invalid values and keeps user/system locks.
+A runtime KWin wobbly-windows trial was inconclusive in still captures and was
+unloaded again; physical window motion stays planned for wave W4.
+
 ## Open evidence gaps
 
 - Fix and rerun the exact ISO second-boot proof; then promote, stage, reboot and
