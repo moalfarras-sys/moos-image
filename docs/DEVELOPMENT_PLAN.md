@@ -73,7 +73,7 @@ reviewed live, gated once, merged once and proven once.
 
 | Wave | Milestone | User-visible content | State |
 | --- | --- | --- | --- |
-| W1 | M1 | MoOS Search surface, settling Remote chip, clock rail, localized Hub, keyboard-safe Search/Island, in-tree MoPlayer, hardened ISO proof | candidate proof running (`--ref` branch run `35148344935`) |
+| W1 | M1 | MoOS Search surface, settling Remote chip, clock rail, localized Hub, keyboard-safe Search/Island, in-tree MoPlayer, hardened ISO proof | **promoted** `92248b5d` / `44.20260916.848` (run `35156269206`); ARM held by a `plymouthd` crash |
 | W2 | M1 | MoOS Hub controls (desktop right-click show/hide and per-card toggles, wallpaper page), review-shadow retirement, unified instructions and this program | in review on `feat/moos-experience-wave2-20260916` |
 | W3 | M1 | MoOS Island jobs (Store installs, updates, downloads) and privacy chips (camera, microphone, screen share); Search inline answers (calculator, units, file actions) | planned |
 | W4 | M2 | MoOS Workspace: MoOS-styled overview, one-click tiling layouts, window open/close/minimise durations taken from MoOS Motion, gesture defaults | planned |
@@ -304,7 +304,8 @@ revision and all required editions/artifacts prove that revision.
 | P0.3 | Open | Finish physical NVIDIA qualification | Plymouth/login photos; two suspend cycles; audio/network recovery; second monitor; clean journal |
 | P0.4 | Open | Prove failed-update recovery | disposable VM bad-candidate rollback, then hardware rollback/roll-forward with user data intact |
 | P0.5 | Open | Configure and accept free Mo AI on a clean account | valid OpenRouter key entered through Settings; Arabic/English reply; reboot persistence; provider failure UI |
-| P0.6 | **In progress** | Promote only the proven digests and update the physical PC | station boots signed NVIDIA `44.20260915.836` (`086f7086…`) with prior signed deployment retained; next candidate must pass the complete proof set before stage/reboot/readback |
+| P0.6 | **In progress** | Promote only the proven digests and update the physical PC | W1 (`92248b5d`, `44.20260916.848`) is promoted for x86; the station still boots `44.20260915.836` until the staged update is rebooted and read back |
+| P0.7 | Open | Remove the intermittent ARM second-boot `plymouthd` crash | SEGV in `on_new_frame` failed ARM runs on 2026-09-15 and `35150466421`; reproduce with ARM-only branch dispatches, fix without weakening the zero-failed-unit gate, then two consecutive green ARM proofs |
 
 Repository cleanup is complete: retired plans/evidence/assets were removed,
 and all 14 historical remote branches were proven ancestors of `main` before

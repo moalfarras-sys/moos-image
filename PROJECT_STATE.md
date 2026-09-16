@@ -1,23 +1,27 @@
 # MoOS current state
 
-Current measured facts only; Git owns history. Last measured 2026-09-16.
+Current measured facts only; Git owns history. Last measured 2026-09-17.
 
 ## Source and release truth
 
-- `origin/main` is `57874d6c` (PR #106, Horizon 2). All historical remote topic
-  heads are ancestors of `main`; no unique branch commit is waiting to merge.
-- The physical release is revision `5fce15df`, version `44.20260915.836`.
-  Promotion run `35060599655` moved and read back the x86 production tags:
-  generic `fa5cbfe3…`, NVIDIA `086f7086…`, cloud `42a95f1d…`.
-- The next signed candidate was built from exact revision `57874d6c` in run
-  `35088882717`: generic `946549c7…`, NVIDIA `0301e6f6…`, cloud `19d0f44c…`.
-  Generic/NVIDIA/cloud QCOW2 runs `35091019991`/`35091023951`/`35091027313`
-  and ARM run `35091035163` passed.
-- ISO run `35091031129` installed offline, booted the target disk, reached the
-  desktop, opened/closed/reopened all ten first-party apps, and serial proved a
-  different second kernel reached the MoOS login. Its SSH proof channel timed
-  out before a banner on that second boot, so the workflow failed and **no tag
-  was promoted**. The active branch is repairing and diagnosing that proof path.
+- `origin/main` is `f91c0366`, the merge of wave W1 (PR #107) whose tree is
+  identical to candidate `92248b5d`. Wave W2 is PR #108. Every other remote
+  topic branch is an ancestor of `main`.
+- **Production is W1**: revision `92248b5d`, version `44.20260916.848`, promoted
+  by run `35156269206` from build `35148344935`, QCOW2 generic/NVIDIA/cloud
+  `35150447739`/`35150452495`/`35150457478` and ISO `35150461926` (all attempt 1).
+  Read back from the registry: generic `f1d62342…`, NVIDIA `2b4b04c4…`, cloud
+  `51a3f37c…`. The hardened ISO proof passed both reboot channels.
+- The first promotion attempt `35156091444` failed after copying the new
+  `:20260916` tag: GHCR answered "manifest unknown" to the immediate read, and
+  the tag resolved to the copied digest seconds later; `latest` never moved. The
+  fresh dispatch succeeded. W2 makes that read a bounded wait for the exact digest.
+- **ARM is not promoted.** ARM run `35150466421` built, then its second boot left
+  `plymouth-start.service` failed: `plymouthd` SEGV in `on_new_frame` →
+  `ply_list_node_get_data` (plymouth 24.004.60, aarch64). The same crash failed
+  the 2026-09-15 ARM run, and a re-run passed, so it is an intermittent boot
+  defect, not a flaky gate. The previous candidate `57874d6c` was never promoted
+  (its ISO SSH channel timed out).
 - A merged commit or locally built image is not an installed or released state.
   Production moves only after the exact candidate passes 3×QCOW2 + ISO; ARM is
   separately required evidence.
@@ -147,10 +151,11 @@ installed; W1's `THEME_REV=58` removes the island and clock copies only.
 
 ## Next execution
 
-When branch run `35148344935` and its proofs pass, merge PR #107 with a merge
-commit (tree identical to `92248b5d`) and promote those exact runs through
-`promote-x86.yml`; a red proof is fixed on a branch and dispatched fresh. Then
-merge W2, run one `scripts/release-candidate.sh --promote`, and have the owner
-update and reboot; read the Hub controls, Search and Island back from `/usr` and
-confirm the review shadows were swept. W3 (Island jobs and privacy chips, Search
-answers) follows as the next wave.
+W1 is promoted. `moos-auto-update.timer` (04:36) stages the signed
+`44.20260916.848` NVIDIA image on this station; the owner may also stage it now
+from the Updater, and a reboot applies it. Merge W2, run one
+`scripts/release-candidate.sh --promote`, then read the Hub controls, Search and
+Island back from `/usr` after the next update and confirm the review shadows were
+swept. Diagnose the ARM `plymouthd` crash with an ARM-only branch dispatch before
+the next ARM promotion. W3 (Island jobs and privacy chips, Search answers) is the
+next visual wave.

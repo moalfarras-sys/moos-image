@@ -237,6 +237,25 @@ jobs:
           [ "$(git rev-parse "${REVISION}^{tree}")" = "$(git rev-parse 'origin/main^{tree}')" ] \
             || { echo "FATAL: main changed after release validation" >&2; exit 1; }
 
+          # GHCR does not guarantee read-after-write for a tag it has never
+          # served. Promotion 35156091444 copied the first `:20260916` tag and
+          # the immediate inspect answered "manifest unknown"; the same tag
+          # resolved to the copied digest seconds later. Wait for the exact
+          # digest for a bounded time — a DIFFERENT digest still fails at once.
+          read_tag_digest() {
+            local target="$1" attempt value
+            for attempt in 1 2 3 4 5 6; do
+              if value="$(skopeo inspect --format '{{.Digest}}' "docker://${target}" 2>/dev/null)" \
+                  && [ -n "$value" ]; then
+                printf '%s\n' "$value"
+                return 0
+              fi
+              echo "waiting for ${target} to become readable (attempt ${attempt}/6)" >&2
+              sleep $((attempt * 5))
+            done
+            skopeo inspect --format '{{.Digest}}' "docker://${target}"
+          }
+
           promote_tag() {
             local ref="$1" tag="$2"
             repository="${ref%@*}"
@@ -244,7 +263,7 @@ jobs:
             source_ref="docker://${ref}"
             target_ref="${repository}:${tag}"
             skopeo copy --preserve-digests "$source_ref" "docker://${target_ref}"
-            resolved="$(skopeo inspect --format '{{.Digest}}' "docker://${target_ref}")"
+            resolved="$(read_tag_digest "$target_ref")"
             [ "$resolved" = "$digest" ] \
               || { echo "FATAL: ${target_ref} resolved to ${resolved}, expected ${digest}" >&2; exit 1; }
             cosign verify --key cosign.pub "$target_ref" >/dev/null
