@@ -149,6 +149,7 @@ python3 tests/test_cloud_subid_range.py
 # rescue screen at the newer version, the opposite of what rollback does.
 python3 tests/test_recovery_rollback_target.py
 python3 tests/test_update_state_machine.py
+python3 tests/test_support_bundle_redaction.py
 # The Mo AI per-user port generator must fail CLOSED: no account but uid 1000 may resolve to
 # the base ports 8080/8079/8077, or the 11th cloud tenant reaches uid 1000's key-holding
 # gateway. The old guard exited without printing for uid>=1010, which fell back to the base.
