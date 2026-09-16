@@ -92,7 +92,7 @@ def main():
     lp = live_parent()
     try:
         doc = json.loads(run(["lsblk", "-b", "-d", "-J", "-o",
-                              "NAME,PATH,TYPE,SIZE,MODEL,VENDOR,RM,RO,HOTPLUG"]))
+                              "NAME,PATH,TYPE,SIZE,MODEL,VENDOR,RM,RO,HOTPLUG,TRAN"]))
     except Exception:
         print(json.dumps({"liveNode": lp, "disks": []}))
         return
@@ -104,12 +104,32 @@ def main():
             continue
         if name.startswith(("zram", "loop", "sr", "fd", "ram")):
             continue
+        # eMMC exposes its boot and RPMB areas as separate whole "disks" a few MB
+        # in size. They are firmware areas, not installation targets, and listing
+        # them puts two nodes that can never hold MoOS next to the one that can.
+        if name.startswith("mmcblk") and ("boot" in name or "rpmb" in name):
+            continue
         if d.get("ro") is True:
             continue
         size = int(d.get("size") or 0)
         if size <= 0:
             continue
+        # RM/HOTPLUG describe the MEDIUM; TRAN describes how the disk is ATTACHED.
+        # Soldered eMMC reports HOTPLUG=1 on many boards, and calling it removable is
+        # not cosmetic: moos-install-to-disk fails closed and refuses a removable
+        # target whenever it cannot identify the live medium, so a tablet whose only
+        # disk is eMMC would have that disk refused — on exactly the hardware least
+        # able to boot something else. Trust TRAN where it answers, fall back to the
+        # old reading where it does not.
+        transport = (d.get("tran") or "").strip().lower()
         removable = bool(d.get("rm") or d.get("hotplug"))
+        if transport in ("sata", "ata", "nvme", "sas", "scsi", "ide"):
+            removable = False
+        elif transport == "usb":
+            removable = True
+        elif transport == "mmc":
+            # An SD card really does come out; soldered eMMC does not. RM tells them apart.
+            removable = bool(d.get("rm"))
         is_live = (node == lp)
         model = (d.get("model") or "").strip() or (d.get("vendor") or "").strip()
         has_data, has_os, os_name = classify(node)

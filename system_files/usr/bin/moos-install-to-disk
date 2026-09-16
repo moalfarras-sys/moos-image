@@ -37,7 +37,24 @@
 #
 # SAFETY: refuses to run outside a live boot, refuses the live medium (and refuses a
 # removable target if it cannot determine the live medium), refuses a non-block dev.
+#
+# ENCRYPTION: MoOS does not encrypt the target disk, and that is a decision rather
+# than an omission. A LUKS passphrase has to be typed at every boot, on machines
+# that may have no keyboard attached when they start (a headless server, a tablet
+# in a dock), and the alternative — binding the key to the TPM — needs an
+# enrollment step this installer cannot perform offline from a live USB. Shipping
+# the prompt without the enrollment would produce installs their owners cannot
+# unlock. Revisit when MoOS can enroll a TPM2 key here and prove it survives an
+# image update; until then the honest position is no encryption, stated plainly.
 set -uo pipefail
+
+# The failure classifier at the END of this script decides between no-space, disk-io
+# and generic by matching ENGLISH phrases in $LOG ("no space left", "input/output
+# error"). The live session may be Arabic, and a translated message matches nothing:
+# a user who simply ran out of room would be told "something unexpected happened"
+# instead of "the disk does not have enough space" — a message that already exists
+# and was never reached. Pin the locale for everything this script runs.
+export LC_ALL=C LANG=C
 
 # The status file the QML polls. We APPEND each line (open-append-close flushes it
 # immediately) instead of writing to stdout — moos-open runs us via pkexec, which
