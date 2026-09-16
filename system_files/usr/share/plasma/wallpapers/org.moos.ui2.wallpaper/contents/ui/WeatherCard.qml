@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
+import org.moos.ui as MoUI
 
 Item {
     id: weatherCard
@@ -22,6 +23,18 @@ Item {
     required property bool accentMotion
     property int entranceDelay: 0
     property bool integrated: false
+
+    // One locale authority for every label on the hub. The cards used to hard-code a mix of
+    // English eyebrows ("SYSTEM", "HIGH", "FEELS") and Arabic words ("الآن") whatever the session
+    // language was, so an Arabic desktop read as two languages and an English one showed Arabic
+    // weather. Brand names and the bilingual date pair shared with the login/lock clocks are the
+    // only deliberate exceptions. Arabic is never letter-spaced.
+    readonly property bool rtl: MoUI.Locale.rtl
+    readonly property string labelFamily: rtl ? "IBM Plex Sans Arabic" : "IBM Plex Sans"
+    function local(arabic, english) { return MoUI.Locale.local(arabic, english) }
+    // A temperature is an LTR island. Inside an Arabic label the bidi algorithm otherwise
+    // moves the degree sign in front of the number ("°18"), as the 4K capture showed.
+    function degrees(value) { return "\u2066" + value + "°\u2069" }
 
     GlassCard {
         anchors.fill: parent
@@ -51,20 +64,23 @@ Item {
                     }
                     Text {
                         text: weatherCard.city.length > 0
-                              ? weatherCard.city : "LOCAL FORECAST"
+                              ? weatherCard.city
+                              : weatherCard.local("الطقس المحلي", "LOCAL FORECAST")
                         color: Kirigami.Theme.disabledTextColor
-                        font.family: "IBM Plex Sans"
+                        font.family: weatherCard.city.length > 0 ? "IBM Plex Sans" : weatherCard.labelFamily
                         font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.54)
                         font.weight: Font.DemiBold
-                        font.letterSpacing: weatherCard.city.length > 0 ? 0.8 : 1.5
+                        font.letterSpacing: weatherCard.city.length > 0 ? 0.8 : (weatherCard.rtl ? 0 : 1.5)
                         elide: Text.ElideRight
                         Layout.maximumWidth: Kirigami.Units.gridUnit * 7
                     }
                     Item { Layout.fillWidth: true }
                     Text {
-                        text: weatherCard.weatherReady ? "الآن" : "تلقائي"
+                        text: weatherCard.weatherReady
+                              ? weatherCard.local("الآن", "NOW")
+                              : weatherCard.local("تلقائي", "AUTO")
                         color: Kirigami.Theme.highlightColor
-                        font.family: "IBM Plex Sans Arabic"
+                        font.family: weatherCard.labelFamily
                         font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.56)
                         font.weight: Font.DemiBold
                     }
@@ -96,18 +112,18 @@ Item {
                             Layout.fillWidth: true
                             text: weatherCard.condition
                             color: Kirigami.Theme.textColor
-                            font.family: "IBM Plex Sans Arabic"
+                            font.family: weatherCard.labelFamily
                             font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.72)
                             font.weight: Font.Medium
                             elide: Text.ElideRight
                         }
                         Text {
-                            text: "FEELS " + weatherCard.feelsLike + "°"
+                            text: weatherCard.local("المحسوسة ", "FEELS ") + weatherCard.degrees(weatherCard.feelsLike)
                             color: Kirigami.Theme.disabledTextColor
-                            font.family: "IBM Plex Sans"
+                            font.family: weatherCard.labelFamily
                             font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.48)
                             font.weight: Font.Medium
-                            font.letterSpacing: 0.8
+                            font.letterSpacing: weatherCard.rtl ? 0 : 0.8
                         }
                     }
                 }
@@ -116,9 +132,10 @@ Item {
                     visible: !weatherCard.weatherReady
                     Layout.fillWidth: true
                     Layout.topMargin: Kirigami.Units.largeSpacing
-                    text: "سيظهر الطقس المحلي تلقائياً"
+                    text: weatherCard.local("سيظهر الطقس المحلي تلقائياً",
+                                            "Local weather appears automatically")
                     color: Kirigami.Theme.disabledTextColor
-                    font.family: "IBM Plex Sans Arabic"
+                    font.family: weatherCard.labelFamily
                     font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.75)
                     font.weight: Font.Medium
                 }
@@ -130,7 +147,7 @@ Item {
                     spacing: Kirigami.Units.smallSpacing
 
                     Rectangle {
-                        Layout.preferredWidth: Kirigami.Units.gridUnit * 3.55
+                        Layout.preferredWidth: Kirigami.Units.gridUnit * 4.25
                         Layout.preferredHeight: Kirigami.Units.gridUnit * 1.25
                         radius: height / 2
                         color: Qt.rgba(Kirigami.Theme.alternateBackgroundColor.r,
@@ -142,9 +159,9 @@ Item {
                                               Kirigami.Theme.highlightColor.b, 0.2)
                         Text {
                             anchors.centerIn: parent
-                            text: "HIGH  " + weatherCard.high + "°"
+                            text: weatherCard.local("العظمى  ", "HIGH  ") + weatherCard.degrees(weatherCard.high)
                             color: Kirigami.Theme.textColor
-                            font.family: "IBM Plex Sans"
+                            font.family: weatherCard.labelFamily
                             font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.52)
                             font.weight: Font.DemiBold
                             font.features: ({ "tnum": 1 })
@@ -152,7 +169,7 @@ Item {
                     }
 
                     Rectangle {
-                        Layout.preferredWidth: Kirigami.Units.gridUnit * 3.55
+                        Layout.preferredWidth: Kirigami.Units.gridUnit * 4.25
                         Layout.preferredHeight: Kirigami.Units.gridUnit * 1.25
                         radius: height / 2
                         color: Qt.rgba(Kirigami.Theme.alternateBackgroundColor.r,
@@ -164,9 +181,9 @@ Item {
                                               Kirigami.Theme.disabledTextColor.b, 0.18)
                         Text {
                             anchors.centerIn: parent
-                            text: "LOW  " + weatherCard.low + "°"
+                            text: weatherCard.local("الصغرى  ", "LOW  ") + weatherCard.degrees(weatherCard.low)
                             color: Kirigami.Theme.disabledTextColor
-                            font.family: "IBM Plex Sans"
+                            font.family: weatherCard.labelFamily
                             font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.52)
                             font.weight: Font.DemiBold
                             font.features: ({ "tnum": 1 })

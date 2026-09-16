@@ -5161,9 +5161,19 @@ require("Layout.minimumWidth:" in panel_clock and "Layout.preferredWidth:" in pa
         "representation. implicitWidth alone is not enough — Plasma lays the panel out from "
         "the Layout attached properties, and without them the system tray is positioned "
         "INSIDE the clock's pixels and draws its icons on top of the digits")
-require(re.search(r"layoutDirection\s*:\s*root\.rtl\s*\?", panel_clock) is None,
-        "the panel clock must inherit plasmashell RTL exactly once; forcing RTL on "
-        "its RowLayouts reverses the already-mirrored order a second time")
+# The compact clock row does NOT receive plasmashell's mirroring, although the bar's applet
+# order and popup surfaces do. Measured on the station's Arabic session (plasmashell 6.7.5,
+# 4K capture 2026-09-16): the accent rail rendered on the bar's outer edge in source order,
+# and setting the row direction from MoUI.Locale moved it between tray and time in the next
+# capture — the result a double mirror cannot produce. One direction authority, exactly once
+# per row, and no hand-mirrored anchors on top of it.
+require("readonly property bool rtl: MoUI.Locale.rtl" in panel_clock
+        and len(re.findall(r"layoutDirection\s*:\s*root\.rtl\s*\?\s*Qt\.RightToLeft\s*:\s*"
+                           r"Qt\.LeftToRight", panel_clock)) == 2
+        and "Qt.application.layoutDirection" not in panel_clock,
+        "the panel clock rows must take their direction from MoUI.Locale exactly once each; "
+        "its compact representation is not mirrored by plasmashell, so without this the "
+        "Arabic rail sits on the bar's outer edge instead of joining tray and time")
 require("function revealPopup()" in panel_clock
         and "function onExpandedChanged()" in panel_clock
         and "popupEntrance.restart()" in panel_clock,

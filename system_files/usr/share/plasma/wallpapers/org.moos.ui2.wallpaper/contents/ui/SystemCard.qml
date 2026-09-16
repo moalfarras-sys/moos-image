@@ -9,6 +9,7 @@ import QtQuick
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.kde.ksysguard.sensors as Sensors
+import org.moos.ui as MoUI
 
 Item {
     id: systemCard
@@ -19,6 +20,15 @@ Item {
     required property bool accentMotion
     property int entranceDelay: 0
     property bool integrated: false
+
+    // One locale authority for every label on the hub. The cards used to hard-code a mix of
+    // English eyebrows ("SYSTEM", "HIGH", "FEELS") and Arabic words ("الآن") whatever the session
+    // language was, so an Arabic desktop read as two languages and an English one showed Arabic
+    // weather. Brand names and the bilingual date pair shared with the login/lock clocks are the
+    // only deliberate exceptions. Arabic is never letter-spaced.
+    readonly property bool rtl: MoUI.Locale.rtl
+    readonly property string labelFamily: rtl ? "IBM Plex Sans Arabic" : "IBM Plex Sans"
+    function local(arabic, english) { return MoUI.Locale.local(arabic, english) }
 
     readonly property real cpuValue: safeValue(cpuSensor.value)
     readonly property real memoryValue: safeValue(memorySensor.value)
@@ -41,9 +51,10 @@ Item {
     // word exactly at high load — the one moment the verdict matters most. A short
     // token fits like HEALTHY/ACTIVE without stealing width from the rings.
     readonly property string healthLabel: !coreSensorsReady
-        ? "WAITING"
-        : (peakValue >= 88 ? "BUSY"
-                           : (peakValue >= 65 ? "ACTIVE" : "HEALTHY"))
+        ? systemCard.local("بانتظار القراءة", "WAITING")
+        : (peakValue >= 88 ? systemCard.local("مشغول", "BUSY")
+                           : (peakValue >= 65 ? systemCard.local("نشِط", "ACTIVE")
+                                              : systemCard.local("سليم", "HEALTHY")))
 
     function safeValue(rawValue) {
         if (rawValue === undefined || isNaN(rawValue)) {
@@ -174,12 +185,12 @@ Item {
                         }
                     }
                     Text {
-                        text: "SYSTEM"
+                        text: systemCard.local("النظام", "SYSTEM")
                         color: Kirigami.Theme.disabledTextColor
-                        font.family: "IBM Plex Sans"
+                        font.family: systemCard.labelFamily
                         font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.5)
                         font.weight: Font.DemiBold
-                        font.letterSpacing: 1.4
+                        font.letterSpacing: systemCard.rtl ? 0 : 1.4
                     }
                 }
 
@@ -189,10 +200,10 @@ Item {
                     Layout.fillWidth: true
                     text: systemCard.healthLabel
                     color: systemCard.healthColor
-                    font.family: "IBM Plex Sans"
+                    font.family: systemCard.labelFamily
                     font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.66)
                     font.weight: Font.DemiBold
-                    font.letterSpacing: 1.1
+                    font.letterSpacing: systemCard.rtl ? 0 : 1.1
                     elide: Text.ElideRight
                 }
             }
@@ -201,7 +212,7 @@ Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 Layout.minimumWidth: Math.round(Kirigami.Units.gridUnit * 2.4)
-                label: "CPU"
+                label: systemCard.local("المعالج", "CPU")
                 value: systemCard.cpuValue
                 present: systemCard.cpuPresent
                 motionEnabled: systemCard.motionEnabled
@@ -213,7 +224,7 @@ Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 Layout.minimumWidth: Math.round(Kirigami.Units.gridUnit * 2.4)
-                label: "RAM"
+                label: systemCard.local("الذاكرة", "RAM")
                 value: systemCard.memoryValue
                 present: systemCard.memoryPresent
                 motionEnabled: systemCard.motionEnabled
@@ -225,7 +236,7 @@ Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 Layout.minimumWidth: Math.round(Kirigami.Units.gridUnit * 2.4)
-                label: "DISK"
+                label: systemCard.local("القرص", "DISK")
                 value: systemCard.diskValue
                 present: systemCard.diskPresent
                 motionEnabled: systemCard.motionEnabled

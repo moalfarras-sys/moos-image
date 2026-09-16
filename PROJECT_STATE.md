@@ -144,12 +144,14 @@ the installed release but masked. Source fixes are not yet installed fixes.
 
 ## Visual review
 
-Current Horizon work uses revision 57: larger time beside readable day/date,
-a visible 40px search target in the existing launcher, and a smaller media island
-with larger cover artwork. Real 4K/250% Arabic desktop captures prove rendering
-and a portal-injected click opened the launcher. Source applets are temporarily
-previewed with KPackage under the user's local Plasma directory; remove the
-three preview packages (brand, clock, island) before release handoff.
+Horizon 2 (branch `feat/horizon2-desktop-experience-20260916`) was reviewed on
+the booted `5fce15df` NVIDIA desktop (4K/250%, Arabic) through temporary user
+package shadows, since removed: MoOS Search opened its own surface (field, six
+recent apps, destinations, keycaps, Mo AI row); a simulated Remote presence file
+announced, settled to a 72px chip after 5s and re-announced for two devices; the
+clock rail now sits between tray and time; the desktop hub reads Arabic labels
+with isolated temperatures. Typed-query frames were not captured (no input tool);
+the Milou query itself returned 13 rows headless. English/German runs remain.
 KWin readback proves Arabic-first `ara,de`, with exactly two layouts. Source
 defaults, installer and scoped stock-profile migration now agree. The VT uses
 the German physical map because Arabic XKB has no matching console keymap.
@@ -189,8 +191,7 @@ portals. Full light/dark and scaled desktop review remain open.
   booted candidate desktop remains required visual evidence.
 
 ## Next task
-Run the signed image build, three QCOW2 proofs, the offline ISO proof and a
-dispatched ARM proof on this branch's exact revision. Promote only all-green
-digests, update the physical PC, reboot, then verify Remote typing from the
-owner's iPhone and German keyboard, the Horizon desktop and the local-RPM flow
-on the installed signed release. Release acceptance remains open.
+The station boots promoted `5fce15df` (NVIDIA `sha256:086f7086…`). Merge Horizon 2,
+run one candidate build with the three QCOW2, ISO and ARM proofs on its exact
+revision, promote only all-green digests, update and reboot, then read back the
+search surface, Remote chip, clock and hub from `/usr` in Arabic and English.

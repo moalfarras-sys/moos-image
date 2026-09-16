@@ -179,8 +179,14 @@ PlasmoidItem {
             id: statusRow
             anchors.centerIn: parent
             spacing: Kirigami.Units.smallSpacing * 2
-            // Plasma mirrors the whole compact representation for RTL. Do not
-            // mirror this row a second time.
+            // Plasma mirrors the ORDER of applets on the bar for an Arabic session, but not the
+            // contents of an applet: its mirroring follows Qt.application.layoutDirection, which
+            // stays LeftToRight on MoOS because the first-party QML ships bilingual strings rather
+            // than translator catalogues (see MoUI.Locale). This row was written assuming the
+            // opposite, so in Arabic the rail that should join the tray to the time sat on the
+            // bar's OUTER edge, pointing at nothing — measured on the station's 4K capture,
+            // 2026-09-16. The row now takes its direction from the locale authority.
+            layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
             Rectangle {
                 Layout.preferredWidth: 3
@@ -201,6 +207,9 @@ PlasmoidItem {
             RowLayout {
                 id: clockColumn
                 spacing: Kirigami.Units.smallSpacing * 2
+                // Time first from the rail in both directions: the primary reading stays beside
+                // the tray it belongs to and the date follows it outward.
+                layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
                 Text {
                     id: timeLabel
