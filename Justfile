@@ -320,6 +320,7 @@ check:
     # the gateway still answers. The retirement only matched the EARLY installer's strings.
     python3 tests/test_openclaw_modern_unit_retire.py
     python3 tests/test_openclaw_idle_mask_migration.py
+    python3 tests/test_migration_ledger.py
     # The wake receiver is the only way back from an idle gateway. IPv4-only resolution and a
     # pinned-IP fallback keep it alive on a network that blocks Telegram's default address.
     python3 tests/test_moai_wake_telegram_reachability.py
