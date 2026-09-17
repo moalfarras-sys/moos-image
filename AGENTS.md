@@ -482,6 +482,12 @@ bash -n build_files/build.sh
 just build                                  # Tier 1 and milestone end — catches the real gates
 ```
 
+A change a person can see or do ships with its line in `system_files/usr/share/moos/whats-new.json`
+(bilingual, written for the owner, with a `moos://settings/…` route when Settings can take them
+there). That file is how an update stops being invisible: MoOS Settings shows it and
+`moos-whats-new-notify` announces it once. `tests/test_whats_new.py` reads every entry the way the
+page will; an entry it drops is a feature nobody is told about.
+
 A pull request that touches `Containerfile`, `build_files/` or `system_files/` also builds the
 generic x86 image and runs its in-image gates (`.github/workflows/pr-image-gates.yml`; nothing is
 pushed or signed). Wait for it: the repo gates cannot see what `build.sh` asserts inside an image,

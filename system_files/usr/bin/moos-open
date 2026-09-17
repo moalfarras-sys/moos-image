@@ -209,6 +209,8 @@ case "${cat}/${tgt}" in
     settings/update)            gui moos-update ;;
     # MoOS's own About page. The desktop's module names the projects MoOS is built from.
     settings/about)             gui moos-settings --section=about ;;
+    settings/whats-new)         gui moos-settings --section=whats-new ;;
+    settings/assistant)         gui moai ;;
     settings/users)             gui systemsettings kcm_users ;;
     settings/time)              gui systemsettings kcm_clock ;;
     settings/region)            gui systemsettings kcm_regionandlang ;;

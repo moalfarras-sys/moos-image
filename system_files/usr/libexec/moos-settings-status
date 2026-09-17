@@ -23,6 +23,8 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "lib/moos"))
 import moos_hardware as hardware
+# What each update brought: one reader, shared with the after-update notification.
+from moos_whats_new import whats_new_state
 
 
 def runtime_path() -> Path:
@@ -64,6 +66,8 @@ DESTINATIONS = {
     # desktop projects MoOS is built from, under their names (identity contract).
     'about': ('moos-settings', '--section=about'),
     'accessibility': ('systemsettings', 'kcm_access'),
+    # Mo AI is part of MoOS's front door: What's new sends a person there to try it.
+    'assistant': ('moai',),
     'accounts': ('systemsettings', 'kcm_kaccounts'),
     'audio': ('systemsettings', 'kcm_pulseaudio'),
     'autostart': ('systemsettings', 'kcm_autostart'),
@@ -99,6 +103,7 @@ DESTINATIONS = {
     'usb': ('kinfocenter', 'kcm_usb'),
     'users': ('systemsettings', 'kcm_users'),
     'wallpaper': ('moos-theme-picker',),
+    'whats-new': ('moos-settings', '--section=whats-new'),
 }
 
 
@@ -225,6 +230,10 @@ def deployment_state() -> dict[str, object]:
         deployments = []
     booted = next((item for item in deployments if item.get("booted")), {})
     staged = next((item for item in deployments if item.get("staged")), {})
+    # The system this machine ran BEFORE its last update: the deployment kept for rollback.
+    previous = next((item for item in deployments
+                     if not item.get("booted") and not item.get("staged")), {})
+    previous_built = previous.get("timestamp")
     reference = str(booted.get("container-image-reference", ""))
     digest = str(booted.get("container-image-reference-digest", ""))
     edition = re.search(
@@ -245,6 +254,9 @@ def deployment_state() -> dict[str, object]:
         )),
         "staged": bool(staged),
         "stagedVersion": str(staged.get("version", "")),
+        "previousVersion": str(previous.get("version", "")),
+        "previousBuiltAt": (previous_built if isinstance(previous_built, int)
+                            and not isinstance(previous_built, bool) and previous_built > 0 else 0),
         "rollback": sum(
             1 for item in deployments if not item.get("booted") and not item.get("staged")
         ),
@@ -267,6 +279,7 @@ def dynamic_state() -> dict[str, object]:
 
 
 def full_state() -> dict[str, object]:
+    deployment = deployment_state()
     return {
         "schema": 1,
         "product": "MoOS",
@@ -277,7 +290,8 @@ def full_state() -> dict[str, object]:
         "cpu": cpu_name(),
         "gpu": gpu_name(),
         "storage": storage_state(),
-        "deployment": deployment_state(),
+        "deployment": deployment,
+        "whatsNew": whats_new_state(int(deployment.get("previousBuiltAt") or 0)),
         "destinations": destinations_state(),
         **dynamic_state(),
     }

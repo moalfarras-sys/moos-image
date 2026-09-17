@@ -114,14 +114,17 @@ QQC2.ApplicationWindow {
         battery: { available: false, percent: 0, state: "" },
         deployment: {
             version: "—", digest: "", signed: false, known: false,
-            staged: false, stagedVersion: "", rollback: 0, edition: "", builtAt: 0
-        }
+            staged: false, stagedVersion: "", rollback: 0, edition: "", builtAt: 0,
+            previousVersion: "", previousBuiltAt: 0
+        },
+        whatsNew: { entries: [], fresh: 0 }
     })
 
     // Pages this window draws itself. "About this device" used to open the desktop's own
     // module, which lists the toolkit and desktop projects MoOS is built from under their
     // names and versions. MoOS answers "what is this machine running?" as MoOS.
-    readonly property var inAppRoutes: ({ "moos://settings/about": "about" })
+    readonly property var inAppRoutes: ({ "moos://settings/about": "about",
+                                          "moos://settings/whats-new": "whats-new" })
     readonly property var aboutSection: ({
         id: "about", glyph: "about", parent: "system",
         ar: "حول هذا الجهاز", en: "About this device",
@@ -132,6 +135,24 @@ QQC2.ApplicationWindow {
         heroDescAr: "إصدار MoOS والعتاد ومعلومات الدعم",
         heroDescEn: "MoOS version, hardware and support details"
     })
+    // An update that changes nothing a person notices is an update they did not get. This
+    // page is where MoOS says what each one brought, and lets them try it.
+    readonly property var whatsNewSection: ({
+        id: "whats-new", glyph: "spark", parent: "system",
+        ar: "ما الجديد", en: "What's new",
+        descAr: "ما الذي تغيّر في MoOS مع كل تحديث",
+        descEn: "What changed in MoOS with each update",
+        heroAr: "ما الجديد", heroEn: "What's new",
+        heroDescAr: "ما الذي تغيّر في MoOS مع كل تحديث",
+        heroDescEn: "What changed in MoOS with each update"
+    })
+    readonly property var inAppPages: [aboutSection, whatsNewSection]
+    function inAppPage(sectionId) {
+        for (var i = 0; i < inAppPages.length; ++i)
+            if (inAppPages[i].id === sectionId)
+                return inAppPages[i]
+        return null
+    }
 
     readonly property var sections: [
         {
@@ -337,6 +358,10 @@ QQC2.ApplicationWindow {
           ar: "حول هذا الجهاز", en: "About this device",
           descAr: "إصدار النظام والعتاد ومعلومات الدعم",
           descEn: "System version, hardware and support details" },
+        { section: "system", route: "moos://settings/whats-new", glyph: "spark",
+          ar: "ما الجديد", en: "What's new",
+          descAr: "ما الذي تغيّر في MoOS مع كل تحديث",
+          descEn: "What changed in MoOS with each update" },
         { section: "system", route: "moos://settings/users", glyph: "user",
           ar: "المستخدمون", en: "Users",
           descAr: "الحسابات المحلية وصور المستخدمين",
@@ -378,8 +403,9 @@ QQC2.ApplicationWindow {
     ]
 
     readonly property var activeSectionData: {
-        if (activeSection === aboutSection.id)
-            return aboutSection
+        var page = inAppPage(activeSection)
+        if (page)
+            return page
         for (var i = 0; i < sections.length; ++i)
             if (sections[i].id === activeSection)
                 return sections[i]
@@ -416,8 +442,8 @@ QQC2.ApplicationWindow {
     // immutable Qt.application.arguments and reopen the old page.
     function activateRequested(arguments) {
         var requestedSection = argValue("--section=", arguments)
-        if (requestedSection === aboutSection.id) {
-            selectSection(aboutSection.id)
+        if (inAppPage(requestedSection)) {
+            selectSection(requestedSection)
             return
         }
         for (var i = 0; i < sections.length; ++i) {
@@ -478,6 +504,7 @@ QQC2.ApplicationWindow {
             : status.audio.muted ? local("الصوت مكتوم", "Output muted") : local("مستوى الصوت: ", "Output volume: ") + isolated(status.audio.volume + "%")
         case "moos://settings/storage": return isolated(status.storage.free) + local(" متاحة من ", " free of ") + isolated(status.storage.total)
         case "moos://settings/about": return isolated("MoOS " + isolated(status.deployment.version)) + " · " + isolated(status.hostname)
+        case "moos://settings/whats-new": return whatsNewFresh > 0 ? whatsNewSummary : local(item.descAr, item.descEn)
         case "moos://settings/recovery": return rollbackLabel
         case "moos://settings/update": return status.deployment.staged
             ? local("جاهز لإعادة التشغيل: ", "Ready to restart: ") + isolated(status.deployment.stagedVersion)
@@ -549,6 +576,35 @@ QQC2.ApplicationWindow {
     // A sentence MoOS wrote takes its direction from the session's language even when it
     // starts with a Latin name ("MoOS لبطاقات NVIDIA"); a part name or a digest never does.
     readonly property string sentenceMark: rtl ? "\u200F" : ""
+
+    // What's new: the list the status helper read and validated, newest first. A status
+    // document without it (or not read yet) is an empty list, never an error.
+    readonly property var whatsNewEntries: statusLoaded && status.whatsNew && status.whatsNew.entries
+        ? status.whatsNew.entries : []
+    readonly property int whatsNewFresh: statusLoaded && status.whatsNew ? (status.whatsNew.fresh || 0) : 0
+    readonly property string whatsNewSummary: {
+        var count = whatsNewFresh
+        if (!rtl)
+            return count + " new since your last update"
+        if (count === 1) return "\u062A\u063A\u064A\u064A\u0631 \u0648\u0627\u062D\u062F \u062C\u062F\u064A\u062F \u0645\u0646\u0630 \u0622\u062E\u0631 \u062A\u062D\u062F\u064A\u062B"
+        if (count === 2) return "\u062A\u063A\u064A\u064A\u0631\u0627\u0646 \u062C\u062F\u064A\u062F\u0627\u0646 \u0645\u0646\u0630 \u0622\u062E\u0631 \u062A\u062D\u062F\u064A\u062B"
+        return count + (count <= 10 ? " \u062A\u063A\u064A\u064A\u0631\u0627\u062A \u062C\u062F\u064A\u062F\u0629" : " \u062A\u063A\u064A\u064A\u0631\u064B\u0627 \u062C\u062F\u064A\u062F\u064B\u0627") + " \u0645\u0646\u0630 \u0622\u062E\u0631 \u062A\u062D\u062F\u064A\u062B"
+    }
+    // Entries that reached MoOS on the same day share one dated heading.
+    readonly property var whatsNewGroups: {
+        var groups = []
+        for (var i = 0; i < whatsNewEntries.length; ++i) {
+            var entry = whatsNewEntries[i]
+            var day = new Date(entry.merged * 1000)
+            var key = day.getFullYear() + "-" + day.getMonth() + "-" + day.getDate()
+            if (groups.length === 0 || groups[groups.length - 1].key !== key)
+                groups.push({ key: key, epoch: entry.merged, fresh: false, entries: [] })
+            var group = groups[groups.length - 1]
+            group.entries.push(entry)
+            if (entry.fresh) group.fresh = true
+        }
+        return groups
+    }
 
     // What "Copy details" puts on the clipboard: the same facts the page shows, in the
     // language the page is in, one per line, for a support conversation.
@@ -666,8 +722,8 @@ QQC2.ApplicationWindow {
         onActivated: {
             if (win.searchQuery !== "") {
                 win.searchQuery = ""
-            } else if (win.activeSection === win.aboutSection.id) {
-                win.selectSection(win.aboutSection.parent)
+            } else if (win.inAppPage(win.activeSection)) {
+                win.selectSection(win.inAppPage(win.activeSection).parent)
             } else if (win.activeSection !== "home") {
                 win.selectSection("home")
             } else {
@@ -745,7 +801,8 @@ QQC2.ApplicationWindow {
         id: navControl
         required property var sectionData
         readonly property bool selected: win.activeSection === sectionData.id
-            || (win.activeSection === win.aboutSection.id && win.aboutSection.parent === sectionData.id)
+            || (win.inAppPage(win.activeSection) !== null
+                && win.inAppPage(win.activeSection).parent === sectionData.id)
                                          && win.searchQuery === ""
 
         Layout.fillWidth: true
@@ -1083,6 +1140,152 @@ QQC2.ApplicationWindow {
                     font.weight: Font.DemiBold
                     horizontalAlignment: Text.AlignLeft
                     elide: Text.ElideRight
+                }
+            }
+        }
+    }
+
+    // One key of a shortcut, drawn as a key. Latin key names in every language: that is
+    // what is printed on the keyboard in front of the reader.
+    component KeyCap: Rectangle {
+        required property string keyName
+        implicitWidth: Math.max(win.fs(30), keyText.implicitWidth + design.space3 * 2)
+        implicitHeight: win.fs(28)
+        radius: design.radiusSmall
+        color: Qt.rgba(win.textColor.r, win.textColor.g, win.textColor.b, 0.07)
+        border.color: win.outline
+        Accessible.ignored: true
+
+        Text {
+            id: keyText
+            anchors.centerIn: parent
+            text: parent.keyName
+            color: win.textColor
+            font.pixelSize: win.typePx(design.typeCaption)
+            font.weight: Font.DemiBold
+        }
+    }
+
+    // One thing an update brought: what it is, where it is, and a way to try it when MoOS
+    // has a route to it. `fresh` marks what this machine did not have before its last update.
+    component NewsCard: MoUI.Surface {
+        id: news
+        required property var entry
+
+        readonly property string route: entry.route || ""
+        readonly property bool tryable: route !== "" && win.routeAvailable(route)
+
+        Layout.fillWidth: true
+        Layout.fillHeight: true
+        implicitHeight: newsRow.implicitHeight + design.space5 * 2
+        radius: design.radiusCard
+        surfaceColor: win.surface
+        inkColor: win.textColor
+        accentColor: win.accent
+        border.color: entry.fresh ? Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.55)
+                                  : win.faintOutline
+        Accessible.role: Accessible.Grouping
+        Accessible.name: win.local(entry.title.ar, entry.title.en)
+        Accessible.description: win.local(entry.body.ar, entry.body.en)
+
+        RowLayout {
+            id: newsRow
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: design.space5
+            spacing: design.space4
+
+            Rectangle {
+                Layout.preferredWidth: win.fs(44)
+                Layout.preferredHeight: win.fs(44)
+                Layout.alignment: Qt.AlignTop
+                radius: design.radiusSmall
+                color: news.entry.fresh ? win.accent
+                                        : Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.15)
+
+                MoUI.SymbolIcon {
+                    anchors.centerIn: parent
+                    width: win.fs(22)
+                    height: win.fs(22)
+                    symbol: MoUI.SymbolCatalog.resolve(news.entry.glyph)
+                    foreground: news.entry.fresh ? win.accentText : win.accent
+                }
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: design.space2
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: design.space3
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: win.sentenceMark + win.local(news.entry.title.ar, news.entry.title.en)
+                        color: win.textColor
+                        font.pixelSize: win.typePx(design.typeLabel)
+                        font.weight: Font.DemiBold
+                        horizontalAlignment: Text.AlignLeft
+                        wrapMode: Text.WordWrap
+                    }
+                    Rectangle {
+                        visible: news.entry.fresh
+                        Layout.alignment: Qt.AlignTop
+                        implicitWidth: freshText.implicitWidth + design.space3 * 2
+                        implicitHeight: win.fs(24)
+                        radius: design.radiusPill
+                        color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.16)
+
+                        Text {
+                            id: freshText
+                            anchors.centerIn: parent
+                            text: win.local("جديد", "New")
+                            color: win.accent
+                            font.pixelSize: win.typePx(design.typeCaption)
+                            font.weight: Font.DemiBold
+                        }
+                    }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: win.sentenceMark + win.local(news.entry.body.ar, news.entry.body.en)
+                    color: win.mutedColor
+                    font.pixelSize: win.typePx(design.typeSecondary)
+                    lineHeight: 1.25
+                    horizontalAlignment: Text.AlignLeft
+                    wrapMode: Text.WordWrap
+                }
+                // The shortcut starts where the sentence starts, but its keys read in the
+                // order they are pressed, in every language.
+                Row {
+                    Layout.topMargin: design.space2
+                    spacing: design.space2
+                    visible: news.entry.keys.length > 0
+                    LayoutMirroring.enabled: false
+                    LayoutMirroring.childrenInherit: true
+
+                    Repeater {
+                        model: news.entry.keys
+                        delegate: KeyCap {
+                            required property string modelData
+                            keyName: modelData
+                        }
+                    }
+                }
+                MoUI.Button {
+                    visible: news.tryable
+                    label: win.local("جرّب الآن", "Try it")
+                    iconName: MoUI.SymbolCatalog.resolve(win.rtl ? "arrow-back" : "arrow")
+                    compact: true
+                    surfaceColor: win.surface
+                    accentColor: win.accent
+                    textColor: win.textColor
+                    accentForegroundColor: win.accentText
+                    fontPixelSize: win.typePx(design.typeSecondary)
+                    Accessible.description: win.local(news.entry.title.ar, news.entry.title.en)
+                    onClicked: win.openRoute(news.route)
                 }
             }
         }
@@ -2069,6 +2272,20 @@ QQC2.ApplicationWindow {
                                         }
                                         Timer { id: copiedReset; interval: 2200; onTriggered: copyDetails.copied = false }
                                     }
+                                    MoUI.Button {
+                                        Layout.fillWidth: true
+                                        label: win.local("ما الجديد", "What's new")
+                                        iconName: MoUI.SymbolCatalog.resolve("spark")
+                                        surfaceColor: win.surface
+                                        accentColor: win.accent
+                                        textColor: win.textColor
+                                        accentForegroundColor: win.accentText
+                                        fontPixelSize: win.typePx(design.typeSecondary)
+                                        Accessible.description: win.whatsNewFresh > 0 ? win.whatsNewSummary
+                                            : win.local("ما الذي تغيّر في MoOS مع كل تحديث",
+                                                        "What changed in MoOS with each update")
+                                        onClicked: win.openRoute("moos://settings/whats-new")
+                                    }
                                 }
                             }
                         }
@@ -2207,8 +2424,186 @@ QQC2.ApplicationWindow {
                         }
                     }
 
+                    // ── What's new ───────────────────────────────────────────────────────
+                    // What each update brought, newest first, from the list shipped in this
+                    // image. Entries this machine did not have before its last update are marked.
                     ColumnLayout {
-                        visible: (win.activeSection !== "home" && win.activeSection !== win.aboutSection.id)
+                        id: whatsNewView
+                        visible: win.activeSection === win.whatsNewSection.id && win.searchQuery === ""
+                        width: parent.width
+                        height: visible ? implicitHeight : win.fs(0)
+                        spacing: design.space4
+
+                        MoUI.Button {
+                            label: win.local("النظام", "System")
+                            iconName: MoUI.SymbolCatalog.resolve(win.rtl ? "arrow" : "arrow-back")
+                            compact: true
+                            surfaceColor: win.surface
+                            accentColor: win.accent
+                            textColor: win.textColor
+                            accentForegroundColor: win.accentText
+                            fontPixelSize: win.typePx(design.typeSecondary)
+                            Accessible.description: win.local("العودة إلى قسم النظام", "Back to the System section")
+                            onClicked: win.selectSection(win.whatsNewSection.parent)
+                        }
+
+                        MoUI.GlassSurface {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: Math.max(win.fs(148), whatsNewIdentity.implicitHeight + design.space6 * 2)
+                            radius: design.radiusPanel
+                            surfaceColor: win.raised
+                            inkColor: win.textColor
+                            accentColor: win.accent
+                            floating: true
+                            border.color: win.outline
+
+                            RowLayout {
+                                id: whatsNewIdentity
+                                anchors.fill: parent
+                                anchors.margins: design.space6
+                                spacing: design.space5
+
+                                Rectangle {
+                                    Layout.preferredWidth: win.fs(84)
+                                    Layout.preferredHeight: win.fs(84)
+                                    Layout.alignment: Qt.AlignVCenter
+                                    radius: design.radiusPanel
+                                    color: win.accent
+
+                                    MoUI.SymbolIcon {
+                                        anchors.centerIn: parent
+                                        width: win.fs(42)
+                                        height: win.fs(42)
+                                        symbol: MoUI.SymbolCatalog.resolve("spark")
+                                        foreground: win.accentText
+                                    }
+                                }
+
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    Layout.alignment: Qt.AlignVCenter
+                                    spacing: design.space2
+
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: win.sentenceMark + win.local("ما الجديد في MoOS", "What's new in MoOS")
+                                        color: win.textColor
+                                        font.pixelSize: win.typePx(design.typeTitle)
+                                        font.weight: Font.Bold
+                                        horizontalAlignment: Text.AlignLeft
+                                        wrapMode: Text.WordWrap
+                                    }
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: {
+                                            if (!win.statusLoaded)
+                                                return win.statusError ? "" : win.local("جارٍ قراءة حالة الجهاز…", "Reading device status…")
+                                            var version = win.local("الإصدار ", "Version ") + win.isolated(win.status.deployment.version)
+                                            if (win.whatsNewFresh > 0)
+                                                return win.sentenceMark + version + "  ·  " + win.whatsNewSummary
+                                            return win.sentenceMark + version + "  ·  "
+                                                + win.local("ما أضافته التحديثات الأخيرة، الأحدث أولًا",
+                                                            "What recent updates brought, newest first")
+                                        }
+                                        color: win.mutedColor
+                                        font.pixelSize: win.typePx(design.typeLabel)
+                                        horizontalAlignment: Text.AlignLeft
+                                        wrapMode: Text.WordWrap
+                                    }
+                                }
+
+                                MoUI.Button {
+                                    Layout.alignment: Qt.AlignVCenter
+                                    label: win.local("تحديث MoOS", "Update MoOS")
+                                    iconName: MoUI.SymbolCatalog.resolve("safe-update")
+                                    primary: true
+                                    surfaceColor: win.surface
+                                    accentColor: win.accent
+                                    textColor: win.textColor
+                                    accentForegroundColor: win.accentText
+                                    fontPixelSize: win.typePx(design.typeSecondary)
+                                    enabled: win.routeAvailable("moos://settings/update")
+                                    Accessible.description: win.routeReason("moos://settings/update")
+                                    onClicked: win.openRoute("moos://settings/update")
+                                }
+                            }
+                        }
+
+                        Repeater {
+                            model: win.whatsNewGroups
+
+                            delegate: ColumnLayout {
+                                id: newsGroup
+                                required property var modelData
+                                Layout.fillWidth: true
+                                spacing: design.space3
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Layout.topMargin: design.space2
+                                    spacing: design.space3
+
+                                    Text {
+                                        text: win.builtLabel(newsGroup.modelData.epoch)
+                                        color: win.textColor
+                                        font.pixelSize: win.typePx(design.typeLabel)
+                                        font.weight: Font.DemiBold
+                                        horizontalAlignment: Text.AlignLeft
+                                    }
+                                    Rectangle {
+                                        Layout.fillWidth: true
+                                        Layout.alignment: Qt.AlignVCenter
+                                        height: 1
+                                        color: win.faintOutline
+                                    }
+                                }
+
+                                GridLayout {
+                                    Layout.fillWidth: true
+                                    columns: whatsNewView.width >= win.fs(860) ? 2 : 1
+                                    columnSpacing: design.space4
+                                    rowSpacing: design.space4
+
+                                    Repeater {
+                                        model: newsGroup.modelData.entries
+                                        delegate: NewsCard {
+                                            required property var modelData
+                                            entry: modelData
+                                            Layout.preferredWidth: win.fs(1)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        MoUI.Surface {
+                            visible: win.statusLoaded && win.whatsNewEntries.length === 0
+                            Layout.fillWidth: true
+                            implicitHeight: emptyNews.implicitHeight + design.space5 * 2
+                            radius: design.radiusCard
+                            surfaceColor: win.surface
+                            inkColor: win.textColor
+                            accentColor: win.accent
+                            border.color: win.faintOutline
+
+                            Text {
+                                id: emptyNews
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.verticalCenter: parent.verticalCenter
+                                anchors.margins: design.space5
+                                text: win.local("لا تحمل هذه الصورة قائمة تغييرات.",
+                                                "This system image carries no list of changes.")
+                                color: win.mutedColor
+                                font.pixelSize: win.typePx(design.typeSecondary)
+                                horizontalAlignment: Text.AlignLeft
+                                wrapMode: Text.WordWrap
+                            }
+                        }
+                    }
+
+                    ColumnLayout {
+                        visible: (win.activeSection !== "home" && win.inAppPage(win.activeSection) === null)
                                  || win.searchQuery !== ""
                         width: parent.width
                         height: visible ? implicitHeight : win.fs(0)

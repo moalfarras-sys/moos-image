@@ -1,0 +1,175 @@
+{
+  "schema": 1,
+  "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
+  "entries": [
+    {
+      "id": "whats-new",
+      "merged": "2026-09-18T02:00:00Z",
+      "glyph": "spark",
+      "title": {
+        "ar": "صفحة «ما الجديد»",
+        "en": "This What's new page"
+      },
+      "body": {
+        "ar": "بعد كل تحديث يخبرك MoOS بما تغيّر، وتجد القائمة دائمًا هنا في الإعدادات ← النظام.",
+        "en": "After every update MoOS tells you what changed, and the list is always here under Settings, System."
+      }
+    },
+    {
+      "id": "arabic-polish",
+      "merged": "2026-09-17T23:26:45Z",
+      "glyph": "clock",
+      "title": {
+        "ar": "سطح مكتب أدقّ بالعربية",
+        "en": "A tidier desktop in Arabic"
+      },
+      "body": {
+        "ar": "سطرا التاريخ في لوحة MoOS على حافة واحدة، وشريحة الخصوصية في الجزيرة تعرض جملتها كاملة بدل قطعها.",
+        "en": "The two date lines of the MoOS Hub sit on one edge, and the Island's privacy chip shows its whole sentence instead of cutting it."
+      }
+    },
+    {
+      "id": "switcher",
+      "merged": "2026-09-17T22:36:04Z",
+      "glyph": "ui",
+      "title": {
+        "ar": "مبدّل النوافذ صار من MoOS",
+        "en": "The window switcher is MoOS now"
+      },
+      "body": {
+        "ar": "اضغط Alt+Tab: شريط زجاجي واحد يعرض نوافذك الحيّة، يقرأ من اليمين في الجلسة العربية، ويمكنك إغلاق النافذة منه مباشرة.",
+        "en": "Press Alt+Tab: one glass strip of your live windows, reading right-to-left in an Arabic session, and you can close a window straight from it."
+      },
+      "keys": [
+        "Alt",
+        "Tab"
+      ]
+    },
+    {
+      "id": "arrange",
+      "merged": "2026-09-17T22:36:04Z",
+      "glyph": "grid",
+      "title": {
+        "ar": "رتّب نوافذك بضغطة واحدة",
+        "en": "Arrange your windows in one action"
+      },
+      "body": {
+        "ar": "نصفان أو أثلاث أو أرباع، أو نافذة رئيسية ونافذتان، أو توسيط النافذة. من قائمة النافذة «رتّب النوافذ» أو بالاختصار Meta+Alt مع 1 إلى 4 أو C.",
+        "en": "Halves, thirds, quarters, a main window with two beside it, or centre the window. From the window menu under Arrange windows, or Meta+Alt with 1 to 4 or C."
+      },
+      "keys": [
+        "Meta",
+        "Alt",
+        "2"
+      ]
+    },
+    {
+      "id": "motion-speed",
+      "merged": "2026-09-17T22:36:04Z",
+      "glyph": "pulse",
+      "title": {
+        "ar": "سرعة حركة واحدة للنظام كله",
+        "en": "One animation speed for the whole system"
+      },
+      "body": {
+        "ar": "بطاقات MoOS وأزراره تتبع الآن إعداد سرعة الحركة نفسه الذي يتبعه سطح المكتب، فلا يبقى جزء بطيئًا وآخر سريعًا.",
+        "en": "MoOS cards and buttons now follow the same animation-speed setting the desktop does, so one part is never slow while another is fast."
+      }
+    },
+    {
+      "id": "about",
+      "merged": "2026-09-17T20:42:58Z",
+      "glyph": "about",
+      "title": {
+        "ar": "حول هذا الجهاز",
+        "en": "About this device"
+      },
+      "body": {
+        "ar": "صفحة من MoOS نفسه: الإصدار والإصدارة وتاريخ البناء وتوقيع الصورة ومواصفات جهازك، مع زر ينسخ التفاصيل لمحادثة دعم.",
+        "en": "A page of MoOS's own: version, edition, build date, image signature and your hardware, with a button that copies the details for a support conversation."
+      },
+      "route": "moos://settings/about"
+    },
+    {
+      "id": "moai-skills",
+      "merged": "2026-09-17T20:42:58Z",
+      "glyph": "ai",
+      "title": {
+        "ar": "Mo AI يعرف كيف يُصلح",
+        "en": "Mo AI knows how to repair"
+      },
+      "body": {
+        "ar": "اثنا عشر دليل إصلاح جاهزًا — لا صوت، لا إنترنت، جهاز بطيء، قرص ممتلئ وغيرها — وأكثرها شيوعًا يبدأ من شريحة في شاشة Mo AI الرئيسية.",
+        "en": "Twelve ready repair guides — no sound, no internet, a slow machine, a full disk and more — and the most common start from a chip on Mo AI's home screen."
+      },
+      "route": "moos://settings/assistant"
+    },
+    {
+      "id": "app-drop",
+      "merged": "2026-09-17T19:47:04Z",
+      "glyph": "install",
+      "title": {
+        "ar": "أسقط التطبيق في «التطبيقات»",
+        "en": "Drop an app into Applications"
+      },
+      "body": {
+        "ar": "نزّلت تطبيقًا بصيغة AppImage أو أرشيفًا محمولًا؟ افتحه أو ضعه في مجلد «Applications» في مجلدك الشخصي، وبعد تأكيد واحد يصبح تطبيقًا في القائمة بلا صلاحيات مدير.",
+        "en": "Downloaded an AppImage or a portable archive? Open it or put it in the Applications folder in your home, and after one confirmation it is an app in the launcher, with no administrator rights."
+      }
+    },
+    {
+      "id": "moai-acts",
+      "merged": "2026-09-17T19:47:04Z",
+      "glyph": "shield",
+      "title": {
+        "ar": "Mo AI ينفّذ ويستأذن",
+        "en": "Mo AI acts, and asks first"
+      },
+      "body": {
+        "ar": "يفحص Mo AI حالة الجهاز بنفسه قبل أن يجيب، وكل تغيير في النظام يظهر لك في بطاقة تأكيد قبل تنفيذه، ثم يخبرك بالنتيجة الفعلية.",
+        "en": "Mo AI inspects the machine itself before it answers, and every change to the system appears as a confirmation card before it runs, followed by the real result."
+      },
+      "route": "moos://settings/assistant"
+    },
+    {
+      "id": "island-privacy",
+      "merged": "2026-09-17T19:47:04Z",
+      "glyph": "microphone",
+      "title": {
+        "ar": "الجزيرة تخبرك من يستخدم الميكروفون",
+        "en": "The Island tells you who is using the microphone"
+      },
+      "body": {
+        "ar": "عندما يستخدم تطبيق الكاميرا أو الميكروفون أو يشارك الشاشة، تعرض الجزيرة في الشريط اسمه مع زر إيقاف بضغطة واحدة. وتعرض تقدّم تثبيت التطبيقات من المتجر.",
+        "en": "When an app uses the camera or microphone or shares the screen, the Island on the bar names it with a one-tap stop. It also shows the progress of Store installs."
+      }
+    },
+    {
+      "id": "search-answers",
+      "merged": "2026-09-17T11:23:25Z",
+      "glyph": "search",
+      "title": {
+        "ar": "البحث يجيب مباشرة",
+        "en": "Search answers directly"
+      },
+      "body": {
+        "ar": "اكتب عملية حسابية أو تحويل وحدات في «بحث MoOS» على الشريط فتظهر النتيجة فورًا فوق نتائج الملفات، مع زر نسخ.",
+        "en": "Type a sum or a unit conversion into MoOS Search on the bar and the result appears at once above the file results, with a copy button."
+      }
+    },
+    {
+      "id": "desk-control",
+      "merged": "2026-09-17T10:34:56Z",
+      "glyph": "boxes",
+      "title": {
+        "ar": "سطح المكتب تحت سيطرتك",
+        "en": "The desk is yours to arrange"
+      },
+      "body": {
+        "ar": "انقر بالزر الأيمن على سطح المكتب لإظهار لوحة MoOS أو إخفاء أي بطاقة منها. كل ودجت يمكن حذفه من جديد، والخلفية التي تختارها تبقى بعد تسجيل الدخول.",
+        "en": "Right-click the desktop to show the MoOS Hub or hide any of its cards. Every widget can be removed again, and the wallpaper you choose stays after you log in."
+      },
+      "route": "moos://settings/desktop"
+    }
+  ]
+}

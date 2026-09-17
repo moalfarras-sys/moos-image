@@ -289,6 +289,7 @@ check:
     # read-only, private and atomic.
     python3 tests/test_moos_settings.py
     python3 tests/test_settings_about_page.py
+    python3 tests/test_whats_new.py
     python3 tests/test_desktop_customize.py
     # The Device page told an Oracle A1 owner their CPU was a "MoOS device".
     # Real hardware identity, or an honest Unknown -- never an invented name.

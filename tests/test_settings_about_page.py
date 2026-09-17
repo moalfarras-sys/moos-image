@@ -120,9 +120,10 @@ class PageLogic(unittest.TestCase):
         qml = APP.read_text(encoding="utf-8")
         names = ("local", "isolated", "editionLabel", "kernelLabel", "archLabel", "sessionLabel",
                  "routeAvailable", "routeReason", "openRoute", "selectSection", "activateRequested",
-                 "argValue")
+                 "argValue", "inAppPage")
         in_app = re.search(r"readonly property var inAppRoutes: \((\{[^}]*\})\)", qml).group(1)
         about = re.search(r"readonly property var aboutSection: \((\{.*?\n    \})\)", qml, re.S).group(1)
+        news = re.search(r"readonly property var whatsNewSection: \((\{.*?\n    \})\)", qml, re.S).group(1)
         script = f"""
 const assert = require('node:assert/strict');
 let rtl = {str(rtl).lower()}, statusLoaded = false, statusError = '', launchError = '';
@@ -131,6 +132,8 @@ let contentFlick = {{contentY: 9}}, calls = [];
 const Qt = {{openUrlExternally: url => {{ calls.push(url); return true }}, application: {{arguments: []}}}};
 const inAppRoutes = {in_app};
 const aboutSection = {about};
+const whatsNewSection = {news};
+const inAppPages = [aboutSection, whatsNewSection];
 const sections = [{{id: 'home'}}, {{id: 'system'}}];
 """ + "\n".join(qml_function(qml, name) for name in names) + "\n" + body
         result = subprocess.run([NODE, "-e", script], capture_output=True, text=True, timeout=60)
@@ -178,6 +181,11 @@ activateRequested(['moos-settings', '--section=about']);
 assert.equal(activeSection, 'about', 'moos-open settings/about lands on the page in a running window');
 activateRequested(['moos-settings', '--section=system']); assert.equal(activeSection, 'system');
 activateRequested(['moos-settings', '--section=nonsense']); assert.equal(activeSection, 'system');
+openRoute('moos://settings/whats-new');
+assert.deepEqual(calls, [], "What's new is a page of this window too");
+assert.equal(activeSection, 'whats-new');
+assert.equal(inAppPage('whats-new').parent, 'system'); assert.equal(inAppPage('display'), null);
+activateRequested(['moos-settings', '--section=whats-new']); assert.equal(activeSection, 'whats-new');
 """)
 
 
@@ -185,7 +193,7 @@ class PageSource(unittest.TestCase):
     def test_every_fact_is_a_field_of_the_status_document(self) -> None:
         qml = code_only(APP.read_text(encoding="utf-8"), "//")
         view = qml[qml.index("id: aboutView"):]
-        view = view[:view.index("win.activeSection !== win.aboutSection.id")]
+        view = view[:view.index("id: whatsNewView")]
         rows = re.findall(r"FactRow \{(.*?)\n {32}\}", view, re.S)
         self.assertGreaterEqual(len(rows), 12, "the About page lost fact rows")
         for row in rows:
