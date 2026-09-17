@@ -258,6 +258,14 @@ check:
     python3 tests/test_qml_root_references.py
     # Secondary text must reach 4.5:1 on every shipped colour scheme.
     python3 tests/test_secondary_text_contrast.py
+    # Alt+Tab is a MoOS surface (W7): it takes its reading direction from the LOCALE, because
+    # Application.layoutDirection is LeftToRight in every MoOS session including Arabic ones;
+    # every duration is guarded by reduced motion; and it still closes a window, really.
+    python3 tests/test_moos_switcher.py
+    # MoOS Arrange is a KWin script, so a property that does not exist reads as undefined and
+    # silently makes its whole && chain false. onCurrentDesktop is exactly that on KWin 6.7.5:
+    # the first version arranged nothing and said so. These are the live-measured properties.
+    python3 tests/test_moos_arrange.py
     # The full Launcher must be operable with the keyboard alone: sidebar
     # focus + activation keys, search-field <-> content crossing, Shift+Tab.
     python3 tests/test_moos_launcher_keyboard.py

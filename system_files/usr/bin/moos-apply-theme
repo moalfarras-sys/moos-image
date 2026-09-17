@@ -231,12 +231,15 @@ set -uo pipefail
 #     Qt 6.11.2), inside a try/catch. They now arrive as file NAMES, the way the Remote chip
 #     always has (IslandTokens.js). A removal is shown as a removal; running an app or
 #     refreshing the index is no longer shown as an install.
-# 63: the Hub's two date lines sit on one edge (each used to align by its own script, so in
-#     an Arabic session the English line hung on the far side of the column), and MoOS
-#     Search stops assigning `undefined` to two labels on every desktop start. The
+# 63: TWO waves land in this revision, because neither had shipped when they met.
+#     W6.2, seen by rendering the desktop from source (scripts/review/render-desktop.sh):
+#     the Hub's two date lines sit on one edge (each used to align by its own script, so in
+#     an Arabic session the English line hung on the far side of the column), MoOS
+#     Search stops assigning `undefined` to two labels on every desktop start, and the
 #     Island sizes its capsule from the title's MEASURED width plus its always-shown
-#     control: in Arabic the privacy chip read "الميكروفون قيد الاستخ…". All three were
-#     seen by rendering the desktop from source (scripts/review/render-desktop.sh).
+#     control - in Arabic the privacy chip read "الميكروفون قيد الاستخ…".
+#     W7, seen on the station: org/moos/ui gained Tokens.scaled(), so MoOS motion follows
+#     the same AnimationDurationFactor Plasma does, and Card/Button adopted it.
 THEME_REV=63
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true

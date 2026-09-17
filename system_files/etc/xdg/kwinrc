@@ -109,6 +109,18 @@ startupfeedbackEnabled=true
 # --- Mission-Control (on-demand, default-on; NO hot corner set) -----------
 overviewEnabled=true
 
+# --- MoOS Arrange (a KWin SCRIPT, not an effect) --------------------------
+# usr/share/kwin/scripts/moos-arrange. KWin reads scripts from disk and enables
+# them from this same [Plugins] group, so MoOS adds one rather than patching
+# window management. It puts the windows on the current desktop and screen into
+# halves, thirds, quarters, a main pane plus two, or centres one - from the
+# window menu a person already has on a title bar, and from Meta+Alt+1..4 / C.
+# Its metadata is EnabledByDefault, and this line says so explicitly so the
+# script survives an upstream default change and is visible where every other
+# MoOS plugin decision is written. Nothing runs while it is not used: the menu
+# callback fires when the menu opens.
+moos-arrangeEnabled=true
+
 # --- Heavy / conflicting effects pinned OFF -------------------------------
 # translucency has NO EnabledByDefault key -> off by default; pinned off because
 # live per-window blending is expensive and un-macOS. (Verified
@@ -153,6 +165,35 @@ BorderActivate=7
 # where this repo's own code already looked (moos-fast-remote:85,
 # build.sh:2909). A shipped default is not a default the user gets unless it is
 # in the group the reader actually reads.
+
+[TabBox]
+# ---------------------------------------------------------------------------
+#  THE SWITCHER IS A MoOS SURFACE
+# ---------------------------------------------------------------------------
+# KWin reads its window switcher from disk as a KPackage, so MoOS ships its own
+# at usr/share/kwin/tabbox/org.moos.ui2.switcher and names it here. The five
+# stock layouts stay installed and System Settings can still select one, so this
+# is an added surface, not a replacement of anything upstream.
+#
+# What the stock default (thumbnail_grid) got wrong on a MoOS desk, measured on
+# the station on 2026-09-17 and not from source:
+#   * it decided its reading order from Application.layoutDirection. MoOS ships
+#     bilingual QML strings rather than Qt catalogues, so that property is
+#     LeftToRight on every MoOS session INCLUDING an Arabic one - the warning
+#     written at the top of org/moos/ui/Locale.qml. The switcher ran
+#     left-to-right inside a right-to-left desk. MoOS Switcher reads
+#     MoUI.Locale.rtl instead, which was confirmed to return true inside KWin's
+#     own QML engine by rendering it into the live switcher.
+#   * its geometry, type and radii were Breeze's. The MoOS Plasma style could
+#     only reach its colour, which is why it was the right hue and the wrong
+#     shape.
+#   * it animated on Kirigami durations instead of MoOS Motion.
+LayoutName=org.moos.ui2.switcher
+
+[TabBoxAlternative]
+# Alt+` (switch between windows of the SAME application) gets the same surface,
+# so the two switchers are never two different products.
+LayoutName=org.moos.ui2.switcher
 
 [Compositing]
 

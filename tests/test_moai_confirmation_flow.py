@@ -51,6 +51,20 @@ class TestMoaiConfirmationFlow(unittest.TestCase):
                         '              *fix-audio*) echo "pipewire would not restart"; exit 3 ;; esac\n'
                         # Everything else is the REAL executor: the read-only tools stay real.
                         f'exec bash "{ROOT / "system_files/usr/bin/moai-do"}" "$@"\n'),
+            # REAL, but this repository's copy rather than whatever is installed.
+            #
+            # moai-control's resolve_tool_binary() calls shutil.which() first and only
+            # then falls back to a sibling of its own path. On a CI runner nothing is
+            # installed, so the fallback found the source and the gate tested the source.
+            # On a MoOS workstation /usr/bin/moos-inspect exists, so which() won only
+            # there and the gate tested the INSTALLED image instead - which is always
+            # older than the tree between releases. On 2026-09-17 that failed this gate
+            # on the station alone: the source had grown `moos-inspect skills` for
+            # P3.10 and the running 44.20260917.858 had not. The inverse is worse and
+            # silent: a station whose installed binary still satisfies a check the
+            # source has broken would go green.
+            "moos-inspect": ("#!/bin/sh\n"
+                             f'exec python3 "{ROOT / "system_files/usr/bin/moos-inspect"}" "$@"\n'),
         }
         for name, body in doubles.items():
             (bindir / name).write_text(body, encoding="utf-8")
