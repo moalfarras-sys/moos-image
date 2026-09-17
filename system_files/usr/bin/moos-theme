@@ -316,9 +316,19 @@ capture_wallpaper_identity() {
     command -v gdbus >/dev/null 2>&1 || return 1
     command -v timeout >/dev/null 2>&1 || return 1
 
-    local result token
+    local result token family=""
+    # "profile" means THIS family's own canvas (dark or light half). Any other
+    # image — the owner's photo or another family's canvas — is the owner's
+    # choice, and calling it "profile" is what let reconciliation put the theme
+    # wallpaper back. Without a loaded profile, the old prefix rule applies.
+    if [ -n "${wallpaper_package:-}" ]; then
+        family="${wallpaper_package%/}"
+        family="${family%Light}"
+        [[ "$family" =~ ^/usr/share/wallpapers/MoOSUI2[A-Za-z0-9]*$ ]] || family=""
+    fi
     result="$(timeout 8s gdbus call --session -d org.kde.plasmashell \
         -o /PlasmaShell -m org.kde.PlasmaShell.evaluateScript '
+            var FAMILY = "'"$family"'";
             var ds = desktops();
             var common = "";
             var valid = ds.length > 0;
@@ -341,8 +351,21 @@ capture_wallpaper_identity() {
             if (!valid || !common) {
                 print("moos-wallpaper-state:error");
             } else {
-                var mode = common.indexOf("/usr/share/wallpapers/MoOSUI2") === 0
-                    ? "profile" : "custom";
+                // No escaped-slash RegExp: QJSEngine rejects it (see the scene apply).
+                var bare = common;
+                while (bare.length > 1 && bare.charAt(bare.length - 1) == "/") {
+                    bare = bare.slice(0, -1);
+                }
+                var mode;
+                if (FAMILY) {
+                    mode = (bare == FAMILY || bare == FAMILY + "Light"
+                            || bare.indexOf(FAMILY + "/") === 0
+                            || bare.indexOf(FAMILY + "Light/") === 0)
+                        ? "profile" : "custom";
+                } else {
+                    mode = common.indexOf("/usr/share/wallpapers/MoOSUI2") === 0
+                        ? "profile" : "custom";
+                }
                 var encoded = encodeURIComponent(common).replace(
                     /[!()*]/g,
                     function(c) { return "%" + c.charCodeAt(0).toString(16).toUpperCase(); })
@@ -377,11 +400,76 @@ encode_profile_wallpaper() {
 # selects the profile's curated package. Login/automatic reconciliation uses
 # the central state and preserves a custom image across theme and day/night
 # changes. The lock screen remains the profile package in both cases.
+#
+# The owner's OWN choice is adopted first. A wallpaper picked in Plasma's
+# "Desktop and Wallpaper" dialog, on the scene's own page, or with Dolphin's
+# "Set as Wallpaper" never passed through moos-theme, so the central state still
+# said "profile" — and the next login, or the 30-minute drift check, put the
+# theme wallpaper back (reported on the station, 2026-09-17). Before any
+# state-policy decision the live desktop is read: an image that is not this
+# family's canvas is recorded as the owner's custom wallpaper, and a desktop
+# that was switched to Plasma's plain image plugin is brought back onto the
+# MoOS scene WITH that image, so the choice stays and MoOS Hub stays too.
+adopt_live_wallpaper_choice() {
+    local identity mode token plugin_state
+    [ "${moos_live_wallpaper_adopted:-0}" = 1 ] && return 0
+    moos_live_wallpaper_adopted=1
+    command -v gdbus >/dev/null 2>&1 || return 0
+    command -v timeout >/dev/null 2>&1 || return 0
+    [ -n "${wallpaper_package:-}" ] || return 0
+
+    # Plasma's image plugin: carry its image onto the scene first.
+    plugin_state="$(timeout 6s gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
+        -m org.kde.PlasmaShell.evaluateScript '
+            var ds = desktops();
+            var common = "";
+            var foreign = false;
+            var valid = ds.length > 0;
+            for (var i = 0; i < ds.length; i++) {
+                try {
+                    if (ds[i].wallpaperPlugin != "org.kde.image") { continue; }
+                    foreign = true;
+                    ds[i].currentConfigGroup = ["Wallpaper", "org.kde.image", "General"];
+                    var image = String(ds[i].readConfig("Image", ""));
+                    if (image.indexOf("file://") === 0) { image = image.substring(7); }
+                    if (!image || (common && image != common)) { valid = false; }
+                    else { common = image; }
+                } catch (e) { valid = false; }
+            }
+            if (!foreign || !valid || !common) {
+                print("moos-image-plugin:none");
+            } else {
+                var encoded = encodeURIComponent(common).replace(
+                    /[!()*]/g,
+                    function(c) { return "%" + c.charCodeAt(0).toString(16).toUpperCase(); })
+                    .split(String.fromCharCode(39)).join("%27");
+                print("moos-image-plugin:" + encoded);
+            }
+        ' 2>/dev/null)" || return 0
+    # Only an encoded absolute path is an image: "moos-image-plugin:none" also
+    # matches a bare token class, and re-pointing the scene at "none" failed and
+    # skipped recording a choice made on the scene's own page.
+    if [[ "$plugin_state" =~ moos-image-plugin:(%2F[A-Za-z0-9_.~%-]+) ]]; then
+        apply_desktop_scene_token "${BASH_REMATCH[1]}" >/dev/null 2>&1 || return 0
+    fi
+
+    identity="$(capture_wallpaper_identity 2>/dev/null)" || return 0
+    IFS=$'\t' read -r mode token <<<"$identity"
+    [ "$mode" = custom ] || return 0
+    [ "$(theme_state_field wallpaperMode 2>/dev/null)" = custom ] \
+        && [ "$(theme_state_field wallpaperEncoded 2>/dev/null)" = "$token" ] && return 0
+    write_theme_state committed \
+        "$(theme_state_field active 2>/dev/null || current)" \
+        "$(theme_state_field previous 2>/dev/null || true)" || return 0
+    echo "moos-theme: kept the owner's own wallpaper" >&2
+}
+
 load_wallpaper_expectation() {
     local policy="${1:-state}" mode token
     desktop_wallpaper_mode=profile
     desktop_wallpaper_token="$(encode_profile_wallpaper "$wallpaper_package")" || return 1
     if [ "$policy" = state ]; then
+        adopt_live_wallpaper_choice
         mode="$(theme_state_field wallpaperMode 2>/dev/null || true)"
         token="$(theme_state_field wallpaperEncoded 2>/dev/null || true)"
         if [ "$mode" = custom ] && [[ "$token" =~ ^[A-Za-z0-9_.~%-]+$ ]]; then
