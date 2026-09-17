@@ -41,6 +41,11 @@ dnf -y -q install --skip-unavailable \
 # on a slow or mode-less mount (see mirror-gates.sh).
 TREE="${1:-$ROOT}"
 ln -sfn "$TREE/system_files/usr/share/moos" /usr/share/moos
+# Brand art the shell QML opens by absolute path (the lock screen's /usr/share/pixmaps/moos-logo.png).
+mkdir -p /usr/share/pixmaps
+for art in "$TREE"/system_files/usr/share/pixmaps/*; do
+    ln -sfn "$art" "/usr/share/pixmaps/$(basename "$art")"
+done
 for theme in "$TREE"/system_files/usr/share/icons/MoOSUI2*; do
     ln -sfn "$theme" "/usr/share/icons/$(basename "$theme")"
 done
