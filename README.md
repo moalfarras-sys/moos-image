@@ -82,8 +82,11 @@ Away from that machine (any Linux box, or Windows with a Fedora WSL2 distro):
 `scripts/review/mirror-gates.sh` runs the gates on a mirror with git's file
 modes, and `scripts/review/render-app.sh <app> out.png` draws a first-party
 app from source with a real MoOS colour scheme and prints its QML binding
-errors. Render at the size the window really opens at. That is source-harness
-evidence; it is never a desktop review, and the plan says which is owed.
+errors, and `scripts/review/render-desktop.sh out.png --lang=ar` brings up the
+real `plasmashell` with MoOS's shipped layout, scene and plasmoids under Xvfb.
+Render at the size the window really opens at. Both are source-harness
+evidence (no GPU compositing: no blur, no KWin effects, X11 not Wayland); neither
+is a desktop review, and the plan says which is owed.
 
 A pull request that touches `Containerfile`, `build_files/` or `system_files/`
 builds the generic x86 image and runs every in-image gate before the merge

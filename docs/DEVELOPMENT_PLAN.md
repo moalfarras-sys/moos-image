@@ -158,6 +158,16 @@ is how an undefined colour in Mo AI's privileged-action card, a dead file read i
 cannot show plasmoids, KWin, the greeter or an installed image, and a frame from it is never a
 desktop review. Say which evidence you have.
 
+`render-desktop.sh` goes one layer further (2026-09-17): the REAL `plasmashell` with MoOS's shipped
+layout, `/etc/xdg` configuration, scene wallpaper (Hub) and plasmoids, with `kwin_x11` under Xvfb,
+captured at the station's logical size (1536×864) in Arabic or English. It needs the stock shell
+package COPIED and MoOS's partial overrides laid over it (in the image they share one directory;
+from a checkout KPackage otherwise finds a package with no metadata and draws nothing), the
+activity manager started by its real path, and Qt/Frameworks/Plasma on one version. What it
+cannot show is everything KWin's compositor adds — blur, translucency, the bar's rounded corners,
+window animations — and it is X11 where MoOS is Wayland. Its first run printed two binding
+warnings in `org.moos.search` that every desktop start had been logging.
+
 Two traps cost an hour each on 2026-09-17. A here-document passed through some agent shells has
 its backslashes halved, so `\\n` written into a patch becomes a real newline inside a QML or
 Python string: write patch scripts to a file, or edit directly. And `qmlformat` rejects Mo AI's
