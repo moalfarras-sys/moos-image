@@ -478,6 +478,12 @@ bash -n build_files/build.sh
 just build                                  # Tier 1 and milestone end — catches the real gates
 ```
 
+A pull request that touches `Containerfile`, `build_files/` or `system_files/` also builds the
+generic x86 image and runs its in-image gates (`.github/workflows/pr-image-gates.yml`; nothing is
+pushed or signed). Wait for it: the repo gates cannot see what `build.sh` asserts inside an image,
+and that blind spot turned `main` red after a fully green pull request (W5). The NVIDIA and cloud
+editions are not built there.
+
 ## Pushing workflow changes
 
 The maintainer's `gh` token needs the `workflow` scope to update anything in

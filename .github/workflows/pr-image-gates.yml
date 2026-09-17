@@ -1,0 +1,84 @@
+name: Image gates (pull request)
+
+# Build ONE x86 edition on a pull request and run every gate that lives inside the image build.
+# Nothing is pushed, signed or tagged.
+#
+# WHY THIS EXISTS (plan row P0.9)
+#
+# `build.yml` runs on pushes to `main`, never on pull requests, and the gates that read a finished
+# image — build_files/verify_image_experience.py and everything else build.sh asserts after it has
+# assembled the system — run only inside that build. The ARM pull-request build does not call
+# them. So a pull request could be green on every check it had and still break all three x86
+# editions the moment it merged:
+#
+#   * wave W5 (PR #111): every check green; `main` red for a day, because a shell parameter
+#     expansion closed a comment span in the image gate's parser and hid 24 of 28 settings routes;
+#   * and once `main` is red nothing can be released, so four finished waves sat behind it.
+#
+# tests/test_image_gate_source_parser.py and the lifted check in tests/test_moai_skills.py pull
+# individual image gates forward into the repo gates. This workflow is the general answer: the
+# same Containerfile, the same build.sh, the same in-image gates, before the merge.
+#
+# It builds the generic edition only. The NVIDIA edition differs by one layered driver stage and
+# the cloud edition by a policy section of build.sh; both are still first built on `main` (or by
+# scripts/release-candidate.sh --ref on the branch). A green run here means "the generic image
+# assembles and passes its in-image gates", not "all three editions do".
+
+on:
+  pull_request:
+    paths:
+      - "Containerfile"
+      - "build_files/**"
+      - "system_files/**"
+      - ".github/workflows/pr-image-gates.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: pr-image-gates-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  image-gates:
+    name: x86 image build and in-image gates (moos, nothing pushed)
+    runs-on: ubuntu-latest
+    # The same measured ceiling as build.yml's job; see the history written there.
+    timeout-minutes: 180
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      # Identical to build.yml: the stock runner has ~14 GB free and the image build needs more.
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          docker-images: true
+          swap-storage: false
+
+      - name: Resolve labels
+        id: meta
+        run: echo "date_tag=$(date -u +%Y%m%d)" >> "$GITHUB_OUTPUT"
+
+      # build.sh runs inside this step, and with it every in-image gate. The image stays in the
+      # runner's local storage and disappears with the runner: there is no login, no push and no
+      # signature in this workflow, and it has no permission to do any of them.
+      - name: Build image (buildah) and run the in-image gates
+        uses: redhat-actions/buildah-build@v3
+        with:
+          containerfiles: ./Containerfile
+          image: moos-pr-gates
+          tags: pr-${{ github.run_id }}
+          labels: |
+            org.opencontainers.image.version=44.${{ steps.meta.outputs.date_tag }}.${{ github.run_number }}
+            org.opencontainers.image.revision=${{ github.event.pull_request.head.sha || github.sha }}
+            org.opencontainers.image.title=MoOS
+          build-args: |
+            IMAGE_NAME=moos
+            AKMODS_IMAGE=scratch
+          oci: false
