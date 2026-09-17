@@ -149,8 +149,23 @@ class WholeHelper(unittest.TestCase):
                     *--query-rich-rule=*) [ -s "{state}/rule" ] ;;
                 esac
             """)
+            # Bind over the RESOLVED /home, not the name.
+            #
+            # On an ordinary runner /home is a directory and the two are the same. On
+            # an ostree system - which every MoOS machine is - /home is a symlink to
+            # var/home, and bwrap refuses to mount on a symlink: "Can't mount on
+            # symlink destination /home". So this gate could not run at all on a MoOS
+            # workstation, which is exactly where an agent is told to run `just check`
+            # before pushing. Resolving the path keeps the runner behaviour identical
+            # and lets the helper's own /home/*/.ssh glob follow the symlink into it.
+            home_mount = os.path.realpath("/home")
             done = subprocess.run(
-                ["bwrap", "--dev-bind", "/", "/", "--bind", str(home), "/home",
+                ["bwrap", "--dev-bind", "/", "/", "--bind", str(home), home_mount,
+                 # ...and put the checkout back afterwards. On a MoOS station the
+                 # checkout lives under /var/home, so the bind above would otherwise
+                 # hide the very helper this gate runs. Binds apply in order, and where
+                 # the checkout is not under the home mount this one changes nothing.
+                 "--ro-bind", str(ROOT), str(ROOT),
                  "--ro-bind", str(work / "cmdline"), "/proc/cmdline",
                  "--setenv", "PATH", f"{stubs}:{os.environ['PATH']}",
                  BASH, str(HELPER)],

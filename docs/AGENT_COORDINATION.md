@@ -12,7 +12,7 @@ merge instead of editing it.
 
 | Agent | Machine | Holds | Files it may change |
 | --- | --- | --- | --- |
-| Station agent | The physical x86 NVIDIA workstation | **W7 — MoOS Workspace** and the live station review owed for W4–W6 | `system_files/usr/share/kwin/**`, `system_files/etc/xdg/kwinrc`, `system_files/etc/xdg/kcminputrc`, `system_files/usr/bin/moos-motion`, `tests/test_moos_switcher.py`, `tests/test_moos_arrange.py`, `tests/test_motion_authority.py`, `tests/test_touchpad_defaults.py` |
+| Station agent | The physical x86 NVIDIA workstation | **W7 — MoOS Workspace** and the live station review owed for W4–W6 | `system_files/usr/share/kwin/**`, `system_files/etc/xdg/kwinrc`, `system_files/etc/xdg/kcminputrc`, `artwork/generate_moos_design_core.py` and the generated `org/moos/ui` tokens, `org/moos/ui/Button.qml` and `Card.qml`, `tests/qml/motion-review.qml`, `tests/test_moos_switcher.py` |
 | Remote agent | Off-station (no live KWin) | **W9 — system surfaces on MoOS UI** (Updater, Recovery, Remote centre, Settings front door) | the app trees those surfaces live in, `PROJECT_STATE.md` release rows |
 | Oracle agent | The Oracle A1 (aarch64) | ARM boot proofs and the A1's own findings | `Containerfile.arm`, ARM tests and ARM rows |
 
@@ -35,14 +35,46 @@ from source off-station, so they do not need the station.
 Both findings are from the running session (`44.20260917.858`, KWin 6.7.5,
 3840×2160 at 265%, Arabic), not from source:
 
-- **The task switcher is not MoOS.** Alt+Tab draws the stock `thumbnail_grid`
-  in a pale near-white panel with a Breeze close button, in left-to-right order
-  in an Arabic session, floating above a dark MoOS glass bar. Nothing about it
-  shares the bar's material, type or corner radius.
-- **Overview's chrome is not MoOS either, and cannot be replaced the same way.**
-  Its search field, desktop tiles and window captions are stock. Unlike the
-  switcher, Overview's QML is compiled into `libkwin.so.6` — there is no file to
-  override and no supported extension point, so restyling it means patching KWin.
-  That is a fork, which `AGENTS.md` forbids, so W7 does not attempt it. What W7
-  can honestly give Overview is its configuration: trigger, layout and the
-  durations it animates with.
+- **The switcher had MoOS's colour and nobody else's shape.** The first note
+  written here said Alt+Tab "is not MoOS". That was imprecise, and the precise
+  version is the useful one: the active scheme is `MoOSUI2AuroraLight`, and the
+  MoOS Plasma style does reach the switcher's *colour* — which is why it looked
+  pale mint rather than Breeze blue. What the Plasma style cannot reach is the
+  layout: geometry, type, corner radii, the Breeze close button, and the
+  reading order. Alt+Tab ran left-to-right inside a right-to-left session.
+  Colour was the only thing MoOS owned, and it was the only thing that was right.
+- **The reading order had a specific, MoOS-specific cause.** The stock layouts
+  take their direction from `Application.layoutDirection`. MoOS ships bilingual
+  QML strings instead of Qt translation catalogues, so no translator is
+  installed and that property is LeftToRight in every MoOS session, Arabic ones
+  included — exactly what the comment at the top of `org/moos/ui/Locale.qml`
+  warns about. Any surface MoOS adopts from upstream needs checking for this.
+- **Overview cannot be re-shaped the same way.** Its search field, desktop tiles
+  and window captions are stock too, but its QML is compiled into
+  `libkwin.so.6` — `/usr/share/kwin/effects/` holds only a third-party `cube`,
+  and the effect plugin directory has only `kwin_overview_config.so`. There is
+  no file to override and no supported extension point, so re-shaping it means
+  patching KWin. That is a fork, which `AGENTS.md` forbids, so W7 does not
+  attempt it. What W7 can honestly give Overview is its configuration: trigger,
+  layout, and the durations it animates with.
+- **MoOS's own motion did not follow the owner's animation-speed setting.**
+  Plasma has one control, `AnimationDurationFactor`, and `moos-visual-tier`
+  already writes it per hardware tier. It reaches QML through
+  `Kirigami.Units.longDuration`. MoOS's `Tokens.duration()` read that only as
+  yes-or-no, so on a tier set to 40% the shell ran at 40% and every MoOS surface
+  still ran at 100%.
+
+
+## What the station has already done (2026-09-17)
+
+On branch `feat/w7-workspace-20260917`, reviewed live on the running session:
+
+1. **MoOS Switcher** — Alt+Tab is a MoOS surface, mirrored by the locale, with a
+   working close control, selected in `etc/xdg/kwinrc` for both switchers.
+2. **`Tokens.scaled()`** — MoOS motion answers to the same one control Plasma
+   does, proven on the real Qt runtime by `tests/qml/motion-review.qml`.
+3. **The station review owed for W4–W6** — results are in `PROJECT_STATE.md`.
+
+Still open in W7, for whoever picks it up next: MoOS Arrange (one-click tiling
+presets with a live preview), touchpad and gesture defaults (P5.2), and carrying
+`Tokens.scaled()` to the per-surface motion aliases in the plasmoids and apps.
