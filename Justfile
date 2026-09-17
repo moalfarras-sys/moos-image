@@ -238,6 +238,8 @@ check:
     # English on Arabic installs.
     python3 tests/test_moos_one_locale_authority.py
     python3 tests/test_moos_ui2.py
+    # Shipped shell QML / theme SVG may not change while THEME_REV stands still.
+    python3 tests/test_theme_rev_fingerprint.py
     # The full Launcher must be operable with the keyboard alone: sidebar
     # focus + activation keys, search-field <-> content crossing, Shift+Tab.
     python3 tests/test_moos_launcher_keyboard.py

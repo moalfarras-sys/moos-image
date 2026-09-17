@@ -144,7 +144,17 @@ green.
 `moos-apply-theme` purges those caches, but only inside its once-per-revision
 migration. **Therefore: any change to shipped theme SVGs or plasmoid QML requires
 bumping `THEME_REV`.** Two gates pin the literal (`tests/test_moos_ui2.py` and
-`tests/verify_user_experience.py`); move them with it.
+`tests/verify_user_experience.py`); move them with it, then run
+`python3 tests/test_theme_rev_fingerprint.py --record`.
+
+`tests/test_theme_rev_fingerprint.py` enforces the rule: it compares the revision
+with a recorded digest of every package a frozen-mtime cache can serve stale
+(plasmoids, wallpapers, look-and-feel, shells, layout templates, `org.moos.ui`,
+Plasma Style and Aurorae SVGs), fails when bytes moved and the number did not, and
+`--record` refuses to hide that. W5 changed the island and search at rev 60 with
+every check green; ARM promotes each green `main` push, so its machines kept the
+cached W3 widgets. First-party apps are exempt because their launchers export
+`QML_DISABLE_DISK_CACHE=1` — keep that line when you add an app.
 
 ### 2.5 The motion gate floors at 1, not 0
 
@@ -287,8 +297,8 @@ The task queue and missing acceptance evidence live in
 
 - `just check` green (§0); a full local build for Tier 1 changes (§1) and at the
   end of a milestone, not after every edit.
-- `THEME_REV` bumped if any shipped SVG or plasmoid QML changed, with both pinned
-  gates moved.
+- `THEME_REV` bumped if any shipped SVG or shell QML changed, with both pinned
+  gates moved and the fingerprint re-recorded (§2.4) — `just check` refuses otherwise.
 - Every home override under `~/.local/share/plasma/` removed.
 - `PROJECT_STATE.md` and `docs/DEVELOPMENT_PLAN.md` updated concisely —
   **including what you did NOT finish**. Git history replaces per-session

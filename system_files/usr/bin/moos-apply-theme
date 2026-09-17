@@ -219,7 +219,14 @@ set -uo pipefail
 #     so every widget was locked and had no Remove button (the owner could not
 #     delete the desktop Disk Activity widget). The repair now writes Mutable (1)
 #     only over invalid values and keeps a user's own lock.
-THEME_REV=60
+# 61: wave W5 changed org.moos.island (Store jobs, camera/microphone/screen-share
+#     privacy chips with a one-tap stop) and org.moos.search (inline calculator,
+#     unit and file answers) and merged with the revision still at 60. The ARM
+#     pipeline promotes every green main push, so ARM machines took W3 at rev 60
+#     and then W5 at rev 60: their v60 marker already existed, the purge below
+#     never ran again, and the frozen-mtime QML cache kept serving the W3 island
+#     and search. One revision per shipped QML change, not per wave name.
+THEME_REV=61
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"
