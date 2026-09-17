@@ -1,0 +1,18 @@
+{
+    "KPackageStructure": "KWin/WindowSwitcher",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "MoOS"
+            }
+        ],
+        "Description": "The MoOS window switcher: one glass strip of live windows",
+        "Description[ar]": "مبدّل نوافذ MoOS: شريط زجاجي واحد لنوافذك الحيّة",
+        "Id": "org.moos.ui2.switcher",
+        "License": "GPL-2.0-or-later",
+        "Name": "MoOS Switcher",
+        "Name[ar]": "مبدّل MoOS",
+        "Version": "1.0"
+    },
+    "X-Plasma-APIVersion": "2"
+}
