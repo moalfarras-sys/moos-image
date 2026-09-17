@@ -206,6 +206,34 @@ class TheRealReader(unittest.TestCase):
             self.assertNotIn("TOP SECRET", read.stdout + read.stderr)
 
 
+@unittest.skipUnless(sys.platform.startswith("linux"), "runs the real reader")
+class TheImageGate(unittest.TestCase):
+    def test_the_image_gates_own_check_passes_on_this_tree_and_can_fail(self) -> None:
+        """The image build runs skills_are_readable(""); run the SAME code here first (plan P0.9)."""
+        import ast
+
+        gate = (ROOT / "build_files/verify_image_experience.py").read_text(encoding="utf-8")
+        function = next(node for node in ast.parse(gate).body
+                        if isinstance(node, ast.FunctionDef) and node.name == "skills_are_readable")
+        scope: dict = {}
+        exec(compile(ast.Module(body=[function], type_ignores=[]), "verify_image_experience.py", "exec"), scope)
+        self.assertEqual(scope["skills_are_readable"](str(ROOT / "system_files")), [])
+        self.assertIn('skills_are_readable("")', gate, "the image build no longer calls the check")
+
+        with tempfile.TemporaryDirectory() as raw:
+            tree = Path(raw)
+            for part in ("usr/bin", "usr/libexec", "usr/lib/moai"):
+                (tree / part).mkdir(parents=True)
+            shutil.copy(INSPECT, tree / "usr/bin/moos-inspect")
+            shutil.copy(SUPPORT, tree / "usr/libexec/moos-support-bundle")
+            shutil.copy(ROOT / "system_files/usr/lib/moai/moai_tool_schemas.py", tree / "usr/lib/moai")
+            shutil.copytree(SKILLS_DIR, tree / "usr/share/moos/moai/skills")
+            (tree / "usr/share/moos/moai/skills/no-sound.md").unlink()
+            problems = scope["skills_are_readable"](str(tree))
+        self.assertTrue(any("no-sound" in problem for problem in problems),
+                        f"a skill missing from the image went unnoticed: {problems}")
+
+
 class TheModelIsTold(unittest.TestCase):
     def test_the_system_prompt_sends_the_model_to_the_skills(self) -> None:
         prompt = MOAI.read_text(encoding="utf-8")
