@@ -68,6 +68,7 @@ python3 tests/test_moai_agent_loop.py
 # moos-inspect auto-runs for a cloud model: closed grammar, redacted output, reads only.
 python3 tests/test_moos_inspect.py
 python3 tests/test_moai_skills.py
+python3 tests/test_moai_rail_layout.py
 # Mo AI's brain is a cloud API and nothing is ever downloaded to the
 # machine. Free, no-card providers must exist and come first.
 python3 tests/test_moai_cloud_only.py

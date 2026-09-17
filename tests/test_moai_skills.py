@@ -240,6 +240,27 @@ class TheModelIsTold(unittest.TestCase):
         for needle in ("SKILLS:", "list_skills", "read_skill", "A skill gives you no new powers"):
             self.assertIn(needle, prompt)
 
+    def test_every_chip_on_the_home_screen_leads_to_a_shipped_skill(self) -> None:
+        qml = MOAI.read_text(encoding="utf-8")
+        block = qml[qml.index("readonly property var skillChips: ["):]
+        block = block[:block.index("\n    ]")]
+        chips = re.findall(r'\{ skill: "([^"]+)", icon: "([^"]+)", ar: "([^"]+)", en: "([^"]+)",\s*'
+                           r'send: root\.local\("([^"]+)", "([^"]+)"\) \}', block)
+        self.assertGreaterEqual(len(chips), 6, "the home screen lost its skill chips (or their shape changed)")
+        self.assertEqual(len(chips), block.count("{ skill:"), "a chip this gate cannot read")
+        icons = ROOT / "system_files/usr/share/icons/hicolor/scalable/actions"
+        for skill, icon, ar, en, send_ar, send_en in chips:
+            with self.subTest(chip=en):
+                self.assertIn(skill, SKILLS, f"the chip “{en}” promises help no playbook backs")
+                self.assertTrue((icons / f"{icon}.svg").is_file(), f"{icon} is not a shipped MoOS glyph")
+                self.assertRegex(ar, r"[؀-ۿ]")
+                self.assertRegex(send_ar, r"[؀-ۿ]")
+                # A chip speaks as the person would; ids and tool names are the model's business.
+                for text in (ar, en, send_ar, send_en):
+                    self.assertNotIn(skill, text)
+                    self.assertNotRegex(text, r"[a-z]+_[a-z]+")
+        self.assertEqual(len({chip[0] for chip in chips}), len(chips), "two chips for one skill")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
