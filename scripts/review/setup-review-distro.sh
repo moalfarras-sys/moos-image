@@ -29,11 +29,23 @@ dnf -y -q install --skip-unavailable --setopt=install_weak_deps=False \
     mesa-dri-drivers mesa-libGL mesa-libEGL xorg-x11-server-Xvfb dbus-daemon bubblewrap \
     ibm-plex-sans-fonts ibm-plex-sans-arabic-fonts jetbrains-mono-fonts google-noto-sans-arabic-fonts
 
+# render-desktop.sh runs the REAL shell: plasmashell with kwin_x11 under Xvfb. Keep this set on
+# ONE version with Qt (`dnf upgrade` first): applets built against another Qt refuse to load
+# ("undefined symbol … Qt_6.x_PRIVATE_API") and the desktop comes up empty.
+dnf -y -q install --skip-unavailable \
+    plasma-workspace plasma-desktop libplasma kwin-x11 kactivitymanagerd plasma-nm plasma-pa \
+    plasma-sdk kscreenlocker xwd ImageMagick glib2
+
 # Assets the apps open by absolute path, and the themes Kirigami resolves by name. Symlinks into
 # the checkout keep them current; pass a native-filesystem mirror as $1 when the checkout lives
 # on a slow or mode-less mount (see mirror-gates.sh).
 TREE="${1:-$ROOT}"
 ln -sfn "$TREE/system_files/usr/share/moos" /usr/share/moos
+# Brand art the shell QML opens by absolute path (the lock screen's /usr/share/pixmaps/moos-logo.png).
+mkdir -p /usr/share/pixmaps
+for art in "$TREE"/system_files/usr/share/pixmaps/*; do
+    ln -sfn "$art" "/usr/share/pixmaps/$(basename "$art")"
+done
 for theme in "$TREE"/system_files/usr/share/icons/MoOSUI2*; do
     ln -sfn "$theme" "/usr/share/icons/$(basename "$theme")"
 done

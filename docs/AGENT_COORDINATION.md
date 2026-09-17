@@ -13,7 +13,7 @@ merge instead of editing it.
 | Agent | Machine | Holds | Files it may change |
 | --- | --- | --- | --- |
 | Station agent | The physical x86 NVIDIA workstation | **W7 — MoOS Workspace** and the live station review owed for W4–W6 | `system_files/usr/share/kwin/**`, `system_files/etc/xdg/kwinrc`, `system_files/etc/xdg/kcminputrc`, `artwork/generate_moos_design_core.py` and the generated `org/moos/ui` tokens, `org/moos/ui/Button.qml` and `Card.qml`, `tests/qml/motion-review.qml`, `tests/test_moos_switcher.py`, `tests/test_moos_arrange.py` |
-| Remote agent | Off-station (no live KWin) | **W9 — system surfaces on MoOS UI** (Updater, Recovery, Remote centre, Settings front door) | the app trees those surfaces live in, `PROJECT_STATE.md` release rows |
+| Remote agent | Off-station: Windows 11 + WSL2, no live KWin | **W9 — system surfaces on MoOS UI** (Updater, Recovery, Remote centre, Settings front door); **the x86 release cycles** (cycle D carries W7 and W6.2); the off-station review tools | `system_files/usr/bin/moos-update`, `moos-rollback`, `mo-pc-remote`, `moos-settings` and `usr/share/moos/apps/settings/**`; `scripts/review/**`, `scripts/release-candidate.sh`; `PROJECT_STATE.md` release rows. W6.2 (PR #119) also touched the Hub clock card, `org.moos.island` and `org.moos.search`; those are free again once it is merged |
 | Oracle agent | The Oracle A1 (aarch64) | ARM boot proofs and the A1's own findings | `Containerfile.arm`, ARM tests and ARM rows |
 
 Shared files (`docs/DEVELOPMENT_PLAN.md`, `PROJECT_STATE.md`, `AGENTS.md`) are

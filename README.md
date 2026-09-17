@@ -49,6 +49,8 @@ moplayer/                     first-party MoPlayer source and tests
 moremote/                     Mo PC Remote source and component documentation
 iso/                          offline ISO inputs
 tests/                        repository, image, VM and hardware verification
+scripts/release-candidate.sh  one command per release batch: signed build, every boot proof, promotion
+scripts/review/               off-station tools: run the gates on a mirror, render a first-party app from source
 docs/DEVELOPMENT_PLAN.md      ordered product plan
 PROJECT_STATE.md              current measured state only
 RELEASE.md                    release/promotion contract
@@ -74,6 +76,23 @@ just build-cloud           # cloud x86
 For the physical development machine, inspect the host from the VS Code
 sandbox with `flatpak-spawn --host`. GUI programs must be launched through
 `moai-open` so they survive the command session.
+
+Away from that machine (any Linux box, or Windows with a Fedora WSL2 distro):
+`scripts/review/setup-review-distro.sh` installs the toolchain,
+`scripts/review/mirror-gates.sh` runs the gates on a mirror with git's file
+modes, and `scripts/review/render-app.sh <app> out.png` draws a first-party
+app from source with a real MoOS colour scheme and prints its QML binding
+errors, and `scripts/review/render-desktop.sh out.png --lang=ar` brings up the
+real `plasmashell` with MoOS's shipped layout, scene and plasmoids under Xvfb.
+Render at the size the window really opens at. Both are source-harness
+evidence (no GPU compositing: no blur, no KWin effects, X11 not Wayland); neither
+is a desktop review, and the plan says which is owed.
+
+A pull request that touches `Containerfile`, `build_files/` or `system_files/`
+builds the generic x86 image and runs every in-image gate before the merge
+(`.github/workflows/pr-image-gates.yml`; nothing is pushed or signed). Wait for
+it. `main` holds one long-lived branch: merge with a merge commit, delete the
+topic branch, and keep nothing half-merged.
 
 Record each finished task with:
 
@@ -109,6 +128,21 @@ source commit
 
 Never move a release tag because a build alone passed. Never weaken an identity,
 initramfs, signature, route or runtime-loading gate to get a green result.
+
+## Taking over from another agent or person
+
+1. `git log --oneline -15` and `gh pr list` — what landed last and what is open.
+2. [`PROJECT_STATE.md`](PROJECT_STATE.md) — what production really is (it quotes the
+   registry read-back), what has never been seen on a MoOS desktop, and "Next
+   execution".
+3. [`docs/DEVELOPMENT_PLAN.md`](docs/DEVELOPMENT_PLAN.md) — the wave table says
+   what each wave delivered and its release state; "Station review owed" is the
+   ordered checklist for the first session after an update; rows marked **Owner
+   decision** are not yours to take.
+4. Read the registry, not a document, before you claim a version:
+   `skopeo inspect docker://ghcr.io/moalfarras-sys/moos-nvidia:latest`.
+5. An installed MoOS updates through the MoOS Updater (origins are digest-pinned,
+   so `bootc upgrade` answers "no changes" forever).
 
 ## Current status
 

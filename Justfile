@@ -250,6 +250,7 @@ check:
     python3 tests/test_moos_ui2.py
     # Shipped shell QML / theme SVG may not change while THEME_REV stands still.
     python3 tests/test_theme_rev_fingerprint.py
+    python3 tests/test_shell_text_alignment.py
     # Shipped KConfig keys must sit inside a group, and /etc/xdg must agree
     # with the default Global Theme.
     python3 tests/test_kconfig_group_headers.py
