@@ -74,10 +74,10 @@ reviewed live, gated once, merged once and proven once.
 | Wave | Milestone | User-visible content | State |
 | --- | --- | --- | --- |
 | W1 | M1 | MoOS Search surface, settling Remote chip, clock rail, localized Hub, keyboard-safe Search/Island, in-tree MoPlayer, hardened ISO proof | **installed** on the station as `44.20260916.848` |
-| W2 | M1 | MoOS Hub controls (desktop right-click show/hide and per-card toggles, wallpaper page), review-shadow retirement, unified instructions and this program | merged (`8b272b87`); its release run stopped on a watcher false-FAIL, so it ships with W3 |
-| W3 | M1 | The owner controls the desk: every widget removable again (THEME_REV 60), a wallpaper chosen anywhere stays after login and drift checks, release watcher reads real run results | PR #109, reviewed live on the station |
-| W4 | M3 | **Mo AI as the system harness:** the cloud brain (free or paid, OpenRouter or OpenCode Zen) receives native tool schemas generated from the fixed `moai-do` and `moos-control` grammar; read-only tools run directly, every change shows a confirmation card, the fixed executor acts, and the result is read back into the conversation (P3.3, P3.4, P3.7) | in review on `feat/w4-moai-tool-harness` |
-| W5 | M1 | MoOS Island jobs (Store installs, updates, downloads) and privacy chips (camera, microphone, screen share); Search inline answers (calculator, units, file actions) | planned |
+| W2 | M1 | MoOS Hub controls (desktop right-click show/hide and per-card toggles, wallpaper page), review-shadow retirement, unified instructions and this program | merged (`8b272b87`); ARM production; its x86 cycle stopped on the ISO proof (run `35158666486`: second boot healthy on QGA, SSH banner timeout), so x86 ships it with W3–W5 |
+| W3 | M1 | The owner controls the desk: every widget removable again (THEME_REV 60), a wallpaper chosen anywhere stays after login and drift checks, release watcher reads real run results | merged (`2e6f7686`, PR #109), reviewed live on the station; ARM production; x86 built green, never proven |
+| W4 | M3 | **Mo AI as the system harness:** the cloud brain (free or paid, OpenRouter or OpenCode Zen) receives native tool schemas generated from the fixed `moai-do` and `moos-control` grammar; read-only tools run directly, every change shows a confirmation card, the fixed executor acts, and the result is read back into the conversation (P3.3, P3.4, P3.7) | merged (`009b4b58`, PR #110); ARM production; x86 unreleased; the ≥95% action-selection measurement and a station review are still owed, so P3.3/P3.4/P3.7 stay open |
+| W5 | M1 | MoOS Island jobs (Store installs, updates, downloads) and privacy chips (camera, microphone, screen share); Search inline answers (calculator, units, file actions) | merged (`7f182689`, PR #111); ARM production (`44.20260917.431`); it turned x86 `main` red and shipped without its `THEME_REV` bump — both repaired by the 2026-09-17 integration (rev 61); no station review recorded |
 | W6 | M2 | MoOS Workspace: MoOS-styled overview, one-click tiling layouts, window open/close/minimise durations taken from MoOS Motion, gesture defaults | planned |
 | W7 | M2 | MoOS Intro: one horizon scene from Plymouth through login to the Hub; first-run tour; offline first run (P1.6) | planned |
 | W8 | M2 | System surfaces on MoOS UI: Updater, Recovery, Remote centre, Settings front door (P2.1–P2.2) | planned |
@@ -144,18 +144,16 @@ KDE/Wayland, make cloud AI truthful, and deliver the same result in signed ISOs.
 Repository cleanup and engineering instructions support that work; screenshots,
 old plans and extra packages are not product progress.
 
-**Active milestone: M1, the daily MoOS desktop journey.** The promoted physical
-station already includes the Remote live-keymap repair, signature-verified local
-RPM install and ARM packaging repair. `main` revision `57874d6c` adds Horizon 2:
-one anchored MoOS Search, the compact Remote island, localized desktop hub and
-the clock rail. Its signed build, all three x86 QCOW2 proofs and ARM proof passed;
-the ISO installed offline, opened/reopened every first-party app and reached its
-second login on serial, but its SSH reboot channel timed out before a banner.
-Because that proof is red, the candidate was not promoted. Wave W1 (PR #107)
-finishes keyboard-safe Search/Island interaction and proves the ISO reboot through
-two independent channels; its exact branch revision `92248b5d` is being proven by
-run `35148344935` before merge and promotion. Wave W2 adds MoOS Hub controls and
-this unified program on top of W1.
+**Active milestone: M1, the daily MoOS desktop journey.** x86 production is W1
+(`92248b5d`, `44.20260916.848`): Horizon 2 with one anchored MoOS Search, the
+compact Remote island, the localized Hub, the clock rail and keyboard-safe
+Search/Island. Waves W2–W5 are merged and are ARM production, but no x86 cycle
+has completed for them; the wave table above says why for each. **The next
+action for any agent is the release cycle for W2–W5**, not another wave on top
+of four unreleased ones: every extra unreleased wave widens what one red proof
+blocks. The ISO proof's installed-reboot SSH channel has timed out on two of the
+last three `main` candidates while QGA stayed healthy; treat it as an open
+harness defect (row P0.8) and read its artifact before each dispatch.
 
 | Requested outcome | Work stream | What must actually be proven |
 | --- | --- | --- |
@@ -307,7 +305,9 @@ revision and all required editions/artifacts prove that revision.
 | P0.4 | Open | Prove failed-update recovery | disposable VM bad-candidate rollback, then hardware rollback/roll-forward with user data intact |
 | P0.5 | Open | Configure and accept free Mo AI on a clean account | valid OpenRouter key entered through Settings; Arabic/English reply; reboot persistence; provider failure UI |
 | P0.6 | **In progress** | Promote only the proven digests and update the physical PC | W1 (`92248b5d`, `44.20260916.848`) is promoted for x86; the station still boots `44.20260915.836` until the staged update is rebooted and read back |
-| P0.7 | Open | Remove the intermittent ARM second-boot `plymouthd` crash | SEGV in `on_new_frame` failed ARM runs on 2026-09-15 and `35150466421`; reproduce with ARM-only branch dispatches, fix without weakening the zero-failed-unit gate, then two consecutive green ARM proofs |
+| P0.7 | Open | Remove the intermittent ARM second-boot `plymouthd` crash | SEGV in `on_new_frame` failed ARM runs on 2026-09-15 and `35150466421`; reproduce with ARM-only branch dispatches, fix without weakening the zero-failed-unit gate, then two consecutive green ARM proofs **after a fix** (the W3 and W5 runs were green with none, which proves intermittency only) |
+| P0.8 | Open | Make the ISO installed-reboot proof deterministic | the SSH channel timed out "during banner exchange" on `57874d6c` and `8b272b87` while QGA reported a healthy second boot, and passed on `92248b5d`; find whether sshd, the ephemeral key injection or the forwarded port is late, fix the cause, then three consecutive green ISO proofs on unchanged source |
+| P0.9 | Open | Run image-only gates before the merge | `build.yml` does not run on pull requests and `build-arm.sh` does not call `verify_image_experience.py`, so W5 was green on every check and red on `main`. The router parser is now covered by `tests/test_image_gate_source_parser.py`; remaining: give each source-readable section of the image gates a `MOOS_TEST_ROOT=system_files` mode (as `verify_store_catalog.py` has) and call it from `tests/repo-gates.sh`, or build one x86 edition on pull requests that touch `system_files/`, `build_files/` or a Containerfile |
 
 Repository cleanup is complete: retired plans/evidence/assets were removed,
 and all 14 historical remote branches were proven ancestors of `main` before
