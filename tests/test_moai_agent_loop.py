@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import socket
 import subprocess
@@ -249,6 +250,12 @@ class TheRealWindow(unittest.TestCase):
         argv = ["xvfb-run", "-a", "-s", "-screen 0 1600x1000x24", QML_RUNTIME, str(HARNESS), "--",
                 "--gateway-port", str(provider.server_port), "--control-port", str(control_port),
                 "--agent-port", str(agent_port), f"--out={out}"] + (["--decline"] if decline else [])
+        # Review aids, never part of the verdict: MOOS_REVIEW_SIZE=940x700 MOOS_REVIEW_ARABIC=1
+        size = os.environ.get("MOOS_REVIEW_SIZE", "")
+        if re.fullmatch(r"\d{3,4}x\d{3,4}", size):
+            argv += [f"--w={size.split('x')[0]}", f"--h={size.split('x')[1]}"]
+        if os.environ.get("MOOS_REVIEW_ARABIC"):
+            argv.append("--arabic")
         done = subprocess.run(argv, env=env, capture_output=True, text=True, encoding="utf-8",
                               errors="replace", timeout=180)
         line = next((l for l in (done.stderr + done.stdout).splitlines() if "REVIEW-RESULT " in l), "")
