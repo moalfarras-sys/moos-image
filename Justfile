@@ -70,6 +70,10 @@ check:
     python3 tests/test_moai_config.py
     python3 tests/test_moai_tool_schemas.py
     python3 tests/test_moai_confirmation_flow.py
+    # The native tool loop, executed: AgentLoop.js in node, the real window where Qt exists.
+    python3 tests/test_moai_agent_loop.py
+    # The read-only inspector: closed grammar, redacted output, nothing but reads.
+    python3 tests/test_moos_inspect.py
     # Mo AI's brain is a cloud API and nothing is ever downloaded to the
     # machine. Free, no-card providers must exist and come first.
     python3 tests/test_moai_cloud_only.py

@@ -60,6 +60,13 @@ python3 tests/test_moai_control.py
 python3 tests/test_moai_config.py
 python3 tests/test_moai_tool_schemas.py
 python3 tests/test_moai_confirmation_flow.py
+# W4's tool loop never ran on a machine without Hermes (tools were attached only when
+# !agentMode, which defaults to true), handled one call per answer and could orphan a tool
+# message. This executes the shipped AgentLoop.js in node and, where Qt exists, drives the
+# REAL window against a scripted provider and the real moai-control.
+python3 tests/test_moai_agent_loop.py
+# moos-inspect auto-runs for a cloud model: closed grammar, redacted output, reads only.
+python3 tests/test_moos_inspect.py
 # Mo AI's brain is a cloud API and nothing is ever downloaded to the
 # machine. Free, no-card providers must exist and come first.
 python3 tests/test_moai_cloud_only.py
