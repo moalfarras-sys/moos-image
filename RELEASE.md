@@ -35,6 +35,11 @@ revision واحد، ثم يُقلع artifact النهائي نفسه، ثم يُ
 
 4. لا تستخدم **Re-run jobs** لهذه runs؛ promotion يقبل `run_attempt == 1` فقط.
    أصلح السبب وشغّل workflow_dispatch جديدًا كي لا تختلط artifacts بين attempts.
+   إذا فشل إثبات **واحد** لسبب خارجي لا علاقة له بالمرشح (مثال 2026-09-17: تعذّر وصول
+   runner إلى مرايا التوزيعة أثناء بناء ISO، run `35275716160`)، شغّل ذلك الـworkflow
+   وحده من جديد على `main` بالمرجع نفسه (`image_ref`/`image-ref`)، ثم شغّل الترقية يدويًا
+   بالـrun id الجديد مع بقية الـIDs. `scripts/release-candidate.sh --promote` لن يرقّي
+   في هذه الحالة، وهذا صحيح: لقد سجّل فشل أحد إثباتاته.
 5. ادمج branch بطريقة تحفظ candidate commit كـancestor وتجعل tree النهائي على
    `main` مطابقًا له (merge commit مناسب). أي تغيير source بعد الأدلة يفرض مرشحًا
    جديدًا.

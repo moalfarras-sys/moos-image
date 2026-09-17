@@ -4,28 +4,29 @@ Current measured facts only; Git owns history. Last measured 2026-09-17.
 
 ## Source and release truth
 
-- **x86 production is W6**, read back from the registry 2026-09-17 after promotion
-  run `35269505270`: `moos`, `moos-nvidia` and `moos-cloud` `:latest` =
-  `44.20260917.858`, revision `a8622f95`, digests `3b30e42c69d4…`, `c8f94adde60d…`,
-  `143ec830db4f…` — the digests the candidate build signed. Proofs, all attempt 1
-  on that revision: build `35261411076`, QCOW2 generic/NVIDIA/cloud
-  `35265314956`/`35265319663`/`35265323922`, ISO `35265328509`. The previous x86
-  production was W1 (`92248b5d`, `44.20260916.848`), so an x86 machine moves W1 → W6
-  in one update.
-- **ARM production**, read back at the same time: `moos-arm:latest` =
-  `44.20260917.435`, revision `1b5f402f` (the #114 integration: `THEME_REV` 61, the
-  Baloo budget group, `moos-control status` no longer hanging). `build-arm.yml`
-  promotes every green push to `main`; the run for W6 (`35266924177`) was still in
-  its boot proof when this was written. Read the registry, not this line.
-- `main` holds W2–W6, the #114 integration and the pull-request image build (#116).
-  Its x86 build is green again (`35261305751` for #114, `35266924175` for W6).
-- Release cycle A (candidate `51cc2ac3`) passed the signed build and all three QCOW2
-  boots and lost its ISO proof to plan row P0.8; nothing was promoted from it.
-- The intermittent ARM second-boot `plymouthd` SEGV is still open (P0.7); green ARM
-  runs since then had no fix applied.
-- A merged commit or locally built image is not an installed or released state.
-  Production moves only after the exact candidate passes 3×QCOW2 + ISO; ARM is
-  separately required evidence.
+- **All four editions are one revision, `291361ad` (W6.1)**, read back from the registry on
+  2026-09-17 after promotion run `35280675992`: `moos`, `moos-nvidia` and `moos-cloud`
+  `:latest` = `44.20260917.862` (digests `63d72fde231a…`, `44d8c317df0c…`, `0b57dbdda41f…` —
+  the digests the candidate build signed), and `moos-arm:latest` = `44.20260917.441`. x86 and
+  ARM had been a release apart since W1.
+- Two x86 promotions that day. **Cycle B**, candidate `a8622f95` (W6): build `35261411076`,
+  QCOW2 generic/NVIDIA/cloud `35265314956`/`35265319663`/`35265323922`, ISO `35265328509`,
+  promotion `35269505270` → `44.20260917.858`. **Cycle C**, candidate `291361ad` (W6.1): build
+  `35272501490`, QCOW2 `35275702835`/`35275707229`/`35275711589`, ISO `35276847573`, promotion
+  `35280675992`. Cycle C's first ISO run (`35275716160`) died building the ISO when the runner
+  could not reach the distribution's mirrors; a fresh dispatch of that one workflow with the
+  same image reference passed, and promotion was dispatched by hand with its id
+  (`release-candidate.sh --promote` rightly refuses once one of ITS proofs has failed).
+  Before that day x86 production was W1 (`92248b5d`, `44.20260916.848`).
+- Release cycle A (candidate `51cc2ac3`) passed the signed build and all three QCOW2 boots and
+  lost its ISO proof to plan row P0.8; nothing was promoted from it.
+- `main` has one long-lived branch and no open pull request other than the one that carries
+  this file; 22 merged topic branches were deleted after each was proven an ancestor of `main`.
+- The intermittent ARM second-boot `plymouthd` SEGV is still open (P0.7); green ARM runs since
+  then had no fix applied.
+- A merged commit or locally built image is not an installed or released state. Production
+  moves only after the exact candidate passes 3×QCOW2 + ISO; ARM is separately required
+  evidence.
 
 ## Physical development station
 
@@ -102,7 +103,7 @@ all four boot proofs of cycle B. **Not proven:** anything on a MoOS desktop; too
 by a real free model (P3.3); a real AppImage, the dialog, the file-manager action and
 the folder watch (P4.6).
 
-## In review after the release (W6.1, `feat/moai-skills-20260917`)
+## W6.1 — released with cycle C, never seen on a MoOS desktop
 
 - **About this device** is a page of MoOS Settings, not the desktop's own module (which
   names the projects MoOS is built from): edition in words, version, build date, signed
@@ -113,8 +114,21 @@ the folder watch (P4.6).
 - **Mo AI's rail at the DEFAULT 940 px window** laid icon and label out in opposite
   corners of the pill; every earlier review had been rendered at 1400 px. Measured in
   the real window now. The Device panel printed the raw kernel release (`…fc44…`).
-- Needs release cycle C. Rendered from source at the station's real window sizes
-  (1536×864 logical → Store 1320×761, Settings 1360×761, Mo AI 940×700).
+
+## In review (`fix/hub-polish-20260917`) — needs release cycle D
+
+Found the first time the desktop ITSELF could be looked at off the station
+(`scripts/review/render-desktop.sh`: the real `plasmashell` with MoOS's layout, scene, Hub,
+bar and plasmoids under Xvfb; `render-lockscreen.sh` for the lock screen):
+
+- In an Arabic session the Hub's English date line hung on the LEFT edge of a right-aligned
+  clock column (each line aligned by its own script).
+- The Island's privacy chip read "الميكروفون قيد الاستخ…": the capsule was sized by counting
+  characters and ignored its always-shown Stop button.
+- MoOS Search assigned `undefined` to two labels on every desktop start.
+- `THEME_REV` 63. The same renders are the first time W6's Island repair was SEEN working in
+  a real shell (a Store job token shows "تثبيت Firefox - 45%"; a privacy token names the app).
+  Source-harness evidence: no compositor effects, X11 not Wayland, stock icons blank.
 
 ## ISO proof (P0.8) — cause measured
 
@@ -125,23 +139,22 @@ on the console — shows it: first boot, route 16 ms after the daemons were acti
 second boot, 1.02 s (the first read was empty; one retry found it). The old helper
 died on that read and never added its SSH rule. The harness change written on the
 other theory (a fresh slirp forward per boot) was measured by the same run as
-irrelevant (`first-boot-forward=alive`). One green run is one run: the row closes
-after two more.
+irrelevant (`first-boot-forward=alive`). Cycle C's ISO proof (`35276847573`) was the second
+consecutive green install-and-reboot; the row closes after one more.
 
 ## Proven source/image behavior
 
-- Cycle B's signed build passed every image gate for `moos`, `moos-nvidia` and
-  `moos-cloud` at `a8622f95`; all three disks booted twice under QEMU/KVM; the final
-  ISO installed offline, logged in, opened every first-party app twice, rebooted and
-  powered off.
+- Cycles B and C: the signed builds passed every image gate for all three x86 editions;
+  every disk booted twice under QEMU/KVM; each final ISO installed offline, logged in,
+  opened every first-party app twice, rebooted and powered off.
 - `pr-image-gates.yml` built the generic image on a pull request and ran its in-image
   gates in 16 minutes, pushing nothing (run `35266474587`).
 - Horizon motion gates cover finite settling, reversal, hidden state, reduced motion
   and pointer/key paths. Native sounds decode and map to KDE event IDs; installed
   playback/mute acceptance remains open.
 - Free cloud AI returned English and Arabic replies through the live gateway with an
-  explicitly free provider. That proves chat, not system control.
-- `moos-privacy-monitor`'s polling costs 0.66% of one core off the station (P5.4).
+  explicitly free provider: chat, not system control. `moos-privacy-monitor`'s polling
+  costs 0.66% of one core off the station (P5.4).
 
 ## Development environment
 
@@ -174,11 +187,14 @@ after two more.
 
 ## Next execution
 
-1. Owner: update the station (MoOS Updater → restart) and the A1; review W4–W6 there.
-2. Merge the W6.1 pull request once its checks (repo gates, x86 image gates, ARM build)
-   are green, then run release cycle C: `scripts/release-candidate.sh --promote` on
-   `main`. If only the ISO proof fails, read `reboot-channel*.txt` and the helper's
-   lines in `serial-installed.log` first.
-3. P0.8 closes after two more consecutive green ISO proofs; P0.7 stays open.
-4. W7 (Workspace) needs a live KWin session: do it on the station, from the facts
-   recorded in `docs/DEVELOPMENT_PLAN.md`.
+1. Owner: update the station and the A1 with the MoOS Updater, restart, and walk "Station
+   review owed for W4–W6.1" in `docs/DEVELOPMENT_PLAN.md`; record PASS/FAIL here.
+2. Merge the polish pull request once its checks are green (repo gates, x86 image gates, ARM
+   build), then release cycle D: `TMPDIR=<dir> scripts/release-candidate.sh --promote` on
+   `main`. If ONE proof fails for an external reason, dispatch that workflow alone again with
+   the same image reference and promote by hand with the new run id (see `RELEASE.md`).
+3. The visible programme the owner asked for — desktop, widgets, login, motion (W7–W9) — now
+   has an off-station loop: render the desktop, the launcher, the lock screen and any app from
+   source, change, render again. Compositor work (blur, window animation, Overview) still
+   needs the station.
+4. P0.8 closes after one more green ISO proof; P0.7 stays open.
