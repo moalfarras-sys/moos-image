@@ -87,7 +87,9 @@ def message(version: str, fresh: list[dict], language: str) -> tuple[str, str, s
     """(title, body, action label) in ONE language — never two translations side by side."""
     arabic = language in RTL_LANGUAGES
     key = "ar" if arabic else "en"
-    names = [entry["title"][key] for entry in fresh[:3]]
+    # The page's own entry is in the list so it has a date; a notification that opens the
+    # page does not need to announce it. Seen in a rendered session, 2026-09-18.
+    names = [entry["title"][key] for entry in fresh if entry["id"] != "whats-new"][:3]
     count = len(fresh)
     if arabic:
         title = "تم تحديث MoOS"

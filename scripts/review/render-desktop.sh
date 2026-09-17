@@ -7,6 +7,7 @@
 #   render-desktop.sh <out.png> [--lang=ar|en] [--size=1536x864] [--wallpaper=MoOSUI2Aurora]
 #                     [--wait=35] [--script=file.js] [--hub=off] [--call=<PlasmaShell method>]
 #                     [--runtime-file=moos-privacy/active-mic-57-Firefox]   (an Island state token)
+#                     [--run='notify-send …']   (a command run inside the session before the capture)
 #
 # WHAT THIS IS NOT: there is no GPU compositing here, so no blur, no translucency, no rounded
 # panel corners, no KWin effects or window animations, and it is X11 while MoOS is Wayland.
@@ -16,10 +17,10 @@
 # upstream set, so an icon that comes from it — a stock application's, for one — is blank here.
 # A blank STOCK icon in this render is the environment; a blank moos-* icon is a finding.
 set -uo pipefail
-[ "$#" -ge 1 ] || { sed -n '2,17p' "$0"; exit 2; }
+[ "$#" -ge 1 ] || { sed -n '2,18p' "$0"; exit 2; }
 OUT="$(realpath -m "$1")"; shift
 ROOT="${MOOS_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
-LANGUAGE_CODE=en; SIZE=1536x864; WALLPAPER=MoOSUI2Aurora; WAIT=35; SCRIPT=""; HUB=on; CALL=""; RUNTIME_FILES=()
+LANGUAGE_CODE=en; SIZE=1536x864; WALLPAPER=MoOSUI2Aurora; WAIT=35; SCRIPT=""; HUB=on; CALL=""; RUN=""; RUNTIME_FILES=()
 for arg in "$@"; do
     case "$arg" in
         --lang=*) LANGUAGE_CODE="${arg#--lang=}" ;;
@@ -30,6 +31,7 @@ for arg in "$@"; do
         --hub=*) HUB="${arg#--hub=}" ;;
         --runtime-file=*) RUNTIME_FILES+=("${arg#--runtime-file=}") ;;   # an empty file under XDG_RUNTIME_DIR (a state token)
         --call=*) CALL="${arg#--call=}" ;;   # a no-argument org.kde.PlasmaShell method, e.g. activateLauncherMenu
+        --run=*) RUN="${arg#--run=}" ;;      # a shell command run INSIDE the session before the capture (notify-send …)
     esac
 done
 case "$LANGUAGE_CODE" in ar) LOCALE=ar_EG.UTF-8 ;; *) LOCALE=en_US.UTF-8 ;; esac
@@ -93,10 +95,15 @@ if [ -n "$CALL" ]; then
         --method "org.kde.PlasmaShell.$CALL" >>"$WORK/script.log" 2>&1
     sleep 5
 fi
+if [ -n "$RUN" ]; then
+    # Backgrounded: a command that waits for the person (notify-send --wait) must not hold the capture.
+    bash -c "$RUN" >>"$WORK/run.log" 2>&1 &
+    sleep 6
+fi
 xwd -root -silent | magick xwd:- "$OUT" 2>>"$WORK/shot.log"
 EOS
 chmod +x "$WORK/session.sh"
-export WORK OUT WAIT SCRIPT CALL
+export WORK OUT WAIT SCRIPT CALL RUN
 timeout 240 dbus-run-session -- xvfb-run -a -s "-screen 0 ${SIZE}x24" "$WORK/session.sh" >"$WORK/session.out" 2>&1
 status=$?
 [ -s "$OUT" ] && echo "rendered $OUT" || echo "NO FRAME (exit $status)"

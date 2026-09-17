@@ -256,7 +256,7 @@ class TheStatusDocumentCarriesIt(unittest.TestCase):
 class TheNotificationSpeaksOnce(unittest.TestCase):
     def test_the_message_is_one_language_and_counts_like_that_language(self) -> None:
         module = runpy.run_path(str(NOTIFIER))
-        fresh = [{"title": {"ar": f"عنوان {n}", "en": f"Title {n}"}} for n in range(1, 12)]
+        fresh = [{"id": f"e{n}", "title": {"ar": f"عنوان {n}", "en": f"Title {n}"}} for n in range(1, 12)]
         for count, arabic in ((1, "تغيير واحد جديد"), (2, "تغييران جديدان"),
                               (5, "5 تغييرات جديدة"), (11, "11 تغييرًا جديدًا")):
             title, body, action = module["message"]("44.20260918.870", fresh[:count], "ar")
@@ -269,6 +269,11 @@ class TheNotificationSpeaksOnce(unittest.TestCase):
         self.assertIn("5 new things. Title 1, Title 2, Title 3…", body)
         self.assertNotRegex(title + body + action, ARABIC)
         self.assertIn("1 new thing.", module["message"]("44.1", fresh[:1], "en")[1])
+        # The page's own entry is counted but not named: the notification opens that page.
+        page = {"id": "whats-new", "title": {"ar": "صفحة", "en": "This page"}}
+        body = module["message"]("44.1", [page, *fresh[:2]], "en")[1]
+        self.assertIn("3 new things. Title 1, Title 2", body)
+        self.assertNotIn("This page", body)
 
     def test_it_is_started_with_the_session_and_nowhere_in_a_menu(self) -> None:
         entry = AUTOSTART.read_text(encoding="utf-8")
