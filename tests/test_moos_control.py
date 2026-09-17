@@ -22,6 +22,7 @@ to 9500/10000 over Plasma's ScreenBrightness service.
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -49,6 +50,7 @@ STUBS = {
   *MaxBrightness*) echo '{"type":"i","data":10000}';;
   *get-property*Brightness*) echo '{"type":"i","data":5000}';;
   *NightLight*running*) echo '{"type":"b","data":true}';;
+  *NameHasOwner*org.bluez*) echo '{"type":"b","data":[true]}';;
 esac
 ''',
     "kwriteconfig6": "",
@@ -222,6 +224,66 @@ class MoosControlTests(unittest.TestCase):
             "night_light": True, "wifi": True, "bluetooth": True})
         self.assertFalse([call for call in self.machine.calls() if call[0] == "logger"],
                          "status must not write an audit entry")
+
+    def test_status_never_waits_on_a_probe_that_does_not_answer(self):
+        """A hanging probe must cost the budget, not the answer.
+
+        Measured on the Oracle A1 (2026-09-17): that host has no Bluetooth
+        hardware, `bluetoothctl show` activated bluez and then waited for an
+        adapter that never appeared, and `moos-control status` did not return.
+        Every other probe answered in under 20 ms. The old gate could not see
+        this because its bluetoothctl stub answers instantly -- a stub is not
+        evidence that the real command returns.
+        """
+        machine = StubMachine()
+        try:
+            # An absolute path: the stub PATH holds only the stub directory,
+            # so a bare `sleep` would simply not be found and the probe would
+            # fail fast -- passing this test without ever hanging.
+            sleep = shutil.which("sleep")
+            self.assertIsNotNone(sleep, "this test needs a real sleep to hang on")
+            for name in ("bluetoothctl", "nmcli", "wpctl"):
+                hang = machine.bin / name
+                hang.write_text(f"#!/bin/sh\nexec {sleep} 600\n")
+                hang.chmod(0o755)
+            started = time.monotonic()
+            result = subprocess.run([sys.executable, str(CONTROL), "status"],
+                                    env=machine.env(), capture_output=True,
+                                    text=True, timeout=120)
+            elapsed = time.monotonic() - started
+        finally:
+            machine.close()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertLess(elapsed, 30, f"status took {elapsed:.1f}s; it must stay bounded")
+        # Unanswered is unknown, never an invented value.
+        self.assertEqual(json.loads(result.stdout)["bluetooth"], None)
+        self.assertEqual(json.loads(result.stdout)["wifi"], None)
+
+    def test_status_reports_a_machine_without_bluez_as_unknown(self):
+        """No bluez on the bus means no Bluetooth to report -- not "off".
+
+        "off" would have Mo AI offer a switch that turns nothing on, and it must
+        not run bluetoothctl at all: that is the call that hangs.
+        """
+        machine = StubMachine()
+        try:
+            busctl = machine.bin / "busctl"
+            busctl.write_text(RECORDER + '''case "$*" in
+  *NameHasOwner*org.bluez*) echo '{"type":"b","data":[false]}';;
+  *NightLight*running*) echo '{"type":"b","data":true}';;
+esac
+''')
+            busctl.chmod(0o755)
+            result = subprocess.run([sys.executable, str(CONTROL), "status"],
+                                    env=machine.env(), capture_output=True,
+                                    text=True, timeout=60)
+            calls = machine.calls()
+        finally:
+            machine.close()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout)["bluetooth"], None)
+        self.assertFalse([call for call in calls if call[0] == "bluetoothctl"],
+                         "status asked bluetoothctl although bluez is not on the bus")
 
 
 class MoosOpenControlRouteTests(unittest.TestCase):
