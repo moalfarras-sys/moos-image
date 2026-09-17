@@ -553,8 +553,24 @@ PlasmoidItem {
         Accessible.description: root.contextSource
         Accessible.onPressAction: root.openDetails()
 
-        readonly property real baseWidth: 194 + root.bounded(
-            root.contextTitle.length * 1.35, 24, 64)
+        // The capsule is sized from the title's MEASURED width, plus the slot of a control
+        // that is always shown. It used to be 194 + 1.35 px per CHARACTER: Arabic glyphs
+        // are wider than that guess, and the privacy chip's Stop button (always revealed,
+        // unlike media's hover controls) took its 40 px out of the same room — so the
+        // owner's own session read "الميكروفون قيد الاستخ…". Media keeps its old range
+        // (218–258 px): a song title may elide, a system sentence may not.
+        TextMetrics {
+            id: titleMetrics
+            font.pixelSize: root.design.typeSecondary
+            font.weight: Font.DemiBold
+            text: root.contextTitle
+        }
+        readonly property bool systemSentence: !root.remotePresent
+            && (root.privacyPresent || root.storeJobPresent)
+        readonly property real pinnedControlWidth: systemSentence ? 40 + root.design.space1 : 0
+        readonly property real baseWidth: 60 + root.bounded(
+            Math.ceil(titleMetrics.advanceWidth) + 10, 158, systemSentence ? 260 : 198)
+            + pinnedControlWidth
         // Reserve exactly the space the player's real capabilities need. A
         // fixed 68 px hover allowance was too small for Previous + Next +
         // Volume (90 px before spacing), so the title compressed first and the

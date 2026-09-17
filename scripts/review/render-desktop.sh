@@ -6,6 +6,7 @@
 #   scripts/review/render-desktop.sh /tmp/launcher.png --call=activateLauncherMenu
 #   render-desktop.sh <out.png> [--lang=ar|en] [--size=1536x864] [--wallpaper=MoOSUI2Aurora]
 #                     [--wait=35] [--script=file.js] [--hub=off] [--call=<PlasmaShell method>]
+#                     [--runtime-file=moos-privacy/active-mic-57-Firefox]   (an Island state token)
 #
 # WHAT THIS IS NOT: there is no GPU compositing here, so no blur, no translucency, no rounded
 # panel corners, no KWin effects or window animations, and it is X11 while MoOS is Wayland.
@@ -15,10 +16,10 @@
 # upstream set, so an icon that comes from it — a stock application's, for one — is blank here.
 # A blank STOCK icon in this render is the environment; a blank moos-* icon is a finding.
 set -uo pipefail
-[ "$#" -ge 1 ] || { sed -n '2,16p' "$0"; exit 2; }
+[ "$#" -ge 1 ] || { sed -n '2,17p' "$0"; exit 2; }
 OUT="$(realpath -m "$1")"; shift
 ROOT="${MOOS_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
-LANGUAGE_CODE=en; SIZE=1536x864; WALLPAPER=MoOSUI2Aurora; WAIT=35; SCRIPT=""; HUB=on; CALL=""
+LANGUAGE_CODE=en; SIZE=1536x864; WALLPAPER=MoOSUI2Aurora; WAIT=35; SCRIPT=""; HUB=on; CALL=""; RUNTIME_FILES=()
 for arg in "$@"; do
     case "$arg" in
         --lang=*) LANGUAGE_CODE="${arg#--lang=}" ;;
@@ -27,6 +28,7 @@ for arg in "$@"; do
         --wait=*) WAIT="${arg#--wait=}" ;;
         --script=*) SCRIPT="$(realpath "${arg#--script=}")" ;;
         --hub=*) HUB="${arg#--hub=}" ;;
+        --runtime-file=*) RUNTIME_FILES+=("${arg#--runtime-file=}") ;;   # an empty file under XDG_RUNTIME_DIR (a state token)
         --call=*) CALL="${arg#--call=}" ;;   # a no-argument org.kde.PlasmaShell method, e.g. activateLauncherMenu
     esac
 done
@@ -51,6 +53,12 @@ export XDG_CURRENT_DESKTOP=KDE KDE_FULL_SESSION=true KDE_SESSION_VERSION=6 XDG_S
 export LC_ALL="$LOCALE" LANG="$LOCALE" LANGUAGE=
 unset WAYLAND_DISPLAY DISPLAY DBUS_SESSION_BUS_ADDRESS
 IMAGE="$ROOT/system_files/usr/share/wallpapers/$WALLPAPER"
+# MoOS plasmoids read state as FILE NAMES under the runtime directory (the Island's Store job,
+# privacy and Remote tokens). --runtime-file=moos-store/job-install-running-45-org.mozilla.firefox
+for token in "${RUNTIME_FILES[@]}"; do
+    case "$token" in /*|*..*) echo "render-desktop: --runtime-file is relative to the runtime dir" >&2; exit 2 ;; esac
+    mkdir -p "$XDG_RUNTIME_DIR/$(dirname "$token")" && : > "$XDG_RUNTIME_DIR/$token"
+done
 cat > "$WORK/scene.js" <<EOS
 var ds = desktops();
 for (var i = 0; i < ds.length; i++) {

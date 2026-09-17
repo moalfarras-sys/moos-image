@@ -233,7 +233,9 @@ set -uo pipefail
 #     refreshing the index is no longer shown as an install.
 # 63: the Hub's two date lines sit on one edge (each used to align by its own script, so in
 #     an Arabic session the English line hung on the far side of the column), and MoOS
-#     Search stops assigning `undefined` to two labels on every desktop start. Both were
+#     Search stops assigning `undefined` to two labels on every desktop start. The
+#     Island sizes its capsule from the title's MEASURED width plus its always-shown
+#     control: in Arabic the privacy chip read "الميكروفون قيد الاستخ…". All three were
 #     seen by rendering the desktop from source (scripts/review/render-desktop.sh).
 THEME_REV=63
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"

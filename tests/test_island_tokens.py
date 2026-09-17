@@ -36,6 +36,7 @@ import importlib.machinery
 import importlib.util
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -221,6 +222,26 @@ class TheShellNeverReadsALocalFile(unittest.TestCase):
         self.assertIn("IslandTokens.chooseStoreToken(", qml)
         self.assertIn("IslandTokens.choosePrivacyToken(", qml)
         self.assertIn('folder: root.runtimeFileUrl("moos-store")', qml)
+
+
+class TheCapsuleFitsWhatItSays(unittest.TestCase):
+    def test_the_width_comes_from_measured_text_and_the_always_shown_control(self):
+        """Seen in the real shell (scripts/review/render-desktop.sh with a privacy token): the
+        Arabic chip read "الميكروفون قيد الاستخ…". The capsule was 194 px plus 1.35 px per
+        CHARACTER — Arabic glyphs are wider than that — and the Stop button, which unlike media's
+        hover controls is always revealed, took its 40 px out of the same room."""
+        qml = (ISLAND / "main.qml").read_text(encoding="utf-8")
+        code = "\n".join(l for l in qml.splitlines() if not l.lstrip().startswith("//"))
+        self.assertNotRegex(code, r"contextTitle\.length\s*\*",
+                            "the capsule is sized by counting characters again; measure the text")
+        metrics = re.search(r"TextMetrics\s*\{[^}]*text:\s*root\.contextTitle[^}]*\}", code, re.S)
+        self.assertIsNotNone(metrics, "no TextMetrics on the title the capsule shows")
+        for same_font in ("font.pixelSize: root.design.typeSecondary", "font.weight: Font.DemiBold"):
+            self.assertIn(same_font, metrics.group(0), "measure with the font the title is drawn in")
+        base = re.search(r"readonly property real baseWidth:(.*?)\n\s*readonly property", code, re.S).group(1)
+        self.assertIn("titleMetrics.advanceWidth", base)
+        self.assertIn("pinnedControlWidth", base,
+                      "an always-revealed control (privacy Stop, Store open) must widen the capsule")
 
 
 if __name__ == "__main__":
