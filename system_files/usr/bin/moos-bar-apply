@@ -425,7 +425,17 @@ if not wrote:
 
 # MoOS NEVER SHIPS A DESKTOP ITS OWNER CANNOT ARRANGE.
 #
-# immutability=1 is Plasma's "Widgets are locked". It does not merely stop a
+# CORRECTION (THEME_REV 60, measured 2026-09-17): Plasma's ImmutabilityType is
+# Mutable = 1, UserImmutable = 2, SystemImmutable = 4 (read from
+# PlasmaCore.Types on this machine). The paragraph below misread 1 as a lock and
+# this loop wrote 0 — a value outside the enum that Plasma treats as "not
+# Mutable". Because the loop also ran inside every [Containments][N][Applets]
+# group, every widget became locked: the desktop Disk Activity widget had no
+# Remove button in edit mode and the owner could not delete it. The repair now
+# writes only Mutable (1), only where the stored value is not a real type, and
+# keeps a user's own lock (2) and a system lock (4).
+#
+# (Historical, and wrong about the number:) immutability=1 is Plasma's "Widgets are locked". It does not merely stop a
 # drag: it removes Add Widgets, Configure, and every applet's own settings from
 # the context menus, so the desk becomes read-only with no visible explanation
 # and nothing telling the owner why. Found live on this machine on both the
@@ -446,8 +456,9 @@ for i, line in enumerate(lines):
         in_containment = (len(parts) >= 2 and parts[0] == "Containments"
                           and parts[1].isdigit())
         continue
-    if in_containment and line.startswith("immutability=") and line.strip() != "immutability=0":
-        lines[i] = "immutability=0\n"
+    if (in_containment and line.startswith("immutability=")
+            and line.strip().split("=", 1)[1] not in ("1", "2", "4")):
+        lines[i] = "immutability=1\n"
         unlocked += 1
 
 merged = "".join(lines)

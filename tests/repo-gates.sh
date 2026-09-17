@@ -50,6 +50,7 @@ python3 tests/test_cloud_console_order.py
 python3 tests/test_oracle_deploy.py
 python3 tests/test_theme_wallpaper_readback.py
 python3 tests/test_theme_wallpaper_steady_state.py
+python3 tests/test_theme_wallpaper_owner_choice.py
 python3 tests/test_mokernel.py
 python3 tests/test_moai_control.py
 python3 tests/test_moai_config.py

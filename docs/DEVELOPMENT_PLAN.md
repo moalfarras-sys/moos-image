@@ -73,14 +73,16 @@ reviewed live, gated once, merged once and proven once.
 
 | Wave | Milestone | User-visible content | State |
 | --- | --- | --- | --- |
-| W1 | M1 | MoOS Search surface, settling Remote chip, clock rail, localized Hub, keyboard-safe Search/Island, in-tree MoPlayer, hardened ISO proof | **promoted** `92248b5d` / `44.20260916.848` (run `35156269206`); ARM held by a `plymouthd` crash |
-| W2 | M1 | MoOS Hub controls (desktop right-click show/hide and per-card toggles, wallpaper page), review-shadow retirement, unified instructions and this program | in review on `feat/moos-experience-wave2-20260916` |
-| W3 | M1 | MoOS Island jobs (Store installs, updates, downloads) and privacy chips (camera, microphone, screen share); Search inline answers (calculator, units, file actions) | planned |
-| W4 | M2 | MoOS Workspace: MoOS-styled overview, one-click tiling layouts, window open/close/minimise durations taken from MoOS Motion, gesture defaults | planned |
-| W5 | M2 | MoOS Intro: one horizon scene from Plymouth through login to the Hub; first-run tour; offline first run (P1.6) | planned |
-| W6 | M2 | System surfaces on MoOS UI: Updater, Recovery, Remote centre, Settings front door (P2.1–P2.2) | planned |
-| W7 | M3 | Mo AI and Mo Store as real job systems with confirmation cards and readback (P1.7, P3, P4.1–P4.2) | planned |
-| W8+ | M4–M5 | hardware breadth, compatibility products, MoOS Shield encryption, release trust | planned |
+| W1 | M1 | MoOS Search surface, settling Remote chip, clock rail, localized Hub, keyboard-safe Search/Island, in-tree MoPlayer, hardened ISO proof | **installed** on the station as `44.20260916.848` |
+| W2 | M1 | MoOS Hub controls (desktop right-click show/hide and per-card toggles, wallpaper page), review-shadow retirement, unified instructions and this program | merged (`8b272b87`); its release run stopped on a watcher false-FAIL, so it ships with W3 |
+| W3 | M1 | The owner controls the desk: every widget removable again (THEME_REV 60), a wallpaper chosen anywhere stays after login and drift checks, release watcher reads real run results | PR #109, reviewed live on the station |
+| W4 | M3 | **Mo AI as the system harness:** the cloud brain (free or paid, OpenRouter or OpenCode Zen) receives native tool schemas generated from the fixed `moai-do` and `moos-control` grammar; read-only tools run directly, every change shows a confirmation card, the fixed executor acts, and the result is read back into the conversation (P3.3, P3.4, P3.7) | planned, next |
+| W5 | M1 | MoOS Island jobs (Store installs, updates, downloads) and privacy chips (camera, microphone, screen share); Search inline answers (calculator, units, file actions) | planned |
+| W6 | M2 | MoOS Workspace: MoOS-styled overview, one-click tiling layouts, window open/close/minimise durations taken from MoOS Motion, gesture defaults | planned |
+| W7 | M2 | MoOS Intro: one horizon scene from Plymouth through login to the Hub; first-run tour; offline first run (P1.6) | planned |
+| W8 | M2 | System surfaces on MoOS UI: Updater, Recovery, Remote centre, Settings front door (P2.1–P2.2) | planned |
+| W9 | M3 | Mo Store as one job system for install/update/remove across the UI, Mo AI and URL routes (P1.7, P4.1–P4.2) | planned |
+| W10+ | M4–M5 | hardware breadth, compatibility products, MoOS Shield encryption, release trust | planned |
 
 ### Ideas worth building (each needs its owner and a proof before it ships)
 
