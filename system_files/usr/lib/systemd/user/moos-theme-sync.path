@@ -1,5 +1,5 @@
 [Unit]
-Description=Watch Plasma automatic theme transitions for MoOS supplements
+Description=Watch automatic light/dark theme transitions for MoOS supplements
 PartOf=plasma-workspace.target
 
 [Path]

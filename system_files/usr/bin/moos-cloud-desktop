@@ -600,7 +600,7 @@ CONF
         sleep 1
         waited=$((waited + 1))
     done
-    [ "$waited" -lt 60 ] || die "Plasma or its screen-sharing portal did not become ready within 60s"
+    [ "$waited" -lt 60 ] || die "the MoOS desktop or its screen-sharing portal did not become ready within 60s"
 
     # Do not report success for the exact black-screen state we can identify.
     # Plasma 6 ships qdbus-qt6; keep the fallback names for upgraded images.

@@ -44,6 +44,10 @@ python3 tests/test_moai_krunner.py
 python3 tests/test_foreign_app_menus.py
 python3 tests/test_remote_cuda_scaler.py
 python3 tests/test_app_qml_identity.py
+# The image firewalls sweep for the base distribution's name. Nothing swept for the DESKTOP's
+# name or read what MoOS's own programs display: Mo AI said "MoOS (KDE)" and its system
+# prompt told the model it runs on "a KDE Plasma 6 desktop".
+python3 tests/test_user_visible_identity.py
 python3 tests/test_moos_auto_update.py
 python3 tests/test_updater_trust_badge.py
 python3 tests/test_cloud_console_order.py

@@ -2715,9 +2715,9 @@ ApplicationWindow {
                                     },
                                     {
                                         id: "discover", glyph: "monitor",
-                                        ar: "Discover · محرك النظام", en: "Discover · System engine",
-                                        ar2: "للتحديثات، البرامج الثابتة وإضافات Plasma. لا يفتح تثبيت حزم نظام عشوائية.",
-                                        en2: "For updates, firmware and Plasma add-ons — never arbitrary host packages.",
+                                        ar: "محرّك تحديثات النظام", en: "System update engine",
+                                        ar2: "للتحديثات والبرامج الثابتة وإضافات سطح المكتب. لا يفتح تثبيت حزم نظام عشوائية.",
+                                        en2: "For updates, firmware and desktop add-ons — never arbitrary host packages.",
                                         stateAr: "متاح", stateEn: "Available", action: "discover"
                                     },
                                     {
