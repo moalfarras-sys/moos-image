@@ -188,6 +188,13 @@ Item {
                 font.family: "IBM Plex Sans Arabic"
                 font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.88)
                 font.weight: Font.Medium
+                // The two date lines are one bilingual pair and sit on ONE edge: the column's
+                // leading edge, which the wallpaper tree's mirroring turns into the right edge in
+                // Arabic. Left implicit, a Text aligns by its OWN script — so in an Arabic session
+                // the English line hung on the left of a right-aligned column, and in an English
+                // session the Arabic line hung on the right of a left-aligned one. Seen by
+                // rendering the desktop from source (scripts/review/render-desktop.sh).
+                horizontalAlignment: Text.AlignLeft
                 elide: Text.ElideRight
             }
 
@@ -203,6 +210,7 @@ Item {
                 font.family: "IBM Plex Sans"
                 font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.68)
                 font.weight: Font.Normal
+                horizontalAlignment: Text.AlignLeft
                 elide: Text.ElideRight
             }
 

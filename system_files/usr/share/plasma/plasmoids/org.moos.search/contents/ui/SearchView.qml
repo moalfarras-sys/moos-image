@@ -294,7 +294,9 @@ FocusScope {
 
                     Text {
                         Layout.fillWidth: true
-                        text: surface.inlineAnswer ? surface.inlineAnswer.expression : ""
+                        // evaluate() answers { valid: false } for "no answer" — an object, so a
+                        // truthiness test let `undefined` through to a QString on every desktop start.
+                        text: surface.hasInlineAnswer ? surface.inlineAnswer.expression : ""
                         color: Kirigami.Theme.disabledTextColor
                         font.family: root.uiFontFamily
                         font.pixelSize: root.design.typeCaption
@@ -303,7 +305,7 @@ FocusScope {
 
                     Text {
                         Layout.fillWidth: true
-                        text: surface.inlineAnswer ? surface.inlineAnswer.value : ""
+                        text: surface.hasInlineAnswer ? surface.inlineAnswer.value : ""
                         color: Kirigami.Theme.textColor
                         font.family: root.uiFontFamily
                         font.pixelSize: root.design.typeTitle
