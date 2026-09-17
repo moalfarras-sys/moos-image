@@ -952,6 +952,41 @@ def skills_are_readable(root: str) -> list[str]:
 for _skill_problem in skills_are_readable(""):
     require(False, _skill_problem)
 
+
+def whats_new_is_readable(root: str) -> list[str]:
+    """Every entry of the shipped What's new list must come back from the INSTALLED reader.
+
+    The list is what makes an update visible to the person who took it (2026-09-17: "I felt no
+    change" after six waves). It is one JSON file under usr/share read by one module under
+    usr/lib/moos, and the page and the after-update notification both go through that module;
+    a packaging miss or a bad entry would give a page that says "no list" on every machine.
+    `root` is "" in the image; tests/test_whats_new.py runs the same reader against the tree.
+    """
+    import json
+    import runpy
+
+    problems: list[str] = []
+    try:
+        raw = json.load(open(f"{root}/usr/share/moos/whats-new.json", encoding="utf-8"))["entries"]
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        return [f"whats-new.json is not readable: {error}"]
+    reader = runpy.run_path(f"{root}/usr/lib/moos/moos_whats_new.py")
+    read = reader["whats_new_state"](1)["entries"]
+    if len(raw) < 1:
+        problems.append("the What's new list is empty")
+    if [entry["id"] for entry in read] != [entry.get("id") for entry in raw]:
+        problems.append("the installed reader drops or reorders shipped What's new entries: "
+                        f"{[e.get('id') for e in raw]} -> {[e['id'] for e in read]}")
+    if not os.access(f"{root}/usr/libexec/moos-whats-new-notify", os.X_OK):
+        problems.append("moos-whats-new-notify is not executable")
+    if not os.path.isfile(f"{root}/etc/xdg/autostart/org.moos.whats-new.desktop"):
+        problems.append("the What's new autostart entry is missing")
+    return problems
+
+
+for _news_problem in whats_new_is_readable(""):
+    require(False, _news_problem)
+
 # ONE visible storefront: the standalone Mo Store app (org.moos.store — the
 # curated catalog UI). Discover keeps its engine for update notifications and
 # firmware, but its menu entry is hidden and MoOS-branded, so no menu ever

@@ -1,0 +1,189 @@
+#!/usr/bin/env python3
+"""moos-whats-new-notify — after an update, say once what it brought.
+
+WHY THIS EXISTS
+
+MoOS updates itself at 04:30, stages the result, and applies it at the next restart. The next
+morning the desktop looks the way it did the night before, and whatever the update added — a
+shortcut, a page, a repair — is there for anyone who already knows to look for it. The owner
+updated two machines across six waves on 2026-09-17 and said "I felt no change". He was right,
+and the fault was not in the waves.
+
+So: ONE notification, at the first login on a new system version, naming what is new and opening
+MoOS Settings → What's new when it is clicked. Not a nag:
+
+  * a version is announced once and never again (the state file holds the last one seen);
+  * an update that brought nothing a person can see or do says nothing at all;
+  * a brand-new user is not told about an "update" — they have MoOS Welcome on screen, and
+    nothing changed under them. Their version is recorded silently.
+
+The action button is safe here in a way "Restart now" never is (see moos-update-ready): it opens
+a page. The list itself comes from moos_whats_new, the same reader MoOS Settings uses, so the
+notification can never promise something the page does not show.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import time
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "lib/moos"))
+from moos_whats_new import whats_new_state  # noqa: E402
+
+ROUTE = "moos://settings/whats-new"
+# How long a click on the notification is still honoured. After that the helper leaves; the
+# message stays in the notification history and the page stays in Settings.
+ACTION_WINDOW_SECONDS = 600
+RTL_LANGUAGES = frozenset({"ar", "fa", "he", "ur"})
+
+
+def session_language(environment=None) -> str:
+    """Same rule as moos_ui2.session_language(): LC_ALL, then LC_MESSAGES, then LANG."""
+    env = os.environ if environment is None else environment
+    raw = env.get("LC_ALL") or env.get("LC_MESSAGES") or env.get("LANG") or "en"
+    return raw.split(".", 1)[0].split("@", 1)[0].replace("-", "_").split("_", 1)[0].lower()
+
+
+def deployments(raw: str) -> tuple[dict, dict]:
+    """(booted, previous) from `rpm-ostree status --json`; {} where there is none."""
+    try:
+        items = json.loads(raw).get("deployments", [])
+    except (ValueError, AttributeError):
+        return {}, {}
+    if not isinstance(items, list):
+        return {}, {}
+    items = [item for item in items if isinstance(item, dict)]
+    booted = next((item for item in items if item.get("booted")), {})
+    previous = next((item for item in items
+                     if not item.get("booted") and not item.get("staged")), {})
+    return booted, previous
+
+
+def is_returning_user(config_home: Path, boot_time: float) -> bool:
+    """True when this account finished its first run in an EARLIER boot.
+
+    moos-firstrun writes its marker the moment the first session starts, so the marker's
+    existence alone cannot tell a new user from one who has been here for months.
+    """
+    try:
+        return (config_home / "moos-firstrun-done").stat().st_mtime < boot_time
+    except OSError:
+        return False
+
+
+def boot_time() -> float:
+    try:
+        uptime = float(Path("/proc/uptime").read_text(encoding="utf-8").split()[0])
+    except (OSError, ValueError, IndexError):
+        return 0.0
+    return time.time() - uptime
+
+
+def message(version: str, fresh: list[dict], language: str) -> tuple[str, str, str]:
+    """(title, body, action label) in ONE language — never two translations side by side."""
+    arabic = language in RTL_LANGUAGES
+    key = "ar" if arabic else "en"
+    names = [entry["title"][key] for entry in fresh[:3]]
+    count = len(fresh)
+    if arabic:
+        title = "تم تحديث MoOS"
+        if count == 1:
+            counted = "تغيير واحد جديد"
+        elif count == 2:
+            counted = "تغييران جديدان"
+        elif count <= 10:
+            counted = f"{count} تغييرات جديدة"
+        else:
+            counted = f"{count} تغييرًا جديدًا"
+        listed = "، ".join(names) + ("…" if count > len(names) else "")
+        # U+200F keeps a sentence that starts with a Latin version number right-to-left.
+        body = f"\u200fالإصدار {version}: {counted}. {listed}"
+        return title, body, "ما الجديد"
+    title = "MoOS was updated"
+    counted = "1 new thing" if count == 1 else f"{count} new things"
+    listed = ", ".join(names) + ("…" if count > len(names) else "")
+    return title, f"Version {version}: {counted}. {listed}", "What's new"
+
+
+def main() -> int:
+    if not Path("/ostree/deploy").is_dir():
+        return 0
+    try:
+        status = subprocess.run(["rpm-ostree", "status", "--json"], check=False,
+                                capture_output=True, text=True, timeout=20)
+    except (OSError, subprocess.SubprocessError):
+        return 0
+    if status.returncode != 0:
+        return 0
+    booted, previous = deployments(status.stdout)
+    version = str(booted.get("version") or "")
+    if not version:
+        return 0
+
+    home = Path(os.environ.get("HOME") or "/nonexistent")
+    state_dir = Path(os.environ.get("XDG_STATE_HOME") or home / ".local/state") / "moos"
+    state = state_dir / "whats-new-seen"
+    config_home = Path(os.environ.get("XDG_CONFIG_HOME") or home / ".config")
+
+    def record() -> None:
+        try:
+            state_dir.mkdir(parents=True, exist_ok=True)
+            state.write_text(version + "\n", encoding="utf-8")
+        except OSError:
+            pass
+
+    try:
+        seen = state.read_text(encoding="utf-8").strip()
+    except OSError:
+        seen = ""
+    if seen == version:
+        return 0
+    if not seen and not is_returning_user(config_home, boot_time()):
+        record()
+        return 0
+
+    built = previous.get("timestamp")
+    previous_built = built if isinstance(built, int) and not isinstance(built, bool) else 0
+    fresh = [entry for entry in whats_new_state(previous_built)["entries"] if entry["fresh"]]
+    if not fresh:
+        record()
+        return 0
+
+    title, body, action = message(version, fresh, session_language())
+    try:
+        sender = subprocess.Popen(
+            ["notify-send", "--app-name=MoOS", "--icon=moos-logo", "--urgency=normal",
+             f"--action=open={action}", "--wait", title, body],
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+    except OSError:
+        return 0
+    # A sender that dies at once never reached anyone: leave the version unrecorded so the
+    # next login tries again. One that is still waiting has put the message on screen.
+    try:
+        answer, _ = sender.communicate(timeout=2)
+        if sender.returncode != 0:
+            return 0
+        record()
+    except subprocess.TimeoutExpired:
+        record()
+        try:
+            answer, _ = sender.communicate(timeout=ACTION_WINDOW_SECONDS)
+        except subprocess.TimeoutExpired:
+            sender.kill()
+            return 0
+    if answer.strip() == "open":
+        try:
+            subprocess.Popen(["moos-open", ROUTE], stdin=subprocess.DEVNULL,
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                             start_new_session=True)
+        except OSError:
+            pass
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

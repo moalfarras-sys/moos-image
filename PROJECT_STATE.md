@@ -13,13 +13,10 @@ Current measured facts only; Git owns history. Last measured 2026-09-17.
   QCOW2 generic/NVIDIA/cloud `35265314956`/`35265319663`/`35265323922`, ISO `35265328509`,
   promotion `35269505270` → `44.20260917.858`. **Cycle C**, candidate `291361ad` (W6.1): build
   `35272501490`, QCOW2 `35275702835`/`35275707229`/`35275711589`, ISO `35276847573`, promotion
-  `35280675992`. Cycle C's first ISO run (`35275716160`) died building the ISO when the runner
-  could not reach the distribution's mirrors; a fresh dispatch of that one workflow with the
-  same image reference passed, and promotion was dispatched by hand with its id
-  (`release-candidate.sh --promote` rightly refuses once one of ITS proofs has failed).
-  Before that day x86 production was W1 (`92248b5d`, `44.20260916.848`).
-- Release cycle A (candidate `51cc2ac3`) passed the signed build and all three QCOW2 boots and
-  lost its ISO proof to plan row P0.8; nothing was promoted from it.
+  `35280675992`. Cycle C's first ISO run (`35275716160`) lost the distribution's mirrors:
+  that ONE workflow was dispatched again with the same image reference and promotion done
+  by hand (`RELEASE.md`). Before that day x86 was W1 (`92248b5d`, `44.20260916.848`); cycle
+  A (`51cc2ac3`) passed build and QCOW2 boots, lost its ISO proof to P0.8, promoted nothing.
 - `main` is the only long-lived branch; 22 merged topic branches were deleted (each an ancestor).
 - The intermittent ARM second-boot `plymouthd` SEGV is still open (P0.7); green ARM runs since
   then had no fix applied.
@@ -103,25 +100,28 @@ playbooks found with `list_skills` and read with `read_skill` (43 tools: 30 run 
 once, 13 ask first), with eight one-tap chips (P3.10); Mo AI's rail corrected at the
 default 940 px window; the Device panel no longer printing the raw kernel release.
 
-## In review (`fix/hub-polish-20260917`, W6.2) and on `main` (W7) — both need cycle D
+## On `main`, not released: W7 and W6.2 (cycle D); in review: W6.3
 
-W6.2, found the first time the desktop ITSELF could be looked at off the station
+W6.2 (merged `012eac13`, PR #119), found the first time the desktop ITSELF could be looked at off the station
 (`scripts/review/render-desktop.sh` runs the real `plasmashell` with MoOS's layout,
 scene, Hub, bar and plasmoids under Xvfb; `render-lockscreen.sh` the lock screen):
 
-- In an Arabic session the Hub's English date line hung on the LEFT edge of a
-  right-aligned clock column (each line aligned by its own script).
-- The Island's privacy chip read "الميكروفون قيد الاستخ…": the capsule was sized by
-  counting characters and ignored its always-shown Stop button.
-- MoOS Search assigned `undefined` to two labels on every desktop start.
-- The same renders are the first time W6's Island repair was SEEN working in a real
-  shell. Source-harness evidence: no compositor effects, X11 not Wayland, icons blank.
+- In Arabic the Hub's English date line hung on the LEFT of a right-aligned clock column;
+  the Island's privacy chip read "الميكروفون قيد الاستخ…" (sized by counting characters,
+  forgetting its Stop button); MoOS Search assigned `undefined` to two labels on every
+  start. The same renders first SAW W6's Island repair working in a real shell.
 
 W7 (merged into `main` as `411a470c`): the MoOS Switcher, `Tokens.scaled()` and MoOS
 Arrange, all reviewed on the live session.
 
 **W7 is `THEME_REV` 63 and W6.2 is 64.** ARM promotes every green push to `main`, so W7
 can reach an ARM machine at 63 before W6.2 does; a shared 63 would strand its caches.
+
+**W6.3 (`feat/whats-new-20260918`, in review): What's new** — the answer to "I felt no
+change". Settings → System → What's new lists what each update brought with "Try it" routes
+and marks what this machine lacked before its last update; `moos-whats-new-notify` says it
+once at the first login on a new version (P2.11). Rendered from source in Arabic and
+English; notifier proven end to end under bubblewrap; **not seen on a MoOS desktop**.
 
 **Not proven anywhere yet:** tool choice by a real free model (P3.3); a real AppImage,
 its dialog, the file-manager action and the `~/Applications` watch on a desktop (P4.6).
@@ -186,10 +186,10 @@ consecutive green install-and-reboot; the row closes after one more.
 1. The station is updated to `44.20260917.862` and reviewed. Owner: update the **A1**,
    and configure a free Mo AI provider key (P0.5) — the only thing blocking the four
    Mo AI rows of the station checklist.
-2. Merge W6.2 (#119) once its checks are green, then release cycle D:
-   `TMPDIR=<dir> scripts/release-candidate.sh --promote` on `main`. Cycle D carries W6.2
-   AND W7. If ONE proof fails for an external reason, dispatch that workflow alone again
-   with the same image reference and promote by hand with the new run id (`RELEASE.md`).
+2. Release cycle D carries W7, W6.2 and W6.3: `TMPDIR=<dir> scripts/release-candidate.sh
+   --ref feat/whats-new-20260918`, merge on green, `--promote`. If ONE proof fails for an
+   external reason, dispatch that workflow alone again with the same image reference and
+   promote by hand with the new run id (`RELEASE.md`).
 3. P0.8 closes after one more green ISO proof; P0.7 stays open.
 4. Still open in W7: a live preview in the Arrange surface, touchpad and gesture
    defaults (P5.2), and carrying `Tokens.scaled()` to the per-surface motion aliases.
