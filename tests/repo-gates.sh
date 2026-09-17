@@ -71,6 +71,11 @@ python3 tests/test_moai_hybrid.py
 # (which ships qdbus-qt6), so they confirmed then silently did nothing. This asserts the
 # qdbus_run resolver finds qdbus-qt6 and the session routes use it.
 python3 tests/test_moos_open_qdbus.py
+# verify_image_experience.py runs only inside the x86 image build, and that build does not run
+# on pull requests. Its comment stripper treated `/* … */` as a comment in BASH, so one new
+# `${privacy_act#*/}` in moos-open hid 24 of 28 settings routes and turned `main` red for all
+# three editions on a correct router. This runs the gate's own parser on this tree's moos-open.
+python3 tests/test_image_gate_source_parser.py
 python3 tests/test_moai_http_security.py
 # The gateway must not leave a chat reply hanging: a mid-stream upstream drop has to close
 # the connection (not swallow the error and keep-alive), and Anthropic error/truncation
@@ -235,6 +240,11 @@ python3 tests/test_moos_design_core.py
 # English on Arabic installs.
 python3 tests/test_moos_one_locale_authority.py
 python3 tests/test_moos_ui2.py
+# AGENT_GUIDE §2.4 says shipped shell QML / theme SVG may not change without THEME_REV rising
+# (OSTree freezes mtimes; the QML and SVG caches are keyed on mtime). Nothing enforced it: W5
+# rewrote the island and search at rev 60 and ARM machines kept the cached W3 widgets. This
+# compares the revision with a recorded digest of every cache-served package.
+python3 tests/test_theme_rev_fingerprint.py
 # The full Launcher must be operable with the keyboard alone: the
 # sidebar pages take focus and activation keys, Down/Up cross between
 # the search field and the active page's grid/list, Shift+Tab returns

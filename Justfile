@@ -79,6 +79,9 @@ check:
     python3 tests/test_moai_workspace.py
     python3 tests/test_moai_hybrid.py
     python3 tests/test_moos_open_qdbus.py
+    # The image gate's own router parser, run on this tree before the merge:
+    # the x86 image build that normally runs it does not run on pull requests.
+    python3 tests/test_image_gate_source_parser.py
     python3 tests/test_moai_http_security.py
     python3 tests/test_moai_gateway_streaming.py
     python3 tests/test_moai_credential_store.py
@@ -235,6 +238,8 @@ check:
     # English on Arabic installs.
     python3 tests/test_moos_one_locale_authority.py
     python3 tests/test_moos_ui2.py
+    # Shipped shell QML / theme SVG may not change while THEME_REV stands still.
+    python3 tests/test_theme_rev_fingerprint.py
     # The full Launcher must be operable with the keyboard alone: sidebar
     # focus + activation keys, search-field <-> content crossing, Shift+Tab.
     python3 tests/test_moos_launcher_keyboard.py

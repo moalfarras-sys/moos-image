@@ -677,9 +677,21 @@ if command -v balooctl6 >/dev/null 2>&1; then
         || printf '%s\n' "$baloo_includes" | grep -Fxq "$HOME/"; } \
         && ok "Baloo includes ${HOME}" \
         || bad "Baloo does not include ${HOME} — launcher search covers only part of the computer"
-    [ "$(LC_ALL=C balooctl6 config list contentIndexing 2>/dev/null | tail -n1)" = "yes" ] \
-        && ok "file-content indexing is enabled" \
-        || bad "file-content indexing is disabled"
+    # BEGIN INDEXING BUDGET CHECK
+    # Content extraction is not universally correct: moos-visual-tier publishes a
+    # per-machine file_indexing budget, and the essential tier (the A1) is
+    # deliberately filename-only. Demanding "yes" everywhere reported a healthy
+    # machine as broken. Compare Baloo's effective mode with the real budget.
+    indexing_budget="$(moos-visual-tier --json 2>/dev/null \
+        | python3 -c 'import json,sys; print(json.load(sys.stdin)["budget"]["file_indexing"])' 2>/dev/null)"
+    indexing_content="$(LC_ALL=C balooctl6 config list contentIndexing 2>/dev/null | tail -n1)"
+    case "${indexing_budget}:${indexing_content}" in
+        content:yes) ok "file-content indexing matches the machine budget" ;;
+        filenames:no) ok "filename-only indexing matches the machine budget" ;;
+        content:no|filenames:yes) bad "Baloo content indexing does not match the machine budget (${indexing_budget})" ;;
+        *) bad "could not verify Baloo's effective indexing budget" ;;
+    esac
+    # END INDEXING BUDGET CHECK
     [ "$(LC_ALL=C balooctl6 config list hidden 2>/dev/null | tail -n1)" = "no" ] \
         && ok "hidden config/cache files stay out of results" \
         || bad "Baloo is indexing hidden files into launcher results"

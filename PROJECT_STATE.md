@@ -4,9 +4,13 @@ Current measured facts only; Git owns history. Last measured 2026-09-17.
 
 ## Source and release truth
 
-- `origin/main` is `2e6f7686`, the merge of wave W3 (PR #109). Wave W4 is on
-  topic branch `feat/w4-moai-tool-harness`.
-- **Production is W1**: revision `92248b5d`, version `44.20260916.848`, promoted
+- `main` holds waves W2–W5 (`7f182689` is the W5 merge) plus the 2026-09-17
+  integration described under "x86 `main` was red" below. None of W2–W5 is in an
+  x86 release: the W2 cycle stopped on its ISO proof (run `35158666486`: second
+  boot healthy on QGA, SSH "timed out during banner exchange"), W3 built green
+  and was never proven, the W4 build was cancelled by the W5 push, and the W5
+  build failed.
+- **x86 production is W1**: revision `92248b5d`, version `44.20260916.848`, promoted
   by run `35156269206` from build `35148344935`, QCOW2 generic/NVIDIA/cloud
   `35150447739`/`35150452495`/`35150457478` and ISO `35150461926` (all attempt 1).
   Read back from the registry: generic `f1d62342…`, NVIDIA `2b4b04c4…`, cloud
@@ -15,12 +19,15 @@ Current measured facts only; Git owns history. Last measured 2026-09-17.
   `:20260916` tag: GHCR answered "manifest unknown" to the immediate read, and
   the tag resolved to the copied digest seconds later; `latest` never moved. The
   fresh dispatch succeeded. W2 makes that read a bounded wait for the exact digest.
-- **ARM is not promoted.** ARM run `35150466421` built, then its second boot left
-  `plymouth-start.service` failed: `plymouthd` SEGV in `on_new_frame` →
-  `ply_list_node_get_data` (plymouth 24.004.60, aarch64). The same crash failed
-  the 2026-09-15 ARM run, and a re-run passed, so it is an intermittent boot
-  defect, not a flaky gate. The previous candidate `57874d6c` was never promoted
-  (its ISO SSH channel timed out).
+- **ARM production is W5**, read back from the registry on 2026-09-17:
+  `moos-arm:latest` = `44.20260917.431`, revision `7f182689`, digest
+  `e92466a996a5…`. `build-arm.yml` promotes every green push to `main`, so ARM
+  moved W1 → W3 (`2e6f7686`) → W5 the same day while x86 stayed on W1. The two
+  architectures are one release apart until the next x86 promotion.
+- The intermittent ARM second-boot crash is still open (P0.7): `plymouthd` SEGV
+  in `on_new_frame` → `ply_list_node_get_data` (plymouth 24.004.60, aarch64)
+  failed run `35150466421` and the 2026-09-15 run. The W3 and W5 ARM runs passed
+  with no fix applied, which is what "intermittent" means, not a resolution.
 - A merged commit or locally built image is not an installed or released state.
   Production moves only after the exact candidate passes 3×QCOW2 + ISO; ARM is
   separately required evidence.
@@ -78,23 +85,19 @@ Horizon 2 composes one MoOS Bar instead of overlapping controls:
 - Arabic-first `ara,de` defaults agree across source defaults, installer and
   scoped existing-profile migration.
 
-The current topic batch (not released) makes Search refuse stale/deferred rows,
-restores full Tab/Escape/Ctrl+Enter traversal, separates its reviewable view,
-and gives the island stationary native keyboard/accessibility controls plus a
-Remote/Media detail switch. It also makes `moplayer/` the only MoPlayer source,
-removes the obsolete external workflow/download path and stale screenshots,
-updates the pinned x86/ARM Flutter builder to 3.47.4, and preserves the installed
-demo and GPU crash guard. `THEME_REV=58` carries the QML change to existing profiles.
-That batch is wave W1 (PR #107); its exact revision `92248b5d` is being proven by
-branch run `35148344935` (`scripts/release-candidate.sh --ref`) before merge.
+W1 (PR #107, `THEME_REV=58`) is the x86 release: keyboard-safe Search and Island,
+the Remote/Media detail switch and `moplayer/` as the only MoPlayer source. On
+top of it `main` carries, unreleased for x86 and already promoted for ARM:
 
-Wave W2 (`feat/moos-experience-wave2-20260916`, on top of W1) gives MoOS Hub its
-own controls in the desktop right-click menu (show/hide and per-card time,
-weather, device health) and on the wallpaper page, bumps `THEME_REV=59`, extends
-the update-time shadow sweep to `org.moos.search` and the desktop scene, and
-unifies the instructions around the MoOS Experience Program in the plan.
-Neither wave is true for users until gates, signed proof, promotion, update and
-reboot.
+| Wave | PR | What the user gets | `THEME_REV` |
+| --- | --- | --- | --- |
+| W2 | #108 | MoOS Hub controls in the desktop menu and wallpaper page; shadow sweep covers Search and the scene | 59 |
+| W3 | #109 | every widget removable again; an owner-chosen wallpaper survives login and drift checks | 60 |
+| W4 | #110 | Mo AI tool harness: native tool schemas from the fixed `moai-do`/`moos-control` grammar, confirmation cards, result readback | — (app QML; its launcher disables the disk cache) |
+| W5 | #111 | Island Store jobs and camera/microphone/screen-share chips with one-tap stop; inline Search answers | **61**, added afterwards — see below |
+
+None of it is true for an x86 user until signed proof, promotion, update and
+reboot. W4 and W5 were merged without a station review recorded here.
 
 Live review on this station (Arabic, 4K/250%) with temporary package shadows:
 the desktop menu showed all four Hub controls; turning weather off redrew the Hub
@@ -159,6 +162,49 @@ repair now writes Mutable only over invalid values and keeps user/system locks.
 A runtime KWin wobbly-windows trial was inconclusive in still captures and was
 unloaded again; physical window motion stays planned for wave W4.
 
+## x86 `main` was red after W5 (fixed in source 2026-09-17)
+
+Build run `35215425618` failed all three x86 editions at the end of `build.sh`:
+"the settings route parser found almost nothing … (got 4)". `moos-open` was
+correct. `verify_image_experience.py` read it through `source(router, "#")`,
+which stripped `/* … */` from every language; W5's `${privacy_act#*/}` closed a
+span opened 235 lines earlier by the comment "settings/kcm/* wildcard" and hid
+24 of 28 settings routes. Reproduced offline with the gate's own code: 28 routes
+visible at W3 and W4, 4 at W5. `source()` now strips block comments only for
+`//` languages, so the gate sees more of the router than before.
+
+No pull-request check could see it: that gate runs only inside the x86 image
+build, `build.yml` does not run on pull requests and `build-arm.sh` does not
+call it. `tests/test_image_gate_source_parser.py` lifts the gate's parser with
+`ast` and runs it on this tree's `moos-open` in Repo gates; with the old gate
+file it fails with the same "4 … needs 25".
+
+W5 also changed `org.moos.island` and `org.moos.search` at `THEME_REV=60`. ARM
+had already promoted W3 at rev 60, so an A1 that logged in on W3 keeps its cached
+W3 widgets after the W5 update (frozen mtimes, caches keyed on mtime). The
+revision is 61 and `tests/test_theme_rev_fingerprint.py` now fails any change to
+a cache-served package (58 of them) that leaves the revision alone; recorded on
+the W3 tree it fails on the W5 tree and names both plasmoids. **Not yet seen:**
+an ARM profile picking up the W5 island after this lands.
+
+Verified on Fedora 44 under WSL2 (no Bluetooth, no desktop session):
+`bash tests/repo-gates.sh` fails on pristine `7f182689` at
+`test_moai_confirmation_flow.py`'s 10 s timeout and exits 0 on this integration
+(162 gates). The x86 image build on `main` is the proof still owed.
+
+## Fixed 2026-09-17 on the A1 (merged, not yet in a signed x86 image)
+
+PRs #112 and #113 are integrated. Installed copies carry both defects until the
+next promoted image.
+
+- `moos-index-policy` wrote `only basic indexing` under `[Basic Settings]`, but
+  Baloo reads it from `[General]`, so the `file_indexing` budget never applied
+  (`balooctl6` still answered `contentIndexing: yes`). Both diagnostics also
+  demanded `yes` unconditionally, failing a correct filenames-only machine.
+- `moos-control status` never returned: with no Bluetooth hardware,
+  `bluetoothctl show` activated bluez and waited forever. An 8 s budget plus a
+  bus-ownership check give 30128 ms -> 218 ms, unhanging `get_system_status`.
+
 ## Open evidence gaps
 
 - Fix and rerun the exact ISO second-boot proof; then promote, stage, reboot and
@@ -176,11 +222,21 @@ unloaded again; physical window motion stays planned for wave W4.
 
 ## Next execution
 
-W1 is promoted. `moos-auto-update.timer` (04:36) stages the signed
-`44.20260916.848` NVIDIA image on this station; the owner may also stage it now
-from the Updater, and a reboot applies it. Merge W2, run one
-`scripts/release-candidate.sh --promote`, then read the Hub controls, Search and
-Island back from `/usr` after the next update and confirm the review shadows were
-swept. Diagnose the ARM `plymouthd` crash with an ARM-only branch dispatch before
-the next ARM promotion. W3 (Island jobs and privacy chips, Search answers) is the
-next visual wave.
+1. Merge the 2026-09-17 integration and confirm `Build MoOS image` is green on
+   `main` for all three editions; that build is the only proof the gate repair
+   works inside an image.
+2. Run one `scripts/release-candidate.sh --promote` for W2–W5. The ISO proof has
+   failed the same way on two of the last three `main` candidates (`57874d6c`,
+   `8b272b87`: SSH banner timeout while QGA is healthy) and passed on `92248b5d`.
+   Read the `moos-iso-install-proof` artifact before dispatching again; never
+   "Re-run jobs".
+3. On the station: stage, reboot, then read Hub controls, Search answers, Island
+   jobs/privacy chips and the Mo AI confirmation cards back from `/usr`; confirm
+   `THEME_REV=61` swept the review shadows. The booted-deployment paragraph above
+   was not re-measured from the Windows workstation that prepared this
+   integration and may be one update behind the wallpaper review, which names
+   `44.20260916.848` as booted: re-measure with `bootc status`.
+4. On the A1: after the next ARM promotion, confirm the W5 island and search are
+   what plasmashell actually runs (rev 61 purge), and that `moos-control status`
+   returns in well under a second.
+5. P0.7 stays open; the experience waves continue from `docs/DEVELOPMENT_PLAN.md`.
