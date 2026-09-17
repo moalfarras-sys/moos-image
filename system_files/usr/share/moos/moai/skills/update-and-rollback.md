@@ -11,7 +11,7 @@ A MoOS update replaces the whole system image at once. It is downloaded and STAG
 1. `os_state` — the booted version, a staged version (downloaded, waiting for a restart), the version kept for rollback, and whether the origin is signed.
 
 ## Steps
-1. The person wants the latest → `system_update`. It asks for confirmation and the administrator password, then downloads and stages a signed image.
+1. The person wants the latest → `system_update`. It asks for confirmation and the administrator password, then downloads and stages a signed image. Its answer may instead be one of these, and you must report which: already on the latest signed image (nothing to do); an update is already staged (only a restart is missing); another update is in progress (wait, do not start a second one); an older published image was refused (nothing changed — a newer release will follow).
 2. When it finishes, `os_state` must show a staged version. Tell the person to restart when it suits them; never restart for them.
 3. "Since the update, X is broken" → confirm with `os_state` that a rollback version exists, explain that going back returns the whole system to the previous version, then `system_rollback`. It asks first and applies on restart.
 4. The update failed → `read_journal` priority=`err` since=`1h` lines=80, then `disk_status` (a full `/var` is the most common cause → skill `disk-full`) and `network_status`.
