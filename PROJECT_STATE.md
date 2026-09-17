@@ -160,18 +160,18 @@ repair now writes Mutable only over invalid values and keeps user/system locks.
 A runtime KWin wobbly-windows trial was inconclusive in still captures and was
 unloaded again; physical window motion stays planned for wave W4.
 
-## Found on main 2026-09-17 (Oracle A1)
+## Fixed 2026-09-17 on the A1, not yet shipped
 
-- `moos-index-policy` wrote `only basic indexing` under `[Basic Settings]`;
-  Baloo reads it from `[General]`. Measured with `balooctl6` here: with only
-  the `[Basic Settings]` key, `contentIndexing` still answers `yes`, so the
-  `file_indexing` budget never applied. Both diagnostics also demanded
-  `contentIndexing=yes` unconditionally, failing a correct filenames-only
-  machine. Fixed and regression-gated on
-  `fix/index-policy-baloo-group-20260917`; not built, signed or shipped.
-- `moos-control status` never returns on this headless ARM host (30 s per
-  `run()` probe, no total budget), hanging gate `test_moai_confirmation_flow.py`
-  on pristine `origin/main` and Mo AI's `get_system_status`. Not fixed.
+On `fix/index-policy-baloo-group-20260917`; `tests/repo-gates.sh` exits 0. The
+installed copies still carry both defects until a signed image ships.
+
+- `moos-index-policy` wrote `only basic indexing` under `[Basic Settings]`, but
+  Baloo reads it from `[General]`, so the `file_indexing` budget never applied
+  (`balooctl6` still answered `contentIndexing: yes`). Both diagnostics also
+  demanded `yes` unconditionally, failing a correct filenames-only machine.
+- `moos-control status` never returned: with no Bluetooth hardware,
+  `bluetoothctl show` activated bluez and waited forever. An 8 s budget plus a
+  bus-ownership check give 30128 ms -> 218 ms, unhanging `get_system_status`.
 
 ## Open evidence gaps
 
