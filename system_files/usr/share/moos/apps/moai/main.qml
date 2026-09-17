@@ -697,6 +697,12 @@ Kirigami.ApplicationWindow {
     // phone-sized icon rail across every form factor.
     readonly property bool workspaceSidebarExpanded: width >= 1120
     function local(ar, en) { return root.moaiRtl ? ar : en }
+    // The kernel's own number. The release string continues with the packager's build tag,
+    // which is another system's name on a MoOS panel — and in the context the model quotes.
+    function kernelNumber(release) {
+        var match = /^(\d+\.\d+(?:\.\d+)?)/.exec(String(release || ""))
+        return match ? match[1] : ""
+    }
     function localLegacy(value) {
         var text = String(value || "")
         var pair = text.split(/\s+\|\s+/)
@@ -1155,7 +1161,7 @@ Kirigami.ApplicationWindow {
     function buildContext(s) {
         const p = s.device_plan || {}
         let c = "\n\nTHIS MACHINE (live, read-only — do not ask the user for it):\n"
-        c += "• " + (s.os || "MoOS") + (s.version ? " " + s.version : "") + ", kernel " + (s.kernel || "?")
+        c += "• " + (s.os || "MoOS") + (s.version ? " " + s.version : "") + ", kernel " + (root.kernelNumber(s.kernel) || "?")
            + ", " + (s.mem_gb || "?") + " GB RAM, " + (s.cores || "?") + " cores\n"
         if (s.cpu) c += "• CPU: " + s.cpu + "\n"
         if (p.gpu) c += "• GPU: " + String(p.gpu).split("\n")[0] + "\n"
@@ -4420,13 +4426,19 @@ Kirigami.ApplicationWindow {
                                     Repeater {
                                         model: [
                                             { icon: "moos-identity-symbolic", ar: "النظام", en: "System", v: (root.snap.os || "MoOS") },
-                                            { icon: "moos-cpu-symbolic",      ar: "المعالج", en: "Processor", v: (root.snap.cpu || "?") + " · " + (root.snap.cores || "?") + " cores" },
-                                            { icon: "moos-memory-symbolic",   ar: "الذاكرة", en: "Memory", v: (root.snap.mem_gb || "?") + " GB RAM" },
-                                            { icon: "moos-gpu-symbolic",      ar: "الرسوميات", en: "Graphics", v: (root.snap.gpu || "?") },
+                                            // A fact that has not arrived is a dash, never half a sentence
+                                            // ("? · ? cores"), and a unit is in the person's language.
+                                            { icon: "moos-cpu-symbolic",      ar: "المعالج", en: "Processor",
+                                              v: !root.snap.cpu ? "—" : root.snap.cpu + (root.snap.cores
+                                                  ? " · " + root.snap.cores + root.local(" نواة", " cores") : "") },
+                                            { icon: "moos-memory-symbolic",   ar: "الذاكرة", en: "Memory",
+                                              v: root.snap.mem_gb ? root.snap.mem_gb + " GB" : "—" },
+                                            { icon: "moos-gpu-symbolic",      ar: "الرسوميات", en: "Graphics", v: (root.snap.gpu || "—") },
                                             { icon: "moos-storage-symbolic",  ar: "التخزين", en: "Storage", v: (root.snap.disk && root.snap.disk.total_gb)
                                                  ? root.local(root.snap.disk.free_gb + " / " + root.snap.disk.total_gb + " GB حرّ",
-                                                              root.snap.disk.free_gb + " / " + root.snap.disk.total_gb + " GB free") : "?" },
-                                            { icon: "moos-system-symbolic",   ar: "نواة MoOS", en: "MoOS kernel", v: (root.snap.kernel || "?") }
+                                                              root.snap.disk.free_gb + " / " + root.snap.disk.total_gb + " GB free") : "—" },
+                                            { icon: "moos-system-symbolic",   ar: "النواة", en: "Kernel",
+                                              v: root.kernelNumber(root.snap.kernel) ? "Linux " + root.kernelNumber(root.snap.kernel) : "—" }
                                         ]
                                         delegate: RowLayout {
                                             required property var modelData

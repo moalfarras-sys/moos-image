@@ -115,6 +115,15 @@ def sweep_qml(errors: list[str]) -> int:
                 if word:
                     errors.append(f"{rel}:{number}: displayed text names `{word}`: "
                                   f"\"{literal[:90]}\"")
+            # A name can also arrive as DATA. `uname -r` continues with the packager's build tag
+            # ("7.2.5-200.fc44.x86_64"), and two MoOS panels printed it whole — one of them into
+            # the context the model quotes from. No literal names anything, so the sweep above
+            # cannot see it: a kernel release is shown through a helper that keeps the number.
+            for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                code = line.split("//", 1)[0]
+                if re.search(r"\.kernel\b(?!\s*\))", code) and not re.search(r"kernel(Number|Label)\(", code):
+                    errors.append(f"{rel}:{number}: shows the raw kernel release, which carries the "
+                                  f"packager's build tag — pass it through kernelNumber()/kernelLabel()")
     return count
 
 
