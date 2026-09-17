@@ -156,6 +156,54 @@ def cache_dir() -> Path:
     return base / "moos-store"
 
 
+# ── Presence for the MoOS Island ─────────────────────────────────────────────
+# job.json is for the Store and Welcome windows, whose launchers export
+# QML_XHR_ALLOW_FILE_READ=1. The Island lives inside plasmashell, where Qt 6 refuses a local
+# XMLHttpRequest ("Using GET on a local file is disabled by default"; measured on Qt 6.11.2).
+# Wave W5 read job.json that way inside a try/catch, so Store jobs never appeared in the Island on
+# any machine while every gate stayed green.
+#
+# The Island's Remote chip has always worked, because it carries its whole state in a FILE NAME
+# that a FolderListModel reports (`presence-active-2`). Store jobs now speak the same way:
+#
+#     $XDG_RUNTIME_DIR/moos-store/job-<action>-<state>-<progress>-<id>
+#
+# Only work a person WAITS for is published. `run`, `refresh-index` and `open-engine` also open a
+# job, and W5 showed each of them as "Installing …".
+PRESENCE_ACTIONS = frozenset({"install", "remove", "update"})
+PRESENCE_STATES = frozenset({"starting", "running", "success", "failed", "cancelled"})
+
+
+def presence_dir() -> Path | None:
+    configured = os.environ.get("XDG_RUNTIME_DIR")
+    if not configured or not Path(configured).is_absolute():
+        return None
+    return Path(configured) / "moos-store"
+
+
+def presence_name(document: dict[str, Any]) -> str | None:
+    """The token for *document*, or None when it is not something to show in the Island."""
+
+    action = document.get("action")
+    state = document.get("state")
+    if action not in PRESENCE_ACTIONS or state not in PRESENCE_STATES:
+        return None
+    progress = document.get("progress")
+    if isinstance(progress, (int, float)) and not isinstance(progress, bool):
+        # Five-point steps: a rename per percent would wake the shell a hundred times.
+        step = str(max(0, min(100, int(progress) // 5 * 5)))
+    else:
+        step = "x"          # indeterminate is a fact, not zero
+    current = document.get("current_id")
+    if not isinstance(current, str) or not current:
+        items = document.get("items") or []
+        current = items[0].get("id", "") if len(items) == 1 and isinstance(items[0], dict) else ""
+    # "-" separates the fields, so it may not survive inside the id; "/" and NUL cannot be in a
+    # file name at all. quote() leaves "-", "." and "_" alone, hence the explicit replacement.
+    encoded = urllib.parse.quote(str(current)[:120], safe="").replace("-", "%2D")
+    return f"job-{action}-{state}-{step}-{encoded}"
+
+
 def _atomic_bytes(path: Path, data: bytes, mode: int = 0o600) -> None:
     """Replace *path* atomically with bytes created in the same directory."""
 
@@ -200,6 +248,7 @@ class JobStore:
         # would make a read-only check indistinguishable from a transaction, and
         # the UI correlates job.json against a request it made.
         self.updates_path = self.directory / "updates.json"
+        self._presence: str | None = None
 
     def prepare(self) -> None:
         self.directory.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -216,6 +265,31 @@ class JobStore:
             separators=(",", ":"),
         ).encode("utf-8") + b"\n"
         _atomic_bytes(self.path, payload)
+        self._publish_presence(document)
+
+    def _publish_presence(self, document: dict[str, Any]) -> None:
+        """Best effort: the Island is a view, and a view may never fail a transaction."""
+
+        directory = presence_dir()
+        name = presence_name(document)
+        if directory is None or name == self._presence:
+            return
+        try:
+            if name is not None:
+                directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+                token = directory / name
+                # Create the new name BEFORE removing the old one: a watcher that reads the
+                # directory between the two sees two tokens (it picks the newest), never none.
+                fd = os.open(token, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o600)
+                os.close(fd)
+            if directory.is_dir():
+                for stale in directory.glob("job-*"):
+                    if stale.name != name:
+                        with contextlib.suppress(OSError):
+                            stale.unlink()
+            self._presence = name
+        except OSError:
+            pass
 
     def write_updates(self, document: dict[str, Any]) -> None:
         payload = json.dumps(

@@ -322,6 +322,51 @@ with tempfile.TemporaryDirectory() as tmp:
     check(completed.returncode != 0 and "system-wide" in completed.stdout,
           "a failed Store job must fail the action and show the backend's own reason")
 
+# ── 4. A dismissed administrator prompt is a failure, never a success line ────
+# `main` runs inside `if main "$@"; then`, which suspends `set -e` for every do_* function. An
+# unchecked `run_priv …` is therefore followed by its own "✓" whatever happened. Until
+# 2026-09-17 install-rpm printed "Package staged. Restart…", update-firmware printed "Done" and
+# install-nvidia printed "Staged — reboot to activate" after the person DISMISSED the password
+# prompt, and the audit trail recorded `ok`. Mo AI's tool harness reads that output back to the
+# model as the result of the action, so the assistant then reported a success that never was.
+#
+# Structural half: no escalation anywhere in the file may go unchecked.
+joined = re.sub(r"\\\n\s*", " ", MOAI_DO.read_text(encoding="utf-8"))
+for number, statement in enumerate(joined.splitlines(), 1):
+    stripped = statement.strip()
+    if stripped.startswith("#") or stripped.startswith("run_priv()") or "run_priv " not in stripped:
+        continue
+    guarded = re.match(r"(if|elif|while|until)\b", stripped) or "||" in stripped \
+        or "&&" in stripped or stripped.startswith("!")
+    check(bool(guarded),
+          "moai-do escalates without reading the result, so its success line prints even when "
+          f"the administrator prompt is dismissed: `{stripped[:90]}`")
+
+# Behavioural half: pkexec exits 126 (dismissed), exactly as polkit reports it.
+with tempfile.TemporaryDirectory() as tmp:
+    bindir = Path(tmp)
+    doubles = {
+        "pkexec": "#!/bin/sh\nexit 126\n",
+        "fwupdmgr": ("#!/bin/sh\n"
+                     'case "$1" in get-updates) echo "Device firmware 1.0 -> 1.1"; exit 0 ;; esac\n'
+                     "exit 0\n"),
+    }
+    for name, body in doubles.items():
+        (bindir / name).write_text(body, encoding="utf-8")
+        (bindir / name).chmod(0o755)
+    env = os.environ.copy()
+    env["PATH"] = f"{bindir}{os.pathsep}{env.get('PATH', '')}"
+    result = subprocess.run([BASH, str(MOAI_DO), "update-firmware"], input="y\n",
+                            capture_output=True, text=True, encoding="utf-8",
+                            errors="replace", timeout=30, env=env)
+    check(result.returncode != 0,
+          "update-firmware must FAIL when the administrator prompt is dismissed; "
+          f"it exited {result.returncode}")
+    check("✓" not in result.stdout,
+          f"update-firmware printed a success mark after a dismissed prompt: {result.stdout!r}")
+    check("NOT updated" in result.stderr,
+          "update-firmware must say plainly that nothing was updated")
+
 if errors:
     print("MoOS moai-do test failed:", file=sys.stderr)
     for error in errors:

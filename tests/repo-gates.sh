@@ -191,6 +191,11 @@ python3 tests/test_boot_assessment.py
 python3 tests/test_installer_storage_policy.py
 python3 tests/test_moos_horizon2_surfaces.py
 python3 tests/test_island_jobs_privacy.py
+# W5's Island read job.json and the privacy token through XMLHttpRequest, which plasmashell's
+# Qt refuses, inside try/catch: Store jobs never appeared on any machine and the gate above
+# (it asserts that strings exist) stayed green. This runs the real producers and the shipped
+# IslandTokens.js against each other.
+python3 tests/test_island_tokens.py
 python3 tests/test_search_inline_answers.py
 # moai-wake is the ONLY thing that can wake a sleeping gateway, so if it cannot reach
 # Telegram the phone agent is silently dead while every surface reports healthy. On a

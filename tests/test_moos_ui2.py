@@ -842,7 +842,9 @@ class TestMoOSUI2(unittest.TestCase):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=61", apply,
+            "THEME_REV=62", apply,
+            "existing v61 users would keep the Island that cannot show Store jobs or name the app "
+            "using the camera; "
             "existing v60 users (ARM took W3 then W5 at the same revision) would keep the cached "
             "W3 island and search QML and never see Store jobs, privacy chips or inline answers; "
             "existing pre-v53 users would keep the cached Launcher QML and never get the "
