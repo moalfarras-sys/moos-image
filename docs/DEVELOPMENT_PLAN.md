@@ -378,6 +378,35 @@ renders the technical `nvidia (discrete)` label in Arabic; narrower English
 trust text can elide. Translate presentation separately from hardware
 classification, and retain the full accessible/error meaning at small widths.
 
+**P2.5, measured 2026-09-17 on the Oracle A1 — Liquid Glass has no blur-less
+fallback, and the material contract already requires one.** `MOOS_UI2_DESIGN.md`
+says a Liquid Glass surface has "a palette-tinted fallback fill that works
+without blur" and that "software rendering uses opaque or near-opaque
+fallbacks ... through capability detection".
+`org/moos/ui/GlassSurface.qml` implements no fallback: it sets `fillOpacity`
+from a fixed token (`floatingGlassOpacity` 0.82, `glassRestingOpacity` 0.22)
+whatever the machine can do. Those values are tuned for a machine whose
+compositor smears what shows through.
+
+This host is `llvmpipe` with no accelerated render node, so `moos-visual-tier`
+correctly resolves the essential tier and writes `Plugins/blurEnabled=false` —
+blur there would be paid on the CPU every frame. `qdbus6 …Effects.isEffectLoaded
+blur` and `contrast` both answer `false`. The remaining ~18% is then not a
+blurred wash but sharp content: in a capture of MoOS Search over a maximised
+editor, the window's own body text reads straight through the results surface.
+Every Liquid Glass surface inherits this, so it is one shared defect, not a
+Search defect.
+
+Not fixed here, deliberately. The installed QML stack exposes no blur-availability
+API (`org/kde/kwindowsystem` and `plasma/core` qmltypes carry no `blurBehind` or
+`isEffectAvailable`), so capability detection needs a mechanism MoOS does not yet
+have; `moos-visual-tier` is the authority that should publish it, the way it
+already publishes `file_indexing` to `moos-index-policy`. And this machine has no
+GPU, so the blur-present path cannot be reviewed from it — changing the shared
+glass material for every surface on evidence from one tier is exactly the
+unverified change the engineering skill forbids. Implement it against both tiers,
+with the flagship frames captured on the station.
+
 | ID | Task | Exit evidence |
 | --- | --- | --- |
 | P2.1 | Move Updater, Recovery and Remote control center onto the shared UI2 component/token layer | live dark/light 4K captures; no private palette implementation |
