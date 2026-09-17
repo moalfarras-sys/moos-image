@@ -12,7 +12,7 @@ merge instead of editing it.
 
 | Agent | Machine | Holds | Files it may change |
 | --- | --- | --- | --- |
-| Station agent | The physical x86 NVIDIA workstation | **W7 — MoOS Workspace** and the live station review owed for W4–W6 | `system_files/usr/share/kwin/**`, `system_files/etc/xdg/kwinrc`, `system_files/etc/xdg/kcminputrc`, `artwork/generate_moos_design_core.py` and the generated `org/moos/ui` tokens, `org/moos/ui/Button.qml` and `Card.qml`, `tests/qml/motion-review.qml`, `tests/test_moos_switcher.py` |
+| Station agent | The physical x86 NVIDIA workstation | **W7 — MoOS Workspace** and the live station review owed for W4–W6 | `system_files/usr/share/kwin/**`, `system_files/etc/xdg/kwinrc`, `system_files/etc/xdg/kcminputrc`, `artwork/generate_moos_design_core.py` and the generated `org/moos/ui` tokens, `org/moos/ui/Button.qml` and `Card.qml`, `tests/qml/motion-review.qml`, `tests/test_moos_switcher.py`, `tests/test_moos_arrange.py` |
 | Remote agent | Off-station (no live KWin) | **W9 — system surfaces on MoOS UI** (Updater, Recovery, Remote centre, Settings front door) | the app trees those surfaces live in, `PROJECT_STATE.md` release rows |
 | Oracle agent | The Oracle A1 (aarch64) | ARM boot proofs and the A1's own findings | `Containerfile.arm`, ARM tests and ARM rows |
 
@@ -73,8 +73,13 @@ On branch `feat/w7-workspace-20260917`, reviewed live on the running session:
    working close control, selected in `etc/xdg/kwinrc` for both switchers.
 2. **`Tokens.scaled()`** — MoOS motion answers to the same one control Plasma
    does, proven on the real Qt runtime by `tests/qml/motion-review.qml`.
-3. **The station review owed for W4–W6** — results are in `PROJECT_STATE.md`.
+4. **The station review owed for W4–W6** — results are in `PROJECT_STATE.md`.
 
-Still open in W7, for whoever picks it up next: MoOS Arrange (one-click tiling
-presets with a live preview), touchpad and gesture defaults (P5.2), and carrying
-`Tokens.scaled()` to the per-surface motion aliases in the plasmoids and apps.
+3. **MoOS Arrange** — halves, thirds, quarters, a main pane plus two, and centre,
+   from the window menu and Meta+Alt+1..4/C, proven live on a scratch virtual
+   desktop so the owner's own windows were never moved.
+
+Still open in W7, for whoever picks it up next: the live preview the plan's idea
+asks for in the Arrange surface, touchpad and gesture defaults (P5.2), and
+carrying `Tokens.scaled()` to the per-surface motion aliases in the plasmoids and
+apps.

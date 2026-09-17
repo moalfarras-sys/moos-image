@@ -186,10 +186,10 @@ after two more.
    second one while `Build MoOS image` run `35272501490` is still working on `main`.
 3. P0.8 closes after two more consecutive green ISO proofs; P0.7 stays open.
 4. W7 (Workspace) is under way on the station on `feat/w7-workspace-20260917`: the
-   MoOS Switcher and `Tokens.scaled()` have landed on that branch and were reviewed
-   live. Still open in W7: MoOS Arrange (one-click tiling presets with a live
-   preview), touchpad and gesture defaults (P5.2), and carrying `Tokens.scaled()` to
-   the per-surface motion aliases. Who holds which files is in
+   MoOS Switcher, `Tokens.scaled()` and MoOS Arrange have landed on that branch and
+   were reviewed live. Still open in W7: a live preview in the Arrange surface,
+   touchpad and gesture defaults (P5.2), and carrying `Tokens.scaled()` to the
+   per-surface motion aliases. Who holds which files is in
    `docs/AGENT_COORDINATION.md`.
 5. A pointer-driven review needs `ydotool`'s absolute axis calibrated against this
    4K screen first, or it silently clicks somewhere else.

@@ -109,6 +109,18 @@ startupfeedbackEnabled=true
 # --- Mission-Control (on-demand, default-on; NO hot corner set) -----------
 overviewEnabled=true
 
+# --- MoOS Arrange (a KWin SCRIPT, not an effect) --------------------------
+# usr/share/kwin/scripts/moos-arrange. KWin reads scripts from disk and enables
+# them from this same [Plugins] group, so MoOS adds one rather than patching
+# window management. It puts the windows on the current desktop and screen into
+# halves, thirds, quarters, a main pane plus two, or centres one - from the
+# window menu a person already has on a title bar, and from Meta+Alt+1..4 / C.
+# Its metadata is EnabledByDefault, and this line says so explicitly so the
+# script survives an upstream default change and is visible where every other
+# MoOS plugin decision is written. Nothing runs while it is not used: the menu
+# callback fires when the menu opens.
+moos-arrangeEnabled=true
+
 # --- Heavy / conflicting effects pinned OFF -------------------------------
 # translucency has NO EnabledByDefault key -> off by default; pinned off because
 # live per-window blending is expensive and un-macOS. (Verified
