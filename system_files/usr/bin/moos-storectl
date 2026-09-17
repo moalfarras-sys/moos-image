@@ -1691,6 +1691,98 @@ class Controller:
                 job.fail(error, [app_id])
             return exit_code(job.document["state"]), job.snapshot()
 
+    # ── App Drop: an application that arrived as a FILE ────────────────────────
+    # The logic is usr/lib/moos/moos_appdrop.py. It runs HERE so that a dropped AppImage is a Mo
+    # Store job like any other: one lock, one job document, one progress feed for the Island.
+    @staticmethod
+    def _appdrop() -> Any:
+        import importlib
+        library = str(Path(__file__).resolve().parent.parent / "lib/moos")
+        if library not in sys.path:
+            sys.path.insert(0, library)
+        return importlib.import_module("moos_appdrop")
+
+    def inspect_file(self, raw_path: str) -> tuple[int, dict[str, Any]]:
+        """Read-only: what this file is and what installing it would do. Writes no job."""
+        appdrop = self._appdrop()
+        try:
+            plan = appdrop.inspect(raw_path)
+        except appdrop.DropError as refusal:
+            return 2, {"schema": SCHEMA, "action": "inspect-file", "state": "failed",
+                       "code": refusal.code, "message": clean_message(refusal.detail or refusal.code)}
+        return 0, {"schema": SCHEMA, "action": "inspect-file", "state": "success", "plan": plan.to_json()}
+
+    def install_file(self, raw_path: str) -> tuple[int, dict[str, Any]]:
+        appdrop = self._appdrop()
+        try:
+            plan = appdrop.inspect(raw_path)
+        except appdrop.DropError as refusal:
+            raise StoreError(f"{refusal.code}: {refusal.detail or refusal.code}") from refusal
+        if plan.kind == "flatpakref":
+            # A Flathub ref is an app id with a file around it: the ordinary verified path.
+            return self.install([plan.flatpak_id])
+        if not plan.supported:
+            raise StoreError(f"{plan.refusal or 'not_installable_here'}: {plan.kind} files are not installed here")
+        try:
+            lock, job = self._begin("install", [plan.slug])
+        except BusyError:
+            return 75, self._busy_document("install", [plan.slug])
+        with lock:
+            code = ""
+            try:
+                def stage(percent: int | None, message: str, message_key: str) -> None:
+                    job.update_item(plan.slug, state="running", progress=percent,
+                                    message=message, message_key=message_key)
+                    job.update(state="running", progress=percent, current_id=plan.slug,
+                               message=message, message_key=message_key)
+
+                def progress(name: str, percent: int | None) -> None:
+                    # Literal keys, so tests/test_store_job_language.py can hold the UI to them.
+                    if name == "inspecting_file":
+                        stage(percent, "Reading the file", message_key="inspecting_file")
+                    elif name == "extracting_file":
+                        stage(percent, "Unpacking the application", message_key="extracting_file")
+                    else:
+                        stage(percent, "Adding it to the launcher", message_key="integrating_app")
+
+                appdrop.install(plan, progress=progress, cancelled=lambda: self._cancelled(job))
+                job.update_item(plan.slug, state="done", progress=100, message="Installed",
+                                message_key="installed")
+                job.finish_from_items("All requested apps are ready", "all_ready")
+            except appdrop.DropError as failure:
+                code = failure.code
+                if failure.code == "cancelled":
+                    job.cancelled()
+                else:
+                    job.fail(f"{failure.code}: {failure.detail or failure.code}", [plan.slug])
+            except Exception as error:                   # noqa: BLE001 - reported to the person
+                job.fail(error, [plan.slug])
+            document = job.snapshot()
+            if code:
+                document["code"] = code                  # a stable key: the dialog owns the words
+            return exit_code(job.document["state"]), document
+
+    def remove_file(self, slug: str) -> tuple[int, dict[str, Any]]:
+        appdrop = self._appdrop()
+        try:
+            lock, job = self._begin("remove", [slug])
+        except BusyError:
+            return 75, self._busy_document("remove", [slug])
+        with lock:
+            try:
+                if appdrop.remove(slug):
+                    job.update_item(slug, state="done", progress=100, message="Removed",
+                                    message_key="removed")
+                else:
+                    job.update_item(slug, state="skipped", progress=100,
+                                    message="App is not installed", message_key="not_installed")
+                job.finish_from_items("App removed", "app_removed")
+            except appdrop.DropError as failure:
+                job.fail(f"{failure.code}: {failure.detail or failure.code}", [slug])
+            except Exception as error:                   # noqa: BLE001
+                job.fail(error, [slug])
+            return exit_code(job.document["state"]), job.snapshot()
+
     def run(self, app_id: str) -> tuple[int, dict[str, Any]]:
         if not validate_flatpak_id(app_id):
             raise StoreError(f"Invalid Flatpak app ID: {app_id}")
@@ -1996,6 +2088,14 @@ def parser() -> argparse.ArgumentParser:
     engine.add_argument("name", choices=tuple(ENGINE_COMMANDS))
     cancel = commands.add_parser("cancel", help="cancel the active job")
     cancel.add_argument("job_id", nargs="?")
+    install_file = commands.add_parser(
+        "install-file", help="install an AppImage, a portable archive or a Flathub ref from a file")
+    install_file.add_argument("path")
+    inspect_file = commands.add_parser(
+        "inspect-file", help="report what a file is and what installing it would do; changes nothing")
+    inspect_file.add_argument("path")
+    remove_file = commands.add_parser("remove-file", help="remove an app that install-file installed")
+    remove_file.add_argument("id")
     return result
 
 
@@ -2030,6 +2130,12 @@ def main(
             code, document = controller.refresh_index()
         elif options.command == "open-engine":
             code, document = controller.open_engine(options.name)
+        elif options.command == "install-file":
+            code, document = controller.install_file(options.path)
+        elif options.command == "inspect-file":
+            code, document = controller.inspect_file(options.path)
+        elif options.command == "remove-file":
+            code, document = controller.remove_file(options.id)
         else:
             code, document = controller.cancel(options.job_id)
     except StoreError as error:

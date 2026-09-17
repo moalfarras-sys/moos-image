@@ -2667,7 +2667,9 @@ systemd-analyze verify \
     /usr/lib/systemd/user/moai-control.service \
     /usr/lib/systemd/user/openclaw-idle.service \
     /usr/lib/systemd/user/openclaw-idle.timer \
-    /usr/lib/systemd/user/moai-agent-api.service
+    /usr/lib/systemd/user/moai-agent-api.service \
+    /usr/lib/systemd/user/moos-app-drop.path \
+    /usr/lib/systemd/user/moos-app-drop.service
 # openclaw-gateway.service is deliberately NOT verified here: its ExecStart is
 # %h/.local/bin/openclaw, a per-user runtime install (moai-do install-openclaw),
 # which does not exist in the build container — systemd-analyze verify resolves
@@ -2749,6 +2751,10 @@ systemctl --global enable moos-reclaim-disk.timer
 # tells the person their update is ready — once per staged version, never a nag.
 systemctl --global enable moos-update-ready.timer
 systemctl --global enable moos-privacy-monitor.service
+# App Drop: a file dropped into ~/Applications raises the install question. The path unit is
+# what is enabled; its service only ever runs `moos-app-drop --scan`, which installs nothing
+# without a dialog whose default is No.
+systemctl --global enable moos-app-drop.path
 
 # An installed bootc system uses an OSTree/composefs overlay for /. Anaconda's
 # generated physical-root fstab entry makes systemd-remount-fs attempt an

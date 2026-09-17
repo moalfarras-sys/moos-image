@@ -1,0 +1,15 @@
+[Unit]
+Description=Offer to install apps dropped into the Applications folder
+PartOf=plasma-workspace.target
+# Nothing is installed by this unit: it raises a question, and the question's default is No.
+# No START rate limit either (see moos-theme-sync.service): tripping it would fail the path
+# unit with it, and dropping files into Applications would silently stop working.
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/moos-app-drop --scan
+# A person answering a dialog is not a hung service.
+TimeoutStartSec=infinity
+NoNewPrivileges=yes
+Slice=background.slice

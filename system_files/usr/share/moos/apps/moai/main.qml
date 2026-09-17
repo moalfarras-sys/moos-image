@@ -556,6 +556,11 @@ Kirigami.ApplicationWindow {
         "it still segfaults in GStreamer a few seconds after it " +
         "opens. If you are not certain of an app id, tell the user to search it in " +
         "the Apps panel rather than guessing one.\n" +
+        "• Install an app that arrived as a FILE (an AppImage, or a portable .tar.gz/.zip): " +
+        "tell the user to drag it into their Applications folder, or onto this chat, or to " +
+        "right-click it and choose Install in MoOS. MoOS shows what it is, asks, unpacks it in " +
+        "a sandbox and adds it to the launcher — no administrator rights. A .deb does not run " +
+        "here: point them to Mo Store or the project's AppImage instead.\n" +
         "• Install a local RPM: tell the user to drag the .rpm onto this chat or use " +
         "Apps → Install RPM. Do not invent a shell command or ask them to disable " +
         "signature checks. MoOS shows the package/version/installed size, accepts only " +
@@ -8497,10 +8502,22 @@ Kirigami.ApplicationWindow {
                     root.local("تثبيت حزمة محلية", "Install local package"))
     }
 
+    // An application that arrives as a file is installed, not attached: App Drop looks at what
+    // the file IS (never only its name), asks, and installs it into the person's Applications.
+    function installLocalApp(path) {
+        if (!path) return
+        root.launch("moos://apps/install-file/" + encodeURIComponent(String(path)),
+                    root.local("تثبيت تطبيق من ملف", "Install an app from a file"))
+    }
+
     function handlePickedFile(path) {
         const clean = String(path || "").split(/[?#]/)[0].toLowerCase()
         if (clean.endsWith(".rpm")) {
             root.installLocalRpm(path)
+            return
+        }
+        if (clean.endsWith(".appimage") || clean.endsWith(".flatpakref")) {
+            root.installLocalApp(path)
             return
         }
         root.importAttachment(path)

@@ -1,0 +1,253 @@
+#!/usr/bin/python3
+"""moos-app-drop — "put it in Applications and it is an app".
+
+The person-facing half of App Drop (the logic is usr/lib/moos/moos_appdrop.py):
+
+    moos-app-drop <file>      look at it, ASK, then install it or hand it to the right tool
+    moos-app-drop --scan      offer every installable file waiting in ~/Applications
+    moos-app-drop --list      what App Drop has installed
+    moos-app-drop --remove ID remove one of those
+
+It is reached by opening an AppImage, by Dolphin's "Install in MoOS" action, by dropping a file
+into ~/Applications (moos-app-drop.path) and by Mo AI's chat drop (moos://apps/install-file/…).
+
+Two rules hold on every path:
+  * NOTHING is installed without a dialog the person answers, and the dialog's default is No. The
+    public moos: scheme can reach this program, so a web page can at most make a question appear.
+    With no dialog tool the answer is No (fail closed), exactly as moos-open's confirm() does.
+  * It needs no administrator rights and never asks for them. A .rpm is handed to the existing
+    signed-RPM route, which has its own checks and its own polkit prompt.
+
+The install itself runs as a Mo Store job (`moos-storectl install-file`), so its progress is in
+the Island and in Mo Store like any other install, and one lock serialises it with them.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+import time
+import urllib.parse
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "lib/moos"))
+import moos_appdrop as appdrop  # noqa: E402
+
+STORECTL = os.environ.get("MOOS_STORECTL", "/usr/bin/moos-storectl")
+
+# code -> (Arabic, English). The words live here, in one place, for every refusal and outcome.
+WORDS = {
+    "file_missing": ("الملف غير موجود.", "That file does not exist."),
+    "not_a_plain_file": ("هذا ليس ملفاً عادياً.", "That is not an ordinary file."),
+    "not_your_file": ("هذا الملف يخصّ حساباً آخر.", "That file belongs to another account."),
+    "outside_home": ("يثبّت MoOS الملفات من مجلداتك أنت فقط.", "MoOS only installs files from your own folders."),
+    "empty_file": ("الملف فارغ — ربما لم يكتمل تنزيله.", "The file is empty — the download may not have finished."),
+    "too_large": ("الملف أكبر من أن يكون برنامجاً.", "The file is too large to be an application."),
+    "name_taken": ("يوجد مجلد بهذا الاسم في «التطبيقات» لم يُنشئه MoOS؛ لن ألمسه.",
+                   "A folder with this name already exists in Applications and MoOS did not make it; it will not be touched."),
+    "foreign_remote": ("هذا الملف يضيف مصدر برامج غير Flathub. MoOS لا يثق بناشر جديد بناءً على ملف مُنزَّل.",
+                       "This file adds a software source other than Flathub. MoOS does not trust a new publisher on the strength of a downloaded file."),
+    "bad_flatpakref": ("ملف Flatpak هذا غير صالح.", "This Flatpak file is not valid."),
+    "deb_not_native": ("هذه حزمة Debian/Ubuntu ولا تعمل على MoOS. ابحث عن البرنامج في Mo Store، أو نزّل نسخة AppImage منه.",
+                       "This is a Debian/Ubuntu package and does not run on MoOS. Look for the app in Mo Store, or download its AppImage."),
+    "bundle_unsupported": ("حزم ‎.flatpak المنفردة غير مدعومة بعد. ثبّت البرنامج من Mo Store.",
+                           "Single-file .flatpak bundles are not supported yet. Install the app from Mo Store."),
+    "unknown_kind": ("لا أعرف كيف أثبّت هذا النوع من الملفات.", "MoOS does not know how to install this kind of file."),
+    "unsafe_archive": ("هذا الأرشيف يحاول الكتابة خارج مجلده، فرفضته.",
+                       "This archive tries to write outside its own folder, so it was refused."),
+    "archive_bomb": ("هذا الأرشيف يتضخّم بشكل غير طبيعي عند فكّه، فرفضته.",
+                     "This archive expands abnormally when unpacked, so it was refused."),
+    "no_sandbox": ("أداة العزل غير متوفرة؛ لا أفكّ AppImage بدون عزل.",
+                   "The sandbox tool is missing; an AppImage is never unpacked without it."),
+    "appimage_unreadable": ("تعذّر فكّ ملف AppImage هذا — ربما صيغته قديمة أو الملف تالف.",
+                            "This AppImage could not be unpacked — it may be an old format or a damaged file."),
+    "extract_timeout": ("استغرق فكّ الملف وقتاً طويلاً فأوقفته.", "Unpacking took too long and was stopped."),
+    "nothing_to_launch": ("فككتُ الملف لكن لم أجد برنامجاً واحداً واضحاً لتشغيله. فتحتُ لك المجلد.",
+                          "The file was unpacked, but no single program to launch was found. The folder has been opened for you."),
+    "cancelled": ("أُلغي التثبيت. لم يتغيّر شيء.", "Installation cancelled. Nothing was changed."),
+    "busy": ("Mo Store مشغول بعملية أخرى. حاول بعد قليل.", "Mo Store is busy with another operation. Try again shortly."),
+    "no_dialog": ("لا توجد أداة حوار، فلا أثبّت شيئاً دون سؤالك.", "No dialog tool is available, so nothing is installed without asking you."),
+    "failed": ("تعذّر التثبيت.", "The installation failed."),
+}
+KIND_WORDS = {
+    "appimage": ("برنامج AppImage", "an AppImage application"),
+    "archive": ("برنامج محمول داخل أرشيف", "a portable application in an archive"),
+    "flatpakref": ("تطبيق من Flathub", "an application from Flathub"),
+}
+
+
+def arabic() -> bool:
+    locale = os.environ.get("LC_ALL") or os.environ.get("LC_MESSAGES") or os.environ.get("LANG") or "en"
+    return locale.lower().startswith("ar")
+
+
+def say(pair: tuple[str, str]) -> str:
+    return pair[0] if arabic() else pair[1]
+
+
+def words(code: str) -> str:
+    return say(WORDS.get(code, WORDS["failed"]))
+
+
+def human_size(size: int) -> str:
+    for unit in ("B", "KB", "MB", "GB"):
+        if size < 1024 or unit == "GB":
+            return f"{size:.0f} {unit}" if unit == "B" else f"{size:.1f} {unit}"
+        size /= 1024
+    return f"{size:.1f} GB"
+
+
+def ask(title: str, text: str, yes: str) -> bool:
+    """A question whose default is No. No dialog tool means No."""
+    if shutil.which("kdialog"):
+        return subprocess.run(["kdialog", "--title", title, "--icon", "moos-install-symbolic",
+                               "--warningcontinuecancel", text, "--continue-label", yes],
+                              stdin=subprocess.DEVNULL, check=False).returncode == 0
+    if shutil.which("zenity"):
+        return subprocess.run(["zenity", "--question", "--default-cancel", f"--title={title}",
+                               f"--text={text}", f"--ok-label={yes}"],
+                              stdin=subprocess.DEVNULL, check=False).returncode == 0
+    print(words("no_dialog"), file=sys.stderr)
+    return False
+
+
+def tell(text: str, *, error: bool = False) -> None:
+    print(text, file=sys.stderr if error else sys.stdout)
+    if shutil.which("notify-send"):
+        subprocess.run(["notify-send", "--app-name=MoOS", "--icon=moos-install-symbolic",
+                        "--urgency=" + ("critical" if error else "normal"), "MoOS", text],
+                       stdin=subprocess.DEVNULL, check=False)
+
+
+def storectl(*argv: str) -> dict:
+    done = subprocess.run([STORECTL, *argv], stdin=subprocess.DEVNULL, capture_output=True,
+                          text=True, encoding="utf-8", check=False)
+    last = (done.stdout or "").strip().splitlines()[-1:] or ["{}"]
+    try:
+        document = json.loads(last[0])
+    except ValueError:
+        document = {}
+    document.setdefault("state", "failed")
+    document["exit"] = done.returncode
+    return document
+
+
+def question(plan: appdrop.Plan) -> str:
+    kind = say(KIND_WORDS[plan.kind])
+    if plan.kind == "flatpakref":
+        return say((f"تثبيت {plan.name} من Flathub؟\n\nهذا {kind}، يُثبَّت عبر Mo Store معزولاً ومتحقَّقاً منه.",
+                    f"Install {plan.name} from Flathub?\n\nThis is {kind}; Mo Store installs it sandboxed and verified."))
+    action = say(("تحديث", "Update")) if plan.replaces else say(("تثبيت", "Install"))
+    return say((
+        f"{action} «{plan.name}»؟\n\n"
+        f"الملف: {plan.path.name} ({human_size(plan.size)})\nالنوع: {kind}\nالمكان: {plan.target}\n\n"
+        "لا يستطيع MoOS التحقق ممّن صنع هذا البرنامج. سيعمل بصلاحيات حسابك ويصل إلى ملفاتك، "
+        "بلا صلاحيات مسؤول. ثبّته فقط إن كنت تثق بمصدره.",
+        f"{action} “{plan.name}”?\n\n"
+        f"File: {plan.path.name} ({human_size(plan.size)})\nKind: {kind}\nGoes to: {plan.target}\n\n"
+        "MoOS cannot verify who made this program. It will run as you, with access to your files "
+        "and no administrator rights. Install it only if you trust where it came from."))
+
+
+def handle(raw_path: str, *, from_inbox: bool = False) -> int:
+    try:
+        plan = appdrop.inspect(raw_path)
+    except appdrop.DropError as refusal:
+        tell(words(refusal.code), error=True)
+        return 2
+    if plan.handoff == "rpm":
+        route = "moos://apps/install-rpm/" + urllib.parse.quote(str(plan.path), safe="")
+        subprocess.Popen(["/usr/bin/moos-open", route], stdin=subprocess.DEVNULL, start_new_session=True)
+        return 0
+    if plan.handoff == "foreign":
+        subprocess.Popen(["/usr/bin/moos-run-foreign", str(plan.path)], stdin=subprocess.DEVNULL,
+                         start_new_session=True)
+        return 0
+    if not plan.supported:
+        tell(words(plan.refusal), error=True)
+        return 2
+    if not ask("MoOS", question(plan), say(("تثبيت", "Install"))):
+        return 0                                    # a declined question is a clean no-op
+    document = storectl("install-file", str(plan.path))
+    if document["state"] == "success":
+        if from_inbox and plan.kind in ("appimage", "archive") and plan.target:
+            # The file was dropped INTO Applications: it is installed now, so it moves inside the
+            # app's own folder instead of lying beside it and being offered again.
+            keep = plan.target / plan.path.name
+            if not keep.exists():
+                shutil.move(str(plan.path), str(keep))
+        tell(say((f"تم تثبيت «{plan.name}». تجده في قائمة التطبيقات.",
+                  f"“{plan.name}” is installed. You will find it in the app launcher.")))
+        return 0
+    code = str(document.get("code") or ("busy" if document["state"] == "busy" else
+                                        "cancelled" if document["state"] == "cancelled" else "failed"))
+    tell(words(code) + (f"\n{document.get('message', '')}" if code == "failed" else ""), error=True)
+    if code == "nothing_to_launch" and plan.target and shutil.which("xdg-open"):
+        subprocess.Popen(["xdg-open", str(plan.target)], stdin=subprocess.DEVNULL, start_new_session=True)
+    return 1
+
+
+def scan() -> int:
+    """Files dropped into ~/Applications. A half-copied file is left for the next change event."""
+    apps = appdrop.applications_dir()
+    apps.mkdir(mode=0o755, parents=True, exist_ok=True)
+    seen_file = appdrop.data_home() / "moos/appdrop/declined.json"
+    try:
+        declined = set(json.loads(seen_file.read_text(encoding="utf-8")))
+    except (OSError, ValueError):
+        declined = set()
+    status = 0
+    for entry in sorted(apps.iterdir()):
+        if entry.name.startswith(".") or not entry.is_file() or entry.is_symlink():
+            continue
+        first = entry.stat()
+        time.sleep(1.5)
+        try:
+            second = entry.stat()
+        except OSError:
+            continue
+        if (first.st_size, first.st_mtime_ns) != (second.st_size, second.st_mtime_ns):
+            continue                                # still being copied
+        stamp = f"{entry.name}:{second.st_size}:{second.st_mtime_ns}"
+        if stamp in declined:
+            continue                                # asked once; a No is remembered for this file
+        try:
+            if appdrop.sniff(entry) not in (*appdrop.SUPPORTED, *appdrop.HANDOFF):
+                continue                            # a document someone keeps here is not our business
+        except OSError:
+            continue
+        result = handle(str(entry), from_inbox=True)
+        if entry.exists():                          # declined, refused or failed: do not nag
+            declined.add(stamp)
+        status = status or result
+    seen_file.parent.mkdir(parents=True, exist_ok=True)
+    seen_file.write_text(json.dumps(sorted(declined)[-200:]), encoding="utf-8")
+    return status
+
+
+def main(argv: list[str]) -> int:
+    if argv[:1] == ["--scan"]:
+        return scan()
+    if argv[:1] == ["--list"]:
+        for app in appdrop.installed():
+            print(f"{app['id']}\t{app['name']}\t{app['directory']}")
+        return 0
+    if argv[:1] == ["--remove"] and len(argv) == 2:
+        document = storectl("remove-file", argv[1])
+        ok = document["state"] == "success"
+        tell(say(("تمت الإزالة.", "Removed.")) if ok else words("failed"), error=not ok)
+        return 0 if ok else 1
+    if len(argv) == 1 and not argv[0].startswith("-"):
+        target = argv[0]
+        if target.startswith("file://"):
+            target = urllib.parse.unquote(urllib.parse.urlparse(target).path)
+        return handle(target)
+    print(__doc__.split("\n\n")[1], file=sys.stderr)
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

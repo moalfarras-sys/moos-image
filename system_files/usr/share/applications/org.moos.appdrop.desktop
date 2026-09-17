@@ -1,0 +1,17 @@
+[Desktop Entry]
+Type=Application
+Name=Install in MoOS
+Name[ar]=تثبيت في MoOS
+Name[de]=In MoOS installieren
+Comment=Install an application that arrived as a file
+Comment[ar]=ثبّت برنامجاً وصل كملف
+Comment[de]=Ein als Datei geliefertes Programm installieren
+Exec=moos-app-drop %f
+Icon=moos-store
+Terminal=false
+# A helper, like the app runner: Mo Store stays the one storefront in the launcher.
+NoDisplay=true
+# AppImage and Flathub refs open here by default (mimeapps.list). Archives do NOT: a
+# .tar.gz is usually not an application, so Ark keeps the double-click and this is offered
+# under Open With and in the file manager's menu.
+MimeType=application/vnd.appimage;application/x-iso9660-appimage;application/vnd.flatpak.ref;application/x-compressed-tar;application/x-xz-compressed-tar;application/x-bzip-compressed-tar;application/x-bzip2-compressed-tar;application/x-zstd-compressed-tar;application/x-tar;application/zip;

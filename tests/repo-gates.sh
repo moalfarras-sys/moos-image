@@ -203,6 +203,11 @@ python3 tests/test_island_jobs_privacy.py
 # (it asserts that strings exist) stayed green. This runs the real producers and the shipped
 # IslandTokens.js against each other.
 python3 tests/test_island_tokens.py
+# App Drop installs an application from a FILE. The hostile archives are built for real here:
+# `..`, absolute paths, links that leave the tree, device nodes, a bomb, a package .desktop
+# saying Exec=sh -c, a file merely CALLED .AppImage, a ref naming a foreign remote. The
+# AppImage sandbox is run under the real bwrap where it exists.
+python3 tests/test_app_drop.py
 python3 tests/test_search_inline_answers.py
 # moai-wake is the ONLY thing that can wake a sleeping gateway, so if it cannot reach
 # Telegram the phone agent is silently dead while every surface reports healthy. On a

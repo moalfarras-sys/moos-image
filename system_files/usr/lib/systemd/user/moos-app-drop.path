@@ -1,0 +1,20 @@
+[Unit]
+Description=Watch the Applications folder for apps to install
+Documentation=man:systemd.path(5)
+PartOf=plasma-workspace.target
+
+[Path]
+# The folder is created by the service's first run (and by App Drop itself); a path unit on a
+# missing directory simply waits, it does not fail.
+PathChanged=%h/Applications
+Unit=moos-app-drop.service
+MakeDirectory=yes
+DirectoryMode=0755
+# No trigger limit of our own. moos-theme-sync learned it the hard way: a limit that trips
+# puts the PATH unit into failed state and the watch is dead for the rest of the session.
+# While the service runs (a person answering a dialog) systemd starts no second instance,
+# and the scan writes nothing into this folder when it has nothing to do, so it cannot
+# trigger itself.
+
+[Install]
+WantedBy=plasma-workspace.target

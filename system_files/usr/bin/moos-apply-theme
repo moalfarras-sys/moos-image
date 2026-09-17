@@ -773,6 +773,24 @@ pin_default_apps() {
         echo "pinned office document handling in the user's mimeapps.list" >>"$log" 2>/dev/null || true
     fi
 
+    # --- An app that arrives as a file opens in App Drop ------------------------
+    # Same half-fix rule as above: the user's own mimeapps.list outranks /etc/xdg. Claim the
+    # type only when it is unset or already ours; someone who chose AppImageLauncher or Gear
+    # Lever made a real choice and keeps it.
+    if [ -f /usr/share/applications/org.moos.appdrop.desktop ]; then
+        for mime in application/vnd.appimage application/x-iso9660-appimage \
+                    application/vnd.flatpak.ref; do
+            current="$(kreadconfig6 --file "$mimeapps" --group "Default Applications" --key "$mime" 2>/dev/null)"
+            case "$current" in
+                ""|*appdrop*)
+                    kwriteconfig6 --file "$mimeapps" --group "Default Applications" \
+                        --key "$mime" org.moos.appdrop.desktop
+                    ;;
+            esac
+        done
+        echo "pinned App Drop for AppImage and Flathub refs in the user's mimeapps.list" >>"$log" 2>/dev/null || true
+    fi
+
     command -v update-desktop-database >/dev/null 2>&1 && \
         update-desktop-database "${XDG_DATA_HOME:-$HOME/.local/share}/applications" 2>/dev/null || true
     return 0

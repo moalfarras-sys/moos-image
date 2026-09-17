@@ -346,6 +346,8 @@ check:
     python3 tests/test_island_jobs_privacy.py
     # Producer and consumer of the Island's presence tokens, executed for real.
     python3 tests/test_island_tokens.py
+    # App Drop: install from a file, with real hostile archives and the real sandbox.
+    python3 tests/test_app_drop.py
     python3 tests/test_search_inline_answers.py
     # The wake receiver is the only way back from an idle gateway. IPv4-only resolution and a
     # pinned-IP fallback keep it alive on a network that blocks Telegram's default address.

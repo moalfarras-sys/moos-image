@@ -332,6 +332,36 @@ PY
             *) notify "اختر RPM من Downloads أو Desktop أو Documents | choose an RPM from Downloads, Desktop, or Documents"; exit 2 ;;
         esac ;;
 
+    # An application that arrived as a file (AppImage, portable archive, Flathub ref). The value
+    # is a percent-encoded path, never a command. It must be the person's own plain file inside
+    # their home; moos-app-drop checks all of that again, then ASKS (default No) before
+    # anything is installed. A public moos: link can therefore only make a question appear.
+    apps/install-file/*)
+        encoded="${tgt#install-file/}"
+        local_path="$(python3 - "$encoded" <<'PY'
+import sys
+from urllib.parse import unquote, urlparse
+value = unquote(sys.argv[1])
+if value.startswith("file:"):
+    parsed = urlparse(value)
+    if parsed.netloc not in ("", "localhost"):
+        raise SystemExit(2)
+    value = unquote(parsed.path)
+print(value, end="")
+PY
+)" || { notify "مسار ملف غير صالح | invalid file path"; exit 2; }
+        home="$(getent passwd "$(id -u)" | cut -d: -f6)"
+        resolved="$(realpath -e -- "$local_path" 2>/dev/null)" \
+            || { notify "الملف غير موجود | file not found"; exit 2; }
+        case "$resolved" in
+            "$home"/*)
+                [ -f "$resolved" ] && [ ! -L "$local_path" ] \
+                    && [ "$(stat -c %u -- "$resolved")" = "$(id -u)" ] \
+                    || { notify "ملف غير آمن | unsafe file"; exit 2; }
+                gui moos-app-drop "$resolved" ;;
+            *) notify "اختر ملفاً من مجلداتك | choose a file from your own folders"; exit 2 ;;
+        esac ;;
+
     # ── App Centre: REMOVE an installed app by id ─────────────────────────────
     # The counterpart to apps/install, with the same free-form id, so the same
     # reverse-DNS validation here and again in moai-do, which asks for
