@@ -231,16 +231,19 @@ set -uo pipefail
 #     Qt 6.11.2), inside a try/catch. They now arrive as file NAMES, the way the Remote chip
 #     always has (IslandTokens.js). A removal is shown as a removal; running an app or
 #     refreshing the index is no longer shown as an install.
-# 63: TWO waves land in this revision, because neither had shipped when they met.
+# 63: wave W7, seen on the station: org/moos/ui gained Tokens.scaled(), so MoOS motion
+#     follows the same AnimationDurationFactor Plasma does, and Card/Button adopted it.
+# 64: NOT a shared 63, although W6.2 and W7 met before either reached x86. W7 merged
+#     first, and the ARM pipeline promotes every green push to main: its build of W7 at 63
+#     was already queued, hours ahead of the 04:30 update train. An ARM machine that took it
+#     would hold a v63 marker and never purge for this change — revision 61's defect again.
 #     W6.2, seen by rendering the desktop from source (scripts/review/render-desktop.sh):
 #     the Hub's two date lines sit on one edge (each used to align by its own script, so in
-#     an Arabic session the English line hung on the far side of the column), MoOS
-#     Search stops assigning `undefined` to two labels on every desktop start, and the
+#     an Arabic session the English line hung on the far side of the column), and MoOS
+#     Search stops assigning `undefined` to two labels on every desktop start. The
 #     Island sizes its capsule from the title's MEASURED width plus its always-shown
-#     control - in Arabic the privacy chip read "الميكروفون قيد الاستخ…".
-#     W7, seen on the station: org/moos/ui gained Tokens.scaled(), so MoOS motion follows
-#     the same AnimationDurationFactor Plasma does, and Card/Button adopted it.
-THEME_REV=63
+#     control: in Arabic the privacy chip read "الميكروفون قيد الاستخ…".
+THEME_REV=64
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

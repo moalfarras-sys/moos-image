@@ -20,8 +20,7 @@ Current measured facts only; Git owns history. Last measured 2026-09-17.
   Before that day x86 production was W1 (`92248b5d`, `44.20260916.848`).
 - Release cycle A (candidate `51cc2ac3`) passed the signed build and all three QCOW2 boots and
   lost its ISO proof to plan row P0.8; nothing was promoted from it.
-- `main` has one long-lived branch and no open pull request other than the one that carries
-  this file; 22 merged topic branches were deleted after each was proven an ancestor of `main`.
+- `main` is the only long-lived branch; 22 merged topic branches were deleted (each an ancestor).
 - The intermittent ARM second-boot `plymouthd` SEGV is still open (P0.7); green ARM runs since
   then had no fix applied.
 - A merged commit or locally built image is not an installed or released state. Production
@@ -121,7 +120,8 @@ scene, Hub, bar and plasmoids under Xvfb; `render-lockscreen.sh` the lock screen
 W7 (merged into `main` as `411a470c`): the MoOS Switcher, `Tokens.scaled()` and MoOS
 Arrange, all reviewed on the live session.
 
-**`THEME_REV` 63 carries BOTH**, because neither had shipped when they met.
+**W7 is `THEME_REV` 63 and W6.2 is 64.** ARM promotes every green push to `main`, so W7
+can reach an ARM machine at 63 before W6.2 does; a shared 63 would strand its caches.
 
 **Not proven anywhere yet:** tool choice by a real free model (P3.3); a real AppImage,
 its dialog, the file-manager action and the `~/Applications` watch on a desktop (P4.6).
