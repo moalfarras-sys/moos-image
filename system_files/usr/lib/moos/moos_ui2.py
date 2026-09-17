@@ -425,6 +425,9 @@ window.moos-ui2 .ui2-log-frame {{
   border-radius: 12px;
 }}
 window.moos-ui2 button {{
+  /* Under a GTK theme that paints buttons with an image, a colour alone loses: the
+     Updater's "Check for updates" rendered as a white box. Rendered from source, 2026-09-18. */
+  background-image: none;
   background-color: @ui2_raised;
   color: @ui2_text;
   border: 1px solid @ui2_outline;
@@ -585,6 +588,8 @@ class MoOSApp(Gtk.Application):
     APP_ID = "org.moos.app"
     TITLE = "MoOS"
     SIZE = (760, 640)
+    # Taller than this and the page scrolls: a 1080p screen at 100% keeps its bar.
+    MAX_HEIGHT = 900
 
     def __init__(self):
         super().__init__(application_id=self.APP_ID)
@@ -618,6 +623,18 @@ class MoOSApp(Gtk.Application):
         scroller = Gtk.ScrolledWindow(hexpand=True, vexpand=True)
         scroller.set_child(page)
         self.win.set_child(scroller)
+
+        # SIZE is a floor, not the truth. The Updater opened at 760×380 and its content —
+        # title, sentence, identity card, status card, then the buttons — needed about 425
+        # in Arabic, so the window opened with "Install update" cut off below the fold of
+        # its own scroller (seen the first time the app was rendered from source,
+        # 2026-09-18). Measure what build() made and open tall enough to show it; the
+        # scroller is still there for a page that grows later (the technical log).
+        # Measured INSIDE the window: the `window.moos-ui2 .ui2-card` rules that give the
+        # cards their padding and borders only match once the page has that ancestor.
+        width, floor = self.SIZE
+        _minimum, natural, _base, _base_natural = page.measure(Gtk.Orientation.VERTICAL, width)
+        self.win.set_default_size(width, max(floor, min(natural, self.MAX_HEIGHT)))
         self.win.present()
 
     # -- building blocks -------------------------------------------------------
