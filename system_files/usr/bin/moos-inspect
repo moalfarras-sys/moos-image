@@ -26,6 +26,8 @@ This is the third executor beside `moai-do` (changes, confirmed, may escalate) a
     moos-inspect processes cpu|memory
     moos-inspect memory | disk | network | apps | os
     moos-inspect log <moai|theme|store|remote>
+    moos-inspect skills                    the repair playbooks shipped with this system
+    moos-inspect skill <id>                one playbook, to be followed step by step
 """
 
 from __future__ import annotations
@@ -53,6 +55,11 @@ LOGS = {
     "store": "moos-store/index.log",
     "remote": "mo-remote/agent.log",
 }
+
+
+# Repair playbooks shipped read-only in the image. An id, never a path.
+SKILL_ID = re.compile(r"[a-z][a-z0-9-]{1,40}")
+SKILL_FIELDS = ("id", "title_en", "title_ar", "use_when")
 
 
 class Refused(Exception):
@@ -200,6 +207,60 @@ def log(args) -> tuple[str, bool]:
     return section(f"log {args.name} (newest last)", "\n".join(tail.splitlines()[-120:])), True
 
 
+def _skills_dir() -> Path | None:
+    # Beside this script first: installed, that IS /usr/share/moos/moai/skills; from a source
+    # tree it is that tree's playbooks, not whatever an older installed image happens to carry.
+    here = Path(__file__).resolve()
+    for candidate in (here.parent.parent / "share/moos/moai/skills",
+                      Path("/usr/share/moos/moai/skills")):
+        if candidate.is_dir():
+            return candidate
+    return None
+
+
+def _read_skill(path: Path) -> tuple[dict[str, str], str]:
+    """Front matter (`key: value` lines between two `---`) and the body that follows it."""
+    text = path.read_text(encoding="utf-8")
+    if not text.startswith("---\n") or "\n---\n" not in text[4:]:
+        return {}, text
+    head, body = text[4:].split("\n---\n", 1)
+    meta = {}
+    for line in head.splitlines():
+        key, colon, value = line.partition(":")
+        if colon and key.strip() in SKILL_FIELDS:
+            meta[key.strip()] = value.strip()
+    return meta, body.strip()
+
+
+def _skill_files() -> list[Path]:
+    directory = _skills_dir()
+    if directory is None:
+        return []
+    # A playbook is a regular file the image shipped. A link could point anywhere.
+    return sorted(path for path in directory.glob("*.md")
+                  if path.is_file() and not path.is_symlink() and SKILL_ID.fullmatch(path.stem))
+
+
+def skills(_args) -> tuple[str, bool]:
+    lines = []
+    for path in _skill_files():
+        meta, _body = _read_skill(path)
+        if meta.get("id") == path.stem and meta.get("use_when"):
+            lines.append(f"{path.stem} — {meta['use_when']}")
+    return section("repair playbooks written for this system (read ONE with read_skill, then follow it)",
+                   "\n".join(lines) or "[no playbooks are installed]"), False
+
+
+def skill(args) -> tuple[str, bool]:
+    if not SKILL_ID.fullmatch(args.name or ""):
+        raise Refused("a skill is named by its id (lowercase letters, digits, -); list them with `skills`")
+    match = [path for path in _skill_files() if path.stem == args.name]
+    if not match:
+        raise Refused(f"there is no skill called {args.name}; list them with `skills`")
+    meta, body = _read_skill(match[0])
+    return section(f"skill {args.name}: {meta.get('title_en', args.name)}", body), False
+
+
 def parser() -> argparse.ArgumentParser:
     top = argparse.ArgumentParser(prog="moos-inspect", description=__doc__.split("\n\n")[0],
                                   formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -225,6 +286,10 @@ def parser() -> argparse.ArgumentParser:
     named = verbs.add_parser("log")
     named.add_argument("name")
     named.set_defaults(run=log)
+    verbs.add_parser("skills").set_defaults(run=skills)
+    playbook = verbs.add_parser("skill")
+    playbook.add_argument("name")
+    playbook.set_defaults(run=skill)
     return top
 
 

@@ -74,6 +74,7 @@ check:
     python3 tests/test_moai_agent_loop.py
     # The read-only inspector: closed grammar, redacted output, nothing but reads.
     python3 tests/test_moos_inspect.py
+    python3 tests/test_moai_skills.py
     # Mo AI's brain is a cloud API and nothing is ever downloaded to the
     # machine. Free, no-card providers must exist and come first.
     python3 tests/test_moai_cloud_only.py

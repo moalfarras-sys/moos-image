@@ -373,6 +373,15 @@ OFF). A confirmed action is a job that ends when its process ends; its exit stat
 result the model receives. Whether Mo AI ever gets a tool that runs a command the MODEL wrote is
 an owner decision recorded as plan row P3.9; until it is taken, do not add one.
 
+**A Mo AI skill is knowledge, never a capability.** The playbooks under
+`usr/share/moos/moai/skills/` tell a free cloud model what it cannot know about this system
+(which services carry sound, that `/` always reads full, which repair exists and which does
+not). Each step must be an existing tool with arguments its schema accepts —
+`tests/test_moai_skills.py` reads every skill the way the model will and fails an invented tool,
+argument or enum value, a command line, or another system's name. To add a skill: write the
+file, add its id to `SKILLS` in `moai_tool_schemas.py`, run that gate. Never put a shell command
+in a skill "because the model may need it": that is P3.9 by another door.
+
 **An unchecked `run_priv` prints a lie.** `moai-do`'s `main` runs inside `if main "$@"; then`,
 which suspends `set -e` for every `do_*` function. Until 2026-09-17 three actions printed their
 success line after the person DISMISSED the password prompt, and the audit trail said `ok`.

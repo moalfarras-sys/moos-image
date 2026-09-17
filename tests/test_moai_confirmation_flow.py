@@ -238,6 +238,19 @@ class TestMoaiConfirmationFlow(unittest.TestCase):
         self.assertIn("top processes by memory", body["output"])
         self.assertNotIn(str(Path.home()), body["output"], "the inspector's output must be redacted")
 
+    def test_a_skill_is_read_without_a_card_and_an_invented_one_never_reaches_the_reader(self):
+        status, body = self._req("POST", "/tool/execute", {"name": "list_skills", "arguments": {}})
+        self.assertEqual((status, body.get("status")), (200, "ok"), body)
+        self.assertIn("no-sound — ", body["output"])
+        status, body = self._req("POST", "/tool/execute",
+                                 {"name": "read_skill", "arguments": {"name": "no-sound"}})
+        self.assertEqual((status, body.get("status")), (200, "ok"), body)
+        self.assertIn("`fix_audio`", body["output"], "the playbook must arrive as written")
+        for invented in ("../../etc/passwd", "reset-everything", "no-sound; id", ""):
+            status, body = self._req("POST", "/tool/execute",
+                                     {"name": "read_skill", "arguments": {"name": invented}})
+            self.assertEqual(status, 400, f"{invented!r} must be refused by the schema: {body}")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
