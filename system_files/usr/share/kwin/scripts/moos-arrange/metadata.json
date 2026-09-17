@@ -1,0 +1,20 @@
+{
+    "KPackageStructure": "KWin/Script",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "MoOS"
+            }
+        ],
+        "Description": "Arrange the windows in front of you in one action",
+        "Description[ar]": "رتّب النوافذ التي أمامك بإجراء واحد",
+        "EnabledByDefault": true,
+        "Id": "moos-arrange",
+        "License": "GPL-2.0-or-later",
+        "Name": "MoOS Arrange",
+        "Name[ar]": "ترتيب MoOS",
+        "Version": "1.0"
+    },
+    "X-Plasma-API": "javascript",
+    "X-Plasma-MainScript": "code/main.js"
+}

@@ -80,7 +80,7 @@ reviewed live, gated once, merged once and proven once.
 | W5 | M1 | MoOS Island jobs (Store installs, updates, downloads) and privacy chips (camera, microphone, screen share); Search inline answers (calculator, units, file actions) | merged (`7f182689`, PR #111); it turned x86 `main` red and shipped without its `THEME_REV` bump — both repaired by the 2026-09-17 integration (#114, rev 61); **x86 production since 2026-09-17** (`44.20260917.858`, cycle B) in the form W6 repaired; ARM production; no station review recorded |
 | W6 | M1+M3 | **What W4 and W5 promised, working, plus App Drop.** Mo AI's tool loop runs on every machine, in steps, with ten read-only inspection tools and truthful results (P3.3, P3.4, P3.7, P3.8); the Island really shows Store jobs and names the app behind a privacy chip; a downloaded AppImage or portable archive dropped into Applications becomes an app (P4.6); secondary text is readable on every scheme; MoOS-owned text no longer names another desktop | merged (`a8622f95`, PR #115); **x86 production since 2026-09-17** (`44.20260917.858`, cycle B); ARM promotion follows `main`'s own boot proof; gated and rendered from source, **not seen on a MoOS desktop** |
 | W6.1 | M1+M3 | **After the release:** a MoOS-owned "About this device" page (P2.9); Mo AI skills — twelve repair playbooks, `list_skills`/`read_skill`, one-tap chips (P3.10); Mo AI's rail at the window's DEFAULT size; the Device panel no longer prints the raw kernel release; P0.8's cause recorded as measured | in review on `feat/moai-skills-20260917` (contains `feat/about-this-device-20260917`); needs release cycle C; **not seen on a MoOS desktop** |
-| W7 | M2 | MoOS Workspace: MoOS-styled overview, one-click tiling layouts, window open/close/minimise durations taken from MoOS Motion, gesture and touchpad defaults | planned — needs a live KWin session; see "Workspace facts" below |
+| W7 | M2 | MoOS Workspace: the switcher and Overview in MoOS UI, one-click tiling layouts, window durations taken from MoOS Motion, gesture and touchpad defaults | **in progress on the station**, `feat/w7-workspace-20260917`. Landed and reviewed live: **MoOS Switcher** (Alt+Tab and Alt+` are a MoOS surface, mirrored by the LOCALE, with a working close control), **`Tokens.scaled()`** (MoOS motion answers to the same AnimationDurationFactor Plasma does) and **MoOS Arrange** (halves, thirds, quarters, main-and-two and centre, from the window menu and Meta+Alt+1..4/C). Open: touchpad/gesture defaults (P5.2), carrying `Tokens.scaled()` to the per-surface aliases, and a live preview in the Arrange surface. Overview is **configuration only** — see "Workspace facts" |
 | W8 | M2 | MoOS Intro: one horizon scene from Plymouth through login to the Hub; first-run tour; offline first run (P1.6) | planned |
 | W9 | M2 | System surfaces on MoOS UI: Updater, Recovery, Remote centre, Settings front door (P2.1–P2.2), a MoOS-owned About page (P2.9) | planned |
 | W10 | M3 | Mo Store as one job system for install/update/remove across the UI, Mo AI and URL routes, with a drop target in its own window (P1.7, P4.1–P4.2, P4.7) | planned |
@@ -480,6 +480,66 @@ factor lives in `kdeglobals [KDE]` (already correct). Real W7 work is what canno
 file and judged from a gate: the look of Overview and the task switcher in MoOS UI, a tiling
 popover, per-effect durations taken from MoOS Motion, gestures, and touchpad defaults (P5.2).
 Every one needs a live session and a before/after capture.
+
+**What the station then measured, 2026-09-17, on the running session** (`44.20260917.858`,
+KWin 6.7.5, 3840x2160 at 265%, Arabic, scheme `MoOSUI2AuroraLight`):
+
+- **The switcher was MoOS's colour and nobody else's shape, and it read the wrong way.**
+  The MoOS Plasma style reaches a stock switcher's palette but not its layout, so
+  `thumbnail_grid` was correctly pale-mint and entirely Breeze in geometry, type, radii
+  and its close button. Worse, it ran LEFT-TO-RIGHT in an Arabic session, because the
+  stock layouts take direction from `Application.layoutDirection` and MoOS ships
+  bilingual QML strings rather than Qt catalogues - so no translator is installed and
+  that property is LeftToRight on every MoOS session. `org/moos/ui/Locale.qml` already
+  warns about exactly this. **Fixed:** MoOS ships
+  `usr/share/kwin/tabbox/org.moos.ui2.switcher` and selects it in `etc/xdg/kwinrc` for
+  both `[TabBox]` and `[TabBoxAlternative]`; the five stock layouts stay installed and
+  selectable. `tests/test_moos_switcher.py` holds the direction, the guarded motion and
+  the close handler.
+- **Overview cannot be re-shaped without forking KWin, so W7 does not try.**
+  `/usr/share/kwin/effects/` contains only a third-party `cube`, the effects plugin
+  directory contains only `kwin_overview_config.so`, and no `kwin/effects/overview` path
+  exists anywhere on disk: the effect's QML is compiled into `libkwin.so.6`. There is no
+  file to override and no supported extension point. Overview therefore gets
+  configuration only - trigger, layout, and the durations it animates with - and its
+  chrome stays stock until upstream offers a seam. Recorded so the next agent does not
+  spend the hour re-discovering it.
+- **KWin has exactly ONE duration control, and MoOS's own surfaces ignored it.**
+  No per-effect `Duration` key exists in the installed schemas; `kwin.kcfg` declares
+  `AnimationDurationFactor` (group `KDE`, so it lives in kdeglobals) and nothing else,
+  and `moos-visual-tier` already writes it per tier (flagship 1, balanced 0.85,
+  essential 0.4). It reaches QML only through `Kirigami.Units.longDuration` - the three
+  Kirigami platform plugins all read that key and call `Units::setLongDuration`. But
+  `Tokens.duration()` read it as yes-or-no, so on a tier asking for 40% the shell ran at
+  40% while every MoOS surface ran at 100%. **Fixed:** `Tokens.scaled(longDuration, role)`
+  converts a role by the same control and still returns 0 when animations are off;
+  `tests/qml/motion-review.qml` proves the arithmetic on a real Qt runtime, including
+  that the runtime's unscaled `longDuration` really is 200.
+- **A KWin script's missing property is silent, and cost the first MoOS Arrange run.**
+  `window.onCurrentDesktop` DOES NOT EXIST on KWin 6.7.5. It reads as `undefined`, and
+  `undefined` inside an `&&` chain makes the chain falsy, so the candidate filter rejected
+  every window and the script logged "nothing to arrange on this screen" rather than
+  failing. Virtual-desktop membership is `window.desktops`, where an EMPTY array means
+  "on all desktops". The window-movability properties are `moveable` and `resizeable`,
+  both with the e — `movable`/`resizable` read as undefined, and BOTH spellings appear in
+  `libkwin.so.6.7.5`, so only the live object settles it. Measured by printing the live
+  window object into the journal with `console.info`, which is the one print that reaches
+  it from a KWin script. `tests/test_moos_arrange.py` pins all of this.
+- **MoOS Arrange ships as a KWin script, and its surface is the window menu.**
+  `registerUserActionsMenu()` adds a submenu to the menu a person already has on a title
+  bar, so the one-click arrangement needed no new window, no Bar slot and nothing running
+  while it is unused. Arrangements go into `KWin.MaximizeArea`, so they clear the MoOS
+  Bar. Proven live on the station on a scratch virtual desktop (so the owner's own windows
+  were never moved): three windows into even thirds, then into a 60% main pane with two
+  stacked beside it. **Open:** the live preview the plan's idea asks for, and a Bar entry.
+- **A KWin script can be loaded and unloaded live**, through
+  `org.kde.kwin.Scripting.loadScript`/`start`/`unloadScript` on the session bus. That is
+  how each revision above was reviewed without restarting KWin, which on Wayland would
+  have ended the session.
+- **A pointer-driven live review needs calibration first.** `ydotool`'s absolute axis
+  does not map 1:1 to this 3840x2160 screen; two hypotheses (screen pixels, and a
+  0-65535 range) both landed the click elsewhere. Keyboard and CLI review worked.
+  Anything in W7 that needs a real click is blocked on calibrating that axis.
 
 Plasma 6 has no LTS branch and follows feature plus patch-release cycles.^1
 MoOS therefore tracks stable releases through the shared base, keeps local

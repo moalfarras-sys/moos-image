@@ -78,6 +78,25 @@ Window {
             try {
                 driver.compare(initialReduced.value, 0.92)
                 driver.compare(initialReduced.settling, false)
+
+                // MoOS Motion must answer to the SAME control Plasma does.
+                // Tokens.scaled() converts a motion role by
+                // Kirigami.Units.longDuration / 200, and 200 is not a guess: it
+                // is this runtime's unscaled longDuration, asserted here so the
+                // constant is proven rather than remembered. The harness runs
+                // with an isolated HOME and no AnimationDurationFactor, so the
+                // engine is at factor 1.
+                driver.compare(Kirigami.Units.longDuration, 200)
+                driver.compare(MoUI.Tokens.scaled(200, MoUI.Tokens.motionGeometry),
+                               MoUI.Tokens.motionGeometry)
+                driver.compare(MoUI.Tokens.scaled(100, MoUI.Tokens.motionGeometry),
+                               Math.round(MoUI.Tokens.motionGeometry / 2))
+                driver.compare(MoUI.Tokens.scaled(80, MoUI.Tokens.motionPortal),
+                               Math.round(MoUI.Tokens.motionPortal * 0.4))
+                // Animations off floors longDuration at 1, and MUST stop motion
+                // rather than merely hurry it.
+                driver.compare(MoUI.Tokens.scaled(1, MoUI.Tokens.motionPortal), 0)
+                driver.compare(MoUI.Tokens.scaled(0, MoUI.Tokens.motionPortal), 0)
                 review.targetScale = MoUI.Tokens.pressScale
                 driver.wait(32)
                 console.warn("INITIAL_SPRING", response.settling, response.value, probe.scale, review.targetScale)
