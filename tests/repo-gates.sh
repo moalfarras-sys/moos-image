@@ -304,6 +304,7 @@ python3 tests/test_moos_visual_system.py
 # private live-state helper, and every command must remain a fixed
 # router destination rather than user-controlled argv.
 python3 tests/test_moos_settings.py
+python3 tests/test_settings_about_page.py
 python3 tests/test_desktop_customize.py
 # `just check` must be able to run every gate CI runs; it could not,
 # and an ARM regression reached main because of it.

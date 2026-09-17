@@ -97,6 +97,8 @@ QQC2.ApplicationWindow {
         product: "MoOS",
         hostname: "MoOS",
         kernel: "—",
+        arch: "",
+        session: "",
         // Empty, not a branded placeholder: the Device page renders "Unknown"
         // for an unidentified part rather than inventing a product name.
         cpu: "",
@@ -112,8 +114,23 @@ QQC2.ApplicationWindow {
         battery: { available: false, percent: 0, state: "" },
         deployment: {
             version: "—", digest: "", signed: false, known: false,
-            staged: false, stagedVersion: "", rollback: 0
+            staged: false, stagedVersion: "", rollback: 0, edition: "", builtAt: 0
         }
+    })
+
+    // Pages this window draws itself. "About this device" used to open the desktop's own
+    // module, which lists the toolkit and desktop projects MoOS is built from under their
+    // names and versions. MoOS answers "what is this machine running?" as MoOS.
+    readonly property var inAppRoutes: ({ "moos://settings/about": "about" })
+    readonly property var aboutSection: ({
+        id: "about", glyph: "about", parent: "system",
+        ar: "حول هذا الجهاز", en: "About this device",
+        descAr: "إصدار MoOS والعتاد ومعلومات الدعم",
+        descEn: "MoOS version, hardware and support details",
+        // The section strip is hidden on this page, but its bindings still evaluate.
+        heroAr: "حول هذا الجهاز", heroEn: "About this device",
+        heroDescAr: "إصدار MoOS والعتاد ومعلومات الدعم",
+        heroDescEn: "MoOS version, hardware and support details"
     })
 
     readonly property var sections: [
@@ -361,6 +378,8 @@ QQC2.ApplicationWindow {
     ]
 
     readonly property var activeSectionData: {
+        if (activeSection === aboutSection.id)
+            return aboutSection
         for (var i = 0; i < sections.length; ++i)
             if (sections[i].id === activeSection)
                 return sections[i]
@@ -397,6 +416,10 @@ QQC2.ApplicationWindow {
     // immutable Qt.application.arguments and reopen the old page.
     function activateRequested(arguments) {
         var requestedSection = argValue("--section=", arguments)
+        if (requestedSection === aboutSection.id) {
+            selectSection(aboutSection.id)
+            return
+        }
         for (var i = 0; i < sections.length; ++i) {
             if (sections[i].id === requestedSection) {
                 selectSection(requestedSection)
@@ -406,10 +429,14 @@ QQC2.ApplicationWindow {
     }
 
     function routeAvailable(route) {
+        if (inAppRoutes[route] !== undefined)
+            return true
         return statusLoaded && status.destinations[String(route).substring(16)] === true
     }
 
     function routeReason(route) {
+        if (inAppRoutes[route] !== undefined)
+            return ""
         if (!statusLoaded)
             return statusError || local("جارٍ قراءة الإعدادات…", "Reading settings…")
         return routeAvailable(route) ? "" : local(
@@ -460,6 +487,10 @@ QQC2.ApplicationWindow {
     }
 
     function openRoute(route) {
+        if (inAppRoutes[route] !== undefined) {
+            selectSection(inAppRoutes[route])
+            return
+        }
         if (String(route).indexOf("moos://settings/") !== 0 || !routeAvailable(route))
             return
         launchError = Qt.openUrlExternally(route) ? "" : local(
@@ -471,6 +502,72 @@ QQC2.ApplicationWindow {
         launchError = ""
         activeSection = sectionId
         contentFlick.contentY = 0
+    }
+
+    readonly property string unknownLabel: local("غير معروف", "Unknown")
+
+    // Which MoOS this is, in words. The image name is an address, not a product name.
+    function editionLabel(edition) {
+        switch (edition) {
+        case "moos": return local("MoOS للحواسيب", "MoOS Desktop")
+        case "moos-nvidia": return local("MoOS لبطاقات NVIDIA", "MoOS for NVIDIA graphics")
+        case "moos-cloud": return local("MoOS السحابي", "MoOS Cloud")
+        case "moos-arm": return local("MoOS لمعالجات ARM", "MoOS for ARM")
+        }
+        return ""
+    }
+
+    // The kernel's own number. The release string continues with the packager's build tag,
+    // which is not a fact about this device that its owner can use.
+    function kernelLabel(release) {
+        var match = /^(\d+\.\d+(?:\.\d+)?)/.exec(String(release || ""))
+        return match ? "Linux " + match[1] : ""
+    }
+
+    function archLabel(arch) {
+        switch (arch) {
+        case "x86_64": return local("64 بت · x86", "64-bit · x86")
+        case "aarch64": return local("64 بت · ARM", "64-bit · ARM")
+        }
+        return String(arch || "")
+    }
+
+    function sessionLabel(session) {
+        if (session === "wayland") return local("سطح مكتب MoOS · Wayland", "MoOS desktop · Wayland")
+        if (session === "x11") return local("سطح مكتب MoOS · X11", "MoOS desktop · X11")
+        return local("سطح مكتب MoOS", "MoOS desktop")
+    }
+
+    // Day and year in the digits every version number on this page uses; the month in words.
+    function builtLabel(epoch) {
+        if (!(epoch > 0)) return ""
+        var date = new Date(epoch * 1000)
+        return date.getDate() + " " + Qt.locale().monthName(date.getMonth(), Locale.LongFormat)
+               + " " + date.getFullYear()
+    }
+
+    // A sentence MoOS wrote takes its direction from the session's language even when it
+    // starts with a Latin name ("MoOS لبطاقات NVIDIA"); a part name or a digest never does.
+    readonly property string sentenceMark: rtl ? "\u200F" : ""
+
+    // What "Copy details" puts on the clipboard: the same facts the page shows, in the
+    // language the page is in, one per line, for a support conversation.
+    function aboutReport() {
+        var lines = ["MoOS " + status.deployment.version]
+        function add(label, value) { if (value) lines.push(label + ": " + value) }
+        add(local("الإصدارة", "Edition"), editionLabel(status.deployment.edition))
+        add(local("تاريخ البناء", "Built"), builtLabel(status.deployment.builtAt))
+        add(local("الصورة", "Image"), status.deployment.digest)
+        add(local("التوقيع", "Signature"), imageLabel)
+        add(local("النواة", "Kernel"), kernelLabel(status.kernel))
+        add(local("الجلسة", "Session"), sessionLabel(status.session))
+        add(local("اسم الجهاز", "Device name"), status.hostname)
+        add(local("المعالج", "Processor"), status.cpu)
+        add(local("الرسوميات", "Graphics"), status.gpu)
+        add(local("الذاكرة", "Memory"), status.memory.total)
+        add(local("التخزين", "Storage"), status.storage.total)
+        add(local("المعمارية", "Architecture"), archLabel(status.arch))
+        return lines.join("\n")
     }
 
     function uptimeLabel(seconds) {
@@ -569,6 +666,8 @@ QQC2.ApplicationWindow {
         onActivated: {
             if (win.searchQuery !== "") {
                 win.searchQuery = ""
+            } else if (win.activeSection === win.aboutSection.id) {
+                win.selectSection(win.aboutSection.parent)
             } else if (win.activeSection !== "home") {
                 win.selectSection("home")
             } else {
@@ -646,6 +745,7 @@ QQC2.ApplicationWindow {
         id: navControl
         required property var sectionData
         readonly property bool selected: win.activeSection === sectionData.id
+            || (win.activeSection === win.aboutSection.id && win.aboutSection.parent === sectionData.id)
                                          && win.searchQuery === ""
 
         Layout.fillWidth: true
@@ -885,6 +985,109 @@ QQC2.ApplicationWindow {
         FocusRing { anchors.fill: workspaceCard; accentColor: win.accent; controlRadius: design.radiusCard }
     }
 
+    // One fact on the About page: what it is, and what it is on this device. A value that is
+    // not known says "Unknown" in words — never blank, never a placeholder shaped like data.
+    component FactRow: Item {
+        id: fact
+        required property string label
+        property string value: ""
+        property color valueColor: win.textColor
+        property bool last: false
+        // A name the hardware or the registry gave (processor, host, digest, size): always
+        // left-to-right. Anything else is a MoOS sentence and follows the language.
+        property bool technical: false
+
+        Layout.fillWidth: true
+        implicitHeight: win.fs(46)
+        Accessible.role: Accessible.StaticText
+        Accessible.name: label + ": " + (value || win.unknownLabel)
+
+        RowLayout {
+            anchors.fill: parent
+            spacing: design.space4
+
+            Text {
+                Layout.preferredWidth: win.fs(128)
+                text: fact.label
+                color: win.mutedColor
+                font.pixelSize: win.typePx(design.typeSecondary)
+                horizontalAlignment: Text.AlignLeft
+                elide: Text.ElideRight
+            }
+            Text {
+                Layout.fillWidth: true
+                text: fact.value ? win.isolated((fact.technical ? "" : win.sentenceMark) + fact.value)
+                                 : win.unknownLabel
+                color: fact.value ? fact.valueColor : win.mutedColor
+                font.pixelSize: win.typePx(design.typeBody)
+                font.weight: Font.Medium
+                horizontalAlignment: Text.AlignLeft
+                elide: Text.ElideRight
+            }
+        }
+        Rectangle {
+            visible: !fact.last
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            height: 1
+            color: win.faintOutline
+        }
+    }
+
+    component FactCard: MoUI.Surface {
+        id: factCard
+        required property string glyph
+        required property string title
+        default property alias facts: factColumn.data
+
+        Layout.fillWidth: true
+        Layout.alignment: Qt.AlignTop
+        implicitHeight: factColumn.implicitHeight + design.space5 * 2
+        radius: design.radiusCard
+        surfaceColor: win.surface
+        inkColor: win.textColor
+        accentColor: win.accent
+        border.color: win.faintOutline
+
+        ColumnLayout {
+            id: factColumn
+            anchors.fill: parent
+            anchors.margins: design.space5
+            spacing: 0
+
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.bottomMargin: design.space2
+                spacing: design.space3
+
+                Rectangle {
+                    Layout.preferredWidth: win.fs(34)
+                    Layout.preferredHeight: win.fs(34)
+                    radius: design.radiusSmall
+                    color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.15)
+
+                    MoUI.SymbolIcon {
+                        anchors.centerIn: parent
+                        width: 18
+                        height: 18
+                        symbol: MoUI.SymbolCatalog.resolve(factCard.glyph)
+                        foreground: win.accent
+                    }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: factCard.title
+                    color: win.textColor
+                    font.pixelSize: win.typePx(design.typeLabel)
+                    font.weight: Font.DemiBold
+                    horizontalAlignment: Text.AlignLeft
+                    elide: Text.ElideRight
+                }
+            }
+        }
+    }
+
     component CommandRow: QQC2.AbstractButton {
         id: commandControl
         required property var commandData
@@ -1035,7 +1238,10 @@ QQC2.ApplicationWindow {
                     anchors.centerIn: parent
                     width: 17
                     height: 17
-                    symbol: MoUI.SymbolCatalog.resolve(commandControl.enabled ? "external" : "lock")
+                    symbol: MoUI.SymbolCatalog.resolve(
+                        !commandControl.enabled ? "lock"
+                        : win.inAppRoutes[commandControl.commandData.route] !== undefined
+                          ? (win.rtl ? "arrow-back" : "arrow") : "external")
                     foreground: commandControl.hovered ? win.accent : win.mutedColor
                 }
             }
@@ -1354,6 +1560,9 @@ QQC2.ApplicationWindow {
                     // (Connectivity, Apps, Privacy, Recovery) than on long ones, so
                     // the layout jumped sideways when switching sections.
                     width: contentFlick.width - 12
+                    // The gutter belongs where the scrollbar is: mirrored layouts put it at
+                    // the left, where it used to sit on top of every card's edge in Arabic.
+                    x: win.rtl ? 12 : 0
                     spacing: design.space4
 
                     MoUI.GlassSurface {
@@ -1463,7 +1672,7 @@ QQC2.ApplicationWindow {
                                     }
                                     MoUI.Button {
                                         label: win.local("تفاصيل الجهاز", "Device details")
-                                        iconName: MoUI.SymbolCatalog.resolve("external")
+                                        iconName: MoUI.SymbolCatalog.resolve("about")
                                         surfaceColor: win.surface
                                         accentColor: win.accent
                                         textColor: win.textColor
@@ -1702,8 +1911,305 @@ QQC2.ApplicationWindow {
                         }
                     }
 
+                    // ── About this device ────────────────────────────────────────────────
+                    // MoOS's own answer to "what is this machine running?". Every value is a
+                    // field of the same live status document the Overview reads.
                     ColumnLayout {
-                        visible: win.activeSection !== "home" || win.searchQuery !== ""
+                        id: aboutView
+                        visible: win.activeSection === win.aboutSection.id && win.searchQuery === ""
+                        width: parent.width
+                        height: visible ? implicitHeight : win.fs(0)
+                        spacing: design.space4
+
+                        MoUI.Button {
+                            label: win.local("النظام", "System")
+                            iconName: MoUI.SymbolCatalog.resolve(win.rtl ? "arrow" : "arrow-back")
+                            compact: true
+                            surfaceColor: win.surface
+                            accentColor: win.accent
+                            textColor: win.textColor
+                            accentForegroundColor: win.accentText
+                            fontPixelSize: win.typePx(design.typeSecondary)
+                            Accessible.description: win.local("العودة إلى قسم النظام", "Back to the System section")
+                            onClicked: win.selectSection(win.aboutSection.parent)
+                        }
+
+                        MoUI.GlassSurface {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: Math.max(win.fs(196), aboutIdentity.implicitHeight + design.space6 * 2)
+                            radius: design.radiusPanel
+                            surfaceColor: win.raised
+                            inkColor: win.textColor
+                            accentColor: win.accent
+                            floating: true
+                            border.color: win.outline
+
+                            RowLayout {
+                                id: aboutIdentity
+                                anchors.fill: parent
+                                anchors.margins: design.space6
+                                spacing: design.space5
+
+                                Rectangle {
+                                    Layout.preferredWidth: win.fs(104)
+                                    Layout.preferredHeight: win.fs(104)
+                                    Layout.alignment: Qt.AlignVCenter
+                                    radius: design.radiusPanel
+                                    color: win.accent
+
+                                    MoUI.SymbolIcon {
+                                        anchors.centerIn: parent
+                                        width: win.fs(52)
+                                        height: win.fs(52)
+                                        symbol: MoUI.SymbolCatalog.resolve("orbit")
+                                        foreground: win.accentText
+                                    }
+                                }
+
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    Layout.alignment: Qt.AlignVCenter
+                                    spacing: design.space2
+
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: "MoOS"
+                                        color: win.textColor
+                                        font.pixelSize: win.typePx(design.typeHero)
+                                        font.weight: Font.Bold
+                                        horizontalAlignment: Text.AlignLeft
+                                    }
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: {
+                                            // A failed read is already explained by the notice above.
+                                            if (!win.statusLoaded)
+                                                return win.statusError ? "" : win.local("جارٍ قراءة حالة الجهاز…", "Reading device status…")
+                                            var edition = win.editionLabel(win.status.deployment.edition)
+                                            var version = win.local("الإصدار ", "Version ") + win.isolated(win.status.deployment.version)
+                                            return win.sentenceMark + (edition ? edition + "  ·  " + version : version)
+                                        }
+                                        color: win.mutedColor
+                                        font.pixelSize: win.typePx(design.typeLabel)
+                                        horizontalAlignment: Text.AlignLeft
+                                        wrapMode: Text.WordWrap
+                                    }
+                                    Flow {
+                                        Layout.fillWidth: true
+                                        Layout.topMargin: design.space2
+                                        spacing: design.space3
+                                        visible: win.statusLoaded
+
+                                        StatusCapsule {
+                                            glyph: win.status.deployment.signed ? "shield" : "warning"
+                                            label: win.imageLabel
+                                            detail: win.status.deployment.digest
+                                            statusColor: win.status.deployment.signed ? win.positiveColor : win.warningColor
+                                        }
+                                        StatusCapsule {
+                                            visible: win.status.deployment.builtAt > 0
+                                            glyph: "calendar"
+                                            label: win.builtLabel(win.status.deployment.builtAt)
+                                            detail: win.local("تاريخ بناء هذا الإصدار", "When this version was built")
+                                            statusColor: win.accent
+                                        }
+                                        StatusCapsule {
+                                            glyph: "repair"
+                                            label: win.rollbackLabel
+                                            detail: win.status.deployment.staged
+                                                ? win.local("تحديث جاهز: ", "Update ready: ") + win.isolated(win.status.deployment.stagedVersion)
+                                                : ""
+                                            statusColor: win.status.deployment.rollback > 0 ? win.positiveColor : win.warningColor
+                                            active: win.status.deployment.rollback > 0
+                                        }
+                                    }
+                                }
+
+                                ColumnLayout {
+                                    Layout.alignment: Qt.AlignVCenter
+                                    spacing: design.space3
+
+                                    MoUI.Button {
+                                        Layout.fillWidth: true
+                                        label: win.local("تحديث MoOS", "Update MoOS")
+                                        iconName: MoUI.SymbolCatalog.resolve("safe-update")
+                                        primary: true
+                                        surfaceColor: win.surface
+                                        accentColor: win.accent
+                                        textColor: win.textColor
+                                        accentForegroundColor: win.accentText
+                                        fontPixelSize: win.typePx(design.typeSecondary)
+                                        enabled: win.routeAvailable("moos://settings/update")
+                                        Accessible.description: win.routeReason("moos://settings/update")
+                                        onClicked: win.openRoute("moos://settings/update")
+                                    }
+                                    MoUI.Button {
+                                        id: copyDetails
+                                        property bool copied: false
+                                        Layout.fillWidth: true
+                                        label: copied ? win.local("تم النسخ", "Copied")
+                                                      : win.local("نسخ التفاصيل", "Copy details")
+                                        iconName: MoUI.SymbolCatalog.resolve(copied ? "check" : "copy")
+                                        surfaceColor: win.surface
+                                        accentColor: win.accent
+                                        textColor: win.textColor
+                                        accentForegroundColor: win.accentText
+                                        fontPixelSize: win.typePx(design.typeSecondary)
+                                        enabled: win.statusLoaded
+                                        Accessible.description: win.local(
+                                            "ينسخ إصدار MoOS ومواصفات الجهاز كنص لمحادثة دعم",
+                                            "Copies the MoOS version and device facts as text for a support conversation")
+                                        onClicked: {
+                                            aboutClipboard.text = win.aboutReport()
+                                            aboutClipboard.selectAll()
+                                            aboutClipboard.copy()
+                                            aboutClipboard.deselect()
+                                            copied = true
+                                            copiedReset.restart()
+                                        }
+                                        Timer { id: copiedReset; interval: 2200; onTriggered: copyDetails.copied = false }
+                                    }
+                                }
+                            }
+                        }
+
+                        // A TextEdit is the clipboard a QML-only application has.
+                        TextEdit { id: aboutClipboard; visible: false; Accessible.ignored: true }
+
+                        GridLayout {
+                            Layout.fillWidth: true
+                            columns: aboutView.width >= win.fs(860) ? 2 : 1
+                            columnSpacing: design.space4
+                            rowSpacing: design.space4
+
+                            FactCard {
+                                glyph: "system"
+                                title: win.local("النظام", "System")
+                                Layout.preferredWidth: win.fs(1)
+
+                                FactRow {
+                                    label: win.local("الإصدار", "Version")
+                                    value: win.statusLoaded && win.status.deployment.known ? "MoOS " + win.status.deployment.version : ""
+                                    technical: true
+                                }
+                                FactRow {
+                                    label: win.local("الإصدارة", "Edition")
+                                    value: win.statusLoaded ? win.editionLabel(win.status.deployment.edition) : ""
+                                }
+                                FactRow {
+                                    label: win.local("صورة النظام", "System image")
+                                    technical: true
+                                    value: win.statusLoaded ? win.status.deployment.digest : ""
+                                }
+                                FactRow {
+                                    label: win.local("التوقيع", "Signature")
+                                    value: win.statusLoaded ? win.imageLabel : ""
+                                    valueColor: win.status.deployment.signed ? win.positiveColor : win.warningColor
+                                }
+                                FactRow {
+                                    label: win.local("النواة", "Kernel")
+                                    value: win.statusLoaded ? win.kernelLabel(win.status.kernel) : ""
+                                }
+                                FactRow {
+                                    label: win.local("الجلسة", "Session")
+                                    value: win.statusLoaded ? win.sessionLabel(win.status.session) : ""
+                                    last: true
+                                }
+                            }
+
+                            FactCard {
+                                glyph: "cpu"
+                                title: win.local("هذا الجهاز", "This device")
+                                Layout.preferredWidth: win.fs(1)
+
+                                FactRow {
+                                    label: win.local("اسم الجهاز", "Device name")
+                                    technical: true
+                                    value: win.statusLoaded ? win.status.hostname : ""
+                                }
+                                FactRow {
+                                    label: win.local("المعالج", "Processor")
+                                    technical: true
+                                    value: win.statusLoaded ? win.status.cpu : ""
+                                }
+                                FactRow {
+                                    label: win.local("الرسوميات", "Graphics")
+                                    technical: true
+                                    value: win.statusLoaded ? win.status.gpu : ""
+                                }
+                                FactRow {
+                                    label: win.local("الذاكرة", "Memory")
+                                    technical: true
+                                    value: win.statusLoaded ? win.status.memory.total : ""
+                                }
+                                FactRow {
+                                    label: win.local("التخزين", "Storage")
+                                    value: win.statusLoaded
+                                        ? win.isolated(win.status.storage.total) + "  ·  "
+                                          + win.local("المتاح ", "free ") + win.isolated(win.status.storage.free)
+                                        : ""
+                                }
+                                FactRow {
+                                    label: win.local("المعمارية", "Architecture")
+                                    value: win.statusLoaded ? win.archLabel(win.status.arch) : ""
+                                    last: true
+                                }
+                            }
+                        }
+
+                        MoUI.Surface {
+                            Layout.fillWidth: true
+                            implicitHeight: aboutNote.implicitHeight + design.space5 * 2
+                            radius: design.radiusCard
+                            surfaceColor: win.surface
+                            inkColor: win.textColor
+                            accentColor: win.accent
+                            border.color: win.faintOutline
+
+                            RowLayout {
+                                id: aboutNote
+                                anchors.fill: parent
+                                anchors.margins: design.space5
+                                spacing: design.space4
+
+                                MoUI.SymbolIcon {
+                                    Layout.preferredWidth: win.fs(22)
+                                    Layout.preferredHeight: win.fs(22)
+                                    Layout.alignment: Qt.AlignTop
+                                    symbol: MoUI.SymbolCatalog.resolve("shield")
+                                    foreground: win.accent
+                                }
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: win.local(
+                                        "يصل MoOS كصورة نظام واحدة موقّعة. كل تحديث يستبدل النظام كاملاً دفعة واحدة ويحتفظ بالنسخة السابقة، فيمكنك الرجوع إليها من «الاستعادة» في أي وقت.",
+                                        "MoOS arrives as one signed system image. Every update replaces the whole system at once and keeps the previous version, so you can return to it from Recovery at any time.")
+                                    color: win.mutedColor
+                                    font.pixelSize: win.typePx(design.typeSecondary)
+                                    horizontalAlignment: Text.AlignLeft
+                                    wrapMode: Text.WordWrap
+                                }
+                                MoUI.Button {
+                                    Layout.alignment: Qt.AlignVCenter
+                                    label: win.local("الاستعادة", "Recovery")
+                                    iconName: MoUI.SymbolCatalog.resolve("repair")
+                                    surfaceColor: win.surface
+                                    accentColor: win.accent
+                                    textColor: win.textColor
+                                    accentForegroundColor: win.accentText
+                                    fontPixelSize: win.typePx(design.typeSecondary)
+                                    enabled: win.routeAvailable("moos://settings/recovery")
+                                    visible: !win.statusLoaded || enabled
+                                    Accessible.description: win.routeReason("moos://settings/recovery")
+                                    onClicked: win.openRoute("moos://settings/recovery")
+                                }
+                            }
+                        }
+                    }
+
+                    ColumnLayout {
+                        visible: (win.activeSection !== "home" && win.activeSection !== win.aboutSection.id)
+                                 || win.searchQuery !== ""
                         width: parent.width
                         height: visible ? implicitHeight : win.fs(0)
                         spacing: design.space3

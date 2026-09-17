@@ -207,7 +207,8 @@ case "${cat}/${tgt}" in
     settings/file-search)       gui systemsettings kcm_baloofile ;;
     settings/telemetry)         gui systemsettings kcm_feedback ;;
     settings/update)            gui moos-update ;;
-    settings/about)             gui systemsettings kcm_about-distro ;;
+    # MoOS's own About page. The desktop's module names the projects MoOS is built from.
+    settings/about)             gui moos-settings --section=about ;;
     settings/users)             gui systemsettings kcm_users ;;
     settings/time)              gui systemsettings kcm_clock ;;
     settings/region)            gui systemsettings kcm_regionandlang ;;
