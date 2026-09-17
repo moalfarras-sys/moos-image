@@ -2464,7 +2464,7 @@ Kirigami.ApplicationWindow {
         color: root.surface1
         radius: design.radiusCard
         border.width: 1
-        border.color: isPrivileged ? root.novaOrange : root.novaBlue
+        border.color: isPrivileged ? root.warnColor : root.novaBlue
         implicitHeight: cardContent.implicitHeight + 28
 
         ColumnLayout {
@@ -2482,22 +2482,28 @@ Kirigami.ApplicationWindow {
                     source: card.isPrivileged ? "security-high-symbolic" : "moos-safe-update-symbolic"
                     implicitWidth: root.fs(22)
                     implicitHeight: root.fs(22)
-                    color: card.isPrivileged ? root.novaOrange : root.novaCyan
+                    color: card.isPrivileged ? root.warnColor : root.novaCyan
                 }
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 2
                     Text {
                         text: root.toolTitle(card.toolName, card.toolArgs)
+                        font.family: root.uiFont
                         font.pixelSize: root.typePx(15)
                         font.weight: Font.DemiBold
                         color: root.textHi
+                        wrapMode: Text.Wrap
+                        horizontalAlignment: Text.AlignLeft
+                        Layout.fillWidth: true
                     }
                     Text {
                         text: root.toolDescription(card.toolName)
+                        font.family: root.uiFont
                         font.pixelSize: root.typePx(12)
                         color: root.textLo
                         wrapMode: Text.Wrap
+                        horizontalAlignment: Text.AlignLeft
                         Layout.fillWidth: true
                     }
                 }
@@ -2506,11 +2512,11 @@ Kirigami.ApplicationWindow {
             Rectangle {
                 visible: card.isPrivileged
                 Layout.fillWidth: true
-                implicitHeight: privRow.implicitHeight + 8
+                implicitHeight: privRow.implicitHeight + 12
                 radius: design.radiusControl
-                color: Qt.rgba(root.novaOrange.r, root.novaOrange.g, root.novaOrange.b, 0.12)
+                color: Qt.rgba(root.warnColor.r, root.warnColor.g, root.warnColor.b, 0.12)
                 border.width: 1
-                border.color: Qt.rgba(root.novaOrange.r, root.novaOrange.g, root.novaOrange.b, 0.3)
+                border.color: Qt.rgba(root.warnColor.r, root.warnColor.g, root.warnColor.b, 0.3)
                 RowLayout {
                     id: privRow
                     anchors.fill: parent
@@ -2520,12 +2526,16 @@ Kirigami.ApplicationWindow {
                         source: "dialog-password"
                         implicitWidth: root.fs(14)
                         implicitHeight: root.fs(14)
-                        color: root.novaOrange
+                        color: root.warnColor
                     }
                     Text {
-                        text: root.local("يتطلب مصادقة المسؤول (Polkit)", "Requires administrator authentication (Polkit)")
+                        text: root.local("سيطلب النظام كلمة مرور المسؤول قبل التنفيذ",
+                                         "The system will ask for your administrator password first")
+                        font.family: root.uiFont
                         font.pixelSize: root.typePx(11)
-                        color: root.novaOrange
+                        color: root.warnColor
+                        wrapMode: Text.Wrap
+                        horizontalAlignment: Text.AlignLeft
                         Layout.fillWidth: true
                     }
                 }

@@ -245,6 +245,13 @@ python3 tests/test_moos_ui2.py
 # rewrote the island and search at rev 60 and ARM machines kept the cached W3 widgets. This
 # compares the revision with a recorded digest of every cache-served package.
 python3 tests/test_theme_rev_fingerprint.py
+# `#[Icons]` and `#[Theme]`: two group headers were commented out by accident on 2026-08-28, so
+# the system default icon theme and Plasma Style configured nothing for three weeks while every
+# substring gate still matched. This parses shipped KConfig the way KConfig does.
+python3 tests/test_kconfig_group_headers.py
+# `root.novaOrange` was never declared, so W4's confirmation card for a PRIVILEGED action painted
+# Qt's defaults. QML reports that at runtime only; the launch gate sees a window and passes.
+python3 tests/test_qml_root_references.py
 # The full Launcher must be operable with the keyboard alone: the
 # sidebar pages take focus and activation keys, Down/Up cross between
 # the search field and the active page's grid/list, Shift+Tab returns
