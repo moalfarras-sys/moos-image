@@ -78,17 +78,18 @@ Kirigami.ApplicationWindow {
                                               Kirigami.Theme.textColor.g,
                                               Kirigami.Theme.textColor.b, 0.14)
     readonly property color textHi:   Kirigami.Theme.textColor
-    readonly property color textLo:   Kirigami.Theme.disabledTextColor
-    readonly property color textMute: Qt.rgba(Kirigami.Theme.disabledTextColor.r,
-                                               Kirigami.Theme.disabledTextColor.g,
-                                               Kirigami.Theme.disabledTextColor.b, 0.78)
-    // Secondary ink for text a person must still READ: navigation labels, the description on a
-    // confirmation card. textLo/textMute are the DISABLED role; measured on the shipped schemes
-    // they give 3.7:1 on the light themes at the 0.78 alpha used for nav labels, under the 4.5:1
-    // that 9-12 px text needs. 72% of the primary ink measures 4.96-5.09 (light), 8.4-8.8 (dark).
-    readonly property color textSecondary: Qt.rgba(Kirigami.Theme.textColor.r,
-                                                    Kirigami.Theme.textColor.g,
-                                                    Kirigami.Theme.textColor.b, 0.72)
+    // Secondary text is text a person READS — a description, a label, a hint — so it is the
+    // primary ink at 72%, exactly as MoOS Settings' mutedColor. It used to be
+    // Kirigami.Theme.disabledTextColor, the DISABLED role: KColorScheme fades that 65% toward
+    // the background and tints it, which measures 1.6:1 on the light schemes and 2.4:1 on the
+    // dark ones. 72% measures 4.8-5.1:1 (light) and 8.4-9.9:1 (dark).
+    // tests/test_secondary_text_contrast.py computes it for every shipped scheme.
+    readonly property color textLo:   Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
+                                              Kirigami.Theme.textColor.b, 0.72)
+    // Placeholders and purely decorative hints: still legible (3.5:1 light, 6.2:1 dark), and
+    // never used for anything a person has to read to act.
+    readonly property color textMute: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
+                                              Kirigami.Theme.textColor.b, 0.60)
     readonly property color novaCyan:   Kirigami.Theme.linkColor
     readonly property color novaBlue:   Kirigami.Theme.highlightColor
     // Is the active canvas dark? Drives the chat doodle backdrop's opacity so the
@@ -2619,7 +2620,7 @@ Kirigami.ApplicationWindow {
                         font.family: root.uiFont
                         font.pixelSize: root.typePx(12)
                         // What the person reads before approving an action is not "disabled" text.
-                        color: root.textSecondary
+                        color: root.textLo
                         wrapMode: Text.Wrap
                         horizontalAlignment: Text.AlignLeft
                         Layout.fillWidth: true
@@ -2916,7 +2917,7 @@ Kirigami.ApplicationWindow {
                                         Layout.preferredWidth: root.fs(20)
                                         Layout.preferredHeight: root.fs(20)
                                         source: nav.modelData.icon
-                                        color: nav.active ? root.novaCyan : root.textSecondary
+                                        color: nav.active ? root.novaCyan : root.textLo
                                     }
                                     Text {
                                         Layout.fillWidth: root.workspaceSidebarExpanded
@@ -2924,7 +2925,7 @@ Kirigami.ApplicationWindow {
                                             ? Qt.AlignVCenter : Qt.AlignHCenter | Qt.AlignBottom
                                         text: root.moaiRtl
                                             ? nav.modelData.ar : nav.modelData.en
-                                        color: nav.active ? root.textHi : root.textSecondary
+                                        color: nav.active ? root.textHi : root.textLo
                                         font.family: root.uiFont
                                         font.pixelSize: root.typePx(root.workspaceSidebarExpanded ? 12 : 9)
                                         font.weight: nav.active ? Font.DemiBold : Font.Normal

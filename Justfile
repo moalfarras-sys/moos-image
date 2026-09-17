@@ -251,6 +251,8 @@ check:
     python3 tests/test_kconfig_group_headers.py
     # A first-party app may not read an undeclared property of its root.
     python3 tests/test_qml_root_references.py
+    # Secondary text must reach 4.5:1 on every shipped colour scheme.
+    python3 tests/test_secondary_text_contrast.py
     # The full Launcher must be operable with the keyboard alone: sidebar
     # focus + activation keys, search-field <-> content crossing, Shift+Tab.
     python3 tests/test_moos_launcher_keyboard.py

@@ -633,7 +633,6 @@ for token, role in {
     "surface1": "Kirigami.Theme.alternateBackgroundColor",
     "chrome": "Kirigami.Theme.backgroundColor",
     "textHi": "Kirigami.Theme.textColor",
-    "textLo": "Kirigami.Theme.disabledTextColor",
     "novaBlue": "Kirigami.Theme.highlightColor",
     "novaCyan": "Kirigami.Theme.linkColor",
     "novaViolet": "Kirigami.Theme.visitedLinkColor",
@@ -651,6 +650,13 @@ for token, role in {
     ) is not None,
             f"Mo AI's {token} token must follow {role} — a bare `palette` does not resolve the "
             f"MoOS colour scheme and silently falls back to Qt's Breeze blue")
+# Secondary text follows the theme too, but NOT through the disabled role: that measured
+# 1.6:1 on the light schemes. It is the theme's text colour at an alpha, as MoOS Settings'
+# mutedColor always was; tests/test_secondary_text_contrast.py holds the number.
+require(re.search(r"readonly\s+property\s+color\s+textLo\s*:\s*Qt\.rgba\(Kirigami\.Theme\.textColor\.r",
+                  moai_palette_code) is not None,
+        "Mo AI's textLo must be the theme's text colour at an alpha — the disabled role is "
+        "unreadable as secondary text, and a literal colour would not follow the theme")
 require(re.search(r"readonly\s+property\s+color\s+hairline\s*:\s*Qt\.rgba\(", moai_palette_code)
         is not None,
         "Mo AI's hairline must be a low-alpha tint of the text colour; separatorColor is #FFFFFF "
@@ -690,7 +696,6 @@ for surface_label, palette_code in (("Mo Store", store_palette_code),
         "surface": "Kirigami.Theme.alternateBackgroundColor",
         "chrome": "Kirigami.Theme.backgroundColor",
         "txt": "Kirigami.Theme.textColor",
-        "txt2": "Kirigami.Theme.disabledTextColor",
         "blue": "Kirigami.Theme.highlightColor",
         "cyan": "Kirigami.Theme.linkColor",
         "violet": "Kirigami.Theme.visitedLinkColor",
@@ -702,6 +707,10 @@ for surface_label, palette_code in (("Mo Store", store_palette_code),
         ) is not None,
                 f"{surface_label}'s {token} token must follow {role} — a bare `palette` does not "
                 f"resolve the MoOS colour scheme and silently falls back to Qt's Breeze blue")
+    require(re.search(r"readonly\s+property\s+color\s+txt2\s*:\s*Qt\.rgba\(Kirigami\.Theme\.textColor\.r",
+                      palette_code) is not None,
+            f"{surface_label}'s txt2 must be the theme's text colour at an alpha — the disabled "
+            f"role measured 1.6:1 as secondary text on the light schemes")
     # outline is deliberately NOT Kirigami.Theme.separatorColor: that renders #FFFFFF in all
     # five colour sets of this scheme, so binding to it deletes every hairline on a light page.
     require(re.search(r"readonly\s+property\s+color\s+outline\s*:\s*Qt\.rgba\(", palette_code)

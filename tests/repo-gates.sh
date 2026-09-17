@@ -273,6 +273,10 @@ python3 tests/test_kconfig_group_headers.py
 # `root.novaOrange` was never declared, so W4's confirmation card for a PRIVILEGED action painted
 # Qt's defaults. QML reports that at runtime only; the launch gate sees a window and passes.
 python3 tests/test_qml_root_references.py
+# Four first-party apps painted their SECONDARY text with the disabled role: 1.6:1 on the
+# light schemes. The token gate required them to follow the theme, not to be legible. This
+# does the arithmetic for every app on every shipped scheme.
+python3 tests/test_secondary_text_contrast.py
 # The full Launcher must be operable with the keyboard alone: the
 # sidebar pages take focus and activation keys, Down/Up cross between
 # the search field and the active page's grid/list, Shift+Tab returns

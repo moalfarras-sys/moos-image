@@ -110,7 +110,14 @@ ApplicationWindow {
     readonly property color violet:   Kirigami.Theme.visitedLinkColor
     readonly property color dangerInk: Kirigami.Theme.negativeTextColor
     readonly property color txt:      Kirigami.Theme.textColor
-    readonly property color txt2:     Kirigami.Theme.disabledTextColor
+    // Secondary text is text a person READS — a description, a label, a hint — so it is the
+    // primary ink at 72%, exactly as MoOS Settings' mutedColor. It used to be
+    // Kirigami.Theme.disabledTextColor, the DISABLED role: KColorScheme fades that 65% toward
+    // the background and tints it, which measures 1.6:1 on the light schemes and 2.4:1 on the
+    // dark ones. 72% measures 4.8-5.1:1 (light) and 8.4-9.9:1 (dark).
+    // tests/test_secondary_text_contrast.py computes it for every shipped scheme.
+    readonly property color txt2:     Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
+                                              Kirigami.Theme.textColor.b, 0.72)
     readonly property color accentText: Kirigami.Theme.highlightedTextColor
     readonly property color accent:   Kirigami.Theme.highlightColor  // ONE accent for the OS: the theme's highlight,
                                       // the same teal the selection ring and the window
