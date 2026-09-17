@@ -24,6 +24,7 @@ import org.kde.plasma.extras as PlasmaExtras
 import org.kde.kirigami as Kirigami
 import org.kde.plasma.private.mpris as Mpris
 import org.moos.ui as MoUI
+import "IslandTokens.js" as IslandTokens
 
 PlasmoidItem {
     id: root
@@ -174,14 +175,6 @@ PlasmoidItem {
         }
     }
 
-    function cacheFileUrl(path) {
-        const cache = String(StandardPaths.writableLocation(
-            StandardPaths.CacheLocation));
-        const base = cache.indexOf("file:") === 0
-            ? cache : "file://" + cache;
-        return base + "/" + path;
-    }
-
     // ── Privacy Presence (Camera, Microphone, Screen Share) ─────────────────────────
     FolderListModel {
         id: privacyPresence
@@ -203,70 +196,47 @@ PlasmoidItem {
     property string privacySource: ""
     property string privacyIcon: "moos-cast-symbolic"
 
+    // State arrives in the token NAME (see IslandTokens.js). W5 read the token's JSON body through
+    // XMLHttpRequest, which plasmashell's Qt refuses, so the chip always said "Application" — and
+    // named Mo PC Remote as the owner of EVERY screen share, including a browser meeting.
     function syncPrivacyPresence() {
-        let foundScreen = false;
-        let foundCamera = false;
-        let foundMic = false;
-        let chosenType = "";
-        let chosenApp = "";
-        let chosenNodeId = "";
-
+        const names = [];
         for (let i = 0; i < privacyPresence.count; ++i) {
-            const fileName = String(privacyPresence.get(i, "fileName") || "");
-            const parts = fileName.split("-");
-            if (parts.length >= 3 && parts[0] === "active") {
-                const type = parts[1];
-                const nodeId = parts[2];
-                if (type === "screen") {
-                    foundScreen = true;
-                    if (!chosenType) { chosenType = "screen"; chosenNodeId = nodeId; }
-                } else if (type === "camera") {
-                    foundCamera = true;
-                    if (!chosenType || chosenType === "mic") { chosenType = "camera"; chosenNodeId = nodeId; }
-                } else if (type === "mic") {
-                    foundMic = true;
-                    if (!chosenType) { chosenType = "mic"; chosenNodeId = nodeId; }
-                }
-            }
+            names.push(String(privacyPresence.get(i, "fileName") || ""));
         }
+        const stream = IslandTokens.choosePrivacyToken(names);
+        root.privacyPresent = stream !== null;
+        if (!stream) { return; }
 
-        root.privacyPresent = foundScreen || foundCamera || foundMic;
-        if (root.privacyPresent) {
-            root.privacyType = chosenType;
-            root.privacyNodeId = chosenNodeId;
-            try {
-                const req = new XMLHttpRequest();
-                req.open("GET", root.runtimeFileUrl("moos-privacy/active-" + chosenType + "-" + chosenNodeId), false);
-                req.send();
-                if (req.status === 200 || req.responseText) {
-                    const data = JSON.parse(req.responseText);
-                    chosenApp = data.app || "";
-                }
-            } catch (e) {}
-
-            root.privacyApp = chosenApp || (chosenType === "screen" ? "Mo PC Remote" : root.local("تطبيق", "Application"));
-            if (chosenType === "screen") {
-                root.privacyIcon = "moos-cast-symbolic";
-                root.privacyTitle = root.local("مشاركة الشاشة نشطة", "Screen sharing active");
-                root.privacySource = root.local(root.privacyApp + " · انقر للإيقاف", root.privacyApp + " · Tap to stop");
-            } else if (chosenType === "camera") {
-                root.privacyIcon = "moos-camera-symbolic";
-                root.privacyTitle = root.local("الكاميرا قيد الاستخدام", "Camera in use");
-                root.privacySource = root.local(root.privacyApp + " · انقر للإيقاف", root.privacyApp + " · Tap to stop");
-            } else {
-                root.privacyIcon = "moos-microphone-symbolic";
-                root.privacyTitle = root.local("الميكروفون قيد الاستخدام", "Microphone in use");
-                root.privacySource = root.local(root.privacyApp + " · انقر للإيقاف", root.privacyApp + " · Tap to stop");
-            }
+        root.privacyType = stream.type;
+        root.privacyNodeId = stream.nodeId;
+        root.privacyApp = stream.app || root.local("تطبيق", "An app");
+        const stopHint = root.local(root.privacyApp + " · انقر للإيقاف", root.privacyApp + " · Tap to stop");
+        if (stream.type === "screen") {
+            root.privacyIcon = "moos-cast-symbolic";
+            root.privacyTitle = root.local("مشاركة الشاشة نشطة", "Screen sharing active");
+        } else if (stream.type === "camera") {
+            root.privacyIcon = "moos-camera-symbolic";
+            root.privacyTitle = root.local("الكاميرا قيد الاستخدام", "Camera in use");
+        } else {
+            root.privacyIcon = "moos-microphone-symbolic";
+            root.privacyTitle = root.local("الميكروفون قيد الاستخدام", "Microphone in use");
         }
+        root.privacySource = stopHint;
     }
 
-    // ── Store Job Presence (Downloads, Installs, Updates) ───────────────────────────
+    // ── Store Job Presence (installs, removals, updates) ───────────────────────────
+    // moos-storectl publishes `job-<action>-<state>-<progress>-<id>` in the runtime directory and
+    // renames it as the job advances, so the model's own change signals ARE the progress feed: no
+    // polling timer and no file read. `run`, `refresh-index` and `open-engine` are never published;
+    // W5 showed each of them as "Installing …", and showed a removal as an install because it
+    // compared the action with "uninstall" while the backend says "remove".
     FolderListModel {
         id: storeJobPresence
-        folder: root.cacheFileUrl("moos-store")
-        nameFilters: ["job.json"]
+        folder: root.runtimeFileUrl("moos-store")
+        nameFilters: ["job-*"]
         showDirs: false
+        sortField: FolderListModel.Name
         onCountChanged: root.syncStoreJob()
         onStatusChanged: if (status === FolderListModel.Ready) {
             root.syncStoreJob();
@@ -284,14 +254,6 @@ PlasmoidItem {
     property string storeJobIcon: "moos-install-symbolic"
 
     Timer {
-        id: storeJobSyncTimer
-        interval: 800
-        repeat: true
-        running: root.storeJobActive
-        onTriggered: root.syncStoreJob()
-    }
-
-    Timer {
         id: storeJobFinishTimer
         interval: 3500
         repeat: false
@@ -300,65 +262,67 @@ PlasmoidItem {
         }
     }
 
-    function syncStoreJob() {
-        try {
-            const req = new XMLHttpRequest();
-            req.open("GET", root.cacheFileUrl("moos-store/job.json") + "?v=" + Date.now(), false);
-            req.send();
-            if (!req.responseText) return;
-            const doc = JSON.parse(req.responseText);
-            const state = String(doc.state || "");
-            const action = String(doc.action || "install");
-            const progress = Number(doc.progress || 0);
-            const currentId = String(doc.current_id || (doc.items && doc.items.length > 0 ? doc.items[0].id : ""));
-            const message = String(doc.message || "");
-
-            root.storeJobAction = action;
-            root.storeJobProgress = progress;
-            root.storeJobCurrentId = currentId;
-            root.storeJobMessage = message;
-            root.storeJobIcon = action === "update" ? "moos-safe-update-symbolic" : "moos-install-symbolic";
-
-            const appDisplay = currentId ? (currentId.charAt(0).toUpperCase() + currentId.slice(1)) : root.local("التطبيقات", "Apps");
-            if (action === "update") {
-                root.storeJobTitle = root.local("تحديث " + appDisplay, "Updating " + appDisplay);
-            } else if (action === "uninstall") {
-                root.storeJobTitle = root.local("إزالة " + appDisplay, "Uninstalling " + appDisplay);
-            } else {
-                root.storeJobTitle = root.local("تثبيت " + appDisplay, "Installing " + appDisplay);
-            }
-
-            if (state === "running" || state === "starting") {
-                root.storeJobActive = true;
-                root.storeJobPresent = true;
-                storeJobFinishTimer.stop();
-                root.storeJobSource = progress > 0
-                    ? (progress + "% · " + (message || root.local("جاري العمل...", "In progress...")))
-                    : (message || root.local("جاري البدء...", "Starting..."));
-            } else if (state === "success" || state === "succeeded") {
-                if (root.storeJobActive) {
-                    root.storeJobActive = false;
-                    root.storeJobProgress = 100;
-                    root.storeJobTitle = root.local("اكتمل " + root.storeJobTitle, root.storeJobTitle + " complete");
-                    root.storeJobSource = root.local("تم بنجاح ✓", "Completed successfully ✓");
-                    storeJobFinishTimer.restart();
-                }
-            } else if (state === "failed") {
-                if (root.storeJobActive) {
-                    root.storeJobActive = false;
-                    root.storeJobTitle = root.local("تعذّر " + root.storeJobTitle, root.storeJobTitle + " failed");
-                    root.storeJobSource = message || root.local("حدث خطأ", "An error occurred");
-                    storeJobFinishTimer.restart();
-                }
-            } else {
-                root.storeJobActive = false;
-                if (!storeJobFinishTimer.running) {
-                    root.storeJobPresent = false;
-                }
-            }
-        } catch (e) {
-            // No valid job file
+    function storeJobVerb(action, name) {
+        if (action === "update") {
+            return name ? root.local("تحديث " + name, "Updating " + name)
+                        : root.local("تحديث التطبيقات", "Updating apps");
         }
+        if (action === "remove") {
+            return name ? root.local("إزالة " + name, "Removing " + name)
+                        : root.local("إزالة تطبيق", "Removing an app");
+        }
+        return name ? root.local("تثبيت " + name, "Installing " + name)
+                    : root.local("تثبيت التطبيقات", "Installing apps");
+    }
+
+    function syncStoreJob() {
+        const names = [];
+        for (let i = 0; i < storeJobPresence.count; ++i) {
+            names.push(String(storeJobPresence.get(i, "fileName") || ""));
+        }
+        const job = IslandTokens.chooseStoreToken(names);
+        if (!job) {
+            root.storeJobActive = false;
+            if (!storeJobFinishTimer.running) { root.storeJobPresent = false; }
+            return;
+        }
+
+        root.storeJobAction = job.action;
+        root.storeJobCurrentId = job.id;
+        root.storeJobIcon = job.action === "update" ? "moos-safe-update-symbolic" : "moos-install-symbolic";
+        const verb = root.storeJobVerb(job.action, job.name);
+
+        if (job.active) {
+            root.storeJobActive = true;
+            root.storeJobPresent = true;
+            storeJobFinishTimer.stop();
+            root.storeJobProgress = job.progress === null ? 0 : job.progress;
+            root.storeJobTitle = verb;
+            root.storeJobMessage = job.progress === null
+                ? root.local("جارٍ العمل", "Working")
+                : root.local("جارٍ التنزيل والتثبيت", "Downloading and installing");
+            root.storeJobSource = job.progress === null
+                ? root.storeJobMessage
+                : (job.progress + "% · " + root.storeJobMessage);
+            return;
+        }
+        // A finished token is shown only as the END of a job this session watched run: a token
+        // left in the runtime directory must not announce "complete" again when the shell restarts.
+        if (!root.storeJobActive) { return; }
+        root.storeJobActive = false;
+        if (job.state === "success") {
+            root.storeJobProgress = 100;
+            root.storeJobTitle = root.local("اكتمل: " + verb, verb + " — done");
+            root.storeJobSource = root.local("تم بنجاح", "Completed");
+        } else if (job.state === "cancelled") {
+            root.storeJobTitle = root.local("أُلغي: " + verb, verb + " — cancelled");
+            root.storeJobSource = root.local("لم يتغيّر شيء", "Nothing was changed");
+        } else {
+            root.storeJobTitle = root.local("تعذّر: " + verb, verb + " — failed");
+            root.storeJobSource = root.local("افتح Mo Store لمعرفة السبب", "Open Mo Store to see why");
+        }
+        root.storeJobMessage = root.storeJobSource;
+        storeJobFinishTimer.restart();
     }
 
     // Mpris2Model deliberately owns active-player selection. Building another

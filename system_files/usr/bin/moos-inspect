@@ -1,0 +1,244 @@
+#!/usr/bin/python3
+"""moos-inspect — read-only, redacted answers about this machine, for Mo AI and for people.
+
+WHY THIS EXISTS
+
+Mo AI's native tools (wave W4) could RUN a repair but could barely LOOK: seven fixed reports and
+one status call. An operator that cannot read a unit's log, list what failed, see which process
+is eating memory or check a disk cannot diagnose anything; it can only guess which fixed repair
+to press. The alternative people reach for is "give the model a shell", which turns every web
+page and every log line the model reads into a command source.
+
+This is the third executor beside `moai-do` (changes, confirmed, may escalate) and `moos-control`
+(instant device control): it CHANGES NOTHING, never escalates, and has a closed grammar.
+
+  * Every verb is a fixed argv. There is no shell, no free-form command, no path from the caller.
+  * Every free value is validated against a pattern or an enum before it reaches argv.
+  * Everything printed passes through the support bundle's `redact()` first, because the reader
+    is a cloud model: addresses, MACs, serials, e-mail, home paths and credential shapes leave as
+    `[redacted]`. One implementation, the one tests/test_support_bundle_redaction.py proves.
+  * Output is bounded (newest lines kept for logs) and every probe has a timeout.
+
+    moos-inspect failed-units
+    moos-inspect unit <name.service> [--user]
+    moos-inspect journal [--unit U] [--user] [--priority err|warning|info]
+                         [--since boot|1h|24h|7d] [--lines 1-200]
+    moos-inspect processes cpu|memory
+    moos-inspect memory | disk | network | apps | os
+    moos-inspect log <moai|theme|store|remote>
+"""
+
+from __future__ import annotations
+
+import argparse
+import importlib.machinery
+import importlib.util
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import sys
+
+TIMEOUT = 20
+MAX_BYTES = 12 * 1024          # a tool result is read by a model with a bounded context
+UNIT = re.compile(r"[A-Za-z0-9@._:\\-]{1,120}\.(service|timer|socket|path|target|mount|slice|scope)")
+PRIORITIES = ("err", "warning", "info")
+SINCE = {"boot": ["-b"], "1h": ["--since", "-1h"], "24h": ["--since", "-24h"], "7d": ["--since", "-7d"]}
+# Logs MoOS itself writes into the user's cache. A name, never a path.
+LOGS = {
+    "moai": "moai.log",
+    "theme": "moos-apply-theme.log",
+    "store": "moos-store/index.log",
+    "remote": "mo-remote/agent.log",
+}
+
+
+class Refused(Exception):
+    """The request is outside the closed grammar. Exit 2, nothing ran."""
+
+
+def _redactor():
+    """The support bundle's redact()/bounded(): one implementation, already proven by its tests."""
+    here = Path(__file__).resolve()
+    for candidate in (Path("/usr/libexec/moos-support-bundle"),
+                      here.parent.parent / "libexec/moos-support-bundle"):
+        if candidate.is_file():
+            loader = importlib.machinery.SourceFileLoader("moos_support_bundle", str(candidate))
+            spec = importlib.util.spec_from_loader(loader.name, loader)
+            module = importlib.util.module_from_spec(spec)
+            loader.exec_module(module)
+            return module.redact
+    raise SystemExit("moos-inspect: the redaction module is missing; refusing to print unredacted "
+                     "machine data")
+
+
+def run(argv: list[str]) -> str:
+    if not shutil.which(argv[0]):
+        return f"[{argv[0]} is not available on this machine]"
+    try:
+        done = subprocess.run(argv, capture_output=True, text=True, timeout=TIMEOUT,
+                              check=False, stdin=subprocess.DEVNULL,
+                              env={**os.environ, "LC_ALL": "C.UTF-8", "SYSTEMD_COLORS": "0",
+                                   "SYSTEMD_PAGER": "", "PAGER": "cat"})
+    except subprocess.TimeoutExpired:
+        return f"[{argv[0]} did not answer within {TIMEOUT}s]"
+    except OSError as error:
+        return f"[{argv[0]}: {type(error).__name__}]"
+    return ((done.stdout or "") + (done.stderr or "")).strip() or f"[{argv[0]}: no output]"
+
+
+def section(title: str, body: str) -> str:
+    return f"## {title}\n{body.strip()}\n"
+
+
+def bounded(text: str, *, newest: bool) -> str:
+    data = text.encode("utf-8")
+    if len(data) <= MAX_BYTES:
+        return text
+    note = f"[truncated to {MAX_BYTES // 1024} KB; kept the {'newest' if newest else 'first'} part]"
+    if newest:
+        return note + "\n" + data[-MAX_BYTES:].decode("utf-8", "ignore")
+    return data[:MAX_BYTES].decode("utf-8", "ignore") + "\n" + note
+
+
+def unit_name(value: str) -> str:
+    if not UNIT.fullmatch(value or ""):
+        raise Refused("unit must look like name.service (letters, digits, @ . _ : -)")
+    return value
+
+
+# ── verbs ────────────────────────────────────────────────────────────────────
+def failed_units(_args) -> tuple[str, bool]:
+    return (section("failed system units", run(["systemctl", "--failed", "--no-pager", "--plain"]))
+            + section("failed user units",
+                      run(["systemctl", "--user", "--failed", "--no-pager", "--plain"]))), False
+
+
+def unit(args) -> tuple[str, bool]:
+    name = unit_name(args.name)
+    scope = ["--user"] if args.user else []
+    return section(f"{'user ' if args.user else ''}unit {name}",
+                   run(["systemctl", *scope, "status", "--no-pager", "--lines=30", "--full", name])), True
+
+
+def journal(args) -> tuple[str, bool]:
+    argv = ["journalctl", "--no-pager", "-o", "short-iso", "-n", str(args.lines),
+            "-p", args.priority, *SINCE[args.since]]
+    if args.user:
+        argv.append("--user")
+    if args.unit:
+        argv += ["--user-unit" if args.user else "-u", unit_name(args.unit)]
+    title = f"journal ({args.priority}+, since {args.since}, last {args.lines}"
+    title += f", {args.unit})" if args.unit else ")"
+    return section(title, run(argv)), True
+
+
+def processes(args) -> tuple[str, bool]:
+    key = "-%cpu" if args.by == "cpu" else "-rss"
+    listing = run(["ps", "-eo", "pid,user:12,%cpu,%mem,rss:10,comm", f"--sort={key}"])
+    return section(f"top processes by {args.by}", "\n".join(listing.splitlines()[:16])), False
+
+
+def memory(_args) -> tuple[str, bool]:
+    pressure = ""
+    for name in ("memory", "cpu", "io"):
+        path = Path(f"/proc/pressure/{name}")
+        if path.is_file():
+            pressure += f"{name}: {path.read_text(encoding='utf-8').splitlines()[0]}\n"
+    return (section("memory", run(["free", "-h"]))
+            + section("swap devices", run(["swapon", "--show"]))
+            + section("pressure (some avg10/avg60/avg300)", pressure or "[not available]")), False
+
+
+def disk(_args) -> tuple[str, bool]:
+    # `/` is a read-only composefs overlay that always reads 100% full; the real filesystem is the
+    # one under /sysroot, and /var is where a person's space actually goes.
+    targets = [p for p in ("/var", "/sysroot", "/boot", "/boot/efi", str(Path.home())) if Path(p).exists()]
+    return section("filesystems that matter on an image-based system", run(["df", "-h", *targets])), False
+
+
+def network(_args) -> tuple[str, bool]:
+    return (section("devices", run(["nmcli", "-t", "-f", "DEVICE,TYPE,STATE,CONNECTION", "device"]))
+            + section("addresses", run(["ip", "-brief", "address"]))
+            + section("default route", run(["ip", "route", "show", "default"]))
+            + section("name resolution", run(["resolvectl", "dns"]))), False
+
+
+def apps(_args) -> tuple[str, bool]:
+    return section("installed applications",
+                   run(["flatpak", "list", "--app", "--columns=application,name,version,installation"])), False
+
+
+def os_state(_args) -> tuple[str, bool]:
+    raw = run(["rpm-ostree", "status", "--json"])
+    try:
+        deployments = json.loads(raw).get("deployments", [])
+    except ValueError:
+        return section("deployments", raw), False
+    lines = []
+    for item in deployments:
+        role = "booted" if item.get("booted") else ("staged" if item.get("staged") else "kept for rollback")
+        origin = str(item.get("container-image-reference", "") or "")
+        signed = "signed origin" if origin.startswith("ostree-image-signed:") else "UNSIGNED or local origin"
+        lines.append(f"{role}: version {item.get('version', '?')} · {signed} · "
+                     f"{origin.rsplit('/', 1)[-1] or 'unknown image'}")
+    return section("system image deployments", "\n".join(lines) or "[no deployments reported]"), False
+
+
+def log(args) -> tuple[str, bool]:
+    if args.name not in LOGS:
+        raise Refused("log must be one of: " + ", ".join(sorted(LOGS)))
+    cache = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache")
+    path = cache / LOGS[args.name]
+    if not path.is_file() or path.is_symlink():
+        return section(f"log {args.name}", "[this log does not exist yet]"), True
+    with path.open("rb") as handle:
+        handle.seek(max(0, path.stat().st_size - 3 * MAX_BYTES))
+        tail = handle.read().decode("utf-8", "replace")
+    return section(f"log {args.name} (newest last)", "\n".join(tail.splitlines()[-120:])), True
+
+
+def parser() -> argparse.ArgumentParser:
+    top = argparse.ArgumentParser(prog="moos-inspect", description=__doc__.split("\n\n")[0],
+                                  formatter_class=argparse.RawDescriptionHelpFormatter)
+    verbs = top.add_subparsers(dest="verb", required=True)
+    verbs.add_parser("failed-units").set_defaults(run=failed_units)
+    one = verbs.add_parser("unit")
+    one.add_argument("name")
+    one.add_argument("--user", action="store_true")
+    one.set_defaults(run=unit)
+    logs = verbs.add_parser("journal")
+    logs.add_argument("--unit", default="")
+    logs.add_argument("--user", action="store_true")
+    logs.add_argument("--priority", choices=PRIORITIES, default="warning")
+    logs.add_argument("--since", choices=tuple(SINCE), default="boot")
+    logs.add_argument("--lines", type=int, choices=range(1, 201), default=80, metavar="1-200")
+    logs.set_defaults(run=journal)
+    top_processes = verbs.add_parser("processes")
+    top_processes.add_argument("by", choices=("cpu", "memory"))
+    top_processes.set_defaults(run=processes)
+    for name, function in (("memory", memory), ("disk", disk), ("network", network),
+                           ("apps", apps), ("os", os_state)):
+        verbs.add_parser(name).set_defaults(run=function)
+    named = verbs.add_parser("log")
+    named.add_argument("name")
+    named.set_defaults(run=log)
+    return top
+
+
+def main(argv: list[str]) -> int:
+    args = parser().parse_args(argv)
+    redact = _redactor()
+    try:
+        text, newest = args.run(args)
+    except Refused as refusal:
+        print(f"moos-inspect: {refusal}", file=sys.stderr)
+        return 2
+    sys.stdout.write(bounded(redact(text), newest=newest))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

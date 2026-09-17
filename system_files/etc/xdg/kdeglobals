@@ -27,8 +27,18 @@ fixed=JetBrains Mono,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
 # DEFAULT LOOK: Aurora (org.moos.ui2.aurora). It is the most premium-looking of
 # the MoOS families and its teal aurora matches the system accent (78,215,200),
 # so a fresh install reads as a deliberate OS, not a stock Plasma session.
-#[Icons]
-Theme=MoOSUI2
+#
+# The group header below was commented out by accident on 2026-08-28 (a6527c83,
+# while the paragraph above was being added), so `Theme=` fell into [General],
+# which nothing reads, and the system-wide default icon theme silently became
+# Plasma's own. Nobody saw it because applying a Global Theme writes [Icons] into
+# the user's kdeglobals — every session that had NOT had one applied (a second
+# account, the first frames of a first login, an app started as another user) drew
+# stock icons on a MoOS surface. The value names the Aurora overlay so the three
+# Aurora defaults in this file agree; it inherits MoOSUI2.
+# tests/test_kconfig_group_headers.py keeps the header and the agreement.
+[Icons]
+Theme=MoOSUI2Aurora
 
 # AutomaticLookAndFeel is Plasma's day/night switch between the two Look and Feel
 # packages named in Default{Light,Dark}LookAndFeel.

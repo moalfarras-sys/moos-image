@@ -44,6 +44,10 @@ python3 tests/test_moai_krunner.py
 python3 tests/test_foreign_app_menus.py
 python3 tests/test_remote_cuda_scaler.py
 python3 tests/test_app_qml_identity.py
+# The image firewalls sweep for the base distribution's name. Nothing swept for the DESKTOP's
+# name or read what MoOS's own programs display: Mo AI said "MoOS (KDE)" and its system
+# prompt told the model it runs on "a KDE Plasma 6 desktop".
+python3 tests/test_user_visible_identity.py
 python3 tests/test_moos_auto_update.py
 python3 tests/test_updater_trust_badge.py
 python3 tests/test_cloud_console_order.py
@@ -56,6 +60,13 @@ python3 tests/test_moai_control.py
 python3 tests/test_moai_config.py
 python3 tests/test_moai_tool_schemas.py
 python3 tests/test_moai_confirmation_flow.py
+# W4's tool loop never ran on a machine without Hermes (tools were attached only when
+# !agentMode, which defaults to true), handled one call per answer and could orphan a tool
+# message. This executes the shipped AgentLoop.js in node and, where Qt exists, drives the
+# REAL window against a scripted provider and the real moai-control.
+python3 tests/test_moai_agent_loop.py
+# moos-inspect auto-runs for a cloud model: closed grammar, redacted output, reads only.
+python3 tests/test_moos_inspect.py
 # Mo AI's brain is a cloud API and nothing is ever downloaded to the
 # machine. Free, no-card providers must exist and come first.
 python3 tests/test_moai_cloud_only.py
@@ -91,6 +102,10 @@ python3 tests/test_shipped_bundle_is_tracked.py
 # already built. Keep heavyweight SBOM generation off the release-critical workflow;
 # it may return only in a separate workflow with its own runner budget.
 python3 tests/test_release_workflow_safety.py
+# The proof channel and the ISO proof's contracts used to run only inside build-iso.yml,
+# ninety minutes into a release cycle. Both are static and take milliseconds.
+python3 tests/test_ci_proof_channel.py
+python3 tests/test_iso_install_gate.py
 python3 tests/test_release_candidate_script.py
 python3 tests/test_firewall_migration.py
 python3 tests/test_hardware_adapt_lifecycle.py
@@ -187,6 +202,16 @@ python3 tests/test_boot_assessment.py
 python3 tests/test_installer_storage_policy.py
 python3 tests/test_moos_horizon2_surfaces.py
 python3 tests/test_island_jobs_privacy.py
+# W5's Island read job.json and the privacy token through XMLHttpRequest, which plasmashell's
+# Qt refuses, inside try/catch: Store jobs never appeared on any machine and the gate above
+# (it asserts that strings exist) stayed green. This runs the real producers and the shipped
+# IslandTokens.js against each other.
+python3 tests/test_island_tokens.py
+# App Drop installs an application from a FILE. The hostile archives are built for real here:
+# `..`, absolute paths, links that leave the tree, device nodes, a bomb, a package .desktop
+# saying Exec=sh -c, a file merely CALLED .AppImage, a ref naming a foreign remote. The
+# AppImage sandbox is run under the real bwrap where it exists.
+python3 tests/test_app_drop.py
 python3 tests/test_search_inline_answers.py
 # moai-wake is the ONLY thing that can wake a sleeping gateway, so if it cannot reach
 # Telegram the phone agent is silently dead while every surface reports healthy. On a
@@ -245,6 +270,17 @@ python3 tests/test_moos_ui2.py
 # rewrote the island and search at rev 60 and ARM machines kept the cached W3 widgets. This
 # compares the revision with a recorded digest of every cache-served package.
 python3 tests/test_theme_rev_fingerprint.py
+# `#[Icons]` and `#[Theme]`: two group headers were commented out by accident on 2026-08-28, so
+# the system default icon theme and Plasma Style configured nothing for three weeks while every
+# substring gate still matched. This parses shipped KConfig the way KConfig does.
+python3 tests/test_kconfig_group_headers.py
+# `root.novaOrange` was never declared, so W4's confirmation card for a PRIVILEGED action painted
+# Qt's defaults. QML reports that at runtime only; the launch gate sees a window and passes.
+python3 tests/test_qml_root_references.py
+# Four first-party apps painted their SECONDARY text with the disabled role: 1.6:1 on the
+# light schemes. The token gate required them to follow the theme, not to be legible. This
+# does the arithmetic for every app on every shipped scheme.
+python3 tests/test_secondary_text_contrast.py
 # The full Launcher must be operable with the keyboard alone: the
 # sidebar pages take focus and activation keys, Down/Up cross between
 # the search field and the active page's grid/list, Shift+Tab returns

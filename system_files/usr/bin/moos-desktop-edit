@@ -19,6 +19,6 @@ fi
 [[ $# == 0 ]] || fail 'Unsupported desktop action. | إجراء سطح مكتب غير مدعوم.'
 if ! gdbus call --session --dest org.kde.plasmashell --object-path /PlasmaShell \
     --method org.kde.PlasmaShell.toggleWidgetExplorer >/dev/null; then
-    fail 'Could not open Customize Desktop. Plasma must be running.
+    fail 'Could not open Customize Desktop. The MoOS desktop session must be running.
 تعذّر فتح تخصيص سطح المكتب. يجب أن تكون جلسة سطح المكتب قيد التشغيل.'
 fi

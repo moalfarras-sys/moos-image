@@ -83,13 +83,25 @@ ssh_key="$work/moos-iso-ci-key"
 ssh-keygen -q -t ed25519 -N '' -C moos-ci-runtime-proof -f "$ssh_key"
 chmod 0600 "$ssh_key"
 ssh_public_key="$(cat "$ssh_key.pub")"
-ssh_port="$(python3 - <<'PY'
+# One loopback forward PER BOOT of the installed system, reserved together so they cannot
+# collide. tests/boot_x86_qcow2.sh learned this on 2026-09-03: across a guest reboot QEMU's
+# slirp backend can keep pre-reboot flow state on a forward, and then accept TCP on the host
+# side without ever delivering the new sshd's banner. This proof was given its reboot half on
+# 2026-09-16 with ONE forward, and lost three release candidates out of four at exactly that
+# point (runs 35091031129, 35158666486, 35252520329): "Connection timed out during banner
+# exchange" for the whole 1000 s, while QGA reported the second boot, something listened on
+# :22 and no unit had failed. The second boot is reached through a forward no pre-reboot
+# connection ever touched; the first forward is then probed once, as a measurement.
+read -r ssh_port ssh_port_after_reboot < <(python3 - <<'PY'
 import socket
-with socket.socket() as sock:
-    sock.bind(("127.0.0.1", 0))
-    print(sock.getsockname()[1])
+with socket.socket() as first, socket.socket() as second:
+    first.bind(("127.0.0.1", 0))
+    second.bind(("127.0.0.1", 0))
+    print(first.getsockname()[1], second.getsockname()[1])
 PY
-)"
+)
+[ -n "$ssh_port" ] && [ -n "$ssh_port_after_reboot" ] && [ "$ssh_port" != "$ssh_port_after_reboot" ] \
+    || { echo "ISO INSTALL FATAL: could not reserve two distinct SSH forwards" >&2; exit 2; }
 printf 'iso=%s\nsha256=%s\nimage=%s\novmf=%s\ntarget-size=36G\nnetwork-during-install=disabled\n' \
     "$iso" "$before_sha" "$expected_ref" "$ovmf_code" > "$evidence/manifest.txt"
 
@@ -140,7 +152,7 @@ start_qemu() {
         "${gpu[@]}" \
         -device virtio-keyboard-pci \
         -device virtio-tablet-pci \
-        -netdev "user,id=n0,hostfwd=tcp:127.0.0.1:${ssh_port}-:22" \
+        -netdev "user,id=n0,hostfwd=tcp:127.0.0.1:${ssh_port}-:22,hostfwd=tcp:127.0.0.1:${ssh_port_after_reboot}-:22" \
         -device virtio-net-pci,netdev=n0 \
         -device virtio-serial-pci \
         -chardev "socket,path=$qga,server=on,wait=off,id=qga0" \
@@ -527,7 +539,7 @@ wait_for_poweroff "live installer"
 start_qemu installed proof-virgl -boot order=c
 
 python3 - "$qga" "$monitor" "$qemu_pid" "$expected_ref" "$test_password" "$evidence" \
-    "$ssh_key" "$ssh_port" <<'PY'
+    "$ssh_key" "$ssh_port" "$ssh_port_after_reboot" <<'PY'
 import base64
 import json
 import os
@@ -539,7 +551,8 @@ import sys
 import threading
 import time
 
-qga, monitor, qemu_pid, expected, password, evidence_arg, ssh_key, ssh_port = sys.argv[1:]
+(qga, monitor, qemu_pid, expected, password, evidence_arg, ssh_key, ssh_port,
+ ssh_port_after_reboot) = sys.argv[1:]
 qemu_pid = int(qemu_pid)
 evidence = Path(evidence_arg)
 
@@ -1337,6 +1350,10 @@ try:
     request({"execute": "guest-shutdown", "arguments": {"mode": "reboot"}}, timeout=3)
 except (OSError, RuntimeError, socket.timeout):
     pass
+# Everything from here on is the SECOND boot, reached through the forward that no
+# pre-reboot connection ever touched (see where the two forwards are reserved).
+first_boot_ssh_port = ssh_port
+ssh_port = ssh_port_after_reboot
 
 # The monitor/QEMU process persists across this real guest reboot. Require BOTH
 # independent channels to observe the new kernel: QGA proves its stream was
@@ -1375,7 +1392,18 @@ while time.monotonic() < deadline:
         break
     time.sleep(5)
 else:
-    (evidence / "reboot-channel-error.txt").write_text(last_reboot_error + "\n")
+    # Both forwards lead to the same sshd. If the first-boot forward answers where the fresh
+    # one does not (or neither does), the next reader knows which side to look at.
+    ssh_port = first_boot_ssh_port
+    try:
+        code, current, error = ssh_exec("cat /proc/sys/kernel/random/boot_id", timeout=20)
+        old_forward = (f"answered with boot id {current.strip()}" if code == 0
+                       else f"failed: {error.strip() or code}")
+    except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired) as error:
+        old_forward = f"failed: {error}"
+    (evidence / "reboot-channel-error.txt").write_text(
+        f"fresh forward (second boot): {last_reboot_error}\n"
+        f"first-boot forward, probed once afterwards: {old_forward}\n")
     try:
         _code, diag_out, diag_err = qga_exec(
             "echo '=== boot id ==='; cat /proc/sys/kernel/random/boot_id; "
@@ -1397,6 +1425,21 @@ else:
         f"ssh={ssh_boot_id or 'missing'} last={last_reboot_error}")
 
 wait_qga(120)
+
+# A MEASUREMENT, never a gate: is the first-boot forward alive after the reboot? If it is
+# dead while the fresh one works, the slirp explanation above is confirmed by this very run;
+# if it answers, the fresh forward was not what made this run pass and P0.8 is still open.
+ssh_port = first_boot_ssh_port
+try:
+    code, current, error = ssh_exec("cat /proc/sys/kernel/random/boot_id", timeout=20)
+    old_forward = ("alive" if code == 0 and current.strip() == ssh_boot_id
+                   else f"dead: {(error or current).strip() or code}")
+except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired) as error:
+    old_forward = f"dead: {error}"
+ssh_port = ssh_port_after_reboot
+(evidence / "reboot-channel.txt").write_text(
+    f"second-boot-forward=fresh\nfresh-forward=alive\nfirst-boot-forward={old_forward}\n")
+print(f"reboot channel: fresh forward alive; first-boot forward {old_forward}")
 
 second = gate_until(runtime, [expected], 900, "installed second boot never became healthy")
 (evidence / "installed-second-boot.txt").write_text(second + "reboot=clean\n")

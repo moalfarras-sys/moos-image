@@ -226,7 +226,12 @@ set -uo pipefail
 #     and then W5 at rev 60: their v60 marker already existed, the purge below
 #     never ran again, and the frozen-mtime QML cache kept serving the W3 island
 #     and search. One revision per shipped QML change, not per wave name.
-THEME_REV=61
+# 62: the Island's Store jobs and its privacy chip's app name never worked: W5 read both
+#     through XMLHttpRequest on a local file, which plasmashell's Qt refuses (measured on
+#     Qt 6.11.2), inside a try/catch. They now arrive as file NAMES, the way the Remote chip
+#     always has (IslandTokens.js). A removal is shown as a removal; running an app or
+#     refreshing the index is no longer shown as an install.
+THEME_REV=62
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"
@@ -766,6 +771,24 @@ pin_default_apps() {
             kwriteconfig6 --file "$mimeapps" --group "Default Applications" \
                 --key text/csv org.kde.kate.desktop
         echo "pinned office document handling in the user's mimeapps.list" >>"$log" 2>/dev/null || true
+    fi
+
+    # --- An app that arrives as a file opens in App Drop ------------------------
+    # Same half-fix rule as above: the user's own mimeapps.list outranks /etc/xdg. Claim the
+    # type only when it is unset or already ours; someone who chose AppImageLauncher or Gear
+    # Lever made a real choice and keeps it.
+    if [ -f /usr/share/applications/org.moos.appdrop.desktop ]; then
+        for mime in application/vnd.appimage application/x-iso9660-appimage \
+                    application/vnd.flatpak.ref; do
+            current="$(kreadconfig6 --file "$mimeapps" --group "Default Applications" --key "$mime" 2>/dev/null)"
+            case "$current" in
+                ""|*appdrop*)
+                    kwriteconfig6 --file "$mimeapps" --group "Default Applications" \
+                        --key "$mime" org.moos.appdrop.desktop
+                    ;;
+            esac
+        done
+        echo "pinned App Drop for AppImage and Flathub refs in the user's mimeapps.list" >>"$log" 2>/dev/null || true
     fi
 
     command -v update-desktop-database >/dev/null 2>&1 && \

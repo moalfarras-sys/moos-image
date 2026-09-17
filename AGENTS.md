@@ -224,6 +224,34 @@ passed everything, including the dead buttons it was written to catch. A gate th
 is worse than no gate. Prove a new gate bites by breaking the thing it guards and watching it
 go red.
 
+**plasmashell cannot read a local file through `XMLHttpRequest`.** Qt 6 refuses it unless the
+process exports `QML_XHR_ALLOW_FILE_READ=1`; the first-party app launchers do, the shell does not
+and should not. Wave W5 read Mo Store's `job.json` and the privacy token that way inside a
+`try/catch`, so Store jobs never appeared in the Island on any machine and the chip always said
+"Application" — green everywhere, promoted to ARM. A plasmoid gets state from a FILE NAME
+through a `FolderListModel`, the way the Remote chip always has (`IslandTokens.js`), or from
+D-Bus. `tests/test_island_tokens.py` runs both ends and fails any MoOS plasmoid that tries.
+
+**A colour named after a role is not that role's use.** Four apps painted secondary text with
+`Kirigami.Theme.disabledTextColor` because the token gate only required "follow the theme". As
+text a person reads it measured 1.6:1 on the light schemes. Secondary ink is the theme's text
+colour at an alpha (`tests/test_secondary_text_contrast.py` does the arithmetic per scheme).
+
+**A property that does not exist is not an error QML reports.** `root.novaOrange` evaluated to
+`undefined`, the privileged-action card painted Qt's defaults, the window opened and the launch
+gate passed. `tests/test_qml_root_references.py` is the static half; `scripts/review/render-app.sh`
+prints the runtime half.
+
+**A proof VM gets one SSH forward per boot.** Across a guest reboot QEMU's slirp backend can keep
+pre-reboot flow state on a `hostfwd` and then accept TCP on the host side without ever delivering
+the new sshd's banner. `tests/boot_x86_qcow2.sh` wrote that down on 2026-09-03 and reserves a
+forward per boot. The ISO install proof was given a reboot half thirteen days later with ONE
+forward, and lost three release candidates out of four to "Connection timed out during banner
+exchange" while QGA called the boot healthy (plan row P0.8). Before you add a reboot to any VM
+proof, read how the other proofs reboot. And when a proof's channel dies, the harness's QGA
+context is confined by SELinux — it cannot read the journal or unit state — so anything a fixture
+needs to say about its own failure has to go to the console (`StandardOutput=journal+console`).
+
 **`/` is not the disk.** On bootc/OSTree, `/` is a read-only composefs overlay; `statvfs` reports
 it as a ~60 MB filesystem that is 100% full. `shutil.disk_usage("/")` therefore returns 0 total,
 0 free, and the Hardware Centre showed "?" for storage on every MoOS machine it ever ran on.
@@ -335,6 +363,28 @@ button — but the model never executes anything itself. Do not add a path that 
 web page, run a command. If you add an action, add it to `moai-do`, to `moos-open`'s case
 statement, and to Mo AI's system prompt.
 
+Mo AI's native tools have **three executors and three promises**, declared in one place
+(`usr/lib/moai/moai_tool_schemas.py`): `moai-do` changes the system, is always confirmed and may
+escalate; `moos-control` is instant, reversible device control; `moos-inspect` reads, redacts and
+changes nothing, so its tools run with no card. A tool may advertise only what its executor
+accepts, and **the executor — not the window — decides what needs a card**
+(`needs_confirmation()`, which also covers a value that can cut the owner off, such as Wi-Fi
+OFF). A confirmed action is a job that ends when its process ends; its exit status is the
+result the model receives. Whether Mo AI ever gets a tool that runs a command the MODEL wrote is
+an owner decision recorded as plan row P3.9; until it is taken, do not add one.
+
+**An unchecked `run_priv` prints a lie.** `moai-do`'s `main` runs inside `if main "$@"; then`,
+which suspends `set -e` for every `do_*` function. Until 2026-09-17 three actions printed their
+success line after the person DISMISSED the password prompt, and the audit trail said `ok`.
+Every escalation is `if ! run_priv …; then … return 1`; `tests/test_moai_do.py` forbids the rest.
+
+**An application that arrives as a file is App Drop's** (`usr/lib/moos/moos_appdrop.py`,
+`moos-app-drop`, `moos-storectl install-file`). It needs no administrator rights and must never
+ask for them. Nothing installs without a dialog whose default is No; what a file IS (magic
+bytes) decides, never its name; an AppImage is only ever extracted inside bubblewrap; an
+archive is extracted by the module, never a shell; the launcher entry is WRITTEN by MoOS, never
+copied from the package (`Exec=` in a package's .desktop file is its author's instruction).
+
 `moos:` is a **registered URL scheme**, so web pages can hand `moos-open` a URL.
 Every route must remain a fixed action with validated arguments. The Flatpak
 route validates reverse-DNS IDs in both router and executor. Local RPM paths
@@ -355,6 +405,7 @@ inside `system_files/` are refreshed only from this tree with
 `just refresh-moplayer-packaging`; `verify_user_experience.py` enforces the boundary.
 
 ```
+scripts/review/        off-station tools: mirror the tree and run gates, render an app from source
 Containerfile          three x86 editions; IMAGE_NAME selects whether NVIDIA is layered on
 build_files/build.sh   everything package-dependent, plus the boot/identity gates
 system_files/          copied verbatim onto / — identity, themes, apps, units
@@ -442,6 +493,13 @@ Being honest about this list is more useful than shrinking it.
 - **Mo AI is cloud-only.** Free models are the default; paid models require an explicit
   choice. Cloud connectivity and provider availability are required. Local model downloads
   are retired; see `docs/MOAI_CLOUD_ONLY_PLAN.md` for fresh-install acceptance gaps.
+- **Mo AI's tool loop has never been driven by a real model.** It is proven against a scripted
+  provider and the real `moai-control` (`tests/test_moai_agent_loop.py`). Which tool a free cloud
+  model actually picks, in Arabic and English, is unmeasured (P3.3).
+- **App Drop has never unpacked a real AppImage**, and its dialog, file-manager action and
+  `~/Applications` watch have not been exercised on a MoOS desktop (P4.6).
+- **Nothing in wave W6 has been seen on a MoOS desktop.** It was written off the station, gated
+  with `scripts/review/mirror-gates.sh` and rendered from source with `scripts/review/render-app.sh`.
 - **Deliberate rollback is not proven on hardware.** Source now has automatic boot
   fallback (`moos-boot-assess`, P1.2) and a disposable-VM rollback harness (P0.4), but no
   bad candidate has been rolled back and forward on the physical station.

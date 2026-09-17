@@ -11,6 +11,9 @@ action with no schema, the model cannot offer it. This gate enforces zero drift.
 
 from __future__ import annotations
 
+import importlib.machinery
+import importlib.util
+import itertools
 import os
 import re
 import sys
@@ -21,10 +24,19 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "system_files/usr/lib/moai"))
 
 from moai_tool_schemas import (
-    ALL_TOOLS, READ_ONLY_NAMES, CONFIRM_NAMES, TOOL_META,
-    get_schemas_for_model, get_schemas_with_meta, build_command,
+    ALL_TOOLS, READ_ONLY_NAMES, CONFIRM_NAMES, TOOL_META, SETTINGS_PAGES,
+    get_schemas_for_model, get_schemas_with_meta, build_command, needs_confirmation,
     READ_ONLY, CONTROL, USER_CONFIRM, PRIV_CONFIRM,
 )
+
+
+def load_script(relative: str, name: str):
+    """Import a shipped extensionless Python script as a module, without running its main()."""
+    loader = importlib.machinery.SourceFileLoader(name, str(ROOT / relative))
+    spec = importlib.util.spec_from_loader(name, loader)
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
 
 
 class TestToolSchemaIntegrity(unittest.TestCase):
@@ -69,10 +81,9 @@ class TestToolSchemaIntegrity(unittest.TestCase):
             if meta["executor"] != "moos-control":
                 continue
             cmd = meta["command"]
-            # moos-control has "mute"/"unmute" as separate actions but we map
-            # them through "volume" with mute/unmute values.
-            if cmd in ("mute", "unmute"):
-                continue
+            # This test used to SKIP mute/unmute with the note "we map them through volume with
+            # mute/unmute values" — and moos-control's `volume` rejects both. The skip is what
+            # let `set_volume` advertise two values that always failed.
             self.assertIn(cmd, self.control_actions,
                           f"Schema '{tool['function']['name']}' maps to moos-control "
                           f"'{cmd}' which does not exist")
@@ -137,6 +148,108 @@ class TestToolSchemaIntegrity(unittest.TestCase):
         self.assertEqual(cmd[2], "install")
         self.assertEqual(cmd[3], "; rm -rf /")
         # moai-do will reject this via its own ID validation.
+
+    # ── a tool may advertise only what its executor accepts ─────────────────────────────────
+    def test_every_advertised_control_value_is_accepted_by_moos_control(self):
+        """Run each enum value through moos-control's OWN validator, not a copy of it."""
+        control = load_script("system_files/usr/bin/moos-control", "moos_control_under_test")
+        accepted = {
+            "night-light": ("on", "off", "auto"), "wifi": ("on", "off"), "bluetooth": ("on", "off"),
+            "theme": control.THEMES, "settings": control.SETTINGS_PAGES,
+        }
+        for tool in ALL_TOOLS:
+            meta = tool["_moos"]
+            if meta["executor"] != "moos-control":
+                continue
+            for key, spec in tool["function"]["parameters"]["properties"].items():
+                for value in spec.get("enum", []):
+                    argv = build_command(tool["function"]["name"], {key: value})
+                    self.assertIsNotNone(argv, f"{tool['function']['name']}({key}={value!r}) "
+                                               "is advertised but build_command refuses it")
+                    verb = argv[1]
+                    self.assertIn(verb, control.ACTIONS, f"moos-control has no verb {verb!r}")
+                    arity = control.ACTIONS[verb][0]
+                    self.assertEqual(arity, len(argv) - 2,
+                                     f"moos-control {verb} takes {arity} argument(s); "
+                                     f"the schema sends {argv[2:]}")
+                    if verb in accepted:
+                        self.assertIn(value, accepted[verb],
+                                      f"{tool['function']['name']} advertises {value!r}, which "
+                                      f"moos-control {verb} rejects")
+        self.assertEqual(tuple(SETTINGS_PAGES), tuple(control.SETTINGS_PAGES),
+                         "open_settings must offer exactly the pages moos-control opens")
+        # The volume validator itself: the two values W4 advertised must really be refused there.
+        for value in ("mute", "unmute"):
+            with self.assertRaises(control.Invalid):
+                control.level(value, 0, 100, "volume")
+
+    def test_every_inspect_tool_parses_in_the_real_inspector(self):
+        """Every combination of advertised values must be argv the inspector's parser accepts."""
+        inspector = load_script("system_files/usr/bin/moos-inspect", "moos_inspect_under_test")
+        samples = {"string": "pipewire.service", "integer": 40, "boolean": True}
+        seen = 0
+        for tool in ALL_TOOLS:
+            if tool["_moos"]["executor"] != "moos-inspect":
+                continue
+            name = tool["function"]["name"]
+            properties = tool["function"]["parameters"]["properties"]
+            choices = []
+            for key, spec in properties.items():
+                values = spec.get("enum") or [samples[spec["type"]]]
+                if spec["type"] == "integer":
+                    values = [spec["minimum"], spec["maximum"]]
+                if key not in tool["_moos"]["required"]:
+                    values = [None, *values]           # and the optional argument left out
+                choices.append([(key, value) for value in values])
+            for combination in itertools.product(*choices):
+                arguments = {key: value for key, value in combination if value is not None}
+                argv = build_command(name, arguments)
+                self.assertIsNotNone(argv, f"{name}{arguments} is advertised but refused")
+                self.assertEqual(argv[0], "moos-inspect")
+                try:
+                    inspector.parser().parse_args(argv[1:])
+                except SystemExit:
+                    self.fail(f"moos-inspect rejects what the schema builds for {name}: {argv}")
+                seen += 1
+        self.assertGreater(seen, 40, "the inspector tools were not exercised")
+
+    def test_invented_arguments_never_reach_argv(self):
+        for name, arguments in (
+            ("unit_status", {"name": "x; rm -rf ~"}),
+            ("unit_status", {"name": "../../etc/shadow"}),
+            ("read_journal", {"unit": "--output=json"}),
+            ("read_journal", {"lines": 5000}),
+            ("read_journal", {"lines": True}),
+            ("read_journal", {"since": "forever"}),
+            ("top_processes", {"by": "everything"}),
+            ("top_processes", {"by": "cpu", "shell": "bash"}),
+            ("open_settings", {"page": "kcm_kscreen"}),
+            ("set_mute", {"value": "toggle"}),
+            ("read_moos_log", {"name": "../../.ssh/id_ed25519"}),
+        ):
+            self.assertIsNone(build_command(name, arguments),
+                              f"{name}{arguments} must be refused before it becomes argv")
+
+    def test_the_inspector_can_change_nothing(self):
+        """moos-inspect is the executor that auto-runs for a cloud model: keep it read-only."""
+        for tool in ALL_TOOLS:
+            if tool["_moos"]["executor"] == "moos-inspect":
+                self.assertEqual(tool["_moos"]["category"], READ_ONLY)
+        source = (ROOT / "system_files/usr/bin/moos-inspect").read_text(encoding="utf-8")
+        code = "\n".join(l for l in source.splitlines() if not l.lstrip().startswith("#"))
+        body = code[code.index("def _redactor"):]
+        for forbidden in ("shell=True", "os.system", "pkexec", "sudo", "run_priv", '"rm"', '"restart"',
+                          '"start"', '"stop"', '"enable"', '"disable"', ".write_text(", "os.remove"):
+            self.assertNotIn(forbidden, body, f"moos-inspect must stay read-only; found {forbidden}")
+        self.assertIn("redact(", body, "everything the inspector prints must be redacted first")
+
+    def test_cutting_the_owner_off_is_confirmed_even_for_a_control_tool(self):
+        self.assertTrue(needs_confirmation("toggle_wifi", {"value": "off"}))
+        self.assertTrue(needs_confirmation("toggle_bluetooth", {"value": "off"}))
+        self.assertFalse(needs_confirmation("toggle_wifi", {"value": "on"}))
+        self.assertFalse(needs_confirmation("set_volume", {"value": "30"}))
+        self.assertTrue(needs_confirmation("system_update", {}))
+        self.assertTrue(needs_confirmation("a tool that does not exist", {}))
 
     def test_read_only_and_confirm_partition(self):
         """Every tool is in exactly one partition."""

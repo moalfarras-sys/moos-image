@@ -1,5 +1,5 @@
 [Unit]
-Description=Apply one-time MoOS input defaults before KWin
+Description=Apply one-time MoOS input defaults before the compositor starts
 
 [Service]
 Type=oneshot

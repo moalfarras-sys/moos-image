@@ -13,5 +13,9 @@
 # default. org.moos.ui2.aurora/contents/defaults carries [plasmarc][Theme]
 # name=MoOSUI2Aurora, so both paths agree. This /etc/xdg default still covers
 # sessions/greeters where the L&F was never applied.
-#[Theme]
+#
+# The header below was commented out by accident on 2026-08-28 (a6527c83): a key before
+# any group belongs to no group, so this file set nothing and those sessions drew
+# Plasma's default style. tests/test_kconfig_group_headers.py keeps it.
+[Theme]
 name=MoOSUI2Aurora

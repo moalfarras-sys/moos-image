@@ -156,6 +156,54 @@ def cache_dir() -> Path:
     return base / "moos-store"
 
 
+# ── Presence for the MoOS Island ─────────────────────────────────────────────
+# job.json is for the Store and Welcome windows, whose launchers export
+# QML_XHR_ALLOW_FILE_READ=1. The Island lives inside plasmashell, where Qt 6 refuses a local
+# XMLHttpRequest ("Using GET on a local file is disabled by default"; measured on Qt 6.11.2).
+# Wave W5 read job.json that way inside a try/catch, so Store jobs never appeared in the Island on
+# any machine while every gate stayed green.
+#
+# The Island's Remote chip has always worked, because it carries its whole state in a FILE NAME
+# that a FolderListModel reports (`presence-active-2`). Store jobs now speak the same way:
+#
+#     $XDG_RUNTIME_DIR/moos-store/job-<action>-<state>-<progress>-<id>
+#
+# Only work a person WAITS for is published. `run`, `refresh-index` and `open-engine` also open a
+# job, and W5 showed each of them as "Installing …".
+PRESENCE_ACTIONS = frozenset({"install", "remove", "update"})
+PRESENCE_STATES = frozenset({"starting", "running", "success", "failed", "cancelled"})
+
+
+def presence_dir() -> Path | None:
+    configured = os.environ.get("XDG_RUNTIME_DIR")
+    if not configured or not Path(configured).is_absolute():
+        return None
+    return Path(configured) / "moos-store"
+
+
+def presence_name(document: dict[str, Any]) -> str | None:
+    """The token for *document*, or None when it is not something to show in the Island."""
+
+    action = document.get("action")
+    state = document.get("state")
+    if action not in PRESENCE_ACTIONS or state not in PRESENCE_STATES:
+        return None
+    progress = document.get("progress")
+    if isinstance(progress, (int, float)) and not isinstance(progress, bool):
+        # Five-point steps: a rename per percent would wake the shell a hundred times.
+        step = str(max(0, min(100, int(progress) // 5 * 5)))
+    else:
+        step = "x"          # indeterminate is a fact, not zero
+    current = document.get("current_id")
+    if not isinstance(current, str) or not current:
+        items = document.get("items") or []
+        current = items[0].get("id", "") if len(items) == 1 and isinstance(items[0], dict) else ""
+    # "-" separates the fields, so it may not survive inside the id; "/" and NUL cannot be in a
+    # file name at all. quote() leaves "-", "." and "_" alone, hence the explicit replacement.
+    encoded = urllib.parse.quote(str(current)[:120], safe="").replace("-", "%2D")
+    return f"job-{action}-{state}-{step}-{encoded}"
+
+
 def _atomic_bytes(path: Path, data: bytes, mode: int = 0o600) -> None:
     """Replace *path* atomically with bytes created in the same directory."""
 
@@ -200,6 +248,7 @@ class JobStore:
         # would make a read-only check indistinguishable from a transaction, and
         # the UI correlates job.json against a request it made.
         self.updates_path = self.directory / "updates.json"
+        self._presence: str | None = None
 
     def prepare(self) -> None:
         self.directory.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -216,6 +265,31 @@ class JobStore:
             separators=(",", ":"),
         ).encode("utf-8") + b"\n"
         _atomic_bytes(self.path, payload)
+        self._publish_presence(document)
+
+    def _publish_presence(self, document: dict[str, Any]) -> None:
+        """Best effort: the Island is a view, and a view may never fail a transaction."""
+
+        directory = presence_dir()
+        name = presence_name(document)
+        if directory is None or name == self._presence:
+            return
+        try:
+            if name is not None:
+                directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+                token = directory / name
+                # Create the new name BEFORE removing the old one: a watcher that reads the
+                # directory between the two sees two tokens (it picks the newest), never none.
+                fd = os.open(token, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o600)
+                os.close(fd)
+            if directory.is_dir():
+                for stale in directory.glob("job-*"):
+                    if stale.name != name:
+                        with contextlib.suppress(OSError):
+                            stale.unlink()
+            self._presence = name
+        except OSError:
+            pass
 
     def write_updates(self, document: dict[str, Any]) -> None:
         payload = json.dumps(
@@ -1617,6 +1691,98 @@ class Controller:
                 job.fail(error, [app_id])
             return exit_code(job.document["state"]), job.snapshot()
 
+    # ── App Drop: an application that arrived as a FILE ────────────────────────
+    # The logic is usr/lib/moos/moos_appdrop.py. It runs HERE so that a dropped AppImage is a Mo
+    # Store job like any other: one lock, one job document, one progress feed for the Island.
+    @staticmethod
+    def _appdrop() -> Any:
+        import importlib
+        library = str(Path(__file__).resolve().parent.parent / "lib/moos")
+        if library not in sys.path:
+            sys.path.insert(0, library)
+        return importlib.import_module("moos_appdrop")
+
+    def inspect_file(self, raw_path: str) -> tuple[int, dict[str, Any]]:
+        """Read-only: what this file is and what installing it would do. Writes no job."""
+        appdrop = self._appdrop()
+        try:
+            plan = appdrop.inspect(raw_path)
+        except appdrop.DropError as refusal:
+            return 2, {"schema": SCHEMA, "action": "inspect-file", "state": "failed",
+                       "code": refusal.code, "message": clean_message(refusal.detail or refusal.code)}
+        return 0, {"schema": SCHEMA, "action": "inspect-file", "state": "success", "plan": plan.to_json()}
+
+    def install_file(self, raw_path: str) -> tuple[int, dict[str, Any]]:
+        appdrop = self._appdrop()
+        try:
+            plan = appdrop.inspect(raw_path)
+        except appdrop.DropError as refusal:
+            raise StoreError(f"{refusal.code}: {refusal.detail or refusal.code}") from refusal
+        if plan.kind == "flatpakref":
+            # A Flathub ref is an app id with a file around it: the ordinary verified path.
+            return self.install([plan.flatpak_id])
+        if not plan.supported:
+            raise StoreError(f"{plan.refusal or 'not_installable_here'}: {plan.kind} files are not installed here")
+        try:
+            lock, job = self._begin("install", [plan.slug])
+        except BusyError:
+            return 75, self._busy_document("install", [plan.slug])
+        with lock:
+            code = ""
+            try:
+                def stage(percent: int | None, message: str, message_key: str) -> None:
+                    job.update_item(plan.slug, state="running", progress=percent,
+                                    message=message, message_key=message_key)
+                    job.update(state="running", progress=percent, current_id=plan.slug,
+                               message=message, message_key=message_key)
+
+                def progress(name: str, percent: int | None) -> None:
+                    # Literal keys, so tests/test_store_job_language.py can hold the UI to them.
+                    if name == "inspecting_file":
+                        stage(percent, "Reading the file", message_key="inspecting_file")
+                    elif name == "extracting_file":
+                        stage(percent, "Unpacking the application", message_key="extracting_file")
+                    else:
+                        stage(percent, "Adding it to the launcher", message_key="integrating_app")
+
+                appdrop.install(plan, progress=progress, cancelled=lambda: self._cancelled(job))
+                job.update_item(plan.slug, state="done", progress=100, message="Installed",
+                                message_key="installed")
+                job.finish_from_items("All requested apps are ready", "all_ready")
+            except appdrop.DropError as failure:
+                code = failure.code
+                if failure.code == "cancelled":
+                    job.cancelled()
+                else:
+                    job.fail(f"{failure.code}: {failure.detail or failure.code}", [plan.slug])
+            except Exception as error:                   # noqa: BLE001 - reported to the person
+                job.fail(error, [plan.slug])
+            document = job.snapshot()
+            if code:
+                document["code"] = code                  # a stable key: the dialog owns the words
+            return exit_code(job.document["state"]), document
+
+    def remove_file(self, slug: str) -> tuple[int, dict[str, Any]]:
+        appdrop = self._appdrop()
+        try:
+            lock, job = self._begin("remove", [slug])
+        except BusyError:
+            return 75, self._busy_document("remove", [slug])
+        with lock:
+            try:
+                if appdrop.remove(slug):
+                    job.update_item(slug, state="done", progress=100, message="Removed",
+                                    message_key="removed")
+                else:
+                    job.update_item(slug, state="skipped", progress=100,
+                                    message="App is not installed", message_key="not_installed")
+                job.finish_from_items("App removed", "app_removed")
+            except appdrop.DropError as failure:
+                job.fail(f"{failure.code}: {failure.detail or failure.code}", [slug])
+            except Exception as error:                   # noqa: BLE001
+                job.fail(error, [slug])
+            return exit_code(job.document["state"]), job.snapshot()
+
     def run(self, app_id: str) -> tuple[int, dict[str, Any]]:
         if not validate_flatpak_id(app_id):
             raise StoreError(f"Invalid Flatpak app ID: {app_id}")
@@ -1922,6 +2088,14 @@ def parser() -> argparse.ArgumentParser:
     engine.add_argument("name", choices=tuple(ENGINE_COMMANDS))
     cancel = commands.add_parser("cancel", help="cancel the active job")
     cancel.add_argument("job_id", nargs="?")
+    install_file = commands.add_parser(
+        "install-file", help="install an AppImage, a portable archive or a Flathub ref from a file")
+    install_file.add_argument("path")
+    inspect_file = commands.add_parser(
+        "inspect-file", help="report what a file is and what installing it would do; changes nothing")
+    inspect_file.add_argument("path")
+    remove_file = commands.add_parser("remove-file", help="remove an app that install-file installed")
+    remove_file.add_argument("id")
     return result
 
 
@@ -1956,6 +2130,12 @@ def main(
             code, document = controller.refresh_index()
         elif options.command == "open-engine":
             code, document = controller.open_engine(options.name)
+        elif options.command == "install-file":
+            code, document = controller.install_file(options.path)
+        elif options.command == "inspect-file":
+            code, document = controller.inspect_file(options.path)
+        elif options.command == "remove-file":
+            code, document = controller.remove_file(options.id)
         else:
             code, document = controller.cancel(options.job_id)
     except StoreError as error:

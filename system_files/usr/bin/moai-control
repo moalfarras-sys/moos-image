@@ -13,7 +13,7 @@
 #   GET  /models   the REAL models this machine can route to (see below)
 #   GET  /scan     full snapshot incl. the cached device plan.
 #   GET  /search?q=…  Flathub app search (this is Mo AI's App Centre).
-import json, os, re, shutil, subprocess, sys, tempfile, threading, time
+import contextlib, json, os, re, secrets, shutil, signal, subprocess, sys, tempfile, threading, time
 import urllib.error, urllib.parse, urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -1385,22 +1385,22 @@ KNOWN_GOOD = [
              "works through the XDG camera portal, verified live here (kamoso segfaults in seconds)"},
     {"keywords": ["video player", "media player", "movie", "mkv", "فيديو", "مشغل", "أفلام"],
      "id": "org.kde.haruna", "name": "Haruna", "verified": True,
-     "note": "مشغّل KDE الأصلي (mpv) — يشحن مع MoOS | KDE-native player (mpv), ships with MoOS"},
+     "note": "مشغّل الفيديو المدمج (mpv) — يشحن مع MoOS | the built-in video player (mpv), ships with MoOS"},
     {"keywords": ["image viewer", "photo", "picture", "صور", "عارض"],
      "id": "org.kde.gwenview", "name": "Gwenview", "verified": True,
-     "note": "عارض صور KDE — يشحن مع MoOS | KDE's image viewer, ships with MoOS"},
+     "note": "عارض الصور المدمج — يشحن مع MoOS | the built-in image viewer, ships with MoOS"},
     {"keywords": ["music", "audio player", "موسيقى", "أغاني"],
      "id": "org.kde.elisa", "name": "Elisa", "verified": False,
-     "note": "مشغّل موسيقى KDE أصلي (Qt) | KDE-native music player (Qt)"},
+     "note": "مشغّل موسيقى أصلي لسطح MoOS | a music player native to the MoOS desktop"},
     {"keywords": ["text editor", "code editor", "محرر", "نصوص"],
      "id": "org.kde.kate", "name": "Kate", "verified": False,
-     "note": "محرّر KDE الأصلي | KDE's own editor (Qt)"},
+     "note": "محرّر نصوص أصلي لسطح MoOS | a text editor native to the MoOS desktop"},
     {"keywords": ["paint", "draw", "رسم", "تصميم"],
      "id": "org.kde.krita", "name": "Krita", "verified": False,
-     "note": "رسم رقمي KDE أصلي (Qt) | KDE-native digital painting (Qt)"},
+     "note": "رسم رقمي أصلي لسطح MoOS | digital painting native to the MoOS desktop"},
     {"keywords": ["video edit", "montage", "مونتاج", "تحرير فيديو"],
      "id": "org.kde.kdenlive", "name": "Kdenlive", "verified": False,
-     "note": "محرّر فيديو KDE أصلي (Qt) | KDE-native video editor (Qt)"},
+     "note": "محرّر فيديو أصلي لسطح MoOS | a video editor native to the MoOS desktop"},
 ]
 
 # Not a blocklist — the user may still install any of these. It is a label, because an app
@@ -1410,8 +1410,8 @@ KNOWN_GOOD = [
 def desktop_mismatch(app_id):
     low = app_id.lower()
     if "cosmic" in low:
-        return ("مصمّم لسطح COSMIC — قد ينهار على MoOS (KDE) | "
-                "built for the COSMIC desktop — may crash on MoOS (KDE)")
+        return ("مصمّم لسطح COSMIC — قد ينهار على MoOS | "
+                "built for the COSMIC desktop — may crash on MoOS")
     return ""
 
 
@@ -1546,19 +1546,87 @@ def resolve_tool_binary(bin_name: str) -> str:
     return bin_name
 
 
+# ── Tool jobs ─────────────────────────────────────────────────────────────────
+# W4 ran every tool with `subprocess.run(timeout=90)`. A look-up fits in that; an update, an
+# app install, firmware or Android setup does not. After 90 s the HTTP call answered "timed out"
+# and subprocess.run KILLED moai-do mid-transaction — leaving whatever its polkit child was
+# doing orphaned — while the chat told the model the action had failed.
+#
+# Anything that must be confirmed is therefore a JOB: it starts, the caller gets an id at once,
+# and the result is read back when the process really ends. Reads stay synchronous and short.
+QUICK_TIMEOUT = 60
+JOB_TIMEOUT = 45 * 60
+OUTPUT_LIMIT = 6000
+_tool_jobs: dict[str, dict] = {}
+_tool_jobs_lock = threading.Lock()
+
+
+def _clip(output: str) -> str:
+    # Keep the END: a failing command says why on its last lines.
+    if len(output) <= OUTPUT_LIMIT:
+        return output
+    return "[… earlier output trimmed]\n" + output[-OUTPUT_LIMIT:]
+
+
+def _audit_tool(tool_name: str, verdict: str) -> None:
+    """One journal line per executed tool, names only — the same rule moai-do's audit follows."""
+    if shutil.which("logger"):
+        subprocess.run(["logger", "-t", "moai-control", f"tool={tool_name} {verdict}"],
+                       capture_output=True, timeout=5, check=False)
+
+
+def _run_job(job_id: str, cmd: list[str]) -> None:
+    start = time.monotonic()
+    state = "error"
+    code = None
+    output = ""
+    try:
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                                stdin=subprocess.DEVNULL, start_new_session=True)
+        with _tool_jobs_lock:
+            _tool_jobs[job_id]["pid"] = proc.pid
+        try:
+            output, _ = proc.communicate(timeout=JOB_TIMEOUT)
+            code = proc.returncode
+            state = "ok" if code == 0 else "error"
+        except subprocess.TimeoutExpired:
+            # The whole session, not just the shell: moai-do's children must not outlive it.
+            with contextlib.suppress(OSError):
+                os.killpg(proc.pid, signal.SIGTERM)
+            output, _ = proc.communicate()
+            state = "timeout"
+    except Exception as error:                                 # noqa: BLE001 - reported, not hidden
+        output = f"execution failed: {error}"
+    with _tool_jobs_lock:
+        job = _tool_jobs[job_id]
+        job.update(status=state, exit_code=code, output=_clip(output or ""),
+                   duration_ms=int((time.monotonic() - start) * 1000), pid=None)
+    _audit_tool(_tool_jobs[job_id]["tool"], state)
+
+
+def tool_job(job_id: str) -> tuple[int, dict]:
+    with _tool_jobs_lock:
+        job = _tool_jobs.get(job_id)
+        if job is None:
+            return 404, {"error": "unknown job"}
+        return 200, {key: job[key] for key in
+                     ("job", "tool", "status", "exit_code", "output", "duration_ms")}
+
+
 def execute_tool(data: dict) -> tuple[int, dict]:
     tool_name = str(data.get("name") or "").strip()
     arguments = data.get("arguments")
     if not isinstance(arguments, dict):
         arguments = {}
-    confirmed = bool(data.get("confirmed", False))
+    confirmed = data.get("confirmed") is True
 
     meta = tool_schemas.TOOL_META.get(tool_name)
     if not meta:
         return 404, {"error": f"unknown tool: {tool_name}"}
 
     category = meta["category"]
-    if category in (tool_schemas.USER_CONFIRM, tool_schemas.PRIV_CONFIRM) and not confirmed:
+    must_confirm = tool_schemas.needs_confirmation(tool_name, arguments)
+    if must_confirm and not confirmed:
         return 403, {
             "error": "confirmation_required",
             "tool": tool_name,
@@ -1572,27 +1640,40 @@ def execute_tool(data: dict) -> tuple[int, dict]:
 
     cmd[0] = resolve_tool_binary(cmd[0])
 
+    if must_confirm:
+        with _tool_jobs_lock:
+            if any(job["status"] == "running" for job in _tool_jobs.values()):
+                return 409, {"error": "another action is still running",
+                             "message": "Wait for the running action to finish."}
+            job_id = secrets.token_hex(8)
+            _tool_jobs[job_id] = {"job": job_id, "tool": tool_name, "status": "running",
+                                  "exit_code": None, "output": "", "duration_ms": 0, "pid": None}
+            for stale in list(_tool_jobs)[:-20]:
+                if _tool_jobs[stale]["status"] != "running":
+                    del _tool_jobs[stale]
+        _audit_tool(tool_name, "started")
+        threading.Thread(target=_run_job, args=(job_id, cmd), daemon=True).start()
+        return 202, {"job": job_id, "tool": tool_name, "status": "running"}
+
     start = time.monotonic()
     try:
         proc = subprocess.run(
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
+            stdin=subprocess.DEVNULL,
             text=True,
-            timeout=90,
+            timeout=QUICK_TIMEOUT,
         )
         duration_ms = int((time.monotonic() - start) * 1000)
-        output = proc.stdout or ""
-        if len(output) > 4096:
-            output = output[:4000] + "\n... [truncated]"
         return 200, {
             "status": "ok" if proc.returncode == 0 else "error",
             "exit_code": proc.returncode,
-            "output": output,
+            "output": _clip(proc.stdout or ""),
             "duration_ms": duration_ms,
         }
     except subprocess.TimeoutExpired:
-        return 504, {"error": "tool execution timed out (90s)"}
+        return 504, {"error": f"tool execution timed out ({QUICK_TIMEOUT}s)"}
     except Exception as e:
         return 500, {"error": f"execution failed: {e}"}
 
@@ -1687,6 +1768,8 @@ class H(BaseHTTPRequestHandler):
         elif route == "/search":
             q = urllib.parse.parse_qs(path.query).get("q", [""])[0]
             self._send(200, search_apps(q))
+        elif route == "/tool/job":
+            self._send(*tool_job(urllib.parse.parse_qs(path.query).get("id", [""])[0]))
         elif route == "/tools":
             self._send(200, {
                 "tools": tool_schemas.get_schemas_for_model(),

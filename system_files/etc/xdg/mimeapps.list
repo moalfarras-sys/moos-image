@@ -39,6 +39,16 @@ application/x-ms-shortcut=org.moos.runforeign.desktop
 application/x-wine-extension-msp=org.moos.runforeign.desktop
 application/vnd.android.package-archive=org.moos.runforeign.desktop
 
+# An application that arrives as a FILE. This list declared no handler for an AppImage — the
+# download most projects hand a Linux user — and the usual advice (make it executable, run it)
+# needs a FUSE 2 library that MoOS's build scripts do not install. App Drop asks, unpacks it
+# inside a sandbox into ~/Applications and adds it to the launcher.
+# NOT measured on a built image: what a double-click did before this is read from the source,
+# not observed. Archives are deliberately NOT claimed here: a .tar.gz is usually not an app.
+application/vnd.appimage=org.moos.appdrop.desktop
+application/x-iso9660-appimage=org.moos.appdrop.desktop
+application/vnd.flatpak.ref=org.moos.appdrop.desktop
+
 # Office documents. MEASURED on the shipped image before this: `xdg-mime query default`
 # returned NOTHING for all seven of these — double-clicking a .docx a colleague sent did
 # nothing at all, which is the same failure the .exe had. MoOS does not ship a ~700 MB

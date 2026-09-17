@@ -52,6 +52,8 @@ check:
     python3 tests/test_foreign_app_menus.py
     python3 tests/test_remote_cuda_scaler.py
     python3 tests/test_app_qml_identity.py
+    # Text MoOS itself displays may not name another OS or desktop.
+    python3 tests/test_user_visible_identity.py
     python3 tests/test_moos_auto_update.py
     # The trust badge is the only place the desktop tells the owner whether
     # the running system is the one MoOS signed. It must read the booted
@@ -68,6 +70,10 @@ check:
     python3 tests/test_moai_config.py
     python3 tests/test_moai_tool_schemas.py
     python3 tests/test_moai_confirmation_flow.py
+    # The native tool loop, executed: AgentLoop.js in node, the real window where Qt exists.
+    python3 tests/test_moai_agent_loop.py
+    # The read-only inspector: closed grammar, redacted output, nothing but reads.
+    python3 tests/test_moos_inspect.py
     # Mo AI's brain is a cloud API and nothing is ever downloaded to the
     # machine. Free, no-card providers must exist and come first.
     python3 tests/test_moai_cloud_only.py
@@ -97,6 +103,7 @@ check:
     # pointing at an asset that never made it into git — which serves a blank page with a 200.
     python3 tests/test_shipped_bundle_is_tracked.py
     python3 tests/test_release_workflow_safety.py
+    python3 tests/test_ci_proof_channel.py
     python3 tests/test_release_candidate_script.py
     python3 tests/test_seal_arm_deployment.py
     # The aarch64 edition has its own CI workflow (build-arm.yml) with its own gate
@@ -240,6 +247,13 @@ check:
     python3 tests/test_moos_ui2.py
     # Shipped shell QML / theme SVG may not change while THEME_REV stands still.
     python3 tests/test_theme_rev_fingerprint.py
+    # Shipped KConfig keys must sit inside a group, and /etc/xdg must agree
+    # with the default Global Theme.
+    python3 tests/test_kconfig_group_headers.py
+    # A first-party app may not read an undeclared property of its root.
+    python3 tests/test_qml_root_references.py
+    # Secondary text must reach 4.5:1 on every shipped colour scheme.
+    python3 tests/test_secondary_text_contrast.py
     # The full Launcher must be operable with the keyboard alone: sidebar
     # focus + activation keys, search-field <-> content crossing, Shift+Tab.
     python3 tests/test_moos_launcher_keyboard.py
@@ -333,6 +347,10 @@ check:
     python3 tests/test_installer_storage_policy.py
     python3 tests/test_moos_horizon2_surfaces.py
     python3 tests/test_island_jobs_privacy.py
+    # Producer and consumer of the Island's presence tokens, executed for real.
+    python3 tests/test_island_tokens.py
+    # App Drop: install from a file, with real hostile archives and the real sandbox.
+    python3 tests/test_app_drop.py
     python3 tests/test_search_inline_answers.py
     # The wake receiver is the only way back from an idle gateway. IPv4-only resolution and a
     # pinned-IP fallback keep it alive on a network that blocks Telegram's default address.

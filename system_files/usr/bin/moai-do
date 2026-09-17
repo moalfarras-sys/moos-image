@@ -342,7 +342,15 @@ do_install_rpm() {
     # root helper copies into a private directory and checks this digest again,
     # closing the replace-after-confirmation race on a user-owned file.
     digest="$(sha256sum -- "$rpm_path" | awk '{print $1}')" || return 2
-    run_priv /usr/libexec/moos-install-local-rpm "$rpm_path" "$digest"
+    # `main` runs inside `if main …`, which suspends `set -e` for everything below it, so an
+    # unchecked run_priv is followed by its own success line whatever happened: a dismissed
+    # administrator prompt printed "Package staged. Restart…" and the audit trail said `ok`.
+    # Mo AI reads this output back to the model as the RESULT of the action.
+    if ! run_priv /usr/libexec/moos-install-local-rpm "$rpm_path" "$digest"; then
+        echo "${R}لم تُجهَّز الحزمة: أُلغي طلب صلاحية المسؤول أو رفض المثبّت الملف.${N}" >&2
+        echo "${R}The package was NOT staged: the administrator prompt was dismissed or the installer refused the file.${N}" >&2
+        return 1
+    fi
     echo "${G}✓ تم تجهيز الحزمة. أعد التشغيل لتظهر في النظام.${N}"
     echo "${G}✓ Package staged. Restart to make it available.${N}"
 }
@@ -460,7 +468,11 @@ do_update_firmware() {
     echo "${Y}تحديث البرامج الثابتة قد يتطلب إعادة تشغيل ولا يمكن التراجع عنه.${N}"
     echo "${Y}Firmware updates may require a reboot and cannot be rolled back.${N}"
     confirm || return 0
-    run_priv fwupdmgr update
+    if ! run_priv fwupdmgr update; then
+        echo "${R}لم يُحدَّث البرنامج الثابت: أُلغي طلب صلاحية المسؤول أو فشل التحديث.${N}" >&2
+        echo "${R}Firmware was NOT updated: the administrator prompt was dismissed or the update failed.${N}" >&2
+        return 1
+    fi
     echo "${G}✓ اكتمل | Done${N}"
 }
 
@@ -491,7 +503,13 @@ do_install_nvidia() {
     # automatic update near the same time the first-run hardware card offers
     # this switch; without one lock both deployment writers can run and the
     # generic update can replace the successfully staged NVIDIA image.
-    run_priv /usr/bin/flock /run/lock/moos-image-update.lock bootc switch --enforce-container-sigpolicy ghcr.io/moalfarras-sys/moos-nvidia:latest
+    # Telling someone to reboot into a driver that was never staged costs them a reboot and
+    # leaves them where they started, believing the machine is broken.
+    if ! run_priv /usr/bin/flock /run/lock/moos-image-update.lock bootc switch --enforce-container-sigpolicy ghcr.io/moalfarras-sys/moos-nvidia:latest; then
+        echo "${R}لم يُجهَّز إصدار NVIDIA: أُلغي طلب صلاحية المسؤول أو فشل التبديل. لم يتغيّر شيء.${N}" >&2
+        echo "${R}The NVIDIA edition was NOT staged: the administrator prompt was dismissed or the switch failed. Nothing changed.${N}" >&2
+        return 1
+    fi
     echo "${G}✓ تم التجهيز — أعد التشغيل لتفعيل التعريف | Staged — reboot to activate${N}"
 }
 
@@ -640,7 +658,11 @@ do_remote_anywhere() {
     echo "mobile data. Nothing is published to the public internet — your devices only.${N}"
     confirm || return 0
 
-    run_priv tailscale set --operator="$USER"
+    if ! run_priv tailscale set --operator="$USER"; then
+        echo "${R}لم يُمنح الإذن لـ Tailscale: أُلغي طلب صلاحية المسؤول.${N}" >&2
+        echo "${R}Tailscale was not given operator rights: the administrator prompt was dismissed.${N}" >&2
+        return 1
+    fi
     tailscale serve --bg --https=443 http://127.0.0.1:8765 || {
         echo "${R}فشل tailscale serve | tailscale serve failed${N}" >&2
         echo "${D}تحتاج تفعيل شهادات HTTPS في لوحة Tailscale (DNS ← HTTPS Certificates).${N}" >&2

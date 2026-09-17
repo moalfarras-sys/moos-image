@@ -3,6 +3,7 @@
 
 import ast
 from pathlib import Path
+import re
 from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock
@@ -109,6 +110,31 @@ installed_tree = ast.parse(installed_code)
 functions = ast.Module(body=[node for node in installed_tree.body
                             if isinstance(node, ast.FunctionDef)
                             and node.name in {"ssh_exec", "gate_until"}], type_ignores=[])
+
+
+# The second boot is reached through a forward that no pre-reboot connection touched.
+# With ONE forward this proof lost three release candidates out of four at the reboot
+# (runs 35091031129, 35158666486, 35252520329): the host side accepted TCP and no banner
+# ever came, while QGA reported the second boot and nothing in the guest had failed.
+# tests/boot_x86_qcow2.sh had documented that slirp behaviour thirteen days earlier.
+assert ("hostfwd=tcp:127.0.0.1:${ssh_port}-:22,"
+        "hostfwd=tcp:127.0.0.1:${ssh_port_after_reboot}-:22") in script, \
+    "the installed VM needs one SSH forward per boot"
+assert '[ "$ssh_port" != "$ssh_port_after_reboot" ]' in script
+reboot_request = installed_code.index('"mode": "reboot"')
+forward_switch = installed_code.index("\nssh_port = ssh_port_after_reboot\n", reboot_request)
+second_boot_wait = installed_code.index('last_reboot_error = "SSH has not returned after reboot"')
+assert reboot_request < forward_switch < second_boot_wait, \
+    "switch to the fresh forward after the reboot request and BEFORE waiting for the second boot"
+# The health gate of the second boot must run on the fresh forward too: every later
+# assignment back to the first-boot forward is a bounded probe that restores it.
+second_gate = installed_code.index('"installed second boot never became healthy"')
+last_assignment = max(match.start() for match in re.finditer(r"^ssh_port = (\w+)$",
+                                                             installed_code[:second_gate], re.M))
+assert installed_code[last_assignment:].startswith("ssh_port = ssh_port_after_reboot"), \
+    "the second-boot health gate must not run through the first-boot forward"
+assert "reboot-channel.txt" in installed_code and "first-boot-forward=" in installed_code, \
+    "record whether the first-boot forward survived: that measurement is what closes P0.8"
 
 
 class SessionIdentityTests(unittest.TestCase):

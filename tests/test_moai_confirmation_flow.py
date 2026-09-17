@@ -17,7 +17,9 @@ from __future__ import annotations
 import json
 import os
 import runpy
+import stat
 import sys
+import tempfile
 import threading
 import time
 import unittest
@@ -35,6 +37,26 @@ import moai_tool_schemas as tool_schemas
 class TestMoaiConfirmationFlow(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        # Doubles for the executors whose REAL run would change this machine. They sit first on
+        # PATH, which is where moai-control's resolve_tool_binary looks first. The read-only
+        # executors stay real.
+        cls.tmp = tempfile.TemporaryDirectory()
+        bindir = Path(cls.tmp.name)
+        cls.calls = bindir / "calls.log"
+        doubles = {
+            # A job that outlives W4's 90 s budget in miniature: slow, then a result on its LAST line.
+            "moai-do": ("#!/bin/sh\n"
+                        f'printf "%s\\n" "moai-do $*" >> "{cls.calls}"\n'
+                        'case "$*" in *optimize*) sleep 2; echo "freed 1.2 GB"; exit 0 ;;\n'
+                        '              *fix-audio*) echo "pipewire would not restart"; exit 3 ;; esac\n'
+                        # Everything else is the REAL executor: the read-only tools stay real.
+                        f'exec bash "{ROOT / "system_files/usr/bin/moai-do"}" "$@"\n'),
+        }
+        for name, body in doubles.items():
+            (bindir / name).write_text(body, encoding="utf-8")
+            (bindir / name).chmod(0o755)
+        cls.old_path = os.environ.get("PATH", "")
+        os.environ["PATH"] = f"{bindir}{os.pathsep}{cls.old_path}"
         cls.ns = runpy.run_path(str(CONTROL_SCRIPT), run_name="moai_control_test")
         handler_cls = cls.ns["H"]
 
@@ -48,6 +70,18 @@ class TestMoaiConfirmationFlow(unittest.TestCase):
     def tearDownClass(cls):
         cls.server.shutdown()
         cls.server.server_close()
+        os.environ["PATH"] = cls.old_path
+        cls.tmp.cleanup()
+
+    def _wait(self, job_id: str, seconds: float = 20.0) -> dict:
+        deadline = time.monotonic() + seconds
+        while time.monotonic() < deadline:
+            status, body = self._req("GET", f"/tool/job?id={job_id}")
+            self.assertEqual(status, 200)
+            if body["status"] != "running":
+                return body
+            time.sleep(0.2)
+        self.fail("the job never finished")
 
     def _req(self, method: str, path: str, data: dict | None = None, headers: dict | None = None):
         url = f"http://127.0.0.1:{self.port}{path}"
@@ -147,6 +181,62 @@ class TestMoaiConfirmationFlow(unittest.TestCase):
         self.assertIn(body.get("status"), ("ok", "error"))
         self.assertIsInstance(body.get("output"), str)
         self.assertIn("failed", body.get("output").lower())
+
+
+    # ── confirmed actions are JOBS: they answer at once and report when they really end ─────
+    def test_a_confirmed_action_runs_as_a_job_and_reads_back_its_real_result(self):
+        started = time.monotonic()
+        status, body = self._req("POST", "/tool/execute",
+                                 {"name": "optimize_system", "arguments": {}, "confirmed": True})
+        self.assertEqual(status, 202, body)
+        self.assertLess(time.monotonic() - started, 1.5,
+                        "a confirmed action must answer at once; W4 held the request for up to "
+                        "90 s and then KILLED moai-do mid-transaction")
+        self.assertEqual(body["status"], "running")
+        # A second state change while one runs is refused, not queued behind the person's back.
+        status, busy = self._req("POST", "/tool/execute",
+                                 {"name": "fix_audio", "arguments": {}, "confirmed": True})
+        self.assertEqual(status, 409, busy)
+        done = self._wait(body["job"])
+        self.assertEqual((done["status"], done["exit_code"]), ("ok", 0))
+        self.assertIn("freed 1.2 GB", done["output"])
+        self.assertIn("moai-do --confirmed optimize", self.calls.read_text(encoding="utf-8"))
+
+    def test_a_failed_job_is_reported_as_failed(self):
+        status, body = self._req("POST", "/tool/execute",
+                                 {"name": "fix_audio", "arguments": {}, "confirmed": True})
+        self.assertEqual(status, 202, body)
+        done = self._wait(body["job"])
+        self.assertEqual((done["status"], done["exit_code"]), ("error", 3))
+        self.assertIn("would not restart", done["output"])
+
+    def test_an_unknown_job_is_not_invented(self):
+        status, body = self._req("GET", "/tool/job?id=feedfacefeedface")
+        self.assertEqual(status, 404)
+
+    def test_confirmation_is_decided_by_the_executor_not_by_the_client(self):
+        # `confirmed` must be the JSON boolean true. W4 used bool(), so the string "false" confirmed.
+        for forged in ("true", "false", 1, "yes"):
+            status, body = self._req("POST", "/tool/execute",
+                                     {"name": "system_update", "arguments": {}, "confirmed": forged})
+            self.assertEqual(status, 403, f"confirmed={forged!r} must not count as confirmation")
+
+    def test_turning_the_radio_off_needs_confirmation_but_on_does_not(self):
+        status, body = self._req("POST", "/tool/execute",
+                                 {"name": "toggle_wifi", "arguments": {"value": "off"}})
+        self.assertEqual(status, 403, "Wi-Fi OFF can cut the owner off from a remotely driven machine")
+        self.assertEqual(body.get("error"), "confirmation_required")
+        status, body = self._req("POST", "/tool/execute",
+                                 {"name": "toggle_bluetooth", "arguments": {"value": "off"}})
+        self.assertEqual(status, 403)
+
+    def test_an_inspector_tool_runs_without_a_card_and_is_redacted(self):
+        status, body = self._req("POST", "/tool/execute",
+                                 {"name": "top_processes", "arguments": {"by": "memory"}})
+        self.assertEqual(status, 200, body)
+        self.assertEqual(body["status"], "ok")
+        self.assertIn("top processes by memory", body["output"])
+        self.assertNotIn(str(Path.home()), body["output"], "the inspector's output must be redacted")
 
 
 if __name__ == "__main__":
