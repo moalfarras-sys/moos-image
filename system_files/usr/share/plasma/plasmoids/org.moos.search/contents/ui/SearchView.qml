@@ -7,6 +7,7 @@ import org.kde.plasma.core as PlasmaCore
 import org.kde.plasma.components as PC3
 import org.kde.kirigami as Kirigami
 import org.moos.ui as MoUI
+import "SearchAnswers.js" as Answers
 
 
 // Source-reviewable Search surface; Plasma owns its models and activation.
@@ -31,6 +32,41 @@ FocusScope {
 
     readonly property bool hasQuery: root.query.trim().length > 0
     readonly property bool compact: width < 480
+
+    readonly property var inlineAnswer: Answers.evaluate(root.query)
+    readonly property bool hasInlineAnswer: inlineAnswer !== null && inlineAnswer.valid === true
+    property bool answerCopied: false
+
+    function copyAnswer() {
+        if (!hasInlineAnswer) return;
+        copyText(inlineAnswer.result);
+        answerCopied = true;
+        answerCopiedTimer.restart();
+    }
+
+    function copyText(val) {
+        clipHelper.copyText(val);
+    }
+
+    TextInput {
+        id: clipHelper
+        width: 1
+        height: 1
+        opacity: 0
+        visible: true
+        function copyText(val) {
+            text = String(val);
+            selectAll();
+            copy();
+        }
+    }
+
+    Timer {
+        id: answerCopiedTimer
+        interval: 2500
+        repeat: false
+        onTriggered: surface.answerCopied = false
+    }
 
     function bidi(value) { return "\u2068" + value + "\u2069"; }
 
@@ -158,7 +194,9 @@ FocusScope {
                         resultList.currentIndex = -1;
                     }
                     onAccepted: {
-                        if (surface.hasQuery) {
+                        if (surface.hasInlineAnswer && resultList.currentIndex < 0) {
+                            surface.copyAnswer();
+                        } else if (surface.hasQuery) {
                             root.runCurrent(Math.max(0, resultList.currentIndex));
                         }
                     }
@@ -214,6 +252,72 @@ FocusScope {
                         root.query = "";
                         surface.focusField();
                     }
+                }
+            }
+        }
+
+        // Inline Answer (Math / Unit conversion / Currency) ─────────────────────────
+        Rectangle {
+            id: heroAnswerCard
+            Layout.fillWidth: true
+            visible: surface.hasInlineAnswer
+            implicitHeight: answerContent.implicitHeight + root.design.space3 * 2
+            radius: root.design.radiusCard
+            color: Qt.alpha(Kirigami.Theme.highlightColor, 0.12)
+            border.width: 1
+            border.color: Qt.alpha(Kirigami.Theme.highlightColor, 0.35)
+
+            RowLayout {
+                id: answerContent
+                anchors.fill: parent
+                anchors.margins: root.design.space3
+                spacing: root.design.space3
+
+                Rectangle {
+                    Layout.preferredWidth: 38
+                    Layout.preferredHeight: 38
+                    radius: root.design.radiusSmall + 2
+                    color: Qt.alpha(Kirigami.Theme.highlightColor, 0.22)
+
+                    Kirigami.Icon {
+                        anchors.centerIn: parent
+                        width: root.design.iconLarge
+                        height: width
+                        source: "moos-spark-symbolic"
+                        animated: false
+                    }
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 1
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: surface.inlineAnswer ? surface.inlineAnswer.expression : ""
+                        color: Kirigami.Theme.disabledTextColor
+                        font.family: root.uiFontFamily
+                        font.pixelSize: root.design.typeCaption
+                        elide: Text.ElideRight
+                    }
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: surface.inlineAnswer ? surface.inlineAnswer.value : ""
+                        color: Kirigami.Theme.textColor
+                        font.family: root.uiFontFamily
+                        font.pixelSize: root.design.typeTitle
+                        font.weight: Font.Bold
+                        elide: Text.ElideRight
+                    }
+                }
+
+                PC3.Button {
+                    text: surface.answerCopied ? root.local("تم النسخ ✓", "Copied ✓") : root.local("نسخ ↵", "Copy ↵")
+                    display: PC3.AbstractButton.TextBesideIcon
+                    icon.name: surface.answerCopied ? "moos-check-symbolic" : "moos-copy-symbolic"
+                    Layout.preferredHeight: 30
+                    onClicked: surface.copyAnswer()
                 }
             }
         }
@@ -291,6 +395,18 @@ FocusScope {
                 Accessible.name: String(resultRow.model.display || "")
                 Accessible.description: String(resultRow.model.subtext || "")
                 readonly property bool current: ListView.isCurrentItem
+                readonly property string filePath: {
+                    if (resultRow.model.urls && resultRow.model.urls.length > 0) {
+                        let u = String(resultRow.model.urls[0]);
+                        return u.startsWith("file://") ? u.slice(7) : u;
+                    }
+                    let st = String(resultRow.model.subtext || "");
+                    if (st.startsWith("/") || st.startsWith("file://")) {
+                        return st.startsWith("file://") ? st.slice(7) : st;
+                    }
+                    return "";
+                }
+                readonly property bool isFile: filePath.length > 0
 
                 onHoveredChanged: if (hovered) ListView.view.currentIndex = index
                 onClicked: root.runCurrent(index)
@@ -353,6 +469,39 @@ FocusScope {
                             elide: Text.ElideMiddle
                         }
                     }
+                    // Quick Actions for file results (Open containing folder, Copy path)
+                    RowLayout {
+                        visible: resultRow.current && resultRow.isFile
+                        spacing: 4
+
+                        PC3.Button {
+                            display: PC3.AbstractButton.IconOnly
+                            icon.name: "moos-folder-symbolic"
+                            Layout.preferredWidth: 26
+                            Layout.preferredHeight: 24
+                            PC3.ToolTip.visible: hovered
+                            PC3.ToolTip.text: root.local("فتح المجلد الحاوي", "Open containing folder")
+                            onClicked: {
+                                let p = resultRow.filePath;
+                                let lastSlash = p.lastIndexOf("/");
+                                let dir = lastSlash > 0 ? p.substring(0, lastSlash) : "/";
+                                Qt.openUrlExternally("file://" + dir);
+                            }
+                        }
+
+                        PC3.Button {
+                            display: PC3.AbstractButton.IconOnly
+                            icon.name: "moos-copy-symbolic"
+                            Layout.preferredWidth: 26
+                            Layout.preferredHeight: 24
+                            PC3.ToolTip.visible: hovered
+                            PC3.ToolTip.text: root.local("نسخ المسار الكامل", "Copy full path")
+                            onClicked: {
+                                surface.copyText(resultRow.filePath);
+                            }
+                        }
+                    }
+
                     // The action a row will take is visible before it is taken.
                     Rectangle {
                         visible: resultRow.current
@@ -378,7 +527,7 @@ FocusScope {
         ColumnLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            visible: surface.hasQuery && resultList.count === 0 && !results.querying
+            visible: surface.hasQuery && !surface.hasInlineAnswer && resultList.count === 0 && !results.querying
             spacing: root.design.space2
             Item { Layout.fillHeight: true }
             Kirigami.Icon {

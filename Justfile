@@ -327,6 +327,8 @@ check:
     python3 tests/test_boot_assessment.py
     python3 tests/test_installer_storage_policy.py
     python3 tests/test_moos_horizon2_surfaces.py
+    python3 tests/test_island_jobs_privacy.py
+    python3 tests/test_search_inline_answers.py
     # The wake receiver is the only way back from an idle gateway. IPv4-only resolution and a
     # pinned-IP fallback keep it alive on a network that blocks Telegram's default address.
     python3 tests/test_moai_wake_telegram_reachability.py

@@ -181,6 +181,8 @@ python3 tests/test_migration_ledger.py
 python3 tests/test_boot_assessment.py
 python3 tests/test_installer_storage_policy.py
 python3 tests/test_moos_horizon2_surfaces.py
+python3 tests/test_island_jobs_privacy.py
+python3 tests/test_search_inline_answers.py
 # moai-wake is the ONLY thing that can wake a sleeping gateway, so if it cannot reach
 # Telegram the phone agent is silently dead while every surface reports healthy. On a
 # host with no IPv6 route it died instantly on the AAAA record ([Errno 101]) and the

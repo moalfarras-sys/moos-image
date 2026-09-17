@@ -405,6 +405,17 @@ PY
     # never evaluated; an empty question simply opens Mo AI.
     ai/ask/*)      query="$(python3 -c 'import sys,urllib.parse; print(urllib.parse.unquote(sys.argv[1])[:2000])' "${tgt#ask/}" 2>/dev/null)";
                    if [ -n "$query" ]; then gui moai --panel chat --ask "$query"; else gui moai; fi ;;
+    privacy/stop/*)
+        privacy_act="${tgt#stop/}"
+        privacy_type="${privacy_act%%/*}"
+        privacy_id="${privacy_act#*/}"
+        [ "$privacy_id" = "$privacy_act" ] && privacy_id=""
+        if [ -x "/usr/bin/moos-privacy-stop" ]; then
+            /usr/bin/moos-privacy-stop "$privacy_type" "$privacy_id"
+        elif [ -x "${BASH_SOURCE%/*}/moos-privacy-stop" ]; then
+            "${BASH_SOURCE%/*}/moos-privacy-stop" "$privacy_type" "$privacy_id"
+        fi
+        notify "تم إيقاف المشاركة | Stream stopped" ;;
     session/lock)  loginctl lock-session ;;
     session/logout) confirm "تسجيل الخروج الآن؟ | Log out now?" \
                           && { qdbus_run org.kde.Shutdown /Shutdown logout 2>/dev/null || true; } ;;

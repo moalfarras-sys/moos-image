@@ -174,6 +174,193 @@ PlasmoidItem {
         }
     }
 
+    function cacheFileUrl(path) {
+        const cache = String(StandardPaths.writableLocation(
+            StandardPaths.CacheLocation));
+        const base = cache.indexOf("file:") === 0
+            ? cache : "file://" + cache;
+        return base + "/" + path;
+    }
+
+    // ── Privacy Presence (Camera, Microphone, Screen Share) ─────────────────────────
+    FolderListModel {
+        id: privacyPresence
+        folder: root.runtimeFileUrl("moos-privacy")
+        nameFilters: ["active-screen-*", "active-camera-*", "active-mic-*"]
+        showDirs: false
+        sortField: FolderListModel.Name
+        onCountChanged: root.syncPrivacyPresence()
+        onStatusChanged: if (status === FolderListModel.Ready) {
+            root.syncPrivacyPresence();
+        }
+    }
+
+    property bool privacyPresent: false
+    property string privacyType: "screen"
+    property string privacyApp: ""
+    property string privacyNodeId: ""
+    property string privacyTitle: ""
+    property string privacySource: ""
+    property string privacyIcon: "moos-cast-symbolic"
+
+    function syncPrivacyPresence() {
+        let foundScreen = false;
+        let foundCamera = false;
+        let foundMic = false;
+        let chosenType = "";
+        let chosenApp = "";
+        let chosenNodeId = "";
+
+        for (let i = 0; i < privacyPresence.count; ++i) {
+            const fileName = String(privacyPresence.get(i, "fileName") || "");
+            const parts = fileName.split("-");
+            if (parts.length >= 3 && parts[0] === "active") {
+                const type = parts[1];
+                const nodeId = parts[2];
+                if (type === "screen") {
+                    foundScreen = true;
+                    if (!chosenType) { chosenType = "screen"; chosenNodeId = nodeId; }
+                } else if (type === "camera") {
+                    foundCamera = true;
+                    if (!chosenType || chosenType === "mic") { chosenType = "camera"; chosenNodeId = nodeId; }
+                } else if (type === "mic") {
+                    foundMic = true;
+                    if (!chosenType) { chosenType = "mic"; chosenNodeId = nodeId; }
+                }
+            }
+        }
+
+        root.privacyPresent = foundScreen || foundCamera || foundMic;
+        if (root.privacyPresent) {
+            root.privacyType = chosenType;
+            root.privacyNodeId = chosenNodeId;
+            try {
+                const req = new XMLHttpRequest();
+                req.open("GET", root.runtimeFileUrl("moos-privacy/active-" + chosenType + "-" + chosenNodeId), false);
+                req.send();
+                if (req.status === 200 || req.responseText) {
+                    const data = JSON.parse(req.responseText);
+                    chosenApp = data.app || "";
+                }
+            } catch (e) {}
+
+            root.privacyApp = chosenApp || (chosenType === "screen" ? "Mo PC Remote" : root.local("تطبيق", "Application"));
+            if (chosenType === "screen") {
+                root.privacyIcon = "moos-cast-symbolic";
+                root.privacyTitle = root.local("مشاركة الشاشة نشطة", "Screen sharing active");
+                root.privacySource = root.local(root.privacyApp + " · انقر للإيقاف", root.privacyApp + " · Tap to stop");
+            } else if (chosenType === "camera") {
+                root.privacyIcon = "moos-camera-symbolic";
+                root.privacyTitle = root.local("الكاميرا قيد الاستخدام", "Camera in use");
+                root.privacySource = root.local(root.privacyApp + " · انقر للإيقاف", root.privacyApp + " · Tap to stop");
+            } else {
+                root.privacyIcon = "moos-microphone-symbolic";
+                root.privacyTitle = root.local("الميكروفون قيد الاستخدام", "Microphone in use");
+                root.privacySource = root.local(root.privacyApp + " · انقر للإيقاف", root.privacyApp + " · Tap to stop");
+            }
+        }
+    }
+
+    // ── Store Job Presence (Downloads, Installs, Updates) ───────────────────────────
+    FolderListModel {
+        id: storeJobPresence
+        folder: root.cacheFileUrl("moos-store")
+        nameFilters: ["job.json"]
+        showDirs: false
+        onCountChanged: root.syncStoreJob()
+        onStatusChanged: if (status === FolderListModel.Ready) {
+            root.syncStoreJob();
+        }
+    }
+
+    property bool storeJobPresent: false
+    property bool storeJobActive: false
+    property string storeJobAction: "install"
+    property real storeJobProgress: 0
+    property string storeJobCurrentId: ""
+    property string storeJobMessage: ""
+    property string storeJobTitle: ""
+    property string storeJobSource: ""
+    property string storeJobIcon: "moos-install-symbolic"
+
+    Timer {
+        id: storeJobSyncTimer
+        interval: 800
+        repeat: true
+        running: root.storeJobActive
+        onTriggered: root.syncStoreJob()
+    }
+
+    Timer {
+        id: storeJobFinishTimer
+        interval: 3500
+        repeat: false
+        onTriggered: {
+            root.storeJobPresent = false;
+        }
+    }
+
+    function syncStoreJob() {
+        try {
+            const req = new XMLHttpRequest();
+            req.open("GET", root.cacheFileUrl("moos-store/job.json") + "?v=" + Date.now(), false);
+            req.send();
+            if (!req.responseText) return;
+            const doc = JSON.parse(req.responseText);
+            const state = String(doc.state || "");
+            const action = String(doc.action || "install");
+            const progress = Number(doc.progress || 0);
+            const currentId = String(doc.current_id || (doc.items && doc.items.length > 0 ? doc.items[0].id : ""));
+            const message = String(doc.message || "");
+
+            root.storeJobAction = action;
+            root.storeJobProgress = progress;
+            root.storeJobCurrentId = currentId;
+            root.storeJobMessage = message;
+            root.storeJobIcon = action === "update" ? "moos-safe-update-symbolic" : "moos-install-symbolic";
+
+            const appDisplay = currentId ? (currentId.charAt(0).toUpperCase() + currentId.slice(1)) : root.local("التطبيقات", "Apps");
+            if (action === "update") {
+                root.storeJobTitle = root.local("تحديث " + appDisplay, "Updating " + appDisplay);
+            } else if (action === "uninstall") {
+                root.storeJobTitle = root.local("إزالة " + appDisplay, "Uninstalling " + appDisplay);
+            } else {
+                root.storeJobTitle = root.local("تثبيت " + appDisplay, "Installing " + appDisplay);
+            }
+
+            if (state === "running" || state === "starting") {
+                root.storeJobActive = true;
+                root.storeJobPresent = true;
+                storeJobFinishTimer.stop();
+                root.storeJobSource = progress > 0
+                    ? (progress + "% · " + (message || root.local("جاري العمل...", "In progress...")))
+                    : (message || root.local("جاري البدء...", "Starting..."));
+            } else if (state === "success" || state === "succeeded") {
+                if (root.storeJobActive) {
+                    root.storeJobActive = false;
+                    root.storeJobProgress = 100;
+                    root.storeJobTitle = root.local("اكتمل " + root.storeJobTitle, root.storeJobTitle + " complete");
+                    root.storeJobSource = root.local("تم بنجاح ✓", "Completed successfully ✓");
+                    storeJobFinishTimer.restart();
+                }
+            } else if (state === "failed") {
+                if (root.storeJobActive) {
+                    root.storeJobActive = false;
+                    root.storeJobTitle = root.local("تعذّر " + root.storeJobTitle, root.storeJobTitle + " failed");
+                    root.storeJobSource = message || root.local("حدث خطأ", "An error occurred");
+                    storeJobFinishTimer.restart();
+                }
+            } else {
+                root.storeJobActive = false;
+                if (!storeJobFinishTimer.running) {
+                    root.storeJobPresent = false;
+                }
+            }
+        } catch (e) {
+            // No valid job file
+        }
+    }
+
     // Mpris2Model deliberately owns active-player selection. Building another
     // registry here would disagree with Plasma and break browser Media Session.
     Mpris.Mpris2Model { id: players }
@@ -245,11 +432,23 @@ PlasmoidItem {
     // media too, without hiding the live sharing indicator or picking another
     // player outside Plasma's MPRIS authority.
     property string detailContext: "remote"
-    readonly property bool multipleContexts: root.remotePresent && root.mediaPresent
+    readonly property bool multipleContexts: (root.remotePresent ? 1 : 0)
+        + (root.privacyPresent ? 1 : 0)
+        + (root.storeJobPresent ? 1 : 0)
+        + (root.mediaPresent ? 1 : 0) > 1
     readonly property bool showRemoteDetails: root.remotePresent
-        && (root.detailContext !== "media" || !root.mediaPresent)
+        && (root.detailContext === "remote" || (!root.mediaPresent && !root.privacyPresent && !root.storeJobPresent))
+    readonly property bool showPrivacyDetails: root.privacyPresent
+        && (root.detailContext === "privacy" || (!root.remotePresent && !root.storeJobPresent && !root.mediaPresent))
+    readonly property bool showStoreDetails: root.storeJobPresent
+        && (root.detailContext === "store" || (!root.remotePresent && !root.privacyPresent && !root.mediaPresent))
+    readonly property bool showMediaDetails: root.mediaPresent
+        && (root.detailContext === "media" || (!root.remotePresent && !root.privacyPresent && !root.storeJobPresent))
     function openDetails() {
-        root.detailContext = root.remotePresent ? "remote" : "media";
+        if (root.remotePresent) { root.detailContext = "remote"; }
+        else if (root.privacyPresent) { root.detailContext = "privacy"; }
+        else if (root.storeJobPresent) { root.detailContext = "store"; }
+        else { root.detailContext = "media"; }
         root.expanded = true;
     }
 
@@ -270,14 +469,32 @@ PlasmoidItem {
     readonly property bool mediaPresent: root.hasPlayer
         && root.playbackStatus > Mpris.PlaybackStatus.Stopped
         && (root.track.length > 0 || root.identity.length > 0)
-    readonly property bool active: root.remotePresent || root.mediaPresent
+    readonly property bool active: root.remotePresent
+                                   || root.privacyPresent
+                                   || root.storeJobPresent
+                                   || root.mediaPresent
                                    || releaseGrace.running
     readonly property string contextTitle: root.remotePresent
-        ? root.remoteTitle : root.displayTrack
+        ? root.remoteTitle
+        : (root.privacyPresent
+            ? root.privacyTitle
+            : (root.storeJobPresent
+                ? root.storeJobTitle
+                : root.displayTrack))
     readonly property string contextSource: root.remotePresent
-        ? root.remoteSource : root.displaySource
+        ? root.remoteSource
+        : (root.privacyPresent
+            ? root.privacySource
+            : (root.storeJobPresent
+                ? root.storeJobSource
+                : root.displaySource))
     readonly property string contextIcon: root.remotePresent
-        ? "moos-pc-remote" : root.playerIcon
+        ? "moos-pc-remote"
+        : (root.privacyPresent
+            ? root.privacyIcon
+            : (root.storeJobPresent
+                ? root.storeJobIcon
+                : root.playerIcon))
 
     onMediaPresentChanged: {
         if (root.mediaPresent) { releaseGrace.stop(); }
@@ -587,6 +804,8 @@ PlasmoidItem {
                         asynchronous: true
                         sourceSize.width: root.decodePx(width)
                         visible: !root.remotePresent
+                                 && !root.privacyPresent
+                                 && !root.storeJobPresent
                                  && root.artworkSource.length > 0
                                  && status === Image.Ready
                         onStatusChanged: if (status === Image.Error
@@ -599,7 +818,11 @@ PlasmoidItem {
                         width: 22
                         height: 22
                         source: root.contextIcon
-                        color: Kirigami.Theme.highlightColor
+                        color: root.privacyPresent
+                            ? (root.privacyType === "camera"
+                                ? Kirigami.Theme.positiveTextColor
+                                : (root.privacyType === "screen" ? Kirigami.Theme.highlightColor : Kirigami.Theme.neutralTextColor))
+                            : Kirigami.Theme.highlightColor
                         visible: !compactArt.visible
                     }
 
@@ -620,6 +843,27 @@ PlasmoidItem {
                         color: root.remoteMode === "paused"
                             ? Kirigami.Theme.neutralTextColor
                             : Kirigami.Theme.positiveTextColor
+                        border.width: 2
+                        border.color: Kirigami.Theme.backgroundColor
+                    }
+
+                    // Status dot for active privacy usage (Camera = green, Screen = cyan, Mic = amber)
+                    Rectangle {
+                        visible: !root.remotePresent && root.privacyPresent
+                        width: 10
+                        height: 10
+                        radius: 5
+                        anchors.top: parent.top
+                        anchors.topMargin: -2
+                        anchors.right: root.rtl ? undefined : parent.right
+                        anchors.left: root.rtl ? parent.left : undefined
+                        anchors.rightMargin: -2
+                        anchors.leftMargin: -2
+                        color: root.privacyType === "camera"
+                            ? Kirigami.Theme.positiveTextColor
+                            : (root.privacyType === "screen"
+                                ? Kirigami.Theme.highlightColor
+                                : Kirigami.Theme.neutralTextColor)
                         border.width: 2
                         border.color: Kirigami.Theme.backgroundColor
                     }
@@ -756,7 +1000,7 @@ PlasmoidItem {
                 }
 
                 MediaControl {
-                    revealed: !root.remotePresent && root.compactInteractive
+                    revealed: !root.remotePresent && !root.privacyPresent && !root.storeJobPresent && root.compactInteractive
                               && root.canGoPrevious
                     controlEnabled: root.canGoPrevious
                     iconName: root.rtl ? "media-skip-forward-symbolic"
@@ -768,7 +1012,7 @@ PlasmoidItem {
                 // Play/pause is the one control that never hides: it is why the
                 // capsule is reachable at all without opening anything.
                 MediaControl {
-                    revealed: !root.remotePresent
+                    revealed: !root.remotePresent && !root.privacyPresent && !root.storeJobPresent
                     controlEnabled: root.playing
                         ? root.canPause : (root.canPlay || root.canControl)
                     iconName: root.playing ? "media-playback-pause-symbolic"
@@ -779,7 +1023,7 @@ PlasmoidItem {
                 }
 
                 MediaControl {
-                    revealed: !root.remotePresent && root.compactInteractive
+                    revealed: !root.remotePresent && !root.privacyPresent && !root.storeJobPresent && root.compactInteractive
                               && root.canGoNext
                     controlEnabled: root.canGoNext
                     iconName: root.rtl ? "media-skip-backward-symbolic"
@@ -789,7 +1033,7 @@ PlasmoidItem {
                 }
 
                 MediaControl {
-                    revealed: !root.remotePresent && root.compactInteractive
+                    revealed: !root.remotePresent && !root.privacyPresent && !root.storeJobPresent && root.compactInteractive
                               && root.hasVolume
                     controlEnabled: root.hasVolume
                     iconName: root.volume <= 0.01
@@ -799,6 +1043,24 @@ PlasmoidItem {
                         ? root.local("إلغاء الكتم", "Unmute")
                         : root.local("كتم", "Mute")
                     onActivated: root.toggleMuted()
+                }
+
+                // One-tap stop for privacy streams
+                MediaControl {
+                    revealed: !root.remotePresent && root.privacyPresent
+                    controlEnabled: true
+                    iconName: "moos-close-symbolic"
+                    label: root.local("إيقاف", "Stop")
+                    onActivated: Qt.openUrlExternally("moos://privacy/stop/" + root.privacyType + "/" + root.privacyNodeId)
+                }
+
+                // Quick open for Store jobs
+                MediaControl {
+                    revealed: !root.remotePresent && !root.privacyPresent && root.storeJobPresent
+                    controlEnabled: true
+                    iconName: "moos-store"
+                    label: root.local("المتجر", "Store")
+                    onActivated: Qt.openUrlExternally("moos://app/store")
                 }
 
                 MediaControl {
@@ -826,7 +1088,8 @@ PlasmoidItem {
                 Layout.preferredHeight: 3
                 Layout.leftMargin: compactShell.radius * 0.35
                 Layout.rightMargin: compactShell.radius * 0.35
-                visible: !root.remotePresent && root.hasTimeline
+                visible: (!root.remotePresent && !root.privacyPresent && !root.storeJobPresent && root.hasTimeline)
+                         || (!root.remotePresent && !root.privacyPresent && root.storeJobPresent && root.storeJobProgress > 0)
 
                 Rectangle {
                     anchors.fill: parent
@@ -838,7 +1101,7 @@ PlasmoidItem {
                     anchors.bottom: parent.bottom
                     anchors.left: root.rtl ? undefined : parent.left
                     anchors.right: root.rtl ? parent.right : undefined
-                    width: parent.width * root.progress
+                    width: parent.width * (root.storeJobPresent ? root.bounded(root.storeJobProgress / 100, 0, 1) : root.progress)
                     radius: height / 2
                     color: Kirigami.Theme.highlightColor
                     // A settle, not a crawl: position only arrives while the
@@ -861,11 +1124,11 @@ PlasmoidItem {
 
         Layout.preferredWidth: Kirigami.Units.gridUnit * 21
         Layout.preferredHeight: Kirigami.Units.gridUnit
-                                * (root.showRemoteDetails ? 13 : 17)
+                                * ((root.showRemoteDetails || root.showPrivacyDetails || root.showStoreDetails) ? 13 : 17)
                                 + (root.multipleContexts ? 48 : 0)
         Layout.minimumWidth: Kirigami.Units.gridUnit * 18
         Layout.minimumHeight: Kirigami.Units.gridUnit
-                              * (root.showRemoteDetails ? 12 : 15)
+                              * ((root.showRemoteDetails || root.showPrivacyDetails || root.showStoreDetails) ? 12 : 15)
                               + (root.multipleContexts ? 48 : 0)
         opacity: root.motionEnabled ? 0 : 1
         scale: root.motionEnabled ? 0.96 : 1
@@ -910,15 +1173,29 @@ PlasmoidItem {
             anchors.right: parent.right
             anchors.margins: root.design.space4
             visible: root.multipleContexts
-            currentIndex: root.showRemoteDetails ? 0 : 1
+            currentIndex: root.showRemoteDetails ? 0 : (root.showPrivacyDetails ? 1 : (root.showStoreDetails ? 2 : 3))
             LayoutMirroring.enabled: root.rtl
             LayoutMirroring.childrenInherit: true
             PC3.TabButton {
+                visible: root.remotePresent
                 text: root.local("التحكم عن بُعد", "Remote")
                 icon.name: "moos-pc-remote"
                 onClicked: root.detailContext = "remote"
             }
             PC3.TabButton {
+                visible: root.privacyPresent
+                text: root.local("الخصوصية", "Privacy")
+                icon.name: root.privacyIcon
+                onClicked: root.detailContext = "privacy"
+            }
+            PC3.TabButton {
+                visible: root.storeJobPresent
+                text: root.local("المتجر", "Store")
+                icon.name: root.storeJobIcon
+                onClicked: root.detailContext = "store"
+            }
+            PC3.TabButton {
+                visible: root.mediaPresent
                 text: root.local("الوسائط", "Media")
                 icon.name: root.playerIcon
                 onClicked: root.detailContext = "media"
@@ -1025,7 +1302,204 @@ PlasmoidItem {
             anchors.topMargin: root.multipleContexts
                 ? contextTabs.height + root.design.space5 * 2 : root.design.space5
             spacing: root.design.space4
-            visible: !root.showRemoteDetails
+            visible: root.showPrivacyDetails
+            layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: root.design.space4
+
+                Rectangle {
+                    Layout.preferredWidth: 76
+                    Layout.preferredHeight: 76
+                    radius: root.design.radiusCard
+                    color: Qt.alpha(root.privacyType === "camera"
+                        ? Kirigami.Theme.positiveTextColor
+                        : (root.privacyType === "screen" ? Kirigami.Theme.highlightColor : Kirigami.Theme.neutralTextColor), 0.16)
+
+                    Kirigami.Icon {
+                        anchors.centerIn: parent
+                        width: 40
+                        height: 40
+                        source: root.privacyIcon
+                        color: root.privacyType === "camera"
+                            ? Kirigami.Theme.positiveTextColor
+                            : (root.privacyType === "screen" ? Kirigami.Theme.highlightColor : Kirigami.Theme.neutralTextColor)
+                    }
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: root.design.space1
+
+                    PlasmaExtras.Heading {
+                        Layout.fillWidth: true
+                        text: root.privacyTitle
+                        level: 3
+                        maximumLineCount: 2
+                        wrapMode: Text.Wrap
+                        horizontalAlignment: root.rtl ? Text.AlignRight : Text.AlignLeft
+                    }
+                    PC3.Label {
+                        Layout.fillWidth: true
+                        text: root.privacyApp
+                        color: Kirigami.Theme.disabledTextColor
+                        font.pixelSize: root.design.typeSecondary
+                        horizontalAlignment: root.rtl ? Text.AlignRight : Text.AlignLeft
+                    }
+                }
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 1
+                color: Qt.alpha(Kirigami.Theme.textColor, 0.12)
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: root.design.space3
+
+                Rectangle {
+                    Layout.preferredWidth: 10
+                    Layout.preferredHeight: 10
+                    radius: 5
+                    color: root.privacyType === "camera"
+                        ? Kirigami.Theme.positiveTextColor
+                        : (root.privacyType === "screen" ? Kirigami.Theme.highlightColor : Kirigami.Theme.neutralTextColor)
+                }
+                PC3.Label {
+                    Layout.fillWidth: true
+                    text: root.privacyType === "screen"
+                        ? root.local("تتم مشاركة الشاشة حالياً مع هذا التطبيق.",
+                                     "Screen sharing is currently active with this app.")
+                        : (root.privacyType === "camera"
+                            ? root.local("الكاميرا قيد الاستخدام حالياً بواسطة هذا التطبيق.",
+                                         "Camera is currently in use by this app.")
+                            : root.local("الميكروفون قيد التسجيل حالياً بواسطة هذا التطبيق.",
+                                         "Microphone is currently in use by this app."))
+                    wrapMode: Text.Wrap
+                    color: Kirigami.Theme.textColor
+                    horizontalAlignment: root.rtl ? Text.AlignRight : Text.AlignLeft
+                }
+            }
+
+            Item { Layout.fillHeight: true }
+
+            PC3.Button {
+                Layout.fillWidth: true
+                text: root.local("إيقاف فوري بنقرة واحدة", "Stop with One Tap")
+                icon.name: "media-playback-stop-symbolic"
+                onClicked: {
+                    Qt.openUrlExternally("moos://privacy/stop/" + root.privacyType + "/" + root.privacyNodeId);
+                    root.expanded = false;
+                }
+            }
+        }
+
+        ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: root.design.space5
+            anchors.topMargin: root.multipleContexts
+                ? contextTabs.height + root.design.space5 * 2 : root.design.space5
+            spacing: root.design.space4
+            visible: root.showStoreDetails
+            layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: root.design.space4
+
+                Rectangle {
+                    Layout.preferredWidth: 76
+                    Layout.preferredHeight: 76
+                    radius: root.design.radiusCard
+                    color: Qt.alpha(Kirigami.Theme.highlightColor, 0.16)
+
+                    Kirigami.Icon {
+                        anchors.centerIn: parent
+                        width: 40
+                        height: 40
+                        source: root.storeJobIcon
+                        color: Kirigami.Theme.highlightColor
+                    }
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: root.design.space1
+
+                    PlasmaExtras.Heading {
+                        Layout.fillWidth: true
+                        text: root.storeJobTitle
+                        level: 3
+                        maximumLineCount: 2
+                        wrapMode: Text.Wrap
+                        horizontalAlignment: root.rtl ? Text.AlignRight : Text.AlignLeft
+                    }
+                    PC3.Label {
+                        Layout.fillWidth: true
+                        text: root.storeJobSource
+                        color: Kirigami.Theme.disabledTextColor
+                        font.pixelSize: root.design.typeSecondary
+                        horizontalAlignment: root.rtl ? Text.AlignRight : Text.AlignLeft
+                    }
+                }
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 1
+                color: Qt.alpha(Kirigami.Theme.textColor, 0.12)
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: root.design.space2
+                visible: root.storeJobProgress > 0
+
+                PC3.ProgressBar {
+                    Layout.fillWidth: true
+                    from: 0
+                    to: 100
+                    value: root.storeJobProgress
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    PC3.Label {
+                        text: root.storeJobMessage
+                        color: Kirigami.Theme.disabledTextColor
+                        font.pixelSize: root.design.typeCaption
+                        elide: Text.ElideRight
+                    }
+                    Item { Layout.fillWidth: true }
+                    PC3.Label {
+                        text: Math.round(root.storeJobProgress) + "%"
+                        color: Kirigami.Theme.highlightColor
+                        font.pixelSize: root.design.typeCaption
+                        font.weight: Font.Bold
+                    }
+                }
+            }
+
+            Item { Layout.fillHeight: true }
+
+            PC3.Button {
+                Layout.fillWidth: true
+                text: root.local("فتح متجر Mo Store", "Open Mo Store")
+                icon.name: "moos-store"
+                onClicked: Qt.openUrlExternally("moos://app/store")
+            }
+        }
+
+        ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: root.design.space5
+            anchors.topMargin: root.multipleContexts
+                ? contextTabs.height + root.design.space5 * 2 : root.design.space5
+            spacing: root.design.space4
+            visible: root.showMediaDetails
             layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
             RowLayout {
