@@ -2748,6 +2748,7 @@ systemctl --global enable moos-reclaim-disk.timer
 # "no changes" and say nothing. This timer is the only thing on the desktop that
 # tells the person their update is ready — once per staged version, never a nag.
 systemctl --global enable moos-update-ready.timer
+systemctl --global enable moos-privacy-monitor.service
 
 # An installed bootc system uses an OSTree/composefs overlay for /. Anaconda's
 # generated physical-root fstab entry makes systemd-remount-fs attempt an

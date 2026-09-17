@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# moos-privacy-stop — One-tap stop for active privacy streams (screen, camera, mic).
+set -uo pipefail
+
+type="${1:-}"
+target="${2:-}"
+
+case "$type" in
+    screen)
+        if [ -n "$target" ] && command -v pw-cli >/dev/null 2>&1; then
+            pw-cli destroy "$target" >/dev/null 2>&1 || true
+        fi
+        # If the target is mo-remote, we can also pause or stop remote
+        if [ "$target" = "remote" ] || [ "$target" = "moremote" ]; then
+            command -v moai-do >/dev/null 2>&1 && moai-do remote-stop >/dev/null 2>&1 || true
+        fi
+        ;;
+    camera)
+        if [ -n "$target" ] && command -v pw-cli >/dev/null 2>&1; then
+            pw-cli destroy "$target" >/dev/null 2>&1 || true
+        fi
+        ;;
+    mic|microphone)
+        if command -v wpctl >/dev/null 2>&1; then
+            wpctl set-mute @DEFAULT_AUDIO_SOURCE@ 1 >/dev/null 2>&1 || true
+        fi
+        if [ -n "$target" ] && command -v pw-cli >/dev/null 2>&1; then
+            pw-cli destroy "$target" >/dev/null 2>&1 || true
+        fi
+        ;;
+    *)
+        echo "Usage: moos-privacy-stop <screen|camera|mic> [node_id]" >&2
+        exit 1
+        ;;
+esac
+
+exit 0

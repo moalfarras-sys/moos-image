@@ -1,0 +1,290 @@
+#!/usr/bin/env python3
+"""MoOS Privacy Monitor.
+
+Inspects PipeWire streams in real-time to detect active hardware and capture usage:
+- Camera (Video/Source capture)
+- Microphone (Audio/Source capture)
+- Screen share (kwin_wayland screencast / portal capture)
+
+Publishes atomic status tokens into $XDG_RUNTIME_DIR/moos-privacy/ for instant,
+zero-polling consumption by the MoOS Island plasmoid (org.moos.island).
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+from pathlib import Path
+import signal
+import subprocess
+import sys
+import time
+from typing import Any
+
+
+def get_runtime_dir() -> Path:
+    env_runtime = os.environ.get("XDG_RUNTIME_DIR")
+    if env_runtime:
+        return Path(env_runtime) / "moos-privacy"
+    return Path(f"/run/user/{os.getuid()}/moos-privacy")
+
+
+def sanitize_app_name(raw: str, pid: int | None = None) -> str:
+    if not raw and pid:
+        try:
+            cmd = Path(f"/proc/{pid}/cmdline").read_bytes().split(b"\x00")
+            if cmd and cmd[0]:
+                raw = Path(cmd[0].decode("utf-8", errors="replace")).name
+        except (OSError, ValueError):
+            pass
+
+    if not raw:
+        return "Application"
+
+    name = raw.strip()
+    lower = name.lower()
+    if "mo-remote-portal" in lower or (pid and is_process_mo_remote(pid)):
+        return "Mo PC Remote"
+    if "chrome" in lower:
+        return "Google Chrome"
+    if "chromium" in lower:
+        return "Chromium"
+    if "firefox" in lower:
+        return "Firefox"
+    if "telegram" in lower:
+        return "Telegram"
+    if "discord" in lower:
+        return "Discord"
+    if "obs" in lower:
+        return "OBS Studio"
+    if "kwin" in lower:
+        return "KWin Screen"
+    if "python" in lower and pid:
+        try:
+            cmdline = Path(f"/proc/{pid}/cmdline").read_bytes().replace(b"\x00", b" ").decode("utf-8", errors="replace")
+            if "mo-remote" in cmdline:
+                return "Mo PC Remote"
+        except (OSError, ValueError):
+            pass
+
+    return name
+
+
+def is_process_mo_remote(pid: int) -> bool:
+    try:
+        cmdline = Path(f"/proc/{pid}/cmdline").read_bytes().decode("utf-8", errors="replace")
+        return "mo-remote" in cmdline
+    except (OSError, ValueError):
+        return False
+
+
+def query_pipewire() -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    """Query PipeWire nodes, links, and clients using pw-dump."""
+    def run_dump(item: str) -> list[dict[str, Any]]:
+        try:
+            res = subprocess.run(
+                ["pw-dump", item],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=3,
+            )
+            if res.returncode == 0 and res.stdout.strip():
+                return json.loads(res.stdout)
+        except (subprocess.TimeoutExpired, json.JSONDecodeError, OSError):
+            pass
+        return []
+
+    return run_dump("Node"), run_dump("Link"), run_dump("Client")
+
+
+def analyze_streams(
+    nodes: list[dict[str, Any]],
+    links: list[dict[str, Any]],
+    clients: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Determine active privacy streams from PipeWire state."""
+    client_map: dict[int, dict[str, Any]] = {}
+    for c in clients:
+        cid = c.get("id")
+        props = c.get("info", {}).get("props", {})
+        app = props.get("application.name") or props.get("application.process.binary") or ""
+        pid = props.get("application.process.id")
+        client_map[cid] = {"app": app, "pid": pid}
+
+    node_map: dict[int, dict[str, Any]] = {}
+    sources: dict[int, dict[str, Any]] = {}
+
+    for n in nodes:
+        nid = n.get("id")
+        if not nid:
+            continue
+        info = n.get("info", {})
+        props = info.get("props", {})
+        cid = props.get("client.id")
+        client_info = client_map.get(cid, {}) if cid else {}
+        media_class = props.get("media.class", "")
+        media_name = props.get("media.name", "")
+        node_name = props.get("node.name", "")
+        state = info.get("state", "")
+        app = props.get("application.name") or client_info.get("app") or node_name
+        pid = props.get("application.process.id") or client_info.get("pid")
+
+        entry = {
+            "id": nid,
+            "media_class": media_class,
+            "media_name": media_name,
+            "node_name": node_name,
+            "state": state,
+            "app": sanitize_app_name(app, pid),
+            "pid": pid,
+            "client_id": cid,
+        }
+        node_map[nid] = entry
+        if media_class in {"Audio/Source", "Video/Source"} or "screencast" in media_name:
+            sources[nid] = entry
+
+    # Map active links
+    active_links: list[tuple[int, int]] = []
+    for l in links:
+        info = l.get("info", {})
+        state = info.get("state", "")
+        props = info.get("props", {})
+        out_node = props.get("link.output.node")
+        in_node = props.get("link.input.node")
+        if out_node and in_node and state == "active":
+            active_links.append((out_node, in_node))
+
+    active_streams: list[dict[str, Any]] = []
+
+    # 1. Screen sharing
+    for nid, node in node_map.items():
+        if node["state"] != "running":
+            continue
+        is_screen = False
+        app_name = node["app"]
+        target_node = nid
+
+        if "screencast" in node["media_name"].lower() or "screencast" in node["node_name"].lower():
+            is_screen = True
+            for out_id, in_id in active_links:
+                if out_id == nid and in_id in node_map:
+                    app_name = node_map[in_id]["app"]
+                    target_node = in_id
+                    break
+        elif node["media_class"] == "Stream/Output/Video" and "kwin" in node["node_name"].lower():
+            is_screen = True
+            for out_id, in_id in active_links:
+                if out_id == nid and in_id in node_map:
+                    app_name = node_map[in_id]["app"]
+                    target_node = in_id
+                    break
+
+        if is_screen:
+            active_streams.append({
+                "type": "screen",
+                "app": app_name,
+                "node_id": target_node,
+                "source_node": nid,
+                "pid": node_map.get(target_node, {}).get("pid"),
+            })
+
+    # 2. Camera streams
+    for nid, node in node_map.items():
+        if node["state"] != "running":
+            continue
+        if node["media_class"] == "Stream/Input/Video":
+            linked_source = False
+            for out_id, in_id in active_links:
+                if in_id == nid and out_id in sources:
+                    if sources[out_id]["media_class"] == "Video/Source":
+                        linked_source = True
+                        break
+            if linked_source or ("screencast" not in node["media_name"].lower()
+                                and not any(s["node_id"] == nid for s in active_streams if s["type"] == "screen")):
+                active_streams.append({
+                    "type": "camera",
+                    "app": node["app"],
+                    "node_id": nid,
+                    "pid": node["pid"],
+                })
+
+    # 3. Microphone streams
+    for nid, node in node_map.items():
+        if node["state"] != "running":
+            continue
+        if node["media_class"] == "Stream/Input/Audio":
+            active_streams.append({
+                "type": "mic",
+                "app": node["app"],
+                "node_id": nid,
+                "pid": node["pid"],
+            })
+
+    return active_streams
+
+
+def write_tokens(streams: list[dict[str, Any]], target_dir: Path) -> None:
+    """Atomically write active stream tokens into target directory."""
+    target_dir.mkdir(parents=True, exist_ok=True)
+    current_tokens = set()
+
+    for idx, stream in enumerate(streams):
+        stype = stream["type"]
+        nid = stream.get("node_id", idx)
+        filename = f"active-{stype}-{nid}"
+        current_tokens.add(filename)
+        filepath = target_dir / filename
+        tmp_path = target_dir / f".{filename}.tmp"
+
+        payload = json.dumps(stream, ensure_ascii=False).encode("utf-8")
+        tmp_path.write_bytes(payload)
+        tmp_path.replace(filepath)
+
+    for existing in target_dir.glob("active-*"):
+        if existing.name not in current_tokens:
+            try:
+                existing.unlink()
+            except OSError:
+                pass
+
+
+def cleanup(target_dir: Path) -> None:
+    if target_dir.exists():
+        for f in target_dir.glob("active-*"):
+            try:
+                f.unlink()
+            except OSError:
+                pass
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="MoOS Privacy Monitor")
+    parser.add_argument("--once", action="store_true", help="Run once and exit")
+    parser.add_argument("--dir", type=Path, help="Override target runtime directory")
+    args = parser.parse_args()
+
+    target_dir = args.dir or get_runtime_dir()
+
+    def handle_sig(sig: int, frame: Any) -> None:
+        cleanup(target_dir)
+        sys.exit(0)
+
+    signal.signal(signal.SIGTERM, handle_sig)
+    signal.signal(signal.SIGINT, handle_sig)
+
+    while True:
+        nodes, links, clients = query_pipewire()
+        streams = analyze_streams(nodes, links, clients)
+        write_tokens(streams, target_dir)
+
+        if args.once:
+            print(json.dumps(streams, ensure_ascii=False, indent=2))
+            return 0
+
+        time.sleep(1.5)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

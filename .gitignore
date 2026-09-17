@@ -55,6 +55,7 @@ USER.md
 DREAMS.md
 openclaw-workspace-state.json
 memory/
+.kilo/
 # Voice notes and images the Telegram assistant staged locally. Private user
 # content that has nothing to do with the image — never commit it.
 media/

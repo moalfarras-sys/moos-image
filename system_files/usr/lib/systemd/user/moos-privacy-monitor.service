@@ -1,0 +1,15 @@
+[Unit]
+Description=MoOS Privacy Monitor Service
+Documentation=https://github.com/moalfarras-sys/moos-image
+After=pipewire.service wireplumber.service
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/libexec/moos-privacy-monitor
+Restart=always
+RestartSec=2
+Slice=app.slice
+
+[Install]
+WantedBy=graphical-session.target
