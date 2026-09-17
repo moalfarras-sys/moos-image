@@ -1,5 +1,36 @@
 # MoOS — current project state
 
+**Live ARM search repair (2026-09-12):** on signed booted
+`44.20260912.353` (`sha256:a860e8c29ec15b40593f9240522a5353885e8329acdf50e204b99fefad749ab1`),
+Baloo was explicitly disabled in the user's config. Search is restored with
+filename-only indexing, read back through `balooctl6`: running/idle, 25,077
+indexed files, zero waiting for content extraction, zero failed files. Native
+`baloosearch6 filename:AGENTS.md` returned this checkout's actual file.
+The configuration backup is
+`~/.local/state/moos/repairs/system-check-20260912-122305/baloofilerc.before`.
+
+The audit found a source defect: `moos-index-policy` wrote `only basic indexing`
+under `[Basic Settings]`; Baloo reads it under `[General]`. Earlier claims that
+the consumer reliably applied the filename budget were therefore insufficient.
+Source now writes/reads the correct group, ignores stale wrong-group keys in
+its fallback, and avoids captured output pipes when enabling the daemon.
+Both runtime diagnostics compare Baloo's effective mode with the actual machine
+budget instead of requiring content extraction on every machine. The regression
+gate uses real isolated KConfig/Baloo readback when available (run on this host),
+checks both modes and diagnostic mismatches, and rejects the old wrong-group
+implementation. The repaired source post-update check reports **55 passed, 0
+failed**; source selfcheck reports **46 passed, 1 failure**, the preserved local
+MoKernel override below. UX/device-plan gates and shell syntax passed.
+
+Preserved `/etc/sysctl.d/99-moos-performance.conf` (created September 10):
+swappiness 100 and dirty_ratio 15 override the image's 150/10. This is a local
+configuration difference, not evidence that sysctl failed. No kernel, boot,
+Remote, or image deployment was changed; the previous signed `.333` deployment
+remains available. No failed system/user units remained. Source changes are on
+`fix/system-search-20260912`; no image build, push, release or reboot was done.
+The installed selfcheck still has the old unconditional content-indexing check
+until these source changes ship; the corrected verifier was run from the checkout.
+
 **The x86/NVIDIA release train, and why it was stuck (2026-09-08, Oracle A1):**
 `moos:latest`, `moos-nvidia:latest` and `moos-cloud:latest` had not moved since
 **2026-08-23** (`44.20260823.650`) while ARM's `latest` was current. That is not

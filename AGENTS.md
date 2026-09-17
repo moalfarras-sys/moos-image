@@ -235,6 +235,15 @@ with `screendump` takes about half an hour and is the only thing that found any 
 
 ## Things that are easy to get wrong here
 
+**A KConfig readback can agree with a write that the application ignores.**
+`moos-index-policy` wrote `only basic indexing=true` under `[Basic Settings]`
+and read it back there, but Baloo reads that option under `[General]` and kept
+extracting content. `[Basic Settings]` owns `Indexing-Enabled` instead. Verify
+with `balooctl6 config list contentIndexing`, and compare the result to
+`moos-visual-tier`'s budget; filename-only is intentional on the essential tier.
+`tests/test_index_policy_consumer.py` covers stale wrong-group keys and the real
+Baloo readback in an isolated configuration when the host tools are installed.
+
 **Never build an edition on a different base.** `moos-nvidia` used to build `FROM
 ghcr.io/ublue-os/kinoite-nvidia:44`. That tag was abandoned upstream in May; the "NVIDIA image"
 silently became a six-week-old system, 589 packages behind the generic one. Both editions now

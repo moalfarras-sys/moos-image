@@ -3,6 +3,13 @@
 Only completed evidence closes an item. Source code, a package, or a green
 parser alone is not runtime proof. Current facts live in `PROJECT_STATE.md`.
 
+**ARM maintenance 2026-09-12:** local filename search is restored and verified.
+The indexing-budget consumer's wrong KConfig group and the diagnostics' fixed
+content-indexing expectation are repaired and regression-tested in source.
+Shipping those fixes in a signed image remains open; no release gate is closed
+by the local repair. See `PROJECT_STATE.md` for runtime evidence and preserved
+local kernel tuning.
+
 **Current x86 train repair:** run 769's shared `/usr/local` symlink failure is
 isolated; branch build/signature acceptance is tracked in
 [the bounded handoff](docs/X86_RELEASE_REPAIR_20260907.md). ARM's NFS/initrd and

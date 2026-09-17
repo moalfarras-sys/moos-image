@@ -36,13 +36,87 @@ is the cost, and that is all that is allowed to stop).
 from __future__ import annotations
 
 import re
+import os
+import json
+import shutil
+import subprocess
 import sys
+import tempfile
+import types
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 CONSUMER = ROOT / "system_files/usr/libexec/moos-index-policy"
 UNIT = ROOT / "system_files/usr/lib/systemd/user/moos-index-policy.service"
 AUTHORITY = ROOT / "system_files/usr/bin/moos-visual-tier"
+
+
+def check_effective_config(source: str) -> list[str]:
+    """Read the setting as Baloo does, including stale wrong-section keys."""
+    errors = []
+    consumer = types.ModuleType("index_policy_test")
+    exec(compile(source, str(CONSUMER), "exec"), consumer.__dict__)
+    with tempfile.TemporaryDirectory(prefix="moos-index-policy-") as directory:
+        base = Path(directory)
+        config = base / "baloofilerc"
+        env = {"HOME": directory, "XDG_CONFIG_HOME": directory,
+               "XDG_CONFIG_DIRS": str(base / "defaults"), "LC_ALL": "C"}
+        with patch.dict(os.environ, env):
+            config.write_text("[Basic Settings]\nonly basic indexing=true\n"
+                              "[General]\nonly basic indexing=false\n")
+            with patch.object(consumer.shutil, "which", return_value=None):
+                if consumer.current_value() != "false":
+                    errors.append("fallback trusts an ignored Basic Settings key")
+                config.write_text("[Basic Settings]\nonly basic indexing=true\n")
+                if consumer.current_value() is not None:
+                    errors.append("fallback invents a General value from another group")
+
+            # No daemon is started: kwriteconfig writes only the isolated file,
+            # and balooctl's config-list command reads it through Baloo itself.
+            if all(shutil.which(tool) for tool in ("kwriteconfig6", "kreadconfig6", "balooctl6")):
+                config.write_text("[Basic Settings]\nonly basic indexing=true\n"
+                                  "[General]\nonly basic indexing=false\n")
+                for value, expected in (("true", "no"), ("false", "yes")):
+                    if not consumer.write_value(value):
+                        errors.append("consumer could not write isolated config")
+                        continue
+                    result = subprocess.run(
+                        ["balooctl6", "config", "list", "contentIndexing"],
+                        text=True, capture_output=True, timeout=10, check=True)
+                    if result.stdout.strip() != expected:
+                        errors.append(f"Baloo ignored consumer value {value}: {result.stdout.strip()!r}")
+                    if consumer.current_value() != value:
+                        errors.append("consumer readback disagrees with its effective setting")
+            else:
+                print("SKIP real Baloo readback: requires kwriteconfig6, kreadconfig6, balooctl6")
+    return errors
+
+
+def check_diagnostics() -> list[str]:
+    errors = []
+    for path in (ROOT / "system_files/usr/bin/moos-selfcheck", ROOT / "tests/post-update-check.sh"):
+        source = path.read_text()
+        match = re.search(r"# BEGIN INDEXING BUDGET CHECK\n(.*?)# END INDEXING BUDGET CHECK", source, re.S)
+        if not match:
+            errors.append(f"{path.name}: missing effective indexing-budget check")
+            continue
+        for budget, content, valid in (("filenames", "no", True), ("content", "yes", True),
+                                       ("filenames", "yes", False), ("content", "no", False),
+                                       ("unknown", "no", False), ("filenames", "", False)):
+            env = os.environ | {"TEST_BUDGET": json.dumps({"budget": {"file_indexing": budget}}),
+                                "TEST_CONTENT": content}
+            script = '''
+ok() { echo PASS; }
+bad() { echo FAIL; }
+moos-visual-tier() { printf '%s\\n' "$TEST_BUDGET"; }
+balooctl6() { printf '%s\\n' "$TEST_CONTENT"; }
+''' + match[1]
+            result = subprocess.run(["bash", "-c", script], env=env, capture_output=True,
+                                    text=True, timeout=10, check=True)
+            if result.stdout.strip() != ("PASS" if valid else "FAIL"):
+                errors.append(f"{path.name}: incorrect result for budget={budget}, content={content!r}")
+    return errors
 
 
 def main() -> int:
@@ -53,6 +127,8 @@ def main() -> int:
               "published file_indexing budget would go unread again.")
         return 1
     source = CONSUMER.read_text(encoding="utf-8")
+    errors.extend(check_effective_config(source))
+    errors.extend(check_diagnostics())
 
     # It must ask the authority, by running it -- not re-derive the answer.
     if "moos-visual-tier" not in source:
