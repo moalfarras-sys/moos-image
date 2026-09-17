@@ -4,8 +4,9 @@ Current measured facts only; Git owns history. Last measured 2026-09-17.
 
 ## Source and release truth
 
-- `origin/main` is `2e6f7686`, the merge of wave W3 (PR #109). Wave W4 is on
-  topic branch `feat/w4-moai-tool-harness`.
+- `origin/main` is `7f182689`: PR #110 (W4 tool harness) and PR #111 (W5 island
+  and search) merged after `2e6f7686`, neither promoted. The wave narrative in
+  "Next execution" predates both and needs the owner's reconciliation.
 - **Production is W1**: revision `92248b5d`, version `44.20260916.848`, promoted
   by run `35156269206` from build `35148344935`, QCOW2 generic/NVIDIA/cloud
   `35150447739`/`35150452495`/`35150457478` and ISO `35150461926` (all attempt 1).
@@ -158,6 +159,19 @@ the appletsrc with plasmashell stopped; backups in `~/.cache/moos-live/`). The s
 repair now writes Mutable only over invalid values and keeps user/system locks.
 A runtime KWin wobbly-windows trial was inconclusive in still captures and was
 unloaded again; physical window motion stays planned for wave W4.
+
+## Fixed 2026-09-17 on the A1, not yet shipped
+
+On `fix/index-policy-baloo-group-20260917`; `tests/repo-gates.sh` exits 0. The
+installed copies still carry both defects until a signed image ships.
+
+- `moos-index-policy` wrote `only basic indexing` under `[Basic Settings]`, but
+  Baloo reads it from `[General]`, so the `file_indexing` budget never applied
+  (`balooctl6` still answered `contentIndexing: yes`). Both diagnostics also
+  demanded `yes` unconditionally, failing a correct filenames-only machine.
+- `moos-control status` never returned: with no Bluetooth hardware,
+  `bluetoothctl show` activated bluez and waited forever. An 8 s budget plus a
+  bus-ownership check give 30128 ms -> 218 ms, unhanging `get_system_status`.
 
 ## Open evidence gaps
 

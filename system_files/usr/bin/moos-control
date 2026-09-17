@@ -16,6 +16,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -25,6 +26,10 @@ SINK = "@DEFAULT_AUDIO_SINK@"
 STEP = 10
 BRIGHTNESS_SERVICE = "org.kde.ScreenBrightness"
 BRIGHTNESS_PATH = "/org/kde/ScreenBrightness"
+# `status` answers a person waiting for an answer (Mo AI calls it as a
+# read-only tool), so the whole read is bounded. Any single probe that cannot
+# answer inside what is left of the budget is reported unknown, never waited on.
+STATUS_BUDGET = 8.0
 THEMES = ("dark", "light", "nova", "amethyst", "midnight", "aurora", "auto")
 # The settings pages Mo AI offers as buttons (its closed grammar); each is a fixed
 # route in moos-open, which opens the page.
@@ -60,11 +65,14 @@ class Unavailable(Exception):
     pass
 
 
-def run(argv):
+def run(argv, timeout=30):
     if shutil.which(argv[0]) is None:
         raise Unavailable(f"{argv[0]} is not installed")
     try:
-        result = subprocess.run(argv, capture_output=True, text=True, timeout=30)
+        # stdin is closed: bluetoothctl and friends drop into an interactive
+        # REPL when they inherit a terminal, and a control action never reads.
+        result = subprocess.run(argv, capture_output=True, text=True,
+                                timeout=timeout, stdin=subprocess.DEVNULL)
     except subprocess.TimeoutExpired as error:
         raise Unavailable(f"{argv[0]} did not answer") from error
     if result.returncode != 0:
@@ -99,8 +107,8 @@ def one_of(value, choices, what):
 
 
 # ── Volume (PipeWire default output) ────────────────────────────────────────
-def volume_state():
-    out = run(["wpctl", "get-volume", SINK])
+def volume_state(timeout=30):
+    out = run(["wpctl", "get-volume", SINK], timeout=timeout)
     match = re.search(r"Volume:\s*([0-9.]+)", out)
     return (round(float(match.group(1)) * 100) if match else None), "[MUTED]" in out
 
@@ -123,17 +131,17 @@ def mute(on):
 
 
 # ── Brightness (Plasma ScreenBrightness: laptop panels and DDC monitors) ────
-def busctl_data(*args):
-    out = run(["busctl", "--user", "--json=short", *args])
+def busctl_data(*args, timeout=30):
+    out = run(["busctl", "--user", "--json=short", *args], timeout=timeout)
     try:
         return json.loads(out)["data"]
     except (ValueError, KeyError, TypeError) as error:
         raise Unavailable("unexpected brightness service reply") from error
 
 
-def displays():
+def displays(timeout=30):
     names = busctl_data("get-property", BRIGHTNESS_SERVICE, BRIGHTNESS_PATH,
-                        BRIGHTNESS_SERVICE, "DisplaysDBusNames")
+                        BRIGHTNESS_SERVICE, "DisplaysDBusNames", timeout=timeout)
     found = [name for name in (names or [])
              if isinstance(name, str) and DISPLAY_NAME.fullmatch(name)]
     if not found:
@@ -141,9 +149,9 @@ def displays():
     return found
 
 
-def display_value(name, prop):
+def display_value(name, prop, timeout=30):
     return int(busctl_data("get-property", BRIGHTNESS_SERVICE, f"{BRIGHTNESS_PATH}/{name}",
-                           BRIGHTNESS_SERVICE + ".Display", prop))
+                           BRIGHTNESS_SERVICE + ".Display", prop, timeout=timeout))
 
 
 def brightness(value):
@@ -252,30 +260,69 @@ def settings(value):
 
 
 # ── Status (read-only) ──────────────────────────────────────────────────────
+def bluez_running(timeout):
+    """Is bluez actually on the bus, without starting it?
+
+    `bluetoothctl show` never returns when bluez has no adapter: it activates
+    the service and then waits for an adapter that is never going to appear.
+    Measured on the Oracle A1, which has no Bluetooth hardware at all, it was
+    still waiting after 25 s while every other probe answered in under 20 ms.
+    NameHasOwner is a plain bus query -- it reports absence instead of
+    activating bluez, so a machine without Bluetooth costs one round trip.
+    """
+    out = run(["busctl", "--system", "--json=short", "call",
+               "org.freedesktop.DBus", "/org/freedesktop/DBus",
+               "org.freedesktop.DBus", "NameHasOwner", "s", "org.bluez"],
+              timeout=timeout)
+    try:
+        return bool(json.loads(out)["data"][0])
+    except (ValueError, KeyError, IndexError, TypeError) as error:
+        raise Unavailable("unexpected bus reply for org.bluez") from error
+
+
 def status():
+    """Read what the desktop can tell us, within one bounded budget.
+
+    Mo AI calls this as a read-only tool while somebody waits, so no probe may
+    decide how long the answer takes. Each one gets what is left of
+    STATUS_BUDGET; whatever cannot answer in time is reported unknown (null),
+    which the callers already render as "not available here".
+    """
+    deadline = time.monotonic() + STATUS_BUDGET
+
+    def left():
+        # Never zero or negative: subprocess.run treats that as "expire now",
+        # which would turn a slow probe into a guaranteed failure.
+        return max(0.5, deadline - time.monotonic())
+
     state = {}
     try:
-        state["volume"], state["muted"] = volume_state()
+        state["volume"], state["muted"] = volume_state(left())
     except Unavailable:
         state["volume"], state["muted"] = None, None
     try:
-        name = displays()[0]
-        state["brightness"] = round(100 * display_value(name, "Brightness")
-                                    / max(1, display_value(name, "MaxBrightness")))
+        name = displays(left())[0]
+        state["brightness"] = round(100 * display_value(name, "Brightness", left())
+                                    / max(1, display_value(name, "MaxBrightness", left())))
     except Unavailable:
         state["brightness"] = None
     try:
         state["night_light"] = bool(busctl_data(
             "get-property", "org.kde.KWin", "/org/kde/KWin/NightLight",
-            "org.kde.KWin.NightLight", "running"))
+            "org.kde.KWin.NightLight", "running", timeout=left()))
     except Unavailable:
         state["night_light"] = None
     try:
-        state["wifi"] = run(["nmcli", "radio", "wifi"]).strip() == "enabled"
+        state["wifi"] = run(["nmcli", "radio", "wifi"], timeout=left()).strip() == "enabled"
     except Unavailable:
         state["wifi"] = None
     try:
-        state["bluetooth"] = "Powered: yes" in run(["bluetoothctl", "show"])
+        # A machine with no Bluetooth at all is unknown (null), not "off":
+        # "off" would invite Mo AI to offer a switch that turns nothing on.
+        if not bluez_running(left()):
+            raise Unavailable("bluez is not on the bus; no Bluetooth here")
+        state["bluetooth"] = "Powered: yes" in run(["bluetoothctl", "show"],
+                                                   timeout=left())
     except Unavailable:
         state["bluetooth"] = None
     return json.dumps(state, ensure_ascii=False)
