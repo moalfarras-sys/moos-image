@@ -203,6 +203,30 @@ touch the image now build it first (`pr-image-gates.yml`, row P0.9), so a red
 | Free cloud intelligence actually replies | P0.5 + P3 | Approved key, free-policy reply, error recovery, no invented task completion |
 | Same product on physical, cloud and ARM | P0 + P6 | Separate exact-edition/architecture proofs; no extrapolation from this PC |
 
+### Station review owed for W4–W6.1
+
+Everything below shipped after being gated, rendered from source and boot-proven in CI — and
+none of it has been seen on a MoOS desktop. After the station (and the A1) take the update
+with the MoOS Updater and restart, walk this list ONCE, in order, and record PASS/FAIL with
+what was seen in `PROJECT_STATE.md`. A FAIL is a finding for a fix branch, not a reason to
+roll back unless the desktop itself is unusable (Settings → Recovery keeps the old version).
+
+| # | Do this | Expect | Wave |
+| --- | --- | --- | --- |
+| 1 | `bootc status`; Settings → System → About this device | booted version ≥ `44.20260917.858`; the page is MoOS's own (edition in words, kernel as `Linux x.y.z`), not the desktop's module | W6, W6.1 |
+| 2 | First login after the update: `ls ~/.local/share/plasma/plasmoids/` | the four review shadows (`org.moos.search`, `island`, `nova.clock`, `ui2.wallpaper`) are gone (`THEME_REV` 62) | W2–W6 |
+| 3 | Right-click the desktop → MoOS Hub controls; turn one card off and on | the Hub redraws without that card; the choice survives a re-login | W2 |
+| 4 | Edit mode → remove a desktop widget; choose a wallpaper in the desktop's own dialog; log out and in | the widget is removable; the wallpaper stays | W3 |
+| 5 | MoOS Search: type `12*7`, `5 km in miles`, a file name | inline answer / conversion / file actions | W5 |
+| 6 | Start a Mo Store install, then look at the Island; join a call or open the camera | the Island shows the Store job with progress; a privacy chip NAMES the app, one tap stops it | W5 as repaired by W6 |
+| 7 | Open Mo AI at its default size | the compact rail has each label centred under its icon; eight chips under the four cards | W6.1 |
+| 8 | Mo AI, cloud brain configured: "الصوت لا يعمل، افحص وأصلح" | it reads a skill or inspects first (tool rows with no card), THEN shows ONE card for the repair; "Don't run" really runs nothing; the final answer matches the tool's real result | W4 as repaired by W6, W6.1 |
+| 9 | In that same chat, ask it to turn Wi-Fi off | a card appears (the executor asks for that value); turning it ON needs none | W6 |
+| 10 | Download a real AppImage from its maker; double-click it; then drop another into `~/Applications`; then right-click a portable `.tar.gz` → Install in MoOS | a default-No dialog each time; after Yes the app is in the launcher with an icon and starts; no administrator password; `moos-app-drop --list` shows them; Remove works | W6 |
+| 11 | Dismiss the administrator prompt during Mo AI's "Update firmware" or "Install RPM" | the result says it was NOT done (it used to print success) | W6 |
+| 12 | Light theme: read the secondary text in Mo Store's hero, Welcome and Mo AI's rail | clearly readable (was 1.6:1) | W6 |
+| 13 | Ask Mo AI "what system is this?" and "which desktop do I use?" | it answers MoOS / the MoOS desktop and names no other system | W6 |
+
 ## Non-negotiable architecture
 
 1. One source tree produces four editions: general x86, NVIDIA x86, cloud x86
