@@ -5,13 +5,22 @@
 # virtualization are all required before one source-scoped SSH rule is added.
 set -euo pipefail
 
+# Every stage says its name. The unit sends this to the console as well as the
+# journal, and the proof disks boot with console=ttyS0 — so the captured serial
+# log shows whether this helper finished, and where it stopped if it did not.
+# SELinux denies the harness's QGA context `systemctl status` and `journalctl`:
+# in ISO runs 35091031129, 35158666486 and 35252520329 the only fact available
+# about a dead SSH channel was "something listens on :22".
+say() { echo "moos-ci-runtime-proof: $*"; }
+die() { echo "moos-ci-runtime-proof: FAILED at $*" >&2; exit 1; }
+
 mapfile -t proof_keys < <(grep -lF 'moos-ci-runtime-proof' \
     /home/*/.ssh/authorized_keys 2>/dev/null || true)
-[ "${#proof_keys[@]}" -eq 1 ]
+[ "${#proof_keys[@]}" -eq 1 ] || die "key marker: ${#proof_keys[@]} marked authorized_keys files, need exactly 1"
 key_file="${proof_keys[0]}"
-grep -qw 'moos.ci-runtime-proof=1' /proc/cmdline
-grep -Fq 'moos-ci-runtime-proof' "$key_file"
-[ "$(systemd-detect-virt 2>/dev/null || true)" != none ]
+grep -qw 'moos.ci-runtime-proof=1' /proc/cmdline || die "kernel marker"
+grep -Fq 'moos-ci-runtime-proof' "$key_file" || die "key marker re-read"
+[ "$(systemd-detect-virt 2>/dev/null || true)" != none ] || die "virtualization"
 
 # Do not make either daemon a unit dependency: systemd starts dependencies even
 # when a ConditionKernelCommandLine fails.  Starting them here keeps SSH inert
@@ -26,13 +35,43 @@ for _ in $(seq 1 120); do
     fi
     sleep 1
 done
-[ "$ready" -eq 1 ]
+[ "$ready" -eq 1 ] || die "daemons: firewalld=$(systemctl is-active firewalld.service || true) sshd=$(systemctl is-active sshd.service || true) after 120 s"
+say "firewalld and sshd are active"
 
-iface="$(ip -4 route show default | awk 'NR == 1 {for (i=1; i<=NF; i++) if ($i == "dev") {print $(i+1); exit}}')"
-[ -n "$iface" ]
+# The interface that carries the IPv4 default route — WAITING for it to exist.
+#
+# MoOS disables NetworkManager-wait-online for boot speed, so neither
+# After=NetworkManager.service nor network-online.target means DHCP has finished.
+# This used to read the route ONCE. On a first boot sshd generates its host keys
+# for seconds before this line and the lease is always there; on any later boot
+# nothing delays it. A read that finds no route fails the oneshot, the rule below
+# is never added and the proof channel stays shut for that whole boot. This was
+# found by READING while chasing plan row P0.8; no run is known to have lost it
+# (in the failed runs `systemctl --failed` was empty, so this helper had not
+# failed — the evidence there points at the harness reusing one slirp forward
+# across the guest reboot, which tests/boot_x86_qcow2.sh had already learned).
+default_route_iface() {
+    local iface="" _
+    for _ in $(seq 1 "${1:-120}"); do
+        iface="$(ip -4 route show default 2>/dev/null \
+            | awk 'NR == 1 {for (i=1; i<=NF; i++) if ($i == "dev") {print $(i+1); exit}}')"
+        if [ -n "$iface" ]; then
+            printf '%s\n' "$iface"
+            return 0
+        fi
+        sleep 1
+    done
+    return 1
+}
+
+iface="$(default_route_iface 120)" || die "default route: none after 120 s ($(ip -4 -brief addr 2>/dev/null | tr -s ' \n' ' ;'))"
+say "IPv4 default route is on $iface"
 zone="$(firewall-cmd --get-zone-of-interface="$iface" 2>/dev/null || true)"
 [ -n "$zone" ] || zone="$(firewall-cmd --get-default-zone)"
-[ -n "$zone" ]
+[ -n "$zone" ] || die "zone lookup for $iface"
 
-firewall-cmd --zone="$zone" --add-rich-rule=\
-'rule family="ipv4" source address="10.0.2.2/32" service name="ssh" accept'
+rule='rule family="ipv4" source address="10.0.2.2/32" service name="ssh" accept'
+firewall-cmd --zone="$zone" --add-rich-rule="$rule" || die "add rule to zone $zone"
+# Read it back: a rule that was accepted and is not there is the same dead channel.
+firewall-cmd --zone="$zone" --query-rich-rule="$rule" >/dev/null || die "rule read-back in zone $zone"
+say "SSH from 10.0.2.2 accepted in zone $zone — channel ready"

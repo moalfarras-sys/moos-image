@@ -11,6 +11,10 @@ ConditionPathExists=|/home/moosci/.ssh/authorized_keys
 Type=oneshot
 ExecStart=/usr/libexec/moos-ci-runtime-proof-firewall
 RemainAfterExit=yes
+# The proof disks boot with console=ttyS0, and the serial log is the one record the
+# harness always keeps: SELinux denies its QGA context the journal and unit state.
+StandardOutput=journal+console
+StandardError=journal+console
 
 [Install]
 WantedBy=multi-user.target
