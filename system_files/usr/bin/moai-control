@@ -25,6 +25,7 @@ import sys as _policy_sys
 from pathlib import Path as _PolicyPath
 _policy_sys.path.insert(0, str(_PolicyPath(__file__).resolve().parent.parent / "lib/moai"))
 import moai_cloud_policy as cloud_policy
+import moai_tool_schemas as tool_schemas
 _policy_sys.path.insert(0, str(_PolicyPath(__file__).resolve().parent.parent / "lib/moos"))
 import moos_hardware as hardware
 
@@ -1535,6 +1536,67 @@ def test_cloud(base: str, model: str, wire: str, key: str) -> dict:
             "model": data.get("model") or model, "usage": used}
 
 
+def resolve_tool_binary(bin_name: str) -> str:
+    found = shutil.which(bin_name)
+    if found:
+        return found
+    sibling = _PolicyPath(__file__).resolve().parent / bin_name
+    if sibling.is_file() and os.access(sibling, os.X_OK):
+        return str(sibling)
+    return bin_name
+
+
+def execute_tool(data: dict) -> tuple[int, dict]:
+    tool_name = str(data.get("name") or "").strip()
+    arguments = data.get("arguments")
+    if not isinstance(arguments, dict):
+        arguments = {}
+    confirmed = bool(data.get("confirmed", False))
+
+    meta = tool_schemas.TOOL_META.get(tool_name)
+    if not meta:
+        return 404, {"error": f"unknown tool: {tool_name}"}
+
+    category = meta["category"]
+    if category in (tool_schemas.USER_CONFIRM, tool_schemas.PRIV_CONFIRM) and not confirmed:
+        return 403, {
+            "error": "confirmation_required",
+            "tool": tool_name,
+            "category": category,
+            "message": "This action requires user confirmation before execution.",
+        }
+
+    cmd = tool_schemas.build_command(tool_name, arguments)
+    if not cmd:
+        return 400, {"error": f"invalid arguments for tool {tool_name}"}
+
+    cmd[0] = resolve_tool_binary(cmd[0])
+
+    start = time.monotonic()
+    try:
+        proc = subprocess.run(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            timeout=90,
+        )
+        duration_ms = int((time.monotonic() - start) * 1000)
+        output = proc.stdout or ""
+        if len(output) > 4096:
+            output = output[:4000] + "\n... [truncated]"
+        return 200, {
+            "status": "ok" if proc.returncode == 0 else "error",
+            "exit_code": proc.returncode,
+            "output": output,
+            "duration_ms": duration_ms,
+        }
+    except subprocess.TimeoutExpired:
+        return 504, {"error": "tool execution timed out (90s)"}
+    except Exception as e:
+        return 500, {"error": f"execution failed: {e}"}
+
+
 class H(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
@@ -1625,6 +1687,11 @@ class H(BaseHTTPRequestHandler):
         elif route == "/search":
             q = urllib.parse.parse_qs(path.query).get("q", [""])[0]
             self._send(200, search_apps(q))
+        elif route == "/tools":
+            self._send(200, {
+                "tools": tool_schemas.get_schemas_for_model(),
+                "metadata": tool_schemas.TOOL_META,
+            })
         else:
             self._send(404, {"error": "not found"})
 
@@ -1687,6 +1754,11 @@ class H(BaseHTTPRequestHandler):
         # validated name as JSON and RamaLama receives one fixed argv element.
         if route == "/delete":
             return self._send(200, delete_model(data.get("model") or ""))
+
+        # /tool/execute — execute a structured tool call safely
+        if route == "/tool/execute":
+            status_code, result = execute_tool(data)
+            return self._send(status_code, result)
 
         return self._send(404, {"error": "not found"})
 

@@ -44,6 +44,10 @@ hdr() {
 
 # confirm — read -rp prompt, default NO. Returns 0 only on an explicit yes.
 confirm() {
+    if [ "${MOAI_DO_CONFIRMED:-0}" = "1" ]; then
+        AUDIT_DECISION=approved
+        return 0
+    fi
     local ans=""
     printf '%s' "${V}متابعة؟ | Continue? [y/N] ${N}"
     # A closed stdin reads EOF, which is a decline, not an approval — record it as one.
@@ -1524,6 +1528,11 @@ audit() {
 
 main() {
     local cmd="${1:-help}"
+    if [ "$cmd" = "--confirmed" ]; then
+        MOAI_DO_CONFIRMED=1
+        shift
+        cmd="${1:-help}"
+    fi
     if [ "$#" -gt 0 ]; then
         shift
     fi

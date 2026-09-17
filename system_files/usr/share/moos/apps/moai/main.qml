@@ -203,6 +203,9 @@ Kirigami.ApplicationWindow {
     property bool brainStarting: false
     property var history: []            // [{role, content}] — last 12 turns
     property var pendingRuns: []        // moai-do actions the model just named
+    property var pendingToolConfirmation: null // active structured tool confirmation card
+    property var availableTools: []     // native tool schemas from controlApi
+    property var toolMetadata: ({})     // tool metadata (categories, commands) from controlApi
     property var pendingAttachments: [] // private imported image/text/file payloads
     property string lastSubmissionDisplay: ""
     property var lastSubmissionContent: null
@@ -894,6 +897,7 @@ Kirigami.ApplicationWindow {
         chatModel.append({ role: "assistant", text: greetingText })
         refreshScan()
         loadModels()
+        loadTools()
         // The saved UI language must apply from the first frame it can:
         // cfgLoad carries ui.language and every root.local() binding tracks
         // moaiRtl, so the whole surface re-renders when this lands.
@@ -1432,6 +1436,7 @@ Kirigami.ApplicationWindow {
         // explain an empty answer — see the reasoning_content note below.
         let reasonedChars = 0
         let processed = 0
+        let toolCalls = []
 
         const xhr = new XMLHttpRequest()
         activeXhr = xhr
@@ -1472,21 +1477,32 @@ Kirigami.ApplicationWindow {
                             ? (ch.delta ? ch.delta.content
                                : (ch.message ? ch.message.content : ""))
                             : ""
+                        if (ch && ch.delta && ch.delta.tool_calls) {
+                            sawData = true
+                            const tcList = ch.delta.tool_calls
+                            for (let t = 0; t < tcList.length; t++) {
+                                const tc = tcList[t]
+                                const tIndex = tc.index !== undefined ? tc.index : 0
+                                if (!toolCalls[tIndex]) {
+                                    toolCalls[tIndex] = {
+                                        id: tc.id || "",
+                                        name: (tc.function && tc.function.name) || "",
+                                        arguments: (tc.function && tc.function.arguments) || ""
+                                    }
+                                } else {
+                                    if (tc.id) toolCalls[tIndex].id = tc.id
+                                    if (tc.function && tc.function.name) toolCalls[tIndex].name += tc.function.name
+                                    if (tc.function && tc.function.arguments) toolCalls[tIndex].arguments += tc.function.arguments
+                                }
+                            }
+                            if (toolCalls[0] && toolCalls[0].name) {
+                                chatModel.set(idx, {
+                                    role: "assistant",
+                                    text: root.local("🛠️ استدعاء أداة: ", "🛠️ Calling tool: ") + root.toolTitle(toolCalls[0].name, {})
+                                })
+                            }
+                        }
                         // A REASONING model answers on a second channel.
-                        //
-                        // qwen3 and its family return their deliberation in
-                        // `reasoning_content` and the actual answer in `content`.
-                        // This app only ever read `content`, so on a CPU-only box
-                        // the result was a spinner that sat still for a minute and
-                        // then a blank bubble — measured here: qwen3:8b spent 70
-                        // tokens (57 of them reasoning) to answer "OK", and at
-                        // ~4 tok/s a 220-token budget ran out mid-thought and
-                        // produced NOTHING visible.
-                        //
-                        // Counting it is what turns that silence into a diagnosis
-                        // below. It is deliberately not appended to the answer:
-                        // deliberation is not the reply, and splicing it in would
-                        // put the model's scratch work in the user's chat.
                         if (ch && ch.delta && ch.delta.reasoning_content)
                             reasonedChars += ch.delta.reasoning_content.length
                         if (delta) {
@@ -1517,6 +1533,20 @@ Kirigami.ApplicationWindow {
                 : agentPath === "direct-fallback"
                     ? root.local("رد مباشر احتياطي", "Direct fallback") : ""
 
+            if (toolCalls.length > 0) {
+                const tc = toolCalls[0]
+                let parsedArgs = {}
+                try { parsedArgs = JSON.parse(tc.arguments || "{}") } catch (e) { parsedArgs = {} }
+                const meta = (root.toolMetadata && root.toolMetadata[tc.name]) || {}
+                const category = meta.category || "user_confirm"
+                if (category === "read_only" || category === "control") {
+                    root.executeToolDirectly(tc.id, tc.name, parsedArgs, idx)
+                } else {
+                    root.promptToolConfirmation(tc.id, tc.name, parsedArgs, meta, idx)
+                }
+                return
+            }
+
             if (sawData && acc.trim() !== "") {
                 if (streamError !== "") {
                     // Partial answer + explicit upstream error: keep the text
@@ -1544,7 +1574,22 @@ Kirigami.ApplicationWindow {
             let reply = ""
             if (xhr.status === 200) {
                 try {
-                    reply = JSON.parse(xhr.responseText).choices[0].message.content.trim()
+                    const parsedChoice = JSON.parse(xhr.responseText).choices[0]
+                    const parsedMsg = parsedChoice.message || {}
+                    reply = (parsedMsg.content || "").trim()
+                    if (parsedMsg.tool_calls && parsedMsg.tool_calls.length > 0) {
+                        const tc = parsedMsg.tool_calls[0]
+                        let parsedArgs = {}
+                        try { parsedArgs = JSON.parse(tc.function.arguments || "{}") } catch (e) { }
+                        const meta = (root.toolMetadata && root.toolMetadata[tc.function.name]) || {}
+                        const category = meta.category || "user_confirm"
+                        if (category === "read_only" || category === "control") {
+                            root.executeToolDirectly(tc.id, tc.function.name, parsedArgs, idx)
+                        } else {
+                            root.promptToolConfirmation(tc.id, tc.function.name, parsedArgs, meta, idx)
+                        }
+                        return
+                    }
                 } catch (e) { reply = "" }
             }
             if (reply !== "") {
@@ -1589,6 +1634,9 @@ Kirigami.ApplicationWindow {
             messages: [{ role: "system", content: systemPrompt + root.machineContext }]
                           .concat(history),
             stream: true
+        }
+        if (root.availableTools && root.availableTools.length > 0 && !root.agentMode) {
+            request.tools = root.availableTools
         }
         request.moai = {
             privacy: "standard",
@@ -1660,6 +1708,297 @@ Kirigami.ApplicationWindow {
             }
         }
         xhr.send()
+    }
+
+    function loadTools() {
+        const xhr = new XMLHttpRequest()
+        xhr.open("GET", controlApi + "/tools")
+        xhr.setRequestHeader("X-Moai-Control", "1")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE)
+                return
+            if (xhr.status !== 200)
+                return
+            try {
+                const data = JSON.parse(xhr.responseText)
+                root.availableTools = data.tools || []
+                root.toolMetadata = data.metadata || ({})
+            } catch (e) { }
+        }
+        xhr.send()
+    }
+
+    function toolTitle(name, args) {
+        if (!name) return ""
+        args = args || {}
+        switch (name) {
+            case "system_update": return root.local("تحديث نظام MoOS", "MoOS System Update")
+            case "system_rollback": return root.local("الرجوع للنشر السابق", "System Rollback")
+            case "install_app": return root.local("تثبيت تطبيق: ", "Install app: ") + (args.app_id || "")
+            case "uninstall_app": return root.local("حذف تطبيق: ", "Remove app: ") + (args.app_id || "")
+            case "update_apps": return root.local("تحديث التطبيقات", "Update All Applications")
+            case "fix_audio": return root.local("إصلاح نظام الصوت", "Fix Audio System")
+            case "optimize_system": return root.local("تنظيف وتسريع النظام", "Optimize System")
+            case "setup_gaming": return root.local("تهيئة بيئة الألعاب", "Setup Gaming Environment")
+            case "setup_windows": return root.local("تهيئة تطبيقات Windows", "Setup Windows Apps (Bottles)")
+            case "setup_waydroid": return root.local("تهيئة بيئة Android", "Setup Android (Waydroid)")
+            case "install_nvidia": return root.local("التبديل إلى إصدار NVIDIA", "Switch to NVIDIA Edition")
+            case "update_firmware": return root.local("تحديث البرامج الثابتة", "Update Firmware (fwupd)")
+            case "remote_anywhere": return root.local("التحكم عن بعد من أي مكان", "Enable Remote Anywhere")
+            case "set_volume": return root.local("ضبط مستوى الصوت", "Set Volume") + (args.value ? ": " + args.value : "")
+            case "set_brightness": return root.local("ضبط سطوع الشاشة", "Set Brightness") + (args.value ? ": " + args.value : "")
+            case "toggle_night_light": return root.local("الضوء الليلي: ", "Night light: ") + (args.value || "")
+            case "toggle_wifi": return root.local("الواي فاي: ", "Wi-Fi: ") + (args.value || "")
+            case "toggle_bluetooth": return root.local("البلوتوث: ", "Bluetooth: ") + (args.value || "")
+            case "set_theme_mode": return root.local("تغيير المظهر: ", "Set theme: ") + (args.value || "")
+            case "take_screenshot": return root.local("أخذ لقطة شاشة", "Take Screenshot")
+            case "gpu_report": return root.local("تقرير كرت الشاشة والذاكرة", "GPU & VRAM Report")
+            case "net_doctor": return root.local("تشخيص اتصال الشبكة", "Network Diagnostics")
+            case "diagnose_services": return root.local("تشخيص الخدمات المعطلة", "Diagnose Failed Services")
+            case "inspect_boot": return root.local("فحص حالة الإقلاع", "Inspect Boot Status")
+            case "support_bundle": return root.local("إنشاء حزمة الدعم المنقحة", "Generate Support Bundle")
+            case "get_system_status": return root.local("حالة أجهزة النظام", "Get Device Status")
+            case "open_app": return root.local("فتح تطبيق: ", "Open app: ") + (args.app_id || "")
+            case "open_settings": return root.local("فتح الإعدادات: ", "Open settings: ") + (args.page || "")
+            case "hw_report": return root.local("تقرير العتاد", "Hardware Report")
+            case "check_drivers": return root.local("فحص التعريفات", "Check Hardware Drivers")
+            default: return name.replace(/_/g, " ")
+        }
+    }
+
+    function toolDescription(name) {
+        switch (name) {
+            case "system_update":
+                return root.local("تجهيز صورة MoOS موقّعة جديدة وتطبيقها عند إعادة التشغيل. ملفاتك الشخصية آمنة.",
+                                  "Stage a signed immutable MoOS update, applied on reboot. User data is safe.")
+            case "system_rollback":
+                return root.local("العودة إلى الإصدار السابق من نظام MoOS عند إعادة التشغيل.",
+                                  "Roll back to the previous MoOS deployment on reboot.")
+            case "install_app":
+                return root.local("تثبيت التطبيق لهذا المستخدم عبر Mo Store بصيغة Flatpak المعزولة.",
+                                  "Install application via Mo Store in sandboxed Flatpak container.")
+            case "uninstall_app":
+                return root.local("إزالة التطبيق من النظام وحذف بياناته المعزولة.",
+                                  "Remove application from system.")
+            case "fix_audio":
+                return root.local("إعادة تشغيل خدمات PipeWire و WirePlumber لاستعادة الصوت.",
+                                  "Restart PipeWire and WirePlumber audio services.")
+            case "optimize_system":
+                return root.local("تنظيف حزم Flatpak غير المستخدمة وصور الحاويات وسجلات النظام القديمة.",
+                                  "Clean unused Flatpak runtimes, container images, and vacuum journals.")
+            case "install_nvidia":
+                return root.local("التبديل إلى صورة moos-nvidia الموقّعة وتثبيت تعريف كرت الشاشة في الإقلاع.",
+                                  "Switch deployment to moos-nvidia with initramfs driver support.")
+            case "update_firmware":
+                return root.local("تحديث البرامج الثابتة عبر fwupd. تنبيه: لا يمكن التراجع عن هذا الإجراء.",
+                                  "Update system firmware via fwupd. Warning: cannot be rolled back.")
+            default:
+                return ""
+        }
+    }
+
+    function executeToolDirectly(callId, toolName, args, chatIdx) {
+        root.busy = true
+        chatModel.set(chatIdx, {
+            role: "assistant",
+            text: root.local("⚙️ جاري الفحص: ", "⚙️ Checking: ") + root.toolTitle(toolName, args) + "..."
+        })
+        const xhr = new XMLHttpRequest()
+        xhr.open("POST", root.controlApi + "/tool/execute")
+        xhr.setRequestHeader("Content-Type", "application/json")
+        xhr.setRequestHeader("X-Moai-Control", "1")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE)
+                return
+            root.busy = false
+            let outputText = ""
+            let isOk = false
+            if (xhr.status === 200) {
+                try {
+                    const res = JSON.parse(xhr.responseText)
+                    outputText = res.output || (res.status === "ok" ? "OK" : "Error")
+                    isOk = res.status === "ok"
+                } catch (e) {
+                    outputText = xhr.responseText
+                }
+            } else {
+                outputText = root.local("تعذّر تنفيذ الإجراء: ", "Execution failed: ") + xhr.status
+            }
+            chatModel.set(chatIdx, {
+                role: isOk ? "tool-success" : "tool-error",
+                text: "📋 " + root.toolTitle(toolName, args) + ":\n\n" + outputText
+            })
+            root.history.push({
+                role: "assistant",
+                content: null,
+                tool_calls: [{
+                    id: callId,
+                    type: "function",
+                    function: { name: toolName, arguments: JSON.stringify(args) }
+                }]
+            })
+            root.history.push({
+                role: "tool",
+                tool_call_id: callId,
+                name: toolName,
+                content: outputText
+            })
+            root.trimHistory()
+            root.continueConversationWithToolResult()
+        }
+        xhr.send(JSON.stringify({ name: toolName, arguments: args, confirmed: true }))
+    }
+
+    function promptToolConfirmation(callId, toolName, args, meta, chatIdx) {
+        root.pendingToolConfirmation = {
+            id: callId,
+            name: toolName,
+            args: args,
+            meta: meta,
+            idx: chatIdx,
+            status: "pending"
+        }
+        chatModel.set(chatIdx, {
+            role: "assistant",
+            text: root.local("اقتراح إجراء: ", "Suggested action: ") + root.toolTitle(toolName, args)
+        })
+    }
+
+    function confirmToolExecution() {
+        if (!root.pendingToolConfirmation) return
+        const tc = root.pendingToolConfirmation
+        tc.status = "executing"
+        root.pendingToolConfirmation = tc
+        root.busy = true
+        chatModel.set(tc.idx, {
+            role: "assistant",
+            text: root.local("⏳ جاري التنفيذ: ", "⏳ Running: ") + root.toolTitle(tc.name, tc.args) + "..."
+        })
+        const xhr = new XMLHttpRequest()
+        xhr.open("POST", root.controlApi + "/tool/execute")
+        xhr.setRequestHeader("Content-Type", "application/json")
+        xhr.setRequestHeader("X-Moai-Control", "1")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE)
+                return
+            root.busy = false
+            let outputText = ""
+            let isOk = false
+            if (xhr.status === 200) {
+                try {
+                    const res = JSON.parse(xhr.responseText)
+                    outputText = res.output || (res.status === "ok" ? "OK" : "Error")
+                    isOk = res.status === "ok"
+                } catch (e) {
+                    outputText = xhr.responseText
+                }
+            } else {
+                outputText = root.local("تعذّر تنفيذ الإجراء: ", "Execution failed: ") + xhr.status
+            }
+            root.pendingToolConfirmation = null
+            chatModel.set(tc.idx, {
+                role: isOk ? "tool-success" : "tool-error",
+                text: "📋 " + root.toolTitle(tc.name, tc.args) + ":\n\n" + outputText
+            })
+            root.history.push({
+                role: "assistant",
+                content: null,
+                tool_calls: [{
+                    id: tc.id,
+                    type: "function",
+                    function: { name: tc.name, arguments: JSON.stringify(tc.args) }
+                }]
+            })
+            root.history.push({
+                role: "tool",
+                tool_call_id: tc.id,
+                name: tc.name,
+                content: outputText
+            })
+            root.trimHistory()
+            root.continueConversationWithToolResult()
+        }
+        xhr.send(JSON.stringify({ name: tc.name, arguments: tc.args, confirmed: true }))
+    }
+
+    function cancelToolExecution() {
+        if (!root.pendingToolConfirmation) return
+        const tc = root.pendingToolConfirmation
+        root.pendingToolConfirmation = null
+        const cancelMsg = root.local("أُلغي الإجراء من قِبل المستخدم.", "Action was cancelled by the user.")
+        chatModel.set(tc.idx, {
+            role: "tool-error",
+            text: "❌ " + root.toolTitle(tc.name, tc.args) + " — " + cancelMsg
+        })
+        root.history.push({
+            role: "assistant",
+            content: null,
+            tool_calls: [{
+                id: tc.id,
+                type: "function",
+                function: { name: tc.name, arguments: JSON.stringify(tc.args) }
+            }]
+        })
+        root.history.push({
+            role: "tool",
+            tool_call_id: tc.id,
+            name: tc.name,
+            content: cancelMsg
+        })
+        root.trimHistory()
+        root.continueConversationWithToolResult()
+    }
+
+    function continueConversationWithToolResult() {
+        chatModel.append({ role: "typing", text: "…" })
+        const idx = chatModel.count - 1
+        root.busy = true
+        let acc = ""
+        let processed = 0
+        const xhr = new XMLHttpRequest()
+        root.activeXhr = xhr
+        xhr.open("POST", root.api)
+        xhr.setRequestHeader("Content-Type", "application/json")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === XMLHttpRequest.LOADING || xhr.readyState === XMLHttpRequest.DONE) {
+                const full = xhr.responseText
+                let end = full.lastIndexOf("\n") + 1
+                if (xhr.readyState === XMLHttpRequest.DONE) end = full.length
+                const fresh = end > processed ? full.substring(processed, end) : ""
+                processed = end > processed ? end : processed
+                const lines = fresh.split("\n")
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i].trim()
+                    if (line.indexOf("data:") !== 0) continue
+                    const payload = line.substring(5).trim()
+                    if (payload === "" || payload === "[DONE]") continue
+                    try {
+                        const j = JSON.parse(payload)
+                        const ch = j.choices && j.choices[0]
+                        const delta = ch ? (ch.delta ? ch.delta.content : (ch.message ? ch.message.content : "")) : ""
+                        if (delta) {
+                            acc += delta
+                            chatModel.set(idx, { role: "assistant", text: acc })
+                        }
+                    } catch (e) { }
+                }
+            }
+            if (xhr.readyState !== XMLHttpRequest.DONE) return
+            root.busy = false
+            root.activeXhr = null
+            if (acc.trim() !== "") {
+                chatModel.set(idx, { role: "assistant", text: acc })
+                root.history.push({ role: "assistant", content: acc })
+                root.trimHistory()
+                root.flashMood("success")
+            }
+        }
+        const request = {
+            model: root.route !== "" ? root.route : "default",
+            messages: [{ role: "system", content: systemPrompt + root.machineContext }].concat(root.history),
+            stream: true
+        }
+        xhr.send(JSON.stringify(request))
     }
 
     function openPicker() {
@@ -2106,6 +2445,112 @@ Kirigami.ApplicationWindow {
             border.color: root.novaBlue
             visible: actionArea.activeFocus
             z: 99
+        }
+    }
+
+    // Confirmation card for native structured tool calls (W4 / P3.4)
+    component ToolConfirmationCard: Rectangle {
+        id: card
+        property var toolCall: null
+        property bool executing: false
+        signal confirmed()
+        signal cancelled()
+
+        readonly property string toolName: toolCall ? (toolCall.name || "") : ""
+        readonly property var toolArgs: toolCall ? (toolCall.args || {}) : {}
+        readonly property var toolMeta: toolCall ? (toolCall.meta || {}) : {}
+        readonly property bool isPrivileged: toolMeta.category === "privileged_confirm"
+
+        color: root.surface1
+        radius: design.radiusCard
+        border.width: 1
+        border.color: isPrivileged ? root.novaOrange : root.novaBlue
+        implicitHeight: cardContent.implicitHeight + 28
+
+        ColumnLayout {
+            id: cardContent
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: 14
+            spacing: 10
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 10
+                Kirigami.Icon {
+                    source: card.isPrivileged ? "security-high-symbolic" : "moos-safe-update-symbolic"
+                    implicitWidth: root.fs(22)
+                    implicitHeight: root.fs(22)
+                    color: card.isPrivileged ? root.novaOrange : root.novaCyan
+                }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 2
+                    Text {
+                        text: root.toolTitle(card.toolName, card.toolArgs)
+                        font.pixelSize: root.typePx(15)
+                        font.weight: Font.DemiBold
+                        color: root.textHi
+                    }
+                    Text {
+                        text: root.toolDescription(card.toolName)
+                        font.pixelSize: root.typePx(12)
+                        color: root.textLo
+                        wrapMode: Text.Wrap
+                        Layout.fillWidth: true
+                    }
+                }
+            }
+
+            Rectangle {
+                visible: card.isPrivileged
+                Layout.fillWidth: true
+                implicitHeight: privRow.implicitHeight + 8
+                radius: design.radiusControl
+                color: Qt.rgba(root.novaOrange.r, root.novaOrange.g, root.novaOrange.b, 0.12)
+                border.width: 1
+                border.color: Qt.rgba(root.novaOrange.r, root.novaOrange.g, root.novaOrange.b, 0.3)
+                RowLayout {
+                    id: privRow
+                    anchors.fill: parent
+                    anchors.margins: 6
+                    spacing: 6
+                    Kirigami.Icon {
+                        source: "dialog-password"
+                        implicitWidth: root.fs(14)
+                        implicitHeight: root.fs(14)
+                        color: root.novaOrange
+                    }
+                    Text {
+                        text: root.local("يتطلب مصادقة المسؤول (Polkit)", "Requires administrator authentication (Polkit)")
+                        font.pixelSize: root.typePx(11)
+                        color: root.novaOrange
+                        Layout.fillWidth: true
+                    }
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 10
+                MoButton {
+                    label: card.executing
+                        ? root.local("جاري التنفيذ...", "Running...")
+                        : root.local("تنفيذ", "Run")
+                    primary: true
+                    enabled_: !card.executing
+                    iconName: "system-run-symbolic"
+                    onClicked: card.confirmed()
+                }
+                MoButton {
+                    label: root.local("إلغاء", "Cancel")
+                    danger: true
+                    enabled_: !card.executing
+                    iconName: "dialog-cancel-symbolic"
+                    onClicked: card.cancelled()
+                }
+            }
         }
     }
 
@@ -3230,6 +3675,19 @@ Kirigami.ApplicationWindow {
                                     }
                                 }
                             }
+                        }
+
+                        // Structured tool confirmation card (W4 / P3.4)
+                        ToolConfirmationCard {
+                            Layout.fillWidth: true
+                            Layout.leftMargin: 16
+                            Layout.rightMargin: 16
+                            Layout.bottomMargin: 8
+                            visible: root.pendingToolConfirmation !== null
+                            toolCall: root.pendingToolConfirmation
+                            executing: root.pendingToolConfirmation && root.pendingToolConfirmation.status === "executing"
+                            onConfirmed: root.confirmToolExecution()
+                            onCancelled: root.cancelToolExecution()
                         }
 
                         // Run chips for the actions the model just named.

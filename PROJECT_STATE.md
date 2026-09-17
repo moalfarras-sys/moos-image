@@ -4,9 +4,8 @@ Current measured facts only; Git owns history. Last measured 2026-09-17.
 
 ## Source and release truth
 
-- `origin/main` is `f91c0366`, the merge of wave W1 (PR #107) whose tree is
-  identical to candidate `92248b5d`. Wave W2 is PR #108. Every other remote
-  topic branch is an ancestor of `main`.
+- `origin/main` is `2e6f7686`, the merge of wave W3 (PR #109). Wave W4 is on
+  topic branch `feat/w4-moai-tool-harness`.
 - **Production is W1**: revision `92248b5d`, version `44.20260916.848`, promoted
   by run `35156269206` from build `35148344935`, QCOW2 generic/NVIDIA/cloud
   `35150447739`/`35150452495`/`35150457478` and ISO `35150461926` (all attempt 1).

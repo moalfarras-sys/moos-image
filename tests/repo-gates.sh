@@ -54,6 +54,8 @@ python3 tests/test_theme_wallpaper_owner_choice.py
 python3 tests/test_mokernel.py
 python3 tests/test_moai_control.py
 python3 tests/test_moai_config.py
+python3 tests/test_moai_tool_schemas.py
+python3 tests/test_moai_confirmation_flow.py
 # Mo AI's brain is a cloud API and nothing is ever downloaded to the
 # machine. Free, no-card providers must exist and come first.
 python3 tests/test_moai_cloud_only.py
