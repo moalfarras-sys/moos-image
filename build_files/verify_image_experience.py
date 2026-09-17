@@ -918,6 +918,40 @@ require("O_NOFOLLOW" in credential_store and "os.replace" in credential_store,
 require('had_legacy_key = "cloud_key" in data' in control,
         "Mo AI does not fully migrate legacy credential fields")
 
+
+def skills_are_readable(root: str) -> list[str]:
+    """Every skill id the model is offered must be a playbook the INSTALLED reader returns.
+
+    The schema gives the model an enum; the files ship under usr/share; the reader is a third
+    file. A packaging exclude, a lost exec bit or a moved directory would leave a tool that
+    answers "there is no skill called no-sound" on every machine, with every source gate green.
+    Runs the real reader. `root` is "" in the image; tests/test_moai_skills.py runs this same
+    function against the source tree, so it cannot first fail ninety minutes into a release.
+    """
+    import runpy
+    import subprocess
+    import sys
+
+    problems: list[str] = []
+    offered = runpy.run_path(f"{root}/usr/lib/moai/moai_tool_schemas.py")["SKILLS"]
+    if len(offered) < 10:
+        problems.append(f"only {len(offered)} Mo AI skills are offered to the model")
+    reader = [sys.executable, f"{root}/usr/bin/moos-inspect"]
+    listed = subprocess.run([*reader, "skills"], capture_output=True, text=True, timeout=120)
+    if listed.returncode != 0:
+        return problems + [f"`moos-inspect skills` failed: {listed.stderr.strip()[-300:]}"]
+    for skill in offered:
+        if f"{skill} — " not in listed.stdout:
+            problems.append(f"skill {skill} is offered to the model but the reader does not list it")
+        one = subprocess.run([*reader, "skill", skill], capture_output=True, text=True, timeout=120)
+        if one.returncode != 0 or "## Steps" not in one.stdout:
+            problems.append(f"skill {skill} cannot be read: {one.stderr.strip()[-200:]}")
+    return problems
+
+
+for _skill_problem in skills_are_readable(""):
+    require(False, _skill_problem)
+
 # ONE visible storefront: the standalone Mo Store app (org.moos.store — the
 # curated catalog UI). Discover keeps its engine for update notifications and
 # firmware, but its menu entry is hidden and MoOS-branded, so no menu ever

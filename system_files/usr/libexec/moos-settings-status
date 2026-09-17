@@ -60,7 +60,9 @@ def command(argv: list[str], timeout: float = 1.5) -> str:
 
 # Fixed destinations mirror moos-open; the regression gate checks both directions.
 DESTINATIONS = {
-    'about': ('systemsettings', 'kcm_about-distro'),
+    # MoOS's own page, not the desktop's: that one prints the versions of the toolkit and
+    # desktop projects MoOS is built from, under their names (identity contract).
+    'about': ('moos-settings', '--section=about'),
     'accessibility': ('systemsettings', 'kcm_access'),
     'accounts': ('systemsettings', 'kcm_kaccounts'),
     'audio': ('systemsettings', 'kcm_pulseaudio'),
@@ -105,7 +107,8 @@ def destinations_state() -> dict[str, bool]:
     plugins = command(["qtpaths6", "--query", "QT_INSTALL_PLUGINS"])
     modules = {p.stem for p in (Path(plugins) / "plasma/kcms").rglob("*.so")} if plugins else set()
     return {
-        route: bool(shutil.which(argv[0])) and (len(argv) == 1 or argv[1] in modules)
+        route: bool(shutil.which(argv[0])) and (
+            len(argv) == 1 or argv[1].startswith("--") or argv[1] in modules)
         for route, argv in DESTINATIONS.items()
     }
 
@@ -224,7 +227,14 @@ def deployment_state() -> dict[str, object]:
     staged = next((item for item in deployments if item.get("staged")), {})
     reference = str(booted.get("container-image-reference", ""))
     digest = str(booted.get("container-image-reference-digest", ""))
+    edition = re.search(
+        r"/moalfarras-sys/(moos(?:-nvidia|-cloud|-arm)?)(?=[@:]|$)", reference)
+    built = booted.get("timestamp")
     return {
+        # Which MoOS this is, and when that image was built. Both come from the booted
+        # deployment's own record; an unknown origin answers "" / 0, never a guess.
+        "edition": edition.group(1) if edition else "",
+        "builtAt": built if isinstance(built, int) and not isinstance(built, bool) and built > 0 else 0,
         "version": str(booted.get("version", "—")),
         "digest": digest[7:19] if digest.startswith("sha256:") else "",
         "known": bool(booted and reference),
@@ -262,6 +272,8 @@ def full_state() -> dict[str, object]:
         "product": "MoOS",
         "hostname": command(["hostname", "-s"]) or "MoOS",
         "kernel": command(["uname", "-r"]) or "—",
+        "arch": os.uname().machine,
+        "session": os.environ.get("XDG_SESSION_TYPE", ""),
         "cpu": cpu_name(),
         "gpu": gpu_name(),
         "storage": storage_state(),

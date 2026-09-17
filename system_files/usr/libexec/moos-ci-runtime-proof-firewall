@@ -45,11 +45,15 @@ say "firewalld and sshd are active"
 # This used to read the route ONCE. On a first boot sshd generates its host keys
 # for seconds before this line and the lease is always there; on any later boot
 # nothing delays it. A read that finds no route fails the oneshot, the rule below
-# is never added and the proof channel stays shut for that whole boot. This was
-# found by READING while chasing plan row P0.8; no run is known to have lost it
-# (in the failed runs `systemctl --failed` was empty, so this helper had not
-# failed — the evidence there points at the harness reusing one slirp forward
-# across the guest reboot, which tests/boot_x86_qcow2.sh had already learned).
+# is never added and the proof channel stays shut for that whole boot.
+#
+# That is plan row P0.8, which cost three release candidates. The first ISO proof
+# run with this wait (35265328509) caught it in the act, on this console: on the
+# FIRST boot the route line follows "daemons active" by 16 ms; on the SECOND boot
+# by 1.02 s — the first read came back empty and one retry found the route. The
+# old helper died on that empty read. The harness's fresh slirp forward, added in
+# the same change on a different theory, was measured by that run as irrelevant:
+# the first-boot forward was alive too.
 default_route_iface() {
     local iface="" _
     for _ in $(seq 1 "${1:-120}"); do

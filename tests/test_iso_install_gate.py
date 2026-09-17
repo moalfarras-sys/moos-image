@@ -112,11 +112,12 @@ functions = ast.Module(body=[node for node in installed_tree.body
                             and node.name in {"ssh_exec", "gate_until"}], type_ignores=[])
 
 
-# The second boot is reached through a forward that no pre-reboot connection touched.
-# With ONE forward this proof lost three release candidates out of four at the reboot
-# (runs 35091031129, 35158666486, 35252520329): the host side accepted TCP and no banner
-# ever came, while QGA reported the second boot and nothing in the guest had failed.
-# tests/boot_x86_qcow2.sh had documented that slirp behaviour thirteen days earlier.
+# The second boot is reached through a forward that no pre-reboot connection touched, as
+# tests/boot_x86_qcow2.sh does. Be exact about why this is pinned: it was written as the FIX
+# for plan row P0.8 and run 35265328509 measured that it was not — the first-boot forward was
+# alive after the reboot (`reboot-channel.txt`), and the real cause was the proof-channel
+# helper reading the default route once (tests/test_ci_proof_channel.py). It stays because it
+# costs nothing, matches the other proofs, and keeps the measurement that told the two apart.
 assert ("hostfwd=tcp:127.0.0.1:${ssh_port}-:22,"
         "hostfwd=tcp:127.0.0.1:${ssh_port_after_reboot}-:22") in script, \
     "the installed VM needs one SSH forward per boot"

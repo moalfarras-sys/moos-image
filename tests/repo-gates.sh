@@ -67,6 +67,8 @@ python3 tests/test_moai_confirmation_flow.py
 python3 tests/test_moai_agent_loop.py
 # moos-inspect auto-runs for a cloud model: closed grammar, redacted output, reads only.
 python3 tests/test_moos_inspect.py
+python3 tests/test_moai_skills.py
+python3 tests/test_moai_rail_layout.py
 # Mo AI's brain is a cloud API and nothing is ever downloaded to the
 # machine. Free, no-card providers must exist and come first.
 python3 tests/test_moai_cloud_only.py
@@ -305,6 +307,7 @@ python3 tests/test_moos_visual_system.py
 # private live-state helper, and every command must remain a fixed
 # router destination rather than user-controlled argv.
 python3 tests/test_moos_settings.py
+python3 tests/test_settings_about_page.py
 python3 tests/test_desktop_customize.py
 # `just check` must be able to run every gate CI runs; it could not,
 # and an ARM regression reached main because of it.

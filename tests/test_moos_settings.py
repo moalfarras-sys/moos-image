@@ -240,6 +240,7 @@ let statusLoaded=false, statusError='', statusSerial=0, status={}, launchError='
 let rtl=false, searchQuery='sound', activeSection='home';
 let searchField={text:'sound'}, contentFlick={contentY:500};
 let calls=[]; const Qt={openUrlExternally: url => {calls.push(url); return false}};
+const inAppRoutes = """ + re.search(r"readonly property var inAppRoutes: \((\{[^}]*\})\)", qml).group(1) + """;
 """ + "\n".join(function(n) for n in ("local", "routeAvailable", "routeReason", "openRoute", "selectSection", "acceptStatus", "statusFailure"))
         commands = qml.split("readonly property var commands: ")[1].split("\n\n    readonly property var activeSectionData")[0].strip()
         visible = qml.split("readonly property var visibleCommands: ")[1].split("\n\n    readonly property string statusUrl")[0].strip()

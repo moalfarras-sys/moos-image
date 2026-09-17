@@ -54,7 +54,9 @@ Item {
     Component.onCompleted: {
         var component = Qt.createComponent(Qt.resolvedUrl("../../system_files/usr/share/moos/apps/moai/main.qml"))
         if (component.status !== Component.Ready) { console.error(component.errorString()); Qt.exit(2); return }
-        app = component.createObject(null, { width: 1400, height: 900 })
+        // 1400x900 unless told otherwise; the window's real default is 940x700, and a layout that is
+        // only ever looked at wide is how the compact rail shipped broken.
+        app = component.createObject(null, { width: parseInt(arg("w", "1400")), height: parseInt(arg("h", "900")) })
         var children = Array.from(app.contentItem.children)
         frame = Qt.createQmlObject('import QtQuick; Rectangle { anchors.fill: parent; color: "' + app.color + '" }', app.contentItem)
         for (var child of children) child.parent = frame

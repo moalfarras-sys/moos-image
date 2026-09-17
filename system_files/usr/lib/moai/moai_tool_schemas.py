@@ -361,6 +361,24 @@ _CONTROL_TOOLS: list[dict[str, Any]] = [
 # moos-inspect: read-only, redacted, closed grammar. An operator has to LOOK before it repairs.
 # ---------------------------------------------------------------------------
 
+# The repair playbooks shipped under usr/share/moos/moai/skills, by id. A fixed tuple like
+# SETTINGS_PAGES, so the model is offered an enum and an invented name never reaches argv;
+# tests/test_moai_skills.py fails when this and the shipped files disagree in either direction.
+SKILLS: tuple[str, ...] = (
+    "app-wont-start",
+    "bluetooth-device",
+    "boot-problems",
+    "disk-full",
+    "failed-service",
+    "gaming-and-windows-apps",
+    "graphics-and-nvidia",
+    "install-an-app",
+    "no-internet",
+    "no-sound",
+    "slow-system",
+    "update-and-rollback",
+)
+
 _UNIT_PARAM = {
     "type": "string",
     # The same shape moos-inspect enforces; checked here too so an invented name never reaches argv.
@@ -442,6 +460,25 @@ _INSPECT_TOOLS: list[dict[str, Any]] = [
         category=READ_ONLY, executor="moos-inspect", command="log",
         parameters={"name": {"type": "string", "enum": ["moai", "theme", "store", "remote"],
                              "description": "which MoOS log"}},
+        required=["name"], argv=["{name}"],
+    ),
+    # Skills: what a free cloud model does not know about THIS system — which service carries
+    # sound here, that `/` always reads full, that an update is staged and a rollback is kept,
+    # which repair exists and which does not. Text the image ships, read through the same
+    # redacting, bounded, closed-grammar reader as everything else. A skill grants nothing: every
+    # step in it is one of the tools above, under that tool's own confirmation rule.
+    _schema(
+        "list_skills",
+        "List the repair playbooks written for this system, with when to use each — "
+        "يعرض أدلة الإصلاح المكتوبة لهذا النظام ومتى يُستخدم كلٌّ منها",
+        category=READ_ONLY, executor="moos-inspect", command="skills",
+    ),
+    _schema(
+        "read_skill",
+        "Read one repair playbook, then follow it step by step — يقرأ دليل إصلاح واحداً ليتبعه خطوة خطوة",
+        category=READ_ONLY, executor="moos-inspect", command="skill",
+        parameters={"name": {"type": "string", "enum": list(SKILLS),
+                             "description": "the playbook's id, as list_skills prints it"}},
         required=["name"], argv=["{name}"],
     ),
 ]

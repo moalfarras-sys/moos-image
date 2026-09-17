@@ -12,14 +12,19 @@ orders the helper after DHCP. On a first boot sshd generates host keys for secon
 read and the lease is there; on every later boot nothing delays it. A read that finds no route
 fails the oneshot, the rule is never added, and the channel stays shut for that whole boot.
 
-Be exact about what this is. It was found by READING, during the hunt for plan row P0.8 (the ISO
-installed-reboot proof timing out "during banner exchange" on three candidates out of four). It
-is NOT known to have lost in any run: in those runs `systemctl --failed` came back empty, so the
-helper had not failed, and the evidence points at the harness reusing one slirp forward across
-the reboot (fixed in tests/install_live_iso.sh, pinned by tests/test_iso_install_gate.py). What
-the hunt did prove is that a dead channel left NO record: SELinux denies the harness's QGA
-context `systemctl status` and `journalctl`, and the helper said nothing on the console. A
-fixture whose silent failure costs a two-hour release cycle must not race and must not be mute.
+That is plan row P0.8: the ISO installed-reboot proof timed out "during banner exchange" on three
+release candidates out of four, for its whole 1000 s, while sshd listened and QGA called the boot
+healthy. The first ISO proof run with the wait (35265328509) caught the race in the act, because
+the helper now speaks on the console: on the first boot the route line follows "daemons active"
+by 16 ms; on the SECOND boot by 1.02 s — the first read came back empty, and one retry found the
+route. The old helper died on that empty read.
+
+Two lessons are recorded because both cost time. The evidence that seemed to clear the helper —
+`systemctl --failed` was empty in the failed runs — came from the harness's QGA context, which
+SELinux confines: it cannot read unit state, so its silence meant nothing. And the fix that was
+written on the more plausible theory (one slirp forward per boot, as the QCOW2 proof does) was
+measured by that same run as irrelevant: the first-boot forward was alive after the reboot.
+A fixture whose silent failure costs a two-hour release cycle must not race and must not be mute.
 
 This gate runs the SHIPPED helper, not a copy:
 

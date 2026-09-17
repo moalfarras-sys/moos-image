@@ -74,6 +74,8 @@ check:
     python3 tests/test_moai_agent_loop.py
     # The read-only inspector: closed grammar, redacted output, nothing but reads.
     python3 tests/test_moos_inspect.py
+    python3 tests/test_moai_skills.py
+    python3 tests/test_moai_rail_layout.py
     # Mo AI's brain is a cloud API and nothing is ever downloaded to the
     # machine. Free, no-card providers must exist and come first.
     python3 tests/test_moai_cloud_only.py
@@ -277,6 +279,7 @@ check:
     # must resolve through a fixed route, and its live status boundary stays
     # read-only, private and atomic.
     python3 tests/test_moos_settings.py
+    python3 tests/test_settings_about_page.py
     python3 tests/test_desktop_customize.py
     # The Device page told an Oracle A1 owner their CPU was a "MoOS device".
     # Real hardware identity, or an honest Unknown -- never an invented name.

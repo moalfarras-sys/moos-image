@@ -84,14 +84,14 @@ ssh-keygen -q -t ed25519 -N '' -C moos-ci-runtime-proof -f "$ssh_key"
 chmod 0600 "$ssh_key"
 ssh_public_key="$(cat "$ssh_key.pub")"
 # One loopback forward PER BOOT of the installed system, reserved together so they cannot
-# collide. tests/boot_x86_qcow2.sh learned this on 2026-09-03: across a guest reboot QEMU's
-# slirp backend can keep pre-reboot flow state on a forward, and then accept TCP on the host
-# side without ever delivering the new sshd's banner. This proof was given its reboot half on
-# 2026-09-16 with ONE forward, and lost three release candidates out of four at exactly that
-# point (runs 35091031129, 35158666486, 35252520329): "Connection timed out during banner
-# exchange" for the whole 1000 s, while QGA reported the second boot, something listened on
-# :22 and no unit had failed. The second boot is reached through a forward no pre-reboot
-# connection ever touched; the first forward is then probed once, as a measurement.
+# collide, as tests/boot_x86_qcow2.sh does (slirp can keep pre-reboot flow state on a forward).
+# This was written as the fix for plan row P0.8 — three release candidates lost to "Connection
+# timed out during banner exchange" after the installed reboot — and the first run with it
+# (35265328509) MEASURED that it was not: the first-boot forward answered after the reboot too.
+# The cause was in the image's proof-channel helper, which read the default route once and died
+# when the second boot's first read was empty. The second forward stays (it costs nothing and
+# matches the other proofs), and so does the probe of the first one: it is what told the two
+# explanations apart, and it will again.
 read -r ssh_port ssh_port_after_reboot < <(python3 - <<'PY'
 import socket
 with socket.socket() as first, socket.socket() as second:
@@ -1426,9 +1426,8 @@ else:
 
 wait_qga(120)
 
-# A MEASUREMENT, never a gate: is the first-boot forward alive after the reboot? If it is
-# dead while the fresh one works, the slirp explanation above is confirmed by this very run;
-# if it answers, the fresh forward was not what made this run pass and P0.8 is still open.
+# A MEASUREMENT, never a gate: is the first-boot forward alive after the reboot? Run
+# 35265328509 answered "alive", which is how the slirp explanation was ruled out for P0.8.
 ssh_port = first_boot_ssh_port
 try:
     code, current, error = ssh_exec("cat /proc/sys/kernel/random/boot_id", timeout=20)
