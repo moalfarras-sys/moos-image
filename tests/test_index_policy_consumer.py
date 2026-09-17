@@ -35,7 +35,11 @@ is the cost, and that is all that is allowed to stop).
 """
 from __future__ import annotations
 
+import json
+import os
 import re
+import shutil
+import subprocess
 import sys
 import importlib.machinery
 import importlib.util
@@ -46,6 +50,129 @@ ROOT = Path(__file__).resolve().parents[1]
 CONSUMER = ROOT / "system_files/usr/libexec/moos-index-policy"
 UNIT = ROOT / "system_files/usr/lib/systemd/user/moos-index-policy.service"
 AUTHORITY = ROOT / "system_files/usr/bin/moos-visual-tier"
+KEY_LABEL = "only basic indexing"
+
+
+def _load_consumer():
+    loader = importlib.machinery.SourceFileLoader("moos_index_policy_probe", str(CONSUMER))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    assert spec is not None
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
+
+
+def check_effective_config() -> list[str]:
+    """Read the setting the way Baloo reads it, stale wrong-group keys included.
+
+    Measured on the A1 (2026-09-12), with balooctl6 as the judge:
+
+        [Basic Settings] only basic indexing=true   -> contentIndexing: yes
+        [General]        only basic indexing=true   -> contentIndexing: no
+
+    So the key only takes effect under [General]. The version that wrote
+    [Basic Settings] read its own write back through kreadconfig6, reported
+    "already applied", and left content extraction running on a machine whose
+    budget said filenames. A readback that agrees with a write the application
+    ignores is not evidence, which is why this gate asks Baloo itself whenever
+    the KDE tools exist and pins the group in source when they do not.
+    """
+    errors: list[str] = []
+    consumer = _load_consumer()
+
+    if consumer.GROUP != "General":
+        errors.append(
+            f"the consumer writes 'only basic indexing' under {consumer.GROUP!r}; "
+            f"Baloo reads it from 'General' and silently ignores any other group")
+
+    with tempfile.TemporaryDirectory(prefix="moos-index-policy-") as directory:
+        config = Path(directory) / "baloofilerc"
+        old_environ = {k: os.environ.get(k) for k in ("HOME", "XDG_CONFIG_HOME", "LC_ALL")}
+        old_which = consumer.shutil.which
+        try:
+            os.environ.update(HOME=directory, XDG_CONFIG_HOME=directory, LC_ALL="C")
+
+            # Without the KDE tools the consumer parses the file itself. That
+            # parser must be group-aware, or a leftover key from the wrong-group
+            # version answers for the one Baloo actually consults.
+            consumer.shutil.which = lambda _name: None
+            config.write_text("[Basic Settings]\nonly basic indexing=true\n"
+                              "[General]\nonly basic indexing=false\n")
+            if consumer.current_value() != "false":
+                errors.append("the file fallback trusts an ignored [Basic Settings] key")
+            config.write_text("[Basic Settings]\nonly basic indexing=true\n")
+            if consumer.current_value() is not None:
+                errors.append("the file fallback invents a [General] value from another group")
+            consumer.shutil.which = old_which
+
+            # Where the real tools exist, let Baloo itself judge the write. No
+            # daemon is started: kwriteconfig6 touches only this isolated file
+            # and `balooctl6 config list` reads it back through Baloo's config.
+            if all(shutil.which(tool) for tool in ("kwriteconfig6", "kreadconfig6", "balooctl6")):
+                for value, expected in (("true", "no"), ("false", "yes")):
+                    config.write_text("[Basic Settings]\nonly basic indexing=true\n"
+                                      "[General]\nonly basic indexing=false\n")
+                    if not consumer.write_value(value):
+                        errors.append(f"the consumer could not write {value} to an isolated config")
+                        continue
+                    seen = subprocess.run(
+                        ["balooctl6", "config", "list", "contentIndexing"],
+                        text=True, capture_output=True, timeout=30, check=False).stdout.strip()
+                    if seen != expected:
+                        errors.append(
+                            f"Baloo ignored the consumer's '{KEY_LABEL}={value}': "
+                            f"contentIndexing is {seen!r}, expected {expected!r}")
+                    if consumer.current_value() != value:
+                        errors.append("the consumer's readback disagrees with its effective setting")
+            else:
+                print("SKIP real Baloo readback: kwriteconfig6/kreadconfig6/balooctl6 not installed")
+        finally:
+            consumer.shutil.which = old_which
+            for key, value in old_environ.items():
+                if value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = value
+    return errors
+
+
+def check_diagnostics() -> list[str]:
+    """Both diagnostics must judge Baloo against the budget, not against "yes".
+
+    moos-visual-tier publishes filenames-only on the essential tier, so a check
+    that demands content extraction everywhere reports a correctly configured
+    machine as broken -- and that false failure is what hid the real defect.
+    """
+    errors: list[str] = []
+    for path in (ROOT / "system_files/usr/bin/moos-selfcheck",
+                 ROOT / "tests/post-update-check.sh"):
+        block = re.search(r"# BEGIN INDEXING BUDGET CHECK\n(.*?)# END INDEXING BUDGET CHECK",
+                          path.read_text(encoding="utf-8"), re.S)
+        if not block:
+            errors.append(f"{path.name}: missing the effective indexing-budget check")
+            continue
+        harness = ("ok() { echo PASS; }\n"
+                   "bad() { echo FAIL; }\n"
+                   "moos-visual-tier() { printf '%s\\n' \"$TEST_BUDGET\"; }\n"
+                   "balooctl6() { printf '%s\\n' \"$TEST_CONTENT\"; }\n")
+        for budget, content, agrees in (("filenames", "no", True),
+                                        ("content", "yes", True),
+                                        ("filenames", "yes", False),
+                                        ("content", "no", False),
+                                        ("unknown", "no", False),
+                                        ("filenames", "", False)):
+            env = os.environ | {
+                "TEST_BUDGET": json.dumps({"budget": {"file_indexing": budget}}),
+                "TEST_CONTENT": content,
+            }
+            result = subprocess.run(["bash", "-c", harness + block[1]], env=env,
+                                    capture_output=True, text=True, timeout=30, check=False)
+            if result.stdout.strip() != ("PASS" if agrees else "FAIL"):
+                errors.append(
+                    f"{path.name}: budget={budget}, contentIndexing={content!r} should "
+                    f"{'pass' if agrees else 'fail'}, got {result.stdout.strip()!r}")
+    return errors
+
 
 
 def main() -> int:
@@ -56,6 +183,8 @@ def main() -> int:
               "published file_indexing budget would go unread again.")
         return 1
     source = CONSUMER.read_text(encoding="utf-8")
+    errors.extend(check_effective_config())
+    errors.extend(check_diagnostics())
 
     # The physical first ISO install exposed a lifecycle split: `balooctl6
     # enable` launched baloo_file under flatpak-session-helper.service while

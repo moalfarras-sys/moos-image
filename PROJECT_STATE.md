@@ -4,8 +4,9 @@ Current measured facts only; Git owns history. Last measured 2026-09-17.
 
 ## Source and release truth
 
-- `origin/main` is `2e6f7686`, the merge of wave W3 (PR #109). Wave W4 is on
-  topic branch `feat/w4-moai-tool-harness`.
+- `origin/main` is `7f182689`: PR #110 (W4 tool harness) and PR #111 (W5 island
+  and search) merged after `2e6f7686`, neither promoted. The wave narrative in
+  "Next execution" predates both and needs the owner's reconciliation.
 - **Production is W1**: revision `92248b5d`, version `44.20260916.848`, promoted
   by run `35156269206` from build `35148344935`, QCOW2 generic/NVIDIA/cloud
   `35150447739`/`35150452495`/`35150457478` and ISO `35150461926` (all attempt 1).
@@ -158,6 +159,19 @@ the appletsrc with plasmashell stopped; backups in `~/.cache/moos-live/`). The s
 repair now writes Mutable only over invalid values and keeps user/system locks.
 A runtime KWin wobbly-windows trial was inconclusive in still captures and was
 unloaded again; physical window motion stays planned for wave W4.
+
+## Found on main 2026-09-17 (Oracle A1)
+
+- `moos-index-policy` wrote `only basic indexing` under `[Basic Settings]`;
+  Baloo reads it from `[General]`. Measured with `balooctl6` here: with only
+  the `[Basic Settings]` key, `contentIndexing` still answers `yes`, so the
+  `file_indexing` budget never applied. Both diagnostics also demanded
+  `contentIndexing=yes` unconditionally, failing a correct filenames-only
+  machine. Fixed and regression-gated on
+  `fix/index-policy-baloo-group-20260917`; not built, signed or shipped.
+- `moos-control status` never returns on this headless ARM host (30 s per
+  `run()` probe, no total budget), hanging gate `test_moai_confirmation_flow.py`
+  on pristine `origin/main` and Mo AI's `get_system_status`. Not fixed.
 
 ## Open evidence gaps
 

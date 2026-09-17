@@ -52,7 +52,12 @@ import sys
 
 VISUAL_TIER = "/usr/bin/moos-visual-tier"
 BALOO_RC = "baloofilerc"
-GROUP = "Basic Settings"
+# Baloo reads this key from [General]; the [Basic Settings] group holds a
+# different option entirely. A key written under the wrong group reads back
+# correctly through kreadconfig6 while Baloo ignores it -- measured on the A1:
+# with only "[Basic Settings] only basic indexing=true", `balooctl6 config list
+# contentIndexing` still answers "yes" and content extraction keeps running.
+GROUP = "General"
 KEY = "only basic indexing"
 
 # budget value -> the value of `only basic indexing`
@@ -106,11 +111,20 @@ def current_value() -> str | None:
     # kreadconfig6 answers "" both for "absent" and for a missing binary, and an
     # absent key means Baloo's own default (content extraction). Fall back to
     # reading the file so a wrong answer cannot masquerade as "already correct".
+    # Parse group by group. A stale [Basic Settings] key from the version that
+    # wrote the wrong group must not be reported as the effective value, or the
+    # consumer decides "already applied" and leaves Baloo on Baloo's default.
     path = config_path()
     if path.is_file():
+        group = ""
         for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
-            if line.strip().lower().startswith(KEY):
-                return line.split("=", 1)[-1].strip().lower()
+            line = line.strip()
+            if line.startswith("[") and line.endswith("]"):
+                group = line[1:-1]
+            elif group == GROUP and "=" in line:
+                name, value = line.split("=", 1)
+                if name.strip() == KEY:
+                    return value.strip().lower()
     return None
 
 
