@@ -3,18 +3,22 @@
 # shipped layout, plasmoids, scene wallpaper and config, under Xvfb with kwin_x11.
 #
 #   scripts/review/render-desktop.sh /tmp/desk-ar.png --lang=ar
+#   scripts/review/render-desktop.sh /tmp/launcher.png --call=activateLauncherMenu
 #   render-desktop.sh <out.png> [--lang=ar|en] [--size=1536x864] [--wallpaper=MoOSUI2Aurora]
-#                     [--wait=35] [--script=file.js] [--hub=off]
+#                     [--wait=35] [--script=file.js] [--hub=off] [--call=<PlasmaShell method>]
 #
 # WHAT THIS IS NOT: there is no GPU compositing here, so no blur, no translucency, no rounded
 # panel corners, no KWin effects or window animations, and it is X11 while MoOS is Wayland.
-# It shows the SHELL's composition — scene, Hub, bar, plasmoids, fonts, RTL — and prints the
-# QML runtime's complaints about MoOS's own packages. It is never a desktop review.
+# It shows the SHELL's composition — scene, Hub, bar, launcher, plasmoids, fonts, RTL — and prints
+# the QML runtime's complaints about MoOS's own packages. It is never a desktop review.
+# ALSO MISSING: the base icon theme (MoOSUI2) is assembled inside the image build from an
+# upstream set, so an icon that comes from it — a stock application's, for one — is blank here.
+# A blank STOCK icon in this render is the environment; a blank moos-* icon is a finding.
 set -uo pipefail
-[ "$#" -ge 1 ] || { sed -n '2,12p' "$0"; exit 2; }
+[ "$#" -ge 1 ] || { sed -n '2,16p' "$0"; exit 2; }
 OUT="$(realpath -m "$1")"; shift
 ROOT="${MOOS_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
-LANGUAGE_CODE=en; SIZE=1536x864; WALLPAPER=MoOSUI2Aurora; WAIT=35; SCRIPT=""; HUB=on
+LANGUAGE_CODE=en; SIZE=1536x864; WALLPAPER=MoOSUI2Aurora; WAIT=35; SCRIPT=""; HUB=on; CALL=""
 for arg in "$@"; do
     case "$arg" in
         --lang=*) LANGUAGE_CODE="${arg#--lang=}" ;;
@@ -23,6 +27,7 @@ for arg in "$@"; do
         --wait=*) WAIT="${arg#--wait=}" ;;
         --script=*) SCRIPT="$(realpath "${arg#--script=}")" ;;
         --hub=*) HUB="${arg#--hub=}" ;;
+        --call=*) CALL="${arg#--call=}" ;;   # a no-argument org.kde.PlasmaShell method, e.g. activateLauncherMenu
     esac
 done
 case "$LANGUAGE_CODE" in ar) LOCALE=ar_EG.UTF-8 ;; *) LOCALE=en_US.UTF-8 ;; esac
@@ -75,10 +80,15 @@ for js in "$WORK/scene.js" $SCRIPT; do
         --method org.kde.PlasmaShell.evaluateScript "$(cat "$js")" >>"$WORK/script.log" 2>&1
     sleep 8
 done
+if [ -n "$CALL" ]; then
+    gdbus call --session --dest org.kde.plasmashell --object-path /PlasmaShell \
+        --method "org.kde.PlasmaShell.$CALL" >>"$WORK/script.log" 2>&1
+    sleep 5
+fi
 xwd -root -silent | magick xwd:- "$OUT" 2>>"$WORK/shot.log"
 EOS
 chmod +x "$WORK/session.sh"
-export WORK OUT WAIT SCRIPT
+export WORK OUT WAIT SCRIPT CALL
 timeout 240 dbus-run-session -- xvfb-run -a -s "-screen 0 ${SIZE}x24" "$WORK/session.sh" >"$WORK/session.out" 2>&1
 status=$?
 [ -s "$OUT" ] && echo "rendered $OUT" || echo "NO FRAME (exit $status)"
