@@ -30,8 +30,19 @@ def source(raw: str, prefix: str = "//") -> str:
     Searching the raw source would therefore let that documentation satisfy a
     gate after the real call had been removed — the same green-but-broken class
     of failure as searching comments in KConfig above.
+
+    `/* … */` is a comment only in the `//` languages (QML, JavaScript, C++).
+    In a shell or Python source the same two characters are ordinary code:
+    `case` globs (`ai/ask/*)`) and parameter expansions (`${path%%/*}`,
+    `${path#*/}`). Stripping them there deleted real code. It was harmless
+    while moos-open had one `*/`, and on 2026-09-17 a second one
+    (`${privacy_act#*/}`) closed a span opened 235 lines earlier by the prose
+    "settings/kcm/* wildcard": 24 of the 28 settings routes vanished, the route
+    parser reported "got 4", and all three x86 editions failed on a router that
+    was correct. tests/test_image_gate_source_parser.py holds that shape.
     """
-    raw = re.sub(r"/\*.*?\*/", "", raw, flags=re.DOTALL)
+    if prefix == "//":
+        raw = re.sub(r"/\*.*?\*/", "", raw, flags=re.DOTALL)
     return "\n".join(
         line for line in raw.splitlines()
         if not line.lstrip().startswith(prefix)
