@@ -4,25 +4,23 @@ Current measured facts only; Git owns history. Last measured 2026-09-17.
 
 ## Source and release truth
 
-- **x86 production is W1**: revision `92248b5d`, version `44.20260916.848`, promoted
-  by run `35156269206` from build `35148344935`, QCOW2 generic/NVIDIA/cloud
-  `35150447739`/`35150452495`/`35150457478` and ISO `35150461926` (all attempt 1).
-  Registry read-back: generic `f1d62342…`, NVIDIA `2b4b04c4…`, cloud `51a3f37c…`.
-- **ARM production is W5**, read back 2026-09-17: `moos-arm:latest` =
-  `44.20260917.431`, revision `7f182689`, digest `e92466a996a5…`. `build-arm.yml`
-  promotes every green push to `main`, so ARM is ahead of x86 until an x86 cycle
-  completes. ARM's build of the integration revision `51cc2ac3` passed its boot
-  proof (run `35252524849`, branch dispatch — it promotes nothing).
-- `main` (`7f182689`) holds W2–W5 and is RED for x86 (W5 broke an image-only gate).
-  The integration that repairs it is PR #114 (`51cc2ac3`); wave W6 is stacked on it
-  (`feat/w6-operator-appdrop-workspace-20260917`). None of W2–W6 is in an x86 release.
-- **Release cycle A, candidate `51cc2ac3` (2026-09-17):** signed build of all three
-  editions PASSED (`35250170484`) — the only proof that the gate repair works inside
-  an image; QCOW2 generic/NVIDIA/cloud PASSED (`35252506869`, `35252511348`,
-  `35252516097`); ISO proof FAILED (`35252520329`) at the installed reboot, exactly
-  as on `57874d6c` and `8b272b87`: SSH "timed out during banner exchange" for 1000 s
-  while QGA reported the second boot, `:22` listened and no unit had failed. Nothing
-  was promoted. See "ISO proof" below (plan row P0.8).
+- **x86 production is W6**, read back from the registry 2026-09-17 after promotion
+  run `35269505270`: `moos`, `moos-nvidia` and `moos-cloud` `:latest` =
+  `44.20260917.858`, revision `a8622f95`, digests `3b30e42c69d4…`, `c8f94adde60d…`,
+  `143ec830db4f…` — the digests the candidate build signed. Proofs, all attempt 1
+  on that revision: build `35261411076`, QCOW2 generic/NVIDIA/cloud
+  `35265314956`/`35265319663`/`35265323922`, ISO `35265328509`. The previous x86
+  production was W1 (`92248b5d`, `44.20260916.848`), so an x86 machine moves W1 → W6
+  in one update.
+- **ARM production**, read back at the same time: `moos-arm:latest` =
+  `44.20260917.435`, revision `1b5f402f` (the #114 integration: `THEME_REV` 61, the
+  Baloo budget group, `moos-control status` no longer hanging). `build-arm.yml`
+  promotes every green push to `main`; the run for W6 (`35266924177`) was still in
+  its boot proof when this was written. Read the registry, not this line.
+- `main` holds W2–W6, the #114 integration and the pull-request image build (#116).
+  Its x86 build is green again (`35261305751` for #114, `35266924175` for W6).
+- Release cycle A (candidate `51cc2ac3`) passed the signed build and all three QCOW2
+  boots and lost its ISO proof to plan row P0.8; nothing was promoted from it.
 - The intermittent ARM second-boot `plymouthd` SEGV is still open (P0.7); green ARM
   runs since then had no fix applied.
 - A merged commit or locally built image is not an installed or released state.
@@ -37,7 +35,7 @@ Current measured facts only; Git owns history. Last measured 2026-09-17.
 | Target storage | `/dev/sdb`: 512 MiB ESP + 476.4 GiB Btrfs; `/var` 133/477 GiB used, 341 GiB free |
 | CPU / RAM | Intel Core i5-14400F / 15.4 GiB |
 | GPU | NVIDIA RTX 2080 SUPER, driver 615.71.09 |
-| Desktop | Plasma/KWin 6.7.5, Wayland, 3840×2160@60, scale 250% |
+| Desktop | Plasma/KWin 6.7.5, Wayland, 3840×2160@60, scale 250% (1536×864 logical) |
 | Kernel | `7.2.5-200.fc44.x86_64` |
 | Network | Intel AX210 Wi-Fi/Bluetooth + RTL8125 Ethernet |
 | Health | zero failed system units and zero failed user units |
@@ -47,15 +45,19 @@ Last measured ON the station: signed `moos-nvidia` `44.20260915.836`
 review names `44.20260916.848` as booted. **Not re-measured on 2026-09-17** — that
 day's work was done from a Windows workstation. Re-measure with `bootc status`.
 
+**Updating it:** MoOS origins are digest-pinned, so `bootc upgrade` reports "no
+changes" forever. Use the MoOS Updater (Settings → Update MoOS, or Mo AI's "Update
+my system"), or wait for the nightly train; then restart.
+
 A root-owned local override `/etc/plasmalogin.conf.d/90-moos-development-autologin.conf`
 enables one-session automatic login for `moos` during this development cycle. It is
 not in the image and sets `Relogin=false`; remove it with `pkexec rm` on that path.
 
 Review shadows left on purpose: `~/.local/share/plasma/plasmoids/org.moos.{search,island,nova.clock}`
 and `~/.local/share/plasma/wallpapers/org.moos.ui2.wallpaper` (W2 source). Any
-`THEME_REV` ≥ 59 removes all four at the first login after the update.
+`THEME_REV` ≥ 59 removes all four at the first login after the update (W6 is 62).
 
-## What `main` and the open branches carry beyond x86 production
+## What an x86 machine gets with this update (W2 → W6)
 
 | Wave | PR | What the user gets | `THEME_REV` |
 | --- | --- | --- | --- |
@@ -64,7 +66,7 @@ and `~/.local/share/plasma/wallpapers/org.moos.ui2.wallpaper` (W2 source). Any
 | W4 | #110 | Mo AI tool harness: tool schemas from the fixed grammar, confirmation cards, result read-back | — |
 | W5 | #111 | Island Store jobs and camera/microphone/screen-share chips; inline Search answers | 61 (added by #114) |
 | fix | #114 | x86 `main` green again; ARM cache staleness; Baloo budget group; `moos-control status` 30 s → 0.2 s | 61 |
-| W6 | open | what W4/W5 promised, working; App Drop; readable secondary text; identity wording | 62 |
+| W6 | #115 | what W4/W5 promised, working; App Drop; readable secondary text; identity wording | 62 |
 
 W2 and W3 were reviewed live on the station. **W4, W5 and W6 have never been seen on
 a MoOS desktop.**
@@ -89,70 +91,76 @@ every gate was green:
   17 MoOS-owned strings named another desktop or distribution.
 - **App Drop (new):** an AppImage, portable `.tar.*`/`.zip` or `.flatpakref` opened,
   dropped on `~/Applications` or sent from the file manager becomes an app after a
-  default-No dialog, with no administrator rights. Type is decided by magic bytes;
-  AppImages are only ever extracted inside bubblewrap; MoOS writes the launcher entry.
+  default-No dialog, with no administrator rights; an `.rpm` is handed to the existing
+  signed route. Type is decided by magic bytes; AppImages are only ever extracted
+  inside bubblewrap; MoOS writes the launcher entry.
 
-Evidence class: 171 repository gates pass on Fedora 44 under WSL2 (Qt 6.11.2, Kirigami
-6.29, bubblewrap, node); Mo AI's loop is proven in a real window against a scripted
-provider and the real `moai-control`; the sandbox argv is proven under real `bwrap`.
-**Not proven:** anything on a MoOS desktop; tool choice by a real free model (P3.3); a
-real AppImage, the dialog, the file-manager action and the folder watch (P4.6); the
-signed image build of W6 (its image-only gates have never run).
+Evidence class: repository gates on Fedora 44 under WSL2 (Qt 6.11.2, Kirigami 6.29,
+bubblewrap, node); Mo AI's loop in a real window against a scripted provider and the
+real `moai-control`; the sandbox argv under real `bwrap`; the signed image build and
+all four boot proofs of cycle B. **Not proven:** anything on a MoOS desktop; tool choice
+by a real free model (P3.3); a real AppImage, the dialog, the file-manager action and
+the folder watch (P4.6).
 
-## ISO proof (P0.8) — cause found, fix unproven
+## In review after the release (W6.1, `feat/moai-skills-20260917`)
 
-`tests/boot_x86_qcow2.sh` documented on 2026-09-03 that slirp can keep pre-reboot flow
-state on a forward and then accept TCP without delivering a banner, and reserves one
-forward per boot. The ISO proof got its reboot half on 2026-09-16 with one forward and
-has failed three of four runs since. `ebd694fb` gives it a forward per boot, makes a
-green run measure the old forward (`reboot-channel.txt`), and makes the proof-channel
-helper wait for the default route and speak on the console. No ISO run has passed on
-it yet.
+- **About this device** is a page of MoOS Settings, not the desktop's own module (which
+  names the projects MoOS is built from): edition in words, version, build date, signed
+  image, rollback, kernel as its number, hardware, Copy details (P2.9).
+- **Mo AI skills:** twelve repair playbooks shipped read-only, found with `list_skills`
+  and read with `read_skill` (43 tools: 30 run at once, 13 ask first); a gate reads
+  every skill the way the model will. Eight one-tap chips on the home screen (P3.10).
+- **Mo AI's rail at the DEFAULT 940 px window** laid icon and label out in opposite
+  corners of the pill; every earlier review had been rendered at 1400 px. Measured in
+  the real window now. The Device panel printed the raw kernel release (`…fc44…`).
+- Needs release cycle C. Rendered from source at the station's real window sizes
+  (1536×864 logical → Store 1320×761, Settings 1360×761, Mo AI 940×700).
+
+## ISO proof (P0.8) — cause measured
+
+The image's CI proof-channel helper read the IPv4 default route ONCE, and MoOS
+disables NetworkManager-wait-online, so nothing orders that read after DHCP. Run
+`35265328509` — the first green ISO proof since, and the first where the helper speaks
+on the console — shows it: first boot, route 16 ms after the daemons were active;
+second boot, 1.02 s (the first read was empty; one retry found it). The old helper
+died on that read and never added its SSH rule. The harness change written on the
+other theory (a fresh slirp forward per boot) was measured by the same run as
+irrelevant (`first-boot-forward=alive`). One green run is one run: the row closes
+after two more.
 
 ## Proven source/image behavior
 
-- Cycle A's signed build passed every image gate for `moos`, `moos-nvidia` and
-  `moos-cloud` at `51cc2ac3`, and all three disks booted twice under QEMU/KVM.
-- The last full NVIDIA local build passed repository gates, 179 MoPlayer tests,
-  MoRemote tests/publish, QML runtime smoke, identity firewalls, clean image state,
-  `bootc container lint` and initramfs inspection (`ostree-prepare-root`, Plymouth
-  assets, six NVIDIA modules).
+- Cycle B's signed build passed every image gate for `moos`, `moos-nvidia` and
+  `moos-cloud` at `a8622f95`; all three disks booted twice under QEMU/KVM; the final
+  ISO installed offline, logged in, opened every first-party app twice, rebooted and
+  powered off.
+- `pr-image-gates.yml` built the generic image on a pull request and ran its in-image
+  gates in 16 minutes, pushing nothing (run `35266474587`).
 - Horizon motion gates cover finite settling, reversal, hidden state, reduced motion
   and pointer/key paths. Native sounds decode and map to KDE event IDs; installed
   playback/mute acceptance remains open.
 - Free cloud AI returned English and Arabic replies through the live gateway with an
   explicitly free provider. That proves chat, not system control.
+- `moos-privacy-monitor`'s polling costs 0.66% of one core off the station (P5.4).
 
 ## Development environment
 
 - On the station: VS Code is a Flatpak; host work uses `flatpak-spawn --host`.
   `just workstation-check` is a read-only inventory. .NET SDK `10.0.401` and Flutter
   3.47.4 (the image-builder pin) are installed.
-- Off the station (2026-09-17): Windows 11 + WSL2 `FedoraLinux-44`.
+- Off the station: Windows 11 + WSL2 `FedoraLinux-44`.
   `scripts/review/setup-review-distro.sh` installs the toolchain,
   `scripts/review/mirror-gates.sh` runs gates on a mirror with git's file modes, and
   `scripts/review/render-app.sh` renders a first-party app from source with a real
-  MoOS colour scheme and prints QML binding errors. Several gates cannot run on
-  Windows itself (`termios`, `os.getuid`, exec bits).
+  MoOS colour scheme and prints QML binding errors. Render at the size the window
+  really opens at. `scripts/release-candidate.sh` needs `TMPDIR` set under Git Bash.
 - `.kilo/` is local untracked agent state and is not product source.
-
-## Fixed earlier, waiting for an x86 promotion
-
-- Owner wallpaper reverted after reboot → `moos-theme` adopts the live choice first
-  (W3, reviewed live on the station for both paths).
-- Widgets could not be removed: `immutability=0` is not Mutable (Plasma: 1/2/4) → W3,
-  `THEME_REV` 60; the station was repaired live, backups in `~/.cache/moos-live/`.
-- x86 `main` red after W5: the image gate's `source()` stripped `/* … */` from bash,
-  and `${privacy_act#*/}` closed a span opened 235 lines earlier, hiding 24 of 28
-  settings routes → #114; `tests/test_image_gate_source_parser.py` runs the gate's
-  parser in Repo gates. No pull-request check can see image-only gates yet (P0.9).
-- A1: `moos-index-policy` wrote Baloo's key under the wrong group; `moos-control
-  status` hung 30 s without Bluetooth hardware (now 218 ms) → #112, #113 inside #114.
 
 ## Open evidence gaps
 
-- One x86 promotion with a green ISO proof; then stage, reboot and read W2–W6 back
-  from `/usr` on the station, and the W5/W6 island on the A1 after its ARM promotion.
+- Station and A1 review of W4–W6 after the update: Hub controls, Search answers, Island
+  jobs and privacy chips, Mo AI's tool loop and cards with a real free model, App Drop
+  with a real AppImage, `THEME_REV=62` sweeping the review shadows. Record it here.
 - M1 visual/accessibility matrix: English/German sessions, light/dark, reduced motion,
   1080p–4K, 100–250%, island Remote/Media switching (Arabic reviewed only).
 - Two suspend/resume cycles, multi-monitor, audio/network recovery, deliberate
@@ -166,15 +174,11 @@ it yet.
 
 ## Next execution
 
-1. Merge #114, then the W6 pull request, with merge commits and nothing else in
-   between (promotion requires `main`'s tree to equal the candidate's).
-2. Release cycle B on the W6 revision: `scripts/release-candidate.sh --ref <branch>`,
-   then `--promote` once build, 3×QCOW2 and ISO are green on attempt 1. If the build
-   fails an image-only gate, fix on the branch and dispatch a FRESH cycle. If only the
-   ISO proof fails, read `reboot-channel*.txt` in `moos-iso-install-proof` first.
-3. On the station: `bootc status`, update, reboot; read back Hub controls, Search
-   answers, Island jobs/privacy chips, the Mo AI tool loop and cards, App Drop with a
-   real AppImage; confirm `THEME_REV=62` swept the review shadows. Record it here.
-4. On the A1 after the ARM promotion: the island and search plasmashell actually runs,
-   and `moos-control status` in well under a second.
-5. P0.7 stays open; the experience waves continue from `docs/DEVELOPMENT_PLAN.md`.
+1. Owner: update the station (MoOS Updater → restart) and the A1; review W4–W6 there.
+2. Merge the W6.1 pull request once its checks (repo gates, x86 image gates, ARM build)
+   are green, then run release cycle C: `scripts/release-candidate.sh --promote` on
+   `main`. If only the ISO proof fails, read `reboot-channel*.txt` and the helper's
+   lines in `serial-installed.log` first.
+3. P0.8 closes after two more consecutive green ISO proofs; P0.7 stays open.
+4. W7 (Workspace) needs a live KWin session: do it on the station, from the facts
+   recorded in `docs/DEVELOPMENT_PLAN.md`.

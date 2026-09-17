@@ -242,15 +242,19 @@ colour at an alpha (`tests/test_secondary_text_contrast.py` does the arithmetic 
 gate passed. `tests/test_qml_root_references.py` is the static half; `scripts/review/render-app.sh`
 prints the runtime half.
 
-**A proof VM gets one SSH forward per boot.** Across a guest reboot QEMU's slirp backend can keep
-pre-reboot flow state on a `hostfwd` and then accept TCP on the host side without ever delivering
-the new sshd's banner. `tests/boot_x86_qcow2.sh` wrote that down on 2026-09-03 and reserves a
-forward per boot. The ISO install proof was given a reboot half thirteen days later with ONE
-forward, and lost three release candidates out of four to "Connection timed out during banner
-exchange" while QGA called the boot healthy (plan row P0.8). Before you add a reboot to any VM
-proof, read how the other proofs reboot. And when a proof's channel dies, the harness's QGA
-context is confined by SELinux — it cannot read the journal or unit state — so anything a fixture
-needs to say about its own failure has to go to the console (`StandardOutput=journal+console`).
+**A fixture that reads the network once races DHCP, and a silent fixture hides it.** MoOS
+disables NetworkManager-wait-online for boot speed, so neither `After=NetworkManager.service` nor
+`network-online.target` means a lease exists. The CI proof-channel helper read the default route
+ONCE: on a first boot sshd's key generation delayed it past the lease; on the SECOND boot the
+read came back empty, the oneshot died, its SSH rule was never added, and the ISO proof lost
+three release candidates out of four to "Connection timed out during banner exchange" (plan row
+P0.8). Two things made it a three-day hunt. The evidence that seemed to clear the helper —
+`systemctl --failed` was empty — came from the harness's QGA context, which SELinux confines:
+**its silence about units means nothing.** And the helper said nothing on the console, the one
+record the harness always keeps; a fixture's progress and failures go there
+(`StandardOutput=journal+console`). The fix written first, on the more plausible theory (one slirp
+forward per boot), was measured as irrelevant by the run that proved the real one: **when you
+fix on a theory, make the green run measure the theory.**
 
 **`/` is not the disk.** On bootc/OSTree, `/` is a read-only composefs overlay; `statvfs` reports
 it as a ~60 MB filesystem that is 100% full. `shutil.disk_usage("/")` therefore returns 0 total,
