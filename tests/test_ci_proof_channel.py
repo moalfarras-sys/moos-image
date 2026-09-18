@@ -104,6 +104,24 @@ class RouteWait(unittest.TestCase):
     def test_a_route_that_is_already_there_costs_one_read(self) -> None:
         self.assertEqual(self.run_wait(routeless_calls=0, attempts=120), (0, "enp0s2", 1))
 
+    def test_a_second_route_line_cannot_kill_the_read(self) -> None:
+        # The helper runs under `set -euo pipefail`. A read that stops after the first line
+        # closes the pipe while `ip` still has a second route to write: SIGPIPE, 141, and the
+        # whole helper died (1 run in 10 of this class under load). The pause makes it certain.
+        with tempfile.TemporaryDirectory() as raw:
+            stubs = Path(raw)
+            write_stub(stubs, "ip", """
+                echo "default via 10.0.2.2 dev enp0s2 proto dhcp src 10.0.2.15 metric 100"
+                /usr/bin/sleep 0.3
+                echo "default via 192.168.9.1 dev wlp3s0 proto dhcp metric 600"
+            """)
+            write_stub(stubs, "sleep", "exit 0\n")
+            done = subprocess.run(
+                [BASH, "-euo", "pipefail", "-c", lifted_route_wait() + "\ndefault_route_iface 3\n"],
+                text=True, capture_output=True, timeout=30,
+                env={"PATH": f"{stubs}:{os.environ['PATH']}"}, check=False)
+        self.assertEqual((done.returncode, done.stdout.strip()), (0, "enp0s2"), done.stderr)
+
     def test_it_gives_up_and_says_so_with_its_exit_status(self) -> None:
         code, iface, calls = self.run_wait(routeless_calls=10**6, attempts=5)
         self.assertNotEqual(code, 0)
