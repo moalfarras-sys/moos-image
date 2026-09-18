@@ -125,9 +125,12 @@ proofs of cycles C, D and E were three consecutive green install-and-reboot runs
 - Input on a seatless session: KWin's `org.kde.KWin.EIS.RemoteDesktop.connectToEIS` (portal
   numbering: keyboard 1, pointer 2, touch 4) plus libei — never Mo PC Remote's portal token.
 - Works: Search answers, launcher, About, What's new; Mo AI answered in 15–37 s (P3.2 open).
-- Fixed in `fix/a1-live-review-20260918`: bitten capsule ends in 50 icons ("pulse" was a
+- Fixed (PR #130): bitten capsule ends in 50 icons ("pulse" was a
   speck), one moon for suspend and hibernate (`THEME_REV` 67), Discover's install rows.
 - Open (station agent's files): without blur (llvmpipe) Liquid Glass is see-through (P2.5).
+- ARM: Mo AI hides the NVIDIA and PC-games chips; `moai-do` refuses gaming/Windows setup on
+  non-x86 before asking. Mo AI's real-window tests run in a Fedora 44 toolbox (Qt 6.11.2,
+  Kirigami 6.30): rail green; the three agent-loop window tests fail on `main` too (P3.4).
 
 ## Open evidence gaps
 

@@ -751,6 +751,12 @@ Kirigami.ApplicationWindow {
           send: root.local("الجهاز يتأخر عند التشغيل، افحص الإقلاع", "My computer takes long to start, check the startup") }
     ]
 
+    // The NVIDIA edition and PC games are x86-only. On the ARM edition those two chips could
+    // only end in "not supported", so they are not offered (the skills still answer if asked).
+    readonly property var shownSkillChips: root.skillChips.filter(chip =>
+        !(root.snap.arch && root.snap.arch !== "x86_64"
+          && (chip.skill === "graphics-and-nvidia" || chip.skill === "gaming-and-windows-apps")))
+
     // ── The rail ────────────────────────────────────────────────────────────
     // ONE chat. The old separate "dev" panel and the agent panel's second chat
     // are gone: conversations live in the Chat panel only, and everything a
@@ -3810,7 +3816,7 @@ Kirigami.ApplicationWindow {
                                     }
                                     Repeater {
                                         id: skillRepeater
-                                        model: root.skillChips
+                                        model: root.shownSkillChips
                                         delegate: Rectangle {
                                             id: skillChip
                                             required property var modelData
