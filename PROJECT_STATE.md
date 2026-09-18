@@ -50,30 +50,6 @@ were exercised on a MoOS desktop.
 changes" forever. Use the MoOS Updater (Settings → Update MoOS, or Mo AI's "Update
 my system"), or wait for the nightly train; then restart.
 
-A root-owned local override `/etc/plasmalogin.conf.d/90-moos-development-autologin.conf`
-enables one-session automatic login for `moos` during this development cycle. It is
-not in the image and sets `Relogin=false`; remove it with `pkexec rm` on that path.
-
-Review shadows: the four W2 ones are **gone** — `THEME_REV` 62 swept them at the
-first login after the update, which is checklist item 2 and it passed
-(`~/.local/share/plasma/{plasmoids,wallpapers}/` are both empty).
-
-One new shadow is left on purpose, from the W7 review:
-`~/.local/share/kwin/tabbox/org.moos.ui2.switcher`, with
-`~/.config/kwinrc [TabBox] LayoutName` and `[TabBoxAlternative] LayoutName`
-pointing at it, so the owner has the new Alt+Tab before the next release carries
-it. `THEME_REV` does not sweep `kwin/tabbox`. Remove both by hand when the update
-that ships the package is installed:
-`rm -rf ~/.local/share/kwin/tabbox/org.moos.ui2.switcher` and
-`kwriteconfig6 --file kwinrc --group TabBox --key LayoutName --delete` (same for
-`TabBoxAlternative`).
-
-The station moved W1 → W6 in one update, carrying W2 (Hub controls), W3 (removable
-widgets, a wallpaper that stays), W4 (Mo AI's tool harness), W5 (Island jobs and
-privacy chips, inline Search answers), the #114 integration and W6, and landing on
-`THEME_REV` 62. W2 and W3 had been reviewed live before the update; W4, W5 and W6 were
-first seen on a MoOS desktop on 2026-09-17, below.
-
 ## W8 on the running station (2026-09-18, `44.20260918.868`)
 
 Reviewed with review shadows and `scripts/station/pointer.py`; frames in
@@ -133,13 +109,12 @@ proofs of cycles C, D and E were three consecutive green install-and-reboot runs
 
 - Cycles B and C: the signed builds passed every image gate for all three x86 editions;
   every disk booted twice under QEMU/KVM; each final ISO installed offline, logged in,
-  opened every first-party app twice, rebooted and powered off.
-- `pr-image-gates.yml` builds the generic image on a pull request and runs its in-image
-  gates in 16 minutes, pushing nothing.
+  opened every first-party app twice, rebooted and powered off. `pr-image-gates.yml`
+  builds the generic image on a pull request in 16 minutes and pushes nothing.
 - Horizon motion gates cover finite settling, reversal, hidden state, reduced motion and
   pointer/key paths; MoOS motion roles follow the owner's animation speed on a real Qt
-  runtime (`THEME_REV` 65). Free cloud AI returned English and Arabic replies through the
-  live gateway with an explicitly free provider: chat, not system control.
+  runtime. Free cloud AI returned English and Arabic replies through the live gateway
+  with an explicitly free provider: chat, not system control.
 
 ## Development environment
 
@@ -183,6 +158,16 @@ carries tool schemas, results and confirmations in one transcript, and parameter
 count is only guessable from the model id.
 
 It cannot run here yet: no provider key is configured (P0.5, an owner action).
+
+**MoOS found a second desktop server on its own machine.** `moos-health scan` reported
+one warning on 2026-09-18: KDE's `krdpserver` listening on `tcp *:3389` for the whole
+network with `SystemUserEnabled=true`, beside Mo PC Remote (private tailnet, PIN,
+on-screen indicator). The finding used to open Mo PC Remote, which does not close the
+port; it now carries `moos://privacy/stop-sharing`, and `moos-remote-guard off` stops and
+un-autostarts the two named KDE sharing services with no administrator rights and nothing
+removed. **Still open on the station itself:** the port is still listening — stopping a
+running service needed a permission this session did not have, so the owner runs
+`moos-remote-guard off` (or presses the finding) once the update lands.
 
 ## Next execution
 

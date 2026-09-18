@@ -403,9 +403,12 @@ def listeners(findings):
             REMOTE_ACCESS_PORTS.get(port, "منفذ مفتوح على الشبكة | A port is open to the network"),
             f"{protocol} {where} — {who}"
             + (" — MoOS's remote desktop is Mo PC Remote" if desktop_share else ""),
-            # MoOS's remote desktop is Mo PC Remote (private tailnet, PIN): offer it
-            # instead of leaving a second, network-wide desktop server running.
-            "moos://app/remote" if desktop_share else ""))
+            # MoOS's remote desktop is Mo PC Remote (private tailnet, PIN, an
+            # indicator while a session is live). A second desktop server open to
+            # the whole network is the finding; the action TURNS IT OFF rather
+            # than merely opening Mo PC Remote beside it, because a warning with
+            # nothing to press is a warning people learn to scroll past.
+            "moos://privacy/stop-sharing" if desktop_share else ""))
     return items
 
 
