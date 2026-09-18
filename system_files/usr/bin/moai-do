@@ -462,6 +462,17 @@ nvidia_edition_supported() {
     esac
 }
 
+# Steam, Proton, Lutris and Windows .exe programs are built for x86 PCs. On the ARM edition
+# (the Oracle A1, ARM laptops) Flathub has no Steam for aarch64 and Bottles cannot run an x86
+# .exe, so these setups can only fail after asking for the password. Same shape as
+# nvidia_edition_supported: a pure predicate the tests execute.
+pc_games_supported() {
+    case "${1:-$(uname -m)}" in
+        x86_64|amd64) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
 do_update_firmware() {
     hdr "تحديث البرامج الثابتة" "Update device firmware"
     if ! command -v fwupdmgr >/dev/null 2>&1; then
@@ -602,6 +613,11 @@ do_setup_waydroid() {
 # -----------------------------------------------------------------------------
 do_setup_gaming() {
     hdr "تجهيز الألعاب (Steam + Proton + Lutris)" "Set up gaming (Steam + Proton + Lutris)"
+    if ! pc_games_supported; then
+        echo "${Y}ألعاب Windows وبرامجها مبنية لمعالجات x86؛ هذا الجهاز بمعالج ARM ولا يشغّلها. لم يتغير شيء.${N}"
+        echo "${Y}Windows games and programs are built for x86 processors; this ARM computer cannot run them. Nothing changed.${N}"
+        return 1
+    fi
     if ! command -v moos-setup >/dev/null 2>&1; then
         echo "${R}moos-setup غير موجود | not found${N}" >&2
         return 1
@@ -614,6 +630,11 @@ do_setup_gaming() {
 
 do_setup_windows() {
     hdr "تجهيز تطبيقات Windows عبر Bottles" "Set up Windows apps through Bottles"
+    if ! pc_games_supported; then
+        echo "${Y}ألعاب Windows وبرامجها مبنية لمعالجات x86؛ هذا الجهاز بمعالج ARM ولا يشغّلها. لم يتغير شيء.${N}"
+        echo "${Y}Windows games and programs are built for x86 processors; this ARM computer cannot run them. Nothing changed.${N}"
+        return 1
+    fi
     need flatpak || return 1
     echo "${D}يثبّت Bottles (Wine مُدار) لتشغيل برامج ‎.exe. التشغيل بلا صلاحيات؛ التثبيت مرة واحدة فقط.${N}"
     echo "${D}Installs Bottles (managed Wine) to run .exe programs. Running needs no admin; only the one-time install does.${N}"

@@ -230,7 +230,7 @@ class TheRealWindow(unittest.TestCase):
                    PATH=f"{work / 'bin'}{os.pathsep}{os.environ['PATH']}",
                    MOAI_CONTROL_PORT=str(control_port), MOAI_GATEWAY_PORT=str(provider.server_port),
                    QML_IMPORT_PATH=str(ROOT / "system_files/usr/lib64/qt6/qml"),
-                   QML_DISABLE_DISK_CACHE="1", QT_QUICK_CONTROLS_STYLE="Basic", LIBGL_ALWAYS_SOFTWARE="1")
+                   QML_DISABLE_DISK_CACHE="1", QT_FORCE_STDERR_LOGGING="1", QT_QUICK_CONTROLS_STYLE="Basic", LIBGL_ALWAYS_SOFTWARE="1")
         for name in ("DISPLAY", "WAYLAND_DISPLAY", "DBUS_SESSION_BUS_ADDRESS"):
             env.pop(name, None)                        # a gate must never reach a live desktop
         (work / "run").mkdir(mode=0o700)

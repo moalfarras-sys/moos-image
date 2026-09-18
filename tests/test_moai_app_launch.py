@@ -14,7 +14,7 @@ def executable(path: Path, body: str) -> None:
     path.chmod(0o755)
 
 
-def run(run_status: int) -> subprocess.CompletedProcess[str]:
+def run(run_status: int, machine: str = "x86_64") -> subprocess.CompletedProcess[str]:
     with tempfile.TemporaryDirectory() as raw:
         bindir = Path(raw)
         executable(bindir / "flatpak", f'''case "$1" in
@@ -24,6 +24,9 @@ esac
 exit 2
 ''')
         executable(bindir / "logger", "exit 0\n")
+        # moai-do refuses Windows apps on non-x86 before it asks for anything; pin the
+        # machine so this gate tests the same path on the x86 runner and on an ARM host.
+        executable(bindir / "uname", f'[ "$1" = -m ] && {{ echo {machine}; exit 0; }}\nexec /usr/bin/uname "$@"\n')
         executable(bindir / "moos-gpu-headroom", "exit 0\n")
         env = os.environ.copy()
         env["PATH"] = f"{bindir}:/usr/bin:/bin"
@@ -44,3 +47,9 @@ assert "create an 'Application' bottle" not in rejected.stdout, \
     "setup instructions claimed a window existed after launch rejection"
 
 print("PASS: Mo AI distinguishes accepted and rejected GUI launches")
+
+arm = run(0, machine="aarch64")
+assert arm.returncode != 0, "Windows apps were set up on an ARM processor"
+assert "x86" in arm.stdout, arm.stdout
+assert "create an 'Application' bottle" not in arm.stdout
+

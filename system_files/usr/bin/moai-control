@@ -719,6 +719,8 @@ def scan() -> dict:
         info["mem_gb"] = 0
     info["disk"] = disk_usage()
     info["gpu"] = hardware.gpu_name()
+    # "aarch64" on the ARM edition: Mo AI hides the chips for x86-only work there.
+    info["arch"] = os.uname().machine
     info["desktop"] = os.environ.get("XDG_CURRENT_DESKTOP", "")
 
     # One read-only inventory powers the Device, Apps, Compatibility, Remote and

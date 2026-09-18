@@ -56,5 +56,16 @@ class OpenClawArchitectureTests(unittest.TestCase):
                         function.index("bootc switch"))
 
 
+    def test_pc_game_and_windows_setup_refuse_before_asking_on_arm(self) -> None:
+        self.assertEqual(self.run_function("pc_games_supported", "x86_64").returncode, 0)
+        for machine in ("aarch64", "arm64", "riscv64"):
+            with self.subTest(machine=machine):
+                self.assertNotEqual(self.run_function("pc_games_supported", machine).returncode, 0)
+        gaming = shell_function("do_setup_gaming")
+        self.assertLess(gaming.index("pc_games_supported"), gaming.index("confirm"))
+        self.assertLess(gaming.index("pc_games_supported"), gaming.index("moos-setup --gaming"))
+        windows = shell_function("do_setup_windows")
+        self.assertLess(windows.index("pc_games_supported"), windows.index("flatpak install"))
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
