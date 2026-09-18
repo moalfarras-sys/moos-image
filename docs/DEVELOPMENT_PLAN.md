@@ -1,19 +1,54 @@
 # MoOS development plan
 
-This is the only product development plan. It replaces the former completion,
-system, x86, unified-platform, visual and remote-v40 plans. Current evidence is
-in [`PROJECT_STATE.md`](../PROJECT_STATE.md); release mechanics are in
-[`RELEASE.md`](../RELEASE.md).
+This is the only product development plan. Current evidence is in
+[`PROJECT_STATE.md`](../PROJECT_STATE.md); release mechanics are in
+[`RELEASE.md`](../RELEASE.md); who holds which files right now is in
+[`AGENT_COORDINATION.md`](AGENT_COORDINATION.md).
 
-**How this plan is worked:** P0–P6 are product work streams, not a command to
-stop all visible work behind hardware that is unavailable today. Active boot,
-security and data-loss defects pre-empt everything; otherwise follow the
-milestone map below and finish a coherent user journey across its owners. Run
-targeted tests and `just check` as the batch develops, then one full image build,
-QCOW2/ISO/ARM proof set and promotion at the milestone boundary. The scheduling
-rules are in `AGENTS.md`
-("How MoOS work is scheduled"); the release cycle itself is one command,
-`scripts/release-candidate.sh`.
+## Read this first
+
+**MoOS is a complete operating system, not a theme on top of one.** It is built
+from Fedora Kinoite and it ships as a signed, image-based OS that installs on a
+real machine, updates atomically and rolls back. The people it has to satisfy
+are people who could have used Windows, macOS, Android or iOS instead — so those
+four are the quality bar for how MoOS looks, how fast it feels, how little it
+asks of its owner and how rarely it surprises them. They are not API targets and
+MoOS never forks Plasma, KWin or Wayland: MoOS owns the identity, every surface
+the owner looks at, every default and every recovery path.
+
+**Where MoOS is today (2026-09-18).** Production on all four editions is
+`44.20260918.868` / ARM `.458` (cycle E). Waves W1–W7 are merged and released:
+the MoOS Bar, Search, Island, Hub, Switcher, Arrange, App Drop, What's new, Mo
+AI's tool loop, the owner's control of the desk (removable widgets, a wallpaper
+that stays) and one animation-speed control that now reaches every surface.
+Three things are still true and worth knowing before choosing work: several
+waves have been **rendered from source but never seen on a MoOS desktop**; Mo AI
+has **no cloud brain configured**, which blocks four review rows; and nothing has
+been measured on a **second machine, a laptop, a touchscreen or two monitors**.
+
+**What is missing before MoOS competes.** In the order that decides it:
+
+1. **A look that is unmistakably MoOS.** The pieces are good; the system does not
+   yet read as ONE material with real depth. That is the next wave (W8).
+2. **Speed the owner can feel and the repo can prove** — boot, login, app launch
+   and idle budgets per hardware tier, measured, not asserted (P5.4).
+3. **Applications that just work** — one install/update/remove authority across
+   Store, App Drop, Mo AI and URL routes, with truthful progress (W10, P4).
+4. **Mo AI as the system's hands** — a configured brain, ≥95% action selection,
+   confirmation cards and evidence-based completion (P3, owner action P0.5).
+5. **Hardware breadth** — laptop, touch, second monitor, suspend, rollback on
+   real machines, and the ARM edition's own review (P5, P0.7).
+6. **Trust at scale** — reproducible release trust, recovery UX and a support
+   bundle an owner can send (P6).
+
+**How you work here — the law of the wave.** MoOS is developed in waves, never in
+small edits followed by a build. One wave is one coherent, user-visible release:
+one branch, the whole wave implemented, reviewed on a live desktop (or on a real
+Qt runtime when there is no desktop), gated ONCE with `just check`, one pull
+request, and one release cycle for the batch. A wave that produces no visible
+difference is not a wave. Fixing a defect you find on the way belongs in the same
+wave. What is never traded for speed: a safety gate, a signing or rollback rule,
+the identity contract, or a meaningful test.
 
 ## Product outcome
 
@@ -82,11 +117,48 @@ reviewed live, gated once, merged once and proven once.
 | W6.1 | M1+M3 | a MoOS-owned "About this device" page (P2.9); Mo AI skills — twelve repair playbooks, `list_skills`/`read_skill`, one-tap chips (P3.10); Mo AI's rail at the window's DEFAULT size; the Device panel no longer prints the raw kernel release; P0.8's cause recorded as measured | merged (`291361ad`, PR #117); **production on all four editions since 2026-09-17** (x86 `44.20260917.862`, ARM `44.20260917.441`, cycle C); **not seen on a MoOS desktop** |
 | W6.2 | M1 | **What the desktop renderer saw first:** the Hub's date lines on one edge, the Island's privacy chip no longer cut in Arabic, MoOS Search's two start-up warnings (`THEME_REV` 64; W7 is 63); `scripts/review/render-desktop.sh` and `render-lockscreen.sh` | merged (`012eac13`, PR #119); **production on all four editions since 2026-09-18** (cycle D `44.20260917.865`, then cycle E `44.20260918.868`); rendered from source, **not seen on a MoOS desktop** |
 | W6.3 | M1 | **What's new:** after an update MoOS says once what it brought and where to try it; Settings → System → What's new keeps the list (P2.11) | merged (`a0dd4b33`, PR #120); **production on all four editions since 2026-09-18** (cycle D `44.20260917.865`, then cycle E `44.20260918.868`); rendered from source, **not seen on a MoOS desktop** |
-| W7 | M2 | MoOS Workspace: the switcher and Overview in MoOS UI, one-click tiling layouts, window durations taken from MoOS Motion, gesture and touchpad defaults | merged (`411a470c`, PR #118); **production on all four editions since 2026-09-18** (cycle D `44.20260917.865`, then cycle E `44.20260918.868`); ARM production. Landed and reviewed live on the station: **MoOS Switcher** (Alt+Tab and Alt+` are a MoOS surface, mirrored by the LOCALE, with a working close control), **`Tokens.scaled()`** (MoOS motion answers to the same AnimationDurationFactor Plasma does) and **MoOS Arrange** (halves, thirds, quarters, main-and-two and centre, from the window menu and Meta+Alt+1..4/C). `Tokens.scaled()` now reaches every surface: the motion ROLES carry the owner's animation speed, so the 288 places that read `design.motionFast` follow the one control (proven on a real Qt runtime in `tests/qml/motion-review.qml`). Open: touchpad/gesture defaults (P5.2, needs hardware this station does not have) and a live preview in the Arrange surface. Overview is **configuration only** — see "Workspace facts" |
-| W8 | M2 | MoOS Intro: one horizon scene from Plymouth through login to the Hub; first-run tour; offline first run (P1.6) | planned |
+| W7 | M2 | MoOS Workspace: the switcher and Overview in MoOS UI, one-click tiling layouts, window durations taken from MoOS Motion, gesture and touchpad defaults | merged (`411a470c`, PR #118); **production on all four editions since 2026-09-18** (cycle D `44.20260917.865`, then cycle E `44.20260918.868`); ARM production. Landed and reviewed live on the station: **MoOS Switcher** (Alt+Tab and Alt+` are a MoOS surface, mirrored by the LOCALE, with a working close control), **`Tokens.scaled()`** (MoOS motion answers to the same AnimationDurationFactor Plasma does) and **MoOS Arrange** (halves, thirds, quarters, main-and-two and centre, from the window menu and Meta+Alt+1..4/C). `Tokens.scaled()` now reaches every surface: the motion ROLES carry the owner's animation speed, so the 288 places that read `design.motionFast` follow the one control (proven on a real Qt runtime in `tests/qml/motion-review.qml`). Open: touchpad/gesture defaults (P5.2, needs hardware this station does not have) and a live preview in the Arrange surface. Overview is **configuration only** — see "Workspace facts". **Closed on 2026-09-18** (`a2cfd72a`, PR #123): `scripts/station/pointer.py` made pointer review real (KWin confirms every position before a click), the four owed review rows passed on the station, the administrator prompt and a dismissed one became MoOS's own words, and the motion ROLES now carry the owner's animation speed so all 288 surfaces follow one control (`THEME_REV` 65). Open: touchpad and gesture defaults (P5.2, needs hardware this station does not have) and a live preview in Arrange |
+| W8 | M2 | **MoOS Aurora Glass — the look nobody else has.** One material with real depth (scene → panel → popover → dialog), a specular edge that takes its light from the owner's own wallpaper, ONE clarity control that drives both MoOS surfaces and the compositor, the MoOS mark at exactly three sizes, and glass that settles instead of fading | **next** |
 | W9 | M2 | System surfaces on MoOS UI: Updater, Recovery, Remote centre, Settings front door (P2.1–P2.2), a MoOS-owned About page (P2.9) | planned |
 | W10 | M3 | Mo Store as one job system for install/update/remove across the UI, Mo AI and URL routes, with a drop target in its own window (P1.7, P4.1–P4.2, P4.7) | planned |
-| W11+ | M4–M5 | hardware breadth, compatibility products, MoOS Shield encryption, release trust | planned |
+| W11 | M2 | MoOS Intro: one horizon scene from Plymouth through login to the Hub; first-run tour; offline first run (P1.6) | planned |
+| W12+ | M4–M5 | hardware breadth, compatibility products, MoOS Shield encryption, release trust | planned |
+
+### W8 — MoOS Aurora Glass, in detail
+
+MoOS already has glass, a palette per family and finite spring motion. What it
+does not have is ONE material: each surface decides its own density, nothing
+casts light on anything else, and the desk reads as flat panes on a photograph.
+The 2026 state of the art (Apple's refined Liquid Glass in iOS/macOS 27) fixed
+exactly this by giving glass a darkened edge, brighter specular highlights and a
+transparency the user controls. MoOS takes that further in the one direction
+Apple cannot: MoOS's glass answers the owner's OWN wallpaper and hardware tier.
+
+1. **One glass, four depths.** Every MoOS surface declares its depth — scene
+   (Hub cards), panel (Bar, Island), popover (menus, Search, Switcher), dialog
+   (questions, Settings sheets) — and the material derives density, blur radius,
+   edge darkness and shadow from that depth plus the palette. Nothing hardcodes
+   an alpha again. Proof: one QML gate that renders the four depths on the same
+   background and measures separation.
+2. **Light from the owner's wallpaper.** A specular highlight along each glass
+   surface's leading edge, tinted from the dominant hue of the wallpaper that is
+   actually on screen. Proof: rendered frames for three wallpapers showing three
+   different highlights, and a measured contrast floor on both light and dark.
+3. **One clarity control.** «وضوح الزجاج | Glass clarity» from clear to solid,
+   one value that drives MoOS token density AND KWin's blur strength, with the
+   accessibility setting for reduced transparency pinning it to solid. Proof: the
+   slider moves both, read back from the live session.
+4. **The MoOS mark, three sizes, nowhere else.** One geometry for boot, login and
+   the Bar; every other place that draws a logo today uses a MoOS glyph instead.
+   Proof: the identity gates already sweep for foreign marks; add one that counts
+   MoOS mark instances per surface.
+5. **Glass that settles.** Surfaces spring in on MoOS Motion tokens and the
+   specular sweeps once as they arrive; Reduced Motion stops both. Proof: the
+   existing motion gate, extended to the new material.
+
+Owner: the station agent (it needs the live compositor). Files: the design core
+generator and `org/moos/ui`, the MoOS plasmoids, `etc/xdg/kwinrc`'s blur section,
+the theme picker, and the Aurorae generator.
 
 ### Ideas worth building (each needs its owner and a proof before it ships)
 
