@@ -38,8 +38,15 @@ flutter/
 moplayer/build/
 moplayer/.dart_tool/
 moplayer/linux/flutter/ephemeral/
-moremote/bin/
-moremote/obj/
+# MEASURED 2026-09-18: `moremote/bin/` and `moremote/obj/` do not exist and never did —
+# Mo Remote's .NET output lives under `agent-linux/`, which is exactly what `.gitignore`
+# excludes by name. So these two lines protected nothing while 196 MB went into the build
+# context on every local build: node_modules 191 MB, agent-linux/bin 3.8 MB, obj 1.2 MB.
+moremote/agent-linux/bin/
+moremote/agent-linux/obj/
+moremote/controller/node_modules/
+moremote/dist-linux/
+.tmp-moremote-*/
 
 # Local build artefacts and scratch.
 output/

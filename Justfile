@@ -142,6 +142,9 @@ check:
     python3 tests/test_remote_portal_layout_refresh.py
     # And the gate that stops this recurring: a test file nothing runs is not a gate.
     python3 tests/test_every_gate_is_run.py
+    # What Git refuses to track, the builder should refuse to read. Two rules named
+    # paths that never existed while 196 MB entered the build context beside them.
+    python3 tests/test_build_context_excludes_local_scratch.py
     python3 tests/test_moai_hermes.py
     python3 tests/test_release_partition_roles.py
     python3 tests/test_iso_install_gate.py
