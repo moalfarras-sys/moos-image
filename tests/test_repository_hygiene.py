@@ -3,6 +3,7 @@
 
 from pathlib import Path
 import re
+import subprocess
 import unittest
 
 
@@ -27,7 +28,26 @@ RETIRED = (
 )
 
 
+def tracked_markdown() -> list[Path]:
+    """Every Markdown file Git tracks. Falls back to the working tree without Git."""
+    try:
+        listed = subprocess.run(["git", "-C", str(ROOT), "ls-files", "-z", "*.md"],
+                                capture_output=True, text=True, timeout=30, check=True)
+    except (OSError, subprocess.SubprocessError):
+        return [path for path in ROOT.rglob("*.md")
+                if ".kilo" not in path.parts and ".git" not in path.parts]
+    return [ROOT / name for name in listed.stdout.split("\0") if name]
+
+
 class RepositoryHygiene(unittest.TestCase):
+    def test_the_link_gate_reads_the_product_and_not_a_local_agents_scratch(self) -> None:
+        walked = tracked_markdown()
+        self.assertTrue(walked, "no Markdown files were found at all")
+        self.assertFalse([path for path in walked if ".kilo" in path.parts],
+                         "untracked agent state is being gated as if it shipped")
+        self.assertIn(ROOT / "README.md", walked)
+        self.assertIn(ROOT / "docs/DEVELOPMENT_PLAN.md", walked)
+
     def test_retired_documents_and_artwork_do_not_return(self) -> None:
         for relative in RETIRED:
             self.assertFalse((ROOT / relative).exists(), f"retired path returned: {relative}")
@@ -37,8 +57,13 @@ class RepositoryHygiene(unittest.TestCase):
         self.assertLessEqual(len(lines), 200, "PROJECT_STATE.md must remain concise")
 
     def test_markdown_relative_links_resolve(self) -> None:
+        # Git decides what is product. Walking the working tree instead swept in 149 of
+        # 224 Markdown files from `.kilo/` — another agent's untracked scratch, which
+        # `.gitignore` excludes by name — so two thirds of this gate's work was spent on
+        # files that ship nowhere, and a broken link inside one of them would have failed
+        # the build for everyone. `git ls-files` is the same list the image is built from.
         missing = []
-        for document in ROOT.rglob("*.md"):
+        for document in tracked_markdown():
             if any(part in {".git", "build", "node_modules"} for part in document.parts):
                 continue
             text = document.read_text(encoding="utf-8", errors="replace")

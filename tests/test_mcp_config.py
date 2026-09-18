@@ -36,16 +36,49 @@ ROOT = Path(__file__).resolve().parents[1]
 MCP_JSON = ROOT / ".mcp.json"
 SETTINGS = ROOT / ".claude" / "settings.json"
 
-# Deny rules that may never leave the shared contract. Each one guards something this
-# project has already documented as unrecoverable-by-a-test: a rewritten history on the
-# branch CI publishes from, or a mutation of the live deployment on the machine the
-# maintainer is reading this on.
+# Deny rules that may never leave the shared contract — EVERY one of them, not a sample.
+#
+# This list used to hold five of the twenty-two rules in settings.json, so seventeen of
+# them — `rm -rf /*`, `mkfs*`, `dd if=*of=/dev/*`, the reboot and shutdown guards, and
+# every credential read — could be deleted and this gate would stay green. That is the
+# exact failure mode the file's own header warns about ("THE GUARD RAILS GET HOLLOWED
+# OUT"), and it happened: two rules were removed on 2026-09-18 and nothing said a word,
+# because neither was among the five.
+#
+# The list may GROW freely — a new deny rule needs no change here. It may not SHRINK
+# without this file changing in the same commit, which is what makes a removal a review
+# conversation instead of a silent diff.
 REQUIRED_DENY = [
+    # History that cannot be rewritten, and a branch that cannot be destroyed.
     "Bash(git push --force:*)",
     "Bash(git push -f:*)",
+    "Bash(git branch -D main)",
+    # The machine's own operating system. An agent may read this state; it may never
+    # rebase, deploy or roll back the host without the owner.
     "Bash(flatpak-spawn --host sudo -n rpm-ostree:*)",
     "Bash(flatpak-spawn --host sudo -n bootc:*)",
+    # Power. An agent that can reboot can end a session mid-transaction, and the owner
+    # is the only one who knows whether now is the moment.
+    "Bash(flatpak-spawn --host sudo -n reboot:*)",
+    "Bash(flatpak-spawn --host sudo -n shutdown:*)",
+    "Bash(flatpak-spawn --host sudo -n systemctl reboot:*)",
+    "Bash(flatpak-spawn --host sudo -n systemctl poweroff:*)",
+    "Bash(flatpak-spawn --host reboot:*)",
+    "Bash(flatpak-spawn --host shutdown:*)",
+    # Irreversible loss. None of these has a repair path.
+    "Bash(rm -rf /*)",
+    "Bash(sudo rm:*)",
+    "Bash(mkfs*)",
+    "Bash(dd if=*of=/dev/*)",
+    "Bash(chmod -R 777:*)",
+    # Secrets. The signing key is what makes a MoOS image trustworthy; the rest are the
+    # owner's own credentials, which no agent needs to read to work in this repository.
     "Read(./cosign.key)",
+    "Read(**/.credentials.json)",
+    "Read(**/.env)",
+    "Read(**/*.pem)",
+    "Read(**/id_rsa*)",
+    "Read(**/id_ed25519*)",
 ]
 
 # Shapes of real credentials. A value matching one of these is a live key, not a

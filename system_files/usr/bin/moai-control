@@ -1208,6 +1208,18 @@ def cloud_models(cfg):
     return out, ""
 
 
+def gateway_route() -> dict:
+    """Ask the gateway which model it would use now. {} when it cannot be reached."""
+    try:
+        request = urllib.request.Request(f"http://127.0.0.1:{GATEWAY_PORT}/route",
+                                         headers={"User-Agent": "moai-control"})
+        with urllib.request.urlopen(request, timeout=6) as reply:
+            document = json.loads(reply.read(64 * 1024))
+    except Exception:                                  # noqa: BLE001 — a picker must open
+        return {}
+    return document if isinstance(document, dict) else {}
+
+
 def _seconds(value: float) -> str:
     """One decimal, or two for the models that answer in well under a second."""
     return f"{value:.1f}" if value >= 1 else f"{value:.2f}"
@@ -1256,12 +1268,13 @@ def curated_cloud_models(cloud: list) -> list:
     measurements = cloud_policy.measured_results()
     ranking = cloud_policy.measured_ranking("tools")
     automatic, best, picked, others, paid, seen = [], [], [], [], [], set()
-    # What "automatic" resolves to right now, so the first row is a promise the
-    # owner can check rather than a claim they have to trust.
-    try:
-        resolved = cloud_policy.automatic_model(require_tools=True)
-    except Exception:
-        resolved = ""
+    # What "automatic" resolves to right now — asked of the GATEWAY, because it is the
+    # process that will make the request and the only one that knows which free models
+    # the provider has just refused. Computing it here read a cooldown dict that is
+    # always empty in this process, so the row could name a model the gateway had
+    # already stopped using. If the gateway does not answer, the row says nothing rather
+    # than guessing.
+    resolved = gateway_route().get("automatic", "")
     resolved = "" if resolved == cloud_policy.DEFAULT_MODEL else resolved
     # Its shipped name if it has one, otherwise the id's own last segment — never
     # a name invented for a model whose vendor did not give it one.
@@ -1341,6 +1354,9 @@ MEASURE_FAILED = "تعذّر القياس | The measurement could not be complet
 # catalogue — OpenCode Zen — it can only fail, so it is refused before it starts
 # instead of spending two minutes to say so.
 MEASURABLE_PROVIDERS = ("", "openrouter-free", "openrouter-paid")
+MEASURE_NO_CATALOGUE = (
+    "تعذّر الوصول إلى قائمة النماذج المجانية — تحقّق من الاتصال ثم أعد المحاولة. "
+    "| The free model catalogue could not be reached — check the connection and try again.")
 MEASURE_NO_FREE_CATALOGUE = (
     "القياس يخصّ النماذج المجانية، والمزوّد المختار لا يقدّم كتالوجاً مجانياً. "
     "| Measuring is for free models; the selected provider has no free catalogue.")
@@ -1416,7 +1432,13 @@ def start_measurement() -> dict:
             code = process.wait(timeout=1800)
             if code != 0:
                 with _measure_lock:
-                    _measure["error"] = cloud_policy.ERROR if code == 2 else MEASURE_FAILED
+                    # Exit 2 from moai-measure-free means ONE thing: the free catalogue
+                    # could not be reached, so there was nothing to measure. It was
+                    # reported as cloud_policy.ERROR — "choose an allowed provider and
+                    # model in Settings" — which sends the owner to change a setting
+                    # that is already correct while the real fault is the network or
+                    # the provider being down.
+                    _measure["error"] = MEASURE_NO_CATALOGUE if code == 2 else MEASURE_FAILED
         except (OSError, subprocess.SubprocessError, ValueError) as error:
             with _measure_lock:
                 _measure["error"] = f"{MEASURE_FAILED} ({error})" if str(error) else MEASURE_FAILED

@@ -193,8 +193,8 @@ class FreePolicy(unittest.TestCase):
             ranking.parent.mkdir(parents=True)
             ranking.write_text(json.dumps(document))
             with patch.dict(os.environ, {'XDG_STATE_HOME': home}), \
-                    patch.object(control.cloud_policy, 'automatic_model',
-                                 return_value='nex-agi/nex-n2.5-mini:free'):
+                    patch.object(control, 'gateway_route',
+                                 return_value={'automatic': 'nex-agi/nex-n2.5-mini:free'}):
                 picker = control.curated_cloud_models(rows)
         groups = {row['id']: row['group'] for row in picker}
         notes = {row['id']: row['note_en'] for row in picker}
@@ -233,8 +233,7 @@ class FreePolicy(unittest.TestCase):
         # a measurement: the curated group is exactly what it was before.
         with tempfile.TemporaryDirectory() as empty:
             with patch.dict(os.environ, {'XDG_STATE_HOME': empty}), \
-                    patch.object(control.cloud_policy, 'automatic_model',
-                                 return_value=policy.DEFAULT_MODEL):
+                    patch.object(control, 'gateway_route', return_value={}):
                 plain = control.curated_cloud_models(rows)
         self.assertEqual([row['group'] for row in plain][:4], ['auto', 'curated', 'curated', 'curated'])
         self.assertEqual({row['id']: row.get('note_en', '') for row in plain}
@@ -285,6 +284,35 @@ class FreePolicy(unittest.TestCase):
                                                reverse=True)]
         self.assertEqual(chat[0], 'inclusionai/ling-3.0-flash-vl:free')
         self.assertEqual(chat[-1], 'thinkingmachines/inkling:free')
+
+    def test_the_automatic_row_is_the_gateways_answer_not_the_controls_guess(self):
+        """`_cooldown` is per-process, so only the gateway knows what it will route.
+
+        The control server computed this itself and read a cooldown dict that is always
+        empty in its own process — so the picker could say "Right now: X" about a model
+        the gateway had already stopped using after a 403.
+        """
+        control = load('moai_control_route', 'system_files/usr/bin/moai-control')
+        rows = [{'id': 'cloud:' + policy.DEFAULT_MODEL}]
+        with tempfile.TemporaryDirectory() as empty:
+            with patch.dict(os.environ, {'XDG_STATE_HOME': empty}):
+                # The gateway names a model: the row repeats exactly that.
+                with patch.object(control, 'gateway_route',
+                                  return_value={'automatic': 'nex-agi/nex-n2.5-mini:free'}):
+                    named = control.curated_cloud_models(rows)[0]
+                self.assertIn('Nex Mini', named['note_en'])
+                self.assertIn('Nex Mini', named['note_ar'])
+                # The gateway is down, or every candidate is cooled: claim nothing.
+                for answer in ({}, {'automatic': ''}, {'automatic': policy.DEFAULT_MODEL}):
+                    with patch.object(control, 'gateway_route', return_value=answer):
+                        quiet = control.curated_cloud_models(rows)[0]
+                    self.assertNotIn('Right now', quiet['note_en'], answer)
+                    self.assertIn('fastest one available', quiet['note_en'])
+        # And it must never fall back to computing the answer itself.
+        source = (ROOT / 'system_files/usr/bin/moai-control').read_text(encoding='utf-8')
+        picker = source[source.index('def curated_cloud_models'):source.index('def models(')]
+        self.assertNotIn('automatic_model', picker,
+                         'the picker computes a route the gateway alone can know')
 
     def test_a_second_measure_request_reports_instead_of_deadlocking_the_server(self):
         """Found live: the second click hung moai-control, and everything behind it.

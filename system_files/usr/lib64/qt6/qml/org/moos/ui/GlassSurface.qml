@@ -18,8 +18,12 @@ Surface {
     property bool floating: false
     property int depth: Tokens.glassLevelPopover
 
-    fillOpacity: floating ? Tokens.floatingGlassOpacity
-                          : Tokens.glassRestingOpacity
+    // With a blur pass behind it, the frosted density the palette asks for. Without
+    // one — the essential tier, llvmpipe, or an owner who turned blur off — the same
+    // colour, opaque enough that the wallpaper stops competing with the text.
+    fillOpacity: Tokens.glassFill(surfaceColor, depth,
+                                  floating ? Tokens.floatingGlassOpacity
+                                           : Tokens.glassRestingOpacity)
     color: Qt.alpha(surfaceColor, fillOpacity)
     radius: Tokens.radiusPanel
     // A selected surface keeps the accent rim it always had; everything else

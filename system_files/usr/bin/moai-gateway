@@ -1030,6 +1030,36 @@ class Handler(BaseHTTPRequestHandler):
                 "cost_policy": cloud_policy.selected_cost_policy(),
             })
 
+        # Which model "automatic" resolves to RIGHT NOW, answered by the process that
+        # will actually make the request.
+        #
+        # moai-control computed this itself for the picker's first row, and it cannot be
+        # right: `_cooldown` — the record of which free models the provider has just
+        # refused with 403 or 429 — is a module-level dict, so each process has its own.
+        # The gateway knows a model is cooled because IT got the refusal; the control
+        # server never sees that, and told the owner "Right now: X" about a model the
+        # gateway had already stopped using. Not on /healthz: that probe is polled every
+        # few seconds and must stay free of any provider contact, while this reads the
+        # (cached) free catalogue.
+        if self.path.startswith("/route"):
+            now = time.monotonic()
+            with cloud_policy._cooldown_lock:
+                cooled = sorted(model for model, until in cloud_policy._cooldown.items()
+                                if until > now)
+            configured = str(cfg.get("cloud_model") or cloud_policy.DEFAULT_MODEL)
+            automatic = ""
+            if configured == cloud_policy.DEFAULT_MODEL:
+                try:
+                    automatic = cloud_policy.automatic_model(require_tools=True)
+                except Exception:                      # noqa: BLE001 — never fail a probe
+                    automatic = ""
+            return self._send_json(200, {
+                "configured": configured,
+                "automatic": "" if automatic == cloud_policy.DEFAULT_MODEL else automatic,
+                "cooled": cooled,
+                "cost_policy": cloud_policy.selected_cost_policy(),
+            })
+
         # What this door will actually route. Every id here is a real route; a
         # `cloud:<id>` for any other model the provider knows is accepted too —
         # moai-control's /models asks the provider for that list.

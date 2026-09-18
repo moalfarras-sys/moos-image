@@ -132,6 +132,26 @@ check:
     # P4.1: one authority for every app transaction. The rule was written in moai-do's
     # own comment and then broken twice, in the two places a person meets first.
     python3 tests/test_one_app_transaction_authority.py
+    # Two gates that existed and were never executed by anything — by `just check`, by a
+    # workflow, by anyone. A test nothing runs is not a gate; it is a file that passes in
+    # one second and proves nothing. Both pass today, which is exactly why nobody noticed.
+    python3 tests/test_post_update_deployment.py
+    python3 tests/test_moplayer_mpris_registration.py
+    python3 tests/test_arm_appstream_refresh.py
+    python3 tests/test_moai_runtime.py
+    python3 tests/test_remote_portal_layout_refresh.py
+    # And the gate that stops this recurring: a test file nothing runs is not a gate.
+    python3 tests/test_every_gate_is_run.py
+    # What Git refuses to track, the builder should refuse to read. Two rules named
+    # paths that never existed while 196 MB entered the build context beside them.
+    python3 tests/test_build_context_excludes_local_scratch.py
+    # P6.3: how a base security update actually reaches a machine. The nightly cannot
+    # ship one and never could; the release cycle is the only path, so the claim and
+    # the mechanism are held together here.
+    python3 tests/test_security_update_reachability.py
+    # P2.5: without a blur pass behind it, 0.22 alpha is a window, not glass. Proved
+    # on a real Qt engine against a real kwinrc, both ways.
+    python3 tests/test_moos_clarity_without_blur.py
     python3 tests/test_moai_hermes.py
     python3 tests/test_release_partition_roles.py
     python3 tests/test_iso_install_gate.py

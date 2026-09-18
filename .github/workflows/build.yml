@@ -34,8 +34,21 @@ on:
     branches:
       - main
   schedule:
-    # Daily rebuild (06:00 UTC) to pick up Fedora/uBlue base security updates
-    # promptly — same cadence as ublue-os/image-template.
+    # Daily rebuild (06:00 UTC) against a MOVING base, so a Fedora/uBlue security
+    # update that breaks this tree is found the next morning instead of at the start
+    # of the next release cycle.
+    #
+    # READ THIS BEFORE BELIEVING IT SHIPS ANYTHING. It does not, and cannot. This
+    # workflow pushes only a run/SHA-bound candidate tag, and promote-x86.yml refuses
+    # any run whose event is not `workflow_dispatch` — so a scheduled build's digests
+    # can never become `:latest`, no matter how many nights it runs. A base security
+    # update reaches a fielded machine ONLY through a release cycle
+    # (`scripts/release-candidate.sh --promote`), which is what puts it through the
+    # three QCOW2 boots and the ISO install first. **The cadence of release cycles IS
+    # the security cadence of MoOS.** That is the safety model working as designed —
+    # nothing ships unproven — and it is also a real gap: see P6.3. What stood here
+    # before claimed this cron delivered base security updates on its own schedule,
+    # which was never true of any run it has ever made.
     - cron: "0 6 * * *"
   workflow_dispatch:
 
