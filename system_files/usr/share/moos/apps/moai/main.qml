@@ -350,6 +350,14 @@ Kirigami.ApplicationWindow {
     property bool modelsLoading: false
     property bool pickerOpen: false
 
+    // Which free brain is strongest is a measurement, not an opinion, and the free
+    // catalogue turns over every few weeks — so the machine measures it for itself.
+    // `measure` is moai-control's /measure: what this machine last measured, and
+    // whether a run is going on right now.
+    property var measure: ({})
+    readonly property bool measuring: !!root.measure.measuring
+    readonly property bool measuredEver: (root.measure.measuredAt || 0) > 0
+
     // The download the picker offers. `pullModel` is the starter being fetched
     // right now (""=none), so its own row can draw the bar instead of the whole
     // list pretending to download.
@@ -1134,6 +1142,60 @@ Kirigami.ApplicationWindow {
         interval: 3000
         repeat: false
         onTriggered: root.loadHealth()
+    }
+
+    // ── the free brain this machine measured ───────────────────────────────
+    // Two calls, the same shape as the health scan: read what is known, and ask
+    // for a fresh run. The run takes a minute or two because every candidate is
+    // asked two real questions through the real gateway, so the button reports
+    // progress rather than pretending to be instant.
+    function loadMeasure() {
+        const xhr = new XMLHttpRequest()
+        xhr.open("GET", controlApi + "/measure")
+        xhr.setRequestHeader("X-Moai-Control", "1")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE || xhr.status !== 200)
+                return
+            try {
+                const doc = JSON.parse(xhr.responseText)
+                const finished = root.measuring && !doc.measuring
+                root.measure = doc
+                if (doc.measuring)
+                    measurePoll.restart()
+                else if (finished)
+                    root.loadModels()   // the rows carry new notes and a new order
+            } catch (e) { /* keep the last good measurement */ }
+        }
+        xhr.send()
+    }
+
+    function measureFree() {
+        const xhr = new XMLHttpRequest()
+        xhr.open("POST", controlApi + "/measure")
+        xhr.setRequestHeader("X-Moai-Control", "1")
+        xhr.setRequestHeader("Content-Type", "application/json")
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE)
+                return
+            if (xhr.status === 200) {
+                try { root.measure = JSON.parse(xhr.responseText) } catch (e) { }
+                measurePoll.restart()
+            } else {
+                // A machine with no key cannot measure anything: the prompts go
+                // through the real gateway. Say that instead of failing silently.
+                root.measure = { measuring: false, error: root.local(
+                    "أضف مفتاح المزوّد أولاً — القياس يرسل سؤالين حقيقيين.",
+                    "Add the provider key first — measuring sends two real questions.") }
+            }
+        }
+        xhr.send("{}")
+    }
+
+    Timer {
+        id: measurePoll
+        interval: 2500
+        repeat: false
+        onTriggered: root.loadMeasure()
     }
 
     function refreshScan() {
@@ -2164,6 +2226,7 @@ Kirigami.ApplicationWindow {
     function openPicker() {
         root.pickerOpen = true
         root.loadModels()
+        root.loadMeasure()
     }
 
     function pickRoute(id) {
@@ -6810,11 +6873,13 @@ Kirigami.ApplicationWindow {
                                         // LayoutMirroring (on for Arabic) flips this to the right edge;
                                         // an explicit anchors.right would be flipped back to the left.
                                         anchors.left: parent.left
-                                        text: cldRow.group === "curated"
-                                              ? root.local("مختارة ومجرّبة", "Curated & tested")
-                                              : cldRow.group === "paid"
-                                                ? root.local("نماذج مدفوعة", "Paid models")
-                                                : root.local("كل النماذج المجانية", "All free models")
+                                        text: cldRow.group === "measured"
+                                              ? root.local("مقيسة على هذا الجهاز", "Measured on this machine")
+                                              : cldRow.group === "curated"
+                                                ? root.local("مختارة ومجرّبة", "Curated & tested")
+                                                : cldRow.group === "paid"
+                                                  ? root.local("نماذج مدفوعة", "Paid models")
+                                                  : root.local("كل النماذج المجانية", "All free models")
                                         color: root.textMute
                                         font.family: root.uiFont
                                         font.pixelSize: root.typePx(9)
@@ -6904,6 +6969,79 @@ Kirigami.ApplicationWindow {
                                 font.family: root.uiFont
                                 font.pixelSize: root.typePx(10)
                                 wrapMode: Text.Wrap
+                            }
+
+                            // ── measure the free brains on THIS machine ────
+                            // The list above ships an opinion taken on another
+                            // machine weeks ago. One button replaces it with
+                            // seconds measured here, and says plainly how old
+                            // the numbers on screen already are.
+                            Rectangle {
+                                id: measureCard
+                                Layout.fillWidth: true
+                                Layout.topMargin: root.fs(18)
+                                Layout.preferredHeight: measureBody.implicitHeight + root.fs(20)
+                                radius: design.radiusSmall
+                                color: root.surface2
+                                border.width: 1
+                                border.color: root.hairline
+
+                                ColumnLayout {
+                                    id: measureBody
+                                    anchors.fill: parent
+                                    anchors.margins: root.fs(10)
+                                    spacing: root.fs(6)
+
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: root.local("قِس النماذج المجانية على جهازك",
+                                                         "Measure the free models on your machine")
+                                        color: root.textHi
+                                        font.family: root.uiFont
+                                        font.pixelSize: root.typePx(12)
+                                        font.weight: Font.DemiBold
+                                        wrapMode: Text.Wrap
+                                    }
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: root.measure.error
+                                            ? root.measure.error
+                                            : root.measuring
+                                              ? (root.measure.total > 0
+                                                 ? root.local("جارٍ القياس — " + root.measure.done
+                                                              + " من " + root.measure.total,
+                                                              "Measuring — " + root.measure.done
+                                                              + " of " + root.measure.total)
+                                                 : root.local("جارٍ تجهيز القائمة…", "Collecting candidates…"))
+                                              : root.measuredEver
+                                                ? root.local(
+                                                    "الأسرع هنا: " + (root.measure.bestLabel || "—")
+                                                    + " · " + (root.measure.ageDays < 1
+                                                        ? "قيس اليوم"
+                                                        : "قياس عمره " + Math.round(root.measure.ageDays) + " يوم"),
+                                                    "Fastest here: " + (root.measure.bestLabel || "—")
+                                                    + " · " + (root.measure.ageDays < 1
+                                                        ? "measured today"
+                                                        : "measured " + Math.round(root.measure.ageDays) + " days ago"))
+                                                : root.local(
+                                                    "لم يُقس شيء هنا بعد — الترتيب أعلاه من جهاز آخر.",
+                                                    "Nothing measured here yet — the order above came from another machine.")
+                                        color: root.measure.error ? root.badColor : root.textMute
+                                        font.family: root.uiFont
+                                        font.pixelSize: root.typePx(10)
+                                        wrapMode: Text.Wrap
+                                    }
+                                    MoButton {
+                                        Layout.fillWidth: true
+                                        enabled_: !root.measuring
+                                        label: root.measuring
+                                            ? root.local("جارٍ القياس…", "Measuring…")
+                                            : root.local("قِس الآن (دقيقة أو دقيقتان)",
+                                                         "Measure now (a minute or two)")
+                                        iconName: "moos-refresh-symbolic"
+                                        onClicked: root.measureFree()
+                                    }
+                                }
                             }
                         }
                     }

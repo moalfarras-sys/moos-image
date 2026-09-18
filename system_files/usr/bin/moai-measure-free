@@ -131,7 +131,13 @@ def measure(model: str) -> dict:
     # Correctness first, speed second: a model that answers the wrong way quickly is
     # worse than one that answers correctly a second later.
     result['chatScore'] = (result['answeredArabic'], -result['chatSeconds'])
-    result['toolScore'] = (result['calledTool'], result['answeredArabic'], -result['toolSeconds'])
+    # The TOOL ranking decides which model drives the agent loop — and that loop does
+    # not only call tools, it also says what it did. Ranking it on the tool prompt
+    # alone once picked a 550B model that called the tool in 1.4 s and then took
+    # 16.6 s to answer one Arabic sentence, over a model that did both in under 3 s.
+    # Both turns are the same turn to the person waiting, so both are in the score.
+    result['toolScore'] = (result['calledTool'], result['answeredArabic'],
+                           -(result['toolSeconds'] + result['chatSeconds']))
     return result
 
 
