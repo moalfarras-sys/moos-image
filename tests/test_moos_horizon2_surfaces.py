@@ -154,7 +154,10 @@ class RemoteIsland(unittest.TestCase):
 
 
 class LocalizedHub(unittest.TestCase):
-    CARDS = ("ClockCard.qml", "SystemCard.qml", "WeatherCard.qml", "MetricRing.qml")
+    # ClockCard.qml is a composition of two faces since the card gained a second
+    # page; the text lives in the faces, so they are what this checks.
+    CARDS = ("ClockFace.qml", "WeekStrip.qml", "SystemCard.qml", "WeatherCard.qml",
+             "MetricRing.qml")
 
     def test_every_card_uses_the_locale_authority(self):
         for card in self.CARDS:
@@ -179,7 +182,8 @@ class LocalizedHub(unittest.TestCase):
         # Only localized labels can be Arabic; the "MoOS" wordmark and palette names are Latin
         # brand strings and keep their tracking.
         checked = 0
-        for card in ("ClockCard.qml", "SystemCard.qml", "WeatherCard.qml"):
+        for card in ("ClockFace.qml", "WeekStrip.qml", "SystemCard.qml",
+                     "WeatherCard.qml"):
             for block in code(HUB / card).split("Text {")[1:]:
                 block = block.split("\n            }", 1)[0]
                 if "local(" not in block or "font.letterSpacing" not in block:
@@ -214,11 +218,59 @@ class HubControls(unittest.TestCase):
 
     def test_the_desktop_menu_offers_show_and_per_card_toggles(self):
         actions = self.scene.split("contextualActions: [", 1)[1].split("\n    ]\n", 1)[0]
-        self.assertEqual(actions.count("PlasmaCore.Action {"), 4)
+        # Four checkable toggles (the hub and its three cards) plus the one action
+        # that turns the clock card over, which is a command rather than a state.
+        self.assertEqual(actions.count("PlasmaCore.Action {"), 5)
         self.assertEqual(actions.count("checkable: true"), 4)
         for key in ("ShowDashboard", "HubClock", "HubWeather", "HubSystem"):
             self.assertIn(f'root.setHubKey("{key}"', actions)
         self.assertIn('MoUI.Locale.local("إظهار لوحة MoOS", "Show MoOS Hub")', actions)
+
+    def test_the_clock_card_has_two_faces_and_the_menu_turns_it(self):
+        """A wallpaper cannot be clicked: the desktop containment takes the event.
+
+        Measured on the station on 2026-09-18 — neither a click nor a wheel over the
+        hub reached it, which is the same property that lets the hub live under the
+        icons without ever covering anything. So the card is turned from the menu
+        that already carries every other hub control, and the face is remembered in
+        a real configuration key.
+        """
+        self.assertIn('<entry name="HubClockPage" type="Int">', self.schema)
+        actions = self.scene.split("contextualActions: [", 1)[1].split("\n    ]\n", 1)[0]
+        self.assertIn('root.setHubKey("HubClockPage"', actions)
+        self.assertIn('MoUI.Locale.local("لوحة MoOS: أرني الأسبوع", "MoOS Hub: show the week")',
+                      actions)
+        self.assertIn("visible: root.hubShown && root.hubClock", actions,
+                      "turning a card nobody can see is a dead menu entry")
+        self.assertIn("clockPage: root.hubClockPage", self.scene)
+        self.assertIn("page: root.clockPage", self.bento)
+
+    def test_the_card_never_turns_itself_and_takes_no_input(self):
+        """Two rules, both from where the hub lives.
+
+        It is painted by the wallpaper, so no pointer event reaches it (the desktop
+        containment takes them) — an input handler here would be dead code pretending
+        to be a feature, and the dashboard's passivity is a shipped contract. And it
+        never rotates on its own: a desktop that changes while nobody is looking is a
+        distraction, and on a 4K wallpaper also a permanent repaint.
+        """
+        stack = code(HUB / "CardStack.qml")
+        for forbidden in ("Timer {", "running: true", "SequentialAnimation", "loops:",
+                          "MouseArea", "HoverHandler", "TapHandler", "WheelHandler",
+                          "Keys."):
+            self.assertNotIn(forbidden, stack,
+                             "the stack neither turns itself nor takes input")
+        self.assertIn("property int page: 0", stack,
+                      "the face is chosen by the wallpaper's configuration")
+
+    def test_the_week_face_is_drawn_from_the_clock_it_shares(self):
+        week = code(HUB / "WeekStrip.qml")
+        self.assertIn("required property date now", week)
+        for forbidden in ("XMLHttpRequest", "Timer {", "Qt.openUrlExternally"):
+            self.assertNotIn(forbidden, week,
+                             "the week face fetches nothing and starts nothing")
+        self.assertIn("Qt.locale().firstDayOfWeek", week,
+                      "the week starts where the owner's own locale starts")
 
     def test_no_card_selection_leaves_an_invisible_running_hub(self):
         self.assertIn("readonly property bool hubAnyCard:", self.scene)
