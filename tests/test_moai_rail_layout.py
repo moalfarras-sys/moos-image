@@ -60,7 +60,7 @@ class TheRealRail(unittest.TestCase):
         env = dict(os.environ, HOME=str(work), XDG_CONFIG_HOME=str(work / "config"),
                    XDG_CACHE_HOME=str(work / "cache"), XDG_RUNTIME_DIR=str(work / "run"),
                    QML_IMPORT_PATH=str(ROOT / "system_files/usr/lib64/qt6/qml"),
-                   QML_DISABLE_DISK_CACHE="1", QT_QUICK_CONTROLS_STYLE="Basic", LIBGL_ALWAYS_SOFTWARE="1")
+                   QML_DISABLE_DISK_CACHE="1", QT_FORCE_STDERR_LOGGING="1", QT_QUICK_CONTROLS_STYLE="Basic", LIBGL_ALWAYS_SOFTWARE="1")
         for name in ("DISPLAY", "WAYLAND_DISPLAY", "DBUS_SESSION_BUS_ADDRESS"):
             env.pop(name, None)                        # a gate must never reach a live desktop
         argv = ["xvfb-run", "-a", "-s", "-screen 0 1600x1000x24", QML_RUNTIME, str(HARNESS), "--",

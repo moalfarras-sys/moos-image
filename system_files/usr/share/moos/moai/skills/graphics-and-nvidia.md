@@ -17,4 +17,5 @@ use_when: Games or video stutter, the screen tears, the resolution is wrong, or 
 5. The graphics memory is nearly full in `gpu_report` → name the process using it and suggest closing it.
 
 ## Stop and tell the person when
+- `os_state` names the ARM edition (`moos-arm`): there is no NVIDIA edition for ARM, and an ARM cloud server has no graphics processor at all — the processor draws the picture. Say so; there is no driver to install.
 - `check_drivers` recommends nothing and `gpu_report` is healthy: the system side is fine. Do not switch editions "to try".

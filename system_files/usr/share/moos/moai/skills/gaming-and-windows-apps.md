@@ -15,5 +15,6 @@ use_when: The person wants to play games, run a Windows program or an .exe, or u
 4. After any of these → `list_installed_apps` to confirm what is there, then `open_app` app_id=<id>.
 
 ## Be honest
+- `os_state` names the ARM edition (`moos-arm`): Steam, Proton and Windows programs are built for x86 PCs, and `setup_gaming` refuses on ARM. Say so, then offer Linux apps from Mo Store instead.
 - Not every Windows program or game works. Games with kernel-level anti-cheat usually do not. Say so before the person spends an evening on it.
 - A game that stutters on a healthy system is usually set too high for the card; say which card `gpu_report` found.
