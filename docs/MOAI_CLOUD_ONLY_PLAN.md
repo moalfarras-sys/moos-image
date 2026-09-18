@@ -90,7 +90,15 @@ explicitly controlled feature, not a model tool.
   (429/403/404/5xx) before any response byte is sent. This is not a paid or
   cross-provider fallback: every candidate passes `visible_models()` and carries
   a zero `max_price`, and explicit model selections are never retried. Ordering
-  is the measured `MEASURED_PREFERENCE` in `moai_cloud_policy.py`.
+  is the measured `MEASURED_PREFERENCE` in `moai_cloud_policy.py`, outranked for 30
+  days by whatever `moai-measure-free` recorded on the machine itself.
+- C3b (2026-09-18): the model picker shows that local measurement rather than the
+  shipped opinion — each measured row carries its own seconds, a model the run caught
+  failing says which half it failed, and the automatic row names the model it resolves
+  to right now. `POST /measure` on moai-control runs the measurement (one at a time,
+  refused without a key) and the picker polls `GET /measure` for progress. Nothing here
+  chooses a model or a price: a ranking can only ORDER models `visible_models()` has
+  already proven free.
 - C4: prove first-login and upgrade migration from every historic local layout;
   local speech UI needs a future cloud transcription feature before re-enabling.
 - C5: local engine packages are omitted by both architecture builds. Check the

@@ -16,15 +16,18 @@ asks of its owner and how rarely it surprises them. They are not API targets and
 MoOS never forks Plasma, KWin or Wayland: MoOS owns the identity, every surface
 the owner looks at, every default and every recovery path.
 
-**Where MoOS is today (2026-09-18).** Production on all four editions is
-`44.20260918.868` / ARM `.458` (cycle E). Everything through **W8.4** is merged: the
-MoOS Bar, Search, Island, Hub, Switcher, Arrange, App Drop, What's new, Aurora Glass,
-the hub's second faces, Mo AI's tool loop and its readback, and the free-brain
-measurement — with one release cycle in flight for the whole batch. Three things are
-still worth knowing before choosing work: several waves are **merged but not yet on a
-desktop** until that cycle promotes; the ARM edition has **never had its own live
-review**; and nothing has been measured on a **second machine, a laptop, a touchscreen
-or two monitors**.
+**Where MoOS is today (2026-09-18).** Production on the three x86 editions is
+`44.20260918.881` (cycle F, revision `6996afaf`, promoted by run `35351916872`), and the
+station is booted on it. Everything through **W8.5** is merged: the MoOS Bar, Search,
+Island, Hub, Switcher, Arrange, App Drop, What's new, Aurora Glass, the hub's second
+faces, Mo AI's tool loop, its readback, the free-brain measurement and the picker that
+shows it. Three things are worth knowing before choosing work. **Four merges are newer
+than the installed image** — W8.4's hub faces (#134), the recorded permissions (#135),
+the ARM honesty fix (#132) and the SIGPIPE proof fix (#133) — so a machine on 881 does
+not have them yet, and `moos-image-update` correctly says "current" because 881 *is* the
+newest promoted digest; only another cycle changes that. The ARM edition has **never had
+its own live review**. And nothing has been measured on a **second machine, a laptop, a
+touchscreen or two monitors**.
 
 **What is missing before MoOS competes.** In the order that decides it:
 
@@ -130,6 +133,7 @@ reviewed live, gated once, merged once and proven once.
 | W8.2 | M2 | **The desk answers the next question.** The clock card has two faces — the hour, and the week the owner is standing in, with today marked and the day of the year — turned from the desktop's own menu and remembered; the Hub cards wear Aurora Glass's specular hairline, so the desktop and the bar are one material | merged (PR #128), reviewed on the running station |
 | W8.3 | M3 | **Mo AI reports instead of paging a log.** A tool row shows its first six lines and says how many are left; `hw_report` — which opened a panel, printed nothing and made the loop show a red "failed" row — is replaced by `device_report`, which returns the machine's state in words | merged (PR #131), reviewed live with the owner's own brain |
 | W8.4 | M2 | **Every hub card answers the question that comes after it.** The weather card's second face is the next six hours (from the same forecast request); the device card's is the network and the space that is actually left, each figure gated on its own sensor | PR #134, reviewed on the station |
+| W8.5 | M3 | **The owner picks a free brain by what it did here, not by what shipped.** The picker's first group is what THIS machine measured — each row carrying its own seconds, the order the run produced, and a model it caught failing saying which half it failed; the automatic row names the model it resolves to right now; one button re-measures without leaving the picker. The action ranking counts the answer the same turn gives, so a 550B model that calls a tool in 1.4 s and then takes 16.6 s to say what it did no longer outranks one that does both in 2.9 s | PR #136, measured and clicked on the running station |
 | W9 | M2 | System surfaces on MoOS UI: Updater, Recovery, Remote centre, Settings front door (P2.1–P2.2), a MoOS-owned About page (P2.9) | planned |
 | W10 | M3 | Mo Store as one job system for install/update/remove across the UI, Mo AI and URL routes, with a drop target in its own window (P1.7, P4.1–P4.2, P4.7) | planned |
 | W11 | M2 | MoOS Intro: one horizon scene from Plymouth through login to the Hub; first-run tour; offline first run (P1.6) | planned |

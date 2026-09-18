@@ -1208,18 +1208,45 @@ def cloud_models(cfg):
     return out, ""
 
 
+def _seconds(value: float) -> str:
+    """One decimal, or two for the models that answer in well under a second."""
+    return f"{value:.1f}" if value >= 1 else f"{value:.2f}"
+
+
 def curated_cloud_models(cloud: list) -> list:
-    """Order the picker: automatic first, then the measured models by name, then the rest.
+    """Order the picker by what THIS machine measured, then by what shipped, then the rest.
 
     The provider's catalogue arrives as raw ids in its own order, with the free router listed
-    twice and a content-safety classifier that is not a chat model. Measured models (see
-    cloud_policy.CURATED_FREE) carry a name and a one-line reason in both languages; every other
-    free model stays reachable under "all free models", and billed rows from a paid catalogue
-    follow under "paid".
+    twice and a content-safety classifier that is not a chat model. On top of that, two things
+    can be said about a free model, and they are not equally worth saying:
+
+      measured here   `moai-measure-free` sent this model the same two prompts through the real
+                      gateway on this machine, so the row can say seconds instead of an adjective
+                      and the order is the one that actually answered. This group comes first.
+      curated         cloud_policy.CURATED_FREE — a name and a reason measured on ANOTHER machine,
+                      weeks ago. Still useful before the owner has measured anything, and honest
+                      only as long as it never outranks a local measurement.
+
+    Every other free model stays reachable under "all free models", and billed rows from a paid
+    catalogue follow under "paid". A model the measurement caught failing (no Arabic answer, or no
+    tool call) is not hidden and not promoted: it drops to "all free models" saying what it did.
     """
     curated = {model_id: (rank, name, arabic, english)
                for rank, (model_id, name, arabic, english) in enumerate(cloud_policy.CURATED_FREE)}
-    automatic, picked, others, paid, seen = [], [], [], [], set()
+    measurements = cloud_policy.measured_results()
+    ranking = cloud_policy.measured_ranking("tools")
+    automatic, best, picked, others, paid, seen = [], [], [], [], [], set()
+    # What "automatic" resolves to right now, so the first row is a promise the
+    # owner can check rather than a claim they have to trust.
+    try:
+        resolved = cloud_policy.automatic_model(require_tools=True)
+    except Exception:
+        resolved = ""
+    resolved = "" if resolved == cloud_policy.DEFAULT_MODEL else resolved
+    # Its shipped name if it has one, otherwise the id's own last segment — never
+    # a name invented for a model whose vendor did not give it one.
+    resolved_name = (curated[resolved][1] if resolved in curated
+                     else resolved.split("/")[-1].removesuffix(":free") if resolved else "")
     for item in cloud:
         model_id = str(item.get("id", ""))
         bare = model_id.split(":", 1)[1] if model_id.startswith("cloud:") else model_id
@@ -1227,11 +1254,26 @@ def curated_cloud_models(cloud: list) -> list:
             continue
         seen.add(model_id)
         row = dict(item)
+        measured = measurements.get(bare)
         if bare == cloud_policy.DEFAULT_MODEL:
             row.update(group="auto", label_ar="تلقائي — أفضل نموذج مجاني متاح",
                        label_en="Automatic — best free model available",
-                       note_ar="يختار Mo AI الأسرع المتاح الآن", note_en="Mo AI picks the fastest one available now")
+                       note_ar=("الآن: " + resolved_name) if resolved_name
+                               else "يختار Mo AI الأسرع المتاح الآن",
+                       note_en=("Right now: " + resolved_name) if resolved_name
+                               else "Mo AI picks the fastest one available now")
             automatic.append(row)
+        elif measured and bare in ranking:
+            # Measured here AND it passed both prompts: seconds, not adjectives.
+            name = curated[bare][1] if bare in curated else ""
+            row.update(group="measured", rank=ranking.index(bare),
+                       note_ar=f"{_seconds(measured['chatSeconds'])} ث للردّ · "
+                               f"{_seconds(measured['toolSeconds'])} ث للتنفيذ — مقيس هنا",
+                       note_en=f"{_seconds(measured['chatSeconds'])}s to answer · "
+                               f"{_seconds(measured['toolSeconds'])}s to act — measured here")
+            if name:
+                row.update(label_ar=name, label_en=name)
+            best.append(row)
         elif bare in curated:
             rank, name, arabic, english = curated[bare]
             row.update(group="curated", rank=rank, label_ar=name, label_en=name,
@@ -1242,11 +1284,111 @@ def curated_cloud_models(cloud: list) -> list:
             # billed rows together and never label them as "all free models".
             is_free = cloud_policy.free_model(bare)
             row["group"] = "all" if is_free else "paid"
+            if measured and is_free:
+                # Measured and it fell short. Say which half failed — a row with no
+                # note reads like a model nobody has tried, and this one was tried.
+                row.update(note_ar="لم يجب بالعربية" if not measured["answeredArabic"]
+                                   else "لم ينفّذ الأمر" if not measured["calledTool"] else "",
+                           note_en="Didn't answer in Arabic" if not measured["answeredArabic"]
+                                   else "Didn't run the action" if not measured["calledTool"] else "")
             (others if is_free else paid).append(row)
+    best.sort(key=lambda row: row["rank"])
     picked.sort(key=lambda row: row["rank"])
     others.sort(key=lambda row: str(row.get("id", "")))
     paid.sort(key=lambda row: str(row.get("id", "")))
-    return automatic + picked + others + paid
+    return automatic + best + picked + others + paid
+
+
+# ── measuring the free brain on this machine ─────────────────────────────────
+# Which free model is strongest is a measurement, not an opinion, and the free
+# catalogue turns over every few weeks. `moai-measure-free` sends every zero-price
+# tool-capable model the same two prompts through the real gateway. It takes a
+# minute or two, so the picker starts it here and polls, exactly like the health
+# scan: one run at a time, the subprocess owns the file, and nothing the picker
+# sends chooses a model or a price.
+MEASURE_LIMIT = 8
+_measure_lock = threading.Lock()
+_measure = {"running": False, "done": 0, "total": 0, "now": "", "error": ""}
+
+
+def measure_state() -> dict:
+    document = cloud_policy.ranking_document()
+    with _measure_lock:
+        state = dict(_measure)
+    order = [model for model in (document.get("tools") or []) if isinstance(model, str)]
+    measured_at = float(document.get("measuredAt") or 0)
+    names = {model_id: name for model_id, name, _ar, _en in cloud_policy.CURATED_FREE}
+    best = order[0] if order else ""
+    return {
+        "measuring": state["running"],
+        "done": state["done"], "total": state["total"], "now": state["now"],
+        "error": state["error"],
+        "measuredAt": measured_at,
+        "ageDays": round((time.time() - measured_at) / 86400, 1) if measured_at else 0,
+        "tools": order,
+        "chat": [model for model in (document.get("chat") or []) if isinstance(model, str)],
+        "best": best,
+        # The line that reports it sits in an Arabic sentence, where a raw id reads
+        # as noise and reorders around the punctuation. Send the same short name the
+        # rows above already show, and only fall back to the id's own last segment.
+        "bestLabel": (names.get(best) or best.split("/")[-1].removesuffix(":free")) if best else "",
+        "results": [row for row in (document.get("results") or []) if isinstance(row, dict)],
+    }
+
+
+def start_measurement() -> dict:
+    """Run moai-measure-free once, reporting progress while it runs."""
+    with _measure_lock:
+        # `measure_state()` takes this same lock, and threading.Lock is not
+        # reentrant. Calling it from inside here deadlocked the whole control
+        # server on the SECOND request — the lock was never released again, so
+        # every later /measure, /models and /quick hung with it. Decide under the
+        # lock; report outside it.
+        already = _measure["running"]
+        if not already:
+            _measure.update(running=True, done=0, total=0, now="", error="")
+    if already:
+        return measure_state()
+
+    def worker():
+        try:
+            candidates = [model for model in cloud_policy.automatic_candidates(
+                require_tools=True, limit=MEASURE_LIMIT)
+                if model != cloud_policy.DEFAULT_MODEL]
+            with _measure_lock:
+                _measure["total"] = len(candidates)
+            process = subprocess.Popen(
+                ["moai-measure-free", "--limit", str(MEASURE_LIMIT)],
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                # Python block-buffers stdout into a pipe, so without this the eight
+                # lines arrive together when the run ENDS and the card sits on "0 من 8"
+                # for two minutes before jumping to done. Measured: that is exactly
+                # what it did.
+                env=os.environ | {"PYTHONUNBUFFERED": "1"})
+            # Each measured model prints one line beginning with its own id.
+            for line in process.stdout or ():
+                model = line.split(" ", 1)[0].strip()
+                if model in candidates:
+                    with _measure_lock:
+                        _measure["done"] += 1
+                        _measure["now"] = model
+            code = process.wait(timeout=1800)
+            if code != 0:
+                with _measure_lock:
+                    _measure["error"] = cloud_policy.ERROR if code == 2 else "measure failed"
+        except (OSError, subprocess.SubprocessError, ValueError) as error:
+            with _measure_lock:
+                _measure["error"] = str(error) or "measure failed"
+        finally:
+            with _measure_lock:
+                _measure["running"] = False
+                _measure["now"] = ""
+            with _models_lock:
+                # The picker's rows now carry different notes and a different order.
+                _models_cache["data"] = None
+
+    threading.Thread(target=worker, daemon=True).start()
+    return measure_state()
 
 
 def models() -> dict:
@@ -1754,6 +1896,9 @@ class H(BaseHTTPRequestHandler):
             self._send(200, quick())
         elif route == "/models":
             self._send(200, models())
+        elif route == "/measure":
+            # Read-only: what this machine measured, and whether a run is going.
+            self._send(200, measure_state())
         elif route == "/diagnose":
             # Read-only: reason about system health via moos-selfcheck and return
             # the safe repair menu. The repairs themselves are moos://do/<id>.
@@ -1829,6 +1974,14 @@ class H(BaseHTTPRequestHandler):
         # /health/scan — run the read-only daily check now (one at a time).
         if route == "/health/scan":
             return self._send(200, start_health_scan())
+
+        # /measure — ask every free model the same two questions on this machine.
+        # It needs a key (the prompts go through the real gateway) and it can only
+        # reorder models the zero-price check already admitted.
+        if route == "/measure":
+            if not cloud_ready():
+                return self._send(409, {"error": cloud_policy.ERROR})
+            return self._send(200, start_measurement())
 
         # Retained route for old clients: local downloads are retired.
         if route == "/pull":

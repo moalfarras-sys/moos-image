@@ -197,20 +197,61 @@ RANKING_PATH = 'moai/free-ranking.json'
 RANKING_MAX_AGE = 30 * 24 * 3600
 
 
-def measured_ranking(kind='chat'):
-    """The order this machine measured, newest first; () when there is none."""
+def ranking_document():
+    """The measurement file, but only while it is fresh; {} when there is none.
+
+    One reader for both callers: the router that orders its candidates, and the
+    picker that shows the owner what their own machine measured. A stale or
+    unreadable file is the same as no file — a thirty-day-old number is an
+    opinion about a catalogue that has already turned over.
+    """
     state = Path(os.environ.get('XDG_STATE_HOME', str(Path.home() / '.local/state')))
     try:
         document = json.loads((state / RANKING_PATH).read_text())
         measured_at = float(document.get('measuredAt') or 0)
-        order = document.get(kind if kind in ('chat', 'tools') else 'chat')
     except (OSError, ValueError, TypeError, AttributeError):
-        return ()
+        return {}
+    if not isinstance(document, dict):
+        return {}
+    if measured_at <= 0 or time.time() - measured_at > RANKING_MAX_AGE:
+        return {}
+    return document
+
+
+def measured_ranking(kind='chat'):
+    """The order this machine measured, newest first; () when there is none."""
+    document = ranking_document()
+    order = document.get(kind if kind in ('chat', 'tools') else 'chat')
     if not isinstance(order, list) or not order:
         return ()
-    if measured_at <= 0 or time.time() - measured_at > RANKING_MAX_AGE:
-        return ()
     return tuple(model for model in order if free_model(model))
+
+
+def measured_results():
+    """What each free model actually did on THIS machine, keyed by model id.
+
+    The picker shows seconds instead of an adjective. Only models the zero-price
+    check already admits are returned, and only the four facts the measurement
+    established: how long an Arabic answer took, whether it was Arabic, how long
+    a tool call took, and whether the call was correct.
+    """
+    results = ranking_document().get('results')
+    if not isinstance(results, list):
+        return {}
+    out = {}
+    for item in results:
+        if not isinstance(item, dict) or not free_model(item.get('model')):
+            continue
+        try:
+            out[item['model']] = {
+                'chatSeconds': float(item.get('chatSeconds') or 0),
+                'toolSeconds': float(item.get('toolSeconds') or 0),
+                'answeredArabic': bool(item.get('answeredArabic')),
+                'calledTool': bool(item.get('calledTool')),
+            }
+        except (TypeError, ValueError):
+            continue
+    return out
 
 
 # Upstream answers that mean "not this free model right now". Authentication and

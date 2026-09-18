@@ -123,8 +123,23 @@ for name, spec in sorted(servers.items()):
         continue
     transport = spec.get("type", "stdio")
     if transport == "stdio":
-        if not spec.get("command"):
+        command = spec.get("command")
+        if not command:
             errors.append(f".mcp.json server {name!r} is stdio but has no command")
+        elif "${" in str(command):
+            # ${VAR} is expanded in args, env and headers — NOT in the program name.
+            # `"command": "${PWD}/scripts/mcp-node.sh"` reached posix_spawn as that
+            # literal string and all three node servers died with ENOENT, silently,
+            # for a whole session. Spawn an interpreter and pass the script in args.
+            errors.append(
+                f".mcp.json server {name!r} has a ${{VAR}} in `command` ({command!r}) — "
+                f"it is spawned literally and will fail with ENOENT; put the path in args"
+            )
+        elif str(command).startswith("/") or str(command).startswith("."):
+            errors.append(
+                f".mcp.json server {name!r} spawns {command!r} by path — use a program "
+                f"name on PATH so the entry works from any checkout"
+            )
     elif transport in ("http", "sse"):
         if not spec.get("url"):
             errors.append(f".mcp.json server {name!r} is {transport} but has no url")

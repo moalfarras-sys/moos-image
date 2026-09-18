@@ -9,14 +9,19 @@
     "  2. Every server added here must also be listed in .claude/settings.json under",
     "     enabledMcpjsonServers and permissions.allow, or every agent gets an approval",
     "     prompt on first use. The gate enforces this.",
-    "  3. Keep the set SMALL. Every server's tools consume the agent's context budget."
+    "  3. Keep the set SMALL. Every server's tools consume the agent's context budget.",
+    "  4. `command` is spawned LITERALLY. ${VAR} is expanded in args, env and headers,",
+    "     but not in the program name: `\"command\": \"${PWD}/scripts/mcp-node.sh\"` was",
+    "     handed to posix_spawn as that exact 26-character path and every node server",
+    "     died with ENOENT. Spawn `bash` and pass the script as the first argument,",
+    "     relative to the project directory the servers are started in."
   ],
 
   "mcpServers": {
     "sequential-thinking": {
       "type": "stdio",
-      "command": "${PWD:-.}/scripts/mcp-node.sh",
-      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"],
+      "command": "bash",
+      "args": ["scripts/mcp-node.sh", "-y", "@modelcontextprotocol/server-sequential-thinking"],
       "$comment": "Structured multi-step reasoning with revision and branching. No credentials."
     },
 
@@ -35,8 +40,9 @@
 
     "chrome-devtools": {
       "type": "stdio",
-      "command": "${PWD:-.}/scripts/mcp-node.sh",
+      "command": "bash",
       "args": [
+        "scripts/mcp-node.sh",
         "-y", "chrome-devtools-mcp@latest",
         "--headless",
         "--isolated",
@@ -62,8 +68,8 @@
 
     "image-gen": {
       "type": "stdio",
-      "command": "${PWD:-.}/scripts/mcp-node.sh",
-      "args": ["-y", "--package=mcp-image@0.13.2", "--package=ajv@8.17.1", "mcp-image"],
+      "command": "bash",
+      "args": ["scripts/mcp-node.sh", "-y", "--package=mcp-image@0.13.2", "--package=ajv@8.17.1", "mcp-image"],
       "env": {
         "GEMINI_API_KEY": "${GEMINI_API_KEY:-}",
         "OPENAI_API_KEY": "${OPENAI_API_KEY:-}",

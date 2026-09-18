@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import tempfile
+import threading
 import unittest
 from unittest.mock import patch
 
@@ -24,8 +25,13 @@ from unittest.mock import patch
 #
 # Pointing HOME and XDG_CONFIG_HOME at an empty directory for the whole module fixes it for every
 # test here, not just the two that happened to notice: none of them is about the host's config.
+#
+# XDG_STATE_HOME belongs in the same sentence: it is where `moai-measure-free` writes the order
+# this machine measured, and the picker's order and notes are read from it. A maintainer who has
+# measured their own free models would otherwise run these tests against their own numbers.
 _ISOLATED = tempfile.TemporaryDirectory()
 os.environ["XDG_CONFIG_HOME"] = str(Path(_ISOLATED.name) / "config")
+os.environ["XDG_STATE_HOME"] = str(Path(_ISOLATED.name) / "state")
 os.environ["HOME"] = _ISOLATED.name
 
 ROOT=Path(__file__).resolve().parents[1]
@@ -137,6 +143,167 @@ class FreePolicy(unittest.TestCase):
             ranking.write_text('{not json')
             with patch.dict(os.environ, {'XDG_STATE_HOME': home}):
                 self.assertEqual(policy.measured_ranking(), ())
+
+    def test_the_picker_puts_what_this_machine_measured_above_what_shipped(self):
+        """Seconds measured here outrank an adjective measured on another machine.
+
+        The shipped `CURATED_FREE` order calls Nex Pro the one to pick. On the machine
+        below, Nex Mini answered in 0.6 s and Pro took 2.7 s — and a picker that still
+        listed Pro first would be recommending against its own measurement. The rows
+        that were measured here therefore come first, carrying their own numbers; the
+        rest of the curated list follows with the reason that shipped; and a model the
+        run caught failing is neither hidden nor promoted — it drops to "all free
+        models" saying which half it failed.
+        """
+        control = load('moai_control_measure', 'system_files/usr/bin/moai-control')
+        document = {
+            'measuredAt': policy.time.time(),
+            'chat': ['nex-agi/nex-n2.5-mini:free', 'nex-agi/nex-n2.5-pro:free'],
+            'tools': ['nex-agi/nex-n2.5-mini:free', 'nex-agi/nex-n2.5-pro:free'],
+            'results': [
+                {'model': 'nex-agi/nex-n2.5-mini:free', 'chatSeconds': 0.6, 'toolSeconds': 0.87,
+                 'answeredArabic': True, 'calledTool': True},
+                {'model': 'nex-agi/nex-n2.5-pro:free', 'chatSeconds': 2.69, 'toolSeconds': 1.74,
+                 'answeredArabic': True, 'calledTool': True},
+                {'model': 'vendor/mumbled-english:free', 'chatSeconds': 0.1, 'toolSeconds': 0.1,
+                 'answeredArabic': False, 'calledTool': True},
+            ],
+        }
+        rows = [{'id': 'cloud:' + model} for model in (
+            policy.DEFAULT_MODEL, 'nex-agi/nex-n2.5-pro:free', 'nex-agi/nex-n2.5-mini:free',
+            'cohere/north-mini-code:free', 'vendor/mumbled-english:free')]
+        with tempfile.TemporaryDirectory() as home:
+            ranking = Path(home) / 'moai/free-ranking.json'
+            ranking.parent.mkdir(parents=True)
+            ranking.write_text(json.dumps(document))
+            with patch.dict(os.environ, {'XDG_STATE_HOME': home}), \
+                    patch.object(control.cloud_policy, 'automatic_model',
+                                 return_value='nex-agi/nex-n2.5-mini:free'):
+                picker = control.curated_cloud_models(rows)
+        self.assertEqual([(row['id'], row['group']) for row in picker], [
+            ('cloud:' + policy.DEFAULT_MODEL, 'auto'),
+            ('cloud:nex-agi/nex-n2.5-mini:free', 'measured'),
+            ('cloud:nex-agi/nex-n2.5-pro:free', 'measured'),
+            ('cloud:cohere/north-mini-code:free', 'curated'),
+            ('cloud:vendor/mumbled-english:free', 'all'),
+        ])
+        # The first row names what "automatic" resolves to right now, so it is a
+        # promise the owner can check instead of one they have to trust.
+        self.assertIn('Nex Mini', picker[0]['note_en'])
+        # Measured rows say seconds; the curated one keeps the reason that shipped.
+        self.assertEqual(picker[1]['note_en'], '0.60s to answer · 0.87s to act — measured here')
+        self.assertEqual(picker[2]['note_en'], '2.7s to answer · 1.7s to act — measured here')
+        self.assertEqual(picker[1]['label_en'], 'Nex Mini')
+        self.assertEqual(picker[3]['note_en'], 'Built for code')
+        self.assertEqual(picker[4]['note_en'], "Didn't answer in Arabic")
+        self.assertTrue(all(row['note_ar'] for row in picker))
+        # With nothing measured here, the shipped order stands and nothing claims
+        # a measurement: the curated group is exactly what it was before.
+        with tempfile.TemporaryDirectory() as empty:
+            with patch.dict(os.environ, {'XDG_STATE_HOME': empty}), \
+                    patch.object(control.cloud_policy, 'automatic_model',
+                                 return_value=policy.DEFAULT_MODEL):
+                plain = control.curated_cloud_models(rows)
+        self.assertEqual([row['group'] for row in plain], ['auto', 'curated', 'curated', 'curated', 'all'])
+        self.assertNotIn('measured here', plain[1]['note_en'])
+        self.assertNotIn('Right now', plain[0]['note_en'])
+
+    def test_the_action_ranking_counts_the_answer_the_same_turn_gives(self):
+        """Measured live on 2026-09-18, and the reason this score has two halves.
+
+        The tool ranking decides which model drives the agent loop, and that loop does
+        not only call tools — it also says what it did. Ranked on the tool prompt alone,
+        the 550B Nemotron won this run: it called the tool in 1.44 s. It then took
+        16.56 s to write one Arabic sentence, while Ling did both in 2.91 s together.
+        Whoever is waiting is waiting for the whole turn.
+        """
+        measurer = load('moai_measure_free', 'system_files/usr/bin/moai-measure-free')
+        # chat seconds, tool seconds, and what each turn came back with — the numbers
+        # this station actually recorded on 2026-09-18.
+        live = {
+            'nvidia/nemotron-3-ultra-550b-a55b:free': (16.56, 1.44, 'خفضت الصوت.', True),
+            'inclusionai/ling-3.0-flash-vl:free': (1.29, 1.62, 'خفضت الصوت.', True),
+            'nex-agi/nex-n2.5-mini:free': (3.12, 1.23, 'خفضت الصوت.', False),
+            'thinkingmachines/inkling:free': (0.07, 0.07, 'Lowered the volume.', False),
+        }
+
+        def ask(model, prompt, schema=None):
+            chat_seconds, tool_seconds, answer, called = live[model]
+            if schema is None:
+                return chat_seconds, {'content': answer}, ''
+            calls = [{'function': {'name': 'set_volume'}}] if called else []
+            return tool_seconds, {'content': '', 'tool_calls': calls}, ''
+
+        with patch.object(measurer, 'ask', ask):
+            results = [measurer.measure(model) for model in live]
+        ranked = [row['model'] for row in sorted(results, key=lambda row: row['toolScore'],
+                                                 reverse=True)]
+        self.assertEqual(ranked[0], 'inclusionai/ling-3.0-flash-vl:free')
+        # A model that did not call the tool never outranks one that did, however fast —
+        # and an English answer to an Arabic question is last whatever its seconds say.
+        self.assertEqual(ranked[-2:], ['nex-agi/nex-n2.5-mini:free', 'thinkingmachines/inkling:free'])
+        # The answer ranking is still about answering, so the 550B model stays below Ling.
+        chat = [row['model'] for row in sorted(results, key=lambda row: row['chatScore'],
+                                               reverse=True)]
+        self.assertEqual(chat[0], 'inclusionai/ling-3.0-flash-vl:free')
+        self.assertEqual(chat[-1], 'thinkingmachines/inkling:free')
+
+    def test_a_second_measure_request_reports_instead_of_deadlocking_the_server(self):
+        """Found live: the second click hung moai-control, and everything behind it.
+
+        `start_measurement()` reported the already-running state by calling
+        `measure_state()` from inside the lock it had just taken, and threading.Lock
+        is not reentrant. The lock was then never released, so /measure, /models and
+        /quick all hung for the rest of the session — from one extra click.
+        """
+        control = load('moai_control_measure_lock', 'system_files/usr/bin/moai-control')
+        started = []
+
+        class Process:
+            stdout = iter(())
+            def wait(self, timeout=None): started.append('waited'); return 0
+
+        with patch.object(control.subprocess, 'Popen', lambda *a, **k: Process()), \
+                patch.object(control.cloud_policy, 'automatic_candidates',
+                             return_value=['nex-agi/nex-n2.5-mini:free']):
+            # Hold the run open so the second request takes the "already running" path.
+            with control._measure_lock:
+                control._measure.update(running=True, done=2, total=8, now='x', error='')
+            done = threading.Event()
+            result = {}
+
+            def second():
+                result['state'] = control.start_measurement()
+                done.set()
+
+            threading.Thread(target=second, daemon=True).start()
+            self.assertTrue(done.wait(5), 'start_measurement deadlocked on its own lock')
+            self.assertEqual((result['state']['measuring'], result['state']['done']), (True, 2))
+            # Nothing was launched a second time, and the lock is free afterwards.
+            self.assertEqual(started, [])
+            self.assertTrue(control._measure_lock.acquire(timeout=1))
+            control._measure_lock.release()
+            with control._measure_lock:
+                control._measure.update(running=False)
+
+    def test_measured_results_refuses_a_priced_or_unreadable_row(self):
+        """A ranking file can order free models. It can never introduce one."""
+        with tempfile.TemporaryDirectory() as home:
+            ranking = Path(home) / 'moai/free-ranking.json'
+            ranking.parent.mkdir(parents=True)
+            ranking.write_text(json.dumps({'measuredAt': policy.time.time(), 'results': [
+                {'model': 'openai/gpt-5', 'chatSeconds': 0.1, 'toolSeconds': 0.1},
+                {'model': 'nex-agi/nex-n2.5-mini:free', 'chatSeconds': 'fast', 'toolSeconds': 1},
+                {'model': 'nex-agi/nex-n2.5-pro:free', 'chatSeconds': 1.5, 'toolSeconds': 2.5,
+                 'answeredArabic': True, 'calledTool': True},
+                'not-a-row',
+            ]}))
+            with patch.dict(os.environ, {'XDG_STATE_HOME': home}):
+                self.assertEqual(list(policy.measured_results()), ['nex-agi/nex-n2.5-pro:free'])
+            ranking.write_text(json.dumps({'measuredAt': policy.time.time() - policy.RANKING_MAX_AGE - 60,
+                                           'results': [{'model': 'nex-agi/nex-n2.5-pro:free'}]}))
+            with patch.dict(os.environ, {'XDG_STATE_HOME': home}):
+                self.assertEqual(policy.measured_results(), {})
 
     def test_an_unmeasured_model_is_ranked_by_the_window_it_can_hold(self):
         """A system agent carries a long transcript; context outranks parameter count."""
