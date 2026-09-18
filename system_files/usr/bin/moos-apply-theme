@@ -272,7 +272,7 @@ set -uo pipefail
 #     hourly block it already had room for, and the device face reads the same
 #     ksystemstats sensors the rings do. Cached QML holds the one-faced cards until it
 #     is purged.
-THEME_REV=69
+THEME_REV=70
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

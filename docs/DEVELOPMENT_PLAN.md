@@ -56,9 +56,10 @@ laptop, a touchscreen or two monitors**.
 4. **Hardware breadth** — laptop, touch, a second monitor, suspend/resume, deliberate
    rollback on real machines, and an ARM review on a physical seat with a real GPU —
    the one ARM review so far was a seatless A1 under `kwin --virtual` (P5, P0.7).
-5. **The rest of the look** — one clarity control from clear to solid driving both MoOS
-   surfaces and KWin's blur, the MoOS mark at exactly three sizes, and the specular
-   sweeping once as a surface arrives (the open half of W8).
+5. **The rest of the look** — the config bridge a clarity control needs now exists
+   (W9.6: a QML singleton reads `kwinrc` synchronously and the surfaces answer to it), so
+   what remains is the control itself from clear to solid, the MoOS mark at exactly three
+   sizes, and the specular sweeping once as a surface arrives (the open half of W8).
 6. **Trust at scale** — reproducible release trust, recovery UX, and a support bundle
    an owner can send (P6).
 
@@ -153,6 +154,7 @@ reviewed live, gated once, merged once and proven once.
 | W9.2 | M1 | **MoOS has speed numbers, and a budget it can fail.** `moos-measure-speed` asks systemd for boot and session, asks KWin when an app's window really exists, and measures MoOS's OWN processes' idle CPU — not the whole machine, which on this station read 9.03% with Chrome, VS Code and Steam open while MoOS cost 2.6%. Budgets live per tier in `speed-budgets.json`, each carrying the measurement that justifies it; a probe that cannot run reports why and is excluded from the verdict instead of counting as a zero | PR #138, all four rows measured on the running station |
 | W9.3 | M3 | **One authority for every app transaction, held by a gate instead of a comment.** `moai-do` has said since W6 that Mo Store's backend is the only thing that installs, removes or updates an app — because `flatpak install` lands in the SYSTEM scope while Mo Store installs per user, so Mo AI's apps could never be removed from the Store. Two callers were outside that rule, and they were the two a person meets first: the Windows-programs setup, and the first-run app selection. Both go through `moos-storectl` now, and `tests/test_one_app_transaction_authority.py` fails on any new one — with a single narrow exception for `flatpak uninstall --unused`, which collects orphaned runtimes and cannot touch an app | PR #138 |
 | W9.5 | M1 | **How a security update reaches a machine, said truthfully.** `build.yml`'s nightly claimed it picked up Fedora/uBlue base security updates "promptly"; it pushes only a candidate tag, and promotion refuses any run that is not a dispatch, so it ships nothing and never could. ARM had no scheduled rebuild at all. Both corrected, and `tests/test_security_update_reachability.py` keeps the claim and the mechanism from drifting apart again | PR #139 |
+| W9.6 | M2 | **Glass stops being a window where there is no blur (P2.5).** Every Aurora Glass density assumed a blur pass behind the surface; without one — the essential tier, llvmpipe, or an owner who turned blur off — 0.22 alpha over a wallpaper is a window, and the A1's review said exactly that. The surfaces now read `kwinrc/Plugins/blurEnabled`, the same key `moos-visual-tier` already writes, and paint the same colour with enough body to hold text when it is off. Proved on a real Qt engine against a real config both ways: 0.22/0.22/0.82 with blur, 0.86/0.97/0.97 without, and the depths still separate | `THEME_REV` 70, PR #139 |
 | W9 | M2 | System surfaces on MoOS UI: Updater, Recovery, Remote centre, Settings front door (P2.1–P2.2), a MoOS-owned About page (P2.9) | planned |
 | W10 | M3 | Mo Store as one job system for install/update/remove across the UI, Mo AI and URL routes, with a drop target in its own window (P1.7, P4.1–P4.2, P4.7) | planned |
 | W11 | M2 | MoOS Intro: one horizon scene from Plymouth through login to the Hub; first-run tour; offline first run (P1.6) | planned |

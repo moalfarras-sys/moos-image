@@ -149,6 +149,9 @@ check:
     # ship one and never could; the release cycle is the only path, so the claim and
     # the mechanism are held together here.
     python3 tests/test_security_update_reachability.py
+    # P2.5: without a blur pass behind it, 0.22 alpha is a window, not glass. Proved
+    # on a real Qt engine against a real kwinrc, both ways.
+    python3 tests/test_moos_clarity_without_blur.py
     python3 tests/test_moai_hermes.py
     python3 tests/test_release_partition_roles.py
     python3 tests/test_iso_install_gate.py
