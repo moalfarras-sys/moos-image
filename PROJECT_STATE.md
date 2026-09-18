@@ -1,6 +1,6 @@
 # MoOS current state
 
-Current measured facts only; Git owns history. Last measured 2026-09-18 17:5x UTC.
+Current measured facts only; Git owns history. Last measured 2026-09-19 00:0x.
 
 **This block is the only place in the repository that states a version number.** The plan,
 the README and every wave row point here instead of repeating it. Four parallel copies of
@@ -8,24 +8,20 @@ the README and every wave row point here instead of repeating it. Four parallel 
 
 ## Source and release truth
 
-- **x86 and ARM are NOT on one revision.** Read back from the registry 2026-09-18 18:2x:
-  `moos`, `moos-nvidia`, `moos-cloud` `:latest` = **`44.20260918.887`**, revision
-  **`af779abb`** (cycle G, promotion `35372398530`), digests `326bc5a7053f…`,
-  `07f843515b63…`, `23141f74093b…` — the three the candidate build signed, and the first
-  image carrying W8.4, W8.5, #132, #133 and #135. `moos-arm:latest` = **`44.20260918.484`**,
-  revision **`447248ac`**. They differ because x86 `:latest` moves only through
-  `promote-x86.yml` after exact-revision proofs, while `build-arm.yml` promoted only on a
-  push — and a cycle dispatches it, so that job was skipped every time and **no cycle had
-  ever promoted ARM**. It now accepts a dispatch on main, so the next cycle moves both.
-- **Cycle G's lesson.** Its four x86 proofs passed while the ARM build ran for over 90
-  minutes, and the script waited on an ARM result it had already excluded from the x86
-  decision. The promotion was dispatched by hand with the same six inputs;
-  `release-candidate.sh` no longer blocks on it.
-- **Release cycles, newest first.** G (`af779abb`, x86 `44.20260918.887`): build
-  `35362187941`, QCOW2 `35364822749`/`35364828069`/`35364832784`, ISO `35364837291`,
-  promotion `35372398530`. F (`6996afaf`, x86 `44.20260918.881`): promotion
-  `35351916872`. E (`6c4f73c0`, x86 `.868` / ARM `.458`): promotion `35303529066` — the
-  last cycle whose ARM number is still the live one. Earlier promotions are in Git.
+- **x86 and ARM are on ONE revision for the first time.** Read back 2026-09-19 00:0x:
+  `moos`, `moos-nvidia`, `moos-cloud` `:latest` = **`44.20260918.890`** and
+  `moos-arm:latest` = **`44.20260918.495`**, all four from revision **`d9af2cdc`**
+  (cycle H, promotion `35394438157`). They had drifted — x86 on `af779abb`, ARM on
+  `447248ac` — because ARM promoted only on a push while a release cycle dispatches it.
+  That job now accepts a dispatch on main, so a cycle can move both; this time the push
+  path got there first, and the point is that a cycle's own ARM proof is no longer thrown
+  away.
+- **Release cycles, newest first.** H (`d9af2cdc`, x86 `.890` / ARM `.495`): build
+  `35388035356`, QCOW2 `35390592462`/`35390595990`/`35390599096`, ISO `35390602123`,
+  promotion `35394438157`. G (`af779abb`, x86 `.887`): promotion `35372398530` — its four
+  x86 proofs passed while the ARM build ran over 90 minutes and the script sat waiting on
+  a result it had already excluded from the x86 decision; `release-candidate.sh` no longer
+  blocks on it. F (`6996afaf`, `.881`): promotion `35351916872`. Earlier ones are in Git.
 - `main` is the only long-lived branch; every merged topic branch is deleted. The intermittent
   `plymouthd` SEGV (P0.7) is open on ARM and, since cycle D, on x86.
 - A merged commit or locally built image is not an installed or released state.
@@ -45,19 +41,21 @@ the README and every wave row point here instead of repeating it. Four parallel 
 | Network | Intel AX210 Wi-Fi/Bluetooth + RTL8125 Ethernet |
 | Health | zero failed system units and zero failed user units |
 
-Last measured ON the station, 2026-09-18 17:5x local: the station is running
-**`44.20260918.881`**, `ostree-image-signed`
-`moos-nvidia@sha256:793dc956379e549306b1bd7b3a0a31a9b8265a8d0813704cce25ee496d02dc70` —
-the digest cycle F signed and promoted — with `44.20260918.868` retained for
-rollback. `THEME_REV` 68 is applied (`~/.local/state/moos-ui2-theme-applied.v68`),
-zero failed system units and zero failed user units, KWin/Plasma 6.7.5 on Wayland,
-3840×2160 at 265% (1450×816 logical), Arabic session, scheme `MoOSUI2AuroraLight`,
-visual tier `flagship` (`AnimationDurationFactor=1`, blur on).
+Last measured ON the station, 2026-09-19 00:0x local: the station is running
+**`44.20260918.890`** — the digest cycle H signed and promoted — with `44.20260918.887`
+retained for rollback. `THEME_REV` 69 applied, zero failed system units and zero failed
+user units, KWin/Plasma 6.7.5 on Wayland, 3840×2160 at 265% (1450×816 logical), Arabic
+session, scheme `MoOSUI2AuroraLight`, visual tier `flagship`.
 
-**What the station does NOT have yet.** It boots `881`/`6996afaf`; `887`/`af779abb` is
-promoted and waiting. That image carries #134 (the hub cards' second faces), #135, #132,
-#133 and #136 (W8.5's measured free-brain picker), and `THEME_REV` 69 against the
-station's 68. One update and a restart closes the gap.
+**Speed, measured on this image five minutes after boot** (`moos-measure-speed`, P5.4):
+MoOS's share of boot **6.70 s** / 9.0, login to a ready desktop **1.10 s** / 3.0, an app's
+window appearing **0.49 s** / 4.0, MoOS's own processes **0.12%** of the CPU while idle /
+8.0. All four inside budget.
+
+**Mo AI, measured on this image:** the picker's first group is what this machine measured,
+and `moai-measure-actions` read **80/80** and **79/80** across two runs of 40 fixed
+Arabic/English cases — no wrong tool in either run; the one miss was the model answering
+in words instead of calling (P3.3).
 
 **Updating it:** MoOS origins are digest-pinned, so `bootc upgrade` reports "no
 changes" forever. Use the MoOS Updater (Settings → Update MoOS, or Mo AI's "Update
@@ -93,9 +91,9 @@ and Plasma drops such a player for the life of that shell. Its metadata also wen
   read-only repair playbooks (43 tools: 30 run at once, 13 ask first) with eight one-tap
   chips (P3.10), and Mo AI's rail corrected at the default 940 px window.
 - **Mo AI's brain, measured since:** a real free model drives the tool loop (W8.3, PR
-  #131) and eight free models were ranked on this machine (W8.5). **Still not proven:**
-  the ≥95% action-selection rate over a fixed Arabic/English case set — no case set and
-  no runner exist (P3.3).
+  #131), eight free models were ranked on this machine (W8.5), and action selection is
+  measured (W9.1 — see the station block above). **Still owed:** the same 40 cases on a
+  second model and a second machine.
 - **ISO proof (P0.8) closed:** the CI proof-channel helper read the IPv4 default route
   once while MoOS disables NetworkManager-wait-online, so it died before adding its SSH
   rule. With a retry, cycles C, D and E were three consecutive green install-and-reboot
