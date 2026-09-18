@@ -41,6 +41,10 @@ WallpaperItem {
     readonly property bool hubWeather: root.hubFlag(root.configuration.HubWeather)
     readonly property bool hubSystem: root.hubFlag(root.configuration.HubSystem)
     readonly property bool hubAnyCard: root.hubClock || root.hubWeather || root.hubSystem
+    // 0 the hour, 1 this week. See config/main.xml for why a wallpaper's card is
+    // turned from the menu rather than by clicking it.
+    readonly property int hubClockPage:
+        root.configuration.HubClockPage === undefined ? 0 : root.configuration.HubClockPage
     readonly property bool hubShown:
         (root.configuration.ShowDashboard === undefined || root.configuration.ShowDashboard)
         && root.hubAnyCard
@@ -72,6 +76,14 @@ WallpaperItem {
             checked: root.hubClock
             visible: root.hubShown
             onTriggered: root.setHubKey("HubClock", !root.hubClock)
+        },
+        PlasmaCore.Action {
+            text: root.hubClockPage === 0
+                ? MoUI.Locale.local("لوحة MoOS: أرني الأسبوع", "MoOS Hub: show the week")
+                : MoUI.Locale.local("لوحة MoOS: أرني الساعة", "MoOS Hub: show the clock")
+            icon.name: "moos-calendar-symbolic"
+            visible: root.hubShown && root.hubClock
+            onTriggered: root.setHubKey("HubClockPage", root.hubClockPage === 0 ? 1 : 0)
         },
         PlasmaCore.Action {
             text: MoUI.Locale.local("لوحة MoOS: الطقس", "MoOS Hub: weather")
@@ -306,6 +318,7 @@ WallpaperItem {
             resolvedMotionMode: root.resolvedMotionMode
             themeLabel: root.themeLabel
             showClock: root.hubClock
+            clockPage: root.hubClockPage
             showWeather: root.hubWeather
             showSystem: root.hubSystem
         }

@@ -21,6 +21,8 @@ Item {
     // Hidden cards take no width and keep no divider, and the hub shrinks around
     // what is left instead of leaving a hole in the composition.
     property bool showClock: true
+    // Which face the clock card shows; owned by the wallpaper's HubClockPage key.
+    property int clockPage: 0
     property bool showWeather: true
     property bool showSystem: true
     readonly property int visibleCards: (showClock ? 1 : 0) + (showWeather ? 1 : 0)
@@ -280,6 +282,7 @@ Item {
         spacing: 0
 
         ClockCard {
+            page: root.clockPage
             visible: root.showClock
             Layout.preferredWidth: Math.round(Kirigami.Units.gridUnit
                 * root.design.desktopHubClockColumns)

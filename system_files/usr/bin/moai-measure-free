@@ -46,7 +46,10 @@ import urllib.request
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'lib/moai'))
 import moai_cloud_policy as policy  # noqa: E402
 
-GATEWAY = os.environ.get('MOAI_GATEWAY', 'http://127.0.0.1:11435')
+# Mo AI's gateway answers on 127.0.0.1:8080 — moai-gateway's own default, which it
+# prints at startup ("front door on 127.0.0.1:8080"). The first run of this tool on
+# the station asked a port nothing listens on and reported every model unreachable.
+GATEWAY = os.environ.get('MOAI_GATEWAY', 'http://127.0.0.1:8080')
 STATE = Path(os.environ.get('XDG_STATE_HOME', str(Path.home() / '.local/state')))
 RANKING = STATE / policy.RANKING_PATH
 TIMEOUT = 60

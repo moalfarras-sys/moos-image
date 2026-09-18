@@ -144,6 +144,15 @@ proofs of cycles C, D and E were three consecutive green install-and-reboot runs
 - Owner decision P3.9: whether Mo AI ever gets a tool that runs a command the model
   wrote. Until it is taken, no such tool exists.
 
+## A wallpaper cannot be clicked (2026-09-18)
+
+MoOS Hub lives in the WALLPAPER, which is why it can never cover an icon or a window.
+The same property means no pointer event reaches it: measured on the station, neither a
+click nor a wheel over a card arrived — the desktop containment takes both. The clock
+card's second face is therefore turned from the desktop's own menu, beside the card
+toggles, and remembered in `HubClockPage`. Anything else the Hub ever gains follows the
+same rule.
+
 ## The free brain is measured on the machine that uses it (2026-09-18)
 
 The shipped preference list was measured on one day against a catalogue that turns

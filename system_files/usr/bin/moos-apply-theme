@@ -255,9 +255,19 @@ set -uo pipefail
 #     the widget explorer and the lock screen stopped being four separate alphas. The Island
 #     also measures the bar's REAL height before drawing two lines, and MoOS Search is a
 #     button instead of a 196 px pill. Cached QML holds the old material until it is purged.
-# 67: A1 live review — the launcher showed suspend and hibernate as the same moon; hibernate
-#     now wears the disk glyph. Cached launcher QML keeps the twin moons until it is purged.
-THEME_REV=67
+# 67: the clock card has two faces. The hub is painted by the WALLPAPER, so no click
+#     or wheel reaches it (the desktop containment takes both, measured on the station);
+#     the desktop's own menu turns the card and HubClockPage remembers which face is up.
+#     The hub cards also gained Aurora Glass's specular hairline, so a card reads as
+#     glass catching the light rather than a panel with a shade. Cached QML holds the
+#     old files until it is purged.
+# 68: the A1 live review, which was written against 67 while 67 was being taken by the
+#     wave above — two changes at one revision is the defect this counter exists to
+#     prevent, so the A1 work carries its own. Fifty symbolic icons gained round capsule
+#     ends, the launcher stopped showing suspend and hibernate as the same moon
+#     (hibernate wears the disk glyph), and MoOS Search offers ONE store instead of two.
+#     Cached icon and launcher QML keep the old glyphs until they are purged.
+THEME_REV=68
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

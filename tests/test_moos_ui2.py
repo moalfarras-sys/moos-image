@@ -842,7 +842,7 @@ class TestMoOSUI2(unittest.TestCase):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=67", apply,
+            "THEME_REV=68", apply,
             "existing v61 users would keep the Island that cannot show Store jobs or name the app "
             "using the camera; "
             "existing v60 users (ARM took W3 then W5 at the same revision) would keep the cached "
@@ -2574,7 +2574,10 @@ class TestMoOSUI2(unittest.TestCase):
             "the verdict column must fit HEALTHY at the supported 4K/200% scale",
         )
 
-        clock_card = qml_by_path[DASHBOARD / "contents/ui/ClockCard.qml"]
+        # ClockCard.qml is the composition of two faces since the card gained its
+        # week page; the hour, its mirroring opt-out and the identity badge live in
+        # ClockFace.qml, so that is the file these rules are about.
+        clock_card = qml_by_path[DASHBOARD / "contents/ui/ClockFace.qml"]
         self.assertRegex(
             clock_card,
             r"RowLayout\s*\{[^}]*LayoutMirroring\.enabled:\s*false"
@@ -2594,9 +2597,9 @@ class TestMoOSUI2(unittest.TestCase):
         self.assertIn('"GRAPHITE GLASS"', clock_card)
         self.assertRegex(
             clock_card,
-            r"text:\s*clockCard\.themeLabel\s*!==\s*\"\"\s*"
-            r"\?\s*clockCard\.themeLabel\s*"
-            r":\s*\(\s*clockCard\.lightSurface\s*\?\s*\"TIDAL GLASS\"\s*"
+            r"text:\s*face\.themeLabel\s*!==\s*\"\"\s*"
+            r"\?\s*face\.themeLabel\s*"
+            r":\s*\(\s*face\.lightSurface\s*\?\s*\"TIDAL GLASS\"\s*"
             r":\s*\"GRAPHITE GLASS\"\s*\)",
             "the dashboard identity must name the active theme, "
             "falling back to the Light/Dark palette",

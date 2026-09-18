@@ -2730,7 +2730,7 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=67" in apply_theme_code,
+require("THEME_REV=68" in apply_theme_code,
         "MoOS visual schema must migrate existing users to the W5 island (Store jobs, "
         "privacy chips) and inline search answers, the cardless centred "
         "Horizon Hub, responsive clock popup, authenticated Remote presence, "
@@ -5839,7 +5839,9 @@ require(not (ROOT / "system_files/usr/bin/moos-devmode-enable").exists(),
 
 # #10/#20 The desktop dashboard clock: 24-hour digits with NO AM/PM meridiem, and
 #         its second date line pinned to English (the ar+en pair every clock uses).
-_clock = code(read("system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/ClockCard.qml"), "slash")
+# The card is the composition of two faces since it gained its week page; the hour,
+# its mirroring opt-out and the bilingual date pair live in ClockFace.qml.
+_clock = code(read("system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/ClockFace.qml"), "slash")
 require('"AP"' not in _clock,
         "the dashboard clock must not pair an AM/PM meridiem with 24-hour digits")
 require('Qt.locale("en")' in _clock,
