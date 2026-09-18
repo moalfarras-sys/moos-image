@@ -145,6 +145,10 @@ check:
     # What Git refuses to track, the builder should refuse to read. Two rules named
     # paths that never existed while 196 MB entered the build context beside them.
     python3 tests/test_build_context_excludes_local_scratch.py
+    # P6.3: how a base security update actually reaches a machine. The nightly cannot
+    # ship one and never could; the release cycle is the only path, so the claim and
+    # the mechanism are held together here.
+    python3 tests/test_security_update_reachability.py
     python3 tests/test_moai_hermes.py
     python3 tests/test_release_partition_roles.py
     python3 tests/test_iso_install_gate.py

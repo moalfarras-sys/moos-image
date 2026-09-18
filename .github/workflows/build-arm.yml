@@ -28,6 +28,12 @@ name: Build MoOS ARM (aarch64)
 
 on:
   workflow_dispatch:
+  # ARM had NO schedule, so while x86 was rebuilt against a moving base every night,
+  # a base change that broke the aarch64 tree stayed invisible until someone touched
+  # one of the paths below. An hour after x86, for the same reason and with the same
+  # limit: this proves the tree still builds; only a release cycle ships anything.
+  schedule:
+    - cron: "0 7 * * *"
   push:
     branches: [main]
     paths:
