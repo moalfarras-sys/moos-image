@@ -128,9 +128,15 @@ class StoreTestCase(unittest.TestCase):
         self.base = Path(self.temp.name)
         self.old_home = os.environ.get("HOME")
         self.old_cache = os.environ.get("XDG_CACHE_HOME")
+        self.old_runtime = os.environ.get("XDG_RUNTIME_DIR")
         os.environ["HOME"] = str(self.base / "home")
         os.environ["XDG_CACHE_HOME"] = str(self.base / "cache")
+        # A job publishes its Island marker under $XDG_RUNTIME_DIR/moos-store. Left at the
+        # real session's value, `just check` on a MoOS desktop parked "Installing First"
+        # in the owner's Island for good (A1, 2026-09-18).
+        os.environ["XDG_RUNTIME_DIR"] = str(self.base / "run")
         (self.base / "home").mkdir()
+        (self.base / "run").mkdir(mode=0o700)
         self.addCleanup(self._restore_environment)
 
     def _restore_environment(self):
@@ -142,6 +148,10 @@ class StoreTestCase(unittest.TestCase):
             os.environ.pop("XDG_CACHE_HOME", None)
         else:
             os.environ["XDG_CACHE_HOME"] = self.old_cache
+        if self.old_runtime is None:
+            os.environ.pop("XDG_RUNTIME_DIR", None)
+        else:
+            os.environ["XDG_RUNTIME_DIR"] = self.old_runtime
 
     def store(self):
         return MODULE.JobStore(self.base / "cache/moos-store")
@@ -468,6 +478,15 @@ class StatusAndLockTests(StoreTestCase):
         with self.assertRaises(MODULE.BusyError):
             MODULE.GlobalLock(store).acquire()
         self.assertEqual(store.path.read_bytes(), before)
+
+    def test_a_job_publishes_its_island_marker_only_inside_the_test(self):
+        real = self.old_runtime
+        before = sorted(Path(real, "moos-store").glob("job-*")) if real else []
+        MODULE.Job(self.store(), "install", ["org.example.Isolated"])
+        self.assertTrue(list((self.base / "run/moos-store").glob("job-install-*org.example.Isolated")))
+        if real:
+            self.assertEqual(sorted(Path(real, "moos-store").glob("job-*")), before,
+                             "a test job reached the real session's Island")
 
     def test_cancel_marker_is_scoped_to_job_id(self):
         store = self.store()
