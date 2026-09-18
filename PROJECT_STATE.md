@@ -4,25 +4,28 @@ Current measured facts only; Git owns history. Last measured 2026-09-17.
 
 ## Source and release truth
 
-- **All four editions are one revision, `291361ad` (W6.1)**, read back from the registry on
-  2026-09-17 after promotion run `35280675992`: `moos`, `moos-nvidia` and `moos-cloud`
-  `:latest` = `44.20260917.862` (digests `63d72fde231a…`, `44d8c317df0c…`, `0b57dbdda41f…` —
-  the digests the candidate build signed), and `moos-arm:latest` = `44.20260917.441`. x86 and
-  ARM had been a release apart since W1.
-- Two x86 promotions that day. **Cycle B**, candidate `a8622f95` (W6): build `35261411076`,
-  QCOW2 generic/NVIDIA/cloud `35265314956`/`35265319663`/`35265323922`, ISO `35265328509`,
-  promotion `35269505270` → `44.20260917.858`. **Cycle C**, candidate `291361ad` (W6.1): build
-  `35272501490`, QCOW2 `35275702835`/`35275707229`/`35275711589`, ISO `35276847573`, promotion
-  `35280675992`. Cycle C's first ISO run (`35275716160`) lost the distribution's mirrors:
-  that ONE workflow was dispatched again with the same image reference and promotion done
-  by hand (`RELEASE.md`). Before that day x86 was W1 (`92248b5d`, `44.20260916.848`); cycle
-  A (`51cc2ac3`) passed build and QCOW2 boots, lost its ISO proof to P0.8, promoted nothing.
-- `main` is the only long-lived branch; 22 merged topic branches were deleted (each an ancestor).
-- The intermittent ARM second-boot `plymouthd` SEGV is still open (P0.7); green ARM runs since
-  then had no fix applied.
-- A merged commit or locally built image is not an installed or released state. Production
-  moves only after the exact candidate passes 3×QCOW2 + ISO; ARM is separately required
-  evidence.
+- **All four editions are one tree, W6.3** (`96e34695` = W7 + W6.2 + What's new), read back from
+  the registry after promotion run `35294288086`: `moos`, `moos-nvidia` and `moos-cloud`
+  `:latest` = `44.20260917.865` (digests `70da603d186d…`, `a4ac408722b3…`, `003908745c12…`, the ones
+  the candidate build signed); `moos-arm:latest` = `44.20260917.450` at `a0dd4b33` (the merge of
+  the same tree; `build-arm.yml` promotes every green push). Read the registry, not this line.
+- **Cycle D**, candidate `96e34695` proven on its branch and merged as `a0dd4b33`: build
+  `35287475147`, QCOW2 `35292262511`/`35289170881`/`35289173878`, ISO `35289177072`, ARM `35289180443`, promotion
+  `35294288086`. Its first generic QCOW2 run (`35289168012`) was lost to P0.7 — `plymouthd`
+  core-dumped on the FIRST boot, the first time on x86 — and that ONE proof was dispatched
+  again on the same image reference. Between cycles C and D, ARM had taken W7 alone at
+  `THEME_REV` 63 (`44.20260917.445`): the case a shared 63 would have stranded (W6.2 is 64).
+- **Cycle C** (`291361ad`, W6.1 → x86 `44.20260917.862`, ARM `.441`): build `35272501490`,
+  QCOW2 `35275702835`/`35275707229`/`35275711589`, ISO `35276847573` (its first ISO run
+  `35275716160` lost the distribution's mirrors: dispatched again, promotion by hand,
+  `RELEASE.md`), promotion `35280675992`. **Cycle B** (`a8622f95`, W6 → `44.20260917.858`):
+  build `35261411076`, QCOW2 `35265314956`/`35265319663`/`35265323922`, ISO `35265328509`,
+  promotion `35269505270`. Before that x86 was W1 (`92248b5d`); cycle A lost its ISO to P0.8.
+- `main` is the only long-lived branch; every merged topic branch is deleted. The intermittent
+  `plymouthd` SEGV (P0.7) is open on ARM and, since cycle D, on x86.
+- A merged commit or locally built image is not an installed or released state.
+  Production moves only after the exact candidate passes 3×QCOW2 + ISO; ARM is
+  separately required evidence.
 
 ## Physical development station
 
@@ -100,7 +103,7 @@ playbooks found with `list_skills` and read with `read_skill` (43 tools: 30 run 
 once, 13 ask first), with eight one-tap chips (P3.10); Mo AI's rail corrected at the
 default 940 px window; the Device panel no longer printing the raw kernel release.
 
-## On `main`, not released: W7 and W6.2 (cycle D); in review: W6.3
+## Released with cycle D, never seen on a MoOS desktop: W7, W6.2, W6.3
 
 W6.2 (merged `012eac13`, PR #119), found the first time the desktop ITSELF could be looked at off the station
 (`scripts/review/render-desktop.sh` runs the real `plasmashell` with MoOS's layout,
@@ -111,17 +114,13 @@ scene, Hub, bar and plasmoids under Xvfb; `render-lockscreen.sh` the lock screen
   forgetting its Stop button); MoOS Search assigned `undefined` to two labels on every
   start. The same renders first SAW W6's Island repair working in a real shell.
 
-W7 (merged into `main` as `411a470c`): the MoOS Switcher, `Tokens.scaled()` and MoOS
-Arrange, all reviewed on the live session.
+W7 (`411a470c`, PR #118): MoOS Switcher, `Tokens.scaled()`, MoOS Arrange — reviewed live.
 
-**W7 is `THEME_REV` 63 and W6.2 is 64.** ARM promotes every green push to `main`, so W7
-can reach an ARM machine at 63 before W6.2 does; a shared 63 would strand its caches.
-
-**W6.3 (`feat/whats-new-20260918`, in review): What's new** — the answer to "I felt no
-change". Settings → System → What's new lists what each update brought with "Try it" routes
-and marks what this machine lacked before its last update; `moos-whats-new-notify` says it
-once at the first login on a new version (P2.11). Rendered from source in Arabic and
-English; notifier proven end to end under bubblewrap; **not seen on a MoOS desktop**.
+**W6.3 (merged `a0dd4b33`, PR #120): What's new** — the answer to "I felt no change".
+Settings → System → What's new lists what each update brought with "Try it" routes and marks
+what this machine lacked before its last update; `moos-whats-new-notify` says it once at the
+first login on a new version (P2.11). Rendered from source (Arabic, English, the notice in
+Plasma's popup); notifier proven end to end under bubblewrap; **not seen on a MoOS desktop**.
 
 **Not proven anywhere yet:** tool choice by a real free model (P3.3); a real AppImage,
 its dialog, the file-manager action and the `~/Applications` watch on a desktop (P4.6).
@@ -134,7 +133,7 @@ and never added its SSH rule. Run `35265328509` shows the repair on the console:
 arrived 16 ms after the daemons on the first boot and 1.02 s on the second, where one retry
 found it. The rival theory (a fresh slirp forward per boot) was measured irrelevant by the
 same run (`first-boot-forward=alive`). Cycle C's ISO proof (`35276847573`) was the second
-consecutive green install-and-reboot; the row closes after one more.
+consecutive green install-and-reboot and cycle D's (`35289177072`) the third: **P0.8 is closed**.
 
 ## Proven source/image behavior
 
@@ -183,14 +182,15 @@ consecutive green install-and-reboot; the row closes after one more.
 
 ## Next execution
 
-1. The station is updated to `44.20260917.862` and reviewed. Owner: update the **A1**,
-   and configure a free Mo AI provider key (P0.5) — the only thing blocking the four
-   Mo AI rows of the station checklist.
-2. Release cycle D carries W7, W6.2 and W6.3: `TMPDIR=<dir> scripts/release-candidate.sh
-   --ref feat/whats-new-20260918`, merge on green, `--promote`. If ONE proof fails for an
-   external reason, dispatch that workflow alone again with the same image reference and
-   promote by hand with the new run id (`RELEASE.md`).
-3. P0.8 closes after one more green ISO proof; P0.7 stays open.
+1. Owner: update the station and the **A1** to `44.20260917.865` (MoOS Updater), walk the
+   checklist, and
+   configure a free Mo AI provider key (P0.5) — the only thing blocking the four Mo AI
+   rows of the station checklist.
+2. Cycle D is production. Cycle E (PR #121: Updater and Recovery open tall enough to show
+   their buttons; the update notice names features; coredump stacks in the boot proof) is
+   `scripts/release-candidate.sh --promote` on `main` after the merge; a lone external
+   failure is handled as `RELEASE.md` says.
+3. P0.8 is closed (three consecutive green install proofs); P0.7 stays open.
 4. Still open in W7: a live preview in the Arrange surface, touchpad and gesture
    defaults (P5.2), and carrying `Tokens.scaled()` to the per-surface motion aliases.
    The visible programme (W8, W9) now has an off-station render loop; compositor work
