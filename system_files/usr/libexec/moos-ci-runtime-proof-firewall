@@ -57,8 +57,11 @@ say "firewalld and sshd are active"
 default_route_iface() {
     local iface="" _
     for _ in $(seq 1 "${1:-120}"); do
+        # awk reads to the end and prints the first route's device. Exiting after line 1
+        # closed the pipe under `ip`; a second route line then got SIGPIPE, pipefail made
+        # the substitution 141 and `set -e` killed the helper (1 run in 10 under load).
         iface="$(ip -4 route show default 2>/dev/null \
-            | awk 'NR == 1 {for (i=1; i<=NF; i++) if ($i == "dev") {print $(i+1); exit}}')"
+            | awk '!found {for (i=1; i<=NF; i++) if ($i == "dev") {print $(i+1); found=1; break}}')"
         if [ -n "$iface" ]; then
             printf '%s\n' "$iface"
             return 0
