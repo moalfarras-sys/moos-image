@@ -1,0 +1,460 @@
+{
+  "schema": 1,
+  "_": "The fixed case set behind P3.3: does a free cloud model choose the RIGHT MoOS tool? Each case is one instruction in Arabic and in English, with the tool that answers it. `accept` names more than one tool only where two shipped tools genuinely answer the same sentence; `confused_with` names the tools a wrong answer is most likely to reach for, so a miss is reported as a specific confusion rather than a number. Run it with `moai-measure-actions`; tests/test_moai_action_selection.py checks every name against the schemas the model is actually sent. Adding a case is how this measurement gets harder — never remove one to raise the rate.",
+  "threshold": 0.95,
+  "cases": [
+    {
+      "id": "mute",
+      "ar": "اكتم صوت الجهاز الآن.",
+      "en": "Mute the speakers now.",
+      "accept": [
+        "set_mute"
+      ],
+      "confused_with": [
+        "set_volume"
+      ]
+    },
+    {
+      "id": "volume-down",
+      "ar": "خفّض الصوت إلى ٢٠ بالمئة.",
+      "en": "Turn the volume down to 20 percent.",
+      "accept": [
+        "set_volume"
+      ],
+      "confused_with": [
+        "set_mute"
+      ]
+    },
+    {
+      "id": "brightness",
+      "ar": "الشاشة معتمة، ارفع السطوع.",
+      "en": "The screen is dim, raise the brightness.",
+      "accept": [
+        "set_brightness"
+      ],
+      "confused_with": [
+        "toggle_night_light"
+      ]
+    },
+    {
+      "id": "night-light",
+      "ar": "شغّل الفلتر الأزرق للمساء.",
+      "en": "Turn on the blue-light filter for the evening.",
+      "accept": [
+        "toggle_night_light"
+      ],
+      "confused_with": [
+        "set_brightness"
+      ]
+    },
+    {
+      "id": "dark-theme",
+      "ar": "خلّي مظهر النظام غامق.",
+      "en": "Switch the system appearance to dark.",
+      "accept": [
+        "set_theme_mode"
+      ],
+      "confused_with": [
+        "toggle_night_light"
+      ]
+    },
+    {
+      "id": "wifi",
+      "ar": "الواي فاي مطفأ، شغّله.",
+      "en": "Wi-Fi is off — turn it on.",
+      "accept": [
+        "toggle_wifi"
+      ],
+      "confused_with": [
+        "net_doctor",
+        "network_status"
+      ]
+    },
+    {
+      "id": "bluetooth",
+      "ar": "أطفئ البلوتوث.",
+      "en": "Turn Bluetooth off.",
+      "accept": [
+        "toggle_bluetooth"
+      ],
+      "confused_with": []
+    },
+    {
+      "id": "screenshot",
+      "ar": "خذ لقطة للشاشة.",
+      "en": "Take a screenshot of the screen.",
+      "accept": [
+        "take_screenshot"
+      ],
+      "confused_with": []
+    },
+    {
+      "id": "failed-units",
+      "ar": "أي خدمات في النظام فشلت؟",
+      "en": "Which system services have failed?",
+      "accept": [
+        "list_failed_units"
+      ],
+      "confused_with": [
+        "unit_status"
+      ]
+    },
+    {
+      "id": "disk",
+      "ar": "كم مساحة فاضية باقية على القرص؟",
+      "en": "How much free disk space is left?",
+      "accept": [
+        "disk_status"
+      ],
+      "confused_with": [
+        "device_report",
+        "get_system_status"
+      ]
+    },
+    {
+      "id": "memory",
+      "ar": "كم الذاكرة المستخدمة الآن؟",
+      "en": "How much memory is in use right now?",
+      "accept": [
+        "memory_status"
+      ],
+      "confused_with": [
+        "top_processes",
+        "get_system_status"
+      ]
+    },
+    {
+      "id": "top-processes",
+      "ar": "النظام بطيء — ما هو أكثر برنامج يستهلك المعالج؟",
+      "en": "The system is slow — which process is using the most CPU?",
+      "accept": [
+        "top_processes"
+      ],
+      "confused_with": [
+        "optimize_system",
+        "memory_status"
+      ]
+    },
+    {
+      "id": "os-version",
+      "ar": "ما إصدار MoOS المُقلع عليه هذا الجهاز؟",
+      "en": "Which MoOS version is this machine booted on?",
+      "accept": [
+        "os_state",
+        "device_report"
+      ],
+      "confused_with": [
+        "get_system_status"
+      ]
+    },
+    {
+      "id": "journal",
+      "ar": "اقرأ آخر أخطاء سجلّ النظام.",
+      "en": "Read the latest errors from the system log.",
+      "accept": [
+        "read_journal"
+      ],
+      "confused_with": [
+        "read_moos_log",
+        "list_failed_units"
+      ]
+    },
+    {
+      "id": "installed-apps",
+      "ar": "ما التطبيقات المثبّتة على الجهاز؟",
+      "en": "What applications are installed on this machine?",
+      "accept": [
+        "list_installed_apps"
+      ],
+      "confused_with": [
+        "install_app"
+      ]
+    },
+    {
+      "id": "install",
+      "ar": "ثبّت لي تطبيق GIMP.",
+      "en": "Install the GIMP application for me.",
+      "accept": [
+        "install_app"
+      ],
+      "confused_with": [
+        "open_app",
+        "update_apps"
+      ]
+    },
+    {
+      "id": "open-app",
+      "ar": "افتح تطبيق المتصفح فايرفوكس.",
+      "en": "Open the Firefox browser application.",
+      "accept": [
+        "open_app"
+      ],
+      "confused_with": [
+        "install_app"
+      ]
+    },
+    {
+      "id": "settings-page",
+      "ar": "افتح صفحة إعدادات الشبكة.",
+      "en": "Open the network settings page.",
+      "accept": [
+        "open_settings"
+      ],
+      "confused_with": [
+        "network_status",
+        "toggle_wifi"
+      ]
+    },
+    {
+      "id": "system-update",
+      "ar": "حدّث النظام إلى آخر إصدار.",
+      "en": "Update the system to the latest version.",
+      "accept": [
+        "system_update"
+      ],
+      "confused_with": [
+        "update_apps",
+        "update_firmware"
+      ]
+    },
+    {
+      "id": "update-apps",
+      "ar": "حدّث التطبيقات المثبّتة كلها.",
+      "en": "Update all the installed applications.",
+      "accept": [
+        "update_apps"
+      ],
+      "confused_with": [
+        "system_update"
+      ]
+    },
+    {
+      "id": "rollback",
+      "ar": "التحديث خرّب شيئاً — أرجعني للنسخة السابقة.",
+      "en": "The update broke something — roll me back to the previous version.",
+      "accept": [
+        "system_rollback"
+      ],
+      "confused_with": [
+        "system_update"
+      ]
+    },
+    {
+      "id": "audio-broken",
+      "ar": "الصوت لا يخرج من السماعات إطلاقاً، أصلحه.",
+      "en": "No sound comes out of the speakers at all — fix it.",
+      "accept": [
+        "fix_audio"
+      ],
+      "confused_with": [
+        "set_volume",
+        "set_mute"
+      ]
+    },
+    {
+      "id": "network-broken",
+      "ar": "الإنترنت لا يعمل، شخّص المشكلة.",
+      "en": "The internet is not working — diagnose the problem.",
+      "accept": [
+        "net_doctor"
+      ],
+      "confused_with": [
+        "network_status",
+        "toggle_wifi"
+      ]
+    },
+    {
+      "id": "network-status",
+      "ar": "ما حالة اتصال الشبكة الآن؟",
+      "en": "What is the network connection status right now?",
+      "accept": [
+        "network_status"
+      ],
+      "confused_with": [
+        "net_doctor"
+      ]
+    },
+    {
+      "id": "gpu",
+      "ar": "ما كرت الشاشة الموجود وأي تعريف يستخدم؟",
+      "en": "Which graphics card is in this machine and what driver is it using?",
+      "accept": [
+        "gpu_report"
+      ],
+      "confused_with": [
+        "check_drivers",
+        "device_report"
+      ]
+    },
+    {
+      "id": "drivers",
+      "ar": "هل ينقص الجهاز أي تعريف؟",
+      "en": "Is this machine missing any driver?",
+      "accept": [
+        "check_drivers"
+      ],
+      "confused_with": [
+        "gpu_report",
+        "device_report"
+      ]
+    },
+    {
+      "id": "boot-slow",
+      "ar": "الإقلاع صار بطيئاً، ما الذي يؤخّره؟",
+      "en": "Booting has become slow — what is delaying it?",
+      "accept": [
+        "inspect_boot"
+      ],
+      "confused_with": [
+        "top_processes"
+      ]
+    },
+    {
+      "id": "support-bundle",
+      "ar": "جهّز لي ملف دعم أرسله للمساعدة.",
+      "en": "Prepare a support bundle I can send for help.",
+      "accept": [
+        "support_bundle"
+      ],
+      "confused_with": [
+        "read_journal"
+      ]
+    },
+    {
+      "id": "gaming",
+      "ar": "جهّز الجهاز لتشغيل الألعاب.",
+      "en": "Set this machine up for gaming.",
+      "accept": [
+        "setup_gaming"
+      ],
+      "confused_with": [
+        "install_nvidia",
+        "optimize_system"
+      ]
+    },
+    {
+      "id": "windows-apps",
+      "ar": "أريد تشغيل برامج ويندوز على MoOS.",
+      "en": "I want to run Windows programs on MoOS.",
+      "accept": [
+        "setup_windows"
+      ],
+      "confused_with": [
+        "setup_gaming",
+        "setup_waydroid"
+      ]
+    },
+    {
+      "id": "android",
+      "ar": "أريد تشغيل تطبيقات أندرويد.",
+      "en": "I want to run Android applications.",
+      "accept": [
+        "setup_waydroid"
+      ],
+      "confused_with": [
+        "setup_windows"
+      ]
+    },
+    {
+      "id": "nvidia",
+      "ar": "ثبّت تعريف NVIDIA.",
+      "en": "Install the NVIDIA driver.",
+      "accept": [
+        "install_nvidia"
+      ],
+      "confused_with": [
+        "check_drivers",
+        "update_firmware"
+      ]
+    },
+    {
+      "id": "firmware",
+      "ar": "حدّث برامج العتاد الثابتة (firmware).",
+      "en": "Update the hardware firmware.",
+      "accept": [
+        "update_firmware"
+      ],
+      "confused_with": [
+        "system_update",
+        "install_nvidia"
+      ]
+    },
+    {
+      "id": "optimize",
+      "ar": "نظّف الجهاز وحرّر مساحة وذاكرة.",
+      "en": "Clean the machine up and free some space and memory.",
+      "accept": [
+        "optimize_system"
+      ],
+      "confused_with": [
+        "disk_status",
+        "memory_status"
+      ]
+    },
+    {
+      "id": "unit-status",
+      "ar": "ما حالة خدمة moai-gateway؟",
+      "en": "What is the status of the moai-gateway service?",
+      "accept": [
+        "unit_status"
+      ],
+      "confused_with": [
+        "list_failed_units"
+      ]
+    },
+    {
+      "id": "remote",
+      "ar": "أريد الوصول إلى هذا الجهاز من جوالي وأنا خارج البيت.",
+      "en": "I want to reach this machine from my phone while I am away from home.",
+      "accept": [
+        "remote_anywhere"
+      ],
+      "confused_with": []
+    },
+    {
+      "id": "uninstall",
+      "ar": "احذف تطبيق GIMP من الجهاز.",
+      "en": "Remove the GIMP application from this machine.",
+      "accept": [
+        "uninstall_app"
+      ],
+      "confused_with": [
+        "install_app"
+      ]
+    },
+    {
+      "id": "skills",
+      "ar": "ما الإصلاحات الجاهزة التي تعرفها؟",
+      "en": "What ready-made repairs do you know?",
+      "accept": [
+        "list_skills"
+      ],
+      "confused_with": [
+        "read_skill"
+      ]
+    },
+    {
+      "id": "moos-log",
+      "ar": "اقرأ سجلّ MoOS نفسه.",
+      "en": "Read MoOS's own log.",
+      "accept": [
+        "read_moos_log"
+      ],
+      "confused_with": [
+        "read_journal"
+      ]
+    },
+    {
+      "id": "device-report",
+      "ar": "أعطني تقريراً عن حالة الجهاز كاملة.",
+      "en": "Give me a full report on the state of this device.",
+      "accept": [
+        "device_report",
+        "get_system_status"
+      ],
+      "confused_with": [
+        "os_state"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,376 @@
+#!/usr/bin/python3
+"""moos-measure-speed — is MoOS as fast as it promises on THIS machine?
+
+    moos-measure-speed              measure everything that can be measured here
+    moos-measure-speed --show       print what this machine last measured
+    moos-measure-speed --json       the same as a document, for a gate or a report
+    moos-measure-speed --app ID     also time one specific app's window appearing
+
+WHY THIS EXISTS
+
+The plan's first gap has been the same for months: "nothing in MoOS is slow on this
+station; nothing about that is written down either." An operating system that competes
+has numbers it publishes and keeps — and MoOS had a repository with zero of them.
+
+So this measures four things a person actually feels, compares each against a budget for
+THIS CLASS of machine, and says pass or over:
+
+    boot       firmware + loader + kernel + initrd + userspace, and the part MoOS owns
+               (userspace alone — MoOS cannot make your firmware faster, and a budget
+               that includes 10 s of it would be measuring your motherboard)
+    session    from the user manager starting to the desktop's default target
+    launch     a real first-party app, from exec to its window existing, asked of KWin
+    idle       what the machine is doing when nobody is touching it
+
+WHAT IT REFUSES TO DO. A probe that cannot run here reports "not measured" and is
+excluded from the verdict — never a zero, never an average over a missing number. The
+tier comes from `moos-visual-tier`, which is already the single authority on what this
+machine is; this tool never classifies hardware itself. And it changes nothing: every
+probe reads, and the app probe launches exactly the app it was asked to time.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+from pathlib import Path
+import re
+import signal
+import subprocess
+import sys
+import tempfile
+import time
+
+STATE = Path(os.environ.get('XDG_STATE_HOME', str(Path.home() / '.local/state')))
+RESULT = STATE / 'moos/speed.json'
+BUDGETS = Path(os.environ.get('MOOS_SPEED_BUDGETS', '/usr/share/moos/speed-budgets.json'))
+# Every first-party app is a QML shell; MoOS Search is the one a person opens most.
+DEFAULT_APP = 'moai'
+IDLE_SECONDS = 5
+
+
+def run(argv: list[str], timeout: int = 30) -> str:
+    try:
+        done = subprocess.run(argv, capture_output=True, text=True, timeout=timeout)
+    except (OSError, subprocess.SubprocessError):
+        return ''
+    return done.stdout
+
+
+def _seconds(text: str) -> float:
+    """systemd prints "1min 4.203s", "6.100s" and "903ms"; all three are seconds here."""
+    total = 0.0
+    for value, unit in re.findall(r'(\d+(?:\.\d+)?)(min|ms|s)\b', text):
+        total += float(value) * {'min': 60.0, 's': 1.0, 'ms': 0.001}[unit]
+    return round(total, 3)
+
+
+def boot() -> dict:
+    """systemd's own accounting, split into the part MoOS owns and the part it does not."""
+    text = run(['systemd-analyze']).strip()
+    if 'Startup finished' not in text:
+        return {'measured': False, 'why': 'systemd-analyze reported no startup timing'}
+    parts = dict((name, _seconds(value)) for value, name in
+                 re.findall(r'(\d[\d.]*(?:min\s+[\d.]+)?\s*(?:min|ms|s))\s*\((\w+)\)', text))
+    total = _seconds(text.split('=')[-1]) if '=' in text else sum(parts.values())
+    graphical = re.search(r'graphical\.target reached after ([\d.]+\s*(?:min|ms|s)[^i]*)', text)
+    return {
+        'measured': True,
+        'total_s': total,
+        'userspace_s': parts.get('userspace', 0.0),
+        'firmware_s': parts.get('firmware', 0.0),
+        'kernel_s': parts.get('kernel', 0.0) + parts.get('initrd', 0.0),
+        'graphical_s': _seconds(graphical.group(1)) if graphical else 0.0,
+        'parts': parts,
+    }
+
+
+def session() -> dict:
+    """The user manager's own startup: how long after login the desktop is ready."""
+    text = run(['systemd-analyze', '--user']).strip()
+    reached = re.search(r'default\.target reached after ([\d.]+\s*(?:min|ms|s))', text)
+    if not reached:
+        return {'measured': False, 'why': 'no user manager timing on this machine'}
+    return {'measured': True, 'ready_s': _seconds(reached.group(1))}
+
+
+# The processes MoOS itself is answerable for. A browser, an IDE and a game launcher are
+# the owner's business; the compositor, the shell, the MoOS daemons and Mo AI's gateway
+# are MoOS's. Measured on the station: the whole machine read 9.03% busy with Chrome, VS
+# Code, Steam and Dolphin open — a true number that says nothing about MoOS, and a budget
+# written against it would fail on every machine anyone actually uses.
+MOOS_PROCESSES = (
+    'kwin_wayland', 'plasmashell', 'kded6', 'krunner', 'xdg-desktop-portal-kde',
+    'moos-qml-shell', 'moai-gateway', 'moai-control', 'moai-agent-api', 'moos-health',
+    'baloo_file', 'polkit-kde-authentication-agent-1', 'moos-visual-tier',
+)
+
+
+def _cpu_ticks() -> tuple[float, dict]:
+    """Total jiffies, and MoOS's own processes' jiffies, from /proc alone."""
+    try:
+        fields = [float(value) for value in
+                  Path('/proc/stat').read_text().split('\n')[0].split()[1:]]
+    except (OSError, ValueError, IndexError):
+        return (0.0, {})
+    total = sum(fields)
+    ours = {}
+    for entry in Path('/proc').iterdir():
+        if not entry.name.isdigit():
+            continue
+        try:
+            stat = (entry / 'stat').read_text()
+            # comm is parenthesised and may contain spaces; everything after the last ')'
+            # is positional, and utime/stime are fields 14 and 15 of the whole line.
+            name = stat[stat.index('(') + 1:stat.rindex(')')]
+            rest = stat[stat.rindex(')') + 2:].split()
+            if name not in MOOS_PROCESSES:
+                continue
+            ours[entry.name] = float(rest[11]) + float(rest[12])
+        except (OSError, ValueError, IndexError):
+            continue
+    return (total, ours)
+
+
+def idle() -> dict:
+    """What MoOS costs when nobody is touching it — and what the whole machine costs."""
+    first_total, first_ours = _cpu_ticks()
+    if first_total <= 0:
+        return {'measured': False, 'why': '/proc/stat is unreadable'}
+    try:
+        idle_fields = [float(value) for value in
+                       Path('/proc/stat').read_text().split('\n')[0].split()[1:]]
+        first_idle = idle_fields[3] + (idle_fields[4] if len(idle_fields) > 4 else 0.0)
+    except (OSError, ValueError, IndexError):
+        return {'measured': False, 'why': '/proc/stat is unreadable'}
+    time.sleep(IDLE_SECONDS)
+    second_total, second_ours = _cpu_ticks()
+    try:
+        idle_fields = [float(value) for value in
+                       Path('/proc/stat').read_text().split('\n')[0].split()[1:]]
+        second_idle = idle_fields[3] + (idle_fields[4] if len(idle_fields) > 4 else 0.0)
+    except (OSError, ValueError, IndexError):
+        return {'measured': False, 'why': '/proc/stat is unreadable'}
+    span = second_total - first_total
+    if span <= 0:
+        return {'measured': False, 'why': 'the CPU clock did not advance'}
+    # Only processes alive for the whole window count; one that started or died in the
+    # middle would otherwise read as a spike or a negative.
+    ours = sum(max(0.0, second_ours[pid] - first_ours[pid])
+               for pid in second_ours if pid in first_ours)
+    return {
+        'measured': True,
+        'moos_busy_percent': round(100.0 * ours / span, 2),
+        'machine_busy_percent': round(100.0 * (1.0 - (second_idle - first_idle) / span), 2),
+        'processes': len(second_ours),
+        'seconds': IDLE_SECONDS,
+    }
+
+
+# KWin is asked when the window exists, because nothing else knows. The script reports
+# through Klipper — the same closed loop scripts/station/pointer.py uses, and the only
+# one that works on a Wayland session without a debug socket.
+#
+# It also reports what is ALREADY open, and that half matters as much: every MoOS app is
+# single-instance, so launching one that is already running raises the existing window and
+# `windowAdded` never fires. Measured on the station: the probe sat for its whole 60 s and
+# then reported "the window never reached KWin", which reads like the app is broken when
+# the truth is that it was already on screen. A probe that cannot run says why.
+WATCH = '''
+var open = [];
+try {
+    var list = workspace.windowList();
+    for (var i = 0; i < list.length; i++) {
+        try { open.push(String(list[i].caption)); } catch (inner) { }
+    }
+} catch (error) { }
+callDBus("org.kde.klipper", "/klipper", "org.kde.klipper.klipper",
+         "setClipboardContents", "MOOS-OPEN " + open.join(" ; "));
+var found = false;
+workspace.windowAdded.connect(function (window) {
+    if (found) return;
+    try {
+        if (String(window.resourceName).indexOf("%s") !== -1) {
+            found = true;
+            callDBus("org.kde.klipper", "/klipper", "org.kde.klipper.klipper",
+                     "setClipboardContents", "MOOS-WINDOW " + new Date().getTime());
+        }
+    } catch (error) { }
+});
+'''
+
+
+def _klipper(*args: str) -> str:
+    return run(['qdbus-qt6', 'org.kde.klipper', '/klipper',
+                'org.kde.klipper.klipper.' + args[0], *args[1:]]).strip()
+
+
+def _kwin(method: str, *args: str) -> str:
+    return run(['qdbus-qt6', 'org.kde.KWin', '/Scripting',
+                'org.kde.kwin.Scripting.' + method, *args]).strip()
+
+
+def launch(app: str, resource: str = 'moos-qml-shell', title: str = '') -> dict:
+    """Time an app from exec to the compositor having its window."""
+    if not run(['qdbus-qt6', 'org.kde.KWin', '/KWin']).strip() and not os.environ.get('WAYLAND_DISPLAY'):
+        return {'measured': False, 'why': 'no KWin session to ask'}
+    binary = run(['sh', '-c', f'command -v {app}']).strip()
+    if not binary:
+        return {'measured': False, 'why': f'{app} is not installed here'}
+    saved = _klipper('getClipboardContents')
+    script = Path(tempfile.mkdtemp(prefix='moos-speed-')) / 'watch.js'
+    script.write_text(WATCH % resource, encoding='utf-8')
+    try:
+        _kwin('unloadScript', 'moosspeed')
+        if not _kwin('loadScript', str(script), 'moosspeed'):
+            return {'measured': False, 'why': 'KWin refused the watcher script'}
+        _klipper('setClipboardContents', 'MOOS-WINDOW-WAITING')
+        _kwin('start')
+        # What KWin already has. A cold launch is the only one this can time.
+        already = ''
+        for _ in range(40):
+            value = _klipper('getClipboardContents')
+            if value.startswith('MOOS-OPEN'):
+                already = value[len('MOOS-OPEN'):].strip()
+                break
+            time.sleep(0.05)
+        wanted = title or app
+        if any(wanted.lower() in window.lower() for window in already.split(' ; ') if window):
+            return {'measured': False,
+                    'why': f'{wanted} is already open — MoOS apps are single-instance, '
+                           f'so close it and measure a cold launch'}
+        started = time.time()
+        process = subprocess.Popen([binary], stdout=subprocess.DEVNULL,
+                                   stderr=subprocess.DEVNULL, start_new_session=True)
+        appeared = 0.0
+        while time.time() - started < 60:
+            value = _klipper('getClipboardContents')
+            if value.startswith('MOOS-WINDOW '):
+                appeared = float(value.split()[1]) / 1000.0
+                break
+            time.sleep(0.05)
+        # Close what this probe opened, and the whole process group with it: a QML shell
+        # launched through a wrapper leaves the real window behind if only the wrapper is
+        # signalled, and a probe that litters the owner's desk with windows is not a probe.
+        try:
+            os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+        except (OSError, ProcessLookupError):
+            process.terminate()
+        if not appeared:
+            return {'measured': False, 'why': 'the window never reached KWin within 60 s'}
+        return {'measured': True, 'app': app, 'window_s': round(appeared - started, 2)}
+    finally:
+        _kwin('unloadScript', 'moosspeed')
+        if saved:
+            _klipper('setClipboardContents', saved)
+
+
+def tier() -> str:
+    try:
+        return json.loads(run(['moos-visual-tier', '--json']))['tier']
+    except (ValueError, KeyError, TypeError):
+        return ''
+
+
+def load_budgets(path: Path) -> dict:
+    document = json.loads(path.read_text(encoding='utf-8'))
+    if not isinstance(document.get('tiers'), dict) or not document['tiers']:
+        raise SystemExit(f'moos-measure-speed: {path} has no tiers')
+    return document
+
+
+# name -> (which probe's key holds the number, "at most" budget key)
+ROWS = (
+    ('boot', 'userspace_s', 'boot_userspace_s',
+     'MoOS\'s own share of boot', 'من الإقلاع: ما يملكه MoOS'),
+    ('session', 'ready_s', 'session_ready_s',
+     'login to a ready desktop', 'من الدخول إلى سطح مكتب جاهز'),
+    ('launch', 'window_s', 'app_launch_s',
+     'an app\'s window appearing', 'ظهور نافذة التطبيق'),
+    ('idle', 'moos_busy_percent', 'idle_busy_percent',
+     "MoOS's own CPU while idle", 'انشغال المعالج بسبب MoOS بلا استخدام'),
+)
+
+
+def verdicts(probes: dict, budgets: dict) -> list:
+    out = []
+    for probe, field, budget_key, english, arabic in ROWS:
+        result = probes.get(probe) or {}
+        row = {'row': probe, 'en': english, 'ar': arabic,
+               'budget': budgets.get(budget_key)}
+        if not result.get('measured'):
+            row.update(measured=False, why=result.get('why', 'not run'), verdict='not measured')
+        else:
+            value = result.get(field)
+            row.update(measured=True, value=value)
+            row['verdict'] = ('over budget' if row['budget'] is not None and value > row['budget']
+                              else 'within budget')
+        out.append(row)
+    return out
+
+
+def show() -> int:
+    try:
+        document = json.loads(RESULT.read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        print('moos-measure-speed: nothing measured on this machine yet')
+        return 1
+    print(f"tier {document.get('tier')}, measured "
+          f"{(time.time() - float(document.get('measuredAt') or 0)) / 3600:.1f} h ago")
+    for row in document.get('rows') or []:
+        value = '—' if not row['measured'] else f"{row['value']}"
+        budget = '—' if row['budget'] is None else f"{row['budget']}"
+        print(f"  {row['row']:<9} {value:>8} / {budget:<8} {row['verdict']:<14} {row['en']}")
+    return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument('--show', action='store_true')
+    parser.add_argument('--json', action='store_true')
+    parser.add_argument('--app', default=DEFAULT_APP)
+    parser.add_argument('--app-title', default='',
+                        help="the window title to expect; defaults to the command name")
+    parser.add_argument('--budgets', default=str(BUDGETS))
+    parser.add_argument('--skip-launch', action='store_true')
+    arguments = parser.parse_args()
+    if arguments.show:
+        return show()
+
+    document = load_budgets(Path(arguments.budgets))
+    machine = tier()
+    budgets = document['tiers'].get(machine) or {}
+    # ORDER MATTERS, and getting it wrong was measured: idle read 10.05% against an 8%
+    # budget because it sampled while the app the launch probe had just started was still
+    # settling. The tool cannot be the reason a machine looks busy, so idle goes first,
+    # before this process has started anything at all.
+    probes = {'boot': boot(), 'session': session(), 'idle': idle()}
+    probes['launch'] = ({'measured': False, 'why': 'skipped'} if arguments.skip_launch
+                        else launch(arguments.app, title=arguments.app_title))
+    rows = verdicts(probes, budgets)
+    report = {
+        '_': 'Written by moos-measure-speed (P5.4). Budgets are per hardware tier.',
+        'measuredAt': time.time(), 'tier': machine or 'unknown',
+        'budgets': budgets, 'rows': rows, 'probes': probes,
+    }
+    RESULT.parent.mkdir(parents=True, exist_ok=True)
+    RESULT.write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+    if arguments.json:
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+    else:
+        print(f"tier {machine or 'unknown'}")
+        for row in rows:
+            value = '—' if not row['measured'] else f"{row['value']}"
+            budget = '—' if row['budget'] is None else f"{row['budget']}"
+            mark = {'within budget': '✓', 'over budget': '✗', 'not measured': '·'}[row['verdict']]
+            print(f"  {mark} {row['row']:<9} {value:>8} / {budget:<8} {row['en']}"
+                  + (f"  ({row['why']})" if not row['measured'] else ''))
+        print(f"written to {RESULT}")
+    # Only a MEASURED row can fail. A machine that cannot run a probe is not over budget.
+    return 1 if any(row['verdict'] == 'over budget' for row in rows) else 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())
