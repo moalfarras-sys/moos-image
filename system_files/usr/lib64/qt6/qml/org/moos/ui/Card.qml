@@ -11,8 +11,7 @@ Surface {
 
     Behavior on scale {
         NumberAnimation {
-            duration: Tokens.scaled(Kirigami.Units.longDuration,
-                                    Tokens.motionFast)
+            duration: Tokens.motionFast
             easing.type: Tokens.easeStandard
         }
     }

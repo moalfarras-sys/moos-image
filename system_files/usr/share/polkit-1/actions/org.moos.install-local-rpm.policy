@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1.0/policyconfig.dtd">
+<!--
+  MoOS: the administrator question for a local package says what is happening.
+
+  Installing a signed RPM goes through /usr/libexec/moos-install-local-rpm, and
+  `pkexec` with no action of its own asks: "Authentication is needed to run
+  `/usr/libexec/moos-install-local-rpm /var/home/... f1bf5962...' as the super
+  user" — an English sentence with a helper path and a truncated digest in the
+  middle of an Arabic session. That was measured on the station on 2026-09-18.
+
+  pkexec uses this action instead whenever the program it is asked to run is the
+  annotated one, so the owner reads one plain sentence in their own language and
+  decides on the thing itself, not on a file path.
+
+  It grants nothing: every caller still authenticates as an administrator, on
+  every path, and the helper repeats its own owner, path, digest, signature and
+  architecture checks after this prompt is answered.
+-->
+<policyconfig>
+  <vendor>MoOS</vendor>
+  <vendor_url>https://github.com/moalfarras-sys/moos-image</vendor_url>
+  <icon_name>moos-install-symbolic</icon_name>
+
+  <action id="org.moos.install-local-rpm">
+    <description>Install a signed package on MoOS</description>
+    <description xml:lang="ar">تثبيت حزمة موقّعة على MoOS</description>
+    <message>MoOS needs your administrator password to add this signed package to a new system version. Your files and the current version stay as they are.</message>
+    <message xml:lang="ar">يحتاج MoOS كلمة مرور المسؤول لإضافة هذه الحزمة الموقّعة إلى نسخة جديدة من النظام. ملفاتك والنسخة الحالية تبقى كما هي.</message>
+    <message xml:lang="de">MoOS benötigt Ihr Administratorkennwort, um dieses signierte Paket zu einer neuen Systemversion hinzuzufügen. Ihre Dateien und die aktuelle Version bleiben unverändert.</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/moos-install-local-rpm</annotate>
+  </action>
+</policyconfig>

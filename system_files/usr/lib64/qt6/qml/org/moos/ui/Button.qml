@@ -72,8 +72,7 @@ QQC2.AbstractButton {
 
         Behavior on border.color {
             ColorAnimation {
-                duration: Tokens.duration(control.motionEnabled,
-                    Tokens.scaled(Kirigami.Units.longDuration, Tokens.motionFast))
+                duration: Tokens.duration(control.motionEnabled, Tokens.motionFast)
             }
         }
 
@@ -88,8 +87,7 @@ QQC2.AbstractButton {
 
             Behavior on color {
                 ColorAnimation {
-                    duration: Tokens.duration(control.motionEnabled,
-                        Tokens.scaled(Kirigami.Units.longDuration, Tokens.motionFast))
+                    duration: Tokens.duration(control.motionEnabled, Tokens.motionFast)
                 }
             }
         }

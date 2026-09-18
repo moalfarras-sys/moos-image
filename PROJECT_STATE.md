@@ -79,20 +79,25 @@ privacy chips, inline Search answers), the #114 integration and W6, and landing 
 `THEME_REV` 62. W2 and W3 had been reviewed live before the update; W4, W5 and W6 were
 first seen on a MoOS desktop on 2026-09-17, below.
 
-## Station review of W2–W6 on the running desktop (2026-09-17)
+## Station review of W2–W6 on the running desktop (2026-09-17 and 2026-09-18)
 
-Walked on `44.20260917.858`; each row says what was actually seen. Frames are in
-`~/.cache/moos-station-review/`.
+Keyboard- and CLI-driven rows walked on `44.20260917.858`; the four pointer-driven rows on
+`44.20260917.862` the next morning, once `scripts/station/pointer.py` made a click land where
+it is aimed (KWin reports `workspace.cursorPos`, the pointer is walked there with relative
+moves; absolute `ydotool` moves were measured again and stay in the corner). Frames are in
+`~/.cache/moos-station-review/` and `~/.cache/moos-station-review2/`.
 
 | # | Item | Result |
 | --- | --- | --- |
-| 1 | Booted version | **PASS.** `44.20260917.858`, digest `c8f94adde60d…`, previous deployment retained. "About this device" is W6.1 and is **not in this image**, so its half of the row is untested |
-| 2 | Review shadows swept | **PASS.** Both shadow directories empty at the first login after the update; `THEME_REV` 62 applied |
-| 5 | MoOS Search inline answers | **PASS.** `12*7` returns one `آلة حاسبة` row reading **84**, above the file-result group, with a copy action. The unit-conversion half is **untested**: the session's keyboard layout is Arabic, so synthetic Latin typing produces Arabic letters — the calculator was driven with layout-independent key codes. Typing an unparseable query did produce the `اسأل Mo AI` hand-off row |
-| 6 | Island privacy chips | **PASS for detection and naming.** `moos-privacy-monitor` wrote `active-mic-98-pw%2Drecord` within 3 s of a real PipeWire capture starting and held it for the capture's life, and it wrote `active-screen-98-Mo%20PC%20Remote` while Mo PC Remote was genuinely capturing (`MoRemotePersonal` and its portal were running). The Island rendered its Remote chip with the live green dot, which is the documented priority (Remote outranks a privacy chip), so the camera/mic chip's own foreground appearance is still **unseen**. The Store-job half is **untested** |
-| 12 | Secondary text on a light scheme | **PASS.** Mo Store's hero sentence and every publisher line are clearly readable on `MoOSUI2AuroraLight` — this is the text that measured 1.6:1 before W6 |
-| 3, 4, 10, 11 | Hub controls, widget removal, App Drop, dismissed auth | **Untested.** All need pointer input, and `ydotool`'s absolute pointer mapping does not match this screen (two calibration attempts landed the click elsewhere). Keyboard- and CLI-driven items were done instead; these need either a calibrated pointer or the owner |
-| 7, 8, 9, 13 | Mo AI rail, tool loop, cards, identity answers | **Blocked.** Row 7 is W6.1 and not in this image. 8, 9 and 13 need a cloud brain: `moai-brain-mode` reports "free cloud only … configure with moai-config" and no provider key is configured, which is plan row P0.5 and an owner action |
+| 1, 2 | Booted version, shadows swept | **PASS.** `44.20260917.858` with the previous deployment retained; both shadow directories empty at the first login, `THEME_REV` 62 applied |
+| 3 | Hub controls from the desktop | **PASS.** The desktop's own menu lists the four Hub actions; unchecking «لوحة MoOS: الطقس» removed the weather card and wrote `HubWeather=false`, the Hub reflowed to two cards, and checking it restored the card |
+| 4 | A widget can be removed | **PASS.** A widget added for the review reported `locked=false`, its menu offered «أزل ساعة تناظرية», the click removed it, a notification offered an undo, and the appletsrc has zero `immutability=0` entries |
+| 5 | MoOS Search inline answers | **PASS.** `12*7` returns one `آلة حاسبة` row reading **84** above the file results, with a copy action; an unparseable query offers the `اسأل Mo AI` hand-off. Unit conversion is still untested (Arabic layout) |
+| 6 | Island privacy chips | **PASS.** Detection and naming were measured in the first review; on 2026-09-18 the chip itself appeared in the Island — «مشاركة الشاشة نشطة», naming the capturing app, with a one-tap stop |
+| 10 | App Drop with a real AppImage | **PASS.** A real 8.4 MB AppImage dropped into `~/Applications` raised the MoOS question (name, size, kind, destination, unverified-publisher sentence, default No); «تثبيت» installed it as a desktop entry and `--remove` took it away |
+| 11 | A dismissed authentication | **PASS on the result, two defects on the words.** Nothing was staged and MoOS printed «لم تُجهَّز الحزمة…», but the prompt itself read "Authentication is needed to run `/usr/libexec/moos-install-local-rpm …'" in English and pkexec's "This incident has been reported." came first. **Both fixed in source** (`org.moos.install-local-rpm.policy`, `run_priv`), not yet on a desktop |
+| 12 | Secondary text on a light scheme | **PASS.** Mo Store's hero sentence and publisher lines are clearly readable on `MoOSUI2AuroraLight` |
+| 7, 8, 9, 13 | Mo AI rail, tool loop, cards, identity answers | **Blocked.** They need a cloud brain: no provider key is configured (plan row P0.5, an owner action) |
 
 The W7 facts measured on the same session are in `docs/DEVELOPMENT_PLAN.md`.
 
@@ -104,37 +109,29 @@ playbooks found with `list_skills` and read with `read_skill` (43 tools: 30 run 
 once, 13 ask first), with eight one-tap chips (P3.10); Mo AI's rail corrected at the
 default 940 px window; the Device panel no longer printing the raw kernel release.
 
-## Released with cycle D, never seen on a MoOS desktop: W7, W6.2, W6.3
+## Released with cycle D, still unseen on a MoOS desktop: W6.2 and W6.3
 
-W6.2 (merged `012eac13`, PR #119), found the first time the desktop ITSELF could be looked at off the station
-(`scripts/review/render-desktop.sh` runs the real `plasmashell` with MoOS's layout,
-scene, Hub, bar and plasmoids under Xvfb; `render-lockscreen.sh` the lock screen):
+W6.2 (`012eac13`, PR #119) came from the first renders of the desktop itself off the station
+(`scripts/review/render-desktop.sh` runs the real `plasmashell` with MoOS's layout, scene,
+Hub, bar and plasmoids under Xvfb): in Arabic the Hub's English date line hung on the LEFT of
+a right-aligned clock column, the Island's privacy chip read "الميكروفون قيد الاستخ…" (sized
+by counting characters), and MoOS Search assigned `undefined` to two labels on every start.
 
-- In Arabic the Hub's English date line hung on the LEFT of a right-aligned clock column;
-  the Island's privacy chip read "الميكروفون قيد الاستخ…" (sized by counting characters,
-  forgetting its Stop button); MoOS Search assigned `undefined` to two labels on every
-  start. The same renders first SAW W6's Island repair working in a real shell.
+W6.3 (`a0dd4b33`, PR #120) is **What's new** — the answer to "I felt no change": Settings →
+System → What's new lists what each update brought with "Try it" routes, and
+`moos-whats-new-notify` says it once at the first login on a new version (P2.11). Rendered
+from source and proven under bubblewrap; **not seen on a MoOS desktop**. W7 (`411a470c`,
+PR #118) shipped in the same cycle and was reviewed live before it merged.
 
-W7 (`411a470c`, PR #118): MoOS Switcher, `Tokens.scaled()`, MoOS Arrange — reviewed live.
+**Not proven anywhere yet:** tool choice by a real free model (P3.3).
 
-**W6.3 (merged `a0dd4b33`, PR #120): What's new** — the answer to "I felt no change".
-Settings → System → What's new lists what each update brought with "Try it" routes and marks
-what this machine lacked before its last update; `moos-whats-new-notify` says it once at the
-first login on a new version (P2.11). Rendered from source (Arabic, English, the notice in
-Plasma's popup); notifier proven end to end under bubblewrap; **not seen on a MoOS desktop**.
-
-**Not proven anywhere yet:** tool choice by a real free model (P3.3); a real AppImage,
-its dialog, the file-manager action and the `~/Applications` watch on a desktop (P4.6).
-
-## ISO proof (P0.8) — cause measured
+## ISO proof (P0.8) — closed
 
 The image's CI proof-channel helper read the IPv4 default route ONCE, and MoOS disables
 NetworkManager-wait-online, so nothing ordered that read after DHCP; the helper died on it
-and never added its SSH rule. Run `35265328509` shows the repair on the console: the route
-arrived 16 ms after the daemons on the first boot and 1.02 s on the second, where one retry
-found it. The rival theory (a fresh slirp forward per boot) was measured irrelevant by the
-same run (`first-boot-forward=alive`). Cycle C's ISO proof (`35276847573`) was the second
-consecutive green install-and-reboot and cycle D's (`35289177072`) the third: **P0.8 is closed**.
+and never added its SSH rule. Run `35265328509` shows the retry working (the route arrived
+16 ms after the daemons on the first boot, 1.02 s on the second), and the ISO proofs of
+cycles C and D were the second and third consecutive green install-and-reboot.
 
 ## Proven source/image behavior
 
@@ -165,11 +162,12 @@ consecutive green install-and-reboot and cycle D's (`35289177072`) the third: **
 
 ## Open evidence gaps
 
-- Station review of W4–W6: Search answers, privacy-chip detection, the shadow sweep and
-  light-scheme text are now measured (see the review section above). Still owed there:
-  Hub controls, widget removal, App Drop with a real AppImage and the dismissed-auth
-  result — all pointer-driven — plus Island Store jobs, and Mo AI's tool loop and cards
-  with a real free model once a provider key exists (P0.5). The **A1 review is untouched**.
+- Station review of W4–W6: Search answers, privacy-chip detection and naming, the shadow
+  sweep, light-scheme text, Hub controls, widget removal, App Drop with a real AppImage and
+  the dismissed-authentication result are all measured now (see the review section above).
+  Still owed there: an Island **Store** job in the foreground (the Remote chip outranks it
+  while Mo PC Remote runs), and Mo AI's tool loop and cards with a real free model once a
+  provider key exists (P0.5). The **A1 review is untouched**.
 - M1 visual/accessibility matrix: English/German sessions, light/dark, reduced motion,
   1080p–4K, 100–250%, island Remote/Media switching (Arabic reviewed only).
 - Two suspend/resume cycles, multi-monitor, audio/network recovery, deliberate
@@ -195,6 +193,7 @@ consecutive green install-and-reboot and cycle D's (`35289177072`) the third: **
    defaults (P5.2), and carrying `Tokens.scaled()` to the per-surface motion aliases.
    The visible programme (W8, W9) now has an off-station render loop; compositor work
    (blur, window animation, Overview) still needs the station.
-5. A pointer-driven review needs `ydotool`'s absolute axis calibrated against this 4K
-   screen first, or it silently clicks somewhere else. Who holds which files is in
+5. Pointer-driven review works now: `scripts/station/pointer.py click <x> <y>` in LOGICAL
+   pixels, verified against KWin before every click. Absolute `ydotool` moves are still
+   useless on this screen; never go back to them. Who holds which files is in
    `docs/AGENT_COORDINATION.md`.

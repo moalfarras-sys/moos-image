@@ -354,8 +354,6 @@ class SharedQmlDesignSystemTests(unittest.TestCase):
             "typeCaption": 11, "typeSecondary": 13, "typeBody": 14,
             "typeLabel": 15, "typeTitle": 20, "typeHeadline": 24,
             "typeDisplay": 32,
-            "motionFast": 120, "motionPress": 160,
-            "motionGeometry": 220, "motionPage": 320,
             "panelHeight": 54, "dialogWidth": 792,
             "dialogHeight": 576, "iconSmall": 16,
             "iconControl": 20, "iconLarge": 24,
@@ -366,6 +364,22 @@ class SharedQmlDesignSystemTests(unittest.TestCase):
                 self.assertRegex(
                     tokens,
                     rf"readonly property int {role}:\s*{value}\b",
+                )
+
+        # Motion is the one contract with two halves since W7: the DESIGNED duration is
+        # still the reviewed number, and the role every surface reads is that duration at
+        # the owner's animation speed, so a machine on a slower tier is slower everywhere
+        # instead of only in the four surfaces that called scaled() by name.
+        for role, value in {"motionFast": 120, "motionPress": 160,
+                            "motionGeometry": 220, "motionPage": 320}.items():
+            with self.subTest(role=role):
+                self.assertRegex(
+                    tokens,
+                    rf"readonly property int {role}Reference:\s*{value}\b",
+                )
+                self.assertRegex(
+                    tokens,
+                    rf"readonly property int {role}:\s*scaled\(liveLongDuration, {role}Reference\)",
                 )
 
         for app in ("welcome", "installer", "store", "moai"):

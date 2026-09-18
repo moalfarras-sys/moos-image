@@ -12,7 +12,7 @@ merge instead of editing it.
 
 | Agent | Machine | Holds | Files it may change |
 | --- | --- | --- | --- |
-| Station agent | The physical x86 NVIDIA workstation | **W7 — MoOS Workspace** and the live station review owed for W4–W6 | `system_files/usr/share/kwin/**`, `system_files/etc/xdg/kwinrc`, `system_files/etc/xdg/kcminputrc`, `artwork/generate_moos_design_core.py` and the generated `org/moos/ui` tokens, `org/moos/ui/Button.qml` and `Card.qml`, `tests/qml/motion-review.qml`, `tests/test_moos_switcher.py`, `tests/test_moos_arrange.py` |
+| Station agent | The physical x86 NVIDIA workstation | The **pointer-driven station review** and what it finds; the rest of **W7** (touchpad and gesture defaults, `Tokens.scaled()` in the per-surface aliases, a live preview in Arrange) | `scripts/station/**`, `tests/test_station_pointer.py`, `tests/test_moos_local_rpm_authentication.py`, `system_files/usr/share/polkit-1/actions/**`, `system_files/usr/bin/moai-do` (`run_priv` only), `system_files/usr/share/kwin/**`, `system_files/etc/xdg/kwinrc`, `system_files/etc/xdg/kcminputrc`, `artwork/generate_moos_design_core.py` and the generated `org/moos/ui` tokens, `org/moos/ui/Button.qml` and `Card.qml`, `tests/qml/motion-review.qml`, `tests/test_moos_switcher.py`, `tests/test_moos_arrange.py` |
 | Remote agent | Off-station: Windows 11 + WSL2, no live KWin | **W9 — system surfaces on MoOS UI** (Updater, Recovery, Remote centre, Settings front door); **the x86 release cycles** (cycle D carries W7 and W6.2); the off-station review tools | `system_files/usr/bin/moos-update`, `moos-rollback`, `mo-pc-remote`, `moos-settings` and `usr/share/moos/apps/settings/**`; `scripts/review/**`, `scripts/release-candidate.sh`; `PROJECT_STATE.md` release rows. W6.2 (PR #119) also touched the Hub clock card, `org.moos.island` and `org.moos.search`; those are free again once it is merged |
 | Oracle agent | The Oracle A1 (aarch64) | ARM boot proofs and the A1's own findings | `Containerfile.arm`, ARM tests and ARM rows |
 
@@ -64,6 +64,20 @@ Both findings are from the running session (`44.20260917.858`, KWin 6.7.5,
   yes-or-no, so on a tier set to 40% the shell ran at 40% and every MoOS surface
   still ran at 100%.
 
+
+## The pointer, and why review claims were thin without it (2026-09-18)
+
+Four review rows had stood as "untested" since W4 because open-loop pointer input does not
+work here: `ydotool mousemove --absolute` leaves the cursor in the corner on this 4K screen at
+265%, so a script that clicks blind can report a pass for a click that never landed. The fix is
+`scripts/station/pointer.py`: KWin is asked where the pointer is (`workspace.cursorPos`, loaded
+as a script, answered on Klipper's D-Bus interface) and the pointer is walked there with
+relative moves until the compositor agrees, then the click is sent. It costs about a second per
+click and it is the difference between evidence and a guess. Coordinates are LOGICAL pixels.
+
+It closed rows 3, 4, 10 and 11 the same morning, and row 11 found two things the owner reads
+that were not MoOS's own words (an English pkexec prompt naming a helper path, and "This
+incident has been reported." after pressing Cancel). Both are fixed in source in the same wave.
 
 ## What the station has already done (2026-09-17)
 

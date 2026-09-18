@@ -59,9 +59,21 @@ confirm() {
 }
 
 # run_priv — privileged run via polkit (no sudo assumption).
+#
+# A dismissed administrator prompt is an ordinary answer — the owner said no — but
+# pkexec ends it with two English lines of its own: "Error executing command as
+# another user: Not authorized" and "This incident has been reported." On the
+# station on 2026-09-18 those were the first thing an Arabic session showed after
+# pressing Cancel, above MoOS's own truthful line, and they read like an accusation
+# for something the owner chose. They are pkexec's ONLY output in that case (the
+# program never starts), so dropping exactly those two sentences hides nothing: the
+# caller still prints what happened, and every other line pkexec or the program
+# writes is passed through untouched, as is the exit status.
 run_priv() {
     if command -v pkexec >/dev/null 2>&1; then
-        pkexec "$@"
+        pkexec "$@" 2> >(grep --line-buffered -v \
+            -e '^Error executing command as another user: Not authorized$' \
+            -e '^This incident has been reported\.$' >&2)
     else
         echo "${Y}pkexec غير متوفّر — لا يمكن طلب صلاحية المسؤول.${N}" >&2
         echo "${Y}pkexec not available — cannot request admin privileges.${N}" >&2
