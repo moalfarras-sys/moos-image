@@ -123,10 +123,21 @@ _MOAI_DO_TOOLS: list[dict[str, Any]] = [
         "Generate a redacted support bundle for troubleshooting — ينشئ حزمة دعم منقّحة للتشخيص",
         category=READ_ONLY, executor="moai-do", command="support-bundle",
     ),
+    # NOT an inspection tool, and it used to be offered as one. `moai-do hw-report`
+    # execs `moai --device`: it OPENS a panel, prints nothing, and exits 0. Asked to
+    # inspect this machine on 2026-09-18, the model reached for it as if it returned
+    # data, the loop read an empty result and showed the owner a red row — "تقرير
+    # العتاد: فشل دون مخرجات" — for a tool that had done exactly what it was built to
+    # do. A tool the model can call has to RETURN something the model can use.
+    #
+    # The health scan does return that: MoOS's own report, as JSON, with the system,
+    # the updates, the resources, the security findings and the hardware it can see.
+    # So the read-only tool is the report, and opening the panel is left to the person
+    # (Mo AI's own Device tab, one click away in the rail).
     _schema(
-        "hw_report",
-        "Open the hardware and device health panel — يفتح لوحة صحة العتاد والأجهزة",
-        category=READ_ONLY, executor="moai-do", command="hw-report",
+        "device_report",
+        "Report this machine: version, updates, resources, findings — يقرأ حالة الجهاز: النسخة والتحديثات والموارد والملاحظات",
+        category=READ_ONLY, executor="moai-do", command="device-report",
     ),
 
     # --- User-space actions (confirmation card, no pkexec) ---

@@ -1845,7 +1845,7 @@ Kirigami.ApplicationWindow {
             case "get_system_status": return root.local("حالة أجهزة النظام", "Get Device Status")
             case "open_app": return root.local("فتح تطبيق: ", "Open app: ") + (args.app_id || "")
             case "open_settings": return root.local("فتح الإعدادات: ", "Open settings: ") + (args.page || "")
-            case "hw_report": return root.local("تقرير العتاد", "Hardware Report")
+            case "device_report": return root.local("حالة الجهاز", "Device report")
             case "check_drivers": return root.local("فحص التعريفات", "Check Hardware Drivers")
             case "set_mute": return args.value === "unmute" ? root.local("إلغاء كتم الصوت", "Unmute")
                                                           : root.local("كتم الصوت", "Mute")
@@ -3465,9 +3465,37 @@ Kirigami.ApplicationWindow {
                                     readonly property int titleEnd: msg.text.indexOf("\n")
                                     readonly property string toolHeading: !toolish ? ""
                                         : (titleEnd === -1 ? msg.text : msg.text.substring(0, titleEnd))
-                                    readonly property string shownText: !toolish ? msg.text
+                                    readonly property string toolBody: !toolish ? ""
                                         : (titleEnd === -1 ? "" : msg.text.substring(titleEnd + 1))
+                                    // WHAT A TOOL RETURNS IS EVIDENCE, NOT A TRANSCRIPT.
+                                    //
+                                    // Asked to inspect this machine on 2026-09-18, Mo AI ran its
+                                    // read-only tools and answered correctly — and filled the
+                                    // conversation with the raw output: firmware GUIDs, a
+                                    // `NVME\VEN_15B7&DEV_5006&SUBSYS…` device path, two full
+                                    // sha256 digests, twenty-odd lines for one question. Every
+                                    // word of it was true and none of it was readable; the answer
+                                    // the person asked for was pushed off the screen by the
+                                    // machine's own bookkeeping.
+                                    //
+                                    // The row shows the first few lines and says how many more
+                                    // there are. Nothing is hidden — the rest is one click away
+                                    // and the copy button still copies all of it — but a desk
+                                    // assistant reports, it does not page a log at you.
+                                    property bool toolExpanded: false
+                                    readonly property var toolLines: toolBody === "" ? [] : toolBody.split("\n")
+                                    readonly property int toolPreviewLines: 6
+                                    readonly property bool toolClamped:
+                                        toolish && !toolExpanded && toolLines.length > toolPreviewLines
+                                    readonly property int toolHiddenLines:
+                                        Math.max(0, toolLines.length - toolPreviewLines)
+                                    readonly property string shownText: !toolish ? msg.text
+                                        : (toolClamped ? toolLines.slice(0, toolPreviewLines).join("\n")
+                                                       : toolBody)
+                                    readonly property bool toolHasMore:
+                                        toolish && toolLines.length > toolPreviewLines
                                     readonly property int headingHeight: toolish ? root.fs(26) : 0
+                                    readonly property int toolFooterHeight: toolHasMore ? root.fs(24) : 0
                                     readonly property color toolColor:
                                         msg.role === "tool-error" ? root.badColor
                                         : msg.role === "tool-success" ? root.okColor
@@ -3496,7 +3524,7 @@ Kirigami.ApplicationWindow {
                                     // W4-era bubbles reserved a 26 px strip under EVERY reply for
                                     // one copy icon, so a one-line answer was a two-line box.
                                     height: (bubble.shownText === "" ? 0 : body.implicitHeight) + 22
-                                            + bubble.headingHeight
+                                            + bubble.headingHeight + bubble.toolFooterHeight
 
                                     RowLayout {
                                         id: toolHeader
@@ -3559,6 +3587,37 @@ Kirigami.ApplicationWindow {
                                             onRunningChanged: if (!running) body.opacity = 1
                                             NumberAnimation { from: 1.0; to: 0.30; duration: root.motionEnabled ? 460 : 0 }
                                             NumberAnimation { from: 0.30; to: 1.0; duration: root.motionEnabled ? 460 : 0 }
+                                        }
+                                    }
+
+                                    // "… and 18 more lines" — the whole of it, one click away.
+                                    Item {
+                                        visible: bubble.toolHasMore
+                                        x: 14
+                                        y: bubble.height - root.fs(22)
+                                        width: moreLabel.implicitWidth + root.fs(8)
+                                        height: root.fs(18)
+
+                                        Text {
+                                            id: moreLabel
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: bubble.toolExpanded
+                                                ? root.local("إخفاء التفاصيل", "Hide details")
+                                                : root.local("عرض " + bubble.toolHiddenLines + " سطراً إضافياً",
+                                                             "Show " + bubble.toolHiddenLines + " more lines")
+                                            color: moreArea.containsMouse ? root.novaCyan : root.textMute
+                                            font.family: root.uiFont
+                                            font.pixelSize: root.typePx(11)
+                                            font.weight: Font.Medium
+                                        }
+                                        ActionArea {
+                                            id: moreArea
+                                            anchors.fill: parent
+                                            actionName: bubble.toolExpanded
+                                                ? root.local("إخفاء التفاصيل", "Hide details")
+                                                : root.local("عرض التفاصيل", "Show details")
+                                            focusRadius: root.fs(6)
+                                            onTriggered: bubble.toolExpanded = !bubble.toolExpanded
                                         }
                                     }
 
