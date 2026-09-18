@@ -8,25 +8,24 @@ the README and every wave row point here instead of repeating it. Four parallel 
 
 ## Source and release truth
 
-- **x86 and ARM are NOT on one revision, and cannot be.** Read back from the registry
-  2026-09-18 17:5x UTC:
-  - `moos`, `moos-nvidia`, `moos-cloud` `:latest` = **`44.20260918.881`**, revision
-    **`6996afaf`** (cycle F, promotion run `35351916872`), digests `2881fb44a17e…`,
-    `793dc956379e…`, `87c841e9d02a…` — the three the candidate build signed.
-  - `moos-arm:latest` = **`44.20260918.484`**, revision **`447248ac`**, built 14:12 UTC.
-  - They differ because the two architectures move on different triggers: x86 `:latest`
-    moves only through `promote-x86.yml` after exact-revision proofs, while `build-arm.yml`
-    promotes on every green push to `main`. A release cycle dispatches the ARM build with
-    `workflow_dispatch`, which that job's `push`-only condition skips — so **no release
-    cycle has ever promoted ARM**, and ARM's version tracks whatever pushed last.
-- **A cycle is in flight** on `af779abb` (W8.4 + #135 + #132 + #133 + W8.5): signed build
-  `35362187941` passed; proofs `35364822749` / `35364828069` / `35364832784` / ISO
-  `35364837291`. When it promotes, every number above changes — re-read the registry.
-- **Release cycles, newest first.** F (`6996afaf`, x86 `44.20260918.881`): promotion
-  `35351916872`. E (`6c4f73c0`, x86 `44.20260918.868` / ARM `.458`):
-  build `35295680548`, QCOW2 `35297281876`/`35297284491`/`35297287185`, ISO `35297289852`,
-  ARM `35297292391`, promotion `35303529066`. Earlier: D `35294288086`, C `35280675992`,
-  B `35269505270`. Every run id is in Git history; this file keeps the current cycle.
+- **x86 and ARM are NOT on one revision.** Read back from the registry 2026-09-18 18:2x:
+  `moos`, `moos-nvidia`, `moos-cloud` `:latest` = **`44.20260918.887`**, revision
+  **`af779abb`** (cycle G, promotion `35372398530`), digests `326bc5a7053f…`,
+  `07f843515b63…`, `23141f74093b…` — the three the candidate build signed, and the first
+  image carrying W8.4, W8.5, #132, #133 and #135. `moos-arm:latest` = **`44.20260918.484`**,
+  revision **`447248ac`**. They differ because x86 `:latest` moves only through
+  `promote-x86.yml` after exact-revision proofs, while `build-arm.yml` promoted only on a
+  push — and a cycle dispatches it, so that job was skipped every time and **no cycle had
+  ever promoted ARM**. It now accepts a dispatch on main, so the next cycle moves both.
+- **Cycle G's lesson.** Its four x86 proofs passed while the ARM build ran for over 90
+  minutes, and the script waited on an ARM result it had already excluded from the x86
+  decision. The promotion was dispatched by hand with the same six inputs;
+  `release-candidate.sh` no longer blocks on it.
+- **Release cycles, newest first.** G (`af779abb`, x86 `44.20260918.887`): build
+  `35362187941`, QCOW2 `35364822749`/`35364828069`/`35364832784`, ISO `35364837291`,
+  promotion `35372398530`. F (`6996afaf`, x86 `44.20260918.881`): promotion
+  `35351916872`. E (`6c4f73c0`, x86 `.868` / ARM `.458`): promotion `35303529066` — the
+  last cycle whose ARM number is still the live one. Earlier promotions are in Git.
 - `main` is the only long-lived branch; every merged topic branch is deleted. The intermittent
   `plymouthd` SEGV (P0.7) is open on ARM and, since cycle D, on x86.
 - A merged commit or locally built image is not an installed or released state.
@@ -55,10 +54,10 @@ zero failed system units and zero failed user units, KWin/Plasma 6.7.5 on Waylan
 3840×2160 at 265% (1450×816 logical), Arabic session, scheme `MoOSUI2AuroraLight`,
 visual tier `flagship` (`AnimationDurationFactor=1`, blur on).
 
-**What the station does NOT have yet.** `6996afaf` is five merges behind `main`: #134
-(the hub cards' second faces), #135, #132, #133 and #136 (W8.5's measured free-brain
-picker). `THEME_REV` in the tree is 69; the station has 68. The cycle in flight carries
-all five.
+**What the station does NOT have yet.** It boots `881`/`6996afaf`; `887`/`af779abb` is
+promoted and waiting. That image carries #134 (the hub cards' second faces), #135, #132,
+#133 and #136 (W8.5's measured free-brain picker), and `THEME_REV` 69 against the
+station's 68. One update and a restart closes the gap.
 
 **Updating it:** MoOS origins are digest-pinned, so `bootc upgrade` reports "no
 changes" forever. Use the MoOS Updater (Settings → Update MoOS, or Mo AI's "Update
@@ -184,8 +183,8 @@ no administrator rights and nothing removed. Run once on the station after the u
 
 ## Next execution
 
-1. The cycle on `af779abb` promotes → owner updates the station and reboots → record the
-   new booted version here. That is the only way W8.4 and W8.5 reach a desk.
+1. `887` is promoted. Owner updates the station and reboots → record the booted version
+   here. That is the only way W8.4 and W8.5 reach a desk.
 2. **P3.3** is the largest open Mo AI gap: no case set and no runner exist for the ≥95%
    action-selection measurement. `moai-measure-free` is not it — it asks one tool
    question to rank models.
