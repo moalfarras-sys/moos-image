@@ -93,11 +93,17 @@ def _schema(
 
 _MOAI_DO_TOOLS: list[dict[str, Any]] = [
     # --- Read-only diagnostics (auto-execute) ---
-    _schema(
-        "diagnose_services",
-        "Show failed systemd services — يعرض الخدمات المعطّلة",
-        category=READ_ONLY, executor="moai-do", command="diagnose-services",
-    ),
+    #
+    # `diagnose_services` is NOT here, and the P3.3 measurement is why. It ran
+    # `systemctl --failed` for system and user units — the same two commands, in the
+    # same order, as the inspector's `list_failed_units` — under the description "Show
+    # failed systemd services", while the inspector said "List failed system and user
+    # services". Two tools, one output, indistinguishable sentences: asked "which
+    # services have failed?" in Arabic and in English, a free model picked
+    # `diagnose_services` both times and was counted wrong both times. It was not wrong;
+    # MoOS was ambiguous, and every wrong pick in the real agent loop costs the owner a
+    # turn. The `moai-do diagnose-services` verb still exists for anyone typing it; it
+    # is simply no longer one of two identical answers the model has to choose between.
     _schema(
         "inspect_boot",
         "Show boot status and recent error logs — يعرض حالة الإقلاع وسجل الأخطاء الأخيرة",
@@ -110,7 +116,7 @@ _MOAI_DO_TOOLS: list[dict[str, Any]] = [
     ),
     _schema(
         "net_doctor",
-        "Diagnose network: devices, route, DNS, ping, Tailscale — يشخّص الشبكة: الأجهزة، المسار، DNS، ping، Tailscale",
+        "REPAIR a network that is not working: runs live ping and DNS tests and checks Tailscale. Use when the internet is broken; to only READ the current state use network_status — يشخّص شبكة لا تعمل بفحوص ping وDNS حيّة؛ لعرض الحالة فقط استخدم network_status",
         category=READ_ONLY, executor="moai-do", command="net-doctor",
     ),
     _schema(
@@ -451,7 +457,7 @@ _INSPECT_TOOLS: list[dict[str, Any]] = [
     ),
     _schema(
         "network_status",
-        "Show network devices, addresses, route and DNS — يعرض أجهزة الشبكة والعناوين والمسار وDNS",
+        "READ the current network state: devices, addresses, route and DNS. Runs no tests; to diagnose a network that is not working use net_doctor — يعرض حالة الشبكة الحالية بلا فحوص؛ لتشخيص شبكة معطّلة استخدم net_doctor",
         category=READ_ONLY, executor="moos-inspect", command="network",
     ),
     _schema(

@@ -186,15 +186,18 @@ class TestMoaiConfirmationFlow(unittest.TestCase):
         self.assertEqual(status, 400)
         self.assertIn("invalid arguments", body.get("error", ""))
 
-    def test_diagnose_services_auto_executes_and_reads_back(self):
+    def test_a_read_only_tool_auto_executes_and_reads_back(self):
+        """Was `diagnose_services`, which the P3.3 measurement retired: it returned the
+        same two `systemctl --failed` lists as the inspector's `list_failed_units` under
+        an indistinguishable description, so a free model could only guess between them.
+        `list_failed_units` is the one that stayed, and it exercises the same path."""
         status, body = self._req("POST", "/tool/execute", {
-            "name": "diagnose_services",
+            "name": "list_failed_units",
             "arguments": {},
         })
         self.assertEqual(status, 200)
         self.assertIn(body.get("status"), ("ok", "error"))
         self.assertIsInstance(body.get("output"), str)
-        self.assertIn("failed", body.get("output").lower())
 
 
     # ── confirmed actions are JOBS: they answer at once and report when they really end ─────

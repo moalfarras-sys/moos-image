@@ -1,0 +1,192 @@
+#!/usr/bin/python3
+"""moai-measure-actions — does the cloud brain choose the RIGHT MoOS tool?
+
+    moai-measure-actions              measure every case in both languages
+    moai-measure-actions --show       print what this machine last measured
+    moai-measure-actions --model M    measure one specific free model
+    moai-measure-actions --language ar|en    only one language
+    moai-measure-actions --limit 10   only the first N cases
+
+WHY THIS EXISTS, AND WHY IT IS NOT moai-measure-free
+
+`moai-measure-free` ranks models: it asks each candidate one tool question and keeps the
+order that answered fastest. That is a speed measurement with a correctness floor, and it
+cannot tell you the thing P3.3 actually asks — whether the brain that drives this machine
+picks the right tool out of the FORTY-THREE MoOS ships, in Arabic and in English.
+
+Those are different questions, and the difference is the whole risk. A model choosing
+between two volume tools has a 50% floor. The same model choosing `set_mute` out of
+forty-three, when `set_volume` sits next to it and its own description says "To silence
+use set_mute", is being asked to read. And "شخّص مشكلة الإنترنت" must reach `net_doctor`,
+not `network_status` — one looks, the other repairs.
+
+So every case here is sent with the COMPLETE shipped schema, through the real gateway, in
+both languages, and scored on the FIRST tool call the model makes. `tool_choice` is never
+forced: refusing to call a tool is a wrong answer, and one that matters — a brain that
+explains what you should click has not acted.
+
+The case set is `/usr/share/moos/moai-action-cases.json`, and the result is written to
+~/.local/state/moai/action-accuracy.json with every miss named. Nothing here executes a
+tool: the loop stops at the model's choice, so measuring can never change the machine.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+from pathlib import Path
+import sys
+import time
+import urllib.error
+import urllib.request
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'lib/moai'))
+import moai_cloud_policy as policy  # noqa: E402
+import moai_tool_schemas as tool_schemas  # noqa: E402
+
+GATEWAY = os.environ.get('MOAI_GATEWAY', 'http://127.0.0.1:8080')
+STATE = Path(os.environ.get('XDG_STATE_HOME', str(Path.home() / '.local/state')))
+RESULT = STATE / 'moai/action-accuracy.json'
+CASES = Path(os.environ.get('MOAI_ACTION_CASES', '/usr/share/moos/moai-action-cases.json'))
+TIMEOUT = 90
+
+# The same instruction the agent loop sends, minus everything that is not about choosing:
+# no machine context, no conversation, no skills. What is left is the model, the schemas
+# and one sentence — which is the narrowest honest form of the question.
+SYSTEM = ('You are Mo AI, the assistant built into the MoOS operating system. '
+          'The user asks for something in Arabic or English. Call exactly one tool that '
+          'does what they asked. Do not explain, do not ask a follow-up question, and do '
+          'not answer in words: call the tool.')
+
+
+def load_cases(path: Path) -> dict:
+    document = json.loads(path.read_text(encoding='utf-8'))
+    if not isinstance(document.get('cases'), list) or not document['cases']:
+        raise SystemExit(f'moai-measure-actions: {path} has no cases')
+    return document
+
+
+def ask(model: str, prompt: str, tools: list) -> tuple[float, list, str]:
+    """One request through the gateway. Returns (seconds, tool names called, error)."""
+    body = {
+        'model': f'cloud:{model}' if model else 'cloud',
+        'messages': [{'role': 'system', 'content': SYSTEM},
+                     {'role': 'user', 'content': prompt}],
+        'tools': tools,
+        'stream': False,
+        'temperature': 0,
+    }
+    request = urllib.request.Request(
+        GATEWAY + '/v1/chat/completions', method='POST',
+        data=json.dumps(body).encode('utf-8'),
+        headers={'Content-Type': 'application/json'})
+    started = time.monotonic()
+    try:
+        with urllib.request.urlopen(request, timeout=TIMEOUT) as reply:
+            document = json.loads(reply.read())
+    except urllib.error.HTTPError as error:
+        return time.monotonic() - started, [], f'HTTP {error.code}'
+    except Exception as error:                      # noqa: BLE001 — any failure is a miss
+        return time.monotonic() - started, [], type(error).__name__
+    choices = document.get('choices') or []
+    if not choices:
+        return time.monotonic() - started, [], 'no choices'
+    message = choices[0].get('message') or {}
+    calls = message.get('tool_calls') or []
+    names = [str((call.get('function') or {}).get('name') or '') for call in calls]
+    return time.monotonic() - started, names, ''
+
+
+def measure_case(model: str, case: dict, language: str, tools: list) -> dict:
+    seconds, called, error = ask(model, case[language], tools)
+    # The FIRST call is the answer. A model that calls three tools has not chosen one.
+    chosen = called[0] if called else ''
+    accept = set(case['accept'])
+    result = {
+        'case': case['id'], 'language': language, 'seconds': round(seconds, 2),
+        'chose': chosen, 'expected': sorted(accept), 'correct': chosen in accept,
+        'error': error,
+    }
+    if not result['correct']:
+        result['why'] = (
+            error or
+            ('called nothing — answered in words' if not chosen else
+             'reached for a neighbour' if chosen in set(case.get('confused_with') or ())
+             else 'chose an unrelated tool'))
+    return result
+
+
+def show() -> int:
+    try:
+        document = json.loads(RESULT.read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        print('moai-measure-actions: nothing measured on this machine yet')
+        return 1
+    age = (time.time() - float(document.get('measuredAt') or 0)) / 86400
+    print(f"measured {age:.1f} days ago with {document.get('model') or 'the automatic route'}")
+    print(f"  {document.get('correct')}/{document.get('total')} = "
+          f"{100 * float(document.get('rate') or 0):.1f}%  (threshold "
+          f"{100 * float(document.get('threshold') or 0):.0f}%)")
+    for miss in document.get('misses') or []:
+        print(f"  MISS {miss['case']:<16} {miss['language']}  wanted {'/'.join(miss['expected'])}"
+              f"  got {miss['chose'] or '—'}  ({miss.get('why', '')})")
+    return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument('--show', action='store_true')
+    parser.add_argument('--model', default='')
+    parser.add_argument('--language', choices=('ar', 'en'), default='')
+    parser.add_argument('--limit', type=int, default=0)
+    parser.add_argument('--cases', default=str(CASES))
+    arguments = parser.parse_args()
+    if arguments.show:
+        return show()
+
+    document = load_cases(Path(arguments.cases))
+    cases = document['cases'][:arguments.limit] if arguments.limit > 0 else document['cases']
+    languages = (arguments.language,) if arguments.language else ('ar', 'en')
+    # The complete shipped schema. Narrowing it would measure an easier question than the
+    # one the machine actually asks its brain.
+    tools = tool_schemas.get_schemas_for_model()
+    model = arguments.model or policy.automatic_model(require_tools=True)
+
+    results = []
+    for case in cases:
+        for language in languages:
+            outcome = measure_case(model, case, language, tools)
+            results.append(outcome)
+            mark = '✓' if outcome['correct'] else '✗'
+            print(f"{mark} {case['id']:<16} {language}  {outcome['seconds']:>5.1f}s  "
+                  f"{outcome['chose'] or '—':<22}"
+                  + ('' if outcome['correct']
+                     else f"  wanted {'/'.join(outcome['expected'])} — {outcome['why']}"))
+
+    correct = sum(1 for outcome in results if outcome['correct'])
+    total = len(results)
+    rate = correct / total if total else 0.0
+    threshold = float(document.get('threshold') or 0.95)
+    misses = [outcome for outcome in results if not outcome['correct']]
+    RESULT.parent.mkdir(parents=True, exist_ok=True)
+    RESULT.write_text(json.dumps({
+        '_': 'Written by moai-measure-actions. P3.3: correct MoOS tool selection, both languages.',
+        'measuredAt': time.time(), 'gateway': GATEWAY, 'model': model,
+        'cases': len(cases), 'languages': list(languages),
+        'correct': correct, 'total': total, 'rate': round(rate, 4),
+        'threshold': threshold, 'results': results,
+        'misses': [{key: miss[key] for key in ('case', 'language', 'expected', 'chose', 'why')}
+                   for miss in misses],
+    }, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+    print(f"\n{model}: {correct}/{total} = {100 * rate:.1f}%  "
+          f"(P3.3 wants {100 * threshold:.0f}%)")
+    print(f"written to {RESULT}")
+    # A rate below the threshold is a real result, not a crash: exit 1 so a gate or a
+    # cycle can see it without having to parse the number back out.
+    return 0 if rate >= threshold else 1
+
+
+if __name__ == '__main__':
+    sys.exit(main())
