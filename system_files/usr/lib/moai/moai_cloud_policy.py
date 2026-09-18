@@ -231,9 +231,10 @@ def measured_results():
     """What each free model actually did on THIS machine, keyed by model id.
 
     The picker shows seconds instead of an adjective. Only models the zero-price
-    check already admits are returned, and only the four facts the measurement
-    established: how long an Arabic answer took, whether it was Arabic, how long
-    a tool call took, and whether the call was correct.
+    check already admits are returned, and with them the two ERRORS the run
+    recorded — because "it did not answer in Arabic" and "the provider replied
+    403" are different facts, and only one of them is about the model. The
+    picker said the first when the truth was the second.
     """
     results = ranking_document().get('results')
     if not isinstance(results, list):
@@ -248,6 +249,8 @@ def measured_results():
                 'toolSeconds': float(item.get('toolSeconds') or 0),
                 'answeredArabic': bool(item.get('answeredArabic')),
                 'calledTool': bool(item.get('calledTool')),
+                'chatError': str(item.get('chatError') or ''),
+                'toolError': str(item.get('toolError') or ''),
             }
         except (TypeError, ValueError):
             continue

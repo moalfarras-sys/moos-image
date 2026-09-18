@@ -158,8 +158,14 @@ class FreePolicy(unittest.TestCase):
         control = load('moai_control_measure', 'system_files/usr/bin/moai-control')
         document = {
             'measuredAt': policy.time.time(),
-            'chat': ['nex-agi/nex-n2.5-mini:free', 'nex-agi/nex-n2.5-pro:free'],
-            'tools': ['nex-agi/nex-n2.5-mini:free', 'nex-agi/nex-n2.5-pro:free'],
+            'chat': ['nex-agi/nex-n2.5-mini:free', 'nex-agi/nex-n2.5-pro:free',
+                     'vendor/talks-only:free'],
+            # `vendor/talks-only:free` is here on purpose: ranking files written before
+            # 2026-09-18 listed a model in `tools` when it had answered in Arabic and
+            # never emitted a tool call, and those files stay readable for thirty days.
+            # It must NOT reach the measured group.
+            'tools': ['nex-agi/nex-n2.5-mini:free', 'nex-agi/nex-n2.5-pro:free',
+                      'vendor/talks-only:free'],
             'results': [
                 {'model': 'nex-agi/nex-n2.5-mini:free', 'chatSeconds': 0.6, 'toolSeconds': 0.87,
                  'answeredArabic': True, 'calledTool': True},
@@ -167,11 +173,21 @@ class FreePolicy(unittest.TestCase):
                  'answeredArabic': True, 'calledTool': True},
                 {'model': 'vendor/mumbled-english:free', 'chatSeconds': 0.1, 'toolSeconds': 0.1,
                  'answeredArabic': False, 'calledTool': True},
+                {'model': 'vendor/talks-only:free', 'chatSeconds': 0.3, 'toolSeconds': 0.3,
+                 'answeredArabic': True, 'calledTool': False},
+                {'model': 'vendor/refused:free', 'chatSeconds': 0.08, 'toolSeconds': 0.08,
+                 'answeredArabic': False, 'calledTool': False,
+                 'chatError': 'HTTP 403', 'toolError': 'HTTP 403'},
+                # A CURATED model the run caught failing keeps its name and loses the
+                # shipped sentence about how good it is.
+                {'model': 'cohere/north-mini-code:free', 'chatSeconds': 0.2, 'toolSeconds': 0.2,
+                 'answeredArabic': False, 'calledTool': False},
             ],
         }
         rows = [{'id': 'cloud:' + model} for model in (
             policy.DEFAULT_MODEL, 'nex-agi/nex-n2.5-pro:free', 'nex-agi/nex-n2.5-mini:free',
-            'cohere/north-mini-code:free', 'vendor/mumbled-english:free')]
+            'cohere/north-mini-code:free', 'vendor/mumbled-english:free',
+            'vendor/talks-only:free', 'vendor/refused:free')]
         with tempfile.TemporaryDirectory() as home:
             ranking = Path(home) / 'moai/free-ranking.json'
             ranking.parent.mkdir(parents=True)
@@ -180,22 +196,38 @@ class FreePolicy(unittest.TestCase):
                     patch.object(control.cloud_policy, 'automatic_model',
                                  return_value='nex-agi/nex-n2.5-mini:free'):
                 picker = control.curated_cloud_models(rows)
-        self.assertEqual([(row['id'], row['group']) for row in picker], [
+        groups = {row['id']: row['group'] for row in picker}
+        notes = {row['id']: row['note_en'] for row in picker}
+        self.assertEqual([(row['id'], row['group']) for row in picker[:3]], [
             ('cloud:' + policy.DEFAULT_MODEL, 'auto'),
             ('cloud:nex-agi/nex-n2.5-mini:free', 'measured'),
             ('cloud:nex-agi/nex-n2.5-pro:free', 'measured'),
-            ('cloud:cohere/north-mini-code:free', 'curated'),
-            ('cloud:vendor/mumbled-english:free', 'all'),
         ])
+        # Only models that passed BOTH halves are in the measured group.
+        self.assertEqual(sorted(row['id'] for row in picker if row['group'] == 'measured'),
+                         ['cloud:nex-agi/nex-n2.5-mini:free', 'cloud:nex-agi/nex-n2.5-pro:free'])
         # The first row names what "automatic" resolves to right now, so it is a
         # promise the owner can check instead of one they have to trust.
         self.assertIn('Nex Mini', picker[0]['note_en'])
-        # Measured rows say seconds; the curated one keeps the reason that shipped.
-        self.assertEqual(picker[1]['note_en'], '0.60s to answer · 0.87s to act — measured here')
-        self.assertEqual(picker[2]['note_en'], '2.7s to answer · 1.7s to act — measured here')
+        self.assertEqual(notes['cloud:nex-agi/nex-n2.5-mini:free'],
+                         '0.60s to answer · 0.87s to act — measured here')
+        self.assertEqual(notes['cloud:nex-agi/nex-n2.5-pro:free'],
+                         '2.7s to answer · 1.7s to act — measured here')
         self.assertEqual(picker[1]['label_en'], 'Nex Mini')
-        self.assertEqual(picker[3]['note_en'], 'Built for code')
-        self.assertEqual(picker[4]['note_en'], "Didn't answer in Arabic")
+        # A model listed in an OLD ranking file for a half it failed is not promoted,
+        # and the row says which half — the branch that used to be unreachable.
+        self.assertEqual(groups['cloud:vendor/talks-only:free'], 'all')
+        self.assertEqual(notes['cloud:vendor/talks-only:free'], "Didn't run the action")
+        self.assertEqual(notes['cloud:vendor/mumbled-english:free'], "Didn't answer in Arabic")
+        # The provider's own refusal is the provider's, not the model's.
+        self.assertEqual(notes['cloud:vendor/refused:free'], 'The provider refused it — HTTP 403')
+        self.assertIn('المزوّد رفض الطلب', dict(
+            (row['id'], row['note_ar']) for row in picker)['cloud:vendor/refused:free'])
+        # A curated model the run caught failing keeps its NAME and loses the pitch.
+        self.assertEqual(groups['cloud:cohere/north-mini-code:free'], 'all')
+        labels = {row['id']: row.get('label_en', '') for row in picker}
+        self.assertEqual(labels['cloud:cohere/north-mini-code:free'], 'North Code')
+        self.assertNotEqual(notes['cloud:cohere/north-mini-code:free'], 'Built for code')
         self.assertTrue(all(row['note_ar'] for row in picker))
         # With nothing measured here, the shipped order stands and nothing claims
         # a measurement: the curated group is exactly what it was before.
@@ -204,7 +236,9 @@ class FreePolicy(unittest.TestCase):
                     patch.object(control.cloud_policy, 'automatic_model',
                                  return_value=policy.DEFAULT_MODEL):
                 plain = control.curated_cloud_models(rows)
-        self.assertEqual([row['group'] for row in plain], ['auto', 'curated', 'curated', 'curated', 'all'])
+        self.assertEqual([row['group'] for row in plain][:4], ['auto', 'curated', 'curated', 'curated'])
+        self.assertEqual({row['id']: row.get('note_en', '') for row in plain}
+                         ['cloud:cohere/north-mini-code:free'], 'Built for code')
         self.assertNotIn('measured here', plain[1]['note_en'])
         self.assertNotIn('Right now', plain[0]['note_en'])
 
@@ -231,7 +265,11 @@ class FreePolicy(unittest.TestCase):
             chat_seconds, tool_seconds, answer, called = live[model]
             if schema is None:
                 return chat_seconds, {'content': answer}, ''
-            calls = [{'function': {'name': 'set_volume'}}] if called else []
+            # The prompt says "mute it", and MoOS's own `set_volume` description says
+            # "To silence use set_mute" — so only `set_mute` counts as having acted.
+            self.assertEqual(sorted(s['function']['name'] for s in schema),
+                             ['set_mute', 'set_volume'])
+            calls = [{'function': {'name': measurer.TOOL_NAME}}] if called else []
             return tool_seconds, {'content': '', 'tool_calls': calls}, ''
 
         with patch.object(measurer, 'ask', ask):
@@ -285,6 +323,49 @@ class FreePolicy(unittest.TestCase):
             control._measure_lock.release()
             with control._measure_lock:
                 control._measure.update(running=False)
+
+    def test_each_ranking_list_holds_only_the_models_that_passed_that_half(self):
+        """A model cannot be ranked for a half it failed — that is the file's whole claim.
+
+        Both lists used to be written from `answeredArabic OR calledTool`, so a model
+        that answered in Arabic and never emitted a tool call still appeared in `tools`.
+        The picker then read it as "measured, and it acted in 0.3 s", and the automatic
+        route preferred it for thirty days on the path that drives the agent loop.
+        """
+        measurer = load('moai_measure_writes', 'system_files/usr/bin/moai-measure-free')
+        results = [
+            {'model': 'a/both:free', 'chatSeconds': 1.0, 'toolSeconds': 1.0,
+             'answeredArabic': True, 'calledTool': True, 'chatError': '', 'toolError': '',
+             'chatScore': (True, -1.0), 'toolScore': (True, True, -2.0)},
+            {'model': 'a/talks-only:free', 'chatSeconds': 0.3, 'toolSeconds': 0.3,
+             'answeredArabic': True, 'calledTool': False, 'chatError': '', 'toolError': '',
+             'chatScore': (True, -0.3), 'toolScore': (False, True, -0.6)},
+            {'model': 'a/acts-only:free', 'chatSeconds': 0.4, 'toolSeconds': 0.4,
+             'answeredArabic': False, 'calledTool': True, 'chatError': '', 'toolError': '',
+             'chatScore': (False, -0.4), 'toolScore': (True, False, -0.8)},
+            {'model': 'a/refused:free', 'chatSeconds': 0.08, 'toolSeconds': 0.08,
+             'answeredArabic': False, 'calledTool': False,
+             'chatError': 'HTTP 403', 'toolError': 'HTTP 403',
+             'chatScore': (False, -0.08), 'toolScore': (False, False, -0.16)},
+        ]
+        with tempfile.TemporaryDirectory() as home:
+            ranking = Path(home) / 'ranking.json'
+            with patch.object(measurer, 'RANKING', ranking), \
+                    patch.object(measurer.policy, 'automatic_candidates',
+                                 return_value=[row['model'] for row in results]), \
+                    patch.object(measurer, 'measure', lambda model: next(
+                        row for row in results if row['model'] == model)):
+                self.assertEqual(measurer.main(), 0)
+            document = json.loads(ranking.read_text())
+        # Each list holds only that half's passers. Within `tools`, a model that also
+        # answered in Arabic outranks one that only acted — the loop does both.
+        self.assertEqual(document['chat'], ['a/talks-only:free', 'a/both:free'])
+        self.assertEqual(document['tools'], ['a/both:free', 'a/acts-only:free'])
+        # Every model is still in `results`, with the reason it fell out.
+        self.assertEqual(sorted(row['model'] for row in document['results']),
+                         ['a/acts-only:free', 'a/both:free', 'a/refused:free', 'a/talks-only:free'])
+        self.assertEqual(next(row for row in document['results']
+                              if row['model'] == 'a/refused:free')['chatError'], 'HTTP 403')
 
     def test_measured_results_refuses_a_priced_or_unreadable_row(self):
         """A ranking file can order free models. It can never introduce one."""

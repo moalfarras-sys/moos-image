@@ -93,9 +93,14 @@ wait_run() {
         local workflow="" replacement=""
         workflow="$(gh run view "$id" --json workflowName --jq .workflowName 2>/dev/null)" || workflow=""
         if [ -n "$workflow" ]; then
-            replacement="$(gh run list --workflow "$workflow" --json databaseId,headSha,status,conclusion,attempt \
+            # Same rule as the reuse above: a superseding run that promotion will refuse
+            # is not a replacement. If the nightly cancelled our dispatch and only the
+            # nightly finished, this finds nothing and the cycle fails here — which is
+            # an hour of proofs saved, and the fix is to run the cycle again.
+            replacement="$(gh run list --workflow "$workflow" --json databaseId,headSha,status,conclusion,attempt,event \
                 --jq "[.[] | select(.headSha == \"$revision\" and .status == \"completed\"
-                       and .conclusion == \"success\" and .attempt == 1)][0].databaseId" 2>/dev/null)" || replacement=""
+                       and .conclusion == \"success\" and .attempt == 1
+                       and .event == \"workflow_dispatch\")][0].databaseId" 2>/dev/null)" || replacement=""
         fi
         if [ -n "$replacement" ] && [ "$replacement" != "null" ] && [ "$replacement" != "$id" ]; then
             echo "PASS $label (run $id was superseded on $revision; run $replacement proved it)"
@@ -116,9 +121,15 @@ wait_run() {
 # AGENTS.md already says it: inspect active run IDs and reuse them; never start a
 # duplicate build merely to learn status. Only a completed, successful FIRST attempt
 # counts, which is the same bar promotion applies.
-build_id="$(gh run list --workflow build.yml --json databaseId,headSha,status,conclusion,attempt \
+# The `.event` filter is not optional. promote-x86.yml checks every run it is handed
+# with `.event == "workflow_dispatch"` and REFUSES anything else — so reusing the
+# nightly's or a push's build here bought 25 minutes and then threw away the hour of
+# proofs that followed, with a message that reads like tampering. Only a dispatched
+# build of this revision can be reused, which is exactly the bar promotion applies.
+build_id="$(gh run list --workflow build.yml --json databaseId,headSha,status,conclusion,attempt,event \
     --jq "[.[] | select(.headSha == \"$revision\" and .status == \"completed\"
-           and .conclusion == \"success\" and .attempt == 1)][0].databaseId" 2>/dev/null)" || build_id=""
+           and .conclusion == \"success\" and .attempt == 1
+           and .event == \"workflow_dispatch\")][0].databaseId" 2>/dev/null)" || build_id=""
 if [ -n "$build_id" ] && [ "$build_id" != "null" ]; then
     echo "signed build: reusing run $build_id (already built $revision)"
 else
@@ -161,12 +172,16 @@ for pair in "generic-qcow2:$disk_id" "nvidia-qcow2:$nvidia_disk_id" "cloud-qcow2
     wait_run "${pair#*:}" "${pair%%:*}" > "$work/${pair%%:*}.result" &
     pid_of[${pair%%:*}]=$!
 done
+# The x86 decision is made from the x86 proofs ONLY — the ARM result was already
+# excluded from it, yet x86 promotion sat behind the ARM run anyway (45m18s of it in
+# cycle E) waiting for an answer it then threw away. ARM is still dispatched, still
+# waited for, and still reported: just after the decision it does not take part in.
 x86_ok=1
-for label in generic-qcow2 nvidia-qcow2 cloud-qcow2 iso arm; do
+for label in generic-qcow2 nvidia-qcow2 cloud-qcow2 iso; do
     status=0
     wait "${pid_of[$label]}" || status=$?
     cat "$work/$label.result"
-    if [ "$status" -ne 0 ] && [ "$label" != arm ]; then x86_ok=0; fi
+    [ "$status" -eq 0 ] || x86_ok=0
 done
 
 promotion=(gh workflow run promote-x86.yml --ref main
@@ -186,3 +201,7 @@ if [ "$promote" -eq 1 ]; then
     }
     "${promotion[@]}"
 fi
+
+# ARM's own evidence, reported after the x86 decision it never gated.
+wait "${pid_of[arm]}" || true
+cat "$work/arm.result"

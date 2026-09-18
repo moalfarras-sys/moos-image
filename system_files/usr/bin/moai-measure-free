@@ -45,6 +45,7 @@ import urllib.request
 # tree measures the policy it is changing rather than the installed one.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'lib/moai'))
 import moai_cloud_policy as policy  # noqa: E402
+import moai_tool_schemas as tool_schemas  # noqa: E402
 
 # Mo AI's gateway answers on 127.0.0.1:8080 — moai-gateway's own default, which it
 # prints at startup ("front door on 127.0.0.1:8080"). The first run of this tool on
@@ -56,21 +57,22 @@ TIMEOUT = 60
 
 ARABIC_PROMPT = 'أجب بجملة عربية واحدة قصيرة: ما هو نظام التشغيل الذي تعمل عليه؟'
 TOOL_PROMPT = 'اكتم صوت الجهاز الآن.'
-TOOL_SCHEMA = [{
-    'type': 'function',
-    'function': {
-        'name': 'set_volume',
-        'description': 'Set or mute the system volume.',
-        'parameters': {
-            'type': 'object',
-            'properties': {
-                'level': {'type': 'integer', 'description': 'Volume 0-100'},
-                'muted': {'type': 'boolean', 'description': 'True to mute'},
-            },
-            'required': ['muted'],
-        },
-    },
-}]
+# The schema MoOS actually ships, not one written here.
+#
+# This file used to hand-write a `set_volume(level, muted)` tool, and MoOS has no such
+# tool: the shipped `set_volume` takes `value` as a STRING and its own description says
+# "To silence use set_mute". So the test asked "اكتم صوت الجهاز الآن" — mute it — with a
+# schema that made `set_volume` the only possible answer, and then scored a model correct
+# for calling the tool MoOS would have rejected. A model that read the real descriptions
+# and picked `set_mute` would have been marked wrong.
+#
+# Both volume tools are offered, so the model has to choose between two plausible ones,
+# which is the thing actually being measured; `set_mute` is the right choice and the only
+# one scored as correct. Taking them from moai_tool_schemas also means a schema change can
+# never again leave this measurement testing a tool that does not exist.
+TOOL_NAME = 'set_mute'
+TOOL_SCHEMA = [schema for schema in tool_schemas.get_schemas_for_model()
+               if schema['function']['name'] in (TOOL_NAME, 'set_volume')]
 
 
 def ask(model: str, prompt: str, tools=None) -> tuple[float, dict | None, str]:
@@ -125,7 +127,7 @@ def measure(model: str) -> dict:
     called = [str((call.get('function') or {}).get('name') or '') for call in calls]
     result.update({
         'toolSeconds': round(tool_seconds, 2),
-        'calledTool': 'set_volume' in called,
+        'calledTool': TOOL_NAME in called,
         'toolError': error,
     })
     # Correctness first, speed second: a model that answers the wrong way quickly is
@@ -180,12 +182,21 @@ def main() -> int:
               + (f"  ({outcome['chatError'] or outcome['toolError']})"
                  if outcome['chatError'] or outcome['toolError'] else ''))
 
-    usable = [outcome for outcome in results if outcome['answeredArabic'] or outcome['calledTool']]
-    if not usable:
+    # Each list holds only the models that PASSED the half it ranks.
+    #
+    # Both lists used to be written from `answeredArabic or calledTool`, so a model that
+    # answered in Arabic and never emitted a tool call still appeared in `tools` — where
+    # the picker reads it as "measured, and it acted in 0.3 s" and the automatic route
+    # prefers it for thirty days over an unmeasured model that can actually call tools.
+    # The ranking's whole claim is that it reports what happened here; a list that ranks
+    # a model for the half it failed cannot make that claim.
+    answered = [outcome for outcome in results if outcome['answeredArabic']]
+    acted = [outcome for outcome in results if outcome['calledTool']]
+    if not answered and not acted:
         print('moai-measure-free: no free model answered; nothing written', file=sys.stderr)
         return 1
-    chat = [outcome['model'] for outcome in sorted(usable, key=lambda o: o['chatScore'], reverse=True)]
-    tools = [outcome['model'] for outcome in sorted(usable, key=lambda o: o['toolScore'], reverse=True)]
+    chat = [outcome['model'] for outcome in sorted(answered, key=lambda o: o['chatScore'], reverse=True)]
+    tools = [outcome['model'] for outcome in sorted(acted, key=lambda o: o['toolScore'], reverse=True)]
     RANKING.parent.mkdir(parents=True, exist_ok=True)
     RANKING.write_text(json.dumps({
         '_': 'Written by moai-measure-free. Mo AI prefers this order for 30 days. '
@@ -197,7 +208,12 @@ def main() -> int:
         'results': [{key: value for key, value in outcome.items()
                      if key not in ('chatScore', 'toolScore')} for outcome in results],
     }, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-    print(f"\nMo AI will use: {tools[0]} for actions, {chat[0]} for answers")
+    # Either list can now be empty — a catalogue where nothing emitted a tool call is a
+    # real outcome, and saying so is the point.
+    print("\nMo AI will use: "
+          + (f"{tools[0]} for actions" if tools else "no measured model for actions")
+          + ", "
+          + (f"{chat[0]} for answers" if chat else "no measured model for answers"))
     print(f"written to {RANKING}")
     return 0
 

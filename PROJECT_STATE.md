@@ -1,22 +1,32 @@
 # MoOS current state
 
-Current measured facts only; Git owns history. Last measured 2026-09-17.
+Current measured facts only; Git owns history. Last measured 2026-09-18 17:5x UTC.
+
+**This block is the only place in the repository that states a version number.** The plan,
+the README and every wave row point here instead of repeating it. Four parallel copies of
+"production is X" is how three of them came to be a release behind at once.
 
 ## Source and release truth
 
-- **All four editions are one revision, `6c4f73c0`** (cycle E: W6.3 + PR #121), read back from
-  the registry 2026-09-18 03:32 UTC after promotion run `35303529066`: `moos`, `moos-nvidia`
-  and `moos-cloud` `:latest` = `44.20260918.868` (digests `33fef3f39cd5…`, `68c27fffc3cd…`,
-  `43791828c947…`, the ones the candidate build signed); `moos-arm:latest` = `44.20260918.458`
-  (`build-arm.yml` promotes every green push). Read the registry, not this line.
-- **Release cycles, newest first.** E (`6c4f73c0`, x86 `44.20260918.868` / ARM `.458`):
+- **x86 and ARM are NOT on one revision, and cannot be.** Read back from the registry
+  2026-09-18 17:5x UTC:
+  - `moos`, `moos-nvidia`, `moos-cloud` `:latest` = **`44.20260918.881`**, revision
+    **`6996afaf`** (cycle F, promotion run `35351916872`), digests `2881fb44a17e…`,
+    `793dc956379e…`, `87c841e9d02a…` — the three the candidate build signed.
+  - `moos-arm:latest` = **`44.20260918.484`**, revision **`447248ac`**, built 14:12 UTC.
+  - They differ because the two architectures move on different triggers: x86 `:latest`
+    moves only through `promote-x86.yml` after exact-revision proofs, while `build-arm.yml`
+    promotes on every green push to `main`. A release cycle dispatches the ARM build with
+    `workflow_dispatch`, which that job's `push`-only condition skips — so **no release
+    cycle has ever promoted ARM**, and ARM's version tracks whatever pushed last.
+- **A cycle is in flight** on `af779abb` (W8.4 + #135 + #132 + #133 + W8.5): signed build
+  `35362187941` passed; proofs `35364822749` / `35364828069` / `35364832784` / ISO
+  `35364837291`. When it promotes, every number above changes — re-read the registry.
+- **Release cycles, newest first.** F (`6996afaf`, x86 `44.20260918.881`): promotion
+  `35351916872`. E (`6c4f73c0`, x86 `44.20260918.868` / ARM `.458`):
   build `35295680548`, QCOW2 `35297281876`/`35297284491`/`35297287185`, ISO `35297289852`,
-  ARM `35297292391`, promotion `35303529066`. D (`96e34695` → `.865`/`.450`): promotion
-  `35294288086`; its first generic QCOW2 run was lost to P0.7 and that ONE proof was
-  dispatched again. C (`291361ad` → `.862`/`.441`): promotion `35280675992`; its first ISO
-  run lost the distribution's mirrors. B (`a8622f95` → `.858`): promotion `35269505270`.
-  Between C and D, ARM took W7 alone at `THEME_REV` 63 — the case a shared 63 would have
-  stranded (W6.2 is 64). Every run id is in Git history; this file keeps the current one.
+  ARM `35297292391`, promotion `35303529066`. Earlier: D `35294288086`, C `35280675992`,
+  B `35269505270`. Every run id is in Git history; this file keeps the current cycle.
 - `main` is the only long-lived branch; every merged topic branch is deleted. The intermittent
   `plymouthd` SEGV (P0.7) is open on ARM and, since cycle D, on x86.
 - A merged commit or locally built image is not an installed or released state.
@@ -36,67 +46,61 @@ Current measured facts only; Git owns history. Last measured 2026-09-17.
 | Network | Intel AX210 Wi-Fi/Bluetooth + RTL8125 Ethernet |
 | Health | zero failed system units and zero failed user units |
 
-Last measured ON the station, 2026-09-17 23:07 local: the station is running
-**`44.20260917.858`**, `ostree-image-signed` `moos-nvidia@sha256:c8f94adde60d…` —
-the digest cycle B signed and promoted — with `44.20260916.848` retained for
-rollback. `THEME_REV` 62 is applied (`~/.local/state/moos-ui2-theme-applied.v62`),
+Last measured ON the station, 2026-09-18 17:5x local: the station is running
+**`44.20260918.881`**, `ostree-image-signed`
+`moos-nvidia@sha256:793dc956379e549306b1bd7b3a0a31a9b8265a8d0813704cce25ee496d02dc70` —
+the digest cycle F signed and promoted — with `44.20260918.868` retained for
+rollback. `THEME_REV` 68 is applied (`~/.local/state/moos-ui2-theme-applied.v68`),
 zero failed system units and zero failed user units, KWin/Plasma 6.7.5 on Wayland,
 3840×2160 at 265% (1450×816 logical), Arabic session, scheme `MoOSUI2AuroraLight`,
-visual tier `flagship` (`AnimationDurationFactor=1`, blur on). **So W6 is no longer
-unseen: the station is booted on it**, and the review below is the first time W2–W6
-were exercised on a MoOS desktop.
+visual tier `flagship` (`AnimationDurationFactor=1`, blur on).
+
+**What the station does NOT have yet.** `6996afaf` is five merges behind `main`: #134
+(the hub cards' second faces), #135, #132, #133 and #136 (W8.5's measured free-brain
+picker). `THEME_REV` in the tree is 69; the station has 68. The cycle in flight carries
+all five.
 
 **Updating it:** MoOS origins are digest-pinned, so `bootc upgrade` reports "no
 changes" forever. Use the MoOS Updater (Settings → Update MoOS, or Mo AI's "Update
 my system"), or wait for the nightly train; then restart.
 
-## W8 on the running station (2026-09-18, `44.20260918.868`)
+## W8 on the running station (2026-09-18) — closed
 
 Reviewed with review shadows and `scripts/station/pointer.py`; frames in
 `~/.cache/moos-w8/`. Seen on the desk, not rendered: the Island capsule's caption moved
-inside the pill (the two pinned lines assumed `panelHeight` 54 while the bar gives 40),
-the capsule shows MoPlayer's own icon instead of the theme's "unknown file" sheet, MoOS
-Search became an icon-sized button (the old pill was as wide as four app icons and its
-field could never take focus), the status cluster went from nine glyphs to four and an
-arrow, Aurora Glass gave every MoOS surface a palette-derived rim and one specular
-hairline per depth, and MoOS Search shows what is playing with its control.
+inside the pill (its two pinned lines assumed `panelHeight` 54 while the bar gives 40)
+and now names the app that is playing; MoOS Search became an icon-sized button (the old
+pill was as wide as four app icons and its field could never take focus); the status
+cluster went from nine glyphs to four and an arrow; Aurora Glass gave every MoOS surface
+a palette-derived rim and one specular hairline per depth.
 
 **MoPlayer, measured on the bus.** `dbus-monitor` caught the desktop asking the new MPRIS
 name for its properties 2 ms after it appeared and MoPlayer answering
 `org.freedesktop.DBus.Error.UnknownObject` — the object was one `await` behind the name,
 and Plasma drops such a player for the life of that shell. Its metadata also went out as
-`variant variant string`, so every reader saw an empty title. Both fixed in
-`moplayer/lib/services/system/mpris.dart` and gated; they reach the desk with the next
-image.
+`variant variant string`, so every reader saw an empty title. Both fixed and gated.
 
-## Station review of W2–W6 (2026-09-17 and 2026-09-18) — closed
+## Closed reviews — what they established
 
-Walked on `44.20260917.858` and `.862`; frames in `~/.cache/moos-station-review/` and
-`~/.cache/moos-station-review2/`. **Every row passed**: booted version and retained
-deployment, the shadow sweep at first login, Hub controls from the desktop's own menu, a
-widget removed with an undo, MoOS Search's inline answer (`12*7` → **84**), the Island's
-privacy chip naming the capturing app, App Drop installing and removing a real 8.4 MB
-AppImage, a dismissed administrator prompt staging nothing and saying so, and secondary
-text readable on `MoOSUI2AuroraLight`. Two findings from the last row are fixed in source
-(a MoOS-worded polkit action, and pkexec's "This incident has been reported." dropped).
-
-**Still owed on a desk:** an Island **Store** job in the foreground (the Remote chip
-outranks it while Mo PC Remote runs), and Mo AI's tool loop, cards and identity answers —
-all four need a cloud brain (P0.5, owner action).
-
-## W6.1–W6.3 — production; W6.1 booted on the station, W6.2/W6.3 seen live on the A1
-
-Settings' own "About this device" page (P2.9); Mo AI skills — twelve read-only repair
-playbooks (`list_skills`/`read_skill`, 43 tools: 30 run at once, 13 ask first) with eight
-one-tap chips (P3.10); Mo AI's rail corrected at the default 940 px window.
-
-**Not proven anywhere yet:** tool choice by a real free model (P3.3).
-
-## ISO proof (P0.8) — closed
-
-The image's CI proof-channel helper read the IPv4 default route ONCE while MoOS disables
-NetworkManager-wait-online, so it died before adding its SSH rule; with a retry the ISO
-proofs of cycles C, D and E were three consecutive green install-and-reboot runs.
+- **W2–W6 on the station** (2026-09-17/18, `.858` and `.862`): every row passed — booted
+  version and retained deployment, the first-login shadow sweep, Hub controls from the
+  desktop's own menu, a widget removed with an undo, MoOS Search's inline answer
+  (`12*7` → **84**), the Island's privacy chip naming the capturing app, App Drop
+  installing and removing a real 8.4 MB AppImage, a dismissed administrator prompt
+  staging nothing and saying so. Frames in `~/.cache/moos-station-review{,2}/`.
+  **Still owed on a desk:** an Island **Store** job in the foreground (the Remote chip
+  outranks it while Mo PC Remote runs).
+- **W6.1–W6.3** are in production: Settings' "About this device" (P2.9), Mo AI's twelve
+  read-only repair playbooks (43 tools: 30 run at once, 13 ask first) with eight one-tap
+  chips (P3.10), and Mo AI's rail corrected at the default 940 px window.
+- **Mo AI's brain, measured since:** a real free model drives the tool loop (W8.3, PR
+  #131) and eight free models were ranked on this machine (W8.5). **Still not proven:**
+  the ≥95% action-selection rate over a fixed Arabic/English case set — no case set and
+  no runner exist (P3.3).
+- **ISO proof (P0.8) closed:** the CI proof-channel helper read the IPv4 default route
+  once while MoOS disables NetworkManager-wait-online, so it died before adding its SSH
+  rule. With a retry, cycles C, D and E were three consecutive green install-and-reboot
+  runs.
 
 ## Proven source/image behavior
 
@@ -106,8 +110,7 @@ proofs of cycles C, D and E were three consecutive green install-and-reboot runs
   builds the generic image on a pull request in 16 minutes and pushes nothing.
 - Horizon motion gates cover finite settling, reversal, hidden state, reduced motion and
   pointer/key paths; MoOS motion roles follow the owner's animation speed on a real Qt
-  runtime. Free cloud AI returned English and Arabic replies through the live gateway
-  with an explicitly free provider: chat, not system control.
+  runtime.
 
 ## Development environment
 
@@ -116,11 +119,11 @@ proofs of cycles C, D and E were three consecutive green install-and-reboot runs
   3.47.4 (the image-builder pin) are installed. Pointer-driven review goes through
   `scripts/station/pointer.py` — KWin confirms every position before a click.
 - Off the station: Windows 11 + WSL2 `FedoraLinux-44`. `scripts/review/` holds the
-  toolchain installer, the gate mirror and the from-source renderers (render at the size
-  the window really opens at); `scripts/release-candidate.sh` needs `TMPDIR` under Git
-  Bash. `.kilo/` is local untracked agent state, not product source.
+  toolchain installer, the gate mirror and the from-source renderers;
+  `scripts/release-candidate.sh` needs `TMPDIR` under Git Bash. `.kilo/` is local
+  untracked agent state, not product source.
 
-## A1 live review (2026-09-18, ARM `44.20260918.458`, KWin `--virtual`, Arabic)
+## A1 live review (2026-09-18, ARM under `kwin --virtual`, Arabic)
 
 - Input on a seatless session: KWin's `org.kde.KWin.EIS.RemoteDesktop.connectToEIS` (portal
   numbering: keyboard 1, pointer 2, touch 4) plus libei — never Mo PC Remote's portal token.
@@ -134,14 +137,10 @@ proofs of cycles C, D and E were three consecutive green install-and-reboot runs
 
 ## Open evidence gaps
 
-- The W2–W6 station review is closed (above). Still owed on a desk: an Island **Store**
-  job in the foreground (the Remote chip outranks it while Mo PC Remote runs), and Mo AI's
-  tool loop, cards and identity answers once a provider key exists (P0.5).
-- M1 visual/accessibility matrix: English/German sessions, light/dark, reduced motion,
-  1080p–4K, 100–250%, island Remote/Media switching (Arabic reviewed only).
-- Hardware: two suspend/resume cycles, multi-monitor, audio/network recovery, deliberate
-  rollback/roll-forward and photographed boot/login; broader Wi-Fi/Bluetooth/camera,
-  laptop and touch hardware, ARM provider behaviour, cloud multi-account operation.
+- M1 visual/accessibility matrix: English/German, light/dark, reduced motion, 1080p–4K,
+  100–250%, island Remote/Media switching (Arabic reviewed only).
+- Hardware: suspend/resume, multi-monitor, audio/network recovery, deliberate rollback
+  and photographed boot/login; laptop and touch hardware; ARM on a physical seat.
 - Versioned, failure-tested Mo AI/Store/core contracts and a single application
   transaction authority.
 - Owner decision P3.9: whether Mo AI ever gets a tool that runs a command the model
@@ -149,50 +148,53 @@ proofs of cycles C, D and E were three consecutive green install-and-reboot runs
 
 ## A wallpaper cannot be clicked (2026-09-18)
 
-MoOS Hub lives in the WALLPAPER, which is why it can never cover an icon or a window.
-The same property means no pointer event reaches it: measured on the station, neither a
-click nor a wheel over a card arrived — the desktop containment takes both. The clock
-card's second face is therefore turned from the desktop's own menu, beside the card
-toggles, and remembered in `HubClockPage`. Anything else the Hub ever gains follows the
-same rule.
+MoOS Hub lives in the WALLPAPER, which is why it can never cover an icon or a window. The
+same property means no pointer event reaches it: measured on the station, neither a click
+nor a wheel over a card arrived — the desktop containment takes both. Every card's second
+face is therefore turned from the desktop's own menu, beside the card toggles, and
+remembered in its own key. Anything the Hub ever gains follows the same rule.
 
 ## The free brain is measured on the machine that uses it (2026-09-18)
 
-The shipped preference list was measured on one day against a catalogue that turns
-over every few weeks: on 2026-09-18 the free catalogue carried **21 tool-capable
-zero-price models**, several newer than that snapshot (a 1M-context DeepSeek flash,
-a 550B Nemotron, two Inkling sizes, Laguna, Qwen 3.8, Gemma 4). `moai-measure-free`
-asks each candidate two fixed questions through the real gateway — an Arabic
-sentence and one tool call — and writes the order that answered into
-`~/.local/state/moai/free-ranking.json`; `moai_cloud_policy` prefers that for 30
-days and can never let it introduce a model, change a price or reach a billed
-route. Unmeasured candidates are now ranked by **context first**: a system agent
-carries tool schemas, results and confirmations in one transcript, and parameter
-count is only guessable from the model id.
+The shipped preference list was measured on one day against a catalogue that turns over
+every few weeks: on 2026-09-18 the free catalogue carried **21 tool-capable zero-price
+models**, several newer than that snapshot. `moai-measure-free` asks each candidate two
+fixed questions through the real gateway — an Arabic sentence and one tool call, using
+MoOS's OWN shipped schemas — and writes the order that answered into
+`~/.local/state/moai/free-ranking.json`. `moai_cloud_policy` prefers it for 30 days and
+can never let it introduce a model, change a price or reach a billed route; each list
+holds only the models that passed the half it ranks. Unmeasured candidates are ranked by
+**context first**: an OS agent carries tool schemas, results and confirmations in one
+transcript, and parameter count is only guessable from the model id.
 
-It cannot run here yet: no provider key is configured (P0.5, an owner action).
+It has run here, twice. With the owner's own OpenRouter key: eight zero-price
+tool-capable models, two questions each. Six answered in Arabic and emitted the call;
+both `thinkingmachines/*` models were refused by the provider with **HTTP 403** in under
+0.1 s — a refusal, not a bad answer, and the picker says so. Free-model timings vary
+between runs by enough to change the order, so the card reports when it was measured.
+What P0.5 still owes is the key entered through Settings, surviving a reboot, and the
+provider-failure surface — not the key itself.
 
 **MoOS found a second desktop server on its own machine.** `moos-health scan` reported
-one warning on 2026-09-18: KDE's `krdpserver` listening on `tcp *:3389` for the whole
-network with `SystemUserEnabled=true`, beside Mo PC Remote (private tailnet, PIN,
-on-screen indicator). The finding used to open Mo PC Remote, which does not close the
-port; it now carries `moos://privacy/stop-sharing`, and `moos-remote-guard off` stops and
-un-autostarts the two named KDE sharing services with no administrator rights and nothing
-removed. **Still open on the station itself:** the port is still listening — stopping a
-running service needed a permission this session did not have, so the owner runs
-`moos-remote-guard off` (or presses the finding) once the update lands.
+KDE's `krdpserver` listening on `tcp *:3389` for the whole network with
+`SystemUserEnabled=true`, beside Mo PC Remote (private tailnet, PIN, on-screen
+indicator). The finding now carries `moos://privacy/stop-sharing`, and
+`moos-remote-guard off` stops and un-autostarts the two named KDE sharing services with
+no administrator rights and nothing removed. Run once on the station after the update.
 
 ## Next execution
 
-1. Owner: configure a free Mo AI provider key (P0.5) — the only thing blocking the four
-   Mo AI rows of the station checklist.
-2. **W8 is merged and reviewed live** (Aurora Glass, the Island capsule, the Search button,
-   the status cluster, Search's now-playing row, MoPlayer's two MPRIS defects). It reaches
-   the desk with the next release cycle; until then the station shows the pre-W8 bar.
-3. Open in W8: one clarity control (needs a config bridge a QML singleton can read), the
+1. The cycle on `af779abb` promotes → owner updates the station and reboots → record the
+   new booted version here. That is the only way W8.4 and W8.5 reach a desk.
+2. **P3.3** is the largest open Mo AI gap: no case set and no runner exist for the ≥95%
+   action-selection measurement. `moai-measure-free` is not it — it asks one tool
+   question to rank models.
+3. **P5.4**: not one performance budget exists in the tree. Boot, login, app launch and
+   idle, per hardware tier, measured and stored in Git.
+4. Open in W8: one clarity control (needs a config bridge a QML singleton can read), the
    MoOS mark at exactly three sizes, and the specular sweeping once as a surface arrives.
-4. Open in W7: touchpad and gesture defaults (P5.2 — this station has no touchpad) and a
-   live preview in the Arrange surface. P0.7 (`plymouthd` SEGV) stays open on ARM and x86.
-5. Pointer-driven review works: `scripts/station/pointer.py click <x> <y>` in LOGICAL
+5. Open in W7: touchpad and gesture defaults (P5.2 — this station has no touchpad) and a
+   live preview in Arrange. P0.7 (`plymouthd` SEGV) stays open on ARM and x86.
+6. Pointer-driven review works: `scripts/station/pointer.py click <x> <y>` in LOGICAL
    pixels, verified against KWin before every click. Absolute `ydotool` moves are useless
    on this screen. Who holds which files is in `docs/AGENT_COORDINATION.md`.
