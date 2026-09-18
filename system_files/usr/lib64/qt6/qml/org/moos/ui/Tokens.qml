@@ -232,4 +232,55 @@ QtObject {
         if (isLight(background)) { return 0.80 }
         return 0.72
     }
+
+    // ── Aurora Glass: one material, four depths ────────────────────────
+    //
+    // Glass on its own is a flat pane. What makes a stack of surfaces read
+    // as DEPTH is the pair of edges every real piece of glass has: a darker
+    // rim where it meets what is behind it, and a brighter line along the
+    // edge the light falls on. Apple added exactly that to Liquid Glass in
+    // iOS/macOS 27 after a year of flat translucency, and the reason is
+    // measurable rather than fashionable: a surface with a rim and a
+    // highlight separates from its background at every wallpaper, while an
+    // alpha-only surface disappears over a busy photograph.
+    //
+    // MoOS derives all three from the palette it is already wearing, so a
+    // family changes personality without any surface hardcoding a colour:
+    //
+    //   glassLevelScene    the desktop's own cards, closest to the wallpaper
+    //   glassLevelPanel    the bar, the Island capsule, the search button
+    //   glassLevelPopover  menus, MoOS Search, the switcher
+    //   glassLevelDialog   questions and sheets, the furthest forward
+    //
+    // Each level is denser than the one behind it, so a popover over the bar
+    // over the desk reads as three sheets, not one soup.
+    readonly property int glassLevelScene: 0
+    readonly property int glassLevelPanel: 1
+    readonly property int glassLevelPopover: 2
+    readonly property int glassLevelDialog: 3
+
+    function glassDensityAt(background, level) {
+        const base = glassDensity(background)
+        const step = isLight(background) ? 0.045 : 0.055
+        return Math.min(0.97, base + step * Math.max(0, level))
+    }
+
+    // The rim: darker than the surface on a light palette, darker still on a
+    // dark one, and never a pure black line — a hairline of the palette's own
+    // shadow. Strength grows with depth, because a surface further forward
+    // sits above more of the scene.
+    function glassEdge(background, level) {
+        const weight = (isLight(background) ? 0.10 : 0.22)
+                     + 0.03 * Math.max(0, level)
+        return Qt.rgba(0, 0, 0, Math.min(0.42, weight))
+    }
+
+    // The specular: one bright line along the top edge, the width of a
+    // hairline, stronger on light palettes where the rim alone is subtle.
+    // This is the only place MoOS paints white.
+    function glassSpecular(background, level) {
+        const weight = (isLight(background) ? 0.55 : 0.30)
+                     - 0.05 * Math.max(0, level)
+        return Qt.rgba(1, 1, 1, Math.max(0.12, weight))
+    }
 }

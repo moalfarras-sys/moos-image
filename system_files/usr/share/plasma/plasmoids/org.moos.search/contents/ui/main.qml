@@ -135,14 +135,25 @@ PlasmoidItem {
         Qt.openUrlExternally(target);
     }
 
-    // ── The bar pill ─────────────────────────────────────────────────────────────────────────
+    // ── The bar button ───────────────────────────────────────────────────────────────────────
+    //
+    // This used to be a 140–196 px pill carrying the words "ابحث في MoOS | Search MoOS".
+    // On the owner's own desk that was the widest thing on the bar and it held nothing: the
+    // field it suggests lives in the popup, because a panel cannot take keyboard focus. So the
+    // bar paid for a text box that can never be typed into, the bar grew by the width of that
+    // promise, and the words repeated what the magnifier already says. Measured on the station
+    // on 2026-09-18: the empty pill took as much room as four application icons.
+    //
+    // It is a button now — one icon, the size of its neighbours — and it opens exactly the same
+    // surface. The hint moved into the tooltip and into the popup's own placeholder, where the
+    // caret actually is.
     compactRepresentation: Item {
         id: pill
-        implicitWidth: Math.round(Math.min(196, Math.max(140, Screen.width * 0.125)))
+        implicitWidth: root.design.targetControl
         implicitHeight: root.design.targetControl
-        Layout.minimumWidth: 140
-        Layout.preferredWidth: implicitWidth
-        Layout.maximumWidth: 196
+        Layout.minimumWidth: root.design.targetControl
+        Layout.preferredWidth: root.design.targetControl
+        Layout.maximumWidth: root.design.targetControl
         Layout.minimumHeight: root.design.targetControl
 
         LayoutMirroring.enabled: root.rtl
@@ -171,13 +182,17 @@ PlasmoidItem {
             anchors.bottomMargin: root.design.space1 + 1
             radius: height / 2
             // A slot recessed into the bar, not a bordered text box: a quiet tint of the text
-            // colour, and a hairline that only brightens with attention.
+            // colour, with Aurora Glass's own rim at PANEL depth so the button keeps an edge
+            // over a bright wallpaper, and a hairline that brightens with attention.
             color: Qt.alpha(Kirigami.Theme.textColor,
                             root.expanded ? 0.14 : (pillArea.containsMouse ? 0.11 : 0.075))
             border.width: root.design.borderHairline
             border.color: root.expanded
                 ? Qt.alpha(Kirigami.Theme.highlightColor, 0.72)
-                : Qt.alpha(Kirigami.Theme.textColor, pillArea.containsMouse ? 0.20 : 0.10)
+                : (pillArea.containsMouse
+                    ? Qt.alpha(Kirigami.Theme.textColor, 0.20)
+                    : root.design.glassEdge(Kirigami.Theme.backgroundColor,
+                                            root.design.glassLevelPanel))
             scale: pillFeedback.value
             antialiasing: true
             Behavior on color { ColorAnimation { duration: root.fast() } }
@@ -189,30 +204,13 @@ PlasmoidItem {
                 targetScale: pillArea.pressed ? root.design.pressScale : 1
             }
 
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: root.design.space3
-                anchors.rightMargin: root.design.space3
-                spacing: root.design.space2
-
-                Kirigami.Icon {
-                    Layout.preferredWidth: 18
-                    Layout.preferredHeight: 18
-                    source: "moos-search-symbolic"
-                    color: root.expanded ? Kirigami.Theme.highlightColor : Kirigami.Theme.textColor
-                    opacity: root.expanded || pillArea.containsMouse ? 1 : 0.8
-                }
-                Text {
-                    Layout.fillWidth: true
-                    text: root.local("ابحث في MoOS", "Search MoOS")
-                    textFormat: Text.PlainText
-                    color: Kirigami.Theme.textColor
-                    opacity: 0.74
-                    font.family: root.uiFontFamily
-                    font.pixelSize: root.design.typeSecondary
-                    horizontalAlignment: Text.AlignLeft
-                    elide: Text.ElideRight
-                }
+            Kirigami.Icon {
+                anchors.centerIn: parent
+                width: 20
+                height: 20
+                source: "moos-search-symbolic"
+                color: root.expanded ? Kirigami.Theme.highlightColor : Kirigami.Theme.textColor
+                opacity: root.expanded || pillArea.containsMouse ? 1 : 0.8
             }
         }
     }
