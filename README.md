@@ -5,6 +5,14 @@ updates, a KDE Plasma 6 Wayland session, first-party system applications, Mo AI,
 Mo Store, MoPlayer and Mo PC Remote. This repository is the single source used
 to build the installable images; a local override is never a release.
 
+**The bar is Windows, macOS, Android and iOS** — not as API targets, but as the
+quality every screen, animation and first-run is measured against. MoOS reuses
+Plasma, KWin and Wayland as the engine and never forks them; it owns the
+identity, every surface the owner looks at, every default and every recovery
+path. Work happens in **waves**: one coherent, user-visible release per branch,
+reviewed live, gated once, merged once, proven once. A change that makes no
+visible difference to the person using MoOS is not a wave.
+
 ## Start here
 
 Read these files in order before changing the system:
@@ -154,6 +162,12 @@ initramfs, signature, route or runtime-loading gate to get a green result.
 
 ## Current status
 
-See [`PROJECT_STATE.md`](PROJECT_STATE.md) for the measured installed version,
-promoted revision, newer source, live Mo AI evidence and open hardware checks.
-This entry point carries no duplicate release or readiness status.
+Production on all four editions is `44.20260918.868` (ARM `.458`), cycle E.
+Waves W1–W7 are merged and released; **W8 — MoOS Aurora Glass** is the next one,
+and the wave board in [`docs/DEVELOPMENT_PLAN.md`](docs/DEVELOPMENT_PLAN.md) says
+what each wave delivered and what is still owed.
+
+Everything measured — the installed version, what has never been seen on a MoOS
+desktop, the station review and the open hardware checks — is in
+[`PROJECT_STATE.md`](PROJECT_STATE.md). This entry point carries no duplicate
+release or readiness status.

@@ -101,13 +101,11 @@ moves; absolute `ydotool` moves were measured again and stay in the corner). Fra
 
 The W7 facts measured on the same session are in `docs/DEVELOPMENT_PLAN.md`.
 
-## W6.1 — production, and now booted on the station
+## W6.1 — production, and booted on the station (`44.20260917.862`)
 
-Released with cycle C and **installed here on 2026-09-18** (`44.20260917.862`):
 Settings' own "About this device" page (P2.9); Mo AI skills — twelve read-only repair
-playbooks found with `list_skills` and read with `read_skill` (43 tools: 30 run at
-once, 13 ask first), with eight one-tap chips (P3.10); Mo AI's rail corrected at the
-default 940 px window; the Device panel no longer printing the raw kernel release.
+playbooks (`list_skills`/`read_skill`, 43 tools: 30 run at once, 13 ask first) with eight
+one-tap chips (P3.10); Mo AI's rail corrected at the default 940 px window.
 
 ## Released with cycle D, still unseen on a MoOS desktop: W6.2 and W6.3
 
@@ -181,19 +179,22 @@ cycles C and D were the second and third consecutive green install-and-reboot.
 
 ## Next execution
 
-1. Owner: update the station and the **A1** to `44.20260918.868` / `.458` (MoOS Updater), walk the
-   checklist, and
-   configure a free Mo AI provider key (P0.5) — the only thing blocking the four Mo AI
-   rows of the station checklist.
-2. Cycle E is production on all four editions (`44.20260918.868` / `.458`): Updater and
-   Recovery windows show their buttons, the update notice names features, a failed boot
-   proof prints the crashed process's stack. Next cycle: `--promote` when `main` has news.
-3. P0.8 is closed (three consecutive green install proofs); P0.7 stays open.
-4. Still open in W7: a live preview in the Arrange surface, touchpad and gesture
-   defaults (P5.2), and carrying `Tokens.scaled()` to the per-surface motion aliases.
-   The visible programme (W8, W9) now has an off-station render loop; compositor work
-   (blur, window animation, Overview) still needs the station.
-5. Pointer-driven review works now: `scripts/station/pointer.py click <x> <y>` in LOGICAL
-   pixels, verified against KWin before every click. Absolute `ydotool` moves are still
+1. Owner: restart the station (cycle E `44.20260918.868` is STAGED, booted is
+   `.862`), and configure a free Mo AI provider key (P0.5) — the only thing blocking
+   the four Mo AI rows of the station checklist.
+2. **W8 — MoOS Aurora Glass** is the next wave and the station holds it: one material
+   with four depths, a specular edge lit by the owner's wallpaper, one clarity control
+   driving both MoOS surfaces and KWin's blur, the MoOS mark at three sizes, and glass
+   that settles. The plan's "W8 — MoOS Aurora Glass, in detail" says what each part
+   must prove.
+3. The next release cycle (F) carries W7's station wave (`a2cfd72a`, PR #123):
+   pointer-verified review, MoOS's own administrator prompt, and motion roles that
+   follow the owner's animation speed (`THEME_REV` 65). The off-station agent owns
+   release cycles.
+4. Still open in W7: touchpad and gesture defaults (P5.2 — this station has no
+   touchpad) and a live preview in the Arrange surface. P0.7 (`plymouthd` SEGV) stays
+   open on ARM and x86.
+5. Pointer-driven review works: `scripts/station/pointer.py click <x> <y>` in LOGICAL
+   pixels, verified against KWin before every click. Absolute `ydotool` moves are
    useless on this screen; never go back to them. Who holds which files is in
    `docs/AGENT_COORDINATION.md`.
