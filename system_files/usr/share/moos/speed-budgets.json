@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "_": "P5.4 — what MoOS promises to be fast enough for, per hardware tier. The tier comes from moos-visual-tier, already the single authority on what a machine is. Every number is an AT MOST. They were set from measurements on real machines plus headroom, and a budget nothing has ever met is a wish, not a budget: record the measurement that justifies each one in `measured`. Raising a budget to make a red row green is the one change this file exists to make visible in review.",
+  "tiers": {
+    "flagship": {
+      "boot_userspace_s": 9.0,
+      "session_ready_s": 3.0,
+      "app_launch_s": 4.0,
+      "idle_busy_percent": 8.0,
+      "measured": "2026-09-18 on the development station (i5-14400F, 16 cores, 15.4 GiB, RTX 2080 SUPER, 4K at 265%), all four rows: boot userspace 6.034 s, session 1.108 s, MoOS Settings cold launch 0.46-0.62 s over three runs, MoOS's own processes 2.6-2.7% of the CPU while idle (the whole machine read 8.2-9.0% with Chrome, VS Code and Steam open). The budgets are those with headroom, because a station carrying a full desktop, Mo AI's gateway and a browser is the normal case, not the quiet one."
+    },
+    "balanced": {
+      "boot_userspace_s": 15.0,
+      "session_ready_s": 6.0,
+      "app_launch_s": 8.0,
+      "idle_busy_percent": 12.0,
+      "measured": "Not yet measured on a balanced machine. Derived from flagship by the ratio the visual tier already assumes between them; the first real measurement replaces these and should tighten them."
+    },
+    "essential": {
+      "boot_userspace_s": 30.0,
+      "session_ready_s": 12.0,
+      "app_launch_s": 20.0,
+      "idle_busy_percent": 20.0,
+      "measured": "The Oracle A1 (seatless, llvmpipe) is the reference for this tier and has not been measured with this tool. These are deliberately loose: an essential machine is software-rendering everything, and a budget it cannot meet would just be noise on every run."
+    }
+  },
+  "rows": {
+    "boot_userspace_s": "MoOS's own share of boot: systemd's `userspace` figure. Firmware, loader and kernel are excluded on purpose — MoOS cannot make a motherboard faster, and a total that includes 10 s of firmware measures the board, not the system.",
+    "session_ready_s": "From the user manager starting to `default.target` — login to a desktop that will answer.",
+    "app_launch_s": "From exec to the app's window existing, asked of KWin itself rather than guessed from a sleep.",
+    "idle_busy_percent": "CPU busy over five seconds with nobody touching the machine. This is the number that catches a render loop spinning behind a still screen — MoOS has shipped one before."
+  }
+}

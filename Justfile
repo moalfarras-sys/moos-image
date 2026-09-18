@@ -123,6 +123,12 @@ check:
     # locally and always did -- nothing was broken, they were simply unrunnable
     # from the one command contributors are told to use.
     python3 tests/test_moai_free_policy.py
+    # P3.3 and P5.4: the case set and the budgets are contracts even where the
+    # measurement itself needs a booted machine and a cloud brain. What CI holds is
+    # that every expected tool exists, every tier has every budget with the
+    # measurement that justifies it, and a probe that cannot run is never a zero.
+    python3 tests/test_moai_action_selection.py
+    python3 tests/test_moos_speed_budgets.py
     python3 tests/test_moai_hermes.py
     python3 tests/test_release_partition_roles.py
     python3 tests/test_iso_install_gate.py
