@@ -876,6 +876,69 @@ do_gpu_report() {
 }
 
 # -----------------------------------------------------------------------------
+# device-report — WHAT THIS MACHINE IS, in words a person and a model can both read.
+#
+# `hw-report` opens the Device panel: it execs `moai --device`, prints nothing and
+# exits 0. That is right for a person who asked to SEE the panel and wrong for a
+# model that asked what the machine is — on 2026-09-18 Mo AI called it during an
+# inspection, read an empty result, and showed the owner a red "فشل دون مخرجات" row
+# for a tool that had done exactly its job. A tool a model can call must RETURN
+# something.
+#
+# MoOS already knows the answer: `moos-health report` is the scan behind Settings'
+# own health page. This reads it and prints the part a person would say out loud —
+# version, whether an update is staged, memory and disk, and the findings — instead
+# of handing anyone a JSON document to parse.
+# -----------------------------------------------------------------------------
+do_device_report() {
+    hdr "حالة الجهاز (قراءة فقط)" "Device report (read-only)"
+    need moos-health || return 1
+    local report
+    report="$(moos-health report 2>/dev/null)" || {
+        echo "${R}تعذّر قراءة حالة الجهاز | could not read the device report${N}" >&2
+        return 1
+    }
+    printf '%s' "$report" | python3 -c '
+import json, sys
+
+try:
+    document = json.load(sys.stdin)
+except ValueError:
+    print("device report: unreadable", file=sys.stderr)
+    raise SystemExit(1)
+
+system = document.get("system") or {}
+updates = document.get("updates") or {}
+resources = document.get("resources") or {}
+findings = document.get("findings") or []
+
+print("النظام | System: %s %s (kernel %s)" % (
+    system.get("os", "MoOS"), system.get("version", "?"), system.get("kernel", "?")))
+print("التوقيع | Signed image: %s%s" % (
+    "yes" if system.get("signed") else "no",
+    " · rollback kept" if system.get("rollback") else ""))
+staged = str(system.get("staged") or "")
+print("تحديث مُجهَّز | Staged update: %s" % (staged if staged else "none"))
+apps = updates.get("apps") or []
+print("تحديثات التطبيقات | App updates: %d" % len(apps))
+
+memory = resources.get("memory") or {}
+disk = resources.get("disk") or {}
+if memory or disk:
+    print("الموارد | Resources: memory %s · disk %s" % (
+        memory.get("used_human") or memory.get("used") or "?",
+        disk.get("free_human") or disk.get("free") or "?"))
+
+if not findings:
+    print("الملاحظات | Findings: none")
+else:
+    print("الملاحظات | Findings: %d" % len(findings))
+    for item in findings[:6]:
+        print("  [%s] %s" % (item.get("severity", "info"), item.get("title", "")))
+'
+}
+
+# -----------------------------------------------------------------------------
 # install-codex / install-claude — the AI coding agents, as the USER.
 # -----------------------------------------------------------------------------
 # These are the only actions here that take NO privilege at all, and that is the
@@ -1493,6 +1556,8 @@ ${V}الاستعمال | Usage:${N}  moai-do <command> [args]
                     Set up gaming: Steam, Proton, Lutris, Bottles
   ${C}optimize${N}          تنظيف Flatpak/الحاويات/السجلّات وتحرير مساحة
                     Clean Flatpak/containers/logs and free disk space
+  ${C}device-report${N}     حالة الجهاز بالكلمات (قراءة فقط)
+                    What this machine is, in words (read-only)
   ${C}hw-report${N}         فتح مركز الجهاز داخل Mo AI | open the device centre in Mo AI
   ${C}install-codex${N}     تثبيت وكيل Codex في ~/.local (بلا صلاحيات)
                     Install the Codex agent into ~/.local (no privileges)
@@ -1600,6 +1665,7 @@ main() {
         rollback)      do_rollback ;;
         net-doctor)    do_net_doctor ;;
         gpu-report)    do_gpu_report ;;
+        device-report) do_device_report ;;
         hw-report)
             # The Hardware Centre is a panel inside Mo AI now, not a separate
             # window. Open it directly rather than bouncing through the
