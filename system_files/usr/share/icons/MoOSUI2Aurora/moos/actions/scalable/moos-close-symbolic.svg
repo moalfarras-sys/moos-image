@@ -8,6 +8,6 @@
     .ColorScheme-NeutralText { color: #FBBF24; fill: currentColor; }
     .ColorScheme-NegativeText { color: #FB7185; fill: currentColor; }
   </style>
-  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M5.319 6.981 L17.019 18.681 A1.175 1.175 0 0 1 18.681 17.019 L6.981 5.319 A1.175 1.175 0 0 1 5.319 6.981 Z"/>
-  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M17.019 5.319 L5.319 17.019 A1.175 1.175 0 0 1 6.981 18.681 L18.681 6.981 A1.175 1.175 0 0 1 17.019 5.319 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M5.319 6.981 L17.019 18.681 A1.175 1.175 0 0 0 18.681 17.019 L6.981 5.319 A1.175 1.175 0 0 0 5.319 6.981 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M17.019 5.319 L5.319 17.019 A1.175 1.175 0 0 0 6.981 18.681 L18.681 6.981 A1.175 1.175 0 0 0 17.019 5.319 Z"/>
 </svg>

@@ -842,7 +842,7 @@ class TestMoOSUI2(unittest.TestCase):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=66", apply,
+            "THEME_REV=67", apply,
             "existing v61 users would keep the Island that cannot show Store jobs or name the app "
             "using the camera; "
             "existing v60 users (ARM took W3 then W5 at the same revision) would keep the cached "
@@ -1405,6 +1405,25 @@ class TestMoOSUI2(unittest.TestCase):
         self.assertIn('"presence-active-*"', state)
         self.assertIn('"presence-paused-*"', state)
         self.assertIn("PublishPresence();", state)
+
+    def test_every_session_action_in_the_launcher_has_its_own_glyph(self) -> None:
+        """Suspend and hibernate once both wore the moon (A1, 2026-09-18)."""
+        launcher = qml_code((
+            SHARE / "plasma/plasmoids/org.moos.brand/contents/ui/LauncherView.qml"
+        ).read_text(encoding="utf-8"))
+        table = re.search(r"function sessionIcon\(actionId\)\s*\{.*?const icons = \{(.*?)\};",
+                          launcher, re.S)
+        self.assertIsNotNone(table, "the launcher's session glyph table moved")
+        glyphs = dict(re.findall(r'"([a-z-]+)":\s*"([a-z0-9-]+)"', table.group(1)))
+        self.assertEqual(
+            set(glyphs),
+            {"lock-screen", "switch-user", "logout", "suspend", "hibernate", "reboot", "shutdown"},
+        )
+        shared = {g for g in glyphs.values() if list(glyphs.values()).count(g) > 1}
+        self.assertFalse(shared, f"two session buttons would look identical: {sorted(shared)}")
+        for glyph in glyphs.values():
+            self.assertTrue(
+                (SHARE / f"icons/hicolor/scalable/actions/{glyph}.svg").is_file(), glyph)
 
     def test_tidal_command_canvas_is_a_product_surface_not_a_menu(self) -> None:
         """Hold the premium shell composition and its zero-idle contract."""

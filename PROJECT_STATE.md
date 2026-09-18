@@ -84,20 +84,13 @@ text readable on `MoOSUI2AuroraLight`. Two findings from the last row are fixed 
 outranks it while Mo PC Remote runs), and Mo AI's tool loop, cards and identity answers —
 all four need a cloud brain (P0.5, owner action).
 
-## W6.1 — production, and booted on the station (`44.20260917.862`)
+## W6.1–W6.3 — production; W6.1 booted on the station, W6.2/W6.3 seen live on the A1
 
 Settings' own "About this device" page (P2.9); Mo AI skills — twelve read-only repair
 playbooks (`list_skills`/`read_skill`, 43 tools: 30 run at once, 13 ask first) with eight
 one-tap chips (P3.10); Mo AI's rail corrected at the default 940 px window.
 
-## Released with cycle D, still unseen on a MoOS desktop: W6.2 and W6.3
-
-W6.2 (`012eac13`) came from the first off-station renders of the desktop itself: in Arabic
-the Hub's English date line hung on the far side of a right-aligned column, the Island's
-privacy chip was sized by counting characters, and MoOS Search assigned `undefined` to two
-labels on every start. W6.3 (`a0dd4b33`) is **What's new** — after an update MoOS says once
-what it brought, with "Try it" routes (P2.11). **Not proven anywhere yet:** tool choice by
-a real free model (P3.3).
+**Not proven anywhere yet:** tool choice by a real free model (P3.3).
 
 ## ISO proof (P0.8) — closed
 
@@ -127,12 +120,20 @@ proofs of cycles C, D and E were three consecutive green install-and-reboot runs
   the window really opens at); `scripts/release-candidate.sh` needs `TMPDIR` under Git
   Bash. `.kilo/` is local untracked agent state, not product source.
 
+## A1 live review (2026-09-18, ARM `44.20260918.458`, KWin `--virtual`, Arabic)
+
+- Input on a seatless session: KWin's `org.kde.KWin.EIS.RemoteDesktop.connectToEIS` (portal
+  numbering: keyboard 1, pointer 2, touch 4) plus libei — never Mo PC Remote's portal token.
+- Works: Search answers, launcher, About, What's new; Mo AI answered in 15–37 s (P3.2 open).
+- Fixed in `fix/a1-live-review-20260918`: bitten capsule ends in 50 icons ("pulse" was a
+  speck), one moon for suspend and hibernate (`THEME_REV` 67), Discover's install rows.
+- Open (station agent's files): without blur (llvmpipe) Liquid Glass is see-through (P2.5).
+
 ## Open evidence gaps
 
 - The W2–W6 station review is closed (above). Still owed on a desk: an Island **Store**
   job in the foreground (the Remote chip outranks it while Mo PC Remote runs), and Mo AI's
-  tool loop, cards and identity answers once a provider key exists (P0.5). The **A1 review
-  is untouched**.
+  tool loop, cards and identity answers once a provider key exists (P0.5).
 - M1 visual/accessibility matrix: English/German sessions, light/dark, reduced motion,
   1080p–4K, 100–250%, island Remote/Media switching (Arabic reviewed only).
 - Hardware: two suspend/resume cycles, multi-monitor, audio/network recovery, deliberate
