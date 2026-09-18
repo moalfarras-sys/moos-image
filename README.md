@@ -143,6 +143,14 @@ initramfs, signature, route or runtime-loading gate to get a green result.
    `skopeo inspect docker://ghcr.io/moalfarras-sys/moos-nvidia:latest`.
 5. An installed MoOS updates through the MoOS Updater (origins are digest-pinned,
    so `bootc upgrade` answers "no changes" forever).
+6. More than one agent works here at once, on different machines:
+   [`docs/AGENT_COORDINATION.md`](docs/AGENT_COORDINATION.md) says who holds which
+   files. Claim files, not tasks; touch only your own rows of the shared documents;
+   `git fetch` before every push and expect to rebase.
+7. A change a person can see or do ships with its line in
+   `system_files/usr/share/moos/whats-new.json` — that is how MoOS tells the owner
+   what an update brought (Settings → System → What's new, and one notification at
+   the first login on a new version).
 
 ## Current status
 

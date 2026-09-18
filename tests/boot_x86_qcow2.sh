@@ -412,6 +412,15 @@ for u in units:
     printf '%s\n' 'failed-unit-journal:' >&2
     journalctl -b -p warning --no-pager -n 80 2>/dev/null \
         | grep -E 'Failed|failed|zram|hardware-adapt|swap|start-limit' | tail -n 40 >&2 || true
+    # A unit that "Failed with result 'core-dump'" names a service, not a cause. P0.7 has been
+    # an intermittent plymouthd crash since 2026-09-15, on ARM's second boot and, on 2026-09-18,
+    # on cycle D's x86 first boot (run 35289168012) — and every failed run recorded only the
+    # service name. The stack lives in the journal's coredump record; print it while the
+    # machine that crashed is still in front of us.
+    printf '%s\n' 'coredumps:' >&2
+    { coredumpctl list --no-pager -n 5 2>/dev/null || sudo -n coredumpctl list --no-pager -n 5 2>/dev/null; } >&2 || true
+    { coredumpctl info --no-pager -1 2>/dev/null || sudo -n coredumpctl info --no-pager -1 2>/dev/null; } \
+        | head -n 80 >&2 || true
     if [ -n "${login_uid:-}" ]; then
         printf 'greeter-uid=%s\n' "$login_uid" >&2
         printf '%s\n' 'greeter-processes:' >&2
