@@ -99,5 +99,16 @@
     <entry name="HubClockPage" type="Int">
       <default>0</default>
     </entry>
+    <!-- Which face the weather card is showing: 0 now, 1 the next hours. Same rule
+         as HubClockPage — a wallpaper receives no pointer events, so the desktop's
+         own menu turns it. -->
+    <entry name="HubWeatherPage" type="Int">
+      <default>0</default>
+    </entry>
+    <!-- Which face the device card is showing: 0 the rings, 1 the network and the
+         space that is left. -->
+    <entry name="HubSystemPage" type="Int">
+      <default>0</default>
+    </entry>
   </group>
 </kcfg>

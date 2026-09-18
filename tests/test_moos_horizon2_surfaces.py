@@ -218,13 +218,44 @@ class HubControls(unittest.TestCase):
 
     def test_the_desktop_menu_offers_show_and_per_card_toggles(self):
         actions = self.scene.split("contextualActions: [", 1)[1].split("\n    ]\n", 1)[0]
-        # Four checkable toggles (the hub and its three cards) plus the one action
-        # that turns the clock card over, which is a command rather than a state.
-        self.assertEqual(actions.count("PlasmaCore.Action {"), 5)
+        # Four checkable toggles (the hub and its three cards) plus one action per
+        # card that turns it over — a command rather than a state, which is why it
+        # is not checkable.
+        self.assertEqual(actions.count("PlasmaCore.Action {"), 7)
         self.assertEqual(actions.count("checkable: true"), 4)
         for key in ("ShowDashboard", "HubClock", "HubWeather", "HubSystem"):
             self.assertIn(f'root.setHubKey("{key}"', actions)
         self.assertIn('MoUI.Locale.local("إظهار لوحة MoOS", "Show MoOS Hub")', actions)
+
+    def test_every_card_has_a_second_face_and_the_menu_turns_each(self):
+        """One rule for all three: the wallpaper takes no clicks, so the menu turns them."""
+        for key in ("HubClockPage", "HubWeatherPage", "HubSystemPage"):
+            self.assertIn(f'<entry name="{key}" type="Int">', self.schema, key)
+        actions = self.scene.split("contextualActions: [", 1)[1].split("\n    ]\n", 1)[0]
+        for key in ("HubClockPage", "HubWeatherPage", "HubSystemPage"):
+            self.assertIn(f'root.setHubKey("{key}"', actions, key)
+        # A card nobody can see must not offer a way to turn it.
+        self.assertIn("visible: root.hubShown && root.hubWeather", actions)
+        self.assertIn("visible: root.hubShown && root.hubSystem", actions)
+        for page in ("clockPage: root.hubClockPage", "weatherPage: root.hubWeatherPage",
+                     "systemPage: root.hubSystemPage"):
+            self.assertIn(page, self.scene)
+
+    def test_the_hourly_face_rides_the_forecast_the_card_already_asks_for(self):
+        """No second service and no extra poll: one more parameter on one request."""
+        self.assertIn("&hourly=temperature_2m,weather_code&forecast_hours=12", self.bento)
+        hourly = code(HUB / "HourlyStrip.qml")
+        self.assertNotIn("XMLHttpRequest", hourly, "the face fetches nothing itself")
+        self.assertIn("required property var kindForCode", hourly,
+                      "one weather code must not mean two pictures on one card")
+
+    def test_the_device_face_gates_every_figure_on_its_own_sensor(self):
+        """A machine that does not expose a sensor shows a dash, never a confident zero."""
+        network = code(HUB / "NetworkFace.qml")
+        for sensor in ("network/all/download", "network/all/upload", "disk/all/free"):
+            self.assertIn(sensor, network)
+        self.assertEqual(network.count("Sensors.Sensor.Ready"), 3,
+                         "each figure is present-gated like the rings")
 
     def test_the_clock_card_has_two_faces_and_the_menu_turns_it(self):
         """A wallpaper cannot be clicked: the desktop containment takes the event.
@@ -281,7 +312,9 @@ class HubControls(unittest.TestCase):
     def test_hidden_cards_take_no_width_and_keep_no_divider(self):
         for card, flag in (("ClockCard {", "root.showClock"), ("WeatherCard {", "root.showWeather"),
                            ("SystemCard {", "root.showSystem")):
-            block = self.bento.split(card, 1)[1][:120]
+            # Each card now also carries its face and, for weather, the data that
+            # face needs, so the visibility rule sits further down its block.
+            block = self.bento.split(card, 1)[1][:420]
             self.assertIn(f"visible: {flag}", block, card)
         self.assertIn("visible: root.showClock && (root.showWeather || root.showSystem)", self.bento)
         self.assertIn("visible: root.showWeather && root.showSystem", self.bento)
