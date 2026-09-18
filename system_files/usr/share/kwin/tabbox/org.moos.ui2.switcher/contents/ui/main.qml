@@ -108,8 +108,7 @@ KWin.TabBoxSwitcher {
                 keyNavigationWraps: true
                 boundsBehavior: Flickable.StopAtBounds
                 highlightMoveDuration: MoUI.Tokens.duration(tabBox.motionEnabled,
-                    MoUI.Tokens.scaled(Kirigami.Units.longDuration,
-                                       MoUI.Tokens.motionGeometry))
+                                                            MoUI.Tokens.motionGeometry)
                 model: tabBox.model
 
                 delegate: Item {

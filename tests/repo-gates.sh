@@ -215,6 +215,11 @@ python3 tests/test_island_tokens.py
 # saying Exec=sh -c, a file merely CALLED .AppImage, a ref naming a foreign remote. The
 # AppImage sandbox is run under the real bwrap where it exists.
 python3 tests/test_app_drop.py
+# The owner reads the administrator prompt in their own language, and cancelling it prints
+# MoOS's line instead of pkexec's "This incident has been reported." (station, 2026-09-18).
+python3 tests/test_moos_local_rpm_authentication.py
+# Pointer-driven station review is only evidence when the compositor confirms each position.
+python3 tests/test_station_pointer.py
 python3 tests/test_search_inline_answers.py
 # moai-wake is the ONLY thing that can wake a sleeping gateway, so if it cannot reach
 # Telegram the phone agent is silently dead while every surface reports healthy. On a

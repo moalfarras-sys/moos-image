@@ -97,6 +97,18 @@ Window {
                 // rather than merely hurry it.
                 driver.compare(MoUI.Tokens.scaled(1, MoUI.Tokens.motionPortal), 0)
                 driver.compare(MoUI.Tokens.scaled(0, MoUI.Tokens.motionPortal), 0)
+
+                // W7 handed scaled() to the four surfaces that called it by name.
+                // The ROLE carries the speed now, so the 288 places that read a
+                // role directly (win.motionEnabled ? design.motionFast : 0) follow
+                // the same control without repeating the expression. This proves
+                // the singleton really resolved the live value on a real engine
+                // instead of silently keeping its 200 fallback.
+                driver.compare(MoUI.Tokens.liveLongDuration, Kirigami.Units.longDuration)
+                driver.compare(MoUI.Tokens.motionFastReference, 120)
+                driver.compare(MoUI.Tokens.motionGeometry,
+                               MoUI.Tokens.scaled(Kirigami.Units.longDuration,
+                                                  MoUI.Tokens.motionGeometryReference))
                 review.targetScale = MoUI.Tokens.pressScale
                 driver.wait(32)
                 console.warn("INITIAL_SPRING", response.settling, response.value, probe.scale, review.targetScale)

@@ -365,6 +365,10 @@ check:
     python3 tests/test_island_tokens.py
     # App Drop: install from a file, with real hostile archives and the real sandbox.
     python3 tests/test_app_drop.py
+    # The administrator question for a local package, and what a dismissed one prints.
+    python3 tests/test_moos_local_rpm_authentication.py
+    # The station's pointer tool must keep asking KWin where the pointer is.
+    python3 tests/test_station_pointer.py
     python3 tests/test_search_inline_answers.py
     # The wake receiver is the only way back from an idle gateway. IPv4-only resolution and a
     # pinned-IP fallback keep it alive on a network that blocks Telegram's default address.
