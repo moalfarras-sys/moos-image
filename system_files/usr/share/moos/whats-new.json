@@ -3,6 +3,76 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "free-brain-measured",
+      "merged": "2026-09-18T15:23:50Z",
+      "glyph": "ai",
+      "title": {
+        "ar": "Mo AI يقيس أسرع عقل مجاني على جهازك",
+        "en": "Mo AI measures the fastest free brain on your machine"
+      },
+      "body": {
+        "ar": "قائمة النماذج في Mo AI صارت تبدأ بما قِيس على جهازك: كل نموذج ومعه ثوانيه — كم أخذ ليردّ وكم أخذ لينفّذ أمراً. وزرّ «قِس الآن» يعيد القياس في دقيقتين. ونموذج رفضه المزوّد أو لم يجب بالعربية يقول ذلك بصراحة.",
+        "en": "Mo AI's model list now starts with what was measured on your machine: each model with its seconds — to answer, and to run an action. \"Measure now\" repeats it in two minutes, and a model the provider refused, or that didn't answer in Arabic, says so."
+      },
+      "route": "moos://settings/assistant"
+    },
+    {
+      "id": "hub-second-faces",
+      "merged": "2026-09-18T13:48:43Z",
+      "glyph": "grid",
+      "title": {
+        "ar": "بطاقات سطح المكتب تجيب السؤال الذي يليها",
+        "en": "The desk's cards answer the question that comes next"
+      },
+      "body": {
+        "ar": "لكل بطاقة على سطح المكتب وجه ثانٍ: الطقس يعرض الساعات الستّ القادمة، والجهاز يعرض سرعة الشبكة والمساحة المتبقية بالجيجابايت. تُقلب من قائمة سطح المكتب ويُحفظ اختيارك، وما لا يمكن قياسه يظهر شَرطة.",
+        "en": "Every card on the desk has a second face: weather shows the next six hours, and the device card shows network speed and the space left in gigabytes. Turn them from the desktop's menu; anything that cannot be measured shows a dash."
+      },
+      "route": "moos://settings/desktop"
+    },
+    {
+      "id": "moai-reports",
+      "merged": "2026-09-18T12:27:25Z",
+      "glyph": "report",
+      "title": {
+        "ar": "Mo AI يخبرك بالنتيجة بدل أن يرمي لك سجلاً",
+        "en": "Mo AI tells you the result instead of paging a log at you"
+      },
+      "body": {
+        "ar": "عندما ينفّذ Mo AI أمراً، صار يعرض أول ستة أسطر ويقول كم بقي، بدل صفحة كاملة. و«فحص الجهاز» الذي كان يفتح نافذة ولا يطبع شيئاً ثم يظهر صفّاً أحمر، صار يعيد حالة جهازك بالكلمات: الإصدار، هل هو موقّع، وما وجده الفحص.",
+        "en": "When Mo AI runs something it now shows the first six lines and says how many are left, instead of a full page. And the hardware check that used to open a window, print nothing and leave a red \"failed\" row now answers in words: the version, whether it is signed, and what the check found."
+      },
+      "route": "moos://settings/assistant"
+    },
+    {
+      "id": "clock-week",
+      "merged": "2026-09-18T12:05:49Z",
+      "glyph": "calendar",
+      "title": {
+        "ar": "الساعة تعرض أسبوعك",
+        "en": "The clock shows the week you are standing in"
+      },
+      "body": {
+        "ar": "بطاقة الساعة على سطح المكتب لها وجه ثانٍ: أيام أسبوعك واليوم مُعلَّم عليه، ورقم اليوم في السنة. تُقلب من قائمة سطح المكتب، بجانب زرّ إخفاء البطاقة.",
+        "en": "The desktop's clock card has a second face: the days of your week with today marked, and the day of the year. Turn it from the desktop's own menu, beside the switch that hides the card."
+      },
+      "route": "moos://settings/desktop"
+    },
+    {
+      "id": "aurora-glass",
+      "merged": "2026-09-18T10:01:58Z",
+      "glyph": "ui",
+      "title": {
+        "ar": "زجاج أورورا: مادة واحدة للنظام كله",
+        "en": "Aurora Glass: one material for the whole system"
+      },
+      "body": {
+        "ar": "صار لكل سطح في MoOS نفس المادة بأربعة أعماق، بحافة وخيط لمعان مشتقّين من ألوانك. ومعها: شريط الحالة أربعة رموز بدل تسعة، وزرّ البحث بحجم جيرانه، وبطاقة الجزيرة تسمّي ما يعمل بلا كتابة خارجة.",
+        "en": "Every MoOS surface now wears one material at four depths, with a rim and a specular hairline taken from your palette. With it: four status glyphs instead of nine, Search the size of its neighbours, and the Island naming what plays."
+      },
+      "route": "moos://settings/themes"
+    },
+    {
       "id": "whats-new",
       "merged": "2026-09-17T23:53:39Z",
       "glyph": "spark",

@@ -16,18 +16,22 @@ asks of its owner and how rarely it surprises them. They are not API targets and
 MoOS never forks Plasma, KWin or Wayland: MoOS owns the identity, every surface
 the owner looks at, every default and every recovery path.
 
-**Where MoOS is today (2026-09-18).** Production on the three x86 editions is
-`44.20260918.881` (cycle F, revision `6996afaf`, promoted by run `35351916872`), and the
-station is booted on it. Everything through **W8.5** is merged: the MoOS Bar, Search,
-Island, Hub, Switcher, Arrange, App Drop, What's new, Aurora Glass, the hub's second
-faces, Mo AI's tool loop, its readback, the free-brain measurement and the picker that
-shows it. Three things are worth knowing before choosing work. **Four merges are newer
-than the installed image** — W8.4's hub faces (#134), the recorded permissions (#135),
-the ARM honesty fix (#132) and the SIGPIPE proof fix (#133) — so a machine on 881 does
-not have them yet, and `moos-image-update` correctly says "current" because 881 *is* the
-newest promoted digest; only another cycle changes that. The ARM edition has **never had
-its own live review**. And nothing has been measured on a **second machine, a laptop, a
-touchscreen or two monitors**.
+**Where MoOS is today (2026-09-18).** The versions in production, on the station and in
+flight are in ONE place — the "Source and release truth" block at the top of
+`PROJECT_STATE.md`. Read it there; nothing here repeats a number.
+
+Everything through **W8.5** is merged: the MoOS Bar, Search, Island, Hub, Switcher,
+Arrange, App Drop, What's new, Aurora Glass, the hub's second faces, Mo AI's tool loop,
+its readback, the free-brain measurement and the picker that shows it. Three things are
+worth knowing before choosing work. **Five merges are newer than the image on the
+station** — #134 (hub faces), #135 (recorded permissions), #132 (ARM honesty), #133
+(SIGPIPE proof) and #136 (W8.5) — so none of them is on a desk yet, and
+`moos-image-update` correctly says "current" because the installed digest *is* the newest
+promoted one; only another cycle changes that. The ARM edition has had **one** live
+review (2026-09-18, fixes merged as #130 and #132, recorded in `PROJECT_STATE.md`), but
+only on the seatless Oracle A1 under `kwin --virtual` on llvmpipe — never on ARM hardware
+with a real seat and a GPU. And nothing has been measured on a **second machine, a
+laptop, a touchscreen or two monitors**.
 
 **What is missing before MoOS competes.** In the order that decides it:
 
@@ -40,7 +44,8 @@ touchscreen or two monitors**.
    runs live; what is still owed is the ≥95% action-selection measurement on fixed
    Arabic/English cases and a confirmation card walked on a desk (P3.3, P3.4, P3.7).
 4. **Hardware breadth** — laptop, touch, a second monitor, suspend/resume, deliberate
-   rollback on real machines, and the ARM edition's own live review (P5, P0.7).
+   rollback on real machines, and an ARM review on a physical seat with a real GPU —
+   the one ARM review so far was a seatless A1 under `kwin --virtual` (P5, P0.7).
 5. **The rest of the look** — one clarity control from clear to solid driving both MoOS
    surfaces and KWin's blur, the MoOS mark at exactly three sizes, and the specular
    sweeping once as a surface arrives (the open half of W8).
@@ -130,7 +135,7 @@ reviewed live, gated once, merged once and proven once.
 | W7 | M2 | MoOS Workspace: the switcher and Overview in MoOS UI, one-click tiling layouts, window durations taken from MoOS Motion, gesture and touchpad defaults | merged (`411a470c`, PR #118); **production on all four editions since 2026-09-18** (cycle D `44.20260917.865`, then cycle E `44.20260918.868`); ARM production. Landed and reviewed live on the station: **MoOS Switcher** (Alt+Tab and Alt+` are a MoOS surface, mirrored by the LOCALE, with a working close control), **`Tokens.scaled()`** (MoOS motion answers to the same AnimationDurationFactor Plasma does) and **MoOS Arrange** (halves, thirds, quarters, main-and-two and centre, from the window menu and Meta+Alt+1..4/C). `Tokens.scaled()` now reaches every surface: the motion ROLES carry the owner's animation speed, so the 288 places that read `design.motionFast` follow the one control (proven on a real Qt runtime in `tests/qml/motion-review.qml`). Open: touchpad/gesture defaults (P5.2, needs hardware this station does not have) and a live preview in the Arrange surface. Overview is **configuration only** — see "Workspace facts". **Closed on 2026-09-18** (`a2cfd72a`, PR #123): `scripts/station/pointer.py` made pointer review real (KWin confirms every position before a click), the four owed review rows passed on the station, the administrator prompt and a dismissed one became MoOS's own words, and the motion ROLES now carry the owner's animation speed so all 288 surfaces follow one control (`THEME_REV` 65). Open: touchpad and gesture defaults (P5.2, needs hardware this station does not have) and a live preview in Arrange |
 | W8 | M2 | **MoOS Aurora Glass, and a bar that tells the truth.** One material with four depths (a darker rim and a specular hairline, both derived from the palette); the Island capsule fits its real height and names the app that is playing; MoOS Search is a button the size of its neighbours instead of a 196 px empty pill; the status cluster is four glyphs and an arrow instead of nine; MoOS Search shows what is playing, with its control, while nothing is typed; MoPlayer publishes its MPRIS object before its name and its metadata with one variant, so a video that starts now appears on the desk now | merged (PR #126), every visible item reviewed on the running station |
 | W8.1 | M3 | **The strongest free brain is measured, not guessed, and the workshop works.** `moai-measure-free` asks every zero-price tool-capable model two fixed questions through the real gateway and writes the order that answered on THIS machine; the policy prefers it for 30 days and ranks anything unmeasured by the context window an OS agent actually needs. The release cycle reuses a signed build of the same revision instead of racing the nightly rebuild that cancels it. The three npx MCP servers run again inside the VS Code Flatpak. The RDP/VNC port MoOS's health scan finds now has an action that closes it | merged (PR #127) |
-| W8.2 | M2 | **The desk answers the next question.** The clock card has two faces — the hour, and the week the owner is standing in, with today marked and the day of the year — turned from the desktop's own menu and remembered; the Hub cards wear Aurora Glass's specular hairline, so the desktop and the bar are one material | merged (PR #128), reviewed on the running station |
+| W8.2 | M2 | **The desk answers the next question.** The clock card has two faces — the hour, and the week the owner is standing in, with today marked and the day of the year — turned from the desktop's own menu and remembered; the Hub cards wear Aurora Glass's specular hairline, so the desktop and the bar are one material | merged (PR #129), reviewed on the running station |
 | W8.3 | M3 | **Mo AI reports instead of paging a log.** A tool row shows its first six lines and says how many are left; `hw_report` — which opened a panel, printed nothing and made the loop show a red "failed" row — is replaced by `device_report`, which returns the machine's state in words | merged (PR #131), reviewed live with the owner's own brain |
 | W8.4 | M2 | **Every hub card answers the question that comes after it.** The weather card's second face is the next six hours (from the same forecast request); the device card's is the network and the space that is actually left, each figure gated on its own sensor | PR #134, reviewed on the station |
 | W8.5 | M3 | **The owner picks a free brain by what it did here, not by what shipped.** The picker's first group is what THIS machine measured — each row carrying its own seconds, the order the run produced, and a model it caught failing saying which half it failed; the automatic row names the model it resolves to right now; one button re-measures without leaving the picker. The action ranking counts the answer the same turn gives, so a 550B model that calls a tool in 1.4 s and then takes 16.6 s to say what it did no longer outranks one that does both in 2.9 s | PR #136, measured and clicked on the running station |
@@ -282,16 +287,15 @@ KDE/Wayland, make cloud AI truthful, and deliver the same result in signed ISOs.
 Repository cleanup and engineering instructions support that work; screenshots,
 old plans and extra packages are not product progress.
 
-**Active milestone: M1, the daily MoOS desktop journey.** All four editions are one revision,
-`6c4f73c0` (cycle E, 2026-09-18: x86 `44.20260918.868` promoted by run `35303529066`, ARM
-`44.20260918.458`), carrying W7 + W6.2 + What's new (cycle D, `44.20260917.865`) and PR #121.
-W6.1 went out with cycle C (`44.20260917.862`), W6 with cycle B (`44.20260917.858`). **What
-the owner sees after this update:** a notification at the first login naming what is new, a
-What's new page under Settings → System, the MoOS Switcher on Alt+Tab, MoOS Arrange, one
-animation speed, the Arabic Hub and Island fixes, and Updater/Recovery windows that show
-their buttons. **W6.1–W6.3 have never been seen on a MoOS desktop:** the next action that
-matters is the owner updating the station and the A1, and a station review recorded in
-`PROJECT_STATE.md`.
+**Active milestone: M1, the daily MoOS desktop journey.** Which image is in production, and
+which revision built it, is stated in exactly ONE place: the "Source and release truth" block
+at the top of `PROJECT_STATE.md`. This file does not repeat it. Four documents each carrying
+their own copy of "production is X" is how three of them came to be a release behind at once,
+while the fourth said something different two hundred lines away — and an agent picking work
+could not tell which was live.
+
+W6.1–W6.3 HAVE now been seen on a MoOS desktop: the station review that closed them is
+recorded in `PROJECT_STATE.md`, and W8, W8.1, W8.2 and W8.3 were reviewed there too.
 
 How that release happened is the procedure to repeat. Cycle A (candidate
 `51cc2ac3`) passed the signed build and all three QCOW2 boots and lost its ISO
@@ -480,7 +484,7 @@ revision and all required editions/artifacts prove that revision.
 | P0.3 | Open | Finish physical NVIDIA qualification | Plymouth/login photos; two suspend cycles; audio/network recovery; second monitor; clean journal |
 | P0.4 | Open | Prove failed-update recovery | disposable VM bad-candidate rollback, then hardware rollback/roll-forward with user data intact |
 | P0.5 | Open | Configure and accept free Mo AI on a clean account | valid OpenRouter key entered through Settings; Arabic/English reply; reboot persistence; provider failure UI |
-| P0.6 | **In progress** | Promote only the proven digests and update the physical PC | W1 (`92248b5d`, `44.20260916.848`) is promoted for x86; the station still boots `44.20260915.836` until the staged update is rebooted and read back |
+| P0.6 | **In progress** | Promote only the proven digests and update the physical PC | Six cycles have promoted only proven digests, and the owner has updated and rebooted the station each time (the current pair is in `PROJECT_STATE.md`). What keeps this open is the ARM half: no release cycle has ever promoted `moos-arm`, because `build-arm.yml`'s promote job requires a `push` event and a cycle dispatches it |
 | P0.7 | Open — **x86 too since 2026-09-18** | Remove the intermittent `plymouthd` crash (ARM second boot; x86 first boot) | SEGV in `on_new_frame` failed ARM runs on 2026-09-15 and `35150466421`; on 2026-09-18 it core-dumped `plymouth-start.service` on the FIRST boot of cycle D's generic x86 QCOW2 (`35289168012`) while the same candidate's NVIDIA, cloud and ISO boots were clean — one x86 proof in about twelve so far. A lone proof lost to it is dispatched again (`RELEASE.md`), which costs a release cycle an hour each time. The theme is a Plymouth SCRIPT theme kept on screen through the KWin hand-off (`plymouth-quit.service.d/10-moos-retain-splash.conf`); the next step that costs nothing is diagnostics: the boot proofs' failed-unit report must include `coredumpctl info` for the crashed process, so the next failure yields a stack and not a service name; reproduce with ARM-only branch dispatches, fix without weakening the zero-failed-unit gate, then two consecutive green ARM proofs **after a fix** (the W3 and W5 runs were green with none, which proves intermittency only) |
 | P0.8 | **Closed 2026-09-18:** cause measured; three green in a row (`35265328509`, `35276847573`, `35289177072`) | Make the ISO installed-reboot proof deterministic | lost THREE candidates out of four (`57874d6c`, `8b272b87`, `51cc2ac3`): after the installed reboot SSH timed out "during banner exchange" for 1000 s while QGA reported the second boot. **Cause, measured in run `35265328509` (2026-09-17, the first green ISO proof since):** the image's proof-channel helper read the IPv4 default route ONCE, and MoOS disables NetworkManager-wait-online, so nothing orders that read after DHCP. The helper now waits and speaks on the console, and the serial log shows it: first boot, route 16 ms after the daemons were active; SECOND boot, 1.02 s — the first read was empty and one retry found it. The old helper died on that read, so its SSH rule was never added. `systemctl --failed` had looked empty in the failed runs only because SELinux confines the harness's QGA context. The harness change written on the other theory (one slirp forward per boot) was measured by the same run as irrelevant (`reboot-channel.txt`: `first-boot-forward=alive`); it stays because it is free. `tests/test_ci_proof_channel.py` runs the shipped helper end to end under bubblewrap. Cycle D's proof made three; closed |
 | P0.9 | Done 2026-09-17 (PR #116) | Run image-only gates before the merge | `build.yml` did not run on pull requests and `build-arm.sh` does not call `verify_image_experience.py`, so W5 was green on every check and red on `main`. `.github/workflows/pr-image-gates.yml` now builds the generic x86 edition on every pull request that touches `Containerfile`, `build_files/` or `system_files/` — same Containerfile, same build arguments as `build.yml`'s generic row, every in-image gate — and pushes, signs and tags nothing (`contents: read` only; `tests/test_pr_image_gates_workflow.py` keeps both halves true). It does NOT build the NVIDIA or cloud editions: those still first build on `main` or through `scripts/release-candidate.sh --ref`. Individual image gates can still be pulled forward into the repo gates the way `tests/test_image_gate_source_parser.py` and the lifted check in `tests/test_moai_skills.py` do. **First run (2026-09-17, PR #116):** green in 16 minutes end to end, 12 min 20 s of it the image build; the log shows `MoOS image-experience gate passed`, the motion gate on the real Qt runtime and the image-state gate, then the local commit — and no push. That is shorter than a release build because nothing is pushed or signed |

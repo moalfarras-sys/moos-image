@@ -518,9 +518,11 @@ Being honest about this list is more useful than shrinking it.
 - **Mo AI is cloud-only.** Free models are the default; paid models require an explicit
   choice. Cloud connectivity and provider availability are required. Local model downloads
   are retired; see `docs/MOAI_CLOUD_ONLY_PLAN.md` for fresh-install acceptance gaps.
-- **Mo AI's tool loop has never been driven by a real model.** It is proven against a scripted
-  provider and the real `moai-control` (`tests/test_moai_agent_loop.py`). Which tool a free cloud
-  model actually picks, in Arabic and English, is unmeasured (P3.3).
+- **Mo AI's tool loop HAS been driven by a real free model** (W8.3, PR #131, reviewed live on
+  the station), and it is also proven against a scripted provider and the real `moai-control`
+  (`tests/test_moai_agent_loop.py`). What is still unmeasured is the ≥95% action-selection
+  rate over a fixed Arabic/English case set — there is no case set and no runner (P3.3).
+  `moai-measure-free` is NOT that measurement: it asks one tool question to rank models.
 - **App Drop has never unpacked a real AppImage**, and its dialog, file-manager action and
   `~/Applications` watch have not been exercised on a MoOS desktop (P4.6).
 - **Nothing in wave W6 has been seen on a MoOS desktop.** It was written off the station, gated

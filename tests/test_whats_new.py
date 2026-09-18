@@ -287,7 +287,16 @@ class TheNotificationSpeaksOnce(unittest.TestCase):
 @unittest.skipUnless(sys.platform.startswith("linux") and shutil.which("bwrap"),
                      "the end-to-end run needs bubblewrap to supply /ostree/deploy")
 class TheNotifierEndToEnd(unittest.TestCase):
-    BOOTED_BUILT = 1789700000          # after every shipped entry
+    # After every shipped entry — DERIVED, not typed. As a constant it went stale the
+    # first time a wave added an entry merged later than it, and the failure landed on
+    # "an update that brought nothing visible says nothing" — a test about silence,
+    # failing because the fixture's machine was suddenly older than the catalogue.
+    BOOTED_BUILT = 0
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        epoch = reader()["merged_epoch"]
+        cls.BOOTED_BUILT = max(epoch(entry["merged"]) for entry in shipped()) + 60
 
     def run_notifier(self, *, returning: bool, previous_built: int | None = W1_BUILT,
                      seen: str = "", sender: str = 'echo open', language: str = "ar_EG.UTF-8"):

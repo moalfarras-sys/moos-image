@@ -1181,9 +1181,13 @@ Kirigami.ApplicationWindow {
                 try { root.measure = JSON.parse(xhr.responseText) } catch (e) { }
                 measurePoll.restart()
             } else {
-                // A machine with no key cannot measure anything: the prompts go
-                // through the real gateway. Say that instead of failing silently.
-                root.measure = { measuring: false, error: root.local(
+                // The refusal carries its own bilingual reason — no key, or a
+                // provider with no free catalogue at all. Show THAT, not a guess:
+                // an owner told "add your key" when the key is fine and the
+                // provider is the problem goes looking in the wrong place.
+                let reason = ""
+                try { reason = (JSON.parse(xhr.responseText) || {}).error || "" } catch (e) { }
+                root.measure = { measuring: false, error: reason || root.local(
                     "أضف مفتاح المزوّد أولاً — القياس يرسل سؤالين حقيقيين.",
                     "Add the provider key first — measuring sends two real questions.") }
             }
@@ -6978,6 +6982,10 @@ Kirigami.ApplicationWindow {
                             // the numbers on screen already are.
                             Rectangle {
                                 id: measureCard
+                                // Measuring asks the FREE catalogue two questions, so on a
+                                // provider that has no free catalogue the button could only
+                                // run for two minutes and then fail. Don't offer it.
+                                visible: root.cfgProvider !== "opencode-zen"
                                 Layout.fillWidth: true
                                 Layout.topMargin: root.fs(18)
                                 Layout.preferredHeight: measureBody.implicitHeight + root.fs(20)

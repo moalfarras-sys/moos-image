@@ -75,6 +75,7 @@ build-*.log
 # Flutter/MoPlayer local build trees — image builds MoPlayer in Containerfile
 /flutter/
 moplayer/build/
+/build/
 moplayer/.dart_tool/
 moplayer/.flutter-plugins-dependencies
 moplayer/linux/flutter/ephemeral/

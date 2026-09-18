@@ -162,10 +162,8 @@ initramfs, signature, route or runtime-loading gate to get a green result.
 
 ## Current status
 
-Production on all four editions is `44.20260918.868` (ARM `.458`), cycle E.
-Waves W1–W7 are merged and released; **W8 — MoOS Aurora Glass** is the next one,
-and the wave board in [`docs/DEVELOPMENT_PLAN.md`](docs/DEVELOPMENT_PLAN.md) says
-what each wave delivered and what is still owed.
+The wave board in [`docs/DEVELOPMENT_PLAN.md`](docs/DEVELOPMENT_PLAN.md) says what each
+wave delivered and what is still owed.
 
 Everything measured — the installed version, what has never been seen on a MoOS
 desktop, the station review and the open hardware checks — is in

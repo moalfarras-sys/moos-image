@@ -763,7 +763,14 @@ jobs:
   promote:
     name: Promote boot-proven ARM image
     needs: [build, disk]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.build.result == 'success' && needs.disk.result == 'success'
+    # `push` ONLY was the reason no release cycle has ever promoted ARM.
+    # scripts/release-candidate.sh dispatches this workflow (`--ref main`) as part of
+    # every cycle; the build and disk jobs above already accept a dispatch, so ARM was
+    # building and boot-proving the candidate and then skipping the one job that would
+    # have shipped it. `moos-arm:latest` therefore tracked whatever pushed last instead
+    # of the revision a cycle proved — 447248ac while x86 was on 6996afaf. The ref check
+    # still applies to both events, so nothing off main can promote.
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && needs.build.result == 'success' && needs.disk.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
