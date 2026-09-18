@@ -842,7 +842,7 @@ class TestMoOSUI2(unittest.TestCase):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=70", apply,
+            "THEME_REV=71", apply,
             "existing v61 users would keep the Island that cannot show Store jobs or name the app "
             "using the camera; "
             "existing v60 users (ARM took W3 then W5 at the same revision) would keep the cached "
@@ -2511,9 +2511,35 @@ class TestMoOSUI2(unittest.TestCase):
         qml_files = sorted((DASHBOARD / "contents/ui").glob("*.qml"))
         qml_by_path = {path: path.read_text(encoding="utf-8") for path in qml_files}
         combined = "\n".join(qml_by_path.values())
+        # The ban protects the CARDS: they repaint on a 4K wallpaper surface, they must
+        # stay passive, and a shader on one of them is paid for on every machine. One
+        # use is allowed, in main.qml only, and it is not a card — it is the artwork's
+        # own contrast lift, which is why it is checked here by hand rather than by
+        # deleting a name from the list.
         for banned in BANNED_DASHBOARD_TYPES:
-            self.assertNotIn(banned, combined,
-                             f"UI2 dashboard must not use {banned}")
+            for path, text in qml_by_path.items():
+                if banned == "MultiEffect" and path.name == "main.qml":
+                    continue
+                self.assertNotIn(banned, text,
+                                 f"UI2 dashboard must not use {banned} ({path.name})")
+
+        # The one exception, held to exactly what justifies it. Counted in the CODE:
+        # the two comments above it have to name the type to explain why it is gated,
+        # and a gate that reads prose fails on the documentation that defends it.
+        main_qml = qml_by_path[DASHBOARD / "contents/ui/main.qml"]
+        main_code = "\n".join(line for line in main_qml.splitlines()
+                              if not line.lstrip().startswith("//"))
+        self.assertEqual(main_code.count("MultiEffect"), 1,
+                         "main.qml may lift the artwork's contrast once and do nothing else "
+                         "with an effect")
+        self.assertIn("layer.enabled: root.artLift", main_code,
+                      "the lift must be gated, not unconditional")
+        self.assertIn("MoUI.Tokens.blurActive", main_code,
+                      "the gate must be the tier's own answer about GPU compositing, not a "
+                      "second source inventing a second one")
+        lift = main_code[main_code.index("layer.enabled: root.artLift"):]
+        self.assertNotIn("blurEnabled: true", lift,
+                         "a blur pass on the wallpaper is not a contrast lift")
 
         self.assertNotRegex(combined, r"#[0-9A-Fa-f]{3,8}\b",
                             "dashboard colours must come from Kirigami.Theme")

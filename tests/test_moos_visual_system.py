@@ -450,9 +450,24 @@ class MoOSVisualSystemTests(unittest.TestCase):
         self.assertIn("configuration.AmbientMotion", qml,
                       "MotionMode's -1 sentinel must fall back to the legacy Boolean, "
                       "or an upgraded desktop loses the motion setting it already had")
-        self.assertIn("interval: 90000", qml)
-        self.assertIn("duration: 1800", qml)
-        self.assertNotRegex(qml, r"interval:\s*(?:[1-9]\d{0,3}|[1-5]\d{4})\b")
+        # The wallpaper LAYER itself now carries no decorative motion at all — not a
+        # burst, not a timer, not a crossfade. Two full-screen washes used to trade
+        # emphasis every 90 s and this gate pinned that cadence as the proof of a low
+        # duty cycle; a cadence of zero is the stronger form of the same promise, and
+        # measured better besides: every translucent layer over the artwork lifted its
+        # blacks, so removing them raised the wallpaper's contrast by 14.1% on the real
+        # screen. What the gate holds now is that nothing decorative comes back.
+        scene = qml[qml.index("Image {"):qml.index("Component {")]
+        for forbidden in ("NumberAnimation", "SequentialAnimation", "ColorAnimation",
+                          "PropertyAnimation", "Behavior on opacity", "ambientPhase"):
+            self.assertNotIn(forbidden, scene,
+                             f"the wallpaper layer must stay still — found {forbidden}")
+        self.assertNotRegex(qml[:qml.index("Component {")], r"^\s*interval:", 
+                            "no timer belongs on the wallpaper layer")
+        # The cards' own bursts are covered by the always-running check below, which
+        # walks every file in the package; a second cadence regex here matched
+        # `interval: 15 * 60000` on its first digits and failed on an expression it was
+        # never meant to read.
         self.assertIn("sourceSize: Qt.size(root.width * Screen.devicePixelRatio", qml)
         # Every stock Plasma wallpaper plugin ships a config page; this one did
         # not, so 'Configure Desktop and Wallpaper' offered the owner of the MoOS

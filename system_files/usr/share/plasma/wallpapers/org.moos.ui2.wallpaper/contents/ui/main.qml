@@ -18,6 +18,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Effects
 import org.kde.kirigami as Kirigami
 import org.kde.plasma.core as PlasmaCore
 import org.kde.plasma.plasmoid
@@ -123,7 +124,6 @@ WallpaperItem {
         }
     ]
 
-    property int ambientPhase: 0
 
     // ── The motion policy, resolved once, for the whole scene ─────────────────
     //
@@ -173,6 +173,20 @@ WallpaperItem {
     // gate invented locally and consulting nothing went unnoticed for so long.
     readonly property int resolvedMotionMode:
         Kirigami.Units.longDuration > 1 ? root.configuredMotionMode : 0
+
+    // Whether this machine can afford the render-time contrast lift on the artwork.
+    // Blur and MultiEffect are the same question — does this desktop composite on a
+    // GPU — and `moos-visual-tier` has already answered it in kwinrc, so MoUI.Tokens
+    // reads it there rather than a second source inventing a second answer (W9.6).
+    //
+    // `!== false`, not a plain read. A running plasmashell can be holding an OLDER
+    // org/moos/ui than this file — during an rpm-ostree upgrade the wallpaper QML is
+    // read fresh while the loaded singleton is not — and `blurActive` then comes back
+    // undefined, which QML refuses to assign to a bool and logs on every start. Caught
+    // live on this station, whose image predates the token. Undefined means "an older
+    // MoOS that did not tell us", and the honest default there is the same one
+    // /etc/xdg/kwinrc ships: blur on.
+    readonly property bool artLift: MoUI.Tokens.blurActive !== false
 
     // The scene layer's own on/off seam. It additionally waits for the art,
     // because the ambient washes crossfade OVER the wallpaper and have nothing to
@@ -260,64 +274,60 @@ WallpaperItem {
                 root.loading = false
             }
         }
-    }
 
-    // "Living glass" without turning a 4K desktop into a permanent animation.
-    // Two very low-alpha mineral washes exchange emphasis only once per
-    // 90 seconds. The transition lasts 1.8 s, so the scene is completely idle
-    // 98% of the time and remains safe on fractional-scale / battery systems.
-    Timer {
-        interval: 90000
-        repeat: true
-        running: root.motionEnabled
-        onTriggered: root.ambientPhase = (root.ambientPhase + 1) % 2
-    }
-
-    Rectangle {
-        anchors.fill: parent
-        z: 0.1
-        opacity: root.motionEnabled
-            ? (root.ambientPhase === 0 ? 0.055 : 0.13)
-            : 0
-        gradient: Gradient {
-            orientation: Gradient.Horizontal
-            GradientStop { position: 0.0; color: "transparent" }
-            GradientStop {
-                position: 0.72
-                color: Qt.rgba(Kirigami.Theme.highlightColor.r,
-                               Kirigami.Theme.highlightColor.g,
-                               Kirigami.Theme.highlightColor.b, 0.16)
-            }
-            GradientStop { position: 1.0; color: "transparent" }
-        }
-        Behavior on opacity {
-            enabled: root.motionEnabled
-            NumberAnimation { duration: 1800; easing.type: Easing.InOutCubic }
+        // The wallpaper's own contrast, lifted on the image itself.
+        //
+        // This is the one thing measured to make a MoOS wallpaper stronger AND clearer
+        // at the same time: +8.3% contrast (standard deviation 11.75% -> 12.72%) with
+        // the mean barely moving, where every overlay tried above raised brightness by
+        // washing the blacks out. The masters are untouched — 96 vendored JPEGs across
+        // sixteen families are not something to re-encode over a preference — so the
+        // lift happens at render time and any owner can undo it by turning it off.
+        //
+        // WHY IT IS GATED. MultiEffect is a GPU path: on the essential tier — software
+        // rendering, no render node — it either does not apply or is paid for on the
+        // CPU on every frame of a 4K surface, which is exactly the cost `moos-visual-tier`
+        // exists to refuse. `Tokens.blurActive` already answers "does this machine do
+        // GPU compositing", because that is the same key the tier writes (W9.6), so the
+        // wallpaper asks the question MoOS already knows the answer to instead of
+        // inventing a second one.
+        layer.enabled: root.artLift
+        layer.effect: MultiEffect {
+            contrast: 0.16
+            saturation: 0.06
         }
     }
 
-    Rectangle {
-        anchors.fill: parent
-        z: 0.1
-        opacity: root.motionEnabled
-            ? (root.ambientPhase === 0 ? 0.11 : 0.04)
-            : 0
-        gradient: Gradient {
-            orientation: Gradient.Horizontal
-            GradientStop {
-                position: 0.0
-                color: Qt.rgba(Kirigami.Theme.linkColor.r,
-                               Kirigami.Theme.linkColor.g,
-                               Kirigami.Theme.linkColor.b, 0.10)
-            }
-            GradientStop { position: 0.42; color: "transparent" }
-            GradientStop { position: 1.0; color: "transparent" }
-        }
-        Behavior on opacity {
-            enabled: root.motionEnabled
-            NumberAnimation { duration: 1800; easing.type: Easing.InOutCubic }
-        }
-    }
+    // ── Nothing is laid over the wallpaper, and that IS the design ───────────
+    //
+    // What was here: two full-screen gradient washes that exchanged emphasis every
+    // 90 seconds. The owner reported both things wrong with them, as two complaints
+    // that turned out to be one defect — "there is a faint movement in the background
+    // and I cannot tell what it is", and "I want the wallpaper stronger and clearer".
+    // Ninety seconds is too long to connect a change to anything and too short to
+    // forget, so the eye caught a drift, looked, and found nothing there; and both
+    // washes covered every pixel of the artwork at 0.055-0.13 alpha in order to do it.
+    //
+    // A REPLACEMENT WAS BUILT, THEN MEASURED, THEN DELETED. It was one soft light whose
+    // place in the sky followed the hour — meaning instead of drift, moving a quarter of
+    // a degree a minute so that nothing could be caught moving. It is a better idea than
+    // the washes and it failed for the same reason they did. Measured over the Graphite
+    // master at 1280x720, mean luminance and contrast (standard deviation):
+    //
+    //     the artwork alone            11.37%   11.75%
+    //     with that light              15.70%   10.76%   <- brighter, LESS contrast
+    //     with a soft vignette         10.06%   10.40%   <- darker,  LESS contrast
+    //     with a firm vignette          9.02%    9.39%   <- worse again
+    //     the artwork's own contrast   10.59%   12.72%   <- the only row that wins
+    //
+    // Every translucent layer over a dark image lifts its blacks, and lifted blacks are
+    // what "washed out" means. It makes no difference whether the layer drifts, sits
+    // still, or carries meaning: the more of it there is, the less clear the wallpaper
+    // gets. Asking for a stronger wallpaper and asking for the drift to stop have one
+    // answer, and it is to take things off it.
+    //
+    // So: no washes, no light, no vignette, and no motion of any kind on this layer.
+    // The artwork's own contrast is lifted instead — on the image, never over it.
 
     // Solid palette canvas behind everything, so a missing/renamed master file
     // degrades to a branded flat colour, never to a black desktop.
