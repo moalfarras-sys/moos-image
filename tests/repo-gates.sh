@@ -220,6 +220,9 @@ python3 tests/test_app_drop.py
 python3 tests/test_moos_local_rpm_authentication.py
 # Pointer-driven station review is only evidence when the compositor confirms each position.
 python3 tests/test_station_pointer.py
+# A health warning with nothing to press is one people scroll past: the RDP/VNC finding
+# has a fixed action, and that action may only touch the two servers it names.
+python3 tests/test_moos_remote_guard.py
 python3 tests/test_search_inline_answers.py
 # moai-wake is the ONLY thing that can wake a sleeping gateway, so if it cannot reach
 # Telegram the phone agent is silently dead while every surface reports healthy. On a

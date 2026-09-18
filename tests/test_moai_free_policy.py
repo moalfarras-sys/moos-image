@@ -86,6 +86,70 @@ class FreePolicy(unittest.TestCase):
             self.assertEqual(policy.automatic_candidates(limit=3)[-2:],
                              ['nvidia/nemotron-3-ultra-550b-a55b:free', policy.DEFAULT_MODEL])
 
+    def test_the_ranking_this_machine_measured_outranks_the_shipped_order(self):
+        """`moai-measure-free` writes what actually answered here; it wins for 30 days.
+
+        The shipped preference is a snapshot of one machine on one day, and the free
+        catalogue turns over every few weeks. A machine that measured its own order
+        must use it — but only to ORDER models the zero-price check already admitted.
+        """
+        items = self.catalogue(('nex-agi/nex-n2.5-pro:free', ['tools']),
+                               ('vendor/measured-here:free', ['tools']))
+        with tempfile.TemporaryDirectory() as home:
+            ranking = Path(home) / 'moai/free-ranking.json'
+            ranking.parent.mkdir(parents=True)
+            ranking.write_text(json.dumps({
+                'measuredAt': policy.time.time(),
+                'chat': ['vendor/measured-here:free'],
+                'tools': ['vendor/measured-here:free'],
+            }))
+            with patch.dict(os.environ, {'XDG_STATE_HOME': home}), \
+                    patch.object(policy, '_catalogue', (policy.time.monotonic(), items)), \
+                    patch.dict(policy._cooldown, {}, clear=True):
+                self.assertEqual(policy.automatic_model(require_tools=True),
+                                 'vendor/measured-here:free')
+                self.assertEqual(policy.measured_ranking('tools'),
+                                 ('vendor/measured-here:free',))
+
+    def test_a_stale_corrupt_or_priced_ranking_is_ignored(self):
+        items = self.catalogue(('nex-agi/nex-n2.5-pro:free', ['tools']),
+                               ('vendor/measured-here:free', ['tools']))
+        cases = {
+            'stale': {'measuredAt': policy.time.time() - policy.RANKING_MAX_AGE - 60,
+                      'tools': ['vendor/measured-here:free']},
+            'undated': {'tools': ['vendor/measured-here:free']},
+            'empty': {'measuredAt': policy.time.time(), 'tools': []},
+            'priced': {'measuredAt': policy.time.time(), 'tools': ['openai/gpt-5']},
+        }
+        for name, document in cases.items():
+            with self.subTest(case=name), tempfile.TemporaryDirectory() as home:
+                ranking = Path(home) / 'moai/free-ranking.json'
+                ranking.parent.mkdir(parents=True)
+                ranking.write_text(json.dumps(document))
+                with patch.dict(os.environ, {'XDG_STATE_HOME': home}), \
+                        patch.object(policy, '_catalogue', (policy.time.monotonic(), items)), \
+                        patch.dict(policy._cooldown, {}, clear=True):
+                    self.assertEqual(policy.automatic_model(require_tools=True),
+                                     'nex-agi/nex-n2.5-pro:free')
+        with tempfile.TemporaryDirectory() as home:
+            ranking = Path(home) / 'moai/free-ranking.json'
+            ranking.parent.mkdir(parents=True)
+            ranking.write_text('{not json')
+            with patch.dict(os.environ, {'XDG_STATE_HOME': home}):
+                self.assertEqual(policy.measured_ranking(), ())
+
+    def test_an_unmeasured_model_is_ranked_by_the_window_it_can_hold(self):
+        """A system agent carries a long transcript; context outranks parameter count."""
+        items = policy.visible_models([
+            {'id': 'vendor/small-window-120b:free', 'pricing': {'prompt': '0', 'completion': '0'},
+             'supported_parameters': ['tools'], 'context_length': 32768},
+            {'id': 'vendor/long-window-flash:free', 'pricing': {'prompt': '0', 'completion': '0'},
+             'supported_parameters': ['tools'], 'context_length': 1048576}])
+        with patch.object(policy, '_catalogue', (policy.time.monotonic(), items)), \
+                patch.dict(policy._cooldown, {}, clear=True):
+            self.assertEqual(policy.automatic_model(require_tools=True),
+                             'vendor/long-window-flash:free')
+
     def test_measured_preference_never_admits_a_priced_model(self):
         items = policy.visible_models([
             {'id': 'nex-agi/nex-n2.5-pro:free', 'pricing': {'prompt': '0.1'},

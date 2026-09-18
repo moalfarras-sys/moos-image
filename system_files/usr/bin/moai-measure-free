@@ -1,0 +1,197 @@
+#!/usr/bin/python3
+"""moai-measure-free — find out which free cloud brain this machine should use.
+
+    moai-measure-free              measure every zero-price tool-capable model
+    moai-measure-free --show       print the ranking this machine last measured
+    moai-measure-free --limit 6    measure only the first 6 candidates
+
+WHY THIS EXISTS
+
+Mo AI's automatic route ships with a preference list that was measured once, on one
+machine, against a catalogue that changes every few weeks: free models are added,
+withdrawn and rate-limited constantly, and the biggest model is regularly the worst
+choice for a one-line answer. Parameter counts cannot tell you which one answers in
+Arabic without switching to English, or which one actually emits a tool call instead
+of describing one.
+
+So this asks. Every candidate gets exactly two questions through the REAL gateway —
+the same route Mo AI uses, with the same zero-price ceiling — and is scored on what
+came back:
+
+    1. an Arabic one-liner          → did it answer, in Arabic, quickly?
+    2. one unambiguous instruction  → did it CALL the tool, with the right name?
+
+The order is written to ~/.local/state/moai/free-ranking.json, and
+moai_cloud_policy.measured_ranking() prefers it for 30 days. The file can only
+ORDER models the zero-price check already admitted: it cannot introduce a model,
+change a price, or reach a billed route.
+
+Nothing here is installed, downloaded or run locally. It is one HTTP request per
+question to the gateway that is already running.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+from pathlib import Path
+import sys
+import time
+import urllib.error
+import urllib.request
+
+# The policy module that ships beside this program, so a check out of the source
+# tree measures the policy it is changing rather than the installed one.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'lib/moai'))
+import moai_cloud_policy as policy  # noqa: E402
+
+GATEWAY = os.environ.get('MOAI_GATEWAY', 'http://127.0.0.1:11435')
+STATE = Path(os.environ.get('XDG_STATE_HOME', str(Path.home() / '.local/state')))
+RANKING = STATE / policy.RANKING_PATH
+TIMEOUT = 60
+
+ARABIC_PROMPT = 'أجب بجملة عربية واحدة قصيرة: ما هو نظام التشغيل الذي تعمل عليه؟'
+TOOL_PROMPT = 'اكتم صوت الجهاز الآن.'
+TOOL_SCHEMA = [{
+    'type': 'function',
+    'function': {
+        'name': 'set_volume',
+        'description': 'Set or mute the system volume.',
+        'parameters': {
+            'type': 'object',
+            'properties': {
+                'level': {'type': 'integer', 'description': 'Volume 0-100'},
+                'muted': {'type': 'boolean', 'description': 'True to mute'},
+            },
+            'required': ['muted'],
+        },
+    },
+}]
+
+
+def ask(model: str, prompt: str, tools=None) -> tuple[float, dict | None, str]:
+    """One request through the gateway. Returns (seconds, message, error)."""
+    body = {
+        'model': f'cloud:{model}',
+        'messages': [{'role': 'user', 'content': prompt}],
+        'stream': False,
+        'max_tokens': 220,
+    }
+    if tools:
+        body['tools'] = tools
+        body['tool_choice'] = 'auto'
+    request = urllib.request.Request(
+        GATEWAY + '/v1/chat/completions',
+        data=json.dumps(body).encode(),
+        headers={'Content-Type': 'application/json'},
+        method='POST')
+    started = time.monotonic()
+    try:
+        with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
+            document = json.loads(response.read(2 * 1024 * 1024))
+    except urllib.error.HTTPError as failure:
+        return time.monotonic() - started, None, f'HTTP {failure.code}'
+    except Exception as failure:                        # noqa: BLE001 - report, never raise
+        return time.monotonic() - started, None, type(failure).__name__
+    choices = document.get('choices') or []
+    if not choices:
+        return time.monotonic() - started, None, 'no choices'
+    return time.monotonic() - started, choices[0].get('message') or {}, ''
+
+
+def arabic(text: str) -> bool:
+    letters = [character for character in text if character.isalpha()]
+    if not letters:
+        return False
+    arabic_letters = sum(1 for character in letters if '؀' <= character <= 'ۿ')
+    return arabic_letters / len(letters) >= 0.6
+
+
+def measure(model: str) -> dict:
+    chat_seconds, message, error = ask(model, ARABIC_PROMPT)
+    answer = str((message or {}).get('content') or '').strip()
+    result = {
+        'model': model,
+        'chatSeconds': round(chat_seconds, 2),
+        'answeredArabic': bool(answer) and arabic(answer) and not error,
+        'chatError': error,
+    }
+    tool_seconds, message, error = ask(model, TOOL_PROMPT, TOOL_SCHEMA)
+    calls = (message or {}).get('tool_calls') or []
+    called = [str((call.get('function') or {}).get('name') or '') for call in calls]
+    result.update({
+        'toolSeconds': round(tool_seconds, 2),
+        'calledTool': 'set_volume' in called,
+        'toolError': error,
+    })
+    # Correctness first, speed second: a model that answers the wrong way quickly is
+    # worse than one that answers correctly a second later.
+    result['chatScore'] = (result['answeredArabic'], -result['chatSeconds'])
+    result['toolScore'] = (result['calledTool'], result['answeredArabic'], -result['toolSeconds'])
+    return result
+
+
+def show() -> int:
+    try:
+        document = json.loads(RANKING.read_text())
+    except (OSError, ValueError):
+        print('moai-measure-free: nothing measured on this machine yet')
+        return 1
+    age = (time.time() - float(document.get('measuredAt') or 0)) / 86400
+    print(f"measured {age:.1f} days ago, {len(document.get('results') or [])} models")
+    for kind in ('chat', 'tools'):
+        print(f"  {kind}: " + ', '.join(document.get(kind) or []) or '  (none)')
+    return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument('--show', action='store_true')
+    parser.add_argument('--limit', type=int, default=8)
+    arguments = parser.parse_args()
+    if arguments.show:
+        return show()
+
+    candidates = policy.automatic_candidates(require_tools=True, limit=max(1, arguments.limit))
+    candidates = [model for model in candidates if model != policy.DEFAULT_MODEL]
+    if not candidates:
+        print('moai-measure-free: the free catalogue is unreachable; nothing to measure',
+              file=sys.stderr)
+        return 2
+
+    results = []
+    for model in candidates:
+        outcome = measure(model)
+        results.append(outcome)
+        marks = ('عربي' if outcome['answeredArabic'] else '—',
+                 'أداة' if outcome['calledTool'] else '—')
+        print(f"{model:<52} {outcome['chatSeconds']:>5.1f}s {marks[0]:<5} "
+              f"{outcome['toolSeconds']:>5.1f}s {marks[1]}"
+              + (f"  ({outcome['chatError'] or outcome['toolError']})"
+                 if outcome['chatError'] or outcome['toolError'] else ''))
+
+    usable = [outcome for outcome in results if outcome['answeredArabic'] or outcome['calledTool']]
+    if not usable:
+        print('moai-measure-free: no free model answered; nothing written', file=sys.stderr)
+        return 1
+    chat = [outcome['model'] for outcome in sorted(usable, key=lambda o: o['chatScore'], reverse=True)]
+    tools = [outcome['model'] for outcome in sorted(usable, key=lambda o: o['toolScore'], reverse=True)]
+    RANKING.parent.mkdir(parents=True, exist_ok=True)
+    RANKING.write_text(json.dumps({
+        '_': 'Written by moai-measure-free. Mo AI prefers this order for 30 days. '
+             'Delete this file to fall back to the order that shipped.',
+        'measuredAt': time.time(),
+        'gateway': GATEWAY,
+        'chat': chat,
+        'tools': tools,
+        'results': [{key: value for key, value in outcome.items()
+                     if key not in ('chatScore', 'toolScore')} for outcome in results],
+    }, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    print(f"\nMo AI will use: {tools[0]} for actions, {chat[0]} for answers")
+    print(f"written to {RANKING}")
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

@@ -449,6 +449,15 @@ PY
             "${BASH_SOURCE%/*}/moos-privacy-stop" "$privacy_type" "$privacy_id"
         fi
         notify "تم إيقاف المشاركة | Stream stopped" ;;
+    # The desktop-sharing server that is NOT MoOS's. moos-health finds it (an RDP
+    # or VNC port open to the whole network) and this is the action behind that
+    # finding: a fixed helper, two named user services, no argument from the
+    # caller, no administrator rights, and System Settings turns either back on.
+    privacy/stop-sharing)
+        confirm "إيقاف مشاركة سطح المكتب غير التابعة لـ MoOS؟ | Turn off desktop sharing that is not MoOS's?" \
+            && { /usr/bin/moos-remote-guard off >/dev/null 2>&1 \
+                 || "${BASH_SOURCE%/*}/moos-remote-guard" off >/dev/null 2>&1 || true; \
+                 notify "أُوقفت المشاركة الغريبة؛ Mo PC Remote يبقى متاحاً | Foreign sharing is off; Mo PC Remote stays"; } ;;
     session/lock)  loginctl lock-session ;;
     session/logout) confirm "تسجيل الخروج الآن؟ | Log out now?" \
                           && { qdbus_run org.kde.Shutdown /Shutdown logout 2>/dev/null || true; } ;;

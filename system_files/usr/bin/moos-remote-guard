@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# moos-remote-guard — turn off a desktop-sharing server that is not MoOS's.
+#
+#   moos-remote-guard status    what is listening, and whether it is MoOS's own
+#   moos-remote-guard off       stop and un-autostart the foreign servers
+#
+# WHY THIS EXISTS
+#
+# MoOS's remote desktop is Mo PC Remote: a private tailnet, a PIN, an on-screen
+# indicator while a session is live. KDE also ships its own RDP server, and it is
+# one switch away in System Settings. On the owner's station on 2026-09-18 that
+# switch was on: `krdpserver` was listening on `*:3389` for the whole network with
+# `SystemUserEnabled=true`, and MoOS's own health scan flagged it — correctly, but
+# with nothing to press. A finding a person cannot act on is a warning they learn
+# to scroll past.
+#
+# This is the action behind it. It is deliberately narrow: two named user services
+# and one config key each. It needs no administrator rights, it removes nothing,
+# and System Settings turns either server back on in one click — the certificate
+# and every other setting are left exactly where they were.
+set -uo pipefail
+
+# name:unit:config-file:group:key — nothing here is taken from the caller.
+GUARDED=(
+    "KDE RDP:app-org.kde.krdpserver.service:krdpserverrc:General:Autostart"
+    "KDE VNC:app-org.kde.krfb.service:krfbrc:Autostart:Autostart"
+)
+
+is_active() { systemctl --user is-active --quiet "$1" 2>/dev/null; }
+
+status() {
+    local found=0 entry name unit
+    for entry in "${GUARDED[@]}"; do
+        IFS=: read -r name unit _ _ _ <<<"$entry"
+        if is_active "$unit"; then
+            printf '%s\n' "${name} (${unit}) قيد التشغيل | is running"
+            found=1
+        fi
+    done
+    if command -v ss >/dev/null 2>&1; then
+        ss -tlnH 2>/dev/null | awk '$4 ~ /:(3389|5900)$/ { print "listening | " $4 }'
+    fi
+    [ "$found" = 1 ] || printf '%s\n' "لا يوجد خادم مشاركة غريب يعمل | no foreign sharing server is running"
+}
+
+off() {
+    local entry name unit file group key changed=0
+    for entry in "${GUARDED[@]}"; do
+        IFS=: read -r name unit file group key <<<"$entry"
+        if is_active "$unit"; then
+            systemctl --user stop "$unit" >/dev/null 2>&1 && changed=1
+        fi
+        # `disable` is harmless when the unit was never enabled, and the autostart
+        # key is what actually brings these back at the next login.
+        systemctl --user disable "$unit" >/dev/null 2>&1 || true
+        if command -v kwriteconfig6 >/dev/null 2>&1; then
+            kwriteconfig6 --file "$file" --group "$group" --key "$key" false >/dev/null 2>&1 \
+                && changed=1
+        fi
+    done
+    if [ "$changed" = 1 ]; then
+        printf '%s\n' "أُوقفت المشاركة الغريبة. جهازك يبقى متاحاً عبر Mo PC Remote."
+        printf '%s\n' "Foreign sharing is off. Your computer stays reachable through Mo PC Remote."
+    else
+        printf '%s\n' "لا شيء ليُوقف | nothing to turn off"
+    fi
+}
+
+case "${1:-status}" in
+    status) status ;;
+    off) off ;;
+    *) printf '%s\n' "usage: moos-remote-guard {status|off}" >&2; exit 2 ;;
+esac

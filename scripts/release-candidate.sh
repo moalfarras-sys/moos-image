@@ -54,8 +54,13 @@ dispatch() {
     echo "$id"
 }
 
+# wait_run <run id> <label> [adopt]
+#   adopt: only the signed BUILD may inherit a superseding run, because its only
+#   input is the revision. A disk/ISO proof is dispatched with an explicit image
+#   reference, so another run on the same commit is not necessarily the same
+#   proof and is never adopted.
 wait_run() {
-    local id="$1" label="$2" state="" try
+    local id="$1" label="$2" adopt="${3:-}" state="" try
     gh run watch "$id" --exit-status --interval 60 >/dev/null 2>&1 || true
     # `gh run watch` also exits non-zero when the API is unreachable. The
     # 2026-09-17 W2 release printed FAIL for two QCOW2 proofs that had in fact
@@ -74,13 +79,59 @@ wait_run() {
         echo "PASS $label (run $id)"
         return 0
     fi
+    # A run CANCELLED while this cycle waited is usually not a failure of the
+    # revision: build.yml has `cancel-in-progress` on `workflow-ref`, so the
+    # nightly rebuild — or any push to main — supersedes a candidate build on the
+    # same commit. That happened on 2026-09-18: the W8 release dispatched its
+    # build, the 06:00 scheduled rebuild of the SAME `7054e5fb` started minutes
+    # later, GitHub cancelled the dispatched one, and the cycle reported FAIL for
+    # an image nothing was wrong with. Look for the run that superseded it: same
+    # workflow, same revision, completed, successful, first attempt. Its digests
+    # are the same signed candidate, because the revision is the same. Anything
+    # else — a real failure, a cancel with no successful sibling — still fails.
+    if [ "$adopt" = adopt ] && [ "${state#completed }" = "cancelled 1" ]; then
+        local workflow="" replacement=""
+        workflow="$(gh run view "$id" --json workflowName --jq .workflowName 2>/dev/null)" || workflow=""
+        if [ -n "$workflow" ]; then
+            replacement="$(gh run list --workflow "$workflow" --json databaseId,headSha,status,conclusion,attempt \
+                --jq "[.[] | select(.headSha == \"$revision\" and .status == \"completed\"
+                       and .conclusion == \"success\" and .attempt == 1)][0].databaseId" 2>/dev/null)" || replacement=""
+        fi
+        if [ -n "$replacement" ] && [ "$replacement" != "null" ] && [ "$replacement" != "$id" ]; then
+            echo "PASS $label (run $id was superseded on $revision; run $replacement proved it)"
+            printf '%s' "$replacement" > "$work/$label.adopted"
+            return 0
+        fi
+    fi
     echo "FAIL $label (run $id, state: ${state:-unreadable})"
     return 1
 }
 
-build_id="$(dispatch build.yml)"
-echo "signed build: run $build_id"
-wait_run "$build_id" "signed x86 build" || exit 1
+# A signed build of this EXACT revision may already exist: the nightly rebuild runs
+# at 06:00 UTC and every push to main builds too. Building it again costs 25 minutes
+# and proves nothing new — the digests are produced from the same commit — and worse,
+# build.yml cancels in-progress runs per ref, so a dispatch and a scheduled run of the
+# same commit fight and one of them dies (measured on 2026-09-18: the W8 cycle's build
+# was cancelled by the nightly of the same commit and the cycle reported FAIL).
+# AGENTS.md already says it: inspect active run IDs and reuse them; never start a
+# duplicate build merely to learn status. Only a completed, successful FIRST attempt
+# counts, which is the same bar promotion applies.
+build_id="$(gh run list --workflow build.yml --json databaseId,headSha,status,conclusion,attempt \
+    --jq "[.[] | select(.headSha == \"$revision\" and .status == \"completed\"
+           and .conclusion == \"success\" and .attempt == 1)][0].databaseId" 2>/dev/null)" || build_id=""
+if [ -n "$build_id" ] && [ "$build_id" != "null" ]; then
+    echo "signed build: reusing run $build_id (already built $revision)"
+else
+    build_id="$(dispatch build.yml)"
+    echo "signed build: run $build_id"
+    wait_run "$build_id" "signed x86 build" adopt || exit 1
+fi
+# If the dispatched build was superseded on this exact revision, the artifacts —
+# and the promotion input — come from the run that actually finished.
+if [ -s "$work/signed x86 build.adopted" ]; then
+    build_id="$(cat "$work/signed x86 build.adopted")"
+    echo "signed build: adopted run $build_id"
+fi
 
 declare -A ref_of
 for edition in moos moos-nvidia moos-cloud; do

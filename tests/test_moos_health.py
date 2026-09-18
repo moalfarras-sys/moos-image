@@ -190,7 +190,11 @@ class MoosHealthScanTests(unittest.TestCase):
         self.assertEqual(self.severity("open-port-tcp-3389"), "warning")
         self.assertIn("Remote Desktop (RDP)", self.findings["open-port-tcp-3389"]["title"])
         self.assertIn("krdpserver", self.findings["open-port-tcp-3389"]["detail"])
-        self.assertEqual(self.findings["open-port-tcp-3389"]["action"], "moos://app/remote")
+        # The action CLOSES the foreign server rather than opening Mo PC Remote beside
+        # it: on the owner's station on 2026-09-18 this warning was true, and opening
+        # another app did not make the port go away.
+        self.assertEqual(self.findings["open-port-tcp-3389"]["action"],
+                         "moos://privacy/stop-sharing")
         # One finding per protocol and port, whatever the address family.
         ports = [item["id"] for item in self.report["findings"] if item["id"] == "open-port-tcp-8080"]
         self.assertEqual(ports, ["open-port-tcp-8080"])

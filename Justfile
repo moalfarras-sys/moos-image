@@ -369,6 +369,8 @@ check:
     python3 tests/test_moos_local_rpm_authentication.py
     # The station's pointer tool must keep asking KWin where the pointer is.
     python3 tests/test_station_pointer.py
+    # The second desktop server MoOS finds must be one the owner can turn off.
+    python3 tests/test_moos_remote_guard.py
     python3 tests/test_search_inline_answers.py
     # The wake receiver is the only way back from an idle gateway. IPv4-only resolution and a
     # pinned-IP fallback keep it alive on a network that blocks Telegram's default address.

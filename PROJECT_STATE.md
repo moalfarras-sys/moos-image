@@ -50,75 +50,39 @@ were exercised on a MoOS desktop.
 changes" forever. Use the MoOS Updater (Settings → Update MoOS, or Mo AI's "Update
 my system"), or wait for the nightly train; then restart.
 
-A root-owned local override `/etc/plasmalogin.conf.d/90-moos-development-autologin.conf`
-enables one-session automatic login for `moos` during this development cycle. It is
-not in the image and sets `Relogin=false`; remove it with `pkexec rm` on that path.
-
-Review shadows: the four W2 ones are **gone** — `THEME_REV` 62 swept them at the
-first login after the update, which is checklist item 2 and it passed
-(`~/.local/share/plasma/{plasmoids,wallpapers}/` are both empty).
-
-One new shadow is left on purpose, from the W7 review:
-`~/.local/share/kwin/tabbox/org.moos.ui2.switcher`, with
-`~/.config/kwinrc [TabBox] LayoutName` and `[TabBoxAlternative] LayoutName`
-pointing at it, so the owner has the new Alt+Tab before the next release carries
-it. `THEME_REV` does not sweep `kwin/tabbox`. Remove both by hand when the update
-that ships the package is installed:
-`rm -rf ~/.local/share/kwin/tabbox/org.moos.ui2.switcher` and
-`kwriteconfig6 --file kwinrc --group TabBox --key LayoutName --delete` (same for
-`TabBoxAlternative`).
-
-The station moved W1 → W6 in one update, carrying W2 (Hub controls), W3 (removable
-widgets, a wallpaper that stays), W4 (Mo AI's tool harness), W5 (Island jobs and
-privacy chips, inline Search answers), the #114 integration and W6, and landing on
-`THEME_REV` 62. W2 and W3 had been reviewed live before the update; W4, W5 and W6 were
-first seen on a MoOS desktop on 2026-09-17, below.
-
 ## W8 on the running station (2026-09-18, `44.20260918.868`)
 
-Reviewed with review shadows and `scripts/station/pointer.py`, frames in
-`~/.cache/moos-w8/`. Every row below was seen on the desk, not rendered from source.
+Reviewed with review shadows and `scripts/station/pointer.py`; frames in
+`~/.cache/moos-w8/`. Seen on the desk, not rendered: the Island capsule's caption moved
+inside the pill (the two pinned lines assumed `panelHeight` 54 while the bar gives 40),
+the capsule shows MoPlayer's own icon instead of the theme's "unknown file" sheet, MoOS
+Search became an icon-sized button (the old pill was as wide as four app icons and its
+field could never take focus), the status cluster went from nine glyphs to four and an
+arrow, Aurora Glass gave every MoOS surface a palette-derived rim and one specular
+hairline per depth, and MoOS Search shows what is playing with its control.
 
-| What | Before | After |
-| --- | --- | --- |
-| Island capsule | the source line was drawn through the pill's bottom curve and sat outside it | one line inside the capsule at the bar's real 40 px |
-| Island icon | the theme's "unknown file" sheet beside a working player | MoPlayer's own icon |
-| MoOS Search | a 140–196 px pill of empty glass carrying words | one icon-sized button; the bar is shorter |
-| Status cluster | nine glyphs in a row | four and an arrow |
-| Aurora Glass | alpha only | a palette-derived rim and one specular hairline, per depth |
-| Search while playing | the popup hid what was playing | the player is the first row, with its control |
-
-**MoPlayer, measured on the bus, not guessed.** `dbus-monitor` caught the desktop asking
-the new MPRIS name for its properties 2 ms after it appeared and MoPlayer answering
+**MoPlayer, measured on the bus.** `dbus-monitor` caught the desktop asking the new MPRIS
+name for its properties 2 ms after it appeared and MoPlayer answering
 `org.freedesktop.DBus.Error.UnknownObject` — the object was one `await` behind the name,
-and Plasma drops such a player for the life of that shell (a shell that STARTS with the
-player already there enumerates it, which is why this looked intermittent). Its metadata
-also arrived as `variant variant string`, so every reader saw an empty title. Both are
-fixed in `moplayer/lib/services/system/mpris.dart` and gated; they reach the desk with
-the next image, so the capsule still showed "وسائط قيد التشغيل" during this review.
+and Plasma drops such a player for the life of that shell. Its metadata also went out as
+`variant variant string`, so every reader saw an empty title. Both fixed in
+`moplayer/lib/services/system/mpris.dart` and gated; they reach the desk with the next
+image.
 
 ## Station review of W2–W6 (2026-09-17 and 2026-09-18) — closed
 
 Walked on `44.20260917.858` and `.862`; frames in `~/.cache/moos-station-review/` and
-`~/.cache/moos-station-review2/`. **Every row passed**: the booted version and retained
-deployment, the shadow sweep at first login (`THEME_REV` 62), Hub controls from the
-desktop's own menu (a card off and on, `HubWeather=false` written), a widget removed
-through its own menu with an undo notification (zero `immutability=0` left), MoOS Search's
-inline answer (`12*7` → **84** with a copy action; unit conversion still untested because
-the session's layout is Arabic), the Island's privacy chip naming the capturing app with a
-one-tap stop, App Drop installing and removing a real 8.4 MB AppImage, a dismissed
-administrator prompt staging nothing and saying so, and secondary text readable on
-`MoOSUI2AuroraLight`.
+`~/.cache/moos-station-review2/`. **Every row passed**: booted version and retained
+deployment, the shadow sweep at first login, Hub controls from the desktop's own menu, a
+widget removed with an undo, MoOS Search's inline answer (`12*7` → **84**), the Island's
+privacy chip naming the capturing app, App Drop installing and removing a real 8.4 MB
+AppImage, a dismissed administrator prompt staging nothing and saying so, and secondary
+text readable on `MoOSUI2AuroraLight`. Two findings from the last row are fixed in source
+(a MoOS-worded polkit action, and pkexec's "This incident has been reported." dropped).
 
-Two findings came out of the last row and are fixed in source (`org.moos.install-local-rpm`
-policy and `run_priv`): the administrator prompt read an English sentence naming a helper
-path, and pkexec's "This incident has been reported." came before MoOS's own line.
-
-**Still owed:** an Island **Store** job in the foreground (the Remote chip outranks it while
-Mo PC Remote runs), and Mo AI's tool loop, cards and identity answers — all four need a
-cloud brain, which is plan row P0.5 and an owner action.
-
-The W7 facts measured on the same session are in `docs/DEVELOPMENT_PLAN.md`.
+**Still owed on a desk:** an Island **Store** job in the foreground (the Remote chip
+outranks it while Mo PC Remote runs), and Mo AI's tool loop, cards and identity answers —
+all four need a cloud brain (P0.5, owner action).
 
 ## W6.1 — production, and booted on the station (`44.20260917.862`)
 
@@ -128,34 +92,29 @@ one-tap chips (P3.10); Mo AI's rail corrected at the default 940 px window.
 
 ## Released with cycle D, still unseen on a MoOS desktop: W6.2 and W6.3
 
-W6.2 (`012eac13`) came from the first renders of the desktop itself off the station
-(`scripts/review/render-desktop.sh` runs the real `plasmashell` under Xvfb): in Arabic the
-Hub's English date line hung on the far side of a right-aligned column, the Island's
+W6.2 (`012eac13`) came from the first off-station renders of the desktop itself: in Arabic
+the Hub's English date line hung on the far side of a right-aligned column, the Island's
 privacy chip was sized by counting characters, and MoOS Search assigned `undefined` to two
 labels on every start. W6.3 (`a0dd4b33`) is **What's new** — after an update MoOS says once
-what it brought, with "Try it" routes (P2.11). Both are rendered from source only.
-
-**Not proven anywhere yet:** tool choice by a real free model (P3.3).
+what it brought, with "Try it" routes (P2.11). **Not proven anywhere yet:** tool choice by
+a real free model (P3.3).
 
 ## ISO proof (P0.8) — closed
 
-The image's CI proof-channel helper read the IPv4 default route ONCE, and MoOS disables
-NetworkManager-wait-online, so nothing ordered that read after DHCP; the helper died on it
-and never added its SSH rule. Run `35265328509` shows the retry working (the route arrived
-16 ms after the daemons on the first boot, 1.02 s on the second), and the ISO proofs of
-cycles C and D were the second and third consecutive green install-and-reboot.
+The image's CI proof-channel helper read the IPv4 default route ONCE while MoOS disables
+NetworkManager-wait-online, so it died before adding its SSH rule; with a retry the ISO
+proofs of cycles C, D and E were three consecutive green install-and-reboot runs.
 
 ## Proven source/image behavior
 
 - Cycles B and C: the signed builds passed every image gate for all three x86 editions;
   every disk booted twice under QEMU/KVM; each final ISO installed offline, logged in,
-  opened every first-party app twice, rebooted and powered off.
-- `pr-image-gates.yml` builds the generic image on a pull request and runs its in-image
-  gates in 16 minutes, pushing nothing.
+  opened every first-party app twice, rebooted and powered off. `pr-image-gates.yml`
+  builds the generic image on a pull request in 16 minutes and pushes nothing.
 - Horizon motion gates cover finite settling, reversal, hidden state, reduced motion and
   pointer/key paths; MoOS motion roles follow the owner's animation speed on a real Qt
-  runtime (`THEME_REV` 65). Free cloud AI returned English and Arabic replies through the
-  live gateway with an explicitly free provider: chat, not system control.
+  runtime. Free cloud AI returned English and Arabic replies through the live gateway
+  with an explicitly free provider: chat, not system control.
 
 ## Development environment
 
@@ -183,6 +142,32 @@ cycles C and D were the second and third consecutive green install-and-reboot.
   transaction authority.
 - Owner decision P3.9: whether Mo AI ever gets a tool that runs a command the model
   wrote. Until it is taken, no such tool exists.
+
+## The free brain is measured on the machine that uses it (2026-09-18)
+
+The shipped preference list was measured on one day against a catalogue that turns
+over every few weeks: on 2026-09-18 the free catalogue carried **21 tool-capable
+zero-price models**, several newer than that snapshot (a 1M-context DeepSeek flash,
+a 550B Nemotron, two Inkling sizes, Laguna, Qwen 3.8, Gemma 4). `moai-measure-free`
+asks each candidate two fixed questions through the real gateway — an Arabic
+sentence and one tool call — and writes the order that answered into
+`~/.local/state/moai/free-ranking.json`; `moai_cloud_policy` prefers that for 30
+days and can never let it introduce a model, change a price or reach a billed
+route. Unmeasured candidates are now ranked by **context first**: a system agent
+carries tool schemas, results and confirmations in one transcript, and parameter
+count is only guessable from the model id.
+
+It cannot run here yet: no provider key is configured (P0.5, an owner action).
+
+**MoOS found a second desktop server on its own machine.** `moos-health scan` reported
+one warning on 2026-09-18: KDE's `krdpserver` listening on `tcp *:3389` for the whole
+network with `SystemUserEnabled=true`, beside Mo PC Remote (private tailnet, PIN,
+on-screen indicator). The finding used to open Mo PC Remote, which does not close the
+port; it now carries `moos://privacy/stop-sharing`, and `moos-remote-guard off` stops and
+un-autostarts the two named KDE sharing services with no administrator rights and nothing
+removed. **Still open on the station itself:** the port is still listening — stopping a
+running service needed a permission this session did not have, so the owner runs
+`moos-remote-guard off` (or presses the finding) once the update lands.
 
 ## Next execution
 
