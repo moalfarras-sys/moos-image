@@ -46,7 +46,16 @@ PlasmoidItem {
     }
     function resolvedPlayerIcon() {
         if (!root.hasPlayer) { return "applications-multimedia-symbolic"; }
-        if (root.desktopEntry.length > 0) { return root.desktopEntry; }
+        if (root.desktopEntry.length > 0) {
+            // MoOS's own apps publish `org.moos.<app>` as their desktop entry and
+            // ship their icon under the MoOS icon theme as `moos-<app>`, so the
+            // entry name on its own resolves to nothing and the capsule drew the
+            // "unknown file" sheet beside a working player.
+            if (root.desktopEntry.indexOf("org.moos.") === 0) {
+                return "moos-" + root.desktopEntry.substring(9);
+            }
+            return root.desktopEntry;
+        }
 
         // Browsers commonly publish Identity but omit DesktopEntry, while a
         // Flatpak artUrl can point into its private /tmp namespace. Resolve
@@ -642,17 +651,38 @@ PlasmoidItem {
             anchors.topMargin: root.design.space1
             anchors.bottomMargin: root.design.space1
             radius: Math.min(16, height / 2)
-            // Density from the family's own palette, not a literal: a
-            // true-black OLED profile wants a denser slab than the reference
-            // dark, and a light profile wants less body. See MoUI.Tokens.
+            // Aurora Glass, at PANEL depth. Density still comes from the
+            // family's own palette — a true-black OLED profile wants a denser
+            // slab than the reference dark — and the depth adds the body that
+            // separates a bar surface from the desk behind it. The rim is the
+            // palette's own shadow rather than a tint of the text colour, so the
+            // capsule keeps an edge over a bright wallpaper instead of
+            // dissolving into it; the specular hairline above gives that edge a
+            // direction. See MoUI.Tokens, "Aurora Glass".
             color: Qt.alpha(Kirigami.Theme.backgroundColor,
-                            root.design.glassDensity(Kirigami.Theme.backgroundColor)
+                            root.design.glassDensityAt(Kirigami.Theme.backgroundColor,
+                                                       root.design.glassLevelPanel)
                             + (compactHover.hovered ? 0.05 : 0))
             border.width: compact.activeFocus ? 2 : root.design.borderHairline
             border.color: compact.activeFocus ? Kirigami.Theme.highlightColor
-                : Qt.alpha(Kirigami.Theme.textColor,
-                           compactHover.hovered ? 0.22 : 0.13)
+                : (compactHover.hovered
+                    ? Qt.alpha(Kirigami.Theme.textColor, 0.22)
+                    : root.design.glassEdge(Kirigami.Theme.backgroundColor,
+                                            root.design.glassLevelPanel))
             antialiasing: true
+
+            // The light along the top edge. One hairline, inset by the corner so
+            // it lives on the straight part of the rim, painted only here.
+            Rectangle {
+                anchors.top: parent.top
+                anchors.topMargin: 1
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: Math.max(0, parent.width - parent.radius * 1.6)
+                height: 1
+                color: root.design.glassSpecular(Kirigami.Theme.backgroundColor,
+                                                 root.design.glassLevelPanel)
+                visible: parent.width > parent.radius * 2
+            }
 
             Behavior on border.color {
                 ColorAnimation { duration: root.motionFast }
@@ -798,6 +828,13 @@ PlasmoidItem {
                         width: 22
                         height: 22
                         source: root.contextIcon
+                        // A player publishes a desktop-entry NAME, which is not
+                        // always an icon name: MoPlayer's entry is
+                        // `org.moos.moplayer` and its icon is `moos-moplayer`,
+                        // so the capsule drew the theme's "unknown file" sheet —
+                        // a question mark on the bar next to a working player,
+                        // measured on the station on 2026-09-18.
+                        fallback: "applications-multimedia-symbolic"
                         color: root.privacyPresent
                             ? (root.privacyType === "camera"
                                 ? Kirigami.Theme.positiveTextColor
@@ -883,6 +920,22 @@ PlasmoidItem {
                     // half on the live panel.
                     Layout.alignment: Qt.AlignVCenter
                     Layout.fillHeight: false
+                    // THE BAR'S REAL HEIGHT DECIDES HOW MANY LINES FIT, not the
+                    // design token. `panelHeight` is what the capsule ASKS for
+                    // (54); MoOS Bar gives its applets 40, and two pinned lines
+                    // (17 + 15) plus the timeline lane need more than the 28 px
+                    // that leaves — so on the owner's own desk the source line
+                    // was drawn straight through the pill's bottom curve and
+                    // sat outside the capsule, measured on the station on
+                    // 2026-09-18 while a video was playing. The title is what
+                    // the capsule is for; the source is a courtesy, so it is
+                    // the one that goes when there is no room, and it is still
+                    // in the tooltip and in the expanded view.
+                    readonly property real laneRoom: timelineLane.visible ? 4 : 0
+                    readonly property bool roomForSource:
+                        compactShell.height - 4 - laneRoom >= 34
+                    Layout.maximumHeight: Math.max(
+                        17, compactShell.height - 4 - laneRoom)
                     Layout.leftMargin: root.design.space1
                     Layout.rightMargin: root.design.space1
                     spacing: 0
@@ -966,6 +1019,7 @@ PlasmoidItem {
                     }
                     PC3.Label {
                         Layout.fillWidth: true
+                        visible: compactText.roomForSource
                         text: root.contextSource
                         color: Kirigami.Theme.disabledTextColor
                         font.pixelSize: root.design.typeCaption
@@ -1064,6 +1118,7 @@ PlasmoidItem {
             // mirror the fill for RTL, and let it travel instead of jumping
             // between the one-second position samples.
             Item {
+                id: timelineLane
                 Layout.fillWidth: true
                 Layout.preferredHeight: 3
                 Layout.leftMargin: compactShell.radius * 0.35

@@ -118,47 +118,58 @@ reviewed live, gated once, merged once and proven once.
 | W6.2 | M1 | **What the desktop renderer saw first:** the Hub's date lines on one edge, the Island's privacy chip no longer cut in Arabic, MoOS Search's two start-up warnings (`THEME_REV` 64; W7 is 63); `scripts/review/render-desktop.sh` and `render-lockscreen.sh` | merged (`012eac13`, PR #119); **production on all four editions since 2026-09-18** (cycle D `44.20260917.865`, then cycle E `44.20260918.868`); rendered from source, **not seen on a MoOS desktop** |
 | W6.3 | M1 | **What's new:** after an update MoOS says once what it brought and where to try it; Settings → System → What's new keeps the list (P2.11) | merged (`a0dd4b33`, PR #120); **production on all four editions since 2026-09-18** (cycle D `44.20260917.865`, then cycle E `44.20260918.868`); rendered from source, **not seen on a MoOS desktop** |
 | W7 | M2 | MoOS Workspace: the switcher and Overview in MoOS UI, one-click tiling layouts, window durations taken from MoOS Motion, gesture and touchpad defaults | merged (`411a470c`, PR #118); **production on all four editions since 2026-09-18** (cycle D `44.20260917.865`, then cycle E `44.20260918.868`); ARM production. Landed and reviewed live on the station: **MoOS Switcher** (Alt+Tab and Alt+` are a MoOS surface, mirrored by the LOCALE, with a working close control), **`Tokens.scaled()`** (MoOS motion answers to the same AnimationDurationFactor Plasma does) and **MoOS Arrange** (halves, thirds, quarters, main-and-two and centre, from the window menu and Meta+Alt+1..4/C). `Tokens.scaled()` now reaches every surface: the motion ROLES carry the owner's animation speed, so the 288 places that read `design.motionFast` follow the one control (proven on a real Qt runtime in `tests/qml/motion-review.qml`). Open: touchpad/gesture defaults (P5.2, needs hardware this station does not have) and a live preview in the Arrange surface. Overview is **configuration only** — see "Workspace facts". **Closed on 2026-09-18** (`a2cfd72a`, PR #123): `scripts/station/pointer.py` made pointer review real (KWin confirms every position before a click), the four owed review rows passed on the station, the administrator prompt and a dismissed one became MoOS's own words, and the motion ROLES now carry the owner's animation speed so all 288 surfaces follow one control (`THEME_REV` 65). Open: touchpad and gesture defaults (P5.2, needs hardware this station does not have) and a live preview in Arrange |
-| W8 | M2 | **MoOS Aurora Glass — the look nobody else has.** One material with real depth (scene → panel → popover → dialog), a specular edge that takes its light from the owner's own wallpaper, ONE clarity control that drives both MoOS surfaces and the compositor, the MoOS mark at exactly three sizes, and glass that settles instead of fading | **next** |
+| W8 | M2 | **MoOS Aurora Glass, and a bar that tells the truth.** One material with four depths (a darker rim and a specular hairline, both derived from the palette); the Island capsule fits its real height and names the app that is playing; MoOS Search is a button the size of its neighbours instead of a 196 px empty pill; the status cluster is four glyphs and an arrow instead of nine; MoOS Search shows what is playing, with its control, while nothing is typed; MoPlayer publishes its MPRIS object before its name and its metadata with one variant, so a video that starts now appears on the desk now | merged (PR #126), every visible item reviewed on the running station |
 | W9 | M2 | System surfaces on MoOS UI: Updater, Recovery, Remote centre, Settings front door (P2.1–P2.2), a MoOS-owned About page (P2.9) | planned |
 | W10 | M3 | Mo Store as one job system for install/update/remove across the UI, Mo AI and URL routes, with a drop target in its own window (P1.7, P4.1–P4.2, P4.7) | planned |
 | W11 | M2 | MoOS Intro: one horizon scene from Plymouth through login to the Hub; first-run tour; offline first run (P1.6) | planned |
 | W12+ | M4–M5 | hardware breadth, compatibility products, MoOS Shield encryption, release trust | planned |
 
-### W8 — MoOS Aurora Glass, in detail
+### W8 — MoOS Aurora Glass: what shipped, and what is left
 
-MoOS already has glass, a palette per family and finite spring motion. What it
-does not have is ONE material: each surface decides its own density, nothing
-casts light on anything else, and the desk reads as flat panes on a photograph.
-The 2026 state of the art (Apple's refined Liquid Glass in iOS/macOS 27) fixed
-exactly this by giving glass a darkened edge, brighter specular highlights and a
-transparency the user controls. MoOS takes that further in the one direction
-Apple cannot: MoOS's glass answers the owner's OWN wallpaper and hardware tier.
+Shipped, each one measured on the running station on 2026-09-18 (frames in
+`~/.cache/moos-w8/`):
 
-1. **One glass, four depths.** Every MoOS surface declares its depth — scene
-   (Hub cards), panel (Bar, Island), popover (menus, Search, Switcher), dialog
-   (questions, Settings sheets) — and the material derives density, blur radius,
-   edge darkness and shadow from that depth plus the palette. Nothing hardcodes
-   an alpha again. Proof: one QML gate that renders the four depths on the same
-   background and measures separation.
-2. **Light from the owner's wallpaper.** A specular highlight along each glass
-   surface's leading edge, tinted from the dominant hue of the wallpaper that is
-   actually on screen. Proof: rendered frames for three wallpapers showing three
-   different highlights, and a measured contrast floor on both light and dark.
-3. **One clarity control.** «وضوح الزجاج | Glass clarity» from clear to solid,
-   one value that drives MoOS token density AND KWin's blur strength, with the
-   accessibility setting for reduced transparency pinning it to solid. Proof: the
-   slider moves both, read back from the live session.
-4. **The MoOS mark, three sizes, nowhere else.** One geometry for boot, login and
-   the Bar; every other place that draws a logo today uses a MoOS glyph instead.
-   Proof: the identity gates already sweep for foreign marks; add one that counts
-   MoOS mark instances per surface.
-5. **Glass that settles.** Surfaces spring in on MoOS Motion tokens and the
-   specular sweeps once as they arrive; Reduced Motion stops both. Proof: the
-   existing motion gate, extended to the new material.
+1. **One glass, four depths.** `Tokens.glassDensityAt/glassEdge/glassSpecular` derive
+   body, rim and highlight from the palette and from how far forward a surface sits
+   (scene, panel, popover, dialog). The Island capsule, the Search button and every
+   `MoUI.GlassSurface` (Settings sheets, the clock popup, the widget explorer, the lock
+   screen) wear it. A surface keeps an edge over a bright wallpaper instead of
+   dissolving into it.
+2. **The capsule fits.** The two pinned text lines assumed `panelHeight` (54); the bar
+   gives its applets 40, so the source line was drawn through the pill's bottom curve
+   and sat outside the capsule — the owner reported it and a frame proved it. The block
+   now measures the real height and drops to one line when two do not fit.
+3. **The capsule names the app.** A player publishes a desktop-entry NAME, which is not
+   an icon name: MoPlayer's entry is `org.moos.moplayer` and its icon is
+   `moos-moplayer`, so the bar showed the theme's "unknown file" sheet next to a working
+   player. MoOS entries map to MoOS icons and any unknown name falls back to a media
+   glyph.
+4. **Search is a button.** The 140–196 px pill carried the words "ابحث في MoOS" and a
+   field that can never be typed into (a panel cannot take keyboard focus), and it made
+   the bar as much wider as four application icons. It is one icon now; the hint lives
+   in the popup, where the caret is.
+5. **The status cluster is four glyphs and an arrow.** Nine icons reported themselves
+   active on a desktop that has a screen, a radio and a USB port. Bluetooth, brightness,
+   removable devices, the camera indicator, printers, KDE Connect, vaults and Caps Lock
+   moved behind the arrow; network, sound, notifications and keyboard language stayed.
+6. **Search and the Island are one answer.** Opening Search while something plays used
+   to hide the Island behind the popup. Search now shows that same player at the top —
+   title, source and one control — and only while nothing is typed.
+7. **MoPlayer is visible to the desktop.** Two defects, both root-caused on the bus:
+   it took its MPRIS bus name before exporting the object (a desktop asks the new owner
+   for its properties 2 ms later and drops a player that answers `UnknownObject`), and
+   it wrapped every metadata value in a second variant, so no reader could read the
+   title. Starting a video now changes the desk.
 
-Owner: the station agent (it needs the live compositor). Files: the design core
-generator and `org/moos/ui`, the MoOS plasmoids, `etc/xdg/kwinrc`'s blur section,
-the theme picker, and the Aurorae generator.
+Still open in W8, for whoever picks it up next:
+
+- **One clarity control.** «وضوح الزجاج | Glass clarity» from clear to solid, one value
+  driving both MoOS token density and KWin's blur strength, pinned to solid by the
+  reduced-transparency setting. It needs a config bridge a QML singleton can read (the
+  design core deliberately imports nothing), so it is a piece of plumbing, not a slider.
+- **The MoOS mark at exactly three sizes** (boot, login, bar) with a glyph everywhere
+  else.
+- **Glass that settles**: the specular sweeping once as a surface springs in.
 
 ### Ideas worth building (each needs its owner and a proof before it ships)
 

@@ -6,6 +6,7 @@ import QtQuick.Window
 import org.kde.plasma.core as PlasmaCore
 import org.kde.plasma.components as PC3
 import org.kde.kirigami as Kirigami
+import org.kde.plasma.private.mpris as Mpris
 import org.moos.ui as MoUI
 import "SearchAnswers.js" as Answers
 
@@ -32,6 +33,31 @@ FocusScope {
 
     readonly property bool hasQuery: root.query.trim().length > 0
     readonly property bool compact: width < 480
+
+    // WHAT IS HAPPENING NOW, IN THE SURFACE THE PERSON JUST OPENED.
+    //
+    // MoOS Search and MoOS Island are two halves of the same question. The
+    // Island answers "what is going on" without being asked; Search answers
+    // "what do I want" when asked. Before this, opening Search while something
+    // played hid the Island behind the popup and left the person with no way to
+    // pause without closing what they had just opened. The same player model the
+    // Island reads gives Search one row at the top — the track, its source and
+    // one control — and it appears only while nothing is typed, so it never
+    // pushes a result the person is aiming for.
+    Mpris.Mpris2Model { id: nowPlayers }
+    readonly property var nowPlayer: nowPlayers.currentPlayer
+    readonly property bool nowPlaying: nowPlayer !== null
+        && nowPlayer.playbackStatus > Mpris.PlaybackStatus.Stopped
+    readonly property bool nowVisible: nowPlaying && !hasQuery
+    readonly property string nowTitle: nowPlayer && String(nowPlayer.track || "").length > 0
+        ? String(nowPlayer.track)
+        : root.local("وسائط قيد التشغيل", "Media playback")
+    readonly property string nowSource: nowPlayer && String(nowPlayer.identity || "").length > 0
+        ? String(nowPlayer.identity)
+        : (nowPlayer && String(nowPlayer.artist || "").length > 0
+            ? String(nowPlayer.artist) : root.local("الوسائط", "Media"))
+    readonly property bool nowIsPlaying: nowPlayer !== null
+        && nowPlayer.playbackStatus === Mpris.PlaybackStatus.Playing
 
     readonly property var inlineAnswer: Answers.evaluate(root.query)
     readonly property bool hasInlineAnswer: inlineAnswer !== null && inlineAnswer.valid === true
@@ -320,6 +346,75 @@ FocusScope {
                     icon.name: surface.answerCopied ? "moos-check-symbolic" : "moos-copy-symbolic"
                     Layout.preferredHeight: 30
                     onClicked: surface.copyAnswer()
+                }
+            }
+        }
+
+        // Now — the Island's own state, inside Search ───────────────────────────────
+        MoUI.GlassSurface {
+            id: nowCard
+            Layout.fillWidth: true
+            visible: surface.nowVisible
+            depth: MoUI.Tokens.glassLevelDialog
+            radius: root.design.radiusCard
+            implicitHeight: nowContent.implicitHeight + root.design.space3 * 2
+
+            RowLayout {
+                id: nowContent
+                anchors.fill: parent
+                anchors.margins: root.design.space3
+                spacing: root.design.space3
+
+                Rectangle {
+                    Layout.preferredWidth: 38
+                    Layout.preferredHeight: 38
+                    radius: root.design.radiusSmall + 2
+                    color: Qt.alpha(Kirigami.Theme.highlightColor, 0.18)
+
+                    Kirigami.Icon {
+                        anchors.centerIn: parent
+                        width: root.design.iconLarge
+                        height: width
+                        source: "moos-music-symbolic"
+                        fallback: "applications-multimedia-symbolic"
+                        animated: false
+                    }
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 1
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: surface.nowTitle
+                        color: Kirigami.Theme.textColor
+                        font.family: root.uiFontFamily
+                        font.pixelSize: root.design.typeBody
+                        font.weight: Font.DemiBold
+                        elide: Text.ElideRight
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: surface.nowSource
+                        color: Kirigami.Theme.disabledTextColor
+                        font.family: root.uiFontFamily
+                        font.pixelSize: root.design.typeCaption
+                        elide: Text.ElideRight
+                    }
+                }
+
+                PC3.Button {
+                    Layout.preferredHeight: 30
+                    icon.name: surface.nowIsPlaying ? "media-playback-pause-symbolic"
+                                                    : "media-playback-start-symbolic"
+                    text: surface.nowIsPlaying ? root.local("إيقاف مؤقت", "Pause")
+                                               : root.local("تشغيل", "Play")
+                    display: PC3.AbstractButton.TextBesideIcon
+                    enabled: surface.nowPlayer !== null
+                    onClicked: {
+                        if (surface.nowPlayer) { surface.nowPlayer.PlayPause(); }
+                    }
                 }
             }
         }

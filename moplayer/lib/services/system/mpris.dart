@@ -150,6 +150,21 @@ class MprisService {
       final client = DBusClient.session();
       final object = _MprisObject(this);
 
+      // THE OBJECT IS EXPORTED BEFORE THE NAME IS TAKEN, and that order is the
+      // whole feature. A desktop watches for the bus name and asks the new owner
+      // for its properties the instant the name appears. Measured on the station
+      // on 2026-09-18: MoPlayer took the name first, Plasma's GetAll arrived
+      // 2 ms later, this connection answered
+      // `org.freedesktop.DBus.Error.UnknownObject` because the object was still
+      // one await away — and the player was dropped for the life of that shell.
+      // The visible result was that starting a video changed nothing: no MoOS
+      // Island capsule, no media controls, no title, until the desktop shell
+      // itself was restarted (a shell that STARTS with the player already there
+      // enumerates it and works, which is why this looked intermittent).
+      // Exporting first closes the window: no client can ever see the name
+      // without finding the object behind it.
+      await client.registerObject(object);
+
       // doNotQueue: if another MoPlayer already owns the name, we do not want to
       // silently inherit it when that one exits — two windows fighting over one
       // set of media keys is worse than the second window having none.
@@ -163,7 +178,6 @@ class MprisService {
         return;
       }
 
-      await client.registerObject(object);
       if (!_wanted || generation != _lifecycleGeneration) {
         await client.close();
         return;
@@ -261,18 +275,32 @@ class MprisService {
   DBusValue _metadataValue() {
     final m = _metadata;
     if (m == null) return DBusDict.stringVariant({});
+    // `DBusDict.stringVariant` already wraps every value in the variant that
+    // `a{sv}` requires, so the values handed to it are RAW. Wrapping them in
+    // DBusVariant here as well produced a variant inside a variant, and the
+    // measurement on the station on 2026-09-18 shows what that looked like on
+    // the wire:
+    //
+    //     dict entry(string "xesam:title"
+    //                variant variant string "…")   <- two variants
+    //
+    // Every MPRIS reader takes the first variant and asks it for a string,
+    // gets another variant instead, and reads nothing. So the title, length,
+    // artwork and artist were all invisible: the MoOS Island fell back to
+    // "وسائط قيد التشغيل | Media playback" and the cover stayed a placeholder
+    // while the player itself was perfectly healthy.
     return DBusDict.stringVariant({
       // Must be a valid object path — Plasma discards the whole metadata dict if
       // it is not, and the applet then shows an empty player.
-      'mpris:trackid': DBusVariant(_trackPath(m)),
-      if (m.lengthUs > 0) 'mpris:length': DBusVariant(DBusInt64(m.lengthUs)),
+      'mpris:trackid': _trackPath(m),
+      if (m.lengthUs > 0) 'mpris:length': DBusInt64(m.lengthUs),
       if (m.artUrl != null && m.artUrl!.isNotEmpty)
-        'mpris:artUrl': DBusVariant(DBusString(m.artUrl!)),
-      'xesam:title': DBusVariant(DBusString(m.title)),
+        'mpris:artUrl': DBusString(m.artUrl!),
+      'xesam:title': DBusString(m.title),
       if (m.artist != null && m.artist!.isNotEmpty)
-        'xesam:artist': DBusVariant(DBusArray.string([m.artist!])),
+        'xesam:artist': DBusArray.string([m.artist!]),
       if (m.album != null && m.album!.isNotEmpty)
-        'xesam:album': DBusVariant(DBusString(m.album!)),
+        'xesam:album': DBusString(m.album!),
     });
   }
 

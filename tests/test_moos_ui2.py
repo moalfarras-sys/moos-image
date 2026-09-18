@@ -842,7 +842,7 @@ class TestMoOSUI2(unittest.TestCase):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=65", apply,
+            "THEME_REV=66", apply,
             "existing v61 users would keep the Island that cannot show Store jobs or name the app "
             "using the camera; "
             "existing v60 users (ARM took W3 then W5 at the same revision) would keep the cached "
@@ -2035,14 +2035,24 @@ class TestMoOSUI2(unittest.TestCase):
         tokens = (ROOT / "system_files/usr/lib64/qt6/qml/org/moos/ui/Tokens.qml"
                   ).read_text(encoding="utf-8")
         self.assertIn("function glassDensity(background)", tokens)
+        # Aurora Glass (W8) added DEPTH on top of the same derivation: a surface
+        # says how far forward it sits and glassDensityAt() adds body to the
+        # palette's own density, so the bar reads above the desk and a popover
+        # above the bar. The rule this gate exists for is unchanged — the alpha
+        # must still come from the palette — so both spellings are accepted and
+        # the depth-aware one must be built on the palette one.
+        self.assertIn("function glassDensityAt(background, level)", tokens)
+        self.assertIn("const base = glassDensity(background)", tokens,
+                      "depth must add body to the palette's density, not replace it")
 
         for name, path in (
             ("island", SHARE / "plasma/plasmoids/org.moos.island/contents/ui/main.qml"),
             ("hero clock", SHARE / "plasma/plasmoids/org.moos.heroclock/contents/ui/main.qml"),
         ):
             qml = qml_code(path.read_text(encoding="utf-8"))
-            self.assertIn(
-                "design.glassDensity(Kirigami.Theme.backgroundColor)", qml,
+            self.assertTrue(
+                "design.glassDensity(Kirigami.Theme.backgroundColor)" in qml
+                or "design.glassDensityAt(Kirigami.Theme.backgroundColor," in qml,
                 f"the {name} capsule still hardcodes its glass alpha")
 
         def lightness(rgb: tuple[int, int, int]) -> float:

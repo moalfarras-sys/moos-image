@@ -249,7 +249,13 @@ set -uo pipefail
 #     the four surfaces that called Tokens.scaled() by name. The singleton still imports no
 #     Kirigami; it asks for the live value at run time. Cached QML must be purged or a
 #     machine keeps running the old roles.
-THEME_REV=65
+# 66: W8 — Aurora Glass. The design core gained a material with four depths (body, a
+#     palette-derived rim and one specular hairline per depth) and MoUI.GlassSurface carries
+#     it, so the Island capsule, the MoOS Search button, Settings' sheets, the clock popup,
+#     the widget explorer and the lock screen stopped being four separate alphas. The Island
+#     also measures the bar's REAL height before drawing two lines, and MoOS Search is a
+#     button instead of a 196 px pill. Cached QML holds the old material until it is purged.
+THEME_REV=66
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"
