@@ -1339,9 +1339,16 @@ def measure_state() -> dict:
 def start_measurement() -> dict:
     """Run moai-measure-free once, reporting progress while it runs."""
     with _measure_lock:
-        if _measure["running"]:
-            return measure_state()
-        _measure.update(running=True, done=0, total=0, now="", error="")
+        # `measure_state()` takes this same lock, and threading.Lock is not
+        # reentrant. Calling it from inside here deadlocked the whole control
+        # server on the SECOND request — the lock was never released again, so
+        # every later /measure, /models and /quick hung with it. Decide under the
+        # lock; report outside it.
+        already = _measure["running"]
+        if not already:
+            _measure.update(running=True, done=0, total=0, now="", error="")
+    if already:
+        return measure_state()
 
     def worker():
         try:
@@ -1352,7 +1359,12 @@ def start_measurement() -> dict:
                 _measure["total"] = len(candidates)
             process = subprocess.Popen(
                 ["moai-measure-free", "--limit", str(MEASURE_LIMIT)],
-                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                # Python block-buffers stdout into a pipe, so without this the eight
+                # lines arrive together when the run ENDS and the card sits on "0 من 8"
+                # for two minutes before jumping to done. Measured: that is exactly
+                # what it did.
+                env=os.environ | {"PYTHONUNBUFFERED": "1"})
             # Each measured model prints one line beginning with its own id.
             for line in process.stdout or ():
                 model = line.split(" ", 1)[0].strip()

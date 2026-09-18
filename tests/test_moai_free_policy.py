@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import tempfile
+import threading
 import unittest
 from unittest.mock import patch
 
@@ -246,6 +247,44 @@ class FreePolicy(unittest.TestCase):
                                                reverse=True)]
         self.assertEqual(chat[0], 'inclusionai/ling-3.0-flash-vl:free')
         self.assertEqual(chat[-1], 'thinkingmachines/inkling:free')
+
+    def test_a_second_measure_request_reports_instead_of_deadlocking_the_server(self):
+        """Found live: the second click hung moai-control, and everything behind it.
+
+        `start_measurement()` reported the already-running state by calling
+        `measure_state()` from inside the lock it had just taken, and threading.Lock
+        is not reentrant. The lock was then never released, so /measure, /models and
+        /quick all hung for the rest of the session — from one extra click.
+        """
+        control = load('moai_control_measure_lock', 'system_files/usr/bin/moai-control')
+        started = []
+
+        class Process:
+            stdout = iter(())
+            def wait(self, timeout=None): started.append('waited'); return 0
+
+        with patch.object(control.subprocess, 'Popen', lambda *a, **k: Process()), \
+                patch.object(control.cloud_policy, 'automatic_candidates',
+                             return_value=['nex-agi/nex-n2.5-mini:free']):
+            # Hold the run open so the second request takes the "already running" path.
+            with control._measure_lock:
+                control._measure.update(running=True, done=2, total=8, now='x', error='')
+            done = threading.Event()
+            result = {}
+
+            def second():
+                result['state'] = control.start_measurement()
+                done.set()
+
+            threading.Thread(target=second, daemon=True).start()
+            self.assertTrue(done.wait(5), 'start_measurement deadlocked on its own lock')
+            self.assertEqual((result['state']['measuring'], result['state']['done']), (True, 2))
+            # Nothing was launched a second time, and the lock is free afterwards.
+            self.assertEqual(started, [])
+            self.assertTrue(control._measure_lock.acquire(timeout=1))
+            control._measure_lock.release()
+            with control._measure_lock:
+                control._measure.update(running=False)
 
     def test_measured_results_refuses_a_priced_or_unreadable_row(self):
         """A ranking file can order free models. It can never introduce one."""
