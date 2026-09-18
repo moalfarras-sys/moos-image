@@ -58,10 +58,26 @@ else
     echo "No graphical display detected. Installing the smart essential set: ${SELECTED[*]:-already complete}"
 fi
 
-for app in "${SELECTED[@]}"; do
-    echo -e "${B}Installing ${app}...${N}"
-    flatpak install -y --noninteractive flathub "$app" || echo "skipped: $app"
-done
+# Through Mo Store's backend — the ONE authority for installing, removing and updating
+# apps (DEVELOPMENT_PLAN.md P4.1). `flatpak install` here put the first-run set in the
+# SYSTEM installation while Mo Store installs per user, so the apps a person chose in
+# their first five minutes were exactly the ones Mo Store could never remove afterwards,
+# and none of them produced an Island job row. One call installs the whole selection as
+# one job, in the scope the rest of MoOS uses.
+if [ "${#SELECTED[@]}" -gt 0 ]; then
+    echo -e "${B}Installing ${SELECTED[*]}...${N}"
+    if summary="$(moos-storectl install "${SELECTED[@]}" 2>/dev/null | tail -n 1)"; then
+        printf '%s\n' "$summary" | python3 -c 'import json, sys
+try:
+    document = json.loads(sys.stdin.read())
+except ValueError:
+    document = {}
+message = " ".join(str((document or {}).get("message") or "").split())
+print(message or "Installed.")' || true
+    else
+        echo "Some apps did not install; open Mo Store to finish."
+    fi
+fi
 # Bazaar may have just been installed system-wide. It is Mo Store's engine, not
 # a second storefront — hide its launcher for this user (moos-one-store is a
 # no-op when Bazaar is absent).

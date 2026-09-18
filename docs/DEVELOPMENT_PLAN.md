@@ -42,8 +42,11 @@ laptop, a touchscreen or two monitors**.
    app's window and 2.6% idle — all inside budget. What is still owed is the same four
    rows on a **balanced** and an **essential** machine, whose budgets are still derived
    rather than measured (P5.4).
-2. **Applications that just work** — one install/update/remove authority across Mo
-   Store, App Drop, Mo AI and URL routes, with truthful progress everywhere (W10, P4).
+2. **Applications that just work** — the one install/update/remove authority is now
+   enforced by a gate, not a comment: `moai-do`'s Windows setup and `moos-setup`'s
+   first-run selection both called `flatpak install` directly, putting apps in the SYSTEM
+   scope that Mo Store could never remove (W9.3). What remains is truthful progress
+   everywhere and the Store's own job surface (W10, P4).
 3. **Mo AI as the system's hands, proven** — the brain is configured, the tool loop runs
    live, and action selection is now MEASURED: 80 fixed Arabic/English cases through the
    real gateway, 100% and 98.8% across two runs after the measurement itself found two
@@ -148,6 +151,7 @@ reviewed live, gated once, merged once and proven once.
 | W8.5 | M3 | **The owner picks a free brain by what it did here, not by what shipped.** The picker's first group is what THIS machine measured — each row carrying its own seconds, the order the run produced, and a model it caught failing saying which half it failed; the automatic row names the model it resolves to right now; one button re-measures without leaving the picker. The action ranking counts the answer the same turn gives, so a 550B model that calls a tool in 1.4 s and then takes 16.6 s to say what it did no longer outranks one that does both in 2.9 s | PR #136, measured and clicked on the running station |
 | W9.1 | M3 | **Mo AI's tool choice is measured, and the measurement fixed MoOS.** Forty fixed cases in Arabic and English — 80 measurements — go through the real gateway with the whole shipped schema, `tool_choice` never forced, scored on the first call. The first run read 93.8%, and four of the five misses were two MoOS tool pairs the model could only guess between: `diagnose_services` ran exactly what `list_failed_units` runs, and `net_doctor`/`network_status` never said which one tests and which one reads. The duplicate is gone from the model-facing schema and the pair now points at itself; the same cases then read 100% and 98.8% across two runs, with no wrong tool in either | PR #138, measured three times on the running station |
 | W9.2 | M1 | **MoOS has speed numbers, and a budget it can fail.** `moos-measure-speed` asks systemd for boot and session, asks KWin when an app's window really exists, and measures MoOS's OWN processes' idle CPU — not the whole machine, which on this station read 9.03% with Chrome, VS Code and Steam open while MoOS cost 2.6%. Budgets live per tier in `speed-budgets.json`, each carrying the measurement that justifies it; a probe that cannot run reports why and is excluded from the verdict instead of counting as a zero | PR #138, all four rows measured on the running station |
+| W9.3 | M3 | **One authority for every app transaction, held by a gate instead of a comment.** `moai-do` has said since W6 that Mo Store's backend is the only thing that installs, removes or updates an app — because `flatpak install` lands in the SYSTEM scope while Mo Store installs per user, so Mo AI's apps could never be removed from the Store. Two callers were outside that rule, and they were the two a person meets first: the Windows-programs setup, and the first-run app selection. Both go through `moos-storectl` now, and `tests/test_one_app_transaction_authority.py` fails on any new one — with a single narrow exception for `flatpak uninstall --unused`, which collects orphaned runtimes and cannot touch an app | PR #138 |
 | W9 | M2 | System surfaces on MoOS UI: Updater, Recovery, Remote centre, Settings front door (P2.1–P2.2), a MoOS-owned About page (P2.9) | planned |
 | W10 | M3 | Mo Store as one job system for install/update/remove across the UI, Mo AI and URL routes, with a drop target in its own window (P1.7, P4.1–P4.2, P4.7) | planned |
 | W11 | M2 | MoOS Intro: one horizon scene from Plymouth through login to the Hub; first-run tour; offline first run (P1.6) | planned |

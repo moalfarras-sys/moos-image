@@ -129,6 +129,9 @@ check:
     # measurement that justifies it, and a probe that cannot run is never a zero.
     python3 tests/test_moai_action_selection.py
     python3 tests/test_moos_speed_budgets.py
+    # P4.1: one authority for every app transaction. The rule was written in moai-do's
+    # own comment and then broken twice, in the two places a person meets first.
+    python3 tests/test_one_app_transaction_authority.py
     python3 tests/test_moai_hermes.py
     python3 tests/test_release_partition_roles.py
     python3 tests/test_iso_install_gate.py

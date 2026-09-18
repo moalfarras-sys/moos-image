@@ -642,11 +642,15 @@ do_setup_windows() {
         echo "${G}✓ Bottles مثبّت مسبقاً — سأفتحه | already installed — opening it${N}"
     else
         confirm || return 0
-        if ! flatpak install -y flathub com.usebottles.bottles; then
+        # Through Mo Store's backend, like every other app transaction in this file
+        # (see "App lifecycle" above). It called `flatpak install` directly, which
+        # installs SYSTEM-wide while Mo Store installs per user — so Bottles landed in
+        # a scope Mo Store could not later remove, and no Island job row ever appeared
+        # for it. The rule was already written here; this call was simply outside it.
+        if ! store_job install com.usebottles.bottles; then
             echo "${Y}لم يكتمل التثبيت | install did not complete${N}"
             return 1
         fi
-        echo "${G}✓ تم تثبيت Bottles | Bottles installed${N}"
     fi
     if ! launch_app com.usebottles.bottles; then
         echo "${Y}Bottles مثبّت، لكن تعذّر فتح نافذته الآن.${N}" >&2
