@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import configparser
 import importlib.util
+import math
 import re
 import sys
 import unittest
@@ -57,6 +58,47 @@ if family_spec is None or family_spec.loader is None:
     raise RuntimeError(f"cannot load {FAMILY_GENERATOR_PATH}")
 family_generator = importlib.util.module_from_spec(family_spec)
 family_spec.loader.exec_module(family_generator)
+
+
+def _enclosed_area(d: str) -> float:
+    """Shoelace area of a path made of M/L/A/Z, with each arc flattened.
+
+    Arcs are converted from SVG endpoint form to centre form (SVG 1.1 F.6.5),
+    so the sweep flag decides which way round the arc goes - exactly the
+    detail a capsule with inward caps got wrong.
+    """
+    tokens = re.findall(r"[MLAZ]|-?\d*\.?\d+", d)
+    points: list[tuple[float, float]] = []
+    index = 0
+    while index < len(tokens):
+        command = tokens[index]
+        index += 1
+        if command in "ML":
+            points.append((float(tokens[index]), float(tokens[index + 1])))
+            index += 2
+        elif command == "A":
+            rx, _ry, _rot, large, sweep, x2, y2 = (float(v) for v in tokens[index:index + 7])
+            index += 7
+            x1, y1 = points[-1]
+            mx, my = (x1 - x2) / 2, (y1 - y2) / 2
+            radius = max(rx, math.hypot(mx, my))
+            root = math.sqrt(max(0.0, (radius * radius - mx * mx - my * my) / (mx * mx + my * my)))
+            if bool(large) == bool(sweep):
+                root = -root
+            cx, cy = root * my + (x1 + x2) / 2, -root * mx + (y1 + y2) / 2
+            start = math.atan2(y1 - cy, x1 - cx)
+            delta = math.atan2(y2 - cy, x2 - cx) - start
+            if sweep and delta < 0:
+                delta += 2 * math.pi
+            elif not sweep and delta > 0:
+                delta -= 2 * math.pi
+            for step in range(1, 65):
+                angle = start + delta * step / 64
+                points.append((cx + radius * math.cos(angle), cy + radius * math.sin(angle)))
+    area = 0.0
+    for (ax, ay), (bx, by) in zip(points, points[1:] + points[:1]):
+        area += ax * by - bx * ay
+    return abs(area) / 2
 
 
 class MoOSSymbolicIconTests(unittest.TestCase):
@@ -174,6 +216,29 @@ class MoOSSymbolicIconTests(unittest.TestCase):
                 )
                 self.assertNotIn("stroke", shape.attrib, f"{path.name} must remain path-only")
                 self.assertNotIn("url(#", shape.attrib.get("fill", ""), path.name)
+
+    def test_capsule_ends_are_round_not_bitten(self) -> None:
+        # A capsule is a ribbon with two half-disc caps: its area is
+        # length x width + pi r^2. With the caps drawn the wrong way round
+        # (sweep 1 on a counter-clockwise outline) each end lost a half-disc
+        # instead: every ribbon in 50 icons had fish-tail ends, and "pulse"
+        # - whose first stroke is shorter than its width - crossed itself and
+        # rendered as a speck on Settings > What's new (A1, 2026-09-18).
+        for x1, y1, x2, y2, width in (
+            (2.75, 12, 5.5, 12, 3), (5.5, 12, 8, 6, 2), (16, 12, 21.25, 12, 2),
+            (12, 20, 12, 4, 2), (19, 5, 5, 19, 2.25), (7, 7, 7.5, 7.5, 2),
+        ):
+            with self.subTest(capsule=(x1, y1, x2, y2, width)):
+                radius = width / 2
+                expected = math.hypot(x2 - x1, y2 - y1) * width + math.pi * radius * radius
+                # Rounding to three decimals shortens a diagonal chord a
+                # little, so each cap spans slightly under 180 degrees; that
+                # costs well under a quarter disc. Bitten caps are off by two
+                # whole discs, so a quarter disc separates the two cleanly.
+                self.assertAlmostEqual(
+                    _enclosed_area(generator.capsule(x1, y1, x2, y2, width)),
+                    expected, delta=0.25 * math.pi * radius * radius,
+                )
 
     def test_warning_uses_the_theme_warning_role(self) -> None:
         warning = (ACTION_DIR / "moos-warning-symbolic.svg").read_text(encoding="utf-8")

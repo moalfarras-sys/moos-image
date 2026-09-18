@@ -1,0 +1,8 @@
+# MoOS: Mo Store is the one storefront (build.sh, section c3b, hides Discover
+# from every menu for that reason). Discover's AppStream runner still answered
+# in MoOS Search, KRunner and the launcher: a query as plain as "12*3+4" came
+# back with "Get RPN Calculator / PySolFC / 2048", and each row opens Discover,
+# a second store the owner cannot see anywhere else (A1, 2026-09-18). Milou's
+# results model reads this group, so one key covers every search surface.
+[Plugins]
+krunner_appstreamEnabled=false

@@ -118,11 +118,16 @@ def capsule(x1: float, y1: float, x2: float, y2: float, width: float = 2) -> str
         return circle(x1, y1, width / 2)
     radius = width / 2
     nx, ny = -dy / length * radius, dx / length * radius
+    # The outline runs counter-clockwise on screen (y points down), so a cap
+    # that bulges OUT of the ribbon is also drawn counter-clockwise: sweep 0.
+    # Sweep 1 bit a half-disc INTO each end. Every ribbon had fish-tail ends,
+    # and one shorter than its width (the first stroke of "pulse") crossed
+    # itself and vanished under evenodd, leaving a speck on the What's new page.
     return (
         f"M{_pt(x1 + nx, y1 + ny)} L{_pt(x2 + nx, y2 + ny)} "
-        f"A{_n(radius)} {_n(radius)} 0 0 1 {_pt(x2 - nx, y2 - ny)} "
+        f"A{_n(radius)} {_n(radius)} 0 0 0 {_pt(x2 - nx, y2 - ny)} "
         f"L{_pt(x1 - nx, y1 - ny)} "
-        f"A{_n(radius)} {_n(radius)} 0 0 1 {_pt(x1 + nx, y1 + ny)} Z"
+        f"A{_n(radius)} {_n(radius)} 0 0 0 {_pt(x1 + nx, y1 + ny)} Z"
     )
 
 
@@ -421,10 +426,12 @@ SYMBOLS: dict[str, Symbol] = {
     "cpu": sym(
         "Processor", "hardware",
         compound(rect(5.25, 5.25, 13.5, 13.5, 3), rect(8.1, 8.1, 7.8, 7.8, 1.2)),
-        *tuple(path(capsule(x, 2.25, x, 5.25, 1.8)) for x in (8, 12, 16)),
-        *tuple(path(capsule(x, 18.75, x, 21.75, 1.8)) for x in (8, 12, 16)),
-        *tuple(path(capsule(2.25, y, 5.25, y, 1.8)) for y in (8, 12, 16)),
-        *tuple(path(capsule(18.75, y, 21.75, y, 1.8)) for y in (8, 12, 16)),
+        # Pin tips are free ends: a round cap reaches r past its endpoint, so each
+        # tip sits r inside the 2.25 / 21.75 edge instead of on it.
+        *tuple(path(capsule(x, 3.15, x, 5.25, 1.8)) for x in (8, 12, 16)),
+        *tuple(path(capsule(x, 18.75, x, 20.85, 1.8)) for x in (8, 12, 16)),
+        *tuple(path(capsule(3.15, y, 5.25, y, 1.8)) for y in (8, 12, 16)),
+        *tuple(path(capsule(18.75, y, 20.85, y, 1.8)) for y in (8, 12, 16)),
         path(rect(10.1, 10.1, 3.8, 3.8, 1), HIGHLIGHT),
         min_holes=1,
     ),
@@ -582,7 +589,7 @@ SYMBOLS.update({
     ),
     "install": sym(
         "Install", "software",
-        path(capsule(12, 2.5, 12, 13.6, 2.3)),
+        path(capsule(12, 3.4, 12, 13.6, 2.3)),
         path(polygon(((6.8, 10.3), (12, 16.3), (17.2, 10.3), (14.15, 10.3), (12, 12.8), (9.85, 10.3))), HIGHLIGHT),
         compound(
             rect(3.25, 14.15, 17.5, 7.6, 2.5),
@@ -682,8 +689,8 @@ SYMBOLS.update({
     ),
     "optimize": sym(
         "Optimise", "system",
-        path(capsule(2.25, 7.1, 21.75, 7.1, 2)),
-        path(capsule(2.25, 16.9, 21.75, 16.9, 2)),
+        path(capsule(3.25, 7.1, 20.75, 7.1, 2)),
+        path(capsule(3.25, 16.9, 20.75, 16.9, 2)),
         path(ring(7.6, 7.1, 3.15, 1.15)),
         path(ring(16.4, 16.9, 3.15, 1.15)),
         path(star(19.25, 4, 2.3, .75, 4), HIGHLIGHT),
@@ -719,7 +726,7 @@ SYMBOLS.update({
         path(arc_band(12, 12.2, 9.55, 7.25, 48, 312)),
         path(circle(5.6, 6.8, 1.15)),
         path(circle(18.4, 6.8, 1.15)),
-        path(capsule(12, 2.25, 12, 11.8, 2.4), HIGHLIGHT),
+        path(capsule(12, 3.45, 12, 10.6, 2.4), HIGHLIGHT),
         min_holes=0,
     ),
     "refresh": sym(
@@ -1051,14 +1058,14 @@ SYMBOLS.update({
     ),
     "pulse": sym(
         "Activity", "status",
-        path(capsule(2.75, 12, 5.5, 12, 3)),
+        path(capsule(3.75, 12, 5.5, 12, 3)),
         path(capsule(5.5, 12, 8, 6, 2), HIGHLIGHT),
         path(capsule(8, 6, 9.5, 14, 2), HIGHLIGHT),
         path(capsule(9.5, 14, 11, 8, 2), HIGHLIGHT),
         path(capsule(11, 8, 13, 16, 2), HIGHLIGHT),
         path(capsule(13, 16, 14.5, 10, 2), HIGHLIGHT),
         path(capsule(14.5, 10, 16, 12, 2), HIGHLIGHT),
-        path(capsule(16, 12, 21.25, 12, 2), HIGHLIGHT),
+        path(capsule(16, 12, 20.75, 12, 2), HIGHLIGHT),
     ),
     "login": sym(
         "Login", "navigation",
