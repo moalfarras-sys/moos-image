@@ -80,9 +80,9 @@ reviewed live, gated once, merged once and proven once.
 | W5 | M1 | MoOS Island jobs (Store installs, updates, downloads) and privacy chips (camera, microphone, screen share); Search inline answers (calculator, units, file actions) | merged (`7f182689`, PR #111); it turned x86 `main` red and shipped without its `THEME_REV` bump — both repaired by the 2026-09-17 integration (#114, rev 61); **x86 production since 2026-09-17** (cycle B, `44.20260917.858`) in the form W6 repaired; ARM production; no station review recorded |
 | W6 | M1+M3 | **What W4 and W5 promised, working, plus App Drop.** Mo AI's tool loop runs on every machine, in steps, with ten read-only inspection tools and truthful results (P3.3, P3.4, P3.7, P3.8); the Island really shows Store jobs and names the app behind a privacy chip; a downloaded AppImage or portable archive dropped into Applications becomes an app (P4.6); secondary text is readable on every scheme; MoOS-owned text no longer names another desktop | merged (`a8622f95`, PR #115); **x86 production since 2026-09-17** (cycle B, `44.20260917.858`); ARM promotion follows `main`'s own boot proof; gated and rendered from source, **not seen on a MoOS desktop** |
 | W6.1 | M1+M3 | a MoOS-owned "About this device" page (P2.9); Mo AI skills — twelve repair playbooks, `list_skills`/`read_skill`, one-tap chips (P3.10); Mo AI's rail at the window's DEFAULT size; the Device panel no longer prints the raw kernel release; P0.8's cause recorded as measured | merged (`291361ad`, PR #117); **production on all four editions since 2026-09-17** (x86 `44.20260917.862`, ARM `44.20260917.441`, cycle C); **not seen on a MoOS desktop** |
-| W6.2 | M1 | **What the desktop renderer saw first:** the Hub's date lines on one edge, the Island's privacy chip no longer cut in Arabic, MoOS Search's two start-up warnings (`THEME_REV` 64; W7 is 63); `scripts/review/render-desktop.sh` and `render-lockscreen.sh` | merged (`012eac13`, PR #119); **x86 production since 2026-09-18** (`44.20260917.865`, cycle D); rendered from source, **not seen on a MoOS desktop** |
-| W6.3 | M1 | **What's new:** after an update MoOS says once what it brought and where to try it; Settings → System → What's new keeps the list (P2.11) | merged (`a0dd4b33`, PR #120); **x86 production since 2026-09-18** (`44.20260917.865`, cycle D); rendered from source, **not seen on a MoOS desktop** |
-| W7 | M2 | MoOS Workspace: the switcher and Overview in MoOS UI, one-click tiling layouts, window durations taken from MoOS Motion, gesture and touchpad defaults | merged (`411a470c`, PR #118); **x86 production since 2026-09-18** (`44.20260917.865`, cycle D); ARM production. Landed and reviewed live on the station: **MoOS Switcher** (Alt+Tab and Alt+` are a MoOS surface, mirrored by the LOCALE, with a working close control), **`Tokens.scaled()`** (MoOS motion answers to the same AnimationDurationFactor Plasma does) and **MoOS Arrange** (halves, thirds, quarters, main-and-two and centre, from the window menu and Meta+Alt+1..4/C). Open: touchpad/gesture defaults (P5.2), carrying `Tokens.scaled()` to the per-surface aliases, and a live preview in the Arrange surface. Overview is **configuration only** — see "Workspace facts" |
+| W6.2 | M1 | **What the desktop renderer saw first:** the Hub's date lines on one edge, the Island's privacy chip no longer cut in Arabic, MoOS Search's two start-up warnings (`THEME_REV` 64; W7 is 63); `scripts/review/render-desktop.sh` and `render-lockscreen.sh` | merged (`012eac13`, PR #119); **production on all four editions since 2026-09-18** (cycle D `44.20260917.865`, then cycle E `44.20260918.868`); rendered from source, **not seen on a MoOS desktop** |
+| W6.3 | M1 | **What's new:** after an update MoOS says once what it brought and where to try it; Settings → System → What's new keeps the list (P2.11) | merged (`a0dd4b33`, PR #120); **production on all four editions since 2026-09-18** (cycle D `44.20260917.865`, then cycle E `44.20260918.868`); rendered from source, **not seen on a MoOS desktop** |
+| W7 | M2 | MoOS Workspace: the switcher and Overview in MoOS UI, one-click tiling layouts, window durations taken from MoOS Motion, gesture and touchpad defaults | merged (`411a470c`, PR #118); **production on all four editions since 2026-09-18** (cycle D `44.20260917.865`, then cycle E `44.20260918.868`); ARM production. Landed and reviewed live on the station: **MoOS Switcher** (Alt+Tab and Alt+` are a MoOS surface, mirrored by the LOCALE, with a working close control), **`Tokens.scaled()`** (MoOS motion answers to the same AnimationDurationFactor Plasma does) and **MoOS Arrange** (halves, thirds, quarters, main-and-two and centre, from the window menu and Meta+Alt+1..4/C). Open: touchpad/gesture defaults (P5.2), carrying `Tokens.scaled()` to the per-surface aliases, and a live preview in the Arrange surface. Overview is **configuration only** — see "Workspace facts" |
 | W8 | M2 | MoOS Intro: one horizon scene from Plymouth through login to the Hub; first-run tour; offline first run (P1.6) | planned |
 | W9 | M2 | System surfaces on MoOS UI: Updater, Recovery, Remote centre, Settings front door (P2.1–P2.2), a MoOS-owned About page (P2.9) | planned |
 | W10 | M3 | Mo Store as one job system for install/update/remove across the UI, Mo AI and URL routes, with a drop target in its own window (P1.7, P4.1–P4.2, P4.7) | planned |
@@ -184,15 +184,16 @@ KDE/Wayland, make cloud AI truthful, and deliver the same result in signed ISOs.
 Repository cleanup and engineering instructions support that work; screenshots,
 old plans and extra packages are not product progress.
 
-**Active milestone: M1, the daily MoOS desktop journey.** x86 production is W6.3
-(`96e34695`: W7 + W6.2 + What's new; `44.20260917.865`, promoted 2026-09-18 by run `35294288086`);
-ARM follows `main` through its own boot proof (`44.20260917.450` at `a0dd4b33` when read).
+**Active milestone: M1, the daily MoOS desktop journey.** All four editions are one revision,
+`6c4f73c0` (cycle E, 2026-09-18: x86 `44.20260918.868` promoted by run `35303529066`, ARM
+`44.20260918.458`), carrying W7 + W6.2 + What's new (cycle D, `44.20260917.865`) and PR #121.
 W6.1 went out with cycle C (`44.20260917.862`), W6 with cycle B (`44.20260917.858`). **What
 the owner sees after this update:** a notification at the first login naming what is new, a
 What's new page under Settings → System, the MoOS Switcher on Alt+Tab, MoOS Arrange, one
-animation speed, and the Arabic Hub and Island fixes. **W6.1–W6.3 have never been seen on a
-MoOS desktop:** the next action that matters is the owner updating the station and the A1,
-and a station review recorded in `PROJECT_STATE.md`.
+animation speed, the Arabic Hub and Island fixes, and Updater/Recovery windows that show
+their buttons. **W6.1–W6.3 have never been seen on a MoOS desktop:** the next action that
+matters is the owner updating the station and the A1, and a station review recorded in
+`PROJECT_STATE.md`.
 
 How that release happened is the procedure to repeat. Cycle A (candidate
 `51cc2ac3`) passed the signed build and all three QCOW2 boots and lost its ISO

@@ -4,17 +4,18 @@ Current measured facts only; Git owns history. Last measured 2026-09-17.
 
 ## Source and release truth
 
-- **All four editions are one tree, W6.3** (`96e34695` = W7 + W6.2 + What's new), read back from
-  the registry after promotion run `35294288086`: `moos`, `moos-nvidia` and `moos-cloud`
-  `:latest` = `44.20260917.865` (digests `70da603d186d…`, `a4ac408722b3…`, `003908745c12…`, the ones
-  the candidate build signed); `moos-arm:latest` = `44.20260917.450` at `a0dd4b33` (the merge of
-  the same tree; `build-arm.yml` promotes every green push). Read the registry, not this line.
-- **Cycle D**, candidate `96e34695` proven on its branch and merged as `a0dd4b33`: build
-  `35287475147`, QCOW2 `35292262511`/`35289170881`/`35289173878`, ISO `35289177072`, ARM `35289180443`, promotion
-  `35294288086`. Its first generic QCOW2 run (`35289168012`) was lost to P0.7 — `plymouthd`
-  core-dumped on the FIRST boot, the first time on x86 — and that ONE proof was dispatched
-  again on the same image reference. Between cycles C and D, ARM had taken W7 alone at
-  `THEME_REV` 63 (`44.20260917.445`): the case a shared 63 would have stranded (W6.2 is 64).
+- **All four editions are one revision, `6c4f73c0`** (cycle E: W6.3 + PR #121), read back from
+  the registry 2026-09-18 03:32 UTC after promotion run `35303529066`: `moos`, `moos-nvidia`
+  and `moos-cloud` `:latest` = `44.20260918.868` (digests `33fef3f39cd5…`, `68c27fffc3cd…`,
+  `43791828c947…`, the ones the candidate build signed); `moos-arm:latest` = `44.20260918.458`
+  (`build-arm.yml` promotes every green push). Read the registry, not this line.
+- **Cycle E** (`6c4f73c0`): build `35295680548`, QCOW2 `35297281876`/`35297284491`/`35297287185`,
+  ISO `35297289852`, ARM `35297292391`, promotion `35303529066` — one command. **Cycle D** (`96e34695` = W7 + W6.2 + What's new, proven on its branch, merged as `a0dd4b33`
+  → x86 `44.20260917.865`, ARM `.450`): build `35287475147`, QCOW2 `35292262511`/`35289170881`/
+  `35289173878`, ISO `35289177072`, ARM `35289180443`, promotion `35294288086`. Its first generic
+  QCOW2 run (`35289168012`) was lost to P0.7 (`plymouthd` core-dump on the first boot, the first
+  on x86); that ONE proof was dispatched again. Between C and D, ARM took W7 alone at `THEME_REV`
+  63 (`44.20260917.445`): the case a shared 63 would have stranded (W6.2 is 64).
 - **Cycle C** (`291361ad`, W6.1 → x86 `44.20260917.862`, ARM `.441`): build `35272501490`,
   QCOW2 `35275702835`/`35275707229`/`35275711589`, ISO `35276847573` (its first ISO run
   `35275716160` lost the distribution's mirrors: dispatched again, promotion by hand,
@@ -182,14 +183,13 @@ consecutive green install-and-reboot and cycle D's (`35289177072`) the third: **
 
 ## Next execution
 
-1. Owner: update the station and the **A1** to `44.20260917.865` (MoOS Updater), walk the
+1. Owner: update the station and the **A1** to `44.20260918.868` / `.458` (MoOS Updater), walk the
    checklist, and
    configure a free Mo AI provider key (P0.5) — the only thing blocking the four Mo AI
    rows of the station checklist.
-2. Cycle D is production. Cycle E (PR #121: Updater and Recovery open tall enough to show
-   their buttons; the update notice names features; coredump stacks in the boot proof) is
-   `scripts/release-candidate.sh --promote` on `main` after the merge; a lone external
-   failure is handled as `RELEASE.md` says.
+2. Cycle E is production on all four editions (`44.20260918.868` / `.458`): Updater and
+   Recovery windows show their buttons, the update notice names features, a failed boot
+   proof prints the crashed process's stack. Next cycle: `--promote` when `main` has news.
 3. P0.8 is closed (three consecutive green install proofs); P0.7 stays open.
 4. Still open in W7: a live preview in the Arrange surface, touchpad and gesture
    defaults (P5.2), and carrying `Tokens.scaled()` to the per-surface motion aliases.
