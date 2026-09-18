@@ -19,6 +19,13 @@ merge instead of editing it.
 Shared files (`docs/DEVELOPMENT_PLAN.md`, `PROJECT_STATE.md`, `AGENTS.md`) are
 edited by everyone, so touch only your own rows and expect to rebase.
 
+**`scripts/release-candidate.sh`** is the off-station agent's file. The station edited it on
+2026-09-18 with that agent's part of the work untouched, because the defect it fixes stopped
+the station's own release: `build.yml` cancels in-progress runs per ref, so the nightly
+rebuild of the same commit killed the cycle's build and the cycle reported FAIL. It now
+reuses a finished build of the exact revision and adopts a superseding one. Expect to rebase
+rather than to conflict.
+
 **Release cycles** normally belong to the off-station agent. On 2026-09-18 the owner
 asked the station to run one for W8 so every edition updates; say so here when that
 happens, because two agents dispatching a cycle at once would prove nothing twice.

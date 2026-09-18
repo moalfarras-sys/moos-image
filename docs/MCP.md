@@ -7,6 +7,18 @@ earns its place, and the one command that sets them up. Config lives in
 (**gitignored, never committed**). Both committed files are guarded by
 `tests/test_mcp_config.py`, which runs in `just check` and in CI's "Repo gates" step.
 
+## Node, and why the three npx servers go through a shim
+
+On the MoOS development station the agent runs inside the **VS Code Flatpak**,
+whose `/usr` is the runtime's, not the machine's. Node is installed on the host,
+so `npx` works in a terminal while every session reported
+`sequential-thinking (ENOENT): Executable not found in $PATH: npx` — three servers
+dead in every session. `scripts/mcp-node.sh` answers the only question that
+differs between machines: it runs `npx` when it resolves, and the host's `npx`
+through the Flatpak portal when it does not. Off the station (WSL, a plain
+checkout, CI) the first branch is taken and nothing changes. No server's
+arguments and no credential path go through it.
+
 ## TL;DR
 
 ```bash

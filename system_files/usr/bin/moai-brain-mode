@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 # Cloud-only compatibility entry point. The legacy implementation below is unreachable.
 printf '%s\n' 'Mo AI: سحابي مجاني فقط | free cloud only. Configure with moai-config.'
+# Which free brain is strongest is a measurement, not an opinion, and the free
+# catalogue turns over every few weeks. Once a key exists, `moai-measure-free`
+# asks every zero-price tool-capable model two fixed questions through the real
+# gateway and writes the order that actually answered on THIS machine.
+printf '%s\n' 'أقوى نموذج مجاني لهذا الجهاز: moai-measure-free | measure the free models: moai-measure-free'
 exec moai-config
 # =============================================================================
 # moai-brain-mode — choose which brain answers the phone agent.

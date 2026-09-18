@@ -176,6 +176,43 @@ CURATED_FREE = (
     ('nvidia/nemotron-3-ultra-550b-a55b:free', 'Nemotron Ultra', 'الأعمق — أبطأ بكثير', 'Deepest — much slower'),
 )
 
+# ── The ranking this machine measured for itself ───────────────────────────────
+#
+# MEASURED_PREFERENCE above is a snapshot: it was true on the day it was taken, on
+# one machine, against a catalogue that changes every few weeks. Free models are
+# withdrawn, added and rate-limited constantly — on 2026-09-18 the free catalogue
+# carried 21 tool-capable models, several of them (a 1M-context DeepSeek flash, a
+# 550B Nemotron, two Inkling sizes) newer than the snapshot. A list in the image
+# cannot keep up with that, and guessing from parameter counts is how a slow model
+# ends up answering one-line questions.
+#
+# So the owner's own machine measures it: `moai-measure-free` sends the same two
+# fixed prompts (an Arabic sentence and one tool call) to every zero-price
+# tool-capable model through the real gateway, and writes the order that actually
+# answered here. This function reads that file when it is fresh and still agrees
+# with the live catalogue. It can only ORDER models the zero-price check already
+# admitted — a ranking file can never introduce a model, change a price, or reach
+# a billed route.
+RANKING_PATH = 'moai/free-ranking.json'
+RANKING_MAX_AGE = 30 * 24 * 3600
+
+
+def measured_ranking(kind='chat'):
+    """The order this machine measured, newest first; () when there is none."""
+    state = Path(os.environ.get('XDG_STATE_HOME', str(Path.home() / '.local/state')))
+    try:
+        document = json.loads((state / RANKING_PATH).read_text())
+        measured_at = float(document.get('measuredAt') or 0)
+        order = document.get(kind if kind in ('chat', 'tools') else 'chat')
+    except (OSError, ValueError, TypeError, AttributeError):
+        return ()
+    if not isinstance(order, list) or not order:
+        return ()
+    if measured_at <= 0 or time.time() - measured_at > RANKING_MAX_AGE:
+        return ()
+    return tuple(model for model in order if free_model(model))
+
+
 # Upstream answers that mean "not this free model right now". Authentication and
 # request errors are not the model's fault and never cool a model down.
 RETRIABLE_STATUS = frozenset({403, 404, 408, 429, 500, 502, 503, 504})
@@ -232,12 +269,23 @@ def automatic_candidates(require_tools=False, limit=3):
     preference = MEASURED_PREFERENCE['tools' if require_tools else 'chat']
 
     def heuristic(item):
+        # CONTEXT before parameter count. A model steering an operating system
+        # carries a long transcript — the tool schemas, what each tool returned,
+        # the confirmation the owner gave — and the first thing a short window
+        # does is forget the beginning of its own repair. Parameter count is also
+        # only guessable from the id (`…-120b-…`), so a strong model whose name
+        # carries no number, like a 1M-context DeepSeek flash, used to sort below
+        # a 31B chat model. Size stays as the tie-break between equal windows.
         parameters = item.get('supported_parameters', [])
         sizes = re.findall(r'(\d+(?:\.\d+)?)b(?:[^a-z]|$)', item['id'].lower())
         return ('tools' in parameters, 'reasoning' in parameters,
-                max([float(size) for size in sizes] or [0]),
-                int(item.get('context_length') or 0), item['id'])
+                int(item.get('context_length') or 0),
+                max([float(size) for size in sizes] or [0]), item['id'])
 
+    # This machine's own measurement outranks the snapshot that shipped.
+    home = measured_ranking('tools' if require_tools else 'chat')
+    if home:
+        preference = home + tuple(m for m in preference if m not in home)
     measured = sorted((item for item in available if item['id'] in preference),
                       key=lambda item: preference.index(item['id']))
     unmeasured = sorted((item for item in available if item['id'] not in preference),

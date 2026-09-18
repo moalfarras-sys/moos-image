@@ -15,7 +15,7 @@
   "mcpServers": {
     "sequential-thinking": {
       "type": "stdio",
-      "command": "npx",
+      "command": "${PWD:-.}/scripts/mcp-node.sh",
       "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"],
       "$comment": "Structured multi-step reasoning with revision and branching. No credentials."
     },
@@ -35,7 +35,7 @@
 
     "chrome-devtools": {
       "type": "stdio",
-      "command": "npx",
+      "command": "${PWD:-.}/scripts/mcp-node.sh",
       "args": [
         "-y", "chrome-devtools-mcp@latest",
         "--headless",
@@ -62,7 +62,7 @@
 
     "image-gen": {
       "type": "stdio",
-      "command": "npx",
+      "command": "${PWD:-.}/scripts/mcp-node.sh",
       "args": ["-y", "--package=mcp-image@0.13.2", "--package=ajv@8.17.1", "mcp-image"],
       "env": {
         "GEMINI_API_KEY": "${GEMINI_API_KEY:-}",
