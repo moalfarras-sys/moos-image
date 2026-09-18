@@ -579,6 +579,24 @@ KWin 6.7.5, 3840x2160 at 265%, Arabic, scheme `MoOSUI2AuroraLight`):
   0-65535 range) both landed the click elsewhere. Keyboard and CLI review worked.
   Anything in W7 that needs a real click is blocked on calibrating that axis.
 
+**System-surface facts (W9), read from the source on 2026-09-18, not remembered.**
+The Updater (`usr/bin/moos-update`) and Recovery (`usr/bin/moos-rollback`) are GTK4 windows on
+`usr/lib/moos/moos_ui2.py`, which maps the live KDE colour scheme to GTK; Mo PC Remote builds
+its own GTK window on the same palette. Everything else first-party is QML on `org/moos/ui`
+under `moos-qml-shell`. Rendered from source for the first time that day, both GTK windows
+opened shorter than their content (the primary button below the fold) and one button was
+painted by the GTK theme's image rather than MoOS's colour — repaired in `MoOSApp`, which now
+measures its page inside the window. Moving them onto MoOS UI (P2.1) means a QML page in
+Settings fed by the status document: the update backend already publishes ONE record
+(`/run/moos/update-state.json`, P1.5) that a status helper can carry, and `moos-image-update
+resolve`/`stage --expected-digest` are the only verbs. Two constraints are fixed before any
+design: `moos-open` is reachable by any web page, so an update route may never carry a digest
+or a version — it reads the published record and the backend revalidates after Polkit; and
+"Restart now" stays a button in a window, never an action on a notification
+(`moos-update-ready`). What's new (W6.3) is the first page of that front door: an in-app page
+of Settings, a `settings/…` route in `moos-open`, and a status-document field, with the GTK
+launcher untouched.
+
 Plasma 6 has no LTS branch and follows feature plus patch-release cycles.^1
 MoOS therefore tracks stable releases through the shared base, keeps local
 patches minimal, and runs its integration matrix on every Plasma transition.
