@@ -17,29 +17,36 @@ MoOS never forks Plasma, KWin or Wayland: MoOS owns the identity, every surface
 the owner looks at, every default and every recovery path.
 
 **Where MoOS is today (2026-09-18).** Production on all four editions is
-`44.20260918.868` / ARM `.458` (cycle E). Waves W1–W7 are merged and released:
-the MoOS Bar, Search, Island, Hub, Switcher, Arrange, App Drop, What's new, Mo
-AI's tool loop, the owner's control of the desk (removable widgets, a wallpaper
-that stays) and one animation-speed control that now reaches every surface.
-Three things are still true and worth knowing before choosing work: several
-waves have been **rendered from source but never seen on a MoOS desktop**; Mo AI
-has **no cloud brain configured**, which blocks four review rows; and nothing has
-been measured on a **second machine, a laptop, a touchscreen or two monitors**.
+`44.20260918.868` / ARM `.458` (cycle E). Everything through **W8.4** is merged: the
+MoOS Bar, Search, Island, Hub, Switcher, Arrange, App Drop, What's new, Aurora Glass,
+the hub's second faces, Mo AI's tool loop and its readback, and the free-brain
+measurement — with one release cycle in flight for the whole batch. Three things are
+still worth knowing before choosing work: several waves are **merged but not yet on a
+desktop** until that cycle promotes; the ARM edition has **never had its own live
+review**; and nothing has been measured on a **second machine, a laptop, a touchscreen
+or two monitors**.
 
 **What is missing before MoOS competes.** In the order that decides it:
 
-1. **A look that is unmistakably MoOS.** The pieces are good; the system does not
-   yet read as ONE material with real depth. That is the next wave (W8).
-2. **Speed the owner can feel and the repo can prove** — boot, login, app launch
-   and idle budgets per hardware tier, measured, not asserted (P5.4).
-3. **Applications that just work** — one install/update/remove authority across
-   Store, App Drop, Mo AI and URL routes, with truthful progress (W10, P4).
-4. **Mo AI as the system's hands** — a configured brain, ≥95% action selection,
-   confirmation cards and evidence-based completion (P3, owner action P0.5).
-5. **Hardware breadth** — laptop, touch, second monitor, suspend, rollback on
-   real machines, and the ARM edition's own review (P5, P0.7).
-6. **Trust at scale** — reproducible release trust, recovery UX and a support
-   bundle an owner can send (P6).
+1. **Speed the owner can feel and the repo can prove** — boot, login, app launch and
+   idle budgets per hardware tier, measured, not asserted (P5.4). Nothing in MoOS is
+   slow on this station; nothing about that is written down either.
+2. **Applications that just work** — one install/update/remove authority across Mo
+   Store, App Drop, Mo AI and URL routes, with truthful progress everywhere (W10, P4).
+3. **Mo AI as the system's hands, proven** — the brain is configured and the tool loop
+   runs live; what is still owed is the ≥95% action-selection measurement on fixed
+   Arabic/English cases and a confirmation card walked on a desk (P3.3, P3.4, P3.7).
+4. **Hardware breadth** — laptop, touch, a second monitor, suspend/resume, deliberate
+   rollback on real machines, and the ARM edition's own live review (P5, P0.7).
+5. **The rest of the look** — one clarity control from clear to solid driving both MoOS
+   surfaces and KWin's blur, the MoOS mark at exactly three sizes, and the specular
+   sweeping once as a surface arrives (the open half of W8).
+6. **Trust at scale** — reproducible release trust, recovery UX, and a support bundle
+   an owner can send (P6).
+
+The look itself is no longer the first gap: Aurora Glass gave the system one material
+at four depths, the bar tells the truth, and every hub card answers the question that
+comes after it.
 
 **How you work here — the law of the wave.** MoOS is developed in waves, never in
 small edits followed by a build. One wave is one coherent, user-visible release:
@@ -121,6 +128,8 @@ reviewed live, gated once, merged once and proven once.
 | W8 | M2 | **MoOS Aurora Glass, and a bar that tells the truth.** One material with four depths (a darker rim and a specular hairline, both derived from the palette); the Island capsule fits its real height and names the app that is playing; MoOS Search is a button the size of its neighbours instead of a 196 px empty pill; the status cluster is four glyphs and an arrow instead of nine; MoOS Search shows what is playing, with its control, while nothing is typed; MoPlayer publishes its MPRIS object before its name and its metadata with one variant, so a video that starts now appears on the desk now | merged (PR #126), every visible item reviewed on the running station |
 | W8.1 | M3 | **The strongest free brain is measured, not guessed, and the workshop works.** `moai-measure-free` asks every zero-price tool-capable model two fixed questions through the real gateway and writes the order that answered on THIS machine; the policy prefers it for 30 days and ranks anything unmeasured by the context window an OS agent actually needs. The release cycle reuses a signed build of the same revision instead of racing the nightly rebuild that cancels it. The three npx MCP servers run again inside the VS Code Flatpak. The RDP/VNC port MoOS's health scan finds now has an action that closes it | merged (PR #127) |
 | W8.2 | M2 | **The desk answers the next question.** The clock card has two faces — the hour, and the week the owner is standing in, with today marked and the day of the year — turned from the desktop's own menu and remembered; the Hub cards wear Aurora Glass's specular hairline, so the desktop and the bar are one material | merged (PR #128), reviewed on the running station |
+| W8.3 | M3 | **Mo AI reports instead of paging a log.** A tool row shows its first six lines and says how many are left; `hw_report` — which opened a panel, printed nothing and made the loop show a red "failed" row — is replaced by `device_report`, which returns the machine's state in words | merged (PR #131), reviewed live with the owner's own brain |
+| W8.4 | M2 | **Every hub card answers the question that comes after it.** The weather card's second face is the next six hours (from the same forecast request); the device card's is the network and the space that is actually left, each figure gated on its own sensor | PR #134, reviewed on the station |
 | W9 | M2 | System surfaces on MoOS UI: Updater, Recovery, Remote centre, Settings front door (P2.1–P2.2), a MoOS-owned About page (P2.9) | planned |
 | W10 | M3 | Mo Store as one job system for install/update/remove across the UI, Mo AI and URL routes, with a drop target in its own window (P1.7, P4.1–P4.2, P4.7) | planned |
 | W11 | M2 | MoOS Intro: one horizon scene from Plymouth through login to the Hub; first-run tour; offline first run (P1.6) | planned |

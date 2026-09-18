@@ -23,6 +23,10 @@ Item {
     property bool showClock: true
     // Which face the clock card shows; owned by the wallpaper's HubClockPage key.
     property int clockPage: 0
+    // Which face the weather card shows; owned by HubWeatherPage.
+    property int weatherPage: 0
+    // Which face the device card shows; owned by HubSystemPage.
+    property int systemPage: 0
     property bool showWeather: true
     property bool showSystem: true
     readonly property int visibleCards: (showClock ? 1 : 0) + (showWeather ? 1 : 0)
@@ -158,6 +162,10 @@ Item {
                 + "&longitude=" + root.longitude
                 + "&current=temperature_2m,apparent_temperature,weather_code,is_day"
                 + "&daily=temperature_2m_max,temperature_2m_min"
+                // The card's second face answers "what about later today": the next
+                // hours, from the SAME request the card already makes. One more
+                // parameter, no second service, no extra poll.
+                + "&hourly=temperature_2m,weather_code&forecast_hours=12"
                 + "&forecast_days=1&timezone=auto"
         const request = new XMLHttpRequest()
         request.open("GET", endpoint)
@@ -190,13 +198,35 @@ Item {
                         || !isFinite(daily.temperature_2m_min[0])) {
                     throw new Error("Forecast response is incomplete")
                 }
+                // The hourly block is a courtesy, not a requirement: a provider that
+                // omits it leaves the second face empty rather than failing the card.
+                const hourly = payload.hourly
+                const hours = []
+                if (hourly && hourly.time && hourly.temperature_2m) {
+                    const nowStamp = new Date()
+                    for (let i = 0; i < hourly.time.length && hours.length < 6; ++i) {
+                        const when = new Date(hourly.time[i])
+                        if (isNaN(when.getTime()) || when.getTime() < nowStamp.getTime() - 3600000) {
+                            continue
+                        }
+                        const value = hourly.temperature_2m[i]
+                        if (typeof value !== "number" || !isFinite(value)) { continue }
+                        hours.push({
+                            hour: Qt.formatTime(when, "HH:mm"),
+                            temperature: Math.round(value),
+                            code: (hourly.weather_code && typeof hourly.weather_code[i] === "number")
+                                ? hourly.weather_code[i] : current.weather_code
+                        })
+                    }
+                }
                 root.forecastData = {
                     temperature: Math.round(current.temperature_2m),
                     feelsLike: Math.round(current.apparent_temperature),
                     code: current.weather_code,
                     daylight: current.is_day === 1,
                     high: Math.round(daily.temperature_2m_max[0]),
-                    low: Math.round(daily.temperature_2m_min[0])
+                    low: Math.round(daily.temperature_2m_min[0]),
+                    hours: hours
                 }
             } catch (error) {
                 retryTimer.restart()
@@ -307,6 +337,13 @@ Item {
         }
 
         WeatherCard {
+            page: root.weatherPage
+            hours: root.weatherReady && root.forecastData.hours !== undefined
+                ? root.forecastData.hours : []
+            // One code, one picture, on both faces.
+            kindForCode: function (code) {
+                return root.weatherKind(code, root.weatherReady ? root.forecastData.daylight : true)
+            }
             visible: root.showWeather
             Layout.preferredWidth: Math.round(Kirigami.Units.gridUnit
                 * root.design.desktopHubWeatherColumns)
@@ -342,6 +379,7 @@ Item {
         }
 
         SystemCard {
+            page: root.systemPage
             visible: root.showSystem
             Layout.fillWidth: true
             Layout.fillHeight: true

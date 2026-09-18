@@ -45,6 +45,10 @@ WallpaperItem {
     // turned from the menu rather than by clicking it.
     readonly property int hubClockPage:
         root.configuration.HubClockPage === undefined ? 0 : root.configuration.HubClockPage
+    readonly property int hubWeatherPage:
+        root.configuration.HubWeatherPage === undefined ? 0 : root.configuration.HubWeatherPage
+    readonly property int hubSystemPage:
+        root.configuration.HubSystemPage === undefined ? 0 : root.configuration.HubSystemPage
     readonly property bool hubShown:
         (root.configuration.ShowDashboard === undefined || root.configuration.ShowDashboard)
         && root.hubAnyCard
@@ -92,6 +96,22 @@ WallpaperItem {
             checked: root.hubWeather
             visible: root.hubShown
             onTriggered: root.setHubKey("HubWeather", !root.hubWeather)
+        },
+        PlasmaCore.Action {
+            text: root.hubWeatherPage === 0
+                ? MoUI.Locale.local("لوحة MoOS: أرني الساعات القادمة", "MoOS Hub: show the next hours")
+                : MoUI.Locale.local("لوحة MoOS: أرني الطقس الآن", "MoOS Hub: show the weather now")
+            icon.name: "moos-globe-symbolic"
+            visible: root.hubShown && root.hubWeather
+            onTriggered: root.setHubKey("HubWeatherPage", root.hubWeatherPage === 0 ? 1 : 0)
+        },
+        PlasmaCore.Action {
+            text: root.hubSystemPage === 0
+                ? MoUI.Locale.local("لوحة MoOS: أرني الشبكة والمساحة", "MoOS Hub: show network and space")
+                : MoUI.Locale.local("لوحة MoOS: أرني الحلقات", "MoOS Hub: show the rings")
+            icon.name: "moos-pulse-symbolic"
+            visible: root.hubShown && root.hubSystem
+            onTriggered: root.setHubKey("HubSystemPage", root.hubSystemPage === 0 ? 1 : 0)
         },
         PlasmaCore.Action {
             text: MoUI.Locale.local("لوحة MoOS: حالة الجهاز", "MoOS Hub: device health")
@@ -319,6 +339,8 @@ WallpaperItem {
             themeLabel: root.themeLabel
             showClock: root.hubClock
             clockPage: root.hubClockPage
+            weatherPage: root.hubWeatherPage
+            systemPage: root.hubSystemPage
             showWeather: root.hubWeather
             showSystem: root.hubSystem
         }

@@ -20,6 +20,9 @@ Item {
     required property bool accentMotion
     property int entranceDelay: 0
     property bool integrated: false
+    // 0 the rings, 1 the network and what is left. Owned by HubSystemPage: the hub
+    // is painted by the wallpaper, so the desktop's own menu turns the card.
+    property int page: 0
 
     // One locale authority for every label on the hub. The cards used to hard-code a mix of
     // English eyebrows ("SYSTEM", "HIGH", "FEELS") and Arabic words ("الآن") whatever the session
@@ -87,6 +90,13 @@ Item {
         accentMotion: systemCard.accentMotion
         entranceDelay: systemCard.entranceDelay
         integrated: systemCard.integrated
+
+        CardStack {
+            anchors.fill: parent
+            motionEnabled: systemCard.motionEnabled
+            page: systemCard.page
+
+            Item {
 
         RowLayout {
             anchors.fill: parent
@@ -243,6 +253,10 @@ Item {
                 accentMotion: systemCard.accentMotion
                 accentColor: Kirigami.Theme.positiveTextColor
             }
+        }
+            }
+
+            NetworkFace { }
         }
     }
 }

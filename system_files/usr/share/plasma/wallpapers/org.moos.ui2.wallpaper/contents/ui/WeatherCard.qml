@@ -17,6 +17,13 @@ Item {
     required property string kind
     required property string condition
     required property bool motionEnabled
+    // 0 now, 1 the next hours. The wallpaper owns the value (HubWeatherPage) and the
+    // desktop's own menu writes it, because a wallpaper receives no pointer events.
+    property int page: 0
+    property var hours: []
+    // weatherKind(code, daylight) from the bento, so one code cannot mean two
+    // pictures on the two faces of one card.
+    property var kindForCode: (function (code) { return "cloudy" })
     // MotionMode 2 ("alive"). Gentle keeps one infrequent artwork drift; the
     // condition-specific rain/snow/fog/storm bursts belong to alive so the
     // calm default never turns the 4K wallpaper into a permanent repaint loop.
@@ -43,6 +50,12 @@ Item {
         entranceDelay: weatherCard.entranceDelay
         integrated: weatherCard.integrated
 
+        CardStack {
+            anchors.fill: parent
+            motionEnabled: weatherCard.motionEnabled
+            page: weatherCard.page
+
+            Item {
         RowLayout {
             anchors.fill: parent
             spacing: Math.round(Kirigami.Units.gridUnit * 0.75)
@@ -211,6 +224,15 @@ Item {
                         easing.type: Easing.OutCubic
                     }
                 }
+            }
+        }
+            }
+
+            HourlyStrip {
+                hours: weatherCard.hours
+                city: weatherCard.city
+                weatherReady: weatherCard.weatherReady
+                kindForCode: weatherCard.kindForCode
             }
         }
     }
