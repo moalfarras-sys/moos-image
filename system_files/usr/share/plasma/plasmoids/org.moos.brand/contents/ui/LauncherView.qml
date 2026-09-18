@@ -130,13 +130,16 @@ Item {
     function sessionIcon(actionId) {
         // Every id maps to the glyph a user would guess it means. "logout" once
         // wore the external-link box and "switch-user" the identity spark --
-        // both read as mystery buttons on the real 4K session.
+        // both read as mystery buttons on the real 4K session. Suspend and
+        // hibernate once shared the moon: two identical buttons side by side
+        // that only a tooltip told apart (A1, 2026-09-18). Hibernate is the one
+        // that writes the session to disk, so it wears the disk.
         const icons = {
             "lock-screen": "moos-lock-symbolic",
             "switch-user": "moos-user-symbolic",
             "logout": "moos-logout-symbolic",
             "suspend": "moos-moon-symbolic",
-            "hibernate": "moos-moon-symbolic",
+            "hibernate": "moos-storage-symbolic",
             "reboot": "moos-refresh-symbolic",
             "shutdown": "moos-power-symbolic"
         };

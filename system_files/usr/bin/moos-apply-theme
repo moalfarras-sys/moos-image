@@ -261,7 +261,13 @@ set -uo pipefail
 #     The hub cards also gained Aurora Glass's specular hairline, so a card reads as
 #     glass catching the light rather than a panel with a shade. Cached QML holds the
 #     old files until it is purged.
-THEME_REV=67
+# 68: the A1 live review, which was written against 67 while 67 was being taken by the
+#     wave above — two changes at one revision is the defect this counter exists to
+#     prevent, so the A1 work carries its own. Fifty symbolic icons gained round capsule
+#     ends, the launcher stopped showing suspend and hibernate as the same moon
+#     (hibernate wears the disk glyph), and MoOS Search offers ONE store instead of two.
+#     Cached icon and launcher QML keep the old glyphs until they are purged.
+THEME_REV=68
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"
