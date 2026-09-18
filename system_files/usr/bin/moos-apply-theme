@@ -255,7 +255,13 @@ set -uo pipefail
 #     the widget explorer and the lock screen stopped being four separate alphas. The Island
 #     also measures the bar's REAL height before drawing two lines, and MoOS Search is a
 #     button instead of a 196 px pill. Cached QML holds the old material until it is purged.
-THEME_REV=66
+# 67: the clock card has two faces. The hub is painted by the WALLPAPER, so no click
+#     or wheel reaches it (the desktop containment takes both, measured on the station);
+#     the desktop's own menu turns the card and HubClockPage remembers which face is up.
+#     The hub cards also gained Aurora Glass's specular hairline, so a card reads as
+#     glass catching the light rather than a panel with a shade. Cached QML holds the
+#     old files until it is purged.
+THEME_REV=67
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

@@ -91,5 +91,13 @@
     <entry name="HubSystem" type="Bool">
       <default>true</default>
     </entry>
+    <!-- Which face the clock card is showing: 0 the hour, 1 this week. The hub is
+         painted by the WALLPAPER, so no click or wheel reaches it (measured on the
+         station on 2026-09-18: the desktop containment takes both). The face is
+         therefore turned from the desktop's own menu, which already carries every
+         other hub control, and remembered here. -->
+    <entry name="HubClockPage" type="Int">
+      <default>0</default>
+    </entry>
   </group>
 </kcfg>

@@ -176,6 +176,24 @@ Item {
             }
         }
 
+        // The light on the top edge — Aurora Glass at SCENE depth, the same
+        // hairline the bar's capsule and every popover wear (MoUI.Tokens). The
+        // card already had a dark band under its top edge; a surface with only a
+        // shade reads as a hole, and a surface with only a highlight reads as a
+        // sticker. Together they read as glass: the rim catches the light and the
+        // body falls away from it. Inset by the corner so it lives on the straight
+        // part of the edge, and one pixel tall at every scale.
+        Rectangle {
+            visible: !card.integrated && parent.width > parent.radius * 2
+            anchors.top: parent.top
+            anchors.topMargin: 1
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: Math.max(0, parent.width - parent.radius * 1.6)
+            height: 1
+            color: card.design.glassSpecular(Kirigami.Theme.backgroundColor,
+                                             card.design.glassLevelScene)
+        }
+
         // Inner glow: faint highlight-coloured rim inside the card
         Rectangle {
             visible: !card.integrated
