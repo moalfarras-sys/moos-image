@@ -8,34 +8,30 @@ the README and every wave row point here instead of repeating it. Four parallel 
 
 ## Source and release truth
 
-- **Production moved, but the station must not take it yet.** Registry readback on
-  2026-09-19: `moos`, `moos-nvidia`, `moos-cloud` = **`44.20260919.899`** and
-  `moos-arm` = **`44.20260919.515`**, all revision **`fbf393f4`**. The x86 cycle passed
-  signed build `35461545885`, QCOW2 `35462838874`/`35462840914`/`35462843175`, ISO
-  `35462844969`, and promotion `35465072636`; ARM also reached the same revision.
-  A real KDialog test then proved its App Drop primary button accepts Enter. Production
-  tags moved before the local release process could be stopped. Treat this release as
-  superseded: build and promote the corrective revision before updating a workstation.
-- `main` and `origin/main` are `fbf393f4`; the corrective work is on
-  `fix/app-consent-and-runner-20260919`. Merging source never updates this machine.
-- **After owner reboot:** booted signed NVIDIA **`44.20260919.894`**, digest
-  `47dc4c6d02984e47042ae165471387a30cc3c973669464006939d96cfeacce9c`;
-  the updater has since staged affected **`44.20260919.899`** for the next boot, and signed
-  **`44.20260918.892`** remains retained. **Do not reboot:** the corrective signed update
-  must replace the staged deployment first.
-  Post-update gate **55 passed**, source selfcheck **52 passed/one optional-tray note**;
-  zero failed units, document portal mount healthy. Installed theme revision **71**.
-- **Corrective source, not released:** App Drop now makes KDialog's focused primary
-  button Cancel and accepts only the secondary action. On isolated Xvfb/KDialog 26:
-  Enter rejects, Escape rejects, Tab+Enter accepts. APK mutation is inside
-  `moos-storectl`'s job/lock authority; `.xapk`/`.apks` are refused before consent.
-  The Store bridge's six compiled Qt cases passed in a disposable SDK. All 204 source
-  gates and one full local generic image build passed; the built image also passed its
-  bootc, initramfs, QML-runtime, motion, image-state and identity-firewall gates. Still
-  unproven: a pointer drop through an installed image and a signed corrective candidate.
-
-- `main` is the only long-lived branch; every merged topic branch is deleted. The intermittent
-  `plymouthd` SEGV (P0.7) is open on ARM and, since cycle D, on x86.
+- **`44.20260919.899` is released AND now running on this station.** Registry readback
+  2026-09-19: `moos`, `moos-nvidia`, `moos-cloud` = **`44.20260919.899`**, `moos-arm` =
+  **`44.20260919.515`**, all revision **`fbf393f4`**. Its cycle: signed build
+  `35461545885`, QCOW2 `35462838874`/`35462840914`/`35462843175`, ISO `35462844969`,
+  promotion `35465072636` — every x86 proof green before the tag moved.
+- **The station rebooted onto it at 23:02** (readback: booted digest `57a64063…` =
+  `44.20260919.899`, `44.20260919.894` retained for rollback, `THEME_REV` **75** applied
+  on bar and shell). An earlier note here said "do not reboot" because a corrective fix
+  was pending; the reboot happened anyway, so the correction is now owed as a release
+  rather than as a hold.
+- **What `.899` therefore ships, and what it is missing.** It carries the live clarity
+  bridge, the lock-screen overlay gate, the app-engine registry and the Store's
+  capability row. It does NOT carry the App Drop consent fix: the running
+  `/usr/bin/moos-app-drop` still calls `kdialog --warningcontinuecancel`, whose focused
+  button is Continue, so **Enter accepts a consent prompt** for running a downloaded
+  file. `main` (`460bfee1`, PR #143) puts Cancel on the focused button and accepts only
+  the secondary action, so Enter and Escape both fail closed. **That fix is unreleased.**
+- **One failed unit after this boot: `plymouth-start.service` (P0.7).** For the first
+  time the stack was captured — a use-after-free in the QUIT path, 13 ms after
+  `plymouth-quit` reports success, in `on_new_frame` → `ply_list_node_get_data`. Rate on
+  this journal: 1 crash in 26 boots. Mechanism and next step are in the plan's P0.7 row.
+- `main` is `460bfee1`, ahead of the released `fbf393f4`. Merging source never updates
+  this machine.
+- `main` is the only long-lived branch; every merged topic branch is deleted.
 - A merged commit or locally built image is not an installed or released state.
   Production moves only after the exact candidate passes 3×QCOW2 + ISO; ARM is
   separately required evidence.
@@ -68,16 +64,16 @@ Native errors are supervised and retained in a user-owned log, never discarded.
 | Desktop | Plasma/KWin 6.7.5, Wayland, 3840×2160@60, scale 265% (1450×816 logical) |
 | Kernel | `7.2.5-200.fc44.x86_64` |
 | Network | Intel AX210 Wi-Fi/Bluetooth + RTL8125 Ethernet |
-| Health | zero failed system units and zero failed user units |
+| Health | **one** failed system unit (`plymouth-start`, P0.7); zero failed user units |
 
-Measured after owner reboot: installed `THEME_REV` **71**, Global Theme
-`org.moos.ui2.amethyst`, visual tier **flagship**, motion `alive`,
-`kwinrc/Plugins/blurEnabled=true`, Arabic session (`ar_SA.UTF-8`). **Source is at
-`THEME_REV` 75**, not installed. Health checks do not qualify suspend, every app or all
-visual surfaces.
+Measured after the 23:02 reboot onto `.899`: installed `THEME_REV` **75** (bar and
+shell), Global Theme `org.moos.ui2.amethyst`, visual tier **flagship**, motion `alive`,
+`kwinrc/Plugins/blurEnabled=true`, Arabic session (`ar_SA.UTF-8`). Source and desk are on
+the same revision for the first time since W9.6. Health checks do not qualify suspend,
+every app or all visual surfaces.
 
 **Speed and Mo AI, both measured on cycle H's `.890`** and NOT re-measured since (the
-booted image is `.894`). `moos-measure-speed` (P5.4): MoOS's share of boot **6.70 s**/9.0,
+booted image is now `.899`, two releases later). `moos-measure-speed` (P5.4): MoOS's share of boot **6.70 s**/9.0,
 login to a ready desktop **1.10 s**/3.0, an app's window **0.49 s**/4.0, MoOS's processes
 **0.12%** of CPU while idle/8.0 — all four inside budget. `moai-measure-actions` read
 **80/80** then **79/80** over two runs of 40 fixed Arabic/English cases, no wrong tool in
