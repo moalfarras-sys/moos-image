@@ -44,20 +44,20 @@ edition), `waydroid` **installed but not initialized** (~1 GB image never fetche
 needs_setup=false` — no download needed, which is what `build.sh` intended and what the
 runner did not know until now; an `.apk` resolves as `needs_setup=true`.
 
-**Apps really run here now (2026-09-19, on `.899`).** Two PE32+ Windows programs —
-Notepad and Minesweeper — launched through `moos-run-foreign`, the double-click path, and
-appeared as windows on the Arabic desktop wearing **MoOS's own decoration** and listed in
-the **MoOS Bar** beside native apps; the resolver said `ready=true, chosen=wine,
-needs_setup=false`, so no download. A Linux app went through the full lifecycle on the one
-authority: `moos-storectl install` → a real job at `state=success`, launcher entry
-`فلاتسيل`, running in Arabic RTL → `moos-storectl remove`, gone cleanly. Frames in
-`test-results/a1-live/`. **Android reaches the privilege boundary and stops there:** a real
-APK resolves as `تطبيقات أندرويد, needs_setup=true`, `/dev/binder` exists, the container
-service is enabled and active, and triggering MoOS's own setup route opened the bilingual
-prompt and **cancelled itself** — the default-No contract holding in the product. The
-~1 GB `waydroid init` escalates via `pkexec` with no MoOS polkit rule, so it needs the
-owner's password. PE32 (32-bit) still fails: SELinux denies `execmod` mapping the i386 PE
-DLL from composefs. The earlier "missing i686, add ~1 GiB" diagnosis was wrong.
+**All three app engines run here (2026-09-20, on `.899`).** **Windows:** Notepad and
+Minesweeper launched through `moos-run-foreign` — the double-click path — appeared wearing
+**MoOS's own decoration** and listed in the **MoOS Bar**; resolver `ready=true,
+chosen=wine`, no download. **Linux:** install → launch → remove entirely through
+`moos-storectl`. **Android: it had never worked, and now does.** `moai-do setup-waydroid`
+called `waydroid init` without the mandatory OTA channels, which neither MoOS nor Fedora's
+package supplies a config for, so it failed every time before downloading a byte — every
+gate read the source, where each half looked right. Passing the channels fixed it: **2.3 GB
+downloaded**, container `RUNNING`, a real APK installed via `moos-storectl install-file`,
+and **F-Droid opened on the desktop** with its icon in the MoOS Bar. Frames in
+`test-results/a1-live/`. PE32 (32-bit) still fails although the new-WoW64 payload is
+complete; the audit log gives the cause — SELinux denies `execmod` while mapping the i386
+PE DLL from composefs (`kernel_t` → `lib_t`). The earlier "missing i686, add ~1 GiB"
+diagnosis was wrong. Do not weaken SELinux globally.
 
 ## Physical development station
 

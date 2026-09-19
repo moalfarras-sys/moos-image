@@ -779,6 +779,7 @@ ApplicationWindow {
         "refreshing_index":         ["يُعاد بناء فهرس التطبيقات الموحّد", "Rebuilding the unified app index"],
         "index_refreshed":          ["تم تحديث الفهرس", "Index refreshed"],
         "downloading_appimage":     ["يجري تنزيل حزمة AppImage موثّقة", "Downloading verified AppImage"],
+        "downloading_android":      ["يجري تنزيل تطبيق أندرويد موثّق", "Downloading verified app"],
         "inspecting_file":          ["تجري قراءة الملف", "Reading the file"],
         "extracting_file":          ["يجري فكّ التطبيق", "Unpacking the application"],
         "integrating_app":          ["تجري إضافته إلى قائمة التطبيقات", "Adding it to the launcher"],

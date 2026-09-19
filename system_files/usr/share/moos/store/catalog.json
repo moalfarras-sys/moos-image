@@ -30,6 +30,18 @@
       "en": "AI",
       "ar": "الذكاء الاصطناعي",
       "glyph": "spark"
+    },
+    {
+      "id": "droid",
+      "en": "Android apps",
+      "ar": "تطبيقات أندرويد",
+      "glyph": "grid"
+    },
+    {
+      "id": "win",
+      "en": "Windows programs",
+      "ar": "برامج ويندوز",
+      "glyph": "install"
     }
   ],
   "bundles": [
@@ -538,6 +550,114 @@
       "install": {
         "kind": "web",
         "url": "https://lmstudio.ai/download",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "org.videolan.vlc",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "media",
+      "en": "VLC",
+      "ar": "في إل سي",
+      "desc_en": "Plays almost any video or audio file.",
+      "desc_ar": "يشغّل أي ملف فيديو أو صوت تقريبًا.",
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/org.videolan.vlc_13070108.apk",
+        "sha256": "4a9144fadfd8606cc5c0e9db892fd24846b7b2efeb1630db5377955d1612b119",
+        "package": "org.videolan.vlc",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "app.organicmaps",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "compass",
+      "en": "Organic Maps",
+      "ar": "خرائط أورجانيك",
+      "desc_en": "Offline maps and navigation, no tracking.",
+      "desc_ar": "خرائط وملاحة بلا إنترنت وبلا تتبّع.",
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/app.organicmaps_26082718.apk",
+        "sha256": "c1fc03a8bad4dac3c400c50764a929ec7a07b02ba572336bfdd9e722a4f96519",
+        "package": "app.organicmaps",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "org.fdroid.fdroid",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "store",
+      "en": "F-Droid",
+      "ar": "إف-درويد",
+      "desc_en": "A catalogue of free Android apps.",
+      "desc_ar": "فهرس تطبيقات أندرويد الحرّة.",
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/org.fdroid.fdroid_1023052.apk",
+        "sha256": "985f5181d48bb6bafd54083a048b391271e0ab28385881cc41294fb01a222762",
+        "package": "org.fdroid.fdroid",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "seven-zip",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "archive",
+      "en": "7-Zip",
+      "ar": "٧-زيب",
+      "desc_en": "Opens and makes compressed archives.",
+      "desc_ar": "يفتح وينشئ الملفات المضغوطة.",
+      "install": {
+        "kind": "web",
+        "url": "https://www.7-zip.org/download.html",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "notepad-plus-plus",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "doc",
+      "en": "Notepad++",
+      "ar": "نوتباد++",
+      "desc_en": "A fast editor for text and code.",
+      "desc_ar": "محرّر سريع للنصوص والأكواد.",
+      "install": {
+        "kind": "web",
+        "url": "https://notepad-plus-plus.org/downloads/",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "irfanview",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "image",
+      "en": "IrfanView",
+      "ar": "إرفان ڤيو",
+      "desc_en": "A light, quick image viewer.",
+      "desc_ar": "عارض صور خفيف وسريع.",
+      "install": {
+        "kind": "web",
+        "url": "https://www.irfanview.com/",
         "external": true,
         "risk": "external-download",
         "requires_review": true

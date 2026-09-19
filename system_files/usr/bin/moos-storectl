@@ -1327,6 +1327,114 @@ class Controller:
             message_key=None,
         )
 
+    def _install_pinned_android(
+        self, job: Job, app_id: str, recipe: dict[str, Any]
+    ) -> None:
+        """An Android app from the catalogue: pinned URL, verified digest, one job.
+
+        Deliberately the same shape as the AppImage path above, because the risk is
+        the same: MoOS is fetching a binary from the internet and then running it.
+        https only, no credentials in the URL, no insecure redirect, and a SHA-256
+        that must match before anything is handed to the container. A catalogue
+        entry that is not pinned is refused rather than downloaded.
+
+        The Android runtime must already be ready. The store does not silently pull
+        a ~1 GB system image behind an install button: `moos-app-engine` reports
+        needs_setup for that, and the owner is asked by the setup action.
+        """
+        install = recipe.get("install")
+        if not isinstance(install, dict):
+            raise StoreError(f"Catalog has no Android recipe for {app_id}")
+        note = self._review_note(recipe)
+        if install.get("external") is not True:
+            raise StoreError(f"External download metadata is missing for {app_id}")
+        url = install.get("url")
+        digest = install.get("sha256")
+        package = install.get("package")
+        parsed = urllib.parse.urlsplit(url) if isinstance(url, str) else None
+        if (
+            not isinstance(url, str)
+            or parsed is None
+            or parsed.scheme != "https"
+            or not parsed.hostname
+            or parsed.username is not None
+            or parsed.password is not None
+            or not isinstance(digest, str)
+            or not _SHA256_RE.fullmatch(digest)
+            or not isinstance(package, str)
+            or not _ANDROID_PACKAGE_RE.fullmatch(package)
+        ):
+            raise StoreError(
+                f"Android recipe for {app_id} is not pinned to a valid SHA-256"
+            )
+        if not shutil.which("waydroid"):
+            raise StoreError("Android support is not available on this edition")
+        state = subprocess.run(
+            ["waydroid", "status"], capture_output=True, text=True, timeout=30
+        )
+        if "not initialized" in (state.stdout + state.stderr).lower():
+            raise StoreError(
+                "Android is not set up yet — run the one-time setup first"
+            )
+        fd, temporary_name = tempfile.mkstemp(prefix=f".{package}.", suffix=".apk")
+        temporary = Path(temporary_name)
+        hasher = hashlib.sha256()
+        try:
+            request = urllib.request.Request(
+                url, headers={"User-Agent": "MoOS-Store/1"}, method="GET"
+            )
+            with os.fdopen(fd, "wb") as output, urllib.request.urlopen(
+                request, timeout=30
+            ) as response:
+                if urllib.parse.urlsplit(response.geturl()).scheme != "https":
+                    raise StoreError("Android download used an insecure redirect")
+                total = response.headers.get("Content-Length")
+                total_bytes = int(total) if total and total.isdigit() else 0
+                downloaded = 0
+                while True:
+                    if self._cancelled(job):
+                        raise CancelledError("Cancelled")
+                    block = response.read(1024 * 1024)
+                    if not block:
+                        break
+                    output.write(block)
+                    hasher.update(block)
+                    downloaded += len(block)
+                    percent = (
+                        min(99, int(downloaded * 100 / total_bytes))
+                        if total_bytes
+                        else None
+                    )
+                    job.update_item(
+                        app_id,
+                        state="running",
+                        progress=percent,
+                        message="Downloading verified app", message_key="downloading_android",
+                    )
+                output.flush()
+                os.fsync(output.fileno())
+            if hasher.hexdigest().lower() != digest.lower():
+                raise StoreError("Android app SHA-256 verification failed")
+            job.update_item(
+                app_id, state="running", progress=None,
+                message="Installing application", message_key="integrating_app",
+            )
+            result = self.runner.run_cancellable(
+                ["/usr/bin/waydroid", "app", "install", str(temporary)],
+                lambda: self._cancelled(job),
+            )
+            if result.cancelled:
+                raise CancelledError("Cancelled")
+            if result.returncode:
+                raise StoreError(result.reason or "Android installation failed")
+            job.update_item(
+                app_id, state="done", progress=100,
+                message=f"Installed ({note})", message_key=None,
+            )
+        finally:
+            with contextlib.suppress(FileNotFoundError):
+                temporary.unlink()
+
     def _install_pinned_appimage(
         self, job: Job, app_id: str, recipe: dict[str, Any]
     ) -> None:
@@ -1472,6 +1580,8 @@ class Controller:
                             self._install_web(job, app_id, recipe)
                         elif kind == "appimage":
                             self._install_pinned_appimage(job, app_id, recipe)
+                        elif kind == "android":
+                            self._install_pinned_android(job, app_id, recipe)
                         else:
                             raise StoreError(
                                 f"Unsupported curated install kind for {app_id}: {kind}"

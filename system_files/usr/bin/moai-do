@@ -536,6 +536,12 @@ do_install_nvidia() {
     echo "${G}✓ تم التجهيز — أعد التشغيل لتفعيل التعريف | Staged — reboot to activate${N}"
 }
 
+# The official Waydroid OTA channels. waydroid appends
+# /<rom>/waydroid_<arch>/<system_type>.json to each, and MoOS ships no channels
+# config for it to fall back on — see the comment at the init call below.
+WAYDROID_SYSTEM_CHANNEL="${WAYDROID_SYSTEM_CHANNEL:-https://ota.waydro.id/system}"
+WAYDROID_VENDOR_CHANNEL="${WAYDROID_VENDOR_CHANNEL:-https://ota.waydro.id/vendor}"
+
 do_setup_waydroid() {
     hdr "تجهيز تطبيقات Android" "Set up Android apps"
     need waydroid || return 1
@@ -555,9 +561,43 @@ do_setup_waydroid() {
     # through the public moos: URL scheme, so confirmation must not exist only on first install.
     confirm || return 0
     if [ "$inited" = "0" ]; then
+        # The OTA channels are passed EXPLICITLY, and that is the whole fix.
+        #
+        # `waydroid init` composes its download URL as
+        #     <system_channel>/<rom_type>/waydroid_<arch>/<system_type>.json
+        # and falls back to a channels config for the defaults. MoOS ships no such
+        # file — `tools.config.load_channels()` finds nothing — so both channels came
+        # back empty and waydroid stopped with
+        #     ERROR: You must provide 'System OTA' and 'Vendor OTA' URLs.
+        # every single time. Measured on the station 2026-09-20: this action had never
+        # worked since it shipped, because nothing had ever run it end to end.
+        #
+        # Verified reachable before being written down, not assumed:
+        #   https://ota.waydro.id/system/lineage/waydroid_x86_64/VANILLA.json  HTTP 200
+        #   https://ota.waydro.id/vendor/waydroid_x86_64/MAINLINE.json         HTTP 200
         run_priv waydroid init -s VANILLA \
+            -c "$WAYDROID_SYSTEM_CHANNEL" -v "$WAYDROID_VENDOR_CHANNEL" \
             || { echo "${Y}تعذّر التهيئة | init failed${N}"; return 1; }
     fi
+
+    # An Android app must be a WINDOW, not a takeover of the screen.
+    #
+    # Without this, waydroid runs one full-screen session: launching a single app
+    # covers the whole 3840x2160 desktop, MoOS's bar included, and there is no way
+    # to use MoOS beside it. Measured on the station 2026-09-20 — the first launch
+    # of a real app filled the display. `multi_windows` gives each Android task its
+    # own surface, which KWin then manages like any other window: it can be moved,
+    # resized, tiled by Arrange, switched to with Alt+Tab and shown in the MoOS Bar.
+    # Verified live: the same app reopened as a phone-sized floating window with the
+    # desktop visible behind it.
+    #
+    # cursor_on_subsurface stops the pointer being drawn twice — Android renders its
+    # own cursor into the surface, and without this the owner sees two.
+    #
+    # Set BEFORE the session starts: these are read at session start, and a property
+    # set afterwards needs another restart to take effect.
+    waydroid prop set persist.waydroid.multi_windows true >/dev/null 2>&1 || true
+    waydroid prop set persist.waydroid.cursor_on_subsurface true >/dev/null 2>&1 || true
 
     if ! run_priv systemctl enable --now waydroid-container.service \
             || ! systemctl is-active --quiet waydroid-container.service; then

@@ -47,6 +47,10 @@ GLYPH_RE = re.compile(r"(?=.{1,64}\Z)[a-z][a-z0-9_]*\Z")
 BIN_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}\Z")
 VERSION_RE = re.compile(r"[0-9][A-Za-z0-9._+-]{0,63}\Z")
 SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
+# An Android application id. Two labels is legal and common (app.organicmaps),
+# so this is deliberately looser than FLATPAK_ID_RE, which requires three.
+ANDROID_PACKAGE_RE = re.compile(
+    r"(?=.{3,255}\Z)[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+\Z")
 
 # Web recipes open a human-facing page; they never name a package or executable.
 # Exact hosts (no wildcard subdomains) and exact page paths keep a compromised
@@ -55,6 +59,13 @@ WEB_PAGE_ALLOWLIST = {
     "cursor.com": frozenset({"/download", "/downloads"}),
     "antigravity.google": frozenset({"/"}),
     "lmstudio.ai": frozenset({"/download"}),
+    # Windows programs are LISTED, never redistributed: MoOS has no licence to
+    # mirror them, so the entry takes the owner to the publisher's own page and
+    # nowhere else. Exact paths, for the same reason the three above are exact —
+    # a catalogue edit must not be able to reach an arbitrary page on the domain.
+    "www.7-zip.org": frozenset({"/download.html"}),
+    "notepad-plus-plus.org": frozenset({"/downloads/"}),
+    "www.irfanview.com": frozenset({"/"}),
 }
 DIRECT_DOWNLOAD_SUFFIXES = (
     ".appimage", ".deb", ".rpm", ".exe", ".msi", ".dmg", ".pkg",
@@ -245,7 +256,16 @@ for index, app in enumerate(apps):
         continue
 
     source = required_text(app, "source", label)
-    aid_pattern = FLATPAK_ID_RE if source == "flathub" else SLUG_RE
+    # A MoOS-curated entry is a slug — EXCEPT an Android one, whose identity is
+    # its package id, dots and all. The android block below then requires
+    # install.package to equal it, so the catalogue and the container cannot
+    # drift apart into naming two different things.
+    if source == "flathub":
+        aid_pattern = FLATPAK_ID_RE
+    elif (app.get("install") or {}).get("kind") == "android":
+        aid_pattern = ANDROID_PACKAGE_RE
+    else:
+        aid_pattern = SLUG_RE
     aid = required_text(app, "id", label, aid_pattern)
     add_unique(aid, app_ids, "app")
     category = required_text(app, "cat", label, SLUG_RE)
@@ -290,7 +310,7 @@ for index, app in enumerate(apps):
         continue
     kind = required_text(inst, "kind", f"{label}.install")
     require(
-        kind in {"npm", "appimage", "web"},
+        kind in {"npm", "appimage", "web", "android"},
         f"app {aid or '?'} has unknown install kind {kind!r}",
     )
     if kind:
@@ -371,6 +391,31 @@ for index, app in enumerate(apps):
                 f"AppImage recipe {aid or '?'} must not contain install.{forbidden}",
             )
 
+    elif kind == "android":
+        # Held to the AppImage standard, because the risk is identical: MoOS
+        # fetches a binary over the network and then runs it. https, an exact
+        # SHA-256 verified before anything reaches the container, and a package
+        # id the container will actually accept. An entry that is not pinned is
+        # refused here rather than downloaded and discovered later.
+        checked_https_url(inst.get("url"), f"{label}.install.url")
+        required_text(inst, "sha256", f"{label}.install", SHA256_RE)
+        required_text(inst, "package", f"{label}.install", ANDROID_PACKAGE_RE)
+        require_review_metadata(inst, f"{label}.install", "external-download")
+        require(
+            inst.get("external") is True,
+            f"Android recipe {aid or '?'} must declare install.external=true",
+        )
+        require(
+            inst.get("package") == aid,
+            f"Android recipe {aid or '?'} must use its package id as the app id, "
+            f"so the catalogue and the container name the same thing",
+        )
+        for forbidden in ("pkg", "bin", "version"):
+            require(
+                forbidden not in inst,
+                f"Android recipe {aid or '?'} must not contain install.{forbidden}",
+            )
+
 # ── bundles only reference apps that exist ────────────────────────────────────
 bundle_ids = set()
 for index, bundle in enumerate(bundles):
@@ -397,7 +442,8 @@ for index, bundle in enumerate(bundles):
         ref_label = f"{label}.apps[{ref_index}]"
         canonical = clean_text(ref, ref_label)
         require(
-            bool(SLUG_RE.fullmatch(canonical) or FLATPAK_ID_RE.fullmatch(canonical))
+            bool(SLUG_RE.fullmatch(canonical) or FLATPAK_ID_RE.fullmatch(canonical)
+                 or ANDROID_PACKAGE_RE.fullmatch(canonical))
             if canonical else False,
             f"{ref_label} is not a canonical app id",
         )
