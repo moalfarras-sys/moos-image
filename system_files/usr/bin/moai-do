@@ -536,6 +536,12 @@ do_install_nvidia() {
     echo "${G}✓ تم التجهيز — أعد التشغيل لتفعيل التعريف | Staged — reboot to activate${N}"
 }
 
+# The official Waydroid OTA channels. waydroid appends
+# /<rom>/waydroid_<arch>/<system_type>.json to each, and MoOS ships no channels
+# config for it to fall back on — see the comment at the init call below.
+WAYDROID_SYSTEM_CHANNEL="${WAYDROID_SYSTEM_CHANNEL:-https://ota.waydro.id/system}"
+WAYDROID_VENDOR_CHANNEL="${WAYDROID_VENDOR_CHANNEL:-https://ota.waydro.id/vendor}"
+
 do_setup_waydroid() {
     hdr "تجهيز تطبيقات Android" "Set up Android apps"
     need waydroid || return 1
@@ -555,7 +561,22 @@ do_setup_waydroid() {
     # through the public moos: URL scheme, so confirmation must not exist only on first install.
     confirm || return 0
     if [ "$inited" = "0" ]; then
+        # The OTA channels are passed EXPLICITLY, and that is the whole fix.
+        #
+        # `waydroid init` composes its download URL as
+        #     <system_channel>/<rom_type>/waydroid_<arch>/<system_type>.json
+        # and falls back to a channels config for the defaults. MoOS ships no such
+        # file — `tools.config.load_channels()` finds nothing — so both channels came
+        # back empty and waydroid stopped with
+        #     ERROR: You must provide 'System OTA' and 'Vendor OTA' URLs.
+        # every single time. Measured on the station 2026-09-20: this action had never
+        # worked since it shipped, because nothing had ever run it end to end.
+        #
+        # Verified reachable before being written down, not assumed:
+        #   https://ota.waydro.id/system/lineage/waydroid_x86_64/VANILLA.json  HTTP 200
+        #   https://ota.waydro.id/vendor/waydroid_x86_64/MAINLINE.json         HTTP 200
         run_priv waydroid init -s VANILLA \
+            -c "$WAYDROID_SYSTEM_CHANNEL" -v "$WAYDROID_VENDOR_CHANNEL" \
             || { echo "${Y}تعذّر التهيئة | init failed${N}"; return 1; }
     fi
 

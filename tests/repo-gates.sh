@@ -413,3 +413,4 @@ python3 tests/test_selfcheck_document_portal.py
 # three signed builds by returning 400; the fix must never become `|| true`.
 python3 tests/test_npm_audit_gate.py
 python3 tests/test_app_drop_dialog_runtime.py
+python3 tests/test_android_setup_channels.py

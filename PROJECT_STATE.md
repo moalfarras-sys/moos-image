@@ -44,14 +44,20 @@ edition), `waydroid` **installed but not initialized** (~1 GB image never fetche
 needs_setup=false` — no download needed, which is what `build.sh` intended and what the
 runner did not know until now; an `.apk` resolves as `needs_setup=true`.
 
-**A real PE32+ Windows program ran here (2026-09-19)** with the runner's exact prefix
-and printed `Microsoft Windows 10.0.19045`, exit 0. PE32 fails although the complete
-new-WoW64 payload is present. The earlier “missing i686, add ~1 GiB” diagnosis was wrong.
-Fresh-prefix execution and the audit log establish the immediate cause: SELinux denies
-`execmod` while mapping the i386 PE DLL from composefs (`kernel_t` → `lib_t`). Do not
-weaken SELinux globally. Corrective source probes MoOS's own PE32 command once per image;
-on failure it launches no downloaded code and offers optional isolated support instead.
-Native errors are supervised and retained in a user-owned log, never discarded.
+**All three app engines run here (2026-09-20, on `.899`).** **Windows:** Notepad and
+Minesweeper launched through `moos-run-foreign` — the double-click path — appeared wearing
+**MoOS's own decoration** and listed in the **MoOS Bar**; resolver `ready=true,
+chosen=wine`, no download. **Linux:** install → launch → remove entirely through
+`moos-storectl`. **Android: it had never worked, and now does.** `moai-do setup-waydroid`
+called `waydroid init` without the mandatory OTA channels, which neither MoOS nor Fedora's
+package supplies a config for, so it failed every time before downloading a byte — every
+gate read the source, where each half looked right. Passing the channels fixed it: **2.3 GB
+downloaded**, container `RUNNING`, a real APK installed via `moos-storectl install-file`,
+and **F-Droid opened on the desktop** with its icon in the MoOS Bar. Frames in
+`test-results/a1-live/`. PE32 (32-bit) still fails although the new-WoW64 payload is
+complete; the audit log gives the cause — SELinux denies `execmod` while mapping the i386
+PE DLL from composefs (`kernel_t` → `lib_t`). The earlier "missing i686, add ~1 GiB"
+diagnosis was wrong. Do not weaken SELinux globally.
 
 ## Physical development station
 

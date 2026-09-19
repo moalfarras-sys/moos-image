@@ -337,6 +337,12 @@ check:
     # may ever reach a dialog. A person who downloaded a program wants "Windows
     # programs", not a lesson about which runtime MoOS used.
     python3 tests/test_app_engines.py
+    # "Set up Android" had NEVER worked: waydroid init needs mandatory OTA
+    # channels, MoOS ships no channels config for it to fall back on, and every
+    # existing gate read only the source. Proven on the station 2026-09-20 by
+    # running it — 2.3 GB downloaded, container up, a real APK installed and the
+    # app opened.
+    python3 tests/test_android_setup_channels.py
     # A retiring npm endpoint failed three signed builds on 2026-09-19 by
     # returning 400, which reads exactly like a vulnerability. The gate tells
     # "npm answered and it is clean" apart from "npm could not answer", retries
