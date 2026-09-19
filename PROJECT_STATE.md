@@ -47,9 +47,13 @@ Measured 2026-09-19: `wine` **installed** (`build.sh` `_core_power`, every deskt
 edition), `waydroid` **installed but not initialized** (~1 GB image never fetched),
 `flatpak` from the base. A `.exe` resolves as `chosen=wine, ready=true,
 needs_setup=false` — no download needed, which is what `build.sh` intended and what the
-runner did not know until now; an `.apk` resolves as `needs_setup=true`. **Not proven:**
-no real `.exe` or `.apk` has been run end to end. The decision is gated on a real
-engine; the execution is not. Plan row A1.
+runner did not know until now; an `.apk` resolves as `needs_setup=true`.
+
+**A real Windows program ran here (2026-09-19)** with the runner's exact prefix and
+environment: a PE32+ binary printed `Microsoft Windows 10.0.19045`, exit 0. **32-bit
+Windows programs FAIL** on this machine — see the plan's A1 row for the measurement and
+why wine's own explanation is wrong. **Still unproven:** the double-click journey on an
+installed image (the station runs `.894`), and no `.apk` at all.
 
 ## Physical development station
 
@@ -77,23 +81,22 @@ login to a ready desktop **1.10 s**/3.0, an app's window **0.49 s**/4.0, MoOS's 
 **80/80** then **79/80** over two runs of 40 fixed Arabic/English cases, no wrong tool in
 either; the one miss was the model answering in words instead of calling (P3.3).
 
-**Updating it:** MoOS origins are digest-pinned, so `bootc upgrade` reports "no
-changes" forever. Use the MoOS Updater (Settings → Update MoOS, or Mo AI's "Update
-my system"), or wait for the nightly train; then restart.
+**Updating it:** origins are digest-pinned, so `bootc upgrade` reports "no changes"
+forever. Use the MoOS Updater (Settings → Update MoOS, or Mo AI's "Update my system"),
+or the nightly train; then restart.
 
 ## Closed reviews — what they established
 
-- **W2–W6 on the station** (2026-09-17/18, `.858` and `.862`): every row passed — booted
-  version and retained deployment, the first-login shadow sweep, Hub controls from the
-  desktop's own menu, a widget removed with an undo, MoOS Search's inline answer
-  (`12*7` → **84**), the Island's privacy chip naming the capturing app, App Drop
-  installing and removing a real 8.4 MB AppImage, a dismissed administrator prompt
-  staging nothing and saying so. Frames in `~/.cache/moos-station-review{,2}/`.
-  **Still owed on a desk:** an Island **Store** job in the foreground (the Remote chip
-  outranks it while Mo PC Remote runs).
-- **W6.1–W6.3** are in production: Settings' "About this device" (P2.9), Mo AI's twelve
-  read-only repair playbooks (43 tools: 30 run at once, 13 ask first) with eight one-tap
-  chips (P3.10), and Mo AI's rail corrected at the default 940 px window.
+- **W2–W6 on the station** (2026-09-17/18, `.858`/`.862`): every row passed — booted
+  version and retained deployment, first-login shadow sweep, Hub controls from the
+  desktop's menu, a widget removed with an undo, Search's inline answer (`12*7` → **84**),
+  the Island's privacy chip naming the capturing app, App Drop installing and removing a
+  real 8.4 MB AppImage, a dismissed administrator prompt staging nothing and saying so.
+  **Still owed:** an Island **Store** job in the foreground (the Remote chip outranks it
+  while Mo PC Remote runs).
+- **W6.1–W6.3** in production: Settings' "About this device" (P2.9), Mo AI's twelve
+  read-only repair playbooks (43 tools, 13 ask first) with eight chips (P3.10), and Mo
+  AI's rail corrected at the default 940 px window.
 - **Mo AI's brain, measured since:** a real free model drives the tool loop (W8.3, PR
   #131), eight free models were ranked on this machine (W8.5), and action selection is
   measured (W9.1 — see the station block above). **Still owed:** the same 40 cases on a
@@ -110,14 +113,13 @@ my system"), or wait for the nightly train; then restart.
 
 ## Development environment
 
-- On the station: VS Code is a Flatpak; host work uses `flatpak-spawn --host`.
-  `just workstation-check` is a read-only inventory; .NET SDK `10.0.401` and Flutter
-  3.47.4 (the image-builder pin) are installed. Pointer-driven review goes through
-  `scripts/station/pointer.py` — KWin confirms every position before a click.
+- On the station: VS Code is a Flatpak; host work uses `flatpak-spawn --host`. There is
+  **no C++ toolchain**, so any gate needing one skips here. `just workstation-check` is a
+  read-only inventory; .NET `10.0.401` and Flutter 3.47.4 are installed. Pointer review
+  goes through `scripts/station/pointer.py` — KWin confirms every position before a click.
 - Off the station: Windows 11 + WSL2 `FedoraLinux-44`. `scripts/review/` holds the
   toolchain installer, the gate mirror and the from-source renderers;
-  `scripts/release-candidate.sh` needs `TMPDIR` under Git Bash. `.kilo/` is local
-  untracked agent state, not product source.
+  `scripts/release-candidate.sh` needs `TMPDIR` under Git Bash.
 
 ## A1 live review (2026-09-18, ARM under `kwin --virtual`, Arabic)
 
@@ -131,9 +133,9 @@ my system"), or wait for the nightly train; then restart.
 ## Open evidence gaps
 
 - M1 visual/accessibility matrix: English/German, light/dark, reduced motion, 1080p–4K,
-  100–250%, island Remote/Media switching (Arabic reviewed only).
-- Hardware: suspend/resume, multi-monitor, audio/network recovery, deliberate rollback
-  and photographed boot/login; laptop and touch hardware; ARM on a physical seat.
+  100–250%, island Remote/Media (Arabic only so far).
+- Hardware: suspend/resume, multi-monitor, audio/network recovery, deliberate rollback,
+  photographed boot/login, laptop and touch hardware, ARM on a physical seat.
 - Versioned, failure-tested Mo AI/Store/core contracts and a single application
   transaction authority (it does not hold for Android — see the plan's P4 section).
 - Owner decision P3.9: whether Mo AI ever gets a tool that runs a command the model
@@ -173,8 +175,8 @@ to end here. Every reboot needs a signed-version and `THEME_REV` readback. P0.7 
 ## Candidate evidence — `feat/moos-design-studio-20260919` (PR #141, unmerged)
 
 All green 2026-09-19: `just check` exit 0 (**202 gates**), CI repo gates, ARM native
-build (14m35s), x86 image build with in-image gates (16m54s), claude-review. Local
-`just build` exit 0 → `localhost/moos:latest`, 13.4 GB.
+build, x86 image build with its in-image gates, claude-review; local `just build` exit 0
+→ `localhost/moos:latest`, 13.4 GB.
 
 **Verified inside the built image, not the source** (`podman run --entrypoint bash`):
 `app-engines.json` with 3 engines; `moos-app-engine` and `moos-material-state`
@@ -187,12 +189,12 @@ defect the registry exists to close.
 **Not done:** no signed candidate, no boot proofs, no promotion. The station runs
 `44.20260919.894`; nothing here has reached a desk.
 
-Six commits: the glass reader and its live bridge (fourteen real-engine cases, each
-half proven to fail when its code is removed); the lock-screen overlay gate, which
-covered two of the six `plasma-desktop` files MoOS overwrites, on both architectures;
-the app-engine registry and a Store that reads it; and today's eight gates reaching CI,
-which `test_gate_coverage.py` permits to be absent and which therefore protected nothing
-at the moment a candidate is signed.
+Seven commits: the glass reader and its live bridge (fourteen real-engine cases, each
+half proven to fail when its code is removed); the lock-screen overlay gate, which had
+covered two of the six `plasma-desktop` files MoOS overwrites; the app-engine registry
+and a Store that reads it; and today's eight gates reaching CI, which
+`test_gate_coverage.py` permits to be absent and which therefore protected nothing at
+the moment a candidate is signed.
 
 No user theme shadow or installed system artwork was replaced; no desktop capture is
 committed.
