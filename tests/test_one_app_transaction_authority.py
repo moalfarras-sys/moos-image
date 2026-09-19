@@ -62,6 +62,28 @@ class OneAuthority(unittest.TestCase):
         setup = (BIN / "moos-setup").read_text(encoding="utf-8")
         self.assertIn('moos-storectl install "${SELECTED[@]}"', setup)
 
+    def test_android_install_mutation_has_one_store_authority(self):
+        """An APK is a Store transaction too, even though its carrier is not Flatpak."""
+        def normalized(text: str) -> str:
+            uncommented = "\n".join(
+                line for line in text.splitlines()
+                if not line.lstrip().startswith(("#", "//"))
+            )
+            return re.sub(r"[\s\"',\[\]()]+", " ", uncommented)
+
+        mutation = re.compile(r"(?:^|\s)(?:/usr/bin/)?waydroid\s+app\s+install(?:\s|$)")
+        offenders = []
+        for path, text in sources():
+            if mutation.search(normalized(text)):
+                offenders.append(path.name)
+        self.assertEqual(offenders, [],
+                         "these install APKs outside Mo Store's job/lock authority: "
+                         + ", ".join(offenders))
+
+        backend = (BIN / "moos-storectl").read_text(encoding="utf-8")
+        self.assertRegex(normalized(backend), mutation,
+                         "Mo Store no longer owns the actual Android install mutation")
+
     def test_the_one_exception_stays_exactly_as_narrow_as_it_is(self):
         """`--unused` collects garbage; anything else named uninstall is a transaction."""
         allowed = []

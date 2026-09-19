@@ -46,7 +46,7 @@ elif [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then
         "io.github.kolunmi.Bazaar" "Bazaar — كتالوج Mo Store الكامل، اختياري (full catalog engine)" off \
         "com.github.tchx84.Flatseal" "Flatseal — إدارة أذونات التطبيقات (Flatpak Permissions)" on \
         "com.valvesoftware.Steam" "Steam — منصة الألعاب (Steam Gaming)" on \
-        "com.usebottles.bottles" "Bottles — تشغيل برامج Windows (Run Windows Apps)" on \
+        "com.usebottles.bottles" "دعم تطبيقات Windows (Windows app support)" on \
         "net.lutris.Lutris" "Lutris — مدير الألعاب الشامل (Lutris Games Manager)" on 2>/dev/null); then
         echo "أُلغي | Cancelled."
         exit 0

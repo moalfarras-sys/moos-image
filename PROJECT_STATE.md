@@ -8,31 +8,31 @@ the README and every wave row point here instead of repeating it. Four parallel 
 
 ## Source and release truth
 
-- **Two live findings, 2026-09-19.** Selfcheck warned "configure a cloud key" on a
-  single-model catalogue, which a real free Arabic reply disproved. And four Chrome
-  launches failed with the document portal running without its FUSE mount — repaired by
-  restarting `xdg-document-portal` alone, gated by five tests. **Root cause unproven.**
-- **Published, and now running here.** Read back from the registry (`skopeo inspect
-  …:latest`): `moos`, `moos-nvidia`, `moos-cloud` = **`44.20260919.894`**, `moos-arm` =
-  **`44.20260919.507`** — **all four from revision `2e0d64dc`**, the second time both
-  architectures sit on one revision and the first time a dispatched cycle put them there.
-  Its cycle: build `35409127347`, disks `35410638993`/`35410641400`/`35410643663`, ISO
-  `35410645542`, x86 promotion `35413165564`; ARM dispatch `35410647421` completed its own
-  boot and promotion, which is the dispatch-promotion evidence P0.6 was waiting for.
-  `main` and `origin/main` are both `2e0d64dc`, with no open PRs and no active runners.
-  Later nightly builds are not new release evidence.
+- **Production moved, but the station must not take it yet.** Registry readback on
+  2026-09-19: `moos`, `moos-nvidia`, `moos-cloud` = **`44.20260919.899`** and
+  `moos-arm` = **`44.20260919.515`**, all revision **`fbf393f4`**. The x86 cycle passed
+  signed build `35461545885`, QCOW2 `35462838874`/`35462840914`/`35462843175`, ISO
+  `35462844969`, and promotion `35465072636`; ARM also reached the same revision.
+  A real KDialog test then proved its App Drop primary button accepts Enter. Production
+  tags moved before the local release process could be stopped. Treat this release as
+  superseded: build and promote the corrective revision before updating a workstation.
+- `main` and `origin/main` are `fbf393f4`; the corrective work is on
+  `fix/app-consent-and-runner-20260919`. Merging source never updates this machine.
 - **After owner reboot:** booted signed NVIDIA **`44.20260919.894`**, digest
   `47dc4c6d02984e47042ae165471387a30cc3c973669464006939d96cfeacce9c`;
-  signed **`44.20260918.892`** retained for rollback; nothing staged.
+  the updater has since staged affected **`44.20260919.899`** for the next boot, and signed
+  **`44.20260918.892`** remains retained. **Do not reboot:** the corrective signed update
+  must replace the staged deployment first.
   Post-update gate **55 passed**, source selfcheck **52 passed/one optional-tray note**;
   zero failed units, document portal mount healthy. Installed theme revision **71**.
-- **Store file entry (source only):** the Store shows what this machine can run, from
-  the engine registry, and takes a file by drag or picker into App Drop's default-No
-  consent. Four reviewers plus an adversarial verifier: containment held under real
-  probing (outside-home paths, symlink escapes, FIFOs, device nodes and non-owned files
-  refused; argv never a shell); six defects fixed, five gaps recorded in the plan.
-  Rendered on a real engine in Arabic. **Not proven:** a drop-to-launch journey; no
-  image or signed artifact yet.
+- **Corrective source, not released:** App Drop now makes KDialog's focused primary
+  button Cancel and accepts only the secondary action. On isolated Xvfb/KDialog 26:
+  Enter rejects, Escape rejects, Tab+Enter accepts. APK mutation is inside
+  `moos-storectl`'s job/lock authority; `.xapk`/`.apks` are refused before consent.
+  The Store bridge's six compiled Qt cases passed in a disposable SDK. All 204 source
+  gates and one full local generic image build passed; the built image also passed its
+  bootc, initramfs, QML-runtime, motion, image-state and identity-firewall gates. Still
+  unproven: a pointer drop through an installed image and a signed corrective candidate.
 
 - `main` is the only long-lived branch; every merged topic branch is deleted. The intermittent
   `plymouthd` SEGV (P0.7) is open on ARM and, since cycle D, on x86.
@@ -48,12 +48,14 @@ edition), `waydroid` **installed but not initialized** (~1 GB image never fetche
 needs_setup=false` — no download needed, which is what `build.sh` intended and what the
 runner did not know until now; an `.apk` resolves as `needs_setup=true`.
 
-**A real Windows program ran here (2026-09-19)** with the runner's exact prefix and
-environment: a PE32+ binary printed `Microsoft Windows 10.0.19045`, exit 0. **32-bit ones
-FAIL** although the WoW64 payload IS present (PE headers parsed to confirm). An earlier
-pass blamed a missing i686 wine and priced a ~1 GiB fix — **that was wrong**; see A1.
-Cause unestablished; it needs the audit log and root is not passwordless here.
-**Unproven:** the double-click journey on an installed image, and no `.apk` at all.
+**A real PE32+ Windows program ran here (2026-09-19)** with the runner's exact prefix
+and printed `Microsoft Windows 10.0.19045`, exit 0. PE32 fails although the complete
+new-WoW64 payload is present. The earlier “missing i686, add ~1 GiB” diagnosis was wrong.
+Fresh-prefix execution and the audit log establish the immediate cause: SELinux denies
+`execmod` while mapping the i386 PE DLL from composefs (`kernel_t` → `lib_t`). Do not
+weaken SELinux globally. Corrective source probes MoOS's own PE32 command once per image;
+on failure it launches no downloaded code and offers optional isolated support instead.
+Native errors are supervised and retained in a user-owned log, never discarded.
 
 ## Physical development station
 
@@ -136,8 +138,9 @@ or the nightly train; then restart.
   100–250%, island Remote/Media (Arabic only so far).
 - Hardware: suspend/resume, multi-monitor, audio/network recovery, deliberate rollback,
   photographed boot/login, laptop and touch hardware, ARM on a physical seat.
-- Versioned, failure-tested Mo AI/Store/core contracts and a single application
-  transaction authority (it does not hold for Android — see the plan's P4 section).
+- Versioned, failure-tested Mo AI/Store/core contracts and one lifecycle across every
+  adapter. APK installation now has the Store authority; shared cancel/remove/retry and
+  stable cross-engine app IDs remain P4.1 work.
 - Owner decision P3.9: whether Mo AI ever gets a tool that runs a command the model
   wrote. Until it is taken, no such tool exists.
 
@@ -167,34 +170,11 @@ off` stops and un-autostarts both sharing services with no administrator rights.
 
 ## Next execution
 
-PR #141 is green and unmerged; promotion needs the merge first (RELEASE.md). Then two
-backlogs in `docs/DEVELOPMENT_PLAN.md`: “Every app, one verb” (A1–A5) and “Design
-completion handoff”. A1 is the nearest owed evidence — a real `.exe` and `.apk` run end
-to end here. Every reboot needs a signed-version and `THEME_REV` readback. P0.7 open.
-
-## Candidate evidence — `feat/moos-design-studio-20260919` (PR #141, unmerged)
-
-All green 2026-09-19: `just check` exit 0 (**202 gates**), CI repo gates, ARM native
-build, x86 image build with its in-image gates, claude-review; local `just build` exit 0
-→ `localhost/moos:latest`, 13.4 GB.
-
-**Verified inside the built image, not the source** (`podman run --entrypoint bash`):
-`app-engines.json` with 3 engines; `moos-app-engine` and `moos-material-state`
-executable; `moos-material-state.service` has `[Install]` **and** its
-`graphical-session.target.wants` symlink — the enable-without-`[Install]` trap
-`AGENTS.md` documents; `THEME_REV=75`; the MoOS lock screen survived every package
-transaction; and a `.exe` resolves as `windows / Windows programs / ready=True`, the
-defect the registry exists to close.
-
-**Not done:** no signed candidate, no boot proofs, no promotion. The station runs
-`44.20260919.894`; nothing here has reached a desk.
-
-Seven commits: the glass reader and its live bridge (fourteen real-engine cases, each
-half proven to fail when its code is removed); the lock-screen overlay gate, which had
-covered two of the six `plasma-desktop` files MoOS overwrites; the app-engine registry
-and a Store that reads it; and today's eight gates reaching CI, which
-`test_gate_coverage.py` permits to be absent and which therefore protected nothing at
-the moment a candidate is signed.
-
-No user theme shadow or installed system artwork was replaced; no desktop capture is
-committed.
+Review and merge the corrective source as one slice, then use
+`scripts/release-candidate.sh --promote` once. Its 204 source gates, isolated KDialog
+runtime proof and full local generic image build are green. Promotion
+requires the signed build, three QCOW2 boots and ISO installed-system proof for the exact
+revision; ARM remains separate evidence. Only then stage the signed NVIDIA digest on
+this station, reboot, and read back version, signature origin, theme revision, failed
+units and the real double-click journeys. A1/A4 remain open until installed evidence.
+P0.7's intermittent Plymouth crash, P4.2–P4.5 and the visual/hardware matrix remain open.

@@ -537,7 +537,7 @@ Kirigami.ApplicationWindow {
     readonly property string systemPrompt:
         "You are Mo AI, the built-in assistant of MoOS — a premium Arabic/English " +
         "(RTL) desktop operating system by Moalfarras, with atomic image updates and " +
-        "the MoOS desktop (Wayland). You are not a chat box beside the system; " +
+        "the MoOS desktop. You are not a chat box beside the system; " +
         "you ARE its repair, update, cleanup and setup centre.\n\n" +
         root.identityRule + "\n\n" +
         "WHAT YOU CAN DO — put the EXACT command in a fenced code block and the app " +
@@ -557,7 +557,7 @@ Kirigami.ApplicationWindow {
         "• Install ANY app: `moai-do install <flatpak-id>` — e.g. `moai-do install " +
         "org.blender.Blender`. It DOWNLOADS the app AND OPENS it when done, so a " +
         "request like “install a camera” ends with the camera on screen. Prefer " +
-        "Flatpaks over layering system packages, and prefer Qt or portal-based Wayland " +
+        "Mo Store apps over layering system packages, and prefer Qt or portal-based desktop " +
         "apps — an app made for another desktop shell can install fine and then " +
         "crash on launch. For a CAMERA use `org.gnome.Snapshot` (verified live here: it " +
         "reaches the webcam through the XDG camera portal). NEVER `io.github.cosmic_utils" +
@@ -606,13 +606,12 @@ Kirigami.ApplicationWindow {
         "it in Files: MoOS hands it to the right layer, and if that layer is not installed " +
         "yet it offers the one-time setup right there. Say that FIRST — the setup commands " +
         "below are for someone who wants to prepare the machine in advance.\n" +
-        "   – Windows programs: `moai-do setup-windows` installs Bottles (managed Wine) " +
-        "and opens it, so any .exe runs. For games use `moai-do setup-gaming` (Steam + " +
-        "Proton + Lutris); `moai-do install net.lutris.Lutris` manages both.\n" +
-        "   – Android apps: `moai-do setup-waydroid` boots a real Android container " +
-        "(idempotent — safe to re-run); afterwards Android apps appear in the launcher " +
-        "like any other app, and an APK installs by double-clicking it (or " +
-        "`waydroid app install <file>`).\n" +
+        "   – Windows programs: `moai-do setup-windows` prepares isolated Windows-app " +
+        "support. For games use `moai-do setup-gaming`; never ask the person to configure " +
+        "the underlying compatibility engine.\n" +
+        "   – Android apps: `moai-do setup-waydroid` prepares Android-app support " +
+        "(idempotent — safe to re-run); afterwards apps appear in the launcher like any " +
+        "other app, and an APK installs by double-clicking it or dropping it in Mo Store.\n" +
         "• Coding agents, and ONE OF THEM NEEDS NO VENDOR ACCOUNT: `moai-do install-opencode` " +
         "installs OpenCode wired to Mo AI's own free cloud brain through this account's " +
         "gateway, and MoOS writes its provider config for the user. Recommend " +
@@ -783,13 +782,13 @@ Kirigami.ApplicationWindow {
     // Compatibility targets. `key` matches moai-control's /scan compatibility
     // map, so "Ready" is read from the machine, never assumed.
     readonly property var compatCatalog: [
-        { key: "steam",      title: "Steam + Proton", ar: "ألعاب Windows", en: "Windows games",
+        { key: "steam",      title: "Windows Games", titleAr: "ألعاب Windows", ar: "ألعابك في مكان واحد", en: "Your games in one place",
           url: "moos://do/setup-gaming", icon: "moos-gaming-symbolic" },
-        { key: "bottles",    title: "Bottles", ar: "تطبيقات Windows", en: "Windows apps",
+        { key: "bottles",    title: "Windows Apps", titleAr: "تطبيقات Windows", ar: "تعمل كتطبيقات MoOS", en: "Run like MoOS apps",
           url: "moos://do/setup-windows", icon: "moos-system-symbolic" },
-        { key: "waydroid",   title: "Waydroid", ar: "تطبيقات Android", en: "Android apps",
+        { key: "waydroid",   title: "Android Apps", titleAr: "تطبيقات Android", ar: "تعمل كتطبيقات MoOS", en: "Run like MoOS apps",
           url: "moos://do/setup-waydroid", icon: "moos-android-apps-symbolic" },
-        { key: "kdeconnect", title: "KDE Connect", ar: "ربط الهاتف", en: "Phone integration",
+        { key: "kdeconnect", title: "Phone Integration", titleAr: "ربط الهاتف", ar: "هاتفك مع MoOS", en: "Your phone with MoOS",
           url: "moos://apps/install/org.kde.kdeconnect", icon: "moos-phone-symbolic" }
     ]
 
@@ -1897,8 +1896,8 @@ Kirigami.ApplicationWindow {
             case "fix_audio": return root.local("إصلاح نظام الصوت", "Fix Audio System")
             case "optimize_system": return root.local("تنظيف وتسريع النظام", "Optimize System")
             case "setup_gaming": return root.local("تهيئة بيئة الألعاب", "Setup Gaming Environment")
-            case "setup_windows": return root.local("تهيئة تطبيقات Windows", "Setup Windows Apps (Bottles)")
-            case "setup_waydroid": return root.local("تهيئة بيئة Android", "Setup Android (Waydroid)")
+            case "setup_windows": return root.local("تهيئة تطبيقات Windows", "Set Up Windows Apps")
+            case "setup_waydroid": return root.local("تهيئة تطبيقات Android", "Set Up Android Apps")
             case "install_nvidia": return root.local("التبديل إلى إصدار NVIDIA", "Switch to NVIDIA Edition")
             case "update_firmware": return root.local("تحديث البرامج الثابتة", "Update Firmware (fwupd)")
             case "remote_anywhere": return root.local("التحكم عن بعد من أي مكان", "Enable Remote Anywhere")
@@ -5308,7 +5307,8 @@ Kirigami.ApplicationWindow {
                                             RowLayout {
                                                 spacing: design.space2
                                                 Text {
-                                                    text: compat.modelData.title
+                                                    text: root.local(compat.modelData.titleAr,
+                                                                     compat.modelData.title)
                                                     color: root.textHi
                                                     font.family: root.uiFont
                                                     font.pixelSize: root.typePx(14)
@@ -5334,7 +5334,10 @@ Kirigami.ApplicationWindow {
                                                                 : root.local("إعداد", "Set up")
                                             primary: !compat.ready
                                             enabled_: !compat.ready
-                                            onClicked: root.launch(compat.modelData.url, compat.modelData.title)
+                                            onClicked: root.launch(
+                                                compat.modelData.url,
+                                                root.local(compat.modelData.titleAr,
+                                                           compat.modelData.title))
                                         }
                                     }
                                 }
@@ -5364,8 +5367,8 @@ Kirigami.ApplicationWindow {
                                             // uses KVM; real virtual machines and the Android
                                             // Studio emulator do.
                                             text: root.local(
-                                                "تحتاجه أجهزة Windows الافتراضية ومحاكي Android Studio. تطبيقات Android عبر Waydroid تعمل بدونه.",
-                                                "Needed by Windows virtual machines and the Android Studio emulator. Android apps through Waydroid run without it.")
+                                                "تحتاجه أجهزة Windows الافتراضية ومحاكي Android Studio. تطبيقات Android في MoOS تعمل بدونه.",
+                                                "Needed by Windows virtual machines and the Android Studio emulator. Android apps in MoOS run without it.")
                                             color: root.textLo
                                             font.family: root.uiFont
                                             font.pixelSize: root.typePx(11)

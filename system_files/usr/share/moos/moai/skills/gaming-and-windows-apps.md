@@ -9,9 +9,9 @@ use_when: The person wants to play games, run a Windows program or an .exe, or u
 2. `disk_status` — games are large; check the free space on `/var` before a big download.
 
 ## Steps
-1. Games → `setup_gaming`. It asks first, then installs only what is missing: Steam, Bottles, Lutris and ProtonUp. Most Windows games on Steam run through Steam's own compatibility layer; the person turns it on in Steam's settings.
-2. A Windows program that is not a game → `setup_windows`. It installs Bottles, which runs `.exe` programs in a managed environment. Opening Bottles later needs no administrator password.
-3. Android apps → `setup_waydroid`. It asks first, needs the administrator password, and downloads a free Android image of about 1 GB the first time. It has no Google Play; apps come as `.apk` files or from an open app store inside it.
+1. Games → `setup_gaming`. It asks first, then installs only the missing game and compatibility support. Most Windows games in Steam use its built-in compatibility option; the person turns it on in Steam's settings.
+2. A Windows program that is not a game → `setup_windows`. It prepares an isolated environment for `.exe` programs. The person should open the file again after setup; never make them choose or configure an engine.
+3. Android apps → `setup_waydroid`. It asks first, needs the administrator password, and downloads about 1 GB the first time. Afterwards the person installs an `.apk` by double-clicking it or dropping it in Mo Store; never give them a runtime command.
 4. After any of these → `list_installed_apps` to confirm what is there, then `open_app` app_id=<id>.
 
 ## Be honest

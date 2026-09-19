@@ -69,7 +69,7 @@ fi
 
 # Fallback: a minimal kdialog that offers the curated app setup in a terminal.
 command -v kdialog >/dev/null 2>&1 || exit 0
-msg=$'أهلاً بك في MoOS! هل تريد تثبيت التطبيقات الأساسية الآن؟ (Steam, Bottles, Firefox...)\nWelcome to MoOS! Install the essential apps now?'
+msg=$'أهلاً بك في MoOS! هل تريد تثبيت التطبيقات الأساسية الآن؟ (Steam، دعم تطبيقات Windows، Firefox...)\nWelcome to MoOS! Install the essential apps now? (Steam, Windows app support, Firefox...)'
 if kdialog \
     --title "أهلاً بك في MoOS | Welcome to MoOS" \
     --icon moos-logo \
