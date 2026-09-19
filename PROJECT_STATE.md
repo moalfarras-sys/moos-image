@@ -50,10 +50,10 @@ needs_setup=false` — no download needed, which is what `build.sh` intended and
 runner did not know until now; an `.apk` resolves as `needs_setup=true`.
 
 **A real Windows program ran here (2026-09-19)** with the runner's exact prefix and
-environment: a PE32+ binary printed `Microsoft Windows 10.0.19045`, exit 0. **32-bit
-Windows programs FAIL** on this machine — see the plan's A1 row for the measurement and
-why wine's own explanation is wrong. **Still unproven:** the double-click journey on an
-installed image (the station runs `.894`), and no `.apk` at all.
+environment: a PE32+ binary printed `Microsoft Windows 10.0.19045`, exit 0. **32-bit ones
+FAIL** — the image ships no 32-bit wine, so `syswow64\ntdll.dll` cannot be mapped; adding
+it costs **200 packages / ~1 GiB**, an owner decision recorded in the plan's A1 row.
+**Unproven:** the double-click journey on an installed image, and no `.apk` at all.
 
 ## Physical development station
 
