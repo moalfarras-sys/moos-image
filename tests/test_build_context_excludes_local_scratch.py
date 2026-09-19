@@ -39,6 +39,9 @@ LOCAL_BUILD_OUTPUT = (
     "moplayer/.dart_tool/",
     "moplayer/linux/flutter/ephemeral/",
     "output/",
+    # Review evidence, and the one entry here that is not merely dead weight: it
+    # holds live captures of the development station's own desktop.
+    "test-results/",
 )
 
 

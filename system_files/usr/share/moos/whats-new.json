@@ -3,6 +3,19 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "glass-system-policy",
+      "merged": "2026-09-19T18:00:00Z",
+      "glyph": "ui",
+      "title": {
+        "ar": "الأسطح تبقى مقروءة على كل جهاز",
+        "en": "Surfaces stay readable on every machine"
+      },
+      "body": {
+        "ar": "على جهاز لا يرسم التمويه، أو إذا أطفأتَه بنفسك، كانت أسطح MoOS تبقى شفّافة فيقرأ نصّ النافذة التي خلفها من خلالها. صارت الأسطح تقرأ إعداد جهازك كما يقرأه النظام، وتزداد كثافةً بلا تمويه، فيستقرّ النص فوق سطح.",
+        "en": "On a machine that does not paint blur — or when you turn blur off — MoOS surfaces stayed translucent, and the window behind read straight through them. Surfaces now read your machine's setting the way the system reads it, and grow denser without blur, so text sits on a surface."
+      }
+    },
+    {
       "id": "free-brain-measured",
       "merged": "2026-09-18T15:23:50Z",
       "glyph": "ai",
