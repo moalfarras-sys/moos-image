@@ -113,8 +113,8 @@
         "en": "macOS apps"
       },
       "reason": {
-        "ar": "لا يوجد مسار قانوني وعملي لتشغيل تطبيقات ماك على عتاد غير آبل: التشغيل يتطلّب أطر نظام لا يجوز إعادة توزيعها، والبدائل مفتوحة المصدر ناقصة وتدعم معمارية واحدة. MoOS لا يَعِد بما لا ينفّذه.",
-        "en": "There is no lawful, working way to run macOS applications on non-Apple hardware: it needs system frameworks that may not be redistributed, and the open reimplementations are incomplete and single-architecture. MoOS does not promise what it cannot do."
+        "ar": "تطبيقات ماك غير مدعومة في MoOS حاليًا. توجد مشاريع توافق تجريبية، لكن لم نؤهّل مسارًا موثوقًا لتطبيقاتها الرسومية. ابحث عن نسخة ويب أو لينكس من التطبيق.",
+        "en": "macOS apps are not currently supported in MoOS. Experimental compatibility projects exist, but we have not qualified a reliable path for graphical apps. Look for a web or Linux version of the application."
       },
       "_": "Listed rather than omitted so the answer to 'can MoOS run Mac apps?' is written down once, in the same file as every engine that DOES work, instead of being re-litigated. If this ever changes it changes here."
     }

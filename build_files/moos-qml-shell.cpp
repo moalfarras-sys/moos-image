@@ -55,6 +55,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileDevice>
+#include <QFileInfo>
 #include <QProcess>
 #include <QRegularExpression>
 #include <QVariantList>
@@ -140,6 +141,31 @@ public:
             args.append(id);
         }
         return start(args);
+    }
+
+    Q_INVOKABLE bool installFile(const QUrl &url)
+    {
+        // Only a local, regular file reaches App Drop's existing inspection and
+        // default-No consent flow. Never interpret URLs as shell or public routes.
+        if (!m_enabled || !url.isLocalFile() || !url.host().isEmpty()
+            || url.hasQuery() || url.hasFragment()) {
+            return false;
+        }
+        const QString path = url.toLocalFile();
+        for (const QChar character : path) {
+            if (character.unicode() < 32 || character.unicode() == 127)
+                return false;
+        }
+        const QFileInfo file(path);
+        if (!file.isAbsolute() || !file.isFile() || file.isSymLink()
+            || !file.isReadable()) {
+            return false;
+        }
+        // App Drop validates ownership/home, magic and digest again. It asks
+        // before delegating to the single Store job authority; starting it is
+        // NOT an installation success and must never be presented as one.
+        return QProcess::startDetached(QStringLiteral("/usr/bin/moos-app-drop"),
+                                       QStringList{path});
     }
 
     Q_INVOKABLE bool removeApp(const QString &id)

@@ -227,21 +227,21 @@
       "glyph": "gamepad",
       "en": "Steam",
       "ar": "ستيم",
-      "desc_en": "The biggest game store, with Proton built in.",
-      "desc_ar": "أكبر متجر ألعاب مع Proton مدمج.",
+      "desc_en": "The biggest game store — Windows games run here too.",
+      "desc_ar": "أكبر متجر ألعاب — وألعاب ويندوز تعمل فيه أيضًا.",
       "popular": true,
       "preselect": true
     },
     {
       "id": "com.usebottles.bottles",
-      "popular": true,
+      "popular": false,
       "source": "flathub",
       "cat": "fun",
       "glyph": "flask",
       "en": "Bottles",
       "ar": "بوتلز",
-      "desc_en": "Run Windows apps and games.",
-      "desc_ar": "شغّل برامج وألعاب ويندوز."
+      "desc_en": "Advanced management of Windows environments, for tuning it yourself.",
+      "desc_ar": "إدارة متقدّمة لبيئات ويندوز، لمن يريد ضبطها بنفسه."
     },
     {
       "id": "net.lutris.Lutris",
@@ -250,8 +250,8 @@
       "glyph": "joystick",
       "en": "Lutris",
       "ar": "لوتريس",
-      "desc_en": "Manage your games from every source.",
-      "desc_ar": "يدير ألعابك من كل المصادر."
+      "desc_en": "A game manager for people who collect from many sources.",
+      "desc_ar": "مدير ألعاب لمن يجمع مكتبته من مصادر متعدّدة."
     },
     {
       "id": "com.heroicgameslauncher.hgl",
@@ -270,8 +270,8 @@
       "glyph": "gear",
       "en": "ProtonUp-Qt",
       "ar": "بروتون-أب",
-      "desc_en": "Manage Proton and compatibility tools.",
-      "desc_ar": "إدارة إصدارات Proton وأدوات التوافق."
+      "desc_en": "Extra game compatibility tools, for picking versions by hand.",
+      "desc_ar": "أدوات توافق إضافية للألعاب، لاختيار إصداراتها يدويًا."
     },
     {
       "id": "com.spotify.Client",

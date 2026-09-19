@@ -1,6 +1,6 @@
 # MoOS current state
 
-Current measured facts only; Git owns history. Last measured 2026-09-19 15:0x local.
+Current measured facts only; Git owns history. Last measured 2026-09-19 after owner reboot.
 
 **This block is the only place in the repository that states a version number.** The plan,
 the README and every wave row point here instead of repeating it. Four parallel copies of
@@ -10,30 +10,30 @@ the README and every wave row point here instead of repeating it. Four parallel 
 
 - **Two live findings, 2026-09-19.** Selfcheck warned "configure a cloud key" on a
   single-model catalogue, which a real free Arabic reply disproved; it now reads the
-  catalogue without inferring inference readiness. And four Chrome launches failed
-  because the document portal was running without its FUSE mount — repaired by
-  restarting `xdg-document-portal` alone, gated by five mount-health tests. **Root
-  cause of the portal failure is unproven** and no image or desktop restart was done.
-- **Published now, read back from the registry 2026-09-19 15:4x** (`skopeo inspect
-  …:latest`, `org.opencontainers.image.version`/`.revision`): `moos`, `moos-nvidia` and
-  `moos-cloud` = **`44.20260919.894`**, `moos-arm` = **`44.20260919.507`** — **all four
-  from revision `2e0d64dc`**. This is the SECOND time both architectures sit on one
-  revision, and the first time a dispatched cycle put them there.
-- **Current source audit:** local starting `main` and remote `main` both
-  `2e0d64dc9c75748fce8a4bb86897e80b6dd6328c`. At the audit there were no open PRs
-  or active release runners. Exact-revision dispatch build `35409127347`, disks
-  `35410638993` / `35410641400` / `35410643663`, ISO `35410645542` and x86 promotion
-  `35413165564` succeeded. ARM dispatch `35410647421` also ran its actual boot and
-  promotion steps successfully: the formerly missing dispatch-promotion evidence
-  now exists. Later nightly builds are not new x86 release evidence.
-- **Current physical readback** (`/ostree/deploy/default/deploy/*.origin`, 2026-09-19
-  15:3x): booted signed NVIDIA **`44.20260918.892`**, digest
-  `4638eab3481f484d69a7a8404cec430d10d4ccd01b5647e17b45b9765720cf6b`; staged signed
-  **`44.20260919.894`**, digest
-  `47dc4c6d02984e47042ae165471387a30cc3c973669464006939d96cfeacce9c`; retained signed
-  **`44.20260918.890`**, digest `3cb9d545…`, for rollback. Booted 11:07 local, the
-  stage written 11:30 — **the desk is one release behind what is published**, and no
-  reboot was performed during this audit. The stage is not the running desktop.
+  catalogue without inferring inference readiness. And four Chrome launches failed with
+  the document portal running without its FUSE mount — repaired by restarting
+  `xdg-document-portal` alone, gated by five tests. **Root cause unproven.**
+- **Published, and now running here.** Read back from the registry (`skopeo inspect
+  …:latest`): `moos`, `moos-nvidia`, `moos-cloud` = **`44.20260919.894`**, `moos-arm` =
+  **`44.20260919.507`** — **all four from revision `2e0d64dc`**, the second time both
+  architectures sit on one revision and the first time a dispatched cycle put them there.
+  Its cycle: build `35409127347`, disks `35410638993`/`35410641400`/`35410643663`, ISO
+  `35410645542`, x86 promotion `35413165564`; ARM dispatch `35410647421` completed its own
+  boot and promotion, which is the dispatch-promotion evidence P0.6 was waiting for.
+  `main` and `origin/main` are both `2e0d64dc`, with no open PRs and no active runners.
+  Later nightly builds are not new release evidence.
+- **After owner reboot:** booted signed NVIDIA **`44.20260919.894`**, digest
+  `47dc4c6d02984e47042ae165471387a30cc3c973669464006939d96cfeacce9c`;
+  signed **`44.20260918.892`** retained for rollback; nothing staged.
+  Post-update gate **55 passed**, source selfcheck **52 passed/one optional-tray note**;
+  zero failed units, document portal mount healthy. Installed theme revision **71**.
+- **Store file entry (source only):** the Store shows what this machine can run, from
+  the engine registry, and takes a file by drag or picker into App Drop's default-No
+  consent. Four reviewers plus an adversarial verifier: containment held under real
+  probing (outside-home paths, symlink escapes, FIFOs, device nodes and non-owned files
+  refused; argv never a shell); six defects fixed, five gaps recorded in the plan.
+  Rendered on a real engine in Arabic. **Not proven:** a drop-to-launch journey; no
+  image or signed artifact yet.
 
 - `main` is the only long-lived branch; every merged topic branch is deleted. The intermittent
   `plymouthd` SEGV (P0.7) is open on ARM and, since cycle D, on x86.
@@ -65,14 +65,14 @@ not. Plan row A1.
 | Network | Intel AX210 Wi-Fi/Bluetooth + RTL8125 Ethernet |
 | Health | zero failed system units and zero failed user units |
 
-Measured on the station 2026-09-19 15:3x: `THEME_REV` **70** applied (bar and shell both
-`v70`), Global Theme `org.moos.ui2.amethyst`, visual tier **flagship**, motion `alive`,
+Measured after owner reboot: installed `THEME_REV` **71**,
+Global Theme `org.moos.ui2.amethyst`, visual tier **flagship**, motion `alive`,
 `kwinrc/Plugins/blurEnabled=true`, Arabic session (`ar_SA.UTF-8`). **Source is at
-`THEME_REV` 75** — the desk is five theme revisions behind, so nothing in W9.6 or later
-has been seen here. Health checks do not qualify suspend, every app or all visual surfaces.
+`THEME_REV` 75** — newer local source is not installed.
+Health checks do not qualify suspend, every app or all visual surfaces.
 
 **Speed, measured on cycle H's `.890` five minutes after boot** (`moos-measure-speed`, P5.4;
-the booted image is now `.892` and these have NOT been re-measured on it):
+the booted image is now `.894` and these have NOT been re-measured on it):
 MoOS's share of boot **6.70 s** / 9.0, login to a ready desktop **1.10 s** / 3.0, an app's
 window appearing **0.49 s** / 4.0, MoOS's own processes **0.12%** of the CPU while idle /
 8.0. All four inside budget.

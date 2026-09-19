@@ -337,6 +337,8 @@ check:
     # may ever reach a dialog. A person who downloaded a program wants "Windows
     # programs", not a lesson about which runtime MoOS used.
     python3 tests/test_app_engines.py
+    python3 tests/test_store_app_drop_bridge.py
+    python3 tests/test_store_app_drop_ui.py
     # The Device page told an Oracle A1 owner their CPU was a "MoOS device".
     # Real hardware identity, or an honest Unknown -- never an invented name.
     python3 tests/test_settings_hardware_identity.py

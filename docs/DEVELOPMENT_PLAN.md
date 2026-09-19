@@ -350,11 +350,44 @@ dialog, not in a terminal line, not in a notification. "Windows programs", "Andr
 user-facing string that names wine, bottles, waydroid, proton, lutris, flatpak, wayland,
 kwin, plasma, qemu or bubblewrap.
 
-**macOS** is in the registry under `unsupported`, with the reason written out in both
-languages: there is no lawful, working path on non-Apple hardware — it needs system
-frameworks that may not be redistributed, and the open reimplementations are incomplete
-and single-architecture. It is recorded rather than omitted so the question has one
-answer in the same file as every engine that does work.
+**macOS** is unsupported. The answer lives in ONE place — the `unsupported` entry in
+`app-engines.json`, in both languages — and this paragraph deliberately does not repeat
+it, because two copies of an answer is how a repository comes to give two answers. What
+belongs here is the engineering position behind it: experimental compatibility projects
+exist, MoOS has not qualified a reliable path for graphical macOS applications, and until
+it does there is no Store button and no promise.
+
+**What the 2026-09-19 review found, and what is still open after it.** The Store drop
+path was reviewed across security, contract, correctness and product by four independent
+readers and every finding was put to an adversarial verifier. The security design held:
+outside-home paths, directory-symlink escapes, FIFOs, device nodes, dangling symlinks and
+non-owned files are all refused, argv is never a shell even with `$(...)` in a filename, a
+declined dialog spawns nothing, and the only privileged thing reachable is `moai-do`
+behind its own confirmation. What did not hold, and is fixed: the catalogue edit reddened
+the gate CI runs before signing; the Store told the drag source a rejected drop had been
+accepted; an install started from the Store was invisible in the Store; the what's-new
+entry promised installation for `.exe` and `.apk`, which that path does not do; the UI
+test ran under an app id that has no bridge, so it never reached the code it is named
+after; and today's eight gates existed only in `just check`, which `test_gate_coverage.py`
+permits and which protects nothing at the moment a candidate is signed.
+
+Still open, written down rather than quietly carried:
+
+- **An `.apk` installs outside `moos-storectl`.** The foreign path reaches the Android
+  runtime's own install command, so P4.1's single transaction authority does not hold for
+  Android, and `tests/test_one_app_transaction_authority.py` is structurally blind to it
+  (it matches Flatpak verbs only). Row A3 has to fix the authority, not just the catalogue.
+- **The compiled half of the bridge test skips on every machine that builds MoOS.** There
+  is no C++ toolchain on the station or in the image, so the URL validator's executable
+  proof only runs where a disposable SDK container is available. The image build compiles
+  the same file, which is the real proof, but the gate should say so rather than pass quietly.
+- **Mo Store still names a packaging format in section headers** ("Update Flatpak apps
+  here", "Optional Flatpak engine"). A format a person can hold is nameable; a mechanism
+  is not. The brand gate deliberately scopes to runtimes so this is visible instead of
+  excused — it is copy work with its own review.
+- **`.xapk`/`.apks` are consented as Android files that nothing can run.** App Drop
+  classifies them; the registry claims only `.apk`; the runner has no branch for them.
+- **The default-No guarantee is unproven on the kdialog branch** that MoOS actually uses.
 
 **Next, in order. Each row is a wave; none of it is started.**
 
@@ -870,6 +903,38 @@ unavailable, not successful configuration.
 
 ### P4 — Applications and compatibility
 
+**Owner priority, 2026-09-19: MoOS application platform.** One Store entry point,
+one consent surface and one transaction authority; runtime brands stay out of the
+ordinary journey, but compatibility limits, download size, permissions and failures
+remain visible. "MoOS API" means a versioned contract over adapters, not a promise
+to implement every foreign ABI or repaint third-party application content.
+
+Implementation order inside P4 (no separate backlog):
+
+1. P4.7: native Store file picker/drop → validated local URL → existing App Drop
+   inspection/default-No consent → Store job. Source implemented; compiled bridge,
+   real drop/cancel/install/remove, native Arabic/English frames and image proof required.
+2. P4.1/P1.7: adapter contract `inspect → prepare → install → launch → remove`;
+   stable app/job IDs, permissions, architecture, provenance and tested support level.
+   Existing registry resolves engine availability, NOT successful app compatibility.
+3. P4.3: per-app Windows environments, MSI/EXE distinction, install discovery,
+   launcher/icon export and uninstall. Current shared prefix/launch is not this product.
+4. P4.4: Android initialization/download consent, ABI preflight, individual-app
+   windows, launcher/files/audio and GPU fallback. ARM-only APKs are not generally
+   runnable on x86; NVIDIA fallback requires separate performance qualification.
+5. P4.5: publish tested app/version/architecture/GPU matrix; Linux packages from
+   other distributions need reviewed container adapters, never host package mixing.
+   macOS remains unsupported in the shipped product; evaluate open compatibility
+   projects separately without blanket legal claims or unsupported Store install buttons.
+
+Primary references checked 2026-09-19:
+[Android application/ABI limitations](https://docs.waydro.id/usage/install-and-run-android-applications),
+[GPU fallback](https://docs.waydro.id/faq/get-waydroid-to-work-through-a-vm),
+[Windows runner CLI](https://docs.usebottles.com/advanced/cli),
+[Darling implementation status](https://github.com/darlinghq/darling).
+None promises universal compatibility. Installation does not silently execute an
+untrusted application; first launch requires an explicit user action.
+
 | ID | Task | Exit evidence |
 | --- | --- | --- |
 | P4.1 | Unify every install/update/remove request behind Mo Store | UI, Mo AI and URL routes share job IDs, progress, cancellation and readback |
@@ -878,7 +943,7 @@ unavailable, not successful configuration.
 | P4.4 | Turn Android compatibility into a per-app product | on-demand container; launcher/files/clipboard/audio; ten test apps on Intel/AMD and NVIDIA fallback |
 | P4.5 | Publish a generated compatibility matrix | supported/experimental/unsupported status names edition, architecture, GPU and tested version |
 | P4.6 | **In source (W6):** App Drop — an application that arrives as a file | AppImage (extracted once inside bubblewrap into `~/Applications/<name>/`), portable archives (extracted by `moos_appdrop.py`, hostile members refused by name), Flathub `.flatpakref` (the ordinary verified path); `.rpm`/`.exe`/`.apk` handed to their existing routes; `.deb` and `.flatpak` bundles refused with the reason. Consent dialog with default No on every path; one Mo Store job (`moos-storectl install-file`). `tests/test_app_drop.py` builds the hostile files and runs the real sandbox. **Reviewed on the station 2026-09-17/18** (`.858`/`.862`, recorded in `PROJECT_STATE.md`): a real 8.4 MB AppImage installed and removed. That is ONE journey through ONE entry path; the rest of the row is still owed and must not be inferred from it. **Open:** the dialog, the file-manager action and the `~/Applications` watch reviewed on a desktop; what a double-click on an AppImage did before (read from source, never observed); `.flatpak` bundles through libflatpak; **discoverability** — nothing points a person at `~/Applications` yet: a Places entry in the file manager (check on a desktop how the places model treats a seeded `user-places.xbel` before shipping one) or a launcher entry, which needs its own designed icon |
-| P4.7 | A drop target in Mo Store's own window | needs a `Q_INVOKABLE installFile(path)` with a path validator in `build_files/moos-qml-shell.cpp` (the bridge's `validId` rejects paths) and a full image build; the Store must not use the public `moos:` scheme for it |
+| P4.7 | **Implemented in source; qualification pending:** file picker and drop in Mo Store | `StoreBridge.installFile(QUrl)` validates a local regular file and delegates to App Drop's default-No consent, never a public URL action. Six executable Qt/consent cases passed in a disposable SDK; Arabic/light and English/dark Qt frames reviewed. Still required: actual pointer drop, install/launch/remove through this entry, full image and signed artifact proof |
 
 Flatpak sandboxes deny host access by default and portals provide controlled
 access to files and services.^5 MoOS should keep per-user app development and

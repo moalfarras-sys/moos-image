@@ -45,6 +45,25 @@ BUILD = ROOT / "build_files/build.sh"
 ENGINE_BRANDS = ("wine", "bottles", "waydroid", "proton", "lutris",
                  "flatpak", "wayland", "kwin", "plasma", "qemu", "bubblewrap")
 
+# The subset that is never legitimate in MoOS's voice, anywhere.
+#
+# The full list above is right for the registry and the file-manager runner, which
+# are pure MoOS voice. Across the wider product one word needs a different rule.
+# "Flatpak" is not only a runtime; it is a FILE FORMAT a person can physically
+# hold — `.flatpak`, `.flatpakref` — exactly like `.exe`. "This Flatpak file is
+# not valid" names the thing in their hand, and refusing to name it would make
+# the message useless. Wine, Bottles, Waydroid, Proton and Lutris are different:
+# nobody ever holds one, so naming one only tells a person MoOS is several
+# systems wearing a coat.
+#
+# Note what this does NOT excuse, and see the plan's P4 section: Mo Store still
+# says "Update Flatpak apps here" and "Optional Flatpak engine" in section
+# headers, which is the mechanism and not a file. That is real copy work with its
+# own review, it is written down rather than quietly allowed, and it is why this
+# constant is a named subset instead of a shorter list.
+RUNTIME_BRANDS = tuple(brand for brand in ENGINE_BRANDS
+                       if brand not in ("flatpak", "wayland", "kwin", "plasma"))
+
 DOCUMENT = json.loads(REGISTRY.read_text(encoding="utf-8"))
 
 
@@ -141,6 +160,64 @@ class TheEngineNeverSaysItsName(unittest.TestCase):
                     offenders.append(f"{text!r} names {brand!r}")
         self.assertEqual(offenders, [],
                          "moos-run-foreign says these to a person:\n  " + "\n  ".join(offenders))
+
+    def test_moos_own_voice_never_names_a_runtime_anywhere_it_speaks(self):
+        """The rule, applied to every surface — not just the two it started on.
+
+        The gate first read only the registry and the file-manager runner, and an
+        audit found the same brands sitting on Mo Store's front page and in App
+        Drop's dialogs. The rule was never about those two files; it is about
+        MoOS's VOICE.
+
+        The line is drawn at authorship. A catalogue entry's `en`/`ar` is a third
+        party's own product name — calling Bottles something else would be a lie,
+        and it is exempt. Everything else in these files is MoOS talking: the
+        descriptions it writes, the dialogs it shows, the labels on its controls.
+        MoOS does not get to tell a person that a runtime is how they run their
+        Windows programs, because that is MoOS's own job now.
+        """
+        catalogue = json.loads(
+            (ROOT / "system_files/usr/share/moos/store/catalog.json")
+            .read_text(encoding="utf-8"))
+        offenders = []
+        for app in catalogue.get("apps", []):
+            for field in ("desc_en", "desc_ar"):
+                text = str(app.get(field, ""))
+                for brand in RUNTIME_BRANDS:
+                    if re.search(rf"\b{brand}\b", text.lower()):
+                        offenders.append(
+                            f"catalog.json {app['id']}.{field}: {text!r} names {brand!r}")
+        self.assertEqual(
+            offenders, [],
+            "MoOS wrote these descriptions, so they are MoOS speaking:\n  "
+            + "\n  ".join(offenders))
+
+    def test_the_store_and_app_drop_speak_the_same_way(self):
+        """Two more surfaces the rule always covered and the gate could not see."""
+        surfaces = {
+            "store/main.qml": (
+                ROOT / "system_files/usr/share/moos/apps/store/main.qml",
+                # Arabic and English literals the Store renders.
+                r'"([^"\\]{4,}?)"'),
+            "moos-app-drop": (
+                ROOT / "system_files/usr/bin/moos-app-drop",
+                r'"([^"\\]{4,}?)"'),
+        }
+        offenders = []
+        for name, (path, pattern) in surfaces.items():
+            source = path.read_text(encoding="utf-8")
+            # Strip comments: a note to the next engineer explaining WHY a runtime
+            # is hidden must be allowed to name it.
+            stripped = re.sub(r"(?m)^\s*(#|//).*$", "", source)
+            for text in re.findall(pattern, stripped):
+                if "/" in text or text.startswith("org.") or text.startswith("com."):
+                    continue          # a path or an application id, not prose
+                for brand in RUNTIME_BRANDS:
+                    if re.search(rf"\b{brand}\b", text.lower()):
+                        offenders.append(f"{name}: {text!r} names {brand!r}")
+        self.assertEqual(
+            offenders, [],
+            "these are strings MoOS shows a person:\n  " + "\n  ".join(offenders))
 
     def test_the_runner_does_not_hint_a_terminal_command_at_the_owner(self):
         """"try: waydroid app install …" is the engine's name AND its CLI."""

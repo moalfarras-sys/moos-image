@@ -3,6 +3,16 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "store-app-drop",
+      "merged": "2026-09-19T18:00:00Z",
+      "glyph": "install",
+      "title": {"ar": "أضف تطبيقًا من ملف", "en": "Add an app from a file"},
+      "body": {
+        "ar": "يعرض Mo Store الآن ما يستطيع جهازك تشغيله — برامج ويندوز وتطبيقات أندرويد وتطبيقات لينكس — ويقبل ملفًا تسحبه إليه أو تختاره بـ«إضافة تطبيق». يفحصه MoOS ويسألك قبل أي إجراء. تطبيقات لينكس تُثبَّت وتظهر في قائمتك؛ الأنواع الأخرى تُفتح ولا تُضاف إلى قائمتك بعد.",
+        "en": "Mo Store now shows what your machine can run — Windows programs, Android apps and Linux apps — and takes a file you drag onto it or pick with Add app. MoOS checks it and asks before doing anything. Linux apps are installed and appear in your menu; other kinds open, and are not added to your menu yet."
+      }
+    },
+    {
       "id": "glass-system-policy",
       "merged": "2026-09-19T18:00:00Z",
       "glyph": "ui",

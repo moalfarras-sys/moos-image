@@ -163,6 +163,15 @@ def handle(raw_path: str, *, from_inbox: bool = False) -> int:
         subprocess.Popen(["/usr/bin/moos-open", route], stdin=subprocess.DEVNULL, start_new_session=True)
         return 0
     if plan.handoff == "foreign":
+        # Store drops must not become an execution bypass: native files ask
+        # before installation, and compatibility files must ask before running.
+        if not ask("MoOS", say((
+                f"فتح «{plan.path.name}»؟\n\nقد يشغّل هذا الملف برنامجًا أو يثبّته. "
+                "التوافق غير مضمون. تابع فقط إن كنت تثق بمصدره.",
+                f"Open “{plan.path.name}”?\n\nThis file may run or install software. "
+                "Compatibility is not guaranteed. Continue only if you trust its source.")),
+                say(("متابعة", "Continue"))):
+            return 0
         subprocess.Popen(["/usr/bin/moos-run-foreign", str(plan.path)], stdin=subprocess.DEVNULL,
                          start_new_session=True)
         return 0

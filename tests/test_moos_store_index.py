@@ -622,15 +622,40 @@ class StoreEditorialPicksTests(unittest.TestCase):
                        key=lambda index: (0 if apps[index].get("popular") is True else 1, index))
         return [apps[index]["id"] for index in order[:limit]]
 
-    def test_picks_lead_with_the_popular_catalogue_in_editorial_order(self):
+    # A runtime is not an app somebody chooses. Mo Store used to lead with the
+    # Windows RUNTIME so that "MoOS runs Windows programs" was visible in the
+    # first row — the promise was right and the vehicle was wrong: it put an
+    # engine's brand in front of a person who only wanted to run a program they
+    # had downloaded. The promise now lives in the capability strip, which is
+    # generated from app-engines.json and can therefore only ever speak in the
+    # registry's own words. These two tests are a pair: the first says no engine
+    # leads the picks, the second says the promise is still on the page.
+    ENGINE_APPS = {"com.usebottles.bottles", "net.lutris.Lutris",
+                   "net.davidotek.pupgui2"}
+
+    def test_no_runtime_leads_the_picks(self):
         picks = self.ranked(8)
-        self.assertEqual(picks[:4], ["org.mozilla.firefox", "com.google.Chrome",
-                                     "com.valvesoftware.Steam", "com.usebottles.bottles"])
-        self.assertIn("com.usebottles.bottles", self.ranked(6),
-                      "running Windows apps is a MoOS promise and belongs in the first row")
+        self.assertEqual(picks[:3], ["org.mozilla.firefox", "com.google.Chrome",
+                                     "com.valvesoftware.Steam"])
+        leading = self.ENGINE_APPS & set(self.ranked(6))
+        self.assertFalse(
+            leading,
+            "these are engines, not apps a person picks, and leading with them puts a "
+            "runtime's brand on the Store's front page: " + ", ".join(sorted(leading)))
         local_only = {"com.jeffser.Alpaca", "io.gpt4all.gpt4all", "lmstudio"}
         self.assertFalse(local_only & set(picks),
                          "Mo AI is cloud-only; local-model apps must not lead MoOS picks")
+
+    def test_the_store_still_says_what_moos_can_run(self):
+        """Removing the runtime from the first row may not remove the promise."""
+        source = self.STORE.read_text(encoding="utf-8")
+        self.assertIn("app-engines.json", source,
+                      "the Store must read the engine registry, so the capability it "
+                      "advertises is the one the system actually has")
+        self.assertIn("engineCapabilities", source)
+        self.assertIn("openPickerFor", source,
+                      "each capability must be actionable — a label that does nothing is "
+                      "the dead button rule")
 
     def test_store_ranks_by_popular_flag_and_catalogue_order(self):
         source = self.STORE.read_text(encoding="utf-8")
