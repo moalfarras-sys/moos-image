@@ -408,3 +408,8 @@ python3 tests/test_design_studio_reference.py
 python3 tests/test_store_app_drop_bridge.py
 python3 tests/test_store_app_drop_ui.py
 python3 tests/test_selfcheck_document_portal.py
+
+# The gate that keeps `npm audit` honest. A retiring registry endpoint failed
+# three signed builds by returning 400; the fix must never become `|| true`.
+python3 tests/test_npm_audit_gate.py
+python3 tests/test_app_drop_dialog_runtime.py

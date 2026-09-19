@@ -337,6 +337,14 @@ check:
     # may ever reach a dialog. A person who downloaded a program wants "Windows
     # programs", not a lesson about which runtime MoOS used.
     python3 tests/test_app_engines.py
+    # A retiring npm endpoint failed three signed builds on 2026-09-19 by
+    # returning 400, which reads exactly like a vulnerability. The gate tells
+    # "npm answered and it is clean" apart from "npm could not answer", retries
+    # the second, and still fails closed — so nobody is tempted by `|| true`.
+    python3 tests/test_npm_audit_gate.py
+    # The "default is No" promise, exercised against the REAL kdialog on a private
+    # X server rather than asserted from source. Skips where Xvfb/xdotool are absent.
+    python3 tests/test_app_drop_dialog_runtime.py
     python3 tests/test_store_app_drop_bridge.py
     python3 tests/test_store_app_drop_ui.py
     # The Device page told an Oracle A1 owner their CPU was a "MoOS device".
