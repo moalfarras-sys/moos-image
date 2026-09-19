@@ -44,14 +44,20 @@ edition), `waydroid` **installed but not initialized** (~1 GB image never fetche
 needs_setup=false` — no download needed, which is what `build.sh` intended and what the
 runner did not know until now; an `.apk` resolves as `needs_setup=true`.
 
-**A real PE32+ Windows program ran here (2026-09-19)** with the runner's exact prefix
-and printed `Microsoft Windows 10.0.19045`, exit 0. PE32 fails although the complete
-new-WoW64 payload is present. The earlier “missing i686, add ~1 GiB” diagnosis was wrong.
-Fresh-prefix execution and the audit log establish the immediate cause: SELinux denies
-`execmod` while mapping the i386 PE DLL from composefs (`kernel_t` → `lib_t`). Do not
-weaken SELinux globally. Corrective source probes MoOS's own PE32 command once per image;
-on failure it launches no downloaded code and offers optional isolated support instead.
-Native errors are supervised and retained in a user-owned log, never discarded.
+**Apps really run here now (2026-09-19, on `.899`).** Two PE32+ Windows programs —
+Notepad and Minesweeper — launched through `moos-run-foreign`, the double-click path, and
+appeared as windows on the Arabic desktop wearing **MoOS's own decoration** and listed in
+the **MoOS Bar** beside native apps; the resolver said `ready=true, chosen=wine,
+needs_setup=false`, so no download. A Linux app went through the full lifecycle on the one
+authority: `moos-storectl install` → a real job at `state=success`, launcher entry
+`فلاتسيل`, running in Arabic RTL → `moos-storectl remove`, gone cleanly. Frames in
+`test-results/a1-live/`. **Android reaches the privilege boundary and stops there:** a real
+APK resolves as `تطبيقات أندرويد, needs_setup=true`, `/dev/binder` exists, the container
+service is enabled and active, and triggering MoOS's own setup route opened the bilingual
+prompt and **cancelled itself** — the default-No contract holding in the product. The
+~1 GB `waydroid init` escalates via `pkexec` with no MoOS polkit rule, so it needs the
+owner's password. PE32 (32-bit) still fails: SELinux denies `execmod` mapping the i386 PE
+DLL from composefs. The earlier "missing i686, add ~1 GiB" diagnosis was wrong.
 
 ## Physical development station
 
