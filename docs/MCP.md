@@ -17,7 +17,9 @@ dead in every session. `scripts/mcp-node.sh` answers the only question that
 differs between machines: it runs `npx` when it resolves, and the host's `npx`
 through the Flatpak portal when it does not. Off the station (WSL, a plain
 checkout, CI) the first branch is taken and nothing changes. No server's
-arguments and no credential path go through it.
+credential path goes through it. For Chrome only, when the configured path is
+the stock default, it prefers the executable stable browser created by
+`just mcp-setup`. Explicit custom browser paths remain unchanged.
 
 ## TL;DR
 
@@ -134,7 +136,7 @@ Keys go in `.claude/settings.local.json`, which `.gitignore` keeps out of every 
 A missing variable is **not** fatal: Claude Code warns, the server still starts, and only the
 call that needs the key fails.
 
-### `MOOS_CHROME` is the exception: it must be a real shell export
+### Browser selection in terminals and VS Code
 
 **`settings.local.json` alone does not work for it, and this was measured.** With `MOOS_CHROME`
 set in that file *and* visible to every command Claude Code ran, `chrome-devtools` still died on
@@ -148,13 +150,16 @@ Browser was not found at the configured executablePath (/opt/google/chrome/chrom
 **launched with**, and the settings `env` block is applied after that, so a variable that lives
 only in settings never reaches the server's argv.
 
-`just mcp-setup` therefore writes **both**: the settings entry (for anything that reads it later)
+`just mcp-setup` writes **both**: the settings entry (for anything that reads it later)
 and an `export` in `~/.bashrc` (the half that actually works). It is idempotent — running it twice
 rewrites the line rather than appending a second one. **Open a new terminal before restarting
 Claude Code**, or the export is not in the environment yet.
 
-The same applies to any credential you want an MCP server's `env` block to expand: put it in your
-profile, not only in `settings.local.json`.
+The shim now also resolves `~/.cache/moos-mcp/chrome` when the default path reaches
+it. A desktop-launched editor therefore does not need to inherit `.bashrc` for
+the setup browser to work. This fallback does **not** source shell profiles or
+load credentials, and does not change explicit browser choices. Credential
+environment expansion still needs checking in the client that launches the MCP.
 
 ---
 
@@ -200,6 +205,24 @@ An older inherited agent shell may still lack `dotnet` on PATH; use
 `~/.local/share/dotnet/dotnet` without reloading the owner's editor.
 
 ### Approval
+
+**MoOS station diagnosis (2026-09-19):** the VS Code Flatpak already exposes the
+host filesystem, devices, Wayland and the host execution portal; host `npx`
+executes successfully. The installed Claude extension is present. A real
+sequential-thinking `initialize` and `tools/list` round trip returned one tool.
+The default Chrome binary and setup symlink were absent, although browser caches
+exist: run `flatpak-spawn --host just mcp-setup`, then reconnect the server and
+exercise `list_pages`. A model's name does not determine those capabilities.
+
+Project permissions now explicitly allow host `just check`, workstation/MCP
+setup and read-only screen/session health checks. They are exact commands or
+narrow prefixes, not an unrestricted host shell. Root installation, signing,
+force-push and reboot protections remain unchanged. MCP approval, shell command
+approval, workspace trust and the operating system's permissions are distinct;
+fixing one does not prove the others. Use `/permissions` and `/mcp` in the actual
+Claude session to see its effective rules and connections. See the official
+[permission reference](https://code.claude.com/docs/en/permissions) and
+[VS Code guide](https://code.claude.com/docs/en/vs-code).
 
 `.claude/settings.json` lists all four in `enabledMcpjsonServers`, so no agent has to approve
 them one by one. One caveat from Claude Code's own docs: in a **freshly cloned** repo those

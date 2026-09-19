@@ -9,10 +9,9 @@ the README and every wave row point here instead of repeating it. Four parallel 
 ## Source and release truth
 
 - **Two live findings, 2026-09-19.** Selfcheck warned "configure a cloud key" on a
-  single-model catalogue, which a real free Arabic reply disproved; it now reads the
-  catalogue without inferring inference readiness. And four Chrome launches failed with
-  the document portal running without its FUSE mount — repaired by restarting
-  `xdg-document-portal` alone, gated by five tests. **Root cause unproven.**
+  single-model catalogue, which a real free Arabic reply disproved. And four Chrome
+  launches failed with the document portal running without its FUSE mount — repaired by
+  restarting `xdg-document-portal` alone, gated by five tests. **Root cause unproven.**
 - **Published, and now running here.** Read back from the registry (`skopeo inspect
   …:latest`): `moos`, `moos-nvidia`, `moos-cloud` = **`44.20260919.894`**, `moos-arm` =
   **`44.20260919.507`** — **all four from revision `2e0d64dc`**, the second time both
@@ -51,8 +50,9 @@ runner did not know until now; an `.apk` resolves as `needs_setup=true`.
 
 **A real Windows program ran here (2026-09-19)** with the runner's exact prefix and
 environment: a PE32+ binary printed `Microsoft Windows 10.0.19045`, exit 0. **32-bit ones
-FAIL** — the image ships no 32-bit wine, so `syswow64\ntdll.dll` cannot be mapped; adding
-it costs **200 packages / ~1 GiB**, an owner decision recorded in the plan's A1 row.
+FAIL** although the WoW64 payload IS present (PE headers parsed to confirm). An earlier
+pass blamed a missing i686 wine and priced a ~1 GiB fix — **that was wrong**; see A1.
+Cause unestablished; it needs the audit log and root is not passwordless here.
 **Unproven:** the double-click journey on an installed image, and no `.apk` at all.
 
 ## Physical development station

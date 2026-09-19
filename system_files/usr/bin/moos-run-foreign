@@ -182,21 +182,20 @@ apk_install() {
         done
     fi
 
-    if waydroid app install "$apk"; then
+    if /usr/bin/moos-storectl install-file "$apk"; then
         echo
-        echo "✓ تم التثبيت — يفتح التطبيق الآن | installed — opening it now"
-        # Show the Android screen; the app itself is now in Waydroid's launcher.
-        setsid waydroid show-full-ui >/dev/null 2>&1 &
+        echo "✓ اكتمل التثبيت — افتح التطبيق من قائمة التطبيقات | installation completed — open the app from the launcher"
     else
         echo
         echo "✗ فشل التثبيت | install failed"
         echo "  افتح Mo AI ليفحص الجهاز | open Mo AI to check the system"
+        return 1
     fi
     echo
 }
 
 case "${1:-}" in
-    --apk-install) shift; [ -n "${1:-}" ] || usage; apk_install "$1"; exit 0 ;;
+    --apk-install) shift; [ -n "${1:-}" ] || usage; apk_install "$1"; exit $? ;;
     -h|--help|"") usage ;;
 esac
 

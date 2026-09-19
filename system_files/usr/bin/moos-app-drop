@@ -40,6 +40,9 @@ STORECTL = os.environ.get("MOOS_STORECTL", "/usr/bin/moos-storectl")
 
 # code -> (Arabic, English). The words live here, in one place, for every refusal and outcome.
 WORDS = {
+    "split_android_unsupported": (
+        "حزم Android المجزّأة غير مدعومة بعد. نزّل ملف APK واحدًا متوافقًا من الناشر؛ لم يُثبّت شيء.",
+        "Split Android bundles are not supported yet. Obtain a compatible single APK from its publisher; nothing was installed."),
     "file_missing": ("الملف غير موجود.", "That file does not exist."),
     "not_a_plain_file": ("هذا ليس ملفاً عادياً.", "That is not an ordinary file."),
     "not_your_file": ("هذا الملف يخصّ حساباً آخر.", "That file belongs to another account."),

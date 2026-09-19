@@ -20,16 +20,33 @@
 # credential path; it only answers "where does node live from here".
 set -euo pipefail
 
+runner=()
 if command -v npx >/dev/null 2>&1; then
-    exec npx "$@"
+    runner=(npx)
+elif command -v flatpak-spawn >/dev/null 2>&1 && flatpak-spawn --host true 2>/dev/null; then
+    runner=(flatpak-spawn --host npx)
 fi
-if command -v flatpak-spawn >/dev/null 2>&1 && flatpak-spawn --host true 2>/dev/null; then
-    exec flatpak-spawn --host npx "$@"
+
+if ((${#runner[@]})); then
+    # VS Code launched from the desktop need not inherit .bashrc exports. If
+    # MCP expanded its default browser path, reuse mcp-setup's stable browser.
+    # Never override an explicit caller path or read a credential/profile file.
+    args=("$@")
+    for ((i = 0; i + 1 < ${#args[@]}; i++)); do
+        if [[ ${args[i]} == --executablePath &&
+              ${args[i+1]} == /opt/google/chrome/chrome &&
+              -x ${HOME}/.cache/moos-mcp/chrome ]]; then
+            args[i+1]="${HOME}/.cache/moos-mcp/chrome"
+        fi
+    done
+    exec "${runner[@]}" "${args[@]}"
 fi
 
 cat >&2 <<'MESSAGE'
 MoOS: no Node runtime for this MCP server.
-  On MoOS/Fedora:  sudo rpm-ostree install nodejs-npm   (then reboot)
-  Elsewhere:       install Node 20 or newer so `npx` is on PATH.
+  On the MoOS station: run `just workstation-check` in a host terminal.
+  Install the development Node runtime in user space or a development container;
+  do not layer packages onto the signed operating-system deployment.
+  Elsewhere: install Node 20 or newer so `npx` is on PATH.
 MESSAGE
 exit 127

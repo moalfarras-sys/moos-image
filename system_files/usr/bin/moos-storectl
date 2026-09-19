@@ -1721,7 +1721,7 @@ class Controller:
         if plan.kind == "flatpakref":
             # A Flathub ref is an app id with a file around it: the ordinary verified path.
             return self.install([plan.flatpak_id])
-        if not plan.supported:
+        if not plan.supported and plan.kind != "android":
             raise StoreError(f"{plan.refusal or 'not_installable_here'}: {plan.kind} files are not installed here")
         try:
             lock, job = self._begin("install", [plan.slug])
@@ -1745,7 +1745,19 @@ class Controller:
                     else:
                         stage(percent, "Adding it to the launcher", message_key="integrating_app")
 
-                appdrop.install(plan, progress=progress, cancelled=lambda: self._cancelled(job))
+                if plan.kind == "android":
+                    # Session setup stays with the Android adapter; mutation,
+                    # locking, cancellation and result publication belong here.
+                    stage(None, "Installing application", "integrating_app")
+                    result = self.runner.run_cancellable(
+                        ["/usr/bin/waydroid", "app", "install", str(plan.path)],
+                        lambda: self._cancelled(job))
+                    if result.cancelled:
+                        raise appdrop.DropError("cancelled")
+                    if result.returncode:
+                        raise appdrop.DropError("failed", result.reason or "Android installation failed")
+                else:
+                    appdrop.install(plan, progress=progress, cancelled=lambda: self._cancelled(job))
                 job.update_item(plan.slug, state="done", progress=100, message="Installed",
                                 message_key="installed")
                 job.finish_from_items("All requested apps are ready", "all_ready")
