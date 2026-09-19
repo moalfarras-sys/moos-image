@@ -320,6 +320,12 @@ check:
     python3 tests/test_settings_about_page.py
     python3 tests/test_whats_new.py
     python3 tests/test_desktop_customize.py
+    # MoOS restyles six files that belong to plasma-desktop's shell package by
+    # dropping its own on top. build.sh and build-arm.sh each assert on the
+    # FINISHED image that all six survived and are still ours -- and that list
+    # held two of the six. The missing four included the lock screen. This keeps
+    # the list derived from the tree, on both architectures.
+    python3 tests/test_plasma_shell_overlay.py
     # The Device page told an Oracle A1 owner their CPU was a "MoOS device".
     # Real hardware identity, or an honest Unknown -- never an invented name.
     python3 tests/test_settings_hardware_identity.py
