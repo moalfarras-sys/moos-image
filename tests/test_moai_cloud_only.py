@@ -31,6 +31,8 @@ own gates as they land.
 
 import ast
 import re
+import os
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -319,6 +321,46 @@ class PlanIsRecorded(unittest.TestCase):
         text = PLAN.read_text(encoding="utf-8")
         self.assertIn("moai-do", text)
         self.assertRegex(text, r"never.{0,80}execute|execute.{0,80}never")
+
+
+class SelfcheckCatalogue(unittest.TestCase):
+    """Execute only the read-only gateway probe, without the live desktop."""
+
+    def probe(self, payload, status=0):
+        source = (REPO / "system_files/usr/bin/moos-selfcheck").read_text()
+        block = source.split('if model_catalogue=', 1)[1].split('\ncurl -sf', 1)[0]
+        script = '''
+ok() { printf 'OK %s\\n' "$*"; }
+bad() { printf 'BAD %s\\n' "$*"; }
+note() { printf 'NOTE %s\\n' "$*"; }
+curl() { printf '%s' "$CATALOGUE"; return "$STATUS"; }
+'''
+        env = dict(os.environ, CATALOGUE=payload, STATUS=str(status))
+        result = subprocess.run(['bash', '-c', script + '\ngw_port=8080\nif model_catalogue=' + block],
+                                env=env, text=True, capture_output=True, check=True)
+        return result.stdout
+
+    def test_single_free_model_is_not_a_missing_key(self):
+        output = self.probe('{"data":[{"id":"cloud:openrouter/free"}]}')
+        self.assertIn('lists 1 model(s)', output)
+        self.assertNotIn('BAD', output)
+        self.assertNotIn('configure a cloud key', output)
+        self.assertIn('inference is not tested', output)
+
+    def test_empty_catalogue(self):
+        self.assertIn('BAD the gateway lists no models', self.probe('{"data":[]}'))
+
+    def test_invalid_catalogues(self):
+        for payload in ('oops', '{}', 'null', '{"data":{}}', '{"data":[{}]}', '{"data":[{"id":4}]}'):
+            with self.subTest(payload=payload):
+                self.assertIn('BAD the gateway returned an invalid', self.probe(payload))
+
+    def test_unreachable_gateway(self):
+        self.assertIn('BAD nothing is answering', self.probe('', 7))
+
+    def test_counts_unique_models_not_other_ids(self):
+        self.assertIn('lists 2 model(s)', self.probe(
+            '{"id":"request", "data":[{"id":"a"},{"id":"b"},{"id":"a"}]}'))
 
 
 if __name__ == "__main__":

@@ -1,0 +1,166 @@
+#!/usr/bin/python3
+"""Publish KWin's live global blur availability, never change its policy.
+
+Consumers accept only a lone blur-on file. Missing/ambiguous state is opaque.
+This is not a promise that a particular window has a blur region.
+"""
+import fcntl
+import os
+from pathlib import Path
+import signal
+import stat
+
+
+class Publisher:
+    def __init__(self, runtime):
+        self.directory = Path(runtime) / "moos-material"
+        self.directory.mkdir(mode=0o700, exist_ok=True)
+        info = self.directory.lstat()
+        if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid():
+            raise RuntimeError("unsafe material runtime directory")
+        self.directory.chmod(0o700)
+
+    def publish(self, enabled):
+        selected = self.directory / ("blur-on" if enabled is True else "blur-off")
+        other = self.directory / ("blur-off" if enabled is True else "blur-on")
+        # Add before removing: observers may briefly see both, never false clarity.
+        fd = os.open(selected, os.O_WRONLY | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+        os.close(fd)
+        other.unlink(missing_ok=True)
+
+    def close(self):
+        for name in ("blur-on", "blur-off"):
+            (self.directory / name).unlink(missing_ok=True)
+
+
+class State:
+    """Small injectable event policy: no periodic timers, one retry per change."""
+    def __init__(self, publisher, probe, schedule, cancel):
+        self.publisher, self.probe = publisher, probe
+        self.schedule, self.cancel = schedule, cancel
+        self.pending = None
+        self.alive = True
+        self.publisher.publish(False)
+
+    def changed(self, *_args):
+        if not self.alive:
+            return
+        self.publisher.publish(False)
+        if self.pending is not None:
+            self.cancel(self.pending)
+        self.pending = self.schedule(100, self.refresh)
+
+    def refresh(self, retry=True):
+        self.pending = None
+        if not self.alive:
+            return False
+        try:
+            enabled = self.probe() is True
+        except Exception:
+            enabled = False
+        self.publisher.publish(enabled)
+        # A reload signal can precede effect teardown/reload. Re-read once, not forever.
+        if retry:
+            self.pending = self.schedule(750, lambda: self.refresh(False))
+        return False
+
+    def close(self):
+        self.alive = False
+        if self.pending is not None:
+            self.cancel(self.pending)
+            self.pending = None
+        self.publisher.close()
+
+
+def config_directories():
+    home = Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config")))
+    paths = [home, home / "kdedefaults"]
+    paths.extend(Path(p) for p in os.environ.get("XDG_CONFIG_DIRS", "/etc/xdg").split(":") if p)
+    return list(dict.fromkeys(p for p in paths if p.is_absolute()))
+
+
+def main():
+    from gi.repository import Gio, GLib
+
+    runtime = os.environ.get("XDG_RUNTIME_DIR", "")
+    if not runtime or not Path(runtime).is_absolute():
+        raise RuntimeError("XDG_RUNTIME_DIR is required")
+    publisher = Publisher(runtime)
+    # Kept outside the marker directory so FolderListModel has exactly the protocol.
+    lock = os.open(Path(runtime) / "moos-material.lock", os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        os.close(lock)
+        return 0
+    bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+
+    def probe():
+        reply = bus.call_sync("org.kde.KWin", "/Effects", "org.kde.kwin.Effects",
+                              "isEffectLoaded", GLib.Variant("(s)", ("blur",)),
+                              GLib.VariantType.new("(b)"), Gio.DBusCallFlags.NO_AUTO_START,
+                              750, None)
+        return reply.unpack()[0] is True
+
+    state = State(publisher, probe, GLib.timeout_add, GLib.source_remove)
+    loop = GLib.MainLoop()
+    subscriptions = []
+    monitors = []
+
+    def watch_configs():
+        for monitor in monitors:
+            monitor.cancel()
+        monitors.clear()
+        existing = set()
+        for directory in config_directories():
+            while not directory.is_dir() and directory != directory.parent:
+                directory = directory.parent
+            existing.add(directory)
+        for directory in existing:
+            monitor = Gio.File.new_for_path(str(directory)).monitor_directory(Gio.FileMonitorFlags.NONE, None)
+            monitor.connect("changed", config_changed)
+            monitors.append(monitor)
+
+    def config_changed(_monitor, file, other_file, _event):
+        # Directory changes also cover creation/replacement of a missing config root.
+        paths = [p.get_path() for p in (file, other_file) if p is not None]
+        roots = config_directories()
+        if any(p and (Path(p).name == "kwinrc" or any(Path(p) == r or Path(p) in r.parents for r in roots)) for p in paths):
+            state.changed()
+            watch_configs()
+
+    def owner_changed(_connection, _sender, _path, _interface, _signal, parameters):
+        _name, _old, _new = parameters.unpack()
+        state.changed()
+
+    subscriptions.append(bus.signal_subscribe("org.freedesktop.DBus", "org.freedesktop.DBus",
+                         "NameOwnerChanged", "/org/freedesktop/DBus", "org.kde.KWin",
+                         Gio.DBusSignalFlags.NONE, owner_changed))
+    for path, interface, name in (("/KWin", "org.kde.KWin", "reloadConfig"),
+                                  ("/Effects", "org.freedesktop.DBus.Properties", "PropertiesChanged")):
+        subscriptions.append(bus.signal_subscribe("org.kde.KWin", interface, name, path, None,
+                             Gio.DBusSignalFlags.NONE, state.changed))
+
+    def stop(*_args):
+        loop.quit()
+        return False
+
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, sig, stop)
+    bus.connect("closed", stop)
+    try:
+        watch_configs()
+        state.changed()
+        loop.run()
+    finally:
+        state.close()
+        for monitor in monitors:
+            monitor.cancel()
+        for subscription in subscriptions:
+            bus.signal_unsubscribe(subscription)
+        os.close(lock)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

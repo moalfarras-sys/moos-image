@@ -388,3 +388,23 @@ python3 tests/test_utm_bundle.py
 # 20-minute image build that fails at its last stage.
 MOOS_TEST_ROOT=system_files python3 build_files/verify_store_catalog.py
 
+
+# ── 2026-09-19: the application platform, and the material that carries it ────
+#
+# These eight landed in `just check` first. That is not enough and the asymmetry
+# is deliberate in the wrong direction: tests/test_gate_coverage.py enforces that
+# CI's list is a SUBSET of `just check`, so a gate added only to the Justfile is
+# green everywhere and protects nothing at the moment it matters — this script is
+# what build.yml runs before it builds, pushes and SIGNS three images.
+#
+# Every one of them exits 0 without Qt, a compiler or a session bus: the halves
+# that need a real engine skip themselves and say so. Measured before adding them
+# here — 8/8 exit 0 in a sandbox with none of those present.
+python3 tests/test_app_engines.py
+python3 tests/test_plasma_shell_overlay.py
+python3 tests/test_material_state.py
+python3 tests/test_material_state_qml.py
+python3 tests/test_design_studio_reference.py
+python3 tests/test_store_app_drop_bridge.py
+python3 tests/test_store_app_drop_ui.py
+python3 tests/test_selfcheck_document_portal.py

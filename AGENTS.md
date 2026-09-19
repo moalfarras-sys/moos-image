@@ -518,15 +518,15 @@ Being honest about this list is more useful than shrinking it.
 - **Mo AI is cloud-only.** Free models are the default; paid models require an explicit
   choice. Cloud connectivity and provider availability are required. Local model downloads
   are retired; see `docs/MOAI_CLOUD_ONLY_PLAN.md` for fresh-install acceptance gaps.
-- **Mo AI's tool loop HAS been driven by a real free model** (W8.3, PR #131, reviewed live on
-  the station), and it is also proven against a scripted provider and the real `moai-control`
-  (`tests/test_moai_agent_loop.py`). What is still unmeasured is the ≥95% action-selection
-  rate over a fixed Arabic/English case set — there is no case set and no runner (P3.3).
-  `moai-measure-free` is NOT that measurement: it asks one tool question to rank models.
-- **App Drop has never unpacked a real AppImage**, and its dialog, file-manager action and
-  `~/Applications` watch have not been exercised on a MoOS desktop (P4.6).
-- **Nothing in wave W6 has been seen on a MoOS desktop.** It was written off the station, gated
-  with `scripts/review/mirror-gates.sh` and rendered from source with `scripts/review/render-app.sh`.
+- **Mo AI's tool loop and fixed Arabic/English action cases have been measured** on
+  the station; see `PROJECT_STATE.md` and P3.3 for the results. A second model and
+  machine are still owed. `moai-measure-free` ranks models; `moai-measure-actions`
+  measures action choice, and neither replaces a live confirmation/cancellation review.
+- **App Drop installed and removed a real AppImage on the station.** Remaining
+  entry-path, file-manager and watch acceptance belongs to P4.6; do not infer every
+  entry path from one install/remove journey.
+- **W6 has been reviewed on a MoOS desktop.** The outstanding Store foreground-job
+  and wider locale/scale evidence is recorded in `PROJECT_STATE.md` and the plan.
 - **Deliberate rollback is not proven on hardware.** Source now has automatic boot
   fallback (`moos-boot-assess`, P1.2) and a disposable-VM rollback harness (P0.4), but no
   bad candidate has been rolled back and forward on the physical station.

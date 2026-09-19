@@ -261,7 +261,7 @@ for unit in \
     moai-wake.service openclaw-idle.timer \
     moos-theme-sync.path moos-theme-drift.timer moos-health.timer \
     moos-cloud-audio.service moos-update-ready.timer moos-reclaim-disk.timer \
-    moos-index-policy.service moos-privacy-monitor.service moos-app-drop.path \
+    moos-index-policy.service moos-privacy-monitor.service moos-material-state.service moos-app-drop.path \
     mo-remote-watchdog.timer; do
     test -f "/usr/lib/systemd/user/${unit}" || {
         echo "FATAL: shared user authority is missing: ${unit}"
@@ -278,7 +278,7 @@ systemctl --global enable \
     moai-wake.service openclaw-idle.timer \
     moos-theme-sync.path moos-theme-drift.timer moos-health.timer \
     moos-cloud-audio.service moos-update-ready.timer moos-reclaim-disk.timer \
-    moos-index-policy.service moos-privacy-monitor.service moos-app-drop.path \
+    moos-index-policy.service moos-privacy-monitor.service moos-material-state.service moos-app-drop.path \
     mo-remote-watchdog.timer
 
 systemctl enable NetworkManager.service sshd.service firewalld.service tailscaled.service
@@ -1331,13 +1331,24 @@ install -d -m 0755 /usr/local/sbin
 # black rectangle over the desktop with the widgets being arranged invisible
 # behind it. DesktopEditMode.qml carries the guard that fixes it.
 #
-# Both paths are owned by plasma-workspace, so a later dnf5 transaction can
+# All six paths are owned by plasma-desktop, so a later dnf5 transaction can
 # restore stock Plasma over our bytes while every repo gate stays green. Assert
 # on the finished filesystem that each file is present AND still ours — a
 # reinstall puts upstream's content back at the very same path.
+#
+# The list held two of the six for as long as the other four existed, on this
+# script and on build.sh alike: a rule added to one and not the other is the
+# invisible drift this repository has been bitten by before. It is now derived
+# from the tree by tests/test_plasma_shell_overlay.py, which checks BOTH
+# scripts, so the next overlay file cannot be added without being guarded on
+# both architectures.
 for _pair in \
     "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/explorer/WidgetExplorer.qml:moosDesktopCustomizer" \
-    "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/DesktopEditMode.qml:softwareRendering"
+    "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/DesktopEditMode.qml:softwareRendering" \
+    "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/LockScreenUi.qml:MoOSClock" \
+    "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/MainBlock.qml:org.moos.ui" \
+    "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/MediaControls.qml:org.moos.ui" \
+    "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/defaults:org.moos.ui2.wallpaper"
 do
     _f="${_pair%%:*}"; _marker="${_pair##*:}"
     [ -f "$_f" ] || {

@@ -295,11 +295,33 @@ fi
 # uid 1000 still resolves to 8080/8079, so nothing changes on a normal desktop.
 gw_port="${MOAI_GATEWAY_PORT:-8080}"
 ctl_port="${MOAI_CONTROL_PORT:-8079}"
-if curl -sf --max-time 6 "http://127.0.0.1:${gw_port}/v1/models" >/dev/null 2>&1; then
+if model_catalogue="$(curl -sf --max-time 6 "http://127.0.0.1:${gw_port}/v1/models" 2>/dev/null)"; then
     ok "the brain gateway answers on ${gw_port}"
-    models="$(curl -sf --max-time 6 "http://127.0.0.1:${gw_port}/v1/models" 2>/dev/null | grep -o '"id":' | wc -l)"
-    [ "${models:-0}" -gt 1 ] && ok "it offers ${models} brains to choose from" \
-                             || note "it offers ${models} brain(s) — configure a cloud key in Mo AI's settings"
+    # A single free provider is valid. Catalogue size says nothing about keys
+    # or inference readiness; do not spend a request or invent a diagnosis.
+    if models="$(printf '%s' "$model_catalogue" | python3 -c '
+import json, sys
+try:
+    data = json.load(sys.stdin)["data"]
+    if not isinstance(data, list):
+        raise ValueError("invalid catalogue")
+    ids = set()
+    for model in data:
+        if not isinstance(model, dict) or not isinstance(model.get("id"), str) or not model["id"].strip():
+            raise ValueError("invalid model")
+        ids.add(model["id"])
+    print(len(ids))
+except (ValueError, KeyError, TypeError):
+    sys.exit(1)
+')"; then
+        if [ "$models" -gt 0 ]; then
+            ok "the gateway lists ${models} model(s); inference is not tested by this check"
+        else
+            bad "the gateway lists no models — inspect Mo AI's provider settings"
+        fi
+    else
+        bad "the gateway returned an invalid model catalogue"
+    fi
 else
     bad "nothing is answering on ${gw_port} — Mo AI has no brain to talk to"
 fi
@@ -472,6 +494,20 @@ if flatpak info --user "$bazaar" >/dev/null 2>&1 || flatpak info "$bazaar" >/dev
     else
         bad "Bazaar's launcher is visible (${bz_entry}) — the menu shows TWO stores; run moos-one-store"
     fi
+fi
+
+# ── Flatpak's document bridge must be mounted, not merely running ─────────────
+head_ "بوابة الملفات | Document portal"
+portal_path="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/doc"
+if systemctl --user is-active --quiet xdg-document-portal.service; then
+    portal_type="$(findmnt -rn -T "$portal_path" -o FSTYPE 2>/dev/null)"
+    if [ "$portal_type" = "fuse.portal" ] && timeout 3 stat "$portal_path/by-app" >/dev/null 2>&1; then
+        ok "the document portal mount is reachable"
+    else
+        bad "the document portal is running without a reachable mount — Flatpak apps may fail to open"
+    fi
+else
+    note "the document portal is inactive (it starts on demand)"
 fi
 
 # ── The lock screen and boot splash are MoOS ──────────────────────────────────

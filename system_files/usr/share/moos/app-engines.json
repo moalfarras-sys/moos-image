@@ -1,0 +1,122 @@
+{
+  "schema": 1,
+  "_": "What MoOS can run, and what it calls those things in front of a person. ONE source of truth for the store, App Drop, the file-manager runner and Mo AI. Two rules make this file worth existing. (1) `name` is the only text a person ever sees, and it names the KIND OF PROGRAM, never the engine: a person who downloaded a .exe wants 'Windows programs', and has no reason to learn what Wine or Bottles are. tests/test_app_engines.py fails the build if an engine brand appears in any user-facing string here or in the runner. (2) `runtimes` is ordered best-first and says which ones are already IN the signed image. An engine with a shipped runtime must never ask the owner to download anything — build.sh installs wine precisely so 'any .exe the user downloads actually runs', and for as long as this file did not exist the runner ignored it and offered a Bottles download instead.",
+
+  "engines": [
+    {
+      "id": "windows",
+      "name": {
+        "ar": "برامج ويندوز",
+        "en": "Windows programs"
+      },
+      "claims": {
+        "extensions": ["exe", "msi", "lnk", "msp"],
+        "mime": [
+          "application/x-ms-dos-executable",
+          "application/vnd.microsoft.portable-executable",
+          "application/x-msdownload",
+          "application/x-msi",
+          "application/x-ms-shortcut",
+          "application/x-wine-extension-msp"
+        ]
+      },
+      "runtimes": [
+        {
+          "id": "com.usebottles.bottles",
+          "carrier": "flatpak",
+          "sandboxed": true,
+          "_": "Preferred when the owner already has it: a Flatpak, so a downloaded program cannot read the whole home directory. Never downloaded on the owner's behalf just to open one file."
+        },
+        {
+          "id": "wine",
+          "carrier": "image",
+          "from": "build",
+          "sandboxed": false,
+          "probe": "wine",
+          "_": "Shipped in the image by build.sh (_core_power) for the desktop editions. Present on every desktop MoOS, so a first .exe runs with no download at all. NOT a sandbox: it gets the owner's files, which is why the runner says so before the first run and why Bottles outranks it above."
+        }
+      ],
+      "provision": {
+        "route": "moos://do/setup-windows",
+        "_": "Only reached when NO runtime is available — on an edition that ships neither. On a desktop MoOS this branch is unreachable, and the gate asserts that."
+      }
+    },
+
+    {
+      "id": "android",
+      "name": {
+        "ar": "تطبيقات أندرويد",
+        "en": "Android apps"
+      },
+      "claims": {
+        "extensions": ["apk"],
+        "mime": ["application/vnd.android.package-archive"]
+      },
+      "runtimes": [
+        {
+          "id": "waydroid",
+          "carrier": "image",
+          "from": "build",
+          "sandboxed": true,
+          "probe": "waydroid",
+          "ready": "initialized",
+          "_": "Shipped and its container service enabled by build.sh on the desktop editions. Unlike wine it needs a ONE-TIME ~1 GB system image before it can take a package, so `ready` is a second state beyond 'installed' — the only engine here with one."
+        }
+      ],
+      "provision": {
+        "route": "moos://do/setup-waydroid",
+        "_": "Reached when the runtime is installed but its system image was never downloaded. This is a real download and the owner is asked first."
+      }
+    },
+
+    {
+      "id": "linux",
+      "name": {
+        "ar": "تطبيقات لينكس",
+        "en": "Linux apps"
+      },
+      "claims": {
+        "extensions": ["appimage", "flatpakref"],
+        "mime": [
+          "application/vnd.appimage",
+          "application/x-iso9660-appimage",
+          "application/vnd.flatpak.ref"
+        ]
+      },
+      "runtimes": [
+        {
+          "id": "flatpak",
+          "carrier": "image",
+          "from": "base",
+          "sandboxed": true,
+          "probe": "flatpak",
+          "_": "The ordinary path, and the one Mo Store uses for the catalogue. Comes from the Kinoite base rather than from build.sh, which is what `from: base` records — the gate checks build.sh's package lists for everything MoOS installs itself, and would otherwise read a base tool as a broken promise."
+        },
+        {
+          "id": "moos-app-drop",
+          "carrier": "image",
+          "from": "overlay",
+          "sandboxed": true,
+          "probe": "moos-app-drop",
+          "_": "A file that arrives as a download rather than from the catalogue. Extracts inside bubblewrap; see P4.6."
+        }
+      ],
+      "provision": null
+    }
+  ],
+
+  "unsupported": [
+    {
+      "id": "macos",
+      "name": {
+        "ar": "تطبيقات ماك",
+        "en": "macOS apps"
+      },
+      "reason": {
+        "ar": "تطبيقات ماك غير مدعومة في MoOS حاليًا. توجد مشاريع توافق تجريبية، لكن لم نؤهّل مسارًا موثوقًا لتطبيقاتها الرسومية. ابحث عن نسخة ويب أو لينكس من التطبيق.",
+        "en": "macOS apps are not currently supported in MoOS. Experimental compatibility projects exist, but we have not qualified a reliable path for graphical apps. Look for a web or Linux version of the application."
+      },
+      "_": "Listed rather than omitted so the answer to 'can MoOS run Mac apps?' is written down once, in the same file as every engine that DOES work, instead of being re-litigated. If this ever changes it changes here."
+    }
+  ]
+}

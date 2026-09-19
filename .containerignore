@@ -52,3 +52,12 @@ moremote/dist-linux/
 output/
 *.qcow2
 *.iso
+
+# Local review evidence: native frames, live-session captures and run logs.
+#
+# `.gitignore` has excluded this since the review harnesses landed, but this file
+# had not — the same drift the 196 MB defect above was made of. It matters more
+# here than size does: on the development station this directory holds full-
+# resolution captures of the OWNER'S LIVE DESKTOP. A local build must not hand
+# those to the builder, and a build context is not a private place.
+test-results/

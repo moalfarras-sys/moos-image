@@ -186,6 +186,14 @@ WallpaperItem {
     // live on this station, whose image predates the token. Undefined means "an older
     // MoOS that did not tell us", and the honest default there is the same one
     // /etc/xdg/kwinrc ships: blur on.
+    //
+    // That is a DIFFERENT question from the one Tokens answers, and the two answers
+    // differ on purpose. Tokens is asked "what does this machine's configuration say?"
+    // and, when no XDG layer says anything, returns false — because an unreadable
+    // surface is worse than an over-dense one. This property is asked "is the singleton
+    // old enough to have no opinion at all?", and there the honest answer is what that
+    // older MoOS actually did. Once the singleton is current, `blurActive` is always a
+    // real bool and `!== false` is simply a read.
     readonly property bool artLift: MoUI.Tokens.blurActive !== false
 
     // The scene layer's own on/off seam. It additionally waits for the art,

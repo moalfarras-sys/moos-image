@@ -8,14 +8,19 @@
 # user can run the program they just downloaded", and closing it is the whole point of the
 # unified runner (docs/DEVELOPMENT_PLAN.md P4.3).
 #
-# WHAT IT DOES: decides by file type, and — this is the part that matters — behaves sanely
-# when the runtime is NOT installed yet. A user who downloads their first .exe on a fresh MoOS
-# does not have Bottles; the honest move is to explain and offer to set it up in one click, not
-# to fail silently.
+# WHAT IT DOES: asks /usr/libexec/moos-app-engine which engine owns the file and whether
+# that engine is ready, then does the ONE thing that follows. It no longer decides alone,
+# because deciding alone is how it came to disagree with the image it ships in: build.sh
+# installs a Windows runtime on every desktop edition so "any .exe the user downloads
+# actually runs", and this script knew only about the optional Flatpak one — so a first
+# .exe offered a large download on a machine that could already run it.
 #
-#   .exe .msi .lnk .msp  ->  Bottles installed?  run it there : offer moos://do/setup-windows
-#   .apk                 ->  Waydroid ready?     install+open : offer moos://do/setup-waydroid
-#   .docx .xlsx .pptx …  ->  LibreOffice there?  open it      : offer moos://apps/install/…
+#   .exe .msi .lnk .msp  ->  engine "Windows programs"
+#   .apk                 ->  engine "Android apps"
+#   .docx .xlsx .pptx …  ->  an office suite, which is an app and not an engine
+#
+# The engine's own name is never shown. A person who downloaded a program wants to know
+# it is a Windows program; which runtime MoOS used to run it is MoOS's business.
 #
 # The office half closes the same gap for documents. MEASURED on the shipped image before
 # this: `xdg-mime query default` returned NOTHING for all eight of .docx, .xlsx, .pptx,
@@ -30,8 +35,44 @@
 # to moai-do, which confirms and uses Polkit exactly as before.
 set -uo pipefail
 
-BOTTLES_ID="com.usebottles.bottles"
 OFFICE_ID="org.libreoffice.LibreOffice"
+
+# WHICH engine runs a file, whether it is ready, and what to CALL it in front of
+# a person: one resolver over /usr/share/moos/app-engines.json, shared with Mo
+# Store and App Drop. This script used to decide alone and got it wrong in a way
+# nobody could see from the source: build.sh installs wine on every desktop
+# edition so "any .exe the user downloads actually runs", and this file knew only
+# about Bottles — so the first .exe on a fresh MoOS offered a large download on a
+# machine that could already run it.
+ENGINE_TOOL="${MOOS_APP_ENGINE:-/usr/libexec/moos-app-engine}"
+
+engine() {  # engine <file> <jq-ish key>  -> value, or empty
+    "$ENGINE_TOOL" resolve "$1" 2>/dev/null | python3 -c '
+import json, sys
+try:
+    document = json.load(sys.stdin)
+except ValueError:
+    raise SystemExit(0)
+key = sys.argv[1]
+if key == "name":
+    name = document.get("name") or {}
+    print((name.get("ar") or "") + "|" + (name.get("en") or ""))
+elif key == "chosen":
+    chosen = document.get("chosen") or {}
+    print(chosen.get("id") or "")
+elif key == "sandboxed":
+    chosen = document.get("chosen") or {}
+    print("yes" if chosen.get("sandboxed") else "no")
+else:
+    value = document.get(key)
+    print("" if value is None else ("yes" if value is True else ("" if value is False else value)))
+' "$2" 2>/dev/null
+}
+
+# The two halves of the engine's display name. Never a runtime's brand: a person
+# who downloaded a .exe wants "Windows programs", not a lesson about Wine.
+engine_ar() { engine "$1" name | cut -d"|" -f1; }
+engine_en() { engine "$1" name | cut -d"|" -f2; }
 
 notify() { command -v kdialog >/dev/null 2>&1 && kdialog --title "MoOS" --passivepopup "$1" 6 >/dev/null 2>&1 || true; }
 
@@ -47,6 +88,79 @@ ask() {
 term() { setsid konsole --hold -e "$@" >/dev/null 2>&1 & }
 
 usage() { echo "usage: moos-run-foreign <file.exe|file.msi|file.apk>" >&2; exit 2; }
+
+# ---------------------------------------------------------------------------------
+# One decision for every foreign file, from the shared engine registry.
+#
+# Three outcomes, in this order:
+#   ready            -> run it now, with no questions and no downloads
+#   needs setup      -> ONE question, in the words of the KIND of program, then
+#                       hand the one-time download to moai-do (which confirms and
+#                       uses Polkit exactly as before)
+#   nothing can run it -> say so plainly rather than failing silently
+#
+# What is never said out loud: the runtime's name. The registry's `name` is the
+# only text that reaches a person.
+# ---------------------------------------------------------------------------------
+run_with_engine() {
+    local target="$1" ar en chosen sandboxed
+    ar="$(engine_ar "$target")"; en="$(engine_en "$target")"
+    [ -n "$en" ] || { notify "لا يعرف MoOS كيف يفتح هذا الملف | MoOS cannot open this file"; exit 2; }
+
+    if [ "$(engine "$target" ready)" = "yes" ]; then
+        chosen="$(engine "$target" chosen)"
+        sandboxed="$(engine "$target" sandboxed)"
+        case "$chosen" in
+            com.usebottles.bottles)
+                # Its desktop entry declares these MIME types and uses Flatpak file
+                # forwarding (`@@u %u @@`), so going through the entry is what gets the
+                # path across the sandbox boundary — `flatpak run <id> <path>` would hand
+                # over a path the sandbox cannot see.
+                notify "يشغّل $ar | opening $en"
+                setsid gtk-launch "$chosen" "$target" >/dev/null 2>&1 &
+                ;;
+            wine)
+                # Shipped in the image, so this is the ordinary path on a desktop MoOS
+                # and it costs no download. It is NOT a sandbox: the program gets the
+                # owner's files. Say that once, the first time, rather than on every run
+                # (a warning shown every time is a warning nobody reads) and rather than
+                # never (which would be hiding it).
+                local seen="${XDG_STATE_HOME:-$HOME/.local/state}/moos-foreign-windows-notice"
+                if [ ! -e "$seen" ]; then
+                    mkdir -p "$(dirname "$seen")" 2>/dev/null || true
+                    ask "سيعمل هذا البرنامج على جهازك مع صلاحية الوصول إلى ملفاتك، مثل أي برنامج تثبّته بنفسك.\n\nنشغّله؟\n\nThis program will run on your machine with access to your files, like any program you install yourself.\n\nRun it?" || exit 0
+                    : >"$seen" 2>/dev/null || true
+                fi
+                # A prefix of its own, so Windows programs never scribble into a shared
+                # ~/.wine the owner did not choose and can be removed in one directory.
+                local prefix="${XDG_DATA_HOME:-$HOME/.local/share}/moos/windows"
+                mkdir -p "$prefix" 2>/dev/null || true
+                notify "يشغّل $ar | opening $en"
+                setsid env WINEPREFIX="$prefix" WINEDLLOVERRIDES="mscoree,mshtml=" \
+                    wine "$target" >/dev/null 2>&1 &
+                ;;
+            waydroid)
+                term moos-run-foreign --apk-install "$target"
+                ;;
+            *)
+                notify "لا يوجد محرّك جاهز لـ$ar | no ready engine for $en"
+                exit 2
+                ;;
+        esac
+        exit 0
+    fi
+
+    if [ "$(engine "$target" needs_setup)" = "yes" ]; then
+        local route; route="$(engine "$target" provision_route)"
+        if [ -n "$route" ] && ask "هذا من $ar. لتشغيله يحتاج MoOS تجهيزًا لمرة واحدة (تنزيل كبير).\n\nنجهّزه الآن؟\n\nThis is one of your $en. Running it needs a one-time setup (a large download).\n\nSet it up now?"; then
+            moos-open "$route"
+        fi
+        exit 0
+    fi
+
+    notify "لا يستطيع هذا الإصدار تشغيل $ar | this edition cannot run $en"
+    exit 2
+}
 
 # ---------------------------------------------------------------------------------
 # The Android half, run INSIDE the terminal window opened below (--apk-install).
@@ -76,7 +190,7 @@ apk_install() {
     else
         echo
         echo "✗ فشل التثبيت | install failed"
-        echo "  جرّب: waydroid app install \"$apk\""
+        echo "  افتح Mo AI ليفحص الجهاز | open Mo AI to check the system"
     fi
     echo
 }
@@ -99,36 +213,12 @@ ext="$(printf '%s' "$ext" | tr '[:upper:]' '[:lower:]')"
 case "$ext" in
     # ── Windows ──────────────────────────────────────────────────────────────────
     exe|msi|lnk|msp)
-        if flatpak info "$BOTTLES_ID" >/dev/null 2>&1; then
-            # Bottles' own desktop entry already declares these MIME types and uses Flatpak
-            # file-forwarding (`@@u %u @@`), so handing it the file through its desktop entry
-            # is what gets the path across the sandbox boundary — `flatpak run <id> <path>`
-            # alone would pass a path the sandbox cannot see. It opens its Run-Executable
-            # dialog, where the user picks which bottle to run in.
-            notify "يفتح البرنامج في Bottles | opening in Bottles"
-            setsid gtk-launch "$BOTTLES_ID" "$file" >/dev/null 2>&1 &
-            exit 0
-        fi
-        if ask "هذا برنامج Windows. لتشغيله يحتاج MoOS طبقة ويندوز (Bottles) — تثبيت لمرة واحدة.\n\nنثبّتها الآن؟\n\nThis is a Windows program. Running it needs the Windows layer (Bottles) — a one-time install.\n\nSet it up now?"; then
-            moos-open moos://do/setup-windows
-        fi
+        run_with_engine "$file"
         ;;
 
     # ── Android ──────────────────────────────────────────────────────────────────
     apk)
-        if ! command -v waydroid >/dev/null 2>&1; then
-            notify "Waydroid غير مثبّت | Waydroid is not installed"
-            exit 2
-        fi
-        # "not initialized" is Waydroid's own words for "the Android image was never
-        # downloaded". Anything else means it is ready to take a package.
-        if waydroid status 2>&1 | grep -qi 'not initialized'; then
-            if ask "هذا تطبيق Android. لتشغيله يحتاج MoOS طبقة أندرويد (Waydroid) — تنزيل لمرة واحدة (~1GB).\n\nنجهّزها الآن؟\n\nThis is an Android app. Running it needs the Android layer (Waydroid) — a one-time ~1GB download.\n\nSet it up now?"; then
-                moos-open moos://do/setup-waydroid
-            fi
-            exit 0
-        fi
-        term moos-run-foreign --apk-install "$file"
+        run_with_engine "$file"
         ;;
 
     # ── Office documents ─────────────────────────────────────────────────────────

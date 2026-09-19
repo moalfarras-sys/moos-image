@@ -16,18 +16,16 @@ asks of its owner and how rarely it surprises them. They are not API targets and
 MoOS never forks Plasma, KWin or Wayland: MoOS owns the identity, every surface
 the owner looks at, every default and every recovery path.
 
-**Where MoOS is today (2026-09-18).** The versions in production, on the station and in
+**Where MoOS is today (2026-09-19).** The versions in production, on the station and in
 flight are in ONE place — the "Source and release truth" block at the top of
 `PROJECT_STATE.md`. Read it there; nothing here repeats a number.
 
 Everything through **W8.5** is merged: the MoOS Bar, Search, Island, Hub, Switcher,
 Arrange, App Drop, What's new, Aurora Glass, the hub's second faces, Mo AI's tool loop,
 its readback, the free-brain measurement and the picker that shows it. Three things are
-worth knowing before choosing work. **Five merges are newer than the image on the
-station** — #134 (hub faces), #135 (recorded permissions), #132 (ARM honesty), #133
-(SIGPIPE proof) and #136 (W8.5) — so none of them is on a desk yet, and
-`moos-image-update` correctly says "current" because the installed digest *is* the newest
-promoted one; only another cycle changes that. The ARM edition has had **one** live
+worth knowing before choosing work. The current installed and staged versions
+are recorded in `PROJECT_STATE.md`; subsequent releases supersede the old claim
+that #132–#136 had not reached the station. The ARM edition has had **one** live
 review (2026-09-18, fixes merged as #130 and #132, recorded in `PROJECT_STATE.md`), but
 only on the seatless Oracle A1 under `kwin --virtual` on llvmpipe — never on ARM hardware
 with a real seat and a GPU. And nothing has been measured on a **second machine, a
@@ -147,10 +145,10 @@ reviewed live, gated once, merged once and proven once.
 | W3 | M1 | The owner controls the desk: every widget removable again (THEME_REV 60), a wallpaper chosen anywhere stays after login and drift checks, release watcher reads real run results | merged (`2e6f7686`, PR #109), reviewed live on the station; **x86 production since 2026-09-17** (cycle B, `44.20260917.858`); ARM production |
 | W4 | M3 | **Mo AI as the system harness:** the cloud brain (free or paid, OpenRouter or OpenCode Zen) receives native tool schemas generated from the fixed `moai-do` and `moos-control` grammar; read-only tools run directly, every change shows a confirmation card, the fixed executor acts, and the result is read back into the conversation (P3.3, P3.4, P3.7) | merged (`009b4b58`, PR #110); **x86 production since 2026-09-17** (cycle B, `44.20260917.858`) in the form W6 repaired; ARM production; the ≥95% action-selection measurement and a station review are still owed, so P3.3/P3.4/P3.7 stay open |
 | W5 | M1 | MoOS Island jobs (Store installs, updates, downloads) and privacy chips (camera, microphone, screen share); Search inline answers (calculator, units, file actions) | merged (`7f182689`, PR #111); it turned x86 `main` red and shipped without its `THEME_REV` bump — both repaired by the 2026-09-17 integration (#114, rev 61); **x86 production since 2026-09-17** (cycle B, `44.20260917.858`) in the form W6 repaired; ARM production; no station review recorded |
-| W6 | M1+M3 | **What W4 and W5 promised, working, plus App Drop.** Mo AI's tool loop runs on every machine, in steps, with ten read-only inspection tools and truthful results (P3.3, P3.4, P3.7, P3.8); the Island really shows Store jobs and names the app behind a privacy chip; a downloaded AppImage or portable archive dropped into Applications becomes an app (P4.6); secondary text is readable on every scheme; MoOS-owned text no longer names another desktop | merged (`a8622f95`, PR #115); **x86 production since 2026-09-17** (cycle B, `44.20260917.858`); ARM promotion follows `main`'s own boot proof; gated and rendered from source, **not seen on a MoOS desktop** |
-| W6.1 | M1+M3 | a MoOS-owned "About this device" page (P2.9); Mo AI skills — twelve repair playbooks, `list_skills`/`read_skill`, one-tap chips (P3.10); Mo AI's rail at the window's DEFAULT size; the Device panel no longer prints the raw kernel release; P0.8's cause recorded as measured | merged (`291361ad`, PR #117); **production on all four editions since 2026-09-17** (x86 `44.20260917.862`, ARM `44.20260917.441`, cycle C); **not seen on a MoOS desktop** |
-| W6.2 | M1 | **What the desktop renderer saw first:** the Hub's date lines on one edge, the Island's privacy chip no longer cut in Arabic, MoOS Search's two start-up warnings (`THEME_REV` 64; W7 is 63); `scripts/review/render-desktop.sh` and `render-lockscreen.sh` | merged (`012eac13`, PR #119); **production on all four editions since 2026-09-18** (cycle D `44.20260917.865`, then cycle E `44.20260918.868`); rendered from source, **not seen on a MoOS desktop** |
-| W6.3 | M1 | **What's new:** after an update MoOS says once what it brought and where to try it; Settings → System → What's new keeps the list (P2.11) | merged (`a0dd4b33`, PR #120); **production on all four editions since 2026-09-18** (cycle D `44.20260917.865`, then cycle E `44.20260918.868`); rendered from source, **not seen on a MoOS desktop** |
+| W6 | M1+M3 | **What W4 and W5 promised, working, plus App Drop.** Mo AI's tool loop runs on every machine, in steps, with ten read-only inspection tools and truthful results (P3.3, P3.4, P3.7, P3.8); the Island really shows Store jobs and names the app behind a privacy chip; a downloaded AppImage or portable archive dropped into Applications becomes an app (P4.6); secondary text is readable on every scheme; MoOS-owned text no longer names another desktop | merged (`a8622f95`, PR #115); **x86 production since 2026-09-17** (cycle B, `44.20260917.858`); ARM promotion follows `main`'s own boot proof; **reviewed on the station 2026-09-17/18** (recorded in `PROJECT_STATE.md`); the Store job in the Island's foreground and wider locale/scale coverage are still owed |
+| W6.1 | M1+M3 | a MoOS-owned "About this device" page (P2.9); Mo AI skills — twelve repair playbooks, `list_skills`/`read_skill`, one-tap chips (P3.10); Mo AI's rail at the window's DEFAULT size; the Device panel no longer prints the raw kernel release; P0.8's cause recorded as measured | merged (`291361ad`, PR #117); **production on all four editions since 2026-09-17** (x86 `44.20260917.862`, ARM `44.20260917.441`, cycle C); **reviewed on the station 2026-09-17/18** (recorded in `PROJECT_STATE.md`); the Store job in the Island's foreground and wider locale/scale coverage are still owed |
+| W6.2 | M1 | **What the desktop renderer saw first:** the Hub's date lines on one edge, the Island's privacy chip no longer cut in Arabic, MoOS Search's two start-up warnings (`THEME_REV` 64; W7 is 63); `scripts/review/render-desktop.sh` and `render-lockscreen.sh` | merged (`012eac13`, PR #119); **production on all four editions since 2026-09-18** (cycle D `44.20260917.865`, then cycle E `44.20260918.868`); **reviewed on the station 2026-09-17/18** (recorded in `PROJECT_STATE.md`); the Store job in the Island's foreground and wider locale/scale coverage are still owed |
+| W6.3 | M1 | **What's new:** after an update MoOS says once what it brought and where to try it; Settings → System → What's new keeps the list (P2.11) | merged (`a0dd4b33`, PR #120); **production on all four editions since 2026-09-18** (cycle D `44.20260917.865`, then cycle E `44.20260918.868`); **reviewed on the station 2026-09-17/18** (recorded in `PROJECT_STATE.md`); the Store job in the Island's foreground and wider locale/scale coverage are still owed |
 | W7 | M2 | MoOS Workspace: the switcher and Overview in MoOS UI, one-click tiling layouts, window durations taken from MoOS Motion, gesture and touchpad defaults | merged (`411a470c`, PR #118); **production on all four editions since 2026-09-18** (cycle D `44.20260917.865`, then cycle E `44.20260918.868`); ARM production. Landed and reviewed live on the station: **MoOS Switcher** (Alt+Tab and Alt+` are a MoOS surface, mirrored by the LOCALE, with a working close control), **`Tokens.scaled()`** (MoOS motion answers to the same AnimationDurationFactor Plasma does) and **MoOS Arrange** (halves, thirds, quarters, main-and-two and centre, from the window menu and Meta+Alt+1..4/C). `Tokens.scaled()` now reaches every surface: the motion ROLES carry the owner's animation speed, so the 288 places that read `design.motionFast` follow the one control (proven on a real Qt runtime in `tests/qml/motion-review.qml`). Open: touchpad/gesture defaults (P5.2, needs hardware this station does not have) and a live preview in the Arrange surface. Overview is **configuration only** — see "Workspace facts". **Closed on 2026-09-18** (`a2cfd72a`, PR #123): `scripts/station/pointer.py` made pointer review real (KWin confirms every position before a click), the four owed review rows passed on the station, the administrator prompt and a dismissed one became MoOS's own words, and the motion ROLES now carry the owner's animation speed so all 288 surfaces follow one control (`THEME_REV` 65). Open: touchpad and gesture defaults (P5.2, needs hardware this station does not have) and a live preview in Arrange |
 | W8 | M2 | **MoOS Aurora Glass, and a bar that tells the truth.** One material with four depths (a darker rim and a specular hairline, both derived from the palette); the Island capsule fits its real height and names the app that is playing; MoOS Search is a button the size of its neighbours instead of a 196 px empty pill; the status cluster is four glyphs and an arrow instead of nine; MoOS Search shows what is playing, with its control, while nothing is typed; MoPlayer publishes its MPRIS object before its name and its metadata with one variant, so a video that starts now appears on the desk now | merged (PR #126), every visible item reviewed on the running station |
 | W8.1 | M3 | **The strongest free brain is measured, not guessed, and the workshop works.** `moai-measure-free` asks every zero-price tool-capable model two fixed questions through the real gateway and writes the order that answered on THIS machine; the policy prefers it for 30 days and ranks anything unmeasured by the context window an OS agent actually needs. The release cycle reuses a signed build of the same revision instead of racing the nightly rebuild that cancels it. The three npx MCP servers run again inside the VS Code Flatpak. The RDP/VNC port MoOS's health scan finds now has an action that closes it | merged (PR #127) |
@@ -206,15 +204,32 @@ Shipped, each one measured on the running station on 2026-09-18 (frames in
    it wrapped every metadata value in a second variant, so no reader could read the
    title. Starting a video now changes the desk.
 
-Still open in W8, for whoever picks it up next:
+Still open in W8. The first two are carried by the design completion handoff below —
+row 1 and row 4 — and are repeated here only so the wave reads whole; the third has no
+row anywhere, which is why it is written out.
 
-- **One clarity control.** «وضوح الزجاج | Glass clarity» from clear to solid, one value
-  driving both MoOS token density and KWin's blur strength, pinned to solid by the
-  reduced-transparency setting. It needs a config bridge a QML singleton can read (the
-  design core deliberately imports nothing), so it is a piece of plumbing, not a slider.
+- **One clarity control** → handoff row 1. «وضوح الزجاج | Glass clarity» from clear to
+  solid, one value driving both MoOS token density and KWin's blur strength, pinned to
+  solid by the reduced-transparency setting.
+  **The plumbing this was blocked on is no longer missing.** The blocker was that a QML
+  singleton has no way to be TOLD the policy changed: `Qt.labs.settings` reads at load
+  and never again, and there is no `KConfigWatcher` in the QML stack — checked on the
+  station, `/usr/lib64/qt6/qml/org/kde/config/` exposes none. But
+  `Qt.labs.folderlistmodel` IS shipped (`/usr/lib64/qt6/qml/Qt/labs/folderlistmodel`),
+  and it is `QFileSystemWatcher`-backed, so it emits on change without a timer and
+  without writing anything. A clarity authority that publishes the EFFECTIVE policy as a
+  marker whose *filename* carries the state gives a reader that never parses, never
+  polls and never writes — which is exactly the three constraints row 1 sets.
+  This matters beyond the slider: **`moos-fast-remote` already turns blur off
+  mid-session** (`set_config kwinrc Plugins blurEnabled false`, then
+  `kwin_reconfigure`), and `Tokens.blurActive` is read once per process, so every MoOS
+  surface already running keeps painting thin glass over a background that no longer has
+  blur behind it. That is the P2.5 defect, live, on a shipped path — not a hypothetical.
 - **The MoOS mark at exactly three sizes** (boot, login, bar) with a glyph everywhere
-  else.
-- **Glass that settles**: the specular sweeping once as a surface springs in.
+  else → handoff row 4.
+- **Glass that settles**: the specular sweeping once as a surface springs in. **No row
+  owns this.** It is the one W8 item the handoff table does not cover, and it stays here
+  until it gets one.
 
 ### Ideas worth building (each needs its owner and a proof before it ships)
 
@@ -303,6 +318,142 @@ its backslashes halved, so `\\n` written into a patch becomes a real newline ins
 Python string: write patch scripts to a file, or edit directly. And `qmlformat` rejects Mo AI's
 8000-line `main.qml` on `main` too — it is not a syntax check for this file; the QML engine is.
 
+## Every app, one verb — the app-engine contract (P4.x)
+
+**The owner's requirement, in their words:** MoOS should run apps from Android,
+Windows and any Linux distribution; the person presses install or drops a file, it
+installs and runs, and they never see Wayland, KWin or Bottles. One store for every
+kind of app. Everything else happens behind it.
+
+**What MoOS already had, measured on the station 2026-09-19.** More than the source
+suggested. The engines are shipped, not missing: `wine` and `waydroid` are installed by
+`build.sh` on every desktop edition (`_core_power`), `waydroid-container.service` is
+enabled, Flatpak comes from the base, and `mimeapps.list` already routes `.exe`, `.msi`
+and `.apk` to `org.moos.runforeign.desktop`. What was missing was not capability. It was
+the product: one decision, one vocabulary, and silence about the machinery.
+
+**What landed.** `/usr/share/moos/app-engines.json` is the one registry — engines, the
+runtimes that carry them, where each runtime comes from (`build` / `base` / `overlay`),
+whether it is sandboxed, what files it claims, and the bilingual name a person actually
+sees. `/usr/libexec/moos-app-engine` resolves a file against it and answers three
+questions — which engine, is it ready, what do we call it — read-only, so the single
+privileged executor stays `moai-do`. `moos-run-foreign` asks instead of deciding, which
+closed a defect neither half could show alone: the image installs a Windows runtime "so
+any .exe the user downloads actually runs" and the runner knew only about the optional
+Flatpak one, so a first `.exe` offered a large download on a machine that could already
+run it. `tests/test_app_engines.py` holds the contract and every half of it is proven to
+fail on purpose.
+
+**The rule that makes it feel like one system:** the engine never says its name. Not in a
+dialog, not in a terminal line, not in a notification. "Windows programs", "Android apps",
+"Linux apps" — which runtime MoOS used is MoOS's business. The gate fails the build on any
+user-facing string that names wine, bottles, waydroid, proton, lutris, flatpak, wayland,
+kwin, plasma, qemu or bubblewrap.
+
+**macOS** is unsupported. The answer lives in ONE place — the `unsupported` entry in
+`app-engines.json`, in both languages — and this paragraph deliberately does not repeat
+it, because two copies of an answer is how a repository comes to give two answers. What
+belongs here is the engineering position behind it: experimental compatibility projects
+exist, MoOS has not qualified a reliable path for graphical macOS applications, and until
+it does there is no Store button and no promise.
+
+**What the 2026-09-19 review found, and what is still open after it.** The Store drop
+path was reviewed across security, contract, correctness and product by four independent
+readers and every finding was put to an adversarial verifier. The security design held:
+outside-home paths, directory-symlink escapes, FIFOs, device nodes, dangling symlinks and
+non-owned files are all refused, argv is never a shell even with `$(...)` in a filename, a
+declined dialog spawns nothing, and the only privileged thing reachable is `moai-do`
+behind its own confirmation. What did not hold, and is fixed: the catalogue edit reddened
+the gate CI runs before signing; the Store told the drag source a rejected drop had been
+accepted; an install started from the Store was invisible in the Store; the what's-new
+entry promised installation for `.exe` and `.apk`, which that path does not do; the UI
+test ran under an app id that has no bridge, so it never reached the code it is named
+after; and today's eight gates existed only in `just check`, which `test_gate_coverage.py`
+permits and which protects nothing at the moment a candidate is signed.
+
+Still open, written down rather than quietly carried:
+
+- **An `.apk` installs outside `moos-storectl`.** The foreign path reaches the Android
+  runtime's own install command, so P4.1's single transaction authority does not hold for
+  Android, and `tests/test_one_app_transaction_authority.py` is structurally blind to it
+  (it matches Flatpak verbs only). Row A3 has to fix the authority, not just the catalogue.
+- **The compiled half of the bridge test skips on every machine that builds MoOS.** There
+  is no C++ toolchain on the station or in the image, so the URL validator's executable
+  proof only runs where a disposable SDK container is available. The image build compiles
+  the same file, which is the real proof, but the gate should say so rather than pass quietly.
+- **Mo Store still names a packaging format in section headers** ("Update Flatpak apps
+  here", "Optional Flatpak engine"). A format a person can hold is nameable; a mechanism
+  is not. The brand gate deliberately scopes to runtimes so this is visible instead of
+  excused — it is copy work with its own review.
+- **`.xapk`/`.apks` are consented as Android files that nothing can run.** App Drop
+  classifies them; the registry claims only `.apk`; the runner has no branch for them.
+- **The default-No guarantee is unproven on the kdialog branch** that MoOS actually uses.
+
+**Next, in order. Each row is a wave; none of it is started.**
+
+| Order | What the owner gets | The work | Acceptance |
+| --- | --- | --- | --- |
+| A1 | A Windows program and an Android app really run, from a double-click | **Windows half measured 2026-09-19, and it is half true.** A PE32+ binary executed with the runner's exact prefix and environment (`WINEPREFIX=~/.local/share/moos/windows`, `WINEDLLOVERRIDES=mscoree,mshtml=`) printed `Microsoft Windows 10.0.19045` and exited 0. The same test as a 32-bit PE exits 1 with `err:virtual:map_image_into_view failed to set 60000020 protection on …syswow64\ntdll.dll`. Wine blames `noexec filesystem?` — **that is wrong**: it fails identically in fresh prefixes on tmpfs AND btrfs, so it is neither the filesystem nor the prefix location. **The real cause is that the image has no 32-bit wine at all.** `rpm -qa` returns no i686 wine package, while `dnf repoquery --requires wine` shows plain `wine` does require `wine-core(x86-32)` — the multilib half was never pulled into the image, and without it `syswow64\ntdll.dll` cannot be mapped. **The fix has a price the owner should decide:** `dnf install wine-core.i686` resolves to **200 packages and about 1 GiB** on top of the image, because it drags the whole 32-bit library stack. It matters because much Windows software, especially older installers, is 32-bit. **Owner decision:** pay ~1 GiB of image size for 32-bit Windows programs, or ship 64-bit-only and have MoOS say so plainly when it meets a 32-bit binary. What is not acceptable is today's behaviour — a silent exit 1. | A program opens from a double-click on an INSTALLED image (the station runs `.894`, which predates the runner). A 32-bit program either runs or MoOS says plainly that it cannot. The `.apk` path survives its one-time setup and installs. Journal clean. |
+| A2 | Installed foreign apps appear in the launcher like any other app | After an install, write a `.desktop` into `~/.local/share/applications/` that launches through the engine, with a MoOS icon and the app's real name. Today a Windows or Android app leaves nothing behind in the menu, so it is not an app — it is a file you have to find again | Install, log out, log in, launch from the menu. Remove takes the entry with it. No entry names a runtime |
+| A3 | Mo Store carries Android and Windows apps beside Linux ones | `install.kind` is already the engine dispatch in `moos-storectl` (`npm`/`web`/`appimage`). Add `android` and `windows` kinds routed through the registry, and catalogue entries that are lawfully redistributable. One Install button, one job, one progress row in the Island | A catalogue install of each kind, cancel mid-flight, remove, and reinstall. The Island shows one job, and its text names the app, never the engine |
+| A4 | Drop anything into MoOS and it installs | App Drop resolves through the same registry instead of its own list, so a dropped `.exe`, `.apk`, AppImage or archive takes the identical path as a catalogue install — consent, one job, a menu entry at the end | Drop one of each. Refused types still say why. A cancelled consent leaves nothing behind |
+| A5 | A MoOS API third parties can build against | The resolver is the first piece and it is a private CLI. Promote the app surface to a documented, versioned D-Bus interface — `org.moos.Apps1` over the registry and `moos-storectl`'s existing job model — so "what can this machine run, and install this for me" is answerable without shelling out to private commands. See the stack-depth audit: this is the single largest thing standing between MoOS and being an operating system rather than a very good desktop | An interface XML in `/usr/share/dbus-1/interfaces/`, introspectable, with a version; one first-party caller migrated onto it; the CLI kept as a thin client of the same interface |
+
+**Do not** fork Plasma, KWin or Wine to do any of this, and do not let a second copy of the
+"which engine" decision appear anywhere — that duplication is the defect this contract was
+created to end.
+
+## Design completion handoff — 2026-09-19
+
+The owner requested design direction, difficult integration work and a concrete
+continuation package for Opus. Keep this as the single backlog. The active slice
+on `feat/moos-design-studio-20260919` provides a native design reference and repairs
+the shared glass startup policy. It does not complete the entire UI or publish an OS.
+
+**Local implementation:** `Tokens.readBlurPreference()` walks XDG config layers,
+honours the first explicit blur choice, creates no user override and uses readable
+fallbacks when no policy is known. Seven real-QML tests cover user/system priority,
+unknown policy, KConfig boolean spellings and opacity. `THEME_REV` 74 carries the cache migration. The native
+`artwork/moos-ui2/DesignStudio.qml` and `scripts/review/design-studio.py` give the next
+designer real components, official artwork, palette selection, Arabic/English,
+responsive groups, arrangement samples and capture at explicit dimensions/scale.
+
+**Next implementation order (Opus):**
+
+Mo AI diagnostic slice: the live free Arabic reply succeeded; the single-model
+catalogue had incorrectly triggered a key-configuration note. Source selfcheck now
+validates the catalogue without inferring credentials or inference readiness from
+its size. Five executable regression cases pass within the 25-test cloud gate.
+Provider outage/cancellation and signed-image delivery remain acceptance work.
+Live app-launch slice: recovered the document portal's missing FUSE mount with a
+scoped service restart, then verified Chrome running. Selfcheck now distinguishes
+service activity from a reachable portal mount; five regression tests cover this.
+Investigate why the mount disappeared; do not label the runtime repair a durable fix.
+
+| Order / existing rows | Concrete design and implementation | Acceptance before calling it complete |
+| --- | --- | --- |
+| 1 — P2.5, W8 clarity | Add an event-driven, read-only runtime bridge for effective blur capability and reduced transparency; connect one clear-to-solid control through the existing appearance owner. Reuse the startup reader tests; do not make a QML timer or a second settings writer. | Toggle while Search, Island and a first-party window are open; all agree without relogin. Check software rendering, missing user config, owner overrides and restart persistence. Cap KWin blur at 15. |
+| 2 — P2.1–P2.2, W9 | Give Settings an update/recovery/remote page with one heading, concise live status, one primary action and consistent pending/error/cancel rows. Reuse shared controls and existing backend records. | Real check/stage/cancel/refused authorization and stale/offline states; native Arabic/English light/dark frames. Coordinate Settings files with their recorded owner first. |
+| 3 — P2.8, W7 | Turn the studio's arrangement geometry into a live preview using KWin window IDs and work areas; keep current shortcuts and window-menu route. Snapshot geometry for undo and revalidate IDs when a window closes. | Three real scratch windows, repeated changes, close during preview, cancel, undo, screen removal and RTL navigation; never move the owner's work windows in a fixture. |
+| 4 — P2.9–P2.10, W8/W11 | Audit official mark placement at boot/login/bar; unify the remaining window, popup, lock and notification typography/edges via existing generators. No new logo or unrelated palette. | Real boot/login capture, 640×480 fallback, native dark/light and contrast over bright/busy backgrounds. Preserve all three identity gates and migration fingerprint. |
+| 5 — P3.1–P3.7 | Give Mo AI one readable conversation hierarchy: answer, named tool result, explicit confirmation, then actual completion. Inspect free provider failure and cancellation, preserve bounded tools. | Walk a real free reply, denied action and provider outage; run action cases on a second model; no paid fallback or generated host shell. |
+| 6 — P1.7, P4.1/P4.7, W10 | Unify Store transaction IDs, progress, cancel/retry and completion across Store/Island/AI. Design the drop surface only with a validated native file bridge. | Install/launch/reopen/remove a real app; observe the foreground Island Store job; reject invalid paths and cancelled consent. Native-bridge changes require image build. |
+| 7 — P2.4/P2.5/P5, M1 closure | Complete native visual/accessibility and performance qualification with the same assets on every edition. | Arabic/English/German, light/dark, 1080p–4K and fractional scales, real keys, screen reader, reduced motion; exact-edition artifacts and actual laptop/touch/multi-output evidence. |
+
+**Tools and materials:** authoritative tokens in `artwork/moos-design/tokens.json`;
+palette families in `artwork/moos-themes/palettes.json`; official marks in
+`artwork/logo/`; shared controls in `org/moos/ui`; source gallery commands in
+`artwork/MOOS_UI2_DESIGN.md`; existing `scripts/review/` app/desktop harnesses;
+`scripts/station/pointer.py` for compositor-confirmed clicks. Workstation preflight
+found Git/Podman/Buildah/KVM/Qt runtime/.NET/Flutter available; host `rg`, shellcheck
+and QML lint tools are absent. An SDK's presence is not a passed component build.
+
+**Release boundary:** finish the coherent batch, run `just check`, inspect native
+frames and run the full local image build, then one signed candidate with all
+edition boot proofs. A screenshot of the studio is never release evidence. The
+station already has a staged signed update; reboot and readback are outstanding.
+P0.7 remains open: capture the intermittent Plymouth stack before claiming a fix.
+
 ## Current engineering brief
 
 The owner's requests converge on one product, not a new desktop rewrite:
@@ -383,8 +534,8 @@ roll back unless the desktop itself is unusable (Settings → Recovery keeps the
    measured upstream limitation and a maintenance budget.
 5. `moai-do` is the only privileged product executor. Models and web content can
    select fixed actions but can never execute generated commands.
-6. Mo Store is the target application-lifecycle authority; convergence is not
-   complete (`moai-do setup-windows` still installs Bottles directly). Desktop applications
+6. Mo Store is the application-lifecycle authority; W9.3 removed the direct
+   Bottles and first-run Flatpak install paths. Shared job lifecycle is still open. Desktop applications
    use sandboxing and portals by default; system drivers and services stay in
    the signed OS image.
 7. Mo AI is cloud-only. Free service is the default, paid providers require an
@@ -509,7 +660,7 @@ revision and all required editions/artifacts prove that revision.
 | P0.3 | Open | Finish physical NVIDIA qualification | Plymouth/login photos; two suspend cycles; audio/network recovery; second monitor; clean journal |
 | P0.4 | Open | Prove failed-update recovery | disposable VM bad-candidate rollback, then hardware rollback/roll-forward with user data intact |
 | P0.5 | Open | Configure and accept free Mo AI on a clean account | valid OpenRouter key entered through Settings; Arabic/English reply; reboot persistence; provider failure UI |
-| P0.6 | **In progress** | Promote only the proven digests and update the physical PC | Eight cycles have promoted only proven digests, and the owner has updated and rebooted the station each time (the current pair is in `PROJECT_STATE.md`). The ARM half was the reason this stayed open — `build-arm.yml`'s promote job required a `push` event while a release cycle dispatches it, so no cycle had ever promoted `moos-arm`. **Fixed in W9.4** and gated by `tests/test_release_candidate_script.py`. What is left is to SEE it happen: cycle H reached one revision on both architectures, but ARM got there by its own push, so the dispatched path has still never been observed promoting. The next cycle whose ARM run finishes is the proof |
+| P0.6 | **Promotion proven; staged-host readback pending** | Promote only proven digests and update the physical PC | ARM dispatch `35410647421` actually completed boot and promotion at `2e0d64dc`; x86 promotion `35413165564` completed after three disk proofs and ISO. This closes the missing dispatched ARM path. The station's signed update is staged; its next boot/readback remains required. Current versions are in `PROJECT_STATE.md` |
 | P0.7 | Open — **x86 too since 2026-09-18** | Remove the intermittent `plymouthd` crash (ARM second boot; x86 first boot) | SEGV in `on_new_frame` failed ARM runs on 2026-09-15 and `35150466421`; on 2026-09-18 it core-dumped `plymouth-start.service` on the FIRST boot of cycle D's generic x86 QCOW2 (`35289168012`) while the same candidate's NVIDIA, cloud and ISO boots were clean — one x86 proof in about twelve so far. A lone proof lost to it is dispatched again (`RELEASE.md`), which costs a release cycle an hour each time. The theme is a Plymouth SCRIPT theme kept on screen through the KWin hand-off (`plymouth-quit.service.d/10-moos-retain-splash.conf`); the next step that costs nothing is diagnostics: the boot proofs' failed-unit report must include `coredumpctl info` for the crashed process, so the next failure yields a stack and not a service name; reproduce with ARM-only branch dispatches, fix without weakening the zero-failed-unit gate, then two consecutive green ARM proofs **after a fix** (the W3 and W5 runs were green with none, which proves intermittency only) |
 | P0.8 | **Closed 2026-09-18:** cause measured; three green in a row (`35265328509`, `35276847573`, `35289177072`) | Make the ISO installed-reboot proof deterministic | lost THREE candidates out of four (`57874d6c`, `8b272b87`, `51cc2ac3`): after the installed reboot SSH timed out "during banner exchange" for 1000 s while QGA reported the second boot. **Cause, measured in run `35265328509` (2026-09-17, the first green ISO proof since):** the image's proof-channel helper read the IPv4 default route ONCE, and MoOS disables NetworkManager-wait-online, so nothing orders that read after DHCP. The helper now waits and speaks on the console, and the serial log shows it: first boot, route 16 ms after the daemons were active; SECOND boot, 1.02 s — the first read was empty and one retry found it. The old helper died on that read, so its SSH rule was never added. `systemctl --failed` had looked empty in the failed runs only because SELinux confines the harness's QGA context. The harness change written on the other theory (one slirp forward per boot) was measured by the same run as irrelevant (`reboot-channel.txt`: `first-boot-forward=alive`); it stays because it is free. `tests/test_ci_proof_channel.py` runs the shipped helper end to end under bubblewrap. Cycle D's proof made three; closed |
 | P0.9 | Done 2026-09-17 (PR #116) | Run image-only gates before the merge | `build.yml` did not run on pull requests and `build-arm.sh` does not call `verify_image_experience.py`, so W5 was green on every check and red on `main`. `.github/workflows/pr-image-gates.yml` now builds the generic x86 edition on every pull request that touches `Containerfile`, `build_files/` or `system_files/` — same Containerfile, same build arguments as `build.yml`'s generic row, every in-image gate — and pushes, signs and tags nothing (`contents: read` only; `tests/test_pr_image_gates_workflow.py` keeps both halves true). It does NOT build the NVIDIA or cloud editions: those still first build on `main` or through `scripts/release-candidate.sh --ref`. Individual image gates can still be pulled forward into the repo gates the way `tests/test_image_gate_source_parser.py` and the lifted check in `tests/test_moai_skills.py` do. **First run (2026-09-17, PR #116):** green in 16 minutes end to end, 12 min 20 s of it the image build; the log shows `MoOS image-experience gate passed`, the motion gate on the real Qt runtime and the image-state gate, then the local commit — and no push. That is shorter than a release build because nothing is pushed or signed |
@@ -583,34 +734,31 @@ renders the technical `nvidia (discrete)` label in Arabic; narrower English
 trust text can elide. Translate presentation separately from hardware
 classification, and retain the full accessible/error meaning at small widths.
 
-**P2.5, measured 2026-09-17 on the Oracle A1 — Liquid Glass has no blur-less
-fallback, and the material contract already requires one.** `MOOS_UI2_DESIGN.md`
-says a Liquid Glass surface has "a palette-tinted fallback fill that works
-without blur" and that "software rendering uses opaque or near-opaque
-fallbacks ... through capability detection".
-`org/moos/ui/GlassSurface.qml` implements no fallback: it sets `fillOpacity`
-from a fixed token (`floatingGlassOpacity` 0.82, `glassRestingOpacity` 0.22)
-whatever the machine can do. Those values are tuned for a machine whose
-compositor smears what shows through.
+**P2.5 material evidence.** The A1 exposed see-through text without blur: on llvmpipe
+`moos-visual-tier` correctly resolves the essential tier and writes
+`Plugins/blurEnabled=false`, `qdbus6 …Effects.isEffectLoaded blur` and `contrast` both
+answer `false`, and the remaining ~18% is then not a blurred wash but sharp content —
+in a capture of MoOS Search over a maximised editor, the editor's own body text read
+straight through the results surface. Every Liquid Glass surface inherits it, so it is
+one shared defect. W9.6 implemented the denser fallback.
 
-This host is `llvmpipe` with no accelerated render node, so `moos-visual-tier`
-correctly resolves the essential tier and writes `Plugins/blurEnabled=false` —
-blur there would be paid on the CPU every frame. `qdbus6 …Effects.isEffectLoaded
-blur` and `contrast` both answer `false`. The remaining ~18% is then not a
-blurred wash but sharp content: in a capture of MoOS Search over a maximised
-editor, the window's own body text reads straight through the results surface.
-Every Liquid Glass surface inherits this, so it is one shared defect, not a
-Search defect.
+The 2026-09-19 audit then found three defects in the reader itself, all now fixed
+(THEME_REV 74): it consulted only the user's `kwinrc`, it wrote a personal override
+while reading, and it understood four of KConfig's twelve boolean spellings — so
+`blurEnabled=off`, which KWin honours, was skipped and the decision handed to
+`/etc/xdg/kwinrc`, which says blur is on. Nine cases green on a real Qt engine.
 
-Not fixed here, deliberately. The installed QML stack exposes no blur-availability
-API (`org/kde/kwindowsystem` and `plasma/core` qmltypes carry no `blurBehind` or
-`isEffectAvailable`), so capability detection needs a mechanism MoOS does not yet
-have; `moos-visual-tier` is the authority that should publish it, the way it
-already publishes `file_indexing` to `moos-index-policy`. And this machine has no
-GPU, so the blur-present path cannot be reviewed from it — changing the shared
-glass material for every surface on evidence from one tier is exactly the
-unverified change the engineering skill forbids. Implement it against both tiers,
-with the flagship frames captured on the station.
+**Why runtime capability detection is still not done**, kept because it is the
+measurement that scopes the work: the installed QML stack exposes no blur-availability
+API — `org/kde/kwindowsystem` and `plasma/core` qmltypes carry no `blurBehind` or
+`isEffectAvailable`, and `/usr/lib64/qt6/qml/org/kde/config/` has no `KConfigWatcher`.
+`moos-visual-tier` is the authority that should publish it, the way it already publishes
+`file_indexing` to `moos-index-policy`. The reader's transport is no longer missing
+(`Qt.labs.folderlistmodel`, see W8's open list), but the authority and its gate are.
+A startup preference must never be called capability detection: runtime effect
+availability, per-window blur and live preference changes are three distinct pieces of
+missing evidence, and the live one already bites — see `moos-fast-remote`. The next
+clarity slice is specified in the design completion handoff, row 1.
 
 | ID | Task | Exit evidence |
 | --- | --- | --- |
@@ -755,6 +903,38 @@ unavailable, not successful configuration.
 
 ### P4 — Applications and compatibility
 
+**Owner priority, 2026-09-19: MoOS application platform.** One Store entry point,
+one consent surface and one transaction authority; runtime brands stay out of the
+ordinary journey, but compatibility limits, download size, permissions and failures
+remain visible. "MoOS API" means a versioned contract over adapters, not a promise
+to implement every foreign ABI or repaint third-party application content.
+
+Implementation order inside P4 (no separate backlog):
+
+1. P4.7: native Store file picker/drop → validated local URL → existing App Drop
+   inspection/default-No consent → Store job. Source implemented; compiled bridge,
+   real drop/cancel/install/remove, native Arabic/English frames and image proof required.
+2. P4.1/P1.7: adapter contract `inspect → prepare → install → launch → remove`;
+   stable app/job IDs, permissions, architecture, provenance and tested support level.
+   Existing registry resolves engine availability, NOT successful app compatibility.
+3. P4.3: per-app Windows environments, MSI/EXE distinction, install discovery,
+   launcher/icon export and uninstall. Current shared prefix/launch is not this product.
+4. P4.4: Android initialization/download consent, ABI preflight, individual-app
+   windows, launcher/files/audio and GPU fallback. ARM-only APKs are not generally
+   runnable on x86; NVIDIA fallback requires separate performance qualification.
+5. P4.5: publish tested app/version/architecture/GPU matrix; Linux packages from
+   other distributions need reviewed container adapters, never host package mixing.
+   macOS remains unsupported in the shipped product; evaluate open compatibility
+   projects separately without blanket legal claims or unsupported Store install buttons.
+
+Primary references checked 2026-09-19:
+[Android application/ABI limitations](https://docs.waydro.id/usage/install-and-run-android-applications),
+[GPU fallback](https://docs.waydro.id/faq/get-waydroid-to-work-through-a-vm),
+[Windows runner CLI](https://docs.usebottles.com/advanced/cli),
+[Darling implementation status](https://github.com/darlinghq/darling).
+None promises universal compatibility. Installation does not silently execute an
+untrusted application; first launch requires an explicit user action.
+
 | ID | Task | Exit evidence |
 | --- | --- | --- |
 | P4.1 | Unify every install/update/remove request behind Mo Store | UI, Mo AI and URL routes share job IDs, progress, cancellation and readback |
@@ -762,8 +942,8 @@ unavailable, not successful configuration.
 | P4.3 | Turn Windows compatibility into a per-app runner product | isolated prefix per app; install/launch/reopen/update/remove for ten published test apps |
 | P4.4 | Turn Android compatibility into a per-app product | on-demand container; launcher/files/clipboard/audio; ten test apps on Intel/AMD and NVIDIA fallback |
 | P4.5 | Publish a generated compatibility matrix | supported/experimental/unsupported status names edition, architecture, GPU and tested version |
-| P4.6 | **In source (W6):** App Drop — an application that arrives as a file | AppImage (extracted once inside bubblewrap into `~/Applications/<name>/`), portable archives (extracted by `moos_appdrop.py`, hostile members refused by name), Flathub `.flatpakref` (the ordinary verified path); `.rpm`/`.exe`/`.apk` handed to their existing routes; `.deb` and `.flatpak` bundles refused with the reason. Consent dialog with default No on every path; one Mo Store job (`moos-storectl install-file`). `tests/test_app_drop.py` builds the hostile files and runs the real sandbox. **Open:** a real AppImage on a MoOS machine; the dialog, the file-manager action and the `~/Applications` watch reviewed on a desktop; what a double-click on an AppImage did before (read from source, never observed); `.flatpak` bundles through libflatpak; **discoverability** — nothing points a person at `~/Applications` yet: a Places entry in the file manager (check on a desktop how the places model treats a seeded `user-places.xbel` before shipping one) or a launcher entry, which needs its own designed icon |
-| P4.7 | A drop target in Mo Store's own window | needs a `Q_INVOKABLE installFile(path)` with a path validator in `build_files/moos-qml-shell.cpp` (the bridge's `validId` rejects paths) and a full image build; the Store must not use the public `moos:` scheme for it |
+| P4.6 | **In source (W6):** App Drop — an application that arrives as a file | AppImage (extracted once inside bubblewrap into `~/Applications/<name>/`), portable archives (extracted by `moos_appdrop.py`, hostile members refused by name), Flathub `.flatpakref` (the ordinary verified path); `.rpm`/`.exe`/`.apk` handed to their existing routes; `.deb` and `.flatpak` bundles refused with the reason. Consent dialog with default No on every path; one Mo Store job (`moos-storectl install-file`). `tests/test_app_drop.py` builds the hostile files and runs the real sandbox. **Reviewed on the station 2026-09-17/18** (`.858`/`.862`, recorded in `PROJECT_STATE.md`): a real 8.4 MB AppImage installed and removed. That is ONE journey through ONE entry path; the rest of the row is still owed and must not be inferred from it. **Open:** the dialog, the file-manager action and the `~/Applications` watch reviewed on a desktop; what a double-click on an AppImage did before (read from source, never observed); `.flatpak` bundles through libflatpak; **discoverability** — nothing points a person at `~/Applications` yet: a Places entry in the file manager (check on a desktop how the places model treats a seeded `user-places.xbel` before shipping one) or a launcher entry, which needs its own designed icon |
+| P4.7 | **Implemented in source; qualification pending:** file picker and drop in Mo Store | `StoreBridge.installFile(QUrl)` validates a local regular file and delegates to App Drop's default-No consent, never a public URL action. Six executable Qt/consent cases passed in a disposable SDK; Arabic/light and English/dark Qt frames reviewed. Still required: actual pointer drop, install/launch/remove through this entry, full image and signed artifact proof |
 
 Flatpak sandboxes deny host access by default and portals provide controlled
 access to files and services.^5 MoOS should keep per-user app development and

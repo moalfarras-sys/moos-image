@@ -16,6 +16,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Dialogs as NativeDialogs
 import org.kde.kirigami as Kirigami
 import org.moos.ui as MoUI
 
@@ -508,6 +509,53 @@ ApplicationWindow {
         return JSON.parse(request.responseText)
     }
 
+    // ── What MoOS can run ────────────────────────────────────────────────────
+    //
+    // Mo Store used to answer "does MoOS run Windows programs?" by putting the
+    // Windows RUNTIME in its first row as if it were an app somebody chooses.
+    // That names the engine, and a person who wants to run a program they
+    // downloaded has no reason to learn what it is called. The promise still has
+    // to be visible, so it is stated as a capability, in the registry's own
+    // bilingual words, and tapping one opens the file picker for exactly the
+    // files that capability accepts.
+    //
+    // The registry is the single source (system_files/usr/share/moos/app-engines.json).
+    // Nothing here can name a runtime, because nothing here invents a string.
+    property var engineCapabilities: []
+
+    function loadEngines() {
+        try {
+            var document = win.readJson("/usr/share/moos/app-engines.json")
+            if (!document || !document.engines) return
+            var list = []
+            for (var i = 0; i < document.engines.length; ++i) {
+                var engine = document.engines[i]
+                if (!engine || !engine.name) continue
+                var claims = engine.claims || {}
+                list.push({
+                    "id": "" + engine.id,
+                    "label": "" + (win.rtl ? engine.name.ar : engine.name.en),
+                    "extensions": claims.extensions || []
+                })
+            }
+            win.engineCapabilities = list
+        } catch (error) {
+            // A store that cannot read the registry simply does not show the
+            // strip. It must never invent a capability it cannot name.
+            win.engineCapabilities = []
+        }
+    }
+
+    function openPickerFor(capability) {
+        var patterns = []
+        for (var i = 0; i < capability.extensions.length; ++i)
+            patterns.push("*." + capability.extensions[i])
+        applicationFile.nameFilters = patterns.length > 0
+            ? [capability.label + " (" + patterns.join(" ") + ")"]
+            : []
+        applicationFile.open()
+    }
+
     function loadCurated() {
         try {
             var request = new XMLHttpRequest()
@@ -530,6 +578,7 @@ ApplicationWindow {
             }
             win.curatedApps = normalized
             win.allApps = normalized
+            win.loadEngines()
             win.recompute()
         } catch (error) {
             win.loadError = "" + error
@@ -868,6 +917,85 @@ ApplicationWindow {
         win.clearPicks()
         win.setPicked(app.id, true)
         review.open()
+    }
+
+    // Returns whether MoOS took the file. The caller needs the answer: telling the
+    // drag source a drop was accepted when nothing happened leaves the person
+    // watching a window that did not react and gives them nothing to retry.
+    function reviewDroppedFile(url) {
+        if (win.jobIsActive()) {
+            win.flash(win.local("انتظر اكتمال العملية الحالية", "Wait for the current operation"))
+            return false
+        }
+        if (typeof MoosStore === "undefined" || typeof MoosStore.installFile !== "function"
+                || !MoosStore.installFile(url)) {
+            win.flash(win.local("تعذّر فتح الملف. اختر ملف تطبيق محليًا.",
+                                "Could not open the file. Choose a local application file."))
+            return false
+        }
+        // What is true at this instant, and nothing more: the file has been handed
+        // to MoOS to look at. It has not been inspected yet, it may turn out to be
+        // unsupported, and the question that decides it has not been asked. Saying
+        // "confirm before installation" here would promise an install for a file
+        // MoOS is about to refuse.
+        win.flash(win.local("يفحص MoOS الملف ويسألك قبل أي إجراء.",
+                            "MoOS is checking the file and will ask before doing anything."))
+        // An install started from this window must be visible IN this window.
+        // Every other MoosStore action restarts the poll for exactly this reason.
+        jobPoll.restart()
+        return true
+    }
+
+    NativeDialogs.FileDialog {
+        id: applicationFile
+        title: win.local("إضافة تطبيق إلى MoOS", "Add an app to MoOS")
+        fileMode: NativeDialogs.FileDialog.OpenFile
+        onAccepted: win.reviewDroppedFile(selectedFile)
+    }
+
+    DropArea {
+        id: appDropTarget
+        anchors.fill: parent
+        onEntered: function(drag) { drag.accepted = drag.hasUrls && drag.urls.length === 1 }
+        onDropped: function(drop) {
+            if (!drop.hasUrls || drop.urls.length !== 1) return
+            if (win.reviewDroppedFile(drop.urls[0]))
+                drop.acceptProposedAction()
+        }
+    }
+
+    Rectangle {
+        anchors.fill: parent
+        anchors.margins: MoUI.Tokens.space4
+        z: 100
+        visible: appDropTarget.containsDrag
+        radius: MoUI.Tokens.radiusDialog
+        color: win.canvas
+        border.color: win.accent
+        border.width: 2
+        ColumnLayout {
+            anchors.centerIn: parent
+            width: Math.min(parent.width - 48, 560)
+            spacing: MoUI.Tokens.space4
+            Text {
+                Layout.fillWidth: true
+                text: win.local("أضف تطبيقك إلى MoOS", "Bring your app to MoOS")
+                font.pixelSize: win.typePx(32)
+                font.bold: true
+                color: win.txt
+                wrapMode: Text.Wrap
+                horizontalAlignment: Text.AlignHCenter
+            }
+            Text {
+                Layout.fillWidth: true
+                text: win.local("أفلت ملفًا واحدًا. نفحص نوعه ونطلب موافقتك قبل التثبيت.",
+                                "Drop one file. We inspect its format and ask before installing.")
+                font.pixelSize: win.typePx(15)
+                color: win.txt2
+                wrapMode: Text.Wrap
+                horizontalAlignment: Text.AlignHCenter
+            }
+        }
     }
 
     function beginInstall() {
@@ -1613,8 +1741,14 @@ ApplicationWindow {
                         }
                     }
 
+                    MoUI.Button {
+                        label: win.local("إضافة تطبيق", "Add app")
+                        enabled: !win.jobIsActive()
+                        onClicked: applicationFile.open()
+                        Accessible.description: win.local("اختر ملف تطبيق للمراجعة والتثبيت", "Choose an application file to review and install")
+                    }
                     Rectangle {
-                        Layout.preferredWidth: Math.min(430, win.width * 0.38)
+                        Layout.preferredWidth: Math.min(350, win.width * 0.28)
                         Layout.preferredHeight: win.fs(46)
                         radius: design.radiusCard
                         color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.82)
@@ -1726,12 +1860,55 @@ ApplicationWindow {
                                         Layout.fillWidth: true
                                         Layout.maximumWidth: 660
                                         text: win.rtl
-                                            ? "ابحث في فهرس Flatpak الكامل، ثبّت بأمان، وافتح التطبيقات والتحديثات ومصادر النظام من تجربة واحدة."
-                                            : "Search the complete local Flatpak catalogue, install safely, and manage apps, updates and system engines from one experience."
+                                            ? "اكتشف تطبيقاتك هنا، أو أضف ملفًا نزّلته. مكان واحد للتثبيت والتحديث، مع توضيح التوافق قبل المتابعة."
+                                            : "Discover apps here, or add a file you downloaded. One place to install and update, with compatibility explained before you continue."
                                         color: win.txt2
                                         font.family: win.uiFont
                                         font.pixelSize: win.typePx(13)
                                         wrapMode: Text.WordWrap
+                                    }
+                                    Flow {
+                                        Layout.fillWidth: true
+                                        Layout.maximumWidth: 660
+                                        spacing: 8
+                                        visible: win.engineCapabilities.length > 0
+                                        Repeater {
+                                            model: win.engineCapabilities
+                                            delegate: Rectangle {
+                                                required property var modelData
+                                                // 40 px is the contract's minimum interactive
+                                                // target; this is a real button, not a label.
+                                                implicitHeight: Math.max(40, win.fs(40))
+                                                implicitWidth: capabilityLabel.implicitWidth + 28
+                                                radius: design.radiusControl
+                                                color: capabilityTouch.containsMouse
+                                                    ? Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.18)
+                                                    : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.82)
+                                                border.width: 1
+                                                border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.35)
+                                                Text {
+                                                    id: capabilityLabel
+                                                    anchors.centerIn: parent
+                                                    text: parent.modelData.label
+                                                    color: win.txt
+                                                    font.family: win.uiFont
+                                                    font.pixelSize: win.typePx(13)
+                                                }
+                                                MouseArea {
+                                                    id: capabilityTouch
+                                                    anchors.fill: parent
+                                                    hoverEnabled: true
+                                                    cursorShape: Qt.PointingHandCursor
+                                                    onClicked: win.openPickerFor(parent.modelData)
+                                                }
+                                                Accessible.role: Accessible.Button
+                                                Accessible.name: modelData.label
+                                                Accessible.description: win.local(
+                                                    "اختر ملفًا من هذا النوع لإضافته",
+                                                    "Choose a file of this kind to add")
+                                                Accessible.onPressAction: win.openPickerFor(modelData)
+                                            }
+                                        }
                                     }
                                     RowLayout {
                                         spacing: 9

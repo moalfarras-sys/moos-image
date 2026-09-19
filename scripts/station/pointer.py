@@ -26,14 +26,17 @@ screenshot returns.
   scripts/station/pointer.py click 700 400 --button right
   scripts/station/pointer.py drag 700 400 900 500
 
-The owner's clipboard is put back when the tool exits; nothing else in the session
-is changed.
+The owner's plain-text clipboard is put back literally when the tool exits.
+Non-text or unreadable clipboard content aborts BEFORE the probe: Klipper's
+string interface cannot restore images, file lists or rich-text alternatives.
+The probe leaves an entry in Klipper history; that history is never cleared.
 """
 
 from __future__ import annotations
 
 import argparse
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -54,7 +57,8 @@ PROBE = (
 
 
 def run(argv: list[str], timeout: int = 20) -> str:
-    done = subprocess.run(argv, env=ENV, capture_output=True, text=True, timeout=timeout)
+    done = subprocess.run(argv, env=ENV, capture_output=True, text=True, timeout=timeout,
+                          check=True)
     return done.stdout.strip()
 
 
@@ -62,20 +66,50 @@ def qdbus(*args: str) -> str:
     return run([QDBUS, *args])
 
 
+def save_clipboard() -> str:
+    """Accept only a clipboard we can restore losslessly through Klipper."""
+    try:
+        types = subprocess.run(["wl-paste", "--list-types"], env=ENV,
+                               capture_output=True, text=True, check=True, timeout=5)
+        formats = set(types.stdout.splitlines())
+        plain = {"text/plain", "text/plain;charset=utf-8", "UTF8_STRING", "STRING", "TEXT"}
+        metadata = {"TARGETS", "TIMESTAMP", "SAVE_TARGETS", "MULTIPLE"}
+        if not formats or formats - plain - metadata or not formats & plain:
+            raise ValueError("clipboard contains non-text formats")
+        mime = next(item for item in ("text/plain;charset=utf-8", "text/plain",
+                                     "UTF8_STRING", "STRING", "TEXT") if item in formats)
+        result = subprocess.run(["wl-paste", "--no-newline", "--type", mime], env=ENV,
+                                capture_output=True, check=True, timeout=5)
+        return result.stdout.decode("utf-8")
+    except (OSError, subprocess.SubprocessError, ValueError) as error:
+        raise SystemExit("pointer: clipboard cannot be preserved as plain text; "
+                         "copy plain text before reviewing. Clipboard left untouched.") from error
+
+
 class Pointer:
     """The live pointer, with KWin as the source of truth for where it is."""
 
     def __init__(self) -> None:
-        self._script = os.path.join(tempfile.mkdtemp(prefix="moos-pointer-"), "probe.js")
+        self._saved = save_clipboard()
+        self._workspace = tempfile.mkdtemp(prefix="moos-pointer-")
+        self._script = os.path.join(self._workspace, "probe.js")
         with open(self._script, "w", encoding="utf-8") as handle:
             handle.write(PROBE)
-        self._saved = qdbus(*KLIPPER[:2], f"{KLIPPER[2]}.getClipboardContents")
         self._loaded = False
 
     def restore(self) -> None:
-        if self._saved:
-            qdbus(*KLIPPER[:2], f"{KLIPPER[2]}.setClipboardContents", self._saved)
-        qdbus("org.kde.KWin", "/Scripting", "org.kde.kwin.Scripting.unloadScript", "moospointer")
+        """Restore the saved text literally, even text resembling a probe reply."""
+        try:
+            if self._saved:
+                qdbus(*KLIPPER[:2], f"{KLIPPER[2]}.setClipboardContents", self._saved)
+            else:
+                qdbus(*KLIPPER[:2], f"{KLIPPER[2]}.clearClipboardContents")
+        finally:
+            try:
+                qdbus("org.kde.KWin", "/Scripting",
+                      "org.kde.kwin.Scripting.unloadScript", "moospointer")
+            finally:
+                shutil.rmtree(self._workspace, ignore_errors=True)
 
     def where(self) -> tuple[int, int]:
         """Ask KWin where the pointer is. Raises if the compositor does not answer."""

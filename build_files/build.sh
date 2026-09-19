@@ -2751,6 +2751,7 @@ systemctl --global enable moos-reclaim-disk.timer
 # tells the person their update is ready — once per staged version, never a nag.
 systemctl --global enable moos-update-ready.timer
 systemctl --global enable moos-privacy-monitor.service
+systemctl --global enable moos-material-state.service
 # App Drop: a file dropped into ~/Applications raises the install question. The path unit is
 # what is enabled; its service only ever runs `moos-app-drop --scan`, which installs nothing
 # without a dialog whose default is No.
@@ -4510,11 +4511,26 @@ fi
 
 # ── The Plasma shell overlay must survive into the finished image ─────────────
 #
-# MoOS restyles two files that belong to plasma-workspace's own shell package by
+# MoOS restyles SIX files that belong to plasma-desktop's own shell package by
 # dropping its versions on top with `COPY system_files/ /`:
 #
 #   contents/explorer/WidgetExplorer.qml  -- Customize Desktop (the MoOS UI2 panel)
 #   contents/views/DesktopEditMode.qml    -- Arrange, drawn without a GPU
+#   contents/lockscreen/LockScreenUi.qml  -- the MoOS lock screen
+#   contents/lockscreen/MainBlock.qml     -- its password block
+#   contents/lockscreen/MediaControls.qml -- its media controls
+#   contents/defaults                     -- the shell's own wallpaper default
+#
+# Measured on the station 2026-09-19: `rpm -V plasma-desktop` reports `S.5....T.`
+# for exactly those six paths — size, checksum and mtime all differ from what the
+# package shipped. (contents/lockscreen/MoOSClock.qml and the two lockscreen PNGs
+# are NEW files the package does not own, so rpm has nothing to say about them.)
+# The list below had two of the six. The four it was missing include the LOCK
+# SCREEN, which is among the most-seen surfaces on any machine, and the failure
+# mode the comment below describes is not hypothetical for it: a dnf5 transaction
+# later in this script that pulls plasma-desktop would restore stock Plasma's
+# lock screen at the same path, every repo gate would stay green, and the owner
+# would find a Breeze lock screen on a MoOS machine.
 #
 # Overlaying is the supported way to restyle the shell, but it is fragile in one
 # specific direction: the base image owns those paths too. A plasma-workspace
@@ -4530,7 +4546,11 @@ fi
 # reinstall restores a file at the same path with upstream's content.
 for _pair in \
     "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/explorer/WidgetExplorer.qml:moosDesktopCustomizer" \
-    "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/DesktopEditMode.qml:softwareRendering"
+    "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/DesktopEditMode.qml:softwareRendering" \
+    "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/LockScreenUi.qml:MoOSClock" \
+    "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/MainBlock.qml:org.moos.ui" \
+    "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/MediaControls.qml:org.moos.ui" \
+    "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/defaults:org.moos.ui2.wallpaper"
 do
     _f="${_pair%%:*}"; _marker="${_pair##*:}"
     [ -f "$_f" ] || {
