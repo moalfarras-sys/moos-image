@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Behavior gate: Mo AI must not confuse a rejected GUI launch with success."""
+"""Behavior gate: Windows support setup stays behind MoOS's own journey."""
 import os
 import subprocess
 import tempfile
@@ -19,7 +19,7 @@ def run(run_status: int, machine: str = "x86_64") -> subprocess.CompletedProcess
         bindir = Path(raw)
         executable(bindir / "flatpak", f'''case "$1" in
   info) exit 0 ;;
-  run) exit {run_status} ;;
+  run) echo RUNTIME_UI_LAUNCHED; exit {run_status} ;;
 esac
 exit 2
 ''')
@@ -38,18 +38,18 @@ exit 2
 
 accepted = run(0)
 assert accepted.returncode == 0, accepted.stderr
-assert "create an 'Application' bottle" in accepted.stdout
+assert "Open the .exe file again from the file manager" in accepted.stdout
+assert "RUNTIME_UI_LAUNCHED" not in accepted.stdout
 
 rejected = run(7)
-assert rejected.returncode != 0, "a rejected Flatpak launch reported success"
-assert "could not be opened" in rejected.stderr
-assert "create an 'Application' bottle" not in rejected.stdout, \
-    "setup instructions claimed a window existed after launch rejection"
+assert rejected.returncode == 0, rejected.stderr
+assert "Open the .exe file again from the file manager" in rejected.stdout
+assert "could not be opened" not in rejected.stderr
+assert "RUNTIME_UI_LAUNCHED" not in rejected.stdout
 
-print("PASS: Mo AI distinguishes accepted and rejected GUI launches")
+print("PASS: Windows support setup does not expose or launch its runtime UI")
 
 arm = run(0, machine="aarch64")
 assert arm.returncode != 0, "Windows apps were set up on an ARM processor"
 assert "x86" in arm.stdout, arm.stdout
-assert "create an 'Application' bottle" not in arm.stdout
-
+assert "Open the .exe file again from the file manager" not in arm.stdout

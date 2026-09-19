@@ -537,7 +537,7 @@ do_install_nvidia() {
 }
 
 do_setup_waydroid() {
-    hdr "تجهيز Android عبر Waydroid" "Set up Android through Waydroid"
+    hdr "تجهيز تطبيقات Android" "Set up Android apps"
     need waydroid || return 1
 
     # Idempotent: `waydroid init` re-downloads the multi-GB system image. Skip it if the
@@ -588,8 +588,9 @@ do_setup_waydroid() {
     fi
     waydroid show-full-ui >/dev/null 2>&1 &
     echo "${G}✓ Android جاهز | ready${N}"
-    echo "${D}لتثبيت تطبيق APK | to install an APK:  ${C}waydroid app install <file.apk>${N}"
-    echo "${D}تطبيقات Android تظهر في القائمة مثل أي تطبيق | Android apps appear in your launcher${N}"
+    echo "${D}ثبّت ملف APK بالنقر المزدوج أو بإفلاته في متجر MoOS.${N}"
+    echo "${D}Install an APK by double-clicking it or dropping it into Mo Store.${N}"
+    echo "${D}تظهر التطبيقات في القائمة مثل أي تطبيق | Apps appear in your launcher like any other app${N}"
 }
 
 # -----------------------------------------------------------------------------
@@ -612,7 +613,7 @@ do_setup_waydroid() {
 # (Steam, Bottles, Lutris, ProtonUp) and skips whatever is already installed.
 # -----------------------------------------------------------------------------
 do_setup_gaming() {
-    hdr "تجهيز الألعاب (Steam + Proton + Lutris)" "Set up gaming (Steam + Proton + Lutris)"
+    hdr "تجهيز الألعاب" "Set up gaming"
     if ! pc_games_supported; then
         echo "${Y}ألعاب Windows وبرامجها مبنية لمعالجات x86؛ هذا الجهاز بمعالج ARM ولا يشغّلها. لم يتغير شيء.${N}"
         echo "${Y}Windows games and programs are built for x86 processors; this ARM computer cannot run them. Nothing changed.${N}"
@@ -622,24 +623,24 @@ do_setup_gaming() {
         echo "${R}moos-setup غير موجود | not found${N}" >&2
         return 1
     fi
-    echo "${D}يثبّت ما ينقص فقط: Steam وBottles وLutris وProtonUp — ويتخطّى المثبّت مسبقاً.${N}"
-    echo "${D}Installs only what is missing: Steam, Bottles, Lutris, ProtonUp — skips what you have.${N}"
+    echo "${D}يثبّت ما ينقص فقط: Steam وLutris ودعم توافق الألعاب — ويتخطّى المثبّت مسبقاً.${N}"
+    echo "${D}Installs only what is missing: Steam, Lutris and game compatibility support — skips what you have.${N}"
     confirm || return 0
     moos-setup --gaming
 }
 
 do_setup_windows() {
-    hdr "تجهيز تطبيقات Windows عبر Bottles" "Set up Windows apps through Bottles"
+    hdr "تجهيز تطبيقات Windows" "Set up Windows apps"
     if ! pc_games_supported; then
         echo "${Y}ألعاب Windows وبرامجها مبنية لمعالجات x86؛ هذا الجهاز بمعالج ARM ولا يشغّلها. لم يتغير شيء.${N}"
         echo "${Y}Windows games and programs are built for x86 processors; this ARM computer cannot run them. Nothing changed.${N}"
         return 1
     fi
     need flatpak || return 1
-    echo "${D}يثبّت Bottles (Wine مُدار) لتشغيل برامج ‎.exe. التشغيل بلا صلاحيات؛ التثبيت مرة واحدة فقط.${N}"
-    echo "${D}Installs Bottles (managed Wine) to run .exe programs. Running needs no admin; only the one-time install does.${N}"
+    echo "${D}يثبّت بيئة توافق معزولة لتشغيل برامج ‎.exe. التشغيل بلا صلاحيات؛ التجهيز مرة واحدة فقط.${N}"
+    echo "${D}Installs an isolated compatibility environment for .exe programs. Running needs no admin; setup happens once.${N}"
     if flatpak info com.usebottles.bottles >/dev/null 2>&1; then
-        echo "${G}✓ Bottles مثبّت مسبقاً — سأفتحه | already installed — opening it${N}"
+        echo "${G}✓ دعم تطبيقات Windows مجهّز مسبقاً | Windows app support is ready${N}"
     else
         confirm || return 0
         # Through Mo Store's backend, like every other app transaction in this file
@@ -652,13 +653,8 @@ do_setup_windows() {
             return 1
         fi
     fi
-    if ! launch_app com.usebottles.bottles; then
-        echo "${Y}Bottles مثبّت، لكن تعذّر فتح نافذته الآن.${N}" >&2
-        echo "${Y}Bottles is installed, but its window could not be opened now.${N}" >&2
-        return 1
-    fi
-    echo "${D}في Bottles: أنشئ «Application» ثم شغّل ملف ‎.exe.${N}"
-    echo "${D}In Bottles: create an 'Application' bottle, then Run your .exe.${N}"
+    echo "${D}اكتمل التجهيز. افتح ملف ‎.exe مرة أخرى من مدير الملفات.${N}"
+    echo "${D}Setup is complete. Open the .exe file again from the file manager.${N}"
 }
 
 # -----------------------------------------------------------------------------
@@ -1575,10 +1571,10 @@ ${V}الاستعمال | Usage:${N}  moai-do <command> [args]
                     Update device firmware through fwupd
   ${C}setup-waydroid${N}    تنزيل وتجهيز Android الاختياري (وتشغيل تطبيقات Android)
                     Download and configure Android support (run Android apps)
-  ${C}setup-windows${N}     تثبيت Bottles وفتحه لتشغيل برامج ‎.exe
-                    Install Bottles and open it to run Windows .exe programs
-  ${C}setup-gaming${N}      تجهيز الألعاب: Steam وProton وLutris وBottles
-                    Set up gaming: Steam, Proton, Lutris, Bottles
+  ${C}setup-windows${N}     تجهيز دعم معزول لتشغيل برامج ‎.exe
+                    Set up isolated support for Windows .exe programs
+  ${C}setup-gaming${N}      تجهيز الألعاب ودعم التوافق
+                    Set up games and compatibility support
   ${C}optimize${N}          تنظيف Flatpak/الحاويات/السجلّات وتحرير مساحة
                     Clean Flatpak/containers/logs and free disk space
   ${C}device-report${N}     حالة الجهاز بالكلمات (قراءة فقط)

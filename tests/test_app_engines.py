@@ -166,6 +166,89 @@ class WindowsFilePreflight(unittest.TestCase):
             self.assertEqual(self.engine.wine_x86_payload(), "unknown")
 
 
+class NativeX86CapabilityProbe(unittest.TestCase):
+    """Run the shell probe with fixed stubs: cache, invalidation and argv are behavior."""
+
+    def test_probe_uses_only_the_built_in_file_and_rechecks_after_an_image_update(self):
+        source = RUNNER.read_text(encoding="utf-8")
+        start = source.index("native_x86_ready() {")
+        function = source[start:source.index("\nusage()", start)]
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            bindir = root / "bin"
+            cache = root / "cache"
+            bindir.mkdir()
+            probe = root / "moos-command.exe"
+            probe.write_bytes(b"MoOS-owned probe fixture")
+            for shipped in (
+                    "/usr/lib64/wine-wow64/wine/i386-windows/cmd.exe",
+                    "/usr/lib64/wine/i386-windows/cmd.exe",
+                    "/usr/lib/wine/i386-windows/cmd.exe"):
+                function = function.replace(shipped, str(probe))
+
+            rpm = bindir / "rpm-ostree"
+            rpm.write_text(
+                "#!/bin/sh\nprintf '{\"deployments\":[{\"booted\":true,"
+                "\"checksum\":\"%s\"}]}' \"$CHECKSUM\"\n", encoding="utf-8")
+            wine = bindir / "wine"
+            wine.write_text(
+                "#!/bin/sh\nprintf '%s\\n' \"$*\" >>\"$WINE_LOG\"\n"
+                "exit \"$WINE_EXIT\"\n", encoding="utf-8")
+            rpm.chmod(0o755)
+            wine.chmod(0o755)
+            harness = root / "probe.sh"
+            harness.write_text(
+                "#!/bin/bash\nset -uo pipefail\n" + function
+                + "\nnative_x86_ready\ncode=$?\nprintf 'code=%s\\n' \"$code\"\nexit 0\n",
+                encoding="utf-8")
+            harness.chmod(0o755)
+            log = root / "wine.log"
+            env = dict(os.environ, PATH=f"{bindir}:/usr/bin:/bin",
+                       XDG_CACHE_HOME=str(cache), WINE_LOG=str(log),
+                       CHECKSUM="revision-a", WINE_EXIT="1")
+
+            first = subprocess.run([str(harness)], env=env, text=True,
+                                   capture_output=True, check=True)
+            second = subprocess.run([str(harness)], env=env, text=True,
+                                    capture_output=True, check=True)
+            self.assertIn("code=1", first.stdout)
+            self.assertIn("code=1", second.stdout)
+            self.assertEqual(len(log.read_text(encoding="utf-8").splitlines()), 1,
+                             "a blocked answer was not cached for this deployment")
+
+            env.update(CHECKSUM="revision-b", WINE_EXIT="0")
+            updated = subprocess.run([str(harness)], env=env, text=True,
+                                     capture_output=True, check=True)
+            calls = log.read_text(encoding="utf-8").splitlines()
+            self.assertIn("code=0", updated.stdout)
+            self.assertEqual(len(calls), 2, "an image update inherited a stale blocked result")
+            self.assertTrue(all(call == f"{probe} /c exit" for call in calls), calls)
+
+
+class UnifiedProductVoice(unittest.TestCase):
+    def test_ordinary_surfaces_do_not_expose_compatibility_implementation_names(self):
+        surfaces = {
+            "Mo AI": ROOT / "system_files/usr/share/moos/apps/moai/main.qml",
+            "Settings": ROOT / "system_files/usr/share/moos/apps/settings/main.qml",
+            "Store": ROOT / "system_files/usr/share/moos/apps/store/main.qml",
+            "first run": ROOT / "system_files/usr/bin/moos-firstrun",
+            "app setup": ROOT / "system_files/usr/bin/moos-setup",
+        }
+        forbidden = ("title: \"Bottles\"", "title: \"Waydroid\"",
+                     "Setup Windows Apps (Bottles)", "Setup Android (Waydroid)",
+                     "MoOS desktop · Wayland", "Update Flatpak apps",
+                     "حدّث تطبيقات Flatpak هنا", "Update Flatpaks now",
+                     "Optional Flatpak engine",
+                     "waydroid app install <file>")
+        offenders = []
+        for label, path in surfaces.items():
+            text = path.read_text(encoding="utf-8")
+            for phrase in forbidden:
+                if phrase in text:
+                    offenders.append(f"{label}: {phrase}")
+        self.assertEqual(offenders, [], "implementation names escaped into product UI")
+
+
 def user_facing_strings(node, path="") -> list[tuple[str, str]]:
     """Every string a person could read: `name` and `reason` values, recursively.
 
@@ -414,6 +497,21 @@ class TheImageAndTheRunnerAgree(unittest.TestCase):
         # The old shape: a hardcoded runtime id driving the decision.
         self.assertNotIn('BOTTLES_ID=', source,
                          "the runner still carries a hardcoded runtime constant")
+        self.assertIn('engine "$target" preflight_reason', source,
+                      "the resolver can block an incompatible file, but the runner hides why")
+        self.assertIn('engine "$target" preflight_architecture', source,
+                      "the runner cannot gate the real PE32 capability without the parsed header")
+        self.assertIn('native_x86_ready', source,
+                      "payload presence alone did not prove that PE32 mappings work")
+        self.assertIn('wine "$probe" /c exit', source,
+                      "the capability probe must execute MoOS's own file, never the download")
+        self.assertIn('The file was not launched.', source,
+                      "a failed PE32 probe must tell the owner the target did not run")
+        self.assertIn('--warningyesno "$1"', source,
+                      "pressing Enter on a runner consent dialog must remain No")
+        self.assertIn('--wine-run', source)
+        self.assertIn('windows-last.log', source,
+                      "a detached Windows failure must leave evidence instead of stderr=/dev/null")
 
 
 @unittest.skipIf(not os.access("/usr/bin/python3", os.X_OK), "no python3")

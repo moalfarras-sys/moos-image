@@ -2625,8 +2625,8 @@ ApplicationWindow {
                                                     ? "بالإضافة إلى " + extra + " مكوّن مشترك يُحدَّث معها. تحديث صورة MoOS والبرامج الثابتة تبقى في مسارات النظام الموقّعة."
                                                     : "Plus " + extra + " shared component(s) that update with them. MoOS image and firmware updates stay on their signed system paths."
                                             return win.rtl
-                                                ? "حدّث تطبيقات Flatpak هنا. تحديث صورة MoOS والبرامج الثابتة يبقيان في مسارات النظام الموقّعة."
-                                                : "Update Flatpak apps here. MoOS image and firmware updates stay on their signed system paths."
+                                                ? "حدّث تطبيقاتك هنا. تحديث صورة MoOS والبرامج الثابتة يبقيان في مسارات النظام الموقّعة."
+                                                : "Update your apps here. MoOS image and firmware updates stay on their signed system paths."
                                         }
                                         color: win.txt2
                                         font.family: win.uiFont
@@ -2746,7 +2746,7 @@ ApplicationWindow {
                             columnSpacing: 13
                             Repeater {
                                 model: [
-                                    { glyph: "grid", ar: "تطبيقات Flatpak", en: "Flatpak apps", ar2: "تحديث آمن بصلاحيات المستخدم", en2: "Safe per-user transactions", action: "update" },
+                                    { glyph: "grid", ar: "تحديثات التطبيقات", en: "App updates", ar2: "تحديث آمن بصلاحيات المستخدم", en2: "Safe per-user transactions", action: "update" },
                                     { glyph: "shield", ar: "صورة MoOS", en: "MoOS image", ar2: "تحديث موقّع يُطبق بعد إعادة التشغيل", en2: "Signed, applied after reboot", action: "system-update" },
                                     { glyph: "gear", ar: "البرامج الثابتة", en: "Device firmware", ar2: "تحديثات العتاد من المصدر الموثوق", en2: "Trusted hardware updates", action: "firmware" }
                                 ]
@@ -2790,7 +2790,7 @@ ApplicationWindow {
                                                 ? win.updateItems().length === 0
                                                     && win.updateComponentCount() > 0
                                                     ? (win.rtl ? "حدّث المكوّنات الآن" : "Update components now")
-                                                    : (win.rtl ? "حدّث تطبيقات Flatpak الآن" : "Update Flatpaks now")
+                                                    : (win.rtl ? "حدّث التطبيقات الآن" : "Update apps now")
                                                 : updateCard.modelData.action === "system-update"
                                                     ? (win.rtl ? "افتح محدّث MoOS" : "Open MoOS Updater")
                                                     : (win.rtl ? "افتح تحديثات البرامج الثابتة" : "Open firmware updates")
@@ -2895,7 +2895,7 @@ ApplicationWindow {
                                     },
                                     {
                                         id: "bazaar", glyph: "grid",
-                                        ar: "Bazaar · محرك Flatpak اختياري", en: "Bazaar · Optional Flatpak engine",
+                                        ar: "Bazaar · كتالوج تطبيقات إضافي", en: "Bazaar · Additional app catalogue",
                                         ar2: "واجهة متقدمة للكتالوج والحسابات والمفضلة. تبقى مخفية من قائمة النظام كي يظل Mo Store المتجر الوحيد.",
                                         en2: "An advanced catalogue, account and favourites engine, kept out of the menu so Mo Store stays the one storefront.",
                                         stateAr: "اختياري", stateEn: "Optional", action: "bazaar"

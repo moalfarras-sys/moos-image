@@ -106,9 +106,14 @@ def human_size(size: int) -> str:
 def ask(title: str, text: str, yes: str) -> bool:
     """A question whose default is No. No dialog tool means No."""
     if shutil.which("kdialog"):
+        # KDialog 26 always focuses its internal primary/Yes button and exposes no
+        # default-button option. Put Cancel on that focused button, put the action
+        # on the internal secondary/No button, and accept ONLY secondary (exit 1).
+        # Enter and Escape therefore both fail closed; Tab+Enter explicitly acts.
         return subprocess.run(["kdialog", "--title", title, "--icon", "moos-install-symbolic",
-                               "--warningcontinuecancel", text, "--continue-label", yes],
-                              stdin=subprocess.DEVNULL, check=False).returncode == 0
+                               "--yes-label", "إلغاء | Cancel", "--no-label", yes,
+                               "--warningyesno", text],
+                              stdin=subprocess.DEVNULL, check=False).returncode == 1
     if shutil.which("zenity"):
         return subprocess.run(["zenity", "--question", "--default-cancel", f"--title={title}",
                                f"--text={text}", f"--ok-label={yes}"],

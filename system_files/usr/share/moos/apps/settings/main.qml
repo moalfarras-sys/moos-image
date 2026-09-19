@@ -560,7 +560,7 @@ QQC2.ApplicationWindow {
     }
 
     function sessionLabel(session) {
-        if (session === "wayland") return local("سطح مكتب MoOS · Wayland", "MoOS desktop · Wayland")
+        if (session === "wayland") return local("سطح مكتب MoOS", "MoOS desktop")
         if (session === "x11") return local("سطح مكتب MoOS · X11", "MoOS desktop · X11")
         return local("سطح مكتب MoOS", "MoOS desktop")
     }

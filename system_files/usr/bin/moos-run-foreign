@@ -63,6 +63,14 @@ elif key == "chosen":
 elif key == "sandboxed":
     chosen = document.get("chosen") or {}
     print("yes" if chosen.get("sandboxed") else "no")
+elif key == "preflight_reason":
+    preflight = document.get("preflight") or {}
+    reason = preflight.get("reason") or {}
+    if preflight.get("status") == "blocked":
+        print((reason.get("ar") or "") + " | " + (reason.get("en") or ""))
+elif key == "preflight_architecture":
+    preflight = document.get("preflight") or {}
+    print(preflight.get("architecture") or "unknown")
 else:
     value = document.get(key)
     print("" if value is None else ("yes" if value is True else ("" if value is False else value)))
@@ -80,12 +88,95 @@ notify() { command -v kdialog >/dev/null 2>&1 && kdialog --title "MoOS" --passiv
 # installs a multi-hundred-MB runtime because a file was double-clicked is not trustworthy.
 ask() {
     command -v kdialog >/dev/null 2>&1 || return 1
-    kdialog --title "MoOS" --yesno "$1" >/dev/null 2>&1
+    # KDialog 26 has no default-button flag: its internal primary button always
+    # owns Enter. Label that primary button Cancel, put the action on its
+    # secondary button, then accept ONLY secondary (exit 1). Escape is exit 2.
+    kdialog --title "MoOS" \
+        --yes-label "إلغاء | Cancel" --no-label "متابعة | Continue" \
+        --warningyesno "$1" >/dev/null 2>&1
+    [ "$?" -eq 1 ]
 }
 
 # Long, chatty work (an APK install can take a minute) belongs in a visible terminal, held
 # open so the user sees the result instead of a window that blinks and vanishes.
 term() { setsid konsole --hold -e "$@" >/dev/null 2>&1 & }
+
+# Supervise the native Windows-runtime path after the file-manager launcher has
+# returned. The old path detached Wine with stderr in /dev/null, so a runtime
+# mapping failure looked exactly like a successful double-click. Keep one
+# user-owned diagnostic and say plainly when the program exits with an error.
+wine_run() {
+    local target="$1" prefix state_dir log code
+    [ -f "$target" ] || return 2
+    prefix="${XDG_DATA_HOME:-$HOME/.local/share}/moos/windows"
+    state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/moos-foreign"
+    log="$state_dir/windows-last.log"
+    mkdir -p "$prefix" "$state_dir" 2>/dev/null || return 1
+    env WINEPREFIX="$prefix" WINEDLLOVERRIDES="mscoree,mshtml=" \
+        wine "$target" >"$log" 2>&1
+    code=$?
+    if [ "$code" -ne 0 ]; then
+        notify "تعذّر فتح برنامج Windows. لم يُثبّت شيء. يمكن لـ Mo AI فحص المشكلة. | This Windows program could not be opened. Nothing was installed. Mo AI can inspect the problem."
+    fi
+    return "$code"
+}
+
+# Runtime files are not proof that the kernel can map them. The 2026-09-19
+# signed image contains the complete modern 32-bit payload, yet a real PE32
+# program fails before main() because SELinux rejects an executable composefs
+# mapping. Probe MoOS's own built-in PE32 command once per image revision,
+# never the downloaded file. A failed probe goes to the same optional,
+# sandboxed compatibility setup used on machines without a native runtime.
+native_x86_ready() {
+    local image_key cache_dir status prefix probe log result candidate
+    # Key the answer to the booted immutable deployment, not VERSION_ID (which
+    # deliberately remains 44 across MoOS updates). A policy or runtime fix in
+    # the next image must cause a fresh probe instead of inheriting "blocked".
+    image_key="$(rpm-ostree status --json 2>/dev/null | python3 -c '
+import json, sys
+try:
+    deployments = json.load(sys.stdin).get("deployments", [])
+except (ValueError, OSError):
+    deployments = []
+print(next((d.get("checksum", "") for d in deployments if d.get("booted")), ""))
+' 2>/dev/null)"
+    if [ -z "$image_key" ]; then
+        image_key="$(stat -Lc '%d-%i-%s-%Y' /usr/bin/wine 2>/dev/null || printf unknown)"
+    fi
+    image_key="$(printf '%s' "$image_key" | tr -c 'A-Za-z0-9._-' '_')"
+    cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/moos-foreign"
+    status="$cache_dir/windows-x86-$image_key.status"
+    prefix="$cache_dir/windows-x86-probe-$image_key"
+    log="$cache_dir/windows-x86-probe-$image_key.log"
+    probe=""
+    for candidate in \
+            /usr/lib64/wine-wow64/wine/i386-windows/cmd.exe \
+            /usr/lib64/wine/i386-windows/cmd.exe \
+            /usr/lib/wine/i386-windows/cmd.exe; do
+        if [ -f "$candidate" ]; then
+            probe="$candidate"
+            break
+        fi
+    done
+
+    case "$(cat "$status" 2>/dev/null || true)" in
+        available) return 0 ;;
+        blocked) return 1 ;;
+    esac
+    mkdir -p "$cache_dir" "$prefix" 2>/dev/null || return 1
+    [ -n "$probe" ] || { printf '%s\n' blocked >"$status"; return 1; }
+
+    timeout 30 env WINEPREFIX="$prefix" WINEARCH=wow64 \
+        WINEDLLOVERRIDES="mscoree,mshtml=" wine "$probe" /c exit \
+        >"$log" 2>&1
+    result=$?
+    if [ "$result" -eq 0 ]; then
+        printf '%s\n' available >"$status"
+        return 0
+    fi
+    printf '%s\n' blocked >"$status"
+    return 1
+}
 
 usage() { echo "usage: moos-run-foreign <file.exe|file.msi|file.apk>" >&2; exit 2; }
 
@@ -103,13 +194,28 @@ usage() { echo "usage: moos-run-foreign <file.exe|file.msi|file.apk>" >&2; exit 
 # only text that reaches a person.
 # ---------------------------------------------------------------------------------
 run_with_engine() {
-    local target="$1" ar en chosen sandboxed
+    local target="$1" ar en chosen sandboxed preflight_reason architecture route
     ar="$(engine_ar "$target")"; en="$(engine_en "$target")"
     [ -n "$en" ] || { notify "لا يعرف MoOS كيف يفتح هذا الملف | MoOS cannot open this file"; exit 2; }
+
+    preflight_reason="$(engine "$target" preflight_reason)"
+    if [ -n "$preflight_reason" ]; then
+        notify "$preflight_reason"
+        exit 2
+    fi
 
     if [ "$(engine "$target" ready)" = "yes" ]; then
         chosen="$(engine "$target" chosen)"
         sandboxed="$(engine "$target" sandboxed)"
+        architecture="$(engine "$target" preflight_architecture)"
+        if [ "$chosen" = "wine" ] && [ "$architecture" = "x86" ] \
+                && ! native_x86_ready; then
+            route="$(engine "$target" provision_route)"
+            if [ -n "$route" ] && ask "هذا برنامج Windows أقدم ويحتاج دعم توافق اختياريًا (تنزيل كبير لمرة واحدة). لم يُشغّل الملف.\n\nنجهّز الدعم الآن؟\n\nThis older Windows program needs optional compatibility support (a large one-time download). The file was not launched.\n\nSet it up now?"; then
+                moos-open "$route"
+            fi
+            exit 0
+        fi
         case "$chosen" in
             com.usebottles.bottles)
                 # Its desktop entry declares these MIME types and uses Flatpak file
@@ -131,13 +237,8 @@ run_with_engine() {
                     ask "سيعمل هذا البرنامج على جهازك مع صلاحية الوصول إلى ملفاتك، مثل أي برنامج تثبّته بنفسك.\n\nنشغّله؟\n\nThis program will run on your machine with access to your files, like any program you install yourself.\n\nRun it?" || exit 0
                     : >"$seen" 2>/dev/null || true
                 fi
-                # A prefix of its own, so Windows programs never scribble into a shared
-                # ~/.wine the owner did not choose and can be removed in one directory.
-                local prefix="${XDG_DATA_HOME:-$HOME/.local/share}/moos/windows"
-                mkdir -p "$prefix" 2>/dev/null || true
                 notify "يشغّل $ar | opening $en"
-                setsid env WINEPREFIX="$prefix" WINEDLLOVERRIDES="mscoree,mshtml=" \
-                    wine "$target" >/dev/null 2>&1 &
+                setsid /usr/bin/moos-run-foreign --wine-run "$target" >/dev/null 2>&1 &
                 ;;
             waydroid)
                 term moos-run-foreign --apk-install "$target"
@@ -196,6 +297,7 @@ apk_install() {
 
 case "${1:-}" in
     --apk-install) shift; [ -n "${1:-}" ] || usage; apk_install "$1"; exit $? ;;
+    --wine-run) shift; [ -n "${1:-}" ] || usage; wine_run "$1"; exit $? ;;
     -h|--help|"") usage ;;
 esac
 
