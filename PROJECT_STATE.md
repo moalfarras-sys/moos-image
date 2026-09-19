@@ -8,15 +8,12 @@ the README and every wave row point here instead of repeating it. Four parallel 
 
 ## Source and release truth
 
-- **Mo AI diagnostic correction (source, 2026-09-19):** a real free Arabic reply
-  disproved selfcheck's single-model missing-key warning. The probe now accepts one
-  model and distinguishes empty, malformed and unreachable responses without claiming
-  inference readiness. All 25 tests pass; source probe exercised live, not installed.
-- **Live portal repair:** four Chrome launches failed because the document portal
-  was active without its FUSE mount. Restarted only `xdg-document-portal`; verified
-  `fuse.portal`, the app directory and running Chrome via `flatpak ps`. Added five
-  mount-health regression tests; prior failed app units retained as evidence. Root
-  cause remains unproven; no image or desktop restart performed.
+- **Two live findings, 2026-09-19.** Selfcheck warned "configure a cloud key" on a
+  single-model catalogue, which a real free Arabic reply disproved; it now reads the
+  catalogue without inferring inference readiness. And four Chrome launches failed
+  because the document portal was running without its FUSE mount — repaired by
+  restarting `xdg-document-portal` alone, gated by five mount-health tests. **Root
+  cause of the portal failure is unproven** and no image or desktop restart was done.
 - **Published now, read back from the registry 2026-09-19 15:4x** (`skopeo inspect
   …:latest`, `org.opencontainers.image.version`/`.revision`): `moos`, `moos-nvidia` and
   `moos-cloud` = **`44.20260919.894`**, `moos-arm` = **`44.20260919.507`** — **all four
@@ -43,6 +40,17 @@ the README and every wave row point here instead of repeating it. Four parallel 
 - A merged commit or locally built image is not an installed or released state.
   Production moves only after the exact candidate passes 3×QCOW2 + ISO; ARM is
   separately required evidence.
+
+## App engines — what this machine can actually run
+
+Measured 2026-09-19: `wine` **installed** (`build.sh` `_core_power`, every desktop
+edition), `waydroid` **installed but not initialized** (its ~1 GB image was never
+fetched), `flatpak` from the base. `/usr/libexec/moos-app-engine` resolves a `.exe`
+here as `chosen=wine, ready=true, needs_setup=false` — no download needed, which is
+what `build.sh` intended and what the runner did not know until now; an `.apk`
+resolves as `needs_setup=true`. **Not proven:** no real `.exe` or `.apk` has been run
+end to end on the station. The decision is gated on a real engine; the execution is
+not. Plan row A1.
 
 ## Physical development station
 
@@ -122,9 +130,6 @@ my system"), or wait for the nightly train; then restart.
 - Input on a seatless session: KWin's `org.kde.KWin.EIS.RemoteDesktop.connectToEIS` (portal
   numbering: keyboard 1, pointer 2, touch 4) plus libei — never Mo PC Remote's portal token.
 - Works: Search answers, launcher, About, What's new; Mo AI answered in 15–37 s (P3.2 open).
-- Fixed (PR #130): bitten capsule ends in 50 icons ("pulse" was a
-  speck), one moon for suspend and hibernate (`THEME_REV` 67), Discover's install rows.
-- Open (station agent's files): without blur (llvmpipe) Liquid Glass is see-through (P2.5).
 - ARM: Mo AI hides the NVIDIA and PC-games chips; `moai-do` refuses gaming/Windows setup on
   non-x86 before asking. Mo AI's real-window tests run in a Fedora 44 toolbox (Qt 6.11.2,
   Kirigami 6.30): rail green; the three agent-loop window tests fail on `main` too (P3.4).
@@ -142,32 +147,23 @@ my system"), or wait for the nightly train; then restart.
 
 ## A wallpaper cannot be clicked (2026-09-18)
 
-MoOS Hub lives in the WALLPAPER, which is why it can never cover an icon or a window. The
-same property means no pointer event reaches it: measured on the station, neither a click
-nor a wheel over a card arrived — the desktop containment takes both. Every card's second
-face is therefore turned from the desktop's own menu, beside the card toggles, and
-remembered in its own key. Anything the Hub ever gains follows the same rule.
+Measured on the station: over a MoOS Hub card, neither a click nor a wheel arrives — the
+desktop containment takes both, because the Hub lives in the wallpaper (which is also why
+it can never cover an icon or a window). So every card's second face is turned from the
+desktop's own menu, and anything the Hub gains follows that rule.
 
 ## The free brain is measured on the machine that uses it (2026-09-18)
 
-The shipped preference list was measured on one day against a catalogue that turns over
-every few weeks: on 2026-09-18 the free catalogue carried **21 tool-capable zero-price
-models**, several newer than that snapshot. `moai-measure-free` asks each candidate two
-fixed questions through the real gateway — an Arabic sentence and one tool call, using
-MoOS's OWN shipped schemas — and writes the order that answered into
-`~/.local/state/moai/free-ranking.json`. `moai_cloud_policy` prefers it for 30 days and
-can never let it introduce a model, change a price or reach a billed route; each list
-holds only the models that passed the half it ranks. Unmeasured candidates are ranked by
-**context first**: an OS agent carries tool schemas, results and confirmations in one
-transcript, and parameter count is only guessable from the model id.
-
-It has run here, twice. With the owner's own OpenRouter key: eight zero-price
-tool-capable models, two questions each. Six answered in Arabic and emitted the call;
-both `thinkingmachines/*` models were refused by the provider with **HTTP 403** in under
-0.1 s — a refusal, not a bad answer, and the picker says so. Free-model timings vary
-between runs by enough to change the order, so the card reports when it was measured.
-What P0.5 still owes is the key entered through Settings, surviving a reboot, and the
-provider-failure surface — not the key itself.
+A shipped preference list ages against a catalogue that turns over every few weeks — on
+2026-09-18 the free catalogue carried **21 tool-capable zero-price models**.
+`moai-measure-free` asks each candidate two fixed questions through the real gateway,
+using MoOS's own shipped schemas, and writes the order that answered to
+`~/.local/state/moai/free-ranking.json`; `moai_cloud_policy` prefers it for 30 days and
+can never let it introduce a model, change a price or reach a billed route. Unmeasured
+candidates rank by **context first**. It has run here twice (see the station block);
+timings vary enough between runs to change the order, so the card reports when it was
+measured. P0.5 still owes the key entered through Settings, surviving a reboot, and the
+provider-failure surface.
 
 **MoOS found a second desktop server on its own machine.** `moos-health scan` reported
 KDE's `krdpserver` listening on `tcp *:3389` for the whole network with
@@ -178,23 +174,27 @@ no administrator rights and nothing removed. Run once on the station after the u
 
 ## Next execution
 
-Follow “Design completion handoff” in `docs/DEVELOPMENT_PLAN.md`; it is the sole
-execution backlog. P3.3's case runner and P5.4's budgets exist and have measurements;
-second-model/machine and broader performance evidence remain open. The next reboot
-must be followed by actual signed-version/theme readback. P0.7 remains unresolved.
+Two backlogs in `docs/DEVELOPMENT_PLAN.md`: “Every app, one verb” (rows A1–A5) and
+“Design completion handoff”. A1 is the nearest owed evidence — a real `.exe` and a real
+`.apk` run end to end on this station. The next reboot must be followed by an actual
+signed-version and `THEME_REV` readback. P0.7 remains unresolved.
 
-## Local design foundation (not released)
+## Local branch, not released — `feat/moos-design-studio-20260919`
 
-`feat/moos-design-studio-20260919` repairs a shared material defect: the old token
-reader checked only user `kwinrc`, defaulted to blur on and ignored system policy.
-The source reader now traverses XDG configuration with user precedence, no writes,
-and a readable fallback when policy is unknown. Seven real-Qt tests passed. This
-is startup configuration, not runtime/per-window blur detection.
+Four commits, `just check` green (exit 0, 198 gates) on the station.
 
-The source Design Studio uses actual shared components and palettes. Native Qt
-captures were inspected in English dark and Arabic light, including a 3840×2160
-capture; the Arabic studio also ran on the live Wayland session. A pointer click
-at compositor-confirmed logical 1046,654 changed three columns into a main pane
-and two companions. This is explicitly a sample preview, not live window tiling.
-Evidence is local in `test-results/design-studio-20260919/`; no desktop capture is
-committed. No user theme shadow or installed system artwork was replaced.
+- **Glass reads the owner's answer the way KWin reads it.** The token reader consulted
+  only the user's `kwinrc`, wrote a personal override while reading, and understood four
+  of KConfig's twelve boolean spellings — so `blurEnabled=off`, which KWin honours, was
+  skipped and the decision handed to `/etc/xdg`. Nine cases green on a real Qt engine.
+- **The glass stops being decided once at start-up.** A session service publishes what
+  the compositor is actually doing; surfaces follow it live. Closes the case where
+  `moos-fast-remote` turns blur off mid-session and open windows keep painting thin
+  glass. Five real-engine cases, proven to fail when the live half is removed.
+  `THEME_REV` 75.
+- **The lock screen was one `dnf5` transaction away from being Breeze.** MoOS overwrites
+  six `plasma-desktop` files; the survival gate listed two, on both architectures.
+- **One app-engine registry.** See the app-engine block above.
+
+No user theme shadow or installed system artwork was replaced; no desktop capture is
+committed.

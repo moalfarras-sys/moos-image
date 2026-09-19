@@ -318,6 +318,58 @@ its backslashes halved, so `\\n` written into a patch becomes a real newline ins
 Python string: write patch scripts to a file, or edit directly. And `qmlformat` rejects Mo AI's
 8000-line `main.qml` on `main` too — it is not a syntax check for this file; the QML engine is.
 
+## Every app, one verb — the app-engine contract (P4.x)
+
+**The owner's requirement, in their words:** MoOS should run apps from Android,
+Windows and any Linux distribution; the person presses install or drops a file, it
+installs and runs, and they never see Wayland, KWin or Bottles. One store for every
+kind of app. Everything else happens behind it.
+
+**What MoOS already had, measured on the station 2026-09-19.** More than the source
+suggested. The engines are shipped, not missing: `wine` and `waydroid` are installed by
+`build.sh` on every desktop edition (`_core_power`), `waydroid-container.service` is
+enabled, Flatpak comes from the base, and `mimeapps.list` already routes `.exe`, `.msi`
+and `.apk` to `org.moos.runforeign.desktop`. What was missing was not capability. It was
+the product: one decision, one vocabulary, and silence about the machinery.
+
+**What landed.** `/usr/share/moos/app-engines.json` is the one registry — engines, the
+runtimes that carry them, where each runtime comes from (`build` / `base` / `overlay`),
+whether it is sandboxed, what files it claims, and the bilingual name a person actually
+sees. `/usr/libexec/moos-app-engine` resolves a file against it and answers three
+questions — which engine, is it ready, what do we call it — read-only, so the single
+privileged executor stays `moai-do`. `moos-run-foreign` asks instead of deciding, which
+closed a defect neither half could show alone: the image installs a Windows runtime "so
+any .exe the user downloads actually runs" and the runner knew only about the optional
+Flatpak one, so a first `.exe` offered a large download on a machine that could already
+run it. `tests/test_app_engines.py` holds the contract and every half of it is proven to
+fail on purpose.
+
+**The rule that makes it feel like one system:** the engine never says its name. Not in a
+dialog, not in a terminal line, not in a notification. "Windows programs", "Android apps",
+"Linux apps" — which runtime MoOS used is MoOS's business. The gate fails the build on any
+user-facing string that names wine, bottles, waydroid, proton, lutris, flatpak, wayland,
+kwin, plasma, qemu or bubblewrap.
+
+**macOS** is in the registry under `unsupported`, with the reason written out in both
+languages: there is no lawful, working path on non-Apple hardware — it needs system
+frameworks that may not be redistributed, and the open reimplementations are incomplete
+and single-architecture. It is recorded rather than omitted so the question has one
+answer in the same file as every engine that does work.
+
+**Next, in order. Each row is a wave; none of it is started.**
+
+| Order | What the owner gets | The work | Acceptance |
+| --- | --- | --- | --- |
+| A1 | A Windows program and an Android app really run, from a double-click | Nothing new to design — run the existing path end to end on the station with a real `.exe` and a real `.apk`, including the Android one-time setup. | A program opens. The `.apk` path survives the ~1 GB setup and installs. Journal clean. This is the evidence the engine work does NOT yet have |
+| A2 | Installed foreign apps appear in the launcher like any other app | After an install, write a `.desktop` into `~/.local/share/applications/` that launches through the engine, with a MoOS icon and the app's real name. Today a Windows or Android app leaves nothing behind in the menu, so it is not an app — it is a file you have to find again | Install, log out, log in, launch from the menu. Remove takes the entry with it. No entry names a runtime |
+| A3 | Mo Store carries Android and Windows apps beside Linux ones | `install.kind` is already the engine dispatch in `moos-storectl` (`npm`/`web`/`appimage`). Add `android` and `windows` kinds routed through the registry, and catalogue entries that are lawfully redistributable. One Install button, one job, one progress row in the Island | A catalogue install of each kind, cancel mid-flight, remove, and reinstall. The Island shows one job, and its text names the app, never the engine |
+| A4 | Drop anything into MoOS and it installs | App Drop resolves through the same registry instead of its own list, so a dropped `.exe`, `.apk`, AppImage or archive takes the identical path as a catalogue install — consent, one job, a menu entry at the end | Drop one of each. Refused types still say why. A cancelled consent leaves nothing behind |
+| A5 | A MoOS API third parties can build against | The resolver is the first piece and it is a private CLI. Promote the app surface to a documented, versioned D-Bus interface — `org.moos.Apps1` over the registry and `moos-storectl`'s existing job model — so "what can this machine run, and install this for me" is answerable without shelling out to private commands. See the stack-depth audit: this is the single largest thing standing between MoOS and being an operating system rather than a very good desktop | An interface XML in `/usr/share/dbus-1/interfaces/`, introspectable, with a version; one first-party caller migrated onto it; the CLI kept as a thin client of the same interface |
+
+**Do not** fork Plasma, KWin or Wine to do any of this, and do not let a second copy of the
+"which engine" decision appear anywhere — that duplication is the defect this contract was
+created to end.
+
 ## Design completion handoff — 2026-09-19
 
 The owner requested design direction, difficult integration work and a concrete
