@@ -580,6 +580,25 @@ do_setup_waydroid() {
             || { echo "${Y}تعذّر التهيئة | init failed${N}"; return 1; }
     fi
 
+    # An Android app must be a WINDOW, not a takeover of the screen.
+    #
+    # Without this, waydroid runs one full-screen session: launching a single app
+    # covers the whole 3840x2160 desktop, MoOS's bar included, and there is no way
+    # to use MoOS beside it. Measured on the station 2026-09-20 — the first launch
+    # of a real app filled the display. `multi_windows` gives each Android task its
+    # own surface, which KWin then manages like any other window: it can be moved,
+    # resized, tiled by Arrange, switched to with Alt+Tab and shown in the MoOS Bar.
+    # Verified live: the same app reopened as a phone-sized floating window with the
+    # desktop visible behind it.
+    #
+    # cursor_on_subsurface stops the pointer being drawn twice — Android renders its
+    # own cursor into the surface, and without this the owner sees two.
+    #
+    # Set BEFORE the session starts: these are read at session start, and a property
+    # set afterwards needs another restart to take effect.
+    waydroid prop set persist.waydroid.multi_windows true >/dev/null 2>&1 || true
+    waydroid prop set persist.waydroid.cursor_on_subsurface true >/dev/null 2>&1 || true
+
     if ! run_priv systemctl enable --now waydroid-container.service \
             || ! systemctl is-active --quiet waydroid-container.service; then
         echo "${R}تعذّر تشغيل حاوية Android | Android container failed to start${N}" >&2
