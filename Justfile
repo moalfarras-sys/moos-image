@@ -152,6 +152,9 @@ check:
     # P2.5: without a blur pass behind it, 0.22 alpha is a window, not glass. Proved
     # on a real Qt engine against a real kwinrc, both ways.
     python3 tests/test_moos_clarity_without_blur.py
+    python3 tests/test_material_state.py
+    python3 tests/test_material_state_qml.py
+    python3 tests/test_design_studio_reference.py
     python3 tests/test_moai_hermes.py
     python3 tests/test_release_partition_roles.py
     python3 tests/test_iso_install_gate.py
@@ -170,6 +173,7 @@ check:
     # ran from ~/.local/lib on the A1 for two days while this section reported
     # "no user-level copy is shadowing a MoOS asset".
     python3 tests/test_selfcheck_unit_shadowing.py
+    python3 tests/test_selfcheck_document_portal.py
     # Mo PC Remote IS the screen on cloud and ARM. A crash past StartLimitBurst
     # left it dead until reboot on every edition; the recovery unit existed only
     # in one machine's $HOME. It must recover a crash without overriding the
@@ -326,6 +330,13 @@ check:
     # held two of the six. The missing four included the lock screen. This keeps
     # the list derived from the tree, on both architectures.
     python3 tests/test_plasma_shell_overlay.py
+    # What MoOS can run, and what it calls those things in front of a person.
+    # Two halves that can only be checked together: the image installs a Windows
+    # runtime so a downloaded .exe just runs, and the runner has to KNOW that --
+    # it did not, and offered a large download instead. Also: no engine's brand
+    # may ever reach a dialog. A person who downloaded a program wants "Windows
+    # programs", not a lesson about which runtime MoOS used.
+    python3 tests/test_app_engines.py
     # The Device page told an Oracle A1 owner their CPU was a "MoOS device".
     # Real hardware identity, or an honest Unknown -- never an invented name.
     python3 tests/test_settings_hardware_identity.py

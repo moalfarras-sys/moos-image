@@ -1032,12 +1032,36 @@ require("apps/run/*" in declared_routes,
 #   3. the system default points at the runner — and apply-theme pins it in the user's own
 #      mimeapps.list, which outranks /etc/xdg.
 runner = code(read("system_files/usr/bin/moos-run-foreign"))
-require("com.usebottles.bottles" in runner and "waydroid" in runner,
-        "moos-run-foreign must route Windows files to Bottles and Android files to Waydroid")
-require("setup-windows" in runner and "setup-waydroid" in runner,
-        "moos-run-foreign must offer the one-time runtime setup when the runtime is missing — "
-        "a first .exe on a fresh MoOS lands before Bottles exists, and failing silently there "
-        "is the whole bug this closes")
+# The runner no longer decides alone — it asks the shared engine registry, because
+# deciding in two places is how the runner and the image came to disagree about
+# whether a Windows runtime was present. So the requirement moved with the
+# decision: the ROUTES must still exist, and they must exist where the resolver
+# reads them. tests/test_app_engines.py holds the rest of the contract.
+require("moos-app-engine" in runner,
+        "moos-run-foreign must resolve through /usr/libexec/moos-app-engine — a second "
+        "copy of the decision is what shipped a Bottles download on a machine that "
+        "already had a Windows runtime")
+_engines = json.loads(read("system_files/usr/share/moos/app-engines.json"))
+_routes = {engine["id"]: (engine.get("provision") or {}).get("route")
+           for engine in _engines["engines"]}
+require(_routes.get("windows") == "moos://do/setup-windows",
+        "the windows engine must offer the one-time setup route")
+require(_routes.get("android") == "moos://do/setup-waydroid",
+        "the android engine must offer the one-time setup route")
+require("provision_route" in runner,
+        "moos-run-foreign must offer the engine's one-time setup when nothing can run "
+        "the file — failing silently there is the whole bug this closes")
+_router = code(read("system_files/usr/bin/moos-open"))
+for _engine_id, _route in _routes.items():
+    if not _route:
+        continue
+    # The dispatcher groups routes into `a|b|c)` alternations, so only the last
+    # one in a group ends with the paren. Match the alternative, not the group.
+    _target = _route.split("moos://", 1)[1]
+    require(re.search(rf"(?:^|\||\()\s*{re.escape(_target)}\s*(?:\||\))",
+                      _router, re.M) is not None,
+            f"moos-open has no case for {_route}, so the {_engine_id} engine's setup "
+            f"offer would lead nowhere — a dead button is the bug this gate exists for")
 runner_desktop = read("system_files/usr/share/applications/org.moos.runforeign.desktop")
 system_mimeapps = read("system_files/etc/xdg/mimeapps.list")
 for mime in ("application/x-msdownload",
@@ -2730,7 +2754,7 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=74" in apply_theme_code,
+require("THEME_REV=75" in apply_theme_code,
         "MoOS visual schema must migrate existing users to the W5 island (Store jobs, "
         "privacy chips) and inline search answers, the cardless centred "
         "Horizon Hub, responsive clock popup, authenticated Remote presence, "

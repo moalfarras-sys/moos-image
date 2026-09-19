@@ -1,0 +1,17 @@
+[Unit]
+Description=MoOS live compositor material state
+PartOf=graphical-session.target
+After=graphical-session-pre.target
+
+[Service]
+Type=simple
+ExecStart=/usr/libexec/moos-material-state
+Restart=on-failure
+RestartSec=2
+RuntimeDirectory=moos-material
+RuntimeDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=graphical-session.target

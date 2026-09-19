@@ -284,7 +284,12 @@ set -uo pipefail
 #     Invalidate the old singleton. (72 and 73 were unpublished review iterations: the
 #     fingerprint gate refuses to re-record a revision, and rightly — a revision is
 #     cheap, and a gate that can be talked out of firing is not a gate.)
-THEME_REV=74
+# 75: the glass stops being decided once at start-up. A session service publishes what
+#     the compositor is ACTUALLY doing and every MoOS surface follows it live, so a
+#     mid-session change — moos-fast-remote turns blur off for a remote session — no
+#     longer leaves open windows painting thin glass over a background with no blur
+#     behind it. Cached QML holds the one-shot singleton until it is purged.
+THEME_REV=75
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

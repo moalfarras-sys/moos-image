@@ -300,6 +300,40 @@ overlap, elision, minimum targets, RTL order, focus, keyboard navigation,
 accessible names, reduced motion and contrast. Automation may reduce redundant
 combinations but cannot replace looking at each distinct responsive/RTL class.
 
+## Executable design reference
+
+`artwork/moos-ui2/DesignStudio.qml` imports the real `org.moos.ui` components,
+the official MoOS mark and shipped palettes. Its arrangement, opacity and motion
+controls affect sample content only; it is not a system settings window.
+`python3 scripts/review/design-studio.py` runs it with isolated HOME, XDG config
+and session bus, including host delegation from VS Code Flatpak.
+
+```sh
+python3 scripts/review/design-studio.py --language ar --scheme MoOSUI2AuroraLight
+python3 scripts/review/design-studio.py --language en --scheme MoOSUI2Dark \
+  --width 1440 --height 1080 --capture test-results/design-studio/dark.png
+python3 scripts/review/design-studio.py --language ar --width 1920 --height 1080 \
+  --scale 2 --capture test-results/design-studio/arabic-4k.png
+```
+
+Capture uses real Qt with software rendering. A 4K PNG proves source rasterisation,
+not desktop GPU/blur/scale qualification. Native Wayland review is separate.
+German and screen-reader coverage remain open; the reference supports Arabic/English.
+
+Carry these decisions into production surfaces:
+
+- Lead with one task and one primary action. Use space before adding nested cards.
+- Keep the official mark uncropped, with no baked glow rectangle. Workspace
+  previews distinguish sample content from live windows explicitly.
+- Stack groups at narrow widths; keep 40–44 px actions and vertical scrolling.
+  Never shrink text to hide overflow.
+- Read glass policy from the effective user/system configuration without writing
+  defaults into the user's file. Startup preference is not runtime effect or
+  per-window blur availability; the live clarity control still needs that bridge.
+- Geometry settles after input; Reduced Motion stops geometry/button feedback.
+
+Task ownership and acceptance live in the plan's “Design completion handoff”.
+
 ## Change and proof workflow
 
 1. Modify the authoritative token/source/generator, never a generated sibling.

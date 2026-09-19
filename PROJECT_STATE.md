@@ -8,6 +8,15 @@ the README and every wave row point here instead of repeating it. Four parallel 
 
 ## Source and release truth
 
+- **Mo AI diagnostic correction (source, 2026-09-19):** a real free Arabic reply
+  disproved selfcheck's single-model missing-key warning. The probe now accepts one
+  model and distinguishes empty, malformed and unreachable responses without claiming
+  inference readiness. All 25 tests pass; source probe exercised live, not installed.
+- **Live portal repair:** four Chrome launches failed because the document portal
+  was active without its FUSE mount. Restarted only `xdg-document-portal`; verified
+  `fuse.portal`, the app directory and running Chrome via `flatpak ps`. Added five
+  mount-health regression tests; prior failed app units retained as evidence. Root
+  cause remains unproven; no image or desktop restart performed.
 - **Published now, read back from the registry 2026-09-19 15:4x** (`skopeo inspect
   …:latest`, `org.opencontainers.image.version`/`.revision`): `moos`, `moos-nvidia` and
   `moos-cloud` = **`44.20260919.894`**, `moos-arm` = **`44.20260919.507`** — **all four
@@ -51,7 +60,7 @@ the README and every wave row point here instead of repeating it. Four parallel 
 Measured on the station 2026-09-19 15:3x: `THEME_REV` **70** applied (bar and shell both
 `v70`), Global Theme `org.moos.ui2.amethyst`, visual tier **flagship**, motion `alive`,
 `kwinrc/Plugins/blurEnabled=true`, Arabic session (`ar_SA.UTF-8`). **Source is at
-`THEME_REV` 74** — the desk is four theme revisions behind, so nothing in W9.6 or later
+`THEME_REV` 75** — the desk is five theme revisions behind, so nothing in W9.6 or later
 has been seen here. Health checks do not qualify suspend, every app or all visual surfaces.
 
 **Speed, measured on cycle H's `.890` five minutes after boot** (`moos-measure-speed`, P5.4;

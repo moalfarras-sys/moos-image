@@ -335,6 +335,16 @@ responsive groups, arrangement samples and capture at explicit dimensions/scale.
 
 **Next implementation order (Opus):**
 
+Mo AI diagnostic slice: the live free Arabic reply succeeded; the single-model
+catalogue had incorrectly triggered a key-configuration note. Source selfcheck now
+validates the catalogue without inferring credentials or inference readiness from
+its size. Five executable regression cases pass within the 25-test cloud gate.
+Provider outage/cancellation and signed-image delivery remain acceptance work.
+Live app-launch slice: recovered the document portal's missing FUSE mount with a
+scoped service restart, then verified Chrome running. Selfcheck now distinguishes
+service activity from a reachable portal mount; five regression tests cover this.
+Investigate why the mount disappeared; do not label the runtime repair a durable fix.
+
 | Order / existing rows | Concrete design and implementation | Acceptance before calling it complete |
 | --- | --- | --- |
 | 1 — P2.5, W8 clarity | Add an event-driven, read-only runtime bridge for effective blur capability and reduced transparency; connect one clear-to-solid control through the existing appearance owner. Reuse the startup reader tests; do not make a QML timer or a second settings writer. | Toggle while Search, Island and a first-party window are open; all agree without relogin. Check software rendering, missing user config, owner overrides and restart persistence. Cap KWin blur at 15. |

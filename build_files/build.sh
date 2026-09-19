@@ -2751,6 +2751,7 @@ systemctl --global enable moos-reclaim-disk.timer
 # tells the person their update is ready — once per staged version, never a nag.
 systemctl --global enable moos-update-ready.timer
 systemctl --global enable moos-privacy-monitor.service
+systemctl --global enable moos-material-state.service
 # App Drop: a file dropped into ~/Applications raises the install question. The path unit is
 # what is enabled; its service only ever runs `moos-app-drop --scan`, which installs nothing
 # without a dialog whose default is No.

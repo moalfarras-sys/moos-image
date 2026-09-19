@@ -21,12 +21,84 @@ back.
 from __future__ import annotations
 
 import ast
+import importlib.util
 from pathlib import Path
+import subprocess
+import tempfile
 import unittest
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
 TOOL = ROOT / "scripts/station/pointer.py"
+spec = importlib.util.spec_from_file_location("station_pointer", TOOL)
+pointer_tool = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(pointer_tool)
+
+
+class ClipboardSafety(unittest.TestCase):
+    def test_plain_text_is_read_without_trimming(self):
+        text = "  MOOS-CURSOR 1,2\nالعربية\n\n"
+        replies = [subprocess.CompletedProcess([], 0, "text/plain\n"),
+                   subprocess.CompletedProcess([], 0, text.encode())]
+        with patch.object(pointer_tool.subprocess, "run", side_effect=replies) as run:
+            self.assertEqual(pointer_tool.save_clipboard(), text)
+            self.assertIn("--no-newline", run.call_args.args[0])
+
+    def test_nontext_and_richtext_abort_before_any_probe(self):
+        for formats in ("image/png\n", "text/plain\ntext/uri-list\n",
+                        "text/plain\ntext/html\n", ""):
+            with self.subTest(formats=formats), patch.object(
+                    pointer_tool.subprocess, "run", return_value=
+                    subprocess.CompletedProcess([], 0, formats)), patch.object(
+                    pointer_tool, "qdbus") as bus, patch.object(
+                    pointer_tool.tempfile, "mkdtemp") as temp:
+                with self.assertRaises(SystemExit):
+                    pointer_tool.Pointer()
+                bus.assert_not_called()
+                temp.assert_not_called()
+
+    def test_unreadable_clipboard_aborts_before_probe(self):
+        with patch.object(pointer_tool.subprocess, "run", side_effect=FileNotFoundError), \
+                patch.object(pointer_tool, "qdbus") as bus:
+            with self.assertRaises(SystemExit):
+                pointer_tool.Pointer()
+            bus.assert_not_called()
+
+    def test_restore_preserves_probe_prefix_and_whitespace(self):
+        for text in ("MOOS-CURSOR 1,2", "  original\n\n", ""):
+            with self.subTest(text=text), patch.object(
+                    pointer_tool, "save_clipboard", return_value=text), patch.object(
+                    pointer_tool, "qdbus") as bus:
+                pointer = pointer_tool.Pointer()
+                directory = Path(pointer._workspace)
+                pointer.restore()
+                if text:
+                    bus.assert_any_call(*pointer_tool.KLIPPER[:2],
+                                        f"{pointer_tool.KLIPPER[2]}.setClipboardContents", text)
+                else:
+                    bus.assert_any_call(*pointer_tool.KLIPPER[:2],
+                                        f"{pointer_tool.KLIPPER[2]}.clearClipboardContents")
+                self.assertFalse(directory.exists())
+
+    def test_action_failure_still_restores(self):
+        with patch.object(pointer_tool, "save_clipboard", return_value="original"), \
+                patch.object(pointer_tool, "qdbus") as bus, \
+                patch.object(pointer_tool.Pointer, "where", side_effect=RuntimeError("probe")), \
+                patch.object(pointer_tool.sys, "argv", [str(TOOL), "where"]):
+            with self.assertRaisesRegex(RuntimeError, "probe"):
+                pointer_tool.main()
+            bus.assert_any_call(*pointer_tool.KLIPPER[:2],
+                                f"{pointer_tool.KLIPPER[2]}.setClipboardContents", "original")
+
+    def test_failed_restore_reports_failure_and_removes_fixture(self):
+        with patch.object(pointer_tool, "save_clipboard", return_value="original"):
+            pointer = pointer_tool.Pointer()
+        directory = Path(pointer._workspace)
+        with patch.object(pointer_tool, "qdbus", side_effect=[RuntimeError("restore"), ""]):
+            with self.assertRaisesRegex(RuntimeError, "restore"):
+                pointer.restore()
+        self.assertFalse(directory.exists())
 
 
 class StationPointer(unittest.TestCase):
@@ -81,5 +153,5 @@ class StationPointer(unittest.TestCase):
 
 if __name__ == "__main__":
     result = unittest.TextTestRunner(verbosity=1).run(
-        unittest.defaultTestLoader.loadTestsFromTestCase(StationPointer))
+        unittest.defaultTestLoader.loadTestsFromModule(__import__(__name__)))
     raise SystemExit(0 if result.wasSuccessful() else 1)

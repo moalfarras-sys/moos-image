@@ -1,0 +1,174 @@
+#!/usr/bin/python3
+"""Which MoOS engine runs this file, is it ready, and what do we CALL it?
+
+One resolver over /usr/share/moos/app-engines.json, so the file-manager runner,
+App Drop, Mo Store and Mo AI all answer those three questions the same way.
+Before this existed each of them decided separately, and they disagreed: the
+image installs wine on every desktop edition precisely so "any .exe the user
+downloads actually runs" (build.sh, _core_power), while the runner knew only
+about Bottles and offered to download it — on a machine that could already run
+the file.
+
+Read-only by contract. It never installs, never launches and never writes: it
+answers, and the caller decides. That keeps the single privileged executor
+(moai-do) the only thing that changes a machine.
+
+  moos-app-engine resolve <file>   what runs this, and is it ready
+  moos-app-engine list             every engine and its state
+  moos-app-engine name <engine>    the words to show a person
+
+Output is JSON on stdout. Exit 0 when an engine is resolved, 3 when the file
+belongs to no engine, 2 on usage error.
+"""
+from __future__ import annotations
+
+import json
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+REGISTRY = Path(os.environ.get("MOOS_APP_ENGINES",
+                               "/usr/share/moos/app-engines.json"))
+
+
+def load() -> dict:
+    try:
+        document = json.loads(REGISTRY.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        print(json.dumps({"error": f"unreadable engine registry: {error}"}))
+        raise SystemExit(2)
+    if document.get("schema") != 1:
+        print(json.dumps({"error": "unsupported engine registry schema"}))
+        raise SystemExit(2)
+    return document
+
+
+def flatpak_present(reference: str) -> bool:
+    """Installed for this user or system-wide. Absent is not an error."""
+    if not shutil.which("flatpak"):
+        return False
+    try:
+        return subprocess.run(
+            ["flatpak", "info", reference],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            timeout=15).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def waydroid_initialized() -> bool:
+    """Installed is not ready: the Android system image is a separate download.
+
+    `waydroid status` says "not initialized" in its own words when the image was
+    never fetched. Anything else means it can take a package.
+    """
+    try:
+        result = subprocess.run(["waydroid", "status"], capture_output=True,
+                                text=True, timeout=20)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return "not initialized" not in (result.stdout + result.stderr).lower()
+
+
+READY_CHECKS = {"initialized": waydroid_initialized}
+
+
+def runtime_state(runtime: dict) -> dict:
+    """Present (can this machine run it at all) and ready (can it take a file)."""
+    carrier = runtime.get("carrier")
+    if carrier == "flatpak":
+        present = flatpak_present(runtime["id"])
+    elif carrier == "image":
+        present = bool(shutil.which(runtime.get("probe") or runtime["id"]))
+    else:
+        present = False
+    ready = present
+    check = runtime.get("ready")
+    if present and check:
+        probe = READY_CHECKS.get(check)
+        ready = bool(probe and probe())
+    return {
+        "id": runtime["id"],
+        "carrier": carrier,
+        "sandboxed": bool(runtime.get("sandboxed")),
+        "present": present,
+        "ready": ready,
+        # Why the caller may have to ask before using this one.
+        "needs_setup": bool(present and not ready),
+    }
+
+
+def describe(engine: dict) -> dict:
+    runtimes = [runtime_state(runtime) for runtime in engine.get("runtimes", [])]
+    # Best-first is the file's order, already written sandboxed-first. The first
+    # READY runtime wins; a runtime that is present but not ready is the reason
+    # to offer setup rather than to fail.
+    chosen = next((r for r in runtimes if r["ready"]), None)
+    pending = next((r for r in runtimes if r["needs_setup"]), None)
+    provision = engine.get("provision") or {}
+    return {
+        "engine": engine["id"],
+        "name": engine["name"],
+        "runtimes": runtimes,
+        "chosen": chosen,
+        "ready": chosen is not None,
+        # True when something IS installed but needs a one-time download. The
+        # caller must ask first; an OS that fetches a gigabyte because a file was
+        # double-clicked is not trustworthy.
+        "needs_setup": chosen is None and pending is not None,
+        "provision_route": provision.get("route"),
+    }
+
+
+def engine_for(document: dict, target: str) -> dict | None:
+    suffix = Path(target).suffix.lstrip(".").lower()
+    if not suffix:
+        return None
+    for engine in document.get("engines", []):
+        claims = engine.get("claims", {})
+        if suffix in [str(value).lower() for value in claims.get("extensions", [])]:
+            return engine
+    return None
+
+
+def main(argv: list[str]) -> int:
+    if len(argv) < 2:
+        print(__doc__.strip(), file=sys.stderr)
+        return 2
+    document = load()
+    action = argv[1]
+
+    if action == "list":
+        print(json.dumps(
+            {"engines": [describe(engine) for engine in document.get("engines", [])],
+             "unsupported": document.get("unsupported", [])},
+            ensure_ascii=False))
+        return 0
+
+    if action == "name":
+        if len(argv) != 3:
+            return 2
+        for engine in document.get("engines", []) + document.get("unsupported", []):
+            if engine["id"] == argv[2]:
+                print(json.dumps(engine["name"], ensure_ascii=False))
+                return 0
+        return 3
+
+    if action == "resolve":
+        if len(argv) != 3:
+            return 2
+        engine = engine_for(document, argv[2])
+        if engine is None:
+            print(json.dumps({"engine": None}, ensure_ascii=False))
+            return 3
+        print(json.dumps(describe(engine), ensure_ascii=False))
+        return 0
+
+    print(__doc__.strip(), file=sys.stderr)
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
