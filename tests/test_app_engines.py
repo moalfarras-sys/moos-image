@@ -26,12 +26,16 @@ document, not a contract.
 from __future__ import annotations
 
 import json
+import importlib.machinery
+import importlib.util
 import os
 from pathlib import Path
 import re
 import subprocess
+import struct
 import tempfile
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 REGISTRY = ROOT / "system_files/usr/share/moos/app-engines.json"
@@ -65,6 +69,101 @@ RUNTIME_BRANDS = tuple(brand for brand in ENGINE_BRANDS
                        if brand not in ("flatpak", "wayland", "kwin", "plasma"))
 
 DOCUMENT = json.loads(REGISTRY.read_text(encoding="utf-8"))
+
+
+class WindowsFilePreflight(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        loader = importlib.machinery.SourceFileLoader("engine_preflight", str(RESOLVER))
+        spec = importlib.util.spec_from_loader(loader.name, loader)
+        cls.engine = importlib.util.module_from_spec(spec)
+        loader.exec_module(cls.engine)
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+
+    def pe(self, name="sample.exe", machine=0x14c, magic=0x10b):
+        data = bytearray(128)
+        data[:2] = b"MZ"
+        struct.pack_into("<I", data, 60, 64)
+        data[64:68] = b"PE\0\0"
+        struct.pack_into("<H", data, 68, machine)
+        struct.pack_into("<H", data, 84, 2)
+        struct.pack_into("<H", data, 88, magic)
+        path = self.root / name
+        path.write_bytes(data)
+        return path
+
+    def test_architecture_comes_from_both_pe_fields_not_name(self):
+        for machine, magic, expected in [(0x14c, 0x10b, "x86"),
+                                         (0x8664, 0x20b, "x86_64"),
+                                         (0xaa64, 0x20b, "arm64"),
+                                         (0x14c, 0x20b, "unknown")]:
+            self.assertEqual(self.engine.pe_architecture(
+                self.pe("misleading.txt", machine, magic)), expected)
+
+    def test_malformed_and_unavailable_inputs_are_unknown(self):
+        path = self.pe()
+        original = path.read_bytes()
+        for data in [b"", b"MZ", original[:88], original.replace(b"PE\0\0", b"NOPE")]:
+            path.write_bytes(data)
+            self.assertEqual(self.engine.pe_architecture(path), "unknown")
+        data = bytearray(original)
+        struct.pack_into("<I", data, 60, 0xffffffff)
+        path.write_bytes(data)
+        self.assertEqual(self.engine.pe_architecture(path), "unknown")
+        self.assertEqual(self.engine.pe_architecture(self.root / "missing.exe"), "unknown")
+        fifo = self.root / "fifo.exe"
+        os.mkfifo(fifo)
+        self.assertEqual(self.engine.pe_architecture(fifo), "unknown")
+        self.assertEqual(self.engine.pe_architecture(self.root), "unknown")
+
+    def test_missing_32bit_payload_blocks_before_launch_or_setup(self):
+        definition = next(e for e in DOCUMENT["engines"] if e["id"] == "windows")
+        def state(runtime):
+            present = runtime["id"] == "wine"
+            return {"id": runtime["id"], "ready": present, "needs_setup": False}
+        with mock.patch.object(self.engine, "runtime_state", side_effect=state), \
+                mock.patch.object(self.engine, "wine_x86_payload", return_value="missing"):
+            answer = self.engine.describe(definition, str(self.pe()))
+        self.assertFalse(answer["ready"])
+        self.assertFalse(answer["needs_setup"])
+        self.assertIsNone(answer["chosen"])
+        self.assertEqual(answer["preflight"]["code"], "missing-windows-x86-runtime")
+        self.assertEqual(set(answer["preflight"]["reason"]), {"ar", "en"})
+
+    def test_new_wow64_is_not_rejected_for_missing_multilib(self):
+        with mock.patch.object(self.engine, "wine_x86_payload", return_value="wow64"):
+            answer = self.engine.file_preflight(str(self.pe()), {"id": "wine"})
+        self.assertEqual(answer["status"], "available")
+
+    def test_64bit_and_other_runtimes_do_not_inherit_32bit_failure(self):
+        with mock.patch.object(self.engine, "wine_x86_payload", side_effect=AssertionError):
+            answer = self.engine.file_preflight(str(self.pe(machine=0x8664, magic=0x20b)), {"id": "wine"})
+            self.assertEqual(answer["status"], "unknown")
+            answer = self.engine.file_preflight(str(self.pe()), {"id": "com.usebottles.bottles"})
+            self.assertEqual(answer["status"], "unknown")
+
+    def test_actual_payload_layouts_not_package_names_decide(self):
+        def architecture(path):
+            return "x86" if "i386-windows" in str(path) else "x86_64"
+        with mock.patch.object(self.engine.shutil, "which", return_value="/usr/bin/wine"), \
+                mock.patch.object(Path, "resolve", return_value=Path("/usr/bin/wine64")), \
+                mock.patch.object(self.engine, "pe_architecture", side_effect=architecture), \
+                mock.patch.object(Path, "is_file", side_effect=lambda: False):
+            self.assertEqual(self.engine.wine_x86_payload(), "missing")
+        with mock.patch.object(self.engine.shutil, "which", return_value="/usr/bin/wine"), \
+                mock.patch.object(Path, "resolve", return_value=Path("/usr/bin/wine64")), \
+                mock.patch.object(self.engine, "pe_architecture", side_effect=architecture), \
+                mock.patch.object(Path, "is_file", autospec=True,
+                                  side_effect=lambda p: "x86_64-unix" in str(p)):
+            self.assertEqual(self.engine.wine_x86_payload(), "wow64")
+
+    def test_unknown_custom_runtime_layout_is_not_claimed_missing(self):
+        with mock.patch.object(self.engine.shutil, "which", return_value="/opt/custom/wine"):
+            self.assertEqual(self.engine.wine_x86_payload(), "unknown")
 
 
 def user_facing_strings(node, path="") -> list[tuple[str, str]]:

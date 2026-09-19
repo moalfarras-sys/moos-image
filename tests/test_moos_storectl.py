@@ -496,6 +496,28 @@ class StatusAndLockTests(StoreTestCase):
 
 
 class InstallTests(StoreTestCase):
+    def test_android_install_uses_store_job_and_propagates_result(self):
+        from unittest import mock
+        import types
+        import importlib
+        sys.path.insert(0, str(ROOT / "system_files/usr/lib/moos"))
+        appdrop = importlib.import_module("moos_appdrop")
+        for result, expected in ((MODULE.CommandResult(0), "success"),
+                                 (MODULE.CommandResult(1, "rejected"), "failed"),
+                                 (MODULE.CommandResult(143, "interrupted", True), "cancelled")):
+            with self.subTest(expected=expected):
+                runner = FakeRunner(result)
+                controller, _ = self.controller([], runner=runner)
+                plan = types.SimpleNamespace(kind="android", supported=False,
+                    path=self.base / "download with spaces.apk", slug="android-test")
+                with mock.patch.object(appdrop, "inspect", return_value=plan):
+                    code, document = controller.install_file(str(plan.path))
+                self.assertEqual(document["state"], expected, document)
+                self.assertEqual(document["action"], "install")
+                self.assertEqual(runner.commands, [["/usr/bin/waydroid", "app", "install", str(plan.path)]])
+                self.assertEqual(code == 0, expected == "success")
+                self.assertEqual(runner.spawned, [], "installation must not launch a second desktop")
+
     def test_system_install_is_treated_as_installed_without_user_duplicate(self):
         adapter = FakeAdapter(system={"org.example.App"})
         controller, _ = self.controller([], adapter=adapter)

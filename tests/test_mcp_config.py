@@ -31,6 +31,9 @@ from pathlib import Path
 import json
 import re
 import sys
+import shutil
+import subprocess
+import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 MCP_JSON = ROOT / ".mcp.json"
@@ -206,6 +209,57 @@ if settings:
                 f"permissions.deny is missing the required guard {rule!r} — "
                 f"this is what makes the broad allow list safe (docs/MCP.md)"
             )
+
+    for rule in (
+        "Bash(flatpak-spawn --host just check)",
+        "Bash(flatpak-spawn --host just workstation-check)",
+        "Bash(flatpak-spawn --host kscreen-doctor -o)",
+        "Bash(flatpak-spawn --host systemctl --user --failed --no-pager)",
+    ):
+        if rule not in allow:
+            errors.append(f"missing station diagnostic permission {rule!r}")
+
+# Exercise the real shim with a fake PATH; never run a package manager or touch
+# the owner's session, browser profile, credentials or desktop configuration.
+with tempfile.TemporaryDirectory(prefix="moos-mcp-shim-") as temporary:
+    scratch = Path(temporary)
+    bin_dir = scratch / "bin"
+    bin_dir.mkdir()
+    fake_npx = bin_dir / "npx"
+    fake_npx.write_text("#!/bin/sh\nprintf '%s\\n' \"$@\"\n")
+    fake_npx.chmod(0o755)
+    browser = scratch / ".cache/moos-mcp/chrome"
+    browser.parent.mkdir(parents=True)
+    browser.write_text("#!/bin/sh\nexit 0\n")
+    browser.chmod(0o755)
+    shim = ROOT / "scripts/mcp-node.sh"
+    bash = shutil.which("bash")
+    fixture_env = {"PATH": str(bin_dir), "HOME": str(scratch), "LANG": "C"}
+
+    def shim_output(*args):
+        result = subprocess.run([bash, str(shim), *args], env=fixture_env,
+                                capture_output=True, text=True, timeout=10)
+        if result.returncode:
+            errors.append(f"MCP shim fixture failed with exit {result.returncode}")
+        return result.stdout.splitlines()
+
+    default_args = ["-y", "chrome-devtools-mcp@latest", "--executablePath",
+                    "/opt/google/chrome/chrome", "argument with spaces"]
+    if shim_output(*default_args) != [*default_args[:3], str(browser), default_args[4]]:
+        errors.append("MCP shim failed to resolve setup browser or preserve argv")
+    explicit_args = ["--executablePath", "/explicit/browser with spaces"]
+    if shim_output(*explicit_args) != explicit_args:
+        errors.append("MCP shim changed the explicitly selected browser")
+    browser.unlink()
+    if shim_output(*default_args) != default_args:
+        errors.append("MCP shim invented a browser when setup has not run")
+    fake_npx.unlink()
+    spawn = bin_dir / "flatpak-spawn"
+    spawn.write_text("#!/bin/sh\n[ \"$2\" = true ] && exit 0\nshift\n"
+                     "printf '%s\\n' \"$@\"\n")
+    spawn.chmod(0o755)
+    if shim_output("-y", "server name") != ["npx", "-y", "server name"]:
+        errors.append("MCP shim failed host fallback or changed its argument boundaries")
 
 if errors:
     print("MCP config gate FAILED:")

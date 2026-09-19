@@ -25,6 +25,8 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import stat
+import struct
 import subprocess
 import sys
 from pathlib import Path
@@ -75,6 +77,83 @@ def waydroid_initialized() -> bool:
 READY_CHECKS = {"initialized": waydroid_initialized}
 
 
+def pe_architecture(target: str | Path) -> str:
+    """Read only the DOS/COFF header, never execute or load a downloaded file.
+
+    Nonblocking open plus fstat also makes a FIFO/device supplied to this public
+    read-only CLI harmless. An extension is routing, never architecture evidence.
+    """
+    try:
+        fd = os.open(target, os.O_RDONLY | os.O_NONBLOCK)
+        with os.fdopen(fd, "rb") as stream:
+            info = os.fstat(stream.fileno())
+            if not stat.S_ISREG(info.st_mode):
+                return "unknown"
+            dos = stream.read(64)
+            if len(dos) != 64 or dos[:2] != b"MZ":
+                return "unknown"
+            offset = struct.unpack_from("<I", dos, 60)[0]
+            if offset < 64 or offset > info.st_size - 26:
+                return "unknown"
+            stream.seek(offset)
+            header = stream.read(26)
+            if len(header) != 26 or header[:4] != b"PE\0\0":
+                return "unknown"
+            machine = struct.unpack_from("<H", header, 4)[0]
+            optional_size = struct.unpack_from("<H", header, 20)[0]
+            if optional_size < 2 or offset + 24 + optional_size > info.st_size:
+                return "unknown"
+            magic = struct.unpack_from("<H", header, 24)[0]
+            return {(0x14c, 0x10b): "x86", (0x8664, 0x20b): "x86_64",
+                    (0xaa64, 0x20b): "arm64"}.get((machine, magic), "unknown")
+    except (OSError, ValueError):
+        return "unknown"
+
+
+def wine_x86_payload() -> str:
+    """Recognize classic multilib AND new WoW64, without launching a runtime.
+
+    No i686 RPM does not mean no PE32 support. New WoW64 uses 64-bit Unix
+    libraries with i386 PE DLLs. These are payload checks, not a compatibility
+    claim; mapping permissions, drivers and each application still need testing.
+    Unfamiliar user-installed layouts are unknown rather than falsely blocked.
+    """
+    executable = shutil.which("wine")
+    if not executable:
+        return "missing"
+    if Path(executable).resolve().parent != Path("/usr/bin"):
+        return "unknown"
+    roots = (Path("/usr/lib/wine"), Path("/usr/lib64/wine"),
+             Path("/usr/lib64/wine-wow64/wine"))
+    for root in roots:
+        if pe_architecture(root / "i386-windows/ntdll.dll") != "x86":
+            continue
+        if (root / "i386-unix/ntdll.so").is_file():
+            return "classic"
+        if (pe_architecture(root / "x86_64-windows/wow64.dll") == "x86_64"
+                and pe_architecture(root / "x86_64-windows/wow64cpu.dll") == "x86_64"
+                and (root / "x86_64-unix/ntdll.so").is_file()):
+            return "wow64"
+    return "missing"
+
+
+def file_preflight(target: str, chosen: dict | None) -> dict:
+    architecture = pe_architecture(target)
+    answer = {"architecture": architecture, "status": "unknown"}
+    if architecture != "x86" or not chosen or chosen["id"] != "wine":
+        return answer
+    payload = wine_x86_payload()
+    answer["payload"] = payload
+    if payload in ("classic", "wow64"):
+        answer["status"] = "available"
+    elif payload == "missing":
+        answer.update(status="blocked", code="missing-windows-x86-runtime", reason={
+            "en": "This is a 32-bit Windows program. This MoOS installation is missing the files needed to run it. Nothing was launched. Try a 64-bit version of the app or check for a MoOS update.",
+            "ar": "هذا برنامج ويندوز 32-بت. تنقص هذا التثبيت من MoOS ملفات تشغيله. لم يُشغّل أي شيء. جرّب نسخة 64-بت من التطبيق أو تحقّق من تحديث MoOS.",
+        })
+    return answer
+
+
 def runtime_state(runtime: dict) -> dict:
     """Present (can this machine run it at all) and ready (can it take a file)."""
     carrier = runtime.get("carrier")
@@ -100,7 +179,7 @@ def runtime_state(runtime: dict) -> dict:
     }
 
 
-def describe(engine: dict) -> dict:
+def describe(engine: dict, target: str | None = None) -> dict:
     runtimes = [runtime_state(runtime) for runtime in engine.get("runtimes", [])]
     # Best-first is the file's order, already written sandboxed-first. The first
     # READY runtime wins; a runtime that is present but not ready is the reason
@@ -108,6 +187,10 @@ def describe(engine: dict) -> dict:
     chosen = next((r for r in runtimes if r["ready"]), None)
     pending = next((r for r in runtimes if r["needs_setup"]), None)
     provision = engine.get("provision") or {}
+    preflight = file_preflight(target, chosen) if target and engine["id"] == "windows" else None
+    if preflight and preflight["status"] == "blocked":
+        chosen = None
+        pending = None
     return {
         "engine": engine["id"],
         "name": engine["name"],
@@ -119,6 +202,7 @@ def describe(engine: dict) -> dict:
         # double-clicked is not trustworthy.
         "needs_setup": chosen is None and pending is not None,
         "provision_route": provision.get("route"),
+        "preflight": preflight,
     }
 
 
@@ -163,7 +247,7 @@ def main(argv: list[str]) -> int:
         if engine is None:
             print(json.dumps({"engine": None}, ensure_ascii=False))
             return 3
-        print(json.dumps(describe(engine), ensure_ascii=False))
+        print(json.dumps(describe(engine, argv[2]), ensure_ascii=False))
         return 0
 
     print(__doc__.strip(), file=sys.stderr)

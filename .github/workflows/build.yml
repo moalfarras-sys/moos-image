@@ -244,7 +244,12 @@ jobs:
           cd moremote/controller
           npm ci --no-audit --no-fund
           npm run typecheck
-          npm audit --audit-level=high
+          # Not `npm audit` inline: on 2026-09-19 that failed all three signed
+          # builds because npm's audit endpoint returned 400 while retiring,
+          # which reads exactly like a vulnerability and tempts a `|| true`.
+          # The gate distinguishes "npm answered and it is clean" from "npm
+          # could not answer", retries the second, and still fails closed.
+          bash "${GITHUB_WORKSPACE}/scripts/npm-audit-gate.sh" high
           npm run build
           cd "${GITHUB_WORKSPACE}"
           if ! git diff --quiet -- moremote/agent/wwwroot; then

@@ -137,7 +137,9 @@ def sniff(path: Path) -> str:
     if lower.endswith(".flatpak"):
         return "flatpak"
     if head[:4] == b"PK\x03\x04":
-        return "android" if lower.endswith((".apk", ".xapk", ".apks")) else "archive"
+        if lower.endswith((".xapk", ".apks")):
+            raise DropError("split_android_unsupported", path.name)
+        return "android" if lower.endswith(".apk") else "archive"
     if (head[:2] == b"\x1f\x8b" or head[:6] == b"\xfd7zXZ\x00" or head[:3] == b"BZh"
             or head[:4] == b"\x28\xb5\x2f\xfd" or head[257:262] == b"ustar"):
         return "archive" if lower.endswith(ARCHIVE_SUFFIXES) else "unknown"

@@ -412,6 +412,24 @@ class ThroughTheStore(Home):
 
 
 class TheDialogHalf(unittest.TestCase):
+    def test_split_android_bundles_are_refused_before_consent(self):
+        import runpy
+        from unittest import mock
+        cli = runpy.run_path(str(ROOT / "system_files/usr/bin/moos-app-drop"))
+        namespace = cli["handle"].__globals__
+        for suffix in (".xapk", ".apks", ".XAPK"):
+            with tempfile.TemporaryDirectory() as raw:
+                path = Path(raw) / ("application" + suffix)
+                path.write_bytes(b"PK\x03\x04not-a-single-apk")
+                with mock.patch.object(appdrop, "check_source", return_value=path), \
+                     mock.patch.dict(namespace, {"ask": mock.Mock(), "tell": mock.Mock(),
+                                                "storectl": mock.Mock()}), \
+                     mock.patch.object(namespace["subprocess"], "Popen") as launch:
+                    self.assertEqual(namespace["handle"](str(path)), 2)
+                    namespace["ask"].assert_not_called()
+                    namespace["storectl"].assert_not_called()
+                    launch.assert_not_called()
+
     def test_every_refusal_has_words_in_both_languages(self):
         loader = importlib.machinery.SourceFileLoader("moos_app_drop_cli", str(ROOT / "system_files/usr/bin/moos-app-drop"))
         spec = importlib.util.spec_from_loader(loader.name, loader)
