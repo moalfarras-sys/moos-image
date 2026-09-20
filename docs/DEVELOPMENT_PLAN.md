@@ -350,6 +350,37 @@ dialog, not in a terminal line, not in a notification. "Windows programs", "Andr
 user-facing string that names wine, bottles, waydroid, proton, lutris, flatpak, wayland,
 kwin, plasma, qemu or bubblewrap.
 
+One word carried an exemption, and on 2026-09-20 the exemption was found paying for
+things it was never written for. "Flatpak" is also a FILE a person can hold — App Drop
+saying "This Flatpak file is not valid" names the thing in their hand, and refusing the
+word there would leave them holding a file MoOS will not name. That is why the gate's
+`RUNTIME_BRANDS` subset lets it through. But the same subset was also letting the
+STOREFRONT say it: Mo Store's install sheet read "Flatpaks install for your user only",
+its review line appended "· AppImage", the sources panel was headed "AppImage · External
+sources", and Mo AI described installing an app as "in sandboxed Flatpak container".
+None of those is a file; each is the mechanism, which is the one thing the owner asked
+never to see. The copy is rewritten in MoOS's voice ("Apps install for your account
+only", "· Verified file · SHA-256", "Publisher downloads · External sources"), and the
+line is now drawn where it belongs: on the surfaces where MoOS SELLS and INSTALLS apps —
+Mo Store, Welcome, Mo AI — the packaging may appear only inside a file name. App Drop,
+whose entire job is the file you just dropped, keeps the word on purpose. Both halves are
+held by `test_the_storefront_names_a_file_but_never_the_mechanism`, proven to fail on the old sentence.
+
+**And the rule is not only about strings MoOS writes.** The same day, with every string
+gate green, the application menu on the station showed a folder called "Waydroid"
+containing a launcher called "Waydroid". Neither came from a MoOS file: the package ships
+`Waydroid.desktop` (a visible launcher whose `Exec` is the bare CLI) and
+`/etc/xdg/menus/applications-merged/waydroid.menu`, which collects every `X-WayDroid-App`
+into a folder labelled by `waydroid.directory` — so that folder is where EVERY Android app
+the owner installs lands. It had been true since Android first worked, and no gate could
+see it, because every gate read MoOS's files and this was a third party's. `build.sh` now
+hides the launcher and relabels the folder to **"Android apps" / "تطبيقات أندرويد"** with
+MoOS's own icon, and FAILS THE BUILD if either file moves or either edit does not take.
+The folder itself stays: the apps need a home, and naming the platform an app came FROM is
+what Mo Store's own category already does — the rule forbids naming the machinery, not the
+origin. The wine half of this was fixed long ago (ten Wine tools masked, with a build gate);
+the Android half had simply never been written.
+
 **macOS** is unsupported. The answer lives in ONE place — the `unsupported` entry in
 `app-engines.json`, in both languages — and this paragraph deliberately does not repeat
 it, because two copies of an answer is how a repository comes to give two answers. What
@@ -387,7 +418,7 @@ remove lifecycle, and the full P4.1 cancel/retry/readback contract across every 
 
 | Order | What the owner gets | The work | Acceptance |
 | --- | --- | --- | --- |
-| A1 | **DONE — all three engines, on the installed image, 2026-09-20** | **Windows:** two PE32+ GUI programs launched through `moos-run-foreign`, the double-click path, and appeared on the 4K Arabic desktop — Notepad (`غير معنون - المفكرة`) and Minesweeper (`الألغام`) — both wearing **MoOS's own Aurorae decoration** and both listed in the **MoOS Bar** beside native apps. Resolver: `برامج ويندوز, ready=true, chosen=wine, needs_setup=false`, no download. **Linux:** `moos-storectl install com.github.tchx84.Flatseal` → real job `state=success`, launcher entry `فلاتسيل`, ran in Arabic RTL, then `moos-storectl remove` → gone cleanly. Install, launch and remove all through Mo Store, never `flatpak` directly, which is what P4.1 claimed on paper. **Android — and it had NEVER worked.** `moai-do setup-waydroid` called `waydroid init -s VANILLA` with no OTA channels. waydroid composes its URL as `<channel>/<rom>/waydroid_<arch>/<type>.json` and falls back to a channels config that neither MoOS nor Fedora's package ships, so it stopped every time with "You must provide 'System OTA' and 'Vendor OTA' URLs" — before downloading a byte. Every existing gate read the source, where each half was correct. Passing the channels explicitly fixed it: **2.3 GB downloaded** (system.img 1.7 G, vendor.img 536 M), container `RUNNING` on 192.168.240.112, a real 11.9 MB APK installed through `moos-storectl install-file` (`state=success`), and **F-Droid opened on the MoOS desktop** with its own icon in the MoOS Bar. `tests/test_android_setup_channels.py` holds it and is proven to fail when the channels are removed. Frames in `test-results/a1-live/`. | Met. What remains is not A1: a second machine, and PE32 (32-bit Windows), which SELinux blocks with an `execmod` denial mapping the i386 DLL from composefs. |
+| A1 | **DONE — all three engines, on the installed image, 2026-09-20** | **Windows:** two PE32+ GUI programs launched through `moos-run-foreign`, the double-click path, and appeared on the 4K Arabic desktop — Notepad (`غير معنون - المفكرة`) and Minesweeper (`الألغام`) — both wearing **MoOS's own Aurorae decoration** and both listed in the **MoOS Bar** beside native apps. Resolver: `برامج ويندوز, ready=true, chosen=wine, needs_setup=false`, no download. **Linux:** `moos-storectl install com.github.tchx84.Flatseal` → real job `state=success`, launcher entry `فلاتسيل`, ran in Arabic RTL, then `moos-storectl remove` → gone cleanly. Install, launch and remove all through Mo Store, never `flatpak` directly, which is what P4.1 claimed on paper. **Android — and it had NEVER worked.** `moai-do setup-waydroid` called `waydroid init -s VANILLA` with no OTA channels. waydroid composes its URL as `<channel>/<rom>/waydroid_<arch>/<type>.json` and falls back to a channels config that neither MoOS nor Fedora's package ships, so it stopped every time with "You must provide 'System OTA' and 'Vendor OTA' URLs" — before downloading a byte. Every existing gate read the source, where each half was correct. Passing the channels explicitly fixed it: **2.3 GB downloaded** (system.img 1.7 G, vendor.img 536 M), container `RUNNING` on 192.168.240.112, a real 11.9 MB APK installed through `moos-storectl install-file` (`state=success`), and **F-Droid opened on the MoOS desktop** with its own icon in the MoOS Bar. `tests/test_android_setup_channels.py` holds it and is proven to fail when the channels are removed. Frames in `test-results/a1-live/`. | Met. What remains is not A1: a second machine; PE32 (32-bit Windows), which SELinux blocks with an `execmod` denial mapping the i386 DLL from composefs; and **the Android caption**, re-measured on the station 2026-09-20 (`test-results/android-caption-seam.png`). A Windows program wears MoOS's Aurorae frame, but an Android app does not: in `multi_windows` mode the LineageOS freeform caption — back chevron, minimize, maximize, close — is drawn by SystemUI INSIDE the Android surface, so it arrives as client-side decoration and KWin never gets to frame it. No host-side property turns it off; `persist.waydroid.multi_windows` is the only `persist.waydroid.*` key the shipped tooling knows. Forcing a server-side frame would give the window two title bars, which is worse than one honest seam, so nothing was forced. The real fix is a patched Android image with the caption suppressed, which is a ROM build and belongs in its own cycle — written down here rather than quietly carried. |
 | A2 | Installed foreign apps appear in the launcher like any other app | After an install, write a `.desktop` into `~/.local/share/applications/` that launches through the engine, with a MoOS icon and the app's real name. Today a Windows or Android app leaves nothing behind in the menu, so it is not an app — it is a file you have to find again | Install, log out, log in, launch from the menu. Remove takes the entry with it. No entry names a runtime |
 | A3 | Mo Store carries Android and Windows apps beside Linux ones | **First boundary closed:** a local APK's actual install mutation is now inside `moos-storectl`, under the same job/lock and fixed argv. Still add catalogued `android` and `windows` adapters through the registry, lawfully redistributable entries, stable app IDs and symmetric remove/retry. | A catalogue install of each kind, cancel mid-flight, remove, and reinstall. The Island shows one job, and its text names the app, never the engine |
 | A4 | Drop anything into MoOS and it installs | App Drop resolves through the same registry instead of its own list, so a dropped `.exe`, `.apk`, AppImage or archive takes the identical path as a catalogue install — consent, one job, a menu entry at the end | Drop one of each. Refused types still say why. A cancelled consent leaves nothing behind |

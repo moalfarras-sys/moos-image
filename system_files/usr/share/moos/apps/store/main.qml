@@ -259,7 +259,8 @@ ApplicationWindow {
             return win.rtl ? "أداة مطوّر · npm" : "Developer tool · npm"
         if (app.install && app.install.kind === "web")
             return win.rtl ? "الموقع الرسمي" : "Official website"
-        return app.source === "moos" ? "MoOS" : (app.source || "Flatpak")
+        return app.source === "moos" ? "MoOS"
+            : (app.source || (win.rtl ? "كتالوج MoOS" : "MoOS catalogue"))
     }
 
     function reviewDetail(app) {
@@ -270,7 +271,7 @@ ApplicationWindow {
             if (app.install.risk)
                 detail += " · " + (win.rtl ? "يشغّل سكربتات الحزمة" : "runs package scripts")
         } else if (app.install && app.install.kind === "appimage") {
-            detail += " · AppImage"
+            detail += " · " + (win.rtl ? "ملف موثّق" : "Verified file")
             if (app.install.version) detail += " " + app.install.version
             detail += " · SHA-256"
         } else if (app.install && app.install.risk) {
@@ -788,7 +789,7 @@ ApplicationWindow {
     readonly property var jobPhrases: ({
         "refreshing_index":         ["يُعاد بناء فهرس التطبيقات الموحّد", "Rebuilding the unified app index"],
         "index_refreshed":          ["تم تحديث الفهرس", "Index refreshed"],
-        "downloading_appimage":     ["يجري تنزيل حزمة AppImage موثّقة", "Downloading verified AppImage"],
+        "downloading_appimage":     ["يجري تنزيل ملف موثّق", "Downloading a verified file"],
         "downloading_android":      ["يجري تنزيل تطبيق أندرويد موثّق", "Downloading verified app"],
         "inspecting_file":          ["تجري قراءة الملف", "Reading the file"],
         "extracting_file":          ["يجري فكّ التطبيق", "Unpacking the application"],
@@ -2920,7 +2921,7 @@ ApplicationWindow {
                                     },
                                     {
                                         id: "appimage", glyph: "external",
-                                        ar: "AppImage · مصادر خارجية", en: "AppImage · External sources",
+                                        ar: "تنزيلات الناشر · مصادر خارجية", en: "Publisher downloads · External sources",
                                         ar2: "يُسمح فقط بروابط الناشر الرسمية والوصفات المراجعة. لا تثبيت صامت لملفات غير موقّعة.",
                                         en2: "Only reviewed recipes and official publisher links — never silent unverified executables.",
                                         stateAr: "مقيّد بأمان", stateEn: "Safety restricted", action: ""
@@ -3532,11 +3533,11 @@ ApplicationWindow {
                                 : "Mo Store opens the publisher's official HTTPS page; you complete any download there.")
                             : win.pickedWebCount() > 0
                                 ? (win.rtl
-                                    ? "تُثبت تطبيقات Flatpak للمستخدم فقط، وتفتح العناصر الخارجية صفحات ناشريها الرسمية."
-                                    : "Flatpaks install for your user only; external items open their publishers' official pages.")
+                                    ? "تُثبت التطبيقات لحسابك وحده، وتفتح العناصر الخارجية صفحات ناشريها الرسمية."
+                                    : "Apps install for your account only; external items open their publishers' official pages.")
                                 : (win.rtl
-                                    ? "سيُثبت Flatpak بصلاحيات المستخدم فقط. المصادر المتقدمة موضحة أدناه."
-                                    : "Flatpaks install for your user only. Advanced sources are clearly marked below.")
+                                    ? "سيجري التثبيت لحسابك وحده. المصادر المتقدمة موضحة أدناه."
+                                    : "Apps install for your account only. Advanced sources are clearly marked below.")
                         color: win.txt2
                         font.family: win.uiFont
                         font.pixelSize: win.typePx(10)

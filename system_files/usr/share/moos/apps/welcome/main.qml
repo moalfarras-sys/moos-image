@@ -331,7 +331,7 @@ ApplicationWindow {
         if (app.install.kind === "web")
             return win.rtl ? "الموقع الرسمي · تنزيل خارجي" : "Official website · external download"
         if (app.install.kind === "appimage")
-            return "AppImage · SHA-256"
+            return win.rtl ? "ملف موثّق · SHA-256" : "Verified file · SHA-256"
         return ""
     }
 

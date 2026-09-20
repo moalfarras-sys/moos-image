@@ -1674,6 +1674,52 @@ if is_desktop; then
     # The container only starts once the display is up (After=graphical.target),
     # so it never holds the login path.
     systemctl enable waydroid-container.service
+
+    # The container package also ships THREE menu surfaces, and the owner's rule
+    # is that none of them exists. `Waydroid.desktop` is a visible launcher named
+    # "Waydroid" whose Exec is the bare CLI -- useless to a person, and a direct
+    # answer to "what is this system really". Worse, the package ships a menu
+    # FOLDER: /etc/xdg/menus/applications-merged/waydroid.menu collects every
+    # X-WayDroid-App into a category whose label comes from waydroid.directory,
+    # so EVERY Android app the owner installs lands in a folder wearing the
+    # engine's name. Both were live on the station on 2026-09-20 and neither was
+    # visible by reading a MoOS file -- only by opening the launcher.
+    #
+    # The launcher is hidden. The folder STAYS: the apps in it need a home, and
+    # "Android apps" is what they are -- the same words Mo Store's own category
+    # uses, naming the platform an app came FROM, never the machinery that runs
+    # it. Only the label and icon change, to MoOS's.
+    for _wd_file in /usr/share/applications/Waydroid.desktop \
+                    /usr/share/desktop-directories/waydroid.directory; do
+        [ -f "$_wd_file" ] || {
+            echo "GATE FAIL: $_wd_file is missing; the Android menu surfaces MoOS hides have moved"
+            exit 1
+        }
+    done
+    _wd_entry=/usr/share/applications/Waydroid.desktop
+    if grep -q '^NoDisplay=' "$_wd_entry"; then
+        sed -i 's|^NoDisplay=.*|NoDisplay=true|' "$_wd_entry"
+    else
+        sed -i '0,/^\[Desktop Entry\]/s//[Desktop Entry]\nNoDisplay=true/' "$_wd_entry"
+    fi
+    _wd_dir=/usr/share/desktop-directories/waydroid.directory
+    sed -i -e '/^Name\[/d' \
+           -e 's|^Name=.*|Name=Android apps|' \
+           -e 's|^Icon=.*|Icon=moos-android-apps-symbolic|' "$_wd_dir"
+    sed -i '/^Name=Android apps$/a Name[ar]=تطبيقات أندرويد' "$_wd_dir"
+    grep -q '^NoDisplay=true$' "$_wd_entry" || {
+        echo "GATE FAIL: the Android container's own launcher is still in the menu"
+        exit 1
+    }
+    grep -q '^Name=Android apps$' "$_wd_dir" || {
+        echo "GATE FAIL: the Android app folder still wears the engine's name"
+        exit 1
+    }
+    grep -q '^Icon=moos-android-apps-symbolic$' "$_wd_dir" || {
+        echo "GATE FAIL: the Android app folder still wears the engine's icon"
+        exit 1
+    }
+    unset -v _wd_file _wd_entry _wd_dir
 fi
 
 # Photos and video. MoOS shipped NEITHER — there was no image viewer in the

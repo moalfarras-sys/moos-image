@@ -60,11 +60,12 @@ ENGINE_BRANDS = ("wine", "bottles", "waydroid", "proton", "lutris",
 # nobody ever holds one, so naming one only tells a person MoOS is several
 # systems wearing a coat.
 #
-# Note what this does NOT excuse, and see the plan's P4 section: Mo Store still
-# says "Update Flatpak apps here" and "Optional Flatpak engine" in section
-# headers, which is the mechanism and not a file. That is real copy work with its
-# own review, it is written down rather than quietly allowed, and it is why this
-# constant is a named subset instead of a shorter list.
+# That exemption is for FILES ONLY, and it was quietly paying for SENTENCES: the
+# storefront said "Flatpaks install for your user only" and "· AppImage", which
+# name the mechanism, not anything a person holds. The copy is rewritten and
+# test_the_storefront_names_a_file_but_never_the_mechanism below
+# now holds the narrower line, so this
+# constant stays a named subset instead of a shorter list.
 RUNTIME_BRANDS = tuple(brand for brand in ENGINE_BRANDS
                        if brand not in ("flatpak", "wayland", "kwin", "plasma"))
 
@@ -400,6 +401,108 @@ class TheEngineNeverSaysItsName(unittest.TestCase):
         self.assertEqual(
             offenders, [],
             "these are strings MoOS shows a person:\n  " + "\n  ".join(offenders))
+
+    def test_the_storefront_names_a_file_but_never_the_mechanism(self):
+        """Where MoOS sells and installs apps, packaging may only name a FILE.
+
+        RUNTIME_BRANDS lets "flatpak" through everywhere because a person can
+        physically hold a `.flatpakref`, and a message about the file in their
+        hand has to name it. An audit found that exemption covering sentences it
+        was never written for: Mo Store's install sheet read "Flatpaks install
+        for your user only", its review line appended "· AppImage", and MoAI
+        described installing an app as "in sandboxed Flatpak container". None of
+        those is a file; each is the mechanism, which is the one thing the owner
+        asked never to see.
+
+        So on these surfaces the packaging word is allowed only inside a file
+        name -- `.flatpak`, `.flatpakref`, `.appimage`. Prose may not carry it.
+        `appimage` is checked here and not in ENGINE_BRANDS because it is a
+        format rather than a vendor: `install.kind === "appimage"` is code MoOS
+        must keep, and only the rendered sentence is the offence.
+
+        App Drop is deliberately NOT one of these surfaces, and that is not a
+        hole. Its entire job is the file a person just dropped on the desk, so
+        "This Flatpak file is not valid" and "this AppImage could not be
+        unpacked" are the file in their hand, named -- the exact case the
+        exemption exists for. Refusing the word there would leave a person
+        holding a file MoOS will not name. The storefront is the opposite: there
+        no file is in anyone's hand until MoOS puts it there, so the word can
+        only be the mechanism. The older voice gate still holds App Drop to
+        RUNTIME_BRANDS, so wine, Bottles and Waydroid stay hidden in both.
+        """
+        PACKAGING = ("flatpak", "flatpaks", "appimage")
+        surfaces = {
+            "store/main.qml": ROOT / "system_files/usr/share/moos/apps/store/main.qml",
+            "welcome/main.qml": ROOT / "system_files/usr/share/moos/apps/welcome/main.qml",
+            "moai/main.qml": ROOT / "system_files/usr/share/moos/apps/moai/main.qml",
+        }
+        offenders = []
+        for name, path in surfaces.items():
+            source = path.read_text(encoding="utf-8")
+            stripped = re.sub(r"(?m)^\s*(#|//).*$", "", source)
+            for text in re.findall(r'"([^"\\]{4,}?)"', stripped):
+                lowered = text.lower()
+                if " " not in text:
+                    continue          # an id, an enum value or a path -- not prose
+                if "/" in text:
+                    continue          # a path
+                if "`" in text or ("<" in text and ">" in text):
+                    # MoAI's system prompt tells the MODEL which command to run.
+                    # `moai-do install <flatpak-id>` has to be the real command
+                    # or the tool call fails; no person reads this line.
+                    continue
+                if re.search(r"\.(flatpak|flatpakref|appimage)\b", lowered):
+                    continue          # names a file, which is the whole exemption
+                for brand in PACKAGING:
+                    if re.search(rf"\b{brand}\b", lowered):
+                        offenders.append(f"{name}: {text!r} names {brand!r}")
+        self.assertEqual(
+            offenders, [],
+            "MoOS says these to a person, and they name the packaging rather "
+            "than a file:\n  " + "\n  ".join(offenders))
+    def test_the_android_menu_surfaces_are_hidden_or_renamed(self):
+        """The launcher is not the only place a brand can sit.
+
+        Every string gate in this file reads MoOS's own files, and all of them
+        were green while the application menu on the station showed a folder
+        called "Waydroid" containing a launcher called "Waydroid". Neither came
+        from a MoOS file -- both ship inside the waydroid package, and the menu
+        folder is the one that matters, because `waydroid.menu` collects every
+        `X-WayDroid-App` into it, so it is where EVERY Android app the owner
+        installs ends up.
+
+        build.sh hides the launcher and relabels the folder to "Android apps"
+        (the platform an app came from, which Mo Store's own category already
+        says) with a MoOS icon, and fails the build if the files it edits are
+        not where it expects or the edit did not take. This checks that all of
+        that is still in build.sh -- deleting any half would silently return the
+        brand to the menu.
+        """
+        build = BUILD.read_text(encoding="utf-8")
+        for needle, why in (
+            ("/usr/share/applications/Waydroid.desktop",
+             "the container's own launcher must be masked"),
+            ("/usr/share/desktop-directories/waydroid.directory",
+             "the menu folder every Android app lands in must be relabelled"),
+            ("s|^Name=.*|Name=Android apps|",
+             "the folder must be named for the platform, not the engine"),
+            ("Name[ar]=\u062a\u0637\u0628\u064a\u0642\u0627\u062a \u0623\u0646\u062f\u0631\u0648\u064a\u062f",
+             "an Arabic session must not fall back to the English label"),
+            ("Icon=moos-android-apps-symbolic",
+             "the folder must not wear the engine's icon either"),
+            ("GATE FAIL: the Android container's own launcher is still in the menu",
+             "the build must fail, not warn, if the mask did not take"),
+            ("GATE FAIL: the Android app folder still wears the engine's name",
+             "the build must fail if the relabel did not take"),
+        ):
+            # assertIn would print all 5,000 lines of build.sh into the CI
+            # log on failure, burying the one sentence that says what broke.
+            self.assertTrue(needle in build, f"build.sh no longer has {needle!r}: {why}")
+        icon = ROOT / ("system_files/usr/share/icons/MoOSUI2Aurora/moos/actions"
+                       "/scalable/moos-android-apps-symbolic.svg")
+        self.assertTrue(icon.is_file(),
+                        "build.sh points the folder at an icon the image does not ship, "
+                        "which would leave the folder blank instead of branded")
 
     def test_the_runner_does_not_hint_a_terminal_command_at_the_owner(self):
         """"try: waydroid app install …" is the engine's name AND its CLI."""
