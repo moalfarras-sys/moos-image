@@ -2754,7 +2754,7 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=75" in apply_theme_code,
+require("THEME_REV=78" in apply_theme_code,
         "MoOS visual schema must migrate existing users to the W5 island (Store jobs, "
         "privacy chips) and inline search answers, the cardless centred "
         "Horizon Hub, responsive clock popup, authenticated Remote presence, "
@@ -5101,7 +5101,7 @@ for _toggle in _tray_shown:
             f"the tray design keeps {_toggle} one click away — moos-bar.conf must "
             f"ship it in the shownItems list or a theme application hides it again")
 
-# The media island is a DIRECT adaptive panel zone after the launcher. It must
+# The Context Island is a DIRECT fixed panel zone after the launcher. It must
 # never also be loaded inside the tray: that would create a second media mark,
 # clip the title/controls into a square cell and split one MPRIS state across two
 # representations.
@@ -5114,9 +5114,14 @@ require("org.moos.island" not in _extra_line,
         "the tray's extraItems")
 _bar_applets_line = next((l for l in _bar_conf_code.splitlines()
                           if l.startswith("applets=")), "")
-require(_bar_applets_line == "applets=brand;island;search;tasks;separator;tray;clock",
-        "the single-capsule order must be launcher, adaptive island, tasks, "
+require(_bar_applets_line == "applets=brand;island;tasks;separator;tray;clock",
+        "the single-capsule order must be launcher, fixed context island, tasks, "
         "separator, tray and clock")
+require("[search]" not in _bar_conf_code
+        and "RETIRED_SEARCH_APPLET=\"org.moos.search\"" in bar_apply
+        and "retired_search_ids" in bar_apply,
+        "Search must be the Context Island's idle face; existing profiles must "
+        "retire the redundant direct search cell")
 for _inner in (*_tray_shown, "org.kde.plasma.bluetooth",
                "org.kde.plasma.brightness"):
     require(_inner in _extra_line,
@@ -6008,12 +6013,17 @@ require("running: root.playing && root.hasTimeline" in _island
         and "onHoveredChanged: root.compactHovered = hovered" in _island,
         "the one-second MPRIS position refresh must sleep unless moving progress "
         "is actually visible")
-require("implicitWidth: root.active" in _island
-        and "compactHover.hovered ? hoverExtra : 0" in _island
-        and "revealedControlCount" in _island
-        and "opacity: root.active ? 1 : 0" in _island,
-        "the direct island must be one transparent pixel at idle and expand by "
-        "the active player's real Previous/Next/Volume capability count")
+require("readonly property real stableWidth:" in _island
+        and "implicitWidth: stableWidth" in _island
+        and "Layout.minimumWidth: stableWidth" in _island
+        and "Layout.preferredWidth: stableWidth" in _island
+        and "Layout.maximumWidth: stableWidth" in _island
+        and "Behavior on implicitWidth" not in _island
+        and 'Qt.openUrlExternally("moos://search/")' in _island
+        and "Kirigami.Units.gridUnit * 9.5" in _island
+        and "function onCompactTitleChanged()" in _island,
+        "the Context Island must keep one invariant panel slot, show Search at "
+        "rest, and animate content without moving neighbouring tasks")
 require("function revealPopup()" in _island
         and "function onExpandedChanged()" in _island
         and "expandedEntrance.restart()" in _island,

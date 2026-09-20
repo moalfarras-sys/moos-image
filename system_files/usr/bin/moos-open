@@ -92,6 +92,15 @@ qdbus_run() {
     return 1
 }
 
+open_search() {
+    # Search is the idle face of the fixed Context Island. The MoOS launcher
+    # already owns the full Milou-backed results surface, so activate that same
+    # owner instead of opening a detached KRunner window. Keep KRunner only as a
+    # fail-soft fallback for a non-Plasma recovery session.
+    qdbus_run org.kde.plasmashell /PlasmaShell activateLauncherMenu \
+        >/dev/null 2>&1 || gui krunner
+}
+
 # Run an interactive command in a held terminal so its output/prompts/errors
 # stay visible after it exits (moos-setup, moai-start, moai-do).
 term() {
@@ -427,9 +436,9 @@ PY
         confirm "إيقاف الواي فاي يقطع الإنترنت وMo AI والتحكم عن بعد. متابعة؟ | Turning Wi-Fi off disconnects the internet, Mo AI and remote control. Continue?" \
             && control_run wifi off ;;
     # `moos://search/` carries no query after the trailing slash is stripped, so it arrives as
-    # `search/`. The Horizon Bar magnifier and an empty Enter use it to open live search itself;
-    # before this case they fell through to "unknown MoOS action".
-    search/)       gui krunner ;;
+    # `search/`. The Context Island uses it to open the MoOS launcher's own search surface in
+    # place; this keeps one search authority and one stable slot on the bar.
+    search/)       open_search ;;
     search/*)      query="$(python3 -c 'import sys,urllib.parse; print(urllib.parse.unquote(sys.argv[1]))' "$tgt" 2>/dev/null)";
                    if [ -n "$query" ]; then gui krunner "$query"; else gui krunner; fi ;;
     # MoOS Search's Mo AI hand-off: open the chat already asking the question. This only starts a

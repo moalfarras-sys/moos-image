@@ -63,7 +63,7 @@ TRAY_SCALE="$(conf tray.scaleIconsToFit)"
 TRAY_SPACING="$(conf tray.iconSpacing)"
 BRAND_APPLET="$(conf brand.applet)"
 ISLAND_APPLET="$(conf island.applet)"
-SEARCH_APPLET="$(conf search.applet)"
+RETIRED_SEARCH_APPLET="org.moos.search"
 TASKS_APPLET="$(conf tasks.applet)"
 TRAY_APPLET="$(conf tray.applet)"
 CLOCK_APPLET="$(conf clock.applet)"
@@ -128,8 +128,6 @@ bar_payload_generation() {
         "${plasmoids}/${BRAND_APPLET}/contents/ui/LauncherView.qml" \
         "${plasmoids}/${ISLAND_APPLET}/metadata.json" \
         "${plasmoids}/${ISLAND_APPLET}/contents/ui/main.qml" \
-        "${plasmoids}/${SEARCH_APPLET}/metadata.json" \
-        "${plasmoids}/${SEARCH_APPLET}/contents/ui/main.qml" \
         "${plasmoids}/${CLOCK_APPLET}/metadata.json" \
         "${plasmoids}/${CLOCK_APPLET}/contents/ui/main.qml"; do
         [ -r "$file" ] || continue
@@ -160,7 +158,6 @@ shell_applet_health() {
     case "$journal" in
         *"error when loading applet \"$BRAND_APPLET\""*|\
         *"error when loading applet \"$ISLAND_APPLET\""*|\
-        *"error when loading applet \"$SEARCH_APPLET\""*|\
         *"error when loading applet \"$CLOCK_APPLET\""*)
             printf '%s\n' "moos-bar-apply: current plasmashell PID $pid has a first-party applet load failure" \
                 >>"$log" 2>/dev/null || true
@@ -199,10 +196,10 @@ shipped_launchers() {
 merge_appletsrc() {
     [ -r "$applets_rc" ] || { echo "no-config"; return; }
     cp "$applets_rc" "${applets_rc}.pre-horizon-merge" 2>/dev/null || true
-    python3 - "$applets_rc" "$BRAND_APPLET" "$BAR_APPLETS" "$CONF" "$shell_rc" <<'PY' 2>/dev/null
+    python3 - "$applets_rc" "$BRAND_APPLET" "$BAR_APPLETS" "$CONF" "$shell_rc" "$RETIRED_SEARCH_APPLET" <<'PY' 2>/dev/null
 import io, re, sys
 
-path, brand, applet_order, conf_path, shell_rc = sys.argv[1:6]
+path, brand, applet_order, conf_path, shell_rc, retired_search = sys.argv[1:7]
 
 with io.open(path, "r", encoding="utf-8") as f:
     original = f.read()
@@ -315,20 +312,30 @@ if island_plugin and not any(
     plugin_of[island_id] = island_plugin
     merged_order.append(island_id)
 
-# Search has its own layout cell; never embed its hit target in the launcher.
-search_plugin = zone_plugin.get("search", "")
-if search_plugin and not any(
-        plugin_of.get(aid) == search_plugin and containment_of.get(aid) in bottom
-        for aid in plugin_of):
-    search_ids = {int(part) for line in lines for parts in [parts_of(line)]
-                  if parts is not None for part in parts if part.isdigit()}
-    search_ids.update(int(aid) for aid in plugin_of if aid.isdigit())
-    search_id = str(max(search_ids, default=0) + 1)
-    lines.append("\n[Containments][" + keep + "][Applets][" + search_id + "]\n"
-                 "plugin=" + search_plugin + "\n")
-    containment_of[search_id] = keep
-    plugin_of[search_id] = search_plugin
-    merged_order.append(search_id)
+# Search now owns the Island's idle CONTENT, not another panel cell. Retire the
+# former direct applet from existing profiles while preserving the package for
+# compatibility and tests. This is deliberately the one MoOS-owned applet that
+# is removed: leaving it would keep the redundant magnifier beside the unified
+# slot and defeat the stable-geometry migration.
+retired_search_ids = [
+    aid for aid, plugin in plugin_of.items()
+    if plugin == retired_search and containment_of.get(aid) in bottom
+]
+if retired_search_ids:
+    roots = [["Containments", containment_of[aid], "Applets", aid]
+             for aid in retired_search_ids]
+    kept, drop_search = [], False
+    for line in lines:
+        parts = parts_of(line)
+        if parts is not None:
+            drop_search = any(parts[:len(root)] == root for root in roots)
+        if not drop_search:
+            kept.append(line)
+    lines = kept
+    merged_order = [aid for aid in merged_order if aid not in retired_search_ids]
+    for aid in retired_search_ids:
+        containment_of.pop(aid, None)
+        plugin_of.pop(aid, None)
 
 # Retire the old system-tray child itself, not merely its extraItems load-list
 # entry. Plasma preserves nested applet sections after extraItems stops naming
@@ -758,7 +765,7 @@ live_pass() {
                 } catch (e) {}
                 var directBrandPosition = directVisualTypes.indexOf(DOCK_APPLET);
                 var directIslandPosition = directVisualTypes.indexOf(ISLAND_APPLET);
-                if (directVisualTypes.filter(function(t) { return t == "org.moos.search"; }).length == 1
+                if (directVisualTypes.filter(function(t) { return t == "org.moos.search"; }).length == 0
                         && directBrand == 1 && directIsland == 1 && directTasks == 1
                         && directTray == 1 && directClock == 1
                         && directIslandPosition == directBrandPosition + 1
@@ -963,7 +970,7 @@ cmd_check() {
                 } catch (e) {}
                 var brandPosition = visualTypes.indexOf(DOCK_APPLET);
                 var islandPosition = visualTypes.indexOf(ISLAND_APPLET);
-                if (visualTypes.filter(function(t) { return t == "org.moos.search"; }).length == 1
+                if (visualTypes.filter(function(t) { return t == "org.moos.search"; }).length == 0
                         && hasB && hasI && hasT && hasC
                         && islandPosition == brandPosition + 1) {
                     whole++;

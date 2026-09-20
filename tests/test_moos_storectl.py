@@ -16,6 +16,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "system_files/usr/bin/moos-storectl"
+STORE_QML = ROOT / "system_files/usr/share/moos/apps/store/main.qml"
 LOADER = importlib.machinery.SourceFileLoader("moos_storectl_tested", str(SCRIPT))
 SPEC = importlib.util.spec_from_loader(LOADER.name, LOADER)
 assert SPEC is not None
@@ -28,6 +29,7 @@ class FakeRunner:
     def __init__(self, result=None):
         self.spawned: list[list[str]] = []
         self.commands: list[list[str]] = []
+        self.probes: list[list[str]] = []
         self.guard_calls = 0
         self.result = result or MODULE.CommandResult(0)
 
@@ -36,6 +38,13 @@ class FakeRunner:
 
     def gpu_guard(self):
         self.guard_calls += 1
+
+    def capture(self, argv, timeout=30):
+        self.probes.append(list(argv))
+        return MODULE.CommandResult(
+            0, "", False,
+            "Session:\tRUNNING\nContainer:\tRUNNING\n",
+        )
 
     def run_cancellable(self, argv, should_cancel):
         self.commands.append(list(argv))
@@ -233,6 +242,14 @@ class ValidationTests(StoreTestCase):
     def test_subprocess_calls_never_enable_a_shell(self):
         source = SCRIPT.read_text(encoding="utf-8")
         self.assertNotIn("shell" + "=True", source)
+
+    def test_store_ui_treats_android_as_a_normal_runnable_app(self):
+        source = STORE_QML.read_text(encoding="utf-8")
+        self.assertIn("function hasAndroidLifecycle(app)", source)
+        self.assertIn("function hasRunnableLifecycle(app)", source)
+        self.assertIn("if (!win.hasRunnableLifecycle(app)) return", source)
+        self.assertNotIn("if (!win.hasFlatpakLifecycle(app)) return", source)
+        self.assertGreaterEqual(source.count("win.hasRunnableLifecycle("), 8)
 
     def test_transaction_continues_only_for_nonfatal_operation_errors(self):
         self.assertFalse(
@@ -496,6 +513,32 @@ class StatusAndLockTests(StoreTestCase):
 
 
 class InstallTests(StoreTestCase):
+    def test_dotted_android_catalog_id_reaches_the_android_installer(self):
+        from unittest import mock
+
+        recipe = {
+            "id": "org.fdroid.fdroid",
+            "source": "moos",
+            "install": {
+                "kind": "android",
+                "package": "org.fdroid.fdroid",
+            },
+        }
+        controller, _ = self.controller([recipe])
+
+        def installed(job, app_id, selected):
+            self.assertEqual(app_id, "org.fdroid.fdroid")
+            self.assertEqual(selected, recipe)
+            job.update_item(app_id, state="done", progress=100, message="Installed")
+
+        with mock.patch.object(
+            controller, "_install_pinned_android", side_effect=installed
+        ) as android_install:
+            code, result = controller.install(["org.fdroid.fdroid"])
+        self.assertEqual(code, 0, result)
+        self.assertEqual(result["state"], "success")
+        android_install.assert_called_once()
+
     def test_android_install_uses_store_job_and_propagates_result(self):
         from unittest import mock
         import types
@@ -706,6 +749,57 @@ class LifecycleTests(StoreTestCase):
         self.assertEqual(runner.guard_calls, 1)
         self.assertEqual(adapter.launches, ["org.example.App"])
         self.assertEqual(result["state"], "success")
+
+    def test_android_catalog_app_has_one_complete_hidden_lifecycle(self):
+        runner = FakeRunner()
+        recipe = {
+            "id": "org.fdroid.fdroid",
+            "source": "moos",
+            "install": {
+                "kind": "android",
+                "package": "org.fdroid.fdroid",
+            },
+        }
+        controller, _ = self.controller([recipe], runner=runner)
+
+        code, result = controller.run("org.fdroid.fdroid")
+        self.assertEqual(code, 0, result)
+        self.assertEqual(result["state"], "success")
+        self.assertEqual(runner.guard_calls, 1)
+        self.assertEqual(
+            runner.probes,
+            [["/usr/bin/waydroid", "status"]],
+        )
+        self.assertEqual(
+            runner.commands,
+            [["/usr/bin/waydroid", "app", "launch", "org.fdroid.fdroid"]],
+        )
+
+        runner.commands.clear()
+        runner.probes.clear()
+        code, result = controller.remove("org.fdroid.fdroid")
+        self.assertEqual(code, 0, result)
+        self.assertEqual(result["state"], "success")
+        self.assertEqual(
+            runner.commands,
+            [["/usr/bin/waydroid", "app", "remove", "org.fdroid.fdroid"]],
+        )
+
+    def test_android_catalog_id_and_package_must_be_the_same_valid_id(self):
+        for app_id, package in (
+            ("fdroid", "org.fdroid.fdroid"),
+            ("org.fdroid.fdroid", "org.fdroid.other"),
+            ("org.fdroid.fdroid", "org.fdroid.fdroid;touch"),
+        ):
+            with self.subTest(app_id=app_id, package=package):
+                recipe = {
+                    "id": app_id,
+                    "source": "moos",
+                    "install": {"kind": "android", "package": package},
+                }
+                self.assertFalse(
+                    MODULE.Controller._curated_id_is_valid(app_id, recipe)
+                )
 
     def test_refresh_rebuilds_the_unified_index_with_fixed_argv(self):
         runner = FakeRunner()

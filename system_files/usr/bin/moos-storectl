@@ -44,6 +44,7 @@ FLATHUB_REPO_BASE = "https://dl.flathub.org/repo/"
 GPU_GUARD = "/usr/bin/moos-gpu-headroom"
 NPM = "/usr/bin/npm"
 XDG_OPEN = "/usr/bin/xdg-open"
+WAYDROID = "/usr/bin/waydroid"
 STORE_INDEX = "/usr/bin/moos-store-index"
 ONE_STORE = "/usr/bin/moos-one-store"
 BAZAAR_ID = "io.github.kolunmi.Bazaar"
@@ -74,6 +75,9 @@ _NPM_PACKAGE_RE = re.compile(
     r")?[a-z0-9](?:[a-z0-9._-]{0,212}[a-z0-9])?$"
 )
 _BIN_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,62}[A-Za-z0-9])?$")
+_ANDROID_PACKAGE_RE = re.compile(
+    r"^[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*){1,}$"
+)
 _SHA256_RE = re.compile(r"^[0-9a-fA-F]{64}$")
 _ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 _REVIEW_RISKS = {
@@ -546,6 +550,7 @@ class CommandResult:
     returncode: int
     reason: str = ""
     cancelled: bool = False
+    output: str = ""
 
 
 class CommandRunner:
@@ -575,6 +580,26 @@ class CommandRunner:
             )
         except (OSError, subprocess.TimeoutExpired):
             pass
+
+    def capture(self, argv: Sequence[str], timeout: int = 30) -> CommandResult:
+        """Run a fixed read-only probe without involving a shell."""
+        try:
+            result = subprocess.run(
+                list(argv),
+                stdin=subprocess.DEVNULL,
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=timeout,
+            )
+        except (OSError, subprocess.TimeoutExpired) as error:
+            return CommandResult(127, clean_message(error))
+        return CommandResult(
+            result.returncode,
+            clean_message(result.stderr) if result.stderr else "",
+            False,
+            result.stdout,
+        )
 
     def run_cancellable(
         self, argv: Sequence[str], should_cancel: Callable[[], bool]
@@ -1259,6 +1284,70 @@ class Controller:
         risk = clean_message(risk_value, 80)
         return f"reviewed risk: {risk}"
 
+    @staticmethod
+    def _curated_id_is_valid(app_id: str, recipe: dict[str, Any]) -> bool:
+        """Validate the public Store id according to the recipe it selects.
+
+        Most first-party recipes use short MoOS slugs. Android is deliberately
+        different: its package name is already the canonical application id and
+        is what the runtime, launcher and Store must agree on. Treating every
+        curated id as a slug made every dotted Android entry impossible to
+        install even though it appeared in the catalogue.
+        """
+        install = recipe.get("install")
+        if isinstance(install, dict) and install.get("kind") == "android":
+            package = install.get("package")
+            return bool(
+                isinstance(package, str)
+                and package == app_id
+                and _ANDROID_PACKAGE_RE.fullmatch(package)
+            )
+        return validate_curated_id(app_id)
+
+    @staticmethod
+    def _android_package(app_id: str, recipe: dict[str, Any]) -> str:
+        install = recipe.get("install")
+        package = install.get("package") if isinstance(install, dict) else None
+        if (
+            not isinstance(install, dict)
+            or install.get("kind") != "android"
+            or not isinstance(package, str)
+            or package != app_id
+            or not _ANDROID_PACKAGE_RE.fullmatch(package)
+        ):
+            raise StoreError(f"Catalog has an invalid Android package for {app_id}")
+        return package
+
+    @staticmethod
+    def _android_running(result: CommandResult) -> bool:
+        return bool(re.search(r"(?im)^Session:\s*RUNNING\s*$", result.output))
+
+    def _ensure_android_session(self, job: Job) -> None:
+        """Make the already-configured user runtime ready for one explicit job.
+
+        Opening, installing or removing an app is the person's intent to use
+        the runtime, so starting its user session here needs no second dialog.
+        The system image is never downloaded here; one-time setup remains the
+        separately confirmed `moai-do setup-waydroid` action.
+        """
+        status = self.runner.capture([WAYDROID, "status"])
+        words = f"{status.output}\n{status.reason}".lower()
+        if status.returncode == 127:
+            raise StoreError(status.reason or "Could not inspect Android app support")
+        if "not initialized" in words:
+            raise StoreError("Android apps need the one-time MoOS setup first")
+        if self._android_running(status):
+            return
+        self.runner.spawn([WAYDROID, "session", "start"])
+        for _ in range(20):
+            if self._cancelled(job):
+                raise CancelledError("Cancelled")
+            time.sleep(1)
+            status = self.runner.capture([WAYDROID, "status"])
+            if self._android_running(status):
+                return
+        raise StoreError("Android app support did not become ready")
+
     def _install_npm(self, job: Job, app_id: str, recipe: dict[str, Any]) -> None:
         install = recipe.get("install")
         package = install.get("pkg") if isinstance(install, dict) else None
@@ -1350,7 +1439,7 @@ class Controller:
             raise StoreError(f"External download metadata is missing for {app_id}")
         url = install.get("url")
         digest = install.get("sha256")
-        package = install.get("package")
+        package = self._android_package(app_id, recipe)
         parsed = urllib.parse.urlsplit(url) if isinstance(url, str) else None
         if (
             not isinstance(url, str)
@@ -1361,21 +1450,11 @@ class Controller:
             or parsed.password is not None
             or not isinstance(digest, str)
             or not _SHA256_RE.fullmatch(digest)
-            or not isinstance(package, str)
-            or not _ANDROID_PACKAGE_RE.fullmatch(package)
         ):
             raise StoreError(
                 f"Android recipe for {app_id} is not pinned to a valid SHA-256"
             )
-        if not shutil.which("waydroid"):
-            raise StoreError("Android support is not available on this edition")
-        state = subprocess.run(
-            ["waydroid", "status"], capture_output=True, text=True, timeout=30
-        )
-        if "not initialized" in (state.stdout + state.stderr).lower():
-            raise StoreError(
-                "Android is not set up yet — run the one-time setup first"
-            )
+        self._ensure_android_session(job)
         fd, temporary_name = tempfile.mkstemp(prefix=f".{package}.", suffix=".apk")
         temporary = Path(temporary_name)
         hasher = hashlib.sha256()
@@ -1420,12 +1499,14 @@ class Controller:
                 message="Installing application", message_key="integrating_app",
             )
             result = self.runner.run_cancellable(
-                ["/usr/bin/waydroid", "app", "install", str(temporary)],
+                [WAYDROID, "app", "install", str(temporary)],
                 lambda: self._cancelled(job),
             )
             if result.cancelled:
                 raise CancelledError("Cancelled")
-            if result.returncode:
+            if result.returncode or re.search(
+                r"\b(?:error|failed)\b", result.reason, re.IGNORECASE
+            ):
                 raise StoreError(result.reason or "Android installation failed")
             job.update_item(
                 app_id, state="done", progress=100,
@@ -1560,7 +1641,7 @@ class Controller:
                             flatpak_ids.append(app_id)
                         else:
                             invalid.append(app_id)
-                    elif source == "moos" and validate_curated_id(app_id):
+                    elif source == "moos" and self._curated_id_is_valid(app_id, recipe):
                         curated.append((app_id, recipe))
                     else:
                         invalid.append(app_id)
@@ -1675,6 +1756,8 @@ class Controller:
                     self._remove_npm(job, app_id, install)
                 elif kind == "appimage":
                     self._remove_appimage(job, app_id, install)
+                elif kind == "android":
+                    self._remove_android(job, app_id, recipe)
                 elif kind == "web":
                     job.update_item(
                         app_id,
@@ -1755,6 +1838,36 @@ class Controller:
             message_key="removed",
         )
 
+    def _remove_android(
+        self, job: Job, app_id: str, recipe: dict[str, Any]
+    ) -> None:
+        package = self._android_package(app_id, recipe)
+        self._ensure_android_session(job)
+        job.update_item(
+            app_id, state="running", progress=None,
+            message="Removing application", message_key=None,
+        )
+        job.update(
+            state="running", progress=None, current_id=app_id,
+            message="Removing application", message_key=None,
+        )
+        result = self.runner.run_cancellable(
+            [WAYDROID, "app", "remove", package],
+            lambda: self._cancelled(job),
+        )
+        if result.cancelled:
+            raise CancelledError("Cancelled")
+        if result.returncode or re.search(
+            r"\b(?:error|failed)\b|session is stopped",
+            result.reason,
+            re.IGNORECASE,
+        ):
+            raise StoreError(result.reason or "Could not remove the application")
+        job.update_item(
+            app_id, state="done", progress=100, message="Removed",
+            message_key="removed",
+        )
+
     def remove(self, app_id: str) -> tuple[int, dict[str, Any]]:
         # A curated (source="moos") app is not a Flatpak, so it must be handled
         # before the Flatpak-ID validator that would otherwise reject it.
@@ -1762,7 +1875,7 @@ class Controller:
         if (
             recipe is not None
             and recipe.get("source") == "moos"
-            and validate_curated_id(app_id)
+            and self._curated_id_is_valid(app_id, recipe)
         ):
             return self._remove_curated(app_id, recipe)
         if not validate_flatpak_id(app_id):
@@ -1905,7 +2018,57 @@ class Controller:
                 job.fail(error, [slug])
             return exit_code(job.document["state"]), job.snapshot()
 
+    def _run_android(
+        self, app_id: str, recipe: dict[str, Any]
+    ) -> tuple[int, dict[str, Any]]:
+        package = self._android_package(app_id, recipe)
+        try:
+            lock, job = self._begin("run", [app_id])
+        except BusyError:
+            return 75, self._busy_document("run", [app_id])
+        with lock:
+            try:
+                job.update_item(
+                    app_id, state="running", progress=None,
+                    message="Opening app", message_key="opening",
+                )
+                job.update(
+                    state="running", current_id=app_id, progress=None,
+                    message="Preparing GPU headroom", message_key="preparing_gpu",
+                )
+                self.runner.gpu_guard()
+                self._ensure_android_session(job)
+                result = self.runner.run_cancellable(
+                    [WAYDROID, "app", "launch", package],
+                    lambda: self._cancelled(job),
+                )
+                if result.cancelled:
+                    raise CancelledError("Cancelled")
+                if result.returncode or re.search(
+                    r"\b(?:error|failed)\b", result.reason, re.IGNORECASE
+                ):
+                    raise StoreError(result.reason or "Could not open the application")
+                job.update_item(
+                    app_id, state="done", progress=100,
+                    message="Opened", message_key="opened",
+                )
+                job.finish_from_items("App opened", "app_opened")
+            except CancelledError:
+                job.cancelled()
+            except Exception as error:
+                job.fail(error, [app_id])
+            return exit_code(job.document["state"]), job.snapshot()
+
     def run(self, app_id: str) -> tuple[int, dict[str, Any]]:
+        recipe = self._catalog().get(app_id)
+        if (
+            recipe is not None
+            and recipe.get("source") == "moos"
+            and isinstance(recipe.get("install"), dict)
+            and (recipe.get("install") or {}).get("kind") == "android"
+            and self._curated_id_is_valid(app_id, recipe)
+        ):
+            return self._run_android(app_id, recipe)
         if not validate_flatpak_id(app_id):
             raise StoreError(f"Invalid Flatpak app ID: {app_id}")
         try:
@@ -2197,9 +2360,9 @@ def parser() -> argparse.ArgumentParser:
     commands = result.add_subparsers(dest="command", required=True)
     install = commands.add_parser("install", help="install one or more apps")
     install.add_argument("ids", nargs="+")
-    remove = commands.add_parser("remove", help="remove a user Flatpak")
+    remove = commands.add_parser("remove", help="remove a user app")
     remove.add_argument("id")
-    run = commands.add_parser("run", help="run an installed Flatpak")
+    run = commands.add_parser("run", help="run an installed app")
     run.add_argument("id")
     commands.add_parser("update", help="update user Flatpaks")
     commands.add_parser(

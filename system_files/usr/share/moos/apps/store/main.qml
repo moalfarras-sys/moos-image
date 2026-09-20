@@ -308,6 +308,15 @@ ApplicationWindow {
                        || (app.flatpak_ref && app.flatpak_ref !== ""))
     }
 
+    function hasAndroidLifecycle(app) {
+        return app && app.source === "moos" && app.install
+            && app.install.kind === "android"
+    }
+
+    function hasRunnableLifecycle(app) {
+        return win.hasFlatpakLifecycle(app) || win.hasAndroidLifecycle(app)
+    }
+
     function hasInstalledScope(app, scope) {
         if (!app) return false
         if (win.installedScopeOverrides[app.id] !== undefined)
@@ -317,15 +326,16 @@ ApplicationWindow {
         return app.installed_scope === scope
     }
 
-    // Curated npm tools and pinned AppImages install into ~/.local and are
+    // Curated npm tools and pinned AppImages install into ~/.local; Android
+    // applications live behind MoOS's managed compatibility service. All are
     // removed by `moos-storectl remove <id>` (npm uninstall / delete the
-    // AppImage). They have no Flatpak lifecycle, so canRemove used to return
-    // false for them and the Remove button never appeared — a tool you could
-    // install but never uninstall. A `web` entry only opened a vendor page, so
+    // AppImage / remove the package). They have no Flatpak lifecycle, so they
+    // must be named here explicitly. A `web` entry only opened a vendor page;
     // nothing of ours is on disk and it is deliberately excluded.
     function hasCuratedLifecycle(app) {
         return app && app.source === "moos" && app.install
-            && (app.install.kind === "npm" || app.install.kind === "appimage")
+            && (app.install.kind === "npm" || app.install.kind === "appimage"
+                || app.install.kind === "android")
     }
 
     function canRemove(app) {
@@ -1017,7 +1027,7 @@ ApplicationWindow {
     }
 
     function runSelected(app) {
-        if (!win.hasFlatpakLifecycle(app)) return
+        if (!win.hasRunnableLifecycle(app)) return
         if (win.jobIsActive()) {
             win.flash(win.rtl ? "انتظر اكتمال العملية الحالية" : "Wait for the current operation")
             return
@@ -1403,20 +1413,20 @@ ApplicationWindow {
                 Item { Layout.fillWidth: true }
                 ActionButton {
                     activeFocusOnTab: !card.compositeFocus
-                    enabled: !card.installed || win.hasFlatpakLifecycle(card.app)
+                    enabled: !card.installed || win.hasRunnableLifecycle(card.app)
                     label: card.installed
-                        ? win.hasFlatpakLifecycle(card.app)
+                        ? win.hasRunnableLifecycle(card.app)
                             ? (win.rtl ? "افتح" : "Open")
                             : (win.rtl ? "جاهز" : "Ready")
                         : card.selected ? (win.rtl ? "مُضاف" : "Added")
                         : win.isWeb(card.app) ? (win.rtl ? "الموقع" : "Website")
                         : (win.rtl ? "تثبيت" : "Install")
                     glyphName: card.installed
-                        ? win.hasFlatpakLifecycle(card.app) ? "external" : "check"
+                        ? win.hasRunnableLifecycle(card.app) ? "external" : "check"
                         : card.selected ? "check" : "download"
                     primary: card.selected
                     triggered: function() {
-                        if (card.installed && win.hasFlatpakLifecycle(card.app))
+                        if (card.installed && win.hasRunnableLifecycle(card.app))
                             win.runSelected(card.app)
                         else if (card.selected) win.setPicked(card.app.id, false)
                         else win.installOne(card.app)
@@ -3443,21 +3453,21 @@ ApplicationWindow {
                     }
                     ActionButton {
                         enabled: !win.isInstalled(win.selectedApp)
-                                 || win.hasFlatpakLifecycle(win.selectedApp)
+                                 || win.hasRunnableLifecycle(win.selectedApp)
                         label: win.isInstalled(win.selectedApp)
-                            ? win.hasFlatpakLifecycle(win.selectedApp)
+                            ? win.hasRunnableLifecycle(win.selectedApp)
                                 ? (win.rtl ? "افتح التطبيق" : "Open app")
                                 : (win.rtl ? "مثبّت وجاهز" : "Installed and ready")
                             : win.isWeb(win.selectedApp)
                                 ? (win.rtl ? "افتح الموقع الرسمي" : "Open official website")
                                 : (win.rtl ? "مراجعة وتثبيت" : "Review & install")
                         glyphName: win.isInstalled(win.selectedApp)
-                            ? win.hasFlatpakLifecycle(win.selectedApp) ? "external" : "check"
+                            ? win.hasRunnableLifecycle(win.selectedApp) ? "external" : "check"
                             : "download"
                         primary: true
                         triggered: function() {
                             if (win.isInstalled(win.selectedApp)
-                                    && win.hasFlatpakLifecycle(win.selectedApp))
+                                    && win.hasRunnableLifecycle(win.selectedApp))
                                 win.runSelected(win.selectedApp)
                             else {
                                 details.close()
