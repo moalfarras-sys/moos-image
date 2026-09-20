@@ -95,12 +95,10 @@ try {
     launcher.writeConfig("popupHeight", 576);
 } catch (e) { /* the bar survives launcherless */ }
 
-/* The existing org.moos.island is the bar's adaptive MPRIS zone. It is direct,
- * immediately after the launcher, so it can grow from one transparent idle
- * pixel into artwork, title/source and transport controls. The applet itself
- * keeps Plasma's Mpris2Model architecture and hides again when media stops. */
+/* The Context Island is direct and immediately after the launcher. It keeps a
+ * fixed medium width: Search at rest, then Remote/privacy/Store/media in the
+ * same slot. The stable geometry is what keeps task icons from moving. */
 try { panel.addWidget("org.moos.island"); } catch (e) { /* media is optional */ }
-try { panel.addWidget("org.moos.search"); } catch (e) { /* repair retries */ }
 
 /* Icons-Only Task Manager — Mo AI pinned FIRST, then browser, files, Mo PC
  * Remote, System Settings and the terminal.

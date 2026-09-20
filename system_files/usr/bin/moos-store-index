@@ -43,6 +43,9 @@ ICON_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+@-]{0,255}$")
 NPM_PACKAGE_RE = re.compile(
     r"^(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$"
 )
+ANDROID_PACKAGE_RE = re.compile(
+    r"^[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*){1,}$"
+)
 
 PRIMARY_CATEGORIES = {
     "internet",
@@ -1227,6 +1230,14 @@ def sanitize_install(entry: dict, app_id: str) -> dict:
             raise CatalogError(f"catalog package for {app_id!r} is invalid")
         result["pkg"] = package
 
+    android_package = safe_catalog_text(raw, "package", 255)
+    if android_package:
+        if not ANDROID_PACKAGE_RE.fullmatch(android_package):
+            raise CatalogError(
+                f"catalog Android package for {app_id!r} is invalid"
+            )
+        result["package"] = android_package
+
     binary = safe_catalog_text(raw, "bin", 128)
     if binary:
         if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", binary):
@@ -1385,11 +1396,28 @@ def catalog_installable(entry: dict) -> bool:
         return bool(install.get("url") and install.get("bin"))
     if kind == "web":
         return bool(install.get("url"))
+    if kind == "android":
+        return bool(
+            install.get("url")
+            and install.get("sha256")
+            and install.get("package") == entry.get("id")
+        )
     return False
 
 
 def nonflatpak_installed(entry: dict) -> bool:
     install = entry.get("install", {})
+    if install.get("kind") == "android":
+        package = install.get("package")
+        if not isinstance(package, str) or not ANDROID_PACKAGE_RE.fullmatch(package):
+            return False
+        # The runtime creates this per-package data directory only after the
+        # package manager commits an installation, and removes it on uninstall.
+        # Reading this local state keeps the indexer offline and avoids calling
+        # (or exposing) the compatibility runtime for every Store refresh.
+        return (
+            Path.home() / ".local/share/waydroid/data/data" / package
+        ).is_dir()
     binary = install.get("bin")
     if not binary:
         return False

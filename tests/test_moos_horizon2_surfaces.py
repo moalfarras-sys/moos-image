@@ -107,28 +107,53 @@ class RemoteIsland(unittest.TestCase):
         cls.qml = code(ISLAND)
         cls.control = code(ISLAND.with_name("MediaControl.qml"))
 
-    def test_announcement_is_one_shot_and_settles(self):
-        timer = self.qml.split("id: remoteAnnounce", 1)[1].split("}", 1)[0]
-        self.assertIn("repeat: false", timer)
-        self.assertIn("onTriggered: root.remoteAnnouncing = false", timer)
-        self.assertIn("readonly property bool remoteSettled: root.remotePresent && !root.remoteAnnouncing",
-                      self.qml)
-        self.assertIn("&& !root.compactHovered && !root.expanded", self.qml)
-
-    def test_the_handler_reads_inputs_not_the_stale_binding(self):
-        handler = self.qml.split("function announceRemote()", 1)[1].split("\n    }\n", 1)[0]
-        self.assertIn("root.remoteSessions > 0", handler)
-        self.assertNotIn("root.remotePresent", handler,
-                         "the derived binding can still hold the previous value here")
-
-    def test_settled_chip_keeps_live_state_and_the_idle_pixel(self):
-        width_block = self.qml.split("implicitWidth: root.active", 1)[1].split(
-            "implicitHeight:", 1)[0]
-        self.assertIn("readonly property real chipWidth: 72", self.qml)
-        self.assertIn("root.remoteSettled ? chipWidth", self.qml)
-        self.assertIn(": 1", width_block)
+    def test_search_and_remote_share_one_fixed_slot(self):
+        self.assertIn('root.local("ابحث في MoOS", "Search MoOS")', self.qml)
+        self.assertIn('Qt.openUrlExternally("moos://search/")', self.qml)
+        self.assertIn("readonly property real stableWidth:", self.qml)
+        for owner in ("implicitWidth: stableWidth", "Layout.preferredWidth: stableWidth",
+                      "Layout.minimumWidth: stableWidth", "Layout.maximumWidth: stableWidth"):
+            self.assertIn(owner, self.qml)
+        self.assertIn("Kirigami.Units.gridUnit * 9.5", self.qml)
+        self.assertGreaterEqual(self.qml.count("slotSize: 34"), 4)
+        self.assertNotIn("Behavior on implicitWidth", self.qml)
+        self.assertNotIn("remoteSettled", self.qml)
+        self.assertNotIn("remoteAnnounce", self.qml)
         self.assertIn('root.remoteMode === "paused"', self.qml)
         self.assertIn("root.remoteSessions > 1", self.qml)
+
+    def test_context_motion_changes_content_not_panel_geometry(self):
+        """The Island may animate what it SHOWS; it may never animate its slot.
+
+        The rule has not changed. What changed is how the plate gets there: it was
+        a NumberAnimation on an easing curve, so it arrived at full size because a
+        duration elapsed, and two context changes inside a second restarted the
+        curve from 0.90 with a visible jerk. It is on MoUI.SpringFeedback now —
+        the same physics a MoOS Button and Search settle with — which is
+        retargetable, so media replacing Remote replacing Store acquires the new
+        target and keeps its velocity instead of snapping back to restart.
+
+        This test therefore asserts the PROPERTY that must hold rather than the
+        implementation that happened to hold it: the plate's scale is driven by a
+        spring, opacity stays on a curve (springing a cross-fade would overshoot
+        past 1), and nothing in the Island animates width or layout.
+        """
+        self.assertIn("function onCompactTitleChanged()", self.qml)
+        self.assertIn("trackTurn.restart()", self.qml)
+        self.assertIn("target: compactText; property: \"opacity\"", self.qml)
+        self.assertIn("target: trackShift; property: \"y\"", self.qml)
+        self.assertIn("MoUI.SpringFeedback", self.qml,
+                      "the context plate must settle with MoOS's own physics, not a "
+                      "third motion language invented inside the bar")
+        self.assertIn("scale: contextSpring.value", self.qml)
+        self.assertIn("target: contextPlate; property: \"opacity\"", self.qml)
+        self.assertNotIn("transformOrigin: Item.Center", self.qml)
+        # The whole point of the fixed slot: a spring may move what the Island
+        # shows, never where its neighbours sit.
+        for forbidden in ("Behavior on implicitWidth", "Behavior on Layout.preferredWidth",
+                          'property: "implicitWidth"', 'property: "width"'):
+            self.assertNotIn(forbidden, self.qml,
+                             f"{forbidden} would let the Island shove the task icons")
 
     def test_remote_keeps_privacy_priority_but_popup_can_inspect_media(self):
         self.assertIn('property string detailContext: "remote"', self.qml)
