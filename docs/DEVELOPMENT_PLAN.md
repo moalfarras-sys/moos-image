@@ -381,6 +381,42 @@ what Mo Store's own category already does — the rule forbids naming the machin
 origin. The wine half of this was fixed long ago (ten Wine tools masked, with a build gate);
 the Android half had simply never been written.
 
+**And the same audit, run properly, found the bigger one.** With every string gate green,
+the application menu in the owner's Arabic session offered **two settings applications**:
+"إعدادات MoOS" and "إعدادات النّظام". `build.sh` had hidden `kdesystemsettings.desktop`,
+Fedora's *duplicate* launcher, and left `systemsettings.desktop`, the real one, visible —
+and the gate beneath that section only ever checked the duplicate. Beside it stood
+"Dolphin / دولفين", "KDE Connect / جسر كِيدِي", "KDE Partition Manager / مدير أقسام كِيدِي"
+and "Info Center". Hiding all five would be the wrong fix: a person needs a file manager
+and a disk tool, and MoOS Settings routes its hardware panels into `systemsettings` and
+`kinfocenter` **on purpose** (`moos-open` says so — reimplementing twenty KCMs is not a
+better system). So each entry now carries MoOS's name and MoOS's icon — Files / الملفات,
+Phone / الهاتف, Disks / الأقراص — and the two reached only through MoOS Settings also leave
+the menu. Only the `[Desktop Entry]` group is rewritten, because `systemsettings.desktop`
+ships five Desktop Actions whose own `Name=` lines a blind `sed` would overwrite; the
+rewrite was proven against the real files before it shipped. `build.sh` fails the build if
+either half stops taking, and `test_the_app_menu_carries_no_other_desktop_name` holds it.
+
+**What is still honestly a seam, on NVIDIA machines only.** Android apps render in
+software. `waydroid`'s own `tools/helpers/gpu.py` carries `unsupported = ["nvidia"]` and
+falls back to `ro.hardware.egl=swiftshader` whenever the only DRI node belongs to the
+proprietary driver — measured on the station, an RTX 2080 SUPER. Forcing `drm_device` in
+`waydroid.cfg` does not defeat it; the same list is consulted. On AMD and Intel machines
+MoOS gets `gbm` + `mesa` automatically. A private override would be an unqualified fork of
+a core runtime and could trade slow rendering for corruption; qualify an upstream-supported
+path or a separately tested patch on NVIDIA before changing the image. It remains written
+down rather than being hidden behind a misleading “accelerated” label.
+
+**The 4K sizing review added two separate facts.** A legacy fixed Win32 dialog cannot be
+made useful by forcing KWin to resize it: PuTTY became a huge white frame while its controls
+stayed in one corner. The MoOS runner now derives a capped 96–192 DPI from the active desktop
+and writes `LogPixels` before launch. On the 265% station the same real PuTTY binary grew from
+178×331 to 348×591 logical pixels with its content scaled. Android VLC also launched as a real,
+resizable desktop window through the catalogue adapter. On fractional-scale KDE its client-side
+surface still does not fill the geometry KWin reports when maximized; this matches upstream
+Waydroid's open fractional-scaling defect and is a remaining P4.4 qualification seam, not a
+reason to add a second compositor or expose Android settings to the owner.
+
 **macOS** is unsupported. The answer lives in ONE place — the `unsupported` entry in
 `app-engines.json`, in both languages — and this paragraph deliberately does not repeat
 it, because two copies of an answer is how a repository comes to give two answers. What
@@ -419,8 +455,8 @@ remove lifecycle, and the full P4.1 cancel/retry/readback contract across every 
 | Order | What the owner gets | The work | Acceptance |
 | --- | --- | --- | --- |
 | A1 | **DONE — all three engines, on the installed image, 2026-09-20** | **Windows:** two PE32+ GUI programs launched through `moos-run-foreign`, the double-click path, and appeared on the 4K Arabic desktop — Notepad (`غير معنون - المفكرة`) and Minesweeper (`الألغام`) — both wearing **MoOS's own Aurorae decoration** and both listed in the **MoOS Bar** beside native apps. Resolver: `برامج ويندوز, ready=true, chosen=wine, needs_setup=false`, no download. **Linux:** `moos-storectl install com.github.tchx84.Flatseal` → real job `state=success`, launcher entry `فلاتسيل`, ran in Arabic RTL, then `moos-storectl remove` → gone cleanly. Install, launch and remove all through Mo Store, never `flatpak` directly, which is what P4.1 claimed on paper. **Android — and it had NEVER worked.** `moai-do setup-waydroid` called `waydroid init -s VANILLA` with no OTA channels. waydroid composes its URL as `<channel>/<rom>/waydroid_<arch>/<type>.json` and falls back to a channels config that neither MoOS nor Fedora's package ships, so it stopped every time with "You must provide 'System OTA' and 'Vendor OTA' URLs" — before downloading a byte. Every existing gate read the source, where each half was correct. Passing the channels explicitly fixed it: **2.3 GB downloaded** (system.img 1.7 G, vendor.img 536 M), container `RUNNING` on 192.168.240.112, a real 11.9 MB APK installed through `moos-storectl install-file` (`state=success`), and **F-Droid opened on the MoOS desktop** with its own icon in the MoOS Bar. `tests/test_android_setup_channels.py` holds it and is proven to fail when the channels are removed. Frames in `test-results/a1-live/`. | Met. What remains is not A1: a second machine; PE32 (32-bit Windows), which SELinux blocks with an `execmod` denial mapping the i386 DLL from composefs; and **the Android caption**, re-measured on the station 2026-09-20 (`test-results/android-caption-seam.png`). A Windows program wears MoOS's Aurorae frame, but an Android app does not: in `multi_windows` mode the LineageOS freeform caption — back chevron, minimize, maximize, close — is drawn by SystemUI INSIDE the Android surface, so it arrives as client-side decoration and KWin never gets to frame it. No host-side property turns it off; `persist.waydroid.multi_windows` is the only `persist.waydroid.*` key the shipped tooling knows. Forcing a server-side frame would give the window two title bars, which is worse than one honest seam, so nothing was forced. The real fix is a patched Android image with the caption suppressed, which is a ROM build and belongs in its own cycle — written down here rather than quietly carried. |
-| A2 | Installed foreign apps appear in the launcher like any other app | After an install, write a `.desktop` into `~/.local/share/applications/` that launches through the engine, with a MoOS icon and the app's real name. Today a Windows or Android app leaves nothing behind in the menu, so it is not an app — it is a file you have to find again | Install, log out, log in, launch from the menu. Remove takes the entry with it. No entry names a runtime |
-| A3 | Mo Store carries Android and Windows apps beside Linux ones | **First boundary closed:** a local APK's actual install mutation is now inside `moos-storectl`, under the same job/lock and fixed argv. Still add catalogued `android` and `windows` adapters through the registry, lawfully redistributable entries, stable app IDs and symmetric remove/retry. | A catalogue install of each kind, cancel mid-flight, remove, and reinstall. The Island shows one job, and its text names the app, never the engine |
+| A2 | Installed foreign apps appear in the launcher like any other app | **Android half works:** the container exports a launcher with the app's real name/icon, and removal takes it away; VLC and Organic Maps are present on the station. **Windows half remains:** App Drop runs the selected file but does not yet create a per-app environment, launcher/icon or uninstall record. Build that product instead of exporting the runtime's generic tools. | Install, log out, log in, launch from the menu. Remove takes the entry with it. No entry names a runtime |
+| A3 | Mo Store carries Android and Windows apps beside Linux ones | **Android catalogue adapter is source-complete and live-proven:** pinned publisher URL + SHA-256, one Store job/lock, session readiness, install/run/remove/reinstall, and ordinary Store buttons. Seven Android apps are catalogued. The Windows row currently contains five verified publisher destinations; it is discovery, not a managed install adapter. Next: per-app Windows environments with stable IDs and symmetric remove/retry; keep downloads explicit until that exists. | Android: cancel mid-download plus installed-image remove/reinstall proof. Windows: managed install/run/remove for a published test app. The Island shows one job and names the app, never the engine |
 | A4 | Drop anything into MoOS and it installs | App Drop resolves through the same registry instead of its own list, so a dropped `.exe`, `.apk`, AppImage or archive takes the identical path as a catalogue install — consent, one job, a menu entry at the end | Drop one of each. Refused types still say why. A cancelled consent leaves nothing behind |
 | A5 | A MoOS API third parties can build against | The resolver is the first piece and it is a private CLI. Promote the app surface to a documented, versioned D-Bus interface — `org.moos.Apps1` over the registry and `moos-storectl`'s existing job model — so "what can this machine run, and install this for me" is answerable without shelling out to private commands. See the stack-depth audit: this is the single largest thing standing between MoOS and being an operating system rather than a very good desktop | An interface XML in `/usr/share/dbus-1/interfaces/`, introspectable, with a version; one first-party caller migrated onto it; the CLI kept as a thin client of the same interface |
 
@@ -685,7 +721,7 @@ revision and all required editions/artifacts prove that revision.
 | P0.3 | Open | Finish physical NVIDIA qualification | Plymouth/login photos; two suspend cycles; audio/network recovery; second monitor; clean journal |
 | P0.4 | Open | Prove failed-update recovery | disposable VM bad-candidate rollback, then hardware rollback/roll-forward with user data intact |
 | P0.5 | Open | Configure and accept free Mo AI on a clean account | valid OpenRouter key entered through Settings; Arabic/English reply; reboot persistence; provider failure UI |
-| P0.6 | **Release mechanism proven; corrective promotion required** | Promote only proven digests and update the physical PC | Revision `fbf393f4` passed signed x86 build `35461545885`, three disk proofs, ISO and promotion `35465072636`; ARM reached the same revision. A real KDialog test then exposed its consent default defect after production tags moved. The station still runs the prior signed deployment, but its timer staged the affected one for the next boot: do not reboot. Promote the corrective exact revision through the same proofs, replace the staged deployment, then reboot/read back. Current versions are in `PROJECT_STATE.md` |
+| P0.6 | **Release mechanism proven; next corrective promotion required** | Promote only proven digests and update the physical PC | Revision `499505c9` / `.907` passed signed x86 build, three disk proofs, ISO, ARM UEFI/QCOW2 and both promotions; exact run IDs are in `PROJECT_STATE.md`, and the station now boots that signed `.907` deployment. The active slice closes Store/menu/scale defects. Its update audit also found that the UI offered Restart for any staged deployment without resolving production, and that the backend compared a replacement only with booted—not staged—version. Source now has an explicit `replace-staged` state, compares both deployments again after Polkit, refuses same-version/different-digest, and suppresses restart until the staged digest is confirmed current. Promote this exact corrective revision through the same proof set, stage it, then reboot/read back. |
 | P0.7 | Open — **mechanism identified 2026-09-19** | Remove the intermittent `plymouthd` crash (ARM second boot; x86 first boot) | SEGV in `on_new_frame` failed ARM runs on 2026-09-15 and `35150466421`; on 2026-09-18 it core-dumped `plymouth-start.service` on the FIRST boot of cycle D's generic x86 QCOW2 (`35289168012`) while the same candidate's NVIDIA, cloud and ISO boots were clean — one x86 proof in about twelve so far. A lone proof lost to it is dispatched again (`RELEASE.md`), which costs a release cycle an hour each time. The theme is a Plymouth SCRIPT theme kept on screen through the KWin hand-off (`plymouth-quit.service.d/10-moos-retain-splash.conf`); **THE STACK EXISTS NOW — captured on the station 2026-09-19 23:02, the first boot of `44.20260919.899`.** It is not a random boot crash. It is a use-after-free in the QUIT path, and the timeline is millisecond-exact:
 
     23:02:27.271168  plymouth-quit.service starts (Terminate Plymouth Boot Screen)
@@ -912,7 +948,10 @@ resolve`/`stage --expected-digest` are the only verbs. Two constraints are fixed
 design: `moos-open` is reachable by any web page, so an update route may never carry a digest
 or a version — it reads the published record and the backend revalidates after Polkit; and
 "Restart now" stays a button in a window, never an action on a notification
-(`moos-update-ready`). What's new (W6.3) is the first page of that front door: an in-app page
+(`moos-update-ready`). A staged deployment is not itself permission to show either surface:
+the authority first resolves production against both booted and staged versions, offers
+`replace-staged` only for a strictly newer correction, and fails closed when one version label
+names different bytes. What's new (W6.3) is the first page of that front door: an in-app page
 of Settings, a `settings/…` route in `moos-open`, and a status-document field, with the GTK
 launcher untouched.
 

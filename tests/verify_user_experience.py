@@ -458,12 +458,25 @@ require('"Add this section"' in store_qml
         and "function addMany(ids)" in store_qml
         and "win.addMany(ids)" in store_qml,
         "Mo Store must offer a per-section 'Add all' that carts the whole category")
+# The card must still tell a person where an app comes from before they install
+# it — but on 2026-09-20 the owner named F-Droid beside KWin and Wayland as
+# machinery he must never see, and a distribution CHANNEL is machinery. The
+# publisher is not: it is the party being trusted, and the card prints it on its
+# own line. So the badge now says "Verified" for the default channel, still
+# names any OTHER origin (an unusual source is the one worth reading), and the
+# gate checks the promise — that the resolved source reaches the card — rather
+# than the brand it used to spell.
 require("function sourceLabel(app)" in store_qml
         and 'install.kind === "npm"' in store_qml
         and 'install.kind === "web"' in store_qml
-        and '"Flathub"' in store_qml
+        and '"Verified"' in store_qml
+        and 'app.origin !== "flathub"' in store_qml
         and "SourceBadge { app: card.app }" in store_qml,
         "Mo Store cards must show each app's resolved source")
+_badge_fn = store_qml.split("function sourceLabel(app)", 1)[-1].split("\n    }", 1)[0]
+require('"Flathub"' not in _badge_fn,
+        "the badge on every card must not print the distribution channel's brand; "
+        "the publisher is already on the card, and the channel is machinery")
 require("property var installedOverrides" in store_qml
         and "property var installedScopeOverrides" in store_qml
         and "function applyJobInstalledState(document)" in store_qml

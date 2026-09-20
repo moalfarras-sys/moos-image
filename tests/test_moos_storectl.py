@@ -209,6 +209,13 @@ class StoreTestCase(unittest.TestCase):
 
 
 class ValidationTests(StoreTestCase):
+    def test_a_successful_silent_command_has_no_invented_failure_reason(self):
+        result = MODULE.CommandRunner().run_cancellable(
+            ["/bin/true"], lambda: False
+        )
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.reason, "")
+
     def test_reverse_dns_validation_is_strict_and_compatible(self):
         valid = (
             "org.mozilla.firefox",

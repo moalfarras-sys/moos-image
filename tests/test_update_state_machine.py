@@ -4,7 +4,7 @@
 WHY THIS EXISTS
 
 `moos-image-update` has always owned the only validated update vocabulary
-(current/available/staged/blocked-downgrade/busy/unknown), but it spoke that vocabulary to stdout
+(current/available/replace-staged/staged/blocked-downgrade/busy/unknown), but it spoke that vocabulary to stdout
 only. The Updater window, `moai-do update` and the automatic timer each ran their own query, and
 nothing reached the journal — so "what is my machine doing about updates?" had three answers and no
 record. P1.5 requires one state machine that the UI and the journal read from the same source.

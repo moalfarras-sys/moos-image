@@ -504,6 +504,68 @@ class TheEngineNeverSaysItsName(unittest.TestCase):
                         "build.sh points the folder at an icon the image does not ship, "
                         "which would leave the folder blank instead of branded")
 
+    def test_the_app_menu_carries_no_other_desktop_name(self):
+        """A second settings app, and four foreign names, in the owner's menu.
+
+        build.sh already had a section for this -- it hid the distribution's
+        debug tools and Fedora's DUPLICATE settings launcher,
+        `kdesystemsettings.desktop`. It left `systemsettings.desktop`, the real
+        one, visible. So the menu offered "MoOS Settings" and "System Settings"
+        side by side: two settings applications, which is the one thing the
+        owner said he did not want, and the gate under that section only ever
+        checked the duplicate. Beside it sat "Dolphin", "KDE Connect", "KDE
+        Partition Manager" and "Info Center", in Arabic too.
+
+        Hiding all five would be wrong -- a person needs a file manager and a
+        disk tool, and MoOS Settings ROUTES its hardware panels into
+        systemsettings and kinfocenter deliberately. So each is given MoOS's
+        name and icon, and only the two that are reached exclusively through
+        MoOS Settings also leave the menu. This checks both halves are still
+        in build.sh, in both languages, since deleting either silently returns
+        another desktop's name to the menu.
+        """
+        build = BUILD.read_text(encoding="utf-8")
+        self.assertIn("moos_rebrand_entry()", build,
+                      "the helper that puts MoOS's name on a kept entry is gone")
+        self.assertIn('line.startswith("GenericName=")', build,
+                      "the base launcher's secondary name can leak another desktop's "
+                      "identity even after Name= was rewritten")
+        for entry, english in (
+            ("org.kde.dolphin.desktop", '"Files"'),
+            ("org.kde.kdeconnect.app.desktop", '"Phone"'),
+            ("org.kde.partitionmanager.desktop", '"Disks"'),
+            ("systemsettings.desktop", '"MoOS Settings"'),
+            ("org.kde.kinfocenter.desktop", '"System Report"'),
+            ("nvidia-settings.desktop", '"Graphics Card"'),
+        ):
+            line = next((l for l in build.splitlines()
+                         if l.startswith("moos_rebrand_entry") and entry in l), "")
+            self.assertTrue(line, f"{entry} is no longer rebranded")
+            self.assertIn(english, line,
+                          f"{entry} must carry MoOS's English name")
+            self.assertIn("moos-", line,
+                          f"{entry} must carry a MoOS icon, not the vendor's")
+        # The two that are only ever reached THROUGH MoOS Settings leave the menu.
+        for entry in ("systemsettings.desktop", "org.kde.kinfocenter.desktop",
+                      "nvidia-settings.desktop"):
+            line = next((l for l in build.splitlines()
+                         if l.startswith("moos_rebrand_entry") and entry in l), "")
+            self.assertTrue(line.rstrip().endswith("hide"),
+                            f"{entry} must be hidden: MoOS Settings is the one settings app")
+        for entry in ("org.kde.dolphin.desktop", "org.kde.partitionmanager.desktop"):
+            line = next((l for l in build.splitlines()
+                         if l.startswith("moos_rebrand_entry") and entry in l), "")
+            self.assertTrue(line.rstrip().endswith("show"),
+                            f"{entry} is a tool a person needs; renaming it is the fix, "
+                            f"not removing it from the menu")
+        self.assertIn(
+            "GATE FAIL: $_f is still in the menu — MoOS Settings is the one settings app",
+            build,
+            "the build must FAIL on a second settings app, not warn about it")
+        self.assertIn(
+            "GATE FAIL: $_f still wears another desktop's name in the menu", build,
+            "the build must fail if a rebrand did not take")
+
     def test_the_runner_does_not_hint_a_terminal_command_at_the_owner(self):
         """"try: waydroid app install …" is the engine's name AND its CLI."""
         source = RUNNER.read_text(encoding="utf-8")
@@ -615,6 +677,66 @@ class TheImageAndTheRunnerAgree(unittest.TestCase):
         self.assertIn('--wine-run', source)
         self.assertIn('windows-last.log', source,
                       "a detached Windows failure must leave evidence instead of stderr=/dev/null")
+
+    def test_windows_programs_follow_the_moos_display_density(self):
+        """A sharp 96-DPI Win32 dialog is still unusable on the 4K desktop."""
+        source = RUNNER.read_text(encoding="utf-8")
+        self.assertIn("wine_prepare_display", source)
+        self.assertIn('Xft.dpi:', source,
+                      "the runner no longer reads the density of the active MoOS desktop")
+        self.assertIn('if (dpi < 96) dpi = 96', source)
+        self.assertIn('if (dpi > 192) dpi = 192', source,
+                      "fixed legacy dialogs can grow off-screen without the 200% ceiling")
+        self.assertIn("/v LogPixels", source)
+        self.assertLess(source.index('wine_prepare_display "$prefix" "$state_dir"'),
+                        source.index('wine "$target" >"$log"'),
+                        "the density is applied after the program has already started")
+
+    def test_windows_density_is_clamped_and_not_rewritten_every_launch(self):
+        source = RUNNER.read_text(encoding="utf-8")
+        start = source.index("wine_display_dpi() {")
+        functions = source[start:source.index("\n# A yes/no", start)]
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            bindir = root / "bin"
+            prefix = root / "prefix"
+            state = root / "state"
+            bindir.mkdir()
+            prefix.mkdir()
+            state.mkdir()
+            (bindir / "xrdb").write_text(
+                '#!/bin/sh\nprintf "Xft.dpi:\\t%s\\n" "$XFT_DPI"\n', encoding="utf-8")
+            (bindir / "wine").write_text(
+                '#!/bin/sh\nprintf "%s\\n" "$*" >>"$WINE_CALLS"\n'
+                'touch "$WINEPREFIX/user.reg"\n', encoding="utf-8")
+            for command in (bindir / "xrdb", bindir / "wine"):
+                command.chmod(0o755)
+            harness = root / "dpi.sh"
+            harness.write_text(
+                "#!/bin/bash\nset -uo pipefail\n" + functions
+                + f'\nwine_prepare_display "{prefix}" "{state}"\n', encoding="utf-8")
+            harness.chmod(0o755)
+            calls = root / "calls"
+            env = {**os.environ, "PATH": f"{bindir}:/usr/bin:/bin",
+                   "WINE_CALLS": str(calls), "XFT_DPI": "254"}
+
+            subprocess.run([str(harness)], env=env, check=True)
+            subprocess.run([str(harness)], env=env, check=True)
+            self.assertEqual((state / "windows-dpi").read_text().strip(), "192")
+            self.assertEqual(len(calls.read_text().splitlines()), 1,
+                             "unchanged density rewrote the prefix on every launch")
+
+            env["XFT_DPI"] = "72"
+            subprocess.run([str(harness)], env=env, check=True)
+            self.assertEqual((state / "windows-dpi").read_text().strip(), "96")
+            self.assertEqual(len(calls.read_text().splitlines()), 2)
+            self.assertTrue(calls.read_text().splitlines()[0].endswith("/d 192 /f"))
+            self.assertTrue(calls.read_text().splitlines()[1].endswith("/d 96 /f"))
+
+    def test_opening_a_windows_program_emits_one_status_popup(self):
+        source = RUNNER.read_text(encoding="utf-8")
+        self.assertEqual(source.count('notify "يشغّل $ar | opening $en"'), 2,
+                         "there must be one popup in each Windows runtime route")
 
 
 @unittest.skipIf(not os.access("/usr/bin/python3", os.X_OK), "no python3")

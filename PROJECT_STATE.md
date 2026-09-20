@@ -1,6 +1,5 @@
 # MoOS current state
-
-Current measured facts only; Git owns history. Last measured 2026-09-19 after owner reboot.
+Current measured facts only; Git owns history. Last measured 2026-09-20 on the running station.
 
 **This block is the only place in the repository that states a version number.** The plan,
 the README and every wave row point here instead of repeating it. Four parallel copies of
@@ -13,6 +12,11 @@ the README and every wave row point here instead of repeating it. Four parallel 
   **`44.20260919.515`**, all revision **`fbf393f4`**. Its cycle: signed build
   `35461545885`, QCOW2 `35462838874`/`35462840914`/`35462843175`, ISO `35462844969`,
   promotion `35465072636` — every x86 proof green before the tag moved.
+- **A newer x86 release is promoted but not installed here:** revision `499505c9`, version
+  **`44.20260920.907`**, NVIDIA digest `sha256:f567580556a350f3aa277b031d93e4563fa76e78af29e7afceb5b24d2fef1a10`.
+  Signed build `35479867565`, three QCOW2 proofs `35480961033` / `35480962566` /
+  `35480963776`, ISO `35480965148`, and promotion `35482705257` are green. The ARM image,
+  UEFI/QCOW2 proof and production promotion also completed green in run `35480966522`.
 - **The station rebooted onto it at 23:02** (readback: booted digest `57a64063…` =
   `44.20260919.899`, `44.20260919.894` retained for rollback, `THEME_REV` **75** applied
   on bar and shell). An earlier note here said "do not reboot" because a corrective fix
@@ -23,14 +27,22 @@ the README and every wave row point here instead of repeating it. Four parallel 
   capability row. It does NOT carry the App Drop consent fix: the running
   `/usr/bin/moos-app-drop` still calls `kdialog --warningcontinuecancel`, whose focused
   button is Continue, so **Enter accepts a consent prompt** for running a downloaded
-  file. `main` (`460bfee1`, PR #143) puts Cancel on the focused button and accepts only
-  the secondary action, so Enter and Escape both fail closed. **That fix is unreleased.**
+  file. `main` (`499505c9`) puts Cancel on the focused button and accepts only
+  the secondary action, so Enter and Escape both fail closed. **That fix is in promoted
+  `.907`, but it is not on the running station until an update and reboot.**
 - **One failed unit after this boot: `plymouth-start.service` (P0.7).** For the first
   time the stack was captured — a use-after-free in the QUIT path, 13 ms after
   `plymouth-quit` reports success, in `on_new_frame` → `ply_list_node_get_data`. Rate on
   this journal: 1 crash in 26 boots. Mechanism and next step are in the plan's P0.7 row.
-- `main` is `460bfee1`, ahead of the released `fbf393f4`. Merging source never updates
-  this machine.
+- `main` is `499505c9` and is the promoted `.907` source. The active review branch is
+  `feat/store-real-popular-apps-20260920` (based on `b0930a45` plus the current sizing
+  and image-gate corrections). Compact fixed-geometry Context Island integration is on `main`;
+  both older Island branches are ancestors. This branch adds Android/Windows catalogue entries,
+  removes the second storefront, and fixes duplicate/foreign launchers. Its first x86 gate exposed an
+  untranslated `GenericName=System Settings`; the helper now removes that secondary name
+  family and a full local image build passed as `2028144f5724` (all experience, identity,
+  initramfs, clean-state and bootc gates). Merging source or moving a registry tag never
+  updates this machine.
 - `main` is the only long-lived branch; every merged topic branch is deleted.
 - A merged commit or locally built image is not an installed or released state.
   Production moves only after the exact candidate passes 3×QCOW2 + ISO; ARM is
@@ -38,11 +50,10 @@ the README and every wave row point here instead of repeating it. Four parallel 
 
 ## App engines — what this machine can actually run
 
-Measured 2026-09-19: `wine` **installed** (`build.sh` `_core_power`, every desktop
-edition), `waydroid` **installed but not initialized** (~1 GB image never fetched),
-`flatpak` from the base. A `.exe` resolves as `chosen=wine, ready=true,
-needs_setup=false` — no download needed, which is what `build.sh` intended and what the
-runner did not know until now; an `.apk` resolves as `needs_setup=true`.
+`wine` is installed by the image on every desktop edition, the Android environment is now
+initialized and running, and Linux applications use the image's application service. A
+`.exe` resolves as `chosen=wine, ready=true, needs_setup=false`; an `.apk` installs only
+through App Drop → `moos-storectl`, with the same job and lock as catalogue installs.
 
 **All three app engines run here (2026-09-20, on `.899`).** **Windows:** Notepad and
 Minesweeper launched through `moos-run-foreign` — the double-click path — appeared wearing
@@ -53,8 +64,14 @@ called `waydroid init` without the mandatory OTA channels, which neither MoOS no
 package supplies a config for, so it failed every time before downloading a byte — every
 gate read the source, where each half looked right. Passing the channels fixed it: **2.3 GB
 downloaded**, container `RUNNING`, a real APK installed via `moos-storectl install-file`,
-and **F-Droid opened on the desktop** with its icon in the MoOS Bar. Frames in
-`test-results/a1-live/`. PE32 (32-bit) still fails although the new-WoW64 payload is
+and **F-Droid opened on the desktop** with its icon in the MoOS Bar. Since then, publisher
+APK builds of VLC and Organic Maps were digest-checked and installed; VLC was installed,
+launched and removed through the source Store adapter, and its real resizable window is
+recorded in `test-results/android-vlc-source-live.png`. PuTTY PE32+ ran through the MoOS
+file route with the MoOS decoration. The active source now derives the Windows UI density
+from the live desktop (96–192 DPI); on this 4K station PuTTY grew from 178×331 to 348×591
+logical pixels with its controls genuinely scaled, not an empty stretched frame. PE32
+(32-bit) still fails although the new-WoW64 payload is
 complete; the audit log gives the cause — SELinux denies `execmod` while mapping the i386
 PE DLL from composefs (`kernel_t` → `lib_t`). The earlier "missing i686, add ~1 GiB"
 diagnosis was wrong. Do not weaken SELinux globally.
@@ -172,9 +189,10 @@ off` stops and un-autostarts both sharing services with no administrator rights.
 
 ## Next execution
 
-Review and merge the corrective source as one slice, then use
-`scripts/release-candidate.sh --promote` once. Its 204 source gates, isolated KDialog
-runtime proof and full local generic image build are green. Promotion
+Review and merge the corrective source as one slice, then use `scripts/release-candidate.sh
+--promote` once. Its 205 source gates, isolated KDialog runtime proof and full generic image
+`2028144f5724` are green, including staged-update supersession, identity, initramfs and
+clean-state gates. Promotion
 requires the signed build, three QCOW2 boots and ISO installed-system proof for the exact
 revision; ARM remains separate evidence. Only then stage the signed NVIDIA digest on
 this station, reboot, and read back version, signature origin, theme revision, failed

@@ -633,7 +633,14 @@ class CommandRunner:
             errors.seek(0, os.SEEK_END)
             length = errors.tell()
             errors.seek(max(0, length - 4096))
-            reason = clean_message(errors.read().decode("utf-8", "replace"))
+            raw_reason = errors.read().decode("utf-8", "replace")
+            # Empty stderr is the ordinary success case. clean_message() has a
+            # user-facing fallback ("Operation failed") for exception paths;
+            # feeding an empty stream through it fabricated that failure text.
+            # Android CLIs sometimes also return zero after logging a real error,
+            # so callers inspect non-empty stderr -- they must be able to tell it
+            # apart from silence.
+            reason = clean_message(raw_reason) if raw_reason.strip() else ""
             return CommandResult(process.returncode or 0, reason, cancelled)
 
 

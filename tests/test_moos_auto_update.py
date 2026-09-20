@@ -62,6 +62,7 @@ def run_automatic(
     registry_version: str | list[str] = "44.20260907.2",
     transaction: str | list[str] | None = None,
     staged_ref: str = "",
+    staged_version: str = "44.20260906.1",
     booted_version: str = "44.20260829.1",
     status_payload: str | None = None,
     status_failure: bool = False,
@@ -74,7 +75,7 @@ def run_automatic(
         deployments.append({
             "booted": False,
             "staged": True,
-            "version": "44.20260906.1",
+            "version": staged_version,
             "container-image-reference": staged_ref,
         })
     booted_deployment = {
@@ -236,6 +237,33 @@ check(rc == 0 and rebases == [
     (UPDATE.RPM_OSTREE, "rebase", signed("moos-cloud", NEWEST))
 ], f"the newer candidate must replace an older staged image: {err} {rebases!r}")
 
+# The inverse is more important: production can move backwards after a failed
+# promotion. A candidate newer than BOOTED but older than STAGED must not replace
+# the staged deployment and turn Restart into a silent downgrade.
+rc, rebases, out, err = run_automatic(
+    booted_ref=signed("moos-cloud", OLD),
+    booted_version="44.20260901.1",
+    staged_ref=signed("moos-cloud", NEWEST),
+    staged_version="44.20260910.3",
+    registry=NEW,
+    registry_version="44.20260908.2",
+)
+check(rc == 0 and not rebases and "refusing downgrade" in out,
+      "production older than the staged deployment must not supersede it; "
+      f"got rc={rc}, rebases={rebases!r}, out={out!r}, err={err!r}")
+
+# A version label is immutable. The same release version resolving to different
+# bytes is a security/release error, not an update.
+rc, rebases, _out, err = run_automatic(
+    booted_ref=signed("moos", OLD),
+    staged_ref=signed("moos", NEW),
+    staged_version="44.20260910.3",
+    registry=NEWEST,
+    registry_version="44.20260910.3",
+)
+check(rc == 5 and not rebases and "same release version" in err,
+      "same-version/different-digest must fail closed")
+
 # TOCTOU regression: if :latest moves after confirmation, do not silently stage it.
 rc, rebases, _out, err = run_automatic(
     booted_ref=signed("moos", OLD), registry=[NEW, NEWEST])
@@ -342,7 +370,8 @@ check(
 )
 
 
-def run_notifier(*, staged_version: str, already_told: str = "") -> tuple[str, str]:
+def run_notifier(*, staged_version: str, already_told: str = "",
+                 resolved_state: str = "staged") -> tuple[str, str]:
     """Run the staged-update notifier against command doubles."""
     with tempfile.TemporaryDirectory() as tmp:
         home = Path(tmp)
@@ -353,17 +382,15 @@ def run_notifier(*, staged_version: str, already_told: str = "") -> tuple[str, s
         state_dir.mkdir(parents=True)
         if already_told:
             (state_dir / "update-ready").write_text(already_told, encoding="utf-8")
-        staged = f'"staged":true,"version":"{staged_version}"' if staged_version \
-            else '"staged":false,"version":"44.1"'
-        (bindir / "rpm-ostree").write_text(
+        backend = bindir / "moos-image-update"
+        backend.write_text(
             "#!/bin/sh\n"
-            f"printf '%s\\n' '{{\"deployments\":[{{\"booted\":true,\"staged\":false," \
-            f"\"version\":\"44.0\"}},{{{staged}}}]}}'\n",
-            encoding="utf-8",
-        )
+            f"printf '%s\\n' '{{\"schema\":1,\"state\":\"{resolved_state}\"," \
+            f"\"staged_version\":\"{staged_version}\"}}'\n",
+            encoding="utf-8")
         (bindir / "notify-send").write_text(
             f'#!/bin/sh\nprintf "%s\\n" "$@" > "{sent}"\n', encoding="utf-8")
-        for tool in ("rpm-ostree", "notify-send"):
+        for tool in ("moos-image-update", "notify-send"):
             (bindir / tool).chmod(0o755)
         subprocess.run(
             [BASH, str(NOTIFIER)],
@@ -372,6 +399,7 @@ def run_notifier(*, staged_version: str, already_told: str = "") -> tuple[str, s
                 "HOME": str(home),
                 "XDG_STATE_HOME": str(home / "state"),
                 "LANG": "en_US.UTF-8",
+                "MOOS_IMAGE_UPDATE_BACKEND": str(backend),
             },
             capture_output=True,
             text=True,
@@ -399,6 +427,9 @@ if Path("/ostree/deploy").is_dir():
     check(told == "", "the same staged version must not be announced twice")
     told, _ = run_notifier(staged_version="")
     check(told == "", "no staged deployment means no notification")
+    told, _ = run_notifier(
+        staged_version="44.20260804.9", resolved_state="replace-staged")
+    check(told == "", "a superseded staged deployment must never invite a restart")
 
 if errors:
     print("MoOS image-update test failed:", file=sys.stderr)

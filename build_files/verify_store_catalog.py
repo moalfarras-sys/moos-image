@@ -66,6 +66,18 @@ WEB_PAGE_ALLOWLIST = {
     "www.7-zip.org": frozenset({"/download.html"}),
     "notepad-plus-plus.org": frozenset({"/downloads/"}),
     "www.irfanview.com": frozenset({"/"}),
+    # Windows-only utilities, added 2026-09-20. Each is listed because a MoOS
+    # user genuinely cannot reach it another way: where a good native app
+    # already exists (a player, a browser, an office suite) the Windows build
+    # belongs nowhere in this catalogue, because pointing someone at an
+    # emulated copy of software they could run natively is a worse system, not
+    # a wider one. Every path was fetched and answered 200 on the day it was
+    # added; the exactness is the point.
+    "www.chiark.greenend.org.uk": frozenset({"/~sgtatham/putty/latest.html"}),
+    "winscp.net": frozenset({"/eng/downloads.php"}),
+    "www.sumatrapdfreader.org": frozenset({"/download-free-pdf-viewer"}),
+    "www.getpaint.net": frozenset({"/download.html"}),
+    "www.voidtools.com": frozenset({"/downloads/"}),
 }
 DIRECT_DOWNLOAD_SUFFIXES = (
     ".appimage", ".deb", ".rpm", ".exe", ".msi", ".dmg", ".pkg",

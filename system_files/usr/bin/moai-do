@@ -193,6 +193,9 @@ do_update() {
             echo "${D}انتظر ترقية أحدث موقّعة؛ لم يتغير النظام | wait for a newer signed release; nothing changed${N}"
             return 0
             ;;
+        replace-staged)
+            echo "${Y}يوجد إصدار تصحيحي أحدث وسيستبدل التحديث المُجهَّز | a newer corrective release will replace the staged update${N}"
+            ;;
         available) ;;
         *)
             echo "${R}حالة تحديث غير صالحة | invalid update state${N}" >&2
