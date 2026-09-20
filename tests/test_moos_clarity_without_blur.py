@@ -38,12 +38,14 @@ QtObject {
         category: "Probe"
         property bool ran: false
         property bool blurActive: false
+        property real glassClarity: 0
         property real sceneFill: 0
         property real popoverFill: 0
         property real floatingFill: 0
     }
     Component.onCompleted: {
         sink.blurActive = MoUI.Tokens.blurActive
+        sink.glassClarity = MoUI.Tokens.glassClarity
         sink.sceneFill = MoUI.Tokens.glassFill(dark, MoUI.Tokens.glassLevelScene,
                                                MoUI.Tokens.glassRestingOpacity)
         sink.popoverFill = MoUI.Tokens.glassFill(dark, MoUI.Tokens.glassLevelPopover,
@@ -75,7 +77,7 @@ def layer(value) -> str | None:
     return f"[Plugins]\nblurEnabled={value}\n"
 
 
-def measure(blur, system_blur=None) -> dict:
+def measure(blur, system_blur=None, clarity=None) -> dict:
     """Run the real engine against a config that says blur is on or off."""
     with tempfile.TemporaryDirectory() as raw:
         work = Path(raw)
@@ -89,6 +91,11 @@ def measure(blur, system_blur=None) -> dict:
             if text is not None:
                 (directory / "kwinrc").write_text(text, encoding="utf-8")
                 written[directory / "kwinrc"] = text
+        if clarity is not None:
+            appearance = config / "moos-appearancerc"
+            appearance.write_text(
+                f"[Material]\nClarity={clarity}\n", encoding="utf-8")
+            written[appearance] = appearance.read_text(encoding="utf-8")
         out = work / "probe.ini"
         probe = work / "probe.qml"
         probe.write_text(PROBE % {"out": out}, encoding="utf-8")
@@ -180,6 +187,18 @@ class ClarityWithoutBlur(unittest.TestCase):
         self.assertAlmostEqual(float(self.with_blur["popoverFill"]), 0.22, places=3)
         self.assertAlmostEqual(float(self.with_blur["floatingFill"]), 0.82, places=3)
 
+    def test_saved_clarity_has_three_measured_material_endpoints(self):
+        clear = measure(True, clarity="clear")
+        balanced = measure(True, clarity="balanced")
+        solid = measure(True, clarity="solid")
+        self.assertAlmostEqual(float(clear["glassClarity"]), 0.0, places=3)
+        self.assertAlmostEqual(float(balanced["glassClarity"]), 0.5, places=3)
+        self.assertAlmostEqual(float(solid["glassClarity"]), 1.0, places=3)
+        for row in ("sceneFill", "popoverFill", "floatingFill"):
+            self.assertLess(float(clear[row]), float(balanced[row]), row)
+            self.assertLessEqual(float(balanced[row]), float(solid[row]), row)
+            self.assertAlmostEqual(float(solid[row]), 0.97, places=3)
+
     def test_without_blur_a_surface_stops_being_a_window(self):
         """0.22 over a photograph is not glass; the text has to sit on something."""
         for row in ("sceneFill", "popoverFill", "floatingFill"):
@@ -187,10 +206,11 @@ class ClarityWithoutBlur(unittest.TestCase):
             self.assertGreaterEqual(value, 0.80,
                                     f"{row} is {value} without blur — still see-through")
             self.assertLessEqual(value, 1.0, f"{row} is {value}, above opaque")
-        # And depth still reads: a popover is denser than a scene card.
-        self.assertGreater(float(self.without_blur["popoverFill"]),
-                           float(self.without_blur["sceneFill"]),
-                           "without blur the four depths collapsed into one sheet")
+        # Reduced transparency is a policy, not a weak approximation: every
+        # surface reaches the same near-solid endpoint while its rim/specular
+        # still carry depth.
+        self.assertAlmostEqual(float(self.without_blur["sceneFill"]), 0.97, places=3)
+        self.assertAlmostEqual(float(self.without_blur["popoverFill"]), 0.97, places=3)
 
     def test_a_floating_surface_is_never_made_thinner(self):
         """glassFill may only ever ADD body, never remove it."""

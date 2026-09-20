@@ -330,10 +330,10 @@ class TheDesignReference(unittest.TestCase):
 
         A studio that assigns its own `fillOpacity` cannot produce both of these
         answers, because `Tokens.glassFill()` is the only thing that knows about
-        `blurActive`: with blur it returns the resting density at EVERY depth, and
-        without it, it adds body per depth. Measured on this station for
-        MoOSUI2AuroraLight: 0.220 at all four levels with blur,
-        0.800/0.845/0.890/0.935 without.
+        `blurActive`: with blur and the default Clear preference it returns the
+        resting density at EVERY depth. Without blur, the effective clarity is
+        pinned to the near-solid endpoint at every depth; the rim and specular
+        retain the hierarchy without spending readability on transparency.
         """
         frosted = self.levels(self.frosted)
         opaque = self.levels(self.opaque)
@@ -345,16 +345,12 @@ class TheDesignReference(unittest.TestCase):
                 fill, 0.22, places=3,
                 msg=f"with blur on, depth {depth} paints {fill}; glassFill() returns "
                     "the resting density — this surface is not going through it")
-        steps = [opaque[depth] for depth in sorted(opaque)]
-        self.assertEqual(steps, sorted(steps),
-                         f"without blur the four depths must get denser, not {steps}")
-        self.assertGreater(steps[-1], steps[0],
-                           "without blur the four depths collapsed into one sheet")
         for depth, fill in opaque.items():
-            self.assertGreater(
-                fill, frosted[depth] + 0.4,
-                f"depth {depth} barely changed when blur went away ({frosted[depth]} -> "
-                f"{fill}); the reference is not reading Tokens.blurActive")
+            self.assertAlmostEqual(
+                fill, 0.97, places=3,
+                msg=f"without blur depth {depth} paints {fill}, not the shared "
+                    "near-solid reduced-transparency endpoint")
+            self.assertGreater(fill, frosted[depth] + 0.7)
 
     def test_layout_direction_comes_from_the_shipped_locale_singleton(self) -> None:
         """A flag is not a locale.

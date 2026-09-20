@@ -44,7 +44,7 @@ class MaterialStateTests(unittest.TestCase):
         return self.jobs.pop(key)[1]()
 
     def test_startup_is_private_and_off(self):
-        self.assertEqual(self.names(), {"blur-off"})
+        self.assertEqual(self.names(), {"blur-off", "clarity-clear"})
         self.assertEqual(self.publisher.directory.stat().st_mode & 0o777, 0o700)
         self.assertEqual(self.probes, 0)
 
@@ -53,7 +53,7 @@ class MaterialStateTests(unittest.TestCase):
             self.state.changed()
         self.assertEqual(len(self.jobs), 1)
         self.assertFalse(self.tick())
-        self.assertEqual(self.names(), {"blur-on"})
+        self.assertEqual(self.names(), {"blur-on", "clarity-clear"})
         self.assertEqual(len(self.jobs), 1)
         self.assertFalse(self.tick())
         self.assertEqual(self.probes, 2)
@@ -62,20 +62,20 @@ class MaterialStateTests(unittest.TestCase):
     def test_event_immediately_invalidates_previous_on(self):
         self.publisher.publish(True)
         self.state.changed()
-        self.assertEqual(self.names(), {"blur-off"})
+        self.assertEqual(self.names(), {"blur-off", "clarity-clear"})
 
     def test_failure_unknown_and_false_are_off(self):
         for answer in (False, None, "true", 1, RuntimeError("bus lost")):
             self.answer = answer
             self.state.refresh(False)
-            self.assertEqual(self.names(), {"blur-off"})
+            self.assertEqual(self.names(), {"blur-off", "clarity-clear"})
 
     def test_reload_race_second_probe_corrects_result(self):
         self.state.changed()
         self.tick()
         self.answer = False
         self.tick()
-        self.assertEqual(self.names(), {"blur-off"})
+        self.assertEqual(self.names(), {"blur-off", "clarity-clear"})
 
     def test_close_removes_markers_and_cancels_events(self):
         self.state.changed()
@@ -99,6 +99,43 @@ class MaterialStateTests(unittest.TestCase):
         with self.assertRaises(OSError):
             self.publisher.publish(True)
         self.assertEqual(target.read_text(), "untouched")
+
+    def test_clarity_is_one_valid_marker_and_follows_events(self):
+        selected = "clear"
+        self.state.clarity_probe = lambda: selected
+        self.state.refresh(False)
+        self.assertEqual(self.names(), {"blur-on", "clarity-clear"})
+        selected = "solid"
+        self.state.changed()
+        self.tick()
+        self.assertEqual(self.names(), {"blur-on", "clarity-solid"})
+
+    def test_invalid_clarity_falls_back_to_clear(self):
+        self.state.clarity_probe = lambda: "transparent-ish"
+        self.state.refresh(False)
+        self.assertEqual(self.names(), {"blur-on", "clarity-clear"})
+
+    def test_xdg_clarity_reader_is_read_only_and_prioritised(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            user = root / "user"
+            system = root / "system"
+            user.mkdir()
+            system.mkdir()
+            (system / "moos-appearancerc").write_text(
+                "[Material]\nClarity=balanced\n", encoding="utf-8")
+            old = dict(os.environ)
+            try:
+                os.environ["XDG_CONFIG_HOME"] = str(user)
+                os.environ["XDG_CONFIG_DIRS"] = str(system)
+                self.assertEqual(module.read_clarity_preference(), "balanced")
+                self.assertFalse((user / "moos-appearancerc").exists())
+                (user / "moos-appearancerc").write_text(
+                    "[Material]\nClarity=solid\n", encoding="utf-8")
+                self.assertEqual(module.read_clarity_preference(), "solid")
+            finally:
+                os.environ.clear()
+                os.environ.update(old)
 
 
 if __name__ == "__main__":

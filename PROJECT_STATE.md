@@ -7,42 +7,26 @@ the README and every wave row point here instead of repeating it. Four parallel 
 
 ## Source and release truth
 
-- **`44.20260919.899` is released AND now running on this station.** Registry readback
-  2026-09-19: `moos`, `moos-nvidia`, `moos-cloud` = **`44.20260919.899`**, `moos-arm` =
-  **`44.20260919.515`**, all revision **`fbf393f4`**. Its cycle: signed build
-  `35461545885`, QCOW2 `35462838874`/`35462840914`/`35462843175`, ISO `35462844969`,
-  promotion `35465072636` — every x86 proof green before the tag moved.
-- **A newer x86 release is promoted but not installed here:** revision `499505c9`, version
-  **`44.20260920.907`**, NVIDIA digest `sha256:f567580556a350f3aa277b031d93e4563fa76e78af29e7afceb5b24d2fef1a10`.
-  Signed build `35479867565`, three QCOW2 proofs `35480961033` / `35480962566` /
-  `35480963776`, ISO `35480965148`, and promotion `35482705257` are green. The ARM image,
-  UEFI/QCOW2 proof and production promotion also completed green in run `35480966522`.
-- **The station rebooted onto it at 23:02** (readback: booted digest `57a64063…` =
-  `44.20260919.899`, `44.20260919.894` retained for rollback, `THEME_REV` **75** applied
-  on bar and shell). An earlier note here said "do not reboot" because a corrective fix
-  was pending; the reboot happened anyway, so the correction is now owed as a release
-  rather than as a hold.
-- **What `.899` therefore ships, and what it is missing.** It carries the live clarity
-  bridge, the lock-screen overlay gate, the app-engine registry and the Store's
-  capability row. It does NOT carry the App Drop consent fix: the running
-  `/usr/bin/moos-app-drop` still calls `kdialog --warningcontinuecancel`, whose focused
-  button is Continue, so **Enter accepts a consent prompt** for running a downloaded
-  file. `main` (`499505c9`) puts Cancel on the focused button and accepts only
-  the secondary action, so Enter and Escape both fail closed. **That fix is in promoted
-  `.907`, but it is not on the running station until an update and reboot.**
-- **One failed unit after this boot: `plymouth-start.service` (P0.7).** For the first
-  time the stack was captured — a use-after-free in the QUIT path, 13 ms after
-  `plymouth-quit` reports success, in `on_new_frame` → `ply_list_node_get_data`. Rate on
-  this journal: 1 crash in 26 boots. Mechanism and next step are in the plan's P0.7 row.
-- `main` is `499505c9` and is the promoted `.907` source. The active review branch is
-  `feat/store-real-popular-apps-20260920` (based on `b0930a45` plus the current sizing
-  and image-gate corrections). Compact fixed-geometry Context Island integration is on `main`;
-  both older Island branches are ancestors. This branch adds Android/Windows catalogue entries,
-  removes the second storefront, and fixes duplicate/foreign launchers. Its first x86 gate exposed an
-  untranslated `GenericName=System Settings`; the helper now removes that secondary name
-  family and a full local image build passed as `2028144f5724` (all experience, identity,
-  initramfs, clean-state and bootc gates). Merging source or moving a registry tag never
-  updates this machine.
+- **`44.20260920.912` is released and running on this station.** Booted origin is the
+  signed NVIDIA image at digest
+  `sha256:2802d58aed183f5fc94382b15a49f6f378d7bb453979623327809685166cca0c`;
+  `.907` is retained as rollback. The exact revision is `22b9725f`. Its complete proof
+  set is green: signed build `35521450125`, generic/NVIDIA/cloud QCOW2
+  `35522602100` / `35522604429` / `35522606800`, ISO `35522608956`, ARM
+  `35522610892`, and x86 promotion `35525068423`.
+- **Installed readback after reboot is clean:** `tests/post-update-check.sh` reports
+  55 passed / 0 failed, `moos-selfcheck` reports 53 passed plus the intentional tray
+  preference note, and both system and user failed-unit sets are empty. Installed
+  `THEME_REV` is **83**. Search was then exercised on the booted Arabic 4K/265% desktop:
+  its bar button opens the embedded MoOS Search rather than the launcher, keyboard input
+  `الملفات` returned apps/settings/recent-file rows, and the compact Island stayed fixed.
+- The previous App Drop default-accept defect and the staged-update replacement defect
+  are therefore no longer merely source fixes: both are in the signed image this machine
+  boots. P0.7 remains an intermittent risk with a captured historical mechanism, but this
+  boot has no Plymouth failure.
+- `main` and `origin/main` are `22b9725f`. Current work is isolated on
+  `feat/glass-clarity-control-20260920`; merging source still deploys nothing until a new
+  candidate completes the artifact proof and promotion path.
 - `main` is the only long-lived branch; every merged topic branch is deleted.
 - A merged commit or locally built image is not an installed or released state.
   Production moves only after the exact candidate passes 3×QCOW2 + ISO; ARM is
@@ -55,7 +39,8 @@ initialized and running, and Linux applications use the image's application serv
 `.exe` resolves as `chosen=wine, ready=true, needs_setup=false`; an `.apk` installs only
 through App Drop → `moos-storectl`, with the same job and lock as catalogue installs.
 
-**All three app engines run here (2026-09-20, on `.899`).** **Windows:** Notepad and
+**All three app engines run here (2026-09-20; evidence acquired before `.912`, whose
+source contains the same paths).** **Windows:** Notepad and
 Minesweeper launched through `moos-run-foreign` — the double-click path — appeared wearing
 **MoOS's own decoration** and listed in the **MoOS Bar**; resolver `ready=true,
 chosen=wine`, no download. **Linux:** install → launch → remove entirely through
@@ -87,16 +72,16 @@ diagnosis was wrong. Do not weaken SELinux globally.
 | Desktop | Plasma/KWin 6.7.5, Wayland, 3840×2160@60, scale 265% (1450×816 logical) |
 | Kernel | `7.2.5-200.fc44.x86_64` |
 | Network | Intel AX210 Wi-Fi/Bluetooth + RTL8125 Ethernet |
-| Health | **one** failed system unit (`plymouth-start`, P0.7); zero failed user units |
+| Health | zero failed system units; zero failed user units (P0.7 remains intermittent) |
 
-Measured after the 23:02 reboot onto `.899`: installed `THEME_REV` **75** (bar and
-shell), Global Theme `org.moos.ui2.amethyst`, visual tier **flagship**, motion `alive`,
+Measured after reboot onto the current signed image: installed `THEME_REV` **83**,
+Global Theme `org.moos.ui2.midnight`, visual tier **flagship**, motion `alive`,
 `kwinrc/Plugins/blurEnabled=true`, Arabic session (`ar_SA.UTF-8`). Source and desk are on
 the same revision for the first time since W9.6. Health checks do not qualify suspend,
 every app or all visual surfaces.
 
-**Speed and Mo AI, both measured on cycle H's `.890`** and NOT re-measured since (the
-booted image is now `.899`, two releases later). `moos-measure-speed` (P5.4): MoOS's share of boot **6.70 s**/9.0,
+**Speed and Mo AI, both measured on cycle H's `.890`** and NOT re-measured since.
+`moos-measure-speed` (P5.4): MoOS's share of boot **6.70 s**/9.0,
 login to a ready desktop **1.10 s**/3.0, an app's window **0.49 s**/4.0, MoOS's processes
 **0.12%** of CPU while idle/8.0 — all four inside budget. `moai-measure-actions` read
 **80/80** then **79/80** over two runs of 40 fixed Arabic/English cases, no wrong tool in
@@ -189,12 +174,8 @@ off` stops and un-autostarts both sharing services with no administrator rights.
 
 ## Next execution
 
-The slice is merged at `8fd0ba8a`; its NVIDIA compose caught vendor/X11 metadata in a hidden
-launcher. Image `ca8883f5c6b5` proves the scrub, 205 gates, six-module initramfs, QML/Island
-motion, 53-app Store, identity firewall and clean state. Merge it,
-then run `scripts/release-candidate.sh --promote` once. Promotion
-requires the signed build, three QCOW2 boots and ISO installed-system proof for the exact
-revision; ARM remains separate evidence. Only then stage the signed NVIDIA digest on
-this station, reboot, and read back version, signature origin, theme revision, failed
-units and the real double-click journeys. A1/A4 remain open until installed evidence.
-P0.7's intermittent Plymouth crash, P4.2–P4.5 and the visual/hardware matrix remain open.
+Finish and review the clarity-control slice, then batch it with the remaining M1 visual
+work before the next release cycle. The next signed candidate still owes the same build,
+three QCOW2, ISO and ARM evidence before promotion. P0.7's intermittent Plymouth crash,
+P4.2–P4.5, English/German session coverage, touch/laptop/multi-output hardware and the
+full accessibility/visual matrix remain open.

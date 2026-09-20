@@ -53,6 +53,8 @@ QtObject {
     function record() {
         const now = String(MoUI.Tokens.blurActive)
                   + " observed=" + String(MoUI.Tokens.materialObserved)
+                  + " clarity=" + String(MoUI.Tokens.clarityPreference)
+                  + " value=" + Number(MoUI.Tokens.glassClarity).toFixed(1)
         if (now === probe.last) return
         probe.last = now
         console.log("MATERIAL " + now)
@@ -61,6 +63,8 @@ QtObject {
         target: MoUI.Tokens
         function onBlurActiveChanged() { probe.record() }
         function onMaterialObservedChanged() { probe.record() }
+        function onClarityPreferenceChanged() { probe.record() }
+        function onGlassClarityChanged() { probe.record() }
     }
     Component.onCompleted: record()
 }
@@ -104,7 +108,8 @@ class Probe:
     def mark(self, *names: str) -> None:
         """Make the marker directory hold exactly these files."""
         self.material.mkdir(mode=0o700, exist_ok=True)
-        for name in ("blur-on", "blur-off"):
+        for name in ("blur-on", "blur-off", "clarity-clear",
+                     "clarity-balanced", "clarity-solid"):
             path = self.material / name
             if name in names:
                 path.touch()
@@ -165,17 +170,20 @@ class MaterialStateInARealEngine(unittest.TestCase):
 
     def test_without_a_publisher_the_startup_policy_still_decides(self):
         """A greeter has no session service. Its absence must not force opaque."""
-        self.run_case(True, [(None, "true observed=false")])
-        self.run_case(False, [(None, "false observed=false")])
+        self.run_case(True, [(None, "true observed=false clarity=clear value=0.0")])
+        self.run_case(False, [(None, "false observed=false clarity=clear value=1.0")])
 
     def test_the_live_marker_outranks_what_the_config_file_guessed(self):
         """kwinrc is a guess about the compositor; the publisher asked it."""
-        self.run_case(False, [(("blur-on",), "true observed=true")])
-        self.run_case(True, [(("blur-off",), "false observed=true")])
+        self.run_case(False, [(("blur-on", "clarity-clear"),
+                               "true observed=true clarity=clear value=0.0")])
+        self.run_case(True, [(("blur-off", "clarity-clear"),
+                              "false observed=true clarity=clear value=1.0")])
 
     def test_ambiguity_reads_as_opaque_never_as_clarity(self):
         """The publisher adds before it removes, so both markers is a real state."""
-        self.run_case(True, [(("blur-on", "blur-off"), "false observed=true")])
+        self.run_case(True, [(("blur-on", "blur-off", "clarity-clear"),
+                              "false observed=true clarity=clear value=1.0")])
 
     def test_the_value_follows_the_marker_with_no_restart(self):
         """The defect this whole bridge exists to close.
@@ -184,16 +192,38 @@ class MaterialStateInARealEngine(unittest.TestCase):
         flipping blur mid-session has to look like from inside a MoOS surface.
         """
         self.run_case(True, [
-            (("blur-on",), "true observed=true"),
-            (("blur-off",), "false observed=true"),
-            (("blur-on",), "true observed=true"),
+            (("blur-on", "clarity-clear"),
+             "true observed=true clarity=clear value=0.0"),
+            (("blur-off", "clarity-clear"),
+             "false observed=true clarity=clear value=1.0"),
+            (("blur-on", "clarity-clear"),
+             "true observed=true clarity=clear value=0.0"),
         ])
 
     def test_a_publisher_that_goes_away_does_not_leave_clarity_behind(self):
         """If the service dies it removes both markers. Opaque is the safe read."""
         self.run_case(True, [
-            (("blur-on",), "true observed=true"),
-            ((), "false observed=true"),
+            (("blur-on", "clarity-clear"),
+             "true observed=true clarity=clear value=0.0"),
+            ((), "false observed=true clarity=clear value=1.0"),
+        ])
+
+    def test_clarity_follows_live_and_blur_off_pins_solid(self):
+        self.run_case(True, [
+            (("blur-on", "clarity-clear"),
+             "true observed=true clarity=clear value=0.0"),
+            (("blur-on", "clarity-balanced"),
+             "true observed=true clarity=balanced value=0.5"),
+            (("blur-on", "clarity-solid"),
+             "true observed=true clarity=solid value=1.0"),
+            (("blur-off", "clarity-clear"),
+             "false observed=true clarity=clear value=1.0"),
+        ])
+
+    def test_ambiguous_clarity_is_solid_not_translucent(self):
+        self.run_case(True, [
+            (("blur-on", "clarity-clear", "clarity-solid"),
+             "true observed=true clarity=solid value=1.0"),
         ])
 
 

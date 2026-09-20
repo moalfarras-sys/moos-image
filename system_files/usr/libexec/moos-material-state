@@ -1,7 +1,8 @@
 #!/usr/bin/python3
-"""Publish KWin's live global blur availability, never change its policy.
+"""Publish KWin's live material state, never change its policy.
 
-Consumers accept only a lone blur-on file. Missing/ambiguous state is opaque.
+Consumers accept one blur marker and one clarity marker. Missing/ambiguous blur
+state is opaque. Clarity is a preference; blur capability always wins over it.
 This is not a promise that a particular window has a blur region.
 """
 import fcntl
@@ -20,32 +21,51 @@ class Publisher:
             raise RuntimeError("unsafe material runtime directory")
         self.directory.chmod(0o700)
 
-    def publish(self, enabled):
+    def publish(self, enabled, clarity="clear"):
+        if clarity not in ("clear", "balanced", "solid"):
+            clarity = "clear"
         selected = self.directory / ("blur-on" if enabled is True else "blur-off")
         other = self.directory / ("blur-off" if enabled is True else "blur-on")
         # Add before removing: observers may briefly see both, never false clarity.
         fd = os.open(selected, os.O_WRONLY | os.O_CREAT | os.O_NOFOLLOW, 0o600)
         os.close(fd)
         other.unlink(missing_ok=True)
+        clarity_name = "clarity-" + clarity
+        clarity_path = self.directory / clarity_name
+        fd = os.open(clarity_path, os.O_WRONLY | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+        os.close(fd)
+        for name in ("clarity-clear", "clarity-balanced", "clarity-solid"):
+            if name != clarity_name:
+                (self.directory / name).unlink(missing_ok=True)
 
     def close(self):
-        for name in ("blur-on", "blur-off"):
+        for name in ("blur-on", "blur-off", "clarity-clear", "clarity-balanced",
+                     "clarity-solid"):
             (self.directory / name).unlink(missing_ok=True)
 
 
 class State:
     """Small injectable event policy: no periodic timers, one retry per change."""
-    def __init__(self, publisher, probe, schedule, cancel):
+    def __init__(self, publisher, probe, schedule, cancel,
+                 clarity_probe=lambda: "clear"):
         self.publisher, self.probe = publisher, probe
+        self.clarity_probe = clarity_probe
         self.schedule, self.cancel = schedule, cancel
         self.pending = None
         self.alive = True
-        self.publisher.publish(False)
+        self.publisher.publish(False, self.read_clarity())
+
+    def read_clarity(self):
+        try:
+            value = self.clarity_probe()
+        except Exception:
+            value = "clear"
+        return value if value in ("clear", "balanced", "solid") else "clear"
 
     def changed(self, *_args):
         if not self.alive:
             return
-        self.publisher.publish(False)
+        self.publisher.publish(False, self.read_clarity())
         if self.pending is not None:
             self.cancel(self.pending)
         self.pending = self.schedule(100, self.refresh)
@@ -58,7 +78,7 @@ class State:
             enabled = self.probe() is True
         except Exception:
             enabled = False
-        self.publisher.publish(enabled)
+        self.publisher.publish(enabled, self.read_clarity())
         # A reload signal can precede effect teardown/reload. Re-read once, not forever.
         if retry:
             self.pending = self.schedule(750, lambda: self.refresh(False))
@@ -77,6 +97,27 @@ def config_directories():
     paths = [home, home / "kdedefaults"]
     paths.extend(Path(p) for p in os.environ.get("XDG_CONFIG_DIRS", "/etc/xdg").split(":") if p)
     return list(dict.fromkeys(p for p in paths if p.is_absolute()))
+
+
+def read_clarity_preference():
+    """Read the first XDG Material/Clarity policy without creating a config."""
+    for directory in config_directories():
+        path = directory / "moos-appearancerc"
+        try:
+            lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+        except OSError:
+            continue
+        group = ""
+        for raw in lines:
+            line = raw.strip()
+            if line.startswith("[") and line.endswith("]"):
+                group = line[1:-1]
+            elif group == "Material" and "=" in line:
+                key, value = line.split("=", 1)
+                if key.strip().lower() == "clarity":
+                    value = value.strip().lower()
+                    return value if value in ("clear", "balanced", "solid") else "clear"
+    return "clear"
 
 
 def main():
@@ -102,7 +143,8 @@ def main():
                               750, None)
         return reply.unpack()[0] is True
 
-    state = State(publisher, probe, GLib.timeout_add, GLib.source_remove)
+    state = State(publisher, probe, GLib.timeout_add, GLib.source_remove,
+                  read_clarity_preference)
     loop = GLib.MainLoop()
     subscriptions = []
     monitors = []
@@ -125,7 +167,9 @@ def main():
         # Directory changes also cover creation/replacement of a missing config root.
         paths = [p.get_path() for p in (file, other_file) if p is not None]
         roots = config_directories()
-        if any(p and (Path(p).name == "kwinrc" or any(Path(p) == r or Path(p) in r.parents for r in roots)) for p in paths):
+        if any(p and (Path(p).name in ("kwinrc", "moos-appearancerc")
+                      or any(Path(p) == r or Path(p) in r.parents for r in roots))
+               for p in paths):
             state.changed()
             watch_configs()
 

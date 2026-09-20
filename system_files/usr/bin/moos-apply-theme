@@ -317,7 +317,7 @@ set -uo pipefail
 # 80: the Island wrapper constrains anchored Search above the Horizon Bar.
 # 79: the Search-labelled idle Island opens MoOS Search in its own anchored
 #     surface. Rev 76 incorrectly routed that click to the applications launcher.
-THEME_REV=83
+THEME_REV=84
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"
