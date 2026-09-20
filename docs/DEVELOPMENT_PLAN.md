@@ -366,6 +366,21 @@ Mo Store, Welcome, Mo AI — the packaging may appear only inside a file name. A
 whose entire job is the file you just dropped, keeps the word on purpose. Both halves are
 held by `test_the_storefront_names_a_file_but_never_the_mechanism`, proven to fail on the old sentence.
 
+**And the rule is not only about strings MoOS writes.** The same day, with every string
+gate green, the application menu on the station showed a folder called "Waydroid"
+containing a launcher called "Waydroid". Neither came from a MoOS file: the package ships
+`Waydroid.desktop` (a visible launcher whose `Exec` is the bare CLI) and
+`/etc/xdg/menus/applications-merged/waydroid.menu`, which collects every `X-WayDroid-App`
+into a folder labelled by `waydroid.directory` — so that folder is where EVERY Android app
+the owner installs lands. It had been true since Android first worked, and no gate could
+see it, because every gate read MoOS's files and this was a third party's. `build.sh` now
+hides the launcher and relabels the folder to **"Android apps" / "تطبيقات أندرويد"** with
+MoOS's own icon, and FAILS THE BUILD if either file moves or either edit does not take.
+The folder itself stays: the apps need a home, and naming the platform an app came FROM is
+what Mo Store's own category already does — the rule forbids naming the machinery, not the
+origin. The wine half of this was fixed long ago (ten Wine tools masked, with a build gate);
+the Android half had simply never been written.
+
 **macOS** is unsupported. The answer lives in ONE place — the `unsupported` entry in
 `app-engines.json`, in both languages — and this paragraph deliberately does not repeat
 it, because two copies of an answer is how a repository comes to give two answers. What

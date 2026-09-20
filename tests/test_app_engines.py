@@ -460,6 +460,49 @@ class TheEngineNeverSaysItsName(unittest.TestCase):
             offenders, [],
             "MoOS says these to a person, and they name the packaging rather "
             "than a file:\n  " + "\n  ".join(offenders))
+    def test_the_android_menu_surfaces_are_hidden_or_renamed(self):
+        """The launcher is not the only place a brand can sit.
+
+        Every string gate in this file reads MoOS's own files, and all of them
+        were green while the application menu on the station showed a folder
+        called "Waydroid" containing a launcher called "Waydroid". Neither came
+        from a MoOS file -- both ship inside the waydroid package, and the menu
+        folder is the one that matters, because `waydroid.menu` collects every
+        `X-WayDroid-App` into it, so it is where EVERY Android app the owner
+        installs ends up.
+
+        build.sh hides the launcher and relabels the folder to "Android apps"
+        (the platform an app came from, which Mo Store's own category already
+        says) with a MoOS icon, and fails the build if the files it edits are
+        not where it expects or the edit did not take. This checks that all of
+        that is still in build.sh -- deleting any half would silently return the
+        brand to the menu.
+        """
+        build = BUILD.read_text(encoding="utf-8")
+        for needle, why in (
+            ("/usr/share/applications/Waydroid.desktop",
+             "the container's own launcher must be masked"),
+            ("/usr/share/desktop-directories/waydroid.directory",
+             "the menu folder every Android app lands in must be relabelled"),
+            ("s|^Name=.*|Name=Android apps|",
+             "the folder must be named for the platform, not the engine"),
+            ("Name[ar]=\u062a\u0637\u0628\u064a\u0642\u0627\u062a \u0623\u0646\u062f\u0631\u0648\u064a\u062f",
+             "an Arabic session must not fall back to the English label"),
+            ("Icon=moos-android-apps-symbolic",
+             "the folder must not wear the engine's icon either"),
+            ("GATE FAIL: the Android container's own launcher is still in the menu",
+             "the build must fail, not warn, if the mask did not take"),
+            ("GATE FAIL: the Android app folder still wears the engine's name",
+             "the build must fail if the relabel did not take"),
+        ):
+            # assertIn would print all 5,000 lines of build.sh into the CI
+            # log on failure, burying the one sentence that says what broke.
+            self.assertTrue(needle in build, f"build.sh no longer has {needle!r}: {why}")
+        icon = ROOT / ("system_files/usr/share/icons/MoOSUI2Aurora/moos/actions"
+                       "/scalable/moos-android-apps-symbolic.svg")
+        self.assertTrue(icon.is_file(),
+                        "build.sh points the folder at an icon the image does not ship, "
+                        "which would leave the folder blank instead of branded")
 
     def test_the_runner_does_not_hint_a_terminal_command_at_the_owner(self):
         """"try: waydroid app install …" is the engine's name AND its CLI."""
