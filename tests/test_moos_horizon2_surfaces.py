@@ -114,6 +114,13 @@ class RemoteIsland(unittest.TestCase):
         self.assertIn("MoSearch.SearchView", self.qml)
         self.assertIn("Milou.ResultsModel", self.qml)
         self.assertIn("Kicker.RecentUsageModel", self.qml)
+        self.assertIn("readonly property int searchSurfaceUnits: 24", self.qml)
+        self.assertIn("readonly property int searchBottomInset: root.design.targetComfortable", self.qml)
+        search_view = SEARCH_VIEW.read_text(encoding="utf-8")
+        self.assertIn("root.searchSurfaceUnits", search_view)
+        self.assertIn("anchors.bottomMargin: root.design.space3 + root.searchBottomInset", search_view)
+        self.assertIn("Layout.maximumHeight: Math.min(", search_view)
+        self.assertIn("Layout.maximumHeight: root.active", self.qml)
         self.assertIn("root.expanded = true;", self.qml)
         self.assertIn("visible: !root.active", self.qml,
                       "Search owns the popup only while no live context replaces it")

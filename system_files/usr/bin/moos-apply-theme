@@ -307,10 +307,17 @@ set -uo pipefail
 #     settling once in one continuous move. Scale only, per SpringFeedback's own
 #     rule, so no neighbouring task icon can be moved by it. Cached shell QML
 #     holds the timed version until it is purged.
+# 83: the Island host gives Search a bottom inset equal to one comfortable
+#     target, lifting its final Mo AI action clear of the overlapping panel.
+# 82: the host height is also a hard maximum; Plasma's popup layout preferred
+#     the content's old 32-unit maximum over rev 81's smaller preference.
+# 81: SearchView now reads its host's height token. Rev 80 constrained only the
+#     Island wrapper, while the embedded view's own 28-unit preference still
+#     won and hid its Mo AI row behind the panel at 4K/265%.
+# 80: the Island wrapper constrains anchored Search above the Horizon Bar.
 # 79: the Search-labelled idle Island opens MoOS Search in its own anchored
-#     surface. Rev 76 incorrectly routed that click to the applications launcher;
-#     existing sessions need their cached Island QML purged to receive the fix.
-THEME_REV=79
+#     surface. Rev 76 incorrectly routed that click to the applications launcher.
+THEME_REV=83
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

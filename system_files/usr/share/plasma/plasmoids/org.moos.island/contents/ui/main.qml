@@ -37,6 +37,8 @@ PlasmoidItem {
     readonly property bool rtl: MoUI.Locale.rtl
     readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
     readonly property string uiFontFamily: Qt.application.font.family
+    readonly property int searchSurfaceUnits: 24
+    readonly property int searchBottomInset: root.design.targetComfortable
     readonly property int motionFast: design.duration(
         root.motionEnabled, design.motionFast)
     readonly property int motionGeometry: design.duration(
@@ -1212,7 +1214,11 @@ PlasmoidItem {
             ? Kirigami.Units.gridUnit
                 * ((root.showRemoteDetails || root.showPrivacyDetails || root.showStoreDetails) ? 13 : 17)
                 + (root.multipleContexts ? 48 : 0)
-            : Math.min(Kirigami.Units.gridUnit * 28, Screen.height - 110)
+            // The Island popup grows upward from a bottom panel. The canonical
+            // standalone Search view can use 28 units, but that height crossed
+            // behind the Horizon Bar at 4K/265% and clipped the Mo AI row.
+            : Math.min(Kirigami.Units.gridUnit * root.searchSurfaceUnits,
+                       Screen.height - Kirigami.Units.gridUnit * 7)
         Layout.minimumWidth: root.active ? Kirigami.Units.gridUnit * 18
                                          : Math.min(400, Screen.width - 24)
         Layout.minimumHeight: root.active
@@ -1220,6 +1226,10 @@ PlasmoidItem {
                 * ((root.showRemoteDetails || root.showPrivacyDetails || root.showStoreDetails) ? 12 : 15)
                 + (root.multipleContexts ? 48 : 0)
             : Kirigami.Units.gridUnit * 16
+        Layout.maximumHeight: root.active
+            ? Kirigami.Units.gridUnit * 22 + (root.multipleContexts ? 48 : 0)
+            : Math.min(Kirigami.Units.gridUnit * root.searchSurfaceUnits,
+                       Screen.height - Kirigami.Units.gridUnit * 7)
         opacity: root.motionEnabled ? 0 : 1
         scale: root.motionEnabled ? 0.96 : 1
         transformOrigin: Item.Top
