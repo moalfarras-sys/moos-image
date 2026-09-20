@@ -39,6 +39,10 @@ PlasmoidItem {
     readonly property var design: MoUI.Tokens
     readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
     readonly property string uiFontFamily: Qt.application.font.family
+    // The standalone applet has more vertical room than the bottom-panel
+    // Context Island host. SearchView reads this one host-owned geometry token.
+    readonly property int searchSurfaceUnits: 28
+    readonly property int searchBottomInset: 0
     property string query: ""
     property string queuedRun: ""
     property int queryRevision: 0

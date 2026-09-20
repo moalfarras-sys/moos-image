@@ -65,8 +65,8 @@ ID changes or assert that the proposed interactions below already ship.
 | --- | --- |
 | **MoOS UI** | The shared design system: palette generators, `org/moos/ui`, Plasma Style and Aurorae assets |
 | **MoOS Bar** | One floating Horizon panel; `usr/share/moos/moos-bar.conf`, `usr/bin/moos-bar-apply`, the Plasma layout template and stock task manager |
-| **MoOS Search** | The separate `org.moos.search` field and `org.moos.brand/contents/ui/LauncherView.qml`; use existing KDE search models and routes |
-| **MoOS Island** | The contextual `org.moos.island` panel zone; MPRIS owns media state and Remote owns session state |
+| **MoOS Search** | One canonical `org.moos.search/contents/ui/SearchView.qml`, embedded by the Island's idle popup; `org.moos.brand/contents/ui/LauncherView.qml` keeps its launcher entry field, and both use KDE's search models |
+| **MoOS Island** | The contextual `org.moos.island` panel zone and anchored Search host; MPRIS owns media state and Remote owns session state |
 | **MoOS Workspace** | The desktop/window experience: stock KWin overview, desktops, tiling, KScreen and generated MoOS decorations |
 | **MoOS Intro** | One visual journey through Plymouth, the resolved Plasma Login Manager, shell splash and welcome application |
 | **MoOS Hub** | The desktop scene's time, weather and device-health instrument in `org.moos.ui2.wallpaper`; controlled from the desktop right-click menu and the wallpaper page, drawn below icons and windows |
@@ -197,6 +197,11 @@ titles and 34 px actions protect the 4K/fractional-scale layout. Do not move its
 wide content into a square tray cell, return to a zero-width initial state, or
 animate the panel's geometry when context changes.
 
+The Search-labelled idle face opens the canonical MoOS Search view in the
+Island's anchored popup. It must never route to the application launcher's
+“All applications” page. Search may grow the popup, but it must not resize the
+panel slot; closing it returns the same fixed capsule to its contextual owner.
+
 ### First-party apps
 
 Settings, Store, Updater, Recovery, Mo AI, Installer, MoPlayer and Mo PC Remote
@@ -224,7 +229,8 @@ together before producing its release candidate.
    single focused results surface for applications, settings and permitted
    local content, with an explicit handoff to Mo AI. Results reveal their type
    and action before activation. Work in `moos-bar.conf`, `moos-bar-apply`,
-   `org.moos.search`, `org.moos.brand` and `org.moos.nova.clock`. Acceptance:
+   `org.moos.search`, `org.moos.island`, `org.moos.brand` and
+   `org.moos.nova.clock`. Acceptance:
    no overlaps at the smallest supported logical width, two separate entry
    targets, real keyboard search/launch/Escape, preserved app pins/reordering,
    readable localized date/time and correct RTL order.

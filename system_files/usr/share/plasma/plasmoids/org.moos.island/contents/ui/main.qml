@@ -22,10 +22,13 @@ import org.kde.plasma.plasmoid
 import org.kde.plasma.core as PlasmaCore
 import org.kde.plasma.components as PC3
 import org.kde.plasma.extras as PlasmaExtras
+import org.kde.milou as Milou
+import org.kde.plasma.private.kicker as Kicker
 import org.kde.kirigami as Kirigami
 import org.kde.plasma.private.mpris as Mpris
 import org.moos.ui as MoUI
 import "IslandTokens.js" as IslandTokens
+import "../../../org.moos.search/contents/ui" as MoSearch
 
 PlasmoidItem {
     id: root
@@ -33,12 +36,16 @@ PlasmoidItem {
     readonly property var design: MoUI.Tokens
     readonly property bool rtl: MoUI.Locale.rtl
     readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
+    readonly property string uiFontFamily: Qt.application.font.family
+    readonly property int searchSurfaceUnits: 24
+    readonly property int searchBottomInset: root.design.targetComfortable
     readonly property int motionFast: design.duration(
         root.motionEnabled, design.motionFast)
     readonly property int motionGeometry: design.duration(
         root.motionEnabled, design.motionGeometry)
 
     function local(arabic, english) { return root.rtl ? arabic : english; }
+    function fast() { return root.design.duration(root.motionEnabled, root.design.motionFast); }
     function bounded(value, low, high) {
         return Math.max(low, Math.min(high, value));
     }
@@ -401,6 +408,30 @@ PlasmoidItem {
     property bool compactHovered: false
     property bool compactFocused: false
     readonly property bool compactInteractive: root.compactHovered || root.compactFocused
+    property string query: ""
+    property string queuedRun: ""
+    property int queryRevision: 0
+
+    onQueryChanged: {
+        ++root.queryRevision;
+        root.queuedRun = "";
+    }
+
+    Milou.ResultsModel {
+        id: searchResults
+        queryString: root.query
+        limit: 30
+        onQueryStringChangeRequested: (queryString, cursorPosition) => {
+            root.query = queryString;
+        }
+        onQueryingChanged: root.runQueued()
+    }
+
+    Kicker.RecentUsageModel {
+        id: searchRecentApps
+        shownItems: Kicker.RecentUsageModel.OnlyApps
+        ordering: 0
+    }
 
     // Remote always owns the bar while it is connected. The popup can inspect
     // media too, without hiding the live sharing indicator or picking another
@@ -429,11 +460,58 @@ PlasmoidItem {
         if (root.active) {
             root.openDetails();
         } else {
-            // The MoOS launcher already owns a complete Milou-backed search
-            // surface. Reuse that authority instead of keeping a second search
-            // applet beside this slot or falling back to a detached KRunner.
-            Qt.openUrlExternally("moos://search/");
+            // Search is the Island's idle face, so it opens HERE. Routing this
+            // click through activateLauncherMenu made the applications page
+            // appear even though the control says Search. Reuse the canonical
+            // MoOS Search view and Plasma's Milou models inside this one slot.
+            root.expanded = true;
         }
+    }
+
+    function openRecent(row) {
+        if (row >= 0 && row < searchRecentApps.count
+                && searchRecentApps.trigger(row, "", null)) {
+            root.expanded = false;
+        }
+    }
+    function runSearch(row) {
+        if (!root.expanded || searchResults.querying || row < 0
+                || row >= searchResults.rowCount()) return;
+        if (searchResults.run(searchResults.index(row, 0))) root.expanded = false;
+    }
+    function runCurrent(row) {
+        if (!root.expanded || root.query.trim().length === 0) return;
+        if (searchResults.querying || searchResults.rowCount() < 1 || row < 0) {
+            root.queuedRun = root.query;
+            return;
+        }
+        root.queuedRun = "";
+        root.runSearch(row);
+    }
+    function runQueued() {
+        if (root.queuedRun.length < 1 || root.queuedRun !== root.query
+                || searchResults.querying || searchResults.rowCount() < 1) return;
+        const requestedQuery = root.queuedRun;
+        const requestedRevision = root.queryRevision;
+        Qt.callLater(() => {
+            if (root.expanded && !root.active && root.query === requestedQuery
+                    && root.queryRevision === requestedRevision
+                    && root.queuedRun === requestedQuery && !searchResults.querying) {
+                root.queuedRun = "";
+                root.runSearch(0);
+            }
+        });
+    }
+    function askMoAI() {
+        const question = root.query.trim();
+        root.expanded = false;
+        Qt.openUrlExternally(question.length > 0
+            ? "moos://ai/ask/" + encodeURIComponent(question)
+            : "moos://app/moai");
+    }
+    function openDestination(target) {
+        root.expanded = false;
+        Qt.openUrlExternally(target);
     }
 
     // Decode rasters for the DEVICE, not for logical pixels. A sourceSize is a
@@ -509,6 +587,10 @@ PlasmoidItem {
     }
     onExpandedChanged: {
         if (root.expanded && root.player) { root.player.updatePosition(); }
+        if (!root.expanded) {
+            root.query = "";
+            root.queuedRun = "";
+        }
     }
 
     Timer {
@@ -1126,14 +1208,28 @@ PlasmoidItem {
         id: expanded
         Keys.onEscapePressed: root.expanded = false
 
-        Layout.preferredWidth: Kirigami.Units.gridUnit * 21
-        Layout.preferredHeight: Kirigami.Units.gridUnit
-                                * ((root.showRemoteDetails || root.showPrivacyDetails || root.showStoreDetails) ? 13 : 17)
-                                + (root.multipleContexts ? 48 : 0)
-        Layout.minimumWidth: Kirigami.Units.gridUnit * 18
-        Layout.minimumHeight: Kirigami.Units.gridUnit
-                              * ((root.showRemoteDetails || root.showPrivacyDetails || root.showStoreDetails) ? 12 : 15)
-                              + (root.multipleContexts ? 48 : 0)
+        Layout.preferredWidth: root.active ? Kirigami.Units.gridUnit * 21
+                                           : Kirigami.Units.gridUnit * 30
+        Layout.preferredHeight: root.active
+            ? Kirigami.Units.gridUnit
+                * ((root.showRemoteDetails || root.showPrivacyDetails || root.showStoreDetails) ? 13 : 17)
+                + (root.multipleContexts ? 48 : 0)
+            // The Island popup grows upward from a bottom panel. The canonical
+            // standalone Search view can use 28 units, but that height crossed
+            // behind the Horizon Bar at 4K/265% and clipped the Mo AI row.
+            : Math.min(Kirigami.Units.gridUnit * root.searchSurfaceUnits,
+                       Screen.height - Kirigami.Units.gridUnit * 7)
+        Layout.minimumWidth: root.active ? Kirigami.Units.gridUnit * 18
+                                         : Math.min(400, Screen.width - 24)
+        Layout.minimumHeight: root.active
+            ? Kirigami.Units.gridUnit
+                * ((root.showRemoteDetails || root.showPrivacyDetails || root.showStoreDetails) ? 12 : 15)
+                + (root.multipleContexts ? 48 : 0)
+            : Kirigami.Units.gridUnit * 16
+        Layout.maximumHeight: root.active
+            ? Kirigami.Units.gridUnit * 22 + (root.multipleContexts ? 48 : 0)
+            : Math.min(Kirigami.Units.gridUnit * root.searchSurfaceUnits,
+                       Screen.height - Kirigami.Units.gridUnit * 7)
         opacity: root.motionEnabled ? 0 : 1
         scale: root.motionEnabled ? 0.96 : 1
         transformOrigin: Item.Top
@@ -1170,13 +1266,22 @@ PlasmoidItem {
             }
         }
 
+        MoSearch.SearchView {
+            anchors.fill: parent
+            visible: !root.active
+            z: 20
+            controller: root
+            resultModel: searchResults
+            recentModel: searchRecentApps
+        }
+
         PC3.TabBar {
             id: contextTabs
             anchors.top: parent.top
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.margins: root.design.space4
-            visible: root.multipleContexts
+            visible: root.active && root.multipleContexts
             currentIndex: root.showRemoteDetails ? 0 : (root.showPrivacyDetails ? 1 : (root.showStoreDetails ? 2 : 3))
             LayoutMirroring.enabled: root.rtl
             LayoutMirroring.childrenInherit: true

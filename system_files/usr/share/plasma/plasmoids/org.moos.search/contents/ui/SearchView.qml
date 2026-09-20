@@ -24,8 +24,10 @@ FocusScope {
     Layout.preferredWidth: Kirigami.Units.gridUnit * 30
     Layout.maximumWidth: Kirigami.Units.gridUnit * 34
     Layout.minimumHeight: Kirigami.Units.gridUnit * 16
-    Layout.preferredHeight: Math.min(Kirigami.Units.gridUnit * 28, Screen.height - 110)
-    Layout.maximumHeight: Kirigami.Units.gridUnit * 32
+    Layout.preferredHeight: Math.min(Kirigami.Units.gridUnit * root.searchSurfaceUnits,
+                                     Screen.height - Kirigami.Units.gridUnit * 7)
+    Layout.maximumHeight: Math.min(Kirigami.Units.gridUnit * root.searchSurfaceUnits,
+                                    Screen.height - Kirigami.Units.gridUnit * 7)
     focus: true
 
     LayoutMirroring.enabled: root.rtl
@@ -165,6 +167,10 @@ FocusScope {
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: root.design.space3
+        // A bottom-panel host overlaps the popup's outer window by its own
+        // thickness. Keep the final Mo AI action inside the visible glass;
+        // standalone Search supplies zero here.
+        anchors.bottomMargin: root.design.space3 + root.searchBottomInset
         spacing: root.design.space3
         scale: entrance.value
         opacity: Math.min(1, Math.max(0, (entrance.value - 0.94) / 0.06))
