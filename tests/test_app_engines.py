@@ -550,8 +550,19 @@ class TheEngineNeverSaysItsName(unittest.TestCase):
                       "nvidia-settings.desktop"):
             line = next((l for l in build.splitlines()
                          if l.startswith("moos_rebrand_entry") and entry in l), "")
-            self.assertTrue(line.rstrip().endswith("hide"),
+            self.assertIn("hide", line.split(),
                             f"{entry} must be hidden: MoOS Settings is the one settings app")
+        nvidia_line = next(l for l in build.splitlines()
+                           if l.startswith("moos_rebrand_entry")
+                           and "nvidia-settings.desktop" in l)
+        self.assertTrue(nvidia_line.rstrip().endswith("hide strip-metadata"),
+                        "the hidden NVIDIA launcher must drop translated vendor/X11 "
+                        "comments and keywords, not only replace Name=")
+        self.assertIn('metadata == "strip-metadata"', build)
+        for field in ('line.startswith("Comment=")', 'line.startswith("Comment[")',
+                      'line.startswith("Keywords=")', 'line.startswith("Keywords[")'):
+            self.assertIn(field, build,
+                          f"the metadata scrub no longer covers {field}")
         for entry in ("org.kde.dolphin.desktop", "org.kde.partitionmanager.desktop"):
             line = next((l for l in build.splitlines()
                          if l.startswith("moos_rebrand_entry") and entry in l), "")
