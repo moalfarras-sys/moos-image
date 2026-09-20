@@ -189,10 +189,10 @@ off` stops and un-autostarts both sharing services with no administrator rights.
 
 ## Next execution
 
-Review and merge the corrective source as one slice, then use `scripts/release-candidate.sh
---promote` once. Its 205 source gates, isolated KDialog runtime proof and full generic image
-`2028144f5724` are green, including staged-update supersession, identity, initramfs and
-clean-state gates. Promotion
+The slice is merged at `8fd0ba8a`; its NVIDIA compose caught vendor/X11 metadata in a hidden
+launcher. Image `ca8883f5c6b5` proves the scrub, 205 gates, six-module initramfs, QML/Island
+motion, 53-app Store, identity firewall and clean state. Merge it,
+then run `scripts/release-candidate.sh --promote` once. Promotion
 requires the signed build, three QCOW2 boots and ISO installed-system proof for the exact
 revision; ARM remains separate evidence. Only then stage the signed NVIDIA digest on
 this station, reboot, and read back version, signature origin, theme revision, failed

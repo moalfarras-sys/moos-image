@@ -3423,9 +3423,9 @@ done
 # ("Open a New Window") whose own Name= lines a blind sed would overwrite, which
 # is how a rebrand turns into a context menu full of the application's title.
 moos_rebrand_entry() {
-    python3 - "$1" "$2" "$3" "$4" "$5" <<'MOOSREBRAND'
+    python3 - "$1" "$2" "$3" "$4" "$5" "${6:-keep-metadata}" <<'MOOSREBRAND'
 import sys
-path, en, ar, icon, hide = sys.argv[1:6]
+path, en, ar, icon, hide, metadata = sys.argv[1:7]
 try:
     lines = open(path, encoding="utf-8").read().splitlines()
 except FileNotFoundError:
@@ -3452,6 +3452,14 @@ for line in lines:
     # MoOS entries need one clear product label, so remove the whole secondary
     # name family instead of leaving an English-only alias behind.
     if line.startswith("Name[") or line.startswith("GenericName=") or line.startswith("GenericName["):
+        continue
+    # A hidden vendor control panel still has metadata that launchers and file
+    # inspectors can index. Its translated comments name the underlying X11
+    # utility even after Name= is replaced, so the NVIDIA-only call below drops
+    # that vendor vocabulary instead of leaking it through search/subtitles.
+    if metadata == "strip-metadata" and (
+            line.startswith("Comment=") or line.startswith("Comment[")
+            or line.startswith("Keywords=") or line.startswith("Keywords[")):
         continue
     if line.startswith("Name="):
         if wrote_name:
@@ -3492,7 +3500,7 @@ moos_rebrand_entry /usr/share/applications/org.kde.kinfocenter.desktop       "Sy
 # its device page. It leaves the menu and keeps MoOS's words for the task bar.
 # Only the NVIDIA editions install it, so the helper's own [ -f ] check is what
 # makes this a no-op everywhere else.
-moos_rebrand_entry /usr/share/applications/nvidia-settings.desktop           "Graphics Card"  "كرت الشاشة"     "moos-gpu-symbolic"     hide
+moos_rebrand_entry /usr/share/applications/nvidia-settings.desktop           "Graphics Card"  "كرت الشاشة"     "moos-gpu-symbolic"     hide strip-metadata
 
 # Gate it the same way (z1b) is gated: ask the FILES, not the list above. A
 # second settings application in the menu is the defect this whole section

@@ -858,8 +858,12 @@ stable.^9 Native KNotification event defaults must match the installed KDE
 event IDs and yield to personal choices.^10 Asset presence or successful audio
 decoding is not evidence of login/logout playback. Test both event delivery and
 session volume, including notification quiet mode and per-event/global mute.
-The local source and NVIDIA-image gates are complete at `0bdb289e`; candidate
-boot and upgraded-session evidence remain required before this row can close.
+The integrated source is on `main` at `8fd0ba8a`. Its automatic NVIDIA compose correctly
+stopped on translated vendor/X11 metadata left in a hidden graphics launcher; the corrected
+scrub and regression test pass in full local NVIDIA image `ca8883f5c6b5`, together with the
+identity firewall, six-module NVIDIA initramfs proof, QML/Island motion, 53-app Store and
+clean-state gates. Candidate boot and upgraded-session evidence remain required before this
+row can close.
 
 **Workspace facts (W7), read from KWin 6.7.5's own `kwin.kcfg` on 2026-09-17, not remembered.**
 What MoOS leaves unset is already a sensible default, so W7 is not a config dump:
