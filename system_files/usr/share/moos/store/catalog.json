@@ -594,25 +594,6 @@
       }
     },
     {
-      "id": "org.fdroid.fdroid",
-      "source": "moos",
-      "cat": "droid",
-      "glyph": "store",
-      "en": "F-Droid",
-      "ar": "إف-درويد",
-      "desc_en": "A catalogue of free Android apps.",
-      "desc_ar": "فهرس تطبيقات أندرويد الحرّة.",
-      "install": {
-        "kind": "android",
-        "url": "https://f-droid.org/repo/org.fdroid.fdroid_1023052.apk",
-        "sha256": "985f5181d48bb6bafd54083a048b391271e0ab28385881cc41294fb01a222762",
-        "package": "org.fdroid.fdroid",
-        "external": true,
-        "risk": "external-download",
-        "requires_review": true
-      }
-    },
-    {
       "id": "seven-zip",
       "source": "moos",
       "cat": "win",

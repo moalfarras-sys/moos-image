@@ -251,12 +251,26 @@ ApplicationWindow {
         return "other"
     }
 
+    // The badge on every card. It used to print the CHANNEL an app arrives
+    // through -- "flathub" on all 3,343 of them, "npm" on the developer tools --
+    // and the owner's rule covers that too: he named F-Droid alongside KWin and
+    // Wayland as things he must never see. A channel is machinery.
+    //
+    // What the badge is FOR is not lost, because the thing a person actually
+    // needs before installing is WHO MADE IT, and the card already prints that
+    // on its own line: Valve Corporation, Mozilla, The Document Foundation. So
+    // the default trusted channel goes unnamed and the badge says only that the
+    // app is verified -- and an app arriving from anywhere ELSE still names its
+    // origin, because an unusual source is exactly the thing worth reading.
     function sourceLabel(app) {
         if (!app) return ""
-        if (app.source === "flathub" || app.source === "flatpak" || app.flatpak_ref)
-            return app.origin && app.origin !== "" ? app.origin : "Flathub"
+        if (app.source === "flathub" || app.source === "flatpak" || app.flatpak_ref) {
+            if (app.origin && app.origin !== "" && app.origin !== "flathub")
+                return app.origin
+            return win.rtl ? "موثّق" : "Verified"
+        }
         if (app.install && app.install.kind === "npm")
-            return win.rtl ? "أداة مطوّر · npm" : "Developer tool · npm"
+            return win.rtl ? "أداة مطوّر" : "Developer tool"
         if (app.install && app.install.kind === "web")
             return win.rtl ? "الموقع الرسمي" : "Official website"
         return app.source === "moos" ? "MoOS"
