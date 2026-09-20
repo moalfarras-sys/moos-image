@@ -1945,8 +1945,8 @@ Kirigami.ApplicationWindow {
                 return root.local("العودة إلى الإصدار السابق من نظام MoOS عند إعادة التشغيل.",
                                   "Roll back to the previous MoOS deployment on reboot.")
             case "install_app":
-                return root.local("تثبيت التطبيق لهذا المستخدم عبر Mo Store بصيغة Flatpak المعزولة.",
-                                  "Install application via Mo Store in sandboxed Flatpak container.")
+                return root.local("تثبيت التطبيق لهذا المستخدم عبر Mo Store داخل عزل كامل.",
+                                  "Install the app for this user through Mo Store, fully sandboxed.")
             case "uninstall_app":
                 return root.local("إزالة التطبيق من النظام وحذف بياناته المعزولة.",
                                   "Remove application from system.")
@@ -1954,8 +1954,8 @@ Kirigami.ApplicationWindow {
                 return root.local("إعادة تشغيل خدمات PipeWire و WirePlumber لاستعادة الصوت.",
                                   "Restart PipeWire and WirePlumber audio services.")
             case "optimize_system":
-                return root.local("تنظيف حزم Flatpak غير المستخدمة وصور الحاويات وسجلات النظام القديمة.",
-                                  "Clean unused Flatpak runtimes, container images, and vacuum journals.")
+                return root.local("تنظيف ملفات التطبيقات غير المستخدمة وصور الحاويات وسجلات النظام القديمة.",
+                                  "Clean unused app runtimes, container images, and vacuum journals.")
             case "install_nvidia":
                 return root.local("التبديل إلى صورة moos-nvidia الموقّعة وتثبيت تعريف كرت الشاشة في الإقلاع.",
                                   "Switch deployment to moos-nvidia with initramfs driver support.")

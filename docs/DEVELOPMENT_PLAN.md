@@ -350,6 +350,22 @@ dialog, not in a terminal line, not in a notification. "Windows programs", "Andr
 user-facing string that names wine, bottles, waydroid, proton, lutris, flatpak, wayland,
 kwin, plasma, qemu or bubblewrap.
 
+One word carried an exemption, and on 2026-09-20 the exemption was found paying for
+things it was never written for. "Flatpak" is also a FILE a person can hold — App Drop
+saying "This Flatpak file is not valid" names the thing in their hand, and refusing the
+word there would leave them holding a file MoOS will not name. That is why the gate's
+`RUNTIME_BRANDS` subset lets it through. But the same subset was also letting the
+STOREFRONT say it: Mo Store's install sheet read "Flatpaks install for your user only",
+its review line appended "· AppImage", the sources panel was headed "AppImage · External
+sources", and Mo AI described installing an app as "in sandboxed Flatpak container".
+None of those is a file; each is the mechanism, which is the one thing the owner asked
+never to see. The copy is rewritten in MoOS's voice ("Apps install for your account
+only", "· Verified file · SHA-256", "Publisher downloads · External sources"), and the
+line is now drawn where it belongs: on the surfaces where MoOS SELLS and INSTALLS apps —
+Mo Store, Welcome, Mo AI — the packaging may appear only inside a file name. App Drop,
+whose entire job is the file you just dropped, keeps the word on purpose. Both halves are
+held by `test_the_storefront_names_a_file_but_never_the_mechanism`, proven to fail on the old sentence.
+
 **macOS** is unsupported. The answer lives in ONE place — the `unsupported` entry in
 `app-engines.json`, in both languages — and this paragraph deliberately does not repeat
 it, because two copies of an answer is how a repository comes to give two answers. What

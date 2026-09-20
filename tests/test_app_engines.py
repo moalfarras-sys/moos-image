@@ -60,11 +60,12 @@ ENGINE_BRANDS = ("wine", "bottles", "waydroid", "proton", "lutris",
 # nobody ever holds one, so naming one only tells a person MoOS is several
 # systems wearing a coat.
 #
-# Note what this does NOT excuse, and see the plan's P4 section: Mo Store still
-# says "Update Flatpak apps here" and "Optional Flatpak engine" in section
-# headers, which is the mechanism and not a file. That is real copy work with its
-# own review, it is written down rather than quietly allowed, and it is why this
-# constant is a named subset instead of a shorter list.
+# That exemption is for FILES ONLY, and it was quietly paying for SENTENCES: the
+# storefront said "Flatpaks install for your user only" and "· AppImage", which
+# name the mechanism, not anything a person holds. The copy is rewritten and
+# test_the_storefront_names_a_file_but_never_the_mechanism below
+# now holds the narrower line, so this
+# constant stays a named subset instead of a shorter list.
 RUNTIME_BRANDS = tuple(brand for brand in ENGINE_BRANDS
                        if brand not in ("flatpak", "wayland", "kwin", "plasma"))
 
@@ -400,6 +401,65 @@ class TheEngineNeverSaysItsName(unittest.TestCase):
         self.assertEqual(
             offenders, [],
             "these are strings MoOS shows a person:\n  " + "\n  ".join(offenders))
+
+    def test_the_storefront_names_a_file_but_never_the_mechanism(self):
+        """Where MoOS sells and installs apps, packaging may only name a FILE.
+
+        RUNTIME_BRANDS lets "flatpak" through everywhere because a person can
+        physically hold a `.flatpakref`, and a message about the file in their
+        hand has to name it. An audit found that exemption covering sentences it
+        was never written for: Mo Store's install sheet read "Flatpaks install
+        for your user only", its review line appended "· AppImage", and MoAI
+        described installing an app as "in sandboxed Flatpak container". None of
+        those is a file; each is the mechanism, which is the one thing the owner
+        asked never to see.
+
+        So on these surfaces the packaging word is allowed only inside a file
+        name -- `.flatpak`, `.flatpakref`, `.appimage`. Prose may not carry it.
+        `appimage` is checked here and not in ENGINE_BRANDS because it is a
+        format rather than a vendor: `install.kind === "appimage"` is code MoOS
+        must keep, and only the rendered sentence is the offence.
+
+        App Drop is deliberately NOT one of these surfaces, and that is not a
+        hole. Its entire job is the file a person just dropped on the desk, so
+        "This Flatpak file is not valid" and "this AppImage could not be
+        unpacked" are the file in their hand, named -- the exact case the
+        exemption exists for. Refusing the word there would leave a person
+        holding a file MoOS will not name. The storefront is the opposite: there
+        no file is in anyone's hand until MoOS puts it there, so the word can
+        only be the mechanism. The older voice gate still holds App Drop to
+        RUNTIME_BRANDS, so wine, Bottles and Waydroid stay hidden in both.
+        """
+        PACKAGING = ("flatpak", "flatpaks", "appimage")
+        surfaces = {
+            "store/main.qml": ROOT / "system_files/usr/share/moos/apps/store/main.qml",
+            "welcome/main.qml": ROOT / "system_files/usr/share/moos/apps/welcome/main.qml",
+            "moai/main.qml": ROOT / "system_files/usr/share/moos/apps/moai/main.qml",
+        }
+        offenders = []
+        for name, path in surfaces.items():
+            source = path.read_text(encoding="utf-8")
+            stripped = re.sub(r"(?m)^\s*(#|//).*$", "", source)
+            for text in re.findall(r'"([^"\\]{4,}?)"', stripped):
+                lowered = text.lower()
+                if " " not in text:
+                    continue          # an id, an enum value or a path -- not prose
+                if "/" in text:
+                    continue          # a path
+                if "`" in text or ("<" in text and ">" in text):
+                    # MoAI's system prompt tells the MODEL which command to run.
+                    # `moai-do install <flatpak-id>` has to be the real command
+                    # or the tool call fails; no person reads this line.
+                    continue
+                if re.search(r"\.(flatpak|flatpakref|appimage)\b", lowered):
+                    continue          # names a file, which is the whole exemption
+                for brand in PACKAGING:
+                    if re.search(rf"\b{brand}\b", lowered):
+                        offenders.append(f"{name}: {text!r} names {brand!r}")
+        self.assertEqual(
+            offenders, [],
+            "MoOS says these to a person, and they name the packaging rather "
+            "than a file:\n  " + "\n  ".join(offenders))
 
     def test_the_runner_does_not_hint_a_terminal_command_at_the_owner(self):
         """"try: waydroid app install …" is the engine's name AND its CLI."""
