@@ -533,6 +533,7 @@ class TheEngineNeverSaysItsName(unittest.TestCase):
             ("org.kde.partitionmanager.desktop", '"Disks"'),
             ("systemsettings.desktop", '"MoOS Settings"'),
             ("org.kde.kinfocenter.desktop", '"System Report"'),
+            ("nvidia-settings.desktop", '"Graphics Card"'),
         ):
             line = next((l for l in build.splitlines()
                          if l.startswith("moos_rebrand_entry") and entry in l), "")
@@ -542,7 +543,8 @@ class TheEngineNeverSaysItsName(unittest.TestCase):
             self.assertIn("moos-", line,
                           f"{entry} must carry a MoOS icon, not the vendor's")
         # The two that are only ever reached THROUGH MoOS Settings leave the menu.
-        for entry in ("systemsettings.desktop", "org.kde.kinfocenter.desktop"):
+        for entry in ("systemsettings.desktop", "org.kde.kinfocenter.desktop",
+                      "nvidia-settings.desktop"):
             line = next((l for l in build.splitlines()
                          if l.startswith("moos_rebrand_entry") and entry in l), "")
             self.assertTrue(line.rstrip().endswith("hide"),

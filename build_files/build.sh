@@ -3480,12 +3480,21 @@ moos_rebrand_entry /usr/share/applications/org.kde.kdeconnect.app.desktop    "Ph
 moos_rebrand_entry /usr/share/applications/org.kde.partitionmanager.desktop  "Disks"          "الأقراص"        "moos-storage-symbolic" show
 moos_rebrand_entry /usr/share/applications/systemsettings.desktop            "MoOS Settings"  "إعدادات MoOS"   "moos-settings-symbolic" hide
 moos_rebrand_entry /usr/share/applications/org.kde.kinfocenter.desktop       "System Report"  "تقرير النظام"   "moos-system-symbolic"  hide
+# Found by asking the launcher's own model rather than reading files: a SIXTH
+# entry, "NVIDIA X Server Settings", sitting under النظام beside the other two.
+# It is the proprietary driver's X11 control panel — on a Wayland session most
+# of its pages cannot do anything, and MoOS Settings already reports the GPU on
+# its device page. It leaves the menu and keeps MoOS's words for the task bar.
+# Only the NVIDIA editions install it, so the helper's own [ -f ] check is what
+# makes this a no-op everywhere else.
+moos_rebrand_entry /usr/share/applications/nvidia-settings.desktop           "Graphics Card"  "كرت الشاشة"     "moos-gpu-symbolic"     hide
 
 # Gate it the same way (z1b) is gated: ask the FILES, not the list above. A
 # second settings application in the menu is the defect this whole section
 # exists for, so it fails the build rather than warning.
 for _f in /usr/share/applications/systemsettings.desktop \
-          /usr/share/applications/org.kde.kinfocenter.desktop; do
+          /usr/share/applications/org.kde.kinfocenter.desktop \
+          /usr/share/applications/nvidia-settings.desktop; do
     [ -f "$_f" ] || continue
     grep -q '^NoDisplay=true' "$_f" || {
         echo "GATE FAIL: $_f is still in the menu — MoOS Settings is the one settings app"
@@ -3496,11 +3505,12 @@ for _f in /usr/share/applications/org.kde.dolphin.desktop \
           /usr/share/applications/org.kde.kdeconnect.app.desktop \
           /usr/share/applications/org.kde.partitionmanager.desktop \
           /usr/share/applications/systemsettings.desktop \
-          /usr/share/applications/org.kde.kinfocenter.desktop; do
+          /usr/share/applications/org.kde.kinfocenter.desktop \
+          /usr/share/applications/nvidia-settings.desktop; do
     [ -f "$_f" ] || continue
     _first="$(sed -n '/^\[Desktop Entry\]/,/^\[Desktop Action/p' "$_f")"
     case "$_first" in
-        *"Name=Dolphin"*|*"KDE Connect"*|*"KDE Partition"*|*"Name=System Settings"*|*"Name=Info Center"*)
+        *"Name=Dolphin"*|*"KDE Connect"*|*"KDE Partition"*|*"Name=System Settings"*|*"Name=Info Center"*|*"NVIDIA X Server"*)
             echo "GATE FAIL: $_f still wears another desktop's name in the menu"
             exit 1 ;;
     esac
