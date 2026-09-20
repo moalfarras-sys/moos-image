@@ -219,6 +219,19 @@ def launch(app: str, resource: str = 'moos-qml-shell', title: str = '') -> dict:
     if not binary:
         return {'measured': False, 'why': f'{app} is not installed here'}
     saved = _klipper('getClipboardContents')
+    # The watcher answers through Klipper, so a Klipper that does not answer is a missing
+    # PROBE, not a missing window. Measured on the ARM station 2026-09-21: plasmashell owns
+    # org.kde.klipper but exposes no /klipper object when the clipboard applet is not in the
+    # tray — and MoOS curates its tray. Every read below then returns '', the 60 s wait
+    # times out, and the probe reports "the window never reached KWin", which reads like the
+    # app is broken. Mo AI, MoPlayer and Mo Store had in fact all opened and rendered on that
+    # very session. Prove the round trip before timing anything, and name the right culprit.
+    channel = f'MOOS-SPEED-CHANNEL {os.getpid()} {int(time.time() * 1000)}'
+    _klipper('setClipboardContents', channel)
+    if _klipper('getClipboardContents') != channel:
+        return {'measured': False,
+                'why': 'no clipboard channel to read the watcher through — '
+                       'org.kde.klipper /klipper does not answer, so no app was timed'}
     script = Path(tempfile.mkdtemp(prefix='moos-speed-')) / 'watch.js'
     script.write_text(WATCH % resource, encoding='utf-8')
     try:
