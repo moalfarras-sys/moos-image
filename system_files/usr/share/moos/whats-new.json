@@ -3,6 +3,20 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "glass-clarity",
+      "merged": "2026-09-20T19:16:32Z",
+      "glyph": "ui",
+      "title": {
+        "ar": "وضوح واحد لكل أسطح MoOS",
+        "en": "One clarity setting for every MoOS surface"
+      },
+      "body": {
+        "ar": "من منتقي السمات اختر وضوح الزجاج: صافٍ أو متوازن أو مصمت. يطبّق MoOS الاختيار فورًا على البحث والجزيرة ونوافذه معًا، ويحافظ على قراءة النص إذا لم يكن التمويه متاحًا.",
+        "en": "Choose Glass clarity in the Theme Picker: Clear, Balanced or Solid. MoOS applies it immediately to Search, the Island and its windows together, and keeps text readable when blur is unavailable."
+      },
+      "route": "moos://settings/themes"
+    },
+    {
       "id": "island-native-search",
       "merged": "2026-09-20T12:25:00Z",
       "glyph": "search",
