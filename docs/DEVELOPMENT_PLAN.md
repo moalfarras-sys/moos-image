@@ -721,7 +721,7 @@ revision and all required editions/artifacts prove that revision.
 | P0.3 | Open | Finish physical NVIDIA qualification | Plymouth/login photos; two suspend cycles; audio/network recovery; second monitor; clean journal |
 | P0.4 | Open | Prove failed-update recovery | disposable VM bad-candidate rollback, then hardware rollback/roll-forward with user data intact |
 | P0.5 | Open | Configure and accept free Mo AI on a clean account | valid OpenRouter key entered through Settings; Arabic/English reply; reboot persistence; provider failure UI |
-| P0.6 | **Release mechanism proven; corrective promotion required** | Promote only proven digests and update the physical PC | Revision `fbf393f4` passed signed x86 build `35461545885`, three disk proofs, ISO and promotion `35465072636`; ARM reached the same revision. A real KDialog test then exposed its consent default defect after production tags moved. The station still runs the prior signed deployment, but its timer staged the affected one for the next boot: do not reboot. Promote the corrective exact revision through the same proofs, replace the staged deployment, then reboot/read back. Current versions are in `PROJECT_STATE.md` |
+| P0.6 | **Release mechanism proven; next corrective promotion required** | Promote only proven digests and update the physical PC | Revision `499505c9` / `.907` passed signed x86 build, three disk proofs, ISO, ARM UEFI/QCOW2 and both promotions; exact run IDs are in `PROJECT_STATE.md`, and the station now boots that signed `.907` deployment. The active slice closes Store/menu/scale defects. Its update audit also found that the UI offered Restart for any staged deployment without resolving production, and that the backend compared a replacement only with booted—not staged—version. Source now has an explicit `replace-staged` state, compares both deployments again after Polkit, refuses same-version/different-digest, and suppresses restart until the staged digest is confirmed current. Promote this exact corrective revision through the same proof set, stage it, then reboot/read back. |
 | P0.7 | Open — **mechanism identified 2026-09-19** | Remove the intermittent `plymouthd` crash (ARM second boot; x86 first boot) | SEGV in `on_new_frame` failed ARM runs on 2026-09-15 and `35150466421`; on 2026-09-18 it core-dumped `plymouth-start.service` on the FIRST boot of cycle D's generic x86 QCOW2 (`35289168012`) while the same candidate's NVIDIA, cloud and ISO boots were clean — one x86 proof in about twelve so far. A lone proof lost to it is dispatched again (`RELEASE.md`), which costs a release cycle an hour each time. The theme is a Plymouth SCRIPT theme kept on screen through the KWin hand-off (`plymouth-quit.service.d/10-moos-retain-splash.conf`); **THE STACK EXISTS NOW — captured on the station 2026-09-19 23:02, the first boot of `44.20260919.899`.** It is not a random boot crash. It is a use-after-free in the QUIT path, and the timeline is millisecond-exact:
 
     23:02:27.271168  plymouth-quit.service starts (Terminate Plymouth Boot Screen)
@@ -948,7 +948,10 @@ resolve`/`stage --expected-digest` are the only verbs. Two constraints are fixed
 design: `moos-open` is reachable by any web page, so an update route may never carry a digest
 or a version — it reads the published record and the backend revalidates after Polkit; and
 "Restart now" stays a button in a window, never an action on a notification
-(`moos-update-ready`). What's new (W6.3) is the first page of that front door: an in-app page
+(`moos-update-ready`). A staged deployment is not itself permission to show either surface:
+the authority first resolves production against both booted and staged versions, offers
+`replace-staged` only for a strictly newer correction, and fails closed when one version label
+names different bytes. What's new (W6.3) is the first page of that front door: an in-app page
 of Settings, a `settings/…` route in `moos-open`, and a status-document field, with the GTK
 launcher untouched.
 

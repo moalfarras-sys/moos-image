@@ -261,13 +261,13 @@ class TestMoOSGtkRuntime(unittest.TestCase):
         self.assertIn("page_scroll.set_child(outer)", source)
         self.assertIn("self.win.set_child(page_scroll)", source)
 
-    def test_updater_checks_on_open_unless_an_update_is_already_staged(self):
+    def test_updater_checks_on_open_even_when_an_update_is_already_staged(self):
         source = UPDATER_PATH.read_text(encoding="utf-8")
         build = source[source.index("    def build(self, page):"):source.index("    def _check_on_open")]
         staged_branch = build[build.index("        if staged:"):]
-        self.assertIn("GLib.idle_add(self._check_on_open)", staged_branch.split("        else:", 1)[1],
-                      "the automatic check must run only when nothing is staged")
-        self.assertNotIn("_check_on_open", staged_branch.split("        else:", 1)[0])
+        self.assertIn("GLib.idle_add(self._check_on_open)", staged_branch,
+                      "a staged deployment can be superseded or rolled back remotely; "
+                      "the updater must resolve before offering Restart")
         calls = []
         fake = type("Fake", (), {"on_check": lambda self, button: calls.append(button)})()
         namespace = {}

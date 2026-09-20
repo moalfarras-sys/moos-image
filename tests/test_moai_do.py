@@ -264,6 +264,31 @@ with tempfile.TemporaryDirectory() as tmp:
           "a blocked downgrade must be a clear, clean no-op")
     check(not log.exists(), "a blocked downgrade must never invoke pkexec")
 
+    # A staged image is not a terminal state when production has a newer
+    # correction. The assistant must confirm and hand the replacement digest
+    # to the same fixed privileged authority.
+    (bindir / "moos-image-update").write_text(
+        "#!/bin/sh\nprintf '%s\\n' "
+        f"'replace-staged|moos-nvidia|{current}|{digest}'\n",
+        encoding="utf-8",
+    )
+    log.unlink(missing_ok=True)
+    result = subprocess.run(
+        [BASH, str(MOAI_DO), "update"],
+        input="y\n",
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=30,
+        env=env,
+    )
+    check(result.returncode == 0 and "replace the staged update" in result.stdout,
+          "a newer correction must be offered as a staged-update replacement")
+    actual = log.read_text(encoding="utf-8") if log.exists() else ""
+    check(actual == expected,
+          "a staged replacement must use the same exact-digest privileged boundary")
+
 # ── 3. App lifecycle has ONE authority: Mo Store's backend ───────────────────
 # uninstall carries the same free-form id as install, so it gets the same refusals.
 for bad_id in ("../../etc/passwd", "org.foo; rm -rf ~", "org.foo && reboot", "$(id)", "org foo"):

@@ -23,24 +23,25 @@ set -uo pipefail
 
 # Nothing to do off a MoOS/ostree machine, or where no one can be told.
 [ -d /ostree/deploy ] || exit 0
-command -v rpm-ostree  >/dev/null 2>&1 || exit 0
 command -v notify-send >/dev/null 2>&1 || exit 0
 command -v python3     >/dev/null 2>&1 || exit 0
 
-status="$(rpm-ostree status --json 2>/dev/null)" || exit 0
+backend="${MOOS_IMAGE_UPDATE_BACKEND:-/usr/libexec/moos-image-update}"
+[ -x "$backend" ] || exit 0
+status="$("$backend" resolve 2>/dev/null)" || exit 0
 
-# The STAGED deployment only. A pending update is the one rpm-ostree has written
-# and not yet booted; anything else is the system the person is already running.
+# Notify only when the update authority confirms the staged deployment is the
+# current production release. Raw rpm-ostree state cannot tell whether a newer
+# correction exists or production was rolled back; in either case telling the
+# owner to restart would send them to the wrong target.
 version="$(printf '%s' "$status" | python3 -c '
 import json, sys
 try:
-    deployments = json.load(sys.stdin).get("deployments", [])
+    state = json.load(sys.stdin)
 except ValueError:
     raise SystemExit(0)
-for deployment in deployments:
-    if deployment.get("staged"):
-        print(deployment.get("version", "") or "")
-        break
+if state.get("state") == "staged":
+    print(state.get("staged_version", "") or "")
 ' 2>/dev/null)"
 [ -n "$version" ] || exit 0
 

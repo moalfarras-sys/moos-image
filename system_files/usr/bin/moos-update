@@ -300,23 +300,21 @@ class Updater(MoOSApp):
             self.say(f"published: state={record.get('state') or '-'} "
                      f"event={record.get('event') or '-'}")
 
-        # An update the nightly train already staged is finished work waiting on a
-        # restart, and nothing else on this desktop says so: the notifier and the
-        # old `bootc upgrade --check` both read the pinned origin and report "no
-        # changes". Say it the moment the window opens, rather than making someone
-        # hunt for an update that is already sitting on the disk.
+        # A staged deployment is not automatically the release the owner should
+        # boot. Production may have advanced to a corrective image, or moved back
+        # after a failed promotion. Always resolve before offering Restart; the
+        # backend compares production with both booted AND staged deployments.
         if staged:
-            self.status.add_css_class("success")
             self.status.set_text(local_text(
-                "✓ تحديث جاهز بالفعل ({}) — أعد التشغيل لتطبيقه.",
-                "✓ An update is already staged ({}) — restart to apply it.",
+                "يوجد تحديث مُجهَّز ({}) — يجري التحقق من أنه ما زال الأحدث…",
+                "An update is staged ({}) — checking that it is still the latest…",
             ).format(staged.get("version", "") or "—"))
-            self.reboot_btn.set_visible(True)
         else:
             # Check once on open, the way phones and other desktops do: the window
             # used to wait on "Press Check for updates to begin" for a question the
             # owner opened it to ask. The resolve is unprivileged and asynchronous;
-            # a staged update keeps its restart message above instead.
+            # a staged update is resolved by the authority before any restart
+            # action is exposed.
             if record and record.get("state") == "current":
                 # Say what the published state already knows instead of opening on a
                 # spinner; the asynchronous check that follows confirms or corrects it.
@@ -329,7 +327,7 @@ class Updater(MoOSApp):
                     "جارٍ البحث عن تحديثات…",
                     "Checking for updates…",
                 ))
-            GLib.idle_add(self._check_on_open)
+        GLib.idle_add(self._check_on_open)
 
     def _check_on_open(self):
         """One-shot GLib idle callback: start the same check as the button."""
@@ -415,6 +413,9 @@ class Updater(MoOSApp):
 
     def on_check(self, _btn):
         self._target = None
+        self.apply_btn.set_sensitive(False)
+        self.apply_btn.set_label(local_text("تثبيت التحديث", "Install update"))
+        self.reboot_btn.set_visible(False)
         self.busy(True, local_text("جارٍ الفحص…", "Checking…"))
         self.say("$ moos-image-update resolve")
 
@@ -463,6 +464,23 @@ class Updater(MoOSApp):
                     "✓ You are on the latest signed MoOS image.",
                 ))
                 return
+            if state == "replace-staged":
+                digest = payload.get("latest_digest")
+                if not isinstance(digest, str):
+                    self.fail("رفض المحرك حالة تحديث غير صالحة.",
+                              "The update backend refused an invalid state.")
+                    return
+                self._target = digest
+                self.status.set_text(local_text(
+                    "يتوفّر إصدار تصحيحي أحدث من التحديث المُجهَّز. "
+                    "استبدله قبل إعادة التشغيل.",
+                    "A newer corrective release is available than the staged "
+                    "update. Replace it before restarting.",
+                ))
+                self.apply_btn.set_label(local_text(
+                    "استبدال التحديث المُجهَّز", "Replace staged update"))
+                self.apply_btn.set_sensitive(True)
+                return
             # Production :latest can lag behind a machine that already took a
             # signed candidate (or can move backwards after a bad retag). The
             # backend refuses that older object on purpose — that is health,
@@ -470,14 +488,16 @@ class Updater(MoOSApp):
             # desktop look broken while the protecter was doing its job.
             if state == "blocked-downgrade":
                 self.status.add_css_class("success")
+                baseline = payload.get("staged_version") or payload.get("booted_version")
                 self.status.set_text(local_text(
-                    "✓ نظامك أحدث من صورة الإنتاج المنشورة (الجهاز: {}، الإنتاج: {}). "
-                    "لا يوجد تحديث آمن الآن؛ انتظر ترقية موقّعة أحدث.",
-                    "✓ Your system is newer than the published production image "
-                    "(device: {}, production: {}). No safe update "
-                    "right now; wait for a newer signed release.",
+                    "✓ النسخة الموجودة أحدث من صورة الإنتاج المنشورة "
+                    "(الجهاز: {}، الإنتاج: {}). لن يعيد MoOS التشغيل إلى هدف غير مؤكد؛ "
+                    "انتظر إصداراً موقّعاً أحدث.",
+                    "✓ The device is newer than the published production image "
+                    "(device: {}, production: {}). MoOS will not restart into "
+                    "an unconfirmed target; wait for a newer signed release.",
                 ).format(
-                    payload.get("booted_version") or "—",
+                    baseline or "—",
                     payload.get("latest_version") or "—",
                 ))
                 self.say(

@@ -1,5 +1,4 @@
 # MoOS current state
-
 Current measured facts only; Git owns history. Last measured 2026-09-20 on the running station.
 
 **This block is the only place in the repository that states a version number.** The plan,
@@ -37,13 +36,11 @@ the README and every wave row point here instead of repeating it. Four parallel 
   this journal: 1 crash in 26 boots. Mechanism and next step are in the plan's P0.7 row.
 - `main` is `499505c9` and is the promoted `.907` source. The active review branch is
   `feat/store-real-popular-apps-20260920` (based on `b0930a45` plus the current sizing
-  and image-gate corrections). Compact fixed-geometry Context Island integration is already
-  on `main`; both older Island topic branches are ancestors, not unmerged work. The active
-  branch adds real Android/Windows catalogue
-  entries, removes the second storefront, and rewrites or hides the launcher's duplicate
-  Settings/foreign product entries. Its ARM gate is green. Its first x86 gate exposed an
+  and image-gate corrections). Compact fixed-geometry Context Island integration is on `main`;
+  both older Island branches are ancestors. This branch adds Android/Windows catalogue entries,
+  removes the second storefront, and fixes duplicate/foreign launchers. Its first x86 gate exposed an
   untranslated `GenericName=System Settings`; the helper now removes that secondary name
-  family and a full local image build passed as `ab3515a1cba6` (all experience, identity,
+  family and a full local image build passed as `2028144f5724` (all experience, identity,
   initramfs, clean-state and bootc gates). Merging source or moving a registry tag never
   updates this machine.
 - `main` is the only long-lived branch; every merged topic branch is deleted.
@@ -192,9 +189,10 @@ off` stops and un-autostarts both sharing services with no administrator rights.
 
 ## Next execution
 
-Review and merge the corrective source as one slice, then use
-`scripts/release-candidate.sh --promote` once. Its 204 source gates, isolated KDialog
-runtime proof and full local generic image build are green. Promotion
+Review and merge the corrective source as one slice, then use `scripts/release-candidate.sh
+--promote` once. Its 205 source gates, isolated KDialog runtime proof and full generic image
+`2028144f5724` are green, including staged-update supersession, identity, initramfs and
+clean-state gates. Promotion
 requires the signed build, three QCOW2 boots and ISO installed-system proof for the exact
 revision; ARM remains separate evidence. Only then stage the signed NVIDIA digest on
 this station, reboot, and read back version, signature origin, theme revision, failed

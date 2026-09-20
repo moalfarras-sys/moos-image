@@ -45,7 +45,7 @@ MEMORY_MAX_PERCENT = 90
 NETWORK_MAX_BYTES_PER_SECOND = 700_000
 DEPLOYMENT_LOCK = "/run/lock/moos-image-update.lock"
 # P1.5: ONE update state machine. This backend already owns the only validated
-# vocabulary (current/available/staged/blocked-downgrade/busy/unknown), but it
+# vocabulary (current/available/replace-staged/staged/blocked-downgrade/busy/unknown), but it
 # spoke it to stdout alone, so the Updater window, `moai-do update` and the timer
 # each re-derived their own view and nothing reached the journal. Every path now
 # publishes the same record here and says the same word to the journal, so the UI
@@ -303,10 +303,28 @@ def _resolve() -> dict[str, Any]:
     latest = candidate["digest"]
     result["latest_digest"] = latest
     result["latest_version"] = candidate["version"]
-    if latest == result["current_digest"]:
-        result["state"] = "current"
-    elif latest == result["staged_digest"]:
+    if latest == result["staged_digest"]:
         result["state"] = "staged"
+    elif staged_edition == edition:
+        candidate_key = release_version_key(
+            candidate["version"], source="registry image")
+        staged_key = release_version_key(
+            result["staged_version"], source="staged deployment")
+        if candidate_key < staged_key:
+            result["state"] = "blocked-downgrade"
+        elif candidate_key == staged_key:
+            # A release identity is immutable. The same version label pointing
+            # at different bytes is not an update and must never silently
+            # replace an already downloaded, signed deployment.
+            raise UpdateError(
+                "registry and staged deployment disagree for the same release version",
+                code=5,
+                security=True,
+            )
+        else:
+            result["state"] = "replace-staged"
+    elif latest == result["current_digest"]:
+        result["state"] = "current"
     elif release_version_key(candidate["version"], source="registry image") \
             <= release_version_key(result["booted_version"], source="booted deployment"):
         result["state"] = "blocked-downgrade"
@@ -395,17 +413,36 @@ def _stage_locked(expected_digest: str) -> str:
             code=76,
             security=True,
         )
+    candidate_key = release_version_key(
+        candidate["version"], source="registry image")
     booted_version = str(state["booted"].get("version", "") or "")
-    if release_version_key(candidate["version"], source="registry image") \
-            <= release_version_key(booted_version, source="booted deployment"):
+    if candidate_key <= release_version_key(
+            booted_version, source="booted deployment"):
         raise UpdateError(
             f"refused non-newer release {candidate['version']} over {booted_version}",
             code=78,
             security=True,
         )
+    replacing_staged = staged_edition == booted_edition
+    if replacing_staged:
+        staged_version = str((state["staged"] or {}).get("version", "") or "")
+        staged_key = release_version_key(
+            staged_version, source="staged deployment")
+        if candidate_key < staged_key:
+            raise UpdateError(
+                f"refused release {candidate['version']} older than staged {staged_version}",
+                code=78,
+                security=True,
+            )
+        if candidate_key == staged_key:
+            raise UpdateError(
+                "refused different digest for the staged release version",
+                code=78,
+                security=True,
+            )
     target = f"{SIGNED_PREFIX}{booted_edition}@{expected_digest}"
     run(RPM_OSTREE, "rebase", target, timeout=1800)
-    return "staged"
+    return "replaced-staged" if replacing_staged else "staged"
 
 
 def print_result(result: dict[str, Any], output_format: str) -> None:
@@ -541,16 +578,20 @@ def automatic() -> int:
             print(f"moos-image-update: latest image already staged ({result['latest_digest']})")
         return 0
     if state == "blocked-downgrade":
+        baseline = result.get("staged_version") or result["booted_version"]
         print(
             "moos-image-update: refusing downgrade from "
-            f"{result['booted_version']} to {result['latest_version']}"
+            f"{baseline} to {result['latest_version']}"
         )
         return 0
 
-    print(
-        f"moos-image-update: staging {result['edition']} {result['latest_digest']} "
-        f"(booted: {result['current_digest'] or 'unknown'})"
-    )
+    if state not in ("available", "replace-staged"):
+        print(f"moos-image-update: invalid update state {state!r}", file=sys.stderr)
+        return 5
+
+    verb = "replacing staged deployment with" if state == "replace-staged" else "staging"
+    print(f"moos-image-update: {verb} {result['edition']} {result['latest_digest']} "
+          f"(booted: {result['current_digest'] or 'unknown'})")
     try:
         outcome = stage(result["latest_digest"])
     except UpdateError as error:
