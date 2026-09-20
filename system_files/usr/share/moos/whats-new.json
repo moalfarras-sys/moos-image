@@ -3,6 +3,19 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "island-native-search",
+      "merged": "2026-09-20T12:25:00Z",
+      "glyph": "search",
+      "title": {
+        "ar": "البحث يفتح البحث فعلًا",
+        "en": "Search now opens Search"
+      },
+      "body": {
+        "ar": "زر البحث في شريط MoOS يفتح الآن سطح بحث ثابتًا فوق مكانه بدل صفحة كل التطبيقات. ابحث في التطبيقات والإعدادات والملفات، احسب مباشرة، أو سلّم السؤال إلى Mo AI من المكان نفسه.",
+        "en": "The Search button in the MoOS Bar now opens an anchored search surface above its place instead of the All applications page. Find apps, settings and files, calculate inline, or hand the question to Mo AI from the same surface."
+      }
+    },
+    {
       "id": "store-app-drop",
       "merged": "2026-09-19T18:00:00Z",
       "glyph": "install",

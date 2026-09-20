@@ -109,7 +109,14 @@ class RemoteIsland(unittest.TestCase):
 
     def test_search_and_remote_share_one_fixed_slot(self):
         self.assertIn('root.local("ابحث في MoOS", "Search MoOS")', self.qml)
-        self.assertIn('Qt.openUrlExternally("moos://search/")', self.qml)
+        self.assertNotIn('Qt.openUrlExternally("moos://search/")', self.qml,
+                         "the Search-labelled Island must not open the applications page")
+        self.assertIn("MoSearch.SearchView", self.qml)
+        self.assertIn("Milou.ResultsModel", self.qml)
+        self.assertIn("Kicker.RecentUsageModel", self.qml)
+        self.assertIn("root.expanded = true;", self.qml)
+        self.assertIn("visible: !root.active", self.qml,
+                      "Search owns the popup only while no live context replaces it")
         self.assertIn("readonly property real stableWidth:", self.qml)
         for owner in ("implicitWidth: stableWidth", "Layout.preferredWidth: stableWidth",
                       "Layout.minimumWidth: stableWidth", "Layout.maximumWidth: stableWidth"):

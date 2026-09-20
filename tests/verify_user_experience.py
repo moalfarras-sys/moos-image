@@ -2767,7 +2767,7 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=78" in apply_theme_code,
+require("THEME_REV=79" in apply_theme_code,
         "MoOS visual schema must migrate existing users to the W5 island (Store jobs, "
         "privacy chips) and inline search answers, the cardless centred "
         "Horizon Hub, responsive clock popup, authenticated Remote presence, "
@@ -6032,7 +6032,10 @@ require("readonly property real stableWidth:" in _island
         and "Layout.preferredWidth: stableWidth" in _island
         and "Layout.maximumWidth: stableWidth" in _island
         and "Behavior on implicitWidth" not in _island
-        and 'Qt.openUrlExternally("moos://search/")' in _island
+        and 'Qt.openUrlExternally("moos://search/")' not in _island
+        and "MoSearch.SearchView" in _island
+        and "Milou.ResultsModel" in _island
+        and "visible: !root.active" in _island
         and "Kirigami.Units.gridUnit * 9.5" in _island
         and "function onCompactTitleChanged()" in _island,
         "the Context Island must keep one invariant panel slot, show Search at "
