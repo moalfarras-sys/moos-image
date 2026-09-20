@@ -381,6 +381,30 @@ what Mo Store's own category already does — the rule forbids naming the machin
 origin. The wine half of this was fixed long ago (ten Wine tools masked, with a build gate);
 the Android half had simply never been written.
 
+**And the same audit, run properly, found the bigger one.** With every string gate green,
+the application menu in the owner's Arabic session offered **two settings applications**:
+"إعدادات MoOS" and "إعدادات النّظام". `build.sh` had hidden `kdesystemsettings.desktop`,
+Fedora's *duplicate* launcher, and left `systemsettings.desktop`, the real one, visible —
+and the gate beneath that section only ever checked the duplicate. Beside it stood
+"Dolphin / دولفين", "KDE Connect / جسر كِيدِي", "KDE Partition Manager / مدير أقسام كِيدِي"
+and "Info Center". Hiding all five would be the wrong fix: a person needs a file manager
+and a disk tool, and MoOS Settings routes its hardware panels into `systemsettings` and
+`kinfocenter` **on purpose** (`moos-open` says so — reimplementing twenty KCMs is not a
+better system). So each entry now carries MoOS's name and MoOS's icon — Files / الملفات,
+Phone / الهاتف, Disks / الأقراص — and the two reached only through MoOS Settings also leave
+the menu. Only the `[Desktop Entry]` group is rewritten, because `systemsettings.desktop`
+ships five Desktop Actions whose own `Name=` lines a blind `sed` would overwrite; the
+rewrite was proven against the real files before it shipped. `build.sh` fails the build if
+either half stops taking, and `test_the_app_menu_carries_no_other_desktop_name` holds it.
+
+**What is still honestly a seam, on NVIDIA machines only.** Android apps render in
+software. `waydroid`'s own `tools/helpers/gpu.py` carries `unsupported = ["nvidia"]` and
+falls back to `ro.hardware.egl=swiftshader` whenever the only DRI node belongs to the
+proprietary driver — measured on the station, an RTX 2080 SUPER. Forcing `drm_device` in
+`waydroid.cfg` does not defeat it; the same list is consulted. On AMD and Intel machines
+MoOS gets `gbm` + `mesa` automatically. Changing this means patching waydroid, which
+`AGENTS.md` forbids, so it is written down rather than quietly carried.
+
 **macOS** is unsupported. The answer lives in ONE place — the `unsupported` entry in
 `app-engines.json`, in both languages — and this paragraph deliberately does not repeat
 it, because two copies of an answer is how a repository comes to give two answers. What

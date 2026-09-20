@@ -662,6 +662,186 @@
         "risk": "external-download",
         "requires_review": true
       }
+    },
+    {
+      "id": "org.schabi.newpipe",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "video",
+      "en": "NewPipe",
+      "ar": "نيوبايب",
+      "desc_en": "Watches videos without ads or an account.",
+      "desc_ar": "يشغّل الفيديو دون إعلانات أو حساب.",
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/org.schabi.newpipe_1015.apk",
+        "sha256": "1d66d19eedbab969b1be2e44e0ea35f5f8921cbe83b5c5ac810767ca1a84b7e8",
+        "package": "org.schabi.newpipe",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "de.danoeh.antennapod",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "mic",
+      "en": "AntennaPod",
+      "ar": "أنتينابود",
+      "desc_en": "Subscribes to podcasts and plays them offline.",
+      "desc_ar": "يتابع البودكاست ويشغّلها دون إنترنت.",
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/de.danoeh.antennapod_3120195.apk",
+        "sha256": "11b38c20b555b445a301c12028ccb912af24dce1d8b85532658b797b85d52638",
+        "package": "de.danoeh.antennapod",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "com.kunzisoft.keepass.libre",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "lock",
+      "en": "KeePassDX",
+      "ar": "كيباس دي إكس",
+      "desc_en": "Keeps your passwords in an encrypted file you own.",
+      "desc_ar": "يحفظ كلمات المرور في ملف مُشفّر تملكه أنت.",
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/com.kunzisoft.keepass.libre_45400.apk",
+        "sha256": "862f87a30baef06181f049adf7c460611605b25a807eaf3c25841a9dd84bed9e",
+        "package": "com.kunzisoft.keepass.libre",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "org.fossify.gallery",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "image",
+      "en": "Gallery",
+      "ar": "المعرض",
+      "desc_en": "Browses and edits the photos on your device.",
+      "desc_ar": "يستعرض الصور ويعدّلها.",
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/org.fossify.gallery_28.apk",
+        "sha256": "ae7e699599e81f70e2b82626bb1dfa883fe096cd938387133e123c116e5641d9",
+        "package": "org.fossify.gallery",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "org.fossify.musicplayer",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "media",
+      "en": "Music",
+      "ar": "الموسيقى",
+      "desc_en": "Plays the music stored on your device.",
+      "desc_ar": "يشغّل الموسيقى المحفوظة على جهازك.",
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/org.fossify.musicplayer_14.apk",
+        "sha256": "b5d0ce367544df1ac162adf71d642878c5b963a304ca0ddf8f8556f07bbba79b",
+        "package": "org.fossify.musicplayer",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "putty",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "monitor",
+      "en": "PuTTY",
+      "ar": "بوتي",
+      "desc_en": "Connects to servers over SSH, serial and Telnet.",
+      "desc_ar": "يتصل بالخوادم عبر SSH والمنفذ التسلسلي وتيلنت.",
+      "install": {
+        "kind": "web",
+        "url": "https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "winscp",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "archive",
+      "en": "WinSCP",
+      "ar": "وين إس سي بي",
+      "desc_en": "Copies files to and from servers over SFTP and FTP.",
+      "desc_ar": "ينقل الملفات من وإلى الخوادم عبر SFTP وFTP.",
+      "install": {
+        "kind": "web",
+        "url": "https://winscp.net/eng/downloads.php",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "sumatrapdf",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "doc",
+      "en": "SumatraPDF",
+      "ar": "سوماترا بي دي إف",
+      "desc_en": "Opens PDF, ePub and comic files quickly.",
+      "desc_ar": "يفتح ملفات PDF وePub والقصص بسرعة.",
+      "install": {
+        "kind": "web",
+        "url": "https://www.sumatrapdfreader.org/download-free-pdf-viewer",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "paint-net",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "pen",
+      "en": "Paint.NET",
+      "ar": "بينت دوت نت",
+      "desc_en": "Edits images with layers and effects.",
+      "desc_ar": "يحرّر الصور بطبقات ومؤثرات.",
+      "install": {
+        "kind": "web",
+        "url": "https://www.getpaint.net/download.html",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "everything-search",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "compass",
+      "en": "Everything",
+      "ar": "إفريثينغ",
+      "desc_en": "Finds any file on a Windows disk instantly by name.",
+      "desc_ar": "يجد أي ملف على قرص ويندوز فورًا بالاسم.",
+      "install": {
+        "kind": "web",
+        "url": "https://www.voidtools.com/downloads/",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
     }
   ]
 }

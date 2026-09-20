@@ -3394,6 +3394,124 @@ for must_hide in kdesystemsettings.desktop org.kde.kwrite.desktop; do
 done
 
 # -----------------------------------------------------------------------------
+# (z1c) The menu says MoOS, or it says nothing
+# -----------------------------------------------------------------------------
+# (z1b) above hid the duplicates and the distribution's debug tools. It did not
+# touch the entries that are KEPT, and on 2026-09-20 the MoOS application menu
+# was still offering, in the owner's own Arabic session:
+#
+#   Dolphin / دولفين              the file manager, named after a KDE project
+#   KDE Connect / جسر كِيدِي         another desktop's name, twice, in the label
+#   KDE Partition Manager / مدير أقسام كِيدِي
+#   Info Center                   a second hardware-information app
+#   System Settings / إعدادات النّظام  A SECOND SETTINGS APP, beside MoOS Settings
+#
+# The last one is the one that matters most and is the easiest to miss: (z1b)
+# hid `kdesystemsettings.desktop`, Fedora's DUPLICATE launcher, and left
+# `systemsettings.desktop`, the real one, visible. So the owner had two settings
+# applications in his menu the whole time — the exact thing he said he did not
+# want — and the gate below it only ever checked the duplicate.
+#
+# Hiding all five is wrong: a person needs a file manager and a disk tool, and
+# MoOS Settings ROUTES its hardware panels into systemsettings and kinfocenter
+# on purpose (see moos-open: reimplementing twenty KCMs is not a better system).
+# So each entry is given MoOS's name and MoOS's icon, and the two that are only
+# ever REACHED THROUGH MoOS Settings also leave the menu. What opens is the
+# same program; what the person reads is MoOS.
+#
+# Only the [Desktop Entry] group is rewritten. Dolphin ships Desktop Actions
+# ("Open a New Window") whose own Name= lines a blind sed would overwrite, which
+# is how a rebrand turns into a context menu full of the application's title.
+moos_rebrand_entry() {
+    python3 - "$1" "$2" "$3" "$4" "$5" <<'MOOSREBRAND'
+import sys
+path, en, ar, icon, hide = sys.argv[1:6]
+try:
+    lines = open(path, encoding="utf-8").read().splitlines()
+except FileNotFoundError:
+    raise SystemExit(0)
+out, group, wrote_name, wrote_icon, wrote_hide = [], 0, False, False, False
+for line in lines:
+    if line.startswith("["):
+        if group == 1:
+            if not wrote_name:
+                out += ["Name=" + en, "Name[ar]=" + ar]; wrote_name = True
+            if not wrote_icon and icon:
+                out.append("Icon=" + icon); wrote_icon = True
+            if not wrote_hide and hide == "hide":
+                out.append("NoDisplay=true"); wrote_hide = True
+        group += 1
+        out.append(line)
+        continue
+    if group != 1:
+        out.append(line)
+        continue
+    if line.startswith("Name[") or line.startswith("GenericName["):
+        continue
+    if line.startswith("Name="):
+        if wrote_name:
+            continue
+        out += ["Name=" + en, "Name[ar]=" + ar]; wrote_name = True
+        continue
+    if line.startswith("Icon=") and icon:
+        if wrote_icon:
+            continue
+        out.append("Icon=" + icon); wrote_icon = True
+        continue
+    if line.startswith("NoDisplay="):
+        continue
+    out.append(line)
+if group == 1:
+    if not wrote_name:
+        out += ["Name=" + en, "Name[ar]=" + ar]
+    if not wrote_icon and icon:
+        out.append("Icon=" + icon)
+    if not wrote_hide and hide == "hide":
+        out.append("NoDisplay=true")
+elif hide == "hide" and not wrote_hide:
+    raise SystemExit("moos_rebrand_entry: could not place NoDisplay in " + path)
+open(path, "w", encoding="utf-8").write("\n".join(out) + "\n")
+MOOSREBRAND
+}
+
+#                     file                                  English        Arabic                 icon                      menu
+moos_rebrand_entry /usr/share/applications/org.kde.dolphin.desktop           "Files"          "الملفات"        "moos-folder-symbolic"  show
+moos_rebrand_entry /usr/share/applications/org.kde.kdeconnect.app.desktop    "Phone"          "الهاتف"         "moos-phone-symbolic"   show
+moos_rebrand_entry /usr/share/applications/org.kde.partitionmanager.desktop  "Disks"          "الأقراص"        "moos-storage-symbolic" show
+moos_rebrand_entry /usr/share/applications/systemsettings.desktop            "MoOS Settings"  "إعدادات MoOS"   "moos-settings-symbolic" hide
+moos_rebrand_entry /usr/share/applications/org.kde.kinfocenter.desktop       "System Report"  "تقرير النظام"   "moos-system-symbolic"  hide
+
+# Gate it the same way (z1b) is gated: ask the FILES, not the list above. A
+# second settings application in the menu is the defect this whole section
+# exists for, so it fails the build rather than warning.
+for _f in /usr/share/applications/systemsettings.desktop \
+          /usr/share/applications/org.kde.kinfocenter.desktop; do
+    [ -f "$_f" ] || continue
+    grep -q '^NoDisplay=true' "$_f" || {
+        echo "GATE FAIL: $_f is still in the menu — MoOS Settings is the one settings app"
+        exit 1
+    }
+done
+for _f in /usr/share/applications/org.kde.dolphin.desktop \
+          /usr/share/applications/org.kde.kdeconnect.app.desktop \
+          /usr/share/applications/org.kde.partitionmanager.desktop \
+          /usr/share/applications/systemsettings.desktop \
+          /usr/share/applications/org.kde.kinfocenter.desktop; do
+    [ -f "$_f" ] || continue
+    _first="$(sed -n '/^\[Desktop Entry\]/,/^\[Desktop Action/p' "$_f")"
+    case "$_first" in
+        *"Name=Dolphin"*|*"KDE Connect"*|*"KDE Partition"*|*"Name=System Settings"*|*"Name=Info Center"*)
+            echo "GATE FAIL: $_f still wears another desktop's name in the menu"
+            exit 1 ;;
+    esac
+    printf '%s' "$_first" | grep -q '^Name\[ar\]=' || {
+        echo "GATE FAIL: $_f has no Arabic name; an Arabic session would read English"
+        exit 1
+    }
+done
+unset -v _f _first
+
+# -----------------------------------------------------------------------------
 # (z2a) Remove the OTHER distribution's themes and wallpapers
 # -----------------------------------------------------------------------------
 # MoOS's own Look and Feel wins (/etc/xdg/kdeglobals outranks the kde-settings profile), so
