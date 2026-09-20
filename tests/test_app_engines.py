@@ -527,6 +527,9 @@ class TheEngineNeverSaysItsName(unittest.TestCase):
         build = BUILD.read_text(encoding="utf-8")
         self.assertIn("moos_rebrand_entry()", build,
                       "the helper that puts MoOS's name on a kept entry is gone")
+        self.assertIn('line.startswith("GenericName=")', build,
+                      "the base launcher's secondary name can leak another desktop's "
+                      "identity even after Name= was rewritten")
         for entry, english in (
             ("org.kde.dolphin.desktop", '"Files"'),
             ("org.kde.kdeconnect.app.desktop", '"Phone"'),
@@ -674,6 +677,66 @@ class TheImageAndTheRunnerAgree(unittest.TestCase):
         self.assertIn('--wine-run', source)
         self.assertIn('windows-last.log', source,
                       "a detached Windows failure must leave evidence instead of stderr=/dev/null")
+
+    def test_windows_programs_follow_the_moos_display_density(self):
+        """A sharp 96-DPI Win32 dialog is still unusable on the 4K desktop."""
+        source = RUNNER.read_text(encoding="utf-8")
+        self.assertIn("wine_prepare_display", source)
+        self.assertIn('Xft.dpi:', source,
+                      "the runner no longer reads the density of the active MoOS desktop")
+        self.assertIn('if (dpi < 96) dpi = 96', source)
+        self.assertIn('if (dpi > 192) dpi = 192', source,
+                      "fixed legacy dialogs can grow off-screen without the 200% ceiling")
+        self.assertIn("/v LogPixels", source)
+        self.assertLess(source.index('wine_prepare_display "$prefix" "$state_dir"'),
+                        source.index('wine "$target" >"$log"'),
+                        "the density is applied after the program has already started")
+
+    def test_windows_density_is_clamped_and_not_rewritten_every_launch(self):
+        source = RUNNER.read_text(encoding="utf-8")
+        start = source.index("wine_display_dpi() {")
+        functions = source[start:source.index("\n# A yes/no", start)]
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            bindir = root / "bin"
+            prefix = root / "prefix"
+            state = root / "state"
+            bindir.mkdir()
+            prefix.mkdir()
+            state.mkdir()
+            (bindir / "xrdb").write_text(
+                '#!/bin/sh\nprintf "Xft.dpi:\\t%s\\n" "$XFT_DPI"\n', encoding="utf-8")
+            (bindir / "wine").write_text(
+                '#!/bin/sh\nprintf "%s\\n" "$*" >>"$WINE_CALLS"\n'
+                'touch "$WINEPREFIX/user.reg"\n', encoding="utf-8")
+            for command in (bindir / "xrdb", bindir / "wine"):
+                command.chmod(0o755)
+            harness = root / "dpi.sh"
+            harness.write_text(
+                "#!/bin/bash\nset -uo pipefail\n" + functions
+                + f'\nwine_prepare_display "{prefix}" "{state}"\n', encoding="utf-8")
+            harness.chmod(0o755)
+            calls = root / "calls"
+            env = {**os.environ, "PATH": f"{bindir}:/usr/bin:/bin",
+                   "WINE_CALLS": str(calls), "XFT_DPI": "254"}
+
+            subprocess.run([str(harness)], env=env, check=True)
+            subprocess.run([str(harness)], env=env, check=True)
+            self.assertEqual((state / "windows-dpi").read_text().strip(), "192")
+            self.assertEqual(len(calls.read_text().splitlines()), 1,
+                             "unchanged density rewrote the prefix on every launch")
+
+            env["XFT_DPI"] = "72"
+            subprocess.run([str(harness)], env=env, check=True)
+            self.assertEqual((state / "windows-dpi").read_text().strip(), "96")
+            self.assertEqual(len(calls.read_text().splitlines()), 2)
+            self.assertTrue(calls.read_text().splitlines()[0].endswith("/d 192 /f"))
+            self.assertTrue(calls.read_text().splitlines()[1].endswith("/d 96 /f"))
+
+    def test_opening_a_windows_program_emits_one_status_popup(self):
+        source = RUNNER.read_text(encoding="utf-8")
+        self.assertEqual(source.count('notify "يشغّل $ar | opening $en"'), 2,
+                         "there must be one popup in each Windows runtime route")
 
 
 @unittest.skipIf(not os.access("/usr/bin/python3", os.X_OK), "no python3")

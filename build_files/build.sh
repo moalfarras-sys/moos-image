@@ -3446,7 +3446,12 @@ for line in lines:
     if group != 1:
         out.append(line)
         continue
-    if line.startswith("Name[") or line.startswith("GenericName["):
+    # A launcher model may show GenericName as a subtitle or use it for search.
+    # Keeping its unlocalised upstream value made the file look rebranded while
+    # "System Settings" was still user-visible (and made the image gate bite).
+    # MoOS entries need one clear product label, so remove the whole secondary
+    # name family instead of leaving an English-only alias behind.
+    if line.startswith("Name[") or line.startswith("GenericName=") or line.startswith("GenericName["):
         continue
     if line.startswith("Name="):
         if wrote_name:

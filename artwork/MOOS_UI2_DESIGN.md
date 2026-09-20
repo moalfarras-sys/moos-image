@@ -189,9 +189,13 @@ must not fall back to Breeze artwork.
 
 The search field has its own space and hit target; it never overlays the MoOS
 button. Preserve stock task grouping, pinning, previews and drag/reorder.
-MoOS Island is currently a horizontal panel applet with a one-pixel idle
-footprint, keeping its representation instantiated. Do not move its wide media
-content into a square tray cell or return to a zero-width initial state.
+MoOS Island is a fixed Context Island in the centre rail, not a panel segment that
+stretches and collapses. Its 9.5-grid-unit footprint stays stable while Search,
+Mo PC Remote, privacy, Store work and media replace one another inside it by a
+finite content transition. Labels and actions stay inside the capsule; compact
+titles and 34 px actions protect the 4K/fractional-scale layout. Do not move its
+wide content into a square tray cell, return to a zero-width initial state, or
+animate the panel's geometry when context changes.
 
 ### First-party apps
 
@@ -225,7 +229,7 @@ together before producing its release candidate.
    targets, real keyboard search/launch/Escape, preserved app pins/reordering,
    readable localized date/time and correct RTL order.
 
-2. **A useful MoOS Island.** A small state-bearing area grows into context,
+2. **A useful MoOS Island.** One stable state-bearing area swaps its context,
    then settles when the work ends. Start from existing media and Remote
    states; expose progress/cancel/retry for other work only after its owner
    supplies a real job contract. Keep one foreground state, deterministic

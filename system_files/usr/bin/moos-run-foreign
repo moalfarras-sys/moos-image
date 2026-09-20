@@ -84,6 +84,38 @@ engine_en() { engine "$1" name | cut -d"|" -f2; }
 
 notify() { command -v kdialog >/dev/null 2>&1 && kdialog --title "MoOS" --passivepopup "$1" 6 >/dev/null 2>&1 || true; }
 
+# Match old Windows UI to the desktop density before launching it. XWayland scales
+# the pixels, but many Win32 programs still lay out controls at a hard-coded 96
+# DPI; on a 4K MoOS desktop that leaves a perfectly sharp, unusably tiny dialog.
+# Use the density Plasma publishes through X resources and cap it at 200%: beyond
+# that, legacy fixed-size dialogs can grow taller than the usable screen. This is
+# intentionally a prefix setting, not a KWin size rule — stretching a fixed Win32
+# dialog only creates a large blank window while its controls stay in one corner.
+wine_display_dpi() {
+    local raw
+    raw="$(xrdb -query 2>/dev/null | awk '$1 == "Xft.dpi:" { print $2; exit }')"
+    awk -v dpi="${raw:-96}" 'BEGIN {
+        dpi += 0
+        if (dpi < 96) dpi = 96
+        if (dpi > 192) dpi = 192
+        printf "%.0f\n", dpi
+    }'
+}
+
+wine_prepare_display() {
+    local prefix="$1" state_dir="$2" dpi stamp
+    dpi="$(wine_display_dpi)"
+    stamp="$state_dir/windows-dpi"
+    if [ -f "$prefix/user.reg" ] && [ "$(cat "$stamp" 2>/dev/null || true)" = "$dpi" ]; then
+        return 0
+    fi
+    if env WINEPREFIX="$prefix" WINEDLLOVERRIDES="mscoree,mshtml=" \
+            wine reg add 'HKCU\Control Panel\Desktop' /v LogPixels \
+            /t REG_DWORD /d "$dpi" /f >/dev/null 2>&1; then
+        printf '%s\n' "$dpi" >"$stamp"
+    fi
+}
+
 # A yes/no the user can actually read, in both languages. Default to "no" — an OS that
 # installs a multi-hundred-MB runtime because a file was double-clicked is not trustworthy.
 ask() {
@@ -112,6 +144,7 @@ wine_run() {
     state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/moos-foreign"
     log="$state_dir/windows-last.log"
     mkdir -p "$prefix" "$state_dir" 2>/dev/null || return 1
+    wine_prepare_display "$prefix" "$state_dir"
     env WINEPREFIX="$prefix" WINEDLLOVERRIDES="mscoree,mshtml=" \
         wine "$target" >"$log" 2>&1
     code=$?
