@@ -610,6 +610,67 @@ class StoreIndexTests(unittest.TestCase):
             self.assertEqual(origins, {"flathub"})
 
 
+    def test_android_recipe_is_installable_and_tracks_local_package_state(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            home = base / "home"
+            package = "org.fdroid.fdroid"
+            package_state = home / ".local/share/waydroid/data/data" / package
+            package_state.mkdir(parents=True)
+            appstream = base / "appstream"
+            installation = base / "flatpak"
+            appstream.mkdir()
+            installation.mkdir()
+            catalog = base / "catalog.json"
+            catalog.write_text(
+                json.dumps(
+                    {
+                        "apps": [
+                            {
+                                "id": package,
+                                "source": "moos",
+                                "cat": "droid",
+                                "glyph": "store",
+                                "en": "F-Droid",
+                                "ar": "إف-درويد",
+                                "install": {
+                                    "kind": "android",
+                                    "url": "https://example.test/fdroid.apk",
+                                    "sha256": "0" * 64,
+                                    "package": package,
+                                    "external": True,
+                                    "risk": "external-download",
+                                    "requires_review": True,
+                                },
+                            }
+                        ]
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+            output = base / "index.json"
+            environment = os.environ.copy()
+            environment["HOME"] = str(home)
+
+            result = self.run_indexer(
+                output, catalog, appstream, installation, env=environment
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            app = json.loads(output.read_text(encoding="utf-8"))["apps"][0]
+            self.assertTrue(app["installable"])
+            self.assertTrue(app["installed"])
+            self.assertEqual(app["install"]["package"], package)
+
+            package_state.rmdir()
+            result = self.run_indexer(
+                output, catalog, appstream, installation, env=environment
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            app = json.loads(output.read_text(encoding="utf-8"))["apps"][0]
+            self.assertFalse(app["installed"])
+
+
 class StoreEditorialPicksTests(unittest.TestCase):
     """MoOS picks are editorial, not alphabetical (plan M1.4)."""
 

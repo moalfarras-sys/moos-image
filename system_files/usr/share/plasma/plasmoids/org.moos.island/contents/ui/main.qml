@@ -1,15 +1,16 @@
-// MoOS Media Island — one adaptive MPRIS surface in the Horizon Bar.
+// MoOS Context Island — one stable place for search and live activity.
 //
 // This is a direct panel zone immediately after the MoOS launcher, not a second
 // media service and not a tray icon. Plasma's Mpris2Model remains the single
 // source of truth and chooses the active player, including browsers that expose
-// MPRIS through Media Session. The applet is one pixel and transparent at idle,
-// expands when a real player appears, and offers the same player in a compact
-// bar surface and a detailed popup.
+// MPRIS through Media Session. The Island always occupies one medium, fixed
+// slot: Search owns it at rest; Remote, privacy, Store and media replace the
+// contents without moving a single neighbouring task icon.
 //
-// Motion is contextual only: geometry follows media/hover state and the progress
-// timer runs only while media is playing and somebody can see the position. No
-// decorative timer or permanent compositor repaint loop is allowed here.
+// Motion is contextual only: content cross-fades and settles inside fixed
+// geometry, while the progress timer runs only when media is playing and
+// somebody can see the position. No decorative timer or permanent compositor
+// repaint loop is allowed here.
 pragma ComponentBehavior: Bound
 
 import QtQuick
@@ -424,6 +425,16 @@ PlasmoidItem {
         else { root.detailContext = "media"; }
         root.expanded = true;
     }
+    function openPrimary() {
+        if (root.active) {
+            root.openDetails();
+        } else {
+            // The MoOS launcher already owns a complete Milou-backed search
+            // surface. Reuse that authority instead of keeping a second search
+            // applet beside this slot or falling back to a detached KRunner.
+            Qt.openUrlExternally("moos://search/");
+        }
+    }
 
     // Decode rasters for the DEVICE, not for logical pixels. A sourceSize is a
     // hard cap on the decoded image, so a fixed number silently under-samples
@@ -447,21 +458,40 @@ PlasmoidItem {
                                    || root.storeJobPresent
                                    || root.mediaPresent
                                    || releaseGrace.running
-    readonly property string contextTitle: root.remotePresent
+    readonly property string contextTitle: !root.active
+        ? root.local("ابحث في MoOS", "Search MoOS")
+        : root.remotePresent
         ? root.remoteTitle
         : (root.privacyPresent
             ? root.privacyTitle
             : (root.storeJobPresent
                 ? root.storeJobTitle
                 : root.displayTrack))
-    readonly property string contextSource: root.remotePresent
+    // The bar is glanceable, not a transcript. Keep a concise label inside the
+    // compact frame and reserve the complete sentence for the tooltip/popup.
+    readonly property string compactTitle: !root.active
+        ? root.local("بحث MoOS", "Search MoOS")
+        : root.remotePresent
+        ? root.local("تحكم متصل", "Remote connected")
+        : (root.privacyPresent
+            ? (root.privacyType === "screen"
+                ? root.local("مشاركة الشاشة", "Screen sharing")
+                : (root.privacyType === "camera"
+                    ? root.local("الكاميرا نشطة", "Camera active")
+                    : root.local("الميكروفون نشط", "Microphone active")))
+            : (root.storeJobPresent ? root.storeJobTitle : root.displayTrack))
+    readonly property string contextSource: !root.active
+        ? root.local("تطبيقات وملفات وإعدادات", "Apps, files and settings")
+        : root.remotePresent
         ? root.remoteSource
         : (root.privacyPresent
             ? root.privacySource
             : (root.storeJobPresent
                 ? root.storeJobSource
                 : root.displaySource))
-    readonly property string contextIcon: root.remotePresent
+    readonly property string contextIcon: !root.active
+        ? "moos-search-symbolic"
+        : root.remotePresent
         ? "moos-pc-remote"
         : (root.privacyPresent
             ? root.privacyIcon
@@ -487,40 +517,13 @@ PlasmoidItem {
         repeat: false
     }
 
-    // Remote is a STANDING state: a phone can stay connected for hours. A two-line capsule that
-    // never settles spends ~230 px of the bar repeating a sentence the user has already read — on
-    // the station it sat beside the search field for a whole evening. So the sentence is an
-    // announcement: the full capsule appears when a session starts, pauses, resumes or gains or
-    // loses a device, stays long enough to read, then settles to a live chip (the Remote glyph, a
-    // status dot and the device count). Hovering the chip or opening its popup brings the sentence
-    // back. The timer runs once per real state change and never while nothing is happening.
-    property bool remoteAnnouncing: false
-    readonly property bool remoteSettled: root.remotePresent && !root.remoteAnnouncing
-                                          && !root.compactHovered && !root.expanded
-                                          && !root.compactFocused
-    function announceRemote() {
-        // Read the two inputs, not the remotePresent binding: a change handler can run before
-        // that binding has re-evaluated. Measured on the station: the handler for the new session
-        // count saw remotePresent=false with mode=active and sessions=1, so the announcement was
-        // cancelled at the exact moment it should have started.
-        const present = root.remoteSessions > 0
-            && (root.remoteMode === "active" || root.remoteMode === "paused");
-        if (present) {
-            root.detailContext = "remote";
-            root.remoteAnnouncing = true;
-            remoteAnnounce.restart();
-        } else {
-            remoteAnnounce.stop();
-            root.remoteAnnouncing = false;
-        }
-    }
-    onRemoteModeChanged: root.announceRemote()
-    onRemoteSessionsChanged: root.announceRemote()
-    Timer {
-        id: remoteAnnounce
-        interval: 5000
-        repeat: false
-        onTriggered: root.remoteAnnouncing = false
+    // Remote is a standing safety state. It used to announce as a 230 px
+    // sentence and then collapse to a 72 px chip, shifting every task twice.
+    // The fixed Context Island has room to keep the useful state and device
+    // count visible for the full connection lifetime, so no timer or geometry
+    // transition is needed.
+    onRemotePresentChanged: if (root.remotePresent) {
+        root.detailContext = "remote";
     }
 
     // Some players publish position only on request. Wake once per second only
@@ -535,13 +538,10 @@ PlasmoidItem {
         onTriggered: if (root.player) { root.player.updatePosition(); }
     }
 
-    Plasmoid.status: root.active
-        ? PlasmaCore.Types.ActiveStatus
-        : PlasmaCore.Types.PassiveStatus
+    Plasmoid.status: PlasmaCore.Types.ActiveStatus
     Plasmoid.icon: root.contextIcon
-    toolTipMainText: root.active ? root.contextTitle
-                                 : root.local("لا يوجد نشاط", "No active context")
-    toolTipSubText: root.active ? root.contextSource : ""
+    toolTipMainText: root.contextTitle
+    toolTipSubText: root.contextSource
     toolTipTextFormat: Text.PlainText
 
     switchWidth: Kirigami.Units.gridUnit * 16
@@ -549,96 +549,36 @@ PlasmoidItem {
 
     compactRepresentation: FocusScope {
         id: compact
-        activeFocusOnTab: root.active
+        activeFocusOnTab: true
         onActiveFocusChanged: root.compactFocused = activeFocus
-        Keys.onReturnPressed: root.openDetails()
-        Keys.onEnterPressed: root.openDetails()
+        Keys.onReturnPressed: root.openPrimary()
+        Keys.onEnterPressed: root.openPrimary()
         Keys.onSpacePressed: event => {
-            if (!event.isAutoRepeat) { root.openDetails(); }
+            if (!event.isAutoRepeat) { root.openPrimary(); }
         }
         Keys.onEscapePressed: root.expanded = false
         Accessible.role: Accessible.Button
         Accessible.name: root.contextTitle
         Accessible.description: root.contextSource
-        Accessible.onPressAction: root.openDetails()
+        Accessible.onPressAction: root.openPrimary()
 
-        // The capsule is sized from the title's MEASURED width, plus the slot of a control
-        // that is always shown. It used to be 194 + 1.35 px per CHARACTER: Arabic glyphs
-        // are wider than that guess, and the privacy chip's Stop button (always revealed,
-        // unlike media's hover controls) took its 40 px out of the same room — so the
-        // owner's own session read "الميكروفون قيد الاستخ…". Media keeps its old range
-        // (218–258 px): a song title may elide, a system sentence may not.
-        TextMetrics {
-            id: titleMetrics
-            font.pixelSize: root.design.typeSecondary
-            font.weight: Font.DemiBold
-            text: root.contextTitle
-        }
-        readonly property bool systemSentence: !root.remotePresent
-            && (root.privacyPresent || root.storeJobPresent)
-        readonly property real pinnedControlWidth: systemSentence ? 40 + root.design.space1 : 0
-        readonly property real baseWidth: 60 + root.bounded(
-            Math.ceil(titleMetrics.advanceWidth) + 10, 158, systemSentence ? 260 : 198)
-            + pinnedControlWidth
-        // Reserve exactly the space the player's real capabilities need. A
-        // fixed 68 px hover allowance was too small for Previous + Next +
-        // Volume (90 px before spacing), so the title compressed first and the
-        // bar caught up afterwards. Capability-sized geometry keeps the text
-        // stable and makes the extension feel intentional.
-        readonly property int revealedControlCount: root.remotePresent ? 0
-            : (root.canGoPrevious ? 1 : 0)
-              + (root.canGoNext ? 1 : 0)
-              + (root.hasVolume ? 1 : 0)
-        readonly property real hoverExtra: revealedControlCount > 0
-            ? revealedControlCount * 40
-              + Math.max(0, revealedControlCount - 1) * root.design.space1
-            : 0
-        // The settled Remote chip: glyph plate plus the capsule's own rim insets.
-        readonly property real chipWidth: 72
-        implicitWidth: root.active
-            ? (root.remoteSettled ? chipWidth
-               : Math.round(baseWidth + Math.max(
-                  compactHover.hovered ? hoverExtra : 0,
-                  root.compactFocused ? hoverExtra : 0)))
-            : 1
+        // One invariant width is the central design decision: context changes
+        // are allowed to move pixels INSIDE the Island, never its neighbours.
+        // 9.5 grid units measure 171 px on the reference 4K/265% session. The
+        // first fixed prototype used 14 and read as a second search bar instead
+        // of an Island. Compact artwork and one 34 px action leave the title a
+        // useful lane without giving activity permission to move the taskbar.
+        readonly property real stableWidth: Math.round(Kirigami.Units.gridUnit * 9.5)
+        implicitWidth: stableWidth
         implicitHeight: root.design.panelHeight
-        Layout.preferredWidth: implicitWidth
-        Layout.minimumWidth: root.active ? (root.remoteSettled ? chipWidth : 218) : 1
-        Layout.maximumWidth: 420
+        Layout.preferredWidth: stableWidth
+        Layout.minimumWidth: stableWidth
+        Layout.maximumWidth: stableWidth
         Layout.fillHeight: true
-        opacity: root.active ? 1 : 0
-        enabled: root.active
-        visible: opacity > 0
+        opacity: 1
+        enabled: true
+        visible: true
         clip: true
-
-        // Arrive, do not blink into place. The capsule only ever faded, so
-        // media starting felt like a redraw rather than something appearing on
-        // the bar. A short settle from slightly under full size gives it a
-        // physical entrance without a novelty bounce beside working app icons,
-        // and it scales about the capsule's own centre so the neighbours never
-        // move. Both ends of the scale are gated by motionEnabled, so with
-        // animations off the capsule simply is there.
-        transformOrigin: Item.Center
-        scale: root.active ? 1.0 : (root.motionEnabled ? 0.88 : 1.0)
-        Behavior on scale {
-            NumberAnimation {
-                duration: root.motionGeometry
-                easing.type: root.design.easeEmphasis
-            }
-        }
-
-        Behavior on implicitWidth {
-            NumberAnimation {
-                duration: root.motionGeometry
-                easing.type: root.design.easeEmphasis
-            }
-        }
-        Behavior on opacity {
-            NumberAnimation {
-                duration: root.motionFast
-                easing.type: Easing.OutCubic
-            }
-        }
 
         HoverHandler {
             id: compactHover
@@ -698,8 +638,8 @@ PlasmoidItem {
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.top: parent.top
                 anchors.topMargin: -height / 2
-                width: compactHover.hovered ? parent.width * 0.34
-                                            : parent.width * 0.16
+                width: compactHover.hovered ? parent.width * 0.30
+                                            : parent.width * 0.12
                 height: 2
                 radius: 1
                 color: Kirigami.Theme.highlightColor
@@ -725,7 +665,9 @@ PlasmoidItem {
                 property bool wasExpanded: false
                 onPressed: wasExpanded = root.expanded
                 onClicked: mouse => {
-                    if (root.remotePresent) {
+                    if (!root.active) {
+                        root.openPrimary();
+                    } else if (root.remotePresent) {
                         if (mouse.button === Qt.MiddleButton) {
                             Qt.openUrlExternally("moos://app/remote");
                         } else {
@@ -773,10 +715,8 @@ PlasmoidItem {
                 spacing: root.design.space1
                 layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
-                // Centres the glyph plate while the Remote chip is settled.
-                Item { Layout.fillWidth: true; visible: root.remoteSettled }
-
                 Rectangle {
+                    id: contextPlate
                     // DERIVED, never a literal. A hardcoded 38 was the same
                     // height the capsule had left over, so the artwork had no
                     // breathing room at all and any inset — including one I
@@ -784,7 +724,7 @@ PlasmoidItem {
                     // the pill's bottom curve. Sizing from the shell keeps a
                     // real margin at every panel height the bar can take.
                     readonly property int artSize:
-                        Math.round(compactShell.height * 0.78)
+                        Math.round(compactShell.height * 0.68)
                     Layout.preferredWidth: artSize
                     Layout.preferredHeight: artSize
                     // Without this the artwork stretched to the capsule's full
@@ -792,6 +732,68 @@ PlasmoidItem {
                     Layout.alignment: Qt.AlignVCenter
                     radius: root.design.radiusControl
                     color: Qt.alpha(Kirigami.Theme.highlightColor, 0.16)
+                    border.width: root.design.borderHairline
+                    border.color: Qt.alpha(Kirigami.Theme.highlightColor,
+                                           compactHover.hovered ? 0.46 : 0.24)
+                    // The context change is SPRUNG, not timed.
+                    //
+                    // A NumberAnimation with an easing curve arrives at 1.0 on a
+                    // schedule: the plate reaches its size because the clock ran
+                    // out, and two changes in quick succession restart the curve
+                    // from 0.90 with a visible jerk. MoOS already owns the
+                    // physical answer — MoUI.SpringFeedback is what a MoOS Button,
+                    // the brand plasmoid and Search all settle with — so the
+                    // Island settles the same way instead of inventing a third
+                    // motion language inside the bar.
+                    //
+                    // Retargetable is the property that matters here. Media can
+                    // replace Remote which can replace Store within a second, and
+                    // a spring that is already moving simply acquires the new
+                    // target and keeps its velocity. It settles once, in one
+                    // continuous move, rather than snapping back to restart.
+                    //
+                    // SCALE ONLY, which is SpringFeedback's own rule: the Island's
+                    // width is fixed and its layout never moves, so nothing a
+                    // neighbouring task icon can see is on a spring.
+                    scale: contextSpring.value
+                    opacity: 1
+
+                    MoUI.SpringFeedback {
+                        id: contextSpring
+                        motionEnabled: root.motionEnabled
+                        targetScale: 1
+                    }
+
+                    Connections {
+                        target: root
+                        function onContextIconChanged() {
+                            if (root.motionEnabled && root.visible) {
+                                // Compress, then let the spring carry it back.
+                                // The dip is what reads as "this changed"; the
+                                // physics is what makes it feel like an object
+                                // rather than a fade.
+                                contextSpring.value = 0.90;
+                                contextSpring.retarget();
+                                contextFade.restart();
+                            }
+                        }
+                        function onMotionEnabledChanged() {
+                            if (!root.motionEnabled) {
+                                contextFade.stop();
+                                contextSpring.value = 1;
+                                contextPlate.opacity = 1;
+                            }
+                        }
+                    }
+                    // Opacity stays on a curve on purpose: a cross-fade is not a
+                    // physical event, and springing it would overshoot past 1.
+                    NumberAnimation {
+                        id: contextFade
+                        target: contextPlate; property: "opacity"
+                        from: 0.48; to: 1
+                        duration: root.motionFast
+                        easing.type: Easing.OutCubic
+                    }
 
                     // NOT Rectangle{radius}+clip: Qt clips a child to the
                     // item's BOUNDING BOX, never to its rounded corners, so an
@@ -825,8 +827,8 @@ PlasmoidItem {
                     }
                     Kirigami.Icon {
                         anchors.centerIn: parent
-                        width: 22
-                        height: 22
+                        width: 18
+                        height: 18
                         source: root.contextIcon
                         // A player publishes a desktop-entry NAME, which is not
                         // always an icon name: MoPlayer's entry is
@@ -848,9 +850,9 @@ PlasmoidItem {
                     // presence files as the sentence they replace.
                     Rectangle {
                         visible: root.remotePresent
-                        width: 10
-                        height: 10
-                        radius: 5
+                        width: 8
+                        height: 8
+                        radius: 4
                         anchors.top: parent.top
                         anchors.topMargin: -2
                         anchors.right: root.rtl ? undefined : parent.right
@@ -867,9 +869,9 @@ PlasmoidItem {
                     // Status dot for active privacy usage (Camera = green, Screen = cyan, Mic = amber)
                     Rectangle {
                         visible: !root.remotePresent && root.privacyPresent
-                        width: 10
-                        height: 10
-                        radius: 5
+                        width: 8
+                        height: 8
+                        radius: 4
                         anchors.top: parent.top
                         anchors.topMargin: -2
                         anchors.right: root.rtl ? undefined : parent.right
@@ -907,13 +909,11 @@ PlasmoidItem {
                     }
                 }
 
-                Item { Layout.fillWidth: true; visible: root.remoteSettled }
-
                 ColumnLayout {
                     id: compactText
-                    visible: !root.remoteSettled
+                    visible: true
                     Layout.fillWidth: true
-                    Layout.minimumWidth: 92
+                    Layout.minimumWidth: 68
                     // Centre the two lines as a BLOCK. Filling the capsule's
                     // full height pushed the caption onto the pill's bottom
                     // curve, which clipped it — the source name was cut in
@@ -932,8 +932,8 @@ PlasmoidItem {
                     // the one that goes when there is no room, and it is still
                     // in the tooltip and in the expanded view.
                     readonly property real laneRoom: timelineLane.visible ? 4 : 0
-                    readonly property bool roomForSource:
-                        compactShell.height - 4 - laneRoom >= 34
+                    readonly property bool roomForSource: root.active
+                        && compactShell.height - 4 - laneRoom >= 34
                     Layout.maximumHeight: Math.max(
                         17, compactShell.height - 4 - laneRoom)
                     Layout.leftMargin: root.design.space1
@@ -960,9 +960,9 @@ PlasmoidItem {
                     onVisibleChanged: if (!visible) { stopTrackTurn(); }
                     Connections {
                         target: root
-                        function onDisplayTrackChanged() {
+                        function onCompactTitleChanged() {
                             if (root.motionEnabled && compactText.visible
-                                    && !root.remotePresent && root.visible) {
+                                    && root.visible) {
                                 trackTurn.restart();
                             } else {
                                 compactText.stopTrackTurn();
@@ -970,9 +970,6 @@ PlasmoidItem {
                         }
                         function onMotionEnabledChanged() {
                             if (!root.motionEnabled) { compactText.stopTrackTurn(); }
-                        }
-                        function onRemotePresentChanged() {
-                            if (root.remotePresent) { compactText.stopTrackTurn(); }
                         }
                         function onVisibleChanged() {
                             if (!root.visible) { compactText.stopTrackTurn(); }
@@ -1005,7 +1002,7 @@ PlasmoidItem {
                     // stays correct if the bar is ever made shorter.
                     PC3.Label {
                         Layout.fillWidth: true
-                        text: root.contextTitle
+                        text: root.compactTitle
                         color: Kirigami.Theme.textColor
                         font.pixelSize: root.design.typeSecondary
                         font.weight: Font.DemiBold
@@ -1033,20 +1030,12 @@ PlasmoidItem {
                     }
                 }
 
-                MediaControl {
-                    revealed: !root.remotePresent && !root.privacyPresent && !root.storeJobPresent && root.compactInteractive
-                              && root.canGoPrevious
-                    controlEnabled: root.canGoPrevious
-                    iconName: root.rtl ? "media-skip-forward-symbolic"
-                                       : "media-skip-backward-symbolic"
-                    label: root.local("السابق", "Previous")
-                    onActivated: root.player.Previous()
-                }
-
                 // Play/pause is the one control that never hides: it is why the
                 // capsule is reachable at all without opening anything.
                 MediaControl {
-                    revealed: !root.remotePresent && !root.privacyPresent && !root.storeJobPresent
+                    slotSize: 34
+                    revealed: root.mediaPresent && !root.remotePresent
+                              && !root.privacyPresent && !root.storeJobPresent
                     controlEnabled: root.playing
                         ? root.canPause : (root.canPlay || root.canControl)
                     iconName: root.playing ? "media-playback-pause-symbolic"
@@ -1056,31 +1045,9 @@ PlasmoidItem {
                     onActivated: root.togglePlaying()
                 }
 
-                MediaControl {
-                    revealed: !root.remotePresent && !root.privacyPresent && !root.storeJobPresent && root.compactInteractive
-                              && root.canGoNext
-                    controlEnabled: root.canGoNext
-                    iconName: root.rtl ? "media-skip-backward-symbolic"
-                                       : "media-skip-forward-symbolic"
-                    label: root.local("التالي", "Next")
-                    onActivated: root.player.Next()
-                }
-
-                MediaControl {
-                    revealed: !root.remotePresent && !root.privacyPresent && !root.storeJobPresent && root.compactInteractive
-                              && root.hasVolume
-                    controlEnabled: root.hasVolume
-                    iconName: root.volume <= 0.01
-                        ? "audio-volume-muted-symbolic"
-                        : "audio-volume-high-symbolic"
-                    label: root.volume <= 0.01
-                        ? root.local("إلغاء الكتم", "Unmute")
-                        : root.local("كتم", "Mute")
-                    onActivated: root.toggleMuted()
-                }
-
                 // One-tap stop for privacy streams
                 MediaControl {
+                    slotSize: 34
                     revealed: !root.remotePresent && root.privacyPresent
                     controlEnabled: true
                     iconName: "moos-close-symbolic"
@@ -1090,6 +1057,7 @@ PlasmoidItem {
 
                 // Quick open for Store jobs
                 MediaControl {
+                    slotSize: 34
                     revealed: !root.remotePresent && !root.privacyPresent && root.storeJobPresent
                     controlEnabled: true
                     iconName: "moos-store"
@@ -1098,7 +1066,8 @@ PlasmoidItem {
                 }
 
                 MediaControl {
-                    revealed: root.remotePresent && !root.remoteSettled
+                    slotSize: 34
+                    revealed: root.remotePresent
                     controlEnabled: true
                     iconName: "configure-symbolic"
                     label: root.local("فتح إعدادات التحكم", "Open Remote controls")

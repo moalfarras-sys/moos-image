@@ -33,6 +33,7 @@ LAYOUT = (ROOT / "system_files/usr/share/plasma/layout-templates"
 
 BRAND = "org.moos.brand"
 ISLAND = "org.moos.island"
+RETIRED_SEARCH = "org.moos.search"
 
 
 def merge_program() -> str:
@@ -73,7 +74,8 @@ class SinglePanelMerge(unittest.TestCase):
                 elif section == "bar" and line.startswith("applets="):
                     applets = line.split("=", 1)[1]
             proc = subprocess.run(
-                [sys.executable, "-", str(rc), BRAND, applets, str(BAR_CONF), str(views)],
+                [sys.executable, "-", str(rc), BRAND, applets, str(BAR_CONF), str(views),
+                 RETIRED_SEARCH],
                 input=merge_program(), capture_output=True, text=True, check=True,
             )
             return proc.stdout.strip(), rc.read_text(encoding="utf-8"), views.read_text(encoding="utf-8")
@@ -120,9 +122,9 @@ class SinglePanelMerge(unittest.TestCase):
         self.assertNotIn("[Containments][430]", merged,
                          "the absorbed panel must be gone, not emptied")
         self.assertEqual(self.order_of(merged, "398"),
-                         ["424", "425", "431", "400", "401", "402", "421"],
+                         ["424", "425", "400", "401", "402", "421"],
                          "applets must land in moos-bar.conf order: "
-                         "brand, island, search, tasks, separator, tray, clock")
+                         "brand, fixed context island, tasks, separator, tray, clock")
         for aid in ("401", "402", "421"):
             self.assertIn(f"[Containments][398][Applets][{aid}]", merged,
                           f"applet {aid} must be re-homed, never dropped")
@@ -182,6 +184,23 @@ class SinglePanelMerge(unittest.TestCase):
                       "unrelated user/system tray children must survive")
         self.assertIn("plugin=org.kde.plasma.notifications", merged)
 
+    def test_retired_direct_search_is_absorbed_by_the_fixed_context_slot(self) -> None:
+        src = panel(
+            "398",
+            {"400": "org.kde.plasma.icontasks", "424": BRAND,
+             "425": ISLAND, "426": RETIRED_SEARCH},
+            order=["424", "425", "426", "400"],
+        )
+        src += ("\n[Containments][398][Applets][426][Configuration][General]\n"
+                "query=stale\n")
+
+        verdict, merged, _ = self.run_merge(src)
+        self.assertEqual(verdict, "reordered")
+        self.assertNotIn(f"plugin={RETIRED_SEARCH}", merged)
+        self.assertNotIn("[Applets][426]", merged,
+                         "the redundant search cell and its config must both go")
+        self.assertEqual(self.order_of(merged, "398"), ["424", "425", "400"])
+
     def test_three_stray_panels_all_collapse_into_the_launcher_s_panel(self) -> None:
         src = "\n".join((
             panel("10", {"11": "org.kde.plasma.systemtray"}, order=["11"]),
@@ -193,7 +212,7 @@ class SinglePanelMerge(unittest.TestCase):
         self.assertEqual(verdict, "merged")
         self.assertEqual(self.bottom_panels(merged), ["20"],
                          "the panel holding the MoOS launcher is the one that survives")
-        self.assertEqual(self.order_of(merged, "20"), ["22", "32", "33", "21", "11", "31"])
+        self.assertEqual(self.order_of(merged, "20"), ["22", "32", "21", "11", "31"])
 
     def test_invalid_immutability_is_repaired_to_mutable(self) -> None:
         """Plasma's ImmutabilityType is Mutable=1, UserImmutable=2, SystemImmutable=4.
@@ -253,8 +272,10 @@ class SingleSourceAgreement(unittest.TestCase):
                              f"{retired} is the retired two-slab definition")
         for key in ("lengthMode=fit", "alignment=center", "floating=true"):
             self.assertIn(key, conf, "the capsule geometry lives in the conf")
-        self.assertIn("applets=brand;island;search;tasks;separator;tray;clock", conf,
+        self.assertIn("applets=brand;island;tasks;separator;tray;clock", conf,
                       "one order, mirrored by Plasma for RTL")
+        self.assertNotIn("[search]", conf,
+                         "search is the fixed Island's idle face, not another cell")
 
     def test_the_seed_template_creates_exactly_one_panel(self) -> None:
         layout = LAYOUT.read_text(encoding="utf-8")

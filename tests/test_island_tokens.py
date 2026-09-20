@@ -225,23 +225,22 @@ class TheShellNeverReadsALocalFile(unittest.TestCase):
 
 
 class TheCapsuleFitsWhatItSays(unittest.TestCase):
-    def test_the_width_comes_from_measured_text_and_the_always_shown_control(self):
-        """Seen in the real shell (scripts/review/render-desktop.sh with a privacy token): the
-        Arabic chip read "الميكروفون قيد الاستخ…". The capsule was 194 px plus 1.35 px per
-        CHARACTER — Arabic glyphs are wider than that — and the Stop button, which unlike media's
-        hover controls is always revealed, took its 40 px out of the same room."""
+    def test_the_width_is_one_invariant_for_every_context(self):
+        """Changing activity must not move the Horizon Bar's task targets."""
         qml = (ISLAND / "main.qml").read_text(encoding="utf-8")
         code = "\n".join(l for l in qml.splitlines() if not l.lstrip().startswith("//"))
-        self.assertNotRegex(code, r"contextTitle\.length\s*\*",
-                            "the capsule is sized by counting characters again; measure the text")
-        metrics = re.search(r"TextMetrics\s*\{[^}]*text:\s*root\.contextTitle[^}]*\}", code, re.S)
-        self.assertIsNotNone(metrics, "no TextMetrics on the title the capsule shows")
-        for same_font in ("font.pixelSize: root.design.typeSecondary", "font.weight: Font.DemiBold"):
-            self.assertIn(same_font, metrics.group(0), "measure with the font the title is drawn in")
-        base = re.search(r"readonly property real baseWidth:(.*?)\n\s*readonly property", code, re.S).group(1)
-        self.assertIn("titleMetrics.advanceWidth", base)
-        self.assertIn("pinnedControlWidth", base,
-                      "an always-revealed control (privacy Stop, Store open) must widen the capsule")
+        self.assertIn("readonly property real stableWidth:", code)
+        for owner in ("implicitWidth: stableWidth", "Layout.minimumWidth: stableWidth",
+                      "Layout.preferredWidth: stableWidth", "Layout.maximumWidth: stableWidth"):
+            self.assertIn(owner, code)
+        self.assertRegex(code, r"stableWidth:\s*Math\.round\(Kirigami\.Units\.gridUnit \* 9\.5\)")
+        self.assertGreaterEqual(code.count("slotSize: 34"), 4,
+                                "compact actions must stay inside the narrower frame")
+        self.assertIn("readonly property bool roomForSource: root.active", code,
+                      "idle Search is one clean line, not a miniature form")
+        for forbidden in ("Behavior on implicitWidth", "contextTitle.length *", "baseWidth:",
+                          "hoverExtra", "chipWidth"):
+            self.assertNotIn(forbidden, code)
 
 
 if __name__ == "__main__":
