@@ -76,6 +76,7 @@ Kirigami.ApplicationWindow {
     readonly property string currentQuery:
         "kreadconfig6 --file kdeglobals --group KDE --key LookAndFeelPackage"
     readonly property string currentMotionQuery: "moos-theme motion"
+    readonly property string currentClarityQuery: "moos-theme clarity"
     // The supplement seam. Reading LookAndFeelPackage back proves only the one
     // value plasma-apply-lookandfeel is guaranteed to get right — it says
     // nothing about the four things moos-theme exists to carry (the desktop
@@ -90,15 +91,19 @@ Kirigami.ApplicationWindow {
         "gsettings get org.gnome.desktop.interface color-scheme"
     property string currentLnf: ""
     property string currentMotion: ""
+    property string currentClarity: "clear"
     property bool busy: false
     property string pendingThemeCommand: ""
     property string pendingExpectedLnf: ""
     property string pendingMotionCommand: ""
     property string pendingExpectedMotion: ""
+    property string pendingClarityCommand: ""
+    property string pendingExpectedClarity: ""
     property string pendingExpectedColorScheme: ""
     property string pendingVerb: ""
     property bool awaitingReadback: false
     property bool awaitingMotionReadback: false
+    property bool awaitingClarityReadback: false
     property bool awaitingSupplementReadback: false
     property bool operationTimedOut: false
     property string operationMessage: ""
@@ -106,6 +111,7 @@ Kirigami.ApplicationWindow {
     readonly property bool operationPending:
         pendingThemeCommand.length > 0 || awaitingReadback
         || pendingMotionCommand.length > 0 || awaitingMotionReadback
+        || pendingClarityCommand.length > 0 || awaitingClarityReadback
         || awaitingSupplementReadback
 
     // Queries and mutations deliberately use separate executable sources.
@@ -173,10 +179,13 @@ Kirigami.ApplicationWindow {
         pendingExpectedLnf = "";
         pendingMotionCommand = "";
         pendingExpectedMotion = "";
+        pendingClarityCommand = "";
+        pendingExpectedClarity = "";
         pendingExpectedColorScheme = "";
         pendingVerb = "";
         awaitingReadback = false;
         awaitingMotionReadback = false;
+        awaitingClarityReadback = false;
         awaitingSupplementReadback = false;
         operationTimedOut = false;
         busy = false;
@@ -255,6 +264,47 @@ Kirigami.ApplicationWindow {
                 : local(
                     "تم ضبط حركة الخلفية والتحقق منها",
                     "Wallpaper motion applied and verified");
+        } else if (cmd === currentClarityQuery) {
+            const activeClarity = out.trim();
+            const validClarity = /^(?:clear|balanced|solid)$/.test(activeClarity);
+            if (!awaitingClarityReadback) {
+                if (normalExit(data) && validClarity) {
+                    currentClarity = activeClarity;
+                } else {
+                    operationFailed = true;
+                    operationMessage = local(
+                        "تعذّرت قراءة وضوح الزجاج",
+                        "Could not read glass clarity");
+                }
+                return;
+            }
+
+            operationTimeout.stop();
+            if (!normalExit(data) || !validClarity) {
+                const detail = resultDetail(data);
+                failOperation(local(
+                                  "اكتمل الضبط لكن تعذّر التحقق من وضوح الزجاج",
+                                  "Clarity changed, but verification failed")
+                              + (detail ? ": " + detail : ""));
+                return;
+            }
+            currentClarity = activeClarity;
+            if (activeClarity !== pendingExpectedClarity) {
+                const expected = pendingExpectedClarity;
+                failOperation(local(
+                                  "لم يطابق الوضوح الفعلي الاختيار",
+                                  "Active clarity differs")
+                              + ": " + activeClarity + " ≠ " + expected);
+                return;
+            }
+            const wasLate = operationTimedOut;
+            clearOperationState();
+            operationFailed = false;
+            operationMessage = wasLate
+                ? local("اكتمل ضبط الوضوح بعد انتظار أطول وتم التحقق منه",
+                        "Clarity completed late and was verified")
+                : local("تم ضبط وضوح الزجاج والتحقق منه",
+                        "Glass clarity applied and verified");
         } else if (cmd === currentQuery) {
             const activeLnf = out.trim();
             if (!awaitingReadback) {
@@ -343,6 +393,24 @@ Kirigami.ApplicationWindow {
     }
 
     function handleThemeResult(cmd, data) {
+        if (cmd === pendingClarityCommand) {
+            operationTimeout.stop();
+            pendingClarityCommand = "";
+            if (!normalExit(data)) {
+                const detail = resultDetail(data);
+                failOperation(local(
+                                  "تعذّر ضبط وضوح الزجاج",
+                                  "Clarity change failed")
+                              + (detail ? ": " + detail : ""));
+                return;
+            }
+            awaitingClarityReadback = true;
+            busy = true;
+            operationTimeout.restart();
+            refreshClarity();
+            return;
+        }
+
         if (cmd === pendingMotionCommand) {
             operationTimeout.stop();
             pendingMotionCommand = "";
@@ -394,6 +462,9 @@ Kirigami.ApplicationWindow {
     }
     function refreshMotion() {
         queryExec.run(currentMotionQuery);
+    }
+    function refreshClarity() {
+        queryExec.run(currentClarityQuery);
     }
     function refreshSupplement() {
         queryExec.run(supplementQuery);
@@ -506,6 +577,39 @@ Kirigami.ApplicationWindow {
         operationTimeout.restart();
         themeExec.run(cmd);
     }
+    function restoreClarityHighlights() {
+        clarityClear.checked = Qt.binding(() => root.currentClarity === "clear");
+        clarityBalanced.checked = Qt.binding(() => root.currentClarity === "balanced");
+        claritySolid.checked = Qt.binding(() => root.currentClarity === "solid");
+    }
+    function setClarity(value) {
+        restoreClarityHighlights();
+        if (operationPending)
+            return;
+        let cmd = "";
+        switch (value) {
+        case "clear":
+            cmd = "moos-theme clarity clear";
+            break;
+        case "balanced":
+            cmd = "moos-theme clarity balanced";
+            break;
+        case "solid":
+            cmd = "moos-theme clarity solid";
+            break;
+        default:
+            failOperation(local("خيار وضوح غير صالح", "Invalid clarity choice"));
+            return;
+        }
+        pendingClarityCommand = cmd;
+        pendingExpectedClarity = value;
+        operationTimedOut = false;
+        operationMessage = "";
+        operationFailed = false;
+        busy = true;
+        operationTimeout.restart();
+        themeExec.run(cmd);
+    }
 
     // Do not terminate moos-theme on timeout: killing the atomic apply script
     // halfway through could leave a mixed desktop. The UI stops spinning,
@@ -516,7 +620,8 @@ Kirigami.ApplicationWindow {
         interval: 30000
         repeat: false
         onTriggered: {
-            if (root.pendingThemeCommand || root.pendingMotionCommand) {
+            if (root.pendingThemeCommand || root.pendingMotionCommand
+                    || root.pendingClarityCommand) {
                 root.operationTimedOut = true;
                 root.busy = false;
                 root.operationFailed = true;
@@ -524,14 +629,16 @@ Kirigami.ApplicationWindow {
                     "استغرقت العملية أكثر من 30 ثانية؛ ما زالت تعمل بأمان",
                     "The change is still finishing safely");
             } else if (root.awaitingReadback || root.awaitingMotionReadback
+                       || root.awaitingClarityReadback
                        || root.awaitingSupplementReadback) {
                 // Release exactly the query that is in flight. Connecting a
                 // source is what starts the process, so leaving a hung one
                 // connected means the next readback never starts.
                 queryExec.disconnectSource(
                     root.awaitingMotionReadback ? root.currentMotionQuery
+                    : (root.awaitingClarityReadback ? root.currentClarityQuery
                     : (root.awaitingSupplementReadback ? root.supplementQuery
-                                                       : root.currentQuery));
+                                                       : root.currentQuery)));
                 root.failOperation(root.local(
                     "انتهت مهلة التحقق",
                     "Verification timed out"));
@@ -543,6 +650,7 @@ Kirigami.ApplicationWindow {
     Component.onCompleted: {
         refreshThemes()
         refreshMotion()
+        refreshClarity()
     }
 
     // ── header ──────────────────────────────────────────────────────────────
@@ -762,6 +870,83 @@ Kirigami.ApplicationWindow {
                 FocusRing { }
                 Keys.onReturnPressed: if (motionAlive.enabled) root.setMotion("alive")
                 Keys.onSpacePressed: if (motionAlive.enabled) root.setMotion("alive")
+                }
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: root.fs(1)
+                color: Qt.rgba(root.accent.r, root.accent.g, root.accent.b, 0.22)
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Kirigami.Units.largeSpacing
+
+                Kirigami.Icon {
+                    source: "moos-diamond-symbolic"
+                    implicitWidth: Kirigami.Units.iconSizes.medium
+                    implicitHeight: implicitWidth
+                    color: root.accent
+                }
+                ColumnLayout {
+                    spacing: 0
+                    Layout.fillWidth: true
+                    QQC2.Label {
+                        text: root.local("وضوح الزجاج", "Glass clarity")
+                        font.weight: Font.DemiBold
+                        elide: Text.ElideRight
+                    }
+                    QQC2.Label {
+                        text: root.design.blurActive
+                            ? root.local("من شفاف إلى صلب — لكل واجهات MoOS",
+                                         "Clear to solid — across every MoOS surface")
+                            : root.local("صلب تلقائياً لأن الشفافية مخفّضة",
+                                         "Solid automatically while transparency is reduced")
+                        opacity: root.design.mutedOpacity
+                        font.pointSize: Kirigami.Theme.smallFont.pointSize
+                        elide: Text.ElideRight
+                    }
+                }
+
+                QQC2.Button {
+                    id: clarityClear
+                    text: root.local("شفاف", "Clear")
+                    checkable: true
+                    checked: root.currentClarity === "clear"
+                    enabled: !root.operationPending
+                    onClicked: root.setClarity("clear")
+                    activeFocusOnTab: true
+                    Accessible.name: clarityClear.text
+                    FocusRing { }
+                    Keys.onReturnPressed: if (enabled) root.setClarity("clear")
+                    Keys.onSpacePressed: if (enabled) root.setClarity("clear")
+                }
+                QQC2.Button {
+                    id: clarityBalanced
+                    text: root.local("متوازن", "Balanced")
+                    checkable: true
+                    checked: root.currentClarity === "balanced"
+                    enabled: !root.operationPending
+                    onClicked: root.setClarity("balanced")
+                    activeFocusOnTab: true
+                    Accessible.name: clarityBalanced.text
+                    FocusRing { }
+                    Keys.onReturnPressed: if (enabled) root.setClarity("balanced")
+                    Keys.onSpacePressed: if (enabled) root.setClarity("balanced")
+                }
+                QQC2.Button {
+                    id: claritySolid
+                    text: root.local("صلب", "Solid")
+                    checkable: true
+                    checked: root.currentClarity === "solid"
+                    enabled: !root.operationPending
+                    onClicked: root.setClarity("solid")
+                    activeFocusOnTab: true
+                    Accessible.name: claritySolid.text
+                    FocusRing { }
+                    Keys.onReturnPressed: if (enabled) root.setClarity("solid")
+                    Keys.onSpacePressed: if (enabled) root.setClarity("solid")
                 }
             }
         }

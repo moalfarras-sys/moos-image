@@ -337,9 +337,10 @@ Carry these decisions into production surfaces:
   previews distinguish sample content from live windows explicitly.
 - Stack groups at narrow widths; keep 40–44 px actions and vertical scrolling.
   Never shrink text to hide overflow.
-- Read glass policy from the effective user/system configuration without writing
-  defaults into the user's file. Startup preference is not runtime effect or
-  per-window blur availability; the live clarity control still needs that bridge.
+- Read glass policy through the event-driven material bridge without writing
+  defaults from QML. KWin's live global effect answer outranks the saved clarity
+  preference and pins the material solid when blur is unavailable. Per-window
+  blur-region qualification remains separate evidence.
 - Geometry settles after input; Reduced Motion stops geometry/button feedback.
 
 Task ownership and acceptance live in the plan's “Design completion handoff”.

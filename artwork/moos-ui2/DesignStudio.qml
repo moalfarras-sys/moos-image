@@ -289,10 +289,10 @@ QQC2.ApplicationWindow {
                                     text: studio.local(
                                         design.blurActive
                                             ? "الضبابية مفعّلة: glassFill() يعيد الكثافة المصمّمة نفسها لكل عمق (0.220)، والحافة واللمعة هما ما يحملان التدرّج."
-                                            : "لا ضبابية: glassFill() يزيد الكثافة مع العمق، فتظهر الأربع درجات أدناه.",
+                                            : "لا ضبابية: كل الأسطح تصل إلى النهاية الصلبة، وتحمل الحافة واللمعة تدرّج العمق.",
                                         design.blurActive
                                             ? "Blur is on: glassFill() returns the same designed density at every depth (0.220); the rim and the specular carry the hierarchy."
-                                            : "No blur: glassFill() adds body with depth — the four steps below.")
+                                            : "No blur: every surface reaches the solid endpoint; rim and specular retain the depth hierarchy.")
                                 }
                                 // Aurora Glass, four depths, over something worth hiding.
                                 //

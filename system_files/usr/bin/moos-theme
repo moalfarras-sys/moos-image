@@ -7,6 +7,7 @@
 #   moos-theme toggle     the other UI2 variant
 #   moos-theme auto       follow sunrise/sunset, between the two UI2 themes
 #   moos-theme motion     show/set the wallpaper motion policy
+#   moos-theme clarity    show/set the shared glass material density
 #   moos-theme perf       show/pin the hardware motion tier (moos-visual-tier)
 #
 # WHY A SCRIPT AND NOT JUST SYSTEM SETTINGS
@@ -72,6 +73,8 @@ moos-theme — بدّل مظهر MoOS بين الفاتح والداكن | switc
                          استعادة | restore the active profile's desktop canvas
   moos-theme motion [still|gentle|alive]
                          حركة الخلفية | show/set wallpaper motion
+  moos-theme clarity [clear|balanced|solid]
+                         وضوح الزجاج | show/set glass clarity
   moos-theme perf [auto|flagship|balanced|essential]
                          طبقة الأداء | motion sized to this machine's hardware
 
@@ -1544,6 +1547,84 @@ set_motion_mode() {
     printf '%s\n' "$actual"
 }
 
+# One appearance authority for every MoOS surface. The preference is carried in
+# moos-appearancerc; the session publisher turns it into a filename protocol so
+# plasmashell can follow it without local-file XHR or a polling timer. KWin gets
+# a matching blur strength, never above the measured ceiling of 15. We do NOT
+# turn blur on here: an essential/software-rendered machine and an owner who
+# disabled the effect must stay authoritative, and Tokens then pins the result
+# to solid automatically.
+query_clarity() {
+    local value
+    value="$(kreadconfig6 --file moos-appearancerc --group Material --key Clarity 2>/dev/null)"
+    case "$value" in
+        clear|balanced|solid) printf '%s\n' "$value" ;;
+        "") printf '%s\n' clear ;;
+        *)
+            echo "moos-theme: invalid stored glass clarity '$value'" >&2
+            return 1
+            ;;
+    esac
+}
+
+set_clarity() {
+    local requested="$1" strength old_clarity old_strength actual
+    case "$requested" in
+        clear)    strength=15 ;;
+        balanced) strength=9 ;;
+        solid)    strength=1 ;;
+        *)
+            echo "moos-theme: invalid clarity '$requested' (expected clear, balanced, or solid)" >&2
+            return 2
+            ;;
+    esac
+
+    old_clarity="$(kreadconfig6 --file moos-appearancerc --group Material --key Clarity 2>/dev/null)"
+    old_strength="$(kreadconfig6 --file kwinrc --group Effect-blur --key BlurStrength 2>/dev/null)"
+
+    restore_clarity() {
+        if [ -n "$old_clarity" ]; then
+            kwriteconfig6 --file moos-appearancerc --group Material --key Clarity "$old_clarity" 2>/dev/null || true
+        else
+            kwriteconfig6 --file moos-appearancerc --group Material --key Clarity --delete 2>/dev/null || true
+        fi
+        if [ -n "$old_strength" ]; then
+            kwriteconfig6 --file kwinrc --group Effect-blur --key BlurStrength "$old_strength" 2>/dev/null || true
+        else
+            kwriteconfig6 --file kwinrc --group Effect-blur --key BlurStrength --delete 2>/dev/null || true
+        fi
+    }
+
+    kwriteconfig6 --file moos-appearancerc --group Material --key Clarity "$requested" 2>/dev/null \
+        && kwriteconfig6 --file kwinrc --group Effect-blur --key BlurStrength "$strength" 2>/dev/null \
+        || { restore_clarity; echo "moos-theme: could not write glass clarity" >&2; return 1; }
+
+    actual="$(query_clarity)" || {
+        restore_clarity
+        echo "moos-theme: could not verify glass clarity" >&2
+        return 1
+    }
+    if [ "$actual" != "$requested" ] \
+        || [ "$(kreadconfig6 --file kwinrc --group Effect-blur --key BlurStrength 2>/dev/null)" != "$strength" ]; then
+        restore_clarity
+        echo "moos-theme: glass clarity readback did not match the request" >&2
+        return 1
+    fi
+
+    # The material publisher watches both config files; KWin still has to accept
+    # its half of the same transaction. Reporting success while the compositor
+    # kept the old strength would split one control into two visible states.
+    if ! gdbus call --session --dest org.kde.KWin --object-path /KWin \
+        --method org.kde.KWin.reconfigure >/dev/null 2>&1; then
+        restore_clarity
+        gdbus call --session --dest org.kde.KWin --object-path /KWin \
+            --method org.kde.KWin.reconfigure >/dev/null 2>&1 || true
+        echo "moos-theme: KWin did not apply glass clarity" >&2
+        return 1
+    fi
+    printf '%s\n' "$actual"
+}
+
 acquire_theme_lock() {
     local lock_dir lock_path held_path expected_path
     command -v flock >/dev/null 2>&1 || return 0
@@ -1592,8 +1673,8 @@ case "$command_name" in
     dark|light|nova|amethyst|midnight|aurora|nova-light|amethyst-light|aurora-light|daylight|gaming|dev|study|gaming-light|dev-light|study-light|toggle|auto|sync-auto|reconcile|reconcile-service|settle-lnf|guard|undo|apply-lnf|wallpaper-token|wallpaper-reset)
         needs_theme_lock=1
         ;;
-    motion)
-        # `moos-theme motion` reads; `moos-theme motion <mode>` writes.
+    motion|clarity)
+        # Reads take no lock; writes share the appearance transaction lock.
         [ "$#" -gt 1 ] && needs_theme_lock=1
         ;;
 esac
@@ -1888,6 +1969,16 @@ case "$command_name" in
             set_motion_mode "$2"
         else
             echo "moos-theme: motion accepts at most one value (still, gentle, or alive)" >&2
+            exit 2
+        fi
+        ;;
+    clarity)
+        if [ "$#" -eq 1 ]; then
+            query_clarity
+        elif [ "$#" -eq 2 ]; then
+            set_clarity "$2"
+        else
+            echo "moos-theme: clarity accepts at most one value (clear, balanced, or solid)" >&2
             exit 2
         fi
         ;;

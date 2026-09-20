@@ -888,6 +888,93 @@ esac
         self.assertIn("activeMotion !== pendingExpectedMotion", motion_readback)
         self.assertIn("clearOperationState()", motion_readback)
 
+    @unittest.skipUnless(_HAS_KWRITECONFIG6, _KWRITE_REASON)
+    def test_glass_clarity_has_one_owner_and_verified_fixed_routes(self) -> None:
+        switch = SWITCH.read_text(encoding="utf-8")
+        picker = (
+            ROOT / "system_files/usr/share/moos/theme-picker/main.qml"
+        ).read_text(encoding="utf-8")
+        query = function(switch, "query_clarity")
+        mutation = function(switch, "set_clarity")
+
+        self.assertIn("moos-appearancerc", query)
+        self.assertIn("Material --key Clarity", query)
+        for value, strength in (("clear", "15"), ("balanced", "9"), ("solid", "1")):
+            self.assertRegex(mutation, rf"(?m)^\s*{value}\)\s+strength={strength}\s+;;$")
+            self.assertIn(f'cmd = "moos-theme clarity {value}"', picker)
+            self.assertIn(f'onClicked: root.setClarity("{value}")', picker)
+        self.assertNotRegex(
+            picker, r'"moos-theme clarity "\s*\+',
+            "a mutable QML value must never become executable shell text",
+        )
+        self.assertIn('|| [ "$(kreadconfig6 --file kwinrc', mutation)
+        self.assertIn("restore_clarity", mutation)
+        self.assertIn("org.kde.KWin.reconfigure", mutation)
+        self.assertRegex(
+            switch,
+            r"(?m)^\s*motion\|clarity\)\s*$",
+            "clarity writes must take the existing appearance transaction lock",
+        )
+        self.assertIn('root.local("وضوح الزجاج", "Glass clarity")', picker)
+        self.assertIn("root.design.blurActive", picker)
+        self.assertIn("root.currentClarityQuery", picker)
+
+        with _tempfile.TemporaryDirectory(prefix="moos-clarity-test-") as temporary:
+            root = Path(temporary)
+            for leaf in ("home", "config", "run", "bin"):
+                (root / leaf).mkdir(mode=0o700)
+            gdbus = root / "bin/gdbus"
+            gdbus.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            gdbus.chmod(0o755)
+            environment = {
+                **os.environ,
+                "HOME": str(root / "home"),
+                "XDG_CONFIG_HOME": str(root / "config"),
+                "XDG_CONFIG_DIRS": str(ROOT / "system_files/etc/xdg"),
+                "XDG_RUNTIME_DIR": str(root / "run"),
+                "DBUS_SESSION_BUS_ADDRESS": f"unix:path={root / 'no-bus'}",
+                "PATH": f"{root / 'bin'}:{os.environ.get('PATH', '')}",
+            }
+            first = subprocess.run(
+                [BASH, str(SWITCH), "clarity"], env=environment,
+                text=True, capture_output=True, timeout=10, check=False)
+            self.assertEqual(first.returncode, 0, first.stderr)
+            self.assertEqual(first.stdout.strip(), "clear")
+            for value, strength in (("clear", "15"), ("balanced", "9"), ("solid", "1")):
+                changed = subprocess.run(
+                    [BASH, str(SWITCH), "clarity", value], env=environment,
+                    text=True, capture_output=True, timeout=10, check=False)
+                self.assertEqual(changed.returncode, 0, changed.stderr)
+                self.assertEqual(changed.stdout.strip(), value)
+                clarity_readback = subprocess.run(
+                    ["kreadconfig6", "--file", "moos-appearancerc", "--group",
+                     "Material", "--key", "Clarity"], env=environment,
+                    text=True, capture_output=True, timeout=10, check=False)
+                strength_readback = subprocess.run(
+                    ["kreadconfig6", "--file", "kwinrc", "--group", "Effect-blur",
+                     "--key", "BlurStrength"], env=environment,
+                    text=True, capture_output=True, timeout=10, check=False)
+                self.assertEqual(clarity_readback.returncode, 0, clarity_readback.stderr)
+                self.assertEqual(strength_readback.returncode, 0, strength_readback.stderr)
+                self.assertEqual(clarity_readback.stdout.strip(), value)
+                self.assertEqual(strength_readback.stdout.strip(), strength)
+
+            gdbus.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+            rejected = subprocess.run(
+                [BASH, str(SWITCH), "clarity", "balanced"], env=environment,
+                text=True, capture_output=True, timeout=10, check=False)
+            self.assertNotEqual(rejected.returncode, 0)
+            self.assertIn("KWin did not apply", rejected.stderr)
+            for filename, group, key, expected in (
+                ("moos-appearancerc", "Material", "Clarity", "solid"),
+                ("kwinrc", "Effect-blur", "BlurStrength", "1"),
+            ):
+                readback = subprocess.run(
+                    ["kreadconfig6", "--file", filename, "--group", group,
+                     "--key", key], env=environment, text=True,
+                    capture_output=True, timeout=10, check=False)
+                self.assertEqual(readback.stdout.strip(), expected)
+
     def test_custom_wallpaper_is_encoded_transactional_and_owned_once(self) -> None:
         switch = SWITCH.read_text(encoding="utf-8")
         migrator = APPLY.read_text(encoding="utf-8")

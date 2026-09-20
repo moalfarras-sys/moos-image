@@ -56,10 +56,9 @@ laptop, a touchscreen or two monitors**.
    the one ARM review so far was a seatless A1 under `kwin --virtual` (P5, P0.7).
 5. **The rest of the look** — the desk itself is settled: nothing is laid over the
    wallpaper, nothing on that layer moves, and its contrast is lifted on the image and
-   measured (W9.8). The bridge a clarity control needs exists too (W9.6: a QML singleton
-   reads `kwinrc` synchronously and the surfaces answer to it). What remains is the
-   control itself from clear to solid, the MoOS mark at exactly three sizes, and the
-   specular sweeping once as a surface arrives (the open half of W8).
+   measured (W9.8). THEME_REV 84 completes the live clear-to-solid clarity control and
+   its KWin/material bridge. What remains is the MoOS mark at exactly three sizes and
+   the specular sweeping once as a surface arrives (the open half of W8).
 
    **The rule those two waves established, and the one to keep:** a MoOS surface earns
    its effect by measurement, not by taste. Two ideas that looked good — an ambient wash
@@ -160,7 +159,7 @@ reviewed live, gated once, merged once and proven once.
 | W9.2 | M1 | **MoOS has speed numbers, and a budget it can fail.** `moos-measure-speed` asks systemd for boot and session, asks KWin when an app's window really exists, and measures MoOS's OWN processes' idle CPU — not the whole machine, which on this station read 9.03% with Chrome, VS Code and Steam open while MoOS cost 2.6%. Budgets live per tier in `speed-budgets.json`, each carrying the measurement that justifies it; a probe that cannot run reports why and is excluded from the verdict instead of counting as a zero | PR #138, all four rows measured on the running station |
 | W9.3 | M3 | **One authority for every app transaction, held by a gate instead of a comment.** `moai-do` has said since W6 that Mo Store's backend is the only thing that installs, removes or updates an app — because `flatpak install` lands in the SYSTEM scope while Mo Store installs per user, so Mo AI's apps could never be removed from the Store. Two callers were outside that rule, and they were the two a person meets first: the Windows-programs setup, and the first-run app selection. Both go through `moos-storectl` now, and `tests/test_one_app_transaction_authority.py` fails on any new one — with a single narrow exception for `flatpak uninstall --unused`, which collects orphaned runtimes and cannot touch an app | PR #138 |
 | W9.5 | M1 | **How a security update reaches a machine, said truthfully.** `build.yml`'s nightly claimed it picked up Fedora/uBlue base security updates "promptly"; it pushes only a candidate tag, and promotion refuses any run that is not a dispatch, so it ships nothing and never could. ARM had no scheduled rebuild at all. Both corrected, and `tests/test_security_update_reachability.py` keeps the claim and the mechanism from drifting apart again | PR #139 |
-| W9.6 | M2 | **Glass stops being a window where there is no blur (P2.5).** Every Aurora Glass density assumed a blur pass behind the surface; without one — the essential tier, llvmpipe, or an owner who turned blur off — 0.22 alpha over a wallpaper is a window, and the A1's review said exactly that. The surfaces now read `kwinrc/Plugins/blurEnabled`, the same key `moos-visual-tier` already writes, and paint the same colour with enough body to hold text when it is off. Proved on a real Qt engine against a real config both ways: 0.22/0.22/0.82 with blur, 0.86/0.97/0.97 without, and the depths still separate | `THEME_REV` 70, PR #139 |
+| W9.6 | M2 | **Glass stops being a window where there is no blur (P2.5).** Every Aurora Glass density assumed a blur pass behind the surface; without one — the essential tier, llvmpipe, or an owner who turned blur off — 0.22 alpha over a wallpaper is a window, and the A1's review said exactly that. The surfaces now read `kwinrc/Plugins/blurEnabled`, the same key `moos-visual-tier` already writes, and paint the same colour with enough body to hold text when it is off. Proved on a real Qt engine against a real config both ways. THEME_REV 84 later strengthens this to a uniform 0.97 fail-solid endpoint while rim/specular retain depth. | `THEME_REV` 70, PR #139 |
 | W9.8 | M2 | **The desk stops moving, and the wallpaper gets stronger — one defect.** Two full-screen washes traded emphasis every 90 s: long enough that the eye caught a drift and found nothing, and to do it they veiled every pixel of the artwork. A replacement was built (one light whose place in the sky is the hour), measured, and DELETED — every translucent layer over a dark image lifts its blacks, which is what "washed out" means, so both complaints had one answer: take things off. Nothing is over the artwork now and its own contrast is lifted instead, gated on GPU compositing via `Tokens.blurActive`. Measured on the station: **+14.2% contrast**; the strength was chosen against shadow loss (0.24 bought +4.5% more contrast for 3.5× the crushing) | `THEME_REV` 71, PR #140 |
 | W9 | M2 | System surfaces on MoOS UI: Updater, Recovery, Remote centre, Settings front door (P2.1–P2.2), a MoOS-owned About page (P2.9) | planned |
 | W10 | M3 | Mo Store as one job system for install/update/remove across the UI, Mo AI and URL routes, with a drop target in its own window (P1.7, P4.1–P4.2, P4.7) | planned |
@@ -208,9 +207,14 @@ Still open in W8. The first two are carried by the design completion handoff bel
 row 1 and row 4 — and are repeated here only so the wave reads whole; the third has no
 row anywhere, which is why it is written out.
 
-- **One clarity control** → handoff row 1. «وضوح الزجاج | Glass clarity» from clear to
-  solid, one value driving both MoOS token density and KWin's blur strength, pinned to
-  solid by the reduced-transparency setting.
+- **One clarity control — implemented in source (THEME_REV 84).** «وضوح الزجاج |
+  Glass clarity» offers Clear / Balanced / Solid through the existing Theme Picker and
+  the existing `moos-theme` appearance authority. One verified value drives both Design
+  Core opacity and KWin blur strength (15 / 9 / 1); live blur loss pins every surface to
+  the near-solid endpoint. The filename bridge is event-driven, makes no QML timer or
+  config writer, and updates a running Qt engine without relogin. Real Qt tests cover
+  missing config, XDG priority, ambiguity, service loss and live transitions. Remaining
+  evidence is the installed-image Search + Island + first-party-window comparison.
   **The plumbing this was blocked on is no longer missing.** The blocker was that a QML
   singleton has no way to be TOLD the policy changed: `Qt.labs.settings` reads at load
   and never again, and there is no `KConfigWatcher` in the QML stack — checked on the
@@ -721,7 +725,7 @@ revision and all required editions/artifacts prove that revision.
 | P0.3 | Open | Finish physical NVIDIA qualification | Plymouth/login photos; two suspend cycles; audio/network recovery; second monitor; clean journal |
 | P0.4 | Open | Prove failed-update recovery | disposable VM bad-candidate rollback, then hardware rollback/roll-forward with user data intact |
 | P0.5 | Open | Configure and accept free Mo AI on a clean account | valid OpenRouter key entered through Settings; Arabic/English reply; reboot persistence; provider failure UI |
-| P0.6 | **Release mechanism proven; next corrective promotion required** | Promote only proven digests and update the physical PC | Revision `499505c9` / `.907` passed signed x86 build, three disk proofs, ISO, ARM UEFI/QCOW2 and both promotions; exact run IDs are in `PROJECT_STATE.md`, and the station now boots that signed `.907` deployment. The active slice closes Store/menu/scale defects. Its update audit also found that the UI offered Restart for any staged deployment without resolving production, and that the backend compared a replacement only with booted—not staged—version. Source now has an explicit `replace-staged` state, compares both deployments again after Polkit, refuses same-version/different-digest, and suppresses restart until the staged digest is confirmed current. Promote this exact corrective revision through the same proof set, stage it, then reboot/read back. |
+| P0.6 | **Complete — release mechanism and corrective cycle proven** | Promote only proven digests and update the physical PC | The current revision passed the signed build, all three x86 disk proofs, ISO installed-system proof, ARM UEFI/QCOW2 proof and production promotion; exact run IDs and the signed installed digest are in `PROJECT_STATE.md`. The station boots it with the prior signed deployment retained, 55/55 post-update checks, and zero failed units. The updater's staged-replacement protections and App Drop's fail-closed consent are now installed evidence rather than pending source. |
 | P0.7 | Open — **mechanism identified 2026-09-19** | Remove the intermittent `plymouthd` crash (ARM second boot; x86 first boot) | SEGV in `on_new_frame` failed ARM runs on 2026-09-15 and `35150466421`; on 2026-09-18 it core-dumped `plymouth-start.service` on the FIRST boot of cycle D's generic x86 QCOW2 (`35289168012`) while the same candidate's NVIDIA, cloud and ISO boots were clean — one x86 proof in about twelve so far. A lone proof lost to it is dispatched again (`RELEASE.md`), which costs a release cycle an hour each time. The theme is a Plymouth SCRIPT theme kept on screen through the KWin hand-off (`plymouth-quit.service.d/10-moos-retain-splash.conf`); **THE STACK EXISTS NOW — captured on the station 2026-09-19 23:02, the first boot of `44.20260919.899`.** It is not a random boot crash. It is a use-after-free in the QUIT path, and the timeline is millisecond-exact:
 
     23:02:27.271168  plymouth-quit.service starts (Terminate Plymouth Boot Screen)
@@ -825,17 +829,14 @@ while reading, and it understood four of KConfig's twelve boolean spellings — 
 `blurEnabled=off`, which KWin honours, was skipped and the decision handed to
 `/etc/xdg/kwinrc`, which says blur is on. Nine cases green on a real Qt engine.
 
-**Why runtime capability detection is still not done**, kept because it is the
-measurement that scopes the work: the installed QML stack exposes no blur-availability
-API — `org/kde/kwindowsystem` and `plasma/core` qmltypes carry no `blurBehind` or
-`isEffectAvailable`, and `/usr/lib64/qt6/qml/org/kde/config/` has no `KConfigWatcher`.
-`moos-visual-tier` is the authority that should publish it, the way it already publishes
-`file_indexing` to `moos-index-policy`. The reader's transport is no longer missing
-(`Qt.labs.folderlistmodel`, see W8's open list), but the authority and its gate are.
-A startup preference must never be called capability detection: runtime effect
-availability, per-window blur and live preference changes are three distinct pieces of
-missing evidence, and the live one already bites — see `moos-fast-remote`. The next
-clarity slice is specified in the design completion handoff, row 1.
+**Runtime capability detection is complete.** The QML stack exposes no usable
+blur-availability or KConfig-watcher API, so `moos-material-state` asks KWin's live
+`isEffectLoaded("blur")` answer and publishes it through a private filename protocol.
+`FolderListModel` follows the directory through `QFileSystemWatcher`; there is no poll,
+local-file XHR or second settings writer. Ambiguous/disappearing state is fail-solid.
+THEME_REV 84 extends the same protocol with the one clarity preference, while actual
+blur capability still outranks it. Per-window blur-region proof remains part of the
+installed visual matrix; it is not inferred from the global effect answer.
 
 | ID | Task | Exit evidence |
 | --- | --- | --- |
@@ -849,7 +850,7 @@ clarity slice is specified in the design completion handoff, row 1.
 | P2.9 | Finish the identity lock on text MoOS displays | **In source (W6):** Mo AI's Apps panel, its system prompt, Mo Store's Sources page, a Settings error dialog, MoPlayer's store page and two unit descriptions no longer name another desktop; `tests/test_user_visible_identity.py` reads QML prose, bilingual messages, dialogs, unit descriptions, AppStream and desktop entries. **In source (after W6, `feat/about-this-device-20260917`):** Settings → About this device is MoOS's own page inside MoOS Settings — edition in words, version, build date, signed image, rollback, the kernel as its number (the release string carries the packager's build tag), processor, graphics, memory, storage, architecture, Copy details; `moos://settings/about` lands on it in a running window; every row says Unknown in words without the feed (`tests/test_settings_about_page.py`). Rendered from source in Arabic and English, light and dark, 1180–1400 px; **not seen on a MoOS desktop**. **Open:** the cloud edition's firewalld `DefaultZone` is still the base's server zone name (`build.sh`, Tier 1): ship `moos-server.xml` beside `moos-desktop.xml` |
 | P2.10 | Readable text on every scheme | **In source (W6):** secondary text was the DISABLED role — 1.6:1 on light schemes; all five apps now use text at 72% (≥4.66:1 on all 16 schemes), held by `tests/test_secondary_text_contrast.py`. **Open:** the same arithmetic for plasmoids, the launcher and the greeter, and for state colours on tinted fills |
 | P2.11 | **In source (W6.3):** tell a person what an update brought | The owner updated across six waves and "felt no change". `/usr/share/moos/whats-new.json` lists what a person can see or do, newest first; MoOS Settings → System → What's new shows it with "Try it" routes and marks what this machine did not have before its last update (`fresh` = merged after the rollback deployment's build); `moos-whats-new-notify` says it ONCE at the first login on a new version (never to a brand-new user, never for an update with nothing visible, retried when the message did not go out). One reader (`usr/lib/moos/moos_whats_new.py`) for both; `tests/test_whats_new.py` runs the notifier end to end under bubblewrap and refuses an entry the reader would drop, a glyph the catalogue lacks or a route Settings may not open. **Rule:** a user-visible change ships with its entry. **Open:** a station review of the notification on a real update |
-| P2.8 | **In progress:** compose MoOS Bar, Search and Island (experience goals 1–2 in `artwork/MOOS_UI2_DESIGN.md`) | one anchored Milou surface with recent apps/destinations/Mo AI, stale-result protection and complete keyboard escape/traversal; Remote keeps privacy priority while its popup can switch to media; native ≥40 px controls; localized clock/hub; typed queries reviewed live on the station (Arabic and German layouts: grouped app, settings and folder rows); MoOS Hub has desktop right-click controls. **2026-09-20 source repair:** live review proved the Search-labelled Island button incorrectly routed to the launcher's “All applications” page; it now embeds the canonical Search view in the Island popup without changing the fixed panel footprint. The isolated Plasma runtime loads the combined tree without QML errors, and the Arabic 4K/265% station review caught and repaired the panel overlap with host-owned height/inset tokens. Remaining: keyboard proof on the booted candidate, English/German session matrix and booted-candidate readback |
+| P2.8 | **In progress:** compose MoOS Bar, Search and Island (experience goals 1–2 in `artwork/MOOS_UI2_DESIGN.md`) | one anchored Milou surface with recent apps/destinations/Mo AI, stale-result protection and complete keyboard escape/traversal; Remote keeps privacy priority while its popup can switch to media; native ≥40 px controls; localized clock/hub; typed queries reviewed live on the station; MoOS Hub has desktop right-click controls. **Installed proof 2026-09-20:** on the signed current image, the Search-labelled Island button opened the embedded canonical Search—not the launcher—accepted Arabic keyboard input (`الملفات`), returned grouped app/settings/recent-file rows, and kept the compact Island fixed at 4K/265%; no QML errors. Remaining: English/German session matrix and the full accessibility matrix. |
 
 P2.7 retains the stock Plasma task manager and one existing panel writer. It
 does not install an unrelated dock/effects pack. Qt's native spring provides
