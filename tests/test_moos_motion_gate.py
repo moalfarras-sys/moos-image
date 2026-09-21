@@ -112,6 +112,12 @@ def _run_probe(qml_source: str, animation_factor: str) -> int:
         env.update({
             "XDG_CONFIG_HOME": str(config_home),
             "QT_QPA_PLATFORM": "offscreen",
+            "QML2_IMPORT_PATH": str(
+                ROOT / "system_files/usr/lib64/qt6/qml"
+            ),
+            "QML_IMPORT_PATH": str(
+                ROOT / "system_files/usr/lib64/qt6/qml"
+            ),
             # Without the KDE platform theme, Kirigami never applies the factor at
             # all and every reading comes back as the 200 ms default — which would
             # make this test pass for the wrong reason.
@@ -128,6 +134,50 @@ def _run_probe(qml_source: str, animation_factor: str) -> int:
 @unittest.skipIf(QML_RUNTIME is None or shutil.which("kwriteconfig6") is None,
                  "needs moos-qml-shell (or Qt's QML launcher) and kwriteconfig6")
 class MotionGateTests(unittest.TestCase):
+
+    def test_glass_arrival_is_finite_and_reduced_motion_is_still(self) -> None:
+        """The W8 glint must be one arrival, never an idle animation.
+
+        Exit 20 means the enabled surface is genuinely moving after startup;
+        21 means animations-off reached the final frame without moving; and
+        22 means the enabled surface settled completely. These are runtime
+        observations of the shared component, not string proxies.
+        """
+        early = """
+import QtQuick
+import org.moos.ui as MoUI
+Item {
+    width: 500; height: 260
+    MoUI.GlassSurface { id: sheet; width: 420; height: 190 }
+    Timer {
+        interval: 60; running: true
+        onTriggered: {
+            var reduced = MoUI.Tokens.liveLongDuration <= 1
+            var correct = sheet.arrivalPlayed
+                && (reduced
+                    ? (!sheet.arrivalAnimating && sheet.arrivalScale === 1.0)
+                    : (sheet.arrivalAnimating && sheet.arrivalScale < 1.0))
+            Qt.exit(correct ? (reduced ? 21 : 20) : 90)
+        }
+    }
+}
+"""
+        settled = """
+import QtQuick
+import org.moos.ui as MoUI
+Item {
+    width: 500; height: 260
+    MoUI.GlassSurface { id: sheet; width: 420; height: 190 }
+    Timer {
+        interval: 900; running: true
+        onTriggered: Qt.exit(sheet.arrivalPlayed && !sheet.arrivalAnimating
+                             && sheet.arrivalScale === 1.0 ? 22 : 91)
+    }
+}
+"""
+        self.assertEqual(_run_probe(early, "1"), 20)
+        self.assertEqual(_run_probe(early, "0"), 21)
+        self.assertEqual(_run_probe(settled, "1"), 22)
 
     def test_kirigami_floors_long_duration_at_one_not_zero(self) -> None:
         """The measurement the whole contract rests on. If this ever reports 0,
