@@ -14,9 +14,9 @@ the README and every wave row point here instead of repeating it. Four parallel 
 - **Installed readback is clean:** `post-update-check.sh` 55/0, `moos-selfcheck` 53 plus the
   intentional tray note, no failed units, `THEME_REV` **84**. Arabic Search returned real
   app/settings/recent-file rows at 4K/265% and the Island stayed fixed.
-- `origin/main` is `1ddc6cf3` (PR #153, accurate P0.7 mechanism and honest ARM launch
-  measurement, 2026-09-21); its automatic x86 and ARM builds are running. The active source
-  branch is `feat/w8-material-arrival-20260921`: W8's finite material arrival and W9's one
+- `origin/main` is `1ddc6cf3` (PR #153, P0.7 mechanism/ARM launch truth, 2026-09-21);
+  builds `35579843928`/`35579843941` started for it (inspect their final result). Active branch
+  `feat/w8-material-arrival-20260921` carries W8's material arrival and W9's one
   Settings front door are source-only and not installed. Merging source still deploys nothing.
 - **The ARM release from `eb3e2e76` did NOT complete.** Run `35536313181` built and signed
   `moos-arm` (image job green, `sha256:99a87e29…`), but the second UEFI boot of the final
