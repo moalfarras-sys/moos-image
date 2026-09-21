@@ -18,6 +18,7 @@ import hashlib
 import ipaddress
 import json
 import os
+import platform
 from pathlib import Path
 import re
 import sys
@@ -1284,6 +1285,20 @@ def sanitize_catalog_app(entry: object) -> dict:
         raise CatalogError(f"catalog app id {app_id!r} is invalid")
 
     result: dict = {"id": app_id, "source": source}
+    # OPTIONAL "arch": the architectures on which this app actually EXISTS.
+    # Absent means "everywhere", which is the ordinary case and keeps every
+    # existing entry valid. It is a whitelist, not a hint: an app that names
+    # architectures is offered on those and nowhere else.
+    raw_arch = entry.get("arch")
+    if raw_arch is not None:
+        if not isinstance(raw_arch, list) or not raw_arch:
+            raise CatalogError(f"catalog arch for {app_id!r} must be a non-empty list")
+        arches = []
+        for item in raw_arch:
+            if not isinstance(item, str) or not REF_PART_RE.fullmatch(item):
+                raise CatalogError(f"catalog arch entry for {app_id!r} is invalid")
+            arches.append(item)
+        result["arch"] = arches
     for key, limit in (
         ("cat", 64),
         ("glyph", 64),
@@ -1349,7 +1364,27 @@ def sanitize_catalog_group(entry: object, kind: str) -> dict:
     return result
 
 
-def load_catalog(path: Path) -> dict:
+def running_arch() -> str:
+    """The Flatpak architecture name for this machine.
+
+    Flatpak's own spelling, not uname's: aarch64 and x86_64 agree, but 32-bit ARM
+    is "arm" to Flatpak and "armv7l" to uname. Anything unrecognised is returned
+    unchanged, which makes an unknown machine offer the whole catalogue rather
+    than an empty store.
+    """
+    machine = platform.machine()
+    return {"armv7l": "arm", "armv8l": "arm", "i686": "i386"}.get(machine, machine)
+
+
+def catalog_app_runs_here(entry: dict, arch: str) -> bool:
+    """An entry with no declared arch runs everywhere; otherwise it must name this one."""
+    declared = entry.get("arch")
+    if not declared:
+        return True
+    return arch in declared
+
+
+def load_catalog(path: Path, arch: str | None = None) -> dict:
     try:
         with path.open(encoding="utf-8") as handle:
             raw = json.load(handle)
@@ -1365,12 +1400,41 @@ def load_catalog(path: Path) -> dict:
     ids = [item["id"] for item in apps]
     if len(ids) != len(set(ids)):
         raise CatalogError("catalog contains duplicate app ids")
+    # Drop what this machine cannot install, ONCE, so every later pass over
+    # catalog["apps"] agrees: the fallback that invents an index entry, the
+    # overlay that decorates a real one, and the non-Flatpak lifecycle scan.
+    #
+    # THE DEFECT, measured on the Oracle A1 on 2026-09-21: eleven of the
+    # thirty-three Flathub apps this catalogue offers have no aarch64 build at
+    # all, and two of them (Steam, Spotify) carry "popular": true. Because
+    # apps_by_id is built from the running architecture's AppStream, those
+    # eleven never matched, so catalog_fallback_app() MANUFACTURED an index
+    # entry for each one. All eleven appeared in the ARM Store's index of 2941
+    # apps, and `flatpak remote-info flathub com.spotify.Client --arch=aarch64`
+    # answers "Can't find ref". Eleven dead buttons, two of them promoted.
+    here = arch or running_arch()
+    apps = [item for item in apps if catalog_app_runs_here(item, here)]
+    offered = {item["id"] for item in apps}
     categories = [
         sanitize_catalog_group(item, "category")
         for item in raw.get("categories", [])
     ]
     bundles = [
         sanitize_catalog_group(item, "bundle") for item in raw.get("bundles", [])
+    ]
+    # A bundle is a curated SET, so it has to be re-checked against what survived.
+    # On aarch64 "Gaming Starter" lost five of its six apps (Steam, Bottles,
+    # Lutris, Heroic, Discord), which would have left a gaming bundle offering
+    # one compatibility tool. Fewer than two members is no longer the thing that
+    # was curated, so it is not offered — which is also what MoOS already does
+    # elsewhere on ARM, where `moai-do` refuses PC-gaming setup outright.
+    for bundle in bundles:
+        members = bundle.get("apps")
+        if isinstance(members, list):
+            bundle["apps"] = [app_id for app_id in members if app_id in offered]
+    bundles = [
+        bundle for bundle in bundles
+        if not isinstance(bundle.get("apps"), list) or len(bundle["apps"]) >= 2
     ]
     return {"apps": apps, "categories": categories, "bundles": bundles}
 

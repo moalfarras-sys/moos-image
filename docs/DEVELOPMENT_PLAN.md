@@ -523,6 +523,41 @@ now read out of plymouth 24.004.60's own source — `ply_boot_splash_free()` fre
 `ply_boot_splash_hide()` does, and `--retain-splash` is precisely the path that skips it.
 The fix is upstream's, not MoOS's; see the P0.7 row.
 
+## The ARM Store offered eleven apps it could not install (measured 2026-09-21, fixed)
+
+`catalog.json` had no notion of architecture, and neither did the index builder. The browse
+index is otherwise arch-correct — it is built from the RUNNING architecture's AppStream —
+but when a curated entry found no AppStream match, `catalog_fallback_app()` MANUFACTURED an
+index entry for it. On aarch64 that happened for every catalogue app with no ARM build.
+
+**Measured against `flatpak --system remote-ls flathub --arch=aarch64` (2923 apps):** eleven
+of the catalogue's thirty-three Flathub apps have no ARM build — Thunderbird, OBS Studio,
+Steam, Bottles, Lutris, Heroic, Spotify, Discord, Zoom, Slack, Android Studio. All eleven
+were in the A1's Store index of 2941 apps, and **Steam and Spotify carry `"popular": true`**,
+so they were promoted on the front page. Each was a dead button:
+`flatpak remote-info flathub com.spotify.Client --arch=aarch64` answers `Can't find ref`.
+AGENTS.md: "No fake apps and no dead buttons." MoOS already refuses PC gaming on ARM in
+Mo AI (`moai-do`'s `pc_games_supported`), so the Store leading a "Gaming Starter" bundle
+with Steam was also two MoOS surfaces disagreeing with each other.
+
+**Fixed.** A catalogue entry may declare `"arch": [...]` — the architectures on which it
+exists; absent still means everywhere, so every other entry is untouched. `load_catalog()`
+drops what this machine cannot install ONCE, so all three later passes agree (the fallback
+that invents an entry, the overlay that decorates a real one, and the non-Flatpak lifecycle
+scan). `moos-storectl._catalog()` applies the same rule, so a stale index or an
+install-by-id is not a way round it. Bundles are re-checked against what survived and are
+withdrawn below two members: on ARM "Gaming Starter" lost five of six, and a gaming bundle
+offering one compatibility tool is not the thing that was curated. Measured after the fix:
+**x86_64 unchanged at 53 apps / 5 bundles; aarch64 42 apps / 4 bundles.**
+`tests/test_store_arch_honesty.py` holds the data half, the filter, the bundle rule, both
+tools agreeing on the spelling, and an unknown machine being offered everything rather than
+an empty store.
+
+**Still owed:** the eleven are hidden, not explained — a person who has heard of Spotify is
+told nothing about why it is absent here. Saying so belongs with P4.5's compatibility
+matrix. The list is also a measured snapshot: when Flathub publishes an ARM build the entry
+has to lose its `arch`, and nothing automatically notices.
+
 ## Three readings that look like defects and are not (measured 2026-09-21)
 
 Do not "fix" any of these; each was chased once already.
