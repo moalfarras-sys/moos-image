@@ -517,7 +517,29 @@ and QML lint tools are absent. An SDK's presence is not a passed component build
 frames and run the full local image build, then one signed candidate with all
 edition boot proofs. A screenshot of the studio is never release evidence. The
 station already has a staged signed update; reboot and readback are outstanding.
-P0.7 remains open: capture the intermittent Plymouth stack before claiming a fix.
+P0.7 remains open, but it is no longer a mystery: the stack was captured, and the cause is
+now read out of plymouth 24.004.60's own source — `ply_boot_splash_free()` frees
+`pixel_displays` without disarming the `on_new_frame` timeout, which only
+`ply_boot_splash_hide()` does, and `--retain-splash` is precisely the path that skips it.
+The fix is upstream's, not MoOS's; see the P0.7 row.
+
+## Three readings that look like defects and are not (measured 2026-09-21)
+
+Do not "fix" any of these; each was chased once already.
+
+- **`moai-gateway`'s `/healthz` says `cost_policy: "paid"`.** That flag only reports that
+  the owner's selected provider PERMITS billed models (`provider = openrouter-paid`). It is
+  not a bill. With `cloud_model = openrouter/free` every request still takes the automatic
+  free route — measured on the ARM station: `"cost": 0`, `X-MoAI-Route-Reason:
+  free-cloud-only`.
+- **`moai-agent-api`'s `/api/status` says `"gateway": false` while `moai-gateway.service`
+  is running.** That key is `unit_active("openclaw-gateway.service")`, which is absent by
+  design (`openclaw_installed: false`). The MoOS gateway is the `"moai"` key.
+- **`just check` fails three `tests/test_image_state.py` tests with
+  `FileNotFoundError: 'systemd-tmpfiles'`.** That happens only when the gates are run from
+  inside the Flatpak SDK runtime (`org.freedesktop.platform`), which has no
+  `systemd-tmpfiles`. On the host the same command is green. Run repo gates through
+  `flatpak-spawn --host --directory=<repo> just check`.
 
 ## Current engineering brief
 
@@ -726,7 +748,7 @@ revision and all required editions/artifacts prove that revision.
 | P0.4 | Open | Prove failed-update recovery | disposable VM bad-candidate rollback, then hardware rollback/roll-forward with user data intact |
 | P0.5 | Open | Configure and accept free Mo AI on a clean account | valid OpenRouter key entered through Settings; Arabic/English reply; reboot persistence; provider failure UI |
 | P0.6 | **Complete — release mechanism and corrective cycle proven** | Promote only proven digests and update the physical PC | The current revision passed the signed build, all three x86 disk proofs, ISO installed-system proof, ARM UEFI/QCOW2 proof and production promotion; exact run IDs and the signed installed digest are in `PROJECT_STATE.md`. The station boots it with the prior signed deployment retained, 55/55 post-update checks, and zero failed units. The updater's staged-replacement protections and App Drop's fail-closed consent are now installed evidence rather than pending source. |
-| P0.7 | Open — **mechanism identified 2026-09-19** | Remove the intermittent `plymouthd` crash (ARM second boot; x86 first boot) | SEGV in `on_new_frame` failed ARM runs on 2026-09-15 and `35150466421`; on 2026-09-18 it core-dumped `plymouth-start.service` on the FIRST boot of cycle D's generic x86 QCOW2 (`35289168012`) while the same candidate's NVIDIA, cloud and ISO boots were clean — one x86 proof in about twelve so far. A lone proof lost to it is dispatched again (`RELEASE.md`), which costs a release cycle an hour each time. The theme is a Plymouth SCRIPT theme kept on screen through the KWin hand-off (`plymouth-quit.service.d/10-moos-retain-splash.conf`); **THE STACK EXISTS NOW — captured on the station 2026-09-19 23:02, the first boot of `44.20260919.899`.** It is not a random boot crash. It is a use-after-free in the QUIT path, and the timeline is millisecond-exact:
+| P0.7 | Open — **cause fully read out of upstream source 2026-09-21; it is an upstream plymouth defect** | Remove the intermittent `plymouthd` crash (ARM second boot; x86 first boot) | SEGV in `on_new_frame` failed ARM runs on 2026-09-15 and `35150466421`; on 2026-09-18 it core-dumped `plymouth-start.service` on the FIRST boot of cycle D's generic x86 QCOW2 (`35289168012`) while the same candidate's NVIDIA, cloud and ISO boots were clean — one x86 proof in about twelve so far. A lone proof lost to it is dispatched again (`RELEASE.md`), which costs a release cycle an hour each time. The theme is a Plymouth SCRIPT theme kept on screen through the KWin hand-off (`plymouth-quit.service.d/10-moos-retain-splash.conf`); **THE STACK EXISTS NOW — captured on the station 2026-09-19 23:02, the first boot of `44.20260919.899`.** It is not a random boot crash. It is a use-after-free in the QUIT path, and the timeline is millisecond-exact:
 
     23:02:27.271168  plymouth-quit.service starts (Terminate Plymouth Boot Screen)
     23:02:27.415920  plymouth-quit.service FINISHES, successfully
@@ -742,7 +764,56 @@ with this stack:
 
 So a frame callback already queued in the event loop runs AFTER quit has begun tearing the splash down, and walks a list node that is gone. Three MoOS-specific facts sit on that path and all three are confirmed on this machine: the theme is `ModuleName=script` with 37 animated PNG frames (`script.so` is in the crashed process's module list), quit runs `plymouth quit --retain-splash` from MoOS's own drop-in, and `--retain-splash` exists precisely to change what teardown does. plymouth is 24.004.60-24.fc44. Rate on this journal: **1 crash in 26 recorded boots** — the intermittency now has a denominator. Cost to the owner: none visible (the splash is retained and KWin paints over it) but one failed unit, which is what the zero-failed-unit gate sees.
 
-**Next, and it is no longer diagnostics:** stop a frame event being queued across the teardown. The candidates in MoOS's control are to quiesce the animation before quit (`plymouth pause-progress`, or a script-side stop) rather than to drop `--retain-splash`, which exists for a measured reason — the 4.5 s black screen of 2026-07-27. Do NOT patch plymouth: that is an upstream fork. Any fix is Tier 1 and still owes two consecutive green proofs AFTER it, because the W3 and W5 runs were green with no fix at all, which proves intermittency only |
+**The mechanism is now read out of plymouth's own source (24.004.60), and it retires both
+    candidates written here before.** It fired again on 2026-09-20 and cost the ARM release
+    (`35536313181`): the image job was green, the second UEFI boot reported
+    `plymouth-start.service ... failed`, and the promotion job never ran. `on_new_frame` is a
+    static function in `libply-splash-core/ply-boot-splash.c` that re-arms itself every frame:
+
+        static void on_new_frame (ply_boot_splash_t *splash) {
+                if (!splash->is_shown) return;
+                ply_boot_splash_flush_displays (splash);   /* walks splash->pixel_displays */
+                ply_event_loop_watch_for_timeout (splash->loop, 1.0 / FRAMES_PER_SECOND,
+                                                  on_new_frame, splash);
+        }
+
+    Exactly ONE function disarms that timeout — `ply_boot_splash_hide()` — and it is also the
+    only place `is_shown` is cleared. `main.c`'s `on_boot_splash_idle()` calls it only when the
+    splash is NOT being retained:
+
+        if (state->quit_trigger != NULL) {
+                if (!state->should_retain_splash) hide_splash (state);  /* the only disarm */
+                quit_splash (state);    /* -> ply_boot_splash_free() */
+                quit_program (state);   /* -> ply_event_loop_exit(), which only unwinds */
+        }
+
+    `ply_boot_splash_free()` stops the `ply_boot_splash_update_progress` timeout and the exit
+    handler, then calls `ply_list_free (splash->pixel_displays)` — it never stops
+    `on_new_frame`. So under `--retain-splash` the frame timeout stays armed across the free,
+    `is_shown` stays true so upstream's own guard cannot fire, `quit_program()` only asks the
+    loop to unwind, and the next due frame runs `flush_displays()` over the freed list:
+    `ply_list_node_get_data`, the captured stack's frame #0. The 13 ms between a successful
+    quit and the SEGV is one interval at `FRAMES_PER_SECOND`; the 1-in-26 rate is simply
+    whether a frame tick falls due before the loop finishes unwinding.
+
+    **It is an upstream defect that `--retain-splash` exposes, and it is unreachable without
+    that flag** — which is why stock Fedora never sees it and MoOS does. Both earlier
+    candidates are now DISPROVEN, and neither should be attempted: `plymouth pause-progress`
+    stops the separate `ply_boot_splash_update_progress` timeout and never touches
+    `on_new_frame`; a script-side stop only changes what the theme draws, while
+    `flush_displays()` walks the display list regardless of the theme.
+
+    What is actually left, in order of preference: **(1)** fix it upstream — disarm
+    `on_new_frame` in `ply_boot_splash_free()`, or clear `is_shown` there — since that is a
+    four-line change in plymouth, not in MoOS; carrying it as a patch before upstream lands it
+    is still a fork and still the owner's call. **(2)** `plymouth hide-splash` before
+    `quit --retain-splash`: `on_hide_splash()` sets `should_retain_splash = true` and reaches
+    `hide_splash()` FIRST, which is exactly the safe order — but it routes through
+    `toggle_between_splash_and_details()`, which frees the MoOS splash and instantiates the
+    DETAILS (text) splash, so it must first be proven on a real boot that the retained pixels
+    are still the MoOS mark and not a text dump. **Do not ship (2) unproven.** Any fix is
+    Tier 1 and still owes two consecutive green proofs AFTER it, because the W3 and W5 runs
+    were green with no fix at all, which proves intermittency only |
 | P0.8 | **Closed 2026-09-18:** cause measured; three green in a row (`35265328509`, `35276847573`, `35289177072`) | Make the ISO installed-reboot proof deterministic | lost THREE candidates out of four (`57874d6c`, `8b272b87`, `51cc2ac3`): after the installed reboot SSH timed out "during banner exchange" for 1000 s while QGA reported the second boot. **Cause, measured in run `35265328509` (2026-09-17, the first green ISO proof since):** the image's proof-channel helper read the IPv4 default route ONCE, and MoOS disables NetworkManager-wait-online, so nothing orders that read after DHCP. The helper now waits and speaks on the console, and the serial log shows it: first boot, route 16 ms after the daemons were active; SECOND boot, 1.02 s — the first read was empty and one retry found it. The old helper died on that read, so its SSH rule was never added. `systemctl --failed` had looked empty in the failed runs only because SELinux confines the harness's QGA context. The harness change written on the other theory (one slirp forward per boot) was measured by the same run as irrelevant (`reboot-channel.txt`: `first-boot-forward=alive`); it stays because it is free. `tests/test_ci_proof_channel.py` runs the shipped helper end to end under bubblewrap. Cycle D's proof made three; closed |
 | P0.9 | Done 2026-09-17 (PR #116) | Run image-only gates before the merge | `build.yml` did not run on pull requests and `build-arm.sh` does not call `verify_image_experience.py`, so W5 was green on every check and red on `main`. `.github/workflows/pr-image-gates.yml` now builds the generic x86 edition on every pull request that touches `Containerfile`, `build_files/` or `system_files/` — same Containerfile, same build arguments as `build.yml`'s generic row, every in-image gate — and pushes, signs and tags nothing (`contents: read` only; `tests/test_pr_image_gates_workflow.py` keeps both halves true). It does NOT build the NVIDIA or cloud editions: those still first build on `main` or through `scripts/release-candidate.sh --ref`. Individual image gates can still be pulled forward into the repo gates the way `tests/test_image_gate_source_parser.py` and the lifted check in `tests/test_moai_skills.py` do. **First run (2026-09-17, PR #116):** green in 16 minutes end to end, 12 min 20 s of it the image build; the log shows `MoOS image-experience gate passed`, the motion gate on the real Qt runtime and the image-state gate, then the local commit — and no push. That is shorter than a release build because nothing is pushed or signed |
 
@@ -1041,7 +1112,7 @@ testing isolated; drivers and privileged services do not belong in a Flatpak.^6
 | P5.1 | Hardware qualification lab | repeatable GPU/audio/Wi-Fi/Bluetooth/camera/storage/firmware suite and published device records |
 | P5.2 | Laptop policy | lid, brightness, battery health, power profiles and two suspend cycles on at least three platforms; **tap-to-click and natural scrolling by default** — KWin 6.7.5 stores libinput settings per device (`kcminputrc [Libinput][vendor][product][name]`, keys `TapToClick`, `NaturalScroll`, … confirmed in `libkwin.so`) and no system-wide defaults group was found, so a file in `/etc/xdg` would be dead config; the supported route is a one-time, ledger-recorded first-login step that sets the properties KWin exposes per device on D-Bus for touchpads the person has not configured. Needs a real laptop |
 | P5.3 | Touch/tablet policy | automatic mode, ≥44 px targets, keyboard, rotation, gestures and stylus on real hardware |
-| P5.4 | Performance budgets | boot, idle CPU/PSS/wakeups, app launch p95, scroll/frame pacing, build load and AI latency per tier. **Owed by W5:** `moos-privacy-monitor` polls PipeWire every 1.5 s for the whole session on every machine and was never measured; W6 cut it from three `pw-dump` spawns per round to one (12 ms → 4 ms on an idle pipewire 1.6.8), **Measured 2026-09-17** off the station (Fedora 44 under WSL2, x86, idle PipeWire with 37 objects): 60 s of the loop cost 0.39 s of CPU including its `pw-dump` children — 0.66% of one core, 40 process spawns a minute. Small enough to leave the simple poll alone on a desktop; its cost on the station and on the A1's slower cores, and its wakeups on a battery, are still unmeasured — prefer `pw-dump --monitor` with a slow safety poll only if one of those shows **Closed for the flagship tier, 2026-09-18 (W9.2):** `moos-measure-speed` measures boot userspace, session ready, an app's window appearing (asked of KWin) and MoOS's OWN idle CPU against `speed-budgets.json`, keyed on `moos-visual-tier`. Station: 6.034 s / 1.108 s / 0.46 s / 2.6%, all inside budget. **Still open:** the same four rows on a balanced and an essential machine — those tiers' budgets are derived, not measured — plus app-launch p95 and frame pacing, which this tool does not attempt. |
+| P5.4 | Performance budgets | boot, idle CPU/PSS/wakeups, app launch p95, scroll/frame pacing, build load and AI latency per tier. **Owed by W5:** `moos-privacy-monitor` polls PipeWire every 1.5 s for the whole session on every machine and was never measured; W6 cut it from three `pw-dump` spawns per round to one (12 ms → 4 ms on an idle pipewire 1.6.8), **Measured 2026-09-17** off the station (Fedora 44 under WSL2, x86, idle PipeWire with 37 objects): 60 s of the loop cost 0.39 s of CPU including its `pw-dump` children — 0.66% of one core, 40 process spawns a minute. Small enough to leave the simple poll alone on a desktop; its cost on the station and on the A1's slower cores, and its wakeups on a battery, are still unmeasured — prefer `pw-dump --monitor` with a slow safety poll only if one of those shows **Closed for the flagship tier, 2026-09-18 (W9.2):** `moos-measure-speed` measures boot userspace, session ready, an app's window appearing (asked of KWin) and MoOS's OWN idle CPU against `speed-budgets.json`, keyed on `moos-visual-tier`. Station: 6.034 s / 1.108 s / 0.46 s / 2.6%, all inside budget. **The essential tier is now measured too, 2026-09-21** on the ARM station (`moos-arm-oracle`, Oracle A1, 2 vCPU): boot **10.02 s**/30.0, session **2.583 s**/12.0, idle **0.47–0.57%**/20.0 — three rows inside budget, and the first numbers behind that tier rather than derived ones. The fourth row exposed a defect in the TOOL, not in MoOS: the launch probe answers through Klipper, and plasmashell owns `org.kde.klipper` without exposing `/klipper` when the clipboard applet is not in the tray — which MoOS curates. Every read returned `''`, the probe waited 60 s and reported “the window never reached KWin”, about apps that had just opened and rendered on that same session (Mo AI, MoPlayer and Mo Store, screenshotted). It now proves the clipboard round trip BEFORE timing and names the channel instead of the app, returning at once — verified live on that station; `tests/test_moos_speed_budgets.py::TheLaunchProbeBlamesTheRightThing` holds both halves. **Still open:** the balanced tier, the essential tier's app-launch row (needs an image carrying the fixed probe, or a session with the clipboard applet), plus app-launch p95 and frame pacing, which this tool does not attempt. |
 | P5.5 | Cloud desktop efficiency | encode CPU/GPU, frame pacing, bandwidth degradation, reconnect, multiple accounts and audio sync |
 | P5.6 | Storage lifecycle | update headroom, Flatpak/container cleanup, log bounds and low-space recovery without deleting user data |
 | P5.7 | Qualify kernel policy and driver transitions | MoKernel sysctl/module/karg readback; exact kernel/NVIDIA match; boot/initramfs, frame pacing, audio underruns, CPU/RAM pressure and thermal/power regression measurements |

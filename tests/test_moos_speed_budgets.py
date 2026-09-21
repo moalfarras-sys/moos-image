@@ -135,5 +135,51 @@ class TheVerdict(unittest.TestCase):
         self.assertEqual(speed._seconds("nothing here"), 0.0)
 
 
+class TheLaunchProbeBlamesTheRightThing(unittest.TestCase):
+    """A dead channel must not be reported as a dead app.
+
+    Measured on the ARM station 2026-09-21: plasmashell owns org.kde.klipper but exposes
+    no /klipper object when the clipboard applet is not in the tray, and MoOS curates its
+    tray. Every _klipper() read then returns '', the 60 s wait times out, and the probe
+    said "the window never reached KWin" — about apps that had just opened and rendered.
+    """
+
+    def _run(self, klipper_answers):
+        calls = []
+
+        def fake_klipper(*args):
+            calls.append(args)
+            return klipper_answers(*args)
+
+        with patch.object(speed, "_klipper", side_effect=fake_klipper), \
+             patch.object(speed, "run", return_value="/usr/bin/moai"), \
+             patch.object(speed, "_kwin", return_value="") as kwin:
+            return speed.launch("moai"), calls, kwin
+
+    def test_a_klipper_that_never_answers_is_named_instead_of_the_app(self):
+        outcome, _, kwin = self._run(lambda *args: "")
+        self.assertFalse(outcome["measured"])
+        self.assertIn("clipboard channel", outcome["why"])
+        self.assertIn("org.kde.klipper", outcome["why"])
+        # It must not have blamed the window, and must not have waited 60 s to do it.
+        self.assertNotIn("never reached KWin", outcome["why"])
+        kwin.assert_not_called()
+
+    def test_a_working_channel_is_not_mistaken_for_a_broken_one(self):
+        held = {"value": ""}
+
+        def answer(*args):
+            if args[0] == "setClipboardContents":
+                held["value"] = args[1]
+                return ""
+            return held["value"]
+
+        outcome, calls, _ = self._run(answer)
+        # The round trip succeeded, so the probe went on to do its real work rather than
+        # returning the channel excuse.
+        self.assertNotIn("clipboard channel", outcome.get("why", ""))
+        self.assertTrue(any(a[0] == "setClipboardContents" for a in calls))
+
+
 if __name__ == "__main__":
     unittest.main()

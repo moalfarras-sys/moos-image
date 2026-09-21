@@ -1,5 +1,6 @@
 # MoOS current state
-Current measured facts only; Git owns history. Last measured 2026-09-20 on the running station.
+Current measured facts only; Git owns history. ARM station measured 2026-09-21; the x86
+NVIDIA station's figures are from 2026-09-20 and were not re-measured.
 
 **This block is the only place in the repository that states a version number.** The plan,
 the README and every wave row point here instead of repeating it. Four parallel copies of
@@ -7,26 +8,29 @@ the README and every wave row point here instead of repeating it. Four parallel 
 
 ## Source and release truth
 
-- **`44.20260920.912` is released and running on this station.** Booted origin is the
-  signed NVIDIA image at digest
-  `sha256:2802d58aed183f5fc94382b15a49f6f378d7bb453979623327809685166cca0c`;
-  `.907` is retained as rollback. The exact revision is `22b9725f`. Its complete proof
-  set is green: signed build `35521450125`, generic/NVIDIA/cloud QCOW2
-  `35522602100` / `35522604429` / `35522606800`, ISO `35522608956`, ARM
-  `35522610892`, and x86 promotion `35525068423`.
-- **Installed readback after reboot is clean:** `tests/post-update-check.sh` reports
-  55 passed / 0 failed, `moos-selfcheck` reports 53 passed plus the intentional tray
-  preference note, and both system and user failed-unit sets are empty. Installed
-  `THEME_REV` is **83**. Search was then exercised on the booted Arabic 4K/265% desktop:
-  its bar button opens the embedded MoOS Search rather than the launcher, keyboard input
-  `الملفات` returned apps/settings/recent-file rows, and the compact Island stayed fixed.
-- The previous App Drop default-accept defect and the staged-update replacement defect
-  are therefore no longer merely source fixes: both are in the signed image this machine
-  boots. P0.7 remains an intermittent risk with a captured historical mechanism, but this
-  boot has no Plymouth failure.
-- `main` and `origin/main` are `22b9725f`. Current work is isolated on
-  `feat/glass-clarity-control-20260920`; merging source still deploys nothing until a new
-  candidate completes the artifact proof and promotion path.
+- **`44.20260920.912` is released and running on the x86 NVIDIA station.** Booted origin
+  is the signed NVIDIA digest
+  `sha256:2802d58aed183f5fc94382b15a49f6f378d7bb453979623327809685166cca0c`; `.907` is
+  retained as rollback; the exact revision is `22b9725f`. Proof set green: signed build
+  `35521450125`, generic/NVIDIA/cloud QCOW2 `35522602100`/`35522604429`/`35522606800`,
+  ISO `35522608956`, ARM `35522610892`, x86 promotion `35525068423`.
+- **Its installed readback is clean:** `post-update-check.sh` 55/0, `moos-selfcheck` 53
+  passed plus the intentional tray note, no failed units, `THEME_REV` **83**; on that
+  Arabic 4K/265% desktop the bar button opened embedded MoOS Search (not the launcher),
+  `الملفات` returned apps/settings/recent-file rows and the Island stayed fixed. The App
+  Drop default-accept and staged-update replacement defects are in that image, not source.
+- `main` and `origin/main` are `eb3e2e76` (PR #152, unified glass clarity, 2026-09-20). No
+  x86 candidate has been cut from it; merging source still deploys nothing.
+- **The ARM release from `eb3e2e76` did NOT complete.** Run `35536313181` built and signed
+  `moos-arm` (image job green, `sha256:99a87e29…`), but the second UEFI boot of the final
+  QCOW2 reported `plymouth-start.service` failed, so the boot proof failed and promotion
+  never ran. `moos-arm:latest` therefore still points at the last boot-proven digest,
+  `sha256:513ab151…` = `44.20260920.545`. That is the gate working: P0.7 cost this release.
+- **P0.7 is no longer only a captured stack.** Read out of plymouth 24.004.60's source on
+  2026-09-21: `ply_boot_splash_free()` frees `pixel_displays` without disarming the
+  `on_new_frame` timeout that only `ply_boot_splash_hide()` disarms, and `--retain-splash`
+  is the path that skips that hide. An upstream defect MoOS's flag exposes; both recorded
+  workarounds are disproven. See the plan, P0.7.
 - `main` is the only long-lived branch; every merged topic branch is deleted.
 - A merged commit or locally built image is not an installed or released state.
   Production moves only after the exact candidate passes 3×QCOW2 + ISO; ARM is
@@ -127,14 +131,28 @@ or the nightly train; then restart.
   toolchain installer, the gate mirror and the from-source renderers;
   `scripts/release-candidate.sh` needs `TMPDIR` under Git Bash.
 
-## A1 live review (2026-09-18, ARM under `kwin --virtual`, Arabic)
+## ARM station `moos-arm-oracle` (Oracle A1, measured 2026-09-21)
 
-- Input on a seatless session: KWin's `org.kde.KWin.EIS.RemoteDesktop.connectToEIS`
-  (portal numbering: keyboard 1, pointer 2, touch 4) plus libei — never Mo PC Remote's
-  portal token. Works: Search, launcher, About, What's new; Mo AI 15–37 s (P3.2 open).
-- ARM: Mo AI hides the NVIDIA and PC-games chips; `moai-do` refuses gaming/Windows setup
-  on non-x86 before asking. Its real-window tests run in a Fedora 44 toolbox: rail green;
-  the three agent-loop window tests fail on `main` too (P3.4).
+The second real MoOS machine and the only ARM one, so ARM regressions surface here outside
+CI. 2 vCPU / 11 GiB, kernel `7.2.5-200.fc44.aarch64`, Wayland/KDE under `kwin_wayland
+--virtual 1920x1080 --xwayland`. Booted origin is signed `moos-arm@sha256:513ab151…` =
+`44.20260920.545`, which **is** `moos-arm:latest` — the station is current, `.542` is its
+rollback, `boot-assessment.json` reads `blessed`/`attempts: 0`/no failed units,
+`post-update-check.sh` 55/0 and `moos-selfcheck` 50 passed + 3 owner-choice notes. Idle
+cost over 10 s of `/proc/<pid>/stat`: `kwin_wayland` **2.1%**, `plasmashell` **0.6%** of
+one core (`ps` shows ~26% only because that is a lifetime average including startup).
+
+Apps were run, not just started: Mo AI, MoPlayer and Mo Store rendered on the live desktop
+(Arabic RTL, Liquid Glass, MoOS Bar), Mo Store rebuilt its index to **2941 apps**, and all
+closed with both failed-unit sets still empty. Mo PC Remote is active on loopback `:8765`
+only, over Tailscale. No duplicate desktop `Name=`, no broken `moos-*`/`moai*` symlinks.
+Mo AI answers: `POST /v1/chat/completions` returned in **0.65 s** via
+`nex-agi/nex-n2.5-pro:free` with `"cost": 0` and `X-MoAI-Route-Reason: free-cloud-only`;
+its three APIs bind loopback only and reject unauthenticated calls in ~1 ms. Earlier A1
+findings hold: seatless input uses KWin's EIS/libei, `moai-do` refuses gaming/Windows
+setup on non-x86. Three readings here look like defects and are not — `cost_policy:
+"paid"`, `"gateway": false`, and `just check` failing on `systemd-tmpfiles` in the Flatpak
+sandbox; the plan says why, under its own heading. Do not "fix" them.
 
 ## Open evidence gaps
 
@@ -174,8 +192,9 @@ off` stops and un-autostarts both sharing services with no administrator rights.
 
 ## Next execution
 
-Finish and review the clarity-control slice, then batch it with the remaining M1 visual
-work before the next release cycle. The next signed candidate still owes the same build,
-three QCOW2, ISO and ARM evidence before promotion. P0.7's intermittent Plymouth crash,
-P4.2–P4.5, English/German session coverage, touch/laptop/multi-output hardware and the
-full accessibility/visual matrix remain open.
+The clarity-control slice is merged (`eb3e2e76`). ARM has no boot-proven release from it:
+either re-dispatch `build-arm.yml` and accept the P0.7 dice, or resolve P0.7 first — its
+cause is now upstream-confirmed, so the honest move is an upstream plymouth fix rather
+than either disproven workaround. The next signed candidate still owes build, three
+QCOW2, ISO and ARM evidence. P4.2–P4.5, English/German session coverage,
+touch/laptop/multi-output hardware and the full accessibility/visual matrix remain open.
