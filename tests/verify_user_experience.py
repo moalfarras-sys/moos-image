@@ -169,8 +169,12 @@ require("MO_REMOTE_ACQUIRE_ATTEMPTS" in code(remote_start)
         "logind/polkit call must fall through to the agent")
 
 remote_desktop = read("system_files/usr/share/applications/org.moos.remote.desktop")
-require("Exec=/usr/bin/mo-pc-remote" in remote_desktop,
-        "Mo PC Remote must launch its native control center")
+require("Exec=moos-settings --section=remote" in remote_desktop
+        and "NoDisplay=true" in remote_desktop
+        and re.search(r"(?m)^    app/remote\)\s+gui mo-pc-remote\s*;;",
+                      code(read("system_files/usr/bin/moos-open"))),
+        "Mo PC Remote's compatibility launcher must deep-link to the one Settings front "
+        "door, and that page must still reach its native transaction sheet")
 require("Icon=moos-pc-remote" in remote_desktop,
         "Mo PC Remote must use its first-party MoOS icon, not the retired vendored name")
 require("xdg-open" not in remote_desktop and "http://" not in remote_desktop,

@@ -215,7 +215,10 @@ case "${cat}/${tgt}" in
     settings/lock)              gui systemsettings kcm_screenlocker ;;
     settings/file-search)       gui systemsettings kcm_baloofile ;;
     settings/telemetry)         gui systemsettings kcm_feedback ;;
-    settings/update)            gui moos-update ;;
+    # These three are native pages of the one MoOS Settings front door. Their
+    # primary action opens the backend-owned transaction sheet through app/*;
+    # the public settings route never skips the overview or its live status.
+    settings/update)            gui moos-settings --section=update ;;
     # MoOS's own About page. The desktop's module names the projects MoOS is built from.
     settings/about)             gui moos-settings --section=about ;;
     settings/whats-new)         gui moos-settings --section=whats-new ;;
@@ -225,8 +228,8 @@ case "${cat}/${tgt}" in
     settings/region)            gui systemsettings kcm_regionandlang ;;
     settings/storage)           gui kinfocenter kcm_block_devices ;;
     settings/firmware-security) gui kinfocenter kcm_firmware_security ;;
-    settings/recovery)          gui moos-rollback ;;
-    settings/remote)            gui mo-pc-remote ;;
+    settings/recovery)          gui moos-settings --section=recovery ;;
+    settings/remote)            gui moos-settings --section=remote ;;
     settings/system-monitor)    gui plasma-systemmonitor ;;
     settings/energy)            gui systemsettings kcm_powerdevilprofilesconfig ;;
     settings/full)              gui systemsettings ;;

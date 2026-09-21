@@ -57,8 +57,9 @@ laptop, a touchscreen or two monitors**.
 5. **The rest of the look** — the desk itself is settled: nothing is laid over the
    wallpaper, nothing on that layer moves, and its contrast is lifted on the image and
    measured (W9.8). THEME_REV 84 completes the live clear-to-solid clarity control and
-   its KWin/material bridge. What remains is the MoOS mark at exactly three sizes and
-   the specular sweeping once as a surface arrives (the open half of W8).
+   its KWin/material bridge. The finite specular arrival is implemented in source at
+   THEME_REV 85 and proved on a real Qt runtime; what remains is the MoOS mark at exactly
+   three sizes and installed-image evidence for both clarity and arrival (the open half of W8).
 
    **The rule those two waves established, and the one to keep:** a MoOS surface earns
    its effect by measurement, not by taste. Two ideas that looked good — an ambient wash
@@ -161,7 +162,7 @@ reviewed live, gated once, merged once and proven once.
 | W9.5 | M1 | **How a security update reaches a machine, said truthfully.** `build.yml`'s nightly claimed it picked up Fedora/uBlue base security updates "promptly"; it pushes only a candidate tag, and promotion refuses any run that is not a dispatch, so it ships nothing and never could. ARM had no scheduled rebuild at all. Both corrected, and `tests/test_security_update_reachability.py` keeps the claim and the mechanism from drifting apart again | PR #139 |
 | W9.6 | M2 | **Glass stops being a window where there is no blur (P2.5).** Every Aurora Glass density assumed a blur pass behind the surface; without one — the essential tier, llvmpipe, or an owner who turned blur off — 0.22 alpha over a wallpaper is a window, and the A1's review said exactly that. The surfaces now read `kwinrc/Plugins/blurEnabled`, the same key `moos-visual-tier` already writes, and paint the same colour with enough body to hold text when it is off. Proved on a real Qt engine against a real config both ways. THEME_REV 84 later strengthens this to a uniform 0.97 fail-solid endpoint while rim/specular retain depth. | `THEME_REV` 70, PR #139 |
 | W9.8 | M2 | **The desk stops moving, and the wallpaper gets stronger — one defect.** Two full-screen washes traded emphasis every 90 s: long enough that the eye caught a drift and found nothing, and to do it they veiled every pixel of the artwork. A replacement was built (one light whose place in the sky is the hour), measured, and DELETED — every translucent layer over a dark image lifts its blacks, which is what "washed out" means, so both complaints had one answer: take things off. Nothing is over the artwork now and its own contrast is lifted instead, gated on GPU compositing via `Tokens.blurActive`. Measured on the station: **+14.2% contrast**; the strength was chosen against shadow loss (0.24 bought +4.5% more contrast for 3.5× the crushing) | `THEME_REV` 71, PR #140 |
-| W9 | M2 | System surfaces on MoOS UI: Updater, Recovery, Remote centre, Settings front door (P2.1–P2.2), a MoOS-owned About page (P2.9) | planned |
+| W9 | M2 | **One System Centre front door.** Update, Recovery and Mo PC Remote now open as native, status-driven pages inside the existing MoOS Settings window; their old menu launchers are hidden compatibility deep links, and one deliberate primary action reaches each existing safe transaction owner. The shared page contract gives all three one heading, one live status and one primary action in Arabic/English without duplicating privileged logic. | **In source on `feat/w8-material-arrival-20260921`**, Arabic dark reviewed live at 4K/265% and `just check` green. Open before closing W9: bring pending/error/cancel transaction rows into the same window, then capture Arabic/English × light/dark and installed-image routes. |
 | W10 | M3 | Mo Store as one job system for install/update/remove across the UI, Mo AI and URL routes, with a drop target in its own window (P1.7, P4.1–P4.2, P4.7) | planned |
 | W11 | M2 | MoOS Intro: one horizon scene from Plymouth through login to the Hub; first-run tour; offline first run (P1.6) | planned |
 | W12+ | M4–M5 | hardware breadth, compatibility products, MoOS Shield encryption, release trust | planned |
@@ -231,9 +232,12 @@ row anywhere, which is why it is written out.
   blur behind it. That is the P2.5 defect, live, on a shipped path — not a hypothetical.
 - **The MoOS mark at exactly three sizes** (boot, login, bar) with a glyph everywhere
   else → handoff row 4.
-- **Glass that settles**: the specular sweeping once as a surface springs in. **No row
-  owns this.** It is the one W8 item the handoff table does not cover, and it stays here
-  until it gets one.
+- **Glass that settles — implemented in source (THEME_REV 85).** Every shared
+  `MoUI.GlassSurface` receives one clipped leading-edge glint and a 1.5% settle when it
+  arrives, then stops completely; hidden surfaces finalize instead of restarting and Reduced
+  Motion paints the final frame without movement. A real Qt runtime measured a changing frame
+  at 60 ms and a complete rest by 900 ms. Open: installed-image review beside the clarity
+  states; no further idle motion is planned.
 
 ### Ideas worth building (each needs its owner and a proof before it ships)
 
@@ -875,11 +879,13 @@ upstream examples that still describe SDDM.
 | Settings and service pages | MoOS Settings + owning backend | Read back actual state; existing standalone surfaces become tested links |
 | Privileged operations and apps | `moai-do`, Mo Store transaction backend | Fixed action/confirmation; truthful progress and errors |
 
-Within wave W9, the Updater leads P2.1: baseline its light/dark Arabic/English
-frames and routes, move its controls onto shared UI2 and prove check/stage/error/
-reboot-needed states. Recovery and Remote follow in the same wave once the
-Updater passes its review, so no surface is left half-migrated and the wave still
-ships as one release.
+W9 now has its front-door vertical slice: Update, Recovery and Remote share one native
+UI2 page contract in Settings, their live facts come from the updater record, deployment
+record and user service, and legacy launchers deep-link into those pages. The existing GTK
+owners remain the deliberately opened transaction sheets so privileged logic was not copied
+into QML. Before the wave closes, the same Settings window must carry their pending/error/
+cancel transaction rows, followed by the Arabic/English × light/dark matrix and installed
+route proof; this is one release, not three half-migrations.
 
 Observed polish gaps to include in P2.3/P2.5: the shared hardware summary still
 renders the technical `nvidia (discrete)` label in Arabic; narrower English
@@ -911,8 +917,8 @@ installed visual matrix; it is not inferred from the global effect answer.
 
 | ID | Task | Exit evidence |
 | --- | --- | --- |
-| P2.1 | Move Updater, Recovery and Remote control center onto the shared UI2 component/token layer | live dark/light 4K captures; no private palette implementation |
-| P2.2 | Make Settings the front door for themes, updates, recovery, devices, Remote and AI providers | standalone launchers become tested deep links; no duplicate authority |
+| P2.1 | **In progress (W9):** move Updater, Recovery and Remote control center onto the shared UI2 component/token layer | The shared native overview/status/primary-action page is in source and Arabic dark was reviewed live at 4K/265%; open: pending/error/cancel transaction rows in-window plus light/LTR and installed captures |
+| P2.2 | **In source (W9 front door):** make Settings the front door for themes, updates, recovery, devices, Remote and AI providers | Update/Recovery/Remote launchers are hidden compatibility deep links into Settings; their `settings/*` routes never bypass the page, while fixed `app/*` routes still reach the one real transaction owner. Open: AI provider integration and installed-image route proof |
 | P2.3 | Create one locale authority for Arabic, English and German | every first-party app, date/number format and keyboard follows one selection after login/reboot |
 | P2.4 | Complete keyboard and screen-reader operation | primary flows traversed with real keys; Orca reads Arabic and English; focus never disappears |
 | P2.5 | Run the visual matrix | 1080p–4K, 100–250%, RTL/LTR, light/dark, reduced motion; measured contrast and no clipping |
@@ -1010,7 +1016,7 @@ KWin 6.7.5, 3840x2160 at 265%, Arabic, scheme `MoOSUI2AuroraLight`):
   0-65535 range) both landed the click elsewhere. Keyboard and CLI review worked.
   Anything in W7 that needs a real click is blocked on calibrating that axis.
 
-**System-surface facts (W9), read from the source on 2026-09-18, not remembered.**
+**System-surface facts (W9), updated from source and the running station on 2026-09-21.**
 The Updater (`usr/bin/moos-update`) and Recovery (`usr/bin/moos-rollback`) are GTK4 windows on
 `usr/lib/moos/moos_ui2.py`, which maps the live KDE colour scheme to GTK; Mo PC Remote builds
 its own GTK window on the same palette. Everything else first-party is QML on `org/moos/ui`
@@ -1027,9 +1033,12 @@ or a version — it reads the published record and the backend revalidates after
 (`moos-update-ready`). A staged deployment is not itself permission to show either surface:
 the authority first resolves production against both booted and staged versions, offers
 `replace-staged` only for a strictly newer correction, and fails closed when one version label
-names different bytes. What's new (W6.3) is the first page of that front door: an in-app page
-of Settings, a `settings/…` route in `moos-open`, and a status-document field, with the GTK
-launcher untouched.
+names different bytes. What's new (W6.3) was the first page of that front door. W9 now applies
+the same in-window route to Update, Recovery and Remote: the status helper carries only
+validated read-only facts, their menu entries are hidden deep links, and one explicit primary
+action opens the unchanged transaction owner through a fixed `app/*` route. That source page
+was loaded by the real `moos-qml-shell` on the Arabic 4K/265% Wayland station with no binding
+error; the full transaction lifecycle remains the open half of P2.1.
 
 Plasma 6 has no LTS branch and follows feature plus patch-release cycles.^1
 MoOS therefore tracks stable releases through the shared base, keeps local

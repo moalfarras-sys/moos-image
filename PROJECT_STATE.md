@@ -1,26 +1,23 @@
-# MoOS current state
-Current measured facts only; Git owns history. ARM station measured 2026-09-21; the x86
-NVIDIA station's figures are from 2026-09-20 and were not re-measured.
+# MoOS current state — measured 2026-09-21
+Current measured facts only; Git owns history.
 
 **This block is the only place in the repository that states a version number.** The plan,
 the README and every wave row point here instead of repeating it. Four parallel copies of
 "production is X" is how three of them came to be a release behind at once.
 
 ## Source and release truth
-
-- **`44.20260920.912` is released and running on the x86 NVIDIA station.** Booted origin
-  is the signed NVIDIA digest
-  `sha256:2802d58aed183f5fc94382b15a49f6f378d7bb453979623327809685166cca0c`; `.907` is
-  retained as rollback; the exact revision is `22b9725f`. Proof set green: signed build
-  `35521450125`, generic/NVIDIA/cloud QCOW2 `35522602100`/`35522604429`/`35522606800`,
-  ISO `35522608956`, ARM `35522610892`, x86 promotion `35525068423`.
-- **Its installed readback is clean:** `post-update-check.sh` 55/0, `moos-selfcheck` 53
-  passed plus the intentional tray note, no failed units, `THEME_REV` **83**; on that
-  Arabic 4K/265% desktop the bar button opened embedded MoOS Search (not the launcher),
-  `الملفات` returned apps/settings/recent-file rows and the Island stayed fixed. The App
-  Drop default-accept and staged-update replacement defects are in that image, not source.
-- `main` and `origin/main` are `eb3e2e76` (PR #152, unified glass clarity, 2026-09-20). No
-  x86 candidate has been cut from it; merging source still deploys nothing.
+- **`44.20260920.914` is released and running on the x86 NVIDIA station:** signed digest
+  `sha256:7ad32fa1ae86fce02e64f0ed15bd2912dd1fda450ed20d8b6381ec4ad68ce8f6`, rollback
+  `.912`, revision `eb3e2e76`. Proof set green: signed build
+  `35535090226`, generic/NVIDIA/cloud QCOW2 `35536303700`/`35536306098`/`35536308587`,
+  ISO `35536310896`, x86 promotion `35538660504`. The ARM proof is separately red below.
+- **Installed readback is clean:** `post-update-check.sh` 55/0, `moos-selfcheck` 53 plus the
+  intentional tray note, no failed units, `THEME_REV` **84**. Arabic Search returned real
+  app/settings/recent-file rows at 4K/265% and the Island stayed fixed.
+- `origin/main` is `1ddc6cf3` (PR #153, accurate P0.7 mechanism and honest ARM launch
+  measurement, 2026-09-21); its automatic x86 and ARM builds are running. The active source
+  branch is `feat/w8-material-arrival-20260921`: W8's finite material arrival and W9's one
+  Settings front door are source-only and not installed. Merging source still deploys nothing.
 - **The ARM release from `eb3e2e76` did NOT complete.** Run `35536313181` built and signed
   `moos-arm` (image job green, `sha256:99a87e29…`), but the second UEFI boot of the final
   QCOW2 reported `plymouth-start.service` failed, so the boot proof failed and promotion
@@ -78,11 +75,12 @@ diagnosis was wrong. Do not weaken SELinux globally.
 | Network | Intel AX210 Wi-Fi/Bluetooth + RTL8125 Ethernet |
 | Health | zero failed system units; zero failed user units (P0.7 remains intermittent) |
 
-Measured after reboot onto the current signed image: installed `THEME_REV` **83**,
+Measured after reboot onto the current signed image: installed `THEME_REV` **84**,
 Global Theme `org.moos.ui2.midnight`, visual tier **flagship**, motion `alive`,
-`kwinrc/Plugins/blurEnabled=true`, Arabic session (`ar_SA.UTF-8`). Source and desk are on
-the same revision for the first time since W9.6. Health checks do not qualify suspend,
-every app or all visual surfaces.
+`kwinrc/Plugins/blurEnabled=true`, Arabic session (`ar_SA.UTF-8`). The installed image is
+the released clarity revision; the active W8/W9 branch is deliberately newer and was reviewed
+from source, not mistaken for installed state. Health checks do not qualify suspend, every app
+or all visual surfaces.
 
 **Speed and Mo AI, both measured on cycle H's `.890`** and NOT re-measured since.
 `moos-measure-speed` (P5.4): MoOS's share of boot **6.70 s**/9.0,
@@ -120,6 +118,12 @@ or the nightly train; then restart.
   pull request and pushes nothing (16m54s on PR #141).
 - Horizon motion gates cover finite settling, reversal, hidden state, reduced motion and
   pointer/key paths, on a real Qt runtime.
+- **W8 material arrival is in source (`THEME_REV` 85):** one finite glint/1.5% settle on
+  shared glass, still under Reduced Motion; real Qt changed at 60 ms and rested by 900 ms.
+  **W9's source slice** deep-links Update, Recovery and Remote into one status-driven Settings
+  window, then deliberately reaches the safe transaction owner; old menu entries are hidden
+  compatibility links. Arabic dark passed live at 4K/265% and `just check` is green. Neither
+  source change is installed.
 
 ## Development environment
 
@@ -191,10 +195,6 @@ indicator). The finding carries `moos://privacy/stop-sharing`, and `moos-remote-
 off` stops and un-autostarts both sharing services with no administrator rights.
 
 ## Next execution
-
-The clarity-control slice is merged (`eb3e2e76`). ARM has no boot-proven release from it:
-either re-dispatch `build-arm.yml` and accept the P0.7 dice, or resolve P0.7 first — its
-cause is now upstream-confirmed, so the honest move is an upstream plymouth fix rather
-than either disproven workaround. The next signed candidate still owes build, three
-QCOW2, ISO and ARM evidence. P4.2–P4.5, English/German session coverage,
-touch/laptop/multi-output hardware and the full accessibility/visual matrix remain open.
+Finish W9's in-window transaction states and W8's three-size mark, then one candidate/proof
+cycle. Resolve upstream P0.7 before another ARM promotion attempt; P4.2–P4.5, English/German,
+touch/laptop/multi-output and the full accessibility/visual matrix remain open.

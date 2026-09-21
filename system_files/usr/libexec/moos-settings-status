@@ -88,9 +88,9 @@ DESTINATIONS = {
     'notifications': ('systemsettings', 'kcm_notifications'),
     'permissions': ('systemsettings', 'kcm_app-permissions'),
     'printers': ('systemsettings', 'kcm_printer_manager'),
-    'recovery': ('moos-rollback',),
+    'recovery': ('moos-settings', '--section=recovery'),
     'region': ('systemsettings', 'kcm_regionandlang'),
-    'remote': ('mo-pc-remote',),
+    'remote': ('moos-settings', '--section=remote'),
     'storage': ('kinfocenter', 'kcm_block_devices'),
     'store': ('moos-store',),
     'system-monitor': ('plasma-systemmonitor',),
@@ -99,7 +99,7 @@ DESTINATIONS = {
     'themes': ('moos-theme-picker',),
     'time': ('systemsettings', 'kcm_clock'),
     'touchpad': ('systemsettings', 'kcm_touchpad'),
-    'update': ('moos-update',),
+    'update': ('moos-settings', '--section=update'),
     'usb': ('kinfocenter', 'kcm_usb'),
     'users': ('systemsettings', 'kcm_users'),
     'wallpaper': ('moos-theme-picker',),
@@ -220,6 +220,55 @@ def battery_state() -> dict[str, object]:
     return {"available": False, "percent": 0, "state": ""}
 
 
+def update_state(path: Path = Path("/run/moos/update-state.json")) -> dict[str, object]:
+    """Read the updater's single published state machine without resolving it here.
+
+    Settings is a read-only front door. A missing or stale record means that no recent
+    check is known; it must never make a network request or invent an update result.
+    """
+    try:
+        if path.stat().st_size > 131072:
+            raise ValueError("oversized update state")
+        record = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, json.JSONDecodeError):
+        record = None
+    valid_states = {
+        "current", "available", "replace-staged", "staged",
+        "blocked-downgrade", "busy", "unknown",
+    }
+    if not isinstance(record, dict) or record.get("schema") != 1:
+        return {"known": False, "state": "", "event": "", "updated": 0,
+                "latestVersion": ""}
+    updated = record.get("updated")
+    state = record.get("state")
+    age = time.time() - updated if isinstance(updated, int) and not isinstance(updated, bool) else 901
+    if (not isinstance(updated, int) or isinstance(updated, bool) or updated <= 0
+            or age < -5 or age > 900 or state not in valid_states):
+        return {"known": False, "state": "", "event": "", "updated": 0,
+                "latestVersion": ""}
+    return {
+        "known": True,
+        "state": state,
+        "event": str(record.get("event", "")),
+        "updated": updated,
+        "latestVersion": str(record.get("latest_version", "")),
+    }
+
+
+def remote_state() -> dict[str, object]:
+    """Cheap user-service facts for the native Settings front door."""
+    available = bool(shutil.which("mo-pc-remote"))
+    return {
+        "available": available,
+        "active": available and command(
+            ["systemctl", "--user", "is-active", "mo-remote-personal.service"]
+        ) == "active",
+        "enabled": available and command(
+            ["systemctl", "--user", "is-enabled", "mo-remote-personal.service"]
+        ) == "enabled",
+    }
+
+
 def deployment_state() -> dict[str, object]:
     raw = command(["rpm-ostree", "status", "--json"], timeout=4)
     try:
@@ -275,6 +324,8 @@ def dynamic_state() -> dict[str, object]:
         "audio": audio_state(),
         "battery": battery_state(),
         "memory": memory_state(),
+        "update": update_state(),
+        "remote": remote_state(),
     }
 
 

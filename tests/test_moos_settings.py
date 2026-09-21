@@ -25,6 +25,9 @@ STATUS = ROOT / "system_files/usr/libexec/moos-settings-status"
 DESKTOP = ROOT / "system_files/usr/share/applications/org.moos.settings.desktop"
 ROUTER = ROOT / "system_files/usr/bin/moos-open"
 ICONS = ROOT / "system_files/usr/share/icons/hicolor"
+UPDATER_DESKTOP = ROOT / "system_files/usr/share/applications/org.moos.updater.desktop"
+RECOVERY_DESKTOP = ROOT / "system_files/usr/share/applications/org.moos.recovery.desktop"
+REMOTE_DESKTOP = ROOT / "system_files/usr/share/applications/org.moos.remote.desktop"
 ICON_SIZES = (16, 22, 24, 32, 48, 64, 96, 128, 192, 256, 512)
 
 
@@ -47,6 +50,15 @@ class MoOSSettingsTests(unittest.TestCase):
         self.assertIn("Exec=moos-settings --section=appearance", desktop)
         self.assertIn("Exec=moos-settings --section=connectivity", desktop)
         self.assertIn("Exec=moos-settings --section=recovery", desktop)
+
+        for path, section in ((UPDATER_DESKTOP, "update"),
+                              (RECOVERY_DESKTOP, "recovery"),
+                              (REMOTE_DESKTOP, "remote")):
+            with self.subTest(deep_link=section):
+                entry = path.read_text(encoding="utf-8")
+                self.assertIn(f"Exec=moos-settings --section={section}", entry)
+                self.assertIn("StartupWMClass=org.moos.settings", entry)
+                self.assertIn("NoDisplay=true", entry)
 
         # SVG master is gone, check for PNG raster ladder.
         for size in ICON_SIZES:
@@ -115,8 +127,9 @@ class MoOSSettingsTests(unittest.TestCase):
             ("settings/network", "systemsettings", "kcm_networkmanagement"),
             ("settings/audio", "systemsettings", "kcm_pulseaudio"),
             ("settings/permissions", "systemsettings", "kcm_app-permissions"),
-            ("settings/update", "moos-update", ""),
-            ("settings/recovery", "moos-rollback", ""),
+            ("settings/update", "moos-settings", "--section=update"),
+            ("settings/recovery", "moos-settings", "--section=recovery"),
+            ("settings/remote", "moos-settings", "--section=remote"),
             ("settings/firmware-security", "kinfocenter", "kcm_firmware_security"),
         ):
             line = next(
@@ -156,6 +169,8 @@ class MoOSSettingsTests(unittest.TestCase):
             self.assertIn("deployment", state)
             self.assertIn("network", state)
             self.assertIn("memory", state)
+            self.assertIn("update", state)
+            self.assertIn("remote", state)
             self.assertEqual(stat.S_IMODE(output.stat().st_mode), 0o600)
 
 
@@ -172,6 +187,31 @@ class MoOSSettingsTests(unittest.TestCase):
             with self.subTest(raw=raw), patch.dict(probe.__globals__, command=lambda args: raw if args[-1] == "general" else ""):
                 state = probe()
                 self.assertEqual((state["connected"], state["full"], state["known"]), (connected, full, known))
+
+    def test_update_status_reads_only_a_fresh_backend_record(self):
+        probe = runpy.run_path(str(STATUS))["update_state"]
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "update-state.json"
+            fresh = {
+                "schema": 1, "updated": int(time.time()), "state": "available",
+                "event": "resolve", "latest_version": "44.2",
+            }
+            path.write_text(json.dumps(fresh), encoding="utf-8")
+            self.assertEqual(
+                probe(path),
+                {"known": True, "state": "available", "event": "resolve",
+                 "updated": fresh["updated"], "latestVersion": "44.2"},
+            )
+            for broken in (
+                {**fresh, "schema": 2},
+                {**fresh, "updated": int(time.time()) - 901},
+                {**fresh, "updated": int(time.time()) + 60},
+                {**fresh, "state": "installed"},
+            ):
+                path.write_text(json.dumps(broken), encoding="utf-8")
+                self.assertFalse(probe(path)["known"])
+            path.write_text("not json", encoding="utf-8")
+            self.assertFalse(probe(path)["known"])
 
     def test_signature_requires_official_origin_and_known_deployment(self):
         probe = runpy.run_path(str(STATUS))["deployment_state"]
@@ -250,7 +290,7 @@ const inAppRoutes = """ + re.search(r"readonly property var inAppRoutes: \((\{[^
         script += """
 assert.equal(acceptStatus(valid), true);
 assert.equal(statusLoaded, true);
-for (const bad of [null, {}, {...valid, generatedAt:1}, {...valid, schema:2}, {...valid, audio:{}}, {...valid, network:null}])
+        for (const bad of [null, {}, {...valid, generatedAt:1}, {...valid, schema:2}, {...valid, audio:{}}, {...valid, network:null}, {...valid, update:null}, {...valid, remote:{}}])
     assert.equal(acceptStatus(bad), false);
 assert.equal(routeAvailable('moos://settings/audio'), true);
 assert.equal(routeAvailable('moos://settings/missing'), false);
@@ -266,6 +306,21 @@ assert.equal(acceptStatus(valid), true); assert.equal(statusError, '');
 """
         result = subprocess.run([node, "-e", script], capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_native_system_journeys_are_allowlisted_and_status_driven(self):
+        qml = APP.read_text(encoding="utf-8")
+        for route, page, sheet in (
+            ("moos://settings/update", '"update"', "moos://app/updater"),
+            ("moos://settings/recovery", '"recovery"', "moos://app/recovery"),
+            ("moos://settings/remote", '"remote"', "moos://app/remote"),
+        ):
+            self.assertIn(route, qml)
+            self.assertIn(page, qml)
+            self.assertIn(sheet, qml)
+        self.assertIn("component SystemJourneyPage", qml)
+        self.assertIn("status.update", qml)
+        self.assertIn("status.remote", qml)
+        self.assertNotIn("Qt.openUrlExternally(journey", qml)
 
     def test_rtl_is_mirrored_once_and_search_stays_synchronised(self):
         qml = APP.read_text()
