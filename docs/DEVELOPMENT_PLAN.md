@@ -553,10 +553,52 @@ offering one compatibility tool is not the thing that was curated. Measured afte
 tools agreeing on the spelling, and an unknown machine being offered everything rather than
 an empty store.
 
-**Still owed:** the eleven are hidden, not explained — a person who has heard of Spotify is
-told nothing about why it is absent here. Saying so belongs with P4.5's compatibility
-matrix. The list is also a measured snapshot: when Flathub publishes an ARM build the entry
-has to lose its `arch`, and nothing automatically notices.
+**And an engine it has no runtime for is just as dead.** `app-engines.json` is MoOS's own
+source of truth for what it can run, and it says wine is "present on every desktop MoOS"
+and waydroid is "shipped on the desktop editions". **Neither is in the ARM image** — `rpm -q`
+says not installed and neither is on PATH — so the `windows` and `android` engines have NO
+runtime there, while the Store offered **8 Windows programs** (`cat: win`) and **7 Android
+apps**. `moai-do setup-windows` refuses on ARM outright and `setup-waydroid` dead-ends with
+"waydroid not found", so neither could ever have been installed. The gate that should have
+caught it, `tests/test_app_engines.py`, reads `build_files/build.sh` and nothing else — the
+third gate found this week that describes x86 and calls it the system.
+
+A catalogue entry now names the `engine` it needs (implied for `install.kind: android`), and
+the index keeps only entries whose engine has an available runtime — decided by the
+registry's own `probe` field, so **no architecture is hardcoded and an edition that starts
+shipping a runtime gets its apps back on its own**. Measured on the A1: `windows` and
+`android` absent, `linux` present; the catalogue goes 53 → **27** here and stays 53 on a
+desktop with every engine.
+
+Two seams that a filter in the index alone would have missed, both closed: the Store paints
+the curated catalogue BEFORE the index exists (`Component.onCompleted` calls `loadCurated()`
+first, and the raw file is read on every launch), so the launcher now writes a machine
+profile — `moos-store-index --print-machine`, measured at **0.098 s** — and the QML filters
+its first frame and its bundles with it; and the capability strip listed every engine the
+registry *describes*, so an ARM desktop told its owner it runs Windows programs and Android
+apps. **Verified live on the A1**: the Store launched from source with an empty QML error
+log and dropped exactly the 7 Android entries — the only ones the *installed* catalogue
+carries data for, since the QML reads `/usr/share/moos/store/catalog.json` by absolute path
+and the new fields ship with the image, not with the checkout.
+
+`just check` caught a real design flaw during this work: the first draft probed the machine
+inside `load_catalog()`, so `tests/test_moos_store_index.py` passed in the Flatpak sandbox
+(no `/usr/share/moos`, nothing to read) and failed on the host (no wine or waydroid, so the
+Android recipe was filtered away). CI would only have agreed by luck — its x86 runners have
+both engines. `load_catalog()` is now pure, `main()` does the probing, and `--engines` lets
+an index be built for a stated machine.
+
+**Still owed:** the twenty-six are hidden, not explained — a person who has heard of Spotify
+is told nothing about why it is absent here. The registry already has the right vehicle: an
+`unsupported` list carrying a bilingual `reason`, which is how macOS is answered. Saying it
+belongs with P4.5's compatibility matrix. The Flathub list is a measured snapshot: when an
+ARM build appears the entry has to lose its `arch`, and nothing automatically notices.
+**Android on ARM is a real opportunity, not a dead end:** `waydroid` is `noarch` (so it
+installs on aarch64) and this A1's kernel already carries binderfs (`nodev binder` in
+`/proc/filesystems`). It was NOT added here, because shipping a runtime that has never been
+seen to run would recreate the defect this change removes — PROJECT_STATE records that
+Android "had never worked" on x86 while every gate read only the source. It needs an image
+and a booted proof.
 
 ## Three readings that look like defects and are not (measured 2026-09-21)
 

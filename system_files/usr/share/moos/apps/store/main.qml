@@ -130,6 +130,7 @@ ApplicationWindow {
     // environment or process access.
     readonly property string cacheDir: win.argValue("--cache=")
     readonly property string indexPath: win.argValue("--index=")
+    readonly property string machinePath: win.argValue("--machine=")
     readonly property string jobPath: win.argValue("--job=")
     readonly property string readyPath: win.argValue("--ready=")
     readonly property string updatesPath: win.argValue("--updates=")
@@ -547,15 +548,65 @@ ApplicationWindow {
     // The registry is the single source (system_files/usr/share/moos/app-engines.json).
     // Nothing here can name a runtime, because nothing here invents a string.
     property var engineCapabilities: []
+    // Engine ids the index probed as usable here; null until the index is read,
+    // and null again if it could not tell. Never [] for "none" -- see loadEngines.
+    property var indexEngines: null
+    // This machine's Flatpak arch, or "" when unknown. Same rule as indexEngines:
+    // unknown filters nothing.
+    property string machineArch: ""
+
+    // Written by the launcher before the first frame (moos-store --print-machine).
+    function loadMachine() {
+        try {
+            if (!win.machinePath) return
+            var document = win.readJson(win.machinePath)
+            if (!document) return
+            win.machineArch = "" + (document.arch || "")
+            win.indexEngines = (document.engines === null
+                                || document.engines === undefined)
+                               ? null : document.engines
+        } catch (error) {
+            win.machineArch = ""
+            win.indexEngines = null
+        }
+    }
+
+    // Can this machine install the curated entry at all? Mirrors
+    // moos-store-index: an entry naming architectures exists on those and
+    // nowhere else, and one naming an engine needs a runtime for it. Anything
+    // unknown filters nothing -- an empty store is the worse failure.
+    function curatedRunsHere(entry) {
+        if (!entry) return false
+        var arches = entry.arch
+        if (win.machineArch && arches && arches.length
+                && arches.indexOf(win.machineArch) < 0) return false
+        var engine = entry.engine
+                     || ((entry.install && entry.install.kind === "android")
+                         ? "android" : "")
+        if (engine && win.indexEngines !== null && win.indexEngines !== undefined
+                && win.indexEngines.indexOf("" + engine) < 0) return false
+        return true
+    }
 
     function loadEngines() {
         try {
             var document = win.readJson("/usr/share/moos/app-engines.json")
             if (!document || !document.engines) return
+            // The registry DESCRIBES every engine MoOS knows; it does not say
+            // which ones THIS machine has a runtime for. The index probes that
+            // (app-engines.json's own `probe` field) and writes the answer as
+            // `engines`. Without this filter an ARM desktop -- which ships
+            // neither wine nor waydroid -- told the owner it runs Windows
+            // programs and Android apps, and the picker it opened could only
+            // ever fail. A missing or null list means "could not tell", and the
+            // strip then shows everything exactly as it did before.
+            var ready = win.indexEngines
             var list = []
             for (var i = 0; i < document.engines.length; ++i) {
                 var engine = document.engines[i]
                 if (!engine || !engine.name) continue
+                if (ready !== null && ready !== undefined
+                        && ready.indexOf("" + engine.id) < 0) continue
                 var claims = engine.claims || {}
                 list.push({
                     "id": "" + engine.id,
@@ -587,10 +638,29 @@ ApplicationWindow {
             request.open("GET", "file:///usr/share/moos/store/catalog.json", false)
             request.send()
             var document = JSON.parse(request.responseText)
-            win.bundles = document.bundles || []
             var apps = document.apps || []
+            // Same rule the index applies: a bundle may only name apps this
+            // machine is actually offered, and a bundle left with fewer than two
+            // members is no longer the set that was curated -- on ARM "Gaming
+            // Starter" lost five of its six.
+            var offered = {}
+            for (var a = 0; a < apps.length; ++a)
+                if (win.curatedRunsHere(apps[a])) offered["" + apps[a].id] = true
+            var keptBundles = []
+            var rawBundles = document.bundles || []
+            for (var b = 0; b < rawBundles.length; ++b) {
+                var bundle = Object.assign({}, rawBundles[b])
+                var members = bundle.apps || []
+                var kept = []
+                for (var m = 0; m < members.length; ++m)
+                    if (offered["" + members[m]]) kept.push(members[m])
+                bundle.apps = kept
+                if (kept.length >= 2) keptBundles.push(bundle)
+            }
+            win.bundles = keptBundles
             var normalized = []
             for (var i = 0; i < apps.length; ++i) {
+                if (!win.curatedRunsHere(apps[i])) continue
                 var source = Object.assign({}, apps[i])
                 source.name = win.localName(source)
                 source.summary = win.localSummary(source)
@@ -1134,6 +1204,7 @@ ApplicationWindow {
     onQueryChanged: recompute()
 
     Component.onCompleted: {
+        win.loadMachine()
         win.loadCurated()
         win.loadIndex()
         win.adoptRecentUpdates()

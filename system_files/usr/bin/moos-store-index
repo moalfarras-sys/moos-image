@@ -21,6 +21,7 @@ import os
 import platform
 from pathlib import Path
 import re
+import shutil
 import sys
 import tempfile
 import unicodedata
@@ -1301,6 +1302,7 @@ def sanitize_catalog_app(entry: object) -> dict:
         result["arch"] = arches
     for key, limit in (
         ("cat", 64),
+        ("engine", 64),
         ("glyph", 64),
         ("en", 160),
         ("ar", 160),
@@ -1310,7 +1312,7 @@ def sanitize_catalog_app(entry: object) -> dict:
     ):
         value = safe_catalog_text(entry, key, limit)
         if value:
-            if key in {"cat", "glyph"} and not SLUG_RE.fullmatch(value):
+            if key in {"cat", "engine", "glyph"} and not SLUG_RE.fullmatch(value):
                 raise CatalogError(f"catalog field {key!r} for {app_id!r} is invalid")
             result[key] = value
 
@@ -1376,6 +1378,75 @@ def running_arch() -> str:
     return {"armv7l": "arm", "armv8l": "arm", "i686": "i386"}.get(machine, machine)
 
 
+DEFAULT_ENGINES = Path("/usr/share/moos/app-engines.json")
+
+# Where a Flatpak runtime shows up once it is installed, for either scope.
+FLATPAK_EXPORTS = (
+    Path("/var/lib/flatpak/exports/share/applications"),
+    Path.home() / ".local/share/flatpak/exports/share/applications",
+)
+
+
+def engine_runtime_available(runtime: dict) -> bool:
+    """Is this ONE runtime actually present on this machine?
+
+    The registry already describes how to tell: `probe` names a binary, and a
+    Flatpak carrier is present when its export exists. Probing beats hardcoding
+    an architecture, because it also becomes true on its own the day an edition
+    starts shipping the runtime.
+    """
+    probe = runtime.get("probe")
+    if isinstance(probe, str) and probe:
+        return shutil.which(probe) is not None
+    if runtime.get("carrier") == "flatpak":
+        app_id = runtime.get("id")
+        if not isinstance(app_id, str) or not app_id:
+            return False
+        return any((directory / f"{app_id}.desktop").is_file()
+                   for directory in FLATPAK_EXPORTS)
+    return False
+
+
+def available_engines(path: Path = DEFAULT_ENGINES) -> set[str] | None:
+    """Engine ids with at least one runtime this machine can actually use.
+
+    Returns None — not an empty set — when the registry cannot be read. The
+    caller must then filter NOTHING. An empty set would be indistinguishable
+    from "this machine runs nothing" and would silently empty whole Store
+    categories; offering one thing too many is the far better failure, and it is
+    the one the owner can see.
+    """
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+        engines = document["engines"]
+    except (OSError, UnicodeError, json.JSONDecodeError, KeyError, TypeError):
+        return None
+    if not isinstance(engines, list):
+        return None
+    ready = set()
+    for engine in engines:
+        if not isinstance(engine, dict) or not isinstance(engine.get("id"), str):
+            continue
+        runtimes = engine.get("runtimes")
+        if not isinstance(runtimes, list) or not runtimes:
+            continue
+        if any(isinstance(item, dict) and engine_runtime_available(item)
+               for item in runtimes):
+            ready.add(engine["id"])
+    return ready
+
+
+def catalog_app_engine(entry: dict) -> str:
+    """The engine an entry needs, declared or implied by how it installs."""
+    declared = entry.get("engine")
+    if isinstance(declared, str) and declared:
+        return declared
+    install = entry.get("install")
+    if isinstance(install, dict) and install.get("kind") == "android":
+        return "android"
+    return ""
+
+
 def catalog_app_runs_here(entry: dict, arch: str) -> bool:
     """An entry with no declared arch runs everywhere; otherwise it must name this one."""
     declared = entry.get("arch")
@@ -1384,7 +1455,22 @@ def catalog_app_runs_here(entry: dict, arch: str) -> bool:
     return arch in declared
 
 
-def load_catalog(path: Path, arch: str | None = None) -> dict:
+def load_catalog(path: Path, arch: str | None = None,
+                 engines: set[str] | None = None) -> dict:
+    """Read the curated catalogue, keeping only what a machine can actually use.
+
+    PURE ON PURPOSE. It probes nothing: `arch` and `engines` describe the target
+    machine and both default to None, which filters nothing. main() is what asks
+    the real machine, through running_arch() and available_engines().
+
+    An earlier draft probed here instead, and `just check` caught it within the
+    hour: tests/test_moos_store_index.py passed inside the Flatpak SDK sandbox
+    (no /usr/share/moos, so no engines could be read) and failed on the host
+    (aarch64, no wine or waydroid, so the Android recipe was filtered away). A
+    library function whose result depends on the developer's own machine cannot
+    be tested, and CI would only have agreed with it by luck -- the x86 runners
+    happen to have both engines.
+    """
     try:
         with path.open(encoding="utf-8") as handle:
             raw = json.load(handle)
@@ -1412,8 +1498,20 @@ def load_catalog(path: Path, arch: str | None = None) -> dict:
     # entry for each one. All eleven appeared in the ARM Store's index of 2941
     # apps, and `flatpak remote-info flathub com.spotify.Client --arch=aarch64`
     # answers "Can't find ref". Eleven dead buttons, two of them promoted.
-    here = arch or running_arch()
-    apps = [item for item in apps if catalog_app_runs_here(item, here)]
+    if arch:
+        apps = [item for item in apps if catalog_app_runs_here(item, arch)]
+    # AND what this machine has an ENGINE for. app-engines.json is MoOS's single
+    # source of truth for what it can run, and it already says how to tell: each
+    # runtime carries a `probe`. Measured on the A1 2026-09-21: neither wine nor
+    # waydroid is in the ARM image (`rpm -q` says not installed and neither is on
+    # PATH), so the windows and android engines have NO runtime there -- while the
+    # Store still offered 8 Windows programs and 7 Android apps, and
+    # `moai-do setup-windows` refuses on ARM outright while `setup-waydroid`
+    # dead-ends with "waydroid not found". Probing beats naming architectures: the
+    # day an edition ships the runtime, its apps come back on their own.
+    if engines is not None:
+        apps = [item for item in apps
+                if catalog_app_engine(item) in ("", *engines)]
     offered = {item["id"] for item in apps}
     categories = [
         sanitize_catalog_group(item, "category")
@@ -1436,7 +1534,8 @@ def load_catalog(path: Path, arch: str | None = None) -> dict:
         bundle for bundle in bundles
         if not isinstance(bundle.get("apps"), list) or len(bundle["apps"]) >= 2
     ]
-    return {"apps": apps, "categories": categories, "bundles": bundles}
+    return {"apps": apps, "categories": categories, "bundles": bundles,
+            "engines_ready": engines}
 
 
 def catalog_localized(entry: dict, preferences: list[str], prefix: str = "") -> str:
@@ -2049,6 +2148,15 @@ def build_index(
         },
         "sources": sources_output,
         "stats": stats,
+        # Which engines this machine actually has a runtime for. The Store's
+        # capability strip used to list every engine the registry DESCRIBES,
+        # so an ARM desktop -- which ships neither wine nor waydroid -- told the
+        # owner it runs Windows programs and Android apps. QML cannot probe a
+        # PATH; the index already did the work, so it writes the answer down.
+        # null means "could not tell", and the strip then shows the registry as
+        # before rather than claiming the machine runs nothing.
+        "engines": (None if catalog.get("engines_ready") is None
+                    else sorted(catalog["engines_ready"])),
         "categories": catalog["categories"],
         "bundles": catalog["bundles"],
         "apps": apps,
@@ -2103,6 +2211,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         description="Build Mo Store's local, unified application index"
     )
     parser.add_argument("--output", type=Path, default=default_output)
+    parser.add_argument("--print-machine", action="store_true",
+                        help="write the machine profile as JSON and exit (read-only)")
+    parser.add_argument("--engines", default=None,
+                        help="build the index for these engine ids instead of the ones "
+                             "probed here: a comma-separated list, or 'all' to filter by "
+                             "none. Lets an index be built for a different machine, and "
+                             "keeps tests independent of what the developer has installed")
     parser.add_argument("--catalog", type=Path, default=DEFAULT_CATALOG)
     parser.add_argument(
         "--appstream-root",
@@ -2129,8 +2244,28 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
+def machine_profile() -> dict:
+    """What this machine is, for the surfaces that cannot probe it themselves.
+
+    QML cannot read a PATH, and the Store paints the curated catalogue BEFORE
+    the index exists (Component.onCompleted calls loadCurated() first, and on a
+    first run the index is still building for ~30 s). Without this the very
+    first frame on an ARM desktop showed eleven apps with no ARM build and
+    fifteen more whose engine is not in the image. `engines: null` means "could
+    not tell", and every surface then filters nothing.
+    """
+    ready = available_engines()
+    return {"arch": running_arch(),
+            "engines": None if ready is None else sorted(ready)}
+
+
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
+    if args.print_machine:
+        # Read-only and fast: no AppStream parse, no catalogue, no output file.
+        # The launcher runs this synchronously before the first frame.
+        print(json.dumps(machine_profile(), ensure_ascii=False))
+        return 0
     try:
         if args.output.resolve() == args.catalog.resolve():
             raise CatalogError("output path must not overwrite the curated catalog")
@@ -2138,7 +2273,13 @@ def main(argv: list[str] | None = None) -> int:
             args.appstream_root, args.installation_root
         )
         preferences = locale_preferences(args.locale)
-        catalog = load_catalog(args.catalog)
+        if args.engines is None:
+            engines = available_engines()
+        elif args.engines.strip().lower() == "all":
+            engines = None
+        else:
+            engines = {part.strip() for part in args.engines.split(",") if part.strip()}
+        catalog = load_catalog(args.catalog, running_arch(), engines)
         installed = scan_installed(installation_roots)
         sources = appstream_sources(
             appstream_roots,

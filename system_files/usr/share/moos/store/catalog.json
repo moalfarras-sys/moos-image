@@ -568,6 +568,7 @@
     },
     {
       "id": "org.videolan.vlc",
+      "engine": "android",
       "source": "moos",
       "cat": "droid",
       "glyph": "media",
@@ -587,6 +588,7 @@
     },
     {
       "id": "app.organicmaps",
+      "engine": "android",
       "source": "moos",
       "cat": "droid",
       "glyph": "compass",
@@ -606,6 +608,7 @@
     },
     {
       "id": "seven-zip",
+      "engine": "windows",
       "source": "moos",
       "cat": "win",
       "glyph": "archive",
@@ -623,6 +626,7 @@
     },
     {
       "id": "notepad-plus-plus",
+      "engine": "windows",
       "source": "moos",
       "cat": "win",
       "glyph": "doc",
@@ -640,6 +644,7 @@
     },
     {
       "id": "irfanview",
+      "engine": "windows",
       "source": "moos",
       "cat": "win",
       "glyph": "image",
@@ -657,6 +662,7 @@
     },
     {
       "id": "org.schabi.newpipe",
+      "engine": "android",
       "source": "moos",
       "cat": "droid",
       "glyph": "video",
@@ -676,6 +682,7 @@
     },
     {
       "id": "de.danoeh.antennapod",
+      "engine": "android",
       "source": "moos",
       "cat": "droid",
       "glyph": "mic",
@@ -695,6 +702,7 @@
     },
     {
       "id": "com.kunzisoft.keepass.libre",
+      "engine": "android",
       "source": "moos",
       "cat": "droid",
       "glyph": "lock",
@@ -714,6 +722,7 @@
     },
     {
       "id": "org.fossify.gallery",
+      "engine": "android",
       "source": "moos",
       "cat": "droid",
       "glyph": "image",
@@ -733,6 +742,7 @@
     },
     {
       "id": "org.fossify.musicplayer",
+      "engine": "android",
       "source": "moos",
       "cat": "droid",
       "glyph": "media",
@@ -752,6 +762,7 @@
     },
     {
       "id": "putty",
+      "engine": "windows",
       "source": "moos",
       "cat": "win",
       "glyph": "monitor",
@@ -769,6 +780,7 @@
     },
     {
       "id": "winscp",
+      "engine": "windows",
       "source": "moos",
       "cat": "win",
       "glyph": "archive",
@@ -786,6 +798,7 @@
     },
     {
       "id": "sumatrapdf",
+      "engine": "windows",
       "source": "moos",
       "cat": "win",
       "glyph": "doc",
@@ -803,6 +816,7 @@
     },
     {
       "id": "paint-net",
+      "engine": "windows",
       "source": "moos",
       "cat": "win",
       "glyph": "pen",
@@ -820,6 +834,7 @@
     },
     {
       "id": "everything-search",
+      "engine": "windows",
       "source": "moos",
       "cat": "win",
       "glyph": "compass",
