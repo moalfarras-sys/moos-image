@@ -4019,6 +4019,10 @@ chmod 1777 /var/tmp
 # It runs here now: after every package, every rebrand, every mask — and under `set -e`, so
 # a failure stops the build.
 python3 /ctx/verify_image_experience.py
+# The same promise check the ARM build runs. mimeapps.list is copied verbatim into
+# every edition, so it has to resolve in every edition; this edition inherits most
+# of its apps from kinoite-main, which is exactly why nobody noticed ARM had none.
+python3 /ctx/verify_mime_handlers.py --root /
 python3 /ctx/verify_sound_theme.py
 python3 /ctx/verify_moos_motion.py --qml /ctx/motion-review.qml
 

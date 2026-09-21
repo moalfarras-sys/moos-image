@@ -78,6 +78,26 @@ _PLASMA=(
     qt6-qtwayland qt6-qtsvg qt6-qtdeclarative qt6-qtmultimedia qt6-qtimageformats
     kf6-kirigami kf6-kirigami-addons kf6-qqc2-desktop-style
     dolphin konsole ark kate gwenview haruna kf6-baloo-file
+    # THE VIEWER STACK, kept level with build.sh's section (c8).
+    #
+    # The x86 editions start FROM kinoite-main, which already carries KDE's app
+    # set; this image starts from bare fedora-bootc, so anything not named here
+    # simply is not present. That asymmetry is how the two editions drifted:
+    # system_files/etc/xdg/mimeapps.list is copied verbatim into BOTH images and
+    # points application/pdf, application/postscript and application/epub+zip at
+    # org.kde.okular.desktop — a file that did not exist on ARM. Measured on the
+    # A1 on 2026-09-21: `xdg-mime query default application/pdf` answered
+    # org.chromium.Chromium.desktop (a Flatpak the OWNER had installed), and
+    # application/epub+zip answered nothing at all. On a fresh ARM install with no
+    # browser a PDF therefore had no handler whatsoever, while build.sh's own
+    # comment says "documents/PDF are a base OS capability, not an optional
+    # browser tab". build_files/verify_mime_handlers.py now fails the build of
+    # EITHER architecture if a promised handler is missing from the image.
+    okular
+    # Dolphin's previews. Without these the A1 showed a generic icon for every
+    # video, PDF and RAW photo in the file manager — measured: the thumbcreator
+    # directory held no ffmpeg/video, pdf or raw creator at all.
+    ffmpegthumbs kdegraphics-thumbnailers
     plasma-breeze breeze-icon-theme papirus-icon-theme
     # ACCESSIBILITY. MoOS shipped the AT-SPI bus running and nothing behind it:
     # orca, speech-dispatcher and every speech engine were absent, so a blind
@@ -1438,6 +1458,10 @@ python3 /ctx/verify_arm_image.py
 python3 /ctx/verify_sound_theme.py
 python3 /ctx/verify_moos_motion.py --qml /ctx/motion-review.qml
 python3 /ctx/verify_no_foreign_identity.py
+# Every handler mimeapps.list promises must exist HERE. The ARM base ships no KDE
+# apps, so a type this image claims but cannot open is a defect only the finished
+# image can prove; okular reached production this way.
+python3 /ctx/verify_mime_handlers.py --root /
 
 
 echo "=== MoOS ARM build complete: ${MOOS_EDITION} (aarch64) ==="
