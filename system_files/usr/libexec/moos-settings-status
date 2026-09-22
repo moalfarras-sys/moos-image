@@ -266,6 +266,9 @@ def remote_state() -> dict[str, object]:
         "enabled": available and command(
             ["systemctl", "--user", "is-enabled", "mo-remote-personal.service"]
         ) == "enabled",
+        "failed": available and command(
+            ["systemctl", "--user", "is-failed", "mo-remote-personal.service"]
+        ) == "failed",
     }
 
 
@@ -277,11 +280,26 @@ def deployment_state() -> dict[str, object]:
             deployments = []
     except (json.JSONDecodeError, AttributeError):
         deployments = []
-    booted = next((item for item in deployments if item.get("booted")), {})
+    booted_index = next((index for index, item in enumerate(deployments)
+                         if item.get("booted")), None)
+    booted = deployments[booted_index] if booted_index is not None else {}
     staged = next((item for item in deployments if item.get("staged")), {})
     # The system this machine ran BEFORE its last update: the deployment kept for rollback.
     previous = next((item for item in deployments
                      if not item.get("booted") and not item.get("staged")), {})
+    # The default boot entry can be ahead of the running deployment. A staged
+    # upgrade also sorts ahead, but is not a queued rollback (see moos-rollback).
+    ahead = ([item for item in deployments[:booted_index] if not item.get("staged")]
+             if booted_index is not None else [])
+    rollback_queued = bool(ahead)
+    if rollback_queued:
+        rollback_target = ahead[0]
+    elif booted_index is not None:
+        rollback_target = next(
+            (item for item in deployments[booted_index + 1:] if not item.get("staged")), {}
+        )
+    else:
+        rollback_target = {}
     previous_built = previous.get("timestamp")
     reference = str(booted.get("container-image-reference", ""))
     digest = str(booted.get("container-image-reference-digest", ""))
@@ -309,6 +327,8 @@ def deployment_state() -> dict[str, object]:
         "rollback": sum(
             1 for item in deployments if not item.get("booted") and not item.get("staged")
         ),
+        "rollbackQueued": rollback_queued,
+        "rollbackTarget": str(rollback_target.get("version", "")),
     }
 
 

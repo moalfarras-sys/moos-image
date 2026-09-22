@@ -226,9 +226,41 @@ class MoOSSettingsTests(unittest.TestCase):
                 self.assertTrue(state["known"])
                 self.assertEqual(state["signed"], signed)
                 self.assertEqual(state["rollback"], 0, "staged image is never a rollback")
+                self.assertFalse(state["rollbackQueued"])
         for raw in ("", "null", '{"deployments":null}', '{"deployments":[null]}'):
             with patch.dict(probe.__globals__, command=lambda *a, **kw: raw):
                 self.assertFalse(probe()["known"])
+
+    def test_recovery_status_distinguishes_queued_rollback_from_staged_update(self):
+        probe = runpy.run_path(str(STATUS))["deployment_state"]
+        booted = {"booted": True, "version": "44.3"}
+        saved = {"version": "44.2"}
+        staged = {"staged": True, "version": "44.4"}
+        for deployments, queued, target in (
+            ([booted, saved], False, "44.2"),
+            ([staged, booted, saved], False, "44.2"),
+            ([saved, booted], True, "44.2"),
+            ([staged, saved, booted], True, "44.2"),
+            ([booted], False, ""),
+        ):
+            raw = json.dumps({"deployments": deployments})
+            with self.subTest(deployments=deployments), patch.dict(
+                probe.__globals__, command=lambda *a, **kw: raw
+            ):
+                state = probe()
+                self.assertEqual(state["rollbackQueued"], queued)
+                self.assertEqual(state["rollbackTarget"], target)
+
+    def test_remote_failure_is_not_reported_as_merely_stopped(self):
+        probe = runpy.run_path(str(STATUS))["remote_state"]
+        def command(argv):
+            return {"is-active": "failed", "is-enabled": "enabled",
+                    "is-failed": "failed"}.get(argv[2], "")
+        with patch.dict(probe.__globals__, command=command), patch.object(
+            shutil, "which", return_value="/usr/bin/mo-pc-remote"
+        ):
+            self.assertEqual(probe(), {"available": True, "active": False,
+                                       "enabled": True, "failed": True})
 
     def test_destination_probe_matches_router_and_checks_modules(self):
         scope = runpy.run_path(str(STATUS))
@@ -320,6 +352,8 @@ assert.equal(acceptStatus(valid), true); assert.equal(statusError, '');
         self.assertIn("component SystemJourneyPage", qml)
         self.assertIn("status.update", qml)
         self.assertIn("status.remote", qml)
+        self.assertIn("status.deployment.rollbackQueued", qml)
+        self.assertIn("status.remote.failed", qml)
         self.assertNotIn("Qt.openUrlExternally(journey", qml)
 
     def test_rtl_is_mirrored_once_and_search_stays_synchronised(self):

@@ -1,4 +1,4 @@
-# MoOS current state — measured 2026-09-21
+# MoOS current state — measured 2026-09-23
 Current measured facts only; Git owns history.
 
 **This block is the only place in the repository that states a version number.** The plan,
@@ -11,18 +11,17 @@ the README and every wave row point here instead of repeating it. Four parallel 
   `.912`, revision `eb3e2e76`. Proof set green: signed build
   `35535090226`, generic/NVIDIA/cloud QCOW2 `35536303700`/`35536306098`/`35536308587`,
   ISO `35536310896`, x86 promotion `35538660504`. The ARM proof is separately red below.
-- **Installed readback is clean:** `post-update-check.sh` 55/0, `moos-selfcheck` 53 plus the
+- **2026-09-21 installed readback was clean:** `post-update-check.sh` 55/0, `moos-selfcheck` 53 plus the
   intentional tray note, no failed units, `THEME_REV` **84**. Arabic Search returned real
   app/settings/recent-file rows at 4K/265% and the Island stayed fixed.
-- `origin/main` is `1ddc6cf3` (PR #153, P0.7 mechanism/ARM launch truth, 2026-09-21);
-  builds `35579843928`/`35579843941` started for it (inspect their final result). Active branch
-  `feat/w8-material-arrival-20260921` carries W8's material arrival and W9's one
-  Settings front door are source-only and not installed. Merging source still deploys nothing.
-- **The ARM release from `eb3e2e76` did NOT complete.** Run `35536313181` built and signed
-  `moos-arm` (image job green, `sha256:99a87e29…`), but the second UEFI boot of the final
-  QCOW2 reported `plymouth-start.service` failed, so the boot proof failed and promotion
-  never ran. `moos-arm:latest` therefore still points at the last boot-proven digest,
-  `sha256:513ab151…` = `44.20260920.545`. That is the gate working: P0.7 cost this release.
+- **2026-09-23 workstation:** signed `.914` booted, signed `.912` rollback, nothing staged,
+  `/var` 349 GiB free. A privileged host command deliberately killed and masked `fwupd`
+  on 2026-09-22; its failed unit is local state, not a spontaneous MoOS crash.
+- `origin/main` is `1ddc6cf3` (PR #153); builds `35579843928`/`35579843941` succeeded.
+  Active W8/W9 branch is source-only; merging it would not deploy it.
+- **ARM release from `eb3e2e76` failed proof:** run `35536313181` signed `moos-arm`, but
+  the second QCOW2 boot failed `plymouth-start.service`; promotion did not run. ARM `latest`
+  remains boot-proven `sha256:513ab151…` (`44.20260920.545`). P0.7 cost this release.
 - **P0.7 is no longer only a captured stack.** Read out of plymouth 24.004.60's source on
   2026-09-21: `ply_boot_splash_free()` frees `pixel_displays` without disarming the
   `on_new_frame` timeout that only `ply_boot_splash_hide()` disarms, and `--retain-splash`
@@ -120,10 +119,11 @@ or the nightly train; then restart.
   pointer/key paths, on a real Qt runtime.
 - **W8 material arrival is in source (`THEME_REV` 85):** one finite glint/1.5% settle on
   shared glass, still under Reduced Motion; real Qt changed at 60 ms and rested by 900 ms.
-  **W9's source slice** deep-links Update, Recovery and Remote into one status-driven Settings
-  window, then deliberately reaches the safe transaction owner; old menu entries are hidden
-  compatibility links. Arabic dark passed live at 4K/265% and `just check` is green. Neither
-  source change is installed.
+  **W9 source:** Settings deep-links Update, Recovery and Remote to their existing transaction
+  owners. On 2026-09-23 it gained owner-read busy/superseded update, queued rollback and failed
+  Remote rows; Arabic/English dark Qt captures and interaction assertions passed at 1400×900.
+  A superseded staged image is no longer called ready to restart. Installed routes and real
+  transactions remain unproven; neither W8 nor W9 source is installed.
 
 ## Development environment
 
@@ -195,6 +195,6 @@ indicator). The finding carries `moos://privacy/stop-sharing`, and `moos-remote-
 off` stops and un-autostarts both sharing services with no administrator rights.
 
 ## Next execution
-Finish W9's in-window transaction states and W8's three-size mark, then one candidate/proof
-cycle. Resolve upstream P0.7 before another ARM promotion attempt; P4.2–P4.5, English/German,
+Finish W9's real transaction lifecycle and W8's three-size mark, then one candidate/proof
+cycle. Resolve upstream P0.7 before another ARM promotion attempt; P4.2–P4.5, German,
 touch/laptop/multi-output and the full accessibility/visual matrix remain open.
