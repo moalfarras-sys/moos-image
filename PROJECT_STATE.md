@@ -121,7 +121,7 @@ or the nightly train; then restart.
   shared glass, still under Reduced Motion; real Qt changed at 60 ms and rested by 900 ms.
   **W9 source:** Settings deep-links Update, Recovery and Remote to their existing transaction
   owners. On 2026-09-23 it gained owner-read busy/superseded update, queued rollback and failed
-  Remote rows; Arabic/English dark Qt captures and interaction assertions passed at 1400×900.
+  Remote rows; Arabic/English light/dark Qt captures and interaction assertions passed.
   A superseded staged image is no longer called ready to restart. Installed routes and real
   transactions remain unproven; neither W8 nor W9 source is installed.
 

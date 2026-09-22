@@ -139,6 +139,11 @@ Item {
                         harness.app.selectSection("update")
                         driver.verify(harness.app.updateLabel !== harness.app.local(
                             "جاهز لإعادة التشغيل", "Ready to restart"))
+                        var updateDetail = harness.app.commandDetail({route: "moos://settings/update"})
+                        driver.verify(updateDetail.indexOf(harness.app.local(
+                            "جاهز لإعادة التشغيل", "Ready to restart")) < 0)
+                        driver.verify(updateDetail.indexOf("44.1") >= 0
+                                      && updateDetail.indexOf("44.2") >= 0)
                     }
                     if (scenario >= 3) {
                         var page = harness.find(harness.frame, "journey-" + harness.app.activeSection)

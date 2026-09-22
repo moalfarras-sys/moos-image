@@ -555,6 +555,16 @@ QQC2.ApplicationWindow {
 
     function isolated(value) { return "\u2068" + value + "\u2069" }
 
+    function stagedUpdateDetail() {
+        if (!status.deployment.staged) return ""
+        if (status.update.known && status.update.state === "replace-staged")
+            return local("المُجهّز: ", "Staged: ") + isolated(status.deployment.stagedVersion)
+                + local("  ·  التصحيحي: ", "  ·  Corrective: ")
+                + isolated(status.update.latestVersion)
+        return local("جاهز لإعادة التشغيل: ", "Ready to restart: ")
+            + isolated(status.deployment.stagedVersion)
+    }
+
     function commandDetail(item) {
         var reason = routeReason(item.route)
         if (reason) return reason
@@ -568,7 +578,7 @@ QQC2.ApplicationWindow {
         case "moos://settings/whats-new": return whatsNewFresh > 0 ? whatsNewSummary : local(item.descAr, item.descEn)
         case "moos://settings/recovery": return rollbackLabel
         case "moos://settings/update": return status.deployment.staged
-            ? local("جاهز لإعادة التشغيل: ", "Ready to restart: ") + isolated(status.deployment.stagedVersion)
+            ? stagedUpdateDetail()
             : local("الإصدار المثبت: ", "Installed version: ") + isolated(status.deployment.version)
         }
         return local(item.descAr, item.descEn)
@@ -2516,9 +2526,7 @@ QQC2.ApplicationWindow {
                                         StatusCapsule {
                                             glyph: "repair"
                                             label: win.rollbackLabel
-                                            detail: win.status.deployment.staged
-                                                ? win.local("تحديث جاهز: ", "Update ready: ") + win.isolated(win.status.deployment.stagedVersion)
-                                                : ""
+                                            detail: win.stagedUpdateDetail()
                                             statusColor: win.status.deployment.rollback > 0 ? win.positiveColor : win.warningColor
                                             active: win.status.deployment.rollback > 0
                                         }
@@ -2915,12 +2923,8 @@ QQC2.ApplicationWindow {
                         statusText: win.updateLabel
                         statusDetail: {
                             if (!win.statusLoaded) return win.statusError || win.local("جارٍ قراءة الحالة…", "Reading status…")
-                            if (win.status.update.known && win.status.update.state === "replace-staged")
-                                return win.local("المُجهّز: ", "Staged: ") + win.isolated(win.status.deployment.stagedVersion)
-                                    + win.local("  ·  التصحيحي: ", "  ·  Corrective: ")
-                                    + win.isolated(win.status.update.latestVersion)
                             if (win.status.deployment.staged)
-                                return win.local("الإصدار التالي: ", "Next version: ") + win.isolated(win.status.deployment.stagedVersion)
+                                return win.stagedUpdateDetail()
                             if (win.status.update.latestVersion)
                                 return win.local("أحدث إصدار معروف: ", "Latest known version: ") + win.isolated(win.status.update.latestVersion)
                             return win.local("الإصدار المثبت: ", "Installed version: ") + win.isolated(win.status.deployment.version)
