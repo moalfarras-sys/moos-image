@@ -523,6 +523,46 @@ now read out of plymouth 24.004.60's own source — `ply_boot_splash_free()` fre
 `ply_boot_splash_hide()` does, and `--retain-splash` is precisely the path that skips it.
 The fix is upstream's, not MoOS's; see the P0.7 row.
 
+## The two editions did not ship the same desktop (measured 2026-09-21, fixed)
+
+`system_files/etc/xdg/mimeapps.list` is copied verbatim into every edition, so it makes the
+SAME promise everywhere. The editions do not get their applications the same way: the three
+x86 editions build FROM `kinoite-main`, which already carries KDE's app set, while
+`Containerfile.arm` starts from bare `fedora-bootc` and receives only what
+`build_files/build-arm.sh` names. Anything x86 inherits for free has to be asked for by name
+on ARM, and nothing was checking that it had been.
+
+**Measured on the A1.** The list pointed `application/pdf`, `application/postscript` and
+`application/epub+zip` at `org.kde.okular.desktop`, and that file was not in the ARM image.
+`xdg-mime query default application/pdf` answered `org.chromium.Chromium.desktop` — a Flatpak
+the owner happened to have installed — and `application/epub+zip` answered **nothing**. On a
+fresh ARM install with no browser, a double-clicked PDF had no handler at all, while
+`build.sh`'s own comment for that package reads "documents/PDF are a base OS capability, not
+an optional browser tab." Dolphin was also missing `ffmpegthumbs` and
+`kdegraphics-thumbnailers`: the thumbcreator directory held no video, PDF or RAW creator, so
+every video and document in the file manager was a generic icon. `kf6-kimageformats` was
+checked and is present, so AVIF/HEIF/JXL decoding was never affected.
+
+**Why it survived.** The only check naming okular greps `build.sh` for the package
+(`tests/verify_user_experience.py`), so it could only ever describe x86. A gate that reads
+one of two build scripts is a green check that says nothing about the other edition.
+
+**Fixed, and gated so the class cannot recur.** `build-arm.sh` installs `okular`,
+`ffmpegthumbs` and `kdegraphics-thumbnailers`. `build_files/verify_mime_handlers.py` reads
+the FINISHED image and fails the build of EITHER architecture when a promised handler is
+absent — run from both build scripts, which settles the question whatever supplied the app.
+`tests/test_mime_handlers.py` holds the source half in seconds: ARM must name every
+third-party handler it promises, first-party handlers must ship in the overlay, and both
+build scripts must keep calling the image gate. The gate was proven against the running A1
+before the fix (it named okular and its three types, exit 1) and the test was proven to FAIL
+with the package removed — the first draft of that test passed either way, because the word
+"okular" appears in the comment beside the fix, which is exactly why
+`verify_user_experience.py` carries a `code()` helper whose docstring is "Strip comments so a
+gate cannot be satisfied by prose."
+
+**Still owed:** the same question asked of the other direction — what the ARM edition
+installs that x86 does not — and a real ARM boot carrying these packages.
+
 ## Three readings that look like defects and are not (measured 2026-09-21)
 
 Do not "fix" any of these; each was chased once already.

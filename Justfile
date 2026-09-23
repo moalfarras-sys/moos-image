@@ -337,6 +337,14 @@ check:
     # may ever reach a dialog. A person who downloaded a program wants "Windows
     # programs", not a lesson about which runtime MoOS used.
     python3 tests/test_app_engines.py
+    # Every file type MoOS claims must open in something that is actually in the
+    # image. mimeapps.list is copied verbatim into every edition, but the x86
+    # editions inherit KDE's apps from kinoite-main while ARM starts from bare
+    # fedora-bootc and gets only what build-arm.sh names. That asymmetry shipped:
+    # PDF, PostScript and EPUB pointed at okular, which was not in the ARM image
+    # at all, and the only check that mentioned it greps build.sh -- so it could
+    # only ever describe x86.
+    python3 tests/test_mime_handlers.py
     # "Set up Android" had NEVER worked: waydroid init needs mandatory OTA
     # channels, MoOS ships no channels config for it to fall back on, and every
     # existing gate read only the source. Proven on the station 2026-09-20 by
