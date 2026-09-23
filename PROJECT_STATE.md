@@ -16,10 +16,11 @@ the README and every wave row point here instead of repeating it. Four parallel 
 - PR #157 integrated W8/W9, ARM app parity, Store honesty and the NVIDIA device gate.
   PR #158 raised ARM's finite first-boot Flatpak timeout
   from 30 to 120 seconds. The no-GPU NVIDIA VM boots twice with zero failed units.
-- **ARM `latest` is boot-proven** `sha256:1d281ceb04f888739da4c9ed55607a24498a3a7ed100611154c347586b41fe4c`
-  from `f2e798ab` (build/boot/promotion `35887322112`). The 120-second fix passed
-  exact branch image and two-boot proof `35889416840`; merged tree equals that proof.
-  `main` run `35912079424` is building before the fixed image can promote. P0.7 remains open.
+- **ARM `latest` is boot-proven** `sha256:eff234dfdc30364f50d1ac05e437133aba00b8963cac2fd1355aa8bf0eb58ca2`
+  from merge `4ae85676`: signed build, two QCOW2 boots and promotion all passed in
+  `35912079424`. The 120-second fix also passed branch proof `35889416840`; its
+  tree exactly matched the merge. Registry `latest` readback matches the promoted digest.
+  Intermittent upstream Plymouth issue P0.7 remains open.
 - **P0.7 is no longer only a captured stack.** Read out of plymouth 24.004.60's source on
   2026-09-21: `ply_boot_splash_free()` frees `pixel_displays` without disarming the
   `on_new_frame` timeout that only `ply_boot_splash_hide()` disarms, and `--retain-splash`
@@ -190,5 +191,5 @@ indicator). The finding carries `moos://privacy/stop-sharing`, and `moos-remote-
 off` stops and un-autostarts both sharing services with no administrator rights.
 
 ## Next execution
-Finish W9's real transaction lifecycle and W8's three-size mark. Resolve P0.7 before
-another ARM promotion; P4.2–P4.5, German, touch/laptop/multi-output and full accessibility remain open.
+Finish W9's real transaction lifecycle and W8's three-size mark. Pursue upstream P0.7;
+P4.2–P4.5, German, touch/laptop/multi-output and full accessibility remain open.
