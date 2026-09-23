@@ -5957,6 +5957,9 @@ require("python3 /ctx/rewrite_firmware_label.py" in _build
 require("nvidia-cdi-refresh.service.d/10-moos-device.conf" in _build
         and "ConditionPathExists=/dev/nvidiactl" in _build,
         "the NVIDIA CDI generator must skip cleanly when no NVIDIA device exists")
+require("nvidia-persistenced.service.d/10-moos-device.conf" in _build
+        and "ConditionPathExistsGlob=/proc/driver/nvidia/gpus/*/information" in _build,
+        "the NVIDIA persistence daemon must not fail boot on a VM without a GPU")
 
 # #25 moos-hardware-adapt must APPLY the sysctl it writes (daemon-reload does not).
 _hw = code(read("system_files/usr/libexec/moos-hardware-adapt"), "hash")

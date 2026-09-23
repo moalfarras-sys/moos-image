@@ -346,6 +346,20 @@ CDIDROP
         /usr/lib/systemd/system/nvidia-cdi-refresh.service.d/10-moos-device.conf \
         || { echo "FATAL: NVIDIA CDI refresh is not gated on a real device."; exit 1; }
 
+    # The driver's kernel modules can expose /dev/nvidia* in a VM with no GPU.
+    # The vendor's persistenced unit checks that glob, starts, and fails the
+    # zero-failed-unit boot proof. A GPU's procfs information appears only after
+    # the driver has bound real hardware; it is present on the NVIDIA station.
+    # Skip the daemon on headless/CPU-only machines without hiding real failures.
+    install -D -m0644 /dev/stdin \
+        /usr/lib/systemd/system/nvidia-persistenced.service.d/10-moos-device.conf <<'PERSISTDROP'
+[Unit]
+ConditionPathExistsGlob=/proc/driver/nvidia/gpus/*/information
+PERSISTDROP
+    grep -Fxq 'ConditionPathExistsGlob=/proc/driver/nvidia/gpus/*/information' \
+        /usr/lib/systemd/system/nvidia-persistenced.service.d/10-moos-device.conf \
+        || { echo "FATAL: NVIDIA persistence daemon is not gated on an actual GPU."; exit 1; }
+
     echo "OK: NVIDIA $(rpm -q --qf '%{VERSION}' nvidia-driver) installed."
     echo "    modules: $(find "/usr/lib/modules/${kver_image}" -name 'nvidia*.ko*' -printf '%f ' )"
     echo "    dracut : $(grep -h force_drivers /usr/lib/dracut/dracut.conf.d/99-nvidia.conf)"

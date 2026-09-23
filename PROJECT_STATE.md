@@ -17,8 +17,9 @@ the README and every wave row point here instead of repeating it. Four parallel 
 - **2026-09-23 workstation:** signed `.914` booted, signed `.912` rollback, nothing staged,
   `/var` has over 300 GiB free. A host command masked `fwupd` on 2026-09-22; it was restored,
   firmware metadata refreshed, no update offered, and `moos-selfcheck` passed 53 checks.
-- `origin/main` is `1ddc6cf3` (PR #153); builds `35579843928`/`35579843941` succeeded.
-  Active W8/W9 branch is source-only; merging it would not deploy it.
+- `origin/main` is `1ddc6cf3`; PR #157 integrates W8/W9, ARM app parity and Store honesty.
+  Candidate `fd1e49ca` passed signed build, generic/cloud QCOW2 and ISO; NVIDIA QCOW2
+  failed on `nvidia-persistenced` in a no-GPU VM. No promotion; device-gated fix awaits proof.
 - **ARM release from `eb3e2e76` failed proof:** run `35536313181` signed `moos-arm`, but
   the second QCOW2 boot failed `plymouth-start.service`; promotion did not run. ARM `latest`
   remains boot-proven `sha256:513ab151…` (`44.20260920.545`). P0.7 cost this release.
@@ -27,7 +28,6 @@ the README and every wave row point here instead of repeating it. Four parallel 
   `on_new_frame` timeout that only `ply_boot_splash_hide()` disarms, and `--retain-splash`
   is the path that skips that hide. An upstream defect MoOS's flag exposes; both recorded
   workarounds are disproven. See the plan, P0.7.
-- `main` is the only long-lived branch; every merged topic branch is deleted.
 - A merged commit or locally built image is not an installed or released state.
   Production moves only after the exact candidate passes 3×QCOW2 + ISO; ARM is
   separately required evidence.
