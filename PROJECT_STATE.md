@@ -15,8 +15,8 @@ the README and every wave row point here instead of repeating it. Four parallel 
   intentional tray note, no failed units, `THEME_REV` **84**. Arabic Search returned real
   app/settings/recent-file rows at 4K/265% and the Island stayed fixed.
 - **2026-09-23 workstation:** signed `.914` booted, signed `.912` rollback, nothing staged,
-  `/var` 349 GiB free. A privileged host command deliberately killed and masked `fwupd`
-  on 2026-09-22; its failed unit is local state, not a spontaneous MoOS crash.
+  `/var` has over 300 GiB free. A host command masked `fwupd` on 2026-09-22; it was restored,
+  firmware metadata refreshed, no update offered, and `moos-selfcheck` passed 53 checks.
 - `origin/main` is `1ddc6cf3` (PR #153); builds `35579843928`/`35579843941` succeeded.
   Active W8/W9 branch is source-only; merging it would not deploy it.
 - **ARM release from `eb3e2e76` failed proof:** run `35536313181` signed `moos-arm`, but
