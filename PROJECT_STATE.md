@@ -6,24 +6,20 @@ the README and every wave row point here instead of repeating it. Four parallel 
 "production is X" is how three of them came to be a release behind at once.
 
 ## Source and release truth
-- **`44.20260923.920` is the released x86 image, staged on the NVIDIA station:** signed digest
+- **`44.20260923.920` is released and booted on the NVIDIA station:** signed digest
   `sha256:7583f605753780dedf6c364ba43ff04242a86d0a918ae33e10fbe6de2b7fea44`,
   candidate revision `3b6f8e94`, signed build `35878094873`, generic/NVIDIA/cloud QCOW2
   `35881259100`/`35881263671`/`35881269531`, ISO `35881275455`, and promotion
-  `35887376140` all green. The running deployment is still signed `.914`; `.920` needs a
-  reboot, and `.914` remains available for rollback. ARM release proof is separate.
-- **2026-09-23 workstation before staging:** signed `.914` booted, signed `.912` rollback,
-  `/var` has over 300 GiB free. A host command masked `fwupd` on 2026-09-22; it was restored,
-  firmware metadata refreshed, no update offered, and `moos-selfcheck` passed 53 checks.
-- `origin/main` at this review is `f2e798ab`; PR #157 integrated W8/W9, ARM app parity,
-  Store honesty and the NVIDIA persistence device gate. The no-GPU NVIDIA VM now boots
-  twice with zero failed units in the exact candidate proof above.
-- ARM `latest` remains boot-proven `sha256:513ab151…`; P0.7 prevented its last promotion.
-- **ARM candidate `3b6f8e94` did not promote:** run `35881281095` timed out
-  `moos-flatpak-init.service` at its 30-second limit on first boot in slow QEMU, while
-  the preceding branch candidate's ARM proof passed. A finite 120-second limit is in
-  review; the next exact-image boot proof must show store initialization, two boots and
-  zero failed units before ARM can promote.
+  `35887376140` all green. Live `post-update-check.sh` passed 55/0 against that digest;
+  `moos-selfcheck` passed 53 with one owner-configurable tray note, zero failed units,
+  and signed `.914` retained for rollback. `fwupd` was restored and offered no update.
+- PR #157 integrated W8/W9, ARM app parity, Store honesty and the NVIDIA device gate.
+  PR #158 raised ARM's finite first-boot Flatpak timeout
+  from 30 to 120 seconds. The no-GPU NVIDIA VM boots twice with zero failed units.
+- **ARM `latest` is boot-proven** `sha256:1d281ceb04f888739da4c9ed55607a24498a3a7ed100611154c347586b41fe4c`
+  from `f2e798ab` (build/boot/promotion `35887322112`). The 120-second fix passed
+  exact branch image and two-boot proof `35889416840`; merged tree equals that proof.
+  `main` run `35912079424` is building before the fixed image can promote. P0.7 remains open.
 - **P0.7 is no longer only a captured stack.** Read out of plymouth 24.004.60's source on
   2026-09-21: `ply_boot_splash_free()` frees `pixel_displays` without disarming the
   `on_new_frame` timeout that only `ply_boot_splash_hide()` disarms, and `--retain-splash`
@@ -71,16 +67,14 @@ diagnosis was wrong. Do not weaken SELinux globally.
 | CPU / RAM | Intel Core i5-14400F / 15.4 GiB |
 | GPU | NVIDIA RTX 2080 SUPER, driver 615.71.09 |
 | Desktop | Plasma/KWin 6.7.5, Wayland, 3840×2160@60, scale 265% (1450×816 logical) |
-| Kernel | `7.2.5-200.fc44.x86_64` |
+| Kernel | `7.2.6-200.fc44.x86_64` |
 | Network | Intel AX210 Wi-Fi/Bluetooth + RTL8125 Ethernet |
 | Health | zero failed system units; zero failed user units (P0.7 remains intermittent) |
 
-Measured after reboot onto the current signed image: installed `THEME_REV` **84**,
-Global Theme `org.moos.ui2.midnight`, visual tier **flagship**, motion `alive`,
-`kwinrc/Plugins/blurEnabled=true`, Arabic session (`ar_SA.UTF-8`). The installed image is
-the previously released clarity revision; the newly staged W8/W9 image was reviewed
-from source, not mistaken for running state. Health checks do not qualify suspend, every app
-or all visual surfaces.
+Measured after reboot onto the current signed image: installed `THEME_REV` **85**,
+Global Theme `org.moos.ui2`, `kwinrc/Plugins/blurEnabled=true`, Arabic session
+(`ar_SA.UTF-8`). The W8/W9 image is running and passed live post-update checks;
+that does not qualify suspend, every app or the full visual matrix.
 
 **Speed and Mo AI, both measured on cycle H's `.890`** and NOT re-measured since.
 `moos-measure-speed` (P5.4): MoOS's share of boot **6.70 s**/9.0,
