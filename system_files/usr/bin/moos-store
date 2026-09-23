@@ -44,6 +44,19 @@ READY="${CACHEDIR}/index.ready"
 # like a transaction to the UI, which correlates job.json to its own request.
 UPDATES="${CACHEDIR}/updates.json"
 
+# What this machine is, written BEFORE the first frame. The Store paints the
+# curated catalogue immediately (Component.onCompleted -> loadCurated()) and only
+# swaps in the index when it exists, so without this the first thing an ARM
+# desktop showed was apps with no ARM build and apps whose engine is not in the
+# image. Read-only, no AppStream parse: measured at 0.098 s on the A1. If it
+# fails the file is absent, QML filters nothing, and the Store behaves as before.
+MACHINE="${CACHEDIR}/machine.json"
+if [ -x /usr/bin/moos-store-index ]; then
+    /usr/bin/moos-store-index --print-machine >"${MACHINE}.new" 2>/dev/null \
+        && mv -f "${MACHINE}.new" "$MACHINE" \
+        || rm -f "${MACHINE}.new"
+fi
+
 # Rebuild from on-disk AppStream metadata without delaying the first frame.
 # flock coalesces launches; the indexer itself token-caches unchanged inputs and
 # publishes atomically, so the UI always sees either the old complete index or
@@ -68,7 +81,7 @@ if [ -x /usr/bin/moos-qml-shell ]; then
     exec /usr/bin/moos-qml-shell \
         --app-id org.moos.store --icon moos-store --qml "$QML" \
         -- --cache="$CACHEDIR" --index="$INDEX" --job="$JOB" --ready="$READY" \
-           --updates="$UPDATES"
+           --updates="$UPDATES" --machine="$MACHINE"
 fi
 
 # Fallback: wrong icon beats no window.

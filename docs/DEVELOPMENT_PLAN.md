@@ -57,8 +57,9 @@ laptop, a touchscreen or two monitors**.
 5. **The rest of the look** — the desk itself is settled: nothing is laid over the
    wallpaper, nothing on that layer moves, and its contrast is lifted on the image and
    measured (W9.8). THEME_REV 84 completes the live clear-to-solid clarity control and
-   its KWin/material bridge. What remains is the MoOS mark at exactly three sizes and
-   the specular sweeping once as a surface arrives (the open half of W8).
+   its KWin/material bridge. The finite specular arrival is implemented in source at
+   THEME_REV 85 and proved on a real Qt runtime; what remains is the MoOS mark at exactly
+   three sizes and installed-image evidence for both clarity and arrival (the open half of W8).
 
    **The rule those two waves established, and the one to keep:** a MoOS surface earns
    its effect by measurement, not by taste. Two ideas that looked good — an ambient wash
@@ -161,7 +162,7 @@ reviewed live, gated once, merged once and proven once.
 | W9.5 | M1 | **How a security update reaches a machine, said truthfully.** `build.yml`'s nightly claimed it picked up Fedora/uBlue base security updates "promptly"; it pushes only a candidate tag, and promotion refuses any run that is not a dispatch, so it ships nothing and never could. ARM had no scheduled rebuild at all. Both corrected, and `tests/test_security_update_reachability.py` keeps the claim and the mechanism from drifting apart again | PR #139 |
 | W9.6 | M2 | **Glass stops being a window where there is no blur (P2.5).** Every Aurora Glass density assumed a blur pass behind the surface; without one — the essential tier, llvmpipe, or an owner who turned blur off — 0.22 alpha over a wallpaper is a window, and the A1's review said exactly that. The surfaces now read `kwinrc/Plugins/blurEnabled`, the same key `moos-visual-tier` already writes, and paint the same colour with enough body to hold text when it is off. Proved on a real Qt engine against a real config both ways. THEME_REV 84 later strengthens this to a uniform 0.97 fail-solid endpoint while rim/specular retain depth. | `THEME_REV` 70, PR #139 |
 | W9.8 | M2 | **The desk stops moving, and the wallpaper gets stronger — one defect.** Two full-screen washes traded emphasis every 90 s: long enough that the eye caught a drift and found nothing, and to do it they veiled every pixel of the artwork. A replacement was built (one light whose place in the sky is the hour), measured, and DELETED — every translucent layer over a dark image lifts its blacks, which is what "washed out" means, so both complaints had one answer: take things off. Nothing is over the artwork now and its own contrast is lifted instead, gated on GPU compositing via `Tokens.blurActive`. Measured on the station: **+14.2% contrast**; the strength was chosen against shadow loss (0.24 bought +4.5% more contrast for 3.5× the crushing) | `THEME_REV` 71, PR #140 |
-| W9 | M2 | System surfaces on MoOS UI: Updater, Recovery, Remote centre, Settings front door (P2.1–P2.2), a MoOS-owned About page (P2.9) | planned |
+| W9 | M2 | **One System Centre front door.** Update, Recovery and Mo PC Remote open as native, status-driven pages inside the existing MoOS Settings window; their old menu launchers are hidden compatibility deep links, and one deliberate primary action reaches each existing safe transaction owner. Settings now reads update-busy/superseded, queued rollback and failed Remote service from their actual owners; it shows the pending/error/cancel paths without claiming a transaction happened. | **In source on `feat/w8-material-arrival-20260921`**. Arabic and English light/dark source captures, including failure fixtures, passed on the real Qt runtime on 2026-09-23; the earlier Arabic 4K/265% front door was reviewed live. Open before closing W9: real check/stage/refused-authorization/cancel transactions and installed-image route proof. |
 | W10 | M3 | Mo Store as one job system for install/update/remove across the UI, Mo AI and URL routes, with a drop target in its own window (P1.7, P4.1–P4.2, P4.7) | planned |
 | W11 | M2 | MoOS Intro: one horizon scene from Plymouth through login to the Hub; first-run tour; offline first run (P1.6) | planned |
 | W12+ | M4–M5 | hardware breadth, compatibility products, MoOS Shield encryption, release trust | planned |
@@ -231,9 +232,12 @@ row anywhere, which is why it is written out.
   blur behind it. That is the P2.5 defect, live, on a shipped path — not a hypothetical.
 - **The MoOS mark at exactly three sizes** (boot, login, bar) with a glyph everywhere
   else → handoff row 4.
-- **Glass that settles**: the specular sweeping once as a surface springs in. **No row
-  owns this.** It is the one W8 item the handoff table does not cover, and it stays here
-  until it gets one.
+- **Glass that settles — implemented in source (THEME_REV 85).** Every shared
+  `MoUI.GlassSurface` receives one clipped leading-edge glint and a 1.5% settle when it
+  arrives, then stops completely; hidden surfaces finalize instead of restarting and Reduced
+  Motion paints the final frame without movement. A real Qt runtime measured a changing frame
+  at 60 ms and a complete rest by 900 ms. Open: installed-image review beside the clarity
+  states; no further idle motion is planned.
 
 ### Ideas worth building (each needs its owner and a proof before it ships)
 
@@ -522,6 +526,123 @@ now read out of plymouth 24.004.60's own source — `ply_boot_splash_free()` fre
 `pixel_displays` without disarming the `on_new_frame` timeout, which only
 `ply_boot_splash_hide()` does, and `--retain-splash` is precisely the path that skips it.
 The fix is upstream's, not MoOS's; see the P0.7 row.
+
+## The two editions did not ship the same desktop (measured 2026-09-21, fixed)
+
+`system_files/etc/xdg/mimeapps.list` is copied verbatim into every edition, so it makes the
+SAME promise everywhere. The editions do not get their applications the same way: the three
+x86 editions build FROM `kinoite-main`, which already carries KDE's app set, while
+`Containerfile.arm` starts from bare `fedora-bootc` and receives only what
+`build_files/build-arm.sh` names. Anything x86 inherits for free has to be asked for by name
+on ARM, and nothing was checking that it had been.
+
+**Measured on the A1.** The list pointed `application/pdf`, `application/postscript` and
+`application/epub+zip` at `org.kde.okular.desktop`, and that file was not in the ARM image.
+`xdg-mime query default application/pdf` answered `org.chromium.Chromium.desktop` — a Flatpak
+the owner happened to have installed — and `application/epub+zip` answered **nothing**. On a
+fresh ARM install with no browser, a double-clicked PDF had no handler at all, while
+`build.sh`'s own comment for that package reads "documents/PDF are a base OS capability, not
+an optional browser tab." Dolphin was also missing `ffmpegthumbs` and
+`kdegraphics-thumbnailers`: the thumbcreator directory held no video, PDF or RAW creator, so
+every video and document in the file manager was a generic icon. `kf6-kimageformats` was
+checked and is present, so AVIF/HEIF/JXL decoding was never affected.
+
+**Why it survived.** The only check naming okular greps `build.sh` for the package
+(`tests/verify_user_experience.py`), so it could only ever describe x86. A gate that reads
+one of two build scripts is a green check that says nothing about the other edition.
+
+**Fixed, and gated so the class cannot recur.** `build-arm.sh` installs `okular`,
+`ffmpegthumbs` and `kdegraphics-thumbnailers`. `build_files/verify_mime_handlers.py` reads
+the FINISHED image and fails the build of EITHER architecture when a promised handler is
+absent — run from both build scripts, which settles the question whatever supplied the app.
+`tests/test_mime_handlers.py` holds the source half in seconds: ARM must name every
+third-party handler it promises, first-party handlers must ship in the overlay, and both
+build scripts must keep calling the image gate. The gate was proven against the running A1
+before the fix (it named okular and its three types, exit 1) and the test was proven to FAIL
+with the package removed — the first draft of that test passed either way, because the word
+"okular" appears in the comment beside the fix, which is exactly why
+`verify_user_experience.py` carries a `code()` helper whose docstring is "Strip comments so a
+gate cannot be satisfied by prose."
+
+**Still owed:** the same question asked of the other direction — what the ARM edition
+installs that x86 does not — and a real ARM boot carrying these packages.
+
+## The ARM Store offered eleven apps it could not install (measured 2026-09-21, fixed)
+
+`catalog.json` had no notion of architecture, and neither did the index builder. The browse
+index is otherwise arch-correct — it is built from the RUNNING architecture's AppStream —
+but when a curated entry found no AppStream match, `catalog_fallback_app()` MANUFACTURED an
+index entry for it. On aarch64 that happened for every catalogue app with no ARM build.
+
+**Measured against `flatpak --system remote-ls flathub --arch=aarch64` (2923 apps):** eleven
+of the catalogue's thirty-three Flathub apps have no ARM build — Thunderbird, OBS Studio,
+Steam, Bottles, Lutris, Heroic, Spotify, Discord, Zoom, Slack, Android Studio. All eleven
+were in the A1's Store index of 2941 apps, and **Steam and Spotify carry `"popular": true`**,
+so they were promoted on the front page. Each was a dead button:
+`flatpak remote-info flathub com.spotify.Client --arch=aarch64` answers `Can't find ref`.
+AGENTS.md: "No fake apps and no dead buttons." MoOS already refuses PC gaming on ARM in
+Mo AI (`moai-do`'s `pc_games_supported`), so the Store leading a "Gaming Starter" bundle
+with Steam was also two MoOS surfaces disagreeing with each other.
+
+**Fixed.** A catalogue entry may declare `"arch": [...]` — the architectures on which it
+exists; absent still means everywhere, so every other entry is untouched. `load_catalog()`
+drops what this machine cannot install ONCE, so all three later passes agree (the fallback
+that invents an entry, the overlay that decorates a real one, and the non-Flatpak lifecycle
+scan). `moos-storectl._catalog()` applies the same rule, so a stale index or an
+install-by-id is not a way round it. Bundles are re-checked against what survived and are
+withdrawn below two members: on ARM "Gaming Starter" lost five of six, and a gaming bundle
+offering one compatibility tool is not the thing that was curated. Measured after the fix:
+**x86_64 unchanged at 53 apps / 5 bundles; aarch64 42 apps / 4 bundles.**
+`tests/test_store_arch_honesty.py` holds the data half, the filter, the bundle rule, both
+tools agreeing on the spelling, and an unknown machine being offered everything rather than
+an empty store.
+
+**And an engine it has no runtime for is just as dead.** `app-engines.json` is MoOS's own
+source of truth for what it can run, and it says wine is "present on every desktop MoOS"
+and waydroid is "shipped on the desktop editions". **Neither is in the ARM image** — `rpm -q`
+says not installed and neither is on PATH — so the `windows` and `android` engines have NO
+runtime there, while the Store offered **8 Windows programs** (`cat: win`) and **7 Android
+apps**. `moai-do setup-windows` refuses on ARM outright and `setup-waydroid` dead-ends with
+"waydroid not found", so neither could ever have been installed. The gate that should have
+caught it, `tests/test_app_engines.py`, reads `build_files/build.sh` and nothing else — the
+third gate found this week that describes x86 and calls it the system.
+
+A catalogue entry now names the `engine` it needs (implied for `install.kind: android`), and
+the index keeps only entries whose engine has an available runtime — decided by the
+registry's own `probe` field, so **no architecture is hardcoded and an edition that starts
+shipping a runtime gets its apps back on its own**. Measured on the A1: `windows` and
+`android` absent, `linux` present; the catalogue goes 53 → **27** here and stays 53 on a
+desktop with every engine.
+
+Two seams that a filter in the index alone would have missed, both closed: the Store paints
+the curated catalogue BEFORE the index exists (`Component.onCompleted` calls `loadCurated()`
+first, and the raw file is read on every launch), so the launcher now writes a machine
+profile — `moos-store-index --print-machine`, measured at **0.098 s** — and the QML filters
+its first frame and its bundles with it; and the capability strip listed every engine the
+registry *describes*, so an ARM desktop told its owner it runs Windows programs and Android
+apps. **Verified live on the A1**: the Store launched from source with an empty QML error
+log and dropped exactly the 7 Android entries — the only ones the *installed* catalogue
+carries data for, since the QML reads `/usr/share/moos/store/catalog.json` by absolute path
+and the new fields ship with the image, not with the checkout.
+
+`just check` caught a real design flaw during this work: the first draft probed the machine
+inside `load_catalog()`, so `tests/test_moos_store_index.py` passed in the Flatpak sandbox
+(no `/usr/share/moos`, nothing to read) and failed on the host (no wine or waydroid, so the
+Android recipe was filtered away). CI would only have agreed by luck — its x86 runners have
+both engines. `load_catalog()` is now pure, `main()` does the probing, and `--engines` lets
+an index be built for a stated machine.
+
+**Still owed:** the twenty-six are hidden, not explained — a person who has heard of Spotify
+is told nothing about why it is absent here. The registry already has the right vehicle: an
+`unsupported` list carrying a bilingual `reason`, which is how macOS is answered. Saying it
+belongs with P4.5's compatibility matrix. The Flathub list is a measured snapshot: when an
+ARM build appears the entry has to lose its `arch`, and nothing automatically notices.
+**Android on ARM is a real opportunity, not a dead end:** `waydroid` is `noarch` (so it
+installs on aarch64) and this A1's kernel already carries binderfs (`nodev binder` in
+`/proc/filesystems`). It was NOT added here, because shipping a runtime that has never been
+seen to run would recreate the defect this change removes — PROJECT_STATE records that
+Android "had never worked" on x86 while every gate read only the source. It needs an image
+and a booted proof.
 
 ## Three readings that look like defects and are not (measured 2026-09-21)
 
@@ -816,6 +937,7 @@ So a frame callback already queued in the event loop runs AFTER quit has begun t
     were green with no fix at all, which proves intermittency only |
 | P0.8 | **Closed 2026-09-18:** cause measured; three green in a row (`35265328509`, `35276847573`, `35289177072`) | Make the ISO installed-reboot proof deterministic | lost THREE candidates out of four (`57874d6c`, `8b272b87`, `51cc2ac3`): after the installed reboot SSH timed out "during banner exchange" for 1000 s while QGA reported the second boot. **Cause, measured in run `35265328509` (2026-09-17, the first green ISO proof since):** the image's proof-channel helper read the IPv4 default route ONCE, and MoOS disables NetworkManager-wait-online, so nothing orders that read after DHCP. The helper now waits and speaks on the console, and the serial log shows it: first boot, route 16 ms after the daemons were active; SECOND boot, 1.02 s — the first read was empty and one retry found it. The old helper died on that read, so its SSH rule was never added. `systemctl --failed` had looked empty in the failed runs only because SELinux confines the harness's QGA context. The harness change written on the other theory (one slirp forward per boot) was measured by the same run as irrelevant (`reboot-channel.txt`: `first-boot-forward=alive`); it stays because it is free. `tests/test_ci_proof_channel.py` runs the shipped helper end to end under bubblewrap. Cycle D's proof made three; closed |
 | P0.9 | Done 2026-09-17 (PR #116) | Run image-only gates before the merge | `build.yml` did not run on pull requests and `build-arm.sh` does not call `verify_image_experience.py`, so W5 was green on every check and red on `main`. `.github/workflows/pr-image-gates.yml` now builds the generic x86 edition on every pull request that touches `Containerfile`, `build_files/` or `system_files/` — same Containerfile, same build arguments as `build.yml`'s generic row, every in-image gate — and pushes, signs and tags nothing (`contents: read` only; `tests/test_pr_image_gates_workflow.py` keeps both halves true). It does NOT build the NVIDIA or cloud editions: those still first build on `main` or through `scripts/release-candidate.sh --ref`. Individual image gates can still be pulled forward into the repo gates the way `tests/test_image_gate_source_parser.py` and the lifted check in `tests/test_moai_skills.py` do. **First run (2026-09-17, PR #116):** green in 16 minutes end to end, 12 min 20 s of it the image build; the log shows `MoOS image-experience gate passed`, the motion gate on the real Qt runtime and the image-state gate, then the local commit — and no push. That is shorter than a release build because nothing is pushed or signed |
+| P0.10 | In source; image and boot proof pending | Gate NVIDIA persistence on a bound GPU | Candidate `fd1e49ca` signed and its generic/cloud QCOW2 plus ISO passed, but NVIDIA QCOW2 `35869223705` failed because `nvidia-persistenced.service` started in a no-GPU VM. The vendor unit matches `/dev/nvidia*`, which the loaded driver can expose without hardware. The MoOS drop-in additionally requires `/proc/driver/nvidia/gpus/*/information`; that condition succeeded on the physical NVIDIA station. Exit: build the changed NVIDIA image, then boot the exact signed candidate twice with zero failed units; never relax the runtime gate. |
 
 Repository cleanup is complete: retired plans/evidence/assets were removed,
 and all 14 historical remote branches were proven ancestors of `main` before
@@ -875,11 +997,13 @@ upstream examples that still describe SDDM.
 | Settings and service pages | MoOS Settings + owning backend | Read back actual state; existing standalone surfaces become tested links |
 | Privileged operations and apps | `moai-do`, Mo Store transaction backend | Fixed action/confirmation; truthful progress and errors |
 
-Within wave W9, the Updater leads P2.1: baseline its light/dark Arabic/English
-frames and routes, move its controls onto shared UI2 and prove check/stage/error/
-reboot-needed states. Recovery and Remote follow in the same wave once the
-Updater passes its review, so no surface is left half-migrated and the wave still
-ships as one release.
+W9 now has its front-door vertical slice: Update, Recovery and Remote share one native
+UI2 page contract in Settings, their live facts come from the updater record, deployment
+record and user service, and legacy launchers deep-link into those pages. The existing GTK
+owners remain the deliberately opened transaction sheets so privileged logic was not copied
+into QML. Before the wave closes, the same Settings window must carry their pending/error/
+cancel transaction rows, followed by the Arabic/English × light/dark matrix and installed
+route proof; this is one release, not three half-migrations.
 
 Observed polish gaps to include in P2.3/P2.5: the shared hardware summary still
 renders the technical `nvidia (discrete)` label in Arabic; narrower English
@@ -911,8 +1035,8 @@ installed visual matrix; it is not inferred from the global effect answer.
 
 | ID | Task | Exit evidence |
 | --- | --- | --- |
-| P2.1 | Move Updater, Recovery and Remote control center onto the shared UI2 component/token layer | live dark/light 4K captures; no private palette implementation |
-| P2.2 | Make Settings the front door for themes, updates, recovery, devices, Remote and AI providers | standalone launchers become tested deep links; no duplicate authority |
+| P2.1 | **In progress (W9):** move Updater, Recovery and Remote control center onto the shared UI2 component/token layer | The shared native page now shows the backend's busy/superseded update, queued rollback/cancellation review and failed Remote service in-window; Arabic/English light/dark Qt frames and keyboard assertions passed. Open: actual transaction lifecycle and installed-image captures |
+| P2.2 | **In source (W9 front door):** make Settings the front door for themes, updates, recovery, devices, Remote and AI providers | Update/Recovery/Remote launchers are hidden compatibility deep links into Settings; their `settings/*` routes never bypass the page, while fixed `app/*` routes still reach the one real transaction owner. Open: AI provider integration and installed-image route proof |
 | P2.3 | Create one locale authority for Arabic, English and German | every first-party app, date/number format and keyboard follows one selection after login/reboot |
 | P2.4 | Complete keyboard and screen-reader operation | primary flows traversed with real keys; Orca reads Arabic and English; focus never disappears |
 | P2.5 | Run the visual matrix | 1080p–4K, 100–250%, RTL/LTR, light/dark, reduced motion; measured contrast and no clipping |
@@ -1010,7 +1134,7 @@ KWin 6.7.5, 3840x2160 at 265%, Arabic, scheme `MoOSUI2AuroraLight`):
   0-65535 range) both landed the click elsewhere. Keyboard and CLI review worked.
   Anything in W7 that needs a real click is blocked on calibrating that axis.
 
-**System-surface facts (W9), read from the source on 2026-09-18, not remembered.**
+**System-surface facts (W9), updated from source and the running station on 2026-09-21.**
 The Updater (`usr/bin/moos-update`) and Recovery (`usr/bin/moos-rollback`) are GTK4 windows on
 `usr/lib/moos/moos_ui2.py`, which maps the live KDE colour scheme to GTK; Mo PC Remote builds
 its own GTK window on the same palette. Everything else first-party is QML on `org/moos/ui`
@@ -1027,9 +1151,12 @@ or a version — it reads the published record and the backend revalidates after
 (`moos-update-ready`). A staged deployment is not itself permission to show either surface:
 the authority first resolves production against both booted and staged versions, offers
 `replace-staged` only for a strictly newer correction, and fails closed when one version label
-names different bytes. What's new (W6.3) is the first page of that front door: an in-app page
-of Settings, a `settings/…` route in `moos-open`, and a status-document field, with the GTK
-launcher untouched.
+names different bytes. What's new (W6.3) was the first page of that front door. W9 now applies
+the same in-window route to Update, Recovery and Remote: the status helper carries only
+validated read-only facts, their menu entries are hidden deep links, and one explicit primary
+action opens the unchanged transaction owner through a fixed `app/*` route. That source page
+was loaded by the real `moos-qml-shell` on the Arabic 4K/265% Wayland station with no binding
+error; the full transaction lifecycle remains the open half of P2.1.
 
 Plasma 6 has no LTS branch and follows feature plus patch-release cycles.^1
 MoOS therefore tracks stable releases through the shared base, keeps local

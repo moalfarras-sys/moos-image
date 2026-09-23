@@ -7,6 +7,7 @@ Item {
     property var app
     property var snapshot
     property var frame
+    property var reviewSections: []
     property int step: -1
     property string out: Qt.application.arguments.filter(a => a.indexOf('--out=') === 0)[0].substring(6)
     function argument(prefix, fallback) {
@@ -17,6 +18,7 @@ Item {
         var component = Qt.createComponent(argument('--source=', Qt.resolvedUrl('../../system_files/usr/share/moos/apps/settings/main.qml')))
         if (component.status !== Component.Ready) { console.error(component.errorString()); Qt.exit(1); return }
         app = component.createObject(null, {width: Number(argument('--width=', 1400)), height: Number(argument('--height=', 900)), minimumWidth: 800, minimumHeight: 640})
+        reviewSections = app.sections.concat(app.inAppPages)
         console.warn("REVIEW_LOCALE", Qt.locale().name, app.rtl)
         var expectedRtl = argument("--rtl=", "")
         if (expectedRtl !== "" && app.rtl !== (expectedRtl === "true")) { console.error("Wrong review locale"); Qt.exit(1); return }
@@ -87,16 +89,16 @@ Item {
         onTriggered: {
             clock.stop()
             harness.step++
-            if (harness.step < harness.app.sections.length) {
+            if (harness.step < harness.reviewSections.length) {
                 if (!harness.app.statusLoaded) {
                     console.error("SETTINGS_REVIEW_FAILED: status expired before normal-state capture")
                     Qt.exit(1)
                     return
                 }
-                harness.app.selectSection(harness.app.sections[harness.step].id)
+                harness.app.selectSection(harness.reviewSections[harness.step].id)
             } else {
                 harness.app.statusBusy = true // freeze polling only for explicit failure fixtures
-                var scenario = harness.step - harness.app.sections.length
+                var scenario = harness.step - harness.reviewSections.length
                 harness.app.selectSection(scenario === 2 ? "connectivity" : "home")
                 if (scenario === 0) harness.app.statusFailure()
                 else if (scenario === 1) {
@@ -106,13 +108,52 @@ Item {
                 } else {
                     var fixture = JSON.parse(JSON.stringify(harness.snapshot))
                     fixture.generatedAt = Date.now()/1000
-                    fixture.destinations.bluetooth = false
-                    fixture.deployment.signed = false
-                    fixture.deployment.rollback = 0
-                    fixture.network.connected = true
-                    fixture.network.full = false
-                    fixture.network.connectivity = "portal"
+                    if (scenario === 2) {
+                        fixture.destinations.bluetooth = false
+                        fixture.deployment.signed = false
+                        fixture.deployment.rollback = 0
+                        fixture.network.connected = true
+                        fixture.network.full = false
+                        fixture.network.connectivity = "portal"
+                    } else if (scenario === 3) {
+                        fixture.update.known = true
+                        fixture.update.state = "busy"
+                    } else if (scenario === 4) {
+                        fixture.deployment.rollbackQueued = true
+                        fixture.deployment.rollbackTarget = fixture.deployment.previousVersion
+                    } else if (scenario === 5) {
+                        fixture.remote.active = false
+                        fixture.remote.failed = true
+                    } else if (scenario === 6) {
+                        fixture.deployment.staged = true
+                        fixture.deployment.stagedVersion = "44.1"
+                        fixture.update.known = true
+                        fixture.update.state = "replace-staged"
+                        fixture.update.latestVersion = "44.2"
+                    }
                     harness.app.acceptStatus(fixture)
+                    if (scenario === 3) harness.app.selectSection("update")
+                    if (scenario === 4) harness.app.selectSection("recovery")
+                    if (scenario === 5) harness.app.selectSection("remote")
+                    if (scenario === 6) {
+                        harness.app.selectSection("update")
+                        driver.verify(harness.app.updateLabel !== harness.app.local(
+                            "جاهز لإعادة التشغيل", "Ready to restart"))
+                        var updateDetail = harness.app.commandDetail({route: "moos://settings/update"})
+                        driver.verify(updateDetail.indexOf(harness.app.local(
+                            "جاهز لإعادة التشغيل", "Ready to restart")) < 0)
+                        driver.verify(updateDetail.indexOf("44.1") >= 0
+                                      && updateDetail.indexOf("44.2") >= 0)
+                    }
+                    if (scenario >= 3) {
+                        var page = harness.find(harness.frame, "journey-" + harness.app.activeSection)
+                        driver.verify(page !== null && page.activityText !== "",
+                                      "the owning status appears in Settings")
+                        if (scenario === 6) {
+                            driver.verify(page.statusDetail.indexOf("44.1") >= 0)
+                            driver.verify(page.statusDetail.indexOf("44.2") >= 0)
+                        }
+                    }
                 }
             }
             capture.start()
@@ -122,14 +163,25 @@ Item {
         id: capture
         interval: 1000
         onTriggered: {
-            var name = harness.step < harness.app.sections.length ? harness.app.activeSection
-                : ["unavailable", "empty-search", "missing-module"][harness.step - harness.app.sections.length]
+            if (harness.app.width <= 1000
+                    && ["update", "recovery", "remote"].indexOf(harness.app.activeSection) >= 0) {
+                var journey = harness.find(harness.frame, "journey-" + harness.app.activeSection)
+                driver.verify(journey !== null, "journey page exists")
+                var detail = harness.find(journey, "journey-status-detail")
+                var action = harness.find(journey, "journey-primary")
+                driver.verify(detail !== null && action !== null, "journey controls exist")
+                driver.verify(detail.mapToItem(journey, 0, detail.height).y
+                              < action.mapToItem(journey, 0, 0).y,
+                              "status details must end before the action starts")
+            }
+            var name = harness.step < harness.reviewSections.length ? harness.app.activeSection
+                : ["unavailable", "empty-search", "missing-module", "update-busy", "recovery-cancel", "remote-failed", "update-superseded"][harness.step - harness.reviewSections.length]
             harness.frame.grabToImage(function(result) {
                 var saved = result.saveToFile(harness.out + '/' + name + '.png')
                 console.warn("SAVED", name, saved)
                 if (!saved) { console.error("SETTINGS_REVIEW_FAILED: capture not saved"); Qt.exit(1); return }
                 if (Qt.application.arguments.indexOf("--home-only") >= 0) { Qt.quit(); return }
-                if (harness.step + 1 < harness.app.sections.length + 3) clock.start()
+                if (harness.step + 1 < harness.reviewSections.length + 7) clock.start()
                 else end.start()
             })
         }

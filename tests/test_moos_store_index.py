@@ -188,6 +188,13 @@ class StoreIndexTests(unittest.TestCase):
             str(installation),
             "--locale",
             locale,
+            # Build for a machine that has every engine. These tests are about
+            # merging, locales and lifecycle state, not about which engines the
+            # DEVELOPER happens to have: without this the Android recipe below is
+            # correctly filtered out on any machine with no waydroid, and the
+            # suite passed in a Flatpak sandbox while failing on the host.
+            "--engines",
+            "all",
         ]
         return subprocess.run(
             command,

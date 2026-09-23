@@ -169,8 +169,12 @@ require("MO_REMOTE_ACQUIRE_ATTEMPTS" in code(remote_start)
         "logind/polkit call must fall through to the agent")
 
 remote_desktop = read("system_files/usr/share/applications/org.moos.remote.desktop")
-require("Exec=/usr/bin/mo-pc-remote" in remote_desktop,
-        "Mo PC Remote must launch its native control center")
+require("Exec=moos-settings --section=remote" in remote_desktop
+        and "NoDisplay=true" in remote_desktop
+        and re.search(r"(?m)^    app/remote\)\s+gui mo-pc-remote\s*;;",
+                      code(read("system_files/usr/bin/moos-open"))),
+        "Mo PC Remote's compatibility launcher must deep-link to the one Settings front "
+        "door, and that page must still reach its native transaction sheet")
 require("Icon=moos-pc-remote" in remote_desktop,
         "Mo PC Remote must use its first-party MoOS icon, not the retired vendored name")
 require("xdg-open" not in remote_desktop and "http://" not in remote_desktop,
@@ -2767,7 +2771,7 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=84" in apply_theme_code,
+require("THEME_REV=85" in apply_theme_code,
         "MoOS visual schema must migrate existing users to the W5 island (Store jobs, "
         "privacy chips) and inline search answers, the cardless centred "
         "Horizon Hub, responsive clock popup, authenticated Remote presence, "
@@ -5953,6 +5957,9 @@ require("python3 /ctx/rewrite_firmware_label.py" in _build
 require("nvidia-cdi-refresh.service.d/10-moos-device.conf" in _build
         and "ConditionPathExists=/dev/nvidiactl" in _build,
         "the NVIDIA CDI generator must skip cleanly when no NVIDIA device exists")
+require("nvidia-persistenced.service.d/10-moos-device.conf" in _build
+        and "ConditionPathExistsGlob=/proc/driver/nvidia/gpus/*/information" in _build,
+        "the NVIDIA persistence daemon must not fail boot on a VM without a GPU")
 
 # #25 moos-hardware-adapt must APPLY the sysctl it writes (daemon-reload does not).
 _hw = code(read("system_files/usr/libexec/moos-hardware-adapt"), "hash")

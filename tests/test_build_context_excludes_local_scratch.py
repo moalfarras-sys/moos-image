@@ -81,7 +81,13 @@ class BuildContext(unittest.TestCase):
             bare = entry.rstrip("/")
             if (ROOT / bare).exists():
                 continue
-            if any(rule.rstrip("/") == bare or rule.rstrip("/").endswith("/" + bare)
+            # A slash-free Git rule such as `node_modules/` matches that
+            # directory at any depth, including controller/node_modules in a
+            # clean worktree before dependencies have been installed.
+            if any(rule.rstrip("/") == bare
+                   or ("/" not in rule.rstrip("/")
+                       and rule.rstrip("/") == Path(bare).name)
+                   or rule.rstrip("/").endswith("/" + bare)
                    for rule in self.git):
                 continue
             stray.append(entry)

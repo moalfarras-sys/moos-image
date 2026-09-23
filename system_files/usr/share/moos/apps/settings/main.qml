@@ -112,10 +112,13 @@ QQC2.ApplicationWindow {
         bluetooth: { available: false, powered: false },
         audio: { available: false, volume: 0, muted: false },
         battery: { available: false, percent: 0, state: "" },
+        update: { known: false, state: "", event: "", updated: 0, latestVersion: "" },
+        remote: { available: false, active: false, enabled: false, failed: false },
         deployment: {
             version: "—", digest: "", signed: false, known: false,
             staged: false, stagedVersion: "", rollback: 0, edition: "", builtAt: 0,
-            previousVersion: "", previousBuiltAt: 0
+            previousVersion: "", previousBuiltAt: 0,
+            rollbackQueued: false, rollbackTarget: ""
         },
         whatsNew: { entries: [], fresh: 0 }
     })
@@ -124,7 +127,10 @@ QQC2.ApplicationWindow {
     // module, which lists the toolkit and desktop projects MoOS is built from under their
     // names and versions. MoOS answers "what is this machine running?" as MoOS.
     readonly property var inAppRoutes: ({ "moos://settings/about": "about",
-                                          "moos://settings/whats-new": "whats-new" })
+                                          "moos://settings/whats-new": "whats-new",
+                                          "moos://settings/update": "update",
+                                          "moos://settings/recovery": "recovery",
+                                          "moos://settings/remote": "remote" })
     readonly property var aboutSection: ({
         id: "about", glyph: "about", parent: "system",
         ar: "حول هذا الجهاز", en: "About this device",
@@ -146,7 +152,35 @@ QQC2.ApplicationWindow {
         heroDescAr: "ما الذي تغيّر في MoOS مع كل تحديث",
         heroDescEn: "What changed in MoOS with each update"
     })
-    readonly property var inAppPages: [aboutSection, whatsNewSection]
+    readonly property var updateSection: ({
+        id: "update", glyph: "safe-update", parent: "system",
+        ar: "تحديث MoOS", en: "Update MoOS",
+        descAr: "صورة نظام واحدة موقّعة وقابلة للرجوع",
+        descEn: "One signed system image with a safe return path",
+        heroAr: "تحديث MoOS", heroEn: "Update MoOS",
+        heroDescAr: "صورة نظام واحدة موقّعة وقابلة للرجوع",
+        heroDescEn: "One signed system image with a safe return path"
+    })
+    readonly property var recoverySection: ({
+        id: "recovery", glyph: "repair", parent: "home",
+        ar: "الاستعادة", en: "Recovery",
+        descAr: "ارجع إلى النسخة المحفوظة من دون لمس ملفاتك",
+        descEn: "Return to the saved system without touching your files",
+        heroAr: "الاستعادة", heroEn: "Recovery",
+        heroDescAr: "ارجع إلى النسخة المحفوظة من دون لمس ملفاتك",
+        heroDescEn: "Return to the saved system without touching your files"
+    })
+    readonly property var remoteSection: ({
+        id: "remote", glyph: "phone", parent: "connectivity",
+        ar: "Mo PC Remote", en: "Mo PC Remote",
+        descAr: "اتصال خاص واحد بين هاتفك وهذا الجهاز",
+        descEn: "One private connection between your phone and this device",
+        heroAr: "Mo PC Remote", heroEn: "Mo PC Remote",
+        heroDescAr: "اتصال خاص واحد بين هاتفك وهذا الجهاز",
+        heroDescEn: "One private connection between your phone and this device"
+    })
+    readonly property var inAppPages: [aboutSection, whatsNewSection, updateSection,
+                                        recoverySection, remoteSection]
     function inAppPage(sectionId) {
         for (var i = 0; i < inAppPages.length; ++i)
             if (inAppPages[i].id === sectionId)
@@ -489,10 +523,47 @@ QQC2.ApplicationWindow {
 
     readonly property string rollbackLabel: !statusLoaded || !status.deployment.known
         ? local("حالة الاستعادة غير متاحة", "Recovery status unavailable")
+        : status.deployment.rollbackQueued ? local("الرجوع مجدول", "Rollback queued")
         : status.deployment.rollback > 0 ? local("نسخة رجوع متاحة", "Rollback available")
         : local("لا توجد نسخة رجوع", "No rollback saved")
 
+    readonly property string updateLabel: !statusLoaded
+        ? local("حالة التحديث غير متاحة", "Update status unavailable")
+        : status.update.known && status.update.state === "replace-staged"
+          ? local("التحديث المُجهّز تجاوزه إصدار تصحيحي", "A corrective release supersedes the staged update")
+          : status.update.known && status.update.state === "blocked-downgrade"
+            ? local("تم منع إصدار أقدم", "Older release blocked")
+          : status.update.known && status.update.state === "busy"
+            ? local("التحديث قيد التنفيذ", "Update in progress")
+          : status.deployment.staged
+            ? local("جاهز لإعادة التشغيل", "Ready to restart")
+          : !status.update.known
+            ? local("لم يتم الفحص مؤخراً", "No recent check")
+            : status.update.state === "current"
+              ? local("MoOS محدّث", "MoOS is up to date")
+              : status.update.state === "available"
+                ? local("يتوفر تحديث موقّع", "Signed update available")
+                : local("راجع التحديث", "Review update")
+
+    readonly property string remoteLabel: !statusLoaded
+        ? local("حالة الاتصال غير متاحة", "Remote status unavailable")
+        : !status.remote.available ? local("غير متاح", "Unavailable")
+        : status.remote.failed ? local("توقفت الخدمة بخطأ", "Service failed")
+        : status.remote.active ? local("الاتصال جاهز", "Connection ready")
+        : status.remote.enabled ? local("سيبدأ تلقائياً", "Starts automatically")
+        : local("غير مفعّل", "Not enabled")
+
     function isolated(value) { return "\u2068" + value + "\u2069" }
+
+    function stagedUpdateDetail() {
+        if (!status.deployment.staged) return ""
+        if (status.update.known && status.update.state === "replace-staged")
+            return local("المُجهّز: ", "Staged: ") + isolated(status.deployment.stagedVersion)
+                + local("  ·  التصحيحي: ", "  ·  Corrective: ")
+                + isolated(status.update.latestVersion)
+        return local("جاهز لإعادة التشغيل: ", "Ready to restart: ")
+            + isolated(status.deployment.stagedVersion)
+    }
 
     function commandDetail(item) {
         var reason = routeReason(item.route)
@@ -507,7 +578,7 @@ QQC2.ApplicationWindow {
         case "moos://settings/whats-new": return whatsNewFresh > 0 ? whatsNewSummary : local(item.descAr, item.descEn)
         case "moos://settings/recovery": return rollbackLabel
         case "moos://settings/update": return status.deployment.staged
-            ? local("جاهز لإعادة التشغيل: ", "Ready to restart: ") + isolated(status.deployment.stagedVersion)
+            ? stagedUpdateDetail()
             : local("الإصدار المثبت: ", "Installed version: ") + isolated(status.deployment.version)
         }
         return local(item.descAr, item.descEn)
@@ -522,6 +593,16 @@ QQC2.ApplicationWindow {
             return
         launchError = Qt.openUrlExternally(route) ? "" : local(
             "تعذّر فتح الإعدادات. حاول مرة أخرى.", "Could not open settings. Try again.")
+    }
+
+    // The native page owns the explanation and live status. Only its deliberate primary
+    // action may open the backend-owned transaction sheet; arbitrary app URLs never pass.
+    function openJourney(kind) {
+        var routes = { update: "moos://app/updater", recovery: "moos://app/recovery",
+                       remote: "moos://app/remote" }
+        if (routes[kind] === undefined) return
+        launchError = Qt.openUrlExternally(routes[kind]) ? "" : local(
+            "تعذّر فتح أدوات النظام. حاول مرة أخرى.", "Could not open system controls. Try again.")
     }
 
     function selectSection(sectionId) {
@@ -650,17 +731,19 @@ QQC2.ApplicationWindow {
         if (!parsed || parsed.schema !== 1 || parsed.product !== "MoOS"
                 || !Number.isFinite(age) || age < -5 || age > 45)
             return false
-        var objects = ["deployment", "network", "bluetooth", "audio", "battery", "storage", "memory", "destinations"]
+        var objects = ["deployment", "network", "bluetooth", "audio", "battery", "storage", "memory", "destinations", "update", "remote"]
         for (var i = 0; i < objects.length; ++i)
             if (!parsed[objects[i]] || typeof parsed[objects[i]] !== "object") return false
         var shape = {
-            deployment: {known: "boolean", signed: "boolean", staged: "boolean", rollback: "number", version: "string", stagedVersion: "string", digest: "string"},
+            deployment: {known: "boolean", signed: "boolean", staged: "boolean", rollback: "number", rollbackQueued: "boolean", rollbackTarget: "string", version: "string", stagedVersion: "string", digest: "string"},
             network: {known: "boolean", connected: "boolean", full: "boolean", connectivity: "string", label: "string"},
             audio: {available: "boolean", muted: "boolean", volume: "number"},
             bluetooth: {available: "boolean", powered: "boolean"},
             battery: {available: "boolean", percent: "number", state: "string"},
             memory: {used: "string", total: "string", percent: "number"},
-            storage: {free: "string", total: "string", percent: "number"}
+            storage: {free: "string", total: "string", percent: "number"},
+            update: {known: "boolean", state: "string", event: "string", updated: "number", latestVersion: "string"},
+            remote: {available: "boolean", active: "boolean", enabled: "boolean", failed: "boolean"}
         }
         for (var group in shape)
             for (var key in shape[group])
@@ -792,6 +875,230 @@ QQC2.ApplicationWindow {
                     horizontalAlignment: Text.AlignLeft
                     Layout.maximumWidth: 180
                     elide: Text.ElideRight
+                }
+            }
+        }
+    }
+
+    // One visual and interaction contract for system-level journeys. The status and reason
+    // remain in Settings; the last deliberate tap opens the transaction owner.
+    component SystemJourneyPage: ColumnLayout {
+        id: journeyPage
+        objectName: "journey-" + pageId
+        required property string pageId
+        required property string parentSection
+        required property string glyph
+        required property string kicker
+        required property string heading
+        required property string summary
+        required property string statusText
+        required property string statusDetail
+        property string activityText: ""
+        property string activityDetail: ""
+        property color activityTone: tone
+        required property string primaryLabel
+        required property string journey
+        property color tone: win.accent
+        property color statusTone: tone
+        property bool ready: true
+
+        visible: win.activeSection === pageId && win.searchQuery === ""
+        width: parent ? parent.width : implicitWidth
+        height: visible ? implicitHeight : win.fs(0)
+        spacing: design.space4
+
+        MoUI.Button {
+            label: win.local("رجوع", "Back")
+            iconName: MoUI.SymbolCatalog.resolve(win.rtl ? "arrow" : "arrow-back")
+            compact: true
+            surfaceColor: win.surface
+            accentColor: win.accent
+            textColor: win.textColor
+            accentForegroundColor: win.accentText
+            fontPixelSize: win.typePx(design.typeSecondary)
+            Accessible.description: win.local("العودة إلى القسم السابق", "Back to the previous section")
+            onClicked: win.selectSection(journeyPage.parentSection)
+        }
+
+        MoUI.GlassSurface {
+            Layout.fillWidth: true
+            Layout.preferredHeight: Math.max(win.fs(270), journeyHero.implicitHeight + design.space6 * 2)
+            radius: design.radiusPanel
+            surfaceColor: win.raised
+            inkColor: win.textColor
+            accentColor: journeyPage.tone
+            floating: true
+            border.color: Qt.rgba(journeyPage.tone.r, journeyPage.tone.g,
+                                  journeyPage.tone.b, 0.34)
+
+            RowLayout {
+                id: journeyHero
+                anchors.fill: parent
+                anchors.margins: design.space6
+                spacing: design.space5
+
+                Rectangle {
+                    Layout.preferredWidth: win.fs(92)
+                    Layout.preferredHeight: win.fs(92)
+                    Layout.alignment: Qt.AlignTop
+                    radius: design.radiusPanel
+                    color: Qt.rgba(journeyPage.tone.r, journeyPage.tone.g,
+                                   journeyPage.tone.b, 0.20)
+                    border.width: 1
+                    border.color: Qt.rgba(journeyPage.tone.r, journeyPage.tone.g,
+                                          journeyPage.tone.b, 0.40)
+                    MoUI.SymbolIcon {
+                        anchors.centerIn: parent
+                        width: win.fs(44); height: win.fs(44)
+                        symbol: MoUI.SymbolCatalog.resolve(journeyPage.glyph)
+                        foreground: journeyPage.tone
+                    }
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: design.space3
+                    Text {
+                        Layout.fillWidth: true
+                        text: journeyPage.kicker.toLocaleUpperCase()
+                        color: journeyPage.tone
+                        font.pixelSize: win.typePx(design.typeCaption)
+                        font.weight: Font.Bold
+                        font.letterSpacing: 1.2
+                        horizontalAlignment: Text.AlignLeft
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: journeyPage.heading
+                        color: win.textColor
+                        font.pixelSize: win.typePx(design.typeDisplay)
+                        font.weight: Font.Bold
+                        wrapMode: Text.WordWrap
+                        horizontalAlignment: Text.AlignLeft
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: journeyPage.summary
+                        color: win.mutedColor
+                        font.pixelSize: win.typePx(design.typeBody)
+                        wrapMode: Text.WordWrap
+                        horizontalAlignment: Text.AlignLeft
+                    }
+                }
+            }
+        }
+
+        MoUI.Surface {
+            Layout.fillWidth: true
+            implicitHeight: journeyState.implicitHeight + design.space5 * 2
+            radius: design.radiusCard
+            surfaceColor: win.surface
+            inkColor: win.textColor
+            accentColor: journeyPage.tone
+            border.color: win.outline
+            Accessible.role: Accessible.StaticText
+            Accessible.name: journeyPage.statusText + ". " + journeyPage.statusDetail
+
+            ColumnLayout {
+                id: journeyState
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.margins: design.space5
+                spacing: design.space3
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: design.space4
+                    Rectangle {
+                        Layout.preferredWidth: win.fs(12)
+                        Layout.preferredHeight: win.fs(12)
+                        radius: width / 2
+                        color: journeyPage.ready ? journeyPage.statusTone : win.mutedColor
+                    }
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: design.space1
+                        Text {
+                            objectName: "journey-status-text"
+                            Layout.fillWidth: true
+                            text: journeyPage.statusText
+                            color: win.textColor
+                            font.pixelSize: win.typePx(design.typeLabel)
+                            font.weight: Font.DemiBold
+                            wrapMode: Text.WordWrap
+                            horizontalAlignment: Text.AlignLeft
+                        }
+                        Text {
+                            objectName: "journey-status-detail"
+                            Layout.fillWidth: true
+                            text: journeyPage.statusDetail
+                            color: win.mutedColor
+                            font.pixelSize: win.typePx(design.typeSecondary)
+                            wrapMode: Text.WordWrap
+                            horizontalAlignment: Text.AlignLeft
+                        }
+                    }
+                }
+                MoUI.Button {
+                    objectName: "journey-primary"
+                    Layout.alignment: Qt.AlignRight
+                    label: journeyPage.primaryLabel
+                    iconName: MoUI.SymbolCatalog.resolve(journeyPage.glyph)
+                    primary: true
+                    surfaceColor: win.surface
+                    accentColor: journeyPage.tone
+                    textColor: win.textColor
+                    accentForegroundColor: win.accentText
+                    fontPixelSize: win.typePx(design.typeSecondary)
+                    enabled: journeyPage.ready
+                    onClicked: win.openJourney(journeyPage.journey)
+                }
+            }
+        }
+
+        MoUI.Surface {
+            Layout.fillWidth: true
+            visible: journeyPage.activityText !== ""
+            implicitHeight: activityRow.implicitHeight + design.space4 * 2
+            radius: design.radiusCard
+            surfaceColor: win.surface
+            inkColor: win.textColor
+            accentColor: journeyPage.activityTone
+            border.color: journeyPage.activityTone
+            Accessible.role: Accessible.StaticText
+            Accessible.name: journeyPage.activityText + ". " + journeyPage.activityDetail
+
+            RowLayout {
+                id: activityRow
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.margins: design.space4
+                spacing: design.space3
+                MoUI.SymbolIcon {
+                    Layout.preferredWidth: win.fs(24)
+                    Layout.preferredHeight: win.fs(24)
+                    symbol: MoUI.SymbolCatalog.resolve("about")
+                    foreground: journeyPage.activityTone
+                }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: design.space1
+                    Text {
+                        Layout.fillWidth: true
+                        text: journeyPage.activityText
+                        color: win.textColor
+                        font.pixelSize: win.typePx(design.typeLabel)
+                        font.weight: Font.DemiBold
+                        wrapMode: Text.WordWrap
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: journeyPage.activityDetail
+                        color: win.mutedColor
+                        font.pixelSize: win.typePx(design.typeSecondary)
+                        wrapMode: Text.WordWrap
+                    }
                 }
             }
         }
@@ -2219,9 +2526,7 @@ QQC2.ApplicationWindow {
                                         StatusCapsule {
                                             glyph: "repair"
                                             label: win.rollbackLabel
-                                            detail: win.status.deployment.staged
-                                                ? win.local("تحديث جاهز: ", "Update ready: ") + win.isolated(win.status.deployment.stagedVersion)
-                                                : ""
+                                            detail: win.stagedUpdateDetail()
                                             statusColor: win.status.deployment.rollback > 0 ? win.positiveColor : win.warningColor
                                             active: win.status.deployment.rollback > 0
                                         }
@@ -2600,6 +2905,117 @@ QQC2.ApplicationWindow {
                                 wrapMode: Text.WordWrap
                             }
                         }
+                    }
+
+                    // ── Unified system journeys ────────────────────────────────────────
+                    // These are the only public front doors. Backend-owned sheets still
+                    // perform the transaction, after the person sees one MoOS status and
+                    // deliberately asks to continue.
+                    SystemJourneyPage {
+                        pageId: win.updateSection.id
+                        parentSection: win.updateSection.parent
+                        glyph: "safe-update"
+                        kicker: win.local("صورة النظام", "System image")
+                        heading: win.local("MoOS يتحدّث كوحدة واحدة.", "MoOS updates as one whole.")
+                        summary: win.local(
+                            "يفحص MoOS الصورة الموقّعة، يجهّزها بأمان، ويحتفظ بنسختك الحالية للرجوع. لا تتغير تطبيقاتك وملفاتك الشخصية.",
+                            "MoOS verifies one signed image, stages it safely, and keeps your current system for return. Your apps and personal files stay in place.")
+                        statusText: win.updateLabel
+                        statusDetail: {
+                            if (!win.statusLoaded) return win.statusError || win.local("جارٍ قراءة الحالة…", "Reading status…")
+                            if (win.status.deployment.staged)
+                                return win.stagedUpdateDetail()
+                            if (win.status.update.latestVersion)
+                                return win.local("أحدث إصدار معروف: ", "Latest known version: ") + win.isolated(win.status.update.latestVersion)
+                            return win.local("الإصدار المثبت: ", "Installed version: ") + win.isolated(win.status.deployment.version)
+                        }
+                        activityText: !win.statusLoaded || !win.status.update.known ? ""
+                            : win.status.update.state === "busy"
+                              ? win.local("تجهيز جارٍ", "Update in progress")
+                            : win.status.update.state === "blocked-downgrade"
+                              ? win.local("حُظر الرجوع إلى إصدار أقدم", "Older release blocked")
+                            : win.status.update.state === "replace-staged"
+                              ? win.local("يلزم استبدال التحديث المُجهّز", "Staged update needs replacement")
+                            : win.status.deployment.staged
+                              ? win.local("تحديث ينتظر إعادة التشغيل", "Update awaits restart") : ""
+                        activityDetail: win.statusLoaded && win.status.update.state === "busy"
+                            ? win.local("انتظر اكتمال العملية الجارية قبل بدء أخرى.", "Wait for the current operation to finish before starting another.")
+                            : win.statusLoaded && win.status.update.state === "blocked-downgrade"
+                              ? win.local("لن يستبدل MoOS نظامك بصورة منشورة أقدم.", "MoOS will not replace your system with an older published image.")
+                            : win.statusLoaded && win.status.update.state === "replace-staged"
+                              ? win.local("راجع الإصدار التصحيحي قبل إعادة التشغيل.", "Review the corrective release before restarting.")
+                              : win.local("سيُطبّق بعد إعادة التشغيل، وتبقى نسخة الرجوع محفوظة.", "It applies after restart; the rollback image remains saved.")
+                        activityTone: win.statusLoaded && win.status.update.state === "blocked-downgrade"
+                                      ? win.warningColor : win.accent
+                        statusTone: win.statusLoaded && (win.status.update.state === "replace-staged"
+                                                        || win.status.update.state === "blocked-downgrade")
+                                    ? win.warningColor : win.accent
+                        primaryLabel: win.statusLoaded && win.status.update.known
+                                      && win.status.update.state === "replace-staged"
+                                      ? win.local("مراجعة الإصدار التصحيحي", "Review corrective release")
+                                      : win.statusLoaded && win.status.deployment.staged
+                                      ? win.local("مراجعة إعادة التشغيل", "Review restart")
+                                      : win.local("فحص التحديث", "Check for update")
+                        journey: "update"
+                        tone: win.accent
+                        ready: true
+                    }
+
+                    SystemJourneyPage {
+                        pageId: win.recoverySection.id
+                        parentSection: win.recoverySection.parent
+                        glyph: "repair"
+                        kicker: win.local("شبكة الأمان", "Safety net")
+                        heading: win.local("ارجع بثقة، لا تبدأ من جديد.", "Return with confidence, not from scratch.")
+                        summary: win.local(
+                            "يحتفظ MoOS بصورة النظام السابقة منفصلة عن ملفاتك. راجع النسخة المحفوظة قبل أن تختار الرجوع إليها.",
+                            "MoOS keeps the previous system image separate from your files. Review the saved system before choosing to return to it.")
+                        statusText: win.rollbackLabel
+                        statusDetail: win.statusLoaded && win.status.deployment.previousVersion
+                                      ? win.local("النسخة المحفوظة: ", "Saved version: ") + win.isolated(win.status.deployment.previousVersion)
+                                      : win.local("لن تتأثر ملفات مجلدك الشخصي.", "Files in your home folder are not changed.")
+                        activityText: win.statusLoaded && win.status.deployment.rollbackQueued
+                                      ? win.local("الرجوع مجدول", "Rollback is queued") : ""
+                        activityDetail: win.statusLoaded && win.status.deployment.rollbackQueued
+                                        ? win.local("ستقلع النسخة المحفوظة عند إعادة التشغيل. افتح الاستعادة لمراجعة إلغاء الرجوع.",
+                                                    "The saved image will boot on restart. Open Recovery to review cancelling the rollback.") : ""
+                        activityTone: win.warningColor
+                        statusTone: win.warningColor
+                        primaryLabel: win.statusLoaded && win.status.deployment.rollbackQueued
+                                      ? win.local("مراجعة إلغاء الرجوع", "Review cancellation")
+                                      : win.local("مراجعة الاستعادة", "Review recovery")
+                        journey: "recovery"
+                        tone: win.warningColor
+                        ready: true
+                    }
+
+                    SystemJourneyPage {
+                        pageId: win.remoteSection.id
+                        parentSection: win.remoteSection.parent
+                        glyph: "phone"
+                        kicker: win.local("جهاز قريب", "Nearby device")
+                        heading: win.local("هاتفك يصبح امتداداً لـ MoOS.", "Your phone becomes an extension of MoOS.")
+                        summary: win.local(
+                            "اتصال خاص واحد للمشاركة والتحكم، مع حالة واضحة وخيارات السرعة والجودة في المكان نفسه.",
+                            "One private connection for sharing and control, with clear state plus speed and quality choices in one place.")
+                        statusText: win.remoteLabel
+                        statusDetail: win.statusLoaded && win.status.remote.failed
+                                      ? win.local("الخدمة توقفت. اقرأ سبب الفشل من عناصر التحكم قبل إعادة المحاولة.",
+                                                  "The service stopped. Read the failure in connection controls before retrying.")
+                                      : win.statusLoaded && win.status.remote.active
+                                      ? win.local("الخدمة تعمل على هذا الجهاز الآن.", "The service is running on this device now.")
+                                      : win.local("افتح عناصر التحكم لبدء الاتصال أو إيقافه.", "Open controls to start or stop the connection.")
+                        activityText: win.statusLoaded && win.status.remote.failed
+                                      ? win.local("تعذّر تشغيل الاتصال", "Connection service failed") : ""
+                        activityDetail: win.statusLoaded && win.status.remote.failed
+                                        ? win.local("افتح إدارة الاتصال لقراءة الخطأ وإعادة المحاولة.", "Open connection controls to read the error and retry.") : ""
+                        activityTone: win.warningColor
+                        statusTone: win.statusLoaded && win.status.remote.failed
+                                    ? win.warningColor : win.linkColor
+                        primaryLabel: win.local("إدارة الاتصال", "Manage connection")
+                        journey: "remote"
+                        tone: win.linkColor
+                        ready: !win.statusLoaded || win.status.remote.available
                     }
 
                     ColumnLayout {

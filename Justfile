@@ -265,6 +265,11 @@ check:
     python3 tests/test_remote_linux_network_boundary.py
     python3 tests/test_remote_trusted_devices.py
     python3 tests/test_moos_store_index.py
+    # The Store may not offer an app this machine cannot install. The browse
+    # index is built from the RUNNING arch's AppStream, but a curated entry with
+    # no match was MANUFACTURED into the index -- so eleven x86-only apps, two of
+    # them "popular" (Steam, Spotify), were dead buttons on the A1.
+    python3 tests/test_store_arch_honesty.py
     python3 tests/test_moos_storectl.py
     # Mo Store's backend reports progress and the UI owns the words: the
     # job document carries a stable message_key beside its human message,
@@ -337,6 +342,14 @@ check:
     # may ever reach a dialog. A person who downloaded a program wants "Windows
     # programs", not a lesson about which runtime MoOS used.
     python3 tests/test_app_engines.py
+    # Every file type MoOS claims must open in something that is actually in the
+    # image. mimeapps.list is copied verbatim into every edition, but the x86
+    # editions inherit KDE's apps from kinoite-main while ARM starts from bare
+    # fedora-bootc and gets only what build-arm.sh names. That asymmetry shipped:
+    # PDF, PostScript and EPUB pointed at okular, which was not in the ARM image
+    # at all, and the only check that mentioned it greps build.sh -- so it could
+    # only ever describe x86.
+    python3 tests/test_mime_handlers.py
     # "Set up Android" had NEVER worked: waydroid init needs mandatory OTA
     # channels, MoOS ships no channels config for it to fall back on, and every
     # existing gate read only the source. Proven on the station 2026-09-20 by

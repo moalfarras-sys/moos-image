@@ -128,7 +128,10 @@ class TheListIsTrueToItsContract(unittest.TestCase):
         self.assertIn('"moos://settings/whats-new": "whats-new"', qml)
         self.assertIn('{ section: "system", route: "moos://settings/whats-new", glyph: "spark",', qml,
                       "the page must be a row of the System section, so search finds it")
-        self.assertIn("readonly property var inAppPages: [aboutSection, whatsNewSection]", qml)
+        self.assertRegex(
+            qml,
+            r"readonly property var inAppPages: \[aboutSection, whatsNewSection,[^\]]+\]",
+        )
         self.assertIn('onClicked: win.openRoute("moos://settings/whats-new")', qml,
                       "About this device must lead to What's new")
         # A status document from before this page existed must not break the window.

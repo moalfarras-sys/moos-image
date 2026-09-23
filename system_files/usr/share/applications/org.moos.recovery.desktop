@@ -6,11 +6,12 @@ GenericName=Rollback & recovery
 GenericName[ar]=الرجوع والاستعادة
 Comment=Roll back to a previous version or pin a known-good one — /home is untouched
 Comment[ar]=ارجع إلى نسخة سابقة أو ثبّت نسخة سليمة — مجلد /home يبقى كما هو
-TryExec=moos-rollback
-Exec=moos-rollback
+TryExec=moos-settings
+Exec=moos-settings --section=recovery
 Icon=moos-recovery
-StartupWMClass=org.moos.recovery
+StartupWMClass=org.moos.settings
 Terminal=false
 Categories=System;
+NoDisplay=true
 Keywords=rollback;recovery;pin;bootc;ostree;
 Keywords[ar]=رجوع;استعادة;تثبيت;

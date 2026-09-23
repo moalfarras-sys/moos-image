@@ -204,6 +204,7 @@
     },
     {
       "id": "org.mozilla.thunderbird_esr",
+      "arch": ["x86_64"],
       "source": "flathub",
       "cat": "ess",
       "glyph": "mail",
@@ -224,6 +225,7 @@
     },
     {
       "id": "com.obsproject.Studio",
+      "arch": ["x86_64"],
       "source": "flathub",
       "cat": "ess",
       "glyph": "monitor",
@@ -234,6 +236,7 @@
     },
     {
       "id": "com.valvesoftware.Steam",
+      "arch": ["x86_64"],
       "source": "flathub",
       "cat": "fun",
       "glyph": "gamepad",
@@ -246,6 +249,7 @@
     },
     {
       "id": "com.usebottles.bottles",
+      "arch": ["x86_64"],
       "popular": false,
       "source": "flathub",
       "cat": "fun",
@@ -257,6 +261,7 @@
     },
     {
       "id": "net.lutris.Lutris",
+      "arch": ["x86_64"],
       "source": "flathub",
       "cat": "fun",
       "glyph": "joystick",
@@ -267,6 +272,7 @@
     },
     {
       "id": "com.heroicgameslauncher.hgl",
+      "arch": ["x86_64"],
       "source": "flathub",
       "cat": "fun",
       "glyph": "target",
@@ -287,6 +293,7 @@
     },
     {
       "id": "com.spotify.Client",
+      "arch": ["x86_64"],
       "source": "flathub",
       "cat": "fun",
       "glyph": "note",
@@ -298,6 +305,7 @@
     },
     {
       "id": "com.discordapp.Discord",
+      "arch": ["x86_64"],
       "source": "flathub",
       "cat": "fun",
       "glyph": "chat",
@@ -369,6 +377,7 @@
     },
     {
       "id": "us.zoom.Zoom",
+      "arch": ["x86_64"],
       "source": "flathub",
       "cat": "work",
       "glyph": "video",
@@ -379,6 +388,7 @@
     },
     {
       "id": "com.slack.Slack",
+      "arch": ["x86_64"],
       "source": "flathub",
       "cat": "work",
       "glyph": "chat",
@@ -465,6 +475,7 @@
     },
     {
       "id": "com.google.AndroidStudio",
+      "arch": ["x86_64"],
       "source": "flathub",
       "cat": "dev",
       "glyph": "android",
@@ -557,6 +568,7 @@
     },
     {
       "id": "org.videolan.vlc",
+      "engine": "android",
       "source": "moos",
       "cat": "droid",
       "glyph": "media",
@@ -576,6 +588,7 @@
     },
     {
       "id": "app.organicmaps",
+      "engine": "android",
       "source": "moos",
       "cat": "droid",
       "glyph": "compass",
@@ -595,6 +608,7 @@
     },
     {
       "id": "seven-zip",
+      "engine": "windows",
       "source": "moos",
       "cat": "win",
       "glyph": "archive",
@@ -612,6 +626,7 @@
     },
     {
       "id": "notepad-plus-plus",
+      "engine": "windows",
       "source": "moos",
       "cat": "win",
       "glyph": "doc",
@@ -629,6 +644,7 @@
     },
     {
       "id": "irfanview",
+      "engine": "windows",
       "source": "moos",
       "cat": "win",
       "glyph": "image",
@@ -646,6 +662,7 @@
     },
     {
       "id": "org.schabi.newpipe",
+      "engine": "android",
       "source": "moos",
       "cat": "droid",
       "glyph": "video",
@@ -665,6 +682,7 @@
     },
     {
       "id": "de.danoeh.antennapod",
+      "engine": "android",
       "source": "moos",
       "cat": "droid",
       "glyph": "mic",
@@ -684,6 +702,7 @@
     },
     {
       "id": "com.kunzisoft.keepass.libre",
+      "engine": "android",
       "source": "moos",
       "cat": "droid",
       "glyph": "lock",
@@ -703,6 +722,7 @@
     },
     {
       "id": "org.fossify.gallery",
+      "engine": "android",
       "source": "moos",
       "cat": "droid",
       "glyph": "image",
@@ -722,6 +742,7 @@
     },
     {
       "id": "org.fossify.musicplayer",
+      "engine": "android",
       "source": "moos",
       "cat": "droid",
       "glyph": "media",
@@ -741,6 +762,7 @@
     },
     {
       "id": "putty",
+      "engine": "windows",
       "source": "moos",
       "cat": "win",
       "glyph": "monitor",
@@ -758,6 +780,7 @@
     },
     {
       "id": "winscp",
+      "engine": "windows",
       "source": "moos",
       "cat": "win",
       "glyph": "archive",
@@ -775,6 +798,7 @@
     },
     {
       "id": "sumatrapdf",
+      "engine": "windows",
       "source": "moos",
       "cat": "win",
       "glyph": "doc",
@@ -792,6 +816,7 @@
     },
     {
       "id": "paint-net",
+      "engine": "windows",
       "source": "moos",
       "cat": "win",
       "glyph": "pen",
@@ -809,6 +834,7 @@
     },
     {
       "id": "everything-search",
+      "engine": "windows",
       "source": "moos",
       "cat": "win",
       "glyph": "compass",
