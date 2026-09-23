@@ -265,6 +265,11 @@ check:
     python3 tests/test_remote_linux_network_boundary.py
     python3 tests/test_remote_trusted_devices.py
     python3 tests/test_moos_store_index.py
+    # The Store may not offer an app this machine cannot install. The browse
+    # index is built from the RUNNING arch's AppStream, but a curated entry with
+    # no match was MANUFACTURED into the index -- so eleven x86-only apps, two of
+    # them "popular" (Steam, Spotify), were dead buttons on the A1.
+    python3 tests/test_store_arch_honesty.py
     python3 tests/test_moos_storectl.py
     # Mo Store's backend reports progress and the UI owns the words: the
     # job document carries a stable message_key beside its human message,

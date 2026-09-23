@@ -563,6 +563,83 @@ gate cannot be satisfied by prose."
 **Still owed:** the same question asked of the other direction — what the ARM edition
 installs that x86 does not — and a real ARM boot carrying these packages.
 
+## The ARM Store offered eleven apps it could not install (measured 2026-09-21, fixed)
+
+`catalog.json` had no notion of architecture, and neither did the index builder. The browse
+index is otherwise arch-correct — it is built from the RUNNING architecture's AppStream —
+but when a curated entry found no AppStream match, `catalog_fallback_app()` MANUFACTURED an
+index entry for it. On aarch64 that happened for every catalogue app with no ARM build.
+
+**Measured against `flatpak --system remote-ls flathub --arch=aarch64` (2923 apps):** eleven
+of the catalogue's thirty-three Flathub apps have no ARM build — Thunderbird, OBS Studio,
+Steam, Bottles, Lutris, Heroic, Spotify, Discord, Zoom, Slack, Android Studio. All eleven
+were in the A1's Store index of 2941 apps, and **Steam and Spotify carry `"popular": true`**,
+so they were promoted on the front page. Each was a dead button:
+`flatpak remote-info flathub com.spotify.Client --arch=aarch64` answers `Can't find ref`.
+AGENTS.md: "No fake apps and no dead buttons." MoOS already refuses PC gaming on ARM in
+Mo AI (`moai-do`'s `pc_games_supported`), so the Store leading a "Gaming Starter" bundle
+with Steam was also two MoOS surfaces disagreeing with each other.
+
+**Fixed.** A catalogue entry may declare `"arch": [...]` — the architectures on which it
+exists; absent still means everywhere, so every other entry is untouched. `load_catalog()`
+drops what this machine cannot install ONCE, so all three later passes agree (the fallback
+that invents an entry, the overlay that decorates a real one, and the non-Flatpak lifecycle
+scan). `moos-storectl._catalog()` applies the same rule, so a stale index or an
+install-by-id is not a way round it. Bundles are re-checked against what survived and are
+withdrawn below two members: on ARM "Gaming Starter" lost five of six, and a gaming bundle
+offering one compatibility tool is not the thing that was curated. Measured after the fix:
+**x86_64 unchanged at 53 apps / 5 bundles; aarch64 42 apps / 4 bundles.**
+`tests/test_store_arch_honesty.py` holds the data half, the filter, the bundle rule, both
+tools agreeing on the spelling, and an unknown machine being offered everything rather than
+an empty store.
+
+**And an engine it has no runtime for is just as dead.** `app-engines.json` is MoOS's own
+source of truth for what it can run, and it says wine is "present on every desktop MoOS"
+and waydroid is "shipped on the desktop editions". **Neither is in the ARM image** — `rpm -q`
+says not installed and neither is on PATH — so the `windows` and `android` engines have NO
+runtime there, while the Store offered **8 Windows programs** (`cat: win`) and **7 Android
+apps**. `moai-do setup-windows` refuses on ARM outright and `setup-waydroid` dead-ends with
+"waydroid not found", so neither could ever have been installed. The gate that should have
+caught it, `tests/test_app_engines.py`, reads `build_files/build.sh` and nothing else — the
+third gate found this week that describes x86 and calls it the system.
+
+A catalogue entry now names the `engine` it needs (implied for `install.kind: android`), and
+the index keeps only entries whose engine has an available runtime — decided by the
+registry's own `probe` field, so **no architecture is hardcoded and an edition that starts
+shipping a runtime gets its apps back on its own**. Measured on the A1: `windows` and
+`android` absent, `linux` present; the catalogue goes 53 → **27** here and stays 53 on a
+desktop with every engine.
+
+Two seams that a filter in the index alone would have missed, both closed: the Store paints
+the curated catalogue BEFORE the index exists (`Component.onCompleted` calls `loadCurated()`
+first, and the raw file is read on every launch), so the launcher now writes a machine
+profile — `moos-store-index --print-machine`, measured at **0.098 s** — and the QML filters
+its first frame and its bundles with it; and the capability strip listed every engine the
+registry *describes*, so an ARM desktop told its owner it runs Windows programs and Android
+apps. **Verified live on the A1**: the Store launched from source with an empty QML error
+log and dropped exactly the 7 Android entries — the only ones the *installed* catalogue
+carries data for, since the QML reads `/usr/share/moos/store/catalog.json` by absolute path
+and the new fields ship with the image, not with the checkout.
+
+`just check` caught a real design flaw during this work: the first draft probed the machine
+inside `load_catalog()`, so `tests/test_moos_store_index.py` passed in the Flatpak sandbox
+(no `/usr/share/moos`, nothing to read) and failed on the host (no wine or waydroid, so the
+Android recipe was filtered away). CI would only have agreed by luck — its x86 runners have
+both engines. `load_catalog()` is now pure, `main()` does the probing, and `--engines` lets
+an index be built for a stated machine.
+
+**Still owed:** the twenty-six are hidden, not explained — a person who has heard of Spotify
+is told nothing about why it is absent here. The registry already has the right vehicle: an
+`unsupported` list carrying a bilingual `reason`, which is how macOS is answered. Saying it
+belongs with P4.5's compatibility matrix. The Flathub list is a measured snapshot: when an
+ARM build appears the entry has to lose its `arch`, and nothing automatically notices.
+**Android on ARM is a real opportunity, not a dead end:** `waydroid` is `noarch` (so it
+installs on aarch64) and this A1's kernel already carries binderfs (`nodev binder` in
+`/proc/filesystems`). It was NOT added here, because shipping a runtime that has never been
+seen to run would recreate the defect this change removes — PROJECT_STATE records that
+Android "had never worked" on x86 while every gate read only the source. It needs an image
+and a booted proof.
+
 ## Three readings that look like defects and are not (measured 2026-09-21)
 
 Do not "fix" any of these; each was chased once already.

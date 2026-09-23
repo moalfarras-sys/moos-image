@@ -21,6 +21,7 @@ import fcntl
 import hashlib
 import json
 import os
+import platform
 from pathlib import Path
 import re
 import secrets
@@ -38,6 +39,17 @@ import urllib.request
 SCHEMA = 1
 MAX_BATCH = 64
 DEFAULT_CATALOG = Path("/usr/share/moos/store/catalog.json")
+
+
+def running_arch() -> str:
+    """The Flatpak architecture name for this machine.
+
+    Flatpak's spelling, not uname's: aarch64 and x86_64 agree, but 32-bit ARM is
+    "arm" to Flatpak and "armv7l" to uname. An unrecognised machine is returned
+    unchanged, so it sees the whole catalogue rather than an empty store.
+    """
+    machine = platform.machine()
+    return {"armv7l": "arm", "armv8l": "arm", "i686": "i386"}.get(machine, machine)
 FLATHUB_REPO_FILE = Path("/etc/flatpak/remotes.d/flathub.flatpakrepo")
 FLATHUB_REPO_URL = "https://dl.flathub.org/repo/flathub.flatpakrepo"
 FLATHUB_REPO_BASE = "https://dl.flathub.org/repo/"
@@ -1264,11 +1276,22 @@ class Controller:
         if not isinstance(apps, list):
             raise StoreError("Store catalog apps must be a list")
         result: dict[str, dict[str, Any]] = {}
+        here = running_arch()
         for app in apps:
             if not isinstance(app, dict) or not isinstance(app.get("id"), str):
                 raise StoreError("Store catalog contains an invalid app entry")
             if app["id"] in result:
                 raise StoreError(f"Store catalog repeats app ID {app['id']}")
+            # An app that names architectures exists on those and nowhere else.
+            # The index builder hides these, and this makes the backend agree:
+            # a stale index, a bundle recipe or an install-by-id must not be a
+            # way round it. Measured on the A1: eleven of the catalogue's
+            # thirty-three Flathub apps have no aarch64 build, and
+            # `flatpak remote-info flathub com.spotify.Client --arch=aarch64`
+            # answers "Can't find ref" -- so the install could only ever fail.
+            declared = app.get("arch")
+            if isinstance(declared, list) and declared and here not in declared:
+                continue
             result[app["id"]] = app
         return result
 
