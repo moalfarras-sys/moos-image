@@ -6,11 +6,12 @@ GenericName=System updates
 GenericName[ar]=تحديثات النظام
 Comment=Update MoOS safely — atomic, applies on reboot
 Comment[ar]=حدّث MoOS بأمان — تحديث ذرّي يكتمل عند إعادة التشغيل
-TryExec=moos-update
-Exec=moos-update
+TryExec=moos-settings
+Exec=moos-settings --section=update
 Icon=moos-updater
-StartupWMClass=org.moos.updater
+StartupWMClass=org.moos.settings
 Terminal=false
 Categories=System;
+NoDisplay=true
 Keywords=update;upgrade;bootc;ostree;uupd;
 Keywords[ar]=تحديث;ترقية;
