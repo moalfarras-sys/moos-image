@@ -196,6 +196,7 @@ class ImageStateTests(unittest.TestCase):
         self.assertNotIn('ConditionPathExists=', text)
         self.assertIn('ExecStart=/usr/bin/bash /usr/libexec/moos-flatpak-init', text)
         self.assertIn('Before=display-manager.service flatpak-system-helper.service', text)
+        self.assertIn('TimeoutStartSec=120', text)
         helper = (ROOT/'system_files/usr/libexec/moos-flatpak-init').read_text()
         self.assertIn('flatpak-init.pending', helper)
         self.assertIn('flatpak-init.complete', helper)

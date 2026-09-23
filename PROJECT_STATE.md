@@ -6,23 +6,24 @@ the README and every wave row point here instead of repeating it. Four parallel 
 "production is X" is how three of them came to be a release behind at once.
 
 ## Source and release truth
-- **`44.20260920.914` is released and running on the x86 NVIDIA station:** signed digest
-  `sha256:7ad32fa1ae86fce02e64f0ed15bd2912dd1fda450ed20d8b6381ec4ad68ce8f6`, rollback
-  `.912`, revision `eb3e2e76`. Proof set green: signed build
-  `35535090226`, generic/NVIDIA/cloud QCOW2 `35536303700`/`35536306098`/`35536308587`,
-  ISO `35536310896`, x86 promotion `35538660504`. The ARM proof is separately red below.
-- **2026-09-21 installed readback was clean:** `post-update-check.sh` 55/0, `moos-selfcheck` 53 plus the
-  intentional tray note, no failed units, `THEME_REV` **84**. Arabic Search returned real
-  app/settings/recent-file rows at 4K/265% and the Island stayed fixed.
-- **2026-09-23 workstation:** signed `.914` booted, signed `.912` rollback, nothing staged,
+- **`44.20260923.920` is the released x86 image, staged on the NVIDIA station:** signed digest
+  `sha256:7583f605753780dedf6c364ba43ff04242a86d0a918ae33e10fbe6de2b7fea44`,
+  candidate revision `3b6f8e94`, signed build `35878094873`, generic/NVIDIA/cloud QCOW2
+  `35881259100`/`35881263671`/`35881269531`, ISO `35881275455`, and promotion
+  `35887376140` all green. The running deployment is still signed `.914`; `.920` needs a
+  reboot, and `.914` remains available for rollback. ARM release proof is separate.
+- **2026-09-23 workstation before staging:** signed `.914` booted, signed `.912` rollback,
   `/var` has over 300 GiB free. A host command masked `fwupd` on 2026-09-22; it was restored,
   firmware metadata refreshed, no update offered, and `moos-selfcheck` passed 53 checks.
-- `origin/main` is `1ddc6cf3`; PR #157 integrates W8/W9, ARM app parity and Store honesty.
-  Candidate `fd1e49ca` passed signed build, generic/cloud QCOW2 and ISO; NVIDIA QCOW2
-  failed on `nvidia-persistenced` in a no-GPU VM. No promotion; device-gated fix awaits proof.
-- **ARM release from `eb3e2e76` failed proof:** run `35536313181` signed `moos-arm`, but
-  the second QCOW2 boot failed `plymouth-start.service`; promotion did not run. ARM `latest`
-  remains boot-proven `sha256:513ab151…` (`44.20260920.545`). P0.7 cost this release.
+- `origin/main` at this review is `f2e798ab`; PR #157 integrated W8/W9, ARM app parity,
+  Store honesty and the NVIDIA persistence device gate. The no-GPU NVIDIA VM now boots
+  twice with zero failed units in the exact candidate proof above.
+- ARM `latest` remains boot-proven `sha256:513ab151…`; P0.7 prevented its last promotion.
+- **ARM candidate `3b6f8e94` did not promote:** run `35881281095` timed out
+  `moos-flatpak-init.service` at its 30-second limit on first boot in slow QEMU, while
+  the preceding branch candidate's ARM proof passed. A finite 120-second limit is in
+  review; the next exact-image boot proof must show store initialization, two boots and
+  zero failed units before ARM can promote.
 - **P0.7 is no longer only a captured stack.** Read out of plymouth 24.004.60's source on
   2026-09-21: `ply_boot_splash_free()` frees `pixel_displays` without disarming the
   `on_new_frame` timeout that only `ply_boot_splash_hide()` disarms, and `--retain-splash`
@@ -77,8 +78,8 @@ diagnosis was wrong. Do not weaken SELinux globally.
 Measured after reboot onto the current signed image: installed `THEME_REV` **84**,
 Global Theme `org.moos.ui2.midnight`, visual tier **flagship**, motion `alive`,
 `kwinrc/Plugins/blurEnabled=true`, Arabic session (`ar_SA.UTF-8`). The installed image is
-the released clarity revision; the active W8/W9 branch is deliberately newer and was reviewed
-from source, not mistaken for installed state. Health checks do not qualify suspend, every app
+the previously released clarity revision; the newly staged W8/W9 image was reviewed
+from source, not mistaken for running state. Health checks do not qualify suspend, every app
 or all visual surfaces.
 
 **Speed and Mo AI, both measured on cycle H's `.890`** and NOT re-measured since.
@@ -195,6 +196,5 @@ indicator). The finding carries `moos://privacy/stop-sharing`, and `moos-remote-
 off` stops and un-autostarts both sharing services with no administrator rights.
 
 ## Next execution
-Finish W9's real transaction lifecycle and W8's three-size mark, then one candidate/proof
-cycle. Resolve upstream P0.7 before another ARM promotion attempt; P4.2–P4.5, German,
-touch/laptop/multi-output and the full accessibility/visual matrix remain open.
+Finish W9's real transaction lifecycle and W8's three-size mark. Resolve P0.7 before
+another ARM promotion; P4.2–P4.5, German, touch/laptop/multi-output and full accessibility remain open.

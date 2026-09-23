@@ -6,7 +6,9 @@ Before=display-manager.service flatpak-system-helper.service
 [Service]
 Type=oneshot
 ExecStart=/usr/bin/bash /usr/libexec/moos-flatpak-init
-TimeoutStartSec=30
+# A fresh Flatpak repo can take over 30 s under ARM QEMU even when it is
+# progressing; keep a finite failure bound without aborting first boot.
+TimeoutStartSec=120
 RemainAfterExit=yes
 
 [Install]
