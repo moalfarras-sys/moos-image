@@ -499,7 +499,8 @@ class ProbeOutput:
     def __init__(self, stream):
         self.queue: queue.Queue = queue.Queue()
         self.seen: list[str] = []
-        threading.Thread(target=self.pump, args=(stream,), daemon=True).start()
+        self.thread = threading.Thread(target=self.pump, args=(stream,), daemon=True)
+        self.thread.start()
 
     def pump(self, stream) -> None:
         for line in stream:
@@ -608,8 +609,10 @@ Item {
                     break
                 time.sleep(0.5)
             process.wait(timeout=30)
-        self.addCleanup(stop)
+            output.thread.join(timeout=5)          # EOF once the whole group is gone
+            process.stderr.close()
         output = ProbeOutput(process.stderr)
+        self.addCleanup(stop)
         self.assertTrue(output.wait_for("probe-ready", 60),
                         "the QML probe did not start:\n" + "\n".join(output.seen[-20:]))
         return jobs, output
