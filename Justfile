@@ -47,7 +47,12 @@ check:
     python3 tests/test_device_plan.py
     python3 tests/test_moai_do.py
     python3 tests/test_moos_control.py
+    # SPEC D3: ONE list of settings pages; moos-open's literal arms equal it both ways, every
+    # reader offers exactly it, and a broken list offers nothing.
+    python3 tests/test_settings_destinations.py
     python3 tests/test_moos_health.py
+    # On moos-arm, RDP is MoOS's own remote desktop: never "foreign sharing" to switch off.
+    python3 tests/test_remote_edition_guard.py
     python3 tests/test_moai_krunner.py
     python3 tests/test_foreign_app_menus.py
     python3 tests/test_remote_cuda_scaler.py

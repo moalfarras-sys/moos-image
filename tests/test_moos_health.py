@@ -108,6 +108,9 @@ class HealthMachine:
             path.chmod(0o755)
         self.os_release = root / "os-release"
         self.os_release.write_text('PRETTY_NAME="MoOS 44"\n')
+        # The planted machine's edition, never the host's: on moos-arm, RDP is MoOS's own.
+        self.edition = root / "edition"
+        self.edition.write_text("moos-nvidia\n")
         # A normal and a suspicious autostart entry, a clean user service.
         autostart = self.home / ".config/autostart"
         autostart.mkdir(parents=True)
@@ -145,6 +148,7 @@ class HealthMachine:
             "MOOS_HEALTH_PROC": str(self.proc),
             "MOOS_HEALTH_STATE": str(self.state),
             "MOOS_HEALTH_OS_RELEASE": str(self.os_release),
+            "MOOS_HEALTH_EDITION": str(self.edition),
             "MOOS_HEALTH_SAMPLE_SECONDS": "0.05",
             "LANG": "ar_SA.UTF-8",
         }

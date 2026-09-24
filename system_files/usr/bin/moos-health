@@ -35,6 +35,11 @@ from pathlib import Path
 HOME = Path(os.environ.get("MOOS_HEALTH_HOME") or Path.home())
 PROC = Path(os.environ.get("MOOS_HEALTH_PROC") or "/proc")
 OS_RELEASE = Path(os.environ.get("MOOS_HEALTH_OS_RELEASE") or "/etc/os-release")
+# Which MoOS edition this is (written by the image build). On moos-arm, RDP is MoOS's OWN
+# remote desktop (moos-arm-remote enables it behind a closed firewall), so it is never
+# reported as foreign sharing there and never offered a "turn off" that would cut the
+# owner off from a headless machine.
+EDITION_FILE = Path(os.environ.get("MOOS_HEALTH_EDITION") or "/usr/lib/moos/edition")
 STATE = Path(os.environ.get("MOOS_HEALTH_STATE") or
              Path(os.environ.get("XDG_STATE_HOME") or HOME / ".local/state") / "moos" / "health")
 SAMPLE_SECONDS = float(os.environ.get("MOOS_HEALTH_SAMPLE_SECONDS") or 2.0)
@@ -350,6 +355,18 @@ def known_port(port):
     return ""
 
 
+def edition():
+    try:
+        return EDITION_FILE.read_text(encoding="utf-8").strip().splitlines()[0].strip()
+    except (OSError, IndexError):
+        return ""
+
+
+def moos_owned_port(port):
+    """A remote-access port that MoOS itself opened on this edition."""
+    return port == 3389 and edition() == "moos-arm"
+
+
 def exposed(address):
     host = address.strip("[]")
     if host in ("*", ""):
@@ -397,6 +414,13 @@ def listeners(findings):
     for (protocol, port), entry in sorted(grouped.items()):
         where = ", ".join(entry["addresses"])
         who = entry["owner"] or "owner not visible to this user"
+        if moos_owned_port(port):
+            findings.append(finding(
+                f"open-port-{protocol}-{port}", "info",
+                "سطح المكتب البعيد لـ MoOS يعمل | MoOS remote desktop is on",
+                f"{protocol} {where} — {who} — keep 3389 closed in the firewall and connect "
+                "through an SSH tunnel"))
+            continue
         desktop_share = port in (3389, 5900)
         findings.append(finding(
             f"open-port-{protocol}-{port}", "warning",

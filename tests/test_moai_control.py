@@ -12,6 +12,7 @@ import runpy
 import json
 import subprocess
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -373,15 +374,21 @@ class RuntimeRelationshipTests(unittest.TestCase):
                 "XDG_CONFIG_HOME": str(Path(home) / ".config"),
                 "PATH": bin_dir + os.pathsep + os.environ.get("PATH", ""),
             }
+            # SPEC D1/D5: the brain is set up on the Mo AI page of System Settings — one
+            # surface, no terminal wizard, no privilege.
+            opened = Path(home) / "settings.argv"
+            settings = Path(bin_dir) / "moos-settings"
+            settings.write_text(f"#!/bin/sh\necho \"$*\" > {opened}\n", encoding="utf-8")
+            settings.chmod(0o755)
             config = Path(bin_dir) / "moai-config"
-            config.write_text("#!/bin/sh\necho free-cloud-setup\n", encoding="utf-8")
+            config.write_text(f"#!/bin/sh\necho wizard >> {opened}\n", encoding="utf-8")
             config.chmod(0o755)
             result = subprocess.run(
                 [str(MOAI_DO), "setup-brain"], input="y\n", env=env,
                 capture_output=True, text=True,
             )
-            self.assertEqual(result.returncode, 0)
-            self.assertIn("free-cloud-setup", result.stdout)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(opened.read_text(encoding="utf-8").strip(), "--section=assistant")
             self.assertFalse(
                 (Path(home) / ".config/moos/moai-local.env").exists(),
             )
@@ -726,6 +733,165 @@ class AgentDetectionTests(unittest.TestCase):
                             "through Mo AI and Mo AI keeps saying it is not installed")
                 # A tool that really is absent must still be False, or the check is useless.
                 self.assertFalse(command_exists("moos-definitely-not-installed"))
+
+
+
+class ToolResultsForTheModelTests(unittest.TestCase):
+    """What a moai-do tool prints reaches a CLOUD model, so it is redacted first."""
+
+    def test_moai_do_output_is_redacted_and_others_are_only_clipped(self):
+        with tempfile.TemporaryDirectory() as home:
+            control = load_control(home)
+            raw = ("default via 192.168.1.1 dev wlp3s0\nnameserver 192.168.1.53\n"
+                   "token = sk-abcdefghijklmnopqrstuv\nlink/ether 3c:22:fb:12:34:56\n"
+                   "/var/home/moos/.config/secret\nlo 127.0.0.1 ok\n")
+            shown = control["_for_model"]("moai-do", raw)
+            for leaked in ("192.168.1.1", "192.168.1.53", "sk-abcdefghijklmnopqrstuv",
+                           "3c:22:fb:12:34:56", "/var/home/moos"):
+                self.assertNotIn(leaked, shown)
+            self.assertIn("[redacted]", shown)
+            self.assertIn("127.0.0.1", shown, "loopback identifies nobody and explains a service")
+            self.assertEqual(control["_for_model"]("moos-control", "Volume 40%"), "Volume 40%")
+
+    def test_a_missing_redactor_withholds_instead_of_sending_raw(self):
+        with tempfile.TemporaryDirectory() as home:
+            control = load_control(home)
+            scope = control["_for_model"].__globals__
+            scope["_redactor"] = lambda: None
+            self.assertEqual(control["_for_model"]("moai-do", "ip 10.1.2.3"), scope["WITHHELD"])
+
+    def test_read_only_moai_do_tools_go_through_the_redactor(self):
+        """Executed end to end: a read-only report with an address in it comes back redacted."""
+        with tempfile.TemporaryDirectory() as home, tempfile.TemporaryDirectory() as bin_dir:
+            fake = Path(bin_dir) / "moai-do"
+            fake.write_text("#!/bin/sh\necho \"gateway 10.20.30.40 via wlan0\"\n",
+                            encoding="utf-8")
+            fake.chmod(0o755)
+            control = load_control(home)
+            with mock.patch.dict(os.environ, {"PATH": bin_dir + os.pathsep + os.environ["PATH"]}):
+                code, result = control["execute_tool"]({"name": "net_doctor", "arguments": {}})
+            self.assertEqual(code, 200, result)
+            self.assertNotIn("10.20.30.40", result["output"])
+            self.assertIn("[redacted]", result["output"])
+
+
+class IslandJobTokenTests(unittest.TestCase):
+    """SPEC D6: a confirmed job is a FILE NAME the Island can watch — never its arguments."""
+
+    def run_job(self, home, runtime, tool, script, arguments=None):
+        bin_dir = Path(home) / "bin"
+        bin_dir.mkdir(exist_ok=True)
+        fake = bin_dir / "moai-do"
+        fake.write_text(script, encoding="utf-8")
+        fake.chmod(0o755)
+        control = load_control(home)
+        scope = control["execute_tool"].__globals__
+        scope["JOB_TOKEN_LINGER"] = 0.4
+        with mock.patch.dict(os.environ, {"XDG_RUNTIME_DIR": runtime,
+                                          "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}"}):
+            code, started = control["execute_tool"]({"name": tool, "confirmed": True,
+                                                     "arguments": arguments or {}})
+            self.assertEqual(code, 202, started)
+            return control, started["job"]
+
+    def tokens(self, runtime):
+        # What the Island's `job-*` filter sees: a half-written temporary is never a token.
+        folder = Path(runtime) / "moai-jobs"
+        return sorted(path.name for path in folder.glob("job-*")) if folder.is_dir() else []
+
+    def wait_for(self, runtime, predicate, seconds=10):
+        deadline = time.monotonic() + seconds
+        while time.monotonic() < deadline:
+            names = self.tokens(runtime)
+            if predicate(names):
+                return names
+            time.sleep(0.05)
+        return self.tokens(runtime)
+
+    def test_a_job_moves_running_to_done_and_then_leaves(self):
+        with tempfile.TemporaryDirectory() as home, tempfile.TemporaryDirectory() as runtime:
+            control, job = self.run_job(home, runtime, "install_app",
+                                        "#!/bin/sh\nsleep 0.6\necho installed\n",
+                                        {"app_id": "org.example.Secret"})
+            running = self.wait_for(runtime, lambda names: any("-running-" in n for n in names))
+            self.assertEqual(running, [f"job-{job[:8]}-running-install_app"])
+            done = self.wait_for(runtime, lambda names: any("-done-" in n for n in names))
+            self.assertEqual(done, [f"job-{job[:8]}-done-install_app"])
+            self.assertEqual(self.wait_for(runtime, lambda names: not names), [],
+                             "a finished job's token must leave after its linger")
+            for name in running + done:
+                self.assertNotIn("Secret", name, "an argument leaked into the token")
+            folder = Path(runtime) / "moai-jobs"
+            self.assertEqual(folder.stat().st_mode & 0o777, 0o700)
+
+    def test_a_failed_job_says_failed(self):
+        with tempfile.TemporaryDirectory() as home, tempfile.TemporaryDirectory() as runtime:
+            _control, job = self.run_job(home, runtime, "update_apps",
+                                         "#!/bin/sh\necho nope\nexit 3\n")
+            failed = self.wait_for(runtime, lambda names: any("-failed-" in n for n in names))
+            self.assertEqual(failed, [f"job-{job[:8]}-failed-update_apps"])
+
+    def test_names_are_only_ever_the_fixed_shape(self):
+        with tempfile.TemporaryDirectory() as home:
+            name = load_control(home)["_job_token_name"]
+            self.assertEqual(name("0123abcd99", "running", "system_update"),
+                             "job-0123abcd-running-system_update")
+            for args in (("0123abcd", "running", "../x"), ("0123abcd", "paused", "x"),
+                         ("ZZZZZZZZ", "done", "x"), ("0123abcd", "done", "a" * 41),
+                         ("0123abcd", "done", "install app")):
+                self.assertIsNone(name(*args), args)
+
+    def test_no_runtime_dir_publishes_nothing_and_still_runs(self):
+        with tempfile.TemporaryDirectory() as home:
+            control = load_control(home)
+            with mock.patch.dict(os.environ, {}, clear=False):
+                os.environ.pop("XDG_RUNTIME_DIR", None)
+                self.assertIsNone(control["_publish_job_token"]("0123abcd", "x_y", "running"))
+
+    def test_startup_clears_tokens_of_a_previous_run(self):
+        with tempfile.TemporaryDirectory() as home, tempfile.TemporaryDirectory() as runtime:
+            folder = Path(runtime) / "moai-jobs"
+            folder.mkdir()
+            (folder / "job-0123abcd-running-system_update").write_text("")
+            control = load_control(home)
+            with mock.patch.dict(os.environ, {"XDG_RUNTIME_DIR": runtime}):
+                control["_clear_job_tokens"]()
+            self.assertEqual(list(folder.iterdir()), [])
+            source = CONTROL.read_text(encoding="utf-8")
+            main = source[source.index('if __name__ == "__main__":'):]
+            self.assertIn("_clear_job_tokens()", main)
+
+
+class BootedVersionTests(unittest.TestCase):
+    """The version Mo AI quotes is the booted image's, not the base's os-release stamp."""
+
+    def test_scan_reports_the_booted_deployment_version(self):
+        with tempfile.TemporaryDirectory() as home:
+            control = load_control(home)
+            status = json.dumps({"deployments": [
+                {"booted": False, "version": "44.20260924.925"},
+                {"booted": True, "version": "44.20260924.929"}]})
+
+            class Done:
+                returncode = 0
+                stdout = status
+
+            scope = control["booted_image_version"].__globals__
+            with mock.patch.object(scope["subprocess"], "run", return_value=Done()):
+                self.assertEqual(control["booted_image_version"](), "44.20260924.929")
+
+    def test_os_release_is_only_the_fallback(self):
+        with tempfile.TemporaryDirectory() as home:
+            control = load_control(home)
+            scope = control["booted_image_version"].__globals__
+            scope["_image_version_cache"].update(at=0.0, value="")
+            with mock.patch.object(scope["subprocess"], "run", side_effect=OSError("no rpm-ostree")), \
+                    mock.patch.dict(scope, {"_first_line": lambda *_a: "44.20260924.0"}):
+                self.assertEqual(control["booted_image_version"](), "44.20260924.0")
+            source = CONTROL.read_text(encoding="utf-8")
+            scan = source[source.index("def scan() -> dict:"):source.index("def scan() -> dict:") + 900]
+            self.assertIn('"version": booted_image_version()', scan)
+            self.assertNotIn('"version": _first_line("/etc/os-release"', scan)
 
 
 if __name__ == "__main__":
