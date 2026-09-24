@@ -418,6 +418,14 @@ fi
 # shadows to a dated quarantine so preview work remains recoverable while the
 # official image copy becomes authoritative again. The operation is idempotent:
 # an absent source is ignored and unrelated user packages are never inspected.
+#
+# KWin's MoOS packages (THEME_REV 86) are the same trap: a review copy of the
+# task switcher in ~/.local/share/kwin/tabbox/org.moos.ui2.switcher overrode the
+# image's for a week on the station while both health checks said "no shadow".
+# Only a MoOS id that the image ALSO ships is moved; a user's own KWin script or
+# effect is never touched. `quarantined_kwin` tells the caller to let KWin
+# re-read its packages; the function itself makes no D-Bus call.
+quarantined_kwin=0
 quarantine_moos_data_shadows() {
     local user_share="${XDG_DATA_HOME:-$HOME/.local/share}"
     local system_share="${MOOS_SYSTEM_SHARE:-/usr/share}"
@@ -432,6 +440,7 @@ quarantine_moos_data_shadows() {
         mkdir -p "${backup}/$(dirname "$rel")" 2>/dev/null || continue
         if mv -- "$source" "${backup}/${rel}" 2>/dev/null; then
             echo "quarantined user shadow ${rel} in ${backup}" >>"$log" 2>/dev/null || true
+            case "$rel" in kwin/*) quarantined_kwin=1 ;; esac
         fi
     done < <(
         for root in \
@@ -442,7 +451,12 @@ quarantine_moos_data_shadows() {
             "${user_share}/color-schemes/MoOSUI2"* \
             "${user_share}/konsole/MoOSUI2"* \
             "${user_share}/wallpapers/MoOSUI2"* \
-            "${user_share}/icons/MoOSUI2"*; do
+            "${user_share}/icons/MoOSUI2"* \
+            "${user_share}/kwin/tabbox/org.moos."* \
+            "${user_share}/kwin/scripts/org.moos."* \
+            "${user_share}/kwin/scripts/moos-"* \
+            "${user_share}/kwin/effects/org.moos."* \
+            "${user_share}/kwin/effects/moos-"*; do
             [ -e "$root" ] || continue
             printf '%s\0' "$root"
         done
@@ -453,6 +467,18 @@ quarantine_moos_data_shadows() {
 # after a successful revision apply, and waiting for a revision bump leaves the
 # running desktop on the preview forever.
 quarantine_moos_data_shadows
+# A moved KWin package takes effect when KWin re-reads its configuration; the
+# image copy then serves the next Alt+Tab and the next script load.
+# reconfigure is a no-reply method: never wait for an answer at login.
+if [ "$quarantined_kwin" = "1" ]; then
+    if command -v busctl >/dev/null 2>&1; then
+        busctl --user --expect-reply=no call org.kde.KWin /KWin org.kde.KWin reconfigure \
+            >>"$log" 2>&1 || true
+    elif command -v gdbus >/dev/null 2>&1; then
+        timeout 5 gdbus call --session --dest org.kde.KWin --object-path /KWin \
+            --method org.kde.KWin.reconfigure >>"$log" 2>&1 || true
+    fi
+fi
 
 
 migration_completed=false

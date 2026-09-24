@@ -321,6 +321,8 @@ check:
     python3 tests/test_tidal_portals.py
     python3 tests/test_moos_theme_safety.py
     python3 tests/test_theme_shadow_cleanup.py
+    # The bar check never passes without checking; selfcheck/post-update scans see KWin shadows.
+    python3 tests/test_moos_shell_hygiene.py
     python3 tests/test_moos_visual_system.py
     # MoOS Command Center is the owned settings front door: every visual command
     # must resolve through a fixed route, and its live status boundary stays
