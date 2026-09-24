@@ -323,7 +323,16 @@ set -uo pipefail
 #     leading-edge glint. Reduced Motion paints the final frame immediately and
 #     no timer or idle loop exists. Cached shared QML would otherwise keep the
 #     static edge after update.
-THEME_REV=85
+# 86: MoOS One inside KDE (shell slice). The Hero Clock and the standalone
+#     Search applet are deleted and live on only in the retired lists (the
+#     unconditional sweep below, Customize Desktop's retired(), moos-theme); the
+#     Island hosts SearchView/SearchAnswers in its own package and gains a Mo AI
+#     job chip; the launcher's cards, favourites, Places and Themes route change;
+#     the scene's deferred callbacks survive a destroyed wallpaper. Home shadows
+#     of MoOS KWin packages (task switcher, scripts, effects) are quarantined
+#     like Plasma data, and the THEME_REV fingerprint now covers usr/share/kwin,
+#     whose QML/JS KWin also serves from a frozen-mtime cache.
+THEME_REV=86
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

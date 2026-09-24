@@ -842,7 +842,10 @@ class TestMoOSUI2(unittest.TestCase):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=85", apply,
+            "THEME_REV=86", apply,
+            "existing v85 users would keep the cached Island that imports the retired Search "
+            "applet and shows no Mo AI jobs, the launcher with three settings tiles, and a home "
+            "copy of the MoOS task switcher; "
             "existing v61 users would keep the Island that cannot show Store jobs or name the app "
             "using the camera; "
             "existing v60 users (ARM took W3 then W5 at the same revision) would keep the cached "
