@@ -43,6 +43,7 @@ RESOLVER = ROOT / "system_files/usr/libexec/moos-app-engine"
 RUNNER = ROOT / "system_files/usr/bin/moos-run-foreign"
 MIMEAPPS = ROOT / "system_files/etc/xdg/mimeapps.list"
 BUILD = ROOT / "build_files/build.sh"
+CURATE = ROOT / "build_files/curate_app_menu.sh"
 
 # The words that must never reach a person. Each is a real engine or vendor whose
 # name would tell the owner they are using something other than MoOS.
@@ -509,31 +510,36 @@ class TheEngineNeverSaysItsName(unittest.TestCase):
                         "which would leave the folder blank instead of branded")
 
     def test_the_app_menu_carries_no_other_desktop_name(self):
-        """A second settings app, and four foreign names, in the owner's menu.
+        """ONE settings app, and no foreign names, in the owner's menu — on every edition.
 
-        build.sh already had a section for this -- it hid the distribution's
-        debug tools and Fedora's DUPLICATE settings launcher,
-        `kdesystemsettings.desktop`. It left `systemsettings.desktop`, the real
-        one, visible. So the menu offered "MoOS Settings" and "System Settings"
-        side by side: two settings applications, which is the one thing the
-        owner said he did not want, and the gate under that section only ever
-        checked the duplicate. Beside it sat "Dolphin", "KDE Connect", "KDE
-        Partition Manager" and "Info Center", in Arabic too.
+        build.sh once hid only `kdesystemsettings.desktop`, the base's DUPLICATE settings
+        launcher, and left `systemsettings.desktop` visible: "MoOS Settings" and "System
+        Settings" side by side. It was then hidden and a second launcher,
+        org.moos.settings.desktop, stood in for it — but the window that opens is
+        systemsettings (Wayland app_id "systemsettings"), so the dock grouped it under the
+        hidden entry with another icon. Decision D2 (2026-09-24) inverts it:
+        systemsettings.desktop IS the one visible entry, named "MoOS Settings" /
+        "إعدادات MoOS", with the MoOS icon, and Exec=moos-settings. The contract is not
+        weaker: still exactly one, still MoOS-named, still a MoOS icon, and the build still
+        FAILS on a second one. Beside it, "Dolphin", "KDE Connect", "KDE Partition Manager"
+        and "Info Center" get MoOS's names; the reached-only-through-Settings ones leave.
 
-        Hiding all five would be wrong -- a person needs a file manager and a
-        disk tool, and MoOS Settings ROUTES its hardware panels into
-        systemsettings and kinfocenter deliberately. So each is given MoOS's
-        name and icon, and only the two that are reached exclusively through
-        MoOS Settings also leave the menu. This checks both halves are still
-        in build.sh, in both languages, since deleting either silently returns
-        another desktop's name to the menu.
+        The curation moved to build_files/curate_app_menu.sh, one script written for every
+        edition; build.sh runs it, and wiring it into build-arm.sh is handed to that file's
+        owner (tests/test_foreign_app_menus.py checks the handed-off change against today's
+        build-arm.sh). That test executes the script on a fixture and proves each rule of its
+        gate bites; this checks the declarations a reviewer reads.
         """
-        build = BUILD.read_text(encoding="utf-8")
+        build = CURATE.read_text(encoding="utf-8")
         self.assertIn("moos_rebrand_entry()", build,
                       "the helper that puts MoOS's name on a kept entry is gone")
         self.assertIn('line.startswith("GenericName=")', build,
                       "the base launcher's secondary name can leak another desktop's "
                       "identity even after Name= was rewritten")
+        self.assertIn("bash /ctx/curate_app_menu.sh / || exit 1",
+                      BUILD.read_text(encoding="utf-8"),
+                      "build.sh no longer runs the one menu curation")
+        rebrands = [line for line in build.splitlines() if line.startswith("moos_rebrand_entry ")]
         for entry, english in (
             ("org.kde.dolphin.desktop", '"Files"'),
             ("org.kde.kdeconnect.app.desktop", '"Phone"'),
@@ -542,23 +548,27 @@ class TheEngineNeverSaysItsName(unittest.TestCase):
             ("org.kde.kinfocenter.desktop", '"System Report"'),
             ("nvidia-settings.desktop", '"Graphics Card"'),
         ):
-            line = next((l for l in build.splitlines()
-                         if l.startswith("moos_rebrand_entry") and entry in l), "")
+            line = next((l for l in rebrands if f"/{entry}\"" in l), "")
             self.assertTrue(line, f"{entry} is no longer rebranded")
             self.assertIn(english, line,
                           f"{entry} must carry MoOS's English name")
             self.assertIn("moos-", line,
                           f"{entry} must carry a MoOS icon, not the vendor's")
-        # The two that are only ever reached THROUGH MoOS Settings leave the menu.
-        for entry in ("systemsettings.desktop", "org.kde.kinfocenter.desktop",
-                      "nvidia-settings.desktop"):
-            line = next((l for l in build.splitlines()
-                         if l.startswith("moos_rebrand_entry") and entry in l), "")
+        # THE one settings entry: shown, MoOS's full-colour control-centre icon, Arabic name.
+        settings = next(l for l in rebrands if '/systemsettings.desktop"' in l)
+        self.assertIn('"إعدادات MoOS"', settings)
+        self.assertIn('"moos-control-center"', settings.split(),
+                      "the one settings entry wears the MoOS Settings icon")
+        self.assertEqual(settings.split()[-1], "show",
+                         "systemsettings.desktop is the one visible settings entry (D2)")
+        self.assertIn('"Exec": ["Exec=moos-settings"]', build,
+                      "the one settings entry must open MoOS inside System Settings")
+        # The ones only ever reached THROUGH MoOS Settings leave the menu.
+        for entry in ("org.kde.kinfocenter.desktop", "nvidia-settings.desktop"):
+            line = next((l for l in rebrands if f"/{entry}\"" in l), "")
             self.assertIn("hide", line.split(),
-                            f"{entry} must be hidden: MoOS Settings is the one settings app")
-        nvidia_line = next(l for l in build.splitlines()
-                           if l.startswith("moos_rebrand_entry")
-                           and "nvidia-settings.desktop" in l)
+                          f"{entry} must be hidden: MoOS Settings is the one settings app")
+        nvidia_line = next(l for l in rebrands if "/nvidia-settings.desktop" in l)
         self.assertTrue(nvidia_line.rstrip().endswith("hide strip-metadata"),
                         "the hidden NVIDIA launcher must drop translated vendor/X11 "
                         "comments and keywords, not only replace Name=")
@@ -568,18 +578,19 @@ class TheEngineNeverSaysItsName(unittest.TestCase):
             self.assertIn(field, build,
                           f"the metadata scrub no longer covers {field}")
         for entry in ("org.kde.dolphin.desktop", "org.kde.partitionmanager.desktop"):
-            line = next((l for l in build.splitlines()
-                         if l.startswith("moos_rebrand_entry") and entry in l), "")
+            line = next((l for l in rebrands if f"/{entry}\"" in l), "")
             self.assertTrue(line.rstrip().endswith("show"),
                             f"{entry} is a tool a person needs; renaming it is the fix, "
                             f"not removing it from the menu")
-        self.assertIn(
-            "GATE FAIL: $_f is still in the menu — MoOS Settings is the one settings app",
-            build,
-            "the build must FAIL on a second settings app, not warn about it")
-        self.assertIn(
-            "GATE FAIL: $_f still wears another desktop's name in the menu", build,
-            "the build must fail if a rebrand did not take")
+        self.assertIn("GATE FAIL: the menu must hold exactly one settings entry, ", build,
+                      "the build must FAIL on a second settings app, not warn about it")
+        self.assertIn('if settings_entries != ["systemsettings.desktop"]:', build,
+                      "the gate must demand exactly one visible settings entry, and that it "
+                      "is systemsettings.desktop")
+        self.assertIn("still wears another desktop's name in the menu", build,
+                      "the build must fail if a rebrand did not take")
+        self.assertIn("must wear MoOS's name and icon", build,
+                      "the build must fail if the one settings entry loses MoOS's name/icon")
 
     def test_the_runner_does_not_hint_a_terminal_command_at_the_owner(self):
         """"try: waydroid app install …" is the engine's name AND its CLI."""

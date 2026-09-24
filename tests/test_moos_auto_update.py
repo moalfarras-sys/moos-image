@@ -10,6 +10,7 @@ import io
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 import tempfile
@@ -346,6 +347,61 @@ check(not (BACKEND.parent / "moos-auto-update").exists(),
       "the retired duplicate updater executable must not remain")
 check(uupd["modules"]["system"]["disable"] is True,
       "uupd must not be a second OS-image writer")
+
+
+# Discover is an engine here, never a third updater. The base image ships
+# /etc/xdg/PlasmaDiscoverUpdates with UseUnattendedUpdates=true and autostarts Discover's
+# notifier in every session (measured on the station 2026-09-24: the notifier unit active and
+# an unattended run recorded that day). The overlay replaces both. They are parsed, comments
+# stripped — the explanation above each value names the value — and the notifier override must
+# carry the EXACT name plasma-discover-notifier installs: an override under any other name
+# overrides nothing and still looks like a fix.
+def kconfig_groups(text: str) -> dict[str, dict[str, str]]:
+    groups: dict[str, dict[str, str]] = {}
+    current = None
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("[") and line.endswith("]"):
+            current = groups.setdefault(line[1:-1], {})
+        elif current is not None and "=" in line:
+            key, value = line.split("=", 1)
+            current[key.strip()] = value.strip()
+    return groups
+
+
+XDG = ROOT / "system_files/etc/xdg"
+discover_policy = XDG / "PlasmaDiscoverUpdates"
+check(discover_policy.is_file()
+      and kconfig_groups(discover_policy.read_text(encoding="utf-8"))
+      .get("Global", {}).get("UseUnattendedUpdates") == "false",
+      "Discover must not install updates on its own schedule beside moos-image-update and uupd "
+      "(/etc/xdg/PlasmaDiscoverUpdates [Global] UseUnattendedUpdates=false)")
+discover_notifier = XDG / "autostart/org.kde.discover.notifier.desktop"
+notifier_entry = (kconfig_groups(discover_notifier.read_text(encoding="utf-8"))
+                  .get("Desktop Entry", {}) if discover_notifier.is_file() else {})
+check(notifier_entry.get("Hidden") == "true",
+      "Discover's update notifier must not autostart: its autostart entry must be Hidden=true "
+      "under the exact name the package installs")
+check("DiscoverNotifier" not in notifier_entry.get("Exec", ""),
+      "the notifier override must not itself start the notifier")
+for autostart in sorted((XDG / "autostart").glob("*.desktop")):
+    entry = kconfig_groups(autostart.read_text(encoding="utf-8")).get("Desktop Entry", {})
+    if entry.get("Hidden") == "true":
+        continue
+    check(not re.search(r"DiscoverNotifier|plasma-discover\b.*--(headless-update|mode update)",
+                        entry.get("Exec", "")),
+          f"{autostart.name} starts a Discover updater at login")
+curation = (ROOT / "build_files/curate_app_menu.sh").read_text(encoding="utf-8")
+check('for directory in ("etc/xdg/autostart", "usr/share/autostart"):' in curation
+      and 'get("UseUnattendedUpdates")' in curation
+      and 'if (root / "usr/libexec/DiscoverNotifier").exists():' not in curation,
+      "the finished image must be gated on both Discover switches, not only the source tree: a "
+      "package transaction after the overlay would silently restore them. The gate sweeps every "
+      "autostart entry and requires the policy unconditionally — a check keyed to one file name "
+      "or one binary path goes quiet the day upstream renames it "
+      "(tests/test_foreign_app_menus.py proves each rule bites)")
 hardware = uupd["checks"]["hardware"]
 check(UPDATE.BATTERY_MIN_PERCENT == hardware["bat-min-percent"]
       and UPDATE.CPU_MAX_PERCENT == hardware["cpu-max-percent"]
