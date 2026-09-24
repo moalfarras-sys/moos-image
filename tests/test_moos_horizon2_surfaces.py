@@ -371,6 +371,35 @@ class HubControls(unittest.TestCase):
         self.assertIn("Qt.locale().firstDayOfWeek", week,
                       "the week starts where the owner's own locale starts")
 
+    def test_deferred_work_survives_a_scene_destroyed_under_it(self):
+        """A callback that outlives its scene must find its ids null and leave quietly.
+
+        Measured at the THEME_REV 85 shell restart (plasmashell reloads the wallpaper):
+        "GlassCard.qml:68: Cannot read property 'motionEnabled' of null" three times and
+        "DashboardBento.qml:150: Cannot call method 'restart' of null". A Qt.callLater and an
+        in-flight weather request both ran after Plasma had destroyed the scene. The teardown is
+        Plasma's C++ reload; it could not be reproduced from QML (Loader deactivation,
+        destroy(), reparent + gc all left the old code quiet), so this gate holds the guard.
+        """
+        for path in sorted(HUB.glob("*.qml")):
+            source = code(path)
+            for later in source.split("Qt.callLater(function() {")[1:]:
+                first = later.strip().split("\n", 1)[0]
+                self.assertRegex(first, r"^if \(!\w+", f"{path.name}: a deferred call must first "
+                                 "check that its scene still exists")
+        card = code(HUB / "GlassCard.qml")
+        self.assertIn("if (!card || !entrance || !entranceShift) {",
+                      card.split("Component.onCompleted: Qt.callLater(function() {", 1)[1][:120])
+        bento = code(HUB / "DashboardBento.qml")
+        handlers = bento.split("request.onreadystatechange = function() {")[1:]
+        self.assertEqual(len(handlers), 2, "location and forecast requests")
+        for handler in handlers:
+            body = handler.split("request.send()", 1)[0]
+            guard = body.find("if (!root || !retryTimer) {")
+            self.assertGreaterEqual(guard, 0, "an in-flight request must check its scene")
+            self.assertLess(guard, body.find("retryTimer.restart()"))
+            self.assertLess(guard, body.find("root."))
+
     def test_no_card_selection_leaves_an_invisible_running_hub(self):
         self.assertIn("readonly property bool hubAnyCard:", self.scene)
         self.assertIn("&& root.hubAnyCard", self.scene)
