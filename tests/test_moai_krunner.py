@@ -15,6 +15,7 @@ string, this gate proves:
 * the plugin and D-Bus activation files point at the same service.
 """
 import os
+import re
 import runpy
 import unittest
 from pathlib import Path
@@ -58,6 +59,85 @@ class MatchTests(unittest.TestCase):
             with self.subTest(query=query):
                 self.assertEqual(self.routes(query), [route])
 
+    def test_desktop_actions_in_both_languages(self):
+        """SPEC D4: every new desktop verb has an English AND an Arabic phrase."""
+        expected = {
+            "do not disturb": "route:control/dnd/on",
+            "dnd off": "route:control/dnd/off",
+            "عدم الإزعاج": "route:control/dnd/on",
+            "وضع عدم الازعاج اطفئ": "route:control/dnd/off",
+            "mute the microphone": "route:control/mic/mute",
+            "اكتم المايك": "route:control/mic/mute",
+            "unmute mic": "route:control/mic/unmute",
+            "إلغاء كتم الميكروفون": "route:control/mic/unmute",
+            "switch keyboard layout": "route:control/keyboard-layout/next",
+            "بدّل لغة الكيبورد": "route:control/keyboard-layout/next",
+            "show all windows": "route:control/window/overview",
+            "عرض النوافذ": "route:control/window/overview",
+            "desktop grid": "route:control/window/grid",
+            "شبكة أسطح المكتب": "route:control/window/grid",
+            "show desktop": "route:control/window/show-desktop",
+            "أظهر سطح المكتب": "route:control/window/show-desktop",
+            "arrange windows": "route:control/arrange/halves",
+            "arrange windows thirds": "route:control/arrange/thirds",
+            "tile center": "route:control/arrange/centre",
+            "رتب النوافذ أرباع": "route:control/arrange/quarters",
+            "رتّب النوافذ رئيسية": "route:control/arrange/main",
+            "next desktop": "route:control/desktop/next",
+            "سطح المكتب السابق": "route:control/desktop/previous",
+            "motion still": "route:control/motion/still",
+            "حركة الخلفية حية": "route:control/motion/alive",
+            "glass clarity solid": "route:control/clarity/solid",
+            "وضوح الزجاج شفاف": "route:control/clarity/clear",
+            "battery saver": "route:control/power-profile/power-saver",
+            "وضع توفير الطاقة": "route:control/power-profile/power-saver",
+            "performance mode": "route:control/power-profile/performance",
+            "وضع الأداء": "route:control/power-profile/performance",
+            "balanced power": "route:control/power-profile/balanced",
+            "الوضع المتوازن": "route:control/power-profile/balanced",
+        }
+        for query, route in expected.items():
+            with self.subTest(query=query):
+                self.assertEqual(self.routes(query), [route])
+
+    def test_settings_pages_come_from_the_one_registry(self):
+        expected = {
+            "display settings": "route:settings/display",
+            "open window rules settings": "route:settings/window-rules",
+            "settings shortcuts": "route:settings/shortcuts",
+            "إعدادات الشاشة": "route:settings/display",
+            "اعدادات الاختصارات": "route:settings/shortcuts",
+            "إعدادات Mo AI": "route:settings/assistant",
+            "إعدادات شاشة الدخول": "route:settings/login-screen",
+        }
+        for query, route in expected.items():
+            with self.subTest(query=query):
+                self.assertEqual(self.routes(query), [route])
+        # A registry token NOT offered to Mo AI never becomes a result.
+        self.assertEqual(self.routes("usb devices settings"), [])
+
+    def test_every_produced_route_is_a_literal_moos_open_arm(self):
+        """A result that opens a route the router does not have is a dead button."""
+        router = (ROOT / "system_files/usr/bin/moos-open").read_text(encoding="utf-8")
+        labels = set()
+        for match in re.finditer(r"^\s{4}([a-z0-9/*|.-]+)\)", router, re.M):
+            labels.update(label for label in match.group(1).split("|") if label != "*")
+        literal = {label for label in labels if "*" not in label}
+        queries = ["do not disturb", "dnd off", "mute mic", "unmute mic", "next layout",
+                   "overview", "grid view", "show desktop", "next desktop", "previous desktop",
+                   "motion still", "motion gentle", "motion alive", "clarity clear",
+                   "clarity balanced", "clarity solid", "power saver", "performance mode",
+                   "balanced power", "dark mode", "light mode", "mute", "unmute",
+                   "screenshot", "night light", "night light off", "bluetooth on",
+                   "bluetooth off", "wifi on", "wifi off", "volume up", "brightness down"]
+        queries += [f"arrange {kind}" for kind in ("halves", "thirds", "quarters", "main", "centre")]
+        queries += [f"{label['en'].lower()} settings"
+                    for _token, label in self.runner["SETTINGS_PAGES"]]
+        for query in queries:
+            for route in self.routes(query):
+                with self.subTest(query=query, route=route):
+                    self.assertIn(route[len("route:"):], literal)
+
     def test_invalid_or_hostile_queries_give_no_control_result(self):
         for query in ("volume 150", "brightness 2", "volume 40; reboot", "volume $(id)",
                       "theme ../../etc", "wifi toggle", "volume", "firefox", "x"):
@@ -97,6 +177,9 @@ class RunTests(unittest.TestCase):
     def test_tampered_ids_run_nothing(self):
         for match_id in ("route:control/volume/40;reboot", "route:control/volume/400",
                          "route:../../session/power", "route:do/update", "shell:rm -rf ~",
+                         "route:control/window/close", "route:control/arrange/all",
+                         "route:settings/usb", "route:settings/kcm_kscreen",
+                         "route:settings/display;reboot", "route:control/dnd/toggle",
                          "ask:%%%not-base64", "ask:"):
             with self.subTest(match_id=match_id):
                 self.assertFalse(self.runner["run"](match_id))

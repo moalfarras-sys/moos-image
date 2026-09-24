@@ -60,51 +60,20 @@ def command(argv: list[str], timeout: float = 1.5) -> str:
     return result.stdout.strip() if result.returncode == 0 else ""
 
 
-# Fixed destinations mirror moos-open; the regression gate checks both directions.
-DESTINATIONS = {
-    # MoOS's own page, not the desktop's: that one prints the versions of the toolkit and
-    # desktop projects MoOS is built from, under their names (identity contract).
-    'about': ('moos-settings', '--section=about'),
-    'accessibility': ('systemsettings', 'kcm_access'),
-    # Mo AI is part of MoOS's front door: What's new sends a person there to try it.
-    'assistant': ('moai',),
-    'accounts': ('systemsettings', 'kcm_kaccounts'),
-    'audio': ('systemsettings', 'kcm_pulseaudio'),
-    'autostart': ('systemsettings', 'kcm_autostart'),
-    'bluetooth': ('systemsettings', 'kcm_bluetooth'),
-    'default-apps': ('systemsettings', 'kcm_componentchooser'),
-    'display': ('systemsettings', 'kcm_kscreen'),
-    'energy': ('systemsettings', 'kcm_powerdevilprofilesconfig'),
-    'file-search': ('systemsettings', 'kcm_baloofile'),
-    'firmware-security': ('kinfocenter', 'kcm_firmware_security'),
-    'fonts': ('systemsettings', 'kcm_fonts'),
-    'full': ('systemsettings',),
-    'hotspot': ('systemsettings', 'kcm_mobile_hotspot'),
-    'keyboard': ('systemsettings', 'kcm_keyboard'),
-    'lock': ('systemsettings', 'kcm_screenlocker'),
-    'mouse': ('systemsettings', 'kcm_mouse'),
-    'network': ('systemsettings', 'kcm_networkmanagement'),
-    'night-light': ('systemsettings', 'kcm_nightlight'),
-    'notifications': ('systemsettings', 'kcm_notifications'),
-    'permissions': ('systemsettings', 'kcm_app-permissions'),
-    'printers': ('systemsettings', 'kcm_printer_manager'),
-    'recovery': ('moos-settings', '--section=recovery'),
-    'region': ('systemsettings', 'kcm_regionandlang'),
-    'remote': ('moos-settings', '--section=remote'),
-    'storage': ('kinfocenter', 'kcm_block_devices'),
-    'store': ('moos-store',),
-    'system-monitor': ('plasma-systemmonitor',),
-    'telemetry': ('systemsettings', 'kcm_feedback'),
-    'desktop': ('moos-desktop-edit',),
-    'themes': ('moos-theme-picker',),
-    'time': ('systemsettings', 'kcm_clock'),
-    'touchpad': ('systemsettings', 'kcm_touchpad'),
-    'update': ('moos-settings', '--section=update'),
-    'usb': ('kinfocenter', 'kcm_usb'),
-    'users': ('systemsettings', 'kcm_users'),
-    'wallpaper': ('moos-theme-picker',),
-    'whats-new': ('moos-settings', '--section=whats-new'),
-}
+# Fixed destinations: the ONE settings registry (usr/share/moos/settings-destinations.json,
+# SPEC D3), read through the same module as moos-control and Mo AI. moos-open keeps a literal
+# arm per token and tests/test_settings_destinations.py checks the two in both directions.
+# An unreadable registry publishes no destination, never a guessed one.
+def _destinations() -> dict[str, tuple[str, ...]]:
+    try:
+        import moos_settings_destinations as registry
+    except ImportError:
+        return {}
+    path = Path(__file__).resolve().parent.parent / "share/moos/settings-destinations.json"
+    return {token: registry.argv(entry) for token, entry in registry.safe_load(path).items()}
+
+
+DESTINATIONS = _destinations()
 
 
 def destinations_state() -> dict[str, bool]:
