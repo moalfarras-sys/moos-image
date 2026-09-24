@@ -335,6 +335,13 @@ check:
     # held two of the six. The missing four included the lock screen. This keeps
     # the list derived from the tree, on both architectures.
     python3 tests/test_plasma_shell_overlay.py
+    # ...and each of those files is a fork of Plasma at ONE version, while the base tag moves
+    # by itself. Plasma 6.8 beta removed a type MoOS's 6.7 lock screen instantiates. The seam
+    # registry, its version-keyed sets and the real-greeter probe the image build runs; the
+    # runtime half loads the lock screen only where kscreenlocker exists, isolated.
+    python3 tests/test_plasma_seams.py
+    # The weekly Plasma-next canary builds MoOS on KDE's beta packages and can publish nothing.
+    python3 tests/test_plasma_next_canary_workflow.py
     # What MoOS can run, and what it calls those things in front of a person.
     # Two halves that can only be checked together: the image installs a Windows
     # runtime so a downloaded .exe just runs, and the runner has to KNOW that --

@@ -402,6 +402,8 @@ MOOS_TEST_ROOT=system_files python3 build_files/verify_store_catalog.py
 # here — 8/8 exit 0 in a sandbox with none of those present.
 python3 tests/test_app_engines.py
 python3 tests/test_plasma_shell_overlay.py
+python3 tests/test_plasma_seams.py
+python3 tests/test_plasma_next_canary_workflow.py
 python3 tests/test_material_state.py
 python3 tests/test_material_state_qml.py
 python3 tests/test_design_studio_reference.py
