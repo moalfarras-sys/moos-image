@@ -1084,6 +1084,61 @@ done
 test ! -e /usr/share/applications/org.fcitx.Fcitx5.desktop \
     || { echo "GATE FAIL: fcitx5 still has a launcher entry — one click and the user's layouts are gone"; exit 1; }
 
+# --- System Settings offers pages only for what this edition ships (x86) ------
+# Two stock pages stood in the Settings sidebar for things MoOS does not use:
+#   * kcm_fcitx5 "Input Method" (package kcm-fcitx5, measured installed on the station).
+#     Its engine was removed just above, so the page configures nothing. The package is
+#     not removed here: the base pulls it in, a libplasma soname bump on Plasma 6.8 drops
+#     it until Fedora rebuilds it (PROJECT_STATE.md), and hiding the page holds either way.
+#   * kcm_krdpserver "Remote Desktop" (package krdp), in Security & Privacy right beside
+#     MoOS's own Mo PC Remote. krdpserver was found listening on *:3389 for the whole
+#     network on 2026-09-18 (moos-remote-guard's header). All three x86 editions reach a
+#     desktop through Mo PC Remote — the cloud edition too: moos-cloud-desktop disables
+#     app-org.kde.krdpserver.service when it takes the seat. ARM is different: KRDP is its
+#     graphical access (build-arm.sh section 3), and build-arm.sh never runs this file.
+#
+# Mechanism: the KIOSK group every KDE settings host already obeys, not a deleted plugin.
+# Evidence (2026-09-24, plasma-systemsettings 6.7.5, KF 6.30):
+#   * /usr/bin/systemsettings, krunner_systemsettings.so and libKF6KCMUtils all import
+#     KAuthorized::authorizeControlModule; libKF6ConfigCore carries the UTF-16 group name
+#     "KDE Control Module Restrictions".
+#   * upstream systemsettings app/kcmmetadatahelpers.h findKCMsMetaData() skips a module when
+#     `!KAuthorized::authorizeControlModule(m.pluginId())` — the sidebar never lists it.
+#   * isolated probe (offscreen, no session bus, throwaway HOME and XDG_CONFIG_DIRS):
+#     `kcmshell6 --smoke-test kcm_fcitx5` / `kcm_krdpserver` exit 0 without this group and 1
+#     with it; `kcm_mouse` still exits 0 under the same group, and a KF5-style key
+#     `kcm_fcitx5.desktop=false` does NOT match — the key is the bare plugin id.
+# Nothing in moos-open routes to either page; verify_image_experience.py fails the build if
+# a settings route ever targets a restricted module.
+if ! grep -qxF '[KDE Control Module Restrictions]' /etc/xdg/kdeglobals; then
+    cat >> /etc/xdg/kdeglobals <<'MOOSKIOSK'
+
+# MoOS x86 (build.sh): Settings pages for things this edition does not ship. See build.sh.
+[KDE Control Module Restrictions]
+kcm_fcitx5=false
+kcm_krdpserver=false
+MOOSKIOSK
+fi
+python3 - /etc/xdg/kdeglobals kcm_fcitx5 kcm_krdpserver <<'MOOSKIOSKGATE' || exit 1
+import sys
+path, *wanted = sys.argv[1:]
+group, restricted = None, {}
+for raw in open(path, encoding="utf-8"):
+    line = raw.strip()
+    if not line or line.startswith("#"):
+        continue
+    if line.startswith("["):
+        group = line
+        continue
+    if group == "[KDE Control Module Restrictions]" and "=" in line:
+        key, value = line.split("=", 1)
+        restricted[key.strip()] = value.strip()
+missing = [kcm for kcm in wanted if restricted.get(kcm) != "false"]
+if missing:
+    raise SystemExit(f"GATE FAIL: /etc/xdg/kdeglobals does not restrict {missing} — System "
+                     "Settings would offer pages for things this edition does not ship")
+MOOSKIOSKGATE
+
 # Qt WebEngine spell-check dictionaries.
 #
 # The whole implementation — why the RPM scriptlet's converter SIGTRAPs, why the

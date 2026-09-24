@@ -502,6 +502,43 @@ for _route, _host, _kcm in _kcm_routes:
             f"moos://settings/{_route} opens {_host}'s {_kcm}, which is not "
             "installed — the Command Center tile would look alive and do nothing")
 
+
+# build.sh hides Settings pages for things the x86 editions do not ship through KIOSK:
+# `[KDE Control Module Restrictions] <plugin id>=false` in /etc/xdg/kdeglobals, which
+# System Settings, its KRunner runner and kcmshell6 all obey (KAuthorized::
+# authorizeControlModule). An installed module is therefore no longer proof that a route
+# works: a restricted one opens "disabled by the administrator". Read the group from the
+# finished file — a later step could rewrite kdeglobals after build.sh's append — and hold
+# both halves: the two pages stay restricted, and no route aims at a restricted page.
+def kiosk_restricted(path: Path) -> set:
+    restricted, group = set(), None
+    if not path.is_file():
+        return restricted
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("["):
+            group = line
+            continue
+        if group == "[KDE Control Module Restrictions]" and "=" in line:
+            key, value = line.split("=", 1)
+            if value.strip().lower() == "false":
+                restricted.add(key.strip())
+    return restricted
+
+
+_restricted_kcms = kiosk_restricted(Path("/etc/xdg/kdeglobals"))
+for _kcm in ("kcm_fcitx5", "kcm_krdpserver"):
+    if list(Path("/usr").glob(f"lib*/qt6/plugins/plasma/kcms/systemsettings/{_kcm}.so")):
+        require(_kcm in _restricted_kcms,
+                f"{_kcm} is installed and not restricted in /etc/xdg/kdeglobals — System "
+                "Settings offers a page for something this edition does not ship")
+for _route, _host, _kcm in _kcm_routes:
+    require(_kcm not in _restricted_kcms,
+            f"moos://settings/{_route} opens {_kcm}, which /etc/xdg/kdeglobals restricts — "
+            "the tile would open a 'disabled by the administrator' page")
+
 bluetooth_unit = Path("/usr/lib/systemd/system/bluetooth.service")
 bluetooth_links = (
     Path("/etc/systemd/system/bluetooth.target.wants/bluetooth.service"),
