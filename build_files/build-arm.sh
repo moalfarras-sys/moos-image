@@ -130,6 +130,19 @@ _PLASMA=(
     ydotool wl-clipboard grim spectacle python3-websockets poppler-utils qrencode
     gstreamer1 gstreamer1-plugins-base gstreamer1-plugins-good
     gstreamer1-plugins-bad-free pipewire-gstreamer
+    # DESKTOP PARITY. The x86 editions inherit these from kinoite-main; bare
+    # fedora-bootc does not, and on the A1 (44.20260923.568) each absence was a
+    # MoOS feature that silently did less: no qtbase_ar.qm, so Qt never learned
+    # Arabic is RTL and the MoOS Bar read left-to-right; no pw-dump, so the
+    # privacy monitor ran for hours and could never name an app; Breeze GTK and
+    # gtkconfig missing, so every GTK app fell back to Adwaita; no Sonnet plugin,
+    # so no spell check; no ALSA route into PipeWire. verify_desktop_parity.py
+    # checks the capabilities on the finished image of both architectures.
+    qt6-qttranslations pipewire-utils pipewire-alsa
+    kde-gtk-config breeze-gtk-gtk3 breeze-gtk-gtk4 kf6-sonnet-hunspell
+    # App Drop asks with kdialog (default No) and treats "no dialog tool" as No,
+    # so without it nothing dropped or double-clicked could ever install on ARM.
+    kdialog
 )
 
 # Mo PC Remote publishes its authenticated loopback agent through Tailscale
@@ -1485,6 +1498,7 @@ python3 /ctx/verify_no_foreign_identity.py
 # apps, so a type this image claims but cannot open is a defect only the finished
 # image can prove; okular reached production this way.
 python3 /ctx/verify_mime_handlers.py --root /
+python3 /ctx/verify_desktop_parity.py --root /
 
 
 echo "=== MoOS ARM build complete: ${MOOS_EDITION} (aarch64) ==="

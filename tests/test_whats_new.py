@@ -66,15 +66,18 @@ class TheListIsTrueToItsContract(unittest.TestCase):
     def test_every_shipped_entry_survives_the_reader(self) -> None:
         raw = shipped()
         self.assertGreaterEqual(len(raw), 1)
-        state = reader()["whats_new_state"](W1_BUILT, DATA)
-        self.assertEqual([entry["id"] for entry in state["entries"]], [entry["id"] for entry in raw],
-                         "an entry the reader drops is a card that silently never appears, and the "
-                         "file's order must already be the order shown: newest first")
-        for before, after in zip(raw, state["entries"]):
-            self.assertEqual(after["route"], before.get("route", ""),
-                             f"{before['id']}: the reader refused this route")
-            self.assertEqual(after["keys"], before.get("keys", []),
-                             f"{before['id']}: the reader refused these keys")
+        # Read as each MoOS architecture: an entry may name the ones it is true on.
+        for machine in ("x86_64", "aarch64"):
+            mine = [entry for entry in raw if not entry.get("arch") or machine in entry["arch"]]
+            state = reader()["whats_new_state"](W1_BUILT, DATA, machine)
+            self.assertEqual([entry["id"] for entry in state["entries"]], [entry["id"] for entry in mine],
+                             f"on {machine}: an entry the reader drops is a card that silently never "
+                             "appears, and the file's order must already be the order shown: newest first")
+            for before, after in zip(mine, state["entries"]):
+                self.assertEqual(after["route"], before.get("route", ""),
+                                 f"{before['id']}: the reader refused this route")
+                self.assertEqual(after["keys"], before.get("keys", []),
+                                 f"{before['id']}: the reader refused these keys")
 
     def test_each_entry_is_written_for_a_person_in_both_languages(self) -> None:
         identity = runpy.run_path(str(ROOT / "tests/test_user_visible_identity.py"))
@@ -218,6 +221,31 @@ class TheReaderTreatsTheFileAsData(unittest.TestCase):
         ]
         state = self.state({"schema": 1, "entries": [good, *bad]})
         self.assertEqual([e["id"] for e in state["entries"]], ["good"])
+
+    def test_an_entry_naming_its_architecture_shows_only_there(self) -> None:
+        # 2026-09-24: ARM gained what x86 already had. That is news on ARM and a false "new"
+        # card on every x86 machine, so the entry names aarch64.
+        document = {"schema": 1, "entries": [self.entry("everywhere"),
+                                             self.entry("arm-only", arch=["aarch64"])]}
+        with tempfile.TemporaryDirectory() as raw:
+            path = Path(raw) / "whats-new.json"
+            path.write_text(json.dumps(document), encoding="utf-8")
+            read = reader()["whats_new_state"]
+            self.assertEqual([e["id"] for e in read(W1_BUILT, path, "aarch64")["entries"]],
+                             ["everywhere", "arm-only"])
+            self.assertEqual([e["id"] for e in read(W1_BUILT, path, "x86_64")["entries"]],
+                             ["everywhere"])
+            self.assertEqual(read(W1_BUILT, path, "x86_64")["fresh"], 1,
+                             "an entry for another machine must not count as news here")
+
+    def test_a_malformed_architecture_drops_the_entry(self) -> None:
+        for arch in ("aarch64", [], ["AArch64"], [1], ["a", "b", "c", "d", "e"], {"x": 1}):
+            with tempfile.TemporaryDirectory() as raw:
+                path = Path(raw) / "whats-new.json"
+                path.write_text(json.dumps({"schema": 1, "entries": [self.entry(arch=arch)]}),
+                                encoding="utf-8")
+                self.assertEqual(reader()["whats_new_state"](W1_BUILT, path, "aarch64")["entries"], [],
+                                 f"arch={arch!r} must not be read as a list of machines")
 
     def test_a_route_outside_settings_is_removed_and_the_entry_kept(self) -> None:
         for route in ("https://example.org", "moos://apps/install/firefox", "moos://do/smart-setup",

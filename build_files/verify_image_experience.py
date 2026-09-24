@@ -971,12 +971,20 @@ def whats_new_is_readable(root: str) -> list[str]:
     except (OSError, ValueError, KeyError, TypeError) as error:
         return [f"whats-new.json is not readable: {error}"]
     reader = runpy.run_path(f"{root}/usr/lib/moos/moos_whats_new.py")
-    read = reader["whats_new_state"](1)["entries"]
     if len(raw) < 1:
         problems.append("the What's new list is empty")
-    if [entry["id"] for entry in read] != [entry.get("id") for entry in raw]:
-        problems.append("the installed reader drops or reorders shipped What's new entries: "
-                        f"{[e.get('id') for e in raw]} -> {[e['id'] for e in read]}")
+    # An entry may name the architectures it is true on. Read the list AS EACH OF THEM — the
+    # ones entries name and the two MoOS builds — so an ARM-only entry that the reader could not
+    # read fails the x86 build too, instead of hiding behind the filter.
+    machines = {"x86_64", "aarch64"} | {name for entry in raw if isinstance(entry, dict)
+                                        for name in (entry.get("arch") or []) if isinstance(name, str)}
+    for machine in sorted(machines):
+        read = reader["whats_new_state"](1, None, machine)["entries"]
+        expected = [entry.get("id") for entry in raw
+                    if not isinstance(entry, dict) or not entry.get("arch") or machine in entry["arch"]]
+        if [entry["id"] for entry in read] != expected:
+            problems.append(f"the installed reader drops or reorders shipped What's new entries on "
+                            f"{machine}: {expected} -> {[e['id'] for e in read]}")
     if not os.access(f"{root}/usr/libexec/moos-whats-new-notify", os.X_OK):
         problems.append("moos-whats-new-notify is not executable")
     if not os.path.isfile(f"{root}/etc/xdg/autostart/org.moos.whats-new.desktop"):
