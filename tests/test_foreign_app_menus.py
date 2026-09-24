@@ -16,8 +16,13 @@ Three contracts, each executed on real files rather than grepped:
    Exec=moos-settings), the duplicates hidden, no kept entry wearing another desktop's name or
    lacking Arabic, Discover hidden and not an updater, every Settings external module opening
    an installed program, and the firewall reachable once its menu entry is gone.
+
+3. build_files/verify_no_foreign_identity.py sweeps launcher text — visible menu entries,
+   Settings external modules and categories, menu folders — for another OS's name, in every
+   language. Run on a fixture root it passes clean and fails on a planted name.
 """
 import re
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -28,6 +33,7 @@ BUILD = (ROOT / "build_files/build.sh").read_text(encoding="utf-8")
 BUILD_ARM = (ROOT / "build_files/build-arm.sh").read_text(encoding="utf-8")
 CURATE = ROOT / "build_files/curate_app_menu.sh"
 CURATE_TEXT = CURATE.read_text(encoding="utf-8")
+FIREWALL = ROOT / "build_files/verify_no_foreign_identity.py"
 SYSTEM = ROOT / "system_files"
 CALL = "bash /ctx/curate_app_menu.sh / || exit 1"
 
@@ -439,6 +445,92 @@ class FirewallExternalModule(unittest.TestCase):
         self.assertEqual(entry.get("X-KDE-System-Settings-Parent-Category"), "security-privacy")
         self.assertEqual((entry.get("Name"), entry.get("Name[ar]")), ("Firewall", "الجدار الناري"))
         self.assertTrue(entry.get("Comment[ar]"))
+
+
+# ── verify_no_foreign_identity.py: launcher text ───────────────────────────────────────
+
+class IdentityFirewallSweepsLauncherText(unittest.TestCase):
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tree = Path(self._tmp.name)
+        # The smallest tree every other check of the firewall accepts.
+        logo = self.tree / "usr/share/pixmaps/moos-logo.png"
+        logo.parent.mkdir(parents=True)
+        shutil.copyfile(SYSTEM / "usr/share/pixmaps/moos-logo.png", logo)
+        write(self.tree / "usr/lib/os-release",
+              'NAME="MoOS"\nID=moos\nID_LIKE="fedora"\nPRETTY_NAME="MoOS"\nVERSION_ID=44\n')
+        write(self.tree / "usr/share/applications/org.moos.store.desktop",
+              "[Desktop Entry]\nName=Mo Store\nName[ar]=متجر MoOS\nExec=moos-store\n")
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def sweep(self):
+        return subprocess.run(["python3", str(FIREWALL), "--root", str(self.tree)],
+                              capture_output=True, text=True, timeout=60)
+
+    def assertClean(self):
+        result = self.sweep()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def assertLeak(self, needle: str):
+        result = self.sweep()
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("launcher text names another OS", result.stdout)
+        self.assertIn(needle, result.stdout)
+
+    def test_a_clean_tree_passes(self):
+        self.assertClean()
+
+    def test_a_visible_entry_naming_the_base_in_a_translation(self):
+        write(self.tree / "usr/share/applications/org.example.tool.desktop",
+              "[Desktop Entry]\nName=Tool\nComment[ar]=أداة من فيدورا\nExec=tool\n")
+        self.assertLeak("org.example.tool.desktop")
+
+    def test_an_action_name_on_a_visible_entry(self):
+        write(self.tree / "usr/share/applications/org.example.tool.desktop",
+              "[Desktop Entry]\nName=Tool\nExec=tool\nActions=a;\n"
+              "\n[Desktop Action a]\nName=Open Fedora Magazine\nExec=tool a\n")
+        self.assertLeak("Desktop Action a")
+
+    def test_keywords_and_red_hat_spellings(self):
+        for value in ("Keywords=rpm;RedHat;", "Keywords=rpm;red hat;", "GenericName=RHEL tools",
+                      "X-KDE-Keywords=kinoite"):
+            with self.subTest(value=value):
+                write(self.tree / "usr/share/applications/org.example.tool.desktop",
+                      f"[Desktop Entry]\nName=Tool\n{value}\nExec=tool\n")
+                self.assertLeak("org.example.tool.desktop")
+
+    def test_a_hidden_handler_is_not_launcher_text(self):
+        write(self.tree / "usr/share/applications/org.example.handler.desktop",
+              "[Desktop Entry]\nName=Fedora Media Handler\nExec=handler %u\nNoDisplay=true\n")
+        self.assertClean()
+
+    def test_settings_modules_categories_and_menu_folders(self):
+        for rel, text in (
+            ("usr/share/plasma/systemsettings/externalmodules/x.desktop",
+             "[Desktop Entry]\nName=Fedora Firewall\nExec=x\n"),
+            ("usr/share/plasma/kinfocenter/externalmodules/x.desktop",
+             "[Desktop Entry]\nName=Monitor\nComment=Fedora hardware\nExec=x\n"),
+            ("usr/share/systemsettings/categories/settings-x.desktop",
+             "[Desktop Entry]\nName=Red Hat\nX-KDE-System-Settings-Category=x\n"),
+            ("usr/share/desktop-directories/x.directory",
+             "[Desktop Entry]\nName=Fedora Games\nIcon=x\n"),
+        ):
+            with self.subTest(rel=rel):
+                path = self.tree / rel
+                write(path, text)
+                self.assertLeak(rel)
+                path.unlink()
+                self.assertClean()
+
+    def test_the_build_still_runs_the_whole_firewall_on_slash(self):
+        # --root exists for this test only; the build calls the script bare, in the image.
+        self.assertIn("python3 /ctx/verify_no_foreign_identity.py\n", BUILD)
+        self.assertIn("python3 /ctx/verify_no_foreign_identity.py\n", BUILD_ARM)
+        source = FIREWALL.read_text(encoding="utf-8")
+        self.assertIn("    check_launcher_identity()\n", source)
+        self.assertIn('parser.add_argument("--root", default="/"', source)
 
 
 if __name__ == "__main__":
