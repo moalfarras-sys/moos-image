@@ -162,12 +162,25 @@ COPY --from=ctx /build_moos_qml_shell.sh /src/build_moos_qml_shell.sh
 COPY moos-settings-kcm/ /src/moos-settings-kcm/
 RUN dnf5 -y install gcc-c++ qt6-qtbase-devel qt6-qtdeclarative-devel \
         kf6-kdbusaddons-devel kf6-kwindowsystem-devel \
-        cmake extra-cmake-modules kf6-kcmutils-devel kf6-ki18n-devel \
+        cmake extra-cmake-modules kf6-kcmutils-devel kf6-ki18n-devel python3 \
     && bash /src/build_moos_qml_shell.sh /src/moos-qml-shell.cpp /out/moos-qml-shell \
     && cmake -S /src/moos-settings-kcm -B /src/moos-settings-kcm-build \
-        -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DMOOS_KCM_CONTRACT_CHECK=ON \
     && cmake --build /src/moos-settings-kcm-build --parallel 2 \
     && DESTDIR=/out/kcm cmake --install /src/moos-settings-kcm-build
+
+# The status contract, EXECUTED before the modules may enter the image. The real status
+# helper publishes in a private runtime directory; the C++ contract every module compiles
+# in (moos-settings-contract-check, built above from the same source and never installed)
+# must accept that document and refuse each broken copy with the reason the pages show.
+# The helper, its modules and their data sit at their image paths in this throwaway stage.
+FROM qmlshell-build AS kcm-contract
+COPY system_files/usr/libexec/moos-settings-status /usr/libexec/moos-settings-status
+COPY system_files/usr/lib/moos/ /usr/lib/moos/
+COPY system_files/usr/share/moos/*.json /usr/share/moos/
+RUN python3 /src/moos-settings-kcm/tools/check_status_contract.py \
+        /src/moos-settings-kcm-build/bin/moos-settings-contract-check \
+        /usr/libexec/moos-settings-status /src/moos-settings-kcm/src/moosbackend.cpp
 
 # -----------------------------------------------------------------------------
 # Main image — the shared base pinned at the top of this file.
@@ -207,7 +220,7 @@ COPY --from=moplayer-build /out/ /usr/lib/moplayer/
 # binary from the qmlshell-build stage. Must land BEFORE build.sh runs, which
 # gates the SHIPPED binary (ldd + structural hardening).
 COPY --from=qmlshell-build /out/moos-qml-shell /usr/bin/moos-qml-shell
-COPY --from=qmlshell-build /out/kcm/usr/ /usr/
+COPY --from=kcm-contract /out/kcm/usr/ /usr/
 
 # Run the build script:
 #   - /ctx is the bind-mounted build_files stage (see above)

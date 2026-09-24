@@ -210,7 +210,29 @@ class TheFamily(unittest.TestCase):
             with self.subTest(image=image.name):
                 self.assertIn("COPY moos-settings-kcm/ /src/moos-settings-kcm/", text)
                 self.assertIn("cmake -S /src/moos-settings-kcm", text)
-                self.assertIn("COPY --from=qmlshell-build /out/kcm/usr/ /usr/", text)
+                # The modules enter the image only from the stage that EXECUTED the contract.
+                self.assertIn("-DMOOS_KCM_CONTRACT_CHECK=ON", text)
+                self.assertIn("FROM qmlshell-build AS kcm-contract", text)
+                stage = text.split("FROM qmlshell-build AS kcm-contract", 1)[1].split("\nFROM ", 1)[0]
+                for step in ("COPY system_files/usr/libexec/moos-settings-status /usr/libexec/moos-settings-status",
+                             "COPY system_files/usr/lib/moos/ /usr/lib/moos/",
+                             "COPY system_files/usr/share/moos/*.json /usr/share/moos/",
+                             "RUN python3 /src/moos-settings-kcm/tools/check_status_contract.py",
+                             "/src/moos-settings-kcm-build/bin/moos-settings-contract-check",
+                             "/usr/libexec/moos-settings-status /src/moos-settings-kcm/src/moosbackend.cpp"):
+                    self.assertIn(step, stage)
+                self.assertIn("COPY --from=kcm-contract /out/kcm/usr/ /usr/", text)
+                self.assertNotIn("COPY --from=qmlshell-build /out/kcm/", text,
+                                 "modules that skipped the executed contract would reach the image")
+        cmake = (KCM / "CMakeLists.txt").read_text(encoding="utf-8")
+        checker = cmake.split("if(MOOS_KCM_CONTRACT_CHECK)", 1)[1].split("endif()", 1)[0]
+        self.assertIn("add_executable(moos-settings-contract-check", checker)
+        self.assertNotIn("install(", checker, "the contract checker is a build tool, never shipped")
+        tool = (KCM / "tools/check_status_contract.py").read_text(encoding="utf-8")
+        for case in ('"stale"', "schema 2", "another product", "no apps group", "remote.fast as text",
+                     "a destination that is not a flag", "without Arabic", "for group, key in status_shape(source)",
+                     "return 1"):
+            self.assertIn(case, tool)
         for build in (ROOT / "build_files/build.sh", ROOT / "build_files/build-arm.sh"):
             with self.subTest(build=build.name):
                 self.assertIn("bash /ctx/verify_settings_modules.sh || exit 1",

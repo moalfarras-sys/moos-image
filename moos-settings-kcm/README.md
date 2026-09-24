@@ -130,10 +130,22 @@ every field a page binds has its declared JSON type (`StatusShape` in
 `src/moosbackend.cpp`; `tests/test_moos_settings.py` checks the helper against
 that table). A rejected document is dropped whole.
 
+Both image builds EXECUTE that contract before the modules enter the image: the
+`kcm-contract` stage of `Containerfile` and `Containerfile.arm` runs
+`tools/check_status_contract.py`, which runs the real helper and requires the
+compiled C++ (`moos-settings-contract-check`, built with the modules and never
+installed) to accept its document and to refuse, with the reason a page shows,
+every broken copy — stale, future-dated, another schema or product, a label
+without one language, a destination that is not a flag, and each `StatusShape`
+field deleted in turn.
+
 It re-reads the document when it changes on disk and re-runs the helper when a
 source record changes (`/run/moos/update-state.json`,
-`~/.local/state/moos/app-updates.json`, `~/.local/state/moos/fast-remote.on`),
-when the module is shown again, and on Refresh — never on a blind timer.
+`~/.local/state/moos/app-updates.json`, `~/.local/state/moos/fast-remote.on`,
+and Mo PC Remote's enable link under
+`~/.config/systemd/user/plasma-workspace.target.wants/`), when the module is
+shown again, and on Refresh — never on a blind timer, and the helper publishes
+once and exits.
 
 ## Build and check locally
 
@@ -142,10 +154,15 @@ cmake -S moos-settings-kcm -B /tmp/b -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_
       -DMOOS_KCM_CONTRACT_CHECK=ON
 cmake --build /tmp/b -j4
 /tmp/b/bin/moos-settings-contract-check "$XDG_RUNTIME_DIR/moos-settings/status.json"
+# the image builds' executed contract: the real helper, then every broken copy
+python3 moos-settings-kcm/tools/check_status_contract.py /tmp/b/bin/moos-settings-contract-check \
+        system_files/usr/libexec/moos-settings-status moos-settings-kcm/src/moosbackend.cpp
 ```
 
 Load a module offscreen the way the image build does, in an isolated session
-(never on the owner's desktop):
+(never on the owner's desktop). The image gate uses a private bus where
+`dbus-run-session` exists; the ARM image has none, and there it points
+`DBUS_SESSION_BUS_ADDRESS` at a socket that does not exist — the pages need no bus:
 
 ```bash
 dbus-run-session -- env -u DISPLAY -u WAYLAND_DISPLAY QT_QPA_PLATFORM=offscreen \
