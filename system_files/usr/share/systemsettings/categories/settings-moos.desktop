@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Service
+# The MoOS group of System Settings: an overlay category beside the upstream ones,
+# first in the sidebar. Its modules are the kcm_moos* plugins built from
+# moos-settings-kcm/modules/ (X-KDE-System-Settings-Parent-Category=moos).
+X-KDE-System-Settings-Category=moos
+X-KDE-System-Settings-Parent-Category=
+X-KDE-Weight=5
+Icon=moos-control-center
+
+Name=MoOS
+Name[ar]=MoOS

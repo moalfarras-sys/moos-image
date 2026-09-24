@@ -1,0 +1,17 @@
+{
+  "KPlugin": {
+    "Name": "Recovery",
+    "Name[ar]": "الاستعادة",
+    "Description": "Saved system images and returning to a previous version",
+    "Description[ar]": "صور النظام المحفوظة والرجوع إلى إصدار سابق",
+    "Icon": "moos-recovery",
+    "FormFactors": [
+      "desktop"
+    ],
+    "EnabledByDefault": true
+  },
+  "X-KDE-System-Settings-Parent-Category": "moos",
+  "X-KDE-Weight": 6,
+  "X-KDE-Keywords": "recovery,rollback,roll back,previous version,restore,saved image,repair",
+  "X-KDE-Keywords[ar]": "استعادة,الاستعادة,رجوع,الرجوع,إصدار سابق,استرجاع,صورة محفوظة,إصلاح"
+}

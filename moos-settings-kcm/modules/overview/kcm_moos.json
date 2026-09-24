@@ -1,0 +1,17 @@
+{
+  "KPlugin": {
+    "Name": "MoOS",
+    "Name[ar]": "MoOS",
+    "Description": "Your MoOS version, signature and this device's details",
+    "Description[ar]": "إصدار MoOS وتوقيعه وتفاصيل هذا الجهاز",
+    "Icon": "moos-logo",
+    "FormFactors": [
+      "desktop"
+    ],
+    "EnabledByDefault": true
+  },
+  "X-KDE-System-Settings-Parent-Category": "moos",
+  "X-KDE-Weight": 1,
+  "X-KDE-Keywords": "MoOS,about,about this device,this device,version,edition,build,kernel,processor,graphics,memory,storage,signature,copy details,system information",
+  "X-KDE-Keywords[ar]": "MoOS,حول,حول هذا الجهاز,هذا الجهاز,إصدار,الإصدار,الإصدارة,النواة,المعالج,الرسوميات,الذاكرة,التخزين,التوقيع,نسخ التفاصيل,معلومات النظام"
+}
