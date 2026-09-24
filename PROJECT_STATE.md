@@ -141,17 +141,15 @@ was measured on `.545`: `blessed`/`attempts: 0`, `post-update-check.sh` 55/0, `m
 cost over 10 s of `/proc/<pid>/stat`: `kwin_wayland` **2.1%**, `plasmashell` **0.6%** of
 one core (`ps` shows ~26% only because that is a lifetime average including startup).
 
-Apps were run, not just started: Mo AI, MoPlayer and Mo Store rendered on the live desktop
-(Arabic RTL, Liquid Glass, MoOS Bar), Mo Store rebuilt its index to **2941 apps**, and all
-closed with both failed-unit sets still empty. Mo PC Remote is active on loopback `:8765`
-only, over Tailscale. No duplicate desktop `Name=`, no broken `moos-*`/`moai*` symlinks.
-Mo AI answers: `POST /v1/chat/completions` returned in **0.65 s** via
-`nex-agi/nex-n2.5-pro:free` with `"cost": 0` and `X-MoAI-Route-Reason: free-cloud-only`;
-its three APIs bind loopback only and reject unauthenticated calls in ~1 ms. Earlier A1
-findings hold: seatless input uses KWin's EIS/libei, `moai-do` refuses gaming/Windows
-setup on non-x86. Three readings here look like defects and are not — `cost_policy:
-"paid"`, `"gateway": false`, and `just check` failing on `systemd-tmpfiles` in the Flatpak
-sandbox; the plan says why, under its own heading. Do not "fix" them.
+**Seen on the live A1 on 2026-09-24, and fixed in source with a gate:** the MoOS Bar read LTR
+in Arabic (x86's is mirrored) and Dolphin did too, GTK windows drew Adwaita light, App Drop's
+`ask()` returned False (no kdialog), and the privacy monitor ran blind (no pw-dump). All eight
+capabilities come from x86's base; `build-arm.sh` now names them and `verify_desktop_parity.py`
+passes on the published x86 image and a full local ARM build. Frames of the fix come from the
+built image and a probe container on this session. Mo AI's chat texture drew stray logos on
+the software scene graph every GPU-less machine uses; fixed and runtime-gated. Mo AI answered
+in 0.65 s on the free route; its APIs bind loopback only. Three readings look like defects and
+are not (`cost_policy: "paid"`, `"gateway": false`, sandboxed `systemd-tmpfiles`): see the plan.
 
 ## Plasma 6.8 readiness (measured 2026-09-24; detail in plan row P6.7)
 
