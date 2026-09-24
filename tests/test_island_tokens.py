@@ -56,6 +56,7 @@ import os
 import queue
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -553,8 +554,12 @@ Item {
         const now = job ? job.state + ":" + job.id : "";
         if (now !== "" && now !== shown) { console.warn("probe-state " + now); }
         shown = now;
+        // A job ended: the Island has said everything this probe measures. Leaving by itself
+        // lets dbus-run-session stop its private bus daemon.
+        if (job && !job.active) { finished.restart(); }
     }
     Component.onCompleted: console.warn("probe-ready")
+    Timer { id: finished; interval: 300; onTriggered: Qt.exit(0) }
     Timer { interval: 30000; running: true; onTriggered: Qt.exit(90) }
 }
 """
@@ -585,11 +590,23 @@ Item {
                    if QML_RUNTIME == "moos-qml-shell" else [QML_RUNTIME, str(probe)])
         if shutil.which("dbus-run-session"):
             command = ["dbus-run-session", "--"] + command
+        # Its own session: dbus-run-session cannot forward a SIGKILL, so killing only it once
+        # orphaned the private dbus-daemon for good (measured: one leaked daemon per probe). The
+        # probe normally exits by itself; the process group is the safety net for a red run.
         process = subprocess.Popen(command, env=env, stdout=subprocess.DEVNULL,
-                                   stderr=subprocess.PIPE, text=True)
+                                   stderr=subprocess.PIPE, text=True, start_new_session=True)
 
         def stop():
-            process.kill()
+            try:
+                process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                pass
+            for sig in (signal.SIGTERM, signal.SIGKILL):
+                try:
+                    os.killpg(process.pid, sig)
+                except ProcessLookupError:
+                    break
+                time.sleep(0.5)
             process.wait(timeout=30)
         self.addCleanup(stop)
         output = ProbeOutput(process.stderr)
