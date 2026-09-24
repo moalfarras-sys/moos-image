@@ -1,11 +1,21 @@
 #!/usr/bin/env python3
-"""Gate: Wine's internal tools stay out of MoOS menus.
+"""Gate: what the MoOS menu and Settings sidebar offer, and the words they show.
 
-The MoOS launcher's "All applications" showed ten Wine entries (Wine Boot, Wine
-Configuration, Wine File, Wine Help, Wine OLE View, Wine Software Uninstaller,
-Wine Wordpad, WineMine, …). A Windows program runs in MoOS by double-click through
-moos-run-foreign and Bottles, so the image hides those entries and fails the build
-if one is still visible. This also exercises the exact sed used, on real files.
+Three contracts, each executed on real files rather than grepped:
+
+1. Wine's internal tools stay out of MoOS menus. The launcher's "All applications" showed ten
+   Wine entries (Wine Boot, Wine Configuration, WineMine, ...). A Windows program runs by
+   double-click through moos-run-foreign and Bottles, so the image hides those entries and
+   fails the build if one is still visible. This exercises the exact sed used.
+
+2. build_files/curate_app_menu.sh — the ONE menu curation both builds run (x86 build.sh and
+   build-arm.sh; until 2026-09-24 ARM had none of it). It is run here, whole, on a fixture tree
+   shaped like the booted station's, and then its finished-tree gate is run alone on states
+   the curation steps would repair, so every rule is proven to fail the build when it breaks:
+   exactly one visible settings entry (systemsettings.desktop, "MoOS Settings", MoOS icon,
+   Exec=moos-settings), the duplicates hidden, no kept entry wearing another desktop's name or
+   lacking Arabic, Discover hidden and not an updater, every Settings external module opening
+   an installed program, and the firewall reachable once its menu entry is gone.
 """
 import re
 import subprocess
@@ -15,6 +25,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 BUILD = (ROOT / "build_files/build.sh").read_text(encoding="utf-8")
+BUILD_ARM = (ROOT / "build_files/build-arm.sh").read_text(encoding="utf-8")
+CURATE = ROOT / "build_files/curate_app_menu.sh"
+CURATE_TEXT = CURATE.read_text(encoding="utf-8")
+SYSTEM = ROOT / "system_files"
+CALL = "bash /ctx/curate_app_menu.sh / || exit 1"
 
 
 class WineMenuTests(unittest.TestCase):
@@ -42,6 +57,388 @@ class WineMenuTests(unittest.TestCase):
                 self.assertEqual(text.count("NoDisplay=true"), 1, text)
                 self.assertTrue(text.startswith("[Desktop Entry]\nNoDisplay=true") or "NoDisplay=true" in text)
             self.assertIn("[Desktop Action x]", (apps / "wine-notepad.desktop").read_text())
+
+
+# ── curate_app_menu.sh ─────────────────────────────────────────────────────────────────
+
+# Shapes copied from the booted station (plasma-systemsettings 6.7.5, plasma-discover 6.7.5,
+# htop/btop/nvtop, kfind, khelpcenter, firewall-config 2.4.4), trimmed to what the rules read.
+STOCK = {
+    "systemsettings.desktop": (
+        "[Desktop Entry]\nExec=systemsettings\nIcon=preferences-system\nType=Application\n"
+        "X-KDE-Shortcuts=Tools,Meta+I\nOnlyShowIn=KDE;\n"
+        "Actions=kcm-lookandfeel;kcm-users;\n"
+        "Name=System Settings\nName[ar]=إعدادات النّظام\nName[de]=Systemeinstellungen\n"
+        "GenericName=System Settings\nGenericName[ar]=إعدادات النّظام\n"
+        "Comment=Configure the system’s behavior and appearance\nComment[de]=Verhalten\n"
+        "X-DBUS-StartupType=Unique\nCategories=Qt;KDE;Settings;\nKeywords=systemsettings\n"
+        "\n[Desktop Action kcm-lookandfeel]\nName=Global Theme\nName[ar]=سمة شاملة\n"
+        "Icon=preferences-desktop-theme-global\nExec=systemsettings kcm_lookandfeel\n"
+        "\n[Desktop Action kcm-users]\nName=Users\nName[ar]=المستخدمين\n"
+        "Icon=preferences-system-users\nExec=systemsettings kcm_users\n"),
+    "kdesystemsettings.desktop": (
+        "[Desktop Entry]\nExec=systemsettings\nIcon=preferences-system\nType=Application\n"
+        "Name=System Settings\nName[ar]=إعدادات النّظام\n"),
+    "org.kde.kinfocenter.desktop": (
+        "[Desktop Entry]\nExec=kinfocenter\nIcon=hwinfo\nType=Application\n"
+        "Name=Info Center\nName[ar]=مركز المعلومات\n"),
+    "org.kde.dolphin.desktop": (
+        "[Desktop Entry]\nExec=dolphin %u\nIcon=system-file-manager\nType=Application\n"
+        "Name=Dolphin\nName[ar]=دولفين\nGenericName=File Manager\nActions=new-window;\n"
+        "\n[Desktop Action new-window]\nName=Open a New Window\nName[ar]=افتح نافذة جديدة\n"
+        "Exec=dolphin --new-window\n"),
+    "org.kde.partitionmanager.desktop": (
+        "[Desktop Entry]\nExec=partitionmanager\nIcon=partitionmanager\nType=Application\n"
+        "Name=KDE Partition Manager\nName[ar]=مدير أقسام كِيدِي\n"),
+    "org.kde.discover.desktop": (
+        "[Desktop Entry]\nName=Discover\nName[ar]=المستكشف\nComment=Install and remove apps\n"
+        "Exec=plasma-discover %F\nIcon=plasmadiscover\nType=Application\nActions=Updates;\n"
+        "GenericName=Software Center\nGenericName[ar]=مركز البرمجيات\n"
+        "\n[Desktop Action Updates]\nName=Updates\nName[ar]=التحديثات\n"
+        "Exec=plasma-discover --mode update\n"),
+    "htop.desktop": "[Desktop Entry]\nName=Htop\nExec=htop\nTerminal=true\nType=Application\n",
+    "nvtop.desktop": "[Desktop Entry]\nName=nvtop\nExec=nvtop\nTerminal=true\nType=Application\n",
+    "btop.desktop": "[Desktop Entry]\nName=btop++\nExec=btop\nTerminal=true\nType=Application\n",
+    "org.kde.kfind.desktop": "[Desktop Entry]\nName=KFind\nExec=kfind %u\nType=Application\n",
+    "org.kde.khelpcenter.desktop": (
+        "[Desktop Entry]\nName=Help Center\nExec=khelpcenter %u\nType=Application\n"),
+    "firewall-config.desktop": (
+        "[Desktop Entry]\nName=Firewall\nExec=firewall-config\nIcon=firewall-config\n"
+        "Categories=System;Settings;Security;\nType=Application\n"),
+    # Slice A's half of decision D2: the old front door stays for pins, hidden.
+    "org.moos.settings.desktop": (
+        "[Desktop Entry]\nType=Application\nName=MoOS Settings\nName[ar]=إعدادات MoOS\n"
+        "Exec=moos-settings\nIcon=moos-control-center\nNoDisplay=true\n"),
+}
+PROGRAMS = ("moos-settings", "systemsettings", "kinfocenter", "firewall-config")
+UPSTREAM_NOTIFIER = ("[Desktop Entry]\nName=Discover\nExec=/usr/libexec/DiscoverNotifier "
+                     "--check-delay 20\nType=Application\nNoDisplay=true\n")
+UPSTREAM_POLICY = "[Global]\nUseUnattendedUpdates=true\nRequiredNotificationInterval=604800\n"
+
+
+def write(path: Path, text: str, mode: int | None = None) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    if mode is not None:
+        path.chmod(mode)
+
+
+def fixture(tree: Path, *, overlay: bool = True) -> Path:
+    """A root shaped like the station: stock entries, then MoOS's overlay copied on top."""
+    apps = tree / "usr/share/applications"
+    for name, text in STOCK.items():
+        write(apps / name, text)
+    for program in PROGRAMS:
+        write(tree / "usr/bin" / program, "#!/bin/sh\n", 0o755)
+    write(tree / "usr/libexec/DiscoverNotifier", "", 0o755)
+    write(tree / "usr/share/systemsettings/categories/settings-security-privacy.desktop",
+          "[Desktop Entry]\nX-KDE-System-Settings-Category=security-privacy\n"
+          "X-KDE-System-Settings-Parent-Category=\nName=Security & Privacy\n")
+    write(tree / "etc/xdg/autostart/org.kde.discover.notifier.desktop", UPSTREAM_NOTIFIER)
+    write(tree / "etc/xdg/PlasmaDiscoverUpdates", UPSTREAM_POLICY)
+    if overlay:  # what `COPY system_files/ /` (x86) or `cp -a /moos-overlay/. /` (ARM) lays down
+        for rel in ("etc/xdg/autostart/org.kde.discover.notifier.desktop",
+                    "etc/xdg/PlasmaDiscoverUpdates",
+                    "usr/share/plasma/systemsettings/externalmodules/moos-firewall.desktop"):
+            write(tree / rel, (SYSTEM / rel).read_text(encoding="utf-8"))
+    return tree
+
+
+def curate(tree: Path) -> subprocess.CompletedProcess:
+    return subprocess.run(["bash", str(CURATE), str(tree)], capture_output=True, text=True,
+                          timeout=120)
+
+
+def gate_source() -> str:
+    match = re.search(r"<<'MOOSMENUGATE'\n(.*?)\nMOOSMENUGATE\n", CURATE_TEXT, re.S)
+    assert match, "curate_app_menu.sh has lost its finished-tree gate"
+    return match.group(1)
+
+
+def hidden_list() -> list[str]:
+    match = re.search(r"\nMENU_HIDDEN=\(\n(.*?)\n\)\n", CURATE_TEXT, re.S)
+    assert match, "curate_app_menu.sh has lost its MENU_HIDDEN list"
+    return match.group(1).split()
+
+
+def gate(tree: Path) -> subprocess.CompletedProcess:
+    """The gate alone, on a tree the steps did not repair — exactly as the script runs it."""
+    return subprocess.run(["python3", "-", str(tree), " ".join(hidden_list())],
+                          input=gate_source(), capture_output=True, text=True, timeout=60)
+
+
+def header(path: Path) -> dict[str, str]:
+    out, group = {}, None
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.startswith("["):
+            group = line
+        elif group == "[Desktop Entry]" and "=" in line:
+            key, value = line.split("=", 1)
+            out.setdefault(key, value)
+    return out
+
+
+def group_text(path: Path, name: str) -> str:
+    text = path.read_text(encoding="utf-8")
+    match = re.search(rf"^\[{re.escape(name)}\]\n(.*?)(?=^\[|\Z)", text, re.S | re.M)
+    return match.group(1) if match else ""
+
+
+class CurateAppMenuWiring(unittest.TestCase):
+    def test_both_builds_run_the_one_script_after_their_last_package_transaction(self):
+        self.assertEqual(BUILD.count(CALL), 1, "build.sh must run curate_app_menu.sh exactly once")
+        self.assertEqual(BUILD_ARM.count(CALL), 1,
+                         "build-arm.sh must run the same curation: ARM had none of it")
+        self.assertLess(BUILD.index('dnf5 -y install "${_core_power[@]}"'), BUILD.index(CALL))
+        self.assertLess(BUILD.index(CALL), BUILD.index("python3 /ctx/verify_image_experience.py"))
+        self.assertLess(BUILD.index(CALL), BUILD.index("python3 /ctx/verify_no_foreign_identity.py"))
+        arm_installs = [m.start() for m in re.finditer(r"(?m)^dnf5 -y install", BUILD_ARM)]
+        self.assertTrue(arm_installs)
+        self.assertLess(max(arm_installs), BUILD_ARM.index(CALL),
+                        "on ARM the curation must run after the last package install")
+        self.assertLess(BUILD_ARM.index("cp -a /moos-overlay/. /"), BUILD_ARM.index(CALL),
+                        "the overlay (external modules, notifier override) must be in place first")
+        self.assertLess(BUILD_ARM.index(CALL),
+                        BUILD_ARM.index("python3 /ctx/verify_no_foreign_identity.py"))
+
+    def test_the_old_inline_curation_is_gone_from_build_sh(self):
+        for leftover in ("hide_from_menu()", "moos_rebrand_entry()", "_disc=/usr/share/applications"):
+            self.assertNotIn(leftover, BUILD, f"build.sh still carries {leftover}: two curations "
+                             "drift apart, which is how ARM lost all of it")
+        subprocess.run(["bash", "-n", str(CURATE)], check=True)
+
+    def test_the_menu_keeps_out_what_the_owner_does_not_use(self):
+        hidden = hidden_list()
+        for name in ("kdesystemsettings.desktop", "org.kde.kwrite.desktop", "htop.desktop",
+                     "nvtop.desktop", "btop.desktop", "org.kde.kfind.desktop",
+                     "org.kde.khelpcenter.desktop", "firewall-config.desktop",
+                     "org.kde.krfb.desktop", "org.kde.kjournaldbrowser.desktop"):
+            self.assertIn(name, hidden)
+        self.assertEqual(len(hidden), len(set(hidden)))
+
+
+class CurateAppMenuRun(unittest.TestCase):
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tree = fixture(Path(self._tmp.name))
+        self.apps = self.tree / "usr/share/applications"
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def run_ok(self):
+        result = curate(self.tree)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        return result
+
+    def test_settings_becomes_the_one_moos_entry(self):
+        self.run_ok()
+        path = self.apps / "systemsettings.desktop"
+        entry = header(path)
+        self.assertEqual(entry.get("Name"), "MoOS Settings")
+        self.assertEqual(entry.get("Name[ar]"), "إعدادات MoOS")
+        self.assertEqual(entry.get("Icon"), "moos-control-center")
+        self.assertEqual(entry.get("Exec"), "moos-settings")
+        self.assertNotIn("NoDisplay", entry)
+        self.assertEqual(entry.get("X-KDE-Shortcuts"), "Tools,Meta+I", "Meta+I must survive")
+        text = path.read_text(encoding="utf-8")
+        head = text.split("\n[Desktop Action", 1)[0]
+        for gone in ("GenericName", "Name[de]", "Comment[de]", "System Settings"):
+            self.assertNotIn(gone, head, f"the header still carries {gone}")
+        self.assertIn("Comment[ar]=", head)
+        self.assertIn("Keywords[ar]=", head)
+        self.assertTrue(entry["Actions"].startswith("moos-update;kcm-lookandfeel;kcm-users"))
+        themes = group_text(path, "Desktop Action kcm-lookandfeel")
+        self.assertIn("Name=MoOS Themes\nName[ar]=ثيمات MoOS\n", themes)
+        self.assertIn("Exec=moos-settings --section=appearance", themes)
+        self.assertNotIn("Global Theme", themes)
+        self.assertIn("Exec=systemsettings kcm_users", group_text(path, "Desktop Action kcm-users"),
+                      "an upstream page MoOS does not duplicate stays as upstream wrote it")
+        update = group_text(path, "Desktop Action moos-update")
+        self.assertIn("Exec=moos-settings --section=update", update)
+        self.assertIn("Name[ar]=التحديث", update)
+
+    def test_the_curation_is_idempotent(self):
+        self.run_ok()
+        first = {p.name: p.read_text(encoding="utf-8") for p in self.apps.glob("*.desktop")}
+        self.run_ok()
+        second = {p.name: p.read_text(encoding="utf-8") for p in self.apps.glob("*.desktop")}
+        self.assertEqual(first, second)
+
+    def test_duplicates_leave_and_kept_tools_wear_moos_words(self):
+        self.run_ok()
+        for name in hidden_list():
+            if (self.apps / name).is_file():
+                self.assertEqual(header(self.apps / name).get("NoDisplay"), "true", name)
+        for name in ("org.kde.kinfocenter.desktop",):
+            self.assertEqual(header(self.apps / name).get("NoDisplay"), "true")
+        dolphin = self.apps / "org.kde.dolphin.desktop"
+        self.assertEqual(header(dolphin).get("Name"), "Files")
+        self.assertNotIn("NoDisplay", header(dolphin))
+        self.assertIn("Name=Open a New Window", group_text(dolphin, "Desktop Action new-window"),
+                      "a header rebrand must not rename the jump-list action")
+        self.assertEqual(header(self.apps / "org.kde.partitionmanager.desktop").get("Name"), "Disks")
+
+    def test_discover_is_renamed_in_its_header_only(self):
+        self.run_ok()
+        path = self.apps / "org.kde.discover.desktop"
+        entry = header(path)
+        self.assertEqual((entry.get("Name"), entry.get("Icon"), entry.get("NoDisplay")),
+                         ("Mo Store", "mo-store", "true"))
+        self.assertNotIn("GenericName", entry)
+        self.assertIn("Name=Updates\nName[ar]=التحديثات\n", group_text(path, "Desktop Action Updates"))
+
+    def test_an_arm_blind_sed_rename_is_given_back_its_words(self):
+        path = self.apps / "org.kde.discover.desktop"
+        # What build-arm.sh's older sed leaves: every Name= and Icon= in the file rewritten.
+        write(path, "[Desktop Entry]\nName=Mo Store\nName[ar]=متجر MoOS\nIcon=mo-store\n"
+                    "Exec=plasma-discover %F\nNoDisplay=true\nActions=Updates;\n"
+                    "\n[Desktop Action Updates]\nName=Mo Store\nName[ar]=متجر MoOS\n"
+                    "Icon=mo-store\nExec=plasma-discover --mode update\n")
+        self.run_ok()
+        self.assertIn("Name=Updates\nName[ar]=التحديثات\n", group_text(path, "Desktop Action Updates"))
+
+    def test_the_firewall_moves_into_settings(self):
+        self.run_ok()
+        self.assertEqual(header(self.apps / "firewall-config.desktop").get("NoDisplay"), "true")
+        module = self.tree / "usr/share/plasma/systemsettings/externalmodules/moos-firewall.desktop"
+        self.assertTrue(module.is_file(), "firewall-config is installed; its Settings page must stay")
+
+    def test_an_edition_without_the_program_loses_the_page_not_the_build(self):
+        (self.tree / "usr/bin/firewall-config").unlink()
+        (self.apps / "firewall-config.desktop").unlink()
+        result = self.run_ok()
+        self.assertFalse((self.tree / "usr/share/plasma/systemsettings/externalmodules"
+                          / "moos-firewall.desktop").exists(),
+                         "a page whose program is absent would sit in the sidebar doing nothing")
+        self.assertIn("does not ship; removed", result.stdout)
+
+    def test_without_the_overlay_the_rival_updater_fails_the_build(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tree = fixture(Path(tmp), overlay=False)
+            result = curate(tree)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("update notifier still autostarts", result.stdout)
+            self.assertIn("UseUnattendedUpdates=false", result.stdout)
+            self.assertIn("firewall would be unreachable", result.stdout)
+
+
+class CurateAppMenuGateBites(unittest.TestCase):
+    """Each rule of the finished-tree gate, broken on its own, fails the build."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tree = fixture(Path(self._tmp.name))
+        self.apps = self.tree / "usr/share/applications"
+        result = curate(self.tree)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        clean = gate(self.tree)
+        self.assertEqual(clean.returncode, 0, clean.stdout + clean.stderr)
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def assertBites(self, needle: str):
+        result = gate(self.tree)
+        self.assertEqual(result.returncode, 1, f"the gate passed a broken tree:\n{result.stdout}")
+        self.assertIn(needle, result.stdout)
+
+    def edit(self, name: str, old: str, new: str):
+        path = self.apps / name
+        text = path.read_text(encoding="utf-8")
+        self.assertIn(old, text)
+        path.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+    def test_a_second_visible_settings_app(self):
+        self.edit("org.moos.settings.desktop", "NoDisplay=true\n", "")
+        self.assertBites("exactly one settings entry")
+
+    def test_settings_hidden_again(self):
+        self.edit("systemsettings.desktop", "[Desktop Entry]\n", "[Desktop Entry]\nNoDisplay=true\n")
+        self.assertBites("exactly one settings entry")
+
+    def test_settings_with_another_name_or_icon(self):
+        self.edit("systemsettings.desktop", "Name=MoOS Settings", "Name=System Settings")
+        self.assertBites("must wear MoOS's name and icon")
+
+    def test_settings_with_a_symbolic_icon(self):
+        self.edit("systemsettings.desktop", "Icon=moos-control-center", "Icon=moos-settings-symbolic")
+        self.assertBites("must wear MoOS's name and icon")
+
+    def test_settings_that_opens_upstreams_start_page(self):
+        self.edit("systemsettings.desktop", "Exec=moos-settings\n", "Exec=systemsettings\n")
+        self.assertBites("does not run an installed moos-settings")
+
+    def test_settings_whose_program_is_missing(self):
+        (self.tree / "usr/bin/moos-settings").unlink()
+        self.assertBites("does not run an installed moos-settings")
+
+    def test_settings_without_meta_i(self):
+        self.edit("systemsettings.desktop", "X-KDE-Shortcuts=Tools,Meta+I", "X-KDE-Shortcuts=")
+        self.assertBites("lost its Meta+I shortcut")
+
+    def test_a_dangling_jump_list_action(self):
+        self.edit("systemsettings.desktop", "Actions=moos-update;", "Actions=moos-update;ghost;")
+        self.assertBites("dead jump-list item")
+
+    def test_a_hidden_duplicate_back_in_the_menu(self):
+        self.edit("htop.desktop", "NoDisplay=true\n", "")
+        self.assertBites("htop.desktop is still shown in the menu")
+
+    def test_a_kept_tool_hidden(self):
+        self.edit("org.kde.dolphin.desktop", "[Desktop Entry]\n", "[Desktop Entry]\nNoDisplay=true\n")
+        self.assertBites("a person needs this tool")
+
+    def test_another_desktops_name_on_a_kept_tool(self):
+        self.edit("org.kde.dolphin.desktop", "Name=Files", "Name=Dolphin")
+        self.assertBites("still wears another desktop's name")
+
+    def test_a_kept_tool_without_arabic(self):
+        self.edit("org.kde.partitionmanager.desktop", "Name[ar]=الأقراص\n", "")
+        self.assertBites("has no Arabic name")
+
+    def test_discover_back_in_the_menu(self):
+        self.edit("org.kde.discover.desktop", "NoDisplay=true\n", "")
+        self.assertBites("two storefronts")
+
+    def test_a_store_name_leaking_into_an_action(self):
+        self.edit("org.kde.discover.desktop", "Name=Updates", "Name=Mo Store")
+        self.assertBites("leaked out of the header")
+
+    def test_the_notifier_autostarting(self):
+        write(self.tree / "etc/xdg/autostart/org.kde.discover.notifier.desktop", UPSTREAM_NOTIFIER)
+        self.assertBites("update notifier still autostarts")
+
+    def test_unattended_updates_on(self):
+        write(self.tree / "etc/xdg/PlasmaDiscoverUpdates", UPSTREAM_POLICY)
+        self.assertBites("UseUnattendedUpdates=false")
+
+    def test_a_settings_page_that_opens_nothing(self):
+        (self.tree / "usr/bin/firewall-config").unlink()
+        self.assertBites("a sidebar page that does nothing")
+
+    def test_a_settings_page_in_a_category_that_does_not_exist(self):
+        module = self.tree / "usr/share/plasma/systemsettings/externalmodules/moos-firewall.desktop"
+        module.write_text(module.read_text(encoding="utf-8").replace(
+            "Parent-Category=security-privacy", "Parent-Category=nowhere"), encoding="utf-8")
+        self.assertBites("would never appear")
+
+    def test_the_firewall_left_unreachable(self):
+        (self.tree / "usr/share/plasma/systemsettings/externalmodules/moos-firewall.desktop").unlink()
+        self.assertBites("firewall would be unreachable")
+
+
+class FirewallExternalModule(unittest.TestCase):
+    """The shipped file itself: the keys System Settings' external-module loader reads."""
+
+    def test_the_module_is_where_and_what_system_settings_reads(self):
+        path = SYSTEM / "usr/share/plasma/systemsettings/externalmodules/moos-firewall.desktop"
+        entry = header(path)
+        self.assertEqual(entry.get("Exec"), "firewall-config")
+        self.assertEqual(entry.get("TryExec"), "firewall-config")
+        self.assertEqual(entry.get("X-KDE-System-Settings-Parent-Category"), "security-privacy")
+        self.assertEqual((entry.get("Name"), entry.get("Name[ar]")), ("Firewall", "الجدار الناري"))
+        self.assertTrue(entry.get("Comment[ar]"))
 
 
 if __name__ == "__main__":

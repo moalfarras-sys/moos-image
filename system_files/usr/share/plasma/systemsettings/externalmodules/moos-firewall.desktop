@@ -1,0 +1,41 @@
+# MoOS: the firewall, where a person looks for it — MoOS Settings → Security & Privacy.
+#
+# firewall-config is a separate GTK window. It used to sit in the application menu as
+# "Firewall", outside Settings; curate_app_menu.sh now hides that menu entry, and this
+# file puts the same program one click away inside the settings window instead.
+#
+# WHY THIS DIRECTORY AND THESE KEYS (evidence, 2026-09-24, plasma-systemsettings 6.7.5):
+#   * The systemsettings binary (kinfocenter is a symlink to it) carries the UTF-16
+#     string `plasma/%1/externalmodules`, and upstream's app/kcmmetadatahelpers.h
+#     findExternalKCMModules() fills %1 with "systemsettings" or "kinfocenter" and
+#     searches QStandardPaths::GenericDataLocation — so this file lives in
+#     /usr/share/plasma/systemsettings/externalmodules/. The host's
+#     /usr/share/plasma/kinfocenter/externalmodules/kcm_external_plasma-systemmonitor.desktop
+#     is the same mechanism for KInfoCenter.
+#   * Each file is read through KService: Name, Icon and Comment (localised), X-KDE-Weight,
+#     X-KDE-System-Settings-Parent-Category, and the loader marks it IsExternalApp; the
+#     sidebar item launches this file's Exec through KIO (ExternalAppModule::runExternal).
+#     The binary carries "IsExternalApp", "X-KDE-System-Settings-Parent-Category" and
+#     "%1 is an external application and has been automatically launched".
+#   * "security-privacy" is the X-KDE-System-Settings-Category of the stock
+#     /usr/share/systemsettings/categories/settings-security-privacy.desktop.
+#   * X-KDE-ServiceTypes / X-KDE-ParentApp are not read by this Plasma (neither string is in
+#     the binary); they are kept only to mirror upstream's KInfoCenter example.
+#   * The loader does NOT honour TryExec, so an edition without firewall-config (ARM) would
+#     show a page that does nothing. curate_app_menu.sh removes this file wherever its
+#     program is missing, and its gate proves every external module left resolves.
+[Desktop Entry]
+Type=Service
+TryExec=firewall-config
+Exec=firewall-config
+Icon=firewall-config
+Name=Firewall
+Name[ar]=الجدار الناري
+Comment=Choose which network connections this computer allows
+Comment[ar]=اختر اتصالات الشبكة التي يسمح بها هذا الحاسوب
+X-KDE-Keywords=firewall,ports,zones,services,network,security,block,allow
+X-KDE-Keywords[ar]=جدار ناري,جدار الحماية,منافذ,مناطق,خدمات,شبكة,أمان,حظر,سماح
+X-KDE-System-Settings-Parent-Category=security-privacy
+X-KDE-Weight=60
+X-KDE-ServiceTypes=SystemSettingsExternalApp
+X-KDE-ParentApp=systemsettings
