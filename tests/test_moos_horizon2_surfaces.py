@@ -91,7 +91,28 @@ class MoOSSearch(unittest.TestCase):
 
     def test_the_surface_is_a_popup_not_a_permanent_input_grab(self):
         self.assertIn("FocusScope {", self.view)
-        self.assertIn("root.expanded = true;", self.qml)
+        # The standalone applet proved this with `activationTogglesExpanded: true`. In the Island,
+        # Search is the IDLE face: activating the idle Island must open the popup that holds the
+        # view — the else-branch of openPrimary(). `root.expanded = true;` alone also matches
+        # openDetails(), so it could pass while the Search click opened nothing (review of 86).
+        primary = self.qml.split("function openPrimary() {", 1)[1].split("\n    }\n", 1)[0]
+        busy, idle = primary.split("} else {", 1)
+        self.assertIn("if (root.active) {", busy)
+        self.assertIn("root.openDetails();", busy)
+        self.assertEqual([line.strip() for line in idle.strip().splitlines()],
+                         ["root.expanded = true;", "}"],
+                         "activating the idle Island must open Search as its popup, and nothing "
+                         "else (no second launcher, no input grab)")
+        # Every way a person activates the idle face reaches that branch: click, keys, a11y.
+        self.assertRegex(self.qml, r"if \(!root\.active\) \{\s*root\.openPrimary\(\);",
+                         "a click on the idle Island must open Search")
+        for door in ("Keys.onReturnPressed: root.openPrimary()",
+                     "Keys.onEnterPressed: root.openPrimary()",
+                     "Accessible.onPressAction: root.openPrimary()"):
+            self.assertIn(door, self.qml)
+        # Plasma's own activation (the widget's shortcut) must keep toggling the popup.
+        self.assertNotRegex(self.qml, r"activationTogglesExpanded\s*:\s*false",
+                            "the Island's popup must stay reachable through Plasma activation")
         self.assertNotIn("AcceptingInputStatus", self.qml,
                          "holding panel input would steal keys from every window")
         self.assertIn("Keys.onEscapePressed", self.view)
