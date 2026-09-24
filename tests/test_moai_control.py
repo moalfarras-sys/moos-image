@@ -754,6 +754,21 @@ class ToolResultsForTheModelTests(unittest.TestCase):
             self.assertIn("127.0.0.1", shown, "loopback identifies nobody and explains a service")
             self.assertEqual(control["_for_model"]("moos-control", "Volume 40%"), "Volume 40%")
 
+    def test_the_owners_own_paths_stay_findable_and_nobody_elses_do(self):
+        """The support bundle's location is the owner's own path: `~`, never `[redacted]`."""
+        with tempfile.TemporaryDirectory() as home:
+            control = load_control(home)
+            raw = ("✓ /var/home/owner/.cache/moos/support/moos-support-20260924.txt\n"
+                   "also /home/owner/Downloads and /var/home/owner\n"
+                   "not /var/home/ownerx/notes, /home/alice/secret or /mnt/var/home/owner/x\n")
+            with mock.patch.dict(os.environ, {"HOME": "/var/home/owner"}):
+                shown = control["_for_model"]("moai-do", raw)
+            self.assertIn("✓ ~/.cache/moos/support/moos-support-20260924.txt", shown)
+            self.assertIn("also ~/Downloads and ~\n", shown)
+            for leaked in ("ownerx", "alice", "/var/home/owner", "/home/owner"):
+                self.assertNotIn(leaked, shown)
+            self.assertEqual(shown.count("[redacted]"), 3, shown)
+
     def test_a_missing_redactor_withholds_instead_of_sending_raw(self):
         with tempfile.TemporaryDirectory() as home:
             control = load_control(home)

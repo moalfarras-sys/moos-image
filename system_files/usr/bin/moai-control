@@ -1837,6 +1837,22 @@ def _redactor():
     return _redactor_cache[0] if _redactor_cache else None
 
 
+def _owner_home_as_tilde(output: str) -> str:
+    """Write the owner's own home as `~`, so their paths survive redaction.
+
+    The support bundle's redactor rewrites every /home/<name> and /var/home/<name>, which is
+    right for a report someone else will read. Here the reader is the owner. The support_bundle
+    tool's one useful line is WHERE the bundle is, and it became
+    `[redacted]/.cache/moos/support/…`. `~` still names no user; any other home is still
+    redacted.
+    """
+    home = _PolicyPath.home()
+    if str(home.parent) not in ("/home", "/var/home") or not home.name:
+        return output
+    return re.sub(r"(?<![\w.-])(?:/var)?/home/" + re.escape(home.name) + r"(?![^/\s:,\"'])",
+                  "~", output)
+
+
 def _for_model(executor: str, output: str) -> str:
     """The text a tool result may carry to the model: moai-do output is always redacted."""
     if executor != "moai-do":
@@ -1844,7 +1860,7 @@ def _for_model(executor: str, output: str) -> str:
     redact = _redactor()
     if redact is None:
         return WITHHELD
-    return _clip(redact(output))
+    return _clip(redact(_owner_home_as_tilde(output)))
 
 
 # ── Mo AI jobs in the Island (SPEC D6) ────────────────────────────────────────
