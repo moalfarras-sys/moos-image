@@ -625,11 +625,14 @@ fi
 
 # The whole Horizon Bar is defined in /usr/share/moos/moos-bar.conf and verified
 # by the tool that owns it — this check must not restate the bar's values.
-if command -v moos-bar-apply >/dev/null 2>&1 && moos-bar-apply check >/dev/null 2>&1; then
-    ok "the Horizon Bar matches moos-bar.conf (one centred capsule)"
-else
-    bad "the Horizon Bar drifts from moos-bar.conf — run moos-apply-theme once"
-fi
+_bar_rc=127
+command -v moos-bar-apply >/dev/null 2>&1 && { moos-bar-apply check >/dev/null 2>&1; _bar_rc=$?; }
+case "$_bar_rc" in
+    0)  ok "the Horizon Bar matches moos-bar.conf (one centred capsule)" ;;
+    # 75: an apply held the bar the whole time; nothing was checked, so say so.
+    75) note "the Horizon Bar is being changed right now — run moos-selfcheck again in a minute" ;;
+    *)  bad "the Horizon Bar drifts from moos-bar.conf — run moos-apply-theme once" ;;
+esac
 
 # Milou's file/folder results come from Baloo.  Ask the effective per-user
 # configuration: /etc/xdg may be correct while ~/.config/baloofilerc still
@@ -734,17 +737,39 @@ grep -q "org.moos.nova.clock" "$appletsrc" 2>/dev/null \
     && ok "the MoOS clock is in the panel" \
     || bad "the panel has no clock"
 
+# The tray's forced-visible list has ONE source: moos-bar.conf [tray] shownItems,
+# read through the bar's own tool. This check used to carry its own six-item
+# list, including Bluetooth and brightness, which the conf deliberately moved
+# behind the arrow — so every correct desktop printed "the tray is missing".
+_bar_conf="${MOOS_BAR_CONF:-/usr/share/moos/moos-bar.conf}"
+_tray_want=""
+if command -v moos-bar-apply >/dev/null 2>&1; then
+    _tray_want="$(moos-bar-apply get tray.shownItems 2>/dev/null)"
+fi
+if [ -z "$_tray_want" ] && [ -r "$_bar_conf" ]; then
+    _tray_want="$(sed -n 's/^shownItems=//p' "$_bar_conf" 2>/dev/null | head -1)"
+fi
 _tray_shown="$(sed -n 's/^shownItems=//p' "$appletsrc" 2>/dev/null | head -1)"
 _tray_missing=""
-for _t in org.kde.plasma.networkmanagement org.kde.plasma.bluetooth \
-          org.kde.plasma.volume org.kde.plasma.brightness org.kde.plasma.notifications \
-          org.kde.plasma.keyboardlayout; do
-    case ",${_tray_shown}," in *",$_t,"*) ;; *) _tray_missing="$_tray_missing $_t" ;; esac
-done
-if [ -z "$_tray_missing" ]; then
-    ok "the everyday toggles (Wi-Fi, Bluetooth, volume, brightness, language) are one click away in the tray"
+_tray_count=0
+if [ -z "$_tray_want" ]; then
+    note "could not read the tray definition (moos-bar.conf) — tray not checked"
 else
-    note "the tray is missing:${_tray_missing} (yours to change, so this is only a note)"
+    IFS=',' read -r -a _tray_items <<<"$_tray_want"
+    # The verdict names what it checked, taken from the same list: a literal
+    # "(network, sound, …)" here would be a second copy that drifts from the conf.
+    _tray_names=""
+    for _t in "${_tray_items[@]}"; do
+        [ -n "$_t" ] || continue
+        _tray_count=$((_tray_count + 1))
+        _tray_names="${_tray_names:+${_tray_names}, }${_t#org.kde.plasma.}"
+        case ",${_tray_shown}," in *",$_t,"*) ;; *) _tray_missing="$_tray_missing $_t" ;; esac
+    done
+    if [ -z "$_tray_missing" ]; then
+        ok "the tray shows the ${_tray_count} status icons moos-bar.conf pins: ${_tray_names}"
+    else
+        note "the tray is missing:${_tray_missing} (yours to change, so this is only a note)"
+    fi
 fi
 
 # ── Nothing shadowing the image ──────────────────────────────────────────────
@@ -753,9 +778,19 @@ fi
 # common way a MoOS fix reaches the image and never reaches the user.
 head_ "لا شي بيحجب الصورة | Nothing shadowing the image"
 shadows=0
+system_share="${MOOS_SYSTEM_SHARE:-/usr/share}"
+shadow_paths=""
+# One report per shadow: a package directory, not every file inside it.
+already_reported() {
+    local reported
+    for reported in $shadow_paths; do
+        case "$1" in "$reported"|"$reported"/*) return 0 ;; esac
+    done
+    return 1
+}
 for rel in plasma/plasmoids/org.moos.nova.clock \
            plasma/plasmoids/org.moos.brand \
-           plasma/plasmoids/org.moos.heroclock \
+           plasma/plasmoids/org.moos.island \
            plasma/wallpapers/org.moos.ui2.wallpaper \
            plasma/look-and-feel/org.moos.ui2 plasma/look-and-feel/org.moos.ui2.light \
            plasma/desktoptheme/MoOSUI2 plasma/desktoptheme/MoOSUI2Light \
@@ -771,13 +806,14 @@ for rel in plasma/plasmoids/org.moos.nova.clock \
            icons/MoOSUI2Midnight \
            icons/MoOSUI2Nova icons/MoOSUI2NovaLight \
            icons/MoOSUI2Scholar icons/MoOSUI2ScholarLight \
-           konsole/MoOSUI2.profile konsole/MoOSUI2Light.profile; do
-    if [ -e "/usr/share/$rel" ] && [ -e "${XDG_DATA_HOME:-$HOME/.local/share}/$rel" ]; then
+           konsole/MoOSUI2.profile konsole/MoOSUI2Light.profile \
+           kwin/tabbox/org.moos.ui2.switcher kwin/scripts/moos-arrange; do
+    if [ -e "${system_share}/$rel" ] && [ -e "${XDG_DATA_HOME:-$HOME/.local/share}/$rel" ]; then
         bad "~/.local/share/${rel} shadows the image copy — later updates will never reach you"
         shadows=$((shadows+1))
+        shadow_paths="${shadow_paths} ${rel}"
     fi
 done
-shadow_paths=""
 # Preview tools can introduce a new first-party package after the hand-maintained
 # list above. Discover MoOS-owned paths from the effective data home and compare
 # them with /usr/share so diagnostics keep pace with the generated theme matrix.
@@ -788,12 +824,13 @@ if [ -d "$user_share" ]; then
         case "$rel" in
             plasma/plasmoids/org.moos.*|plasma/desktoptheme/MoOSUI2*|\
             plasma/look-and-feel/org.moos.ui2*|aurorae/themes/MoOSUI2*|\
-            color-schemes/MoOSUI2*|konsole/MoOSUI2*|wallpapers/MoOSUI2*|icons/MoOSUI2*)
-                if [ -e "/usr/share/$rel" ]; then
-                    case " $shadow_paths " in
-                        *" $rel "*) ;;
-                        *) bad "~/.local/share/${rel} shadows the image copy — later updates will never reach you"; shadows=$((shadows+1)); shadow_paths="${shadow_paths} ${rel}" ;;
-                    esac
+            color-schemes/MoOSUI2*|konsole/MoOSUI2*|wallpapers/MoOSUI2*|icons/MoOSUI2*|\
+            kwin/tabbox/org.moos.*|kwin/scripts/org.moos.*|kwin/scripts/moos-*|\
+            kwin/effects/org.moos.*|kwin/effects/moos-*)
+                if [ -e "${system_share}/$rel" ] && ! already_reported "$rel"; then
+                    bad "~/.local/share/${rel} shadows the image copy — later updates will never reach you"
+                    shadows=$((shadows+1))
+                    shadow_paths="${shadow_paths} ${rel}"
                 fi
                 ;;
         esac
@@ -803,6 +840,19 @@ if [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/fontconfig/conf.d/99-moos-kawkab-test
     bad "a user-level Kawkab fontconfig override is shadowing the image's font policy"
     shadows=$((shadows+1))
 fi
+# A RETIRED MoOS package has no image copy left to compare with, so the checks
+# above cannot see it — and a home copy would still load, as a widget the theme
+# system removes again on every apply. moos-apply-theme's remove_retired_moos_packages
+# deletes these ids on EVERY run, before its once-per-revision fast path, so the
+# advice below works on the spot (tests/test_moos_shell_hygiene.py runs it). The
+# list is moos-apply-theme's retired list; the same test keeps the two equal.
+for rel in plasma/plasmoids/org.moos.heroclock plasma/plasmoids/org.moos.search \
+           plasma/plasmoids/org.moos.nova.deskclock plasma/plasmoids/org.moos.ui2.dashboard; do
+    if [ -e "${XDG_DATA_HOME:-$HOME/.local/share}/$rel" ]; then
+        bad "~/.local/share/${rel} is a retired MoOS widget the image no longer ships — run moos-apply-theme once"
+        shadows=$((shadows+1))
+    fi
+done
 [ "$shadows" -eq 0 ] && ok "no user-level copy is shadowing a MoOS asset"
 
 # The check above covers ASSETS. The far more consequential shadow is CODE: a

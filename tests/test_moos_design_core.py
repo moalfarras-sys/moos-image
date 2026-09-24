@@ -124,9 +124,10 @@ class DesignCoreTests(unittest.TestCase):
             SHARE / "plasma/plasmoids/org.moos.brand/contents/ui/main.qml",
             SHARE / "plasma/plasmoids/org.moos.brand/contents/ui/LauncherView.qml",
             SHARE / "plasma/plasmoids/org.moos.nova.clock/contents/ui/main.qml",
-            SHARE / "plasma/plasmoids/org.moos.heroclock/contents/ui/main.qml",
             SHARE / "plasma/plasmoids/org.moos.island/contents/ui/main.qml",
         )
+        # The Hero Clock was one of these surfaces until THEME_REV 86 retired it.
+        self.assertFalse((SHARE / "plasma/plasmoids/org.moos.heroclock").exists())
         for path in surfaces:
             source = path.read_text(encoding="utf-8")
             with self.subTest(surface=path.relative_to(ROOT)):

@@ -87,13 +87,24 @@ mkdir -p "$state_dir" 2>/dev/null || true
 
 # Plasma can fire the same autostart entry twice while session restore settles;
 # two concurrent splitters on the same appletsrc corrupt it. One owner at a time.
-if command -v flock >/dev/null 2>&1; then
-    lock_dir="${XDG_RUNTIME_DIR:-$state_dir}"
+#
+# The lock used to be taken here for EVERY command with `flock -n 9 || exit 0`,
+# so a `check` that lost the lock to a running apply exited 0 without checking,
+# and moos-selfcheck and post-update-check printed "the Horizon Bar matches".
+# Now: `apply` that finds the lock taken leaves quietly (another apply is doing
+# the same work); `check` waits a bounded time for it and otherwise reports BUSY
+# with exit 75 (EX_TEMPFAIL), never success; `get` only reads the definition and
+# takes no lock.
+take_bar_lock() {
+    command -v flock >/dev/null 2>&1 || return 0
+    local lock_dir="${XDG_RUNTIME_DIR:-$state_dir}"
     mkdir -p "$lock_dir" 2>/dev/null || true
-    if exec 9>"${lock_dir}/moos-bar.lock"; then
-        flock -n 9 || exit 0
-    fi
-fi
+    exec 9>"${lock_dir}/moos-bar.lock" || return 0
+    case "$1" in
+        wait) flock -w "${MOOS_BAR_LOCK_WAIT:-20}" 9 ;;
+        *) flock -n 9 ;;
+    esac
+}
 
 log="${MOOS_BAR_LOG:-/dev/null}"
 applets_rc="${XDG_CONFIG_HOME:-$HOME/.config}/plasma-org.kde.plasma.desktop-appletsrc"
@@ -128,6 +139,9 @@ bar_payload_generation() {
         "${plasmoids}/${BRAND_APPLET}/contents/ui/LauncherView.qml" \
         "${plasmoids}/${ISLAND_APPLET}/metadata.json" \
         "${plasmoids}/${ISLAND_APPLET}/contents/ui/main.qml" \
+        "${plasmoids}/${ISLAND_APPLET}/contents/ui/SearchView.qml" \
+        "${plasmoids}/${ISLAND_APPLET}/contents/ui/SearchAnswers.js" \
+        "${plasmoids}/${ISLAND_APPLET}/contents/ui/IslandTokens.js" \
         "${plasmoids}/${CLOCK_APPLET}/metadata.json" \
         "${plasmoids}/${CLOCK_APPLET}/contents/ui/main.qml"; do
         [ -r "$file" ] || continue
@@ -1070,8 +1084,17 @@ cmd_get() {
 }
 
 case "${1:-}" in
-    apply) cmd_apply "${2:-0}" ;;
-    check) cmd_check ;;
+    apply)
+        take_bar_lock now || exit 0
+        cmd_apply "${2:-0}"
+        ;;
+    check)
+        if ! take_bar_lock wait; then
+            echo "bar: busy — another moos-bar-apply is changing the bar; nothing was checked"
+            exit 75
+        fi
+        cmd_check
+        ;;
     get) cmd_get "${2:-}" ;;
     *)
         echo "usage: moos-bar-apply {apply [rev]|check|get <section.key>}" >&2

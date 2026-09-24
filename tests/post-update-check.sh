@@ -491,15 +491,36 @@ for b in $shadow_other; do
 done
 
 plasmoid_shadows=""
-for rel in plasma/plasmoids/org.moos.brand plasma/plasmoids/org.moos.heroclock; do
-    if [ -e "/usr/share/$rel" ] && [ -e "${XDG_DATA_HOME:-$HOME/.local/share}/$rel" ]; then
+system_share="${MOOS_SYSTEM_SHARE:-/usr/share}"
+for rel in plasma/plasmoids/org.moos.brand plasma/plasmoids/org.moos.island \
+           plasma/plasmoids/org.moos.nova.clock; do
+    if [ -e "${system_share}/$rel" ] && [ -e "${XDG_DATA_HOME:-$HOME/.local/share}/$rel" ]; then
         plasmoid_shadows="${plasmoid_shadows} ${rel##*/}"
     fi
 done
+# KWin's MoOS packages (task switcher, scripts, effects) shadow the image the same way; a
+# review copy of the switcher did, for a week, while this check said nothing.
+for dir in kwin/tabbox kwin/scripts kwin/effects; do
+    for user_path in "${XDG_DATA_HOME:-$HOME/.local/share}/$dir"/org.moos.* \
+                     "${XDG_DATA_HOME:-$HOME/.local/share}/$dir"/moos-*; do
+        [ -e "$user_path" ] || continue
+        rel="$dir/${user_path##*/}"
+        [ -e "${system_share}/$rel" ] && plasmoid_shadows="${plasmoid_shadows} ${rel}"
+    done
+done
+# Retired packages have no image copy to compare with; any home copy is stale. The list is
+# moos-apply-theme's retired list (tests/test_moos_shell_hygiene.py keeps them equal), and
+# moos-apply-theme removes these on every run, so the advice below works on the spot.
+for rel in plasma/plasmoids/org.moos.heroclock plasma/plasmoids/org.moos.search \
+           plasma/plasmoids/org.moos.nova.deskclock plasma/plasmoids/org.moos.ui2.dashboard; do
+    if [ -e "${XDG_DATA_HOME:-$HOME/.local/share}/$rel" ]; then
+        plasmoid_shadows="${plasmoid_shadows} ${rel##*/}(retired)"
+    fi
+done
 if [ -z "$plasmoid_shadows" ]; then
-    ok "no user-local Brand/Hero Clock package shadows the updated image"
+    ok "no user-local MoOS bar or KWin package shadows the updated image"
 else
-    bad "user-local Plasma package(s) shadow the new image:$plasmoid_shadows — run moos-apply-theme"
+    bad "user-local Plasma/KWin package(s) shadow the new image:$plasmoid_shadows — run moos-apply-theme"
 fi
 
 # A systemd drop-in is the third way to shadow the image, and the checks above cannot see it:
@@ -655,11 +676,14 @@ else
 fi
 
 # The whole Horizon Bar is owned by moos-bar-apply against moos-bar.conf.
-if command -v moos-bar-apply >/dev/null 2>&1 && moos-bar-apply check >/dev/null 2>&1; then
-    ok "the Horizon Bar matches moos-bar.conf and owns live notifications"
-else
-    bad "the Horizon Bar or notification protocol drifts from moos-bar.conf — run moos-apply-theme once"
-fi
+bar_rc=127
+command -v moos-bar-apply >/dev/null 2>&1 && { moos-bar-apply check >/dev/null 2>&1; bar_rc=$?; }
+case "$bar_rc" in
+    0)  ok "the Horizon Bar matches moos-bar.conf and owns live notifications" ;;
+    # 75 = busy: an apply held the bar lock, so nothing was checked. Not a pass.
+    75) bad "the Horizon Bar could not be checked: moos-bar-apply is still applying — run this again in a minute" ;;
+    *)  bad "the Horizon Bar or notification protocol drifts from moos-bar.conf — run moos-apply-theme once" ;;
+esac
 
 head_ "Launcher search covers visible HOME"
 if command -v balooctl6 >/dev/null 2>&1; then

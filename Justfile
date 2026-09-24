@@ -326,6 +326,8 @@ check:
     python3 tests/test_tidal_portals.py
     python3 tests/test_moos_theme_safety.py
     python3 tests/test_theme_shadow_cleanup.py
+    # The bar check never passes without checking; selfcheck/post-update scans see KWin shadows.
+    python3 tests/test_moos_shell_hygiene.py
     python3 tests/test_moos_visual_system.py
     # MoOS Command Center is the owned settings front door: every visual command
     # must resolve through a fixed route, and its live status boundary stays
@@ -456,6 +458,8 @@ check:
     python3 tests/test_island_jobs_privacy.py
     # Producer and consumer of the Island's presence tokens, executed for real.
     python3 tests/test_island_tokens.py
+    # Global shortcuts: X-KDE-Shortcuts + kglobalaccel link, never a stock binding.
+    python3 tests/test_moos_shortcuts.py
     # App Drop: install from a file, with real hostile archives and the real sandbox.
     python3 tests/test_app_drop.py
     # The administrator question for a local package, and what a dismissed one prints.

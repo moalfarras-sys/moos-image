@@ -703,7 +703,7 @@ Item {
                                 Layout.preferredWidth: 180
                                 iconName: "moos-install-symbolic"
                                 eyebrow: view.local("اكتشف", "DISCOVER")
-                                title: view.local("متجر MoOS", "MoOS Store")
+                                title: view.local("متجر MoOS", "Mo Store")
                                 onActivated: view.launcher.openDesktop("org.moos.store.desktop")
                             }
                             CommandCard {
@@ -712,7 +712,7 @@ Item {
                                 Layout.preferredWidth: 180
                                 iconName: "moos-settings-symbolic"
                                 eyebrow: view.local("تحكم", "CONTROL")
-                                title: view.local("إعدادات النظام", "System Settings")
+                                title: view.local("إعدادات MoOS", "MoOS Settings")
                                 onActivated: view.launcher.openDesktop("systemsettings.desktop")
                             }
                         }
@@ -1428,7 +1428,8 @@ Item {
                 text: view.local("ثيمات MoOS", "MoOS Themes")
                 icon.name: "moos-ui-symbolic"
                 display: PC3.AbstractButton.IconOnly
-                onClicked: view.launcher.openDesktop("org.moos.themepicker.desktop")
+                // The MoOS Themes page lives in MoOS Settings (Appearance).
+                onClicked: view.launcher.openRoute("moos://settings/themes")
                 PC3.ToolTip.text: text
                 PC3.ToolTip.visible: hovered && text.length > 0
                 PC3.ToolTip.delay: Kirigami.Units.toolTipDelay

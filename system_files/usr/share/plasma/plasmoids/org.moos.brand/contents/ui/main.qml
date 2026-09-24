@@ -67,15 +67,16 @@ PlasmoidItem {
         Kirigami.Units.longDuration > 1, design.motionEmphasis)
     readonly property int motionPortal: design.duration(
         Kirigami.Units.longDuration > 1, design.motionPortal)
+    // Update and Recovery are pages of the one MoOS Settings window, not apps: pinning
+    // them beside it showed three tiles that open the same window. This list is
+    // mirrored by config/main.xml favoriteApps and layout.js; the gate keeps them equal.
     readonly property var shippedFavorites: [
         "org.moos.moai.desktop",
         "org.moos.store.desktop",
         "preferred://browser",
         "org.moos.moplayer.desktop",
         "org.kde.dolphin.desktop",
-        "systemsettings.desktop",
-        "org.moos.updater.desktop",
-        "org.moos.recovery.desktop"
+        "systemsettings.desktop"
     ]
 
     // Decode rasters for the DEVICE, not for logical pixels. sourceSize is a
@@ -111,6 +112,17 @@ PlasmoidItem {
         const destinations = launcherDestinations.favorites;
         const row = destinations.indexOf(desktopId);
         if (row >= 0 && launcherDestinations.trigger(row, "", null)) {
+            closeLauncher();
+        }
+    }
+
+    // A route the MoOS router owns: `moos:` is a registered URL scheme and every
+    // route is a fixed case arm in moos-open, so this never builds a command.
+    function openRoute(route) {
+        if (!/^moos:\/\/[a-z]/.test(String(route || ""))) {
+            return;
+        }
+        if (Qt.openUrlExternally(route)) {
             closeLauncher();
         }
     }
@@ -320,10 +332,10 @@ PlasmoidItem {
         appletInterface: root
         favoritesModel: root.favoriteModel
         appNameFormat: 0
+        // One settings destination. The hardware report and Recovery are reached
+        // from inside MoOS Settings (This device, Recovery), not as extra places.
         systemApplications: [
-            "systemsettings.desktop",
-            "org.kde.kinfocenter.desktop",
-            "org.moos.recovery.desktop"
+            "systemsettings.desktop"
         ]
     }
 
@@ -341,7 +353,6 @@ PlasmoidItem {
             "kcm_plasmasearch.desktop",
             "org.moos.moai.desktop",
             "org.moos.store.desktop",
-            "org.moos.themepicker.desktop",
             "systemsettings.desktop"
         ]
     }

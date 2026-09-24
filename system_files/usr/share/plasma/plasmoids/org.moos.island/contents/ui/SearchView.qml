@@ -11,7 +11,9 @@ import org.moos.ui as MoUI
 import "SearchAnswers.js" as Answers
 
 
-// Source-reviewable Search surface; Plasma owns its models and activation.
+// MoOS Search: the one search surface, hosted by the Context Island (its idle
+// face). Plasma owns the models and activation; the host passes them in. This
+// file lived in the retired org.moos.search applet until THEME_REV 86.
 FocusScope {
     id: surface
     required property var controller
@@ -169,7 +171,7 @@ FocusScope {
         anchors.margins: root.design.space3
         // A bottom-panel host overlaps the popup's outer window by its own
         // thickness. Keep the final Mo AI action inside the visible glass;
-        // standalone Search supplies zero here.
+        // the host supplies that inset (the Island: one comfortable target).
         anchors.bottomMargin: root.design.space3 + root.searchBottomInset
         spacing: root.design.space3
         scale: entrance.value

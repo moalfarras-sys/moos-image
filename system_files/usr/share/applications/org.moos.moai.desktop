@@ -10,6 +10,9 @@ Exec=moai
 TryExec=moai
 Icon=moos-moai
 Terminal=false
+# Global shortcut, read by kglobalaccel through /usr/share/kglobalaccel (rebindable
+# in System Settings); tests/test_moos_shortcuts.py keeps it off stock bindings.
+X-KDE-Shortcuts=Meta+Space
 # Ties the running window to this launcher so the dock shows ONE Mo AI icon, not a
 # pinned icon plus a second entry. moai sets this Wayland app_id via moos-qml-shell;
 # this is the XWayland/fallback safety net (must equal that id).

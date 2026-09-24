@@ -55,7 +55,11 @@ removeWidgets([a,b]); applets=[b]; confirmRemoval();
 assert.deepEqual(removed,[2]); assert.deepEqual(pendingRemoval,[]);
 assert.ok(message.includes('Undo'));
 assert.ok(retired('org.moos.heroclock')); assert.ok(!retired('org.kde.plasma.systemmonitor.memory'));
+// THEME_REV 86 retired the standalone Search applet: the Island hosts Search.
+assert.ok(retired('org.moos.search')); assert.ok(!retired('org.moos.island'));
 selectWidget({pluginName:'org.moos.heroclock',name:'Clock',isSupported:true});
+assert.equal(selected.supported,false);
+selectWidget({pluginName:'org.moos.search',name:'MoOS Search',isSupported:true});
 assert.equal(selected.supported,false);
 selectWidget({pluginName:'org.test.old',name:'Old',isSupported:false,unsupportedMessage:'Requires another API'});
 assert.equal(selected.supported,false); assert.equal(selected.reason,'Requires another API');
@@ -63,6 +67,14 @@ console.log('Containment action behavior passed');
 '''
         result = subprocess.run([node, '-e', program], text=True, capture_output=True)
         self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_retired_widgets_are_not_shipped(self):
+        # retired() keeps a stale catalogue row or a home copy from being added; the image
+        # itself must not carry the package any more (THEME_REV 86).
+        plasmoids = ROOT / 'system_files/usr/share/plasma/plasmoids'
+        for retired_id in ('org.moos.heroclock', 'org.moos.search',
+                           'org.moos.nova.deskclock', 'org.moos.ui2.dashboard'):
+            self.assertFalse((plasmoids / retired_id).exists(), f'{retired_id} is retired')
 
     def test_preview_refuses_paths_options_shell_text_and_missing_packages(self):
         with tempfile.TemporaryDirectory() as folder:

@@ -842,7 +842,10 @@ class TestMoOSUI2(unittest.TestCase):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=85", apply,
+            "THEME_REV=86", apply,
+            "existing v85 users would keep the cached Island that imports the retired Search "
+            "applet and shows no Mo AI jobs, the launcher with three settings tiles, and a home "
+            "copy of the MoOS task switcher; "
             "existing v61 users would keep the Island that cannot show Store jobs or name the app "
             "using the camera; "
             "existing v60 users (ARM took W3 then W5 at the same revision) would keep the cached "
@@ -1434,9 +1437,9 @@ class TestMoOSUI2(unittest.TestCase):
         dock = qml_code((
             SHARE / "plasma/plasmoids/org.moos.brand/contents/ui/main.qml"
         ).read_text(encoding="utf-8"))
-        hero = qml_code((
-            SHARE / "plasma/plasmoids/org.moos.heroclock/contents/ui/main.qml"
-        ).read_text(encoding="utf-8"))
+        # The Hero Clock was retired at THEME_REV 86: the package is gone and its id lives on
+        # only in the lists that remove a stale instance or home copy.
+        hero_package = SHARE / "plasma/plasmoids/org.moos.heroclock"
 
         self.assertIn("implicitWidth: design.dialogWidth", launcher)
         self.assertIn("implicitHeight: design.dialogHeight", launcher)
@@ -1494,10 +1497,40 @@ class TestMoOSUI2(unittest.TestCase):
         for destination in (
             "org.moos.moai.desktop",
             "org.moos.store.desktop",
-            "org.moos.themepicker.desktop",
             "systemsettings.desktop",
         ):
             self.assertIn(destination, launcher + dock)
+        # MoOS Themes is a page of MoOS Settings now (spec D1/D5), reached through the router's
+        # fixed moos://settings/themes route; the separate theme window is no launcher target.
+        self.assertIn('view.launcher.openRoute("moos://settings/themes")', launcher)
+        self.assertNotIn("org.moos.themepicker.desktop", launcher + dock)
+        self.assertIn('Qt.openUrlExternally(route)', dock)
+        self.assertIn('if (!/^moos:\\/\\/[a-z]/.test(String(route || ""))) {', dock,
+                      "the launcher opens only moos:// routes, never a free URL")
+        # One name per destination: the cards say what the menu entries say.
+        self.assertIn('view.local("إعدادات MoOS", "MoOS Settings")', launcher)
+        self.assertIn('view.local("متجر MoOS", "Mo Store")', launcher)
+        self.assertNotIn('"System Settings"', launcher)
+        self.assertNotIn('"MoOS Store"', launcher)
+        # Favourites: one settings tile (Update and Recovery are its pages), mirrored three ways.
+        shipped = re.findall(r'"([^"]+)"', dock.split("readonly property var shippedFavorites: [",
+                                                      1)[1].split("]", 1)[0])
+        expected = ["org.moos.moai.desktop", "org.moos.store.desktop", "preferred://browser",
+                    "org.moos.moplayer.desktop", "org.kde.dolphin.desktop",
+                    "systemsettings.desktop"]
+        self.assertEqual(shipped, expected)
+        schema = (SHARE / "plasma/plasmoids/org.moos.brand/contents/config/main.xml"
+                  ).read_text(encoding="utf-8")
+        self.assertIn("<default>" + ",".join(expected) + "</default>", schema)
+        layout = (SHARE / "plasma/layout-templates/org.kde.plasma.desktop.defaultPanel/"
+                  "contents/layout.js").read_text(encoding="utf-8")
+        seeded = re.findall(r'"([^"]+)"', layout.split('writeConfig("favoriteApps", [', 1)[1]
+                            .split("]", 1)[0])
+        self.assertEqual(seeded, expected, "layout.js seeds new profiles; it mirrors the QML")
+        places = dock.split("systemApplications: [", 1)[1].split("]", 1)[0]
+        self.assertEqual(re.findall(r'"([^"]+)"', places), ["systemsettings.desktop"],
+                         "Places offers one settings destination, not the hidden hardware "
+                         "report and a Recovery page of the same window")
         self.assertIn('text: root.rtl ? "مساحة الأوامر" : "COMMAND"', dock)
         self.assertIn("readonly property int motionMedium: design.duration(", launcher)
         self.assertIn("design.motionGeometry", launcher)
@@ -1518,17 +1551,25 @@ class TestMoOSUI2(unittest.TestCase):
         self.assertNotIn("org.moos.moai.desktop", quiet_edge)
         self.assertNotIn("org.moos.store.desktop", quiet_edge)
         self.assertNotIn("systemsettings.desktop", quiet_edge)
-        self.assertIn("org.moos.themepicker.desktop", quiet_edge)
+        self.assertIn('openRoute("moos://settings/themes")', quiet_edge)
 
         # The always-visible hero clock used to wake at 1 Hz while five ambient
-        # loops repainted plasmashell forever. Tidal Horizon wakes on the minute
-        # and moves only when the displayed value changes.
-        self.assertIn("interval: 60000 -", hero)
-        self.assertNotIn("Animation.Infinite", hero)
-        self.assertNotIn('Qt.formatTime(root.now, "ss")', hero)
-        self.assertIn("onTextChanged: minutePulse.restart()", hero)
-        self.assertIn("root.latinNumerals(root.displayLocale.toString", hero)
-        self.assertIn("YOUR DAILY HORIZON", hero)
+        # loops repainted plasmashell forever; it was then rejected outright and is
+        # now retired. Retired means: not shipped, not addable, and removed from
+        # every profile and home share that still holds it.
+        self.assertFalse(hero_package.exists(), "org.moos.heroclock is retired")
+        explorer = (SHARE / "plasma/shells/org.kde.plasma.desktop/contents/explorer/"
+                    "WidgetExplorer.qml").read_text(encoding="utf-8")
+        self.assertIn('"org.moos.heroclock"',
+                      explorer.split("function retired(plugin) {", 1)[1].split("\n    }", 1)[0])
+        switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
+        self.assertIn('ws[j].type == "org.moos.heroclock"', switch,
+                      "the scene owner must keep removing a stale Hero Clock instance")
+        apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
+        retired_sweep = apply.split(
+            "# RETIRED MoOS assets are removed from the user share UNCONDITIONALLY", 1
+        )[1].split("; do", 1)[0]
+        self.assertIn('"plasma/plasmoids/org.moos.heroclock"', retired_sweep)
 
     def test_logout_draws_only_the_active_session_language(self) -> None:
         logout = qml_code((
@@ -1758,7 +1799,12 @@ class TestMoOSUI2(unittest.TestCase):
         import json
 
         plasmoids = sorted((SHARE / "plasma/plasmoids").glob("org.moos.*"))
-        self.assertGreaterEqual(len(plasmoids), 4, "the MoOS widget set shrank")
+        # Exactly the bar's three packages. THEME_REV 86 retired org.moos.heroclock (rejected by
+        # the owner, never addable) and org.moos.search (the Island hosts Search); a retired id
+        # coming back as a package would be an addable widget the theme system removes again.
+        self.assertEqual([package.name for package in plasmoids],
+                         ["org.moos.brand", "org.moos.island", "org.moos.nova.clock"],
+                         "the MoOS widget set changed")
 
         for package in plasmoids:
             meta = json.loads((package / "metadata.json").read_text(encoding="utf-8"))
@@ -2064,9 +2110,10 @@ class TestMoOSUI2(unittest.TestCase):
         self.assertIn("const base = glassDensity(background)", tokens,
                       "depth must add body to the palette's density, not replace it")
 
+        # The hero clock was the second glass capsule here; it is retired (THEME_REV 86).
+        self.assertFalse((SHARE / "plasma/plasmoids/org.moos.heroclock").exists())
         for name, path in (
             ("island", SHARE / "plasma/plasmoids/org.moos.island/contents/ui/main.qml"),
-            ("hero clock", SHARE / "plasma/plasmoids/org.moos.heroclock/contents/ui/main.qml"),
         ):
             qml = qml_code(path.read_text(encoding="utf-8"))
             self.assertTrue(
