@@ -84,16 +84,62 @@ if usage:
               f"moai-do's help must document '{action}' — an action nobody can discover is "
               f"an action nobody uses")
 
-# The do/* routes moos-open FORWARDS to moai-do must be actions moai-do has. (Routes it
-# implements itself — do/smart-setup runs `moos-setup --smart` — are not moai-do's problem.)
-forwarded = re.search(r"^\s*(do/[a-z|/-]+)\)\s*\n?\s*term moai-do", open_text, re.M)
-check(forwarded is not None, "moos-open must forward a do/* arm to moai-do")
-if forwarded:
-    for route in forwarded.group(1).split("|"):
-        action = route.removeprefix("do/")
+# The do/* routes moos-open FORWARDS to moai-do must be actions moai-do has — every arm that
+# reaches moai-do, whether in a terminal (`term moai-do "$tgt"`) or confirmed in the
+# background (`moai_do_detached <action>`). Arms that open a page instead (do/hw-report,
+# do/setup-brain) are not moai-do's problem.
+def case_arms(text: str):
+    """(labels, body) for every case arm of moos-open's dispatch."""
+    code = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
+    for match in re.finditer(r"^\s{4}([a-z0-9/*|.-]+)\)(.*?);;", code, re.M | re.S):
+        yield [label for label in match.group(1).split("|") if label != "*"], match.group(2)
+
+
+forwarded_routes = []
+for labels, body in case_arms(open_text):
+    calls = re.findall(r"(?:moai-do|moai_do_detached)\s+(\"\$tgt\"|[a-z][a-z-]*)", body)
+    for call in calls:
+        if call == '"$tgt"':
+            # The action IS the route's name: only do/<action> labels may forward like this.
+            for route in labels:
+                check(route.startswith("do/") and "*" not in route,
+                      f"moos-open passes URL text of {route} to moai-do as the action")
+                forwarded_routes.append(route.removeprefix("do/"))
+        else:
+            forwarded_routes.append(call)
+            for route in labels:
+                if route.startswith("do/"):
+                    check(route == f"do/{call}",
+                          f"{route} runs moai-do {call}, not the action its name promises")
+check(len(forwarded_routes) >= 15, f"moos-open forwards too few routes to moai-do: {forwarded_routes}")
+for action in forwarded_routes:
+    check(action in actions,
+          f"moos-open forwards {action} to moai-do, which has no '{action}' action — that "
+          f"button pops 'unknown command' and does nothing")
+
+# Every other program that CALLS moai-do must name a real action too. moos-privacy-stop called
+# `moai-do remote-stop` for weeks; it did not exist, so the call was refused and swallowed by
+# `|| true`, and the stop it promised never happened. Commands only, not comments.
+for script in sorted([*(ROOT / "system_files/usr/bin").iterdir(),
+                      *(ROOT / "system_files/usr/libexec").iterdir()]):
+    if script.name == "moai-do" or not script.is_file():
+        continue
+    try:
+        text = script.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        continue
+    code = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
+    if text.startswith("#!") and "python" in text.split("\n", 1)[0]:
+        # An argv list: ["moai-do", "update"] / ["moai-do", "--confirmed", "update"].
+        called = re.findall(r"[\"']moai-do[\"']\s*,\s*(?:[\"']--confirmed[\"']\s*,\s*)?"
+                            r"[\"']([a-z][a-z-]+)[\"']", code)
+    else:
+        # A shell command in command position (start of a line or after ; & | ( && || then do).
+        called = re.findall(r"(?:^|[;&|(]|\bthen|\bdo|\belse)\s*(?:command\s+|exec\s+)?"
+                            r"moai-do\s+(?:--confirmed\s+)?([a-z][a-z-]+)", code, re.M)
+    for action in called:
         check(action in actions,
-              f"moos-open forwards {route} to moai-do, which has no '{action}' action — that "
-              f"button pops 'unknown command' and does nothing")
+              f"{script.name} runs `moai-do {action}`, which moai-do does not implement")
 
 # And every `moai-do <action>` the UI NAMES must be real — including the ones inside Mo AI's
 # system prompt, which is the assistant telling the user what to type. This is not academic:
@@ -391,6 +437,131 @@ with tempfile.TemporaryDirectory() as tmp:
           f"update-firmware printed a success mark after a dismissed prompt: {result.stdout!r}")
     check("NOT updated" in result.stderr,
           "update-firmware must say plainly that nothing was updated")
+
+# ── 5. rollback is a TOGGLE: a queued rescue is never cancelled by asking again ─────────
+# `bootc rollback` makes the running system the default again when a return is already
+# queued. moai-do used to run it anyway and print "next boot will use the previous version".
+# The same deployment reading moos-rollback and moos-boot-assess make now decides first.
+def rollback_run(deployments, answer="y\n", status_ok=True):
+    with tempfile.TemporaryDirectory() as tmp:
+        bindir = Path(tmp)
+        log = bindir / "pkexec.log"
+        import json as _json
+        status = _json.dumps({"deployments": deployments})
+        (bindir / "rpm-ostree").write_text(
+            "#!/bin/sh\n"
+            + ('case "$*" in *--json*) cat "$MOOS_TEST_STATUS";; *) echo deployments;; esac\n'
+               if status_ok else "exit 1\n"), encoding="utf-8")
+        (bindir / "status.json").write_text(status, encoding="utf-8")
+        (bindir / "pkexec").write_text('#!/bin/sh\nprintf "%s\\n" "$@" > "$MOOS_TEST_PKEXEC_LOG"\n',
+                                       encoding="utf-8")
+        for name in ("rpm-ostree", "pkexec"):
+            (bindir / name).chmod(0o755)
+        env = os.environ.copy()
+        env["PATH"] = f"{bindir}{os.pathsep}{env.get('PATH', '')}"
+        env["MOOS_TEST_PKEXEC_LOG"] = str(log)
+        env["MOOS_TEST_STATUS"] = str(bindir / "status.json")
+        done = subprocess.run([BASH, str(MOAI_DO), "rollback"], input=answer,
+                              capture_output=True, text=True, encoding="utf-8",
+                              errors="replace", timeout=30, env=env)
+        return done, (log.read_text(encoding="utf-8") if log.exists() else "")
+
+
+booted = {"booted": True, "version": "44.3"}
+older = {"version": "44.2"}
+staged = {"staged": True, "version": "44.4"}
+for label, deployments in (("queued", [older, booted]), ("queued behind a staged update",
+                                                            [staged, older, booted])):
+    done, escalated = rollback_run(deployments)
+    check(done.returncode == 0 and escalated == "",
+          f"with a rollback already {label}, moai-do rollback must not run bootc rollback "
+          f"(it would CANCEL the rescue); ran {escalated!r}, exit {done.returncode}")
+    check("nothing was changed" in done.stdout and "44.2" in done.stdout,
+          f"a refused rollback ({label}) must say the return is already queued and name it: "
+          f"{done.stdout!r}")
+done, escalated = rollback_run([booted, older])
+check(escalated == "bootc\nrollback\n",
+      f"a ready rollback must still escalate exactly `bootc rollback`; got {escalated!r}")
+check("44.2" in done.stdout, "moai-do rollback must name the version the next boot returns to")
+done, escalated = rollback_run([staged, booted, older])
+check(escalated == "bootc\nrollback\n" and "rolling back discards it" in done.stdout,
+      "with only a staged update ahead, rollback still queues and warns about the discard")
+done, escalated = rollback_run([booted])
+check(done.returncode != 0 and escalated == "",
+      "with no previous version, rollback must refuse instead of pressing a toggle")
+done, escalated = rollback_run([booted, older], status_ok=False)
+check(done.returncode != 0 and escalated == "",
+      "an unreadable deployment list must never lead to a blind `bootc rollback`")
+
+# ── 6. The Update page's two actions: one question, then a confirmed, audited run ─────────
+# do/update-apps and do/update-firmware no longer open a held Konsole. moos-open asks once
+# (kdialog, fail closed), then runs `moai-do <action>` with MOAI_DO_CONFIRMED=1 in the
+# background. The confirmed path must record the decision as approved.
+with tempfile.TemporaryDirectory() as tmp:
+    bindir = Path(tmp)
+    log = bindir / "moai-do.log"
+    audit_log = bindir / "logger.log"
+    (bindir / "kdialog").write_text(
+        '#!/bin/sh\ncase "$*" in *warningyesno*) exit "${KDIALOG_ANSWER:-1}";; esac\nexit 0\n',
+        encoding="utf-8")
+    (bindir / "moai-do").write_text(
+        '#!/bin/sh\nprintf "%s %s\\n" "${MOAI_DO_CONFIRMED:-0}" "$*" >> "$MOOS_TEST_LOG"\n'
+        'echo "Done"\n', encoding="utf-8")
+    (bindir / "konsole").write_text('#!/bin/sh\necho konsole >> "$MOOS_TEST_LOG"\n',
+                                    encoding="utf-8")
+    for name in ("kdialog", "moai-do", "konsole"):
+        (bindir / name).chmod(0o755)
+    env = os.environ.copy()
+    env.update(PATH=f"{bindir}:/usr/bin:/bin", MOOS_TEST_LOG=str(log), LANG="C.UTF-8")
+    import time as _time
+
+    def route(url, answer):
+        log.unlink(missing_ok=True)
+        subprocess.run([BASH, str(MOOS_OPEN), url], env={**env, "KDIALOG_ANSWER": answer},
+                       capture_output=True, text=True, timeout=30)
+        deadline = _time.monotonic() + 5
+        while not log.exists() and _time.monotonic() < deadline and answer == "0":
+            _time.sleep(0.05)
+        _time.sleep(0.2)
+        return log.read_text(encoding="utf-8") if log.exists() else ""
+
+    for action in ("update-apps", "update-firmware"):
+        ran = route(f"moos://do/{action}", "0")
+        check(ran == f"1 {action}\n",
+              f"moos://do/{action} must run `MOAI_DO_CONFIRMED=1 moai-do {action}` with no "
+              f"terminal after the Yes; ran {ran!r}")
+        check(route(f"moos://do/{action}", "1") == "",
+              f"moos://do/{action} must run nothing when the question is answered No")
+
+# The confirmed path records an approval, not a silent `ok` with no decision.
+with tempfile.TemporaryDirectory() as tmp:
+    bindir = Path(tmp)
+    (bindir / "logger").write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$MOOS_TEST_AUDIT"\n',
+                                   encoding="utf-8")
+    (bindir / "moos-storectl").write_text(
+        "#!/bin/sh\nprintf '%s\\n' '{\"schema\":1,\"state\":\"success\",\"message\":\"Done\"}'\n",
+        encoding="utf-8")
+    for name in ("logger", "moos-storectl"):
+        (bindir / name).chmod(0o755)
+    audit = bindir / "audit.log"
+    env = os.environ.copy()
+    env.update(PATH=f"{bindir}{os.pathsep}{env.get('PATH', '')}", MOOS_TEST_AUDIT=str(audit),
+               MOAI_DO_CONFIRMED="1")
+    done = subprocess.run([BASH, str(MOAI_DO), "update-apps"], stdin=subprocess.DEVNULL,
+                          capture_output=True, text=True, timeout=30, env=env)
+    trail = audit.read_text(encoding="utf-8") if audit.exists() else ""
+    check(done.returncode == 0 and "action=update-apps verdict=ok" in trail,
+          f"MOAI_DO_CONFIRMED=1 moai-do update-apps must run and audit ok; got {trail!r}")
+
+# ── 7. setup-brain is a hand-off to the one brain settings page, never a privilege ─────────
+setup_brain = re.search(r"^do_setup_brain\(\) \{(.*?)^\}", do_text, re.S | re.M)
+check(setup_brain is not None, "moai-do must define do_setup_brain")
+if setup_brain:
+    live = setup_brain.group(1).split("return $?", 1)[0]
+    check("open_assistant_settings" in live and "run_priv" not in live and "pkexec" not in live,
+          "moai-do setup-brain must open the Mo AI settings page without escalating")
+check("moos-settings --section=assistant" in do_text,
+      "the brain settings hand-off must open moos-settings --section=assistant")
 
 if errors:
     print("MoOS moai-do test failed:", file=sys.stderr)

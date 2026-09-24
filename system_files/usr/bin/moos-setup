@@ -15,10 +15,15 @@ echo -e "${N}"
 echo "MoOS Setup — إعداد تطبيقات القوة | Power apps setup"
 echo
 
-if ! flatpak remotes | grep -q flathub; then
-    echo "Adding Flathub remote..."
-    sudo flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-fi
+# The app source is the image's to set up (moos-flatpak-init owns the remotes, at boot,
+# as root). This picker never escalates: it used to add the remote itself through a
+# password prompt outside Polkit and outside the audited moai-do path. If the source is
+# missing, say so and let Mo Store's backend report exactly what it could not install.
+remotes="$(flatpak remotes --columns=name 2>/dev/null || true)"
+case "$remotes" in
+    *flathub*) ;;
+    *) echo "مصدر التطبيقات غير مُعدّ بعد؛ افتح Mo Store للمتابعة. | The app source is not set up yet; open Mo Store to continue." ;;
+esac
 
 MODE="${1:---interactive}"
 SMART=()
