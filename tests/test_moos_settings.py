@@ -659,8 +659,11 @@ class ThePages(unittest.TestCase):
 
     def test_the_remote_page_switches_what_it_measured(self) -> None:
         qml = code(page("remote"))
-        for route in ("moos://remote/start", "moos://remote/stop", "moos://remote/restart"):
+        for route in ("moos://remote/start", "moos://remote/stop", "moos://remote/restart",
+                      "moos://remote/fast-on", "moos://remote/fast-off"):
             self.assertIn(route, qml)
+        self.assertIn("on: root.installed && root.remote.fast === true", qml,
+                      "the Fast Remote switch shows moos-fast-remote's own journal")
         self.assertIn('root.open("moos://app/remote")', qml)
         self.assertIn("on: root.installed && root.remote.enabled === true", qml)
         self.assertNotRegex(qml, r"(?m)^\s*checked:",
