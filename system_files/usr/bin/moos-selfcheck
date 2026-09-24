@@ -756,13 +756,17 @@ if [ -z "$_tray_want" ]; then
     note "could not read the tray definition (moos-bar.conf) — tray not checked"
 else
     IFS=',' read -r -a _tray_items <<<"$_tray_want"
+    # The verdict names what it checked, taken from the same list: a literal
+    # "(network, sound, …)" here would be a second copy that drifts from the conf.
+    _tray_names=""
     for _t in "${_tray_items[@]}"; do
         [ -n "$_t" ] || continue
         _tray_count=$((_tray_count + 1))
+        _tray_names="${_tray_names:+${_tray_names}, }${_t#org.kde.plasma.}"
         case ",${_tray_shown}," in *",$_t,"*) ;; *) _tray_missing="$_tray_missing $_t" ;; esac
     done
     if [ -z "$_tray_missing" ]; then
-        ok "the tray shows the ${_tray_count} status icons moos-bar.conf pins (network, sound, notifications, language)"
+        ok "the tray shows the ${_tray_count} status icons moos-bar.conf pins: ${_tray_names}"
     else
         note "the tray is missing:${_tray_missing} (yours to change, so this is only a note)"
     fi
@@ -838,8 +842,10 @@ if [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/fontconfig/conf.d/99-moos-kawkab-test
 fi
 # A RETIRED MoOS package has no image copy left to compare with, so the checks
 # above cannot see it — and a home copy would still load, as a widget the theme
-# system removes again on every apply. moos-apply-theme's retired sweep deletes
-# these ids on the next revision; until then, say so.
+# system removes again on every apply. moos-apply-theme's remove_retired_moos_packages
+# deletes these ids on EVERY run, before its once-per-revision fast path, so the
+# advice below works on the spot (tests/test_moos_shell_hygiene.py runs it). The
+# list is moos-apply-theme's retired list; the same test keeps the two equal.
 for rel in plasma/plasmoids/org.moos.heroclock plasma/plasmoids/org.moos.search \
            plasma/plasmoids/org.moos.nova.deskclock plasma/plasmoids/org.moos.ui2.dashboard; do
     if [ -e "${XDG_DATA_HOME:-$HOME/.local/share}/$rel" ]; then

@@ -508,8 +508,11 @@ for dir in kwin/tabbox kwin/scripts kwin/effects; do
         [ -e "${system_share}/$rel" ] && plasmoid_shadows="${plasmoid_shadows} ${rel}"
     done
 done
-# Retired packages have no image copy to compare with; any home copy is stale.
-for rel in plasma/plasmoids/org.moos.heroclock plasma/plasmoids/org.moos.search; do
+# Retired packages have no image copy to compare with; any home copy is stale. The list is
+# moos-apply-theme's retired list (tests/test_moos_shell_hygiene.py keeps them equal), and
+# moos-apply-theme removes these on every run, so the advice below works on the spot.
+for rel in plasma/plasmoids/org.moos.heroclock plasma/plasmoids/org.moos.search \
+           plasma/plasmoids/org.moos.nova.deskclock plasma/plasmoids/org.moos.ui2.dashboard; do
     if [ -e "${XDG_DATA_HOME:-$HOME/.local/share}/$rel" ]; then
         plasmoid_shadows="${plasmoid_shadows} ${rel##*/}(retired)"
     fi

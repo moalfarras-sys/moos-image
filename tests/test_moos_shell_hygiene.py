@@ -13,6 +13,15 @@ WHY THIS EXISTS (all measured on the station, 2026-09-24)
     switcher for a week while both moos-selfcheck and post-update-check said "no user-level copy
     is shadowing". Their scans did not look under kwin/.
 
+And from the review of THEME_REV 86:
+
+  * Both checks tell a person with a home copy of a RETIRED widget to "run moos-apply-theme
+    once", but the retired sweep sat after the once-per-revision fast path, so once the v86
+    marker existed that advice removed nothing. The sweep now runs first, on every invocation;
+    the gate runs the WHOLE script with the marker present and watches the copy go.
+  * The tray verdict counted the icons from moos-bar.conf but named them from a literal, a
+    second copy of the list inside the check. It now names what it checked.
+
 Each check below executes the REAL code out of the shipped script against synthetic trees, with
 every desktop tool stubbed and the session bus pointed at nothing, so the live desktop is never
 touched and the gate cannot drift from what runs on the machine.
@@ -22,6 +31,7 @@ from __future__ import annotations
 
 import fcntl
 import os
+import re
 import subprocess
 import tempfile
 import unittest
@@ -32,6 +42,7 @@ BAR_APPLY = ROOT / "system_files/usr/bin/moos-bar-apply"
 BAR_CONF = ROOT / "system_files/usr/share/moos/moos-bar.conf"
 SELFCHECK = ROOT / "system_files/usr/bin/moos-selfcheck"
 POST_UPDATE = ROOT / "tests/post-update-check.sh"
+APPLY = ROOT / "system_files/usr/bin/moos-apply-theme"
 BASH = "/usr/bin/bash" if Path("/usr/bin/bash").exists() else "bash"
 
 # Every tool that could reach a live desktop or user manager. Each stub records its call and
@@ -47,6 +58,10 @@ def isolated_env(root: Path, calls: Path) -> dict[str, str]:
         stub = stubs / tool
         stub.write_text(f'#!/bin/sh\necho "{tool} $*" >> "{calls}"\nexit 1\n', encoding="utf-8")
         stub.chmod(0o755)
+    # The SHIPPED bar tool, never the host's installed copy of an older revision.
+    shim = stubs / "moos-bar-apply"
+    shim.write_text(f'#!/bin/sh\nexec "{BASH}" "{BAR_APPLY}" "$@"\n', encoding="utf-8")
+    shim.chmod(0o755)
     runtime = root / "run"
     runtime.mkdir(mode=0o700, exist_ok=True)
     return {
@@ -150,8 +165,17 @@ fi"""
         shipped = next(line for line in BAR_CONF.read_text(encoding="utf-8").splitlines()
                        if line.startswith("shownItems="))
         out = self.run_tray(shipped.split("=", 1)[1], shipped)
-        self.assertIn("OK the tray shows the 4 status icons moos-bar.conf pins", out)
+        self.assertIn("OK the tray shows the 4 status icons moos-bar.conf pins: "
+                      "networkmanagement, volume, notifications, keyboardlayout", out)
         self.assertNotIn("bluetooth", out)
+
+    def test_the_verdict_names_what_the_conf_pins_not_a_remembered_list(self):
+        conf = "shownItems=org.kde.plasma.volume,org.kde.plasma.battery"
+        out = self.run_tray("org.kde.plasma.battery,org.kde.plasma.volume", conf)
+        self.assertIn("OK the tray shows the 2 status icons moos-bar.conf pins: volume, battery",
+                      out)
+        for other in ("network", "notifications", "language", "keyboardlayout"):
+            self.assertNotIn(other, out, "the verdict may only name icons it checked")
 
     def test_a_missing_pinned_icon_is_named(self):
         out = self.run_tray("org.kde.plasma.volume",
@@ -162,6 +186,100 @@ fi"""
         tray = section(SELFCHECK, self.START, self.END)
         for stale in ("org.kde.plasma.bluetooth", "org.kde.plasma.brightness"):
             self.assertNotIn(stale, tray, "moos-bar.conf is the tray's only definition")
+
+
+RETIRED = ("org.moos.heroclock", "org.moos.search", "org.moos.nova.deskclock",
+           "org.moos.ui2.dashboard")
+
+
+def retired_list(text: str, anchor: str) -> list[str]:
+    """The plasmoid ids of the first `for rel in … ; do` list after *anchor*."""
+    block = text.split(anchor, 1)[1].split("; do", 1)[0]
+    return sorted(re.findall(r"plasma/plasmoids/(org\.moos\.[a-z0-9.]+)", block))
+
+
+class TheRetiredAdviceWorksOnTheSpot(unittest.TestCase):
+    """Runs the WHOLE moos-apply-theme, as `run moos-apply-theme once` would, on a home that
+    already holds this revision's marker: the case in which the sweep used to be skipped."""
+
+    # Tools the script may reach once past the fast path. Each is a failing, recording stub, so
+    # a regression that falls through to the full apply still touches nothing real.
+    MORE_TOOLS = ("kbuildsycoca6", "balooctl6", "plasma-apply-lookandfeel",
+                  "plasma-apply-colorscheme", "plasma-apply-desktoptheme",
+                  "plasma-apply-wallpaperimage", "plasma-apply-cursortheme", "lookandfeeltool",
+                  "kquitapp6", "kstart", "kstart6", "dbus-send", "fc-cache", "notify-send",
+                  "qdbus", "xdg-open", "flatpak")
+
+    def run_apply(self, lookandfeel_known: bool) -> tuple[subprocess.CompletedProcess, Path, str]:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        calls = root / "calls"
+        env = isolated_env(root, calls)
+        stubs = root / "stubs"
+        for tool in self.MORE_TOOLS:
+            (stubs / tool).write_text(f'#!/bin/sh\necho "{tool} $*" >> "{calls}"\nexit 1\n',
+                                      encoding="utf-8")
+            (stubs / tool).chmod(0o755)
+        # The desktop wears a MoOS look and the appearance owner verifies it: the fast path.
+        kread = ('echo org.moos.ui2' if lookandfeel_known else 'exit 1')
+        (stubs / "kreadconfig6").write_text(
+            f'#!/bin/sh\necho "kreadconfig6 $*" >> "{calls}"\n{kread}\n', encoding="utf-8")
+        (stubs / "moos-theme").write_text(
+            f'#!/bin/sh\necho "moos-theme $*" >> "{calls}"\nexit 0\n', encoding="utf-8")
+        for tool in ("kreadconfig6", "moos-theme"):
+            (stubs / tool).chmod(0o755)
+        env["MOOS_SYSTEM_SHARE"] = str(root / "image")          # ships no retired id
+        rev = re.search(r"(?m)^THEME_REV=(\d+)$", APPLY.read_text(encoding="utf-8")).group(1)
+        state = Path(env["XDG_STATE_HOME"])
+        state.mkdir(parents=True)
+        (state / f"moos-ui2-theme-applied.v{rev}").touch()
+        share = Path(env["XDG_DATA_HOME"])
+        for plugin in RETIRED + ("com.example.weather",):
+            (share / "plasma/plasmoids" / plugin / "contents").mkdir(parents=True)
+            (share / "plasma/plasmoids" / plugin / "metadata.json").write_text("{}")
+        result = subprocess.run([BASH, str(APPLY)], env=env, capture_output=True, text=True,
+                                timeout=120)
+        return result, share, calls.read_text(encoding="utf-8") if calls.exists() else ""
+
+    def check(self, lookandfeel_known: bool, route: str) -> None:
+        result, share, calls = self.run_apply(lookandfeel_known)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        log = (share.parent.parent / ".cache/moos-apply-theme.log").read_text(encoding="utf-8")
+        self.assertNotIn("=== moos-apply-theme", log,
+                         "the fixture must exercise the marker fast path, not a full apply")
+        self.assertIn(route, calls, "the run left by a different door than this case covers")
+        for plugin in RETIRED:
+            with self.subTest(plugin=plugin):
+                self.assertFalse((share / "plasma/plasmoids" / plugin).exists(),
+                                 f"`run moos-apply-theme once` left the retired {plugin} "
+                                 "in place: the sweep must run before the fast path")
+                self.assertIn(f"removed the user-level copy of retired plasma/plasmoids/{plugin}",
+                              log)
+        self.assertTrue((share / "plasma/plasmoids/com.example.weather/metadata.json").exists(),
+                        "a widget the person installed is theirs")
+        for tool in ("plasmashell", "systemctl", "kquitapp6", "kbuildsycoca6", "busctl"):
+            self.assertNotIn(f"{tool} ", calls, f"the fast path must not run {tool}")
+
+    def test_the_verified_fast_path_removes_retired_copies(self):
+        self.check(True, "moos-theme settle-lnf org.moos.ui2")
+
+    def test_the_cannot_tell_fast_path_removes_retired_copies(self):
+        self.check(False, "kreadconfig6 --file kdeglobals --group KDE --key LookAndFeelPackage")
+
+    def test_the_advice_and_the_sweep_name_the_same_ids(self):
+        sweep = retired_list(APPLY.read_text(encoding="utf-8"), "remove_retired_moos_packages() {")
+        self.assertEqual(sweep, sorted(RETIRED))
+        selfcheck = SELFCHECK.read_text(encoding="utf-8")
+        self.assertEqual(retired_list(selfcheck, "# A RETIRED MoOS package has no image copy"),
+                         sweep, "moos-selfcheck names a retired id moos-apply-theme keeps")
+        self.assertEqual(retired_list(POST_UPDATE.read_text(encoding="utf-8"),
+                                      "# Retired packages have no image copy to compare with"),
+                         sweep, "post-update-check names a different retired list")
+        apply = APPLY.read_text(encoding="utf-8")
+        call = apply.index("\nremove_retired_moos_packages\n")
+        self.assertLess(call, apply.index('migration_completed=false\nif [ -e "$marker" ]; then'),
+                        "the retired sweep must run before the marker fast path")
 
 
 class HomeShadowScansCoverKWin(unittest.TestCase):

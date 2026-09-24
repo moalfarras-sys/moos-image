@@ -489,6 +489,33 @@ if [ "$quarantined_kwin" = "1" ]; then
     fi
 fi
 
+# RETIRED MoOS assets are removed from the user share UNCONDITIONALLY — the
+# image no longer carries them, so neither quarantine_moos_data_shadows (it moves
+# only ids the image still ships) nor the [-e /usr/share/…] guard of the sweep
+# further down can ever fire, and a stale user-level copy of a package the OS
+# retired would haunt the widget explorer forever. Every name here is MoOS-owned.
+#
+# Like the quarantine, this runs on EVERY invocation, before the marker fast path.
+# moos-selfcheck and post-update-check tell a person who still has such a copy to
+# "run moos-apply-theme once"; until THEME_REV 86's review this loop sat after the
+# fast path, so that advice removed nothing until the next revision. Keep this
+# list and moos-selfcheck's retired list equal (tests/test_moos_shell_hygiene.py).
+remove_retired_moos_packages() {
+    local share="${XDG_DATA_HOME:-$HOME/.local/share}" rel
+    for rel in \
+        "plasma/plasmoids/org.moos.nova.deskclock" \
+        "plasma/plasmoids/org.moos.ui2.dashboard" \
+        "plasma/plasmoids/org.moos.heroclock" \
+        "plasma/plasmoids/org.moos.search" \
+    ; do
+        if [ -e "${share}/$rel" ] || [ -L "${share}/$rel" ]; then
+            rm -rf "${share:?}/$rel"
+            echo "removed the user-level copy of retired $rel" >>"$log" 2>/dev/null || true
+        fi
+    done
+}
+remove_retired_moos_packages
+
 
 migration_completed=false
 if [ -e "$marker" ]; then
@@ -605,8 +632,8 @@ fi
 # MoOS-owned ids are dropped; third-party widgets the user installed stay put.
 local_plasmoids="${XDG_DATA_HOME:-$HOME/.local/share}/plasma/plasmoids"
 # Retired packages (org.moos.heroclock, org.moos.search) are not listed here:
-# the image no longer ships them, and the unconditional retired sweep further
-# down removes their home copies.
+# the image no longer ships them, and remove_retired_moos_packages (before the
+# marker fast path) removes their home copies on every invocation.
 for moos_widget in org.moos.brand org.moos.nova.clock org.moos.island; do
     rm -rf "${local_plasmoids:?}/${moos_widget}" 2>/dev/null || true
 done
@@ -772,7 +799,7 @@ systemctl --user start plasma-ksystemstats.service >>"$log" 2>&1 || true
 # transactional scene owner. THEME_REV 43's auto-seed of heroclock was rejected
 # on sight; this migrator clears its old cache/shadows and never places it again.
 # THEME_REV 86 deletes the package itself; its id survives only in the retired
-# lists (the sweep below, WidgetExplorer's retired(), moos-theme's removal).
+# lists (remove_retired_moos_packages, WidgetExplorer's retired(), moos-theme's removal).
 
 
 # --- The system tray -----------------------------------------------------------
@@ -959,22 +986,8 @@ fi
 # right way to prove it. Leaving the stage up afterwards is how the image loses.
 user_share="${XDG_DATA_HOME:-$HOME/.local/share}"
 
-# RETIRED MoOS assets are removed from the user share UNCONDITIONALLY — the
-# image no longer carries them, so the [-e /usr/share/…] guard below would
-# never fire, and a stale user-level copy of a package the OS retired would
-# haunt the widget explorer forever. Every name here is MoOS-owned.
-for rel in \
-    "plasma/plasmoids/org.moos.nova.deskclock" \
-    "plasma/plasmoids/org.moos.ui2.dashboard" \
-    "plasma/plasmoids/org.moos.heroclock" \
-    "plasma/plasmoids/org.moos.search" \
-; do
-    if [ -e "${user_share}/$rel" ]; then
-        rm -rf "${user_share:?}/$rel"
-        echo "removed the user-level copy of retired $rel" >>"$log" 2>/dev/null || true
-    fi
-done
-
+# RETIRED MoOS ids are not in this list: remove_retired_moos_packages (above the
+# marker fast path) removes their home copies on every invocation.
 for rel in \
     "plasma/plasmoids/org.moos.brand" \
     "plasma/plasmoids/org.moos.nova.clock" \
