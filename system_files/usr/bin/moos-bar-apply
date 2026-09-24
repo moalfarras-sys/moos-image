@@ -128,6 +128,9 @@ bar_payload_generation() {
         "${plasmoids}/${BRAND_APPLET}/contents/ui/LauncherView.qml" \
         "${plasmoids}/${ISLAND_APPLET}/metadata.json" \
         "${plasmoids}/${ISLAND_APPLET}/contents/ui/main.qml" \
+        "${plasmoids}/${ISLAND_APPLET}/contents/ui/SearchView.qml" \
+        "${plasmoids}/${ISLAND_APPLET}/contents/ui/SearchAnswers.js" \
+        "${plasmoids}/${ISLAND_APPLET}/contents/ui/IslandTokens.js" \
         "${plasmoids}/${CLOCK_APPLET}/metadata.json" \
         "${plasmoids}/${CLOCK_APPLET}/contents/ui/main.qml"; do
         [ -r "$file" ] || continue

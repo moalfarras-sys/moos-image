@@ -569,8 +569,11 @@ fi
 # tooltips, glyphs and all — while every image gate stays green. Only the
 # MoOS-owned ids are dropped; third-party widgets the user installed stay put.
 local_plasmoids="${XDG_DATA_HOME:-$HOME/.local/share}/plasma/plasmoids"
+# Retired packages (org.moos.search) are not listed here:
+# the image no longer ships them, and the unconditional retired sweep further
+# down removes their home copies.
 for moos_widget in org.moos.brand org.moos.heroclock org.moos.nova.clock \
-                   org.moos.island org.moos.search; do
+                   org.moos.island; do
     rm -rf "${local_plasmoids:?}/${moos_widget}" 2>/dev/null || true
 done
 # The desktop scene is a wallpaper package, one directory over again. Its id is
@@ -927,6 +930,7 @@ user_share="${XDG_DATA_HOME:-$HOME/.local/share}"
 for rel in \
     "plasma/plasmoids/org.moos.nova.deskclock" \
     "plasma/plasmoids/org.moos.ui2.dashboard" \
+    "plasma/plasmoids/org.moos.search" \
 ; do
     if [ -e "${user_share}/$rel" ]; then
         rm -rf "${user_share:?}/$rel"

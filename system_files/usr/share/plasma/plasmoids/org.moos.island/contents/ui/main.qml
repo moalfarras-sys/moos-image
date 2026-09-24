@@ -28,7 +28,10 @@ import org.kde.kirigami as Kirigami
 import org.kde.plasma.private.mpris as Mpris
 import org.moos.ui as MoUI
 import "IslandTokens.js" as IslandTokens
-import "../../../org.moos.search/contents/ui" as MoSearch
+// SearchView.qml and SearchAnswers.js live in THIS package. They used to be
+// imported from the retired org.moos.search applet by a relative path across
+// packages, which broke whenever one package was shadowed or updated without
+// the other (THEME_REV 86).
 
 PlasmoidItem {
     id: root
@@ -462,8 +465,8 @@ PlasmoidItem {
         } else {
             // Search is the Island's idle face, so it opens HERE. Routing this
             // click through activateLauncherMenu made the applications page
-            // appear even though the control says Search. Reuse the canonical
-            // MoOS Search view and Plasma's Milou models inside this one slot.
+            // appear even though the control says Search. The one MoOS Search
+            // view lives in this package and runs Plasma's Milou models here.
             root.expanded = true;
         }
     }
@@ -1214,8 +1217,8 @@ PlasmoidItem {
             ? Kirigami.Units.gridUnit
                 * ((root.showRemoteDetails || root.showPrivacyDetails || root.showStoreDetails) ? 13 : 17)
                 + (root.multipleContexts ? 48 : 0)
-            // The Island popup grows upward from a bottom panel. The canonical
-            // standalone Search view can use 28 units, but that height crossed
+            // The Island popup grows upward from a bottom panel. The retired
+            // standalone Search applet used 28 units, but that height crossed
             // behind the Horizon Bar at 4K/265% and clipped the Mo AI row.
             : Math.min(Kirigami.Units.gridUnit * root.searchSurfaceUnits,
                        Screen.height - Kirigami.Units.gridUnit * 7)
@@ -1266,7 +1269,7 @@ PlasmoidItem {
             }
         }
 
-        MoSearch.SearchView {
+        SearchView {
             anchors.fill: parent
             visible: !root.active
             z: 20

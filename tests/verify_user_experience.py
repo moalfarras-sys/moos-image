@@ -6040,7 +6040,11 @@ require("readonly property real stableWidth:" in _island
         and "Layout.maximumWidth: stableWidth" in _island
         and "Behavior on implicitWidth" not in _island
         and 'Qt.openUrlExternally("moos://search/")' not in _island
-        and "MoSearch.SearchView" in _island
+        and "SearchView {" in _island
+        and "org.moos.search" not in _island
+        and (ROOT / "system_files/usr/share/plasma/plasmoids/org.moos.island/contents/ui/SearchView.qml").is_file()
+        and (ROOT / "system_files/usr/share/plasma/plasmoids/org.moos.island/contents/ui/SearchAnswers.js").is_file()
+        and not (ROOT / "system_files/usr/share/plasma/plasmoids/org.moos.search").exists()
         and "Milou.ResultsModel" in _island
         and "readonly property int searchSurfaceUnits: 24" in _island
         and "readonly property int searchBottomInset: root.design.targetComfortable" in _island
