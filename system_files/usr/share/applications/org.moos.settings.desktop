@@ -10,11 +10,17 @@ Exec=moos-settings
 TryExec=moos-settings
 Icon=moos-control-center
 Terminal=false
-StartupWMClass=org.kde.systemsettings
+# The System Settings window's own app id is `systemsettings` (measured on the live
+# session), so a pin of this entry and the window it opens are one dock icon.
+StartupWMClass=systemsettings
 Categories=Settings;Qt;KDE;
 Keywords=settings;control;system;network;display;privacy;recovery;MoOS;
 Keywords[ar]=إعدادات;تحكم;نظام;شبكة;شاشة;خصوصية;استعادة;
 X-KDE-StartupNotify=true
+# Kept for pins and favourites made before the one visible Settings entry became the
+# system's own (systemsettings.desktop, renamed MoOS Settings at build time), which runs
+# this same moos-settings. Hidden so the menu shows one Settings entry, not two.
+NoDisplay=true
 Actions=Appearance;Connectivity;Recovery;
 
 [Desktop Action Appearance]
