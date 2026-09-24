@@ -85,6 +85,25 @@ integration and the candidate SHA. Kernel policy is not a custom kernel, a
 healthy API process is not a successful user flow, and available assets are
 not evidence that Plasma actually consumes them.
 
+## Upstream transitions: Plasma, Fedora and the kernel
+
+- **The base tag moves by itself.** `kinoite-main:44` delivers a new Plasma, Qt or kernel to
+  the next candidate with no commit here. Being ready is work done before that day (P6.7).
+- **Every Plasma file MoOS replaces is a seam** in `build_files/plasma-seams/seams.json`,
+  keyed to the upstream digest it was reviewed against. The build's `rpm -V` refuses a modified
+  Plasma file that is not registered. To replace a new upstream file, register it.
+- **A new Plasma gets a reviewed set.** Read `plasma-next-canary.yml`'s result, then run
+  `scripts/plasma-next/rederive_seams.py OLD NEW`. Take upstream's authentication logic
+  verbatim. Prove `plasma_seams.py probe-lockscreen` both ways: it loads, and it fails when you
+  break it. Record digests only after that. Never widen a range or add a digest to pass a build.
+- **A Fedora base move (`:44` → `:45`) is a Tier 1 lane** (P6.8), not a tag edit.
+- **The kernel stays Fedora's signed kernel.** MoKernel is policy. A scheduler, karg or sysctl
+  change ships only with a measured win and a readback (P5.7).
+- **On the A1, the VS Code Flatpak's `/tmp` is not the host's.** Share files with
+  `flatpak-spawn --host` commands through `~/.cache`. `podman run --arch amd64` runs x86
+  Fedora packages under qemu-user there. That is package and QML evidence, such as what loads
+  and what a greeter prints. It is never performance or boot evidence.
+
 ## The design language: MoOS UI
 
 - The official design system of MoOS is **MoOS UI — Liquid Glass Design System**.

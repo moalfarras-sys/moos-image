@@ -82,6 +82,51 @@ difference is not a wave. Fixing a defect you find on the way belongs in the sam
 wave. What is never traded for speed: a safety gate, a signing or rollback rule,
 the identity contract, or a meaningful test.
 
+## MoOS One — one system from power-on to the first app
+
+The owner asked on 2026-09-24 for "one unified MoOS": the newest KDE Plasma and Wayland
+engine underneath, one MoOS face from boot to desktop, apps and programs that update, a modern
+core, and a kernel that is MoOS's own. MoOS is unified by owning **one contract per layer**, not
+by forking a layer. Three mechanisms carry that contract across every layer:
+
+1. **One design system.** The UI2 tokens and generators paint boot, login, lock, shell, windows
+   and first-party apps. A surface that does not read them is a defect, whatever its engine.
+2. **One authority per transaction.** `moai-do` changes the system, Mo Store changes apps,
+   `moos-image-update` changes the OS image, and `bootc` rolls it back. Everything else asks them.
+3. **One version contract with upstream.** MoOS replaces ten files inside Plasma's packages.
+   Each is registered in `build_files/plasma-seams/seams.json` with the upstream bytes it was
+   reviewed against. A weekly canary builds MoOS on the next Plasma, so "latest KDE" arrives
+   already reviewed instead of breaking on the day the base tag moves (P6.7).
+
+| Layer | What the owner meets | MoOS owner (upstream stays the engine) | Measured state | Next row |
+| --- | --- | --- | --- | --- |
+| Boot entry and fallback | one MoOS entry; a bad update boots the old one | bootc/GRUB, `kargs.d`, `moos-boot-assess` | every edition boots twice in CI; automatic fallback is in the image | deliberate rollback on hardware (P0.4) |
+| Kernel | nothing, it just works | Fedora's signed kernel plus MoKernel policy: `mokernel`, `kargs.d` (`preempt=full`), sysctl, zram, I/O rules, `moos-hardware-adapt` | `mokernel status` reads the running kernel back | pressure, frame, audio and thermal measurement (P5.7) |
+| Boot splash | the MoOS mark | Plymouth script theme kept through the KWin hand-off | an upstream Plymouth crash hits about 1 boot in 26 (P0.7) | upstream fix or a proven hide-splash order; the mark at three sizes (W8) |
+| Login | the MoOS greeter | plasma-login-manager, three breeze-component seams, greeter wallpaper | shipped | photographed login (P0.3); Intro continuity (W11) |
+| Compositor and windows | windows, blur, motion | KWin Wayland, MoOS switcher, Arrange, visual tiers | W7 reviewed live; Plasma 6.8 drops the X11 session MoOS never used | compositor lifetime (P5.8) |
+| Shell | Bar, Search, Island, Hub | MoOS plasmoids, one panel writer | installed and reviewed | locale and scale matrix (P2.8) |
+| Lock and logout | the MoOS lock screen | seams in the shell package | loads on 6.7; the 6.7 copy fails on 6.8 beta; set 6.8 loads there | P6.7 |
+| First-party apps | Settings, Store, Mo AI, MoPlayer, Remote | `org/moos/ui` on `moos-qml-shell` | every app is launch-gated in the image | Updater and Recovery transaction sheets are still GTK (P2.1) |
+| Third-party apps | one Store for every kind of app | Mo Store, `app-engines.json`, App Drop | three engines proven on x86; ARM says what it cannot run | one job lifecycle (P4.1); per-app products (P4.3, P4.4) |
+| Core | Mo AI acts through fixed tools | `moai-do`, `moos-control`, `moos-inspect`, Store jobs | tool choice measured at 98.8–100% | versioned contracts under failure (P1.7) |
+| Updates | "everything is up to date" | image: `moos-image-update`; apps: two Flatpak timers through `moos-flatpak-update`; firmware: `fwupd` metadata only | Settings shows the image; app updates write no record; firmware is not shown | one update surface (P2.12) |
+| Recovery | a Recovery page that works | `bootc rollback`, `moos-rollback` | W9 front door in source | P0.4 and P2.1 |
+
+**What "a kernel of its own" means here.** MoOS keeps Fedora's signed kernel and owns its
+policy. A compiled MoOS kernel would lose three things MoOS cannot replace: the kernel security
+stream, the NVIDIA kmod that ublue builds against that exact kernel, and the Secure Boot
+signature chain. Before any tuning ships, `moos-measure-speed` and P5.7 must measure the
+difference. `sched_ext` is the one candidate worth an experiment: the 7.2 kernel supports it,
+but no scheduler package exists in Fedora. Rawhide had none on 2026-09-24, so an experiment
+needs a reviewed COPR and a measured win before it can become policy.
+
+**How the newest Plasma arrives.** MoOS does not switch to a beta. The mutable
+`kinoite-main:44` tag delivers each new Plasma once Fedora ships it, with no change in this
+repository. The work is to be reviewed before that day: the canary, the seam sets and the
+real-greeter probe (P6.7). Fedora 45 ships 2026-10-20 with Plasma 6.7 and is a separate base
+lane (P6.8).
+
 ## Product outcome
 
 MoOS must be a coherent operating-system product rather than a collection of
@@ -760,8 +805,9 @@ The physical development machine runs Plasma/KWin 6.7.5, kernel 7.2.4,
 systemd 259.8, bootc 1.16.10 and NVIDIA 615.71.09. Plasma 6.7.5 is the current
 stable bug-fix release. Plasma 6.8 is in beta and its public release is scheduled
 for 2026-10-14; MoOS must not replace a proven stable desktop with the beta.
-Upgrade when the stable stack reaches the shared image base and passes the full
-visual, QML, boot and hardware matrix.^1 ^2
+MoOS does not choose the moment it upgrades, though: the shared base tag brings
+6.8 by itself once Fedora 44 ships it. Being ready before then is row P6.7, and
+the full visual, QML, boot and hardware matrix still runs on that candidate.^1 ^2
 
 The first physical offline installation and NVIDIA boot succeeded. The current
 branch's complete NVIDIA image build also passed. The unresolved product gaps
@@ -855,6 +901,10 @@ For every task:
 
 Rows can contribute to more than one milestone. A row closes only when its own
 exit evidence exists; the map controls batching, not truth.
+
+**Time-boxed outside the milestone order:** P6.7 must be green on the canary before Fedora 44
+ships Plasma 6.8 (released upstream 2026-10-14). On that day the mutable base tag moves by
+itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 
 ### P0 — Establish one proven release
 
@@ -1047,6 +1097,7 @@ installed visual matrix; it is not inferred from the global effect answer.
 | P2.10 | Readable text on every scheme | **In source (W6):** secondary text was the DISABLED role — 1.6:1 on light schemes; all five apps now use text at 72% (≥4.66:1 on all 16 schemes), held by `tests/test_secondary_text_contrast.py`. **Open:** the same arithmetic for plasmoids, the launcher and the greeter, and for state colours on tinted fills |
 | P2.11 | **In source (W6.3):** tell a person what an update brought | The owner updated across six waves and "felt no change". `/usr/share/moos/whats-new.json` lists what a person can see or do, newest first; MoOS Settings → System → What's new shows it with "Try it" routes and marks what this machine did not have before its last update (`fresh` = merged after the rollback deployment's build); `moos-whats-new-notify` says it ONCE at the first login on a new version (never to a brand-new user, never for an update with nothing visible, retried when the message did not go out). One reader (`usr/lib/moos/moos_whats_new.py`) for both; `tests/test_whats_new.py` runs the notifier end to end under bubblewrap and refuses an entry the reader would drop, a glyph the catalogue lacks or a route Settings may not open. **Rule:** a user-visible change ships with its entry. **Open:** a station review of the notification on a real update |
 | P2.8 | **In progress:** compose MoOS Bar, Search and Island (experience goals 1–2 in `artwork/MOOS_UI2_DESIGN.md`) | one anchored Milou surface with recent apps/destinations/Mo AI, stale-result protection and complete keyboard escape/traversal; Remote keeps privacy priority while its popup can switch to media; native ≥40 px controls; localized clock/hub; typed queries reviewed live on the station; MoOS Hub has desktop right-click controls. **Installed proof 2026-09-20:** on the signed current image, the Search-labelled Island button opened the embedded canonical Search—not the launcher—accepted Arabic keyboard input (`الملفات`), returned grouped app/settings/recent-file rows, and kept the compact Island fixed at 4K/265%; no QML errors. Remaining: English/German session matrix and the full accessibility matrix. |
+| P2.12 | Open: one update surface for the system, its apps and its firmware | The owner meets three silent owners today. The image has `moos-image-update`'s record, which Settings shows. Apps update through two Flatpak timers and `moos-flatpak-update`, which writes no record, so their result lives only in the journal. Firmware gets `fwupd` metadata and nothing on screen. Settings → Update must show three rows (System, Applications, Device firmware), each read from its own owner and each with one action that opens that owner's existing transaction. The app updater must publish an atomic record the way P1.5 did for the image. Exit: an app update is observed in the row after the timer runs; a failed app update says which app and why; firmware shows "none offered" or the offer from `fwupd`; Arabic/English light/dark frames; no second updater. |
 
 P2.7 retains the stock Plasma task manager and one existing panel writer. It
 does not install an unrelated dock/effects pack. Qt's native spring provides
@@ -1243,7 +1294,7 @@ testing isolated; drivers and privileged services do not belong in a Flatpak.^6
 | P5.4 | Performance budgets | boot, idle CPU/PSS/wakeups, app launch p95, scroll/frame pacing, build load and AI latency per tier. **Owed by W5:** `moos-privacy-monitor` polls PipeWire every 1.5 s for the whole session on every machine and was never measured; W6 cut it from three `pw-dump` spawns per round to one (12 ms → 4 ms on an idle pipewire 1.6.8), **Measured 2026-09-17** off the station (Fedora 44 under WSL2, x86, idle PipeWire with 37 objects): 60 s of the loop cost 0.39 s of CPU including its `pw-dump` children — 0.66% of one core, 40 process spawns a minute. Small enough to leave the simple poll alone on a desktop; its cost on the station and on the A1's slower cores, and its wakeups on a battery, are still unmeasured — prefer `pw-dump --monitor` with a slow safety poll only if one of those shows **Closed for the flagship tier, 2026-09-18 (W9.2):** `moos-measure-speed` measures boot userspace, session ready, an app's window appearing (asked of KWin) and MoOS's OWN idle CPU against `speed-budgets.json`, keyed on `moos-visual-tier`. Station: 6.034 s / 1.108 s / 0.46 s / 2.6%, all inside budget. **The essential tier is now measured too, 2026-09-21** on the ARM station (`moos-arm-oracle`, Oracle A1, 2 vCPU): boot **10.02 s**/30.0, session **2.583 s**/12.0, idle **0.47–0.57%**/20.0 — three rows inside budget, and the first numbers behind that tier rather than derived ones. The fourth row exposed a defect in the TOOL, not in MoOS: the launch probe answers through Klipper, and plasmashell owns `org.kde.klipper` without exposing `/klipper` when the clipboard applet is not in the tray — which MoOS curates. Every read returned `''`, the probe waited 60 s and reported “the window never reached KWin”, about apps that had just opened and rendered on that same session (Mo AI, MoPlayer and Mo Store, screenshotted). It now proves the clipboard round trip BEFORE timing and names the channel instead of the app, returning at once — verified live on that station; `tests/test_moos_speed_budgets.py::TheLaunchProbeBlamesTheRightThing` holds both halves. **Still open:** the balanced tier, the essential tier's app-launch row (needs an image carrying the fixed probe, or a session with the clipboard applet), plus app-launch p95 and frame pacing, which this tool does not attempt. |
 | P5.5 | Cloud desktop efficiency | encode CPU/GPU, frame pacing, bandwidth degradation, reconnect, multiple accounts and audio sync |
 | P5.6 | Storage lifecycle | update headroom, Flatpak/container cleanup, log bounds and low-space recovery without deleting user data |
-| P5.7 | Qualify kernel policy and driver transitions | MoKernel sysctl/module/karg readback; exact kernel/NVIDIA match; boot/initramfs, frame pacing, audio underruns, CPU/RAM pressure and thermal/power regression measurements |
+| P5.7 | Qualify kernel policy and driver transitions | MoKernel sysctl/module/karg readback; exact kernel/NVIDIA match; boot/initramfs, frame pacing, audio underruns, CPU/RAM pressure and thermal/power regression measurements. **Scheduler experiment (owner asked for a MoOS kernel, 2026-09-24):** the kernel stays Fedora's signed one (see MoOS One). `sched_ext` is available in the 7.2 kernel, but no scheduler package exists in Fedora; rawhide had none on 2026-09-24. An experiment needs a reviewed COPR, runs on a scratch deployment, and reports input-to-frame latency and frame pacing under a build load against the default scheduler. It becomes MoKernel policy only with a measured win on the flagship and essential tiers and a clean fallback when the scheduler exits |
 | P5.8 | Qualify Wayland and compositor lifetime | portal consent/revocation/restart; multi-output scale/hotplug; clipboard/input-layout continuity; separate users; long-session KWin PSS/pressure and recovery |
 
 `mokernel` is MoOS's policy/readback wrapper around the signed Linux kernel,
@@ -1264,6 +1315,8 @@ growth with an explicit workload and duration.
 | P6.4 | Add staged rollout and release health | candidate ring, development machine ring, broader ring; halt and rollback criteria |
 | P6.5 | Security review the MoOS URL scheme, Remote and AI boundaries | **Partial Remote source repair 2026-09-24:** controller handoff now owns held input across sessions, with a two-WebSocket negative test; live service stays loopback behind the tailnet and PIN. Still open: threat model, dependency audit, authenticated stream/input proof on the booted candidate and externally reviewable report. |
 | P6.6 | Establish support lifecycle and migration policy | published support window, upgrade path, rollback window and end-of-support behavior |
+| P6.7 | **In source 2026-09-24 (`plan/unified-moos-20260924`), time-boxed before 2026-10-14:** review MoOS for each new Plasma before the base tag delivers it | **Measured on the A1 against KDE SIG's 6.7.90 packages (x86_64 under emulation):** Plasma 6.8 changes `LockScreenUi.qml`, `MainBlock.qml` and breeze `Clock.qml`, three of the ten files MoOS replaces, and removes `VirtualKeyboardLoader` from `org.kde.breeze.components`. MoOS's 6.7 lock screen instantiates that type, and kscreenlocker's real greeter answered `Failed to load lockscreen QML, falling back to built-in locker`. Stock 6.8 loaded in the same harness. **In source:** `build_files/plasma-seams/seams.json` registers the ten seams with reviewed upstream digests per Plasma set (6.7 and 6.8). `build_files/plasma_seams.py` runs in `build.sh` and `build-arm.sh`: it selects the set for the image's Plasma, installs the three-way-merged 6.8 lock screen when needed, and refuses upstream drift. It also refuses any modified Plasma file `rpm -V` reports that is not registered, and loads the real greeter offscreen with no session bus. On the 6.8 snapshot it selected set 6.8, matched all ten digests and loaded the MoOS lock screen. On the station's 6.7.5 host it passes, and it fails on a deliberately missing type. `plasma-next-canary.yml` builds the release Containerfile weekly on the release base plus `@kdesig/kde-beta` and can publish nothing. `scripts/plasma-next/rederive_seams.py` repeats the merge for the next Plasma. **Open:** the canary's first green run; PR image gates on 6.7; lock-and-unlock by hand on a booted 6.8 candidate; `render-desktop.sh` and `render-lockscreen.sh` run plasmashell under X11, which 6.8 removes, so they must move to `kwin_wayland --virtual` (the remote agent's files) |
+| P6.8 | Open: a Fedora 45 base lane | Fedora 45 ships 2026-10-20 (contingency 2026-10-27) with Plasma 6.7; Fedora 44 remains supported until about four weeks after Fedora 46. Moving the base is a Tier 1 lane, not an edit of the `:44` tags: `kinoite-main:45` and the akmods tag, COPR chroot names, the identity contract's `VERSION_ID`, both build scripts and every gate that names 44. Plymouth moves from 24.004 to 26.x there, but upstream `main` still frees `pixel_displays` without disarming `on_new_frame` (checked 2026-09-24), so P0.7 stays open on 45. Exit: a `:45` canary built like P6.7's with every in-image gate, then three QCOW2 boots and the ISO proof of a `:45` candidate before any promotion |
 
 Android's modern update design retains boot-critical fallback state and marks a
 new system successful only after boot.^7 MoOS uses different technology, but the
@@ -1331,3 +1384,7 @@ only a small canonical fixture belongs in Git when a test consumes it.
 8. KDE Developer, [Plasma themes and plugins](https://develop.kde.org/docs/plasma/), accessed 2026-09-13.
 9. Qt, [SpringAnimation](https://doc.qt.io/qt-6/qml-qtquick-springanimation.html) and [Behavior](https://doc.qt.io/qt-6/qml-qtquick-behavior.html), accessed 2026-09-13.
 10. KDE, [KNotification configuration implementation](https://github.com/KDE/knotifications/blob/master/src/knotifyconfig.cpp), accessed 2026-09-13.
+11. KDE Community, [Plasma 6 release schedule](https://community.kde.org/Schedules/Plasma_6) (6.8: beta 2 2026-09-24, release 2026-10-14; 6.9 release 2027-02-23), accessed 2026-09-24.
+12. David Edmundson, [EX-11: Prepping for Plasma's last X11-supported release](https://blog.davidedmundson.co.uk/blog/596/), and Phoronix, [KDE Plasma 6.8 will go Wayland-exclusive](https://www.phoronix.com/news/KDE-Plasma-68-Wayland-Exclusive), accessed 2026-09-24.
+13. Fedora Magazine, [Announcing Fedora Linux 45 Beta](https://fedoramagazine.org/announcing-fedora-linux-45-beta/) (final target 2026-10-20, Plasma 6.7), accessed 2026-09-24.
+14. Plymouth, [`ply-boot-splash.c` on `main`](https://gitlab.freedesktop.org/plymouth/plymouth/-/blob/main/src/libply-splash-core/ply-boot-splash.c) (`ply_boot_splash_free()` still leaves `on_new_frame` armed), read 2026-09-24.

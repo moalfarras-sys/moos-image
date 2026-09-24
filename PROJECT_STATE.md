@@ -24,8 +24,8 @@ the README and every wave row point here instead of repeating it. Four parallel 
 - **P0.7 is no longer only a captured stack.** Read out of plymouth 24.004.60's source on
   2026-09-21: `ply_boot_splash_free()` frees `pixel_displays` without disarming the
   `on_new_frame` timeout that only `ply_boot_splash_hide()` disarms, and `--retain-splash`
-  is the path that skips that hide. An upstream defect MoOS's flag exposes; both recorded
-  workarounds are disproven. See the plan, P0.7.
+  is the path that skips that hide. Both recorded workarounds are disproven, and upstream
+  `main` still has the defect (2026-09-24), so Fedora 45's Plymouth 26.x will not close it.
 - A merged commit or locally built image is not an installed or released state.
   Production moves only after the exact candidate passes 3×QCOW2 + ISO; ARM is
   separately required evidence.
@@ -133,12 +133,11 @@ or the nightly train; then restart.
 
 ## ARM station `moos-arm-oracle` (Oracle A1, measured 2026-09-21)
 
-The second real MoOS machine and the only ARM one, so ARM regressions surface here outside
-CI. 2 vCPU / 11 GiB, kernel `7.2.5-200.fc44.aarch64`, Wayland/KDE under `kwin_wayland
---virtual 1920x1080 --xwayland`. Booted origin is signed `moos-arm@sha256:513ab151…` =
-`44.20260920.545`, which **is** `moos-arm:latest` — the station is current, `.542` is its
-rollback, `boot-assessment.json` reads `blessed`/`attempts: 0`/no failed units,
-`post-update-check.sh` 55/0 and `moos-selfcheck` 50 passed + 3 owner-choice notes. Idle
+The only ARM MoOS machine: 2 vCPU / 11 GiB, `kwin_wayland --virtual 1920x1080 --xwayland`.
+**Read back 2026-09-24:** signed `moos-arm@sha256:eff234df…` = `44.20260923.568` (ARM
+`latest`), kernel `7.2.7-200.fc44.aarch64`, Plasma 6.7.5, Qt 6.11.2, no failed units. The rest
+was measured on `.545`: `blessed`/`attempts: 0`, `post-update-check.sh` 55/0, `moos-selfcheck`
+50 passed + 3 owner-choice notes. Idle
 cost over 10 s of `/proc/<pid>/stat`: `kwin_wayland` **2.1%**, `plasmashell` **0.6%** of
 one core (`ps` shows ~26% only because that is a lifetime average including startup).
 
@@ -154,18 +153,21 @@ setup on non-x86. Three readings here look like defects and are not — `cost_po
 "paid"`, `"gateway": false`, and `just check` failing on `systemd-tmpfiles` in the Flatpak
 sandbox; the plan says why, under its own heading. Do not "fix" them.
 
+## Plasma 6.8 readiness (measured on the A1, 2026-09-24; detail in plan row P6.7)
+
+On KDE SIG's 6.8 beta packages (`6.7.90`, x86_64 under emulation) MoOS's 6.7 lock screen does
+not load: 6.8 removed `VirtualKeyboardLoader`, and the real greeter fell back to its emergency
+locker while stock 6.8 loaded. `plasma_seams.py build` on that snapshot selected set 6.8,
+matched all ten upstream digests from rpm and loaded the merged MoOS lock screen; on this
+station's 6.7.5 it selects 6.7 and passes. Container evidence only: no 6.8 candidate yet.
+
 ## Open evidence gaps
 
-- **Mo PC Remote source review, 2026-09-24:** the installed NVIDIA workstation's
-  Remote service, desktop portal, input daemon and watchdog are active; loopback
-  `:8765` answers status, `/dev/uinput` grants the owner access, and both failed-unit
-  sets are empty. The installed Arabic PIN screen was inspected in a browser.
-  Source now serializes input across controllers and releases held keys only on
-  handoff or departure of their owner; a two-controller WebSocket test passes.
-  At a 360×640 phone viewport, the source PIN keypad fits without scrolling
-  (last row bottom 498 px). This is source and installed-old-service evidence;
-  signed candidate, booted editions and authenticated video/input still need proof.
-
+- **Mo PC Remote, 2026-09-24:** on the NVIDIA station the service, portal, input daemon and
+  watchdog are active, loopback `:8765` answers, `/dev/uinput` grants the owner, no failed
+  units; the installed Arabic PIN screen was inspected. Source serializes input across
+  controllers (two-WebSocket test passes) and the PIN keypad fits a 360×640 phone (last row
+  498 px). Still owed: signed candidate, booted editions, authenticated video/input.
 - M1 visual/accessibility matrix: English/German, light/dark, reduced motion, 1080p–4K,
   100–250%, island Remote/Media (Arabic only so far).
 - Hardware: suspend/resume, multi-monitor, audio/network recovery, deliberate rollback,
@@ -176,30 +178,22 @@ sandbox; the plan says why, under its own heading. Do not "fix" them.
 - Owner decision P3.9: whether Mo AI ever gets a tool that runs a command the model
   wrote. Until it is taken, no such tool exists.
 
-## A wallpaper cannot be clicked (2026-09-18)
+## Other measured facts
 
-Measured: over a MoOS Hub card neither a click nor a wheel arrives — the desktop
-containment takes both, because the Hub lives in the wallpaper. Every card's second face
-is therefore turned from the desktop's own menu, and anything the Hub gains follows.
+**A wallpaper cannot be clicked (2026-09-18):** over a Hub card neither click nor wheel
+arrives, so every card's second face is turned from the desktop's own menu.
 
-## The free brain is measured on the machine that uses it (2026-09-18)
+**The free brain is measured where it runs (2026-09-18):** the catalogue carried **21**
+tool-capable zero-price models. `moai-measure-free` asks each two fixed questions through the
+real gateway and writes `~/.local/state/moai/free-ranking.json`, which `moai_cloud_policy`
+prefers for 30 days without ever adding a model, a price or a billed route. P0.5 still owes
+the key entered through Settings, a reboot and the provider-failure surface.
 
-A shipped preference list ages against a catalogue that turns over every few weeks — on
-2026-09-18 the free catalogue carried **21 tool-capable zero-price models**.
-`moai-measure-free` asks each candidate two fixed questions through the real gateway
-using MoOS's own schemas, and writes the order that answered to
-`~/.local/state/moai/free-ranking.json`; `moai_cloud_policy` prefers it for 30 days and
-can never let it introduce a model, change a price or reach a billed route. It has run
-here twice; timings vary enough to change the order, so the card says when it was
-measured. P0.5 still owes the key entered through Settings, a reboot, and the
-provider-failure surface.
-
-**MoOS found a second desktop server on its own machine.** `moos-health scan` reported
-`krdpserver` listening on `tcp *:3389` for the whole network with
-`SystemUserEnabled=true`, beside Mo PC Remote (private tailnet, PIN, on-screen
-indicator). The finding carries `moos://privacy/stop-sharing`, and `moos-remote-guard
-off` stops and un-autostarts both sharing services with no administrator rights.
+**A second desktop server:** `moos-health scan` found `krdpserver` on `tcp *:3389` for the
+whole network beside Mo PC Remote; the finding carries `moos://privacy/stop-sharing`, and
+`moos-remote-guard off` stops and un-autostarts both with no administrator rights.
 
 ## Next execution
-Finish W9's real transaction lifecycle and W8's three-size mark. Pursue upstream P0.7;
+Before 2026-10-14: the first green Plasma-next canary and PR image gates for P6.7. Then finish
+W9's real transaction lifecycle and W8's three-size mark. Pursue upstream P0.7;
 P4.2–P4.5, German, touch/laptop/multi-output and full accessibility remain open.
