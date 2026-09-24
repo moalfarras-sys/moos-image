@@ -138,13 +138,27 @@ class PrivacyStopIsNarrow(unittest.TestCase):
         self.assertEqual(self.calls(), ["wpctl set-mute @DEFAULT_AUDIO_SOURCE@ 1"])
 
     def test_the_router_validates_before_calling_the_helper(self):
+        """The router's OWN check, isolated: a recording helper sits beside a copy of it."""
+        router_dir = self.root / "router"
+        router_dir.mkdir()
+        router = router_dir / "moos-open"
+        router.write_text(MOOS_OPEN.read_text(encoding="utf-8"), encoding="utf-8")
+        helper = router_dir / "moos-privacy-stop"
+        helper.write_text(f'#!/bin/sh\necho "helper $*" >> "{self.log}"\n')
+        helper.chmod(0o755)
         for url in ("moos://privacy/stop/camera/57;reboot", "moos://privacy/stop/camera/abc",
-                    "moos://privacy/stop/anything/57", "moos://privacy/stop/camera/-5"):
+                    "moos://privacy/stop/anything/57", "moos://privacy/stop/camera/-5",
+                    "moos://privacy/stop/camera/12345678901"):
             with self.subTest(url=url):
-                result = subprocess.run(["bash", str(MOOS_OPEN), url], env=self.env(),
+                result = subprocess.run(["bash", str(router), url], env=self.env(),
                                         capture_output=True, text=True, timeout=30)
                 self.assertEqual(result.returncode, 2, url)
-        self.assertFalse([c for c in self.calls() if not c.startswith("kdialog")])
+        self.assertFalse([c for c in self.calls() if c.startswith("helper")],
+                         "the router handed an invalid stream to the helper")
+        subprocess.run(["bash", str(router), "moos://privacy/stop/camera/57"], env=self.env(),
+                       capture_output=True, text=True, timeout=30)
+        self.assertIn("helper camera 57", self.calls())
+        # And end to end with the real helper, which acts only on a live stream.
         self.live("active-camera-57-Firefox")
         subprocess.run(["bash", str(MOOS_OPEN), "moos://privacy/stop/camera/57"], env=self.env(),
                        capture_output=True, text=True, timeout=30)
