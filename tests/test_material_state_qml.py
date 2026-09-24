@@ -30,6 +30,7 @@ The contract being checked, in the order it matters:
 """
 from pathlib import Path
 import shutil
+import select
 import subprocess
 import tempfile
 import time
@@ -127,6 +128,12 @@ class Probe:
             return value
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
+            # A blocking readline() never looks at the deadline: when the engine stays silent,
+            # the gate hung for good (seen on the A1, 2026-09-24) instead of failing with what
+            # it saw. Wait for output only as long as the deadline allows.
+            ready, _, _ = select.select([self.reader], [], [], max(0.0, deadline - time.monotonic()))
+            if not ready:
+                break
             line = self.reader.readline()
             if not line:
                 if self.process.poll() is not None:
