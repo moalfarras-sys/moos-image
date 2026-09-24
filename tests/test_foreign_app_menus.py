@@ -8,8 +8,9 @@ Three contracts, each executed on real files rather than grepped:
    double-click through moos-run-foreign and Bottles, so the image hides those entries and
    fails the build if one is still visible. This exercises the exact sed used.
 
-2. build_files/curate_app_menu.sh — the ONE menu curation both builds run (x86 build.sh and
-   build-arm.sh; until 2026-09-24 ARM had none of it). It is run here, whole, on a fixture tree
+2. build_files/curate_app_menu.sh — the ONE menu curation, written for every edition. x86
+   build.sh runs it; build-arm.sh is the ARM owner's file, so its wiring is a handoff whose
+   exact change is checked here against today's build-arm.sh. It is run here, whole, on a fixture tree
    shaped like the booted station's, and then its finished-tree gate is run alone on states
    the curation steps would repair, so every rule is proven to fail the build when it breaks:
    exactly one visible settings entry (systemsettings.desktop, "MoOS Settings", MoOS icon,
@@ -36,6 +37,9 @@ CURATE_TEXT = CURATE.read_text(encoding="utf-8")
 FIREWALL = ROOT / "build_files/verify_no_foreign_identity.py"
 SYSTEM = ROOT / "system_files"
 CALL = "bash /ctx/curate_app_menu.sh / || exit 1"
+STAGED = "usr/share/moos/settings-external-modules/moos-firewall.desktop"
+INSTALLED = "usr/share/plasma/systemsettings/externalmodules/moos-firewall.desktop"
+ARM_DISCOVER_SED = "_disc=/usr/share/applications/org.kde.discover.desktop"
 
 
 class WineMenuTests(unittest.TestCase):
@@ -145,7 +149,7 @@ def fixture(tree: Path, *, overlay: bool = True) -> Path:
     if overlay:  # what `COPY system_files/ /` (x86) or `cp -a /moos-overlay/. /` (ARM) lays down
         for rel in ("etc/xdg/autostart/org.kde.discover.notifier.desktop",
                     "etc/xdg/PlasmaDiscoverUpdates",
-                    "usr/share/plasma/systemsettings/externalmodules/moos-firewall.desktop"):
+                    STAGED):
             write(tree / rel, (SYSTEM / rel).read_text(encoding="utf-8"))
     return tree
 
@@ -190,22 +194,74 @@ def group_text(path: Path, name: str) -> str:
     return match.group(1) if match else ""
 
 
+def arm_wiring_problems(text: str) -> list[str]:
+    """What is wrong with how build-arm.sh runs the curation; [] while it does not run it.
+
+    build-arm.sh belongs to the ARM owner, not to the image slice that wrote the script, so
+    the wiring is a handoff (2026-09-24): delete build-arm.sh's own `_disc` sed rewrite of
+    Discover and run CALL in its place. Until it lands ARM runs no curation — reported as NOT
+    DONE, and harmless: nothing the overlay ships depends on it (the Firewall page is staged).
+    Once build-arm.sh names the script at all, every rule below applies.
+    """
+    if "curate_app_menu.sh" not in text:
+        return []
+    if CALL not in text:
+        return ["names curate_app_menu.sh but does not run it as `" + CALL + "`"]
+    problems, call = [], text.index(CALL)
+    if text.count(CALL) != 1:
+        problems.append("runs the curation more than once")
+    installs = [m.start() for m in re.finditer(r"(?m)^dnf5 -y install", text)]
+    if not installs or max(installs) > call:
+        problems.append("runs it before its last package install")
+    overlay = text.find("cp -a /moos-overlay/. /")
+    if overlay < 0 or overlay > call:
+        problems.append("runs it before the overlay (staged page, notifier override) is in place")
+    firewall = text.find("python3 /ctx/verify_no_foreign_identity.py")
+    if firewall < 0 or firewall < call:
+        problems.append("runs it after the identity firewall, which must read the curated menu")
+    if ARM_DISCOVER_SED in text:
+        problems.append("still rewrites org.kde.discover.desktop with its own sed: two rewrites "
+                        "of one file, and the sed renames Discover's Updates action 'Mo Store'")
+    return problems
+
+
+def arm_with_handoff(text: str) -> str:
+    """build-arm.sh with exactly the handed-off change applied: the `_disc` block goes, CALL
+    takes its place."""
+    block = re.search(r"(?ms)^# Keep the package-management engine for updates.*?^unset -v _disc\n",
+                      text)
+    assert block, "build-arm.sh's Discover block moved; re-derive the handoff before applying it"
+    return text[:block.start()] + CALL + "\n" + text[block.end():]
+
+
 class CurateAppMenuWiring(unittest.TestCase):
-    def test_both_builds_run_the_one_script_after_their_last_package_transaction(self):
+    def test_x86_runs_the_one_script_after_its_last_package_transaction(self):
         self.assertEqual(BUILD.count(CALL), 1, "build.sh must run curate_app_menu.sh exactly once")
-        self.assertEqual(BUILD_ARM.count(CALL), 1,
-                         "build-arm.sh must run the same curation: ARM had none of it")
         self.assertLess(BUILD.index('dnf5 -y install "${_core_power[@]}"'), BUILD.index(CALL))
         self.assertLess(BUILD.index(CALL), BUILD.index("python3 /ctx/verify_image_experience.py"))
         self.assertLess(BUILD.index(CALL), BUILD.index("python3 /ctx/verify_no_foreign_identity.py"))
-        arm_installs = [m.start() for m in re.finditer(r"(?m)^dnf5 -y install", BUILD_ARM)]
-        self.assertTrue(arm_installs)
-        self.assertLess(max(arm_installs), BUILD_ARM.index(CALL),
-                        "on ARM the curation must run after the last package install")
-        self.assertLess(BUILD_ARM.index("cp -a /moos-overlay/. /"), BUILD_ARM.index(CALL),
-                        "the overlay (external modules, notifier override) must be in place first")
-        self.assertLess(BUILD_ARM.index(CALL),
-                        BUILD_ARM.index("python3 /ctx/verify_no_foreign_identity.py"))
+
+    def test_arm_runs_it_correctly_or_not_at_all(self):
+        self.assertEqual(arm_wiring_problems(BUILD_ARM), [])
+
+    def test_the_handed_off_arm_change_is_valid_against_todays_build_arm_sh(self):
+        patched = arm_with_handoff(BUILD_ARM)
+        self.assertEqual(patched.count(CALL), 1)
+        self.assertNotIn(ARM_DISCOVER_SED, patched)
+        self.assertEqual(arm_wiring_problems(patched), [])
+
+    def test_the_arm_wiring_rules_bite(self):
+        patched = arm_with_handoff(BUILD_ARM)
+        # The call added, the old sed kept: the defect the review found.
+        kept_sed = BUILD_ARM.replace("unset -v _disc\n", "unset -v _disc\n" + CALL + "\n", 1)
+        self.assertIn("still rewrites org.kde.discover.desktop", " ".join(arm_wiring_problems(kept_sed)))
+        early = patched.replace(CALL + "\n", "").replace("cp -a /moos-overlay/. /",
+                                                          CALL + "\ncp -a /moos-overlay/. /", 1)
+        self.assertIn("before the overlay", " ".join(arm_wiring_problems(early)))
+        twice = patched.replace(CALL, CALL + "\n" + CALL, 1)
+        self.assertIn("more than once", " ".join(arm_wiring_problems(twice)))
+        loose = patched.replace(CALL, "bash /ctx/curate_app_menu.sh /", 1)
+        self.assertIn("does not run it as", " ".join(arm_wiring_problems(loose)))
 
     def test_the_old_inline_curation_is_gone_from_build_sh(self):
         for leftover in ("hide_from_menu()", "moos_rebrand_entry()", "_disc=/usr/share/applications"):
@@ -294,30 +350,46 @@ class CurateAppMenuRun(unittest.TestCase):
         self.assertNotIn("GenericName", entry)
         self.assertIn("Name=Updates\nName[ar]=التحديثات\n", group_text(path, "Desktop Action Updates"))
 
-    def test_an_arm_blind_sed_rename_is_given_back_its_words(self):
+    def test_a_blind_sed_rename_before_the_script_fails_the_build(self):
+        # What build-arm.sh's own sed leaves: every Name= and Icon= in the file rewritten. The
+        # script no longer repairs it (one rewrite of one file); its gate refuses it instead,
+        # which is why the ARM handoff deletes that sed.
         path = self.apps / "org.kde.discover.desktop"
-        # What build-arm.sh's older sed leaves: every Name= and Icon= in the file rewritten.
         write(path, "[Desktop Entry]\nName=Mo Store\nName[ar]=متجر MoOS\nIcon=mo-store\n"
                     "Exec=plasma-discover %F\nNoDisplay=true\nActions=Updates;\n"
                     "\n[Desktop Action Updates]\nName=Mo Store\nName[ar]=متجر MoOS\n"
                     "Icon=mo-store\nExec=plasma-discover --mode update\n")
-        self.run_ok()
-        self.assertIn("Name=Updates\nName[ar]=التحديثات\n", group_text(path, "Desktop Action Updates"))
+        result = curate(self.tree)
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("leaked out of the header", result.stdout)
 
     def test_the_firewall_moves_into_settings(self):
+        self.assertFalse((self.tree / INSTALLED).exists(),
+                         "the overlay must only STAGE the page; an image that runs no curation "
+                         "would otherwise show it where firewall-config is missing")
         self.run_ok()
         self.assertEqual(header(self.apps / "firewall-config.desktop").get("NoDisplay"), "true")
-        module = self.tree / "usr/share/plasma/systemsettings/externalmodules/moos-firewall.desktop"
-        self.assertTrue(module.is_file(), "firewall-config is installed; its Settings page must stay")
+        module = self.tree / INSTALLED
+        self.assertTrue(module.is_file(), "firewall-config is installed; its Settings page must be offered")
+        self.assertEqual(module.read_bytes(), (SYSTEM / STAGED).read_bytes())
 
-    def test_an_edition_without_the_program_loses_the_page_not_the_build(self):
+    def test_an_edition_without_the_program_gets_no_page_not_a_dead_one(self):
         (self.tree / "usr/bin/firewall-config").unlink()
         (self.apps / "firewall-config.desktop").unlink()
         result = self.run_ok()
-        self.assertFalse((self.tree / "usr/share/plasma/systemsettings/externalmodules"
-                          / "moos-firewall.desktop").exists(),
+        self.assertFalse((self.tree / INSTALLED).exists(),
                          "a page whose program is absent would sit in the sidebar doing nothing")
-        self.assertIn("does not ship; removed", result.stdout)
+        self.assertIn("does not ship; not offered", result.stdout)
+
+    def test_an_installed_page_whose_program_left_is_removed(self):
+        write(self.tree / "usr/share/plasma/systemsettings/externalmodules/old.desktop",
+              "[Desktop Entry]\nType=Service\nExec=gone-tool\nName=Old\nName[ar]=قديم\n"
+              "X-KDE-System-Settings-Parent-Category=security-privacy\n")
+        result = self.run_ok()
+        self.assertFalse((self.tree / "usr/share/plasma/systemsettings/externalmodules"
+                          / "old.desktop").exists())
+        self.assertIn("old.desktop opens 'gone-tool', which this edition does not ship; removed",
+                      result.stdout)
 
     def test_without_the_overlay_the_rival_updater_fails_the_build(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -424,21 +496,30 @@ class CurateAppMenuGateBites(unittest.TestCase):
         self.assertBites("a sidebar page that does nothing")
 
     def test_a_settings_page_in_a_category_that_does_not_exist(self):
-        module = self.tree / "usr/share/plasma/systemsettings/externalmodules/moos-firewall.desktop"
+        module = self.tree / INSTALLED
         module.write_text(module.read_text(encoding="utf-8").replace(
             "Parent-Category=security-privacy", "Parent-Category=nowhere"), encoding="utf-8")
         self.assertBites("would never appear")
 
     def test_the_firewall_left_unreachable(self):
-        (self.tree / "usr/share/plasma/systemsettings/externalmodules/moos-firewall.desktop").unlink()
+        (self.tree / INSTALLED).unlink()
         self.assertBites("firewall would be unreachable")
+
+    def test_a_staged_page_left_in_staging(self):
+        write(self.tree / "usr/share/moos/settings-external-modules/moos-second.desktop",
+              "[Desktop Entry]\nType=Service\nExec=kinfocenter\nName=Second\nName[ar]=ثان\n"
+              "X-KDE-System-Settings-Parent-Category=security-privacy\n")
+        self.assertBites("moos-second.desktop is staged")
 
 
 class FirewallExternalModule(unittest.TestCase):
     """The shipped file itself: the keys System Settings' external-module loader reads."""
 
-    def test_the_module_is_where_and_what_system_settings_reads(self):
-        path = SYSTEM / "usr/share/plasma/systemsettings/externalmodules/moos-firewall.desktop"
+    def test_the_module_is_staged_and_carries_what_system_settings_reads(self):
+        self.assertFalse((SYSTEM / INSTALLED).exists(),
+                         "shipped straight into externalmodules, the page reaches ARM, which has "
+                         "no firewall-config and runs no curation: a dead sidebar page")
+        path = SYSTEM / STAGED
         entry = header(path)
         self.assertEqual(entry.get("Exec"), "firewall-config")
         self.assertEqual(entry.get("TryExec"), "firewall-config")

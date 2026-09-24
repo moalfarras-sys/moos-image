@@ -1047,7 +1047,6 @@ if [ -f "$_disc" ]; then
         || sed -i '/^\[Desktop Entry\]/a NoDisplay=true' "$_disc"
 fi
 unset -v _disc
-bash /ctx/curate_app_menu.sh / || exit 1  # the menu + Settings curation x86 runs in build.sh (z1b), with its gate
 
 # Fedora's Global Themes and wallpapers arrive with plasma-desktop on the
 # bootc base. x86 closes this in build.sh (z2a). Left in place they appear

@@ -2,16 +2,24 @@
 # =============================================================================
 # curate_app_menu.sh — what the application menu and System Settings offer.
 #
-# ONE script for every edition. build.sh (moos, moos-nvidia, moos-cloud) and
-# build-arm.sh (moos-arm) both call it after their last package transaction:
+# ONE script, written for every edition. build.sh (moos, moos-nvidia, moos-cloud) calls it
+# after its last package transaction:
 #
 #     bash /ctx/curate_app_menu.sh / || exit 1
 #
-# Until 2026-09-24 every step below lived only in build.sh, so the ARM menu kept
+# Until 2026-09-24 every step below lived inline in build.sh, so the ARM menu kept
 # Plasma's own "System Settings" beside "MoOS Settings", plus "Info Center" and
 # "Dolphin" (wave audit, map-menu gap 1). Each step is a no-op when its file is
-# absent — ARM ships no nvidia-settings, no KDE Connect and no firewall-config —
-# and ONE gate at the end reads the finished tree, never the lists above it.
+# absent — ARM ships no nvidia-settings, no KDE Connect and no firewall-config — and
+# ONE gate at the end reads the finished tree, never the lists above it.
+#
+# ARM does not run it YET. build-arm.sh belongs to the ARM owner; the change it needs is
+# handed off (2026-09-24): delete its own `_disc` sed rewrite of org.kde.discover.desktop
+# (which renames Discover's "Updates" action "Mo Store" too — this script's gate fails that)
+# and call this script, with the line above, after `cp -a /moos-overlay/. /` and its last
+# package install. Nothing below may depend on ARM running it: the Firewall page is staged
+# in /usr/share/moos and only step (4) installs it, so an ARM image gets no page rather than
+# a dead one.
 #
 # usage: curate_app_menu.sh [ROOT]
 #   ROOT defaults to /. tests/test_foreign_app_menus.py runs this exact script
@@ -23,6 +31,7 @@ ROOT="${1:-/}"
 ROOT="${ROOT%/}"                       # "/" -> "" so paths stay absolute
 APPS="${ROOT}/usr/share/applications"
 EXTERNAL_MODULES="${ROOT}/usr/share/plasma/systemsettings/externalmodules"
+STAGED_MODULES="${ROOT}/usr/share/moos/settings-external-modules"
 [ -d "$APPS" ] || { echo "curate_app_menu: ${APPS} does not exist"; exit 1; }
 
 # -----------------------------------------------------------------------------
@@ -277,52 +286,17 @@ open(path, "w", encoding="utf-8").write(text + "\n")
 MOOSSETTINGS
 
 # -----------------------------------------------------------------------------
-# (3b) A Discover entry that a blind sed already touched
-# -----------------------------------------------------------------------------
-# build-arm.sh still carries the old sed rewrite of org.kde.discover.desktop (it runs before
-# this script), which renamed Discover's "Updates" action to "Mo Store" as well. A jump list
-# with two items called "Mo Store" is the defect; give that one action back its own words.
-# A no-op on a header-only rewrite, which is all x86 does now.
-python3 - "${APPS}/org.kde.discover.desktop" <<'MOOSDISCOVER'
-import sys
-path = sys.argv[1]
-try:
-    lines = open(path, encoding="utf-8").read().splitlines()
-except FileNotFoundError:
-    raise SystemExit(0)
-groups, current = [], None
-for line in lines:
-    stripped = line.strip()
-    if stripped.startswith("[") and stripped.endswith("]"):
-        current = [line]
-        groups.append(current)
-    elif current is None:
-        groups.append([line])
-    else:
-        current.append(line)
-out, changed = [], False
-for body in groups:
-    head = body[0].strip()
-    names = [l for l in body if l.startswith("Name=")]
-    if (head.startswith("[Desktop Action") and names == ["Name=Mo Store"]
-            and any(l.startswith("Exec=") and "--mode update" in l for l in body)):
-        rest = [l for l in body[1:] if not (l.startswith("Name=") or l.startswith("Name["))]
-        body = [body[0], "Name=Updates", "Name[ar]=التحديثات", *rest]
-        changed = True
-    out += body
-if changed:
-    open(path, "w", encoding="utf-8").write("\n".join(out) + "\n")
-MOOSDISCOVER
-
-# -----------------------------------------------------------------------------
-# (4) System Settings' external modules must open something
+# (4) System Settings' external modules: offered where their program ships, and nowhere else
 # -----------------------------------------------------------------------------
 # /usr/share/plasma/systemsettings/externalmodules/*.desktop is where System Settings looks
 # for pages that launch a separate application (see moos-firewall.desktop for the evidence).
 # Upstream's loader reads each file through KService and does NOT honour TryExec, so a module
 # whose program is absent in this edition would sit in the sidebar and do nothing. The overlay
-# is shared by every edition; the program is not (firewall-config: x86 base only). Remove the
-# module where its program is missing, and the gate below proves every survivor resolves.
+# is shared by every edition; the program is not (firewall-config: x86 base only). So MoOS's
+# pages are STAGED in /usr/share/moos/settings-external-modules/, which System Settings never
+# reads, and installed here only where their program resolves. Any installed module whose
+# program is missing (a package's own, or one a later edition dropped) is removed, and the
+# gate below proves every survivor resolves and every page that can work is offered.
 resolve_program() {
     local prog="$1" dir
     case "$prog" in
@@ -333,13 +307,29 @@ resolve_program() {
     done
     return 1
 }
+module_program() {
+    # One process, no pipe: `sed | head` under pipefail is the SIGPIPE trap AGENTS.md
+    # records (a producer killed by head's early exit reads as a failure).
+    local prog
+    prog="$(awk '/^TryExec=/ { sub(/^TryExec=/, ""); print; exit }' "$1")"
+    [ -n "$prog" ] || prog="$(awk '/^Exec=/ { sub(/^Exec=/, ""); print $1; exit }' "$1")"
+    printf '%s' "$prog"
+}
+if [ -d "$STAGED_MODULES" ]; then
+    for module in "$STAGED_MODULES"/*.desktop; do
+        [ -f "$module" ] || continue
+        prog="$(module_program "$module")"
+        if [ -n "$prog" ] && resolve_program "$prog"; then
+            install -D -m 0644 "$module" "${EXTERNAL_MODULES}/${module##*/}"
+        else
+            echo "curate_app_menu: ${module##*/} opens '${prog}', which this edition does not ship; not offered"
+        fi
+    done
+fi
 if [ -d "$EXTERNAL_MODULES" ]; then
     for module in "$EXTERNAL_MODULES"/*.desktop; do
         [ -f "$module" ] || continue
-        # One process, no pipe: `sed | head` under pipefail is the SIGPIPE trap AGENTS.md
-        # records (a producer killed by head's early exit reads as a failure).
-        prog="$(awk '/^TryExec=/ { sub(/^TryExec=/, ""); print; exit }' "$module")"
-        [ -n "$prog" ] || prog="$(awk '/^Exec=/ { sub(/^Exec=/, ""); print $1; exit }' "$module")"
+        prog="$(module_program "$module")"
         if [ -z "$prog" ] || ! resolve_program "$prog"; then
             echo "curate_app_menu: ${module##*/} opens '${prog}', which this edition does not ship; removed"
             rm -f "$module"
@@ -521,6 +511,13 @@ for path in sorted(external.glob("*.desktop")) if external.is_dir() else []:
     if parent not in categories:
         fails.append(f"GATE FAIL: Settings module {path.name} names category {parent!r}, which "
                      "System Settings does not have — the page would never appear")
+# A page MoOS staged for an installed program is offered, not left in the staging directory
+# System Settings never reads.
+staged = root / "usr/share/moos/settings-external-modules"
+for path in sorted(staged.glob("*.desktop")) if staged.is_dir() else []:
+    if resolves(program(header(path))) and not (external / path.name).is_file():
+        fails.append(f"GATE FAIL: {path.name} is staged and {program(header(path))!r} is "
+                     "installed, but System Settings does not offer the page")
 # Hiding the firewall from the menu must not leave it unreachable.
 if resolves("firewall-config") and not (external / "moos-firewall.desktop").is_file():
     fails.append("GATE FAIL: firewall-config is installed and hidden from the menu, but "

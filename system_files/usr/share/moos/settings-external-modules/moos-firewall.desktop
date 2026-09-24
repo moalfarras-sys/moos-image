@@ -4,7 +4,15 @@
 # "Firewall", outside Settings; curate_app_menu.sh now hides that menu entry, and this
 # file puts the same program one click away inside the settings window instead.
 #
-# WHY THIS DIRECTORY AND THESE KEYS (evidence, 2026-09-24, plasma-systemsettings 6.7.5):
+# THIS COPY IS STAGED, NOT READ. System Settings never looks in /usr/share/moos. The
+# overlay is shared by every edition and the program is not (firewall-config: the x86
+# base only), while the loader below ignores TryExec. So curate_app_menu.sh installs this
+# file into /usr/share/plasma/systemsettings/externalmodules/ only on an image that ships
+# firewall-config, and its gate fails the build if that image then lacks the page. An
+# image that does not run the curation (ARM, until build-arm.sh calls it) gets no page
+# rather than a dead one.
+#
+# WHY THAT DIRECTORY AND THESE KEYS (evidence, 2026-09-24, plasma-systemsettings 6.7.5):
 #   * The systemsettings binary (kinfocenter is a symlink to it) carries the UTF-16
 #     string `plasma/%1/externalmodules`, and upstream's app/kcmmetadatahelpers.h
 #     findExternalKCMModules() fills %1 with "systemsettings" or "kinfocenter" and
@@ -26,8 +34,9 @@
 #     "moos-firewall - Choose which network connections this computer allows", and under
 #     LANG=ar the Arabic Comment. Where it sits in the sidebar is for a live review.
 #   * The loader does NOT honour TryExec, so an edition without firewall-config (ARM) would
-#     show a page that does nothing. curate_app_menu.sh removes this file wherever its
-#     program is missing, and its gate proves every external module left resolves.
+#     show a page that does nothing — hence the staging above. curate_app_menu.sh also
+#     removes any installed external module whose program is missing, and its gate proves
+#     every external module left resolves.
 [Desktop Entry]
 Type=Service
 TryExec=firewall-config

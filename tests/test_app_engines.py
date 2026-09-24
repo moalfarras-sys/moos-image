@@ -43,7 +43,6 @@ RESOLVER = ROOT / "system_files/usr/libexec/moos-app-engine"
 RUNNER = ROOT / "system_files/usr/bin/moos-run-foreign"
 MIMEAPPS = ROOT / "system_files/etc/xdg/mimeapps.list"
 BUILD = ROOT / "build_files/build.sh"
-BUILD_ARM = ROOT / "build_files/build-arm.sh"
 CURATE = ROOT / "build_files/curate_app_menu.sh"
 
 # The words that must never reach a person. Each is a real engine or vendor whose
@@ -521,10 +520,11 @@ class TheEngineNeverSaysItsName(unittest.TestCase):
         FAILS on a second one. Beside it, "Dolphin", "KDE Connect", "KDE Partition Manager"
         and "Info Center" get MoOS's names; the reached-only-through-Settings ones leave.
 
-        The curation moved to build_files/curate_app_menu.sh, which build.sh AND
-        build-arm.sh run (ARM had none of it). tests/test_foreign_app_menus.py executes that
-        script on a fixture and proves each rule of its gate bites; this checks the
-        declarations a reviewer reads.
+        The curation moved to build_files/curate_app_menu.sh, one script written for every
+        edition; build.sh runs it, and wiring it into build-arm.sh is handed to that file's
+        owner (tests/test_foreign_app_menus.py checks the handed-off change against today's
+        build-arm.sh). That test executes the script on a fixture and proves each rule of its
+        gate bites; this checks the declarations a reviewer reads.
         """
         build = CURATE.read_text(encoding="utf-8")
         self.assertIn("moos_rebrand_entry()", build,
@@ -532,10 +532,9 @@ class TheEngineNeverSaysItsName(unittest.TestCase):
         self.assertIn('line.startswith("GenericName=")', build,
                       "the base launcher's secondary name can leak another desktop's "
                       "identity even after Name= was rewritten")
-        for script in (BUILD, BUILD_ARM):
-            self.assertIn("bash /ctx/curate_app_menu.sh / || exit 1",
-                          script.read_text(encoding="utf-8"),
-                          f"{script.name} no longer runs the one menu curation")
+        self.assertIn("bash /ctx/curate_app_menu.sh / || exit 1",
+                      BUILD.read_text(encoding="utf-8"),
+                      "build.sh no longer runs the one menu curation")
         rebrands = [line for line in build.splitlines() if line.startswith("moos_rebrand_entry ")]
         for entry, english in (
             ("org.kde.dolphin.desktop", '"Files"'),

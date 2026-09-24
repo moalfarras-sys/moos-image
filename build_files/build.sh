@@ -848,9 +848,9 @@ unset -v _liveinst
 # The owner wants ONE branded storefront: Mo Store (org.moos.store.desktop). Discover
 # keeps its engine (appstream deep links, .flatpakref files) but leaves every menu,
 # wearing Mo Store's name and icon. That rewrite now lives in
-# build_files/curate_app_menu.sh — called in (z1b) below, for x86 and ARM alike — and
-# touches only the [Desktop Entry] group: the sed that stood here rewrote every Name= in
-# the file, so Discover's own "Updates" action was renamed "Mo Store" as well.
+# build_files/curate_app_menu.sh — called in (z1b) below — and touches only the
+# [Desktop Entry] group: the sed that stood here rewrote every Name= in the file, so
+# Discover's own "Updates" action was renamed "Mo Store" as well.
 # Its notifier and unattended updates are off too (system_files/etc/xdg: the notifier's
 # autostart entry is Hidden=true and PlasmaDiscoverUpdates sets
 # UseUnattendedUpdates=false); MoOS Settings → Update is the one update front door.
@@ -3407,14 +3407,15 @@ PWAPP
 # -----------------------------------------------------------------------------
 # The menu curation that stood here (z1b: hide the duplicates and the base's debug tools;
 # z1c: give the kept entries MoOS's name and icon) now lives in
-# build_files/curate_app_menu.sh, which build-arm.sh calls too — ARM had none of it and
-# showed Plasma's own "System Settings" beside "MoOS Settings". The script also makes
-# systemsettings.desktop the ONE visible settings entry (MoOS Settings, Exec=moos-settings,
-# Meta+I kept), rewrites Discover's entry header-only, removes a System Settings external
-# module whose program this edition lacks, and ends with one gate on the finished files:
-# exactly one visible settings entry and it is systemsettings.desktop; every hidden
-# duplicate hidden; no kept entry wearing another desktop's name; no Arabic-less label;
-# Discover hidden and not an updater. It fails the build; it never warns.
+# build_files/curate_app_menu.sh, one script written for every edition (ARM had none of it
+# and showed Plasma's own "System Settings" beside "MoOS Settings"; wiring it into
+# build-arm.sh is handed to that file's owner). The script also makes systemsettings.desktop
+# the ONE visible settings entry (MoOS Settings, Exec=moos-settings, Meta+I kept), rewrites
+# Discover's entry header-only, offers a staged System Settings page only where its program
+# ships, and ends with one gate on the finished files: exactly one visible settings entry and
+# it is systemsettings.desktop; every hidden duplicate hidden; no kept entry wearing another
+# desktop's name in any label, comment or keyword; no Arabic-less label; Discover hidden and
+# not an updater. It fails the build; it never warns.
 bash /ctx/curate_app_menu.sh / || exit 1
 
 # -----------------------------------------------------------------------------
