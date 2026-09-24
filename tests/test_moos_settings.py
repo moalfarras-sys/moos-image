@@ -618,9 +618,12 @@ class ThePages(unittest.TestCase):
                                   "disabledTextColor", "horizontalAlignment: root.rtl ?",
                                   "horizontalAlignment: rtl ?"):
                     self.assertNotIn(forbidden, qml)
-                # Motion stays inside MoUI's components, which gate it on longDuration.
-                self.assertNotRegex(qml, r"\b(NumberAnimation|ColorAnimation|SequentialAnimation"
-                                         r"|ParallelAnimation)\b")
+                # Motion is allowed only behind the owner's animation setting (MoUI's own
+                # components already gate theirs), and nothing runs forever.
+                if re.search(r"\b(?:Number|Color|Property|Sequential|Parallel|Rotation|Opacity)Animator?\b"
+                             r"|\bBehavior on\b", qml):
+                    self.assertIn("Kirigami.Units.longDuration > 1", qml,
+                                  "an animation that ignores the owner's reduced-motion setting")
 
     def test_every_button_goes_through_the_backend_and_a_failure_is_shown(self) -> None:
         for path in kcm_qml():
