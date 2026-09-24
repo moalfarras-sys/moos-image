@@ -104,6 +104,32 @@ KCM.SimpleKCM {
                  detail: t("آخر تحديث: ", "Last update: ") + when }
     }
     readonly property var appState: appsSummary()
+    // Why one application did not update, from the helper's closed set of kinds. The
+    // updater's own sentence is English and may name the machinery; it goes to the
+    // clipboard through "Copy details", never onto the page.
+    function failureText(kind) {
+        if (kind === "network")
+            return t("تعذّر الوصول إلى مصدر هذا التطبيق. ستُعاد المحاولة في التحديث القادم.",
+                     "Could not reach where this application comes from. It is tried again at the next update.")
+        if (kind === "missing")
+            return t("لم يعد مصدره يقدّم هذا الإصدار، وربما توقف تطويره. افحصه في Mo Store.",
+                     "Its source no longer offers this version, and it may have been retired. Check it in Mo Store.")
+        if (kind === "space")
+            return t("لا توجد مساحة كافية على هذا الحاسوب. أفرغ بعض المساحة وستُعاد المحاولة في التحديث القادم.",
+                     "There is not enough free space on this computer. Free some space; it is tried again at the next update.")
+        if (kind === "signature")
+            return t("تعذّر التحقق من التنزيل فلم يُثبَّت، وبقي الإصدار المثبت كما هو.",
+                     "The download could not be verified, so it was not installed. The installed version is unchanged.")
+        if (kind === "damaged")
+            return t("وصل التنزيل تالفاً. ستُعاد المحاولة في التحديث القادم.",
+                     "The download arrived damaged. It is tried again at the next update.")
+        if (kind === "permission")
+            return t("لم يُسمح لـ MoOS بتغيير هذا التطبيق.", "MoOS was not allowed to change this application.")
+        return t("تعذّر تحديثه. انسخ التفاصيل لمعرفة السبب.", "It could not be updated. Copy the details to see why.")
+    }
+    // A background update holds Mo Store's job lock, and while it runs every Store job
+    // answers "busy". So the button waits for it instead of promising to start now.
+    readonly property bool appsBusy: ready && apps.known === true && apps.state === "running"
 
     LayoutMirroring.enabled: rtl
     LayoutMirroring.childrenInherit: true
@@ -118,6 +144,9 @@ KCM.SimpleKCM {
             onTriggered: kcm.refresh()
         }
     ]
+
+    // A TextEdit is the clipboard a QML page has.
+    TextEdit { id: clipboard; visible: false; Accessible.ignored: true }
 
     ColumnLayout {
         spacing: Kirigami.Units.largeSpacing
@@ -191,19 +220,46 @@ KCM.SimpleKCM {
             Repeater {
                 model: root.failures
                 delegate: MoosInfoRow {
+                    id: failureRow
                     required property var modelData
+                    property bool copied: false
                     glyph: "warning"
                     glyphColor: Kirigami.Theme.neutralTextColor
-                    text: "\u2068" + modelData.app + "\u2069"
-                    description: modelData.reason
+                    text: root.isolated(modelData.app)
+                    description: root.failureText(modelData.kind)
+                    trailing: [
+                        Controls.ToolButton {
+                            display: Controls.AbstractButton.IconOnly
+                            text: failureRow.copied ? root.t("تم النسخ", "Copied") : root.t("نسخ التفاصيل", "Copy details")
+                            icon.name: MoUI.SymbolCatalog.resolve(failureRow.copied ? "check" : "copy")
+                            Accessible.name: text
+                            Accessible.description: root.t("ينسخ اسم التطبيق وسبب الخطأ كما كتبه المحدِّث",
+                                                           "Copies the application's id and the updater's own words")
+                            Controls.ToolTip.visible: hovered
+                            Controls.ToolTip.text: text
+                            onClicked: {
+                                clipboard.text = failureRow.modelData.app + ": " + failureRow.modelData.reason
+                                clipboard.selectAll()
+                                clipboard.copy()
+                                clipboard.deselect()
+                                failureRow.copied = true
+                                copiedReset.restart()
+                            }
+                            Timer { id: copiedReset; interval: 2200; onTriggered: failureRow.copied = false }
+                        }
+                    ]
                 }
             }
             FormCard.FormDelegateSeparator {}
             MoosActionRow {
                 glyph: "download"
                 text: root.t("تحديث التطبيقات الآن", "Update applications now")
-                description: root.t("يحدّث Mo Store كل التطبيقات المثبتة بعد أن تؤكد.",
-                                    "Mo Store updates every installed application after you confirm.")
+                description: root.appsBusy
+                    ? root.t("التطبيقات تُحدَّث في الخلفية الآن. يتاح هذا الزر من جديد عندما ينتهي ذلك التحديث.",
+                             "Applications are updating in the background now. This is available again when that update finishes.")
+                    : root.t("يفتح Mo Store ويحدّث كل التطبيقات المثبتة بعد أن تؤكد.",
+                             "Opens Mo Store, which updates every installed application after you confirm.")
+                enabled: !root.appsBusy
                 onClicked: root.open("moos://do/update-apps")
             }
         }

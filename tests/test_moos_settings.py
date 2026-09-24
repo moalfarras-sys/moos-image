@@ -554,7 +554,7 @@ class TheHelper(unittest.TestCase):
                                  {"app": "not an id", "reason": "x"}, {"app": "org.example.Two"}, "junk"]}
             path.write_text(json.dumps(good), encoding="utf-8")
             self.assertEqual(probe(path), {"known": True, "state": "failed", "updated": now,
-                                           "failures": [{"app": "org.example.App",
+                                           "failures": [{"app": "org.example.App", "kind": "other",
                                                          "reason": "the server refused"}]})
             for state in ("ok", "running"):
                 path.write_text(json.dumps({**good, "state": state}), encoding="utf-8")
@@ -574,6 +574,46 @@ class TheHelper(unittest.TestCase):
             self.assertTrue(all(len(item["reason"]) == 200 for item in state["failures"]))
             path.write_bytes(b" " * 70000)
             self.assertEqual(probe(path), unknown, "an oversized record is refused unread")
+
+    def test_an_app_failure_is_a_kind_the_page_can_word(self) -> None:
+        helper = runpy.run_path(str(STATUS))
+        kind = helper["failure_kind"]
+        for reason, expected in (
+                ("Server returned status 404", "missing"),
+                ("app/org.x.Y/x86_64/stable is end-of-life", "missing"),
+                ("No such ref (app/org.x.Y) in remote example", "missing"),
+                ("Could not resolve hostname dl.example.org", "network"),
+                ("Server returned status 503", "network"),
+                ("SSL certificate problem: certificate verify failed", "network"),
+                ("Timeout was reached", "network"),
+                ("Error writing to file: No space left on device", "space"),
+                ("GPG verification enabled, but no signatures found", "signature"),
+                ("delta is corrupt", "damaged"),
+                ("Checksum mismatch", "damaged"),
+                ("Permission denied", "permission"),
+                ("something nobody wrote a rule for", "other")):
+            self.assertEqual(kind(reason), expected, reason)
+        kinds = {name for name, _pattern in helper["FAILURE_KINDS"]} | {"other"}
+        qml = code(page("update"))
+        wording = qml_function(qml, "failureText")
+        for name in kinds - {"other"}:
+            self.assertIn(f'kind === "{name}"', wording, f"the page has no words for '{name}'")
+        # The row shows the words; the updater's own sentence only reaches the clipboard.
+        self.assertIn("description: root.failureText(modelData.kind)", qml)
+        self.assertNotIn("description: modelData.reason", qml)
+        self.assertEqual(qml.count("modelData.reason"), 1)
+        self.assertIn('clipboard.text = failureRow.modelData.app + ": " + failureRow.modelData.reason', qml)
+
+    def test_the_update_apps_button_waits_for_a_background_update(self) -> None:
+        qml = code(page("update"))
+        self.assertIn('readonly property bool appsBusy: ready && apps.known === true && apps.state === "running"', qml)
+        row = qml.split('text: root.t("تحديث التطبيقات الآن", "Update applications now")', 1)[1].split("}", 1)[0]
+        self.assertIn("enabled: !root.appsBusy", row)
+        self.assertIn('onClicked: root.open("moos://do/update-apps")', row)
+        # The background run holds the lock the Store's jobs take; the row must say so.
+        updater = (ROOT / "system_files/usr/libexec/moos-flatpak-update").read_text(encoding="utf-8")
+        self.assertIn('flock -n "$store_lock"', updater)
+        self.assertIn("publish running", updater)
 
     def test_destination_probe_matches_router_and_checks_modules(self) -> None:
         scope = runpy.run_path(str(STATUS))
@@ -726,6 +766,7 @@ class ThePages(unittest.TestCase):
         script += qml_function(update, "systemSummary") + "\n" + qml_function(update, "appsSummary") + "\n"
         script += qml_function(recovery, "recoverySummary") + "\n" + qml_function(remote, "remoteSummary") + "\n"
         script += "let waiting = false, waitField = '', waitValue = false, waitSince = 0;\n"
+        script += qml_function(update, "failureText") + "\n"
         script += qml_function(remote, "settled") + "\n"
         script += r"""
 // Routes: MoOS's own pages never wait for the feed; the rest need a measured destination.
@@ -757,6 +798,18 @@ apps = {known: true, state: 'running', updated: 5}; assert.equal(appsSummary().t
 apps = {known: true, state: 'interrupted', updated: 5}; assert.equal(appsSummary().tone, 'warning');
 apps = {known: true, state: 'failed', updated: 5}; failures = [{app: 'org.x.Y', reason: 'r'}];
 assert.equal(appsSummary().title, 'Some applications could not be updated');
+// Every failure kind has its own sentence in both languages; an unknown kind is "other".
+const kinds = ['network', 'missing', 'space', 'signature', 'damaged', 'permission', 'other'];
+for (const lang of [false, true]) {
+    rtl = lang;
+    const said = kinds.map(failureText);
+    assert.equal(new Set(said).size, kinds.length, 'two kinds share one sentence');
+    for (const sentence of said) assert.ok(sentence.length > 20);
+    if (rtl) for (const sentence of said) assert.ok(/[\u0600-\u06FF]/.test(sentence));
+    assert.equal(failureText(undefined), failureText('other'));
+    assert.equal(failureText('surprise'), failureText('other'));
+}
+rtl = false;
 // Recovery: a queued rollback is not a saved image.
 deployment = {known: true, rollbackQueued: true, rollbackTarget: '44.0', rollback: 1};
 assert.equal(recoverySummary().title, 'A rollback is queued for the next restart');

@@ -275,6 +275,26 @@ APP_UPDATE_STATES = {"ok", "failed", "running"}
 APP_ID = re.compile(r"[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+){2,}\Z")
 # A run that has said "running" for this long died without saying so.
 APP_UPDATE_RUNNING_LIMIT = 3 * 3600
+# Why an application did not update, as a person needs it: a closed set of kinds the
+# Update page words in both languages. The updater's own sentence is English and may
+# name the machinery underneath; the page keeps it for "Copy details" and never shows
+# it. The first kind whose pattern matches wins; the order puts a cause before the
+# symptom it produces (a full disk also breaks the download).
+FAILURE_KINDS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("space", re.compile(r"no space left|not enough (?:disk )?space|insufficient (?:disk )?space|enospc|disk (?:is )?full")),
+    ("signature", re.compile(r"gpg|signature|not signed|unsigned")),
+    ("network", re.compile(r"resolv|unable to connect|failed to connect|could not connect|connection|timed? ?out"
+                           r"|network is unreachable|status 5[0-9][0-9]\b|tls|ssl|certificate|proxy")),
+    ("missing", re.compile(r"status 404\b|not found|no such ref|end.of.life|no longer (?:available|offered)"
+                           r"|nothing matches|no remote refs")),
+    ("damaged", re.compile(r"delta|checksum|corrupt|truncated|mismatch")),
+    ("permission", re.compile(r"permission denied|not permitted|not allowed|authori[sz]")),
+)
+
+
+def failure_kind(reason: str) -> str:
+    text = reason.lower()
+    return next((kind for kind, pattern in FAILURE_KINDS if pattern.search(text)), "other")
 
 
 def apps_state(path: Path | None = None) -> dict[str, object]:
@@ -303,7 +323,8 @@ def apps_state(path: Path | None = None) -> dict[str, object]:
         if (isinstance(item, dict) and isinstance(item.get("app"), str)
                 and len(item["app"]) <= 255 and APP_ID.match(item["app"])
                 and isinstance(item.get("reason"), str)):
-            failures.append({"app": item["app"], "reason": " ".join(item["reason"].split())[:200]})
+            reason = " ".join(item["reason"].split())[:200]
+            failures.append({"app": item["app"], "kind": failure_kind(reason), "reason": reason})
     if state == "running" and time.time() - updated > APP_UPDATE_RUNNING_LIMIT:
         state = "interrupted"
     return {"known": True, "state": state, "updated": updated, "failures": failures}
