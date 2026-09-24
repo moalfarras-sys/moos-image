@@ -451,9 +451,12 @@ PY
     # moos-control owns the fixed argv of every action; this dispatcher accepts
     # only these exact shapes. Any web page can hand this scheme a URL, so the
     # worst a drive-by link can do is change the volume or take a screenshot.
-    # Turning Wi-Fi OFF disconnects the internet, Mo AI and remote control, so
-    # that one asks first.
-    control/volume/up|control/volume/down|control/brightness/up|control/brightness/down|control/mute|control/unmute|control/night-light/on|control/night-light/off|control/night-light/auto|control/wifi/on|control/bluetooth/on|control/bluetooth/off|control/screenshot)
+    # Three values ask first, the same three Mo AI shows a card for
+    # (confirm_values in moai_tool_schemas.py; tests/test_moos_control.py holds
+    # the two lists equal): Wi-Fi OFF disconnects the internet, Mo AI and remote
+    # control; Bluetooth OFF disconnects a wireless keyboard and mouse; and
+    # turning the microphone back ON undoes a mute the owner chose for privacy.
+    control/volume/up|control/volume/down|control/brightness/up|control/brightness/down|control/mute|control/unmute|control/night-light/on|control/night-light/off|control/night-light/auto|control/wifi/on|control/bluetooth/on|control/screenshot)
         IFS=/ read -r -a control_args <<<"$tgt"
         control_run "${control_args[@]}" ;;
     # The desktop's own actions (SPEC D4): the window overview, MoOS's window
@@ -462,7 +465,7 @@ PY
     # fixed name in moos-control; none can close a window, load a script or restart
     # anything, so a drive-by link can at worst rearrange the screen or change a
     # setting the person changes straight back.
-    control/window/overview|control/window/grid|control/window/show-desktop|control/arrange/halves|control/arrange/thirds|control/arrange/quarters|control/arrange/main|control/arrange/centre|control/desktop/next|control/desktop/previous|control/dnd/on|control/dnd/off|control/mic/mute|control/mic/unmute|control/keyboard-layout/next|control/motion/still|control/motion/gentle|control/motion/alive|control/clarity/clear|control/clarity/balanced|control/clarity/solid|control/power-profile/power-saver|control/power-profile/balanced|control/power-profile/performance)
+    control/window/overview|control/window/grid|control/window/show-desktop|control/arrange/halves|control/arrange/thirds|control/arrange/quarters|control/arrange/main|control/arrange/centre|control/desktop/next|control/desktop/previous|control/dnd/on|control/dnd/off|control/mic/mute|control/keyboard-layout/next|control/motion/still|control/motion/gentle|control/motion/alive|control/clarity/clear|control/clarity/balanced|control/clarity/solid|control/power-profile/power-saver|control/power-profile/balanced|control/power-profile/performance)
         IFS=/ read -r -a control_args <<<"$tgt"
         control_run "${control_args[@]}" ;;
     control/volume/*|control/brightness/*)
@@ -476,6 +479,12 @@ PY
     control/wifi/off)
         confirm "إيقاف الواي فاي يقطع الإنترنت وMo AI والتحكم عن بعد. متابعة؟ | Turning Wi-Fi off disconnects the internet, Mo AI and remote control. Continue?" \
             && control_run wifi off ;;
+    control/bluetooth/off)
+        confirm "إيقاف البلوتوث يفصل لوحة المفاتيح والفأرة اللاسلكيتين. متابعة؟ | Turning Bluetooth off disconnects wireless keyboards and mice. Continue?" \
+            && control_run bluetooth off ;;
+    control/mic/unmute)
+        confirm "تشغيل الميكروفون من جديد؟ | Turn the microphone back on?" \
+            && control_run mic unmute ;;
     # MoOS Search's Mo AI hand-off: open the chat already asking the question. This only starts a
     # conversation — the same entry the Mo AI KRunner runner uses — and any action in the answer is
     # still a button the user has to confirm. The question is passed as ONE argv element and is

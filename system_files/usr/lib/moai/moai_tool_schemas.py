@@ -419,6 +419,9 @@ _CONTROL_TOOLS: list[dict[str, Any]] = [
         parameters={"value": {"type": "string", "enum": ["mute", "unmute"],
                               "description": "mute or unmute the microphone"}},
         required=["value"],
+        # Muting is always safe. Turning the microphone back ON undoes a privacy choice the
+        # owner made, so neither a model's turn nor a link may do it without a yes.
+        confirm_values={"value": ["unmute"]},
     ),
     _schema(
         "switch_keyboard_layout",

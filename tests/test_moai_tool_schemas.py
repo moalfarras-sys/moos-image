@@ -281,6 +281,9 @@ class TestToolSchemaIntegrity(unittest.TestCase):
         self.assertTrue(needs_confirmation("toggle_wifi", {"value": "off"}))
         self.assertTrue(needs_confirmation("toggle_bluetooth", {"value": "off"}))
         self.assertFalse(needs_confirmation("toggle_wifi", {"value": "on"}))
+        # Re-opening a microphone the owner muted is a privacy change: it asks. Muting does not.
+        self.assertTrue(needs_confirmation("set_mic_mute", {"value": "unmute"}))
+        self.assertFalse(needs_confirmation("set_mic_mute", {"value": "mute"}))
         self.assertFalse(needs_confirmation("set_volume", {"value": "30"}))
         self.assertTrue(needs_confirmation("system_update", {}))
         self.assertTrue(needs_confirmation("a tool that does not exist", {}))

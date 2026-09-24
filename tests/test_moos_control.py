@@ -465,7 +465,7 @@ class MoosOpenControlRouteTests(unittest.TestCase):
                           ("moos://control/volume/up", ["volume", "up"]),
                           ("moos://control/brightness/80", ["brightness", "80"]),
                           ("moos://control/night-light/auto", ["night-light", "auto"]),
-                          ("moos://control/bluetooth/off", ["bluetooth", "off"]),
+                          ("moos://control/bluetooth/on", ["bluetooth", "on"]),
                           ("moos://control/mute", ["mute"]),
                           ("moos://control/screenshot", ["screenshot"]),
                           ("moos://control/window/overview", ["window", "overview"]),
@@ -473,7 +473,7 @@ class MoosOpenControlRouteTests(unittest.TestCase):
                           ("moos://control/arrange/centre", ["arrange", "centre"]),
                           ("moos://control/desktop/previous", ["desktop", "previous"]),
                           ("moos://control/dnd/on", ["dnd", "on"]),
-                          ("moos://control/mic/unmute", ["mic", "unmute"]),
+                          ("moos://control/mic/mute", ["mic", "mute"]),
                           ("moos://control/keyboard-layout/next", ["keyboard-layout", "next"]),
                           ("moos://control/motion/gentle", ["motion", "gentle"]),
                           ("moos://control/clarity/balanced", ["clarity", "balanced"]),
@@ -495,19 +495,57 @@ class MoosOpenControlRouteTests(unittest.TestCase):
                 self.open(url)
         self.assertEqual(self.control_calls(), [])
 
-    def test_wifi_off_requires_the_users_yes(self):
-        self.open("moos://control/wifi/off", KDIALOG_ANSWER="1")
-        self.assertEqual(self.control_calls(), [], "Wi-Fi off ran without confirmation")
-        self.open("moos://control/wifi/off", KDIALOG_ANSWER="0")
-        self.assertEqual(self.control_calls(), [["wifi", "off"]])
+    # Wi-Fi off cuts the owner off, Bluetooth off cuts a wireless keyboard, and turning the
+    # microphone back on undoes a privacy choice. moos: is a public scheme, so a web page or
+    # a link can hand any of these to the router: each one waits for the person's yes.
+    ASKS_FIRST = (("moos://control/wifi/off", ["wifi", "off"]),
+                  ("moos://control/bluetooth/off", ["bluetooth", "off"]),
+                  ("moos://control/mic/unmute", ["mic", "unmute"]))
 
-    def test_wifi_off_fails_closed_without_a_dialog_tool(self):
+    def test_disruptive_values_require_the_users_yes(self):
+        for url, argv in self.ASKS_FIRST:
+            with self.subTest(url=url):
+                self.machine.log.write_text("")
+                self.open(url, KDIALOG_ANSWER="1")
+                self.assertEqual(self.control_calls(), [], f"{url} ran without confirmation")
+                self.open(url, KDIALOG_ANSWER="0")
+                self.assertEqual(self.control_calls(), [argv])
+
+    def test_disruptive_values_fail_closed_without_a_dialog_tool(self):
         (self.machine.bin / "kdialog").unlink()
         environment = self.machine.env()
         environment["PATH"] = str(self.machine.bin)
-        subprocess.run(["/bin/bash", str(OPEN), "moos://control/wifi/off"], env=environment,
-                       capture_output=True, text=True, timeout=30)
-        self.assertEqual(self.control_calls(), [])
+        for url, _argv in self.ASKS_FIRST:
+            with self.subTest(url=url):
+                subprocess.run(["/bin/bash", str(OPEN), url], env=environment,
+                               capture_output=True, text=True, timeout=30)
+                self.assertEqual(self.control_calls(), [])
+
+    def test_the_router_asks_for_exactly_what_mo_ai_asks_for(self):
+        """One list of values that need a yes: Mo AI's confirm_values ARE the router's asks.
+
+        Bluetooth off shipped confirmed in Mo AI and instant on the public scheme; a second
+        hand-kept list is how that happens. Every control arm that asks, and every schema
+        value that needs a card, must be the same route.
+        """
+        sys.path.insert(0, str(ROOT / "system_files/usr/lib/moai"))
+        import moai_tool_schemas as schemas
+        code = "\n".join(line for line in OPEN.read_text(encoding="utf-8").splitlines()
+                         if not line.lstrip().startswith("#"))
+        asking, instant = set(), set()
+        for labels, body in re.findall(r"(?ms)^    (control/[^\s)]+)\)(.*?);;", code):
+            for label in labels.split("|"):
+                (asking if re.search(r"\bconfirm\s", body) else instant).add(label)
+        self.assertIn("control/wifi/off", asking, "the arm parser found nothing")
+        carded = set()
+        for tool in schemas.ALL_TOOLS:
+            meta = tool["_moos"]
+            if meta["executor"] != "moos-control":
+                continue
+            for values in (meta.get("confirm_values") or {}).values():
+                carded.update(f"control/{meta['command']}/{value}" for value in values)
+        self.assertEqual(sorted(asking), sorted(carded))
+        self.assertEqual(sorted(carded & instant), [], "a carded value also has an instant arm")
 
 
 class MoaiControlButtonTests(unittest.TestCase):
