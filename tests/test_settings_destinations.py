@@ -10,8 +10,10 @@ all. SPEC D3 makes system_files/usr/share/moos/settings-destinations.json the on
 
 What this proves:
   * the registry is well-formed, its tokens are unique, every label is bilingual and names
-    no other desktop or distribution, and (on a machine that has them) every module id it
-    lists is really installed;
+    no other desktop or distribution;
+  * the image gate (verify_image_experience.py) parses every module route of the registry,
+    and — using that gate's own rule, read from its source — every module id resolves on a
+    machine that has settings modules installed;
   * moos-open keeps exactly one LITERAL arm per token, running exactly the registry's
     command — in both directions, with no wildcard and no URL text in any arm (moos: is a
     public scheme, so the router stays a literal allowlist rather than reading the file);
@@ -22,6 +24,7 @@ What this proves:
 """
 from __future__ import annotations
 
+import ast
 import importlib.machinery
 import importlib.util
 import json
@@ -44,6 +47,7 @@ STATUS = ROOT / "system_files/usr/libexec/moos-settings-status"
 RUNNER = ROOT / "system_files/usr/libexec/moai-krunner"
 SCHEMAS = ROOT / "system_files/usr/lib/moai/moai_tool_schemas.py"
 HOST_KCMS = Path("/usr/lib64/qt6/plugins/plasma/kcms")
+IMAGE_GATE = ROOT / "build_files/verify_image_experience.py"
 
 sys.path.insert(0, str(ROOT / "tests"))
 from test_user_visible_identity import hit as foreign_name  # noqa: E402
@@ -109,7 +113,10 @@ class TheRegistry(unittest.TestCase):
             "notifications", "energy", "time", "region", "users", "storage", "default-apps",
             "autostart", "lock", "permissions", "global-theme", "colors", "icons", "cursors",
             "shortcuts", "window-behavior", "window-rules", "effects", "desktops",
-            "screen-edges", "task-switcher", "animations", "sounds", "search", "login-screen",
+            # screen-edges (kcm_kwinscreenedges) is NOT here: its only plugin is in
+            # kcms/systemsettings_qwidgets/ and it has no .desktop, so the image gate's
+            # resolution rule would fail the x86 build. It returns when that rule does.
+            "task-switcher", "animations", "sounds", "search", "login-screen",
             "virtual-keyboard", "touchscreen", "tablet", "game-controller", "window-decoration",
         }
         self.assertEqual(required - offered, set())
@@ -123,15 +130,91 @@ class TheRegistry(unittest.TestCase):
             self.assertEqual(registry[token]["target"], "appearance",
                              "every appearance token opens MoOS Themes (SPEC D1)")
 
-    def test_every_listed_module_is_installed_on_this_machine(self):
-        """Measured, not remembered: each module id must exist where Plasma loads it from."""
+
+class TheImageGateSeesAndResolvesEveryModule(unittest.TestCase):
+    """The image gate decides whether a settings route ships; this test uses ITS rule.
+
+    The first version of this check asked `rglob('*.so')` under every module folder — wider
+    than verify_image_experience.py, which accepts only a `<id>.desktop` or a plugin in
+    `kcms/` or `kcms/kinfocenter/`. `screen-edges` (kcm_kwinscreenedges: no .desktop, plugin
+    in `kcms/systemsettings_qwidgets/`) passed here and would have failed every x86 image
+    build. So the rule is no longer re-typed: the route regex, the comment stripper, the
+    .desktop template and the plugin globs are read out of the image gate's own source.
+    When that gate changes its rule, this test follows it, and it cannot drift again.
+    """
+
+    @staticmethod
+    def _template(node: ast.AST) -> str:
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            return node.value
+        if not isinstance(node, ast.JoinedStr):
+            raise AssertionError(f"unexpected image-gate path shape: {ast.dump(node)}")
+        parts = []
+        for value in node.values:
+            if isinstance(value, ast.Constant):
+                parts.append(value.value)
+            elif (isinstance(value, ast.FormattedValue) and isinstance(value.value, ast.Name)
+                  and value.value.id == "_kcm"):
+                parts.append("{kcm}")
+            else:
+                raise AssertionError(f"unexpected image-gate path part: {ast.dump(value)}")
+        return "".join(parts)
+
+    @classmethod
+    def setUpClass(cls):
+        tree = ast.parse(IMAGE_GATE.read_text(encoding="utf-8"))
+        namespace: dict = {"re": re}
+        found: dict[str, list] = {"source": [], "_kcm_routes": [], "_desktop": [], "_plugins": []}
+        for node in ast.walk(tree):
+            if isinstance(node, ast.FunctionDef) and node.name == "source":
+                found["source"].append(node)
+            elif (isinstance(node, ast.Assign) and len(node.targets) == 1
+                  and isinstance(node.targets[0], ast.Name) and node.targets[0].id in found):
+                found[node.targets[0].id].append(node.value)
+        for name, nodes in found.items():
+            if len(nodes) != 1:
+                raise AssertionError(f"the image gate's settings-route rule changed shape: "
+                                     f"{name} appears {len(nodes)} times — update this test")
+        exec(compile(ast.Module(body=found["source"], type_ignores=[]), str(IMAGE_GATE), "exec"),
+             namespace)
+        cls.strip = staticmethod(namespace["source"])
+        cls.route_regex = found["_kcm_routes"][0].args[0].value
+        cls.desktop = cls._template(found["_desktop"][0].args[0])
+        cls.plugins = []
+        for call in ast.walk(found["_plugins"][0]):
+            if (isinstance(call, ast.Call) and isinstance(call.func, ast.Attribute)
+                    and call.func.attr == "glob"):
+                base = call.func.value.args[0].value           # Path("/usr")
+                cls.plugins.append((base, cls._template(call.args[0])))
+        if not cls.plugins:
+            raise AssertionError("the image gate lists no plugin location — update this test")
+
+    def test_the_image_gate_parses_every_module_route_of_the_registry(self):
+        """A route the gate's regex cannot parse is a route the image never checks."""
+        routes = re.findall(self.route_regex,
+                            self.strip(ROUTER.read_text(encoding="utf-8"), "#"))
+        wanted = sorted((token, entry["host"], entry["target"])
+                        for token, entry in destinations.load(REGISTRY).items()
+                        if entry["host"] in ("systemsettings", "kinfocenter"))
+        self.assertGreaterEqual(len(wanted), 25)
+        self.assertEqual(sorted(routes), wanted)
+
+    def test_every_listed_module_resolves_by_the_image_gates_rule(self):
+        """Measured on this machine, with exactly the lookup the image build performs."""
         if not HOST_KCMS.is_dir():
             self.skipTest("no settings modules on this machine (the image gate checks the image)")
-        installed = {path.stem for path in HOST_KCMS.rglob("*.so")}
+        missing = []
         for token, entry in destinations.load(REGISTRY).items():
-            if entry["host"] in ("systemsettings", "kinfocenter"):
-                self.assertIn(entry["target"], installed,
-                              f"settings/{token} names {entry['target']}, which is not installed")
+            if entry["host"] not in ("systemsettings", "kinfocenter"):
+                continue
+            kcm = entry["target"]
+            desktop = Path(self.desktop.format(kcm=kcm)).is_file()
+            plugin = any(path.is_file() for base, pattern in self.plugins
+                         for path in Path(base).glob(pattern.format(kcm=kcm)))
+            if not (desktop or plugin):
+                missing.append(f"settings/{token} -> {kcm}")
+        self.assertEqual(missing, [], "the image gate would call these modules not installed; "
+                         "the x86 image build would fail")
 
 
 class TheRouterIsTheRegistrysLiteralTwin(unittest.TestCase):

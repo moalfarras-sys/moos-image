@@ -239,7 +239,6 @@ case "${cat}/${tgt}" in
     settings/window-rules)      gui systemsettings kcm_kwinrules ;;
     settings/effects)           gui systemsettings kcm_kwin_effects ;;
     settings/desktops)          gui systemsettings kcm_kwin_virtualdesktops ;;
-    settings/screen-edges)      gui systemsettings kcm_kwinscreenedges ;;
     settings/task-switcher)     gui systemsettings kcm_kwintabbox ;;
     settings/search)            gui systemsettings kcm_plasmasearch ;;
     settings/login-screen)      gui systemsettings kcm_plasmalogin ;;
