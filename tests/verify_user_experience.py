@@ -2957,6 +2957,14 @@ for _retired_plasmoid in ("org.moos.heroclock", "org.moos.search"):
                 "WidgetExplorer.qml").split("function retired(plugin) {", 1)[1].split("\n    }", 1)[0],
             f"Customize Desktop must keep {_retired_plasmoid} in its retired() list so a "
             "stale catalogue row reads Unavailable and cannot be added")
+    # A generator that still writes into a retired package re-creates half of it the next
+    # time someone regenerates the artwork (review of rev 86: generate_login_scene.py still
+    # wrote the Hero Clock's sprites). The tree gates above would then go red far from the
+    # cause; this names the generator.
+    for _generator in sorted([*ROOT.glob("artwork/**/*.py"), *ROOT.glob("artwork/**/*.sh")]):
+        require(f"plasmoids/{_retired_plasmoid}" not in _generator.read_text(encoding="utf-8"),
+                f"{_generator.relative_to(ROOT)} still writes into the retired "
+                f"{_retired_plasmoid} package; drop that output")
 
 PALETTE_ICON_OVERLAYS = (
     "MoOSUI2Amethyst", "MoOSUI2AmethystLight",

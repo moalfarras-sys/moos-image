@@ -4,8 +4,10 @@
 Splash, Login, Lock and Logout use the code-native Tidal Horizon Portal. This
 script synchronises that reviewed QML byte-for-byte across every doorway and
 all 16 look-and-feel palettes. It also retains deterministic glow/ring sprites
-for the separate panel-brand, Hero Clock and Mo AI scenes that still consume
-them. Doorway QML itself is loop-free and does not reference those rasters.
+for the separate panel-brand and Mo AI scenes that still consume them. Doorway
+QML itself is loop-free and does not reference those rasters. (The Hero Clock
+was retired at THEME_REV 86; writing its sprites would re-create half of a
+deleted package, which the retirement gates refuse.)
 
 Deterministic: same inputs -> same bytes (PIL, no randomness, no timestamps).
 
@@ -56,7 +58,6 @@ FAMILY_QML = (
 )
 OUTS = (
     SHARE / "plasma/plasmoids/org.moos.brand/contents/images",
-    SHARE / "plasma/plasmoids/org.moos.heroclock/contents/images",
     # The canonical shared copy for APPS (Mo AI's glass backdrop reads these
     # absolute paths — plasma packages keep their own package-local copies).
     SHARE / "moos/brand",
