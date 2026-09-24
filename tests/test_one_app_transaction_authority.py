@@ -20,10 +20,18 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 BIN = ROOT / "system_files/usr/bin"
+# Helpers run by units and timers change applications too; they are scanned the same way.
+LIBEXEC = ROOT / "system_files/usr/libexec"
 # The backend itself, and the tools whose whole job is to talk to flatpak on its behalf.
 AUTHORITIES = {"moos-storectl", "moos-store-index", "moos-one-store"}
+# The scheduled updater is not a second authority: it may only UPDATE what is installed
+# (and collect unused runtimes), and only while it holds Mo Store's own job lock, so the
+# timer and a Store transaction can never race one installation. Its own test is below.
+LOCKED_UPDATERS = {"moos-flatpak-update"}
 # Verbs that change what is installed. `flatpak info`, `list`, `remotes` and `run` read.
-CHANGING = re.compile(r"\bflatpak\b[^\n|;&]*\b(install|uninstall|remove|update|mask)\b")
+# A variable that holds the flatpak binary ("$flatpak_bin" update) is the same command.
+CHANGING = re.compile(
+    r"(?:\bflatpak\b|\$\{?flatpak\w*\}?)[^\n|;&]*\b(install|uninstall|remove|update|mask)\b")
 # One exception, and it is not an app transaction: `--unused` removes runtimes and
 # extensions that NO installed application references any more. It cannot touch an app a
 # person chose, Mo Store's backend has no verb for it, and it is what makes "free up
@@ -32,12 +40,13 @@ GARBAGE_COLLECTION = re.compile(r"\bflatpak\s+uninstall\s+--unused\b")
 
 
 def sources():
-    for path in sorted(BIN.iterdir()):
-        if path.is_file() and path.name not in AUTHORITIES:
-            try:
-                yield path, path.read_text(encoding="utf-8")
-            except (OSError, UnicodeDecodeError):
-                continue
+    for directory in (BIN, LIBEXEC):
+        for path in sorted(directory.iterdir()):
+            if path.is_file() and path.name not in AUTHORITIES | LOCKED_UPDATERS:
+                try:
+                    yield path, path.read_text(encoding="utf-8")
+                except (OSError, UnicodeDecodeError):
+                    continue
 
 
 class OneAuthority(unittest.TestCase):
@@ -99,6 +108,36 @@ class OneAuthority(unittest.TestCase):
                                         f"{path.name}:{number} names an app beside --unused")
         self.assertEqual(len(allowed), 1,
                          f"the garbage-collection exception spread: {allowed}")
+
+    def test_both_directories_are_really_scanned(self):
+        """A moved tree would turn this gate into a scan of nothing."""
+        scanned = {path.parent for path, _text in sources()}
+        self.assertEqual(scanned, {BIN, LIBEXEC})
+
+    def test_the_scheduled_updater_only_updates_and_only_under_the_store_lock(self):
+        for name in sorted(LOCKED_UPDATERS):
+            path = LIBEXEC / name
+            text = path.read_text(encoding="utf-8")
+            code = "\n".join(line for line in text.splitlines()
+                             if not line.lstrip().startswith("#"))
+            # The same lock file moos-storectl takes, taken without waiting.
+            self.assertIn('"$cache_root/moos-store/job.lock"', code, f"{name} no longer takes Mo Store's lock")
+            self.assertRegex(code, r"(?m)^\s*if ! flock -n \"\$store_lock\"; then",
+                             f"{name} must take the lock without waiting and step aside when it is held")
+            lock_at = code.index("flock -n")
+            for number, line in enumerate(code.splitlines(), start=1):
+                if not CHANGING.search(line) or "Usage:" in line:
+                    continue
+                verb = CHANGING.search(line).group(1)
+                with self.subTest(updater=name, line=number):
+                    self.assertIn(verb, ("update", "uninstall"), f"{name}:{number} {line.strip()}")
+                    if verb == "uninstall":
+                        self.assertRegex(line, r"uninstall --unused -y --noninteractive\s*$",
+                                         f"{name}:{number} removes more than unused runtimes")
+                    self.assertNotRegex(line, r"[A-Za-z0-9]+(\.[A-Za-z0-9-]+){2,}",
+                                        f"{name}:{number} names an application")
+                    self.assertGreater(code.index(line), lock_at,
+                                       f"{name}:{number} changes applications before taking the lock")
 
     def test_the_rule_is_still_written_where_the_next_agent_will_look(self):
         moai_do = (BIN / "moai-do").read_text(encoding="utf-8")
