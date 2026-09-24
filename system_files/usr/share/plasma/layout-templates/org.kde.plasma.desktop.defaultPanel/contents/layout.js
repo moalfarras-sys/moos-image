@@ -80,9 +80,7 @@ try {
         "preferred://browser",
         "org.moos.moplayer.desktop",
         "org.kde.dolphin.desktop",
-        "systemsettings.desktop",
-        "org.moos.updater.desktop",
-        "org.moos.recovery.desktop"
+        "systemsettings.desktop"
     ].join(","));
     launcher.writeConfig("defaultPage", 0);
     launcher.writeConfig("showRecent", true);

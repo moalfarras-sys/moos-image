@@ -1494,10 +1494,40 @@ class TestMoOSUI2(unittest.TestCase):
         for destination in (
             "org.moos.moai.desktop",
             "org.moos.store.desktop",
-            "org.moos.themepicker.desktop",
             "systemsettings.desktop",
         ):
             self.assertIn(destination, launcher + dock)
+        # MoOS Themes is a page of MoOS Settings now (spec D1/D5), reached through the router's
+        # fixed moos://settings/themes route; the separate theme window is no launcher target.
+        self.assertIn('view.launcher.openRoute("moos://settings/themes")', launcher)
+        self.assertNotIn("org.moos.themepicker.desktop", launcher + dock)
+        self.assertIn('Qt.openUrlExternally(route)', dock)
+        self.assertIn('if (!/^moos:\\/\\/[a-z]/.test(String(route || ""))) {', dock,
+                      "the launcher opens only moos:// routes, never a free URL")
+        # One name per destination: the cards say what the menu entries say.
+        self.assertIn('view.local("إعدادات MoOS", "MoOS Settings")', launcher)
+        self.assertIn('view.local("متجر MoOS", "Mo Store")', launcher)
+        self.assertNotIn('"System Settings"', launcher)
+        self.assertNotIn('"MoOS Store"', launcher)
+        # Favourites: one settings tile (Update and Recovery are its pages), mirrored three ways.
+        shipped = re.findall(r'"([^"]+)"', dock.split("readonly property var shippedFavorites: [",
+                                                      1)[1].split("]", 1)[0])
+        expected = ["org.moos.moai.desktop", "org.moos.store.desktop", "preferred://browser",
+                    "org.moos.moplayer.desktop", "org.kde.dolphin.desktop",
+                    "systemsettings.desktop"]
+        self.assertEqual(shipped, expected)
+        schema = (SHARE / "plasma/plasmoids/org.moos.brand/contents/config/main.xml"
+                  ).read_text(encoding="utf-8")
+        self.assertIn("<default>" + ",".join(expected) + "</default>", schema)
+        layout = (SHARE / "plasma/layout-templates/org.kde.plasma.desktop.defaultPanel/"
+                  "contents/layout.js").read_text(encoding="utf-8")
+        seeded = re.findall(r'"([^"]+)"', layout.split('writeConfig("favoriteApps", [', 1)[1]
+                            .split("]", 1)[0])
+        self.assertEqual(seeded, expected, "layout.js seeds new profiles; it mirrors the QML")
+        places = dock.split("systemApplications: [", 1)[1].split("]", 1)[0]
+        self.assertEqual(re.findall(r'"([^"]+)"', places), ["systemsettings.desktop"],
+                         "Places offers one settings destination, not the hidden hardware "
+                         "report and a Recovery page of the same window")
         self.assertIn('text: root.rtl ? "مساحة الأوامر" : "COMMAND"', dock)
         self.assertIn("readonly property int motionMedium: design.duration(", launcher)
         self.assertIn("design.motionGeometry", launcher)
@@ -1518,7 +1548,7 @@ class TestMoOSUI2(unittest.TestCase):
         self.assertNotIn("org.moos.moai.desktop", quiet_edge)
         self.assertNotIn("org.moos.store.desktop", quiet_edge)
         self.assertNotIn("systemsettings.desktop", quiet_edge)
-        self.assertIn("org.moos.themepicker.desktop", quiet_edge)
+        self.assertIn('openRoute("moos://settings/themes")', quiet_edge)
 
         # The always-visible hero clock used to wake at 1 Hz while five ambient
         # loops repainted plasmashell forever; it was then rejected outright and is
