@@ -26,6 +26,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PR = (ROOT / ".github/workflows/pr-image-gates.yml").read_text(encoding="utf-8")
 RELEASE = (ROOT / ".github/workflows/build.yml").read_text(encoding="utf-8")
+ARM = (ROOT / ".github/workflows/build-arm.yml").read_text(encoding="utf-8")
 
 
 def code(text: str) -> str:
@@ -37,9 +38,30 @@ class SameImage(unittest.TestCase):
         workflow = code(PR)
         trigger = workflow[workflow.index("on:"):workflow.index("concurrency:")]
         self.assertIn("pull_request:", trigger)
-        for path in ('"Containerfile"', '"build_files/**"', '"system_files/**"'):
+        for path in ('"Containerfile"', '"build_files/**"', '"system_files/**"',
+                     '"moos-settings-kcm/**"'):
             self.assertIn(path, trigger, f"a change under {path} would merge without an image build")
         self.assertNotIn("paths-ignore", trigger)
+
+    def test_the_settings_modules_are_an_image_input_on_both_architectures(self) -> None:
+        """moos-settings-kcm/ compiles in the qmlshell-build stage of BOTH Containerfiles.
+
+        The native System Settings modules (kcm_moos and the MoOS group's pages) are built from
+        that tree and gated inside both image builds, yet neither the pull-request image build
+        nor the ARM build listed it. A change to a module alone merged without building the
+        image that ships it, on either architecture.
+        """
+        for containerfile in ("Containerfile", "Containerfile.arm"):
+            self.assertIn("COPY moos-settings-kcm/",
+                          (ROOT / containerfile).read_text(encoding="utf-8"),
+                          f"{containerfile} no longer builds moos-settings-kcm; revisit this gate")
+        arm = code(ARM)
+        trigger = arm[arm.index("on:"):arm.index("\nenv:")]
+        push = trigger[trigger.index("  push:"):trigger.index("  pull_request:")]
+        pull_request = trigger[trigger.index("  pull_request:"):]
+        for name, block in (("push", push), ("pull_request", pull_request)):
+            self.assertIn('"moos-settings-kcm/**"', block,
+                          f"build-arm.yml's {name} trigger misses moos-settings-kcm/**")
 
     def test_it_builds_what_the_release_builds(self) -> None:
         workflow = code(PR)

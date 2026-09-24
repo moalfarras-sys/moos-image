@@ -30,6 +30,9 @@ on:
       - "Containerfile"
       - "build_files/**"
       - "system_files/**"
+      # The native System Settings modules compile in the Containerfile's qmlshell-build
+      # stage and build.sh gates the installed plugins; a change there reaches the image.
+      - "moos-settings-kcm/**"
       - ".github/workflows/pr-image-gates.yml"
   workflow_dispatch:
 
