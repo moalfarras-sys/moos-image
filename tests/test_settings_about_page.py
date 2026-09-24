@@ -3,25 +3,27 @@
 
 WHY THIS EXISTS
 
-`moos://settings/about` — the System section's "About this device" tile, the Overview's "Device
-details" button, Mo AI's `open_settings about` — opened the desktop project's own About module.
-That page is correct for what it is, and wrong for MoOS: it lists the toolkit and the desktop
-projects MoOS is built from, by name and version, under a heading the owner reads as "my
-system". The identity contract says a person who asks their computer what it is running gets one
-answer. Every identity gate was green, because those gates read MoOS's files and that page is
-not one of them.
+`moos://settings/about` — the Overview's facts, Mo AI's `open_settings about` — opened the
+desktop project's own About module. That page is correct for what it is, and wrong for MoOS:
+it lists the toolkit and the desktop projects MoOS is built from, by name and version, under a
+heading the owner reads as "my system". The identity contract says a person who asks their
+computer what it is running gets one answer. Every identity gate was green, because those
+gates read MoOS's files and that page is not one of them.
 
-The page is now drawn by MoOS Settings from the same live status document the Overview reads.
-This gate holds what makes it true rather than merely branded:
+The page is now kcm_moos, the first module of System Settings' MoOS group, drawn from the
+status document moos-settings-status publishes. This gate holds what makes it true rather
+than merely branded:
 
-  * the router and the status helper agree that `about` is MoOS Settings' own section, and
-    nothing in the router opens the desktop's About module any more;
+  * the router and the status helper agree that `about` is MoOS Settings' own section, which
+    `moos-settings` opens as kcm_moos, and nothing opens the desktop's About module any more;
   * the helper derives the EDITION and BUILD DATE from the booted deployment's own record and
     answers "" / 0 for an origin it does not recognise — never a guess;
-  * the kernel is shown as the kernel's number. `uname -r` continues with the packager's build
-    tag (`-200.fc44.x86_64`), which would put another distribution's name on MoOS's own page;
-  * an in-app page is available without the status feed, opens without leaving the window, and
-    every fact row shows "Unknown" in words when its value is missing.
+  * identity is normalised ONCE, at the source: the helper publishes kernelLabel ("Linux
+    7.2.7" — `uname -r` continues with the packager's build tag `-200.fc44.x86_64`, another
+    distribution's name), editionLabel, archLabel and sessionLabel, and the page binds only
+    those labels (moved here from the retired Command Center's JavaScript);
+  * the page needs no status feed to be reachable, and every fact row shows "Unknown" in
+    words when its value is missing.
 """
 
 from __future__ import annotations
@@ -30,26 +32,17 @@ import json
 import re
 import runpy
 import shutil
-import subprocess
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
-APP = ROOT / "system_files/usr/share/moos/apps/settings/main.qml"
+PAGE = ROOT / "moos-settings-kcm/modules/overview/ui/main.qml"
+FACT_ROW = ROOT / "moos-settings-kcm/common/MoosFactRow.qml"
 STATUS = ROOT / "system_files/usr/libexec/moos-settings-status"
 ROUTER = ROOT / "system_files/usr/bin/moos-open"
-NODE = shutil.which("node")
-
-
-def qml_function(qml: str, name: str) -> str:
-    start = qml.index("    function " + name + "(")
-    end = qml.index("{", start) + 1
-    depth = 1
-    while depth:
-        depth += {"{": 1, "}": -1}.get(qml[end], 0)
-        end += 1
-    return qml[start:end]
+LAUNCHER = ROOT / "system_files/usr/bin/moos-settings"
+ARABIC = re.compile(r"[؀-ۿ]")
 
 
 def code_only(text: str, marker: str) -> str:
@@ -66,6 +59,10 @@ class RouterAndHelper(unittest.TestCase):
         scope = runpy.run_path(str(STATUS))
         self.assertEqual(scope["DESTINATIONS"]["about"], ("moos-settings", "--section=about"))
         self.assertNotIn("kcm_about-distro", code_only(STATUS.read_text(encoding="utf-8"), "#"))
+        launcher = code_only(LAUNCHER.read_text(encoding="utf-8"), "#")
+        self.assertRegex(launcher, r"--section=about\)\s*module=kcm_moos\s*;;",
+                         "moos-settings --section=about must open MoOS's own module")
+        self.assertNotIn("kcm_about-distro", launcher)
 
     def test_an_option_is_not_mistaken_for_a_settings_module(self) -> None:
         probe = runpy.run_path(str(STATUS))["destinations_state"]
@@ -106,112 +103,97 @@ class RouterAndHelper(unittest.TestCase):
             state = probe()
         self.assertEqual((state["edition"], state["builtAt"], state["known"]), ("", 0, False))
 
-    def test_the_snapshot_carries_architecture_and_session(self) -> None:
+    def test_the_snapshot_carries_architecture_session_and_their_labels(self) -> None:
         scope = runpy.run_path(str(STATUS))
         with patch.dict("os.environ", {"XDG_SESSION_TYPE": "wayland"}):
             state = scope["full_state"]()
         self.assertEqual(state["session"], "wayland")
         self.assertRegex(state["arch"], r"^[a-z0-9_]+$")
+        self.assertEqual(state["kernelLabel"], scope["kernel_label"](state["kernel"]))
+        self.assertEqual(state["editionLabel"], scope["edition_label"](state["deployment"]["edition"]))
+        self.assertEqual(state["archLabel"], scope["arch_label"](state["arch"]))
+        self.assertEqual(state["sessionLabel"], scope["session_label"]("wayland"))
 
 
-@unittest.skipUnless(NODE, "Node required to execute the page's JavaScript")
-class PageLogic(unittest.TestCase):
-    def run_js(self, body: str, *, rtl: bool = False) -> None:
-        qml = APP.read_text(encoding="utf-8")
-        names = ("local", "isolated", "editionLabel", "kernelLabel", "archLabel", "sessionLabel",
-                 "routeAvailable", "routeReason", "openRoute", "selectSection", "activateRequested",
-                 "argValue", "inAppPage")
-        in_app = re.search(r"readonly property var inAppRoutes: \((\{[^}]*\})\)", qml).group(1)
-        about = re.search(r"readonly property var aboutSection: \((\{.*?\n    \})\)", qml, re.S).group(1)
-        news = re.search(r"readonly property var whatsNewSection: \((\{.*?\n    \})\)", qml, re.S).group(1)
-        script = f"""
-const assert = require('node:assert/strict');
-let rtl = {str(rtl).lower()}, statusLoaded = false, statusError = '', launchError = '';
-let status = {{destinations: {{}}}}, searchQuery = 'x', activeSection = 'home';
-let contentFlick = {{contentY: 9}}, calls = [];
-const Qt = {{openUrlExternally: url => {{ calls.push(url); return true }}, application: {{arguments: []}}}};
-const inAppRoutes = {in_app};
-const aboutSection = {about};
-const whatsNewSection = {news};
-const inAppPages = [aboutSection, whatsNewSection];
-const sections = [{{id: 'home'}}, {{id: 'system'}}];
-""" + "\n".join(qml_function(qml, name) for name in names) + "\n" + body
-        result = subprocess.run([NODE, "-e", script], capture_output=True, text=True, timeout=60)
-        self.assertEqual(result.returncode, 0, result.stderr[-1500:])
+class TheLabels(unittest.TestCase):
+    """The Command Center's kernelLabel/editionLabel/archLabel/sessionLabel, now at the source."""
+
+    scope = runpy.run_path(str(STATUS))
 
     def test_the_kernel_is_shown_as_the_kernels_number(self) -> None:
-        self.run_js("""
-assert.equal(kernelLabel('7.2.5-200.fc44.x86_64'), 'Linux 7.2.5');
-assert.equal(kernelLabel('6.12.0-55.el10.aarch64'), 'Linux 6.12.0');
-assert.equal(kernelLabel('7.3-rc2'), 'Linux 7.3');
-for (const missing of ['', '—', undefined, null]) assert.equal(kernelLabel(missing), '');
-for (const release of ['7.2.5-200.fc44.x86_64', '6.17.1-300.fc43.aarch64'])
-    assert.ok(!/fc\\d|el\\d|fedora/i.test(kernelLabel(release)), kernelLabel(release));
-""")
+        kernel_label = self.scope["kernel_label"]
+        self.assertEqual(kernel_label("7.2.5-200.fc44.x86_64"), "Linux 7.2.5")
+        self.assertEqual(kernel_label("6.12.0-55.el10.aarch64"), "Linux 6.12.0")
+        self.assertEqual(kernel_label("7.3-rc2"), "Linux 7.3")
+        for missing in ("", "—", None, 7):
+            self.assertEqual(kernel_label(missing), "")
+        for release in ("7.2.5-200.fc44.x86_64", "6.17.1-300.fc43.aarch64"):
+            self.assertNotRegex(kernel_label(release), r"(?i)fc\d|el\d|fedora|x86_64|aarch64")
 
     def test_an_edition_is_named_in_words_or_not_at_all(self) -> None:
-        self.run_js("""
-for (const edition of ['moos', 'moos-nvidia', 'moos-cloud', 'moos-arm']) {
-    const label = editionLabel(edition);
-    assert.ok(label.startsWith('MoOS'), label);
-    assert.ok(!label.includes('moos-'), 'an image address is not a product name: ' + label);
-}
-for (const unknown of ['', 'kinoite', 'moos-nvidia-extra', undefined]) assert.equal(editionLabel(unknown), '');
-assert.equal(archLabel('x86_64'), '64-bit · x86');
-assert.equal(archLabel('riscv64'), 'riscv64');
-assert.ok(sessionLabel('wayland').startsWith('MoOS desktop'));
-assert.ok(sessionLabel('').startsWith('MoOS desktop'));
-""")
-        self.run_js("""
-assert.ok(editionLabel('moos-nvidia').includes('NVIDIA') && /[\\u0600-\\u06FF]/.test(editionLabel('moos-nvidia')));
-assert.ok(/[\\u0600-\\u06FF]/.test(sessionLabel('wayland')));
-""", rtl=True)
+        edition_label = self.scope["edition_label"]
+        for edition in ("moos", "moos-nvidia", "moos-cloud", "moos-arm"):
+            label = edition_label(edition)
+            with self.subTest(edition=edition):
+                self.assertTrue(label["en"].startswith("MoOS"), label)
+                self.assertTrue(label["ar"].startswith("MoOS") and ARABIC.search(label["ar"]), label)
+                self.assertNotIn("moos-", label["en"] + label["ar"],
+                                 "an image address is not a product name")
+        self.assertIn("NVIDIA", edition_label("moos-nvidia")["ar"])
+        for unknown in ("", "kinoite", "moos-nvidia-extra", None):
+            self.assertEqual(edition_label(unknown), {"ar": "", "en": ""})
 
-    def test_the_page_opens_inside_the_window_and_needs_no_status(self) -> None:
-        self.run_js("""
-assert.equal(statusLoaded, false);
-assert.equal(routeAvailable('moos://settings/about'), true, 'an in-app page does not wait for the feed');
-assert.equal(routeReason('moos://settings/about'), '');
-assert.equal(routeAvailable('moos://settings/display'), false);
-openRoute('moos://settings/about');
-assert.deepEqual(calls, [], 'the About page must not leave the window');
-assert.equal(activeSection, 'about'); assert.equal(searchQuery, ''); assert.equal(contentFlick.contentY, 0);
-activeSection = 'home';
-activateRequested(['moos-settings', '--section=about']);
-assert.equal(activeSection, 'about', 'moos-open settings/about lands on the page in a running window');
-activateRequested(['moos-settings', '--section=system']); assert.equal(activeSection, 'system');
-activateRequested(['moos-settings', '--section=nonsense']); assert.equal(activeSection, 'system');
-openRoute('moos://settings/whats-new');
-assert.deepEqual(calls, [], "What's new is a page of this window too");
-assert.equal(activeSection, 'whats-new');
-assert.equal(inAppPage('whats-new').parent, 'system'); assert.equal(inAppPage('display'), null);
-activateRequested(['moos-settings', '--section=whats-new']); assert.equal(activeSection, 'whats-new');
-""")
+    def test_architecture_and_session_are_said_in_the_owners_words(self) -> None:
+        arch_label, session_label = self.scope["arch_label"], self.scope["session_label"]
+        self.assertEqual(arch_label("x86_64"), {"ar": "64 بت · x86", "en": "64-bit · x86"})
+        self.assertEqual(arch_label("aarch64")["en"], "64-bit · ARM")
+        self.assertEqual(arch_label("riscv64"), {"ar": "riscv64", "en": "riscv64"})
+        for session in ("wayland", "", None):
+            label = session_label(session)
+            self.assertTrue(label["en"].startswith("MoOS desktop"), label)
+            self.assertRegex(label["ar"], ARABIC)
+            self.assertNotRegex(label["en"] + label["ar"], r"(?i)wayland",
+                                "the display protocol is not the desktop's name")
+        self.assertEqual(session_label("x11")["en"], "MoOS desktop · X11")
 
 
 class PageSource(unittest.TestCase):
     def test_every_fact_is_a_field_of_the_status_document(self) -> None:
-        qml = code_only(APP.read_text(encoding="utf-8"), "//")
-        view = qml[qml.index("id: aboutView"):]
-        view = view[:view.index("id: whatsNewView")]
-        rows = re.findall(r"FactRow \{(.*?)\n {32}\}", view, re.S)
-        self.assertGreaterEqual(len(rows), 12, "the About page lost fact rows")
+        qml = code_only(PAGE.read_text(encoding="utf-8"), "//")
+        view = qml[qml.index("id: systemFacts"):]
+        rows = re.findall(r"MoosFactRow \{(.*?)\n            \}", view, re.S)
+        self.assertGreaterEqual(len(rows), 12, "the About facts lost rows")
         for row in rows:
-            value = re.search(r"value: (.*?)(?:\n {36}[a-z]+:|\Z)", row, re.S).group(1)
-            self.assertIn("win.statusLoaded", value, f"a fact is shown before the feed is read: {row[:80]}")
-            self.assertIn("win.status.", value, f"a fact that is not a measured field: {row[:80]}")
+            value = re.search(r"value: (.*?)(?:\n {16}[a-zA-Z.]+:|\Z)", row, re.S).group(1)
+            self.assertIn("root.ready", value, f"a fact is shown before the feed is read: {row[:80]}")
+            self.assertRegex(value, r"kcm\.status\.|root\.(?:deployment|memory|storage)\.",
+                             f"a fact that is not a measured field: {row[:80]}")
         # The strings a person would recognise from the module this page replaced.
         for foreign in ("KDE", "Plasma", "Qt ", "Frameworks", "Fedora", "Kinoite"):
-            self.assertNotIn(foreign, view, f"the About page names {foreign.strip()}")
-        self.assertIn("win.kernelLabel(win.status.kernel)", view,
+            self.assertNotIn(foreign, view, f"the About facts name {foreign.strip()}")
+        self.assertIn("kcm.status.kernelLabel", view,
                       "the raw kernel release carries the packager's build tag")
-        self.assertNotRegex(view, r"value: [^\n]*win\.status\.kernel\b(?!\))")
+        for label in ("editionLabel", "sessionLabel", "archLabel"):
+            self.assertIn(f"kcm.status.{label}", view)
+        self.assertNotRegex(qml, r"status\.kernel\b(?!Label)")
+        self.assertNotRegex(qml, r"deployment\.edition\b", "bind editionLabel, not the image name")
+        self.assertNotRegex(qml, r"status\.(?:arch|session)\b(?!Label)")
+
+    def test_the_page_needs_no_status_to_be_reached_or_to_link_on(self) -> None:
+        qml = PAGE.read_text(encoding="utf-8")
+        own = re.search(r"readonly property var ownPages: \[([^\]]*)\]", qml).group(1)
+        for page in ("about", "overview", "whats-new", "update"):
+            self.assertIn(f'"{page}"', own)
+        self.assertIn('root.open("moos://settings/whats-new")', qml,
+                      "About this device must lead to What's new")
+        self.assertIn("function aboutReport()", qml)
+        self.assertIn("clipboard.copy()", qml, "Copy details must reach the clipboard")
 
     def test_unknown_is_said_in_words(self) -> None:
-        qml = APP.read_text(encoding="utf-8")
-        row = qml[qml.index("component FactRow"):qml.index("component FactCard")]
-        self.assertIn(": win.unknownLabel", row)
-        self.assertIn('Accessible.name: label + ": " + (value || win.unknownLabel)', row)
+        row = FACT_ROW.read_text(encoding="utf-8")
+        self.assertIn('readonly property string unknownText: MoUI.Locale.local("غير معروف", "Unknown")', row)
+        self.assertIn(": fact.unknownText", row)
+        self.assertIn('Accessible.name: label + ": " + (value || unknownText)', row)
 
 
 if __name__ == "__main__":

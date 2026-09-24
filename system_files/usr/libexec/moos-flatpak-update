@@ -2,6 +2,16 @@
 # One resilient Flatpak implementation for both the system and user scopes.
 # The two systemd timers own distinct installations; uupd no longer repeats
 # either one. A broken static delta is retried once from complete signed objects.
+#
+# The user scope is the owner's own applications, so it also:
+#   * takes Mo Store's job lock WITHOUT waiting — the same flock moos-storectl takes
+#     on ${XDG_CACHE_HOME:-~/.cache}/moos-store/job.lock. While the Store is in the
+#     middle of an install, removal or update this run steps aside (exit 0) and the
+#     next timer run updates; two transactions never race one installation.
+#   * publishes ~/.local/state/moos/app-updates.json atomically, for System Settings
+#     → MoOS → Update:  {"schema": 1, "updated": <epoch>, "state": "running"|"ok"|"failed",
+#     "failures": [{"app": "<reverse-DNS id>", "reason": "<the final attempt's own words>"}]}.
+#     A run that stops after saying "running" is recorded as failed by the exit trap.
 set -euo pipefail
 
 case "${1:-}" in
@@ -13,12 +23,105 @@ case "${1:-}" in
 esac
 
 flatpak_bin="${MOOS_FLATPAK_BIN:-/usr/bin/flatpak}"
+record=""
+log=""
+finished=0
+
+# publish <state> [log]: write the per-user record. Failing to record never fails the update.
+publish() {
+    [ -n "$record" ] || return 0
+    python3 - "$record" "$1" "${2:-}" <<'PY' || echo "MoOS: could not record the application update result." >&2
+import json, os, re, sys, tempfile, time
+
+path, state, log = sys.argv[1], sys.argv[2], sys.argv[3]
+failures, seen = [], set()
+if log:
+    try:
+        with open(log, encoding="utf-8", errors="replace") as handle:
+            text = handle.read()[-262144:]
+    except OSError:
+        text = ""
+    text = re.sub(r"\x1b\[[0-9;]*m", "", text)
+    app_id = re.compile(r"[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+){2,}\Z")
+    failed = re.compile(r"(?:Error|Warning): Failed to (?:update|install) (\S+?): (.*)")
+    for line in text.splitlines():
+        match = failed.search(line)
+        if not match:
+            continue
+        # The ref is the bare id or app/<id>/<arch>/<branch>.
+        app = next((part for part in match.group(1).split("/") if app_id.match(part)), "")
+        if app and app not in seen and len(app) <= 255:
+            seen.add(app)
+            failures.append({"app": app, "reason": " ".join(match.group(2).split())[:200]})
+        if len(failures) >= 20:
+            break
+directory = os.path.dirname(path)
+os.makedirs(directory, mode=0o700, exist_ok=True)
+document = {"schema": 1, "updated": int(time.time()), "state": state, "failures": failures}
+fd, temporary = tempfile.mkstemp(prefix=".app-updates-", suffix=".json", dir=directory)
+try:
+    with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        json.dump(document, handle, ensure_ascii=False, separators=(",", ":"))
+        handle.write("\n")
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.chmod(temporary, 0o600)
+    os.replace(temporary, path)
+finally:
+    try:
+        os.unlink(temporary)
+    except FileNotFoundError:
+        pass
+PY
+}
+
+on_exit() {
+    if [ -n "$record" ] && [ "$finished" -eq 0 ]; then
+        publish failed "$log"
+    fi
+    [ -z "$log" ] || rm -f -- "$log"
+}
+
+# Keep the updater's own words for the journal AND for the record's per-app reasons.
+run_logged() {
+    if [ -n "$log" ]; then
+        "$@" 2>&1 | tee -a "$log"
+    else
+        "$@"
+    fi
+}
+
+if [ "$scope" = --user ]; then
+    cache_root="${XDG_CACHE_HOME:-}"
+    case "$cache_root" in /*) ;; *) cache_root="$HOME/.cache" ;; esac
+    state_root="${XDG_STATE_HOME:-}"
+    case "$state_root" in /*) ;; *) state_root="$HOME/.local/state" ;; esac
+    ( umask 077; mkdir -p "$cache_root/moos-store" )
+    exec {store_lock}<>"$cache_root/moos-store/job.lock"
+    chmod 0600 "$cache_root/moos-store/job.lock"
+    if ! flock -n "$store_lock"; then
+        echo "MoOS: Mo Store is running a job; applications update at the next scheduled run." >&2
+        exit 0
+    fi
+    record="$state_root/moos/app-updates.json"
+    log="$(mktemp)"
+    trap on_exit EXIT
+    publish running
+fi
 
 "$flatpak_bin" "$scope" uninstall --unused -y --noninteractive
 
-if ! "$flatpak_bin" "$scope" update -y --noninteractive; then
+if ! run_logged "$flatpak_bin" "$scope" update -y --noninteractive; then
     echo "MoOS: Flatpak delta update failed; retrying from complete objects." >&2
-    "$flatpak_bin" "$scope" update --no-static-deltas -y --noninteractive
+    # What is still wrong is what the FINAL attempt says. The first attempt's words
+    # (usually the broken delta this retry exists for) stay in the journal, not in the
+    # record: an app the retry updated is not a failure, and one that failed again
+    # failed for the retry's reason.
+    [ -z "$log" ] || : >"$log"
+    run_logged "$flatpak_bin" "$scope" update --no-static-deltas -y --noninteractive
 fi
 
 "$flatpak_bin" "$scope" repair
+
+finished=1
+publish ok

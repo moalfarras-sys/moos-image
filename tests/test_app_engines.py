@@ -230,7 +230,9 @@ class UnifiedProductVoice(unittest.TestCase):
     def test_ordinary_surfaces_do_not_expose_compatibility_implementation_names(self):
         surfaces = {
             "Mo AI": ROOT / "system_files/usr/share/moos/apps/moai/main.qml",
-            "Settings": ROOT / "system_files/usr/share/moos/apps/settings/main.qml",
+            # MoOS's settings are the System Settings modules plus the helper that labels them.
+            "Settings": [*sorted((ROOT / "moos-settings-kcm").rglob("*.qml")),
+                         ROOT / "system_files/usr/libexec/moos-settings-status"],
             "Store": ROOT / "system_files/usr/share/moos/apps/store/main.qml",
             "first run": ROOT / "system_files/usr/bin/moos-firstrun",
             "app setup": ROOT / "system_files/usr/bin/moos-setup",
@@ -243,7 +245,9 @@ class UnifiedProductVoice(unittest.TestCase):
                      "waydroid app install <file>")
         offenders = []
         for label, path in surfaces.items():
-            text = path.read_text(encoding="utf-8")
+            paths = path if isinstance(path, list) else [path]
+            self.assertTrue(paths and all(p.is_file() for p in paths), f"{label} moved")
+            text = "\n".join(p.read_text(encoding="utf-8") for p in paths)
             for phrase in forbidden:
                 if phrase in text:
                     offenders.append(f"{label}: {phrase}")

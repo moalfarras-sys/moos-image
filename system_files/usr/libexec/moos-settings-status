@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
-"""Publish the read-only live state consumed by MoOS Command Center.
+"""Publish the read-only live state the MoOS System Settings modules show.
 
-The QML application intentionally has no process API.  This helper is the
-small, read-only boundary: it gathers a fixed set of facts, writes one private
-atomic JSON document, and never accepts a command or a destination path from
-the UI.  When launched with --watch-pid it refreshes cheap session facts every
-ten seconds and the immutable-deployment facts once per minute.
+The kcm_moos* modules (moos-settings-kcm/) run this helper and read the one
+private, atomic JSON document it writes; they validate schema, product and age
+and bind only its fields. This helper is the small, read-only boundary: it
+gathers a fixed set of facts, never accepts a command or a destination path from
+the UI, and normalises identity values at the source (kernelLabel,
+editionLabel, archLabel, sessionLabel) so no page can show a packager's build tag
+or an image address as a product name. It publishes once and exits: the modules
+run it again when a page is shown, when a source record changes and on Refresh,
+never on a timer of its own.
 """
 
 from __future__ import annotations
 
-import argparse
 import json
 import os
 from pathlib import Path
@@ -220,6 +223,112 @@ def battery_state() -> dict[str, object]:
     return {"available": False, "percent": 0, "state": ""}
 
 
+# ── Identity, normalised once, here ─────────────────────────────────────────
+# Every consumer binds these labels, never the raw values: `uname -r` continues with
+# the packager's build tag (`-200.fc44.x86_64`), which would put another
+# distribution's name on MoOS's own page, and an image name is an address, not a
+# product name.
+EDITION_LABELS = {
+    "moos": {"ar": "MoOS للحواسيب", "en": "MoOS Desktop"},
+    "moos-nvidia": {"ar": "MoOS لبطاقات NVIDIA", "en": "MoOS for NVIDIA graphics"},
+    "moos-cloud": {"ar": "MoOS السحابي", "en": "MoOS Cloud"},
+    "moos-arm": {"ar": "MoOS لمعالجات ARM", "en": "MoOS for ARM"},
+}
+ARCH_LABELS = {
+    "x86_64": {"ar": "64 بت · x86", "en": "64-bit · x86"},
+    "aarch64": {"ar": "64 بت · ARM", "en": "64-bit · ARM"},
+}
+
+
+def kernel_label(release: object) -> str:
+    """The kernel's own number ("Linux 7.2.7"), or "" when there is none."""
+    match = re.match(r"(\d+\.\d+(?:\.\d+)?)", release) if isinstance(release, str) else None
+    return f"Linux {match.group(1)}" if match else ""
+
+
+def edition_label(edition: object) -> dict[str, str]:
+    """Which MoOS this is, in words, or nothing at all for an unknown image."""
+    return dict(EDITION_LABELS.get(edition, {"ar": "", "en": ""})) if isinstance(edition, str) else {"ar": "", "en": ""}
+
+
+def arch_label(arch: object) -> dict[str, str]:
+    text = arch if isinstance(arch, str) else ""
+    return dict(ARCH_LABELS.get(text, {"ar": text, "en": text}))
+
+
+def session_label(session: object) -> dict[str, str]:
+    # The desktop is MoOS's; the display protocol is named only when it is the old one.
+    if session == "x11":
+        return {"ar": "سطح مكتب MoOS · X11", "en": "MoOS desktop · X11"}
+    return {"ar": "سطح مكتب MoOS", "en": "MoOS desktop"}
+
+
+def state_directory() -> Path:
+    configured = os.environ.get("XDG_STATE_HOME")
+    base = Path(configured) if configured and Path(configured).is_absolute() else Path.home() / ".local/state"
+    return base / "moos"
+
+
+# ── Applications: the record moos-flatpak-update publishes ──────────────────
+APP_UPDATE_STATES = {"ok", "failed", "running"}
+APP_ID = re.compile(r"[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+){2,}\Z")
+# A run that has said "running" for this long died without saying so.
+APP_UPDATE_RUNNING_LIMIT = 3 * 3600
+# Why an application did not update, as a person needs it: a closed set of kinds the
+# Update page words in both languages. The updater's own sentence is English and may
+# name the machinery underneath; the page keeps it for "Copy details" and never shows
+# it. The first kind whose pattern matches wins; the order puts a cause before the
+# symptom it produces (a full disk also breaks the download).
+FAILURE_KINDS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("space", re.compile(r"no space left|not enough (?:disk )?space|insufficient (?:disk )?space|enospc|disk (?:is )?full")),
+    ("signature", re.compile(r"gpg|signature|not signed|unsigned")),
+    ("network", re.compile(r"resolv|unable to connect|failed to connect|could not connect|connection|timed? ?out"
+                           r"|network is unreachable|status 5[0-9][0-9]\b|tls|ssl|certificate|proxy")),
+    ("missing", re.compile(r"status 404\b|not found|no such ref|end.of.life|no longer (?:available|offered)"
+                           r"|nothing matches|no remote refs")),
+    ("damaged", re.compile(r"delta|checksum|corrupt|truncated|mismatch")),
+    ("permission", re.compile(r"permission denied|not permitted|not allowed|authori[sz]")),
+)
+
+
+def failure_kind(reason: str) -> str:
+    text = reason.lower()
+    return next((kind for kind, pattern in FAILURE_KINDS if pattern.search(text)), "other")
+
+
+def apps_state(path: Path | None = None) -> dict[str, object]:
+    """Read the per-user application-update record without inventing one.
+
+    A missing, oversized, malformed or future-dated record is "not known": the page
+    then says no update was recorded yet, never that the apps are current.
+    """
+    unknown: dict[str, object] = {"known": False, "state": "", "updated": 0, "failures": []}
+    path = path or state_directory() / "app-updates.json"
+    try:
+        if path.stat().st_size > 65536:
+            return unknown
+        record = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return unknown
+    if not isinstance(record, dict) or record.get("schema") != 1:
+        return unknown
+    updated, state = record.get("updated"), record.get("state")
+    if (not isinstance(updated, int) or isinstance(updated, bool) or updated <= 0
+            or updated > time.time() + 300 or state not in APP_UPDATE_STATES):
+        return unknown
+    failures = []
+    raw = record.get("failures", [])
+    for item in raw[:20] if isinstance(raw, list) else []:
+        if (isinstance(item, dict) and isinstance(item.get("app"), str)
+                and len(item["app"]) <= 255 and APP_ID.match(item["app"])
+                and isinstance(item.get("reason"), str)):
+            reason = " ".join(item["reason"].split())[:200]
+            failures.append({"app": item["app"], "kind": failure_kind(reason), "reason": reason})
+    if state == "running" and time.time() - updated > APP_UPDATE_RUNNING_LIMIT:
+        state = "interrupted"
+    return {"known": True, "state": state, "updated": updated, "failures": failures}
+
+
 def update_state(path: Path = Path("/run/moos/update-state.json")) -> dict[str, object]:
     """Read the updater's single published state machine without resolving it here.
 
@@ -269,6 +378,8 @@ def remote_state() -> dict[str, object]:
         "failed": available and command(
             ["systemctl", "--user", "is-failed", "mo-remote-personal.service"]
         ) == "failed",
+        # moos-fast-remote's own journal: the file exists exactly while Fast Remote is on.
+        "fast": available and (state_directory() / "fast-remote.on").is_file(),
     }
 
 
@@ -346,18 +457,26 @@ def dynamic_state() -> dict[str, object]:
         "memory": memory_state(),
         "update": update_state(),
         "remote": remote_state(),
+        "apps": apps_state(),
     }
 
 
 def full_state() -> dict[str, object]:
     deployment = deployment_state()
+    kernel = command(["uname", "-r"]) or "—"
+    arch = os.uname().machine
+    session = os.environ.get("XDG_SESSION_TYPE", "")
     return {
         "schema": 1,
         "product": "MoOS",
         "hostname": command(["hostname", "-s"]) or "MoOS",
-        "kernel": command(["uname", "-r"]) or "—",
-        "arch": os.uname().machine,
-        "session": os.environ.get("XDG_SESSION_TYPE", ""),
+        "kernel": kernel,
+        "kernelLabel": kernel_label(kernel),
+        "editionLabel": edition_label(deployment.get("edition")),
+        "arch": arch,
+        "archLabel": arch_label(arch),
+        "session": session,
+        "sessionLabel": session_label(session),
         "cpu": cpu_name(),
         "gpu": gpu_name(),
         "storage": storage_state(),
@@ -385,41 +504,8 @@ def publish(path: Path, state: dict[str, object]) -> None:
             pass
 
 
-def process_start(pid: int) -> str:
-    try:
-        # /proc/PID/stat fields after the final ')' begin at field 3; starttime
-        # is field 22, therefore index 19 in this suffix.
-        suffix = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8").rsplit(")", 1)[1]
-        return suffix.split()[19]
-    except (OSError, IndexError):
-        return ""
-
-
 def main() -> int:
-    parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument("--watch-pid", type=int)
-    args = parser.parse_args()
-
-    path = runtime_path()
-    state = full_state()
-    publish(path, state)
-    if not args.watch_pid:
-        return 0
-
-    start = process_start(args.watch_pid)
-    if not start:
-        return 0
-    cycle = 0
-    while process_start(args.watch_pid) == start:
-        time.sleep(10)
-        if process_start(args.watch_pid) != start:
-            break
-        cycle += 1
-        if cycle % 6 == 0:
-            state = full_state()
-        else:
-            state.update(dynamic_state())
-        publish(path, state)
+    publish(runtime_path(), full_state())
     return 0
 
 
