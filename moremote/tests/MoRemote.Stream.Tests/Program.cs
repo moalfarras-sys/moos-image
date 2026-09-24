@@ -18,7 +18,8 @@ static class Program
         if (args.Length == 0 || args.Contains("input")) await FailedInputLoop();
         if (args.Length == 0 || args.Contains("auth")) await RejectedAuth();
         if (args.Length == 0 || args.Contains("pause")) await PausedInputQueue();
-        Console.WriteLine("PASS: Unicode WebSocket fragments, per-viewer stream suspension, IDR resume and input-loop teardown");
+        if (args.Length == 0 || args.Contains("owners")) await ControllerHandoff();
+        Console.WriteLine("PASS: Unicode fragments, stream suspension, IDR resume, input teardown and controller handoff");
     }
 
     static void Check(bool condition, string message)
@@ -154,6 +155,25 @@ static class Program
         Check(services.Input.ButtonDowns == 0, "input queued before pause executed a new button-down afterwards");
         await Stop(socket, running);
     }
+
+    static async Task ControllerHandoff()
+    {
+        var (services, first, firstRun) = await Start();
+        var second = new TestSocket();
+        second.Text("""{"type":"auth","token":"test"}""");
+        var secondRun = new StreamSession(services, second, "second-viewer").RunAsync(CancellationToken.None);
+        await Until(() => second.Has("hello"), "second viewer did not connect");
+
+        first.Text("""{"type":"down","x":0.5,"y":0.5}""");
+        await Until(() => services.Input.ButtonDowns == 1, "first viewer did not press");
+        second.Text("""{"type":"down","x":0.5,"y":0.5}""");
+        await Until(() => services.Input.ButtonDowns == 2, "second viewer did not take control");
+        Check(services.Input.Releases == 1, "handoff must release the previous viewer's held input once");
+        await Stop(first, firstRun);
+        Check(services.Input.Releases == 1, "closing an old viewer released the new viewer's input");
+        await Stop(second, secondRun);
+        Check(services.Input.Releases == 2, "closing the active viewer left its input held");
+    }
 }
 
 sealed class TestSocket : WebSocket
@@ -194,6 +214,7 @@ sealed class TestSocket : WebSocket
 
 public sealed class AgentServices
 {
+    public InputControlLease InputControl { get; } = new();
     public TestConfig Config { get; } = new();
     public TestSessions Sessions { get; } = new();
     public TestState State { get; } = new();

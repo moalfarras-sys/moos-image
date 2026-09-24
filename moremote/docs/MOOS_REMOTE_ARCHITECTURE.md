@@ -142,8 +142,11 @@ A hidden viewer no longer receives or queues frames just because another viewer
 keeps the encoder alive. Resume waits for a fresh IDR. Input-loop failure closes
 its connection, fragmented UTF-8 is decoded statefully, and pause serializes with
 input execution before releasing held keys. Unauthenticated/view-only disconnects
-do not release another controller's keys. Active controllers still share one
-injector; per-controller ownership is a remaining acceptance item.
+do not release another controller's keys. Active controllers share one injector;
+the latest controller to send input takes its lease and releases the previous
+controller's held keys first. Closing an older controller cannot interrupt the
+new owner's drag or shortcut. Simultaneous controllers can still alternate
+control, so a visible takeover policy remains an acceptance item.
 
 Set `MOREMOTE_INPUT_DIAGNOSTICS=1` only for targeted diagnosis; ordinary pointer
 and text packets no longer cause synchronous per-input log writes. Browser

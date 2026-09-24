@@ -8,6 +8,7 @@ public sealed class AgentServices : IDisposable
     public required SessionState State { get; init; }
     public required ScreenCapture Capture { get; init; }
     public required InputInjector Input { get; init; }
+    public InputControlLease InputControl { get; } = new();
     public AccessTicketStore Tickets { get; } = new();
     public UploadSessionStore Uploads { get; } = new();
 
