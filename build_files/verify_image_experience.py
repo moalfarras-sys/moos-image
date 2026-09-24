@@ -503,13 +503,13 @@ for _route, _host, _kcm in _kcm_routes:
             "installed — the Command Center tile would look alive and do nothing")
 
 
-# build.sh hides Settings pages for things the x86 editions do not ship through KIOSK:
-# `[KDE Control Module Restrictions] <plugin id>=false` in /etc/xdg/kdeglobals, which
-# System Settings, its KRunner runner and kcmshell6 all obey (KAuthorized::
+# build.sh hides the Settings page of the input-method engine the x86 editions removed
+# through KIOSK: `[KDE Control Module Restrictions] kcm_fcitx5=false` in /etc/xdg/kdeglobals,
+# which System Settings, its KRunner runner and kcmshell6 all obey (KAuthorized::
 # authorizeControlModule). An installed module is therefore no longer proof that a route
 # works: a restricted one opens "disabled by the administrator". Read the group from the
 # finished file — a later step could rewrite kdeglobals after build.sh's append — and hold
-# both halves: the two pages stay restricted, and no route aims at a restricted page.
+# both halves: the page stays restricted, and no route aims at a restricted page.
 def kiosk_restricted(path: Path) -> set:
     restricted, group = set(), None
     if not path.is_file():
@@ -529,11 +529,11 @@ def kiosk_restricted(path: Path) -> set:
 
 
 _restricted_kcms = kiosk_restricted(Path("/etc/xdg/kdeglobals"))
-for _kcm in ("kcm_fcitx5", "kcm_krdpserver"):
+for _kcm in ("kcm_fcitx5",):
     if list(Path("/usr").glob(f"lib*/qt6/plugins/plasma/kcms/systemsettings/{_kcm}.so")):
         require(_kcm in _restricted_kcms,
                 f"{_kcm} is installed and not restricted in /etc/xdg/kdeglobals — System "
-                "Settings offers a page for something this edition does not ship")
+                "Settings offers a page for an engine this edition removed")
 for _route, _host, _kcm in _kcm_routes:
     require(_kcm not in _restricted_kcms,
             f"moos://settings/{_route} opens {_kcm}, which /etc/xdg/kdeglobals restricts — "
