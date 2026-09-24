@@ -165,6 +165,15 @@ def fixture(tree: Path, *, overlay: bool = True) -> Path:
     return tree
 
 
+APPEARANCE_KCM = "usr/lib64/qt6/plugins/plasma/kcms/systemsettings/kcm_moos_appearance.so"
+
+
+def install_appearance_module(tree: Path) -> None:
+    """What slice F's kcm_moos_appearance lays down (Containerfile copies the KCM stage's
+    /usr before build.sh runs, so the curation sees it)."""
+    write(tree / APPEARANCE_KCM, "ELF", 0o755)
+
+
 def curate(tree: Path) -> subprocess.CompletedProcess:
     return subprocess.run(["bash", str(CURATE), str(tree)], capture_output=True, text=True,
                           timeout=120)
@@ -321,22 +330,40 @@ class CurateAppMenuRun(unittest.TestCase):
         self.assertIn("Comment[ar]=", head)
         self.assertIn("Keywords[ar]=", head)
         self.assertTrue(entry["Actions"].startswith("moos-update;kcm-lookandfeel;kcm-users"))
-        themes = group_text(path, "Desktop Action kcm-lookandfeel")
-        self.assertIn("Name=MoOS Themes\nName[ar]=ثيمات MoOS\n", themes)
-        self.assertIn("Exec=moos-settings --section=appearance", themes)
-        self.assertNotIn("Global Theme", themes)
         self.assertIn("Exec=systemsettings kcm_users", group_text(path, "Desktop Action kcm-users"),
                       "an upstream page MoOS does not duplicate stays as upstream wrote it")
         update = group_text(path, "Desktop Action moos-update")
         self.assertIn("Exec=moos-settings --section=update", update)
         self.assertIn("Name[ar]=التحديث", update)
 
+    def test_without_moos_themes_the_upstream_theme_item_keeps_its_own_words(self):
+        # Before slice F's module ships, `moos-settings --section=appearance` falls back to the
+        # stock Global Theme page; a "MoOS Themes" label on it would be a lie.
+        self.run_ok()
+        themes = group_text(self.apps / "systemsettings.desktop", "Desktop Action kcm-lookandfeel")
+        self.assertIn("Name=Global Theme\nName[ar]=سمة شاملة\n", themes)
+        self.assertIn("Exec=systemsettings kcm_lookandfeel", themes)
+        self.assertNotIn("MoOS Themes", themes)
+
+    def test_with_moos_themes_installed_the_item_opens_it(self):
+        install_appearance_module(self.tree)
+        self.run_ok()
+        themes = group_text(self.apps / "systemsettings.desktop", "Desktop Action kcm-lookandfeel")
+        self.assertIn("Name=MoOS Themes\nName[ar]=ثيمات MoOS\n", themes)
+        self.assertIn("Exec=moos-settings --section=appearance", themes)
+        self.assertNotIn("Global Theme", themes)
+        self.assertNotIn("kcm_lookandfeel", themes)
+
     def test_the_curation_is_idempotent(self):
-        self.run_ok()
-        first = {p.name: p.read_text(encoding="utf-8") for p in self.apps.glob("*.desktop")}
-        self.run_ok()
-        second = {p.name: p.read_text(encoding="utf-8") for p in self.apps.glob("*.desktop")}
-        self.assertEqual(first, second)
+        for module in (False, True):
+            with self.subTest(moos_themes_installed=module):
+                if module:
+                    install_appearance_module(self.tree)
+                self.run_ok()
+                first = {p.name: p.read_text(encoding="utf-8") for p in self.apps.glob("*.desktop")}
+                self.run_ok()
+                second = {p.name: p.read_text(encoding="utf-8") for p in self.apps.glob("*.desktop")}
+                self.assertEqual(first, second)
 
     def test_duplicates_leave_and_kept_tools_wear_moos_words(self):
         self.run_ok()
@@ -469,6 +496,18 @@ class CurateAppMenuGateBites(unittest.TestCase):
     def test_a_dangling_jump_list_action(self):
         self.edit("systemsettings.desktop", "Actions=moos-update;", "Actions=moos-update;ghost;")
         self.assertBites("dead jump-list item")
+
+    def test_moos_themes_offered_without_its_module(self):
+        path = self.apps / "systemsettings.desktop"
+        text = path.read_text(encoding="utf-8")
+        text = text.replace("Name=Global Theme", "Name=MoOS Themes", 1).replace(
+            "Exec=systemsettings kcm_lookandfeel", "Exec=moos-settings --section=appearance", 1)
+        path.write_text(text, encoding="utf-8")
+        self.assertBites("kcm_moos_appearance is not installed")
+
+    def test_the_stock_theme_page_kept_beside_moos_themes(self):
+        install_appearance_module(self.tree)  # the module arrived; the item was not retargeted
+        self.assertBites("two theme pages")
 
     def test_a_hidden_duplicate_back_in_the_menu(self):
         self.edit("htop.desktop", "NoDisplay=true\n", "")

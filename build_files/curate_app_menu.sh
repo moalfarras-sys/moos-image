@@ -218,15 +218,23 @@ moos_rebrand_entry "${APPS}/org.kde.discover.desktop"         "Mo Store"       "
 # (moos-settings ends in `exec systemsettings <module>`, and systemsettings forwards a module
 # id to its running instance by itself). The words and search keywords are the ones the old
 # org.moos.settings.desktop front door answered to, so a search that found MoOS Settings
-# yesterday finds it today. Of the upstream jump-list actions, "Global Theme" duplicated
+# yesterday finds it today. Of the upstream jump-list actions, "Global Theme" duplicates
 # MoOS's own theme page — applying a look through the bare module skips what moos-theme pins
-# (GTK, sounds, kdedefaults; AGENTS.md) — so it now opens MoOS Themes. The other four
-# (Users, Screen Locking, Power Management, Display Configuration) are native pages MoOS
-# does not duplicate and stay exactly as upstream wrote them. "Update" is added first: it is
-# the MoOS page a person opens most.
-python3 - "${APPS}/systemsettings.desktop" <<'MOOSSETTINGS'
+# (GTK, sounds, kdedefaults; AGENTS.md) — so it opens MoOS Themes instead, but ONLY on an
+# image that carries that page, the kcm_moos_appearance module (wave decision D1, built from
+# moos-settings-kcm/modules/appearance/). Without it `moos-settings --section=appearance`
+# falls back to the stock Global Theme page, and an item named "MoOS Themes" opening upstream's
+# page is a label that lies; upstream's own item stays until the module ships. The other four
+# (Users, Screen Locking, Power Management, Display Configuration) are native pages MoOS does
+# not duplicate and stay exactly as upstream wrote them. "Update" is added first: it is the
+# MoOS page a person opens most.
+appearance_module=absent
+for _so in "${ROOT}"/usr/lib*/qt6/plugins/plasma/kcms/systemsettings/kcm_moos_appearance.so; do
+    [ -f "$_so" ] && appearance_module=installed
+done
+python3 - "${APPS}/systemsettings.desktop" "$appearance_module" <<'MOOSSETTINGS'
 import sys
-path = sys.argv[1]
+path, appearance_module = sys.argv[1:3]
 try:
     lines = open(path, encoding="utf-8").read().splitlines()
 except FileNotFoundError:
@@ -271,7 +279,7 @@ for line in lines:
             actions = [a for a in line.split("=", 1)[1].split(";") if a and a != "moos-update"]
             out.append("Actions=" + ";".join(["moos-update", *actions]) + ";")
             continue
-    elif group == "Desktop Action kcm-lookandfeel":
+    elif group == "Desktop Action kcm-lookandfeel" and appearance_module == "installed":
         if key in ("Name", "Exec"):
             if "themes" not in written:
                 out += THEMES
@@ -432,6 +440,8 @@ if settings.is_file():
                      "upstream's start page, or nothing")
     if "Meta+I" not in entry.get("X-KDE-Shortcuts", ""):
         fails.append("GATE FAIL: MoOS Settings lost its Meta+I shortcut")
+    appearance_installed = any(path.is_file() for path in root.glob(
+        "usr/lib*/qt6/plugins/plasma/kcms/systemsettings/kcm_moos_appearance.so"))
     for action in [a for a in entry.get("Actions", "").split(";") if a]:
         body = parsed.get(f"Desktop Action {action}")
         if body is None:
@@ -443,6 +453,15 @@ if settings.is_file():
                          f"{body.get('Exec')!r}, not an installed settings host")
         if not body.get("Name[ar]"):
             fails.append(f"GATE FAIL: MoOS Settings action {action!r} has no Arabic name")
+        themes = (body.get("Name") == "MoOS Themes"
+                  or re.search(r"--section=(appearance|themes|wallpaper)\b", body.get("Exec", "")))
+        if themes and not appearance_installed:
+            fails.append(f"GATE FAIL: MoOS Settings action {action!r} offers MoOS Themes, but "
+                         "kcm_moos_appearance is not installed — moos-settings falls back to the "
+                         "stock Global Theme page, under MoOS's name")
+        if appearance_installed and re.search(r"\bkcm_lookandfeel\b", body.get("Exec", "")):
+            fails.append(f"GATE FAIL: MoOS Settings action {action!r} still opens the stock "
+                         "Global Theme page although MoOS Themes is installed — two theme pages")
 else:
     fails.append("GATE FAIL: systemsettings.desktop is missing — the image has no settings entry")
 
