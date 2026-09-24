@@ -50,7 +50,7 @@ class SameImageNextPlasma(unittest.TestCase):
         self.assertEqual(composed.group(1), first_from,
                          "the canary's base is not the release base: it would prove another system")
         self.assertIn("dnf5 -y copr enable @kdesig/kde-beta", workflow)
-        self.assertIn("dnf5 -y distro-sync --refresh --allowerasing", workflow)
+        self.assertIn("dnf5 -y distro-sync --refresh --allowerasing --best", workflow)
 
     def test_a_base_that_did_not_reach_the_next_plasma_fails(self):
         # PR #161's first run: a soname bump blocked the move, distro-sync skipped it
