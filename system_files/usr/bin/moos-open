@@ -126,9 +126,14 @@ remote_ctl() {
 # how moai-do is told so (the same thing Mo AI's tool runner passes as --confirmed),
 # and moai-do records the run as approved in `journalctl -t moai-do`. Polkit still
 # asks for the password wherever moai-do escalates. The action name is a literal
-# from the case arm below, never URL text.
+# from the case arm below, never URL text. The label is an "Arabic | English"
+# pair like every message here. One side is picked BEFORE composing: a pair
+# inside a pair reached the popup as "Firmware | البرامج الثابتة: لم يكتمل | did
+# not finish".
 moai_do_detached() {
-    local action="$1" label="$2"
+    local action="$1" label unfinished
+    label="$(localized_message "$2")"
+    unfinished="$(localized_message "لم يكتمل | did not finish")"
     (
         trap '' HUP
         out="$(MOAI_DO_CONFIRMED=1 moai-do "$action" </dev/null 2>&1)"
@@ -137,7 +142,7 @@ moai_do_detached() {
         if [ "$rc" -eq 0 ]; then
             notify "${label} ✓${last:+ — $last}"
         else
-            notify "${label}: لم يكتمل | did not finish${last:+ — $last}"
+            notify "${label}: ${unfinished}${last:+ — $last}"
         fi
     ) </dev/null >/dev/null 2>&1 &
 }
@@ -149,7 +154,7 @@ fast_remote() {
     if moos-fast-remote "$1" >/dev/null 2>&1; then
         notify "Fast Remote ✓"
     else
-        notify "Fast Remote: تعذّر التنفيذ | action failed"
+        notify "Fast Remote: $(localized_message "تعذّر التنفيذ | action failed")"
     fi
 }
 
@@ -539,7 +544,7 @@ PY
             && moai_do_detached update-apps "Mo Store" ;;
     do/update-firmware)
         confirm "تحديث البرامج الثابتة للأجهزة الآن؟ قد يتطلب إعادة تشغيل ولا يمكن التراجع عنه. | Update device firmware now? It may need a restart and cannot be rolled back." \
-            && moai_do_detached update-firmware "Firmware | البرامج الثابتة" ;;
+            && moai_do_detached update-firmware "البرامج الثابتة | Firmware" ;;
     # The device panel lives inside Mo AI. moai is single-instance, so this raises
     # the open window on that panel: no terminal and no second window.
     do/hw-report)  gui moai --panel device ;;

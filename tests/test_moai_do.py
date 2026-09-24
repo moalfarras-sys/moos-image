@@ -533,6 +533,48 @@ with tempfile.TemporaryDirectory() as tmp:
         check(route(f"moos://do/{action}", "1") == "",
               f"moos://do/{action} must run nothing when the question is answered No")
 
+# The popup that says how it ended speaks ONE language. A label pair inside a status pair once
+# reached kdialog as "Firmware | البرامج الثابتة: لم يكتمل | did not finish", reordered by bidi.
+with tempfile.TemporaryDirectory() as tmp:
+    bindir = Path(tmp)
+    popups = bindir / "popups.log"
+    (bindir / "kdialog").write_text(
+        '#!/bin/sh\ncase "$*" in *warningyesno*) exit 0;; '
+        '*passivepopup*) printf "%s\\n" "$4" >> "$MOOS_TEST_POPUPS";; esac\nexit 0\n',
+        encoding="utf-8")
+    (bindir / "moai-do").write_text('#!/bin/sh\necho "step one"\necho "firmware said boom"\n'
+                                    'exit "${MOAI_FAKE_RC:-0}"\n', encoding="utf-8")
+    for name in ("kdialog", "moai-do"):
+        (bindir / name).chmod(0o755)
+    import time as _time
+
+    def popup(url, locale, rc):
+        popups.unlink(missing_ok=True)
+        environment = {"PATH": f"{bindir}:/usr/bin:/bin", "HOME": tmp, "LC_ALL": locale,
+                       "LANG": locale, "MOOS_TEST_POPUPS": str(popups), "MOAI_FAKE_RC": rc}
+        subprocess.run([BASH, str(MOOS_OPEN), url], env=environment, capture_output=True,
+                       text=True, timeout=30)
+        deadline = _time.monotonic() + 5
+        while not popups.exists() and _time.monotonic() < deadline:
+            _time.sleep(0.05)
+        return popups.read_text(encoding="utf-8").strip() if popups.exists() else ""
+
+    arabic = re.compile(r"[\u0600-\u06ff]")
+    for url, rc, english, arabic_words in (
+            ("moos://do/update-firmware", "1", "Firmware: did not finish — firmware said boom",
+             "البرامج الثابتة: لم يكتمل"),
+            ("moos://do/update-firmware", "0", "Firmware ✓ — firmware said boom", "البرامج الثابتة ✓"),
+            ("moos://do/update-apps", "1", "Mo Store: did not finish — firmware said boom",
+             "Mo Store: لم يكتمل")):
+        shown = popup(url, "C.UTF-8", rc)
+        check(shown == english, f"{url} (exit {rc}) in English showed {shown!r}")
+        shown = popup(url, "ar_SA.UTF-8", rc)
+        check(shown.startswith(arabic_words) and " | " not in shown
+              and "did not finish" not in shown and "Firmware" not in shown,
+              f"{url} (exit {rc}) in Arabic showed {shown!r}")
+    check(not arabic.search(popup("moos://do/update-firmware", "C.UTF-8", "1")),
+          "an English popup must carry no Arabic half")
+
 # The confirmed path records an approval, not a silent `ok` with no decision.
 with tempfile.TemporaryDirectory() as tmp:
     bindir = Path(tmp)
