@@ -491,13 +491,20 @@ for b in $shadow_other; do
 done
 
 plasmoid_shadows=""
-for rel in plasma/plasmoids/org.moos.brand plasma/plasmoids/org.moos.heroclock; do
+for rel in plasma/plasmoids/org.moos.brand plasma/plasmoids/org.moos.island \
+           plasma/plasmoids/org.moos.nova.clock; do
     if [ -e "/usr/share/$rel" ] && [ -e "${XDG_DATA_HOME:-$HOME/.local/share}/$rel" ]; then
         plasmoid_shadows="${plasmoid_shadows} ${rel##*/}"
     fi
 done
+# Retired packages have no image copy to compare with; any home copy is stale.
+for rel in plasma/plasmoids/org.moos.heroclock plasma/plasmoids/org.moos.search; do
+    if [ -e "${XDG_DATA_HOME:-$HOME/.local/share}/$rel" ]; then
+        plasmoid_shadows="${plasmoid_shadows} ${rel##*/}(retired)"
+    fi
+done
 if [ -z "$plasmoid_shadows" ]; then
-    ok "no user-local Brand/Hero Clock package shadows the updated image"
+    ok "no user-local MoOS bar package shadows the updated image"
 else
     bad "user-local Plasma package(s) shadow the new image:$plasmoid_shadows — run moos-apply-theme"
 fi

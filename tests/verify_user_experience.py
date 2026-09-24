@@ -2925,10 +2925,36 @@ for runtime_check, check_name in (
 # same MoOS-owned cleanup list as the other first-party plasmoids.
 shadow_cleanup_start = apply_theme_code.find('user_share="${XDG_DATA_HOME:-$HOME/.local/share}"')
 shadow_cleanup = apply_theme_code[shadow_cleanup_start:]
-for shadowed_plasmoid in ("org.moos.brand", "org.moos.heroclock"):
+for shadowed_plasmoid in ("org.moos.brand", "org.moos.island", "org.moos.nova.clock"):
     require(f'"plasma/plasmoids/{shadowed_plasmoid}"' in shadow_cleanup,
             f"moos-apply-theme must remove a user-local {shadowed_plasmoid} copy that "
             "would otherwise shadow every future image update")
+# THEME_REV 86 deleted the Hero Clock (rejected by the owner, blocked in Add
+# Widgets, removed by moos-theme on every scene apply) and the standalone Search
+# applet (the Island hosts Search). A retired id must stay in the UNCONDITIONAL
+# sweep: the conditional list only fires while /usr/share still ships the
+# package, so a retired id there would never remove anything.
+# Anchored on the retired loop's first, never-shipped entry (comments are
+# stripped from apply_theme_code, so the prose header cannot be the anchor).
+_retired_at = shadow_cleanup.find('"plasma/plasmoids/org.moos.nova.deskclock"')
+_retired_sweep = shadow_cleanup[shadow_cleanup.rfind("for rel in", 0, _retired_at):]
+_retired_sweep, _, _after_retired = _retired_sweep.partition("; do")
+_conditional_sweep = _after_retired[_after_retired.find("for rel in"):]
+require(_retired_at >= 0 and "for rel in" in _retired_sweep and "for rel in" in _conditional_sweep,
+        "moos-apply-theme's retired and conditional home-copy sweeps must stay two distinct loops")
+for _retired_plasmoid in ("org.moos.heroclock", "org.moos.search"):
+    require(not (ROOT / "system_files/usr/share/plasma/plasmoids" / _retired_plasmoid).exists(),
+            f"{_retired_plasmoid} is retired and must not ship again")
+    require(f'"plasma/plasmoids/{_retired_plasmoid}"' in _retired_sweep
+            and f'"plasma/plasmoids/{_retired_plasmoid}"'
+                not in _conditional_sweep.partition("; do")[0],
+            f"moos-apply-theme must remove a home copy of retired {_retired_plasmoid} "
+            "unconditionally (the image copy it would be compared with is gone)")
+    require(f'"{_retired_plasmoid}"' in read(
+                "system_files/usr/share/plasma/shells/org.kde.plasma.desktop/contents/explorer/"
+                "WidgetExplorer.qml").split("function retired(plugin) {", 1)[1].split("\n    }", 1)[0],
+            f"Customize Desktop must keep {_retired_plasmoid} in its retired() list so a "
+            "stale catalogue row reads Unavailable and cannot be added")
 
 PALETTE_ICON_OVERLAYS = (
     "MoOSUI2Amethyst", "MoOSUI2AmethystLight",
@@ -3522,11 +3548,19 @@ require(brand_provides == {"org.moos.brand", "org.kde.plasma.launchermenu"},
         "org.moos.brand must advertise exactly its brand identity and Plasma's "
         "org.kde.plasma.launchermenu capability — Meta/launcher activation depends on it")
 
-for package in ("org.moos.nova.clock", "org.moos.brand", "org.moos.heroclock"):
+for package in ("org.moos.nova.clock", "org.moos.brand", "org.moos.island"):
     root = ROOT / "system_files/usr/share/plasma/plasmoids" / package
     require((root / "metadata.json").is_file() and
             (root / "contents/ui/main.qml").is_file(),
             f"missing complete Plasma package: {package}")
+# The shipped MoOS widget set is exactly the bar's three packages. The Hero Clock
+# and the standalone Search applet are retired (THEME_REV 86): a half-deleted
+# directory (a generator writing images/ into it) would come back as a broken
+# widget in Add Widgets.
+require(sorted(p.name for p in (ROOT / "system_files/usr/share/plasma/plasmoids").iterdir())
+        == ["org.moos.brand", "org.moos.island", "org.moos.nova.clock"],
+        "the shipped plasmoids must be exactly brand, island and nova.clock; "
+        "org.moos.heroclock and org.moos.search are retired")
 
 brand_main_qml = code(read(
     "system_files/usr/share/plasma/plasmoids/org.moos.brand/contents/ui/main.qml"
@@ -3750,7 +3784,7 @@ require("index hidden folders=false" in baloo_config,
 # plasmashell, forever), and its actions must stay user-session binaries —
 # a pkexec here would put a password prompt behind a panel click. code():
 # the header comment documents exactly these bans, so grep the code, not the prose.
-for always_on in ("org.moos.brand", "org.moos.heroclock"):
+for always_on in ("org.moos.brand", "org.moos.island", "org.moos.nova.clock"):
     applet_qml = code(read(f"system_files/usr/share/plasma/plasmoids/{always_on}/contents/ui/main.qml"),
                       style="slash")
     for banned in ("ShaderEffect", "MultiEffect", "Lottie", "pkexec", "sudo "):

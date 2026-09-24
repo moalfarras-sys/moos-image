@@ -755,7 +755,7 @@ head_ "لا شي بيحجب الصورة | Nothing shadowing the image"
 shadows=0
 for rel in plasma/plasmoids/org.moos.nova.clock \
            plasma/plasmoids/org.moos.brand \
-           plasma/plasmoids/org.moos.heroclock \
+           plasma/plasmoids/org.moos.island \
            plasma/wallpapers/org.moos.ui2.wallpaper \
            plasma/look-and-feel/org.moos.ui2 plasma/look-and-feel/org.moos.ui2.light \
            plasma/desktoptheme/MoOSUI2 plasma/desktoptheme/MoOSUI2Light \
@@ -803,6 +803,17 @@ if [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/fontconfig/conf.d/99-moos-kawkab-test
     bad "a user-level Kawkab fontconfig override is shadowing the image's font policy"
     shadows=$((shadows+1))
 fi
+# A RETIRED MoOS package has no image copy left to compare with, so the checks
+# above cannot see it — and a home copy would still load, as a widget the theme
+# system removes again on every apply. moos-apply-theme's retired sweep deletes
+# these ids on the next revision; until then, say so.
+for rel in plasma/plasmoids/org.moos.heroclock plasma/plasmoids/org.moos.search \
+           plasma/plasmoids/org.moos.nova.deskclock plasma/plasmoids/org.moos.ui2.dashboard; do
+    if [ -e "${XDG_DATA_HOME:-$HOME/.local/share}/$rel" ]; then
+        bad "~/.local/share/${rel} is a retired MoOS widget the image no longer ships — run moos-apply-theme once"
+        shadows=$((shadows+1))
+    fi
+done
 [ "$shadows" -eq 0 ] && ok "no user-level copy is shadowing a MoOS asset"
 
 # The check above covers ASSETS. The far more consequential shadow is CODE: a

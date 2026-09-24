@@ -569,11 +569,10 @@ fi
 # tooltips, glyphs and all — while every image gate stays green. Only the
 # MoOS-owned ids are dropped; third-party widgets the user installed stay put.
 local_plasmoids="${XDG_DATA_HOME:-$HOME/.local/share}/plasma/plasmoids"
-# Retired packages (org.moos.search) are not listed here:
+# Retired packages (org.moos.heroclock, org.moos.search) are not listed here:
 # the image no longer ships them, and the unconditional retired sweep further
 # down removes their home copies.
-for moos_widget in org.moos.brand org.moos.heroclock org.moos.nova.clock \
-                   org.moos.island; do
+for moos_widget in org.moos.brand org.moos.nova.clock org.moos.island; do
     rm -rf "${local_plasmoids:?}/${moos_widget}" 2>/dev/null || true
 done
 # The desktop scene is a wallpaper package, one directory over again. Its id is
@@ -737,6 +736,8 @@ systemctl --user start plasma-ksystemstats.service >>"$log" 2>&1 || true
 # moos-theme already reconciled every desktop containment through the one
 # transactional scene owner. THEME_REV 43's auto-seed of heroclock was rejected
 # on sight; this migrator clears its old cache/shadows and never places it again.
+# THEME_REV 86 deletes the package itself; its id survives only in the retired
+# lists (the sweep below, WidgetExplorer's retired(), moos-theme's removal).
 
 
 # --- The system tray -----------------------------------------------------------
@@ -930,6 +931,7 @@ user_share="${XDG_DATA_HOME:-$HOME/.local/share}"
 for rel in \
     "plasma/plasmoids/org.moos.nova.deskclock" \
     "plasma/plasmoids/org.moos.ui2.dashboard" \
+    "plasma/plasmoids/org.moos.heroclock" \
     "plasma/plasmoids/org.moos.search" \
 ; do
     if [ -e "${user_share}/$rel" ]; then
@@ -940,7 +942,6 @@ done
 
 for rel in \
     "plasma/plasmoids/org.moos.brand" \
-    "plasma/plasmoids/org.moos.heroclock" \
     "plasma/plasmoids/org.moos.nova.clock" \
     "plasma/plasmoids/org.moos.island" \
     "plasma/wallpapers/org.moos.ui2.wallpaper" \
