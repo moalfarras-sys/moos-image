@@ -9,7 +9,7 @@ Icon=moos-pc-remote
 # Compatibility entry for existing favourites and pins. It now deep-links into the single
 # Settings window and is hidden from new menus; Settings opens the Remote transaction sheet only
 # after showing its native status page.
-StartupWMClass=org.moos.settings
+StartupWMClass=org.kde.systemsettings
 Terminal=false
 Categories=Network;RemoteAccess;
 StartupNotify=true

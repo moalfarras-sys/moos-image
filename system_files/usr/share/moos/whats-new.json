@@ -3,6 +3,17 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "unified-settings",
+      "merged": "2026-09-24T16:00:00Z",
+      "glyph": "ui",
+      "title": {"ar": "إعدادات واحدة لـ MoOS", "en": "One Settings app for MoOS"},
+      "body": {
+        "ar": "تفتح إعدادات MoOS الآن في النافذة نفسها مع إعدادات الشاشة والصوت والشبكة. تجد حالة النظام والتحديث والاستعادة والتحكم عن بُعد بجانب إعدادات جهازك المعتادة.",
+        "en": "MoOS Settings now opens in the same window as display, sound and network settings. Find system status, updates, recovery and remote access alongside your usual device controls."
+      },
+      "route": "moos://settings/full"
+    },
+    {
       "id": "arm-desktop-parity",
       "merged": "2026-09-24T13:30:00Z",
       "glyph": "ui",

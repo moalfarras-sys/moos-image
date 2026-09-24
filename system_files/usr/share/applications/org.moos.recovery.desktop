@@ -9,7 +9,7 @@ Comment[ar]=ارجع إلى نسخة سابقة أو ثبّت نسخة سليم�
 TryExec=moos-settings
 Exec=moos-settings --section=recovery
 Icon=moos-recovery
-StartupWMClass=org.moos.settings
+StartupWMClass=org.kde.systemsettings
 Terminal=false
 Categories=System;
 NoDisplay=true

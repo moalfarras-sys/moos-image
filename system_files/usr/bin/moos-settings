@@ -1,56 +1,38 @@
 #!/usr/bin/env bash
-# moos-settings — launch MoOS Command Center with a private, live status feed.
+# One settings window: Plasma's native KCM host and its real modules.
+# MoOS-specific pages live in kcm_moos beside display, network and sound.
 set -euo pipefail
-umask 077
 
-APP_DIR="/usr/share/moos/apps/settings"
-QML="${APP_DIR}/main.qml"
-export QT_QUICK_CONTROLS_STYLE="${QT_QUICK_CONTROLS_STYLE:-Basic}"
-export QML_XHR_ALLOW_FILE_READ=1
-
-if [ -n "${XDG_RUNTIME_DIR:-}" ]; then
-    STATUS_DIR="${XDG_RUNTIME_DIR}/moos-settings"
-else
-    STATUS_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/moos-settings"
-fi
-mkdir -p "$STATUS_DIR"
-chmod 700 "$STATUS_DIR" 2>/dev/null || true
-STATUS="${STATUS_DIR}/status.json"
-
-# Keep the view responsive: publish status in parallel and let QML transition
-# from its honest loading state when the atomic document arrives.  `exec` below
-# preserves this PID, so the helper exits with the Command Center.
-if [ -x /usr/libexec/moos-settings-status ]; then
-    /usr/libexec/moos-settings-status --watch-pid "$$" >/dev/null 2>&1 &
-fi
-
-# OSTree gives every file below /usr the epoch mtime.  Invalidate Qt's shared
-# disk cache by content, once per shipped UI revision, instead of recompiling on
-# every launch or showing a stale first-installed Command Center.
-CACHE="${XDG_CACHE_HOME:-$HOME/.cache}"
-if command -v sha256sum >/dev/null 2>&1 && [ -r "$QML" ]; then
-    stamp="${CACHE}/moos-settings.qmlstamp"
-    current="$(find "$APP_DIR" -type f \( -name '*.qml' -o -name '*.js' \) -print0 \
-        | sort -z | xargs -0 sha256sum 2>/dev/null | sha256sum | cut -c1-32)"
-    if [ -n "$current" ] && [ "$(cat "$stamp" 2>/dev/null)" != "$current" ]; then
-        rm -rf "${CACHE}/qmlcache" 2>/dev/null || true
-        mkdir -p "$CACHE" 2>/dev/null || true
-        printf '%s\n' "$current" >"$stamp" 2>/dev/null || true
-    fi
-else
-    export QML_DISABLE_DISK_CACHE=1
-fi
-
-if [ -x /usr/bin/moos-qml-shell ]; then
-    exec /usr/bin/moos-qml-shell \
-        --app-id org.moos.settings --icon moos-control-center --qml "$QML" \
-        -- --status="file://${STATUS}" "$@"
-fi
-
-for runner in qml-qt6 /usr/lib64/qt6/bin/qml qml6 qml; do
-    if command -v "$runner" >/dev/null 2>&1 || [ -x "$runner" ]; then
-        exec "$runner" "$QML" -- --status="file://${STATUS}" "$@"
-    fi
+section=overview
+for arg in "$@"; do
+    case "$arg" in
+        --section=home|--section=system) section=overview ;;
+        --section=update) section=update ;;
+        --section=recovery) section=recovery ;;
+        --section=remote) section=remote ;;
+        --section=about) section=about ;;
+        --section=whats-new) section=whats-new ;;
+        --section=appearance) exec systemsettings kcm_lookandfeel ;;
+        --section=connectivity) exec systemsettings kcm_networkmanagement ;;
+        --section=devices) exec systemsettings kcm_kscreen ;;
+        --section=apps) exec systemsettings kcm_componentchooser ;;
+        --section=privacy) exec systemsettings kcm_app-permissions ;;
+        --section=*) echo "MoOS Settings: unknown section" >&2; exit 2 ;;
+        *) echo "MoOS Settings: unknown option" >&2; exit 2 ;;
+    esac
 done
-echo "MoOS Settings: no Qt6 QML runtime found. | لا يوجد محرّك QML." >&2
-exit 127
+
+# System Settings is a single-instance app. A later launch forwards its KCM id
+# to the existing process, but not this process's environment. Send a fixed,
+# per-user page request to the already loaded KCM as well.
+if [ -n "${XDG_RUNTIME_DIR:-}" ]; then
+    request_dir="${XDG_RUNTIME_DIR}/moos-settings"
+    ( umask 077
+      mkdir -p "$request_dir"
+      request_file="$(mktemp "$request_dir/.request.XXXXXX")"
+      printf '%s\n' "$section" > "$request_file"
+      mv -f "$request_file" "$request_dir/request"
+    )
+fi
+export MOOS_SETTINGS_SECTION="$section"
+exec systemsettings kcm_moos

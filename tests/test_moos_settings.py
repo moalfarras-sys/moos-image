@@ -20,6 +20,7 @@ import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "system_files/usr/share/moos/apps/settings/main.qml"
+KCM = ROOT / "moos-settings-kcm"
 LAUNCHER = ROOT / "system_files/usr/bin/moos-settings"
 STATUS = ROOT / "system_files/usr/libexec/moos-settings-status"
 DESKTOP = ROOT / "system_files/usr/share/applications/org.moos.settings.desktop"
@@ -32,21 +33,58 @@ ICON_SIZES = (16, 22, 24, 32, 48, 64, 96, 128, 192, 256, 512)
 
 
 class MoOSSettingsTests(unittest.TestCase):
+    def test_native_settings_host_has_one_moos_module(self) -> None:
+        cmake = (KCM / "CMakeLists.txt").read_text(encoding="utf-8")
+        backend = (KCM / "moos_settings.cpp").read_text(encoding="utf-8")
+        qml = (KCM / "ui/main.qml").read_text(encoding="utf-8")
+        metadata = json.loads((KCM / "kcm_moos.json").read_text(encoding="utf-8"))
+        x86 = (ROOT / "Containerfile").read_text(encoding="utf-8")
+        arm = (ROOT / "Containerfile.arm").read_text(encoding="utf-8")
+        self.assertIn("kcmutils_add_qml_kcm(kcm_moos", cmake)
+        self.assertIn('"Name": "MoOS"', (KCM / "kcm_moos.json").read_text(encoding="utf-8"))
+        self.assertEqual(metadata["KPlugin"]["FormFactors"], ["desktop"])
+        self.assertIn("/usr/libexec/moos-settings-status", backend)
+        self.assertIn("setButtons(NoAdditionalButton)", backend)
+        self.assertIn("QFileSystemWatcher", backend)
+        self.assertIn("requestedPageChanged", backend)
+        self.assertNotIn("/bin/sh", backend)
+        self.assertIn("import org.kde.kcmutils as KCM", qml)
+        self.assertIn("KCM.ScrollViewKCM", qml)
+        self.assertIn("LayoutMirroring.enabled: rtl", qml)
+        self.assertIn("onRequestedPageChanged", qml)
+        for page in ("overview", "update", "recovery", "remote", "about", "whats-new"):
+            self.assertIn(f'root.page === "{page}"', qml)
+        for route in ("moos://app/updater", "moos://do/update-apps",
+                      "moos://do/update-firmware", "moos://app/recovery", "moos://app/remote"):
+            self.assertIn(route, qml)
+        for image in (x86, arm):
+            self.assertIn("COPY moos-settings-kcm/ /src/moos-settings-kcm/", image)
+            self.assertIn("COPY --from=qmlshell-build /out/kcm/usr/ /usr/", image)
+        for build in (ROOT / "build_files/build.sh", ROOT / "build_files/build-arm.sh"):
+            source = build.read_text(encoding="utf-8")
+            self.assertIn("kcm_moos.so", source)
+            self.assertIn("rm -f \"$_discover_update_kcm\"", source)
+            self.assertIn("kcm_updates.so", source)
+            self.assertIn("rm -f \"$_generic_about_kcm\"", source)
+            self.assertIn("kcm_about-distro.so", source)
+
     def test_complete_launch_chain_and_owned_icon_ship(self) -> None:
-        for path in (APP, LAUNCHER, STATUS, DESKTOP):
+        for path in (APP, LAUNCHER, STATUS, DESKTOP,
+                     KCM / "moos_settings.cpp", KCM / "ui/main.qml", KCM / "kcm_moos.json"):
             self.assertTrue(path.is_file(), path)
         for path in (LAUNCHER, STATUS):
             self.assertTrue(path.stat().st_mode & stat.S_IXUSR, path)
 
         launcher = LAUNCHER.read_text(encoding="utf-8")
         desktop = DESKTOP.read_text(encoding="utf-8")
-        self.assertIn("--app-id org.moos.settings", launcher)
-        self.assertIn("--icon moos-control-center", launcher)
-        self.assertIn('QML_XHR_ALLOW_FILE_READ=1', launcher)
+        self.assertIn("exec systemsettings kcm_moos", launcher)
+        self.assertIn('export MOOS_SETTINGS_SECTION="$section"', launcher)
+        self.assertIn('mv -f "$request_file" "$request_dir/request"', launcher)
         self.assertIn('"$@"', launcher)
+        self.assertNotIn("moos-qml-shell", launcher)
         self.assertIn("Exec=moos-settings", desktop)
         self.assertIn("Icon=moos-control-center", desktop)
-        self.assertIn("StartupWMClass=org.moos.settings", desktop)
+        self.assertIn("StartupWMClass=org.kde.systemsettings", desktop)
         self.assertIn("Exec=moos-settings --section=appearance", desktop)
         self.assertIn("Exec=moos-settings --section=connectivity", desktop)
         self.assertIn("Exec=moos-settings --section=recovery", desktop)
@@ -57,7 +95,7 @@ class MoOSSettingsTests(unittest.TestCase):
             with self.subTest(deep_link=section):
                 entry = path.read_text(encoding="utf-8")
                 self.assertIn(f"Exec=moos-settings --section={section}", entry)
-                self.assertIn("StartupWMClass=org.moos.settings", entry)
+                self.assertIn("StartupWMClass=org.kde.systemsettings", entry)
                 self.assertIn("NoDisplay=true", entry)
 
         # SVG master is gone, check for PNG raster ladder.
@@ -66,6 +104,25 @@ class MoOSSettingsTests(unittest.TestCase):
             with self.subTest(size=size):
                 self.assertTrue(raster.is_file(), raster)
                 self.assertGreater(raster.stat().st_size, 256, raster)
+
+    def test_later_launch_delivers_a_page_to_the_existing_kcm(self) -> None:
+        with tempfile.TemporaryDirectory() as root:
+            folder = Path(root)
+            fake_bin = folder / "bin"
+            fake_bin.mkdir()
+            fake_settings = fake_bin / "systemsettings"
+            fake_settings.write_text("#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$XDG_RUNTIME_DIR/argv\"\n",
+                                     encoding="utf-8")
+            fake_settings.chmod(0o755)
+            env = {**os.environ, "PATH": f"{fake_bin}:{os.environ['PATH']}",
+                   "XDG_RUNTIME_DIR": root}
+            result = subprocess.run([str(LAUNCHER), "--section=update"],
+                                    env=env, capture_output=True, text=True, timeout=5)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual((folder / "argv").read_text(encoding="utf-8"), "kcm_moos\n")
+            request = folder / "moos-settings/request"
+            self.assertEqual(request.read_text(encoding="utf-8"), "update\n")
+            self.assertEqual(stat.S_IMODE(request.stat().st_mode), 0o600)
 
     def test_qml_is_one_localised_accessible_motion_safe_product(self) -> None:
         qml = APP.read_text(encoding="utf-8")

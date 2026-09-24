@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import json
 import os
+import platform
 import re
 import runpy
 import shutil
@@ -399,7 +400,10 @@ class TheNotifierEndToEnd(unittest.TestCase):
         self.assertIn("تم تحديث MoOS", sent)
         self.assertIn("--action=open=ما الجديد", sent)
         self.assertIn("44.20260918.870", sent)
-        self.assertIn(f"{len(shipped())} ", sent, "every shipped entry is newer than the W1 image")
+        expected = sum(1 for entry in shipped()
+                       if not entry.get("arch") or platform.machine() in entry["arch"])
+        self.assertIn(f"{expected} ", sent,
+                      "every entry for this architecture is newer than the W1 image")
         self.assertEqual(opened, "moos://settings/whats-new")
         self.assertEqual(recorded, "44.20260918.870")
 
