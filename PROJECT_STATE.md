@@ -1,4 +1,4 @@
-# MoOS current state — measured 2026-09-23
+# MoOS current state — measured 2026-09-24
 Current measured facts only; Git owns history.
 
 **This block is the only place in the repository that states a version number.** The plan,
@@ -6,20 +6,19 @@ the README and every wave row point here instead of repeating it. Four parallel 
 "production is X" is how three of them came to be a release behind at once.
 
 ## Source and release truth
-- **`44.20260923.920` is released and booted on the NVIDIA station:** signed digest
-  `sha256:7583f605753780dedf6c364ba43ff04242a86d0a918ae33e10fbe6de2b7fea44`,
-  candidate revision `3b6f8e94`, signed build `35878094873`, generic/NVIDIA/cloud QCOW2
-  `35881259100`/`35881263671`/`35881269531`, ISO `35881275455`, and promotion
-  `35887376140` all green. Live `post-update-check.sh` passed 55/0 against that digest;
-  `moos-selfcheck` passed 53 with one owner-configurable tray note, zero failed units,
-  and signed `.914` retained for rollback. `fwupd` was restored and offered no update.
+- **`44.20260924.925` is signed, boot-proven and staged on the NVIDIA station, not yet booted.**
+  The x86 build `35965122548`, three QCOW2 proofs `35967126859`/`35967135886`/
+  `35967151452`, offline ISO proof `35967162130` and promotion `36000759578` passed at
+  revision `57cfe3f0` (PR #160). Production `moos-nvidia:latest` resolved to
+  `sha256:2927c2828f8bf1197662b1a6a3020129ec7c38fe779addb4a2b6d8238f4100ac`.
+  `rpm-ostree status` shows it staged; the station still boots signed `.920`, with `.914`
+  retained. No post-reboot proof for `.925` exists yet.
 - PR #157 integrated W8/W9, ARM app parity, Store honesty and the NVIDIA device gate.
   PR #158 raised ARM's finite first-boot Flatpak timeout
   from 30 to 120 seconds. The no-GPU NVIDIA VM boots twice with zero failed units.
-- **ARM `latest` is boot-proven** `sha256:eff234dfdc30364f50d1ac05e437133aba00b8963cac2fd1355aa8bf0eb58ca2`
-  from merge `4ae85676`: signed build, two QCOW2 boots and promotion all passed in
-  `35912079424`. The 120-second fix also passed branch proof `35889416840`; its
-  tree exactly matched the merge. Registry `latest` readback matches the promoted digest.
+- **ARM's PR #160 image** passed signed build, UEFI QCOW2 proof and production promotion
+  in `35963023960`. PR #161 (Plasma seam compatibility and ARM parity) is merged at
+  `aeb3e070`; its automatic x86/ARM image runs are still separate from a proven release.
   Intermittent upstream Plymouth issue P0.7 remains open.
 - **P0.7 is no longer only a captured stack.** Read out of plymouth 24.004.60's source on
   2026-09-21: `ply_boot_splash_free()` frees `pixel_displays` without disarming the
@@ -37,27 +36,13 @@ initialized and running, and Linux applications use the image's application serv
 `.exe` resolves as `chosen=wine, ready=true, needs_setup=false`; an `.apk` installs only
 through App Drop → `moos-storectl`, with the same job and lock as catalogue installs.
 
-**All three app engines run here (2026-09-20; evidence acquired before `.912`, whose
-source contains the same paths).** **Windows:** Notepad and
-Minesweeper launched through `moos-run-foreign` — the double-click path — appeared wearing
-**MoOS's own decoration** and listed in the **MoOS Bar**; resolver `ready=true,
-chosen=wine`, no download. **Linux:** install → launch → remove entirely through
-`moos-storectl`. **Android: it had never worked, and now does.** `moai-do setup-waydroid`
-called `waydroid init` without the mandatory OTA channels, which neither MoOS nor Fedora's
-package supplies a config for, so it failed every time before downloading a byte — every
-gate read the source, where each half looked right. Passing the channels fixed it: **2.3 GB
-downloaded**, container `RUNNING`, a real APK installed via `moos-storectl install-file`,
-and **F-Droid opened on the desktop** with its icon in the MoOS Bar. Since then, publisher
-APK builds of VLC and Organic Maps were digest-checked and installed; VLC was installed,
-launched and removed through the source Store adapter, and its real resizable window is
-recorded in `test-results/android-vlc-source-live.png`. PuTTY PE32+ ran through the MoOS
-file route with the MoOS decoration. The active source now derives the Windows UI density
-from the live desktop (96–192 DPI); on this 4K station PuTTY grew from 178×331 to 348×591
-logical pixels with its controls genuinely scaled, not an empty stretched frame. PE32
-(32-bit) still fails although the new-WoW64 payload is
-complete; the audit log gives the cause — SELinux denies `execmod` while mapping the i386
-PE DLL from composefs (`kernel_t` → `lib_t`). The earlier "missing i686, add ~1 GiB"
-diagnosis was wrong. Do not weaken SELinux globally.
+**All three app engines ran on the station (2026-09-20).** Windows Notepad, Minesweeper
+and PuTTY PE32+ used `moos-run-foreign` with MoOS decoration and taskbar presence; Linux
+apps completed install → launch → remove through `moos-storectl`. Correct Waydroid OTA
+channels let 2.3 GB download, the container run, and F-Droid open after App Drop install.
+VLC's real window is captured in `test-results/android-vlc-source-live.png`. The 4K Windows
+UI density is measured. PE32 remains blocked by an SELinux `execmod` denial for an i386 PE
+DLL from composefs; do not weaken SELinux globally.
 
 ## Physical development station
 
@@ -162,6 +147,15 @@ libplasma soname bump that removes `kcm-fcitx5` until Fedora rebuilds it. No 6.8
 
 ## Open evidence gaps
 
+- **Unified Settings source (2026-09-24):** `kcm_moos` compiled on the x86 base and
+  loaded inside the native System Settings host in English and Arabic RTL. A fixed
+  local request switched About → Update in the already open KDE window. `just check`
+  passed. The launcher now enters that host;
+  detailed display/network/audio controls remain their real KCMs. The older QML
+  Command Center is still packaged as a dormant compatibility source. Full final-image
+  build and an installed-desktop readback are still required. Update's app and firmware
+  actions exist, but their per-owner outcome records remain P2.12 work.
+
 - **Mo PC Remote, 2026-09-24:** on the NVIDIA station the service, portal, input daemon and
   watchdog are active, loopback `:8765` answers, `/dev/uinput` grants the owner, no failed
   units; the installed Arabic PIN screen was inspected. Source serializes input across
@@ -193,6 +187,7 @@ whole network beside Mo PC Remote; the finding carries `moos://privacy/stop-shar
 `moos-remote-guard off` stops and un-autostarts both with no administrator rights.
 
 ## Next execution
-Before 2026-10-14: the first green Plasma-next canary and PR image gates for P6.7. Then finish
-W9's real transaction lifecycle and W8's three-size mark. Pursue upstream P0.7;
+Qualify the unified native Settings image and finish P2.12's app/firmware records; boot the
+staged NVIDIA image and run post-update checks. Then finish W9's real transaction lifecycle
+and W8's three-size mark. Pursue upstream P0.7;
 P4.2–P4.5, German, touch/laptop/multi-output and full accessibility remain open.

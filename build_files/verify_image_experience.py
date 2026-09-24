@@ -967,7 +967,8 @@ def whats_new_is_readable(root: str) -> list[str]:
 
     problems: list[str] = []
     try:
-        raw = json.load(open(f"{root}/usr/share/moos/whats-new.json", encoding="utf-8"))["entries"]
+        with open(f"{root}/usr/share/moos/whats-new.json", encoding="utf-8") as source:
+            raw = json.load(source)["entries"]
     except (OSError, ValueError, KeyError, TypeError) as error:
         return [f"whats-new.json is not readable: {error}"]
     reader = runpy.run_path(f"{root}/usr/lib/moos/moos_whats_new.py")
