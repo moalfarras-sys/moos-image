@@ -21,6 +21,10 @@
 #     /usr/share/systemsettings/categories/settings-security-privacy.desktop.
 #   * X-KDE-ServiceTypes / X-KDE-ParentApp are not read by this Plasma (neither string is in
 #     the binary); they are kept only to mirror upstream's KInfoCenter example.
+#   * Proven with the installed binary, isolated (offscreen, no session bus, throwaway HOME,
+#     this file in a throwaway XDG_DATA_DIRS entry): `systemsettings --list` lists
+#     "moos-firewall - Choose which network connections this computer allows", and under
+#     LANG=ar the Arabic Comment. Where it sits in the sidebar is for a live review.
 #   * The loader does NOT honour TryExec, so an edition without firewall-config (ARM) would
 #     show a page that does nothing. curate_app_menu.sh removes this file wherever its
 #     program is missing, and its gate proves every external module left resolves.

@@ -1107,7 +1107,9 @@ test ! -e /usr/share/applications/org.fcitx.Fcitx5.desktop \
 #   * isolated probe (offscreen, no session bus, throwaway HOME and XDG_CONFIG_DIRS):
 #     `kcmshell6 --smoke-test kcm_fcitx5` / `kcm_krdpserver` exit 0 without this group and 1
 #     with it; `kcm_mouse` still exits 0 under the same group, and a KF5-style key
-#     `kcm_fcitx5.desktop=false` does NOT match — the key is the bare plugin id.
+#     `kcm_fcitx5.desktop=false` does NOT match — the key is the bare plugin id. With the
+#     shipped kdeglobals plus this append, `systemsettings --list` drops kcm_fcitx5 (60 → 59
+#     modules; kcm_krdpserver is Wayland-only, so an offscreen probe never lists it).
 # Nothing in moos-open routes to either page; verify_image_experience.py fails the build if
 # a settings route ever targets a restricted module.
 if ! grep -qxF '[KDE Control Module Restrictions]' /etc/xdg/kdeglobals; then
