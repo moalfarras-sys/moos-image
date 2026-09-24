@@ -2840,13 +2840,25 @@ Kirigami.ApplicationWindow {
     // the pattern reads across the whole conversation surface, dark and light.
     component ChatDoodle: Item {
         id: doodleRoot
+        objectName: "chatDoodle"
         clip: true
         // Clearly visible as texture, never enough to compete with message text.
         property real lineOpacity: root.isDark ? 0.13 : 0.12
         property real markOpacity: root.isDark ? 0.11 : 0.10
+        // The software scene graph runs no shader, and /usr/bin/moai selects it on every
+        // machine without a real GPU: the ARM A1, the cloud edition, any VM. MultiEffect then
+        // draws NOTHING, so the line art vanished while the marks, plain icons, stayed: stray
+        // logos on an empty surface, one cutting across the hero ring (measured on the A1,
+        // 2026-09-24, software beside llvmpipe GL). Without a shader the tile keeps its own
+        // white strokes, which read as the intended texture only on a dark scheme; on a light
+        // one the lines would be invisible, so the texture and its marks go together.
+        readonly property bool recolourable: GraphicsInfo.api !== GraphicsInfo.Software
+        readonly property bool drawsTexture: recolourable || root.isDark
+        visible: drawsTexture
 
         Image {
             id: doodleTile
+            objectName: "chatDoodleTile"
             anchors.fill: parent
             source: Qt.resolvedUrl("chat-doodles.svg")
             fillMode: Image.Tile
@@ -2857,8 +2869,9 @@ Kirigami.ApplicationWindow {
             asynchronous: true
             opacity: doodleRoot.lineOpacity
             // Static, blur-free colorization — recolours the white strokes to the
-            // theme text colour without allocating per-frame GPU buffers.
-            layer.enabled: true
+            // theme text colour without allocating per-frame GPU buffers. Only where a
+            // shader can run: under the software scene graph the layer drew nothing.
+            layer.enabled: doodleRoot.recolourable
             layer.effect: MultiEffect {
                 colorization: 1.0
                 colorizationColor: root.textHi

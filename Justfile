@@ -357,6 +357,12 @@ check:
     # at all, and the only check that mentioned it greps build.sh -- so it could
     # only ever describe x86.
     python3 tests/test_mime_handlers.py
+    # x86 inherits KDE's desktop from kinoite-main; ARM must ask by name. On the A1 seven
+    # capabilities MoOS depends on were missing (RTL, privacy chip, GTK theme, spell check, ALSA).
+    python3 tests/test_desktop_parity.py
+    # Mo AI's chat texture on a machine with no GPU: MultiEffect draws nothing on the software
+    # scene graph, which left stray logos. The runtime half loads the real window offscreen.
+    python3 tests/test_moai_doodle_software.py
     # "Set up Android" had NEVER worked: waydroid init needs mandatory OTA
     # channels, MoOS ships no channels config for it to fall back on, and every
     # existing gate read only the source. Proven on the station 2026-09-20 by
