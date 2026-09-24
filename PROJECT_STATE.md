@@ -153,14 +153,14 @@ setup on non-x86. Three readings here look like defects and are not — `cost_po
 "paid"`, `"gateway": false`, and `just check` failing on `systemd-tmpfiles` in the Flatpak
 sandbox; the plan says why, under its own heading. Do not "fix" them.
 
-## Plasma 6.8 readiness (measured on the A1, 2026-09-24; detail in plan row P6.7)
+## Plasma 6.8 readiness (measured 2026-09-24; detail in plan row P6.7)
 
-On KDE SIG's 6.8 beta (`6.7.90`, x86_64 under emulation) MoOS's 6.7 lock screen falls back to
-the emergency locker: 6.8 removed `VirtualKeyboardLoader`. `plasma_seams.py build` there picked
-set 6.8, matched all ten upstream digests and loaded the merged MoOS lock screen; on 6.7.5 it
-picks 6.7 and passes, including inside PR #161's ARM image build. CI also found Breeze's Global
-Themes hidden on x86 only (this A1's picker offers them), now one shared step, and a libplasma
-soname bump that made a plain distro-sync silently keep 6.7.5. No 6.8 candidate exists yet.
+On KDE SIG's 6.8 beta (`6.7.90`) MoOS's 6.7 lock screen falls back to the emergency locker:
+6.8 removed `VirtualKeyboardLoader`. **Canary run `35980381601` built the whole generic image on
+6.7.90 with every in-image gate green:** the seam gate picked set 6.8, matched ten digests and
+loaded the merged lock screen in the real greeter. PR #161's 6.7.5 x86 and ARM builds pass the
+same gate. CI also found Breeze's Global Themes hidden on x86 only, now one shared step, and a
+libplasma soname bump that removes `kcm-fcitx5` until Fedora rebuilds it. No 6.8 candidate yet.
 
 ## Open evidence gaps
 
