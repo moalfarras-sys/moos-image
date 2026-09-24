@@ -1854,8 +1854,15 @@ def _for_model(executor: str, output: str) -> str:
 # The name carries the tool (a fixed schema name) and the state — never an argument, a path or
 # anything a model produced. Created atomically, renamed as the job moves on, and removed 20 s
 # after it ends so the chip can say how it ended and then leave.
+#
+# The token's mtime is the moment it ENTERED its state (a rename keeps the old mtime, so it is
+# stamped again). A process timer removes an ended token on time. But a process that exits
+# first (a stopped service, or a test that loaded this file) never runs that timer. So every
+# publish also sweeps ended tokens older than the linger, and the Island can drop an ended chip
+# whose fileModified is older than the linger.
 JOB_TOKEN_TOOL = re.compile(r"[a-z_]{1,40}")
 JOB_TOKEN_LINGER = 20.0
+JOB_TOKEN_ENDED = re.compile(r"job-[0-9a-f]{8}-(?:done|failed)-[a-z_]{1,40}")
 
 
 def _jobs_dir() -> _PolicyPath | None:
@@ -1873,6 +1880,17 @@ def _job_token_name(job_id: str, state: str, tool: str) -> str | None:
     return f"job-{short}-{state}-{tool}"
 
 
+def _sweep_ended_job_tokens(folder: _PolicyPath, keep: str | None = None) -> None:
+    """Remove done/failed tokens older than the linger, whoever owed their removal."""
+    cutoff = time.time() - JOB_TOKEN_LINGER
+    for token in folder.glob("job-*"):
+        if token.name == keep or not JOB_TOKEN_ENDED.fullmatch(token.name):
+            continue
+        with contextlib.suppress(OSError):
+            if token.stat().st_mtime < cutoff:
+                token.unlink()
+
+
 def _publish_job_token(job_id: str, tool: str, state: str, previous: str | None = None,
                        folder: _PolicyPath | None = None):
     """Create (or rename into) the token for this state; returns its name, or None."""
@@ -1885,12 +1903,14 @@ def _publish_job_token(job_id: str, tool: str, state: str, previous: str | None 
         target = folder / name
         if previous and (folder / previous).exists():
             os.replace(folder / previous, target)
+            os.utime(target)                    # when it entered THIS state, not when it began
         else:
             temporary = folder / f".{name}.tmp"
             temporary.write_bytes(b"")
             os.replace(temporary, target)
     except OSError:
         return None
+    _sweep_ended_job_tokens(folder, keep=name)
     return name
 
 
@@ -1918,7 +1938,7 @@ def _audit_tool(tool_name: str, verdict: str) -> None:
                        capture_output=True, timeout=5, check=False)
 
 
-def _run_job(job_id: str, cmd: list[str]) -> None:
+def _run_job(job_id: str, cmd: list[str], tokens: _PolicyPath | None = None) -> None:
     start = time.monotonic()
     state = "error"
     code = None
@@ -1926,8 +1946,9 @@ def _run_job(job_id: str, cmd: list[str]) -> None:
     with _tool_jobs_lock:
         tool = _tool_jobs[job_id]["tool"]
         executor = (tool_schemas.TOOL_META.get(tool) or {}).get("executor", "")
-    # One folder for the job's whole life, chosen when it starts.
-    tokens = _jobs_dir()
+    # One folder for the job's whole life: `tokens`, chosen by execute_tool when it ACCEPTED the
+    # job. Reading the environment here, in the worker thread, raced whatever changed it after
+    # the request returned.
     token = _publish_job_token(job_id, tool, "running", folder=tokens)
     try:
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
@@ -2008,7 +2029,7 @@ def execute_tool(data: dict) -> tuple[int, dict]:
                 if _tool_jobs[stale]["status"] != "running":
                     del _tool_jobs[stale]
         _audit_tool(tool_name, "started")
-        threading.Thread(target=_run_job, args=(job_id, cmd), daemon=True).start()
+        threading.Thread(target=_run_job, args=(job_id, cmd, _jobs_dir()), daemon=True).start()
         return 202, {"job": job_id, "tool": tool_name, "status": "running"}
 
     start = time.monotonic()

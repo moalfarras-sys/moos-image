@@ -8,6 +8,7 @@ than 300 failed restarts in one session while the real Ollama brain was healthy.
 """
 
 import os
+import re
 import runpy
 import json
 import subprocess
@@ -847,6 +848,96 @@ class IslandJobTokenTests(unittest.TestCase):
             with mock.patch.dict(os.environ, {}, clear=False):
                 os.environ.pop("XDG_RUNTIME_DIR", None)
                 self.assertIsNone(control["_publish_job_token"]("0123abcd", "x_y", "running"))
+
+    def test_the_folder_is_chosen_when_the_job_is_accepted(self):
+        """The worker thread must not read the environment: it may run after it changed.
+
+        A test that patched XDG_RUNTIME_DIR around execute_tool, and whose worker thread ran
+        after the patch ended, put its tokens in the owner's real runtime directory. The
+        thread is held back here until the environment points somewhere else.
+        """
+        import threading as real_threading
+        from types import SimpleNamespace
+        with tempfile.TemporaryDirectory() as home, tempfile.TemporaryDirectory() as accepted, \
+                tempfile.TemporaryDirectory() as later:
+            bin_dir = Path(home) / "bin"
+            bin_dir.mkdir()
+            (bin_dir / "moai-do").write_text("#!/bin/sh\necho done\n", encoding="utf-8")
+            (bin_dir / "moai-do").chmod(0o755)
+            control = load_control(home)
+            scope = control["execute_tool"].__globals__
+            scope["JOB_TOKEN_LINGER"] = 60.0
+            held = []
+            scope["threading"] = SimpleNamespace(Thread=lambda target, args, daemon: (
+                SimpleNamespace(start=lambda: held.append((target, args)))))
+            try:
+                with mock.patch.dict(os.environ, {"XDG_RUNTIME_DIR": accepted,
+                                                  "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}"}):
+                    code, started = control["execute_tool"]({"name": "update_apps",
+                                                             "confirmed": True, "arguments": {}})
+            finally:
+                scope["threading"] = real_threading
+            self.assertEqual(code, 202, started)
+            self.assertEqual(len(held), 1)
+            target, args = held[0]
+            with mock.patch.dict(os.environ, {"XDG_RUNTIME_DIR": later}):
+                target(*args)
+            self.assertEqual(self.tokens(accepted), [f"job-{started['job'][:8]}-done-update_apps"])
+            self.assertEqual(self.tokens(later), [], "the job wrote where the environment "
+                             "pointed when it RAN, not where it was accepted")
+
+    def test_an_ended_token_is_stamped_when_it_ends(self):
+        """A rename keeps the old mtime; the Island and the sweep read it as the state's age."""
+        with tempfile.TemporaryDirectory() as home, tempfile.TemporaryDirectory() as runtime:
+            control = load_control(home)
+            folder = Path(runtime) / "moai-jobs"
+            publish = control["_publish_job_token"]
+            running = publish("0123abcd", "system_update", "running", folder=folder)
+            hour_ago = time.time() - 3600
+            os.utime(folder / running, (hour_ago, hour_ago))
+            before = time.time() - 5
+            done = publish("0123abcd", "system_update", "done", running, folder=folder)
+            self.assertEqual(done, "job-0123abcd-done-system_update")
+            self.assertGreaterEqual((folder / done).stat().st_mtime, before,
+                                    "a job that ran for an hour ended 'an hour ago'")
+
+    def test_ended_tokens_nobody_removed_are_swept_on_the_next_publish(self):
+        """A process that exits before its linger timer fires must not leave a chip forever."""
+        with tempfile.TemporaryDirectory() as home, tempfile.TemporaryDirectory() as runtime:
+            control = load_control(home)
+            folder = Path(runtime) / "moai-jobs"
+            folder.mkdir(mode=0o700)
+            old = time.time() - 60
+            planted = {"job-00000001-done-optimize_system": old,
+                       "job-00000002-failed-fix_audio": old,
+                       "job-00000003-done-install_app": time.time() - 1,
+                       "job-00000004-running-system_update": time.time() - 3600}
+            for name, stamp in planted.items():
+                (folder / name).write_text("")
+                os.utime(folder / name, (stamp, stamp))
+            control["_publish_job_token"]("0123abcd", "update_apps", "running", folder=folder)
+            self.assertEqual(self.tokens(runtime), [
+                "job-00000003-done-install_app",       # still inside its linger
+                "job-00000004-running-system_update",  # running: only start-up clears these
+                "job-0123abcd-running-update_apps",
+            ])
+
+    def test_every_test_that_runs_a_confirmed_job_owns_its_runtime_directory(self):
+        """A confirmed job writes an Island token: from a test, never into the live session.
+
+        tests/test_moai_confirmation_flow.py ran confirmed jobs in-process with the owner's
+        XDG_RUNTIME_DIR, and every gate run on the station left 'job done/failed' tokens the
+        live Island would show. Any test that sends a confirmed job to moai-control must set
+        its own XDG_RUNTIME_DIR.
+        """
+        offenders = []
+        for test in sorted((ROOT / "tests").glob("*.py")):
+            text = test.read_text(encoding="utf-8")
+            runs_confirmed = re.search(r'"confirmed"\s*:\s*True', text) is not None
+            loads_control = "usr/bin/moai-control" in text
+            if runs_confirmed and loads_control and "XDG_RUNTIME_DIR" not in text:
+                offenders.append(test.name)
+        self.assertEqual(offenders, [])
 
     def test_startup_clears_tokens_of_a_previous_run(self):
         with tempfile.TemporaryDirectory() as home, tempfile.TemporaryDirectory() as runtime:
