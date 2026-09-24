@@ -123,6 +123,7 @@ private:
     void watchSources();
     QString statusPath() const;
     QString stateDirectory() const;
+    QString configDirectory() const;
 
     QVariantMap m_status;
     bool m_statusValid = false;

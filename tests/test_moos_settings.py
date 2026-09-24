@@ -677,6 +677,35 @@ class ThePages(unittest.TestCase):
         self.assertIn("on: root.installed && root.remote.enabled === true", qml)
         self.assertNotRegex(qml, r"(?m)^\s*checked:",
                             "a page never sets a switch; MoosSwitchRow shows the measurement")
+        # A wait ends on the measurement it asked for, not on whichever one arrives first:
+        # the owner may answer moos-open's question long after the first re-measure.
+        self.assertIn('"moos://remote/start" : "moos://remote/stop",\n'
+                      '                                                    "enabled", wanted)', qml)
+        self.assertIn('root.request("moos://remote/restart", "", false)', qml)
+        self.assertNotRegex(qml, r"onStatusChanged\(\)\s*\{\s*root\.waiting\s*=\s*false",
+                            "any new status cleared the wait, while the question was still open")
+        self.assertRegex(qml, r"function onStatusChanged\(\) \{\s*if \(root\.settled\(\)\)\s*root\.endWait\(\)")
+        limit = int(re.search(r"readonly property int waitLimitMs: (\d+)", qml).group(1))
+        self.assertGreaterEqual(limit, 60000, "the owner gets at least a minute to answer")
+        remeasure = re.search(r"Timer \{\s*interval: (\d+)\s*repeat: true\s*"
+                              r"running: root\.waiting && root\.visible\s*onTriggered: kcm\.refresh\(\)", qml)
+        self.assertIsNotNone(remeasure, "a waiting page re-measures while it is shown, and only then")
+        self.assertGreaterEqual(int(remeasure.group(1)), 2000)
+
+    def test_the_backend_watches_the_link_that_turns_remote_on(self) -> None:
+        unit = (ROOT / "system_files/usr/lib/systemd/user/mo-remote-personal.service").read_text(encoding="utf-8")
+        wanted_by = re.search(r"(?m)^WantedBy=(\S+)$", unit).group(1)
+        backend = BACKEND.read_text(encoding="utf-8")
+        link = re.search(r'constexpr auto RemoteEnableLink = "([^"]+)";', backend).group(1)
+        self.assertEqual(link, f"systemd/user/{wanted_by}.wants/mo-remote-personal.service",
+                         "`systemctl --user enable` writes the link into the unit's WantedBy target")
+        self.assertIn('REMOTE_UNIT="mo-remote-personal.service"', ROUTER.read_text(encoding="utf-8"))
+        self.assertIn('"mo-remote-personal.service"', STATUS.read_text(encoding="utf-8"))
+        watch = backend.split("void MoOSSettingsModule::watchSources()", 1)[1].split("\n}\n", 1)[0]
+        for piece in ("configDirectory()", "RemoteEnableLink", "remoteLink}", "userUnits, wants}"):
+            self.assertIn(piece, watch)
+        changed = backend.split("void MoOSSettingsModule::sourceDirectoryChanged()", 1)[1].split("\n}\n", 1)[0]
+        self.assertIn("watchSources();", changed, "a directory that appears later must be watched too")
         switch = (COMMON / "MoosSwitchRow.qml").read_text(encoding="utf-8")
         self.assertIn("checked: row.on", switch)
         self.assertIn("checked = Qt.binding(function() { return row.on })", switch)
@@ -696,6 +725,8 @@ class ThePages(unittest.TestCase):
         script += qml_function(overview, "routeAvailable") + "\n"
         script += qml_function(update, "systemSummary") + "\n" + qml_function(update, "appsSummary") + "\n"
         script += qml_function(recovery, "recoverySummary") + "\n" + qml_function(remote, "remoteSummary") + "\n"
+        script += "let waiting = false, waitField = '', waitValue = false, waitSince = 0;\n"
+        script += qml_function(remote, "settled") + "\n"
         script += r"""
 // Routes: MoOS's own pages never wait for the feed; the rest need a measured destination.
 ready = false;
@@ -742,6 +773,16 @@ remote = {available: true, enabled: true}; assert.equal(remoteSummary().title, '
 remote = {available: true}; assert.equal(remoteSummary().title, 'Remote control is off');
 remote = {available: false}; assert.equal(remoteSummary().title, 'Not installed on this device');
 rtl = true; remote = {available: true}; assert.ok(/[\u0600-\u06FF]/.test(remoteSummary().title));
+// Remote wait: only the measurement that was asked for ends it.
+rtl = false; ready = true; waiting = true; waitField = 'enabled'; waitValue = true; waitSince = 1000;
+remote = {available: true, enabled: false}; assert.equal(settled(), false, 'still off: the question may be open');
+remote = {available: true, enabled: true}; assert.equal(settled(), true);
+ready = false; assert.equal(settled(), false, 'an unreadable status settles nothing'); ready = true;
+waitValue = false; remote = {available: true, enabled: true}; assert.equal(settled(), false);
+remote = {available: true, enabled: false}; assert.equal(settled(), true);
+waitField = ''; kcm.statusGeneratedAt = 1001; assert.equal(settled(), false, 'a restart waits for a later measurement');
+kcm.statusGeneratedAt = 1003; assert.equal(settled(), true);
+waiting = false; assert.equal(settled(), false);
 """
         result = subprocess.run([NODE, "-e", script], capture_output=True, text=True, timeout=60)
         self.assertEqual(result.returncode, 0, result.stderr[-2000:])

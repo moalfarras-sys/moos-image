@@ -22,6 +22,10 @@ constexpr qint64 MaximumStatusBytes = 1024 * 1024;
 constexpr int MaximumOutputBytes = 64 * 1024;
 constexpr int JobTimeoutMs = 180 * 1000;
 constexpr int KeptFinishedJobs = 16;
+// Mo PC Remote is on exactly while this link exists: `systemctl --user enable` writes it
+// into the target the unit's [Install] section names (WantedBy=plasma-workspace.target in
+// mo-remote-personal.service; tests/test_moos_settings.py holds the two together).
+constexpr auto RemoteEnableLink = "systemd/user/plasma-workspace.target.wants/mo-remote-personal.service";
 
 // ── The status contract ─────────────────────────────────────────────────────
 // Only what a page binds is required; a document missing any of it is rejected
@@ -210,7 +214,8 @@ MoOSSettingsModule::MoOSSettingsModule(QObject *parent, const KPluginMetaData &d
     watchSources();
 
     // A source record changed (an update was staged, an app update finished, Fast
-    // Remote flipped): gather once after the writes settle, not once per write.
+    // Remote flipped, Mo PC Remote was turned on or off): gather once after the writes
+    // settle, not once per write.
     m_sourceSettle.setSingleShot(true);
     m_sourceSettle.setInterval(1500);
     connect(&m_sourceSettle, &QTimer::timeout, this, &MoOSSettingsModule::refresh);
@@ -261,17 +266,33 @@ QString MoOSSettingsModule::stateDirectory() const
     return QDir(base).filePath(QStringLiteral("moos"));
 }
 
+QString MoOSSettingsModule::configDirectory() const
+{
+    const QString config = qEnvironmentVariable("XDG_CONFIG_HOME");
+    return !config.isEmpty() && QDir::isAbsolutePath(config)
+        ? config
+        : QDir(QDir::homePath()).filePath(QStringLiteral(".config"));
+}
+
 void MoOSSettingsModule::watchSources()
 {
     // Directories, not files: every owner publishes by atomic rename, which a file
-    // watch loses after the first replacement.
-    for (const QString &directory : {QStringLiteral("/run/moos"), stateDirectory()}) {
+    // watch loses after the first replacement. The Remote unit's enable link can
+    // appear in a directory that does not exist yet: every level of it that exists is
+    // watched, a level created below a watched one is added when it appears, and a
+    // refresh adds whatever exists by then.
+    const QString remoteLink = QDir(configDirectory()).filePath(QString::fromLatin1(RemoteEnableLink));
+    const QString wants = QFileInfo(remoteLink).path();
+    const QString userUnits = QFileInfo(wants).path();
+    for (const QString &directory : {QStringLiteral("/run/moos"), stateDirectory(), QFileInfo(userUnits).path(),
+                                     userUnits, wants}) {
         if (QFileInfo(directory).isDir() && !m_watcher.directories().contains(directory))
             m_watcher.addPath(directory);
     }
     for (const QString &source : {QStringLiteral("/run/moos/update-state.json"),
                                   QDir(stateDirectory()).filePath(QStringLiteral("app-updates.json")),
-                                  QDir(stateDirectory()).filePath(QStringLiteral("fast-remote.on"))}) {
+                                  QDir(stateDirectory()).filePath(QStringLiteral("fast-remote.on")),
+                                  remoteLink}) {
         if (!m_sourceModified.contains(source))
             m_sourceModified.insert(source, modified(source));
     }
@@ -279,6 +300,7 @@ void MoOSSettingsModule::watchSources()
 
 void MoOSSettingsModule::sourceDirectoryChanged()
 {
+    watchSources();
     bool changed = false;
     for (auto it = m_sourceModified.begin(); it != m_sourceModified.end(); ++it) {
         const QDateTime now = modified(it.key());

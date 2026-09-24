@@ -23,22 +23,46 @@ KCM.SimpleKCM {
     readonly property color secondaryInk: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
                                                   Kirigami.Theme.textColor.b, 0.72)
     property string routeError: ""
-    // Set when a switch asked for a change and cleared when the measured state
-    // changes or the wait runs out; the switch itself never shows the wish.
-    property bool waiting: false
+    // A requested change, until the MEASURED state shows it. moos-open asks before
+    // turning Remote on and the owner may answer late, so a wait is not cleared by
+    // whichever measurement happens to arrive first. It ends when the field the request
+    // targets reads the value asked for (a restart has none: when a measurement taken
+    // after it arrives), or after two minutes (the question was declined, or the
+    // change did not happen). The switch shows the measurement throughout, never the wish.
+    property string waitField: ""
+    property bool waitValue: false
+    property real waitSince: 0
+    readonly property bool waiting: waitSince > 0
+    readonly property int waitLimitMs: 120000
 
     function t(ar, en) { return rtl ? ar : en }
     function open(route) {
         routeError = kcm.openRoute(route) ? "" : t("تعذّر فتح Mo PC Remote. حاول مرة أخرى.",
                                                     "Could not open Mo PC Remote. Try again.")
     }
-    // A change of state: the switch waits for the measured result, never shows the wish.
-    function request(route) {
+    function request(route, field, value) {
         var opened = kcm.openRoute(route)
         routeError = opened ? "" : t("تعذّر تنفيذ الطلب. حاول مرة أخرى.", "Could not send that request. Try again.")
-        waiting = opened
-        if (opened)
-            waitLimit.restart()
+        if (!opened) {
+            endWait()
+            return
+        }
+        waitField = field
+        waitValue = value === true
+        waitSince = Date.now() / 1000
+        waitLimit.restart()
+    }
+    function endWait() {
+        waitSince = 0
+        waitField = ""
+        waitLimit.stop()
+    }
+    function settled() {
+        if (!waiting || !ready)
+            return false
+        if (waitField === "")
+            return kcm.statusGeneratedAt >= waitSince + 2
+        return remote[waitField] === waitValue
     }
 
     function remoteSummary() {
@@ -64,9 +88,21 @@ KCM.SimpleKCM {
 
     Connections {
         target: kcm
-        function onStatusChanged() { root.waiting = false }
+        function onStatusChanged() {
+            if (root.settled())
+                root.endWait()
+        }
     }
-    Timer { id: waitLimit; interval: 12000; onTriggered: root.waiting = false }
+    Timer { id: waitLimit; interval: root.waitLimitMs; onTriggered: root.endWait() }
+    // While a request waits and the page is shown, measure again every 3 s (the helper
+    // takes about 0.2 s). The backend also watches the unit's enable link, so a change
+    // that lands while the page is hidden is read as soon as it happens.
+    Timer {
+        interval: 3000
+        repeat: true
+        running: root.waiting && root.visible
+        onTriggered: kcm.refresh()
+    }
 
     LayoutMirroring.enabled: rtl
     LayoutMirroring.childrenInherit: true
@@ -132,7 +168,8 @@ KCM.SimpleKCM {
                                     "It starts with every session. MoOS asks you before turning it on.")
                 enabled: root.installed
                 on: root.installed && root.remote.enabled === true
-                onRequested: wanted => root.request(wanted ? "moos://remote/start" : "moos://remote/stop")
+                onRequested: wanted => root.request(wanted ? "moos://remote/start" : "moos://remote/stop",
+                                                    "enabled", wanted)
             }
             FormCard.FormDelegateSeparator {}
             MoosActionRow {
@@ -141,7 +178,7 @@ KCM.SimpleKCM {
                 description: root.t("مفيد عندما لا يصل الهاتف رغم أن الخدمة تعمل.",
                                     "Useful when the phone cannot reach this computer although the service is on.")
                 enabled: root.installed && (root.remote.enabled === true || root.remote.failed === true)
-                onClicked: root.request("moos://remote/restart")
+                onClicked: root.request("moos://remote/restart", "", false)
             }
         }
 
