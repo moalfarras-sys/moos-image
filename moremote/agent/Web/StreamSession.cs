@@ -222,9 +222,18 @@ public sealed class StreamSession
       finally
       {
           _svc.Capture.SessionGone(_id);
-          // An unauthenticated or view-only connection never held input. Its teardown must not
-          // release the keys/buttons being used by another authenticated controller.
-          if (_loggedFirstInput) _svc.Input.ReleaseAll();
+          // Only the current controller owns held input. Closing an older tab must not
+          // release a newer controller's drag or keyboard shortcut.
+          await _svc.InputControl.Gate.WaitAsync();
+          try
+          {
+              if (_svc.InputControl.Owner == _id)
+              {
+                  _svc.Input.ReleaseAll();
+                  _svc.InputControl.Owner = null;
+              }
+          }
+          finally { _svc.InputControl.Gate.Release(); }
           _sendLock.Dispose();
           _inputLock.Dispose();
       }
@@ -254,7 +263,19 @@ public sealed class StreamSession
                     if (paused)
                     {
                         await _inputLock.WaitAsync(ct);
-                        try { _svc.Input.ReleaseAll(); }
+                        try
+                        {
+                            await _svc.InputControl.Gate.WaitAsync(ct);
+                            try
+                            {
+                                if (_svc.InputControl.Owner is not null)
+                                {
+                                    _svc.Input.ReleaseAll();
+                                    _svc.InputControl.Owner = null;
+                                }
+                            }
+                            finally { _svc.InputControl.Gate.Release(); }
+                        }
                         finally { _inputLock.Release(); }
                     }
                     _encoded.Clear(waitForKeyframe: true);
@@ -621,22 +642,50 @@ public sealed class StreamSession
         {
             await foreach (var (root, type) in _inputQueue.Reader.ReadAllAsync(ct))
             {
+                bool confirmInput = false;
                 // Input accepted just before Pause can still be waiting behind a slow click.
                 // Recheck at execution so queued key-downs cannot undo the pause release.
                 await _inputLock.WaitAsync(ct);
                 try
                 {
                     if (!ct.IsCancellationRequested && !_svc.State.IsPaused)
-                        await ExecuteInput(root, type, ct);
+                    {
+                        await _svc.InputControl.Gate.WaitAsync(ct);
+                        try
+                        {
+                            if (!ct.IsCancellationRequested && !_svc.State.IsPaused)
+                            {
+                                if (_svc.InputControl.Owner != _id)
+                                {
+                                    // Input injection is shared by all viewers. Release the old
+                                    // controller's held keys before a new one takes over.
+                                    if (_svc.InputControl.Owner is not null) _svc.Input.ReleaseAll();
+                                    _svc.InputControl.Owner = _id;
+                                }
+                                ExecuteInput(root, type);
+                                if (!_inputConfirmed)
+                                {
+                                    _inputConfirmed = true;
+                                    confirmInput = true;
+                                }
+                            }
+                        }
+                        finally { _svc.InputControl.Gate.Release(); }
+                    }
                 }
                 finally { _inputLock.Release(); }
+                // A blocked viewer must not hold the shared input lease while the
+                // server sends its one-time confirmation over that viewer's socket.
+                if (confirmInput)
+                    await SendJson(new { type="inputState", ready=_svc.Input.IsReady,
+                        backend=_svc.Input.BackendName, error=_svc.Input.LastError }, ct);
             }
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { Log.Warn("Input loop ended: " + ex.Message); }
     }
 
-    private async Task ExecuteInput(JsonElement root, string type, CancellationToken ct)
+    private void ExecuteInput(JsonElement root, string type)
     {
         {
             if (!_loggedFirstInput)
@@ -724,7 +773,6 @@ public sealed class StreamSession
                         break;
                     }
             }
-            if(!_inputConfirmed){_inputConfirmed=true;await SendJson(new{type="inputState",ready=input.IsReady,backend=input.BackendName,error=input.LastError},ct);}
         }
     }
 
@@ -874,4 +922,11 @@ public sealed class StreamSession
         }
         return false;
     }
+}
+
+/// <summary>Serializes input from viewers and records which one owns held keys/buttons.</summary>
+public sealed class InputControlLease
+{
+    public SemaphoreSlim Gate { get; } = new(1, 1);
+    public Guid? Owner { get; set; }
 }

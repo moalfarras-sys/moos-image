@@ -1267,6 +1267,29 @@ button {
   font-weight: 700;
 }
 
+/* A short phone must show every PIN key without scrolling past the first rows.
+   Keep the targets comfortably above the 44px touch minimum. */
+@media (max-height: 700px) and (max-width: 600px) {
+  .auth {
+    min-height: 100dvh;
+    justify-content: flex-start;
+    padding: calc(8px + var(--safe-top)) 16px calc(8px + var(--safe-bottom));
+  }
+  .auth .brand { gap: 4px; margin-bottom: 10px; }
+  .auth .brand-logo, .auth .brand-logo img { width: 56px; height: 56px; }
+  .auth .brand-logo img { border-radius: 14px; }
+  .auth .brand h1 { font-size: 18px; }
+  .auth .brand p { font-size: 12px; }
+  .auth .pin-dots { height: 12px; margin: 2px 0 8px; }
+  .auth .pin-dots i { width: 10px; height: 10px; }
+  .auth .hint { margin-bottom: 8px; }
+  .auth .trust-device { min-height: 44px; margin: 0 0 8px; padding: 5px 9px; }
+  .auth .keypad { grid-template-columns: repeat(3, 56px); gap: 8px; }
+  .auth .key { width: 56px; height: 56px; font-size: 22px; }
+  .auth .key svg { width: 24px; height: 24px; }
+  .auth .signature { margin-top: 8px; }
+}
+
 /* ---- cursor indicator (small) ---- */
 /* The remote cursor is drawn here, not in the video — the arrow tip sits on the transform
    origin, so translate(x,y) puts the tip exactly on the point that will be clicked. */

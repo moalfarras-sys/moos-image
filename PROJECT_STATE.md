@@ -156,6 +156,16 @@ sandbox; the plan says why, under its own heading. Do not "fix" them.
 
 ## Open evidence gaps
 
+- **Mo PC Remote source review, 2026-09-24:** the installed NVIDIA workstation's
+  Remote service, desktop portal, input daemon and watchdog are active; loopback
+  `:8765` answers status, `/dev/uinput` grants the owner access, and both failed-unit
+  sets are empty. The installed Arabic PIN screen was inspected in a browser.
+  Source now serializes input across controllers and releases held keys only on
+  handoff or departure of their owner; a two-controller WebSocket test passes.
+  At a 360×640 phone viewport, the source PIN keypad fits without scrolling
+  (last row bottom 498 px). This is source and installed-old-service evidence;
+  signed candidate, booted editions and authenticated video/input still need proof.
+
 - M1 visual/accessibility matrix: English/German, light/dark, reduced motion, 1080p–4K,
   100–250%, island Remote/Media (Arabic only so far).
 - Hardware: suspend/resume, multi-monitor, audio/network recovery, deliberate rollback,
