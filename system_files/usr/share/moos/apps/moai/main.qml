@@ -545,7 +545,7 @@ Kirigami.ApplicationWindow {
         "still prompts for a password where one is needed):\n" +
         "• Repair & maintain: `moai-do update` (atomic system update), `moai-do " +
         "fix-audio`, `moai-do check-drivers`, `moai-do optimize` (clean + speed up), " +
-        "`moai-do diagnose-services`, `moai-do inspect-boot`, `moai-do hw-report`.\n" +
+        "`moai-do diagnose-services`, `moai-do inspect-boot`.\n" +
         "• Rescue & diagnose: `moai-do rollback` (go back to the previous version if an " +
         "update broke something — atomic and reversible, applies on reboot), `moai-do " +
         "net-doctor` (network/DNS/Tailscale check — read-only), `moai-do gpu-report` (GPU " +
@@ -585,14 +585,26 @@ Kirigami.ApplicationWindow {
         "no password, and every one is reversible: `moos-control volume 40` (0–100, or " +
         "`up`/`down`), `moos-control mute` / `moos-control unmute`, `moos-control brightness 70` " +
         "(5–100, or `up`/`down`), `moos-control night-light on|off|auto`, `moos-control " +
-        "bluetooth on|off`, `moos-control wifi on|off` (Wi-Fi off also asks first — it " +
+        "bluetooth on|off` (Bluetooth off asks first — it disconnects wireless keyboards and " +
+        "mice), `moos-control wifi on|off` (Wi-Fi off also asks first — it " +
         "disconnects the internet, you and remote control), `moos-control screenshot`, " +
         "`moos-control theme dark|light|nova|amethyst|midnight|aurora|auto`, `moos-control open " +
-        "<installed-app-id>` (e.g. `moos-control open org.mozilla.firefox`) and `moos-control " +
+        "<installed-app-id>` (e.g. `moos-control open org.mozilla.firefox`), the desktop " +
+        "itself: `moos-control window overview|grid|show-desktop`, `moos-control arrange " +
+        "halves|thirds|quarters|main|centre` (arranges the windows on the current screen), " +
+        "`moos-control desktop next|previous`, `moos-control dnd on|off` (do not disturb), " +
+        "`moos-control mic mute|unmute` (the microphone, not the speakers; unmute asks " +
+        "first), `moos-control " +
+        "keyboard-layout next`, `moos-control motion still|gentle|alive` (wallpaper motion), " +
+        "`moos-control clarity clear|balanced|solid` (glass), `moos-control power-profile " +
+        "power-saver|balanced|performance`, and `moos-control " +
         "settings <page>` for the exact settings page (display, night-light, audio, network, " +
-        "bluetooth, keyboard, mouse, themes, wallpaper, fonts, energy, time, region, users, " +
-        "storage, update). Offer these only when the user wants the change; for “how do I…” " +
-        "questions explain instead.\n" +
+        "bluetooth, keyboard, mouse, touchpad, printers, themes, wallpaper, fonts, " +
+        "accessibility, notifications, energy, " +
+        "time, region, users, about, storage, update, whats-new, assistant, remote, recovery, " +
+        "global-theme, colors, icons, cursors, shortcuts, window-behavior, window-rules, " +
+        "effects, desktops, task-switcher, login-screen, game-controller). Offer these only " +
+        "when the user wants the change; for “how do I…” questions explain instead.\n" +
         "• YOUR DAILY CHECK: MoOS runs a read-only check every day — app and system updates, " +
         "what is using the machine and why, security signs (ports open to the network, " +
         "suspicious startup entries, user services or shell lines, programs running from " +
@@ -626,8 +638,9 @@ Kirigami.ApplicationWindow {
         "turns it off for a plain direct reply. Offer the install when the user wants multi-step " +
         "project work done for them.\n" +
         "• Phone agent: `moai-do install-openclaw` installs and fully configures the " +
-        "Telegram agent on Mo AI's cloud brain. `moai-do setup-brain` opens the brain " +
-        "settings (cloud provider and model). Both are fixed, confirmed actions.\n" +
+        "Telegram agent on Mo AI's cloud brain; it is a fixed, confirmed action. The brain " +
+        "itself (cloud provider and model) is set on the Mo AI page of System Settings: " +
+        "`moos-control settings assistant`.\n" +
         "• Diagnose: explain the likely cause in plain language, then give the " +
         "SMALLEST safe repair.\n\n" +
         "WHICH BRAIN YOU ARE: the user picks it per conversation, from the chip next " +
@@ -1366,7 +1379,7 @@ Kirigami.ApplicationWindow {
     // tests/verify_user_experience.py now compares this list against the prompt.
     function extractRuns(text) {
         const out = []
-        const re = /moai-do\s+(update-firmware|update-apps|update|fix-audio|check-drivers|optimize|hw-report|diagnose-services|inspect-boot|install-nvidia|setup-waydroid|setup-gaming|setup-windows|install-codex|install-claude|install-opencode|install-hermes|install-openclaw|setup-brain|rollback|net-doctor|gpu-report)\b/g
+        const re = /moai-do\s+(update-firmware|update-apps|update|fix-audio|check-drivers|optimize|diagnose-services|inspect-boot|install-nvidia|setup-waydroid|setup-gaming|setup-windows|install-codex|install-claude|install-opencode|install-hermes|install-openclaw|setup-brain|rollback|net-doctor|gpu-report)\b/g
         let m
         while ((m = re.exec(text)) !== null)
             if (out.indexOf(m[1]) === -1)
@@ -1391,7 +1404,7 @@ Kirigami.ApplicationWindow {
         // settings page). The grammar is closed — only these exact shapes become
         // buttons — and nothing runs until the user taps one; moos-open then
         // validates the shape again.
-        const ctl = /moos-control\s+(volume\s+(?:100|[0-9]{1,2}|up|down)|mute|unmute|brightness\s+(?:100|[1-9][0-9]|[5-9]|up|down)|night-light\s+(?:on|off|auto)|wifi\s+(?:on|off)|bluetooth\s+(?:on|off)|screenshot|theme\s+(?:dark|light|nova|amethyst|midnight|aurora|auto)|open\s+[A-Za-z0-9][A-Za-z0-9._-]{2,254}|settings\s+(?:display|night-light|audio|network|bluetooth|keyboard|mouse|touchpad|printers|themes|wallpaper|fonts|accessibility|notifications|energy|time|region|users|about|storage|update|default-apps|autostart|lock|permissions))\b/g
+        const ctl = /moos-control\s+(volume\s+(?:100|[0-9]{1,2}|up|down)|mute|unmute|brightness\s+(?:100|[1-9][0-9]|[5-9]|up|down)|night-light\s+(?:on|off|auto)|wifi\s+(?:on|off)|bluetooth\s+(?:on|off)|screenshot|theme\s+(?:dark|light|nova|amethyst|midnight|aurora|auto)|open\s+[A-Za-z0-9][A-Za-z0-9._-]{2,254}|window\s+(?:overview|grid|show-desktop)|arrange\s+(?:halves|thirds|quarters|main|centre)|desktop\s+(?:next|previous)|dnd\s+(?:on|off)|mic\s+(?:mute|unmute)|keyboard-layout\s+(?:next)|motion\s+(?:still|gentle|alive)|clarity\s+(?:clear|balanced|solid)|power-profile\s+(?:power-saver|balanced|performance)|settings\s+(?:display|night-light|audio|network|bluetooth|keyboard|mouse|touchpad|printers|themes|wallpaper|fonts|accessibility|notifications|energy|time|region|users|about|storage|update|default-apps|autostart|lock|permissions|overview|whats-new|assistant|remote|recovery|appearance|global-theme|colors|icons|cursors|window-decoration|animations|sounds|shortcuts|window-behavior|window-rules|effects|desktops|task-switcher|search|login-screen|virtual-keyboard|touchscreen|tablet|game-controller))\b/g
         while ((m = ctl.exec(text)) !== null) {
             const spec = "control:" + m[1].trim().replace(/\s+/g, "/")
             if (out.indexOf(spec) === -1)
@@ -1437,6 +1450,24 @@ Kirigami.ApplicationWindow {
         case "theme": return root.local("المظهر: " + v, "Theme: " + v)
         case "open": return root.local("افتح " + v, "Open " + v)
         case "settings": return root.local("الإعدادات: " + v, "Settings: " + v)
+        case "window":
+            return v === "overview" ? root.local("نظرة عامة على النوافذ", "Window overview")
+                 : v === "grid" ? root.local("شبكة أسطح المكتب", "Desktop grid")
+                 : root.local("أظهر سطح المكتب", "Show desktop")
+        case "arrange": return root.local("رتّب النوافذ: " + v, "Arrange windows: " + v)
+        case "desktop":
+            return v === "next" ? root.local("سطح المكتب التالي", "Next desktop")
+                                : root.local("سطح المكتب السابق", "Previous desktop")
+        case "dnd":
+            return v === "on" ? root.local("شغّل عدم الإزعاج", "Do not disturb on")
+                              : root.local("أطفئ عدم الإزعاج", "Do not disturb off")
+        case "mic":
+            return v === "mute" ? root.local("اكتم الميكروفون", "Mute microphone")
+                                : root.local("شغّل الميكروفون", "Unmute microphone")
+        case "keyboard-layout": return root.local("بدّل لغة لوحة المفاتيح", "Next keyboard layout")
+        case "motion": return root.local("حركة الخلفية: " + v, "Wallpaper motion: " + v)
+        case "clarity": return root.local("وضوح الزجاج: " + v, "Glass clarity: " + v)
+        case "power-profile": return root.local("وضع الطاقة: " + v, "Power profile: " + v)
         }
         return spec
     }
