@@ -7,6 +7,11 @@
 //   mo-remote/presence-<active|paused>-<sessions>                 Mo PC Remote (since rev 52)
 //   moos-store/job-<action>-<state>-<progress|x>-<id>             moos-storectl
 //   moos-privacy/active-<screen|camera|mic>-<node>[-<app>]        moos-privacy-monitor
+//   moai-jobs/job-<id8hex>-<running|done|failed>-<tool>           moai-control (rev 86)
+//
+// A producer RENAMES a token as its state changes. A same-count rename changes no count: Qt 6.11's
+// FolderListModel reports it as dataChanged plus a Loading -> Ready status cycle (measured
+// 2026-09-24), so every Island model syncs on count, data AND status.
 //
 // <id> and <app> are percent-encoded with "-" written as %2D, so "-" only ever separates fields.
 // Pure functions, no Qt: tests/test_island_tokens.py runs this file in node.
@@ -15,6 +20,26 @@
 var STORE_ACTIONS = ["install", "remove", "update"];
 var STORE_STATES = ["starting", "running", "success", "failed", "cancelled"];
 var PRIVACY_TYPES = ["screen", "camera", "mic"];
+var MOAI_JOB_STATES = ["running", "done", "failed"];
+
+// What a confirmed Mo AI job is DOING, in the person's words. The token carries the tool id only
+// (never arguments or secrets); ids come from moai_tool_schemas.py and
+// tests/test_island_tokens.py fails when a confirmed tool has no words here.
+var MOAI_JOB_LABELS = {
+    install_app: ["تثبيت تطبيق", "Installing an app"],
+    uninstall_app: ["إزالة تطبيق", "Removing an app"],
+    update_apps: ["تحديث التطبيقات", "Updating apps"],
+    system_update: ["تحديث MoOS", "Updating MoOS"],
+    update_firmware: ["تحديث البرامج الثابتة", "Updating firmware"],
+    system_rollback: ["استعادة النظام السابق", "Restoring the previous system"],
+    fix_audio: ["إصلاح الصوت", "Repairing sound"],
+    optimize_system: ["تحسين النظام", "Optimizing the system"],
+    install_nvidia: ["تثبيت تعريف الرسوميات", "Installing the graphics driver"],
+    setup_gaming: ["تجهيز الألعاب", "Setting up gaming"],
+    setup_windows: ["تجهيز تطبيقات ويندوز", "Setting up Windows apps"],
+    setup_waydroid: ["تجهيز تطبيقات أندرويد", "Setting up Android apps"],
+    remote_anywhere: ["تجهيز الوصول عن بُعد", "Setting up remote access"]
+};
 
 function decodeField(text) {
     try { return decodeURIComponent(String(text || "")); }
@@ -98,4 +123,46 @@ function choosePrivacyToken(fileNames) {
         if (stream && (!best || order[stream.type] > order[best.type])) { best = stream; }
     }
     return best;
+}
+
+// -> null, or { id, state, tool, active, finished }
+// `id` is eight lowercase hex digits and `tool` is [a-z_]{1,40}: nothing a person typed, and
+// nothing a hostile name can smuggle into another field.
+function parseMoaiJobToken(fileName) {
+    var match = /^job-([0-9a-f]{8})-([a-z]+)-([a-z_]{1,40})$/.exec(String(fileName || ""));
+    if (!match || MOAI_JOB_STATES.indexOf(match[2]) === -1) { return null; }
+    return {
+        id: match[1],
+        state: match[2],
+        tool: match[3],
+        active: match[2] === "running",
+        finished: match[2] !== "running"
+    };
+}
+
+// The job the Island shows, plus how many are still running. A running job outranks a finished
+// one; among finished ones a failure outranks a success (it is the one that needs the person).
+// Ties resolve by id so every render of the same directory agrees.
+function chooseMoaiJobToken(fileNames) {
+    var best = null;
+    var running = 0;
+    var rank = { done: 1, failed: 2, running: 3 };
+    for (var index = 0; index < fileNames.length; ++index) {
+        var job = parseMoaiJobToken(fileNames[index]);
+        if (!job) { continue; }
+        if (job.active) { ++running; }
+        if (!best || rank[job.state] > rank[best.state]
+                || (rank[job.state] === rank[best.state] && job.id > best.id)) {
+            best = job;
+        }
+    }
+    if (best) { best.running = running; }
+    return best;
+}
+
+// [arabic, english] for a tool id; a tool without words gets a generic, honest label.
+function moaiJobLabel(tool) {
+    var label = Object.prototype.hasOwnProperty.call(MOAI_JOB_LABELS, tool)
+        ? MOAI_JOB_LABELS[tool] : null;
+    return label ? label.slice() : ["إجراء من Mo AI", "A Mo AI action"];
 }

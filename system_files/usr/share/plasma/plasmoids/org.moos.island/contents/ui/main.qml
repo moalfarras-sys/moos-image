@@ -4,8 +4,8 @@
 // media service and not a tray icon. Plasma's Mpris2Model remains the single
 // source of truth and chooses the active player, including browsers that expose
 // MPRIS through Media Session. The Island always occupies one medium, fixed
-// slot: Search owns it at rest; Remote, privacy, Store and media replace the
-// contents without moving a single neighbouring task icon.
+// slot: Search owns it at rest; Remote, privacy, Store, Mo AI jobs and media
+// replace the contents without moving a single neighbouring task icon.
 //
 // Motion is contextual only: content cross-fades and settles inside fixed
 // geometry, while the progress timer runs only when media is playing and
@@ -190,6 +190,7 @@ PlasmoidItem {
         showDirs: false
         sortField: FolderListModel.Name
         onCountChanged: root.syncRemotePresence()
+        onDataChanged: root.syncRemotePresence()
         onStatusChanged: if (status === FolderListModel.Ready) {
             root.syncRemotePresence();
         }
@@ -203,6 +204,7 @@ PlasmoidItem {
         showDirs: false
         sortField: FolderListModel.Name
         onCountChanged: root.syncPrivacyPresence()
+        onDataChanged: root.syncPrivacyPresence()
         onStatusChanged: if (status === FolderListModel.Ready) {
             root.syncPrivacyPresence();
         }
@@ -258,6 +260,7 @@ PlasmoidItem {
         showDirs: false
         sortField: FolderListModel.Name
         onCountChanged: root.syncStoreJob()
+        onDataChanged: root.syncStoreJob()
         onStatusChanged: if (status === FolderListModel.Ready) {
             root.syncStoreJob();
         }
@@ -343,6 +346,93 @@ PlasmoidItem {
         }
         root.storeJobMessage = root.storeJobSource;
         storeJobFinishTimer.restart();
+    }
+
+    // ── Mo AI Job Presence (confirmed actions) ─────────────────────────────────────
+    // moai-control publishes one token per confirmed job, `job-<id8hex>-<state>-<tool>`, in the
+    // runtime directory and RENAMES it as the job runs, finishes or fails (done/failed tokens are
+    // removed after 20 s). A rename changes no count, so this model — like the three above —
+    // syncs on count, data and status (see IslandTokens.js). The name carries the tool id only — no arguments, no secrets — and the
+    // chip opens Mo AI, where the person sees the steps. It ranks below Remote, privacy and the
+    // Store: those are safety states or work the person started by hand.
+    FolderListModel {
+        id: moaiJobPresence
+        folder: root.runtimeFileUrl("moai-jobs")
+        nameFilters: ["job-*"]
+        showDirs: false
+        sortField: FolderListModel.Name
+        onCountChanged: root.syncMoaiJob()
+        onDataChanged: root.syncMoaiJob()
+        onStatusChanged: if (status === FolderListModel.Ready) {
+            root.syncMoaiJob();
+        }
+    }
+
+    property bool moaiJobPresent: false
+    property bool moaiJobActive: false
+    property string moaiJobState: "running"
+    property string moaiJobTitle: ""
+    property string moaiJobCompact: ""
+    property string moaiJobSource: ""
+    readonly property string moaiJobIcon: "moos-ai-symbolic"
+
+    Timer {
+        id: moaiJobFinishTimer
+        interval: 5000
+        repeat: false
+        onTriggered: {
+            root.moaiJobPresent = false;
+        }
+    }
+
+    function syncMoaiJob() {
+        const names = [];
+        for (let i = 0; i < moaiJobPresence.count; ++i) {
+            names.push(String(moaiJobPresence.get(i, "fileName") || ""));
+        }
+        const job = IslandTokens.chooseMoaiJobToken(names);
+        if (!job) {
+            root.moaiJobActive = false;
+            if (!moaiJobFinishTimer.running) { root.moaiJobPresent = false; }
+            return;
+        }
+        const words = IslandTokens.moaiJobLabel(job.tool);
+        const label = root.local(words[0], words[1]);
+        root.moaiJobState = job.state;
+
+        if (job.active) {
+            root.moaiJobActive = true;
+            root.moaiJobPresent = true;
+            moaiJobFinishTimer.stop();
+            root.moaiJobCompact = label;
+            // Arabic leads with its own words and isolates the Latin name, so the
+            // line keeps an RTL paragraph direction.
+            root.moaiJobTitle = root.local(label + " · \u2068Mo AI\u2069", "Mo AI · " + label);
+            root.moaiJobSource = job.running > 1
+                ? root.local(job.running + " إجراءات قيد التنفيذ · افتح Mo AI",
+                             job.running + " actions running · open Mo AI")
+                : root.local("قيد التنفيذ · التفاصيل في Mo AI",
+                             "Working · details in Mo AI");
+            return;
+        }
+        // Like a Store job: a finished token is shown only as the END of a job this session
+        // watched run, so a shell restart inside the producer's 20 s window stays quiet.
+        if (!root.moaiJobActive) { return; }
+        root.moaiJobActive = false;
+        if (job.state === "done") {
+            root.moaiJobCompact = root.local("اكتمل: " + label, label + " — done");
+            root.moaiJobTitle = root.moaiJobCompact;
+            root.moaiJobSource = root.local("تم بنجاح", "Completed");
+        } else {
+            root.moaiJobCompact = root.local("تعذّر: " + label, label + " — failed");
+            root.moaiJobTitle = root.moaiJobCompact;
+            root.moaiJobSource = root.local("افتح Mo AI لمعرفة السبب", "Open Mo AI to see why");
+        }
+        moaiJobFinishTimer.restart();
+    }
+    function openMoAI() {
+        root.expanded = false;
+        Qt.openUrlExternally("moos://app/moai");
     }
 
     // Mpris2Model deliberately owns active-player selection. Building another
@@ -443,19 +533,23 @@ PlasmoidItem {
     readonly property bool multipleContexts: (root.remotePresent ? 1 : 0)
         + (root.privacyPresent ? 1 : 0)
         + (root.storeJobPresent ? 1 : 0)
+        + (root.moaiJobPresent ? 1 : 0)
         + (root.mediaPresent ? 1 : 0) > 1
     readonly property bool showRemoteDetails: root.remotePresent
-        && (root.detailContext === "remote" || (!root.mediaPresent && !root.privacyPresent && !root.storeJobPresent))
+        && (root.detailContext === "remote" || (!root.mediaPresent && !root.privacyPresent && !root.storeJobPresent && !root.moaiJobPresent))
     readonly property bool showPrivacyDetails: root.privacyPresent
-        && (root.detailContext === "privacy" || (!root.remotePresent && !root.storeJobPresent && !root.mediaPresent))
+        && (root.detailContext === "privacy" || (!root.remotePresent && !root.storeJobPresent && !root.moaiJobPresent && !root.mediaPresent))
     readonly property bool showStoreDetails: root.storeJobPresent
-        && (root.detailContext === "store" || (!root.remotePresent && !root.privacyPresent && !root.mediaPresent))
+        && (root.detailContext === "store" || (!root.remotePresent && !root.privacyPresent && !root.moaiJobPresent && !root.mediaPresent))
+    readonly property bool showMoaiDetails: root.moaiJobPresent
+        && (root.detailContext === "moai" || (!root.remotePresent && !root.privacyPresent && !root.storeJobPresent && !root.mediaPresent))
     readonly property bool showMediaDetails: root.mediaPresent
-        && (root.detailContext === "media" || (!root.remotePresent && !root.privacyPresent && !root.storeJobPresent))
+        && (root.detailContext === "media" || (!root.remotePresent && !root.privacyPresent && !root.storeJobPresent && !root.moaiJobPresent))
     function openDetails() {
         if (root.remotePresent) { root.detailContext = "remote"; }
         else if (root.privacyPresent) { root.detailContext = "privacy"; }
         else if (root.storeJobPresent) { root.detailContext = "store"; }
+        else if (root.moaiJobPresent) { root.detailContext = "moai"; }
         else { root.detailContext = "media"; }
         root.expanded = true;
     }
@@ -537,6 +631,7 @@ PlasmoidItem {
     readonly property bool active: root.remotePresent
                                    || root.privacyPresent
                                    || root.storeJobPresent
+                                   || root.moaiJobPresent
                                    || root.mediaPresent
                                    || releaseGrace.running
     readonly property string contextTitle: !root.active
@@ -547,7 +642,9 @@ PlasmoidItem {
             ? root.privacyTitle
             : (root.storeJobPresent
                 ? root.storeJobTitle
-                : root.displayTrack))
+                : (root.moaiJobPresent
+                    ? root.moaiJobTitle
+                    : root.displayTrack)))
     // The bar is glanceable, not a transcript. Keep a concise label inside the
     // compact frame and reserve the complete sentence for the tooltip/popup.
     readonly property string compactTitle: !root.active
@@ -560,7 +657,8 @@ PlasmoidItem {
                 : (root.privacyType === "camera"
                     ? root.local("الكاميرا نشطة", "Camera active")
                     : root.local("الميكروفون نشط", "Microphone active")))
-            : (root.storeJobPresent ? root.storeJobTitle : root.displayTrack))
+            : (root.storeJobPresent ? root.storeJobTitle
+                : (root.moaiJobPresent ? root.moaiJobCompact : root.displayTrack)))
     readonly property string contextSource: !root.active
         ? root.local("تطبيقات وملفات وإعدادات", "Apps, files and settings")
         : root.remotePresent
@@ -569,7 +667,9 @@ PlasmoidItem {
             ? root.privacySource
             : (root.storeJobPresent
                 ? root.storeJobSource
-                : root.displaySource))
+                : (root.moaiJobPresent
+                    ? root.moaiJobSource
+                    : root.displaySource)))
     readonly property string contextIcon: !root.active
         ? "moos-search-symbolic"
         : root.remotePresent
@@ -578,7 +678,9 @@ PlasmoidItem {
             ? root.privacyIcon
             : (root.storeJobPresent
                 ? root.storeJobIcon
-                : root.playerIcon))
+                : (root.moaiJobPresent
+                    ? root.moaiJobIcon
+                    : root.playerIcon)))
 
     onMediaPresentChanged: {
         if (root.mediaPresent) { releaseGrace.stop(); }
@@ -903,6 +1005,7 @@ PlasmoidItem {
                         visible: !root.remotePresent
                                  && !root.privacyPresent
                                  && !root.storeJobPresent
+                                 && !root.moaiJobPresent
                                  && root.artworkSource.length > 0
                                  && status === Image.Ready
                         onStatusChanged: if (status === Image.Error
@@ -1121,6 +1224,7 @@ PlasmoidItem {
                     slotSize: 34
                     revealed: root.mediaPresent && !root.remotePresent
                               && !root.privacyPresent && !root.storeJobPresent
+                              && !root.moaiJobPresent
                     controlEnabled: root.playing
                         ? root.canPause : (root.canPlay || root.canControl)
                     iconName: root.playing ? "media-playback-pause-symbolic"
@@ -1150,6 +1254,17 @@ PlasmoidItem {
                     onActivated: Qt.openUrlExternally("moos://app/store")
                 }
 
+                // Quick open for a confirmed Mo AI job: the steps live in Mo AI.
+                MediaControl {
+                    slotSize: 34
+                    revealed: !root.remotePresent && !root.privacyPresent
+                              && !root.storeJobPresent && root.moaiJobPresent
+                    controlEnabled: true
+                    iconName: root.moaiJobIcon
+                    label: root.local("فتح Mo AI", "Open Mo AI")
+                    onActivated: root.openMoAI()
+                }
+
                 MediaControl {
                     slotSize: 34
                     revealed: root.remotePresent
@@ -1177,7 +1292,8 @@ PlasmoidItem {
                 Layout.preferredHeight: 3
                 Layout.leftMargin: compactShell.radius * 0.35
                 Layout.rightMargin: compactShell.radius * 0.35
-                visible: (!root.remotePresent && !root.privacyPresent && !root.storeJobPresent && root.hasTimeline)
+                visible: (!root.remotePresent && !root.privacyPresent && !root.storeJobPresent
+                          && !root.moaiJobPresent && root.hasTimeline)
                          || (!root.remotePresent && !root.privacyPresent && root.storeJobPresent && root.storeJobProgress > 0)
 
                 Rectangle {
@@ -1215,7 +1331,8 @@ PlasmoidItem {
                                            : Kirigami.Units.gridUnit * 30
         Layout.preferredHeight: root.active
             ? Kirigami.Units.gridUnit
-                * ((root.showRemoteDetails || root.showPrivacyDetails || root.showStoreDetails) ? 13 : 17)
+                * ((root.showRemoteDetails || root.showPrivacyDetails || root.showStoreDetails
+                    || root.showMoaiDetails) ? 13 : 17)
                 + (root.multipleContexts ? 48 : 0)
             // The Island popup grows upward from a bottom panel. The retired
             // standalone Search applet used 28 units, but that height crossed
@@ -1226,7 +1343,8 @@ PlasmoidItem {
                                          : Math.min(400, Screen.width - 24)
         Layout.minimumHeight: root.active
             ? Kirigami.Units.gridUnit
-                * ((root.showRemoteDetails || root.showPrivacyDetails || root.showStoreDetails) ? 12 : 15)
+                * ((root.showRemoteDetails || root.showPrivacyDetails || root.showStoreDetails
+                    || root.showMoaiDetails) ? 12 : 15)
                 + (root.multipleContexts ? 48 : 0)
             : Kirigami.Units.gridUnit * 16
         Layout.maximumHeight: root.active
@@ -1285,7 +1403,9 @@ PlasmoidItem {
             anchors.right: parent.right
             anchors.margins: root.design.space4
             visible: root.active && root.multipleContexts
-            currentIndex: root.showRemoteDetails ? 0 : (root.showPrivacyDetails ? 1 : (root.showStoreDetails ? 2 : 3))
+            currentIndex: root.showRemoteDetails ? 0
+                : (root.showPrivacyDetails ? 1
+                    : (root.showStoreDetails ? 2 : (root.showMoaiDetails ? 3 : 4)))
             LayoutMirroring.enabled: root.rtl
             LayoutMirroring.childrenInherit: true
             PC3.TabButton {
@@ -1305,6 +1425,12 @@ PlasmoidItem {
                 text: root.local("المتجر", "Store")
                 icon.name: root.storeJobIcon
                 onClicked: root.detailContext = "store"
+            }
+            PC3.TabButton {
+                visible: root.moaiJobPresent
+                text: "Mo AI"
+                icon.name: root.moaiJobIcon
+                onClicked: root.detailContext = "moai"
             }
             PC3.TabButton {
                 visible: root.mediaPresent
@@ -1602,6 +1728,84 @@ PlasmoidItem {
                 text: root.local("فتح متجر Mo Store", "Open Mo Store")
                 icon.name: "moos-store"
                 onClicked: Qt.openUrlExternally("moos://app/store")
+            }
+        }
+
+        ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: root.design.space5
+            anchors.topMargin: root.multipleContexts
+                ? contextTabs.height + root.design.space5 * 2 : root.design.space5
+            spacing: root.design.space4
+            visible: root.showMoaiDetails
+            layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: root.design.space4
+
+                Rectangle {
+                    Layout.preferredWidth: 76
+                    Layout.preferredHeight: 76
+                    radius: root.design.radiusCard
+                    color: Qt.alpha(root.moaiJobState === "failed"
+                        ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.highlightColor, 0.16)
+
+                    Kirigami.Icon {
+                        anchors.centerIn: parent
+                        width: 40
+                        height: 40
+                        source: root.moaiJobIcon
+                        color: root.moaiJobState === "failed"
+                            ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.highlightColor
+                    }
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: root.design.space1
+
+                    PlasmaExtras.Heading {
+                        Layout.fillWidth: true
+                        text: root.moaiJobTitle
+                        level: 3
+                        maximumLineCount: 2
+                        wrapMode: Text.Wrap
+                        horizontalAlignment: root.rtl ? Text.AlignRight : Text.AlignLeft
+                    }
+                    PC3.Label {
+                        Layout.fillWidth: true
+                        text: root.moaiJobSource
+                        color: Qt.alpha(Kirigami.Theme.textColor, 0.72)
+                        font.pixelSize: root.design.typeSecondary
+                        wrapMode: Text.Wrap
+                        horizontalAlignment: root.rtl ? Text.AlignRight : Text.AlignLeft
+                    }
+                }
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 1
+                color: Qt.alpha(Kirigami.Theme.textColor, 0.12)
+            }
+
+            PC3.Label {
+                Layout.fillWidth: true
+                text: root.local("وافقتَ على هذا الإجراء في Mo AI، وتظهر خطواته ونتيجته هناك.",
+                                 "You confirmed this action in Mo AI; its steps and result are shown there.")
+                wrapMode: Text.Wrap
+                color: Kirigami.Theme.textColor
+                horizontalAlignment: root.rtl ? Text.AlignRight : Text.AlignLeft
+            }
+
+            Item { Layout.fillHeight: true }
+
+            PC3.Button {
+                Layout.fillWidth: true
+                text: root.local("فتح Mo AI", "Open Mo AI")
+                icon.name: root.moaiJobIcon
+                onClicked: root.openMoAI()
             }
         }
 
