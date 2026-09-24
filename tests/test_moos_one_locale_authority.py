@@ -44,6 +44,10 @@ MODULE = REPO / "system_files/usr/lib64/qt6/qml/org/moos/ui"
 SURFACES = sorted(
     list((REPO / "system_files/usr/share/moos/apps").glob("*/main.qml"))
     + list((REPO / "system_files/usr/share/plasma/plasmoids").glob("*/contents/ui/main.qml"))
+    # MoOS's own pages inside System Settings: the settings surface lives here now, and it
+    # must answer "is this session Arabic" the same way as every other MoOS surface.
+    + list((REPO / "moos-settings-kcm/modules").glob("*/ui/*.qml"))
+    + list((REPO / "moos-settings-kcm/common").glob("*.qml"))
 )
 
 # The expression that silently answers "English" on an Arabic session.
