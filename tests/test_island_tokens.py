@@ -36,6 +36,15 @@ dataChanged plus a Loading -> Ready status cycle (measured), so a model that syn
 would freeze on "running". The producer end below writes the contract's names into a real
 directory; when a Qt runtime is present, a real FolderListModel wired like the Island's watches
 that directory and the shipped parser reads it.
+
+Two traps the review of THEME_REV 86 measured, both invisible to a fixture that set the stage:
+
+  * A FolderListModel started on a folder that does not exist yet never notices it appear, and
+    every producer creates its folder lazily, hours after plasmashell loaded the Island. The
+    folders are therefore created at login by usr/share/user-tmpfiles.d/moos-island.conf; the
+    real-model probe starts BEFORE the first job, in a runtime directory that conf prepared.
+  * The directory also holds tokens of jobs that ended earlier. The chip announces only the end
+    of a job the Island watched run, never a leftover failure for a retry that succeeded.
 """
 
 from __future__ import annotations
@@ -44,11 +53,14 @@ import importlib.machinery
 import importlib.util
 import json
 import os
+import queue
 import re
 import shutil
 import subprocess
 import sys
 import tempfile
+import threading
+import time
 import unittest
 from pathlib import Path
 
@@ -59,6 +71,8 @@ STORECTL = ROOT / "system_files/usr/bin/moos-storectl"
 MONITOR = ROOT / "system_files/usr/libexec/moos-privacy-monitor"
 SCHEMAS = ROOT / "system_files/usr/lib/moai/moai_tool_schemas.py"
 MOOS_OPEN = ROOT / "system_files/usr/bin/moos-open"
+# Creates every folder the Island watches at login, before plasmashell (review of rev 86).
+TMPFILES = ROOT / "system_files/usr/share/user-tmpfiles.d/moos-island.conf"
 QML_RUNTIME = next((name for name in ("qml6", "qml-qt6", "qml", "moos-qml-shell")
                     if shutil.which(name)), None)
 
@@ -217,13 +231,17 @@ class PrivacyChipsNameTheRealApp(unittest.TestCase):
 
 
 class MoaiJobs:
-    """The producer contract of spec D6, written into a real runtime directory."""
+    """The producer contract of spec D6, written into a real runtime directory.
+
+    Like moai-control's _publish_job_token, the folder is created LAZILY, by the first job. An
+    earlier version of this fixture created it up front, and so hid that a FolderListModel started
+    on a missing folder never notices it appear (see IslandFoldersExistBeforeTheShell)."""
 
     def __init__(self, runtime: Path):
         self.directory = runtime / "moai-jobs"
-        self.directory.mkdir(mode=0o700, parents=True, exist_ok=True)
 
     def start(self, job_id: str, tool: str) -> Path:
+        self.directory.mkdir(mode=0o700, parents=True, exist_ok=True)
         token = self.directory / f"job-{job_id}-running-{tool}"
         token.touch()
         return token
@@ -236,6 +254,16 @@ class MoaiJobs:
 
     def names(self) -> list[str]:
         return sorted(p.name for p in self.directory.glob("job-*"))
+
+
+def island_session(snapshots: list[list[str]]) -> list[str | None]:
+    """Replay directory snapshots through the shipped library exactly as the Island's syncMoaiJob
+    does: each call receives the previous call's runningIds. Returns what each sync would show."""
+    return island(
+        "(function () { var watched = []; return " + json.dumps(snapshots) + ".map("
+        "function (names) { var job = chooseMoaiJobToken(names, watched);"
+        " watched = job ? job.runningIds : [];"
+        " return job ? job.state + ':' + job.id + ':' + job.tool : null; }); })()")
 
 
 def schema_tools():
@@ -256,28 +284,80 @@ class MoaiJobsReachTheIsland(unittest.TestCase):
 
     def test_a_confirmed_job_is_visible_from_start_to_finish(self):
         self.jobs.start("0a1b2c3d", "install_app")
-        seen = island(f"chooseMoaiJobToken({json.dumps(self.jobs.names())})")
-        self.assertEqual((seen["id"], seen["state"], seen["tool"], seen["active"], seen["running"]),
-                         ("0a1b2c3d", "running", "install_app", True, 1))
+        seen = island(f"chooseMoaiJobToken({json.dumps(self.jobs.names())}, [])")
+        self.assertEqual((seen["id"], seen["state"], seen["tool"], seen["active"], seen["running"],
+                          seen["runningIds"]),
+                         ("0a1b2c3d", "running", "install_app", True, 1, ["0a1b2c3d"]))
         self.jobs.finish("0a1b2c3d", "install_app", "done")
         self.assertEqual(len(self.jobs.names()), 1, "a rename keeps one token")
-        seen = island(f"chooseMoaiJobToken({json.dumps(self.jobs.names())})")
-        self.assertEqual((seen["state"], seen["active"], seen["finished"], seen["running"]),
-                         ("done", False, True, 0))
+        seen = island(f"chooseMoaiJobToken({json.dumps(self.jobs.names())}, "
+                      f"{json.dumps(seen['runningIds'])})")
+        self.assertEqual((seen["state"], seen["active"], seen["finished"], seen["running"],
+                          seen["runningIds"]),
+                         ("done", False, True, 0, []))
 
     def test_a_running_job_outranks_a_finished_one_and_is_counted(self):
         self.jobs.start("00000001", "update_apps")
         self.jobs.finish("00000001", "update_apps", "failed")
         self.jobs.start("00000002", "fix_audio")
         self.jobs.start("00000003", "system_update")
-        seen = island(f"chooseMoaiJobToken({json.dumps(self.jobs.names())})")
+        seen = island(f"chooseMoaiJobToken({json.dumps(self.jobs.names())}, ['00000001'])")
         self.assertTrue(seen["active"], "work in progress outranks a finished job")
         self.assertEqual(seen["running"], 2)
+        self.assertEqual(seen["runningIds"], ["00000002", "00000003"])
         self.assertEqual(seen["id"], "00000003", "ties resolve the same way on every render")
-        # With nothing running, the failure is the one that needs the person.
+        # Two watched jobs that ended together: the failure is the one that needs the person.
         other = island('chooseMoaiJobToken(["job-000000aa-done-fix_audio",'
-                       ' "job-00000001-failed-update_apps"])')
+                       ' "job-00000001-failed-update_apps"], ["000000aa", "00000001"])')
         self.assertEqual((other["state"], other["tool"]), ("failed", "update_apps"))
+
+    def test_a_lingering_token_never_speaks_for_the_job_that_ended(self):
+        # Review of THEME_REV 86, measured on the station: C's confirmation-flow test left
+        # *-failed-fix_audio and *-done-optimize_system tokens in the owner's runtime directory.
+        # Chosen among ALL finished tokens, the next successful job would have read "failed".
+        stale_failure = "job-0000000b-failed-fix_audio"
+        self.assertEqual(island_session([
+            [stale_failure],                                          # before any job: quiet
+            [stale_failure, "job-0000000a-running-fix_audio"],        # the retry runs
+            [stale_failure, "job-0000000a-done-fix_audio"],           # ... and succeeds
+            [stale_failure, "job-0000000a-done-fix_audio"],           # the model re-reports
+        ]), [None, "running:0000000a:fix_audio", "done:0000000a:fix_audio", None])
+        # The same with a different tool: the chip names the action that ran, not a leftover.
+        self.assertEqual(island_session([
+            ["job-ffffffff-done-install_app", "job-0000000a-running-fix_audio"],
+            ["job-ffffffff-done-install_app", "job-0000000a-done-fix_audio"],
+        ]), ["running:0000000a:fix_audio", "done:0000000a:fix_audio"])
+        # The reviewer's direct calls, now with what the Island watched.
+        seen = island(f'chooseMoaiJobToken(["{stale_failure}", "job-0000000a-done-fix_audio"],'
+                      ' ["0000000a"])')
+        self.assertEqual((seen["id"], seen["state"]), ("0000000a", "done"))
+        self.assertIsNone(island(f'chooseMoaiJobToken(["{stale_failure}"], [])'),
+                          "a job this Island never saw run is never announced")
+        self.assertIsNone(island(f'chooseMoaiJobToken(["{stale_failure}"])'),
+                          "without a watched list nothing finished is announced")
+
+    def test_parallel_jobs_announce_the_one_that_ended_last(self):
+        self.assertEqual(island_session([
+            ["job-00000001-running-update_apps", "job-00000002-running-fix_audio"],
+            # 1 ends while 2 still runs: the chip keeps showing the work in progress ...
+            ["job-00000001-done-update_apps", "job-00000002-running-fix_audio"],
+            # ... and when 2 ends, it is 2 that is announced — 1's lingering success is old news.
+            ["job-00000001-done-update_apps", "job-00000002-failed-fix_audio"],
+        ]), ["running:00000002:fix_audio", "running:00000002:fix_audio",
+             "failed:00000002:fix_audio"])
+
+    def test_the_island_feeds_back_what_it_watched(self):
+        qml = "\n".join(l for l in (ISLAND / "main.qml").read_text(encoding="utf-8").splitlines()
+                        if not l.lstrip().startswith("//"))
+        sync = qml.split("function syncMoaiJob() {", 1)[1].split("\n    }\n", 1)[0]
+        call = "IslandTokens.chooseMoaiJobToken(names, root.moaiWatchedJobs);"
+        feed = "root.moaiWatchedJobs = job ? job.runningIds : [];"
+        self.assertIn("property var moaiWatchedJobs: []", qml)
+        self.assertIn(call, sync, "the Island must tell the library which jobs it watched run")
+        self.assertIn(feed, sync, "... and remember the ones running now for the next sync")
+        self.assertLess(sync.index(call), sync.index(feed))
+        self.assertLess(sync.index(feed), sync.index("if (!job)"),
+                        "the watched list must be updated on every sync, including an empty one")
 
     def test_a_name_outside_the_contract_is_never_shown(self):
         for name in ("job-0a1b2c3d-running-install_app-extra",   # a smuggled field
@@ -350,16 +430,112 @@ class MoaiJobsReachTheIsland(unittest.TestCase):
                                   "changes no count")
 
 
-@unittest.skipUnless(QML_RUNTIME, "a Qt QML runtime is needed to run a real FolderListModel")
+def island_folders() -> list[str]:
+    """Every runtime folder a FolderListModel in the Island watches, read from the shipped QML."""
+    qml = (ISLAND / "main.qml").read_text(encoding="utf-8")
+    return sorted(re.findall(r'folder:\s*root\.runtimeFileUrl\("([a-z-]+)"\)', qml))
+
+
+def prepare_runtime(runtime: Path, conf: Path = TMPFILES) -> None:
+    """What the user manager's systemd-tmpfiles-setup.service does at login, with the shipped
+    conf, into a private runtime directory (%t resolves to XDG_RUNTIME_DIR under --user)."""
+    runtime.mkdir(mode=0o700, parents=True, exist_ok=True)
+    env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": str(runtime.parent / "home"),
+           "XDG_RUNTIME_DIR": str(runtime),
+           "DBUS_SESSION_BUS_ADDRESS": f"unix:path={runtime.parent / 'no-bus'}"}
+    subprocess.run(["systemd-tmpfiles", "--user", "--create", str(conf)], env=env, check=True,
+                   capture_output=True, text=True, timeout=60)
+
+
+class IslandFoldersExistBeforeTheShell(unittest.TestCase):
+    """Review of THEME_REV 86: a FolderListModel started on a MISSING folder goes to status Null,
+    installs no watch and never notices the folder appear (measured with moos-qml-shell: folder
+    and token created 1.5 s after start, nothing seen after 4 s; created before start, seen).
+    Every producer creates its folder lazily, long after plasmashell loaded the Island, so a
+    user-tmpfiles.d entry creates each watched folder at login, before the shell starts."""
+
+    LINE = re.compile(r"^d\s+%t/([a-z-]+)\s+0700\s+-\s+-\s+-(?:\s+-)?\s*$")
+
+    def declared(self) -> list[str]:
+        folders = []
+        for line in TMPFILES.read_text(encoding="utf-8").splitlines():
+            if not line.strip() or line.lstrip().startswith("#"):
+                continue
+            match = self.LINE.match(line)
+            self.assertIsNotNone(match, f"{TMPFILES.name}: only private 'd %t/<folder>' lines "
+                                 f"belong here, got {line!r}")
+            folders.append(match.group(1))
+        return folders
+
+    def test_every_watched_folder_is_created_at_login(self):
+        watched = island_folders()
+        self.assertEqual(watched, ["mo-remote", "moai-jobs", "moos-privacy", "moos-store"],
+                         "the Island's FolderListModels changed: review this gate")
+        declared = self.declared()
+        self.assertEqual(len(declared), len(set(declared)), "a folder is declared twice")
+        self.assertEqual(sorted(declared), watched,
+                         "every folder the Island watches must exist before plasmashell starts "
+                         "(and a declared folder the Island does not watch is dead)")
+
+    @unittest.skipUnless(shutil.which("systemd-tmpfiles"), "systemd-tmpfiles is not installed")
+    def test_the_shipped_conf_creates_private_folders(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runtime = Path(tmp) / "run"
+            runtime.mkdir(mode=0o700)
+            (runtime / "moos-privacy").mkdir(mode=0o755)     # what moos-privacy-monitor makes
+            prepare_runtime(runtime)
+            for folder in island_folders():
+                with self.subTest(folder=folder):
+                    path = runtime / folder
+                    self.assertTrue(path.is_dir())
+                    self.assertEqual(path.stat().st_mode & 0o777, 0o700,
+                                     "presence tokens name apps and actions: owner only")
+
+
+class ProbeOutput:
+    """Lines the QML probe prints, readable with a deadline (the probe reports, the test acts)."""
+
+    def __init__(self, stream):
+        self.queue: queue.Queue = queue.Queue()
+        self.seen: list[str] = []
+        threading.Thread(target=self.pump, args=(stream,), daemon=True).start()
+
+    def pump(self, stream) -> None:
+        for line in stream:
+            self.queue.put(line.rstrip("\n"))
+        self.queue.put(None)
+
+    def wait_for(self, needle: str, timeout: float) -> bool:
+        deadline = time.monotonic() + timeout
+        while (remaining := deadline - time.monotonic()) > 0:
+            try:
+                line = self.queue.get(timeout=remaining)
+            except queue.Empty:
+                return False
+            if line is None:
+                return False
+            self.seen.append(line)
+            if needle in line:
+                return True
+        return False
+
+
+@unittest.skipUnless(QML_RUNTIME and shutil.which("systemd-tmpfiles"),
+                     "a Qt QML runtime and systemd-tmpfiles are needed to run a real "
+                     "FolderListModel in a login-prepared runtime directory")
 class ARealFolderListModelSeesTheRename(unittest.TestCase):
-    """The consumer half with Qt itself: the directory a producer renames, the shipped parser."""
+    """The consumer half with Qt itself, in the order a real session has: the runtime directory is
+    prepared at login by the shipped user-tmpfiles.d conf, the model starts (plasmashell), and only
+    THEN does the producer write its first token and rename it. The probe syncs exactly like the
+    Island's syncMoaiJob, feeding back the ids it watched run, and prints every state it shows."""
 
     PROBE = """
 import QtQuick
 import Qt.labs.folderlistmodel
 import "@TOKENS@" as IslandTokens
 Item {
-    property string seen: ""
+    property var watched: []
+    property string shown: ""
     FolderListModel {
         id: jobs
         folder: "@FOLDER@"
@@ -372,56 +548,81 @@ Item {
     function sync() {
         const names = [];
         for (let i = 0; i < jobs.count; ++i) { names.push(String(jobs.get(i, "fileName"))) }
-        const job = IslandTokens.chooseMoaiJobToken(names);
-        seen = job ? job.state : "";
+        const job = IslandTokens.chooseMoaiJobToken(names, watched);
+        watched = job ? job.runningIds : [];
+        const now = job ? job.state + ":" + job.id : "";
+        if (now !== "" && now !== shown) { console.warn("probe-state " + now); }
+        shown = now;
     }
-    Timer { interval: 700; running: true; onTriggered: Qt.exit(seen === "running" ? 0 : 90) }
+    Component.onCompleted: console.warn("probe-ready")
+    Timer { interval: 30000; running: true; onTriggered: Qt.exit(90) }
 }
 """
 
-    def test_the_state_follows_a_same_count_rename(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            jobs = MoaiJobs(root / "run")
-            jobs.start("0a1b2c3d", "install_app")
-            probe = root / "probe.qml"
-            # Exit 0 only if the model first saw "running" and then, after the rename below,
-            # "done"; the second timer measures the rename, the first one the start.
-            source = self.PROBE.replace("@TOKENS@", TOKENS_JS.as_uri()).replace(
-                "@FOLDER@", jobs.directory.as_uri())
-            source = source.replace(
-                'Timer { interval: 700; running: true; onTriggered: Qt.exit(seen === "running" ? 0 : 90) }',
-                'property bool started: false\n'
-                '    Timer { interval: 700; running: true; onTriggered: started = seen === "running" }\n'
-                '    Timer { interval: 2600; running: true;'
-                ' onTriggered: Qt.exit(started ? (seen === "done" ? 0 : 91) : 90) }')
-            probe.write_text(source, encoding="utf-8")
-            env = {key: value for key, value in os.environ.items()
-                   if key not in ("DISPLAY", "WAYLAND_DISPLAY", "DBUS_SESSION_BUS_ADDRESS")}
-            env.update({"QT_QPA_PLATFORM": "offscreen", "HOME": str(root / "home"),
-                        "XDG_RUNTIME_DIR": str(root / "run"),
-                        "XDG_CONFIG_HOME": str(root / "home/.config"),
-                        "XDG_CACHE_HOME": str(root / "home/.cache"),
-                        "XDG_DATA_HOME": str(root / "home/.local/share")})
-            (root / "home").mkdir()
-            command = ([QML_RUNTIME, "--app-id", "org.moos.island.review", "--qml", str(probe)]
-                       if QML_RUNTIME == "moos-qml-shell" else [QML_RUNTIME, str(probe)])
-            if shutil.which("dbus-run-session"):
-                command = ["dbus-run-session", "--"] + command
-            process = subprocess.Popen(command, env=env, stdout=subprocess.DEVNULL,
-                                       stderr=subprocess.PIPE, text=True)
-            import time
-            time.sleep(1.4)
-            jobs.finish("0a1b2c3d", "install_app", "done")
-            try:
-                _, stderr = process.communicate(timeout=60)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                self.fail("the QML probe did not exit")
-            self.assertEqual(process.returncode, 0,
-                             {90: "the model never reported the running job",
-                              91: "the model missed the running -> done rename"}.get(
-                                  process.returncode, stderr[-2000:]))
+    def run_session(self, before_start=None):
+        """Yields (jobs, output) with the probe running; the caller drives the producer."""
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        (root / "home").mkdir()
+        prepare_runtime(root / "run")
+        jobs = MoaiJobs(root / "run")
+        if before_start:
+            before_start(jobs)
+        probe = root / "probe.qml"
+        probe.write_text(self.PROBE.replace("@TOKENS@", TOKENS_JS.as_uri())
+                         .replace("@FOLDER@", jobs.directory.as_uri()), encoding="utf-8")
+        env = {key: value for key, value in os.environ.items()
+               if key not in ("DISPLAY", "WAYLAND_DISPLAY", "DBUS_SESSION_BUS_ADDRESS",
+                              "JOURNAL_STREAM", "QT_MESSAGE_PATTERN")}
+        env.update({"QT_QPA_PLATFORM": "offscreen", "QT_FORCE_STDERR_LOGGING": "1",
+                    "QT_LOGGING_RULES": "js.warning=true;qml.warning=true;default.warning=true",
+                    "HOME": str(root / "home"), "XDG_RUNTIME_DIR": str(root / "run"),
+                    "XDG_CONFIG_HOME": str(root / "home/.config"),
+                    "XDG_CACHE_HOME": str(root / "home/.cache"),
+                    "XDG_DATA_HOME": str(root / "home/.local/share")})
+        command = ([QML_RUNTIME, "--app-id", "org.moos.island.review", "--qml", str(probe)]
+                   if QML_RUNTIME == "moos-qml-shell" else [QML_RUNTIME, str(probe)])
+        if shutil.which("dbus-run-session"):
+            command = ["dbus-run-session", "--"] + command
+        process = subprocess.Popen(command, env=env, stdout=subprocess.DEVNULL,
+                                   stderr=subprocess.PIPE, text=True)
+
+        def stop():
+            process.kill()
+            process.wait(timeout=30)
+        self.addCleanup(stop)
+        output = ProbeOutput(process.stderr)
+        self.assertTrue(output.wait_for("probe-ready", 60),
+                        "the QML probe did not start:\n" + "\n".join(output.seen[-20:]))
+        return jobs, output
+
+    def test_a_model_started_at_login_sees_the_first_job_and_its_end(self):
+        jobs, output = self.run_session()
+        jobs.start("0a1b2c3d", "install_app")        # moai-control's first job: mkdir exist_ok
+        self.assertTrue(output.wait_for("probe-state running:0a1b2c3d", 10),
+                        "the Island never saw the first Mo AI job: its folder did not exist when "
+                        "the shell started (usr/share/user-tmpfiles.d/moos-island.conf)\n"
+                        + "\n".join(output.seen[-20:]))
+        jobs.finish("0a1b2c3d", "install_app", "done")
+        self.assertTrue(output.wait_for("probe-state done:0a1b2c3d", 10),
+                        "the model missed the same-count running -> done rename\n"
+                        + "\n".join(output.seen[-20:]))
+
+    def test_a_lingering_failure_never_speaks_for_a_success(self):
+        def stale(jobs: MoaiJobs) -> None:
+            jobs.start("0000000b", "fix_audio")
+            jobs.finish("0000000b", "fix_audio", "failed")
+        jobs, output = self.run_session(before_start=stale)
+        jobs.start("0000000a", "fix_audio")
+        self.assertTrue(output.wait_for("probe-state running:0000000a", 10),
+                        "\n".join(output.seen[-20:]))
+        jobs.finish("0000000a", "fix_audio", "done")
+        self.assertTrue(output.wait_for("probe-state done:0000000a", 10),
+                        "the retry succeeded, but the Island showed another job's end\n"
+                        + "\n".join(output.seen[-20:]))
+        self.assertFalse([line for line in output.seen if "0000000b" in line],
+                         "a failure the Island never watched run was announced")
 
 
 class TheShellNeverReadsALocalFile(unittest.TestCase):

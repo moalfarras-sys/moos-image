@@ -370,6 +370,10 @@ PlasmoidItem {
 
     property bool moaiJobPresent: false
     property bool moaiJobActive: false
+    // The ids this Island saw RUNNING at its last sync. Only one of them may be announced as done
+    // or failed: the directory also holds tokens of jobs that ended earlier, and one of those must
+    // never speak for the job that just ended (IslandTokens.chooseMoaiJobToken).
+    property var moaiWatchedJobs: []
     property string moaiJobState: "running"
     property string moaiJobTitle: ""
     property string moaiJobCompact: ""
@@ -390,7 +394,8 @@ PlasmoidItem {
         for (let i = 0; i < moaiJobPresence.count; ++i) {
             names.push(String(moaiJobPresence.get(i, "fileName") || ""));
         }
-        const job = IslandTokens.chooseMoaiJobToken(names);
+        const job = IslandTokens.chooseMoaiJobToken(names, root.moaiWatchedJobs);
+        root.moaiWatchedJobs = job ? job.runningIds : [];
         if (!job) {
             root.moaiJobActive = false;
             if (!moaiJobFinishTimer.running) { root.moaiJobPresent = false; }
@@ -416,7 +421,9 @@ PlasmoidItem {
             return;
         }
         // Like a Store job: a finished token is shown only as the END of a job this session
-        // watched run, so a shell restart inside the producer's 20 s window stays quiet.
+        // watched run, so a shell restart inside the producer's 20 s window stays quiet. The
+        // library returns a finished job only from moaiWatchedJobs; this guard is the second
+        // lock, so a re-reported directory can never announce the same end twice.
         if (!root.moaiJobActive) { return; }
         root.moaiJobActive = false;
         if (job.state === "done") {

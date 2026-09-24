@@ -140,23 +140,41 @@ function parseMoaiJobToken(fileName) {
     };
 }
 
-// The job the Island shows, plus how many are still running. A running job outranks a finished
-// one; among finished ones a failure outranks a success (it is the one that needs the person).
-// Ties resolve by id so every render of the same directory agrees.
-function chooseMoaiJobToken(fileNames) {
+// The job the Island shows, plus how many are still running and which ones.
+//
+// `watchedIds` is the `runningIds` of the caller's PREVIOUS call: the jobs the Island saw running
+// a moment ago. A running job always outranks a finished one (ties resolve by id, so every render
+// of the same directory agrees). A FINISHED token is shown only when its job is one of those
+// watched ids: the directory also holds tokens of jobs that ended earlier (they linger for 20 s,
+// and a producer that dies leaves them for good), and choosing among ALL finished tokens once
+// said "Repairing sound — failed" about a retry that had just succeeded. Among watched jobs that
+// ended together, a failure outranks a success: it is the one that needs the person.
+//
+// -> null, or { id, state, tool, active, finished, running, runningIds }
+// null means nothing is running and no watched job ended, so the caller watches nothing next.
+function chooseMoaiJobToken(fileNames, watchedIds) {
+    var watched = Array.isArray(watchedIds) ? watchedIds : [];
     var best = null;
-    var running = 0;
+    var runningIds = [];
     var rank = { done: 1, failed: 2, running: 3 };
     for (var index = 0; index < fileNames.length; ++index) {
         var job = parseMoaiJobToken(fileNames[index]);
         if (!job) { continue; }
-        if (job.active) { ++running; }
+        if (job.active) {
+            if (runningIds.indexOf(job.id) === -1) { runningIds.push(job.id); }
+        } else if (watched.indexOf(job.id) === -1) {
+            continue;                   // it ended before this Island watched it run
+        }
         if (!best || rank[job.state] > rank[best.state]
                 || (rank[job.state] === rank[best.state] && job.id > best.id)) {
             best = job;
         }
     }
-    if (best) { best.running = running; }
+    if (best) {
+        runningIds.sort();
+        best.running = runningIds.length;
+        best.runningIds = runningIds;
+    }
     return best;
 }
 
