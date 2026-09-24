@@ -128,6 +128,10 @@ PROGRAMS = ("moos-settings", "systemsettings", "kinfocenter", "firewall-config")
 UPSTREAM_NOTIFIER = ("[Desktop Entry]\nName=Discover\nExec=/usr/libexec/DiscoverNotifier "
                      "--check-delay 20\nType=Application\nNoDisplay=true\n")
 UPSTREAM_POLICY = "[Global]\nUseUnattendedUpdates=true\nRequiredNotificationInterval=604800\n"
+# What plasma-discover-notifier 6.7.5's binary carries (measured): the policy file's name as
+# UTF-16 (a QStringLiteral) and the key in both encodings.
+NOTIFIER_BINARY = (b"\x7fELF..." + "PlasmaDiscoverUpdates".encode("utf-16-le") + b"\0"
+                   + b"UseUnattendedUpdates\0" + "UseUnattendedUpdates".encode("utf-16-le"))
 
 
 def write(path: Path, text: str, mode: int | None = None) -> None:
@@ -144,7 +148,10 @@ def fixture(tree: Path, *, overlay: bool = True) -> Path:
         write(apps / name, text)
     for program in PROGRAMS:
         write(tree / "usr/bin" / program, "#!/bin/sh\n", 0o755)
-    write(tree / "usr/libexec/DiscoverNotifier", "", 0o755)
+    notifier = tree / "usr/libexec/DiscoverNotifier"
+    notifier.parent.mkdir(parents=True, exist_ok=True)
+    notifier.write_bytes(NOTIFIER_BINARY)
+    notifier.chmod(0o755)
     write(tree / "usr/share/systemsettings/categories/settings-security-privacy.desktop",
           "[Desktop Entry]\nX-KDE-System-Settings-Category=security-privacy\n"
           "X-KDE-System-Settings-Parent-Category=\nName=Security & Privacy\n")
@@ -400,7 +407,7 @@ class CurateAppMenuRun(unittest.TestCase):
             tree = fixture(Path(tmp), overlay=False)
             result = curate(tree)
             self.assertEqual(result.returncode, 1)
-            self.assertIn("update notifier still autostarts", result.stdout)
+            self.assertIn("starts Discover's updater at login", result.stdout)
             self.assertIn("UseUnattendedUpdates=false", result.stdout)
             self.assertIn("firewall would be unreachable", result.stdout)
 
@@ -518,11 +525,51 @@ class CurateAppMenuGateBites(unittest.TestCase):
 
     def test_the_notifier_autostarting(self):
         write(self.tree / "etc/xdg/autostart/org.kde.discover.notifier.desktop", UPSTREAM_NOTIFIER)
-        self.assertBites("update notifier still autostarts")
+        self.assertBites("starts Discover's updater at login")
+
+    def test_the_notifier_renamed_upstream(self):
+        # The review's probe: MoOS's override still sits at the old name, Hidden=true, while
+        # the package now installs its entry under another one.
+        write(self.tree / "etc/xdg/autostart/org.kde.discover.notifier-autostart.desktop",
+              UPSTREAM_NOTIFIER)
+        self.assertBites("org.kde.discover.notifier-autostart.desktop starts Discover's updater")
+
+    def test_a_notifier_in_the_other_autostart_directory(self):
+        write(self.tree / "usr/share/autostart/org.kde.discover.notifier.desktop", UPSTREAM_NOTIFIER)
+        self.assertBites("usr/share/autostart/org.kde.discover.notifier.desktop starts")
+
+    def test_an_update_run_started_at_login(self):
+        write(self.tree / "etc/xdg/autostart/discover-update.desktop",
+              "[Desktop Entry]\nType=Application\nName=Updates\n"
+              "Exec=plasma-discover --mode update\n")
+        self.assertBites("discover-update.desktop starts Discover's updater")
 
     def test_unattended_updates_on(self):
         write(self.tree / "etc/xdg/PlasmaDiscoverUpdates", UPSTREAM_POLICY)
         self.assertBites("UseUnattendedUpdates=false")
+
+    def test_the_binary_moved_and_the_policy_restored(self):
+        # The review's probe: the policy check used to run only if
+        # /usr/libexec/DiscoverNotifier existed at exactly that path.
+        (self.tree / "usr/libexec/DiscoverNotifier").rename(self.tree / "usr/libexec/Discover")
+        write(self.tree / "etc/xdg/PlasmaDiscoverUpdates", UPSTREAM_POLICY)
+        self.assertBites("UseUnattendedUpdates=false")
+
+    def test_the_policy_file_missing(self):
+        (self.tree / "etc/xdg/PlasmaDiscoverUpdates").unlink()
+        self.assertBites("it is None")
+
+    def test_a_notifier_that_no_longer_reads_the_policy_file(self):
+        moved = self.tree / "usr/libexec/discover/DiscoverNotifier"
+        moved.parent.mkdir(parents=True)
+        moved.write_bytes(b"\x7fELF reads its switch from somewhere else")
+        self.assertBites("/usr/libexec/discover/DiscoverNotifier no longer names")
+
+    def test_a_notifier_found_through_the_entry_that_runs_it(self):
+        entry = "[Desktop Entry]\nName=Discover\nExec=/opt/discover/DiscoverNotifier\nNoDisplay=true\n"
+        write(self.tree / "usr/share/applications/org.kde.discover.notifier.desktop", entry)
+        write(self.tree / "opt/discover/DiscoverNotifier", "no policy here", 0o755)
+        self.assertBites("/opt/discover/DiscoverNotifier no longer names")
 
     def test_a_settings_page_that_opens_nothing(self):
         (self.tree / "usr/bin/firewall-config").unlink()

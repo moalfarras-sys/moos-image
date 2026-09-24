@@ -394,10 +394,14 @@ for autostart in sorted((XDG / "autostart").glob("*.desktop")):
                         entry.get("Exec", "")),
           f"{autostart.name} starts a Discover updater at login")
 curation = (ROOT / "build_files/curate_app_menu.sh").read_text(encoding="utf-8")
-check("etc/xdg/autostart/org.kde.discover.notifier.desktop" in curation
-      and 'get("UseUnattendedUpdates")' in curation,
-      "the finished image (x86 and ARM) must be gated on both Discover switches, not only the "
-      "source tree: a package transaction after the overlay would silently restore them")
+check('for directory in ("etc/xdg/autostart", "usr/share/autostart"):' in curation
+      and 'get("UseUnattendedUpdates")' in curation
+      and 'if (root / "usr/libexec/DiscoverNotifier").exists():' not in curation,
+      "the finished image must be gated on both Discover switches, not only the source tree: a "
+      "package transaction after the overlay would silently restore them. The gate sweeps every "
+      "autostart entry and requires the policy unconditionally — a check keyed to one file name "
+      "or one binary path goes quiet the day upstream renames it "
+      "(tests/test_foreign_app_menus.py proves each rule bites)")
 hardware = uupd["checks"]["hardware"]
 check(UPDATE.BATTERY_MIN_PERCENT == hardware["bat-min-percent"]
       and UPDATE.CPU_MAX_PERCENT == hardware["cpu-max-percent"]

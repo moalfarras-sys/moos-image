@@ -346,6 +346,7 @@ fi
 # the defect this script exists for.
 python3 - "${ROOT:-/}" "${MENU_HIDDEN[*]}" <<'MOOSMENUGATE'
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -515,17 +516,50 @@ if discover.is_file():
         if group.startswith("Desktop Action") and body.get("Name") == "Mo Store":
             fails.append(f"GATE FAIL: Discover's [{group}] is named 'Mo Store' — a rebrand "
                          "leaked out of the header into a jump-list action")
-notifier = root / "etc/xdg/autostart/org.kde.discover.notifier.desktop"
-if notifier.is_file() and header(notifier).get("Hidden", "").lower() != "true":
-    fails.append("GATE FAIL: Discover's update notifier still autostarts — a second updater "
-                 "beside MoOS's signed update authority")
-if (root / "usr/libexec/DiscoverNotifier").exists():
-    policy = root / "etc/xdg/PlasmaDiscoverUpdates"
-    value = groups(policy).get("Global", {}).get("UseUnattendedUpdates") if policy.is_file() else None
-    if value != "false":
-        fails.append("GATE FAIL: /etc/xdg/PlasmaDiscoverUpdates does not set "
-                     f"UseUnattendedUpdates=false (it is {value!r}) — Discover may install "
-                     "updates on its own schedule")
+# Swept, never looked up by one file name or one binary path: MoOS's overlay replaces the
+# notifier's autostart entry by its exact name, and that file always exists and always says
+# Hidden=true — so checking it alone would stay green after an upstream rename left the real
+# entry autostarting beside an orphaned override (review finding, 2026-09-24).
+DISCOVER_UPDATER = re.compile(r"DiscoverNotifier|plasma-discover\b.*--(headless-update|mode update)")
+for directory in ("etc/xdg/autostart", "usr/share/autostart"):
+    for path in sorted((root / directory).glob("*.desktop")):
+        entry = header(path)
+        if (DISCOVER_UPDATER.search(entry.get("Exec", ""))
+                and entry.get("Hidden", "").lower() != "true"):
+            fails.append(f"GATE FAIL: {directory}/{path.name} starts Discover's updater at login "
+                         f"({entry.get('Exec')!r}) — a second updater beside MoOS's signed "
+                         "update authority")
+# The policy is required on every image, not only where one binary path exists: the overlay
+# ships it to every edition, and a check that runs only when /usr/libexec/DiscoverNotifier is
+# exactly there goes quiet the day upstream moves it.
+policy = root / "etc/xdg/PlasmaDiscoverUpdates"
+value = groups(policy).get("Global", {}).get("UseUnattendedUpdates") if policy.is_file() else None
+if value != "false":
+    fails.append("GATE FAIL: /etc/xdg/PlasmaDiscoverUpdates does not set "
+                 f"UseUnattendedUpdates=false (it is {value!r}) — Discover may install "
+                 "updates on its own schedule")
+# And the policy must still be what Discover reads. Measured on plasma-discover-notifier 6.7.5:
+# /usr/libexec/DiscoverNotifier carries "PlasmaDiscoverUpdates" (UTF-16) and
+# "UseUnattendedUpdates". A notifier that names neither reads its switch from somewhere else,
+# and MoOS's file would be a policy nobody obeys — re-measure before shipping it.
+notifiers = {path for pattern in ("usr/libexec/DiscoverNotifier", "usr/libexec/*/DiscoverNotifier",
+                                  "usr/bin/DiscoverNotifier", "usr/lib*/libexec/DiscoverNotifier")
+             for path in root.glob(pattern) if path.is_file()}
+for directory in ("usr/share/applications", "etc/xdg/autostart", "usr/share/autostart"):
+    for path in (root / directory).glob("*.desktop"):
+        words = header(path).get("Exec", "").split()
+        if words and words[0].startswith("/") and os.path.basename(words[0]) == "DiscoverNotifier":
+            binary = root / words[0].lstrip("/")
+            if binary.is_file():
+                notifiers.add(binary)
+for binary in sorted(notifiers):
+    data = binary.read_bytes()
+    unread = [name for name in ("PlasmaDiscoverUpdates", "UseUnattendedUpdates")
+              if name.encode() not in data and name.encode("utf-16-le") not in data]
+    if unread:
+        fails.append(f"GATE FAIL: /{binary.relative_to(root)} no longer names {unread} — "
+                     "/etc/xdg/PlasmaDiscoverUpdates may not be what Discover reads any more; "
+                     "re-measure where its unattended-update switch lives")
 
 # (4) Every external module in the Settings sidebar opens a program this image ships.
 categories = set()
