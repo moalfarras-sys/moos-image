@@ -39,13 +39,21 @@ note() { printf 'NOTE  %-19s %s\n' "$1" "$2"; note_count=$((note_count + 1)); }
 fail() { printf 'FAIL  %-19s %s\n' "$1" "$2"; missing=$((missing + 1)); }
 
 printf 'MoOS development workstation — read-only capability check\n'
-for dev_tool in git bash python3 just podman buildah jq; do
+for dev_tool in git bash python3 just podman jq; do
     if dev_path="$(command -v "$dev_tool")" && [[ -x "$dev_path" ]]; then
         pass "$dev_tool" "$dev_path"
     else
         fail "$dev_tool" 'Missing source/image-build prerequisite; provision before running its recipe.'
     fi
 done
+# Every local image recipe is `podman build` (Justfile); only the pull-request and canary
+# workflows call buildah directly. Requiring it failed this check on the A1 (2026-09-24), where a
+# full ARM image had just been built with podman alone.
+if dev_path="$(command -v buildah)" && [[ -x "$dev_path" ]]; then
+    pass buildah "$dev_path"
+else
+    note buildah 'Absent; local recipes use podman build. Only CI workflows call buildah directly.'
+fi
 
 for dev_tool in node npm; do
     if dev_path="$(command -v "$dev_tool")" && [[ -x "$dev_path" ]]; then

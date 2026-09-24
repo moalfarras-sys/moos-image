@@ -1,0 +1,58 @@
+{
+  "schema": 1,
+  "about": "Every file MoOS REPLACES inside a Plasma package, and the upstream bytes each MoOS copy was reviewed against. build_files/plasma_seams.py selects the set matching the image's Plasma, installs it, refuses a replaced file whose upstream changed since review, and loads the real lock screen. README.md beside this file says how to review a new Plasma.",
+  "version_package": "plasma-workspace",
+  "seams": [
+    {"path": "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/LockScreenUi.qml", "package": "plasma-desktop"},
+    {"path": "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/MainBlock.qml", "package": "plasma-desktop"},
+    {"path": "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/MediaControls.qml", "package": "plasma-desktop"},
+    {"path": "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/explorer/WidgetExplorer.qml", "package": "plasma-desktop"},
+    {"path": "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/DesktopEditMode.qml", "package": "plasma-desktop"},
+    {"path": "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/defaults", "package": "plasma-desktop"},
+    {"path": "/usr/share/plasma/layout-templates/org.kde.plasma.desktop.defaultPanel/contents/layout.js", "package": "plasma-desktop"},
+    {"path": "/usr/lib64/qt6/qml/org/kde/breeze/components/ActionButton.qml", "package": "plasma-workspace"},
+    {"path": "/usr/lib64/qt6/qml/org/kde/breeze/components/Clock.qml", "package": "plasma-workspace"},
+    {"path": "/usr/lib64/qt6/qml/org/kde/breeze/components/UserDelegate.qml", "package": "plasma-workspace"}
+  ],
+  "sets": [
+    {
+      "id": "6.7",
+      "plasma": {"from": "6.7.0", "before": "6.7.90"},
+      "reviewed_on": "plasma-desktop/plasma-workspace 6.7.5-1.fc44, x86_64 and aarch64 (identical digests), 2026-09-24",
+      "sources": {},
+      "reviewed": {
+        "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/LockScreenUi.qml": ["328501780ab06cc0497a25ff48c6f027a1abed8506f0969f39a5f8bc6696181c"],
+        "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/MainBlock.qml": ["ca4116aa7e10fd57f6bdfd648c647751c45fb4933982b3bde2ff231a2ce4497f"],
+        "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/MediaControls.qml": ["fc2de879d76e7d2f37292fb8c79283b5b7dae894de44539270a53dbd4c9927b0"],
+        "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/explorer/WidgetExplorer.qml": ["27208dd43471f61fe0c06ef78299590cdaf25c65fdb9f4676f61d3b70d3e7a02"],
+        "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/DesktopEditMode.qml": ["ef4848bcd4efb75da1d15e39d8c2ea8d5d2af0cb38116dc62f33769c82edbaf5"],
+        "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/defaults": ["07abd8f0e42594c2822c54084e38a810747025d111f1fe1e7c8e0cec1f2684f0"],
+        "/usr/share/plasma/layout-templates/org.kde.plasma.desktop.defaultPanel/contents/layout.js": ["7ccabbcbb8fccb7f32c239b562d4ebe67e915f15f8066bc7ca994a6deb767d59"],
+        "/usr/lib64/qt6/qml/org/kde/breeze/components/ActionButton.qml": ["f0d5a0326ea8715b378d1c757341921ecdf6a703e5a632409633158fca29d7e5"],
+        "/usr/lib64/qt6/qml/org/kde/breeze/components/Clock.qml": ["aa4e6582ee698fb953abe678a0dd805aa4969dac2f09e6d72a8524a51b377412"],
+        "/usr/lib64/qt6/qml/org/kde/breeze/components/UserDelegate.qml": ["5d0487cbb475811affcff5b0a75e29e859596fb954c38c8bcce3c0ef3fd39ebf"]
+      }
+    },
+    {
+      "id": "6.8",
+      "plasma": {"from": "6.7.90", "before": "6.8.90"},
+      "reviewed_on": "plasma-desktop/plasma-workspace 6.7.90-1.fc44 (6.8 beta 1, KDE SIG kde-beta COPR, x86_64), 2026-09-24. LockScreenUi and MainBlock were re-derived by three-way merge; Clock's upstream change is a tabular-figures font feature on the stock label MoOS's copy replaces, so the MoOS copy stands; the other seven are byte-identical upstream.",
+      "sources": {
+        "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/LockScreenUi.qml": "6.8/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/LockScreenUi.qml",
+        "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/MainBlock.qml": "6.8/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/MainBlock.qml"
+      },
+      "reviewed": {
+        "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/LockScreenUi.qml": ["dddc75840fdd9de9ac5d11f291496d43b715c9b13867f77fe8223a55ea44337d"],
+        "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/MainBlock.qml": ["487ce6e0c5903bb11a7b92ffb2470ad48503c7850a2da9d406edead37c898707"],
+        "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/MediaControls.qml": ["fc2de879d76e7d2f37292fb8c79283b5b7dae894de44539270a53dbd4c9927b0"],
+        "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/explorer/WidgetExplorer.qml": ["27208dd43471f61fe0c06ef78299590cdaf25c65fdb9f4676f61d3b70d3e7a02"],
+        "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/DesktopEditMode.qml": ["ef4848bcd4efb75da1d15e39d8c2ea8d5d2af0cb38116dc62f33769c82edbaf5"],
+        "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/defaults": ["07abd8f0e42594c2822c54084e38a810747025d111f1fe1e7c8e0cec1f2684f0"],
+        "/usr/share/plasma/layout-templates/org.kde.plasma.desktop.defaultPanel/contents/layout.js": ["7ccabbcbb8fccb7f32c239b562d4ebe67e915f15f8066bc7ca994a6deb767d59"],
+        "/usr/lib64/qt6/qml/org/kde/breeze/components/ActionButton.qml": ["f0d5a0326ea8715b378d1c757341921ecdf6a703e5a632409633158fca29d7e5"],
+        "/usr/lib64/qt6/qml/org/kde/breeze/components/Clock.qml": ["bed93a670a8fcb1d90798c59350285439e4b4cbbcfd5b289e4839deab4e3ba9c"],
+        "/usr/lib64/qt6/qml/org/kde/breeze/components/UserDelegate.qml": ["5d0487cbb475811affcff5b0a75e29e859596fb954c38c8bcce3c0ef3fd39ebf"]
+      }
+    }
+  ]
+}

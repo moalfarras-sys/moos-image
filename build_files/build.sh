@@ -3584,25 +3584,10 @@ rm -rf /usr/share/plasma/look-and-feel/org.fedoraproject.fedora.desktop \
        /usr/share/backgrounds/fedora-workstation
 
 # The Global Theme picker should read all-MoOS. Fedora's looks are deleted above;
-# Breeze's three (Breeze, Breeze Dark, Breeze Twilight) are KDE's, not another
-# distro's, so they are NOT deleted — Breeze stays the fallback ENGINE every MoOS
-# look reaches for (FallbackTheme=breeze-dark). But a foreign NAME in the chooser,
-# beside six MoOS looks, is exactly the "not fully MoOS" the owner is removing. So
-# the Global-Theme WRAPPERS are hidden from the KCM (Hidden=true) while the
-# underlying Breeze plasma-style/colour engine stays fully intact and selectable
-# as the fallback. Non-destructive and reversible — nothing is removed from disk.
-for _bz in org.kde.breeze.desktop org.kde.breezedark.desktop org.kde.breezetwilight.desktop; do
-    _bzmeta="/usr/share/plasma/look-and-feel/${_bz}/metadata.json"
-    [ -f "$_bzmeta" ] || continue
-    python3 - "$_bzmeta" <<'PY'
-import json, sys
-p = sys.argv[1]
-m = json.load(open(p, encoding="utf-8"))
-m.setdefault("KPlugin", {})["Hidden"] = True
-m["Hidden"] = True  # some KCM paths read the top-level flag
-json.dump(m, open(p, "w", encoding="utf-8"), ensure_ascii=False, indent=4)
-PY
-done
+# Breeze's three are KDE's and stay on disk as the fallback engine, but their
+# Global-Theme wrappers are hidden from the picker. The same script runs in
+# build-arm.sh: inline here, it hid Breeze on x86 only (see its docstring).
+python3 /ctx/hide_breeze_global_themes.py / || exit 1
 
 # The wallpaper picker is a user-facing screen, and it held 45 wallpapers: three of MoOS's, one
 # called "F44" (that is Fedora 44, by name, in the picker of an OS called MoOS), and forty-one of
@@ -4037,6 +4022,8 @@ python3 /ctx/verify_image_experience.py
 # every edition, so it has to resolve in every edition; this edition inherits most
 # of its apps from kinoite-main, which is exactly why nobody noticed ARM had none.
 python3 /ctx/verify_mime_handlers.py --root /
+# Both editions must ship what MoOS's desktop depends on, whoever supplied it.
+python3 /ctx/verify_desktop_parity.py --root /
 python3 /ctx/verify_sound_theme.py
 python3 /ctx/verify_moos_motion.py --qml /ctx/motion-review.qml
 
@@ -4713,6 +4700,23 @@ else
     [ -d /usr/local/sbin ] || {
         echo "GATE FAIL: immutable /usr/local/sbin is missing"; exit 1; }
 fi
+
+# ── The Plasma shell overlay, first: the seam set reviewed for THIS Plasma ─────────
+#
+# MoOS replaces ten files inside plasma-desktop and plasma-workspace (the six below plus the
+# panel template and three breeze components). Each is a fork of upstream at ONE Plasma
+# version, and the base tag moves by itself. Measured 2026-09-24 on Plasma 6.8 beta: upstream
+# rewrote LockScreenUi.qml/MainBlock.qml and removed VirtualKeyboardLoader, so MoOS's 6.7 lock
+# screen would not load — kscreenlocker's emergency locker on every machine, every gate green.
+# plasma_seams.py selects the set reviewed for this Plasma (build_files/plasma-seams/), installs
+# it, refuses any replaced file whose upstream bytes changed since review and any modified
+# Plasma file rpm reports that is not registered, then loads the real greeter offscreen with no
+# session bus. Runs after the last transaction that can touch Plasma; the survival gate below
+# then checks the installed bytes. Never widen a range or add a digest to get past it.
+python3 /ctx/plasma_seams.py build || {
+    echo "GATE FAIL: MoOS's Plasma seams do not fit this Plasma (see the lines above)."
+    exit 1
+}
 
 # ── The Plasma shell overlay must survive into the finished image ─────────────
 #

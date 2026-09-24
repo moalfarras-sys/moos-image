@@ -130,6 +130,19 @@ _PLASMA=(
     ydotool wl-clipboard grim spectacle python3-websockets poppler-utils qrencode
     gstreamer1 gstreamer1-plugins-base gstreamer1-plugins-good
     gstreamer1-plugins-bad-free pipewire-gstreamer
+    # DESKTOP PARITY. The x86 editions inherit these from kinoite-main; bare
+    # fedora-bootc does not, and on the A1 (44.20260923.568) each absence was a
+    # MoOS feature that silently did less: no qtbase_ar.qm, so Qt never learned
+    # Arabic is RTL and the MoOS Bar read left-to-right; no pw-dump, so the
+    # privacy monitor ran for hours and could never name an app; Breeze GTK and
+    # gtkconfig missing, so every GTK app fell back to Adwaita; no Sonnet plugin,
+    # so no spell check; no ALSA route into PipeWire. verify_desktop_parity.py
+    # checks the capabilities on the finished image of both architectures.
+    qt6-qttranslations pipewire-utils pipewire-alsa
+    kde-gtk-config breeze-gtk-gtk3 breeze-gtk-gtk4 kf6-sonnet-hunspell
+    # App Drop asks with kdialog (default No) and treats "no dialog tool" as No,
+    # so without it nothing dropped or double-clicked could ever install on ARM.
+    kdialog
 )
 
 # Mo PC Remote publishes its authenticated loopback agent through Tailscale
@@ -1321,6 +1334,12 @@ command -v cosign >/dev/null 2>&1 \
     || { echo "GATE FAIL: moos-utm-installer-menu missing"; exit 1; }
 [ -r /usr/share/moos/release/arm-latest.json ] \
     || { echo "GATE FAIL: arm-latest.json missing"; exit 1; }
+# ── The Global Theme picker reads all-MoOS, as it does on x86 ───────────────────
+# Breeze's three Global-Theme wrappers are hidden (never deleted: Breeze is the fallback
+# engine). This step lived inline in build.sh only, so until 2026-09-24 the ARM picker
+# offered Breeze beside MoOS's looks. One shared script now serves both builds.
+python3 /ctx/hide_breeze_global_themes.py / || exit 1
+
 # ── /usr/local/sbin: present, or systemd-tmpfiles errors on every boot ───────
 #
 # rpm-ostree ships /usr/lib/tmpfiles.d/rpm-ostree-0-integration.conf, which asks
@@ -1341,6 +1360,23 @@ install -d -m 0755 /usr/local/sbin
     || { echo "GATE FAIL: /usr/local/sbin is missing; rpm-ostree's tmpfiles entry"
          echo "           would fail on every boot because /usr is read-only at runtime."
          exit 1; }
+
+# ── The Plasma shell overlay, first: the seam set reviewed for THIS Plasma ─────────
+#
+# MoOS replaces ten files inside plasma-desktop and plasma-workspace (the six below plus the
+# panel template and three breeze components). Each is a fork of upstream at ONE Plasma
+# version, and the base tag moves by itself. Measured 2026-09-24 on Plasma 6.8 beta: upstream
+# rewrote LockScreenUi.qml/MainBlock.qml and removed VirtualKeyboardLoader, so MoOS's 6.7 lock
+# screen would not load — kscreenlocker's emergency locker on every machine, every gate green.
+# plasma_seams.py selects the set reviewed for this Plasma (build_files/plasma-seams/), installs
+# it, refuses any replaced file whose upstream bytes changed since review and any modified
+# Plasma file rpm reports that is not registered, then loads the real greeter offscreen with no
+# session bus. Runs after the last transaction that can touch Plasma; the survival gate below
+# then checks the installed bytes. Never widen a range or add a digest to get past it.
+python3 /ctx/plasma_seams.py build || {
+    echo "GATE FAIL: MoOS's Plasma seams do not fit this Plasma (see the lines above)."
+    exit 1
+}
 
 # ── The Plasma shell overlay must survive into the finished ARM image ─────────
 #
@@ -1462,6 +1498,7 @@ python3 /ctx/verify_no_foreign_identity.py
 # apps, so a type this image claims but cannot open is a defect only the finished
 # image can prove; okular reached production this way.
 python3 /ctx/verify_mime_handlers.py --root /
+python3 /ctx/verify_desktop_parity.py --root /
 
 
 echo "=== MoOS ARM build complete: ${MOOS_EDITION} (aarch64) ==="

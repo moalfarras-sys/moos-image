@@ -262,6 +262,17 @@ it as a ~60 MB filesystem that is 100% full. `shutil.disk_usage("/")` therefore 
 The real filesystem is the one under `/sysroot` (`/var` is part of it). `moai-do` already knew
 this — `do_optimize` measures `/var` — and `moai-control` did not.
 
+**A fork of an upstream file belongs to the version it forked.** MoOS replaces ten files
+inside Plasma's own packages, and the survival gate proved only that MoOS's bytes were still
+there. On 2026-09-24 Plasma 6.8 beta was measured to remove `VirtualKeyboardLoader`, a type
+MoOS's 6.7 lock screen instantiates. The real greeter fell back to kscreenlocker's emergency
+locker, and the mutable base tag would have shipped that with no commit in this repository.
+Every replaced Plasma file is now a seam in `build_files/plasma-seams/seams.json`, keyed to the
+upstream digest it was reviewed against. `plasma_seams.py` refuses drift, refuses a modified
+Plasma file `rpm -V` reports that is not registered, and loads the real greeter. Replacing a new
+upstream file means registering it. A new Plasma means a reviewed set, never a wider range or
+an added digest.
+
 **Boot the image and look at it.** `podman build` + `bootc-image-builder --type qcow2` + qemu
 with `screendump` takes about half an hour and is the only thing that found any of the above.
 

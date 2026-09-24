@@ -335,6 +335,13 @@ check:
     # held two of the six. The missing four included the lock screen. This keeps
     # the list derived from the tree, on both architectures.
     python3 tests/test_plasma_shell_overlay.py
+    # ...and each of those files is a fork of Plasma at ONE version, while the base tag moves
+    # by itself. Plasma 6.8 beta removed a type MoOS's 6.7 lock screen instantiates. The seam
+    # registry, its version-keyed sets and the real-greeter probe the image build runs; the
+    # runtime half loads the lock screen only where kscreenlocker exists, isolated.
+    python3 tests/test_plasma_seams.py
+    # The weekly Plasma-next canary builds MoOS on KDE's beta packages and can publish nothing.
+    python3 tests/test_plasma_next_canary_workflow.py
     # What MoOS can run, and what it calls those things in front of a person.
     # Two halves that can only be checked together: the image installs a Windows
     # runtime so a downloaded .exe just runs, and the runner has to KNOW that --
@@ -350,6 +357,12 @@ check:
     # at all, and the only check that mentioned it greps build.sh -- so it could
     # only ever describe x86.
     python3 tests/test_mime_handlers.py
+    # x86 inherits KDE's desktop from kinoite-main; ARM must ask by name. On the A1 seven
+    # capabilities MoOS depends on were missing (RTL, privacy chip, GTK theme, spell check, ALSA).
+    python3 tests/test_desktop_parity.py
+    # Mo AI's chat texture on a machine with no GPU: MultiEffect draws nothing on the software
+    # scene graph, which left stray logos. The runtime half loads the real window offscreen.
+    python3 tests/test_moai_doodle_software.py
     # "Set up Android" had NEVER worked: waydroid init needs mandatory OTA
     # channels, MoOS ships no channels config for it to fall back on, and every
     # existing gate read only the source. Proven on the station 2026-09-20 by
