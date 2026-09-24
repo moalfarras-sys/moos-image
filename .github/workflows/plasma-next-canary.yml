@@ -74,6 +74,11 @@ jobs:
       # second run (--allowerasing alone) moved 57 Plasma packages to the beta and left
       # plasma-workspace, libplasma, kwin and kscreenlocker at 6.7.5, because the solver may
       # settle for a partial set. With --best it reaches the newest Plasma or names why not.
+      # The third run then built MoOS on 6.7.90 through every gate until
+      # finalize_image_state.py found /var/lib/rpm-state non-empty. A published base image
+      # never carries transaction residue, so this composed one is finalized the same way and
+      # the files are printed first. MoOS's own gate is untouched: residue from build.sh's
+      # transactions on the next Plasma still fails it.
       - name: Compose the base with the next Plasma
         run: |
           set -euo pipefail
@@ -83,7 +88,10 @@ jobs:
           FROM ghcr.io/ublue-os/kinoite-main:44
           RUN dnf5 -y copr enable @kdesig/kde-beta \
            && dnf5 -y distro-sync --refresh --allowerasing --best \
-           && dnf5 clean all
+           && dnf5 clean all \
+           && echo "rpm-state left by the base transaction:" \
+           && if [ -d /var/lib/rpm-state ]; then \
+                find /var/lib/rpm-state -mindepth 1 -maxdepth 1 -print -exec rm -rf {} +; fi
           CONTAINERFILE
           buildah build --layers -f "$out/Containerfile" \
             -t localhost/moos-plasma-next-base:44 "$out" 2>&1 | tee "$out/compose.log"
@@ -118,6 +126,7 @@ jobs:
           out="$RUNNER_TEMP/plasma-next"
           grep -E 'MoOS seams:|GATE FAIL|lock screen|Plasma ' "$out/build.log" > "$out/seams.txt" || true
           grep -E '^ *Removing' -A40 "$out/compose.log" | grep -E '^ +[a-z0-9]' > "$out/removed.txt" || true
+          sed -n '/rpm-state left by the base transaction:/,/^COMMIT/p' "$out/compose.log" >> "$out/removed.txt" || true
           {
             echo "## Plasma next canary"
             echo
