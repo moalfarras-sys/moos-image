@@ -12,7 +12,7 @@ window.
 | `kcm_moos_update` | `modules/update` | 2 | System, Applications and Device firmware rows, each from its owner's record |
 | `kcm_moos_whatsnew` | `modules/whatsnew` | 3 | What each update brought, fresh marker, "Try it" routes |
 | `kcm_moos_ai` | `modules/ai` | 4 | Mo AI (slice B) |
-| `kcm_moos_remote` | `modules/remote` | 5 | Mo PC Remote on/off/restart, Fast Remote, open the app |
+| `kcm_moos_remote` | `modules/remote` | 5 | Mo PC Remote on/off/restart, open the app |
 | `kcm_moos_recovery` | `modules/recovery` | 6 | Saved images, queued rollback and its target |
 | `kcm_moos_appearance` | `modules/appearance` | 1 in *appearance* | MoOS Themes (slice F) |
 

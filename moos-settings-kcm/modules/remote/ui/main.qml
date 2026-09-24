@@ -147,24 +147,6 @@ KCM.SimpleKCM {
 
         FormCard.FormHeader {
             maximumWidth: root.cardWidth
-            title: root.t("الوضع السريع", "Fast Remote")
-        }
-        FormCard.FormCard {
-            maximumWidth: root.cardWidth
-
-            MoosSwitchRow {
-                glyph: "bolt"
-                text: root.t("تسريع الاتصال", "Speed up the connection")
-                description: root.t("يوقف حركة الخلفية والضبابية والحركات مؤقتاً ليبقى البث سريعاً. يعود كل شيء عند إيقافه.",
-                                    "Pauses the live wallpaper, blur and animations so the stream stays quick. Everything returns when you turn it off.")
-                enabled: root.installed
-                on: root.installed && root.remote.fast === true
-                onRequested: wanted => root.request(wanted ? "moos://remote/fast-on" : "moos://remote/fast-off")
-            }
-        }
-
-        FormCard.FormHeader {
-            maximumWidth: root.cardWidth
             title: root.t("الهاتف", "Your phone")
         }
         FormCard.FormCard {
