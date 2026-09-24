@@ -97,6 +97,10 @@ STOCK = {
         "Name=Dolphin\nName[ar]=دولفين\nGenericName=File Manager\nActions=new-window;\n"
         "\n[Desktop Action new-window]\nName=Open a New Window\nName[ar]=افتح نافذة جديدة\n"
         "Exec=dolphin --new-window\n"),
+    "org.kde.kdeconnect.app.desktop": (
+        "[Desktop Entry]\nExec=kdeconnect-app\nIcon=kdeconnect\nType=Application\n"
+        "Name=KDE Connect\nName[ar]=جسر كِيدِي\nComment=Make all your devices one\n"
+        "Comment[ar]=اجعل أجهزتك كلّها واحدًا\n"),
     "org.kde.partitionmanager.desktop": (
         "[Desktop Entry]\nExec=partitionmanager\nIcon=partitionmanager\nType=Application\n"
         "Name=KDE Partition Manager\nName[ar]=مدير أقسام كِيدِي\n"),
@@ -470,6 +474,35 @@ class CurateAppMenuGateBites(unittest.TestCase):
     def test_another_desktops_name_on_a_kept_tool(self):
         self.edit("org.kde.dolphin.desktop", "Name=Files", "Name=Dolphin")
         self.assertBites("still wears another desktop's name")
+
+    def test_another_desktops_name_anywhere_in_a_kept_header(self):
+        # The review's probe: the inline gate this replaced read the whole header, so these
+        # failed the build; a Name-only check shipped them.
+        for name, line in (
+                ("org.kde.kdeconnect.app.desktop", "Comment=KDE Connect for your phone"),
+                ("org.kde.kdeconnect.app.desktop", "Keywords=KDE Connect;phone;"),
+                ("org.kde.partitionmanager.desktop", "Comment=Manage disks with KDE Partition Manager"),
+                ("org.kde.dolphin.desktop", "GenericName[de]=Dolphin Dateiverwaltung"),
+                ("org.kde.dolphin.desktop", "X-KDE-Keywords=dolphin,files"),
+                ("org.kde.kinfocenter.desktop", "Comment[en_GB]=The Info Center"),
+                ("org.kde.kdeconnect.app.desktop", "Keywords[ar]=هاتف;جسر كِيدِي;"),
+                ("org.kde.dolphin.desktop", "Comment[ar]=مدير ملفات دولفين"),
+        ):
+            with self.subTest(name=name, line=line):
+                path = self.apps / name
+                clean = path.read_text(encoding="utf-8")
+                path.write_text(clean.replace("[Desktop Entry]\n", f"[Desktop Entry]\n{line}\n", 1),
+                                encoding="utf-8")
+                self.assertBites(f"{name} still wears another desktop's name")
+                path.write_text(clean, encoding="utf-8")
+
+    def test_a_program_path_is_not_a_label(self):
+        # Exec=dolphin, StartupWMClass=dolphin and X-DocPath are not text a launcher shows;
+        # flagging them would fail every build on upstream's own files.
+        self.edit("org.kde.dolphin.desktop", "[Desktop Entry]\n",
+                  "[Desktop Entry]\nStartupWMClass=dolphin\nX-DocPath=dolphin/index.html\n")
+        result = gate(self.tree)
+        self.assertEqual(result.returncode, 0, result.stdout)
 
     def test_a_kept_tool_without_arabic(self):
         self.edit("org.kde.partitionmanager.desktop", "Name[ar]=الأقراص\n", "")

@@ -446,8 +446,41 @@ else:
     fails.append("GATE FAIL: systemsettings.desktop is missing — the image has no settings entry")
 
 # (2) Kept entries wear MoOS's words, in both languages; the ones MoOS Settings reaches leave.
+# Every word a launcher can show or search, in every language — not only Name. The inline gate
+# this replaced matched the whole [Desktop Entry] header, so a base update that put "KDE
+# Connect" into a kept entry's Comment or Keywords failed the build; a Name-only check would
+# ship it. Exec/Icon/X-DBUS-* legitimately carry "dolphin" and are not text a person reads.
+# Arabic is compared without its diacritics: the menu the owner saw read "جسر كِيدِي".
 FOREIGN_NAMES = ("Dolphin", "KDE Connect", "KDE Partition", "System Settings", "Info Center",
-                 "NVIDIA X Server")
+                 "NVIDIA X Server", "كيدي", "دولفين")
+TEXT_FAMILIES = ("Name", "GenericName", "Comment", "Keywords", "X-KDE-Keywords",
+                 "X-GNOME-FullName")
+ARABIC_MARKS = dict.fromkeys([*range(0x064B, 0x0660), 0x0670, 0x0640])
+
+
+def plain(text: str) -> str:
+    return " ".join(text.translate(ARABIC_MARKS).casefold().split())
+
+
+def header_text(path: Path) -> list[tuple[str, str]]:
+    """Every (key, value) of the [Desktop Entry] group whose family a launcher shows or
+    searches — each line, duplicates included, all languages."""
+    out, group = [], None
+    for raw in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("[") and line.endswith("]"):
+            group = line[1:-1]
+            continue
+        if group == "Desktop Entry" and "=" in line:
+            key, value = (part.strip() for part in line.split("=", 1))
+            if key.split("[", 1)[0] in TEXT_FAMILIES:
+                out.append((key, value))
+    return out
+
+
+FOREIGN_PLAIN = tuple(plain(word) for word in FOREIGN_NAMES)
 for name, must_show in (("org.kde.dolphin.desktop", True),
                         ("org.kde.kdeconnect.app.desktop", True),
                         ("org.kde.partitionmanager.desktop", True),
@@ -463,9 +496,10 @@ for name, must_show in (("org.kde.dolphin.desktop", True),
         fails.append(f"GATE FAIL: {name} is {'shown in' if shown else 'hidden from'} the menu — "
                      + ("MoOS Settings is the one settings app" if shown
                         else "a person needs this tool; renaming it is the fix, not hiding it"))
-    if any(word in entry.get("Name", "") for word in FOREIGN_NAMES):
-        fails.append(f"GATE FAIL: {name} still wears another desktop's name in the menu: "
-                     f"{entry.get('Name')!r}")
+    for key, value in header_text(path):
+        if any(word in plain(value) for word in FOREIGN_PLAIN):
+            fails.append(f"GATE FAIL: {name} still wears another desktop's name in the menu: "
+                         f"{key}={value!r}")
     if not entry.get("Name[ar]"):
         fails.append(f"GATE FAIL: {name} has no Arabic name; an Arabic session would read English")
 
