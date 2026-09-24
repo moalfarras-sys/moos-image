@@ -1019,22 +1019,14 @@ grep -q 'BIND_NOW' <<<"${_shipped_d}" \
 # launches, the QML loads, nothing errors — the icon is just silently the wrong one.
 test -x /usr/bin/moos-qml-shell \
     || { echo "GATE FAIL: moos-qml-shell did not build"; exit 1; }
-_moos_kcm="$(qtpaths6 --query QT_INSTALL_PLUGINS)/plasma/kcms/systemsettings/kcm_moos.so"
-[ -s "$_moos_kcm" ] \
-    || { echo "GATE FAIL: MoOS's native System Settings module did not build"; exit 1; }
-# Discover's Software Update KCM is a second, package-only update page beside
-# MoOS's signed-image/app/firmware page. Keep Discover's notifier/engine but
-# remove only its System Settings plugin so this window has one update entry.
-_discover_update_kcm="$(qtpaths6 --query QT_INSTALL_PLUGINS)/plasma/kcms/systemsettings/kcm_updates.so"
-rm -f "$_discover_update_kcm"
-[ ! -e "$_discover_update_kcm" ] \
-    || { echo "GATE FAIL: duplicate Software Update module remains"; exit 1; }
-# The native MoOS page owns About this device. The generic About this System
-# KCM is otherwise a second About entry in the same window.
-_generic_about_kcm="$(qtpaths6 --query QT_INSTALL_PLUGINS)/plasma/kcms/kcm_about-distro.so"
-rm -f "$_generic_about_kcm"
-[ ! -e "$_generic_about_kcm" ] \
-    || { echo "GATE FAIL: duplicate About this System module remains"; exit 1; }
+# ── MoOS in System Settings ──────────────────────────────────────────────────
+# MoOS's pages are the kcm_moos* modules of the MoOS group (moos-settings-kcm/).
+# One shared gate, run by build-arm.sh too: every built module is installed and
+# grouped; Discover's Software Update and the generic About this System modules
+# (a second update and a second about entry) are removed with their menu aliases,
+# wherever the plugin lives; and every MoOS module LOADS offscreen in an isolated
+# session with no QML error and its ready marker. Keep Discover's notifier/engine.
+bash /ctx/verify_settings_modules.sh || exit 1
 for launcher in /usr/bin/moai /usr/bin/moos-welcome /usr/bin/moos-store; do
     grep -q "moos-qml-shell" "$launcher" \
         || { echo "GATE FAIL: ${launcher} does not use moos-qml-shell — its window will show the generic Qt icon"; exit 1; }
