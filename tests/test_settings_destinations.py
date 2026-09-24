@@ -48,6 +48,7 @@ RUNNER = ROOT / "system_files/usr/libexec/moai-krunner"
 SCHEMAS = ROOT / "system_files/usr/lib/moai/moai_tool_schemas.py"
 HOST_KCMS = Path("/usr/lib64/qt6/plugins/plasma/kcms")
 IMAGE_GATE = ROOT / "build_files/verify_image_experience.py"
+MOOS_SETTINGS = ROOT / "system_files/usr/bin/moos-settings"
 
 sys.path.insert(0, str(ROOT / "tests"))
 from test_user_visible_identity import hit as foreign_name  # noqa: E402
@@ -271,6 +272,66 @@ class EveryReaderOffersTheRegistry(unittest.TestCase):
         for token in set(self.registry) - set(self.moai):
             self.assertFalse(runner["ALLOWED_ROUTE"].match(f"settings/{token}"),
                              f"settings/{token} is not offered to Mo AI")
+
+
+def accepted_sections() -> set[str]:
+    """The sections moos-settings really opens: its case labels, minus any arm that refuses.
+
+    The `--section=*` default arm prints "unknown section" and exits 2. It is skipped by its
+    refusal, not by its spelling, so a wildcard can never make every section look accepted.
+    """
+    code = "\n".join(line for line in MOOS_SETTINGS.read_text(encoding="utf-8").splitlines()
+                     if not line.lstrip().startswith("#"))
+    accepted: set[str] = set()
+    for labels, body in re.findall(r"(?ms)^\s*(--section=[^)\n]*)\)(.*?);;", code):
+        if re.search(r"\bexit\s+[1-9]", body):
+            continue
+        for label in labels.split("|"):
+            name = label.strip().removeprefix("--section=")
+            if re.fullmatch(r"[a-z0-9-]+", name):
+                accepted.add(name)
+    return accepted
+
+
+class EveryMoosSettingsSectionExists(unittest.TestCase):
+    """A route to a section moos-settings refuses is a dead button with every gate green.
+
+    settings/overview, settings/assistant, brain/start, do/setup-brain and moai-do setup-brain
+    all open `moos-settings --section=<s>`. Nothing compared <s> with what moos-settings
+    accepts, and a moos-settings without those sections exits 2 on each of them. This holds
+    the registry and every caller in the overlay to moos-settings' own case labels.
+    """
+    CALL = re.compile(r"moos-settings(?:[\"',]|\s)+--section=([a-z0-9-]+)")
+
+    def test_the_section_parser_reads_moos_settings(self):
+        sections = accepted_sections()
+        self.assertIn("update", sections, "the parser found nothing in moos-settings")
+        self.assertTrue(all("*" not in name for name in sections))
+
+    def test_every_moos_settings_destination_is_a_section_it_accepts(self):
+        sections = accepted_sections()
+        refused = sorted(f"settings/{token} -> --section={entry['target']}"
+                         for token, entry in destinations.load(REGISTRY).items()
+                         if entry["host"] == "moos-settings" and entry["target"] not in sections)
+        self.assertEqual(refused, [], "moos-settings answers 'unknown section' to these")
+
+    def test_every_caller_in_the_overlay_names_a_section_it_accepts(self):
+        sections = accepted_sections()
+        refused, callers = [], 0
+        for root in (ROOT / "system_files", ROOT / "moos-settings-kcm"):
+            for path in sorted(root.rglob("*")) if root.is_dir() else ():
+                if not path.is_file() or path.is_symlink() or path == MOOS_SETTINGS:
+                    continue
+                try:
+                    text = path.read_text(encoding="utf-8")
+                except (UnicodeDecodeError, OSError):
+                    continue
+                for section in self.CALL.findall(text):
+                    callers += 1
+                    if section not in sections:
+                        refused.append(f"{path.relative_to(ROOT)}: --section={section}")
+        self.assertGreaterEqual(callers, 10, "the caller scan found almost nothing")
+        self.assertEqual(sorted(set(refused)), [], "moos-settings answers 'unknown section'")
 
 
 class ABrokenRegistryOffersNothing(unittest.TestCase):
