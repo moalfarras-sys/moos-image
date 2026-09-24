@@ -24,6 +24,7 @@ Tests that execute the launcher isolate HOME, the XDG tree, the session bus and 
 
 from __future__ import annotations
 
+import fnmatch
 import json
 import os
 import re
@@ -387,6 +388,44 @@ class TheLauncher(unittest.TestCase):
                 self.assertTrue(plugin_id in modules() or f"{plugin_id})" in fallback,
                                 f"moos-settings opens {plugin_id}, which nothing builds")
         self.assertTrue(launcher.rstrip().endswith('exec systemsettings "$module"'))
+
+
+class ThePublicScheme(unittest.TestCase):
+    """moos: is a registered URL scheme: a web page can hand moos-open any settings URL."""
+
+    def router_arms(self) -> list[tuple[str, str]]:
+        router = ROUTER.read_text(encoding="utf-8")
+        self.assertIn('case "${cat}/${tgt}" in', router)
+        body = router.split('case "${cat}/${tgt}" in', 1)[1].rsplit("\nesac", 1)[0]
+        return re.findall(r"(?m)^    ([A-Za-z0-9/*?\[\]|._-]+)\)(.*)$", body)
+
+    def test_every_settings_arm_is_a_literal_route_with_a_literal_command(self) -> None:
+        arms = self.router_arms()
+        settings = [(pattern, rest) for pattern, rest in arms
+                    if any(part.startswith("settings") for part in pattern.split("|"))]
+        # A gate that finds nothing passes everything: there are dozens of settings arms.
+        self.assertGreaterEqual(len(settings), 30, settings)
+        for pattern, rest in settings:
+            with self.subTest(arm=pattern):
+                for part in pattern.split("|"):
+                    self.assertRegex(part, r"^settings/[a-z0-9-]+$",
+                                     "a settings arm is one literal route: no wildcard turns URL text into a target")
+                command = rest.strip()
+                self.assertRegex(command, r"^gui [A-Za-z0-9._-]+(?: [A-Za-z0-9._=-]+)* ;;$",
+                                 "a settings arm runs one fixed program with fixed arguments")
+                for forbidden in ("eval ", "sh -c", "$tgt", "$cat", "${", "`"):
+                    self.assertNotIn(forbidden, command)
+
+    def test_no_other_arm_catches_a_settings_url(self) -> None:
+        # The default arm (`*)`) only reports an unknown action; every other arm that could
+        # match an unlisted settings URL would be a wildcard route in disguise.
+        for pattern, _rest in self.router_arms():
+            for part in pattern.split("|"):
+                if part == "*":
+                    continue
+                with self.subTest(arm=part):
+                    self.assertFalse(fnmatch.fnmatchcase("settings/zz-unlisted", part),
+                                     f"'{part}' would route a settings URL nobody declared")
 
 
 class TheEntries(unittest.TestCase):
