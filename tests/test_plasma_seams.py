@@ -245,6 +245,48 @@ class TheGateRefuses(unittest.TestCase):
         self.run_gate("6.7.5", self.reviewed("6.7"), verify)
 
 
+import hide_breeze_global_themes as hide_breeze  # noqa: E402
+
+
+class BothEditionsHideBreezeTheSameWay(unittest.TestCase):
+    """The seam gate's rpm -V found Breeze hidden on x86 only (CI, PR #161, 2026-09-24)."""
+
+    def test_both_builds_call_the_one_shared_step(self):
+        for script in ("build.sh", "build-arm.sh"):
+            text = code((ROOT / "build_files" / script).read_text(encoding="utf-8"))
+            self.assertIn("python3 /ctx/hide_breeze_global_themes.py /", text, script)
+            self.assertNotIn('["Hidden"] = True', text, f"{script} carries a second, inline copy")
+
+    def test_it_hides_every_wrapper_and_is_idempotent(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for path in hide_breeze.metadata_paths(root):
+                path.parent.mkdir(parents=True)
+                path.write_text(json.dumps({"KPlugin": {"Id": path.parent.name}}), encoding="utf-8")
+            self.assertEqual(len(hide_breeze.verify(root)), 3, "an unhidden wrapper must be reported")
+            hide_breeze.hide(root)
+            first = [p.read_text(encoding="utf-8") for p in hide_breeze.metadata_paths(root)]
+            hide_breeze.hide(root)
+            self.assertEqual(first, [p.read_text(encoding="utf-8") for p in hide_breeze.metadata_paths(root)])
+            self.assertEqual(hide_breeze.verify(root), [])
+            self.assertEqual(hide_breeze.main(["x", str(root)]), 0)
+
+    def test_the_edits_it_makes_are_the_edits_the_seam_gate_accepts(self):
+        edited = {"/" + str(p.relative_to("/")) for p in hide_breeze.metadata_paths(Path("/"))}
+        registered = {path for path in plasma_seams.REGISTERED_EDITS if "/look-and-feel/" in path}
+        self.assertEqual(edited, registered)
+
+    def test_the_rpm_lines_that_failed_ci_now_pass(self):
+        verify = {"plasma-workspace": "".join(
+            f"S.5....T.    /usr/share/plasma/look-and-feel/{name}/metadata.json\n"
+            for name in hide_breeze.WRAPPERS)}
+        gate = TheGateRefuses("run_gate")
+        gate.setUp()
+        try:
+            gate.run_gate("6.7.5", gate.reviewed("6.7"), verify)
+        finally:
+            gate.tearDown()
+
 # Lines captured from kscreenlocker_greet on the ARM station, 2026-09-24 (Plasma 6.7.5).
 CLEAN_RUN = [
     "kf.windowsystem: Could not find any platform plugin",

@@ -60,6 +60,10 @@ REGISTERED_EDITS = {
         "build.sh drops `prefer` so the breeze components resolve from disk (MoOS's ActionButton/Clock)",
     "/usr/share/wayland-sessions/plasma.desktop":
         "the identity scrub renames the session",
+    **{f"/usr/share/plasma/look-and-feel/{name}/metadata.json":
+       "hide_breeze_global_themes.py hides Breeze's Global Theme wrappers from the picker"
+       for name in ("org.kde.breeze.desktop", "org.kde.breezedark.desktop",
+                    "org.kde.breezetwilight.desktop")},
 }
 PLASMA_PACKAGES = ("plasma-desktop", "plasma-workspace", "kscreenlocker", "kwin",
                    "libplasma", "plasma-login-manager")

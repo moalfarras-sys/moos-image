@@ -1321,6 +1321,12 @@ command -v cosign >/dev/null 2>&1 \
     || { echo "GATE FAIL: moos-utm-installer-menu missing"; exit 1; }
 [ -r /usr/share/moos/release/arm-latest.json ] \
     || { echo "GATE FAIL: arm-latest.json missing"; exit 1; }
+# ── The Global Theme picker reads all-MoOS, as it does on x86 ───────────────────
+# Breeze's three Global-Theme wrappers are hidden (never deleted: Breeze is the fallback
+# engine). This step lived inline in build.sh only, so until 2026-09-24 the ARM picker
+# offered Breeze beside MoOS's looks. One shared script now serves both builds.
+python3 /ctx/hide_breeze_global_themes.py / || exit 1
+
 # ── /usr/local/sbin: present, or systemd-tmpfiles errors on every boot ───────
 #
 # rpm-ostree ships /usr/lib/tmpfiles.d/rpm-ostree-0-integration.conf, which asks

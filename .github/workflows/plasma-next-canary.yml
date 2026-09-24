@@ -64,21 +64,38 @@ jobs:
       # The release base plus the next Plasma. The beta repository stays enabled for the MoOS
       # build on top, so a Plasma package build.sh installs resolves to the same Plasma instead
       # of failing on a version conflict nobody would meet in the real transition.
+      #
+      # --allowerasing, and a check that Plasma really moved. The first run (PR #161) printed
+      # "kcm-fcitx5 requires libPlasma.so.7" — 6.8 bumps libplasma's soname and the beta
+      # repository does not rebuild every reverse dependency — and distro-sync then skipped
+      # the whole Plasma upgrade WITHOUT failing. The canary built 6.7.5 and would have
+      # reported "MoOS works on the next Plasma". A package that blocks the move is removed
+      # and listed in the summary; Fedora's own 6.8 update rebuilds it.
       - name: Compose the base with the next Plasma
         run: |
           set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/plasma-next"
-          cat > "$RUNNER_TEMP/plasma-next/Containerfile" <<'CONTAINERFILE'
+          out="$RUNNER_TEMP/plasma-next"
+          mkdir -p "$out"
+          cat > "$out/Containerfile" <<'CONTAINERFILE'
           FROM ghcr.io/ublue-os/kinoite-main:44
           RUN dnf5 -y copr enable @kdesig/kde-beta \
-           && dnf5 -y distro-sync --refresh \
+           && dnf5 -y distro-sync --refresh --allowerasing \
            && dnf5 clean all
           CONTAINERFILE
-          buildah build --layers -f "$RUNNER_TEMP/plasma-next/Containerfile" \
-            -t localhost/moos-plasma-next-base:44 "$RUNNER_TEMP/plasma-next"
-          buildah run "$(buildah from localhost/moos-plasma-next-base:44)" -- \
+          buildah build --layers -f "$out/Containerfile" \
+            -t localhost/moos-plasma-next-base:44 "$out" 2>&1 | tee "$out/compose.log"
+          ctr="$(buildah from localhost/moos-plasma-next-base:44)"
+          buildah run "$ctr" -- \
             rpm -q plasma-workspace plasma-desktop kscreenlocker kwin libplasma qt6-qtbase \
-            | tee "$RUNNER_TEMP/plasma-next/versions.txt"
+            | tee "$out/versions.txt"
+          have="$(buildah run "$ctr" -- rpm -q --qf '%{VERSION}' plasma-workspace)"
+          next="$(buildah run "$ctr" -- dnf5 -q repoquery --latest-limit 1 --qf '%{version}' \
+                  --repo 'copr:copr.fedorainfracloud.org:group_kdesig:kde-beta' plasma-workspace || true)"
+          echo "plasma-workspace: base has $have, kde-beta offers ${next:-nothing}" | tee -a "$out/versions.txt"
+          if [ -n "$next" ] && [ "$have" != "$next" ]; then
+            echo "::error::the canary base did not reach Plasma $next (it has $have); see compose.log"
+            exit 1
+          fi
 
       # build.sh runs inside this step, and with it every in-image gate.
       - name: Build MoOS on it and run the in-image gates
@@ -97,6 +114,7 @@ jobs:
           set -uo pipefail
           out="$RUNNER_TEMP/plasma-next"
           grep -E 'MoOS seams:|GATE FAIL|lock screen|Plasma ' "$out/build.log" > "$out/seams.txt" || true
+          grep -E '^ *Removing' -A40 "$out/compose.log" | grep -E '^ +[a-z0-9]' > "$out/removed.txt" || true
           {
             echo "## Plasma next canary"
             echo
@@ -106,6 +124,11 @@ jobs:
             echo
             echo '```'
             cat "$out/seams.txt"
+            echo '```'
+            echo
+            echo "Removed so Plasma could move (Fedora's own update rebuilds them):"
+            echo '```'
+            cat "$out/removed.txt" 2>/dev/null || true
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -117,5 +140,7 @@ jobs:
           path: |
             ${{ runner.temp }}/plasma-next/versions.txt
             ${{ runner.temp }}/plasma-next/seams.txt
+            ${{ runner.temp }}/plasma-next/removed.txt
+            ${{ runner.temp }}/plasma-next/compose.log
             ${{ runner.temp }}/plasma-next/build.log
           retention-days: 30
