@@ -10,8 +10,9 @@ Three contracts, each executed on real files rather than grepped:
 
 2. build_files/curate_app_menu.sh — the ONE menu curation, written for every edition. x86
    build.sh runs it; build-arm.sh is the ARM owner's file, so its wiring is a handoff whose
-   exact change is checked here against today's build-arm.sh. It is run here, whole, on a fixture tree
-   shaped like the booted station's, and then its finished-tree gate is run alone on states
+   exact change is checked here against today's build-arm.sh. It is run here, whole, on stock
+   entries shaped like the booted station's with the REAL shipped overlay on top (MoOS's own
+   entries are never stubbed), and then its finished-tree gate is run alone on states
    the curation steps would repair, so every rule is proven to fail the build when it breaks:
    exactly one visible settings entry (systemsettings.desktop, "MoOS Settings", MoOS icon,
    Exec=moos-settings), the duplicates hidden, no kept entry wearing another desktop's name or
@@ -119,11 +120,12 @@ STOCK = {
     "firewall-config.desktop": (
         "[Desktop Entry]\nName=Firewall\nExec=firewall-config\nIcon=firewall-config\n"
         "Categories=System;Settings;Security;\nType=Application\n"),
-    # Slice A's half of decision D2: the old front door stays for pins, hidden.
-    "org.moos.settings.desktop": (
-        "[Desktop Entry]\nType=Application\nName=MoOS Settings\nName[ar]=إعدادات MoOS\n"
-        "Exec=moos-settings\nIcon=moos-control-center\nNoDisplay=true\n"),
 }
+# MoOS's own entries are NOT stubbed here. The fixture lays down the real overlay
+# (system_files/usr/share/applications/*.desktop, system_files/etc/xdg/autostart/*.desktop),
+# exactly what `COPY system_files/ /` puts in place before build.sh (z1b) runs. A stub that
+# already carried another slice's change once kept this suite green while every image build
+# would have failed on the real org.moos.settings.desktop (review finding, 2026-09-24).
 PROGRAMS = ("moos-settings", "systemsettings", "kinfocenter", "firewall-config")
 UPSTREAM_NOTIFIER = ("[Desktop Entry]\nName=Discover\nExec=/usr/libexec/DiscoverNotifier "
                      "--check-delay 20\nType=Application\nNoDisplay=true\n")
@@ -158,10 +160,11 @@ def fixture(tree: Path, *, overlay: bool = True) -> Path:
     write(tree / "etc/xdg/autostart/org.kde.discover.notifier.desktop", UPSTREAM_NOTIFIER)
     write(tree / "etc/xdg/PlasmaDiscoverUpdates", UPSTREAM_POLICY)
     if overlay:  # what `COPY system_files/ /` (x86) or `cp -a /moos-overlay/. /` (ARM) lays down
-        for rel in ("etc/xdg/autostart/org.kde.discover.notifier.desktop",
-                    "etc/xdg/PlasmaDiscoverUpdates",
-                    STAGED):
-            write(tree / rel, (SYSTEM / rel).read_text(encoding="utf-8"))
+        overlay_files = [*sorted((SYSTEM / "usr/share/applications").glob("*.desktop")),
+                         *sorted((SYSTEM / "etc/xdg/autostart").glob("*.desktop")),
+                         SYSTEM / "etc/xdg/PlasmaDiscoverUpdates", SYSTEM / STAGED]
+        for source in overlay_files:
+            write(tree / source.relative_to(SYSTEM), source.read_text(encoding="utf-8"))
     return tree
 
 
@@ -312,6 +315,16 @@ class CurateAppMenuRun(unittest.TestCase):
         result = curate(self.tree)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         return result
+
+    def test_the_shipped_overlay_on_stock_entries_passes_the_whole_curation(self):
+        # Exactly what build.sh (z1b) runs: stock entries, the real overlay on top, the script.
+        result = curate(self.tree)
+        self.assertEqual(
+            result.returncode, 0,
+            "the shipped overlay fails the curation's gate, so every image build would fail in "
+            "build.sh (z1b). If the gate names org.moos.settings.desktop, slice A's half of "
+            "decision D2 (NoDisplay=true on that entry) is not in this tree: merge A with or "
+            "before E.\n" + result.stdout + result.stderr)
 
     def test_settings_becomes_the_one_moos_entry(self):
         self.run_ok()
