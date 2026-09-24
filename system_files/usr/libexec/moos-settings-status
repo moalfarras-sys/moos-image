@@ -166,7 +166,18 @@ def network_state() -> dict[str, object]:
     }
 
 
+def system_bus_socket() -> Path:
+    address = os.environ.get("DBUS_SYSTEM_BUS_ADDRESS", "")
+    path = address.partition("unix:path=")[2].split(",")[0]
+    return Path(path or "/run/dbus/system_bus_socket")
+
+
 def bluetooth_state() -> dict[str, object]:
+    # bluetoothctl aborts (SIGABRT, a core dump the desktop then reports as a crash) when
+    # there is no system bus to talk to — measured: the image build's container stage runs
+    # this helper, and a local build left 64 dumps in one evening. No bus, no Bluetooth.
+    if not system_bus_socket().exists():
+        return {"available": False, "powered": False}
     raw = command(["bluetoothctl", "show"])
     available = bool(raw)
     powered = bool(re.search(r"^\s*Powered:\s+yes\s*$", raw, re.MULTILINE))
