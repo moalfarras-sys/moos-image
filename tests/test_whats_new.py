@@ -279,9 +279,14 @@ class TheStatusDocumentCarriesIt(unittest.TestCase):
         self.assertEqual((state["previousVersion"], state["previousBuiltAt"]), ("", 0))
 
     def test_full_state_publishes_the_list(self) -> None:
+        # The status document is this machine's view: an entry that names other architectures
+        # is correctly absent here (PR #161's x86 CI caught the first draft assuming otherwise).
+        import platform
         state = runpy.run_path(str(STATUS))["full_state"]()
+        here = platform.machine()
         self.assertEqual([entry["id"] for entry in state["whatsNew"]["entries"]],
-                         [entry["id"] for entry in shipped()])
+                         [entry["id"] for entry in shipped()
+                          if not entry.get("arch") or here in entry["arch"]])
 
 
 class TheNotificationSpeaksOnce(unittest.TestCase):
