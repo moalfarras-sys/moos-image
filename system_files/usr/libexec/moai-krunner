@@ -16,6 +16,7 @@ import os
 import re
 import subprocess
 import sys
+from pathlib import Path
 
 SERVICE = "org.moos.MoAIRunner"
 PATH = "/runner"
@@ -43,6 +44,34 @@ ARABIC_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹", "01234
 TO = r"(?:\s+(?:to|الى|إلى))?"
 PERCENT = r"\s*[%٪]?"
 THEMES = ("dark", "light", "nova", "amethyst", "midnight", "aurora", "auto")
+ON = ("on", "شغل", "شغّل", "تشغيل")
+OFF = ("off", "اطفئ", "أطفئ", "اطفي", "ايقاف", "إيقاف")
+ARRANGE_AR = {"نصفين": "halves", "نصفان": "halves", "أثلاث": "thirds", "اثلاث": "thirds",
+              "أرباع": "quarters", "ارباع": "quarters", "رئيسية": "main",
+              "وسط": "centre", "المنتصف": "centre", "بالمنتصف": "centre"}
+ARRANGE_LABEL = {"halves": ("Arrange windows: halves", "رتّب النوافذ نصفين"),
+                 "thirds": ("Arrange windows: thirds", "رتّب النوافذ أثلاثاً"),
+                 "quarters": ("Arrange windows: quarters", "رتّب النوافذ أرباعاً"),
+                 "main": ("Arrange windows: main and two", "نافذة رئيسية ونافذتان"),
+                 "centre": ("Centre this window", "النافذة في المنتصف")}
+MOTION_AR = {"ثابتة": "still", "هادئة": "gentle", "حية": "alive", "حيّة": "alive"}
+CLARITY_AR = {"شفاف": "clear", "متوازن": "balanced", "صلب": "solid", "معتم": "solid"}
+# Every route a rule can build is written out whole, so the set this runner may open can be
+# read straight from its source (tests/verify_user_experience.py does exactly that).
+ARRANGE_ROUTE = {"halves": "control/arrange/halves", "thirds": "control/arrange/thirds",
+                 "quarters": "control/arrange/quarters", "main": "control/arrange/main",
+                 "centre": "control/arrange/centre"}
+MOTION_ROUTE = {"still": "control/motion/still", "gentle": "control/motion/gentle",
+                "alive": "control/motion/alive"}
+CLARITY_ROUTE = {"clear": "control/clarity/clear", "balanced": "control/clarity/balanced",
+                 "solid": "control/clarity/solid"}
+MIC = r"(?:mic|microphone)"
+MIC_AR = r"(?:المايك|الميكروفون|الميكرفون|المايكروفون)"
+
+
+def _arrange(match):
+    word = (match.group(1) or match.group(2) or "halves").replace("center", "centre")
+    return ARRANGE_AR.get(word, word)
 
 # (pattern, route builder, English label, Arabic label, icon). Every route this
 # runner can produce is one of these shapes and nothing else.
@@ -76,21 +105,120 @@ RULES = [
     (r"^(?:light mode|light theme|الوضع الفاتح|المظهر الفاتح|فاتح)$",
      lambda m: "theme/light", lambda m: "Light mode", lambda m: "الوضع الفاتح", "moos-ui-symbolic"),
     (r"^(?:bluetooth|البلوتوث|بلوتوث)\s+(on|off|شغل|شغّل|اطفئ|أطفئ)$",
-     lambda m: "control/bluetooth/" + ("on" if m.group(1) in ("on", "شغل", "شغّل") else "off"),
+     lambda m: "control/bluetooth/on" if m.group(1) in ("on", "شغل", "شغّل") else "control/bluetooth/off",
      lambda m: "Bluetooth " + ("on" if m.group(1) in ("on", "شغل", "شغّل") else "off"),
      lambda m: "شغّل البلوتوث" if m.group(1) in ("on", "شغل", "شغّل") else "أطفئ البلوتوث", "moos-bluetooth-symbolic"),
     (r"^(?:wifi|wi-fi|الواي فاي|واي فاي)\s+(on|off|شغل|شغّل|اطفئ|أطفئ)$",
-     lambda m: "control/wifi/" + ("on" if m.group(1) in ("on", "شغل", "شغّل") else "off"),
+     lambda m: "control/wifi/on" if m.group(1) in ("on", "شغل", "شغّل") else "control/wifi/off",
      lambda m: "Wi-Fi " + ("on" if m.group(1) in ("on", "شغل", "شغّل") else "off (asks first)"),
      lambda m: "شغّل الواي فاي" if m.group(1) in ("on", "شغل", "شغّل") else "أطفئ الواي فاي (يسأل أولاً)", "moos-wifi-symbolic"),
+    # ── SPEC D4: the desktop's own actions ──────────────────────────────────
+    (r"^(?:do not disturb|dnd)(?:\s+(on|off))?$"
+     r"|^(?:وضع\s+)?عدم\s+(?:الإزعاج|الازعاج)(?:\s+(شغل|شغّل|تشغيل|اطفئ|أطفئ|اطفي|ايقاف|إيقاف))?$",
+     lambda m: "control/dnd/off" if (m.group(1) or m.group(2)) in OFF else "control/dnd/on",
+     lambda m: "Do not disturb " + ("off" if (m.group(1) or m.group(2)) in OFF else "on"),
+     lambda m: "أطفئ عدم الإزعاج" if (m.group(1) or m.group(2)) in OFF else "شغّل عدم الإزعاج",
+     "moos-notification-symbolic"),
+    (r"^لا\s+تزعجني$",
+     lambda m: "control/dnd/on", lambda m: "Do not disturb on", lambda m: "شغّل عدم الإزعاج",
+     "moos-notification-symbolic"),
+    (rf"^(?:mute\s+(?:the\s+)?{MIC}|{MIC}\s+(?:off|mute))$|^(?:اكتم|كتم)\s+{MIC_AR}$",
+     lambda m: "control/mic/mute", lambda m: "Mute the microphone", lambda m: "اكتم الميكروفون",
+     "moos-microphone-symbolic"),
+    (rf"^(?:unmute\s+(?:the\s+)?{MIC}|{MIC}\s+(?:on|unmute))$"
+     rf"|^(?:(?:الغاء|إلغاء)\s+كتم|شغل|شغّل)\s+{MIC_AR}$",
+     lambda m: "control/mic/unmute", lambda m: "Unmute the microphone", lambda m: "شغّل الميكروفون",
+     "moos-microphone-symbolic"),
+    (r"^(?:(?:next|switch)\s+(?:keyboard\s+)?layout|switch\s+keyboard(?:\s+layout)?)$"
+     r"|^(?:بدّل|بدل|غيّر|غير|تبديل|تغيير)\s+(?:لغة\s+)?(?:الكيبورد|لوحة المفاتيح|لغة الكتابة)$",
+     lambda m: "control/keyboard-layout/next", lambda m: "Next keyboard layout",
+     lambda m: "بدّل لغة لوحة المفاتيح", "moos-keyboard-symbolic"),
+    (r"^(?:overview|window overview|show (?:all )?windows)$|^(?:نظرة عامة|عرض النوافذ|اعرض النوافذ|كل النوافذ)$",
+     lambda m: "control/window/overview", lambda m: "Window overview",
+     lambda m: "نظرة عامة على النوافذ", "moos-grid-symbolic"),
+    (r"^(?:grid view|desktop grid|all desktops)$|^(?:شبكة أسطح المكتب|كل أسطح المكتب)$",
+     lambda m: "control/window/grid", lambda m: "Desktop grid", lambda m: "شبكة أسطح المكتب",
+     "moos-grid-symbolic"),
+    (r"^show (?:the )?desktop$|^(?:اظهر|أظهر|إظهار|اظهار)\s+سطح\s+المكتب$",
+     lambda m: "control/window/show-desktop", lambda m: "Show the desktop",
+     lambda m: "أظهر سطح المكتب", "moos-home-symbolic"),
+    (r"^(?:arrange|tile)(?:\s+(?:the\s+)?windows)?(?:\s+(?:in\s+|as\s+)?(halves|thirds|quarters|main|centre|center))?$"
+     r"|^(?:رتب|رتّب|ترتيب)(?:\s+النوافذ)?(?:\s+(نصفين|نصفان|أثلاث|اثلاث|أرباع|ارباع|رئيسية|وسط|المنتصف|بالمنتصف))?$",
+     lambda m: ARRANGE_ROUTE[_arrange(m)],
+     lambda m: ARRANGE_LABEL[_arrange(m)][0], lambda m: ARRANGE_LABEL[_arrange(m)][1],
+     "moos-grid-symbolic"),
+    (r"^(next|previous)\s+desktop$|^سطح\s+المكتب\s+(التالي|السابق)$",
+     lambda m: ("control/desktop/next" if (m.group(1) or m.group(2)) in ("next", "التالي")
+                else "control/desktop/previous"),
+     lambda m: ("Next" if (m.group(1) or m.group(2)) in ("next", "التالي") else "Previous") + " desktop",
+     lambda m: "سطح المكتب " + ("التالي" if (m.group(1) or m.group(2)) in ("next", "التالي") else "السابق"),
+     "moos-arrow-symbolic"),
+    (r"^(?:wallpaper\s+)?motion\s+(still|gentle|alive)$|^(?:الحركة|حركة الخلفية)\s+(ثابتة|هادئة|حية|حيّة)$",
+     lambda m: MOTION_ROUTE[m.group(1) or MOTION_AR[m.group(2)]],
+     lambda m: "Wallpaper motion: " + (m.group(1) or MOTION_AR[m.group(2)]),
+     lambda m: "حركة الخلفية: " + (m.group(2) or {v: k for k, v in MOTION_AR.items()}[m.group(1)]),
+     "moos-wave-symbolic"),
+    (r"^(?:glass\s+)?clarity\s+(clear|balanced|solid)$|^(?:وضوح\s+الزجاج|الزجاج)\s+(شفاف|متوازن|صلب|معتم)$",
+     lambda m: CLARITY_ROUTE[m.group(1) or CLARITY_AR[m.group(2)]],
+     lambda m: "Glass clarity: " + (m.group(1) or CLARITY_AR[m.group(2)]),
+     lambda m: "وضوح الزجاج: " + (m.group(2) or {v: k for k, v in CLARITY_AR.items()}[m.group(1)]),
+     "moos-diamond-symbolic"),
+    (r"^(?:power saver|power saving|battery saver)(?:\s+mode)?$|^(?:وضع\s+)?توفير\s+(?:الطاقة|البطارية)$",
+     lambda m: "control/power-profile/power-saver", lambda m: "Power saver",
+     lambda m: "وضع توفير الطاقة", "moos-battery-symbolic"),
+    (r"^(?:performance|high performance)(?:\s+mode)?$|^(?:وضع\s+)?الأداء(?:\s+العالي)?$",
+     lambda m: "control/power-profile/performance", lambda m: "Performance mode",
+     lambda m: "وضع الأداء", "moos-bolt-symbolic"),
+    (r"^balanced(?:\s+(?:power|mode))$|^(?:الوضع|وضع)\s+المتوازن$|^طاقة\s+متوازنة$",
+     lambda m: "control/power-profile/balanced", lambda m: "Balanced power",
+     lambda m: "الوضع المتوازن", "moos-bolt-symbolic"),
 ]
+
+
+def _settings_pages():
+    """(token, label) of every page Mo AI may open: the ONE settings registry (SPEC D3).
+
+    An unreadable registry offers no settings result; every other result still works.
+    """
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "lib/moos"))
+    try:
+        import moos_settings_destinations as destinations
+    except ImportError:
+        return ()
+    finally:
+        sys.path.pop(0)
+    registry = destinations.safe_load(
+        Path(__file__).resolve().parent.parent / "share/moos/settings-destinations.json")
+    return tuple((token, registry[token]["label"]) for token in destinations.moai_tokens(registry))
+
+
+SETTINGS_PAGES = _settings_pages()
+
+
+def _settings_rule(token, label):
+    en, ar = re.escape(label["en"].lower()), re.escape(label["ar"].lower())
+    pattern = (rf"^(?:open\s+)?(?:the\s+)?{en}\s+settings$|^settings\s+{en}$"
+               rf"|^(?:افتح\s+)?(?:إعدادات|اعدادات)\s+{ar}$")
+    return (pattern, lambda m, t=token: f"settings/{t}",
+            lambda m, l=label: f"Open settings: {l['en']}",
+            lambda m, l=label: f"افتح إعدادات: {l['ar']}", "moos-settings-symbolic")
+
+
+RULES += [_settings_rule(token, label) for token, label in SETTINGS_PAGES]
 RULES = [(re.compile(pattern), route, en, ar, icon) for pattern, route, en, ar, icon in RULES]
 
 ALLOWED_ROUTE = re.compile(
     r"^(?:control/volume/(?:100|[0-9]{1,2}|up|down)|control/mute|control/unmute"
     r"|control/brightness/(?:100|[1-9][0-9]|[5-9]|up|down)|control/night-light/(?:on|off)"
     r"|control/screenshot|control/bluetooth/(?:on|off)|control/wifi/(?:on|off)"
-    r"|theme/(?:" + "|".join(THEMES) + r"))$")
+    r"|control/dnd/(?:on|off)|control/mic/(?:mute|unmute)|control/keyboard-layout/next"
+    r"|control/window/(?:overview|grid|show-desktop)"
+    r"|control/arrange/(?:halves|thirds|quarters|main|centre)"
+    r"|control/desktop/(?:next|previous)|control/motion/(?:still|gentle|alive)"
+    r"|control/clarity/(?:clear|balanced|solid)"
+    r"|control/power-profile/(?:power-saver|balanced|performance)"
+    r"|theme/(?:" + "|".join(THEMES) + r")"
+    + "".join(f"|settings/{re.escape(token)}" for token, _label in SETTINGS_PAGES) + r")$")
 ASK_PREFIX = re.compile(r"^(?:ask|ai|mo ?ai|اسأل|اسال|سؤال)\s*[:،,]?\s+", re.IGNORECASE)
 
 

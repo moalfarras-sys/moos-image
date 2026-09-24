@@ -39,7 +39,9 @@ python3 tests/verify_user_experience.py
 python3 tests/test_device_plan.py
 python3 tests/test_moai_do.py
 python3 tests/test_moos_control.py
+python3 tests/test_settings_destinations.py
 python3 tests/test_moos_health.py
+python3 tests/test_remote_edition_guard.py
 python3 tests/test_moai_krunner.py
 python3 tests/test_foreign_app_menus.py
 python3 tests/test_remote_cuda_scaler.py

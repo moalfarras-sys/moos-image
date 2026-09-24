@@ -30,6 +30,8 @@ from __future__ import annotations
 
 import json
 import re
+import sys
+from pathlib import Path
 from typing import Any
 
 # ---------------------------------------------------------------------------
@@ -234,14 +236,24 @@ _MOAI_DO_TOOLS: list[dict[str, Any]] = [
 # moos-control actions
 # ---------------------------------------------------------------------------
 
-# The pages moos-control's `settings` verb accepts (its SETTINGS_PAGES). The schema test reads
-# moos-control and fails if the two lists differ.
-SETTINGS_PAGES: tuple[str, ...] = (
-    "display", "night-light", "audio", "network", "bluetooth", "keyboard", "mouse", "touchpad",
-    "printers", "themes", "wallpaper", "fonts", "accessibility", "notifications", "energy", "time",
-    "region", "users", "about", "storage", "update", "default-apps", "autostart", "lock",
-    "permissions",
-)
+# The pages moos-control's `settings` verb accepts: the tokens marked `moai: true` in the one
+# settings registry (usr/share/moos/settings-destinations.json, SPEC D3). Both read the same
+# file through the same module, and the schema test still runs every value through
+# moos-control. An unreadable registry offers no page, so open_settings is then not offered
+# at all rather than offered with an empty or stale list.
+def _settings_pages() -> tuple[str, ...]:
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "moos"))
+    try:
+        import moos_settings_destinations as destinations
+    except ImportError:
+        return ()
+    finally:
+        sys.path.pop(0)
+    registry = Path(__file__).resolve().parent.parent.parent / "share/moos/settings-destinations.json"
+    return destinations.moai_tokens(destinations.safe_load(registry))
+
+
+SETTINGS_PAGES: tuple[str, ...] = _settings_pages()
 
 _CONTROL_TOOLS: list[dict[str, Any]] = [
     _schema(
@@ -344,7 +356,8 @@ _CONTROL_TOOLS: list[dict[str, Any]] = [
     ),
     _schema(
         "get_system_status",
-        "Get current device status: volume, brightness, night light, Wi-Fi, Bluetooth, theme — يحصل على حالة الجهاز الحالية",
+        "Get current device status: volume, brightness, night light, Wi-Fi, Bluetooth, theme, "
+        "do not disturb, microphone and power profile — يحصل على حالة الجهاز الحالية",
         category=READ_ONLY, executor="moos-control", command="status",
     ),
     _schema(
@@ -359,9 +372,98 @@ _CONTROL_TOOLS: list[dict[str, Any]] = [
         },
         required=["app_id"],
     ),
+    # SPEC D4: the window manager and the desktop, through their own fixed actions.
     _schema(
+        "show_windows",
+        "Show the overview of open windows, the grid of every desktop, or the desktop itself "
+        "(show-desktop hides the windows; asking again brings them back) — "
+        "يعرض نظرة عامة على النوافذ أو شبكة أسطح المكتب أو سطح المكتب نفسه",
+        category=CONTROL, executor="moos-control", command="window",
+        parameters={"view": {"type": "string", "enum": ["overview", "grid", "show-desktop"],
+                             "description": "overview, grid of desktops, or show-desktop"}},
+        required=["view"],
+    ),
+    _schema(
+        "arrange_windows",
+        "Arrange the windows on the current screen in one step: side by side in halves, thirds "
+        "or quarters, one main window and two, or centre the active window — "
+        "يرتّب النوافذ على الشاشة الحالية نصفين أو أثلاثاً أو أرباعاً أو نافذة رئيسية أو في المنتصف",
+        category=CONTROL, executor="moos-control", command="arrange",
+        parameters={"layout": {"type": "string",
+                               "enum": ["halves", "thirds", "quarters", "main", "centre"],
+                               "description": "how to arrange the windows"}},
+        required=["layout"],
+    ),
+    _schema(
+        "switch_desktop",
+        "Move to the next or previous virtual desktop — ينتقل إلى سطح المكتب التالي أو السابق",
+        category=CONTROL, executor="moos-control", command="desktop",
+        parameters={"direction": {"type": "string", "enum": ["next", "previous"],
+                                  "description": "which way to move"}},
+        required=["direction"],
+    ),
+    _schema(
+        "set_do_not_disturb",
+        "Turn do-not-disturb (silence notification pop-ups) on or off — "
+        "يشغّل أو يطفئ وضع عدم الإزعاج (إسكات الإشعارات)",
+        category=CONTROL, executor="moos-control", command="dnd",
+        parameters={"value": {"type": "string", "enum": ["on", "off"],
+                              "description": "do not disturb on or off"}},
+        required=["value"],
+    ),
+    _schema(
+        "set_mic_mute",
+        "Mute or unmute the microphone (not the speakers; for sound use set_mute) — "
+        "يكتم الميكروفون أو يعيده (لا السماعات)",
+        category=CONTROL, executor="moos-control", command="mic",
+        parameters={"value": {"type": "string", "enum": ["mute", "unmute"],
+                              "description": "mute or unmute the microphone"}},
+        required=["value"],
+        # Muting is always safe. Turning the microphone back ON undoes a privacy choice the
+        # owner made, so neither a model's turn nor a link may do it without a yes.
+        confirm_values={"value": ["unmute"]},
+    ),
+    _schema(
+        "switch_keyboard_layout",
+        "Switch the keyboard to the next typing language/layout — "
+        "يبدّل لغة الكتابة في لوحة المفاتيح إلى التالية",
+        category=CONTROL, executor="moos-control", command="keyboard-layout",
+    ),
+    _schema(
+        "set_motion",
+        "Set how much the MoOS wallpaper moves: still, gentle or alive — "
+        "يضبط حركة خلفية MoOS: ثابتة أو هادئة أو حيّة",
+        category=CONTROL, executor="moos-control", command="motion",
+        parameters={"level": {"type": "string", "enum": ["still", "gentle", "alive"],
+                              "description": "still stops the motion"}},
+        required=["level"],
+    ),
+    _schema(
+        "set_glass_clarity",
+        "Set how see-through MoOS glass surfaces are: clear, balanced or solid — "
+        "يضبط شفافية الزجاج في MoOS: شفاف أو متوازن أو صلب",
+        category=CONTROL, executor="moos-control", command="clarity",
+        parameters={"level": {"type": "string", "enum": ["clear", "balanced", "solid"],
+                              "description": "solid is the least transparent"}},
+        required=["level"],
+    ),
+    _schema(
+        "set_power_profile",
+        "Switch the power profile: power-saver, balanced or performance — "
+        "يبدّل وضع الطاقة: توفير أو متوازن أو أداء",
+        category=CONTROL, executor="moos-control", command="power-profile",
+        parameters={"profile": {"type": "string",
+                                "enum": ["power-saver", "balanced", "performance"],
+                                "description": "the power profile"}},
+        required=["profile"],
+    ),
+]
+
+if SETTINGS_PAGES:
+    _CONTROL_TOOLS.append(_schema(
         "open_settings",
-        "Open a specific system settings page — يفتح صفحة إعدادات محددة",
+        "Open a specific settings page (display, sound, network, shortcuts, window behaviour, "
+        "appearance, Mo AI, update, recovery and more) — يفتح صفحة إعدادات محددة",
         category=CONTROL, executor="moos-control", command="settings",
         parameters={
             "page": {
@@ -371,8 +473,7 @@ _CONTROL_TOOLS: list[dict[str, Any]] = [
             },
         },
         required=["page"],
-    ),
-]
+    ))
 
 # ---------------------------------------------------------------------------
 # moos-inspect: read-only, redacted, closed grammar. An operator has to LOOK before it repairs.
@@ -552,13 +653,17 @@ def needs_confirmation(tool_name: str, arguments: dict[str, Any]) -> bool:
     return False
 
 
+def _properties(tool_name: str) -> dict[str, Any]:
+    return next(t["function"]["parameters"]["properties"] for t in ALL_TOOLS
+                if t["function"]["name"] == tool_name)
+
+
 def _valid(tool_name: str, arguments: dict[str, Any]) -> bool:
     """Arguments must be declared, of the declared type, and inside a declared enum/range.
 
     The executors validate again; this keeps a model's invention out of argv altogether.
     """
-    properties = next(t["function"]["parameters"]["properties"] for t in ALL_TOOLS
-                      if t["function"]["name"] == tool_name)
+    properties = _properties(tool_name)
     for key, value in arguments.items():
         spec = properties.get(key)
         if spec is None:
@@ -632,13 +737,16 @@ def build_command(tool_name: str, arguments: dict[str, Any]) -> list[str] | None
         if command == "mute":
             # `mute` and `unmute` are separate argument-less verbs of moos-control.
             return ["moos-control", str(arguments["value"])]
+        if command == "keyboard-layout":
+            # One direction only: `next`, which a second call undoes on a two-layout desk.
+            return ["moos-control", "keyboard-layout", "next"]
         cmd = ["moos-control", command]
-        if "value" in arguments:
-            cmd.append(str(arguments["value"]))
-        elif "app_id" in arguments:
-            cmd.append(arguments["app_id"])
-        elif "page" in arguments:
-            cmd.append(arguments["page"])
+        # Every other control verb takes its ONE declared argument, whatever it is called.
+        declared = [key for key in _properties(tool_name) if key in arguments]
+        if len(declared) > 1:
+            return None
+        if declared:
+            cmd.append(str(arguments[declared[0]]))
         return cmd
 
     return None

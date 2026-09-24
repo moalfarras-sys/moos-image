@@ -1927,33 +1927,187 @@ require("def local_failure_reason" in gateway and "FAILURE_SIGNS" in gateway,
         "(GPU memory, disk, network) — one generic 'still downloading' message for every "
         "failure is how a dead brain looks like a slow one")
 
-# The apps, and MoOS's pages inside System Settings (moos-settings-kcm): a settings page's
-# button is exactly as dead as an app's when its route has no case.
-_route_scan = sorted((ROOT / "system_files/usr/share/moos/apps").glob("*/main.qml"))
-_route_scan += sorted((ROOT / "moos-settings-kcm").rglob("*.qml"))
-require(any("moos-settings-kcm" in p.as_posix() for p in _route_scan),
-        "the route cross-check found no MoOS settings module to scan")
-for qml_path in _route_scan:
-    qml_text = qml_path.read_text(encoding="utf-8")
-    for url in sorted(set(re.findall(r'moos://([a-z0-9/._-]+)', qml_text))):
-        # A URL the app builds at runtime ("moos://do/" + action) shows up here as
-        # the bare prefix "do/". It is not a route; the values substituted into it
-        # are checked below, against the allowlist the app actually draws from.
-        if url.endswith("/"):
-            continue
-        require(route_is_covered(url, declared_routes),
-                f"{qml_path.relative_to(ROOT).as_posix()} opens moos://{url}, "
-                f"which moos-open has no case for — that button does nothing")
+# ── Every EMITTER of a moos:// URL, not only the apps' main.qml ──────────────
+# The first version of this check read system_files/usr/share/moos/apps/*/main.qml and
+# nothing else. The plasmoids, the System Settings module, the widget explorer, the health
+# scan, What's new, moos-control and the search runner all open moos:// URLs too, and none of
+# them was checked. Now every QML/JS under system_files and moos-settings-kcm, and every
+# script literal, is read (comment lines excluded: prose is not a button).
+_EMITTER_SUFFIXES = {".qml", ".js", ".py", ".json", ".desktop", ".sh", ".cpp", ".h", ""}
+# Nothing launches the retired QML Command Center (no program, unit, desktop entry or build
+# step names it), so the URLs inside it reach no one; slice A deletes it (SPEC D5). While it
+# ships it is excluded here ONLY while that stays true — the moment anything launches it
+# again, it is scanned like everything else.
+_RETIRED_COMMAND_CENTER = ROOT / "system_files/usr/share/moos/apps/settings/main.qml"
 
-# The Run chips are built from the actions Mo AI parses out of a model reply, so
-# their URLs never appear as literals. Check the allowlist that feeds them.
-runs = re.search(r"const re = /moai-do\\s\+\(([a-z|-]+)\)", moai_qml)
-require(runs is not None, "Mo AI must match suggested actions against a fixed allowlist")
-if runs:
-    for action in runs.group(1).split("|"):
-        require(route_is_covered(f"do/{action}", declared_routes),
-                f"Mo AI can offer to run `moai-do {action}`, "
-                f"but moos-open has no do/{action} route")
+
+def _launches_retired_command_center() -> bool:
+    needles = ("apps/settings/main.qml", "moos/apps/settings\"", "moos/apps/settings/")
+    for base in (ROOT / "system_files", ROOT / "build_files", ROOT / "moos-settings-kcm"):
+        for path in base.rglob("*"):
+            if not path.is_file() or path == _RETIRED_COMMAND_CENTER:
+                continue
+            try:
+                text = path.read_text(encoding="utf-8")
+            except (UnicodeDecodeError, OSError):
+                continue
+            if any(needle in text for needle in needles):
+                return True
+    for containerfile in ROOT.glob("Containerfile*"):
+        if "apps/settings" in containerfile.read_text(encoding="utf-8"):
+            return True
+    return False
+
+
+_skip_retired = _RETIRED_COMMAND_CENTER.exists() and not _launches_retired_command_center()
+
+
+def _emitter_sources():
+    router_path = ROOT / "system_files/usr/bin/moos-open"
+    for base in (ROOT / "system_files", ROOT / "moos-settings-kcm"):
+        for path in sorted(base.rglob("*")):
+            if not path.is_file() or path == router_path or path.suffix not in _EMITTER_SUFFIXES:
+                continue
+            if _skip_retired and path == _RETIRED_COMMAND_CENTER:
+                continue
+            try:
+                text = path.read_text(encoding="utf-8")
+            except (UnicodeDecodeError, OSError):
+                continue
+            if "moos://" not in text and path.name not in ("moai-krunner", "moai-control") \
+                    and "moai-do" not in text:
+                continue
+            code_lines = [line for line in text.splitlines()
+                          if not line.lstrip().startswith(("#", "//", "* ", "/*"))]
+            yield path, "\n".join(code_lines)
+
+
+# A settings page's button is exactly as dead as an app's when its route has no case, so
+# the scan must really reach MoOS's pages inside System Settings (moos-settings-kcm).
+require(any("moos-settings-kcm" in _p.as_posix() for _p, _c in _emitter_sources()),
+        "the route cross-check found no MoOS settings module to scan")
+
+_emitted: dict[str, list[str]] = {}          # route -> where it is emitted
+_emitted_prefixes: dict[str, list[str]] = {}  # "apps/install/" -> where it is built
+for _path, _code in _emitter_sources():
+    _where = _path.relative_to(ROOT).as_posix()
+    for _url in set(re.findall(r"moos://([a-z0-9/._-]*)", _code)):
+        if not _url or _url.endswith("/"):
+            # A URL built at runtime ("moos://do/" + action) is a PREFIX, not a route: the
+            # values put after it are checked below against the allowlist they come from.
+            if _url:
+                _emitted_prefixes.setdefault(_url, []).append(_where)
+            continue
+        _emitted.setdefault(_url, []).append(_where)
+        # Forward: a URL something opens must have a case.
+        require(route_is_covered(_url, declared_routes),
+                f"{_where} opens moos://{_url}, which moos-open has no case for — that "
+                f"button does nothing")
+
+# The Run chips are built from the actions Mo AI parses out of a model reply, so their URLs
+# never appear as literals. Check the allowlist that feeds them, in every QML that has one.
+_run_lists = 0
+for _path, _code in _emitter_sources():
+    for _alternation in re.findall(r"moai-do\\s\+\(([a-z0-9|_-]+)\)", _code):
+        _run_lists += 1
+        for action in _alternation.split("|"):
+            require(route_is_covered(f"do/{action}", declared_routes),
+                    f"{_path.name} can offer to run `moai-do {action}`, "
+                    f"but moos-open has no do/{action} route")
+            _emitted.setdefault(f"do/{action}", []).append(f"{_path.name} run chips")
+require(_run_lists >= 1, "Mo AI must match suggested actions against a fixed allowlist")
+
+# Mo AI's Diagnose panel opens moos://do/<id> for the fixed repairs moai-control lists.
+for _repair in re.findall(r'\{"id": "([a-z-]+)",\s+"label": "[^"]*",\s+"read":',
+                          read("system_files/usr/bin/moai-control")):
+    require(route_is_covered(f"do/{_repair}", declared_routes),
+            f"moai-control offers the repair {_repair}, but moos-open has no do/{_repair} route")
+    _emitted.setdefault(f"do/{_repair}", []).append("moai-control diagnose repairs")
+
+# Mo AI's control chips: `moos-control <verb> <value>` in a reply becomes a moos:// route
+# (controlUrl). Every shape the grammar accepts must have a case, and each is an emitter.
+_ctl = re.search(r"const ctl = /moos-control\\s\+\((.*)\)\\b/g", moai_qml)
+require(_ctl is not None, "Mo AI's control grammar moved; this gate must read it")
+if _ctl:
+    _depth, _part, _alternatives = 0, "", []
+    for _char in _ctl.group(1):
+        if _char == "(":
+            _depth += 1
+        elif _char == ")":
+            _depth -= 1
+        if _char == "|" and _depth == 0:
+            _alternatives.append(_part)
+            _part = ""
+        else:
+            _part += _char
+    _alternatives.append(_part)
+    for _alternative in _alternatives:
+        _shape = re.fullmatch(r"([a-z-]+)(?:\\s\+\(\?:(.*)\)|\\s\+.*)?", _alternative)
+        require(_shape is not None, f"unreadable control grammar alternative {_alternative!r}")
+        if not _shape:
+            continue
+        _verb, _values = _shape.group(1), _shape.group(2)
+        _base = {"theme": "theme", "open": "apps/run", "settings": "settings"}.get(
+            _verb, f"control/{_verb}")
+        if _values is None:
+            _routes = [_base if _verb not in ("open",) else "apps/run/org.example.App"]
+        else:
+            _routes = [f"{_base}/{_value}" if re.fullmatch(r"[a-z-]+", _value)
+                       else f"{_base}/40" for _value in _values.split("|")]
+        for _route in _routes:
+            require(route_is_covered(_route, declared_routes),
+                    f"Mo AI turns `moos-control {_verb}` into moos://{_route}, which moos-open "
+                    f"has no case for")
+            _emitted.setdefault(_route, []).append("Mo AI control chips")
+
+# The search runner opens moos://<route> for the fixed routes its rules build; each is
+# written out whole in its source (numeric volume/brightness values and the registry's
+# settings pages are built, and are covered by their wildcard arm / by moos-control below).
+for _route in set(re.findall(r'"((?:control|theme|settings)/[a-z0-9/-]*[a-z0-9])"',
+                             code(read("system_files/usr/libexec/moai-krunner")))):
+    require(route_is_covered(_route, declared_routes),
+            f"the search runner opens moos://{_route}, which moos-open has no case for")
+    _emitted.setdefault(_route, []).append("moai-krunner")
+
+# moos-control's settings verb opens moos://settings/<page> for the pages it offers, i.e. the
+# registry's Mo AI tokens (tests/test_settings_destinations.py holds the arms to the registry).
+import runpy as _runpy
+for _page in _runpy.run_path(str(ROOT / "system_files/usr/bin/moos-control"),
+                             run_name="moos_control_routes")["SETTINGS_PAGES"]:
+    _emitted.setdefault(f"settings/{_page}", []).append("moos-control settings")
+
+# ── …and the reverse: a case nothing opens is attack surface, not a feature ──
+# moos: is a PUBLIC scheme — any web page can hand this router a URL — so a route no MoOS
+# surface opens only widens what a drive-by link can reach. Every declared case must have an
+# emitter, or name here why it stays. (Removed on 2026-09-24 for having none: app/moplayer,
+# app/setup, app/compat, app/hardware, app/welcome, search/, search/*, session/lock,
+# do/support-bundle and the Command-Center-only settings pages.)
+ROUTES_KEPT_WITHOUT_AN_EMITTER = {
+    "session/logout": "the logout path the confirm gate and test_moos_open_qdbus.py pin; "
+                      "it asks before acting",
+    "session/power": "the shutdown path the confirm gate and test_moos_open_qdbus.py pin; "
+                     "it asks before acting",
+    "lang/ar": "the Welcome builds moos://lang/<code> from its two-language list "
+               "(the device/language block above pins both ends)",
+    "lang/en": "the Welcome builds moos://lang/<code> from its two-language list",
+    "remote/fast-on": "SPEC D6: the Fast Remote switch of the Mo PC Remote settings page "
+                      "(slice A) opens it",
+    "remote/fast-off": "SPEC D6: the Fast Remote switch of the Mo PC Remote settings page "
+                       "(slice A) opens it",
+}
+for _label in sorted(declared_routes):
+    if _label.endswith("*"):
+        _prefix = _label[:-1]
+        _covered = _prefix in _emitted_prefixes or any(
+            _url.startswith(_prefix) for _url in _emitted)
+    else:
+        _covered = _label in _emitted
+    require(_covered or _label in ROUTES_KEPT_WITHOUT_AN_EMITTER,
+            f"moos-open declares {_label}, but nothing in MoOS opens it — remove the case, or "
+            f"name the reason it stays in ROUTES_KEPT_WITHOUT_AN_EMITTER")
+for _label, _reason in ROUTES_KEPT_WITHOUT_AN_EMITTER.items():
+    require(_label in declared_routes and _reason.strip(),
+            f"ROUTES_KEPT_WITHOUT_AN_EMITTER names {_label}, which moos-open does not declare")
 
 # ── The cloud brain ─────────────────────────────────────────────────────────
 gateway = read("system_files/usr/bin/moai-gateway")
@@ -1991,21 +2145,60 @@ require("moai-credential-store" in gateway,
         "the gateway must read the key from Mo AI's private XDG store, not config.json")
 
 # …and the other half of the same contract: every do/* route that moos-open hands
-# to moai-do must be an action moai-do actually implements. (Not every do/* route
-# goes there — do/smart-setup and do/setup-gaming are dispatched to moos-setup by
-# moos-open itself — so assert against the arm that really calls moai-do, rather
-# than assuming.)
+# to moai-do must be an action moai-do actually implements — in a terminal
+# (`term moai-do "$tgt"`) or confirmed in the background (`moai_do_detached <action>`).
+# Arms that open a page instead (do/hw-report, do/setup-brain) are not moai-do's.
 moai_do = read("system_files/usr/bin/moai-do")
 moai_do_arm = re.search(
     r"^\s{4}((?:do/[a-z-]+\|)*do/[a-z-]+)\)\s*\n\s*term moai-do",
     router, re.MULTILINE)
 require(moai_do_arm is not None,
-        "moos-open must dispatch its moai-do actions from a single case arm")
+        "moos-open must dispatch its terminal moai-do actions from a single case arm")
+_moai_do_dispatch = re.search(r'case "\$cmd" in(.*?)\n    esac', moai_do, re.S)
+require(_moai_do_dispatch is not None, "moai-do must dispatch on $cmd in a case block")
+_moai_do_actions = set()
+if _moai_do_dispatch:
+    for _labels in re.findall(r"^\s{8}([a-z][a-z|-]*)\)", _moai_do_dispatch.group(1), re.M):
+        _moai_do_actions.update(_labels.split("|"))
 if moai_do_arm:
     for label in moai_do_arm.group(1).split("|"):
         action = label.split("/", 1)[1]
-        require(f"{action})" in moai_do,
+        require(action in _moai_do_actions,
                 f"moos-open routes {label} to moai-do, which does not implement it")
+for _labels, _action in re.findall(
+        r"^\s{4}([a-z0-9/|-]+)\)\s*\n?[^;]*?moai_do_detached\s+([a-z-]+)", code(router), re.M):
+    for _label in _labels.split("|"):
+        require(_label == f"do/{_action}" and _action in _moai_do_actions,
+                f"moos-open's {_label} runs moai-do {_action} in the background, which is "
+                f"either not its own action or not one moai-do implements")
+# The two Update-page actions run confirmed with no terminal, after ONE question.
+for _action in ("update-apps", "update-firmware"):
+    _arm = re.search(rf"(?ms)^\s{{4}}do/{_action}\)(.*?);;", code(router))
+    require(_arm is not None and "confirm " in _arm.group(1)
+            and f"moai_do_detached {_action}" in _arm.group(1) and "term " not in _arm.group(1),
+            f"moos://do/{_action} must ask once and then run moai-do {_action} confirmed with "
+            f"no terminal")
+require("MOAI_DO_CONFIRMED=1 moai-do" in code(router),
+        "the background moai-do runs must say they were confirmed (MOAI_DO_CONFIRMED=1)")
+# Any OTHER program that calls moai-do must name a real action. moos-privacy-stop called
+# `moai-do remote-stop` for weeks; it never existed and the failure was swallowed.
+for _script in sorted([*(ROOT / "system_files/usr/bin").iterdir(),
+                       *(ROOT / "system_files/usr/libexec").iterdir()]):
+    if _script.name == "moai-do" or not _script.is_file():
+        continue
+    try:
+        _text = _script.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        continue
+    if _text.startswith("#!") and "python" in _text.split("\n", 1)[0]:
+        _called = re.findall(r"[\"']moai-do[\"']\s*,\s*(?:[\"']--confirmed[\"']\s*,\s*)?"
+                             r"[\"']([a-z][a-z-]+)[\"']", code(_text))
+    else:
+        _called = re.findall(r"(?:^|[;&|(]|\bthen|\bdo|\belse)\s*(?:command\s+|exec\s+)?"
+                             r"moai-do\s+(?:--confirmed\s+)?([a-z][a-z-]+)", code(_text), re.M)
+    for _action in _called:
+        require(_action in _moai_do_actions,
+                f"{_script.name} runs `moai-do {_action}`, which moai-do does not implement")
 
 # Install must also RUN. "Install a camera" is only finished when the camera is on
 # screen, so do_install opens the app it just installed. Gate the CALL, not just the

@@ -22,7 +22,11 @@
 # EVERY moos:// URL emitted by a MoOS QML app must have a case below. Three
 # buttons once shipped opening routes that did not exist here; they popped
 # "unknown MoOS action" and did nothing. tests/verify_user_experience.py now
-# cross-checks the QML against this file so that cannot happen again.
+# cross-checks every emitter (QML, the settings module, scripts) against this file
+# in both directions: a URL with no case fails, and so does a case nothing opens
+# (unless it names why it stays). The settings/* arms are the literal twin of
+# /usr/share/moos/settings-destinations.json; tests/test_settings_destinations.py
+# fails when the two differ in either direction.
 set -uo pipefail
 
 url="${1:-}"
@@ -92,17 +96,8 @@ qdbus_run() {
     return 1
 }
 
-open_search() {
-    # Search is the idle face of the fixed Context Island. The MoOS launcher
-    # already owns the full Milou-backed results surface, so activate that same
-    # owner instead of opening a detached KRunner window. Keep KRunner only as a
-    # fail-soft fallback for a non-Plasma recovery session.
-    qdbus_run org.kde.plasmashell /PlasmaShell activateLauncherMenu \
-        >/dev/null 2>&1 || gui krunner
-}
-
 # Run an interactive command in a held terminal so its output/prompts/errors
-# stay visible after it exits (moos-setup, moai-start, moai-do).
+# stay visible after it exits (moai-do actions that ask on the terminal).
 term() {
     if command -v konsole >/dev/null 2>&1; then
         setsid konsole --hold -e "$@" >/dev/null 2>&1 &
@@ -126,6 +121,43 @@ remote_ctl() {
     fi
 }
 
+# One confirmed moai-do action with no terminal, and a notification saying how it
+# ended. The person has already answered confirm() above; MOAI_DO_CONFIRMED=1 is
+# how moai-do is told so (the same thing Mo AI's tool runner passes as --confirmed),
+# and moai-do records the run as approved in `journalctl -t moai-do`. Polkit still
+# asks for the password wherever moai-do escalates. The action name is a literal
+# from the case arm below, never URL text. The label is an "Arabic | English"
+# pair like every message here. One side is picked BEFORE composing: a pair
+# inside a pair reached the popup as "Firmware | البرامج الثابتة: لم يكتمل | did
+# not finish".
+moai_do_detached() {
+    local action="$1" label unfinished
+    label="$(localized_message "$2")"
+    unfinished="$(localized_message "لم يكتمل | did not finish")"
+    (
+        trap '' HUP
+        out="$(MOAI_DO_CONFIRMED=1 moai-do "$action" </dev/null 2>&1)"
+        rc=$?
+        last="$(printf '%s\n' "$out" | sed -e 's/\x1b\[[0-9;]*m//g' | grep -v '^[[:space:]]*$' | tail -n 1 | cut -c1-200)"
+        if [ "$rc" -eq 0 ]; then
+            notify "${label} ✓${last:+ — $last}"
+        else
+            notify "${label}: ${unfinished}${last:+ — $last}"
+        fi
+    ) </dev/null >/dev/null 2>&1 &
+}
+
+# Fast Remote is the user's own look profile (moos-fast-remote): no privilege,
+# no terminal, never restarts the desktop, and `off` restores exactly what `on`
+# saved. The argument is a literal from the case arm, never URL text.
+fast_remote() {
+    if moos-fast-remote "$1" >/dev/null 2>&1; then
+        notify "Fast Remote ✓"
+    else
+        notify "Fast Remote: $(localized_message "تعذّر التنفيذ | action failed")"
+    fi
+}
+
 # Everyday control runs moos-control directly — user-level, no privilege, no
 # terminal — and shows its one-line result, so the change is visible at once.
 control_run() {
@@ -140,52 +172,90 @@ control_run() {
 
 case "${cat}/${tgt}" in
     app/moai)      gui moai ;;
-    app/moplayer)  gui moplayer ;;
     app/remote)    gui mo-pc-remote ;;
-    app/setup)     term moos-setup ;;
-    do/smart-setup) confirm "تشغيل الإعداد الذكي وتطبيق التوصيات؟ | Run smart setup and apply its recommendations?" \
-                          && term moos-setup --smart ;;
-    app/compat)    gui moai --device ;;
-    app/hardware)  gui moai --device ;;
     # GTK apps, not terminal programs. Launching them with `term` opened a Konsole
     # window (--hold, so it stays) AND the app's own window — two windows and two
     # taskbar entries for one action, with the terminal sitting empty because the app
     # prints nothing. `gui` is what the other graphical MoOS apps above use.
     app/updater)   gui moos-update ;;
     app/recovery)  gui moos-rollback ;;
-    app/welcome)   gui moos-welcome ;;
     app/store)     gui moos-store ;;
     app/settings)  gui moos-settings ;;
-    # STAGE C2 (docs/MOAI_CLOUD_ONLY_PLAN.md). This used to run `moai-start`,
-    # which brings up a LOCAL engine. ensure_local() now refuses, so that button
-    # became a dead one the moment the door closed — and AGENTS.md is explicit
-    # that a button which does nothing is a defect. It is not left dead for one
-    # release: it now opens the cloud provider setup, which is what "start the
-    # brain" MEANS once the brain is a cloud API. Every caller of this route
-    # (Mo AI's startBrain()) therefore keeps working and lands somewhere useful.
-    brain/start)   term moai-config ;;
-    # ai/config was removed with the one-chat redesign: it opened moai-config,
-    # a THIRD brain-configuration surface (beside the in-chat picker and the
-    # Settings Brain tab) — and because moos: is a public URL scheme, any web
-    # page could pop it. moai-config itself remains a terminal tool.
+    # STAGE C2 (docs/MOAI_CLOUD_ONLY_PLAN.md) turned "start the brain" into "set
+    # up the cloud brain". That setup now lives in ONE place — the Mo AI page of
+    # System Settings (SPEC D1/D5) — so this route and do/setup-brain open that
+    # page instead of a held Konsole running the kdialog wizard. No terminal, no
+    # privilege, and no second brain-configuration surface a web page can pop.
+    brain/start)   gui moos-settings --section=assistant ;;
 
-    # ── Connected devices: these are the real Plasma 6 KCM module ids. The
-    # Welcome's pairing guide opens the exact settings page it describes; none
-    # of its buttons are decorative. All four operations are read-only launches
-    # from the public URL handler — the user still performs every pairing or
-    # settings change inside System Settings.
-    settings/bluetooth) gui systemsettings kcm_bluetooth ;;
-    # USB is an Information Centre module, not a System Settings KCM. Plasma 6
-    # embeds its metadata in kcm_usb.so and ships no kcm_usb.desktop, so sending
-    # it to systemsettings produces a polished-looking dead button.
-    settings/usb)       gui kinfocenter kcm_usb ;;
-    settings/keyboard)  gui systemsettings kcm_keyboard ;;
-    settings/mouse)     gui systemsettings kcm_mouse ;;
-    # ── MoOS Command Center: every destination is a fixed, installed Plasma
-    # module or a first-party MoOS application.  There is deliberately no
-    # settings/kcm/* wildcard: the public URL scheme can never turn URL text
-    # into argv.  These routes only open read-only configuration surfaces; the
-    # user performs and confirms any state change in the destination itself.
+    # ── Settings pages: one fixed, literal arm per token of the ONE registry,
+    # /usr/share/moos/settings-destinations.json (SPEC D3). The destinations are
+    # installed settings modules, the MoOS modules of System Settings (through
+    # moos-settings) or a first-party MoOS program. There is deliberately no
+    # settings/kcm/* wildcard: the public URL scheme can never turn URL text into
+    # argv. These routes only open configuration surfaces; the person performs and
+    # confirms any change inside the destination. tests/test_settings_destinations.py
+    # fails when an arm and the registry disagree in either direction.
+    #
+    # USB is an Information Centre module, not a System Settings one: Plasma 6
+    # embeds its metadata in kcm_usb.so and ships no kcm_usb.desktop, so sending it
+    # to systemsettings produced a polished-looking dead button. Themes, wallpaper
+    # and appearance all open MoOS Themes, the MoOS look's one owner.
+    settings/display)           gui systemsettings kcm_kscreen ;;
+    settings/night-light)       gui systemsettings kcm_nightlight ;;
+    settings/audio)             gui systemsettings kcm_pulseaudio ;;
+    settings/network)           gui systemsettings kcm_networkmanagement ;;
+    settings/bluetooth)         gui systemsettings kcm_bluetooth ;;
+    settings/keyboard)          gui systemsettings kcm_keyboard ;;
+    settings/mouse)             gui systemsettings kcm_mouse ;;
+    settings/touchpad)          gui systemsettings kcm_touchpad ;;
+    settings/printers)          gui systemsettings kcm_printer_manager ;;
+    settings/themes)            gui moos-settings --section=appearance ;;
+    settings/wallpaper)         gui moos-settings --section=appearance ;;
+    settings/fonts)             gui systemsettings kcm_fonts ;;
+    settings/accessibility)     gui systemsettings kcm_access ;;
+    settings/notifications)     gui systemsettings kcm_notifications ;;
+    settings/energy)            gui systemsettings kcm_powerdevilprofilesconfig ;;
+    settings/time)              gui systemsettings kcm_clock ;;
+    settings/region)            gui systemsettings kcm_regionandlang ;;
+    settings/users)             gui systemsettings kcm_users ;;
+    settings/about)             gui moos-settings --section=about ;;
+    settings/storage)           gui kinfocenter kcm_block_devices ;;
+    settings/update)            gui moos-settings --section=update ;;
+    settings/default-apps)      gui systemsettings kcm_componentchooser ;;
+    settings/autostart)         gui systemsettings kcm_autostart ;;
+    settings/lock)              gui systemsettings kcm_screenlocker ;;
+    settings/permissions)       gui systemsettings kcm_app-permissions ;;
+    settings/overview)          gui moos-settings --section=overview ;;
+    settings/whats-new)         gui moos-settings --section=whats-new ;;
+    settings/assistant)         gui moos-settings --section=assistant ;;
+    settings/remote)            gui moos-settings --section=remote ;;
+    settings/recovery)          gui moos-settings --section=recovery ;;
+    settings/appearance)        gui moos-settings --section=appearance ;;
+    settings/global-theme)      gui systemsettings kcm_lookandfeel ;;
+    settings/colors)            gui systemsettings kcm_colors ;;
+    settings/icons)             gui systemsettings kcm_icons ;;
+    settings/cursors)           gui systemsettings kcm_cursortheme ;;
+    settings/window-decoration) gui systemsettings kcm_kwindecoration ;;
+    settings/animations)        gui systemsettings kcm_animations ;;
+    settings/sounds)            gui systemsettings kcm_soundtheme ;;
+    settings/shortcuts)         gui systemsettings kcm_keys ;;
+    settings/window-behavior)   gui systemsettings kcm_kwinoptions ;;
+    settings/window-rules)      gui systemsettings kcm_kwinrules ;;
+    settings/effects)           gui systemsettings kcm_kwin_effects ;;
+    settings/desktops)          gui systemsettings kcm_kwin_virtualdesktops ;;
+    settings/task-switcher)     gui systemsettings kcm_kwintabbox ;;
+    settings/search)            gui systemsettings kcm_plasmasearch ;;
+    settings/login-screen)      gui systemsettings kcm_plasmalogin ;;
+    settings/virtual-keyboard)  gui systemsettings kcm_virtualkeyboard ;;
+    settings/touchscreen)       gui systemsettings kcm_touchscreen ;;
+    settings/tablet)            gui systemsettings kcm_tablet ;;
+    settings/game-controller)   gui systemsettings kcm_gamecontroller ;;
+    settings/usb)               gui kinfocenter kcm_usb ;;
+    settings/desktop)           gui moos-desktop-edit ;;
+    settings/full)              gui systemsettings ;;
+    # A widget preview from the Customize Desktop explorer. The id is validated to a
+    # reverse-DNS shape before it becomes one argv element.
     desktop/preview/*)
         id="${tgt#preview/}"
         if [[ "$id" =~ ^[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)+$ && ${#id} -le 255 ]]; then
@@ -194,45 +264,6 @@ case "${cat}/${tgt}" in
             notify "معرّف أداة غير صالح | invalid widget id"
             exit 2
         fi ;;
-    settings/desktop)           gui moos-desktop-edit ;;
-    settings/themes)            gui moos-theme-picker ;;
-    settings/display)           gui systemsettings kcm_kscreen ;;
-    settings/night-light)       gui systemsettings kcm_nightlight ;;
-    settings/fonts)             gui systemsettings kcm_fonts ;;
-    settings/wallpaper)         gui moos-theme-picker ;;
-    settings/accessibility)     gui systemsettings kcm_access ;;
-    settings/network)           gui systemsettings kcm_networkmanagement ;;
-    settings/hotspot)           gui systemsettings kcm_mobile_hotspot ;;
-    settings/accounts)          gui systemsettings kcm_kaccounts ;;
-    settings/audio)             gui systemsettings kcm_pulseaudio ;;
-    settings/touchpad)          gui systemsettings kcm_touchpad ;;
-    settings/printers)          gui systemsettings kcm_printer_manager ;;
-    settings/store)             gui moos-store ;;
-    settings/permissions)       gui systemsettings kcm_app-permissions ;;
-    settings/default-apps)      gui systemsettings kcm_componentchooser ;;
-    settings/autostart)         gui systemsettings kcm_autostart ;;
-    settings/notifications)     gui systemsettings kcm_notifications ;;
-    settings/lock)              gui systemsettings kcm_screenlocker ;;
-    settings/file-search)       gui systemsettings kcm_baloofile ;;
-    settings/telemetry)         gui systemsettings kcm_feedback ;;
-    # These three are native pages of the one MoOS Settings front door. Their
-    # primary action opens the backend-owned transaction sheet through app/*;
-    # the public settings route never skips the overview or its live status.
-    settings/update)            gui moos-settings --section=update ;;
-    # MoOS's own About page. The desktop's module names the projects MoOS is built from.
-    settings/about)             gui moos-settings --section=about ;;
-    settings/whats-new)         gui moos-settings --section=whats-new ;;
-    settings/assistant)         gui moai ;;
-    settings/users)             gui systemsettings kcm_users ;;
-    settings/time)              gui systemsettings kcm_clock ;;
-    settings/region)            gui systemsettings kcm_regionandlang ;;
-    settings/storage)           gui kinfocenter kcm_block_devices ;;
-    settings/firmware-security) gui kinfocenter kcm_firmware_security ;;
-    settings/recovery)          gui moos-settings --section=recovery ;;
-    settings/remote)            gui moos-settings --section=remote ;;
-    settings/system-monitor)    gui plasma-systemmonitor ;;
-    settings/energy)            gui systemsettings kcm_powerdevilprofilesconfig ;;
-    settings/full)              gui systemsettings ;;
 
     # ── Theme: instant, cosmetic, reversible — the Welcome's look picker fires
     # these. moos-theme itself serializes concurrent runs behind a flock, so a
@@ -293,6 +324,9 @@ case "${cat}/${tgt}" in
     # try-restart is a no-op when remote access is off. Plain restart would turn
     # an inactive service on, letting a public moos: URL open remote access.
     remote/restart) remote_ctl try-restart ;;
+    # Fast Remote (SPEC D6): the switch on the Mo PC Remote settings page.
+    remote/fast-on)  fast_remote on ;;
+    remote/fast-off) fast_remote off ;;
 
     # ── Coding agents: run the one the user picked, or install it ────────────
     dev/code)      term moai-code ;;
@@ -422,9 +456,21 @@ PY
     # moos-control owns the fixed argv of every action; this dispatcher accepts
     # only these exact shapes. Any web page can hand this scheme a URL, so the
     # worst a drive-by link can do is change the volume or take a screenshot.
-    # Turning Wi-Fi OFF disconnects the internet, Mo AI and remote control, so
-    # that one asks first.
-    control/volume/up|control/volume/down|control/brightness/up|control/brightness/down|control/mute|control/unmute|control/night-light/on|control/night-light/off|control/night-light/auto|control/wifi/on|control/bluetooth/on|control/bluetooth/off|control/screenshot)
+    # Three values ask first, the same three Mo AI shows a card for
+    # (confirm_values in moai_tool_schemas.py; tests/test_moos_control.py holds
+    # the two lists equal): Wi-Fi OFF disconnects the internet, Mo AI and remote
+    # control; Bluetooth OFF disconnects a wireless keyboard and mouse; and
+    # turning the microphone back ON undoes a mute the owner chose for privacy.
+    control/volume/up|control/volume/down|control/brightness/up|control/brightness/down|control/mute|control/unmute|control/night-light/on|control/night-light/off|control/night-light/auto|control/wifi/on|control/bluetooth/on|control/screenshot)
+        IFS=/ read -r -a control_args <<<"$tgt"
+        control_run "${control_args[@]}" ;;
+    # The desktop's own actions (SPEC D4): the window overview, MoOS's window
+    # arrangements, virtual desktops, do not disturb, the microphone, the keyboard
+    # layout, wallpaper motion, glass clarity and the power profile. Each one is a
+    # fixed name in moos-control; none can close a window, load a script or restart
+    # anything, so a drive-by link can at worst rearrange the screen or change a
+    # setting the person changes straight back.
+    control/window/overview|control/window/grid|control/window/show-desktop|control/arrange/halves|control/arrange/thirds|control/arrange/quarters|control/arrange/main|control/arrange/centre|control/desktop/next|control/desktop/previous|control/dnd/on|control/dnd/off|control/mic/mute|control/keyboard-layout/next|control/motion/still|control/motion/gentle|control/motion/alive|control/clarity/clear|control/clarity/balanced|control/clarity/solid|control/power-profile/power-saver|control/power-profile/balanced|control/power-profile/performance)
         IFS=/ read -r -a control_args <<<"$tgt"
         control_run "${control_args[@]}" ;;
     control/volume/*|control/brightness/*)
@@ -438,29 +484,44 @@ PY
     control/wifi/off)
         confirm "إيقاف الواي فاي يقطع الإنترنت وMo AI والتحكم عن بعد. متابعة؟ | Turning Wi-Fi off disconnects the internet, Mo AI and remote control. Continue?" \
             && control_run wifi off ;;
-    # `moos://search/` carries no query after the trailing slash is stripped, so it arrives as
-    # `search/`. The Context Island uses it to open the MoOS launcher's own search surface in
-    # place; this keeps one search authority and one stable slot on the bar.
-    search/)       open_search ;;
-    search/*)      query="$(python3 -c 'import sys,urllib.parse; print(urllib.parse.unquote(sys.argv[1]))' "$tgt" 2>/dev/null)";
-                   if [ -n "$query" ]; then gui krunner "$query"; else gui krunner; fi ;;
+    control/bluetooth/off)
+        confirm "إيقاف البلوتوث يفصل لوحة المفاتيح والفأرة اللاسلكيتين. متابعة؟ | Turning Bluetooth off disconnects wireless keyboards and mice. Continue?" \
+            && control_run bluetooth off ;;
+    control/mic/unmute)
+        confirm "تشغيل الميكروفون من جديد؟ | Turn the microphone back on?" \
+            && control_run mic unmute ;;
     # MoOS Search's Mo AI hand-off: open the chat already asking the question. This only starts a
     # conversation — the same entry the Mo AI KRunner runner uses — and any action in the answer is
     # still a button the user has to confirm. The question is passed as ONE argv element and is
     # never evaluated; an empty question simply opens Mo AI.
     ai/ask/*)      query="$(python3 -c 'import sys,urllib.parse; print(urllib.parse.unquote(sys.argv[1])[:2000])' "${tgt#ask/}" 2>/dev/null)";
                    if [ -n "$query" ]; then gui moai --panel chat --ask "$query"; else gui moai; fi ;;
+    # The Island's "stop" on a live camera, microphone or screen stream. Both parts
+    # come from the URL, so both are checked HERE before anything runs: a fixed type
+    # and a PipeWire node number (moos-privacy-stop checks them again, and only acts
+    # on a node the privacy monitor itself reported as a live stream of that type).
     privacy/stop/*)
         privacy_act="${tgt#stop/}"
         privacy_type="${privacy_act%%/*}"
         privacy_id="${privacy_act#*/}"
         [ "$privacy_id" = "$privacy_act" ] && privacy_id=""
-        if [ -x "/usr/bin/moos-privacy-stop" ]; then
-            /usr/bin/moos-privacy-stop "$privacy_type" "$privacy_id"
-        elif [ -x "${BASH_SOURCE%/*}/moos-privacy-stop" ]; then
-            "${BASH_SOURCE%/*}/moos-privacy-stop" "$privacy_type" "$privacy_id"
+        case "$privacy_type" in
+            screen|camera|mic|microphone) ;;
+            *) notify "نوع بث غير صالح | invalid stream type"; exit 2 ;;
+        esac
+        if [ -n "$privacy_id" ] && ! [[ "$privacy_id" =~ ^[0-9]{1,10}$ ]]; then
+            notify "معرّف بث غير صالح | invalid stream id"
+            exit 2
         fi
-        notify "تم إيقاف المشاركة | Stream stopped" ;;
+        # The helper shipped beside this router (/usr/bin on the image).
+        privacy_stop="${BASH_SOURCE%/*}/moos-privacy-stop"
+        [ -x "$privacy_stop" ] || privacy_stop=/usr/bin/moos-privacy-stop
+        if "$privacy_stop" "$privacy_type" "$privacy_id"; then
+            notify "تم إيقاف المشاركة | Stream stopped"
+        else
+            notify "تعذّر إيقاف المشاركة | Could not stop the stream"
+            exit 2
+        fi ;;
     # The desktop-sharing server that is NOT MoOS's. moos-health finds it (an RDP
     # or VNC port open to the whole network) and this is the action behind that
     # finding: a fixed helper, two named user services, no argument from the
@@ -470,18 +531,32 @@ PY
             && { /usr/bin/moos-remote-guard off >/dev/null 2>&1 \
                  || "${BASH_SOURCE%/*}/moos-remote-guard" off >/dev/null 2>&1 || true; \
                  notify "أُوقفت المشاركة الغريبة؛ Mo PC Remote يبقى متاحاً | Foreign sharing is off; Mo PC Remote stays"; } ;;
-    session/lock)  loginctl lock-session ;;
     session/logout) confirm "تسجيل الخروج الآن؟ | Log out now?" \
                           && { qdbus_run org.kde.Shutdown /Shutdown logout 2>/dev/null || true; } ;;
     session/power) confirm "إيقاف تشغيل الجهاز الآن؟ | Shut the computer down now?" \
                           && { systemctl poweroff 2>/dev/null || loginctl poweroff 2>/dev/null || qdbus_run org.kde.Shutdown /Shutdown logoutAndShutdown 2>/dev/null || true; } ;;
+    # The two updates the MoOS Update page offers run with no terminal: the person
+    # answers ONE question here, moai-do runs confirmed and audited in the
+    # background (Polkit still asks where it escalates), and a notification says
+    # how it ended. Store jobs also show in the Island while they run.
+    do/update-apps)
+        confirm "تحديث كل التطبيقات عبر Mo Store الآن؟ | Update all apps through Mo Store now?" \
+            && moai_do_detached update-apps "Mo Store" ;;
+    do/update-firmware)
+        confirm "تحديث البرامج الثابتة للأجهزة الآن؟ قد يتطلب إعادة تشغيل ولا يمكن التراجع عنه. | Update device firmware now? It may need a restart and cannot be rolled back." \
+            && moai_do_detached update-firmware "البرامج الثابتة | Firmware" ;;
+    # The device panel lives inside Mo AI. moai is single-instance, so this raises
+    # the open window on that panel: no terminal and no second window.
+    do/hw-report)  gui moai --panel device ;;
+    # Brain settings live on the Mo AI page of System Settings (see brain/start).
+    do/setup-brain) gui moos-settings --section=assistant ;;
     # Every action here is dispatched BY NAME to moai-do, which owns the
-    # explanation, the confirmation and the journal audit trail. setup-gaming
-    # belongs in this list, not in a shortcut of its own: Mo AI renders the
-    # button as "moai-do setup-gaming", so a shortcut straight to moos-setup
+    # explanation, the confirmation and the journal audit trail. setup-gaming and
+    # smart-setup belong in this list, not in shortcuts of their own: Mo AI renders
+    # the button as "moai-do setup-gaming", so a shortcut straight to moos-setup
     # --gaming made the label name a command that never ran and left the action
     # missing from `journalctl -t moai-do`.
-    do/install-hermes|do/update|do/update-apps|do/fix-audio|do/check-drivers|do/optimize|do/hw-report|do/diagnose-services|do/inspect-boot|do/support-bundle|do/install-nvidia|do/update-firmware|do/setup-waydroid|do/setup-gaming|do/setup-windows|do/install-codex|do/install-claude|do/install-opencode|do/install-openclaw|do/setup-brain|do/remote-anywhere|do/rollback|do/net-doctor|do/gpu-report)
+    do/install-hermes|do/update|do/fix-audio|do/check-drivers|do/optimize|do/diagnose-services|do/inspect-boot|do/install-nvidia|do/setup-waydroid|do/setup-gaming|do/smart-setup|do/setup-windows|do/install-codex|do/install-claude|do/install-opencode|do/install-openclaw|do/remote-anywhere|do/rollback|do/net-doctor|do/gpu-report)
                    term moai-do "$tgt" ;;
     *)
         notify "أمر MoOS غير معروف | unknown MoOS action: ${path}"

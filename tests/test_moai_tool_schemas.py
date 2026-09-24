@@ -156,7 +156,13 @@ class TestToolSchemaIntegrity(unittest.TestCase):
         accepted = {
             "night-light": ("on", "off", "auto"), "wifi": ("on", "off"), "bluetooth": ("on", "off"),
             "theme": control.THEMES, "settings": control.SETTINGS_PAGES,
+            # SPEC D4: each read from moos-control's OWN table, not restated here.
+            "window": tuple(control.WINDOW_VIEWS), "arrange": tuple(control.ARRANGEMENTS),
+            "desktop": tuple(control.DESKTOP_STEPS), "dnd": ("on", "off"),
+            "mic": ("mute", "unmute"), "motion": control.MOTION, "clarity": control.CLARITY,
+            "power-profile": control.POWER_PROFILES,
         }
+        advertised = {verb: set() for verb in accepted}
         for tool in ALL_TOOLS:
             meta = tool["_moos"]
             if meta["executor"] != "moos-control":
@@ -176,8 +182,19 @@ class TestToolSchemaIntegrity(unittest.TestCase):
                         self.assertIn(value, accepted[verb],
                                       f"{tool['function']['name']} advertises {value!r}, which "
                                       f"moos-control {verb} rejects")
+                        advertised[verb].add(value)
         self.assertEqual(tuple(SETTINGS_PAGES), tuple(control.SETTINGS_PAGES),
                          "open_settings must offer exactly the pages moos-control opens")
+        # And the other direction for the desktop verbs: every value moos-control accepts is
+        # one the model can ask for, so no verb is reachable only by typing it.
+        for verb in ("window", "arrange", "desktop", "dnd", "mic", "motion", "clarity",
+                     "power-profile"):
+            self.assertEqual(advertised[verb], set(accepted[verb]),
+                             f"the schema and moos-control disagree about {verb}")
+        # The one argument-less desktop tool is built to the one direction moos-control has.
+        self.assertEqual(build_command("switch_keyboard_layout", {}),
+                         ["moos-control", "keyboard-layout", "next"])
+        self.assertIsNone(build_command("switch_keyboard_layout", {"value": "previous"}))
         # The volume validator itself: the two values W4 advertised must really be refused there.
         for value in ("mute", "unmute"):
             with self.assertRaises(control.Invalid):
@@ -224,7 +241,12 @@ class TestToolSchemaIntegrity(unittest.TestCase):
             ("top_processes", {"by": "everything"}),
             ("top_processes", {"by": "cpu", "shell": "bash"}),
             ("open_settings", {"page": "kcm_kscreen"}),
+            ("open_settings", {"page": "usb"}),          # in the registry, not offered to Mo AI
             ("set_mute", {"value": "toggle"}),
+            ("show_windows", {"view": "close"}),
+            ("arrange_windows", {"layout": "halves", "view": "grid"}),
+            ("set_power_profile", {"profile": "turbo"}),
+            ("set_do_not_disturb", {"value": "on; rm -rf ~"}),
             ("read_moos_log", {"name": "../../.ssh/id_ed25519"}),
         ):
             self.assertIsNone(build_command(name, arguments),
@@ -243,10 +265,25 @@ class TestToolSchemaIntegrity(unittest.TestCase):
             self.assertNotIn(forbidden, body, f"moos-inspect must stay read-only; found {forbidden}")
         self.assertIn("redact(", body, "everything the inspector prints must be redacted first")
 
+    def test_the_desktop_tools_are_instant_control_on_moos_control(self):
+        """SPEC D4: unprivileged, reversible, no card — and no way to run model text."""
+        for name in ("show_windows", "arrange_windows", "switch_desktop", "set_do_not_disturb",
+                     "set_mic_mute", "switch_keyboard_layout", "set_motion",
+                     "set_glass_clarity", "set_power_profile"):
+            meta = TOOL_META[name]
+            self.assertEqual((meta["category"], meta["executor"]), (CONTROL, "moos-control"), name)
+            properties = next(t for t in ALL_TOOLS
+                              if t["function"]["name"] == name)["function"]["parameters"]
+            for spec in properties["properties"].values():
+                self.assertTrue(spec.get("enum"), f"{name} takes free text")
+
     def test_cutting_the_owner_off_is_confirmed_even_for_a_control_tool(self):
         self.assertTrue(needs_confirmation("toggle_wifi", {"value": "off"}))
         self.assertTrue(needs_confirmation("toggle_bluetooth", {"value": "off"}))
         self.assertFalse(needs_confirmation("toggle_wifi", {"value": "on"}))
+        # Re-opening a microphone the owner muted is a privacy change: it asks. Muting does not.
+        self.assertTrue(needs_confirmation("set_mic_mute", {"value": "unmute"}))
+        self.assertFalse(needs_confirmation("set_mic_mute", {"value": "mute"}))
         self.assertFalse(needs_confirmation("set_volume", {"value": "30"}))
         self.assertTrue(needs_confirmation("system_update", {}))
         self.assertTrue(needs_confirmation("a tool that does not exist", {}))

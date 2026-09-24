@@ -43,17 +43,41 @@ for arg in "$@"; do line="$line$(printf '\t%s' "$arg")"; done
 printf '%s\n' "$line" >> "$STUB_LOG"
 '''
 
+# The desktop's own services, isolated: every D-Bus answer comes from this stub, and the two
+# states a verb changes (do not disturb, the power profile) live in files under the stub root,
+# so a test proves the READ-BACK as well as the call. Nothing here reaches a real bus.
 STUBS = {
-    "wpctl": 'case "$1" in get-volume) echo "Volume: 0.40";; esac\n',
+    "wpctl": '''case "$1 $2" in
+  "get-volume @DEFAULT_AUDIO_SOURCE@") echo "Volume: 1.00 [MUTED]";;
+  get-volume*) echo "Volume: 0.40";;
+esac
+''',
     "busctl": '''case "$*" in
   *DisplaysDBusNames*) echo '{"type":"as","data":["display0"]}';;
   *MaxBrightness*) echo '{"type":"i","data":10000}';;
   *get-property*Brightness*) echo '{"type":"i","data":5000}';;
   *NightLight*running*) echo '{"type":"b","data":true}';;
   *NameHasOwner*org.bluez*) echo '{"type":"b","data":[true]}';;
+  *"/component/kwin"*shortcutNames*) echo '{"type":"as","data":[["Overview","Grid View","Show Desktop","MoOS Arrange: halves","MoOS Arrange: thirds","MoOS Arrange: quarters","MoOS Arrange: main","MoOS Arrange: centre"]]}';;
+  *"/component/plasmashell"*shortcutNames*) echo '{"type":"as","data":[["activate application launcher","toggle do not disturb"]]}';;
+  *"toggle do not disturb"*) dnd=0; read -r dnd < "$STUB_ROOT/dnd" 2>/dev/null
+                              if [ "$dnd" = 1 ]; then echo 0 > "$STUB_ROOT/dnd"; else echo 1 > "$STUB_ROOT/dnd"; fi;;
+  *Notifications*Inhibited*) dnd=0; read -r dnd < "$STUB_ROOT/dnd" 2>/dev/null
+                             if [ "$dnd" = 1 ]; then echo '{"type":"b","data":true}'; else echo '{"type":"b","data":false}'; fi;;
+  *getLayoutsList*) echo '{"type":"a(sss)","data":[[["ara","ع","Arabic"],["de","DE","German"]]]}';;
+  *getLayout*) echo '{"type":"u","data":[0]}';;
+  *profileChoices*) echo '{"type":"as","data":[["power-saver","balanced","performance"]]}';;
+  *setProfile*) for last in "$@"; do :; done; echo "$last" > "$STUB_ROOT/profile";;
+  *currentProfile*) profile=balanced; read -r profile < "$STUB_ROOT/profile" 2>/dev/null
+                    echo "{\\"type\\":\\"s\\",\\"data\\":[\\"$profile\\"]}";;
 esac
 ''',
     "kwriteconfig6": "",
+    "kreadconfig6": '''case "$*" in
+  *AutomaticLookAndFeel*) echo false;;
+  *LookAndFeelPackage*) echo org.moos.ui2.nova.light;;
+esac
+''',
     "nmcli": 'case "$*" in "radio wifi") echo enabled;; esac\n',
     "bluetoothctl": 'case "$1" in show) echo "Powered: yes";; esac\n',
     "rfkill": "",
@@ -90,6 +114,7 @@ class StubMachine:
             "PATH": str(self.bin),
             "HOME": str(self.root),
             "STUB_LOG": str(self.log),
+            "STUB_ROOT": str(self.root),
             "STUB_PICTURES": str(self.pictures),
             "XDG_DATA_HOME": str(self.root / "share"),
             "XDG_DATA_DIRS": str(self.root / "system-share"),
@@ -221,7 +246,9 @@ class MoosControlTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(result.stdout), {
             "volume": 40, "muted": False, "brightness": 50,
-            "night_light": True, "wifi": True, "bluetooth": True})
+            "night_light": True, "wifi": True, "bluetooth": True,
+            "theme": "nova-light", "dnd": False, "mic_muted": True,
+            "power_profile": "balanced"})
         self.assertFalse([call for call in self.machine.calls() if call[0] == "logger"],
                          "status must not write an audit entry")
 
@@ -286,6 +313,137 @@ esac
                          "status asked bluetoothctl although bluez is not on the bus")
 
 
+class DesktopVerbTests(unittest.TestCase):
+    """SPEC D4: the window manager and the desktop, through their own fixed actions."""
+
+    def setUp(self):
+        self.machine = StubMachine()
+
+    def tearDown(self):
+        self.machine.close()
+
+    def control(self, *args):
+        return subprocess.run([sys.executable, str(CONTROL), *args], env=self.machine.env(),
+                              capture_output=True, text=True, timeout=30)
+
+    def acting(self):
+        return [call for call in self.machine.calls()
+                if call[0] != "logger" and "shortcutNames" not in call
+                and "get-property" not in call and "getLayoutsList" not in call
+                and "getLayout" not in call and "currentProfile" not in call
+                and "profileChoices" not in call]
+
+    def invoke(self, component, name):
+        return ["busctl", "--user", "call", "org.kde.kglobalaccel", f"/component/{component}",
+                "org.kde.kglobalaccel.Component", "invokeShortcut", "s", name]
+
+    def test_window_and_arrange_invoke_exact_named_actions(self):
+        for args, name in ((("window", "overview"), "Overview"),
+                           (("window", "grid"), "Grid View"),
+                           (("window", "show-desktop"), "Show Desktop"),
+                           (("arrange", "halves"), "MoOS Arrange: halves"),
+                           (("arrange", "thirds"), "MoOS Arrange: thirds"),
+                           (("arrange", "quarters"), "MoOS Arrange: quarters"),
+                           (("arrange", "main"), "MoOS Arrange: main"),
+                           (("arrange", "centre"), "MoOS Arrange: centre")):
+            with self.subTest(args=args):
+                self.machine.log.write_text("")
+                result = self.control(*args)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(self.acting(), [self.invoke("kwin", name)])
+
+    def test_an_action_the_desktop_does_not_list_is_unavailable_not_invoked(self):
+        busctl = self.machine.bin / "busctl"
+        busctl.write_text(RECORDER + '''case "$*" in
+  *shortcutNames*) echo '{"type":"as","data":[["Overview"]]}';;
+esac
+''')
+        busctl.chmod(0o755)
+        result = self.control("arrange", "halves")
+        self.assertEqual(result.returncode, 69, result.stderr)
+        self.assertFalse([call for call in self.machine.calls() if "invokeShortcut" in call])
+
+    def test_desktop_steps_call_the_two_fixed_methods(self):
+        for value, method in (("next", "nextDesktop"), ("previous", "previousDesktop")):
+            with self.subTest(value=value):
+                self.machine.log.write_text("")
+                self.assertEqual(self.control("desktop", value).returncode, 0)
+                self.assertEqual(self.acting(), [["busctl", "--user", "call", "org.kde.KWin",
+                                                  "/KWin", "org.kde.KWin", method]])
+
+    def test_dnd_presses_the_applets_toggle_only_when_the_state_differs(self):
+        toggle = self.invoke("plasmashell", "toggle do not disturb")
+        self.assertEqual(self.control("dnd", "off").returncode, 0)
+        self.assertEqual(self.acting(), [], "already off: a toggle would turn it ON")
+        result = self.control("dnd", "on")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.acting(), [toggle])
+        self.assertEqual((self.machine.root / "dnd").read_text().strip(), "1",
+                         "the state was not read back on")
+        self.machine.log.write_text("")
+        self.assertEqual(self.control("dnd", "on").returncode, 0)
+        self.assertEqual(self.acting(), [], "already on: pressing the toggle would turn it OFF")
+        self.assertEqual(self.control("dnd", "off").returncode, 0)
+        self.assertEqual(self.acting(), [toggle])
+        self.assertEqual((self.machine.root / "dnd").read_text().strip(), "0")
+
+    def test_dnd_that_does_not_change_is_reported_not_claimed(self):
+        busctl = self.machine.bin / "busctl"
+        busctl.write_text(RECORDER + '''case "$*" in
+  *"/component/plasmashell"*shortcutNames*) echo '{"type":"as","data":[["toggle do not disturb"]]}';;
+  *Inhibited*) echo '{"type":"b","data":false}';;
+esac
+''')
+        busctl.chmod(0o755)
+        result = self.control("dnd", "on")
+        self.assertEqual(result.returncode, 69)
+        self.assertIn("did not change", result.stderr)
+
+    def test_mic_keyboard_motion_clarity_use_their_owners(self):
+        expected = {
+            ("mic", "mute"): [["wpctl", "set-mute", "@DEFAULT_AUDIO_SOURCE@", "1"]],
+            ("mic", "unmute"): [["wpctl", "set-mute", "@DEFAULT_AUDIO_SOURCE@", "0"]],
+            ("keyboard-layout", "next"): [["busctl", "--user", "call", "org.kde.keyboard",
+                                           "/Layouts", "org.kde.KeyboardLayouts",
+                                           "switchToNextLayout"]],
+            ("motion", "still"): [["moos-theme", "motion", "still"]],
+            ("clarity", "solid"): [["moos-theme", "clarity", "solid"]],
+        }
+        for args, calls in expected.items():
+            with self.subTest(args=args):
+                self.machine.log.write_text("")
+                result = self.control(*args)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(self.acting(), calls)
+        self.assertIn("Arabic", self.control("keyboard-layout", "next").stdout)
+
+    def test_power_profile_is_set_and_read_back(self):
+        result = self.control("power-profile", "power-saver")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(["busctl", "--user", "call", "org.kde.Solid.PowerManagement",
+                       "/org/kde/Solid/PowerManagement/Actions/PowerProfile",
+                       "org.kde.Solid.PowerManagement.Actions.PowerProfile",
+                       "setProfile", "s", "power-saver"], self.machine.calls())
+        self.assertEqual((self.machine.root / "profile").read_text().strip(), "power-saver")
+
+    def test_invalid_desktop_requests_run_nothing(self):
+        for args in (("window", "close"), ("window", "Overview"), ("arrange", "grid"),
+                     ("arrange", "halves;reboot"), ("desktop", "3"), ("dnd", "toggle"),
+                     ("mic", "off"), ("keyboard-layout", "previous"), ("keyboard-layout", "de"),
+                     ("motion", "fast"), ("clarity", "opaque"), ("power-profile", "turbo"),
+                     ("window",), ("dnd", "on", "now")):
+            with self.subTest(args=args):
+                self.assertEqual(self.control(*args).returncode, 2, args)
+        self.assertEqual(self.acting(), [], "an invalid request reached a real command")
+
+    def test_nothing_can_load_a_script_close_a_window_or_replace_the_compositor(self):
+        code = "\n".join(line for line in CONTROL.read_text(encoding="utf-8").splitlines()
+                         if not line.lstrip().startswith("#"))
+        for forbidden in ("loadScript", "/Scripting", "killWindow", '"replace"', "unloadScript",
+                          "showDebugConsole", "shell=True"):
+            self.assertNotIn(forbidden, code)
+
+
 class MoosOpenControlRouteTests(unittest.TestCase):
     def setUp(self):
         self.machine = StubMachine()
@@ -307,9 +465,20 @@ class MoosOpenControlRouteTests(unittest.TestCase):
                           ("moos://control/volume/up", ["volume", "up"]),
                           ("moos://control/brightness/80", ["brightness", "80"]),
                           ("moos://control/night-light/auto", ["night-light", "auto"]),
-                          ("moos://control/bluetooth/off", ["bluetooth", "off"]),
+                          ("moos://control/bluetooth/on", ["bluetooth", "on"]),
                           ("moos://control/mute", ["mute"]),
-                          ("moos://control/screenshot", ["screenshot"])):
+                          ("moos://control/screenshot", ["screenshot"]),
+                          ("moos://control/window/overview", ["window", "overview"]),
+                          ("moos://control/window/show-desktop", ["window", "show-desktop"]),
+                          ("moos://control/arrange/centre", ["arrange", "centre"]),
+                          ("moos://control/desktop/previous", ["desktop", "previous"]),
+                          ("moos://control/dnd/on", ["dnd", "on"]),
+                          ("moos://control/mic/mute", ["mic", "mute"]),
+                          ("moos://control/keyboard-layout/next", ["keyboard-layout", "next"]),
+                          ("moos://control/motion/gentle", ["motion", "gentle"]),
+                          ("moos://control/clarity/balanced", ["clarity", "balanced"]),
+                          ("moos://control/power-profile/performance",
+                           ["power-profile", "performance"])):
             with self.subTest(url=url):
                 self.machine.log.write_text("")
                 self.open(url)
@@ -318,24 +487,65 @@ class MoosOpenControlRouteTests(unittest.TestCase):
     def test_malformed_routes_never_reach_moos_control(self):
         for url in ("moos://control/volume/350", "moos://control/volume/35;reboot",
                     "moos://control/volume/", "moos://control/brightness/-5",
-                    "moos://control/night-light/party", "moos://control/reboot"):
+                    "moos://control/night-light/party", "moos://control/reboot",
+                    "moos://control/window/close", "moos://control/arrange/halves/extra",
+                    "moos://control/dnd", "moos://control/keyboard-layout/de",
+                    "moos://control/power-profile/turbo", "moos://control/motion/$(id)"):
             with self.subTest(url=url):
                 self.open(url)
         self.assertEqual(self.control_calls(), [])
 
-    def test_wifi_off_requires_the_users_yes(self):
-        self.open("moos://control/wifi/off", KDIALOG_ANSWER="1")
-        self.assertEqual(self.control_calls(), [], "Wi-Fi off ran without confirmation")
-        self.open("moos://control/wifi/off", KDIALOG_ANSWER="0")
-        self.assertEqual(self.control_calls(), [["wifi", "off"]])
+    # Wi-Fi off cuts the owner off, Bluetooth off cuts a wireless keyboard, and turning the
+    # microphone back on undoes a privacy choice. moos: is a public scheme, so a web page or
+    # a link can hand any of these to the router: each one waits for the person's yes.
+    ASKS_FIRST = (("moos://control/wifi/off", ["wifi", "off"]),
+                  ("moos://control/bluetooth/off", ["bluetooth", "off"]),
+                  ("moos://control/mic/unmute", ["mic", "unmute"]))
 
-    def test_wifi_off_fails_closed_without_a_dialog_tool(self):
+    def test_disruptive_values_require_the_users_yes(self):
+        for url, argv in self.ASKS_FIRST:
+            with self.subTest(url=url):
+                self.machine.log.write_text("")
+                self.open(url, KDIALOG_ANSWER="1")
+                self.assertEqual(self.control_calls(), [], f"{url} ran without confirmation")
+                self.open(url, KDIALOG_ANSWER="0")
+                self.assertEqual(self.control_calls(), [argv])
+
+    def test_disruptive_values_fail_closed_without_a_dialog_tool(self):
         (self.machine.bin / "kdialog").unlink()
         environment = self.machine.env()
         environment["PATH"] = str(self.machine.bin)
-        subprocess.run(["/bin/bash", str(OPEN), "moos://control/wifi/off"], env=environment,
-                       capture_output=True, text=True, timeout=30)
-        self.assertEqual(self.control_calls(), [])
+        for url, _argv in self.ASKS_FIRST:
+            with self.subTest(url=url):
+                subprocess.run(["/bin/bash", str(OPEN), url], env=environment,
+                               capture_output=True, text=True, timeout=30)
+                self.assertEqual(self.control_calls(), [])
+
+    def test_the_router_asks_for_exactly_what_mo_ai_asks_for(self):
+        """One list of values that need a yes: Mo AI's confirm_values ARE the router's asks.
+
+        Bluetooth off shipped confirmed in Mo AI and instant on the public scheme; a second
+        hand-kept list is how that happens. Every control arm that asks, and every schema
+        value that needs a card, must be the same route.
+        """
+        sys.path.insert(0, str(ROOT / "system_files/usr/lib/moai"))
+        import moai_tool_schemas as schemas
+        code = "\n".join(line for line in OPEN.read_text(encoding="utf-8").splitlines()
+                         if not line.lstrip().startswith("#"))
+        asking, instant = set(), set()
+        for labels, body in re.findall(r"(?ms)^    (control/[^\s)]+)\)(.*?);;", code):
+            for label in labels.split("|"):
+                (asking if re.search(r"\bconfirm\s", body) else instant).add(label)
+        self.assertIn("control/wifi/off", asking, "the arm parser found nothing")
+        carded = set()
+        for tool in schemas.ALL_TOOLS:
+            meta = tool["_moos"]
+            if meta["executor"] != "moos-control":
+                continue
+            for values in (meta.get("confirm_values") or {}).values():
+                carded.update(f"control/{meta['command']}/{value}" for value in values)
+        self.assertEqual(sorted(asking), sorted(carded))
+        self.assertEqual(sorted(carded & instant), [], "a carded value also has an instant arm")
 
 
 class MoaiControlButtonTests(unittest.TestCase):
@@ -363,8 +573,11 @@ class MoaiControlButtonTests(unittest.TestCase):
     def test_settings_pages_agree_across_grammar_prompt_control_and_moos_open(self):
         # Review of PR #85: the prompt taught `moos-control settings <page>`, which
         # moos-control did not implement; the button worked and the command did not.
+        # The pages are the ONE registry's Mo AI tokens (SPEC D3); Mo AI's text grammar is
+        # still a hand copy of them, so it must name exactly those pages.
         import runpy
         pages = set(runpy.run_path(str(CONTROL), run_name="moos_control_pages")["SETTINGS_PAGES"])
+        self.assertGreaterEqual(len(pages), 45, "the settings registry was not read")
         grammar = re.search(r"settings\\s\+\(\?:([a-z|-]+)\)", self.qml)
         self.assertIsNotNone(grammar, "Mo AI's control grammar lost its settings pages")
         self.assertEqual(set(grammar.group(1).split("|")), pages)
