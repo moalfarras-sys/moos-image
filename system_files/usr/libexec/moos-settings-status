@@ -7,14 +7,13 @@ and bind only its fields. This helper is the small, read-only boundary: it
 gathers a fixed set of facts, never accepts a command or a destination path from
 the UI, and normalises identity values at the source (kernelLabel,
 editionLabel, archLabel, sessionLabel) so no page can show a packager's build tag
-or an image address as a product name. When launched with --watch-pid it
-refreshes cheap session facts every ten seconds and the immutable-deployment
-facts once per minute.
+or an image address as a product name. It publishes once and exits: the modules
+run it again when a page is shown, when a source record changes and on Refresh,
+never on a timer of its own.
 """
 
 from __future__ import annotations
 
-import argparse
 import json
 import os
 from pathlib import Path
@@ -505,41 +504,8 @@ def publish(path: Path, state: dict[str, object]) -> None:
             pass
 
 
-def process_start(pid: int) -> str:
-    try:
-        # /proc/PID/stat fields after the final ')' begin at field 3; starttime
-        # is field 22, therefore index 19 in this suffix.
-        suffix = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8").rsplit(")", 1)[1]
-        return suffix.split()[19]
-    except (OSError, IndexError):
-        return ""
-
-
 def main() -> int:
-    parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument("--watch-pid", type=int)
-    args = parser.parse_args()
-
-    path = runtime_path()
-    state = full_state()
-    publish(path, state)
-    if not args.watch_pid:
-        return 0
-
-    start = process_start(args.watch_pid)
-    if not start:
-        return 0
-    cycle = 0
-    while process_start(args.watch_pid) == start:
-        time.sleep(10)
-        if process_start(args.watch_pid) != start:
-            break
-        cycle += 1
-        if cycle % 6 == 0:
-            state = full_state()
-        else:
-            state.update(dynamic_state())
-        publish(path, state)
+    publish(runtime_path(), full_state())
     return 0
 
 

@@ -461,6 +461,25 @@ class TheHelper(unittest.TestCase):
             self.assertEqual(stat.S_IMODE(output.stat().st_mode), 0o600)
             self.assertNotRegex(state["kernelLabel"], r"fc\d|el\d|x86_64|aarch64")
 
+    def test_the_helper_publishes_once_and_exits(self) -> None:
+        # SPEC D1 retired the blind 10 s scan: the modules re-run the helper on show, on a
+        # source change and on Refresh. A loop in the helper would be a second, hidden timer.
+        source = STATUS.read_text(encoding="utf-8")
+        for loop in ("--watch-pid", "time.sleep(", "process_start("):
+            self.assertNotIn(loop, source)
+        main = source.split("def main() -> int:", 1)[1].split("\n\n\n", 1)[0]
+        self.assertEqual(main.count("publish("), 1, main)
+        self.assertNotIn("while ", main)
+        with tempfile.TemporaryDirectory() as runtime:
+            started = time.monotonic()
+            # The old loop ran for as long as the watched process lived: this one lives on.
+            result = subprocess.run([str(STATUS), "--watch-pid", str(os.getpid())], check=False,
+                                    capture_output=True, text=True, timeout=20,
+                                    env=isolated_env(XDG_RUNTIME_DIR=runtime))
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertLess(time.monotonic() - started, 15)
+            self.assertTrue((Path(runtime) / "moos-settings/status.json").is_file())
+
     def test_network_distinguishes_portal_limited_offline_and_unknown(self) -> None:
         probe = runpy.run_path(str(STATUS))["network_state"]
         for raw, connected, full, known in (
