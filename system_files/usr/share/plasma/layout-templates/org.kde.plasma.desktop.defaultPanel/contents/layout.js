@@ -25,8 +25,9 @@
  *
  * Every call is a verified primitive the proven v8 dock used live: `new Panel`,
  * panel.height, panel.addWidget, widget.currentConfigGroup, widget.writeConfig.
- * No location/floating/lengthMode/alignment setters and no second panel (those
- * are what failed live).
+ * The floating/lengthMode/alignment setters below were verified live later and
+ * each sits in its own try. There is no second panel (that is what failed
+ * live).
  *
  * File-level override of the plasma-desktop copy (rpm -V reports it modified —
  * intended, same policy as the fedora-logos pixmap overrides).
@@ -100,16 +101,18 @@ try {
  * same slot. The stable geometry is what keeps task icons from moving. */
 try { panel.addWidget("org.moos.island"); } catch (e) { /* media is optional */ }
 
-/* Icons-Only Task Manager — Mo AI pinned FIRST, then browser, files, Mo PC
- * Remote, System Settings and the terminal.
+/* Icons-Only Task Manager — Mo AI pinned FIRST, then Mo Store, the browser,
+ * MoPlayer, Files and Mo PC Remote (the mirror of moos-bar.conf [tasks]
+ * defaultLaunchers).
  *
  * ONE remote icon, not two. Mo PC Remote and Fast Remote used to sit side by
  * side in the dock — two glyphs for one feature, which reads as clutter, not
- * power. They are now merged: Fast Remote lives INSIDE Mo PC Remote — a toggle
- * switch in its panel AND a right-click jump-list action (Desktop Actions in
- * org.moos.remote.desktop) — so the single Mo PC Remote icon is the whole
- * remote-control surface. org.moos.fastremote.desktop is kept NoDisplay only to
- * back the Meta+R global shortcut; it is deliberately NOT pinned here.
+ * power. They are now merged: Fast Remote is a switch INSIDE Mo PC Remote, so
+ * the single Mo PC Remote icon is the whole remote-control surface.
+ * org.moos.fastremote.desktop is a NoDisplay toggle entry and is deliberately
+ * NOT pinned here. (It once claimed a Meta+R global shortcut through a key
+ * kglobalaccel never reads; Meta+R is Spectacle's stock binding. Mo AI's global
+ * shortcut, Meta+Space, lives in org.moos.moai.desktop.)
  *
  * org.moos.compathub and org.moos.hardware used to be pinned here. Those apps no
  * longer exist — the Hardware Centre and the Compatibility Hub are panels inside
@@ -140,15 +143,12 @@ tasks.writeConfig("showOnlyCurrentDesktop", false);
  * anyway. Users who want it back: right-click the dock -> Add Widgets. */
 panel.addWidget("org.kde.plasma.marginsseparator");
 var systray = panel.addWidget("org.kde.plasma.systemtray");
-// MoOS keeps the everyday device toggles one click away in the status area
-// instead of buried behind the tray arrow — reaching Wi-Fi, Bluetooth, volume
-// and brightness is the whole point of a status tray, and hiding them is the
-// single most common "where is my Bluetooth" complaint. The keyboard/language
-// indicator is pinned too: with several layouts configured it can drop out of
-// the tray entirely, so it belongs in the always-shown list. Everything else
-// stays auto (shown only when it has something to say). This is the Apple-style
-// "control centre in the corner" without a custom plasmoid. This list is a
-// mirror of moos-bar.conf [tray] shownItems; the gate keeps them equal.
+// Four status icons stay forced visible — network, volume, notifications and
+// the keyboard/language indicator (with several layouts configured it can drop
+// out of the tray entirely). Bluetooth, brightness and the rest are loaded but
+// AUTO: behind the arrow, and out on their own when they have something to say.
+// moos-bar.conf [tray] explains the measured reason; this list is its mirror
+// and the gate keeps them equal.
 systray.currentConfigGroup = ["General"];
 // Keep status glyphs compact and evenly grouped inside the 54 px Horizon Bar.
 // Mirrors moos-bar.conf [tray]; Plasma's supported spacing presets are 1/2/6.

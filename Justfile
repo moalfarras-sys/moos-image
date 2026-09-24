@@ -451,6 +451,8 @@ check:
     python3 tests/test_island_jobs_privacy.py
     # Producer and consumer of the Island's presence tokens, executed for real.
     python3 tests/test_island_tokens.py
+    # Global shortcuts: X-KDE-Shortcuts + kglobalaccel link, never a stock binding.
+    python3 tests/test_moos_shortcuts.py
     # App Drop: install from a file, with real hostile archives and the real sandbox.
     python3 tests/test_app_drop.py
     # The administrator question for a local package, and what a dismissed one prints.
