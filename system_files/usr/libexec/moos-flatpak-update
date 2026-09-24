@@ -10,7 +10,7 @@
 #     next timer run updates; two transactions never race one installation.
 #   * publishes ~/.local/state/moos/app-updates.json atomically, for System Settings
 #     → MoOS → Update:  {"schema": 1, "updated": <epoch>, "state": "running"|"ok"|"failed",
-#     "failures": [{"app": "<reverse-DNS id>", "reason": "<the updater's own words>"}]}.
+#     "failures": [{"app": "<reverse-DNS id>", "reason": "<the final attempt's own words>"}]}.
 #     A run that stops after saying "running" is recorded as failed by the exit trap.
 set -euo pipefail
 
@@ -113,6 +113,11 @@ fi
 
 if ! run_logged "$flatpak_bin" "$scope" update -y --noninteractive; then
     echo "MoOS: Flatpak delta update failed; retrying from complete objects." >&2
+    # What is still wrong is what the FINAL attempt says. The first attempt's words
+    # (usually the broken delta this retry exists for) stay in the journal, not in the
+    # record: an app the retry updated is not a failure, and one that failed again
+    # failed for the retry's reason.
+    [ -z "$log" ] || : >"$log"
     run_logged "$flatpak_bin" "$scope" update --no-static-deltas -y --noninteractive
 fi
 

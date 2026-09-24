@@ -55,6 +55,7 @@ case " $* " in
   *" update "*)
     if [ "$MOOS_TEST_MODE" != "normal" ]; then
       echo "Warning: Failed to update org.example.Broken: delta is corrupt" >&2
+      echo "Warning: Failed to update org.example.Healed: delta is corrupt" >&2
       exit 1
     fi
     ;;
@@ -122,9 +123,12 @@ assert failed.returncode != 0, "both failed update paths must remain visible to 
 assert any("--no-static-deltas" in call for call in failed_calls)
 assert failed_calls[-1] != "--user repair", "repair must not conceal an update failure"
 assert failed_record["state"] == "failed", "a failed run must not stay 'running' or read 'ok'"
+# The record says what the FINAL attempt says: the retry's reason for the app that failed
+# again, and nothing for the one the retry updated (the delta error stays in the journal).
 assert failed_record["failures"] == [
-    {"app": "org.example.Broken", "reason": "delta is corrupt"},
+    {"app": "org.example.Broken", "reason": "Server returned status 404"},
 ], failed_record["failures"]
+assert "delta is corrupt" in failed.stdout + failed.stderr, "the first attempt's words reach the journal"
 
 system, system_calls, system_record, system_lock = run_case("retry", "--system")
 assert system.returncode == 0, system.stderr
