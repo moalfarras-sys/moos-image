@@ -155,11 +155,12 @@ sandbox; the plan says why, under its own heading. Do not "fix" them.
 
 ## Plasma 6.8 readiness (measured on the A1, 2026-09-24; detail in plan row P6.7)
 
-On KDE SIG's 6.8 beta packages (`6.7.90`, x86_64 under emulation) MoOS's 6.7 lock screen does
-not load: 6.8 removed `VirtualKeyboardLoader`, and the real greeter fell back to its emergency
-locker while stock 6.8 loaded. `plasma_seams.py build` on that snapshot selected set 6.8,
-matched all ten upstream digests from rpm and loaded the merged MoOS lock screen; on this
-station's 6.7.5 it selects 6.7 and passes. Container evidence only: no 6.8 candidate yet.
+On KDE SIG's 6.8 beta (`6.7.90`, x86_64 under emulation) MoOS's 6.7 lock screen falls back to
+the emergency locker: 6.8 removed `VirtualKeyboardLoader`. `plasma_seams.py build` there picked
+set 6.8, matched all ten upstream digests and loaded the merged MoOS lock screen; on 6.7.5 it
+picks 6.7 and passes, including inside PR #161's ARM image build. CI also found Breeze's Global
+Themes hidden on x86 only (this A1's picker offers them), now one shared step, and a libplasma
+soname bump that made a plain distro-sync silently keep 6.7.5. No 6.8 candidate exists yet.
 
 ## Open evidence gaps
 
