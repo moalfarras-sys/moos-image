@@ -169,12 +169,21 @@ require("MO_REMOTE_ACQUIRE_ATTEMPTS" in code(remote_start)
         "logind/polkit call must fall through to the agent")
 
 remote_desktop = read("system_files/usr/share/applications/org.moos.remote.desktop")
-require("Exec=moos-settings --section=remote" in remote_desktop
-        and "NoDisplay=true" in remote_desktop
+# The dock pin opens the Mo PC Remote app, whose window app id is the entry's own name, so pin
+# and window are one icon; its switches live in System Settings → MoOS → Mo PC Remote, and that
+# page still reaches the app for pairing.
+require(re.search(r"(?m)^Exec=mo-pc-remote$", remote_desktop)
+        and re.search(r"(?m)^StartupWMClass=org\.moos\.remote$", remote_desktop)
+        and re.search(r"(?m)^NoDisplay=true$", remote_desktop)
         and re.search(r"(?m)^    app/remote\)\s+gui mo-pc-remote\s*;;",
-                      code(read("system_files/usr/bin/moos-open"))),
-        "Mo PC Remote's compatibility launcher must deep-link to the one Settings front "
-        "door, and that page must still reach its native transaction sheet")
+                      code(read("system_files/usr/bin/moos-open")))
+        and 'root.open("moos://app/remote")'
+            in read("moos-settings-kcm/modules/remote/ui/main.qml"),
+        "Mo PC Remote's pin must open the app itself as one dock icon, and the Remote "
+        "module of System Settings must still reach the app")
+require('application_id="org.moos.remote"' in read("system_files/usr/bin/mo-pc-remote"),
+        "Mo PC Remote's window app id must match org.moos.remote.desktop, or the pin and "
+        "the window are two dock icons")
 require("Icon=moos-pc-remote" in remote_desktop,
         "Mo PC Remote must use its first-party MoOS icon, not the retired vendored name")
 require("xdg-open" not in remote_desktop and "http://" not in remote_desktop,
@@ -1918,7 +1927,13 @@ require("def local_failure_reason" in gateway and "FAILURE_SIGNS" in gateway,
         "(GPU memory, disk, network) — one generic 'still downloading' message for every "
         "failure is how a dead brain looks like a slow one")
 
-for qml_path in sorted((ROOT / "system_files/usr/share/moos/apps").glob("*/main.qml")):
+# The apps, and MoOS's pages inside System Settings (moos-settings-kcm): a settings page's
+# button is exactly as dead as an app's when its route has no case.
+_route_scan = sorted((ROOT / "system_files/usr/share/moos/apps").glob("*/main.qml"))
+_route_scan += sorted((ROOT / "moos-settings-kcm").rglob("*.qml"))
+require(any("moos-settings-kcm" in p.as_posix() for p in _route_scan),
+        "the route cross-check found no MoOS settings module to scan")
+for qml_path in _route_scan:
     qml_text = qml_path.read_text(encoding="utf-8")
     for url in sorted(set(re.findall(r'moos://([a-z0-9/._-]+)', qml_text))):
         # A URL the app builds at runtime ("moos://do/" + action) shows up here as
@@ -1927,7 +1942,7 @@ for qml_path in sorted((ROOT / "system_files/usr/share/moos/apps").glob("*/main.
         if url.endswith("/"):
             continue
         require(route_is_covered(url, declared_routes),
-                f"{qml_path.parent.name} opens moos://{url}, "
+                f"{qml_path.relative_to(ROOT).as_posix()} opens moos://{url}, "
                 f"which moos-open has no case for — that button does nothing")
 
 # The Run chips are built from the actions Mo AI parses out of a model reply, so
@@ -4919,8 +4934,10 @@ require("QMetaObject::invokeMethod" in shell_src
         and '"activateRequested"' in shell_src
         and "QVariant::fromValue(arguments)" in shell_src,
         "a second launch must forward its argv into the running QML object; raising the "
-        "window alone leaves Mo AI panels and Command Center sections on stale state")
-for _qml_app in ("moai", "settings"):
+        "window alone leaves Mo AI panels on stale state")
+# MoOS's settings are System Settings modules; a second `systemsettings <module>` is handed to
+# the running window by systemsettings itself, so only Mo AI consumes argv here.
+for _qml_app in ("moai",):
     _qml_activation = code(read(
         f"system_files/usr/share/moos/apps/{_qml_app}/main.qml"), "slash")
     require("function activateRequested(" in _qml_activation,

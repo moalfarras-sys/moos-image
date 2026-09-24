@@ -30,6 +30,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 APPS = ROOT / "system_files/usr/share/moos/apps"
+# MoOS's settings pages: System Settings modules and the shared rows they are built from.
+KCM = ROOT / "moos-settings-kcm"
 
 # Members every QQuickWindow / QQC2 ApplicationWindow root already has. Keep this list to what the
 # apps really use: a name added here is a name this gate can no longer catch as a typo.
@@ -41,6 +43,9 @@ INHERITED = {
     "showNormal", "showMaximized", "showMinimized", "showFullScreen",
     "header", "footer", "menuBar", "background", "overlay", "data",
 }
+# A settings page's root is a KCM page and its shared rows are controls: these are the two
+# members of theirs the files read (a control's `text`, an Item's `enabled`).
+INHERITED_CONTROL = {"text", "enabled"}
 
 
 def strip_noise(text: str) -> str:
@@ -52,7 +57,7 @@ def strip_noise(text: str) -> str:
     return text
 
 
-def audit(path: Path) -> list[str]:
+def audit(path: Path, inherited: set[str] = INHERITED) -> list[str]:
     code = strip_noise(path.read_text(encoding="utf-8"))
     first_id = re.search(r"(?m)^\s*id:\s*(\w+)", code)
     if not first_id:
@@ -64,13 +69,13 @@ def audit(path: Path) -> list[str]:
     declared |= {f"{name}Changed" for name in set(declared)}
     declared |= set(re.findall(r"(?m)^\s*function\s+(\w+)\s*\(", code))
     declared |= set(re.findall(r"(?m)^\s*signal\s+(\w+)", code))
-    declared |= {f"{name}Changed" for name in INHERITED}
+    declared |= {f"{name}Changed" for name in inherited}
 
     problems: list[str] = []
     seen: dict[str, list[int]] = {}
     for number, line in enumerate(code.splitlines(), 1):
         for name in re.findall(rf"\b{re.escape(root_id)}\.(\w+)", line):
-            if name not in declared and name not in INHERITED:
+            if name not in declared and name not in inherited:
                 seen.setdefault(name, []).append(number)
     rel = path.relative_to(ROOT).as_posix()
     for name, lines in sorted(seen.items()):
@@ -83,20 +88,25 @@ def audit(path: Path) -> list[str]:
 
 def main() -> int:
     files = sorted(APPS.glob("*/main.qml"))
-    if len(files) < 5:
-        print(f"GATE FAIL: expected the five first-party apps under {APPS.relative_to(ROOT)}, "
-              f"found {len(files)} — if they moved, move this gate with them.")
+    settings = sorted(KCM.rglob("*.qml"))
+    if len(files) < 4 or len(list(KCM.glob("modules/*/ui/main.qml"))) < 5:
+        print(f"GATE FAIL: expected the four first-party apps under {APPS.relative_to(ROOT)} and "
+              f"the MoOS settings modules under {KCM.relative_to(ROOT)}, found {len(files)} apps "
+              f"and {len(settings)} settings files — if they moved, move this gate with them.")
         return 1
     errors: list[str] = []
     for path in files:
         errors += audit(path)
+    for path in settings:
+        errors += audit(path, INHERITED | INHERITED_CONTROL)
+    files += settings
     if errors:
         print("GATE FAIL: tests/test_qml_root_references.py")
         for error in errors:
             print(f" - {error}")
         return 1
-    print(f"QML root-reference gate passed ({len(files)} first-party apps: every "
-          "`<root>.<name>` is declared by the root or inherited from Window)")
+    print(f"QML root-reference gate passed ({len(files)} first-party QML files: every "
+          "`<root>.<name>` is declared by the root or inherited from its type)")
     return 0
 
 

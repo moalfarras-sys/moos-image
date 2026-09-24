@@ -48,7 +48,12 @@ STATUS = SYS / "usr/libexec/moos-settings-status"
 NOTIFIER = SYS / "usr/libexec/moos-whats-new-notify"
 AUTOSTART = SYS / "etc/xdg/autostart/org.moos.whats-new.desktop"
 ROUTER = SYS / "usr/bin/moos-open"
-SETTINGS = SYS / "usr/share/moos/apps/settings/main.qml"
+# The page is kcm_moos_whatsnew, a module of System Settings' MoOS group.
+KCM = ROOT / "moos-settings-kcm"
+WHATS_NEW_PAGE = KCM / "modules/whatsnew/ui/main.qml"
+NEWS_ENTRY = KCM / "modules/whatsnew/ui/NewsEntry.qml"
+OVERVIEW = KCM / "modules/overview/ui/main.qml"
+LAUNCHER = SYS / "usr/bin/moos-settings"
 CATALOG = SYS / "usr/lib64/qt6/qml/org/moos/ui/SymbolCatalog.js"
 
 ARABIC = re.compile(r"[\u0600-\u06FF]")
@@ -112,9 +117,10 @@ class TheListIsTrueToItsContract(unittest.TestCase):
     def test_try_it_only_names_a_route_that_exists_and_that_settings_may_open(self) -> None:
         routed = set(re.findall(r"^    settings/([a-z-]+)\)", ROUTER.read_text(encoding="utf-8"), re.M))
         destinations = set(runpy.run_path(str(STATUS))["DESTINATIONS"])
-        qml = SETTINGS.read_text(encoding="utf-8")
-        in_app = set(re.findall(r'"moos://settings/([a-z-]+)":',
-                                re.search(r"readonly property var inAppRoutes: \((\{[^}]*\})\)", qml).group(1)))
+        qml = WHATS_NEW_PAGE.read_text(encoding="utf-8")
+        # MoOS's own modules are always there; anything else needs a probed destination.
+        in_app = set(re.findall(r'"([a-z-]+)"',
+                                re.search(r"readonly property var ownPages: (\[[^\]]*\])", qml).group(1)))
         for entry in shipped():
             route = entry.get("route")
             if not route:
@@ -126,20 +132,34 @@ class TheListIsTrueToItsContract(unittest.TestCase):
                             f"{entry['id']}: MoOS Settings cannot open {route}")
 
     def test_the_page_is_reachable_every_way_the_others_are(self) -> None:
-        qml = SETTINGS.read_text(encoding="utf-8")
+        qml = WHATS_NEW_PAGE.read_text(encoding="utf-8")
         router = ROUTER.read_text(encoding="utf-8")
-        self.assertIn("settings/whats-new)         gui moos-settings --section=whats-new ;;", router)
-        self.assertIn('"moos://settings/whats-new": "whats-new"', qml)
-        self.assertIn('{ section: "system", route: "moos://settings/whats-new", glyph: "spark",', qml,
-                      "the page must be a row of the System section, so search finds it")
-        self.assertRegex(
-            qml,
-            r"readonly property var inAppPages: \[aboutSection, whatsNewSection,[^\]]+\]",
-        )
-        self.assertIn('onClicked: win.openRoute("moos://settings/whats-new")', qml,
+        self.assertRegex(router, r"(?m)^    settings/whats-new\)\s+gui moos-settings --section=whats-new ;;")
+        self.assertRegex(LAUNCHER.read_text(encoding="utf-8"),
+                         r"--section=whats-new\)\s*module=kcm_moos_whatsnew\s*;;")
+        metadata = json.loads((KCM / "modules/whatsnew/kcm_moos_whatsnew.json").read_text(encoding="utf-8"))
+        self.assertEqual(metadata["X-KDE-System-Settings-Parent-Category"], "moos",
+                         "the page must sit in the MoOS group, so the sidebar and search find it")
+        self.assertIn("what's new", metadata["X-KDE-Keywords"].split(","))
+        self.assertIn("ما الجديد", metadata["X-KDE-Keywords[ar]"].split(","))
+        self.assertIn('root.open("moos://settings/whats-new")', OVERVIEW.read_text(encoding="utf-8"),
                       "About this device must lead to What's new")
-        # A status document from before this page existed must not break the window.
-        self.assertIn("statusLoaded && status.whatsNew && status.whatsNew.entries", qml)
+        # A status document from before this page existed must not break it.
+        self.assertIn("ready && whatsNew.entries ? whatsNew.entries : []", qml)
+
+    def test_the_page_marks_what_is_fresh_and_draws_each_glyph(self) -> None:
+        qml = WHATS_NEW_PAGE.read_text(encoding="utf-8")
+        entry = NEWS_ENTRY.read_text(encoding="utf-8")
+        self.assertIn("readonly property int freshCount: ready ? (whatsNew.fresh || 0) : 0", qml)
+        self.assertIn("since your last update", qml)
+        self.assertIn("منذ آخر تحديث", qml)
+        self.assertIn("readonly property bool fresh: !!entry.fresh", entry)
+        self.assertIn("visible: news.fresh", entry, "a fresh entry must say it is new")
+        self.assertIn("MoUI.SymbolCatalog.resolve(news.entry.glyph)", entry)
+        self.assertIn("tryable: !!modelData.route && root.routeAvailable(modelData.route)", qml,
+                      "Try it only where MoOS has a route to go")
+        self.assertIn("onTryRequested: route => root.open(route)", qml)
+        self.assertIn("model: news.keys", entry, "a shortcut entry must draw its keys")
 
 
 class TheImageGate(unittest.TestCase):

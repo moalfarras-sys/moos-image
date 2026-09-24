@@ -22,6 +22,8 @@ ICON_ROOT = ROOT / "system_files/usr/share/icons"
 QML_ROOTS = (
     ROOT / "system_files/usr/share/moos",
     ROOT / "system_files/usr/share/plasma",
+    # MoOS's pages inside System Settings.
+    ROOT / "moos-settings-kcm",
 )
 
 # Family members generated from the Graphite/Tidal engine own only the 69
@@ -705,35 +707,47 @@ class MoOSSymbolicIconTests(unittest.TestCase):
 
 
     def test_settings_glyphs_are_catalog_names_not_silent_sparkles(self) -> None:
-        # Settings resolves glyphs straight through SymbolCatalog.resolve() with
-        # no alias table, and resolve() answers an unknown name with the sparkle.
-        # Displays asked for "monitor" and shipped a sparkle; four unrelated rows
-        # reused "identity" (itself a sparkle) and Date & time wore the MoOS logo.
+        # MoOS's settings pages — the System Settings modules in moos-settings-kcm — resolve
+        # glyphs straight through SymbolCatalog.resolve() with no alias table, and resolve()
+        # answers an unknown name with the sparkle. Displays once asked for "monitor" and
+        # shipped a sparkle; four unrelated rows reused "identity" (itself a sparkle) and Date
+        # & time wore the MoOS logo.
         catalog = (
             ROOT / "system_files/usr/lib64/qt6/qml/org/moos/ui/SymbolCatalog.js"
         ).read_text(encoding="utf-8")
         names = set(re.findall(r'"([a-z0-9-]+)":\s*true', catalog))
         self.assertIn('"moos-spark-symbolic"', catalog, "resolve() fallback moved; re-check this gate")
-        source = (
-            ROOT / "system_files/usr/share/moos/apps/settings/main.qml"
-        ).read_text(encoding="utf-8")
-        used = re.findall(r'\bglyph\s*:\s*(?:[^"\n]*\?\s*)?"([a-z0-9-]+)"(?:\s*:\s*"([a-z0-9-]+)")?', source)
-        glyphs = {name for pair in used for name in pair if name}
-        self.assertTrue(glyphs, "no Settings glyphs found; the pattern no longer matches")
+        kcm = ROOT / "moos-settings-kcm"
+        sources = {path.relative_to(kcm).as_posix(): path.read_text(encoding="utf-8")
+                   for path in sorted(kcm.rglob("*.qml"))}
+        self.assertGreaterEqual(len(sources), 10, "the settings modules moved; move this gate")
+        glyphs: set[str] = set()
+        for text in sources.values():
+            for pair in re.findall(
+                    r'\bglyph\s*:\s*(?:[^"\n]*\?\s*)?"([a-z0-9-]+)"(?:\s*:\s*"([a-z0-9-]+)")?', text):
+                glyphs.update(name for name in pair if name)
+            glyphs.update(re.findall(r'SymbolCatalog\.resolve\(\s*"([a-z0-9-]+)"', text))
+            for pair in re.findall(
+                    r'SymbolCatalog\.resolve\([^)"]*\?\s*"([a-z0-9-]+)"\s*:\s*"([a-z0-9-]+)"', text):
+                glyphs.update(pair)
+        self.assertGreaterEqual(len(glyphs), 12, "no settings glyphs found; the pattern no longer matches")
         self.assertFalse(
             sorted(glyphs - names),
-            "Settings glyphs that resolve() silently turns into the sparkle",
+            "settings glyphs that resolve() silently turns into the sparkle",
         )
-        # The MoOS mark belongs to the Overview only, not to ordinary rows.
-        self.assertEqual(
-            re.findall(r'id:\s*"([a-z]+)",\s*glyph:\s*"orbit"', source), ["home"])
-        self.assertEqual(source.count('glyph: "orbit"'), 1)
-        expected = {"display": "system", "wallpaper": "image", "accounts": "mail",
-                    "about": "about", "users": "user", "time": "clock", "region": "globe"}
-        for route, glyph in expected.items():
-            with self.subTest(route=route):
-                self.assertIn(f'route: "moos://settings/{route}", glyph: "{glyph}"', source)
-
+        # The MoOS mark belongs to the MoOS hero only, not to ordinary rows.
+        self.assertEqual([name for name, text in sources.items() if '"orbit"' in text],
+                         ["common/MoosHero.qml"])
+        overview = sources["modules/overview/ui/main.qml"]
+        rows = {}
+        for block in overview.split("MoosActionRow {")[1:]:
+            block = block.split("\n            }", 1)[0]
+            route = re.search(r'root\.open\("moos://settings/([a-z-]+)"\)', block)
+            glyph = re.search(r'glyph: "([a-z-]+)"', block)
+            if route and glyph:
+                rows[route.group(1)] = glyph.group(1)
+        self.assertEqual(rows, {"update": "safe-update", "whats-new": "spark",
+                                "remote": "phone", "recovery": "repair"})
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

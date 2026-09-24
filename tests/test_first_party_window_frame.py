@@ -56,7 +56,9 @@ class FirstPartyWindowsKeepTheSystemFrame(unittest.TestCase):
         self.assertTrue(found, "no first-party app QML was found to check")
         # If an app is added, it is covered automatically; this only guards
         # against the glob silently matching nothing after a directory move.
-        self.assertGreaterEqual(len(found), 5, f"only found {found}")
+        # Four windows: the settings pages are System Settings modules now
+        # (moos-settings-kcm), inside the system's own frame, not a MoOS window.
+        self.assertGreaterEqual(len(found), 4, f"only found {found}")
 
     def test_no_first_party_window_goes_frameless(self) -> None:
         for name, src in windows():
