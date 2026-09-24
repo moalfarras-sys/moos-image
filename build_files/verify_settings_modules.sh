@@ -12,7 +12,8 @@
 #     shows an error page — so exit 124 alone proves nothing (measured). The verdict
 #     is all three: still alive at the timeout, no QML error line, and the backend's
 #     MOOS_KCM_READY marker, which it prints only once the page was constructed.
-#     Offscreen, on a private session bus, with a private HOME and XDG tree.
+#     Offscreen, with a private HOME and XDG tree, and a private session bus where
+#     the image can start one (see below: the ARM image cannot, and needs none).
 set -euo pipefail
 
 plugins="$(qtpaths6 --query QT_INSTALL_PLUGINS)"
@@ -52,20 +53,38 @@ done
 
 command -v kcmshell6 >/dev/null 2>&1 \
     || { echo "GATE FAIL: kcmshell6 is required to load-test the MoOS System Settings modules"; exit 1; }
-command -v dbus-run-session >/dev/null 2>&1 \
-    || { echo "GATE FAIL: dbus-run-session is required to load-test the MoOS System Settings modules"; exit 1; }
+# The session bus. dbus-run-session comes only from dbus-daemon. kinoite-main carries
+# it; the ARM image does not: it runs dbus-broker, and nothing in build-arm.sh's
+# package set requires dbus-daemon (Fedora 44 metadata, 2026-09-25: only dbus-doc and
+# xwayland-run do). A MoOS page needs no bus to construct. Measured on 2026-09-25:
+# all five core modules loaded offscreen with the bus address pointing at a socket
+# that does not exist, with exit 124, the ready marker and no QML error each.
+# plasma_seams.py's greeter probe and verify_moos_motion.py run the same way. So
+# without dbus-run-session the modules load with no bus. The verdict below is
+# the same in both modes, and the load test is never skipped.
+if command -v dbus-run-session >/dev/null 2>&1; then
+    bus_mode="a private session bus"
+else
+    bus_mode="no session bus"
+fi
 home="$(mktemp -d /tmp/moos-kcm-home.XXXXXX)"
 for module in "${modules[@]}"; do
     runtime="$(mktemp -d /tmp/moos-kcm-runtime.XXXXXX)"
     chmod 0700 "$runtime"
     log="$(mktemp /tmp/moos-kcm-load.XXXXXX.log)"
+    session=(env -u DISPLAY -u WAYLAND_DISPLAY
+        HOME="$home" XDG_RUNTIME_DIR="$runtime"
+        XDG_CONFIG_HOME="$home/.config" XDG_DATA_HOME="$home/.local/share"
+        XDG_CACHE_HOME="$home/.cache" XDG_STATE_HOME="$home/.local/state"
+        QT_QPA_PLATFORM=offscreen QT_FORCE_STDERR_LOGGING=1 QML_DISABLE_DISK_CACHE=1)
     set +e
-    dbus-run-session -- env -u DISPLAY -u WAYLAND_DISPLAY \
-        HOME="$home" XDG_RUNTIME_DIR="$runtime" \
-        XDG_CONFIG_HOME="$home/.config" XDG_DATA_HOME="$home/.local/share" \
-        XDG_CACHE_HOME="$home/.cache" XDG_STATE_HOME="$home/.local/state" \
-        QT_QPA_PLATFORM=offscreen QT_FORCE_STDERR_LOGGING=1 QML_DISABLE_DISK_CACHE=1 \
-        timeout --kill-after=5s 10 kcmshell6 "$module" >"$log" 2>&1
+    if [ "$bus_mode" = "a private session bus" ]; then
+        dbus-run-session -- "${session[@]}" \
+            timeout --kill-after=5s 10 kcmshell6 "$module" >"$log" 2>&1
+    else
+        "${session[@]}" DBUS_SESSION_BUS_ADDRESS="unix:path=$runtime/absent-bus" \
+            timeout --kill-after=5s 10 kcmshell6 "$module" >"$log" 2>&1
+    fi
     rc=$?
     set -e
     errors="$(grep -E 'Error loading QML|is not a type|ReferenceError|TypeError|module .* is not installed|Unable to assign|Cannot assign' "$log" || true)"
@@ -79,4 +98,4 @@ for module in "${modules[@]}"; do
     rm -rf "$runtime" "$log"
 done
 rm -rf "$home"
-echo "MoOS System Settings modules: ${#modules[@]} installed, grouped and loaded (${modules[*]})"
+echo "MoOS System Settings modules: ${#modules[@]} installed, grouped and loaded on ${bus_mode} (${modules[*]})"

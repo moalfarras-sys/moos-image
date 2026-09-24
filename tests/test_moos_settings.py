@@ -224,14 +224,23 @@ class TheFamily(unittest.TestCase):
             "for duplicate in kcm_updates kcm_about-distro; do",
             'find "$plugins/plasma/kcms" -name "$duplicate.so" -delete',
             'rm -f "/usr/share/applications/$duplicate.desktop"',
-            "dbus-run-session -- env -u DISPLAY -u WAYLAND_DISPLAY",
+            "session=(env -u DISPLAY -u WAYLAND_DISPLAY",
             'HOME="$home" XDG_RUNTIME_DIR="$runtime"',
             "QT_QPA_PLATFORM=offscreen",
+            # A private bus where the image has dbus-run-session (x86); where it has not
+            # (ARM: dbus-broker only), the SAME load on an address that leads nowhere.
+            'dbus-run-session -- "${session[@]}"',
+            '"${session[@]}" DBUS_SESSION_BUS_ADDRESS="unix:path=$runtime/absent-bus"',
             'kcmshell6 "$module"',
             '[ "$rc" -ne 124 ]',
             "MOOS_KCM_READY $module",
         ):
             self.assertIn(contract, gate)
+        self.assertEqual(gate.count('timeout --kill-after=5s 10 kcmshell6 "$module"'), 2,
+                         "both bus modes must run the same load")
+        self.assertNotIn("exit 0", gate, "the load test is never skipped")
+        self.assertNotIn("dbus-run-session is required", gate,
+                         "the ARM image has no dbus-run-session; the gate loads there without a bus")
         for error in ("Error loading QML", "is not a type", "ReferenceError", "TypeError",
                       "module .* is not installed"):
             self.assertIn(error, gate, f"the load gate no longer fails on '{error}'")
