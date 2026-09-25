@@ -1784,6 +1784,59 @@ def resolve_tool_binary(bin_name: str) -> str:
     return bin_name
 
 
+# ── The desktop session, as it is NOW ─────────────────────────────────────────
+# This unit is WantedBy=default.target: it serves Mo AI's settings, the phone bridges and
+# the ARM and cloud editions, which must work before (or without) anyone sitting at a
+# screen. So it starts when the user manager does, which on a desktop login was measured at
+# 20:57:16 — four seconds BEFORE graphical-session.target (20:57:20), with none of the
+# variables below in its environment. Every GUI tool it ran (open_settings, open_app,
+# take_screenshot) died looking for a display while the detached start reported success.
+#
+# The session publishes its variables to the user manager when it starts (Plasma imports
+# them before graphical-session.target), so the manager's environment is the live answer —
+# the same one `systemd-run --user` would hand a new unit. A tool gets exactly these keys
+# from it, and only when this process has no display of its own. Anything unreadable or
+# oddly shaped is left out: then moos-control says "no desktop session" instead of guessing.
+SESSION_KEYS = ("WAYLAND_DISPLAY", "DISPLAY", "XAUTHORITY", "XDG_SESSION_TYPE",
+                "XDG_CURRENT_DESKTOP", "XDG_SESSION_DESKTOP", "DESKTOP_SESSION",
+                "KDE_FULL_SESSION", "KDE_SESSION_VERSION", "LANG", "LANGUAGE")
+SESSION_VALUE = re.compile(r"[A-Za-z0-9_.:/@=,+-]{1,256}")
+
+
+def _manager_environment() -> dict[str, str]:
+    """The user manager's current environment, limited to SESSION_KEYS; {} when unreadable."""
+    busctl = shutil.which("busctl")
+    if not busctl:
+        return {}
+    try:
+        done = subprocess.run(
+            [busctl, "--user", "--json=short", "get-property", "org.freedesktop.systemd1",
+             "/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager", "Environment"],
+            capture_output=True, text=True, timeout=3, stdin=subprocess.DEVNULL, check=False)
+        entries = json.loads(done.stdout)["data"] if done.returncode == 0 else []
+    except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError):
+        return {}
+    found: dict[str, str] = {}
+    for entry in entries if isinstance(entries, list) else []:
+        if not isinstance(entry, str) or "=" not in entry:
+            continue
+        key, value = entry.split("=", 1)
+        if key in SESSION_KEYS and SESSION_VALUE.fullmatch(value):
+            found[key] = value
+    return found
+
+
+def _tool_environment() -> dict[str, str]:
+    """This process's environment, completed with the live session's when it has no display."""
+    environment = dict(os.environ)
+    if environment.get("WAYLAND_DISPLAY") or environment.get("DISPLAY"):
+        return environment
+    live = _manager_environment()
+    if live.get("WAYLAND_DISPLAY") or live.get("DISPLAY"):
+        environment.update(live)
+    return environment
+
+
 # ── Tool jobs ─────────────────────────────────────────────────────────────────
 # W4 ran every tool with `subprocess.run(timeout=90)`. A look-up fits in that; an update, an
 # app install, firmware or Android setup does not. After 90 s the HTTP call answered "timed out"
@@ -1918,8 +1971,15 @@ def _publish_job_token(job_id: str, tool: str, state: str, previous: str | None 
         folder.mkdir(mode=0o700, parents=True, exist_ok=True)
         target = folder / name
         if previous and (folder / previous).exists():
+            # The Island ages an ended token by its mtime: the moment it entered THIS state,
+            # not when the job began. Stamp BEFORE the rename — a rename keeps the mtime, so
+            # the new name appears with its fresh time in one atomic step. Stamped after, the
+            # Island's FolderListModel rescans within a millisecond of the rename, reads the
+            # start time, drops a long job's end as old news, and never sees the later stamp
+            # (it reports no change that touches only mtime). A running token never ages out,
+            # so the fresh stamp on it for that instant is harmless.
+            os.utime(folder / previous)
             os.replace(folder / previous, target)
-            os.utime(target)                    # when it entered THIS state, not when it began
         else:
             temporary = folder / f".{name}.tmp"
             temporary.write_bytes(b"")
@@ -1954,7 +2014,8 @@ def _audit_tool(tool_name: str, verdict: str) -> None:
                        capture_output=True, timeout=5, check=False)
 
 
-def _run_job(job_id: str, cmd: list[str], tokens: _PolicyPath | None = None) -> None:
+def _run_job(job_id: str, cmd: list[str], tokens: _PolicyPath | None = None,
+             environment: dict[str, str] | None = None) -> None:
     start = time.monotonic()
     state = "error"
     code = None
@@ -1962,13 +2023,15 @@ def _run_job(job_id: str, cmd: list[str], tokens: _PolicyPath | None = None) -> 
     with _tool_jobs_lock:
         tool = _tool_jobs[job_id]["tool"]
         executor = (tool_schemas.TOOL_META.get(tool) or {}).get("executor", "")
-    # One folder for the job's whole life: `tokens`, chosen by execute_tool when it ACCEPTED the
-    # job. Reading the environment here, in the worker thread, raced whatever changed it after
-    # the request returned.
+    # One folder and one environment for the job's whole life: `tokens` and `environment`,
+    # chosen by execute_tool when it ACCEPTED the job. Reading the environment here, in the
+    # worker thread, raced whatever changed it after the request returned.
     token = _publish_job_token(job_id, tool, "running", folder=tokens)
     try:
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
-                                stdin=subprocess.DEVNULL, start_new_session=True)
+                                stdin=subprocess.DEVNULL, start_new_session=True,
+                                env=environment if environment is not None
+                                else _tool_environment())
         with _tool_jobs_lock:
             _tool_jobs[job_id]["pid"] = proc.pid
         try:
@@ -2045,7 +2108,8 @@ def execute_tool(data: dict) -> tuple[int, dict]:
                 if _tool_jobs[stale]["status"] != "running":
                     del _tool_jobs[stale]
         _audit_tool(tool_name, "started")
-        threading.Thread(target=_run_job, args=(job_id, cmd, _jobs_dir()), daemon=True).start()
+        threading.Thread(target=_run_job, args=(job_id, cmd, _jobs_dir(), _tool_environment()),
+                         daemon=True).start()
         return 202, {"job": job_id, "tool": tool_name, "status": "running"}
 
     start = time.monotonic()
@@ -2057,6 +2121,7 @@ def execute_tool(data: dict) -> tuple[int, dict]:
             stdin=subprocess.DEVNULL,
             text=True,
             timeout=QUICK_TIMEOUT,
+            env=_tool_environment(),
         )
         duration_ms = int((time.monotonic() - start) * 1000)
         return 200, {

@@ -67,7 +67,10 @@ case "$language" in
         ;;
 esac
 
+# Filed under MoOS Settings (the one Settings entry, whose Update page owns updates), so
+# System Settings › Notifications lists it by that name and the person can mute it there.
 notify-send --app-name=MoOS --icon=moos-updater --urgency=normal \
+    --hint=string:desktop-entry:systemsettings \
     "$title" "$body" || exit 0
 
 # Recorded only after the message actually went out, so a failed notification is

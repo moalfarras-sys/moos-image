@@ -39,24 +39,31 @@ THEMES = ("dark", "light", "nova", "amethyst", "midnight", "aurora", "auto")
 
 
 def _settings_pages():
-    """The pages Mo AI offers (moai: true in the one settings registry, SPEC D3).
+    """The pages Mo AI offers (moai: true in the one settings registry, SPEC D3), with the
+    fixed command that opens each one.
 
-    Each is a fixed route in moos-open, which opens the page. A registry that is missing
-    or malformed offers NO page: the settings verb then reports itself unavailable, and
-    every other verb keeps working.
+    The command is the registry's own (`argv()`), the one moos-open's literal arm for the
+    same token runs — tests/test_settings_destinations.py holds the two equal. It is started
+    here rather than through moos-open because moos-open detaches and exits 0 at once, so a
+    page that failed to open (no desktop session, a module that will not load) would still
+    be reported as opened. A registry that is missing or malformed offers NO page: the
+    settings verb then reports itself unavailable, and every other verb keeps working.
     """
     try:
         sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "lib/moos"))
         import moos_settings_destinations as destinations
     except ImportError:
-        return ()
+        return {}
     finally:
         sys.path.pop(0)
-    registry = Path(__file__).resolve().parent.parent / "share/moos/settings-destinations.json"
-    return destinations.moai_tokens(destinations.safe_load(registry))
+    registry = destinations.safe_load(
+        Path(__file__).resolve().parent.parent / "share/moos/settings-destinations.json")
+    return {token: destinations.argv(registry[token])
+            for token in destinations.moai_tokens(registry)}
 
 
-SETTINGS_PAGES = _settings_pages()
+SETTINGS_COMMANDS = _settings_pages()
+SETTINGS_PAGES = tuple(SETTINGS_COMMANDS)
 
 # ── The desktop's own actions, by their fixed names ─────────────────────────
 # Measured on the station (Plasma 6.7.5, 2026-09-24) in `shortcutNames` of each
@@ -137,12 +144,42 @@ def run(argv, timeout=30):
     return result.stdout
 
 
+# A detached action that dies inside this window never started: its failure is the answer.
+# A launcher that hands off and exits 0 (gtk-launch) is a success; one still running is too.
+SPAWN_SETTLE = 1.0
+
+
+def require_display():
+    """A window needs a desktop session to appear on.
+
+    Mo AI's tool runner used to start before the session did, with neither variable set:
+    System Settings and the apps it "opened" died at once looking for a display, and the
+    detached start still printed "Opening…". Without a display the answer is no, out loud.
+    """
+    if not (os.environ.get("WAYLAND_DISPLAY") or os.environ.get("DISPLAY")):
+        raise Unavailable("no desktop session to show it on "
+                          "(WAYLAND_DISPLAY and DISPLAY are unset)")
+
+
 def spawn(argv):
-    """Start a long-running action (a theme change, an app) detached."""
+    """Start a long-running action (a theme change, an app) detached.
+
+    The child is watched for SPAWN_SETTLE seconds: an exit with an error inside that window
+    is reported as the verb's failure instead of being hidden behind a success message.
+    """
     if shutil.which(argv[0]) is None:
         raise Unavailable(f"{argv[0]} is not installed")
-    subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                     stderr=subprocess.DEVNULL, start_new_session=True)
+    try:
+        child = subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                 stderr=subprocess.DEVNULL, start_new_session=True)
+    except OSError as error:
+        raise Unavailable(f"{argv[0]} could not start: {error.strerror or error}") from error
+    try:
+        code = child.wait(timeout=SPAWN_SETTLE)
+    except subprocess.TimeoutExpired:
+        return
+    if code != 0:
+        raise Unavailable(f"{argv[0]} stopped at once (exit {code})")
 
 
 def audit(message):
@@ -278,6 +315,7 @@ def pictures_dir():
 
 
 def screenshot():
+    require_display()
     folder = pictures_dir() / "Screenshots"
     folder.mkdir(parents=True, exist_ok=True)
     target = folder / f"MoOS-{datetime.now():%Y%m%d-%H%M%S}.png"
@@ -303,11 +341,13 @@ def open_app(value):
         raise Invalid("invalid app id")
     if shutil.which("flatpak") and subprocess.run(
             ["flatpak", "info", value], capture_output=True, timeout=15).returncode == 0:
-        spawn(["flatpak", "run", value])
+        command = ["flatpak", "run", value]
     elif any((base / "applications" / f"{value}.desktop").is_file() for base in data_dirs()):
-        spawn(["gtk-launch", value])
+        command = ["gtk-launch", value]
     else:
         raise Unavailable(f"app is not installed: {value}")
+    require_display()
+    spawn(command)
     return f"🚀 فتح {value} | Opening {value}"
 
 
@@ -315,7 +355,8 @@ def settings(value):
     if not SETTINGS_PAGES:
         raise Unavailable("the settings list cannot be read")
     one_of(value, SETTINGS_PAGES, "settings page")
-    spawn(["moos-open", f"moos://settings/{value}"])
+    require_display()
+    spawn(list(SETTINGS_COMMANDS[value]))
     return f"⚙ فتح الإعدادات: {value} | Opening settings: {value}"
 
 

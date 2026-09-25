@@ -14,8 +14,9 @@ indicator). The finding was right and its action opened Mo PC Remote — which d
 close the port. A warning with nothing to press is a warning people learn to scroll past.
 
 `moos-remote-guard off` is that action: two NAMED user services and one autostart key
-each, no argument from the caller, no administrator rights, nothing removed, and System
-Settings turns either server back on in a click. This gate keeps it narrow — a helper
+each, no argument from the caller, no administrator rights and nothing removed (on x86 KRDP's
+Settings page is hidden too, since Mo PC Remote is MoOS's remote desktop — see
+tests/test_settings_kiosk.py). This gate keeps it narrow — a helper
 that can stop "whatever the caller names" is a remote-control tool, not a guard.
 """
 

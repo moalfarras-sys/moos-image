@@ -15,8 +15,17 @@ import subprocess
 import tempfile
 import time
 import unittest
+import sys
 from pathlib import Path
 from unittest import mock
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import journal_isolation  # noqa: E402
+import test_island_tokens as island_probe  # noqa: E402  (the Island's real-model probe)
+
+# moai-control audits every tool it runs, and the moai-do these tests start audits its
+# actions: into this process's recording logger, never the owner's journal.
+journal_isolation.install()
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -901,6 +910,17 @@ class IslandJobTokenTests(unittest.TestCase):
             self.assertEqual(self.tokens(later), [], "the job wrote where the environment "
                              "pointed when it RAN, not where it was accepted")
 
+    def test_the_island_ages_ended_tokens_by_this_linger(self):
+        """The Island drops done/failed tokens older than MOAI_JOB_LINGER_MS; it must be ours."""
+        with tempfile.TemporaryDirectory() as home:
+            linger = load_control(home)["JOB_TOKEN_LINGER"]
+        tokens_js = (ROOT / "system_files/usr/share/plasma/plasmoids/org.moos.island/contents/ui/"
+                     "IslandTokens.js").read_text(encoding="utf-8")
+        match = re.search(r"var MOAI_JOB_LINGER_MS = (\d+);", tokens_js)
+        self.assertIsNotNone(match, "the Island no longer declares its linger")
+        self.assertEqual(int(match.group(1)), round(linger * 1000),
+                         "the Island and moai-control disagree on how long an ended job is news")
+
     def test_an_ended_token_is_stamped_when_it_ends(self):
         """A rename keeps the old mtime; the Island and the sweep read it as the state's age."""
         with tempfile.TemporaryDirectory() as home, tempfile.TemporaryDirectory() as runtime:
@@ -915,6 +935,35 @@ class IslandJobTokenTests(unittest.TestCase):
             self.assertEqual(done, "job-0123abcd-done-system_update")
             self.assertGreaterEqual((folder / done).stat().st_mtime, before,
                                     "a job that ran for an hour ended 'an hour ago'")
+
+    def test_an_ended_token_is_stamped_before_it_is_renamed(self):
+        """The Island's FolderListModel rescans within a millisecond of a rename and reports no
+        change that touches only mtime. A stamp that follows the rename therefore never reaches
+        it: the name must ARRIVE with its fresh time. At the moment of the rename, the token
+        being renamed must already carry the time the job ended."""
+        with tempfile.TemporaryDirectory() as home, tempfile.TemporaryDirectory() as runtime:
+            control = load_control(home)
+            folder = Path(runtime) / "moai-jobs"
+            publish = control["_publish_job_token"]
+            running = publish("0123abcd", "system_update", "running", folder=folder)
+            hour_ago = time.time() - 3600
+            os.utime(folder / running, (hour_ago, hour_ago))
+            real_replace, renamed = os.replace, []
+
+            def replace(source, destination, *args, **kwargs):
+                renamed.append((Path(source).name, Path(destination).name,
+                                os.stat(source).st_mtime))
+                return real_replace(source, destination, *args, **kwargs)
+
+            before = time.time() - 5
+            with mock.patch.object(control["os"], "replace", replace):
+                ended = publish("0123abcd", "system_update", "failed", running, folder=folder)
+            self.assertEqual(ended, "job-0123abcd-failed-system_update")
+            self.assertEqual([(source, target) for source, target, _stamp in renamed],
+                             [(running, ended)], "the end is one rename of the running token")
+            self.assertGreaterEqual(renamed[0][2], before,
+                                    "renamed first and stamped second: for that instant the "
+                                    "Island reads the start time and drops the end as old news")
 
     def test_ended_tokens_nobody_removed_are_swept_on_the_next_publish(self):
         """A process that exits before its linger timer fires must not leave a chip forever."""
@@ -968,6 +1017,53 @@ class IslandJobTokenTests(unittest.TestCase):
             self.assertIn("_clear_job_tokens()", main)
 
 
+
+@unittest.skipUnless(island_probe.QML_RUNTIME,
+                     "a Qt QML runtime is needed to run the Island's real FolderListModel")
+class TheRealProducerReachesARealIsland(island_probe.RealIslandProbe, unittest.TestCase):
+    """moai-control's own _publish_job_token against the Island's real-model probe.
+
+    The Island drops an ended token whose file time is older than the linger. A confirmed job that
+    ran longer than that (update_apps, system_update, install_app) ends by a rename, and a rename
+    keeps the start time. Renamed first and stamped second, the model rescanned inside that gap,
+    read the start time, and the chip vanished instead of saying 'done' or 'failed' (measured: a
+    2 ms gap missed 6 runs of 6). The gap is made deterministic here — the rename yields for
+    50 ms, as moai-control's threaded server may while it serves Mo AI's /tool/job polls — so
+    only a producer that stamps BEFORE the rename passes.
+
+    This suite runs under the journal gate's bubblewrap trap, where systemd-tmpfiles cannot run;
+    the folder is made here as moos-island.conf makes it at login (test_island_tokens proves the
+    conf itself with systemd-tmpfiles)."""
+
+    @staticmethod
+    def login(runtime: Path) -> None:
+        runtime.mkdir(mode=0o700, parents=True, exist_ok=True)
+        (runtime / "moai-jobs").mkdir(mode=0o700)
+
+    def test_a_long_jobs_end_is_announced(self):
+        jobs, output = self.run_session(prepare=self.login)
+        with tempfile.TemporaryDirectory() as home:
+            publish = load_control(home)["_publish_job_token"]
+        folder = jobs.directory
+        running = publish("0e0e0e0e", "update_apps", "running", folder=folder)
+        self.assertEqual(running, "job-0e0e0e0e-running-update_apps")
+        self.assertTrue(output.wait_for("probe-state running:0e0e0e0e", 10),
+                        "\n".join(output.seen[-20:]))
+        long_ago = time.time() - 60                  # the job has run for a minute
+        os.utime(folder / running, (long_ago, long_ago))
+        real_replace = os.replace
+
+        def replace_then_yield(source, destination, *args, **kwargs):
+            real_replace(source, destination, *args, **kwargs)
+            time.sleep(0.05)
+
+        with mock.patch.object(os, "replace", replace_then_yield):
+            ended = publish("0e0e0e0e", "update_apps", "done", running, folder=folder)
+        self.assertEqual(ended, "job-0e0e0e0e-done-update_apps")
+        self.assertTrue(output.wait_for("probe-state done:0e0e0e0e", 10),
+                        "a job that ran for a minute ended, and the Island's chip vanished "
+                        "instead of announcing it\n" + "\n".join(output.seen[-20:]))
+
 class BootedVersionTests(unittest.TestCase):
     """The version Mo AI quotes is the booted image's, not the base's os-release stamp."""
 
@@ -998,6 +1094,134 @@ class BootedVersionTests(unittest.TestCase):
             scan = source[source.index("def scan() -> dict:"):source.index("def scan() -> dict:") + 900]
             self.assertIn('"version": booted_image_version()', scan)
             self.assertNotIn('"version": _first_line("/etc/os-release"', scan)
+
+
+class SessionEnvironmentTests(unittest.TestCase):
+    """Mo AI's GUI tools reach the desktop session that exists NOW.
+
+    Measured on the station (2026-09-24): moai-control starts from default.target at
+    20:57:16, graphical-session.target is reached at 20:57:20, and the service's own
+    environment holds no WAYLAND_DISPLAY or DISPLAY. open_settings, open_app and
+    take_screenshot started windows that died looking for a display.
+    """
+
+    UNIT = ROOT / "system_files/usr/lib/systemd/user/moai-control.service"
+    MANAGER = ["WAYLAND_DISPLAY=wayland-7", "DISPLAY=:7", "XDG_SESSION_TYPE=wayland",
+               "XDG_CURRENT_DESKTOP=KDE", "KDE_FULL_SESSION=true", "LANG=ar_SA.UTF-8",
+               "LANGUAGE=ar", "XAUTHORITY=/run/user/1000/xauth_abc",
+               "PATH=/manager/bin", "LD_PRELOAD=/tmp/evil.so",
+               "DESKTOP_SESSION=plasma; rm -rf ~", "HOME=/somewhere/else"]
+
+    def unit(self) -> dict[str, list[str]]:
+        section, keys = "", {}
+        for line in self.UNIT.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if line.startswith("["):
+                section = line
+                continue
+            key, _, value = line.partition("=")
+            keys.setdefault(f"{section}{key}", []).append(value)
+        return keys
+
+    def test_the_unit_runs_headless_and_is_ordered_after_the_session(self):
+        keys = self.unit()
+        self.assertIn("default.target", " ".join(keys.get("[Install]WantedBy", [])),
+                      "the phone bridges, ARM and cloud need this API with nobody at a screen")
+        self.assertIn("graphical-session.target", " ".join(keys.get("[Unit]After", [])))
+        self.assertNotIn("[Unit]PartOf", keys, "a session stop would kill a confirmed job")
+        self.assertNotIn("[Unit]BindsTo", keys, "a session stop would kill a confirmed job")
+        pinned = [value for value in keys.get("[Service]Environment", [])
+                  if re.match(r"(WAYLAND_DISPLAY|DISPLAY|XDG_SESSION_TYPE)=", value)]
+        self.assertEqual(pinned, [], "a display named in the unit is a guess, not the session")
+        self.assertNotIn("[Service]PassEnvironment", keys)
+
+    def stubs(self, folder: Path, log: Path) -> Path:
+        bin_dir = folder / "bin"
+        bin_dir.mkdir()
+        answer = json.dumps({"type": "as", "data": self.MANAGER})
+        (bin_dir / "busctl").write_text(
+            f"#!/bin/sh\necho \"busctl $*\" >> \"{log}.busctl\"\n"
+            f"cat <<'JSON'\n{answer}\nJSON\n", encoding="utf-8")
+        for tool in ("moos-control", "moai-do"):
+            (bin_dir / tool).write_text(
+                f"#!/bin/sh\n{{ echo \"argv $*\"; env; }} > \"{log}.{tool}.tmp\"\n"
+                f"mv \"{log}.{tool}.tmp\" \"{log}.{tool}\"\necho done\n", encoding="utf-8")
+        for path in bin_dir.iterdir():
+            path.chmod(0o755)
+        return bin_dir
+
+    def child_environment(self, log: Path, tool: str) -> dict[str, str]:
+        deadline = time.monotonic() + 10
+        path = Path(f"{log}.{tool}")
+        while not path.exists() and time.monotonic() < deadline:
+            time.sleep(0.05)
+        lines = path.read_text(encoding="utf-8").splitlines()
+        return dict(line.split("=", 1) for line in lines[1:] if "=" in line)
+
+    def run_tool(self, folder: Path, request: dict, manager=None, **own) -> Path:
+        log = folder / "calls"
+        if manager is not None:
+            self.MANAGER = manager
+        bin_dir = self.stubs(folder, log)
+        runtime = folder / "run"
+        runtime.mkdir(mode=0o700)
+        control = load_control(str(folder))
+        environment = {"PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}",
+                       "XDG_RUNTIME_DIR": str(runtime),
+                       # No session bus of the owner's: only the stub busctl answers.
+                       "DBUS_SESSION_BUS_ADDRESS": f"unix:path={folder}/no-bus", **own}
+        with mock.patch.dict(os.environ, environment):
+            for name in ("WAYLAND_DISPLAY", "DISPLAY"):
+                if name not in own:
+                    os.environ.pop(name, None)
+            code, result = control["execute_tool"](request)
+        self.assertIn(code, (200, 202), result)
+        return log
+
+    def test_a_gui_tool_gets_the_live_session_when_the_service_has_none(self):
+        with tempfile.TemporaryDirectory() as folder:
+            log = self.run_tool(Path(folder), {"name": "open_settings",
+                                               "arguments": {"page": "display"}})
+            child = self.child_environment(log, "moos-control")
+            self.assertEqual(child.get("WAYLAND_DISPLAY"), "wayland-7")
+            self.assertEqual(child.get("DISPLAY"), ":7")
+            self.assertEqual(child.get("XDG_SESSION_TYPE"), "wayland")
+            self.assertEqual(child.get("LANG"), "ar_SA.UTF-8")
+            self.assertEqual(child.get("LANGUAGE"), "ar")
+            # Only the session's own keys, and only well-shaped values, cross over.
+            self.assertNotIn("LD_PRELOAD", child)
+            self.assertNotEqual(child.get("PATH"), "/manager/bin")
+            self.assertNotEqual(child.get("HOME"), "/somewhere/else")
+            self.assertNotIn("rm -rf", child.get("DESKTOP_SESSION", ""))
+
+    def test_a_confirmed_job_gets_the_live_session_too(self):
+        with tempfile.TemporaryDirectory() as folder:
+            log = self.run_tool(Path(folder), {"name": "install_app", "confirmed": True,
+                                               "arguments": {"app_id": "org.example.App"}})
+            child = self.child_environment(log, "moai-do")
+            self.assertEqual(child.get("WAYLAND_DISPLAY"), "wayland-7")
+
+    def test_a_service_that_has_a_display_keeps_its_own(self):
+        with tempfile.TemporaryDirectory() as folder:
+            log = self.run_tool(Path(folder), {"name": "take_screenshot", "arguments": {}},
+                                WAYLAND_DISPLAY="wayland-own")
+            child = self.child_environment(log, "moos-control")
+            self.assertEqual(child.get("WAYLAND_DISPLAY"), "wayland-own")
+            self.assertFalse(Path(f"{log}.busctl").exists(),
+                             "the manager was asked although the service had a display")
+
+    def test_a_manager_without_a_session_adds_nothing(self):
+        """No session yet: nothing is invented, so moos-control refuses the window."""
+        with tempfile.TemporaryDirectory() as folder:
+            log = self.run_tool(Path(folder), {"name": "open_settings",
+                                               "arguments": {"page": "display"}},
+                                manager=["LANG=ar_SA.UTF-8", "XDG_SESSION_TYPE=tty"])
+            child = self.child_environment(log, "moos-control")
+            self.assertNotIn("WAYLAND_DISPLAY", child)
+            self.assertNotIn("DISPLAY", child)
+            self.assertNotEqual(child.get("XDG_SESSION_TYPE"), "tty")
 
 
 if __name__ == "__main__":

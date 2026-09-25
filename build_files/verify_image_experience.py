@@ -49,6 +49,80 @@ def source(raw: str, prefix: str = "//") -> str:
     )
 
 
+def moos_section_problems(router_code: str, launcher_code: str, listed: set,
+                          installed, program_installed) -> list:
+    """Every `moos-settings --section=<s>` route must open a built, installed MoOS module.
+
+    SPEC D1 made each MoOS page a native System Settings module (kcm_moos*). The router
+    opens them through `moos-settings --section=<s>`, which maps <s> to a module id in its
+    own case arms and runs `systemsettings <id>`. A section that maps to nothing exits 2;
+    a module the KCM stage did not build, or did not install, opens an error page — a dead
+    button with every other gate green. This resolves each route through the launcher's
+    OWN arms, then requires a kcm_moos* id that settings-modules.list names and that is
+    installed.
+
+    The one exception is the launcher's own: for a module another slice of work builds, it
+    declares, behind a "<id>.so is not installed" guard, what serves the section meanwhile
+    (`exec <program>` or `module=<other id>`). A module the KCM stage did not build passes
+    only through such a declared fallback, and only when that fallback is itself installed.
+    A module that IS listed must be installed — its fallback would hide a broken install —
+    and with no guarded fallback in the launcher every module must be built.
+    `installed(id)` and `program_installed(name)` answer for the image;
+    tests/test_settings_destinations.py runs this against the tree CMake really builds and
+    against broken inputs, to prove it bites.
+    """
+    problems = []
+    sections = sorted(set(re.findall(
+        r"\bgui\s+moos-settings\s+--section=([a-z-]+)\s*;;", router_code)))
+    if len(sections) < 5:
+        problems.append("the moos-settings route parser found almost nothing — moos-open's "
+                        f"shape changed and this gate stopped guarding anything ({sections})")
+    arms = {}
+    for labels, module in re.findall(
+            r"(?m)^\s*((?:--section=[a-z-]+\|?)+)\)\s*module=([A-Za-z0-9_-]+)\s*;;",
+            launcher_code):
+        for label in labels.split("|"):
+            arms[label[len("--section="):]] = module
+    fallbacks = {}
+    guard = re.search(
+        r'(?ms)^\s*((?:kcm_moos(?:_[a-z]+)?\|?)+)\)\s*\n'
+        r'.*?\[ ! -e "\$plugins/plasma/kcms/systemsettings/\$module\.so" \]; then\n'
+        r'(.*?)^\s*fi\b', launcher_code)
+    if guard:
+        guarded = set(guard.group(1).split("|"))
+        for module, program, other in re.findall(
+                r"(?m)^\s*(kcm_moos(?:_[a-z]+)?)\)\s*"
+                r"(?:exec\s+([a-z0-9-]+)|module=(kcm_[A-Za-z0-9_-]+))\s*;;",
+                guard.group(2)):
+            if module in guarded:
+                fallbacks[module] = ("program", program) if program else ("module", other)
+    for section in sections:
+        module = arms.get(section)
+        if module is None:
+            problems.append(f"moos-settings --section={section} is opened by a route but "
+                            "moos-settings has no such section — it answers 'unknown section'")
+        elif not re.fullmatch(r"kcm_moos(_[a-z]+)?", module):
+            problems.append(f"moos-settings --section={section} opens {module}, which is not "
+                            "a MoOS module")
+        elif module not in listed:
+            kind, target = fallbacks.get(module, (None, None))
+            if kind is None:
+                problems.append(f"moos-settings --section={section} opens {module}, which the "
+                                "KCM stage did not build (not in settings-modules.list), and "
+                                "moos-settings declares no fallback for it")
+            elif kind == "program" and not program_installed(target):
+                problems.append(f"moos-settings --section={section} opens {module}, which the "
+                                f"KCM stage did not build, and its fallback program {target} "
+                                "is not installed")
+            elif kind == "module" and not installed(target):
+                problems.append(f"moos-settings --section={section} opens {module}, which the "
+                                f"KCM stage did not build, and its fallback module {target} "
+                                "is not installed")
+        elif not installed(module):
+            problems.append(f"moos-settings --section={section} opens {module}, which is "
+                            "listed but not installed")
+    return problems
+
 errors = []
 
 
@@ -495,12 +569,29 @@ for _route, _host, _kcm in _kcm_routes:
     # systemsettings resolves a KCM by its .desktop; kinfocenter modules ship
     # their metadata inside the plugin binary and have no .desktop at all.
     _desktop = Path(f"/usr/share/applications/{_kcm}.desktop")
+    # A plugin counts in EVERY module folder: kinfocenter/, systemsettings/ and
+    # systemsettings_qwidgets/ (kcm_kwinscreenedges ships no .desktop and lives only in the
+    # last one). tests/test_settings_destinations.py reads this rule from here by ast, applies
+    # it on the host, and proves an unknown id still resolves to nothing.
     _plugins = list(Path("/usr").glob(
-        f"lib*/qt6/plugins/plasma/kcms/kinfocenter/{_kcm}.so"
+        f"lib*/qt6/plugins/plasma/kcms/*/{_kcm}.so"
     )) + list(Path("/usr").glob(f"lib*/qt6/plugins/plasma/kcms/{_kcm}.so"))
     require(_desktop.is_file() or any(p.is_file() for p in _plugins),
             f"moos://settings/{_route} opens {_host}'s {_kcm}, which is not "
             "installed — the Command Center tile would look alive and do nothing")
+
+# The MoOS pages themselves: routes into `moos-settings --section=<s>` (see the function).
+_modules_list = Path("/usr/share/moos/settings-modules.list")
+require(_modules_list.is_file(),
+        "settings-modules.list is missing — the MoOS System Settings modules did not install")
+for _problem in moos_section_problems(
+        router_code, source(text("/usr/bin/moos-settings"), "#"),
+        set(_modules_list.read_text(encoding="utf-8").split()) if _modules_list.is_file()
+        else set(),
+        lambda module: any(Path("/usr").glob(
+            f"lib*/qt6/plugins/plasma/kcms/systemsettings/{module}.so")),
+        lambda program: Path("/usr/bin", program).is_file()):
+    require(False, _problem)
 
 
 # build.sh hides the Settings page of the input-method engine the x86 editions removed
@@ -529,11 +620,14 @@ def kiosk_restricted(path: Path) -> set:
 
 
 _restricted_kcms = kiosk_restricted(Path("/etc/xdg/kdeglobals"))
-for _kcm in ("kcm_fcitx5",):
-    if list(Path("/usr").glob(f"lib*/qt6/plugins/plasma/kcms/systemsettings/{_kcm}.so")):
+# kcm_krdpserver: KRDP's Remote Desktop page beside Mo PC Remote's (build.sh explains why the
+# three x86 editions hide it and ARM, where KRDP is MoOS's own remote desktop, does not).
+for _kcm in ("kcm_fcitx5", "kcm_krdpserver"):
+    if list(Path("/usr").glob(f"lib*/qt6/plugins/plasma/kcms/*/{_kcm}.so")):
         require(_kcm in _restricted_kcms,
                 f"{_kcm} is installed and not restricted in /etc/xdg/kdeglobals — System "
-                "Settings offers a page for an engine this edition removed")
+                "Settings offers a page for an engine this edition removed, or a second "
+                "remote-desktop page beside Mo PC Remote")
 for _route, _host, _kcm in _kcm_routes:
     require(_kcm not in _restricted_kcms,
             f"moos://settings/{_route} opens {_kcm}, which /etc/xdg/kdeglobals restricts — "
@@ -1422,6 +1516,22 @@ if firstrun.is_file() and firstrun_desktop.is_file():
     require("moos-firstrun-done" in _fr and "moos-welcome && exit 0" in _fr
             and "Exec=/usr/bin/moos-firstrun" in _frd,
             "Welcome is not guaranteed exactly once on the installed user's first login")
+
+# The Island watches four runtime folders with FolderListModels. A model started on a folder
+# that does not exist yet never notices it being created, and every producer creates its
+# folder lazily — measured: plasmashell at 20:57, moai-jobs created at 23:07, so no Mo AI job
+# could show until the shell restarted. The user tmpfiles entry creates them at login, before
+# the shell (tests/test_island_tokens.py holds its lines equal to the Island's folders).
+_island_folders = Path("/usr/share/user-tmpfiles.d/moos-island.conf")
+require(_island_folders.is_file(),
+        "moos-island.conf is missing — the Island's chips cannot see a producer that starts "
+        "after the shell")
+if _island_folders.is_file():
+    _island_lines = {tuple(line.split()[:3]) for line in
+                     config(text(str(_island_folders))).splitlines() if line.strip()}
+    for _folder in ("mo-remote", "moos-privacy", "moos-store", "moai-jobs"):
+        require(("d", f"%t/{_folder}", "0700") in _island_lines,
+                f"moos-island.conf no longer creates the private %t/{_folder} at login")
 
 # The name is MoOS, not "MoOS 44": no release file may carry the bare Fedora version.
 for _rel in ("/etc/system-release", "/etc/redhat-release", "/etc/fedora-release"):

@@ -2118,10 +2118,10 @@ ROUTES_KEPT_WITHOUT_AN_EMITTER = {
     "lang/ar": "the Welcome builds moos://lang/<code> from its two-language list "
                "(the device/language block above pins both ends)",
     "lang/en": "the Welcome builds moos://lang/<code> from its two-language list",
-    "remote/fast-on": "SPEC D6: the Fast Remote switch of the Mo PC Remote settings page "
-                      "(slice A) opens it",
-    "remote/fast-off": "SPEC D6: the Fast Remote switch of the Mo PC Remote settings page "
-                       "(slice A) opens it",
+    "settings/screen-edges": "SPEC D3 native page (kcm_kwinscreenedges); its registry entry is "
+                             "moai: false until Mo AI's control grammar (apps/moai/main.qml) "
+                             "names it. The change that flips it to moai: true makes moos-control "
+                             "open it, and the rule below then fails until this entry goes",
 }
 for _label in sorted(declared_routes):
     if _label.endswith("*"):
@@ -2136,6 +2136,13 @@ for _label in sorted(declared_routes):
 for _label, _reason in ROUTES_KEPT_WITHOUT_AN_EMITTER.items():
     require(_label in declared_routes and _reason.strip(),
             f"ROUTES_KEPT_WITHOUT_AN_EMITTER names {_label}, which moos-open does not declare")
+    # An entry is a reason a route has NO emitter. Once something opens it the reason is spent,
+    # and an entry left behind would silently keep the route allowed after that emitter goes —
+    # the dead public route this list exists to prevent. Remove it when its emitter lands.
+    require(_label not in _emitted,
+            f"ROUTES_KEPT_WITHOUT_AN_EMITTER still names {_label}, which "
+            f"{', '.join(sorted(set(_emitted.get(_label, []))))} now opens — remove the entry, "
+            "or it would keep the route allowed after that emitter is gone")
 
 # ── The cloud brain ─────────────────────────────────────────────────────────
 gateway = read("system_files/usr/bin/moai-gateway")

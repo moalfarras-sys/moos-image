@@ -82,7 +82,16 @@ else:
 engine_ar() { engine "$1" name | cut -d"|" -f1; }
 engine_en() { engine "$1" name | cut -d"|" -f2; }
 
-notify() { command -v kdialog >/dev/null 2>&1 && kdialog --title "MoOS" --passivepopup "$1" 6 >/dev/null 2>&1 || true; }
+# A MoOS notification filed under Mo Store, where the program came from: the desktop-entry
+# hint lets System Settings › Notifications list and mute it. kdialog is only the fallback.
+notify() {
+    if command -v notify-send >/dev/null 2>&1 \
+        && notify-send --app-name=MoOS --icon=moos-store \
+               --hint=string:desktop-entry:org.moos.store "MoOS" "$1" >/dev/null 2>&1; then
+        return 0
+    fi
+    command -v kdialog >/dev/null 2>&1 && kdialog --title "MoOS" --passivepopup "$1" 6 >/dev/null 2>&1 || true
+}
 
 # Match old Windows UI to the desktop density before launching it. XWayland scales
 # the pixels, but many Win32 programs still lay out controls at a hard-coded 96

@@ -15,9 +15,15 @@
 # to scroll past.
 #
 # This is the action behind it. It is deliberately narrow: two named user services
-# and one config key each. It needs no administrator rights, it removes nothing,
-# and System Settings turns either server back on in one click — the certificate
-# and every other setting are left exactly where they were.
+# and one config key each. It needs no administrator rights and it removes nothing —
+# the certificate and every other setting are left exactly where they were.
+#
+# Turning one back on is the owner's choice, and where it happens differs by server.
+# The VNC server (krfb) is an application with its own window. KRDP's Remote Desktop
+# page is no longer in System Settings on the x86 editions (build.sh hides
+# kcm_krdpserver through KIOSK): MoOS's remote desktop is Mo PC Remote, and its page
+# in MoOS Settings is the one place remote access is switched on. KRDP stays installed
+# and its user service and config are untouched, so nothing a person set up is lost.
 #
 # THE ARM EDITION IS DIFFERENT. On moos-arm (the Oracle A1 cloud desktop) the RDP server
 # is not foreign: it is how MoOS itself shows that headless desktop. `moos-arm-remote`

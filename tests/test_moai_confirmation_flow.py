@@ -28,6 +28,13 @@ import urllib.request
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import journal_isolation  # noqa: E402
+
+# moai-control writes "tool=<name> started/ok" with `logger` for every tool, and the REAL
+# moai-do behind the read-only tools audits too: into this process's recording logger.
+journal_isolation.install()
+
 ROOT = Path(__file__).resolve().parents[1]
 CONTROL_SCRIPT = ROOT / "system_files/usr/bin/moai-control"
 sys.path.insert(0, str(ROOT / "system_files/usr/lib/moai"))

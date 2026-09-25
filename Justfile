@@ -47,12 +47,19 @@ check:
     python3 tests/test_device_plan.py
     python3 tests/test_moai_do.py
     python3 tests/test_moos_control.py
+    # The audit journals are the owner's: every suite that names an auditing tool is RUN with
+    # the real logger replaced by a trap, and one write fails the gate.
+    python3 tests/test_tests_stay_out_of_the_journal.py
+    # Every MoOS notification carries the desktop entry of the surface it belongs to.
+    python3 tests/test_notification_identity.py
     # SPEC D3: ONE list of settings pages; moos-open's literal arms equal it both ways, every
     # reader offers exactly it, and a broken list offers nothing.
     python3 tests/test_settings_destinations.py
     python3 tests/test_moos_health.py
     # On moos-arm, RDP is MoOS's own remote desktop: never "foreign sharing" to switch off.
     python3 tests/test_remote_edition_guard.py
+    # The x86 KIOSK block runs: the input-method and KRDP pages stay hidden, ARM keeps KRDP.
+    python3 tests/test_settings_kiosk.py
     python3 tests/test_moai_krunner.py
     python3 tests/test_foreign_app_menus.py
     python3 tests/test_remote_cuda_scaler.py

@@ -21,6 +21,10 @@ var STORE_ACTIONS = ["install", "remove", "update"];
 var STORE_STATES = ["starting", "running", "success", "failed", "cancelled"];
 var PRIVACY_TYPES = ["screen", "camera", "mic"];
 var MOAI_JOB_STATES = ["running", "done", "failed"];
+// How long an ENDED Mo AI job is news. moai-control stamps a token's mtime when it enters its
+// state and removes done/failed tokens after the same 20 s (JOB_TOKEN_LINGER); a producer that
+// stops first leaves them behind. Running tokens have no age limit.
+var MOAI_JOB_LINGER_MS = 20000;
 
 // What a confirmed Mo AI job is DOING, in the person's words. The token carries the tool id only
 // (never arguments or secrets); ids come from moai_tool_schemas.py and
@@ -176,6 +180,33 @@ function chooseMoaiJobToken(fileNames, watchedIds) {
         best.runningIds = runningIds;
     }
     return best;
+}
+
+// The names chooseMoaiJobToken may consider, from the model's { name, modified } rows.
+//
+// `modified` is FolderListModel's fileModified (a Date, or milliseconds): the moment the token
+// entered its state. A done or failed token older than MOAI_JOB_LINGER_MS is dropped — it is not
+// news any more, whatever a late sync says — and so is one whose age cannot be read. A running
+// token is always kept: a long job is still running however long ago it started.
+function recentMoaiJobNames(entries, nowMs) {
+    var names = [];
+    var list = Array.isArray(entries) ? entries : [];
+    for (var index = 0; index < list.length; ++index) {
+        var entry = list[index] || {};
+        var name = String(entry.name || "");
+        var job = parseMoaiJobToken(name);
+        if (!job) { continue; }
+        if (job.finished) {
+            var modified = entry.modified instanceof Date ? entry.modified.getTime()
+                                                          : Number(entry.modified);
+            if (!isFinite(modified) || modified <= 0
+                    || Number(nowMs) - modified > MOAI_JOB_LINGER_MS) {
+                continue;
+            }
+        }
+        names.push(name);
+    }
+    return names;
 }
 
 // [arabic, english] for a tool id; a tool without words gets a generic, honest label.

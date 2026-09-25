@@ -24,12 +24,24 @@ NOTIFIER = ROOT / "system_files/usr/libexec/moos-update-ready"
 USER_UNITS = ROOT / "system_files/usr/lib/systemd/user"
 BASH = "/usr/bin/bash" if Path("/usr/bin/bash").exists() else "bash"
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import journal_isolation  # noqa: E402
+
+# publish_state() logs every state it reaches with `logger -t moos-update`, and the owner
+# reads that journal as the machine's update history. On 2026-09-24 one gate run on the
+# station wrote 22 records with invented digests there. They go to this process's recording
+# logger instead, and the state file it writes beside them goes to a folder of this test's.
+journal_isolation.install()
+
 loader = importlib.machinery.SourceFileLoader("moos_image_update", str(BACKEND))
 spec = importlib.util.spec_from_loader(loader.name, loader)
 assert spec is not None
 UPDATE = importlib.util.module_from_spec(spec)
 sys.modules[loader.name] = UPDATE
 loader.exec_module(UPDATE)
+_STATE_FOLDER = tempfile.TemporaryDirectory(prefix="moos-test-update-state-")
+UPDATE.STATE_DIR = _STATE_FOLDER.name
+UPDATE.STATE_FILE = f"{UPDATE.STATE_DIR}/update-state.json"
 
 errors: list[str] = []
 

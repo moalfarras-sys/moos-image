@@ -29,6 +29,15 @@ import sys
 import tempfile
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import journal_isolation  # noqa: E402
+
+# Every moai-do run below writes its audit line with `logger`. `journalctl -t moai-do` is
+# "everything the assistant has done" (moai-do's own words): a gate run must never add a
+# refused "rm -rf /" or an approved update to it. They go to this process's recording logger.
+journal_isolation.install()
+LOGGER_STUB = journal_isolation.stub_dir()
+
 ROOT = Path(__file__).resolve().parent.parent
 MOAI_DO = ROOT / "system_files/usr/bin/moai-do"
 MOOS_OPEN = ROOT / "system_files/usr/bin/moos-open"
@@ -509,10 +518,13 @@ with tempfile.TemporaryDirectory() as tmp:
         'echo "Done"\n', encoding="utf-8")
     (bindir / "konsole").write_text('#!/bin/sh\necho konsole >> "$MOOS_TEST_LOG"\n',
                                     encoding="utf-8")
-    for name in ("kdialog", "moai-do", "konsole"):
+    # moos-open says how the run ended in a notification: never on the owner's desktop.
+    (bindir / "notify-send").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    for name in ("kdialog", "moai-do", "konsole", "notify-send"):
         (bindir / name).chmod(0o755)
     env = os.environ.copy()
-    env.update(PATH=f"{bindir}:/usr/bin:/bin", MOOS_TEST_LOG=str(log), LANG="C.UTF-8")
+    env.update(PATH=f"{bindir}:{LOGGER_STUB}:/usr/bin:/bin", MOOS_TEST_LOG=str(log),
+               LANG="C.UTF-8")
     import time as _time
 
     def route(url, answer):
@@ -535,23 +547,26 @@ with tempfile.TemporaryDirectory() as tmp:
 
 # The popup that says how it ended speaks ONE language. A label pair inside a status pair once
 # reached kdialog as "Firmware | البرامج الثابتة: لم يكتمل | did not finish", reordered by bidi.
+# The message is the notification's body: the last argument moos-open hands notify-send.
 with tempfile.TemporaryDirectory() as tmp:
     bindir = Path(tmp)
     popups = bindir / "popups.log"
     (bindir / "kdialog").write_text(
-        '#!/bin/sh\ncase "$*" in *warningyesno*) exit 0;; '
-        '*passivepopup*) printf "%s\\n" "$4" >> "$MOOS_TEST_POPUPS";; esac\nexit 0\n',
+        '#!/bin/sh\ncase "$*" in *warningyesno*) exit 0;; esac\nexit 0\n', encoding="utf-8")
+    (bindir / "notify-send").write_text(
+        '#!/bin/sh\nfor last in "$@"; do :; done\nprintf "%s\\n" "$last" >> "$MOOS_TEST_POPUPS"\n',
         encoding="utf-8")
     (bindir / "moai-do").write_text('#!/bin/sh\necho "step one"\necho "firmware said boom"\n'
                                     'exit "${MOAI_FAKE_RC:-0}"\n', encoding="utf-8")
-    for name in ("kdialog", "moai-do"):
+    for name in ("kdialog", "moai-do", "notify-send"):
         (bindir / name).chmod(0o755)
     import time as _time
 
     def popup(url, locale, rc):
         popups.unlink(missing_ok=True)
-        environment = {"PATH": f"{bindir}:/usr/bin:/bin", "HOME": tmp, "LC_ALL": locale,
-                       "LANG": locale, "MOOS_TEST_POPUPS": str(popups), "MOAI_FAKE_RC": rc}
+        environment = {"PATH": f"{bindir}:{LOGGER_STUB}:/usr/bin:/bin", "HOME": tmp,
+                       "LC_ALL": locale, "LANG": locale, "MOOS_TEST_POPUPS": str(popups),
+                       "MOAI_FAKE_RC": rc}
         subprocess.run([BASH, str(MOOS_OPEN), url], env=environment, capture_output=True,
                        text=True, timeout=30)
         deadline = _time.monotonic() + 5

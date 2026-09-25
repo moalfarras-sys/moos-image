@@ -68,17 +68,44 @@ cache or ignored `test-results/`. Keep private desktop captures local. Select
 only necessary redacted images for a CI/review artifact; do not add a screenshot
 archive to Git.
 
-For Settings, `tests/qml/settings-review.qml` loads source QML without installing
-an override. Read it first: it can exercise navigation and has an optional route
-launch. The installed `/usr/libexec/moos-settings-status` publishes a private
-read-only status snapshot. Pass that file with `--status=file://…`, an existing
-`--out=…` directory, the intended width/height and expected `--rtl=true|false`.
-Refresh the snapshot immediately before each run or keep its existing bounded
-watcher alive. The UI rejects stale status; keyboard tests alone must not count
-disabled real actions as a healthy review. The harness now fails without fresh
-status or when a capture cannot be saved.
-Set locale only on the review process; never change the user's session language
-for a fixture. The harness types into its own window, so avoid concurrent input.
+For Settings, MoOS's pages are the `kcm_moos*` System Settings modules built from
+`moos-settings-kcm/`; its README is the reference for the page contract, the
+backend API and the status document. There is no separate settings window or
+QML review harness any more. Build the modules where the toolchain lives — the
+`qmlshell-build` stage of `Containerfile`, or a container from the same base
+with the `-devel` packages that stage installs — and install them into a
+staging tree with `DESTDIR=…`, never over `/usr`. Load one offscreen in an
+isolated session, pointing Qt at the staging tree and at the source
+`org.moos.ui` module:
+
+```bash
+T="$(mktemp -d)"; mkdir -m 0700 "$T/run"
+dbus-run-session -- env -i PATH=/usr/bin:/bin HOME="$T" XDG_RUNTIME_DIR="$T/run" \
+    XDG_CONFIG_HOME="$T/config" XDG_DATA_HOME="$T/data" XDG_CACHE_HOME="$T/cache" \
+    LANG=ar_SA.UTF-8 LANGUAGE=ar QT_QPA_PLATFORM=offscreen QT_FORCE_STDERR_LOGGING=1 \
+    QT_LOGGING_RULES='kf.kcmutils*=true;qml*=true;js*=true' \
+    QT_PLUGIN_PATH="$STAGING/usr/lib64/qt6/plugins" \
+    QML_IMPORT_PATH="$WORKTREE/system_files/usr/lib64/qt6/qml" \
+    timeout 12 kcmshell6 kcm_moos_update
+```
+
+A plugin on `QT_PLUGIN_PATH` wins over the installed one: measured 2026-09-25,
+the staged `kcm_moos` and `kcm_moos_update` loaded from the staging tree
+(`loaded QML KCM "<staging>/…"`) and logged `MOOS_KCM_READY <id>`. `kcmshell6`
+stays alive (exit 124) even when the page failed, so the verdict is the log:
+`MOOS_KCM_READY` present, and no `Error loading QML`, `is not a type`,
+`ReferenceError`, `TypeError`, `Unable to assign` or "module … is not
+installed" — the rule `build_files/verify_settings_modules.sh` applies in the
+image build. Never use bare `systemsettings` offscreen (it segfaults, exit
+139), and never open a module on the owner's desktop to review it. The pages
+bind what `/usr/libexec/moos-settings-status` writes into that private
+`XDG_RUNTIME_DIR`; the backend refuses a stale or foreign document, so a page
+reading "Unknown" usually means the installed helper is older than the source
+contract. Check the source helper with the contract check in the README rather
+than trusting the page. RTL follows `LANGUAGE` when it is set, so set it with
+`LANG` on the review process only; never change the user's session language
+for a fixture. Pixels (clipping, contrast, icons, RTL order) need a rendered
+capture of that offscreen window or a disposable session, not the owner's.
 
 Check screenshots for clipping, focus, contrast, missing icons and RTL order.
 Read the interaction assertions and runtime log as well. Distinguish:
