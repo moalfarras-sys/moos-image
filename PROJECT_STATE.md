@@ -1,9 +1,7 @@
 # MoOS current state — measured 2026-09-25
 Current measured facts only; Git owns history.
 
-**This block is the only place in the repository that states a version number.** The plan,
-the README and every wave row point here instead of repeating it. Four parallel copies of
-"production is X" is how three of them came to be a release behind at once.
+**Release version numbers live here; other files point here.**
 
 ## Source and release truth
 - **x86 production is `44.20260925.931`** (W9.9 "MoOS One inside KDE", PR #164, revision
@@ -11,15 +9,11 @@ the README and every wave row point here instead of repeating it. Four parallel 
   `36108383721`, offline ISO proof `36108387473`, promotion `36112344231`;
   `moos-nvidia:latest` = `sha256:cb60a4b3…`. ARM `44.20260925.586` (same revision): native
   build, UEFI QCOW2 proof and promotion in `36108390846`.
-- **The NVIDIA station still boots signed `44.20260924.929`** (`ecd82c38`), `.925` retained.
-  Read back 2026-09-24: zero failed units, `post-update-check.sh` 55/0, `moos-selfcheck`
-  53/0. `.931` is not staged yet: the nightly `moos-auto-update` or Settings → Update stages
-  it, then a restart applies it. No installed proof of W9.9 exists yet.
-- The no-GPU NVIDIA VM boots twice with zero failed units (PR #157/#158).
-- **ARM's PR #160 image** passed signed build, UEFI QCOW2 proof and production promotion
-  in `35963023960`. PR #161 (Plasma seam compatibility and ARM parity) is merged at
-  `aeb3e070`; its automatic x86/ARM image runs are still separate from a proven release.
-  Intermittent upstream Plymouth issue P0.7 remains open.
+- **The NVIDIA station boots signed `44.20260925.931`** (`be282a9f`), with signed `.929`
+  retained for rollback. Read back after the 2026-09-25 reboot: zero failed system and
+  user units, `post-update-check.sh` 55/0 and `moos-selfcheck` 54/0. The installed
+  System Settings opened the MoOS group and its Themes/What's New modules; this is
+  installed proof of the unified settings entry, not proof of every update transaction.
 - **P0.7 is no longer only a captured stack.** Read out of plymouth 24.004.60's source on
   2026-09-21: `ply_boot_splash_free()` frees `pixel_displays` without disarming the
   `on_new_frame` timeout that only `ply_boot_splash_hide()` disarms, and `--retain-splash`
@@ -52,15 +46,21 @@ DLL from composefs; do not weaken SELinux globally.
 | Target storage | `/dev/sdb`: 512 MiB ESP + 476.4 GiB Btrfs; `/var` 163/477 GiB used, 313 GiB free |
 | CPU / RAM | Intel Core i5-14400F / 15.4 GiB |
 | GPU | NVIDIA RTX 2080 SUPER, driver 615.71.09 |
-| Desktop | Plasma/KWin 6.7.5, Wayland, 3840×2160@60, scale 265% (1450×816 logical) |
+| Desktop | Plasma/KWin 6.7.5, Wayland, 3840×2160@60, scale 225% (1707×960 logical) on 2026-09-25 |
 | Kernel | `7.2.6-200.fc44.x86_64` |
 | Network | Intel AX210 Wi-Fi/Bluetooth + RTL8125 Ethernet |
 | Health | zero failed system units; zero failed user units (P0.7 remains intermittent) |
 
-Measured after reboot onto the current signed image: installed `THEME_REV` **85**,
-Global Theme `org.moos.ui2`, `kwinrc/Plugins/blurEnabled=true`, Arabic session
-(`ar_SA.UTF-8`). The W8/W9 image is running and passed live post-update checks;
+Measured after reboot onto the current signed image: installed `THEME_REV` **86**
+and its existing-account marker, current Global Theme `org.moos.ui2.gaming`,
+`kwinrc/Plugins/blurEnabled=true`, Arabic session (`ar_SA.UTF-8`). The W8/W9
+image is running and passed live post-update checks;
 that does not qualify suspend, every app or the full visual matrix.
+
+**Mo PC Remote on the booted `.931`, 2026-09-25:** authenticated loopback H.264
+desktop stream measured 24–27 fps and 0–1 ms locally; a click moved the desktop
+pointer. External-network, typing, files, audio and other input modes remain
+unproved. Source after `.931` makes 30-day device trust opt-in; it is not installed.
 
 **Speed and Mo AI, both measured on cycle H's `.890`** and NOT re-measured since.
 `moos-measure-speed` (P5.4): MoOS's share of boot **6.70 s**/9.0,

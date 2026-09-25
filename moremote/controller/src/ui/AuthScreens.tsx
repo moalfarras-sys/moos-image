@@ -128,7 +128,7 @@ export function SetupScreen({ onDone }: { onDone: (grant: AuthResult) => Promise
   const [hint, setHint] = useState(tr("pinChoose"));
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [trustDevice, setTrustDevice] = useState(true);
+  const [trustDevice, setTrustDevice] = useState(false);
 
   const add = (d: string) => {
     setError(false);
@@ -194,7 +194,7 @@ export function LoginScreen({ onDone, lockoutSeconds }: { onDone: (grant: AuthRe
   const [error, setError] = useState(false);
   const [locked, setLocked] = useState(lockoutSeconds);
   const [busy, setBusy] = useState(false);
-  const [trustDevice, setTrustDevice] = useState(true);
+  const [trustDevice, setTrustDevice] = useState(false);
   const timer = useRef<number | null>(null);
 
   useEffect(() => {
