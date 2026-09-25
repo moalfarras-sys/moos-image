@@ -790,17 +790,13 @@ PlasmoidItem {
             anchors.topMargin: root.design.space1
             anchors.bottomMargin: root.design.space1
             radius: Math.min(16, height / 2)
-            // Aurora Glass, at PANEL depth. Density still comes from the
-            // family's own palette — a true-black OLED profile wants a denser
-            // slab than the reference dark — and the depth adds the body that
-            // separates a bar surface from the desk behind it. The rim is the
-            // palette's own shadow rather than a tint of the text colour, so the
-            // capsule keeps an edge over a bright wallpaper instead of
-            // dissolving into it; the specular hairline above gives that edge a
-            // direction. See MoUI.Tokens, "Aurora Glass".
+            // Follow the live glass-clarity control, using the same fill rule
+            // as the other MoOS surfaces. Palette and depth still set the
+            // balanced density; clear and solid remain visibly different.
             color: Qt.alpha(Kirigami.Theme.backgroundColor,
-                            root.design.glassDensityAt(Kirigami.Theme.backgroundColor,
-                                                       root.design.glassLevelPanel)
+                            root.design.glassFill(Kirigami.Theme.backgroundColor,
+                                                  root.design.glassLevelPanel,
+                                                  root.design.glassRestingOpacity)
                             + (compactHover.hovered ? 0.05 : 0))
             border.width: compact.activeFocus ? 2 : root.design.borderHairline
             border.color: compact.activeFocus ? Kirigami.Theme.highlightColor

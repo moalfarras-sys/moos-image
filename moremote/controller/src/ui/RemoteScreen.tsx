@@ -9,7 +9,7 @@ import {
   listTrustedDevices, revokeTrustedDevice,
   type ClipResult, type FileListing, type FileEntry, type PowerAction, type TrustedDeviceInfo,
 } from "../lib/api";
-import { pickStartPreset, readDeviceHints, describeHints, encodeWidth, hostMaxPreset,
+import { pickStartPreset, readDeviceHints, describeHints, encodeWidth, autoPresetLimit,
   hostEncodeCeiling, type HostEncode } from "../lib/quality";
 import { h264Failures, noteH264Failure, H264_MAX_FAILURES } from "../lib/h264state.ts";
 import { diffToOps } from "../lib/typing.ts";
@@ -888,7 +888,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
         hostEncodeRef.current = cap;
         setHostEncode(cap);
         if (autoRef.current) {
-          const limit = hostMaxPreset(QUALITY_PRESETS, cap, AUTO_MAX_PRESET);
+          const limit = autoPresetLimit(QUALITY_PRESETS, cap, AUTO_MAX_PRESET, deviceHints);
           if (presetIdxRef.current > limit) { presetIdxRef.current = limit; setPresetIdx(limit); }
         }
         pushSettings();
@@ -1522,7 +1522,8 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
    * hostMaxPreset. It bounds the automatic ladder only: choosing Sharp by hand on a host that
    * says 720p still gets Sharp, because a preset button that quietly does nothing is a defect.
    */
-  const autoMaxPreset = () => hostMaxPreset(QUALITY_PRESETS, hostEncodeRef.current, AUTO_MAX_PRESET);
+  const autoMaxPreset = () => autoPresetLimit(QUALITY_PRESETS, hostEncodeRef.current,
+                                             AUTO_MAX_PRESET, deviceHints);
 
   /** The last width we asked for, and when — the dead band and the floor that protect the helper. */
   const lastPushedWidth = useRef(0);
@@ -1613,6 +1614,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
     const SAMPLE_MS = 2000;
     const AGREE_UP = 4;        // ~8s of consistently good latency before asking for more
     const AGREE_DOWN = 2;      // ~4s of bad latency is enough to back off
+    const AGREE_DATA_SAVER = 4; // ~8s more before sacrificing text detail for a congested link
     const COOLDOWN_UP = 20000;
     const COOLDOWN_DOWN = 6000;
     const id = window.setInterval(() => {
@@ -1627,11 +1629,12 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
       if (lat > 400) { st.down++; st.up = 0; }
       else if (lat < 90) { st.up++; st.down = 0; }
       else { st.up = 0; st.down = 0; }         // inside the dead band: forget, do not drift
-      if (st.down >= AGREE_DOWN && since > COOLDOWN_DOWN) {
-        // Auto backs off to Balanced at worst. Data saver's 540p exists for an
-        // explicit human choice (metered data); a latency spike must never park
-        // the session on an unreadable picture ("always blurry, can't see").
-        setPresetIdx((idx) => { if (idx <= 1) return idx; st.last = Date.now(); st.down = 0; return idx - 1; });
+      const downNeeded = presetIdxRef.current <= 1 ? AGREE_DATA_SAVER : AGREE_DOWN;
+      if (st.down >= downNeeded && since > COOLDOWN_DOWN) {
+        // A brief spike only lowers Sharp to Balanced. If congestion persists
+        // there for another four samples, Data saver keeps input usable. Its
+        // 1024px picture is a last resort, never the response to one bad ping.
+        setPresetIdx((idx) => { if (idx <= 0) return idx; st.last = Date.now(); st.down = 0; return idx - 1; });
       } else if (st.up >= AGREE_UP && since > COOLDOWN_UP) {
         const cap = autoMaxPreset();
         setPresetIdx((idx) => { if (idx >= cap) return idx; st.last = Date.now(); st.up = 0; return idx + 1; });
@@ -2561,7 +2564,11 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
           </div>
           <div className="row-label">{tr("quality")}</div>
           <div className="seg">
-            <button className={auto ? "on" : ""} onClick={() => { setAuto(true); showToast(tr("autoQuality")); }}>{tr("auto")}</button>
+            <button className={auto ? "on" : ""} onClick={() => {
+              setPresetIdx(idx => Math.min(idx, autoMaxPreset()));
+              setAuto(true);
+              showToast(tr("autoQuality"));
+            }}>{tr("auto")}</button>
             {QUALITY_PRESETS.map((p, i) => (
               <button key={p.label} className={!auto && presetIdx === i ? "on" : ""} onClick={() => { setAuto(false); selectPreset(i); }}
                 title={p.detail}>{tr(QUALITY_LABEL_KEYS[i])}<small>{p.detail}</small></button>

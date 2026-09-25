@@ -677,8 +677,11 @@ class BudgetHasReaders(unittest.TestCase):
         code = "\n".join(l for l in code.splitlines() if not l.lstrip().startswith("//"))
         self.assertIn("hostEncodeCeiling(ceiling, hostEncodeRef.current)", code,
                       "the controller must clamp its automatic encode width to the host ceiling")
-        self.assertIn("hostMaxPreset(QUALITY_PRESETS, hostEncodeRef.current, AUTO_MAX_PRESET)", code,
-                      "the automatic quality ladder must stop at what the host can encode")
+        self.assertIn("autoPresetLimit(QUALITY_PRESETS, hostEncodeRef.current,", code,
+                      "the automatic quality ladder must read its host and browser ceiling")
+        quality = (root / "moremote/controller/src/lib/quality.ts").read_text(encoding="utf-8")
+        self.assertIn("return hostMaxPreset(presets, host, fallback);", quality,
+                      "the browser policy must still enforce the host's encode budget")
 
     def test_the_keys_without_a_reader_are_known_and_named(self) -> None:
         """Which budget keys are still advice nobody takes — stated, not discovered later.

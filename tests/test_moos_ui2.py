@@ -873,7 +873,7 @@ class TestMoOSUI2(unittest.TestCase):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=86", apply,
+            "THEME_REV=87", apply,
             "existing v85 users would keep the cached Island that imports the retired Search "
             "applet and shows no Mo AI jobs, the launcher with three settings tiles, and a home "
             "copy of the MoOS task switcher; "
@@ -2175,8 +2175,10 @@ class TestMoOSUI2(unittest.TestCase):
             qml = qml_code(path.read_text(encoding="utf-8"))
             self.assertTrue(
                 "design.glassDensity(Kirigami.Theme.backgroundColor)" in qml
-                or "design.glassDensityAt(Kirigami.Theme.backgroundColor," in qml,
+                or "design.glassFill(Kirigami.Theme.backgroundColor," in qml,
                 f"the {name} capsule still hardcodes its glass alpha")
+            self.assertIn("design.glassFill(Kirigami.Theme.backgroundColor,", qml,
+                          f"the {name} capsule must follow the live clarity control")
 
         def lightness(rgb: tuple[int, int, int]) -> float:
             hi, lo = max(rgb) / 255, min(rgb) / 255

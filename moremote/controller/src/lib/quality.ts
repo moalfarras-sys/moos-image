@@ -222,6 +222,21 @@ export function hostMaxPreset(
   return Math.min(fallback, best);
 }
 
+/** The automatic ladder must keep respecting an explicit Data Saver request or a slow link.
+ * RTT can look excellent on a congested/mobile connection while available throughput is poor;
+ * only a manual preset selection may overrule those browser signals.
+ */
+export function autoPresetLimit(
+  presets: readonly { width: number; fps: number }[],
+  host: HostEncode | null | undefined,
+  fallback: number,
+  hints: DeviceHints,
+): number {
+  if (hints.saveData || hints.effectiveType === "slow-2g" ||
+      hints.effectiveType === "2g" || hints.effectiveType === "3g") return PRESET_DATA_SAVER;
+  return hostMaxPreset(presets, host, fallback);
+}
+
 /**
  * The widest picture to ask this host for, in encoder pixels.
  *
