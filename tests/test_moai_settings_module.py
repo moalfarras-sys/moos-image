@@ -424,5 +424,35 @@ class TheWindowNoLongerDuplicatesIt(unittest.TestCase):
                 self.assertRegex(section["Name[ar]"], r"[؀-ۿ]")
 
 
+class TheReviewRendererStillSpeaksArabic(unittest.TestCase):
+    """scripts/review/render-app.sh is the runtime half of visual review (AGENTS.md).
+
+    Its --lang reached Mo AI only through `langOverride`, which left with the private language
+    choice; the "Arabic" frame silently came out English on an English host. The locale is set by
+    the script now, and any knob the harness names must exist on an app it can render.
+    """
+
+    def test_lang_sets_the_locale_every_app_follows(self) -> None:
+        script = (ROOT / "scripts/review/render-app.sh").read_text(encoding="utf-8")
+        self.assertIn("--lang=ar) LOCALE=ar_SA.UTF-8", script)
+        self.assertIn("--lang=en) LOCALE=en_US.UTF-8", script)
+        # LC_ALL outranks LANG in Qt's system locale; setting only LANG loses to a caller's LC_ALL.
+        self.assertIn('export LANG="$LOCALE" LC_ALL="$LOCALE"', script)
+        locale = (ROOT / "system_files/usr/lib64/qt6/qml/org/moos/ui/Locale.qml").read_text(encoding="utf-8")
+        self.assertIn("Qt.locale().textDirection === Qt.RightToLeft", locale)
+
+    def test_every_knob_the_harness_sets_exists_on_an_app(self) -> None:
+        harness = (ROOT / "scripts/review/render-app.qml").read_text(encoding="utf-8")
+        knobs = set(re.findall(r'hasOwnProperty\("(\w+)"\)', harness))
+        self.assertIn("layoutDirectionOverride", knobs)
+        apps = [path.read_text(encoding="utf-8")
+                for path in (ROOT / "system_files/usr/share/moos/apps").glob("*/main.qml")]
+        for knob in sorted(knobs):
+            with self.subTest(knob=knob):
+                self.assertTrue(any(re.search(rf"\bproperty \w+ {knob}\b", app) for app in apps),
+                                f"render-app.qml sets {knob}, which no app declares: --lang does nothing")
+        self.assertIn('harness.app.layoutDirectionOverride = lang === "ar" ? "rtl" : "ltr"', harness)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
