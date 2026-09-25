@@ -6,16 +6,16 @@ the README and every wave row point here instead of repeating it. Four parallel 
 "production is X" is how three of them came to be a release behind at once.
 
 ## Source and release truth
-- **The NVIDIA station boots signed production `44.20260924.929`** (revision `ecd82c38`,
-  PR #162, promoted by `36039015449`; `moos-nvidia@sha256:38745293…`), with `.925` retained
-  for rollback. Read back 2026-09-24: zero failed system and user units,
-  `post-update-check.sh` 55/0, `moos-selfcheck` 53 passed / 0 failed / 1 stale note (its own
-  tray list, fixed in W9.9 source). `moos-nvidia:latest` still resolves to `.929`.
-- **W9.9 "MoOS One inside KDE" is source, not an image:** `just check` passes; a local
-  generic x86 image (`localhost/moos-one-wave:bae070ac`) built with every in-image gate
-  green; PR image gates, a signed candidate and installed proof are owed.
-- PR #157/#158: W8/W9, ARM parity, Store honesty, NVIDIA device gate, ARM first-boot
-  Flatpak timeout 30→120 s. The no-GPU NVIDIA VM boots twice with zero failed units.
+- **x86 production is `44.20260925.931`** (W9.9 "MoOS One inside KDE", PR #164, revision
+  `be282a9f`): signed build `36106034816`, QCOW2 proofs `36108376279`/`36108380001`/
+  `36108383721`, offline ISO proof `36108387473`, promotion `36112344231`;
+  `moos-nvidia:latest` = `sha256:cb60a4b3…`. ARM `44.20260925.586` (same revision): native
+  build, UEFI QCOW2 proof and promotion in `36108390846`.
+- **The NVIDIA station still boots signed `44.20260924.929`** (`ecd82c38`), `.925` retained.
+  Read back 2026-09-24: zero failed units, `post-update-check.sh` 55/0, `moos-selfcheck`
+  53/0. `.931` is not staged yet: the nightly `moos-auto-update` or Settings → Update stages
+  it, then a restart applies it. No installed proof of W9.9 exists yet.
+- The no-GPU NVIDIA VM boots twice with zero failed units (PR #157/#158).
 - **ARM's PR #160 image** passed signed build, UEFI QCOW2 proof and production promotion
   in `35963023960`. PR #161 (Plasma seam compatibility and ARM parity) is merged at
   `aeb3e070`; its automatic x86/ARM image runs are still separate from a proven release.
