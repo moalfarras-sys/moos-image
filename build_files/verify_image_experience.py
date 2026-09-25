@@ -50,7 +50,7 @@ def source(raw: str, prefix: str = "//") -> str:
 
 
 def moos_section_problems(router_code: str, launcher_code: str, listed: set,
-                          installed) -> list:
+                          installed, program_installed) -> list:
     """Every `moos-settings --section=<s>` route must open a built, installed MoOS module.
 
     SPEC D1 made each MoOS page a native System Settings module (kcm_moos*). The router
@@ -59,8 +59,17 @@ def moos_section_problems(router_code: str, launcher_code: str, listed: set,
     a module the KCM stage did not build, or did not install, opens an error page — a dead
     button with every other gate green. This resolves each route through the launcher's
     OWN arms, then requires a kcm_moos* id that settings-modules.list names and that is
-    installed. `installed(id)` answers for the image; tests/test_settings_destinations.py
-    runs this function against broken inputs to prove it bites.
+    installed.
+
+    The one exception is the launcher's own: for a module another slice of work builds, it
+    declares, behind a "<id>.so is not installed" guard, what serves the section meanwhile
+    (`exec <program>` or `module=<other id>`). A module the KCM stage did not build passes
+    only through such a declared fallback, and only when that fallback is itself installed.
+    A module that IS listed must be installed — its fallback would hide a broken install —
+    and with no guarded fallback in the launcher every module must be built.
+    `installed(id)` and `program_installed(name)` answer for the image;
+    tests/test_settings_destinations.py runs this against the tree CMake really builds and
+    against broken inputs, to prove it bites.
     """
     problems = []
     sections = sorted(set(re.findall(
@@ -74,6 +83,19 @@ def moos_section_problems(router_code: str, launcher_code: str, listed: set,
             launcher_code):
         for label in labels.split("|"):
             arms[label[len("--section="):]] = module
+    fallbacks = {}
+    guard = re.search(
+        r'(?ms)^\s*((?:kcm_moos(?:_[a-z]+)?\|?)+)\)\s*\n'
+        r'.*?\[ ! -e "\$plugins/plasma/kcms/systemsettings/\$module\.so" \]; then\n'
+        r'(.*?)^\s*fi\b', launcher_code)
+    if guard:
+        guarded = set(guard.group(1).split("|"))
+        for module, program, other in re.findall(
+                r"(?m)^\s*(kcm_moos(?:_[a-z]+)?)\)\s*"
+                r"(?:exec\s+([a-z0-9-]+)|module=(kcm_[A-Za-z0-9_-]+))\s*;;",
+                guard.group(2)):
+            if module in guarded:
+                fallbacks[module] = ("program", program) if program else ("module", other)
     for section in sections:
         module = arms.get(section)
         if module is None:
@@ -83,13 +105,23 @@ def moos_section_problems(router_code: str, launcher_code: str, listed: set,
             problems.append(f"moos-settings --section={section} opens {module}, which is not "
                             "a MoOS module")
         elif module not in listed:
-            problems.append(f"moos-settings --section={section} opens {module}, which the "
-                            "KCM stage did not build (not in settings-modules.list)")
+            kind, target = fallbacks.get(module, (None, None))
+            if kind is None:
+                problems.append(f"moos-settings --section={section} opens {module}, which the "
+                                "KCM stage did not build (not in settings-modules.list), and "
+                                "moos-settings declares no fallback for it")
+            elif kind == "program" and not program_installed(target):
+                problems.append(f"moos-settings --section={section} opens {module}, which the "
+                                f"KCM stage did not build, and its fallback program {target} "
+                                "is not installed")
+            elif kind == "module" and not installed(target):
+                problems.append(f"moos-settings --section={section} opens {module}, which the "
+                                f"KCM stage did not build, and its fallback module {target} "
+                                "is not installed")
         elif not installed(module):
             problems.append(f"moos-settings --section={section} opens {module}, which is "
                             "listed but not installed")
     return problems
-
 
 errors = []
 
@@ -557,7 +589,8 @@ for _problem in moos_section_problems(
         set(_modules_list.read_text(encoding="utf-8").split()) if _modules_list.is_file()
         else set(),
         lambda module: any(Path("/usr").glob(
-            f"lib*/qt6/plugins/plasma/kcms/systemsettings/{module}.so"))):
+            f"lib*/qt6/plugins/plasma/kcms/systemsettings/{module}.so")),
+        lambda program: Path("/usr/bin", program).is_file()):
     require(False, _problem)
 
 
