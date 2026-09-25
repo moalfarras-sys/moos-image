@@ -88,6 +88,15 @@ def function(text: str, name: str) -> str:
     return match.group(0)
 
 
+def moos_themes_page() -> tuple[str, str, str, str]:
+    """The MoOS Themes page (kcm_moos_appearance), its choice row, its logic, and the backend."""
+    ui = ROOT / "moos-settings-kcm/modules/appearance/ui"
+    return ((ui / "main.qml").read_text(encoding="utf-8"),
+            (ui / "ChoiceRow.qml").read_text(encoding="utf-8"),
+            (ui / "ThemeLogic.js").read_text(encoding="utf-8"),
+            (ROOT / "moos-settings-kcm/src/moosbackend.cpp").read_text(encoding="utf-8"))
+
+
 class TestMoOSThemeSafety(unittest.TestCase):
     def test_suite_cannot_reach_the_live_desktop(self) -> None:
         self.assertNotIn("WAYLAND_DISPLAY", os.environ)
@@ -781,11 +790,9 @@ esac
             self.assertEqual(log.read_text(encoding="utf-8").splitlines(), ["attempt"] * 9)
             self.assertIn("reconcile failed after 3 attempts", result.stderr)
 
-    def test_wallpaper_motion_policy_is_atomic_and_picker_verifies_live_state(self) -> None:
+    def test_wallpaper_motion_policy_is_atomic_and_the_themes_page_verifies_live_state(self) -> None:
         switch = SWITCH.read_text(encoding="utf-8")
-        picker = (
-            ROOT / "system_files/usr/share/moos/theme-picker/main.qml"
-        ).read_text(encoding="utf-8")
+        page, choice, logic, backend = moos_themes_page()
 
         query = function(switch, "query_motion_mode")
         mutation = function(switch, "set_motion_mode")
@@ -824,39 +831,36 @@ esac
             '[ "$#" -gt 1 ] && needs_theme_lock=1',
             switch,
             "a motion WRITE must take the same transaction lock as a theme change "
-            "and a read-only motion QUERY must take nothing: the Theme Picker "
+            "and a read-only motion QUERY must take nothing: the MoOS Themes page "
             "fires that query the moment it opens, so behind the exclusive write "
-            "lock merely opening the picker waited out a whole theme transition "
+            "lock merely opening the page waited out a whole theme transition "
             "(or made the next one wait on it)",
         )
 
-        self.assertIn(
-            'readonly property string currentMotionQuery: "moos-theme motion"',
-            picker,
-        )
+        # The MoOS Themes page (kcm_moos_appearance) reads and changes motion only through
+        # the backend's fixed verbs; nothing on the page is ever a command line.
+        self.assertIn('kcm.runFixed("theme-motion-status")', page)
+        self.assertIn('begin("motion", kcm.runFixed("theme-motion", value), value)', page)
+        self.assertIn("if (busy || Logic.MOTIONS.indexOf(value) < 0 || value === currentMotion)", page)
+        self.assertIn('var MOTIONS = ["still", "gentle", "alive"]', logic)
         for mode in ("still", "gentle", "alive"):
-            self.assertIn(f'cmd = "moos-theme motion {mode}"', picker)
-            self.assertIn(f'onClicked: root.setMotion("{mode}")', picker)
-            self.assertIn(f'root.currentMotion === "{mode}"', picker)
-        self.assertNotRegex(
-            picker,
-            r'"moos-theme motion "\s*\+',
-            "mutable QML values must never be concatenated into a shell command",
-        )
-        self.assertNotIn("id: motionExec", picker)
-        self.assertIn("themeExec.run(cmd)", picker)
-        self.assertIn('root.local("حركة الخلفية", "Wallpaper motion")', picker)
-        self.assertNotIn("حركة الخلفية  ·  Wallpaper motion", picker)
-        for icon in (
-            "moos-ui-symbolic",
-            "moos-refresh-symbolic",
-            "moos-orbit-symbolic",
-            "moos-close-symbolic",
-            "moos-check-symbolic",
-            "moos-sun-symbolic",
-            "moos-moon-symbolic",
-        ):
-            self.assertIn(f'"{icon}"', picker)
+            self.assertIn(f'{{ value: "{mode}", label: root.t(', page)
+            self.assertIn(f'QLatin1String("{mode}")', backend)
+        self.assertEqual(page.count("kcm.runFixed("), page.count('kcm.runFixed("theme-'),
+                         "every verb the page starts is a literal id of the fixed list")
+        self.assertNotIn('"moos-theme', page, "the page never spells a moos-theme command")
+        for executable in ("P5Support", 'engine: "executable"', "Qt.openUrlExternally"):
+            self.assertNotIn(executable, page + choice)
+        # The measured value, and only it, is drawn as chosen; a segment is not checkable,
+        # so a press cannot light itself before the read-back.
+        self.assertIn("current: root.currentMotion", page)
+        self.assertIn("readonly property bool selected: segment.modelData.value === choice.current", choice)
+        self.assertNotIn("checkable: true", choice.replace("Accessible.checkable: true", ""))
+        self.assertIn('root.t("حركة الخلفية", "Wallpaper motion")', page)
+        self.assertNotIn("حركة الخلفية  ·  Wallpaper motion", page)
+        # Icons come from MoOS's own symbol catalogue, never an inherited name.
+        for binding in re.findall(r"icon\.name:\s*([^\n]+)", page):
+            self.assertIn("MoUI.SymbolCatalog.resolve(", binding)
         for inherited in (
             "preferences-desktop-theme-global",
             "edit-undo",
@@ -866,34 +870,23 @@ esac
             "weather-clear",
             "weather-clear-night",
         ):
-            self.assertNotIn(f'"{inherited}"', picker)
+            self.assertNotIn(f'"{inherited}"', page + choice)
 
-        motion_completion = picker[
-            picker.index("if (cmd === pendingMotionCommand)"):
-            picker.index("if (cmd !== pendingThemeCommand)")
-        ]
+        ended = page[page.index("    function mutationEnded(job) {"):page.index("    function readbackEnded(job) {")]
+        self.assertLess(ended.index("if (!job.ok)"), ended.index('phase = "verifying"'))
         self.assertLess(
-            motion_completion.index("normalExit(data)"),
-            motion_completion.index("awaitingMotionReadback = true"),
-        )
-        self.assertLess(
-            motion_completion.index("awaitingMotionReadback = true"),
-            motion_completion.index("refreshMotion()"),
+            ended.index('phase = "verifying"'),
+            ended.index('kcm.runFixed("theme-motion-status")'),
             "motion readback must start only after the mutation process exits",
         )
-        motion_readback = picker[
-            picker.index("} else if (cmd === currentMotionQuery)"):
-            picker.index("} else if (cmd === currentQuery)")
-        ]
-        self.assertIn("activeMotion !== pendingExpectedMotion", motion_readback)
-        self.assertIn("clearOperationState()", motion_readback)
+        readback = page[page.index("    function readbackEnded(job) {"):page.index("    function finish(")]
+        self.assertIn("differs = currentMotion !== expected", readback)
+        self.assertIn("showMotion(job)", readback)
 
     @unittest.skipUnless(_HAS_KWRITECONFIG6, _KWRITE_REASON)
     def test_glass_clarity_has_one_owner_and_verified_fixed_routes(self) -> None:
         switch = SWITCH.read_text(encoding="utf-8")
-        picker = (
-            ROOT / "system_files/usr/share/moos/theme-picker/main.qml"
-        ).read_text(encoding="utf-8")
+        page, _choice, logic, backend = moos_themes_page()
         query = function(switch, "query_clarity")
         mutation = function(switch, "set_clarity")
 
@@ -901,12 +894,13 @@ esac
         self.assertIn("Material --key Clarity", query)
         for value, strength in (("clear", "15"), ("balanced", "9"), ("solid", "1")):
             self.assertRegex(mutation, rf"(?m)^\s*{value}\)\s+strength={strength}\s+;;$")
-            self.assertIn(f'cmd = "moos-theme clarity {value}"', picker)
-            self.assertIn(f'onClicked: root.setClarity("{value}")', picker)
-        self.assertNotRegex(
-            picker, r'"moos-theme clarity "\s*\+',
-            "a mutable QML value must never become executable shell text",
-        )
+            self.assertIn(f'{{ value: "{value}", label: root.t(', page)
+            self.assertIn(f'QLatin1String("{value}")', backend)
+        self.assertIn('var CLARITIES = ["clear", "balanced", "solid"]', logic)
+        self.assertIn("if (busy || Logic.CLARITIES.indexOf(value) < 0 || value === currentClarity)", page)
+        self.assertIn('begin("clarity", kcm.runFixed("theme-clarity", value), value)', page)
+        self.assertNotIn('"moos-theme', page,
+                         "a mutable QML value must never become executable shell text")
         self.assertIn('|| [ "$(kreadconfig6 --file kwinrc', mutation)
         self.assertIn("restore_clarity", mutation)
         self.assertIn("org.kde.KWin.reconfigure", mutation)
@@ -915,9 +909,10 @@ esac
             r"(?m)^\s*motion\|clarity\)\s*$",
             "clarity writes must take the existing appearance transaction lock",
         )
-        self.assertIn('root.local("وضوح الزجاج", "Glass clarity")', picker)
-        self.assertIn("root.design.blurActive", picker)
-        self.assertIn("root.currentClarityQuery", picker)
+        self.assertIn('root.t("وضوح الزجاج", "Glass clarity")', page)
+        self.assertIn("root.design.blurActive", page)
+        self.assertIn('kcm.runFixed("theme-clarity-status")', page)
+        self.assertIn("current: root.currentClarity", page)
 
         with _tempfile.TemporaryDirectory(prefix="moos-clarity-test-") as temporary:
             root = Path(temporary)
@@ -978,9 +973,7 @@ esac
     def test_custom_wallpaper_is_encoded_transactional_and_owned_once(self) -> None:
         switch = SWITCH.read_text(encoding="utf-8")
         migrator = APPLY.read_text(encoding="utf-8")
-        picker = (
-            ROOT / "system_files/usr/share/moos/theme-picker/main.qml"
-        ).read_text(encoding="utf-8")
+        page, _choice, logic, backend = moos_themes_page()
 
         for token in (
             "capture_wallpaper_identity()",
@@ -999,12 +992,16 @@ esac
             with self.subTest(owner_contract=token):
                 self.assertIn(token, switch)
 
-        self.assertIn("import QtQuick.Dialogs", picker)
-        self.assertIn("FileDialog {", picker)
-        self.assertIn("encodeURIComponent(raw)", picker)
-        self.assertIn('"moos-theme wallpaper-token " + encoded', picker)
-        self.assertIn('"moos-theme wallpaper-reset"', picker)
-        self.assertIn('/^[A-Za-z0-9_.~%-]+$/.test(encoded)', picker)
+        self.assertIn("import QtQuick.Dialogs", page)
+        self.assertIn("FileDialog {", page)
+        self.assertIn("onAccepted: root.chooseCanvas(selectedFile)", page)
+        self.assertIn("encodeURIComponent(raw)", logic)
+        self.assertIn('/^[A-Za-z0-9_.~%-]+$/.test(encoded)', logic)
+        self.assertIn('if (raw.indexOf("file:///") !== 0)', logic)
+        self.assertIn('begin("canvas", kcm.runFixed("theme-wallpaper-token", token), currentLook)', page)
+        self.assertIn('begin("canvas-reset", kcm.runFixed("theme-wallpaper-reset"), currentLook)', page)
+        # The backend re-checks the token before a process exists; moos-theme checks it again.
+        self.assertIn(r'"^[A-Za-z0-9_.~%-]{1,4096}$"', backend)
 
         for retired in (
             "apply_desktop_scene()", "reconcile_wallpaper_drift()",

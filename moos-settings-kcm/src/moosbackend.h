@@ -3,9 +3,10 @@
 //
 // It is deliberately small and closed. It reads ONE private status document that
 // /usr/libexec/moos-settings-status publishes, opens moos:// routes (the public
-// router decides and confirms), reads three whitelisted environment values, and
-// runs a FIXED list of unprivileged verbs declared below. It never runs a command
-// a page composed, never escalates, and never accepts a path from QML.
+// router decides and confirms), reads three whitelisted environment values, lists
+// the installed MoOS looks, and runs a FIXED list of unprivileged verbs declared
+// below. It never runs a command a page composed, never escalates, and never
+// accepts a path from QML.
 // moos-settings-kcm/README.md documents the API for the pages.
 #pragma once
 
@@ -21,6 +22,7 @@
 #include <QString>
 #include <QTimer>
 #include <QUrl>
+#include <QVariantList>
 #include <QVariantMap>
 
 class MoOSJob final : public QObject
@@ -102,6 +104,11 @@ public:
     // Start one verb of the fixed list below. Returns the MoOSJob, or null when the id
     // is unknown or the argument fails that verb's validation.
     Q_INVOKABLE QObject *runFixed(const QString &id, const QString &argument = QString());
+    // The MoOS looks installed here, read-only, for kcm_moos_appearance: one map per
+    // /usr/share/plasma/look-and-feel/org.moos.ui2* package whose id theme-apply-lnf
+    // accepts and whose metadata names it: id, name, nameAr, summaryEn, summaryAr,
+    // preview (a file URL, or empty), light, family. Takes no argument; runs nothing.
+    Q_INVOKABLE QVariantList moosThemes() const;
 
     // The status contract, as a pure function so it can be read and reasoned about alone.
     static bool acceptStatus(const QJsonObject &document, qint64 now, QString *reason);

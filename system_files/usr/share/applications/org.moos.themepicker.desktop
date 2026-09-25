@@ -2,14 +2,13 @@
 Type=Application
 Name=MoOS Themes
 Name[ar]=ثيمات MoOS
-GenericName=Theme Chooser
-GenericName[ar]=منتقي الثيمات
-Comment=Choose a MoOS theme with a live wallpaper preview
-Comment[ar]=اختر ثيم MoOS مع معاينة حيّة للخلفية
-Exec=moos-theme-picker
+Comment=Choose a MoOS look, its desktop canvas, glass clarity and wallpaper motion
+Comment[ar]=اختر مظهر MoOS وصورة مساحة العمل ووضوح الزجاج وحركة الخلفية
+Exec=moos-settings --section=appearance
 Icon=moos-themes
 Terminal=false
-Categories=Settings;DesktopSettings;Qt;KDE;
+NoDisplay=true
+StartupWMClass=systemsettings
+Categories=Settings;DesktopSettings;
 Keywords=theme;appearance;colors;wallpaper;dark;light;
 Keywords[ar]=ثيم;مظهر;ألوان;خلفية;داكن;فاتح;
-X-KDE-StartupNotify=true

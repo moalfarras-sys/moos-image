@@ -14,7 +14,7 @@ window.
 | `kcm_moos_ai` | `modules/ai` | 4 | Mo AI (slice B) |
 | `kcm_moos_remote` | `modules/remote` | 5 | Mo PC Remote on/off/restart, Fast Remote, open the app |
 | `kcm_moos_recovery` | `modules/recovery` | 6 | Saved images, queued rollback and its target |
-| `kcm_moos_appearance` | `modules/appearance` | 1 in *appearance* | MoOS Themes (slice F) |
+| `kcm_moos_appearance` | `modules/appearance` | 1 in *appearance* | MoOS Themes: the 16 looks with their previews, apply and undo, the desktop canvas image, glass clarity, wallpaper motion, and the native pages for fine control |
 
 `moos-settings --section=<s>` maps a section to one of these ids and runs
 `systemsettings <id>`; a running System Settings receives the id itself.
@@ -92,6 +92,7 @@ Implemented once in `src/moosbackend.{h,cpp}` and compiled into every plugin.
 | `openRoute(url)` | method → `bool` | open a plain `moos://…` route; anything else is refused with `false`. After a `moos://remote/…` or `moos://do/…` route it refreshes after 3 s and 10 s |
 | `env(name)` | method → `string` | only `MOAI_AGENT_PORT`, `MOAI_CONTROL_PORT`, `MOAI_GATEWAY_PORT`, and only when the value is a port number; `""` otherwise |
 | `runFixed(id, argument = "")` | method → `MoOSJob` or `null` | start one verb of the fixed list below; `null` for an unknown id or a rejected argument |
+| `moosThemes()` | method → list | read-only: the installed MoOS looks for `kcm_moos_appearance`, one map per `/usr/share/plasma/look-and-feel/org.moos.ui2*` package whose id `theme-apply-lnf` accepts and whose `metadata.json` names it — `id`, `name`, `nameAr`, `summaryEn`, `summaryAr` (the package's "Arabic \| English" description), `preview` (`contents/previews/preview.png` as a file URL, else `fullscreenpreview.jpg`, else empty), `light`, `family`; the base family first, each dark look before its light sibling. Takes no argument and runs no process |
 | `jobFinished(id, exitCode, output)` | signal | every job, when it ends |
 
 `MoOSJob` properties: `id`, `argument`, `running`, `ok` (exit 0), `exitCode`
