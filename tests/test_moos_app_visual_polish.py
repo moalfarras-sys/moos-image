@@ -11,6 +11,9 @@ import configparser
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 QML = ROOT / "system_files/usr/share/moos/apps/moai/main.qml"
+# Mo AI's settings — the brain, the key, the phone channels, the permissions — are the Mo AI
+# page of System Settings; its secret fields and switches are held here where the sheet was.
+MOAI_SETTINGS = ROOT / "moos-settings-kcm/modules/ai/ui"
 APPS = ROOT / "system_files/usr/share/moos/apps"
 UI = ROOT / "system_files/usr/lib64/qt6/qml/org/moos/ui"
 COLOR_SCHEMES = ROOT / "system_files/usr/share/color-schemes"
@@ -53,12 +56,14 @@ class MoAIVisualPolishTests(unittest.TestCase):
             "rail, cards, picker choices and settings choices must remain "
             "keyboard/screen-reader reachable",
         )
-        # Five are intentional: ActionArea's base and two modal backdrops plus
-        # two click-swallowing card interiors. MoButton is now an
-        # AbstractButton and must never add its own pointer-only MouseArea.
+        # Three are intentional: ActionArea's base, the brain picker's modal
+        # backdrop and its click-swallowing card interior. (The settings sheet
+        # and its two left with it: they are a System Settings page now.)
+        # MoButton is an AbstractButton and must never add its own pointer-only
+        # MouseArea.
         self.assertEqual(
             len(re.findall(r"\bMouseArea\s*\{", self.code)),
-            5,
+            3,
             "a raw MouseArea was added instead of the accessible ActionArea",
         )
 
@@ -103,19 +108,29 @@ class MoAIVisualPolishTests(unittest.TestCase):
         self.assertEqual(self.source.count("MoUI.Locale.rtl"), 1)
 
     def test_settings_secrets_and_switches_have_screen_reader_labels(self) -> None:
+        # The sheet's secret fields and switches moved to the Mo AI page of System
+        # Settings; the promise that a screen reader names each one moved with them.
+        page = (MOAI_SETTINGS / "main.qml").read_text(encoding="utf-8")
         for object_id in ("keyField", "tokenField"):
-            start = self.source.index(f"id: {object_id}")
-            field = self.source[start:start + 800]
-            self.assertIn("Accessible.name:", field)
-            self.assertIn("Accessible.labelledBy:", field)
-        for object_id in ("tgSwitch", "ttsSwitch", "webSwitch"):
-            start = self.source.index(f"id: {object_id}")
-            self.assertIn("Accessible.labelledBy:", self.source[start:start + 350])
-        self.assertIn("Accessible.labelledBy: botDeviceControlLabel", self.source)
-        self.assertGreaterEqual(self.source.count("Accessible.name: text"), 6)
+            start = page.index(f"id: {object_id}")
+            field = page[start:start + 700]
+            self.assertIn("FormCard.FormPasswordFieldDelegate", page[start - 80:start])
+            self.assertIn("label: root.t(", field)
+            self.assertIn("Accessible.name: label", field)
+        for name in ("MoaiSwitchRow", "MoaiChoiceRow"):
+            row = (MOAI_SETTINGS / f"{name}.qml").read_text(encoding="utf-8")
+            for token in ("Accessible.name: text", "Accessible.description: description",
+                          "Accessible.checkable: true", "Accessible.onPressAction:"):
+                self.assertIn(token, row, f"{name} lost {token}")
+        self.assertIn('text: root.t("تحكّم البوت بجهازك", "Bot device control")', page)
+        for gone in ("id: keyField", "id: tokenField", "id: tgSwitch", "id: webSwitch",
+                     "botDeviceControlLabel"):
+            self.assertNotIn(gone, self.source, "the Mo AI window grew a second settings form")
 
     def test_modal_sheets_are_named_keyboard_dismissible_dialogs(self) -> None:
-        for object_id in ("brainPickerDialog", "settingsDialog"):
+        self.assertNotIn("id: settingsDialog", self.source,
+                         "Mo AI's settings are a System Settings page, not a sheet in the window")
+        for object_id in ("brainPickerDialog",):
             marker = f"id: {object_id}"
             start = self.code.index(marker)
             window = self.code[start:start + 900]
@@ -128,8 +143,8 @@ class MoAIVisualPolishTests(unittest.TestCase):
 
         self.assertGreaterEqual(
             self.source.count('label: root.local("إغلاق", "Close")'),
-            2,
-            "both modal sheets need a visible close action; backdrop clicks and "
+            1,
+            "the modal sheet needs a visible close action; backdrop clicks and "
             "Escape are supplementary, not the only exit",
         )
 

@@ -4,22 +4,22 @@ Name=Mo PC Remote
 Name[ar]=تحكم Mo PC عن بعد
 Comment=Control MoOS securely from your phone
 Comment[ar]=تحكم بنظام MoOS بأمان من هاتفك
-Exec=moos-settings --section=remote
+TryExec=mo-pc-remote
+Exec=mo-pc-remote
 Icon=moos-pc-remote
-# Compatibility entry for existing favourites and pins. It now deep-links into the single
-# Settings window and is hidden from new menus; Settings opens the Remote transaction sheet only
-# after showing its native status page.
-StartupWMClass=org.kde.systemsettings
+# The dock pin opens the Mo PC Remote app itself, whose window app id is
+# org.moos.remote: pin and window are one dock icon. Its switches (on, off, restart,
+# Fast Remote) live in System Settings → MoOS → Mo PC Remote; the menu keeps one
+# entry for all of it there, so this one stays hidden.
+StartupWMClass=org.moos.remote
 Terminal=false
 Categories=Network;RemoteAccess;
 StartupNotify=true
 NoDisplay=true
 
-# Fast Remote lives here now, not as a second dock icon. Right-clicking the Mo PC
-# Remote launcher (in the dock or the menu) offers to speed the connection up or
-# restore the full experience — both call the ONE /usr/bin/moos-fast-remote, the
-# same script the toggle inside the panel and the Meta+R shortcut use. One feature,
-# one code path, reachable three convenient ways.
+# Right-clicking the pin offers Fast Remote on and off. Both run the ONE
+# /usr/bin/moos-fast-remote that the Fast Remote switch in System Settings and the
+# app's own switch use: one feature, one code path.
 Actions=FastOn;FastOff;
 
 [Desktop Action FastOn]

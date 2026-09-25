@@ -672,6 +672,24 @@ do_setup_gaming() {
     moos-setup --gaming
 }
 
+# smart-setup — install the essential apps the device plan says this machine is missing.
+# moos-setup does the work through Mo Store's backend (moos-storectl, the one app
+# authority, user scope); this action exists so the Welcome/Mo AI button is confirmed and
+# lands in `journalctl -t moai-do` like every other change, instead of running moos-setup
+# straight from the URL router.
+do_smart_setup() {
+    hdr "الإعداد الذكي للتطبيقات" "Smart app setup"
+    echo "${D}يثبّت عبر Mo Store التطبيقات الأساسية التي تنقص هذا الجهاز حسب عتاده. بلا صلاحيات مسؤول.${N}"
+    echo "${D}Installs, through Mo Store, the essential apps this machine's hardware plan says are missing. No admin rights.${N}"
+    echo
+    if ! command -v moos-setup >/dev/null 2>&1; then
+        echo "${R}moos-setup غير موجود | not found${N}" >&2
+        return 1
+    fi
+    confirm || return 0
+    moos-setup --smart
+}
+
 do_setup_windows() {
     hdr "تجهيز تطبيقات Windows" "Set up Windows apps"
     if ! pc_games_supported; then
@@ -842,6 +860,40 @@ do_inspect_boot() {
 # between rescuing the machine and printing a success message while nothing changed.
 # It is also what the Recovery app (`moos-rollback`) has always run, so the assistant
 # and the GUI now do the same thing.
+# rollback_plan — read the deployments ONCE (JSON, never the human output) and print
+# "<state>|<staged>|<target>":
+#   state  ready   booted is the default; rollback queues a return to <target>
+#          queued  a return to <target> is ALREADY the default for the next boot
+#          none    there is no earlier deployment to return to
+#          unknown the deployment list could not be read
+#   staged 1 when an update is staged (a rollback discards it), else 0
+# The same reading moos-rollback's deployments() and moos-boot-assess's rollback_plan()
+# make: `bootc rollback` is a TOGGLE. With a return already queued it makes the running
+# system the default again, i.e. it CANCELS the rescue — while this action used to print
+# "next boot will use the previous version" all the same.
+rollback_plan() {
+    local json
+    command -v rpm-ostree >/dev/null 2>&1 || { echo "unknown|0|"; return 0; }
+    json="$(rpm-ostree status --json 2>/dev/null)" || { echo "unknown|0|"; return 0; }
+    printf '%s' "$json" | python3 -c 'import json, sys
+try:
+    deps = json.load(sys.stdin).get("deployments", [])
+except Exception:
+    print("unknown|0|"); raise SystemExit(0)
+staged = "1" if any(d.get("staged") for d in deps) else "0"
+booted = next((i for i, d in enumerate(deps) if d.get("booted")), None)
+def label(d):
+    return str(d.get("version") or (d.get("checksum") or "")[:12] or "?")
+if booted is None:
+    print("unknown|" + staged + "|"); raise SystemExit(0)
+ahead = [d for d in deps[:booted] if not d.get("staged")]
+if ahead:
+    print("queued|" + staged + "|" + label(ahead[0])); raise SystemExit(0)
+target = next((d for d in deps[booted + 1:] if not d.get("staged")), None)
+print(("ready|" + staged + "|" + label(target)) if target else ("none|" + staged + "|"))' \
+        2>/dev/null || echo "unknown|0|"
+}
+
 do_rollback() {
     hdr "الرجوع إلى النسخة السابقة" "Roll back to the previous version"
     echo "${D}يجعل الإقلاع القادم على النشر السابق. ملفاتك وإعداداتك لا تتغيّر،${N}"
@@ -849,28 +901,45 @@ do_rollback() {
     echo "${D}Makes the next boot use the previous deployment. Your files and settings are${N}"
     echo "${D}untouched, and you can move forward again any time with an update.${N}"
     echo
+    local plan state staged target
     if command -v rpm-ostree >/dev/null 2>&1; then
         echo "${B}النشرات الحالية | Current deployments:${N}"
         rpm-ostree status 2>/dev/null | sed -n '1,12p' || true
         echo
-        # Say so BEFORE asking. A queued update is discarded by the rollback, and a
-        # user who confirms without being told that has been surprised, not informed.
-        #
-        # Read the JSON, not the human output. Every deployment carries a "staged"
-        # boolean there (verified on this image), whereas the text rendering does not
-        # reliably print the word at all — the first version of this grepped for
-        # "Staged" in `rpm-ostree status` and so could never fire, which made the
-        # warning decorative.
-        if rpm-ostree status --json 2>/dev/null \
-            | python3 -c 'import json,sys
-try: d = json.load(sys.stdin)
-except Exception: raise SystemExit(1)
-raise SystemExit(0 if any(x.get("staged") for x in d.get("deployments", [])) else 1)' 2>/dev/null; then
-            echo "${Y}تنبيه: يوجد تحديث مُجهَّز للإقلاع القادم، وسيُلغى بالرجوع${N}"
-            echo "${Y}Note: an update is staged for the next boot; rolling back discards it${N}"
-            echo "${D}(يمكنك تجهيزه ثانيةً في أي وقت عبر «تحديث» | re-stage it any time with an update)${N}"
-            echo
-        fi
+    fi
+    plan="$(rollback_plan)"
+    IFS='|' read -r state staged target <<<"$plan"
+    case "$state" in
+        queued)
+            # Refuse: running `bootc rollback` now would CANCEL the return that is
+            # already queued. Nothing changes, and the owner is told why.
+            echo "${G}✓ الرجوع إلى ${target} مُجهَّز مسبقاً للإقلاع القادم — لم يتغيّر شيء.${N}"
+            echo "${G}✓ The next boot already returns to ${target} — nothing was changed.${N}"
+            echo "${D}تشغيل الرجوع مرة أخرى كان سيُلغيه. لإلغائه عمداً استخدم «الاستعادة» في الإعدادات.${N}"
+            echo "${D}Running rollback again would cancel it. To cancel it on purpose, use Recovery in Settings.${N}"
+            return 0 ;;
+        none)
+            echo "${Y}لا توجد نسخة سابقة على هذا الجهاز للرجوع إليها.${N}" >&2
+            echo "${Y}There is no previous version on this computer to return to.${N}" >&2
+            return 1 ;;
+        unknown)
+            # A toggle must never be pressed blind: if a return is already queued,
+            # pressing it would cancel the rescue.
+            echo "${R}تعذّرت قراءة حالة النشرات؛ لم يُنفَّذ شيء.${N}" >&2
+            echo "${R}The deployment state could not be read, so nothing was done.${N}" >&2
+            return 1 ;;
+    esac
+    echo "${D}الإقلاع القادم سيعود إلى | The next boot will return to: ${target}${N}"
+    # Say so BEFORE asking. A queued update is discarded by the rollback, and a user
+    # who confirms without being told that has been surprised, not informed. Read from
+    # the JSON, where every deployment carries a "staged" boolean — the human output
+    # does not reliably print the word (the first version of this grepped for it and
+    # could never fire, which made the warning decorative).
+    if [ "$staged" = 1 ]; then
+        echo "${Y}تنبيه: يوجد تحديث مُجهَّز للإقلاع القادم، وسيُلغى بالرجوع${N}"
+        echo "${Y}Note: an update is staged for the next boot; rolling back discards it${N}"
+        echo "${D}(يمكنك تجهيزه ثانيةً في أي وقت عبر «تحديث» | re-stage it any time with an update)${N}"
+        echo
     fi
     confirm || return 0
     run_priv bootc rollback || return 1
@@ -1230,9 +1299,13 @@ try:
     sys.exit(0 if str(json.load(open(p)).get("cloud_base") or "").strip() else 1)
 except Exception:
     sys.exit(1)' 2>/dev/null; then
-        echo "${D}لا يوجد مزوّد سحابي بعد — سيُفتح الإعداد.${N}"
-        echo "${D}No cloud provider yet — opening setup.${N}"
-        moai-config || return 1
+        # The phone agent cannot answer without a brain. Open the one brain settings page
+        # and stop here, saying so; installing an agent with no brain behind it would only
+        # look finished.
+        echo "${Y}لا يوجد مزوّد سحابي بعد — تُفتح صفحة Mo AI في الإعدادات. اختر مزوّداً ثم ثبّت وكيل الهاتف مرة أخرى.${N}"
+        echo "${Y}No cloud provider yet — opening Mo AI settings. Choose a provider there, then install the phone agent again.${N}"
+        open_assistant_settings || true
+        return 1
     fi
 
     local node_dir="$HOME/.local/node"
@@ -1527,8 +1600,19 @@ EOF
     echo "${D}Pick a model in Mo AI → Settings → Models.${N}"
 }
 
+# open_assistant_settings — the one place Mo AI's brain is configured: the Mo AI page of
+# System Settings (SPEC D1/D5). No privilege and no terminal; moos-settings raises the
+# settings window already open instead of starting a second one.
+open_assistant_settings() {
+    need moos-settings || return 1
+    launch_detached moos-settings --section=assistant
+}
+
 do_setup_brain() {
-    moai-config
+    hdr "إعدادات عقل Mo AI" "Mo AI brain settings"
+    echo "${D}يُضبط المزوّد والنموذج السحابي من صفحة Mo AI في إعدادات النظام.${N}"
+    echo "${D}The cloud provider and model are set on the Mo AI page of System Settings.${N}"
+    open_assistant_settings
     return $?
 
     hdr "تجهيز العقل المحلي" "Set up the local brain"
@@ -1618,6 +1702,8 @@ ${V}الاستعمال | Usage:${N}  moai-do <command> [args]
                     Set up isolated support for Windows .exe programs
   ${C}setup-gaming${N}      تجهيز الألعاب ودعم التوافق
                     Set up games and compatibility support
+  ${C}smart-setup${N}       تثبيت التطبيقات الأساسية الناقصة حسب عتاد الجهاز
+                    Install the essential apps this machine is missing
   ${C}optimize${N}          تنظيف Flatpak/الحاويات/السجلّات وتحرير مساحة
                     Clean Flatpak/containers/logs and free disk space
   ${C}device-report${N}     حالة الجهاز بالكلمات (قراءة فقط)
@@ -1633,8 +1719,8 @@ ${V}الاستعمال | Usage:${N}  moai-do <command> [args]
                     Install Hermes, Mo AI's agent runtime (official release, pinned by hash)
   ${C}install-openclaw${N}  وكيل الهاتف — موافقة مسؤول واحدة للعمل بعد تسجيل الخروج
                     Phone agent — one admin approval for after-logout availability
-  ${C}setup-brain${N}       فتح إعدادات عقل Mo AI (المزوّد والنموذج السحابي)
-                    Open Mo AI brain settings (cloud provider and model)
+  ${C}setup-brain${N}       فتح صفحة Mo AI في الإعدادات (المزوّد والنموذج السحابي)
+                    Open the Mo AI settings page (cloud provider and model)
   ${C}remote-anywhere${N}   تشغيل Mo PC Remote من خارج البيت (Tailscale HTTPS)
                     Reach Mo PC Remote from outside the house
   ${C}diagnose-services${N} عرض الخدمات الفاشلة (قراءة فقط)
@@ -1696,6 +1782,11 @@ main() {
         shift
         cmd="${1:-help}"
     fi
+    # An approval covers THIS action only. moos-open hands it over in the environment
+    # (MOAI_DO_CONFIRMED=1 moai-do <action>); left exported, it would reach every program this
+    # action starts, and a moai-do started anywhere below would log "approved" for an action
+    # the owner never saw. The shell variable stays for confirm() here.
+    export -n MOAI_DO_CONFIRMED 2>/dev/null || true
     if [ "$#" -gt 0 ]; then
         shift
     fi
@@ -1715,6 +1806,7 @@ main() {
         setup-waydroid) do_setup_waydroid ;;
         setup-windows) do_setup_windows ;;
         setup-gaming)  do_setup_gaming ;;
+        smart-setup)   do_smart_setup ;;
         remote-anywhere) do_remote_anywhere ;;
         install-codex) do_install_codex ;;
         install-claude) do_install_claude ;;
@@ -1733,9 +1825,10 @@ main() {
         hw-report)
             # The Hardware Centre is a panel inside Mo AI now, not a separate
             # window. Open it directly rather than bouncing through the
-            # moos-hardware compatibility shim.
+            # moos-hardware compatibility shim; Mo AI is single-instance, so an
+            # open window is raised on that panel instead of a second one starting.
             if command -v moai >/dev/null 2>&1; then
-                exec moai --device
+                exec moai --panel device
             else
                 echo "${R}moai غير موجود | not found${N}" >&2
                 return 1

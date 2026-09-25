@@ -24,6 +24,11 @@ now derive their secondary ink the same way, and this gate does the arithmetic:
   * requires 4.5:1. A new palette or a "softer" alpha that drops below it fails here, by name.
 
 It also refuses the disabled role as the binding of any of those tokens.
+
+MoOS's settings pages are System Settings modules (moos-settings-kcm). Every file there that
+declares `secondaryInk` is held to the same arithmetic, and two more things are refused there:
+the disabled role anywhere, and the stock FormCard delegates that paint their description with
+it (FormTextDelegate, FormButtonDelegate, …) outside the common/ wrappers that repaint it.
 """
 
 from __future__ import annotations
@@ -35,12 +40,48 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 APPS = ROOT / "system_files/usr/share/moos/apps"
+KCM = ROOT / "moos-settings-kcm"
 SCHEMES = ROOT / "system_files/usr/share/color-schemes"
 AA = 4.5
 
 # app -> the token that paints text a person reads (not placeholders, not disabled controls)
-TOKENS = {"moai": "textLo", "store": "txt2", "welcome": "txt2", "installer": "txt2",
-          "settings": "mutedColor"}
+TOKENS = {"moai": "textLo", "store": "txt2", "welcome": "txt2", "installer": "txt2"}
+# FormCard delegates whose description kirigami-addons paints with the DISABLED role. A page
+# uses the common/ rows instead; a common/ wrapper of one must repaint its description.
+DISABLED_INK_DELEGATES = ("FormTextDelegate", "FormButtonDelegate", "FormSwitchDelegate",
+                          "FormCheckDelegate", "FormRadioDelegate", "FormComboBoxDelegate",
+                          "FormSectionText")
+
+
+def surfaces() -> list[tuple[str, Path, str]]:
+    """(label, file, token): the apps' named tokens, and every settings file's secondaryInk."""
+    found = [(app, APPS / app / "main.qml", token) for app, token in TOKENS.items()]
+    for path in sorted(KCM.rglob("*.qml")):
+        if re.search(r"property\s+color\s+secondaryInk\b", path.read_text(encoding="utf-8")):
+            found.append((path.relative_to(KCM).as_posix(), path, "secondaryInk"))
+    return found
+
+
+def settings_ink_problems() -> list[str]:
+    problems: list[str] = []
+    pages = sorted(KCM.rglob("*.qml"))
+    if len(pages) < 10:
+        return [f"expected the MoOS settings modules under {KCM.relative_to(ROOT)}, found {len(pages)} files"]
+    for path in pages:
+        rel = path.relative_to(KCM).as_posix()
+        text = path.read_text(encoding="utf-8")
+        code = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("//"))
+        if "disabledTextColor" in code:
+            problems.append(f"{rel}: paints text with the disabled role (1.6:1 on the light schemes)")
+        for delegate in DISABLED_INK_DELEGATES:
+            if f"FormCard.{delegate}" not in code:
+                continue
+            if not rel.startswith("common/"):
+                problems.append(f"{rel}: uses FormCard.{delegate}, whose description is drawn in the "
+                                "disabled role — use the common/ rows (MoosActionRow, MoosInfoRow, …)")
+            elif not re.search(r"descriptionItem\.color:\s*\w+\.secondaryInk", code):
+                problems.append(f"{rel}: wraps FormCard.{delegate} without repainting descriptionItem")
+    return problems
 
 
 def luminance(colour: tuple[float, float, float]) -> float:
@@ -59,8 +100,8 @@ def over(foreground, background, alpha: float):
     return tuple(foreground[i] * alpha + background[i] * (1 - alpha) for i in range(3))
 
 
-def token_alpha(app: str, token: str) -> tuple[float | None, str]:
-    text = (APPS / app / "main.qml").read_text(encoding="utf-8")
+def token_alpha(path: Path, token: str) -> tuple[float | None, str]:
+    text = path.read_text(encoding="utf-8")
     code = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("//"))
     match = re.search(rf"readonly\s+property\s+color\s+{token}\s*:\s*([^\n]+(?:\n\s{{20,}}[^\n]+)*)", code)
     if not match:
@@ -80,8 +121,10 @@ def main() -> int:
               f"found {len(schemes)}")
         return 1
     worst = (99.0, "", "")
-    for app, token in TOKENS.items():
-        alpha, binding = token_alpha(app, token)
+    checked = surfaces()
+    errors += settings_ink_problems()
+    for app, path, token in checked:
+        alpha, binding = token_alpha(path, token)
         if alpha is None:
             errors.append(f"{app}: `{token}` must be the theme's text colour at an alpha "
                           f"(Qt.rgba(Kirigami.Theme.textColor.r, …, a)); it is `{binding}`. The "
@@ -106,7 +149,7 @@ def main() -> int:
         for error in errors:
             print(f" - {error}")
         return 1
-    print(f"secondary-text contrast gate passed ({len(TOKENS)} apps × {len(schemes)} schemes; "
+    print(f"secondary-text contrast gate passed ({len(checked)} surfaces × {len(schemes)} schemes; "
           f"lowest {worst[0]:.2f}:1 — {worst[1]} on {worst[2]})")
     return 0
 

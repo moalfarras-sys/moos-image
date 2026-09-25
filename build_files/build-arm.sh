@@ -1027,26 +1027,7 @@ NoDisplay=true
 X-KDE-autostart-condition=
 PWEOF
 
-# Keep the package-management engine for updates, but expose only Mo Store as a
-# storefront. ARM previously skipped the x86 rewrite and showed both launchers.
-_disc=/usr/share/applications/org.kde.discover.desktop
-if [ -f "$_disc" ]; then
-    sed -i \
-        -e '/^Name\[/d' \
-        -e 's|^Name=.*|Name=Mo Store|' \
-        -e '/^GenericName\[/d' \
-        -e 's|^GenericName=.*|GenericName=App Store|' \
-        -e 's|^Icon=.*|Icon=mo-store|' \
-        "$_disc"
-    sed -i '/^Name=Mo Store$/a Name[ar]=متجر MoOS' "$_disc"
-    grep -q '^GenericName=' "$_disc" \
-        && sed -i '/^GenericName=App Store$/a GenericName[ar]=متجر التطبيقات' "$_disc" \
-        || true
-    grep -q '^NoDisplay=' "$_disc" \
-        && sed -i 's|^NoDisplay=.*|NoDisplay=true|' "$_disc" \
-        || sed -i '/^\[Desktop Entry\]/a NoDisplay=true' "$_disc"
-fi
-unset -v _disc
+bash /ctx/curate_app_menu.sh / || exit 1
 
 # Fedora's Global Themes and wallpapers arrive with plasma-desktop on the
 # bootc base. x86 closes this in build.sh (z2a). Left in place they appear
@@ -1340,18 +1321,9 @@ command -v cosign >/dev/null 2>&1 \
 # offered Breeze beside MoOS's looks. One shared script now serves both builds.
 python3 /ctx/hide_breeze_global_themes.py / || exit 1
 
-# The same first-party MoOS pages must live inside the native Settings host on ARM.
-_moos_kcm="$(qtpaths6 --query QT_INSTALL_PLUGINS)/plasma/kcms/systemsettings/kcm_moos.so"
-[ -s "$_moos_kcm" ] \
-    || { echo "GATE FAIL: MoOS's native System Settings module did not build on ARM"; exit 1; }
-_discover_update_kcm="$(qtpaths6 --query QT_INSTALL_PLUGINS)/plasma/kcms/systemsettings/kcm_updates.so"
-rm -f "$_discover_update_kcm"
-[ ! -e "$_discover_update_kcm" ] \
-    || { echo "GATE FAIL: duplicate Software Update module remains on ARM"; exit 1; }
-_generic_about_kcm="$(qtpaths6 --query QT_INSTALL_PLUGINS)/plasma/kcms/kcm_about-distro.so"
-rm -f "$_generic_about_kcm"
-[ ! -e "$_generic_about_kcm" ] \
-    || { echo "GATE FAIL: duplicate About this System module remains on ARM"; exit 1; }
+# The same MoOS System Settings modules live in the native Settings host on ARM,
+# under the same gate as x86: installed, grouped, duplicates removed, and loaded.
+bash /ctx/verify_settings_modules.sh || exit 1
 
 # ── /usr/local/sbin: present, or systemd-tmpfiles errors on every boot ───────
 #

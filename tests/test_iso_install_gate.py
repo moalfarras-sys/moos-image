@@ -190,5 +190,110 @@ class SessionIdentityTests(unittest.TestCase):
         self.assertEqual(counts, {"desktop": 1, "open_app": 2, "close_app": 2, "user_health": 1})
 
 
+def installed_assignment(name):
+    for node in installed_tree.body:
+        if (isinstance(node, ast.Assign) and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name) and node.targets[0].id == name):
+            return ast.literal_eval(node.value)
+    raise AssertionError(f"the installed proof lost {name}")
+
+
+class SettingsPageProofTests(unittest.TestCase):
+    """MoOS Themes opens INSIDE System Settings: the 'themes' smoke entry must prove the
+    kcm_moos_appearance module loaded, not merely that a System Settings window mapped
+    (an error page for a broken module, or the stock page moos-settings falls back to when
+    the module is missing, both map a window)."""
+
+    def run_check(self, unit, module, journal):
+        import subprocess
+        import tempfile
+        with tempfile.TemporaryDirectory() as temp:
+            stubs = Path(temp) / "bin"
+            stubs.mkdir()
+            calls = Path(temp) / "journalctl.args"
+            fixture = Path(temp) / "journal.txt"
+            fixture.write_text(journal, encoding="utf-8")
+            (stubs / "journalctl").write_text(
+                '#!/usr/bin/bash\nprintf "%s\\n" "$@" >"$CALLS"\ncat "$FIXTURE"\n', encoding="utf-8")
+            (stubs / "id").write_text('#!/usr/bin/bash\necho 1000\n', encoding="utf-8")
+            for stub in stubs.iterdir():
+                stub.chmod(0o755)
+            env = {"PATH": f"{stubs}:/usr/bin:/bin", "HOME": temp, "LANG": "C.UTF-8",
+                   "CALLS": str(calls), "FIXTURE": str(fixture)}
+            result = subprocess.run(["/usr/bin/bash", "-s", "--", unit, module],
+                                    input=installed_assignment("kcm_ready"), text=True,
+                                    capture_output=True, env=env, timeout=30, check=False)
+            args = calls.read_text(encoding="utf-8").splitlines() if calls.exists() else []
+            return result, args
+
+    def test_the_module_marker_is_required_as_a_whole_line(self):
+        for journal in ("Started page\nMOOS_KCM_READY kcm_moos_appearance\n",
+                        "moos.settings: MOOS_KCM_READY kcm_moos_appearance\n"):
+            with self.subTest(journal=journal):
+                result, args = self.run_check("moai-open-12-34", "kcm_moos_appearance", journal)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout, "kcm_moos_appearance=ready\n")
+                # Root reads the desktop user's unit by field; --user-unit would match uid 0.
+                self.assertIn("_SYSTEMD_USER_UNIT=moai-open-12-34.service", args)
+                self.assertIn("_UID=1000", args)
+                self.assertNotIn("--user-unit", " ".join(args))
+        for journal in ("",                                                  # module missing: stock page
+                        "Could not find plugin kcm_moos_appearance\n",       # failed to load
+                        "MOOS_KCM_READY kcm_lookandfeel\n",
+                        "MOOS_KCM_READY kcm_moos_appearance_old\n",
+                        "not MOOS_KCM_READY kcm_moos_appearance yet\n"):
+            with self.subTest(journal=journal):
+                result, _args = self.run_check("moai-open-12-34", "kcm_moos_appearance", journal)
+                self.assertEqual(result.returncode, 1, result.stdout)
+                self.assertIn("did not report ready in moai-open-12-34.service", result.stderr)
+        # A shorter module id never passes on a longer one's line.
+        result, _args = self.run_check("u.service", "kcm_moos", "MOOS_KCM_READY kcm_moos_update\n")
+        self.assertEqual(result.returncode, 1)
+        _result, args = self.run_check("u.service", "kcm_moos", "MOOS_KCM_READY kcm_moos\n")
+        self.assertIn("_SYSTEMD_USER_UNIT=u.service", args)
+
+    def test_the_themes_entry_is_held_to_its_module_on_both_opens(self):
+        self.assertIn(("themes", "moos-theme-picker"), installed_assignment("app_specs"))
+        self.assertEqual(installed_assignment("settings_modules"), {"themes": "kcm_moos_appearance"})
+        # The module named is the one the launcher really opens.
+        shim = (root / "system_files/usr/bin/moos-theme-picker").read_text(encoding="utf-8")
+        self.assertIn("exec moos-settings --section=appearance", shim)
+        settings = (root / "system_files/usr/bin/moos-settings").read_text(encoding="utf-8")
+        self.assertRegex(settings, r"--section=appearance\|[^\n]*\) module=kcm_moos_appearance ;;")
+        loop = next(node for node in installed_tree.body if isinstance(node, ast.For)
+                    and isinstance(node.iter, ast.Name) and node.iter.id == "app_specs")
+        calls = [node for node in ast.walk(loop) if isinstance(node, ast.Call)]
+
+        def line_of(predicate, what):
+            found = [node.lineno for node in calls if predicate(node)]
+            self.assertTrue(found, what)
+            return found
+
+        def is_gate(node, units):
+            return (isinstance(node.func, ast.Name) and node.func.id == "gate_until"
+                    and isinstance(node.args[0], ast.Name) and node.args[0].id == "kcm_ready"
+                    and isinstance(node.args[1], ast.List)
+                    and [getattr(e, "id", None) for e in node.args[1].elts] == units)
+
+        def named(node, name, first=None):
+            return (isinstance(node.func, ast.Name) and node.func.id == name
+                    and (first is None or (len(node.args) > 1 and isinstance(node.args[1], ast.Constant)
+                                           and node.args[1].value == first)))
+
+        opened = line_of(lambda n: named(n, "wait_for_window", "open"), "wait for the first window")[0]
+        reopened = line_of(lambda n: named(n, "wait_for_window", "reopen"), "wait for the reopen")[0]
+        first_ready = line_of(lambda n: is_gate(n, ["unit", "module"]), "first open unchecked")[0]
+        second_ready = line_of(lambda n: is_gate(n, ["second_unit", "module"]), "reopen unchecked")[0]
+        appended = line_of(lambda n: isinstance(n.func, ast.Attribute) and n.func.attr == "append"
+                           and isinstance(n.func.value, ast.Name) and n.func.value.id == "app_proof",
+                           "no app proof recorded")[0]
+        self.assertLess(opened, first_ready)
+        self.assertLess(first_ready, reopened)
+        self.assertLess(reopened, second_ready)
+        self.assertLess(second_ready, appended,
+                        "themes=opened-closed-reopened, which promotion requires, is written only "
+                        "after the module proved itself on both opens")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -66,7 +66,7 @@ Item {
     Timer {
         id: begin; interval: 2500
         onTriggered: {
-            harness.app.langOverride = harness.flag("arabic") ? "ar" : "en"
+            harness.app.layoutDirectionOverride = harness.flag("arabic") ? "rtl" : "ltr"
             if (harness.app.availableTools.length === 0) { harness.finish("no tools were loaded from moai-control"); return }
             harness.app.sendPrompt(harness.flag("arabic") ? "الصوت لا يعمل، افحص وأصلح" : "My sound is broken. Check and fix it.")
             watch.start()

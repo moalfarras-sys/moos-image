@@ -142,23 +142,27 @@ def main() -> None:
     assert 'Text.MarkdownText' in qml and 'body.copy()' in qml
     assert 'msg.role.indexOf("tool-") === 0' in qml
     assert 'msg.role === "tool-error" ? root.badColor' in qml
-    # Eight tabs: the brain decision (mode + provider + key + local models) has
-    # ONE home. The retired Models/Providers/Privacy trio and the door-only
-    # Projects/Terminal tabs must not come back, and their old deep-link names
-    # must keep landing somewhere sensible.
-    for section in ("brain", "openclaw", "telegram", "whatsapp",
-                    "voice", "permissions", "memory", "appearance"):
-        assert f'{{ id: "{section}"' in qml, f"missing settings section: {section}"
-    for retired in ("models", "providers", "privacy", "projects", "terminal"):
-        assert f'cfgTab === "{retired}"' not in qml, (
-            f"retired settings tab returned: {retired}")
-    assert 'models: "brain"' in qml and 'privacy: "brain"' in qml \
-        and 'projects: "permissions"' in qml, \
-        "old --settings section names must be remapped, not dropped"
-    assert '{ id: "cloud", ar: "عقل سحابي", en: "Cloud inference"' in qml
-    assert '{ id: "hybrid", ar: "هجين ذكي", en: "Smart hybrid"' not in qml
-    assert 'visible: root.cfgTab === "health"' not in qml
-    assert 'root.launch("moos://settings/themes", "MoOS themes")' in qml
+    # The brain decision (provider + key + model) has ONE home, and it is the Mo AI page
+    # of System Settings (SPEC D1/D5), not a sheet inside this window. The window keeps
+    # no settings tab at all, and every old `--settings <section>` deep link — including
+    # the retired Models/Providers/Privacy trio and Projects — still lands on that page;
+    # the Terminal lives in the Workbench and Appearance is MoOS Themes.
+    settings_page = (ROOT / "moos-settings-kcm/modules/ai/ui/main.qml").read_text(encoding="utf-8")
+    assert "cfgTab" not in qml and "id: settingsDialog" not in qml, "the settings sheet came back"
+    assert "function openAssistantSettings()" in qml \
+        and 'root.launch("moos://settings/assistant"' in qml
+    settings_arm = qml.split('const settingsIndex = argv.indexOf("--settings")', 1)[1].split(
+        'const promptIndex', 1)[0]
+    for section in ("brain", "models", "providers", "privacy", "openclaw", "telegram",
+                    "whatsapp", "voice", "permissions", "projects", "memory"):
+        assert f'"{section}"' in settings_arm, f"--settings {section} no longer lands anywhere"
+    assert "root.openAssistantSettings()" in settings_arm
+    assert 'settingsSection === "terminal"' in settings_arm \
+        and 'root.agentWorkspaceTab = "terminal"' in settings_arm
+    assert 'settingsSection === "appearance"' in settings_arm \
+        and 'root.launch("moos://settings/themes"' in settings_arm
+    assert 'root.t("عقل سحابي", "Cloud inference")' in settings_page
+    assert "هجين ذكي" not in settings_page and "Smart hybrid" not in settings_page
     assert 'argv.indexOf("--window-size")' in qml
     assert 'value >= minimum && value <= 7680' in qml
     assert 'function regenerateLast()' in qml

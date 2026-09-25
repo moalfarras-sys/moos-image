@@ -15,8 +15,8 @@ import subprocess
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-SEARCH_VIEW_QML = ROOT / "system_files/usr/share/plasma/plasmoids/org.moos.search/contents/ui/SearchView.qml"
-ANSWERS_JS = ROOT / "system_files/usr/share/plasma/plasmoids/org.moos.search/contents/ui/SearchAnswers.js"
+SEARCH_VIEW_QML = ROOT / "system_files/usr/share/plasma/plasmoids/org.moos.island/contents/ui/SearchView.qml"
+ANSWERS_JS = ROOT / "system_files/usr/share/plasma/plasmoids/org.moos.island/contents/ui/SearchAnswers.js"
 
 
 def code(path: Path) -> str:

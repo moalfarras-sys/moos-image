@@ -8,6 +8,11 @@ privilege, maps to ONE fixed argv (never a shell, never free text) and is undone
 by its opposite. moos-open exposes them as moos://control/… routes; Mo AI shows
 them as buttons, and nothing runs until the user taps one.
 
+The desktop verbs (window, arrange, desktop, dnd, keyboard-layout, power-profile) drive
+the desktop the way its own shortcuts and applets do: a FIXED action name invoked through
+the global-shortcut service, or one fixed D-Bus method. Nothing here can load a script,
+close a window or restart the compositor, and no verb takes free text.
+
 Exit codes: 0 done, 2 invalid request, 69 that control is unavailable here.
 """
 import json
@@ -31,13 +36,63 @@ BRIGHTNESS_PATH = "/org/kde/ScreenBrightness"
 # answer inside what is left of the budget is reported unknown, never waited on.
 STATUS_BUDGET = 8.0
 THEMES = ("dark", "light", "nova", "amethyst", "midnight", "aurora", "auto")
-# The settings pages Mo AI offers as buttons (its closed grammar); each is a fixed
-# route in moos-open, which opens the page.
-SETTINGS_PAGES = ("display", "night-light", "audio", "network", "bluetooth", "keyboard",
-                  "mouse", "touchpad", "printers", "themes", "wallpaper", "fonts",
-                  "accessibility", "notifications", "energy", "time", "region", "users",
-                  "about", "storage", "update", "default-apps", "autostart", "lock",
-                  "permissions")
+
+
+def _settings_pages():
+    """The pages Mo AI offers (moai: true in the one settings registry, SPEC D3), with the
+    fixed command that opens each one.
+
+    The command is the registry's own (`argv()`), the one moos-open's literal arm for the
+    same token runs — tests/test_settings_destinations.py holds the two equal. It is started
+    here rather than through moos-open because moos-open detaches and exits 0 at once, so a
+    page that failed to open (no desktop session, a module that will not load) would still
+    be reported as opened. A registry that is missing or malformed offers NO page: the
+    settings verb then reports itself unavailable, and every other verb keeps working.
+    """
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "lib/moos"))
+        import moos_settings_destinations as destinations
+    except ImportError:
+        return {}
+    finally:
+        sys.path.pop(0)
+    registry = destinations.safe_load(
+        Path(__file__).resolve().parent.parent / "share/moos/settings-destinations.json")
+    return {token: destinations.argv(registry[token])
+            for token in destinations.moai_tokens(registry)}
+
+
+SETTINGS_COMMANDS = _settings_pages()
+SETTINGS_PAGES = tuple(SETTINGS_COMMANDS)
+
+# ── The desktop's own actions, by their fixed names ─────────────────────────
+# Measured on the station (Plasma 6.7.5, 2026-09-24) in `shortcutNames` of each
+# component. Each call is checked against that list first, so a renamed action is
+# reported unavailable instead of silently doing nothing.
+ACCEL = ("org.kde.kglobalaccel", "org.kde.kglobalaccel.Component")
+WINDOW_COMPONENT = "/component/kwin"
+SHELL_COMPONENT = "/component/plasmashell"
+WINDOW_VIEWS = {"overview": "Overview", "grid": "Grid View", "show-desktop": "Show Desktop"}
+# Registered by MoOS's own window-arrangement script (usr/share/kwin/scripts/moos-arrange).
+ARRANGEMENTS = {kind: f"MoOS Arrange: {kind}"
+                for kind in ("halves", "thirds", "quarters", "main", "centre")}
+DESKTOP_STEPS = {"next": "nextDesktop", "previous": "previousDesktop"}
+# The notifications applet's own toggle. Invoking it runs the applet's logic, so the
+# desktop records the change itself (plasmanotifyrc [DoNotDisturb] Until) — measured:
+# the notification server's Inhibited property follows it both ways.
+DND_ACTION = "toggle do not disturb"
+NOTIFICATIONS = ("org.freedesktop.Notifications", "/org/freedesktop/Notifications",
+                 "org.freedesktop.Notifications")
+SOURCE = "@DEFAULT_AUDIO_SOURCE@"
+LAYOUTS = ("org.kde.keyboard", "/Layouts", "org.kde.KeyboardLayouts")
+MOTION = ("still", "gentle", "alive")
+CLARITY = ("clear", "balanced", "solid")
+# Through the power manager's own action, the one the battery applet uses; the
+# profile daemon allows the active session to switch without a password (measured).
+POWER = ("org.kde.Solid.PowerManagement",
+         "/org/kde/Solid/PowerManagement/Actions/PowerProfile",
+         "org.kde.Solid.PowerManagement.Actions.PowerProfile")
+POWER_PROFILES = ("power-saver", "balanced", "performance")
 APP_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{2,254}")
 DISPLAY_NAME = re.compile(r"[A-Za-z0-9_]{1,64}")
 
@@ -54,6 +109,15 @@ USAGE = """moos-control — تحكّم فوري بالجهاز | instant control
   moos-control theme <dark|light|nova|amethyst|midnight|aurora|auto>
   moos-control open <installed-app-id>
   moos-control settings <page>
+  moos-control window <overview|grid|show-desktop>
+  moos-control arrange <halves|thirds|quarters|main|centre>
+  moos-control desktop <next|previous>
+  moos-control dnd <on|off>
+  moos-control mic <mute|unmute>
+  moos-control keyboard-layout next
+  moos-control motion <still|gentle|alive>
+  moos-control clarity <clear|balanced|solid>
+  moos-control power-profile <power-saver|balanced|performance>
 """
 
 
@@ -80,12 +144,42 @@ def run(argv, timeout=30):
     return result.stdout
 
 
+# A detached action that dies inside this window never started: its failure is the answer.
+# A launcher that hands off and exits 0 (gtk-launch) is a success; one still running is too.
+SPAWN_SETTLE = 1.0
+
+
+def require_display():
+    """A window needs a desktop session to appear on.
+
+    Mo AI's tool runner used to start before the session did, with neither variable set:
+    System Settings and the apps it "opened" died at once looking for a display, and the
+    detached start still printed "Opening…". Without a display the answer is no, out loud.
+    """
+    if not (os.environ.get("WAYLAND_DISPLAY") or os.environ.get("DISPLAY")):
+        raise Unavailable("no desktop session to show it on "
+                          "(WAYLAND_DISPLAY and DISPLAY are unset)")
+
+
 def spawn(argv):
-    """Start a long-running action (a theme change, an app) detached."""
+    """Start a long-running action (a theme change, an app) detached.
+
+    The child is watched for SPAWN_SETTLE seconds: an exit with an error inside that window
+    is reported as the verb's failure instead of being hidden behind a success message.
+    """
     if shutil.which(argv[0]) is None:
         raise Unavailable(f"{argv[0]} is not installed")
-    subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                     stderr=subprocess.DEVNULL, start_new_session=True)
+    try:
+        child = subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                 stderr=subprocess.DEVNULL, start_new_session=True)
+    except OSError as error:
+        raise Unavailable(f"{argv[0]} could not start: {error.strerror or error}") from error
+    try:
+        code = child.wait(timeout=SPAWN_SETTLE)
+    except subprocess.TimeoutExpired:
+        return
+    if code != 0:
+        raise Unavailable(f"{argv[0]} stopped at once (exit {code})")
 
 
 def audit(message):
@@ -136,7 +230,8 @@ def busctl_data(*args, timeout=30):
     try:
         return json.loads(out)["data"]
     except (ValueError, KeyError, TypeError) as error:
-        raise Unavailable("unexpected brightness service reply") from error
+        raise Unavailable(f"unexpected reply from {args[1] if len(args) > 1 else 'the bus'}") \
+            from error
 
 
 def displays(timeout=30):
@@ -220,6 +315,7 @@ def pictures_dir():
 
 
 def screenshot():
+    require_display()
     folder = pictures_dir() / "Screenshots"
     folder.mkdir(parents=True, exist_ok=True)
     target = folder / f"MoOS-{datetime.now():%Y%m%d-%H%M%S}.png"
@@ -245,18 +341,149 @@ def open_app(value):
         raise Invalid("invalid app id")
     if shutil.which("flatpak") and subprocess.run(
             ["flatpak", "info", value], capture_output=True, timeout=15).returncode == 0:
-        spawn(["flatpak", "run", value])
+        command = ["flatpak", "run", value]
     elif any((base / "applications" / f"{value}.desktop").is_file() for base in data_dirs()):
-        spawn(["gtk-launch", value])
+        command = ["gtk-launch", value]
     else:
         raise Unavailable(f"app is not installed: {value}")
+    require_display()
+    spawn(command)
     return f"🚀 فتح {value} | Opening {value}"
 
 
 def settings(value):
+    if not SETTINGS_PAGES:
+        raise Unavailable("the settings list cannot be read")
     one_of(value, SETTINGS_PAGES, "settings page")
-    spawn(["moos-open", f"moos://settings/{value}"])
+    require_display()
+    spawn(list(SETTINGS_COMMANDS[value]))
     return f"⚙ فتح الإعدادات: {value} | Opening settings: {value}"
+
+
+# ── Windows and desktops (the window manager's own actions) ─────────────────
+def invoke_shortcut(component, name, timeout=15):
+    """Run one of the desktop's registered actions by its fixed name.
+
+    The name is looked up in the component's own list first: a renamed or missing action
+    is "unavailable", never a call into the void that reports success.
+    """
+    service, interface = ACCEL
+    listed = busctl_data("call", service, component, interface, "shortcutNames",
+                         timeout=timeout)
+    names = listed[0] if listed and isinstance(listed[0], list) else []
+    if name not in names:
+        raise Unavailable(f"this desktop has no '{name}' action")
+    run(["busctl", "--user", "call", service, component, interface,
+         "invokeShortcut", "s", name], timeout=timeout)
+
+
+def window(value):
+    one_of(value, tuple(WINDOW_VIEWS), "window")
+    invoke_shortcut(WINDOW_COMPONENT, WINDOW_VIEWS[value])
+    return {"overview": "🪟 نظرة عامة على النوافذ | Window overview",
+            "grid": "🔲 شبكة أسطح المكتب | Desktop grid",
+            "show-desktop": "🖥 إظهار سطح المكتب | Show desktop"}[value]
+
+
+def arrange(value):
+    one_of(value, tuple(ARRANGEMENTS), "arrange")
+    invoke_shortcut(WINDOW_COMPONENT, ARRANGEMENTS[value])
+    return {"halves": "🪟 رُتّبت النوافذ نصفين | Windows arranged in halves",
+            "thirds": "🪟 رُتّبت النوافذ أثلاثاً | Windows arranged in thirds",
+            "quarters": "🪟 رُتّبت النوافذ أرباعاً | Windows arranged in quarters",
+            "main": "🪟 نافذة رئيسية ونافذتان | Main window and two",
+            "centre": "🪟 النافذة في المنتصف | Window centred"}[value]
+
+
+def desktop(value):
+    one_of(value, tuple(DESKTOP_STEPS), "desktop")
+    run(["busctl", "--user", "call", "org.kde.KWin", "/KWin", "org.kde.KWin",
+         DESKTOP_STEPS[value]])
+    return ("➡ سطح المكتب التالي | Next desktop" if value == "next"
+            else "⬅ سطح المكتب السابق | Previous desktop")
+
+
+# ── Do not disturb (the notifications applet's own toggle) ──────────────────
+def notifications_inhibited(timeout=30):
+    return bool(busctl_data("get-property", *NOTIFICATIONS, "Inhibited", timeout=timeout))
+
+
+def dnd(value):
+    one_of(value, ("on", "off"), "dnd")
+    wanted = value == "on"
+    if notifications_inhibited() != wanted:
+        # A toggle, so it is only pressed when the state really differs.
+        invoke_shortcut(SHELL_COMPONENT, DND_ACTION)
+        deadline = time.monotonic() + 3.0
+        while notifications_inhibited() != wanted:
+            if time.monotonic() > deadline:
+                raise Unavailable("do not disturb did not change")
+            time.sleep(0.2)
+    return ("🔕 عدم الإزعاج يعمل | Do not disturb on" if wanted
+            else "🔔 عدم الإزعاج متوقف | Do not disturb off")
+
+
+# ── Microphone (PipeWire default input) ─────────────────────────────────────
+def mic_muted(timeout=30):
+    return "[MUTED]" in run(["wpctl", "get-volume", SOURCE], timeout=timeout)
+
+
+def mic(value):
+    one_of(value, ("mute", "unmute"), "mic")
+    run(["wpctl", "set-mute", SOURCE, "1" if value == "mute" else "0"])
+    return ("🎙 كُتم الميكروفون | Microphone muted" if value == "mute"
+            else "🎙 الميكروفون يعمل | Microphone on")
+
+
+# ── Keyboard layout (the layout switcher's own interface) ───────────────────
+def keyboard_layout(value):
+    one_of(value, ("next",), "keyboard-layout")
+    service, path, interface = LAYOUTS
+    layouts = busctl_data("call", service, path, interface, "getLayoutsList")
+    layouts = layouts[0] if layouts and isinstance(layouts[0], list) else []
+    if len(layouts) < 2:
+        raise Unavailable("only one keyboard layout is set up")
+    run(["busctl", "--user", "call", service, path, interface, "switchToNextLayout"])
+    index = busctl_data("call", service, path, interface, "getLayout")
+    try:
+        short, _symbol, name = layouts[int(index[0])]
+    except (IndexError, TypeError, ValueError) as error:
+        raise Unavailable("the new keyboard layout could not be read back") from error
+    return f"⌨ لوحة المفاتيح: {name} | Keyboard layout: {short}"
+
+
+# ── Motion and glass: the MoOS look's own owner ─────────────────────────────
+def motion(value):
+    one_of(value, MOTION, "motion")
+    run(["moos-theme", "motion", value], timeout=60)
+    return f"🌊 حركة الخلفية: {value} | Wallpaper motion: {value}"
+
+
+def clarity(value):
+    one_of(value, CLARITY, "clarity")
+    run(["moos-theme", "clarity", value], timeout=60)
+    return f"💎 وضوح الزجاج: {value} | Glass clarity: {value}"
+
+
+# ── Power profile ───────────────────────────────────────────────────────────
+def power_profile_now(timeout=30):
+    service, path, interface = POWER
+    value = busctl_data("call", service, path, interface, "currentProfile", timeout=timeout)
+    return value[0] if value and isinstance(value[0], str) else None
+
+
+def power_profile(value):
+    one_of(value, POWER_PROFILES, "power-profile")
+    service, path, interface = POWER
+    choices = busctl_data("call", service, path, interface, "profileChoices")
+    if value not in (choices[0] if choices and isinstance(choices[0], list) else []):
+        raise Unavailable(f"this computer has no {value} profile")
+    run(["busctl", "--user", "call", service, path, interface, "setProfile", "s", value])
+    if power_profile_now() != value:
+        raise Unavailable("the power profile did not change")
+    return {"power-saver": "🔋 وضع توفير الطاقة | Power saver",
+            "balanced": "⚖ الوضع المتوازن | Balanced power",
+            "performance": "⚡ وضع الأداء | Performance"}[value]
 
 
 # ── Status (read-only) ──────────────────────────────────────────────────────
@@ -278,6 +505,25 @@ def bluez_running(timeout):
         return bool(json.loads(out)["data"][0])
     except (ValueError, KeyError, IndexError, TypeError) as error:
         raise Unavailable("unexpected bus reply for org.bluez") from error
+
+
+def theme_token(package):
+    """A MoOS look's short name, or None for anything that is not a MoOS look."""
+    if package == "org.moos.ui2":
+        return "dark"
+    if package == "org.moos.ui2.light":
+        return "light"
+    if package == "org.moos.ui2.midnight.light":
+        return "daylight"
+    found = re.fullmatch(r"org\.moos\.ui2\.([a-z]+)(\.light)?", package or "")
+    return (found.group(1) + ("-light" if found.group(2) else "")) if found else None
+
+
+def theme_state(timeout):
+    read = ["kreadconfig6", "--file", "kdeglobals", "--group", "KDE", "--key"]
+    if run([*read, "AutomaticLookAndFeel"], timeout=timeout).strip() == "true":
+        return "auto"
+    return theme_token(run([*read, "LookAndFeelPackage"], timeout=timeout).strip())
 
 
 def status():
@@ -325,6 +571,22 @@ def status():
                                                    timeout=left())
     except Unavailable:
         state["bluetooth"] = None
+    try:
+        state["theme"] = theme_state(left())
+    except Unavailable:
+        state["theme"] = None
+    try:
+        state["dnd"] = notifications_inhibited(left())
+    except Unavailable:
+        state["dnd"] = None
+    try:
+        state["mic_muted"] = mic_muted(left())
+    except Unavailable:
+        state["mic_muted"] = None
+    try:
+        state["power_profile"] = power_profile_now(left())
+    except Unavailable:
+        state["power_profile"] = None
     return json.dumps(state, ensure_ascii=False)
 
 
@@ -337,6 +599,15 @@ ACTIONS = {
     "theme": (1, theme),
     "open": (1, open_app),
     "settings": (1, settings),
+    "window": (1, window),
+    "arrange": (1, arrange),
+    "desktop": (1, desktop),
+    "dnd": (1, dnd),
+    "mic": (1, mic),
+    "keyboard-layout": (1, keyboard_layout),
+    "motion": (1, motion),
+    "clarity": (1, clarity),
+    "power-profile": (1, power_profile),
     "mute": (0, lambda: mute(True)),
     "unmute": (0, lambda: mute(False)),
     "screenshot": (0, screenshot),

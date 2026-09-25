@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import configparser
+import json
 import pathlib
 import re
 import subprocess
@@ -750,14 +751,33 @@ class MoOSVisualSystemTests(unittest.TestCase):
         self.assertIn("Name=MoOS UI Light|", build)
         self.assertIn("test ! -L", build)
 
+        # MoOS Themes is a System Settings page now (kcm_moos_appearance). It wears the owned
+        # MoOS Themes icon in the sidebar, and the entry kept for old pins, like the old
+        # command, lands on that page instead of a second window with its own identity.
+        module = json.loads(
+            (ROOT / "moos-settings-kcm/modules/appearance/kcm_moos_appearance.json")
+            .read_text(encoding="utf-8")
+        )
+        self.assertEqual(module["KPlugin"]["Icon"], "moos-themes")
         desktop = (
             SHARE / "applications/org.moos.themepicker.desktop"
         ).read_text(encoding="utf-8")
         self.assertIn("\nIcon=moos-themes\n", desktop)
+        self.assertIn("\nExec=moos-settings --section=appearance\n", desktop)
+        self.assertIn("\nNoDisplay=true\n", desktop)
+        self.assertNotIn("StartupWMClass", desktop,
+                         "a hidden alias claiming the System Settings window would show the "
+                         "running MoOS Settings in the dock as MoOS Themes")
         launcher = (
             ROOT / "system_files/usr/bin/moos-theme-picker"
         ).read_text(encoding="utf-8")
-        self.assertIn("--app-id org.moos.themepicker --icon moos-themes", launcher)
+        self.assertEqual(
+            [line for line in launcher.splitlines() if not line.startswith("#")],
+            ["exec moos-settings --section=appearance"],
+            "moos-theme-picker is only a compatibility name for the MoOS Themes page",
+        )
+        self.assertFalse((SHARE / "moos/theme-picker").exists(),
+                         "the separate MoOS Themes window returned beside its System Settings page")
 
     def test_default_cursor_never_falls_back_to_a_foreign_identity(self) -> None:
         build = (ROOT / "build_files/build.sh").read_text(encoding="utf-8")

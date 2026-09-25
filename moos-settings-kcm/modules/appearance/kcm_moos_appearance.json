@@ -1,0 +1,17 @@
+{
+  "KPlugin": {
+    "Name": "MoOS Themes",
+    "Name[ar]": "ثيمات MoOS",
+    "Description": "Choose a MoOS look, its desktop canvas, glass clarity and wallpaper motion",
+    "Description[ar]": "اختر مظهر MoOS وصورة مساحة العمل ووضوح الزجاج وحركة الخلفية",
+    "Icon": "moos-themes",
+    "FormFactors": [
+      "desktop"
+    ],
+    "EnabledByDefault": true
+  },
+  "X-KDE-System-Settings-Parent-Category": "appearance",
+  "X-KDE-Weight": 1,
+  "X-KDE-Keywords": "theme,themes,MoOS Themes,look,dark,light,glass,clarity,blur,motion,animation,wallpaper,desktop canvas,background,accent",
+  "X-KDE-Keywords[ar]": "ثيم,ثيمات,مظهر,داكن,فاتح,زجاج,وضوح,حركة,خلفية,صورة الخلفية,مساحة العمل,theme,dark,light,glass,motion,wallpaper"
+}

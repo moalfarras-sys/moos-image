@@ -1,38 +1,31 @@
 #!/usr/bin/env bash
-# One settings window: Plasma's native KCM host and its real modules.
-# MoOS-specific pages live in kcm_moos beside display, network and sound.
+# MoOS Settings is the system's own settings window. Every MoOS page is a native
+# module of its MoOS group (the kcm_moos* plugins built from moos-settings-kcm/),
+# beside display, network and sound, so a section name here is only a stable alias
+# for a module id. systemsettings is single-instance: a later `systemsettings <id>`
+# hands the id to the window that is already open, which is the whole deep link.
 set -euo pipefail
 
-section=overview
+module=kcm_moos
 for arg in "$@"; do
     case "$arg" in
-        --section=home|--section=system) section=overview ;;
-        --section=update) section=update ;;
-        --section=recovery) section=recovery ;;
-        --section=remote) section=remote ;;
-        --section=about) section=about ;;
-        --section=whats-new) section=whats-new ;;
-        --section=appearance) exec systemsettings kcm_lookandfeel ;;
-        --section=connectivity) exec systemsettings kcm_networkmanagement ;;
-        --section=devices) exec systemsettings kcm_kscreen ;;
-        --section=apps) exec systemsettings kcm_componentchooser ;;
-        --section=privacy) exec systemsettings kcm_app-permissions ;;
+        --section=overview|--section=home|--section=system|--section=about) module=kcm_moos ;;
+        --section=update) module=kcm_moos_update ;;
+        --section=whats-new) module=kcm_moos_whatsnew ;;
+        --section=assistant) module=kcm_moos_ai ;;
+        --section=remote) module=kcm_moos_remote ;;
+        --section=recovery) module=kcm_moos_recovery ;;
+        --section=appearance|--section=themes|--section=wallpaper) module=kcm_moos_appearance ;;
+        --section=connectivity) module=kcm_networkmanagement ;;
+        --section=devices) module=kcm_kscreen ;;
+        --section=apps) module=kcm_componentchooser ;;
+        --section=privacy) module=kcm_app-permissions ;;
         --section=*) echo "MoOS Settings: unknown section" >&2; exit 2 ;;
         *) echo "MoOS Settings: unknown option" >&2; exit 2 ;;
     esac
 done
 
-# System Settings is a single-instance app. A later launch forwards its KCM id
-# to the existing process, but not this process's environment. Send a fixed,
-# per-user page request to the already loaded KCM as well.
-if [ -n "${XDG_RUNTIME_DIR:-}" ]; then
-    request_dir="${XDG_RUNTIME_DIR}/moos-settings"
-    ( umask 077
-      mkdir -p "$request_dir"
-      request_file="$(mktemp "$request_dir/.request.XXXXXX")"
-      printf '%s\n' "$section" > "$request_file"
-      mv -f "$request_file" "$request_dir/request"
-    )
-fi
-export MOOS_SETTINGS_SECTION="$section"
-exec systemsettings kcm_moos
+# No section has a stand-in: the image build requires every MoOS module
+# (moos-settings-kcm/CMakeLists.txt and verify_settings_modules.sh), so a missing one
+# fails there, loudly, instead of an entry quietly landing on some other page.
+exec systemsettings "$module"

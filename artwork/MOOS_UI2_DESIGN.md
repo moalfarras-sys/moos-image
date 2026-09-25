@@ -65,7 +65,7 @@ ID changes or assert that the proposed interactions below already ship.
 | --- | --- |
 | **MoOS UI** | The shared design system: palette generators, `org/moos/ui`, Plasma Style and Aurorae assets |
 | **MoOS Bar** | One floating Horizon panel; `usr/share/moos/moos-bar.conf`, `usr/bin/moos-bar-apply`, the Plasma layout template and stock task manager |
-| **MoOS Search** | One canonical `org.moos.search/contents/ui/SearchView.qml`, embedded by the Island's idle popup; `org.moos.brand/contents/ui/LauncherView.qml` keeps its launcher entry field, and both use KDE's search models |
+| **MoOS Search** | One canonical `org.moos.island/contents/ui/SearchView.qml`, the Island's idle popup (the standalone `org.moos.search` applet is retired); `org.moos.brand/contents/ui/LauncherView.qml` keeps its launcher entry field, and both use KDE's search models |
 | **MoOS Island** | The contextual `org.moos.island` panel zone and anchored Search host; MPRIS owns media state and Remote owns session state |
 | **MoOS Workspace** | The desktop/window experience: stock KWin overview, desktops, tiling, KScreen and generated MoOS decorations |
 | **MoOS Intro** | One visual journey through Plymouth, the resolved Plasma Login Manager, shell splash and welcome application |
@@ -229,7 +229,7 @@ together before producing its release candidate.
    single focused results surface for applications, settings and permitted
    local content, with an explicit handoff to Mo AI. Results reveal their type
    and action before activation. Work in `moos-bar.conf`, `moos-bar-apply`,
-   `org.moos.search`, `org.moos.island`, `org.moos.brand` and
+   `org.moos.island` (which hosts Search), `org.moos.brand` and
    `org.moos.nova.clock`. Acceptance:
    no overlaps at the smallest supported logical width, two separate entry
    targets, real keyboard search/launch/Escape, preserved app pins/reordering,

@@ -365,6 +365,19 @@ fixture profile until `moos-theme-drift.timer` put it back — recorded for week
 an unexplained "wallpaper drift". Isolate `DBUS_SESSION_BUS_ADDRESS`, `DISPLAY`,
 `WAYLAND_DISPLAY`, HOME and the XDG directories before executing such a tool, and
 read the live state back before and after when you suspect a side effect.
+The owner's journal is live state too: until 2026-09-25 a host `just check` wrote 36
+fabricated `moai-do` audit lines ("action=update verdict=ok") and 22 `moos-update` records
+into it, because three suites ran the real `logger`. Tests stub `logger`, and a meta-gate
+runs every auditing suite with a trap that fails if the real one is reached. A build or
+test container is not isolated from the host's `systemd-coredump` either: a helper that
+lets a tool abort (bluetoothctl with no system bus) leaves real crash reports on the station.
+
+**Plasma's System Settings window is `systemsettings`, not `org.kde.systemsettings`.**
+KWin reads its resourceClass and desktop file as `systemsettings` (measured 2026-09-24), so
+the `StartupWMClass=org.kde.systemsettings` MoOS's entries carried never matched, and a
+pinned MoOS Settings entry opened a second dock icon. W9.9 made Plasma's own
+`systemsettings.desktop` the one visible "MoOS Settings" entry; the MoOS pages are native
+modules of its MoOS group (`moos-settings-kcm/`), deep-linked by module id.
 
 **`/usr/local` has two layouts.** The x86 Atomic base links it to
 `../var/usrlocal` (absent during compose); ARM has a real immutable directory.

@@ -12,7 +12,7 @@
         </entry>
         <entry name="favoriteApps" type="StringList">
             <label>Initial favorites used only when the selected client has no favorites yet.</label>
-            <default>org.moos.moai.desktop,org.moos.store.desktop,preferred://browser,org.moos.moplayer.desktop,org.kde.dolphin.desktop,systemsettings.desktop,org.moos.updater.desktop,org.moos.recovery.desktop</default>
+            <default>org.moos.moai.desktop,org.moos.store.desktop,preferred://browser,org.moos.moplayer.desktop,org.kde.dolphin.desktop,systemsettings.desktop</default>
         </entry>
         <entry name="favoritesSeeded" type="Bool">
             <label>Whether the initial favorites have been imported into KActivities Stats.</label>

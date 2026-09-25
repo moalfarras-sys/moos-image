@@ -15,16 +15,33 @@
 # to scroll past.
 #
 # This is the action behind it. It is deliberately narrow: two named user services
-# and one config key each. It needs no administrator rights, it removes nothing,
-# and System Settings turns either server back on in one click — the certificate
-# and every other setting are left exactly where they were.
+# and one config key each. It needs no administrator rights and it removes nothing —
+# the certificate and every other setting are left exactly where they were.
+#
+# Turning one back on is the owner's choice, and where it happens differs by server.
+# The VNC server (krfb) is an application with its own window. KRDP's Remote Desktop
+# page is no longer in System Settings on the x86 editions (build.sh hides
+# kcm_krdpserver through KIOSK): MoOS's remote desktop is Mo PC Remote, and its page
+# in MoOS Settings is the one place remote access is switched on. KRDP stays installed
+# and its user service and config are untouched, so nothing a person set up is lost.
+#
+# THE ARM EDITION IS DIFFERENT. On moos-arm (the Oracle A1 cloud desktop) the RDP server
+# is not foreign: it is how MoOS itself shows that headless desktop. `moos-arm-remote`
+# (build-arm.sh) enables it with the owner's password, bound behind a closed firewall and
+# reached through an SSH tunnel. Turning it "off" there would cut the owner off from the
+# only screen the machine has, so on that edition only the VNC server is guarded.
 set -uo pipefail
 
 # name:unit:config-file:group:key — nothing here is taken from the caller.
-GUARDED=(
-    "KDE RDP:app-org.kde.krdpserver.service:krdpserverrc:General:Autostart"
-    "KDE VNC:app-org.kde.krfb.service:krfbrc:Autostart:Autostart"
-)
+RDP="KDE RDP:app-org.kde.krdpserver.service:krdpserverrc:General:Autostart"
+VNC="KDE VNC:app-org.kde.krfb.service:krfbrc:Autostart:Autostart"
+EDITION_FILE="${MOOS_EDITION_FILE:-/usr/lib/moos/edition}"
+edition="$(head -n 1 "$EDITION_FILE" 2>/dev/null | tr -d '[:space:]')"
+if [ "$edition" = "moos-arm" ]; then
+    GUARDED=("$VNC")
+else
+    GUARDED=("$RDP" "$VNC")
+fi
 
 is_active() { systemctl --user is-active --quiet "$1" 2>/dev/null; }
 
@@ -41,6 +58,9 @@ status() {
         ss -tlnH 2>/dev/null | awk '$4 ~ /:(3389|5900)$/ { print "listening | " $4 }'
     fi
     [ "$found" = 1 ] || printf '%s\n' "لا يوجد خادم مشاركة غريب يعمل | no foreign sharing server is running"
+    if [ "$edition" = "moos-arm" ]; then
+        printf '%s\n' "سطح المكتب البعيد (RDP) هنا هو وصول MoOS نفسه ولا يُوقَف | RDP here is MoOS's own remote desktop and is left on"
+    fi
 }
 
 off() {

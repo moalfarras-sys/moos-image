@@ -1,0 +1,17 @@
+{
+  "KPlugin": {
+    "Name": "Update",
+    "Name[ar]": "التحديث",
+    "Description": "Update MoOS, your applications and this device's firmware",
+    "Description[ar]": "حدّث MoOS وتطبيقاتك وبرامج هذا الجهاز الثابتة",
+    "Icon": "moos-updater",
+    "FormFactors": [
+      "desktop"
+    ],
+    "EnabledByDefault": true
+  },
+  "X-KDE-System-Settings-Parent-Category": "moos",
+  "X-KDE-Weight": 2,
+  "X-KDE-Keywords": "update,updates,upgrade,system update,software update,applications,apps,firmware,restart,signed image",
+  "X-KDE-Keywords[ar]": "تحديث,تحديثات,ترقية,تحديث النظام,التطبيقات,برامج ثابتة,البرامج الثابتة,إعادة التشغيل,صورة موقعة"
+}

@@ -1,0 +1,32 @@
+# MoOS: this file REPLACES the one plasma-discover-notifier installs at this path.
+#
+# Discover's notifier is a second updater. It autostarts in every session (measured
+# live 2026-09-24: app-org.kde.discover.notifier@autostart.service, active), pops
+# "updates available" notices under its own name, and — with the base image's
+# UseUnattendedUpdates=true — installs them itself. MoOS already has one update
+# authority for the system image (moos-image-update, shown in MoOS Settings → Update)
+# and one for applications (uupd), so this one is switched off. Discover's engine
+# stays: Mo Store and .flatpakref files still use it.
+#
+# Hidden=true is the XDG autostart spec's "treat as deleted": systemd's
+# xdg-autostart-generator (which Plasma uses to start autostart entries) and
+# Plasma's own autostart list both skip the entry. Exec=/bin/true is the second lock.
+#
+# How an override of a package-owned /etc file behaves in this image:
+#   * x86: `COPY system_files/ /` runs after the base already installed the package,
+#     so this file replaces the package's; no later build transaction reinstalls it.
+#     plasma_seams.py's rpm -V registry covers only plasma-desktop, plasma-workspace,
+#     kscreenlocker, kwin, libplasma and plasma-login-manager, so it does not object.
+#   * ARM: build-arm.sh copies the overlay again after its package installs (`cp -a
+#     /moos-overlay/. /`), so the same bytes win there.
+#   * A package update that rewrote this file would be caught: curate_app_menu.sh's
+#     gate fails the build unless the notifier's autostart entry is Hidden=true.
+#   * On an installed machine /etc is merged three-way by OSTree: a machine whose
+#     owner never edited this file takes each new image's version.
+[Desktop Entry]
+Type=Application
+Name=Update notifier (replaced by MoOS)
+Name[ar]=منبّه التحديثات (استبدله MoOS)
+Exec=/bin/true
+Hidden=true
+NoDisplay=true

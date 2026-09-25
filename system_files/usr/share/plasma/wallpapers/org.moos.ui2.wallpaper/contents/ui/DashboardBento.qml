@@ -131,6 +131,12 @@ Item {
             if (request.readyState !== XMLHttpRequest.DONE) {
                 return
             }
+            // A request can finish after the scene that sent it is gone (a shell
+            // restart reloads the wallpaper); every id is null then. Measured at the
+            // THEME_REV 85 restart: "Cannot call method 'restart' of null".
+            if (!root || !retryTimer) {
+                return
+            }
             if (request.status !== 200) {
                 retryTimer.restart()
                 return
@@ -171,6 +177,12 @@ Item {
         request.open("GET", endpoint)
         request.onreadystatechange = function() {
             if (request.readyState !== XMLHttpRequest.DONE) {
+                return
+            }
+            // A request can finish after the scene that sent it is gone (a shell
+            // restart reloads the wallpaper); every id is null then. Measured at the
+            // THEME_REV 85 restart: "Cannot call method 'restart' of null".
+            if (!root || !retryTimer) {
                 return
             }
             if (request.status !== 200) {
