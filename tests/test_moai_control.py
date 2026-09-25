@@ -21,6 +21,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import journal_isolation  # noqa: E402
+import test_island_tokens as island_probe  # noqa: E402  (the Island's real-model probe)
 
 # moai-control audits every tool it runs, and the moai-do these tests start audits its
 # actions: into this process's recording logger, never the owner's journal.
@@ -935,6 +936,35 @@ class IslandJobTokenTests(unittest.TestCase):
             self.assertGreaterEqual((folder / done).stat().st_mtime, before,
                                     "a job that ran for an hour ended 'an hour ago'")
 
+    def test_an_ended_token_is_stamped_before_it_is_renamed(self):
+        """The Island's FolderListModel rescans within a millisecond of a rename and reports no
+        change that touches only mtime. A stamp that follows the rename therefore never reaches
+        it: the name must ARRIVE with its fresh time. At the moment of the rename, the token
+        being renamed must already carry the time the job ended."""
+        with tempfile.TemporaryDirectory() as home, tempfile.TemporaryDirectory() as runtime:
+            control = load_control(home)
+            folder = Path(runtime) / "moai-jobs"
+            publish = control["_publish_job_token"]
+            running = publish("0123abcd", "system_update", "running", folder=folder)
+            hour_ago = time.time() - 3600
+            os.utime(folder / running, (hour_ago, hour_ago))
+            real_replace, renamed = os.replace, []
+
+            def replace(source, destination, *args, **kwargs):
+                renamed.append((Path(source).name, Path(destination).name,
+                                os.stat(source).st_mtime))
+                return real_replace(source, destination, *args, **kwargs)
+
+            before = time.time() - 5
+            with mock.patch.object(control["os"], "replace", replace):
+                ended = publish("0123abcd", "system_update", "failed", running, folder=folder)
+            self.assertEqual(ended, "job-0123abcd-failed-system_update")
+            self.assertEqual([(source, target) for source, target, _stamp in renamed],
+                             [(running, ended)], "the end is one rename of the running token")
+            self.assertGreaterEqual(renamed[0][2], before,
+                                    "renamed first and stamped second: for that instant the "
+                                    "Island reads the start time and drops the end as old news")
+
     def test_ended_tokens_nobody_removed_are_swept_on_the_next_publish(self):
         """A process that exits before its linger timer fires must not leave a chip forever."""
         with tempfile.TemporaryDirectory() as home, tempfile.TemporaryDirectory() as runtime:
@@ -986,6 +1016,53 @@ class IslandJobTokenTests(unittest.TestCase):
             main = source[source.index('if __name__ == "__main__":'):]
             self.assertIn("_clear_job_tokens()", main)
 
+
+
+@unittest.skipUnless(island_probe.QML_RUNTIME,
+                     "a Qt QML runtime is needed to run the Island's real FolderListModel")
+class TheRealProducerReachesARealIsland(island_probe.RealIslandProbe, unittest.TestCase):
+    """moai-control's own _publish_job_token against the Island's real-model probe.
+
+    The Island drops an ended token whose file time is older than the linger. A confirmed job that
+    ran longer than that (update_apps, system_update, install_app) ends by a rename, and a rename
+    keeps the start time. Renamed first and stamped second, the model rescanned inside that gap,
+    read the start time, and the chip vanished instead of saying 'done' or 'failed' (measured: a
+    2 ms gap missed 6 runs of 6). The gap is made deterministic here — the rename yields for
+    50 ms, as moai-control's threaded server may while it serves Mo AI's /tool/job polls — so
+    only a producer that stamps BEFORE the rename passes.
+
+    This suite runs under the journal gate's bubblewrap trap, where systemd-tmpfiles cannot run;
+    the folder is made here as moos-island.conf makes it at login (test_island_tokens proves the
+    conf itself with systemd-tmpfiles)."""
+
+    @staticmethod
+    def login(runtime: Path) -> None:
+        runtime.mkdir(mode=0o700, parents=True, exist_ok=True)
+        (runtime / "moai-jobs").mkdir(mode=0o700)
+
+    def test_a_long_jobs_end_is_announced(self):
+        jobs, output = self.run_session(prepare=self.login)
+        with tempfile.TemporaryDirectory() as home:
+            publish = load_control(home)["_publish_job_token"]
+        folder = jobs.directory
+        running = publish("0e0e0e0e", "update_apps", "running", folder=folder)
+        self.assertEqual(running, "job-0e0e0e0e-running-update_apps")
+        self.assertTrue(output.wait_for("probe-state running:0e0e0e0e", 10),
+                        "\n".join(output.seen[-20:]))
+        long_ago = time.time() - 60                  # the job has run for a minute
+        os.utime(folder / running, (long_ago, long_ago))
+        real_replace = os.replace
+
+        def replace_then_yield(source, destination, *args, **kwargs):
+            real_replace(source, destination, *args, **kwargs)
+            time.sleep(0.05)
+
+        with mock.patch.object(os, "replace", replace_then_yield):
+            ended = publish("0e0e0e0e", "update_apps", "done", running, folder=folder)
+        self.assertEqual(ended, "job-0e0e0e0e-done-update_apps")
+        self.assertTrue(output.wait_for("probe-state done:0e0e0e0e", 10),
+                        "a job that ran for a minute ended, and the Island's chip vanished "
+                        "instead of announcing it\n" + "\n".join(output.seen[-20:]))
 
 class BootedVersionTests(unittest.TestCase):
     """The version Mo AI quotes is the booted image's, not the base's os-release stamp."""

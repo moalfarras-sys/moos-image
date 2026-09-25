@@ -236,7 +236,10 @@ class MoaiJobs:
 
     Like moai-control's _publish_job_token, the folder is created LAZILY, by the first job. An
     earlier version of this fixture created it up front, and so hid that a FolderListModel started
-    on a missing folder never notices it appear (see IslandFoldersExistBeforeTheShell)."""
+    on a missing folder never notices it appear (see IslandFoldersExistBeforeTheShell).
+
+    It is a fixture, not the producer: tests/test_moai_control.py drives the real
+    _publish_job_token against the same probe (TheRealProducerReachesARealIsland)."""
 
     def __init__(self, runtime: Path):
         self.directory = runtime / "moai-jobs"
@@ -247,9 +250,11 @@ class MoaiJobs:
         token.touch()
         return token
 
-    def finish(self, job_id: str, tool: str, state: str) -> Path:
+    def finish(self, job_id: str, tool: str, state: str, stamp: bool = True) -> Path:
         old = self.directory / f"job-{job_id}-running-{tool}"
         new = self.directory / f"job-{job_id}-{state}-{tool}"
+        if stamp:
+            os.utime(old)       # as moai-control does: stamped FIRST, so the name arrives fresh
         os.rename(old, new)                       # a rename: the count does not change
         return new
 
@@ -559,14 +564,14 @@ class ProbeOutput:
         return False
 
 
-@unittest.skipUnless(QML_RUNTIME and shutil.which("systemd-tmpfiles"),
-                     "a Qt QML runtime and systemd-tmpfiles are needed to run a real "
-                     "FolderListModel in a login-prepared runtime directory")
-class ARealFolderListModelSeesTheRename(unittest.TestCase):
-    """The consumer half with Qt itself, in the order a real session has: the runtime directory is
-    prepared at login by the shipped user-tmpfiles.d conf, the model starts (plasmashell), and only
-    THEN does the producer write its first token and rename it. The probe syncs exactly like the
-    Island's syncMoaiJob, feeding back the ids it watched run, and prints every state it shows."""
+class RealIslandProbe:
+    """A real FolderListModel wired like the Island's syncMoaiJob, in a private session.
+
+    The probe syncs exactly like the Island, feeding back the ids it watched run, and prints every
+    state it shows. A mixin: ARealFolderListModelSeesTheRename drives it with this file's fixture,
+    and tests/test_moai_control.py with moai-control's own _publish_job_token. That suite runs
+    under the journal gate's bubblewrap trap, where systemd-tmpfiles cannot run, so it passes its
+    own `prepare`; the login-prepared folder is proven here."""
 
     PROBE = """
 import QtQuick
@@ -606,13 +611,14 @@ Item {
 }
 """
 
-    def run_session(self, before_start=None):
-        """Yields (jobs, output) with the probe running; the caller drives the producer."""
+    def run_session(self, before_start=None, prepare=prepare_runtime):
+        """Returns (jobs, output) with the probe running; the caller drives the producer.
+        `prepare(runtime)` makes the runtime directory before the model starts (login)."""
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         root = Path(tmp.name)
         (root / "home").mkdir()
-        prepare_runtime(root / "run")
+        prepare(root / "run")
         jobs = MoaiJobs(root / "run")
         if before_start:
             before_start(jobs)
@@ -658,6 +664,15 @@ Item {
                         "the QML probe did not start:\n" + "\n".join(output.seen[-20:]))
         return jobs, output
 
+
+@unittest.skipUnless(QML_RUNTIME and shutil.which("systemd-tmpfiles"),
+                     "a Qt QML runtime and systemd-tmpfiles are needed to run a real "
+                     "FolderListModel in a login-prepared runtime directory")
+class ARealFolderListModelSeesTheRename(RealIslandProbe, unittest.TestCase):
+    """The consumer half with Qt itself, in the order a real session has: the runtime directory is
+    prepared at login by the shipped user-tmpfiles.d conf, the model starts (plasmashell), and only
+    THEN does the producer write its first token and rename it."""
+
     def test_a_model_started_at_login_sees_the_first_job_and_its_end(self):
         jobs, output = self.run_session()
         jobs.start("0a1b2c3d", "install_app")        # moai-control's first job: mkdir exist_ok
@@ -685,19 +700,21 @@ Item {
         self.assertFalse([line for line in output.seen if "0000000b" in line],
                          "a failure the Island never watched run was announced")
 
-
     def test_a_late_sync_never_announces_an_aged_out_end(self):
-        """A real FolderListModel: the job's end arrives with a file time older than the linger
-        (the stamp a producer that died long ago left). The chip goes away; nothing is announced."""
+        """The consumer's rule, not the producer's order: an end that reaches the model with a
+        file time older than the linger (a session that slept through it, or a token some other
+        path renamed without stamping) is old news. The chip goes away; nothing is announced.
+        moai-control stamps BEFORE it renames, so its ends arrive fresh — that order is proven
+        with the real producer in tests/test_moai_control.py."""
         jobs, output = self.run_session()
         running = jobs.start("0c0c0c0c", "update_apps")
         self.assertTrue(output.wait_for("probe-state running:0c0c0c0c", 10),
                         "\n".join(output.seen[-20:]))
-        # A running token never ages out; stamping it first makes the rename below carry the old
-        # time atomically (a rename keeps the mtime), so the model never sees a fresh "done".
+        # A running token never ages out; aging it here and renaming WITHOUT a stamp makes the
+        # end carry the old time atomically (a rename keeps the mtime).
         long_ago = time.time() - 60
         os.utime(running, (long_ago, long_ago))
-        jobs.finish("0c0c0c0c", "update_apps", "done")
+        jobs.finish("0c0c0c0c", "update_apps", "done", stamp=False)
         self.assertTrue(output.wait_for("probe-state none", 10),
                         "\n".join(output.seen[-20:]))
         self.assertFalse([line for line in output.seen if "done:0c0c0c0c" in line],

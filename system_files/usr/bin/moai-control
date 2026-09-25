@@ -1971,8 +1971,15 @@ def _publish_job_token(job_id: str, tool: str, state: str, previous: str | None 
         folder.mkdir(mode=0o700, parents=True, exist_ok=True)
         target = folder / name
         if previous and (folder / previous).exists():
+            # The Island ages an ended token by its mtime: the moment it entered THIS state,
+            # not when the job began. Stamp BEFORE the rename — a rename keeps the mtime, so
+            # the new name appears with its fresh time in one atomic step. Stamped after, the
+            # Island's FolderListModel rescans within a millisecond of the rename, reads the
+            # start time, drops a long job's end as old news, and never sees the later stamp
+            # (it reports no change that touches only mtime). A running token never ages out,
+            # so the fresh stamp on it for that instant is harmless.
+            os.utime(folder / previous)
             os.replace(folder / previous, target)
-            os.utime(target)                    # when it entered THIS state, not when it began
         else:
             temporary = folder / f".{name}.tmp"
             temporary.write_bytes(b"")
