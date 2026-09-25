@@ -1,0 +1,17 @@
+{
+  "KPlugin": {
+    "Name": "Mo AI",
+    "Name[ar]": "Mo AI",
+    "Description": "Mo AI's brain, your phone, and what it may do on this computer",
+    "Description[ar]": "عقل Mo AI، وهاتفك، وما يُسمح له به على هذا الحاسوب",
+    "Icon": "moos-moai",
+    "FormFactors": [
+      "desktop"
+    ],
+    "EnabledByDefault": true
+  },
+  "X-KDE-System-Settings-Parent-Category": "moos",
+  "X-KDE-Weight": 4,
+  "X-KDE-Keywords": "Mo AI,assistant,AI,brain,provider,model,key,API key,cloud,free,paid,measure,telegram,whatsapp,phone,phone agent,permissions,web access,shortcut,Meta+Space",
+  "X-KDE-Keywords[ar]": "مساعد,المساعد,ذكاء,الذكاء الاصطناعي,عقل,العقل,مزود,المزوّد,نموذج,النموذج,مفتاح,سحابي,مجاني,مدفوع,تليجرام,واتساب,هاتف,وكيل الهاتف,صلاحيات,الصلاحيات,اختصار"
+}
