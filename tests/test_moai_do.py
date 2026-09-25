@@ -29,6 +29,15 @@ import sys
 import tempfile
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import journal_isolation  # noqa: E402
+
+# Every moai-do run below writes its audit line with `logger`. `journalctl -t moai-do` is
+# "everything the assistant has done" (moai-do's own words): a gate run must never add a
+# refused "rm -rf /" or an approved update to it. They go to this process's recording logger.
+journal_isolation.install()
+LOGGER_STUB = journal_isolation.stub_dir()
+
 ROOT = Path(__file__).resolve().parent.parent
 MOAI_DO = ROOT / "system_files/usr/bin/moai-do"
 MOOS_OPEN = ROOT / "system_files/usr/bin/moos-open"
@@ -509,10 +518,13 @@ with tempfile.TemporaryDirectory() as tmp:
         'echo "Done"\n', encoding="utf-8")
     (bindir / "konsole").write_text('#!/bin/sh\necho konsole >> "$MOOS_TEST_LOG"\n',
                                     encoding="utf-8")
-    for name in ("kdialog", "moai-do", "konsole"):
+    # moos-open says how the run ended in a notification: never on the owner's desktop.
+    (bindir / "notify-send").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    for name in ("kdialog", "moai-do", "konsole", "notify-send"):
         (bindir / name).chmod(0o755)
     env = os.environ.copy()
-    env.update(PATH=f"{bindir}:/usr/bin:/bin", MOOS_TEST_LOG=str(log), LANG="C.UTF-8")
+    env.update(PATH=f"{bindir}:{LOGGER_STUB}:/usr/bin:/bin", MOOS_TEST_LOG=str(log),
+               LANG="C.UTF-8")
     import time as _time
 
     def route(url, answer):

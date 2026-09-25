@@ -85,12 +85,25 @@ esac
     "logger": "",
     "moos-theme": "",
     "gtk-launch": "",
-    "flatpak": 'case "$1 $2" in "info org.mozilla.firefox") exit 0;; info*) exit 1;; esac\n',
+    "flatpak": 'case "$1 $2" in "info org.mozilla.firefox") exit 0;; info*) exit 1;; esac\n'
+               'case "$1" in run) exit "${STUB_APP_EXIT:-0}";; esac\n',
+    # The pages' own hosts, as the settings registry names them. STUB_PAGE_EXIT makes the
+    # window die at once, STUB_PAGE_STAYS keeps it open past moos-control's settle window.
+    "systemsettings": '[ -n "$STUB_PAGE_STAYS" ] && sleep "$STUB_PAGE_STAYS"\n'
+                      'exit "${STUB_PAGE_EXIT:-0}"\n',
+    "moos-settings": 'exit "${STUB_PAGE_EXIT:-0}"\n',
+    "kinfocenter": 'exit "${STUB_PAGE_EXIT:-0}"\n',
+    "notify-send": "",
     "xdg-user-dir": 'echo "$STUB_PICTURES"\n',
     "moos-control": "",
     "moos-open": "",
     "kdialog": 'case "$*" in *warningyesno*) exit "${KDIALOG_ANSWER:-1}";; esac\n',
 }
+
+
+# A display name for the tests that need a desktop session. It names no real display, and no
+# test runs a real window: every program that could draw one is a recording stub.
+DISPLAY_NAME = "wayland-moos-test"
 
 
 class StubMachine:
@@ -141,9 +154,9 @@ class MoosControlTests(unittest.TestCase):
     def tearDown(self):
         self.machine.close()
 
-    def control(self, *args, machine=None):
+    def control(self, *args, machine=None, **env):
         machine = machine or self.machine
-        return subprocess.run([sys.executable, str(CONTROL), *args], env=machine.env(),
+        return subprocess.run([sys.executable, str(CONTROL), *args], env=machine.env(**env),
                               capture_output=True, text=True, timeout=30)
 
     def test_volume_sets_exact_level_unmutes_and_audits(self):
@@ -203,7 +216,7 @@ class MoosControlTests(unittest.TestCase):
     def test_radios_and_screenshot_use_fixed_commands(self):
         self.assertEqual(self.control("wifi", "off").returncode, 0)
         self.assertEqual(self.control("bluetooth", "on").returncode, 0)
-        result = self.control("screenshot")
+        result = self.control("screenshot", WAYLAND_DISPLAY=DISPLAY_NAME)
         self.assertEqual(result.returncode, 0, result.stderr)
         calls = self.machine.calls()
         self.assertIn(["nmcli", "radio", "wifi", "off"], calls)
@@ -215,22 +228,71 @@ class MoosControlTests(unittest.TestCase):
 
     def test_theme_and_open_reuse_the_existing_fixed_actions(self):
         self.assertEqual(self.control("theme", "nova").returncode, 0)
-        self.assertEqual(self.control("open", "org.mozilla.firefox").returncode, 0)
+        opened = self.control("open", "org.mozilla.firefox", WAYLAND_DISPLAY=DISPLAY_NAME)
+        self.assertEqual(opened.returncode, 0, opened.stderr)
         calls = self.machine.calls(settle=1.0)
         self.assertIn(["moos-theme", "nova"], calls)
         self.assertIn(["flatpak", "run", "org.mozilla.firefox"], calls)
-        missing = self.control("open", "org.example.NotInstalled")
+        missing = self.control("open", "org.example.NotInstalled", WAYLAND_DISPLAY=DISPLAY_NAME)
         self.assertEqual(missing.returncode, 69)
 
     def test_settings_opens_only_the_pages_mo_ai_offers(self):
-        result = self.control("settings", "night-light")
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn(["moos-open", "moos://settings/night-light"], self.machine.calls(settle=1.0))
+        """Each page opens with the registry's own command — the one moos-open's arm runs."""
+        for page, argv in (("night-light", ["systemsettings", "kcm_nightlight"]),
+                           ("update", ["moos-settings", "--section=update"]),
+                           ("storage", ["kinfocenter", "kcm_block_devices"])):
+            with self.subTest(page=page):
+                self.machine.log.write_text("")
+                result = self.control("settings", page, WAYLAND_DISPLAY=DISPLAY_NAME)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn(argv, self.machine.calls(settle=0.5))
         self.machine.log.write_text("")
         for page in ("kcm/../x", "reboot", "Display", "display;reboot", "full"):
             with self.subTest(page=page):
-                self.assertEqual(self.control("settings", page).returncode, 2)
-        self.assertEqual([call for call in self.machine.calls(settle=0.5) if call[0] == "moos-open"], [])
+                self.assertEqual(self.control("settings", page,
+                                              WAYLAND_DISPLAY=DISPLAY_NAME).returncode, 2)
+        opened = [call for call in self.machine.calls(settle=0.5)
+                  if call[0] in ("moos-open", "systemsettings", "moos-settings", "kinfocenter")]
+        self.assertEqual(opened, [])
+
+    def test_windows_fail_loudly_without_a_desktop_session(self):
+        """Neither WAYLAND_DISPLAY nor DISPLAY: nothing is started and the verb says no.
+
+        Mo AI's tool runner once started before the session and had neither variable; the
+        page, the app and the screenshot each died looking for a display while the detached
+        start printed "Opening…" (measured on the station, 2026-09-24).
+        """
+        for args in (("settings", "display"), ("open", "org.mozilla.firefox"), ("screenshot",)):
+            with self.subTest(args=args):
+                self.machine.log.write_text("")
+                result = self.control(*args)
+                self.assertEqual(result.returncode, 69, (result.stdout, result.stderr))
+                self.assertIn("no desktop session", result.stderr)
+                self.assertEqual(result.stdout, "", "a refusal must not also claim success")
+                started = [call for call in self.machine.calls(settle=0.3)
+                           if call[0] in ("systemsettings", "spectacle", "gtk-launch", "logger")
+                           or call[:2] == ["flatpak", "run"]]
+                self.assertEqual(started, [], "a window was started with no desktop to show it")
+        # An X11-only session (DISPLAY without WAYLAND_DISPLAY) is still a desktop session.
+        self.assertEqual(self.control("settings", "display", DISPLAY=":0").returncode, 0)
+
+    def test_a_window_that_dies_at_once_is_a_failure_not_a_success(self):
+        page = self.control("settings", "display", WAYLAND_DISPLAY=DISPLAY_NAME,
+                            STUB_PAGE_EXIT="1")
+        self.assertEqual(page.returncode, 69, page.stderr)
+        self.assertIn("stopped at once", page.stderr)
+        self.assertEqual(page.stdout, "")
+        app = self.control("open", "org.mozilla.firefox", WAYLAND_DISPLAY=DISPLAY_NAME,
+                           STUB_APP_EXIT="1")
+        self.assertEqual(app.returncode, 69, app.stderr)
+        self.assertIn("stopped at once", app.stderr)
+        # A window that is still open after the settle window has opened: answered at once,
+        # without waiting for the person to close it.
+        began = time.monotonic()
+        stays = self.control("settings", "display", WAYLAND_DISPLAY=DISPLAY_NAME,
+                             STUB_PAGE_STAYS="4")
+        self.assertEqual(stays.returncode, 0, stays.stderr)
+        self.assertLess(time.monotonic() - began, 3.5, "moos-control waited for the window")
 
     def test_missing_tool_is_reported_as_unavailable(self):
         bare = StubMachine(omit=("wpctl",))

@@ -3,6 +3,15 @@
 # Enabled by default for every user (build.sh: systemctl --global enable).
 [Unit]
 Description=Mo AI control API (in-app settings backend)
+# Ordering only. This unit is started by default.target (see [Install]), which a desktop
+# login reaches BEFORE graphical-session.target (measured on 2026-09-24: this service at
+# 20:57:16, the session target at 20:57:20), so its own environment never holds
+# WAYLAND_DISPLAY or DISPLAY. It must not be bound to the session instead: it serves the
+# phone bridges and the ARM and cloud editions with or without anyone at a screen, and a
+# session stop would kill a confirmed job in the middle. Its tool runner therefore hands
+# every tool the session's CURRENT variables from the user manager (moai-control
+# _tool_environment), and moos-control refuses a window it has no display for.
+# tests/test_moai_control.py SessionEnvironmentTests holds both halves.
 After=graphical-session.target
 # A port clash or syntax regression must become a visible failed unit, not a tiny but
 # permanent five-second fork loop. Six attempts still give transient session startup

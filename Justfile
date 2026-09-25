@@ -47,6 +47,9 @@ check:
     python3 tests/test_device_plan.py
     python3 tests/test_moai_do.py
     python3 tests/test_moos_control.py
+    # The audit journals are the owner's: every suite that names an auditing tool is RUN with
+    # the real logger replaced by a trap, and one write fails the gate.
+    python3 tests/test_tests_stay_out_of_the_journal.py
     # SPEC D3: ONE list of settings pages; moos-open's literal arms equal it both ways, every
     # reader offers exactly it, and a broken list offers nothing.
     python3 tests/test_settings_destinations.py
