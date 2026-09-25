@@ -61,7 +61,9 @@ QML_RUNTIME = next(
 # A file is listed here once it is expected to fall completely still.
 GATED_SURFACES = (
     SHARE / "plasma/look-and-feel/org.moos.ui2/contents/splash/Splash.qml",
-    SHARE / "plasma/plasmoids/org.moos.heroclock/contents/ui/main.qml",
+    # The Hero Clock owned three endless loops and was listed here until THEME_REV 86 retired
+    # it; the Island is the resident shell surface that took its place in this list.
+    SHARE / "plasma/plasmoids/org.moos.island/contents/ui/main.qml",
     SHARE / "plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/main.qml",
     ROOT / "system_files/usr/lib64/qt6/qml/org/kde/breeze/components/ActionButton.qml",
     ROOT / "system_files/usr/lib64/qt6/qml/org/kde/breeze/components/UserDelegate.qml",
@@ -218,6 +220,8 @@ Item { Component.onCompleted: Qt.exit(Math.min(255, Kirigami.Units.longDuration)
     def test_every_gated_surface_uses_the_correct_comparison(self) -> None:
         """Cheap companion to the runtime proof: no shipped motion gate may carry
         the `> 0` form. Kept here next to the measurement that explains why."""
+        self.assertFalse((SHARE / "plasma/plasmoids/org.moos.heroclock").exists(),
+                         "the retired Hero Clock (three endless loops) must not ship again")
         for surface in GATED_SURFACES:
             with self.subTest(surface=surface.relative_to(ROOT).as_posix()):
                 self.assertTrue(surface.is_file(), f"{surface} is missing")

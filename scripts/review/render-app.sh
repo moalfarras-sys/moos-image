@@ -15,11 +15,17 @@ APP="$1"; OUT="$(realpath -m "$2")"; shift 2
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SCHEME=MoOSUI2Aurora
 HARNESS="$ROOT/scripts/review/render-app.qml"
+LOCALE=""
 PASS=()
 for arg in "$@"; do
     case "$arg" in
         --scheme=*) SCHEME="${arg#--scheme=}" ;;
         --harness=*) HARNESS="$(realpath "${arg#--harness=}")" ;;
+        # MoOS apps follow the session locale (org.moos.ui Locale reads Qt.locale()), so --lang
+        # sets the locale itself; the harness also passes it to an app's review direction knob.
+        --lang=ar) LOCALE=ar_SA.UTF-8; PASS+=("$arg") ;;
+        --lang=en) LOCALE=en_US.UTF-8; PASS+=("$arg") ;;
+        --lang=*) echo "render-app: --lang takes ar or en" >&2; exit 2 ;;
         *) PASS+=("$arg") ;;
     esac
 done
@@ -40,6 +46,9 @@ case "$SCHEME" in *Light|*Daylight) ICONS=MoOSUI2AuroraLight ;; *) ICONS=MoOSUI2
   printf '\n[Icons]\nTheme=%s\n' "$ICONS"; } \
     | sed -E "s/^ColorScheme=.*/ColorScheme=$SCHEME/" > "$XDG_CONFIG_HOME/kdeglobals"
 unset WAYLAND_DISPLAY DBUS_SESSION_BUS_ADDRESS DISPLAY
+# LC_ALL outranks LANG in Qt's system locale, so both are set: a caller's LC_ALL=en_US would
+# otherwise turn the Arabic frame back into an English one without a word.
+[ -n "$LOCALE" ] && export LANG="$LOCALE" LC_ALL="$LOCALE" LANGUAGE="${LOCALE%%_*}"
 export QT_QPA_PLATFORMTHEME=kde XDG_CURRENT_DESKTOP=KDE KDE_SESSION_VERSION=6 KDE_FULL_SESSION=true
 export QML_IMPORT_PATH="$ROOT/system_files/usr/lib64/qt6/qml" QML_DISABLE_DISK_CACHE=1
 export QML_XHR_ALLOW_FILE_READ=1 QT_QUICK_CONTROLS_STYLE=org.kde.desktop LIBGL_ALWAYS_SOFTWARE=1

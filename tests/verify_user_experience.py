@@ -169,12 +169,21 @@ require("MO_REMOTE_ACQUIRE_ATTEMPTS" in code(remote_start)
         "logind/polkit call must fall through to the agent")
 
 remote_desktop = read("system_files/usr/share/applications/org.moos.remote.desktop")
-require("Exec=moos-settings --section=remote" in remote_desktop
-        and "NoDisplay=true" in remote_desktop
+# The dock pin opens the Mo PC Remote app, whose window app id is the entry's own name, so pin
+# and window are one icon; its switches live in System Settings → MoOS → Mo PC Remote, and that
+# page still reaches the app for pairing.
+require(re.search(r"(?m)^Exec=mo-pc-remote$", remote_desktop)
+        and re.search(r"(?m)^StartupWMClass=org\.moos\.remote$", remote_desktop)
+        and re.search(r"(?m)^NoDisplay=true$", remote_desktop)
         and re.search(r"(?m)^    app/remote\)\s+gui mo-pc-remote\s*;;",
-                      code(read("system_files/usr/bin/moos-open"))),
-        "Mo PC Remote's compatibility launcher must deep-link to the one Settings front "
-        "door, and that page must still reach its native transaction sheet")
+                      code(read("system_files/usr/bin/moos-open")))
+        and 'root.open("moos://app/remote")'
+            in read("moos-settings-kcm/modules/remote/ui/main.qml"),
+        "Mo PC Remote's pin must open the app itself as one dock icon, and the Remote "
+        "module of System Settings must still reach the app")
+require('application_id="org.moos.remote"' in read("system_files/usr/bin/mo-pc-remote"),
+        "Mo PC Remote's window app id must match org.moos.remote.desktop, or the pin and "
+        "the window are two dock icons")
 require("Icon=moos-pc-remote" in remote_desktop,
         "Mo PC Remote must use its first-party MoOS icon, not the retired vendored name")
 require("xdg-open" not in remote_desktop and "http://" not in remote_desktop,
@@ -263,14 +272,26 @@ require(gtk_runtime_test in read("Justfile") and gtk_runtime_test in _ci_gate_li
 # Each assertion reads the CODE, never the prose — the comment above names
 # "mo-remote-personal.service" on purpose, so a gate that matched the string
 # would pass green while the route that opens it had been deleted.
+# SPEC D5: the switches are System Settings → MoOS → Mo PC Remote (kcm_moos_remote). Mo AI's
+# Remote rail panel is gone; its Device panel links to that page. The buttons are still the
+# chain's first link, so they are gated where they are now.
+remote_page = code(read("moos-settings-kcm/modules/remote/ui/main.qml"), "slash")
 moai_remote_qml = code(read("system_files/usr/share/moos/apps/moai/main.qml"), "slash")
 router_remote = code(read("system_files/usr/bin/moos-open"))
 do_remote = code(read("system_files/usr/bin/moai-do"))
-for route in ("remote/start", "remote/stop", "remote/restart", "app/remote",
-              "do/remote-anywhere"):
-    require('moos://%s"' % route in moai_remote_qml,
-            "Mo AI must offer the %s action (it is how the owner reaches this "
-            "machine remotely)" % route)
+for route in ("remote/start", "remote/stop", "remote/restart", "app/remote"):
+    require('"moos://%s"' % route in remote_page,
+            "the Mo PC Remote page of System Settings must offer the %s action (it is how "
+            "the owner reaches this machine remotely)" % route)
+# Reaching this machine from outside the home network (Tailscale serve) is one button in Mo AI's
+# Device panel, beside the link to the Remote page; the chat can run it as a confirmed tool too.
+for route in ("do/remote-anywhere", "settings/remote"):
+    require('"moos://%s"' % route in moai_remote_qml,
+            "Mo AI must offer %s — the remote-from-anywhere setup and the way to Mo PC "
+            "Remote's switches" % route)
+require("id: remoteCol" not in moai_remote_qml and '"remote/start"' not in moai_remote_qml
+        and 'moos://remote/start"' not in moai_remote_qml,
+        "Mo AI grew a second Remote switchboard; the switches are one System Settings page")
 require('remote/start)' in router_remote and 'remote/stop)' in router_remote \
         and 'remote/restart)' in router_remote,
         "moos-open must route remote/start|stop|restart to the MoPC backend")
@@ -865,26 +886,33 @@ if _handler:
 # com.system76.Cosmic* D-Bus watchers that do not exist here and dies in its wgpu video
 # renderer. The webcam and libcamera were fine; the app was wrong for the desktop.
 #
-# Gate the RECOMMENDED-apps list, not the whole file: the prompt is allowed to NAME the
-# bad id as one to avoid (that is the opposite of recommending it), but the one-click
-# app catalogue must offer Kamoso and must never offer the COSMIC camera.
-appcatalog_match = re.search(r"property var appCatalog:\s*\[(.*?)\]", moai_qml, re.DOTALL)
-require(appcatalog_match is not None, "Mo AI must expose an appCatalog of recommended apps")
-appcatalog = appcatalog_match.group(1) if appcatalog_match else ""
-require("org.gnome.Snapshot" in appcatalog,
-        "Mo AI's recommended apps must offer a camera that actually runs here — Snapshot "
-        "reaches the webcam through the XDG camera portal, verified live on this machine")
-require("cosmic_utils.camera" not in appcatalog,
-        "Mo AI must not OFFER io.github.cosmic_utils.camera as a recommended app — it is a "
-        "COSMIC-desktop app and panics on KDE Plasma")
-# And not Kamoso either, which is the harder lesson. It IS KDE-native, it WAS in this
-# catalogue, and this gate used to demand it — because "KDE-native" was mistaken for
+# Mo AI no longer carries a one-click app catalogue of its own: Mo Store is the one store
+# (SPEC D5), and Mo AI installs what the owner asks for through its chat tool. So the promise is
+# gated where Mo AI still makes it. No one-tap install in the window may name either broken
+# camera, and the prompt that picks an id for "install a camera" must pick Snapshot and name
+# both as ones to avoid (naming the bad id to avoid is the opposite of recommending it).
+require("property var appCatalog" not in moai_qml and 'controlApi + "/search' not in moai_qml,
+        "Mo AI grew a second app catalogue or app search; apps are Mo Store's")
+require('root.launch("moos://app/store"' in moai_qml,
+        "Mo AI must hand app browsing to Mo Store")
+for _broken in ("io.github.cosmic_utils.camera", "org.kde.kamoso"):
+    require(f"moos://apps/install/{_broken}" not in moai_qml
+            and not re.search(r'id:\s*"' + re.escape(_broken) + '"', moai_qml),
+            f"Mo AI must not offer {_broken} as a one-tap install")
+require("For a CAMERA use `org.gnome.Snapshot`" in moai_qml,
+        "Mo AI's prompt must pick a camera that actually runs here — Snapshot reaches the "
+        "webcam through the XDG camera portal, verified live on this machine")
+require("NEVER `io.github.cosmic_utils" in moai_qml,
+        "Mo AI's prompt must steer away from io.github.cosmic_utils.camera — a COSMIC-desktop "
+        "app that panics here")
+# And not Kamoso either, which is the harder lesson. It IS native to this desktop, it WAS in
+# the old catalogue, and this gate used to demand it — because "native" was mistaken for
 # "works". It opens and then segfaults inside GStreamer's camerabin after 15-45 seconds
 # (reproduced twice on 2026-07-13, with 6.5 GB free on the GPU, while gst-launch grabbed a
 # clean frame from the same webcam). A recommendation the OS makes is a promise; gate on
 # the promise, not on the toolkit.
-require("org.kde.kamoso" not in appcatalog,
-        "Mo AI must not offer Kamoso: KDE-native or not, it segfaults in GStreamer seconds "
+require("NOT `org.kde.kamoso`" in moai_qml,
+        "Mo AI must not offer Kamoso: native or not, it segfaults in GStreamer seconds "
         "after launch on this hardware — 'it opened once' is not verification")
 
 # The old centres must keep opening — as commands, into their panel in Mo AI.
@@ -1163,15 +1191,20 @@ require("not an installed local model" in control,
 require("the active brain" in control,
         "moai-control /delete must refuse deleting the model the brain is currently serving")
 moai_qml = read("system_files/usr/share/moos/apps/moai/main.qml")
-# …and Settings must actually offer download / use / delete on each local model —
-# a backend endpoint the UI never calls is a feature the user never gets.
-require("root.cfgSetDefaultBrain(modelData)" in moai_qml
-        and 'mode: "cloud", cloud:' in moai_qml,
+# …and Settings must actually offer the default model — a backend endpoint the UI never calls
+# is a feature the user never gets. Mo AI's settings are the Mo AI page of System Settings
+# (kcm_moos_ai): it saves the default through the config authority, on the saved provider.
+moai_settings_page = code(read("moos-settings-kcm/modules/ai/ui/main.qml"), "slash")
+require("root.saveDefaultModel(root.cloudModels[index])" in moai_settings_page
+        and 'body: { mode: "cloud", cloud: { provider: entry.id' in moai_settings_page
+        and 'moai.request(true, "POST", "/api/config", request.body' in moai_settings_page,
         "the cloud model picker must save a real cloud model through the config authority")
 require('controlApi + "/delete"' in moai_qml,
         "Mo AI's deleteModel must POST to moai-control's /delete")
-require("النماذج السحابية" in moai_qml and "model: root.cloudModels" in moai_qml
-        and "Download in one tap" not in moai_qml,
+require('"النماذج السحابية"' in moai_settings_page
+        and 'moai.request(false, "GET", "/models"' in moai_settings_page
+        and "model: root.cloudModels" in moai_qml
+        and "Download in one tap" not in moai_qml + moai_settings_page,
         "Mo AI Settings must show cloud models without local-download promises")
 # Mo AI reasons about the system and offers SAFE repairs: a READ-ONLY /diagnose
 # that runs moos-selfcheck, and a Settings panel that shows health + one-tap fixes,
@@ -1221,7 +1254,11 @@ require(_qml_repairs and _control_repairs and set(_qml_repairs) == set(_control_
         f"only in the backend {sorted(set(_control_repairs) - set(_qml_repairs))}. "
         "Running a diagnosis swaps one list for the other, so anything missing from either "
         "appears or disappears under the user.")
-require("recommended" in moai_qml and "hit.note" in moai_qml,
+# Mo AI's own Flathub search left with its Apps panel (SPEC D5: Mo Store is the one store). A
+# search that returns to this window must bring the pick and the warning (recommended / note)
+# with it: ranking hits in the backend and not showing them changes nothing for the user.
+require('controlApi + "/search' not in moai_qml
+        or ("recommended" in moai_qml and "hit.note" in moai_qml),
         "Mo AI must render the pick and the warning (recommended / note) on each search hit — "
         "ranking them in the backend and not showing them changes nothing for the user")
 
@@ -1918,27 +1955,190 @@ require("def local_failure_reason" in gateway and "FAILURE_SIGNS" in gateway,
         "(GPU memory, disk, network) — one generic 'still downloading' message for every "
         "failure is how a dead brain looks like a slow one")
 
-for qml_path in sorted((ROOT / "system_files/usr/share/moos/apps").glob("*/main.qml")):
-    qml_text = qml_path.read_text(encoding="utf-8")
-    for url in sorted(set(re.findall(r'moos://([a-z0-9/._-]+)', qml_text))):
-        # A URL the app builds at runtime ("moos://do/" + action) shows up here as
-        # the bare prefix "do/". It is not a route; the values substituted into it
-        # are checked below, against the allowlist the app actually draws from.
-        if url.endswith("/"):
-            continue
-        require(route_is_covered(url, declared_routes),
-                f"{qml_path.parent.name} opens moos://{url}, "
-                f"which moos-open has no case for — that button does nothing")
+# ── Every EMITTER of a moos:// URL, not only the apps' main.qml ──────────────
+# The first version of this check read system_files/usr/share/moos/apps/*/main.qml and
+# nothing else. The plasmoids, the System Settings module, the widget explorer, the health
+# scan, What's new, moos-control and the search runner all open moos:// URLs too, and none of
+# them was checked. Now every QML/JS under system_files and moos-settings-kcm, and every
+# script literal, is read (comment lines excluded: prose is not a button).
+_EMITTER_SUFFIXES = {".qml", ".js", ".py", ".json", ".desktop", ".sh", ".cpp", ".h", ""}
+# Nothing launches the retired QML Command Center (no program, unit, desktop entry or build
+# step names it), so the URLs inside it reach no one; slice A deletes it (SPEC D5). While it
+# ships it is excluded here ONLY while that stays true — the moment anything launches it
+# again, it is scanned like everything else.
+_RETIRED_COMMAND_CENTER = ROOT / "system_files/usr/share/moos/apps/settings/main.qml"
 
-# The Run chips are built from the actions Mo AI parses out of a model reply, so
-# their URLs never appear as literals. Check the allowlist that feeds them.
-runs = re.search(r"const re = /moai-do\\s\+\(([a-z|-]+)\)", moai_qml)
-require(runs is not None, "Mo AI must match suggested actions against a fixed allowlist")
-if runs:
-    for action in runs.group(1).split("|"):
-        require(route_is_covered(f"do/{action}", declared_routes),
-                f"Mo AI can offer to run `moai-do {action}`, "
-                f"but moos-open has no do/{action} route")
+
+def _launches_retired_command_center() -> bool:
+    needles = ("apps/settings/main.qml", "moos/apps/settings\"", "moos/apps/settings/")
+    for base in (ROOT / "system_files", ROOT / "build_files", ROOT / "moos-settings-kcm"):
+        for path in base.rglob("*"):
+            if not path.is_file() or path == _RETIRED_COMMAND_CENTER:
+                continue
+            try:
+                text = path.read_text(encoding="utf-8")
+            except (UnicodeDecodeError, OSError):
+                continue
+            if any(needle in text for needle in needles):
+                return True
+    for containerfile in ROOT.glob("Containerfile*"):
+        if "apps/settings" in containerfile.read_text(encoding="utf-8"):
+            return True
+    return False
+
+
+_skip_retired = _RETIRED_COMMAND_CENTER.exists() and not _launches_retired_command_center()
+
+
+def _emitter_sources():
+    router_path = ROOT / "system_files/usr/bin/moos-open"
+    for base in (ROOT / "system_files", ROOT / "moos-settings-kcm"):
+        for path in sorted(base.rglob("*")):
+            if not path.is_file() or path == router_path or path.suffix not in _EMITTER_SUFFIXES:
+                continue
+            if _skip_retired and path == _RETIRED_COMMAND_CENTER:
+                continue
+            try:
+                text = path.read_text(encoding="utf-8")
+            except (UnicodeDecodeError, OSError):
+                continue
+            if "moos://" not in text and path.name not in ("moai-krunner", "moai-control") \
+                    and "moai-do" not in text:
+                continue
+            code_lines = [line for line in text.splitlines()
+                          if not line.lstrip().startswith(("#", "//", "* ", "/*"))]
+            yield path, "\n".join(code_lines)
+
+
+# A settings page's button is exactly as dead as an app's when its route has no case, so
+# the scan must really reach MoOS's pages inside System Settings (moos-settings-kcm).
+require(any("moos-settings-kcm" in _p.as_posix() for _p, _c in _emitter_sources()),
+        "the route cross-check found no MoOS settings module to scan")
+
+_emitted: dict[str, list[str]] = {}          # route -> where it is emitted
+_emitted_prefixes: dict[str, list[str]] = {}  # "apps/install/" -> where it is built
+for _path, _code in _emitter_sources():
+    _where = _path.relative_to(ROOT).as_posix()
+    for _url in set(re.findall(r"moos://([a-z0-9/._-]*)", _code)):
+        if not _url or _url.endswith("/"):
+            # A URL built at runtime ("moos://do/" + action) is a PREFIX, not a route: the
+            # values put after it are checked below against the allowlist they come from.
+            if _url:
+                _emitted_prefixes.setdefault(_url, []).append(_where)
+            continue
+        _emitted.setdefault(_url, []).append(_where)
+        # Forward: a URL something opens must have a case.
+        require(route_is_covered(_url, declared_routes),
+                f"{_where} opens moos://{_url}, which moos-open has no case for — that "
+                f"button does nothing")
+
+# The Run chips are built from the actions Mo AI parses out of a model reply, so their URLs
+# never appear as literals. Check the allowlist that feeds them, in every QML that has one.
+_run_lists = 0
+for _path, _code in _emitter_sources():
+    for _alternation in re.findall(r"moai-do\\s\+\(([a-z0-9|_-]+)\)", _code):
+        _run_lists += 1
+        for action in _alternation.split("|"):
+            require(route_is_covered(f"do/{action}", declared_routes),
+                    f"{_path.name} can offer to run `moai-do {action}`, "
+                    f"but moos-open has no do/{action} route")
+            _emitted.setdefault(f"do/{action}", []).append(f"{_path.name} run chips")
+require(_run_lists >= 1, "Mo AI must match suggested actions against a fixed allowlist")
+
+# Mo AI's Diagnose panel opens moos://do/<id> for the fixed repairs moai-control lists.
+for _repair in re.findall(r'\{"id": "([a-z-]+)",\s+"label": "[^"]*",\s+"read":',
+                          read("system_files/usr/bin/moai-control")):
+    require(route_is_covered(f"do/{_repair}", declared_routes),
+            f"moai-control offers the repair {_repair}, but moos-open has no do/{_repair} route")
+    _emitted.setdefault(f"do/{_repair}", []).append("moai-control diagnose repairs")
+
+# Mo AI's control chips: `moos-control <verb> <value>` in a reply becomes a moos:// route
+# (controlUrl). Every shape the grammar accepts must have a case, and each is an emitter.
+_ctl = re.search(r"const ctl = /moos-control\\s\+\((.*)\)\\b/g", moai_qml)
+require(_ctl is not None, "Mo AI's control grammar moved; this gate must read it")
+if _ctl:
+    _depth, _part, _alternatives = 0, "", []
+    for _char in _ctl.group(1):
+        if _char == "(":
+            _depth += 1
+        elif _char == ")":
+            _depth -= 1
+        if _char == "|" and _depth == 0:
+            _alternatives.append(_part)
+            _part = ""
+        else:
+            _part += _char
+    _alternatives.append(_part)
+    for _alternative in _alternatives:
+        _shape = re.fullmatch(r"([a-z-]+)(?:\\s\+\(\?:(.*)\)|\\s\+.*)?", _alternative)
+        require(_shape is not None, f"unreadable control grammar alternative {_alternative!r}")
+        if not _shape:
+            continue
+        _verb, _values = _shape.group(1), _shape.group(2)
+        _base = {"theme": "theme", "open": "apps/run", "settings": "settings"}.get(
+            _verb, f"control/{_verb}")
+        if _values is None:
+            _routes = [_base if _verb not in ("open",) else "apps/run/org.example.App"]
+        else:
+            _routes = [f"{_base}/{_value}" if re.fullmatch(r"[a-z-]+", _value)
+                       else f"{_base}/40" for _value in _values.split("|")]
+        for _route in _routes:
+            require(route_is_covered(_route, declared_routes),
+                    f"Mo AI turns `moos-control {_verb}` into moos://{_route}, which moos-open "
+                    f"has no case for")
+            _emitted.setdefault(_route, []).append("Mo AI control chips")
+
+# The search runner opens moos://<route> for the fixed routes its rules build; each is
+# written out whole in its source (numeric volume/brightness values and the registry's
+# settings pages are built, and are covered by their wildcard arm / by moos-control below).
+for _route in set(re.findall(r'"((?:control|theme|settings)/[a-z0-9/-]*[a-z0-9])"',
+                             code(read("system_files/usr/libexec/moai-krunner")))):
+    require(route_is_covered(_route, declared_routes),
+            f"the search runner opens moos://{_route}, which moos-open has no case for")
+    _emitted.setdefault(_route, []).append("moai-krunner")
+
+# moos-control's settings verb opens moos://settings/<page> for the pages it offers, i.e. the
+# registry's Mo AI tokens (tests/test_settings_destinations.py holds the arms to the registry).
+import runpy as _runpy
+for _page in _runpy.run_path(str(ROOT / "system_files/usr/bin/moos-control"),
+                             run_name="moos_control_routes")["SETTINGS_PAGES"]:
+    _emitted.setdefault(f"settings/{_page}", []).append("moos-control settings")
+
+# ── …and the reverse: a case nothing opens is attack surface, not a feature ──
+# moos: is a PUBLIC scheme — any web page can hand this router a URL — so a route no MoOS
+# surface opens only widens what a drive-by link can reach. Every declared case must have an
+# emitter, or name here why it stays. (Removed on 2026-09-24 for having none: app/moplayer,
+# app/setup, app/compat, app/hardware, app/welcome, search/, search/*, session/lock,
+# do/support-bundle and the Command-Center-only settings pages.)
+ROUTES_KEPT_WITHOUT_AN_EMITTER = {
+    "session/logout": "the logout path the confirm gate and test_moos_open_qdbus.py pin; "
+                      "it asks before acting",
+    "session/power": "the shutdown path the confirm gate and test_moos_open_qdbus.py pin; "
+                     "it asks before acting",
+    "lang/ar": "the Welcome builds moos://lang/<code> from its two-language list "
+               "(the device/language block above pins both ends)",
+    "lang/en": "the Welcome builds moos://lang/<code> from its two-language list",
+}
+for _label in sorted(declared_routes):
+    if _label.endswith("*"):
+        _prefix = _label[:-1]
+        _covered = _prefix in _emitted_prefixes or any(
+            _url.startswith(_prefix) for _url in _emitted)
+    else:
+        _covered = _label in _emitted
+    require(_covered or _label in ROUTES_KEPT_WITHOUT_AN_EMITTER,
+            f"moos-open declares {_label}, but nothing in MoOS opens it — remove the case, or "
+            f"name the reason it stays in ROUTES_KEPT_WITHOUT_AN_EMITTER")
+for _label, _reason in ROUTES_KEPT_WITHOUT_AN_EMITTER.items():
+    require(_label in declared_routes and _reason.strip(),
+            f"ROUTES_KEPT_WITHOUT_AN_EMITTER names {_label}, which moos-open does not declare")
+    # An entry is a reason a route has NO emitter. Once something opens it the reason is spent,
+    # and an entry left behind would silently keep the route allowed after that emitter goes —
+    # the dead public route this list exists to prevent. Remove it when its emitter lands.
+    require(_label not in _emitted,
+            f"ROUTES_KEPT_WITHOUT_AN_EMITTER still names {_label}, which "
+            f"{', '.join(sorted(set(_emitted.get(_label, []))))} now opens — remove the entry, "
+            "or it would keep the route allowed after that emitter is gone")
 
 # ── The cloud brain ─────────────────────────────────────────────────────────
 gateway = read("system_files/usr/bin/moai-gateway")
@@ -1976,21 +2176,66 @@ require("moai-credential-store" in gateway,
         "the gateway must read the key from Mo AI's private XDG store, not config.json")
 
 # …and the other half of the same contract: every do/* route that moos-open hands
-# to moai-do must be an action moai-do actually implements. (Not every do/* route
-# goes there — do/smart-setup and do/setup-gaming are dispatched to moos-setup by
-# moos-open itself — so assert against the arm that really calls moai-do, rather
-# than assuming.)
+# to moai-do must be an action moai-do actually implements — in a terminal
+# (`term moai-do "$tgt"`) or confirmed in the background (`moai_do_detached <action>`).
+# Arms that open a page instead (do/hw-report, do/setup-brain) are not moai-do's.
 moai_do = read("system_files/usr/bin/moai-do")
 moai_do_arm = re.search(
     r"^\s{4}((?:do/[a-z-]+\|)*do/[a-z-]+)\)\s*\n\s*term moai-do",
     router, re.MULTILINE)
 require(moai_do_arm is not None,
-        "moos-open must dispatch its moai-do actions from a single case arm")
+        "moos-open must dispatch its terminal moai-do actions from a single case arm")
+_moai_do_dispatch = re.search(r'case "\$cmd" in(.*?)\n    esac', moai_do, re.S)
+require(_moai_do_dispatch is not None, "moai-do must dispatch on $cmd in a case block")
+_moai_do_actions = set()
+if _moai_do_dispatch:
+    for _labels in re.findall(r"^\s{8}([a-z][a-z|-]*)\)", _moai_do_dispatch.group(1), re.M):
+        _moai_do_actions.update(_labels.split("|"))
 if moai_do_arm:
     for label in moai_do_arm.group(1).split("|"):
         action = label.split("/", 1)[1]
-        require(f"{action})" in moai_do,
+        require(action in _moai_do_actions,
                 f"moos-open routes {label} to moai-do, which does not implement it")
+for _labels, _action in re.findall(
+        r"^\s{4}([a-z0-9/|-]+)\)\s*\n?[^;]*?moai_do_detached\s+([a-z-]+)", code(router), re.M):
+    for _label in _labels.split("|"):
+        require(_label == f"do/{_action}" and _action in _moai_do_actions,
+                f"moos-open's {_label} runs moai-do {_action} in the background, which is "
+                f"either not its own action or not one moai-do implements")
+# Updating the apps runs confirmed with no terminal, after ONE question. Firmware keeps
+# moai-do's own window: the offered updates are listed before its y/N, because flashing
+# cannot be rolled back and a pre-confirmed background run would flash them unseen.
+_arm = re.search(r"(?ms)^\s{4}do/update-apps\)(.*?);;", code(router))
+require(_arm is not None and "confirm " in _arm.group(1)
+        and "moai_do_detached update-apps" in _arm.group(1) and "term " not in _arm.group(1),
+        "moos://do/update-apps must ask once and then run moai-do update-apps confirmed with "
+        "no terminal")
+_arm = re.search(r"(?ms)^\s{4}do/update-firmware\)(.*?);;", code(router))
+require(_arm is not None and "term moai-do update-firmware" in _arm.group(1)
+        and "moai_do_detached" not in _arm.group(1),
+        "moos://do/update-firmware must show the offered updates before moai-do's own y/N, "
+        "never flash them from a one-question background run")
+require("MOAI_DO_CONFIRMED=1 moai-do" in code(router),
+        "the background moai-do runs must say they were confirmed (MOAI_DO_CONFIRMED=1)")
+# Any OTHER program that calls moai-do must name a real action. moos-privacy-stop called
+# `moai-do remote-stop` for weeks; it never existed and the failure was swallowed.
+for _script in sorted([*(ROOT / "system_files/usr/bin").iterdir(),
+                       *(ROOT / "system_files/usr/libexec").iterdir()]):
+    if _script.name == "moai-do" or not _script.is_file():
+        continue
+    try:
+        _text = _script.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        continue
+    if _text.startswith("#!") and "python" in _text.split("\n", 1)[0]:
+        _called = re.findall(r"[\"']moai-do[\"']\s*,\s*(?:[\"']--confirmed[\"']\s*,\s*)?"
+                             r"[\"']([a-z][a-z-]+)[\"']", code(_text))
+    else:
+        _called = re.findall(r"(?:^|[;&|(]|\bthen|\bdo|\belse)\s*(?:command\s+|exec\s+)?"
+                             r"moai-do\s+(?:--confirmed\s+)?([a-z][a-z-]+)", code(_text), re.M)
+    for _action in _called:
+        require(_action in _moai_do_actions,
+                f"{_script.name} runs `moai-do {_action}`, which moai-do does not implement")
 
 # Install must also RUN. "Install a camera" is only finished when the camera is on
 # screen, so do_install opens the app it just installed. Gate the CALL, not just the
@@ -2476,11 +2721,16 @@ require(not (ROOT / "system_files/usr/lib/systemd/user/moai-cloud.service").exis
         "moai-cloud.service was the opt-in cloud proxy; moai-gateway.service replaces it")
 require("moai-cloud" not in code(read("system_files/usr/bin/moai-config")),
         "moai-config must not still enable/disable the retired moai-cloud.service")
-_moai_config_tool = read("system_files/usr/bin/moai-config")
-require('"/api/config"' in _moai_config_tool
+# moai-config was a kdialog wizard over moai-agent-api: a second front end for the brain and its
+# key. Mo AI's settings are one System Settings page now (SPEC D1/D5), and the command only opens
+# it — it must never become another config writer or another key prompt again.
+_moai_config_tool = code(read("system_files/usr/bin/moai-config"))
+require("exec moos-settings --section=assistant" in _moai_config_tool
+        and "/api/config" not in _moai_config_tool
         and "config.json" not in _moai_config_tool
-        and "openclaw.json" not in _moai_config_tool,
-        "moai-config must be a client of moai-agent-api, never another config writer")
+        and "openclaw.json" not in _moai_config_tool
+        and "kdialog" not in _moai_config_tool,
+        "moai-config must only open the Mo AI page of System Settings, never write config itself")
 
 # ── Retired local-brain schedulers must not ship ──────────────────────────────
 #
@@ -2771,8 +3021,10 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=85" in apply_theme_code,
-        "MoOS visual schema must migrate existing users to the W5 island (Store jobs, "
+require("THEME_REV=86" in apply_theme_code,
+        "MoOS visual schema must migrate existing users to the Island that hosts Search itself "
+        "and shows Mo AI jobs, the retired Hero Clock/Search packages, and the KWin shadow "
+        "quarantine; before that, the W5 island (Store jobs, "
         "privacy chips) and inline search answers, the cardless centred "
         "Horizon Hub, responsive clock popup, authenticated Remote presence, "
         "single-owner launcher activation, the keyboard-navigable Launcher "
@@ -2925,10 +3177,44 @@ for runtime_check, check_name in (
 # same MoOS-owned cleanup list as the other first-party plasmoids.
 shadow_cleanup_start = apply_theme_code.find('user_share="${XDG_DATA_HOME:-$HOME/.local/share}"')
 shadow_cleanup = apply_theme_code[shadow_cleanup_start:]
-for shadowed_plasmoid in ("org.moos.brand", "org.moos.heroclock"):
+for shadowed_plasmoid in ("org.moos.brand", "org.moos.island", "org.moos.nova.clock"):
     require(f'"plasma/plasmoids/{shadowed_plasmoid}"' in shadow_cleanup,
             f"moos-apply-theme must remove a user-local {shadowed_plasmoid} copy that "
             "would otherwise shadow every future image update")
+# THEME_REV 86 deleted the Hero Clock (rejected by the owner, blocked in Add
+# Widgets, removed by moos-theme on every scene apply) and the standalone Search
+# applet (the Island hosts Search). A retired id must stay in the UNCONDITIONAL
+# sweep: the conditional list only fires while /usr/share still ships the
+# package, so a retired id there would never remove anything.
+# Anchored on the retired loop's first, never-shipped entry (comments are
+# stripped from apply_theme_code, so the prose header cannot be the anchor).
+_retired_at = shadow_cleanup.find('"plasma/plasmoids/org.moos.nova.deskclock"')
+_retired_sweep = shadow_cleanup[shadow_cleanup.rfind("for rel in", 0, _retired_at):]
+_retired_sweep, _, _after_retired = _retired_sweep.partition("; do")
+_conditional_sweep = _after_retired[_after_retired.find("for rel in"):]
+require(_retired_at >= 0 and "for rel in" in _retired_sweep and "for rel in" in _conditional_sweep,
+        "moos-apply-theme's retired and conditional home-copy sweeps must stay two distinct loops")
+for _retired_plasmoid in ("org.moos.heroclock", "org.moos.search"):
+    require(not (ROOT / "system_files/usr/share/plasma/plasmoids" / _retired_plasmoid).exists(),
+            f"{_retired_plasmoid} is retired and must not ship again")
+    require(f'"plasma/plasmoids/{_retired_plasmoid}"' in _retired_sweep
+            and f'"plasma/plasmoids/{_retired_plasmoid}"'
+                not in _conditional_sweep.partition("; do")[0],
+            f"moos-apply-theme must remove a home copy of retired {_retired_plasmoid} "
+            "unconditionally (the image copy it would be compared with is gone)")
+    require(f'"{_retired_plasmoid}"' in read(
+                "system_files/usr/share/plasma/shells/org.kde.plasma.desktop/contents/explorer/"
+                "WidgetExplorer.qml").split("function retired(plugin) {", 1)[1].split("\n    }", 1)[0],
+            f"Customize Desktop must keep {_retired_plasmoid} in its retired() list so a "
+            "stale catalogue row reads Unavailable and cannot be added")
+    # A generator that still writes into a retired package re-creates half of it the next
+    # time someone regenerates the artwork (review of rev 86: generate_login_scene.py still
+    # wrote the Hero Clock's sprites). The tree gates above would then go red far from the
+    # cause; this names the generator.
+    for _generator in sorted([*ROOT.glob("artwork/**/*.py"), *ROOT.glob("artwork/**/*.sh")]):
+        require(f"plasmoids/{_retired_plasmoid}" not in _generator.read_text(encoding="utf-8"),
+                f"{_generator.relative_to(ROOT)} still writes into the retired "
+                f"{_retired_plasmoid} package; drop that output")
 
 PALETTE_ICON_OVERLAYS = (
     "MoOSUI2Amethyst", "MoOSUI2AmethystLight",
@@ -3522,11 +3808,19 @@ require(brand_provides == {"org.moos.brand", "org.kde.plasma.launchermenu"},
         "org.moos.brand must advertise exactly its brand identity and Plasma's "
         "org.kde.plasma.launchermenu capability — Meta/launcher activation depends on it")
 
-for package in ("org.moos.nova.clock", "org.moos.brand", "org.moos.heroclock"):
+for package in ("org.moos.nova.clock", "org.moos.brand", "org.moos.island"):
     root = ROOT / "system_files/usr/share/plasma/plasmoids" / package
     require((root / "metadata.json").is_file() and
             (root / "contents/ui/main.qml").is_file(),
             f"missing complete Plasma package: {package}")
+# The shipped MoOS widget set is exactly the bar's three packages. The Hero Clock
+# and the standalone Search applet are retired (THEME_REV 86): a half-deleted
+# directory (a generator writing images/ into it) would come back as a broken
+# widget in Add Widgets.
+require(sorted(p.name for p in (ROOT / "system_files/usr/share/plasma/plasmoids").iterdir())
+        == ["org.moos.brand", "org.moos.island", "org.moos.nova.clock"],
+        "the shipped plasmoids must be exactly brand, island and nova.clock; "
+        "org.moos.heroclock and org.moos.search are retired")
 
 brand_main_qml = code(read(
     "system_files/usr/share/plasma/plasmoids/org.moos.brand/contents/ui/main.qml"
@@ -3750,7 +4044,7 @@ require("index hidden folders=false" in baloo_config,
 # plasmashell, forever), and its actions must stay user-session binaries —
 # a pkexec here would put a password prompt behind a panel click. code():
 # the header comment documents exactly these bans, so grep the code, not the prose.
-for always_on in ("org.moos.brand", "org.moos.heroclock"):
+for always_on in ("org.moos.brand", "org.moos.island", "org.moos.nova.clock"):
     applet_qml = code(read(f"system_files/usr/share/plasma/plasmoids/{always_on}/contents/ui/main.qml"),
                       style="slash")
     for banned in ("ShaderEffect", "MultiEffect", "Lottie", "pkexec", "sudo "):
@@ -4919,8 +5213,10 @@ require("QMetaObject::invokeMethod" in shell_src
         and '"activateRequested"' in shell_src
         and "QVariant::fromValue(arguments)" in shell_src,
         "a second launch must forward its argv into the running QML object; raising the "
-        "window alone leaves Mo AI panels and Command Center sections on stale state")
-for _qml_app in ("moai", "settings"):
+        "window alone leaves Mo AI panels on stale state")
+# MoOS's settings are System Settings modules; a second `systemsettings <module>` is handed to
+# the running window by systemsettings itself, so only Mo AI consumes argv here.
+for _qml_app in ("moai",):
     _qml_activation = code(read(
         f"system_files/usr/share/moos/apps/{_qml_app}/main.qml"), "slash")
     require("function activateRequested(" in _qml_activation,
@@ -6040,7 +6336,11 @@ require("readonly property real stableWidth:" in _island
         and "Layout.maximumWidth: stableWidth" in _island
         and "Behavior on implicitWidth" not in _island
         and 'Qt.openUrlExternally("moos://search/")' not in _island
-        and "MoSearch.SearchView" in _island
+        and "SearchView {" in _island
+        and "org.moos.search" not in _island
+        and (ROOT / "system_files/usr/share/plasma/plasmoids/org.moos.island/contents/ui/SearchView.qml").is_file()
+        and (ROOT / "system_files/usr/share/plasma/plasmoids/org.moos.island/contents/ui/SearchAnswers.js").is_file()
+        and not (ROOT / "system_files/usr/share/plasma/plasmoids/org.moos.search").exists()
         and "Milou.ResultsModel" in _island
         and "readonly property int searchSurfaceUnits: 24" in _island
         and "readonly property int searchBottomInset: root.design.targetComfortable" in _island

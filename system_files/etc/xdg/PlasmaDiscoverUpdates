@@ -1,0 +1,17 @@
+# MoOS: Discover is an engine here, never an updater.
+#
+# The base image ships this file with UseUnattendedUpdates=true, so Discover's
+# notifier installed updates on its own schedule beside MoOS's own authorities:
+# moos-image-update (the signed system image) and uupd (applications). Measured on
+# the station 2026-09-24: ~/.config/PlasmaDiscoverUpdates recorded
+# LastUnattendedTrigger at 16:02 UTC that day. Two schedulers touching the same
+# Flatpak installation is a race nobody sees until an update half-applies.
+#
+# The notifier's autostart entry is hidden as well
+# (/etc/xdg/autostart/org.kde.discover.notifier.desktop); this value is the second
+# lock, for any path that starts the notifier anyway. Read by the notifier's
+# UpdatesSettings (KConfigXT file PlasmaDiscoverUpdates, group Global).
+# Gated by build_files/curate_app_menu.sh and tests/test_moos_auto_update.py.
+[Global]
+UseUnattendedUpdates=false
+RequiredNotificationInterval=604800

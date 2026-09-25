@@ -31,11 +31,15 @@ IF YOU ARE AN AUTOMATED AGENT AND THIS GATE FAILED:
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import re
 import subprocess
 from pathlib import Path
 
+# The finished image. build.sh and build-arm.sh run this with no arguments, INSIDE the image,
+# so ROOT is "/". `--root DIR` exists only so tests/test_foreign_app_menus.py can prove on a
+# fixture tree that a sweep bites; it selects no subset of the checks — every one still runs.
 ROOT = Path("/")
 CANON = ROOT / "usr/share/pixmaps/moos-logo.png"   # the canonical MoOS mark
 
@@ -63,10 +67,19 @@ FOREIGN_LOGO_STEMS = (
 # byte-identical to the round emblem master — they are their own shape. They are
 # digest-pinned in verify_identity.py, so this sweep must skip them rather than
 # demand they equal the emblem.
-PINNED_ELSEWHERE = {
-    ROOT / "usr/share/pixmaps/fedora_logo_med.png",
-    ROOT / "usr/share/pixmaps/system-logo-white.png",
-}
+PINNED_ELSEWHERE_REL = (
+    "usr/share/pixmaps/fedora_logo_med.png",
+    "usr/share/pixmaps/system-logo-white.png",
+)
+PINNED_ELSEWHERE = {ROOT / rel for rel in PINNED_ELSEWHERE_REL}
+
+
+def set_root(path: str) -> None:
+    """Point every check at another tree (tests only; the build never passes --root)."""
+    global ROOT, CANON, PINNED_ELSEWHERE
+    ROOT = Path(path)
+    CANON = ROOT / "usr/share/pixmaps/moos-logo.png"
+    PINNED_ELSEWHERE = {ROOT / rel for rel in PINNED_ELSEWHERE_REL}
 
 
 def sweep_foreign_logos() -> None:
@@ -216,8 +229,10 @@ def check_unit_identity() -> None:
             continue
         if not foreign.search(path.name):
             continue
-        owner = subprocess.run(["rpm", "-qf", "--queryformat", "%{NAME}", str(path)],
-                               capture_output=True, text=True)
+        query = ["rpm", "-qf", "--queryformat", "%{NAME}", "/" + str(path.relative_to(ROOT))]
+        if ROOT != Path("/"):
+            query[1:1] = ["--root", str(ROOT)]
+        owner = subprocess.run(query, capture_output=True, text=True)
         if owner.returncode == 0 and owner.stdout.strip():
             continue  # a package owns the name; not ours to rename
         fail(f"an unowned systemd unit still carries another OS's name: {path.name} — "
@@ -263,13 +278,82 @@ def check_console_identity() -> None:
                  "logo in every terminal")
 
 
+# The words a launcher, the Settings sidebar or a menu folder shows. Every key a person reads,
+# in every language the file carries: a base update can add a translated Comment that names the
+# distribution even while the English one is clean.
+LAUNCHER_FOREIGN = re.compile(r"fedora|red ?hat|\brhel\b|kinoite|فيدورا", re.IGNORECASE)
+LAUNCHER_KEYS = re.compile(
+    r"^(Name|GenericName|Comment|Keywords|X-KDE-Keywords|X-GNOME-FullName)(\[[^\]]+\])?$")
+
+
+def desktop_groups(path: Path) -> dict[str, list[tuple[str, str]]]:
+    groups: dict[str, list[tuple[str, str]]] = {}
+    current = None
+    for raw in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("[") and line.endswith("]"):
+            current = groups.setdefault(line[1:-1], [])
+            continue
+        if current is not None and "=" in line:
+            key, value = line.split("=", 1)
+            current.append((key.strip(), value.strip()))
+    return groups
+
+
+def check_launcher_identity() -> None:
+    """Launcher text: the application menu, System Settings' sidebar and menu folders.
+
+    The named-surface gates check the entries MoOS knows it rewrites (build.sh's rebrands,
+    liveinst, Discover); nothing swept the rest. A base update that adds a visible entry whose
+    Name, Comment or Keywords names the distribution — in English or in any translation —
+    would reach the owner's menu and search with every gate green. Scope, deliberately:
+      * every .desktop under /usr/share/applications that the menu SHOWS (NoDisplay/Hidden
+        entries are MIME handlers and aliases no launcher lists), all of its groups — a
+        Desktop Action's name is on the jump list;
+      * every System Settings / KInfoCenter external module and category (sidebar text);
+      * every .directory (menu folder names).
+    Measured clean on the booted 44.20260924 image, hidden entries included.
+    """
+    surfaces: list[Path] = []
+    apps = ROOT / "usr/share/applications"
+    if apps.is_dir():
+        for path in sorted(apps.rglob("*.desktop")):
+            entry = dict(desktop_groups(path).get("Desktop Entry", []))
+            if (entry.get("NoDisplay", "").lower() == "true"
+                    or entry.get("Hidden", "").lower() == "true"):
+                continue
+            surfaces.append(path)
+    for pattern in ("usr/share/plasma/*/externalmodules/*.desktop",
+                    "usr/share/systemsettings/categories/*.desktop",
+                    "usr/share/desktop-directories/*.directory"):
+        surfaces += sorted(ROOT.glob(pattern))
+    for path in surfaces:
+        for group, pairs in desktop_groups(path).items():
+            for key, value in pairs:
+                if not LAUNCHER_KEYS.match(key):
+                    continue
+                match = LAUNCHER_FOREIGN.search(value)
+                if match:
+                    fail(f"launcher text names another OS ({match.group(0)!r}): "
+                         f"/{path.relative_to(ROOT)} [{group}] {key}={value[:80]!r} — the menu, "
+                         "search or the Settings sidebar would show it")
+
+
 def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--root", default="/",
+                        help="tree to sweep (default: /, the image being built)")
+    set_root(parser.parse_args().root)
+
     sweep_foreign_logos()
     check_os_release()
     check_foreign_packages()
     check_grub_distributor()
     check_unit_identity()
     check_console_identity()
+    check_launcher_identity()
 
     if failures:
         print("MoOS IDENTITY FIREWALL: the finished image would ship another OS's "

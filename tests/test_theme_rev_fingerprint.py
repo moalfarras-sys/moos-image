@@ -22,8 +22,8 @@ HOW IT WORKS
 
 `tests/theme-rev-fingerprint.json` records, for one THEME_REV, a digest of every shipped file a
 frozen-mtime cache can serve stale: QML/JS executed by plasmashell, KWin and the lock screen
-(plasmoids, wallpapers, look-and-feel, shells, layout templates, the shared org.moos.ui module)
-and the Plasma Style and Aurorae SVGs. First-party apps are not covered on purpose: their
+(plasmoids, wallpapers, look-and-feel, shells, layout templates, the shared org.moos.ui module,
+KWin's MoOS task switcher and scripts) and the Plasma Style and Aurorae SVGs. First-party apps are not covered on purpose: their
 launchers export QML_DISABLE_DISK_CACHE=1, so they never read a stale cache.
 
     bytes changed, THEME_REV unchanged  -> FAIL, and --record refuses. Bump the revision.
@@ -59,6 +59,11 @@ COVERED: tuple[tuple[str, int], ...] = (
     ("system_files/usr/share/plasma/desktoptheme", 1),
     ("system_files/usr/share/aurorae/themes", 1),
     ("system_files/usr/lib64/qt6/qml/org/moos", 1),
+    # KWin loads MoOS's task switcher (tabbox) and scripts from /usr/share/kwin and caches their
+    # QML/JS in ~/.cache/kwin/qmlcache, which moos-apply-theme purges only on a revision change.
+    # Uncovered until THEME_REV 86: a switcher edit without a bump would have been served stale.
+    ("system_files/usr/share/kwin/tabbox", 1),
+    ("system_files/usr/share/kwin/scripts", 1),
 )
 SUFFIXES = {".qml", ".js", ".mjs", ".svg", ".svgz"}
 

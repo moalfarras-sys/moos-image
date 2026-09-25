@@ -1241,6 +1241,36 @@ done
 exit 1
 '''
 
+# A page that opens INSIDE System Settings is proven by its own module, not by a window:
+# System Settings maps a window with an error page for a module that failed to load, and
+# moos-settings opens the stock page instead when a MoOS module is missing, so "a window
+# mapped" would pass both. The shared backend logs `MOOS_KCM_READY <module>` once the page
+# was really constructed (the image build's load gate requires the same line). Root reads it
+# by field: `journalctl --user-unit` also matches the CALLER's uid (0 here) and finds
+# nothing, and `journalctl --user` as moosci needs per-user journal files, which journald
+# keeps only on persistent storage — both measured in a systemd container, 2026-09-25.
+# Captured first, matched second (AGENTS.md: `| grep -q` under pipefail lies), and matched
+# as a whole line — Qt's journald form or its stderr form — so kcm_moos never passes on
+# kcm_moos_update's line.
+kcm_ready = r'''
+set -euo pipefail
+unit="$1"
+module="$2"
+case "$unit" in *.service) ;; *) unit="${unit}.service" ;; esac
+uid="$(id -u moosci)"
+log="$(journalctl -b --no-pager -o cat _SYSTEMD_USER_UNIT="$unit" _UID="$uid" 2>/dev/null || true)"
+while IFS= read -r line; do
+    case "$line" in
+        "MOOS_KCM_READY ${module}"|*": MOOS_KCM_READY ${module}")
+            printf '%s=ready\n' "$module"
+            exit 0
+            ;;
+    esac
+done <<<"$log"
+printf '%s did not report ready in %s\n' "$module" "$unit" >&2
+exit 1
+'''
+
 app_specs = (
     ("dolphin", "dolphin"),
     ("konsole", "konsole"),
@@ -1249,10 +1279,13 @@ app_specs = (
     ("mo-store", "moos-store"),
     ("updater", "moos-update"),
     ("recovery", "moos-rollback"),
+    # The retired theme window's launcher: it now opens MoOS Themes, the
+    # kcm_moos_appearance page of System Settings, and is held to that module below.
     ("themes", "moos-theme-picker"),
     ("moplayer", "moplayer"),
     ("mo-pc-remote", "mo-pc-remote"),
 )
+settings_modules = {"themes": "kcm_moos_appearance"}
 app_proof = []
 probe = evidence / "window-probe.ppm"
 
@@ -1304,6 +1337,9 @@ for label, executable in app_specs:
                        desktop_user=True)
     unit = parse_unit(first, label)
     wait_for_window(label, "open")
+    module = settings_modules.get(label)
+    if module:
+        gate_until(kcm_ready, [unit, module], 60, f"{label} opened a window but not {module}")
     capture(evidence / ("installed-app-" + label + ".ppm"))
     stop = threading.Event()
     thread = start_close_resends(stop, label, "open")
@@ -1317,6 +1353,9 @@ for label, executable in app_specs:
                         desktop_user=True)
     second_unit = parse_unit(second, label, previous=unit)
     wait_for_window(label, "reopen")
+    if module:
+        gate_until(kcm_ready, [second_unit, module], 60,
+                   f"reopened {label} opened a window but not {module}")
     if label == app_specs[-1][0]:
         capture(evidence / "installed-desktop-apps.ppm")
     stop = threading.Event()
@@ -1328,6 +1367,8 @@ for label, executable in app_specs:
         stop.set()
         thread.join()
     app_proof.append(f"{label}=opened-closed-reopened")
+    if module:
+        app_proof.append(f"{label}-module={module}")
 
 user_health = r'''
 set -euo pipefail

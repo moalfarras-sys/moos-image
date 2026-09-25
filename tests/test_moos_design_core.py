@@ -91,13 +91,22 @@ class DesignCoreTests(unittest.TestCase):
             "the application-local design-system copy returned",
         )
 
-        for app in ("welcome", "installer", "store", "moai", "settings"):
+        for app in ("welcome", "installer", "store", "moai"):
             source = (APPS / app / "main.qml").read_text(encoding="utf-8")
             with self.subTest(app=app):
                 self.assertIn("import org.moos.ui as MoUI", source)
                 self.assertIn("readonly property var design: MoUI.Tokens", source)
                 self.assertNotIn('import "../ui', source)
                 self.assertNotIn("MoOSUi.", source)
+        # MoOS's settings are System Settings modules; every page takes the same module.
+        pages = sorted((ROOT / "moos-settings-kcm/modules").glob("*/ui/main.qml"))
+        self.assertGreaterEqual(len(pages), 5)
+        for path in pages:
+            source = path.read_text(encoding="utf-8")
+            with self.subTest(settings_page=path.parent.parent.name):
+                self.assertIn("import org.moos.ui as MoUI", source)
+                self.assertIn("readonly property var design: MoUI.Tokens", source)
+                self.assertNotIn('import "../ui', source)
 
     def test_components_consume_tokens_not_private_identity_literals(self) -> None:
         for name in (
@@ -111,13 +120,14 @@ class DesignCoreTests(unittest.TestCase):
 
     def test_shell_surfaces_share_the_global_module(self) -> None:
         surfaces = (
-            SHARE / "moos/theme-picker/main.qml",
+            ROOT / "moos-settings-kcm/modules/appearance/ui/main.qml",
             SHARE / "plasma/plasmoids/org.moos.brand/contents/ui/main.qml",
             SHARE / "plasma/plasmoids/org.moos.brand/contents/ui/LauncherView.qml",
             SHARE / "plasma/plasmoids/org.moos.nova.clock/contents/ui/main.qml",
-            SHARE / "plasma/plasmoids/org.moos.heroclock/contents/ui/main.qml",
             SHARE / "plasma/plasmoids/org.moos.island/contents/ui/main.qml",
         )
+        # The Hero Clock was one of these surfaces until THEME_REV 86 retired it.
+        self.assertFalse((SHARE / "plasma/plasmoids/org.moos.heroclock").exists())
         for path in surfaces:
             source = path.read_text(encoding="utf-8")
             with self.subTest(surface=path.relative_to(ROOT)):
@@ -131,12 +141,20 @@ class DesignCoreTests(unittest.TestCase):
         self.assertIn("readonly property int radiusM: design.radiusControl", launcher)
         self.assertNotIn("readonly property int radiusM: 12", launcher)
 
-        command_center = (APPS / "settings/main.qml").read_text(encoding="utf-8")
-        self.assertGreaterEqual(command_center.count("MoUI.GlassSurface {"), 3)
-        self.assertIn("component StatusCapsule: MoUI.Surface", command_center)
-        self.assertIn("component MetricTile: MoUI.Surface", command_center)
-        self.assertIn("design.commandCenterWidth", command_center)
-        self.assertNotIn("width: Math.min(1360,", command_center)
+        # The MoOS face inside System Settings: the hero is one Liquid Glass sheet, its status
+        # chips are MoUI surfaces, and both size themselves from the tokens.
+        common = ROOT / "moos-settings-kcm/common"
+        hero = (common / "MoosHero.qml").read_text(encoding="utf-8")
+        chip = (common / "MoosChip.qml").read_text(encoding="utf-8")
+        self.assertRegex(hero, r"(?m)^MoUI\.GlassSurface \{")
+        self.assertRegex(chip, r"(?m)^MoUI\.Surface \{")
+        for source in (hero, chip):
+            self.assertIn("MoUI.Tokens.", source)
+            self.assertNotRegex(source, r"#[0-9A-Fa-f]{6,8}")
+            self.assertNotIn("width: Math.min(1360,", source)
+        overview = (ROOT / "moos-settings-kcm/modules/overview/ui/main.qml").read_text(encoding="utf-8")
+        self.assertIn("MoosHero {", overview)
+        self.assertGreaterEqual(overview.count("MoosChip {"), 3)
 
         session_surfaces = (
             ROOT / "artwork/tidal-portal/Splash.qml",

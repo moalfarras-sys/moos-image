@@ -323,7 +323,16 @@ set -uo pipefail
 #     leading-edge glint. Reduced Motion paints the final frame immediately and
 #     no timer or idle loop exists. Cached shared QML would otherwise keep the
 #     static edge after update.
-THEME_REV=85
+# 86: MoOS One inside KDE (shell slice). The Hero Clock and the standalone
+#     Search applet are deleted and live on only in the retired lists (the
+#     unconditional sweep below, Customize Desktop's retired(), moos-theme); the
+#     Island hosts SearchView/SearchAnswers in its own package and gains a Mo AI
+#     job chip; the launcher's cards, favourites, Places and Themes route change;
+#     the scene's deferred callbacks survive a destroyed wallpaper. Home shadows
+#     of MoOS KWin packages (task switcher, scripts, effects) are quarantined
+#     like Plasma data, and the THEME_REV fingerprint now covers usr/share/kwin,
+#     whose QML/JS KWin also serves from a frozen-mtime cache.
+THEME_REV=86
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"
@@ -418,6 +427,14 @@ fi
 # shadows to a dated quarantine so preview work remains recoverable while the
 # official image copy becomes authoritative again. The operation is idempotent:
 # an absent source is ignored and unrelated user packages are never inspected.
+#
+# KWin's MoOS packages (THEME_REV 86) are the same trap: a review copy of the
+# task switcher in ~/.local/share/kwin/tabbox/org.moos.ui2.switcher overrode the
+# image's for a week on the station while both health checks said "no shadow".
+# Only a MoOS id that the image ALSO ships is moved; a user's own KWin script or
+# effect is never touched. `quarantined_kwin` tells the caller to let KWin
+# re-read its packages; the function itself makes no D-Bus call.
+quarantined_kwin=0
 quarantine_moos_data_shadows() {
     local user_share="${XDG_DATA_HOME:-$HOME/.local/share}"
     local system_share="${MOOS_SYSTEM_SHARE:-/usr/share}"
@@ -432,6 +449,7 @@ quarantine_moos_data_shadows() {
         mkdir -p "${backup}/$(dirname "$rel")" 2>/dev/null || continue
         if mv -- "$source" "${backup}/${rel}" 2>/dev/null; then
             echo "quarantined user shadow ${rel} in ${backup}" >>"$log" 2>/dev/null || true
+            case "$rel" in kwin/*) quarantined_kwin=1 ;; esac
         fi
     done < <(
         for root in \
@@ -442,7 +460,12 @@ quarantine_moos_data_shadows() {
             "${user_share}/color-schemes/MoOSUI2"* \
             "${user_share}/konsole/MoOSUI2"* \
             "${user_share}/wallpapers/MoOSUI2"* \
-            "${user_share}/icons/MoOSUI2"*; do
+            "${user_share}/icons/MoOSUI2"* \
+            "${user_share}/kwin/tabbox/org.moos."* \
+            "${user_share}/kwin/scripts/org.moos."* \
+            "${user_share}/kwin/scripts/moos-"* \
+            "${user_share}/kwin/effects/org.moos."* \
+            "${user_share}/kwin/effects/moos-"*; do
             [ -e "$root" ] || continue
             printf '%s\0' "$root"
         done
@@ -453,6 +476,45 @@ quarantine_moos_data_shadows() {
 # after a successful revision apply, and waiting for a revision bump leaves the
 # running desktop on the preview forever.
 quarantine_moos_data_shadows
+# A moved KWin package takes effect when KWin re-reads its configuration; the
+# image copy then serves the next Alt+Tab and the next script load.
+# reconfigure is a no-reply method: never wait for an answer at login.
+if [ "$quarantined_kwin" = "1" ]; then
+    if command -v busctl >/dev/null 2>&1; then
+        busctl --user --expect-reply=no call org.kde.KWin /KWin org.kde.KWin reconfigure \
+            >>"$log" 2>&1 || true
+    elif command -v gdbus >/dev/null 2>&1; then
+        timeout 5 gdbus call --session --dest org.kde.KWin --object-path /KWin \
+            --method org.kde.KWin.reconfigure >>"$log" 2>&1 || true
+    fi
+fi
+
+# RETIRED MoOS assets are removed from the user share UNCONDITIONALLY — the
+# image no longer carries them, so neither quarantine_moos_data_shadows (it moves
+# only ids the image still ships) nor the [-e /usr/share/…] guard of the sweep
+# further down can ever fire, and a stale user-level copy of a package the OS
+# retired would haunt the widget explorer forever. Every name here is MoOS-owned.
+#
+# Like the quarantine, this runs on EVERY invocation, before the marker fast path.
+# moos-selfcheck and post-update-check tell a person who still has such a copy to
+# "run moos-apply-theme once"; until THEME_REV 86's review this loop sat after the
+# fast path, so that advice removed nothing until the next revision. Keep this
+# list and moos-selfcheck's retired list equal (tests/test_moos_shell_hygiene.py).
+remove_retired_moos_packages() {
+    local share="${XDG_DATA_HOME:-$HOME/.local/share}" rel
+    for rel in \
+        "plasma/plasmoids/org.moos.nova.deskclock" \
+        "plasma/plasmoids/org.moos.ui2.dashboard" \
+        "plasma/plasmoids/org.moos.heroclock" \
+        "plasma/plasmoids/org.moos.search" \
+    ; do
+        if [ -e "${share}/$rel" ] || [ -L "${share}/$rel" ]; then
+            rm -rf "${share:?}/$rel"
+            echo "removed the user-level copy of retired $rel" >>"$log" 2>/dev/null || true
+        fi
+    done
+}
+remove_retired_moos_packages
 
 
 migration_completed=false
@@ -569,8 +631,10 @@ fi
 # tooltips, glyphs and all — while every image gate stays green. Only the
 # MoOS-owned ids are dropped; third-party widgets the user installed stay put.
 local_plasmoids="${XDG_DATA_HOME:-$HOME/.local/share}/plasma/plasmoids"
-for moos_widget in org.moos.brand org.moos.heroclock org.moos.nova.clock \
-                   org.moos.island org.moos.search; do
+# Retired packages (org.moos.heroclock, org.moos.search) are not listed here:
+# the image no longer ships them, and remove_retired_moos_packages (before the
+# marker fast path) removes their home copies on every invocation.
+for moos_widget in org.moos.brand org.moos.nova.clock org.moos.island; do
     rm -rf "${local_plasmoids:?}/${moos_widget}" 2>/dev/null || true
 done
 # The desktop scene is a wallpaper package, one directory over again. Its id is
@@ -734,6 +798,8 @@ systemctl --user start plasma-ksystemstats.service >>"$log" 2>&1 || true
 # moos-theme already reconciled every desktop containment through the one
 # transactional scene owner. THEME_REV 43's auto-seed of heroclock was rejected
 # on sight; this migrator clears its old cache/shadows and never places it again.
+# THEME_REV 86 deletes the package itself; its id survives only in the retired
+# lists (remove_retired_moos_packages, WidgetExplorer's retired(), moos-theme's removal).
 
 
 # --- The system tray -----------------------------------------------------------
@@ -920,23 +986,10 @@ fi
 # right way to prove it. Leaving the stage up afterwards is how the image loses.
 user_share="${XDG_DATA_HOME:-$HOME/.local/share}"
 
-# RETIRED MoOS assets are removed from the user share UNCONDITIONALLY — the
-# image no longer carries them, so the [-e /usr/share/…] guard below would
-# never fire, and a stale user-level copy of a package the OS retired would
-# haunt the widget explorer forever. Every name here is MoOS-owned.
-for rel in \
-    "plasma/plasmoids/org.moos.nova.deskclock" \
-    "plasma/plasmoids/org.moos.ui2.dashboard" \
-; do
-    if [ -e "${user_share}/$rel" ]; then
-        rm -rf "${user_share:?}/$rel"
-        echo "removed the user-level copy of retired $rel" >>"$log" 2>/dev/null || true
-    fi
-done
-
+# RETIRED MoOS ids are not in this list: remove_retired_moos_packages (above the
+# marker fast path) removes their home copies on every invocation.
 for rel in \
     "plasma/plasmoids/org.moos.brand" \
-    "plasma/plasmoids/org.moos.heroclock" \
     "plasma/plasmoids/org.moos.nova.clock" \
     "plasma/plasmoids/org.moos.island" \
     "plasma/wallpapers/org.moos.ui2.wallpaper" \

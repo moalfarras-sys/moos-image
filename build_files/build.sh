@@ -845,33 +845,15 @@ unset -v _liveinst
 # -----------------------------------------------------------------------------
 # (c3b) Discover: keep the engine, hide the duplicate storefront entry
 # -----------------------------------------------------------------------------
-# The owner wants ONE branded storefront, and that is now the standalone
-# Mo Store app (org.moos.store.desktop -> /usr/bin/moos-store, the curated
-# catalog UI that used to live inside the Welcome). Discover used to be
-# rebranded "Mo Store" in place, which made TWO menu entries with the same
-# name the moment the real Mo Store shipped. So Discover keeps its engine
-# (plasma-discover still handles update notifications, firmware and appstream
-# deep links) but leaves every menu: NoDisplay=true. The MoOS name/icon stay on
-# the entry so any surface that still resolves it (notifier popups) shows MoOS
-# identity, never a foreign brand.
-_disc=/usr/share/applications/org.kde.discover.desktop
-if [ -f "$_disc" ]; then
-    sed -i \
-        -e '/^Name\[/d' \
-        -e 's|^Name=.*|Name=Mo Store|' \
-        -e '/^GenericName\[/d' \
-        -e 's|^GenericName=.*|GenericName=App Store|' \
-        -e 's|^Icon=.*|Icon=mo-store|' \
-        "$_disc"
-    sed -i '/^Name=Mo Store$/a Name[ar]=متجر MoOS' "$_disc"
-    # GenericName may be absent; add an Arabic one if the key exists.
-    grep -q '^GenericName=' "$_disc" && sed -i '/^GenericName=App Store$/a GenericName[ar]=متجر التطبيقات' "$_disc" || true
-    # Hide it from menus/krunner — org.moos.store is the one visible storefront.
-    grep -q '^NoDisplay=' "$_disc" \
-        && sed -i 's|^NoDisplay=.*|NoDisplay=true|' "$_disc" \
-        || sed -i '/^\[Desktop Entry\]/a NoDisplay=true' "$_disc"
-fi
-unset -v _disc
+# The owner wants ONE branded storefront: Mo Store (org.moos.store.desktop). Discover
+# keeps its engine (appstream deep links, .flatpakref files) but leaves every menu,
+# wearing Mo Store's name and icon. That rewrite now lives in
+# build_files/curate_app_menu.sh — called in (z1b) below — and touches only the
+# [Desktop Entry] group: the sed that stood here rewrote every Name= in the file, so
+# Discover's own "Updates" action was renamed "Mo Store" as well.
+# Its notifier and unattended updates are off too (system_files/etc/xdg: the notifier's
+# autostart entry is Hidden=true and PlasmaDiscoverUpdates sets
+# UseUnattendedUpdates=false); MoOS Settings → Update is the one update front door.
 
 # -----------------------------------------------------------------------------
 # (c3) Qt runtime extras — on-screen keyboard + media/image plugins
@@ -1019,22 +1001,14 @@ grep -q 'BIND_NOW' <<<"${_shipped_d}" \
 # launches, the QML loads, nothing errors — the icon is just silently the wrong one.
 test -x /usr/bin/moos-qml-shell \
     || { echo "GATE FAIL: moos-qml-shell did not build"; exit 1; }
-_moos_kcm="$(qtpaths6 --query QT_INSTALL_PLUGINS)/plasma/kcms/systemsettings/kcm_moos.so"
-[ -s "$_moos_kcm" ] \
-    || { echo "GATE FAIL: MoOS's native System Settings module did not build"; exit 1; }
-# Discover's Software Update KCM is a second, package-only update page beside
-# MoOS's signed-image/app/firmware page. Keep Discover's notifier/engine but
-# remove only its System Settings plugin so this window has one update entry.
-_discover_update_kcm="$(qtpaths6 --query QT_INSTALL_PLUGINS)/plasma/kcms/systemsettings/kcm_updates.so"
-rm -f "$_discover_update_kcm"
-[ ! -e "$_discover_update_kcm" ] \
-    || { echo "GATE FAIL: duplicate Software Update module remains"; exit 1; }
-# The native MoOS page owns About this device. The generic About this System
-# KCM is otherwise a second About entry in the same window.
-_generic_about_kcm="$(qtpaths6 --query QT_INSTALL_PLUGINS)/plasma/kcms/kcm_about-distro.so"
-rm -f "$_generic_about_kcm"
-[ ! -e "$_generic_about_kcm" ] \
-    || { echo "GATE FAIL: duplicate About this System module remains"; exit 1; }
+# ── MoOS in System Settings ──────────────────────────────────────────────────
+# MoOS's pages are the kcm_moos* modules of the MoOS group (moos-settings-kcm/).
+# One shared gate, run by build-arm.sh too: every built module is installed and
+# grouped; Discover's Software Update and the generic About this System modules
+# (a second update and a second about entry) are removed with their menu aliases,
+# wherever the plugin lives; and every MoOS module LOADS offscreen in an isolated
+# session with no QML error and its ready marker. Keep Discover's notifier/engine.
+bash /ctx/verify_settings_modules.sh || exit 1
 for launcher in /usr/bin/moai /usr/bin/moos-welcome /usr/bin/moos-store; do
     grep -q "moos-qml-shell" "$launcher" \
         || { echo "GATE FAIL: ${launcher} does not use moos-qml-shell — its window will show the generic Qt icon"; exit 1; }
@@ -1101,6 +1075,74 @@ for pkg in fcitx5 fcitx5-mozc; do
 done
 test ! -e /usr/share/applications/org.fcitx.Fcitx5.desktop \
     || { echo "GATE FAIL: fcitx5 still has a launcher entry — one click and the user's layouts are gone"; exit 1; }
+
+# --- System Settings offers no page for the input-method engine removed above (x86) ---
+# kcm_fcitx5 "Input Method" (package kcm-fcitx5, measured installed on the station) stood in
+# the Settings sidebar although its engine was removed just above, so the page configures
+# nothing (wave decision D5). The package is not removed here: the base pulls it in, a
+# libplasma soname bump on Plasma 6.8 drops it until Fedora rebuilds it (PROJECT_STATE.md),
+# and hiding the page holds either way. x86 only: build-arm.sh never runs this file.
+#
+# --- ...and no second remote-desktop page (x86: moos, moos-nvidia, moos-cloud) ---
+# KRDP's "Remote Desktop" page (kcm_krdpserver, package krdp) sat in the sidebar beside MoOS's
+# own Mo PC Remote page (kcm_moos_remote): two remote-desktop settings for one computer, and
+# the KDE one opens RDP on *:3389 for the whole network — the server moos-health reports and
+# moos-remote-guard switches off as foreign sharing on every x86 edition. The cloud edition
+# was checked before including it: its remote desktop is Mo PC Remote over the tailnet,
+# `moos-cloud-desktop on` disables app-org.kde.krdpserver.service itself (two portal capture
+# servers compete for one desktop, tests/test_cloud_private_desktop.py), and no MoOS document
+# or route uses RDP there. ARM is untouched and keeps KRDP: on moos-arm it IS MoOS's remote
+# desktop (moos-arm-remote in build-arm.sh), and build-arm.sh never runs this file. Only the
+# page is hidden; the package, a user's certificate and settings stay where they were.
+# Measured (2026-09-25, isolated, offscreen, private XDG_CONFIG_DIRS): with this group
+# `kcmshell6 --smoke-test kcm_krdpserver` exits 1 instead of 0, while kcm_mouse and
+# kcm_kwinscreenedges still exit 0.
+#
+# Mechanism: the KIOSK group every KDE settings host already obeys, not a deleted plugin.
+# Evidence (2026-09-24, plasma-systemsettings 6.7.5, KF 6.30):
+#   * /usr/bin/systemsettings, krunner_systemsettings.so and libKF6KCMUtils all import
+#     KAuthorized::authorizeControlModule; libKF6ConfigCore carries the UTF-16 group name
+#     "KDE Control Module Restrictions".
+#   * upstream systemsettings app/kcmmetadatahelpers.h findKCMsMetaData() skips a module when
+#     `!KAuthorized::authorizeControlModule(m.pluginId())` — the sidebar never lists it.
+#   * isolated probe (offscreen, no session bus, throwaway HOME and XDG_CONFIG_DIRS):
+#     `kcmshell6 --smoke-test kcm_fcitx5` exits 0 without this group and 1 with it;
+#     `kcm_mouse` still exits 0 under the same group, and a KF5-style key
+#     `kcm_fcitx5.desktop=false` does NOT match — the key is the bare plugin id. With the
+#     shipped kdeglobals plus this append, `systemsettings --list` drops kcm_fcitx5 (60 → 59
+#     modules).
+# Nothing in moos-open routes to the page; verify_image_experience.py fails the build if a
+# settings route ever targets a restricted module.
+if ! grep -qxF '[KDE Control Module Restrictions]' /etc/xdg/kdeglobals; then
+    cat >> /etc/xdg/kdeglobals <<'MOOSKIOSK'
+
+# MoOS x86 (build.sh): no Settings page for the input-method engine this edition removed,
+# and one remote-desktop page — Mo PC Remote's.
+[KDE Control Module Restrictions]
+kcm_fcitx5=false
+kcm_krdpserver=false
+MOOSKIOSK
+fi
+python3 - /etc/xdg/kdeglobals kcm_fcitx5 kcm_krdpserver <<'MOOSKIOSKGATE' || exit 1
+import sys
+path, *wanted = sys.argv[1:]
+group, restricted = None, {}
+for raw in open(path, encoding="utf-8"):
+    line = raw.strip()
+    if not line or line.startswith("#"):
+        continue
+    if line.startswith("["):
+        group = line
+        continue
+    if group == "[KDE Control Module Restrictions]" and "=" in line:
+        key, value = line.split("=", 1)
+        restricted[key.strip()] = value.strip()
+missing = [kcm for kcm in wanted if restricted.get(kcm) != "false"]
+if missing:
+    raise SystemExit(f"GATE FAIL: /etc/xdg/kdeglobals does not restrict {missing} — System "
+                     "Settings would offer a page for an engine this edition removed, or a "
+                     "second remote-desktop page beside Mo PC Remote")
+MOOSKIOSKGATE
 
 # Qt WebEngine spell-check dictionaries.
 #
@@ -3366,203 +3408,20 @@ OnlyShowIn=KDE;
 PWAPP
 
 # -----------------------------------------------------------------------------
-# (z1b) The app menu holds the system's apps and MoOS's apps. Nothing else.
+# (z1b) What the application menu and System Settings offer — one script, both builds
 # -----------------------------------------------------------------------------
-# The owner's rule, in his words: what ships is the essential system + what we built, and the
-# user chooses the rest. What he actually got was a menu with the base distribution's debug
-# tools in it and the same app listed twice.
-#
-# Two of these are literal DUPLICATES — the thing he complained about:
-#   * kdesystemsettings.desktop is `Exec=systemsettings`, the same command, with the same icon,
-#     as systemsettings.desktop. Fedora ships it for people running KDE apps under GNOME, and it
-#     carries no OnlyShowIn, so on a KDE-only OS BOTH entries appear. "System Settings" and
-#     "KDE System Settings", side by side, opening the identical window.
-#   * KWrite is Kate with features removed; shipping both is offering the user a choice between
-#     an editor and a worse version of the same editor.
-#
-# The rest are the base's diagnostics — a crash-dump browser, a journal viewer, a debug-flag
-# editor, a menu editor. They are the tooling of somebody building a distribution, not of
-# somebody using one. Krfb goes too: it is a second, worse screen-sharing app standing next to
-# Mo PC Remote, which is the one MoOS actually built.
-#
-# NoDisplay, never `rm`: the packages stay installed and every one of these still runs from a
-# terminal or a .desktop launch. This decides what the MENU offers, and nothing else. (Deleting
-# is what plasma-welcome above needed, and only because plasmashell auto-LAUNCHES it; nothing
-# auto-launches these.)
-hide_from_menu() {
-    local f="/usr/share/applications/$1"
-    [ -f "$f" ] || return 0                      # not installed in this edition; fine
-    grep -q '^NoDisplay=true' "$f" && return 0   # idempotent
-    sed -i '/^NoDisplay=/d' "$f"
-    sed -i '0,/^\[Desktop Entry\]/s//[Desktop Entry]\nNoDisplay=true/' "$f"
-}
-
-for entry in \
-    kdesystemsettings.desktop \
-    org.kde.kwrite.desktop \
-    org.kde.drkonqi.coredump.gui.desktop \
-    org.kde.kdebugsettings.desktop \
-    org.kde.kjournaldbrowser.desktop \
-    org.kde.kmenuedit.desktop \
-    org.kde.krfb.desktop \
-    org.kde.krfb.virtualmonitor.desktop \
-    org.kde.kdeconnect.sms.desktop \
-    org.kde.kdeconnect.nonplasma.desktop \
-    ; do
-    hide_from_menu "$entry"
-done
-
-# Gate it: a typo'd filename above would hide nothing and say nothing, and the duplicate the
-# owner reported would ship again with a green build. Check the two that MUST be gone by asking
-# the file itself, not the list.
-for must_hide in kdesystemsettings.desktop org.kde.kwrite.desktop; do
-    f="/usr/share/applications/$must_hide"
-    if [ -f "$f" ] && ! grep -q '^NoDisplay=true' "$f"; then
-        echo "GATE FAIL: $must_hide is still shown in the menu — it duplicates an app MoOS already has"
-        exit 1
-    fi
-done
-
-# -----------------------------------------------------------------------------
-# (z1c) The menu says MoOS, or it says nothing
-# -----------------------------------------------------------------------------
-# (z1b) above hid the duplicates and the distribution's debug tools. It did not
-# touch the entries that are KEPT, and on 2026-09-20 the MoOS application menu
-# was still offering, in the owner's own Arabic session:
-#
-#   Dolphin / دولفين              the file manager, named after a KDE project
-#   KDE Connect / جسر كِيدِي         another desktop's name, twice, in the label
-#   KDE Partition Manager / مدير أقسام كِيدِي
-#   Info Center                   a second hardware-information app
-#   System Settings / إعدادات النّظام  A SECOND SETTINGS APP, beside MoOS Settings
-#
-# The last one is the one that matters most and is the easiest to miss: (z1b)
-# hid `kdesystemsettings.desktop`, Fedora's DUPLICATE launcher, and left
-# `systemsettings.desktop`, the real one, visible. So the owner had two settings
-# applications in his menu the whole time — the exact thing he said he did not
-# want — and the gate below it only ever checked the duplicate.
-#
-# Hiding all five is wrong: a person needs a file manager and a disk tool, and
-# MoOS Settings ROUTES its hardware panels into systemsettings and kinfocenter
-# on purpose (see moos-open: reimplementing twenty KCMs is not a better system).
-# So each entry is given MoOS's name and MoOS's icon, and the two that are only
-# ever REACHED THROUGH MoOS Settings also leave the menu. What opens is the
-# same program; what the person reads is MoOS.
-#
-# Only the [Desktop Entry] group is rewritten. Dolphin ships Desktop Actions
-# ("Open a New Window") whose own Name= lines a blind sed would overwrite, which
-# is how a rebrand turns into a context menu full of the application's title.
-moos_rebrand_entry() {
-    python3 - "$1" "$2" "$3" "$4" "$5" "${6:-keep-metadata}" <<'MOOSREBRAND'
-import sys
-path, en, ar, icon, hide, metadata = sys.argv[1:7]
-try:
-    lines = open(path, encoding="utf-8").read().splitlines()
-except FileNotFoundError:
-    raise SystemExit(0)
-out, group, wrote_name, wrote_icon, wrote_hide = [], 0, False, False, False
-for line in lines:
-    if line.startswith("["):
-        if group == 1:
-            if not wrote_name:
-                out += ["Name=" + en, "Name[ar]=" + ar]; wrote_name = True
-            if not wrote_icon and icon:
-                out.append("Icon=" + icon); wrote_icon = True
-            if not wrote_hide and hide == "hide":
-                out.append("NoDisplay=true"); wrote_hide = True
-        group += 1
-        out.append(line)
-        continue
-    if group != 1:
-        out.append(line)
-        continue
-    # A launcher model may show GenericName as a subtitle or use it for search.
-    # Keeping its unlocalised upstream value made the file look rebranded while
-    # "System Settings" was still user-visible (and made the image gate bite).
-    # MoOS entries need one clear product label, so remove the whole secondary
-    # name family instead of leaving an English-only alias behind.
-    if line.startswith("Name[") or line.startswith("GenericName=") or line.startswith("GenericName["):
-        continue
-    # A hidden vendor control panel still has metadata that launchers and file
-    # inspectors can index. Its translated comments name the underlying X11
-    # utility even after Name= is replaced, so the NVIDIA-only call below drops
-    # that vendor vocabulary instead of leaking it through search/subtitles.
-    if metadata == "strip-metadata" and (
-            line.startswith("Comment=") or line.startswith("Comment[")
-            or line.startswith("Keywords=") or line.startswith("Keywords[")):
-        continue
-    if line.startswith("Name="):
-        if wrote_name:
-            continue
-        out += ["Name=" + en, "Name[ar]=" + ar]; wrote_name = True
-        continue
-    if line.startswith("Icon=") and icon:
-        if wrote_icon:
-            continue
-        out.append("Icon=" + icon); wrote_icon = True
-        continue
-    if line.startswith("NoDisplay="):
-        continue
-    out.append(line)
-if group == 1:
-    if not wrote_name:
-        out += ["Name=" + en, "Name[ar]=" + ar]
-    if not wrote_icon and icon:
-        out.append("Icon=" + icon)
-    if not wrote_hide and hide == "hide":
-        out.append("NoDisplay=true")
-elif hide == "hide" and not wrote_hide:
-    raise SystemExit("moos_rebrand_entry: could not place NoDisplay in " + path)
-open(path, "w", encoding="utf-8").write("\n".join(out) + "\n")
-MOOSREBRAND
-}
-
-#                     file                                  English        Arabic                 icon                      menu
-moos_rebrand_entry /usr/share/applications/org.kde.dolphin.desktop           "Files"          "الملفات"        "moos-folder-symbolic"  show
-moos_rebrand_entry /usr/share/applications/org.kde.kdeconnect.app.desktop    "Phone"          "الهاتف"         "moos-phone-symbolic"   show
-moos_rebrand_entry /usr/share/applications/org.kde.partitionmanager.desktop  "Disks"          "الأقراص"        "moos-storage-symbolic" show
-moos_rebrand_entry /usr/share/applications/systemsettings.desktop            "MoOS Settings"  "إعدادات MoOS"   "moos-settings-symbolic" hide
-moos_rebrand_entry /usr/share/applications/org.kde.kinfocenter.desktop       "System Report"  "تقرير النظام"   "moos-system-symbolic"  hide
-# Found by asking the launcher's own model rather than reading files: a SIXTH
-# entry, "NVIDIA X Server Settings", sitting under النظام beside the other two.
-# It is the proprietary driver's X11 control panel — on a Wayland session most
-# of its pages cannot do anything, and MoOS Settings already reports the GPU on
-# its device page. It leaves the menu and keeps MoOS's words for the task bar.
-# Only the NVIDIA editions install it, so the helper's own [ -f ] check is what
-# makes this a no-op everywhere else.
-moos_rebrand_entry /usr/share/applications/nvidia-settings.desktop           "Graphics Card"  "كرت الشاشة"     "moos-gpu-symbolic"     hide strip-metadata
-
-# Gate it the same way (z1b) is gated: ask the FILES, not the list above. A
-# second settings application in the menu is the defect this whole section
-# exists for, so it fails the build rather than warning.
-for _f in /usr/share/applications/systemsettings.desktop \
-          /usr/share/applications/org.kde.kinfocenter.desktop \
-          /usr/share/applications/nvidia-settings.desktop; do
-    [ -f "$_f" ] || continue
-    grep -q '^NoDisplay=true' "$_f" || {
-        echo "GATE FAIL: $_f is still in the menu — MoOS Settings is the one settings app"
-        exit 1
-    }
-done
-for _f in /usr/share/applications/org.kde.dolphin.desktop \
-          /usr/share/applications/org.kde.kdeconnect.app.desktop \
-          /usr/share/applications/org.kde.partitionmanager.desktop \
-          /usr/share/applications/systemsettings.desktop \
-          /usr/share/applications/org.kde.kinfocenter.desktop \
-          /usr/share/applications/nvidia-settings.desktop; do
-    [ -f "$_f" ] || continue
-    _first="$(sed -n '/^\[Desktop Entry\]/,/^\[Desktop Action/p' "$_f")"
-    case "$_first" in
-        *"Name=Dolphin"*|*"KDE Connect"*|*"KDE Partition"*|*"Name=System Settings"*|*"Name=Info Center"*|*"NVIDIA X Server"*)
-            echo "GATE FAIL: $_f still wears another desktop's name in the menu"
-            exit 1 ;;
-    esac
-    printf '%s' "$_first" | grep -q '^Name\[ar\]=' || {
-        echo "GATE FAIL: $_f has no Arabic name; an Arabic session would read English"
-        exit 1
-    }
-done
-unset -v _f _first
+# The menu curation that stood here (z1b: hide the duplicates and the base's debug tools;
+# z1c: give the kept entries MoOS's name and icon) now lives in
+# build_files/curate_app_menu.sh, one script written for every edition (ARM had none of it
+# and showed Plasma's own "System Settings" beside "MoOS Settings"; build-arm.sh runs it
+# too, since 2026-09-25). The script also makes systemsettings.desktop
+# the ONE visible settings entry (MoOS Settings, Exec=moos-settings, Meta+I kept), rewrites
+# Discover's entry header-only, offers a staged System Settings page only where its program
+# ships, and ends with one gate on the finished files: exactly one visible settings entry and
+# it is systemsettings.desktop; every hidden duplicate hidden; no kept entry wearing another
+# desktop's name in any label, comment or keyword; no Arabic-less label; Discover hidden and
+# not an updater. It fails the build; it never warns.
+bash /ctx/curate_app_menu.sh / || exit 1
 
 # -----------------------------------------------------------------------------
 # (z2a) Remove the OTHER distribution's themes and wallpapers
@@ -4867,6 +4726,14 @@ _rival_wants="$(find /usr/lib/systemd/system /etc/systemd/system -path '*.wants/
     || { echo "GATE FAIL: a *.wants symlink still pulls in bootc-fetch-apply-updates.timer:"
          echo "${_rival_wants}"; exit 1; }
 unset -v _rival_wants
+
+# The MoOS System Settings modules, loaded again on the FINISHED tree. The run at (c4b)
+# proves them where they are installed, but a dozen package transactions follow it —
+# removals with autoremove among them, and the cloud edition's own install — and one of them
+# could drop a QML dependency a page imports while that earlier gate stays green (the "gate
+# sees what was in place at that moment" trap, AGENTS.md). build-arm.sh already runs it after
+# its last transaction. The script is idempotent.
+bash /ctx/verify_settings_modules.sh || exit 1
 
 python3 /ctx/finalize_image_state.py --root /
 python3 /ctx/verify_no_foreign_identity.py

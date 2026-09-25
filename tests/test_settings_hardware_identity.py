@@ -23,12 +23,14 @@ from unittest.mock import patch
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 STATUS = ROOT / "system_files/usr/libexec/moos-settings-status"
-QML = ROOT / "system_files/usr/share/moos/apps/settings/main.qml"
+# The Device facts live in kcm_moos, System Settings' MoOS module; its rows come from common/.
+QML_FILES = (ROOT / "moos-settings-kcm/modules/overview/ui/main.qml",
+             ROOT / "moos-settings-kcm/common/MoosFactRow.qml")
 
 HARDWARE = ROOT / "system_files/usr/lib/moos/moos_hardware.py"
 status_src = STATUS.read_text(encoding="utf-8")
 hardware_src = HARDWARE.read_text(encoding="utf-8")
-qml_src = QML.read_text(encoding="utf-8")
+qml_src = "\n".join(path.read_text(encoding="utf-8") for path in QML_FILES)
 
 # Strip full-line comments so no assertion can be satisfied by prose describing
 # the bug -- these files both discuss "MoOS device" in their comments.
@@ -64,7 +66,9 @@ assert "lspci" not in status_code + hardware_code and "/sys/class/drm" not in ha
     "a second GPU prober was added; use moos-visual-tier, the existing one")
 
 assert '"gpu": gpu_name(),' in status_code, "the state document must carry gpu"
-assert "win.status.gpu" in qml_code, "the Device page never renders the GPU"
+# The Graphics ROW must show the measured GPU (Copy details reading it is not enough).
+assert re.search(r'label: root\.t\("الرسوميات", "Graphics"\)\s*\n\s*value: [^\n]*kcm\.status\.gpu\b',
+                 qml_code), "the Device page never renders the GPU"
 assert re.search(r'local\("غير معروف",\s*"Unknown"\)', qml_code), \
     "an unidentified part must render as Unknown, not as a MoOS-branded name"
 

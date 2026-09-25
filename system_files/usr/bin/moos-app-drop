@@ -125,7 +125,10 @@ def ask(title: str, text: str, yes: str) -> bool:
 def tell(text: str, *, error: bool = False) -> None:
     print(text, file=sys.stderr if error else sys.stdout)
     if shutil.which("notify-send"):
+        # Filed under Mo Store, which owns every installed application: System Settings ›
+        # Notifications lists it by that name and the person can mute it there.
         subprocess.run(["notify-send", "--app-name=MoOS", "--icon=moos-install-symbolic",
+                        "--hint=string:desktop-entry:org.moos.store",
                         "--urgency=" + ("critical" if error else "normal"), "MoOS", text],
                        stdin=subprocess.DEVNULL, check=False)
 

@@ -437,8 +437,12 @@ def main() -> None:
     assert '(model.input || []).indexOf("image") >= 0' in qml
     assert 'indexOf("vl")' not in qml
     assert "no local model advertises image input" in qml
-    assert 'root.agentApi + "/api/channels"' in qml
-    assert '"Not linked — pairing opens a QR code"' in qml
+    # The phone channels' live state is read on the Mo AI page of System Settings now (the
+    # window's settings sheet moved there, SPEC D5), and only when the owner asks for it.
+    settings_page = (ROOT / "moos-settings-kcm/modules/ai/ui/main.qml").read_text(encoding="utf-8")
+    assert 'moai.request(true, "GET", "/api/channels"' in settings_page
+    assert '"Not linked — pairing opens a QR code"' in settings_page
+    assert '"/api/channels"' not in qml
     # ── The tool policy must FOLLOW the brain ────────────────────────────────
     # deny lists live under tools.byProvider.<primary>. Switching the primary
     # (mode/model save) used to leave the policy behind on the OLD provider

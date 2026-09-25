@@ -7,6 +7,11 @@
 //   mo-remote/presence-<active|paused>-<sessions>                 Mo PC Remote (since rev 52)
 //   moos-store/job-<action>-<state>-<progress|x>-<id>             moos-storectl
 //   moos-privacy/active-<screen|camera|mic>-<node>[-<app>]        moos-privacy-monitor
+//   moai-jobs/job-<id8hex>-<running|done|failed>-<tool>           moai-control (rev 86)
+//
+// A producer RENAMES a token as its state changes. A same-count rename changes no count: Qt 6.11's
+// FolderListModel reports it as dataChanged plus a Loading -> Ready status cycle (measured
+// 2026-09-24), so every Island model syncs on count, data AND status.
 //
 // <id> and <app> are percent-encoded with "-" written as %2D, so "-" only ever separates fields.
 // Pure functions, no Qt: tests/test_island_tokens.py runs this file in node.
@@ -15,6 +20,30 @@
 var STORE_ACTIONS = ["install", "remove", "update"];
 var STORE_STATES = ["starting", "running", "success", "failed", "cancelled"];
 var PRIVACY_TYPES = ["screen", "camera", "mic"];
+var MOAI_JOB_STATES = ["running", "done", "failed"];
+// How long an ENDED Mo AI job is news. moai-control stamps a token's mtime when it enters its
+// state and removes done/failed tokens after the same 20 s (JOB_TOKEN_LINGER); a producer that
+// stops first leaves them behind. Running tokens have no age limit.
+var MOAI_JOB_LINGER_MS = 20000;
+
+// What a confirmed Mo AI job is DOING, in the person's words. The token carries the tool id only
+// (never arguments or secrets); ids come from moai_tool_schemas.py and
+// tests/test_island_tokens.py fails when a confirmed tool has no words here.
+var MOAI_JOB_LABELS = {
+    install_app: ["تثبيت تطبيق", "Installing an app"],
+    uninstall_app: ["إزالة تطبيق", "Removing an app"],
+    update_apps: ["تحديث التطبيقات", "Updating apps"],
+    system_update: ["تحديث MoOS", "Updating MoOS"],
+    update_firmware: ["تحديث البرامج الثابتة", "Updating firmware"],
+    system_rollback: ["استعادة النظام السابق", "Restoring the previous system"],
+    fix_audio: ["إصلاح الصوت", "Repairing sound"],
+    optimize_system: ["تحسين النظام", "Optimizing the system"],
+    install_nvidia: ["تثبيت تعريف الرسوميات", "Installing the graphics driver"],
+    setup_gaming: ["تجهيز الألعاب", "Setting up gaming"],
+    setup_windows: ["تجهيز تطبيقات ويندوز", "Setting up Windows apps"],
+    setup_waydroid: ["تجهيز تطبيقات أندرويد", "Setting up Android apps"],
+    remote_anywhere: ["تجهيز الوصول عن بُعد", "Setting up remote access"]
+};
 
 function decodeField(text) {
     try { return decodeURIComponent(String(text || "")); }
@@ -98,4 +127,91 @@ function choosePrivacyToken(fileNames) {
         if (stream && (!best || order[stream.type] > order[best.type])) { best = stream; }
     }
     return best;
+}
+
+// -> null, or { id, state, tool, active, finished }
+// `id` is eight lowercase hex digits and `tool` is [a-z_]{1,40}: nothing a person typed, and
+// nothing a hostile name can smuggle into another field.
+function parseMoaiJobToken(fileName) {
+    var match = /^job-([0-9a-f]{8})-([a-z]+)-([a-z_]{1,40})$/.exec(String(fileName || ""));
+    if (!match || MOAI_JOB_STATES.indexOf(match[2]) === -1) { return null; }
+    return {
+        id: match[1],
+        state: match[2],
+        tool: match[3],
+        active: match[2] === "running",
+        finished: match[2] !== "running"
+    };
+}
+
+// The job the Island shows, plus how many are still running and which ones.
+//
+// `watchedIds` is the `runningIds` of the caller's PREVIOUS call: the jobs the Island saw running
+// a moment ago. A running job always outranks a finished one (ties resolve by id, so every render
+// of the same directory agrees). A FINISHED token is shown only when its job is one of those
+// watched ids: the directory also holds tokens of jobs that ended earlier (they linger for 20 s,
+// and a producer that dies leaves them for good), and choosing among ALL finished tokens once
+// said "Repairing sound — failed" about a retry that had just succeeded. Among watched jobs that
+// ended together, a failure outranks a success: it is the one that needs the person.
+//
+// -> null, or { id, state, tool, active, finished, running, runningIds }
+// null means nothing is running and no watched job ended, so the caller watches nothing next.
+function chooseMoaiJobToken(fileNames, watchedIds) {
+    var watched = Array.isArray(watchedIds) ? watchedIds : [];
+    var best = null;
+    var runningIds = [];
+    var rank = { done: 1, failed: 2, running: 3 };
+    for (var index = 0; index < fileNames.length; ++index) {
+        var job = parseMoaiJobToken(fileNames[index]);
+        if (!job) { continue; }
+        if (job.active) {
+            if (runningIds.indexOf(job.id) === -1) { runningIds.push(job.id); }
+        } else if (watched.indexOf(job.id) === -1) {
+            continue;                   // it ended before this Island watched it run
+        }
+        if (!best || rank[job.state] > rank[best.state]
+                || (rank[job.state] === rank[best.state] && job.id > best.id)) {
+            best = job;
+        }
+    }
+    if (best) {
+        runningIds.sort();
+        best.running = runningIds.length;
+        best.runningIds = runningIds;
+    }
+    return best;
+}
+
+// The names chooseMoaiJobToken may consider, from the model's { name, modified } rows.
+//
+// `modified` is FolderListModel's fileModified (a Date, or milliseconds): the moment the token
+// entered its state. A done or failed token older than MOAI_JOB_LINGER_MS is dropped — it is not
+// news any more, whatever a late sync says — and so is one whose age cannot be read. A running
+// token is always kept: a long job is still running however long ago it started.
+function recentMoaiJobNames(entries, nowMs) {
+    var names = [];
+    var list = Array.isArray(entries) ? entries : [];
+    for (var index = 0; index < list.length; ++index) {
+        var entry = list[index] || {};
+        var name = String(entry.name || "");
+        var job = parseMoaiJobToken(name);
+        if (!job) { continue; }
+        if (job.finished) {
+            var modified = entry.modified instanceof Date ? entry.modified.getTime()
+                                                          : Number(entry.modified);
+            if (!isFinite(modified) || modified <= 0
+                    || Number(nowMs) - modified > MOAI_JOB_LINGER_MS) {
+                continue;
+            }
+        }
+        names.push(name);
+    }
+    return names;
+}
+
+// [arabic, english] for a tool id; a tool without words gets a generic, honest label.
+function moaiJobLabel(tool) {
+    var label = Object.prototype.hasOwnProperty.call(MOAI_JOB_LABELS, tool)
+        ? MOAI_JOB_LABELS[tool] : null;
+    return label ? label.slice() : ["إجراء من Mo AI", "A Mo AI action"];
 }

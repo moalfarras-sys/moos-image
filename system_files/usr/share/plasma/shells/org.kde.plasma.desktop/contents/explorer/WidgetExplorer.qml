@@ -36,8 +36,11 @@ QQC2.Page {
     opacity: draggingWidget ? 0.4 : 1
     font.family: MoUI.Tokens.interfaceFamily
     function local(ar, en) { return MoUI.Locale.local(ar, en) }
+    // Retired MoOS packages. The image no longer ships them, but a stale user copy
+    // or cached catalogue row must still read as unavailable, never be added.
     function retired(plugin) {
-        return ["org.moos.ui2.dashboard", "org.moos.nova.deskclock", "org.moos.heroclock"].indexOf(plugin) >= 0
+        return ["org.moos.ui2.dashboard", "org.moos.nova.deskclock", "org.moos.heroclock",
+                "org.moos.search"].indexOf(plugin) >= 0
     }
     function selectWidget(data) {
         selected = {plugin: data.pluginName, name: data.name, description: data.description,

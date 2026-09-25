@@ -315,7 +315,7 @@ class CoalescingWorker:
 
 
 class App(Gtk.Application):
-    def __init__(self): super().__init__(application_id="org.moos.MoPCRemote")
+    def __init__(self): super().__init__(application_id="org.moos.remote")
     def do_activate(self):
         # Clicking Mo PC Remote while Mo PC Remote is open shows you the window you already have.
         #
@@ -345,7 +345,7 @@ class App(Gtk.Application):
         outer.add_css_class("remote-shell")
         title=Gtk.Label(label="Mo PC Remote",xalign=logical_start()); title.add_css_class("title-1"); outer.append(title)
         sub=Gtk.Label(
-            label=local_text("مركز تحكم MoOS الأصلي", "Native MoOS control center"),
+            label=local_text("اقرن هاتفك وتحكّم بهذا الحاسوب منه", "Pair your phone and control this computer from it"),
             xalign=logical_start())
         sub.add_css_class("dim-label"); outer.append(sub)
         self.status=Gtk.Label(
@@ -375,8 +375,8 @@ class App(Gtk.Application):
         # switch pauses everything that makes the stream feel slow (the live wallpaper, KWin
         # blur/slide, and the Mo AI brain's VRAM) so the encoder has the machine to itself.
         # It is safe to flip mid-session — nothing restarts the compositor, so the phone does
-        # not disconnect. Backed by the same /usr/bin/moos-fast-remote the Meta+R shortcut and
-        # the launcher's right-click actions use: one feature, one code path, three doors.
+        # not disconnect. Backed by the same /usr/bin/moos-fast-remote that System Settings →
+        # MoOS → Mo PC Remote and the pin's right-click actions use: one feature, one code path.
         fast=Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL,spacing=16)
         fast.add_css_class("ui2-card")
         fast_text=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=2,hexpand=True)
@@ -454,8 +454,8 @@ class App(Gtk.Application):
         buttons["stop"].set_sensitive(on is not False)
 
     # Fast Remote toggle. The switch drives the ONE moos-fast-remote script; refresh() reads
-    # its status back so the panel always reflects the real mode (e.g. if it was flipped by
-    # Meta+R or the launcher's right-click action). The _fast_syncing guard stops that
+    # its status back so the panel always reflects the real mode (e.g. if it was flipped in
+    # System Settings or by the pin's right-click action). The _fast_syncing guard stops that
     # read-back from re-firing the script — set_active() also emits "state-set".
     def on_fast_toggled(self,_switch,state):
         if getattr(self,"_fast_syncing",False): return False

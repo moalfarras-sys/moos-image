@@ -197,6 +197,25 @@ class UiTellsTheTruth(unittest.TestCase):
                 dead, self.qml,
                 f"Mo AI still points at {dead!r}, which C2 closed")
 
+    def test_the_coding_agent_card_promises_no_offline_agent(self) -> None:
+        """OpenCode is wired to Mo AI's cloud brain (moai-do install-opencode writes the gateway).
+
+        The Compat card still called it "Runs on the MoOS local brain", "No account or internet",
+        with an "Offline" badge, while the system prompt beside it said the cloud brain.
+        """
+        card = self.qml.split('{ key: "opencode", title: "OpenCode"', 1)[1].split('{ key: "claude"', 1)[0]
+        self.assertIn("moaiBrain: true", card)
+        self.assertIn('"Runs on Mo AI\'s free cloud brain"', card)
+        self.assertIn('"وكيل يعمل على عقل Mo AI السحابي المجاني"', card)
+        self.assertIn('needsAr: "بلا حساب مزوّد", needsEn: "No vendor account"', card)
+        for lie in ("local brain", "المحلي", "internet", "إنترنت", "local: true"):
+            self.assertNotIn(lie, card, f"the OpenCode card still promises {lie!r}")
+        for badge in ('"يعمل بلا إنترنت"', 'root.local("يعمل بلا إنترنت", "Offline")', "id: offlineText"):
+            self.assertNotIn(badge, self.qml, "an agent is still badged as working offline")
+        installer = (REPO / "system_files/usr/bin/moai-do").read_text(encoding="utf-8")
+        self.assertIn('"name": "Mo AI free cloud brain"', installer,
+                      "OpenCode's wiring changed; re-read what the card may promise")
+
     def test_desktop_launcher_is_cloud_only_too(self) -> None:
         """Kickoff and right-click actions are product UI, not metadata.
 

@@ -455,6 +455,282 @@
       "confused_with": [
         "os_state"
       ]
+    },
+    {
+      "id": "window-overview",
+      "ar": "اعرض لي كل النوافذ المفتوحة دفعة واحدة.",
+      "en": "Show me all my open windows at once.",
+      "accept": [
+        "show_windows"
+      ],
+      "confused_with": [
+        "arrange_windows"
+      ]
+    },
+    {
+      "id": "show-desktop",
+      "ar": "أخفِ النوافذ وأظهر سطح المكتب.",
+      "en": "Hide the windows and show the desktop.",
+      "accept": [
+        "show_windows"
+      ],
+      "confused_with": [
+        "switch_desktop"
+      ]
+    },
+    {
+      "id": "arrange-halves",
+      "ar": "ضع نافذتيّ جنباً إلى جنب، كل واحدة نصف الشاشة.",
+      "en": "Put my windows side by side, each taking half the screen.",
+      "accept": [
+        "arrange_windows"
+      ],
+      "confused_with": [
+        "show_windows"
+      ]
+    },
+    {
+      "id": "arrange-centre",
+      "ar": "ضع هذه النافذة في منتصف الشاشة.",
+      "en": "Centre this window on the screen.",
+      "accept": [
+        "arrange_windows"
+      ],
+      "confused_with": [
+        "show_windows"
+      ]
+    },
+    {
+      "id": "next-desktop",
+      "ar": "انتقل إلى سطح المكتب الافتراضي التالي.",
+      "en": "Go to the next virtual desktop.",
+      "accept": [
+        "switch_desktop"
+      ],
+      "confused_with": [
+        "show_windows"
+      ]
+    },
+    {
+      "id": "previous-desktop",
+      "ar": "عد إلى سطح المكتب الافتراضي السابق.",
+      "en": "Move back to the previous virtual desktop.",
+      "accept": [
+        "switch_desktop"
+      ],
+      "confused_with": [
+        "show_windows"
+      ]
+    },
+    {
+      "id": "dnd-on",
+      "ar": "لا أريد أي إشعارات الآن، شغّل عدم الإزعاج.",
+      "en": "I don't want any notifications now, turn on do not disturb.",
+      "accept": [
+        "set_do_not_disturb"
+      ],
+      "confused_with": [
+        "set_mute"
+      ]
+    },
+    {
+      "id": "dnd-off",
+      "ar": "أوقف وضع عدم الإزعاج وأعد الإشعارات.",
+      "en": "Turn do not disturb off and bring the notifications back.",
+      "accept": [
+        "set_do_not_disturb"
+      ],
+      "confused_with": [
+        "set_mute"
+      ]
+    },
+    {
+      "id": "mic-mute",
+      "ar": "اكتم الميكروفون قبل الاجتماع.",
+      "en": "Mute my microphone before the meeting.",
+      "accept": [
+        "set_mic_mute"
+      ],
+      "confused_with": [
+        "set_mute"
+      ]
+    },
+    {
+      "id": "mic-unmute",
+      "ar": "أعد تشغيل الميكروفون، لا أحد يسمعني.",
+      "en": "Unmute my microphone, nobody can hear me.",
+      "accept": [
+        "set_mic_mute"
+      ],
+      "confused_with": [
+        "set_mute",
+        "fix_audio"
+      ]
+    },
+    {
+      "id": "keyboard-layout",
+      "ar": "بدّل لغة الكتابة في لوحة المفاتيح.",
+      "en": "Switch my keyboard to the other typing language.",
+      "accept": [
+        "switch_keyboard_layout"
+      ],
+      "confused_with": [
+        "open_settings"
+      ]
+    },
+    {
+      "id": "keyboard-language",
+      "ar": "أريد أن أكتب باللغة الأخرى، غيّر تخطيط لوحة المفاتيح.",
+      "en": "I want to type in my other language, change the keyboard layout.",
+      "accept": [
+        "switch_keyboard_layout"
+      ],
+      "confused_with": [
+        "open_settings"
+      ]
+    },
+    {
+      "id": "motion-still",
+      "ar": "أوقف حركة الخلفية، أريدها ثابتة.",
+      "en": "Stop the wallpaper from moving; keep it still.",
+      "accept": [
+        "set_motion"
+      ],
+      "confused_with": [
+        "set_theme_mode"
+      ]
+    },
+    {
+      "id": "motion-alive",
+      "ar": "اجعل خلفية MoOS حيّة ومتحركة أكثر.",
+      "en": "Make the MoOS wallpaper more alive and animated.",
+      "accept": [
+        "set_motion"
+      ],
+      "confused_with": [
+        "set_theme_mode"
+      ]
+    },
+    {
+      "id": "clarity-solid",
+      "ar": "الزجاج شفاف جداً، اجعله أكثر صلابة.",
+      "en": "The glass surfaces are too see-through, make them solid.",
+      "accept": [
+        "set_glass_clarity"
+      ],
+      "confused_with": [
+        "set_theme_mode"
+      ]
+    },
+    {
+      "id": "clarity-clear",
+      "ar": "اجعل الأسطح الزجاجية أكثر شفافية.",
+      "en": "Make the glass surfaces clearer and more transparent.",
+      "accept": [
+        "set_glass_clarity"
+      ],
+      "confused_with": [
+        "set_theme_mode"
+      ]
+    },
+    {
+      "id": "power-saver",
+      "ar": "شغّل وضع توفير الطاقة لتدوم البطارية أكثر.",
+      "en": "Switch to power saver so the battery lasts longer.",
+      "accept": [
+        "set_power_profile"
+      ],
+      "confused_with": [
+        "set_brightness"
+      ]
+    },
+    {
+      "id": "performance-mode",
+      "ar": "أحتاج أقصى أداء للعبة، شغّل وضع الأداء.",
+      "en": "I need maximum performance for a game, use performance mode.",
+      "accept": [
+        "set_power_profile"
+      ],
+      "confused_with": [
+        "setup_gaming"
+      ]
+    },
+    {
+      "id": "settings-shortcuts",
+      "ar": "افتح إعدادات اختصارات لوحة المفاتيح.",
+      "en": "Open the keyboard shortcuts settings.",
+      "accept": [
+        "open_settings"
+      ],
+      "confused_with": [
+        "switch_keyboard_layout"
+      ]
+    },
+    {
+      "id": "settings-window-behavior",
+      "ar": "افتح إعدادات سلوك النوافذ.",
+      "en": "Open the settings for how windows behave.",
+      "accept": [
+        "open_settings"
+      ],
+      "confused_with": [
+        "arrange_windows"
+      ]
+    },
+    {
+      "id": "settings-appearance",
+      "ar": "افتح إعدادات الألوان والأيقونات.",
+      "en": "Open the colors and icons settings.",
+      "accept": [
+        "open_settings"
+      ],
+      "confused_with": [
+        "set_theme_mode"
+      ]
+    },
+    {
+      "id": "settings-login-screen",
+      "ar": "افتح إعدادات شاشة الدخول.",
+      "en": "Open the login screen settings.",
+      "accept": [
+        "open_settings"
+      ],
+      "confused_with": [
+        "set_theme_mode"
+      ]
+    },
+    {
+      "id": "settings-game-controller",
+      "ar": "افتح إعدادات ذراع الألعاب.",
+      "en": "Open the game controller settings.",
+      "accept": [
+        "open_settings"
+      ],
+      "confused_with": [
+        "setup_gaming"
+      ]
+    },
+    {
+      "id": "settings-assistant",
+      "ar": "افتح إعدادات Mo AI لأغيّر المزوّد.",
+      "en": "Open Mo AI's settings so I can change the provider.",
+      "accept": [
+        "open_settings"
+      ],
+      "confused_with": [
+        "open_app"
+      ]
+    },
+    {
+      "id": "settings-recovery",
+      "ar": "افتح صفحة الاستعادة في الإعدادات.",
+      "en": "Open the Recovery page in settings.",
+      "accept": [
+        "open_settings"
+      ],
+      "confused_with": [
+        "system_rollback"
+      ]
     }
   ]
 }

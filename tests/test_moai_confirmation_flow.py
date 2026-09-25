@@ -28,6 +28,13 @@ import urllib.request
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import journal_isolation  # noqa: E402
+
+# moai-control writes "tool=<name> started/ok" with `logger` for every tool, and the REAL
+# moai-do behind the read-only tools audits too: into this process's recording logger.
+journal_isolation.install()
+
 ROOT = Path(__file__).resolve().parents[1]
 CONTROL_SCRIPT = ROOT / "system_files/usr/bin/moai-control"
 sys.path.insert(0, str(ROOT / "system_files/usr/lib/moai"))
@@ -71,6 +78,13 @@ class TestMoaiConfirmationFlow(unittest.TestCase):
             (bindir / name).chmod(0o755)
         cls.old_path = os.environ.get("PATH", "")
         os.environ["PATH"] = f"{bindir}{os.pathsep}{cls.old_path}"
+        # A confirmed job publishes an Island token in $XDG_RUNTIME_DIR/moai-jobs (SPEC D6).
+        # With the owner's real runtime directory, every gate run on the station left
+        # "job done/failed" tokens the live Island would show. The directory is this test's own.
+        cls.old_runtime = os.environ.get("XDG_RUNTIME_DIR")
+        cls.runtime = bindir / "runtime"
+        cls.runtime.mkdir(mode=0o700)
+        os.environ["XDG_RUNTIME_DIR"] = str(cls.runtime)
         cls.ns = runpy.run_path(str(CONTROL_SCRIPT), run_name="moai_control_test")
         handler_cls = cls.ns["H"]
 
@@ -85,6 +99,10 @@ class TestMoaiConfirmationFlow(unittest.TestCase):
         cls.server.shutdown()
         cls.server.server_close()
         os.environ["PATH"] = cls.old_path
+        if cls.old_runtime is None:
+            os.environ.pop("XDG_RUNTIME_DIR", None)
+        else:
+            os.environ["XDG_RUNTIME_DIR"] = cls.old_runtime
         cls.tmp.cleanup()
 
     def _wait(self, job_id: str, seconds: float = 20.0) -> dict:

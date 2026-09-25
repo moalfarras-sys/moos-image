@@ -64,7 +64,13 @@ Item {
             ? Kirigami.Units.largeSpacing : 0
     }
 
+    // Qt.callLater runs on a later event turn, and a shell restart can destroy the
+    // card in between: every id here is then null. Measured at the THEME_REV 85
+    // restart: "GlassCard.qml:68: Cannot read property 'motionEnabled' of null".
     Component.onCompleted: Qt.callLater(function() {
+        if (!card || !entrance || !entranceShift) {
+            return
+        }
         if (card.motionEnabled && !card.integrated) {
             entrance.restart()
         } else {

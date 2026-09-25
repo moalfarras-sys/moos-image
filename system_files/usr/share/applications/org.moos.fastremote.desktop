@@ -9,10 +9,9 @@ Icon=moos-pc-remote
 Terminal=false
 Categories=Network;RemoteAccess;
 Keywords=remote;fast;speed;stream;موس;سريع;
-X-KDE-GlobalAccel=Meta+R
-# Fast Remote is no longer a standalone icon — it is merged into Mo PC Remote (the
-# panel toggle + the launcher's right-click actions). This entry is kept ONLY so the
-# Meta+R global shortcut has a target; NoDisplay keeps it out of the menu and dock so
-# the feature is never shown twice. kglobalaccel still registers the shortcut for a
-# NoDisplay entry.
+# Fast Remote is not a standalone icon: it is a switch inside Mo PC Remote.
+# NoDisplay keeps this toggle entry out of the menu and dock. It used to
+# promise a Meta+R global shortcut through X-KDE-GlobalAccel, a key kglobalaccel
+# never reads (measured: no such component registered), and Meta+R is Spectacle's
+# stock "record region" binding, so the key is gone.
 NoDisplay=true

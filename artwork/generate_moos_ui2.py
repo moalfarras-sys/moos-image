@@ -259,11 +259,18 @@ OPACITY = {
     },
 }
 
-# One supported, measured KWin frost profile for the entire MoOS UI family.
-# KWin accepts BlurStrength only in the range 1..15; a previous value of 24
-# produced zero-sized blur textures and crashed the compositor at boot.
-KWIN_BLUR_STRENGTH = 15
-KWIN_NOISE_STRENGTH = 3
+# The KWin frost (blur on, BlurStrength 15, NoiseStrength 3) is NOT a Global Theme key. A
+# look-and-feel package's [kwinrc][Plugins] and [kwinrc][Effect-blur] groups are never applied:
+# measured against the shipped libklookandfeel.so.6 (2026-09-24), whose kwinrc key table holds
+# only org.kde.kdecoration2, library, theme, BorderlessMaximizedWindows, TabBox, LayoutName,
+# WindowSwitcher and DesktopSwitcher. Every MoOS Global Theme carried both groups as dead config
+# until THEME_REV 86. Blur is owned by /etc/xdg/kwinrc (the shipped default; KWin accepts
+# BlurStrength only in 1..15 — a value of 24 once crashed the compositor at boot), by
+# moos-visual-tier (the hardware tier) and by `moos-theme clarity` (the owner's choice).
+#
+# The splash engine is None, not KSplashQML: under Wayland ksplashqml exited 1 and
+# plasma_waitforname waited 60 s for org.kde.KSplash at every login (commit 0bf113d2, which
+# fixed the shipped defaults by hand while this generator still wrote KSplashQML).
 
 
 def _glass_opacity(variant: str, light: bool | None) -> dict[str, str]:
@@ -600,7 +607,7 @@ name={style}
 
 [ksplashrc][KSplash]
 Theme={package}
-Engine=KSplashQML
+Engine=None
 
 [kdeglobals][Icons]
 Theme={icons}
@@ -612,13 +619,6 @@ Theme=moos
 [kwinrc][org.kde.kdecoration2]
 library=org.kde.kwin.aurorae.v2
 theme=__aurorae__svg__{deco}
-
-[kwinrc][Plugins]
-blurEnabled=true
-
-[kwinrc][Effect-blur]
-BlurStrength={KWIN_BLUR_STRENGTH}
-NoiseStrength={KWIN_NOISE_STRENGTH}
 
 [kcminputrc][Mouse]
 cursorTheme={cursor}

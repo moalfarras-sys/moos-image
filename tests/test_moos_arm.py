@@ -278,15 +278,20 @@ class ArmEditionTests(unittest.TestCase):
                       "the finished ARM image never proves its icon fallback exists")
 
     def test_arm_has_one_storefront(self) -> None:
+        # ARM curates its menu with the same script as x86 (build_files/curate_app_menu.sh),
+        # whose rebrand hides Discover under Mo Store's name and icon and whose gate fails
+        # the build when Discover is visible, misnamed, or leaks the name into an action.
         build = code(read(BUILD))
+        self.assertIn("bash /ctx/curate_app_menu.sh / || exit 1", build,
+                      "ARM does not run the menu curation that enforces one storefront")
+        curation = read(ROOT / "build_files/curate_app_menu.sh")
         for contract in (
-            "org.kde.discover.desktop",
-            "Name=Mo Store",
-            "Icon=mo-store",
-            "NoDisplay=true",
+            'moos_rebrand_entry "${APPS}/org.kde.discover.desktop"         "Mo Store"       "متجر MoOS"      "mo-store"               hide',
+            'entry.get("Name") != "Mo Store" or entry.get("Icon") != "mo-store"',
+            "leaked out of the header into a jump-list action",
         ):
-            self.assertIn(contract, build,
-                          f"ARM does not enforce the one-storefront contract: {contract}")
+            self.assertIn(contract, curation,
+                          f"the shared curation no longer enforces one storefront: {contract[:60]}")
 
     # ── the ARM-specific things that x86 gets wrong ─────────────────────────
     def test_the_serial_console_is_the_arm_uart(self) -> None:

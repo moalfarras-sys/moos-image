@@ -13,7 +13,10 @@
 //   so this window CANNOT execute anything. It has exactly two channels:
 //
 //     1. moai-control on 127.0.0.1:8079 — READ-ONLY state (/quick, /scan,
-//        /search) plus its own brain config (/config). It changes nothing else.
+//        /models, /tools) and the confirmed tool loop. Mo AI's own settings —
+//        the brain, the key, the phone channels and the permissions — are a page
+//        of System Settings (moos://settings/assistant, kcm_moos_ai), not a sheet
+//        in this window.
 //     2. Qt.openUrlExternally("moos://…") — the scheme handler /usr/bin/moos-open,
 //        a strict whitelist, which runs the matching /usr/bin/moai-do action in a
 //        VISIBLE terminal with a confirmation and a Polkit prompt.
@@ -39,7 +42,7 @@ Kirigami.ApplicationWindow {
 
     // ── Motion gate ──────────────────────────────────────────────────────
     // Every endless animation below (the idle-orb breathing, the thinking
-    // halo, the typing dots, the ambient particles, the remote-active rings)
+    // halo, the typing dots, the ambient particles)
     // ANDs its `running:` with this. Kirigami.Units.longDuration is what the
     // "animation speed" slider actually moves and KDE FLOORS it at 1 when
     // animations are disabled — so `> 1` is false exactly when the user, or
@@ -190,15 +193,14 @@ Kirigami.ApplicationWindow {
         const value = String(argv[i + 1]).toLowerCase()
         return value === "rtl" || value === "ltr" ? value : ""
     }
-    readonly property string layoutDirectionOverride: root.argLayoutDirection()
-    // The owner's language, decoupled from the session locale: this desktop
-    // runs a German locale, so the app rendered ENGLISH for an Arabic-speaking
-    // owner. "" = follow the system; "ar"/"en" = the saved choice from
-    // Settings → Appearance (ui.language via moai-agent-api).
-    property string langOverride: ""
-    readonly property bool moaiRtl: langOverride === "ar" ? true
-        : langOverride === "en" ? false
-        : layoutDirectionOverride === "rtl"
+    // A REVIEW knob only: the direction a harness asks for, from `--layout-direction
+    // rtl|ltr` or set by tests/qml/moai-*-review.qml. Mo AI speaks the system's language,
+    // read from the shared org.moos.ui Locale like every MoOS surface. The app's own
+    // language choice (the old Settings → Appearance, saved as ui.language) is retired: a
+    // saved value is no longer read, and it is left on disk untouched; the Mo AI page of
+    // System Settings tells the owner it exists.
+    property string layoutDirectionOverride: root.argLayoutDirection()
+    readonly property bool moaiRtl: layoutDirectionOverride === "rtl"
         || (layoutDirectionOverride === "" && MoUI.Locale.rtl)
     readonly property int gatewayPort: root.argPort("--gateway-port", 8080)
     readonly property int controlPort: root.argPort("--control-port", 8079)
@@ -209,7 +211,6 @@ Kirigami.ApplicationWindow {
 
     property var activeXhr: null
     property bool busy: false
-    property bool brainStarting: false
     property var history: []            // [{role, content}] — last 12 turns
     property var pendingRuns: []        // moai-do actions the model just named
     property var pendingToolConfirmation: null // active structured tool confirmation card
@@ -334,7 +335,7 @@ Kirigami.ApplicationWindow {
     // the gateway would refuse.
     property bool agentMode: true
     readonly property bool hermesReady: !!root.agentState.hermes
-    property string panel: "chat"       // chat|device|apps|compat|remote|dev|agent
+    property string panel: "chat"       // chat|device|compat|agent
 
     // ── Which brain answers THIS conversation ───────────────────────────────
     // `route` is exactly what goes in the POST's `model` field, and it is the
@@ -350,13 +351,6 @@ Kirigami.ApplicationWindow {
     property bool modelsLoading: false
     property bool pickerOpen: false
 
-    // Which free brain is strongest is a measurement, not an opinion, and the free
-    // catalogue turns over every few weeks — so the machine measures it for itself.
-    // `measure` is moai-control's /measure: what this machine last measured, and
-    // whether a run is going on right now.
-    property var measure: ({})
-    readonly property bool measuring: !!root.measure.measuring
-    readonly property bool measuredEver: (root.measure.measuredAt || 0) > 0
 
     // The download the picker offers. `pullModel` is the starter being fetched
     // right now (""=none), so its own row can draw the bar instead of the whole
@@ -500,16 +494,14 @@ Kirigami.ApplicationWindow {
         return false
     }
 
-    readonly property var remoteState: (snap.remote || {})
     readonly property var agentState: (snap.agents || {})
     readonly property var compatState: (snap.compatibility || {})
-    readonly property var appState: (snap.apps || {})
 
     // ── The companion's mood ────────────────────────────────────────────────
     property string moodFlash: ""
     readonly property string mood:
           moodFlash !== "" ? moodFlash
-        : !serverUp ? (brainStarting ? "thinking" : "offline")
+        : !serverUp ? "offline"
         : busy ? "thinking"
         : (input.activeFocus && input.text.trim().length > 0) ? "attentive"
         : "idle"
@@ -545,7 +537,7 @@ Kirigami.ApplicationWindow {
         "still prompts for a password where one is needed):\n" +
         "• Repair & maintain: `moai-do update` (atomic system update), `moai-do " +
         "fix-audio`, `moai-do check-drivers`, `moai-do optimize` (clean + speed up), " +
-        "`moai-do diagnose-services`, `moai-do inspect-boot`, `moai-do hw-report`.\n" +
+        "`moai-do diagnose-services`, `moai-do inspect-boot`.\n" +
         "• Rescue & diagnose: `moai-do rollback` (go back to the previous version if an " +
         "update broke something — atomic and reversible, applies on reboot), `moai-do " +
         "net-doctor` (network/DNS/Tailscale check — read-only), `moai-do gpu-report` (GPU " +
@@ -564,14 +556,14 @@ Kirigami.ApplicationWindow {
         ".camera` — a COSMIC-desktop app that panics here — and NOT `org.kde.kamoso`: " +
         "it still segfaults in GStreamer a few seconds after it " +
         "opens. If you are not certain of an app id, tell the user to search it in " +
-        "the Apps panel rather than guessing one.\n" +
+        "Mo Store rather than guessing one.\n" +
         "• Install an app that arrived as a FILE (an AppImage, or a portable .tar.gz/.zip): " +
         "tell the user to drag it into their Applications folder, or onto this chat, or to " +
         "right-click it and choose Install in MoOS. MoOS shows what it is, asks, unpacks it in " +
         "a sandbox and adds it to the launcher — no administrator rights. A .deb does not run " +
         "here: point them to Mo Store or the project's AppImage instead.\n" +
         "• Install a local RPM: tell the user to drag the .rpm onto this chat or use " +
-        "Apps → Install RPM. Do not invent a shell command or ask them to disable " +
+        "My device → Install RPM. Do not invent a shell command or ask them to disable " +
         "signature checks. MoOS shows the package/version/installed size, accepts only " +
         "a trusted publisher signature, asks for confirmation, then stages an atomic " +
         "deployment that applies after restart. Prefer the newer official file when the " +
@@ -579,20 +571,32 @@ Kirigami.ApplicationWindow {
         "• Remove or update apps: `moai-do uninstall <flatpak-id>` removes an app for this " +
         "user (e.g. `moai-do uninstall com.spotify.Client`), and `moai-do update-apps` " +
         "updates every app. Installs, removals and app updates all go through Mo Store's " +
-        "backend and ask the user to confirm first. Use the exact id from the Apps panel.\n" +
+        "backend and ask the user to confirm first. Use the exact id Mo Store shows.\n" +
         "• CONTROL THIS COMPUTER: when the user asks you to CHANGE something, put the exact " +
         "command in a code block and the app shows it as a button that does it in one tap — " +
         "no password, and every one is reversible: `moos-control volume 40` (0–100, or " +
         "`up`/`down`), `moos-control mute` / `moos-control unmute`, `moos-control brightness 70` " +
         "(5–100, or `up`/`down`), `moos-control night-light on|off|auto`, `moos-control " +
-        "bluetooth on|off`, `moos-control wifi on|off` (Wi-Fi off also asks first — it " +
+        "bluetooth on|off` (Bluetooth off asks first — it disconnects wireless keyboards and " +
+        "mice), `moos-control wifi on|off` (Wi-Fi off also asks first — it " +
         "disconnects the internet, you and remote control), `moos-control screenshot`, " +
         "`moos-control theme dark|light|nova|amethyst|midnight|aurora|auto`, `moos-control open " +
-        "<installed-app-id>` (e.g. `moos-control open org.mozilla.firefox`) and `moos-control " +
+        "<installed-app-id>` (e.g. `moos-control open org.mozilla.firefox`), the desktop " +
+        "itself: `moos-control window overview|grid|show-desktop`, `moos-control arrange " +
+        "halves|thirds|quarters|main|centre` (arranges the windows on the current screen), " +
+        "`moos-control desktop next|previous`, `moos-control dnd on|off` (do not disturb), " +
+        "`moos-control mic mute|unmute` (the microphone, not the speakers; unmute asks " +
+        "first), `moos-control " +
+        "keyboard-layout next`, `moos-control motion still|gentle|alive` (wallpaper motion), " +
+        "`moos-control clarity clear|balanced|solid` (glass), `moos-control power-profile " +
+        "power-saver|balanced|performance`, and `moos-control " +
         "settings <page>` for the exact settings page (display, night-light, audio, network, " +
-        "bluetooth, keyboard, mouse, themes, wallpaper, fonts, energy, time, region, users, " +
-        "storage, update). Offer these only when the user wants the change; for “how do I…” " +
-        "questions explain instead.\n" +
+        "bluetooth, keyboard, mouse, touchpad, printers, themes, wallpaper, fonts, " +
+        "accessibility, notifications, energy, " +
+        "time, region, users, about, storage, update, whats-new, assistant, remote, recovery, " +
+        "global-theme, colors, icons, cursors, shortcuts, window-behavior, window-rules, " +
+        "effects, desktops, screen-edges, task-switcher, login-screen, game-controller). Offer these only " +
+        "when the user wants the change; for “how do I…” questions explain instead.\n" +
         "• YOUR DAILY CHECK: MoOS runs a read-only check every day — app and system updates, " +
         "what is using the machine and why, security signs (ports open to the network, " +
         "suspicious startup entries, user services or shell lines, programs running from " +
@@ -626,15 +630,17 @@ Kirigami.ApplicationWindow {
         "turns it off for a plain direct reply. Offer the install when the user wants multi-step " +
         "project work done for them.\n" +
         "• Phone agent: `moai-do install-openclaw` installs and fully configures the " +
-        "Telegram agent on Mo AI's cloud brain. `moai-do setup-brain` opens the brain " +
-        "settings (cloud provider and model). Both are fixed, confirmed actions.\n" +
+        "Telegram agent on Mo AI's cloud brain; it is a fixed, confirmed action. The brain " +
+        "itself (cloud provider and model) is set on the Mo AI page of System Settings: " +
+        "`moos-control settings assistant`.\n" +
         "• Diagnose: explain the likely cause in plain language, then give the " +
         "SMALLEST safe repair.\n\n" +
         "WHICH BRAIN YOU ARE: the user picks it per conversation, from the chip next " +
         "to the message box. MoOS runs you on a FREE cloud model by default; a paid " +
         "cloud model is used only when the user explicitly picks it, and nothing is downloaded to this machine. If they ask how to " +
         "change model or make you stronger, point them at that chip; " +
-        "the provider and the key live behind it, in Settings.\n\n" +
+        "the provider, the key and the default model are on the Mo AI page of System " +
+        "Settings (`moos-control settings assistant`).\n\n" +
         "WHEN YOU HAVE TOOLS: you are this computer's operator, not an adviser. LOOK before you " +
         "act — the read-only tools (failed services, one service's status, the system log, top " +
         "processes, memory, storage, network, installed apps, system version) run at once and " +
@@ -678,22 +684,11 @@ Kirigami.ApplicationWindow {
     // refuses is a worse failure than the one it was written to explain.
     readonly property string offlineHelp: root.moaiRtl
         ? ("‏لم يُضبَط مزوّد سحابي بعد.\n\n" +
-           "اضغط **«إعداد المزوّد»** بالأسفل واختر مزوّداً مجانياً — Cerebras أو Groq أو NVIDIA NIM أو OpenRouter — وألصق مفتاحه.\n\n" +
+           "اضغط **«إعداد المزوّد»** بالأسفل واختر مزوّداً مجانياً — OpenRouter المجاني — وألصق مفتاحه.\n\n" +
            "لا يُنزَّل أي نموذج على جهازك.")
         : ("‎No cloud provider is set up yet.\n\n" +
            "Tap **“Provider setup”** below and pick a free one — OpenRouter Free — then paste its key.\n\n" +
            "Nothing is downloaded to your machine.")
-
-    // STAGE C5 (docs/MOAI_CLOUD_ONLY_PLAN.md). This promised "the first run
-    // downloads the model (~2.5 GB)". Since C2 closed ensure_local() that
-    // download cannot happen, so the sentence was telling the user something
-    // untrue — worse than either behaviour on its own, which is why C5 had to
-    // ship before this branch could be promoted.
-    readonly property string startingHelp: root.moaiRtl
-        ? ("‏عقل Mo AI سحابي — لا يُنزَّل أي نموذج على جهازك.\n\n" +
-           "اختر مزوّداً مجانياً (Cerebras أو Groq أو NVIDIA NIM أو OpenRouter) وألصق مفتاحه، وسأجيب فوراً.")
-        : ("‎Mo AI's brain is in the cloud — nothing is downloaded to your machine.\n\n" +
-           "Pick a free provider (OpenRouter Free), paste its key, and I answer straight away.")
 
     // MoOS speaks the user's ONE language. The greeting used to stack Arabic and
     // English; now it shows only the session language (RTL ⇒ Arabic), the same
@@ -718,10 +713,10 @@ Kirigami.ApplicationWindow {
     }
     readonly property string greetingText: moaiRtl
         ? ("‏مرحباً! أنا **Mo AI** — مساعد MoOS.\n\n" +
-           "أقدر أصلّح التعريفات، أحدّث النظام، أثبّت أي تطبيق، أنظّف الجهاز، وأشغّل Mo PC Remote.\n\n" +
+           "أقدر أصلّح التعريفات، أحدّث النظام، أثبّت أي تطبيق، أنظّف الجهاز، وأجهّز Mo PC Remote.\n\n" +
            "_اسألني، أو استخدم الشريط الجانبي._")
         : ("‎Hi! I'm **Mo AI** — your MoOS assistant.\n\n" +
-           "I can fix drivers, update the system, install any app, clean things up, and run Mo PC Remote.\n\n" +
+           "I can fix drivers, update the system, install any app, clean things up, and set up Mo PC Remote.\n\n" +
            "_Ask me, or use the side rail._")
 
     readonly property var starters: [
@@ -770,12 +765,14 @@ Kirigami.ApplicationWindow {
     // developer drives (projects, tasks, terminal, coding agents) is one
     // Workbench panel. The id stays "agent" so every existing launch shim and
     // route keeps working.
+    //
+    // No Apps and no Remote here: installing, updating and removing apps is Mo Store's (the
+    // one store; install and uninstall stay tools in the chat), and Mo PC Remote's switches
+    // are System Settings → MoOS → Mo PC Remote. The Device panel links to both.
     readonly property var navItems: [
         { id: "chat",   icon: "moos-ai-symbolic",           ar: "المحادثة", en: "Chat" },
         { id: "device", icon: "moos-gpu-symbolic",          ar: "الجهاز",   en: "Device" },
-        { id: "apps",   icon: "moos-install-symbolic",      ar: "التطبيقات", en: "Apps" },
         { id: "compat", icon: "moos-gaming-symbolic",       ar: "التوافق",  en: "Compat" },
-        { id: "remote", icon: "moos-phone-symbolic",        ar: "التحكّم",   en: "Remote" },
         { id: "agent",  icon: "moos-code-symbolic",         ar: "الورشة",   en: "Workbench" }
     ]
 
@@ -840,22 +837,9 @@ Kirigami.ApplicationWindow {
         return (new Date(t * 1000)).toLocaleDateString(Qt.locale(), Locale.ShortFormat)
     }
 
-    // The apps we recommend. Everything else lives in Mo Store, the one store,
-    // or is found by searching Flathub right here.
-    readonly property var appCatalog: [
-        { id: "org.mozilla.firefox",      title: "Firefox",     ar: "متصفح ويب",      en: "Web browser" },
-        { id: "org.videolan.VLC",         title: "VLC",         ar: "مشغل وسائط",     en: "Media player" },
-        { id: "org.libreoffice.LibreOffice", title: "LibreOffice", ar: "حزمة مكتبية", en: "Office suite" },
-        { id: "org.gnome.Snapshot",       title: "Camera",      ar: "الكاميرا",       en: "Camera" },
-        { id: "com.github.tchx84.Flatseal", title: "Flatseal",  ar: "صلاحيات التطبيقات", en: "App permissions" }
-    ]
-
     ListModel { id: chatModel }
     // Read by tests/qml/moai-tools-review.qml, which drives this window through the tool loop.
     readonly property alias chatRows: chatModel
-    ListModel { id: searchModel }
-    property bool searching: false
-    property string searchNote: ""
 
     // ── Startup ─────────────────────────────────────────────────────────────
     // moos-qml-shell is unique per app id. Forwarded launches must therefore
@@ -875,8 +859,12 @@ Kirigami.ApplicationWindow {
             const i = argv.indexOf("--panel")
             if (i !== -1 && i + 1 < argv.length) {
                 const p = argv[i + 1]
-                if (["chat", "device", "apps", "compat", "remote", "agent"].indexOf(p) !== -1)
+                if (["chat", "device", "compat", "agent"].indexOf(p) !== -1)
                     root.panel = p
+                // Apps and Remote left the rail (Mo Store; System Settings → Mo PC Remote).
+                // An old `moai --panel apps|remote` lands on My device, which links to both.
+                else if (p === "apps" || p === "remote")
+                    root.panel = "device"
                 // The retired standalone Dev panel lives on as the Workbench's
                 // coding-agents tab; the old flag must keep landing somewhere.
                 else if (p === "dev") {
@@ -951,16 +939,16 @@ Kirigami.ApplicationWindow {
         const settingsIndex = argv.indexOf("--settings")
         if (settingsIndex !== -1 && settingsIndex + 1 < argv.length) {
             const settingsSection = String(argv[settingsIndex + 1])
-            // Old section names keep working: the brain trio merged into one
-            // tab, projects joined permissions, and the terminal lives in the
-            // Workbench now.
-            const remap = { models: "brain", providers: "brain", privacy: "brain",
-                            projects: "permissions" }
-            const section = remap[settingsSection] || settingsSection
-            if (["brain", "openclaw", "telegram", "whatsapp", "voice",
-                 "permissions", "memory", "appearance"].indexOf(section) !== -1) {
-                root.cfgTab = section
-                root.settingsOpen = true
+            // Every settings section this window once had — the brain (and its old names
+            // models, providers, privacy), OpenClaw, Telegram, WhatsApp, voice, memory,
+            // permissions (and projects) — is now the Mo AI page of System Settings. The
+            // appearance section was only a door to MoOS Themes and a language override
+            // that is retired. The terminal lives in the Workbench.
+            if (["brain", "models", "providers", "privacy", "openclaw", "telegram", "whatsapp",
+                 "voice", "permissions", "projects", "memory"].indexOf(settingsSection) !== -1) {
+                root.openAssistantSettings()
+            } else if (settingsSection === "appearance") {
+                root.launch("moos://settings/themes", root.local("ثيمات MoOS", "MoOS Themes"))
             } else if (settingsSection === "terminal") {
                 root.panel = "agent"
                 root.agentWorkspaceTab = "terminal"
@@ -982,10 +970,6 @@ Kirigami.ApplicationWindow {
         refreshScan()
         loadModels()
         loadTools()
-        // The saved UI language must apply from the first frame it can:
-        // cfgLoad carries ui.language and every root.local() binding tracks
-        // moaiRtl, so the whole surface re-renders when this lands.
-        root.cfgLoad()
         root.applyLaunchArguments(Qt.application.arguments)
     }
 
@@ -1029,10 +1013,8 @@ Kirigami.ApplicationWindow {
                     root.brains = q.brains || {}
                     root.brainsKnown = true
                     root.defaultOnline = !!q.online
-                    if (root.serverUp)
-                        root.brainStarting = false
-                    // Merge the live bits into the snapshot so the Remote and
-                    // Developer panels update without a full rescan.
+                    // Merge the live bits into the snapshot so the Workbench's
+                    // coding agents update without a full rescan.
                     const s = root.snap || {}
                     s.remote = q.remote || {}
                     s.agents = q.agents || {}
@@ -1143,64 +1125,6 @@ Kirigami.ApplicationWindow {
         onTriggered: root.loadHealth()
     }
 
-    // ── the free brain this machine measured ───────────────────────────────
-    // Two calls, the same shape as the health scan: read what is known, and ask
-    // for a fresh run. The run takes a minute or two because every candidate is
-    // asked two real questions through the real gateway, so the button reports
-    // progress rather than pretending to be instant.
-    function loadMeasure() {
-        const xhr = new XMLHttpRequest()
-        xhr.open("GET", controlApi + "/measure")
-        xhr.setRequestHeader("X-Moai-Control", "1")
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState !== XMLHttpRequest.DONE || xhr.status !== 200)
-                return
-            try {
-                const doc = JSON.parse(xhr.responseText)
-                const finished = root.measuring && !doc.measuring
-                root.measure = doc
-                if (doc.measuring)
-                    measurePoll.restart()
-                else if (finished)
-                    root.loadModels()   // the rows carry new notes and a new order
-            } catch (e) { /* keep the last good measurement */ }
-        }
-        xhr.send()
-    }
-
-    function measureFree() {
-        const xhr = new XMLHttpRequest()
-        xhr.open("POST", controlApi + "/measure")
-        xhr.setRequestHeader("X-Moai-Control", "1")
-        xhr.setRequestHeader("Content-Type", "application/json")
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState !== XMLHttpRequest.DONE)
-                return
-            if (xhr.status === 200) {
-                try { root.measure = JSON.parse(xhr.responseText) } catch (e) { }
-                measurePoll.restart()
-            } else {
-                // The refusal carries its own bilingual reason — no key, or a
-                // provider with no free catalogue at all. Show THAT, not a guess:
-                // an owner told "add your key" when the key is fine and the
-                // provider is the problem goes looking in the wrong place.
-                let reason = ""
-                try { reason = (JSON.parse(xhr.responseText) || {}).error || "" } catch (e) { }
-                root.measure = { measuring: false, error: reason || root.local(
-                    "أضف مفتاح المزوّد أولاً — القياس يرسل سؤالين حقيقيين.",
-                    "Add the provider key first — measuring sends two real questions.") }
-            }
-        }
-        xhr.send("{}")
-    }
-
-    Timer {
-        id: measurePoll
-        interval: 2500
-        repeat: false
-        onTriggered: root.loadMeasure()
-    }
-
     function refreshScan() {
         root.scanning = true
         const xhr = new XMLHttpRequest()
@@ -1292,12 +1216,15 @@ Kirigami.ApplicationWindow {
         if (typeof heroOrb !== "undefined") heroOrb.pulse()
     }
 
-    function startBrain() {
-        Qt.openUrlExternally("moos://brain/start")
-        brainStarting = true
-        brainStartGuard.restart()
+    // Setting up the brain is a page of System Settings now. `brain/start` is the public
+    // route for "give Mo AI a brain" (moos-open sends it to that same page); every other
+    // door — the gear, "Provider & API key", "Set up the cloud brain" — names the page.
+    function setUpBrain() {
+        root.launch("moos://brain/start", root.local("إعداد المزوّد السحابي", "Cloud provider setup"))
     }
-    Timer { id: brainStartGuard; interval: 720000; onTriggered: root.brainStarting = false }
+    function openAssistantSettings() {
+        root.launch("moos://settings/assistant", root.local("إعدادات Mo AI", "Mo AI settings"))
+    }
 
     function askAbout(title, detail) {
         root.panel = "chat"
@@ -1305,49 +1232,6 @@ Kirigami.ApplicationWindow {
             "اشرح لي هذه المشكلة وكيف أصلحها: ",
             "Explain this problem and how to fix it: ") + title + " — " + detail
         input.forceActiveFocus()
-    }
-
-    // Search Flathub through moai-control (which falls back to the local
-    // appstream index when offline). Searching is read-only; INSTALLING hands
-    // the id to moos://apps/install/<id> -> moai-do install, which validates it
-    // again and asks for confirmation. The two never share a code path.
-    function searchApps(q) {
-        const query = (q || "").trim()
-        if (query === "") {
-            searchModel.clear()
-            root.searchNote = ""
-            return
-        }
-        root.searching = true
-        root.searchNote = ""
-        const xhr = new XMLHttpRequest()
-        xhr.open("GET", controlApi + "/search?q=" + encodeURIComponent(query))
-        xhr.setRequestHeader("X-Moai-Control", "1")
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState !== XMLHttpRequest.DONE)
-                return
-            root.searching = false
-            searchModel.clear()
-            if (xhr.status !== 200) {
-                root.searchNote = root.local("تعذّر البحث", "Search failed")
-                return
-            }
-            try {
-                const r = JSON.parse(xhr.responseText)
-                const list = r.results || []
-                for (let i = 0; i < list.length; i++)
-                    searchModel.append(list[i])
-                if (list.length === 0)
-                    root.searchNote = root.local("لا نتائج", "No results")
-                else if (r.source === "local")
-                    root.searchNote = root.local("بدون إنترنت — نتائج محلية",
-                                                 "Offline — local results")
-            } catch (e) {
-                root.searchNote = root.local("تعذّر قراءة النتائج",
-                                             "Couldn't read results")
-            }
-        }
-        xhr.send()
     }
 
     // The moai-do actions the model named in its last reply, surfaced as Run
@@ -1366,7 +1250,7 @@ Kirigami.ApplicationWindow {
     // tests/verify_user_experience.py now compares this list against the prompt.
     function extractRuns(text) {
         const out = []
-        const re = /moai-do\s+(update-firmware|update-apps|update|fix-audio|check-drivers|optimize|hw-report|diagnose-services|inspect-boot|install-nvidia|setup-waydroid|setup-gaming|setup-windows|install-codex|install-claude|install-opencode|install-hermes|install-openclaw|setup-brain|rollback|net-doctor|gpu-report)\b/g
+        const re = /moai-do\s+(update-firmware|update-apps|update|fix-audio|check-drivers|optimize|diagnose-services|inspect-boot|install-nvidia|setup-waydroid|setup-gaming|setup-windows|install-codex|install-claude|install-opencode|install-hermes|install-openclaw|setup-brain|rollback|net-doctor|gpu-report)\b/g
         let m
         while ((m = re.exec(text)) !== null)
             if (out.indexOf(m[1]) === -1)
@@ -1391,7 +1275,7 @@ Kirigami.ApplicationWindow {
         // settings page). The grammar is closed — only these exact shapes become
         // buttons — and nothing runs until the user taps one; moos-open then
         // validates the shape again.
-        const ctl = /moos-control\s+(volume\s+(?:100|[0-9]{1,2}|up|down)|mute|unmute|brightness\s+(?:100|[1-9][0-9]|[5-9]|up|down)|night-light\s+(?:on|off|auto)|wifi\s+(?:on|off)|bluetooth\s+(?:on|off)|screenshot|theme\s+(?:dark|light|nova|amethyst|midnight|aurora|auto)|open\s+[A-Za-z0-9][A-Za-z0-9._-]{2,254}|settings\s+(?:display|night-light|audio|network|bluetooth|keyboard|mouse|touchpad|printers|themes|wallpaper|fonts|accessibility|notifications|energy|time|region|users|about|storage|update|default-apps|autostart|lock|permissions))\b/g
+        const ctl = /moos-control\s+(volume\s+(?:100|[0-9]{1,2}|up|down)|mute|unmute|brightness\s+(?:100|[1-9][0-9]|[5-9]|up|down)|night-light\s+(?:on|off|auto)|wifi\s+(?:on|off)|bluetooth\s+(?:on|off)|screenshot|theme\s+(?:dark|light|nova|amethyst|midnight|aurora|auto)|open\s+[A-Za-z0-9][A-Za-z0-9._-]{2,254}|window\s+(?:overview|grid|show-desktop)|arrange\s+(?:halves|thirds|quarters|main|centre)|desktop\s+(?:next|previous)|dnd\s+(?:on|off)|mic\s+(?:mute|unmute)|keyboard-layout\s+(?:next)|motion\s+(?:still|gentle|alive)|clarity\s+(?:clear|balanced|solid)|power-profile\s+(?:power-saver|balanced|performance)|settings\s+(?:display|night-light|audio|network|bluetooth|keyboard|mouse|touchpad|printers|themes|wallpaper|fonts|accessibility|notifications|energy|time|region|users|about|storage|update|default-apps|autostart|lock|permissions|overview|whats-new|assistant|remote|recovery|appearance|global-theme|colors|icons|cursors|window-decoration|animations|sounds|shortcuts|window-behavior|window-rules|effects|desktops|screen-edges|task-switcher|search|login-screen|virtual-keyboard|touchscreen|tablet|game-controller))\b/g
         while ((m = ctl.exec(text)) !== null) {
             const spec = "control:" + m[1].trim().replace(/\s+/g, "/")
             if (out.indexOf(spec) === -1)
@@ -1437,6 +1321,24 @@ Kirigami.ApplicationWindow {
         case "theme": return root.local("المظهر: " + v, "Theme: " + v)
         case "open": return root.local("افتح " + v, "Open " + v)
         case "settings": return root.local("الإعدادات: " + v, "Settings: " + v)
+        case "window":
+            return v === "overview" ? root.local("نظرة عامة على النوافذ", "Window overview")
+                 : v === "grid" ? root.local("شبكة أسطح المكتب", "Desktop grid")
+                 : root.local("أظهر سطح المكتب", "Show desktop")
+        case "arrange": return root.local("رتّب النوافذ: " + v, "Arrange windows: " + v)
+        case "desktop":
+            return v === "next" ? root.local("سطح المكتب التالي", "Next desktop")
+                                : root.local("سطح المكتب السابق", "Previous desktop")
+        case "dnd":
+            return v === "on" ? root.local("شغّل عدم الإزعاج", "Do not disturb on")
+                              : root.local("أطفئ عدم الإزعاج", "Do not disturb off")
+        case "mic":
+            return v === "mute" ? root.local("اكتم الميكروفون", "Mute microphone")
+                                : root.local("شغّل الميكروفون", "Unmute microphone")
+        case "keyboard-layout": return root.local("بدّل لغة لوحة المفاتيح", "Next keyboard layout")
+        case "motion": return root.local("حركة الخلفية: " + v, "Wallpaper motion: " + v)
+        case "clarity": return root.local("وضوح الزجاج: " + v, "Glass clarity: " + v)
+        case "power-profile": return root.local("وضع الطاقة: " + v, "Power profile: " + v)
         }
         return spec
     }
@@ -1768,7 +1670,7 @@ Kirigami.ApplicationWindow {
                         && (errBody.error.message || errBody.error)) || "")
                 } catch (e2) { }
                 const help = !root.serverUp
-                    ? (root.brainStarting ? root.startingHelp : root.offlineHelp)
+                    ? root.offlineHelp
                     : (reasonedChars > 0
                        ? root.local(
                            "هذا نموذج تفكير: استهلك ميزانيته في التفكير قبل أن يكتب الجواب. اختر نموذجاً مباشراً (instruct) من قائمة العقل.",
@@ -2229,7 +2131,6 @@ Kirigami.ApplicationWindow {
     function openPicker() {
         root.pickerOpen = true
         root.loadModels()
-        root.loadMeasure()
     }
 
     function pickRoute(id) {
@@ -2256,8 +2157,7 @@ Kirigami.ApplicationWindow {
         // control that appears to start something and cannot is exactly the dead
         // button AGENTS.md forbids. It sends the user to the cloud provider
         // setup instead, which is the thing that actually gives them a brain.
-        root.launch("moos://brain/start",
-                    root.local("إعداد المزوّد السحابي", "Cloud provider setup"))
+        root.setUpBrain()
         return
         // eslint-disable-next-line no-unreachable
         if (root.pullModel !== "")     // one at a time; the backend serialises too
@@ -2297,7 +2197,7 @@ Kirigami.ApplicationWindow {
         if (root.deleteBusy !== "")
             return
         root.deleteBusy = bare
-        root.cfgError = ""
+        root.pullError = ""
         const xhr = new XMLHttpRequest()
         xhr.open("POST", controlApi + "/delete")
         xhr.setRequestHeader("X-Moai-Control", "1")
@@ -2309,8 +2209,8 @@ Kirigami.ApplicationWindow {
             try { res = JSON.parse(xhr.responseText) } catch (e) { res = {} }
             root.deleteBusy = ""
             if (xhr.status !== 200 || !res.ok) {
-                root.cfgError = res.error || root.local("تعذّر الحذف",
-                                                       "Could not delete the model")
+                root.pullError = res.error || root.local("تعذّر الحذف",
+                                                        "Could not delete the model")
                 return
             }
             // If the active route named the deleted weights, clear it so
@@ -2985,10 +2885,9 @@ Kirigami.ApplicationWindow {
                         // Bilingual by session direction, like the rest of the app —
                         // it was Arabic-only, breaking the convention on English sessions.
                         text: root.moaiRtl
-                              ? (root.serverUp ? "متصل" : root.brainStarting ? "يبدأ…" : "غير متصل")
-                              : (root.serverUp ? "Online" : root.brainStarting ? "Starting…" : "Offline")
-                        color: root.serverUp ? root.okColor
-                             : root.brainStarting ? root.novaBlue : root.textMute
+                              ? (root.serverUp ? "متصل" : "غير متصل")
+                              : (root.serverUp ? "Online" : "Offline")
+                        color: root.serverUp ? root.okColor : root.textMute
                         font.family: root.uiFont
                         font.pixelSize: root.typePx(9)
                         font.weight: Font.DemiBold
@@ -3132,13 +3031,14 @@ Kirigami.ApplicationWindow {
                                 elide: Text.ElideRight
                             }
                         }
+                        // Mo AI's settings are a page of System Settings (kcm_moos_ai).
                         ActionArea {
                             id: gearMa
                             anchors.fill: parent
                             actionName: root.moaiRtl
                                 ? "الإعدادات" : "Settings"
                             focusRadius: root.fs(12)
-                            onTriggered: root.settingsOpen = true
+                            onTriggered: root.openAssistantSettings()
                         }
                     }
                 }
@@ -3179,9 +3079,7 @@ Kirigami.ApplicationWindow {
                                 text: {
                                     switch (root.panel) {
                                     case "device": return root.local("جهازي", "My device")
-                                    case "apps":   return root.local("التطبيقات", "Apps")
                                     case "compat": return root.local("التوافق", "Compatibility")
-                                    case "remote": return "Mo PC Remote"
                                     case "agent":  return root.local("الورشة", "Workbench")
                                     default:       return "Mo AI"
                                     }
@@ -3202,13 +3100,9 @@ Kirigami.ApplicationWindow {
                                                         "No problems · " + root.adviceCountText(root.adviceCount))
                                            : root.local("لا مشاكل", "No problems"))
                                         : root.issueCountText(root.problemCount)
-                                    case "apps":   return root.local("ابحث وثبّت أي تطبيق",
-                                                                     "Search and install anything")
                                     case "compat": return root.local(
                                         "Windows · Android · الألعاب",
                                         "Windows · Android · Games")
-                                    case "remote": return root.local("تحكّم بجهازك من هاتفك",
-                                                                     "Control this PC from your phone")
                                     case "agent":  return root.local(
                                         "المشاريع · المهام · الطرفية · وكلاء البرمجة",
                                         "Projects · Tasks · Terminal · Coding agents")
@@ -3264,7 +3158,7 @@ Kirigami.ApplicationWindow {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     currentIndex: {
-                        const i = ["chat", "device", "apps", "compat", "remote", "agent"].indexOf(root.panel)
+                        const i = ["chat", "device", "compat", "agent"].indexOf(root.panel)
                         return i < 0 ? 0 : i
                     }
 
@@ -4049,12 +3943,9 @@ Kirigami.ApplicationWindow {
                             visible: root.brainsKnown && !root.serverUp
                             radius: design.radiusControl
                             implicitHeight: startCol.implicitHeight + 22
-                            color: root.brainStarting
-                                 ? Qt.rgba(root.novaBlue.r, root.novaBlue.g,
-                                           root.novaBlue.b, 0.10)
-                                 : root.surface1
+                            color: root.surface1
                             border.width: 1
-                            border.color: root.brainStarting ? root.novaBlue : root.novaViolet
+                            border.color: root.novaViolet
 
                             ColumnLayout {
                                 id: startCol
@@ -4083,21 +3974,17 @@ Kirigami.ApplicationWindow {
                                     font.pixelSize: root.typePx(11)
                                     wrapMode: Text.Wrap
                                 }
-                                // STAGE C5. startBrain() now opens the cloud
-                                // provider setup (moos-open's brain/start was
-                                // repointed there when C2 closed the local
-                                // door), so the ACTION was already right while
-                                // the LABEL still said "Start local brain". A
-                                // button that says one thing and does another
-                                // is the same defect as one that does nothing.
+                                // Both open the Mo AI page of System Settings, where the
+                                // provider and the key are set. A button that says one
+                                // thing and does another is the same defect as one that
+                                // does nothing, so neither claims to "start" anything.
                                 MoButton {
                                     Layout.fillWidth: true
                                     visible: !!root.brains.gateway && !root.routeIsCloud
-                                             && !root.brainStarting
                                     label: root.local("إعداد المزوّد", "Provider setup")
                                     iconName: "moos-settings-symbolic"
                                     primary: true
-                                    onClicked: root.startBrain()
+                                    onClicked: root.setUpBrain()
                                 }
                                 MoButton {
                                     Layout.fillWidth: true
@@ -4106,10 +3993,7 @@ Kirigami.ApplicationWindow {
                                                       "Set up the cloud brain")
                                     iconName: "moos-settings-symbolic"
                                     primary: true
-                                    onClicked: {
-                                        root.cfgTab = "brain"
-                                        root.settingsOpen = true
-                                    }
+                                    onClicked: root.openAssistantSettings()
                                 }
                             }
                         }
@@ -4810,6 +4694,9 @@ Kirigami.ApplicationWindow {
                             }
 
                             // Maintenance — the whole of the old Hardware Centre's action list.
+                            // Update, Recovery and This device open their pages in System
+                            // Settings (MoOS group): one place shows the version, the update
+                            // and the saved images, and this panel links to it.
                             SectionTitle {
                                 text: root.local("الصيانة", "Maintenance")
                                 Layout.topMargin: 6
@@ -4820,15 +4707,15 @@ Kirigami.ApplicationWindow {
                                 spacing: design.space2
                                 Repeater {
                                     model: [
-                                        { ar: "تحديث النظام", en: "Update", url: "moos://app/updater", icon: "moos-safe-update-symbolic" },
+                                        { ar: "تحديث النظام", en: "Update", url: "moos://settings/update", icon: "moos-safe-update-symbolic" },
                                         { ar: "فحص التعريفات", en: "Drivers", url: "moos://do/check-drivers", icon: "moos-gpu-symbolic" },
                                         { ar: "تحديث البرامج الثابتة", en: "Firmware", url: "moos://do/update-firmware", icon: "moos-system-symbolic" },
                                         { ar: "تحسين وتنظيف", en: "Optimize", url: "moos://do/optimize", icon: "moos-optimize-symbolic" },
                                         { ar: "إصلاح الصوت", en: "Fix audio", url: "moos://do/fix-audio", icon: "moos-audio-symbolic" },
-                                        { ar: "تقرير كامل", en: "Report", url: "moos://do/hw-report", icon: "moos-report-symbolic" },
+                                        { ar: "هذا الجهاز", en: "This device", url: "moos://settings/about", icon: "moos-about-symbolic" },
                                         { ar: "الخدمات الفاشلة", en: "Services", url: "moos://do/diagnose-services", icon: "moos-system-symbolic" },
                                         { ar: "مشاكل الإقلاع", en: "Boot", url: "moos://do/inspect-boot", icon: "moos-warning-symbolic" },
-                                        { ar: "الاستعادة", en: "Recovery", url: "moos://app/recovery", icon: "moos-system-symbolic" }
+                                        { ar: "الاستعادة", en: "Recovery", url: "moos://settings/recovery", icon: "moos-system-symbolic" }
                                     ]
                                     delegate: MoButton {
                                         required property var modelData
@@ -4836,6 +4723,127 @@ Kirigami.ApplicationWindow {
                                         iconName: modelData.icon
                                         onClicked: root.launch(modelData.url,
                                                                root.local(modelData.ar, modelData.en))
+                                    }
+                                }
+                            }
+
+                            // Apps and Mo PC Remote left this window's rail. Mo Store is the one
+                            // place apps are found, installed, updated and removed (install and
+                            // uninstall stay tools in the chat), and Mo PC Remote's switches are a
+                            // page of System Settings. Two things stay here because nothing else
+                            // offers them: installing a signed RPM file (Mo Store takes none) and
+                            // reaching this computer from outside the home network.
+                            SectionTitle {
+                                text: root.local("التطبيقات والتحكّم عن بعد", "Apps and remote control")
+                                Layout.topMargin: 6
+                            }
+                            Card {
+                                Layout.fillWidth: true
+                                ColumnLayout {
+                                    width: parent.width
+                                    spacing: design.space2
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        spacing: design.space3
+                                        Kirigami.Icon {
+                                            source: "moos-boxes-symbolic"
+                                            color: root.novaBlue
+                                            Layout.preferredWidth: root.fs(22)
+                                            Layout.preferredHeight: root.fs(22)
+                                        }
+                                        ColumnLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 2
+                                            Text {
+                                                text: "Mo Store"
+                                                color: root.textHi
+                                                font.family: root.uiFont
+                                                font.pixelSize: root.typePx(13)
+                                                font.weight: Font.DemiBold
+                                            }
+                                            Text {
+                                                Layout.fillWidth: true
+                                                text: root.local(
+                                                    "كل التطبيقات وتحديثاتها في مكان واحد. أو اطلب مني مباشرة: «ثبّت لي Blender».",
+                                                    "Every app and its updates in one place. Or just ask me: “install Blender for me”.")
+                                                color: root.textLo
+                                                font.family: root.uiFont
+                                                font.pixelSize: root.typePx(11)
+                                                wrapMode: Text.Wrap
+                                            }
+                                        }
+                                    }
+                                    Flow {
+                                        Layout.fillWidth: true
+                                        spacing: design.space2
+                                        MoButton {
+                                            label: root.local("افتح المتجر", "Open Mo Store")
+                                            iconName: "moos-external-symbolic"
+                                            primary: true
+                                            onClicked: root.launch("moos://app/store", "Mo Store")
+                                        }
+                                        // A downloaded, signed RPM: MoOS shows what it is, checks the
+                                        // publisher's signature, asks, then stages it for the next start.
+                                        MoButton {
+                                            label: root.local("ثبّت RPM", "Install RPM")
+                                            iconName: "moos-install-symbolic"
+                                            onClicked: localPackageDialog.open()
+                                        }
+                                    }
+                                }
+                            }
+                            Card {
+                                Layout.fillWidth: true
+                                ColumnLayout {
+                                    width: parent.width
+                                    spacing: design.space2
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        spacing: design.space3
+                                        Kirigami.Icon {
+                                            source: "moos-phone-symbolic"
+                                            color: root.novaCyan
+                                            Layout.preferredWidth: root.fs(22)
+                                            Layout.preferredHeight: root.fs(22)
+                                        }
+                                        ColumnLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 2
+                                            Text {
+                                                text: "Mo PC Remote"
+                                                color: root.textHi
+                                                font.family: root.uiFont
+                                                font.pixelSize: root.typePx(13)
+                                                font.weight: Font.DemiBold
+                                            }
+                                            Text {
+                                                Layout.fillWidth: true
+                                                text: root.local(
+                                                    "تشغيله وإيقافه والوضع السريع في إعدادات النظام ← MoOS ← Mo PC Remote.",
+                                                    "Turning it on or off, and Fast Remote, are in System Settings → MoOS → Mo PC Remote.")
+                                                color: root.textLo
+                                                font.family: root.uiFont
+                                                font.pixelSize: root.typePx(11)
+                                                wrapMode: Text.Wrap
+                                            }
+                                        }
+                                    }
+                                    Flow {
+                                        Layout.fillWidth: true
+                                        spacing: design.space2
+                                        MoButton {
+                                            label: root.local("إعدادات Mo PC Remote", "Mo PC Remote settings")
+                                            iconName: "moos-settings-symbolic"
+                                            primary: true
+                                            onClicked: root.launch("moos://settings/remote", "Mo PC Remote")
+                                        }
+                                        // Tailscale serve: an HTTPS name for this computer on the
+                                        // owner's tailnet, so the phone reaches it on mobile data too.
+                                        MoButton {
+                                            label: root.local("الوصول من خارج المنزل", "Reach it from outside")
+                                            iconName: "moos-network-symbolic"
+                                            onClicked: root.launch("moos://do/remote-anywhere", "Remote anywhere")
+                                        }
                                     }
                                 }
                             }
@@ -4941,325 +4949,6 @@ Kirigami.ApplicationWindow {
                                                     || modelData.label || modelData.id))
                                         }
                                     }
-                                }
-                            }
-                        }
-                    }
-
-                    // ══ APPS — the App Centre, with real Flathub search ═════
-                    ColumnLayout {
-                        spacing: 0
-
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: root.fs(62)
-                            color: "transparent"
-                            RowLayout {
-                                anchors.fill: parent
-                                anchors.leftMargin: 16
-                                anchors.rightMargin: 16
-                                anchors.topMargin: 14
-                                spacing: 10
-
-                                QQC2.TextField {
-                                    id: searchField
-                                    Layout.fillWidth: true
-                                    Layout.preferredHeight: root.fs(40)
-                                    placeholderText: root.local(
-                                        "ابحث في Flathub… (مثلاً blender)",
-                                        "Search Flathub…")
-                                    placeholderTextColor: root.textMute
-                                    color: root.textHi
-                                    font.family: root.uiFont
-                                    font.pixelSize: root.typePx(13)
-                                    leftPadding: 14
-                                    rightPadding: 14
-                                    background: Rectangle {
-                                        color: root.surface1
-                                        radius: design.radiusControl
-                                        border.width: 1
-                                        border.color: searchField.activeFocus ? root.novaBlue : root.hairline
-                                    }
-                                    onAccepted: root.searchApps(text)
-                                }
-                                MoButton {
-                                    Layout.preferredHeight: root.fs(40)
-                                    label: root.searching ? "…" : root.local("ابحث", "Search")
-                                    iconName: "moos-install-symbolic"
-                                    primary: true
-                                    enabled_: !root.searching
-                                    onClicked: root.searchApps(searchField.text)
-                                }
-                                MoButton {
-                                    Layout.preferredHeight: root.fs(40)
-                                    label: root.local("ثبّت RPM", "Install RPM")
-                                    iconName: "moos-boxes-symbolic"
-                                    onClicked: localPackageDialog.open()
-                                }
-                            }
-                        }
-
-                        Flickable {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            contentWidth: width
-                            contentHeight: appsCol.implicitHeight + 28
-                            clip: true
-                            boundsBehavior: Flickable.StopAtBounds
-                            QQC2.ScrollBar.vertical: QQC2.ScrollBar { }
-
-                            ColumnLayout {
-                                id: appsCol
-                                width: parent.width - 32
-                                x: 16
-                                y: 6
-                                spacing: 10
-
-                                Text {
-                                    visible: root.searchNote !== ""
-                                    text: root.searchNote
-                                    color: root.textMute
-                                    font.family: root.uiFont
-                                    font.pixelSize: root.typePx(12)
-                                }
-
-                                // Search results.
-                                Repeater {
-                                    model: searchModel
-                                    delegate: Card {
-                                        id: hit
-                                        required property string id
-                                        required property string name
-                                        required property string summary
-                                        required property bool installed
-                                        required property bool verified
-                                        // The decision layer (moai-control): `recommended` is the
-                                        // desktop-native answer to the NEED behind the query, and
-                                        // `note` says why — or warns that an app is built for
-                                        // another desktop and will crash here. Shipping the
-                                        // ranking without showing it is the same as not shipping
-                                        // it: the user still cannot tell the two apart.
-                                        required property bool recommended
-                                        required property string note
-                                        Layout.fillWidth: true
-
-                                        RowLayout {
-                                            width: parent.width
-                                            spacing: design.space3
-
-                                            Rectangle {
-                                                Layout.preferredWidth: root.fs(38)
-                                                Layout.preferredHeight: root.fs(38)
-                                                radius: design.radiusSmall
-                                                color: root.surface2
-                                                Kirigami.Icon {
-                                                    anchors.centerIn: parent
-                                                    width: 20; height: 20
-                                                    source: "moos-install-symbolic"
-                                                    color: root.novaCyan
-                                                }
-                                            }
-
-                                            ColumnLayout {
-                                                Layout.fillWidth: true
-                                                spacing: 2
-                                                RowLayout {
-                                                    spacing: 6
-                                                    Text {
-                                                        text: hit.name
-                                                        color: root.textHi
-                                                        font.family: root.uiFont
-                                                        font.pixelSize: root.typePx(13)
-                                                        font.weight: Font.DemiBold
-                                                    }
-                                                    Text {
-                                                        visible: hit.verified
-                                                        text: "✓"
-                                                        color: root.novaCyan
-                                                        font.pixelSize: root.typePx(12)
-                                                        font.weight: Font.Bold
-                                                    }
-                                                    // The MoOS pick, said out loud.
-                                                    Rectangle {
-                                                        visible: hit.recommended
-                                                        Layout.preferredHeight: root.fs(17)
-                                                        Layout.preferredWidth: pickLabel.width + 12
-                                                        radius: root.fs(5)
-                                                        color: Qt.rgba(root.novaCyan.r, root.novaCyan.g,
-                                                                       root.novaCyan.b, 0.14)
-                                                        border.width: 1
-                                                        border.color: Qt.rgba(root.novaCyan.r, root.novaCyan.g,
-                                                                              root.novaCyan.b, 0.45)
-                                                        Text {
-                                                            id: pickLabel
-                                                            anchors.centerIn: parent
-                                                            text: root.local("اختيار MoOS", "MoOS pick")
-                                                            color: root.novaCyan
-                                                            font.family: root.uiFont
-                                                            font.pixelSize: root.typePx(9)
-                                                            font.weight: Font.DemiBold
-                                                        }
-                                                    }
-                                                }
-                                                Text {
-                                                    Layout.fillWidth: true
-                                                    text: hit.summary
-                                                    color: root.textLo
-                                                    font.family: root.uiFont
-                                                    font.pixelSize: root.typePx(11)
-                                                    elide: Text.ElideRight
-                                                }
-                                                // Why this one — or why NOT that one. Cyan when it is
-                                                // the pick, amber when the app targets another desktop
-                                                // and will not survive here.
-                                                Text {
-                                                    visible: hit.note !== ""
-                                                    Layout.fillWidth: true
-                                                    text: (hit.recommended ? "✓ " : "⚠ ") + hit.note
-                                                    color: hit.recommended ? root.novaCyan : root.warnColor
-                                                    font.family: root.uiFont
-                                                    font.pixelSize: root.typePx(10)
-                                                    wrapMode: Text.WordWrap
-                                                }
-                                                Text {
-                                                    text: hit.id
-                                                    color: root.textMute
-                                                    font.family: "JetBrains Mono"
-                                                    font.pixelSize: root.typePx(10)
-                                                }
-                                            }
-
-                                            MoButton {
-                                                label: hit.installed
-                                                    ? root.local("مثبّت ✓", "Installed")
-                                                    : root.local("ثبّت", "Install")
-                                                primary: !hit.installed
-                                                enabled_: !hit.installed
-                                                onClicked: root.launch("moos://apps/install/" + hit.id, hit.name)
-                                            }
-                                        }
-                                    }
-                                }
-
-                                // Mo Store is the one store: the full catalogue, updates and
-                                // removals live there, so this panel hands over to it rather
-                                // than recommending a second store app.
-                                Card {
-                                    Layout.fillWidth: true
-                                    Layout.topMargin: 4
-                                    visible: searchModel.count === 0
-                                    RowLayout {
-                                        width: parent.width
-                                        spacing: design.space3
-                                        Rectangle {
-                                            Layout.preferredWidth: root.fs(38)
-                                            Layout.preferredHeight: root.fs(38)
-                                            radius: design.radiusSmall
-                                            color: root.surface2
-                                            Kirigami.Icon {
-                                                anchors.centerIn: parent
-                                                width: 20; height: 20
-                                                source: "moos-boxes-symbolic"
-                                                color: root.novaBlue
-                                            }
-                                        }
-                                        ColumnLayout {
-                                            Layout.fillWidth: true
-                                            spacing: 2
-                                            Text {
-                                                text: "Mo Store"
-                                                color: root.textHi
-                                                font.family: root.uiFont
-                                                font.pixelSize: root.typePx(13)
-                                                font.weight: Font.DemiBold
-                                            }
-                                            Text {
-                                                Layout.fillWidth: true
-                                                text: root.local("كل التطبيقات والتحديثات في مكان واحد",
-                                                                 "Every app and update in one place")
-                                                color: root.textLo
-                                                font.family: root.uiFont
-                                                font.pixelSize: root.typePx(11)
-                                                wrapMode: Text.Wrap
-                                            }
-                                        }
-                                        MoButton {
-                                            label: root.local("افتح المتجر", "Open Mo Store")
-                                            iconName: "moos-external-symbolic"
-                                            onClicked: root.launch("moos://app/store", "Mo Store")
-                                        }
-                                    }
-                                }
-
-                                SectionTitle {
-                                    text: root.local("موصى بها", "Recommended")
-                                    Layout.topMargin: 4
-                                    visible: searchModel.count === 0
-                                }
-
-                                Repeater {
-                                    model: searchModel.count === 0 ? root.appCatalog : []
-                                    delegate: Card {
-                                        id: rec
-                                        required property var modelData
-                                        readonly property bool installed: !!root.appState[modelData.id]
-                                        Layout.fillWidth: true
-
-                                        RowLayout {
-                                            width: parent.width
-                                            spacing: design.space3
-
-                                            Rectangle {
-                                                Layout.preferredWidth: root.fs(38)
-                                                Layout.preferredHeight: root.fs(38)
-                                                radius: design.radiusSmall
-                                                color: root.surface2
-                                                Kirigami.Icon {
-                                                    anchors.centerIn: parent
-                                                    width: 20; height: 20
-                                                    source: "moos-install-symbolic"
-                                                    color: root.novaViolet
-                                                }
-                                            }
-                                            ColumnLayout {
-                                                Layout.fillWidth: true
-                                                spacing: 2
-                                                Text {
-                                                    text: rec.modelData.title
-                                                    color: root.textHi
-                                                    font.family: root.uiFont
-                                                    font.pixelSize: root.typePx(13)
-                                                    font.weight: Font.DemiBold
-                                                }
-                                                Text {
-                                                    Layout.fillWidth: true
-                                                    text: root.local(rec.modelData.ar,
-                                                                     rec.modelData.en)
-                                                    color: root.textLo
-                                                    font.family: root.uiFont
-                                                    font.pixelSize: root.typePx(11)
-                                                }
-                                            }
-                                            MoButton {
-                                                label: rec.installed
-                                                    ? root.local("مثبّت ✓", "Installed")
-                                                    : root.local("ثبّت", "Install")
-                                                primary: !rec.installed
-                                                enabled_: !rec.installed
-                                                onClicked: root.launch("moos://apps/install/" + rec.modelData.id,
-                                                                       rec.modelData.title)
-                                            }
-                                        }
-                                    }
-                                }
-
-                                SectionNote {
-                                    Layout.fillWidth: true
-                                    Layout.topMargin: 4
-                                    visible: searchModel.count === 0
-                                    text: root.local(
-                                        "أو اطلب من Mo AI مباشرة: «ثبّت لي Blender».",
-                                        "Or just ask Mo AI: “install Blender for me”.")
                                 }
                             }
                         }
@@ -5401,177 +5090,6 @@ Kirigami.ApplicationWindow {
                                                   "Smart setup for my hardware")
                                 iconName: "moos-optimize-symbolic"
                                 onClicked: root.launch("moos://do/smart-setup", "Smart setup")
-                            }
-                        }
-                    }
-
-                    // ══ REMOTE ═════════════════════════════════════════════
-                    Flickable {
-                        contentWidth: width
-                        contentHeight: remoteCol.implicitHeight + 32
-                        clip: true
-                        boundsBehavior: Flickable.StopAtBounds
-                        QQC2.ScrollBar.vertical: QQC2.ScrollBar { }
-
-                        ColumnLayout {
-                            id: remoteCol
-                            width: parent.width - 32
-                            x: 16
-                            y: 16
-                            spacing: design.space3
-
-                            Card {
-                                Layout.fillWidth: true
-                                RowLayout {
-                                    width: parent.width
-                                    spacing: 14
-
-                                    Rectangle {
-                                        Layout.preferredWidth: root.fs(46)
-                                        Layout.preferredHeight: root.fs(46)
-                                        radius: height / 2
-                                        color: root.remoteState.active
-                                               ? Qt.rgba(root.okColor.r, root.okColor.g,
-                                                         root.okColor.b, 0.14)
-                                               : root.surface2
-                                        Kirigami.Icon {
-                                            anchors.centerIn: parent
-                                            width: 24; height: 24
-                                            source: "moos-phone-symbolic"
-                                            color: root.remoteState.active ? root.okColor : root.textMute
-                                        }
-                                        // A live ring while it is actually serving.
-                                        Rectangle {
-                                            anchors.centerIn: parent
-                                            width: parent.width; height: parent.height
-                                            radius: width / 2
-                                            color: "transparent"
-                                            border.width: 2
-                                            border.color: root.okColor
-                                            visible: !!root.remoteState.active
-                                            // root.visible joins the gate: every sibling loop has a
-                                            // visibility term, and without it an active remote session
-                                            // kept this ring animating with the panel hidden.
-                                            SequentialAnimation on opacity {
-                                                running: !!root.remoteState.active && root.visible && root.motionEnabled
-                                                loops: Animation.Infinite
-                                                NumberAnimation { from: 0.7; to: 0.0; duration: root.motionEnabled ? 1200 : 0 }
-                                                NumberAnimation { from: 0.0; to: 0.0; duration: root.motionEnabled ? design.motionGeometry : 0 }
-                                            }
-                                            SequentialAnimation on scale {
-                                                running: !!root.remoteState.active && root.visible && root.motionEnabled
-                                                loops: Animation.Infinite
-                                                NumberAnimation { from: 1.0; to: 1.45; duration: root.motionEnabled ? 1200 : 0 }
-                                                NumberAnimation { from: 1.0; to: 1.0; duration: root.motionEnabled ? design.motionGeometry : 0 }
-                                            }
-                                        }
-                                    }
-
-                                    ColumnLayout {
-                                        Layout.fillWidth: true
-                                        spacing: design.space1
-                                        Text {
-                                            text: root.remoteState.active
-                                                  ? root.local("يعمل الآن", "Running")
-                                                  : root.local("متوقف", "Stopped")
-                                            color: root.remoteState.active ? root.okColor : root.textHi
-                                            font.family: root.uiFont
-                                            font.pixelSize: root.typePx(16)
-                                            font.weight: Font.DemiBold
-                                        }
-                                        Text {
-                                            Layout.fillWidth: true
-                                            text: root.remoteState.active
-                                                ? root.local(
-                                                    "افتح اللوحة لمسح رمز QR من هاتفك.",
-                                                    "Open the panel to scan the QR code from your phone.")
-                                                : root.local(
-                                                    "شغّله ليتحكّم هاتفك بهذا الجهاز.",
-                                                    "Start it to control this PC from your phone.")
-                                            color: root.textLo
-                                            font.family: root.uiFont
-                                            font.pixelSize: root.typePx(11)
-                                            wrapMode: Text.Wrap
-                                        }
-                                    }
-                                }
-                            }
-
-                            // Start / Stop / Reconnect. These are user services — no
-                            // password, no terminal. moos-open runs systemctl --user
-                            // directly and Mo AI shows the result on the next poll.
-                            Flow {
-                                Layout.fillWidth: true
-                                spacing: design.space2
-
-                                MoButton {
-                                    label: root.local("تشغيل", "Start")
-                                    iconName: "moos-phone-symbolic"
-                                    primary: true
-                                    enabled_: !root.remoteState.active
-                                    onClicked: root.launch("moos://remote/start", "Mo PC Remote — start")
-                                }
-                                MoButton {
-                                    label: root.local("إيقاف", "Stop")
-                                    danger: true
-                                    enabled_: !!root.remoteState.active
-                                    onClicked: root.launch("moos://remote/stop", "Mo PC Remote — stop")
-                                }
-                                MoButton {
-                                    label: root.local("إعادة الاتصال", "Reconnect")
-                                    iconName: "moos-network-symbolic"
-                                    onClicked: root.launch("moos://remote/restart", "Mo PC Remote — reconnect")
-                                }
-                                MoButton {
-                                    label: root.local("افتح اللوحة", "Open panel")
-                                    onClicked: root.launch("moos://app/remote", "Mo PC Remote")
-                                }
-                            }
-
-                            // The pieces it depends on — read from the machine.
-                            Card {
-                                Layout.fillWidth: true
-                                ColumnLayout {
-                                    width: parent.width
-                                    spacing: 9
-                                    Text {
-                                        text: root.local("المتطلّبات", "Requirements")
-                                        color: root.textHi
-                                        font.family: root.uiFont
-                                        font.pixelSize: root.typePx(13)
-                                        font.weight: Font.DemiBold
-                                    }
-                                    Repeater {
-                                        model: [
-                                            { ar: "التقاط الشاشة (PipeWire)", en: "Screen capture", k: "pipewire" },
-                                            { ar: "بوابة سطح المكتب (Portal)", en: "Desktop portal", k: "portal" }
-                                        ]
-                                        delegate: RowLayout {
-                                            required property var modelData
-                                            Layout.fillWidth: true
-                                            spacing: 10
-                                            Text {
-                                                Layout.fillWidth: true
-                                                text: root.local(modelData.ar, modelData.en)
-                                                color: root.textLo
-                                                font.family: root.uiFont
-                                                font.pixelSize: root.typePx(12)
-                                            }
-                                            StatusPill {
-                                                good: !!root.remoteState[modelData.k]
-                                                goodText: root.local("يعمل", "OK")
-                                                badText: root.local("متوقف", "Down")
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            MoButton {
-                                label: root.local("الوصول من خارج المنزل",
-                                                  "Reach it from outside")
-                                iconName: "moos-network-symbolic"
-                                onClicked: root.launch("moos://do/remote-anywhere", "Remote anywhere")
                             }
                         }
                     }
@@ -6277,24 +5795,25 @@ Kirigami.ApplicationWindow {
                             }
 
                             Repeater {
-                                // Two of these are somebody else's cloud, and one is not — which is
-                                // the only distinction that matters on a machine that ships its own
-                                // brain, so the card says it out loud. `local: true` earns the
-                                // "works offline" badge and the cyan frame; the other two carry the
+                                // Two of these need somebody else's account, and one does not:
+                                // `moai-do install-opencode` wires OpenCode to Mo AI's own free cloud
+                                // brain through this account's gateway, so the card says it out loud.
+                                // `moaiBrain: true` earns the cyan frame; the other two carry the
                                 // account they need, because "why is it asking me to log in?" is the
-                                // first thing a user hits otherwise.
+                                // first thing a user hits otherwise. Mo AI is cloud-only, so no card
+                                // promises an agent that works without the network.
                                 model: [
-                                    { key: "opencode", title: "OpenCode", local: true,
-                                      ar: "وكيل يعمل على عقل MoOS المحلي", en: "Runs on the MoOS local brain",
-                                      needsAr: "بلا حساب وبلا إنترنت", needsEn: "No account or internet",
+                                    { key: "opencode", title: "OpenCode", moaiBrain: true,
+                                      ar: "وكيل يعمل على عقل Mo AI السحابي المجاني", en: "Runs on Mo AI's free cloud brain",
+                                      needsAr: "بلا حساب مزوّد", needsEn: "No vendor account",
                                       pkg: "opencode-ai",
                                       install: "moos://do/install-opencode", run: "moos://dev/opencode" },
-                                    { key: "claude", title: "Claude Code", local: false,
+                                    { key: "claude", title: "Claude Code", moaiBrain: false,
                                       ar: "وكيل Anthropic البرمجي", en: "Anthropic's coding agent",
                                       needsAr: "يحتاج حساب Anthropic", needsEn: "Needs an Anthropic account",
                                       pkg: "@anthropic-ai/claude-code",
                                       install: "moos://do/install-claude", run: "moos://dev/claude" },
-                                    { key: "codex", title: "Codex", local: false,
+                                    { key: "codex", title: "Codex", moaiBrain: false,
                                       ar: "وكيل OpenAI البرمجي", en: "OpenAI's coding agent",
                                       needsAr: "يحتاج حساب OpenAI", needsEn: "Needs an OpenAI account",
                                       pkg: "@openai/codex",
@@ -6304,14 +5823,14 @@ Kirigami.ApplicationWindow {
                                     id: ag
                                     required property var modelData
                                     readonly property bool have: !!root.agentState[modelData.key]
-                                    readonly property bool onDevice: !!modelData.local
+                                    readonly property bool onMoaiBrain: !!modelData.moaiBrain
                                     Layout.fillWidth: true
 
-                                    // The local agent is the one MoOS is actually proud of, so it
-                                    // reads as first-party: a cyan hairline instead of the default.
+                                    // The agent MoOS wires to its own brain reads as first-party:
+                                    // a cyan hairline instead of the default.
                                     // Card IS a Rectangle, so this overrides its border binding —
                                     // there is no borderColor property to invent.
-                                    border.color: ag.onDevice
+                                    border.color: ag.onMoaiBrain
                                                   ? Qt.rgba(root.novaCyan.r, root.novaCyan.g, root.novaCyan.b, 0.42)
                                                   : root.hairline
 
@@ -6326,15 +5845,15 @@ Kirigami.ApplicationWindow {
                                             color: ag.have
                                                    ? Qt.rgba(root.okColor.r, root.okColor.g,
                                                              root.okColor.b, 0.13)
-                                                   : (ag.onDevice
+                                                   : (ag.onMoaiBrain
                                                       ? Qt.rgba(root.novaCyan.r, root.novaCyan.g, root.novaCyan.b, 0.12)
                                                       : root.surface2)
                                             Kirigami.Icon {
                                                 anchors.centerIn: parent
                                                 width: 21; height: 21
-                                                source: ag.onDevice ? "moos-ai-symbolic" : "moos-code-symbolic"
+                                                source: ag.onMoaiBrain ? "moos-ai-symbolic" : "moos-code-symbolic"
                                                 color: ag.have ? root.okColor
-                                                               : (ag.onDevice ? root.novaCyan : root.textMute)
+                                                               : (ag.onMoaiBrain ? root.novaCyan : root.textMute)
                                             }
                                         }
                                         ColumnLayout {
@@ -6354,29 +5873,6 @@ Kirigami.ApplicationWindow {
                                                     goodText: root.local("مثبّت", "Installed")
                                                     badText: root.local("غير مثبّت", "Not installed")
                                                 }
-                                                // The badge that is the whole point of shipping a
-                                                // local brain: an agent that keeps working when the
-                                                // network does not.
-                                                Rectangle {
-                                                    visible: ag.onDevice
-                                                    Layout.preferredHeight: root.fs(18)
-                                                    Layout.preferredWidth: offlineText.width + 14
-                                                    radius: root.fs(6)
-                                                    color: Qt.rgba(root.novaCyan.r, root.novaCyan.g,
-                                                                   root.novaCyan.b, 0.14)
-                                                    border.width: 1
-                                                    border.color: Qt.rgba(root.novaCyan.r, root.novaCyan.g,
-                                                                          root.novaCyan.b, 0.45)
-                                                    Text {
-                                                        id: offlineText
-                                                        anchors.centerIn: parent
-                                                        text: root.local("يعمل بلا إنترنت", "Offline")
-                                                        color: root.novaCyan
-                                                        font.family: root.uiFont
-                                                        font.pixelSize: root.typePx(9)
-                                                        font.weight: Font.DemiBold
-                                                    }
-                                                }
                                             }
                                             Text {
                                                 Layout.fillWidth: true
@@ -6390,8 +5886,8 @@ Kirigami.ApplicationWindow {
                                                 Layout.fillWidth: true
                                                 text: root.local(ag.modelData.needsAr,
                                                                  ag.modelData.needsEn)
-                                                color: ag.onDevice ? root.novaCyan : root.textMute
-                                                opacity: ag.onDevice ? 0.95 : 0.8
+                                                color: ag.onMoaiBrain ? root.novaCyan : root.textMute
+                                                opacity: ag.onMoaiBrain ? 0.95 : 0.8
                                                 font.family: root.uiFont
                                                 font.pixelSize: root.typePx(10)
                                             }
@@ -6978,8 +6474,8 @@ Kirigami.ApplicationWindow {
                             }
 
                             // A provider with no /v1/models is not a failure — it
-                            // just means the model is whatever the user typed into
-                            // Settings, and that free-text field is still there.
+                            // just means the model is whatever the owner typed on the
+                            // Mo AI page of System Settings, and that field is still there.
                             Text {
                                 Layout.fillWidth: true
                                 Layout.topMargin: 4
@@ -6990,1282 +6486,24 @@ Kirigami.ApplicationWindow {
                                 font.pixelSize: root.typePx(10)
                                 wrapMode: Text.Wrap
                             }
-
-                            // ── measure the free brains on THIS machine ────
-                            // The list above ships an opinion taken on another
-                            // machine weeks ago. One button replaces it with
-                            // seconds measured here, and says plainly how old
-                            // the numbers on screen already are.
-                            Rectangle {
-                                id: measureCard
-                                // Measuring asks the FREE catalogue two questions, so on a
-                                // provider that has no free catalogue the button could only
-                                // run for two minutes and then fail. Don't offer it.
-                                visible: root.cfgProvider !== "opencode-zen"
-                                Layout.fillWidth: true
-                                Layout.topMargin: root.fs(18)
-                                Layout.preferredHeight: measureBody.implicitHeight + root.fs(20)
-                                radius: design.radiusSmall
-                                color: root.surface2
-                                border.width: 1
-                                border.color: root.hairline
-
-                                ColumnLayout {
-                                    id: measureBody
-                                    anchors.fill: parent
-                                    anchors.margins: root.fs(10)
-                                    spacing: root.fs(6)
-
-                                    Text {
-                                        Layout.fillWidth: true
-                                        text: root.local("قِس النماذج المجانية على جهازك",
-                                                         "Measure the free models on your machine")
-                                        color: root.textHi
-                                        font.family: root.uiFont
-                                        font.pixelSize: root.typePx(12)
-                                        font.weight: Font.DemiBold
-                                        wrapMode: Text.Wrap
-                                    }
-                                    Text {
-                                        Layout.fillWidth: true
-                                        text: root.measure.error
-                                            ? root.measure.error
-                                            : root.measuring
-                                              ? (root.measure.total > 0
-                                                 ? root.local("جارٍ القياس — " + root.measure.done
-                                                              + " من " + root.measure.total,
-                                                              "Measuring — " + root.measure.done
-                                                              + " of " + root.measure.total)
-                                                 : root.local("جارٍ تجهيز القائمة…", "Collecting candidates…"))
-                                              : root.measuredEver
-                                                ? root.local(
-                                                    "الأسرع هنا: " + (root.measure.bestLabel || "—")
-                                                    + " · " + (root.measure.ageDays < 1
-                                                        ? "قيس اليوم"
-                                                        : "قياس عمره " + Math.round(root.measure.ageDays) + " يوم"),
-                                                    "Fastest here: " + (root.measure.bestLabel || "—")
-                                                    + " · " + (root.measure.ageDays < 1
-                                                        ? "measured today"
-                                                        : "measured " + Math.round(root.measure.ageDays) + " days ago"))
-                                                : root.local(
-                                                    "لم يُقس شيء هنا بعد — الترتيب أعلاه من جهاز آخر.",
-                                                    "Nothing measured here yet — the order above came from another machine.")
-                                        color: root.measure.error ? root.badColor : root.textMute
-                                        font.family: root.uiFont
-                                        font.pixelSize: root.typePx(10)
-                                        wrapMode: Text.Wrap
-                                    }
-                                    MoButton {
-                                        Layout.fillWidth: true
-                                        enabled_: !root.measuring
-                                        label: root.measuring
-                                            ? root.local("جارٍ القياس…", "Measuring…")
-                                            : root.local("قِس الآن (دقيقة أو دقيقتان)",
-                                                         "Measure now (a minute or two)")
-                                        iconName: "moos-refresh-symbolic"
-                                        onClicked: root.measureFree()
-                                    }
-                                }
-                            }
                         }
                     }
 
+                    // The provider, the key, the default model and the free-model
+                    // measurement are the Mo AI page of System Settings; this picker is
+                    // only which brain answers THIS conversation.
                     MoButton {
                         Layout.fillWidth: true
                         label: root.local("المزوّد والمفتاح", "Provider & API key")
                         iconName: "moos-settings-symbolic"
                         onClicked: {
                             root.pickerOpen = false
-                            root.cfgTab = "brain"
-                            root.settingsOpen = true
+                            root.openAssistantSettings()
                         }
                     }
                 }
             }
         }
-
-        // ── Settings ────────────────────────────────────────────────────────
-        // Redesigned: one sectioned sheet backed by moai-agent-api (127.0.0.1:8077),
-        // which owns the SAME openclaw.json that drives the Telegram bot. Mo AI and
-        // OpenClaw therefore cannot disagree about the brain, the key or the channel —
-        // there is exactly one place each of those lives.
-        //
-        // Secrets are WRITE-ONLY here, as in moai-control: the API reports has_key /
-        // has_token and never returns the value, so this sheet cannot leak what it saved.
-        Rectangle {
-            id: settingsDialog
-            anchors.fill: parent
-            z: 300
-            visible: root.settingsOpen
-            color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
-                           Kirigami.Theme.textColor.b, 0.82)
-            focus: visible
-            Accessible.role: Accessible.Dialog
-            Accessible.name: root.moaiRtl ? "إعدادات Mo AI" : "Mo AI settings"
-            Keys.onEscapePressed: root.settingsOpen = false
-            onVisibleChanged: if (visible) forceActiveFocus()
-            MouseArea { anchors.fill: parent; onClicked: root.settingsOpen = false }
-
-            Rectangle {
-                anchors.centerIn: parent
-                width: Math.min(parent.width - 48, 760)
-                height: Math.min(parent.height - 48, 640)
-                radius: design.radiusCard
-                color: root.surface1
-                border.color: root.hairline
-                border.width: 1
-                MouseArea { anchors.fill: parent }   // ابتلع النقر حتى لا يُغلق
-
-                ColumnLayout {
-                    anchors.fill: parent
-                    anchors.margins: 18
-                    spacing: design.space3
-
-                    // ── header ──
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 10
-                        ColumnLayout {
-                            spacing: 0
-                            Text {
-                                text: root.local("الإعدادات", "Settings")
-                                color: root.textHi
-                                font.family: root.uiFont
-                                font.pixelSize: root.typePx(17)
-                                font.weight: Font.DemiBold
-                            }
-                            Text {
-                                text: root.local(
-                                    "إعداد واحد لسطح المكتب وOpenClaw وتليجرام وواتساب",
-                                    "One configuration for desktop, OpenClaw, Telegram and WhatsApp")
-                                color: root.textMute
-                                font.family: root.uiFont
-                                font.pixelSize: root.typePx(10)
-                            }
-                        }
-                        Item { Layout.fillWidth: true }
-                        StatusPill {
-                            good: root.cfgLoaded
-                            goodText: root.cfgSaving ? root.local("يحفظ…", "Saving")
-                                                     : root.local("متصل", "Linked")
-                            badText: root.local("لوحة التحكم متوقفة",
-                                                "Control service is offline")
-                        }
-                        MoButton {
-                            label: root.local("إغلاق", "Close")
-                            iconName: "moos-close-symbolic"
-                            onClicked: root.settingsOpen = false
-                        }
-                    }
-
-                    // ── section tabs ──
-                    GridLayout {
-                        Layout.fillWidth: true
-                        columns: width < root.fs(560) ? 3 : 4
-                        rowSpacing: design.space1
-                        columnSpacing: design.space1
-                        Repeater {
-                            // Eight tabs. "Brain" is ONE home for the whole
-                            // brain decision — mode, cloud provider and key, and
-                            // the local model list. The old Models / Providers /
-                            // Privacy trio configured the same thing in three
-                            // places (and the Privacy tab never controlled any
-                            // privacy). Projects folded into Permissions (it IS
-                            // a permission); the Terminal tab was only a door to
-                            // the Workbench.
-                            model: [
-                                { id: "brain",       ar: "العقل",     en: "Brain" },
-                                { id: "openclaw",    ar: "OpenClaw",  en: "OpenClaw" },
-                                { id: "telegram",    ar: "تليجرام",   en: "Telegram" },
-                                { id: "whatsapp",    ar: "واتساب",    en: "WhatsApp" },
-                                { id: "voice",       ar: "الصوت",     en: "Voice" },
-                                { id: "permissions", ar: "الصلاحيات", en: "Permissions" },
-                                { id: "memory",      ar: "الذاكرة",   en: "Memory" },
-                                { id: "appearance",  ar: "المظهر",    en: "Appearance" }
-                            ]
-                            delegate: Rectangle {
-                                required property var modelData
-                                readonly property bool on_: root.cfgTab === modelData.id
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: root.fs(32)
-                                radius: design.radiusSmall
-                                color: on_ ? Qt.rgba(root.novaBlue.r, root.novaBlue.g, root.novaBlue.b, 0.18)
-                                           : "transparent"
-                                border.width: 1
-                                border.color: on_ ? root.novaBlue : root.hairline
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: root.local(modelData.ar, modelData.en)
-                                    color: on_ ? root.novaBlue : root.textMute
-                                    font.family: root.uiFont
-                                    font.pixelSize: root.typePx(12)
-                                    font.weight: on_ ? Font.DemiBold : Font.Normal
-                                }
-                                ActionArea {
-                                    anchors.fill: parent
-                                    actionName: root.moaiRtl ? modelData.ar : modelData.en
-                                    checkable: true
-                                    checked: parent.on_
-                                    focusRadius: root.fs(9)
-                                    onTriggered: root.cfgTab = modelData.id
-                                }
-                            }
-                        }
-                    }
-
-                    Text {
-                        visible: root.cfgError !== ""
-                        Layout.fillWidth: true
-                        text: root.cfgError
-                        color: root.badColor
-                        font.family: root.uiFont
-                        font.pixelSize: root.typePx(11)
-                        wrapMode: Text.Wrap
-                    }
-
-                    // ── body ──
-                    Flickable {
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        contentWidth: width
-                        contentHeight: cfgBody.implicitHeight
-                        clip: true
-                        boundsBehavior: Flickable.StopAtBounds
-                        QQC2.ScrollBar.vertical: QQC2.ScrollBar { }
-
-                        ColumnLayout {
-                            id: cfgBody
-                            width: parent.width
-                            spacing: design.space3
-
-                            // ══ BRAIN ══════════════════════════════════════
-                            ColumnLayout {
-                                visible: root.cfgTab === "brain"
-                                Layout.fillWidth: true
-                                spacing: design.space2
-
-                                SectionNote {
-                                    Layout.fillWidth: true
-                                    text: root.local(
-                                        "نماذج سحابية فقط. المجاني افتراضي؛ المدفوع باختيارك. قد تنتهي الحصة المجانية.",
-                                        "Cloud models only. Free by default; paid models require your selection. Free quotas may run out.")
-                                }
-
-                                Repeater {
-                                    model: [{ id: "cloud", ar: "عقل سحابي", en: "Cloud inference",
-                                              dAr: "المجاني افتراضي؛ المدفوع باختيارك. لا نماذج محلية.",
-                                              dEn: "Free by default; paid by choice. No local models." }]
-                                    delegate: Rectangle {
-                                        required property var modelData
-                                        readonly property bool on_: root.cfgMode === modelData.id
-                                        Layout.fillWidth: true
-                                        Layout.preferredHeight: root.fs(50)
-                                        radius: design.radiusControl
-                                        color: on_ ? Qt.rgba(root.novaBlue.r, root.novaBlue.g, root.novaBlue.b, 0.13)
-                                                   : "transparent"
-                                        border.width: 1
-                                        border.color: on_ ? root.novaBlue : root.hairline
-                                        ColumnLayout {
-                                            anchors.left: parent.left
-                                            anchors.right: parent.right
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            anchors.margins: 12
-                                            spacing: 1
-                                            Text {
-                                                text: root.local(modelData.ar, modelData.en)
-                                                color: on_ ? root.novaBlue : root.textHi
-                                                font.family: root.uiFont
-                                                font.pixelSize: root.typePx(12)
-                                                font.weight: Font.DemiBold
-                                            }
-                                            Text {
-                                                text: root.local(modelData.dAr, modelData.dEn)
-                                                color: root.textMute
-                                                font.family: root.uiFont
-                                                font.pixelSize: root.typePx(10)
-                                            }
-                                        }
-                                        ActionArea {
-                                            anchors.fill: parent
-                                            actionName: root.local(modelData.ar, modelData.en)
-                                            checkable: true
-                                            checked: parent.on_
-                                            focusRadius: root.fs(11)
-                                            onTriggered: root.cfgMode = modelData.id
-                                        }
-                                    }
-                                }
-
-                                SectionTitle {
-                                    visible: root.cfgMode !== "local"
-                                    text: root.local("المزوّد السحابي", "Cloud provider")
-                                    Layout.topMargin: 6
-                                }
-
-                                QQC2.ComboBox {
-                                    id: provBox
-                                    visible: root.cfgMode !== "local"
-                                    Layout.fillWidth: true
-                                    model: root.cfgProviderNames
-                                    font.family: root.uiFont
-                                    onActivated: {
-                                        const p = root.cfgProviders[currentIndex]
-                                        if (p && p.base) { baseField.text = p.base; modelField.text = p.model }
-                                        root.cfgProvider = p ? p.id : ""
-                                    }
-                                }
-                                QQC2.TextField {
-                                    id: baseField
-                                    visible: root.cfgMode !== "local"
-                                    Layout.fillWidth: true
-                                    placeholderText: "https://…/v1"
-                                    font.family: root.uiFont
-                                    font.pixelSize: root.typePx(11)
-                                }
-                                QQC2.TextField {
-                                    id: modelField
-                                    visible: root.cfgMode !== "local"
-                                    Layout.fillWidth: true
-                                    placeholderText: root.local("اسم النموذج", "Model ID")
-                                    font.family: root.uiFont
-                                    font.pixelSize: root.typePx(11)
-                                }
-                                SectionNote {
-                                    id: cloudKeyLabel
-                                    visible: root.cfgMode !== "local"
-                                    Layout.fillWidth: true
-                                    text: root.local("مفتاح API السحابي", "Cloud API key")
-                                    Accessible.name: text
-                                }
-                                QQC2.TextField {
-                                    id: keyField
-                                    visible: root.cfgMode !== "local"
-                                    Layout.fillWidth: true
-                                    echoMode: TextInput.Password
-                                    Accessible.name: root.local("مفتاح API السحابي",
-                                                                "Cloud API key")
-                                    Accessible.labelledBy: cloudKeyLabel
-                                    placeholderText: root.cfgHasKey && root.cfgSameService
-                                        ? root.local(
-                                            "المفتاح محفوظ — اتركه فارغاً لإبقائه",
-                                            "Key saved — leave blank to keep it")
-                                        : root.local("sk-…  (يُكتب ولا يُقرأ)",
-                                                     "sk-…  (write-only)")
-                                    font.family: root.uiFont
-                                    font.pixelSize: root.typePx(11)
-                                }
-                                SectionNote {
-                                    visible: root.cfgMode !== "local"
-                                    Layout.fillWidth: true
-                                    text: root.cfgHasKey && root.cfgSameService
-                                        ? root.local(
-                                            "مفتاح محفوظ في الإعداد. لن يُعرض هنا أبداً.",
-                                            "A key is saved. It is never displayed here.")
-                                        : root.cfgHasKey
-                                        ? root.local(
-                                            "المفتاح المحفوظ يخص مزوّداً آخر — أدخل مفتاح هذا المزوّد ليُحفظ.",
-                                            "The saved key belongs to another provider — enter this provider's key to save.")
-                                        : root.local(
-                                            "لا مفتاح محفوظ — الوضع السحابي لن يعمل بدونه.",
-                                            "No key saved — cloud mode requires one.")
-                                }
-                                SectionNote {
-                                    visible: root.cfgMode !== "local" && root.cfgProvider === "opencode-zen"
-                                    Layout.fillWidth: true
-                                    text: root.local(
-                                        "خدمة OpenCode Zen مدفوعة حسب الاستخدام، بمفتاح من opencode.ai بعد إضافة وسيلة دفع. يعرض Mo AI فقط نماذج المحادثة التي تعمل ببروتوكوله، مثل DeepSeek وGLM وKimi وMiniMax. نماذجه المجانية المؤقتة قد تُستخدم بياناتك لتحسينها، فلا ترسل إليها بيانات شخصية.",
-                                        "OpenCode Zen bills per use, with a key from opencode.ai once billing is added. Mo AI lists only the chat models Zen serves on Mo AI's protocol (DeepSeek, GLM, Kimi, MiniMax and others). Its temporary free models may use your data to improve them — don't send them personal data.")
-                                }
-                            }
-
-                            // ══ CHANNEL ════════════════════════════════════
-                            ColumnLayout {
-                                visible: root.cfgTab === "telegram" || root.cfgTab === "whatsapp"
-                                Layout.fillWidth: true
-                                spacing: design.space2
-
-                                SectionNote {
-                                    visible: root.cfgTab === "telegram"
-                                    Layout.fillWidth: true
-                                    text: root.local(
-                                        "بوت تليجرام — تكلّمه من جوالك وتكمل نفس المحادثة في تبويب «المحادثة».",
-                                        "Telegram bot — chat from your phone and continue the same conversation in the Chat tab.")
-                                }
-                                SectionNote {
-                                    visible: root.cfgTab === "telegram"
-                                    Layout.fillWidth: true
-                                    text: root.cfgChannelsBusy
-                                        ? root.local("جارٍ فحص الاتصال…", "Checking connection…")
-                                        : root.cfgChannels.telegram.connected
-                                            ? root.local(
-                                                "متصل فعلياً" + (root.cfgChannels.telegram.account ? " · @" + root.cfgChannels.telegram.account : ""),
-                                                "Connected" + (root.cfgChannels.telegram.account ? " · @" + root.cfgChannels.telegram.account : ""))
-                                            : root.cfgChannels.telegram.configured
-                                                ? root.local("مهيّأ لكن غير متصل", "Configured but offline")
-                                                : root.local("غير مهيّأ", "Not configured")
-                                }
-                                RowLayout {
-                                    visible: root.cfgTab === "telegram"
-                                    Layout.fillWidth: true
-                                    Text {
-                                        id: telegramEnabledLabel
-                                        text: root.local("مفعّلة", "Enabled")
-                                        Accessible.name: text
-                                        color: root.textHi
-                                        font.family: root.uiFont
-                                        font.pixelSize: root.typePx(12)
-                                    }
-                                    Item { Layout.fillWidth: true }
-                                    QQC2.Switch {
-                                        id: tgSwitch
-                                        implicitWidth: root.fs(48)
-                                        Accessible.labelledBy: telegramEnabledLabel
-                                    }
-                                }
-                                SectionNote {
-                                    id: telegramTokenLabel
-                                    visible: root.cfgTab === "telegram"
-                                    Layout.fillWidth: true
-                                    text: root.local("توكن بوت تليجرام", "Telegram bot token")
-                                    Accessible.name: text
-                                }
-                                QQC2.TextField {
-                                    id: tokenField
-                                    visible: root.cfgTab === "telegram"
-                                    Layout.fillWidth: true
-                                    echoMode: TextInput.Password
-                                    Accessible.name: root.local("توكن بوت تليجرام",
-                                                                "Telegram bot token")
-                                    Accessible.labelledBy: telegramTokenLabel
-                                    placeholderText: root.cfgHasToken
-                                        ? root.local(
-                                            "التوكن محفوظ — اتركه فارغاً لإبقائه",
-                                            "Token saved — leave blank to keep it")
-                                        : root.local("123456:AA…  من @BotFather",
-                                                     "123456:AA…  from @BotFather")
-                                    font.family: root.uiFont
-                                    font.pixelSize: root.typePx(11)
-                                }
-                                QQC2.TextField {
-                                    id: allowField
-                                    visible: root.cfgTab === "telegram"
-                                    Layout.fillWidth: true
-                                    placeholderText: root.local(
-                                        "معرّفك الرقمي — مثال: 123456789",
-                                        "Your numeric ID — e.g. 123456789")
-                                    font.family: root.uiFont
-                                    font.pixelSize: root.typePx(11)
-                                }
-                                SectionNote {
-                                    visible: root.cfgTab === "telegram"
-                                    Layout.fillWidth: true
-                                    text: root.local(
-                                        "المعرّف الرقمي لا اسم المستخدم: الأسماء تُغيَّر ويُعاد تخصيصها، والرقم ثابت. اتركه فارغاً فيعود الوضع إلى الاقتران حتى لا تُقفل خارج بوتك.",
-                                        "Use the numeric ID, not the username: names change and can be reassigned. Leave it blank to return to pairing mode.")
-                                }
-                                Rectangle {
-                                    visible: root.cfgTab === "whatsapp"
-                                    Layout.fillWidth: true
-                                    Layout.preferredHeight: root.fs(1)
-                                    color: root.hairline
-                                }
-                                RowLayout {
-                                    visible: root.cfgTab === "whatsapp"
-                                    Layout.fillWidth: true
-                                    spacing: design.space2
-                                    ColumnLayout {
-                                        Layout.fillWidth: true
-                                        Text {
-                                            text: "WhatsApp"
-                                            color: root.textHi
-                                            font.family: root.uiFont
-                                            font.pixelSize: root.typePx(13)
-                                            font.weight: Font.DemiBold
-                                        }
-                                        SectionNote {
-                                            Layout.fillWidth: true
-                                            text: root.local(
-                                                "اربط WhatsApp Web عبر OpenClaw؛ يستخدم نفس الوكيل والذاكرة والصلاحيات.",
-                                                "Link WhatsApp Web through OpenClaw; it shares this agent, memory and permissions.")
-                                        }
-                                        SectionNote {
-                                            Layout.fillWidth: true
-                                            text: root.cfgChannelsBusy
-                                                ? root.local("جارٍ فحص الاتصال…", "Checking connection…")
-                                                : root.cfgChannels.whatsapp.connected
-                                                    ? root.local("متصل فعلياً", "Connected")
-                                                    : root.cfgChannels.whatsapp.configured
-                                                        ? root.local("مهيّأ لكن غير متصل", "Configured but offline")
-                                                        : root.local("غير مربوط — سيفتح الربط رمز QR", "Not linked — pairing opens a QR code")
-                                        }
-                                    }
-                                    MoButton {
-                                        label: root.cfgChannels.whatsapp.connected
-                                            ? root.local("إعادة الربط", "Relink")
-                                            : root.local("ربط WhatsApp", "Link WhatsApp")
-                                        iconName: "network-connect"
-                                        onClicked: root.launch(
-                                            "moos://agent/whatsapp-login", "WhatsApp")
-                                    }
-                                }
-                                SectionNote {
-                                    visible: (root.cfgTab === "telegram" || root.cfgTab === "whatsapp")
-                                             && root.cfgChannelsError !== ""
-                                    Layout.fillWidth: true
-                                    text: root.cfgChannelsError
-                                }
-                            }
-
-                            // ══ VOICE ══════════════════════════════════════
-                            ColumnLayout {
-                                visible: root.cfgTab === "voice"
-                                Layout.fillWidth: true
-                                spacing: design.space2
-
-                                SectionNote {
-                                    Layout.fillWidth: true
-                                    text: root.local(
-                                        "المحادثة النصية جاهزة. الصوت السحابي غير مُعدّ حالياً.",
-                                        "Text chat is available. Cloud voice is not configured yet.")
-                                }
-                                RowLayout {
-                                    visible: false
-                                    Layout.fillWidth: true
-                                    Text {
-                                        id: voiceRepliesLabel
-                                        text: root.local("الرد بصوت", "Voice replies")
-                                        Accessible.name: text
-                                        color: root.textHi
-                                        font.family: root.uiFont
-                                        font.pixelSize: root.typePx(12)
-                                    }
-                                    Item { Layout.fillWidth: true }
-                                    QQC2.Switch {
-                                        id: ttsSwitch
-                                        implicitWidth: root.fs(48)
-                                        Accessible.labelledBy: voiceRepliesLabel
-                                    }
-                                }
-                                QQC2.ComboBox {
-                                    id: ttsAutoBox
-                                    visible: false
-                                    Layout.fillWidth: true
-                                    model: root.moaiRtl
-                                        ? ["حين أرسل صوتاً فقط", "دائماً", "أبداً"]
-                                        : ["Only after voice messages", "Always", "Never"]
-                                    font.family: root.uiFont
-                                }
-                                SectionNote {
-                                    Layout.fillWidth: true
-                                    text: root.local(
-                                        "لا يتم تنزيل نماذج صوتية على الجهاز.",
-                                        "No speech models are downloaded to this device.")
-                                }
-                            }
-
-                            // ══ POWER ══════════════════════════════════════
-                            ColumnLayout {
-                                visible: root.cfgTab === "memory"
-                                Layout.fillWidth: true
-                                spacing: design.space2
-
-                                SectionNote {
-                                    Layout.fillWidth: true
-                                    text: root.local(
-                                        "العقل يعمل في السحابة؛ لا يحتفظ Mo AI بنموذج محلي.",
-                                        "Inference runs in the cloud; Mo AI keeps no local model loaded.")
-                                }
-                                QQC2.ComboBox {
-                                    id: keepBox
-                                    visible: false
-                                    Layout.fillWidth: true
-                                    model: root.moaiRtl
-                                        ? ["٥ دقائق — أقل ضغط", "١٥ دقيقة — موصى به", "ساعة", "لا ينام أبداً"]
-                                        : ["5 minutes — lighter", "15 minutes — recommended", "1 hour", "Never sleep"]
-                                    font.family: root.uiFont
-                                }
-                                SectionNote {
-                                    Layout.fillWidth: true
-                                    text: root.local(
-                                        "يعمل Hermes عند الطلب لمعالجة المحادثة.",
-                                        "Hermes starts on demand to process conversations.")
-                                }
-
-                            }
-
-                            // ══ ACCESS ═════════════════════════════════════
-                            // Four tiers, mapped onto OpenClaw's OWN enforcement. The
-                            // decisive knob is sandbox.mode (all=boxed, off=host):
-                            //   read → معطّل: sandbox=all, exec denied — no reach to the machine
-                            //   project → sandbox=all, workspace rw; never reaches the host
-                            //   system → sandbox=off (HOST) + approvals forwarded to the
-                            //          origin chat, so a Telegram request is approved from
-                            //          Telegram before the command runs on the real computer
-                            //   full → كامل: sandbox=off (HOST), elevatedDefault=full, nothing
-                            //          withheld — runs on the machine immediately, no prompt
-                            // Only the allowlisted owner can drive any of it. Each switch
-                            // writes the key the engine already obeys — no invented layer.
-                            ColumnLayout {
-                                visible: root.cfgTab === "permissions"
-                                Layout.fillWidth: true
-                                spacing: design.space2
-
-                                SectionNote {
-                                    visible: root.cfgTab === "permissions"
-                                    Layout.fillWidth: true
-                                    text: root.local(
-                                        "كم يتحكّم الوكيل بجهازك فعلياً من تليجرام (كاميرا، برامج، ترمنال، تحديث، تطوير). ابدأ بـ«مع إذن».",
-                                        "Choose how much Telegram can control on this device. Start with “Ask first”.")
-                                }
-
-                                // ── Quick toggle: host control ON / OFF ────────────
-                                // One tap flips between full host control (sandbox off)
-                                // and fully sandboxed (read). It writes the tier through
-                                // moai-agent-api, which restarts OpenClaw so Telegram picks
-                                // it up at once. The three tiers below stay for the middle
-                                // "with approval" choice.
-                                Rectangle {
-                                    id: hostToggle
-                                    visible: root.cfgTab === "permissions"
-                                    Layout.fillWidth: true
-                                    Layout.preferredHeight: root.fs(60)
-                                    radius: design.radiusControl
-                                    readonly property bool hostOn:
-                                        root.cfgTier === "system" || root.cfgTier === "full"
-                                    color: hostOn ? Qt.rgba(root.okColor.r, root.okColor.g, root.okColor.b, 0.12)
-                                                  : Qt.rgba(root.textMute.r, root.textMute.g, root.textMute.b, 0.07)
-                                    border.width: 1
-                                    border.color: hostOn ? root.okColor : root.hairline
-                                    RowLayout {
-                                        anchors.fill: parent
-                                        anchors.leftMargin: 14
-                                        anchors.rightMargin: 14
-                                        spacing: design.space3
-                                        ColumnLayout {
-                                            Layout.fillWidth: true
-                                            spacing: 1
-                                            Text {
-                                                id: botDeviceControlLabel
-                                                text: root.local("تحكّم البوت بجهازك",
-                                                                 "Bot device control")
-                                                Accessible.name: text
-                                                color: root.textHi
-                                                font.family: root.uiFont
-                                                font.pixelSize: root.typePx(13)
-                                                font.weight: Font.DemiBold
-                                            }
-                                            Text {
-                                                Layout.fillWidth: true
-                                                text: hostToggle.hostOn
-                                                    ? root.local(
-                                                        "مُفعّل — يصل للكاميرا والترمنال وتحديث النظام من تليجرام",
-                                                        "Enabled — Telegram can reach the camera, terminal and system actions")
-                                                    : root.cfgTier === "custom"
-                                                        ? root.local(
-                                                            "إعداد مخصّص على القرص — اختر مستوى أدناه ليُعرف حده الحقيقي",
-                                                            "Custom on-disk configuration — pick a tier below to normalise it")
-                                                        : root.local(
-                                                            "معزول — يردّ فقط، لا يتحكّم بشيء",
-                                                            "Sandboxed — replies only; no device control")
-                                                color: root.textMute
-                                                font.family: root.uiFont
-                                                font.pixelSize: root.typePx(10)
-                                                wrapMode: Text.Wrap
-                                            }
-                                        }
-                                        QQC2.Switch {
-                                            checked: hostToggle.hostOn
-                                            enabled: !root.cfgSaving
-                                            implicitWidth: root.fs(48)
-                                            Accessible.labelledBy: botDeviceControlLabel
-                                            // Saves ONLY the tier. The old handler
-                                            // committed the whole form, silently
-                                            // persisting half-typed secrets from
-                                            // other tabs.
-                                            onToggled: {
-                                                if (checked) {
-                                                    root.cfgTier = root.cfgTierRestore === "full"
-                                                        ? "full" : "system"
-                                                } else {
-                                                    root.cfgTierRestore = root.cfgTier
-                                                    root.cfgTier = "read"
-                                                }
-                                                root.cfgSaveTier(root.cfgTier)
-                                            }
-                                        }
-                                    }
-                                }
-
-                                Repeater {
-                                    model: [
-                                        { id: "read", ar: "معطّل — بلا تحكّم",
-                                          en: "Disabled — no control",
-                                          dAr: "يردّ ويحلّل داخل عزل فقط. لا كاميرا ولا برامج ولا ترمنال",
-                                          dEn: "Replies inside a sandbox; no camera, apps or terminal" },
-                                        { id: "project", ar: "تعديل المشروع",
-                                          en: "Edit project",
-                                          dAr: "يقرأ ويعدّل ويختبر داخل مجلد المشروع المعزول، بلا وصول للنظام",
-                                          dEn: "Reads, edits and tests inside the sandboxed project; no system access" },
-                                        { id: "system",  ar: "تحكّم بالنظام — بموافقة",
-                                          en: "System control — ask first",
-                                          dAr: "يتحكّم بالجهاز الحقيقي، لكن يعرض كل أمر وتوافق عليه في تليجرام قبل تنفيذه",
-                                          dEn: "Can control the device, but every command requires Telegram approval" },
-                                        { id: "full", ar: "كامل — تحكّم بلا سؤال",
-                                          en: "Full — no confirmation",
-                                          dAr: "ينفّذ أي شيء على جهازك فوراً بلا موافقة. الأقوى والأخطر — لك وحدك",
-                                          dEn: "Runs immediately without approval. Most powerful and highest risk" }
-                                    ]
-                                    delegate: Rectangle {
-                                        required property var modelData
-                                        readonly property bool on_: root.cfgTier === modelData.id
-                                        readonly property bool risky: modelData.id === "full"
-                                        Layout.fillWidth: true
-                                        Layout.preferredHeight: root.fs(54)
-                                        radius: design.radiusControl
-                                        color: on_ ? (risky
-                                                ? Qt.rgba(root.badColor.r, root.badColor.g, root.badColor.b, 0.13)
-                                                : Qt.rgba(root.novaBlue.r, root.novaBlue.g, root.novaBlue.b, 0.13))
-                                            : "transparent"
-                                        border.width: 1
-                                        border.color: on_ ? (risky ? root.badColor : root.novaBlue) : root.hairline
-                                        ColumnLayout {
-                                            anchors.left: parent.left
-                                            anchors.right: parent.right
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            anchors.margins: 12
-                                            spacing: 1
-                                            Text {
-                                                text: root.local(modelData.ar, modelData.en)
-                                                color: on_ ? (risky ? root.badColor : root.novaBlue) : root.textHi
-                                                font.family: root.uiFont
-                                                font.pixelSize: root.typePx(12)
-                                                font.weight: Font.DemiBold
-                                            }
-                                            Text {
-                                                text: root.local(modelData.dAr, modelData.dEn)
-                                                color: root.textMute
-                                                font.family: root.uiFont
-                                                font.pixelSize: root.typePx(10)
-                                                wrapMode: Text.Wrap
-                                            }
-                                        }
-                                        ActionArea {
-                                            anchors.fill: parent
-                                            actionName: root.local(modelData.ar, modelData.en)
-                                            checkable: true
-                                            checked: parent.on_
-                                            focusRadius: root.fs(11)
-                                            onTriggered: root.cfgTier = modelData.id
-                                        }
-                                    }
-                                }
-
-                                SectionTitle {
-                                    text: root.local("مجلد المشروع", "Project folder")
-                                    Layout.topMargin: 6
-                                }
-                                QQC2.TextField {
-                                    id: projectField
-                                    Layout.fillWidth: true
-                                    text: root.cfgProject
-                                    placeholderText: root.local(
-                                        "/var/home/moos/… (فارغ = بلا نطاق)",
-                                        "/var/home/moos/… (blank = unrestricted)")
-                                    font.family: root.uiFont
-                                    font.pixelSize: root.typePx(11)
-                                }
-                                SectionNote {
-                                    Layout.fillWidth: true
-                                    text: root.local(
-                                        "يحصر عمل الوكيل في مجلد واحد. مسار مطلق داخل مجلد المنزل فقط — أي شيء آخر يُرفض.",
-                                        "Restricts the agent to one absolute path inside your home folder.")
-                                }
-
-                                SectionNote {
-                                    visible: root.cfgTier === "custom"
-                                    Layout.fillWidth: true
-                                    text: root.local(
-                                        "الإعداد الحالي على القرص لا يطابق أي مستوى من الأربعة — اختر مستوى ليُوحَّد.",
-                                        "The on-disk configuration matches none of the four tiers — pick one to normalise it.")
-                                }
-
-                                SectionTitle {
-                                    visible: root.cfgTab === "permissions"
-                                    text: root.local("الإنترنت", "Internet")
-                                    Layout.topMargin: 6
-                                }
-                                RowLayout {
-                                    visible: root.cfgTab === "permissions"
-                                    Layout.fillWidth: true
-                                    Text {
-                                        id: webAccessLabel
-                                        text: root.local("بحث وقراءة صفحات",
-                                                         "Search and read pages")
-                                        Accessible.name: text
-                                        color: root.textHi
-                                        font.family: root.uiFont
-                                        font.pixelSize: root.typePx(12)
-                                    }
-                                    Item { Layout.fillWidth: true }
-                                    QQC2.Switch {
-                                        id: webSwitch
-                                        implicitWidth: root.fs(48)
-                                        Accessible.labelledBy: webAccessLabel
-                                    }
-                                }
-                                SectionNote {
-                                    visible: root.cfgTab === "permissions"
-                                    Layout.fillWidth: true
-                                    text: root.local(
-                                        "نموذج صغير ضعيف أمام حقن التعليمات، والبحث المحلي يتطلب تسجيل دخول Ollama — بدون حساب تفشل الأداة ويعلق العقل المحلي عليها. فعّله مع العقل السحابي فقط.",
-                                        "A small model is vulnerable to prompt injection, and local search needs an Ollama account sign-in — without one the tool always fails and the local brain can loop on it. Enable this with the cloud brain only.")
-                                }
-                            }
-
-                            // ══ OPENCLAW ══════════════════════════════════
-                            ColumnLayout {
-                                visible: root.cfgTab === "openclaw"
-                                Layout.fillWidth: true
-                                spacing: design.space2
-
-                                SectionTitle { text: "OpenClaw" }
-                                SectionNote {
-                                    Layout.fillWidth: true
-                                    text: root.local(
-                                        "المحرّك الموحّد لسطح المكتب وتليجرام وواتساب؛ نفس الجلسات والذاكرة والأدوات.",
-                                        "The shared desktop, Telegram and WhatsApp runtime: one session store, memory and tool policy.")
-                                }
-                                StatusPill {
-                                    good: root.agentOpenClawConfigured
-                                    goodText: root.local("مثبّت ومهيّأ", "Installed and configured")
-                                    badText: root.local("يحتاج إعداداً", "Setup required")
-                                }
-                                MoButton {
-                                    Layout.fillWidth: true
-                                    label: root.agentMachineConfigured
-                                        ? root.local("افتح مساحة الوكيل", "Open Agent workspace")
-                                        : root.agentSetupLabel
-                                    primary: true
-                                    onClicked: {
-                                        if (!root.agentMachineConfigured) {
-                                            Qt.openUrlExternally(root.agentSetupAction)
-                                            return
-                                        }
-                                        root.settingsOpen = false
-                                        root.panel = "agent"
-                                        root.agentWorkspaceTab = "projects"
-                                        root.agentLoadStatus()
-                                    }
-                                }
-                            }
-
-                            // ══ APPEARANCE ════════════════════════════════
-                            ColumnLayout {
-                                visible: root.cfgTab === "appearance"
-                                Layout.fillWidth: true
-                                spacing: design.space2
-
-                                SectionTitle { text: root.local("لغة Mo AI", "Mo AI language") }
-                                SectionNote {
-                                    Layout.fillWidth: true
-                                    text: root.local(
-                                        "لغة هذا التطبيق فقط — النظام يتبع إعدادات MoOS.",
-                                        "This app's language only — the system follows MoOS settings.")
-                                }
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    spacing: design.space2
-                                    Repeater {
-                                        model: [
-                                            { id: "auto", ar: "تلقائي", en: "Automatic" },
-                                            { id: "ar",   ar: "العربية", en: "العربية" },
-                                            { id: "en",   ar: "English", en: "English" }
-                                        ]
-                                        delegate: Rectangle {
-                                            required property var modelData
-                                            readonly property bool on_:
-                                                (root.langOverride === "" ? "auto" : root.langOverride)
-                                                    === modelData.id
-                                            Layout.fillWidth: true
-                                            Layout.preferredHeight: root.fs(44)
-                                            radius: design.radiusControl
-                                            color: on_ ? Qt.rgba(root.novaBlue.r, root.novaBlue.g,
-                                                                 root.novaBlue.b, 0.16) : "transparent"
-                                            border.width: 1
-                                            border.color: on_ ? root.novaBlue : root.hairline
-                                            Text {
-                                                anchors.centerIn: parent
-                                                text: root.local(modelData.ar, modelData.en)
-                                                color: on_ ? root.novaBlue : root.textHi
-                                                font.family: root.uiFont
-                                                font.pixelSize: root.typePx(12)
-                                                font.weight: on_ ? Font.DemiBold : Font.Normal
-                                            }
-                                            ActionArea {
-                                                anchors.fill: parent
-                                                actionName: root.local(modelData.ar, modelData.en)
-                                                checkable: true
-                                                checked: parent.on_
-                                                focusRadius: root.fs(11)
-                                                onTriggered: root.cfgSaveUiLanguage(modelData.id)
-                                            }
-                                        }
-                                    }
-                                }
-
-                                SectionTitle {
-                                    Layout.topMargin: 8
-                                    text: root.local("مظهر Mo AI", "Mo AI appearance")
-                                }
-                                SectionNote {
-                                    Layout.fillWidth: true
-                                    text: root.local(
-                                        "يتبع Mo AI لوحة MoOS النشطة، اتجاه اللغة، حجم الخط وتقليل الحركة تلقائياً. غيّرها من منتقي MoOS الموحد.",
-                                        "Mo AI follows the active MoOS palette, language direction, font scale and reduced-motion setting. Change them in the shared MoOS picker.")
-                                }
-                                MoButton {
-                                    Layout.fillWidth: true
-                                    label: root.local("افتح المظهر والثيمات", "Open appearance and themes")
-                                    // moos-ui-symbolic is the family's themes glyph; a
-                                    // "moos-themes-symbolic" never existed and drew blank.
-                                    iconName: "moos-ui-symbolic"
-                                    primary: true
-                                    onClicked: root.launch("moos://settings/themes", "MoOS themes")
-                                }
-                            }
-
-                            // Cloud catalogue; no local model/download controls.
-                            ColumnLayout {
-                                visible: root.cfgTab === "brain"
-                                Layout.fillWidth: true
-                                spacing: design.space2
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    SectionTitle { text: root.local("النماذج السحابية", "Cloud models") }
-                                    Item { Layout.fillWidth: true }
-                                    MoButton {
-                                        label: root.local("تحديث", "Refresh")
-                                        onClicked: root.loadModels()
-                                    }
-                                }
-                                SectionNote {
-                                    Layout.fillWidth: true
-                                    text: root.local("القائمة حسب سياسة المزوّد المحفوظة. لا يتم تنزيل نماذج على الجهاز.",
-                                                     "Models follow the saved provider policy. Nothing is downloaded to this device.")
-                                }
-                                Repeater {
-                                    model: root.cloudModels
-                                    delegate: MoButton {
-                                        required property var modelData
-                                        Layout.fillWidth: true
-                                        label: modelData.label || modelData.id
-                                        onClicked: root.cfgSetDefaultBrain(modelData)
-                                    }
-                                }
-                                Text {
-                                    visible: root.modelsError !== ""
-                                    Layout.fillWidth: true
-                                    text: root.modelsError
-                                    color: root.badColor
-                                    font.pixelSize: root.typePx(11)
-                                    wrapMode: Text.Wrap
-                                }
-                            }
-
-                        }
-                    }
-
-                    // ── save ──
-                    Rectangle {
-                        visible: ["brain", "telegram", "voice",
-                                  "memory", "permissions"].indexOf(root.cfgTab) !== -1
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: root.fs(44)
-                        radius: design.radiusControl
-                        opacity: (root.cfgSaving || !root.cfgLoaded) ? 0.45 : 1
-                        gradient: Gradient {
-                            orientation: Gradient.Horizontal
-                            GradientStop { position: 0.0; color: root.novaBlue }
-                            GradientStop { position: 1.0; color: root.novaViolet }
-                        }
-                        Text {
-                            anchors.centerIn: parent
-                            text: root.cfgSaving ? root.local("جارٍ الحفظ…", "Saving…")
-                                                 : root.local("حفظ", "Save")
-                            color: root.accentText
-                            font.family: root.uiFont
-                            font.pixelSize: root.typePx(14)
-                            font.weight: Font.DemiBold
-                        }
-                        ActionArea {
-                            anchors.fill: parent
-                            // A save before a successful load would write empty
-                            // fields over real settings (e.g. clear the Telegram
-                            // allow-list back to pairing mode).
-                            enabled: !root.cfgSaving && root.cfgLoaded
-                            actionName: root.moaiRtl ? "حفظ الإعدادات" : "Save settings"
-                            focusRadius: root.fs(12)
-                            onTriggered: root.cfgSave({
-                                mode: root.cfgMode,
-                                provider: root.cfgProvider,
-                                base: baseField.text,
-                                model: modelField.text,
-                                key: keyField.text,
-                                tgOn: tgSwitch.checked,
-                                token: tokenField.text,
-                                allow: allowField.text,
-                                ttsOn: ttsSwitch.checked,
-                                ttsAuto: ttsAutoBox.currentIndex,
-                                keep: keepBox.currentIndex,
-                                web: webSwitch.checked,
-                                tier: root.cfgTier,
-                                project: projectField.text
-                            }, function () {
-                                keyField.text = ""
-                                tokenField.text = ""
-                            })
-                        }
-                    }
-                }
-
-                // يملأ الحقول عند كل فتح — لا عند الإقلاع
-                Connections {
-                    target: root
-                    function onSettingsOpenChanged() {
-                        if (!root.settingsOpen) return
-                        root.cfgLoad(function (c) {
-                            provBox.currentIndex = Math.max(0, root.cfgProviders.findIndex(
-                                function (p) { return p.id === c.cloud.provider }))
-                            baseField.text  = c.cloud.base
-                            modelField.text = c.cloud.model
-                            tgSwitch.checked = c.telegram.enabled
-                            allowField.text  = (c.telegram.allow || []).join(", ")
-                            ttsSwitch.checked = c.voice.tts_enabled
-                            ttsAutoBox.currentIndex = Math.max(0,
-                                ["inbound", "always", "off"].indexOf(c.voice.tts_auto))
-                            keepBox.currentIndex = Math.max(1,
-                                ["5m", "15m", "60m", "-1"].indexOf(c.power.keep_alive))
-                            webSwitch.checked = c.permissions.web
-                        })
-                    }
-                }
-            }
-        }
-    }
-
-    // ── Settings plumbing (moai-agent-api) ──────────────────────────────────
-    // One backend for BOTH surfaces: this sheet and the Telegram bot read and
-    // write the same ~/.openclaw/openclaw.json through moai-agent-api. There is
-    // no second copy of "which brain" or "which key" to drift out of sync.
-    property string cfgTab: "brain"
-    property string cfgMode: "cloud"
-    property string cfgProvider: "openrouter-free"
-    property string cfgSavedProvider: ""   // the provider the saved key belongs to
-    property var    cfgProviders: []
-    property var    cfgProviderNames: []
-    // A key belongs to the service that issued it: moai-agent-api refuses a switch
-    // between services without the new one's key, and the form says so up front.
-    readonly property bool cfgSameService: root.providerBase(root.cfgProvider)
-                                           === root.providerBase(root.cfgSavedProvider)
-    function providerBase(id) {
-        const p = (root.cfgProviders || []).find(function (x) { return x.id === id })
-        return p ? String(p.base || "") : ""
-    }
-    property bool   cfgHasKey: false
-    property bool   cfgHasToken: false
-    property var    cfgChannels: ({
-        telegram: { configured: false, running: false, connected: false,
-                    account: "", mode: "", error: "" },
-        whatsapp: { configured: false, running: false, connected: false,
-                    account: "", mode: "", error: "" }
-    })
-    property bool   cfgChannelsBusy: false
-    property string cfgChannelsError: ""
-    property bool   cfgSaving: false
-    property string cfgError: ""
-    // "" until the backend reports the real tier; "custom" when the config on
-    // disk matches none of the four tiers (never guess a safer-looking one).
-    property string cfgTier: ""
-    property string cfgTierRestore: ""
-    property string cfgProject: ""
-    // True only after /api/config actually answered — the "Linked" pill and the
-    // Save bar both key on this instead of asserting from the absence of errors.
-    property bool   cfgLoaded: false
-    onCfgTabChanged: {
-        if (cfgTab === "openclaw") root.agentLoadStatus()
-        else if (cfgTab === "brain") root.loadModels()
-        else if (cfgTab === "telegram" || cfgTab === "whatsapp") root.cfgLoadChannels()
-    }
-
-    function cfgLoadChannels() {
-        root.cfgChannelsBusy = true
-        const xhr = new XMLHttpRequest()
-        xhr.open("GET", root.agentApi + "/api/channels")
-        xhr.setRequestHeader("X-Moai-Agent", "1")
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState !== XMLHttpRequest.DONE) return
-            root.cfgChannelsBusy = false
-            if (xhr.status !== 200) {
-                root.cfgChannelsError = root.local(
-                    "تعذّر فحص القنوات", "Could not probe channels")
-                return
-            }
-            try {
-                const result = JSON.parse(xhr.responseText)
-                root.cfgChannels = result.channels
-                root.cfgChannelsError = result.error || ""
-            } catch (e) {
-                root.cfgChannelsError = root.local(
-                    "رد حالة القنوات غير مفهوم", "Bad channel status response")
-            }
-        }
-        xhr.send()
-    }
-
-    function cfgLoad(done) {
-        const xhr = new XMLHttpRequest()
-        xhr.open("GET", root.agentApi + "/api/config")
-        xhr.setRequestHeader("X-Moai-Agent", "1")
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState !== XMLHttpRequest.DONE) return
-            if (xhr.status !== 200) {
-                root.cfgLoaded = false
-                root.cfgError = root.local(
-                    "لوحة التحكم لا تستجيب — شغّل moai-agent-api.service",
-                    "Control service is unavailable — start moai-agent-api.service")
-                return
-            }
-            try {
-                const c = JSON.parse(xhr.responseText)
-                root.cfgError = ""
-                root.cfgMode = "cloud"
-                root.cfgProvider = c.cloud.provider
-                root.cfgSavedProvider = c.cloud.provider
-                root.cfgProviders = c.providers
-                root.cfgProviderNames = c.providers.map(function (p) { return p.name })
-                root.cfgHasKey = c.cloud.has_key
-                root.cfgHasToken = c.telegram.has_token
-                root.langOverride = (c.ui && c.ui.language && c.ui.language !== "auto")
-                    ? c.ui.language : ""
-                root.cfgTier = (c.permissions && c.permissions.tier) || ""
-                root.cfgProject = (c.permissions && c.permissions.project) || ""
-                root.cfgLoaded = true
-                if (done) done(c)
-            } catch (e) {
-                root.cfgLoaded = false
-                root.cfgError = root.local("رد غير مفهوم من لوحة التحكم",
-                                           "Unrecognised control response")
-            }
-        }
-        xhr.send()
-    }
-
-    // Make a pulled local brain the DEFAULT everywhere (desktop chat seeding,
-    // phone channels): writes mode=local + the model through moai-agent-api,
-    // which sets OpenClaw's primary; the merged read in moai-control then
-    // reports it as the default the picker seeds from.
-    function cfgSetDefaultBrain(entry) {
-        const bare = entry.id.indexOf("cloud:") === 0 ? entry.id.substring(6) : entry.id
-        root.cfgSaving = true
-        const xhr = new XMLHttpRequest()
-        xhr.open("POST", root.agentApi + "/api/config")
-        xhr.setRequestHeader("X-Moai-Agent", "1")
-        xhr.setRequestHeader("Content-Type", "application/json")
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState !== XMLHttpRequest.DONE) return
-            root.cfgSaving = false
-            let r = {}
-            try { r = JSON.parse(xhr.responseText) } catch (e) { }
-            if (xhr.status !== 200 || r.error) {
-                root.cfgError = r.error || root.local("تعذّر تعيين الافتراضي",
-                                                     "Could not set the default")
-                return
-            }
-            root.cfgError = ""
-            root.route = entry.id            // this window follows immediately
-            root.loadModels()                // the Default badge moves for real
-            root.cfgLoad()                   // the mode cards follow too
-            toast.show(root.local("صار الافتراضي: ", "Default is now: ")
-                       + (entry.title ? root.localLegacy(entry.title) : entry.label))
-        }
-        xhr.send(JSON.stringify({ mode: "cloud", cloud: {
-            provider: root.cfgProvider, base: root.providerBase(root.cfgProvider), model: bare } }))
-    }
-
-    // Language-only save: applies to the UI immediately, persists in state.
-    function cfgSaveUiLanguage(lang) {
-        root.langOverride = lang === "auto" ? "" : lang
-        const xhr = new XMLHttpRequest()
-        xhr.open("POST", root.agentApi + "/api/config")
-        xhr.setRequestHeader("X-Moai-Agent", "1")
-        xhr.setRequestHeader("Content-Type", "application/json")
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState !== XMLHttpRequest.DONE) return
-            if (xhr.status !== 200)
-                root.cfgError = root.local("تعذّر حفظ اللغة", "Could not save the language")
-        }
-        xhr.send(JSON.stringify({ ui: { language: lang } }))
-    }
-
-    // Tier-only save for the host-control switch: nothing else rides along.
-    function cfgSaveTier(tier) {
-        root.cfgSaving = true
-        root.cfgError = ""
-        const xhr = new XMLHttpRequest()
-        xhr.open("POST", root.agentApi + "/api/config")
-        xhr.setRequestHeader("X-Moai-Agent", "1")
-        xhr.setRequestHeader("Content-Type", "application/json")
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState !== XMLHttpRequest.DONE) return
-            root.cfgSaving = false
-            if (xhr.status === 200) {
-                let r = {}
-                try { r = JSON.parse(xhr.responseText) } catch (e) { }
-                if (r.error) { root.cfgError = r.error; return }
-                root.cfgLoad()
-            } else {
-                root.cfgError = root.local("تعذّر الحفظ (HTTP " + xhr.status + ")",
-                                           "Could not save (HTTP " + xhr.status + ")")
-            }
-        }
-        xhr.send(JSON.stringify({ permissions: { tier: tier } }))
-    }
-
-    function cfgSave(v, done) {
-        root.cfgSaving = true
-        root.cfgError = ""
-        const AUTO = ["inbound", "always", "off"]
-        const KEEP = ["5m", "15m", "60m", "-1"]
-        const body = {
-            mode: "cloud",
-            cloud: { provider: v.provider, base: v.base, model: v.model, key: v.key },
-            telegram: {
-                enabled: v.tgOn,
-                token: v.token,
-                allow: v.allow.split(",").map(function (x) { return x.trim() })
-                                        .filter(function (x) { return x.length > 0 })
-            },
-            permissions: { web: v.web, tier: v.tier, project: v.project }
-        }
-        const xhr = new XMLHttpRequest()
-        xhr.open("POST", root.agentApi + "/api/config")
-        xhr.setRequestHeader("X-Moai-Agent", "1")
-        xhr.setRequestHeader("Content-Type", "application/json")
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState !== XMLHttpRequest.DONE) return
-            root.cfgSaving = false
-            if (xhr.status === 200) {
-                let r = {}
-                try { r = JSON.parse(xhr.responseText) } catch (e) { }
-                if (r.error) { root.cfgError = r.error; return }
-                if (done) done()
-                root.cfgLoad()
-            } else {
-                root.cfgError = root.local("تعذّر الحفظ (HTTP " + xhr.status + ")",
-                                           "Could not save (HTTP " + xhr.status + ")")
-            }
-        }
-        xhr.send(JSON.stringify(body))
     }
 
     // ── Agent plumbing ──────────────────────────────────────────────────────
@@ -8902,8 +7140,4 @@ Kirigami.ApplicationWindow {
         }
         xhr.send("{}")
     }
-
-
-    // ── Settings plumbing ───────────────────────────────────────────────────
-    property bool settingsOpen: false
 }

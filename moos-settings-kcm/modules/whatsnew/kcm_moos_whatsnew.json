@@ -1,0 +1,17 @@
+{
+  "KPlugin": {
+    "Name": "What's new",
+    "Name[ar]": "ما الجديد",
+    "Description": "What each MoOS update brought, and where to try it",
+    "Description[ar]": "ما الذي جاء به كل تحديث لـ MoOS وأين تجرّبه",
+    "Icon": "moos-welcome",
+    "FormFactors": [
+      "desktop"
+    ],
+    "EnabledByDefault": true
+  },
+  "X-KDE-System-Settings-Parent-Category": "moos",
+  "X-KDE-Weight": 3,
+  "X-KDE-Keywords": "what's new,whats new,new,changes,release notes,features,news",
+  "X-KDE-Keywords[ar]": "ما الجديد,جديد,التغييرات,ملاحظات الإصدار,ميزات"
+}

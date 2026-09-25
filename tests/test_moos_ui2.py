@@ -12,12 +12,14 @@ from __future__ import annotations
 
 import configparser
 import hashlib
+import importlib.util
 import json
 import math
 import os
 from pathlib import Path
 import pathlib
 import re
+import shutil
 import struct
 import subprocess
 import sys
@@ -104,6 +106,35 @@ BANNED_DASHBOARD_TYPES = (
     "MultiEffect",
     "Lottie",
 )
+
+
+MOOS_THEMES = ROOT / "moos-settings-kcm/modules/appearance"
+NODE = shutil.which("node")
+
+
+def moos_themes_sources() -> tuple[str, str, str, str]:
+    """kcm_moos_appearance: the page, a look card, a three-way choice row, and its logic."""
+    ui = MOOS_THEMES / "ui"
+    return tuple((ui / name).read_text(encoding="utf-8")
+                 for name in ("main.qml", "ThemeCard.qml", "ChoiceRow.qml", "ThemeLogic.js"))
+
+
+def qml_block(text: str, opening: str) -> str:
+    """The block that starts at `opening` (which ends with its "{"), braces balanced."""
+    start = text.index(opening)
+    end = start + len(opening)
+    depth = 1
+    while depth:
+        depth += {"{": 1, "}": -1}.get(text[end], 0)
+        end += 1
+    return text[start:end]
+
+
+def bash_function(text: str, name: str) -> str:
+    match = re.search(rf"(?ms)^{re.escape(name)}\(\) \{{.*?^\}}$", text)
+    if not match:
+        raise AssertionError(f"could not extract {name}()")
+    return match.group(0)
 
 
 def load_json(path: Path) -> dict:
@@ -842,7 +873,10 @@ class TestMoOSUI2(unittest.TestCase):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=85", apply,
+            "THEME_REV=86", apply,
+            "existing v85 users would keep the cached Island that imports the retired Search "
+            "applet and shows no Mo AI jobs, the launcher with three settings tiles, and a home "
+            "copy of the MoOS task switcher; "
             "existing v61 users would keep the Island that cannot show Store jobs or name the app "
             "using the camera; "
             "existing v60 users (ARM took W3 then W5 at the same revision) would keep the cached "
@@ -1434,9 +1468,9 @@ class TestMoOSUI2(unittest.TestCase):
         dock = qml_code((
             SHARE / "plasma/plasmoids/org.moos.brand/contents/ui/main.qml"
         ).read_text(encoding="utf-8"))
-        hero = qml_code((
-            SHARE / "plasma/plasmoids/org.moos.heroclock/contents/ui/main.qml"
-        ).read_text(encoding="utf-8"))
+        # The Hero Clock was retired at THEME_REV 86: the package is gone and its id lives on
+        # only in the lists that remove a stale instance or home copy.
+        hero_package = SHARE / "plasma/plasmoids/org.moos.heroclock"
 
         self.assertIn("implicitWidth: design.dialogWidth", launcher)
         self.assertIn("implicitHeight: design.dialogHeight", launcher)
@@ -1494,10 +1528,40 @@ class TestMoOSUI2(unittest.TestCase):
         for destination in (
             "org.moos.moai.desktop",
             "org.moos.store.desktop",
-            "org.moos.themepicker.desktop",
             "systemsettings.desktop",
         ):
             self.assertIn(destination, launcher + dock)
+        # MoOS Themes is a page of MoOS Settings now (spec D1/D5), reached through the router's
+        # fixed moos://settings/themes route; the separate theme window is no launcher target.
+        self.assertIn('view.launcher.openRoute("moos://settings/themes")', launcher)
+        self.assertNotIn("org.moos.themepicker.desktop", launcher + dock)
+        self.assertIn('Qt.openUrlExternally(route)', dock)
+        self.assertIn('if (!/^moos:\\/\\/[a-z]/.test(String(route || ""))) {', dock,
+                      "the launcher opens only moos:// routes, never a free URL")
+        # One name per destination: the cards say what the menu entries say.
+        self.assertIn('view.local("إعدادات MoOS", "MoOS Settings")', launcher)
+        self.assertIn('view.local("متجر MoOS", "Mo Store")', launcher)
+        self.assertNotIn('"System Settings"', launcher)
+        self.assertNotIn('"MoOS Store"', launcher)
+        # Favourites: one settings tile (Update and Recovery are its pages), mirrored three ways.
+        shipped = re.findall(r'"([^"]+)"', dock.split("readonly property var shippedFavorites: [",
+                                                      1)[1].split("]", 1)[0])
+        expected = ["org.moos.moai.desktop", "org.moos.store.desktop", "preferred://browser",
+                    "org.moos.moplayer.desktop", "org.kde.dolphin.desktop",
+                    "systemsettings.desktop"]
+        self.assertEqual(shipped, expected)
+        schema = (SHARE / "plasma/plasmoids/org.moos.brand/contents/config/main.xml"
+                  ).read_text(encoding="utf-8")
+        self.assertIn("<default>" + ",".join(expected) + "</default>", schema)
+        layout = (SHARE / "plasma/layout-templates/org.kde.plasma.desktop.defaultPanel/"
+                  "contents/layout.js").read_text(encoding="utf-8")
+        seeded = re.findall(r'"([^"]+)"', layout.split('writeConfig("favoriteApps", [', 1)[1]
+                            .split("]", 1)[0])
+        self.assertEqual(seeded, expected, "layout.js seeds new profiles; it mirrors the QML")
+        places = dock.split("systemApplications: [", 1)[1].split("]", 1)[0]
+        self.assertEqual(re.findall(r'"([^"]+)"', places), ["systemsettings.desktop"],
+                         "Places offers one settings destination, not the hidden hardware "
+                         "report and a Recovery page of the same window")
         self.assertIn('text: root.rtl ? "مساحة الأوامر" : "COMMAND"', dock)
         self.assertIn("readonly property int motionMedium: design.duration(", launcher)
         self.assertIn("design.motionGeometry", launcher)
@@ -1518,17 +1582,25 @@ class TestMoOSUI2(unittest.TestCase):
         self.assertNotIn("org.moos.moai.desktop", quiet_edge)
         self.assertNotIn("org.moos.store.desktop", quiet_edge)
         self.assertNotIn("systemsettings.desktop", quiet_edge)
-        self.assertIn("org.moos.themepicker.desktop", quiet_edge)
+        self.assertIn('openRoute("moos://settings/themes")', quiet_edge)
 
         # The always-visible hero clock used to wake at 1 Hz while five ambient
-        # loops repainted plasmashell forever. Tidal Horizon wakes on the minute
-        # and moves only when the displayed value changes.
-        self.assertIn("interval: 60000 -", hero)
-        self.assertNotIn("Animation.Infinite", hero)
-        self.assertNotIn('Qt.formatTime(root.now, "ss")', hero)
-        self.assertIn("onTextChanged: minutePulse.restart()", hero)
-        self.assertIn("root.latinNumerals(root.displayLocale.toString", hero)
-        self.assertIn("YOUR DAILY HORIZON", hero)
+        # loops repainted plasmashell forever; it was then rejected outright and is
+        # now retired. Retired means: not shipped, not addable, and removed from
+        # every profile and home share that still holds it.
+        self.assertFalse(hero_package.exists(), "org.moos.heroclock is retired")
+        explorer = (SHARE / "plasma/shells/org.kde.plasma.desktop/contents/explorer/"
+                    "WidgetExplorer.qml").read_text(encoding="utf-8")
+        self.assertIn('"org.moos.heroclock"',
+                      explorer.split("function retired(plugin) {", 1)[1].split("\n    }", 1)[0])
+        switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
+        self.assertIn('ws[j].type == "org.moos.heroclock"', switch,
+                      "the scene owner must keep removing a stale Hero Clock instance")
+        apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
+        retired_sweep = apply.split(
+            "# RETIRED MoOS assets are removed from the user share UNCONDITIONALLY", 1
+        )[1].split("; do", 1)[0]
+        self.assertIn('"plasma/plasmoids/org.moos.heroclock"', retired_sweep)
 
     def test_logout_draws_only_the_active_session_language(self) -> None:
         logout = qml_code((
@@ -1758,7 +1830,12 @@ class TestMoOSUI2(unittest.TestCase):
         import json
 
         plasmoids = sorted((SHARE / "plasma/plasmoids").glob("org.moos.*"))
-        self.assertGreaterEqual(len(plasmoids), 4, "the MoOS widget set shrank")
+        # Exactly the bar's three packages. THEME_REV 86 retired org.moos.heroclock (rejected by
+        # the owner, never addable) and org.moos.search (the Island hosts Search); a retired id
+        # coming back as a package would be an addable widget the theme system removes again.
+        self.assertEqual([package.name for package in plasmoids],
+                         ["org.moos.brand", "org.moos.island", "org.moos.nova.clock"],
+                         "the MoOS widget set changed")
 
         for package in plasmoids:
             meta = json.loads((package / "metadata.json").read_text(encoding="utf-8"))
@@ -1957,15 +2034,23 @@ class TestMoOSUI2(unittest.TestCase):
                             )
 
     def test_every_theme_keeps_one_safe_kwin_frost_profile(self) -> None:
-        """Applying a family member must not silently weaken or overdrive blur."""
+        """One frost for the whole family, owned by KWin's shipped default — not by the themes.
+
+        The Global Themes used to carry [kwinrc][Plugins] blurEnabled and [kwinrc][Effect-blur]
+        too. LookAndFeelManager never applies them: the kwinrc key table of the shipped
+        libklookandfeel.so.6 holds only org.kde.kdecoration2 and the TabBox/WindowSwitcher/
+        DesktopSwitcher keys (measured 2026-09-24). A group a theme states and Plasma ignores
+        is a promise no gate can keep, so the family now states none, and every shipped
+        defaults file must equal its generator's output so a regeneration cannot bring the
+        groups back. Blur is /etc/xdg/kwinrc's, moos-visual-tier's and `moos-theme clarity`'s.
+        """
         shipped_kwin = load_kconfig(ROOT / "system_files/etc/xdg/kwinrc")
-        expected_strength = shipped_kwin["Effect-blur"]["BlurStrength"]
-        expected_noise = shipped_kwin["Effect-blur"]["NoiseStrength"]
+        self.assertEqual(shipped_kwin["Plugins"]["blurEnabled"], "true")
         self.assertEqual(
-            expected_strength, "15",
+            shipped_kwin["Effect-blur"]["BlurStrength"], "15",
             "KWin's supported blur range tops out at 15; the shipped profile drifted",
         )
-        self.assertEqual(expected_noise, "3")
+        self.assertEqual(shipped_kwin["Effect-blur"]["NoiseStrength"], "3")
 
         defaults_files = sorted(
             (SHARE / "plasma/look-and-feel").glob("org.moos.ui2*/contents/defaults")
@@ -1974,19 +2059,37 @@ class TestMoOSUI2(unittest.TestCase):
             len(defaults_files), 16,
             "the complete eight-pair MoOS UI family must share one frost profile",
         )
+        applied = {"org.kde.kdecoration2", "TabBox", "WindowSwitcher", "DesktopSwitcher"}
         for defaults_path in defaults_files:
             defaults = load_kconfig(defaults_path)
+            kwin_groups = {section.split("][", 1)[1] for section in defaults.sections()
+                           if section.startswith("kwinrc][")}
             with self.subTest(look_and_feel=defaults_path.parent.parent.name):
-                self.assertEqual(
-                    defaults["kwinrc][Effect-blur"]["BlurStrength"],
-                    expected_strength,
-                    "applying this theme weakens or overdrives the shared KWin frost",
-                )
-                self.assertEqual(
-                    defaults["kwinrc][Effect-blur"]["NoiseStrength"],
-                    expected_noise,
-                    "applying this theme changes the shared frost grain",
-                )
+                self.assertEqual(kwin_groups - applied, set(),
+                                 "a Global Theme states KWin config Plasma never applies")
+                self.assertEqual(defaults["ksplashrc][KSplash"]["Engine"], "None",
+                                 "KSplashQML stalls every Wayland login for 60 s (0bf113d2)")
+
+        def load(name: str, path: Path):
+            spec = importlib.util.spec_from_file_location(name, path)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            return module
+
+        ui2 = load("moos_ui2_generator_under_test", DEFAULT_ROOT / "artwork/generate_moos_ui2.py")
+        family = load("moos_family_generator_under_test",
+                      DEFAULT_ROOT / "artwork/generate_moos_themes.py")
+        expected = {"org.moos.ui2": ui2.lnf_defaults("dark"),
+                    "org.moos.ui2.light": ui2.lnf_defaults("light")}
+        expected.update({meta["lnf"]: family.lnf_defaults_text(meta)
+                         for meta in family.THEMES.values()})
+        self.assertEqual(sorted(expected), sorted(p.parent.parent.name for p in defaults_files))
+        for defaults_path in defaults_files:
+            package = defaults_path.parent.parent.name
+            with self.subTest(generated=package):
+                self.assertEqual(defaults_path.read_text(encoding="utf-8"), expected[package],
+                                 "the shipped defaults differ from their generator: "
+                                 "regenerating would silently change this Global Theme")
 
     def test_family_wallpaper_exports_crop_without_distortion(self) -> None:
         """Ultrawide and 16:10 exports must crop the master, never stretch it."""
@@ -2064,9 +2167,10 @@ class TestMoOSUI2(unittest.TestCase):
         self.assertIn("const base = glassDensity(background)", tokens,
                       "depth must add body to the palette's density, not replace it")
 
+        # The hero clock was the second glass capsule here; it is retired (THEME_REV 86).
+        self.assertFalse((SHARE / "plasma/plasmoids/org.moos.heroclock").exists())
         for name, path in (
             ("island", SHARE / "plasma/plasmoids/org.moos.island/contents/ui/main.qml"),
-            ("hero clock", SHARE / "plasma/plasmoids/org.moos.heroclock/contents/ui/main.qml"),
         ):
             qml = qml_code(path.read_text(encoding="utf-8"))
             self.assertTrue(
@@ -2149,52 +2253,66 @@ class TestMoOSUI2(unittest.TestCase):
         self.assertNotIn("moos-logo.svg", logo,
                          "the launcher mark must not use the truncated trace")
 
-    def test_theme_picker_is_glass_polished_and_hidpi_bounded(self) -> None:
-        picker = (SHARE / "moos/theme-picker/main.qml").read_text(encoding="utf-8")
-        self.assertIn("function fs(px)", picker)
-        self.assertIn("Qt.application.font.pointSize / 10.0", picker)
-        self.assertIn(
-            "implicitHeight: root.fs(1)", picker,
-            "layout-owned separators must follow the user's font scale",
-        )
-        self.assertIn("function revealCurrentTheme()", picker)
-        self.assertIn("grid.positionViewAtIndex(i, GridView.Center)", picker)
-        self.assertIn(
-            "onCurrentLnfChanged: Qt.callLater(root.revealCurrentTheme)", picker,
-            "the active family must not open as a clipped sliver below the fold",
-        )
-        self.assertIn("Screen.desktopAvailableWidth", picker)
-        self.assertIn("Screen.desktopAvailableHeight", picker)
-        self.assertRegex(
-            picker,
-            r"sourceSize:\s*Qt\.size\([^)]*Screen\.devicePixelRatio",
-            "theme previews must decode at their rendered HiDPI size",
-        )
-        self.assertIn("Kirigami.Theme.highlightedTextColor", picker,
+    def test_moos_themes_page_is_glass_polished_and_hidpi_bounded(self) -> None:
+        # MoOS Themes is a System Settings module (kcm_moos_appearance), not a window of its
+        # own: System Settings owns the window, its size and its scale, so the page must not
+        # size a window. What the retired picker had to prove about itself, the page proves.
+        page, card, choice, _logic = moos_themes_sources()
+        self.assertRegex(page, r"(?m)^KCM\.SimpleKCM \{")
+        self.assertNotIn("ApplicationWindow", page)
+        self.assertNotIn("desktopAvailableWidth", page + card + choice)
+        # Separators are the native ones, sized by the platform with the user's font scale;
+        # a hand-drawn 1-px line is how the picker had to earn that.
+        self.assertIn("FormCard.FormDelegateSeparator", page)
+        for source in (page, card, choice):
+            self.assertNotRegex(source, r"(?m)^\s*(?:implicit)?[Hh]eight:\s*1\s*$",
+                                "a fixed 1-px separator ignores the user's font scale")
+        # The active look is the first thing on the page, never a sliver below the fold: the
+        # hero shows moos-theme's REPORTED look (its preview and its name) above the grid.
+        hero = page.index("MoUI.GlassSurface {")
+        grid = page.index("model: root.looks")
+        self.assertLess(hero, grid, "the current look must lead the page")
+        self.assertIn('source: root.currentEntry ? root.currentEntry.preview : ""', page)
+        self.assertIn('return t("المظهر الحالي: ", "Current look: ") + lookName(currentLook)', page)
+        for source in (page, card):
+            self.assertRegex(
+                source,
+                r"sourceSize:\s*Qt\.size\([^;]*Screen\.devicePixelRatio",
+                "theme previews must decode at their rendered HiDPI size",
+            )
+        self.assertIn("Kirigami.Theme.highlightedTextColor", card,
                       "selected theme badges must use the scheme's contrasting ink")
-        self.assertNotRegex(
-            picker,
-            r'color\s*:\s*["\']white["\']',
-            "the picker must not force white ink onto every family's accent",
-        )
+        for source in (page, card, choice):
+            # Any ink binding (color, foreground, …): the literal, not only a `color:` key.
+            self.assertNotRegex(
+                source,
+                r'["\'](?:white|#fff(?:fff)?)["\']',
+                "the page must not force white ink onto every family's accent",
+            )
         self.assertGreaterEqual(
-            picker.count("GradientStop"), 4,
-            "the picker lost its layered, palette-driven glass finish",
+            (page + card).count("GradientStop"), 4,
+            "the page lost its layered, palette-driven glass finish",
         )
 
-    def test_theme_picker_and_welcome_are_rtl_complete_and_route_safe(self) -> None:
-        picker = (SHARE / "moos/theme-picker/main.qml").read_text(encoding="utf-8")
+    def test_moos_themes_page_and_welcome_are_rtl_complete_and_route_safe(self) -> None:
+        page, card, choice, _logic = moos_themes_sources()
         self.assertIsNotNone(
             re.search(
-            r"Kirigami\.ApplicationWindow\s*\{.*?"
-            r"LayoutMirroring\.enabled:\s*"
-            r"Qt\.application\.layoutDirection\s*===\s*Qt\.RightToLeft.*?"
-            r"LayoutMirroring\.childrenInherit:\s*true",
-                picker,
+                r"KCM\.SimpleKCM\s*\{.*?"
+                r"readonly property bool rtl:\s*MoUI\.Locale\.rtl.*?"
+                r"LayoutMirroring\.enabled:\s*rtl.*?"
+                r"LayoutMirroring\.childrenInherit:\s*true",
+                page,
                 re.DOTALL,
             ),
-            "the whole picker hierarchy must mirror in Arabic",
+            "the whole MoOS Themes page must mirror in Arabic",
         )
+        for source in (page, card, choice):
+            self.assertNotIn("Qt.application.layoutDirection", source)
+        self.assertIn("readonly property bool rtl: MoUI.Locale.rtl", card)
+        # Arrow keys walk the grid in reading order: Left goes forward in Arabic.
+        self.assertIn("delta = root.rtl ? 1 : -1", page)
+        self.assertIn("delta = root.rtl ? -1 : 1", page)
 
         welcome = (SHARE / "moos/apps/welcome/main.qml").read_text(encoding="utf-8")
         quick_model = welcome.split("WELCOME_QUICK_THEME_IDS_BEGIN", 1)[1].split(
@@ -2266,104 +2384,224 @@ class TestMoOSUI2(unittest.TestCase):
                     "moos-open points at a moos-theme command with no handler",
                 )
 
-        # The standalone picker discovers all installed members and uses the
-        # validated apply-lnf seam, so it needs no public moos:// route per ID.
+        # The page discovers every installed member through the backend's read-only listing
+        # and applies one through the validated apply-lnf verb, so it needs no public
+        # moos:// route per id and cannot offer a look the verb would refuse.
         installed_ids = {
             path.name
             for path in (SHARE / "plasma/look-and-feel").glob("org.moos.ui2*")
             if path.is_dir()
         }
         self.assertEqual(len(installed_ids), 16)
-        self.assertTrue(
-            all(re.fullmatch(r"org\.moos\.ui2(?:\.[a-z0-9]+)*", item)
-                for item in installed_ids)
-        )
-        self.assertIn("moos-theme apply-lnf", picker)
+        backend = (ROOT / "moos-settings-kcm/src/moosbackend.cpp").read_text(encoding="utf-8")
+        verb_rule = re.compile(r"^org\.moos\.ui2[a-z.]*$")
+        self.assertIn(r'"^org\\.moos\\.ui2[a-z.]*$"', backend)
+        self.assertTrue(all(verb_rule.match(item) and len(item) <= 64 for item in installed_ids),
+                        "an installed MoOS look the apply verb would refuse")
+        listing = backend.split("QVariantList MoOSSettingsModule::moosThemes() const", 1)[1]
+        listing = listing.split("\n}\n", 1)[0]
+        for contract in ('LookAndFeelRoot', 'QStringLiteral("org.moos.ui2*")',
+                         "argumentAccepted(Argument::LookAndFeel, id)",
+                         'plugin.value(QStringLiteral("Id")).toString() != id',
+                         '"contents/previews/preview.png"'):
+            self.assertIn(contract, listing)
+        for forbidden in ("QProcess", "start(", "argument"):
+            self.assertNotIn(forbidden, listing.replace("argumentAccepted(", ""),
+                             "the listing is read-only and takes nothing from a page")
+        self.assertIn('constexpr auto LookAndFeelRoot = "/usr/share/plasma/look-and-feel";', backend)
+        self.assertIn("readonly property var looks: kcm.moosThemes()", page)
+        self.assertIn('begin("apply", kcm.runFixed("theme-apply-lnf", id), id)', page)
+        theme_command = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn("org.moos.ui2|org.moos.ui2.*)", theme_command)
         self.assertIn(
             '[ -d "/usr/share/plasma/look-and-feel/$target" ]',
             theme_command,
         )
 
-    def test_theme_picker_waits_for_the_real_switch_result(self) -> None:
-        picker = (SHARE / "moos/theme-picker/main.qml").read_text(encoding="utf-8")
+    def test_moos_themes_page_waits_for_the_real_switch_result(self) -> None:
+        page, _card, choice, _logic = moos_themes_sources()
         self.assertNotIn(
-            "interval: 1400", picker,
+            "interval: 1400", page,
             "a cosmetic delay must never stand in for moos-theme process completion",
         )
-        self.assertIn('Number(data["exit code"]) === 0', picker)
-        self.assertIn('Number(data["exit status"]) === 0', picker)
+        self.assertIn("readonly property int watchdogMs: 30000", page)
+        self.assertIn("interval: root.watchdogMs", page,
+                      "the page needs a bounded watchdog for a lost completion/readback")
         self.assertIn(
-            "interval: 30000", picker,
-            "the picker needs a bounded watchdog for a lost completion/readback",
+            "Kirigami.MessageType.Error", page,
+            "theme failures must be visible instead of silently clearing the busy state",
         )
-        self.assertIn(
-            "Kirigami.MessageType.Error", picker,
-            "theme failures must be visible instead of silently clearing the spinner",
-        )
-
-        completion_match = re.search(
-            r"function handleThemeResult\(.*?\n    }\n\n    function refreshThemes",
-            picker,
-            re.DOTALL,
-        )
-        self.assertIsNotNone(completion_match)
-        completion = completion_match.group(0)
-        exit_check = completion.find("normalExit(data)")
-        readback_state = completion.find("awaitingReadback = true")
-        readback_call = completion.find("refreshCurrent()")
+        # A zero exit is necessary, not sufficient: the read-back starts only after
+        # moos-theme exited, and only when it exited 0.
+        ended = qml_block(page, "    function mutationEnded(job) {")
+        exit_check = ended.find("if (!job.ok)")
+        readback_state = ended.find('phase = "verifying"')
+        readback_call = ended.find("readback = probe")
         self.assertTrue(
             0 <= exit_check < readback_state < readback_call,
             "live theme readback must start only after a successful process exit",
         )
+        for probe in ('kcm.runFixed("theme-motion-status")', 'kcm.runFixed("theme-clarity-status")',
+                      'kcm.runFixed("theme-status")'):
+            self.assertIn(probe, ended)
+        # The PAGE's watchdog never stops moos-theme: a change still running keeps its job and
+        # keeps every other change locked; only a read-only read-back is let go. (What the
+        # page cannot promise — the process's own lifetime — is held by
+        # test_moos_themes_page_never_leaves_a_change_running_behind.)
+        watchdog = qml_block(page, "    Timer {\n        id: watchdog")
+        changing = watchdog.split('if (root.phase === "changing")', 1)[1].split("} else if", 1)[0]
+        self.assertIn("root.late = true", changing)
+        for forbidden in ("mutation = null", "root.operation = \"\"", "root.finish(", "kill"):
+            self.assertNotIn(forbidden, changing,
+                             "the watchdog must not abandon moos-theme halfway through an atomic apply")
+        verifying = watchdog.split('} else if (root.phase === "verifying")', 1)[1]
+        self.assertIn("root.readback = null", verifying,
+                      "a hung read-only verification query should be safely released")
+        self.assertIn("root.finish(Kirigami.MessageType.Error", verifying)
+        self.assertIn("if (job !== readback)", qml_block(page, "    function readbackEnded(job) {"),
+                      "a read-back the watchdog let go must not change the page when it answers")
+        # "Verified" means the desktop was read back AND moos-theme verified its supplements.
+        # The success sentence is reachable only from the read-back, after it matched.
+        readback = qml_block(page, "    function readbackEnded(job) {")
+        self.assertEqual(page.count("successText()"), 2, "successText() is defined once and used once")
+        self.assertIn("successText()", readback)
+        self.assertLess(readback.index("if (differs)"), readback.index("successText()"))
+        self.assertIn("differs = lookKind !== \"moos\" || currentLook !== expected", readback)
+        self.assertIn('case "apply": return t("تم تطبيق ", "Applied ") + lookName(expected) + t(" وتم التحقق منه", " and verified")',
+                      qml_block(page, "    function successText() {"))
+        # moos-theme exits 0 only after it read back what the retired picker checked itself —
+        # GTK's color-scheme — and every other supplement it owns: a manual apply through
+        # verify_theme_with_retries/full_theme_complete, an undo and a canvas change through
+        # their own exact-state checks. A success from moos-theme that skipped them is the
+        # regression this pins.
+        theme = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
+        automatic = bash_function(theme, "automatic_supplements_complete")
+        self.assertIn("gsettings get org.gnome.desktop.interface color-scheme", automatic)
+        self.assertIn('[ "$gtk_actual" = "$expected_color" ] || return 1', automatic)
+        self.assertIn("automatic_supplements_complete \"$wallpaper_policy\" || return 1",
+                      bash_function(theme, "full_theme_complete"))
+        self.assertIn("full_theme_complete profile && return 0", bash_function(theme, "verify_theme_with_retries"))
+        apply = bash_function(theme, "apply")
+        self.assertLess(apply.index("if ! verify_theme_with_retries; then"), apply.index('echo "$label"'))
+        self.assertIn("if apply \"$target\"; then", bash_function(theme, "apply_manual"))
+        snapshot = bash_function(theme, "snapshot_state_complete")
+        self.assertIn("for key in color-scheme gtk-theme", snapshot)
+        self.assertIn('if restore_theme_state "$undo" && snapshot_state_complete "$undo"; then',
+                      bash_function(theme, "undo_theme_transaction"))
+        canvas = bash_function(theme, "apply_wallpaper_transaction")
+        self.assertIn('custom_wallpapers_complete "$encoded" && verified=1', canvas)
+        self.assertIn('auto_wallpapers_complete "$wallpaper_package" && verified=1', canvas)
 
-        watchdog_start = picker.find("id: operationTimeout")
-        watchdog_end = picker.find("ListModel { id: themesModel }", watchdog_start)
-        watchdog = picker[watchdog_start:watchdog_end]
-        self.assertIn("root.busy = false", watchdog)
-        self.assertNotIn(
-            "themeExec.disconnectSource", watchdog,
-            "the watchdog must not kill moos-theme halfway through an atomic apply",
-        )
-        # A hung read-only verification query must be released. Assert the
-        # RELATIONSHIP, not one literal argument: the picker now waits on more than
-        # one query source (the theme readback and the wallpaper-motion readback),
-        # so it selects the source it is actually waiting on. Pinning the old
-        # single-argument literal here is what turned this gate red the moment a
-        # second readback was added — a constant assertion outliving its constant.
-        self.assertRegex(
-            watchdog, r"queryExec\.disconnectSource\(",
-            "a hung read-only verification query should be safely released",
-        )
-        for _source in ("root.currentQuery", "root.currentMotionQuery",
-                        "root.supplementQuery"):
-            self.assertIn(
-                _source, watchdog,
-                f"the watchdog must be able to release {_source}; every query source "
-                "the picker can be waiting on has to be reachable from the timeout",
-            )
-        # "Verified" has to mean a SUPPLEMENT was verified. Reading back only
-        # LookAndFeelPackage checks the one value plasma-apply-lookandfeel never
-        # gets wrong, and none of the four things moos-theme exists to carry —
-        # so a switch that left Firefox dark on a light desktop still reported
-        # success. GTK's light/dark bit is the one the picker can predict alone
-        # (every MoOS light sibling is its dark id + ".light").
-        self.assertIn(
-            '"gsettings get org.gnome.desktop.interface color-scheme"', picker,
-            "the picker must read back a supplement moos-theme itself owns",
-        )
-        supplement_readback = picker[
-            picker.index("} else if (cmd === supplementQuery)"):
-            picker.index("function handleThemeResult")
-        ]
-        self.assertIn(
-            "activeScheme !== pendingExpectedColorScheme", supplement_readback
-        )
-        self.assertIn(
-            "Theme applied and verified", supplement_readback,
-            "the success message must be reachable only through the supplement "
-            "readback, never straight from the LookAndFeelPackage readback",
-        )
+    def test_moos_themes_page_never_leaves_a_change_running_behind(self) -> None:
+        """A verb's process belongs to the module. System Settings destroys the page when
+        another page or module opens (a sidebar click, a moos://settings route, a second
+        `systemsettings <id>`) or the window closes, and ~QProcess then SIGKILLs moos-theme
+        mid-transaction, past its rollback. Measured 2026-09-25 in the image: forwarding
+        `systemsettings kcm_colors` to a running window printed "QProcess: Destroyed while
+        process ("/usr/bin/moos-theme") is still running." and the run never finished. So
+        while a change runs the page opens nothing, and it asks to be kept open unless the
+        backend declares that its changes outlive the page."""
+        page, _card, _choice, _logic = moos_themes_sources()
+        lines = page.splitlines()
+
+        def depth(line: str) -> int:
+            return len(line) - len(line.lstrip())
+
+        handlers = [i for i, line in enumerate(lines) if re.match(r"\s*(onClicked|onPicked):", line)]
+        # Undo, a look card, two canvas rows, two three-way rows, six fine-control rows.
+        self.assertEqual(len(handlers), 12)
+        for index in handlers:
+            indent = depth(lines[index])
+            start = index
+            while start > 0 and (not lines[start - 1].strip() or depth(lines[start - 1]) >= indent):
+                start -= 1
+            end = index
+            while end + 1 < len(lines) and (not lines[end + 1].strip() or depth(lines[end + 1]) >= indent):
+                end += 1
+            own = [line.strip() for line in lines[start:end + 1] if line.strip() and depth(line) == indent]
+            with self.subTest(element=lines[start - 1].strip(), handler=lines[index].strip()):
+                self.assertTrue(any(line.startswith("enabled: !root.busy") for line in own),
+                                "a control that changes the look or leaves the page must be "
+                                "disabled while a change runs")
+        opener = qml_block(page, "    function open(route) {")
+        self.assertLess(opener.index("if (busy)"), opener.index("kcm.openRoute("),
+                        "open() must refuse to leave the page while a change runs")
+        self.assertEqual(page.count("kcm.openRoute("), 1, "every route leaves through open()")
+        # No promise the process's lifetime cannot keep.
+        for promise in ("will not interrupt", "لن يقاطعه", "however long it takes"):
+            self.assertNotIn(promise, page)
+        self.assertIn("readonly property bool changesOutlivePage: kcm.changesOutlivePage === true", page)
+        self.assertRegex(page, r'readonly property string stayNote: changesOutlivePage \? ""\s*\n\s*'
+                               r': t\(" أبقِ هذه الصفحة مفتوحة حتى ينتهي\.", " Keep this page open until it finishes\."\)')
+        self.assertIn("report(Kirigami.MessageType.Information, progressText() + stayNote",
+                      qml_block(page, "    function begin(kind, job, expectedValue) {"))
+        watchdog = qml_block(page, "    Timer {\n        id: watchdog")
+        changing = watchdog.split('if (root.phase === "changing")', 1)[1].split("} else if", 1)[0]
+        self.assertIn("+ root.stayNote", changing)
+        # A change stopped from outside skipped moos-theme's rollback: say what to do.
+        stopped = qml_block(page, "    function failureText(kind) {").split('case "stopped":', 1)[1]
+        self.assertIn("Apply a look again.", stopped.split("case ", 1)[0])
+
+    @unittest.skipUnless(NODE, "Node required to execute the MoOS Themes page's logic")
+    def test_moos_themes_logic_reads_moos_theme_and_encodes_the_canvas_exactly(self) -> None:
+        _page, _card, _choice, logic = moos_themes_sources()
+        script = logic.replace(".pragma library", "", 1) + r"""
+const assert = require('node:assert/strict');
+// moos-theme (status): only a MoOS id the tool named becomes the current look.
+assert.deepEqual(lookState("MoOS Nova            (org.moos.ui2.nova)\n", true), {kind: "moos", id: "org.moos.ui2.nova"});
+assert.deepEqual(lookState("MoOS داكن | dark      (org.moos.ui2)", true), {kind: "moos", id: "org.moos.ui2"});
+assert.deepEqual(lookState("غير محدّد | unset (default: MoOS UI)", true), {kind: "unset", id: ""});
+assert.deepEqual(lookState("ليس MoOS | not a MoOS theme: org.kde.breeze.desktop", true), {kind: "foreign", id: ""});
+assert.deepEqual(lookState("ليس MoOS | not a MoOS theme: org.moos.ui2.future", true), {kind: "moos", id: "org.moos.ui2.future"});
+assert.deepEqual(lookState("MoOS Nova (org.moos.ui2.nova)", false), {kind: "unknown", id: ""});
+assert.deepEqual(lookState("(org.moos.ui2.nova) and more", true), {kind: "unknown", id: ""});
+assert.equal(isLook("org.moos.ui2.nova.light"), true);
+for (const bad of ["org.moos.ui2.nova;rm", "org.kde.breeze", "org.moos.ui2.NOVA", "", "org.moos.ui2." + "a".repeat(60)])
+    assert.equal(isLook(bad), false, bad);
+assert.equal(reportedChoice("gentle\n", true, MOTIONS), "gentle");
+assert.equal(reportedChoice("gentle", false, MOTIONS), "");
+assert.equal(reportedChoice("wild", true, MOTIONS), "");
+assert.equal(reportedChoice("solid", true, CLARITIES), "solid");
+// The canvas token: exactly the retired picker's encoding, and moos-theme decodes it back.
+for (const url of ["file:///var/home/mo/Pictures/sunset.png",
+                   "file:///var/home/mo/My Pictures/صورة (1)'s*!.webp",
+                   "file:///var/home/mo/a%20b/#hash?.jpg"]) {
+    const token = wallpaperToken(url);
+    assert.match(token, /^[A-Za-z0-9_.~%-]+$/);
+    assert.equal(decodeURIComponent(token), url);
+}
+assert.equal(wallpaperToken("https://example.org/x.png"), "");
+assert.equal(wallpaperToken("/var/home/mo/x.png"), "");
+assert.equal(wallpaperToken("file:///" + "a".repeat(5000)), "", "longer than the backend accepts");
+// Every failure has a kind the page words itself; the tool's own text is never the sentence.
+const kinds = [
+    [1, "moos-theme: exact rollback verification failed; snapshot retained at /x", "rollback-failed"],
+    [1, "moos-theme: 'org.moos.ui2.nova' did not commit cleanly — restoring the exact snapshot", "rolled-back"],
+    [1, "moos-theme: undo failed verification — restoring the state from before undo", "rolled-back"],
+    [1, "moos-theme: another theme or motion transaction is still running", "busy"],
+    [1, "moos-theme: no exact previous theme snapshot is available", "no-undo"],
+    [1, "moos-theme: a MoOS look must be active before changing its desktop canvas", "not-moos"],
+    [1, "moos-theme: look 'org.moos.ui2.x' is not installed", "missing"],
+    [-1, "could not start", "no-tool"],
+    [-1, "timed out", "stopped"],
+    [1, "moos-theme: KWin did not apply glass clarity", "other"],
+];
+for (const [code, text, kind] of kinds) assert.equal(failureKind(code, text), kind, text);
+// The grid keeps each family's dark and light looks side by side.
+assert.equal(columns(1000, 180), 4);
+assert.equal(columns(560, 180), 2);
+assert.equal(columns(100, 180), 1);
+"""
+        result = subprocess.run([NODE, "-e", script], capture_output=True, text=True, timeout=30)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        page = _page
+        # The page shows its own words for each kind, never the tool's.
+        for kind in ("rollback-failed", "rolled-back", "busy", "no-undo", "not-moos", "missing",
+                     "no-tool", "stopped"):
+            self.assertIn(f'case "{kind}":', qml_block(page, "    function failureText(kind) {"))
+        self.assertIn("finish(Kirigami.MessageType.Error, failureText(Logic.failureKind(job.exitCode, job.errorOutput)),",
+                      page)
+        self.assertNotRegex(page, r"report\([^\n]*job\.errorOutput", "raw tool output reaches the screen")
 
     def test_dark_and_light_own_complete_distinct_svg_suites(self) -> None:
         dark = SHARE / "plasma/desktoptheme/MoOSUI2"

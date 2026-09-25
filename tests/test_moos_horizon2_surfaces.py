@@ -26,9 +26,12 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 SHARE = ROOT / "system_files/usr/share/plasma"
-SEARCH = SHARE / "plasmoids/org.moos.search/contents/ui/main.qml"
-SEARCH_VIEW = SHARE / "plasmoids/org.moos.search/contents/ui/SearchView.qml"
+# MoOS Search has ONE host: the Context Island. The standalone org.moos.search applet was retired
+# from the bar at THEME_REV 76 and deleted at 86; its view and answer engine moved into the Island
+# package, so no cross-package relative import can break when only one package is updated.
 ISLAND = SHARE / "plasmoids/org.moos.island/contents/ui/main.qml"
+SEARCH_VIEW = SHARE / "plasmoids/org.moos.island/contents/ui/SearchView.qml"
+RETIRED_SEARCH = SHARE / "plasmoids/org.moos.search"
 HUB = SHARE / "wallpapers/org.moos.ui2.wallpaper/contents/ui"
 MOOS_OPEN = ROOT / "system_files/usr/bin/moos-open"
 
@@ -40,22 +43,46 @@ def code(path: Path) -> str:
 
 
 class MoOSSearch(unittest.TestCase):
+    """The search controller is the Island (its idle face); the view is its package-local file."""
+
     @classmethod
     def setUpClass(cls):
-        cls.qml = code(SEARCH)
+        cls.qml = code(ISLAND)
         cls.view = code(SEARCH_VIEW)
+
+    def test_the_retired_applet_is_gone_and_stays_retired(self):
+        self.assertFalse(RETIRED_SEARCH.exists(),
+                         "org.moos.search is retired: its view lives in the Island, and a second "
+                         "addable 'MoOS Search' applet fails the bar gate the moment it is added")
+        self.assertNotIn("org.moos.search", self.qml,
+                         "the Island must not import across packages any more")
+        explorer = (SHARE / "shells/org.kde.plasma.desktop/contents/explorer/WidgetExplorer.qml"
+                    ).read_text(encoding="utf-8")
+        retired = explorer.split("function retired(plugin) {", 1)[1].split("\n    }", 1)[0]
+        self.assertIn('"org.moos.search"', retired,
+                      "a stale user copy must read as a retired widget in Customize Desktop")
+        apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
+        sweep = apply.split("# RETIRED MoOS assets are removed from the user share UNCONDITIONALLY", 1)[1]
+        sweep = sweep.split("; do", 1)[0]
+        self.assertIn('"plasma/plasmoids/org.moos.search"', sweep,
+                      "a home copy of the retired applet must be removed unconditionally: the "
+                      "image no longer ships it, so the shadow-of-/usr guard can never fire")
+        bar = (ROOT / "system_files/usr/bin/moos-bar-apply").read_text(encoding="utf-8")
+        self.assertIn('RETIRED_SEARCH_APPLET="org.moos.search"', bar,
+                      "existing bars that still hold the retired cell must keep being repaired")
 
     def test_results_come_from_plasma_search_and_run_through_their_own_model(self):
         self.assertIn("Milou.ResultsModel", self.qml)
-        self.assertIn("results.run(results.index(row, 0))", self.qml,
+        self.assertIn("searchResults.run(searchResults.index(row, 0))", self.qml,
                       "a result must be executed by the model that produced it")
         self.assertNotIn("gui krunner", self.qml)
         self.assertNotIn('"moos://search/', self.qml,
                          "the bar no longer hands its query to a second, detached window")
 
     def test_enter_never_runs_a_row_from_an_older_query(self):
-        self.assertIn("if (results.querying || results.rowCount() < 1 || row < 0)", self.qml)
-        self.assertIn("root.queuedRun === root.query", self.qml)
+        self.assertIn("if (searchResults.querying || searchResults.rowCount() < 1 || row < 0)",
+                      self.qml)
+        self.assertIn("root.queuedRun !== root.query", self.qml)
         self.assertIn("root.queryRevision === requestedRevision", self.qml,
                       "clearing and retyping identical text must invalidate a deferred Enter")
         self.assertIn("if (!root.expanded", self.qml,
@@ -64,7 +91,28 @@ class MoOSSearch(unittest.TestCase):
 
     def test_the_surface_is_a_popup_not_a_permanent_input_grab(self):
         self.assertIn("FocusScope {", self.view)
-        self.assertIn("activationTogglesExpanded: true", self.qml)
+        # The standalone applet proved this with `activationTogglesExpanded: true`. In the Island,
+        # Search is the IDLE face: activating the idle Island must open the popup that holds the
+        # view — the else-branch of openPrimary(). `root.expanded = true;` alone also matches
+        # openDetails(), so it could pass while the Search click opened nothing (review of 86).
+        primary = self.qml.split("function openPrimary() {", 1)[1].split("\n    }\n", 1)[0]
+        busy, idle = primary.split("} else {", 1)
+        self.assertIn("if (root.active) {", busy)
+        self.assertIn("root.openDetails();", busy)
+        self.assertEqual([line.strip() for line in idle.strip().splitlines()],
+                         ["root.expanded = true;", "}"],
+                         "activating the idle Island must open Search as its popup, and nothing "
+                         "else (no second launcher, no input grab)")
+        # Every way a person activates the idle face reaches that branch: click, keys, a11y.
+        self.assertRegex(self.qml, r"if \(!root\.active\) \{\s*root\.openPrimary\(\);",
+                         "a click on the idle Island must open Search")
+        for door in ("Keys.onReturnPressed: root.openPrimary()",
+                     "Keys.onEnterPressed: root.openPrimary()",
+                     "Accessible.onPressAction: root.openPrimary()"):
+            self.assertIn(door, self.qml)
+        # Plasma's own activation (the widget's shortcut) must keep toggling the popup.
+        self.assertNotRegex(self.qml, r"activationTogglesExpanded\s*:\s*false",
+                            "the Island's popup must stay reachable through Plasma activation")
         self.assertNotIn("AcceptingInputStatus", self.qml,
                          "holding panel input would steal keys from every window")
         self.assertIn("Keys.onEscapePressed", self.view)
@@ -79,7 +127,7 @@ class MoOSSearch(unittest.TestCase):
 
     def test_empty_state_shows_real_destinations_and_isolated_key_hints(self):
         self.assertIn("shownItems: Kicker.RecentUsageModel.OnlyApps", self.qml)
-        self.assertIn("recentApps.trigger(row", self.qml)
+        self.assertIn("searchRecentApps.trigger(row", self.qml)
         for route in ("moos://app/settings", "moos://app/store", "moos://app/updater"):
             self.assertIn(route, self.view)
             self.assertRegex(MOOS_OPEN.read_text(encoding="utf-8"),
@@ -111,7 +159,9 @@ class RemoteIsland(unittest.TestCase):
         self.assertIn('root.local("ابحث في MoOS", "Search MoOS")', self.qml)
         self.assertNotIn('Qt.openUrlExternally("moos://search/")', self.qml,
                          "the Search-labelled Island must not open the applications page")
-        self.assertIn("MoSearch.SearchView", self.qml)
+        self.assertIn("SearchView {", self.qml)
+        self.assertNotIn("MoSearch.", self.qml,
+                         "the search view is package-local, not a cross-package import")
         self.assertIn("Milou.ResultsModel", self.qml)
         self.assertIn("Kicker.RecentUsageModel", self.qml)
         self.assertIn("readonly property int searchSurfaceUnits: 24", self.qml)
@@ -342,6 +392,35 @@ class HubControls(unittest.TestCase):
         self.assertIn("Qt.locale().firstDayOfWeek", week,
                       "the week starts where the owner's own locale starts")
 
+    def test_deferred_work_survives_a_scene_destroyed_under_it(self):
+        """A callback that outlives its scene must find its ids null and leave quietly.
+
+        Measured at the THEME_REV 85 shell restart (plasmashell reloads the wallpaper):
+        "GlassCard.qml:68: Cannot read property 'motionEnabled' of null" three times and
+        "DashboardBento.qml:150: Cannot call method 'restart' of null". A Qt.callLater and an
+        in-flight weather request both ran after Plasma had destroyed the scene. The teardown is
+        Plasma's C++ reload; it could not be reproduced from QML (Loader deactivation,
+        destroy(), reparent + gc all left the old code quiet), so this gate holds the guard.
+        """
+        for path in sorted(HUB.glob("*.qml")):
+            source = code(path)
+            for later in source.split("Qt.callLater(function() {")[1:]:
+                first = later.strip().split("\n", 1)[0]
+                self.assertRegex(first, r"^if \(!\w+", f"{path.name}: a deferred call must first "
+                                 "check that its scene still exists")
+        card = code(HUB / "GlassCard.qml")
+        self.assertIn("if (!card || !entrance || !entranceShift) {",
+                      card.split("Component.onCompleted: Qt.callLater(function() {", 1)[1][:120])
+        bento = code(HUB / "DashboardBento.qml")
+        handlers = bento.split("request.onreadystatechange = function() {")[1:]
+        self.assertEqual(len(handlers), 2, "location and forecast requests")
+        for handler in handlers:
+            body = handler.split("request.send()", 1)[0]
+            guard = body.find("if (!root || !retryTimer) {")
+            self.assertGreaterEqual(guard, 0, "an in-flight request must check its scene")
+            self.assertLess(guard, body.find("retryTimer.restart()"))
+            self.assertLess(guard, body.find("root."))
+
     def test_no_card_selection_leaves_an_invisible_running_hub(self):
         self.assertIn("readonly property bool hubAnyCard:", self.scene)
         self.assertIn("&& root.hubAnyCard", self.scene)
@@ -362,7 +441,13 @@ class HubControls(unittest.TestCase):
 
     def test_review_shadows_of_the_scene_and_search_are_retired_on_update(self):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
-        self.assertIn("org.moos.island org.moos.search; do", apply)
+        shadows = apply.split('local_plasmoids="${XDG_DATA_HOME:-$HOME/.local/share}/plasma/plasmoids"',
+                              1)[1].split("done", 1)[0]
+        self.assertIn("org.moos.island; do", shadows,
+                      "a home review copy of the Island (which now holds Search) must go")
+        retired = apply.split("# RETIRED MoOS assets are removed from the user share UNCONDITIONALLY",
+                              1)[1].split("; do", 1)[0]
+        self.assertIn('"plasma/plasmoids/org.moos.search"', retired)
         self.assertIn('rm -rf "${local_wallpapers:?}/org.moos.ui2.wallpaper"', apply)
 
 

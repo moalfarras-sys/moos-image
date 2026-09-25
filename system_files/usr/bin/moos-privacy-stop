@@ -1,37 +1,68 @@
 #!/usr/bin/env bash
 # moos-privacy-stop — One-tap stop for active privacy streams (screen, camera, mic).
+#
+#   moos-privacy-stop <screen|camera|mic> [node-id]
+#
+# The Island's "stop" chip reaches this through moos://privacy/stop/<type>/<node>, a
+# PUBLIC URL a web page can hand the desktop. So both arguments are checked here as
+# well as in moos-open, and a PipeWire node is destroyed only when it is a stream
+# moos-privacy-monitor itself published as live, of that same type
+# ($XDG_RUNTIME_DIR/moos-privacy/active-<type>-<node>[-<app>]). A drive-by link can
+# therefore stop a camera, microphone or screen stream the person can see in the
+# Island — never an arbitrary audio device or someone else's object.
+#
+# A screen stream that belongs to Mo PC Remote is stopped by stopping its service
+# (`systemctl --user stop`, no privilege). That is a stop, not a disable: Remote comes
+# back at the next boot exactly as its owner set it, and the crash watchdog leaves a
+# deliberately stopped unit alone. (This used to call `moai-do remote-stop`, an action
+# that never existed, so that branch silently did nothing.)
 set -uo pipefail
 
 type="${1:-}"
 target="${2:-}"
 
-case "$type" in
-    screen)
-        if [ -n "$target" ] && command -v pw-cli >/dev/null 2>&1; then
-            pw-cli destroy "$target" >/dev/null 2>&1 || true
-        fi
-        # If the target is mo-remote, we can also pause or stop remote
-        if [ "$target" = "remote" ] || [ "$target" = "moremote" ]; then
-            command -v moai-do >/dev/null 2>&1 && moai-do remote-stop >/dev/null 2>&1 || true
-        fi
-        ;;
-    camera)
-        if [ -n "$target" ] && command -v pw-cli >/dev/null 2>&1; then
-            pw-cli destroy "$target" >/dev/null 2>&1 || true
-        fi
-        ;;
-    mic|microphone)
-        if command -v wpctl >/dev/null 2>&1; then
-            wpctl set-mute @DEFAULT_AUDIO_SOURCE@ 1 >/dev/null 2>&1 || true
-        fi
-        if [ -n "$target" ] && command -v pw-cli >/dev/null 2>&1; then
-            pw-cli destroy "$target" >/dev/null 2>&1 || true
-        fi
-        ;;
-    *)
-        echo "Usage: moos-privacy-stop <screen|camera|mic> [node_id]" >&2
-        exit 1
-        ;;
-esac
+usage() {
+    echo "Usage: moos-privacy-stop <screen|camera|mic> [node_id]" >&2
+    exit 2
+}
 
+case "$type" in
+    screen|camera) ;;
+    mic|microphone) type=mic ;;
+    *) usage ;;
+esac
+if [ -n "$target" ] && ! [[ "$target" =~ ^[0-9]{1,10}$ ]]; then
+    echo "moos-privacy-stop: a stream id is a PipeWire node number" >&2
+    exit 2
+fi
+
+TOKENS="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/moos-privacy"
+
+# The token the monitor wrote for this live stream, or nothing.
+live_token() {
+    local token
+    for token in "$TOKENS/active-${type}-${target}" "$TOKENS/active-${type}-${target}-"*; do
+        [ -e "$token" ] && { printf '%s\n' "${token##*/}"; return 0; }
+    done
+    return 1
+}
+
+stopped=0
+if [ -n "$target" ]; then
+    if ! token="$(live_token)"; then
+        echo "moos-privacy-stop: no live ${type} stream ${target}" >&2
+        exit 1
+    fi
+    if [ "$type" = screen ] && [[ "$token" == *"-Mo%20PC%20Remote" ]]; then
+        systemctl --user stop mo-remote-personal.service >/dev/null 2>&1 && stopped=1
+    fi
+    if command -v pw-cli >/dev/null 2>&1 && pw-cli destroy "$target" >/dev/null 2>&1; then
+        stopped=1
+    fi
+fi
+if [ "$type" = mic ] && command -v wpctl >/dev/null 2>&1; then
+    wpctl set-mute @DEFAULT_AUDIO_SOURCE@ 1 >/dev/null 2>&1 && stopped=1
+fi
+
+[ "$stopped" = 1 ] || exit 1
 exit 0
