@@ -1,4 +1,4 @@
-# MoOS current state — measured 2026-09-24
+# MoOS current state — measured 2026-09-25
 Current measured facts only; Git owns history.
 
 **This block is the only place in the repository that states a version number.** The plan,
@@ -6,13 +6,16 @@ the README and every wave row point here instead of repeating it. Four parallel 
 "production is X" is how three of them came to be a release behind at once.
 
 ## Source and release truth
-- **`44.20260924.925` is signed, boot-proven and staged on the NVIDIA station, not yet booted.**
-  The x86 build `35965122548`, three QCOW2 proofs `35967126859`/`35967135886`/
-  `35967151452`, offline ISO proof `35967162130` and promotion `36000759578` passed at
-  revision `57cfe3f0` (PR #160). Production `moos-nvidia:latest` resolved to
-  `sha256:2927c2828f8bf1197662b1a6a3020129ec7c38fe779addb4a2b6d8238f4100ac`.
-  `rpm-ostree status` shows it staged; the station still boots signed `.920`, with `.914`
-  retained. No post-reboot proof for `.925` exists yet.
+- **The NVIDIA station boots signed production `44.20260924.929`** (revision `ecd82c38`,
+  PR #162, promoted by `36039015449`; `moos-nvidia@sha256:38745293…`), with `.925` retained
+  for rollback. Read back 2026-09-24: zero failed system and user units,
+  `post-update-check.sh` 55/0, `moos-selfcheck` 53 passed / 0 failed / 1 stale note (its own
+  tray list, fixed in W9.9 source). `moos-nvidia:latest` still resolves to `.929`.
+- **W9.9 "MoOS One inside KDE" is source on `feat/moos-one-kde-20260924`, not an image.**
+  `just check` passes on the host; the seven `kcm_moos*` modules compiled in the build image
+  and were reviewed live from source in the station's Arabic 4K session (a private-bus
+  System Settings with the worktree's plugins); a full local image build, PR image gates, a
+  signed candidate and installed proof are still owed.
 - PR #157 integrated W8/W9, ARM app parity, Store honesty and the NVIDIA device gate.
   PR #158 raised ARM's finite first-boot Flatpak timeout
   from 30 to 120 seconds. The no-GPU NVIDIA VM boots twice with zero failed units.
@@ -83,7 +86,7 @@ or the nightly train; then restart.
   **Still owed:** an Island **Store** job in the foreground (the Remote chip outranks it
   while Mo PC Remote runs).
 - **W6.1–W6.3** in production: Settings' "About this device" (P2.9), Mo AI's twelve
-  read-only repair playbooks (43 tools, 13 ask first) with eight chips (P3.10), and Mo
+  read-only repair playbooks (42 tools then, 13 ask first; 51 in W9.9 source) with eight chips (P3.10), and Mo
   AI's rail corrected at the default 940 px window.
 - **Mo AI's brain, measured since:** a real free model drives the tool loop (W8.3, PR
   #131), eight free models were ranked on this machine (W8.5), and action selection is
@@ -147,14 +150,25 @@ libplasma soname bump that removes `kcm-fcitx5` until Fedora rebuilds it. No 6.8
 
 ## Open evidence gaps
 
-- **Unified Settings source (2026-09-24):** `kcm_moos` compiled on the x86 base and
-  loaded inside the native System Settings host in English and Arabic RTL. A fixed
-  local request switched About → Update in the already open KDE window. `just check`
-  passed. The launcher now enters that host;
-  detailed display/network/audio controls remain their real KCMs. The older QML
-  Command Center is still packaged as a dormant compatibility source. Full final-image
-  build and an installed-desktop readback are still required. Update's app and firmware
-  actions exist, but their per-owner outcome records remain P2.12 work.
+- **Settings, installed (`.929`, 2026-09-24):** the one-module `kcm_moos` opens inside System
+  Settings in Arabic (photographed). Measured defects it carries, fixed in W9.9 source: the
+  About row shows the packager kernel tag (`7.2.7-200.fc44.x86_64`), raw edition/GPU labels,
+  MoOS last in the System group, an English "Input Method" page for an engine MoOS removed,
+  and Plasma's window is `systemsettings` (KWin readback), so the `org.kde.systemsettings`
+  StartupWMClass on the MoOS entries never matched.
+- **W9.9 source, reviewed live (2026-09-25):** a private-bus System Settings loaded the
+  worktree's seven modules on the station: the MoOS group is first in the sidebar; Overview
+  shows "Linux 7.2.7", "MoOS for NVIDIA graphics", signed/not-checked-recently chips; Update
+  shows the System, Applications and Firmware rows; Mo AI read the live brain (OpenRouter
+  free, key saved, phone agent at tier `full` shown as "without confirmation") with GET
+  requests only; MoOS Themes lists the 16 looks under Appearance & Style and marks the
+  owner's current Arena look. Not yet proven: installed image, existing-user migration
+  (THEME_REV 86), Meta+Space registration after a login, real update/rollback transactions.
+- **Side effects found and fixed while testing (2026-09-24/25):** repository tests wrote 36
+  fabricated `moai-do` audit lines and 22 `moos-update` records into the station's journal
+  (22:00:23–40 on 2026-09-24; journal lines cannot be deleted selectively), and the build
+  container's status helper made `bluetoothctl` dump core 64 times with no system bus. Tests
+  now stub `logger` under a meta-gate, and the helper skips Bluetooth without a bus.
 
 - **Mo PC Remote, 2026-09-24:** on the NVIDIA station the service, portal, input daemon and
   watchdog are active, loopback `:8765` answers, `/dev/uinput` grants the owner, no failed
