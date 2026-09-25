@@ -13,13 +13,12 @@
 # absent — ARM ships no nvidia-settings, no KDE Connect and no firewall-config — and
 # ONE gate at the end reads the finished tree, never the lists above it.
 #
-# ARM does not run it YET. build-arm.sh belongs to the ARM owner; the change it needs is
-# handed off (2026-09-24): delete its own `_disc` sed rewrite of org.kde.discover.desktop
-# (which renames Discover's "Updates" action "Mo Store" too — this script's gate fails that)
-# and call this script, with the line above, after `cp -a /moos-overlay/. /` and its last
-# package install. Nothing below may depend on ARM running it: the Firewall page is staged
-# in /usr/share/moos and only step (4) installs it, so an ARM image gets no page rather than
-# a dead one.
+# ARM runs it too since 2026-09-25: build-arm.sh dropped its own `_disc` sed rewrite of
+# org.kde.discover.desktop (which renamed Discover's "Updates" action "Mo Store" as well —
+# this script's gate fails that) and calls this script, with the line above, after
+# `cp -a /moos-overlay/. /` and its last package install (tests/test_foreign_app_menus.py
+# holds that placement). The Firewall page is staged in /usr/share/moos and only step (4)
+# installs it, so an image without firewall-config gets no page rather than a dead one.
 #
 # usage: curate_app_menu.sh [ROOT]
 #   ROOT defaults to /. tests/test_foreign_app_menus.py runs this exact script
