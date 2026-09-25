@@ -220,11 +220,8 @@ def group_text(path: Path, name: str) -> str:
 def arm_wiring_problems(text: str) -> list[str]:
     """What is wrong with how build-arm.sh runs the curation; [] while it does not run it.
 
-    build-arm.sh belongs to the ARM owner, not to the image slice that wrote the script, so
-    the wiring is a handoff (2026-09-24): delete build-arm.sh's own `_disc` sed rewrite of
-    Discover and run CALL in its place. Until it lands ARM runs no curation — reported as NOT
-    DONE, and harmless: nothing the overlay ships depends on it (the Firewall page is staged).
-    Once build-arm.sh names the script at all, every rule below applies.
+    build-arm.sh replaced its own `_disc` sed rewrite of Discover with CALL (2026-09-25), so
+    ARM curates its menu with the same script as x86; every rule below applies to it.
     """
     if "curate_app_menu.sh" not in text:
         return []
@@ -248,15 +245,6 @@ def arm_wiring_problems(text: str) -> list[str]:
     return problems
 
 
-def arm_with_handoff(text: str) -> str:
-    """build-arm.sh with exactly the handed-off change applied: the `_disc` block goes, CALL
-    takes its place."""
-    block = re.search(r"(?ms)^# Keep the package-management engine for updates.*?^unset -v _disc\n",
-                      text)
-    assert block, "build-arm.sh's Discover block moved; re-derive the handoff before applying it"
-    return text[:block.start()] + CALL + "\n" + text[block.end():]
-
-
 class CurateAppMenuWiring(unittest.TestCase):
     def test_x86_runs_the_one_script_after_its_last_package_transaction(self):
         self.assertEqual(BUILD.count(CALL), 1, "build.sh must run curate_app_menu.sh exactly once")
@@ -264,26 +252,23 @@ class CurateAppMenuWiring(unittest.TestCase):
         self.assertLess(BUILD.index(CALL), BUILD.index("python3 /ctx/verify_image_experience.py"))
         self.assertLess(BUILD.index(CALL), BUILD.index("python3 /ctx/verify_no_foreign_identity.py"))
 
-    def test_arm_runs_it_correctly_or_not_at_all(self):
+    def test_arm_runs_the_one_script_exactly_once_in_its_place(self):
+        # ARM had none of the menu curation; since the 2026-09-25 integration it runs the same
+        # script as x86, once, after its packages and overlay and before its identity firewall.
+        self.assertEqual(BUILD_ARM.count(CALL), 1, "build-arm.sh must run curate_app_menu.sh once")
+        self.assertNotIn(ARM_DISCOVER_SED, BUILD_ARM)
         self.assertEqual(arm_wiring_problems(BUILD_ARM), [])
 
-    def test_the_handed_off_arm_change_is_valid_against_todays_build_arm_sh(self):
-        patched = arm_with_handoff(BUILD_ARM)
-        self.assertEqual(patched.count(CALL), 1)
-        self.assertNotIn(ARM_DISCOVER_SED, patched)
-        self.assertEqual(arm_wiring_problems(patched), [])
-
     def test_the_arm_wiring_rules_bite(self):
-        patched = arm_with_handoff(BUILD_ARM)
-        # The call added, the old sed kept: the defect the review found.
-        kept_sed = BUILD_ARM.replace("unset -v _disc\n", "unset -v _disc\n" + CALL + "\n", 1)
+        # The old ARM sed back beside the call: two rewrites of one file.
+        kept_sed = BUILD_ARM.replace(CALL, ARM_DISCOVER_SED + "\n" + CALL, 1)
         self.assertIn("still rewrites org.kde.discover.desktop", " ".join(arm_wiring_problems(kept_sed)))
-        early = patched.replace(CALL + "\n", "").replace("cp -a /moos-overlay/. /",
-                                                          CALL + "\ncp -a /moos-overlay/. /", 1)
+        early = BUILD_ARM.replace(CALL + "\n", "").replace("cp -a /moos-overlay/. /",
+                                                             CALL + "\ncp -a /moos-overlay/. /", 1)
         self.assertIn("before the overlay", " ".join(arm_wiring_problems(early)))
-        twice = patched.replace(CALL, CALL + "\n" + CALL, 1)
+        twice = BUILD_ARM.replace(CALL, CALL + "\n" + CALL, 1)
         self.assertIn("more than once", " ".join(arm_wiring_problems(twice)))
-        loose = patched.replace(CALL, "bash /ctx/curate_app_menu.sh /", 1)
+        loose = BUILD_ARM.replace(CALL, "bash /ctx/curate_app_menu.sh /", 1)
         self.assertIn("does not run it as", " ".join(arm_wiring_problems(loose)))
 
     def test_the_old_inline_curation_is_gone_from_build_sh(self):
