@@ -9,8 +9,14 @@
 // transaction: it snapshots the desktop, applies, verifies every supplement it owns (GTK,
 // Konsole, the lock screen, the desktop scene), and restores the snapshot when anything
 // does not read back. This page adds the second half: it calls a change done only after
-// moos-theme exited 0 AND a fresh read of the desktop says what was asked for. It never
-// stops a change that is still running, however long it takes.
+// moos-theme exited 0 AND a fresh read of the desktop says what was asked for.
+//
+// The page's own watchdog never stops a change. What it cannot promise is the process's
+// lifetime: a verb's process belongs to the module, so a change is stopped mid-way when
+// the page itself goes away (another page or module opened, the window closed) and when
+// the backend's own ceiling for a verb runs out. moos-theme cannot roll back from that. So
+// while a change runs the page opens nothing else, and — unless the backend says its
+// changes outlive the page (changesOutlivePage) — asks the person to keep it open.
 import QtQuick
 import QtQuick.Controls as Controls
 import QtQuick.Dialogs
@@ -52,6 +58,11 @@ KCM.SimpleKCM {
     property QtObject readback: null
     readonly property bool busy: operation !== ""
     readonly property int watchdogMs: 30000
+    // True only once the backend runs a change outside this page's lifetime and says so;
+    // until then leaving the page stops the change, and the page says that while it runs.
+    readonly property bool changesOutlivePage: kcm.changesOutlivePage === true
+    readonly property string stayNote: changesOutlivePage ? ""
+        : t(" أبقِ هذه الصفحة مفتوحة حتى ينتهي.", " Keep this page open until it finishes.")
 
     property string notice: ""
     property int noticeType: Kirigami.MessageType.Information
@@ -83,7 +94,10 @@ KCM.SimpleKCM {
              : value === "balanced" ? t("متوازن", "Balanced")
              : value === "solid" ? t("صلب", "Solid") : ""
     }
+    // Opening another page replaces this one, and that stops a change still running.
     function open(route) {
+        if (busy)
+            return
         routeError = kcm.openRoute(route) ? "" : t("تعذّر فتح هذه الصفحة. حاول مرة أخرى.",
                                                     "Could not open that page. Try again.")
     }
@@ -172,7 +186,7 @@ KCM.SimpleKCM {
         phase = "changing"
         late = false
         mutation = job
-        report(Kirigami.MessageType.Information, progressText(), "")
+        report(Kirigami.MessageType.Information, progressText() + stayNote, "")
         watchdog.restart()
         whenDone(job, root.mutationEnded)
     }
@@ -293,7 +307,9 @@ KCM.SimpleKCM {
         case "no-tool":
             return t("تعذّر تشغيل أداة المظاهر في MoOS.", "MoOS could not start its theme tool.")
         case "stopped":
-            return t("استغرق التغيير وقتاً طويلاً جداً فتوقف.", "The change took far too long and was stopped.")
+            // Stopped from outside, moos-theme could not put the earlier look back.
+            return t("استغرق التغيير وقتاً طويلاً جداً فتوقف قبل أن يكتمل. طبّق مظهراً من جديد.",
+                     "The change took far too long and was stopped before it finished. Apply a look again.")
         }
         switch (operation) {
         case "apply": return t("تعذّر تطبيق المظهر.", "The look could not be applied.")
@@ -321,9 +337,11 @@ KCM.SimpleKCM {
                                                        : t("اختر مظهراً، ثم صورة مساحة العمل ووضوح الزجاج وحركة الخلفية.",
                                                            "Pick a look, then its desktop canvas, glass clarity and wallpaper motion.")
 
-    // Never stop moos-theme: an interrupted transaction could leave half of two looks. The
-    // page says it is taking longer, keeps every other change locked, and still reads the
-    // result when it arrives. A read-back is only a query, so a late one is let go.
+    // This watchdog never stops moos-theme: an interrupted transaction could leave half of
+    // two looks. The page says it is taking longer, keeps every other change and page
+    // locked, and still reads the result when it arrives. (The backend's own ceiling for a
+    // verb is separate; when it stops one, the job ends as "stopped" and the page says so.)
+    // A read-back is only a query, so a late one is let go.
     Timer {
         id: watchdog
         interval: root.watchdogMs
@@ -331,8 +349,9 @@ KCM.SimpleKCM {
             if (root.phase === "changing") {
                 root.late = true
                 root.report(Kirigami.MessageType.Information,
-                            root.t("ما زال التغيير يكتمل بأمان. لن يقاطعه MoOS.",
-                                   "The change is still finishing safely. MoOS will not interrupt it."), "")
+                            root.t("ما زال التغيير يعمل ويستغرق وقتاً أطول من المعتاد.",
+                                   "The change is still running and taking longer than usual.")
+                            + root.stayNote, "")
             } else if (root.phase === "verifying") {
                 root.readback = null
                 root.finish(Kirigami.MessageType.Error,
@@ -719,7 +738,7 @@ KCM.SimpleKCM {
                 glyph: "ui"
                 text: root.t("السمة العامة", "Global theme")
                 description: root.t("كل السمات المثبتة، ومنها سمات MoOS.", "Every installed theme, MoOS's included.")
-                enabled: root.nativeAvailable("global-theme")
+                enabled: !root.busy && root.nativeAvailable("global-theme")
                 onClicked: root.open("moos://settings/global-theme")
             }
             FormCard.FormDelegateSeparator {}
@@ -727,7 +746,7 @@ KCM.SimpleKCM {
                 glyph: "gem"
                 text: root.t("الألوان", "Colors")
                 description: root.t("مخطط الألوان ولون التمييز.", "The colour scheme and the accent colour.")
-                enabled: root.nativeAvailable("colors")
+                enabled: !root.busy && root.nativeAvailable("colors")
                 onClicked: root.open("moos://settings/colors")
             }
             FormCard.FormDelegateSeparator {}
@@ -735,7 +754,7 @@ KCM.SimpleKCM {
                 glyph: "grid"
                 text: root.t("الأيقونات", "Icons")
                 description: root.t("سمة الأيقونات وأحجامها.", "The icon theme and icon sizes.")
-                enabled: root.nativeAvailable("icons")
+                enabled: !root.busy && root.nativeAvailable("icons")
                 onClicked: root.open("moos://settings/icons")
             }
             FormCard.FormDelegateSeparator {}
@@ -743,7 +762,7 @@ KCM.SimpleKCM {
                 glyph: "mouse"
                 text: root.t("المؤشر", "Cursors")
                 description: root.t("شكل المؤشر وحجمه.", "The pointer's shape and size.")
-                enabled: root.nativeAvailable("cursors")
+                enabled: !root.busy && root.nativeAvailable("cursors")
                 onClicked: root.open("moos://settings/cursors")
             }
             FormCard.FormDelegateSeparator {}
@@ -751,7 +770,7 @@ KCM.SimpleKCM {
                 glyph: "system"
                 text: root.t("إطار النوافذ", "Window decorations")
                 description: root.t("شريط عنوان النوافذ وأزراره.", "Window title bars and their buttons.")
-                enabled: root.nativeAvailable("window-decoration")
+                enabled: !root.busy && root.nativeAvailable("window-decoration")
                 onClicked: root.open("moos://settings/window-decoration")
             }
             FormCard.FormDelegateSeparator {}
@@ -759,7 +778,7 @@ KCM.SimpleKCM {
                 glyph: "document"
                 text: root.t("الخطوط", "Fonts")
                 description: root.t("خطوط الواجهة والنصوص وأحجامها.", "Interface and text fonts, and their sizes.")
-                enabled: root.nativeAvailable("fonts")
+                enabled: !root.busy && root.nativeAvailable("fonts")
                 onClicked: root.open("moos://settings/fonts")
             }
         }

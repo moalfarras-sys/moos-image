@@ -2417,8 +2417,10 @@ class TestMoOSUI2(unittest.TestCase):
         for probe in ('kcm.runFixed("theme-motion-status")', 'kcm.runFixed("theme-clarity-status")',
                       'kcm.runFixed("theme-status")'):
             self.assertIn(probe, ended)
-        # The watchdog never stops moos-theme: a change still running keeps its job and keeps
-        # every other change locked; only a read-only read-back is let go.
+        # The PAGE's watchdog never stops moos-theme: a change still running keeps its job and
+        # keeps every other change locked; only a read-only read-back is let go. (What the
+        # page cannot promise — the process's own lifetime — is held by
+        # test_moos_themes_page_never_leaves_a_change_running_behind.)
         watchdog = qml_block(page, "    Timer {\n        id: watchdog")
         changing = watchdog.split('if (root.phase === "changing")', 1)[1].split("} else if", 1)[0]
         self.assertIn("root.late = true", changing)
@@ -2462,6 +2464,56 @@ class TestMoOSUI2(unittest.TestCase):
         canvas = bash_function(theme, "apply_wallpaper_transaction")
         self.assertIn('custom_wallpapers_complete "$encoded" && verified=1', canvas)
         self.assertIn('auto_wallpapers_complete "$wallpaper_package" && verified=1', canvas)
+
+    def test_moos_themes_page_never_leaves_a_change_running_behind(self) -> None:
+        """A verb's process belongs to the module. System Settings destroys the page when
+        another page or module opens (a sidebar click, a moos://settings route, a second
+        `systemsettings <id>`) or the window closes, and ~QProcess then SIGKILLs moos-theme
+        mid-transaction, past its rollback. Measured 2026-09-25 in the image: forwarding
+        `systemsettings kcm_colors` to a running window printed "QProcess: Destroyed while
+        process ("/usr/bin/moos-theme") is still running." and the run never finished. So
+        while a change runs the page opens nothing, and it asks to be kept open unless the
+        backend declares that its changes outlive the page."""
+        page, _card, _choice, _logic = moos_themes_sources()
+        lines = page.splitlines()
+
+        def depth(line: str) -> int:
+            return len(line) - len(line.lstrip())
+
+        handlers = [i for i, line in enumerate(lines) if re.match(r"\s*(onClicked|onPicked):", line)]
+        # Undo, a look card, two canvas rows, two three-way rows, six fine-control rows.
+        self.assertEqual(len(handlers), 12)
+        for index in handlers:
+            indent = depth(lines[index])
+            start = index
+            while start > 0 and (not lines[start - 1].strip() or depth(lines[start - 1]) >= indent):
+                start -= 1
+            end = index
+            while end + 1 < len(lines) and (not lines[end + 1].strip() or depth(lines[end + 1]) >= indent):
+                end += 1
+            own = [line.strip() for line in lines[start:end + 1] if line.strip() and depth(line) == indent]
+            with self.subTest(element=lines[start - 1].strip(), handler=lines[index].strip()):
+                self.assertTrue(any(line.startswith("enabled: !root.busy") for line in own),
+                                "a control that changes the look or leaves the page must be "
+                                "disabled while a change runs")
+        opener = qml_block(page, "    function open(route) {")
+        self.assertLess(opener.index("if (busy)"), opener.index("kcm.openRoute("),
+                        "open() must refuse to leave the page while a change runs")
+        self.assertEqual(page.count("kcm.openRoute("), 1, "every route leaves through open()")
+        # No promise the process's lifetime cannot keep.
+        for promise in ("will not interrupt", "لن يقاطعه", "however long it takes"):
+            self.assertNotIn(promise, page)
+        self.assertIn("readonly property bool changesOutlivePage: kcm.changesOutlivePage === true", page)
+        self.assertRegex(page, r'readonly property string stayNote: changesOutlivePage \? ""\s*\n\s*'
+                               r': t\(" أبقِ هذه الصفحة مفتوحة حتى ينتهي\.", " Keep this page open until it finishes\."\)')
+        self.assertIn("report(Kirigami.MessageType.Information, progressText() + stayNote",
+                      qml_block(page, "    function begin(kind, job, expectedValue) {"))
+        watchdog = qml_block(page, "    Timer {\n        id: watchdog")
+        changing = watchdog.split('if (root.phase === "changing")', 1)[1].split("} else if", 1)[0]
+        self.assertIn("+ root.stayNote", changing)
+        # A change stopped from outside skipped moos-theme's rollback: say what to do.
+        stopped = qml_block(page, "    function failureText(kind) {").split('case "stopped":', 1)[1]
+        self.assertIn("Apply a look again.", stopped.split("case ", 1)[0])
 
     @unittest.skipUnless(NODE, "Node required to execute the MoOS Themes page's logic")
     def test_moos_themes_logic_reads_moos_theme_and_encodes_the_canvas_exactly(self) -> None:
