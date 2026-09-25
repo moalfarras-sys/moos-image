@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import configparser
 import hashlib
+import importlib.util
 import json
 import math
 import os
@@ -2003,15 +2004,23 @@ class TestMoOSUI2(unittest.TestCase):
                             )
 
     def test_every_theme_keeps_one_safe_kwin_frost_profile(self) -> None:
-        """Applying a family member must not silently weaken or overdrive blur."""
+        """One frost for the whole family, owned by KWin's shipped default — not by the themes.
+
+        The Global Themes used to carry [kwinrc][Plugins] blurEnabled and [kwinrc][Effect-blur]
+        too. LookAndFeelManager never applies them: the kwinrc key table of the shipped
+        libklookandfeel.so.6 holds only org.kde.kdecoration2 and the TabBox/WindowSwitcher/
+        DesktopSwitcher keys (measured 2026-09-24). A group a theme states and Plasma ignores
+        is a promise no gate can keep, so the family now states none, and every shipped
+        defaults file must equal its generator's output so a regeneration cannot bring the
+        groups back. Blur is /etc/xdg/kwinrc's, moos-visual-tier's and `moos-theme clarity`'s.
+        """
         shipped_kwin = load_kconfig(ROOT / "system_files/etc/xdg/kwinrc")
-        expected_strength = shipped_kwin["Effect-blur"]["BlurStrength"]
-        expected_noise = shipped_kwin["Effect-blur"]["NoiseStrength"]
+        self.assertEqual(shipped_kwin["Plugins"]["blurEnabled"], "true")
         self.assertEqual(
-            expected_strength, "15",
+            shipped_kwin["Effect-blur"]["BlurStrength"], "15",
             "KWin's supported blur range tops out at 15; the shipped profile drifted",
         )
-        self.assertEqual(expected_noise, "3")
+        self.assertEqual(shipped_kwin["Effect-blur"]["NoiseStrength"], "3")
 
         defaults_files = sorted(
             (SHARE / "plasma/look-and-feel").glob("org.moos.ui2*/contents/defaults")
@@ -2020,19 +2029,37 @@ class TestMoOSUI2(unittest.TestCase):
             len(defaults_files), 16,
             "the complete eight-pair MoOS UI family must share one frost profile",
         )
+        applied = {"org.kde.kdecoration2", "TabBox", "WindowSwitcher", "DesktopSwitcher"}
         for defaults_path in defaults_files:
             defaults = load_kconfig(defaults_path)
+            kwin_groups = {section.split("][", 1)[1] for section in defaults.sections()
+                           if section.startswith("kwinrc][")}
             with self.subTest(look_and_feel=defaults_path.parent.parent.name):
-                self.assertEqual(
-                    defaults["kwinrc][Effect-blur"]["BlurStrength"],
-                    expected_strength,
-                    "applying this theme weakens or overdrives the shared KWin frost",
-                )
-                self.assertEqual(
-                    defaults["kwinrc][Effect-blur"]["NoiseStrength"],
-                    expected_noise,
-                    "applying this theme changes the shared frost grain",
-                )
+                self.assertEqual(kwin_groups - applied, set(),
+                                 "a Global Theme states KWin config Plasma never applies")
+                self.assertEqual(defaults["ksplashrc][KSplash"]["Engine"], "None",
+                                 "KSplashQML stalls every Wayland login for 60 s (0bf113d2)")
+
+        def load(name: str, path: Path):
+            spec = importlib.util.spec_from_file_location(name, path)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            return module
+
+        ui2 = load("moos_ui2_generator_under_test", DEFAULT_ROOT / "artwork/generate_moos_ui2.py")
+        family = load("moos_family_generator_under_test",
+                      DEFAULT_ROOT / "artwork/generate_moos_themes.py")
+        expected = {"org.moos.ui2": ui2.lnf_defaults("dark"),
+                    "org.moos.ui2.light": ui2.lnf_defaults("light")}
+        expected.update({meta["lnf"]: family.lnf_defaults_text(meta)
+                         for meta in family.THEMES.values()})
+        self.assertEqual(sorted(expected), sorted(p.parent.parent.name for p in defaults_files))
+        for defaults_path in defaults_files:
+            package = defaults_path.parent.parent.name
+            with self.subTest(generated=package):
+                self.assertEqual(defaults_path.read_text(encoding="utf-8"), expected[package],
+                                 "the shipped defaults differ from their generator: "
+                                 "regenerating would silently change this Global Theme")
 
     def test_family_wallpaper_exports_crop_without_distortion(self) -> None:
         """Ultrawide and 16:10 exports must crop the master, never stretch it."""

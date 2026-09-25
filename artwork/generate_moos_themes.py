@@ -497,6 +497,13 @@ def lnf_defaults_text(meta: dict) -> str:
       screen reaches the theme's wallpaper only through the same
       DefaultWallpaper fallback, and only while nothing pins an explicit Image
       in kscreenlockerrc.
+
+    NO KWIN FROST HERE, AND NO SPLASH ENGINE
+      [kwinrc][Plugins] and [kwinrc][Effect-blur] are not applied by the Global
+      Theme (measured in libklookandfeel.so.6; see generate_moos_ui2.py), so the
+      family no longer carries them: blur belongs to /etc/xdg/kwinrc,
+      moos-visual-tier and `moos-theme clarity`. The splash engine is None, the
+      value commit 0bf113d2 set by hand in every shipped package.
     """
     # Every family member owns a tiny symbolic-action overlay named after its
     # desktop style. It inherits the broad dark/light MoOS icon vocabulary,
@@ -530,7 +537,7 @@ Image={meta['wall']}
 
 [ksplashrc][KSplash]
 Theme={meta['lnf']}
-Engine=KSplashQML
+Engine=None
 
 [kdeglobals][Icons]
 Theme={icons}
@@ -542,13 +549,6 @@ Theme=moos
 [kwinrc][org.kde.kdecoration2]
 library=org.kde.kwin.aurorae.v2
 theme=__aurorae__svg__{meta['style']}
-
-[kwinrc][Plugins]
-blurEnabled=true
-
-[kwinrc][Effect-blur]
-BlurStrength={gen.KWIN_BLUR_STRENGTH}
-NoiseStrength={gen.KWIN_NOISE_STRENGTH}
 
 [kcminputrc][Mouse]
 cursorTheme={cursor}
