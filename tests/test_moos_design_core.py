@@ -120,7 +120,7 @@ class DesignCoreTests(unittest.TestCase):
 
     def test_shell_surfaces_share_the_global_module(self) -> None:
         surfaces = (
-            SHARE / "moos/theme-picker/main.qml",
+            ROOT / "moos-settings-kcm/modules/appearance/ui/main.qml",
             SHARE / "plasma/plasmoids/org.moos.brand/contents/ui/main.qml",
             SHARE / "plasma/plasmoids/org.moos.brand/contents/ui/LauncherView.qml",
             SHARE / "plasma/plasmoids/org.moos.nova.clock/contents/ui/main.qml",
