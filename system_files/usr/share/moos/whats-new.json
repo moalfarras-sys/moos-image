@@ -3,6 +3,118 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "moos-settings-group",
+      "merged": "2026-09-25T09:00:00Z",
+      "glyph": "grid",
+      "title": {
+        "ar": "لـ MoOS مجموعته في إعدادات النظام",
+        "en": "MoOS has its own group in System Settings"
+      },
+      "body": {
+        "ar": "النظرة العامة والتحديث وما الجديد وMo AI وMo PC Remote والاستعادة صارت صفحات في إعدادات النظام، أولها في الشريط الجانبي بجانب الشاشة والصوت والشبكة. في قائمة التطبيقات مدخل واحد اسمه إعدادات MoOS، ويفتحه Meta+I أيضاً.",
+        "en": "Overview, Update, What's new, Mo AI, Mo PC Remote and Recovery are now pages of System Settings, first in its sidebar next to display, sound and network. The app menu has one MoOS Settings entry, and Meta+I opens it too."
+      },
+      "route": "moos://settings/overview"
+    },
+    {
+      "id": "moai-settings-in-system-settings",
+      "merged": "2026-09-25T09:00:00Z",
+      "glyph": "ai",
+      "title": {
+        "ar": "إعدادات Mo AI في إعدادات النظام",
+        "en": "Mo AI's settings are in System Settings"
+      },
+      "body": {
+        "ar": "عقل Mo AI ومفتاحه وقنوات الهاتف والصلاحيات صارت صفحة واحدة: إعدادات النظام ← MoOS ← Mo AI. زر الإعدادات في Mo AI يفتحها، ولا يُحفظ شيء حتى تضغط حفظ.",
+        "en": "Mo AI's brain, key, phone channels and permissions are now one page: System Settings, MoOS, Mo AI. The gear in Mo AI opens it, and nothing is saved until you press Save."
+      },
+      "route": "moos://settings/assistant"
+    },
+    {
+      "id": "moos-themes-in-settings",
+      "merged": "2026-09-25T09:00:00Z",
+      "glyph": "ui",
+      "title": {
+        "ar": "ثيمات MoOS داخل الإعدادات",
+        "en": "MoOS Themes lives in Settings"
+      },
+      "body": {
+        "ar": "اختر واحداً من مظاهر MoOS الستة عشر وصورة سطح المكتب ووضوح الزجاج وحركة الخلفية من صفحة واحدة تحت المظهر والأسلوب. يُعلَّم المظهر بعد أن يؤكده سطح المكتب فقط، والتراجع يعيد السابق.",
+        "en": "Choose one of the sixteen MoOS looks, your desktop image, glass clarity and wallpaper motion on one page under Appearance & Style. A look is marked only once the desktop confirms it, and Undo brings the previous one back."
+      },
+      "route": "moos://settings/themes"
+    },
+    {
+      "id": "moai-desktop-control",
+      "merged": "2026-09-25T09:00:00Z",
+      "glyph": "ai",
+      "title": {
+        "ar": "Mo AI يرتّب سطح المكتب ويفتح أي إعداد",
+        "en": "Mo AI arranges your desktop and opens any setting"
+      },
+      "body": {
+        "ar": "اطلب من Mo AI عرض كل النوافذ أو ترتيبها أنصافاً أو أثلاثاً، أو تبديل سطح المكتب، أو عدم الإزعاج، أو كتم الميكروفون، أو تغيير لغة لوحة المفاتيح. ويفتح لك الصفحة الصحيحة من الإعدادات مباشرة، ويخبرك إن لم يستطع.",
+        "en": "Ask Mo AI to show all windows, arrange them in halves or thirds, switch desktops, turn on do not disturb, mute the microphone or change the keyboard language. It opens the exact settings page you need, and tells you when it cannot."
+      },
+      "route": "moos://settings/assistant"
+    },
+    {
+      "id": "moai-meta-space",
+      "merged": "2026-09-25T09:00:00Z",
+      "glyph": "keyboard",
+      "title": {
+        "ar": "افتح Mo AI بـ Meta+Space",
+        "en": "Open Mo AI with Meta+Space"
+      },
+      "body": {
+        "ar": "اضغط Meta+Space في أي نافذة لفتح Mo AI، ويمكنك تغيير الاختصار من صفحة الاختصارات. وعندما تؤكد إجراءً يقترحه Mo AI، تعرضه الجزيرة أعلى الشاشة وهو يعمل ثم تقول كيف انتهى.",
+        "en": "Press Meta+Space in any window to open Mo AI; you can change the shortcut on the Shortcuts page. When you confirm an action Mo AI suggests, the Island shows it running and then how it ended."
+      },
+      "route": "moos://settings/shortcuts"
+    },
+    {
+      "id": "updates-one-place",
+      "merged": "2026-09-25T09:00:00Z",
+      "glyph": "safe-update",
+      "title": {
+        "ar": "كل التحديثات من مكان واحد",
+        "en": "Every update comes from one place"
+      },
+      "body": {
+        "ar": "صفحة التحديث تعرض النظام والتطبيقات وبرامج الجهاز، وتذكر كل تطبيق لم يتحدّث وسبب ذلك. أزرار التحديث تسأل مرة وتعمل في الخلفية دون نافذة طرفية، ولم يعد محرك المتجر يحدّث وحده في الخلفية.",
+        "en": "The Update page shows the system, applications and device firmware, and names each app that could not update and why. Update buttons ask once and run in the background without a terminal, and the store engine no longer updates on its own."
+      },
+      "route": "moos://settings/update"
+    },
+    {
+      "id": "remote-one-place",
+      "merged": "2026-09-25T09:00:00Z",
+      "glyph": "shield",
+      "title": {
+        "ar": "Mo PC Remote من الإعدادات",
+        "en": "Mo PC Remote from Settings"
+      },
+      "body": {
+        "ar": "صفحة Mo PC Remote في الإعدادات تشغّل التحكم من الهاتف أو توقفه وتعيد الاتصال، وفيها مفتاح تسريع الاتصال. يسألك MoOS أولاً، ويعرض المفتاح ما يعمل فعلاً.",
+        "en": "The Mo PC Remote page in Settings turns phone control on or off, reconnects it, and has the Speed up the connection switch. MoOS asks you first, and each switch shows what is really running."
+      },
+      "route": "moos://settings/remote"
+    },
+    {
+      "id": "tidier-app-menu",
+      "merged": "2026-09-25T09:00:00Z",
+      "glyph": "boxes",
+      "title": {
+        "ar": "قائمة تطبيقات أنظف",
+        "en": "A tidier app menu"
+      },
+      "body": {
+        "ar": "أدوات المراقبة الطرفية والبحث الثاني عن الملفات ومركز المساعدة خرجت من قائمة التطبيقات، والجدار الناري صار في الإعدادات تحت الأمان والخصوصية. وإشعارات MoOS صارت مرتبة باسم تطبيقها في صفحة الإشعارات.",
+        "en": "Terminal system monitors, a second file search and the help center left the app menu, and the firewall now sits in Settings under Security & Privacy. MoOS notifications are filed under their own app on the Notifications page."
+      },
+      "route": "moos://settings/notifications"
+    },
+    {
       "id": "unified-settings",
       "merged": "2026-09-24T16:00:00Z",
       "glyph": "ui",
@@ -326,20 +438,6 @@
         "ar": "اكتب عملية حسابية أو تحويل وحدات في «بحث MoOS» على الشريط فتظهر النتيجة فورًا فوق نتائج الملفات، مع زر نسخ.",
         "en": "Type a sum or a unit conversion into MoOS Search on the bar and the result appears at once above the file results, with a copy button."
       }
-    },
-    {
-      "id": "desk-control",
-      "merged": "2026-09-17T10:34:56Z",
-      "glyph": "boxes",
-      "title": {
-        "ar": "سطح المكتب تحت سيطرتك",
-        "en": "The desk is yours to arrange"
-      },
-      "body": {
-        "ar": "انقر بالزر الأيمن على سطح المكتب لإظهار لوحة MoOS أو إخفاء أي بطاقة منها. كل ودجت يمكن حذفه من جديد، والخلفية التي تختارها تبقى بعد تسجيل الدخول.",
-        "en": "Right-click the desktop to show the MoOS Hub or hide any of its cards. Every widget can be removed again, and the wallpaper you choose stays after you log in."
-      },
-      "route": "moos://settings/desktop"
     }
   ]
 }
