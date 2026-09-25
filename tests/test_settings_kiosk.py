@@ -114,7 +114,6 @@ class TheGroupReallyHidesThePage(unittest.TestCase):
             (root / "run").mkdir(mode=0o700)
             kdeglobals = xdg / "kdeglobals"
             kdeglobals.write_text("", encoding="utf-8")
-            self.assertEqual(TheKioskBlockRuns.run_block(self, kdeglobals).returncode, 0)
             env = {"PATH": "/usr/bin:/bin", "HOME": str(root), "LANG": "C.UTF-8",
                    "XDG_RUNTIME_DIR": str(root / "run"), "XDG_CONFIG_DIRS": str(xdg),
                    "XDG_CONFIG_HOME": str(root / "config"), "XDG_DATA_HOME": str(root / "data"),
@@ -125,6 +124,12 @@ class TheGroupReallyHidesThePage(unittest.TestCase):
                 return subprocess.run(["kcmshell6", "--smoke-test", kcm], env=env,
                                       capture_output=True, timeout=60).returncode
 
+            # The baseline first, in the same isolated invocation: a page that cannot load here
+            # even unrestricted (a missing dependency, no bus) would make "refused" below prove
+            # nothing about the group.
+            self.assertEqual(smoke("kcm_krdpserver"), 0, "KRDP's page does not load even "
+                             "unrestricted here — the measurement below would prove nothing")
+            self.assertEqual(TheKioskBlockRuns.run_block(self, kdeglobals).returncode, 0)
             self.assertNotEqual(smoke("kcm_krdpserver"), 0, "KRDP's page still opens")
             self.assertEqual(smoke("kcm_mouse"), 0, "the group hid a page it does not name")
             if (Path("/usr/lib64/qt6/plugins/plasma/kcms/systemsettings_qwidgets")
