@@ -86,20 +86,20 @@
       <stop offset="1" stop-color="#000000" stop-opacity="0"/>
     </radialGradient>
   </defs>
-  <rect fill="url(#moos-recovery-aura)" x="36" y="36" width="952" height="952" rx="292"/>
-  <rect class="ColorScheme-NegativeText" fill="currentColor" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-recovery-depth)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-recovery-sheen)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-recovery-liquid)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-recovery-shimmer)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-recovery-refract)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-recovery-caustic)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-recovery-rimlight)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-recovery-floor)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-recovery-topedge)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="none" stroke="url(#moos-recovery-rim-hi)" stroke-width="18" x="84" y="84" width="856" height="856" rx="252"/>
+  <rect fill="url(#moos-recovery-aura)" x="36" y="36" width="952" height="952" rx="476"/>
+  <rect class="ColorScheme-NegativeText" fill="currentColor" x="72" y="72" width="880" height="880" rx="440"/>
+  <rect fill="url(#moos-recovery-depth)" x="72" y="72" width="880" height="880" rx="440"/>
+  <rect fill="url(#moos-recovery-sheen)" x="72" y="72" width="880" height="880" rx="440"/>
+  <rect fill="url(#moos-recovery-liquid)" x="72" y="72" width="880" height="880" rx="440"/>
+  <rect fill="url(#moos-recovery-shimmer)" x="72" y="72" width="880" height="880" rx="440"/>
+  <rect fill="url(#moos-recovery-refract)" x="72" y="72" width="880" height="880" rx="440"/>
+  <rect fill="url(#moos-recovery-caustic)" x="72" y="72" width="880" height="880" rx="440"/>
+  <rect fill="url(#moos-recovery-rimlight)" x="72" y="72" width="880" height="880" rx="440"/>
+  <rect fill="url(#moos-recovery-floor)" x="72" y="72" width="880" height="880" rx="440"/>
+  <rect fill="url(#moos-recovery-topedge)" x="72" y="72" width="880" height="880" rx="440"/>
+  <rect fill="none" stroke="url(#moos-recovery-rim-hi)" stroke-width="18" x="84" y="84" width="856" height="856" rx="428"/>
   <rect class="ColorScheme-Background" fill="none" stroke="currentColor"
-        stroke-opacity=".10" stroke-width="6" x="84" y="84" width="856" height="856" rx="252"/>
+        stroke-opacity=".10" stroke-width="6" x="84" y="84" width="856" height="856" rx="428"/>
   <path class="ColorScheme-Background" fill="currentColor"
         d="M512 176c96 62 196 82 268 88v236c0 200-110 268-268 324-158-56-268-124-268-324V264c72-6 172-26 268-88Z"/>
   <g class="ColorScheme-NegativeText" fill="currentColor">

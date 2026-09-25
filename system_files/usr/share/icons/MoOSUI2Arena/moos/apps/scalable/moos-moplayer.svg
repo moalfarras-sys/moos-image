@@ -86,20 +86,20 @@
       <stop offset="1" stop-color="#000000" stop-opacity="0"/>
     </radialGradient>
   </defs>
-  <rect fill="url(#moos-moplayer-aura)" x="36" y="36" width="952" height="952" rx="292"/>
-  <rect class="ColorScheme-NeutralText" fill="currentColor" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-moplayer-depth)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-moplayer-sheen)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-moplayer-liquid)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-moplayer-shimmer)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-moplayer-refract)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-moplayer-caustic)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-moplayer-rimlight)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-moplayer-floor)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-moplayer-topedge)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="none" stroke="url(#moos-moplayer-rim-hi)" stroke-width="18" x="84" y="84" width="856" height="856" rx="252"/>
+  <rect fill="url(#moos-moplayer-aura)" x="36" y="36" width="952" height="952" rx="156"/>
+  <rect class="ColorScheme-NeutralText" fill="currentColor" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-moplayer-depth)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-moplayer-sheen)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-moplayer-liquid)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-moplayer-shimmer)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-moplayer-refract)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-moplayer-caustic)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-moplayer-rimlight)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-moplayer-floor)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-moplayer-topedge)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="none" stroke="url(#moos-moplayer-rim-hi)" stroke-width="18" x="84" y="84" width="856" height="856" rx="116"/>
   <rect class="ColorScheme-Background" fill="none" stroke="currentColor"
-        stroke-opacity=".10" stroke-width="6" x="84" y="84" width="856" height="856" rx="252"/>
+        stroke-opacity=".10" stroke-width="6" x="84" y="84" width="856" height="856" rx="116"/>
   <g class="ColorScheme-Background" fill="currentColor">
     <path d="M275 654V334c0-38 28-66 66-66h18c24 0 46 13 58 34l84 148 84-148c12-21 34-34 58-34h18c38 0 66 28 66 66v320h-92V434l-92 158c-9 16-24 24-42 24s-33-8-42-24l-92-158v220Z"/>
     <path d="M252 760c126 58 242 26 330-66 82-86 140-120 202-128" fill="none"

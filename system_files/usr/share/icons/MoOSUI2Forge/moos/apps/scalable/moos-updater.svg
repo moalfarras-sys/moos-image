@@ -86,20 +86,20 @@
       <stop offset="1" stop-color="#000000" stop-opacity="0"/>
     </radialGradient>
   </defs>
-  <rect fill="url(#moos-updater-aura)" x="36" y="36" width="952" height="952" rx="292"/>
-  <rect class="ColorScheme-Highlight" fill="currentColor" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-updater-depth)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-updater-sheen)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-updater-liquid)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-updater-shimmer)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-updater-refract)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-updater-caustic)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-updater-rimlight)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-updater-floor)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-updater-topedge)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="none" stroke="url(#moos-updater-rim-hi)" stroke-width="18" x="84" y="84" width="856" height="856" rx="252"/>
+  <rect fill="url(#moos-updater-aura)" x="36" y="36" width="952" height="952" rx="156"/>
+  <rect class="ColorScheme-Highlight" fill="currentColor" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-updater-depth)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-updater-sheen)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-updater-liquid)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-updater-shimmer)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-updater-refract)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-updater-caustic)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-updater-rimlight)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-updater-floor)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-updater-topedge)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="none" stroke="url(#moos-updater-rim-hi)" stroke-width="18" x="84" y="84" width="856" height="856" rx="116"/>
   <rect class="ColorScheme-HighlightedText" fill="none" stroke="currentColor"
-        stroke-opacity=".10" stroke-width="6" x="84" y="84" width="856" height="856" rx="252"/>
+        stroke-opacity=".10" stroke-width="6" x="84" y="84" width="856" height="856" rx="116"/>
   <g class="ColorScheme-HighlightedText" fill="currentColor">
     <path d="M512 260A252 252 0 1 1 275 426" fill="none" stroke="currentColor"
           stroke-width="92"/>
