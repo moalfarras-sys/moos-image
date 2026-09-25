@@ -11,6 +11,8 @@
 #include <QLoggingCategory>
 #include <QRegularExpression>
 
+#include <algorithm>
+
 Q_LOGGING_CATEGORY(MOOS_SETTINGS, "moos.settings", QtInfoMsg)
 
 namespace
@@ -18,6 +20,9 @@ namespace
 constexpr auto StatusHelper = "/usr/libexec/moos-settings-status";
 constexpr auto ThemeTool = "/usr/bin/moos-theme";
 constexpr auto LogoFile = "/usr/share/moos/moos-logo.png";
+// Where the MoOS looks are installed: the same directory moos-theme apply-lnf requires.
+constexpr auto LookAndFeelRoot = "/usr/share/plasma/look-and-feel";
+constexpr qint64 MaximumMetadataBytes = 64 * 1024;
 constexpr qint64 MaximumStatusBytes = 1024 * 1024;
 constexpr int MaximumOutputBytes = 64 * 1024;
 constexpr int JobTimeoutMs = 180 * 1000;
@@ -522,4 +527,75 @@ QObject *MoOSSettingsModule::runFixed(const QString &id, const QString &argument
     m_jobs.append(job);
     job->start(QString::fromLatin1(verb->program), arguments);
     return job;
+}
+
+QVariantList MoOSSettingsModule::moosThemes() const
+{
+    // Read-only and closed: one fixed directory, names this backend would pass to
+    // theme-apply-lnf, and each package's own metadata. Nothing from QML reaches it.
+    struct Look {
+        QString family;
+        bool light;
+        QVariantMap entry;
+    };
+    QList<Look> looks;
+    const QDir root(QString::fromLatin1(LookAndFeelRoot));
+    const QStringList ids = root.entryList({QStringLiteral("org.moos.ui2*")}, QDir::Dirs | QDir::NoDotAndDotDot,
+                                           QDir::Name);
+    for (const QString &id : ids) {
+        // Every look offered is one the apply verb accepts, so no card can fail validation.
+        if (!argumentAccepted(Argument::LookAndFeel, id))
+            continue;
+        const QDir package(root.filePath(id));
+        QFile metadata(package.filePath(QStringLiteral("metadata.json")));
+        if (metadata.size() > MaximumMetadataBytes || !metadata.open(QIODevice::ReadOnly))
+            continue;
+        const QJsonObject plugin =
+            QJsonDocument::fromJson(metadata.readAll()).object().value(QStringLiteral("KPlugin")).toObject();
+        const QString name = plugin.value(QStringLiteral("Name")).toString().trimmed();
+        if (plugin.value(QStringLiteral("Id")).toString() != id || name.isEmpty())
+            continue;
+        const QString nameAr = plugin.value(QStringLiteral("Name[ar]")).toString().trimmed();
+        // A MoOS package describes itself "Arabic | English"; a Description[ar] wins.
+        const QString description = plugin.value(QStringLiteral("Description")).toString().trimmed();
+        const qsizetype bar = description.indexOf(QLatin1String(" | "));
+        const QString summaryEn = bar >= 0 ? description.mid(bar + 3).trimmed() : description;
+        QString summaryAr = plugin.value(QStringLiteral("Description[ar]")).toString().trimmed();
+        if (summaryAr.isEmpty())
+            summaryAr = bar >= 0 ? description.left(bar).trimmed() : description;
+        QUrl preview;
+        for (const char *candidate : {"contents/previews/preview.png", "contents/previews/fullscreenpreview.jpg"}) {
+            const QString path = package.filePath(QLatin1String(candidate));
+            if (QFileInfo(path).isFile()) {
+                preview = QUrl::fromLocalFile(path);
+                break;
+            }
+        }
+        // Every MoOS light look is its dark sibling's id + ".light" (moos-theme's own rule).
+        const bool light = id.endsWith(QLatin1String(".light"));
+        const QString family = light ? id.chopped(6) : id;
+        looks.append({family,
+                      light,
+                      {{QStringLiteral("id"), id},
+                       {QStringLiteral("name"), name},
+                       {QStringLiteral("nameAr"), nameAr.isEmpty() ? name : nameAr},
+                       {QStringLiteral("summaryEn"), summaryEn},
+                       {QStringLiteral("summaryAr"), summaryAr},
+                       {QStringLiteral("preview"), preview},
+                       {QStringLiteral("light"), light},
+                       {QStringLiteral("family"), family}}});
+    }
+    // Families together, the base family first, each dark look before its light sibling.
+    const QString base = QStringLiteral("org.moos.ui2");
+    std::stable_sort(looks.begin(), looks.end(), [&base](const Look &one, const Look &other) {
+        if ((one.family == base) != (other.family == base))
+            return one.family == base;
+        if (one.family != other.family)
+            return one.family < other.family;
+        return !one.light && other.light;
+    });
+    QVariantList result;
+    for (const Look &look : looks)
+        result.append(look.entry);
+    return result;
 }
