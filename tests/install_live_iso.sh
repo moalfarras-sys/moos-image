@@ -1377,7 +1377,10 @@ runtime="/run/user/${uid}"
 failed="$(env XDG_RUNTIME_DIR="$runtime" \
     DBUS_SESSION_BUS_ADDRESS="unix:path=${runtime}/bus" \
     systemctl --user --failed --no-legend --plain)"
-[ -z "$failed" ]
+if [ -n "$failed" ]; then
+    printf 'Failed user units after app smoke:\n%s\n' "$failed"
+    exit 1
+fi
 '''
 gate_until(user_health, [], 60, "first-party app smoke left failed user units",
            desktop_user=True)
