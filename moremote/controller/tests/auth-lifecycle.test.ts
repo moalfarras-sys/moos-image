@@ -81,6 +81,8 @@ for (const contract of [
 ]) {
   assert.ok(auth.includes(contract), `trusted-device consent misses ${contract}`);
 }
+assert.equal((auth.match(/\[trustDevice, setTrustDevice\] = useState\(false\)/g) ?? []).length, 2,
+  "setup and login must require an explicit choice before saving a 30-day device credential");
 
 console.log("PASS: auth handoff, retry, HTTP status, and busy-state recovery are bounded");
 

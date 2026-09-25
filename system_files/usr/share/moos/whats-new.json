@@ -3,6 +3,20 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "remote-trusted-device-opt-in",
+      "merged": "2026-09-25T17:00:00Z",
+      "glyph": "shield",
+      "title": {
+        "ar": "الثقة بجهاز Remote بقرارك",
+        "en": "You choose whether Remote trusts this device"
+      },
+      "body": {
+        "ar": "عند إعداد Mo PC Remote أو إدخال الرمز، يبدأ خيار الثقة بهذا الجهاز لمدة 30 يوماً غير محدد. فعّله فقط على جهازك الخاص إذا أردت إعادة الاتصال دون الرمز.",
+        "en": "When setting up Mo PC Remote or entering the PIN, 30-day device trust starts unchecked. Select it on your own device if you want to reconnect without the PIN."
+      },
+      "route": "moos://settings/remote"
+    },
+    {
       "id": "moos-settings-group",
       "merged": "2026-09-25T09:00:00Z",
       "glyph": "grid",
@@ -420,19 +434,6 @@
       "body": {
         "ar": "عندما يستخدم تطبيق الكاميرا أو الميكروفون أو يشارك الشاشة، تعرض الجزيرة في الشريط اسمه مع زر إيقاف بضغطة واحدة. وتعرض تقدّم تثبيت التطبيقات من المتجر.",
         "en": "When an app uses the camera or microphone or shares the screen, the Island on the bar names it with a one-tap stop. It also shows the progress of Store installs."
-      }
-    },
-    {
-      "id": "search-answers",
-      "merged": "2026-09-17T11:23:25Z",
-      "glyph": "search",
-      "title": {
-        "ar": "البحث يجيب مباشرة",
-        "en": "Search answers directly"
-      },
-      "body": {
-        "ar": "اكتب عملية حسابية أو تحويل وحدات في «بحث MoOS» على الشريط فتظهر النتيجة فورًا فوق نتائج الملفات، مع زر نسخ.",
-        "en": "Type a sum or a unit conversion into MoOS Search on the bar and the result appears at once above the file results, with a copy button."
       }
     }
   ]
