@@ -37,9 +37,15 @@ class MoOSJob final : public QObject
     Q_PROPERTY(QString errorOutput READ errorOutput NOTIFY finished)
 
 public:
-    MoOSJob(const QString &id, const QString &argument, QObject *parent);
+    // ceiling: stop the process after JobTimeoutMs. A change that runs in its own user
+    // unit has none: stopping the waiting client would not stop the change, only lie about it.
+    MoOSJob(const QString &id, const QString &argument, bool ceiling, QObject *parent);
+    ~MoOSJob() override;
 
-    void start(const QString &program, const QStringList &arguments);
+    // outputFile/errorFile: where a change running in its own unit writes; read and
+    // removed when it ends. Empty: the process's own channels.
+    void start(const QString &program, const QStringList &arguments,
+               const QString &outputFile = QString(), const QString &errorFile = QString());
 
     QString id() const { return m_id; }
     QString argument() const { return m_argument; }
@@ -61,6 +67,8 @@ private:
     int m_exitCode = -1;
     QString m_output;
     QString m_errorOutput;
+    QString m_outputFile;
+    QString m_errorFile;
     QProcess m_process;
     QTimer m_timeout;
 };
@@ -77,6 +85,11 @@ class MoOSSettingsModule final : public KQuickConfigModule
     Q_PROPERTY(bool loading READ loading NOTIFY loadingChanged)
     // file:///usr/share/moos/moos-logo.png when that file exists, else empty.
     Q_PROPERTY(QUrl logoSource READ logoSource CONSTANT)
+    // True when every verb that CHANGES the desktop runs in its own transient user unit
+    // (systemd-run --user --wait), so leaving the page, another page opening or the window
+    // closing cannot stop it half-way. False where no user manager is reachable: such a
+    // change is then a child of this module, as a query always is.
+    Q_PROPERTY(bool changesOutlivePage READ changesOutlivePage CONSTANT)
 
 public:
     MoOSSettingsModule(QObject *parent, const KPluginMetaData &data);
@@ -88,6 +101,7 @@ public:
     qint64 statusGeneratedAt() const { return m_generatedAt; }
     bool loading() const { return m_loading; }
     QUrl logoSource() const { return m_logoSource; }
+    bool changesOutlivePage() const { return m_changesOutlivePage; }
 
     void load() override;
 
@@ -146,4 +160,7 @@ private:
     QTimer m_sourceSettle;
     QProcess m_reader;
     QList<QPointer<MoOSJob>> m_jobs;
+    QString m_jobDirectory;
+    bool m_changesOutlivePage = false;
+    int m_jobCounter = 0;
 };

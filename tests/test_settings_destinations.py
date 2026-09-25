@@ -246,8 +246,8 @@ class TheImageGateResolvesEveryMoosSection(unittest.TestCase):
     """The image gate's `moos_section_problems`, run on this tree and on broken copies.
 
     Every `moos-settings --section=<s>` route must open a kcm_moos* module that the KCM
-    stage built (settings-modules.list) and installed, or go through the fallback the
-    launcher itself declares for a module another slice builds. The function is read out of
+    stage built (settings-modules.list) and installed; no section has a stand-in. The
+    function is read out of
     the image gate's source, so this proves the exact code the image build runs can fail.
 
     The built set is the one CMake builds — one module per moos-settings-kcm/modules/*/<id>.json
@@ -279,9 +279,9 @@ class TheImageGateResolvesEveryMoosSection(unittest.TestCase):
         return (ROOT / "system_files/usr/bin" / program).is_file()
 
     def installed_on_this_tree(self, module: str) -> bool:
-        """A MoOS module is installed when CMake builds it. Whether a Plasma module (a
-        fallback's target) is installed is the image's question: the image gate answers it
-        from the real plugin folders, and the host half of this suite checks the ids resolve."""
+        """A MoOS module is installed when CMake builds it. Whether a Plasma module is
+        installed is the image's question: the image gate answers it from the real plugin
+        folders, and the host half of this suite checks the ids resolve."""
         return module in self.built or not module.startswith("kcm_moos")
 
     def test_this_tree_resolves_with_the_modules_cmake_builds(self):
@@ -313,39 +313,19 @@ class TheImageGateResolvesEveryMoosSection(unittest.TestCase):
         self.assertTrue(any("kcm_moos_remote" in problem and "not installed" in problem
                             for problem in found), found)
 
-    def test_a_listed_module_with_a_fallback_must_still_be_installed(self):
-        """The launcher's fallback would hide a module that was built and then lost."""
+    def test_an_unbuilt_module_fails_because_no_section_has_a_stand_in(self):
+        """Mo AI and MoOS Themes used to fall back to their old windows; they are required now."""
+        for lost in ("kcm_moos_ai", "kcm_moos_appearance"):
+            found = self.problems(self.router, self.launcher, self.modules - {lost},
+                                  lambda _m: True, self.program_shipped)
+            self.assertTrue(any(lost in problem and "settings-modules.list" in problem
+                                for problem in found), found)
+
+    def test_a_listed_module_that_is_lost_fails_too(self):
         found = self.problems(self.router, self.launcher, self.modules,
                               lambda module: module != "kcm_moos_ai", self.program_shipped)
         self.assertTrue(any("kcm_moos_ai" in problem and "listed but not installed" in problem
                             for problem in found), found)
-
-    def test_an_unbuilt_module_passes_only_through_the_launchers_own_fallback(self):
-        unbuilt = self.modules - {"kcm_moos_ai", "kcm_moos_appearance"}
-        self.assertEqual(self.problems(self.router, self.launcher, unbuilt, lambda _m: True,
-                                       self.program_shipped), [])
-        for broken in (self.launcher.replace("kcm_moos_ai) exec moai ;;", ""),
-                       self.launcher.replace("kcm_moos_ai|kcm_moos_appearance)",
-                                             "kcm_moos_appearance)"),
-                       self.launcher.replace('[ ! -e "$plugins/plasma/kcms/systemsettings/'
-                                             '$module.so" ]', "[ -n unguarded ]")):
-            self.assertNotEqual(broken, self.launcher, "the launcher changed: review this test")
-            found = self.problems(self.router, broken, unbuilt, lambda _m: True,
-                                  self.program_shipped)
-            self.assertTrue(any("kcm_moos_ai" in problem and "declares no fallback" in problem
-                                for problem in found), found)
-
-    def test_a_fallback_that_is_not_installed_fails(self):
-        unbuilt = self.modules - {"kcm_moos_ai", "kcm_moos_appearance"}
-        found = self.problems(self.router, self.launcher, unbuilt, lambda _m: True,
-                              lambda _program: False)
-        self.assertTrue(any("kcm_moos_ai" in problem and "fallback program moai" in problem
-                            for problem in found), found)
-        found = self.problems(self.router, self.launcher, unbuilt,
-                              lambda module: module != "kcm_lookandfeel", self.program_shipped)
-        self.assertTrue(any("kcm_moos_appearance" in problem
-                            and "fallback module kcm_lookandfeel" in problem for problem in found),
-                        found)
 
     def test_a_section_the_launcher_does_not_have_fails(self):
         launcher = self.launcher.replace("--section=update)", "--section=renamed)")

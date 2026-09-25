@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "moosbackend.h"
 
+#include <QCoreApplication>
 #include <QDesktopServices>
 #include <QDir>
 #include <QFile>
@@ -19,6 +20,17 @@ namespace
 {
 constexpr auto StatusHelper = "/usr/libexec/moos-settings-status";
 constexpr auto ThemeTool = "/usr/bin/moos-theme";
+constexpr auto SystemdRun = "/usr/bin/systemd-run";
+// What a change needs from the session to reach the desktop, passed by name to its unit
+// (systemd-run -E NAME copies the value from this process); only the ones that are set.
+constexpr const char *SessionEnvironment[] = {
+    "WAYLAND_DISPLAY", "DISPLAY", "XAUTHORITY", "DBUS_SESSION_BUS_ADDRESS", "XDG_RUNTIME_DIR",
+    "HOME", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME",
+    "XDG_CONFIG_DIRS", "XDG_DATA_DIRS", "LANG", "LANGUAGE", "LC_ALL", "PATH",
+};
+// A change's output files are removed when its page reads them; one a page never read
+// (the window closed first) is removed by the next page after this long.
+constexpr qint64 StaleJobFileSeconds = 60 * 60;
 constexpr auto LogoFile = "/usr/share/moos/moos-logo.png";
 // Where the MoOS looks are installed: the same directory moos-theme apply-lnf requires.
 constexpr auto LookAndFeelRoot = "/usr/share/plasma/look-and-feel";
@@ -93,17 +105,20 @@ struct Verb {
     const char *program;
     const char *arguments[2];
     Argument argument;
+    // Changes the desktop. moos-theme carries it as a transaction it can roll back only
+    // if it is allowed to finish, so it must outlive the page that started it.
+    bool mutates;
 };
 constexpr Verb FixedVerbs[] = {
-    {"theme-status", ThemeTool, {nullptr, nullptr}, Argument::None},
-    {"theme-motion-status", ThemeTool, {"motion", nullptr}, Argument::None},
-    {"theme-clarity-status", ThemeTool, {"clarity", nullptr}, Argument::None},
-    {"theme-apply-lnf", ThemeTool, {"apply-lnf", nullptr}, Argument::LookAndFeel},
-    {"theme-undo", ThemeTool, {"undo", nullptr}, Argument::None},
-    {"theme-motion", ThemeTool, {"motion", nullptr}, Argument::Motion},
-    {"theme-clarity", ThemeTool, {"clarity", nullptr}, Argument::Clarity},
-    {"theme-wallpaper-reset", ThemeTool, {"wallpaper-reset", nullptr}, Argument::None},
-    {"theme-wallpaper-token", ThemeTool, {"wallpaper-token", nullptr}, Argument::WallpaperToken},
+    {"theme-status", ThemeTool, {nullptr, nullptr}, Argument::None, false},
+    {"theme-motion-status", ThemeTool, {"motion", nullptr}, Argument::None, false},
+    {"theme-clarity-status", ThemeTool, {"clarity", nullptr}, Argument::None, false},
+    {"theme-apply-lnf", ThemeTool, {"apply-lnf", nullptr}, Argument::LookAndFeel, true},
+    {"theme-undo", ThemeTool, {"undo", nullptr}, Argument::None, true},
+    {"theme-motion", ThemeTool, {"motion", nullptr}, Argument::Motion, true},
+    {"theme-clarity", ThemeTool, {"clarity", nullptr}, Argument::Clarity, true},
+    {"theme-wallpaper-reset", ThemeTool, {"wallpaper-reset", nullptr}, Argument::None, true},
+    {"theme-wallpaper-token", ThemeTool, {"wallpaper-token", nullptr}, Argument::WallpaperToken, true},
 };
 
 bool argumentAccepted(Argument kind, const QString &value)
@@ -145,11 +160,19 @@ QDateTime modified(const QString &path)
     const QFileInfo info(path);
     return info.exists() ? info.lastModified() : QDateTime();
 }
+
+QString readBounded(const QString &path)
+{
+    QFile file(path);
+    if (path.isEmpty() || !file.open(QIODevice::ReadOnly))
+        return QString();
+    return QString::fromUtf8(file.read(MaximumOutputBytes));
+}
 } // namespace
 
 // ── MoOSJob ─────────────────────────────────────────────────────────────────
 
-MoOSJob::MoOSJob(const QString &id, const QString &argument, QObject *parent)
+MoOSJob::MoOSJob(const QString &id, const QString &argument, bool ceiling, QObject *parent)
     : QObject(parent)
     , m_id(id)
     , m_argument(argument)
@@ -158,10 +181,12 @@ MoOSJob::MoOSJob(const QString &id, const QString &argument, QObject *parent)
     m_process.setWorkingDirectory(QDir::homePath());
     m_timeout.setSingleShot(true);
     m_timeout.setInterval(JobTimeoutMs);
-    connect(&m_timeout, &QTimer::timeout, this, [this] {
-        m_process.kill();
-        complete(-1, QStringLiteral("timed out"));
-    });
+    if (ceiling) {
+        connect(&m_timeout, &QTimer::timeout, this, [this] {
+            m_process.kill();
+            complete(-1, QStringLiteral("timed out"));
+        });
+    }
     connect(&m_process, &QProcess::finished, this, [this](int exitCode, QProcess::ExitStatus status) {
         complete(status == QProcess::NormalExit ? exitCode : -1);
     });
@@ -171,10 +196,31 @@ MoOSJob::MoOSJob(const QString &id, const QString &argument, QObject *parent)
     });
 }
 
-void MoOSJob::start(const QString &program, const QStringList &arguments)
+MoOSJob::~MoOSJob()
+{
+    if (!m_running)
+        return;
+    // Ended here, explicitly, before ~QProcess would: its finished() must not reach a job
+    // that is being destroyed. A query (or a change with no user manager) is this
+    // process's own child and stops with it; a change in its own unit keeps running, and
+    // only its waiting client ends — its output is no one's to read any more.
+    m_process.disconnect(this);
+    m_timeout.stop();
+    m_process.kill();
+    m_process.waitForFinished(1000);
+    if (!m_outputFile.isEmpty()) {
+        QFile::remove(m_outputFile);
+        QFile::remove(m_errorFile);
+    }
+}
+
+void MoOSJob::start(const QString &program, const QStringList &arguments, const QString &outputFile,
+                    const QString &errorFile)
 {
     m_running = true;
-    m_timeout.start();
+    m_outputFile = outputFile;
+    m_errorFile = errorFile;
+    m_timeout.start(); // stops the process only for a job built with a ceiling
     m_process.start(program, arguments);
 }
 
@@ -185,10 +231,21 @@ void MoOSJob::complete(int exitCode, const QString &failure)
     m_running = false;
     m_timeout.stop();
     m_exitCode = exitCode;
-    m_output = QString::fromUtf8(m_process.readAllStandardOutput().left(MaximumOutputBytes));
-    m_errorOutput = failure.isEmpty()
-        ? QString::fromUtf8(m_process.readAllStandardError().left(MaximumOutputBytes))
-        : failure;
+    if (m_outputFile.isEmpty()) {
+        m_output = QString::fromUtf8(m_process.readAllStandardOutput().left(MaximumOutputBytes));
+        m_errorOutput = failure.isEmpty()
+            ? QString::fromUtf8(m_process.readAllStandardError().left(MaximumOutputBytes))
+            : failure;
+    } else {
+        // The change wrote into its unit's files; systemd-run's own words (when it could
+        // not start the unit at all) are on its stderr.
+        m_output = readBounded(m_outputFile);
+        const QString client = QString::fromUtf8(m_process.readAllStandardError().left(MaximumOutputBytes));
+        const QString change = readBounded(m_errorFile);
+        m_errorOutput = !failure.isEmpty() ? failure : (change.isEmpty() ? client : change);
+        QFile::remove(m_outputFile);
+        QFile::remove(m_errorFile);
+    }
     Q_EMIT finished();
 }
 
@@ -238,11 +295,37 @@ MoOSSettingsModule::MoOSSettingsModule(QObject *parent, const KPluginMetaData &d
     connect(this, &KQuickConfigModule::mainUiReady, this, [this] {
         qCInfo(MOOS_SETTINGS, "MOOS_KCM_READY %s", qPrintable(metaData().pluginId()));
     });
+
+    // A change outlives this page only through the user's service manager, which owns its
+    // unit; without one (no private socket) it stays a child of this module.
+    static const QRegularExpression plainPath(QStringLiteral("^/[A-Za-z0-9_./-]+$"));
+    const QString runtime = qEnvironmentVariable("XDG_RUNTIME_DIR");
+    const QString jobs = QDir(runtime).filePath(QStringLiteral("moos-settings/jobs"));
+    if (plainPath.match(runtime).hasMatch() && QFileInfo(QString::fromLatin1(SystemdRun)).isExecutable()
+        && QFileInfo::exists(QDir(runtime).filePath(QStringLiteral("systemd/private"))) && QDir().mkpath(jobs)
+        && QFile::setPermissions(jobs, QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner)) {
+        m_jobDirectory = jobs;
+        m_changesOutlivePage = true;
+        const QDateTime stale = QDateTime::currentDateTime().addSecs(-StaleJobFileSeconds);
+        for (const QFileInfo &old : QDir(jobs).entryInfoList(QDir::Files)) {
+            if (old.lastModified() < stale)
+                QFile::remove(old.filePath());
+        }
+    }
     QTimer::singleShot(0, this, &MoOSSettingsModule::refresh);
 }
 
 MoOSSettingsModule::~MoOSSettingsModule()
 {
+    // A change still running in its own unit keeps running whatever happens here; its
+    // waiting client moves to the application so it still reads and removes the output
+    // (and says nothing about a process destroyed while running) when the page is gone.
+    for (const QPointer<MoOSJob> &job : std::as_const(m_jobs)) {
+        if (job && job->running() && job->property("outlivesPage").toBool()) {
+            job->setParent(QCoreApplication::instance());
+            connect(job, &MoOSJob::finished, job, &QObject::deleteLater);
+        }
+    }
     // The helper is read-only and publishes atomically; stopping it loses nothing.
     if (m_reader.state() != QProcess::NotRunning) {
         m_reader.kill();
@@ -519,13 +602,37 @@ QObject *MoOSSettingsModule::runFixed(const QString &id, const QString &argument
         }
     }
 
-    auto *job = new MoOSJob(id, argument, this);
+    const bool outlives = verb->mutates && m_changesOutlivePage;
+    auto *job = new MoOSJob(id, argument, !outlives, this);
     QJSEngine::setObjectOwnership(job, QJSEngine::CppOwnership);
     connect(job, &MoOSJob::finished, this, [this, job] {
         Q_EMIT jobFinished(job->id(), job->exitCode(), job->output());
     });
     m_jobs.append(job);
-    job->start(QString::fromLatin1(verb->program), arguments);
+    if (!outlives) {
+        job->start(QString::fromLatin1(verb->program), arguments);
+        return job;
+    }
+    // systemd-run --wait returns the change's own exit status (systemd-run(1), EXIT
+    // STATUS); stdin is /dev/null and the output goes to files this job reads when it ends.
+    job->setProperty("outlivesPage", true);
+    const QString name = QStringLiteral("moos-settings-%1-%2-%3")
+                             .arg(id)
+                             .arg(QCoreApplication::applicationPid())
+                             .arg(++m_jobCounter);
+    const QString output = QDir(m_jobDirectory).filePath(name + QStringLiteral(".out"));
+    const QString error = QDir(m_jobDirectory).filePath(name + QStringLiteral(".err"));
+    QStringList run{QStringLiteral("--user"), QStringLiteral("--quiet"), QStringLiteral("--collect"),
+                    QStringLiteral("--wait"), QStringLiteral("--service-type=exec"),
+                    QStringLiteral("--unit=") + name,
+                    QStringLiteral("--property=StandardOutput=truncate:") + output,
+                    QStringLiteral("--property=StandardError=truncate:") + error};
+    for (const char *variable : SessionEnvironment) {
+        if (qEnvironmentVariableIsSet(variable))
+            run << QStringLiteral("--setenv=") + QString::fromLatin1(variable);
+    }
+    run << QStringLiteral("--") << QString::fromLatin1(verb->program) << arguments;
+    job->start(QString::fromLatin1(SystemdRun), run, output, error);
     return job;
 }
 

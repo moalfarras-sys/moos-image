@@ -87,6 +87,7 @@ Implemented once in `src/moosbackend.{h,cpp}` and compiled into every plugin.
 | `statusGeneratedAt` | `int` property | the accepted document's `generatedAt` |
 | `loading` | `bool` property | the status helper is running |
 | `logoSource` | `url` property | `/usr/share/moos/moos-logo.png` when present, else empty |
+| `changesOutlivePage` | `bool` property | `true` when every verb that changes the desktop runs in its own transient user unit (`systemd-run --user --wait`), so leaving the page, another page opening or the window closing cannot stop it half-way; `false` where no user manager is reachable (`$XDG_RUNTIME_DIR/systemd/private` absent), and the change is then this module's child |
 | `refresh()` | method | run `/usr/libexec/moos-settings-status` now (queued behind a running one) |
 | `ensureFresh()` | method | refresh only when nothing valid newer than 15 s is shown; pages call it when shown |
 | `openRoute(url)` | method → `bool` | open a plain `moos://…` route; anything else is refused with `false`. After a `moos://remote/…` or `moos://do/…` route it refreshes after 3 s and 10 s |
@@ -96,9 +97,21 @@ Implemented once in `src/moosbackend.{h,cpp}` and compiled into every plugin.
 | `jobFinished(id, exitCode, output)` | signal | every job, when it ends |
 
 `MoOSJob` properties: `id`, `argument`, `running`, `ok` (exit 0), `exitCode`
-(−1 when it could not start, crashed or ran past 180 s), `output` (stdout,
-first 64 KiB), `errorOutput`; signal `finished()`. The module owns the job; the
-page keeps a reference if it wants to read it.
+(−1 when it could not start, crashed or — a query only — ran past 180 s),
+`output` (stdout, first 64 KiB), `errorOutput`; signal `finished()`. The module
+owns the job; the page keeps a reference if it wants to read it.
+
+A verb that changes the desktop (every `theme-*` verb below except the three
+`*-status` queries) is a `moos-theme` transaction that can roll back only if it
+may finish. Where `changesOutlivePage` is true it runs as
+`systemd-run --user --wait --collect --service-type=exec` in a unit named
+`moos-settings-<verb>-<pid>-<n>`, with the session's display, bus, XDG and
+locale variables passed by name, its output in
+`$XDG_RUNTIME_DIR/moos-settings/jobs/` (read and removed when it ends), and no
+time ceiling: stopping the waiting client would not stop the change, only
+misreport it. `systemd-run --wait` returns the change's own exit status. When
+the page goes away first, the job's client moves to the application or ends,
+and the change finishes in its unit; the next page reads the result back.
 
 ### Fixed verbs
 

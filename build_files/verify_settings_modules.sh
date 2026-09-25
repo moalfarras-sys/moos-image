@@ -3,7 +3,7 @@
 # the x86 and ARM images are held to the same contract.
 #
 #  1. Every module the KCM stage built (/usr/share/moos/settings-modules.list) is
-#     installed, the five core modules are in that list, and the MoOS category
+#     installed, the core modules (and MoOS Themes) are in that list, and the MoOS category
 #     overlay that groups them exists.
 #  2. The upstream Software Update and About this System modules are removed with
 #     their menu aliases, wherever under plasma/kcms the plugin lives: each would be
@@ -23,7 +23,7 @@ category=/usr/share/systemsettings/categories/settings-moos.desktop
 
 [ -s "$list" ] \
     || { echo "GATE FAIL: $list is missing — the MoOS System Settings modules did not install"; exit 1; }
-for core in kcm_moos kcm_moos_update kcm_moos_whatsnew kcm_moos_remote kcm_moos_recovery; do
+for core in kcm_moos kcm_moos_update kcm_moos_whatsnew kcm_moos_remote kcm_moos_recovery kcm_moos_appearance kcm_moos_ai; do
     grep -qx "$core" "$list" \
         || { echo "GATE FAIL: $core is not among the built MoOS System Settings modules"; exit 1; }
 done

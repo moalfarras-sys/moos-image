@@ -73,6 +73,9 @@ CONTRACTED = {
     "kcm_moos_ai": ("ai", "moos", 4),
     "kcm_moos_appearance": ("appearance", "appearance", 1),
 }
+# The build refuses to ship without these: CORE, MoOS Themes (every theme entry opens it)
+# and Mo AI (every Mo AI settings entry opens it); neither has a stand-in.
+REQUIRED = [*CORE, "kcm_moos_appearance", "kcm_moos_ai"]
 SECTIONS = {
     "overview": "kcm_moos", "home": "kcm_moos", "system": "kcm_moos", "about": "kcm_moos",
     "update": "kcm_moos_update", "whats-new": "kcm_moos_whatsnew",
@@ -139,9 +142,18 @@ def fixed_verbs() -> dict[str, tuple[str, str]]:
     table = table.split("};", 1)[0]
     verbs = {}
     for match in re.finditer(
-            r'\{"([a-z-]+)", ThemeTool, \{(?:nullptr|"([a-z-]+)"), nullptr\}, Argument::(\w+)\}', table):
+            r'\{"([a-z-]+)", ThemeTool, \{(?:nullptr|"([a-z-]+)"), nullptr\}, Argument::(\w+), (true|false)\}',
+            table):
         verbs[match.group(1)] = (match.group(2) or "", match.group(3))
     return verbs
+
+
+def mutating_verbs() -> set[str]:
+    """The verbs that CHANGE the desktop: they run in their own user unit and outlive the page."""
+    table = BACKEND.read_text(encoding="utf-8").split("constexpr Verb FixedVerbs[] = {", 1)[1]
+    table = table.split("};", 1)[0]
+    return {m.group(1) for m in re.finditer(r'\{"([a-z-]+)", ThemeTool, .*?, (true|false)\}', table)
+            if m.group(2) == "true"}
 
 
 def status_shape() -> tuple[list[tuple[str | None, str, str]], list[str]]:
@@ -164,10 +176,10 @@ class TheFamily(unittest.TestCase):
         self.assertIn('INSTALL_NAMESPACE "plasma/kcms/systemsettings"', cmake)
         self.assertIn("settings-modules.list", cmake)
         required = cmake.split("foreach(required", 1)[1].split(")", 1)[0]
-        for plugin_id in CORE:
+        for plugin_id in REQUIRED:
             self.assertIn(plugin_id, required.split())
         found = modules()
-        self.assertTrue(set(CORE) <= set(found), sorted(set(CORE) - set(found)))
+        self.assertTrue(set(REQUIRED) <= set(found), sorted(set(REQUIRED) - set(found)))
         common = {path.name for path in COMMON.glob("*.qml")}
         for plugin_id, (directory, metadata) in found.items():
             with self.subTest(module=plugin_id):
@@ -241,7 +253,7 @@ class TheFamily(unittest.TestCase):
         self.assertTrue(os.access(GATE, os.X_OK))
         for contract in (
             "list=/usr/share/moos/settings-modules.list",
-            "for core in kcm_moos kcm_moos_update kcm_moos_whatsnew kcm_moos_remote kcm_moos_recovery; do",
+            "for core in kcm_moos kcm_moos_update kcm_moos_whatsnew kcm_moos_remote kcm_moos_recovery kcm_moos_appearance kcm_moos_ai; do",
             '[ -s "$kcm_dir/$module.so" ]',
             "X-KDE-System-Settings-Category=moos",
             "for duplicate in kcm_updates kcm_about-distro; do",
@@ -288,6 +300,8 @@ class TheBackend(unittest.TestCase):
 
     def test_the_fixed_verbs_are_exactly_the_contract(self) -> None:
         self.assertEqual(fixed_verbs(), FIXED_VERBS)
+        # Every change outlives its page; a query never does (a query is only a read).
+        self.assertEqual(mutating_verbs(), {verb for verb in FIXED_VERBS if not verb.endswith("-status")})
         backend = BACKEND.read_text(encoding="utf-8")
         self.assertIn(r'"^org\\.moos\\.ui2[a-z.]*$"', backend)
         self.assertIn(r'"^[A-Za-z0-9_.~%-]{1,4096}$"', backend)
@@ -386,12 +400,15 @@ class TheLauncher(unittest.TestCase):
                 self.assertEqual(argv, f"systemsettings {plugin_id}")
                 self.assertEqual(leftovers, [], "a deep link is a module id, never a request file")
 
-    def test_a_module_that_is_not_installed_yet_opens_what_served_it_before(self) -> None:
+    def test_no_section_has_a_stand_in_for_a_missing_module(self) -> None:
+        # MoOS Themes and Mo AI are required by the build and have no stand-in: another
+        # page or program under their name would hide a lost module from every entry.
         _, argv, _ = self.run_launcher("--section=assistant", contracted_installed=False)
-        self.assertEqual(argv, "moai")
+        self.assertEqual(argv, "systemsettings kcm_moos_ai")
         for section in ("appearance", "themes", "wallpaper"):
             _, argv, _ = self.run_launcher(f"--section={section}", contracted_installed=False)
-            self.assertEqual(argv, "systemsettings kcm_lookandfeel", section)
+            self.assertEqual(argv, "systemsettings kcm_moos_appearance", section)
+        self.assertNotIn("kcm_lookandfeel", LAUNCHER.read_text(encoding="utf-8"))
 
     def test_anything_else_is_refused(self) -> None:
         for argument in ("--section=bogus", "--section=", "--section=update;id", "update", "--help"):
@@ -400,15 +417,17 @@ class TheLauncher(unittest.TestCase):
                 self.assertEqual(result.returncode, 2)
                 self.assertEqual(argv, "")
 
-    def test_every_moos_module_it_names_exists_or_has_a_fallback(self) -> None:
+    def test_every_moos_module_it_names_is_built_and_has_no_stand_in(self) -> None:
         launcher = code(LAUNCHER.read_text(encoding="utf-8"), "#")
         self.assertNotIn("MOOS_SETTINGS_SECTION", launcher)
         self.assertNotIn("request", launcher)
-        fallback = launcher.split('case "$module" in', 1)[1].split("esac\n\nexec", 1)[0]
+        # A stand-in (another program or page when a module is missing) hides a broken
+        # install; every module is required by the build instead.
+        self.assertNotIn('case "$module" in', launcher)
         for plugin_id in set(re.findall(r"\bkcm_moos\w*", launcher)):
             with self.subTest(module=plugin_id):
-                self.assertTrue(plugin_id in modules() or f"{plugin_id})" in fallback,
-                                f"moos-settings opens {plugin_id}, which nothing builds")
+                self.assertIn(plugin_id, modules(), f"moos-settings opens {plugin_id}, which nothing builds")
+                self.assertIn(plugin_id, REQUIRED, f"{plugin_id} is not required by the build")
         self.assertTrue(launcher.rstrip().endswith('exec systemsettings "$module"'))
 
 

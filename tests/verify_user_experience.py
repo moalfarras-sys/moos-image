@@ -2118,10 +2118,6 @@ ROUTES_KEPT_WITHOUT_AN_EMITTER = {
     "lang/ar": "the Welcome builds moos://lang/<code> from its two-language list "
                "(the device/language block above pins both ends)",
     "lang/en": "the Welcome builds moos://lang/<code> from its two-language list",
-    "settings/screen-edges": "SPEC D3 native page (kcm_kwinscreenedges); its registry entry is "
-                             "moai: false until Mo AI's control grammar (apps/moai/main.qml) "
-                             "names it. The change that flips it to moai: true makes moos-control "
-                             "open it, and the rule below then fails until this entry goes",
 }
 for _label in sorted(declared_routes):
     if _label.endswith("*"):

@@ -61,13 +61,10 @@ def moos_section_problems(router_code: str, launcher_code: str, listed: set,
     OWN arms, then requires a kcm_moos* id that settings-modules.list names and that is
     installed.
 
-    The one exception is the launcher's own: for a module another slice of work builds, it
-    declares, behind a "<id>.so is not installed" guard, what serves the section meanwhile
-    (`exec <program>` or `module=<other id>`). A module the KCM stage did not build passes
-    only through such a declared fallback, and only when that fallback is itself installed.
-    A module that IS listed must be installed — its fallback would hide a broken install —
-    and with no guarded fallback in the launcher every module must be built.
-    `installed(id)` and `program_installed(name)` answer for the image;
+    No section has a stand-in: a module the KCM stage did not build fails here, and so does
+    one that is listed but not installed — another page or program under a MoOS section's
+    name would hide a broken install from every entry that opens it.
+    `installed(id)` answers for the image (`program_installed` is kept for the callers);
     tests/test_settings_destinations.py runs this against the tree CMake really builds and
     against broken inputs, to prove it bites.
     """
@@ -83,19 +80,6 @@ def moos_section_problems(router_code: str, launcher_code: str, listed: set,
             launcher_code):
         for label in labels.split("|"):
             arms[label[len("--section="):]] = module
-    fallbacks = {}
-    guard = re.search(
-        r'(?ms)^\s*((?:kcm_moos(?:_[a-z]+)?\|?)+)\)\s*\n'
-        r'.*?\[ ! -e "\$plugins/plasma/kcms/systemsettings/\$module\.so" \]; then\n'
-        r'(.*?)^\s*fi\b', launcher_code)
-    if guard:
-        guarded = set(guard.group(1).split("|"))
-        for module, program, other in re.findall(
-                r"(?m)^\s*(kcm_moos(?:_[a-z]+)?)\)\s*"
-                r"(?:exec\s+([a-z0-9-]+)|module=(kcm_[A-Za-z0-9_-]+))\s*;;",
-                guard.group(2)):
-            if module in guarded:
-                fallbacks[module] = ("program", program) if program else ("module", other)
     for section in sections:
         module = arms.get(section)
         if module is None:
@@ -105,19 +89,8 @@ def moos_section_problems(router_code: str, launcher_code: str, listed: set,
             problems.append(f"moos-settings --section={section} opens {module}, which is not "
                             "a MoOS module")
         elif module not in listed:
-            kind, target = fallbacks.get(module, (None, None))
-            if kind is None:
-                problems.append(f"moos-settings --section={section} opens {module}, which the "
-                                "KCM stage did not build (not in settings-modules.list), and "
-                                "moos-settings declares no fallback for it")
-            elif kind == "program" and not program_installed(target):
-                problems.append(f"moos-settings --section={section} opens {module}, which the "
-                                f"KCM stage did not build, and its fallback program {target} "
-                                "is not installed")
-            elif kind == "module" and not installed(target):
-                problems.append(f"moos-settings --section={section} opens {module}, which the "
-                                f"KCM stage did not build, and its fallback module {target} "
-                                "is not installed")
+            problems.append(f"moos-settings --section={section} opens {module}, which the "
+                            "KCM stage did not build (not in settings-modules.list)")
         elif not installed(module):
             problems.append(f"moos-settings --section={section} opens {module}, which is "
                             "listed but not installed")

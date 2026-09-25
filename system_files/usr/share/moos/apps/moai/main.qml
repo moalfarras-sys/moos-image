@@ -595,7 +595,7 @@ Kirigami.ApplicationWindow {
         "accessibility, notifications, energy, " +
         "time, region, users, about, storage, update, whats-new, assistant, remote, recovery, " +
         "global-theme, colors, icons, cursors, shortcuts, window-behavior, window-rules, " +
-        "effects, desktops, task-switcher, login-screen, game-controller). Offer these only " +
+        "effects, desktops, screen-edges, task-switcher, login-screen, game-controller). Offer these only " +
         "when the user wants the change; for “how do I…” questions explain instead.\n" +
         "• YOUR DAILY CHECK: MoOS runs a read-only check every day — app and system updates, " +
         "what is using the machine and why, security signs (ports open to the network, " +
@@ -1275,7 +1275,7 @@ Kirigami.ApplicationWindow {
         // settings page). The grammar is closed — only these exact shapes become
         // buttons — and nothing runs until the user taps one; moos-open then
         // validates the shape again.
-        const ctl = /moos-control\s+(volume\s+(?:100|[0-9]{1,2}|up|down)|mute|unmute|brightness\s+(?:100|[1-9][0-9]|[5-9]|up|down)|night-light\s+(?:on|off|auto)|wifi\s+(?:on|off)|bluetooth\s+(?:on|off)|screenshot|theme\s+(?:dark|light|nova|amethyst|midnight|aurora|auto)|open\s+[A-Za-z0-9][A-Za-z0-9._-]{2,254}|window\s+(?:overview|grid|show-desktop)|arrange\s+(?:halves|thirds|quarters|main|centre)|desktop\s+(?:next|previous)|dnd\s+(?:on|off)|mic\s+(?:mute|unmute)|keyboard-layout\s+(?:next)|motion\s+(?:still|gentle|alive)|clarity\s+(?:clear|balanced|solid)|power-profile\s+(?:power-saver|balanced|performance)|settings\s+(?:display|night-light|audio|network|bluetooth|keyboard|mouse|touchpad|printers|themes|wallpaper|fonts|accessibility|notifications|energy|time|region|users|about|storage|update|default-apps|autostart|lock|permissions|overview|whats-new|assistant|remote|recovery|appearance|global-theme|colors|icons|cursors|window-decoration|animations|sounds|shortcuts|window-behavior|window-rules|effects|desktops|task-switcher|search|login-screen|virtual-keyboard|touchscreen|tablet|game-controller))\b/g
+        const ctl = /moos-control\s+(volume\s+(?:100|[0-9]{1,2}|up|down)|mute|unmute|brightness\s+(?:100|[1-9][0-9]|[5-9]|up|down)|night-light\s+(?:on|off|auto)|wifi\s+(?:on|off)|bluetooth\s+(?:on|off)|screenshot|theme\s+(?:dark|light|nova|amethyst|midnight|aurora|auto)|open\s+[A-Za-z0-9][A-Za-z0-9._-]{2,254}|window\s+(?:overview|grid|show-desktop)|arrange\s+(?:halves|thirds|quarters|main|centre)|desktop\s+(?:next|previous)|dnd\s+(?:on|off)|mic\s+(?:mute|unmute)|keyboard-layout\s+(?:next)|motion\s+(?:still|gentle|alive)|clarity\s+(?:clear|balanced|solid)|power-profile\s+(?:power-saver|balanced|performance)|settings\s+(?:display|night-light|audio|network|bluetooth|keyboard|mouse|touchpad|printers|themes|wallpaper|fonts|accessibility|notifications|energy|time|region|users|about|storage|update|default-apps|autostart|lock|permissions|overview|whats-new|assistant|remote|recovery|appearance|global-theme|colors|icons|cursors|window-decoration|animations|sounds|shortcuts|window-behavior|window-rules|effects|desktops|screen-edges|task-switcher|search|login-screen|virtual-keyboard|touchscreen|tablet|game-controller))\b/g
         while ((m = ctl.exec(text)) !== null) {
             const spec = "control:" + m[1].trim().replace(/\s+/g, "/")
             if (out.indexOf(spec) === -1)

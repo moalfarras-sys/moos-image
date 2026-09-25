@@ -99,8 +99,12 @@ foreach(module_dir ${module_dirs})
     endif()
 endforeach()
 
-# The image build loads every module named here, and fails on a missing one.
-foreach(required kcm_moos kcm_moos_update kcm_moos_whatsnew kcm_moos_remote kcm_moos_recovery)
+# The image build loads every module named here, and fails on a missing one. MoOS Themes
+# and Mo AI are required too: every theme entry (its launcher shim, the kept pin, Welcome,
+# the launcher, Mo AI's themes/appearance/wallpaper) and every Mo AI settings entry (the
+# app's gear, moai-config, brain/start, setup-brain) lands on them and has no other page.
+foreach(required kcm_moos kcm_moos_update kcm_moos_whatsnew kcm_moos_remote kcm_moos_recovery
+                 kcm_moos_appearance kcm_moos_ai)
     if(NOT required IN_LIST MOOS_SETTINGS_MODULE_IDS)
         message(FATAL_ERROR "the MoOS settings family lost ${required}")
     endif()
