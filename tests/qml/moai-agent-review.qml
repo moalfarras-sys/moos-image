@@ -30,7 +30,7 @@ Item {
     Timer {
         id: begin; interval: 2000
         onTriggered: {
-            harness.app.langOverride = Qt.application.arguments.indexOf('--arabic') >= 0 ? 'ar' : 'en'
+            harness.app.layoutDirectionOverride = Qt.application.arguments.indexOf('--arabic') >= 0 ? 'rtl' : 'ltr'
             harness.app.route = 'cloud:openrouter/free'
             if (Qt.application.arguments.indexOf('--send-test') >= 0) {
                 harness.app.chatSessionId = 'moai-native-project-review'

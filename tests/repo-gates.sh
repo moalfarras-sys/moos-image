@@ -60,6 +60,7 @@ python3 tests/test_theme_wallpaper_owner_choice.py
 python3 tests/test_mokernel.py
 python3 tests/test_moai_control.py
 python3 tests/test_moai_config.py
+python3 tests/test_moai_settings_module.py
 python3 tests/test_moai_tool_schemas.py
 python3 tests/test_moai_confirmation_flow.py
 # W4's tool loop never ran on a machine without Hermes (tools were attached only when

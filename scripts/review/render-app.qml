@@ -33,8 +33,12 @@ Item {
     Timer {
         id: apply; interval: 600
         onTriggered: {
+            // render-app.sh sets the locale from --lang, which every app follows. An app that also
+            // has a review direction knob (Mo AI's layoutDirectionOverride) is told directly, so a
+            // harness run without the script still gets the direction it asked for.
             var lang = harness.arg("lang", "")
-            if (lang !== "" && harness.app.hasOwnProperty("langOverride")) harness.app.langOverride = lang
+            if ((lang === "ar" || lang === "en") && harness.app.hasOwnProperty("layoutDirectionOverride"))
+                harness.app.layoutDirectionOverride = lang === "ar" ? "rtl" : "ltr"
             for (var pair of harness.args("set")) {
                 var eq = pair.indexOf("=")
                 var key = pair.substring(0, eq), raw = pair.substring(eq + 1)
