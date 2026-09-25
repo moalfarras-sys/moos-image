@@ -20,22 +20,30 @@ StartupWMClass=org.moos.moai
 Categories=Utility;
 Keywords=AI;assistant;chat;cloud;llm;drivers;hardware;update;install;apps;remote;compatibility;
 Keywords[ar]=ذكاء;مساعد;محادثة;سحابي;تعريفات;أجهزة;تحديث;تثبيت;تطبيقات;توافق;
-Actions=Device;Apps;Remote;
+Actions=Device;Settings;Apps;Remote;
 
+# Mo AI's own check of this computer: the verdict, the daily check and the fixed repairs.
 [Desktop Action Device]
-Name=My device
-Name[ar]=جهازي
+Name=Check this device
+Name[ar]=افحص هذا الجهاز
 Exec=moai --panel device
 
+# The brain, the key, the phone channels and the permissions: the Mo AI page of System Settings.
+[Desktop Action Settings]
+Name=Mo AI settings
+Name[ar]=إعدادات Mo AI
+Exec=moos-settings --section=assistant
+
+# Apps are Mo Store's: the one store. Mo AI still installs and removes one when asked in chat.
 [Desktop Action Apps]
 Name=Install apps
 Name[ar]=تثبيت التطبيقات
-Exec=moai --panel apps
+Exec=moos-store
 
 # NOT "Mo PC Remote": there must be exactly one launcher by that name
-# (org.moos.remote.desktop), and verify_user_experience.py enforces it. This is a
-# shortcut into Mo AI's Remote panel, not a second launcher for the app.
+# (org.moos.remote.desktop), and verify_user_experience.py enforces it. This opens
+# Mo PC Remote's switches in System Settings, not a second launcher for the app.
 [Desktop Action Remote]
 Name=Remote control
 Name[ar]=التحكّم عن بعد
-Exec=moai --panel remote
+Exec=moos-settings --section=remote

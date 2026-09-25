@@ -272,14 +272,26 @@ require(gtk_runtime_test in read("Justfile") and gtk_runtime_test in _ci_gate_li
 # Each assertion reads the CODE, never the prose — the comment above names
 # "mo-remote-personal.service" on purpose, so a gate that matched the string
 # would pass green while the route that opens it had been deleted.
+# SPEC D5: the switches are System Settings → MoOS → Mo PC Remote (kcm_moos_remote). Mo AI's
+# Remote rail panel is gone; its Device panel links to that page. The buttons are still the
+# chain's first link, so they are gated where they are now.
+remote_page = code(read("moos-settings-kcm/modules/remote/ui/main.qml"), "slash")
 moai_remote_qml = code(read("system_files/usr/share/moos/apps/moai/main.qml"), "slash")
 router_remote = code(read("system_files/usr/bin/moos-open"))
 do_remote = code(read("system_files/usr/bin/moai-do"))
-for route in ("remote/start", "remote/stop", "remote/restart", "app/remote",
-              "do/remote-anywhere"):
-    require('moos://%s"' % route in moai_remote_qml,
-            "Mo AI must offer the %s action (it is how the owner reaches this "
-            "machine remotely)" % route)
+for route in ("remote/start", "remote/stop", "remote/restart", "app/remote"):
+    require('"moos://%s"' % route in remote_page,
+            "the Mo PC Remote page of System Settings must offer the %s action (it is how "
+            "the owner reaches this machine remotely)" % route)
+# Reaching this machine from outside the home network (Tailscale serve) is one button in Mo AI's
+# Device panel, beside the link to the Remote page; the chat can run it as a confirmed tool too.
+for route in ("do/remote-anywhere", "settings/remote"):
+    require('"moos://%s"' % route in moai_remote_qml,
+            "Mo AI must offer %s — the remote-from-anywhere setup and the way to Mo PC "
+            "Remote's switches" % route)
+require("id: remoteCol" not in moai_remote_qml and '"remote/start"' not in moai_remote_qml
+        and 'moos://remote/start"' not in moai_remote_qml,
+        "Mo AI grew a second Remote switchboard; the switches are one System Settings page")
 require('remote/start)' in router_remote and 'remote/stop)' in router_remote \
         and 'remote/restart)' in router_remote,
         "moos-open must route remote/start|stop|restart to the MoPC backend")
@@ -874,26 +886,33 @@ if _handler:
 # com.system76.Cosmic* D-Bus watchers that do not exist here and dies in its wgpu video
 # renderer. The webcam and libcamera were fine; the app was wrong for the desktop.
 #
-# Gate the RECOMMENDED-apps list, not the whole file: the prompt is allowed to NAME the
-# bad id as one to avoid (that is the opposite of recommending it), but the one-click
-# app catalogue must offer Kamoso and must never offer the COSMIC camera.
-appcatalog_match = re.search(r"property var appCatalog:\s*\[(.*?)\]", moai_qml, re.DOTALL)
-require(appcatalog_match is not None, "Mo AI must expose an appCatalog of recommended apps")
-appcatalog = appcatalog_match.group(1) if appcatalog_match else ""
-require("org.gnome.Snapshot" in appcatalog,
-        "Mo AI's recommended apps must offer a camera that actually runs here — Snapshot "
-        "reaches the webcam through the XDG camera portal, verified live on this machine")
-require("cosmic_utils.camera" not in appcatalog,
-        "Mo AI must not OFFER io.github.cosmic_utils.camera as a recommended app — it is a "
-        "COSMIC-desktop app and panics on KDE Plasma")
-# And not Kamoso either, which is the harder lesson. It IS KDE-native, it WAS in this
-# catalogue, and this gate used to demand it — because "KDE-native" was mistaken for
+# Mo AI no longer carries a one-click app catalogue of its own: Mo Store is the one store
+# (SPEC D5), and Mo AI installs what the owner asks for through its chat tool. So the promise is
+# gated where Mo AI still makes it. No one-tap install in the window may name either broken
+# camera, and the prompt that picks an id for "install a camera" must pick Snapshot and name
+# both as ones to avoid (naming the bad id to avoid is the opposite of recommending it).
+require("property var appCatalog" not in moai_qml and 'controlApi + "/search' not in moai_qml,
+        "Mo AI grew a second app catalogue or app search; apps are Mo Store's")
+require('root.launch("moos://app/store"' in moai_qml,
+        "Mo AI must hand app browsing to Mo Store")
+for _broken in ("io.github.cosmic_utils.camera", "org.kde.kamoso"):
+    require(f"moos://apps/install/{_broken}" not in moai_qml
+            and not re.search(r'id:\s*"' + re.escape(_broken) + '"', moai_qml),
+            f"Mo AI must not offer {_broken} as a one-tap install")
+require("For a CAMERA use `org.gnome.Snapshot`" in moai_qml,
+        "Mo AI's prompt must pick a camera that actually runs here — Snapshot reaches the "
+        "webcam through the XDG camera portal, verified live on this machine")
+require("NEVER `io.github.cosmic_utils" in moai_qml,
+        "Mo AI's prompt must steer away from io.github.cosmic_utils.camera — a COSMIC-desktop "
+        "app that panics here")
+# And not Kamoso either, which is the harder lesson. It IS native to this desktop, it WAS in
+# the old catalogue, and this gate used to demand it — because "native" was mistaken for
 # "works". It opens and then segfaults inside GStreamer's camerabin after 15-45 seconds
 # (reproduced twice on 2026-07-13, with 6.5 GB free on the GPU, while gst-launch grabbed a
 # clean frame from the same webcam). A recommendation the OS makes is a promise; gate on
 # the promise, not on the toolkit.
-require("org.kde.kamoso" not in appcatalog,
-        "Mo AI must not offer Kamoso: KDE-native or not, it segfaults in GStreamer seconds "
+require("NOT `org.kde.kamoso`" in moai_qml,
+        "Mo AI must not offer Kamoso: native or not, it segfaults in GStreamer seconds "
         "after launch on this hardware — 'it opened once' is not verification")
 
 # The old centres must keep opening — as commands, into their panel in Mo AI.
@@ -1172,15 +1191,20 @@ require("not an installed local model" in control,
 require("the active brain" in control,
         "moai-control /delete must refuse deleting the model the brain is currently serving")
 moai_qml = read("system_files/usr/share/moos/apps/moai/main.qml")
-# …and Settings must actually offer download / use / delete on each local model —
-# a backend endpoint the UI never calls is a feature the user never gets.
-require("root.cfgSetDefaultBrain(modelData)" in moai_qml
-        and 'mode: "cloud", cloud:' in moai_qml,
+# …and Settings must actually offer the default model — a backend endpoint the UI never calls
+# is a feature the user never gets. Mo AI's settings are the Mo AI page of System Settings
+# (kcm_moos_ai): it saves the default through the config authority, on the saved provider.
+moai_settings_page = code(read("moos-settings-kcm/modules/ai/ui/main.qml"), "slash")
+require("root.saveDefaultModel(root.cloudModels[index])" in moai_settings_page
+        and 'body: { mode: "cloud", cloud: { provider: entry.id' in moai_settings_page
+        and 'moai.request(true, "POST", "/api/config", request.body' in moai_settings_page,
         "the cloud model picker must save a real cloud model through the config authority")
 require('controlApi + "/delete"' in moai_qml,
         "Mo AI's deleteModel must POST to moai-control's /delete")
-require("النماذج السحابية" in moai_qml and "model: root.cloudModels" in moai_qml
-        and "Download in one tap" not in moai_qml,
+require('"النماذج السحابية"' in moai_settings_page
+        and 'moai.request(false, "GET", "/models"' in moai_settings_page
+        and "model: root.cloudModels" in moai_qml
+        and "Download in one tap" not in moai_qml + moai_settings_page,
         "Mo AI Settings must show cloud models without local-download promises")
 # Mo AI reasons about the system and offers SAFE repairs: a READ-ONLY /diagnose
 # that runs moos-selfcheck, and a Settings panel that shows health + one-tap fixes,
@@ -1230,7 +1254,11 @@ require(_qml_repairs and _control_repairs and set(_qml_repairs) == set(_control_
         f"only in the backend {sorted(set(_control_repairs) - set(_qml_repairs))}. "
         "Running a diagnosis swaps one list for the other, so anything missing from either "
         "appears or disappears under the user.")
-require("recommended" in moai_qml and "hit.note" in moai_qml,
+# Mo AI's own Flathub search left with its Apps panel (SPEC D5: Mo Store is the one store). A
+# search that returns to this window must bring the pick and the warning (recommended / note)
+# with it: ranking hits in the backend and not showing them changes nothing for the user.
+require('controlApi + "/search' not in moai_qml
+        or ("recommended" in moai_qml and "hit.note" in moai_qml),
         "Mo AI must render the pick and the warning (recommended / note) on each search hit — "
         "ranking them in the backend and not showing them changes nothing for the user")
 
@@ -2684,11 +2712,16 @@ require(not (ROOT / "system_files/usr/lib/systemd/user/moai-cloud.service").exis
         "moai-cloud.service was the opt-in cloud proxy; moai-gateway.service replaces it")
 require("moai-cloud" not in code(read("system_files/usr/bin/moai-config")),
         "moai-config must not still enable/disable the retired moai-cloud.service")
-_moai_config_tool = read("system_files/usr/bin/moai-config")
-require('"/api/config"' in _moai_config_tool
+# moai-config was a kdialog wizard over moai-agent-api: a second front end for the brain and its
+# key. Mo AI's settings are one System Settings page now (SPEC D1/D5), and the command only opens
+# it — it must never become another config writer or another key prompt again.
+_moai_config_tool = code(read("system_files/usr/bin/moai-config"))
+require("exec moos-settings --section=assistant" in _moai_config_tool
+        and "/api/config" not in _moai_config_tool
         and "config.json" not in _moai_config_tool
-        and "openclaw.json" not in _moai_config_tool,
-        "moai-config must be a client of moai-agent-api, never another config writer")
+        and "openclaw.json" not in _moai_config_tool
+        and "kdialog" not in _moai_config_tool,
+        "moai-config must only open the Mo AI page of System Settings, never write config itself")
 
 # ── Retired local-brain schedulers must not ship ──────────────────────────────
 #

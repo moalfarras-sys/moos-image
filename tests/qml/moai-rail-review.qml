@@ -33,7 +33,7 @@ Item {
     Timer {
         id: settle; interval: 1800
         onTriggered: {
-            harness.app.langOverride = harness.flag("arabic") ? "ar" : "en"
+            harness.app.layoutDirectionOverride = harness.flag("arabic") ? "rtl" : "ltr"
             measure.start()
         }
     }

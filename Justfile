@@ -73,6 +73,7 @@ check:
     python3 tests/test_moai_app_launch.py
     python3 tests/test_moai_control.py
     python3 tests/test_moai_config.py
+    python3 tests/test_moai_settings_module.py
     python3 tests/test_moai_tool_schemas.py
     python3 tests/test_moai_confirmation_flow.py
     # The native tool loop, executed: AgentLoop.js in node, the real window where Qt exists.

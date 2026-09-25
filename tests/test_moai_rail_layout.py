@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -37,6 +38,11 @@ MOAI = ROOT / "system_files/usr/share/moos/apps/moai/main.qml"
 QML_RUNTIME = shutil.which("qml-qt6") or shutil.which("qml6") or shutil.which("qml")
 
 
+# The rail, in order. Apps and Remote left it (SPEC D5): installing apps is Mo Store's and Mo PC
+# Remote's switches are a System Settings page; the Device panel links to both.
+RAIL = ["chat", "device", "compat", "agent"]
+
+
 def centre(box: dict, axis: str) -> float:
     return box[axis] + box["w" if axis == "x" else "h"] / 2
 
@@ -47,6 +53,18 @@ class DefaultSize(unittest.TestCase):
         qml = MOAI.read_text(encoding="utf-8")
         self.assertIn("width: root.argWindowDimension(0, 940)", qml)
         self.assertIn("readonly property bool workspaceSidebarExpanded: width >= 1120", qml)
+
+    def test_the_rail_is_chat_device_compat_workbench(self) -> None:
+        """No second store and no second Remote switchboard in the rail, and the stack agrees."""
+        qml = MOAI.read_text(encoding="utf-8")
+        items = qml.split("readonly property var navItems: [", 1)[1].split("]", 1)[0]
+        self.assertEqual(re.findall(r'\{ id: "([a-z]+)"', items), RAIL)
+        stack = re.search(r'const i = (\[[^\]]*\])\.indexOf\(root\.panel\)', qml)
+        self.assertIsNotNone(stack, "the panel stack's index list moved; this gate must read it")
+        self.assertEqual(json.loads(stack.group(1)), RAIL,
+                         "the StackLayout's order must be the rail's, or a rail entry shows another panel")
+        for gone in ("// ══ APPS", "// ══ REMOTE", "id: remoteCol", "id: searchField"):
+            self.assertNotIn(gone, qml)
 
 
 @unittest.skipUnless(QML_RUNTIME and shutil.which("xvfb-run") and sys.platform.startswith("linux"),
@@ -72,7 +90,8 @@ class TheRealRail(unittest.TestCase):
         line = next((l for l in (done.stderr + done.stdout).splitlines() if "RAIL-GEOMETRY " in l), "")
         self.assertTrue(line, f"the window reported nothing (rc={done.returncode}):\n{done.stderr[-1200:]}")
         report = json.loads(line.split("RAIL-GEOMETRY ", 1)[1])
-        self.assertGreaterEqual(len(report["entries"]), 5, "the rail's entries were not found by name")
+        self.assertEqual(sorted(e["id"] for e in report["entries"]), sorted(RAIL),
+                         "the rail's entries were not found by name")
         return report
 
     def test_compact_stacks_the_label_under_its_icon(self) -> None:
