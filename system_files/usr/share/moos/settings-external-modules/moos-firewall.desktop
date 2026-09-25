@@ -8,9 +8,10 @@
 # overlay is shared by every edition and the program is not (firewall-config: the x86
 # base only), while the loader below ignores TryExec. So curate_app_menu.sh installs this
 # file into /usr/share/plasma/systemsettings/externalmodules/ only on an image that ships
-# firewall-config, and its gate fails the build if that image then lacks the page. An
-# image that does not run the curation (ARM, until build-arm.sh calls it) gets no page
-# rather than a dead one.
+# firewall-config and whose firewalld zones carry no other OS's name (the window lists them
+# by name; the x86 base ships FedoraServer and FedoraWorkstation, so today the page stays
+# staged — docs/DEVELOPMENT_PLAN.md P2.9). An image without firewall-config (ARM) gets no
+# page rather than a dead one.
 #
 # WHY THAT DIRECTORY AND THESE KEYS (evidence, 2026-09-24, plasma-systemsettings 6.7.5):
 #   * The systemsettings binary (kinfocenter is a symlink to it) carries the UTF-16

@@ -11,14 +11,11 @@ the README and every wave row point here instead of repeating it. Four parallel 
   for rollback. Read back 2026-09-24: zero failed system and user units,
   `post-update-check.sh` 55/0, `moos-selfcheck` 53 passed / 0 failed / 1 stale note (its own
   tray list, fixed in W9.9 source). `moos-nvidia:latest` still resolves to `.929`.
-- **W9.9 "MoOS One inside KDE" is source on `feat/moos-one-kde-20260924`, not an image.**
-  `just check` passes on the host; the seven `kcm_moos*` modules compiled in the build image
-  and were reviewed live from source in the station's Arabic 4K session (a private-bus
-  System Settings with the worktree's plugins); a full local image build, PR image gates, a
-  signed candidate and installed proof are still owed.
-- PR #157 integrated W8/W9, ARM app parity, Store honesty and the NVIDIA device gate.
-  PR #158 raised ARM's finite first-boot Flatpak timeout
-  from 30 to 120 seconds. The no-GPU NVIDIA VM boots twice with zero failed units.
+- **W9.9 "MoOS One inside KDE" is source, not an image:** `just check` passes; a local
+  generic x86 image (`localhost/moos-one-wave:bae070ac`) built with every in-image gate
+  green; PR image gates, a signed candidate and installed proof are owed.
+- PR #157/#158: W8/W9, ARM parity, Store honesty, NVIDIA device gate, ARM first-boot
+  Flatpak timeout 30→120 s. The no-GPU NVIDIA VM boots twice with zero failed units.
 - **ARM's PR #160 image** passed signed build, UEFI QCOW2 proof and production promotion
   in `35963023960`. PR #161 (Plasma seam compatibility and ARM parity) is merged at
   `aeb3e070`; its automatic x86/ARM image runs are still separate from a proven release.
@@ -150,25 +147,21 @@ libplasma soname bump that removes `kcm-fcitx5` until Fedora rebuilds it. No 6.8
 
 ## Open evidence gaps
 
-- **Settings, installed (`.929`, 2026-09-24):** the one-module `kcm_moos` opens inside System
-  Settings in Arabic (photographed). Measured defects it carries, fixed in W9.9 source: the
-  About row shows the packager kernel tag (`7.2.7-200.fc44.x86_64`), raw edition/GPU labels,
-  MoOS last in the System group, an English "Input Method" page for an engine MoOS removed,
-  and Plasma's window is `systemsettings` (KWin readback), so the `org.kde.systemsettings`
-  StartupWMClass on the MoOS entries never matched.
-- **W9.9 source, reviewed live (2026-09-25):** a private-bus System Settings loaded the
-  worktree's seven modules on the station: the MoOS group is first in the sidebar; Overview
-  shows "Linux 7.2.7", "MoOS for NVIDIA graphics", signed/not-checked-recently chips; Update
-  shows the System, Applications and Firmware rows; Mo AI read the live brain (OpenRouter
-  free, key saved, phone agent at tier `full` shown as "without confirmation") with GET
-  requests only; MoOS Themes lists the 16 looks under Appearance & Style and marks the
-  owner's current Arena look. Not yet proven: installed image, existing-user migration
-  (THEME_REV 86), Meta+Space registration after a login, real update/rollback transactions.
-- **Side effects found and fixed while testing (2026-09-24/25):** repository tests wrote 36
-  fabricated `moai-do` audit lines and 22 `moos-update` records into the station's journal
-  (22:00:23–40 on 2026-09-24; journal lines cannot be deleted selectively), and the build
-  container's status helper made `bluetoothctl` dump core 64 times with no system bus. Tests
-  now stub `logger` under a meta-gate, and the helper skips Bluetooth without a bus.
+- **Settings on `.929` (installed, photographed 2026-09-24):** the one-module `kcm_moos`
+  shows the packager kernel tag (`…fc44…`), raw edition/GPU labels and an English "Input
+  Method" page, sits last under System, and its entries' `org.kde.systemsettings` class never
+  matched the window (`systemsettings`, KWin readback). All fixed in W9.9 source.
+- **W9.9 source, live from the worktree (2026-09-25):** the seven modules in a private-bus
+  System Settings on the station — MoOS group first; "Linux 7.2.7", "MoOS for NVIDIA
+  graphics"; Update's three rows; Mo AI read the live brain with GETs only; MoOS Themes marks
+  the owner's Arena look. `moai-measure-actions` with the grown schema (65 cases, ar+en):
+  **126/130 = 96.9%** on `nex-n2.5-pro:free`, three gateway timeouts and one wrong tool (mic
+  unmute → fix_audio, Arabic). Owed: installed image, THEME_REV 86 migration on this
+  account, Meta+Space after a login, real update/rollback runs.
+- **Testing side effects, now gated (2026-09-24/25):** repo tests wrote 36 fake `moai-do` and
+  22 `moos-update` audit lines into the station journal (22:00:23–40, not removable), and the
+  build container made `bluetoothctl` dump core 64 times; tests stub `logger` under a
+  meta-gate and the helper skips Bluetooth without a system bus.
 
 - **Mo PC Remote, 2026-09-24:** on the NVIDIA station the service, portal, input daemon and
   watchdog are active, loopback `:8765` answers, `/dev/uinput` grants the owner, no failed

@@ -502,10 +502,12 @@ done, escalated = rollback_run([booted, older], status_ok=False)
 check(done.returncode != 0 and escalated == "",
       "an unreadable deployment list must never lead to a blind `bootc rollback`")
 
-# ── 6. The Update page's two actions: one question, then a confirmed, audited run ─────────
-# do/update-apps and do/update-firmware no longer open a held Konsole. moos-open asks once
-# (kdialog, fail closed), then runs `moai-do <action>` with MOAI_DO_CONFIRMED=1 in the
-# background. The confirmed path must record the decision as approved.
+# ── 6. The Update page's two actions ──────────────────────────────────────────────────────
+# do/update-apps no longer opens a held Konsole: moos-open asks once (kdialog, fail closed),
+# then runs `moai-do update-apps` with MOAI_DO_CONFIRMED=1 in the background, and the
+# confirmed path records the decision as approved. do/update-firmware keeps the window:
+# flashing cannot be rolled back, so the list of offered updates must be on screen before
+# moai-do's own y/N — it must NOT run pre-confirmed.
 with tempfile.TemporaryDirectory() as tmp:
     bindir = Path(tmp)
     log = bindir / "moai-do.log"
@@ -537,13 +539,18 @@ with tempfile.TemporaryDirectory() as tmp:
         _time.sleep(0.2)
         return log.read_text(encoding="utf-8") if log.exists() else ""
 
-    for action in ("update-apps", "update-firmware"):
-        ran = route(f"moos://do/{action}", "0")
-        check(ran == f"1 {action}\n",
-              f"moos://do/{action} must run `MOAI_DO_CONFIRMED=1 moai-do {action}` with no "
-              f"terminal after the Yes; ran {ran!r}")
-        check(route(f"moos://do/{action}", "1") == "",
-              f"moos://do/{action} must run nothing when the question is answered No")
+    ran = route("moos://do/update-apps", "0")
+    check(ran == "1 update-apps\n",
+          "moos://do/update-apps must run `MOAI_DO_CONFIRMED=1 moai-do update-apps` with no "
+          f"terminal after the Yes; ran {ran!r}")
+    check(route("moos://do/update-apps", "1") == "",
+          "moos://do/update-apps must run nothing when the question is answered No")
+    firmware_arm = re.search(r"(?ms)^\s{4}do/update-firmware\)(.*?);;", MOOS_OPEN.read_text(encoding="utf-8"))
+    check(firmware_arm is not None and "term moai-do update-firmware" in firmware_arm.group(1)
+          and "MOAI_DO_CONFIRMED" not in firmware_arm.group(1)
+          and "moai_do_detached" not in firmware_arm.group(1),
+          "moos://do/update-firmware must open moai-do's own window (the offered updates, then "
+          "y/N), never a pre-confirmed background flash")
 
 # The popup that says how it ended speaks ONE language. A label pair inside a status pair once
 # reached kdialog as "Firmware | البرامج الثابتة: لم يكتمل | did not finish", reordered by bidi.
@@ -576,18 +583,16 @@ with tempfile.TemporaryDirectory() as tmp:
 
     arabic = re.compile(r"[\u0600-\u06ff]")
     for url, rc, english, arabic_words in (
-            ("moos://do/update-firmware", "1", "Firmware: did not finish — firmware said boom",
-             "البرامج الثابتة: لم يكتمل"),
-            ("moos://do/update-firmware", "0", "Firmware ✓ — firmware said boom", "البرامج الثابتة ✓"),
             ("moos://do/update-apps", "1", "Mo Store: did not finish — firmware said boom",
-             "Mo Store: لم يكتمل")):
+             "Mo Store: لم يكتمل"),
+            ("moos://do/update-apps", "0", "Mo Store ✓ — firmware said boom", "Mo Store ✓")):
         shown = popup(url, "C.UTF-8", rc)
         check(shown == english, f"{url} (exit {rc}) in English showed {shown!r}")
         shown = popup(url, "ar_SA.UTF-8", rc)
         check(shown.startswith(arabic_words) and " | " not in shown
               and "did not finish" not in shown and "Firmware" not in shown,
               f"{url} (exit {rc}) in Arabic showed {shown!r}")
-    check(not arabic.search(popup("moos://do/update-firmware", "C.UTF-8", "1")),
+    check(not arabic.search(popup("moos://do/update-apps", "C.UTF-8", "1")),
           "an English popup must carry no Arabic half")
 
 # The confirmed path records an approval, not a silent `ok` with no decision.
@@ -595,8 +600,10 @@ with tempfile.TemporaryDirectory() as tmp:
     bindir = Path(tmp)
     (bindir / "logger").write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$MOOS_TEST_AUDIT"\n',
                                    encoding="utf-8")
+    # The approval covers this one action: the child it starts must not inherit it.
     (bindir / "moos-storectl").write_text(
-        "#!/bin/sh\nprintf '%s\\n' '{\"schema\":1,\"state\":\"success\",\"message\":\"Done\"}'\n",
+        "#!/bin/sh\nprintf '%s\\n' \"${MOAI_DO_CONFIRMED:-unset}\" >> \"$MOOS_TEST_AUDIT.child\"\n"
+        "printf '%s\\n' '{\"schema\":1,\"state\":\"success\",\"message\":\"Done\"}'\n",
         encoding="utf-8")
     for name in ("logger", "moos-storectl"):
         (bindir / name).chmod(0o755)
@@ -609,6 +616,10 @@ with tempfile.TemporaryDirectory() as tmp:
     trail = audit.read_text(encoding="utf-8") if audit.exists() else ""
     check(done.returncode == 0 and "action=update-apps verdict=ok" in trail,
           f"MOAI_DO_CONFIRMED=1 moai-do update-apps must run and audit ok; got {trail!r}")
+    child = Path(f"{audit}.child")
+    seen = child.read_text(encoding="utf-8").split() if child.exists() else []
+    check(seen and all(value == "unset" for value in seen),
+          f"the owner's approval must not reach the programs moai-do starts; they saw {seen!r}")
 
 # ── 7. setup-brain is a hand-off to the one brain settings page, never a privilege ─────────
 setup_brain = re.search(r"^do_setup_brain\(\) \{(.*?)^\}", do_text, re.S | re.M)

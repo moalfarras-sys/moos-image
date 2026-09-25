@@ -8,7 +8,6 @@ Exec=moos-settings --section=appearance
 Icon=moos-themes
 Terminal=false
 NoDisplay=true
-StartupWMClass=systemsettings
 Categories=Settings;DesktopSettings;
 Keywords=theme;appearance;colors;wallpaper;dark;light;
 Keywords[ar]=ثيم;مظهر;ألوان;خلفية;داكن;فاتح;

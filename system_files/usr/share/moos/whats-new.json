@@ -25,8 +25,8 @@
         "en": "Mo AI's settings are in System Settings"
       },
       "body": {
-        "ar": "عقل Mo AI ومفتاحه وقنوات الهاتف والصلاحيات صارت صفحة واحدة: إعدادات النظام ← MoOS ← Mo AI. زر الإعدادات في Mo AI يفتحها، ولا يُحفظ شيء حتى تضغط حفظ.",
-        "en": "Mo AI's brain, key, phone channels and permissions are now one page: System Settings, MoOS, Mo AI. The gear in Mo AI opens it, and nothing is saved until you press Save."
+        "ar": "عقل Mo AI ومفتاحه وقنوات الهاتف والصلاحيات صارت صفحة واحدة: إعدادات النظام ← MoOS ← Mo AI. زر الإعدادات في Mo AI يفتحها، والمفتاح الذي تكتبه لا يُعرض مرة أخرى.",
+        "en": "Mo AI's brain, key, phone channels and permissions are now one page: System Settings, MoOS, Mo AI. The gear in Mo AI opens it, and a key you type is never shown again."
       },
       "route": "moos://settings/assistant"
     },
@@ -55,8 +55,7 @@
       "body": {
         "ar": "اطلب من Mo AI عرض كل النوافذ أو ترتيبها أنصافاً أو أثلاثاً، أو تبديل سطح المكتب، أو عدم الإزعاج، أو كتم الميكروفون، أو تغيير لغة لوحة المفاتيح. ويفتح لك الصفحة الصحيحة من الإعدادات مباشرة، ويخبرك إن لم يستطع.",
         "en": "Ask Mo AI to show all windows, arrange them in halves or thirds, switch desktops, turn on do not disturb, mute the microphone or change the keyboard language. It opens the exact settings page you need, and tells you when it cannot."
-      },
-      "route": "moos://settings/assistant"
+      }
     },
     {
       "id": "moai-meta-space",
@@ -81,8 +80,8 @@
         "en": "Every update comes from one place"
       },
       "body": {
-        "ar": "صفحة التحديث تعرض النظام والتطبيقات وبرامج الجهاز، وتذكر كل تطبيق لم يتحدّث وسبب ذلك. أزرار التحديث تسأل مرة وتعمل في الخلفية دون نافذة طرفية، ولم يعد محرك المتجر يحدّث وحده في الخلفية.",
-        "en": "The Update page shows the system, applications and device firmware, and names each app that could not update and why. Update buttons ask once and run in the background without a terminal, and the store engine no longer updates on its own."
+        "ar": "صفحة التحديث تعرض النظام والتطبيقات وبرامج الجهاز، وتذكر كل تطبيق لم يتحدّث وسبب ذلك. تحديث التطبيقات يسأل مرة ويعمل في الخلفية، وبرامج الجهاز تعرض ما يُعرض عليك قبل أي تثبيت، ولم يعد محرك المتجر يحدّث وحده.",
+        "en": "The Update page shows the system, applications and device firmware, and names each app that could not update and why. Updating apps asks once and runs in the background, firmware shows what is offered before anything is installed, and the store engine no longer updates on its own."
       },
       "route": "moos://settings/update"
     },
@@ -109,8 +108,8 @@
         "en": "A tidier app menu"
       },
       "body": {
-        "ar": "أدوات المراقبة الطرفية والبحث الثاني عن الملفات ومركز المساعدة خرجت من قائمة التطبيقات، والجدار الناري صار في الإعدادات تحت الأمان والخصوصية. وإشعارات MoOS صارت مرتبة باسم تطبيقها في صفحة الإشعارات.",
-        "en": "Terminal system monitors, a second file search and the help center left the app menu, and the firewall now sits in Settings under Security & Privacy. MoOS notifications are filed under their own app on the Notifications page."
+        "ar": "قائمة التطبيقات صارت أنظف: لا أدوات مكررة ولا صفحة إعدادات ثانية. وإشعارات MoOS صارت مرتبة باسم تطبيقها في صفحة الإشعارات، فتستطيع كتم كل واحد منها وحده.",
+        "en": "The app menu is tidier: no duplicate tools and no second settings app. MoOS notifications are filed under their own app on the Notifications page, so you can mute each one on its own."
       },
       "route": "moos://settings/notifications"
     },
@@ -253,8 +252,7 @@
       "body": {
         "ar": "عندما ينفّذ Mo AI أمراً، صار يعرض أول ستة أسطر ويقول كم بقي، بدل صفحة كاملة. و«فحص الجهاز» الذي كان يفتح نافذة ولا يطبع شيئاً ثم يظهر صفّاً أحمر، صار يعيد حالة جهازك بالكلمات: الإصدار، هل هو موقّع، وما وجده الفحص.",
         "en": "When Mo AI runs something it now shows the first six lines and says how many are left, instead of a full page. And the hardware check that used to open a window, print nothing and leave a red \"failed\" row now answers in words: the version, whether it is signed, and what the check found."
-      },
-      "route": "moos://settings/assistant"
+      }
     },
     {
       "id": "clock-week",
@@ -383,8 +381,7 @@
       "body": {
         "ar": "اثنا عشر دليل إصلاح جاهزًا — لا صوت، لا إنترنت، جهاز بطيء، قرص ممتلئ وغيرها — وأكثرها شيوعًا يبدأ من شريحة في شاشة Mo AI الرئيسية.",
         "en": "Twelve ready repair guides — no sound, no internet, a slow machine, a full disk and more — and the most common start from a chip on Mo AI's home screen."
-      },
-      "route": "moos://settings/assistant"
+      }
     },
     {
       "id": "app-drop",
@@ -410,8 +407,7 @@
       "body": {
         "ar": "يفحص Mo AI حالة الجهاز بنفسه قبل أن يجيب، وكل تغيير في النظام يظهر لك في بطاقة تأكيد قبل تنفيذه، ثم يخبرك بالنتيجة الفعلية.",
         "en": "Mo AI inspects the machine itself before it answers, and every change to the system appears as a confirmation card before it runs, followed by the real result."
-      },
-      "route": "moos://settings/assistant"
+      }
     },
     {
       "id": "island-privacy",

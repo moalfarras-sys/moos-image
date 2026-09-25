@@ -3413,8 +3413,8 @@ PWAPP
 # The menu curation that stood here (z1b: hide the duplicates and the base's debug tools;
 # z1c: give the kept entries MoOS's name and icon) now lives in
 # build_files/curate_app_menu.sh, one script written for every edition (ARM had none of it
-# and showed Plasma's own "System Settings" beside "MoOS Settings"; wiring it into
-# build-arm.sh is handed to that file's owner). The script also makes systemsettings.desktop
+# and showed Plasma's own "System Settings" beside "MoOS Settings"; build-arm.sh runs it
+# too, since 2026-09-25). The script also makes systemsettings.desktop
 # the ONE visible settings entry (MoOS Settings, Exec=moos-settings, Meta+I kept), rewrites
 # Discover's entry header-only, offers a staged System Settings page only where its program
 # ships, and ends with one gate on the finished files: exactly one visible settings entry and
@@ -4726,6 +4726,14 @@ _rival_wants="$(find /usr/lib/systemd/system /etc/systemd/system -path '*.wants/
     || { echo "GATE FAIL: a *.wants symlink still pulls in bootc-fetch-apply-updates.timer:"
          echo "${_rival_wants}"; exit 1; }
 unset -v _rival_wants
+
+# The MoOS System Settings modules, loaded again on the FINISHED tree. The run at (c4b)
+# proves them where they are installed, but a dozen package transactions follow it —
+# removals with autoremove among them, and the cloud edition's own install — and one of them
+# could drop a QML dependency a page imports while that earlier gate stays green (the "gate
+# sees what was in place at that moment" trap, AGENTS.md). build-arm.sh already runs it after
+# its last transaction. The script is idempotent.
+bash /ctx/verify_settings_modules.sh || exit 1
 
 python3 /ctx/finalize_image_state.py --root /
 python3 /ctx/verify_no_foreign_identity.py

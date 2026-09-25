@@ -276,6 +276,43 @@ def failure_kind(reason: str) -> str:
     return next((kind for kind, pattern in FAILURE_KINDS if pattern.search(text)), "other")
 
 
+GENERIC_ID_WORDS = {"desktop", "app", "client", "application", "gui", "linux"}
+
+
+def app_display_name(app_id: str, locale: str = "") -> str:
+    """The name a person knows an application by, never its reverse-DNS id.
+
+    The installed launcher's Name (Name[ar] in an Arabic session) when its exported entry
+    is readable; otherwise the id's last meaningful word, the rule the Island uses
+    (IslandTokens.js displayName): "org.mozilla.firefox" is not a name, "Firefox" is.
+    """
+    locale = locale or os.environ.get("LC_ALL") or os.environ.get("LC_MESSAGES") or os.environ.get("LANG", "")
+    homes = [Path(os.environ.get("XDG_DATA_HOME", str(Path.home() / ".local/share"))) / "flatpak",
+             Path("/var/lib/flatpak")]
+    for base in homes:
+        entry = base / "exports/share/applications" / f"{app_id}.desktop"
+        try:
+            if entry.stat().st_size > 65536:
+                continue
+            text = entry.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        header = text.split("\n[", 1)[0]
+        names = dict(re.findall(r"(?m)^(Name(?:\[[A-Za-z_@]+\])?)=(.+)$", header))
+        name = (names.get("Name[ar]") if locale.lower().startswith("ar") else None) or names.get("Name", "")
+        name = " ".join(name.split())[:80]
+        if name:
+            return name
+    parts = [part for part in app_id.split(".") if part]
+    name = parts[-1] if parts else app_id
+    if len(parts) > 2 and name.lower() in GENERIC_ID_WORDS:
+        name = parts[-2]
+    name = re.sub(r"[_-]+", " ", name).strip()
+    if name and name == name.lower():
+        name = " ".join(word[:1].upper() + word[1:] for word in name.split())
+    return name or app_id
+
+
 def apps_state(path: Path | None = None) -> dict[str, object]:
     """Read the per-user application-update record without inventing one.
 
@@ -303,7 +340,8 @@ def apps_state(path: Path | None = None) -> dict[str, object]:
                 and len(item["app"]) <= 255 and APP_ID.match(item["app"])
                 and isinstance(item.get("reason"), str)):
             reason = " ".join(item["reason"].split())[:200]
-            failures.append({"app": item["app"], "kind": failure_kind(reason), "reason": reason})
+            failures.append({"app": item["app"], "name": app_display_name(item["app"]),
+                             "kind": failure_kind(reason), "reason": reason})
     if state == "running" and time.time() - updated > APP_UPDATE_RUNNING_LIMIT:
         state = "interrupted"
     return {"known": True, "state": state, "updated": updated, "failures": failures}

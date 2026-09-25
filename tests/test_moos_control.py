@@ -534,7 +534,7 @@ class MoosOpenControlRouteTests(unittest.TestCase):
                           ("moos://control/window/show-desktop", ["window", "show-desktop"]),
                           ("moos://control/arrange/centre", ["arrange", "centre"]),
                           ("moos://control/desktop/previous", ["desktop", "previous"]),
-                          ("moos://control/dnd/on", ["dnd", "on"]),
+                          ("moos://control/dnd/off", ["dnd", "off"]),
                           ("moos://control/mic/mute", ["mic", "mute"]),
                           ("moos://control/keyboard-layout/next", ["keyboard-layout", "next"]),
                           ("moos://control/motion/gentle", ["motion", "gentle"]),
@@ -562,7 +562,9 @@ class MoosOpenControlRouteTests(unittest.TestCase):
     # a link can hand any of these to the router: each one waits for the person's yes.
     ASKS_FIRST = (("moos://control/wifi/off", ["wifi", "off"]),
                   ("moos://control/bluetooth/off", ["bluetooth", "off"]),
-                  ("moos://control/mic/unmute", ["mic", "unmute"]))
+                  ("moos://control/mic/unmute", ["mic", "unmute"]),
+                  # Plasma keeps it on until manually disabled: every notification silenced.
+                  ("moos://control/dnd/on", ["dnd", "on"]))
 
     def test_disruptive_values_require_the_users_yes(self):
         for url, argv in self.ASKS_FIRST:

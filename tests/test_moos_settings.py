@@ -485,8 +485,12 @@ class TheEntries(unittest.TestCase):
         settings = self.entry(DESKTOP)
         self.assertEqual(settings["Exec"], "moos-settings")
         self.assertEqual(settings["Icon"], "moos-control-center")
-        self.assertEqual(settings["StartupWMClass"], "systemsettings",
-                         "the System Settings window's app id is systemsettings (measured)")
+        # The window's app id is systemsettings (measured). Plasma's task manager matches
+        # StartupWMClass before the desktop file name and does not skip hidden entries, so a
+        # hidden alias claiming it would win the running window's dock icon: only the one
+        # visible entry (systemsettings.desktop, written by curate_app_menu.sh) claims it.
+        self.assertNotIn("StartupWMClass", settings,
+                         "a hidden alias must not claim the System Settings window")
         self.assertEqual(settings["NoDisplay"], "true", "one visible Settings entry, not two")
         actions = re.findall(r"(?m)^Exec=moos-settings --section=([a-z-]+)$",
                              DESKTOP.read_text(encoding="utf-8"))
@@ -497,7 +501,7 @@ class TheEntries(unittest.TestCase):
             with self.subTest(deep_link=section):
                 entry = self.entry(path)
                 self.assertEqual(entry["Exec"], f"moos-settings --section={section}")
-                self.assertEqual(entry["StartupWMClass"], "systemsettings")
+                self.assertNotIn("StartupWMClass", entry)
                 self.assertEqual(entry["NoDisplay"], "true")
         for size in ICON_SIZES:
             raster = ICONS / f"{size}x{size}/apps/moos-control-center.png"
@@ -653,8 +657,13 @@ class TheHelper(unittest.TestCase):
                                  {"app": "not an id", "reason": "x"}, {"app": "org.example.Two"}, "junk"]}
             path.write_text(json.dumps(good), encoding="utf-8")
             self.assertEqual(probe(path), {"known": True, "state": "failed", "updated": now,
-                                           "failures": [{"app": "org.example.App", "kind": "other",
+                                           "failures": [{"app": "org.example.App", "name": "Example",
+                                                         "kind": "other",
                                                          "reason": "the server refused"}]})
+            # A person reads the app's name, never its reverse-DNS id.
+            good["failures"][0]["app"] = "org.mozilla.firefox"
+            path.write_text(json.dumps(good), encoding="utf-8")
+            self.assertEqual(probe(path)["failures"][0]["name"], "Firefox")
             for state in ("ok", "running"):
                 path.write_text(json.dumps({**good, "state": state}), encoding="utf-8")
                 self.assertEqual(probe(path)["state"], state)

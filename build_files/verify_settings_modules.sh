@@ -58,7 +58,8 @@ command -v kcmshell6 >/dev/null 2>&1 \
 # package set requires dbus-daemon (Fedora 44 metadata, 2026-09-25: only dbus-doc and
 # xwayland-run do). A MoOS page needs no bus to construct. Measured on 2026-09-25:
 # all five core modules loaded offscreen with the bus address pointing at a socket
-# that does not exist, with exit 124, the ready marker and no QML error each.
+# that does not exist, with exit 124, the ready marker and no QML error each; the
+# finished x86 image localhost/moos-one-wave:bae070ac loaded all seven on a private bus.
 # plasma_seams.py's greeter probe and verify_moos_motion.py run the same way. So
 # without dbus-run-session the modules load with no bus. The verdict below is
 # the same in both modes, and the load test is never skipped.

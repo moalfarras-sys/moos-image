@@ -9,7 +9,6 @@ Comment[ar]=ارجع إلى نسخة سابقة أو ثبّت نسخة سليم�
 TryExec=moos-settings
 Exec=moos-settings --section=recovery
 Icon=moos-recovery
-StartupWMClass=systemsettings
 Terminal=false
 Categories=System;
 NoDisplay=true

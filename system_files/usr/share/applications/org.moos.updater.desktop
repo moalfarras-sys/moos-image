@@ -9,7 +9,6 @@ Comment[ar]=حدّث MoOS بأمان — تحديث ذرّي يكتمل عند �
 TryExec=moos-settings
 Exec=moos-settings --section=update
 Icon=moos-updater
-StartupWMClass=systemsettings
 Terminal=false
 Categories=System;
 NoDisplay=true

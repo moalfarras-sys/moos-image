@@ -2202,13 +2202,19 @@ for _labels, _action in re.findall(
         require(_label == f"do/{_action}" and _action in _moai_do_actions,
                 f"moos-open's {_label} runs moai-do {_action} in the background, which is "
                 f"either not its own action or not one moai-do implements")
-# The two Update-page actions run confirmed with no terminal, after ONE question.
-for _action in ("update-apps", "update-firmware"):
-    _arm = re.search(rf"(?ms)^\s{{4}}do/{_action}\)(.*?);;", code(router))
-    require(_arm is not None and "confirm " in _arm.group(1)
-            and f"moai_do_detached {_action}" in _arm.group(1) and "term " not in _arm.group(1),
-            f"moos://do/{_action} must ask once and then run moai-do {_action} confirmed with "
-            f"no terminal")
+# Updating the apps runs confirmed with no terminal, after ONE question. Firmware keeps
+# moai-do's own window: the offered updates are listed before its y/N, because flashing
+# cannot be rolled back and a pre-confirmed background run would flash them unseen.
+_arm = re.search(r"(?ms)^\s{4}do/update-apps\)(.*?);;", code(router))
+require(_arm is not None and "confirm " in _arm.group(1)
+        and "moai_do_detached update-apps" in _arm.group(1) and "term " not in _arm.group(1),
+        "moos://do/update-apps must ask once and then run moai-do update-apps confirmed with "
+        "no terminal")
+_arm = re.search(r"(?ms)^\s{4}do/update-firmware\)(.*?);;", code(router))
+require(_arm is not None and "term moai-do update-firmware" in _arm.group(1)
+        and "moai_do_detached" not in _arm.group(1),
+        "moos://do/update-firmware must show the offered updates before moai-do's own y/N, "
+        "never flash them from a one-question background run")
 require("MOAI_DO_CONFIRMED=1 moai-do" in code(router),
         "the background moai-do runs must say they were confirmed (MOAI_DO_CONFIRMED=1)")
 # Any OTHER program that calls moai-do must name a real action. moos-privacy-stop called

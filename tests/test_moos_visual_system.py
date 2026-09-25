@@ -765,8 +765,9 @@ class MoOSVisualSystemTests(unittest.TestCase):
         self.assertIn("\nIcon=moos-themes\n", desktop)
         self.assertIn("\nExec=moos-settings --section=appearance\n", desktop)
         self.assertIn("\nNoDisplay=true\n", desktop)
-        self.assertIn("\nStartupWMClass=systemsettings\n", desktop,
-                      "an old pin must light up for the System Settings window it opens")
+        self.assertNotIn("StartupWMClass", desktop,
+                         "a hidden alias claiming the System Settings window would show the "
+                         "running MoOS Settings in the dock as MoOS Themes")
         launcher = (
             ROOT / "system_files/usr/bin/moos-theme-picker"
         ).read_text(encoding="utf-8")

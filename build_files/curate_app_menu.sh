@@ -245,6 +245,11 @@ HEADER = {
                 "Comment[ar]=شاهد حالة جهازك وتحكّم بكل جزء من MoOS"],
     "Keywords": ["Keywords=settings;control;system;network;display;privacy;recovery;MoOS;",
                  "Keywords[ar]=إعدادات;تحكم;نظام;شبكة;شاشة;خصوصية;استعادة;"],
+    # The window's app id is "systemsettings" (KWin readback). Plasma's task manager matches
+    # StartupWMClass BEFORE the desktop file's own name and does not skip hidden entries, so
+    # the one visible entry claims the window here and no hidden alias may (a pin of it would
+    # otherwise light up as "MoOS Recovery" or "MoOS Themes").
+    "StartupWMClass": ["StartupWMClass=systemsettings"],
 }
 THEMES = ["Name=MoOS Themes", "Name[ar]=ثيمات MoOS",
           "Exec=moos-settings --section=appearance"]
@@ -286,6 +291,11 @@ for line in lines:
             continue
     out.append(line)
 
+for key in ("StartupWMClass",):
+    if key not in written:
+        at = next(i for i, line in enumerate(out) if line.strip() == "[Desktop Entry]") + 1
+        out[at:at] = HEADER[key]
+        written.add(key)
 text = "\n".join(out)
 if "[Desktop Action moos-update]" not in text:
     text = text.rstrip("\n") + "\n\n" + "\n".join(UPDATE)
@@ -322,10 +332,28 @@ module_program() {
     [ -n "$prog" ] || prog="$(awk '/^Exec=/ { sub(/^Exec=/, ""); print $1; exit }' "$1")"
     printf '%s' "$prog"
 }
+# The firewall window lists firewalld's zones by name, and the base ships two named after
+# another OS (FedoraServer, FedoraWorkstation; moos-cloud's default zone is one of them). A
+# MoOS Settings page whose only job is to open that window would put that name on screen
+# under MoOS's own label, so the page waits, staged, until the zones carry MoOS names
+# (docs/DEVELOPMENT_PLAN.md, P2.9). The gate below holds both halves.
+foreign_zones() {
+    local zone
+    for zone in "${ROOT}"/usr/lib/firewalld/zones/*.xml "${ROOT}"/etc/firewalld/zones/*.xml; do
+        [ -f "$zone" ] || continue
+        case "${zone##*/}" in [Ff]edora*|[Rr]ed[Hh]at*|RHEL*) return 0 ;; esac
+        grep -qiE 'fedora|red ?hat' "$zone" && return 0
+    done
+    return 1
+}
 if [ -d "$STAGED_MODULES" ]; then
     for module in "$STAGED_MODULES"/*.desktop; do
         [ -f "$module" ] || continue
         prog="$(module_program "$module")"
+        if [ "${module##*/}" = moos-firewall.desktop ] && foreign_zones; then
+            echo "curate_app_menu: moos-firewall.desktop not offered: firewalld's zones still carry another OS's name"
+            continue
+        fi
         if [ -n "$prog" ] && resolve_program "$prog"; then
             install -D -m 0644 "$module" "${EXTERNAL_MODULES}/${module##*/}"
         else
@@ -439,6 +467,15 @@ if settings.is_file():
                      "upstream's start page, or nothing")
     if "Meta+I" not in entry.get("X-KDE-Shortcuts", ""):
         fails.append("GATE FAIL: MoOS Settings lost its Meta+I shortcut")
+    if entry.get("StartupWMClass") != "systemsettings":
+        fails.append("GATE FAIL: MoOS Settings does not claim its window (StartupWMClass="
+                     "systemsettings) — a hidden alias could win the dock icon")
+    for alias in sorted(apps.glob("*.desktop")):
+        if alias.name != "systemsettings.desktop" and \
+                header(alias).get("StartupWMClass", "").lower() == "systemsettings":
+            fails.append(f"GATE FAIL: {alias.name} claims the System Settings window "
+                         "(StartupWMClass=systemsettings); the task manager would show the "
+                         "running MoOS Settings as that entry")
     appearance_installed = any(path.is_file() for path in root.glob(
         "usr/lib*/qt6/plugins/plasma/kcms/systemsettings/kcm_moos_appearance.so"))
     for action in [a for a in entry.get("Actions", "").split(";") if a]:
@@ -599,13 +636,33 @@ for path in sorted(external.glob("*.desktop")) if external.is_dir() else []:
                      "System Settings does not have — the page would never appear")
 # A page MoOS staged for an installed program is offered, not left in the staging directory
 # System Settings never reads.
+def foreign_zone_names() -> list[str]:
+    found = []
+    for base in ("usr/lib/firewalld/zones", "etc/firewalld/zones"):
+        for zone in sorted((root / base).glob("*.xml")) if (root / base).is_dir() else []:
+            text = zone.read_text(encoding="utf-8", errors="replace")
+            if re.match(r"(?i)(fedora|red ?hat|rhel)", zone.name) or \
+                    re.search(r"(?i)fedora|red ?hat", text):
+                found.append(zone.name)
+    return found
+
+
+foreign_zones = foreign_zone_names()
 staged = root / "usr/share/moos/settings-external-modules"
 for path in sorted(staged.glob("*.desktop")) if staged.is_dir() else []:
+    if path.name == "moos-firewall.desktop" and foreign_zones:
+        continue
     if resolves(program(header(path))) and not (external / path.name).is_file():
         fails.append(f"GATE FAIL: {path.name} is staged and {program(header(path))!r} is "
                      "installed, but System Settings does not offer the page")
-# Hiding the firewall from the menu must not leave it unreachable.
-if resolves("firewall-config") and not (external / "moos-firewall.desktop").is_file():
+# The firewall window names firewalld's zones; while any carries another OS's name, MoOS
+# Settings must not offer a page that opens it (identity contract). Once the zones carry MoOS
+# names, hiding the firewall from the menu must not leave it unreachable.
+if foreign_zones and (external / "moos-firewall.desktop").is_file():
+    fails.append("GATE FAIL: MoOS Settings offers the Firewall page, whose window lists the "
+                 f"zones {foreign_zones} by another OS's name")
+if resolves("firewall-config") and not foreign_zones and \
+        not (external / "moos-firewall.desktop").is_file():
     fails.append("GATE FAIL: firewall-config is installed and hidden from the menu, but "
                  "MoOS Settings has no Firewall page — the firewall would be unreachable")
 

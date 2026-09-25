@@ -156,6 +156,13 @@ moai_do_detached() {
         out="$(MOAI_DO_CONFIRMED=1 moai-do "$action" </dev/null 2>&1)"
         rc=$?
         last="$(printf '%s\n' "$out" | sed -e 's/\x1b\[[0-9;]*m//g' | grep -v '^[[:space:]]*$' | tail -n 1 | cut -c1-200)"
+        # moai-do's last line is usually an "Arabic | English" pair: show this session's half.
+        # A line in only one language says nothing to a session in the other; drop it there.
+        last="$(localized_message "$last")"
+        case "${LC_ALL:-${LC_MESSAGES:-${LANG:-en}}}" in
+            ar*|AR*) printf '%s' "$last" | grep -q '[ء-ي]' || last="" ;;
+            *)       printf '%s' "$last" | grep -q '[ء-ي]' && last="" ;;
+        esac
         if [ "$rc" -eq 0 ]; then
             notify "${label} ✓${last:+ — $last}" "$owner"
         else
@@ -343,7 +350,10 @@ case "${cat}/${tgt}" in
     # an inactive service on, letting a public moos: URL open remote access.
     remote/restart) remote_ctl try-restart ;;
     # Fast Remote (SPEC D6): the switch on the Mo PC Remote settings page.
-    remote/fast-on)  fast_remote on ;;
+    # Fast Remote rewrites the owner's blur, animation speed and keyboard layout until it is
+    # turned off: a drive-by link asks first. Turning it off only restores them.
+    remote/fast-on)  confirm "تسريع الاتصال يوقف حركة الخلفية والضبابية مؤقتاً حتى تطفئه. متابعة؟ | Speeding up the connection pauses wallpaper motion and blur until you turn it off. Continue?" \
+                         && fast_remote on ;;
     remote/fast-off) fast_remote off ;;
 
     # ── Coding agents: run the one the user picked, or install it ────────────
@@ -474,11 +484,12 @@ PY
     # moos-control owns the fixed argv of every action; this dispatcher accepts
     # only these exact shapes. Any web page can hand this scheme a URL, so the
     # worst a drive-by link can do is change the volume or take a screenshot.
-    # Three values ask first, the same three Mo AI shows a card for
+    # Four values ask first, the same four Mo AI shows a card for
     # (confirm_values in moai_tool_schemas.py; tests/test_moos_control.py holds
     # the two lists equal): Wi-Fi OFF disconnects the internet, Mo AI and remote
     # control; Bluetooth OFF disconnects a wireless keyboard and mouse; and
-    # turning the microphone back ON undoes a mute the owner chose for privacy.
+    # turning the microphone back ON undoes a mute the owner chose for privacy; do-not-disturb
+    # ON stays on until the owner turns it off.
     control/volume/up|control/volume/down|control/brightness/up|control/brightness/down|control/mute|control/unmute|control/night-light/on|control/night-light/off|control/night-light/auto|control/wifi/on|control/bluetooth/on|control/screenshot)
         IFS=/ read -r -a control_args <<<"$tgt"
         control_run "${control_args[@]}" ;;
@@ -488,7 +499,7 @@ PY
     # fixed name in moos-control; none can close a window, load a script or restart
     # anything, so a drive-by link can at worst rearrange the screen or change a
     # setting the person changes straight back.
-    control/window/overview|control/window/grid|control/window/show-desktop|control/arrange/halves|control/arrange/thirds|control/arrange/quarters|control/arrange/main|control/arrange/centre|control/desktop/next|control/desktop/previous|control/dnd/on|control/dnd/off|control/mic/mute|control/keyboard-layout/next|control/motion/still|control/motion/gentle|control/motion/alive|control/clarity/clear|control/clarity/balanced|control/clarity/solid|control/power-profile/power-saver|control/power-profile/balanced|control/power-profile/performance)
+    control/window/overview|control/window/grid|control/window/show-desktop|control/arrange/halves|control/arrange/thirds|control/arrange/quarters|control/arrange/main|control/arrange/centre|control/desktop/next|control/desktop/previous|control/dnd/off|control/mic/mute|control/keyboard-layout/next|control/motion/still|control/motion/gentle|control/motion/alive|control/clarity/clear|control/clarity/balanced|control/clarity/solid|control/power-profile/power-saver|control/power-profile/balanced|control/power-profile/performance)
         IFS=/ read -r -a control_args <<<"$tgt"
         control_run "${control_args[@]}" ;;
     control/volume/*|control/brightness/*)
@@ -508,6 +519,11 @@ PY
     control/mic/unmute)
         confirm "تشغيل الميكروفون من جديد؟ | Turn the microphone back on?" \
             && control_run mic unmute ;;
+    # Plasma keeps do-not-disturb on "until manually disabled", so a drive-by link must not
+    # silence every notification (a health warning about an exposed port among them) for good.
+    control/dnd/on)
+        confirm "تشغيل عدم الإزعاج حتى تطفئه بنفسك؟ | Turn on Do Not Disturb until you turn it off?" \
+            && control_run dnd on ;;
     # MoOS Search's Mo AI hand-off: open the chat already asking the question. This only starts a
     # conversation — the same entry the Mo AI KRunner runner uses — and any action in the answer is
     # still a button the user has to confirm. The question is passed as ONE argv element and is
@@ -553,16 +569,17 @@ PY
                           && { qdbus_run org.kde.Shutdown /Shutdown logout 2>/dev/null || true; } ;;
     session/power) confirm "إيقاف تشغيل الجهاز الآن؟ | Shut the computer down now?" \
                           && { systemctl poweroff 2>/dev/null || loginctl poweroff 2>/dev/null || qdbus_run org.kde.Shutdown /Shutdown logoutAndShutdown 2>/dev/null || true; } ;;
-    # The two updates the MoOS Update page offers run with no terminal: the person
-    # answers ONE question here, moai-do runs confirmed and audited in the
-    # background (Polkit still asks where it escalates), and a notification says
-    # how it ended. Store jobs also show in the Island while they run.
+    # Updating the apps runs with no terminal: the person answers ONE question here,
+    # moai-do runs confirmed and audited in the background, and a notification says how
+    # it ended; the Store job shows in the Island while it runs.
     do/update-apps)
         confirm "تحديث كل التطبيقات عبر Mo Store الآن؟ | Update all apps through Mo Store now?" \
             && moai_do_detached update-apps "Mo Store" store ;;
-    do/update-firmware)
-        confirm "تحديث البرامج الثابتة للأجهزة الآن؟ قد يتطلب إعادة تشغيل ولا يمكن التراجع عنه. | Update device firmware now? It may need a restart and cannot be rolled back." \
-            && moai_do_detached update-firmware "البرامج الثابتة | Firmware" ;;
+    # Firmware is different: flashing cannot be rolled back, so the person must see WHICH
+    # devices and versions are offered before saying yes. moai-do lists them
+    # (fwupdmgr get-updates) and then asks its own y/N, in a window that stays open. A
+    # one-question background run would flash whatever is offered, unseen.
+    do/update-firmware) term moai-do update-firmware ;;
     # The device panel lives inside Mo AI. moai is single-instance, so this raises
     # the open window on that panel: no terminal and no second window.
     do/hw-report)  gui moai --panel device ;;

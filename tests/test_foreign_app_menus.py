@@ -321,6 +321,8 @@ class CurateAppMenuRun(unittest.TestCase):
         self.assertEqual(entry.get("Exec"), "moos-settings")
         self.assertNotIn("NoDisplay", entry)
         self.assertEqual(entry.get("X-KDE-Shortcuts"), "Tools,Meta+I", "Meta+I must survive")
+        self.assertEqual(entry.get("StartupWMClass"), "systemsettings",
+                         "the one visible entry claims the System Settings window")
         text = path.read_text(encoding="utf-8")
         head = text.split("\n[Desktop Action", 1)[0]
         for gone in ("GenericName", "Name[de]", "Comment[de]", "System Settings"):
@@ -409,6 +411,21 @@ class CurateAppMenuRun(unittest.TestCase):
         self.assertTrue(module.is_file(), "firewall-config is installed; its Settings page must be offered")
         self.assertEqual(module.read_bytes(), (SYSTEM / STAGED).read_bytes())
 
+    def test_no_firewall_page_while_a_zone_carries_another_os_name(self):
+        # The window lists firewalld's zones by name; the x86 base ships FedoraServer and
+        # FedoraWorkstation, so a MoOS page that opens it would show that name (identity).
+        write(self.tree / "usr/lib/firewalld/zones/FedoraServer.xml",
+              '<?xml version="1.0"?>\n<zone><short>Fedora Server</short></zone>\n')
+        result = self.run_ok()
+        self.assertFalse((self.tree / INSTALLED).exists(),
+                         "the Firewall page must wait until the zones carry MoOS names")
+        self.assertIn("zones still carry another OS's name", result.stdout)
+        # And the gate refuses the page offered anyway.
+        write(self.tree / INSTALLED, (SYSTEM / STAGED).read_text(encoding="utf-8"))
+        result = gate(self.tree)
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("by another OS's name", result.stdout)
+
     def test_an_edition_without_the_program_gets_no_page_not_a_dead_one(self):
         (self.tree / "usr/bin/firewall-config").unlink()
         (self.apps / "firewall-config.desktop").unlink()
@@ -486,6 +503,15 @@ class CurateAppMenuGateBites(unittest.TestCase):
     def test_settings_whose_program_is_missing(self):
         (self.tree / "usr/bin/moos-settings").unlink()
         self.assertBites("does not run an installed moos-settings")
+
+    def test_settings_that_does_not_claim_its_window(self):
+        self.edit("systemsettings.desktop", "StartupWMClass=systemsettings\n", "")
+        self.assertBites("does not claim its window")
+
+    def test_a_hidden_alias_that_claims_the_settings_window(self):
+        self.edit("org.moos.settings.desktop", "[Desktop Entry]\n",
+                  "[Desktop Entry]\nStartupWMClass=systemsettings\n")
+        self.assertBites("claims the System Settings window")
 
     def test_settings_without_meta_i(self):
         self.edit("systemsettings.desktop", "X-KDE-Shortcuts=Tools,Meta+I", "X-KDE-Shortcuts=")

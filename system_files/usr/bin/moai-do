@@ -1782,6 +1782,11 @@ main() {
         shift
         cmd="${1:-help}"
     fi
+    # An approval covers THIS action only. moos-open hands it over in the environment
+    # (MOAI_DO_CONFIRMED=1 moai-do <action>); left exported, it would reach every program this
+    # action starts, and a moai-do started anywhere below would log "approved" for an action
+    # the owner never saw. The shell variable stays for confirm() here.
+    export -n MOAI_DO_CONFIRMED 2>/dev/null || true
     if [ "$#" -gt 0 ]; then
         shift
     fi

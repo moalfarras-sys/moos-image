@@ -410,6 +410,8 @@ _CONTROL_TOOLS: list[dict[str, Any]] = [
         parameters={"value": {"type": "string", "enum": ["on", "off"],
                               "description": "do not disturb on or off"}},
         required=["value"],
+        # On stays on until the owner turns it off, silencing every notification.
+        confirm_values={"value": ["on"]},
     ),
     _schema(
         "set_mic_mute",

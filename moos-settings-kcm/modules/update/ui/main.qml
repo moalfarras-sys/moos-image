@@ -225,7 +225,8 @@ KCM.SimpleKCM {
                     property bool copied: false
                     glyph: "warning"
                     glyphColor: Kirigami.Theme.neutralTextColor
-                    text: root.isolated(modelData.app)
+                    // The app's own name; its id stays in Copy details.
+                    text: root.isolated(modelData.name || modelData.app)
                     description: root.failureText(modelData.kind)
                     trailing: [
                         Controls.ToolButton {
@@ -257,8 +258,8 @@ KCM.SimpleKCM {
                 description: root.appsBusy
                     ? root.t("التطبيقات تُحدَّث في الخلفية الآن. يتاح هذا الزر من جديد عندما ينتهي ذلك التحديث.",
                              "Applications are updating in the background now. This is available again when that update finishes.")
-                    : root.t("يفتح Mo Store ويحدّث كل التطبيقات المثبتة بعد أن تؤكد.",
-                             "Opens Mo Store, which updates every installed application after you confirm.")
+                    : root.t("يحدّث كل التطبيقات المثبتة في الخلفية بعد أن تؤكد؛ تعرضه الجزيرة وهو يعمل ويخبرك إشعار كيف انتهى.",
+                             "Updates every installed application in the background after you confirm; the Island shows it running and a notification says how it ended.")
                 enabled: !root.appsBusy
                 onClicked: root.open("moos://do/update-apps")
             }
@@ -274,8 +275,8 @@ KCM.SimpleKCM {
             MoosActionRow {
                 glyph: "cpu"
                 text: root.t("فحص برامج الجهاز", "Check device firmware")
-                description: root.t("يبحث عن التحديثات التي تنشرها الشركة المصنّعة لهذا الجهاز، ويسألك MoOS قبل تثبيت أي منها.",
-                                    "Looks for the updates this device's maker publishes. MoOS asks before installing any of them.")
+                description: root.t("تفتح نافذة تعرض تحديثات الشركة المصنّعة المتاحة لكل قطعة وإصدارها، ولا يُثبَّت شيء قبل أن توافق هناك.",
+                                    "Opens a window listing each update this device's maker offers, with its device and version. Nothing is installed until you agree there.")
                 onClicked: root.open("moos://do/update-firmware")
             }
         }
