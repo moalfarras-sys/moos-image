@@ -555,6 +555,11 @@ Investigate why the mount disappeared; do not label the runtime repair a durable
 | 6 — P1.7, P4.1/P4.7, W10 | Unify Store transaction IDs, progress, cancel/retry and completion across Store/Island/AI. Design the drop surface only with a validated native file bridge. | Install/launch/reopen/remove a real app; observe the foreground Island Store job; reject invalid paths and cancelled consent. Native-bridge changes require image build. |
 | 7 — P2.4/P2.5/P5, M1 closure | Complete native visual/accessibility and performance qualification with the same assets on every edition. | Arabic/English/German, light/dark, 1080p–4K and fractional scales, real keys, screen reader, reduced motion; exact-edition artifacts and actual laptop/touch/multi-output evidence. |
 
+2026-09-25 source follow-up: the Island's compact capsule bypassed the live `glassFill`
+control; it now reads that control. Mo PC Remote's Auto quality now reaches Data Saver
+only after sustained congestion. Local H.264 and manual Data Saver were exercised, but
+external weak-link behavior and installed-image clarity changes still need proof.
+
 **Tools and materials:** authoritative tokens in `artwork/moos-design/tokens.json`;
 palette families in `artwork/moos-themes/palettes.json`; official marks in
 `artwork/logo/`; shared controls in `org/moos/ui`; source gallery commands in

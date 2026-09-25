@@ -1,14 +1,13 @@
 # MoOS current state — measured 2026-09-25
 Current measured facts only; Git owns history.
-
 **Release version numbers live here; other files point here.**
 
 ## Source and release truth
-- **x86 production is `44.20260925.931`** (W9.9 "MoOS One inside KDE", PR #164, revision
-  `be282a9f`): signed build `36106034816`, QCOW2 proofs `36108376279`/`36108380001`/
-  `36108383721`, offline ISO proof `36108387473`, promotion `36112344231`;
-  `moos-nvidia:latest` = `sha256:cb60a4b3…`. ARM `44.20260925.586` (same revision): native
-  build, UEFI QCOW2 proof and promotion in `36108390846`.
+- **x86 production is revision `c07aeeb5`**: signed build `36165203581`, QCOW2 proofs
+  `36168239572`/`36168244164`/`36168248206`, offline ISO `36168252789`, successful
+  promotion `36172848438`; `moos-nvidia:latest` = `sha256:ca87a77b…`. ARM production remains
+  `44.20260925.586`: candidate proof `36168257290` failed on an ARM `plymouthd` SEGV during
+  quit, leaving `plymouth-start.service` failed; no ARM promotion was made.
 - **The NVIDIA station boots signed `44.20260925.931`** (`be282a9f`), with signed `.929`
   retained for rollback. Read back after the 2026-09-25 reboot: zero failed system and
   user units, `post-update-check.sh` 55/0 and `moos-selfcheck` 54/0. The installed
@@ -58,9 +57,11 @@ image is running and passed live post-update checks;
 that does not qualify suspend, every app or the full visual matrix.
 
 **Mo PC Remote on the booted `.931`, 2026-09-25:** authenticated loopback H.264
-desktop stream measured 24–27 fps and 0–1 ms locally; a click moved the desktop
-pointer. External-network, typing, files, audio and other input modes remain
-unproved. Source after `.931` makes 30-day device trust opt-in; it is not installed.
+desktop stream measured 24–29 fps and 0–1 ms locally; a click moved the desktop
+pointer; manual Data Saver kept H.264 and Auto was restored. External-network,
+typing, files and audio remain unproved. Production `c07aeeb5` makes 30-day device
+trust opt-in; the station has not yet rebooted into it. Later source lets sustained
+congestion lower Auto from Balanced to Data Saver and makes Island follow glass clarity.
 
 **Speed and Mo AI, both measured on cycle H's `.890`** and NOT re-measured since.
 `moos-measure-speed` (P5.4): MoOS's share of boot **6.70 s**/9.0,
@@ -192,7 +193,6 @@ the key entered through Settings, a reboot and the provider-failure surface.
 **A second desktop server:** `moos-health scan` found `krdpserver` on `tcp *:3389` for the
 whole network beside Mo PC Remote; the finding carries `moos://privacy/stop-sharing`, and
 `moos-remote-guard off` stops and un-autostarts both with no administrator rights.
-
 ## Next execution
 Qualify the unified native Settings image and finish P2.12's app/firmware records; boot the
 staged NVIDIA image and run post-update checks. Then finish W9's real transaction lifecycle

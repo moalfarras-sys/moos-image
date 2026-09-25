@@ -332,7 +332,9 @@ set -uo pipefail
 #     of MoOS KWin packages (task switcher, scripts, effects) are quarantined
 #     like Plasma data, and the THEME_REV fingerprint now covers usr/share/kwin,
 #     whose QML/JS KWin also serves from a frozen-mtime cache.
-THEME_REV=86
+# 87: The Island's compact glass follows the live clarity setting. Migrate its
+#     cached QML on existing accounts so clear/balanced/solid become visible.
+THEME_REV=87
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"
