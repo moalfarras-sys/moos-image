@@ -61,7 +61,7 @@ desktop stream measured 24–29 fps and 0–1 ms locally; a click moved the desk
 pointer; manual Data Saver kept H.264 and Auto was restored. External-network,
 typing, files and audio remain unproved. Production `c07aeeb5` makes 30-day device
 trust opt-in; the station has not yet rebooted into it. Later source lets sustained
-congestion lower Auto from Balanced to Data Saver and makes Island follow glass clarity.
+congestion lower Auto to Data Saver, preserves browser Data Saver, and makes Island follow glass clarity.
 
 **Speed and Mo AI, both measured on cycle H's `.890`** and NOT re-measured since.
 `moos-measure-speed` (P5.4): MoOS's share of boot **6.70 s**/9.0,

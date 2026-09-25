@@ -3,7 +3,7 @@ import {readFileSync} from "node:fs";
 import {dirname, resolve} from "node:path";
 import {fileURLToPath} from "node:url";
 import {
-  pickStartPreset, describeHints, encodeWidth, hostMaxPreset, hostEncodeCeiling,
+  pickStartPreset, describeHints, encodeWidth, hostMaxPreset, hostEncodeCeiling, autoPresetLimit,
   PRESET_DATA_SAVER, PRESET_BALANCED, PRESET_SHARP,
 } from "../src/lib/quality.ts";
 import { QUALITY_PRESETS, AUTO_MAX_PRESET } from "../src/types.ts";
@@ -45,6 +45,15 @@ assert.equal(
                     hardwareConcurrency: 8, displayWidthPx: 3000 }),
   PRESET_DATA_SAVER,
   "Data Saver must win over every fast-link signal");
+assert.equal(autoPresetLimit(QUALITY_PRESETS, null, AUTO_MAX_PRESET,
+  { saveData: true, effectiveType: "4g", downlink: 50 }), PRESET_DATA_SAVER,
+  "the Auto ladder must not later undo the browser's Data Saver request");
+assert.equal(autoPresetLimit(QUALITY_PRESETS, null, AUTO_MAX_PRESET,
+  { effectiveType: "3g" }), PRESET_DATA_SAVER,
+  "low RTT alone must not promote a throughput-limited link");
+assert.equal(autoPresetLimit(QUALITY_PRESETS, null, AUTO_MAX_PRESET,
+  { effectiveType: "4g", downlink: 20 }), AUTO_MAX_PRESET,
+  "a capable link keeps the normal host-bounded Auto ceiling");
 
 // ── A slow link opens light, so the ladder is not immediately dragging it back down ───────
 for (const effectiveType of ["slow-2g", "2g", "3g"]) {
@@ -164,8 +173,10 @@ console.log("PASS: opening-quality choice (device + link aware)");
 // RTT promote the stream to Ultra, even though RTT says nothing about the available bandwidth.
 const here = dirname(fileURLToPath(import.meta.url));
 const remote = readFileSync(resolve(here, "../src/ui/RemoteScreen.tsx"), "utf8");
-assert.match(remote, /const autoMaxPreset = \(\) => hostMaxPreset\(QUALITY_PRESETS, hostEncodeRef\.current, AUTO_MAX_PRESET\);/,
-  "the RTT ladder must stop at Sharp AND at whatever the host says it can encode");
+assert.match(remote, /const autoMaxPreset = \(\) => autoPresetLimit\(QUALITY_PRESETS, hostEncodeRef\.current,\s*AUTO_MAX_PRESET, deviceHints\);/,
+  "the RTT ladder must stop at Sharp, the host cap and the browser's Data Saver policy");
+assert.match(remote, /const limit = autoPresetLimit\(QUALITY_PRESETS, cap, AUTO_MAX_PRESET, deviceHints\);/,
+  "a persisted manual preset must be capped when Auto reconnects on a slow link");
 assert.ok(!/autoMaxPreset\s*=\s*\(\)\s*=>[^;]*displayWidthPx/.test(remote),
   "display size must not bypass the automatic Sharp ceiling");
 

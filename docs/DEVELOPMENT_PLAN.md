@@ -557,7 +557,7 @@ Investigate why the mount disappeared; do not label the runtime repair a durable
 
 2026-09-25 source follow-up: the Island's compact capsule bypassed the live `glassFill`
 control; it now reads that control. Mo PC Remote's Auto quality now reaches Data Saver
-only after sustained congestion. Local H.264 and manual Data Saver were exercised, but
+only after sustained congestion and honors the browser's Data Saver policy. Local H.264 and manual Data Saver were exercised, but
 external weak-link behavior and installed-image clarity changes still need proof.
 
 **Tools and materials:** authoritative tokens in `artwork/moos-design/tokens.json`;

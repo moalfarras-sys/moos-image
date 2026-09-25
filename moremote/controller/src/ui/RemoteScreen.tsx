@@ -9,7 +9,7 @@ import {
   listTrustedDevices, revokeTrustedDevice,
   type ClipResult, type FileListing, type FileEntry, type PowerAction, type TrustedDeviceInfo,
 } from "../lib/api";
-import { pickStartPreset, readDeviceHints, describeHints, encodeWidth, hostMaxPreset,
+import { pickStartPreset, readDeviceHints, describeHints, encodeWidth, autoPresetLimit,
   hostEncodeCeiling, type HostEncode } from "../lib/quality";
 import { h264Failures, noteH264Failure, H264_MAX_FAILURES } from "../lib/h264state.ts";
 import { diffToOps } from "../lib/typing.ts";
@@ -888,7 +888,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
         hostEncodeRef.current = cap;
         setHostEncode(cap);
         if (autoRef.current) {
-          const limit = hostMaxPreset(QUALITY_PRESETS, cap, AUTO_MAX_PRESET);
+          const limit = autoPresetLimit(QUALITY_PRESETS, cap, AUTO_MAX_PRESET, deviceHints);
           if (presetIdxRef.current > limit) { presetIdxRef.current = limit; setPresetIdx(limit); }
         }
         pushSettings();
@@ -1522,7 +1522,8 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
    * hostMaxPreset. It bounds the automatic ladder only: choosing Sharp by hand on a host that
    * says 720p still gets Sharp, because a preset button that quietly does nothing is a defect.
    */
-  const autoMaxPreset = () => hostMaxPreset(QUALITY_PRESETS, hostEncodeRef.current, AUTO_MAX_PRESET);
+  const autoMaxPreset = () => autoPresetLimit(QUALITY_PRESETS, hostEncodeRef.current,
+                                             AUTO_MAX_PRESET, deviceHints);
 
   /** The last width we asked for, and when — the dead band and the floor that protect the helper. */
   const lastPushedWidth = useRef(0);
@@ -2563,7 +2564,11 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
           </div>
           <div className="row-label">{tr("quality")}</div>
           <div className="seg">
-            <button className={auto ? "on" : ""} onClick={() => { setAuto(true); showToast(tr("autoQuality")); }}>{tr("auto")}</button>
+            <button className={auto ? "on" : ""} onClick={() => {
+              setPresetIdx(idx => Math.min(idx, autoMaxPreset()));
+              setAuto(true);
+              showToast(tr("autoQuality"));
+            }}>{tr("auto")}</button>
             {QUALITY_PRESETS.map((p, i) => (
               <button key={p.label} className={!auto && presetIdx === i ? "on" : ""} onClick={() => { setAuto(false); selectPreset(i); }}
                 title={p.detail}>{tr(QUALITY_LABEL_KEYS[i])}<small>{p.detail}</small></button>
