@@ -158,7 +158,10 @@ def main() -> int:
     title, body, action = message(version, fresh, session_language())
     try:
         sender = subprocess.Popen(
+            # Filed under MoOS Settings, whose What's new page this opens: System Settings ›
+            # Notifications then lists it by that name and the person can mute it there.
             ["notify-send", "--app-name=MoOS", "--icon=moos-logo", "--urgency=normal",
+             "--hint=string:desktop-entry:systemsettings",
              f"--action=open={action}", "--wait", title, body],
             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
     except OSError:

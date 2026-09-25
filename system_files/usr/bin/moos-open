@@ -35,7 +35,24 @@ path="${url#moos:}"; path="${path#//}"; path="${path%%[?#]*}"; path="${path%/}"
 cat="${path%%/*}"
 tgt="${path#*/}"; [ "$tgt" = "$cat" ] && tgt=""
 
-notify() { command -v kdialog >/dev/null 2>&1 && kdialog --title "MoOS" --passivepopup "$1" 5 >/dev/null 2>&1 || true; }
+# Every message this router shows is a MoOS notification, filed under the MoOS surface it
+# belongs to: the desktop-entry hint makes System Settings › Notifications list it by that
+# entry's name, where the person can mute or style it. Without the hint these popups were
+# anonymous (measured: plasmanotifyrc knew no MoOS source at all). The owner is a literal at
+# every call site — MoOS Settings by default, Mo Store for app updates — never URL text.
+# kdialog's passive popup is only the fallback for a session without notify-send.
+notify() {
+    local text="$1" owner="systemsettings" icon="moos-control-center"
+    case "${2:-}" in
+        store) owner="org.moos.store"; icon="moos-store" ;;
+    esac
+    if command -v notify-send >/dev/null 2>&1 \
+        && notify-send --app-name=MoOS --icon="$icon" \
+               --hint="string:desktop-entry:${owner}" "MoOS" "$text" >/dev/null 2>&1; then
+        return 0
+    fi
+    command -v kdialog >/dev/null 2>&1 && kdialog --title "MoOS" --passivepopup "$text" 5 >/dev/null 2>&1 || true
+}
 
 # Because "moos:" is a registered scheme, ANY web page can hand this handler a URL.
 # State changes that are disruptive or persistent — turning ON a remote-access
@@ -131,7 +148,7 @@ remote_ctl() {
 # inside a pair reached the popup as "Firmware | البرامج الثابتة: لم يكتمل | did
 # not finish".
 moai_do_detached() {
-    local action="$1" label unfinished
+    local action="$1" label unfinished owner="${3:-}"
     label="$(localized_message "$2")"
     unfinished="$(localized_message "لم يكتمل | did not finish")"
     (
@@ -140,9 +157,9 @@ moai_do_detached() {
         rc=$?
         last="$(printf '%s\n' "$out" | sed -e 's/\x1b\[[0-9;]*m//g' | grep -v '^[[:space:]]*$' | tail -n 1 | cut -c1-200)"
         if [ "$rc" -eq 0 ]; then
-            notify "${label} ✓${last:+ — $last}"
+            notify "${label} ✓${last:+ — $last}" "$owner"
         else
-            notify "${label}: ${unfinished}${last:+ — $last}"
+            notify "${label}: ${unfinished}${last:+ — $last}" "$owner"
         fi
     ) </dev/null >/dev/null 2>&1 &
 }
@@ -541,7 +558,7 @@ PY
     # how it ended. Store jobs also show in the Island while they run.
     do/update-apps)
         confirm "تحديث كل التطبيقات عبر Mo Store الآن؟ | Update all apps through Mo Store now?" \
-            && moai_do_detached update-apps "Mo Store" ;;
+            && moai_do_detached update-apps "Mo Store" store ;;
     do/update-firmware)
         confirm "تحديث البرامج الثابتة للأجهزة الآن؟ قد يتطلب إعادة تشغيل ولا يمكن التراجع عنه. | Update device firmware now? It may need a restart and cannot be rolled back." \
             && moai_do_detached update-firmware "البرامج الثابتة | Firmware" ;;

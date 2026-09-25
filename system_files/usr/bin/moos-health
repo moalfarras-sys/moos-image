@@ -714,7 +714,10 @@ def notify(report):
                 f"App updates: {summary['app_updates']}"
                 + (" · System update ready" if summary["system_update_staged"] else "")
                 + " — open Mo AI for details.")
-    if tool(["notify-send", "--app-name=Mo AI", "--icon=moai", title, body], timeout=15) is None:
+    # Filed under Mo AI's own entry, so System Settings › Notifications lists "Mo AI" and the
+    # person can mute the daily check there.
+    if tool(["notify-send", "--app-name=Mo AI", "--icon=moai",
+             "--hint=string:desktop-entry:org.moos.moai", title, body], timeout=15) is None:
         return False
     STATE.mkdir(parents=True, exist_ok=True)
     marker.write_text(fingerprint, encoding="utf-8")

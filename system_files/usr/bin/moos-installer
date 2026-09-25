@@ -36,7 +36,9 @@ if ! is_live_boot; then
     if command -v kdialog >/dev/null 2>&1; then
         kdialog --title "MoOS" --sorry "$_not_live_message" >/dev/null 2>&1 || true
     elif command -v notify-send >/dev/null 2>&1; then
-        notify-send "MoOS" "$_not_live_message" >/dev/null 2>&1 || true
+        notify-send --app-name=MoOS --icon=moos-installer \
+            --hint=string:desktop-entry:systemsettings \
+            "MoOS" "$_not_live_message" >/dev/null 2>&1 || true
     fi
     printf 'MoOS Installer: %s\n' "$_not_live_message" >&2
     exit 1
