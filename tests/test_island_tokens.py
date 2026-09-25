@@ -347,6 +347,44 @@ class MoaiJobsReachTheIsland(unittest.TestCase):
         ]), ["running:00000002:fix_audio", "running:00000002:fix_audio",
              "failed:00000002:fix_audio"])
 
+    def test_an_ended_token_older_than_its_linger_is_old_news(self):
+        """Done/failed tokens older than 20 s are ignored; running ones never age out."""
+        now = 1_800_000_000_000
+        entries = [
+            {"name": "job-00000001-done-update_apps", "modified": now - 21_000},
+            {"name": "job-00000002-failed-fix_audio", "modified": now - 19_000},
+            {"name": "job-00000003-running-system_update", "modified": now - 3_600_000},
+            {"name": "job-00000004-done-install_app", "modified": "not a time"},
+            {"name": "job-00000005-failed-install_app"},
+            {"name": "job-00000006-done-optimize_system", "modified": now - 20_000},
+            {"name": "presence-active-1", "modified": now},
+        ]
+        self.assertEqual(island(f"recentMoaiJobNames({json.dumps(entries)}, {now})"),
+                         ["job-00000002-failed-fix_audio", "job-00000003-running-system_update",
+                          "job-00000006-done-optimize_system"])
+        # A Date, as FolderListModel's fileModified is, reads the same as milliseconds.
+        self.assertEqual(island("recentMoaiJobNames([{name: 'job-00000001-done-fix_audio', "
+                                f"modified: new Date({now - 25_000})}}], {now})"), [])
+        self.assertEqual(island("MOAI_JOB_LINGER_MS"), 20_000,
+                         "the Island's linger must equal moai-control's JOB_TOKEN_LINGER")
+        # Even a job the Island watched run is not announced from a token that aged out.
+        stale = [{"name": "job-00000001-done-update_apps", "modified": now - 60_000}]
+        self.assertIsNone(island(f"chooseMoaiJobToken(recentMoaiJobNames({json.dumps(stale)}, "
+                                 f"{now}), ['00000001'])"))
+
+    def test_the_island_ages_tokens_by_the_models_file_time(self):
+        qml = "\n".join(l for l in (ISLAND / "main.qml").read_text(encoding="utf-8").splitlines()
+                        if not l.lstrip().startswith("//"))
+        sync = qml.split("function syncMoaiJob() {", 1)[1].split("\n    }\n", 1)[0]
+        read = 'moaiJobPresence.get(i, "fileModified")'
+        age = "IslandTokens.recentMoaiJobNames(entries, Date.now());"
+        self.assertIn(read, sync, "the age must come from the model, never from reading a file")
+        self.assertIn(age, sync)
+        self.assertLess(sync.index(age), sync.index("IslandTokens.chooseMoaiJobToken("))
+        control = (ROOT / "system_files/usr/bin/moai-control").read_text(encoding="utf-8")
+        self.assertIn("JOB_TOKEN_LINGER = 20.0", control,
+                      "the producer's linger changed: keep MOAI_JOB_LINGER_MS equal to it")
+
     def test_the_island_feeds_back_what_it_watched(self):
         qml = "\n".join(l for l in (ISLAND / "main.qml").read_text(encoding="utf-8").splitlines()
                         if not l.lstrip().startswith("//"))
@@ -548,16 +586,20 @@ Item {
         onStatusChanged: if (status === FolderListModel.Ready) { sync() }
     }
     function sync() {
-        const names = [];
-        for (let i = 0; i < jobs.count; ++i) { names.push(String(jobs.get(i, "fileName"))) }
+        const entries = [];
+        for (let i = 0; i < jobs.count; ++i) {
+            entries.push({ name: String(jobs.get(i, "fileName")),
+                           modified: jobs.get(i, "fileModified") });
+        }
+        const names = IslandTokens.recentMoaiJobNames(entries, Date.now());
         const job = IslandTokens.chooseMoaiJobToken(names, watched);
         watched = job ? job.runningIds : [];
         const now = job ? job.state + ":" + job.id : "";
-        if (now !== "" && now !== shown) { console.warn("probe-state " + now); }
+        if (now !== shown) { console.warn("probe-state " + (now || "none")); }
+        // A job ended (or its chip went away): the Island has said everything this probe
+        // measures. Leaving by itself lets dbus-run-session stop its private bus daemon.
+        if ((job && !job.active) || (!job && shown !== "")) { finished.restart(); }
         shown = now;
-        // A job ended: the Island has said everything this probe measures. Leaving by itself
-        // lets dbus-run-session stop its private bus daemon.
-        if (job && !job.active) { finished.restart(); }
     }
     Component.onCompleted: console.warn("probe-ready")
     Timer { id: finished; interval: 300; onTriggered: Qt.exit(0) }
@@ -643,6 +685,24 @@ Item {
                         + "\n".join(output.seen[-20:]))
         self.assertFalse([line for line in output.seen if "0000000b" in line],
                          "a failure the Island never watched run was announced")
+
+
+    def test_a_late_sync_never_announces_an_aged_out_end(self):
+        """A real FolderListModel: the job's end arrives with a file time older than the linger
+        (the stamp a producer that died long ago left). The chip goes away; nothing is announced."""
+        jobs, output = self.run_session()
+        running = jobs.start("0c0c0c0c", "update_apps")
+        self.assertTrue(output.wait_for("probe-state running:0c0c0c0c", 10),
+                        "\n".join(output.seen[-20:]))
+        # A running token never ages out; stamping it first makes the rename below carry the old
+        # time atomically (a rename keeps the mtime), so the model never sees a fresh "done".
+        long_ago = time.time() - 60
+        os.utime(running, (long_ago, long_ago))
+        jobs.finish("0c0c0c0c", "update_apps", "done")
+        self.assertTrue(output.wait_for("probe-state none", 10),
+                        "\n".join(output.seen[-20:]))
+        self.assertFalse([line for line in output.seen if "done:0c0c0c0c" in line],
+                         "an end older than the producer's linger was announced")
 
 
 class TheShellNeverReadsALocalFile(unittest.TestCase):

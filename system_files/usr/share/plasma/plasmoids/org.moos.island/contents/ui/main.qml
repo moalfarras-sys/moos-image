@@ -351,7 +351,8 @@ PlasmoidItem {
     // ── Mo AI Job Presence (confirmed actions) ─────────────────────────────────────
     // moai-control publishes one token per confirmed job, `job-<id8hex>-<state>-<tool>`, in the
     // runtime directory and RENAMES it as the job runs, finishes or fails (done/failed tokens are
-    // removed after 20 s). A rename changes no count, so this model — like the three above —
+    // removed after 20 s, and one whose fileModified is older than that is ignored here: a producer
+    // that stopped first leaves it behind). A rename changes no count, so this model — like the three above —
     // syncs on count, data and status (see IslandTokens.js). The name carries the tool id only — no arguments, no secrets — and the
     // chip opens Mo AI, where the person sees the steps. It ranks below Remote, privacy and the
     // Store: those are safety states or work the person started by hand.
@@ -390,10 +391,14 @@ PlasmoidItem {
     }
 
     function syncMoaiJob() {
-        const names = [];
+        // Each token with the moment it entered its state (the producer stamps it). An ended
+        // token older than the producer's 20 s linger is old news, even to a late sync.
+        const entries = [];
         for (let i = 0; i < moaiJobPresence.count; ++i) {
-            names.push(String(moaiJobPresence.get(i, "fileName") || ""));
+            entries.push({ name: String(moaiJobPresence.get(i, "fileName") || ""),
+                           modified: moaiJobPresence.get(i, "fileModified") });
         }
+        const names = IslandTokens.recentMoaiJobNames(entries, Date.now());
         const job = IslandTokens.chooseMoaiJobToken(names, root.moaiWatchedJobs);
         root.moaiWatchedJobs = job ? job.runningIds : [];
         if (!job) {
