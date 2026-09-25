@@ -94,6 +94,13 @@ def trap(folder: Path, name: str) -> tuple[Path, Path]:
 
 
 def sandboxed(script: Path, argv: list[str]) -> list[str]:
+    """The suite's view: the whole machine, except the logger (a trap) and the journal socket
+    (an empty directory).
+
+    A known limit: inside an unprivileged user namespace root-owned directories read as owned
+    by nobody, so systemd-tmpfiles refuses its "unsafe path transition" (exit 73). A suite
+    that runs systemd-tmpfiles cannot be proven here; none that names an auditing tool does.
+    """
     command = ["bwrap", "--dev-bind", "/", "/"]
     seen = set()
     for candidate in LOGGERS:

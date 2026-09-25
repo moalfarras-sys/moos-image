@@ -381,9 +381,8 @@ class MoaiJobsReachTheIsland(unittest.TestCase):
         self.assertIn(read, sync, "the age must come from the model, never from reading a file")
         self.assertIn(age, sync)
         self.assertLess(sync.index(age), sync.index("IslandTokens.chooseMoaiJobToken("))
-        control = (ROOT / "system_files/usr/bin/moai-control").read_text(encoding="utf-8")
-        self.assertIn("JOB_TOKEN_LINGER = 20.0", control,
-                      "the producer's linger changed: keep MOAI_JOB_LINGER_MS equal to it")
+        # The producer's side (JOB_TOKEN_LINGER) is held equal to MOAI_JOB_LINGER_MS by
+        # tests/test_moai_control.py, which owns the producer.
 
     def test_the_island_feeds_back_what_it_watched(self):
         qml = "\n".join(l for l in (ISLAND / "main.qml").read_text(encoding="utf-8").splitlines()

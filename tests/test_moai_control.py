@@ -909,6 +909,17 @@ class IslandJobTokenTests(unittest.TestCase):
             self.assertEqual(self.tokens(later), [], "the job wrote where the environment "
                              "pointed when it RAN, not where it was accepted")
 
+    def test_the_island_ages_ended_tokens_by_this_linger(self):
+        """The Island drops done/failed tokens older than MOAI_JOB_LINGER_MS; it must be ours."""
+        with tempfile.TemporaryDirectory() as home:
+            linger = load_control(home)["JOB_TOKEN_LINGER"]
+        tokens_js = (ROOT / "system_files/usr/share/plasma/plasmoids/org.moos.island/contents/ui/"
+                     "IslandTokens.js").read_text(encoding="utf-8")
+        match = re.search(r"var MOAI_JOB_LINGER_MS = (\d+);", tokens_js)
+        self.assertIsNotNone(match, "the Island no longer declares its linger")
+        self.assertEqual(int(match.group(1)), round(linger * 1000),
+                         "the Island and moai-control disagree on how long an ended job is news")
+
     def test_an_ended_token_is_stamped_when_it_ends(self):
         """A rename keeps the old mtime; the Island and the sweep read it as the state's age."""
         with tempfile.TemporaryDirectory() as home, tempfile.TemporaryDirectory() as runtime:
