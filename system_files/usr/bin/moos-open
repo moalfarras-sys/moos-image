@@ -261,6 +261,7 @@ case "${cat}/${tgt}" in
     settings/window-rules)      gui systemsettings kcm_kwinrules ;;
     settings/effects)           gui systemsettings kcm_kwin_effects ;;
     settings/desktops)          gui systemsettings kcm_kwin_virtualdesktops ;;
+    settings/screen-edges)      gui systemsettings kcm_kwinscreenedges ;;
     settings/task-switcher)     gui systemsettings kcm_kwintabbox ;;
     settings/search)            gui systemsettings kcm_plasmasearch ;;
     settings/login-screen)      gui systemsettings kcm_plasmalogin ;;
@@ -542,7 +543,7 @@ PY
     # The desktop-sharing server that is NOT MoOS's. moos-health finds it (an RDP
     # or VNC port open to the whole network) and this is the action behind that
     # finding: a fixed helper, two named user services, no argument from the
-    # caller, no administrator rights, and System Settings turns either back on.
+    # caller, no administrator rights, and nothing the person set up is deleted.
     privacy/stop-sharing)
         confirm "إيقاف مشاركة سطح المكتب غير التابعة لـ MoOS؟ | Turn off desktop sharing that is not MoOS's?" \
             && { /usr/bin/moos-remote-guard off >/dev/null 2>&1 \

@@ -2094,6 +2094,9 @@ ROUTES_KEPT_WITHOUT_AN_EMITTER = {
                       "(slice A) opens it",
     "remote/fast-off": "SPEC D6: the Fast Remote switch of the Mo PC Remote settings page "
                        "(slice A) opens it",
+    "settings/screen-edges": "SPEC D3 native page (kcm_kwinscreenedges); its registry entry is "
+                             "moai: false until Mo AI's control grammar names it, and then "
+                             "open_settings opens it",
 }
 for _label in sorted(declared_routes):
     if _label.endswith("*"):

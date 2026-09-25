@@ -114,13 +114,19 @@ class TheRegistry(unittest.TestCase):
             "notifications", "energy", "time", "region", "users", "storage", "default-apps",
             "autostart", "lock", "permissions", "global-theme", "colors", "icons", "cursors",
             "shortcuts", "window-behavior", "window-rules", "effects", "desktops",
-            # screen-edges (kcm_kwinscreenedges) is NOT here: its only plugin is in
-            # kcms/systemsettings_qwidgets/ and it has no .desktop, so the image gate's
-            # resolution rule would fail the x86 build. It returns when that rule does.
+            # screen-edges is listed (see test_screen_edges_is_a_native_page) but not yet
+            # offered: Mo AI's control grammar must name it in the same change.
             "task-switcher", "animations", "sounds", "search", "login-screen",
             "virtual-keyboard", "touchscreen", "tablet", "game-controller", "window-decoration",
         }
         self.assertEqual(required - offered, set())
+
+    def test_screen_edges_is_a_native_page(self):
+        """SPEC D3's screen-edges page: kcm_kwinscreenedges, which ships no .desktop and whose
+        plugin lives only in kcms/systemsettings_qwidgets/ — it needs the image gate to look in
+        every module folder (TheImageGateSeesAndResolvesEveryModule holds that)."""
+        entry = destinations.load(REGISTRY)["screen-edges"]
+        self.assertEqual((entry["host"], entry["target"]), ("systemsettings", "kcm_kwinscreenedges"))
 
     def test_moos_modules_are_moos_settings_sections(self):
         registry = destinations.load(REGISTRY)
@@ -200,6 +206,23 @@ class TheImageGateSeesAndResolvesEveryModule(unittest.TestCase):
         self.assertGreaterEqual(len(wanted), 25)
         self.assertEqual(sorted(routes), wanted)
 
+    def resolves(self, kcm: str) -> bool:
+        desktop = Path(self.desktop.format(kcm=kcm)).is_file()
+        return desktop or any(path.is_file() for base, pattern in self.plugins
+                              for path in Path(base).glob(pattern.format(kcm=kcm)))
+
+    def test_the_rule_looks_in_every_module_folder_and_still_refuses_an_unknown_id(self):
+        """The widened rule must still bite: an id nobody installed resolves to nothing."""
+        self.assertTrue(any("kcms/*/" in pattern for _base, pattern in self.plugins),
+                        "the image gate does not look in every module folder")
+        if not HOST_KCMS.is_dir():
+            self.skipTest("no settings modules on this machine (the image gate checks the image)")
+        self.assertTrue(self.resolves("kcm_kwinscreenedges"),
+                        "kcm_kwinscreenedges (kcms/systemsettings_qwidgets/) is not resolved")
+        self.assertTrue(self.resolves("kcm_usb"), "a kinfocenter module is not resolved")
+        for unknown in ("kcm_moos_no_such_page", "kcm_kwinscreenedgesx", "kcm_"):
+            self.assertFalse(self.resolves(unknown), f"{unknown} resolved to something")
+
     def test_every_listed_module_resolves_by_the_image_gates_rule(self):
         """Measured on this machine, with exactly the lookup the image build performs."""
         if not HOST_KCMS.is_dir():
@@ -216,6 +239,63 @@ class TheImageGateSeesAndResolvesEveryModule(unittest.TestCase):
                 missing.append(f"settings/{token} -> {kcm}")
         self.assertEqual(missing, [], "the image gate would call these modules not installed; "
                          "the x86 image build would fail")
+
+
+class TheImageGateResolvesEveryMoosSection(unittest.TestCase):
+    """The image gate's `moos_section_problems`, run on the repository and on broken copies.
+
+    Every `moos-settings --section=<s>` route must open a kcm_moos* module that the KCM
+    stage built (settings-modules.list) and installed. The function is read out of the image
+    gate's source, so this proves the exact code the image build runs can fail.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        tree = ast.parse(IMAGE_GATE.read_text(encoding="utf-8"))
+        wanted = [node for node in tree.body if isinstance(node, ast.FunctionDef)
+                  and node.name in ("source", "moos_section_problems")]
+        if len(wanted) != 2:
+            raise AssertionError("the image gate lost moos_section_problems — update this test")
+        namespace: dict = {"re": re}
+        exec(compile(ast.Module(body=wanted, type_ignores=[]), str(IMAGE_GATE), "exec"),
+             namespace)
+        cls.problems = staticmethod(namespace["moos_section_problems"])
+        cls.router = namespace["source"](ROUTER.read_text(encoding="utf-8"), "#")
+        cls.launcher = namespace["source"](MOOS_SETTINGS.read_text(encoding="utf-8"), "#")
+        cls.modules = set(re.findall(r"module=(kcm_moos(?:_[a-z]+)?)\b", cls.launcher))
+
+    def test_the_repository_resolves_when_every_module_is_built(self):
+        self.assertGreaterEqual(len(self.modules), 7, self.modules)
+        self.assertEqual(self.problems(self.router, self.launcher, self.modules,
+                                       lambda _module: True), [])
+
+    def test_a_module_the_build_did_not_list_fails(self):
+        found = self.problems(self.router, self.launcher, self.modules - {"kcm_moos_update"},
+                              lambda _module: True)
+        self.assertTrue(any("kcm_moos_update" in problem and "settings-modules.list" in problem
+                            for problem in found), found)
+
+    def test_a_listed_module_that_is_not_installed_fails(self):
+        found = self.problems(self.router, self.launcher, self.modules,
+                              lambda module: module != "kcm_moos_remote")
+        self.assertTrue(any("kcm_moos_remote" in problem and "not installed" in problem
+                            for problem in found), found)
+
+    def test_a_section_the_launcher_does_not_have_fails(self):
+        launcher = self.launcher.replace("--section=update)", "--section=renamed)")
+        found = self.problems(self.router, launcher, self.modules, lambda _module: True)
+        self.assertTrue(any("--section=update" in problem and "no such section" in problem
+                            for problem in found), found)
+
+    def test_a_section_that_opens_another_module_fails(self):
+        launcher = self.launcher.replace("module=kcm_moos_recovery", "module=kcm_lookandfeel")
+        found = self.problems(self.router, launcher, self.modules, lambda _module: True)
+        self.assertTrue(any("kcm_lookandfeel" in problem and "not a MoOS module" in problem
+                            for problem in found), found)
+
+    def test_a_blind_parser_fails(self):
+        found = self.problems("", self.launcher, self.modules, lambda _module: True)
+        self.assertTrue(any("found almost nothing" in problem for problem in found), found)
 
 
 class TheRouterIsTheRegistrysLiteralTwin(unittest.TestCase):

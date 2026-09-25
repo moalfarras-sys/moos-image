@@ -58,6 +58,8 @@ check:
     python3 tests/test_moos_health.py
     # On moos-arm, RDP is MoOS's own remote desktop: never "foreign sharing" to switch off.
     python3 tests/test_remote_edition_guard.py
+    # The x86 KIOSK block runs: the input-method and KRDP pages stay hidden, ARM keeps KRDP.
+    python3 tests/test_settings_kiosk.py
     python3 tests/test_moai_krunner.py
     python3 tests/test_foreign_app_menus.py
     python3 tests/test_remote_cuda_scaler.py

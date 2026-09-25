@@ -1083,10 +1083,20 @@ test ! -e /usr/share/applications/org.fcitx.Fcitx5.desktop \
 # libplasma soname bump on Plasma 6.8 drops it until Fedora rebuilds it (PROJECT_STATE.md),
 # and hiding the page holds either way. x86 only: build-arm.sh never runs this file.
 #
-# KRDP's "Remote Desktop" page (kcm_krdpserver) is deliberately NOT restricted here. D5 names
-# only the input-method page, and moos-remote-guard tells the owner that System Settings
-# turns either remote server back on in one click. Taking that page away is an owner
-# decision, handed to the integrator on 2026-09-24, not something this block decides.
+# --- ...and no second remote-desktop page (x86: moos, moos-nvidia, moos-cloud) ---
+# KRDP's "Remote Desktop" page (kcm_krdpserver, package krdp) sat in the sidebar beside MoOS's
+# own Mo PC Remote page (kcm_moos_remote): two remote-desktop settings for one computer, and
+# the KDE one opens RDP on *:3389 for the whole network — the server moos-health reports and
+# moos-remote-guard switches off as foreign sharing on every x86 edition. The cloud edition
+# was checked before including it: its remote desktop is Mo PC Remote over the tailnet,
+# `moos-cloud-desktop on` disables app-org.kde.krdpserver.service itself (two portal capture
+# servers compete for one desktop, tests/test_cloud_private_desktop.py), and no MoOS document
+# or route uses RDP there. ARM is untouched and keeps KRDP: on moos-arm it IS MoOS's remote
+# desktop (moos-arm-remote in build-arm.sh), and build-arm.sh never runs this file. Only the
+# page is hidden; the package, a user's certificate and settings stay where they were.
+# Measured (2026-09-25, isolated, offscreen, private XDG_CONFIG_DIRS): with this group
+# `kcmshell6 --smoke-test kcm_krdpserver` exits 1 instead of 0, while kcm_mouse and
+# kcm_kwinscreenedges still exit 0.
 #
 # Mechanism: the KIOSK group every KDE settings host already obeys, not a deleted plugin.
 # Evidence (2026-09-24, plasma-systemsettings 6.7.5, KF 6.30):
@@ -1106,12 +1116,14 @@ test ! -e /usr/share/applications/org.fcitx.Fcitx5.desktop \
 if ! grep -qxF '[KDE Control Module Restrictions]' /etc/xdg/kdeglobals; then
     cat >> /etc/xdg/kdeglobals <<'MOOSKIOSK'
 
-# MoOS x86 (build.sh): no Settings page for the input-method engine this edition removed.
+# MoOS x86 (build.sh): no Settings page for the input-method engine this edition removed,
+# and one remote-desktop page — Mo PC Remote's.
 [KDE Control Module Restrictions]
 kcm_fcitx5=false
+kcm_krdpserver=false
 MOOSKIOSK
 fi
-python3 - /etc/xdg/kdeglobals kcm_fcitx5 <<'MOOSKIOSKGATE' || exit 1
+python3 - /etc/xdg/kdeglobals kcm_fcitx5 kcm_krdpserver <<'MOOSKIOSKGATE' || exit 1
 import sys
 path, *wanted = sys.argv[1:]
 group, restricted = None, {}
@@ -1128,7 +1140,8 @@ for raw in open(path, encoding="utf-8"):
 missing = [kcm for kcm in wanted if restricted.get(kcm) != "false"]
 if missing:
     raise SystemExit(f"GATE FAIL: /etc/xdg/kdeglobals does not restrict {missing} — System "
-                     "Settings would offer a page for an engine this edition removed")
+                     "Settings would offer a page for an engine this edition removed, or a "
+                     "second remote-desktop page beside Mo PC Remote")
 MOOSKIOSKGATE
 
 # Qt WebEngine spell-check dictionaries.
