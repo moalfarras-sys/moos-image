@@ -41,7 +41,8 @@ NODE = shutil.which("node")
 
 # (agent service?, method, path) — every request the page may make.
 REQUESTS = {
-    (True, "GET", "/api/config"), (True, "GET", "/api/capabilities"), (True, "GET", "/api/channels"),
+    (True, "GET", "/api/config"), (True, "GET", "/api/capabilities"), (True, "GET", "/api/status"),
+    (True, "GET", "/api/channels"),
     (True, "POST", "/api/config"),
     (False, "GET", "/models"), (False, "GET", "/measure"), (False, "GET", "/quick"),
     (False, "POST", "/measure"),
@@ -73,15 +74,21 @@ EXACT = [
      "Runs immediately without approval. Most powerful and highest risk"),
     ("الإعداد الحالي على القرص لا يطابق أي مستوى من الأربعة — اختر مستوى ليُوحَّد.",
      "The on-disk configuration matches none of the four tiers — pick one to normalise it."),
-    ("نموذج صغير ضعيف أمام حقن التعليمات، والبحث المحلي يتطلب تسجيل دخول Ollama — بدون حساب تفشل الأداة "
-     "ويعلق العقل المحلي عليها. فعّله مع العقل السحابي فقط.",
-     "A small model is vulnerable to prompt injection, and local search needs an Ollama account sign-in "
-     "— without one the tool always fails and the local brain can loop on it. Enable this with the cloud "
-     "brain only."),
     ("نماذج سحابية فقط. المجاني افتراضي؛ المدفوع باختيارك. قد تنتهي الحصة المجانية.",
      "Cloud models only. Free by default; paid models require your selection. Free quotas may run out."),
     ("المجاني افتراضي؛ المدفوع باختيارك. لا نماذج محلية.", "Free by default; paid by choice. No local models."),
 ]
+
+# The window's web warning spoke of a local brain and a sign-in for local search. Mo AI is cloud-only
+# (moai-agent-api capabilities: brains.local is False), so the note was rewritten for what web access
+# is on this system, and the retired engine's sentence may not come back to either surface.
+WEB_NOTE = ("يبحث وكيل الهاتف في الإنترنت ويقرأ الصفحات بالعقل المحفوظ. قد تحمل صفحة ويب تعليمات موجّهة إلى "
+            "النموذج (حقن التعليمات)، ففعّله فقط إن أردت أن يقرأ الوكيل الويب.",
+            "The phone agent searches the web and reads pages with the saved brain. A web page can carry "
+            "instructions aimed at the model (prompt injection), so turn this on only if you want the agent "
+            "to read the web.")
+RETIRED_WEB_WORDS = ("Ollama", "local brain", "local search", "العقل المحلي", "البحث المحلي",
+                     "A small model is vulnerable to prompt injection")
 
 
 def code(text: str) -> str:
@@ -126,6 +133,12 @@ class TheModule(unittest.TestCase):
         for route in ("moos://settings/shortcuts", "moos://app/moai", "moos://agent/whatsapp-login",
                       "moos://do/install-openclaw", "moos://settings/themes", "moos://settings/region"):
             self.assertIn(f'root.open("{route}")', page)
+        # One door per destination: a second button to the same place is the duplication this wave
+        # removes (the hero's "Open Mo AI" once had a twin in "Reaching Mo AI").
+        opened = re.findall(r'root\.open\("([^"]+)"\)', page)
+        self.assertGreaterEqual(len(opened), 7, "the open pattern moved; this gate must read it")
+        twice = sorted({route for route in opened if opened.count(route) > 1})
+        self.assertEqual(twice, [], f"the page opens these more than once: {twice}")
         self.assertIn('MoosKeyCap { keyName: "Meta" }', page)
         self.assertIn('MoosKeyCap { keyName: "Space" }', page)
         self.assertIn("Ctrl+Enter", page, "the Ask Mo AI from Search note lost its key")
@@ -179,12 +192,13 @@ class NothingIsWrittenByOpening(unittest.TestCase):
         self.assertIn('Component.onCompleted: loadAll(["brain", "telegram", "permissions"])', page)
         opening = page.split("onVisibleChanged: if (visible) {", 1)[1].split("}", 1)[0]
         self.assertEqual(sorted(re.findall(r"(\w+)\(\)", opening)),
-                         ["loadCapabilities", "loadMeasure", "loadQuick"])
+                         ["loadAgentStatus", "loadCapabilities", "loadMeasure", "loadQuick"])
         load_all = function(page, "loadAll")
         self.assertEqual(sorted(re.findall(r"\b(\w+)\(", load_all)[1:]),
-                         ["loadCapabilities", "loadConfig", "loadMeasure", "loadModels", "loadQuick"])
-        for loader in ("loadConfig", "loadCapabilities", "loadModels", "loadMeasure", "loadQuick",
-                       "checkChannels", "applyDrafts"):
+                         ["loadAgentStatus", "loadCapabilities", "loadConfig", "loadMeasure", "loadModels",
+                          "loadQuick"])
+        for loader in ("loadConfig", "loadCapabilities", "loadAgentStatus", "loadModels", "loadMeasure",
+                       "loadQuick", "checkChannels", "applyDrafts"):
             self.assertNotIn('"POST"', function(page, loader), loader)
         # The phone agent is woken only when the owner asks for a channel check.
         self.assertEqual(page.count('"/api/channels"'), 1)
@@ -232,6 +246,48 @@ class TheWordsAreTheOnesTheWindowUsed(unittest.TestCase):
                 self.assertIn(f'"{english}"', page)
                 self.assertNotIn(english, app, "the window still carries a moved setting")
 
+    def test_the_web_note_speaks_of_the_cloud_only_system(self) -> None:
+        page = flat(PAGE.read_text(encoding="utf-8"))
+        app = APP.read_text(encoding="utf-8")
+        arabic, english = WEB_NOTE
+        self.assertIn(f'root.t("{arabic}",\n', PAGE.read_text(encoding="utf-8"))
+        self.assertIn(f'"{english}"', page)
+        for retired in RETIRED_WEB_WORDS:
+            with self.subTest(words=retired):
+                self.assertNotIn(retired, code(page), "the page names the retired local brain")
+                self.assertNotIn(retired, code(app), "the window names the retired local brain")
+
+
+class TheChipsSayWhatWasMeasured(unittest.TestCase):
+    """A chip is a claim. It may say only what the value behind it measured."""
+
+    def test_the_brain_chip_claims_configured_never_online(self) -> None:
+        page = code(PAGE.read_text(encoding="utf-8"))
+        # /quick's "online" is cloud_ready(): an address and a key, deliberately no provider call.
+        control = (ROOT / "system_files/usr/bin/moai-control").read_text(encoding="utf-8")
+        self.assertIn('this flag only says "configured"', control,
+                      "moai-control's readiness changed meaning; re-read what the chip may claim")
+        for claim in ("Brain online", "Brain offline", "العقل متصل", "العقل غير متصل"):
+            self.assertNotIn(claim, page)
+        self.assertEqual(page.count("readonly property var chipState: root.brainChip(root.quickKnown, "
+                                    "root.quickDoc.online === true)"), 1)
+        self.assertEqual(page.count("root.brainChip("), 1, "a second brain chip this gate does not read")
+
+    def test_the_phone_agent_chip_uses_the_services_readiness_rule(self) -> None:
+        page = code(PAGE.read_text(encoding="utf-8"))
+        self.assertIn("readonly property bool agentConfigured: agentStatusKnown "
+                      "&& agentStatus.openclaw_configured === true", page)
+        chip = page.split("readonly property var chipState: root.agentChip(", 1)[1].split(")", 1)[0]
+        self.assertEqual([arg.strip() for arg in chip.split(",")],
+                         ["root.capabilitiesKnown", "root.agentInstalled", "root.agentStatusKnown",
+                          "root.agentConfigured"])
+        self.assertNotIn("hasKey", function(page, "agentChip"))
+        # The same rule the Mo AI window's Workbench gates on, so the two cannot disagree.
+        app = APP.read_text(encoding="utf-8")
+        self.assertIn("root.agentOpenClawConfigured = !!s.openclaw_configured", app)
+        api = (ROOT / "system_files/usr/bin/moai-agent-api").read_text(encoding="utf-8")
+        self.assertIn('"openclaw_configured": _openclaw_configured(cfg, primary),', api)
+
 
 @unittest.skipUnless(NODE, "needs node to execute the page logic")
 class WhatEachSaveSends(unittest.TestCase):
@@ -240,7 +296,7 @@ class WhatEachSaveSends(unittest.TestCase):
         script = "const assert = require('node:assert/strict');\nlet rtl = false;\n"
         for name in ("t", "localPair", "providerLabel", "providerEntry", "allowList", "brainBody",
                      "defaultBody", "telegramBody", "permissionsBody", "hostControlText", "measureText",
-                     "tierChip", "failureText"):
+                     "tierChip", "failureText", "brainChip", "agentChip"):
             script += function(page, name) + "\n"
         script += r"""
 const catalogue = [{id: 'openrouter-free', base: 'https://openrouter.ai/api/v1', model: 'openrouter/free'},
@@ -292,7 +348,21 @@ assert.ok(failureText({offline: true}).includes('nothing was saved'));
 assert.ok(!failureText({offline: true, timedOut: true}).includes('nothing was saved'));
 assert.ok(failureText({offline: true, timedOut: true}).includes('Refresh'));
 assert.equal(failureText({status: 400, error: 'شكل | Bad token'}), 'Bad token');
+// Chips: the brain is CONFIGURED (no provider call behind it); the phone agent is ready only by the
+// service's rule — installed plus a saved key is still "Setup required" when the service says not ready.
+assert.equal(brainChip(true, true).text, 'Brain configured');
+assert.equal(brainChip(true, false).text, 'No brain configured');
+assert.equal(brainChip(false, true).tone, 'neutral');
+for (const known of [true, false]) for (const on of [true, false])
+  assert.ok(!/online|offline/i.test(brainChip(known, on).text));
+assert.deepEqual(agentChip(true, true, true, true), {glyph: 'check', tone: 'positive', text: 'Installed and configured'});
+assert.deepEqual(agentChip(true, true, true, false), {glyph: 'warning', tone: 'warning', text: 'Setup required'});
+assert.equal(agentChip(true, true, false, true).tone, 'neutral');
+assert.equal(agentChip(true, false, true, true).text, 'Not installed');
+assert.equal(agentChip(false, true, true, true).text, 'Unknown');
 rtl = true;
+assert.equal(brainChip(true, true).text, 'العقل مُعدّ');
+assert.equal(agentChip(true, true, true, false).text, 'يحتاج إعداداً');
 assert.equal(providerLabel('OpenRouter (مجاني فقط | free only)'), 'OpenRouter (مجاني فقط)');
 assert.equal(localPair('عربي | English'), 'عربي');
 assert.ok(/[؀-ۿ]/.test(hostControlText('read')));

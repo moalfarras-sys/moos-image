@@ -5795,24 +5795,25 @@ Kirigami.ApplicationWindow {
                             }
 
                             Repeater {
-                                // Two of these are somebody else's cloud, and one is not — which is
-                                // the only distinction that matters on a machine that ships its own
-                                // brain, so the card says it out loud. `local: true` earns the
-                                // "works offline" badge and the cyan frame; the other two carry the
+                                // Two of these need somebody else's account, and one does not:
+                                // `moai-do install-opencode` wires OpenCode to Mo AI's own free cloud
+                                // brain through this account's gateway, so the card says it out loud.
+                                // `moaiBrain: true` earns the cyan frame; the other two carry the
                                 // account they need, because "why is it asking me to log in?" is the
-                                // first thing a user hits otherwise.
+                                // first thing a user hits otherwise. Mo AI is cloud-only, so no card
+                                // promises an agent that works without the network.
                                 model: [
-                                    { key: "opencode", title: "OpenCode", local: true,
-                                      ar: "وكيل يعمل على عقل MoOS المحلي", en: "Runs on the MoOS local brain",
-                                      needsAr: "بلا حساب وبلا إنترنت", needsEn: "No account or internet",
+                                    { key: "opencode", title: "OpenCode", moaiBrain: true,
+                                      ar: "وكيل يعمل على عقل Mo AI السحابي المجاني", en: "Runs on Mo AI's free cloud brain",
+                                      needsAr: "بلا حساب مزوّد", needsEn: "No vendor account",
                                       pkg: "opencode-ai",
                                       install: "moos://do/install-opencode", run: "moos://dev/opencode" },
-                                    { key: "claude", title: "Claude Code", local: false,
+                                    { key: "claude", title: "Claude Code", moaiBrain: false,
                                       ar: "وكيل Anthropic البرمجي", en: "Anthropic's coding agent",
                                       needsAr: "يحتاج حساب Anthropic", needsEn: "Needs an Anthropic account",
                                       pkg: "@anthropic-ai/claude-code",
                                       install: "moos://do/install-claude", run: "moos://dev/claude" },
-                                    { key: "codex", title: "Codex", local: false,
+                                    { key: "codex", title: "Codex", moaiBrain: false,
                                       ar: "وكيل OpenAI البرمجي", en: "OpenAI's coding agent",
                                       needsAr: "يحتاج حساب OpenAI", needsEn: "Needs an OpenAI account",
                                       pkg: "@openai/codex",
@@ -5822,14 +5823,14 @@ Kirigami.ApplicationWindow {
                                     id: ag
                                     required property var modelData
                                     readonly property bool have: !!root.agentState[modelData.key]
-                                    readonly property bool onDevice: !!modelData.local
+                                    readonly property bool onMoaiBrain: !!modelData.moaiBrain
                                     Layout.fillWidth: true
 
-                                    // The local agent is the one MoOS is actually proud of, so it
-                                    // reads as first-party: a cyan hairline instead of the default.
+                                    // The agent MoOS wires to its own brain reads as first-party:
+                                    // a cyan hairline instead of the default.
                                     // Card IS a Rectangle, so this overrides its border binding —
                                     // there is no borderColor property to invent.
-                                    border.color: ag.onDevice
+                                    border.color: ag.onMoaiBrain
                                                   ? Qt.rgba(root.novaCyan.r, root.novaCyan.g, root.novaCyan.b, 0.42)
                                                   : root.hairline
 
@@ -5844,15 +5845,15 @@ Kirigami.ApplicationWindow {
                                             color: ag.have
                                                    ? Qt.rgba(root.okColor.r, root.okColor.g,
                                                              root.okColor.b, 0.13)
-                                                   : (ag.onDevice
+                                                   : (ag.onMoaiBrain
                                                       ? Qt.rgba(root.novaCyan.r, root.novaCyan.g, root.novaCyan.b, 0.12)
                                                       : root.surface2)
                                             Kirigami.Icon {
                                                 anchors.centerIn: parent
                                                 width: 21; height: 21
-                                                source: ag.onDevice ? "moos-ai-symbolic" : "moos-code-symbolic"
+                                                source: ag.onMoaiBrain ? "moos-ai-symbolic" : "moos-code-symbolic"
                                                 color: ag.have ? root.okColor
-                                                               : (ag.onDevice ? root.novaCyan : root.textMute)
+                                                               : (ag.onMoaiBrain ? root.novaCyan : root.textMute)
                                             }
                                         }
                                         ColumnLayout {
@@ -5872,29 +5873,6 @@ Kirigami.ApplicationWindow {
                                                     goodText: root.local("مثبّت", "Installed")
                                                     badText: root.local("غير مثبّت", "Not installed")
                                                 }
-                                                // The badge that is the whole point of shipping a
-                                                // local brain: an agent that keeps working when the
-                                                // network does not.
-                                                Rectangle {
-                                                    visible: ag.onDevice
-                                                    Layout.preferredHeight: root.fs(18)
-                                                    Layout.preferredWidth: offlineText.width + 14
-                                                    radius: root.fs(6)
-                                                    color: Qt.rgba(root.novaCyan.r, root.novaCyan.g,
-                                                                   root.novaCyan.b, 0.14)
-                                                    border.width: 1
-                                                    border.color: Qt.rgba(root.novaCyan.r, root.novaCyan.g,
-                                                                          root.novaCyan.b, 0.45)
-                                                    Text {
-                                                        id: offlineText
-                                                        anchors.centerIn: parent
-                                                        text: root.local("يعمل بلا إنترنت", "Offline")
-                                                        color: root.novaCyan
-                                                        font.family: root.uiFont
-                                                        font.pixelSize: root.typePx(9)
-                                                        font.weight: Font.DemiBold
-                                                    }
-                                                }
                                             }
                                             Text {
                                                 Layout.fillWidth: true
@@ -5908,8 +5886,8 @@ Kirigami.ApplicationWindow {
                                                 Layout.fillWidth: true
                                                 text: root.local(ag.modelData.needsAr,
                                                                  ag.modelData.needsEn)
-                                                color: ag.onDevice ? root.novaCyan : root.textMute
-                                                opacity: ag.onDevice ? 0.95 : 0.8
+                                                color: ag.onMoaiBrain ? root.novaCyan : root.textMute
+                                                opacity: ag.onMoaiBrain ? 0.95 : 0.8
                                                 font.family: root.uiFont
                                                 font.pixelSize: root.typePx(10)
                                             }

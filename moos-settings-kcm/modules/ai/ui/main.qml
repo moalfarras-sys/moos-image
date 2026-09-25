@@ -35,10 +35,12 @@ KCM.SimpleKCM {
     property string configState: "loading"    // loading | ready | offline | unreadable
     property var capabilities: ({})           // GET /api/capabilities (is the phone agent installed)
     property bool capabilitiesKnown: false
+    property var agentStatus: ({})            // GET /api/status (is the phone agent ready: openclaw_configured)
+    property bool agentStatusKnown: false
     property var modelsDoc: ({})              // GET /models (the provider's own list)
     property string modelsState: "loading"    // loading | ready | offline
     property var measureDoc: ({})             // GET /measure
-    property var quickDoc: ({})               // GET /quick (can the default brain answer)
+    property var quickDoc: ({})               // GET /quick (is a default brain CONFIGURED — never a live call)
     property bool quickKnown: false
     property var channelsDoc: ({})            // GET /api/channels — only when the owner asks
     property string channelsState: "unchecked" // unchecked | checking | ready | failed
@@ -67,6 +69,10 @@ KCM.SimpleKCM {
                                             ? config.ui.language : ""
     readonly property bool agentInstalled: capabilitiesKnown && !!capabilities.agent
                                            && capabilities.agent.installed === true
+    // Ready is the service's own rule (moai-agent-api _openclaw_configured): the primary is a
+    // cloud model that the provider node lists, with its address, protocol and key. It is what
+    // the Mo AI Workbench gates on, so the two surfaces cannot disagree. A saved key alone is not it.
+    readonly property bool agentConfigured: agentStatusKnown && agentStatus.openclaw_configured === true
     readonly property var cloudModels: Array.isArray(modelsDoc.cloud) ? modelsDoc.cloud : []
     readonly property string defaultModel: typeof modelsDoc["default"] === "string" ? modelsDoc["default"] : ""
     readonly property bool measuring: measureDoc.measuring === true
@@ -219,12 +225,27 @@ KCM.SimpleKCM {
     }
 
     // ── The words for each state. ──
-    function brainChip() {
-        if (!quickKnown)
+    // moai-control's "online" is cloud_ready(): an address and a key are saved. It is
+    // deliberately not a call to the provider, so the chip claims configured, never reachable;
+    // a chat or the model list's refresh is what proves the provider answers.
+    function brainChip(known, configured) {
+        if (!known)
             return { glyph: "ai", tone: "neutral", text: t("حالة العقل غير معروفة", "Brain status unknown") }
-        if (quickDoc.online === true)
-            return { glyph: "check", tone: "positive", text: t("العقل متصل", "Brain online") }
-        return { glyph: "warning", tone: "warning", text: t("العقل غير متصل", "Brain offline") }
+        if (configured)
+            return { glyph: "check", tone: "positive", text: t("العقل مُعدّ", "Brain configured") }
+        return { glyph: "warning", tone: "warning", text: t("العقل غير مُعدّ", "No brain configured") }
+    }
+    // The phone agent: installed is a file on disk; ready is the service's own readiness rule.
+    function agentChip(known, installed, statusKnown, configured) {
+        if (!known)
+            return { glyph: "help", tone: "neutral", text: t("غير معروف", "Unknown") }
+        if (!installed)
+            return { glyph: "warning", tone: "warning", text: t("غير مثبّت", "Not installed") }
+        if (!statusKnown)
+            return { glyph: "help", tone: "neutral", text: t("مثبّت؛ الجاهزية غير معروفة", "Installed; readiness unknown") }
+        if (configured)
+            return { glyph: "check", tone: "positive", text: t("مثبّت ومهيّأ", "Installed and configured") }
+        return { glyph: "warning", tone: "warning", text: t("يحتاج إعداداً", "Setup required") }
     }
     function tierChip(tier) {
         switch (tier) {
@@ -364,6 +385,13 @@ KCM.SimpleKCM {
             root.capabilitiesKnown = r.ok
         })
     }
+    // Read-only on the service side: files, `systemctl is-active`, no wake of the phone agent.
+    function loadAgentStatus() {
+        moai.request(true, "GET", "/api/status", null, 30000, function (r) {
+            root.agentStatus = r.ok ? r.data : ({})
+            root.agentStatusKnown = r.ok
+        })
+    }
     function loadModels() {
         if (modelsState !== "ready")
             modelsState = "loading"
@@ -395,6 +423,7 @@ KCM.SimpleKCM {
     function loadAll(sections) {
         loadConfig(sections)
         loadCapabilities()
+        loadAgentStatus()
         loadModels()
         loadMeasure()
         loadQuick()
@@ -439,6 +468,7 @@ KCM.SimpleKCM {
             root.loadConfig(["brain"])
             root.loadModels()
             root.loadQuick()
+            root.loadAgentStatus()
         })
     }
     function saveDefaultModel(row) {
@@ -460,6 +490,7 @@ KCM.SimpleKCM {
             root.defaultNotice = { tone: "positive", text: t("صار الافتراضي: ", "Default is now: ") + root.modelLabel(row) }
             root.loadConfig(root.brainChanged ? [] : ["brain"])
             root.loadModels()
+            root.loadAgentStatus()
         })
     }
     function measureFree() {
@@ -538,6 +569,7 @@ KCM.SimpleKCM {
         loadQuick()
         loadMeasure()
         loadCapabilities()
+        loadAgentStatus()
     }
 
     actions: [
@@ -594,9 +626,10 @@ KCM.SimpleKCM {
                              "Your MoOS assistant: its brain, your phone, and what it may do on this computer.")
             chips: [
                 MoosChip {
-                    glyph: root.brainChip().glyph
-                    label: root.brainChip().text
-                    tone: root.brainChip().tone
+                    readonly property var chipState: root.brainChip(root.quickKnown, root.quickDoc.online === true)
+                    glyph: chipState.glyph
+                    label: chipState.text
+                    tone: chipState.tone
                 },
                 MoosChip {
                     visible: root.configReady
@@ -775,12 +808,11 @@ KCM.SimpleKCM {
                                     "The shared desktop, Telegram and WhatsApp runtime: one session store, memory and tool policy.")
                 trailing: [
                     MoosChip {
-                        glyph: !root.capabilitiesKnown ? "help" : root.agentInstalled && root.hasKey ? "check" : "warning"
-                        label: !root.capabilitiesKnown ? root.t("غير معروف", "Unknown")
-                             : !root.agentInstalled ? root.t("غير مثبّت", "Not installed")
-                             : root.hasKey ? root.t("مثبّت ومهيّأ", "Installed and configured")
-                             : root.t("يحتاج إعداداً", "Setup required")
-                        tone: !root.capabilitiesKnown ? "neutral" : root.agentInstalled && root.hasKey ? "positive" : "warning"
+                        readonly property var chipState: root.agentChip(root.capabilitiesKnown, root.agentInstalled,
+                                                                    root.agentStatusKnown, root.agentConfigured)
+                        glyph: chipState.glyph
+                        label: chipState.text
+                        tone: chipState.tone
                     }
                 ]
             }
@@ -978,8 +1010,8 @@ KCM.SimpleKCM {
                 onToggledTo: wanted => root.webDraft = wanted
             }
             MoosNote {
-                text: root.t("نموذج صغير ضعيف أمام حقن التعليمات، والبحث المحلي يتطلب تسجيل دخول Ollama — بدون حساب تفشل الأداة ويعلق العقل المحلي عليها. فعّله مع العقل السحابي فقط.",
-                             "A small model is vulnerable to prompt injection, and local search needs an Ollama account sign-in — without one the tool always fails and the local brain can loop on it. Enable this with the cloud brain only.")
+                text: root.t("يبحث وكيل الهاتف في الإنترنت ويقرأ الصفحات بالعقل المحفوظ. قد تحمل صفحة ويب تعليمات موجّهة إلى النموذج (حقن التعليمات)، ففعّله فقط إن أردت أن يقرأ الوكيل الويب.",
+                             "The phone agent searches the web and reads pages with the saved brain. A web page can carry instructions aimed at the model (prompt injection), so turn this on only if you want the agent to read the web.")
                 bottomPadding: Kirigami.Units.smallSpacing
             }
             FormCard.FormDelegateSeparator {}
@@ -1032,13 +1064,6 @@ KCM.SimpleKCM {
                 text: root.t("اسأل Mo AI من البحث", "Ask Mo AI from Search")
                 description: root.t("اكتب سؤالك في البحث واختر «اسأل Mo AI»، أو اضغط Ctrl+Enter.",
                                     "Type your question in Search and choose “Ask Mo AI”, or press Ctrl+Enter.")
-            }
-            FormCard.FormDelegateSeparator {}
-            MoosActionRow {
-                glyph: "external"
-                text: root.t("افتح Mo AI", "Open Mo AI")
-                description: root.t("المحادثة، وفحص جهازك، والورشة.", "The chat, your device's check, and the Workbench.")
-                onClicked: root.open("moos://app/moai")
             }
             FormCard.FormDelegateSeparator {}
             // Opens Mo AI on its device panel: the verdict on drivers, updates and security
