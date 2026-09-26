@@ -4631,6 +4631,7 @@ python3 /ctx/plasma_seams.py build || {
 for _pair in \
     "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/explorer/WidgetExplorer.qml:moosDesktopCustomizer" \
     "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/DesktopEditMode.qml:softwareRendering" \
+    "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/Panel.qml:translucentMaterialOpacity" \
     "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/LockScreenUi.qml:MoOSClock" \
     "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/MainBlock.qml:org.moos.ui" \
     "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/MediaControls.qml:org.moos.ui" \

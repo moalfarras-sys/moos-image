@@ -30,8 +30,10 @@ PROBE = """
 import QtQuick
 import Qt.labs.settings
 import org.moos.ui as MoUI
+import "%(hub)s" as Hub
 
 QtObject {
+    property var card: Hub.GlassCard { motionEnabled: false; accentMotion: false }
     property color dark: "#0b0f14"
     property var sink: Settings {
         fileName: "%(out)s"
@@ -42,6 +44,8 @@ QtObject {
         property real sceneFill: 0
         property real popoverFill: 0
         property real floatingFill: 0
+        property real cardUpper: 0
+        property real cardLower: 0
     }
     Component.onCompleted: {
         sink.blurActive = MoUI.Tokens.blurActive
@@ -52,6 +56,8 @@ QtObject {
                                                  MoUI.Tokens.glassRestingOpacity)
         sink.floatingFill = MoUI.Tokens.glassFill(dark, MoUI.Tokens.glassLevelDialog,
                                                   MoUI.Tokens.floatingGlassOpacity)
+        sink.cardUpper = card.upperSurface.a
+        sink.cardLower = card.lowerSurface.a
         sink.ran = true
         Qt.callLater(function () { Qt.exit(0) })
     }
@@ -98,7 +104,7 @@ def measure(blur, system_blur=None, clarity=None) -> dict:
             written[appearance] = appearance.read_text(encoding="utf-8")
         out = work / "probe.ini"
         probe = work / "probe.qml"
-        probe.write_text(PROBE % {"out": out}, encoding="utf-8")
+        probe.write_text(PROBE % {"out": out, "hub": (ROOT / "system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui").as_uri()}, encoding="utf-8")
         environment = {
             "HOME": str(work), "XDG_CONFIG_HOME": str(config),
             "XDG_CONFIG_DIRS": str(system_config),
@@ -133,6 +139,15 @@ def measure(blur, system_blur=None, clarity=None) -> dict:
 
 @unittest.skipIf(RUNTIME is None, "no QML runtime on this machine (CI)")
 class ClarityWithoutBlur(unittest.TestCase):
+    def test_dock_material_is_not_overridden_by_window_touching_state(self):
+        relative = "usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/Panel.qml"
+        for path in (ROOT / "system_files" / relative,
+                     ROOT / "build_files/plasma-seams/6.8" / relative):
+            text = path.read_text()
+            self.assertIn("readonly property real materialOpacity: MoUI.Tokens.glassClarity", text)
+            self.assertIn("opacity: root.materialOpacity", text)
+            self.assertIn("opacity: root.translucentMaterialOpacity", text)
+
     @classmethod
     def setUpClass(cls):
         cls.with_blur = measure(True)
@@ -186,6 +201,14 @@ class ClarityWithoutBlur(unittest.TestCase):
         self.assertAlmostEqual(float(self.with_blur["sceneFill"]), 0.22, places=3)
         self.assertAlmostEqual(float(self.with_blur["popoverFill"]), 0.22, places=3)
         self.assertAlmostEqual(float(self.with_blur["floatingFill"]), 0.82, places=3)
+
+    def test_real_card_paints_distinct_clarity_endpoints(self):
+        values = [measure(True, clarity=name) for name in ("clear", "balanced", "solid")]
+        for key in ("cardUpper", "cardLower"):
+            alpha = [float(v[key]) for v in values]
+            self.assertGreater(alpha[1] - alpha[0], 0.2)
+            self.assertGreater(alpha[2] - alpha[1], 0.05)
+            self.assertGreater(alpha[2], 0.95)
 
     def test_saved_clarity_has_three_measured_material_endpoints(self):
         clear = measure(True, clarity="clear")
