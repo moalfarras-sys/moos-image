@@ -139,6 +139,15 @@ def measure(blur, system_blur=None, clarity=None) -> dict:
 
 @unittest.skipIf(RUNTIME is None, "no QML runtime on this machine (CI)")
 class ClarityWithoutBlur(unittest.TestCase):
+    def test_dock_material_is_not_overridden_by_window_touching_state(self):
+        relative = "usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/Panel.qml"
+        for path in (ROOT / "system_files" / relative,
+                     ROOT / "build_files/plasma-seams/6.8" / relative):
+            text = path.read_text()
+            self.assertIn("readonly property real materialOpacity: MoUI.Tokens.glassClarity", text)
+            self.assertIn("opacity: root.materialOpacity", text)
+            self.assertIn("opacity: root.translucentMaterialOpacity", text)
+
     @classmethod
     def setUpClass(cls):
         cls.with_blur = measure(True)

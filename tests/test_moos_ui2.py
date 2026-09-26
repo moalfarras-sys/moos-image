@@ -873,7 +873,7 @@ class TestMoOSUI2(unittest.TestCase):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=89", apply,
+            "THEME_REV=90", apply,
             "existing v85 users would keep the cached Island that imports the retired Search "
             "applet and shows no Mo AI jobs, the launcher with three settings tiles, and a home "
             "copy of the MoOS task switcher; "

@@ -139,9 +139,9 @@ Item {
     property double floatingness: 0.0
 
     // PanelOpacity is a value in [0, 1] that's used as the opacity of the opaque elements over the transparent ones; values between 0 and 1 are used for animations
-    // Preserve KDE's adaptive opacity; MoOS clarity adds material density only.
+    // MoOS clarity owns frame density, including beside maximized windows.
     // These bindings affect the frame, never applet text, icons or input geometry.
-    readonly property real materialOpacity: Math.max(panelOpacity, MoUI.Tokens.glassClarity)
+    readonly property real materialOpacity: MoUI.Tokens.glassClarity
     readonly property real translucentMaterialOpacity:
         Math.min(1, 0.35 + 1.3 * MoUI.Tokens.glassClarity)
 

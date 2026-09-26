@@ -22,7 +22,7 @@
         "from": "6.7.0",
         "before": "6.7.90"
       },
-      "reviewed_on": "plasma-desktop/plasma-workspace 6.7.5-1.fc44, x86_64 and aarch64 (identical digests), 2026-09-24 Panel.qml reviewed against package bytes on 2026-09-26; geometry and KDE adaptive-opacity logic preserved.",
+      "reviewed_on": "plasma-desktop/plasma-workspace 6.7.5-1.fc44, x86_64 and aarch64 (identical digests), 2026-09-24 Panel.qml reviewed against package bytes on 2026-09-26; geometry and upstream panel state logic preserved; MoOS clarity owns frame density.",
       "sources": {},
       "reviewed": {
         "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/LockScreenUi.qml": ["328501780ab06cc0497a25ff48c6f027a1abed8506f0969f39a5f8bc6696181c"],
@@ -44,7 +44,7 @@
         "from": "6.7.90",
         "before": "6.8.90"
       },
-      "reviewed_on": "plasma-desktop/plasma-workspace 6.7.90-1.fc44 (6.8 beta 1, KDE SIG kde-beta COPR, x86_64), 2026-09-24. LockScreenUi and MainBlock were re-derived by three-way merge; Clock's upstream change is a tabular-figures font feature on the stock label MoOS's copy replaces, so the MoOS copy stands; the other seven are byte-identical upstream. Panel.qml reviewed against package bytes on 2026-09-26; geometry and KDE adaptive-opacity logic preserved.",
+      "reviewed_on": "plasma-desktop/plasma-workspace 6.7.90-1.fc44 (6.8 beta 1, KDE SIG kde-beta COPR, x86_64), 2026-09-24. LockScreenUi and MainBlock were re-derived by three-way merge; Clock's upstream change is a tabular-figures font feature on the stock label MoOS's copy replaces, so the MoOS copy stands; the other seven are byte-identical upstream. Panel.qml reviewed against package bytes on 2026-09-26; geometry and upstream panel state logic preserved; MoOS clarity owns frame density.",
       "sources": {
         "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/LockScreenUi.qml": "6.8/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/LockScreenUi.qml",
         "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/MainBlock.qml": "6.8/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/MainBlock.qml",

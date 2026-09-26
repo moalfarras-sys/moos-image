@@ -64,5 +64,6 @@ a person merged that upstream version into MoOS's copy and watched the real gree
 
 Panel.qml is a reviewed seam for 6.7.5 and the 6.7.90 package. MoOS imports its
 shared material policy and changes frame opacity and mask selection only. KDE
-continues to own panel geometry, adaptive opacity, applets and input. The 6.8
+continues to own panel geometry, applets and input; MoOS clarity owns material density,
+including beside maximized windows. The 6.8
 variant retains the upstream ContainmentItem and panel-enum changes.

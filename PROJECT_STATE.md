@@ -24,7 +24,7 @@ Current measured facts only; Git owns history.
 
 ## App engines — what this machine can actually run
 
-**Corrective source work, 2026-09-26:** THEME_REV 89 adds a reviewed 6.7/6.8 dock
+**Corrective source work, 2026-09-26:** THEME_REV 90 adds a reviewed 6.7/6.8 dock
 material seam and shared Hub material; real-card alpha endpoints passed; image proof pending.
 Windows setup folder access is temporary, confirmed and read-only. Generals Zero Hour
 intro/background launches; menu/gameplay unproved. Display settings backed up; Android initialized.
