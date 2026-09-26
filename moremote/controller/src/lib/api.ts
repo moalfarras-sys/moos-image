@@ -120,12 +120,19 @@ export interface TrustedDeviceInfo {
   current: boolean;
 }
 
+export class SessionExpiredError extends Error {
+  constructor() { super("session expired"); }
+}
+
 export async function listTrustedDevices(token: string): Promise<TrustedDeviceInfo[]> {
   const res = await fetchWithTimeout("/api/devices", {
     cache: "no-store", headers: { authorization: "Bearer " + token },
   });
+  if (res.status === 401) throw new SessionExpiredError();
   if (!res.ok) throw new Error("device inventory failed");
-  return ((await res.json()) as { devices?: TrustedDeviceInfo[] }).devices || [];
+  const data = await res.json() as { devices?: TrustedDeviceInfo[] };
+  if (!Array.isArray(data.devices)) throw new Error("invalid device inventory");
+  return data.devices;
 }
 
 export async function revokeTrustedDevice(token: string, deviceId: string): Promise<boolean> {
