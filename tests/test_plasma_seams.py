@@ -97,7 +97,7 @@ class TheRegistryIsTheTree(unittest.TestCase):
         for (lo, hi, sid), (lo2, _hi2, sid2) in zip(spans, spans[1:]):
             self.assertLess(lo, hi, sid)
             self.assertLessEqual(hi, lo2, f"sets {sid} and {sid2} overlap")
-        cases = {"6.7.0": "6.7", "6.7.5": "6.7", "6.7.90": "6.8", "6.8.0": "6.8", "6.8.6": "6.8"}
+        cases = {"6.7.0": "6.7", "6.7.5": "6.7", "6.7.90": "6.8", "6.7.91": "6.8-beta2", "6.8.0": "6.8-beta2", "6.8.6": "6.8-beta2"}
         for version, expected in cases.items():
             self.assertEqual(plasma_seams.select_set(REGISTRY, version)["id"], expected, version)
         for version in ("6.6.5", "6.8.90", "6.9.0", "7.0.0"):
@@ -205,6 +205,16 @@ class TheGateRefuses(unittest.TestCase):
         for path, source in chosen["sources"].items():
             self.assertEqual((self.root / path.lstrip("/")).read_bytes(),
                              (ROOT / "build_files/plasma-seams" / source).read_bytes(), path)
+
+    def test_beta_two_requires_its_review_and_installs_the_new_prompt_path(self):
+        with self.assertRaises(plasma_seams.SeamError):
+            self.run_gate("6.7.91", self.reviewed("6.8"))
+        self.run_gate("6.7.91", self.reviewed("6.8-beta2"))
+        text = (self.root / f"{LOCK}/LockScreenUi.qml".lstrip("/")).read_text()
+        self.assertIn("required property bool showPrompt", text)
+        self.assertIn("lockScreenUi.showPrompt = showPrompt", text)
+        self.assertIn("PW.KeyboardLayoutSwitcher", text)
+        self.assertNotIn("LoginLockScreen.Footer", text)
 
     def test_upstream_drift_is_refused(self):
         digests = self.reviewed("6.7")

@@ -42,7 +42,7 @@
       "id": "6.8",
       "plasma": {
         "from": "6.7.90",
-        "before": "6.8.90"
+        "before": "6.7.91"
       },
       "reviewed_on": "plasma-desktop/plasma-workspace 6.7.90-1.fc44 (6.8 beta 1, KDE SIG kde-beta COPR, x86_64), 2026-09-24. LockScreenUi and MainBlock were re-derived by three-way merge; Clock's upstream change is a tabular-figures font feature on the stock label MoOS's copy replaces, so the MoOS copy stands; the other seven are byte-identical upstream. Panel.qml reviewed against package bytes on 2026-09-26; geometry and upstream panel state logic preserved; MoOS clarity owns frame density.",
       "sources": {
@@ -62,6 +62,54 @@
         "/usr/lib64/qt6/qml/org/kde/breeze/components/Clock.qml": ["bed93a670a8fcb1d90798c59350285439e4b4cbbcfd5b289e4839deab4e3ba9c"],
         "/usr/lib64/qt6/qml/org/kde/breeze/components/UserDelegate.qml": ["5d0487cbb475811affcff5b0a75e29e859596fb954c38c8bcce3c0ef3fd39ebf"],
         "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/Panel.qml": ["22ea7117172633c7d90c7f679247bd24aa2ca5ad4a531a75673cf21d2f5001be"]
+      }
+    },
+    {
+      "id": "6.8-beta2",
+      "plasma": {
+        "from": "6.7.91",
+        "before": "6.8.90"
+      },
+      "reviewed_on": "plasma-desktop/plasma-workspace 6.7.91-1.fc44 (6.8 beta 2), 2026-09-26. All eleven registered upstream files compared with beta 1; only LockScreenUi changed. Three-way merge preserves upstream showPrompt, authenticator connections and restored workspace footer verbatim. Real isolated kscreenlocker greeter loaded; deliberately missing type failed and fell back as expected.",
+      "sources": {
+        "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/LockScreenUi.qml": "6.8-beta2/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/LockScreenUi.qml",
+        "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/MainBlock.qml": "6.8/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/MainBlock.qml",
+        "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/Panel.qml": "6.8/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/Panel.qml"
+      },
+      "reviewed": {
+        "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/LockScreenUi.qml": [
+          "7b171ddd450c502efabf0d28f6a717c523392eb2ed34c725be35a594136d4de3"
+        ],
+        "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/MainBlock.qml": [
+          "487ce6e0c5903bb11a7b92ffb2470ad48503c7850a2da9d406edead37c898707"
+        ],
+        "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/MediaControls.qml": [
+          "fc2de879d76e7d2f37292fb8c79283b5b7dae894de44539270a53dbd4c9927b0"
+        ],
+        "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/explorer/WidgetExplorer.qml": [
+          "27208dd43471f61fe0c06ef78299590cdaf25c65fdb9f4676f61d3b70d3e7a02"
+        ],
+        "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/DesktopEditMode.qml": [
+          "ef4848bcd4efb75da1d15e39d8c2ea8d5d2af0cb38116dc62f33769c82edbaf5"
+        ],
+        "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/defaults": [
+          "07abd8f0e42594c2822c54084e38a810747025d111f1fe1e7c8e0cec1f2684f0"
+        ],
+        "/usr/share/plasma/layout-templates/org.kde.plasma.desktop.defaultPanel/contents/layout.js": [
+          "7ccabbcbb8fccb7f32c239b562d4ebe67e915f15f8066bc7ca994a6deb767d59"
+        ],
+        "/usr/lib64/qt6/qml/org/kde/breeze/components/ActionButton.qml": [
+          "f0d5a0326ea8715b378d1c757341921ecdf6a703e5a632409633158fca29d7e5"
+        ],
+        "/usr/lib64/qt6/qml/org/kde/breeze/components/Clock.qml": [
+          "bed93a670a8fcb1d90798c59350285439e4b4cbbcfd5b289e4839deab4e3ba9c"
+        ],
+        "/usr/lib64/qt6/qml/org/kde/breeze/components/UserDelegate.qml": [
+          "5d0487cbb475811affcff5b0a75e29e859596fb954c38c8bcce3c0ef3fd39ebf"
+        ],
+        "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/Panel.qml": [
+          "22ea7117172633c7d90c7f679247bd24aa2ca5ad4a531a75673cf21d2f5001be"
+        ]
       }
     }
   ]
