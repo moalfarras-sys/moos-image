@@ -336,7 +336,7 @@ set -uo pipefail
 #     cached QML on existing accounts so clear/balanced/solid become visible.
 # 88: Palette icon families gain circular and faceted plates. Reapply the icon
 #     theme and clear KDE's icon cache on existing accounts after the new image.
-THEME_REV=88
+THEME_REV=89
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

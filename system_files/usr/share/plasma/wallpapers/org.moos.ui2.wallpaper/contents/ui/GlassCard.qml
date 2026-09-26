@@ -37,12 +37,14 @@ Item {
         Kirigami.Theme.alternateBackgroundColor.r,
         Kirigami.Theme.alternateBackgroundColor.g,
         Kirigami.Theme.alternateBackgroundColor.b,
-        lightSurface ? 0.91 : 0.84)
+        Math.min(0.99, design.glassFill(Kirigami.Theme.alternateBackgroundColor,
+                                      design.glassLevelScene, 0.22) + 0.04))
     readonly property color lowerSurface: Qt.rgba(
         Kirigami.Theme.backgroundColor.r,
         Kirigami.Theme.backgroundColor.g,
         Kirigami.Theme.backgroundColor.b,
-        lightSurface ? 0.83 : 0.76)
+        design.glassFill(Kirigami.Theme.backgroundColor,
+                         design.glassLevelScene, 0.18))
     readonly property color edgeColor: Qt.rgba(
         Kirigami.Theme.highlightColor.r,
         Kirigami.Theme.highlightColor.g,

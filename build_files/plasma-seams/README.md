@@ -1,6 +1,6 @@
 # MoOS seams in Plasma
 
-MoOS replaces ten files that live inside Plasma's own packages: the shell package's lock screen
+MoOS replaces eleven files that live inside Plasma's own packages: the shell package's lock screen
 (`LockScreenUi.qml`, `MainBlock.qml`, `MediaControls.qml`), widget explorer, edit mode,
 `defaults` and panel template, plus the breeze components `ActionButton`, `Clock` and
 `UserDelegate` that the login, lock and logout screens draw. Each one is a fork of the upstream
@@ -59,3 +59,10 @@ Plasma usually shows up there weeks before it reaches the base.
 
 Never widen a range or add a digest to make a build pass. A digest in `reviewed` is a claim that
 a person merged that upstream version into MoOS's copy and watched the real greeter load it.
+
+## Live material, 2026-09-26
+
+Panel.qml is a reviewed seam for 6.7.5 and the 6.7.90 package. MoOS imports its
+shared material policy and changes frame opacity and mask selection only. KDE
+continues to own panel geometry, adaptive opacity, applets and input. The 6.8
+variant retains the upstream ContainmentItem and panel-enum changes.

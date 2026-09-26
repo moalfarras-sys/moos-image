@@ -1282,6 +1282,13 @@ Implementation order inside P4 (no separate backlog):
    Existing registry resolves engine availability, NOT successful app compatibility.
 3. P4.3: per-app Windows environments, MSI/EXE distinction, install discovery,
    launcher/icon export and uninstall. Current shared prefix/launch is not this product.
+   Station review 2026-09-26: the owner's Generals Zero Hour files already exist in
+   `Generals-32`; the installer offered removal, which was declined. Russian locale
+   corrected unreadable installer text. Game launch reached its intro/background,
+   but a usable menu and gameplay remain unproved. Its saved resolution was 640×480;
+   a backed-up 1920×1080 configuration is under test. Source repair lets the optional
+   sandboxed launcher read adjacent installer payloads with a confirmed, temporary,
+   read-only folder grant; it does not complete the per-app product or universal support.
 4. P4.4: Android initialization/download consent, ABI preflight, individual-app
    windows, launcher/files/audio and GPU fallback. ARM-only APKs are not generally
    runnable on x86; NVIDIA fallback requires separate performance qualification.
