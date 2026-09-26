@@ -323,6 +323,31 @@ class RasterLadder(unittest.TestCase):
 class PaletteBaking(unittest.TestCase):
     """The actual "icons follow the theme" gate."""
 
+    def test_theme_families_have_distinct_visible_plate_shapes(self) -> None:
+        # A palette-only change was too subtle in the dock. These three optical
+        # silhouettes must survive in the committed SVGs at every theme switch.
+        radii = {
+            "MoOSUI2Aurora": 264, "MoOSUI2AuroraLight": 264,
+            "MoOSUI2Nova": 440, "MoOSUI2NovaLight": 440,
+            "MoOSUI2Amethyst": 440, "MoOSUI2AmethystLight": 440,
+            "MoOSUI2Midnight": 440, "MoOSUI2Daylight": 440,
+            "MoOSUI2Arena": 128, "MoOSUI2ArenaLight": 128,
+            "MoOSUI2Forge": 128, "MoOSUI2ForgeLight": 128,
+            "MoOSUI2Scholar": 128, "MoOSUI2ScholarLight": 128,
+        }
+        self.assertEqual(set(radii), set(PALETTE_THEMES))
+        for theme, expected in radii.items():
+            svg = SHARE / f"icons/{theme}/moos/apps/scalable/moos-store.svg"
+            root = ElementTree.fromstring(svg.read_text(encoding="utf-8"))
+            plate = next(
+                element for element in root.iter(f"{SVG_NS}rect")
+                if element.get("width") == "880" and element.get("height") == "880"
+            )
+            with self.subTest(theme=theme):
+                self.assertEqual(int(plate.attrib["rx"]), expected)
+                self.assertEqual(plate.attrib["x"], "72")
+                self.assertEqual(plate.attrib["y"], "72")
+
     def test_each_palette_theme_ships_the_whole_family_baked_from_its_own_palette(self) -> None:
         for theme in PALETTE_THEMES:
             roles = MODULE.palette_roles(SCHEMES / f"{theme}.colors")

@@ -86,20 +86,20 @@
       <stop offset="1" stop-color="#000000" stop-opacity="0"/>
     </radialGradient>
   </defs>
-  <rect fill="url(#moos-installer-aura)" x="36" y="36" width="952" height="952" rx="292"/>
-  <rect class="ColorScheme-PositiveText" fill="currentColor" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-installer-depth)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-installer-sheen)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-installer-liquid)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-installer-shimmer)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-installer-refract)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-installer-caustic)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-installer-rimlight)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-installer-floor)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-installer-topedge)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="none" stroke="url(#moos-installer-rim-hi)" stroke-width="18" x="84" y="84" width="856" height="856" rx="252"/>
+  <rect fill="url(#moos-installer-aura)" x="36" y="36" width="952" height="952" rx="156"/>
+  <rect class="ColorScheme-PositiveText" fill="currentColor" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-installer-depth)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-installer-sheen)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-installer-liquid)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-installer-shimmer)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-installer-refract)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-installer-caustic)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-installer-rimlight)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-installer-floor)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-installer-topedge)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="none" stroke="url(#moos-installer-rim-hi)" stroke-width="18" x="84" y="84" width="856" height="856" rx="116"/>
   <rect class="ColorScheme-Background" fill="none" stroke="currentColor"
-        stroke-opacity=".10" stroke-width="6" x="84" y="84" width="856" height="856" rx="252"/>
+        stroke-opacity=".10" stroke-width="6" x="84" y="84" width="856" height="856" rx="116"/>
   <g class="ColorScheme-Background" fill="currentColor">
     <rect x="452" y="196" width="120" height="250" rx="30"/>
     <path d="M512 686 336 458h352Z" stroke="currentColor" stroke-width="40"

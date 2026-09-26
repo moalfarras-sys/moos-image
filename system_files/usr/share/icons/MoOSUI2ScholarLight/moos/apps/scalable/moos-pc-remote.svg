@@ -86,20 +86,20 @@
       <stop offset="1" stop-color="#000000" stop-opacity="0"/>
     </radialGradient>
   </defs>
-  <rect fill="url(#moos-pc-remote-aura)" x="36" y="36" width="952" height="952" rx="292"/>
-  <rect class="ColorScheme-Highlight" fill="currentColor" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-pc-remote-depth)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-pc-remote-sheen)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-pc-remote-liquid)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-pc-remote-shimmer)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-pc-remote-refract)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-pc-remote-caustic)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-pc-remote-rimlight)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-pc-remote-floor)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-pc-remote-topedge)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="none" stroke="url(#moos-pc-remote-rim-hi)" stroke-width="18" x="84" y="84" width="856" height="856" rx="252"/>
+  <rect fill="url(#moos-pc-remote-aura)" x="36" y="36" width="952" height="952" rx="156"/>
+  <rect class="ColorScheme-Highlight" fill="currentColor" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-pc-remote-depth)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-pc-remote-sheen)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-pc-remote-liquid)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-pc-remote-shimmer)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-pc-remote-refract)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-pc-remote-caustic)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-pc-remote-rimlight)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-pc-remote-floor)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-pc-remote-topedge)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="none" stroke="url(#moos-pc-remote-rim-hi)" stroke-width="18" x="84" y="84" width="856" height="856" rx="116"/>
   <rect class="ColorScheme-HighlightedText" fill="none" stroke="currentColor"
-        stroke-opacity=".10" stroke-width="6" x="84" y="84" width="856" height="856" rx="252"/>
+        stroke-opacity=".10" stroke-width="6" x="84" y="84" width="856" height="856" rx="116"/>
   <g class="ColorScheme-HighlightedText" fill="currentColor">
     <rect x="228" y="230" width="520" height="376" rx="64"/>
     <rect x="433" y="606" width="110" height="56"/>

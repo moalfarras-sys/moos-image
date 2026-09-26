@@ -2,7 +2,7 @@
 """Generate the MoOS first-party application mark family — Premium 3D Liquid Glass.
 
 Third-party applications keep their own identity; this script owns only the
-MoOS apps.  Every mark is one squircle tile plus one glyph, and **every ink is
+MoOS apps. Every mark is one optical tile plus one glyph, and **every ink is
 a KDE colour role**, never a literal colour — the tile is `ColorScheme-*` and
 so is the glyph.
 
@@ -231,7 +231,14 @@ MARKS: dict[str, dict[str, str]] = {
 }
 
 
-def icon_svg(name: str, mark: dict[str, str]) -> str:
+PLATE_RADII = {
+    "liquid": (264, 252, 292),
+    "orbit": (440, 428, 476),
+    "facet": (128, 116, 156),
+}
+
+
+def icon_svg(name: str, mark: dict[str, str], finish: str = "liquid") -> str:
     """Premium 3D Liquid Glass plate + role-inked glyph.
 
     The premium liquid-glass material stack uses only white/black with opacity so
@@ -249,7 +256,14 @@ def icon_svg(name: str, mark: dict[str, str]) -> str:
     KIconLoader uses on the live dock) does not reliably clip, so unclipped
     square glass layers paint a visible square "scratch" behind the squircle.
     Every glass fill is itself a rounded rect with the same rx as the plate.
+    Palette themes select liquid, orbit or facet plates while preserving the
+    same glyph and 880 px optical span; the default master stays liquid.
     """
+    if finish not in PLATE_RADII:
+        raise ValueError(f"unknown MoOS icon finish: {finish}")
+    tile_radius, rim_radius, aura_radius = PLATE_RADII[finish]
+    tile = f'x="72" y="72" width="880" height="880" rx="{tile_radius}"'
+    rim = f'x="84" y="84" width="856" height="856" rx="{rim_radius}"'
     stylesheet = "\n".join(
         f"      .ColorScheme-{role} {{ color: {value}; }}"
         for role, value in FALLBACK_STYLESHEET.items()
@@ -349,20 +363,20 @@ def icon_svg(name: str, mark: dict[str, str]) -> str:
       <stop offset="1" stop-color="#000000" stop-opacity="0"/>
     </radialGradient>
   </defs>
-  <rect fill="url(#{gid}-aura)" x="36" y="36" width="952" height="952" rx="292"/>
-  <rect class="ColorScheme-{mark['tile']}" fill="currentColor" {TILE}/>
-  <rect fill="url(#{gid}-depth)" {TILE}/>
-  <rect fill="url(#{gid}-sheen)" {TILE}/>
-  <rect fill="url(#{gid}-liquid)" {TILE}/>
-  <rect fill="url(#{gid}-shimmer)" {TILE}/>
-  <rect fill="url(#{gid}-refract)" {TILE}/>
-  <rect fill="url(#{gid}-caustic)" {TILE}/>
-  <rect fill="url(#{gid}-rimlight)" {TILE}/>
-  <rect fill="url(#{gid}-floor)" {TILE}/>
-  <rect fill="url(#{gid}-topedge)" {TILE}/>
-  <rect fill="none" stroke="url(#{gid}-rim-hi)" stroke-width="18" {RIM}/>
+  <rect fill="url(#{gid}-aura)" x="36" y="36" width="952" height="952" rx="{aura_radius}"/>
+  <rect class="ColorScheme-{mark['tile']}" fill="currentColor" {tile}/>
+  <rect fill="url(#{gid}-depth)" {tile}/>
+  <rect fill="url(#{gid}-sheen)" {tile}/>
+  <rect fill="url(#{gid}-liquid)" {tile}/>
+  <rect fill="url(#{gid}-shimmer)" {tile}/>
+  <rect fill="url(#{gid}-refract)" {tile}/>
+  <rect fill="url(#{gid}-caustic)" {tile}/>
+  <rect fill="url(#{gid}-rimlight)" {tile}/>
+  <rect fill="url(#{gid}-floor)" {tile}/>
+  <rect fill="url(#{gid}-topedge)" {tile}/>
+  <rect fill="none" stroke="url(#{gid}-rim-hi)" stroke-width="18" {rim}/>
   <rect class="ColorScheme-{mark['ink']}" fill="none" stroke="currentColor"
-        stroke-opacity=".10" stroke-width="6" {RIM}/>
+        stroke-opacity=".10" stroke-width="6" {rim}/>
 {body}
 </svg>
 """
@@ -459,7 +473,8 @@ def render_palette_matrix(magick: str) -> None:
             roles = palette_roles(scheme)
             cells = []
             for name in ("moos-moai", *MARKS):
-                source = (SCALABLE / f"{name}.svg").read_text(encoding="utf-8")
+                themed = ROOT / "system_files/usr/share/icons" / scheme_name / "moos/apps/scalable" / f"{name}.svg"
+                source = (themed if themed.is_file() else SCALABLE / f"{name}.svg").read_text(encoding="utf-8")
                 recoloured_svg = work / f"{scheme_name}-{name}.svg"
                 recoloured_svg.write_text(recoloured(source, roles), encoding="utf-8")
                 cell = work / f"{scheme_name}-{name}.png"

@@ -86,20 +86,20 @@
       <stop offset="1" stop-color="#000000" stop-opacity="0"/>
     </radialGradient>
   </defs>
-  <rect fill="url(#moos-control-center-aura)" x="36" y="36" width="952" height="952" rx="292"/>
-  <rect class="ColorScheme-Highlight" fill="currentColor" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-control-center-depth)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-control-center-sheen)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-control-center-liquid)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-control-center-shimmer)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-control-center-refract)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-control-center-caustic)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-control-center-rimlight)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-control-center-floor)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-control-center-topedge)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="none" stroke="url(#moos-control-center-rim-hi)" stroke-width="18" x="84" y="84" width="856" height="856" rx="252"/>
+  <rect fill="url(#moos-control-center-aura)" x="36" y="36" width="952" height="952" rx="156"/>
+  <rect class="ColorScheme-Highlight" fill="currentColor" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-control-center-depth)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-control-center-sheen)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-control-center-liquid)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-control-center-shimmer)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-control-center-refract)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-control-center-caustic)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-control-center-rimlight)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-control-center-floor)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-control-center-topedge)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="none" stroke="url(#moos-control-center-rim-hi)" stroke-width="18" x="84" y="84" width="856" height="856" rx="116"/>
   <rect class="ColorScheme-HighlightedText" fill="none" stroke="currentColor"
-        stroke-opacity=".10" stroke-width="6" x="84" y="84" width="856" height="856" rx="252"/>
+        stroke-opacity=".10" stroke-width="6" x="84" y="84" width="856" height="856" rx="116"/>
   <g class="ColorScheme-HighlightedText" fill="currentColor">
     <rect x="268" y="282" width="488" height="92" rx="46" opacity=".34"/>
     <rect x="268" y="466" width="488" height="92" rx="46" opacity=".34"/>

@@ -86,20 +86,20 @@
       <stop offset="1" stop-color="#000000" stop-opacity="0"/>
     </radialGradient>
   </defs>
-  <rect fill="url(#moos-welcome-aura)" x="36" y="36" width="952" height="952" rx="292"/>
-  <rect class="ColorScheme-Text" fill="currentColor" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-welcome-depth)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-welcome-sheen)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-welcome-liquid)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-welcome-shimmer)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-welcome-refract)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-welcome-caustic)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-welcome-rimlight)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-welcome-floor)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="url(#moos-welcome-topedge)" x="72" y="72" width="880" height="880" rx="264"/>
-  <rect fill="none" stroke="url(#moos-welcome-rim-hi)" stroke-width="18" x="84" y="84" width="856" height="856" rx="252"/>
+  <rect fill="url(#moos-welcome-aura)" x="36" y="36" width="952" height="952" rx="156"/>
+  <rect class="ColorScheme-Text" fill="currentColor" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-welcome-depth)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-welcome-sheen)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-welcome-liquid)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-welcome-shimmer)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-welcome-refract)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-welcome-caustic)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-welcome-rimlight)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-welcome-floor)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="url(#moos-welcome-topedge)" x="72" y="72" width="880" height="880" rx="128"/>
+  <rect fill="none" stroke="url(#moos-welcome-rim-hi)" stroke-width="18" x="84" y="84" width="856" height="856" rx="116"/>
   <rect class="ColorScheme-Background" fill="none" stroke="currentColor"
-        stroke-opacity=".10" stroke-width="6" x="84" y="84" width="856" height="856" rx="252"/>
+        stroke-opacity=".10" stroke-width="6" x="84" y="84" width="856" height="856" rx="116"/>
   <g class="ColorScheme-Background" fill="currentColor">
     <path d="M320 560a192 192 0 0 1 384 0Z"/>
     <rect x="248" y="560" width="528" height="72" rx="36"/>
