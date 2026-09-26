@@ -1284,9 +1284,11 @@ Implementation order inside P4 (no separate backlog):
    launcher/icon export and uninstall. Current shared prefix/launch is not this product.
    Station review 2026-09-26: the owner's Generals Zero Hour files already exist in
    `Generals-32`; the installer offered removal, which was declined. Russian locale
-   corrected unreadable installer text. Game launch reached its intro/background,
-   but a usable menu and gameplay remain unproved. Its saved resolution was 640×480;
-   a backed-up 1920×1080 configuration is under test. Source repair lets the optional
+   corrected unreadable installer text. On 2026-09-27 a real solo Skirmish on
+   Alpine Assault loaded at 1920×1080 fullscreen on the 4K station; selecting and
+   moving a Construction Dozer worked and the game confirmed saving the match.
+   The original 640×480 configuration remains backed up. This proves this installed
+   game, not a compatibility matrix or per-app installation product. Source repair lets the optional
    sandboxed launcher read adjacent installer payloads with a confirmed, temporary,
    read-only folder grant; it does not complete the per-app product or universal support.
 4. P4.4: Android initialization/download consent, ABI preflight, individual-app

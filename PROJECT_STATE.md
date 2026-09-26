@@ -27,7 +27,10 @@ Current measured facts only; Git owns history. Release version numbers live here
 **Corrective source work, 2026-09-27:** THEME_REV 90 adds a reviewed 6.7/6.8 dock
 material seam and shared Hub material; isolated clear/solid Hub renders and local image gates passed.
 Windows setup folder access is temporary, confirmed and read-only. Generals Zero Hour
-1080p fullscreen renders; menu/gameplay unproved. Signed boot proof pending; Android initialized.
+1080p fullscreen works on the 4K station: solo Skirmish on Alpine Assault loaded,
+a Construction Dozer was selected and moved, and the game confirmed a saved match.
+This is local per-game evidence; universal Windows compatibility remains open.
+Signed boot proof for this corrective batch is pending; Android initialized.
 
 **All three app engines ran on the station (2026-09-20).** Windows Notepad, Minesweeper
 and PuTTY PE32+ used `moos-run-foreign` with MoOS decoration and taskbar presence; Linux
