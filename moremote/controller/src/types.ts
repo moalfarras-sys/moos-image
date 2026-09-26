@@ -5,7 +5,7 @@
 // tell at a glance which one you are looking at. v14 also described behaviour that no longer
 // exists ("fill-screen portrait" was the automatic quarter-turn, now removed), so it was
 // actively misleading while debugging exactly that.
-export const BUILD = "v42 · MoOS Liquid Glass · Adaptive remote";
+export const BUILD = "v43 · MoOS Liquid Glass · Adaptive remote";
 
 export interface ServerStatus {
   name: string;
