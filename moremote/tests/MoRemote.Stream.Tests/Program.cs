@@ -10,13 +10,29 @@ namespace MoRemote;
 // never touch the desktop, portal, network, or active Remote session.
 static class Program
 {
-    static async Task Main(string[] args)
+    static async Task<int> Main(string[] args)
+    {
+        try { await Run(args); return 0; }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine("FAIL: " + ex.Message);
+            return 1;
+        }
+    }
+
+    static async Task Run(string[] args)
     {
         if (args.Length == 0 || args.Contains("unicode")) await SplitUnicode();
         if (args.Length == 0 || args.Contains("jpeg")) await HiddenViewer("jpeg");
         if (args.Length == 0 || args.Contains("h264")) await HiddenViewer("h264");
         if (args.Length == 0 || args.Contains("input")) await FailedInputLoop();
         if (args.Length == 0 || args.Contains("auth")) await RejectedAuth();
+        if (args.Length == 0 || args.Contains("revoke"))
+        {
+            await RevokedLiveSession("jpeg");
+            await RevokedLiveSession("h264");
+            await RevokedQueuedInput();
+        }
         if (args.Length == 0 || args.Contains("pause")) await PausedInputQueue();
         if (args.Length == 0 || args.Contains("owners")) await ControllerHandoff();
         Console.WriteLine("PASS: Unicode fragments, stream suspension, IDR resume, input teardown and controller handoff");
@@ -77,6 +93,38 @@ static class Program
 
     static readonly byte[] Idr = [0, 0, 0, 1, 0x67, 0x42, 0, 0x1e, 0, 0, 0, 1, 0x65, 0x88];
     static readonly byte[] Delta = [0, 0, 0, 1, 0x41, 0x9a];
+
+    static async Task RevokedLiveSession(string codec)
+    {
+        var (services, socket, running) = await Start(codec);
+        if (codec == "h264") services.Capture.Emit(Idr);
+        await Until(() => socket.Frames.Count > 0, "authorized viewer received no frame");
+        services.Sessions.Revoked = true;
+        socket.Text("""{"type":"text","value":"must not reach desktop"}""");
+        await running.WaitAsync(TimeSpan.FromSeconds(3));
+        Check(socket.Messages.Any(message => message.Contains("\"error\":\"unauthorized\"")),
+            "revoked live viewer was not sent the authentication failure");
+        Check(services.Input.Texts.IsEmpty, "revoked live viewer still injected input");
+        int frames = socket.Frames.Count;
+        services.Capture.Emit(Idr);
+        await Task.Delay(60);
+        Check(socket.Frames.Count == frames, "revoked live viewer still received frames");
+    }
+
+    static async Task RevokedQueuedInput()
+    {
+        var (services, socket, running) = await Start();
+        await services.InputControl.Gate.WaitAsync();
+        try
+        {
+            socket.Text("""{"type":"text","value":"queued before revocation"}""");
+            await Barrier(socket, 902);
+            services.Sessions.Revoked = true;
+        }
+        finally { services.InputControl.Gate.Release(); }
+        await running.WaitAsync(TimeSpan.FromSeconds(3));
+        Check(services.Input.Texts.IsEmpty, "previously queued input ran after revocation");
+    }
 
     static async Task HiddenViewer(string codec)
     {
@@ -229,7 +277,12 @@ public sealed class TestConfig
     public bool ShowRemoteCursor => true;
     public bool EmbedCursor => true;
 }
-public sealed class TestSessions { public bool ValidateAndTouch(string token) => token == "test"; }
+public sealed class TestSessions
+{
+    public volatile bool Revoked;
+    public bool IsValid(string token) => !Revoked && token == "test";
+    public bool ValidateAndTouch(string token) => IsValid(token);
+}
 public sealed class TestState
 {
     public bool IsPaused { get; set; }
