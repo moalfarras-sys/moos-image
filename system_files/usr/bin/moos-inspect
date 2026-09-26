@@ -48,12 +48,12 @@ MAX_BYTES = 12 * 1024          # a tool result is read by a model with a bounded
 UNIT = re.compile(r"[A-Za-z0-9@._:\\-]{1,120}\.(service|timer|socket|path|target|mount|slice|scope)")
 PRIORITIES = ("err", "warning", "info")
 SINCE = {"boot": ["-b"], "1h": ["--since", "-1h"], "24h": ["--since", "-24h"], "7d": ["--since", "-7d"]}
-# Logs MoOS itself writes into the user's cache. A name, never a path.
+# Named MoOS logs. Remote uses its agent data directory; others use the cache.
 LOGS = {
     "moai": "moai.log",
     "theme": "moos-apply-theme.log",
     "store": "moos-store/index.log",
-    "remote": "mo-remote/agent.log",
+    "remote": "MoRemotePersonal/log.txt",
 }
 
 
@@ -198,7 +198,11 @@ def log(args) -> tuple[str, bool]:
     if args.name not in LOGS:
         raise Refused("log must be one of: " + ", ".join(sorted(LOGS)))
     cache = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache")
-    path = cache / LOGS[args.name]
+    if args.name == "remote":
+        data = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share")
+        path = data / LOGS[args.name]
+    else:
+        path = cache / LOGS[args.name]
     if not path.is_file() or path.is_symlink():
         return section(f"log {args.name}", "[this log does not exist yet]"), True
     with path.open("rb") as handle:

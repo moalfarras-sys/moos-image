@@ -123,6 +123,20 @@ class Inspector(unittest.TestCase):
         done = self.inspect("log", "theme")
         self.assertNotIn("TOP-SECRET-BODY", done.stdout, "a log name must never follow a symlink")
 
+    def test_remote_reads_the_agents_actual_data_log_and_redacts_it(self):
+        data = Path(self.tmp.name) / ".local/share/MoRemotePersonal"
+        data.mkdir(parents=True)
+        remote_log = data / "log.txt"
+        remote_log.write_text("Video codec: h264 (nvh264enc)\n" + LEAKY, encoding="utf-8")
+        done = self.inspect("log", "remote")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn("Video codec: h264 (nvh264enc)", done.stdout)
+        for secret in SECRETS.values():
+            self.assertNotIn(secret, done.stdout)
+        remote_log.unlink()
+        remote_log.symlink_to(self.calls)
+        self.assertIn("this log does not exist", self.inspect("log", "remote").stdout)
+
     def test_output_is_bounded_and_keeps_the_newest_lines(self):
         flood = self.bin / "journalctl"
         flood.write_text("#!/bin/sh\ni=0; while [ $i -lt 4000 ]; do echo \"filler line $i of the journal\"; "

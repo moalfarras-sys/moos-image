@@ -1,16 +1,16 @@
-# MoOS current state — measured 2026-09-25
-Current measured facts only; Git owns history.
-**Release version numbers live here; other files point here.**
+# MoOS current state — measured 2026-09-26
+Current measured facts only; Git owns history. Release version numbers live here.
 
 ## Source and release truth
-- **x86 production is revision `c07aeeb5`**: signed build `36165203581`, QCOW2 proofs
-  `36168239572`/`36168244164`/`36168248206`, offline ISO `36168252789`, successful
-  promotion `36172848438`; `moos-nvidia:latest` = `sha256:ca87a77b…`. ARM production remains
-  `44.20260925.586`: candidate proof `36168257290` failed on an ARM `plymouthd` SEGV during
-  quit, leaving `plymouth-start.service` failed; no ARM promotion was made.
-- **The NVIDIA station boots signed `44.20260925.931`** (`be282a9f`), with signed `.929`
-  retained for rollback. Read back after the 2026-09-25 reboot: zero failed system and
-  user units, `post-update-check.sh` 55/0 and `moos-selfcheck` 54/0. The installed
+- **Proven production is revision `51371190`**: signed build `36182494648`, QCOW2 proofs
+  `36185264589`/`36185268538`/`36185273862`, offline ISO `36185279239`, successful
+  x86 promotion `36189683201`; ARM build, QCOW2 and promotion `36185283411` all passed.
+  The earlier ARM Plymouth proof failed; the passing retry does not close P0.7.
+  Icon-family revision `7066121e` is merged; signed candidate `36269595161` is running.
+- **The NVIDIA station boots signed `44.20260925.938`** (`51371190`), with signed `.931`
+  retained for rollback; booted digest `sha256:30fd4ded…` read on 2026-09-26.
+  Baloo crashed in PCRE2 JIT; its scoped `QT_ENABLE_REGEXP_JIT=0` user drop-in recovered
+  indexing to Idle with zero failed files. A timed-out DrKonqi report unit remains. The installed
   System Settings opened the MoOS group and its Themes/What's New modules; this is
   installed proof of the unified settings entry, not proof of every update transaction.
 - **P0.7 is no longer only a captured stack.** Read out of plymouth 24.004.60's source on
@@ -48,20 +48,20 @@ DLL from composefs; do not weaken SELinux globally.
 | Desktop | Plasma/KWin 6.7.5, Wayland, 3840×2160@60, scale 225% (1707×960 logical) on 2026-09-25 |
 | Kernel | `7.2.6-200.fc44.x86_64` |
 | Network | Intel AX210 Wi-Fi/Bluetooth + RTL8125 Ethernet |
-| Health | zero failed system units; zero failed user units (P0.7 remains intermittent) |
+| Health | Baloo recovered; post-update 55/0; powersave changed to balanced, turbo read back enabled |
 
-Measured after reboot onto the current signed image: installed `THEME_REV` **86**
+Measured after reboot onto the current signed image: installed `THEME_REV` **87**
 and its existing-account marker, current Global Theme `org.moos.ui2.gaming`,
 `kwinrc/Plugins/blurEnabled=true`, Arabic session (`ar_SA.UTF-8`). The W8/W9
 image is running and passed live post-update checks;
 that does not qualify suspend, every app or the full visual matrix.
 
-**Mo PC Remote on the booted `.931`, 2026-09-25:** authenticated loopback H.264
-desktop stream measured 24–29 fps and 0–1 ms locally; a click moved the desktop
-pointer; manual Data Saver kept H.264 and Auto was restored. External-network,
-typing, files and audio remain unproved. Production `c07aeeb5` makes 30-day device
-trust opt-in; the station has not yet rebooted into it. Later source lets sustained
-congestion lower Auto to Data Saver, preserves browser Data Saver, and makes Island follow glass clarity.
+**Mo PC Remote on `.938`, 2026-09-26:** authenticated v42 loopback H.264 Data Saver
+measured 28–29 fps and 1 ms locally; zoom visibly enlarged the desktop; Auto restored.
+The old `127.0.0.1` browser origin retained v40; fresh `localhost` served installed v42.
+External-network, typing, files and audio remain unproved. Installed Auto can step
+down to Data Saver under sustained congestion; Island follows live glass clarity.
+The scoped Baloo workaround is a user override pending signed delivery, not image proof.
 
 **Speed and Mo AI, both measured on cycle H's `.890`** and NOT re-measured since.
 `moos-measure-speed` (P5.4): MoOS's share of boot **6.70 s**/9.0,
