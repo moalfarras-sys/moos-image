@@ -52,13 +52,16 @@ on:
     - cron: "0 6 * * *"
   workflow_dispatch:
 
-# Note on concurrency: both matrix variants (moos, moos-nvidia) run inside the
-# SAME workflow run, and this group is keyed per run context — so a newer run
-# cancels a superseded older run, while the two matrix jobs of one run never
-# cancel each other. Do NOT add per-job concurrency.
+# All three editions share one workflow-level group. Main candidates must finish:
+# a delayed nightly cancelled dispatched run 36312882679 after twenty minutes on
+# 2026-09-27. The nightly cannot replace that dispatch as promotion evidence.
+# Keep both running and queued candidates: cancel-in-progress alone does not
+# protect a pending dispatch. GitHub's bounded queue also preserves branch proofs.
+# Do NOT add per-job concurrency: matrix editions never cancel one another.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  queue: max
+  cancel-in-progress: false
 
 jobs:
   remote-windows-build:

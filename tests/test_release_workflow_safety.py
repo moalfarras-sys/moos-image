@@ -54,6 +54,14 @@ def workflow_job(text: str, job_name: str) -> str:
 
 
 class ReleaseWorkflowSafetyTests(unittest.TestCase):
+    def test_main_candidate_is_not_cancelled_by_a_delayed_nightly(self) -> None:
+        text = WORKFLOW.read_text(encoding="utf-8")
+        concurrency = text.split("concurrency:", 1)[1].split("\njobs:", 1)[0]
+        self.assertIn("group: ${{ github.workflow }}-${{ github.ref }}", concurrency)
+        self.assertIn("queue: max", concurrency,
+                      "a single pending slot lets the nightly replace a queued dispatch")
+        self.assertIn("cancel-in-progress: false", concurrency)
+
     def test_release_helpers_are_executable(self) -> None:
         for path in (
             ROOT / "build_files" / "seal_arm_qcow2.sh",
