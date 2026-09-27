@@ -83,7 +83,7 @@ class ReleaseCandidateScript(unittest.TestCase):
         # Both places that can hand a build run to promotion: the reuse of an existing
         # build, and the adoption of one that superseded a cancelled dispatch.
         selections = [block for block in self.text.split("gh run list --workflow")[1:]
-                      if "databaseId" in block.split("\n")[0]]
+                      if "databaseId" in block.split("\n")[0] and "build-arm.yml" not in block.split("\n")[0]]
         self.assertGreaterEqual(len(selections), 2, "the run-selection queries moved")
         for block in selections:
             query = block[:block.index("2>/dev/null")]
@@ -116,6 +116,41 @@ class ReleaseCandidateScript(unittest.TestCase):
                       "build-arm.yml's promote job cannot be reached by a release cycle")
         self.assertIn("refs/heads/main", condition,
                       "build-arm.yml's promote job must stay restricted to main")
+
+    def test_arm_reuse_rechecks_metadata_and_refuses_stale_or_unproven_runs(self):
+        """Execute the actual selection block without a network or live dispatch."""
+        block = self.text[self.text.index("# ARM's main-push run"):self.text.index('echo "proofs:')]
+        valid = "abc main push 1 in_progress pending"
+        cases = [
+            (valid, True), ("abc main workflow_dispatch 1 completed success", True),
+            ("abc main push 1 queued pending", True),
+            ("abc main push 1 waiting pending", True),
+            ("other main push 1 in_progress pending", False),
+            ("abc other push 1 in_progress pending", False),
+            ("abc main push 2 completed success", False),
+            ("abc main schedule 1 completed success", False),
+            ("abc main pull_request 1 completed success", False),
+            ("abc main push 1 completed failure", False),
+            ("abc main push 1 completed cancelled", False),
+        ]
+        for metadata, accepted in cases:
+            with self.subTest(metadata=metadata):
+                stub = ('revision=abc; ref=main\n'
+                        'gh() { if [ "$2" = list ]; then echo 71; '
+                        'else printf "%s\\n" "$MOOS_ARM_TEST_METADATA"; fi; }\n'
+                        'dispatch() { echo "unexpected dispatch" >&2; return 99; }\n')
+                import os
+                result = subprocess.run(["bash", "-eu", "-c", stub + block],
+                                        env={**os.environ, "MOOS_ARM_TEST_METADATA": metadata},
+                                        capture_output=True, text=True)
+                self.assertEqual(result.returncode == 0, accepted, result.stderr)
+        fallback = ('revision=abc; ref=main\n'
+                    'gh() { echo null; }\n'
+                    'dispatch() { [ "$1" = build-arm.yml ] || return 99; echo 72; }\n')
+        result = subprocess.run(["bash", "-eu", "-c", fallback + block + '\necho "$arm_id"'],
+                                capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), "72")
 
 
 if __name__ == "__main__":

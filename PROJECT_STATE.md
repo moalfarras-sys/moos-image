@@ -17,7 +17,7 @@
   Remote v45 rejects frozen-mtime validators (158 same-size worker assertions); hidden tools
   leave focus and settings opens on the real stream. #174 completes missing release notes.
   `.950` was superseded before x86 promotion; ARM `.614` on `65470b7e` passed/promoted.
-  Station delivery and the two-icon design approval remain pending.
+  Station delivery/two-icon approval pending; ARM reuse repair is topic-only, gates pass.
 - **P0.7 is no longer only a captured stack.** Read out of plymouth 24.004.60's source on
   2026-09-21: `ply_boot_splash_free()` frees `pixel_displays` without disarming the
   `on_new_frame` timeout that only `ply_boot_splash_hide()` disarms, and `--retain-splash`
