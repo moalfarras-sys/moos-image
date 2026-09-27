@@ -3,6 +3,48 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "rounded-dock-material",
+      "merged": "2026-09-27T10:29:33Z",
+      "glyph": "ui",
+      "title": {
+        "ar": "حواف ناعمة بكل درجات الزجاج",
+        "en": "Soft dock edges at every glass clarity"
+      },
+      "body": {
+        "ar": "يحتفظ الدوك العائم بحوافه المستديرة حتى بجانب نافذة مكبّرة. ومن ثيمات MoOS جرّب الزجاج الصافي أو المتوازن أو المصمت؛ تبقى الحواف نفسها مع تغيّر وضوح السطح.",
+        "en": "The floating dock keeps its rounded edges beside a maximized window. In MoOS Themes, try Clear, Balanced or Solid glass: the surface changes while its soft edges stay the same."
+      },
+      "route": "moos://settings/themes"
+    },
+    {
+      "id": "hub-widget-reveal",
+      "merged": "2026-09-27T10:29:33Z",
+      "glyph": "spark",
+      "title": {
+        "ar": "حركة قصيرة للويجت، ثم سكون",
+        "en": "A brief widget entrance, then rest"
+      },
+      "body": {
+        "ar": "خيار حركة الويجت في ثيمات MoOS يضيف ظهورًا قصيرًا لبطاقات سطح المكتب، ثم تتوقف. اختر ثابت لإيقافها؛ ويظل تقليل حركة النظام محترمًا.",
+        "en": "Widget motion in MoOS Themes gives desktop cards one brief entrance, then stops. Choose Still to turn it off; the system’s reduced-motion setting is respected."
+      },
+      "route": "moos://settings/themes"
+    },
+    {
+      "id": "remote-current-interface",
+      "merged": "2026-09-27T10:29:33Z",
+      "glyph": "video",
+      "title": {
+        "ar": "واجهة Remote محدثة وتنقّل أوضح",
+        "en": "An up-to-date Remote interface and clearer navigation"
+      },
+      "body": {
+        "ar": "بعد التحديث يحمّل Mo PC Remote واجهته الجديدة بدل إبقاء نسخة قديمة. وأدوات التحكم المخفية لا تعترض التنقّل بلوحة المفاتيح؛ أظهرها عندما تحتاجها.",
+        "en": "After an update, Mo PC Remote loads its new interface instead of keeping an older copy. Hidden controls stay out of keyboard navigation; reveal them when you need them."
+      },
+      "route": "moos://settings/remote"
+    },
+    {
       "id": "remote-trusted-device-opt-in",
       "merged": "2026-09-25T17:00:00Z",
       "glyph": "shield",
@@ -131,7 +173,10 @@
       "id": "unified-settings",
       "merged": "2026-09-24T16:00:00Z",
       "glyph": "ui",
-      "title": {"ar": "إعدادات واحدة لـ MoOS", "en": "One Settings app for MoOS"},
+      "title": {
+        "ar": "إعدادات واحدة لـ MoOS",
+        "en": "One Settings app for MoOS"
+      },
       "body": {
         "ar": "تفتح إعدادات MoOS الآن في النافذة نفسها مع إعدادات الشاشة والصوت والشبكة. تجد حالة النظام والتحديث والاستعادة والتحكم عن بُعد بجانب إعدادات جهازك المعتادة.",
         "en": "MoOS Settings now opens in the same window as display, sound and network settings. Find system status, updates, recovery and remote access alongside your usual device controls."
@@ -142,8 +187,13 @@
       "id": "arm-desktop-parity",
       "merged": "2026-09-24T13:30:00Z",
       "glyph": "ui",
-      "arch": ["aarch64"],
-      "title": {"ar": "العربية من اليمين وتطبيقاتك بألوان MoOS", "en": "Arabic reads right to left, apps wear MoOS"},
+      "arch": [
+        "aarch64"
+      ],
+      "title": {
+        "ar": "العربية من اليمين وتطبيقاتك بألوان MoOS",
+        "en": "Arabic reads right to left, apps wear MoOS"
+      },
       "body": {
         "ar": "على أجهزة ARM يُقرأ سطح المكتب الآن من اليمين إلى اليسار بالعربية، وتأخذ تطبيقات GTK ألوان MoOS، ويعود تثبيت التطبيق حين تفلته أو تنقر عليه لأن نافذة الموافقة صارت موجودة.",
         "en": "On ARM machines the desktop now reads right to left in Arabic, GTK apps wear the MoOS colours, and an app you drop or double-click can install again because its consent dialog is there."
@@ -208,7 +258,10 @@
       "id": "store-app-drop",
       "merged": "2026-09-19T18:00:00Z",
       "glyph": "install",
-      "title": {"ar": "أضف تطبيقًا من ملف", "en": "Add an app from a file"},
+      "title": {
+        "ar": "أضف تطبيقًا من ملف",
+        "en": "Add an app from a file"
+      },
       "body": {
         "ar": "يعرض Mo Store الآن ما يستطيع جهازك تشغيله — برامج ويندوز وتطبيقات أندرويد وتطبيقات لينكس — ويقبل ملفًا تسحبه إليه أو تختاره بـ«إضافة تطبيق». يفحصه MoOS ويسألك قبل أي إجراء. تطبيقات لينكس تُثبَّت وتظهر في قائمتك؛ الأنواع الأخرى تُفتح ولا تُضاف إلى قائمتك بعد.",
         "en": "Mo Store now shows what your machine can run — Windows programs, Android apps and Linux apps — and takes a file you drag onto it or pick with Add app. MoOS checks it and asks before doing anything. Linux apps are installed and appear in your menu; other kinds open, and are not added to your menu yet."
@@ -395,45 +448,6 @@
       "body": {
         "ar": "اثنا عشر دليل إصلاح جاهزًا — لا صوت، لا إنترنت، جهاز بطيء، قرص ممتلئ وغيرها — وأكثرها شيوعًا يبدأ من شريحة في شاشة Mo AI الرئيسية.",
         "en": "Twelve ready repair guides — no sound, no internet, a slow machine, a full disk and more — and the most common start from a chip on Mo AI's home screen."
-      }
-    },
-    {
-      "id": "app-drop",
-      "merged": "2026-09-17T19:47:04Z",
-      "glyph": "install",
-      "title": {
-        "ar": "أسقط التطبيق في «التطبيقات»",
-        "en": "Drop an app into Applications"
-      },
-      "body": {
-        "ar": "نزّلت تطبيقًا بصيغة AppImage أو أرشيفًا محمولًا؟ افتحه أو ضعه في مجلد «Applications» في مجلدك الشخصي، وبعد تأكيد واحد يصبح تطبيقًا في القائمة بلا صلاحيات مدير.",
-        "en": "Downloaded an AppImage or a portable archive? Open it or put it in the Applications folder in your home, and after one confirmation it is an app in the launcher, with no administrator rights."
-      }
-    },
-    {
-      "id": "moai-acts",
-      "merged": "2026-09-17T19:47:04Z",
-      "glyph": "shield",
-      "title": {
-        "ar": "Mo AI ينفّذ ويستأذن",
-        "en": "Mo AI acts, and asks first"
-      },
-      "body": {
-        "ar": "يفحص Mo AI حالة الجهاز بنفسه قبل أن يجيب، وكل تغيير في النظام يظهر لك في بطاقة تأكيد قبل تنفيذه، ثم يخبرك بالنتيجة الفعلية.",
-        "en": "Mo AI inspects the machine itself before it answers, and every change to the system appears as a confirmation card before it runs, followed by the real result."
-      }
-    },
-    {
-      "id": "island-privacy",
-      "merged": "2026-09-17T19:47:04Z",
-      "glyph": "microphone",
-      "title": {
-        "ar": "الجزيرة تخبرك من يستخدم الميكروفون",
-        "en": "The Island tells you who is using the microphone"
-      },
-      "body": {
-        "ar": "عندما يستخدم تطبيق الكاميرا أو الميكروفون أو يشارك الشاشة، تعرض الجزيرة في الشريط اسمه مع زر إيقاف بضغطة واحدة. وتعرض تقدّم تثبيت التطبيقات من المتجر.",
-        "en": "When an app uses the camera or microphone or shares the screen, the Island on the bar names it with a one-tap stop. It also shows the progress of Store installs."
       }
     }
   ]
