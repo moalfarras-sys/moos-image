@@ -873,7 +873,7 @@ class TestMoOSUI2(unittest.TestCase):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=88", apply,
+            "THEME_REV=90", apply,
             "existing v85 users would keep the cached Island that imports the retired Search "
             "applet and shows no Mo AI jobs, the launcher with three settings tiles, and a home "
             "copy of the MoOS task switcher; "
@@ -2913,9 +2913,10 @@ assert.equal(columns(100, 180), 1);
         self.assertNotIn(
             "GlassCard {",
             main,
-            "Horizon Hub content must float directly over the wallpaper, with no "
-            "outer card, border, shadow or glass rectangle",
+            "Horizon Hub must share its material instead of nesting animated cards",
         )
+        self.assertIn("id: hubMaterial", main)
+        self.assertIn("root.design.glassFill(Kirigami.Theme.backgroundColor", main)
         glass_card = qml_by_path[DASHBOARD / "contents/ui/GlassCard.qml"]
         self.assertIn("property bool integrated: false", glass_card)
         self.assertIn("!card.integrated", glass_card)

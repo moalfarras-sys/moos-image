@@ -285,17 +285,30 @@ public sealed class SessionManager
     }
 
     /// <summary>Validate a token and slide its expiry forward. Returns false if missing/expired.</summary>
+    // Streaming frames must check revocation without making a forgotten viewer
+    // renew its own lease. Only authenticated control traffic touches the TTL.
+    public bool IsValid(string? token)
+    {
+        lock (_authGate)
+            return !string.IsNullOrEmpty(token)
+                && _tokens.TryGetValue(token, out var session)
+                && session.ExpiresAt > DateTimeOffset.UtcNow;
+    }
+
     public bool ValidateAndTouch(string? token)
     {
-        if (string.IsNullOrEmpty(token)) return false;
-        if (!_tokens.TryGetValue(token, out var s)) return false;
-        if (s.ExpiresAt <= DateTimeOffset.UtcNow)
+        lock (_authGate)
         {
-            _tokens.TryRemove(token, out _);
-            return false;
+            if (string.IsNullOrEmpty(token)) return false;
+            if (!_tokens.TryGetValue(token, out var s)) return false;
+            if (s.ExpiresAt <= DateTimeOffset.UtcNow)
+            {
+                _tokens.TryRemove(token, out _);
+                return false;
+            }
+            s.ExpiresAt = DateTimeOffset.UtcNow.Add(TimeSpan.FromMinutes(Math.Max(5, _cfg.TokenTtlMinutes)));
+            return true;
         }
-        s.ExpiresAt = DateTimeOffset.UtcNow.Add(TimeSpan.FromMinutes(Math.Max(5, _cfg.TokenTtlMinutes)));
-        return true;
     }
 
     public void Revoke(string? token)

@@ -6,7 +6,7 @@ import {normalizeContentPoint, normalizeRotatedPoint, projectPoint} from "../lib
 import { decodeJpeg, drawableSize, closeDrawable, canDecodeH264, H264Stream, type Drawable } from "../lib/decode";
 import {
   getClipboard, setClipboard, setClipboardImage, listFiles, fileDownloadUrl, audioStreamUrl, uploadFile, powerAction,
-  listTrustedDevices, revokeTrustedDevice,
+  listTrustedDevices, revokeTrustedDevice, SessionExpiredError,
   type ClipResult, type FileListing, type FileEntry, type PowerAction, type TrustedDeviceInfo,
 } from "../lib/api";
 import { pickStartPreset, readDeviceHints, describeHints, encodeWidth, autoPresetLimit,
@@ -405,6 +405,8 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
   const [kbOpen, setKbOpen] = useState(false);
   const [sheet, setSheet] = useState<Sheet>(null);
   const [trustedDevices, setTrustedDevices] = useState<TrustedDeviceInfo[] | null>(null);
+  const [trustedDevicesFailed, setTrustedDevicesFailed] = useState(false);
+  const [deviceLoadAttempt, setDeviceLoadAttempt] = useState(0);
   const [deviceBusy, setDeviceBusy] = useState("");
   const closeSheet = useCallback(() => setSheet(null), []);
   const [powerConfirm, setPowerConfirm] = useState<PendingPower | null>(null);
@@ -569,13 +571,18 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
     if (sheet !== "more") return;
     let live = true;
     setTrustedDevices(null);
+    setTrustedDevicesFailed(false);
     void listTrustedDevices(token).then(devices => {
       if (live) setTrustedDevices(devices);
-    }).catch(() => {
-      if (live) { setTrustedDevices([]); showToast(tr("trustedDevicesLoadFailed")); }
+    }).catch(error => {
+      // A failed request says nothing about which devices have access. Keep the
+      // unknown state instead of falsely reporting that the list is empty.
+      if (!live) return;
+      if (error instanceof SessionExpiredError) onAuthExpired();
+      else setTrustedDevicesFailed(true);
     });
     return () => { live = false; };
-  }, [sheet, token]);
+  }, [sheet, token, deviceLoadAttempt, onAuthExpired]);
 
   const revokeDevice = async (device: TrustedDeviceInfo) => {
     if (deviceBusy) return;
@@ -2661,8 +2668,12 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
           </div>
 
           <div className="sec-label">{tr("security")}</div>
-          <div className="card trusted-list" aria-busy={trustedDevices === null}>
-            {trustedDevices === null && <div className="card-pad muted" role="status">{tr("loadingTrustedDevices")}</div>}
+          <div className="card trusted-list" aria-busy={trustedDevices === null && !trustedDevicesFailed}>
+            {trustedDevicesFailed && <div className="card-pad">
+              <div role="alert">{tr("trustedDevicesLoadFailed")}</div>
+              <button className="btn" onClick={() => setDeviceLoadAttempt(attempt => attempt + 1)}>{tr("retry")}</button>
+            </div>}
+            {trustedDevices === null && !trustedDevicesFailed && <div className="card-pad muted" role="status">{tr("loadingTrustedDevices")}</div>}
             {trustedDevices?.length === 0 && <div className="card-pad muted">{tr("noRememberedDevices")}</div>}
             {trustedDevices?.map(device => (
               <div className="trusted-row" key={device.id}>

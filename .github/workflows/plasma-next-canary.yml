@@ -79,6 +79,9 @@ jobs:
       # never carries transaction residue, so this composed one is finalized the same way and
       # the files are printed first. MoOS's own gate is untouched: residue from build.sh's
       # transactions on the next Plasma still fails it.
+      # Beta 2 still ships no compatible kcm-fcitx5: explicitly remove this optional module
+      # without autoremove in this experimental base only. MoOS uses KWin's keyboard layouts;
+      # this must never erase KDE/authentication dependencies or skip the newest-version check.
       - name: Compose the base with the next Plasma
         run: |
           set -euo pipefail
@@ -87,6 +90,8 @@ jobs:
           cat > "$out/Containerfile" <<'CONTAINERFILE'
           FROM ghcr.io/ublue-os/kinoite-main:44
           RUN dnf5 -y copr enable @kdesig/kde-beta \
+           && if rpm -q kcm-fcitx5 >/dev/null 2>&1; then \
+                dnf5 -y remove --no-autoremove kcm-fcitx5; fi \
            && dnf5 -y distro-sync --refresh --allowerasing --best \
            && dnf5 clean all \
            && echo "rpm-state left by the base transaction:" \

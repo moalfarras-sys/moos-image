@@ -62,6 +62,14 @@ class SameImageNextPlasma(unittest.TestCase):
         tag = re.search(r"-t (localhost/moos-plasma-next-base:\S+)", workflow).group(1)
         self.assertIn(f"--from {tag}", workflow, "the MoOS build does not use the composed base")
 
+    def test_beta_abi_cleanup_is_scoped_to_the_optional_input_module(self):
+        workflow = code(CANARY)
+        self.assertIn("dnf5 -y remove --no-autoremove kcm-fcitx5", workflow)
+        removals = re.findall(r"dnf5 -y remove ([^\n]+)", workflow)
+        self.assertEqual(removals, ["--no-autoremove kcm-fcitx5; fi \\"])
+        self.assertLess(workflow.index("remove --no-autoremove kcm-fcitx5"),
+                        workflow.index("distro-sync --refresh --allowerasing --best"))
+
     def test_it_builds_what_the_release_builds(self):
         workflow = code(CANARY)
         self.assertIn("-f ./Containerfile", workflow)

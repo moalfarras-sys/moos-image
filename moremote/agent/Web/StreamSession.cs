@@ -103,6 +103,8 @@ public sealed class StreamSession
     private const int CodecDeclareGraceMs = 3000;
     private bool _inputConfirmed;
     private int _moveLogCounter;
+    private string _accessToken = "";
+    private volatile bool _authorizationLost;
     private long _lastRejectReport;
     private string _lastRejectReason = "";
     private long _lastKeyframeRequest;
@@ -128,6 +130,7 @@ public sealed class StreamSession
             await CloseQuietly(WebSocketCloseStatus.PolicyViolation, "unauthorized");
             return;
         }
+        _accessToken = token;
 
         // 2) Register the live session (this flips the on-screen banner).
         using var handle = _svc.State.Register(_remote);
@@ -208,11 +211,19 @@ public sealed class StreamSession
         // (a click is press-pause-release, Arabic borrows the clipboard through a subprocess), and
         // doing that on the socket reader made every ping queue behind it. See the enqueue site.
         var inject = InputLoop(ct);
-        var finished = await Task.WhenAny(send, recv, inject);
+        var authorization = AuthorizationLoop(ct);
+        var finished = await Task.WhenAny(send, recv, inject, authorization);
 
         linked.Cancel();
         _inputQueue.Writer.TryComplete();
-        try { await Task.WhenAll(send, recv, inject); } catch { /* expected on teardown */ }
+        try { await Task.WhenAll(send, recv, inject, authorization); } catch { /* expected on teardown */ }
+
+        if (_authorizationLost)
+        {
+            await SendJson(new { type = "error", error = "unauthorized" }, CancellationToken.None);
+            await CloseQuietly(WebSocketCloseStatus.PolicyViolation, "unauthorized");
+            return;
+        }
 
         if (handle.Token.IsCancellationRequested && !requestAborted.IsCancellationRequested)
             await SendJson(new { type = "stopped" }, CancellationToken.None);
@@ -241,6 +252,17 @@ public sealed class StreamSession
 
     // ---------------- send: frames + status ----------------
 
+    private async Task AuthorizationLoop(CancellationToken ct)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        while (await timer.WaitForNextTickAsync(ct))
+            if (!_svc.Sessions.IsValid(_accessToken))
+            {
+                _authorizationLost = true;
+                return;
+            }
+    }
+
     private async Task SendLoop(CancellationToken ct)
     {
         bool lastPaused = !_svc.State.IsPaused; // force an initial status emit
@@ -248,6 +270,11 @@ public sealed class StreamSession
         {
             while (!ct.IsCancellationRequested && _socket.State == WebSocketState.Open)
             {
+                if (!_svc.Sessions.IsValid(_accessToken))
+                {
+                    _authorizationLost = true;
+                    return;
+                }
                 if ((DateTimeOffset.UtcNow - _lastInput).TotalMinutes >= Math.Max(1, _svc.Config.IdleTimeoutMinutes))
                 {
                     Log.Info($"Session idle-timeout from {_remote}.");
@@ -325,7 +352,7 @@ public sealed class StreamSession
                     // So this drains, in order, and never decides. The dropping happens where it is
                     // safe — upstream of the encoder, in the helper's videorate.
                     if (!_screenOk) { _screenOk = true; await SendJson(new { type = "screen", available = true }, ct); }
-                    while (_watching && !_svc.State.IsPaused && _svc.Capture.Codec == "h264" &&
+                    while (_watching && !_svc.State.IsPaused && _svc.Sessions.IsValid(_accessToken) && _svc.Capture.Codec == "h264" &&
                         _encoded.TryDequeue(out var au))
                     {
                         await SendBinary(au, ct);
@@ -414,6 +441,11 @@ public sealed class StreamSession
 
     private async Task HandleMessage(string json, CancellationToken ct)
     {
+        if (!_svc.Sessions.ValidateAndTouch(_accessToken))
+        {
+            _authorizationLost = true;
+            return;
+        }
         JsonDocument doc;
         try { doc = JsonDocument.Parse(json); } catch { return; }
         using (doc)
@@ -653,6 +685,11 @@ public sealed class StreamSession
                         await _svc.InputControl.Gate.WaitAsync(ct);
                         try
                         {
+                            if (!_svc.Sessions.IsValid(_accessToken))
+                            {
+                                _authorizationLost = true;
+                                return;
+                            }
                             if (!ct.IsCancellationRequested && !_svc.State.IsPaused)
                             {
                                 if (_svc.InputControl.Owner != _id)

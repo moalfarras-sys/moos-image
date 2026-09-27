@@ -246,6 +246,7 @@ Eq(1, devices.Count, "trusted device appears in owner-visible inventory");
 Eq("Pixel 9", devices[0].Name, "device name strips control characters");
 Eq(true, devices[0].Current, "inventory marks the current device");
 Eq(true, restartedAuth.RevokeTrustedDevice(resumed, grant.DeviceId), "device can revoke itself");
+Eq(false, restartedAuth.IsValid(resumed), "revoked device loses an already-open streaming lease");
 Eq(false, restartedAuth.ResumeTrustedDevice(grant.DeviceId, grant.DeviceToken, out _), "revoked device cannot resume");
 Directory.Delete(trustDir, true);
 // ── Typing prefers real keymaps; unsupported Unicode has an ordered fallback ───────

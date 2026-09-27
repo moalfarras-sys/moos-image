@@ -260,12 +260,15 @@ run_with_engine() {
         fi
         case "$chosen" in
             com.usebottles.bottles)
-                # Its desktop entry declares these MIME types and uses Flatpak file
-                # forwarding (`@@u %u @@`), so going through the entry is what gets the
-                # path across the sandbox boundary — `flatpak run <id> <path>` would hand
-                # over a path the sandbox cannot see.
+                # A forwarded EXE alone hides adjacent installer payloads (data*.bin,
+                # CABs, etc.). Grant only its directory, read-only and for this launch;
+                # never persist a Downloads/HOME override. Keep file forwarding too.
+                local directory
+                directory="$(dirname -- "$target")"
+                ask "لتشغيل هذا البرنامج قد يحتاج ملفات التثبيت المجاورة له. نسمح بقراءة مجلده لهذه الجلسة فقط؟\n\n$directory\n\nThis program may need nearby installation files. Allow read-only access to its folder for this session?" || exit 0
                 notify "يشغّل $ar | opening $en"
-                setsid gtk-launch "$chosen" "$target" >/dev/null 2>&1 &
+                setsid flatpak run --filesystem="$directory:ro" --command=bottles \
+                    --file-forwarding "$chosen" @@u "$target" @@ >/dev/null 2>&1 &
                 ;;
             wine)
                 # Shipped in the image, so this is the ordinary path on a desktop MoOS

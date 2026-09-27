@@ -165,6 +165,7 @@ check:
     # P2.5: without a blur pass behind it, 0.22 alpha is a window, not glass. Proved
     # on a real Qt engine against a real kwinrc, both ways.
     python3 tests/test_moos_clarity_without_blur.py
+    python3 tests/test_windows_installer_folder.py
     python3 tests/test_material_state.py
     python3 tests/test_material_state_qml.py
     python3 tests/test_design_studio_reference.py

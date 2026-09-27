@@ -313,12 +313,19 @@ Item {
         onTriggered: isNaN(root.latitude) ? root.locate() : root.refreshForecast()
     }
 
-    // Horizon Hub: time, weather and system health float directly in the
-    // wallpaper composition. There is deliberately no outer card, border,
-    // shadow, scrim or blur layer here: the wallpaper remains visible through
-    // the complete instrument. The two hairline dividers are the only material
-    // marks outside the content and keep the three readings legible on both
-    // bright and dark parts of the wallpaper.
+    // Horizon Hub shares one material. Clear keeps the open wallpaper composition;
+    // balanced and solid visibly increase the painted background without dimming content.
+    Rectangle {
+        id: hubMaterial
+        anchors.fill: parent
+        visible: root.visibleCards > 0
+        radius: root.design.radiusPanel
+        color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
+                       Kirigami.Theme.backgroundColor.g,
+                       Kirigami.Theme.backgroundColor.b,
+                       root.design.glassFill(Kirigami.Theme.backgroundColor,
+                                             root.design.glassLevelScene, 0))
+    }
     RowLayout {
         anchors.fill: parent
         spacing: 0
