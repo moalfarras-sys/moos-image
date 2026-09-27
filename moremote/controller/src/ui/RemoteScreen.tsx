@@ -2447,7 +2447,8 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
 
       {/* Reserved controller chrome: a sibling grid track, never an overlay on streamed pixels. */}
       {!kbOpen && (
-        <div className={"toolbar" + (toolbar || sheet ? "" : " fade-toolbar")}>
+        <div className={"toolbar" + (toolbar || sheet ? "" : " fade-toolbar")}
+             inert={!(toolbar || sheet)} aria-hidden={!(toolbar || sheet)}>
           <div className="toolbar-primary" role="toolbar" aria-label={tr("remoteControlsAria")}>
             <button className="tbtn" onClick={openKeyboard}><IconKeyboard /><span>{tr("type")}</span></button>
             <button className="tbtn" onClick={() => { setSheet("clip"); getPcClip(); }}><IconClipboard /><span>{tr("clipboard")}</span></button>

@@ -220,10 +220,10 @@ Item {
             floatingApplets = true
         }
 
-        // Exceptions: panels with not NormalPanel visibilityMode
-        // should never de-float, and we should not have transparent
-        // panels when on X11 with compositing not active.
-        if (panel.visibilityMode != Panel.NormalPanel && floating) {
+        // MoOS keeps the configured floating capsule beside maximized windows.
+        // Window contact must not flatten its rounded corners or move icons.
+        // X11 without compositing still follows the upstream fallback below.
+        if (floating) {
             floatingnessTarget = 1
             floatingApplets = true
         }

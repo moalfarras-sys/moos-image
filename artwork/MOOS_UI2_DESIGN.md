@@ -182,6 +182,12 @@ is required. Any key/pointer action restores authentication immediately.
 
 ### Panel and launcher
 
+The configured floating bar remains a capsule beside maximized windows. Glass
+and solid density use the same 18 px SVG corner and mask geometry in every
+palette; solidity never inherits a different style. Icons remain fully opaque.
+The Hub owns one finite 220/320 ms reveal, including a setting-change preview;
+Still cancels it immediately. This is widget motion, not moving wallpaper.
+
 The Horizon panel is one quiet bottom command island. Its active applet is a lit
 slot, never a bordered box. The launcher presents primary destinations once;
 secondary actions stay visually quiet. Popups inherit the same material and

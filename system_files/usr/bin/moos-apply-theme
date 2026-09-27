@@ -337,7 +337,9 @@ set -uo pipefail
 # 88: Palette icon families gain circular and faceted plates. Reapply the icon
 #     theme and clear KDE's icon cache on existing accounts after the new image.
 # 89/90: live dock/Hub material; clarity also wins beside maximized windows.
-THEME_REV=90
+# 91–95: rounded solid dock artwork, stable floating geometry and finite
+#     shared-Hub motion; invalidate frozen-mtime shell caches.
+THEME_REV=95
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"
