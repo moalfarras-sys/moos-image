@@ -10,9 +10,9 @@ Current measured facts only; Git owns history. Release version numbers live here
   Audio refuses buffered output after revocation and cancels idle connections within one
   second; 150 real session/stream assertions pass, Linux/Windows compile cleanly.
 - **The NVIDIA station still boots signed `44.20260925.938`** (`51371190`), with signed
-  `.931` retained for rollback; `.941` was staged. On 2026-09-27 the sanctioned updater
-  resolved `.945` (`sha256:b09cdc48…`) and began replacing that older staged update.
-  Completion, reboot and live material/Remote readback are not yet proven.
+  `.931` retained for rollback. On 2026-09-27 the sanctioned updater successfully replaced
+  staged `.941` with signed `.945` (`sha256:b09cdc48…`), exit 0; status reads staged=true
+  and transaction=null. Reboot and live material/Remote readback are not yet proven.
 - Baloo's scoped `QT_ENABLE_REGEXP_JIT=0` recovered indexing. Three failed Generals app
   units record explicitly stopped test launches (exit 137); no game process remains.
   Installed Settings opened the MoOS group and Themes/What's New modules previously.
