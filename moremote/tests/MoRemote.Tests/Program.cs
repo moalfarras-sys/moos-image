@@ -384,6 +384,9 @@ Eq(true, HostBudget.Parse(null) is null, "an absent budget is no opinion");
     Directory.Delete(stateDir, recursive: true);
 }
 
+try { passed += await ShellFreshnessTests.Run(); }
+catch (Exception error) { Console.Error.WriteLine(error); Environment.ExitCode = 1; return; }
+
 Console.WriteLine($"PASS: {passed} mapping/validation/Unicode tests");
 
 sealed class FailingReadStream : Stream

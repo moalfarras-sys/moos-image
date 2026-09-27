@@ -856,7 +856,7 @@ esac
         self.assertIn("current: root.currentMotion", page)
         self.assertIn("readonly property bool selected: segment.modelData.value === choice.current", choice)
         self.assertNotIn("checkable: true", choice.replace("Accessible.checkable: true", ""))
-        self.assertIn('root.t("حركة الخلفية", "Wallpaper motion")', page)
+        self.assertIn('root.t("حركة الويجت", "Widget motion")', page)
         self.assertNotIn("حركة الخلفية  ·  Wallpaper motion", page)
         # Icons come from MoOS's own symbol catalogue, never an inherited name.
         for binding in re.findall(r"icon\.name:\s*([^\n]+)", page):

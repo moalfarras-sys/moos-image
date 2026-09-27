@@ -41,6 +41,15 @@ class MotionContract(unittest.TestCase):
         ], text=True, capture_output=True, timeout=25)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    @unittest.skipUnless(Path("/usr/bin/moos-qml-shell").exists(), "native Qt runtime required")
+    def test_shared_hub_reveal_can_be_interrupted_and_stopped(self):
+        result = subprocess.run([
+            "python3", str(ROOT / "build_files/verify_moos_motion.py"),
+            "--qml", str(ROOT / "tests/qml/hub-motion-review.qml"),
+            "--imports", str(ROOT / "system_files/usr/lib64/qt6/qml"),
+        ], text=True, capture_output=True, timeout=25)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -873,7 +873,7 @@ class TestMoOSUI2(unittest.TestCase):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=90", apply,
+            "THEME_REV=95", apply,
             "existing v85 users would keep the cached Island that imports the retired Search "
             "applet and shows no Mo AI jobs, the launcher with three settings tiles, and a home "
             "copy of the MoOS task switcher; "
@@ -1666,6 +1666,21 @@ class TestMoOSUI2(unittest.TestCase):
                     max(panel_opacities), 0.93,
                     "the dock glass becomes effectively opaque and hides KWin blur",
                 )
+
+        # Density must never change the corners or the KWin blur region.
+        for style in (SHARE / "plasma/desktoptheme").glob("MoOSUI2*"):
+            glass = ET.parse(style / "widgets/panel-background.svg").getroot()
+            solid_path = style / "solid/widgets/panel-background.svg"
+            self.assertTrue(solid_path.is_file(), f"{style.name} must own solid panel art")
+            solid = ET.parse(solid_path).getroot()
+            def masks(tree):
+                return {element.get("id"): ET.tostring(element)
+                        for element in tree.iter()
+                        if (element.get("id") or "").startswith("mask-")}
+            self.assertEqual(masks(glass), masks(solid), style.name)
+            stops = [element.get("stop-opacity") for element in solid.iter()
+                     if element.tag.endswith("}stop")]
+            self.assertEqual(stops, ["1"] * 4, style.name)
 
         for names in VARIANTS.values():
             dialog_path = (SHARE / "plasma/desktoptheme"

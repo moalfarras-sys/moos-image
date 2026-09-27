@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // kcm_moos_appearance — MoOS Themes, the first page of Appearance & Style. It replaces the
 // separate MoOS Themes window: the sixteen MoOS looks with their own previews, apply and
-// undo, the desktop canvas image, glass clarity and wallpaper motion, and the native pages
+// undo, the desktop canvas image, glass clarity and widget motion, and the native pages
 // for fine control.
 //
 // Every change is one fixed verb of the shared backend (kcm.runFixed), which runs
@@ -270,7 +270,7 @@ KCM.SimpleKCM {
         case "undo": return t("جارٍ العودة إلى المظهر السابق…", "Going back to the previous look…")
         case "canvas": return t("جارٍ وضع الصورة على مساحة العمل…", "Placing your image on the desktop canvas…")
         case "canvas-reset": return t("جارٍ استعادة خلفية المظهر…", "Bringing back the look's own wallpaper…")
-        case "motion": return t("جارٍ ضبط حركة الخلفية…", "Setting wallpaper motion…")
+        case "motion": return t("جارٍ ضبط حركة الويجت…", "Setting widget motion…")
         case "clarity": return t("جارٍ ضبط وضوح الزجاج…", "Setting glass clarity…")
         }
         return ""
@@ -281,7 +281,7 @@ KCM.SimpleKCM {
         case "undo": return t("عاد المظهر السابق وتم التحقق منه", "The previous look is back and verified")
         case "canvas": return t("تم تحديث مساحة العمل والتحقق منها", "Desktop canvas updated and verified")
         case "canvas-reset": return t("عادت خلفية المظهر وتم التحقق منها", "The look's own wallpaper is back and verified")
-        case "motion": return t("حركة الخلفية الآن: ", "Wallpaper motion is now ") + motionName(expected)
+        case "motion": return t("حركة الويجت الآن: ", "Widget motion is now ") + motionName(expected)
         case "clarity": return t("وضوح الزجاج الآن: ", "Glass clarity is now ") + clarityName(expected)
         }
         return ""
@@ -316,7 +316,7 @@ KCM.SimpleKCM {
         case "undo": return t("لم يكتمل التراجع.", "Undo did not complete.")
         case "canvas": return t("تعذّر وضع الصورة على مساحة العمل.", "The image could not be placed on the desktop canvas.")
         case "canvas-reset": return t("تعذّرت استعادة خلفية المظهر.", "The look's own wallpaper could not be brought back.")
-        case "motion": return t("تعذّر تغيير حركة الخلفية.", "Wallpaper motion could not be changed.")
+        case "motion": return t("تعذّر تغيير حركة الويجت.", "Widget motion could not be changed.")
         case "clarity": return t("تعذّر تغيير وضوح الزجاج.", "Glass clarity could not be changed.")
         }
         return t("تعذّر إكمال التغيير.", "The change could not be completed.")
@@ -334,8 +334,8 @@ KCM.SimpleKCM {
         return t("تعذّرت قراءة المظهر الحالي.", "The current look could not be read.")
     }
     readonly property string heroSummary: currentEntry ? (rtl ? currentEntry.summaryAr : currentEntry.summaryEn)
-                                                       : t("اختر مظهراً، ثم صورة مساحة العمل ووضوح الزجاج وحركة الخلفية.",
-                                                           "Pick a look, then its desktop canvas, glass clarity and wallpaper motion.")
+                                                       : t("اختر مظهراً، ثم صورة مساحة العمل ووضوح الزجاج وحركة الويجت.",
+                                                           "Pick a look, then its desktop canvas, glass clarity and widget motion.")
 
     // This watchdog never stops moos-theme: an interrupted transaction could leave half of
     // two looks. The page says it is taking longer, keeps every other change and page
@@ -708,12 +708,12 @@ KCM.SimpleKCM {
             FormCard.FormDelegateSeparator {}
             ChoiceRow {
                 glyph: "wave"
-                text: root.t("حركة الخلفية", "Wallpaper motion")
+                text: root.t("حركة الويجت", "Widget motion")
                 description: root.motionReadable
-                    ? root.t("اختر مستوى الهدوء والحيوية لخلفية MoOS الحية.",
-                             "How calm or lively the MoOS live wallpaper is.")
-                    : root.t("تعذّرت قراءة حركة الخلفية؛ تعمل مع خلفية MoOS الحية فقط.",
-                             "Wallpaper motion could not be read; it works with the MoOS live wallpaper only.")
+                    ? root.t("انتقال قصير عند ظهور الويجت أو تغيير الحركة؛ ساكن يوقفه.",
+                             "A short reveal when widgets appear or motion changes; Still disables it.")
+                    : root.t("تعذّرت قراءة حركة الويجت؛ تعمل مع خلفية MoOS الحية فقط.",
+                             "Widget motion could not be read; it works with the MoOS live wallpaper only.")
                 options: [
                     { value: "still", label: root.t("ساكن", "Still") },
                     { value: "gentle", label: root.t("هادئ", "Gentle") },

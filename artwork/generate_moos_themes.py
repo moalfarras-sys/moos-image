@@ -397,6 +397,7 @@ def build_desktoptheme(key: str, meta: dict) -> None:
     if meta.get("light"):
         _register_palette(key)
         gen.render_panel(dst / "widgets/panel-background.svg", key, light=True)
+        gen.render_panel(dst / "solid/widgets/panel-background.svg", key, light=True, solid=True)
         gen.render_dialog(dst / "dialogs/background.svg", key, light=True)
     plasma_surfaces.refine_task_surface(dst / "widgets/tasks.svg")
     # fresh metadata + plasmarc + colors

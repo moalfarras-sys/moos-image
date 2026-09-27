@@ -289,6 +289,14 @@ Item {
         return L.local("غائم", "Cloudy")
     }
 
+    // Integrated cards share one finite reveal; changing the policy previews it.
+    opacity: 0.82 + 0.18 * hubReveal.progress
+    transform: Translate { y: (1 - hubReveal.progress) * root.design.space3 }
+    HubReveal {
+        id: hubReveal
+        motionEnabled: root.motionEnabled
+        motionLevel: root.resolvedMotionMode
+    }
     Component.onCompleted: root.locate()
 
     Timer {

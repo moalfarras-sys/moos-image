@@ -1,5 +1,4 @@
 # MoOS current state — measured 2026-09-27
-Current measured facts only; Git owns history. Release version numbers live here.
 
 ## Source and release truth
 - **Proven production is `e6fbd56c`, `44.20260927.945`**: signed build `36297160647`,
@@ -9,13 +8,15 @@ Current measured facts only; Git owns history. Release version numbers live here
   reports trusted-device failures honestly, and video/input/audio follow session revocation.
   Audio refuses buffered output after revocation and cancels idle connections within one
   second; 150 real session/stream assertions pass, Linux/Windows compile cleanly.
-- **The NVIDIA station still boots signed `44.20260925.938`** (`51371190`), with signed
-  `.931` retained for rollback. On 2026-09-27 the sanctioned updater successfully replaced
-  staged `.941` with signed `.945` (`sha256:b09cdc48…`), exit 0; status reads staged=true
-  and transaction=null. Reboot and live material/Remote readback are not yet proven.
-- Baloo's scoped `QT_ENABLE_REGEXP_JIT=0` recovered indexing. Three failed Generals app
-  units record explicitly stopped test launches (exit 137); no game process remains.
-  Installed Settings opened the MoOS group and Themes/What's New modules previously.
+- **The NVIDIA station now boots signed `44.20260927.945`** (`e6fbd56c`), with signed
+  `.938` retained for rollback; digest `sha256:b09cdc48…`. Live post-update check:
+  **55 passed, 0 failed**, zero failed system/user units on 2026-09-27.
+- Corrective THEME_REV 95 source keeps the configured floating capsule beside maximized
+  windows, adds matching rounded solid artwork in all palettes and restores one finite Hub
+  reveal with interruption/Still/re-enable proof. Plasma SVG frame render and 44 UI tests pass.
+  Remote's shared shell policy avoids frozen-mtime HTTP validators; real StaticFiles tests
+  receive changed same-size worker bytes (158 assertions). Remote v45 real-stream preview:
+  Hidden tools leave focus; settings opens. Not delivered; two-icon proposal awaits design approval.
 - **P0.7 is no longer only a captured stack.** Read out of plymouth 24.004.60's source on
   2026-09-21: `ply_boot_splash_free()` frees `pixel_displays` without disarming the
   `on_new_frame` timeout that only `ply_boot_splash_hide()` disarms, and `--retain-splash`
@@ -35,7 +36,6 @@ movement and saving worked. Its local MoOS menu entry launches directly, but som
 attempts stay on the introductory background, also with the builtin renderer. The tested
 DXVK configuration and save remain; all owned probes are closed. Repeated-launch/universal
 Windows qualification and this corrective batch's physical-station proof remain open.
-
 
 **All three app engines ran on the station (2026-09-20).** Windows Notepad, Minesweeper
 and PuTTY PE32+ used `moos-run-foreign` with MoOS decoration and taskbar presence; Linux
@@ -58,7 +58,7 @@ DLL from composefs; do not weaken SELinux globally.
 | Network | Intel AX210 Wi-Fi/Bluetooth + RTL8125 Ethernet |
 | Health | Baloo recovered; post-update 55/0; powersave changed to balanced, turbo read back enabled |
 
-Measured after reboot onto the current signed image: installed `THEME_REV` **87**
+Measured on the previous `.938`: installed `THEME_REV` **87**
 and its existing-account marker, current Global Theme `org.moos.ui2.gaming`,
 `kwinrc/Plugins/blurEnabled=true`, Arabic session (`ar_SA.UTF-8`). The W8/W9
 image is running and passed live post-update checks;

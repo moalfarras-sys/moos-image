@@ -31,6 +31,7 @@
     <Compile Include="../agent/Core/UserSettings.cs" Link="Core/UserSettings.cs" />
     <Compile Include="../agent/Web/AgentServices.cs" Link="Web/AgentServices.cs" />
     <Compile Include="../agent/Web/StreamSession.cs" Link="Web/StreamSession.cs" />
+    <Compile Include="../agent/Web/ShellFreshness.cs" Link="Web/ShellFreshness.cs" />
     <Compile Include="../agent/Web/WebApi.cs" Link="Web/WebApi.cs" />
   </ItemGroup>
   <ItemGroup>

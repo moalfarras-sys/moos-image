@@ -84,7 +84,7 @@ var app=builder.Build(); WebApi.UseNetworkGuard(app,svc); // Both values, becaus
 app.UseWebSockets(new WebSocketOptions {
     KeepAliveInterval = TimeSpan.FromSeconds(15),
     KeepAliveTimeout  = TimeSpan.FromSeconds(20),
-}); app.UseDefaultFiles(); app.UseStaticFiles(); WebApi.Map(app,svc); app.MapFallbackToFile("index.html");
+}); ShellFreshness.Use(app); app.UseDefaultFiles(); app.UseStaticFiles(); WebApi.Map(app,svc); app.MapFallbackToFile("index.html");
 Log.Info($"Linux server listening on loopback: http://127.0.0.1:{config.Port} (publish with Tailscale Serve)");
 await app.StartAsync();
 

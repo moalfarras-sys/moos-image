@@ -279,7 +279,8 @@ def _glass_opacity(variant: str, light: bool | None) -> dict[str, str]:
     return OPACITY["light" if light else "dark"]
 
 
-def render_panel(target: pathlib.Path, variant: str, light: bool | None = None) -> None:
+def render_panel(target: pathlib.Path, variant: str, light: bool | None = None,
+                 solid: bool = False) -> None:
     tokens = variant_roles(variant)
     text = (ART / "plasma/panel-background.svg.in").read_text(encoding="utf-8")
     substitutions = {
@@ -289,6 +290,10 @@ def render_panel(target: pathlib.Path, variant: str, light: bool | None = None) 
         "@PANEL_MID@": tokens["panel_mid"], "@PANEL_BOTTOM@": tokens["panel_bottom"],
         **_glass_opacity(variant, light),
     }
+    # Plasma resolves solid/ separately. Keep the same corners and blur mask;
+    # falling back to another style here changes the dock silhouette at clarity 1.
+    if solid:
+        substitutions.update({f"@GLASS_P{i}@": "1" for i in range(4)})
     write(target, rewrite_text(text, substitutions))
 
 
@@ -745,6 +750,7 @@ def generate_desktop_theme(variant: str, backup_root: pathlib.Path) -> None:
     scheme = color_scheme(variant)
     write(target / "colors", scheme)
     render_panel(target / "widgets/panel-background.svg", variant)
+    render_panel(target / "solid/widgets/panel-background.svg", variant, solid=True)
     render_dialog(target / "dialogs/background.svg", variant)
     plasma_surfaces.render_surface_suite(target, variant_roles(variant))
     plasma_surfaces.refine_task_surface(target / "widgets/tasks.svg")

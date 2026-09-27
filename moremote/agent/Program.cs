@@ -102,19 +102,7 @@ internal static class Program
         var app = builder.Build();
         WebApi.UseNetworkGuard(app, services);   // gate everything, incl. static files
 
-        // Never cache index.html / manifest / service worker so UI updates always reach the
-        // phone (JS/CSS assets are content-hashed, so the browser caches those safely).
-        app.Use(async (ctx, next) =>
-        {
-            ctx.Response.OnStarting(() =>
-            {
-                var p = ctx.Request.Path.Value ?? "";
-                if (p == "/" || p.EndsWith(".html") || p.EndsWith("manifest.webmanifest") || p.EndsWith("sw.js"))
-                    ctx.Response.Headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
-                return Task.CompletedTask;
-            });
-            await next();
-        });
+        ShellFreshness.Use(app);
 
         // See the Linux Program.cs for the reasoning: KeepAliveTimeout defaults to InfiniteTimeSpan, so
         // the interval on its own sends a ping and then waits for ever. Both, or neither works.

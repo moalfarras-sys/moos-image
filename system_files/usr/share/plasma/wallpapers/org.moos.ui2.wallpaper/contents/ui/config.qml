@@ -121,7 +121,7 @@ Kirigami.FormLayout {
     // while the dialog is open) still moves the control.
     QQC2.ComboBox {
         id: motionBox
-        Kirigami.FormData.label: "الحركة  ·  Motion:"
+        Kirigami.FormData.label: "حركة الويجت  ·  Widget motion:"
         // The same three words the MoOS Theme Picker uses, in the same order, so
         // the two places a user can change this cannot disagree.
         model: ["ساكن | Still", "هادئ | Gentle", "حيّ | Alive"]
@@ -138,9 +138,9 @@ Kirigami.FormLayout {
 
     QQC2.Label {
         Layout.maximumWidth: Kirigami.Units.gridUnit * 22
-        text: "ساكن يوقف كل حركة متكررة. هادئ هو الوضع الافتراضي الهادئ. حيّ يضيف لمعان البطاقات ونبض المؤشرات.\n"
-              + "Still stops every looping animation. Gentle is the calm default. "
-              + "Alive adds the card sheen and the system beacon's pulse."
+        text: "ساكن يوقف الحركة. هادئ يعرض الويجت بانتقال قصير، وحيّ يطيل الانتقال ويضيف نبض مؤشر الحالة.\n"
+              + "Still disables motion. Gentle reveals the widgets briefly. "
+              + "Alive uses a longer reveal and the status beacon's pulse."
         wrapMode: Text.WordWrap
         opacity: 0.7
     }
